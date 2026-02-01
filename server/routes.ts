@@ -1006,11 +1006,10 @@ export async function registerRoutes(
       .replace(/\/+$/, "");
   };
 
-  // Get repository contents (files and folders)
-  app.get("/api/github/repos/:owner/:repo/contents", requireAdmin, async (req: any, res) => {
+  // Get repository branches
+  app.get("/api/github/repos/:owner/:repo/branches", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const path = sanitizePath((req.query.path as string) || "");
       const token = req.adminUser.githubToken;
       
       if (!token) {
@@ -1018,7 +1017,48 @@ export async function registerRoutes(
       }
 
       const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        `https://api.github.com/repos/${owner}/${repo}/branches`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+            "User-Agent": "Salvi-Framework"
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        return res.status(response.status).json({ error: error.message || "GitHub API error" });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, branches: data.map((b: any) => ({ name: b.name, protected: b.protected })) });
+    } catch (error) {
+      console.error("GitHub branches error:", error);
+      res.status(500).json({ error: "Failed to fetch branches" });
+    }
+  });
+
+  // Get repository contents (files and folders)
+  app.get("/api/github/repos/:owner/:repo/contents", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const path = sanitizePath((req.query.path as string) || "");
+      const branch = (req.query.branch as string) || "";
+      const token = req.adminUser.githubToken;
+      
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const url = new URL(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+      if (branch) {
+        url.searchParams.set("ref", branch);
+      }
+
+      const response = await fetch(
+        url.toString(),
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1046,14 +1086,20 @@ export async function registerRoutes(
     try {
       const { owner, repo } = req.params;
       const path = sanitizePath((req.query.path as string) || "");
+      const branch = (req.query.branch as string) || "";
       const token = req.adminUser.githubToken;
       
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
       }
 
+      const url = new URL(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+      if (branch) {
+        url.searchParams.set("ref", branch);
+      }
+
       const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        url.toString(),
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1106,7 +1152,8 @@ export async function registerRoutes(
         path: z.string().min(1),
         content: z.string(),
         message: z.string().min(1),
-        sha: z.string().optional() // Required for updates, not for creates
+        sha: z.string().optional(), // Required for updates, not for creates
+        branch: z.string().optional() // Target branch
       });
       
       const parsed = schema.safeParse(req.body);
@@ -1114,7 +1161,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
 
-      const { path: rawPath, content, message, sha } = parsed.data;
+      const { path: rawPath, content, message, sha, branch } = parsed.data;
       const filePath = sanitizePath(rawPath);
       const encodedContent = Buffer.from(content).toString("base64");
 
@@ -1124,6 +1171,9 @@ export async function registerRoutes(
       };
       if (sha) {
         body.sha = sha;
+      }
+      if (branch) {
+        body.branch = branch;
       }
 
       const response = await fetch(
@@ -1170,7 +1220,8 @@ export async function registerRoutes(
       const schema = z.object({
         path: z.string().min(1),
         message: z.string().min(1),
-        sha: z.string()
+        sha: z.string(),
+        branch: z.string().optional()
       });
       
       const parsed = schema.safeParse(req.body);
@@ -1178,8 +1229,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
 
-      const { path: rawPath, message, sha } = parsed.data;
+      const { path: rawPath, message, sha, branch } = parsed.data;
       const filePath = sanitizePath(rawPath);
+
+      const deleteBody: any = { message, sha };
+      if (branch) {
+        deleteBody.branch = branch;
+      }
 
       const response = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
@@ -1191,7 +1247,7 @@ export async function registerRoutes(
             "Content-Type": "application/json",
             "User-Agent": "Salvi-Framework"
           },
-          body: JSON.stringify({ message, sha })
+          body: JSON.stringify(deleteBody)
         }
       );
 
