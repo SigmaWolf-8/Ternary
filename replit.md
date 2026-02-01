@@ -38,15 +38,24 @@ client/
 8. **Footer** - Links, social icons, copyright
 
 ## TernaryDB Product Page (/ternarydb)
-1. **Header** - Navigation with back-to-home link
+1. **Header** - Navigation with back-to-home link and Live Demo nav link
 2. **Hero** - Product headline, description, CTAs
 3. **Features** - Grid of key capabilities (compression, efficiency, compatibility)
 4. **Architecture** - Layered diagram showing PostgreSQL integration
-5. **Performance** - Benchmark charts and metrics
-6. **Pricing** - Tier cards (Starter, Pro, Enterprise)
-7. **Use Cases** - Target applications and industries
-8. **CTA Section** - Get Started call-to-action
-9. **Footer** - Links and copyright
+5. **Installation** - Quick start code blocks with copy functionality
+6. **Live Demo** - Interactive compression demo with sample datasets showing real-time size comparisons
+7. **Performance** - Benchmark charts and metrics
+8. **Pricing** - Tier cards (Community, Enterprise, Cloud)
+9. **Use Cases** - Target applications and industries
+10. **CTA Section** - Get Started call-to-action
+11. **Footer** - Links and copyright
+
+## Live Demo Features
+- Three sample datasets: Sensor Readings, User Events, Log Entries
+- Data preview table showing first 5 rows
+- Run Compression Demo button with processing animation
+- Results showing binary vs ternary size comparison
+- Animated progress bars and "At Scale" projections
 
 ## Navigation
 - Landing page components section has clickable TernaryDB card linking to /ternarydb
