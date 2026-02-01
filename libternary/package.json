@@ -1,0 +1,51 @@
+{
+  "name": "libternary",
+  "version": "1.0.0",
+  "description": "Salvi Framework Core Library - Bijective Ternary Logic for Post-Quantum Applications",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests yet\" && exit 0",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ternary",
+    "post-quantum",
+    "cryptography",
+    "salvi",
+    "bijective",
+    "femtosecond",
+    "phase-encryption"
+  ],
+  "author": "Capomastro Holdings Ltd",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SigmaWolf-8/Ternary.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SigmaWolf-8/Ternary/issues"
+  },
+  "homepage": "https://github.com/SigmaWolf-8/Ternary#readme",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}
