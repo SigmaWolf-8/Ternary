@@ -1215,6 +1215,10 @@ export async function registerRoutes(
   // Get user admin status
   app.get("/api/user/admin-status", async (req: any, res) => {
     try {
+      // Prevent caching so admin status is always fresh
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      
       if (!req.isAuthenticated?.() || !req.user) {
         return res.json({ isAdmin: false, authenticated: false });
       }
