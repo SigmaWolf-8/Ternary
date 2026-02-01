@@ -3,11 +3,12 @@
  * 
  * Implements the Femtosecond Temporal Resolution from the whitepaper:
  * - Temporal Resolution: 10⁻¹⁵ seconds (1 femtosecond)
- * - 128-bit integer representing femtoseconds since 2024-01-01T00:00:00Z
+ * - 128-bit integer representing femtoseconds since 2025-04-01T00:00:00Z (Salvi Epoch)
  * - Hierarchical Precision Time Protocol (HPTP) compatible
  */
 
-export const SALVI_EPOCH = new Date('2024-01-01T00:00:00.000Z').getTime();
+// Salvi Epoch: April 1, 2025 - Day Zero
+export const SALVI_EPOCH = new Date('2025-04-01T00:00:00.000Z').getTime();
 export const FEMTOSECONDS_PER_MILLISECOND = 1_000_000_000_000n;
 export const FEMTOSECONDS_PER_SECOND = 1_000_000_000_000_000n;
 
