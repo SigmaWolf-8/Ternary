@@ -24,7 +24,7 @@ client/
 
 ## Theme Colors
 - Background: Deep navy blue (#0a192f equivalent)
-- Accent/Primary: Teal (#00d4aa equivalent)
+- Accent/Primary: Baby blue (#7cc5e6 equivalent)
 - Text: Light blue-gray for primary, muted for secondary
 
 ## Landing Page Sections
