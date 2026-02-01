@@ -40,16 +40,20 @@ interface TableOfContentsItem {
   level: number;
 }
 
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 function parseMarkdownToHTML(markdown: string): string {
   let html = markdown;
   
-  html = html.replace(/^### \*\*(.+?)\*\*$/gm, '<h3 class="text-xl font-bold text-foreground mt-8 mb-4">$1</h3>');
-  html = html.replace(/^## \*\*(.+?)\*\*$/gm, '<h2 class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20">$1</h2>');
-  html = html.replace(/^# \*\*(.+?)\*\*$/gm, '<h1 class="text-3xl font-bold text-foreground mt-12 mb-8">$1</h1>');
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-xl font-semibold text-foreground mt-8 mb-4">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-foreground mt-12 mb-8">$1</h1>');
-  html = html.replace(/^#### (.+)$/gm, '<h4 class="text-lg font-semibold text-foreground mt-6 mb-3">$1</h4>');
+  html = html.replace(/^### \*\*(.+?)\*\*$/gm, (_, title) => `<h3 id="${slugify(title)}" class="text-xl font-bold text-foreground mt-8 mb-4 scroll-mt-24">${title}</h3>`);
+  html = html.replace(/^## \*\*(.+?)\*\*$/gm, (_, title) => `<h2 id="${slugify(title)}" class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20 scroll-mt-24">${title}</h2>`);
+  html = html.replace(/^# \*\*(.+?)\*\*$/gm, (_, title) => `<h1 id="${slugify(title)}" class="text-3xl font-bold text-foreground mt-12 mb-8 scroll-mt-24">${title}</h1>`);
+  html = html.replace(/^### (.+)$/gm, (_, title) => `<h3 id="${slugify(title)}" class="text-xl font-semibold text-foreground mt-8 mb-4 scroll-mt-24">${title}</h3>`);
+  html = html.replace(/^## (.+)$/gm, (_, title) => `<h2 id="${slugify(title)}" class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20 scroll-mt-24">${title}</h2>`);
+  html = html.replace(/^# (.+)$/gm, (_, title) => `<h1 id="${slugify(title)}" class="text-3xl font-bold text-foreground mt-12 mb-8 scroll-mt-24">${title}</h1>`);
+  html = html.replace(/^#### (.+)$/gm, (_, title) => `<h4 id="${slugify(title)}" class="text-lg font-semibold text-foreground mt-6 mb-3 scroll-mt-24">${title}</h4>`);
   
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -74,17 +78,17 @@ function extractTableOfContents(content: string): TableOfContentsItem[] {
   const items: TableOfContentsItem[] = [];
   const lines = content.split('\n');
   
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
     const h1Match = line.match(/^# \*\*(.+?)\*\*$/) || line.match(/^# (.+)$/);
     const h2Match = line.match(/^## \*\*(.+?)\*\*$/) || line.match(/^## (.+)$/);
     const h3Match = line.match(/^### \*\*(.+?)\*\*$/) || line.match(/^### (.+)$/);
     
     if (h1Match) {
-      items.push({ id: `section-${index}`, title: h1Match[1], level: 1 });
+      items.push({ id: slugify(h1Match[1]), title: h1Match[1], level: 1 });
     } else if (h2Match) {
-      items.push({ id: `section-${index}`, title: h2Match[1], level: 2 });
+      items.push({ id: slugify(h2Match[1]), title: h2Match[1], level: 2 });
     } else if (h3Match) {
-      items.push({ id: `section-${index}`, title: h3Match[1], level: 3 });
+      items.push({ id: slugify(h3Match[1]), title: h3Match[1], level: 3 });
     }
   });
   
@@ -180,44 +184,70 @@ export default function WhitepaperPage() {
               <p className="text-muted-foreground">The whitepaper is being prepared and will be available soon.</p>
             </div>
           ) : (
+            <>
+            <div className="lg:hidden mb-6">
+              <Card className="p-4 border-primary/10 bg-card/70 backdrop-blur-sm">
+                <button
+                  onClick={() => setShowToc(!showToc)}
+                  className="w-full flex items-center justify-between"
+                  data-testid="button-mobile-toc"
+                >
+                  <h3 className="font-semibold text-foreground flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    Table of Contents
+                  </h3>
+                  {showToc ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-primary" />}
+                </button>
+                
+                {showToc && (
+                  <nav className="mt-4 space-y-1 max-h-[50vh] overflow-y-auto">
+                    {tableOfContents.filter(item => item.level <= 2).map((item, index) => (
+                      <button
+                        key={`mobile-${item.id}-${index}`}
+                        onClick={() => {
+                          scrollToSection(item.id);
+                          setShowToc(false);
+                        }}
+                        className={`block w-full text-left py-1.5 text-sm hover:text-primary transition-colors ${
+                          item.level === 1 ? 'font-semibold text-foreground border-l-2 border-primary pl-3' :
+                          'pl-6 text-muted-foreground'
+                        }`}
+                      >
+                        {item.title}
+                      </button>
+                    ))}
+                  </nav>
+                )}
+              </Card>
+            </div>
+
             <div className="flex gap-8">
               <aside className="hidden lg:block w-72 flex-shrink-0">
                 <div className="sticky top-24">
-                  <Card className="p-4 border-primary/10 bg-card/70 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold text-foreground flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-primary" />
-                        Contents
-                      </h3>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => setShowToc(!showToc)}
-                        data-testid="button-toggle-toc"
-                      >
-                        {showToc ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </Button>
-                    </div>
+                  <Card className="p-4 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="toc-sidebar">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      Table of Contents
+                    </h3>
                     
-                    {showToc && (
-                      <nav className="space-y-1 max-h-[60vh] overflow-y-auto pr-2">
-                        {tableOfContents.slice(0, 20).map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => scrollToSection(item.id)}
-                            className={`block w-full text-left text-sm hover:text-primary transition-colors ${
-                              item.level === 1 ? 'font-semibold text-foreground' :
-                              item.level === 2 ? 'pl-3 text-muted-foreground' :
-                              'pl-6 text-muted-foreground/70 text-xs'
-                            }`}
-                            data-testid={`toc-item-${item.id}`}
-                          >
-                            {item.title.length > 40 ? item.title.slice(0, 40) + '...' : item.title}
-                          </button>
-                        ))}
-                      </nav>
-                    )}
+                    <nav className="space-y-0.5 max-h-[65vh] overflow-y-auto pr-2 scrollbar-thin">
+                      {tableOfContents.map((item, index) => (
+                        <button
+                          key={`${item.id}-${index}`}
+                          onClick={() => scrollToSection(item.id)}
+                          className={`block w-full text-left py-1 hover:text-primary transition-colors ${
+                            item.level === 1 
+                              ? 'font-semibold text-foreground text-sm border-l-2 border-primary pl-3 mt-3 first:mt-0' 
+                              : item.level === 2 
+                              ? 'pl-4 text-muted-foreground text-sm' 
+                              : 'pl-7 text-muted-foreground/80 text-xs'
+                          }`}
+                          data-testid={`toc-item-${item.id}`}
+                        >
+                          {item.title.length > 35 ? item.title.slice(0, 35) + '...' : item.title}
+                        </button>
+                      ))}
+                    </nav>
                   </Card>
 
                   {allVersions.length > 1 && (
@@ -314,6 +344,7 @@ export default function WhitepaperPage() {
                 </motion.div>
               </article>
             </div>
+            </>
           )}
         </div>
       </main>
