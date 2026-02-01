@@ -958,10 +958,10 @@ export async function registerRoutes(
 
   // Middleware to check admin access
   const requireAdmin = async (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated?.() || !req.user) {
+    if (!req.isAuthenticated?.() || !req.user?.claims?.sub) {
       return res.status(401).json({ error: "Authentication required" });
     }
-    const user = await storage.getUser(req.user.id);
+    const user = await storage.getUser(req.user.claims.sub);
     if (!user?.isAdmin) {
       return res.status(403).json({ error: "Admin access required" });
     }
@@ -1219,10 +1219,10 @@ export async function registerRoutes(
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.set('Pragma', 'no-cache');
       
-      if (!req.isAuthenticated?.() || !req.user) {
+      if (!req.isAuthenticated?.() || !req.user?.claims?.sub) {
         return res.json({ isAdmin: false, authenticated: false });
       }
-      const user = await storage.getUser(req.user.id);
+      const user = await storage.getUser(req.user.claims.sub);
       res.json({ 
         isAdmin: user?.isAdmin || false, 
         authenticated: true,
