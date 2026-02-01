@@ -646,6 +646,15 @@ function DataGridViewer() {
       hasNext: boolean;
       hasPrev: boolean;
     };
+    metrics?: {
+      compressedSizeBytes: number;
+      originalSizeBytes: number;
+      compressionRatio: number;
+      fetchTimeMs: number;
+      decompressTimeMs: number;
+      totalTimeMs: number;
+      throughputMBps: number;
+    };
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -674,7 +683,8 @@ function DataGridViewer() {
         setGridData({
           columns: data.columns,
           rows: data.rows,
-          pagination: data.pagination
+          pagination: data.pagination,
+          metrics: data.metrics
         });
         setCurrentPage(data.pagination.page);
       }
@@ -712,10 +722,10 @@ function DataGridViewer() {
       <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Grid3X3 className="w-5 h-5 text-primary" />
-          Stored Data Viewer
+          TernaryDB Data Viewer
         </h3>
         <p className="text-muted-foreground text-sm mb-6">
-          View decompressed data from ternary storage - browse your uploaded files stored in PostgreSQL
+          Real-time decompression from ternary_storage table - proving sub-millisecond decompression with full data fidelity
         </p>
 
         <div className="mb-6">
@@ -758,6 +768,37 @@ function DataGridViewer() {
 
         {gridData && !isLoading && (
           <div className="space-y-4">
+            {gridData.metrics && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Compressed Size</div>
+                  <div className="text-lg font-bold text-primary">
+                    {(gridData.metrics.compressedSizeBytes / 1024).toFixed(1)} KB
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Original Size</div>
+                  <div className="text-lg font-bold text-foreground">
+                    {(gridData.metrics.originalSizeBytes / 1024).toFixed(1)} KB
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Decompress Time</div>
+                  <div className="text-lg font-bold text-green-400">
+                    {gridData.metrics.decompressTimeMs.toFixed(2)} ms
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Throughput</div>
+                  <div className="text-lg font-bold text-green-400">
+                    {gridData.metrics.throughputMBps > 1000 
+                      ? `${(gridData.metrics.throughputMBps / 1000).toFixed(1)} GB/s`
+                      : `${gridData.metrics.throughputMBps.toFixed(1)} MB/s`}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-primary" />

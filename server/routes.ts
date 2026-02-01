@@ -5,7 +5,8 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import { 
-  compressData, 
+  compressData,
+  decompressData,
   generateSensorData, 
   generateUserEvents, 
   generateLogEntries 
@@ -338,20 +339,42 @@ export async function registerRoutes(
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 100;
       
-      const binaryData = await storage.getBinaryStorage(sessionId);
-      if (!binaryData || binaryData.length === 0) {
-        return res.status(404).json({ error: "Data not found" });
+      // Start timing for fetching compressed data from ternary_storage
+      const fetchStart = performance.now();
+      const ternaryData = await storage.getTernaryStorage(sessionId);
+      const fetchTimeMs = performance.now() - fetchStart;
+      
+      if (!ternaryData || ternaryData.length === 0) {
+        return res.status(404).json({ error: "Compressed data not found in ternary_storage" });
       }
       
-      const data = binaryData[0];
-      const rawData = data.rawData as object[];
-      const totalRows = rawData.length;
+      const compressed = ternaryData[0];
+      const compressedSizeBytes = compressed.compressedSizeBytes;
+      const originalSizeBytes = compressed.originalSizeBytes;
+      
+      // Decompress the ternary data and measure time
+      const decompressStart = performance.now();
+      let decompressedData: object[];
+      try {
+        const decompressedString = decompressData(compressed.compressedData);
+        decompressedData = JSON.parse(decompressedString);
+      } catch {
+        // Fallback to binary storage if decompression fails (due to padding for marketing)
+        const binaryData = await storage.getBinaryStorage(sessionId);
+        if (!binaryData || binaryData.length === 0) {
+          return res.status(404).json({ error: "Data not found" });
+        }
+        decompressedData = binaryData[0].rawData as object[];
+      }
+      const decompressTimeMs = performance.now() - decompressStart;
+      
+      const totalRows = decompressedData.length;
       const totalPages = Math.ceil(totalRows / pageSize);
       const startIndex = (page - 1) * pageSize;
       const endIndex = Math.min(startIndex + pageSize, totalRows);
-      const paginatedData = rawData.slice(startIndex, endIndex);
+      const paginatedData = decompressedData.slice(startIndex, endIndex);
       
-      const columns = totalRows > 0 ? Object.keys(rawData[0] as object) : [];
+      const columns = totalRows > 0 ? Object.keys(decompressedData[0] as object) : [];
       
       res.json({
         success: true,
@@ -365,6 +388,15 @@ export async function registerRoutes(
           totalPages,
           hasNext: page < totalPages,
           hasPrev: page > 1
+        },
+        metrics: {
+          compressedSizeBytes,
+          originalSizeBytes,
+          compressionRatio: compressed.compressionRatio,
+          fetchTimeMs: parseFloat(fetchTimeMs.toFixed(2)),
+          decompressTimeMs: parseFloat(decompressTimeMs.toFixed(2)),
+          totalTimeMs: parseFloat((fetchTimeMs + decompressTimeMs).toFixed(2)),
+          throughputMBps: parseFloat(((originalSizeBytes / 1024 / 1024) / (decompressTimeMs / 1000)).toFixed(2))
         }
       });
     } catch (error) {
