@@ -620,16 +620,18 @@ function LiveDemoSection() {
   const sampleDatasets = [
     {
       name: "Sensor Readings",
+      key: "sensor",
       data: Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
-        temp: 22.5 + Math.sin(i * 0.1) * 5,
-        humidity: 45 + Math.cos(i * 0.1) * 10,
-        pressure: 1013 + Math.sin(i * 0.05) * 20,
+        temp: (22.5 + Math.sin(i * 0.1) * 5).toFixed(2),
+        humidity: (45 + Math.cos(i * 0.1) * 10).toFixed(2),
+        pressure: (1013 + Math.sin(i * 0.05) * 20).toFixed(2),
         timestamp: new Date(Date.now() - i * 60000).toISOString()
       }))
     },
     {
-      name: "User Events", 
+      name: "User Events",
+      key: "events",
       data: Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         event: ["click", "scroll", "hover", "submit", "load"][i % 5],
@@ -641,6 +643,7 @@ function LiveDemoSection() {
     },
     {
       name: "Log Entries",
+      key: "logs",
       data: Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         level: ["INFO", "DEBUG", "WARN", "ERROR", "INFO"][i % 5],
@@ -660,13 +663,44 @@ function LiveDemoSection() {
     binarySize: number;
     ternarySize: number;
     savings: number;
+    sessionId?: string;
+    processingTimeMs?: number;
   }[] | null>(null);
 
-  const runDemo = () => {
+  const runDemo = async () => {
     setIsProcessing(true);
     setResults(null);
     
-    setTimeout(() => {
+    try {
+      const dataset = sampleDatasets[selectedDataset];
+      const response = await fetch('/api/demo/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          datasetName: dataset.key,
+          rowCount: 100
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Demo failed');
+      }
+      
+      const data = await response.json();
+      
+      const tableResults = [{
+        tableName: dataset.name.toLowerCase().replace(/\s+/g, '_'),
+        rowCount: data.rowCount,
+        binarySize: data.binarySize,
+        ternarySize: data.ternarySize,
+        savings: parseFloat(data.savingsPercent),
+        sessionId: data.sessionId,
+        processingTimeMs: data.processingTimeMs
+      }];
+      
+      setResults(tableResults);
+    } catch (error) {
+      console.error('Demo error:', error);
       const dataset = sampleDatasets[selectedDataset];
       const jsonData = JSON.stringify(dataset.data);
       const compression = ternaryCompress(jsonData);
@@ -680,8 +714,9 @@ function LiveDemoSection() {
       }];
       
       setResults(tableResults);
+    } finally {
       setIsProcessing(false);
-    }, 800);
+    }
   };
 
   const formatBytes = (bytes: number) => {
