@@ -1875,7 +1875,7 @@ function Footer() {
           </Link>
           
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Salvi Framework. All rights reserved.
+            All Rights Reserved and Preserved | &copy; Capomastro Holdings Ltd 2026
           </p>
           
           <div className="flex gap-4">

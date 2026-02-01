@@ -878,7 +878,7 @@ function Footer() {
         </div>
 
         <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Salvi Systems. All rights reserved.</p>
+          <p>All Rights Reserved and Preserved | &copy; Capomastro Holdings Ltd 2026</p>
         </div>
       </div>
     </footer>
