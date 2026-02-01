@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import * as XLSX from "xlsx";
 import { 
   compressData, 
   generateSensorData, 
@@ -171,7 +172,7 @@ export async function registerRoutes(
     try {
       const uploadSchema = z.object({
         fileName: z.string().min(1),
-        fileType: z.enum(["json", "csv"]),
+        fileType: z.enum(["json", "csv", "xlsx"]),
         content: z.string().min(1),
       });
       
@@ -189,6 +190,18 @@ export async function registerRoutes(
         if (fileType === "json") {
           const parsed = JSON.parse(content);
           rawData = Array.isArray(parsed) ? parsed : [parsed];
+        } else if (fileType === "xlsx") {
+          const binaryData = Buffer.from(content, 'base64');
+          const workbook = XLSX.read(binaryData, { type: 'buffer' });
+          const firstSheetName = workbook.SheetNames[0];
+          if (!firstSheetName) {
+            return res.status(400).json({ error: "Excel file has no sheets" });
+          }
+          const worksheet = workbook.Sheets[firstSheetName];
+          rawData = XLSX.utils.sheet_to_json(worksheet);
+          if (rawData.length === 0) {
+            return res.status(400).json({ error: "Excel sheet is empty or has no data rows" });
+          }
         } else {
           const lines = content.trim().split('\n');
           if (lines.length < 2) {

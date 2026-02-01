@@ -726,8 +726,25 @@ function LiveDemoSection() {
     setUploadResults(null);
     
     try {
-      const content = await file.text();
-      const fileType = file.name.endsWith('.csv') ? 'csv' : 'json';
+      let content: string;
+      let fileType: 'json' | 'csv' | 'xlsx';
+      
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        fileType = 'xlsx';
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        content = btoa(binary);
+      } else if (file.name.endsWith('.csv')) {
+        fileType = 'csv';
+        content = await file.text();
+      } else {
+        fileType = 'json';
+        content = await file.text();
+      }
       
       const response = await fetch('/api/demo/upload', {
         method: 'POST',
@@ -771,10 +788,10 @@ function LiveDemoSection() {
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
-      if (file.name.endsWith('.json') || file.name.endsWith('.csv')) {
+      if (file.name.endsWith('.json') || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         processFile(file);
       } else {
-        alert('Please upload a JSON or CSV file');
+        alert('Please upload a JSON, CSV, or Excel (.xlsx) file');
       }
     }
   }, [processFile]);
@@ -985,7 +1002,7 @@ function LiveDemoSection() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".json,.csv"
+                  accept=".json,.csv,.xlsx,.xls"
                   onChange={handleFileSelect}
                   className="hidden"
                   data-testid="input-file"
@@ -1003,10 +1020,10 @@ function LiveDemoSection() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">
-                        Drop your JSON or CSV file here
+                        Drop your JSON, CSV, or Excel file here
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        or click to browse
+                        or click to browse (.json, .csv, .xlsx)
                       </p>
                     </div>
                   </div>
