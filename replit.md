@@ -67,19 +67,26 @@ shared/
 - **binary_storage** - Stores original binary data with size metrics
 - **ternary_storage** - Stores compressed ternary data with compression ratios
 - **compression_benchmarks** - Records compression performance metrics
+- **file_uploads** - Tracks user-uploaded files with metadata
+- **compression_history** - Historical record of all compression tests
 
 ## API Endpoints
 - `POST /api/demo/run` - Run compression demo with dataset (sensor/events/logs)
+- `POST /api/demo/upload` - Upload custom JSON/CSV file for compression testing
 - `GET /api/demo/stats` - Get aggregated compression statistics
+- `GET /api/demo/history` - Get historical compression proof records
 - `GET /api/demo/session/:sessionId` - Get details for a specific demo session
 
 ## Live Demo Features
 - Three sample datasets: Sensor Readings, User Events, Log Entries
 - Data preview table showing first 5 rows
 - Run Compression Demo button with processing animation
-- Results stored in PostgreSQL database
+- **Drag-and-drop file upload** - Import custom JSON or CSV files
+- Results stored in PostgreSQL database (both binary and ternary format)
 - Results showing binary vs ternary size comparison (56-62% savings)
 - Animated progress bars and "At Scale" projections
+- **Historical Compression Proof** - Live table showing all past compression tests
+- Summary statistics: total tests, average savings, total data processed
 
 ## Navigation
 - Landing page components section has clickable TernaryDB card linking to /ternarydb
