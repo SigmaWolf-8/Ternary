@@ -20,15 +20,20 @@ import {
   Linkedin,
   Twitter,
   Menu,
-  X
+  X,
+  LogIn,
+  LogOut,
+  User
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -80,9 +85,33 @@ function Header() {
               GitHub
             </a>
           </Button>
-          <Button asChild data-testid="button-contact">
-            <a href="#contact">Contact Sales</a>
-          </Button>
+          {isLoading ? (
+            <div className="w-20 h-9 bg-primary/10 rounded animate-pulse" />
+          ) : isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                {user?.profileImageUrl ? (
+                  <img src={user.profileImageUrl} alt="" className="w-6 h-6 rounded-full" />
+                ) : (
+                  <User className="w-4 h-4" />
+                )}
+                {user?.firstName || user?.email?.split('@')[0]}
+              </span>
+              <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-logout">
+                <a href="/api/logout">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </a>
+              </Button>
+            </div>
+          ) : (
+            <Button asChild data-testid="button-login">
+              <a href="/api/login">
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In
+              </a>
+            </Button>
+          )}
         </div>
 
         <Button 
@@ -122,9 +151,21 @@ function Header() {
                 GitHub
               </a>
             </Button>
-            <Button asChild data-testid="button-mobile-contact">
-              <a href="#contact">Contact Sales</a>
-            </Button>
+            {isAuthenticated ? (
+              <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-logout">
+                <a href="/api/logout">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </a>
+              </Button>
+            ) : (
+              <Button asChild data-testid="button-mobile-login">
+                <a href="/api/login">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign In with GitHub
+                </a>
+              </Button>
+            )}
           </div>
         </motion.div>
       )}

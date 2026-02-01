@@ -11,6 +11,7 @@ import {
   generateUserEvents, 
   generateLogEntries 
 } from "./ternary";
+import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 
 const demoRunSchema = z.object({
   datasetName: z.enum(["sensor", "events", "logs"]),
@@ -21,6 +22,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  await setupAuth(app);
+  registerAuthRoutes(app);
   
   app.post("/api/demo/run", async (req, res) => {
     try {
