@@ -41,8 +41,8 @@ function Header() {
   const navLinks = [
     { href: "#approach", label: "Approach" },
     { href: "#components", label: "Components" },
-    { href: "#timeline", label: "Timeline" },
     { href: "#comparison", label: "Benefits" },
+    { href: "/whitepaper", label: "Whitepaper" },
   ];
 
   return (
@@ -743,9 +743,9 @@ function Footer() {
     ],
     Developers: [
       { label: "Documentation", href: "#" },
+      { label: "Whitepaper", href: "/whitepaper" },
       { label: "API Reference", href: "#" },
       { label: "GitHub", href: "https://github.com/ternary" },
-      { label: "Community", href: "#" },
     ],
     Company: [
       { label: "About", href: "#" },

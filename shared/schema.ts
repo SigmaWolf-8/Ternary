@@ -82,12 +82,25 @@ export const compressionHistory = pgTable("compression_history", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const whitepapers = pgTable("whitepapers", {
+  id: serial("id").primaryKey(),
+  version: varchar("version").notNull(),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  summary: text("summary"),
+  author: varchar("author"),
+  isActive: integer("is_active").default(1).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertDemoSessionSchema = createInsertSchema(demoSessions).omit({ id: true, createdAt: true });
 export const insertBinaryStorageSchema = createInsertSchema(binaryStorage).omit({ id: true, createdAt: true });
 export const insertTernaryStorageSchema = createInsertSchema(ternaryStorage).omit({ id: true, createdAt: true });
 export const insertCompressionBenchmarkSchema = createInsertSchema(compressionBenchmarks).omit({ id: true, createdAt: true });
 export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({ id: true, createdAt: true });
 export const insertCompressionHistorySchema = createInsertSchema(compressionHistory).omit({ id: true, createdAt: true });
+export const insertWhitepaperSchema = createInsertSchema(whitepapers).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertDemoSession = z.infer<typeof insertDemoSessionSchema>;
 export type DemoSession = typeof demoSessions.$inferSelect;
@@ -101,3 +114,5 @@ export type InsertFileUpload = z.infer<typeof insertFileUploadSchema>;
 export type FileUpload = typeof fileUploads.$inferSelect;
 export type InsertCompressionHistory = z.infer<typeof insertCompressionHistorySchema>;
 export type CompressionHistory = typeof compressionHistory.$inferSelect;
+export type InsertWhitepaper = z.infer<typeof insertWhitepaperSchema>;
+export type Whitepaper = typeof whitepapers.$inferSelect;

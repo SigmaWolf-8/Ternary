@@ -6,8 +6,9 @@ import {
   type CompressionBenchmark, type InsertCompressionBenchmark,
   type FileUpload, type InsertFileUpload,
   type CompressionHistory, type InsertCompressionHistory,
+  type Whitepaper, type InsertWhitepaper,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
-  fileUploads, compressionHistory
+  fileUploads, compressionHistory, whitepapers
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -36,6 +37,12 @@ export interface IStorage {
   
   createCompressionHistory(data: InsertCompressionHistory): Promise<CompressionHistory>;
   getCompressionHistory(limit: number): Promise<CompressionHistory[]>;
+  
+  createWhitepaper(data: InsertWhitepaper): Promise<Whitepaper>;
+  getWhitepaper(id: number): Promise<Whitepaper | undefined>;
+  getActiveWhitepaper(): Promise<Whitepaper | undefined>;
+  getAllWhitepapers(): Promise<Whitepaper[]>;
+  updateWhitepaper(id: number, data: Partial<InsertWhitepaper>): Promise<Whitepaper | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -116,6 +123,30 @@ export class DatabaseStorage implements IStorage {
 
   async getCompressionHistory(limit: number): Promise<CompressionHistory[]> {
     return await db.select().from(compressionHistory).orderBy(desc(compressionHistory.createdAt)).limit(limit);
+  }
+
+  async createWhitepaper(data: InsertWhitepaper): Promise<Whitepaper> {
+    const [result] = await db.insert(whitepapers).values(data).returning();
+    return result;
+  }
+
+  async getWhitepaper(id: number): Promise<Whitepaper | undefined> {
+    const [wp] = await db.select().from(whitepapers).where(eq(whitepapers.id, id));
+    return wp;
+  }
+
+  async getActiveWhitepaper(): Promise<Whitepaper | undefined> {
+    const [wp] = await db.select().from(whitepapers).where(eq(whitepapers.isActive, 1)).orderBy(desc(whitepapers.createdAt)).limit(1);
+    return wp;
+  }
+
+  async getAllWhitepapers(): Promise<Whitepaper[]> {
+    return await db.select().from(whitepapers).orderBy(desc(whitepapers.createdAt));
+  }
+
+  async updateWhitepaper(id: number, data: Partial<InsertWhitepaper>): Promise<Whitepaper | undefined> {
+    const [result] = await db.update(whitepapers).set(data).where(eq(whitepapers.id, id)).returning();
+    return result;
   }
 }
 

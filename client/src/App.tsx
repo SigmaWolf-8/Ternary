@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "@/pages/landing";
 import TernaryDB from "@/pages/ternarydb";
+import Whitepaper from "@/pages/whitepaper";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -12,6 +13,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/ternarydb" component={TernaryDB} />
+      <Route path="/whitepaper" component={Whitepaper} />
       <Route component={NotFound} />
     </Switch>
   );

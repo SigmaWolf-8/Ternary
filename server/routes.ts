@@ -333,6 +333,65 @@ export async function registerRoutes(
     }
   });
 
+  // Whitepaper API routes
+  app.get("/api/whitepapers", async (req, res) => {
+    try {
+      const allWhitepapers = await storage.getAllWhitepapers();
+      res.json({ success: true, whitepapers: allWhitepapers });
+    } catch (error) {
+      console.error("Get whitepapers error:", error);
+      res.status(500).json({ error: "Failed to get whitepapers" });
+    }
+  });
+
+  app.get("/api/whitepapers/active", async (req, res) => {
+    try {
+      const whitepaper = await storage.getActiveWhitepaper();
+      if (!whitepaper) {
+        return res.status(404).json({ error: "No active whitepaper found" });
+      }
+      res.json({ success: true, whitepaper });
+    } catch (error) {
+      console.error("Get active whitepaper error:", error);
+      res.status(500).json({ error: "Failed to get whitepaper" });
+    }
+  });
+
+  app.get("/api/whitepapers/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const whitepaper = await storage.getWhitepaper(id);
+      if (!whitepaper) {
+        return res.status(404).json({ error: "Whitepaper not found" });
+      }
+      res.json({ success: true, whitepaper });
+    } catch (error) {
+      console.error("Get whitepaper error:", error);
+      res.status(500).json({ error: "Failed to get whitepaper" });
+    }
+  });
+
+  app.post("/api/whitepapers", async (req, res) => {
+    try {
+      const { version, title, content, summary, author } = req.body;
+      if (!version || !title || !content) {
+        return res.status(400).json({ error: "version, title, and content are required" });
+      }
+      const whitepaper = await storage.createWhitepaper({
+        version,
+        title,
+        content,
+        summary: summary || null,
+        author: author || null,
+        isActive: 1
+      });
+      res.json({ success: true, whitepaper });
+    } catch (error) {
+      console.error("Create whitepaper error:", error);
+      res.status(500).json({ error: "Failed to create whitepaper" });
+    }
+  });
+
   app.get("/api/demo/data/:sessionId", async (req, res) => {
     try {
       const { sessionId } = req.params;
