@@ -45,7 +45,7 @@ function slugify(text: string): string {
 }
 
 function parseMarkdownToHTML(markdown: string): string {
-  let html = markdown;
+  let html = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   
   html = html.replace(/^### \*\*(.+?)\*\*$/gm, (_, title) => `<h3 id="${slugify(title)}" class="text-xl font-bold text-foreground mt-8 mb-4 scroll-mt-24">${title}</h3>`);
   html = html.replace(/^## \*\*(.+?)\*\*$/gm, (_, title) => `<h2 id="${slugify(title)}" class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20 scroll-mt-24">${title}</h2>`);
@@ -76,12 +76,14 @@ function parseMarkdownToHTML(markdown: string): string {
 
 function extractTableOfContents(content: string): TableOfContentsItem[] {
   const items: TableOfContentsItem[] = [];
-  const lines = content.split('\n');
+  const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalizedContent.split('\n');
   
   lines.forEach((line) => {
-    const h1Match = line.match(/^# \*\*(.+?)\*\*$/) || line.match(/^# (.+)$/);
-    const h2Match = line.match(/^## \*\*(.+?)\*\*$/) || line.match(/^## (.+)$/);
-    const h3Match = line.match(/^### \*\*(.+?)\*\*$/) || line.match(/^### (.+)$/);
+    const trimmedLine = line.trim();
+    const h1Match = trimmedLine.match(/^# \*\*(.+?)\*\*$/) || trimmedLine.match(/^# (.+)$/);
+    const h2Match = trimmedLine.match(/^## \*\*(.+?)\*\*$/) || trimmedLine.match(/^## (.+)$/);
+    const h3Match = trimmedLine.match(/^### \*\*(.+?)\*\*$/) || trimmedLine.match(/^### (.+)$/);
     
     if (h1Match) {
       items.push({ id: slugify(h1Match[1]), title: h1Match[1], level: 1 });
