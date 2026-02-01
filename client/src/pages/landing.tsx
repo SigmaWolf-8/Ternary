@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
+import { Link } from "wouter";
 
 function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -354,7 +355,8 @@ function ComponentCard({
   title, 
   description, 
   features, 
-  index 
+  index,
+  link 
 }: { 
   badge: string;
   icon: typeof Code;
@@ -362,9 +364,48 @@ function ComponentCard({
   description: string;
   features: string[];
   index: number;
+  link?: string;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
+
+  const CardContent = (
+    <Card 
+      className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm hover:border-primary/40 transition-all duration-300 group"
+      data-testid={`card-component-${index}`}
+    >
+      <Badge 
+        variant="outline" 
+        className="mb-4 border-primary/30 bg-primary/10 text-primary text-xs"
+      >
+        {badge}
+      </Badge>
+      
+      <div className="text-primary mb-5 group-hover:scale-110 transition-transform duration-300">
+        <Icon className="w-10 h-10" />
+      </div>
+      
+      <h3 className="text-xl font-semibold mb-3 text-foreground">{title}</h3>
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">{description}</p>
+      
+      <ul className="space-y-2">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      
+      {link && (
+        <div className="mt-6 pt-4 border-t border-primary/10">
+          <span className="text-primary text-sm font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
+            Learn more <ArrowRight className="w-4 h-4" />
+          </span>
+        </div>
+      )}
+    </Card>
+  );
 
   return (
     <motion.div
@@ -373,33 +414,13 @@ function ComponentCard({
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
     >
-      <Card 
-        className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm hover:border-primary/40 transition-all duration-300 group"
-        data-testid={`card-component-${index}`}
-      >
-        <Badge 
-          variant="outline" 
-          className="mb-4 border-primary/30 bg-primary/10 text-primary text-xs"
-        >
-          {badge}
-        </Badge>
-        
-        <div className="text-primary mb-5 group-hover:scale-110 transition-transform duration-300">
-          <Icon className="w-10 h-10" />
-        </div>
-        
-        <h3 className="text-xl font-semibold mb-3 text-foreground">{title}</h3>
-        <p className="text-muted-foreground mb-5 text-sm leading-relaxed">{description}</p>
-        
-        <ul className="space-y-2">
-          {features.map((feature) => (
-            <li key={feature} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-              <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      {link ? (
+        <Link href={link} className="block h-full">
+          {CardContent}
+        </Link>
+      ) : (
+        CardContent
+      )}
     </motion.div>
   );
 }
@@ -453,6 +474,7 @@ function ComponentsSection() {
         "SQL-compatible interface",
         "Horizontal scaling built-in",
       ],
+      link: "/ternarydb",
     },
     {
       badge: "2025",
@@ -717,7 +739,7 @@ function Footer() {
       { label: "libternary", href: "#" },
       { label: "Timing API", href: "#" },
       { label: "FPGA Cards", href: "#" },
-      { label: "TernaryDB", href: "#" },
+      { label: "TernaryDB", href: "/ternarydb" },
     ],
     Developers: [
       { label: "Documentation", href: "#" },
@@ -790,14 +812,23 @@ function Footer() {
               <ul className="space-y-2">
                 {links.map((link) => (
                   <li key={link.label}>
-                    <a 
-                      href={link.href} 
-                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                      target={link.href.startsWith("http") ? "_blank" : undefined}
-                      rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                    >
-                      {link.label}
-                    </a>
+                    {link.href.startsWith("/") && !link.href.startsWith("/#") ? (
+                      <Link 
+                        href={link.href}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a 
+                        href={link.href} 
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                      >
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
