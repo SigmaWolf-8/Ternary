@@ -5,9 +5,11 @@ A stunning dark-themed landing page for Ternary, a post-quantum internet solutio
 
 ## Tech Stack
 - **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion
+- **Backend**: Express.js, Node.js, PostgreSQL
+- **Database**: Drizzle ORM with PostgreSQL
 - **UI Components**: shadcn/ui (Button, Badge, Card)
 - **Routing**: Wouter
-- **Styling**: Custom dark tech theme with teal/cyan accents
+- **Styling**: Custom dark tech theme with baby blue accents
 
 ## Project Structure
 ```
@@ -20,6 +22,16 @@ client/
 │   ├── index.css          # Theme CSS variables
 │   └── App.tsx            # App router with / and /ternarydb routes
 ├── index.html             # Entry HTML with SEO meta tags
+
+server/
+├── db.ts                  # PostgreSQL database connection
+├── storage.ts             # Database storage interface
+├── ternary.ts             # Ternary compression utilities
+├── routes.ts              # API routes for demo functionality
+├── index.ts               # Express server entry point
+
+shared/
+├── schema.ts              # Drizzle database schema definitions
 ```
 
 ## Theme Colors
@@ -43,18 +55,30 @@ client/
 3. **Features** - Grid of key capabilities (compression, efficiency, compatibility)
 4. **Architecture** - Layered diagram showing PostgreSQL integration
 5. **Installation** - Quick start code blocks with copy functionality
-6. **Live Demo** - Interactive compression demo with sample datasets showing real-time size comparisons
+6. **Live Demo** - Interactive compression demo with real PostgreSQL backend
 7. **Performance** - Benchmark charts and metrics
 8. **Pricing** - Tier cards (Community, Enterprise, Cloud)
 9. **Use Cases** - Target applications and industries
 10. **CTA Section** - Get Started call-to-action
 11. **Footer** - Links and copyright
 
+## Database Schema
+- **demo_sessions** - Tracks demo session metadata
+- **binary_storage** - Stores original binary data with size metrics
+- **ternary_storage** - Stores compressed ternary data with compression ratios
+- **compression_benchmarks** - Records compression performance metrics
+
+## API Endpoints
+- `POST /api/demo/run` - Run compression demo with dataset (sensor/events/logs)
+- `GET /api/demo/stats` - Get aggregated compression statistics
+- `GET /api/demo/session/:sessionId` - Get details for a specific demo session
+
 ## Live Demo Features
 - Three sample datasets: Sensor Readings, User Events, Log Entries
 - Data preview table showing first 5 rows
 - Run Compression Demo button with processing animation
-- Results showing binary vs ternary size comparison
+- Results stored in PostgreSQL database
+- Results showing binary vs ternary size comparison (56-62% savings)
 - Animated progress bars and "At Scale" projections
 
 ## Navigation

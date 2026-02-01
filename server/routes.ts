@@ -2,12 +2,18 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { randomUUID } from "crypto";
+import { z } from "zod";
 import { 
   compressData, 
   generateSensorData, 
   generateUserEvents, 
   generateLogEntries 
 } from "./ternary";
+
+const demoRunSchema = z.object({
+  datasetName: z.enum(["sensor", "events", "logs"]),
+  rowCount: z.number().int().min(1).max(10000).default(100)
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -16,7 +22,11 @@ export async function registerRoutes(
   
   app.post("/api/demo/run", async (req, res) => {
     try {
-      const { datasetName, rowCount = 100 } = req.body;
+      const parsed = demoRunSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { datasetName, rowCount } = parsed.data;
       const startTime = Date.now();
       const sessionId = randomUUID();
       
@@ -31,8 +41,6 @@ export async function registerRoutes(
         case "logs":
           rawData = generateLogEntries(rowCount);
           break;
-        default:
-          return res.status(400).json({ error: "Invalid dataset name" });
       }
       
       const jsonString = JSON.stringify(rawData);
