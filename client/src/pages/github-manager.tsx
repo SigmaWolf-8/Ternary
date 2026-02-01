@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, FolderOpen, File, Plus, Save, Trash2, RefreshCw, Key, Github, ChevronRight, Home, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FolderOpen, File, Plus, Save, Trash2, RefreshCw, Key, Github, ChevronRight, Home, AlertTriangle, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
@@ -30,6 +31,11 @@ interface FileContent {
   content: string;
 }
 
+interface Branch {
+  name: string;
+  protected: boolean;
+}
+
 export default function GitHubManager() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -41,6 +47,7 @@ export default function GitHubManager() {
   const [commitMessage, setCommitMessage] = useState("");
   const [showNewFile, setShowNewFile] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("main");
 
   const { data: adminStatus, isLoading: statusLoading, isError: statusError } = useQuery<{
     isAdmin: boolean;
@@ -50,13 +57,29 @@ export default function GitHubManager() {
     queryKey: ["/api/user/admin-status"],
   });
 
+  const { data: branches, isLoading: branchesLoading } = useQuery<{
+    success: boolean;
+    branches: Branch[];
+  }>({
+    queryKey: ["/api/github/repos", REPO_OWNER, REPO_NAME, "branches"],
+    queryFn: async () => {
+      const res = await fetch(`/api/github/repos/${REPO_OWNER}/${REPO_NAME}/branches`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to fetch branches");
+      }
+      return res.json();
+    },
+    enabled: adminStatus?.isAdmin && adminStatus?.hasGithubToken,
+  });
+
   const { data: contents, isLoading: contentsLoading, refetch: refetchContents } = useQuery<{
     success: boolean;
     data: GitHubFile[];
   }>({
-    queryKey: ["/api/github/repos", REPO_OWNER, REPO_NAME, "contents", currentPath],
+    queryKey: ["/api/github/repos", REPO_OWNER, REPO_NAME, "contents", currentPath, selectedBranch],
     queryFn: async () => {
-      const res = await fetch(`/api/github/repos/${REPO_OWNER}/${REPO_NAME}/contents?path=${encodeURIComponent(currentPath)}`);
+      const res = await fetch(`/api/github/repos/${REPO_OWNER}/${REPO_NAME}/contents?path=${encodeURIComponent(currentPath)}&branch=${encodeURIComponent(selectedBranch)}`);
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Failed to fetch contents");
@@ -81,7 +104,7 @@ export default function GitHubManager() {
   });
 
   const saveFileMutation = useMutation({
-    mutationFn: async (data: { path: string; content: string; message: string; sha?: string }) => {
+    mutationFn: async (data: { path: string; content: string; message: string; sha?: string; branch?: string }) => {
       return apiRequest("PUT", `/api/github/file/${REPO_OWNER}/${REPO_NAME}`, data);
     },
     onSuccess: () => {
@@ -99,7 +122,7 @@ export default function GitHubManager() {
   });
 
   const deleteFileMutation = useMutation({
-    mutationFn: async (data: { path: string; sha: string; message: string }) => {
+    mutationFn: async (data: { path: string; sha: string; message: string; branch?: string }) => {
       return apiRequest("DELETE", `/api/github/file/${REPO_OWNER}/${REPO_NAME}`, data);
     },
     onSuccess: () => {
@@ -114,7 +137,7 @@ export default function GitHubManager() {
 
   const fetchFileContent = async (path: string) => {
     try {
-      const res = await fetch(`/api/github/file/${REPO_OWNER}/${REPO_NAME}?path=${encodeURIComponent(path)}`);
+      const res = await fetch(`/api/github/file/${REPO_OWNER}/${REPO_NAME}?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(selectedBranch)}`);
       if (!res.ok) throw new Error("Failed to fetch file");
       const data = await res.json();
       setSelectedFile(data.file);
@@ -151,6 +174,7 @@ export default function GitHubManager() {
       content: editedContent,
       message: commitMessage,
       sha: selectedFile.sha,
+      branch: selectedBranch,
     });
   };
 
@@ -164,6 +188,7 @@ export default function GitHubManager() {
       path: filePath,
       content: newFileContent,
       message: commitMessage,
+      branch: selectedBranch,
     });
   };
 
@@ -174,7 +199,14 @@ export default function GitHubManager() {
       path: selectedFile.path,
       sha: selectedFile.sha,
       message: `Delete ${selectedFile.name}`,
+      branch: selectedBranch,
     });
+  };
+
+  const handleBranchChange = (branch: string) => {
+    setSelectedBranch(branch);
+    setCurrentPath("");
+    setSelectedFile(null);
   };
 
   if (statusLoading) {
@@ -360,8 +392,28 @@ export default function GitHubManager() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Files</CardTitle>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-lg">Files</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="w-4 h-4 text-muted-foreground" />
+                      <Select value={selectedBranch} onValueChange={handleBranchChange}>
+                        <SelectTrigger className="w-[140px] h-8" data-testid="select-branch">
+                          <SelectValue placeholder="Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {branches?.branches?.map((branch) => (
+                            <SelectItem key={branch.name} value={branch.name}>
+                              {branch.name}
+                            </SelectItem>
+                          ))}
+                          {(!branches?.branches || branches.branches.length === 0) && (
+                            <SelectItem value="main">main</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <Button
                     size="sm"
                     onClick={() => {
