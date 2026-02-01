@@ -4,10 +4,13 @@ import {
   type BinaryStorage, type InsertBinaryStorage,
   type TernaryStorage, type InsertTernaryStorage,
   type CompressionBenchmark, type InsertCompressionBenchmark,
-  users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks
+  type FileUpload, type InsertFileUpload,
+  type CompressionHistory, type InsertCompressionHistory,
+  users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
+  fileUploads, compressionHistory
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -26,6 +29,12 @@ export interface IStorage {
   createCompressionBenchmark(data: InsertCompressionBenchmark): Promise<CompressionBenchmark>;
   getCompressionBenchmarks(sessionId: string): Promise<CompressionBenchmark[]>;
   getRecentBenchmarks(limit: number): Promise<CompressionBenchmark[]>;
+  
+  createFileUpload(data: InsertFileUpload): Promise<FileUpload>;
+  getFileUpload(sessionId: string): Promise<FileUpload | undefined>;
+  
+  createCompressionHistory(data: InsertCompressionHistory): Promise<CompressionHistory>;
+  getCompressionHistory(limit: number): Promise<CompressionHistory[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -83,6 +92,25 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentBenchmarks(limit: number): Promise<CompressionBenchmark[]> {
     return await db.select().from(compressionBenchmarks).limit(limit);
+  }
+
+  async createFileUpload(data: InsertFileUpload): Promise<FileUpload> {
+    const [result] = await db.insert(fileUploads).values(data).returning();
+    return result;
+  }
+
+  async getFileUpload(sessionId: string): Promise<FileUpload | undefined> {
+    const [upload] = await db.select().from(fileUploads).where(eq(fileUploads.sessionId, sessionId));
+    return upload;
+  }
+
+  async createCompressionHistory(data: InsertCompressionHistory): Promise<CompressionHistory> {
+    const [result] = await db.insert(compressionHistory).values(data).returning();
+    return result;
+  }
+
+  async getCompressionHistory(limit: number): Promise<CompressionHistory[]> {
+    return await db.select().from(compressionHistory).orderBy(desc(compressionHistory.createdAt)).limit(limit);
   }
 }
 

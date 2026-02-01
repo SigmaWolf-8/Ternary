@@ -59,10 +59,35 @@ export const compressionBenchmarks = pgTable("compression_benchmarks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const fileUploads = pgTable("file_uploads", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull(),
+  fileName: varchar("file_name").notNull(),
+  fileType: varchar("file_type").notNull(),
+  originalSizeBytes: integer("original_size_bytes").notNull(),
+  rowCount: integer("row_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const compressionHistory = pgTable("compression_history", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull(),
+  datasetName: varchar("dataset_name").notNull(),
+  sourceType: varchar("source_type").notNull(),
+  binarySizeBytes: integer("binary_size_bytes").notNull(),
+  ternarySizeBytes: integer("ternary_size_bytes").notNull(),
+  savingsPercent: real("savings_percent").notNull(),
+  rowCount: integer("row_count").notNull(),
+  processingTimeMs: integer("processing_time_ms").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertDemoSessionSchema = createInsertSchema(demoSessions).omit({ id: true, createdAt: true });
 export const insertBinaryStorageSchema = createInsertSchema(binaryStorage).omit({ id: true, createdAt: true });
 export const insertTernaryStorageSchema = createInsertSchema(ternaryStorage).omit({ id: true, createdAt: true });
 export const insertCompressionBenchmarkSchema = createInsertSchema(compressionBenchmarks).omit({ id: true, createdAt: true });
+export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({ id: true, createdAt: true });
+export const insertCompressionHistorySchema = createInsertSchema(compressionHistory).omit({ id: true, createdAt: true });
 
 export type InsertDemoSession = z.infer<typeof insertDemoSessionSchema>;
 export type DemoSession = typeof demoSessions.$inferSelect;
@@ -72,3 +97,7 @@ export type InsertTernaryStorage = z.infer<typeof insertTernaryStorageSchema>;
 export type TernaryStorage = typeof ternaryStorage.$inferSelect;
 export type InsertCompressionBenchmark = z.infer<typeof insertCompressionBenchmarkSchema>;
 export type CompressionBenchmark = typeof compressionBenchmarks.$inferSelect;
+export type InsertFileUpload = z.infer<typeof insertFileUploadSchema>;
+export type FileUpload = typeof fileUploads.$inferSelect;
+export type InsertCompressionHistory = z.infer<typeof insertCompressionHistorySchema>;
+export type CompressionHistory = typeof compressionHistory.$inferSelect;
