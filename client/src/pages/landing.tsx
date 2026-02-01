@@ -752,7 +752,7 @@ function CTASection() {
                 asChild
                 data-testid="button-cta-github"
               >
-                <a href="https://github.com/ternary" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                   <Github className="w-4 h-4 mr-2" />
                   Get libternary
                 </a>
@@ -777,7 +777,7 @@ function CTASection() {
 function Footer() {
   const footerLinks = {
     Product: [
-      { label: "libternary", href: "#" },
+      { label: "libternary", href: "https://github.com/SigmaWolf-8/Ternary" },
       { label: "Timing API", href: "#" },
       { label: "FPGA Cards", href: "#" },
       { label: "SalviDB", href: "/ternarydb" },
@@ -786,7 +786,7 @@ function Footer() {
       { label: "Documentation", href: "#" },
       { label: "Whitepaper", href: "/whitepaper" },
       { label: "API Reference", href: "#" },
-      { label: "GitHub", href: "https://github.com/ternary" },
+      { label: "GitHub", href: "https://github.com/SigmaWolf-8/Ternary" },
     ],
     Company: [
       { label: "About", href: "#" },
@@ -829,7 +829,7 @@ function Footer() {
                 <Linkedin className="w-5 h-5" />
               </a>
               <a 
-                href="https://github.com/ternary" 
+                href="https://github.com/SigmaWolf-8/Ternary" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
