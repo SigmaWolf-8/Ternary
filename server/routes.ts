@@ -952,5 +952,274 @@ export async function registerRoutes(
     }
   });
 
+  // =====================================================
+  // GITHUB FILE MANAGER API (Admin Only)
+  // =====================================================
+
+  // Middleware to check admin access
+  const requireAdmin = async (req: any, res: any, next: any) => {
+    if (!req.isAuthenticated?.() || !req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const user = await storage.getUser(req.user.id);
+    if (!user?.isAdmin) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    req.adminUser = user;
+    next();
+  };
+
+  // Save GitHub Personal Access Token
+  app.post("/api/github/token", requireAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        token: z.string().min(1)
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+      
+      await storage.updateUserGithubToken(req.adminUser.id, parsed.data.token);
+      res.json({ success: true, message: "GitHub token saved" });
+    } catch (error) {
+      console.error("GitHub token save error:", error);
+      res.status(500).json({ error: "Failed to save token" });
+    }
+  });
+
+  // Check if GitHub token is configured
+  app.get("/api/github/status", requireAdmin, async (req: any, res) => {
+    try {
+      const hasToken = !!req.adminUser.githubToken;
+      res.json({ success: true, hasToken });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check status" });
+    }
+  });
+
+  // Get repository contents (files and folders)
+  app.get("/api/github/repos/:owner/:repo/contents", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const path = (req.query.path as string) || "";
+      const token = req.adminUser.githubToken;
+      
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+            "User-Agent": "Salvi-Framework"
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        return res.status(response.status).json({ error: error.message || "GitHub API error" });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error("GitHub contents error:", error);
+      res.status(500).json({ error: "Failed to fetch contents" });
+    }
+  });
+
+  // Get file content
+  app.get("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const path = (req.query.path as string) || "";
+      const token = req.adminUser.githubToken;
+      
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+            "User-Agent": "Salvi-Framework"
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        return res.status(response.status).json({ error: error.message || "GitHub API error" });
+      }
+
+      const data = await response.json();
+      
+      // Decode base64 content
+      if (data.content) {
+        const content = Buffer.from(data.content, "base64").toString("utf-8");
+        res.json({ 
+          success: true, 
+          file: {
+            name: data.name,
+            path: data.path,
+            sha: data.sha,
+            size: data.size,
+            content
+          }
+        });
+      } else {
+        res.status(400).json({ error: "Not a file" });
+      }
+    } catch (error) {
+      console.error("GitHub file error:", error);
+      res.status(500).json({ error: "Failed to fetch file" });
+    }
+  });
+
+  // Create or update file
+  app.put("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const path = req.body.path || "";
+      const token = req.adminUser.githubToken;
+      
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const schema = z.object({
+        path: z.string().min(1),
+        content: z.string(),
+        message: z.string().min(1),
+        sha: z.string().optional() // Required for updates, not for creates
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+
+      const { content, message, sha } = parsed.data;
+      const encodedContent = Buffer.from(content).toString("base64");
+
+      const body: any = {
+        message,
+        content: encodedContent
+      };
+      if (sha) {
+        body.sha = sha;
+      }
+
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+            "User-Agent": "Salvi-Framework"
+          },
+          body: JSON.stringify(body)
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        return res.status(response.status).json({ error: error.message || "GitHub API error" });
+      }
+
+      const data = await response.json();
+      res.json({ 
+        success: true, 
+        message: sha ? "File updated" : "File created",
+        commit: data.commit
+      });
+    } catch (error) {
+      console.error("GitHub file create/update error:", error);
+      res.status(500).json({ error: "Failed to save file" });
+    }
+  });
+
+  // Delete file
+  app.delete("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const path = req.body.path || "";
+      const token = req.adminUser.githubToken;
+      
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const schema = z.object({
+        path: z.string().min(1),
+        message: z.string().min(1),
+        sha: z.string()
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+
+      const { path: filePath, message, sha } = parsed.data;
+
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+            "User-Agent": "Salvi-Framework"
+          },
+          body: JSON.stringify({ message, sha })
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        return res.status(response.status).json({ error: error.message || "GitHub API error" });
+      }
+
+      const data = await response.json();
+      res.json({ 
+        success: true, 
+        message: "File deleted",
+        commit: data.commit
+      });
+    } catch (error) {
+      console.error("GitHub file delete error:", error);
+      res.status(500).json({ error: "Failed to delete file" });
+    }
+  });
+
+  // Get user admin status
+  app.get("/api/user/admin-status", async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated?.() || !req.user) {
+        return res.json({ isAdmin: false, authenticated: false });
+      }
+      const user = await storage.getUser(req.user.id);
+      res.json({ 
+        isAdmin: user?.isAdmin || false, 
+        authenticated: true,
+        hasGithubToken: !!user?.githubToken
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check status" });
+    }
+  });
+
   return httpServer;
 }

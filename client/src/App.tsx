@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "@/pages/landing";
 import TernaryDB from "@/pages/ternarydb";
 import Whitepaper from "@/pages/whitepaper";
+import GitHubManager from "@/pages/github-manager";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/ternarydb" component={TernaryDB} />
       <Route path="/whitepaper" component={Whitepaper} />
+      <Route path="/github" component={GitHubManager} />
       <Route component={NotFound} />
     </Switch>
   );

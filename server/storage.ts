@@ -1,5 +1,5 @@
 import { 
-  type User, type InsertUser,
+  type User, type UpsertUser,
   type DemoSession, type InsertDemoSession,
   type BinaryStorage, type InsertBinaryStorage,
   type TernaryStorage, type InsertTernaryStorage,
@@ -15,8 +15,10 @@ import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: UpsertUser): Promise<User>;
+  updateUserGithubToken(id: string, token: string): Promise<User | undefined>;
+  setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined>;
   
   createDemoSession(session: InsertDemoSession): Promise<DemoSession>;
   getDemoSession(sessionId: string): Promise<DemoSession | undefined>;
@@ -51,13 +53,23 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: UpsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUserGithubToken(id: string, token: string): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ githubToken: token }).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ isAdmin }).where(eq(users.id, id)).returning();
     return user;
   }
 

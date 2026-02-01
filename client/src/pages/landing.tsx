@@ -23,17 +23,24 @@ import {
   X,
   LogIn,
   LogOut,
-  User
+  User,
+  Settings
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 
 function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
+  
+  const { data: adminStatus } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["/api/user/admin-status"],
+    enabled: isAuthenticated,
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -97,6 +104,14 @@ function Header() {
                 )}
                 {user?.firstName || user?.email?.split('@')[0]}
               </span>
+              {adminStatus?.isAdmin && (
+                <Link href="/github">
+                  <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-admin-github">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-logout">
                 <a href="/api/logout">
                   <LogOut className="w-4 h-4 mr-2" />
