@@ -32,6 +32,7 @@ export interface IStorage {
   
   createFileUpload(data: InsertFileUpload): Promise<FileUpload>;
   getFileUpload(sessionId: string): Promise<FileUpload | undefined>;
+  getAllFileUploads(): Promise<FileUpload[]>;
   
   createCompressionHistory(data: InsertCompressionHistory): Promise<CompressionHistory>;
   getCompressionHistory(limit: number): Promise<CompressionHistory[]>;
@@ -102,6 +103,10 @@ export class DatabaseStorage implements IStorage {
   async getFileUpload(sessionId: string): Promise<FileUpload | undefined> {
     const [upload] = await db.select().from(fileUploads).where(eq(fileUploads.sessionId, sessionId));
     return upload;
+  }
+
+  async getAllFileUploads(): Promise<FileUpload[]> {
+    return await db.select().from(fileUploads).orderBy(desc(fileUploads.createdAt));
   }
 
   async createCompressionHistory(data: InsertCompressionHistory): Promise<CompressionHistory> {

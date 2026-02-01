@@ -319,5 +319,59 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/demo/files", async (req, res) => {
+    try {
+      const files = await storage.getAllFileUploads();
+      res.json({
+        success: true,
+        files
+      });
+    } catch (error) {
+      console.error("Files error:", error);
+      res.status(500).json({ error: "Failed to get files" });
+    }
+  });
+
+  app.get("/api/demo/data/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 100;
+      
+      const binaryData = await storage.getBinaryStorage(sessionId);
+      if (!binaryData || binaryData.length === 0) {
+        return res.status(404).json({ error: "Data not found" });
+      }
+      
+      const data = binaryData[0];
+      const rawData = data.rawData as object[];
+      const totalRows = rawData.length;
+      const totalPages = Math.ceil(totalRows / pageSize);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalRows);
+      const paginatedData = rawData.slice(startIndex, endIndex);
+      
+      const columns = totalRows > 0 ? Object.keys(rawData[0] as object) : [];
+      
+      res.json({
+        success: true,
+        sessionId,
+        columns,
+        rows: paginatedData,
+        pagination: {
+          page,
+          pageSize,
+          totalRows,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
+    } catch (error) {
+      console.error("Data fetch error:", error);
+      res.status(500).json({ error: "Failed to get data" });
+    }
+  });
+
   return httpServer;
 }

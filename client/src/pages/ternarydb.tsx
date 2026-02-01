@@ -31,7 +31,11 @@ import {
   Upload,
   FileJson,
   FileSpreadsheet,
-  History
+  History,
+  ChevronLeft,
+  ChevronRight,
+  Grid3X3,
+  Eye
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, useInView } from "framer-motion";
@@ -620,6 +624,225 @@ SET ternarydb.efficiency_target = 1.59;  -- 59% improvement`;
   );
 }
 
+function DataGridViewer() {
+  const [files, setFiles] = useState<Array<{
+    id: number;
+    sessionId: string;
+    fileName: string;
+    fileType: string;
+    originalSizeBytes: number;
+    rowCount: number;
+    createdAt: string;
+  }>>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [gridData, setGridData] = useState<{
+    columns: string[];
+    rows: object[];
+    pagination: {
+      page: number;
+      pageSize: number;
+      totalRows: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch('/api/demo/files');
+        if (response.ok) {
+          const data = await response.json();
+          setFiles(data.files || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch files:', error);
+      }
+    };
+    fetchFiles();
+  }, []);
+
+  const loadData = useCallback(async (sessionId: string, page: number = 1) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/demo/data/${sessionId}?page=${page}&pageSize=50`);
+      if (response.ok) {
+        const data = await response.json();
+        setGridData({
+          columns: data.columns,
+          rows: data.rows,
+          pagination: data.pagination
+        });
+        setCurrentPage(data.pagination.page);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleFileSelect = useCallback((sessionId: string) => {
+    setSelectedFile(sessionId);
+    setCurrentPage(1);
+    loadData(sessionId, 1);
+  }, [loadData]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    if (selectedFile) {
+      loadData(selectedFile, newPage);
+    }
+  }, [selectedFile, loadData]);
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      className="mt-8"
+    >
+      <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Grid3X3 className="w-5 h-5 text-primary" />
+          Stored Data Viewer
+        </h3>
+        <p className="text-muted-foreground text-sm mb-6">
+          View decompressed data from ternary storage - browse your uploaded files stored in PostgreSQL
+        </p>
+
+        <div className="mb-6">
+          <label className="text-sm font-medium text-foreground mb-2 block">Select File to View</label>
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {files.map((file) => (
+              <button
+                key={file.sessionId}
+                onClick={() => handleFileSelect(file.sessionId)}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  selectedFile === file.sessionId
+                    ? "border-primary bg-primary/10"
+                    : "border-primary/20 hover:border-primary/40"
+                }`}
+                data-testid={`button-file-${file.id}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {file.fileType === 'json' ? (
+                    <FileJson className="w-4 h-4 text-primary" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4 text-primary" />
+                  )}
+                  <span className="font-medium text-foreground text-sm truncate max-w-[150px]">
+                    {file.fileName}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {file.rowCount} rows • {(file.originalSizeBytes / 1024).toFixed(1)} KB
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        )}
+
+        {gridData && !isLoading && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">
+                  Showing rows {((currentPage - 1) * 50) + 1} - {Math.min(currentPage * 50, gridData.pagination.totalRows)} of {gridData.pagination.totalRows}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!gridData.pagination.hasPrev}
+                  data-testid="button-prev-page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground px-2">
+                  Page {currentPage} of {gridData.pagination.totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!gridData.pagination.hasNext}
+                  data-testid="button-next-page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-lg overflow-hidden border border-primary/10 bg-background">
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table className="w-full text-sm" data-testid="table-data-grid">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-primary/10 bg-secondary/80 backdrop-blur-sm">
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground w-12">#</th>
+                      {gridData.columns.map((col) => (
+                        <th key={col} className="px-3 py-2 text-left font-medium text-foreground whitespace-nowrap">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gridData.rows.map((row, i) => (
+                      <tr key={i} className="border-b border-primary/5 hover:bg-primary/5 transition-colors">
+                        <td className="px-3 py-2 text-muted-foreground text-xs">
+                          {((currentPage - 1) * 50) + i + 1}
+                        </td>
+                        {gridData.columns.map((col) => (
+                          <td key={col} className="px-3 py-2 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
+                            {String((row as Record<string, unknown>)[col] ?? '')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Badge variant="outline" className="border-primary/30 text-primary">
+                {gridData.columns.length} columns
+              </Badge>
+              <Badge variant="outline" className="border-primary/30 text-primary">
+                {gridData.pagination.totalRows} total rows
+              </Badge>
+            </div>
+          </div>
+        )}
+
+        {!selectedFile && !isLoading && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Grid3X3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Select a file above to view its stored data</p>
+          </div>
+        )}
+      </Card>
+    </motion.div>
+  );
+}
+
 function LiveDemoSection() {
   const sampleDatasets = [
     {
@@ -1162,6 +1385,8 @@ function LiveDemoSection() {
               </motion.div>
             )}
           </Card>
+
+          <DataGridViewer />
 
           {compressionHistory.length > 0 && (
             <motion.div
