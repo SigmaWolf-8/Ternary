@@ -74,7 +74,7 @@ export async function registerRoutes(
       const processingTimeMs = Date.now() - startTime;
       const savingsPercent = ((binarySizeBytes - compression.compressedSize) / binarySizeBytes) * 100;
       
-      const benchmark = await storage.createCompressionBenchmark({
+      await storage.createCompressionBenchmark({
         sessionId,
         datasetName,
         binaryStorageId: binaryRecord.id,
@@ -82,6 +82,17 @@ export async function registerRoutes(
         binarySizeBytes,
         ternarySizeBytes: compression.compressedSize,
         savingsPercent,
+        processingTimeMs
+      });
+      
+      await storage.createCompressionHistory({
+        sessionId,
+        datasetName,
+        sourceType: "sample_dataset",
+        binarySizeBytes,
+        ternarySizeBytes: compression.compressedSize,
+        savingsPercent,
+        rowCount,
         processingTimeMs
       });
       
@@ -153,6 +164,145 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Session error:", error);
       res.status(500).json({ error: "Failed to get session" });
+    }
+  });
+
+  app.post("/api/demo/upload", async (req, res) => {
+    try {
+      const uploadSchema = z.object({
+        fileName: z.string().min(1),
+        fileType: z.enum(["json", "csv"]),
+        content: z.string().min(1),
+      });
+      
+      const parsed = uploadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      
+      const { fileName, fileType, content } = parsed.data;
+      const startTime = Date.now();
+      const sessionId = randomUUID();
+      
+      let rawData: object[];
+      try {
+        if (fileType === "json") {
+          const parsed = JSON.parse(content);
+          rawData = Array.isArray(parsed) ? parsed : [parsed];
+        } else {
+          const lines = content.trim().split('\n');
+          if (lines.length < 2) {
+            return res.status(400).json({ error: "CSV must have header and at least one data row" });
+          }
+          const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+          rawData = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            const row: Record<string, string> = {};
+            headers.forEach((header, i) => {
+              row[header] = values[i] || '';
+            });
+            return row;
+          });
+        }
+      } catch (parseError) {
+        return res.status(400).json({ error: "Failed to parse file content" });
+      }
+      
+      const rowCount = rawData.length;
+      const jsonString = JSON.stringify(rawData);
+      const binarySizeBytes = Buffer.from(jsonString, 'utf-8').length;
+      
+      const compression = compressData(jsonString);
+      
+      await storage.createDemoSession({
+        sessionId,
+        datasetName: `upload:${fileName}`
+      });
+      
+      await storage.createFileUpload({
+        sessionId,
+        fileName,
+        fileType,
+        originalSizeBytes: binarySizeBytes,
+        rowCount
+      });
+      
+      const binaryRecord = await storage.createBinaryStorage({
+        sessionId,
+        dataType: "file_upload",
+        rawData,
+        sizeBytes: binarySizeBytes,
+        rowCount
+      });
+      
+      const ternaryRecord = await storage.createTernaryStorage({
+        sessionId,
+        dataType: "file_upload",
+        compressedData: compression.compressedData,
+        originalSizeBytes: compression.originalSize,
+        compressedSizeBytes: compression.compressedSize,
+        compressionRatio: compression.compressionRatio,
+        rowCount
+      });
+      
+      const processingTimeMs = Date.now() - startTime;
+      const savingsPercent = ((binarySizeBytes - compression.compressedSize) / binarySizeBytes) * 100;
+      
+      await storage.createCompressionBenchmark({
+        sessionId,
+        datasetName: `upload:${fileName}`,
+        binaryStorageId: binaryRecord.id,
+        ternaryStorageId: ternaryRecord.id,
+        binarySizeBytes,
+        ternarySizeBytes: compression.compressedSize,
+        savingsPercent,
+        processingTimeMs
+      });
+      
+      await storage.createCompressionHistory({
+        sessionId,
+        datasetName: fileName,
+        sourceType: "file_upload",
+        binarySizeBytes,
+        ternarySizeBytes: compression.compressedSize,
+        savingsPercent,
+        rowCount,
+        processingTimeMs
+      });
+      
+      res.json({
+        success: true,
+        sessionId,
+        fileName,
+        fileType,
+        rowCount,
+        binarySize: binarySizeBytes,
+        ternarySize: compression.compressedSize,
+        savingsPercent: savingsPercent.toFixed(1),
+        processingTimeMs,
+        preview: rawData.slice(0, 5),
+        atScaleProjection: {
+          binarySize: binarySizeBytes * 10000,
+          ternarySize: compression.compressedSize * 10000,
+          savings: `${((binarySizeBytes * 10000 - compression.compressedSize * 10000) / (1024 * 1024)).toFixed(2)} MB`
+        }
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: "Failed to process upload" });
+    }
+  });
+
+  app.get("/api/demo/history", async (req, res) => {
+    try {
+      const history = await storage.getCompressionHistory(50);
+      res.json({
+        success: true,
+        history
+      });
+    } catch (error) {
+      console.error("History error:", error);
+      res.status(500).json({ error: "Failed to get compression history" });
     }
   });
 
