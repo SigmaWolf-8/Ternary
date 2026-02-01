@@ -62,7 +62,7 @@ function Header() {
       <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between gap-4">
         <a href="#" className="flex items-center gap-2.5 text-primary font-bold text-xl" data-testid="link-logo">
           <Box className="w-7 h-7" />
-          <span>Ternary</span>
+          <span>Salvi</span>
         </a>
         
         <nav className="hidden md:flex items-center gap-8">
@@ -507,7 +507,7 @@ function ComponentsSection() {
     {
       badge: "Q3 2024",
       icon: Database,
-      title: "TernaryDB",
+      title: "SalviDB",
       description: "Purpose-built database engine optimized for ternary data structures and queries.",
       features: [
         "Native ternary storage format",
@@ -532,7 +532,7 @@ function ComponentsSection() {
     {
       badge: "2025",
       icon: Network,
-      title: "Ternary Mesh",
+      title: "Salvi Mesh",
       description: "Distributed network protocol for ternary data transmission and routing.",
       features: [
         "Self-healing topology",
@@ -600,7 +600,7 @@ function ComparisonSection() {
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-comparison-title"
           >
-            Why Ternary?
+            Why Salvi?
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -626,7 +626,7 @@ function ComparisonSection() {
                 <p className="text-sm text-muted-foreground">Legacy binary infrastructure</p>
               </div>
               <div className="flex-1 text-center">
-                <h3 className="text-xl font-semibold text-primary mb-2">Ternary Architecture</h3>
+                <h3 className="text-xl font-semibold text-primary mb-2">Salvi Architecture</h3>
                 <p className="text-sm text-muted-foreground">Next-generation foundation</p>
               </div>
             </div>
@@ -742,7 +742,7 @@ function CTASection() {
               Ready to Build the Future?
             </h2>
             <p className="text-lg opacity-90 mb-8 max-w-xl mx-auto">
-              Start with our open-source library today, or schedule a demo to see how Ternary can transform your infrastructure.
+              Start with our open-source library today, or schedule a demo to see how Salvi can transform your infrastructure.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button 
@@ -780,7 +780,7 @@ function Footer() {
       { label: "libternary", href: "#" },
       { label: "Timing API", href: "#" },
       { label: "FPGA Cards", href: "#" },
-      { label: "TernaryDB", href: "/ternarydb" },
+      { label: "SalviDB", href: "/ternarydb" },
     ],
     Developers: [
       { label: "Documentation", href: "#" },
@@ -808,7 +808,7 @@ function Footer() {
           <div className="col-span-2 md:col-span-1">
             <a href="#" className="flex items-center gap-2 text-primary font-bold text-xl mb-4" data-testid="link-footer-logo">
               <Box className="w-6 h-6" />
-              <span>Ternary</span>
+              <span>Salvi</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">
               Building the quantum-resistant internet, one component at a time.
@@ -878,7 +878,7 @@ function Footer() {
         </div>
 
         <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Ternary Systems. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Salvi Systems. All rights reserved.</p>
         </div>
       </div>
     </footer>
