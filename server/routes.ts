@@ -998,11 +998,19 @@ export async function registerRoutes(
     }
   });
 
+  // Helper to validate and sanitize paths
+  const sanitizePath = (path: string): string => {
+    return path
+      .replace(/\.\./g, "")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+  };
+
   // Get repository contents (files and folders)
   app.get("/api/github/repos/:owner/:repo/contents", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const path = (req.query.path as string) || "";
+      const path = sanitizePath((req.query.path as string) || "");
       const token = req.adminUser.githubToken;
       
       if (!token) {
@@ -1037,7 +1045,7 @@ export async function registerRoutes(
   app.get("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const path = (req.query.path as string) || "";
+      const path = sanitizePath((req.query.path as string) || "");
       const token = req.adminUser.githubToken;
       
       if (!token) {
@@ -1088,7 +1096,6 @@ export async function registerRoutes(
   app.put("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const path = req.body.path || "";
       const token = req.adminUser.githubToken;
       
       if (!token) {
@@ -1107,7 +1114,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
 
-      const { content, message, sha } = parsed.data;
+      const { path: rawPath, content, message, sha } = parsed.data;
+      const filePath = sanitizePath(rawPath);
       const encodedContent = Buffer.from(content).toString("base64");
 
       const body: any = {
@@ -1119,7 +1127,7 @@ export async function registerRoutes(
       }
 
       const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
         {
           method: "PUT",
           headers: {
@@ -1153,7 +1161,6 @@ export async function registerRoutes(
   app.delete("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const path = req.body.path || "";
       const token = req.adminUser.githubToken;
       
       if (!token) {
@@ -1171,7 +1178,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
 
-      const { path: filePath, message, sha } = parsed.data;
+      const { path: rawPath, message, sha } = parsed.data;
+      const filePath = sanitizePath(rawPath);
 
       const response = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,

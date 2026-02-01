@@ -17,12 +17,13 @@ A professional light-themed marketing website for Salvi, a post-quantum internet
 client/
 ├── src/
 │   ├── pages/
-│   │   ├── landing.tsx     # Main landing page with all sections
-│   │   ├── ternarydb.tsx   # SalviDB product page
-│   │   └── whitepaper.tsx  # Whitepaper viewer with TOC
-│   ├── components/ui/      # shadcn/ui components
-│   ├── index.css           # Theme CSS variables (light theme)
-│   └── App.tsx             # App router
+│   │   ├── landing.tsx        # Main landing page with all sections
+│   │   ├── ternarydb.tsx      # SalviDB product page
+│   │   ├── whitepaper.tsx     # Whitepaper viewer with TOC
+│   │   └── github-manager.tsx # Admin-only GitHub file manager
+│   ├── components/ui/         # shadcn/ui components
+│   ├── index.css              # Theme CSS variables (light theme)
+│   └── App.tsx                # App router
 
 server/
 ├── salvi-core/             # Salvi Framework Core API
@@ -100,8 +101,19 @@ Based on the whitepaper's Unified Ternary Logic System:
 - `GET /api/whitepapers/active` - Get active whitepaper
 - `POST /api/whitepapers` - Create new whitepaper
 
+## GitHub Manager API (Admin Only)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/github/token` | POST | Save GitHub Personal Access Token |
+| `/api/github/status` | GET | Check if token is configured |
+| `/api/github/repos/:owner/:repo/contents` | GET | Get repository contents (use `?path=` for subdirs) |
+| `/api/github/file/:owner/:repo` | GET | Get file content (use `?path=` for file path) |
+| `/api/github/file/:owner/:repo` | PUT | Create/update file (body: path, content, message, sha) |
+| `/api/github/file/:owner/:repo` | DELETE | Delete file (body: path, sha, message) |
+| `/api/user/admin-status` | GET | Check if current user is admin |
+
 ## Database Schema
-- **users** - Authenticated users (email, name, profile image)
+- **users** - Authenticated users (email, name, profile image, isAdmin, githubToken)
 - **sessions** - User sessions for authentication
 - **demo_sessions** - Demo session metadata
 - **binary_storage** - Original binary data
@@ -114,6 +126,7 @@ Based on the whitepaper's Unified Ternary Logic System:
 1. **Landing** (`/`) - Hero, approach, components, comparison, markets, CTA
 2. **SalviDB** (`/ternarydb`) - Product page with live compression demo
 3. **Whitepaper** (`/whitepaper`) - Full whitepaper viewer with Table of Contents
+4. **GitHub Manager** (`/github`) - Admin-only page to manage GitHub repository files
 
 ## Running the App
 ```bash

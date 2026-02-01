@@ -42,7 +42,7 @@ export default function GitHubManager() {
   const [showNewFile, setShowNewFile] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
 
-  const { data: adminStatus, isLoading: statusLoading } = useQuery<{
+  const { data: adminStatus, isLoading: statusLoading, isError: statusError } = useQuery<{
     isAdmin: boolean;
     authenticated: boolean;
     hasGithubToken: boolean;
@@ -181,6 +181,40 @@ export default function GitHubManager() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (statusError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" data-testid="link-home">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <h1 className="text-xl font-semibold">GitHub Manager</h1>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-12">
+          <Card className="max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                Error
+              </CardTitle>
+              <CardDescription>Failed to check access status. Please try again.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/">
+                <Button data-testid="button-go-home">Go to Home</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }
