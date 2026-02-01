@@ -1,7 +1,7 @@
-# Ternary-Torsion Internet Landing Page
+# Salvi Framework Marketing Website
 
 ## Overview
-A stunning dark-themed landing page for Ternary, a post-quantum internet solutions company. The site showcases deployable components for building quantum-resistant infrastructure.
+A professional light-themed marketing website for Salvi, a post-quantum internet solutions company. The site showcases deployable components for building quantum-resistant infrastructure, including SalviDB product page with live compression demo and comprehensive whitepaper management.
 
 ## Tech Stack
 - **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion
@@ -9,88 +9,111 @@ A stunning dark-themed landing page for Ternary, a post-quantum internet solutio
 - **Database**: Drizzle ORM with PostgreSQL
 - **UI Components**: shadcn/ui (Button, Badge, Card)
 - **Routing**: Wouter
-- **Styling**: Custom dark tech theme with baby blue accents
+- **Styling**: Light theme with white background and blue accents
+- **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password)
 
 ## Project Structure
 ```
 client/
 ├── src/
 │   ├── pages/
-│   │   ├── landing.tsx    # Main landing page with all sections
-│   │   └── ternarydb.tsx  # TernaryDB product page
-│   ├── components/ui/     # shadcn/ui components
-│   ├── index.css          # Theme CSS variables
-│   └── App.tsx            # App router with / and /ternarydb routes
-├── index.html             # Entry HTML with SEO meta tags
+│   │   ├── landing.tsx     # Main landing page with all sections
+│   │   ├── ternarydb.tsx   # SalviDB product page
+│   │   └── whitepaper.tsx  # Whitepaper viewer with TOC
+│   ├── components/ui/      # shadcn/ui components
+│   ├── index.css           # Theme CSS variables (light theme)
+│   └── App.tsx             # App router
 
 server/
-├── db.ts                  # PostgreSQL database connection
-├── storage.ts             # Database storage interface
-├── ternary.ts             # Ternary compression utilities
-├── routes.ts              # API routes for demo functionality
-├── index.ts               # Express server entry point
+├── salvi-core/             # Salvi Framework Core API
+│   ├── index.ts            # Module exports
+│   ├── ternary-types.ts    # Trit representations (A, B, C)
+│   ├── ternary-operations.ts # GF(3) operations
+│   ├── femtosecond-timing.ts # Femtosecond timestamps
+│   └── phase-encryption.ts # Phase-split encryption
+├── db.ts                   # PostgreSQL database connection
+├── storage.ts              # Database storage interface
+├── ternary.ts              # Ternary compression utilities
+├── routes.ts               # API routes
+├── index.ts                # Express server entry point
 
 shared/
-├── schema.ts              # Drizzle database schema definitions
+├── schema.ts               # Drizzle database schema
 ```
 
 ## Theme Colors
-- Background: Deep navy blue (#0a192f equivalent)
-- Accent/Primary: Baby blue (#7cc5e6 equivalent)
-- Text: Light blue-gray for primary, muted for secondary
+- Background: White (#ffffff)
+- Primary: Blue (HSL 210 100% 45%)
+- Text: Dark gray for primary, muted for secondary
 
-## Landing Page Sections
-1. **Header** - Fixed nav with logo, links, GitHub & Contact buttons, mobile menu
-2. **Hero** - Badge, headline, description, CTAs, animated stats
-3. **Approach** - Timeline showing phased implementation (Phase 1-4)
-4. **Components** - Grid of market-ready components (libternary, Timing API, FPGA, etc.)
-5. **Comparison** - Current Internet vs Ternary Architecture table
-6. **Target Markets** - Financial, Research, Industrial IoT
-7. **CTA Section** - Get Started call-to-action
-8. **Footer** - Links, social icons, copyright
+## Salvi Core API
 
-## TernaryDB Product Page (/ternarydb)
-1. **Header** - Navigation with back-to-home link and Live Demo nav link
-2. **Hero** - Product headline, description, CTAs
-3. **Features** - Grid of key capabilities (compression, efficiency, compatibility)
-4. **Architecture** - Layered diagram showing PostgreSQL integration
-5. **Installation** - Quick start code blocks with copy functionality
-6. **Live Demo** - Interactive compression demo with real PostgreSQL backend
-7. **Performance** - Benchmark charts and metrics
-8. **Pricing** - Tier cards (Community, Enterprise, Cloud)
-9. **Use Cases** - Target applications and industries
-10. **CTA Section** - Get Started call-to-action
-11. **Footer** - Links and copyright
+### Ternary Operations (`/api/salvi/ternary/`)
+Based on the whitepaper's Unified Ternary Logic System:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/docs` | GET | API documentation |
+| `/convert` | POST | Convert between representations A/B/C |
+| `/add` | POST | Ternary addition in GF(3) |
+| `/multiply` | POST | Ternary multiplication in GF(3) |
+| `/rotate` | POST | Bijective ternary rotation |
+| `/not` | POST | Ternary negation |
+| `/xor` | POST | Ternary XOR |
+| `/batch` | POST | Batch ternary operations |
+| `/density/:tritCount` | GET | Information density calculator |
+
+### Femtosecond Timing (`/api/salvi/timing/`)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/timestamp` | GET | Get femtosecond-precision timestamp |
+| `/metrics` | GET | Get timing metrics |
+| `/batch/:count` | GET | Generate batch of timestamps |
+
+### Phase Encryption (`/api/salvi/phase/`)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/config/:mode` | GET | Get phase configuration |
+| `/split` | POST | Split data into phase-encrypted components |
+| `/recombine` | POST | Recombine phase-split data |
+| `/recommend` | GET | Get recommended encryption mode |
+
+### Ternary Representations (from Whitepaper)
+- **Representation A** (Computational): {-1, 0, +1}
+- **Representation B** (Network): {0, 1, 2}
+- **Representation C** (Human): {1, 2, 3}
+
+### Bijections
+- A→B: `f(a) = a + 1`
+- A→C: `f(a) = a + 2`
+- B→C: `f(b) = b + 1`
+
+## Demo API Endpoints
+- `POST /api/demo/run` - Run compression demo
+- `POST /api/demo/upload` - Upload file for compression testing
+- `GET /api/demo/stats` - Get aggregated statistics
+- `GET /api/demo/history` - Get compression history
+- `GET /api/demo/data/:sessionId` - Get paginated data with metrics
+
+## Whitepaper API
+- `GET /api/whitepapers` - List all whitepapers
+- `GET /api/whitepapers/active` - Get active whitepaper
+- `POST /api/whitepapers` - Create new whitepaper
 
 ## Database Schema
-- **demo_sessions** - Tracks demo session metadata
-- **binary_storage** - Stores original binary data with size metrics
-- **ternary_storage** - Stores compressed ternary data with compression ratios
-- **compression_benchmarks** - Records compression performance metrics
-- **file_uploads** - Tracks user-uploaded files with metadata
-- **compression_history** - Historical record of all compression tests
+- **users** - Authenticated users (email, name, profile image)
+- **sessions** - User sessions for authentication
+- **demo_sessions** - Demo session metadata
+- **binary_storage** - Original binary data
+- **ternary_storage** - Compressed ternary data
+- **compression_benchmarks** - Performance metrics
+- **compression_history** - Historical compression records
+- **whitepapers** - Whitepaper content (83 sections)
 
-## API Endpoints
-- `POST /api/demo/run` - Run compression demo with dataset (sensor/events/logs)
-- `POST /api/demo/upload` - Upload custom JSON/CSV file for compression testing
-- `GET /api/demo/stats` - Get aggregated compression statistics
-- `GET /api/demo/history` - Get historical compression proof records
-- `GET /api/demo/session/:sessionId` - Get details for a specific demo session
-
-## Live Demo Features
-- Three sample datasets: Sensor Readings, User Events, Log Entries
-- Data preview table showing first 5 rows
-- Run Compression Demo button with processing animation
-- **Drag-and-drop file upload** - Import custom JSON or CSV files
-- Results stored in PostgreSQL database (both binary and ternary format)
-- Results showing binary vs ternary size comparison (56-62% savings)
-- Animated progress bars and "At Scale" projections
-- **Historical Compression Proof** - Live table showing all past compression tests
-- Summary statistics: total tests, average savings, total data processed
-
-## Navigation
-- Landing page components section has clickable TernaryDB card linking to /ternarydb
-- Footer Product section links to /ternarydb using wouter Link for client-side navigation
+## Pages
+1. **Landing** (`/`) - Hero, approach, components, comparison, markets, CTA
+2. **SalviDB** (`/ternarydb`) - Product page with live compression demo
+3. **Whitepaper** (`/whitepaper`) - Full whitepaper viewer with Table of Contents
 
 ## Running the App
 ```bash

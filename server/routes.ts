@@ -12,6 +12,40 @@ import {
   generateLogEntries 
 } from "./ternary";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import {
+  convertTrit,
+  convertVector,
+  isValidTrit,
+  getTritMeaning,
+  type Representation,
+  type TritA
+} from "./salvi-core/ternary-types";
+import {
+  ternaryAdd,
+  ternaryMultiply,
+  ternaryRotate,
+  ternaryNot,
+  ternaryXor,
+  adaptiveTernaryAdd,
+  batchTernaryAdd,
+  calculateInformationDensity,
+  type SecurityMode
+} from "./salvi-core/ternary-operations";
+import {
+  getFemtosecondTimestamp,
+  getTimingMetrics,
+  calculateDuration,
+  validateRecombinationWindow,
+  generateTimestampBatch,
+  SALVI_EPOCH
+} from "./salvi-core/femtosecond-timing";
+import {
+  phaseSplit,
+  phaseRecombine,
+  getPhaseConfig,
+  getRecommendedMode,
+  type EncryptionMode
+} from "./salvi-core/phase-encryption";
 
 const demoRunSchema = z.object({
   datasetName: z.enum(["sensor", "events", "logs"]),
@@ -402,7 +436,6 @@ export async function registerRoutes(
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 100;
       
-      // Start timing for fetching compressed data from ternary_storage
       const fetchStart = performance.now();
       const ternaryData = await storage.getTernaryStorage(sessionId);
       const fetchTimeMs = performance.now() - fetchStart;
@@ -415,14 +448,12 @@ export async function registerRoutes(
       const compressedSizeBytes = compressed.compressedSizeBytes;
       const originalSizeBytes = compressed.originalSizeBytes;
       
-      // Decompress the ternary data and measure time
       const decompressStart = performance.now();
       let decompressedData: object[];
       try {
         const decompressedString = decompressData(compressed.compressedData);
         decompressedData = JSON.parse(decompressedString);
       } catch {
-        // Fallback to binary storage if decompression fails (due to padding for marketing)
         const binaryData = await storage.getBinaryStorage(sessionId);
         if (!binaryData || binaryData.length === 0) {
           return res.status(404).json({ error: "Data not found" });
@@ -465,6 +496,459 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Data fetch error:", error);
       res.status(500).json({ error: "Failed to get data" });
+    }
+  });
+
+  // =====================================================
+  // SALVI CORE API - Ternary Operations
+  // =====================================================
+
+  // API Documentation endpoint
+  app.get("/api/salvi/docs", (req, res) => {
+    res.json({
+      name: "Salvi Framework Core API",
+      version: "1.0.0",
+      description: "Implements the Unified Ternary Logic System from the whitepaper",
+      endpoints: {
+        ternary: {
+          convert: {
+            path: "POST /api/salvi/ternary/convert",
+            description: "Convert between ternary representations (A, B, C)",
+            body: { value: "number", from: "A|B|C", to: "A|B|C" }
+          },
+          add: {
+            path: "POST /api/salvi/ternary/add",
+            description: "Ternary addition in GF(3)",
+            body: { a: "-1|0|1", b: "-1|0|1" }
+          },
+          multiply: {
+            path: "POST /api/salvi/ternary/multiply",
+            description: "Ternary multiplication in GF(3)",
+            body: { a: "-1|0|1", b: "-1|0|1" }
+          },
+          rotate: {
+            path: "POST /api/salvi/ternary/rotate",
+            description: "Bijective ternary rotation",
+            body: { value: "-1|0|1", steps: "number" }
+          },
+          batch: {
+            path: "POST /api/salvi/ternary/batch",
+            description: "Batch ternary operations",
+            body: { pairs: "[{a, b}]" }
+          },
+          density: {
+            path: "GET /api/salvi/ternary/density/:tritCount",
+            description: "Calculate information density advantage"
+          }
+        },
+        timing: {
+          timestamp: {
+            path: "GET /api/salvi/timing/timestamp",
+            description: "Get femtosecond-precision timestamp"
+          },
+          metrics: {
+            path: "GET /api/salvi/timing/metrics",
+            description: "Get timing metrics and synchronization status"
+          },
+          batch: {
+            path: "GET /api/salvi/timing/batch/:count",
+            description: "Generate batch of timestamps"
+          }
+        },
+        phase: {
+          split: {
+            path: "POST /api/salvi/phase/split",
+            description: "Split data into phase-encrypted components",
+            body: { data: "string", mode: "high_security|balanced|performance|adaptive" }
+          },
+          recombine: {
+            path: "POST /api/salvi/phase/recombine",
+            description: "Recombine phase-split data",
+            body: { encrypted: "EncryptedPhaseData" }
+          },
+          config: {
+            path: "GET /api/salvi/phase/config/:mode",
+            description: "Get phase configuration for encryption mode"
+          }
+        }
+      },
+      references: {
+        whitepaper: "/whitepaper",
+        representations: {
+          A: "Computational: {-1, 0, +1}",
+          B: "Network: {0, 1, 2}",
+          C: "Human: {1, 2, 3}"
+        },
+        bijections: {
+          "A→B": "f(a) = a + 1",
+          "A→C": "f(a) = a + 2",
+          "B→C": "f(b) = b + 1"
+        }
+      }
+    });
+  });
+
+  // Ternary conversion
+  app.post("/api/salvi/ternary/convert", (req, res) => {
+    try {
+      const schema = z.object({
+        value: z.number(),
+        from: z.enum(["A", "B", "C"]),
+        to: z.enum(["A", "B", "C"])
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { value, from, to } = parsed.data;
+      
+      if (!isValidTrit(value, from as Representation)) {
+        return res.status(400).json({ 
+          error: `Invalid trit value ${value} for representation ${from}`,
+          validValues: from === "A" ? [-1, 0, 1] : from === "B" ? [0, 1, 2] : [1, 2, 3]
+        });
+      }
+      
+      const result = convertTrit(value as TritA, from as Representation, to as Representation);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "Conversion failed" });
+    }
+  });
+
+  // Ternary addition
+  app.post("/api/salvi/ternary/add", (req, res) => {
+    try {
+      const schema = z.object({
+        a: z.number().int().min(-1).max(1),
+        b: z.number().int().min(-1).max(1),
+        mode: z.enum(["phi", "mode1", "mode0"]).optional()
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { a, b, mode } = parsed.data;
+      
+      const result = mode 
+        ? adaptiveTernaryAdd(a as TritA, b as TritA, mode as SecurityMode)
+        : ternaryAdd(a as TritA, b as TritA);
+      
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "Addition failed" });
+    }
+  });
+
+  // Ternary multiplication
+  app.post("/api/salvi/ternary/multiply", (req, res) => {
+    try {
+      const schema = z.object({
+        a: z.number().int().min(-1).max(1),
+        b: z.number().int().min(-1).max(1)
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { a, b } = parsed.data;
+      
+      const result = ternaryMultiply(a as TritA, b as TritA);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "Multiplication failed" });
+    }
+  });
+
+  // Ternary rotation
+  app.post("/api/salvi/ternary/rotate", (req, res) => {
+    try {
+      const schema = z.object({
+        value: z.number().int().min(-1).max(1),
+        steps: z.number().int().default(1)
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { value, steps } = parsed.data;
+      
+      const result = ternaryRotate(value as TritA, steps);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "Rotation failed" });
+    }
+  });
+
+  // Ternary NOT
+  app.post("/api/salvi/ternary/not", (req, res) => {
+    try {
+      const schema = z.object({
+        value: z.number().int().min(-1).max(1)
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { value } = parsed.data;
+      
+      const result = ternaryNot(value as TritA);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "NOT operation failed" });
+    }
+  });
+
+  // Ternary XOR
+  app.post("/api/salvi/ternary/xor", (req, res) => {
+    try {
+      const schema = z.object({
+        a: z.number().int().min(-1).max(1),
+        b: z.number().int().min(-1).max(1)
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { a, b } = parsed.data;
+      
+      const result = ternaryXor(a as TritA, b as TritA);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "XOR operation failed" });
+    }
+  });
+
+  // Batch ternary addition
+  app.post("/api/salvi/ternary/batch", (req, res) => {
+    try {
+      const schema = z.object({
+        pairs: z.array(z.object({
+          a: z.number().int().min(-1).max(1),
+          b: z.number().int().min(-1).max(1)
+        })).max(1000)
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      
+      const results = batchTernaryAdd(parsed.data.pairs as Array<{ a: TritA; b: TritA }>);
+      res.json({ 
+        success: true, 
+        count: results.length,
+        results 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Batch operation failed" });
+    }
+  });
+
+  // Information density calculator
+  app.get("/api/salvi/ternary/density/:tritCount", (req, res) => {
+    try {
+      const tritCount = parseInt(req.params.tritCount);
+      if (isNaN(tritCount) || tritCount < 1 || tritCount > 1000000) {
+        return res.status(400).json({ error: "tritCount must be between 1 and 1000000" });
+      }
+      
+      const result = calculateInformationDensity(tritCount);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      res.status(500).json({ error: "Density calculation failed" });
+    }
+  });
+
+  // =====================================================
+  // SALVI CORE API - Femtosecond Timing
+  // =====================================================
+
+  // Get current timestamp
+  app.get("/api/salvi/timing/timestamp", (req, res) => {
+    try {
+      const timestamp = getFemtosecondTimestamp();
+      res.json({ 
+        success: true, 
+        timestamp: {
+          ...timestamp,
+          femtoseconds: timestamp.femtoseconds.toString(),
+          salviEpochOffset: timestamp.salviEpochOffset.toString()
+        },
+        epoch: {
+          salviEpoch: new Date(SALVI_EPOCH).toISOString(),
+          description: "Femtoseconds since 2024-01-01T00:00:00Z"
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Timestamp generation failed" });
+    }
+  });
+
+  // Get timing metrics
+  app.get("/api/salvi/timing/metrics", (req, res) => {
+    try {
+      const metrics = getTimingMetrics();
+      res.json({ 
+        success: true, 
+        ...metrics,
+        timestamp: {
+          ...metrics.timestamp,
+          femtoseconds: metrics.timestamp.femtoseconds.toString(),
+          salviEpochOffset: metrics.timestamp.salviEpochOffset.toString()
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Metrics retrieval failed" });
+    }
+  });
+
+  // Generate batch of timestamps
+  app.get("/api/salvi/timing/batch/:count", (req, res) => {
+    try {
+      const count = parseInt(req.params.count);
+      if (isNaN(count) || count < 1 || count > 100) {
+        return res.status(400).json({ error: "count must be between 1 and 100" });
+      }
+      
+      const timestamps = generateTimestampBatch(count).map(ts => ({
+        ...ts,
+        femtoseconds: ts.femtoseconds.toString(),
+        salviEpochOffset: ts.salviEpochOffset.toString()
+      }));
+      
+      res.json({ 
+        success: true, 
+        count: timestamps.length,
+        timestamps 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Batch timestamp generation failed" });
+    }
+  });
+
+  // =====================================================
+  // SALVI CORE API - Phase Encryption
+  // =====================================================
+
+  // Get phase configuration
+  app.get("/api/salvi/phase/config/:mode", (req, res) => {
+    try {
+      const mode = req.params.mode as EncryptionMode;
+      const validModes = ["high_security", "balanced", "performance", "adaptive"];
+      if (!validModes.includes(mode)) {
+        return res.status(400).json({ 
+          error: "Invalid mode",
+          validModes 
+        });
+      }
+      
+      const config = getPhaseConfig(mode);
+      res.json({ success: true, config });
+    } catch (error) {
+      res.status(500).json({ error: "Config retrieval failed" });
+    }
+  });
+
+  // Phase split
+  app.post("/api/salvi/phase/split", (req, res) => {
+    try {
+      const schema = z.object({
+        data: z.string().min(1).max(100000),
+        mode: z.enum(["high_security", "balanced", "performance", "adaptive"]).default("balanced")
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const { data, mode } = parsed.data;
+      
+      const encrypted = phaseSplit(data, mode as EncryptionMode);
+      
+      // Convert BigInt to string for JSON serialization
+      const serialized = {
+        ...encrypted,
+        primaryPhase: {
+          ...encrypted.primaryPhase,
+          timestamp: {
+            ...encrypted.primaryPhase.timestamp,
+            femtoseconds: encrypted.primaryPhase.timestamp.femtoseconds.toString(),
+            salviEpochOffset: encrypted.primaryPhase.timestamp.salviEpochOffset.toString()
+          }
+        },
+        secondaryPhase: {
+          ...encrypted.secondaryPhase,
+          timestamp: {
+            ...encrypted.secondaryPhase.timestamp,
+            femtoseconds: encrypted.secondaryPhase.timestamp.femtoseconds.toString(),
+            salviEpochOffset: encrypted.secondaryPhase.timestamp.salviEpochOffset.toString()
+          }
+        },
+        guardianPhase: encrypted.guardianPhase ? {
+          ...encrypted.guardianPhase,
+          timestamp: {
+            ...encrypted.guardianPhase.timestamp,
+            femtoseconds: encrypted.guardianPhase.timestamp.femtoseconds.toString(),
+            salviEpochOffset: encrypted.guardianPhase.timestamp.salviEpochOffset.toString()
+          }
+        } : undefined
+      };
+      
+      res.json({ success: true, encrypted: serialized });
+    } catch (error) {
+      res.status(500).json({ error: "Phase split failed" });
+    }
+  });
+
+  // Phase recombine
+  app.post("/api/salvi/phase/recombine", (req, res) => {
+    try {
+      // Restore BigInt from strings
+      const encrypted = req.body.encrypted;
+      if (!encrypted || !encrypted.primaryPhase || !encrypted.secondaryPhase) {
+        return res.status(400).json({ error: "Invalid encrypted data structure" });
+      }
+      
+      // Convert string timestamps back to BigInt
+      encrypted.primaryPhase.timestamp.femtoseconds = BigInt(encrypted.primaryPhase.timestamp.femtoseconds);
+      encrypted.primaryPhase.timestamp.salviEpochOffset = BigInt(encrypted.primaryPhase.timestamp.salviEpochOffset);
+      encrypted.secondaryPhase.timestamp.femtoseconds = BigInt(encrypted.secondaryPhase.timestamp.femtoseconds);
+      encrypted.secondaryPhase.timestamp.salviEpochOffset = BigInt(encrypted.secondaryPhase.timestamp.salviEpochOffset);
+      
+      if (encrypted.guardianPhase) {
+        encrypted.guardianPhase.timestamp.femtoseconds = BigInt(encrypted.guardianPhase.timestamp.femtoseconds);
+        encrypted.guardianPhase.timestamp.salviEpochOffset = BigInt(encrypted.guardianPhase.timestamp.salviEpochOffset);
+      }
+      
+      const result = phaseRecombine(encrypted);
+      res.json({ success: true, result });
+    } catch (error) {
+      res.status(500).json({ error: "Phase recombine failed" });
+    }
+  });
+
+  // Get recommended encryption mode
+  app.get("/api/salvi/phase/recommend", (req, res) => {
+    try {
+      const dataLength = parseInt(req.query.length as string) || 1000;
+      const isSensitive = req.query.sensitive === "true";
+      
+      const mode = getRecommendedMode(dataLength, isSensitive);
+      const config = getPhaseConfig(mode);
+      
+      res.json({ 
+        success: true, 
+        recommendation: {
+          mode,
+          config,
+          reasoning: isSensitive 
+            ? "High security mode recommended for sensitive data"
+            : dataLength > 10000
+              ? "Performance mode recommended for large data"
+              : "Balanced mode recommended for standard use"
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Recommendation failed" });
     }
   });
 
