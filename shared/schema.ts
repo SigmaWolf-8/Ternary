@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, real, jsonb, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,3 +16,59 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const demoSessions = pgTable("demo_sessions", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull().unique(),
+  datasetName: varchar("dataset_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const binaryStorage = pgTable("binary_storage", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull(),
+  dataType: varchar("data_type").notNull(),
+  rawData: jsonb("raw_data").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  rowCount: integer("row_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const ternaryStorage = pgTable("ternary_storage", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull(),
+  dataType: varchar("data_type").notNull(),
+  compressedData: text("compressed_data").notNull(),
+  originalSizeBytes: integer("original_size_bytes").notNull(),
+  compressedSizeBytes: integer("compressed_size_bytes").notNull(),
+  compressionRatio: real("compression_ratio").notNull(),
+  rowCount: integer("row_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const compressionBenchmarks = pgTable("compression_benchmarks", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id").notNull(),
+  datasetName: varchar("dataset_name").notNull(),
+  binaryStorageId: integer("binary_storage_id").notNull(),
+  ternaryStorageId: integer("ternary_storage_id").notNull(),
+  binarySizeBytes: integer("binary_size_bytes").notNull(),
+  ternarySizeBytes: integer("ternary_size_bytes").notNull(),
+  savingsPercent: real("savings_percent").notNull(),
+  processingTimeMs: integer("processing_time_ms").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDemoSessionSchema = createInsertSchema(demoSessions).omit({ id: true, createdAt: true });
+export const insertBinaryStorageSchema = createInsertSchema(binaryStorage).omit({ id: true, createdAt: true });
+export const insertTernaryStorageSchema = createInsertSchema(ternaryStorage).omit({ id: true, createdAt: true });
+export const insertCompressionBenchmarkSchema = createInsertSchema(compressionBenchmarks).omit({ id: true, createdAt: true });
+
+export type InsertDemoSession = z.infer<typeof insertDemoSessionSchema>;
+export type DemoSession = typeof demoSessions.$inferSelect;
+export type InsertBinaryStorage = z.infer<typeof insertBinaryStorageSchema>;
+export type BinaryStorage = typeof binaryStorage.$inferSelect;
+export type InsertTernaryStorage = z.infer<typeof insertTernaryStorageSchema>;
+export type TernaryStorage = typeof ternaryStorage.$inferSelect;
+export type InsertCompressionBenchmark = z.infer<typeof insertCompressionBenchmarkSchema>;
+export type CompressionBenchmark = typeof compressionBenchmarks.$inferSelect;
