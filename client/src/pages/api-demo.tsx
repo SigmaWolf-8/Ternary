@@ -1,0 +1,647 @@
+import { useState } from "react";
+import { Link } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+
+interface TimestampResponse {
+  femtoseconds: string;
+  humanReadable: string;
+  isoDate: string;
+  precision: string;
+  salviEpochOffset: string;
+}
+
+interface TimingMetrics {
+  timestamp: TimestampResponse;
+  clockSource: string;
+  synchronizationStatus: string;
+  estimatedAccuracy: string;
+}
+
+interface TernaryResult {
+  success: boolean;
+  result?: number;
+  input?: { a: number; b: number };
+  operation?: string;
+  allRepresentations?: { A: number; B: number; C: number };
+}
+
+interface ConvertResult {
+  success: boolean;
+  input: number;
+  from: string;
+  to: string;
+  result: number;
+  allRepresentations: { A: number; B: number; C: number };
+}
+
+interface PhaseResult {
+  success: boolean;
+  splitComponents?: {
+    component1: string;
+    component2: string;
+    component3: string;
+    timestamp: string;
+    mode: string;
+  };
+  mode?: string;
+}
+
+export default function APIDemo() {
+  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  
+  const [tritA, setTritA] = useState<number>(1);
+  const [tritB, setTritB] = useState<number>(-1);
+  const [convertValue, setConvertValue] = useState<number>(0);
+  const [fromRep, setFromRep] = useState<string>("A");
+  const [toRep, setToRep] = useState<string>("B");
+  const [phaseData, setPhaseData] = useState<string>("Hello PlenumNET");
+  const [phaseMode, setPhaseMode] = useState<string>("balanced");
+  
+  const { data: timestamp, refetch: refetchTimestamp, isFetching: isTimestampFetching } = useQuery<TimestampResponse>({
+    queryKey: ["/api/salvi/timing/timestamp"],
+    refetchInterval: false,
+  });
+  
+  const { data: metrics } = useQuery<TimingMetrics>({
+    queryKey: ["/api/salvi/timing/metrics"],
+  });
+  
+  const addMutation = useMutation({
+    mutationFn: async ({ a, b }: { a: number; b: number }) => {
+      const res = await apiRequest("POST", "/api/salvi/ternary/add", { a, b });
+      return res.json();
+    },
+  });
+  
+  const multiplyMutation = useMutation({
+    mutationFn: async ({ a, b }: { a: number; b: number }) => {
+      const res = await apiRequest("POST", "/api/salvi/ternary/multiply", { a, b });
+      return res.json();
+    },
+  });
+  
+  const convertMutation = useMutation({
+    mutationFn: async ({ value, from, to }: { value: number; from: string; to: string }) => {
+      const res = await apiRequest("POST", "/api/salvi/ternary/convert", { value, from, to });
+      return res.json();
+    },
+  });
+  
+  const phaseSplitMutation = useMutation({
+    mutationFn: async ({ data, mode }: { data: string; mode: string }) => {
+      const res = await apiRequest("POST", "/api/salvi/phase/split", { data, mode });
+      return res.json();
+    },
+  });
+
+  const copyToClipboard = (text: string, endpoint: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEndpoint(endpoint);
+    setTimeout(() => setCopiedEndpoint(null), 2000);
+  };
+
+  const formatBigInt = (value: string) => {
+    if (!value) return "0";
+    const numStr = value.toString();
+    if (numStr.length > 15) {
+      return numStr.slice(0, 6) + "..." + numStr.slice(-6) + ` (${numStr.length} digits)`;
+    }
+    return numStr;
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-white sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">PlenumNET API Demo</h1>
+              <p className="text-sm text-muted-foreground">Interactive demonstration of Salvi Framework APIs</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-primary border-primary">
+            Live API
+          </Badge>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" />
+                Salvi Framework Core API
+              </CardTitle>
+              <CardDescription>
+                Test the PlenumNET APIs directly. All timestamps reference the Salvi Epoch: April 1, 2025 (Day Zero).
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="timing" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
+            <TabsTrigger value="timing" data-testid="tab-timing" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Timing
+            </TabsTrigger>
+            <TabsTrigger value="ternary" data-testid="tab-ternary" className="flex items-center gap-2">
+              <Calculator className="w-4 h-4" />
+              Ternary
+            </TabsTrigger>
+            <TabsTrigger value="phase" data-testid="tab-phase" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Phase
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="timing" className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Femtosecond Timestamp</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/timing/timestamp
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => refetchTimestamp()} 
+                      disabled={isTimestampFetching}
+                      data-testid="button-get-timestamp"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isTimestampFetching ? 'animate-spin' : ''}`} />
+                      Get Timestamp
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => copyToClipboard('/api/salvi/timing/timestamp', 'timestamp')}
+                      data-testid="button-copy-timestamp-endpoint"
+                    >
+                      {copiedEndpoint === 'timestamp' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  
+                  {timestamp && (
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-2 font-mono text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Femtoseconds:</span>
+                        <span className="text-foreground" data-testid="text-femtoseconds">{formatBigInt(timestamp.femtoseconds)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Human Readable:</span>
+                        <span className="text-foreground">{timestamp.humanReadable}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">ISO Date:</span>
+                        <span className="text-foreground">{timestamp.isoDate}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Precision:</span>
+                        <Badge variant="secondary">{timestamp.precision}</Badge>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Timing Metrics</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/timing/metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {metrics && (
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-2 font-mono text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Clock Source:</span>
+                        <span className="text-foreground">{metrics.clockSource}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sync Status:</span>
+                        <Badge 
+                          variant={metrics.synchronizationStatus === 'synchronized' ? 'default' : 'destructive'}
+                          data-testid="badge-sync-status"
+                        >
+                          {metrics.synchronizationStatus}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Accuracy:</span>
+                        <span className="text-foreground">{metrics.estimatedAccuracy}</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Salvi Epoch Reference</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-primary/5 rounded-lg p-4 text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Day Zero</div>
+                    <div className="font-mono font-bold text-primary">April 1, 2025</div>
+                  </div>
+                  <div className="bg-primary/5 rounded-lg p-4 text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Unix Nanoseconds</div>
+                    <div className="font-mono font-bold text-primary text-sm">1743465600000000000</div>
+                  </div>
+                  <div className="bg-primary/5 rounded-lg p-4 text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Precision</div>
+                    <div className="font-mono font-bold text-primary">10⁻¹⁵ seconds</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ternary" className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ternary Addition (GF3)</CardTitle>
+                  <CardDescription>
+                    POST /api/salvi/ternary/add
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="add-a">Trit A</Label>
+                      <Select value={tritA.toString()} onValueChange={(v) => setTritA(parseInt(v))}>
+                        <SelectTrigger data-testid="select-trit-a">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-1">-1</SelectItem>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">+1</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="add-b">Trit B</Label>
+                      <Select value={tritB.toString()} onValueChange={(v) => setTritB(parseInt(v))}>
+                        <SelectTrigger data-testid="select-trit-b">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-1">-1</SelectItem>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">+1</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => addMutation.mutate({ a: tritA, b: tritB })}
+                      disabled={addMutation.isPending}
+                      data-testid="button-ternary-add"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Add
+                    </Button>
+                    <Button 
+                      onClick={() => multiplyMutation.mutate({ a: tritA, b: tritB })}
+                      disabled={multiplyMutation.isPending}
+                      variant="outline"
+                      data-testid="button-ternary-multiply"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Multiply
+                    </Button>
+                  </div>
+
+                  {addMutation.data && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Addition Result:</span>
+                        <Badge variant="default" className="text-lg" data-testid="badge-add-result">
+                          {(addMutation.data as TernaryResult).result}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {tritA} + {tritB} = {(addMutation.data as TernaryResult).result} (mod 3)
+                      </div>
+                    </div>
+                  )}
+
+                  {multiplyMutation.data && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Multiply Result:</span>
+                        <Badge variant="default" className="text-lg" data-testid="badge-multiply-result">
+                          {(multiplyMutation.data as TernaryResult).result}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {tritA} × {tritB} = {(multiplyMutation.data as TernaryResult).result} (mod 3)
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Representation Conversion</CardTitle>
+                  <CardDescription>
+                    POST /api/salvi/ternary/convert
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label>Value</Label>
+                      <Select value={convertValue.toString()} onValueChange={(v) => setConvertValue(parseInt(v))}>
+                        <SelectTrigger data-testid="select-convert-value">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fromRep === "A" && (
+                            <>
+                              <SelectItem value="-1">-1</SelectItem>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">+1</SelectItem>
+                            </>
+                          )}
+                          {fromRep === "B" && (
+                            <>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </>
+                          )}
+                          {fromRep === "C" && (
+                            <>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                              <SelectItem value="3">3</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>From</Label>
+                      <Select value={fromRep} onValueChange={setFromRep}>
+                        <SelectTrigger data-testid="select-from-rep">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A">A (Comp)</SelectItem>
+                          <SelectItem value="B">B (Net)</SelectItem>
+                          <SelectItem value="C">C (Human)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>To</Label>
+                      <Select value={toRep} onValueChange={setToRep}>
+                        <SelectTrigger data-testid="select-to-rep">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A">A (Comp)</SelectItem>
+                          <SelectItem value="B">B (Net)</SelectItem>
+                          <SelectItem value="C">C (Human)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    onClick={() => convertMutation.mutate({ value: convertValue, from: fromRep, to: toRep })}
+                    disabled={convertMutation.isPending}
+                    data-testid="button-convert"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Convert
+                  </Button>
+
+                  {convertMutation.data && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Result:</span>
+                        <Badge variant="default" className="text-lg" data-testid="badge-convert-result">
+                          {(convertMutation.data as ConvertResult).result}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
+                        <div>A (Comp): {(convertMutation.data as ConvertResult).allRepresentations?.A}</div>
+                        <div>B (Net): {(convertMutation.data as ConvertResult).allRepresentations?.B}</div>
+                        <div>C (Human): {(convertMutation.data as ConvertResult).allRepresentations?.C}</div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Ternary Representations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="font-bold text-blue-800 mb-2">Representation A</div>
+                    <div className="text-sm text-blue-700">Computational</div>
+                    <div className="font-mono text-lg mt-2">{"{-1, 0, +1}"}</div>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="font-bold text-green-800 mb-2">Representation B</div>
+                    <div className="text-sm text-green-700">Network</div>
+                    <div className="font-mono text-lg mt-2">{"{0, 1, 2}"}</div>
+                  </div>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="font-bold text-purple-800 mb-2">Representation C</div>
+                    <div className="text-sm text-purple-700">Human</div>
+                    <div className="font-mono text-lg mt-2">{"{1, 2, 3}"}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="phase" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Phase-Split Encryption</CardTitle>
+                <CardDescription>
+                  POST /api/salvi/phase/split - Split data into quantum-resistant phase components
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phase-data">Data to Encrypt</Label>
+                    <Input 
+                      id="phase-data"
+                      value={phaseData}
+                      onChange={(e) => setPhaseData(e.target.value)}
+                      placeholder="Enter data to encrypt"
+                      data-testid="input-phase-data"
+                    />
+                  </div>
+                  <div>
+                    <Label>Encryption Mode</Label>
+                    <Select value={phaseMode} onValueChange={setPhaseMode}>
+                      <SelectTrigger data-testid="select-phase-mode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high_security">High Security</SelectItem>
+                        <SelectItem value="balanced">Balanced</SelectItem>
+                        <SelectItem value="performance">Performance</SelectItem>
+                        <SelectItem value="adaptive">Adaptive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={() => phaseSplitMutation.mutate({ data: phaseData, mode: phaseMode })}
+                  disabled={phaseSplitMutation.isPending || !phaseData}
+                  data-testid="button-phase-split"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Split Data
+                </Button>
+
+                {phaseSplitMutation.data && (
+                  <div className="bg-muted/50 rounded-lg p-4 font-mono text-xs space-y-2">
+                    <div className="font-bold text-sm mb-2">Phase Components:</div>
+                    <div className="space-y-1">
+                      <div className="flex gap-2">
+                        <Badge variant="outline">C1</Badge>
+                        <span className="truncate" data-testid="text-component1">
+                          {(phaseSplitMutation.data as PhaseResult).splitComponents?.component1?.slice(0, 40)}...
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline">C2</Badge>
+                        <span className="truncate">
+                          {(phaseSplitMutation.data as PhaseResult).splitComponents?.component2?.slice(0, 40)}...
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline">C3</Badge>
+                        <span className="truncate">
+                          {(phaseSplitMutation.data as PhaseResult).splitComponents?.component3?.slice(0, 40)}...
+                        </span>
+                      </div>
+                    </div>
+                    <div className="border-t pt-2 mt-2 text-muted-foreground">
+                      Mode: {(phaseSplitMutation.data as PhaseResult).splitComponents?.mode}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Encryption Modes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <Shield className="w-6 h-6 mx-auto text-red-600 mb-2" />
+                    <div className="font-bold text-red-800">High Security</div>
+                    <div className="text-xs text-red-600 mt-1">Maximum protection</div>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                    <Shield className="w-6 h-6 mx-auto text-yellow-600 mb-2" />
+                    <div className="font-bold text-yellow-800">Balanced</div>
+                    <div className="text-xs text-yellow-600 mt-1">Security + Speed</div>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                    <Zap className="w-6 h-6 mx-auto text-green-600 mb-2" />
+                    <div className="font-bold text-green-800">Performance</div>
+                    <div className="text-xs text-green-600 mt-1">Optimized speed</div>
+                  </div>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+                    <RefreshCw className="w-6 h-6 mx-auto text-purple-600 mb-2" />
+                    <div className="font-bold text-purple-800">Adaptive</div>
+                    <div className="text-xs text-purple-600 mt-1">Auto-adjusting</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>API Endpoints Reference</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4 text-sm font-mono">
+                <div>
+                  <div className="font-bold text-primary mb-2">Timing API</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    <div>GET /api/salvi/timing/timestamp</div>
+                    <div>GET /api/salvi/timing/metrics</div>
+                    <div>GET /api/salvi/timing/batch/:count</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-bold text-primary mb-2">Ternary API</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    <div>POST /api/salvi/ternary/convert</div>
+                    <div>POST /api/salvi/ternary/add</div>
+                    <div>POST /api/salvi/ternary/multiply</div>
+                    <div>POST /api/salvi/ternary/rotate</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-bold text-primary mb-2">Phase API</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    <div>POST /api/salvi/phase/split</div>
+                    <div>POST /api/salvi/phase/recombine</div>
+                    <div>GET /api/salvi/phase/config/:mode</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+
+      <footer className="border-t bg-white py-6 mt-12">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+          <p>PlenumNET Framework - Post-Quantum Ternary Internet</p>
+          <p className="mt-1">Copyright (c) 2026 Capomastro Holdings Ltd. All Rights Reserved.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}

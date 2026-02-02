@@ -55,6 +55,7 @@ function Header() {
     { href: "#components", label: "Components" },
     { href: "#comparison", label: "Benefits" },
     { href: "/whitepaper", label: "Whitepaper" },
+    { href: "/api-demo", label: "API Demo" },
   ];
 
   return (
@@ -793,14 +794,14 @@ function Footer() {
   const footerLinks = {
     Product: [
       { label: "libternary", href: "https://github.com/SigmaWolf-8/Ternary" },
-      { label: "Timing API", href: "#" },
+      { label: "Timing API", href: "/api-demo" },
       { label: "FPGA Cards", href: "#" },
       { label: "SalviDB", href: "/ternarydb" },
     ],
     Developers: [
       { label: "Documentation", href: "#" },
       { label: "Whitepaper", href: "/whitepaper" },
-      { label: "API Reference", href: "#" },
+      { label: "API Demo", href: "/api-demo" },
       { label: "GitHub", href: "https://github.com/SigmaWolf-8/Ternary" },
     ],
     Company: [
