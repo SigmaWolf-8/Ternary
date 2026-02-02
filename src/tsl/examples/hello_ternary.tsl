@@ -1,0 +1,33 @@
+// Hello Ternary - Basic TSL Example
+// Copyright (c) 2026 Capomastro Holdings Ltd
+//
+// This example demonstrates basic ternary operations in TSL.
+// Compile with: tsl compile hello_ternary.tsl -o hello_ternary.thdl
+
+// Basic trit operations
+fn add_trits(a: trit, b: trit) -> trit {
+    return a + b;
+}
+
+// Multiply two trits in GF(3)
+fn multiply_trits(a: trit, b: trit) -> trit {
+    return a * b;
+}
+
+// Ternary NOT operation
+fn negate_trit(x: trit) -> trit {
+    return ~x;
+}
+
+// Bijective rotation: -1 -> 0 -> +1 -> -1
+fn rotate_trit(x: trit) -> trit {
+    return >>> x;
+}
+
+// Main computation module
+fn compute(x: trit, y: trit) -> trit {
+    let sum: trit = x + y;
+    let product: trit = x * y;
+    let result: trit = sum + product;
+    return result;
+}

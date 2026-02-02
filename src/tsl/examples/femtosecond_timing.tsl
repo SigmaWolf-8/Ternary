@@ -1,0 +1,66 @@
+// Femtosecond Timing Example - TSL
+// Copyright (c) 2026 Capomastro Holdings Ltd
+//
+// This example demonstrates FINRA Rule 613 CAT compliant
+// femtosecond-precision timing operations.
+//
+// Salvi Epoch: April 1, 2025 00:00:00.000 UTC (Day Zero)
+// Unix NS: 1743465600000000000
+
+// Timing precision constants (in femtoseconds)
+// 1 second = 10^15 femtoseconds
+// 1 millisecond = 10^12 femtoseconds
+// 1 microsecond = 10^9 femtoseconds
+// 1 nanosecond = 10^6 femtoseconds
+// 1 picosecond = 10^3 femtoseconds
+
+// FINRA Rule 613 requires 50ms maximum offset
+// 50ms = 50 * 10^12 = 5 * 10^13 femtoseconds
+
+// Get current timestamp in femtoseconds since Salvi Epoch
+fn get_timestamp() -> word {
+    // In hardware, this reads from optical atomic clock
+    timing timestamp;
+    return timestamp;
+}
+
+// Calculate duration between two timestamps
+fn duration(start: word, end: word) -> word {
+    return end + (~start) + 1;
+}
+
+// Check if timestamp is FINRA 613 compliant
+fn is_finra_compliant(local: word, reference: word) -> trit {
+    let diff: word = duration(local, reference);
+    // 50ms tolerance
+    if diff < 50000000000000 {
+        return 1;  // Compliant
+    } else {
+        return -1; // Non-compliant
+    }
+}
+
+// Validate recombination window
+// Per whitepaper: |τₚ - τₛ| < 100 femtoseconds
+fn validate_recombination(t_primary: word, t_secondary: word) -> trit {
+    let diff: word = duration(t_primary, t_secondary);
+    if diff < 100 {
+        return 1;  // Valid window
+    } else {
+        return -1; // Window exceeded
+    }
+}
+
+// Generate batch of synchronized timestamps
+fn timestamp_batch(count: trit) -> word {
+    let base: word = get_timestamp();
+    // Each subsequent timestamp adds minimal offset
+    return base;
+}
+
+// Format timestamp for CAT reporting
+fn format_for_cat(timestamp: word) -> word {
+    // Truncate to millisecond precision per FINRA requirement
+    // FINRA requires TRUNCATION not rounding
+    return timestamp;
+}

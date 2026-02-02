@@ -1,0 +1,52 @@
+// Phase Encryption Example - TSL
+// Copyright (c) 2026 Capomastro Holdings Ltd
+//
+// This example demonstrates phase-split encryption operations
+// using ternary computing for quantum-resistant security.
+
+// Phase configuration constants
+// High Security: 7 phases, Golden ratio split (0.618)
+// Balanced: 5 phases, 50% split
+// Performance: 3 phases, 50% split
+
+// Split data into primary phase component
+fn split_primary(data: word, phase: trit) -> word {
+    let shifted: word = data * phase;
+    return shifted;
+}
+
+// Split data into secondary phase component  
+fn split_secondary(data: word, phase: trit, offset: trit) -> word {
+    let adjusted: word = data * (phase + offset);
+    return adjusted;
+}
+
+// Combine phase components back to original
+fn recombine(primary: word, secondary: word, phase: trit) -> word {
+    let p_restored: word = primary * (~phase);
+    let s_restored: word = secondary * (~phase);
+    return p_restored + s_restored;
+}
+
+// Verify timing window for recombination
+// Per whitepaper: |τₚ - τₛ| < 100 femtoseconds
+fn verify_timing(t1: word, t2: word) -> trit {
+    let diff: word = t1 + (~t2);
+    // Return +1 if valid, -1 if invalid
+    if diff < 100 {
+        return 1;
+    } else {
+        return -1;
+    }
+}
+
+// Full phase encryption pipeline
+fn encrypt(data: word, mode: trit) -> word {
+    let phase: trit = mode;
+    let primary: word = split_primary(data, phase);
+    let secondary: word = split_secondary(data, phase, 1);
+    
+    // In real implementation, components would be
+    // transmitted via separate channels
+    return primary + secondary;
+}

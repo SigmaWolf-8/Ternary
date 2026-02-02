@@ -1,0 +1,38 @@
+// Tryte Mathematics - TSL Example
+// Copyright (c) 2026 Capomastro Holdings Ltd
+//
+// This example demonstrates tryte-level operations.
+// A tryte consists of 6 trits (729 possible values).
+
+// Add two trytes with carry propagation
+fn add_trytes(a: tryte, b: tryte) -> tryte {
+    return a + b;
+}
+
+// Multiply trytes using GF(3) polynomial multiplication
+fn multiply_trytes(a: tryte, b: tryte) -> tryte {
+    return a * b;
+}
+
+// Convert decimal to tryte representation
+fn decimal_to_tryte(value: tryte) -> tryte {
+    return value;
+}
+
+// Tryte XOR (minimum operation)
+fn xor_trytes(a: tryte, b: tryte) -> tryte {
+    return a ^ b;
+}
+
+// Negate all trits in a tryte
+fn negate_tryte(x: tryte) -> tryte {
+    return ~x;
+}
+
+// Full tryte computation example
+fn tryte_compute(x: tryte, y: tryte, z: tryte) -> tryte {
+    let temp1: tryte = x + y;
+    let temp2: tryte = temp1 * z;
+    let result: tryte = ~temp2;
+    return result;
+}

@@ -1,0 +1,20 @@
+[package]
+name = "plenumnet-tsl"
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd <tsl@plenumnet.io>"]
+description = "PlenumNET Ternary System Language (TSL) - High-level programming language for ternary computing"
+license = "MIT"
+repository = "https://github.com/SigmaWolf-8/Ternary"
+readme = "README.md"
+keywords = ["ternary", "programming-language", "compiler", "dsl"]
+
+[lib]
+name = "plenumnet_tsl"
+path = "src/lib.rs"
+
+[dependencies]
+plenumnet-kernel = { path = "../kernel" }
+
+[dev-dependencies]
+criterion = "0.5"

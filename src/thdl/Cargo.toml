@@ -1,0 +1,26 @@
+[package]
+name = "plenumnet-thdl"
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd <thdl@plenumnet.io>"]
+description = "PlenumNET Ternary Hardware Description Language (THDL) - Hardware synthesis for ternary computing"
+license = "MIT"
+repository = "https://github.com/SigmaWolf-8/Ternary"
+readme = "README.md"
+keywords = ["ternary", "hdl", "fpga", "asic", "hardware"]
+
+[lib]
+name = "plenumnet_thdl"
+path = "src/lib.rs"
+
+[dependencies]
+plenumnet-kernel = { path = "../kernel" }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[features]
+default = []
+fpga = []
+asic = []
+simulation = []

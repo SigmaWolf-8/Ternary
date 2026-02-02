@@ -1,0 +1,46 @@
+[package]
+name = "plenumnet-kernel"
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd <kernel@plenumnet.io>"]
+description = "PlenumNET Salvi Framework Kernel - Post-Quantum Ternary Computing Core"
+license = "MIT"
+repository = "https://github.com/SigmaWolf-8/Ternary"
+documentation = "https://docs.plenumnet.io/kernel"
+readme = "README.md"
+keywords = ["ternary", "post-quantum", "cryptography", "kernel", "femtosecond"]
+categories = ["cryptography", "embedded", "no-std"]
+
+[lib]
+name = "plenumnet_kernel"
+path = "src/lib.rs"
+
+[features]
+default = ["std"]
+std = []
+no_std = []
+fpga = ["no_std"]
+asic = ["no_std"]
+finra-613 = []
+
+[dependencies]
+# Core dependencies
+spin = { version = "0.9", default-features = false }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "ternary_ops"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.bench]
+opt-level = 3
+debug = false
