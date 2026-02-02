@@ -278,14 +278,14 @@ export default function GitHubManager() {
       let comparison = 0;
       switch (sortField) {
         case "name":
-          comparison = a.name.localeCompare(b.name);
+          comparison = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
           break;
         case "size":
           comparison = (a.size || 0) - (b.size || 0);
           break;
         case "type":
-          const typeA = a.name.split(".").pop() || "";
-          const typeB = b.name.split(".").pop() || "";
+          const typeA = a.name.split(".").pop()?.toLowerCase() || "";
+          const typeB = b.name.split(".").pop()?.toLowerCase() || "";
           comparison = typeA.localeCompare(typeB);
           break;
       }
@@ -320,6 +320,16 @@ export default function GitHubManager() {
 
   const toggleSortOrder = () => {
     setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+  };
+
+  const handleSortFieldChange = (field: SortField) => {
+    if (field === sortField) {
+      // Clicking same field toggles direction
+      toggleSortOrder();
+    } else {
+      setSortField(field);
+      setSortOrder("asc"); // Reset to ascending when changing field
+    }
   };
 
   if (statusLoading) {
@@ -645,7 +655,7 @@ export default function GitHubManager() {
                     </SelectContent>
                   </Select>
                   
-                  <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+                  <Select value={sortField} onValueChange={(v) => handleSortFieldChange(v as SortField)}>
                     <SelectTrigger className="w-[100px] h-8" data-testid="select-sort-field">
                       <SelectValue placeholder="Sort" />
                     </SelectTrigger>
