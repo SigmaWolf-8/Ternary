@@ -127,6 +127,10 @@ Based on the whitepaper's Unified Ternary Logic System:
 2. **SalviDB** (`/ternarydb`) - Product page with live compression demo
 3. **Whitepaper** (`/whitepaper`) - Full whitepaper viewer with Table of Contents
 4. **GitHub Manager** (`/github`) - Admin-only page to manage GitHub repository files
+   - **Sorting**: Sort files by name, size, or type (ascending/descending)
+   - **Filtering**: Search files by name, filter by type (code/docs/config/other)
+   - **Metrics Dashboard**: Shows file counts, folder counts, total size, and type breakdown
+   - **View Modes**: Toggle between list view and grid view
 
 ## Running the App
 ```bash

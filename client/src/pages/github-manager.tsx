@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, FolderOpen, File, Plus, Save, Trash2, RefreshCw, Key, Github, ChevronRight, Home, AlertTriangle, GitBranch } from "lucide-react";
+import { ArrowLeft, FolderOpen, File, Plus, Save, Trash2, RefreshCw, Key, Github, ChevronRight, Home, AlertTriangle, GitBranch, Search, ArrowUpDown, Filter, BarChart3, FileCode, FileText, Image, Archive, Settings, List, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,39 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+
+type SortField = "name" | "size" | "type";
+type SortOrder = "asc" | "desc";
+type FileTypeFilter = "all" | "code" | "docs" | "config" | "other";
+
+const FILE_TYPE_PATTERNS: Record<string, FileTypeFilter> = {
+  ts: "code", tsx: "code", js: "code", jsx: "code", rs: "code", py: "code", go: "code",
+  md: "docs", txt: "docs", pdf: "docs", rst: "docs",
+  json: "config", yaml: "config", yml: "config", toml: "config", lock: "config",
+  png: "other", jpg: "other", svg: "other", gif: "other",
+};
+
+const getFileType = (filename: string): FileTypeFilter => {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return FILE_TYPE_PATTERNS[ext] || "other";
+};
+
+const getFileIcon = (filename: string) => {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const type = FILE_TYPE_PATTERNS[ext];
+  if (type === "code") return <FileCode className="w-4 h-4 text-blue-500" />;
+  if (type === "docs") return <FileText className="w-4 h-4 text-green-500" />;
+  if (type === "config") return <Settings className="w-4 h-4 text-orange-500" />;
+  if (["png", "jpg", "svg", "gif"].includes(ext)) return <Image className="w-4 h-4 text-purple-500" />;
+  if (["zip", "tar", "gz"].includes(ext)) return <Archive className="w-4 h-4 text-yellow-500" />;
+  return <File className="w-4 h-4 text-muted-foreground" />;
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 const REPO_OWNER = "SigmaWolf-8";
 const REPO_NAME = "Ternary";
@@ -48,6 +81,13 @@ export default function GitHubManager() {
   const [showNewFile, setShowNewFile] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("main");
+  
+  // Sorting and filtering state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>("all");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const { data: adminStatus, isLoading: statusLoading, isError: statusError } = useQuery<{
     isAdmin: boolean;
@@ -207,6 +247,79 @@ export default function GitHubManager() {
     setSelectedBranch(branch);
     setCurrentPath("");
     setSelectedFile(null);
+  };
+
+  // Filtered and sorted files
+  const processedFiles = useMemo(() => {
+    if (!contents?.data) return [];
+    
+    let files = [...contents.data];
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      files = files.filter(f => f.name.toLowerCase().includes(query));
+    }
+    
+    // Filter by file type
+    if (fileTypeFilter !== "all") {
+      files = files.filter(f => {
+        if (f.type === "dir") return true; // Always show directories
+        return getFileType(f.name) === fileTypeFilter;
+      });
+    }
+    
+    // Sort files (directories first, then by selected criteria)
+    files.sort((a, b) => {
+      // Directories always first
+      if (a.type === "dir" && b.type !== "dir") return -1;
+      if (a.type !== "dir" && b.type === "dir") return 1;
+      
+      let comparison = 0;
+      switch (sortField) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "size":
+          comparison = (a.size || 0) - (b.size || 0);
+          break;
+        case "type":
+          const typeA = a.name.split(".").pop() || "";
+          const typeB = b.name.split(".").pop() || "";
+          comparison = typeA.localeCompare(typeB);
+          break;
+      }
+      
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+    
+    return files;
+  }, [contents?.data, searchQuery, fileTypeFilter, sortField, sortOrder]);
+
+  // Calculate metrics
+  const metrics = useMemo(() => {
+    if (!contents?.data) return null;
+    
+    const files = contents.data.filter(f => f.type === "file");
+    const dirs = contents.data.filter(f => f.type === "dir");
+    const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    
+    const typeCounts = files.reduce((acc, f) => {
+      const type = getFileType(f.name);
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      totalFiles: files.length,
+      totalDirs: dirs.length,
+      totalSize,
+      typeCounts,
+    };
+  }, [contents?.data]);
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === "asc" ? "desc" : "asc");
   };
 
   if (statusLoading) {
@@ -389,7 +502,51 @@ export default function GitHubManager() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            {/* Metrics Bar */}
+            {metrics && (
+              <Card className="bg-gradient-to-r from-slate-50 to-blue-50 border-slate-200">
+                <CardContent className="py-3">
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-500" />
+                      <span className="font-medium">Repository Metrics</span>
+                    </div>
+                    <Badge variant="outline" className="bg-white" data-testid="metric-files">
+                      <File className="w-3 h-3 mr-1" />
+                      {metrics.totalFiles} files
+                    </Badge>
+                    <Badge variant="outline" className="bg-white" data-testid="metric-dirs">
+                      <FolderOpen className="w-3 h-3 mr-1" />
+                      {metrics.totalDirs} folders
+                    </Badge>
+                    <Badge variant="outline" className="bg-white" data-testid="metric-size">
+                      {formatFileSize(metrics.totalSize)}
+                    </Badge>
+                    {metrics.typeCounts.code > 0 && (
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                        <FileCode className="w-3 h-3 mr-1" />
+                        {metrics.typeCounts.code} code
+                      </Badge>
+                    )}
+                    {metrics.typeCounts.docs > 0 && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700">
+                        <FileText className="w-3 h-3 mr-1" />
+                        {metrics.typeCounts.docs} docs
+                      </Badge>
+                    )}
+                    {metrics.typeCounts.config > 0 && (
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                        <Settings className="w-3 h-3 mr-1" />
+                        {metrics.typeCounts.config} config
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -460,12 +617,83 @@ export default function GitHubManager() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {/* Search and Filter Toolbar */}
+                <div className="flex flex-wrap gap-2">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search files..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 h-8"
+                      data-testid="input-search-files"
+                    />
+                  </div>
+                  
+                  <Select value={fileTypeFilter} onValueChange={(v) => setFileTypeFilter(v as FileTypeFilter)}>
+                    <SelectTrigger className="w-[120px] h-8" data-testid="select-file-type">
+                      <Filter className="w-3 h-3 mr-1" />
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="code">Code</SelectItem>
+                      <SelectItem value="docs">Docs</SelectItem>
+                      <SelectItem value="config">Config</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+                    <SelectTrigger className="w-[100px] h-8" data-testid="select-sort-field">
+                      <SelectValue placeholder="Sort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name</SelectItem>
+                      <SelectItem value="size">Size</SelectItem>
+                      <SelectItem value="type">Type</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSortOrder}
+                    className="h-8 px-2"
+                    data-testid="button-toggle-sort"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="ml-1 text-xs">{sortOrder === "asc" ? "A-Z" : "Z-A"}</span>
+                  </Button>
+                  
+                  <div className="flex border rounded-md">
+                    <Button
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className="h-8 px-2 rounded-r-none"
+                      data-testid="button-view-list"
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                      className="h-8 px-2 rounded-l-none"
+                      data-testid="button-view-grid"
+                    >
+                      <Grid className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
                 {contentsLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
-                ) : (
+                ) : viewMode === "list" ? (
                   <div className="space-y-1">
                     {currentPath && (
                       <button
@@ -477,7 +705,7 @@ export default function GitHubManager() {
                         <span>..</span>
                       </button>
                     )}
-                    {contents?.data?.map((item) => (
+                    {processedFiles.map((item) => (
                       <button
                         key={item.sha}
                         onClick={() => handleFileClick(item)}
@@ -489,7 +717,7 @@ export default function GitHubManager() {
                         {item.type === "dir" ? (
                           <FolderOpen className="w-4 h-4 text-primary" />
                         ) : (
-                          <File className="w-4 h-4 text-muted-foreground" />
+                          getFileIcon(item.name)
                         )}
                         <span className="flex-1 truncate">{item.name}</span>
                         {item.type === "file" && (
@@ -499,9 +727,52 @@ export default function GitHubManager() {
                         )}
                       </button>
                     ))}
-                    {contents?.data?.length === 0 && (
+                    {processedFiles.length === 0 && (
                       <p className="text-muted-foreground text-center py-4">
-                        Empty directory
+                        {searchQuery || fileTypeFilter !== "all" ? "No matching files" : "Empty directory"}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  /* Grid View */
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                    {currentPath && (
+                      <button
+                        onClick={navigateUp}
+                        className="flex flex-col items-center justify-center gap-1 p-3 rounded-md hover:bg-accent text-center"
+                        data-testid="button-navigate-up-grid"
+                      >
+                        <FolderOpen className="w-8 h-8 text-muted-foreground" />
+                        <span className="text-xs">..</span>
+                      </button>
+                    )}
+                    {processedFiles.map((item) => (
+                      <button
+                        key={item.sha}
+                        onClick={() => handleFileClick(item)}
+                        className={`flex flex-col items-center justify-center gap-1 p-3 rounded-md hover:bg-accent text-center ${
+                          selectedFile?.path === item.path ? "bg-accent" : ""
+                        }`}
+                        data-testid={`file-grid-${item.name}`}
+                      >
+                        {item.type === "dir" ? (
+                          <FolderOpen className="w-8 h-8 text-primary" />
+                        ) : (
+                          <div className="w-8 h-8 flex items-center justify-center">
+                            {getFileIcon(item.name)}
+                          </div>
+                        )}
+                        <span className="text-xs truncate w-full">{item.name}</span>
+                        {item.type === "file" && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatFileSize(item.size)}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                    {processedFiles.length === 0 && (
+                      <p className="col-span-full text-muted-foreground text-center py-4">
+                        {searchQuery || fileTypeFilter !== "all" ? "No matching files" : "Empty directory"}
                       </p>
                     )}
                   </div>
@@ -607,6 +878,7 @@ export default function GitHubManager() {
                 )}
               </CardContent>
             </Card>
+          </div>
           </div>
         )}
       </main>
