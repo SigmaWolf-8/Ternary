@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
-interface TimestampResponse {
+interface TimestampData {
   femtoseconds: string;
   humanReadable: string;
   isoDate: string;
@@ -19,8 +19,18 @@ interface TimestampResponse {
   salviEpochOffset: string;
 }
 
+interface TimestampResponse {
+  success: boolean;
+  timestamp: TimestampData;
+  epoch?: {
+    salviEpoch: string;
+    description: string;
+  };
+}
+
 interface TimingMetrics {
-  timestamp: TimestampResponse;
+  success: boolean;
+  timestamp: TimestampData;
   clockSource: string;
   synchronizationStatus: string;
   estimatedAccuracy: string;
@@ -29,30 +39,26 @@ interface TimingMetrics {
 interface TernaryResult {
   success: boolean;
   result?: number;
-  input?: { a: number; b: number };
+  operands?: { a: number; b: number };
   operation?: string;
-  allRepresentations?: { A: number; B: number; C: number };
+  representation?: string;
 }
 
 interface ConvertResult {
   success: boolean;
-  input: number;
-  from: string;
-  to: string;
-  result: number;
-  allRepresentations: { A: number; B: number; C: number };
+  original: { value: number; representation: string; meaning: string };
+  converted: { value: number; representation: string; meaning: string };
+  bijection: string;
 }
 
 interface PhaseResult {
   success: boolean;
-  splitComponents?: {
-    component1: string;
-    component2: string;
-    component3: string;
-    timestamp: string;
-    mode: string;
+  encrypted?: {
+    primaryPhase: { data: string; phase: number; timestamp: TimestampData };
+    secondaryPhase: { data: string; phase: number; timestamp: TimestampData };
+    config: { mode: string; primaryPhase: number; secondaryOffset: number };
+    splitRatio: number;
   };
-  mode?: string;
 }
 
 export default function APIDemo() {
@@ -200,23 +206,23 @@ export default function APIDemo() {
                     </Button>
                   </div>
                   
-                  {timestamp && (
+                  {timestamp?.timestamp && (
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2 font-mono text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Femtoseconds:</span>
-                        <span className="text-foreground" data-testid="text-femtoseconds">{formatBigInt(timestamp.femtoseconds)}</span>
+                        <span className="text-foreground" data-testid="text-femtoseconds">{formatBigInt(timestamp.timestamp.femtoseconds)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Human Readable:</span>
-                        <span className="text-foreground">{timestamp.humanReadable}</span>
+                        <span className="text-foreground">{timestamp.timestamp.humanReadable}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">ISO Date:</span>
-                        <span className="text-foreground">{timestamp.isoDate}</span>
+                        <span className="text-foreground">{timestamp.timestamp.isoDate}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Precision:</span>
-                        <Badge variant="secondary">{timestamp.precision}</Badge>
+                        <Badge variant="secondary">{timestamp.timestamp.precision}</Badge>
                       </div>
                     </div>
                   )}
@@ -450,13 +456,13 @@ export default function APIDemo() {
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Result:</span>
                         <Badge variant="default" className="text-lg" data-testid="badge-convert-result">
-                          {(convertMutation.data as ConvertResult).result}
+                          {(convertMutation.data as ConvertResult).converted?.value}
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
-                        <div>A (Comp): {(convertMutation.data as ConvertResult).allRepresentations?.A}</div>
-                        <div>B (Net): {(convertMutation.data as ConvertResult).allRepresentations?.B}</div>
-                        <div>C (Human): {(convertMutation.data as ConvertResult).allRepresentations?.C}</div>
+                        <div>Original: {(convertMutation.data as ConvertResult).original?.value} ({(convertMutation.data as ConvertResult).original?.representation})</div>
+                        <div>Converted: {(convertMutation.data as ConvertResult).converted?.value} ({(convertMutation.data as ConvertResult).converted?.representation})</div>
+                        <div>Bijection: {(convertMutation.data as ConvertResult).bijection}</div>
                       </div>
                     </div>
                   )}
@@ -535,31 +541,26 @@ export default function APIDemo() {
                   Split Data
                 </Button>
 
-                {phaseSplitMutation.data && (
+                {phaseSplitMutation.data && (phaseSplitMutation.data as PhaseResult).encrypted && (
                   <div className="bg-muted/50 rounded-lg p-4 font-mono text-xs space-y-2">
                     <div className="font-bold text-sm mb-2">Phase Components:</div>
                     <div className="space-y-1">
                       <div className="flex gap-2">
-                        <Badge variant="outline">C1</Badge>
+                        <Badge variant="outline">Primary</Badge>
                         <span className="truncate" data-testid="text-component1">
-                          {(phaseSplitMutation.data as PhaseResult).splitComponents?.component1?.slice(0, 40)}...
+                          {(phaseSplitMutation.data as PhaseResult).encrypted?.primaryPhase?.data}
                         </span>
                       </div>
                       <div className="flex gap-2">
-                        <Badge variant="outline">C2</Badge>
+                        <Badge variant="outline">Secondary</Badge>
                         <span className="truncate">
-                          {(phaseSplitMutation.data as PhaseResult).splitComponents?.component2?.slice(0, 40)}...
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant="outline">C3</Badge>
-                        <span className="truncate">
-                          {(phaseSplitMutation.data as PhaseResult).splitComponents?.component3?.slice(0, 40)}...
+                          {(phaseSplitMutation.data as PhaseResult).encrypted?.secondaryPhase?.data}
                         </span>
                       </div>
                     </div>
-                    <div className="border-t pt-2 mt-2 text-muted-foreground">
-                      Mode: {(phaseSplitMutation.data as PhaseResult).splitComponents?.mode}
+                    <div className="border-t pt-2 mt-2 text-muted-foreground space-y-1">
+                      <div>Mode: {(phaseSplitMutation.data as PhaseResult).encrypted?.config?.mode}</div>
+                      <div>Split Ratio: {(phaseSplitMutation.data as PhaseResult).encrypted?.splitRatio}</div>
                     </div>
                   </div>
                 )}
