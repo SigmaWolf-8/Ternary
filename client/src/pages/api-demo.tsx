@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -61,8 +61,54 @@ interface PhaseResult {
   };
 }
 
+// Salvi Epoch: April 1, 2025 00:00:00.000 UTC
+const SALVI_EPOCH_MS = new Date('2025-04-01T00:00:00.000Z').getTime();
+const SALVI_EPOCH_NS = BigInt(SALVI_EPOCH_MS) * 1_000_000n;
+
+interface LiveTimerState {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  milliseconds: number;
+  unixNanoseconds: bigint;
+  salviNanoseconds: bigint;
+}
+
 export default function APIDemo() {
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  const [liveTimer, setLiveTimer] = useState<LiveTimerState>({
+    days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 0,
+    unixNanoseconds: 0n, salviNanoseconds: 0n
+  });
+  
+  // Live timer synchronized with Unix nanoseconds
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = Date.now();
+      const elapsed = now - SALVI_EPOCH_MS;
+      
+      // Calculate Unix nanoseconds (simulated sub-ms precision)
+      const unixNs = BigInt(now) * 1_000_000n + BigInt(Math.floor(performance.now() * 1000) % 1000000);
+      const salviNs = unixNs - SALVI_EPOCH_NS;
+      
+      const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((elapsed % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+      const milliseconds = elapsed % 1000;
+      
+      setLiveTimer({
+        days, hours, minutes, seconds, milliseconds,
+        unixNanoseconds: unixNs,
+        salviNanoseconds: salviNs
+      });
+    };
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 10); // Update every 10ms for smooth display
+    return () => clearInterval(interval);
+  }, []);
   
   const [tritA, setTritA] = useState<number>(1);
   const [tritB, setTritB] = useState<number>(-1);
@@ -147,7 +193,7 @@ export default function APIDemo() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+        <div className="mb-8 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -158,6 +204,58 @@ export default function APIDemo() {
                 Test the PlenumNET APIs directly. All timestamps reference the Salvi Epoch: April 1, 2025 (Day Zero).
               </CardDescription>
             </CardHeader>
+          </Card>
+          
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-blue-800">
+                <Clock className="w-5 h-5 animate-pulse" />
+                Live Time Since Salvi Epoch
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <div className="text-sm text-blue-600 mb-2 font-medium">Elapsed Duration</div>
+                  <div className="flex items-baseline gap-1 font-mono text-2xl font-bold text-blue-900" data-testid="text-elapsed-time">
+                    <span>{String(liveTimer.days).padStart(3, '0')}</span>
+                    <span className="text-blue-400 text-lg">d</span>
+                    <span>{String(liveTimer.hours).padStart(2, '0')}</span>
+                    <span className="text-blue-400 text-lg">h</span>
+                    <span>{String(liveTimer.minutes).padStart(2, '0')}</span>
+                    <span className="text-blue-400 text-lg">m</span>
+                    <span>{String(liveTimer.seconds).padStart(2, '0')}</span>
+                    <span className="text-blue-400 text-lg">s</span>
+                    <span className="text-lg">{String(liveTimer.milliseconds).padStart(3, '0')}</span>
+                    <span className="text-blue-400 text-sm">ms</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-xs text-blue-600 mb-1">Unix Nanoseconds (Current)</div>
+                    <div className="font-mono text-sm bg-white/50 rounded px-2 py-1 text-blue-900" data-testid="text-unix-ns">
+                      {liveTimer.unixNanoseconds.toString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-blue-600 mb-1">Salvi Epoch Nanoseconds (Offset)</div>
+                    <div className="font-mono text-sm bg-white/50 rounded px-2 py-1 text-blue-900" data-testid="text-salvi-ns">
+                      {liveTimer.salviNanoseconds.toString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-blue-200 flex flex-wrap items-center gap-4 text-xs text-blue-600">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <span>Synchronized</span>
+                </div>
+                <div>Epoch: 2025-04-01T00:00:00.000Z</div>
+                <div>Epoch Unix NS: 1743465600000000000</div>
+              </div>
+            </CardContent>
           </Card>
         </div>
 
