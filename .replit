@@ -40,3 +40,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_log_in_with_replit:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+Replit_Kong_PlenumNET = "kpat_wNYrrD2A47tLxKMUU1O4soQp5gesU03f1XSLs7TJPbIhBzeiA"
