@@ -1639,55 +1639,58 @@ export async function registerRoutes(
 
       const results: any[] = [];
       
+      // First, get all existing services to check what already exists
+      const existingServicesResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+        headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
+      });
+      const existingServicesData = existingServicesResponse.ok ? await existingServicesResponse.json() : { data: [] };
+      const existingServices = existingServicesData.data || [];
+
       for (const service of services) {
         try {
-          // Step 1: Create or get existing service
+          // Step 1: Check if service exists, create if not
           let serviceId: string | null = null;
+          const existingService = existingServices.find((s: any) => s.name === service.name);
           
-          const createResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
-            method: 'POST',
-            headers: {
-              "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              name: service.name,
-              url: service.url,
-              enabled: true,
-              tags: service.tags
-            })
-          });
-
-          if (createResponse.ok) {
-            const createdService = await createResponse.json();
-            serviceId = createdService.id;
-            results.push({ 
-              service: service.name, 
-              status: 'created',
-              id: serviceId
-            });
-          } else if (createResponse.status === 409) {
-            // Service exists, get its ID
-            const listResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services?tags=${service.tags[0]}`, {
-              headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
-            });
-            if (listResponse.ok) {
-              const listData = await listResponse.json();
-              const existingService = listData.data?.find((s: any) => s.name === service.name);
-              serviceId = existingService?.id || null;
-            }
+          if (existingService) {
+            serviceId = existingService.id;
             results.push({ 
               service: service.name, 
               status: 'already_exists',
               id: serviceId
             });
           } else {
-            results.push({ 
-              service: service.name, 
-              status: 'error',
-              error: `HTTP ${createResponse.status}`
+            const createResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+              method: 'POST',
+              headers: {
+                "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                name: service.name,
+                url: service.url,
+                enabled: true,
+                tags: service.tags
+              })
             });
-            continue;
+
+            if (createResponse.ok) {
+              const createdService = await createResponse.json();
+              serviceId = createdService.id;
+              results.push({ 
+                service: service.name, 
+                status: 'created',
+                id: serviceId
+              });
+            } else {
+              const errorText = await createResponse.text();
+              results.push({ 
+                service: service.name, 
+                status: 'error',
+                error: `HTTP ${createResponse.status}: ${errorText}`
+              });
+              continue;
+            }
           }
 
           if (!serviceId) continue;
