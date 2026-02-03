@@ -344,7 +344,7 @@ function ApproachSection() {
       date: "NOW",
       title: "Phase 1: Reality-Based Foundation",
       description: "Deploying market-ready components that work within existing infrastructure.",
-      tags: ["libternary", "Timing API", "Open Source"],
+      tags: ["Ternary Repository", "Timing API", "Open Source"],
     },
     {
       date: "Q3 2024",
@@ -487,8 +487,8 @@ function ComponentsSection() {
     {
       badge: "Available Now",
       icon: Code,
-      title: "libternary",
-      description: "Open-source ternary computing library with 59% better data density. MIT licensed, production-ready.",
+      title: "GitHub Ternary Repository",
+      description: "Open-source ternary computing library with 59% more data per transfer.",
       features: [
         "59% more data per transfer",
         "Drop-in replacement for binary protocols",
@@ -601,7 +601,7 @@ function ComparisonSection() {
     { label: "Timing Precision", current: "Milliseconds", ternary: "Nanoseconds", ternaryGood: true },
     { label: "Protocol Efficiency", current: "Baseline", ternary: "+12.7%", ternaryGood: true },
     { label: "Deployment Model", current: "Replace All", ternary: "Incremental", ternaryGood: true },
-    { label: "Open Source", current: "Varies", ternary: "MIT Licensed", ternaryGood: true },
+    { label: "Open Source", current: "Varies", ternary: "Open Source", ternaryGood: true },
   ];
 
   return (
@@ -770,7 +770,7 @@ function CTASection() {
               >
                 <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                   <Github className="w-4 h-4 mr-2" />
-                  Get libternary
+                  Get Ternary Repository
                 </a>
               </Button>
               <Button 
@@ -793,7 +793,7 @@ function CTASection() {
 function Footer() {
   const footerLinks = {
     Product: [
-      { label: "libternary", href: "https://github.com/SigmaWolf-8/Ternary" },
+      { label: "GitHub Ternary Repository", href: "https://github.com/SigmaWolf-8/Ternary" },
       { label: "Timing API", href: "/api-demo" },
       { label: "FPGA Cards", href: "#" },
       { label: "PlenumDB", href: "/ternarydb" },
