@@ -90,6 +90,44 @@ services:
           - plenumnet
           - demo
 
+  # Whitepaper API Service
+  - name: plenumnet-whitepapers
+    url: https://plenumnet.replit.app/api/whitepapers
+    enabled: true
+    tags:
+      - plenumnet
+      - whitepapers
+      - documentation
+    routes:
+      - name: whitepapers-api
+        paths:
+          - /api/whitepapers
+        methods:
+          - GET
+        strip_path: true
+        tags:
+          - plenumnet
+          - whitepapers
+
+  # API Documentation Service
+  - name: plenumnet-docs
+    url: https://plenumnet.replit.app/api/salvi/docs
+    enabled: true
+    tags:
+      - plenumnet
+      - docs
+      - documentation
+    routes:
+      - name: docs-api
+        paths:
+          - /api/docs
+        methods:
+          - GET
+        strip_path: true
+        tags:
+          - plenumnet
+          - docs
+
 # Security Plugins
 plugins:
   # Rate Limiting - Protect against abuse
@@ -134,6 +172,30 @@ plugins:
     config:
       minute: 50
       hour: 500
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  - name: rate-limiting
+    service: plenumnet-whitepapers
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  - name: rate-limiting
+    service: plenumnet-docs
+    config:
+      minute: 200
+      hour: 2000
       policy: local
       fault_tolerant: true
       hide_client_headers: false

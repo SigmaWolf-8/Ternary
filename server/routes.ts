@@ -1634,6 +1634,20 @@ export async function registerRoutes(
           tags: ["plenumnet", "demo", "compression"],
           routePath: "/api/demo",
           rateLimit: { minute: 50 }
+        },
+        {
+          name: "plenumnet-whitepapers",
+          url: `${baseUrl}/api/whitepapers`,
+          tags: ["plenumnet", "whitepapers", "documentation"],
+          routePath: "/api/whitepapers",
+          rateLimit: { minute: 100 }
+        },
+        {
+          name: "plenumnet-docs",
+          url: `${baseUrl}/api/salvi/docs`,
+          tags: ["plenumnet", "docs", "documentation"],
+          routePath: "/api/docs",
+          rateLimit: { minute: 200 }
         }
       ];
 
