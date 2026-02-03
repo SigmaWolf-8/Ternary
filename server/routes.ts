@@ -2150,5 +2150,177 @@ echo "📊 View logs: docker-compose logs -f"
     }
   });
 
+  // Deploy Kong to cloud platform (Render/Railway) via GitHub
+  app.post("/api/kong/control-planes/:cpId/deploy-to-cloud", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      const { platform = "render", owner, repo } = req.body;
+      const token = req.adminUser?.githubToken;
+
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      if (!owner || !repo) {
+        return res.status(400).json({ error: "GitHub owner and repo required" });
+      }
+
+      // Generate certificates
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      const tempDir = path.join('/tmp', `kong-cloud-${Date.now()}`);
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      const keyPath = path.join(tempDir, 'tls.key');
+      const certPath = path.join(tempDir, 'tls.crt');
+
+      await execAsync(`openssl req -new -x509 -nodes -newkey rsa:2048 -subj "/CN=kong-dp/O=PlenumNET/C=US" -keyout ${keyPath} -out ${certPath} -days 3650`);
+      
+      const tlsKey = await fs.readFile(keyPath, 'utf-8');
+      const tlsCert = await fs.readFile(certPath, 'utf-8');
+
+      // Upload certificate to Kong Konnect
+      await fetch(`${KONG_API_BASE}/control-planes/${cpId}/dp-client-certificates`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ cert: tlsCert })
+      });
+
+      // Get control plane details
+      const cpResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}`, {
+        headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
+      });
+      const cpData = await cpResponse.json();
+      const controlPlaneEndpoint = cpData.config?.control_plane_endpoint?.replace('https://', '') || '';
+      const telemetryEndpoint = cpData.config?.telemetry_endpoint?.replace('https://', '') || '';
+
+      // Create Dockerfile with embedded certificates
+      const dockerfile = `FROM kong/kong-gateway:3.6
+
+ENV KONG_ROLE=data_plane
+ENV KONG_DATABASE=off
+ENV KONG_VITALS=off
+ENV KONG_CLUSTER_MTLS=pki
+ENV KONG_LUA_SSL_TRUSTED_CERTIFICATE=system
+ENV KONG_KONNECT_MODE=on
+ENV KONG_PROXY_LISTEN=0.0.0.0:8000
+ENV KONG_STATUS_LISTEN=0.0.0.0:8100
+
+ENV KONG_CLUSTER_CONTROL_PLANE=${controlPlaneEndpoint}:443
+ENV KONG_CLUSTER_SERVER_NAME=${controlPlaneEndpoint}
+ENV KONG_CLUSTER_TELEMETRY_ENDPOINT=${telemetryEndpoint}:443
+ENV KONG_CLUSTER_TELEMETRY_SERVER_NAME=${telemetryEndpoint}
+
+RUN mkdir -p /etc/kong/certs
+COPY tls.crt /etc/kong/certs/tls.crt
+COPY tls.key /etc/kong/certs/tls.key
+RUN chmod 600 /etc/kong/certs/tls.key
+
+ENV KONG_CLUSTER_CERT=/etc/kong/certs/tls.crt
+ENV KONG_CLUSTER_CERT_KEY=/etc/kong/certs/tls.key
+
+EXPOSE 8000 8100
+HEALTHCHECK --interval=30s --timeout=10s CMD kong health || exit 1
+CMD ["kong", "docker-start"]
+`;
+
+      // Create render.yaml
+      const renderYaml = `services:
+  - type: web
+    name: kong-plenumnet
+    runtime: docker
+    dockerfilePath: ./kong-deploy/Dockerfile
+    dockerContext: ./kong-deploy
+    region: oregon
+    plan: free
+    healthCheckPath: /status
+`;
+
+      // Push files to GitHub
+      const filesToPush = [
+        { path: "kong-deploy/Dockerfile", content: dockerfile },
+        { path: "kong-deploy/tls.crt", content: tlsCert },
+        { path: "kong-deploy/tls.key", content: tlsKey },
+        { path: "render.yaml", content: renderYaml }
+      ];
+
+      for (const file of filesToPush) {
+        const content = Buffer.from(file.content).toString('base64');
+        
+        // Check if file exists
+        const checkResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`, {
+          headers: {
+            "Authorization": `token ${token}`,
+            "Accept": "application/vnd.github.v3+json"
+          }
+        });
+        
+        let sha: string | undefined;
+        if (checkResponse.ok) {
+          const existingFile = await checkResponse.json();
+          sha = existingFile.sha;
+        }
+
+        await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`, {
+          method: 'PUT',
+          headers: {
+            "Authorization": `token ${token}`,
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: `Add Kong deployment: ${file.path}`,
+            content,
+            sha
+          })
+        });
+      }
+
+      // Cleanup
+      await fs.rm(tempDir, { recursive: true, force: true });
+
+      // Generate deploy URLs
+      const renderDeployUrl = `https://render.com/deploy?repo=https://github.com/${owner}/${repo}`;
+      const railwayDeployUrl = `https://railway.app/template?template=https://github.com/${owner}/${repo}`;
+
+      res.json({
+        success: true,
+        message: "Deployment files pushed to GitHub!",
+        platform,
+        githubRepo: `https://github.com/${owner}/${repo}`,
+        deployUrls: {
+          render: renderDeployUrl,
+          railway: railwayDeployUrl
+        },
+        controlPlane: {
+          id: cpId,
+          name: cpData.name,
+          endpoint: controlPlaneEndpoint
+        },
+        instructions: [
+          `1. Files pushed to https://github.com/${owner}/${repo}`,
+          `2. Click the deploy link for ${platform}`,
+          "3. Connect your GitHub account",
+          "4. Deploy the service",
+          "5. Your Kong proxy will be live at the provided URL"
+        ]
+      });
+    } catch (error) {
+      console.error("Cloud deployment error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to deploy to cloud" });
+    }
+  });
+
   return httpServer;
 }

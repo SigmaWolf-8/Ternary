@@ -1,0 +1,40 @@
+# Render Blueprint for PlenumNET Kong Gateway Data Plane
+# One-click deployment: https://render.com/deploy?repo=YOUR_REPO_URL
+
+services:
+  - type: web
+    name: kong-plenumnet-gateway
+    runtime: docker
+    dockerfilePath: ./kong/Dockerfile
+    dockerContext: ./kong
+    region: oregon
+    plan: free
+    healthCheckPath: /status
+    envVars:
+      - key: KONG_ROLE
+        value: data_plane
+      - key: KONG_DATABASE
+        value: "off"
+      - key: KONG_VITALS
+        value: "off"
+      - key: KONG_CLUSTER_MTLS
+        value: pki
+      - key: KONG_KONNECT_MODE
+        value: "on"
+      - key: KONG_PROXY_LISTEN
+        value: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+      - key: KONG_STATUS_LISTEN
+        value: "0.0.0.0:8100"
+      # These must be set manually after deployment:
+      - key: KONG_CLUSTER_CONTROL_PLANE
+        sync: false
+      - key: KONG_CLUSTER_SERVER_NAME
+        sync: false
+      - key: KONG_CLUSTER_TELEMETRY_ENDPOINT
+        sync: false
+      - key: KONG_CLUSTER_TELEMETRY_SERVER_NAME
+        sync: false
+      - key: KONG_CLUSTER_CERT
+        sync: false
+      - key: KONG_CLUSTER_CERT_KEY
+        sync: false

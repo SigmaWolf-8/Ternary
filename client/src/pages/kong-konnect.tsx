@@ -546,10 +546,30 @@ interface DeploymentPackage {
   instructions: string[];
 }
 
+interface CloudDeployResult {
+  success: boolean;
+  message: string;
+  platform: string;
+  githubRepo: string;
+  deployUrls: {
+    render: string;
+    railway: string;
+  };
+  controlPlane: {
+    id: string;
+    name: string;
+    endpoint: string;
+  };
+  instructions: string[];
+}
+
 function DeploySection({ selectedCP }: { selectedCP: string | null }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [deploymentPackage, setDeploymentPackage] = useState<DeploymentPackage | null>(null);
+  const [cloudDeployResult, setCloudDeployResult] = useState<CloudDeployResult | null>(null);
+  const [githubOwner, setGithubOwner] = useState("SigmaWolf-8");
+  const [githubRepo, setGithubRepo] = useState("Ternary");
 
   const { data: deployData, isLoading, error } = useQuery<{
     success: boolean;
@@ -593,6 +613,31 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
     onError: (error) => {
       toast({
         title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const cloudDeployMutation = useMutation({
+    mutationFn: async ({ cpId, platform }: { cpId: string; platform: string }) => {
+      const response = await apiRequest("POST", `/api/kong/control-planes/${cpId}/deploy-to-cloud`, {
+        platform,
+        owner: githubOwner,
+        repo: githubRepo
+      });
+      return response.json();
+    },
+    onSuccess: (data: CloudDeployResult) => {
+      setCloudDeployResult(data);
+      toast({
+        title: "Deployment Ready!",
+        description: "Click the deploy link to launch your Kong Gateway"
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Cloud Deploy Failed",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive"
       });
@@ -725,6 +770,50 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
               Generate New Package
             </Button>
           </div>
+        ) : cloudDeployResult ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Cloud Deployment Ready!</span>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              Files pushed to <a href={cloudDeployResult.githubRepo} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{cloudDeployResult.githubRepo}</a>
+            </div>
+
+            <div className="grid gap-2">
+              <Button className="w-full" asChild data-testid="button-deploy-render">
+                <a href={cloudDeployResult.deployUrls.render} target="_blank" rel="noopener noreferrer">
+                  <Globe className="w-4 h-4 mr-2" />
+                  Deploy to Render (Free)
+                </a>
+              </Button>
+              <Button variant="outline" className="w-full" asChild data-testid="button-deploy-railway">
+                <a href={cloudDeployResult.deployUrls.railway} target="_blank" rel="noopener noreferrer">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Deploy to Railway ($5 credit)
+                </a>
+              </Button>
+            </div>
+
+            <div className="bg-secondary/50 rounded-md p-3">
+              <p className="text-xs font-medium mb-2">Next Steps:</p>
+              <ol className="text-xs space-y-1 text-muted-foreground list-decimal list-inside">
+                {cloudDeployResult.instructions.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            </div>
+
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setCloudDeployResult(null)}
+              className="w-full"
+            >
+              Deploy Again
+            </Button>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-amber-600">
@@ -732,49 +821,74 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
               <span className="font-medium">No Data Plane Connected</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Generate a deployment package with auto-generated TLS certificates to deploy Kong Gateway on your server.
+              Deploy Kong Gateway to a free cloud platform with one click.
             </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="deploy-owner" className="text-xs">GitHub Owner</Label>
+                <Input
+                  id="deploy-owner"
+                  value={githubOwner}
+                  onChange={(e) => setGithubOwner(e.target.value)}
+                  placeholder="username"
+                  className="h-8 text-sm"
+                  data-testid="input-deploy-owner"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="deploy-repo" className="text-xs">Repository</Label>
+                <Input
+                  id="deploy-repo"
+                  value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  placeholder="repo-name"
+                  className="h-8 text-sm"
+                  data-testid="input-deploy-repo"
+                />
+              </div>
+            </div>
             
             <Button 
-              onClick={() => selectedCP && generateMutation.mutate(selectedCP)}
-              disabled={generateMutation.isPending}
+              onClick={() => selectedCP && cloudDeployMutation.mutate({ cpId: selectedCP, platform: "render" })}
+              disabled={cloudDeployMutation.isPending || !githubOwner || !githubRepo}
               className="w-full"
-              data-testid="button-generate-deployment"
+              data-testid="button-cloud-deploy"
             >
-              {generateMutation.isPending ? (
+              {cloudDeployMutation.isPending ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Certificates...
+                  Preparing Deployment...
                 </>
               ) : (
                 <>
-                  <Server className="w-4 h-4 mr-2" />
-                  Generate Deployment Package
+                  <Globe className="w-4 h-4 mr-2" />
+                  Deploy to Cloud (Free)
                 </>
               )}
             </Button>
 
             <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium">This will:</p>
+              <p className="font-medium">This will automatically:</p>
               <ul className="list-disc list-inside space-y-0.5 ml-2">
-                <li>Generate TLS certificates (10-year validity)</li>
+                <li>Generate TLS certificates</li>
                 <li>Upload certificate to Kong Konnect</li>
-                <li>Create docker-compose.yml</li>
-                <li>Create deploy.sh script</li>
+                <li>Push Dockerfile to your GitHub repo</li>
+                <li>Create one-click deploy link for Render/Railway</li>
               </ul>
             </div>
             
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" asChild>
-                <a href="https://cloud.konghq.com" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Kong Konnect UI
+                <a href="https://render.com" target="_blank" rel="noopener noreferrer">
+                  <Globe className="w-4 h-4 mr-2" />
+                  Render (Free)
                 </a>
               </Button>
               <Button variant="outline" className="flex-1" asChild>
-                <a href="https://docs.konghq.com/konnect/gateway-manager/" target="_blank" rel="noopener noreferrer">
-                  <FileCode className="w-4 h-4 mr-2" />
-                  Documentation
+                <a href="https://railway.app" target="_blank" rel="noopener noreferrer">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Railway ($5)
                 </a>
               </Button>
             </div>

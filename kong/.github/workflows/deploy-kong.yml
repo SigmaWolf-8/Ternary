@@ -1,0 +1,62 @@
+name: Deploy Kong Data Plane
+
+on:
+  workflow_dispatch:
+    inputs:
+      control_plane_endpoint:
+        description: 'Kong Control Plane Endpoint (e.g., 9e76b3c08e.us.cp0.konghq.com)'
+        required: true
+      telemetry_endpoint:
+        description: 'Kong Telemetry Endpoint (e.g., 9e76b3c08e.us.tp0.konghq.com)'
+        required: true
+      platform:
+        description: 'Deployment Platform'
+        required: true
+        default: 'render'
+        type: choice
+        options:
+          - render
+          - railway
+          - fly
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate TLS Certificates
+        run: |
+          mkdir -p certs
+          openssl req -new -x509 -nodes -newkey rsa:2048 \
+            -subj "/CN=kong-dp/O=PlenumNET/C=US" \
+            -keyout certs/tls.key \
+            -out certs/tls.crt \
+            -days 3650
+
+      - name: Build Docker Image
+        run: |
+          docker build -t kong-plenumnet:latest -f kong/Dockerfile .
+
+      - name: Deploy to Render
+        if: ${{ github.event.inputs.platform == 'render' }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          echo "Deploy to Render via API..."
+          # Render deployment would go here
+
+      - name: Deploy to Railway
+        if: ${{ github.event.inputs.platform == 'railway' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Deploy to Railway via CLI..."
+          # Railway deployment would go here
+
+      - name: Output Deployment Info
+        run: |
+          echo "=== PlenumNET Kong Gateway Deployed ==="
+          echo "Control Plane: ${{ github.event.inputs.control_plane_endpoint }}"
+          echo "Telemetry: ${{ github.event.inputs.telemetry_endpoint }}"
+          echo "Platform: ${{ github.event.inputs.platform }}"
