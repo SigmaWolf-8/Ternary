@@ -127,8 +127,18 @@ Based on the whitepaper's Unified Ternary Logic System:
 | `/api/kong/control-planes/:cpId/plugins` | GET | Public | Get plugins for a control plane |
 | `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | POST | Admin | Add plugin to service (body: name, config) |
 | `/api/kong/control-planes/:cpId/sync-plenumnet` | POST | Admin | Sync all PlenumNET services to Kong |
+| `/api/kong/control-planes/:cpId/generate-deployment` | POST | Admin | Generate TLS certs and deployment package |
+| `/api/kong/control-planes/:cpId/deploy-to-cloud` | POST | Admin | Push Dockerfile to GitHub for Render/Railway deploy (body: platform, owner, repo) |
 | `/api/kong/config` | GET | Admin | Get local Kong configuration file (contains API keys) |
 | `/api/kong/save-to-github` | POST | Admin | Save Kong config to GitHub (body: owner, repo, path) |
+
+### Cloud Deployment
+The deploy-to-cloud endpoint:
+1. Generates TLS certificates (10-year validity)
+2. Uploads certificate to Kong Konnect
+3. Pushes Dockerfile and entrypoint.sh to GitHub (private key NOT committed)
+4. Returns TLS private key for user to set as `KONG_TLS_KEY` env var in cloud platform
+5. Returns one-click deploy URLs for Render (free tier) and Railway ($5 credit)
 
 ### Kong Configuration Files
 The `kong/` directory contains:
