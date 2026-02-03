@@ -340,9 +340,10 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
     onSuccess: (data) => {
       toast({
         title: "Sync Complete",
-        description: `Created: ${data.synced}, Skipped: ${data.skipped}, Errors: ${data.errors}`
+        description: `Services: ${data.services || 0}, Routes: ${data.routes || 0}, Plugins: ${data.plugins || 0}, Errors: ${data.errors || 0}`
       });
       queryClient.invalidateQueries({ queryKey: ['/api/kong/control-planes', selectedCP, 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kong/control-planes', selectedCP, 'routes'] });
     },
     onError: (error) => {
       toast({

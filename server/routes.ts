@@ -1610,22 +1610,30 @@ export async function registerRoutes(
         {
           name: "plenumnet-timing",
           url: `${baseUrl}/api/salvi/timing`,
-          tags: ["plenumnet", "timing", "finra-cat"]
+          tags: ["plenumnet", "timing", "finra-cat"],
+          routePath: "/api/timing",
+          rateLimit: { minute: 100 }
         },
         {
           name: "plenumnet-ternary",
           url: `${baseUrl}/api/salvi/ternary`,
-          tags: ["plenumnet", "ternary", "quantum-safe"]
+          tags: ["plenumnet", "ternary", "quantum-safe"],
+          routePath: "/api/ternary",
+          rateLimit: { minute: 200 }
         },
         {
           name: "plenumnet-phase",
           url: `${baseUrl}/api/salvi/phase`,
-          tags: ["plenumnet", "encryption", "quantum-safe"]
+          tags: ["plenumnet", "encryption", "quantum-safe"],
+          routePath: "/api/phase",
+          rateLimit: { minute: 100 }
         },
         {
           name: "plenumnet-demo",
           url: `${baseUrl}/api/demo`,
-          tags: ["plenumnet", "demo", "compression"]
+          tags: ["plenumnet", "demo", "compression"],
+          routePath: "/api/demo",
+          rateLimit: { minute: 50 }
         }
       ];
 
@@ -1633,6 +1641,9 @@ export async function registerRoutes(
       
       for (const service of services) {
         try {
+          // Step 1: Create or get existing service
+          let serviceId: string | null = null;
+          
           const createResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
             method: 'POST',
             headers: {
@@ -1649,15 +1660,26 @@ export async function registerRoutes(
 
           if (createResponse.ok) {
             const createdService = await createResponse.json();
+            serviceId = createdService.id;
             results.push({ 
               service: service.name, 
               status: 'created',
-              id: createdService.id
+              id: serviceId
             });
           } else if (createResponse.status === 409) {
+            // Service exists, get its ID
+            const listResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services?tags=${service.tags[0]}`, {
+              headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
+            });
+            if (listResponse.ok) {
+              const listData = await listResponse.json();
+              const existingService = listData.data?.find((s: any) => s.name === service.name);
+              serviceId = existingService?.id || null;
+            }
             results.push({ 
               service: service.name, 
-              status: 'already_exists' 
+              status: 'already_exists',
+              id: serviceId
             });
           } else {
             results.push({ 
@@ -1665,7 +1687,74 @@ export async function registerRoutes(
               status: 'error',
               error: `HTTP ${createResponse.status}`
             });
+            continue;
           }
+
+          if (!serviceId) continue;
+
+          // Step 2: Create route for the service
+          const routeResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/routes`, {
+            method: 'POST',
+            headers: {
+              "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: `${service.name}-route`,
+              paths: [service.routePath],
+              methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+              strip_path: true,
+              tags: service.tags
+            })
+          });
+
+          if (routeResponse.ok) {
+            const route = await routeResponse.json();
+            results.push({
+              route: `${service.name}-route`,
+              status: 'route_created',
+              id: route.id
+            });
+          } else if (routeResponse.status === 409) {
+            results.push({
+              route: `${service.name}-route`,
+              status: 'route_exists'
+            });
+          }
+
+          // Step 3: Add rate limiting plugin
+          const pluginResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/plugins`, {
+            method: 'POST',
+            headers: {
+              "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: "rate-limiting",
+              config: {
+                minute: service.rateLimit.minute,
+                policy: "local"
+              },
+              tags: ["plenumnet", "rate-limit"]
+            })
+          });
+
+          if (pluginResponse.ok) {
+            const plugin = await pluginResponse.json();
+            results.push({
+              plugin: `rate-limiting (${service.rateLimit.minute}/min)`,
+              service: service.name,
+              status: 'plugin_created',
+              id: plugin.id
+            });
+          } else if (pluginResponse.status === 409) {
+            results.push({
+              plugin: 'rate-limiting',
+              service: service.name,
+              status: 'plugin_exists'
+            });
+          }
+
         } catch (err) {
           results.push({ 
             service: service.name, 
@@ -1677,8 +1766,9 @@ export async function registerRoutes(
 
       res.json({ 
         success: true, 
-        synced: results.filter(r => r.status === 'created').length,
-        skipped: results.filter(r => r.status === 'already_exists').length,
+        services: results.filter(r => r.status === 'created' || r.status === 'already_exists').length,
+        routes: results.filter(r => r.status === 'route_created' || r.status === 'route_exists').length,
+        plugins: results.filter(r => r.status === 'plugin_created' || r.status === 'plugin_exists').length,
         errors: results.filter(r => r.status === 'error').length,
         results 
       });
