@@ -489,6 +489,7 @@ function ComponentsSection() {
       icon: Code,
       title: "GitHub Ternary Repository",
       description: "Open-source ternary computing library with 59% more data per transfer.",
+      link: "/github",
       features: [
         "59% more data per transfer",
         "Drop-in replacement for binary protocols",

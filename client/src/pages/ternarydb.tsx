@@ -282,8 +282,8 @@ function HeroSection() {
               <span className="text-sm text-muted-foreground mt-2">SQL Compatible</span>
             </div>
             <div className="flex flex-col" data-testid="stat-license">
-              <span className="text-4xl md:text-5xl font-bold text-primary leading-none">MIT</span>
-              <span className="text-sm text-muted-foreground mt-2">Open Source</span>
+              <span className="text-4xl md:text-5xl font-bold text-primary leading-none">Open</span>
+              <span className="text-sm text-muted-foreground mt-2">Source</span>
             </div>
           </motion.div>
         </div>
@@ -1626,7 +1626,7 @@ function PricingSection() {
         "Basic compression",
         "Standard SQL support",
         "Community support",
-        "MIT License",
+        "Open Source",
       ],
       cta: "Download",
       ctaLink: "https://github.com/ternary/ternarydb",
