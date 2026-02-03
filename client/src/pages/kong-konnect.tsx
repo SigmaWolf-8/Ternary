@@ -25,7 +25,10 @@ import {
   Plug,
   Upload,
   FileCode,
-  GitBranch
+  GitBranch,
+  Terminal,
+  Copy,
+  Play
 } from "lucide-react";
 import { SiGithub } from "react-icons/si";
 import { useState } from "react";
@@ -412,6 +415,14 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
               <Check className="w-4 h-4 text-green-500" />
               <code className="text-xs bg-secondary px-1 rounded">plenumnet-demo</code> - Demo Compression API
             </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              <code className="text-xs bg-secondary px-1 rounded">plenumnet-whitepapers</code> - Whitepaper API
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              <code className="text-xs bg-secondary px-1 rounded">plenumnet-docs</code> - API Documentation
+            </li>
           </ul>
           <Button 
             onClick={() => selectedCP && syncMutation.mutate(selectedCP)}
@@ -515,6 +526,140 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
   );
 }
 
+function DeploySection({ selectedCP }: { selectedCP: string | null }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const { data: deployData, isLoading, error } = useQuery<{
+    success: boolean;
+    controlPlane: {
+      id: string;
+      name: string;
+      clusterType: string;
+      controlPlaneEndpoint: string;
+      telemetryEndpoint: string;
+      proxyUrls: Array<{ host: string; port: number; protocol: string }>;
+    };
+    hasProxyUrl: boolean;
+    deploymentInstructions: {
+      docker: {
+        title: string;
+        description: string;
+        prerequisites: string[];
+        steps: string[];
+        command: string;
+      };
+    };
+  }>({
+    queryKey: ['/api/kong/control-planes', selectedCP, 'deploy-instructions'],
+    enabled: !!selectedCP,
+  });
+
+  const copyCommand = async () => {
+    if (deployData?.deploymentInstructions?.docker?.command) {
+      await navigator.clipboard.writeText(deployData.deploymentInstructions.docker.command);
+      setCopied(true);
+      toast({ title: "Copied!", description: "Docker command copied to clipboard" });
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (!selectedCP) {
+    return null;
+  }
+
+  return (
+    <Card className="border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Terminal className="w-5 h-5 text-primary" />
+          Deploy Data Plane
+        </CardTitle>
+        <CardDescription>
+          Deploy a Kong Gateway data plane to access your APIs through Kong proxy
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <p className="text-sm text-red-500">Failed to load deployment instructions</p>
+        ) : deployData?.hasProxyUrl ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Data Plane Active</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Your Kong Gateway is ready. Access APIs through the proxy URL.
+            </p>
+            {deployData.controlPlane.proxyUrls.map((url, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <code className="text-xs bg-secondary px-2 py-1 rounded flex-1">
+                  {url.protocol}://{url.host}:{url.port}
+                </code>
+                <Button size="sm" variant="outline" asChild>
+                  <a href={`${url.protocol}://${url.host}/api/timing/timestamp`} target="_blank" rel="noopener noreferrer">
+                    <Play className="w-3 h-3 mr-1" />
+                    Test
+                  </a>
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-amber-600">
+              <XCircle className="w-5 h-5" />
+              <span className="font-medium">No Data Plane Connected</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Deploy a Kong Gateway data plane to enable API proxying. Follow these steps:
+            </p>
+            <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+              {deployData?.deploymentInstructions?.docker?.steps?.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+            
+            <div className="relative">
+              <pre className="bg-secondary/50 border rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap">
+                {deployData?.deploymentInstructions?.docker?.command || "Loading..."}
+              </pre>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute top-2 right-2"
+                onClick={copyCommand}
+                data-testid="button-copy-docker"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" asChild>
+                <a href="https://cloud.konghq.com" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Kong Konnect UI
+                </a>
+              </Button>
+              <Button variant="outline" className="flex-1" asChild>
+                <a href="https://docs.konghq.com/konnect/gateway-manager/" target="_blank" rel="noopener noreferrer">
+                  <FileCode className="w-4 h-4 mr-2" />
+                  Documentation
+                </a>
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function HeroSection() {
   return (
     <section className="py-12 md:py-16 bg-gradient-to-b from-primary/5 to-background">
@@ -565,6 +710,7 @@ function DashboardSection() {
         <ConnectionStatus />
         <ControlPlanesList selectedCP={selectedCP} setSelectedCP={setSelectedCP} />
         <SyncSection selectedCP={selectedCP} />
+        <DeploySection selectedCP={selectedCP} />
       </div>
     </section>
   );

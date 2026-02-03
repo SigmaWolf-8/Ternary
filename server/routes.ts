@@ -1861,5 +1861,100 @@ export async function registerRoutes(
     }
   });
 
+  // Get data plane deployment instructions for a control plane
+  app.get("/api/kong/control-planes/:cpId/deploy-instructions", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      
+      // Get control plane details
+      const cpResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}`, {
+        headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
+      });
+
+      if (!cpResponse.ok) {
+        return res.status(cpResponse.status).json({ error: "Failed to fetch control plane details" });
+      }
+
+      const cpData = await cpResponse.json();
+      const controlPlaneEndpoint = cpData.config?.control_plane_endpoint;
+      const telemetryEndpoint = cpData.config?.telemetry_endpoint;
+      const clusterType = cpData.config?.cluster_type;
+      const proxyUrls = cpData.config?.proxy_urls || [];
+
+      // Generate Docker deployment command
+      const dockerCommand = `docker run -d --name kong-dp \\
+  -e "KONG_ROLE=data_plane" \\
+  -e "KONG_DATABASE=off" \\
+  -e "KONG_VITALS=off" \\
+  -e "KONG_CLUSTER_MTLS=pki" \\
+  -e "KONG_CLUSTER_CONTROL_PLANE=${controlPlaneEndpoint?.replace('https://', '')}:443" \\
+  -e "KONG_CLUSTER_SERVER_NAME=${controlPlaneEndpoint?.replace('https://', '')}" \\
+  -e "KONG_CLUSTER_TELEMETRY_ENDPOINT=${telemetryEndpoint?.replace('https://', '')}:443" \\
+  -e "KONG_CLUSTER_TELEMETRY_SERVER_NAME=${telemetryEndpoint?.replace('https://', '')}" \\
+  -e "KONG_CLUSTER_CERT=/config/tls.crt" \\
+  -e "KONG_CLUSTER_CERT_KEY=/config/tls.key" \\
+  -e "KONG_LUA_SSL_TRUSTED_CERTIFICATE=system" \\
+  -e "KONG_KONNECT_MODE=on" \\
+  -p 8000:8000 \\
+  -p 8443:8443 \\
+  kong/kong-gateway:3.6`;
+
+      res.json({
+        success: true,
+        controlPlane: {
+          id: cpId,
+          name: cpData.name,
+          clusterType,
+          controlPlaneEndpoint,
+          telemetryEndpoint,
+          proxyUrls
+        },
+        hasProxyUrl: proxyUrls.length > 0,
+        deploymentInstructions: {
+          docker: {
+            title: "Docker Deployment",
+            description: "Run a Kong Gateway data plane using Docker",
+            prerequisites: [
+              "Docker installed on your machine",
+              "Generate TLS certificates from Kong Konnect UI",
+              "Download certificates to ./config/ directory"
+            ],
+            steps: [
+              "Go to Kong Konnect → Gateway Manager → Data Plane Nodes",
+              "Click 'New Data Plane Node' → 'Linux (Docker)'",
+              "Download the generated certificates (tls.crt, tls.key)",
+              "Place certificates in a ./config/ directory",
+              "Run the Docker command below"
+            ],
+            command: dockerCommand
+          },
+          kubernetes: {
+            title: "Kubernetes Deployment",
+            description: "Deploy Kong Gateway on Kubernetes using Helm",
+            command: `helm repo add kong https://charts.konghq.com
+helm repo update
+helm install kong kong/kong --namespace kong --create-namespace \\
+  --set ingressController.enabled=false \\
+  --set env.role=data_plane \\
+  --set env.database=off \\
+  --set env.cluster_control_plane="${controlPlaneEndpoint?.replace('https://', '')}:443" \\
+  --set env.cluster_telemetry_endpoint="${telemetryEndpoint?.replace('https://', '')}:443"`
+          }
+        },
+        proxyAccessUrls: proxyUrls.length > 0 ? {
+          timing: `${proxyUrls[0]?.protocol}://${proxyUrls[0]?.host}/api/timing/timestamp`,
+          ternary: `${proxyUrls[0]?.protocol}://${proxyUrls[0]?.host}/api/ternary/convert`,
+          phase: `${proxyUrls[0]?.protocol}://${proxyUrls[0]?.host}/api/phase/config/balanced`
+        } : null
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to get deployment instructions" });
+    }
+  });
+
   return httpServer;
 }
