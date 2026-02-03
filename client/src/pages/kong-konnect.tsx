@@ -28,7 +28,8 @@ import {
   GitBranch,
   Terminal,
   Copy,
-  Play
+  Play,
+  Download
 } from "lucide-react";
 import { SiGithub } from "react-icons/si";
 import { useState } from "react";
@@ -526,9 +527,29 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
   );
 }
 
+interface DeploymentPackage {
+  success: boolean;
+  message: string;
+  certificateUploaded: boolean;
+  certificateId?: string;
+  controlPlane: {
+    id: string;
+    name: string;
+    endpoint: string;
+  };
+  files: {
+    "tls.crt": string;
+    "tls.key": string;
+    "docker-compose.yml": string;
+    "deploy.sh": string;
+  };
+  instructions: string[];
+}
+
 function DeploySection({ selectedCP }: { selectedCP: string | null }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [deploymentPackage, setDeploymentPackage] = useState<DeploymentPackage | null>(null);
 
   const { data: deployData, isLoading, error } = useQuery<{
     success: boolean;
@@ -554,6 +575,48 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
     queryKey: ['/api/kong/control-planes', selectedCP, 'deploy-instructions'],
     enabled: !!selectedCP,
   });
+
+  const generateMutation = useMutation({
+    mutationFn: async (cpId: string) => {
+      const response = await apiRequest("POST", `/api/kong/control-planes/${cpId}/generate-deployment`, {});
+      return response.json();
+    },
+    onSuccess: (data: DeploymentPackage) => {
+      setDeploymentPackage(data);
+      toast({
+        title: "Deployment Package Generated!",
+        description: data.certificateUploaded 
+          ? "Certificates uploaded to Kong Konnect" 
+          : "Package ready for download"
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const downloadFile = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadAllFiles = () => {
+    if (!deploymentPackage) return;
+    Object.entries(deploymentPackage.files).forEach(([filename, content]) => {
+      setTimeout(() => downloadFile(filename, content), 100);
+    });
+  };
 
   const copyCommand = async () => {
     if (deployData?.deploymentInstructions?.docker?.command) {
@@ -609,6 +672,59 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
               </div>
             ))}
           </div>
+        ) : deploymentPackage ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Deployment Package Ready!</span>
+            </div>
+            
+            {deploymentPackage.certificateUploaded && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Lock className="w-4 h-4" />
+                Certificate uploaded to Kong Konnect
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-2">
+              {Object.keys(deploymentPackage.files).map((filename) => (
+                <Button
+                  key={filename}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadFile(filename, deploymentPackage.files[filename as keyof typeof deploymentPackage.files])}
+                  className="justify-start"
+                  data-testid={`button-download-${filename.replace('.', '-')}`}
+                >
+                  <FileCode className="w-4 h-4 mr-2" />
+                  {filename}
+                </Button>
+              ))}
+            </div>
+
+            <Button onClick={downloadAllFiles} className="w-full" data-testid="button-download-all">
+              <Server className="w-4 h-4 mr-2" />
+              Download All Files
+            </Button>
+
+            <div className="bg-secondary/50 rounded-md p-3">
+              <p className="text-xs font-medium mb-2">Quick Deploy:</p>
+              <ol className="text-xs space-y-1 text-muted-foreground list-decimal list-inside">
+                {deploymentPackage.instructions.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            </div>
+
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setDeploymentPackage(null)}
+              className="w-full"
+            >
+              Generate New Package
+            </Button>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-amber-600">
@@ -616,27 +732,36 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
               <span className="font-medium">No Data Plane Connected</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Deploy a Kong Gateway data plane to enable API proxying. Follow these steps:
+              Generate a deployment package with auto-generated TLS certificates to deploy Kong Gateway on your server.
             </p>
-            <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
-              {deployData?.deploymentInstructions?.docker?.steps?.map((step, i) => (
-                <li key={i}>{step}</li>
-              ))}
-            </ol>
             
-            <div className="relative">
-              <pre className="bg-secondary/50 border rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap">
-                {deployData?.deploymentInstructions?.docker?.command || "Loading..."}
-              </pre>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute top-2 right-2"
-                onClick={copyCommand}
-                data-testid="button-copy-docker"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </Button>
+            <Button 
+              onClick={() => selectedCP && generateMutation.mutate(selectedCP)}
+              disabled={generateMutation.isPending}
+              className="w-full"
+              data-testid="button-generate-deployment"
+            >
+              {generateMutation.isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Certificates...
+                </>
+              ) : (
+                <>
+                  <Server className="w-4 h-4 mr-2" />
+                  Generate Deployment Package
+                </>
+              )}
+            </Button>
+
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">This will:</p>
+              <ul className="list-disc list-inside space-y-0.5 ml-2">
+                <li>Generate TLS certificates (10-year validity)</li>
+                <li>Upload certificate to Kong Konnect</li>
+                <li>Create docker-compose.yml</li>
+                <li>Create deploy.sh script</li>
+              </ul>
             </div>
             
             <div className="flex gap-2">

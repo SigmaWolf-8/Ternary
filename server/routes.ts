@@ -1956,5 +1956,199 @@ helm install kong kong/kong --namespace kong --create-namespace \\
     }
   });
 
+  // Generate deployment package with certificates (Admin only)
+  app.post("/api/kong/control-planes/:cpId/generate-deployment", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      const crypto = await import('crypto');
+
+      // Generate self-signed certificate
+      const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+      });
+
+      // Create self-signed certificate using forge-like approach with Node.js
+      const certInfo = {
+        subject: '/CN=kong-dp/O=PlenumNET/C=US',
+        issuer: '/CN=kong-dp/O=PlenumNET/C=US',
+        serialNumber: crypto.randomBytes(16).toString('hex'),
+        notBefore: new Date(),
+        notAfter: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 10) // 10 years
+      };
+
+      // Use openssl-like certificate generation via child process
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      const tempDir = path.join('/tmp', `kong-certs-${Date.now()}`);
+      await fs.mkdir(tempDir, { recursive: true });
+      
+      const keyPath = path.join(tempDir, 'tls.key');
+      const certPath = path.join(tempDir, 'tls.crt');
+
+      // Generate certificate using openssl
+      await execAsync(`openssl req -new -x509 -nodes -newkey rsa:2048 -subj "/CN=kong-dp/O=PlenumNET/C=US" -keyout ${keyPath} -out ${certPath} -days 3650`);
+      
+      const tlsKey = await fs.readFile(keyPath, 'utf-8');
+      const tlsCert = await fs.readFile(certPath, 'utf-8');
+
+      // Upload certificate to Kong Konnect
+      const uploadResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/dp-client-certificates`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ cert: tlsCert })
+      });
+
+      let certUploadResult = null;
+      if (uploadResponse.ok) {
+        certUploadResult = await uploadResponse.json();
+      } else {
+        const errorText = await uploadResponse.text();
+        console.error("Certificate upload failed:", errorText);
+      }
+
+      // Get control plane details for docker-compose
+      const cpResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}`, {
+        headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
+      });
+      const cpData = await cpResponse.json();
+      const controlPlaneEndpoint = cpData.config?.control_plane_endpoint?.replace('https://', '') || '';
+      const telemetryEndpoint = cpData.config?.telemetry_endpoint?.replace('https://', '') || '';
+
+      // Generate docker-compose.yml
+      const dockerCompose = `version: '3.8'
+
+services:
+  kong-dp:
+    image: kong/kong-gateway:3.6
+    container_name: kong-plenumnet-dp
+    restart: unless-stopped
+    environment:
+      - KONG_ROLE=data_plane
+      - KONG_DATABASE=off
+      - KONG_VITALS=off
+      - KONG_CLUSTER_MTLS=pki
+      - KONG_CLUSTER_CONTROL_PLANE=${controlPlaneEndpoint}:443
+      - KONG_CLUSTER_SERVER_NAME=${controlPlaneEndpoint}
+      - KONG_CLUSTER_TELEMETRY_ENDPOINT=${telemetryEndpoint}:443
+      - KONG_CLUSTER_TELEMETRY_SERVER_NAME=${telemetryEndpoint}
+      - KONG_CLUSTER_CERT=/etc/secrets/tls.crt
+      - KONG_CLUSTER_CERT_KEY=/etc/secrets/tls.key
+      - KONG_LUA_SSL_TRUSTED_CERTIFICATE=system
+      - KONG_KONNECT_MODE=on
+      - KONG_PROXY_LISTEN=0.0.0.0:8000, 0.0.0.0:8443 ssl
+    ports:
+      - "8000:8000"   # HTTP Proxy
+      - "8443:8443"   # HTTPS Proxy
+    volumes:
+      - ./certs:/etc/secrets:ro
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# PlenumNET Kong Gateway Data Plane
+# Generated: ${new Date().toISOString()}
+# Control Plane: ${cpData.name}
+# 
+# SETUP INSTRUCTIONS:
+# 1. Save this file as docker-compose.yml
+# 2. Create a 'certs' directory: mkdir certs
+# 3. Save tls.crt and tls.key to the certs directory
+# 4. Run: docker-compose up -d
+# 5. Access PlenumNET APIs at: http://localhost:8000/api/timing/timestamp
+`;
+
+      // Generate deployment script
+      const deployScript = `#!/bin/bash
+# PlenumNET Kong Gateway Deployment Script
+# Generated: ${new Date().toISOString()}
+
+set -e
+
+echo "🚀 Deploying PlenumNET Kong Gateway Data Plane..."
+
+# Create directories
+mkdir -p kong-plenumnet/certs
+
+# Write certificates
+cat > kong-plenumnet/certs/tls.crt << 'CERTEOF'
+${tlsCert}CERTEOF
+
+cat > kong-plenumnet/certs/tls.key << 'KEYEOF'
+${tlsKey}KEYEOF
+
+# Write docker-compose
+cat > kong-plenumnet/docker-compose.yml << 'COMPOSEEOF'
+${dockerCompose}COMPOSEEOF
+
+# Set permissions
+chmod 600 kong-plenumnet/certs/tls.key
+
+# Deploy
+cd kong-plenumnet
+docker-compose up -d
+
+echo ""
+echo "✅ Kong Gateway Data Plane deployed successfully!"
+echo ""
+echo "🔗 Proxy URLs:"
+echo "   HTTP:  http://localhost:8000"
+echo "   HTTPS: https://localhost:8443"
+echo ""
+echo "📡 PlenumNET API Endpoints:"
+echo "   Timing:    http://localhost:8000/api/timing/timestamp"
+echo "   Ternary:   http://localhost:8000/api/ternary/convert"
+echo "   Phase:     http://localhost:8000/api/phase/config/balanced"
+echo "   Demo:      http://localhost:8000/api/demo/stats"
+echo ""
+echo "📊 View logs: docker-compose logs -f"
+`;
+
+      // Cleanup temp files
+      await fs.rm(tempDir, { recursive: true, force: true });
+
+      res.json({
+        success: true,
+        message: "Deployment package generated successfully",
+        certificateUploaded: !!certUploadResult,
+        certificateId: certUploadResult?.id,
+        controlPlane: {
+          id: cpId,
+          name: cpData.name,
+          endpoint: controlPlaneEndpoint
+        },
+        files: {
+          "tls.crt": tlsCert,
+          "tls.key": tlsKey,
+          "docker-compose.yml": dockerCompose,
+          "deploy.sh": deployScript
+        },
+        instructions: [
+          "1. Copy deploy.sh to your server",
+          "2. Make it executable: chmod +x deploy.sh",
+          "3. Run: ./deploy.sh",
+          "4. Access APIs at http://your-server:8000/api/timing/timestamp"
+        ]
+      });
+    } catch (error) {
+      console.error("Generate deployment error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to generate deployment package" });
+    }
+  });
+
   return httpServer;
 }
