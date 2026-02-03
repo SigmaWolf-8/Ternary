@@ -107,12 +107,12 @@ function Header() {
               </span>
               {adminStatus?.isAdmin && (
                 <>
-                  <Link href="/kong-konnect">
-                    <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-kong-konnect">
+                  <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-kong-konnect">
+                    <a href="https://cloud.konghq.com/us/gateway-manager" target="_blank" rel="noopener noreferrer">
                       <Network className="w-4 h-4 mr-2" />
                       Kong
-                    </Button>
-                  </Link>
+                    </a>
+                  </Button>
                   <Link href="/github">
                     <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-admin-github">
                       <Settings className="w-4 h-4 mr-2" />
@@ -178,12 +178,12 @@ function Header() {
             {isAuthenticated ? (
               <>
                 {adminStatus?.isAdmin && (
-                  <Link href="/kong-konnect">
-                    <Button variant="outline" className="border-primary/50 text-primary w-full" data-testid="button-mobile-kong">
+                  <Button variant="outline" asChild className="border-primary/50 text-primary w-full" data-testid="button-mobile-kong">
+                    <a href="https://cloud.konghq.com/us/gateway-manager" target="_blank" rel="noopener noreferrer">
                       <Network className="w-4 h-4 mr-2" />
                       Kong Konnect
-                    </Button>
-                  </Link>
+                    </a>
+                  </Button>
                 )}
                 <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-logout">
                   <a href="/api/logout">
