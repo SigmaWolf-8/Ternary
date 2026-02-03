@@ -796,7 +796,7 @@ function Footer() {
     Product: [
       { label: "GitHub Ternary Repository", href: "https://github.com/SigmaWolf-8/Ternary" },
       { label: "Timing API", href: "/api-demo" },
-      { label: "FPGA Cards", href: "#" },
+      { label: "Kong Konnect Integration", href: "/kong-konnect" },
       { label: "PlenumDB", href: "/ternarydb" },
     ],
     Developers: [

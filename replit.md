@@ -127,6 +127,9 @@ Based on the whitepaper's Unified Ternary Logic System:
 2. **PlenumDB** (`/ternarydb`) - Product page with live compression demo
 3. **Whitepaper** (`/whitepaper`) - Full whitepaper viewer with Table of Contents
 4. **GitHub Manager** (`/github`) - Admin-only page to manage GitHub repository files
+5. **Kong Konnect Integration** (`/kong-konnect`) - API gateway integration page with Kong Konnect
+
+### GitHub Manager Features
    - **Sorting**: Sort files by name, size, or type (ascending/descending)
    - **Filtering**: Search files by name, filter by type (code/docs/config/other)
    - **Metrics Dashboard**: Shows file counts, folder counts, total size, and type breakdown

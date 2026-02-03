@@ -8,6 +8,7 @@ import TernaryDB from "@/pages/ternarydb";
 import Whitepaper from "@/pages/whitepaper";
 import GitHubManager from "@/pages/github-manager";
 import APIDemo from "@/pages/api-demo";
+import KongKonnect from "@/pages/kong-konnect";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/whitepaper" component={Whitepaper} />
       <Route path="/github" component={GitHubManager} />
       <Route path="/api-demo" component={APIDemo} />
+      <Route path="/kong-konnect" component={KongKonnect} />
       <Route component={NotFound} />
     </Switch>
   );
