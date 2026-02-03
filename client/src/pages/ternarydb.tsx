@@ -112,7 +112,7 @@ function Header() {
       <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 text-primary font-bold text-xl" data-testid="link-logo">
           <Box className="w-7 h-7" />
-          <span>Salvi</span>
+          <span>PlenumNET</span>
         </Link>
         
         <nav className="hidden md:flex items-center gap-8">
@@ -229,7 +229,7 @@ function HeroSection() {
             className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
             data-testid="text-hero-title"
           >
-            SalviDB: <span className="text-primary">59% More Data Per Storage Dollar</span>
+            PlenumDB: <span className="text-primary">59% More Data Per Storage Dollar</span>
           </motion.h1>
           
           <motion.p 
@@ -520,7 +520,7 @@ function CodeBlock({ code, language, title }: { code: string; language: string; 
 }
 
 function InstallationSection() {
-  const installCode = `-- Install SalviDB extension
+  const installCode = `-- Install PlenumDB extension
 CREATE EXTENSION ternarydb;
 
 -- Enable ternary compression for a table
@@ -577,7 +577,7 @@ SET ternarydb.efficiency_target = 1.59;  -- 59% improvement`;
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            Get started with SalviDB in minutes
+            Get started with PlenumDB in minutes
           </motion.p>
         </div>
 
@@ -722,7 +722,7 @@ function DataGridViewer() {
       <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Grid3X3 className="w-5 h-5 text-primary" />
-          SalviDB Data Viewer
+          PlenumDB Data Viewer
         </h3>
         <p className="text-muted-foreground text-sm mb-6">
           Real-time decompression from ternary_storage table - proving sub-millisecond decompression with full data fidelity
@@ -1350,7 +1350,7 @@ function LiveDemoSection() {
                         <th className="px-4 py-3 text-left font-medium text-foreground">Table</th>
                         <th className="px-4 py-3 text-center font-medium text-foreground">Rows</th>
                         <th className="px-4 py-3 text-center font-medium text-muted-foreground">Binary Size</th>
-                        <th className="px-4 py-3 text-center font-medium text-primary">SalviDB Size</th>
+                        <th className="px-4 py-3 text-center font-medium text-primary">PlenumDB Size</th>
                         <th className="px-4 py-3 text-right font-medium text-primary">Savings</th>
                       </tr>
                     </thead>
@@ -1387,7 +1387,7 @@ function LiveDemoSection() {
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
-                          <span className="text-primary">SalviDB</span>
+                          <span className="text-primary">PlenumDB</span>
                           <span className="text-primary font-semibold">{formatBytes(results[0].ternarySize)}</span>
                         </div>
                         <div className="h-4 bg-muted rounded-full overflow-hidden">
@@ -1415,7 +1415,7 @@ function LiveDemoSection() {
                         <div className="text-2xl font-bold text-primary">
                           {formatBytes(results[0].ternarySize * 10000)}
                         </div>
-                        <div className="text-xs text-primary mt-1">SalviDB Storage</div>
+                        <div className="text-xs text-primary mt-1">PlenumDB Storage</div>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-4 text-center">
@@ -1584,7 +1584,7 @@ function PerformanceSection() {
                   <tr className="border-b border-foreground/10">
                     <th className="text-left py-3 px-4 font-semibold text-foreground">Metric</th>
                     <th className="text-center py-3 px-4 font-semibold text-muted-foreground">Binary PostgreSQL</th>
-                    <th className="text-center py-3 px-4 font-semibold text-primary">SalviDB</th>
+                    <th className="text-center py-3 px-4 font-semibold text-primary">PlenumDB</th>
                     <th className="text-right py-3 px-4 font-semibold text-foreground">Improvement</th>
                   </tr>
                 </thead>
@@ -1653,7 +1653,7 @@ function PricingSection() {
       name: "Cloud",
       price: "$0.05",
       period: "/GB/month",
-      description: "Managed SalviDB service",
+      description: "Managed PlenumDB service",
       features: [
         "Fully managed service",
         "Automatic scaling",
@@ -1832,7 +1832,7 @@ function CTASection() {
               Ready to Save 59% on Storage?
             </h2>
             <p className="text-lg opacity-90 mb-8 max-w-xl mx-auto">
-              Get started with SalviDB today. Open source and free for community use.
+              Get started with PlenumDB today. Open source and free for community use.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button 
@@ -1871,7 +1871,7 @@ function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2 text-primary font-bold text-xl">
             <Box className="w-6 h-6" />
-            <span>Salvi</span>
+            <span>PlenumNET</span>
           </Link>
           
           <p className="text-sm text-muted-foreground">

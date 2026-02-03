@@ -1,7 +1,7 @@
-# Salvi Framework Marketing Website
+# PlenumNET Framework Marketing Website
 
 ## Overview
-A professional light-themed marketing website for Salvi, a post-quantum internet solutions company. The site showcases deployable components for building quantum-resistant infrastructure, including SalviDB product page with live compression demo and comprehensive whitepaper management.
+A professional light-themed marketing website for PlenumNET (formerly Salvi), a post-quantum internet solutions company. The site showcases deployable components for building quantum-resistant infrastructure, including PlenumDB product page with live compression demo and comprehensive whitepaper management.
 
 ## Tech Stack
 - **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion
@@ -18,7 +18,7 @@ client/
 ├── src/
 │   ├── pages/
 │   │   ├── landing.tsx        # Main landing page with all sections
-│   │   ├── ternarydb.tsx      # SalviDB product page
+│   │   ├── ternarydb.tsx      # PlenumDB product page
 │   │   ├── whitepaper.tsx     # Whitepaper viewer with TOC
 │   │   └── github-manager.tsx # Admin-only GitHub file manager
 │   ├── components/ui/         # shadcn/ui components
@@ -26,7 +26,7 @@ client/
 │   └── App.tsx                # App router
 
 server/
-├── salvi-core/             # Salvi Framework Core API
+├── salvi-core/             # PlenumNET Framework Core API
 │   ├── index.ts            # Module exports
 │   ├── ternary-types.ts    # Trit representations (A, B, C)
 │   ├── ternary-operations.ts # GF(3) operations
@@ -47,7 +47,7 @@ shared/
 - Primary: Blue (HSL 210 100% 45%)
 - Text: Dark gray for primary, muted for secondary
 
-## Salvi Core API
+## PlenumNET Core API
 
 ### Ternary Operations (`/api/salvi/ternary/`)
 Based on the whitepaper's Unified Ternary Logic System:
@@ -124,7 +124,7 @@ Based on the whitepaper's Unified Ternary Logic System:
 
 ## Pages
 1. **Landing** (`/`) - Hero, approach, components, comparison, markets, CTA
-2. **SalviDB** (`/ternarydb`) - Product page with live compression demo
+2. **PlenumDB** (`/ternarydb`) - Product page with live compression demo
 3. **Whitepaper** (`/whitepaper`) - Full whitepaper viewer with Table of Contents
 4. **GitHub Manager** (`/github`) - Admin-only page to manage GitHub repository files
    - **Sorting**: Sort files by name, size, or type (ascending/descending)

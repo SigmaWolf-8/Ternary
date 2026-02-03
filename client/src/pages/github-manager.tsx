@@ -485,7 +485,7 @@ export default function GitHubManager() {
                 Enter your GitHub Personal Access Token to manage files.
                 <br />
                 <a
-                  href="https://github.com/settings/tokens/new?scopes=repo&description=Salvi-Framework"
+                  href="https://github.com/settings/tokens/new?scopes=repo&description=PlenumNET-Framework"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"

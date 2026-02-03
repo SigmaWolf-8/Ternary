@@ -183,7 +183,7 @@ export default function APIDemo() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-foreground">PlenumNET API Demo</h1>
-              <p className="text-sm text-muted-foreground">Interactive demonstration of Salvi Framework APIs</p>
+              <p className="text-sm text-muted-foreground">Interactive demonstration of PlenumNET Framework APIs</p>
             </div>
           </div>
           <Badge variant="outline" className="text-primary border-primary">
@@ -198,7 +198,7 @@ export default function APIDemo() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-primary" />
-                Salvi Framework Core API
+                PlenumNET Framework Core API
               </CardTitle>
               <CardDescription>
                 Test the PlenumNET APIs directly. All timestamps reference the Salvi Epoch: April 1, 2025 (Day Zero).

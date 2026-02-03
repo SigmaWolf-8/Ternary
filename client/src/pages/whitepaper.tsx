@@ -160,7 +160,7 @@ export default function WhitepaperPage() {
             <div className="flex items-center gap-3">
               <Link href="/ternarydb">
                 <Button variant="outline" size="sm" data-testid="link-ternarydb">
-                  SalviDB
+                  PlenumDB
                 </Button>
               </Link>
               <a href="https://github.com" target="_blank" rel="noopener noreferrer">
