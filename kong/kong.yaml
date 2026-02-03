@@ -1,0 +1,203 @@
+_format_version: "3.0"
+_transform: true
+
+# PlenumNET Kong Konnect Configuration
+# This file defines API services, routes, and security plugins
+# for the PlenumNET Framework APIs
+#
+# Copyright: Capomastro Holdings Ltd 2026
+# For AI Agents: This configuration can be synced to Kong Konnect
+# using the decK CLI or the PlenumNET admin interface
+
+services:
+  # Femtosecond Timing API Service
+  - name: plenumnet-timing
+    url: https://plenumnet.replit.app/api/salvi/timing
+    enabled: true
+    tags:
+      - plenumnet
+      - timing
+      - finra-cat
+    routes:
+      - name: timing-api
+        paths:
+          - /api/timing
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - timing
+
+  # Ternary Operations API Service
+  - name: plenumnet-ternary
+    url: https://plenumnet.replit.app/api/salvi/ternary
+    enabled: true
+    tags:
+      - plenumnet
+      - ternary
+      - quantum-safe
+    routes:
+      - name: ternary-api
+        paths:
+          - /api/ternary
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - ternary
+
+  # Phase Encryption API Service
+  - name: plenumnet-phase
+    url: https://plenumnet.replit.app/api/salvi/phase
+    enabled: true
+    tags:
+      - plenumnet
+      - encryption
+      - quantum-safe
+    routes:
+      - name: phase-api
+        paths:
+          - /api/phase
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - encryption
+
+  # Demo Compression API Service
+  - name: plenumnet-demo
+    url: https://plenumnet.replit.app/api/demo
+    enabled: true
+    tags:
+      - plenumnet
+      - demo
+      - compression
+    routes:
+      - name: demo-api
+        paths:
+          - /api/demo
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - demo
+
+# Security Plugins
+plugins:
+  # Rate Limiting - Protect against abuse
+  - name: rate-limiting
+    service: plenumnet-timing
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  - name: rate-limiting
+    service: plenumnet-ternary
+    config:
+      minute: 200
+      hour: 2000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  - name: rate-limiting
+    service: plenumnet-phase
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  - name: rate-limiting
+    service: plenumnet-demo
+    config:
+      minute: 50
+      hour: 500
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  # Request Size Limiting
+  - name: request-size-limiting
+    service: plenumnet-demo
+    config:
+      allowed_payload_size: 10
+      size_unit: megabytes
+    tags:
+      - security
+
+  # Correlation ID - For tracing requests
+  - name: correlation-id
+    config:
+      header_name: X-PlenumNET-Request-ID
+      generator: uuid
+      echo_downstream: true
+    tags:
+      - observability
+
+  # Response Rate Limiting Headers
+  - name: response-ratelimiting
+    service: plenumnet-timing
+    config:
+      header_name: X-PlenumNET-RateLimit
+      limits:
+        timing:
+          minute: 100
+    tags:
+      - security
+
+# Consumers (API Keys for AI Agents)
+consumers:
+  - username: ai-agent-default
+    tags:
+      - ai-agent
+      - default
+    keyauth_credentials:
+      - key: plenumnet-ai-agent-key
+
+  - username: ai-agent-premium
+    tags:
+      - ai-agent
+      - premium
+    keyauth_credentials:
+      - key: plenumnet-ai-premium-key
+
+# Upstreams for load balancing (future use)
+upstreams:
+  - name: plenumnet-timing-upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 3
+    targets:
+      - target: plenumnet.replit.app:443
+        weight: 100
