@@ -186,9 +186,16 @@ export default function APIDemo() {
               <p className="text-sm text-muted-foreground">Interactive demonstration of PlenumNET Framework APIs</p>
             </div>
           </div>
-          <Badge variant="outline" className="text-primary border-primary">
-            Live API
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Link href="/kong-konnect">
+              <Button variant="ghost" size="sm" data-testid="button-kong-konnect">
+                Kong Konnect
+              </Button>
+            </Link>
+            <Badge variant="outline" className="text-primary border-primary">
+              Live API
+            </Badge>
+          </div>
         </div>
       </header>
 
