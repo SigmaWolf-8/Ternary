@@ -112,6 +112,33 @@ Based on the whitepaper's Unified Ternary Logic System:
 | `/api/github/file/:owner/:repo` | DELETE | Delete file (body: path, sha, message) |
 | `/api/user/admin-status` | GET | Check if current user is admin |
 
+## Kong Konnect API (API Gateway Integration)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/kong/status` | GET | Check Kong Konnect connection status and user info |
+| `/api/kong/organization` | GET | Get Kong organization details |
+| `/api/kong/control-planes` | GET | List all Kong control planes |
+| `/api/kong/control-planes/:cpId/services` | GET | Get services for a control plane |
+| `/api/kong/control-planes/:cpId/services` | POST | Create a service (body: name, url, enabled, tags) |
+| `/api/kong/control-planes/:cpId/routes` | GET | Get routes for a control plane |
+| `/api/kong/control-planes/:cpId/services/:serviceId/routes` | POST | Create a route (body: name, paths, methods) |
+| `/api/kong/control-planes/:cpId/plugins` | GET | Get plugins for a control plane |
+| `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | POST | Add plugin to service (body: name, config) |
+| `/api/kong/control-planes/:cpId/sync-plenumnet` | POST | Sync all PlenumNET services to Kong |
+| `/api/kong/config` | GET | Get local Kong configuration file |
+| `/api/kong/save-to-github` | POST | Save Kong config to GitHub (body: owner, repo, path) |
+
+### Kong Configuration Files
+The `kong/` directory contains:
+- `kong.yaml` - Declarative Kong configuration (decK format)
+- `README.md` - Documentation for AI agents
+
+### For AI Agents
+To access PlenumNET APIs through Kong Gateway:
+1. Get the Kong configuration from `/api/kong/config` or GitHub repo
+2. Use API keys defined in kong.yaml (`plenumnet-ai-agent-key`)
+3. Access endpoints through Kong proxy with rate limiting and security
+
 ## Database Schema
 - **users** - Authenticated users (email, name, profile image, isAdmin, githubToken)
 - **sessions** - User sessions for authentication

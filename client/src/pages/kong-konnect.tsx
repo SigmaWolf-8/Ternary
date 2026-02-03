@@ -22,12 +22,20 @@ import {
   User,
   Building,
   Route,
-  Plug
+  Plug,
+  Upload,
+  FileCode,
+  GitBranch
 } from "lucide-react";
+import { SiGithub } from "react-icons/si";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface KongStatus {
   connected: boolean;
@@ -162,8 +170,7 @@ function ConnectionStatus() {
   );
 }
 
-function ControlPlanesList() {
-  const [selectedCP, setSelectedCP] = useState<string | null>(null);
+function ControlPlanesList({ selectedCP, setSelectedCP }: { selectedCP: string | null; setSelectedCP: (cp: string | null) => void }) {
   
   const { data: cpData, isLoading: cpLoading } = useQuery<ControlPlanesResponse>({
     queryKey: ['/api/kong/control-planes']
@@ -319,6 +326,194 @@ function ControlPlanesList() {
   );
 }
 
+function SyncSection({ selectedCP }: { selectedCP: string | null }) {
+  const { toast } = useToast();
+  const [githubOwner, setGithubOwner] = useState("SigmaWolf-8");
+  const [githubRepo, setGithubRepo] = useState("Ternary");
+  const [githubPath, setGithubPath] = useState("kong/kong.yaml");
+
+  const syncMutation = useMutation({
+    mutationFn: async (cpId: string) => {
+      const response = await apiRequest("POST", `/api/kong/control-planes/${cpId}/sync-plenumnet`, {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sync Complete",
+        description: `Created: ${data.synced}, Skipped: ${data.skipped}, Errors: ${data.errors}`
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/kong/control-planes', selectedCP, 'services'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const githubMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/kong/save-to-github", {
+        owner: githubOwner,
+        repo: githubRepo,
+        path: githubPath,
+        message: `Update Kong Konnect configuration - ${new Date().toISOString()}`
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Saved to GitHub",
+        description: data.message
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "GitHub Save Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <div className="grid md:grid-cols-2 gap-6">
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" />
+            Sync to Kong Konnect
+          </CardTitle>
+          <CardDescription>
+            Deploy PlenumNET API services to your Kong control plane
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This will create the following services in Kong:
+          </p>
+          <ul className="text-sm space-y-1">
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              <code className="text-xs bg-secondary px-1 rounded">plenumnet-timing</code> - Femtosecond Timing API
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              <code className="text-xs bg-secondary px-1 rounded">plenumnet-ternary</code> - Ternary Operations API
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              <code className="text-xs bg-secondary px-1 rounded">plenumnet-phase</code> - Phase Encryption API
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              <code className="text-xs bg-secondary px-1 rounded">plenumnet-demo</code> - Demo Compression API
+            </li>
+          </ul>
+          <Button 
+            onClick={() => selectedCP && syncMutation.mutate(selectedCP)}
+            disabled={!selectedCP || syncMutation.isPending}
+            className="w-full"
+            data-testid="button-sync-kong"
+          >
+            {syncMutation.isPending ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                Sync PlenumNET to Kong
+              </>
+            )}
+          </Button>
+          {!selectedCP && (
+            <p className="text-xs text-muted-foreground text-center">
+              Select a control plane above to sync
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <SiGithub className="w-5 h-5" />
+            Save to GitHub
+          </CardTitle>
+          <CardDescription>
+            Store Kong configuration in your GitHub repository for version control and AI agents
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="github-owner" className="text-xs">Owner</Label>
+                <Input
+                  id="github-owner"
+                  value={githubOwner}
+                  onChange={(e) => setGithubOwner(e.target.value)}
+                  placeholder="username"
+                  className="h-8 text-sm"
+                  data-testid="input-github-owner"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="github-repo" className="text-xs">Repository</Label>
+                <Input
+                  id="github-repo"
+                  value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  placeholder="repo-name"
+                  className="h-8 text-sm"
+                  data-testid="input-github-repo"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="github-path" className="text-xs">File Path</Label>
+              <Input
+                id="github-path"
+                value={githubPath}
+                onChange={(e) => setGithubPath(e.target.value)}
+                placeholder="kong/kong.yaml"
+                className="h-8 text-sm"
+                data-testid="input-github-path"
+              />
+            </div>
+          </div>
+          <Button 
+            onClick={() => githubMutation.mutate()}
+            disabled={githubMutation.isPending || !githubOwner || !githubRepo}
+            variant="outline"
+            className="w-full"
+            data-testid="button-save-github"
+          >
+            {githubMutation.isPending ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <GitBranch className="w-4 h-4 mr-2" />
+                Save Configuration to GitHub
+              </>
+            )}
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Requires GitHub token configured in GitHub Manager
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function HeroSection() {
   return (
     <section className="py-12 md:py-16 bg-gradient-to-b from-primary/5 to-background">
@@ -361,11 +556,14 @@ function HeroSection() {
 }
 
 function DashboardSection() {
+  const [selectedCP, setSelectedCP] = useState<string | null>(null);
+  
   return (
     <section className="py-8 md:py-12" data-testid="section-dashboard">
       <div className="max-w-7xl mx-auto px-5 space-y-6">
         <ConnectionStatus />
-        <ControlPlanesList />
+        <ControlPlanesList selectedCP={selectedCP} setSelectedCP={setSelectedCP} />
+        <SyncSection selectedCP={selectedCP} />
       </div>
     </section>
   );

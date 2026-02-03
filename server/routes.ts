@@ -1464,5 +1464,295 @@ export async function registerRoutes(
     }
   });
 
+  // Get Kong configuration file (Admin only - may contain API keys)
+  app.get("/api/kong/config", requireAdmin, async (req: any, res) => {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const configPath = path.join(process.cwd(), 'kong', 'kong.yaml');
+      const config = await fs.readFile(configPath, 'utf-8');
+      res.json({ success: true, config });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to read config" });
+    }
+  });
+
+  // Create a service in Kong Konnect (Admin only)
+  app.post("/api/kong/control-planes/:cpId/services", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      const { name, url, enabled = true, tags = [] } = req.body;
+
+      if (!name || !url) {
+        return res.status(400).json({ error: "Name and URL are required" });
+      }
+
+      const response = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, url, enabled, tags })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({ 
+          error: `API error: ${response.status}`,
+          details: errorData 
+        });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, service: data });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create service" });
+    }
+  });
+
+  // Create a route for a service in Kong Konnect (Admin only)
+  app.post("/api/kong/control-planes/:cpId/services/:serviceId/routes", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId, serviceId } = req.params;
+      const { name, paths, methods = ['GET', 'POST'], strip_path = true, tags = [] } = req.body;
+
+      if (!name || !paths || !paths.length) {
+        return res.status(400).json({ error: "Name and paths are required" });
+      }
+
+      const response = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/routes`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, paths, methods, strip_path, tags })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({ 
+          error: `API error: ${response.status}`,
+          details: errorData 
+        });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, route: data });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create route" });
+    }
+  });
+
+  // Add a plugin to a service (Admin only)
+  app.post("/api/kong/control-planes/:cpId/services/:serviceId/plugins", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId, serviceId } = req.params;
+      const { name, config = {}, tags = [] } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ error: "Plugin name is required" });
+      }
+
+      const response = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/plugins`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, config, tags })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return res.status(response.status).json({ 
+          error: `API error: ${response.status}`,
+          details: errorData 
+        });
+      }
+
+      const data = await response.json();
+      res.json({ success: true, plugin: data });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to add plugin" });
+    }
+  });
+
+  // Sync PlenumNET services to Kong Konnect (Admin only)
+  app.post("/api/kong/control-planes/:cpId/sync-plenumnet", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      
+      // Use REPLIT_DOMAINS env var or default to known domain - never trust client input
+      const replitDomains = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
+      const baseUrl = replitDomains 
+        ? `https://${replitDomains.split(',')[0]}`
+        : 'https://plenumnet.replit.app';
+      
+      const services = [
+        {
+          name: "plenumnet-timing",
+          url: `${baseUrl}/api/salvi/timing`,
+          tags: ["plenumnet", "timing", "finra-cat"]
+        },
+        {
+          name: "plenumnet-ternary",
+          url: `${baseUrl}/api/salvi/ternary`,
+          tags: ["plenumnet", "ternary", "quantum-safe"]
+        },
+        {
+          name: "plenumnet-phase",
+          url: `${baseUrl}/api/salvi/phase`,
+          tags: ["plenumnet", "encryption", "quantum-safe"]
+        },
+        {
+          name: "plenumnet-demo",
+          url: `${baseUrl}/api/demo`,
+          tags: ["plenumnet", "demo", "compression"]
+        }
+      ];
+
+      const results: any[] = [];
+      
+      for (const service of services) {
+        try {
+          const createResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+            method: 'POST',
+            headers: {
+              "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: service.name,
+              url: service.url,
+              enabled: true,
+              tags: service.tags
+            })
+          });
+
+          if (createResponse.ok) {
+            const createdService = await createResponse.json();
+            results.push({ 
+              service: service.name, 
+              status: 'created',
+              id: createdService.id
+            });
+          } else if (createResponse.status === 409) {
+            results.push({ 
+              service: service.name, 
+              status: 'already_exists' 
+            });
+          } else {
+            results.push({ 
+              service: service.name, 
+              status: 'error',
+              error: `HTTP ${createResponse.status}`
+            });
+          }
+        } catch (err) {
+          results.push({ 
+            service: service.name, 
+            status: 'error',
+            error: err instanceof Error ? err.message : 'Unknown error'
+          });
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        synced: results.filter(r => r.status === 'created').length,
+        skipped: results.filter(r => r.status === 'already_exists').length,
+        errors: results.filter(r => r.status === 'error').length,
+        results 
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to sync services" });
+    }
+  });
+
+  // Save Kong config to GitHub (Admin only)
+  app.post("/api/kong/save-to-github", requireAdmin, async (req: any, res) => {
+    try {
+      const user = req.adminUser; // Set by requireAdmin middleware
+      if (!user?.githubToken) {
+        return res.status(400).json({ error: "GitHub token not configured. Please add your GitHub token in the GitHub Manager." });
+      }
+
+      const { owner, repo, path = "kong/kong.yaml", message = "Update Kong Konnect configuration" } = req.body;
+      
+      if (!owner || !repo) {
+        return res.status(400).json({ error: "Owner and repo are required" });
+      }
+
+      const fs = await import('fs/promises');
+      const pathModule = await import('path');
+      const configPath = pathModule.join(process.cwd(), 'kong', 'kong.yaml');
+      const config = await fs.readFile(configPath, 'utf-8');
+      const content = Buffer.from(config).toString('base64');
+
+      const existingResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+        headers: {
+          "Authorization": `token ${user.githubToken}`,
+          "Accept": "application/vnd.github.v3+json"
+        }
+      });
+
+      let sha: string | undefined;
+      if (existingResponse.ok) {
+        const existingFile = await existingResponse.json();
+        sha = existingFile.sha;
+      }
+
+      const createResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+        method: 'PUT',
+        headers: {
+          "Authorization": `token ${user.githubToken}`,
+          "Accept": "application/vnd.github.v3+json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message,
+          content,
+          sha
+        })
+      });
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => ({}));
+        return res.status(createResponse.status).json({ 
+          error: `GitHub API error: ${createResponse.status}`,
+          details: errorData 
+        });
+      }
+
+      const result = await createResponse.json();
+      res.json({ 
+        success: true, 
+        message: sha ? "Configuration updated" : "Configuration created",
+        url: result.content?.html_url,
+        sha: result.content?.sha
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to save to GitHub" });
+    }
+  });
+
   return httpServer;
 }
