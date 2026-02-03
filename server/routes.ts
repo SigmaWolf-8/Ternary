@@ -2206,6 +2206,7 @@ echo "📊 View logs: docker-compose logs -f"
       const telemetryEndpoint = cpData.config?.telemetry_endpoint?.replace('https://', '') || '';
 
       // Create Dockerfile - private key loaded from env var at runtime (secure)
+      // Note: Render uses $PORT env var, and health checks hit the main service port
       const dockerfile = `FROM kong/kong-gateway:3.6
 
 ENV KONG_ROLE=data_plane
@@ -2214,8 +2215,6 @@ ENV KONG_VITALS=off
 ENV KONG_CLUSTER_MTLS=pki
 ENV KONG_LUA_SSL_TRUSTED_CERTIFICATE=system
 ENV KONG_KONNECT_MODE=on
-ENV KONG_PROXY_LISTEN=0.0.0.0:\${PORT:-8000}
-ENV KONG_STATUS_LISTEN=0.0.0.0:8100
 
 ENV KONG_CLUSTER_CONTROL_PLANE=${controlPlaneEndpoint}:443
 ENV KONG_CLUSTER_SERVER_NAME=${controlPlaneEndpoint}
@@ -2232,9 +2231,8 @@ ENV KONG_CLUSTER_CERT=/etc/kong/certs/tls.crt
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 8000 8100
-
-HEALTHCHECK --interval=30s --timeout=10s CMD curl -sf http://localhost:8100/status || exit 1
+# Render uses PORT env var - status endpoint on same port for health checks
+EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
 `;
@@ -2253,10 +2251,14 @@ else
   exit 1
 fi
 
+# Configure proxy to listen on PORT (required for Render/Railway)
+export KONG_PROXY_LISTEN="0.0.0.0:\${PORT:-8000}"
+export KONG_STATUS_LISTEN="0.0.0.0:\${PORT:-8000}"
+
 exec kong docker-start
 `;
 
-      // Create render.yaml - health check on status port
+      // Create render.yaml - proper format for Render Blueprint
       const renderYaml = `services:
   - type: web
     name: kong-plenumnet
@@ -2265,9 +2267,10 @@ exec kong docker-start
     dockerContext: ./kong-deploy
     region: oregon
     plan: free
+    healthCheckPath: /
     envVars:
       - key: PORT
-        value: 8000
+        value: "8000"
       - key: KONG_TLS_KEY
         sync: false
 `;
