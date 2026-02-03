@@ -2205,7 +2205,7 @@ echo "📊 View logs: docker-compose logs -f"
       const controlPlaneEndpoint = cpData.config?.control_plane_endpoint?.replace('https://', '') || '';
       const telemetryEndpoint = cpData.config?.telemetry_endpoint?.replace('https://', '') || '';
 
-      // Create Dockerfile with embedded certificates
+      // Create Dockerfile - private key loaded from env var at runtime (secure)
       const dockerfile = `FROM kong/kong-gateway:3.6
 
 ENV KONG_ROLE=data_plane
@@ -2214,7 +2214,7 @@ ENV KONG_VITALS=off
 ENV KONG_CLUSTER_MTLS=pki
 ENV KONG_LUA_SSL_TRUSTED_CERTIFICATE=system
 ENV KONG_KONNECT_MODE=on
-ENV KONG_PROXY_LISTEN=0.0.0.0:8000
+ENV KONG_PROXY_LISTEN=0.0.0.0:\${PORT:-8000}
 ENV KONG_STATUS_LISTEN=0.0.0.0:8100
 
 ENV KONG_CLUSTER_CONTROL_PLANE=${controlPlaneEndpoint}:443
@@ -2223,19 +2223,40 @@ ENV KONG_CLUSTER_TELEMETRY_ENDPOINT=${telemetryEndpoint}:443
 ENV KONG_CLUSTER_TELEMETRY_SERVER_NAME=${telemetryEndpoint}
 
 RUN mkdir -p /etc/kong/certs
-COPY tls.crt /etc/kong/certs/tls.crt
-COPY tls.key /etc/kong/certs/tls.key
-RUN chmod 600 /etc/kong/certs/tls.key
 
+# Cert is baked in, key is loaded at runtime from secret env var
+COPY tls.crt /etc/kong/certs/tls.crt
 ENV KONG_CLUSTER_CERT=/etc/kong/certs/tls.crt
-ENV KONG_CLUSTER_CERT_KEY=/etc/kong/certs/tls.key
+
+# Startup script to load private key from env var securely
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000 8100
-HEALTHCHECK --interval=30s --timeout=10s CMD kong health || exit 1
-CMD ["kong", "docker-start"]
+
+HEALTHCHECK --interval=30s --timeout=10s CMD curl -sf http://localhost:8100/status || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
 `;
 
-      // Create render.yaml
+      // Entrypoint script that loads TLS key from env var (not in git)
+      const entrypointScript = `#!/bin/sh
+set -e
+
+# Write private key from secret env var to file
+if [ -n "\$KONG_TLS_KEY" ]; then
+  echo "\$KONG_TLS_KEY" > /etc/kong/certs/tls.key
+  chmod 600 /etc/kong/certs/tls.key
+  export KONG_CLUSTER_CERT_KEY=/etc/kong/certs/tls.key
+else
+  echo "ERROR: KONG_TLS_KEY environment variable is required"
+  exit 1
+fi
+
+exec kong docker-start
+`;
+
+      // Create render.yaml - health check on status port
       const renderYaml = `services:
   - type: web
     name: kong-plenumnet
@@ -2244,17 +2265,22 @@ CMD ["kong", "docker-start"]
     dockerContext: ./kong-deploy
     region: oregon
     plan: free
-    healthCheckPath: /status
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: KONG_TLS_KEY
+        sync: false
 `;
 
-      // Push files to GitHub
+      // Push files to GitHub - NO private key!
       const filesToPush = [
         { path: "kong-deploy/Dockerfile", content: dockerfile },
+        { path: "kong-deploy/entrypoint.sh", content: entrypointScript },
         { path: "kong-deploy/tls.crt", content: tlsCert },
-        { path: "kong-deploy/tls.key", content: tlsKey },
         { path: "render.yaml", content: renderYaml }
       ];
 
+      const pushErrors: string[] = [];
       for (const file of filesToPush) {
         const content = Buffer.from(file.content).toString('base64');
         
@@ -2272,7 +2298,7 @@ CMD ["kong", "docker-start"]
           sha = existingFile.sha;
         }
 
-        await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`, {
+        const pushResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`, {
           method: 'PUT',
           headers: {
             "Authorization": `token ${token}`,
@@ -2284,6 +2310,18 @@ CMD ["kong", "docker-start"]
             content,
             sha
           })
+        });
+
+        if (!pushResponse.ok) {
+          const errData = await pushResponse.json().catch(() => ({}));
+          pushErrors.push(`${file.path}: ${errData.message || pushResponse.statusText}`);
+        }
+      }
+
+      if (pushErrors.length > 0) {
+        return res.status(500).json({ 
+          error: "Failed to push some files to GitHub", 
+          details: pushErrors 
         });
       }
 
@@ -2308,12 +2346,15 @@ CMD ["kong", "docker-start"]
           name: cpData.name,
           endpoint: controlPlaneEndpoint
         },
+        // Include the private key for user to copy to cloud platform env vars
+        tlsKey: tlsKey,
         instructions: [
           `1. Files pushed to https://github.com/${owner}/${repo}`,
-          `2. Click the deploy link for ${platform}`,
-          "3. Connect your GitHub account",
-          "4. Deploy the service",
-          "5. Your Kong proxy will be live at the provided URL"
+          `2. Copy the TLS private key below`,
+          `3. Click the deploy link for ${platform}`,
+          `4. In the cloud platform, set KONG_TLS_KEY env var to the private key`,
+          `5. Deploy the service`,
+          `6. Your Kong proxy will be live at the provided URL`
         ]
       });
     } catch (error) {

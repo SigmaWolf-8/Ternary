@@ -29,7 +29,8 @@ import {
   Terminal,
   Copy,
   Play,
-  Download
+  Download,
+  Key
 } from "lucide-react";
 import { SiGithub } from "react-icons/si";
 import { useState } from "react";
@@ -560,6 +561,7 @@ interface CloudDeployResult {
     name: string;
     endpoint: string;
   };
+  tlsKey: string;
   instructions: string[];
 }
 
@@ -779,6 +781,34 @@ function DeploySection({ selectedCP }: { selectedCP: string | null }) {
             
             <div className="text-sm text-muted-foreground">
               Files pushed to <a href={cloudDeployResult.githubRepo} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{cloudDeployResult.githubRepo}</a>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3">
+              <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-1">
+                <Key className="w-3 h-3" />
+                TLS Private Key (copy to cloud platform)
+              </p>
+              <div className="relative">
+                <pre className="text-xs bg-background rounded p-2 overflow-x-auto max-h-24 overflow-y-auto font-mono">
+                  {cloudDeployResult.tlsKey.substring(0, 200)}...
+                </pre>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="absolute top-1 right-1 h-6 text-xs"
+                  onClick={() => {
+                    navigator.clipboard.writeText(cloudDeployResult.tlsKey);
+                    toast({ title: "Copied!", description: "TLS key copied to clipboard" });
+                  }}
+                  data-testid="button-copy-tls-key"
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copy Key
+                </Button>
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                Set as <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">KONG_TLS_KEY</code> environment variable
+              </p>
             </div>
 
             <div className="grid gap-2">
