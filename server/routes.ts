@@ -1289,5 +1289,180 @@ export async function registerRoutes(
     }
   });
 
+  // Kong Konnect Integration API Routes
+  const KONG_API_BASE = "https://us.api.konghq.com/v2";
+  const KONG_KONNECT_TOKEN = process.env.KONG_KONNECT_TOKEN;
+
+  // Check Kong Konnect connection status
+  app.get("/api/kong/status", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.json({ 
+          connected: false, 
+          error: "Kong Konnect token not configured" 
+        });
+      }
+
+      const response = await fetch(`${KONG_API_BASE}/users/me`, {
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return res.json({ 
+          connected: false, 
+          error: `API error: ${response.status}` 
+        });
+      }
+
+      const user = await response.json();
+      res.json({ 
+        connected: true, 
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          preferredName: user.preferred_name,
+          active: user.active
+        }
+      });
+    } catch (error) {
+      res.json({ 
+        connected: false, 
+        error: error instanceof Error ? error.message : "Connection failed" 
+      });
+    }
+  });
+
+  // Get Kong organization info
+  app.get("/api/kong/organization", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const response = await fetch(`${KONG_API_BASE}/organizations/me`, {
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `API error: ${response.status}` });
+      }
+
+      const org = await response.json();
+      res.json(org);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch organization" });
+    }
+  });
+
+  // List Kong control planes
+  app.get("/api/kong/control-planes", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const response = await fetch(`${KONG_API_BASE}/control-planes`, {
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `API error: ${response.status}` });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch control planes" });
+    }
+  });
+
+  // Get services for a control plane
+  app.get("/api/kong/control-planes/:cpId/services", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      const response = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `API error: ${response.status}` });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch services" });
+    }
+  });
+
+  // Get routes for a control plane
+  app.get("/api/kong/control-planes/:cpId/routes", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      const response = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/routes`, {
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `API error: ${response.status}` });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch routes" });
+    }
+  });
+
+  // Get plugins for a control plane
+  app.get("/api/kong/control-planes/:cpId/plugins", async (req, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const { cpId } = req.params;
+      const response = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/plugins`, {
+        headers: {
+          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `API error: ${response.status}` });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch plugins" });
+    }
+  });
+
   return httpServer;
 }

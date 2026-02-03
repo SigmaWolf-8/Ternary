@@ -15,11 +15,63 @@ import {
   BarChart3,
   Layers,
   Globe,
-  Cpu
+  Cpu,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  User,
+  Building,
+  Route,
+  Plug
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+
+interface KongStatus {
+  connected: boolean;
+  error?: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+    preferredName: string;
+    active: boolean;
+  };
+}
+
+interface ControlPlane {
+  id: string;
+  name: string;
+  description?: string;
+  cluster_type?: string;
+  control_plane_endpoint?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface ControlPlanesResponse {
+  data: ControlPlane[];
+}
+
+interface Service {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  protocol: string;
+  path?: string;
+  enabled: boolean;
+}
+
+interface RouteData {
+  id: string;
+  name: string;
+  paths?: string[];
+  methods?: string[];
+  protocols?: string[];
+}
 
 function Header() {
   return (
@@ -48,9 +100,228 @@ function Header() {
   );
 }
 
+function ConnectionStatus() {
+  const { data: status, isLoading, refetch } = useQuery<KongStatus>({
+    queryKey: ['/api/kong/status'],
+    refetchInterval: 30000
+  });
+
+  return (
+    <Card className="border-primary/20">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Network className="w-5 h-5 text-primary" />
+            Connection Status
+          </CardTitle>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => refetch()}
+            disabled={isLoading}
+            data-testid="button-refresh-status"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            Checking connection...
+          </div>
+        ) : status?.connected ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Connected to Kong Konnect</span>
+            </div>
+            {status.user && (
+              <div className="grid grid-cols-2 gap-3 text-sm mt-4">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">User:</span>
+                  <span className="font-medium">{status.user.fullName || status.user.preferredName || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium">{status.user.email}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-red-600">
+            <XCircle className="w-5 h-5" />
+            <span>Not connected: {status?.error || 'Unknown error'}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ControlPlanesList() {
+  const [selectedCP, setSelectedCP] = useState<string | null>(null);
+  
+  const { data: cpData, isLoading: cpLoading } = useQuery<ControlPlanesResponse>({
+    queryKey: ['/api/kong/control-planes']
+  });
+
+  const { data: servicesData, isLoading: servicesLoading } = useQuery<{ data: Service[] }>({
+    queryKey: ['/api/kong/control-planes', selectedCP, 'services'],
+    enabled: !!selectedCP
+  });
+
+  const { data: routesData, isLoading: routesLoading } = useQuery<{ data: RouteData[] }>({
+    queryKey: ['/api/kong/control-planes', selectedCP, 'routes'],
+    enabled: !!selectedCP
+  });
+
+  const controlPlanes = cpData?.data || [];
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Server className="w-5 h-5 text-primary" />
+            Control Planes
+          </CardTitle>
+          <CardDescription>
+            Your Kong Konnect control planes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {cpLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Loading control planes...
+            </div>
+          ) : controlPlanes.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No control planes found. Create one in Kong Konnect to get started.</p>
+          ) : (
+            <div className="space-y-3">
+              {controlPlanes.map((cp) => (
+                <div 
+                  key={cp.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedCP === cp.id 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => setSelectedCP(cp.id)}
+                  data-testid={`control-plane-${cp.id}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">{cp.name}</h4>
+                      {cp.description && (
+                        <p className="text-sm text-muted-foreground">{cp.description}</p>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {cp.cluster_type || 'Standard'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedCP && (
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Layers className="w-5 h-5 text-primary" />
+                Services
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {servicesLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Loading services...
+                </div>
+              ) : !servicesData?.data?.length ? (
+                <p className="text-muted-foreground text-sm">No services configured</p>
+              ) : (
+                <div className="space-y-2">
+                  {servicesData.data.map((service) => (
+                    <div key={service.id} className="p-3 bg-secondary/50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">{service.name}</span>
+                        <Badge variant={service.enabled ? "default" : "secondary"} className="text-xs">
+                          {service.enabled ? 'Enabled' : 'Disabled'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {service.protocol}://{service.host}:{service.port}{service.path || ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Route className="w-5 h-5 text-primary" />
+                Routes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {routesLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Loading routes...
+                </div>
+              ) : !routesData?.data?.length ? (
+                <p className="text-muted-foreground text-sm">No routes configured</p>
+              ) : (
+                <div className="space-y-2">
+                  {routesData.data.map((route) => (
+                    <div key={route.id} className="p-3 bg-secondary/50 rounded-lg">
+                      <span className="font-medium text-sm">{route.name || route.id}</span>
+                      {route.paths && route.paths.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {route.paths.map((path, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {path}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {route.methods && route.methods.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {route.methods.map((method, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {method}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HeroSection() {
   return (
-    <section className="py-16 md:py-24 bg-gradient-to-b from-primary/5 to-background">
+    <section className="py-12 md:py-16 bg-gradient-to-b from-primary/5 to-background">
       <div className="max-w-7xl mx-auto px-5">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
@@ -67,7 +338,7 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
+            className="text-4xl md:text-5xl font-bold leading-tight mb-6"
             data-testid="text-hero-title"
           >
             PlenumNET + <span className="text-primary">Kong Konnect</span>
@@ -77,32 +348,24 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
+            className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto"
             data-testid="text-hero-description"
           >
-            Secure, manage, and optimize your ternary APIs with Kong Konnect's enterprise-grade API gateway. 
-            Post-quantum security meets industry-leading API management.
+            Manage your Kong Konnect API gateway directly from PlenumNET. 
+            View control planes, services, and routes in real-time.
           </motion.p>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-wrap gap-4 justify-center"
-          >
-            <Button size="lg" asChild data-testid="button-get-started">
-              <a href="https://konghq.com/products/kong-konnect" target="_blank" rel="noopener noreferrer">
-                Get Started with Kong Konnect
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </a>
-            </Button>
-            <Button size="lg" variant="outline" asChild data-testid="button-view-docs">
-              <a href="https://developer.konghq.com/gateway/" target="_blank" rel="noopener noreferrer">
-                View Documentation
-              </a>
-            </Button>
-          </motion.div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function DashboardSection() {
+  return (
+    <section className="py-8 md:py-12" data-testid="section-dashboard">
+      <div className="max-w-7xl mx-auto px-5 space-y-6">
+        <ConnectionStatus />
+        <ControlPlanesList />
       </div>
     </section>
   );
@@ -113,12 +376,12 @@ function FeaturesSection() {
     {
       icon: Shield,
       title: "Post-Quantum API Security",
-      description: "Combine PlenumNET's quantum-resistant protocols with Kong's advanced authentication and authorization."
+      description: "Combine PlenumNET's quantum-resistant protocols with Kong's advanced authentication."
     },
     {
       icon: Clock,
       title: "Femtosecond Timing",
-      description: "Route timing-critical APIs through Kong with FINRA Rule 613 CAT compliant precision timestamps."
+      description: "Route timing-critical APIs through Kong with FINRA Rule 613 CAT compliant precision."
     },
     {
       icon: Network,
@@ -133,7 +396,7 @@ function FeaturesSection() {
     {
       icon: BarChart3,
       title: "Real-Time Analytics",
-      description: "Monitor API usage, performance metrics, and ternary compression ratios in real-time."
+      description: "Monitor API usage, performance metrics, and ternary compression ratios."
     },
     {
       icon: Lock,
@@ -143,11 +406,11 @@ function FeaturesSection() {
   ];
 
   return (
-    <section className="py-16 md:py-24" data-testid="section-features">
+    <section className="py-12 md:py-16 bg-secondary/30" data-testid="section-features">
       <div className="max-w-7xl mx-auto px-5">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Integration Features</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Integration Features</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
             Leverage Kong Konnect's powerful API management capabilities with PlenumNET's ternary computing infrastructure.
           </p>
         </div>
@@ -163,10 +426,10 @@ function FeaturesSection() {
             >
               <Card className="h-full border-primary/10 hover:border-primary/30 transition-colors">
                 <CardHeader>
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <feature.icon className="w-6 h-6 text-primary" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                    <feature.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
+                  <CardTitle className="text-base">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="text-sm">{feature.description}</CardDescription>
@@ -180,274 +443,22 @@ function FeaturesSection() {
   );
 }
 
-function ArchitectureSection() {
-  const layers = [
-    {
-      name: "Client Layer",
-      components: ["Web Applications", "Mobile Apps", "IoT Devices", "AI Agents"],
-      color: "bg-blue-500/10 border-blue-500/30"
-    },
-    {
-      name: "Kong Konnect Gateway",
-      components: ["Authentication", "Rate Limiting", "Load Balancing", "Analytics"],
-      color: "bg-primary/10 border-primary/30"
-    },
-    {
-      name: "PlenumNET APIs",
-      components: ["Ternary Operations", "Femtosecond Timing", "Phase Encryption", "PlenumDB"],
-      color: "bg-green-500/10 border-green-500/30"
-    },
-    {
-      name: "Data Layer",
-      components: ["Ternary Storage", "Binary Bridge", "Quantum-Safe Vault", "Metrics Store"],
-      color: "bg-purple-500/10 border-purple-500/30"
-    }
-  ];
-
-  return (
-    <section className="py-16 md:py-24 bg-secondary/30" data-testid="section-architecture">
-      <div className="max-w-7xl mx-auto px-5">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Integration Architecture</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Kong Konnect sits between your clients and PlenumNET services, providing enterprise-grade API management.
-          </p>
-        </div>
-        
-        <div className="max-w-4xl mx-auto space-y-4">
-          {layers.map((layer, index) => (
-            <motion.div
-              key={layer.name}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card className={`${layer.color} border`}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="md:w-48 flex-shrink-0">
-                      <h3 className="font-semibold text-foreground">{layer.name}</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {layer.components.map((component) => (
-                        <Badge key={component} variant="secondary" className="text-xs">
-                          {component}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function UseCasesSection() {
-  const useCases = [
-    {
-      icon: Globe,
-      title: "Global API Distribution",
-      description: "Deploy PlenumNET APIs across multiple regions with Kong's multi-cloud support for low-latency access worldwide.",
-      benefits: ["Multi-region routing", "Edge caching", "Geo-based load balancing"]
-    },
-    {
-      icon: Cpu,
-      title: "AI/LLM Integration",
-      description: "Route AI agent requests through Kong's AI Gateway to PlenumNET's ternary computing infrastructure.",
-      benefits: ["Model Context Protocol support", "Semantic routing", "Usage metering"]
-    },
-    {
-      icon: Server,
-      title: "Event-Driven Architecture",
-      description: "Combine Kong Event Gateway with PlenumNET for real-time ternary data streaming via Apache Kafka.",
-      benefits: ["Kafka integration", "Event streaming", "Real-time analytics"]
-    },
-    {
-      icon: Layers,
-      title: "API Monetization",
-      description: "Use Kong's metering and billing features to monetize access to PlenumNET's compression APIs.",
-      benefits: ["Usage-based pricing", "Subscription management", "Invoice generation"]
-    }
-  ];
-
-  return (
-    <section className="py-16 md:py-24" data-testid="section-use-cases">
-      <div className="max-w-7xl mx-auto px-5">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Use Cases</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            How enterprises leverage PlenumNET + Kong Konnect together.
-          </p>
-        </div>
-        
-        <div className="grid md:grid-cols-2 gap-8">
-          {useCases.map((useCase, index) => (
-            <motion.div
-              key={useCase.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card className="h-full border-primary/10">
-                <CardHeader>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <useCase.icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg mb-2">{useCase.title}</CardTitle>
-                      <CardDescription>{useCase.description}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {useCase.benefits.map((benefit) => (
-                      <li key={benefit} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                        {benefit}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function QuickStartSection() {
-  const [copiedStep, setCopiedStep] = useState<number | null>(null);
-
-  const steps = [
-    {
-      title: "Create Kong Konnect Account",
-      description: "Sign up for Kong Konnect and create a new control plane for your PlenumNET APIs.",
-      code: "# Visit https://konghq.com/products/kong-konnect\n# Create a new control plane"
-    },
-    {
-      title: "Configure Gateway Service",
-      description: "Add PlenumNET API endpoints as upstream services in Kong.",
-      code: `curl -X POST https://admin.konghq.com/services \\
-  -H "Authorization: Bearer $KONG_TOKEN" \\
-  -d "name=plenumnet-timing" \\
-  -d "url=https://your-app.replit.app/api/salvi/timing"`
-    },
-    {
-      title: "Add Routes",
-      description: "Create routes to expose PlenumNET APIs through Kong Gateway.",
-      code: `curl -X POST https://admin.konghq.com/services/plenumnet-timing/routes \\
-  -H "Authorization: Bearer $KONG_TOKEN" \\
-  -d "paths[]=/api/timing" \\
-  -d "methods[]=GET" \\
-  -d "methods[]=POST"`
-    },
-    {
-      title: "Enable Plugins",
-      description: "Add authentication, rate limiting, and analytics plugins.",
-      code: `# Enable JWT authentication
-curl -X POST https://admin.konghq.com/services/plenumnet-timing/plugins \\
-  -H "Authorization: Bearer $KONG_TOKEN" \\
-  -d "name=jwt"
-
-# Enable rate limiting
-curl -X POST https://admin.konghq.com/services/plenumnet-timing/plugins \\
-  -d "name=rate-limiting" \\
-  -d "config.minute=100"`
-    }
-  ];
-
-  const copyCode = (index: number, code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedStep(index);
-    setTimeout(() => setCopiedStep(null), 2000);
-  };
-
-  return (
-    <section className="py-16 md:py-24 bg-secondary/30" data-testid="section-quickstart">
-      <div className="max-w-4xl mx-auto px-5">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Quick Start Guide</h2>
-          <p className="text-muted-foreground text-lg">
-            Get PlenumNET APIs running behind Kong Konnect in minutes.
-          </p>
-        </div>
-        
-        <div className="space-y-6">
-          {steps.map((step, index) => (
-            <motion.div
-              key={step.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card className="border-primary/10">
-                <CardHeader>
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{step.title}</CardTitle>
-                      <CardDescription className="mt-1">{step.description}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative">
-                    <pre className="bg-secondary/70 border border-primary/10 rounded-lg p-4 overflow-x-auto text-sm font-mono text-muted-foreground">
-                      <code>{step.code}</code>
-                    </pre>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="absolute top-2 right-2"
-                      onClick={() => copyCode(index, step.code)}
-                      data-testid={`button-copy-step-${index}`}
-                    >
-                      {copiedStep === index ? (
-                        <Check className="w-4 h-4 text-green-500" />
-                      ) : (
-                        "Copy"
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function CTASection() {
   return (
-    <section className="py-16 md:py-24" data-testid="section-cta">
+    <section className="py-12 md:py-16" data-testid="section-cta">
       <div className="max-w-7xl mx-auto px-5">
         <Card className="bg-primary text-primary-foreground overflow-hidden">
-          <CardContent className="p-8 md:p-12 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Ready to Secure Your APIs?
+          <CardContent className="p-8 md:p-10 text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">
+              Need Help With Kong Konnect?
             </h2>
-            <p className="text-lg opacity-90 mb-8 max-w-xl mx-auto">
-              Combine the power of Kong Konnect's API gateway with PlenumNET's post-quantum infrastructure.
+            <p className="text-lg opacity-90 mb-6 max-w-xl mx-auto">
+              Visit the Kong Konnect documentation or explore PlenumNET APIs.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button size="lg" variant="secondary" asChild data-testid="button-cta-kong">
-                <a href="https://konghq.com/products/kong-konnect" target="_blank" rel="noopener noreferrer">
-                  Start with Kong Konnect
+                <a href="https://docs.konghq.com/konnect/" target="_blank" rel="noopener noreferrer">
+                  Kong Konnect Docs
                   <ExternalLink className="w-4 h-4 ml-2" />
                 </a>
               </Button>
@@ -489,10 +500,8 @@ export default function KongKonnect() {
       <Header />
       <main>
         <HeroSection />
+        <DashboardSection />
         <FeaturesSection />
-        <ArchitectureSection />
-        <UseCasesSection />
-        <QuickStartSection />
         <CTASection />
       </main>
       <Footer />
