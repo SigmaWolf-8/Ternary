@@ -31,6 +31,11 @@ function Header() {
         </Link>
         
         <div className="flex items-center gap-4">
+          <Link href="/api-demo">
+            <Button variant="ghost" size="sm" data-testid="button-api-demo">
+              API Demo
+            </Button>
+          </Link>
           <Link href="/">
             <Button variant="ghost" size="sm" data-testid="button-back-home">
               <ArrowLeft className="w-4 h-4 mr-2" />
