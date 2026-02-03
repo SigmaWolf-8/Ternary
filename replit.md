@@ -113,20 +113,22 @@ Based on the whitepaper's Unified Ternary Logic System:
 | `/api/user/admin-status` | GET | Check if current user is admin |
 
 ## Kong Konnect API (API Gateway Integration)
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/kong/status` | GET | Check Kong Konnect connection status and user info |
-| `/api/kong/organization` | GET | Get Kong organization details |
-| `/api/kong/control-planes` | GET | List all Kong control planes |
-| `/api/kong/control-planes/:cpId/services` | GET | Get services for a control plane |
-| `/api/kong/control-planes/:cpId/services` | POST | Create a service (body: name, url, enabled, tags) |
-| `/api/kong/control-planes/:cpId/routes` | GET | Get routes for a control plane |
-| `/api/kong/control-planes/:cpId/services/:serviceId/routes` | POST | Create a route (body: name, paths, methods) |
-| `/api/kong/control-planes/:cpId/plugins` | GET | Get plugins for a control plane |
-| `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | POST | Add plugin to service (body: name, config) |
-| `/api/kong/control-planes/:cpId/sync-plenumnet` | POST | Sync all PlenumNET services to Kong |
-| `/api/kong/config` | GET | Get local Kong configuration file |
-| `/api/kong/save-to-github` | POST | Save Kong config to GitHub (body: owner, repo, path) |
+**Security Note**: All mutation endpoints (POST) and config access require admin authentication.
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/kong/status` | GET | Public | Check Kong Konnect connection status and user info |
+| `/api/kong/organization` | GET | Public | Get Kong organization details |
+| `/api/kong/control-planes` | GET | Public | List all Kong control planes |
+| `/api/kong/control-planes/:cpId/services` | GET | Public | Get services for a control plane |
+| `/api/kong/control-planes/:cpId/services` | POST | Admin | Create a service (body: name, url, enabled, tags) |
+| `/api/kong/control-planes/:cpId/routes` | GET | Public | Get routes for a control plane |
+| `/api/kong/control-planes/:cpId/services/:serviceId/routes` | POST | Admin | Create a route (body: name, paths, methods) |
+| `/api/kong/control-planes/:cpId/plugins` | GET | Public | Get plugins for a control plane |
+| `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | POST | Admin | Add plugin to service (body: name, config) |
+| `/api/kong/control-planes/:cpId/sync-plenumnet` | POST | Admin | Sync all PlenumNET services to Kong |
+| `/api/kong/config` | GET | Admin | Get local Kong configuration file (contains API keys) |
+| `/api/kong/save-to-github` | POST | Admin | Save Kong config to GitHub (body: owner, repo, path) |
 
 ### Kong Configuration Files
 The `kong/` directory contains:
