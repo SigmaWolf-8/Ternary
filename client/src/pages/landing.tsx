@@ -106,12 +106,20 @@ function Header() {
                 {user?.firstName || user?.email?.split('@')[0]}
               </span>
               {adminStatus?.isAdmin && (
-                <Link href="/github">
-                  <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-admin-github">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Admin
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/kong-konnect">
+                    <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-kong-konnect">
+                      <Network className="w-4 h-4 mr-2" />
+                      Kong
+                    </Button>
+                  </Link>
+                  <Link href="/github">
+                    <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-admin-github">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Admin
+                    </Button>
+                  </Link>
+                </>
               )}
               <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-logout">
                 <a href="/api/logout">
@@ -168,12 +176,22 @@ function Header() {
               </a>
             </Button>
             {isAuthenticated ? (
-              <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-logout">
-                <a href="/api/logout">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </a>
-              </Button>
+              <>
+                {adminStatus?.isAdmin && (
+                  <Link href="/kong-konnect">
+                    <Button variant="outline" className="border-primary/50 text-primary w-full" data-testid="button-mobile-kong">
+                      <Network className="w-4 h-4 mr-2" />
+                      Kong Konnect
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-logout">
+                  <a href="/api/logout">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </a>
+                </Button>
+              </>
             ) : (
               <Button asChild data-testid="button-mobile-login">
                 <a href="/api/login">
