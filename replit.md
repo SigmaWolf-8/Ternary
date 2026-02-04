@@ -31,7 +31,9 @@ server/
 │   ├── ternary-types.ts    # Trit representations (A, B, C)
 │   ├── ternary-operations.ts # GF(3) operations
 │   ├── femtosecond-timing.ts # Femtosecond timestamps
-│   └── phase-encryption.ts # Phase-split encryption
+│   ├── phase-encryption.ts # Phase-split encryption
+│   └── libternary/
+│       └── aspect-api.ts   # 364° Prime Circle aspect calculations
 ├── db.ts                   # PostgreSQL database connection
 ├── storage.ts              # Database storage interface
 ├── ternary.ts              # Ternary compression utilities
