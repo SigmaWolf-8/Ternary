@@ -1648,6 +1648,27 @@ export async function registerRoutes(
           tags: ["plenumnet", "docs", "documentation"],
           routePath: "/api/docs",
           rateLimit: { minute: 200 }
+        },
+        {
+          name: "plenumnet-github",
+          url: `${baseUrl}/api/github`,
+          tags: ["plenumnet", "github", "admin", "integration"],
+          routePath: "/api/github",
+          rateLimit: { minute: 60 }
+        },
+        {
+          name: "plenumnet-kong",
+          url: `${baseUrl}/api/kong`,
+          tags: ["plenumnet", "kong", "gateway", "admin"],
+          routePath: "/api/kong",
+          rateLimit: { minute: 60 }
+        },
+        {
+          name: "plenumnet-user",
+          url: `${baseUrl}/api/user`,
+          tags: ["plenumnet", "user", "auth"],
+          routePath: "/api/user",
+          rateLimit: { minute: 100 }
         }
       ];
 
