@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check } from "lucide-react";
+import { ArrowLeft, Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check, Database, TrendingUp } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface TimestampData {
@@ -61,6 +61,27 @@ interface PhaseResult {
   };
 }
 
+interface CompressionResult {
+  success: boolean;
+  sessionId: string;
+  datasetName: string;
+  rowCount: number;
+  binarySize: number;
+  ternarySize: number;
+  savingsPercent: string;
+  processingTimeMs: number;
+  preview: any[];
+}
+
+interface DensityResult {
+  success: boolean;
+  tritCount: number;
+  binaryEquivalent: { bits: number; states: string };
+  ternaryStates: string;
+  informationDensity: { bitsPerTrit: number; efficiencyGain: string };
+  comparison: { binaryBits: number; ternaryTrits: number; savings: string };
+}
+
 // Salvi Epoch: April 1, 2025 00:00:00.000 UTC
 const SALVI_EPOCH_MS = new Date('2025-04-01T00:00:00.000Z').getTime();
 const SALVI_EPOCH_NS = BigInt(SALVI_EPOCH_MS) * 1_000_000n;
@@ -73,6 +94,295 @@ interface LiveTimerState {
   milliseconds: number;
   unixNanoseconds: bigint;
   salviNanoseconds: bigint;
+}
+
+function CompressionDemo() {
+  const [dataset, setDataset] = useState("sensor");
+  const [rowCount, setRowCount] = useState(100);
+  
+  const compressionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/demo/run", {
+        datasetName: dataset,
+        rowCount: rowCount
+      });
+      return response.json();
+    }
+  });
+  
+  const { data: stats } = useQuery<{
+    totalRuns: number;
+    avgSavings: string;
+    totalDataProcessed: number;
+    totalSavings: number;
+  }>({
+    queryKey: ["/api/demo/stats"]
+  });
+
+  const result = compressionMutation.data as CompressionResult | undefined;
+
+  return (
+    <div className="grid md:grid-cols-2 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Ternary Compression Demo
+          </CardTitle>
+          <CardDescription>
+            POST /api/demo/run - Compress data using ternary encoding
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Dataset Type</Label>
+            <Select value={dataset} onValueChange={setDataset}>
+              <SelectTrigger data-testid="select-compression-dataset">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sensor">Sensor Data</SelectItem>
+                <SelectItem value="events">User Events</SelectItem>
+                <SelectItem value="logs">Log Entries</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Row Count</Label>
+            <Input 
+              type="number" 
+              value={rowCount} 
+              onChange={(e) => setRowCount(parseInt(e.target.value) || 100)}
+              min={1}
+              max={10000}
+              data-testid="input-compression-rows"
+            />
+          </div>
+          
+          <Button 
+            onClick={() => compressionMutation.mutate()}
+            disabled={compressionMutation.isPending}
+            className="w-full"
+            data-testid="button-run-compression"
+          >
+            {compressionMutation.isPending ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4 mr-2" />
+            )}
+            Run Compression
+          </Button>
+          
+          {result && (
+            <div className="mt-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-red-600">{result.binarySize.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Binary Size (bytes)</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-green-600">{result.ternarySize.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Ternary Size (bytes)</div>
+                </div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-green-700">{result.savingsPercent}%</div>
+                <div className="text-sm text-green-600">Space Savings</div>
+              </div>
+              <div className="text-xs text-muted-foreground text-center">
+                Processed in {result.processingTimeMs}ms
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Compression Statistics
+          </CardTitle>
+          <CardDescription>
+            GET /api/demo/stats - Aggregated compression metrics
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {stats ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-primary/10 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-primary">{stats.totalRuns}</div>
+                  <div className="text-xs text-muted-foreground">Total Runs</div>
+                </div>
+                <div className="bg-green-100 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-700">{stats.avgSavings}%</div>
+                  <div className="text-xs text-muted-foreground">Avg Savings</div>
+                </div>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-4">
+                <div className="text-sm font-medium mb-2">Data Processed</div>
+                <div className="text-2xl font-bold">{(stats.totalDataProcessed / 1024).toFixed(1)} KB</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="text-sm font-medium text-green-800 mb-1">Total Space Saved</div>
+                <div className="text-2xl font-bold text-green-700">{(stats.totalSavings / 1024).toFixed(1)} KB</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">Loading statistics...</div>
+          )}
+          
+          <div className="mt-6 pt-4 border-t">
+            <div className="text-sm font-medium mb-3">Why +59% Efficiency?</div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <div className="font-bold text-blue-800">1.585</div>
+                <div className="text-xs text-blue-600">bits/trit</div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <div className="font-bold text-blue-800">3:2</div>
+                <div className="text-xs text-blue-600">compression</div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                <div className="font-bold text-green-800">+59%</div>
+                <div className="text-xs text-green-600">density</div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DensityCalculator() {
+  const [tritCount, setTritCount] = useState(8);
+  
+  const { data: density, refetch, isFetching } = useQuery<DensityResult>({
+    queryKey: ["/api/salvi/ternary/density", tritCount],
+    queryFn: async () => {
+      const response = await fetch(`/api/salvi/ternary/density/${tritCount}`);
+      return response.json();
+    },
+    enabled: false
+  });
+
+  return (
+    <div className="grid md:grid-cols-2 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calculator className="w-5 h-5" />
+            Information Density Calculator
+          </CardTitle>
+          <CardDescription>
+            GET /api/salvi/ternary/density/:tritCount
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Trit Count</Label>
+            <Input 
+              type="number" 
+              value={tritCount} 
+              onChange={(e) => setTritCount(parseInt(e.target.value) || 8)}
+              min={1}
+              max={64}
+              data-testid="input-density-trits"
+            />
+          </div>
+          
+          <Button 
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="w-full"
+            data-testid="button-calculate-density"
+          >
+            {isFetching ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Calculator className="w-4 h-4 mr-2" />
+            )}
+            Calculate Density
+          </Button>
+          
+          {density && density.success && (
+            <div className="mt-4 space-y-3">
+              <div className="bg-primary/10 rounded-lg p-4">
+                <div className="text-sm text-muted-foreground mb-1">Ternary States (3^{tritCount})</div>
+                <div className="text-xl font-mono font-bold">{density.ternaryStates}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground mb-1">Binary Bits Needed</div>
+                  <div className="text-lg font-bold">{density.binaryEquivalent.bits}</div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="text-xs text-green-600 mb-1">Efficiency Gain</div>
+                  <div className="text-lg font-bold text-green-700">{density.informationDensity.efficiencyGain}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Ternary vs Binary Comparison</CardTitle>
+          <CardDescription>
+            Mathematical foundation: log₂(3) ≈ 1.585 bits per trit
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground mb-2">Binary</div>
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="font-mono text-lg">2 states</div>
+                  <div className="text-sm text-muted-foreground">per digit</div>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground mb-2">Ternary</div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="font-mono text-lg text-green-700">3 states</div>
+                  <div className="text-sm text-green-600">per trit</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="text-sm font-medium mb-3">Information per Digit</div>
+              <div className="flex items-center justify-between">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">1.0</div>
+                  <div className="text-xs text-muted-foreground">bit (binary)</div>
+                </div>
+                <div className="text-muted-foreground">vs</div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-700">1.585</div>
+                  <div className="text-xs text-green-600">bits (ternary)</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-green-700">+58.5%</div>
+              <div className="text-sm text-green-600">More Information Per Digit</div>
+            </div>
+            
+            <div className="text-xs text-muted-foreground text-center">
+              Formula: log₂(3) / log₂(2) = 1.585 ≈ 59% more efficient
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function APIDemo() {
@@ -267,7 +577,7 @@ export default function APIDemo() {
         </div>
 
         <Tabs defaultValue="timing" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
             <TabsTrigger value="timing" data-testid="tab-timing" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Timing
@@ -278,7 +588,15 @@ export default function APIDemo() {
             </TabsTrigger>
             <TabsTrigger value="phase" data-testid="tab-phase" className="flex items-center gap-2">
               <Shield className="w-4 h-4" />
-              Phase
+              Encryption
+            </TabsTrigger>
+            <TabsTrigger value="compression" data-testid="tab-compression" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Compression
+            </TabsTrigger>
+            <TabsTrigger value="density" data-testid="tab-density" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Density
             </TabsTrigger>
           </TabsList>
 
@@ -702,6 +1020,14 @@ export default function APIDemo() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="compression" className="space-y-6">
+            <CompressionDemo />
+          </TabsContent>
+
+          <TabsContent value="density" className="space-y-6">
+            <DensityCalculator />
+          </TabsContent>
         </Tabs>
 
         <div className="mt-8">
@@ -710,7 +1036,7 @@ export default function APIDemo() {
               <CardTitle>API Endpoints Reference</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 gap-4 text-sm font-mono">
+              <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm font-mono">
                 <div>
                   <div className="font-bold text-primary mb-2">Timing API</div>
                   <div className="space-y-1 text-muted-foreground">
@@ -734,6 +1060,20 @@ export default function APIDemo() {
                     <div>POST /api/salvi/phase/split</div>
                     <div>POST /api/salvi/phase/recombine</div>
                     <div>GET /api/salvi/phase/config/:mode</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-bold text-primary mb-2">Compression API</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    <div>POST /api/demo/run</div>
+                    <div>GET /api/demo/stats</div>
+                    <div>GET /api/demo/history</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-bold text-primary mb-2">Density API</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    <div>GET /api/salvi/ternary/density/:count</div>
                   </div>
                 </div>
               </div>
