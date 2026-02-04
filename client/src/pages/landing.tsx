@@ -238,13 +238,20 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
+            className="flex flex-wrap gap-2 mb-6"
           >
             <Badge 
               variant="outline" 
-              className="mb-6 border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+              className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
               data-testid="badge-hero"
             >
-              Deployable Today
+              Open Source
+            </Badge>
+            <Badge 
+              variant="outline" 
+              className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+            >
+              x86_64 Compatible
             </Badge>
           </motion.div>
           
@@ -255,7 +262,7 @@ function HeroSection() {
             className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
             data-testid="text-hero-title"
           >
-            Post-Quantum Internet, <span className="text-primary">Deployed Pragmatically</span>
+            Bijective Ternary Computing, <span className="text-primary">Binary Compatible</span>
           </motion.h1>
           
           <motion.p 
@@ -265,8 +272,8 @@ function HeroSection() {
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl"
             data-testid="text-hero-description"
           >
-            We're building the quantum-resistant internet through market-tested components, 
-            starting with what can be deployed today within existing infrastructure.
+            An open-source kernel exploring bijective ternary logic with three reversible representations. 
+            Designed for x86_64 binary hardware with future ternary processor compatibility in mind.
           </motion.p>
           
           <motion.div 
@@ -276,23 +283,23 @@ function HeroSection() {
             className="flex flex-wrap gap-4"
           >
             <Button size="lg" asChild data-testid="button-get-started">
-              <a href="#components">
-                Get Started
+              <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
+                View on GitHub
                 <ArrowRight className="w-4 h-4 ml-2" />
               </a>
             </Button>
             <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-view-docs">
-              <a href="https://github.com/ternary" target="_blank" rel="noopener noreferrer">
-                View Documentation
+              <a href="/whitepaper">
+                Read Whitepaper
               </a>
             </Button>
           </motion.div>
           
           <div className="flex flex-wrap gap-8 md:gap-12 mt-16">
-            <AnimatedStat value="+59%" label="Information Density" delay={0.4} />
-            <AnimatedStat value="12.7%" label="Efficiency Gain" delay={0.5} />
-            <AnimatedStat value="$0.01" label="Per Million Timestamps" delay={0.6} />
-            <AnimatedStat value="Phase 1" label="Live Today" delay={0.7} />
+            <AnimatedStat value="3" label="Ternary Representations" delay={0.4} />
+            <AnimatedStat value="log₂(3)" label="Bits per Trit" delay={0.5} />
+            <AnimatedStat value="GF(3)" label="Field Operations" delay={0.6} />
+            <AnimatedStat value="x86_64" label="Target Architecture" delay={0.7} />
           </div>
         </div>
       </div>
@@ -359,28 +366,28 @@ function TimelineItem({
 function ApproachSection() {
   const timelineItems = [
     {
-      date: "NOW",
-      title: "Phase 1: Reality-Based Foundation",
-      description: "Deploying market-ready components that work within existing infrastructure.",
-      tags: ["Ternary Repository", "Timing API", "Open Source"],
+      date: "Phase 0",
+      title: "Kernel Foundation",
+      description: "Bare-metal kernel implementing bijective ternary logic. Three representations with reversible mappings.",
+      tags: ["Rust", "x86_64", "Bare Metal", "Open Source"],
     },
     {
-      date: "Q3 2024",
-      title: "Phase 2: Trojan Horse Deployments",
-      description: "Strategic partnerships in finance, research, and IoT with ternary-overlay solutions.",
-      tags: ["Financial Pilot", "Research Networks", "IIoT Edge"],
+      date: "Phase 1",
+      title: "API & Integration Layer",
+      description: "REST APIs for ternary operations. Kong Konnect gateway integration for access management.",
+      tags: ["REST API", "Kong Gateway", "GitHub Config"],
     },
     {
-      date: "2025",
-      title: "Phase 3: Component Commercialization",
-      description: "FPGA acceleration cards, timing certification, and ternary database engines.",
-      tags: ["FPGA Cards", "Database Engine", "Enterprise"],
+      date: "Phase 2",
+      title: "Enterprise Applications",
+      description: "Strategic deployments in finance, research, and IoT leveraging ternary efficiency.",
+      tags: ["Financial Services", "Research Networks", "IIoT"],
     },
     {
-      date: "2026+",
-      title: "Phase 4: Standards & Ecosystem",
-      description: "Reference implementations, IETF standards, and hardware partnerships.",
-      tags: ["Standards", "RISC-V Extensions", "Full Architecture"],
+      date: "Phase 3",
+      title: "Native Hardware",
+      description: "FPGA acceleration and native ternary processor support.",
+      tags: ["FPGA", "Ternary Processors", "Hardware"],
     },
   ];
 
@@ -405,7 +412,7 @@ function ApproachSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            We're implementing the visionary architecture through digestible, revenue-generating components
+            From kernel foundation to enterprise deployment - our phased approach delivers working components at each stage
           </motion.p>
         </div>
         
@@ -503,77 +510,81 @@ function ComponentCard({
 function ComponentsSection() {
   const components = [
     {
-      badge: "Available Now",
-      icon: Code,
-      title: "GitHub Ternary Repository",
-      description: "Open-source ternary computing library with 59% more data per transfer.",
-      link: "/github",
-      features: [
-        "59% more data per transfer",
-        "Drop-in replacement for binary protocols",
-        "C, Python, Rust bindings available",
-        "Zero runtime dependencies",
-      ],
-    },
-    {
-      badge: "Available Now",
-      icon: Clock,
-      title: "Timing API",
-      description: "Nanosecond-precision timestamps with cryptographic guarantees. FINRA 613 compliant.",
-      features: [
-        "$0.01 per million timestamps",
-        "Cryptographic proof of time",
-        "REST API with SDK",
-        "99.99% SLA guaranteed",
-      ],
-    },
-    {
-      badge: "Q2 2024",
+      badge: "Open Source",
       icon: Cpu,
-      title: "FPGA Acceleration",
-      description: "Hardware acceleration for ternary operations. PCIe cards for data centers.",
+      title: "Ternary Kernel",
+      description: "Bijective ternary bare-metal kernel. Binary-compatible on x86_64 with automated CI/CD builds.",
+      link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
-        "100x faster ternary operations",
-        "Standard PCIe form factor",
-        "Linux driver included",
-        "Development kit available",
+        "Three representations (A, B, C) with bijective mappings",
+        "Binary-compatible on x86_64 hardware",
+        "GitHub Actions CI/CD pipeline",
+        "Security scanning with CodeQL",
       ],
     },
     {
-      badge: "Q3 2024",
+      badge: "API",
+      icon: Code,
+      title: "Ternary Operations API",
+      description: "REST API for ternary operations including GF(3) arithmetic, phase encryption, and precision timing.",
+      link: "/api-demo",
+      features: [
+        "GF(3) field operations (add, multiply, rotate)",
+        "Bijective representation conversion",
+        "Phase-split encryption operations",
+        "High-precision timestamps",
+      ],
+    },
+    {
+      badge: "Integration",
+      icon: Network,
+      title: "Kong Gateway",
+      description: "API gateway integration with Kong Konnect for rate limiting and access management.",
+      link: "/kong-konnect",
+      features: [
+        "Rate limiting and throttling",
+        "API key management",
+        "Security policy enforcement",
+        "GitHub-based configuration",
+      ],
+    },
+    {
+      badge: "Demo",
       icon: Database,
       title: "PlenumDB",
-      description: "Purpose-built database engine optimized for ternary data structures and queries.",
+      description: "Interactive demonstration of ternary compression with live benchmarks.",
       features: [
-        "Native ternary storage format",
-        "3x storage efficiency",
-        "SQL-compatible interface",
-        "Horizontal scaling built-in",
+        "Live compression demo",
+        "Information density comparison",
+        "Ternary storage format",
+        "Real-time benchmarks",
       ],
       link: "/ternarydb",
     },
     {
-      badge: "2025",
+      badge: "Documentation",
       icon: Shield,
-      title: "Quantum-Safe PKI",
-      description: "Post-quantum cryptography infrastructure for certificate management and key exchange.",
+      title: "Technical Whitepaper",
+      description: "Comprehensive whitepaper covering the bijective ternary architecture and design rationale.",
+      link: "/whitepaper",
       features: [
-        "NIST PQC algorithms",
-        "Backward compatible",
-        "Hardware security module support",
-        "Enterprise key management",
+        "Unified Ternary Logic System",
+        "Network architecture design",
+        "Encryption methodology",
+        "Mathematical foundations",
       ],
     },
     {
-      badge: "2025",
-      icon: Network,
-      title: "PlenumMesh",
-      description: "Distributed network protocol for ternary data transmission and routing.",
+      badge: "Developer Guide",
+      icon: Clock,
+      title: "Build Documentation",
+      description: "Build guides for developers and AI agents. Library and binary build instructions.",
+      link: "https://github.com/SigmaWolf-8/Ternary/blob/main/KERNEL-BUILD-GUIDE.md",
       features: [
-        "Self-healing topology",
-        "Integrated load balancing",
-        "End-to-end encryption",
-        "Cross-datacenter support",
+        "Step-by-step build instructions",
+        "AI agent integration guide",
+        "Nightly Rust configuration",
+        "CI/CD workflow examples",
       ],
     },
   ];
@@ -590,7 +601,7 @@ function ComponentsSection() {
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-components-title"
           >
-            Market-Ready Components
+            Components & Resources
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -599,7 +610,7 @@ function ComponentsSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            Deployable solutions generating value today
+            Open-source kernel, APIs, and documentation for bijective ternary computing
           </motion.p>
         </div>
         
@@ -615,12 +626,12 @@ function ComponentsSection() {
 
 function ComparisonSection() {
   const comparisonItems = [
-    { label: "Information Density", current: "1.0x", ternary: "1.59x", ternaryGood: true },
-    { label: "Quantum Resistance", current: "Vulnerable", ternary: "Post-Quantum Safe", ternaryGood: true },
-    { label: "Timing Precision", current: "Milliseconds", ternary: "Nanoseconds", ternaryGood: true },
-    { label: "Protocol Efficiency", current: "Baseline", ternary: "+12.7%", ternaryGood: true },
-    { label: "Deployment Model", current: "Replace All", ternary: "Incremental", ternaryGood: true },
-    { label: "Open Source", current: "Varies", ternary: "Open Source", ternaryGood: true },
+    { label: "Logic Base", current: "Binary (2 states)", ternary: "Ternary (3 states)", ternaryGood: true },
+    { label: "Information per Digit", current: "1.0 bit", ternary: "log₂(3) ≈ 1.585 bits", ternaryGood: true },
+    { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", ternaryGood: true },
+    { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) field operations", ternaryGood: true },
+    { label: "Hardware Target", current: "Binary only", ternary: "Binary-compatible + ternary-ready", ternaryGood: true },
+    { label: "Source Availability", current: "Varies", ternary: "Open Source on GitHub", ternaryGood: true },
   ];
 
   return (
@@ -635,7 +646,7 @@ function ComparisonSection() {
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-comparison-title"
           >
-            Why PlenumNET?
+            Binary vs Bijective Ternary
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -774,10 +785,10 @@ function CTASection() {
         >
           <Card className="max-w-4xl mx-auto p-8 md:p-12 lg:p-16 border-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-4" data-testid="text-cta-title">
-              Ready to Build the Future?
+              Explore the Project
             </h2>
             <p className="text-lg opacity-90 mb-8 max-w-xl mx-auto">
-              Start with our open-source library today, or schedule a demo to see how PlenumNET can transform your infrastructure.
+              Browse the open-source codebase, read the whitepaper, and explore the bijective ternary architecture.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button 
@@ -789,17 +800,20 @@ function CTASection() {
               >
                 <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                   <Github className="w-4 h-4 mr-2" />
-                  Get Ternary Repository
+                  View Repository
                 </a>
               </Button>
               <Button 
                 size="lg" 
                 variant="ghost" 
                 className="border border-primary-foreground/50 text-primary-foreground"
+                asChild
                 data-testid="button-cta-demo"
               >
-                <Zap className="w-4 h-4 mr-2" />
-                Schedule Demo
+                <a href="/whitepaper">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Read Whitepaper
+                </a>
               </Button>
             </div>
           </Card>
@@ -846,7 +860,7 @@ function Footer() {
               <span>PlenumNET</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">
-              Building the quantum-resistant internet, one component at a time.
+              Bijective ternary computing, binary compatible. Post-quantum security for the next-generation internet.
             </p>
             <div className="flex gap-3">
               <a 
