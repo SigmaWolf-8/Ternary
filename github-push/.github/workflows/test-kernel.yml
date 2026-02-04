@@ -1,0 +1,58 @@
+name: Test Ternary Kernel
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-kernel:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+        target: [x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run kernel tests
+      run: |
+        cd src/kernel
+        cargo test --verbose --target ${{ matrix.target }}
+        cargo test --verbose --target ${{ matrix.target }} -- --test-threads=1
+    
+    - name: Run integration tests
+      run: |
+        cd src/kernel
+        cargo test --verbose --target ${{ matrix.target }} --test integration
+    
+    - name: Run security tests
+      run: |
+        cd src/kernel
+        cargo test --verbose --target ${{ matrix.target }} --test security
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.rust }}-${{ matrix.target }}
+        path: |
+          src/kernel/target/**/test-results/

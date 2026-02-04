@@ -1,0 +1,67 @@
+title = "PQTI Secrets Detection Configuration"
+version = "2.1.0"
+
+[[rules]]
+description = "API Key"
+id = "api-key"
+regex = '''(?i)(api_key|apikey|secret_key|private_key|access_key|client_secret|client_key)["']?\s*[:=]\s*["'][a-z0-9]{32,}["']'''
+tags = ["key", "api"]
+
+[[rules]]
+description = "JWT Token"
+id = "jwt-token"
+regex = '''eyJ[a-zA-Z0-9_-]{5,}\.eyJ[a-zA-Z0-9_-]{5,}\.[a-zA-Z0-9_-]{10,}'''
+tags = ["key", "jwt"]
+
+[[rules]]
+description = "XRPL Secret"
+id = "xrpl-secret"
+regex = '''s[a-zA-Z0-9]{28,}'''
+tags = ["key", "xrpl"]
+
+[[rules]]
+description = "AWS Access Key"
+id = "aws-access-key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["key", "aws"]
+
+[[rules]]
+description = "SSH Private Key"
+id = "ssh-private-key"
+regex = '''-----BEGIN [A-Z]+ PRIVATE KEY-----'''
+tags = ["key", "ssh"]
+
+[[rules]]
+description = "Generic Secret"
+id = "generic-secret"
+regex = '''['\"]?secret['\"]?\s*[:=]\s*['\"][a-zA-Z0-9]{32,}['\"]'''
+tags = ["key", "secret"]
+
+[[rules]]
+description = "Kong Konnect Token"
+id = "kong-token"
+regex = '''konnect_[a-zA-Z0-9]{32,}'''
+tags = ["key", "kong"]
+
+[[rules]]
+description = "GitHub Token"
+id = "github-token"
+regex = '''gh[ps]_[a-zA-Z0-9]{36,}'''
+tags = ["key", "github"]
+
+[allowlist]
+paths = [
+    "docs/**",
+    "tests/**/*.json",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**",
+    "**/test-data/**",
+    "**/examples/**"
+]
+
+regexes = [
+    '''example.*key''',
+    '''test.*secret''',
+    '''demo.*token'''
+]

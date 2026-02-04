@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.get_version.outputs.version }}
+        release_name: Post-Quantum Ternary Internet v${{ steps.get_version.outputs.version }}
+        draft: true
+        prerelease: false
+  
+  build-and-upload:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_name: pqti-kernel-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_name: pqti-kernel-windows-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset_name: pqti-kernel-macos-x86_64
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        target: ${{ matrix.target }}
+    
+    - name: Build kernel
+      run: |
+        cd src/kernel
+        cargo build --release --target ${{ matrix.target }}
+    
+    - name: Build TSL compiler
+      run: |
+        cd src/tsl
+        cargo build --release --target ${{ matrix.target }}
+    
+    - name: Package release
+      run: |
+        mkdir -p release
+        cp src/kernel/target/${{ matrix.target }}/release/pqti-kernel* release/${{ matrix.asset_name }} || true
+        cp src/tsl/target/${{ matrix.target }}/release/tsl* release/tsl-${{ matrix.asset_name }} || true
+        
+        cd release
+        shasum -a 256 * > checksums.txt || true
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./release/${{ matrix.asset_name }}
+        asset_name: ${{ matrix.asset_name }}
+        asset_content_type: application/octet-stream
+
+  publish-docs:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Generate Rust documentation
+      run: |
+        cargo doc --no-deps --document-private-items --workspace
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+        destination_dir: ./api/v${{ needs.create-release.outputs.version }}
