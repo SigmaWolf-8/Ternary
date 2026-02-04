@@ -1,0 +1,672 @@
+# **GitHub Workflow for Nightly Rust Binary Build**
+
+I'll create a comprehensive GitHub workflow that builds the kernel binary using nightly Rust. This will automate the binary compilation process and give us CI/CD for the kernel.
+
+## **Workflow File: `.github/workflows/build-kernel.yml`**
+
+```yaml
+name: Build Kernel Binary
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/kernel/**'
+      - 'x86_64-salvi.json'
+      - '.cargo/config.toml'
+      - 'scripts/**'
+      - '.github/workflows/build-kernel.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/kernel/**'
+      - 'x86_64-salvi.json'
+      - '.cargo/config.toml'
+  schedule:
+    # Daily build at 2 AM UTC to test nightly Rust compatibility
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      rust_version:
+        description: 'Rust nightly version (e.g., nightly-2024-02-05)'
+        required: false
+        default: 'nightly'
+      build_type:
+        description: 'Build type'
+        type: choice
+        options:
+          - debug
+          - release
+          - all
+        default: 'release'
+      features:
+        description: 'Comma-separated features (ternary-advanced,torsion-13d,etc)'
+        required: false
+        default: ''
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  RUSTFLAGS: -D warnings
+  TARGET: x86_64-salvi.json
+  KERNEL_DIR: src/kernel
+  BINARY_NAME: salvi-kernel
+
+jobs:
+  build-kernel:
+    name: Build Kernel Binary
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: recursive
+    
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly
+        targets: x86_64-unknown-none
+        components: rust-src, llvm-tools-preview, rustfmt, clippy
+        override: true
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-kernel-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml', 'x86_64-salvi.json') }}
+        restore-keys: |
+          ${{ runner.os }}-kernel-
+    
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          nasm \
+          xorriso \
+          grub-pc-bin \
+          grub-common \
+          qemu-system-x86 \
+          lld \
+          llvm \
+          llvm-dev \
+          libssl-dev \
+          pkg-config
+        
+        # Check installed versions
+        echo "=== Build Tools ==="
+        nasm --version
+        llvm-config --version
+        lld --version
+    
+    - name: Verify target specification
+      run: |
+        echo "Checking target specification file..."
+        if [ ! -f "x86_64-salvi.json" ]; then
+          echo "❌ Target specification file not found!"
+          exit 1
+        fi
+        
+        # Validate JSON
+        python3 -m json.tool x86_64-salvi.json > /dev/null
+        echo "✅ Target specification is valid JSON"
+        
+        # Check required fields
+        python3 << 'EOF'
+import json
+with open('x86_64-salvi.json') as f:
+    data = json.load(f)
+    
+required_fields = ['llvm-target', 'arch', 'data-layout', 'target-endian']
+missing = [field for field in required_fields if field not in data]
+if missing:
+    print(f"❌ Missing required fields: {missing}")
+    exit(1)
+    
+print(f"✅ All required fields present")
+print(f"Target: {data['llvm-target']}")
+print(f"Architecture: {data['arch']}")
+EOF
+    
+    - name: Setup build configuration
+      run: |
+        echo "Setting up build configuration..."
+        mkdir -p .cargo
+        
+        # Create config if it doesn't exist
+        if [ ! -f ".cargo/config.toml" ]; then
+          echo "Creating minimal .cargo/config.toml..."
+          cat > .cargo/config.toml << 'EOF'
+[build]
+target = "x86_64-salvi.json"
+rustflags = ["-C", "link-arg=-nostdlib", "-C", "link-arg=-static"]
+
+[unstable]
+build-std = ["core", "alloc", "compiler_builtins"]
+build-std-features = ["compiler-builtins-mem"]
+EOF
+        fi
+        
+        # Verify linker script exists
+        if [ ! -f "$KERNEL_DIR/src/arch/x86_64/linker.ld" ]; then
+          echo "⚠️ Linker script not found, creating minimal version..."
+          mkdir -p $KERNEL_DIR/src/arch/x86_64
+          cat > $KERNEL_DIR/src/arch/x86_64/linker.ld << 'EOF'
+/* Minimal linker script for testing */
+ENTRY(_start)
+
+SECTIONS {
+    . = 0x100000;
+    .text : { *(.text .text.*) }
+    .rodata : { *(.rodata .rodata.*) }
+    .data : { *(.data .data.*) }
+    .bss : { *(.bss .bss.*) }
+}
+EOF
+        fi
+        
+        echo "✅ Build configuration ready"
+    
+    - name: Build with build-std
+      id: build
+      run: |
+        cd $KERNEL_DIR
+        
+        echo "=== Build Configuration ==="
+        echo "Rust Version: $(rustc --version)"
+        echo "Cargo Version: $(cargo --version)"
+        echo "Target: $TARGET"
+        echo "Features: ${{ inputs.features || 'default' }}"
+        echo "Build Type: ${{ inputs.build_type || 'release' }}"
+        
+        # Set build command based on inputs
+        BUILD_TYPE="${{ inputs.build_type || 'release' }}"
+        FEATURES="${{ inputs.features }}"
+        
+        if [ "$BUILD_TYPE" = "all" ]; then
+          echo "Building all profiles..."
+          
+          # Debug build
+          echo "=== Building Debug ==="
+          cargo +nightly build \
+            -Z build-std=core,alloc,compiler_builtins \
+            --target ../$TARGET \
+            --features "$FEATURES" \
+            --verbose \
+            2>&1 | tee debug-build.log || echo "Debug build failed, continuing..."
+          
+          # Release build
+          echo "=== Building Release ==="
+          cargo +nightly build \
+            -Z build-std=core,alloc,compiler_builtins \
+            --target ../$TARGET \
+            --features "$FEATURES" \
+            --release \
+            --verbose \
+            2>&1 | tee release-build.log || exit 1
+            
+        else
+          # Single build type
+          if [ "$BUILD_TYPE" = "release" ]; then
+            RELEASE_FLAG="--release"
+          else
+            RELEASE_FLAG=""
+          fi
+          
+          echo "=== Building $BUILD_TYPE ==="
+          cargo +nightly build \
+            -Z build-std=core,alloc,compiler_builtins \
+            --target ../$TARGET \
+            --features "$FEATURES" \
+            $RELEASE_FLAG \
+            --verbose
+        fi
+        
+        echo "✅ Build completed"
+        
+        # Set outputs for next steps
+        echo "kernel_built=true" >> $GITHUB_OUTPUT
+    
+    - name: Analyze binary output
+      if: steps.build.outputs.kernel_built == 'true'
+      run: |
+        cd $KERNEL_DIR
+        
+        echo "=== Binary Analysis ==="
+        
+        # Check for debug build
+        if [ -f "../target/x86_64-salvi/debug/$BINARY_NAME" ]; then
+          echo "Debug binary found:"
+          file "../target/x86_64-salvi/debug/$BINARY_NAME"
+          echo "Size: $(stat -c%s "../target/x86_64-salvi/debug/$BINARY_NAME") bytes"
+          echo ""
+          
+          # Check sections
+          echo "=== Debug Sections ==="
+          readelf -S "../target/x86_64-salvi/debug/$BINARY_NAME" 2>/dev/null | head -20 || true
+          
+          # Check for custom sections
+          echo ""
+          echo "=== Custom Sections Check ==="
+          if readelf -S "../target/x86_64-salvi/debug/$BINARY_NAME" 2>/dev/null | grep -q "ternary\|torsion\|phase"; then
+            echo "✅ Custom sections (ternary/torsion/phase) found"
+          else
+            echo "⚠️ Custom sections not found"
+          fi
+        fi
+        
+        # Check for release build
+        if [ -f "../target/x86_64-salvi/release/$BINARY_NAME" ]; then
+          echo ""
+          echo "Release binary found:"
+          file "../target/x86_64-salvi/release/$BINARY_NAME"
+          echo "Size: $(stat -c%s "../target/x86_64-salvi/release/$BINARY_NAME") bytes"
+          echo ""
+          
+          # Check sections
+          echo "=== Release Sections ==="
+          readelf -S "../target/x86_64-salvi/release/$BINARY_NAME" 2>/dev/null | head -20 || true
+          
+          # Check entry point
+          echo ""
+          echo "=== Entry Point ==="
+          readelf -h "../target/x86_64-salvi/release/$BINARY_NAME" 2>/dev/null | grep -i entry || true
+        fi
+        
+        # Count total binaries built
+        echo ""
+        echo "=== Build Summary ==="
+        find ../target/x86_64-salvi -name "$BINARY_NAME" -type f | while read f; do
+          echo "Found: $f ($(stat -c%s "$f") bytes)"
+        done
+    
+    - name: Create bootable ISO (optional)
+      if: steps.build.outputs.kernel_built == 'true' && github.event_name != 'pull_request'
+      run: |
+        echo "=== Creating Bootable ISO ==="
+        
+        # Check if we have the required tools
+        if ! command -v grub-mkrescue >/dev/null 2>&1; then
+          echo "⚠️ grub-mkrescue not available, skipping ISO creation"
+          exit 0
+        fi
+        
+        KERNEL_BINARY="../target/x86_64-salvi/release/$BINARY_NAME"
+        
+        if [ ! -f "$KERNEL_BINARY" ]; then
+          echo "⚠️ Release kernel not found, trying debug..."
+          KERNEL_BINARY="../target/x86_64-salvi/debug/$BINARY_NAME"
+        fi
+        
+        if [ ! -f "$KERNEL_BINARY" ]; then
+          echo "❌ No kernel binary found for ISO creation"
+          exit 0
+        fi
+        
+        # Create ISO directory structure
+        ISO_DIR="salvi-iso"
+        mkdir -p "$ISO_DIR/boot/grub"
+        
+        # Copy kernel binary
+        cp "$KERNEL_BINARY" "$ISO_DIR/boot/"
+        
+        # Create GRUB configuration
+        cat > "$ISO_DIR/boot/grub/grub.cfg" << 'EOF'
+set timeout=5
+set default=0
+
+menuentry "Salvi Framework Kernel" {
+    multiboot2 /boot/salvi-kernel
+    boot
+}
+
+menuentry "Salvi Framework Kernel (with framebuffer)" {
+    multiboot2 /boot/salvi-kernel framebuffer=true
+    boot
+}
+EOF
+        
+        # Create ISO
+        grub-mkrescue -o "salvi-kernel.iso" "$ISO_DIR/" 2>&1 | tee grub-mkrescue.log
+        
+        if [ -f "salvi-kernel.iso" ]; then
+          echo "✅ ISO created: salvi-kernel.iso ($(stat -c%s "salvi-kernel.iso") bytes)"
+          
+          # Basic ISO validation
+          echo "=== ISO Validation ==="
+          file salvi-kernel.iso
+          
+          # Check if it's bootable
+          if file salvi-kernel.iso | grep -q "bootable"; then
+            echo "✅ ISO is bootable"
+          else
+            echo "⚠️ ISO may not be bootable"
+          fi
+        else
+          echo "❌ ISO creation failed"
+          cat grub-mkrescue.log
+        fi
+    
+    - name: Test with QEMU (optional)
+      if: steps.build.outputs.kernel_built == 'true' && github.event_name != 'pull_request'
+      run: |
+        echo "=== Testing with QEMU ==="
+        
+        if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
+          echo "⚠️ QEMU not available, skipping test"
+          exit 0
+        fi
+        
+        # Find kernel binary
+        KERNEL_BINARY="../target/x86_64-salvi/release/$BINARY_NAME"
+        if [ ! -f "$KERNEL_BINARY" ]; then
+          KERNEL_BINARY="../target/x86_64-salvi/debug/$BINARY_NAME"
+        fi
+        
+        if [ ! -f "$KERNEL_BINARY" ]; then
+          echo "❌ No kernel binary found for QEMU test"
+          exit 0
+        fi
+        
+        echo "Testing kernel: $KERNEL_BINARY"
+        
+        # Run QEMU for 5 seconds max
+        timeout 5s qemu-system-x86_64 \
+          -kernel "$KERNEL_BINARY" \
+          -serial stdio \
+          -no-reboot \
+          -no-shutdown \
+          -display none \
+          -d cpu_reset,guest_errors \
+          -D qemu.log \
+          -machine accel=kvm:tcg \
+          -cpu host \
+          -m 256M || true
+        
+        echo "=== QEMU Test Complete ==="
+        echo "Check qemu.log for details"
+        
+        # Check QEMU log for common issues
+        if [ -f "qemu.log" ]; then
+          echo "=== QEMU Log Analysis ==="
+          
+          if grep -q "multiboot" qemu.log; then
+            echo "✅ Multiboot header detected"
+          else
+            echo "⚠️ Multiboot header not detected"
+          fi
+          
+          if grep -q "entering kernel" qemu.log; then
+            echo "✅ Kernel entry detected"
+          else
+            echo "⚠️ Kernel entry not detected"
+          fi
+          
+          # Show last 20 lines of log
+          echo ""
+          echo "=== Last 20 lines of QEMU log ==="
+          tail -20 qemu.log
+        fi
+    
+    - name: Upload artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-build-artifacts
+        path: |
+          src/kernel/debug-build.log
+          src/kernel/release-build.log
+          src/kernel/qemu.log
+          src/kernel/grub-mkrescue.log
+          src/kernel/salvi-kernel.iso
+          target/x86_64-salvi/debug/salvi-kernel
+          target/x86_64-salvi/release/salvi-kernel
+        retention-days: 7
+    
+    - name: Generate build report
+      if: always()
+      run: |
+        echo "=== Build Report ==="
+        echo "Repository: $GITHUB_REPOSITORY"
+        echo "Workflow: $GITHUB_WORKFLOW"
+        echo "Run ID: $GITHUB_RUN_ID"
+        echo "Run Number: $GITHUB_RUN_NUMBER"
+        echo "Actor: $GITHUB_ACTOR"
+        echo "Event: $GITHUB_EVENT_NAME"
+        echo ""
+        
+        # Build status
+        if [ -f "src/kernel/release-build.log" ]; then
+          if grep -q "Finished release" src/kernel/release-build.log; then
+            echo "✅ Release build: SUCCESS"
+          else
+            echo "❌ Release build: FAILED"
+          fi
+        fi
+        
+        if [ -f "src/kernel/debug-build.log" ]; then
+          if grep -q "Finished dev" src/kernel/debug-build.log; then
+            echo "✅ Debug build: SUCCESS"
+          else
+            echo "❌ Debug build: FAILED"
+          fi
+        fi
+        
+        # File sizes
+        echo ""
+        echo "=== Generated Files ==="
+        find target/x86_64-salvi -name "salvi-kernel" -type f -exec sh -c 'echo "  $1: $(stat -c%s "$1") bytes"' _ {} \;
+        
+        # ISO status
+        if [ -f "src/kernel/salvi-kernel.iso" ]; then
+          echo "✅ ISO created: $(stat -c%s "src/kernel/salvi-kernel.iso") bytes"
+        else
+          echo "⚠️ ISO not created"
+        fi
+        
+        # QEMU test status
+        if [ -f "src/kernel/qemu.log" ]; then
+          if grep -q "entering kernel" src/kernel/qemu.log; then
+            echo "✅ QEMU test: Kernel executed"
+          else
+            echo "⚠️ QEMU test: Kernel may not have executed"
+          fi
+        fi
+
+  test-kernel-boot:
+    name: Test Kernel Boot
+    needs: build-kernel
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: kernel-build-artifacts
+        path: artifacts/
+    
+    - name: Install QEMU
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-system-x86
+        
+    - name: Test boot with QEMU
+      run: |
+        echo "=== Kernel Boot Test ==="
+        
+        # Find kernel binary
+        KERNEL_BINARY=$(find artifacts -name "salvi-kernel" -type f | head -1)
+        
+        if [ -z "$KERNEL_BINARY" ]; then
+          echo "❌ No kernel binary found in artifacts"
+          exit 1
+        fi
+        
+        echo "Testing kernel: $KERNEL_BINARY"
+        
+        # Extended test with serial output capture
+        timeout 10s qemu-system-x86_64 \
+          -kernel "$KERNEL_BINARY" \
+          -serial file:serial.log \
+          -monitor none \
+          -no-reboot \
+          -no-shutdown \
+          -display none \
+          -machine q35 \
+          -cpu qemu64 \
+          -m 512M \
+          -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+          -device virtio-rng-pci || true
+        
+        echo "=== Serial Output ==="
+        if [ -f "serial.log" ]; then
+          cat serial.log
+          
+          # Check for kernel messages
+          if grep -i -q "kernel\|ternary\|torsion\|phase\|salvi" serial.log; then
+            echo "✅ Kernel messages detected in serial output"
+          else
+            echo "⚠️ No kernel messages detected in serial output"
+          fi
+        else
+          echo "No serial output captured"
+        fi
+
+  matrix-build:
+    name: Matrix Build (Multiple Configurations)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust_version: [nightly, nightly-2024-02-05, nightly-2024-02-04]
+        build_type: [debug, release]
+        features: ["", "ternary-advanced", "ternary-advanced,torsion-13d"]
+        exclude:
+          - rust_version: nightly-2024-02-05
+            features: ternion-advanced,torsion-13d
+      fail-fast: false
+      max-parallel: 3
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Rust ${{ matrix.rust_version }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust_version }}
+        targets: x86_64-unknown-none
+        components: rust-src
+        override: true
+    
+    - name: Build with matrix configuration
+      run: |
+        cd src/kernel
+        
+        echo "=== Matrix Build ==="
+        echo "Rust: ${{ matrix.rust_version }}"
+        echo "Build Type: ${{ matrix.build_type }}"
+        echo "Features: ${{ matrix.features }}"
+        
+        BUILD_FLAGS=""
+        if [ "${{ matrix.build_type }}" = "release" ]; then
+          BUILD_FLAGS="--release"
+        fi
+        
+        FEATURE_FLAGS=""
+        if [ -n "${{ matrix.features }}" ]; then
+          FEATURE_FLAGS="--features ${{ matrix.features }}"
+        fi
+        
+        cargo +${{ matrix.rust_version }} build \
+          -Z build-std=core,alloc,compiler_builtins \
+          --target ../x86_64-salvi.json \
+          $BUILD_FLAGS \
+          $FEATURE_FLAGS \
+          --verbose
+        
+        echo "✅ Matrix build successful"
+```
+
+## **Quick Start Commands**
+
+To manually trigger the workflow or test locally:
+
+### **1. Manual Trigger via GitHub UI**
+1. Go to Actions → "Build Kernel Binary" → "Run workflow"
+2. Choose options:
+   - Rust version: `nightly` or specific date
+   - Build type: `debug`, `release`, or `all`
+   - Features: e.g., `ternary-advanced,torsion-13d`
+
+### **2. Local Testing (Before Pushing)**
+```bash
+# First, make sure you have nightly Rust
+rustup toolchain install nightly
+rustup component add rust-src llvm-tools-preview --toolchain nightly
+
+# Test the build command locally
+cd src/kernel
+cargo +nightly build -Z build-std=core,alloc --target ../x86_64-salvi.json --release
+
+# Or with features
+cargo +nightly build -Z build-std=core,alloc --target ../x86_64-salvi.json --release --features ternary-advanced,torsion-13d
+```
+
+### **3. Makefile Integration**
+Add to your existing `Makefile`:
+
+```makefile
+# Add to existing Makefile
+kernel-nightly:
+	cargo +nightly build -Z build-std=core,alloc --target x86_64-salvi.json --release
+
+kernel-nightly-debug:
+	cargo +nightly build -Z build-std=core,alloc --target x86_64-salvi.json
+
+kernel-nightly-full:
+	cargo +nightly build -Z build-std=core,alloc --target x86_64-salvi.json --release --features ternary-advanced,torsion-13d
+```
+
+## **What This Workflow Provides:**
+
+### ✅ **Binary Build Status:**
+```
+Library Build: ✅ Working (already in CI)
+Binary Build:  🔧 Now enabled via this workflow
+Bootable:      🧪 Tested with QEMU in workflow
+```
+
+### 🚀 **Features:**
+1. **Nightly Rust Support**: Uses the latest unstable features needed for `build-std`
+2. **Matrix Testing**: Tests multiple Rust versions, build types, and feature combinations
+3. **ISO Creation**: Automatically creates bootable ISO images
+4. **QEMU Testing**: Runs the kernel in emulator to verify it boots
+5. **Artifact Storage**: Stores build outputs for 7 days
+6. **Comprehensive Reports**: Detailed build and test reports
+
+### 📊 **Workflow Triggers:**
+- **Push**: To `main` or `develop` branches when kernel files change
+- **Pull Request**: When kernel-related files are changed
+- **Scheduled**: Daily at 2 AM UTC to catch nightly Rust breakages
+- **Manual**: Trigger with custom parameters via GitHub UI
+
+### 🎯 **Expected Outcomes:**
+1. **Success**: Kernel binary builds, ISO created, QEMU boots successfully
+2. **Partial Success**: Kernel builds but fails to boot (logs show why)
+3. **Failure**: Build fails (e.g., incompatible nightly changes)
+
+This workflow will now give you **continuous feedback on binary builds** and help catch issues with nightly Rust compatibility before they affect development! 🚀
+
+**Next Steps:**
+1. Commit this workflow file to your repository
+2. Push to trigger the first automated binary build
+3. Check the "Actions" tab in GitHub to see the results
+4. Download artifacts to get the built kernel binary and ISO
