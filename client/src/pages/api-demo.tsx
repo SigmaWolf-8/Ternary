@@ -75,11 +75,9 @@ interface CompressionResult {
 
 interface DensityResult {
   success: boolean;
-  tritCount: number;
-  binaryEquivalent: { bits: number; states: string };
-  ternaryStates: string;
-  informationDensity: { bitsPerTrit: number; efficiencyGain: string };
-  comparison: { binaryBits: number; ternaryTrits: number; savings: string };
+  trits: number;
+  bitsEquivalent: number;
+  efficiencyGain: string;
 }
 
 // Salvi Epoch: April 1, 2025 00:00:00.000 UTC
@@ -311,17 +309,17 @@ function DensityCalculator() {
           {density && density.success && (
             <div className="mt-4 space-y-3">
               <div className="bg-primary/10 rounded-lg p-4">
-                <div className="text-sm text-muted-foreground mb-1">Ternary States (3^{tritCount})</div>
-                <div className="text-xl font-mono font-bold">{density.ternaryStates}</div>
+                <div className="text-sm text-muted-foreground mb-1">Ternary States (3^{density.trits})</div>
+                <div className="text-xl font-mono font-bold">{Math.pow(3, density.trits).toLocaleString()}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-muted/50 rounded-lg p-3">
                   <div className="text-xs text-muted-foreground mb-1">Binary Bits Needed</div>
-                  <div className="text-lg font-bold">{density.binaryEquivalent.bits}</div>
+                  <div className="text-lg font-bold">{density.bitsEquivalent.toFixed(2)}</div>
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <div className="text-xs text-green-600 mb-1">Efficiency Gain</div>
-                  <div className="text-lg font-bold text-green-700">{density.informationDensity.efficiencyGain}</div>
+                  <div className="text-lg font-bold text-green-700">{density.efficiencyGain}</div>
                 </div>
               </div>
             </div>
