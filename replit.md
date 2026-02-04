@@ -115,6 +115,17 @@ Based on the whitepaper's Unified Ternary Logic System:
 ## Kong Konnect API (API Gateway Integration)
 **Security Note**: All mutation endpoints (POST) and config access require admin authentication.
 
+**9 Kong Gateway Services** configured with rate limiting and security plugins:
+1. **plenumnet-timing** - Femtosecond Timing API
+2. **plenumnet-ternary** - Ternary Operations API  
+3. **plenumnet-phase** - Phase Encryption API
+4. **plenumnet-demo** - Demo Compression API
+5. **plenumnet-whitepapers** - Whitepaper API
+6. **plenumnet-docs** - API Documentation
+7. **plenumnet-github** - GitHub Integration API (Admin)
+8. **plenumnet-kong** - Kong Management API (Admin)
+9. **plenumnet-user** - User/Auth Status API
+
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/kong/status` | GET | Public | Check Kong Konnect connection status and user info |
