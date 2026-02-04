@@ -81,6 +81,7 @@ export default function GitHubManager() {
   const [showNewFile, setShowNewFile] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("main");
+  const [showTokenUpdate, setShowTokenUpdate] = useState(false);
   
   // Sorting and filtering state
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,6 +138,7 @@ export default function GitHubManager() {
       toast({ title: "Success", description: "GitHub token saved" });
       queryClient.invalidateQueries({ queryKey: ["/api/user/admin-status"] });
       setTokenInput("");
+      setShowTokenUpdate(false);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -460,6 +462,17 @@ export default function GitHubManager() {
             <Badge variant="secondary">{REPO_OWNER}/{REPO_NAME}</Badge>
           </div>
           <div className="flex items-center gap-2">
+            {adminStatus?.hasGithubToken && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTokenUpdate(!showTokenUpdate)}
+                data-testid="button-update-token"
+              >
+                <Key className="w-4 h-4 mr-1" />
+                {showTokenUpdate ? "Cancel" : "Update Token"}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -474,23 +487,26 @@ export default function GitHubManager() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {!adminStatus?.hasGithubToken ? (
+        {(!adminStatus?.hasGithubToken || showTokenUpdate) ? (
           <Card className="max-w-lg mx-auto">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
-                Configure GitHub Access
+                {showTokenUpdate ? "Update GitHub Token" : "Configure GitHub Access"}
               </CardTitle>
               <CardDescription>
-                Enter your GitHub Personal Access Token to manage files.
+                {showTokenUpdate 
+                  ? "Enter a new GitHub Personal Access Token. Include 'workflow' scope to push GitHub Actions."
+                  : "Enter your GitHub Personal Access Token to manage files."
+                }
                 <br />
                 <a
-                  href="https://github.com/settings/tokens/new?scopes=repo&description=PlenumNET-Framework"
+                  href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=PlenumNET-Framework"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  Create a new token with repo scope
+                  Create a new token with repo + workflow scope
                 </a>
               </CardDescription>
             </CardHeader>
