@@ -296,10 +296,10 @@ function HeroSection() {
           </motion.div>
           
           <div className="flex flex-wrap gap-8 md:gap-12 mt-16">
-            <AnimatedStat value="3" label="Ternary Representations" delay={0.4} />
-            <AnimatedStat value="log₂(3)" label="Bits per Trit" delay={0.5} />
-            <AnimatedStat value="GF(3)" label="Field Operations" delay={0.6} />
-            <AnimatedStat value="x86_64" label="Target Architecture" delay={0.7} />
+            <AnimatedStat value="+59%" label="Information Density" delay={0.4} />
+            <AnimatedStat value="1.585" label="Bits per Trit" delay={0.5} />
+            <AnimatedStat value="3:2" label="Compression Ratio" delay={0.6} />
+            <AnimatedStat value="3" label="Ternary Representations" delay={0.7} />
           </div>
         </div>
       </div>
@@ -549,15 +549,15 @@ function ComponentsSection() {
       ],
     },
     {
-      badge: "Demo",
+      badge: "+59% Efficiency",
       icon: Database,
       title: "PlenumDB",
-      description: "Interactive demonstration of ternary compression with live benchmarks.",
+      description: "Ternary compression achieving 59% more data per transfer. Live demo with real-time benchmarks.",
       features: [
-        "Live compression demo",
-        "Information density comparison",
-        "Ternary storage format",
-        "Real-time benchmarks",
+        "59% information density gain",
+        "3:2 binary-to-ternary compression",
+        "Live compression benchmarks",
+        "Native ternary storage format",
       ],
       link: "/ternarydb",
     },
@@ -626,12 +626,12 @@ function ComponentsSection() {
 
 function ComparisonSection() {
   const comparisonItems = [
+    { label: "Information per Digit", current: "1.0 bit", ternary: "1.585 bits (+59%)", ternaryGood: true },
+    { label: "Storage Efficiency", current: "Baseline", ternary: "3:2 compression ratio", ternaryGood: true },
     { label: "Logic Base", current: "Binary (2 states)", ternary: "Ternary (3 states)", ternaryGood: true },
-    { label: "Information per Digit", current: "1.0 bit", ternary: "log₂(3) ≈ 1.585 bits", ternaryGood: true },
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", ternaryGood: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) field operations", ternaryGood: true },
     { label: "Hardware Target", current: "Binary only", ternary: "Binary-compatible + ternary-ready", ternaryGood: true },
-    { label: "Source Availability", current: "Varies", ternary: "Open Source on GitHub", ternaryGood: true },
   ];
 
   return (
