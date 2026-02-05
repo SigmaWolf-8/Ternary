@@ -1,0 +1,1424 @@
+# **Unified Ternary-Torsion Payment & Witnessing Architecture: Complete API Specification v1.0**
+
+## **Executive Summary**
+This document provides complete technical specifications for all APIs required to implement the unified payment, witnessing, and application architecture. It integrates femtosecond timing, multi-blockchain orchestration, and ternary-torsion operations into a cohesive system.
+
+---
+
+## **I. Core API Architecture Overview**
+
+### **A. System Component Relationships**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Payment       │    │  Salvi Framework │    │  Blockchain     │
+│   Gateways      │───▶│  Kernel (SFK)    │───▶│  Networks       │
+│   (Stripe,      │    │  Microservices   │    │  (Hedera, XRPL, │
+│   Interac, etc.)│    │                  │    │  Algorand)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │ Webhooks              │ Internal APIs         │ Native APIs
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Payment       │    │  API Gateway    │    │  Blockchain     │
+│   Listener      │    │  (Kong Konnect) │    │  Clients        │
+│   Service       │    │                 │    │  (SDKs)         │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### **B. Data Flow with Femtosecond Timing**
+1. **Payment Trigger**: External payment → Webhook → Payment Listener
+2. **SFK Orchestration**: Payment validated → Business logic triggered
+3. **Witnessing Phase**: Data hashed → Submitted to Hedera HCS with femtosecond timestamp
+4. **Settlement Phase**: Value transferred on XRPL with timing proof
+5. **Application Phase**: Smart contract execution on Algorand
+
+---
+
+## **II. Complete API Specifications**
+
+### **A. Payment Listener API**
+
+#### **A.1. Webhook Ingestion Endpoints**
+
+**Endpoint:** `POST /webhooks/payments`
+- **Purpose**: Receive and validate payment webhooks from all sources
+- **Authentication**: Source-specific signature validation
+- **Rate Limiting**: 1000 requests/minute per source
+
+**Request Headers (Stripe Example):**
+```http
+POST /webhooks/payments HTTP/1.1
+Host: api.salvi-framework.com
+Content-Type: application/json
+Stripe-Signature: t=1672531200,v1=abc123...
+User-Agent: Stripe/1.0
+```
+
+**Request Body Structure:**
+```json
+{
+  "id": "evt_1PkGo2Fz9Xr4Fy7dZq3jKlmp",
+  "type": "payment_intent.succeeded",
+  "created": 1672531200,
+  "data": {
+    "object": {
+      "id": "pi_3PkGo1Fz9Xr4Fy7d1pJklmOp",
+      "amount": 19900,
+      "currency": "cad",
+      "customer": "cus_Qz1Cw9qF3p2xkJ",
+      "metadata": {
+        "salvi_batch_ref": "BATCH_XYZ123",
+        "kernel_op_id": "OP_001",
+        "target_security_mode": "phi_plus"
+      }
+    }
+  }
+}
+```
+
+**Response Codes:**
+- `202 Accepted`: Webhook received and queued for processing
+- `400 Bad Request`: Invalid webhook signature or format
+- `429 Too Many Requests`: Rate limit exceeded
+
+#### **A.2. Payment Status API**
+
+**Endpoint:** `GET /api/v1/payments/{payment_id}`
+**Response:**
+```json
+{
+  "payment_id": "pi_3PkGo1Fz9Xr4Fy7d1pJklmOp",
+  "status": "settled",
+  "amount": 19900,
+  "currency": "CAD",
+  "settled_at": "2026-02-05T10:30:00Z",
+  "gateway": "stripe",
+  "salvi_references": {
+    "batch_ref": "BATCH_XYZ123",
+    "kernel_op_id": "OP_001",
+    "witness_tx_id": "0.0.12345@1672531200.123456789"
+  },
+  "timing_metadata": {
+    "received_at": "2026-02-05T10:30:00.123456789Z",
+    "processed_at": "2026-02-05T10:30:00.234567890Z",
+    "total_latency_ns": 111111111
+  }
+}
+```
+
+### **B. SFK Core API**
+
+#### **B.1. Payment Confirmation API**
+
+**Endpoint:** `POST /api/sfk/v1/operations`
+- **Purpose**: Trigger SFK operations based on validated payments
+- **Authentication**: Kong Konnect API Key + JWT token
+
+**Request:**
+```json
+{
+  "operation": {
+    "id": "sfk_op_9a8b7c6d5e",
+    "type": "TERNARY_BATCH_PROCESSING",
+    "trigger": {
+      "payment_id": "pi_3PkGo1Fz9Xr4Fy7d1pJklmOp",
+      "gateway": "stripe",
+      "settled_amount": 19900,
+      "settled_currency": "CAD"
+    },
+    "parameters": {
+      "security_mode": "phi_plus",
+      "phase_offset": 4,
+      "torsion_dimensions": 10,
+      "batch_size": 1000
+    },
+    "timing": {
+      "requested_start_window": "2026-02-05T10:30:00Z",
+      "max_duration_ns": 1000000000,
+      "femtosecond_sync_required": true
+    }
+  },
+  "metadata": {
+    "salvi_batch_ref": "BATCH_XYZ123",
+    "customer_id": "cus_Qz1Cw9qF3p2xkJ",
+    "correlation_id": "corr_abc123"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "operation": {
+    "id": "sfk_op_9a8b7c6d5e",
+    "status": "queued",
+    "estimated_start": "2026-02-05T10:30:05Z",
+    "witnessing_required": true,
+    "settlement_required": true
+  },
+  "actions": {
+    "witness": {
+      "endpoint": "/internal/api/hedera/v1/witness",
+      "method": "POST",
+      "payload_template": "merkle_root_batch"
+    },
+    "settle": {
+      "endpoint": "/internal/api/xrpl/v1/payments",
+      "method": "POST",
+      "token": "TAT"
+    }
+  },
+  "timing_guarantees": {
+    "witness_completion_max_ns": 5000000000,
+    "settlement_completion_max_ns": 10000000000,
+    "femtosecond_accuracy": "10^-15 seconds"
+  }
+}
+```
+
+#### **B.2. Operation Status API**
+
+**Endpoint:** `GET /api/sfk/v1/operations/{operation_id}`
+**Response:**
+```json
+{
+  "operation": {
+    "id": "sfk_op_9a8b7c6d5e",
+    "status": "in_progress",
+    "phase": "witnessing",
+    "progress": 0.4,
+    "current_step": "HEDERA_HCS_SUBMISSION"
+  },
+  "components": {
+    "witnessing": {
+      "status": "submitted",
+      "hedera_tx_id": "0.0.12345@1672531200.123456789",
+      "consensus_timestamp": "2026-02-05T10:30:00.123456789Z"
+    },
+    "settlement": {
+      "status": "pending",
+      "estimated_start": "2026-02-05T10:30:02Z"
+    },
+    "ternary_processing": {
+      "status": "queued",
+      "estimated_duration_ns": 2500000000
+    }
+  },
+  "timing_metrics": {
+    "queued_at": "2026-02-05T10:30:00.100000000Z",
+    "started_at": "2026-02-05T10:30:00.200000000Z",
+    "current_timestamp": "2026-02-05T10:30:00.600000000Z",
+    "elapsed_ns": 400000000
+  }
+}
+```
+
+### **C. Blockchain Integration APIs**
+
+#### **C.1. Hedera Witnessing Service API**
+
+**Endpoint:** `POST /internal/api/hedera/v1/witness`
+- **Purpose**: Submit data to Hedera Consensus Service for immutable timestamping
+
+**Request:**
+```json
+{
+  "operation_id": "sfk_op_9a8b7c6d5e",
+  "witness_type": "MERKLE_ROOT_BATCH",
+  "payload": {
+    "hash": "a1b2c3d4e5f678901234567890123456789012345678901234567890123456",
+    "hash_algorithm": "SHA256",
+    "encoding": "hex"
+  },
+  "metadata": {
+    "salvi_batch_ref": "BATCH_XYZ123",
+    "kernel_op_id": "OP_001",
+    "ternary_context": {
+      "security_mode": "phi_plus",
+      "phase_offset": 4,
+      "torsion_dimensions": 10,
+      "batch_size": 1000,
+      "operation_count": 750
+    },
+    "payment_context": {
+      "gateway": "stripe",
+      "payment_id": "pi_3PkGo1Fz9Xr4Fy7d1pJklmOp",
+      "amount": 19900,
+      "currency": "CAD"
+    },
+    "timing": {
+      "batch_start_ts": "2026-02-05T10:29:55.123456789Z",
+      "batch_end_ts": "2026-02-05T10:30:00.123456789Z",
+      "duration_ns": 5000000000,
+      "femtosecond_sync_accuracy": 15
+    }
+  },
+  "topic": {
+    "id": "0.0.54321",
+    "memo": "Salvi Framework Batch Witnessing"
+  },
+  "submission": {
+    "max_fee_hbar": 1.0,
+    "submit_key": "operator_key_1",
+    "require_consensus": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": {
+    "id": "0.0.12345@1672531200.123456789",
+    "status": "SUCCESS",
+    "consensus_timestamp": "2026-02-05T10:30:00.123456789Z",
+    "topic_id": "0.0.54321",
+    "sequence_number": 789,
+    "running_hash": "b2c3d4e5f678901234567890123456789012345678901234567890123456a1",
+    "chunk_info": {
+      "total": 1,
+      "number": 1,
+      "initial_transaction_id": "0.0.12345@1672531200.123456789"
+    }
+  },
+  "costs": {
+    "fee_hbar": 0.0008,
+    "fee_usd": 0.0008,
+    "exchange_rate": 1.0
+  },
+  "verification": {
+    "verifiable": true,
+    "proof_available": true,
+    "query_endpoints": [
+      "https://mainnet-public.mirrornode.hedera.com/api/v1/topics/0.0.54321/messages/789"
+    ]
+  },
+  "timing": {
+    "submitted_at": "2026-02-05T10:30:00.100000000Z",
+    "consensus_at": "2026-02-05T10:30:00.123456789Z",
+    "latency_ns": 23456789
+  }
+}
+```
+
+#### **C.2. XRPL Payment Service API**
+
+**Endpoint:** `POST /internal/api/xrpl/v1/payments`
+- **Purpose**: Execute payments and token transfers on XRPL
+
+**Request:**
+```json
+{
+  "operation_id": "sfk_op_9a8b7c6d5e",
+  "transaction": {
+    "type": "Payment",
+    "account": "rCapomastroTreasury...",
+    "destination": "rUserWalletAddress...",
+    "amount": {
+      "value": "150.75",
+      "currency": "TAT",
+      "issuer": "rCapomastroIssuer..."
+    },
+    "fee": "12",
+    "sequence": 123456,
+    "last_ledger_sequence": 82571345
+  },
+  "memos": [
+    {
+      "type": "SalviPayment",
+      "format": "json",
+      "data": {
+        "salvi_batch_ref": "BATCH_XYZ123",
+        "hedera_tx_id": "0.0.12345@1672531200.123456789",
+        "purpose": "TAT_REWARD_BATCH_VALIDATION",
+        "ternary_metrics": {
+          "operations_count": 1000,
+          "success_rate": 0.998,
+          "average_latency_ns": 1500000
+        }
+      }
+    }
+  ],
+  "signing": {
+    "key_type": "family_seed",
+    "key_reference": "xrpl_signer_1",
+    "multi_sig": false
+  },
+  "submission": {
+    "max_retries": 3,
+    "timeout_ms": 10000,
+    "require_validation": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": {
+    "hash": "ABC123DEF4567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890",
+    "ledger_index": 82571340,
+    "fee": "12",
+    "validated": true,
+    "timestamp": 1672531200,
+    "meta": {
+      "transaction_result": "tesSUCCESS",
+      "delivered_amount": "150.75",
+      "balance_changes": {
+        "sender": "-150.75",
+        "receiver": "+150.75"
+      }
+    }
+  },
+  "costs": {
+    "fee_xrp": "0.000012",
+    "fee_usd": "0.000006",
+    "network_load": 1
+  },
+  "verification": {
+    "explorer_url": "https://livenet.xrpl.org/transactions/ABC123DEF4567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890",
+    "api_endpoint": "https://s2.ripple.com:51234/"
+  },
+  "timing": {
+    "submitted_at": "2026-02-05T10:30:02.100000000Z",
+    "validated_at": "2026-02-05T10:30:05.500000000Z",
+    "confirmation_latency_ns": 3400000000
+  }
+}
+```
+
+#### **C.3. Algorand Smart Contract Service API**
+
+**Endpoint:** `POST /internal/api/algorand/v1/application/call`
+- **Purpose**: Interact with Algorand smart contracts for governance and rewards
+
+**Request:**
+```json
+{
+  "operation_id": "sfk_op_9a8b7c6d5e",
+  "application": {
+    "id": 123456789,
+    "type": "stateful",
+    "name": "TernaryRewardDistributor"
+  },
+  "call": {
+    "method": "claim_reward",
+    "sender": "CAPOMASTRO_OPERATOR_ADDRESS",
+    "app_args": [
+      "claim_reward",
+      "BATCH_XYZ123",
+      "0.0.12345@1672531200.123456789"
+    ],
+    "accounts": [
+      "USER_ALGORAND_ADDRESS"
+    ],
+    "foreign_apps": [987654321],
+    "foreign_assets": [555555555]
+  },
+  "payment": {
+    "required": true,
+    "amount": 1000,
+    "receiver": "APPLICATION_ESCROW_ADDRESS"
+  },
+  "signing": {
+    "key_type": "mnemonic",
+    "key_reference": "algorand_signer_1"
+  },
+  "submission": {
+    "wait_for_confirmation": true,
+    "confirmation_wait_rounds": 4,
+    "timeout_ms": 30000
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": {
+    "id": "XYZ789ABC1234567890DEF1234567890ABCDEF1234567890ABCDEF1234567890",
+    "confirmed_round": 24567890,
+    "sender": "CAPOMASTRO_OPERATOR_ADDRESS",
+    "application_index": 123456789,
+    "inner_txns": [
+      {
+        "type": "axfer",
+        "asset_id": 555555555,
+        "amount": 1500,
+        "receiver": "USER_ALGORAND_ADDRESS"
+      }
+    ],
+    "logs": [
+      "Reward claimed for batch BATCH_XYZ123",
+      "Amount: 1500 TAT",
+      "Phase multiplier: 1.0"
+    ]
+  },
+  "application_state": {
+    "global_state": {
+      "total_rewards_distributed": "1500000",
+      "last_batch_processed": "BATCH_XYZ123"
+    },
+    "local_state": {
+      "user_claimed": true,
+      "claim_timestamp": 1672531200,
+      "amount_claimed": 1500
+    }
+  },
+  "costs": {
+    "fee_microalgos": 1000,
+    "fee_usd": "0.0001",
+    "min_balance_increase": 100000
+  },
+  "timing": {
+    "submitted_at": "2026-02-05T10:30:06.000000000Z",
+    "confirmed_at": "2026-02-05T10:30:06.500000000Z",
+    "confirmation_latency_ns": 500000000
+  }
+}
+```
+
+### **D. Timing & Synchronization APIs**
+
+#### **D.1. Femtosecond Timing Service API**
+
+**Endpoint:** `GET /api/timing/v1/current`
+**Response:**
+```json
+{
+  "timestamp": {
+    "iso8601": "2026-02-05T10:30:00.123456789123Z",
+    "unix_nanoseconds": 1672531200123456789,
+    "femtoseconds": 1672531200123456789123,
+    "femtoseconds_since_epoch": 1234567890123456789
+  },
+  "source": {
+    "type": "optical_atomic_clock",
+    "id": "clock_001",
+    "accuracy_fs": 10,
+    "uncertainty_fs": 5,
+    "traceability": "UTC(NIST) via GPS"
+  },
+  "synchronization": {
+    "status": "synchronized",
+    "offset_from_master_fs": 15,
+    "drift_rate_fs_per_second": 0.001,
+    "last_sync_at": "2026-02-05T10:29:59.999999999Z"
+  },
+  "metadata": {
+    "protocol": "HPTP",
+    "version": "1.0",
+    "leap_second_info": {
+      "current_offset": 37,
+      "next_scheduled": "2026-06-30T23:59:60Z"
+    }
+  }
+}
+```
+
+#### **D.2. Timing Certification API**
+
+**Endpoint:** `POST /api/timing/v1/certify`
+**Request:**
+```json
+{
+  "operation_id": "sfk_op_9a8b7c6d5e",
+  "events": [
+    {
+      "name": "payment_received",
+      "timestamp_fs": 1672531200123456789123,
+      "source": "stripe_webhook",
+      "uncertainty_fs": 1000
+    },
+    {
+      "name": "witness_submitted",
+      "timestamp_fs": 1672531200123456789234,
+      "source": "hedera_hcs",
+      "uncertainty_fs": 50
+    }
+  ],
+  "requirements": {
+    "max_total_uncertainty_fs": 10000,
+    "required_sources": ["atomic_clock", "gps_disciplined"],
+    "certification_level": "financial"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "certification": {
+    "id": "time_cert_abc123",
+    "operation_id": "sfk_op_9a8b7c6d5e",
+    "status": "certified",
+    "level": "financial",
+    "valid_from": "2026-02-05T10:30:00.123456789Z",
+    "valid_until": "2026-02-05T10:30:10.123456789Z"
+  },
+  "metrics": {
+    "total_uncertainty_fs": 1050,
+    "worst_case_error_fs": 2000,
+    "meets_requirements": true
+  },
+  "proof": {
+    "merkle_root": "proof_hash_123...",
+    "inclusion_proof": ["hash1", "hash2"],
+    "timestamp_proof": {
+      "hedera_tx_id": "0.0.67890@1672531200.234567890",
+      "consensus_timestamp": "2026-02-05T10:30:00.234567890Z"
+    }
+  },
+  "signatures": [
+    {
+      "signer": "salvi_timing_authority",
+      "algorithm": "Ed25519",
+      "signature": "sig_123...",
+      "timestamp_fs": 1672531200123456789456
+    }
+  ]
+}
+```
+
+---
+
+## **III. Complete Data Schema Specifications**
+
+### **A. Unified Operation Metadata Schema**
+
+```typescript
+interface UnifiedOperationMetadata {
+  // Core Identifiers
+  salvi_batch_ref: string;          // BATCH_XYZ123
+  kernel_op_id: string;             // OP_001
+  correlation_id: string;           // corr_abc123
+  
+  // Ternary Context
+  ternary_context: {
+    security_mode: 'phi_plus' | 'phi' | 'one' | 'zero';
+    phase_offset: number;           // 1-10 degrees
+    torsion_dimensions: number;     // 7, 10, or 13
+    batch_size: number;
+    operation_count: number;
+    femtosecond_sync_required: boolean;
+  };
+  
+  // Payment Context
+  payment_context: {
+    gateway: 'stripe' | 'interac_etransfer' | 'crypto_gateway';
+    payment_id: string;
+    amount: number;
+    currency: string;
+    settled_at: string;             // ISO 8601
+  };
+  
+  // Timing Context
+  timing_context: {
+    batch_start_ts: string;         // ISO 8601 with femtoseconds
+    batch_end_ts: string;           // ISO 8601 with femtoseconds
+    duration_ns: number;
+    femtosecond_accuracy: number;   // 10^-15 seconds accuracy
+    clock_source: {
+      type: string;
+      id: string;
+      traceability: string;
+    };
+  };
+  
+  // Blockchain References (populated post-execution)
+  blockchain_refs?: {
+    hedera?: {
+      topic_id: string;
+      sequence_number: number;
+      consensus_timestamp: string;
+      transaction_id: string;
+    };
+    xrpl?: {
+      transaction_hash: string;
+      ledger_index: number;
+      validated: boolean;
+    };
+    algorand?: {
+      transaction_id: string;
+      confirmed_round: number;
+      application_id: number;
+    };
+  };
+  
+  // Results
+  results?: {
+    success: boolean;
+    error?: string;
+    metrics: {
+      operations_per_second: number;
+      average_latency_ns: number;
+      success_rate: number;
+      energy_efficiency_gain: number;
+    };
+  };
+}
+```
+
+### **B. Payment Webhook Schema Registry**
+
+```json
+{
+  "schemas": {
+    "stripe": {
+      "validation": {
+        "signature_header": "Stripe-Signature",
+        "algorithm": "sha256",
+        "tolerance_seconds": 300
+      },
+      "event_types": {
+        "payment_succeeded": "payment_intent.succeeded",
+        "payment_failed": "payment_intent.payment_failed",
+        "charge_refunded": "charge.refunded"
+      },
+      "metadata_mapping": {
+        "salvi_batch_ref": "metadata.salvi_batch_ref",
+        "kernel_op_id": "metadata.kernel_op_id"
+      }
+    },
+    "interac_etransfer": {
+      "validation": {
+        "signature_header": "X-JPMC-Signature",
+        "algorithm": "hmac-sha256",
+        "tolerance_seconds": 300
+      },
+      "event_types": {
+        "payment_completed": "payment.completed",
+        "payment_failed": "payment.failed"
+      },
+      "metadata_mapping": {
+        "salvi_batch_ref": "remittance_info",
+        "kernel_op_id": "client_reference"
+      }
+    },
+    "crypto_gateway": {
+      "validation": {
+        "signature_header": "X-CC-Webhook-Signature",
+        "algorithm": "hmac-sha512",
+        "tolerance_seconds": 600
+      },
+      "event_types": {
+        "invoice_paid": "invoice_paid",
+        "payment_confirmed": "payment_confirmed"
+      }
+    }
+  }
+}
+```
+
+---
+
+## **IV. Algorand Smart Contract Specifications**
+
+### **A. Ternary Governance Contract (TAT-GOV-001)**
+
+**PyTEAL Implementation:**
+```python
+from pyteal import *
+
+def approval_program():
+    # Global State Keys
+    tat_asset_id_key = Bytes("tat_asset_id")
+    governance_admin_key = Bytes("governance_admin")
+    batch_reward_key = Bytes("batch_reward")
+    active_modes_key = Bytes("active_modes")
+    
+    # On initialization
+    on_creation = Seq([
+        App.globalPut(tat_asset_id_key, Int(0)),
+        App.globalPut(governance_admin_key, Txn.sender()),
+        App.globalPut(batch_reward_key, Int(1000)),  # Base reward in micro-TAT
+        App.globalPut(active_modes_key, Bytes("phi_plus,phi,one")),
+        Approve()
+    ])
+    
+    # Bootstrap method
+    bootstrap = Seq([
+        Assert(Global.group_size() == Int(1)),
+        Assert(Txn.application_args[0] == Bytes("bootstrap")),
+        Assert(App.globalGet(tat_asset_id_key) == Int(0)),
+        
+        # Set TAT asset ID
+        App.globalPut(tat_asset_id_key, Btoi(Txn.application_args[1])),
+        
+        # Initialize other parameters
+        App.globalPut(batch_reward_key, Btoi(Txn.application_args[2])),
+        Approve()
+    ])
+    
+    # Update reward method
+    update_reward = Seq([
+        Assert(Global.group_size() == Int(1)),
+        Assert(Txn.application_args[0] == Bytes("update_reward")),
+        Assert(Txn.sender() == App.globalGet(governance_admin_key)),
+        
+        App.globalPut(batch_reward_key, Btoi(Txn.application_args[1])),
+        Approve()
+    ])
+    
+    # Read configuration
+    get_config = Seq([
+        Assert(Txn.application_args[0] == Bytes("get_config")),
+        
+        # Return all config values
+        Log(Itob(App.globalGet(tat_asset_id_key))),
+        Log(App.globalGet(governance_admin_key)),
+        Log(Itob(App.globalGet(batch_reward_key))),
+        Log(App.globalGet(active_modes_key)),
+        Approve()
+    ])
+    
+    # Router
+    program = Cond(
+        [Txn.application_id() == Int(0), on_creation],
+        [Txn.application_args[0] == Bytes("bootstrap"), bootstrap],
+        [Txn.application_args[0] == Bytes("update_reward"), update_reward],
+        [Txn.application_args[0] == Bytes("get_config"), get_config]
+    )
+    
+    return program
+
+def clear_state_program():
+    return Approve()
+```
+
+### **B. Ternary Reward Distributor (TAT-DIST-001)**
+
+**PyTEAL Implementation with Oracle Verification:**
+```python
+from pyteal import *
+
+def approval_program():
+    # State Keys
+    claimed_batches_key = Bytes("claimed_batches")
+    oracle_address_key = Bytes("oracle_address")
+    gov_app_id_key = Bytes("gov_app_id")
+    
+    # Phase multiplier calculation
+    def calculate_phase_multiplier(phase_offset):
+        # Simplified phase multiplier based on offset
+        # 1°: 0.8, 4°: 1.0, 10°: 1.2, others interpolated
+        return Cond(
+            [phase_offset == Int(1), Int(800)],   # 0.8 * 1000
+            [phase_offset == Int(4), Int(1000)],  # 1.0 * 1000
+            [phase_offset == Int(10), Int(1200)], # 1.2 * 1000
+            Int(1000)  # Default
+        )
+    
+    # Claim reward method
+    claim_reward = Seq([
+        Assert(Global.group_size() >= Int(2)),
+        Assert(Txn.application_args[0] == Bytes("claim_reward")),
+        
+        # Extract arguments
+        salvi_batch_ref = Txn.application_args[1],
+        hedera_tx_id = Txn.application_args[2],
+        
+        # Verify batch not already claimed
+        batch_key = Concat(claimed_batches_key, salvi_batch_ref),
+        Assert(App.globalGet(batch_key) == Int(0)),
+        
+        # Verify oracle signature (simplified - would use Ed25519Verify in production)
+        oracle_txn = Gtxn[1],  # Oracle verification transaction
+        Assert(oracle_txn.type_enum() == TxnType.Payment),
+        Assert(oracle_txn.sender() == App.globalGet(oracle_address_key)),
+        Assert(oracle_txn.receiver() == Global.current_application_address()),
+        
+        # Extract verified metadata from oracle note field
+        oracle_note = oracle_txn.note(),
+        
+        # Parse verified data (simplified parsing)
+        # In production, would use proper ABI encoding
+        verified_batch_ref = Extract(oracle_note, Int(0), Int(32)),
+        verified_security_mode = Extract(oracle_note, Int(32), Int(16)),
+        verified_phase_offset = Btoi(Extract(oracle_note, Int(48), Int(2))),
+        
+        # Verify batch ref matches
+        Assert(verified_batch_ref == salvi_batch_ref),
+        
+        # Get base reward from governance contract
+        gov_app_id = App.globalGet(gov_app_id_key),
+        base_reward = ScratchVar(),
+        Seq([
+            # Inner app call to governance contract
+            InnerTxnBuilder.Begin(),
+            InnerTxnBuilder.SetFields({
+                TxnField.type_enum: TxnType.ApplicationCall,
+                TxnField.application_id: gov_app_id,
+                TxnField.application_args: [Bytes("get_base_reward"), salvi_batch_ref],
+                TxnField.fee: Int(0)
+            }),
+            InnerTxnBuilder.Submit(),
+            
+            # Store result (simplified - would parse actual response)
+            base_reward.store(Int(1000))
+        ]),
+        
+        # Calculate final reward
+        phase_multiplier = calculate_phase_multiplier(verified_phase_offset),
+        final_reward = base_reward.load() * phase_multiplier / Int(1000),
+        
+        # Transfer TAT to claimant
+        tat_asset_id = App.globalGet(Bytes("tat_asset_id")),
+        Seq([
+            InnerTxnBuilder.Begin(),
+            InnerTxnBuilder.SetFields({
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: tat_asset_id,
+                TxnField.asset_amount: final_reward,
+                TxnField.asset_receiver: Txn.sender(),
+                TxnField.fee: Int(0)
+            }),
+            InnerTxnBuilder.Submit()
+        ]),
+        
+        # Mark batch as claimed
+        App.globalPut(batch_key, Int(1)),
+        
+        # Log success
+        Log(Concat(Bytes("Reward claimed: "), salvi_batch_ref)),
+        Log(Concat(Bytes("Amount: "), Itob(final_reward))),
+        Approve()
+    ])
+    
+    # Program router
+    program = Cond(
+        [Txn.application_args[0] == Bytes("claim_reward"), claim_reward]
+    )
+    
+    return program
+```
+
+### **C. Oracle Bridge Contract**
+
+**TypeScript Implementation for Hedera-Algorand Bridge:**
+```typescript
+import { HCSMessage, ConsensusMessageSubmitTransaction } from '@hashgraph/sdk';
+import { Algodv2, makeApplicationCallTxnFromObject } from 'algosdk';
+
+class HederaAlgorandOracle {
+    private hederaClient: any;
+    private algorandClient: Algodv2;
+    private oracleAccount: any;
+    
+    async verifyAndForward(
+        hederaTopicId: string,
+        sequenceNumber: number,
+        algorandAppId: number,
+        userAddress: string
+    ): Promise<string> {
+        // 1. Fetch HCS message from Hedera
+        const message = await this.fetchHCSMessage(hederaTopicId, sequenceNumber);
+        
+        // 2. Verify message integrity and signatures
+        const verified = await this.verifyHCSMessage(message);
+        if (!verified) {
+            throw new Error('HCS message verification failed');
+        }
+        
+        // 3. Parse payload metadata
+        const metadata = this.parsePayloadMetadata(message.contents);
+        
+        // 4. Create Algorand transaction with verified data
+        const appArgs = [
+            new Uint8Array(Buffer.from('verify_witness')),
+            new Uint8Array(Buffer.from(metadata.salviBatchRef)),
+            new Uint8Array(Buffer.from(message.consensusTimestamp.toString()))
+        ];
+        
+        const txn = makeApplicationCallTxnFromObject({
+            from: this.oracleAccount.addr,
+            appIndex: algorandAppId,
+            appArgs: appArgs,
+            note: new Uint8Array(Buffer.from(JSON.stringify(metadata))),
+            suggestedParams: await this.algorandClient.getTransactionParams().do()
+        });
+        
+        // 5. Sign and submit
+        const signedTxn = txn.signTxn(this.oracleAccount.sk);
+        const txId = await this.algorandClient.sendRawTransaction(signedTxn).do();
+        
+        // 6. Wait for confirmation
+        await this.waitForConfirmation(txId.txId);
+        
+        return txId.txId;
+    }
+    
+    private async fetchHCSMessage(topicId: string, sequenceNumber: number): Promise<any> {
+        // Implementation using Hedera Mirror Node REST API
+        const response = await fetch(
+            `https://mainnet-public.mirrornode.hedera.com/api/v1/topics/${topicId}/messages/${sequenceNumber}`
+        );
+        return response.json();
+    }
+    
+    private parsePayloadMetadata(contents: Uint8Array): any {
+        const jsonStr = new TextDecoder().decode(contents);
+        return JSON.parse(jsonStr);
+    }
+}
+```
+
+---
+
+## **V. API Security Specifications**
+
+### **A. Authentication & Authorization**
+
+```yaml
+security_schemes:
+  api_key:
+    type: apiKey
+    in: header
+    name: X-API-Key
+    description: Kong Konnect managed API key
+  
+  jwt:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+    description: JWT token for internal services
+  
+  hmac:
+    type: http
+    scheme: bearer
+    description: HMAC signature for webhooks
+  
+  mTLS:
+    type: mutualTLS
+    description: Mutual TLS for blockchain node communication
+
+security:
+  - PaymentListener: [hmac]
+  - SFKInternal: [api_key, jwt]
+  - BlockchainService: [mTLS, jwt]
+  - TimingService: [api_key, mTLS]
+```
+
+### **B. Rate Limiting Configuration**
+
+```json
+{
+  "rate_limits": {
+    "payment_webhooks": {
+      "stripe": "1000/minute",
+      "interac_etransfer": "500/minute",
+      "crypto_gateway": "200/minute"
+    },
+    "internal_apis": {
+      "payment_confirmation": "10000/minute",
+      "operation_status": "5000/minute",
+      "witness_submission": "1000/minute"
+    },
+    "blockchain_apis": {
+      "hedera_hcs": "100/second",
+      "xrpl_payments": "50/second",
+      "algorand_calls": "100/second"
+    }
+  },
+  "burst_limits": {
+    "high_priority": "2x normal rate",
+    "emergency": "10x normal rate for 10 seconds"
+  }
+}
+```
+
+---
+
+## **VI. Error Handling & Retry Logic**
+
+### **A. Standard Error Response**
+
+```json
+{
+  "error": {
+    "code": "SFK_ERR_001",
+    "message": "Payment validation failed",
+    "details": {
+      "payment_id": "pi_3PkGo1Fz9Xr4Fy7d1pJklmOp",
+      "failure_reason": "signature_invalid",
+      "suggested_action": "retry_with_correct_signature"
+    },
+    "timestamp": "2026-02-05T10:30:00.123456789Z",
+    "trace_id": "trace_abc123",
+    "documentation_url": "https://docs.salvi-framework.com/errors/SFK_ERR_001"
+  },
+  "retry_info": {
+    "retryable": true,
+    "retry_after_seconds": 30,
+    "max_retries": 3,
+    "backoff_strategy": "exponential"
+  }
+}
+```
+
+### **B. Error Code Registry**
+
+```typescript
+const ERROR_CODES = {
+  // Payment Errors (PAY_xxx)
+  PAY_001: { message: "Invalid webhook signature", http: 401 },
+  PAY_002: { message: "Payment already processed", http: 409 },
+  PAY_003: { message: "Insufficient payment amount", http: 402 },
+  
+  // SFK Errors (SFK_xxx)
+  SFK_001: { message: "Operation queue full", http: 503 },
+  SFK_002: { message: "Invalid operation parameters", http: 400 },
+  SFK_003: { message: "Timing synchronization failed", http: 500 },
+  
+  // Blockchain Errors (BC_xxx)
+  BC_001: { message: "Hedera HCS submission failed", http: 502 },
+  BC_002: { message: "XRPL payment failed", http: 502 },
+  BC_003: { message: "Algorand smart contract call failed", http: 502 },
+  
+  // Timing Errors (TIM_xxx)
+  TIM_001: { message: "Clock synchronization out of bounds", http: 500 },
+  TIM_002: { message: "Femtosecond accuracy not met", http: 500 }
+};
+```
+
+---
+
+## **VII. Implementation Roadmap**
+
+### **Phase 1: Core Payment Integration (Weeks 1-4)**
+1. Implement Payment Listener with Stripe webhook support
+2. Deploy basic SFK Payment Confirmation API
+3. Set up Kong Konnect with initial routing and security
+
+### **Phase 2: Witnessing Infrastructure (Weeks 5-8)**
+1. Deploy Hedera HCS integration service
+2. Implement unified metadata schema
+3. Add femtosecond timing service
+
+### **Phase 3: Settlement Layer (Weeks 9-12)**
+1. Implement XRPL payment service with TAT support
+2. Deploy Algorand smart contracts
+3. Add cross-chain oracle bridge
+
+### **Phase 4: Advanced Features (Weeks 13-16)**
+1. Implement timing certification service
+2. Add advanced retry and error handling
+3. Deploy monitoring and observability stack
+
+---
+
+## **VIII. Monitoring & Observability**
+
+### **A. Key Metrics to Monitor**
+
+```yaml
+metrics:
+  payment_flow:
+    - webhook_receipt_latency_ms
+    - payment_validation_success_rate
+    - payment_to_operation_latency_ns
+  
+  blockchain_operations:
+    - hedera_hcs_submission_success_rate
+    - xrpl_payment_confirmation_latency
+    - algorand_smart_contract_success_rate
+  
+  timing:
+    - clock_synchronization_offset_fs
+    - femtosecond_accuracy_violations
+    - timing_certification_success_rate
+  
+  business:
+    - total_tat_distributed
+    - average_reward_per_batch
+    - user_satisfaction_score
+```
+
+### **B. Alerting Rules**
+
+```json
+{
+  "critical_alerts": {
+    "payment_processing_down": {
+      "condition": "success_rate < 99% for 5 minutes",
+      "channels": ["pagerduty", "sms", "email"]
+    },
+    "clock_sync_failed": {
+      "condition": "offset > 1000 fs for 1 minute",
+      "channels": ["pagerduty", "email"]
+    }
+  },
+  "warning_alerts": {
+    "high_latency": {
+      "condition": "p95_latency > 1000ms for 10 minutes",
+      "channels": ["slack", "email"]
+    },
+    "increased_error_rate": {
+      "condition": "error_rate > 1% for 15 minutes",
+      "channels": ["slack"]
+    }
+  }
+}
+```
+
+---
+
+## **IX. Compliance & Regulatory Considerations**
+
+### **A. Data Privacy**
+
+```yaml
+data_handling:
+  pii_fields:
+    - customer_email
+    - payment_card_last4
+    - billing_address
+  
+  encryption:
+    at_rest: "AES-256-GCM"
+    in_transit: "TLS 1.3"
+  
+  retention:
+    payment_data: "7 years"
+    blockchain_data: "permanent"
+    timing_data: "10 years"
+  
+  jurisdiction:
+    primary: "Canada"
+    secondary: "United States"
+    gdp_compliant: true
+```
+
+### **B. Financial Regulations**
+
+```json
+{
+  "regulatory_compliance": {
+    "finra_613": {
+      "timestamp_granularity": "femtosecond",
+      "traceability": "UTC(NIST)",
+      "audit_trail": "hedera_hcs"
+    },
+    "mifid_ii": {
+      "clock_synchronization": "< 100 microseconds",
+      "record_keeping": "5+ years"
+    },
+    "anti_money_laundering": {
+      "kyc_required": true,
+      "transaction_monitoring": true,
+      "suspicious_activity_reporting": true
+    }
+  }
+}
+```
+
+---
+
+## **X. Deployment Architecture**
+
+### **A. Kubernetes Deployment**
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salvi-payment-listener
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-listener
+  template:
+    metadata:
+      labels:
+        app: payment-listener
+    spec:
+      containers:
+      - name: payment-listener
+        image: salvi/payment-listener:1.0.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: stripe-secrets
+              key: webhook-secret
+        - name: SFK_API_URL
+          value: "http://salvi-sfk-api:8080"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+### **B. Kong Konnect Configuration**
+
+```yaml
+api_version: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limiting
+  annotations:
+    kubernetes.io/ingress.class: kong
+config:
+  minute: 1000
+  policy: local
+  fault_tolerant: true
+  hide_client_headers: false
+---
+api_version: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-auth
+config:
+  uri_param_names:
+    - jwt
+  cookie_names:
+    - jwt
+  claims_to_verify:
+    - exp
+  anonymous: null
+  run_on_preflight: true
+```
+
+---
+
+## **XI. Testing Strategy**
+
+### **A. Test Pyramid**
+
+```yaml
+testing:
+  unit_tests:
+    coverage_target: 90%
+    languages: ["rust", "typescript", "python"]
+    frameworks: ["jest", "pytest", "cargo-test"]
+  
+  integration_tests:
+    payment_flows: ["stripe", "interac", "crypto"]
+    blockchain_integrations: ["hedera", "xrpl", "algorand"]
+    timing_synchronization: ["hpTP", "ntp", "ptp"]
+  
+  end_to_end_tests:
+    full_payment_cycle: true
+    cross_chain_operations: true
+    timing_certification: true
+  
+  load_tests:
+    target_tps: 1000
+    peak_tps: 10000
+    duration: 1 hour
+```
+
+### **B. Test Data Management**
+
+```json
+{
+  "test_data": {
+    "payment_scenarios": {
+      "valid_payment": {
+        "amount": 19900,
+        "currency": "CAD",
+        "gateway": "stripe",
+        "expected_outcome": "success"
+      },
+      "insufficient_funds": {
+        "amount": 999999,
+        "currency": "CAD",
+        "gateway": "stripe",
+        "expected_outcome": "failure"
+      }
+    },
+    "blockchain_scenarios": {
+      "hedera_hcs_success": {
+        "topic_id": "0.0.test123",
+        "message_size": 1024,
+        "expected_latency_ms": 2000
+      }
+    }
+  }
+}
+```
+
+---
+
+## **XII. Documentation & Support**
+
+### **A. API Documentation**
+
+```yaml
+documentation:
+  openapi_spec: "/api/docs/openapi.yaml"
+  postman_collection: "/api/docs/Salvi-API.postman_collection.json"
+  examples:
+    - language: "curl"
+      title: "Submit Payment Webhook"
+      code: |
+        curl -X POST https://api.salvi-framework.com/webhooks/payments \
+          -H "Stripe-Signature: t=1672531200,v1=abc123..." \
+          -H "Content-Type: application/json" \
+          -d '{"id": "evt_...", "type": "payment_intent.succeeded"}'
+    
+    - language: "python"
+      title: "Query Operation Status"
+      code: |
+        import requests
+        
+        response = requests.get(
+          "https://api.salvi-framework.com/api/sfk/v1/operations/sfk_op_9a8b7c6d5e",
+          headers={"X-API-Key": "your-api-key"}
+        )
+        print(response.json())
+```
+
+### **B. Support Channels**
+
+```json
+{
+  "support": {
+    "email": "support@salvi-framework.com",
+    "slack": "https://salvi-framework.slack.com",
+    "documentation": "https://docs.salvi-framework.com",
+    "status_page": "https://status.salvi-framework.com",
+    "response_times": {
+      "critical": "15 minutes",
+      "high": "1 hour",
+      "normal": "4 hours"
+    }
+  }
+}
+```
+
+---
+
+## **Conclusion**
+
+This comprehensive API specification provides all necessary interfaces to implement the unified Ternary-Torsion architecture. The system integrates payment processing, femtosecond-accurate witnessing, multi-blockchain settlement, and smart contract execution into a cohesive framework that meets FINRA 613 compliance and quantum-resistance requirements.
+
+**Key Implementation Priorities:**
+1. Start with Payment Listener and basic SFK API
+2. Implement Hedera HCS witnessing for audit trails
+3. Add XRPL payment settlement with TAT tokens
+4. Deploy Algorand smart contracts for advanced logic
+5. Integrate femtosecond timing for regulatory compliance
+
+All APIs are designed for high availability, security, and scalability, with Kong Konnect providing the unified API management layer.
