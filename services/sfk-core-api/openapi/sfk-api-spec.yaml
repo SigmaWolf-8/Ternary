@@ -1,0 +1,383 @@
+openapi: 3.0.3
+info:
+  title: SFK Core API
+  description: |
+    Salvi Framework Kernel Core API for operation management and blockchain integration.
+    
+    ## Features
+    - Operation lifecycle management (create, track, cancel)
+    - Multi-blockchain witnessing (Hedera HCS, XRPL, Algorand)
+    - Femtosecond-precision timing with HPTP protocol
+    - Full audit trail and compliance support
+    
+    ## Security Modes
+    - **mode_zero**: No additional security (testing only)
+    - **mode_one**: Standard security with basic witnessing
+    - **phi_plus**: Maximum security with multi-chain attestation
+  version: 1.0.0
+  contact:
+    name: PlenumNET Team
+    url: https://plenumnet.io
+  license:
+    name: Proprietary
+    url: https://plenumnet.io/license
+
+servers:
+  - url: http://localhost:3002
+    description: Development server
+  - url: https://api.salvi.network
+    description: Production server
+
+tags:
+  - name: Operations
+    description: SFK operation management
+  - name: Status
+    description: Operation status and tracking
+  - name: Blockchain
+    description: Blockchain integration endpoints (internal)
+  - name: Health
+    description: Service health endpoints
+
+paths:
+  /api/sfk/v1/operations:
+    post:
+      tags:
+        - Operations
+      summary: Create a new SFK operation
+      operationId: createOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationRequest'
+      responses:
+        '202':
+          description: Operation created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationCreatedResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+        - Operations
+      summary: List operations with pagination
+      operationId: listOperations
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, queued, processing, witnessed, settled, failed, cancelled]
+        - name: operationType
+          in: query
+          schema:
+            type: string
+            enum: [payment_witness, data_attest, state_transition, consensus_round]
+      responses:
+        '200':
+          description: List of operations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationListResponse'
+
+  /api/sfk/v1/operations/{operationId}:
+    get:
+      tags:
+        - Operations
+      summary: Get operation by ID
+      operationId: getOperation
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Operation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SFKOperation'
+        '404':
+          description: Operation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/sfk/v1/status/{operationId}:
+    get:
+      tags:
+        - Status
+      summary: Get detailed operation status
+      operationId: getOperationStatus
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Operation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationStatusResponse'
+
+  /api/sfk/v1/status/{operationId}/timeline:
+    get:
+      tags:
+        - Status
+      summary: Get operation timeline
+      operationId: getOperationTimeline
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Operation timeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationTimelineResponse'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Service health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+    OperationRequest:
+      type: object
+      required:
+        - operationType
+      properties:
+        operationType:
+          type: string
+          enum: [payment_witness, data_attest, state_transition, consensus_round]
+        securityMode:
+          type: string
+          enum: [mode_zero, mode_one, phi_plus]
+          default: phi_plus
+        priority:
+          type: string
+          enum: [low, normal, high, critical]
+          default: normal
+        paymentContext:
+          $ref: '#/components/schemas/PaymentContext'
+        ternaryContext:
+          $ref: '#/components/schemas/TernaryContext'
+        blockchainTargets:
+          $ref: '#/components/schemas/BlockchainTargets'
+        callbackUrl:
+          type: string
+          format: uri
+        idempotencyKey:
+          type: string
+        ttlSeconds:
+          type: integer
+          minimum: 1
+          maximum: 86400
+          default: 3600
+
+    PaymentContext:
+      type: object
+      properties:
+        gateway:
+          type: string
+          enum: [stripe, interac, crypto]
+        paymentId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+
+    TernaryContext:
+      type: object
+      properties:
+        representation:
+          type: string
+          enum: [A, B, C]
+          default: A
+        dataHash:
+          type: string
+        compressionEnabled:
+          type: boolean
+          default: true
+
+    BlockchainTargets:
+      type: object
+      properties:
+        witnessToHedera:
+          type: boolean
+          default: true
+        settleOnXrpl:
+          type: boolean
+          default: false
+        recordOnAlgorand:
+          type: boolean
+          default: false
+
+    OperationCreatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        operationId:
+          type: string
+          format: uuid
+        batchRef:
+          type: string
+        kernelOpId:
+          type: string
+        status:
+          type: string
+        queuedAt:
+          type: string
+          format: date-time
+        estimatedCompletionMs:
+          type: integer
+        trackingUrl:
+          type: string
+
+    SFKOperation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        batchRef:
+          type: string
+        kernelOpId:
+          type: string
+        operationType:
+          type: string
+        securityMode:
+          type: string
+        status:
+          type: string
+        priority:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OperationListResponse:
+      type: object
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SFKOperation'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    OperationStatusResponse:
+      type: object
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+        progress:
+          type: object
+        timing:
+          type: object
+        blockchainStatus:
+          type: object
+
+    OperationTimelineResponse:
+      type: object
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+        timeline:
+          type: array
+          items:
+            type: object
+        totalDurationMs:
+          type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object

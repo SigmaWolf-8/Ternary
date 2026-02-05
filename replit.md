@@ -187,8 +187,120 @@ To access PlenumNET APIs through Kong Gateway:
    - **Metrics Dashboard**: Shows file counts, folder counts, total size, and type breakdown
    - **View Modes**: Toggle between list view and grid view
 
+## Payment & Witnessing Architecture (NEW)
+
+### Microservices Overview
+The platform now includes a complete payment processing and blockchain witnessing architecture:
+
+```
+services/
+├── payment-listener/          # Port 3001 - Payment webhook handler
+│   ├── src/
+│   │   ├── main.ts           # Express server entry point
+│   │   ├── webhook/          # Gateway-specific webhook handlers
+│   │   │   ├── stripe-webhook.ts
+│   │   │   ├── interac-webhook.ts
+│   │   │   └── crypto-webhook.ts
+│   │   ├── validation/       # HMAC signature validation
+│   │   └── queue/            # BullMQ payment queue
+│   └── Dockerfile
+│
+├── sfk-core-api/             # Port 3002 - Operation orchestration (Fastify)
+│   ├── src/
+│   │   ├── main.ts           # Server with Swagger/OpenAPI docs
+│   │   ├── routes/           # API routes
+│   │   │   ├── operations/   # CRUD operations
+│   │   │   └── internal/     # Blockchain integration routes
+│   │   ├── services/         # Core business logic
+│   │   │   ├── operation-orchestrator.ts
+│   │   │   ├── state-manager.ts
+│   │   │   └── timing-coordinator.ts
+│   │   └── models/           # TypeScript types and Zod schemas
+│   └── openapi/              # OpenAPI 3.0 specification
+│
+├── blockchain/
+│   ├── hedera-service/       # Port 3003 - HCS witnessing
+│   ├── xrpl-service/         # Port 3004 - Payment settlement
+│   └── algorand-service/     # Port 3005 - Smart contract execution
+│
+contracts/
+├── algorand/
+│   ├── ternary-governance-contract.py   # TAT-GOV-001 (PyTEAL)
+│   └── ternary-reward-distributor.py    # TAT-DIST-001 (PyTEAL)
+└── oracle-bridge/            # Hedera to Algorand bridge
+    └── src/main.ts
+```
+
+### SFK Core API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `POST /api/sfk/v1/operations` | POST | Create new SFK operation |
+| `GET /api/sfk/v1/operations` | GET | List operations with pagination |
+| `GET /api/sfk/v1/operations/:id` | GET | Get operation by ID |
+| `GET /api/sfk/v1/operations/:id/metadata` | GET | Get unified metadata |
+| `GET /api/sfk/v1/status/:id` | GET | Get detailed operation status |
+| `GET /api/sfk/v1/status/:id/timeline` | GET | Get operation timeline |
+| `GET /api/sfk/v1/status/summary` | GET | Get status summary |
+| `GET /docs` | GET | Swagger UI documentation |
+
+### Payment Listener Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `POST /webhook/stripe` | POST | Stripe payment webhooks |
+| `POST /webhook/interac` | POST | Interac e-Transfer webhooks |
+| `POST /webhook/crypto` | POST | Cryptocurrency webhooks |
+| `GET /api/payments/:id/status` | GET | Payment status lookup |
+| `GET /health` | GET | Service health check |
+
+### Blockchain Integration
+
+**Hedera HCS (Witnessing)**
+- Topic-based consensus with running hash verification
+- Femtosecond-precision timestamps
+- Immutable audit trail
+
+**XRPL (Settlement)**
+- Cross-border payment settlement
+- XRP and issued currency support
+- Real-time transaction validation
+
+**Algorand (Smart Contracts)**
+- TAT-GOV-001: Ternary governance voting (A/B/C = For/Against/Abstain)
+- TAT-DIST-001: Efficiency-based reward distribution (58.5% bonus)
+- Oracle bridge for verified data submission
+
+### Security Features
+- HMAC-SHA256 signature validation (Stripe/Crypto)
+- HMAC-SHA512 signature validation (Interac)
+- crypto.timingSafeEqual for constant-time comparison
+- Idempotency keys for duplicate prevention
+- Rate limiting on all endpoints
+
+### Operation Types
+- `payment_witness` - Witness payment on Hedera
+- `data_attest` - Attest data hash
+- `state_transition` - Record state change
+- `consensus_round` - Consensus participation
+
+### Security Modes
+- `mode_zero` - No additional security (testing)
+- `mode_one` - Standard witnessing
+- `phi_plus` - Maximum security (multi-chain)
+
 ## Running the App
 ```bash
 npm run dev
 ```
 The app runs on port 5000.
+
+### Running Microservices (Docker)
+```bash
+# Build and run all services
+docker-compose up -d
+
+# Individual services
+cd services/payment-listener && npm run dev  # Port 3001
+cd services/sfk-core-api && npm run dev      # Port 3002
+```
