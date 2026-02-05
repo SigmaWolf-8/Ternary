@@ -141,7 +141,14 @@ export interface IPaymentListenerService {
 }
 
 /**
- * Validate Stripe webhook signature
+ * Validate Stripe webhook signature using HMAC-SHA256
+ * Implements Stripe's signature verification algorithm
+ * 
+ * @param signature - The Stripe-Signature header value
+ * @param payload - The raw request body as string
+ * @param secret - The webhook signing secret (whsec_xxx)
+ * @param tolerance - Maximum age of the webhook in seconds (default 300)
+ * @returns true if signature is valid, false otherwise
  */
 export function validateStripeSignature(
   signature: string,
@@ -149,6 +156,8 @@ export function validateStripeSignature(
   secret: string,
   tolerance: number = 300
 ): boolean {
+  const crypto = require('crypto');
+  
   const signatureParts = signature.split(',');
   const timestamp = signatureParts.find(p => p.startsWith('t='))?.split('=')[1];
   const v1Signature = signatureParts.find(p => p.startsWith('v1='))?.split('=')[1];
@@ -164,7 +173,76 @@ export function validateStripeSignature(
     return false;
   }
   
-  return true;
+  const signedPayload = `${timestamp}.${payload}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(signedPayload, 'utf8')
+    .digest('hex');
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(v1Signature, 'hex'),
+    Buffer.from(expectedSignature, 'hex')
+  );
+}
+
+/**
+ * Validate Interac E-Transfer webhook signature using HMAC-SHA256
+ * 
+ * @param signature - The X-JPMC-Signature header value
+ * @param payload - The raw request body as string
+ * @param secret - The webhook signing secret
+ * @returns true if signature is valid, false otherwise
+ */
+export function validateInteracSignature(
+  signature: string,
+  payload: string,
+  secret: string
+): boolean {
+  const crypto = require('crypto');
+  
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload, 'utf8')
+    .digest('hex');
+  
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate Crypto Gateway webhook signature using HMAC-SHA512
+ * 
+ * @param signature - The X-CC-Webhook-Signature header value
+ * @param payload - The raw request body as string
+ * @param secret - The webhook signing secret
+ * @returns true if signature is valid, false otherwise
+ */
+export function validateCryptoGatewaySignature(
+  signature: string,
+  payload: string,
+  secret: string
+): boolean {
+  const crypto = require('crypto');
+  
+  const expectedSignature = crypto
+    .createHmac('sha512', secret)
+    .update(payload, 'utf8')
+    .digest('hex');
+  
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
