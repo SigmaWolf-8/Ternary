@@ -1,306 +1,73 @@
 # PlenumNET Framework Marketing Website
 
 ## Overview
-A professional light-themed marketing website for PlenumNET (formerly Salvi), a post-quantum internet solutions company. The site showcases deployable components for building quantum-resistant infrastructure, including PlenumDB product page with live compression demo and comprehensive whitepaper management.
+PlenumNET (formerly Salvi) is a post-quantum internet solutions company. This project is a professional, light-themed marketing website showcasing PlenumNET's deployable components for building quantum-resistant infrastructure. Key features include a PlenumDB product page with a live compression demo and comprehensive whitepaper management.
 
-## Tech Stack
-- **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion
-- **Backend**: Express.js, Node.js, PostgreSQL
-- **Database**: Drizzle ORM with PostgreSQL
-- **UI Components**: shadcn/ui (Button, Badge, Card)
-- **Routing**: Wouter
-- **Styling**: Light theme with white background and blue accents
-- **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password)
+The project has expanded to include a complete payment processing and blockchain witnessing architecture, integrating high-precision timing and regulatory compliance for financial transactions. This aims to provide robust, secure, and verifiable operations for quantum-resistant data and financial services.
 
-## Project Structure
-```
-client/
-├── src/
-│   ├── pages/
-│   │   ├── landing.tsx        # Main landing page with all sections
-│   │   ├── ternarydb.tsx      # PlenumDB product page
-│   │   ├── whitepaper.tsx     # Whitepaper viewer with TOC
-│   │   └── github-manager.tsx # Admin-only GitHub file manager
-│   ├── components/ui/         # shadcn/ui components
-│   ├── index.css              # Theme CSS variables (light theme)
-│   └── App.tsx                # App router
+## User Preferences
+I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
 
-server/
-├── salvi-core/             # PlenumNET Framework Core API
-│   ├── index.ts            # Module exports
-│   ├── ternary-types.ts    # Trit representations (A, B, C)
-│   ├── ternary-operations.ts # GF(3) operations
-│   ├── femtosecond-timing.ts # Femtosecond timestamps
-│   ├── phase-encryption.ts # Phase-split encryption
-│   └── libternary/
-│       └── aspect-api.ts   # 364° Prime Circle aspect calculations
-├── db.ts                   # PostgreSQL database connection
-├── storage.ts              # Database storage interface
-├── ternary.ts              # Ternary compression utilities
-├── routes.ts               # API routes
-├── index.ts                # Express server entry point
+## System Architecture
 
-shared/
-├── schema.ts               # Drizzle database schema
-```
+### Frontend
+The frontend is built with React, TypeScript, Tailwind CSS, and Framer Motion. It uses `shadcn/ui` for UI components and Wouter for routing. The design adheres to a light theme with a white background and blue accents.
 
-## Theme Colors
-- Background: White (#ffffff)
-- Primary: Blue (HSL 210 100% 45%)
-- Text: Dark gray for primary, muted for secondary
+**Core Pages:**
+-   **Landing Page (`/`)**: Main entry point with sections on PlenumNET's approach, components, market potential, and call to action.
+-   **PlenumDB Product Page (`/ternarydb`)**: Features a live compression demo.
+-   **Whitepaper Viewer (`/whitepaper`)**: Displays the full whitepaper with a table of contents.
+-   **GitHub Manager (`/github`)**: An admin-only interface for managing GitHub repository files, including sorting, filtering, and metrics.
+-   **Kong Konnect Integration (`/kong-konnect`)**: A page to manage API gateway integration with Kong Konnect.
 
-## PlenumNET Core API
+### Backend and Core Framework
+The backend uses Express.js and Node.js, with PostgreSQL and Drizzle ORM for database management.
 
-### Ternary Operations (`/api/salvi/ternary/`)
-Based on the whitepaper's Unified Ternary Logic System:
+**PlenumNET Core API (`/api/salvi/`)**:
+-   **Ternary Operations**: Implements the Unified Ternary Logic System for operations like conversion, addition, multiplication, rotation, negation, and XOR in GF(3).
+-   **Femtosecond Timing**: Provides high-precision timestamping and timing metrics.
+-   **Phase Encryption**: Handles splitting and recombining data into phase-encrypted components.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/docs` | GET | API documentation |
-| `/convert` | POST | Convert between representations A/B/C |
-| `/add` | POST | Ternary addition in GF(3) |
-| `/multiply` | POST | Ternary multiplication in GF(3) |
-| `/rotate` | POST | Bijective ternary rotation |
-| `/not` | POST | Ternary negation |
-| `/xor` | POST | Ternary XOR |
-| `/batch` | POST | Batch ternary operations |
-| `/density/:tritCount` | GET | Information density calculator |
+**Ternary Representations:**
+-   **A (Computational)**: `{-1, 0, +1}`
+-   **B (Network)**: `{0, 1, 2}`
+-   **C (Human)**: `{1, 2, 3}`
 
-### Femtosecond Timing (`/api/salvi/timing/`)
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/timestamp` | GET | Get femtosecond-precision timestamp |
-| `/metrics` | GET | Get timing metrics |
-| `/batch/:count` | GET | Generate batch of timestamps |
+**Microservices Architecture (Payment & Witnessing)**:
+The system now includes several microservices for robust payment processing and blockchain integration:
+-   **Payment Listener (Port 3001)**: Handles payment webhooks (Stripe, Interac, Crypto) with HMAC signature validation and queues payments using BullMQ.
+-   **SFK Core API (Port 3002)**: An orchestration layer for operations, built with Fastify, providing CRUD operations and internal blockchain integration routes. Includes Swagger/OpenAPI documentation.
+-   **Blockchain Services**: Dedicated services for Hedera HCS (witnessing), XRPL (payment settlement), and Algorand (smart contract execution).
+-   **Femtosecond Timing Service (Port 3006)**: Provides high-precision timing synchronized via HPTP, supporting clock sources like GPSDOs and atomic clocks.
+-   **Certification Service (Port 3007)**: Ensures regulatory compliance (FINRA 613, MiFID II) for timestamps, providing certification and verification.
 
-### Phase Encryption (`/api/salvi/phase/`)
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/config/:mode` | GET | Get phase configuration |
-| `/split` | POST | Split data into phase-encrypted components |
-| `/recombine` | POST | Recombine phase-split data |
-| `/recommend` | GET | Get recommended encryption mode |
+**Blockchain Integration Details:**
+-   **Hedera HCS**: For immutable audit trails and femtosecond-precision witnessing.
+-   **XRPL**: For real-time, cross-border payment settlement.
+-   **Algorand**: For smart contracts (e.g., Ternary Governance, Reward Distribution) and an oracle bridge to Hedera.
 
-### Ternary Representations (from Whitepaper)
-- **Representation A** (Computational): {-1, 0, +1}
-- **Representation B** (Network): {0, 1, 2}
-- **Representation C** (Human): {1, 2, 3}
+**Security Features:**
+-   HMAC-SHA256/SHA512 signature validation for webhooks.
+-   `crypto.timingSafeEqual` for constant-time comparisons.
+-   Idempotency keys and rate limiting.
 
-### Bijections
-- A→B: `f(a) = a + 1`
-- A→C: `f(a) = a + 2`
-- B→C: `f(b) = b + 1`
+### Database Schema
+The database includes tables for:
+-   `users`: Authenticated users with roles and GitHub token.
+-   `sessions`: User session management.
+-   `demo_sessions`: Metadata for compression demos.
+-   `binary_storage`, `ternary_storage`: Original and compressed data.
+-   `compression_benchmarks`, `compression_history`: Performance and historical data.
+-   `whitepapers`: Whitepaper content.
 
-## Demo API Endpoints
-- `POST /api/demo/run` - Run compression demo
-- `POST /api/demo/upload` - Upload file for compression testing
-- `GET /api/demo/stats` - Get aggregated statistics
-- `GET /api/demo/history` - Get compression history
-- `GET /api/demo/data/:sessionId` - Get paginated data with metrics
+## External Dependencies
 
-## Whitepaper API
-- `GET /api/whitepapers` - List all whitepapers
-- `GET /api/whitepapers/active` - Get active whitepaper
-- `POST /api/whitepapers` - Create new whitepaper
-
-## GitHub Manager API (Admin Only)
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/github/token` | POST | Save GitHub Personal Access Token |
-| `/api/github/status` | GET | Check if token is configured |
-| `/api/github/repos/:owner/:repo/contents` | GET | Get repository contents (use `?path=` for subdirs) |
-| `/api/github/file/:owner/:repo` | GET | Get file content (use `?path=` for file path) |
-| `/api/github/file/:owner/:repo` | PUT | Create/update file (body: path, content, message, sha) |
-| `/api/github/file/:owner/:repo` | DELETE | Delete file (body: path, sha, message) |
-| `/api/user/admin-status` | GET | Check if current user is admin |
-
-## Kong Konnect API (API Gateway Integration)
-**Security Note**: All mutation endpoints (POST) and config access require admin authentication.
-
-**9 Kong Gateway Services** configured with rate limiting and security plugins:
-1. **plenumnet-timing** - Femtosecond Timing API
-2. **plenumnet-ternary** - Ternary Operations API  
-3. **plenumnet-phase** - Phase Encryption API
-4. **plenumnet-demo** - Demo Compression API
-5. **plenumnet-whitepapers** - Whitepaper API
-6. **plenumnet-docs** - API Documentation
-7. **plenumnet-github** - GitHub Integration API (Admin)
-8. **plenumnet-kong** - Kong Management API (Admin)
-9. **plenumnet-user** - User/Auth Status API
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/kong/status` | GET | Public | Check Kong Konnect connection status and user info |
-| `/api/kong/organization` | GET | Public | Get Kong organization details |
-| `/api/kong/control-planes` | GET | Public | List all Kong control planes |
-| `/api/kong/control-planes/:cpId/services` | GET | Public | Get services for a control plane |
-| `/api/kong/control-planes/:cpId/services` | POST | Admin | Create a service (body: name, url, enabled, tags) |
-| `/api/kong/control-planes/:cpId/routes` | GET | Public | Get routes for a control plane |
-| `/api/kong/control-planes/:cpId/services/:serviceId/routes` | POST | Admin | Create a route (body: name, paths, methods) |
-| `/api/kong/control-planes/:cpId/plugins` | GET | Public | Get plugins for a control plane |
-| `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | POST | Admin | Add plugin to service (body: name, config) |
-| `/api/kong/control-planes/:cpId/sync-plenumnet` | POST | Admin | Sync all PlenumNET services to Kong |
-| `/api/kong/control-planes/:cpId/generate-deployment` | POST | Admin | Generate TLS certs and deployment package |
-| `/api/kong/control-planes/:cpId/deploy-to-cloud` | POST | Admin | Push Dockerfile to GitHub for Render/Railway deploy (body: platform, owner, repo) |
-| `/api/kong/config` | GET | Admin | Get local Kong configuration file (contains API keys) |
-| `/api/kong/save-to-github` | POST | Admin | Save Kong config to GitHub (body: owner, repo, path) |
-
-### Cloud Deployment
-The deploy-to-cloud endpoint:
-1. Generates TLS certificates (10-year validity)
-2. Uploads certificate to Kong Konnect
-3. Pushes Dockerfile and entrypoint.sh to GitHub (private key NOT committed)
-4. Returns TLS private key for user to set as `KONG_TLS_KEY` env var in cloud platform
-5. Returns one-click deploy URLs for Render (free tier) and Railway ($5 credit)
-
-### Kong Configuration Files
-The `kong/` directory contains:
-- `kong.yaml` - Declarative Kong configuration (decK format)
-- `README.md` - Documentation for AI agents
-
-### For AI Agents
-To access PlenumNET APIs through Kong Gateway:
-1. Get the Kong configuration from `/api/kong/config` or GitHub repo
-2. Use API keys defined in kong.yaml (`plenumnet-ai-agent-key`)
-3. Access endpoints through Kong proxy with rate limiting and security
-
-## Database Schema
-- **users** - Authenticated users (email, name, profile image, isAdmin, githubToken)
-- **sessions** - User sessions for authentication
-- **demo_sessions** - Demo session metadata
-- **binary_storage** - Original binary data
-- **ternary_storage** - Compressed ternary data
-- **compression_benchmarks** - Performance metrics
-- **compression_history** - Historical compression records
-- **whitepapers** - Whitepaper content (83 sections)
-
-## Pages
-1. **Landing** (`/`) - Hero, approach, components, comparison, markets, CTA
-2. **PlenumDB** (`/ternarydb`) - Product page with live compression demo
-3. **Whitepaper** (`/whitepaper`) - Full whitepaper viewer with Table of Contents
-4. **GitHub Manager** (`/github`) - Admin-only page to manage GitHub repository files
-5. **Kong Konnect Integration** (`/kong-konnect`) - API gateway integration page with Kong Konnect
-
-### GitHub Manager Features
-   - **Sorting**: Sort files by name, size, or type (ascending/descending)
-   - **Filtering**: Search files by name, filter by type (code/docs/config/other)
-   - **Metrics Dashboard**: Shows file counts, folder counts, total size, and type breakdown
-   - **View Modes**: Toggle between list view and grid view
-
-## Payment & Witnessing Architecture (NEW)
-
-### Microservices Overview
-The platform now includes a complete payment processing and blockchain witnessing architecture:
-
-```
-services/
-├── payment-listener/          # Port 3001 - Payment webhook handler
-│   ├── src/
-│   │   ├── main.ts           # Express server entry point
-│   │   ├── webhook/          # Gateway-specific webhook handlers
-│   │   │   ├── stripe-webhook.ts
-│   │   │   ├── interac-webhook.ts
-│   │   │   └── crypto-webhook.ts
-│   │   ├── validation/       # HMAC signature validation
-│   │   └── queue/            # BullMQ payment queue
-│   └── Dockerfile
-│
-├── sfk-core-api/             # Port 3002 - Operation orchestration (Fastify)
-│   ├── src/
-│   │   ├── main.ts           # Server with Swagger/OpenAPI docs
-│   │   ├── routes/           # API routes
-│   │   │   ├── operations/   # CRUD operations
-│   │   │   └── internal/     # Blockchain integration routes
-│   │   ├── services/         # Core business logic
-│   │   │   ├── operation-orchestrator.ts
-│   │   │   ├── state-manager.ts
-│   │   │   └── timing-coordinator.ts
-│   │   └── models/           # TypeScript types and Zod schemas
-│   └── openapi/              # OpenAPI 3.0 specification
-│
-├── blockchain/
-│   ├── hedera-service/       # Port 3003 - HCS witnessing
-│   ├── xrpl-service/         # Port 3004 - Payment settlement
-│   └── algorand-service/     # Port 3005 - Smart contract execution
-│
-contracts/
-├── algorand/
-│   ├── ternary-governance-contract.py   # TAT-GOV-001 (PyTEAL)
-│   └── ternary-reward-distributor.py    # TAT-DIST-001 (PyTEAL)
-└── oracle-bridge/            # Hedera to Algorand bridge
-    └── src/main.ts
-```
-
-### SFK Core API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `POST /api/sfk/v1/operations` | POST | Create new SFK operation |
-| `GET /api/sfk/v1/operations` | GET | List operations with pagination |
-| `GET /api/sfk/v1/operations/:id` | GET | Get operation by ID |
-| `GET /api/sfk/v1/operations/:id/metadata` | GET | Get unified metadata |
-| `GET /api/sfk/v1/status/:id` | GET | Get detailed operation status |
-| `GET /api/sfk/v1/status/:id/timeline` | GET | Get operation timeline |
-| `GET /api/sfk/v1/status/summary` | GET | Get status summary |
-| `GET /docs` | GET | Swagger UI documentation |
-
-### Payment Listener Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `POST /webhook/stripe` | POST | Stripe payment webhooks |
-| `POST /webhook/interac` | POST | Interac e-Transfer webhooks |
-| `POST /webhook/crypto` | POST | Cryptocurrency webhooks |
-| `GET /api/payments/:id/status` | GET | Payment status lookup |
-| `GET /health` | GET | Service health check |
-
-### Blockchain Integration
-
-**Hedera HCS (Witnessing)**
-- Topic-based consensus with running hash verification
-- Femtosecond-precision timestamps
-- Immutable audit trail
-
-**XRPL (Settlement)**
-- Cross-border payment settlement
-- XRP and issued currency support
-- Real-time transaction validation
-
-**Algorand (Smart Contracts)**
-- TAT-GOV-001: Ternary governance voting (A/B/C = For/Against/Abstain)
-- TAT-DIST-001: Efficiency-based reward distribution (58.5% bonus)
-- Oracle bridge for verified data submission
-
-### Security Features
-- HMAC-SHA256 signature validation (Stripe/Crypto)
-- HMAC-SHA512 signature validation (Interac)
-- crypto.timingSafeEqual for constant-time comparison
-- Idempotency keys for duplicate prevention
-- Rate limiting on all endpoints
-
-### Operation Types
-- `payment_witness` - Witness payment on Hedera
-- `data_attest` - Attest data hash
-- `state_transition` - Record state change
-- `consensus_round` - Consensus participation
-
-### Security Modes
-- `mode_zero` - No additional security (testing)
-- `mode_one` - Standard witnessing
-- `phi_plus` - Maximum security (multi-chain)
-
-## Running the App
-```bash
-npm run dev
-```
-The app runs on port 5000.
-
-### Running Microservices (Docker)
-```bash
-# Build and run all services
-docker-compose up -d
-
-# Individual services
-cd services/payment-listener && npm run dev  # Port 3001
-cd services/sfk-core-api && npm run dev      # Port 3002
-```
+-   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
+-   **Database**: PostgreSQL.
+-   **ORM**: Drizzle ORM.
+-   **API Gateway**: Kong Konnect (for API management, rate limiting, security, and deployment orchestration).
+-   **Payment Gateways**: Stripe, Interac, various cryptocurrency platforms (via webhooks).
+-   **Message Queue**: BullMQ.
+-   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.
+-   **Containerization**: Docker (for microservices deployment).
+-   **Cloud Deployment**: Render, Railway (via GitHub integration for CI/CD).

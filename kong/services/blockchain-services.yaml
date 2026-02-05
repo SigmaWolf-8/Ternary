@@ -1,0 +1,181 @@
+_format_version: "3.0"
+
+services:
+  - name: plenumnet-hedera-witness
+    url: http://hedera-service:3003
+    protocol: http
+    port: 3003
+    enabled: true
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    tags:
+      - plenumnet
+      - blockchain
+      - hedera
+
+  - name: plenumnet-xrpl-settlement
+    url: http://xrpl-service:3004
+    protocol: http
+    port: 3004
+    enabled: true
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 120000
+    read_timeout: 120000
+    tags:
+      - plenumnet
+      - blockchain
+      - xrpl
+
+  - name: plenumnet-algorand-contracts
+    url: http://algorand-service:3005
+    protocol: http
+    port: 3005
+    enabled: true
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    tags:
+      - plenumnet
+      - blockchain
+      - algorand
+
+routes:
+  - name: hedera-witness-submit
+    service: plenumnet-hedera-witness
+    paths:
+      - /internal/api/hedera/v1/witness
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - hedera
+      - witness
+      - internal
+
+  - name: hedera-witness-status
+    service: plenumnet-hedera-witness
+    paths:
+      - /internal/api/hedera/v1/witness
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - hedera
+      - status
+      - internal
+
+  - name: xrpl-payment-submit
+    service: plenumnet-xrpl-settlement
+    paths:
+      - /internal/api/xrpl/v1/payments
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - xrpl
+      - payment
+      - internal
+
+  - name: xrpl-payment-status
+    service: plenumnet-xrpl-settlement
+    paths:
+      - /internal/api/xrpl/v1/payments
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - xrpl
+      - status
+      - internal
+
+  - name: algorand-contract-call
+    service: plenumnet-algorand-contracts
+    paths:
+      - /internal/api/algorand/v1/application/call
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - algorand
+      - contract
+      - internal
+
+  - name: algorand-transaction-status
+    service: plenumnet-algorand-contracts
+    paths:
+      - /internal/api/algorand/v1/transactions
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - algorand
+      - status
+      - internal
+
+plugins:
+  - name: ip-restriction
+    service: plenumnet-hedera-witness
+    config:
+      allow:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+
+  - name: ip-restriction
+    service: plenumnet-xrpl-settlement
+    config:
+      allow:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+
+  - name: ip-restriction
+    service: plenumnet-algorand-contracts
+    config:
+      allow:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+
+  - name: rate-limiting
+    service: plenumnet-hedera-witness
+    config:
+      second: 20
+      minute: 500
+      policy: local
+
+  - name: rate-limiting
+    service: plenumnet-xrpl-settlement
+    config:
+      second: 10
+      minute: 200
+      policy: local
+
+  - name: rate-limiting
+    service: plenumnet-algorand-contracts
+    config:
+      second: 10
+      minute: 200
+      policy: local

@@ -1,0 +1,20 @@
+{
+  "name": "@salvi/integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Salvi Payment & Witnessing Platform",
+  "scripts": {
+    "test": "jest --runInBand",
+    "test:payment": "jest payment-flow.test.ts",
+    "test:timing": "jest timing-certification.test.ts",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.10",
+    "@types/node": "^20.10.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.2"
+  }
+}

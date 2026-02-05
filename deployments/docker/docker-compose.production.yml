@@ -1,0 +1,250 @@
+version: '3.8'
+
+services:
+  payment-listener:
+    build:
+      context: ../../services/payment-listener
+      dockerfile: Dockerfile
+    container_name: salvi-payment-listener
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - INTERAC_WEBHOOK_SECRET=${INTERAC_WEBHOOK_SECRET}
+      - CRYPTO_WEBHOOK_SECRET=${CRYPTO_WEBHOOK_SECRET}
+      - SFK_CORE_API_URL=http://sfk-core-api:3002
+      - LOG_LEVEL=info
+    depends_on:
+      - redis
+      - sfk-core-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.payment-listener.rule=PathPrefix(`/webhook`)"
+
+  sfk-core-api:
+    build:
+      context: ../../services/sfk-core-api
+      dockerfile: Dockerfile
+    container_name: salvi-sfk-core-api
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - DATABASE_URL=${DATABASE_URL}
+      - HEDERA_SERVICE_URL=http://hedera-service:3003
+      - XRPL_SERVICE_URL=http://xrpl-service:3004
+      - ALGORAND_SERVICE_URL=http://algorand-service:3005
+      - FEMTOSECOND_SERVICE_URL=http://femtosecond-service:3006
+      - CERTIFICATION_SERVICE_URL=http://certification-service:3007
+      - LOG_LEVEL=info
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sfk-api.rule=PathPrefix(`/api/sfk`)"
+
+  hedera-service:
+    build:
+      context: ../../services/blockchain/hedera-service
+      dockerfile: Dockerfile
+    container_name: salvi-hedera-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - HEDERA_NETWORK=${HEDERA_NETWORK:-testnet}
+      - HEDERA_OPERATOR_ID=${HEDERA_OPERATOR_ID}
+      - HEDERA_OPERATOR_KEY=${HEDERA_OPERATOR_KEY}
+      - HEDERA_TOPIC_ID=${HEDERA_TOPIC_ID}
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+
+  xrpl-service:
+    build:
+      context: ../../services/blockchain/xrpl-service
+      dockerfile: Dockerfile
+    container_name: salvi-xrpl-service
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - XRPL_SERVER_URL=${XRPL_SERVER_URL:-wss://s.altnet.rippletest.net:51233}
+      - XRPL_WALLET_SEED=${XRPL_WALLET_SEED}
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+
+  algorand-service:
+    build:
+      context: ../../services/blockchain/algorand-service
+      dockerfile: Dockerfile
+    container_name: salvi-algorand-service
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - ALGORAND_ALGOD_URL=${ALGORAND_ALGOD_URL:-https://testnet-api.algonode.cloud}
+      - ALGORAND_INDEXER_URL=${ALGORAND_INDEXER_URL:-https://testnet-idx.algonode.cloud}
+      - ALGORAND_MNEMONIC=${ALGORAND_MNEMONIC}
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+
+  femtosecond-service:
+    build:
+      context: ../../services/timing/femtosecond-service
+      dockerfile: Dockerfile
+    container_name: salvi-femtosecond-service
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - HPTP_PEERS=localhost:3006
+      - HPTP_POLL_INTERVAL=1000
+      - CLOCK_SOURCE=system
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+
+  certification-service:
+    build:
+      context: ../../services/timing/certification-service
+      dockerfile: Dockerfile
+    container_name: salvi-certification-service
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - FEMTOSECOND_SERVICE_URL=http://femtosecond-service:3006
+      - LOG_LEVEL=info
+    depends_on:
+      - femtosecond-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - salvi-network
+
+  oracle-bridge:
+    build:
+      context: ../../contracts/oracle-bridge
+      dockerfile: Dockerfile
+    container_name: salvi-oracle-bridge
+    environment:
+      - NODE_ENV=production
+      - HEDERA_TOPIC_ID=${HEDERA_TOPIC_ID}
+      - ALGORAND_APP_ID=${ALGORAND_APP_ID}
+      - POLL_INTERVAL_MS=5000
+      - BATCH_SIZE=10
+      - LOG_LEVEL=info
+    depends_on:
+      - hedera-service
+      - algorand-service
+    restart: unless-stopped
+    networks:
+      - salvi-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: salvi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - salvi-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: salvi-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-salvi}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-salvi_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-salvi_production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-salvi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - salvi-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  salvi-network:
+    driver: bridge

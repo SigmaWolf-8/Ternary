@@ -1,0 +1,153 @@
+_format_version: "3.0"
+
+services:
+  - name: plenumnet-femtosecond-timing
+    url: http://femtosecond-service:3006
+    protocol: http
+    port: 3006
+    enabled: true
+    retries: 3
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    tags:
+      - plenumnet
+      - timing
+      - femtosecond
+
+  - name: plenumnet-certification
+    url: http://certification-service:3007
+    protocol: http
+    port: 3007
+    enabled: true
+    retries: 3
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    tags:
+      - plenumnet
+      - timing
+      - certification
+
+routes:
+  - name: timing-current
+    service: plenumnet-femtosecond-timing
+    paths:
+      - /api/timing/v1/current
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - timing
+      - femtosecond
+
+  - name: timing-sync-status
+    service: plenumnet-femtosecond-timing
+    paths:
+      - /api/timing/v1/sync-status
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - timing
+      - sync
+
+  - name: timing-batch
+    service: plenumnet-femtosecond-timing
+    paths:
+      - /api/timing/v1/batch
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - timing
+      - batch
+
+  - name: timing-certify
+    service: plenumnet-certification
+    paths:
+      - /api/timing/v1/certify
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - certification
+      - finra
+
+  - name: timing-certificates
+    service: plenumnet-certification
+    paths:
+      - /api/timing/v1/certificates
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - certification
+
+  - name: timing-verify
+    service: plenumnet-certification
+    paths:
+      - /api/timing/v1/verify
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - certification
+      - verify
+
+  - name: finra-613-compliance
+    service: plenumnet-certification
+    paths:
+      - /api/timing/v1/compliance/finra-613
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - compliance
+      - finra
+
+plugins:
+  - name: rate-limiting
+    service: plenumnet-femtosecond-timing
+    config:
+      second: 100
+      minute: 5000
+      policy: local
+      fault_tolerant: true
+
+  - name: rate-limiting
+    service: plenumnet-certification
+    config:
+      second: 50
+      minute: 1000
+      policy: local
+      fault_tolerant: true
+
+  - name: response-transformer
+    service: plenumnet-femtosecond-timing
+    config:
+      add:
+        headers:
+          - X-Timing-Service:plenumnet-femtosecond
+          - X-Precision:femtosecond

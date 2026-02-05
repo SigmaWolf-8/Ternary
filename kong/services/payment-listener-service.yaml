@@ -1,0 +1,106 @@
+_format_version: "3.0"
+
+services:
+  - name: plenumnet-payment-listener
+    url: http://payment-listener:3001
+    protocol: http
+    port: 3001
+    enabled: true
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    tags:
+      - plenumnet
+      - payment
+      - webhook
+
+routes:
+  - name: payment-webhook-stripe
+    service: plenumnet-payment-listener
+    paths:
+      - /webhook/stripe
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - webhook
+      - stripe
+
+  - name: payment-webhook-interac
+    service: plenumnet-payment-listener
+    paths:
+      - /webhook/interac
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - webhook
+      - interac
+
+  - name: payment-webhook-crypto
+    service: plenumnet-payment-listener
+    paths:
+      - /webhook/crypto
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - webhook
+      - crypto
+
+  - name: payment-status-api
+    service: plenumnet-payment-listener
+    paths:
+      - /api/payments
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - api
+      - payment
+
+plugins:
+  - name: rate-limiting
+    service: plenumnet-payment-listener
+    config:
+      minute: 1000
+      hour: 50000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+  - name: ip-restriction
+    route: payment-webhook-stripe
+    config:
+      allow:
+        - 3.18.12.63/32
+        - 3.130.192.231/32
+        - 13.235.14.237/32
+        - 13.235.122.149/32
+        - 18.211.135.69/32
+        - 35.154.171.200/32
+        - 52.15.183.38/32
+        - 54.88.130.119/32
+        - 54.88.130.237/32
+        - 54.187.174.169/32
+        - 54.187.205.235/32
+        - 54.187.216.72/32
+
+  - name: request-size-limiting
+    service: plenumnet-payment-listener
+    config:
+      allowed_payload_size: 1
+      size_unit: megabytes

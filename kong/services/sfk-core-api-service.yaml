@@ -1,0 +1,101 @@
+_format_version: "3.0"
+
+services:
+  - name: plenumnet-sfk-core-api
+    url: http://sfk-core-api:3002
+    protocol: http
+    port: 3002
+    enabled: true
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    tags:
+      - plenumnet
+      - sfk
+      - operations
+
+routes:
+  - name: sfk-operations-create
+    service: plenumnet-sfk-core-api
+    paths:
+      - /api/sfk/v1/operations
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - operations
+      - create
+
+  - name: sfk-operations-list
+    service: plenumnet-sfk-core-api
+    paths:
+      - /api/sfk/v1/operations
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - operations
+      - list
+
+  - name: sfk-status
+    service: plenumnet-sfk-core-api
+    paths:
+      - /api/sfk/v1/status
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - status
+
+  - name: sfk-docs
+    service: plenumnet-sfk-core-api
+    paths:
+      - /docs
+    methods:
+      - GET
+    strip_path: false
+    preserve_host: true
+    protocols:
+      - https
+    tags:
+      - documentation
+
+plugins:
+  - name: rate-limiting
+    service: plenumnet-sfk-core-api
+    config:
+      minute: 500
+      hour: 10000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+  - name: jwt
+    route: sfk-operations-create
+    config:
+      uri_param_names:
+        - jwt
+      cookie_names: []
+      key_claim_name: iss
+      secret_is_base64: false
+      claims_to_verify:
+        - exp
+      run_on_preflight: true
+
+  - name: request-transformer
+    service: plenumnet-sfk-core-api
+    config:
+      add:
+        headers:
+          - X-Service-Name:plenumnet-sfk-core-api
+          - X-Request-Start:$(date +%s%N)
