@@ -88,7 +88,17 @@ export const insertTernaryStorageSchema = createInsertSchema(ternaryStorage).omi
 export const insertCompressionBenchmarkSchema = createInsertSchema(compressionBenchmarks).omit({ id: true, createdAt: true });
 export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({ id: true, createdAt: true });
 export const insertCompressionHistorySchema = createInsertSchema(compressionHistory).omit({ id: true, createdAt: true });
+export const developerSignups = pgTable("developer_signups", {
+  id: serial("id").primaryKey(),
+  email: varchar("email").notNull().unique(),
+  name: varchar("name"),
+  company: varchar("company"),
+  interest: varchar("interest"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertWhitepaperSchema = createInsertSchema(whitepapers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDeveloperSignupSchema = createInsertSchema(developerSignups).omit({ id: true, createdAt: true });
 
 export type InsertDemoSession = z.infer<typeof insertDemoSessionSchema>;
 export type DemoSession = typeof demoSessions.$inferSelect;
@@ -104,3 +114,5 @@ export type InsertCompressionHistory = z.infer<typeof insertCompressionHistorySc
 export type CompressionHistory = typeof compressionHistory.$inferSelect;
 export type InsertWhitepaper = z.infer<typeof insertWhitepaperSchema>;
 export type Whitepaper = typeof whitepapers.$inferSelect;
+export type InsertDeveloperSignup = z.infer<typeof insertDeveloperSignupSchema>;
+export type DeveloperSignup = typeof developerSignups.$inferSelect;

@@ -11,6 +11,7 @@ import {
   generateUserEvents, 
   generateLogEntries 
 } from "./ternary";
+import { insertDeveloperSignupSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import {
   convertTrit,
@@ -496,6 +497,50 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Data fetch error:", error);
       res.status(500).json({ error: "Failed to get data" });
+    }
+  });
+
+  // =====================================================
+  // Developer Signup API
+  // =====================================================
+
+  app.post("/api/developer-signup", async (req, res) => {
+    try {
+      const signupSchema = insertDeveloperSignupSchema.extend({
+        email: z.string().email(),
+      });
+
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid email address", details: parsed.error.errors });
+      }
+
+      const existing = await storage.getDeveloperSignupByEmail(parsed.data.email);
+      if (existing) {
+        return res.json({ success: true, message: "You're already on the list! We'll be in touch soon." });
+      }
+
+      await storage.createDeveloperSignup({
+        email: parsed.data.email,
+        name: parsed.data.name || null,
+        company: parsed.data.company || null,
+        interest: parsed.data.interest || null,
+      });
+
+      const count = await storage.getDeveloperSignupCount();
+      res.json({ success: true, message: "Welcome aboard! You'll be among the first to get access.", count });
+    } catch (error) {
+      console.error("Developer signup error:", error);
+      res.status(500).json({ error: "Failed to process signup" });
+    }
+  });
+
+  app.get("/api/developer-signup/count", async (_req, res) => {
+    try {
+      const count = await storage.getDeveloperSignupCount();
+      res.json({ success: true, count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get count" });
     }
   });
 

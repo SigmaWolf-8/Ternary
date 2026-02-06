@@ -7,8 +7,9 @@ import {
   type FileUpload, type InsertFileUpload,
   type CompressionHistory, type InsertCompressionHistory,
   type Whitepaper, type InsertWhitepaper,
+  type DeveloperSignup, type InsertDeveloperSignup,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
-  fileUploads, compressionHistory, whitepapers
+  fileUploads, compressionHistory, whitepapers, developerSignups
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -45,6 +46,10 @@ export interface IStorage {
   getActiveWhitepaper(): Promise<Whitepaper | undefined>;
   getAllWhitepapers(): Promise<Whitepaper[]>;
   updateWhitepaper(id: number, data: Partial<InsertWhitepaper>): Promise<Whitepaper | undefined>;
+
+  createDeveloperSignup(data: InsertDeveloperSignup): Promise<DeveloperSignup>;
+  getDeveloperSignupByEmail(email: string): Promise<DeveloperSignup | undefined>;
+  getDeveloperSignupCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -159,6 +164,21 @@ export class DatabaseStorage implements IStorage {
   async updateWhitepaper(id: number, data: Partial<InsertWhitepaper>): Promise<Whitepaper | undefined> {
     const [result] = await db.update(whitepapers).set(data).where(eq(whitepapers.id, id)).returning();
     return result;
+  }
+
+  async createDeveloperSignup(data: InsertDeveloperSignup): Promise<DeveloperSignup> {
+    const [result] = await db.insert(developerSignups).values(data).returning();
+    return result;
+  }
+
+  async getDeveloperSignupByEmail(email: string): Promise<DeveloperSignup | undefined> {
+    const [signup] = await db.select().from(developerSignups).where(eq(developerSignups.email, email));
+    return signup;
+  }
+
+  async getDeveloperSignupCount(): Promise<number> {
+    const result = await db.select().from(developerSignups);
+    return result.length;
   }
 }
 
