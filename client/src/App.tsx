@@ -10,6 +10,7 @@ import GitHubManager from "@/pages/github-manager";
 import APIDemo from "@/pages/api-demo";
 import KongKonnect from "@/pages/kong-konnect";
 import Admin from "@/pages/admin";
+import Docs from "@/pages/docs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/api-demo" component={APIDemo} />
       <Route path="/kong-konnect" component={KongKonnect} />
       <Route path="/admin" component={Admin} />
+      <Route path="/docs" component={Docs} />
       <Route component={NotFound} />
     </Switch>
   );

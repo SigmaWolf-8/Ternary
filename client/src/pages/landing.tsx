@@ -65,6 +65,7 @@ function Header() {
     { href: "#components", label: "Components" },
     { href: "#performance", label: "Performance" },
     { href: "/whitepaper", label: "Whitepaper" },
+    { href: "/docs", label: "Docs" },
   ];
 
   return (
