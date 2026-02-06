@@ -3,10 +3,21 @@ name: Security Scan
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/kernel/**'
+      - 'src/tsl/**'
+      - 'src/thdl/**'
+      - '**/*.ts'
+      - '**/*.js'
+      - '**/*.tsx'
+      - '**/*.jsx'
+      - 'server/**'
+      - 'client/**'
   pull_request:
     branches: [main]
   schedule:
     - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,23 +30,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Rust projects exist
+        id: check
+        run: |
+          if [ -f "src/kernel/Cargo.toml" ]; then
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_kernel=false" >> $GITHUB_OUTPUT
+          fi
+          if [ -f "src/tsl/Cargo.toml" ]; then
+            echo "has_tsl=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tsl=false" >> $GITHUB_OUTPUT
+          fi
+          if [ -f "src/thdl/Cargo.toml" ]; then
+            echo "has_thdl=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_thdl=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install Rust toolchain
+        if: steps.check.outputs.has_kernel == 'true' || steps.check.outputs.has_tsl == 'true' || steps.check.outputs.has_thdl == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
+        if: steps.check.outputs.has_kernel == 'true' || steps.check.outputs.has_tsl == 'true' || steps.check.outputs.has_thdl == 'true'
         run: cargo install cargo-audit
 
       - name: Audit kernel dependencies
+        if: steps.check.outputs.has_kernel == 'true'
         working-directory: src/kernel
         run: cargo audit
 
       - name: Audit TSL dependencies
+        if: steps.check.outputs.has_tsl == 'true'
         working-directory: src/tsl
         run: cargo audit
 
       - name: Audit THDL dependencies
+        if: steps.check.outputs.has_thdl == 'true'
         working-directory: src/thdl
         run: cargo audit
+
+      - name: Skip notice
+        if: steps.check.outputs.has_kernel == 'false' && steps.check.outputs.has_tsl == 'false' && steps.check.outputs.has_thdl == 'false'
+        run: echo "::notice::No Rust projects found. Dependency audit skipped."
 
   codeql:
     name: CodeQL Analysis
@@ -75,12 +114,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Rust projects exist
+        id: check
+        run: |
+          if [ -f "src/kernel/Cargo.toml" ]; then
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_kernel=false" >> $GITHUB_OUTPUT
+          fi
+          if [ -f "src/tsl/Cargo.toml" ]; then
+            echo "has_tsl=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tsl=false" >> $GITHUB_OUTPUT
+          fi
+          if [ -f "src/thdl/Cargo.toml" ]; then
+            echo "has_thdl=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_thdl=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install Rust toolchain
+        if: steps.check.outputs.has_kernel == 'true' || steps.check.outputs.has_tsl == 'true' || steps.check.outputs.has_thdl == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
 
       - name: Clippy kernel
+        if: steps.check.outputs.has_kernel == 'true'
         working-directory: src/kernel
         run: >
           cargo clippy --all-features -- -D warnings -W clippy::pedantic
@@ -90,9 +150,15 @@ jobs:
           -A clippy::missing_panics_doc
 
       - name: Clippy TSL
+        if: steps.check.outputs.has_tsl == 'true'
         working-directory: src/tsl
         run: cargo clippy --all-features -- -D warnings
 
       - name: Clippy THDL
+        if: steps.check.outputs.has_thdl == 'true'
         working-directory: src/thdl
         run: cargo clippy --all-features -- -D warnings
+
+      - name: Skip notice
+        if: steps.check.outputs.has_kernel == 'false' && steps.check.outputs.has_tsl == 'false' && steps.check.outputs.has_thdl == 'false'
+        run: echo "::notice::No Rust projects found. Clippy lints skipped."

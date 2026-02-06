@@ -13,6 +13,7 @@ on:
       - 'src/kernel/**'
       - 'src/tsl/**'
       - 'src/thdl/**'
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -36,12 +37,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check kernel exists
+        id: check
+        run: |
+          if [ -f "src/kernel/Cargo.toml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::Kernel source not yet published. Skipping build."
+          fi
+
       - name: Install Rust toolchain
+        if: steps.check.outputs.exists == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
       - name: Install cross-compilation tools
+        if: steps.check.outputs.exists == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -49,6 +62,7 @@ jobs:
             gcc-riscv64-linux-gnu
 
       - name: Cache cargo registry
+        if: steps.check.outputs.exists == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -58,6 +72,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('src/kernel/Cargo.lock') }}
 
       - name: Build kernel
+        if: steps.check.outputs.exists == 'true'
         working-directory: src/kernel
         run: |
           cargo build --target ${{ matrix.target }} --features ${{ matrix.features }}
@@ -66,6 +81,7 @@ jobs:
           CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
 
       - name: Build kernel (release)
+        if: steps.check.outputs.exists == 'true'
         working-directory: src/kernel
         run: |
           cargo build --release --target ${{ matrix.target }} --features ${{ matrix.features }}
@@ -79,10 +95,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check TSL exists
+        id: check
+        run: |
+          if [ -f "src/tsl/Cargo.toml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::TSL compiler source not yet published. Skipping build."
+          fi
+
       - name: Install Rust toolchain
+        if: steps.check.outputs.exists == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
+        if: steps.check.outputs.exists == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -92,6 +120,7 @@ jobs:
           key: ${{ runner.os }}-cargo-tsl-${{ hashFiles('src/tsl/Cargo.lock') }}
 
       - name: Build TSL compiler
+        if: steps.check.outputs.exists == 'true'
         working-directory: src/tsl
         run: cargo build --release
 
@@ -101,10 +130,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check THDL exists
+        id: check
+        run: |
+          if [ -f "src/thdl/Cargo.toml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::THDL synthesizer source not yet published. Skipping build."
+          fi
+
       - name: Install Rust toolchain
+        if: steps.check.outputs.exists == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
+        if: steps.check.outputs.exists == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -114,6 +155,7 @@ jobs:
           key: ${{ runner.os }}-cargo-thdl-${{ hashFiles('src/thdl/Cargo.lock') }}
 
       - name: Build THDL synthesizer
+        if: steps.check.outputs.exists == 'true'
         working-directory: src/thdl
         run: cargo build --release
 
@@ -135,30 +177,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check service exists
+        id: check
+        run: |
+          if [ -d "services/${{ matrix.service }}" ] && [ -f "services/${{ matrix.service }}/package.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::Service services/${{ matrix.service }} not yet published. Skipping."
+          fi
+
       - name: Setup Node.js
+        if: steps.check.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Check for package.json
-        id: check
-        working-directory: services/${{ matrix.service }}
-        run: |
-          if [ -f "package.json" ]; then
-            echo "has_package=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_package=false" >> $GITHUB_OUTPUT
-            echo "::warning::No package.json found in services/${{ matrix.service }}"
-          fi
-
       - name: Install dependencies
-        if: steps.check.outputs.has_package == 'true'
+        if: steps.check.outputs.exists == 'true'
         working-directory: services/${{ matrix.service }}
         continue-on-error: true
         run: npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts
 
       - name: Lint check
-        if: steps.check.outputs.has_package == 'true'
+        if: steps.check.outputs.exists == 'true'
         working-directory: services/${{ matrix.service }}
         continue-on-error: true
         run: npx --yes eslint . --ext .js,.ts 2>/dev/null || true
