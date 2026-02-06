@@ -77,7 +77,8 @@ The database includes tables for:
 ### Recent Changes (2026-02-06)
 - Added complete memory subsystem (`src/kernel/src/memory/`)
 - Added complete synchronization primitives (`src/kernel/src/sync/`)
-- Integrated memory and sync error types into `KernelError` with `From` conversions
+- Added complete process management subsystem (`src/kernel/src/process/`)
+- Integrated memory, sync, and process error types into `KernelError` with `From` conversions
 
 ### Kernel Modules
 -   **Ternary Operations** (`src/kernel/src/ternary/`): GF(3) arithmetic, representation conversions (A/B/C), trit/tryte types.
@@ -92,8 +93,14 @@ The database includes tables for:
     - `mutex.rs`: Mutex with ternary security mode gating (caller must meet minimum mode level).
     - `semaphore.rs`: Counting semaphore for resource pool management.
     - `phase_mutex.rs`: Phase-encryption-aware mutex enforcing femtosecond timing windows per `EncryptionMode`.
+-   **Process Management** (`src/kernel/src/process/`):
+    - `mod.rs`: ProcessId, ProcessState (Created/Ready/Running/Blocked/Sleeping/Suspended/Terminated/Zombie), Priority levels (Idle through Critical), ProcessDescriptor with security mode and timing metadata.
+    - `table.rs`: ProcessTable with creation, lookup, state transitions, parent-child tracking, zombie reaping, and security mode filtering.
+    - `scheduler.rs`: Multi-level priority round-robin scheduler with idle process fallback, block/unblock, and priority changes.
+    - `context.rs`: CPU context (general + control + ternary coprocessor registers), context switch descriptors with page table and ternary state flags.
+    - `ipc.rs`: Message-passing IPC with typed messages (Data/Signal/TernaryPayload/PhaseComponent/TimingSync/Control), security-mode-gated channels, MessageBus with per-process channel tracking.
 -   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems.
 
 ### Gap Closure Roadmap Progress
-- Completed: P0-005, P0-006, P1-001 through P1-010 (12 of 65 tasks)
-- Next priorities: P1-011 to P1-015 (Process Management), P1-016 to P1-021 (Modal Security System), P1-022 to P1-026 (Cryptographic Primitives)
+- Completed: P0-005, P0-006, P1-001 through P1-015 (17 of 65 tasks)
+- Next priorities: P1-016 to P1-021 (Modal Security System), P1-022 to P1-026 (Cryptographic Primitives)

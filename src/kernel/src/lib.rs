@@ -22,6 +22,7 @@ pub mod phase;
 pub mod error;
 pub mod memory;
 pub mod sync;
+pub mod process;
 
 use alloc::string::String;
 

@@ -18,6 +18,8 @@ pub enum KernelError {
     MemoryError(crate::memory::MemoryError),
     /// Synchronization error
     SyncError(crate::sync::SyncError),
+    /// Process management error
+    ProcessError(crate::process::ProcessError),
     /// Representation conversion error
     ConversionError { from: String, to: String },
 }
@@ -61,6 +63,7 @@ impl fmt::Display for KernelError {
             KernelError::PhaseError(e) => write!(f, "Phase error: {:?}", e),
             KernelError::MemoryError(e) => write!(f, "Memory error: {}", e),
             KernelError::SyncError(e) => write!(f, "Sync error: {}", e),
+            KernelError::ProcessError(e) => write!(f, "Process error: {}", e),
             KernelError::ConversionError { from, to } => {
                 write!(f, "Cannot convert from {} to {}", from, to)
             }
@@ -89,6 +92,12 @@ impl From<crate::memory::MemoryError> for KernelError {
 impl From<crate::sync::SyncError> for KernelError {
     fn from(e: crate::sync::SyncError) -> Self {
         KernelError::SyncError(e)
+    }
+}
+
+impl From<crate::process::ProcessError> for KernelError {
+    fn from(e: crate::process::ProcessError) -> Self {
+        KernelError::ProcessError(e)
     }
 }
 
