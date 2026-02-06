@@ -1,0 +1,27 @@
+codecov:
+  require_ci_to_pass: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "40...90"
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+
+flags:
+  kernel:
+    paths:
+      - src/kernel/src/
+    carryforward: true
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false

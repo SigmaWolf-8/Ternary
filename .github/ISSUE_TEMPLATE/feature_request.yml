@@ -1,0 +1,61 @@
+name: Feature Request
+description: Propose a new feature or enhancement for PlenumNET
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature. Please provide as much detail as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the feature you are proposing.
+      placeholder: Describe the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this feature needed? What problem does it solve?
+      placeholder: Explain the motivation and use case...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you think this feature should be implemented.
+      placeholder: Describe your proposed solution...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: roadmap-phase
+    attributes:
+      label: Roadmap Phase
+      description: Which roadmap phase does this feature relate to?
+      options:
+        - P0-Foundation
+        - P1-Kernel
+        - P1.5-Infrastructure
+        - P2-Architecture
+        - P2-Network
+        - P3-TVM
+        - P3-Compatibility
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you have considered.
+      placeholder: Describe alternatives...
+    validations:
+      required: false
