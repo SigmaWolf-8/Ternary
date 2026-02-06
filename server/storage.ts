@@ -50,6 +50,8 @@ export interface IStorage {
   createDeveloperSignup(data: InsertDeveloperSignup): Promise<DeveloperSignup>;
   getDeveloperSignupByEmail(email: string): Promise<DeveloperSignup | undefined>;
   getDeveloperSignupCount(): Promise<number>;
+  getAllDeveloperSignups(): Promise<DeveloperSignup[]>;
+  deleteDeveloperSignup(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -179,6 +181,14 @@ export class DatabaseStorage implements IStorage {
   async getDeveloperSignupCount(): Promise<number> {
     const result = await db.select().from(developerSignups);
     return result.length;
+  }
+
+  async getAllDeveloperSignups(): Promise<DeveloperSignup[]> {
+    return await db.select().from(developerSignups).orderBy(developerSignups.createdAt);
+  }
+
+  async deleteDeveloperSignup(id: number): Promise<void> {
+    await db.delete(developerSignups).where(eq(developerSignups.id, id));
   }
 }
 

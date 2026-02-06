@@ -12,7 +12,7 @@ import {
   generateLogEntries 
 } from "./ternary";
 import { insertDeveloperSignupSchema } from "@shared/schema";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import {
   convertTrit,
   convertVector,
@@ -541,6 +541,34 @@ export async function registerRoutes(
       res.json({ success: true, count });
     } catch (error) {
       res.status(500).json({ error: "Failed to get count" });
+    }
+  });
+
+  // =====================================================
+  // Admin API (authenticated)
+  // =====================================================
+
+  app.get("/api/admin/developer-signups", isAuthenticated, async (_req, res) => {
+    try {
+      const signups = await storage.getAllDeveloperSignups();
+      res.json({ success: true, signups });
+    } catch (error) {
+      console.error("Error fetching signups:", error);
+      res.status(500).json({ error: "Failed to fetch signups" });
+    }
+  });
+
+  app.delete("/api/admin/developer-signups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid ID" });
+      }
+      await storage.deleteDeveloperSignup(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting signup:", error);
+      res.status(500).json({ error: "Failed to delete signup" });
     }
   });
 
