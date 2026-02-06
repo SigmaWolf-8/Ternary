@@ -82,33 +82,31 @@ Comprehensive documentation for each subsystem:
 |--------|-------------|-------|
 | Memory Subsystem | Frame allocator, page tables, heap | [01_KERNEL_MEMORY.md](./modules/01_KERNEL_MEMORY.md) |
 | Sync Primitives | Spinlock, mutex, semaphore, RwLock | [02_SYNC_PRIMITIVES.md](./modules/02_SYNC_PRIMITIVES.md) |
-| Process Management | PCB, scheduler, context switch, IPC | 03_PROCESS_MANAGEMENT.md |
-| Modal Security | Domains, capabilities, audit, policy | 04_MODAL_SECURITY.md |
+| Process Management | PCB, scheduler, context switch, IPC | [03_PROCESS_MANAGEMENT.md](./modules/03_PROCESS_MANAGEMENT.md) |
+| Modal Security | Domains, capabilities, audit, policy | [04_MODAL_SECURITY.md](./modules/04_MODAL_SECURITY.md) |
 | Cryptography | Hash, HMAC, KDF, Lamport OTS, cipher | [05_CRYPTOGRAPHY.md](./modules/05_CRYPTOGRAPHY.md) |
 
 ### Infrastructure (P1.5)
 
 | Module | Description | Guide |
 |--------|-------------|-------|
-| Device Drivers | Lifecycle, bus hierarchy, registry | 06_DEVICE_FRAMEWORK.md |
-| I/O Subsystem | Priority scheduler, buffer cache | 07_IO_SUBSYSTEM.md |
-| Filesystem | Inodes, directories, file ops, mount | 08_FILESYSTEM.md |
+| Device Framework | Lifecycle, bus hierarchy, registry | [06_DEVICE_FRAMEWORK.md](./modules/06_DEVICE_FRAMEWORK.md) |
+| I/O Subsystem | Priority scheduler, buffer cache | [07_IO_SUBSYSTEM.md](./modules/07_IO_SUBSYSTEM.md) |
+| Filesystem | Inodes, directories, file ops, mount | [08_FILESYSTEM.md](./modules/08_FILESYSTEM.md) |
 
 ### Core Features (P2)
 
 | Module | Description | Guide |
 |--------|-------------|-------|
 | Torsion Network | N-dim torus, geodesic routing | [09_TORSION_NETWORK.md](./modules/09_TORSION_NETWORK.md) |
-| Network Protocols | TTP, T3P, TDNS | 10_NETWORK_PROTOCOLS.md |
-| Architecture | x86_64, aarch64, RISC-V abstraction | ARCHITECTURE.md |
-| Hardware Drivers | TPU FPGA/ASIC, femtosecond clock | HARDWARE_DRIVERS.md |
+| Network Protocols | TTP, T3P, TDNS | [10_NETWORK_PROTOCOLS.md](./modules/10_NETWORK_PROTOCOLS.md) |
 
 ### Extended Features (P3)
 
 | Module | Description | Guide |
 |--------|-------------|-------|
 | TVM | 35-opcode ISA, GF(3) ALU, TAGC | [11_TVM.md](./modules/11_TVM.md) |
-| Timing Protocol | HPTP, optical clocks, certification | 12_TIMING_PROTOCOL.md |
+| Timing Protocol | HPTP, optical clocks, certification | [12_TIMING_PROTOCOL.md](./modules/12_TIMING_PROTOCOL.md) |
 | BTG | Binary-ternary conversion, adapters | [13_BTG.md](./modules/13_BTG.md) |
 
 ---

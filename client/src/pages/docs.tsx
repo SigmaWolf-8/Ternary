@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,13 @@ import {
   Terminal,
   ExternalLink,
   Rocket,
+  Layers,
+  HardDrive,
+  FolderTree,
+  Globe,
+  Clock,
+  Settings,
+  KeyRound,
 } from "lucide-react";
 
 const tutorials = [
@@ -41,18 +47,63 @@ const modules = [
     title: "Sync Primitives",
     description: "Ternary spinlock, security-gated mutex, counting semaphore, PhaseSafeMutex, and RwLock.",
     priority: "P1",
-    tests: "~50",
+    tests: "~45",
     icon: Lock,
     file: "modules/02_SYNC_PRIMITIVES.md",
+  },
+  {
+    id: "03",
+    title: "Process Management",
+    description: "8-state process model, 6-level priority scheduler, context switching, and typed IPC.",
+    priority: "P1",
+    tests: "~55",
+    icon: Layers,
+    file: "modules/03_PROCESS_MANAGEMENT.md",
+  },
+  {
+    id: "04",
+    title: "Modal Security",
+    description: "Four-mode security (0/1/phi/phi+), domain isolation, capabilities, audit trail, and policy engine.",
+    priority: "P1",
+    tests: "~70",
+    icon: Shield,
+    file: "modules/04_MODAL_SECURITY.md",
   },
   {
     id: "05",
     title: "Cryptography",
     description: "Ternary sponge hash, HMAC, KDF, Lamport one-time signatures, and bijective cipher.",
     priority: "P1",
-    tests: "~70",
-    icon: Shield,
+    tests: "~85",
+    icon: KeyRound,
     file: "modules/05_CRYPTOGRAPHY.md",
+  },
+  {
+    id: "06",
+    title: "Device Framework",
+    description: "Device lifecycle, bus hierarchy (PCI/USB/Ternary), driver registry, IRQ, and DMA engine.",
+    priority: "P1.5",
+    tests: "~48",
+    icon: Settings,
+    file: "modules/06_DEVICE_FRAMEWORK.md",
+  },
+  {
+    id: "07",
+    title: "I/O Subsystem",
+    description: "4-level priority scheduler, LRU buffer cache, block and character device layers.",
+    priority: "P1.5",
+    tests: "~52",
+    icon: HardDrive,
+    file: "modules/07_IO_SUBSYSTEM.md",
+  },
+  {
+    id: "08",
+    title: "Filesystem",
+    description: "Inode management, B-tree directories, TernFS, VFS mount system, and journaling.",
+    priority: "P1.5",
+    tests: "~56",
+    icon: FolderTree,
+    file: "modules/08_FILESYSTEM.md",
   },
   {
     id: "09",
@@ -64,6 +115,15 @@ const modules = [
     file: "modules/09_TORSION_NETWORK.md",
   },
   {
+    id: "10",
+    title: "Network Protocols",
+    description: "TTP 11-state transport, T3P application protocol with Witness method, and TDNS resolution.",
+    priority: "P2",
+    tests: "~85",
+    icon: Globe,
+    file: "modules/10_NETWORK_PROTOCOLS.md",
+  },
+  {
     id: "11",
     title: "Ternary Virtual Machine",
     description: "35-opcode ISA, 27 registers, GF(3) ALU, and ternary-aware garbage collector (TAGC).",
@@ -71,6 +131,15 @@ const modules = [
     tests: "~95",
     icon: Terminal,
     file: "modules/11_TVM.md",
+  },
+  {
+    id: "12",
+    title: "Timing Protocol (HPTP)",
+    description: "Femtosecond synchronization, optical clock manager, FINRA 613 and MiFID II compliance.",
+    priority: "P3",
+    tests: "~55",
+    icon: Clock,
+    file: "modules/12_TIMING_PROTOCOL.md",
   },
   {
     id: "13",
@@ -81,16 +150,6 @@ const modules = [
     icon: Binary,
     file: "modules/13_BTG.md",
   },
-];
-
-const upcomingModules = [
-  { id: "03", title: "Process Management", priority: "P1" },
-  { id: "04", title: "Modal Security", priority: "P1" },
-  { id: "06", title: "Device Framework", priority: "P1.5" },
-  { id: "07", title: "I/O Subsystem", priority: "P1.5" },
-  { id: "08", title: "Filesystem", priority: "P1.5" },
-  { id: "10", title: "Network Protocols", priority: "P2" },
-  { id: "12", title: "Timing Protocol (HPTP)", priority: "P3" },
 ];
 
 function PriorityBadge({ priority }: { priority: string }) {
@@ -119,12 +178,13 @@ export default function Docs() {
           <h2 className="text-2xl font-bold mb-2" data-testid="text-overview-title">Documentation</h2>
           <p className="text-muted-foreground max-w-2xl">
             Comprehensive guides covering every module of the Salvi Framework. 
-            From getting started with your first ternary program to advanced kernel internals and network topology.
+            7,316 lines across 15 files — from getting started with your first ternary program to advanced kernel internals, network topology, and regulatory compliance.
           </p>
           <div className="flex flex-wrap gap-4 mt-4">
             <Badge variant="outline">1,011 Tests Passing</Badge>
             <Badge variant="outline">80/80 Roadmap Complete</Badge>
-            <Badge variant="outline">8 Module Guides</Badge>
+            <Badge variant="outline">13 Module Guides</Badge>
+            <Badge variant="outline">1 Tutorial</Badge>
           </div>
         </div>
 
@@ -191,21 +251,6 @@ export default function Docs() {
               </Card>
             ))}
           </div>
-        </section>
-
-        <section className="mb-12" data-testid="section-upcoming">
-          <h3 className="text-xl font-semibold mb-4 text-muted-foreground">Coming Soon</h3>
-          <Card className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {upcomingModules.map((mod_) => (
-                <div key={mod_.id} className="flex items-center gap-2 text-sm text-muted-foreground" data-testid={`text-upcoming-${mod_.id}`}>
-                  <span className="font-mono text-xs">{mod_.id}</span>
-                  <span>{mod_.title}</span>
-                  <PriorityBadge priority={mod_.priority} />
-                </div>
-              ))}
-            </div>
-          </Card>
         </section>
 
         <section data-testid="section-quick-reference">
