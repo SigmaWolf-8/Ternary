@@ -78,7 +78,9 @@ The database includes tables for:
 - Added complete memory subsystem (`src/kernel/src/memory/`)
 - Added complete synchronization primitives (`src/kernel/src/sync/`)
 - Added complete process management subsystem (`src/kernel/src/process/`)
-- Integrated memory, sync, and process error types into `KernelError` with `From` conversions
+- Added complete modal security system (`src/kernel/src/security/`)
+- Added complete cryptographic primitives (`src/kernel/src/crypto/`)
+- Integrated memory, sync, process, security, and crypto error types into `KernelError` with `From` conversions
 
 ### Kernel Modules
 -   **Ternary Operations** (`src/kernel/src/ternary/`): GF(3) arithmetic, representation conversions (A/B/C), trit/tryte types.
@@ -99,8 +101,19 @@ The database includes tables for:
     - `scheduler.rs`: Multi-level priority round-robin scheduler with idle process fallback, block/unblock, and priority changes.
     - `context.rs`: CPU context (general + control + ternary coprocessor registers), context switch descriptors with page table and ternary state flags.
     - `ipc.rs`: Message-passing IPC with typed messages (Data/Signal/TernaryPayload/PhaseComponent/TimingSync/Control), security-mode-gated channels, MessageBus with per-process channel tracking.
--   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems.
+-   **Modal Security** (`src/kernel/src/security/`):
+    - `domain.rs`: Security domain management with isolation policies, transition rules (audit/approval requirements), and domain-aware access control.
+    - `capability.rs`: Capability-based access control with typed tokens (Read/Write/Execute/Admin/Custom), delegation chains, revocation, and expiration.
+    - `audit.rs`: Audit trail with femtosecond timestamps, integrity checksums via ternary hashing, and append-only log with capacity management.
+    - `policy.rs`: Priority-ordered security policy engine with mode restrictions, domain-scoped rules, and default-deny evaluation.
+-   **Cryptographic Primitives** (`src/kernel/src/crypto/`):
+    - `hash.rs`: Ternary hash using substitution-permutation network with rotation-based S-box (prevents zero-collapse) and bijective permutation (multiplier 376, gcd(376,729)=1).
+    - `sponge.rs`: Sponge construction with absorb/squeeze phases and configurable capacity/rate.
+    - `hmac.rs`: HMAC with constant-time comparison using XOR accumulator.
+    - `kdf.rs`: Key derivation with iterated HMAC and salt mixing.
+    - `signature.rs`: Proper ternary Lamport one-time signature (3 secrets per trit position, 81-trit message digest, one-time enforcement via `used` flag).
+-   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems (memory, sync, process, security, crypto).
 
 ### Gap Closure Roadmap Progress
-- Completed: P0-005, P0-006, P1-001 through P1-015 (17 of 65 tasks)
-- Next priorities: P1-016 to P1-021 (Modal Security System), P1-022 to P1-026 (Cryptographic Primitives)
+- Completed: P0-005, P0-006, P1-001 through P1-026 (27 of 65 tasks)
+- Next priorities: P1-027+ (Device Drivers, I/O Subsystem, Filesystem)
