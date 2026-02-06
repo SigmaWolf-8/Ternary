@@ -497,9 +497,15 @@ function ComponentCard({
       transition={{ duration: 0.5, delay: index * 0.1 }}
     >
       {link ? (
-        <Link href={link} className="block h-full">
-          {CardContent}
-        </Link>
+        link.startsWith("http") ? (
+          <a href={link} target="_blank" rel="noopener noreferrer" className="block h-full">
+            {CardContent}
+          </a>
+        ) : (
+          <Link href={link} className="block h-full">
+            {CardContent}
+          </Link>
+        )
       ) : (
         CardContent
       )}
