@@ -36,8 +36,14 @@ pub enum KernelError {
     Driver(crate::drivers::DriverError),
     /// Network error
     Network(crate::network::NetworkError),
+    /// VM error
+    Vm(crate::vm::VmError),
+    /// HPTP error
+    Hptp(crate::hptp::HptpError),
     /// Representation conversion error
     ConversionError { from: String, to: String },
+    /// Compatibility layer error
+    Compat(crate::compat::CompatError),
 }
 
 /// Timing-specific errors
@@ -88,10 +94,19 @@ impl fmt::Display for KernelError {
             KernelError::Arch(e) => write!(f, "Architecture error: {}", e),
             KernelError::Driver(e) => write!(f, "Driver error: {}", e),
             KernelError::Network(e) => write!(f, "Network error: {}", e),
+            KernelError::Vm(e) => write!(f, "VM error: {}", e),
+            KernelError::Hptp(e) => write!(f, "HPTP error: {}", e),
             KernelError::ConversionError { from, to } => {
                 write!(f, "Cannot convert from {} to {}", from, to)
             }
+            KernelError::Compat(e) => write!(f, "Compatibility error: {}", e),
         }
+    }
+}
+
+impl From<crate::compat::CompatError> for KernelError {
+    fn from(e: crate::compat::CompatError) -> Self {
+        KernelError::Compat(e)
     }
 }
 
@@ -170,6 +185,18 @@ impl From<crate::drivers::DriverError> for KernelError {
 impl From<crate::network::NetworkError> for KernelError {
     fn from(e: crate::network::NetworkError) -> Self {
         KernelError::Network(e)
+    }
+}
+
+impl From<crate::vm::VmError> for KernelError {
+    fn from(e: crate::vm::VmError) -> Self {
+        KernelError::Vm(e)
+    }
+}
+
+impl From<crate::hptp::HptpError> for KernelError {
+    fn from(e: crate::hptp::HptpError) -> Self {
+        KernelError::Hptp(e)
     }
 }
 

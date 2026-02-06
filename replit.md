@@ -1,9 +1,7 @@
 # PlenumNET Framework Marketing Website
 
 ## Overview
-PlenumNET (formerly Salvi) is a post-quantum internet solutions company. This project is a professional, light-themed marketing website showcasing PlenumNET's deployable components for building quantum-resistant infrastructure. Key features include a PlenumDB product page with a live compression demo and comprehensive whitepaper management.
-
-The project has expanded to include a complete payment processing and blockchain witnessing architecture, integrating high-precision timing and regulatory compliance for financial transactions. This aims to provide robust, secure, and verifiable operations for quantum-resistant data and financial services.
+PlenumNET is a post-quantum internet solutions company focused on building quantum-resistant infrastructure. This project is a professional, light-themed marketing website showcasing PlenumNET's deployable components, including a PlenumDB product page with a live compression demo and comprehensive whitepaper management. The project also encompasses a complete payment processing and blockchain witnessing architecture, integrating high-precision timing and regulatory compliance for secure and verifiable operations in quantum-resistant data and financial services.
 
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
@@ -11,144 +9,59 @@ I prefer iterative development with a focus on delivering working features incre
 ## System Architecture
 
 ### Frontend
-The frontend is built with React, TypeScript, Tailwind CSS, and Framer Motion. It uses `shadcn/ui` for UI components and Wouter for routing. The design adheres to a light theme with a white background and blue accents.
-
-**Core Pages:**
--   **Landing Page (`/`)**: Main entry point with sections on PlenumNET's approach, components, market potential, and call to action.
--   **PlenumDB Product Page (`/ternarydb`)**: Features a live compression demo.
--   **Whitepaper Viewer (`/whitepaper`)**: Displays the full whitepaper with a table of contents.
--   **GitHub Manager (`/github`)**: An admin-only interface for managing GitHub repository files, including sorting, filtering, and metrics.
--   **Kong Konnect Integration (`/kong-konnect`)**: A page to manage API gateway integration with Kong Konnect.
+The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui` for components, and Wouter for routing. It adheres to a light theme with a white background and blue accents. Key pages include the Landing Page, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, and Kong Konnect Integration.
 
 ### Backend and Core Framework
-The backend uses Express.js and Node.js, with PostgreSQL and Drizzle ORM for database management.
+The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM.
 
-**PlenumNET Core API (`/api/salvi/`)**:
--   **Ternary Operations**: Implements the Unified Ternary Logic System for operations like conversion, addition, multiplication, rotation, negation, and XOR in GF(3).
--   **Femtosecond Timing**: Provides high-precision timestamping and timing metrics.
--   **Phase Encryption**: Handles splitting and recombining data into phase-encrypted components.
+**PlenumNET Core API**: Implements Unified Ternary Logic System operations (conversion, arithmetic, XOR in GF(3)), Femtosecond Timing, and Phase Encryption.
 
-**Ternary Representations:**
+**Ternary Representations**:
 -   **A (Computational)**: `{-1, 0, +1}`
 -   **B (Network)**: `{0, 1, 2}`
 -   **C (Human)**: `{1, 2, 3}`
 
 **Microservices Architecture (Payment & Witnessing)**:
-The system now includes several microservices for robust payment processing and blockchain integration:
--   **Payment Listener (Port 3001)**: Handles payment webhooks (Stripe, Interac, Crypto) with HMAC signature validation and queues payments using BullMQ.
--   **SFK Core API (Port 3002)**: An orchestration layer for operations, built with Fastify, providing CRUD operations and internal blockchain integration routes. Includes Swagger/OpenAPI documentation.
--   **Blockchain Services**: Dedicated services for Hedera HCS (witnessing), XRPL (payment settlement), and Algorand (smart contract execution).
--   **Femtosecond Timing Service (Port 3006)**: Provides high-precision timing synchronized via HPTP, supporting clock sources like GPSDOs and atomic clocks.
--   **Certification Service (Port 3007)**: Ensures regulatory compliance (FINRA 613, MiFID II) for timestamps, providing certification and verification.
+-   **Payment Listener**: Handles payment webhooks (Stripe, Interac, Crypto) with HMAC validation and queues payments using BullMQ.
+-   **SFK Core API**: An orchestration layer for CRUD operations and blockchain integration using Fastify, with Swagger/OpenAPI documentation.
+-   **Blockchain Services**: Dedicated services for Hedera HCS (witnessing), XRPL (payment settlement), and Algorand (smart contract execution and oracle bridge).
+-   **Femtosecond Timing Service**: Provides high-precision timing synchronized via HPTP.
+-   **Certification Service**: Ensures regulatory compliance (FINRA 613, MiFID II) for timestamps.
 
-**Blockchain Integration Details:**
--   **Hedera HCS**: For immutable audit trails and femtosecond-precision witnessing.
--   **XRPL**: For real-time, cross-border payment settlement.
--   **Algorand**: For smart contracts (e.g., Ternary Governance, Reward Distribution) and an oracle bridge to Hedera.
-
-**Security Features:**
--   HMAC-SHA256/SHA512 signature validation for webhooks.
--   `crypto.timingSafeEqual` for constant-time comparisons.
--   Idempotency keys and rate limiting.
+**Security Features**: HMAC-SHA256/SHA512 validation, `crypto.timingSafeEqual`, idempotency keys, and rate limiting.
 
 ### Database Schema
-The database includes tables for:
--   `users`: Authenticated users with roles and GitHub token.
--   `sessions`: User session management.
--   `demo_sessions`: Metadata for compression demos.
--   `binary_storage`, `ternary_storage`: Original and compressed data.
--   `compression_benchmarks`, `compression_history`: Performance and historical data.
--   `whitepapers`: Whitepaper content.
+Includes tables for `users`, `sessions`, `demo_sessions`, `binary_storage`, `ternary_storage`, `compression_benchmarks`, `compression_history`, and `whitepapers`.
+
+### Rust Kernel Architecture
+The `src/kernel/` directory contains a robust kernel developed in Rust, encompassing:
+-   **Ternary Operations**: GF(3) arithmetic and representation conversions.
+-   **Timing**: Femtosecond-precision timestamps.
+-   **Phase Encryption**: Split/recombine encryption with timing-window enforcement.
+-   **Memory Subsystem**: Bitmap-based frame allocator, page table management with ternary security modes, and free-list heap allocator.
+-   **Synchronization Primitives**: Ticket-based spinlocks, ternary-security-gated mutexes, semaphores, and phase-encryption-aware mutexes.
+-   **Process Management**: Process states, priority levels, multi-level priority round-robin scheduler, CPU context management, and message-passing IPC.
+-   **Modal Security System**: Security domain management, capability-based access control, femtosecond-timestamped audit trails, and a priority-ordered policy engine.
+-   **Cryptographic Primitives**: Ternary hash, sponge construction, HMAC, key derivation, and ternary Lamport one-time signatures.
+-   **Device Driver Framework**: Abstractions for device types, bus management, device registry, interrupt controller, and DMA.
+-   **I/O Subsystem**: Priority-based I/O scheduler, buffer cache, block device layer, character device layer, and I/O multiplexing.
+-   **Filesystem**: Inode management, directory operations, file operations, and a mount system supporting various filesystem types.
+-   **Error Handling**: Unified `KernelError` enum for all subsystems.
+-   **Architecture Support**: Generic traits and specific implementations for `x86_64`, `aarch64`, and `riscv64`, including boot sequence management.
+-   **Hardware Drivers**: Drivers for TPU FPGA/ASIC and femtosecond clock with multiple sources.
+-   **Torsion Network**: N-dimensional torus topology, greedy geodesic routing, Ternary Transport Protocol (TTP), Ternary Transfer Protocol (T3P), and Ternary DNS (TDNS).
+-   **Ternary Virtual Machine**: 35-opcode ISA, execution engine with ternary ops, and a ternary-aware mark-sweep garbage collector (TAGC).
+-   **High-Precision Timing Protocol (HPTP)**: Synchronization protocol, optical clock manager, and regulatory compliance certification.
+-   **Binary Compatibility Layer**: Gateway for balanced ternary conversion and a universal ternary adapter for format-transparent data handling.
 
 ## External Dependencies
 
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
 -   **Database**: PostgreSQL.
 -   **ORM**: Drizzle ORM.
--   **API Gateway**: Kong Konnect (for API management, rate limiting, security, and deployment orchestration).
--   **Payment Gateways**: Stripe, Interac, various cryptocurrency platforms (via webhooks).
+-   **API Gateway**: Kong Konnect.
+-   **Payment Gateways**: Stripe, Interac, various cryptocurrency platforms.
 -   **Message Queue**: BullMQ.
 -   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.
--   **Containerization**: Docker (for microservices deployment).
--   **Cloud Deployment**: Render, Railway (via GitHub integration for CI/CD).
-
-## Rust Kernel Architecture (`src/kernel/`)
-
-### Recent Changes (2026-02-06)
-- Added complete memory subsystem (`src/kernel/src/memory/`)
-- Added complete synchronization primitives (`src/kernel/src/sync/`)
-- Added complete process management subsystem (`src/kernel/src/process/`)
-- Added complete modal security system (`src/kernel/src/security/`)
-- Added complete cryptographic primitives (`src/kernel/src/crypto/`)
-- Integrated memory, sync, process, security, and crypto error types into `KernelError` with `From` conversions
-
-### Kernel Modules
--   **Ternary Operations** (`src/kernel/src/ternary/`): GF(3) arithmetic, representation conversions (A/B/C), trit/tryte types.
--   **Timing** (`src/kernel/src/timing/`): Femtosecond-precision timestamps anchored to Salvi Epoch (April 1, 2025).
--   **Phase Encryption** (`src/kernel/src/phase/`): Split/recombine encryption with timing-window enforcement.
--   **Memory Subsystem** (`src/kernel/src/memory/`):
-    - `allocator.rs`: Bitmap-based frame allocator (binary 4KiB + ternary 2187-byte pages) + bump allocator.
-    - `page.rs`: Page table management with virtual-to-physical mapping, ternary security modes (ModePhi/ModeOne/ModeZero), and ternary-compute/phase-encrypted/timing-critical page flags.
-    - `heap.rs`: Free-list heap allocator with best-fit strategy and coalescing.
--   **Synchronization** (`src/kernel/src/sync/`):
-    - `spinlock.rs`: Ticket-based spinlock with FIFO fairness guarantees.
-    - `mutex.rs`: Mutex with ternary security mode gating (caller must meet minimum mode level).
-    - `semaphore.rs`: Counting semaphore for resource pool management.
-    - `phase_mutex.rs`: Phase-encryption-aware mutex enforcing femtosecond timing windows per `EncryptionMode`.
--   **Process Management** (`src/kernel/src/process/`):
-    - `mod.rs`: ProcessId, ProcessState (Created/Ready/Running/Blocked/Sleeping/Suspended/Terminated/Zombie), Priority levels (Idle through Critical), ProcessDescriptor with security mode and timing metadata.
-    - `table.rs`: ProcessTable with creation, lookup, state transitions, parent-child tracking, zombie reaping, and security mode filtering.
-    - `scheduler.rs`: Multi-level priority round-robin scheduler with idle process fallback, block/unblock, and priority changes.
-    - `context.rs`: CPU context (general + control + ternary coprocessor registers), context switch descriptors with page table and ternary state flags.
-    - `ipc.rs`: Message-passing IPC with typed messages (Data/Signal/TernaryPayload/PhaseComponent/TimingSync/Control), security-mode-gated channels, MessageBus with per-process channel tracking.
--   **Modal Security** (`src/kernel/src/security/`):
-    - `domain.rs`: Security domain management with isolation policies, transition rules (audit/approval requirements), and domain-aware access control.
-    - `capability.rs`: Capability-based access control with typed tokens (Read/Write/Execute/Admin/Custom), delegation chains, revocation, and expiration.
-    - `audit.rs`: Audit trail with femtosecond timestamps, integrity checksums via ternary hashing, and append-only log with capacity management.
-    - `policy.rs`: Priority-ordered security policy engine with mode restrictions, domain-scoped rules, and default-deny evaluation.
--   **Cryptographic Primitives** (`src/kernel/src/crypto/`):
-    - `hash.rs`: Ternary hash using substitution-permutation network with rotation-based S-box (prevents zero-collapse) and bijective permutation (multiplier 376, gcd(376,729)=1).
-    - `sponge.rs`: Sponge construction with absorb/squeeze phases and configurable capacity/rate.
-    - `hmac.rs`: HMAC with constant-time comparison using XOR accumulator.
-    - `kdf.rs`: Key derivation with iterated HMAC and salt mixing.
-    - `signature.rs`: Proper ternary Lamport one-time signature (3 secrets per trit position, 81-trit message digest, one-time enforcement via `used` flag).
--   **Device Driver Framework** (`src/kernel/src/device/`):
-    - `mod.rs`: Device types/states/capabilities with validated state transitions, DeviceDescriptor lifecycle.
-    - `bus.rs`: Bus abstraction with hierarchy (parent/child), speed levels, device attachment, BusManager.
-    - `registry.rs`: Device registry with register/init/suspend/resume/remove lifecycle management.
-    - `interrupt.rs`: Interrupt controller with shared IRQs, priorities, enable/disable, masking, pending queue processing.
-    - `dma.rs`: DMA controller with channel allocation, transfer lifecycle (configure/start/complete/abort), ownership enforcement.
--   **I/O Subsystem** (`src/kernel/src/io/`):
-    - `scheduler.rs`: Priority-based I/O scheduler (4 levels: Low/Normal/High/Realtime) with submit/dispatch/complete/fail/cancel.
-    - `buffer.rs`: Buffer cache with LRU-like eviction, dirty tracking, pinning, per-device invalidation.
-    - `block.rs`: Block device layer with in-memory storage, read/write/trim, read-only enforcement, BlockDeviceManager.
-    - `chardev.rs`: Character device layer with buffered read/write, mode enforcement (RO/WO/RW), feed/drain.
-    - `poll.rs`: I/O multiplexing with poll set, event filtering, error/hangup always reported.
--   **Filesystem** (`src/kernel/src/fs/`):
-    - `inode.rs`: Inode management with types (File/Directory/Symlink/Device), permissions, link counting, InodeTable with capacity.
-    - `dir.rs`: Directory operations with entries, lookup (./..​), rename, name validation, DirectoryTable.
-    - `file.rs`: File operations (open/close/read/write/seek/truncate), mode enforcement, multiple FD support, FileTable.
-    - `mount.rs`: Mount system with path-based lookup, filesystem types (TernaryFs/RamFs/DevFs/ProcFs/SysFs), longest-prefix matching, MountTable.
--   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems (memory, sync, process, security, crypto, device, io, fs).
-
--   **Architecture** (`src/kernel/src/arch/`):
-    - `mod.rs`: Shared traits (ArchOps, MmuOps, InterruptOps, TimerOps, BootOps), CpuFeatures, PrivilegeLevel, MmuConfig, TimerConfig, BootInfo.
-    - `x86_64.rs`: 4-level page tables, APIC (256 vectors), TSC timer, CR0-CR4 registers.
-    - `aarch64.rs`: 4KB granule, GIC (1020 vectors), generic timer, EL0-EL3 exception levels.
-    - `riscv64.rs`: Sv48 paging, PLIC (1024 vectors), mtime timer, M/S/U privilege modes.
-    - `boot.rs`: 14-stage boot state machine, per-arch boot params, BootSequence with validation.
--   **Hardware Drivers** (`src/kernel/src/drivers/`):
-    - `tpu.rs`: TPU FPGA (firmware load, 729 trits/cycle) and ASIC (ROM-based, 2187 trits/cycle) drivers with GF(3) arithmetic, command queues, DMA.
-    - `femtoclock.rs`: Femtosecond clock driver with 5 sources (Crystal, GPSDO Rb/Cs, Optical, ChipScale), calibration, holdover, PPS.
--   **Torsion Network** (`src/kernel/src/network/`):
-    - `torus.rs`: Generic N-dimensional torus topology, 7D/10D/13D presets (side length 3), torsion coefficients, 7 dimension types.
-    - `routing.rs`: Greedy geodesic routing with wrap-around distance, torsion-weighted cost, route caching.
-    - `ttp.rs`: Ternary Transport Protocol - 11-state machine, ternary checksums, MSS segmentation, 3-way handshake.
-    - `t3p.rs`: Ternary Transfer Protocol - request/response with methods (Get/Put/Post/Delete/Subscribe/Witness), sessions, phase encryption.
-    - `tdns.rs`: Ternary DNS - record types (A/AAAA/TRN/PTR/SRV/TXT/CNAME/NS), cache with TTL, zone management.
-
-### Gap Closure Roadmap Progress
-- Completed: P0 (6/6), P1 (26/26), P1.5 (15/15), P2 (20/20) = 67/80 tasks (84%)
-- 811 tests passing across all kernel subsystems
-- CI/CD: GitHub Actions (test, build, security scan, release), Codecov integration
-- Next priorities: P3 (Ternary Virtual Machine, High-Precision Timing Protocols, Binary Compatibility Layer)
+-   **Containerization**: Docker.
+-   **Cloud Deployment**: Render, Railway.

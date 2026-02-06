@@ -31,6 +31,9 @@ pub mod fs;
 pub mod arch;
 pub mod drivers;
 pub mod network;
+pub mod vm;
+pub mod hptp;
+pub mod compat;
 
 use alloc::string::String;
 
