@@ -28,6 +28,9 @@ pub mod crypto;
 pub mod device;
 pub mod io;
 pub mod fs;
+pub mod arch;
+pub mod drivers;
+pub mod network;
 
 use alloc::string::String;
 

@@ -30,6 +30,12 @@ pub enum KernelError {
     IoError(crate::io::IoError),
     /// Filesystem error
     FsError(crate::fs::FsError),
+    /// Architecture error
+    Arch(crate::arch::ArchError),
+    /// Driver error
+    Driver(crate::drivers::DriverError),
+    /// Network error
+    Network(crate::network::NetworkError),
     /// Representation conversion error
     ConversionError { from: String, to: String },
 }
@@ -79,6 +85,9 @@ impl fmt::Display for KernelError {
             KernelError::DeviceError(e) => write!(f, "Device error: {}", e),
             KernelError::IoError(e) => write!(f, "I/O error: {}", e),
             KernelError::FsError(e) => write!(f, "Filesystem error: {}", e),
+            KernelError::Arch(e) => write!(f, "Architecture error: {}", e),
+            KernelError::Driver(e) => write!(f, "Driver error: {}", e),
+            KernelError::Network(e) => write!(f, "Network error: {}", e),
             KernelError::ConversionError { from, to } => {
                 write!(f, "Cannot convert from {} to {}", from, to)
             }
@@ -143,6 +152,24 @@ impl From<crate::io::IoError> for KernelError {
 impl From<crate::fs::FsError> for KernelError {
     fn from(e: crate::fs::FsError) -> Self {
         KernelError::FsError(e)
+    }
+}
+
+impl From<crate::arch::ArchError> for KernelError {
+    fn from(e: crate::arch::ArchError) -> Self {
+        KernelError::Arch(e)
+    }
+}
+
+impl From<crate::drivers::DriverError> for KernelError {
+    fn from(e: crate::drivers::DriverError) -> Self {
+        KernelError::Driver(e)
+    }
+}
+
+impl From<crate::network::NetworkError> for KernelError {
+    fn from(e: crate::network::NetworkError) -> Self {
+        KernelError::Network(e)
     }
 }
 

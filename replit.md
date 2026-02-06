@@ -131,8 +131,24 @@ The database includes tables for:
     - `mount.rs`: Mount system with path-based lookup, filesystem types (TernaryFs/RamFs/DevFs/ProcFs/SysFs), longest-prefix matching, MountTable.
 -   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems (memory, sync, process, security, crypto, device, io, fs).
 
+-   **Architecture** (`src/kernel/src/arch/`):
+    - `mod.rs`: Shared traits (ArchOps, MmuOps, InterruptOps, TimerOps, BootOps), CpuFeatures, PrivilegeLevel, MmuConfig, TimerConfig, BootInfo.
+    - `x86_64.rs`: 4-level page tables, APIC (256 vectors), TSC timer, CR0-CR4 registers.
+    - `aarch64.rs`: 4KB granule, GIC (1020 vectors), generic timer, EL0-EL3 exception levels.
+    - `riscv64.rs`: Sv48 paging, PLIC (1024 vectors), mtime timer, M/S/U privilege modes.
+    - `boot.rs`: 14-stage boot state machine, per-arch boot params, BootSequence with validation.
+-   **Hardware Drivers** (`src/kernel/src/drivers/`):
+    - `tpu.rs`: TPU FPGA (firmware load, 729 trits/cycle) and ASIC (ROM-based, 2187 trits/cycle) drivers with GF(3) arithmetic, command queues, DMA.
+    - `femtoclock.rs`: Femtosecond clock driver with 5 sources (Crystal, GPSDO Rb/Cs, Optical, ChipScale), calibration, holdover, PPS.
+-   **Torsion Network** (`src/kernel/src/network/`):
+    - `torus.rs`: Generic N-dimensional torus topology, 7D/10D/13D presets (side length 3), torsion coefficients, 7 dimension types.
+    - `routing.rs`: Greedy geodesic routing with wrap-around distance, torsion-weighted cost, route caching.
+    - `ttp.rs`: Ternary Transport Protocol - 11-state machine, ternary checksums, MSS segmentation, 3-way handshake.
+    - `t3p.rs`: Ternary Transfer Protocol - request/response with methods (Get/Put/Post/Delete/Subscribe/Witness), sessions, phase encryption.
+    - `tdns.rs`: Ternary DNS - record types (A/AAAA/TRN/PTR/SRV/TXT/CNAME/NS), cache with TTL, zone management.
+
 ### Gap Closure Roadmap Progress
-- Completed: P0 (6/6), P1 (26/26), P1.5 (15/15) = 47/80 tasks (59%)
-- 480 tests passing across all kernel subsystems
+- Completed: P0 (6/6), P1 (26/26), P1.5 (15/15), P2 (20/20) = 67/80 tasks (84%)
+- 811 tests passing across all kernel subsystems
 - CI/CD: GitHub Actions (test, build, security scan, release), Codecov integration
-- Next priorities: P2 (Architecture, Hardware Drivers, Torsion Network, Network Protocols)
+- Next priorities: P3 (Ternary Virtual Machine, High-Precision Timing Protocols, Binary Compatibility Layer)
