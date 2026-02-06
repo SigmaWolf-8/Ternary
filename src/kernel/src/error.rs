@@ -14,6 +14,10 @@ pub enum KernelError {
     TimingError(TimingError),
     /// Phase encryption error
     PhaseError(PhaseError),
+    /// Memory subsystem error
+    MemoryError(crate::memory::MemoryError),
+    /// Synchronization error
+    SyncError(crate::sync::SyncError),
     /// Representation conversion error
     ConversionError { from: String, to: String },
 }
@@ -55,6 +59,8 @@ impl fmt::Display for KernelError {
             }
             KernelError::TimingError(e) => write!(f, "Timing error: {:?}", e),
             KernelError::PhaseError(e) => write!(f, "Phase error: {:?}", e),
+            KernelError::MemoryError(e) => write!(f, "Memory error: {}", e),
+            KernelError::SyncError(e) => write!(f, "Sync error: {}", e),
             KernelError::ConversionError { from, to } => {
                 write!(f, "Cannot convert from {} to {}", from, to)
             }
@@ -71,6 +77,18 @@ impl From<TimingError> for KernelError {
 impl From<PhaseError> for KernelError {
     fn from(e: PhaseError) -> Self {
         KernelError::PhaseError(e)
+    }
+}
+
+impl From<crate::memory::MemoryError> for KernelError {
+    fn from(e: crate::memory::MemoryError) -> Self {
+        KernelError::MemoryError(e)
+    }
+}
+
+impl From<crate::sync::SyncError> for KernelError {
+    fn from(e: crate::sync::SyncError) -> Self {
+        KernelError::SyncError(e)
     }
 }
 

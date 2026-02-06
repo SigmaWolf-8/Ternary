@@ -20,6 +20,8 @@ pub mod timing;
 pub mod ternary;
 pub mod phase;
 pub mod error;
+pub mod memory;
+pub mod sync;
 
 use alloc::string::String;
 

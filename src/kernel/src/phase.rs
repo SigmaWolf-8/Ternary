@@ -214,14 +214,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_split_and_recombine() {
+    fn test_split_and_recombine_balanced() {
         let data = b"Hello, PlenumNET!";
         let timestamp = FemtosecondTimestamp::new(1_000_000);
-        
         let split = split_data(data, EncryptionMode::Balanced, timestamp);
         let recombined = recombine_data(&split).unwrap();
-        
         assert_eq!(recombined, data);
+    }
+
+    #[test]
+    fn test_split_and_recombine_high_security() {
+        let data = b"Post-Quantum Ternary Data";
+        let timestamp = FemtosecondTimestamp::new(2_000_000);
+        let split = split_data(data, EncryptionMode::HighSecurity, timestamp);
+        let recombined = recombine_data(&split).unwrap();
+        assert_eq!(recombined, data);
+    }
+
+    #[test]
+    fn test_split_and_recombine_performance() {
+        let data = b"Fast path encryption";
+        let timestamp = FemtosecondTimestamp::new(3_000_000);
+        let split = split_data(data, EncryptionMode::Performance, timestamp);
+        let recombined = recombine_data(&split).unwrap();
+        assert_eq!(recombined, data);
+    }
+
+    #[test]
+    fn test_split_and_recombine_adaptive() {
+        let data = b"Adaptive mode test data for PlenumNET framework";
+        let timestamp = FemtosecondTimestamp::new(4_000_000);
+        let split = split_data(data, EncryptionMode::Adaptive, timestamp);
+        let recombined = recombine_data(&split).unwrap();
+        assert_eq!(recombined, data);
+    }
+
+    #[test]
+    fn test_split_preserves_length() {
+        let data = b"Test data";
+        let timestamp = FemtosecondTimestamp::new(1_000);
+        let split = split_data(data, EncryptionMode::Balanced, timestamp);
+        assert_eq!(split.original_length, data.len());
+        assert_eq!(split.primary.data.len() + split.secondary.data.len(), data.len());
     }
 
     #[test]
@@ -229,5 +263,87 @@ mod tests {
         assert_eq!(EncryptionMode::HighSecurity.phase_count(), 7);
         assert_eq!(EncryptionMode::Balanced.phase_count(), 5);
         assert_eq!(EncryptionMode::Performance.phase_count(), 3);
+        assert_eq!(EncryptionMode::Adaptive.phase_count(), 5);
+    }
+
+    #[test]
+    fn test_mode_split_ratios() {
+        assert!((EncryptionMode::HighSecurity.split_ratio() - 0.618).abs() < 0.001);
+        assert!((EncryptionMode::Balanced.split_ratio() - 0.5).abs() < 0.001);
+        assert!((EncryptionMode::Performance.split_ratio() - 0.5).abs() < 0.001);
+        assert!((EncryptionMode::Adaptive.split_ratio() - 0.618).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_mode_tolerances() {
+        assert_eq!(EncryptionMode::HighSecurity.recombination_tolerance_fs(), 50);
+        assert_eq!(EncryptionMode::Balanced.recombination_tolerance_fs(), 100);
+        assert_eq!(EncryptionMode::Performance.recombination_tolerance_fs(), 500);
+        assert_eq!(EncryptionMode::Adaptive.recombination_tolerance_fs(), 100);
+    }
+
+    #[test]
+    fn test_high_security_tighter_tolerance() {
+        assert!(
+            EncryptionMode::HighSecurity.recombination_tolerance_fs()
+                < EncryptionMode::Balanced.recombination_tolerance_fs()
+        );
+        assert!(
+            EncryptionMode::Balanced.recombination_tolerance_fs()
+                < EncryptionMode::Performance.recombination_tolerance_fs()
+        );
+    }
+
+    #[test]
+    fn test_phase_component_checksum() {
+        let data = vec![1, 2, 3, 4, 5];
+        let ts = FemtosecondTimestamp::new(1000);
+        let component = PhaseComponent::new(data, 0, ts);
+        assert!(component.verify_checksum());
+    }
+
+    #[test]
+    fn test_phase_component_checksum_tamper_detection() {
+        let data = vec![1, 2, 3, 4, 5];
+        let ts = FemtosecondTimestamp::new(1000);
+        let mut component = PhaseComponent::new(data, 0, ts);
+        component.data[0] = 99;
+        assert!(!component.verify_checksum());
+    }
+
+    #[test]
+    fn test_phase_config_defaults() {
+        let config = PhaseConfig::new(EncryptionMode::Balanced);
+        assert_eq!(config.mode, EncryptionMode::Balanced);
+        assert_eq!(config.primary_phase, 0);
+        assert_eq!(config.secondary_offset, 120);
+        assert_eq!(config.recombination_tolerance_fs, 100);
+    }
+
+    #[test]
+    fn test_split_empty_data() {
+        let data = b"";
+        let timestamp = FemtosecondTimestamp::new(1_000);
+        let split = split_data(data, EncryptionMode::Balanced, timestamp);
+        let recombined = recombine_data(&split).unwrap();
+        assert_eq!(recombined.len(), 0);
+    }
+
+    #[test]
+    fn test_split_single_byte() {
+        let data = b"X";
+        let timestamp = FemtosecondTimestamp::new(1_000);
+        let split = split_data(data, EncryptionMode::Balanced, timestamp);
+        let recombined = recombine_data(&split).unwrap();
+        assert_eq!(recombined, data);
+    }
+
+    #[test]
+    fn test_split_large_data() {
+        let data: Vec<u8> = (0..1024).map(|i| (i % 256) as u8).collect();
+        let timestamp = FemtosecondTimestamp::new(1_000_000);
+        let split = split_data(&data, EncryptionMode::HighSecurity, timestamp);
+        let recombined = recombine_data(&split).unwrap();
+        assert_eq!(recombined, data);
     }
 }

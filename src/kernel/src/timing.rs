@@ -188,22 +188,133 @@ mod tests {
     }
 
     #[test]
-    fn test_finra_compliance() {
-        let t1 = FemtosecondTimestamp::new(0);
-        let t2 = FemtosecondTimestamp::new(40 * FS_PER_MS);
-        assert!(t1.is_finra_compliant(&t2));
-
-        let t3 = FemtosecondTimestamp::new(60 * FS_PER_MS);
-        assert!(!t1.is_finra_compliant(&t3));
+    fn test_timestamp_zero() {
+        let ts = FemtosecondTimestamp::new(0);
+        assert_eq!(ts.seconds(), 0);
+        assert_eq!(ts.milliseconds(), 0);
+        assert_eq!(ts.nanoseconds(), 0);
+        assert_eq!(ts.picoseconds(), 0);
+        assert_eq!(ts.remaining_femtoseconds(), 0);
     }
 
     #[test]
-    fn test_recombination_window() {
+    fn test_timestamp_precision_hierarchy() {
+        let ts = FemtosecondTimestamp::new(
+            2 * FS_PER_SECOND + 345 * FS_PER_MS + 678 * FS_PER_NS / 1_000_000 + 901 * FS_PER_PS + 234
+        );
+        assert_eq!(ts.seconds(), 2);
+    }
+
+    #[test]
+    fn test_timestamp_sub_second_extraction() {
+        let ts = FemtosecondTimestamp::new(FS_PER_SECOND + 500 * FS_PER_MS);
+        assert_eq!(ts.seconds(), 1);
+        assert_eq!(ts.milliseconds(), 500);
+        assert_eq!(ts.sub_second_fs(), 500 * FS_PER_MS);
+    }
+
+    #[test]
+    fn test_finra_compliance_at_boundary() {
+        let t1 = FemtosecondTimestamp::new(0);
+        let t_exactly_50ms = FemtosecondTimestamp::new(50 * FS_PER_MS);
+        assert!(t1.is_finra_compliant(&t_exactly_50ms));
+
+        let t_just_over = FemtosecondTimestamp::new(50 * FS_PER_MS + 1);
+        assert!(!t1.is_finra_compliant(&t_just_over));
+    }
+
+    #[test]
+    fn test_finra_compliance_symmetric() {
+        let t1 = FemtosecondTimestamp::new(100 * FS_PER_MS);
+        let t2 = FemtosecondTimestamp::new(130 * FS_PER_MS);
+        assert_eq!(t1.is_finra_compliant(&t2), t2.is_finra_compliant(&t1));
+    }
+
+    #[test]
+    fn test_finra_compliance_self() {
+        let t = FemtosecondTimestamp::new(1_000_000);
+        assert!(t.is_finra_compliant(&t));
+    }
+
+    #[test]
+    fn test_duration_since() {
+        let t1 = FemtosecondTimestamp::new(1000);
+        let t2 = FemtosecondTimestamp::new(3000);
+        let d = t2.duration_since(&t1);
+        assert_eq!(d.femtoseconds, 2000);
+    }
+
+    #[test]
+    fn test_duration_since_saturating() {
+        let t1 = FemtosecondTimestamp::new(3000);
+        let t2 = FemtosecondTimestamp::new(1000);
+        let d = t2.duration_since(&t1);
+        assert_eq!(d.femtoseconds, 0);
+    }
+
+    #[test]
+    fn test_duration_conversions() {
+        let d = Duration::from_ms(1);
+        assert_eq!(d.as_ms(), 1);
+        assert_eq!(d.femtoseconds, FS_PER_MS);
+
+        let d = Duration::from_fs(1_000_000);
+        assert_eq!(d.as_fs(), 1_000_000);
+    }
+
+    #[test]
+    fn test_timestamp_format() {
+        let ts = FemtosecondTimestamp::new(FS_PER_SECOND + 123 * FS_PER_MS);
+        let formatted = ts.format();
+        assert!(formatted.contains("1s"));
+        assert!(formatted.contains("123ms"));
+    }
+
+    #[test]
+    fn test_recombination_window_within() {
         let t1 = FemtosecondTimestamp::new(1000);
         let t2 = FemtosecondTimestamp::new(1050);
         assert!(validate_recombination_window(&t1, &t2, 100));
+    }
 
+    #[test]
+    fn test_recombination_window_exceeded() {
+        let t1 = FemtosecondTimestamp::new(1000);
         let t3 = FemtosecondTimestamp::new(1200);
         assert!(!validate_recombination_window(&t1, &t3, 100));
+    }
+
+    #[test]
+    fn test_recombination_window_symmetric() {
+        let t1 = FemtosecondTimestamp::new(1000);
+        let t2 = FemtosecondTimestamp::new(1050);
+        assert_eq!(
+            validate_recombination_window(&t1, &t2, 100),
+            validate_recombination_window(&t2, &t1, 100)
+        );
+    }
+
+    #[test]
+    fn test_recombination_window_exact_boundary() {
+        let t1 = FemtosecondTimestamp::new(0);
+        let t2 = FemtosecondTimestamp::new(100);
+        assert!(!validate_recombination_window(&t1, &t2, 100));
+        let t3 = FemtosecondTimestamp::new(99);
+        assert!(validate_recombination_window(&t1, &t3, 100));
+    }
+
+    #[test]
+    fn test_precision_constants() {
+        assert_eq!(FS_PER_PS, 1_000);
+        assert_eq!(FS_PER_NS, 1_000_000);
+        assert_eq!(FS_PER_US, 1_000_000_000);
+        assert_eq!(FS_PER_MS, 1_000_000_000_000);
+        assert_eq!(FS_PER_SECOND, 1_000_000_000_000_000);
+    }
+
+    #[test]
+    fn test_finra_max_offset() {
+        assert_eq!(FINRA_MAX_OFFSET_MS, 50);
+        assert_eq!(FINRA_MAX_OFFSET_FS, 50 * FS_PER_MS);
     }
 }

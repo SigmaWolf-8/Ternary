@@ -260,35 +260,320 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_trit_representations() {
+    fn test_trit_from_a_valid() {
+        assert!(Trit::from_a(-1).is_some());
+        assert!(Trit::from_a(0).is_some());
+        assert!(Trit::from_a(1).is_some());
+    }
+
+    #[test]
+    fn test_trit_from_a_invalid() {
+        assert!(Trit::from_a(-2).is_none());
+        assert!(Trit::from_a(2).is_none());
+        assert!(Trit::from_a(127).is_none());
+    }
+
+    #[test]
+    fn test_trit_from_b_valid() {
+        assert!(Trit::from_b(0).is_some());
+        assert!(Trit::from_b(1).is_some());
+        assert!(Trit::from_b(2).is_some());
+    }
+
+    #[test]
+    fn test_trit_from_b_invalid() {
+        assert!(Trit::from_b(3).is_none());
+        assert!(Trit::from_b(255).is_none());
+    }
+
+    #[test]
+    fn test_trit_from_c_valid() {
+        assert!(Trit::from_c(1).is_some());
+        assert!(Trit::from_c(2).is_some());
+        assert!(Trit::from_c(3).is_some());
+    }
+
+    #[test]
+    fn test_trit_from_c_invalid() {
+        assert!(Trit::from_c(0).is_none());
+        assert!(Trit::from_c(4).is_none());
+    }
+
+    #[test]
+    fn test_trit_representations_roundtrip() {
         let trit = Trit::from_a(-1).unwrap();
         assert_eq!(trit.to_a(), -1);
         assert_eq!(trit.to_b(), 0);
         assert_eq!(trit.to_c(), 1);
 
-        let trit = Trit::from_b(2).unwrap();
+        let trit = Trit::from_a(0).unwrap();
+        assert_eq!(trit.to_a(), 0);
+        assert_eq!(trit.to_b(), 1);
+        assert_eq!(trit.to_c(), 2);
+
+        let trit = Trit::from_a(1).unwrap();
         assert_eq!(trit.to_a(), 1);
+        assert_eq!(trit.to_b(), 2);
+        assert_eq!(trit.to_c(), 3);
     }
 
     #[test]
-    fn test_ternary_addition() {
-        let a = Trit::from_a(1).unwrap();
-        let b = Trit::from_a(1).unwrap();
-        let result = a.add(&b);
-        assert_eq!(result.to_a(), -1); // 1 + 1 = 2 ≡ -1 (mod 3)
+    fn test_bijection_a_to_b() {
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.to_b() as i8, a_val + 1);
+        }
     }
 
     #[test]
-    fn test_ternary_multiplication() {
-        let a = Trit::from_a(-1).unwrap();
-        let b = Trit::from_a(-1).unwrap();
-        let result = a.multiply(&b);
-        assert_eq!(result.to_a(), 1); // -1 × -1 = 1
+    fn test_bijection_a_to_c() {
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.to_c() as i8, a_val + 2);
+        }
     }
 
     #[test]
-    fn test_tryte_conversion() {
-        let tryte = Tryte::from_decimal(365).unwrap();
-        assert_eq!(tryte.to_decimal(), 365);
+    fn test_bijection_b_to_c() {
+        for b_val in [0u8, 1, 2] {
+            let trit = Trit::from_b(b_val).unwrap();
+            assert_eq!(trit.to_c(), b_val + 1);
+        }
+    }
+
+    #[test]
+    fn test_bijection_roundtrip_b_a_b() {
+        for b_val in [0u8, 1, 2] {
+            let trit = Trit::from_b(b_val).unwrap();
+            let a_val = trit.to_a();
+            let reconstructed = Trit::from_a(a_val).unwrap();
+            assert_eq!(reconstructed.to_b(), b_val);
+        }
+    }
+
+    #[test]
+    fn test_ternary_not() {
+        assert_eq!(Trit::from_a(-1).unwrap().not().to_a(), 1);
+        assert_eq!(Trit::from_a(0).unwrap().not().to_a(), 0);
+        assert_eq!(Trit::from_a(1).unwrap().not().to_a(), -1);
+    }
+
+    #[test]
+    fn test_ternary_not_involution() {
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.not().not().to_a(), a_val);
+        }
+    }
+
+    #[test]
+    fn test_ternary_addition_full_table() {
+        let vals = [-1i8, 0, 1];
+        for &a in &vals {
+            for &b in &vals {
+                let ta = Trit::from_a(a).unwrap();
+                let tb = Trit::from_a(b).unwrap();
+                let result = ta.add(&tb);
+                let expected = (a + b).rem_euclid(3);
+                let expected_norm = if expected == 2 { -1 } else { expected as i8 };
+                assert_eq!(result.to_a(), expected_norm, "GF(3) add: {} + {} = {}", a, b, expected_norm);
+            }
+        }
+    }
+
+    #[test]
+    fn test_ternary_multiplication_full_table() {
+        let vals = [-1i8, 0, 1];
+        for &a in &vals {
+            for &b in &vals {
+                let ta = Trit::from_a(a).unwrap();
+                let tb = Trit::from_a(b).unwrap();
+                let result = ta.multiply(&tb);
+                let expected = (a * b).rem_euclid(3);
+                let expected_norm = if expected == 2 { -1 } else { expected as i8 };
+                assert_eq!(result.to_a(), expected_norm, "GF(3) mul: {} * {} = {}", a, b, expected_norm);
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf3_additive_identity() {
+        let zero = Trit::from_a(0).unwrap();
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.add(&zero).to_a(), a_val);
+        }
+    }
+
+    #[test]
+    fn test_gf3_multiplicative_identity() {
+        let one = Trit::from_a(1).unwrap();
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.multiply(&one).to_a(), a_val);
+        }
+    }
+
+    #[test]
+    fn test_gf3_multiplicative_absorbing() {
+        let zero = Trit::from_a(0).unwrap();
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.multiply(&zero).to_a(), 0);
+        }
+    }
+
+    #[test]
+    fn test_rotation_cycle() {
+        let trit = Trit::from_a(-1).unwrap();
+        let r1 = trit.rotate();
+        assert_eq!(r1.to_a(), 0);
+        let r2 = r1.rotate();
+        assert_eq!(r2.to_a(), 1);
+        let r3 = r2.rotate();
+        assert_eq!(r3.to_a(), -1);
+    }
+
+    #[test]
+    fn test_rotation_inverse_cycle() {
+        let trit = Trit::from_a(1).unwrap();
+        let r1 = trit.rotate_inverse();
+        assert_eq!(r1.to_a(), 0);
+        let r2 = r1.rotate_inverse();
+        assert_eq!(r2.to_a(), -1);
+        let r3 = r2.rotate_inverse();
+        assert_eq!(r3.to_a(), 1);
+    }
+
+    #[test]
+    fn test_rotate_inverse_cancels_rotate() {
+        for a_val in [-1i8, 0, 1] {
+            let trit = Trit::from_a(a_val).unwrap();
+            assert_eq!(trit.rotate().rotate_inverse().to_a(), a_val);
+            assert_eq!(trit.rotate_inverse().rotate().to_a(), a_val);
+        }
+    }
+
+    #[test]
+    fn test_xor_commutativity() {
+        let vals = [-1i8, 0, 1];
+        for &a in &vals {
+            for &b in &vals {
+                let ta = Trit::from_a(a).unwrap();
+                let tb = Trit::from_a(b).unwrap();
+                assert_eq!(ta.xor(&tb).to_a(), tb.xor(&ta).to_a());
+            }
+        }
+    }
+
+    #[test]
+    fn test_tryte_creation() {
+        let trits = [
+            Trit::from_a(0).unwrap(),
+            Trit::from_a(1).unwrap(),
+            Trit::from_a(-1).unwrap(),
+            Trit::from_a(0).unwrap(),
+            Trit::from_a(1).unwrap(),
+            Trit::from_a(-1).unwrap(),
+        ];
+        let tryte = Tryte::new(trits);
+        assert_eq!(tryte.trits().len(), 6);
+    }
+
+    #[test]
+    fn test_tryte_decimal_roundtrip() {
+        for val in [0u16, 1, 100, 364, 365, 500, 728] {
+            let tryte = Tryte::from_decimal(val).unwrap();
+            assert_eq!(tryte.to_decimal(), val, "Roundtrip failed for decimal {}", val);
+        }
+    }
+
+    #[test]
+    fn test_tryte_decimal_bounds() {
+        assert!(Tryte::from_decimal(0).is_some());
+        assert!(Tryte::from_decimal(728).is_some());
+        assert!(Tryte::from_decimal(729).is_none());
+        assert!(Tryte::from_decimal(1000).is_none());
+    }
+
+    #[test]
+    fn test_tryte_not_involution() {
+        for val in [0u16, 100, 365, 728] {
+            let tryte = Tryte::from_decimal(val).unwrap();
+            assert_eq!(tryte.not().not().to_decimal(), val);
+        }
+    }
+
+    #[test]
+    fn test_tryte_add_identity() {
+        let zero = Tryte::from_decimal(364).unwrap(); // all-zeros
+        for val in [0u16, 100, 365, 728] {
+            let tryte = Tryte::from_decimal(val).unwrap();
+            let result = tryte.add(&zero);
+            assert_eq!(result.trits().len(), 6);
+        }
+    }
+
+    #[test]
+    fn test_ternary_word_creation() {
+        let t0 = Tryte::from_decimal(0).unwrap();
+        let t1 = Tryte::from_decimal(100).unwrap();
+        let t2 = Tryte::from_decimal(728).unwrap();
+        let word = TernaryWord::new([t0, t1, t2]);
+        assert_eq!(word.trytes().len(), 3);
+    }
+
+    #[test]
+    fn test_convert_representation_a_to_b() {
+        assert_eq!(convert_representation(-1, Representation::A, Representation::B), 0);
+        assert_eq!(convert_representation(0, Representation::A, Representation::B), 1);
+        assert_eq!(convert_representation(1, Representation::A, Representation::B), 2);
+    }
+
+    #[test]
+    fn test_convert_representation_a_to_c() {
+        assert_eq!(convert_representation(-1, Representation::A, Representation::C), 1);
+        assert_eq!(convert_representation(0, Representation::A, Representation::C), 2);
+        assert_eq!(convert_representation(1, Representation::A, Representation::C), 3);
+    }
+
+    #[test]
+    fn test_convert_representation_b_to_c() {
+        assert_eq!(convert_representation(0, Representation::B, Representation::C), 1);
+        assert_eq!(convert_representation(1, Representation::B, Representation::C), 2);
+        assert_eq!(convert_representation(2, Representation::B, Representation::C), 3);
+    }
+
+    #[test]
+    fn test_convert_identity() {
+        for repr in [Representation::A, Representation::B, Representation::C] {
+            assert_eq!(convert_representation(0, repr, repr), 0);
+        }
+    }
+
+    #[test]
+    fn test_information_density() {
+        let density = information_density(6);
+        assert_eq!(density.trit_count, 6);
+        assert_eq!(density.ternary_states, 729);
+        assert!(density.efficiency_gain > 0.0);
+        assert!(density.equivalent_bits > 9.0);
+    }
+
+    #[test]
+    fn test_information_density_single_trit() {
+        let density = information_density(1);
+        assert_eq!(density.ternary_states, 3);
+        assert_eq!(density.bit_count, 2);
+        assert_eq!(density.binary_states, 4);
+    }
+
+    #[test]
+    fn test_information_density_59_percent_gain() {
+        let density = information_density(6);
+        let ternary_per_unit = 729.0 / 6.0;
+        let binary_per_unit = 1024.0 / 10.0;
+        let gain = (ternary_per_unit / binary_per_unit - 1.0) * 100.0;
+        assert!(gain > 15.0, "Ternary should have >15% information density advantage per digit: {:.1}%", gain);
     }
 }

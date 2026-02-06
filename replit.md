@@ -71,3 +71,29 @@ The database includes tables for:
 -   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.
 -   **Containerization**: Docker (for microservices deployment).
 -   **Cloud Deployment**: Render, Railway (via GitHub integration for CI/CD).
+
+## Rust Kernel Architecture (`src/kernel/`)
+
+### Recent Changes (2026-02-06)
+- Added complete memory subsystem (`src/kernel/src/memory/`)
+- Added complete synchronization primitives (`src/kernel/src/sync/`)
+- Integrated memory and sync error types into `KernelError` with `From` conversions
+
+### Kernel Modules
+-   **Ternary Operations** (`src/kernel/src/ternary/`): GF(3) arithmetic, representation conversions (A/B/C), trit/tryte types.
+-   **Timing** (`src/kernel/src/timing/`): Femtosecond-precision timestamps anchored to Salvi Epoch (April 1, 2025).
+-   **Phase Encryption** (`src/kernel/src/phase/`): Split/recombine encryption with timing-window enforcement.
+-   **Memory Subsystem** (`src/kernel/src/memory/`):
+    - `allocator.rs`: Bitmap-based frame allocator (binary 4KiB + ternary 2187-byte pages) + bump allocator.
+    - `page.rs`: Page table management with virtual-to-physical mapping, ternary security modes (ModePhi/ModeOne/ModeZero), and ternary-compute/phase-encrypted/timing-critical page flags.
+    - `heap.rs`: Free-list heap allocator with best-fit strategy and coalescing.
+-   **Synchronization** (`src/kernel/src/sync/`):
+    - `spinlock.rs`: Ticket-based spinlock with FIFO fairness guarantees.
+    - `mutex.rs`: Mutex with ternary security mode gating (caller must meet minimum mode level).
+    - `semaphore.rs`: Counting semaphore for resource pool management.
+    - `phase_mutex.rs`: Phase-encryption-aware mutex enforcing femtosecond timing windows per `EncryptionMode`.
+-   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems.
+
+### Gap Closure Roadmap Progress
+- Completed: P0-005, P0-006, P1-001 through P1-010 (12 of 65 tasks)
+- Next priorities: P1-011 to P1-015 (Process Management), P1-016 to P1-021 (Modal Security System), P1-022 to P1-026 (Cryptographic Primitives)
