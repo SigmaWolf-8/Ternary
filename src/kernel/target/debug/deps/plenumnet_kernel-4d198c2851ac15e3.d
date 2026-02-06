@@ -1,6 +1,6 @@
-/home/runner/workspace/src/kernel/target/debug/deps/plenumnet_kernel-4d198c2851ac15e3: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs
+/home/runner/workspace/src/kernel/target/debug/deps/plenumnet_kernel-4d198c2851ac15e3: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs src/security/mod.rs src/security/domain.rs src/security/capability.rs src/security/audit.rs src/security/policy.rs src/crypto/mod.rs src/crypto/hash.rs src/crypto/sponge.rs src/crypto/hmac.rs src/crypto/kdf.rs src/crypto/signature.rs
 
-/home/runner/workspace/src/kernel/target/debug/deps/plenumnet_kernel-4d198c2851ac15e3.d: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs
+/home/runner/workspace/src/kernel/target/debug/deps/plenumnet_kernel-4d198c2851ac15e3.d: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs src/security/mod.rs src/security/domain.rs src/security/capability.rs src/security/audit.rs src/security/policy.rs src/crypto/mod.rs src/crypto/hash.rs src/crypto/sponge.rs src/crypto/hmac.rs src/crypto/kdf.rs src/crypto/signature.rs
 
 src/lib.rs:
 src/timing.rs:
@@ -21,3 +21,14 @@ src/process/table.rs:
 src/process/scheduler.rs:
 src/process/context.rs:
 src/process/ipc.rs:
+src/security/mod.rs:
+src/security/domain.rs:
+src/security/capability.rs:
+src/security/audit.rs:
+src/security/policy.rs:
+src/crypto/mod.rs:
+src/crypto/hash.rs:
+src/crypto/sponge.rs:
+src/crypto/hmac.rs:
+src/crypto/kdf.rs:
+src/crypto/signature.rs:

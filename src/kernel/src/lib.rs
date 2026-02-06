@@ -23,6 +23,8 @@ pub mod error;
 pub mod memory;
 pub mod sync;
 pub mod process;
+pub mod security;
+pub mod crypto;
 
 use alloc::string::String;
 
