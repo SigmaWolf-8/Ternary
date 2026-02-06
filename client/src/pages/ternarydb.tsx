@@ -130,7 +130,7 @@ function Header() {
         
         <div className="hidden md:flex items-center gap-3">
           <Button variant="outline" asChild className="border-primary/50 text-primary">
-            <a href="https://github.com/ternary/ternarydb" target="_blank" rel="noopener noreferrer" data-testid="link-github">
+            <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer" data-testid="link-github">
               <Github className="w-4 h-4 mr-2" />
               GitHub
             </a>
@@ -172,7 +172,7 @@ function Header() {
           </nav>
           <div className="flex flex-col gap-3">
             <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-github">
-              <a href="https://github.com/ternary/ternarydb" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                 <Github className="w-4 h-4 mr-2" />
                 GitHub
               </a>
@@ -257,7 +257,7 @@ function HeroSection() {
               </a>
             </Button>
             <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-docs">
-              <a href="https://github.com/ternary/ternarydb" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                 View Documentation
               </a>
             </Button>
@@ -1629,7 +1629,7 @@ function PricingSection() {
         "Open Source",
       ],
       cta: "Download",
-      ctaLink: "https://github.com/ternary/ternarydb",
+      ctaLink: "https://github.com/SigmaWolf-8/Ternary",
       highlighted: false,
     },
     {
@@ -1842,7 +1842,7 @@ function CTASection() {
                 asChild
                 data-testid="button-cta-download"
               >
-                <a href="https://github.com/ternary/ternarydb" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                   <Github className="w-4 h-4 mr-2" />
                   Download Free
                 </a>
@@ -1880,7 +1880,7 @@ function Footer() {
           
           <div className="flex gap-4">
             <a 
-              href="https://github.com/ternary/ternarydb" 
+              href="https://github.com/SigmaWolf-8/Ternary" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-muted-foreground hover:text-primary transition-colors"
