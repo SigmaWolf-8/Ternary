@@ -8,7 +8,6 @@
 //! within a femtosecond-precision time window to reconstruct the original.
 
 use crate::timing::FemtosecondTimestamp;
-use alloc::string::String;
 use alloc::vec::Vec;
 
 /// Phase encryption modes

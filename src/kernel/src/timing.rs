@@ -10,7 +10,7 @@
 //! - Microseconds (10⁻⁶ seconds)
 //! - Milliseconds (10⁻³ seconds) - FINRA minimum requirement
 
-use crate::{SALVI_EPOCH_FS, SALVI_EPOCH_NS, TimingSource};
+use crate::{SALVI_EPOCH_NS, TimingSource};
 use alloc::string::String;
 
 /// Femtoseconds per time unit

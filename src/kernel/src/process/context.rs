@@ -5,8 +5,7 @@
 //! Context structures are architecture-portable for x86_64, aarch64, and
 //! custom ternary hardware targets.
 
-use alloc::vec::Vec;
-use super::{ProcessId, ProcessResult, ProcessError};
+use super::ProcessId;
 
 #[derive(Debug, Clone, Default)]
 pub struct GeneralRegisters {

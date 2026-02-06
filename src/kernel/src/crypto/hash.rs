@@ -6,7 +6,7 @@
 //! post-quantum security requirements.
 
 use alloc::vec::Vec;
-use super::{CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+use super::{TernaryDigest, TERNARY_HASH_TRITS};
 
 const ROUNDS: usize = 27;
 const STATE_SIZE: usize = 729;

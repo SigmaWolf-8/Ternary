@@ -14,7 +14,7 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+use super::{CryptoError, CryptoResult, TERNARY_HASH_TRITS};
 use super::sponge::TernarySponge;
 
 const SIGN_DIGEST_TRITS: usize = 81;

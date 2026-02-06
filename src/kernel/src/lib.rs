@@ -25,6 +25,9 @@ pub mod sync;
 pub mod process;
 pub mod security;
 pub mod crypto;
+pub mod device;
+pub mod io;
+pub mod fs;
 
 use alloc::string::String;
 

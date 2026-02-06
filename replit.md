@@ -112,8 +112,25 @@ The database includes tables for:
     - `hmac.rs`: HMAC with constant-time comparison using XOR accumulator.
     - `kdf.rs`: Key derivation with iterated HMAC and salt mixing.
     - `signature.rs`: Proper ternary Lamport one-time signature (3 secrets per trit position, 81-trit message digest, one-time enforcement via `used` flag).
--   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems (memory, sync, process, security, crypto).
+-   **Device Driver Framework** (`src/kernel/src/device/`):
+    - `mod.rs`: Device types/states/capabilities with validated state transitions, DeviceDescriptor lifecycle.
+    - `bus.rs`: Bus abstraction with hierarchy (parent/child), speed levels, device attachment, BusManager.
+    - `registry.rs`: Device registry with register/init/suspend/resume/remove lifecycle management.
+    - `interrupt.rs`: Interrupt controller with shared IRQs, priorities, enable/disable, masking, pending queue processing.
+    - `dma.rs`: DMA controller with channel allocation, transfer lifecycle (configure/start/complete/abort), ownership enforcement.
+-   **I/O Subsystem** (`src/kernel/src/io/`):
+    - `scheduler.rs`: Priority-based I/O scheduler (4 levels: Low/Normal/High/Realtime) with submit/dispatch/complete/fail/cancel.
+    - `buffer.rs`: Buffer cache with LRU-like eviction, dirty tracking, pinning, per-device invalidation.
+    - `block.rs`: Block device layer with in-memory storage, read/write/trim, read-only enforcement, BlockDeviceManager.
+    - `chardev.rs`: Character device layer with buffered read/write, mode enforcement (RO/WO/RW), feed/drain.
+    - `poll.rs`: I/O multiplexing with poll set, event filtering, error/hangup always reported.
+-   **Filesystem** (`src/kernel/src/fs/`):
+    - `inode.rs`: Inode management with types (File/Directory/Symlink/Device), permissions, link counting, InodeTable with capacity.
+    - `dir.rs`: Directory operations with entries, lookup (./..​), rename, name validation, DirectoryTable.
+    - `file.rs`: File operations (open/close/read/write/seek/truncate), mode enforcement, multiple FD support, FileTable.
+    - `mount.rs`: Mount system with path-based lookup, filesystem types (TernaryFs/RamFs/DevFs/ProcFs/SysFs), longest-prefix matching, MountTable.
+-   **Error Handling** (`src/kernel/src/error.rs`): Unified `KernelError` enum with `From` conversions for all subsystems (memory, sync, process, security, crypto, device, io, fs).
 
 ### Gap Closure Roadmap Progress
-- Completed: P0-005, P0-006, P1-001 through P1-026 (27 of 65 tasks)
-- Next priorities: P1-027+ (Device Drivers, I/O Subsystem, Filesystem)
+- Completed: P0-005, P0-006, P1-001 through P1-041 (42 of 65 tasks)
+- Next priorities: P1-042+ (Networking, Syscall Interface, Platform HAL)

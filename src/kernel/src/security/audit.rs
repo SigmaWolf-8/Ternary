@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use crate::memory::SecurityMode;
 use crate::process::ProcessId;
 use crate::timing::FemtosecondTimestamp;
-use super::{Action, DomainId, ResourceId, SecurityError, SecurityResult};
+use super::{Action, DomainId, ResourceId, SecurityResult};
 use super::capability::TokenId;
 
 const DEFAULT_MAX_ENTRIES: usize = 16384;

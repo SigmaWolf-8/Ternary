@@ -5,7 +5,7 @@
 //! in multiple calls before squeezing out the digest.
 
 use alloc::vec::Vec;
-use super::{CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
+use super::{TernaryDigest, TERNARY_HASH_TRITS};
 
 const SPONGE_STATE_SIZE: usize = 729;
 const SPONGE_RATE: usize = 243;

@@ -13,8 +13,6 @@
 //! - A→C: f(a) = a + 2
 //! - B→C: f(b) = b + 1
 
-use alloc::vec::Vec;
-
 /// A single trit (ternary digit)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Trit {

@@ -22,7 +22,6 @@ pub mod policy;
 use alloc::string::String;
 use crate::memory::SecurityMode;
 use crate::process::ProcessId;
-use crate::timing::FemtosecondTimestamp;
 
 #[derive(Debug, Clone)]
 pub enum SecurityError {

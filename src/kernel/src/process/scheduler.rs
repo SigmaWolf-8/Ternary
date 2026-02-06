@@ -7,11 +7,10 @@
 //! appropriate scheduling guarantees.
 
 use alloc::collections::VecDeque;
-use alloc::vec::Vec;
 use crate::memory::SecurityMode;
 use crate::timing::FemtosecondTimestamp;
 use super::{
-    ProcessDescriptor, ProcessError, ProcessId, ProcessResult,
+    ProcessError, ProcessId, ProcessResult,
     ProcessState, Priority,
 };
 use super::table::ProcessTable;

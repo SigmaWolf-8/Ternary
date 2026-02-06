@@ -8,8 +8,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 use crate::memory::SecurityMode;
-use crate::process::ProcessId;
-use super::{Action, CapabilityKind, ResourceId, SecurityError, SecurityResult};
+use super::{Action, ResourceId, SecurityError, SecurityResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolicyDecision {
