@@ -16,6 +16,8 @@ import {
   Layers,
   Network,
   Building2,
+  Database,
+  Server,
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -99,7 +101,7 @@ function HeroSection() {
           >
             Convert any date across 12 major calendar systems with femtosecond precision.
             From Mayan Long Count to Islamic Hijri, from Julian Day Numbers to the 13-Moon Harmonic Calendar --
-            all routed through a single Julian Day Number intermediary for guaranteed bijective accuracy.
+            all routed through Kong Konnect with deterministic caching and a single JDN intermediary for guaranteed bijective accuracy.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -334,20 +336,20 @@ function CalendarSystemsSection() {
 
 function GoldenRatioSection() {
   const moons = [
-    { num: 1, name: "Magnetic", sig: "Red Dragon", tone: 1, arc: "Pre-\u03C6" },
-    { num: 2, name: "Lunar", sig: "White Wind", tone: 2, arc: "Pre-\u03C6" },
-    { num: 3, name: "Electric", sig: "Blue Night", tone: 3, arc: "Pre-\u03C6" },
-    { num: 4, name: "Self-Existing", sig: "Yellow Seed", tone: 4, arc: "Pre-\u03C6" },
-    { num: 5, name: "Overtone", sig: "Red Serpent", tone: 5, arc: "Pre-\u03C6" },
-    { num: 6, name: "Rhythmic", sig: "White World-Bridger", tone: 6, arc: "Pre-\u03C6" },
-    { num: 7, name: "Resonant", sig: "Blue Hand", tone: 7, arc: "Pre-\u03C6" },
-    { num: 8, name: "Galactic", sig: "Yellow Star", tone: 8, arc: "Pre-\u03C6" },
-    { num: "*", name: "Day Out of Time", sig: "Green Central Sun", tone: "\u221E", arc: "\u03C6-point" },
-    { num: 9, name: "Solar", sig: "Red Moon", tone: 9, arc: "Post-\u03C6" },
-    { num: 10, name: "Planetary", sig: "White Dog", tone: 10, arc: "Post-\u03C6" },
-    { num: 11, name: "Spectral", sig: "Blue Monkey", tone: 11, arc: "Post-\u03C6" },
-    { num: 12, name: "Crystal", sig: "Yellow Human", tone: 12, arc: "Post-\u03C6" },
-    { num: 13, name: "Cosmic", sig: "Red Skywalker", tone: 13, arc: "Post-\u03C6" },
+    { num: 1, name: "Magnetic", sig: "Red Dragon", tone: "Purpose \u2013 Unify", arc: "Pre-\u03C6" },
+    { num: 2, name: "Lunar", sig: "White Wind", tone: "Challenge \u2013 Flow", arc: "Pre-\u03C6" },
+    { num: 3, name: "Electric", sig: "Blue Night", tone: "Service \u2013 Activate", arc: "Pre-\u03C6" },
+    { num: 4, name: "Self-Existing", sig: "Yellow Seed", tone: "Form \u2013 Measure", arc: "Pre-\u03C6" },
+    { num: 5, name: "Overtone", sig: "Red Serpent", tone: "Radiance \u2013 Empower", arc: "Pre-\u03C6" },
+    { num: 6, name: "Rhythmic", sig: "White World-Bridger", tone: "Equality \u2013 Organize", arc: "Pre-\u03C6" },
+    { num: 7, name: "Resonant", sig: "Blue Hand", tone: "Channel \u2013 Inspire", arc: "Pre-\u03C6" },
+    { num: 8, name: "Galactic", sig: "Yellow Star", tone: "Integrity \u2013 Harmonize", arc: "Pre-\u03C6" },
+    { num: "\u2605", name: "Day Out of Time", sig: "Green Central Sun", tone: "Forgiveness \u2013 Release [\u221E]", arc: "\u03C6-point" },
+    { num: 9, name: "Solar", sig: "Red Moon", tone: "Intention \u2013 Pulse", arc: "Post-\u03C6" },
+    { num: 10, name: "Planetary", sig: "White Dog", tone: "Manifestation \u2013 Perfect", arc: "Post-\u03C6" },
+    { num: 11, name: "Spectral", sig: "Blue Monkey", tone: "Liberation \u2013 Dissolve", arc: "Post-\u03C6" },
+    { num: 12, name: "Crystal", sig: "Yellow Human", tone: "Cooperation \u2013 Dedicate", arc: "Post-\u03C6" },
+    { num: 13, name: "Cosmic", sig: "Red Skywalker", tone: "Presence \u2013 Endure", arc: "Post-\u03C6" },
   ];
 
   return (
@@ -428,17 +430,18 @@ function GoldenRatioSection() {
           >
             <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm h-full overflow-x-auto">
               <h3 className="text-xl font-semibold mb-6">Moon Schedule</h3>
-              <div className="space-y-0 min-w-[400px]">
-                <div className="grid grid-cols-4 gap-2 pb-3 border-b border-foreground/10 text-xs font-semibold text-muted-foreground">
+              <div className="space-y-0 min-w-[500px]">
+                <div className="grid grid-cols-5 gap-2 pb-3 border-b border-foreground/10 text-xs font-semibold text-muted-foreground">
                   <div>#</div>
                   <div>Moon</div>
                   <div>Galactic Signature</div>
+                  <div>Harmonic Tone</div>
                   <div>Arc</div>
                 </div>
                 {moons.map((moon, index) => (
                   <div
                     key={index}
-                    className={`grid grid-cols-4 gap-2 py-2 border-b border-foreground/5 last:border-b-0 text-sm ${
+                    className={`grid grid-cols-5 gap-2 py-2 border-b border-foreground/5 last:border-b-0 text-sm ${
                       moon.arc === "\u03C6-point" ? "bg-primary/10 rounded-md px-2 font-semibold text-primary" : ""
                     }`}
                     data-testid={`row-moon-${index}`}
@@ -446,6 +449,7 @@ function GoldenRatioSection() {
                     <div className="font-mono">{moon.num}</div>
                     <div className="font-medium">{moon.name}</div>
                     <div className="text-muted-foreground">{moon.sig}</div>
+                    <div className="text-muted-foreground text-xs">{moon.tone}</div>
                     <div className={moon.arc === "\u03C6-point" ? "text-primary" : "text-muted-foreground"}>{moon.arc}</div>
                   </div>
                 ))}
@@ -594,6 +598,169 @@ function LiveDemoSection() {
   );
 }
 
+function KongGatewaySection() {
+  const routes = [
+    { path: "/api/salvi/timing/epoch/calendars", service: "salvi-calendar", plugins: "rate-limit, jwt-auth, cors", cache: "\u221E (historical) / 24h (future)" },
+    { path: "/api/salvi/timing/epoch/calendars/:system", service: "salvi-calendar", plugins: "rate-limit, jwt-auth, cors", cache: "\u221E (historical) / 24h (future)" },
+    { path: "/api/salvi/timing/dot/:year", service: "salvi-calendar", plugins: "rate-limit, cors", cache: "\u221E (deterministic)" },
+    { path: "/api/salvi/timing/timestamp", service: "salvi-timing", plugins: "rate-limit, jwt-auth, cors", cache: "none (live)" },
+    { path: "/api/salvi/timing/sync", service: "salvi-timing", plugins: "jwt-auth, ip-restrict", cache: "none (stateful)" },
+    { path: "/api/salvi/timing/batch/:count", service: "salvi-timing", plugins: "rate-limit(strict), jwt-auth", cache: "none (live)" },
+    { path: "/api/salvi/timing/metrics", service: "salvi-timing", plugins: "rate-limit, jwt-auth", cache: "5s TTL" },
+  ];
+
+  const cacheStrategies = [
+    { icon: Database, label: "Historical Dates", ttl: "\u221E TTL", detail: "Calendar conversions for past dates are pure functions -- deterministic, immutable, infinitely cacheable." },
+    { icon: Clock, label: "Today's Date", ttl: "24h TTL", detail: "Sunset-based calendars (Hebrew, Islamic) may shift at day boundary. Refreshed daily." },
+    { icon: RefreshCw, label: "Future Dates", ttl: "24h TTL", detail: "Pending leap second announcements or Islamic observational determinations may alter results." },
+    { icon: Zap, label: "Live Timing", ttl: "No Cache", detail: "Femtosecond timestamps require real-time freshness. Every request generates a new timestamp." },
+  ];
+
+  return (
+    <section className="py-20 md:py-28 bg-secondary/30" data-testid="section-kong-gateway">
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
+              Kong Konnect Gateway
+            </Badge>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-3xl md:text-4xl font-bold mb-4"
+            data-testid="text-kong-title"
+          >
+            API Gateway Architecture
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="text-muted-foreground text-lg max-w-3xl mx-auto"
+          >
+            Every calendar endpoint routes through Kong Konnect with deterministic caching,
+            rate limiting, JWT authentication, and health-check degradation.
+          </motion.p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto mb-12">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm h-full">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary flex-shrink-0">
+                  <Server className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-semibold">Route Configuration</h3>
+              </div>
+              <div className="space-y-0 overflow-x-auto">
+                <div className="grid grid-cols-3 gap-2 pb-3 border-b border-foreground/10 text-xs font-semibold text-muted-foreground min-w-[450px]">
+                  <div>Route</div>
+                  <div>Plugins</div>
+                  <div>Cache</div>
+                </div>
+                {routes.map((route, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-3 gap-2 py-2.5 border-b border-foreground/5 last:border-b-0 text-xs min-w-[450px]"
+                    data-testid={`row-kong-route-${index}`}
+                  >
+                    <div className="font-mono text-primary truncate">{route.path}</div>
+                    <div className="text-muted-foreground">{route.plugins}</div>
+                    <div className="text-muted-foreground">{route.cache}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm h-full">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary flex-shrink-0">
+                  <Database className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-semibold">Deterministic Cache Strategy</h3>
+              </div>
+              <div className="space-y-4">
+                {cacheStrategies.map((strategy, index) => (
+                  <div key={index} className="flex items-start gap-3" data-testid={`cache-strategy-${index}`}>
+                    <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/5 text-primary flex-shrink-0 mt-0.5">
+                      <strategy.icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-sm font-medium">{strategy.label}</span>
+                        <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary text-xs">
+                          {strategy.ttl}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{strategy.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.35 }}
+          className="max-w-6xl mx-auto"
+        >
+          <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary flex-shrink-0">
+                <Shield className="w-5 h-5" />
+              </div>
+              <h3 className="text-xl font-semibold">Gateway Features</h3>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div data-testid="kong-feature-ratelimit">
+                <div className="text-sm font-semibold mb-1">Rate Limiting</div>
+                <p className="text-xs text-muted-foreground">100 req/min standard, 30 req/min for bulk conversions. Redis-backed with burst allowance.</p>
+              </div>
+              <div data-testid="kong-feature-auth">
+                <div className="text-sm font-semibold mb-1">JWT Authentication</div>
+                <p className="text-xs text-muted-foreground">Bearer tokens via Salvi auth service. Public endpoints support anonymous access with reduced limits.</p>
+              </div>
+              <div data-testid="kong-feature-health">
+                <div className="text-sm font-semibold mb-1">Health Check Degradation</div>
+                <p className="text-xs text-muted-foreground">If calendar service goes down, Kong serves cached historical conversions while returning 503 for live timing.</p>
+              </div>
+              <div data-testid="kong-feature-transform">
+                <div className="text-sm font-semibold mb-1">Response Transform</div>
+                <p className="text-xs text-muted-foreground">Automatic Cache-Control headers: immutable for historical dates, max-age=86400 for current/future.</p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 function UseCasesSection() {
   const useCases = [
     {
@@ -723,6 +890,7 @@ export default function CalendarPage() {
         <ProblemsSection />
         <CalendarSystemsSection />
         <GoldenRatioSection />
+        <KongGatewaySection />
         <LiveDemoSection />
         <UseCasesSection />
       </main>
