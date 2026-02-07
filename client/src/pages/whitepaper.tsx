@@ -304,7 +304,7 @@ export default function WhitepaperPage() {
 
                   <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
                     <div 
-                      className="prose prose-invert max-w-none whitepaper-content"
+                      className="prose max-w-none whitepaper-content"
                       dangerouslySetInnerHTML={{ __html: parseMarkdownToHTML(whitepaper.content) }}
                       data-testid="whitepaper-content"
                     />
