@@ -3,13 +3,14 @@
  * 
  * Implements the Femtosecond Temporal Resolution from the Salvi Framework whitepaper:
  * - Temporal Resolution: 10⁻¹⁵ seconds (1 femtosecond)
- * - 128-bit integer representing femtoseconds since 2024-01-01T00:00:00Z
+ * - 128-bit integer representing femtoseconds since 2025-04-01T00:00:00Z (Salvi Epoch)
  * - Hierarchical Precision Time Protocol (HPTP) compatible
+ * - Ancient Calendar Synchronization: Mayan Long Count, Hebrew, Chinese, Vedic, Egyptian, Julian Day
  * 
  * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
  */
 
-export const SALVI_EPOCH = new Date('2024-01-01T00:00:00.000Z').getTime();
+export const SALVI_EPOCH = new Date('2025-04-01T00:00:00.000Z').getTime();
 export const FEMTOSECONDS_PER_MILLISECOND = 1_000_000_000_000n;
 export const FEMTOSECONDS_PER_SECOND = 1_000_000_000_000_000n;
 

@@ -264,6 +264,92 @@ assert!(ts1.happens_before(&ts2));
 
 ---
 
+## Ancient Calendar Synchronization
+
+The Salvi Epoch (April 1, 2025 00:00:00.000 UTC) is anchored to eight ancient calendar systems spanning thousands of years. This provides a universal temporal reference frame that bridges modern post-quantum timing with humanity's oldest timekeeping traditions.
+
+### Supported Calendar Systems
+
+| Calendar System | Origin | Epoch Relationship |
+|----------------|--------|-------------------|
+| Mayan Long Count | August 11, 3114 BCE | Vigesimal count from creation date |
+| Hebrew (Anno Mundi) | October 7, 3761 BCE | Lunisolar calendar from creation |
+| Chinese Sexagenary | ~2637 BCE | 60-year Heavenly Stems & Earthly Branches |
+| Vedic Kali Yuga | February 17, 3102 BCE | Hindu cosmological age (432,000 years) |
+| Egyptian Civil | ~2781 BCE | Sothic cycle solar calendar |
+| Julian Day Number | January 1, 4713 BCE | Continuous astronomical day count |
+| Islamic Hijri | July 16, 622 CE | Lunar calendar from the Hijra |
+| Byzantine Anno Mundi | September 1, 5509 BCE | Eastern Roman creation reckoning |
+
+### Salvi Epoch Anchor Points
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SALVI EPOCH (Day Zero)                        │
+│              April 1, 2025 00:00:00.000 UTC                     │
+├─────────────────────────────────────────────────────────────────┤
+│  Mayan Long Count ──── 13.0.12.8.4                              │
+│  Hebrew Calendar  ──── 1 Tevet 5786 AM                          │
+│  Chinese Cycle    ──── Yi-Si (Snake/Wood) Year 42, Cycle 34     │
+│  Vedic Kali Yuga  ──── Year 5,126 of 432,000 (1.1866%)         │
+│  Egyptian Civil   ──── Year 4805, Akhet (Inundation), M4 D2    │
+│  Julian Day       ──── JD 2,460,766.5 | MJD 60,766             │
+│  Islamic Hijri    ──── 3 Shawwal 1446 AH                        │
+│  Byzantine AM     ──── Anno Mundi 7,534, Indiction 4            │
+├─────────────────────────────────────────────────────────────────┤
+│  All mappings bijectively computed via JDN + GMT correlation     │
+│  constant (584,283) and standard astronomical algorithms        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Calendar Conversion API
+
+```typescript
+import { getSalviEpochCalendarSync, toMayanLongCount } from 'salvi-core';
+
+// Get all calendar mappings for the Salvi Epoch
+const sync = getSalviEpochCalendarSync();
+console.log(sync.calendars.mayanLongCount.longCount);  // "13.0.12.8.4"
+console.log(sync.calendars.vedic.yearInYuga);           // 5126
+console.log(sync.calendars.hebrew.year);                // 5786
+
+// Convert any date to Mayan Long Count
+const mayan = toMayanLongCount(new Date('2025-04-01'));
+console.log(mayan.calendarRound);  // Tzolkin + Haab position
+
+// Convert femtosecond offset to all calendars
+const calendars = femtosecondsToAncientCalendars(offset);
+```
+
+### REST API Endpoints
+
+```
+GET /api/salvi/timing/epoch/anchors      — Fixed Salvi Epoch reference points
+GET /api/salvi/timing/epoch/calendars    — Full sync (optional ?date= parameter)
+GET /api/salvi/timing/epoch/calendars/mayan
+GET /api/salvi/timing/epoch/calendars/hebrew
+GET /api/salvi/timing/epoch/calendars/chinese
+GET /api/salvi/timing/epoch/calendars/vedic
+GET /api/salvi/timing/epoch/calendars/egyptian
+GET /api/salvi/timing/epoch/calendars/julian-day
+GET /api/salvi/timing/epoch/calendars/islamic
+GET /api/salvi/timing/epoch/calendars/byzantine
+```
+
+### Design Rationale
+
+The ancient calendar synchronization serves multiple purposes:
+
+1. **Universal Temporal Anchoring** — By mapping the Salvi Epoch to calendar systems spanning 7,000+ years of human civilization, the framework establishes a temporal reference that transcends any single cultural or technological epoch.
+
+2. **Ternary-Calendar Correspondence** — The ternary number system ({-1, 0, +1}) maps naturally to cyclical calendar systems: the Mayan Tzolkin (20-day cycle), Chinese Sexagenary (60-year cycle), and Hindu Yugas all exhibit base-3 resonance patterns in their periodic structures.
+
+3. **Verifiable Cross-Reference** — All calendar mappings are bijectively computable from the Julian Day Number via established astronomical algorithms, ensuring deterministic conversion across all 8 systems. This provides independent verification paths for timestamped operations.
+
+4. **Regulatory Compliance Bridge** — Financial regulations (FINRA 613, MiFID II) require traceable timing. The ancient calendar anchoring extends this traceability beyond modern standards into a civilizational-scale audit trail.
+
+---
+
 ## Best Practices
 
 ### 1. Use Appropriate Stratum
@@ -277,6 +363,9 @@ Multiple clocks provide better accuracy through averaging.
 
 ### 4. Account for Torsion Asymmetry
 The torsion correction is essential for accurate synchronization in the ternary network.
+
+### 5. Leverage Ancient Calendar Anchoring
+Use the multi-calendar synchronization for cross-civilizational temporal verification and audit trails that extend beyond modern epoch boundaries.
 
 ---
 

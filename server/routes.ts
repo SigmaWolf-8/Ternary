@@ -47,6 +47,19 @@ import {
   getRecommendedMode,
   type EncryptionMode
 } from "./salvi-core/phase-encryption";
+import {
+  getSalviEpochCalendarSync,
+  getSalviEpochAnchorPoints,
+  femtosecondsToAncientCalendars,
+  toMayanLongCount,
+  toHebrewDate,
+  toChineseSexagenary,
+  toVedicKaliYuga,
+  toEgyptianCivil,
+  toJulianDayNumber,
+  toIslamicHijri,
+  toByzantineAnnoMundi
+} from "./salvi-core/ancient-calendar-sync";
 
 const demoRunSchema = z.object({
   datasetName: z.enum(["sensor", "events", "logs"]),
@@ -626,6 +639,25 @@ export async function registerRoutes(
           batch: {
             path: "GET /api/salvi/timing/batch/:count",
             description: "Generate batch of timestamps"
+          },
+          epochAnchors: {
+            path: "GET /api/salvi/timing/epoch/anchors",
+            description: "Get Salvi Epoch anchor points across 8 ancient calendar systems"
+          },
+          epochCalendars: {
+            path: "GET /api/salvi/timing/epoch/calendars",
+            description: "Full ancient calendar synchronization (Mayan, Hebrew, Chinese, Vedic, Egyptian, Julian Day, Islamic, Byzantine)",
+            query: { date: "ISO 8601 date (optional, defaults to Salvi Epoch)" }
+          },
+          calendarEndpoints: {
+            mayan: "GET /api/salvi/timing/epoch/calendars/mayan",
+            hebrew: "GET /api/salvi/timing/epoch/calendars/hebrew",
+            chinese: "GET /api/salvi/timing/epoch/calendars/chinese",
+            vedic: "GET /api/salvi/timing/epoch/calendars/vedic",
+            egyptian: "GET /api/salvi/timing/epoch/calendars/egyptian",
+            julianDay: "GET /api/salvi/timing/epoch/calendars/julian-day",
+            islamic: "GET /api/salvi/timing/epoch/calendars/islamic",
+            byzantine: "GET /api/salvi/timing/epoch/calendars/byzantine"
           }
         },
         phase: {
@@ -849,7 +881,7 @@ export async function registerRoutes(
         },
         epoch: {
           salviEpoch: new Date(SALVI_EPOCH).toISOString(),
-          description: "Femtoseconds since 2024-01-01T00:00:00Z"
+          description: "Femtoseconds since 2025-04-01T00:00:00Z (Salvi Epoch)"
         }
       });
     } catch (error) {
@@ -896,6 +928,137 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Batch timestamp generation failed" });
+    }
+  });
+
+  // =====================================================
+  // SALVI CORE API - Ancient Calendar Synchronization
+  // =====================================================
+
+  app.get("/api/salvi/timing/epoch/anchors", (req, res) => {
+    try {
+      const anchors = getSalviEpochAnchorPoints();
+      res.json({ success: true, ...anchors });
+    } catch (error) {
+      res.status(500).json({ error: "Epoch anchor retrieval failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : undefined;
+      if (dateParam && isNaN(date!.getTime())) {
+        return res.status(400).json({ error: "Invalid date format. Use ISO 8601." });
+      }
+      const sync = getSalviEpochCalendarSync(date);
+      res.json({ success: true, ...sync });
+    } catch (error) {
+      res.status(500).json({ error: "Calendar synchronization failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/mayan", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Mayan Long Count", ...toMayanLongCount(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Mayan calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/hebrew", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Hebrew", ...toHebrewDate(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Hebrew calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/chinese", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Chinese Sexagenary Cycle", ...toChineseSexagenary(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Chinese calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/vedic", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Vedic Kali Yuga", ...toVedicKaliYuga(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Vedic calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/egyptian", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Egyptian Civil", ...toEgyptianCivil(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Egyptian calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/julian-day", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Julian Day Number", ...toJulianDayNumber(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Julian Day conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/islamic", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Islamic Hijri", ...toIslamicHijri(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Islamic calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/byzantine", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "Byzantine Anno Mundi", ...toByzantineAnnoMundi(date) });
+    } catch (error) {
+      res.status(500).json({ error: "Byzantine calendar conversion failed" });
     }
   });
 

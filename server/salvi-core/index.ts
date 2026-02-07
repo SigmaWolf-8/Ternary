@@ -53,3 +53,5 @@ export {
 } from './timing-service';
 
 export * from './error-handling';
+
+export * from './ancient-calendar-sync';
