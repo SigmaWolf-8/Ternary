@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
-  ArrowLeft,
   ArrowRight,
   Clock,
   Globe,
@@ -49,25 +48,6 @@ interface CalendarData {
   };
 }
 
-function Header() {
-  return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-primary/10">
-      <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="link-back-home">
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Back to Platform</span>
-        </Link>
-        <div className="flex items-center gap-2.5">
-          <Globe className="w-5 h-5 text-primary" />
-          <span className="font-bold text-lg">Calendar Synchronization API</span>
-        </div>
-        <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-api-demo">
-          <Link href="/api-demo">Live API Demo</Link>
-        </Button>
-      </div>
-    </header>
-  );
-}
 
 function HeroSection() {
   return (
@@ -884,7 +864,6 @@ function UseCasesSection() {
 export default function CalendarPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
       <main>
         <HeroSection />
         <ProblemsSection />

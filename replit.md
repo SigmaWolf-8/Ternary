@@ -9,7 +9,7 @@ I prefer iterative development with a focus on delivering working features incre
 ## System Architecture
 
 ### Frontend
-The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui` for components, and Wouter for routing. It adheres to a light theme with a white background and blue accents. Key pages include the Landing Page, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub (/docs), and Admin Dashboard (/admin).
+The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui` for components, and Wouter for routing. It adheres to a light theme with a white background and blue accents. Navigation uses a collapsible shadcn Sidebar (`client/src/components/app-sidebar.tsx`) wrapped in `SidebarProvider` in `App.tsx`, replacing individual page headers. The sidebar structure is: Platform (collapsible: Architecture, Components, Performance, Calendar sub-items), Calendar API, API Demo, Whitepaper, Docs, App Links (collapsible: GitHub, Kong Konnect), and Admin section (visible to admins). Auth (login/logout) is in the sidebar footer. Key pages include the Landing Page, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub (/docs), and Admin Dashboard (/admin).
 
 **Documentation**: The `salvi_docs/` directory contains comprehensive developer documentation (15 files, ~7,316+ lines) covering tutorials and module guides for the Salvi Framework. The `/docs` page on the site provides a browsable index linking to GitHub-hosted markdown files.
 

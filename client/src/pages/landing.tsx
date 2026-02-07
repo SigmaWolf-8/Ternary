@@ -20,12 +20,6 @@ import {
   Mail,
   Linkedin,
   Twitter,
-  Menu,
-  X,
-  LogIn,
-  LogOut,
-  User,
-  Settings,
   Terminal,
   Lock,
   Binary,
@@ -33,213 +27,14 @@ import {
   Globe,
   Server
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-function Header() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, isLoading } = useAuth();
-  
-  const { data: adminStatus } = useQuery<{ isAdmin: boolean }>({
-    queryKey: ["/api/user/admin-status"],
-    enabled: isAuthenticated,
-  });
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const navLinks = [
-    { href: "#platform", label: "Platform" },
-    { href: "#architecture", label: "Architecture" },
-    { href: "#components", label: "Components" },
-    { href: "#performance", label: "Performance" },
-    { href: "/calendar", label: "Calendar API" },
-    { href: "/whitepaper", label: "Whitepaper" },
-    { href: "/docs", label: "Docs" },
-  ];
-
-  return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? "bg-background/95 backdrop-blur-xl border-b border-primary/10" 
-          : "bg-transparent"
-      }`}
-      data-testid="header"
-    >
-      <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between gap-4">
-        <a href="#" className="flex items-center gap-2.5 text-primary font-bold text-xl" data-testid="link-logo">
-          <Box className="w-7 h-7" />
-          <span>PlenumNET</span>
-        </a>
-        
-        <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            link.href.startsWith("/") ? (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-muted-foreground hover:text-primary transition-colors font-medium text-sm"
-                data-testid={`link-nav-${link.label.toLowerCase()}`}
-              >
-                {link.label}
-              </Link>
-            ) : (
-              <a 
-                key={link.href}
-                href={link.href} 
-                className="text-muted-foreground hover:text-primary transition-colors font-medium text-sm"
-                data-testid={`link-nav-${link.label.toLowerCase()}`}
-              >
-                {link.label}
-              </a>
-            )
-          ))}
-        </nav>
-        
-        <div className="hidden md:flex items-center gap-3">
-          <Button variant="outline" asChild className="border-primary/50 text-primary">
-            <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer" data-testid="link-github">
-              <Github className="w-4 h-4 mr-2" />
-              GitHub
-            </a>
-          </Button>
-          {isLoading ? (
-            <div className="w-20 h-9 bg-primary/10 rounded animate-pulse" />
-          ) : isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                {user?.profileImageUrl ? (
-                  <img src={user.profileImageUrl} alt="" className="w-6 h-6 rounded-full" />
-                ) : (
-                  <User className="w-4 h-4" />
-                )}
-                {user?.firstName || user?.email?.split('@')[0]}
-              </span>
-              {adminStatus?.isAdmin && (
-                <>
-                  <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-kong-konnect">
-                    <a href="https://cloud.konghq.com/us/gateway-manager" target="_blank" rel="noopener noreferrer">
-                      <Network className="w-4 h-4 mr-2" />
-                      Kong
-                    </a>
-                  </Button>
-                  <Link href="/github">
-                    <Button variant="outline" className="border-primary/50 text-primary" data-testid="button-admin-github">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Admin
-                    </Button>
-                  </Link>
-                </>
-              )}
-              <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-logout">
-                <a href="/api/logout">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </a>
-              </Button>
-            </div>
-          ) : (
-            <Button asChild data-testid="button-login">
-              <a href="/api/login">
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign In
-              </a>
-            </Button>
-          )}
-        </div>
-
-        <Button 
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          data-testid="button-mobile-menu"
-        >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-      </div>
-
-      {mobileMenuOpen && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="md:hidden bg-background/98 backdrop-blur-xl border-b border-primary/10 px-5 py-6"
-        >
-          <nav className="flex flex-col gap-4 mb-6">
-            {navLinks.map((link) => (
-              link.href.startsWith("/") ? (
-                <Link 
-                  key={link.href}
-                  href={link.href}
-                  className="text-muted-foreground hover:text-primary transition-colors font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                  data-testid={`link-mobile-nav-${link.label.toLowerCase()}`}
-                >
-                  {link.label}
-                </Link>
-              ) : (
-                <a 
-                  key={link.href}
-                  href={link.href} 
-                  className="text-muted-foreground hover:text-primary transition-colors font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                  data-testid={`link-mobile-nav-${link.label.toLowerCase()}`}
-                >
-                  {link.label}
-                </a>
-              )
-            ))}
-          </nav>
-          <div className="flex flex-col gap-3">
-            <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-github">
-              <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
-                <Github className="w-4 h-4 mr-2" />
-                GitHub
-              </a>
-            </Button>
-            {isAuthenticated ? (
-              <>
-                {adminStatus?.isAdmin && (
-                  <Button variant="outline" asChild className="border-primary/50 text-primary w-full" data-testid="button-mobile-kong">
-                    <a href="https://cloud.konghq.com/us/gateway-manager" target="_blank" rel="noopener noreferrer">
-                      <Network className="w-4 h-4 mr-2" />
-                      Kong Konnect
-                    </a>
-                  </Button>
-                )}
-                <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-logout">
-                  <a href="/api/logout">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </a>
-                </Button>
-              </>
-            ) : (
-              <Button asChild data-testid="button-mobile-login">
-                <a href="/api/login">
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Sign In with GitHub
-                </a>
-              </Button>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </header>
-  );
-}
 
 function AnimatedStat({ value, label, suffix, delay }: { value: string; label: string; suffix?: string; delay: number }) {
   const ref = useRef(null);
@@ -281,7 +76,7 @@ function HeroSection() {
   });
 
   return (
-    <section className="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden" data-testid="section-hero">
+    <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero">
       <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
       <div className="absolute inset-0 gradient-radial" />
       
@@ -1421,7 +1216,6 @@ function Footer() {
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
       <main>
         <HeroSection />
         <PlatformSection />

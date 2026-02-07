@@ -1,9 +1,7 @@
-import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
   BookOpen,
   Cpu,
   Lock,
@@ -160,19 +158,6 @@ function PriorityBadge({ priority }: { priority: string }) {
 export default function Docs() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-sm" data-testid="docs-header">
-        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center gap-3">
-          <Link href="/" data-testid="link-docs-home">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <BookOpen className="w-5 h-5 text-primary" />
-          <h1 className="font-semibold text-lg" data-testid="text-docs-title">Salvi Framework Documentation</h1>
-          <Badge variant="secondary">v1.0</Badge>
-        </div>
-      </header>
-
       <main className="max-w-6xl mx-auto px-5 py-8">
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-2" data-testid="text-overview-title">Documentation</h2>

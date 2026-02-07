@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Box, 
-  ArrowLeft,
   Shield,
   Zap,
   Network,
@@ -86,32 +85,6 @@ interface RouteData {
   protocols?: string[];
 }
 
-function Header() {
-  return (
-    <header className="border-b border-primary/10 bg-background/95 backdrop-blur-xl sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 text-primary font-bold text-xl" data-testid="link-logo">
-          <Box className="w-7 h-7" />
-          <span>PlenumNET</span>
-        </Link>
-        
-        <div className="flex items-center gap-4">
-          <Link href="/api-demo">
-            <Button variant="ghost" size="sm" data-testid="button-api-demo">
-              API Demo
-            </Button>
-          </Link>
-          <Link href="/">
-            <Button variant="ghost" size="sm" data-testid="button-back-home">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 function ConnectionStatus() {
   const { data: status, isLoading, refetch } = useQuery<KongStatus>({
@@ -1111,7 +1084,6 @@ function Footer() {
 export default function KongKonnect() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
       <main>
         <HeroSection />
         <DashboardSection />

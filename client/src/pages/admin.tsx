@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import type { DeveloperSignup } from "@shared/schema";
 import {
-  ArrowLeft,
   Trash2,
   Mail,
   Users,
@@ -99,14 +98,9 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-sm" data-testid="admin-header">
-        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Link href="/" data-testid="link-admin-home">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </Link>
+      <main className="max-w-6xl mx-auto px-5 py-8">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+          <div className="flex items-center gap-3">
             <h1 className="font-semibold text-lg" data-testid="text-admin-title">Developer Signups</h1>
             <Badge variant="secondary" data-testid="badge-signup-count">{signups.length}</Badge>
           </div>
@@ -122,9 +116,6 @@ export default function Admin() {
             </span>
           </div>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-5 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <Card className="p-5" data-testid="stat-total-signups">
             <div className="flex items-center gap-3">
