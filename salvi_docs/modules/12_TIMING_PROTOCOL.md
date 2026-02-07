@@ -299,7 +299,7 @@ All values verified against scholarly reference data. Mayan 13.0.0.0.0 = Dec 21,
 │  Julian Day       ──── JD 2,460,766.5 | MJD 60,766.0                │
 │  Islamic Hijri    ──── 2 Shawwal 1446 AH                             │
 │  Byzantine AM     ──── Anno Mundi 7,534, Indiction 4                 │
-│  13-Moon Time     ──── Solar Moon Day 26, Year 2024 [Cycle 30,024]   │
+│  13-Moon Time     ──── Magnetic Moon Day 1, Year 2025 [Cycle 30,025] │
 ├──────────────────────────────────────────────────────────────────────┤
 │  All mappings bijectively computed via JDN 2,460,767 + GMT           │
 │  correlation constant (584,283) and standard astronomical algorithms │
@@ -307,9 +307,24 @@ All values verified against scholarly reference data. Mayan 13.0.0.0.0 = Dec 21,
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### The 13-Moon Calendar (Natural Time)
+### The 13-Moon Calendar (Natural Time) — Golden Ratio Alignment
 
-The 13-Moon calendar is a 364-day cycle structured as 13 months of exactly 28 days each, plus one intercalary "Day Out of Time" (July 25, Gregorian). In leap years, a second intercalary day ("Hunab Ku Day") is added. The year begins July 26, aligned to the heliacal rising of Sirius.
+The 13-Moon calendar is a 364-day cycle structured as 13 months of exactly 28 days each. In the Salvi Framework, the year begins **April 1** (anchored to the Salvi Epoch) and the **Day Out of Time falls on November 11 (11/11)**, positioned at the golden ratio point of the cycle.
+
+**Golden Ratio (φ) Alignment:**
+
+```
+364 / φ (1.6180339...) = 224.96 → Day 224 (0-indexed from April 1) = November 11
+
+This splits the 13 moons into two Fibonacci groups:
+  ┌──────────────────────────────┐     ┌───────────────────┐
+  │  8 Moons BEFORE Day Out of  │ DOT │  5 Moons AFTER    │
+  │  Time (Moons 1-8 = 224 days)│11/11│  (Moons 9-13)     │
+  └──────────────────────────────┘     └───────────────────┘
+  
+  8/5 = 1.600 ≈ φ (1.618...)
+  Both 8 and 5 are consecutive Fibonacci numbers.
+```
 
 **Historical Attestation:**
 - **~28,000 BCE** — Abri Blanchard bone (Dordogne, France): lunar notation marks interpreted as a 13-month lunar cycle
@@ -318,27 +333,31 @@ The 13-Moon calendar is a 364-day cycle structured as 13 months of exactly 28 da
 - **~200 BCE** — Essene/Qumran community: liturgical 364-day calendar used for religious observance
 - **Celtic/Druidic** — 13-month tree calendar tradition (Ogham correspondence)
 
-**13-Moon Structure:**
+**13-Moon Structure (Salvi Epoch Alignment):**
 
-| Moon # | Name | Days | Pattern |
-|--------|------|------|---------|
-| 1 | Magnetic | 28 | 4 perfect weeks |
-| 2 | Lunar | 28 | 4 perfect weeks |
-| 3 | Electric | 28 | 4 perfect weeks |
-| 4 | Self-Existing | 28 | 4 perfect weeks |
-| 5 | Overtone | 28 | 4 perfect weeks |
-| 6 | Rhythmic | 28 | 4 perfect weeks |
-| 7 | Resonant | 28 | 4 perfect weeks |
-| 8 | Galactic | 28 | 4 perfect weeks |
-| 9 | Solar | 28 | 4 perfect weeks |
-| 10 | Planetary | 28 | 4 perfect weeks |
-| 11 | Spectral | 28 | 4 perfect weeks |
-| 12 | Crystal | 28 | 4 perfect weeks |
-| 13 | Cosmic | 28 | 4 perfect weeks |
-| — | Day Out of Time | 1 | July 25 (intercalary) |
-| — | Hunab Ku Day | 0-1 | Leap years only |
+| Moon # | Name | Days | Approx. Gregorian Range | Phase |
+|--------|------|------|------------------------|-------|
+| 1 | Magnetic | 28 | Apr 1 – Apr 28 | Pre-φ |
+| 2 | Lunar | 28 | Apr 29 – May 26 | Pre-φ |
+| 3 | Electric | 28 | May 27 – Jun 23 | Pre-φ |
+| 4 | Self-Existing | 28 | Jun 24 – Jul 21 | Pre-φ |
+| 5 | Overtone | 28 | Jul 22 – Aug 18 | Pre-φ |
+| 6 | Rhythmic | 28 | Aug 19 – Sep 15 | Pre-φ |
+| 7 | Resonant | 28 | Sep 16 – Oct 13 | Pre-φ |
+| 8 | Galactic | 28 | Oct 14 – Nov 10 | Pre-φ |
+| — | **Day Out of Time** | **1** | **Nov 11 (11/11)** | **φ** |
+| 9 | Solar | 28 | Nov 12 – Dec 9 | Post-φ |
+| 10 | Planetary | 28 | Dec 10 – Jan 6 | Post-φ |
+| 11 | Spectral | 28 | Jan 7 – Feb 3 | Post-φ |
+| 12 | Crystal | 28 | Feb 4 – Mar 3 | Post-φ |
+| 13 | Cosmic | 28 | Mar 4 – Mar 31 | Post-φ |
+| — | Hunab Ku Day | 0-1 | Feb 29 (leap years) | — |
 
-**Key Property:** Every day of the month falls on the same day of the week, making the calendar perfectly predictable. The 7-day week (Dali, Seli, Gamma, Kali, Alpha, Limi, Silio) repeats exactly 52 times per year.
+**Key Properties:**
+- Every day of the month falls on the same day of the week, making the calendar perfectly predictable
+- The 7-day week (Dali, Seli, Gamma, Kali, Alpha, Limi, Silio) repeats exactly 52 times per year
+- The Day Out of Time belongs to no moon — it exists outside the regular 364-day count
+- The golden ratio split (8/5) encodes Fibonacci structure into the calendar itself
 
 ### Calendar Conversion API
 
@@ -363,9 +382,9 @@ const mayan = toMayanLongCount(new Date('2012-12-21'));
 console.log(mayan.longCount);      // "13.0.0.0.0"
 console.log(mayan.calendarRound);  // "4 Ahau 3 Kankin"
 
-// Check if a date is the Day Out of Time
-const dot = toThirteenMoonDate(new Date('2025-07-25'));
-console.log(dot.dayOutOfTime);     // true
+// Check if a date is the Day Out of Time (November 11)
+const dot = toThirteenMoonDate(new Date('2025-11-11'));
+console.log(dot.dayOutOfTime);     // true (golden ratio point: 364/φ)
 
 // Convert femtosecond offset to all calendars
 const calendars = femtosecondsToAncientCalendars(offset);

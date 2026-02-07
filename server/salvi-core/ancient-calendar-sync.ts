@@ -195,14 +195,29 @@ const MAYAN_CORRELATION = 584283;
 const YELLOW_EMPEROR_EPOCH = -2636;
 
 /**
- * 13-Moon calendar epoch: July 26 (Sirian heliacal rising)
- * The 364-day cycle begins each year on July 26 (Gregorian)
+ * 13-Moon calendar aligned to the Salvi Epoch (April 1)
+ * 
+ * The 364-day cycle begins each year on April 1 (Gregorian), anchored to the
+ * Salvi Epoch. The Day Out of Time falls on November 11 (11/11), positioned at
+ * the golden ratio point of the 364-day cycle:
+ * 
+ *   364 / φ (1.6180339...) = 224.93 → Day 224 (0-indexed from April 1) = November 11
+ * 
+ * This splits the 13 moons into 8 before and 5 after the Day Out of Time —
+ * both Fibonacci numbers whose ratio (8/5 = 1.6) approximates φ itself.
+ * 
  * Prehistoric attestation: Ishango bone (~20,000 BCE), Abri Blanchard bone (~28,000 BCE)
  * Enochian reference: Book of Enoch / Dead Sea Scrolls (~300 BCE, referencing older tradition)
- * Each year has 13 moons x 28 days = 364 days + 1 Day Out of Time (July 25)
+ * 
+ * Each year has 13 moons x 28 days = 364 days + 1 Day Out of Time (Nov 11)
+ * The Day Out of Time exists outside the regular moon count — it belongs to no moon.
  */
-const THIRTEEN_MOON_NEW_YEAR_MONTH = 6;
-const THIRTEEN_MOON_NEW_YEAR_DAY = 26;
+const THIRTEEN_MOON_NEW_YEAR_MONTH = 3;
+const THIRTEEN_MOON_NEW_YEAR_DAY = 1;
+const DAY_OUT_OF_TIME_MONTH = 10;
+const DAY_OUT_OF_TIME_DAY = 11;
+const GOLDEN_RATIO = 1.6180339887498949;
+const GOLDEN_RATIO_DAY = 224;
 
 /**
  * Convert a Gregorian date to Julian Day Number
@@ -487,9 +502,11 @@ export function toByzantineAnnoMundi(date: Date): ByzantineAnnoMundi {
 /**
  * Convert Gregorian date to the 13-Moon Calendar (364-day natural time cycle)
  * 
- * Structure: 13 months of exactly 28 days = 364 days
- * Plus 1 intercalary "Day Out of Time" (July 25, Gregorian)
- * Plus 1 leap day when applicable (before Day Out of Time)
+ * Salvi Framework alignment:
+ * - Year begins April 1 (Salvi Epoch anchor)
+ * - Day Out of Time: November 11 (11/11), the golden ratio point
+ *   364/φ = 224.93 → day 224 (0-indexed from April 1) = November 11
+ * - 8 Fibonacci moons before DOT, 5 Fibonacci moons after (8/5 ≈ φ)
  * 
  * Historical attestation:
  * - Abri Blanchard bone (France, ~28,000 BCE): lunar notation marks
@@ -499,8 +516,9 @@ export function toByzantineAnnoMundi(date: Date): ByzantineAnnoMundi {
  * - Essene/Qumran community: liturgical 364-day calendar
  * - Celtic/Druidic traditions: 13-month tree calendar
  * 
- * The year begins July 26 (aligned to the heliacal rising of Sirius)
- * and consists of 13 perfect months of 28 days (4 weeks each).
+ * Structure: 13 moons x 28 days = 364 regular days + 1 Day Out of Time
+ * The DOT exists outside the moon count; it belongs to no moon.
+ * In leap years, a Hunab Ku Day is inserted before the DOT (Nov 10).
  * 
  * Each 28-day moon follows the same pattern:
  * Week 1 (days 1-7), Week 2 (days 8-14), Week 3 (days 15-21), Week 4 (days 22-28)
@@ -508,27 +526,23 @@ export function toByzantineAnnoMundi(date: Date): ByzantineAnnoMundi {
  */
 export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
   const gYear = date.getUTCFullYear();
-  const gMonth = date.getUTCMonth();
-  const gDay = date.getUTCDate();
+  const dateMs = date.getTime();
 
-  let thirteenMoonYear: number;
-  const newYearDate = Date.UTC(gYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
+  const newYearThisYear = Date.UTC(gYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
+  const thirteenMoonYear = dateMs >= newYearThisYear ? gYear : gYear - 1;
 
-  if (date.getTime() >= newYearDate) {
-    thirteenMoonYear = gYear;
-  } else {
-    thirteenMoonYear = gYear - 1;
-  }
+  const yearStartMs = Date.UTC(thirteenMoonYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
+  const daysSinceNewYear = Math.floor((dateMs - yearStartMs) / MS_PER_DAY);
 
-  const yearStart = new Date(Date.UTC(thirteenMoonYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY));
-  const daysSinceNewYear = Math.floor((date.getTime() - yearStart.getTime()) / MS_PER_DAY);
+  const dotMs = Date.UTC(thirteenMoonYear, DAY_OUT_OF_TIME_MONTH, DAY_OUT_OF_TIME_DAY);
+  const isDayOutOfTime = dateMs >= dotMs && dateMs < dotMs + MS_PER_DAY;
 
-  const dayOutOfTimeDate = Date.UTC(thirteenMoonYear + 1, 6, 25);
-  const isDayOutOfTime = date.getTime() >= dayOutOfTimeDate && date.getTime() < dayOutOfTimeDate + MS_PER_DAY;
+  const leapYearForCycle = thirteenMoonYear + 1;
+  const hasLeapDay = isLeapYear(leapYearForCycle);
+  const hunabKuMs = hasLeapDay ? Date.UTC(leapYearForCycle, 1, 29) : 0;
+  const isHunabKu = hasLeapDay && dateMs >= hunabKuMs && dateMs < hunabKuMs + MS_PER_DAY;
 
-  const leap = isLeapYear(thirteenMoonYear + 1);
-  const leapDayDate = leap ? Date.UTC(thirteenMoonYear + 1, 6, 24) : 0;
-  const isLeapDay = leap && date.getTime() >= leapDayDate && date.getTime() < leapDayDate + MS_PER_DAY;
+  const totalCycles = thirteenMoonYear + 28000;
 
   if (isDayOutOfTime) {
     return {
@@ -536,35 +550,36 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
       moon: 0,
       moonName: 'Day Out of Time',
       day: 0,
-      dayOfYear: 365,
+      dayOfYear: GOLDEN_RATIO_DAY + 1,
       dayOutOfTime: true,
       leapDay: false,
       weekday: 'Day Out of Time',
-      totalCycles: Math.floor((thirteenMoonYear + 28000) / 1),
-      formatted: `Day Out of Time, Year ${thirteenMoonYear} (Green Day - Galactic Freedom Day)`
+      totalCycles,
+      formatted: `Day Out of Time (11/11 — Golden Ratio Point: 364/\u03C6 = ${(364 / GOLDEN_RATIO).toFixed(2)}), Year ${thirteenMoonYear} [Cycle ${totalCycles.toLocaleString()}]`
     };
   }
 
-  if (isLeapDay) {
+  if (isHunabKu) {
     return {
       year: thirteenMoonYear,
       moon: 0,
       moonName: 'Hunab Ku Day',
       day: 0,
-      dayOfYear: 366,
+      dayOfYear: 0,
       dayOutOfTime: false,
       leapDay: true,
       weekday: 'Hunab Ku',
-      totalCycles: Math.floor((thirteenMoonYear + 28000) / 1),
-      formatted: `Hunab Ku Day (Leap Day), Year ${thirteenMoonYear}`
+      totalCycles,
+      formatted: `Hunab Ku Day (Leap Day), Year ${thirteenMoonYear} [Cycle ${totalCycles.toLocaleString()}]`
     };
   }
 
   let adjustedDay = daysSinceNewYear;
-  if (leap && date.getTime() >= leapDayDate) {
+
+  if (dateMs >= dotMs + MS_PER_DAY) {
     adjustedDay = adjustedDay - 1;
   }
-  if (date.getTime() >= dayOutOfTimeDate) {
+  if (hasLeapDay && dateMs >= hunabKuMs + MS_PER_DAY) {
     adjustedDay = adjustedDay - 1;
   }
 
@@ -577,8 +592,6 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
 
   const safeMoon = Math.max(1, Math.min(moon, 13));
   const moonName = THIRTEEN_MOON_NAMES[safeMoon - 1];
-
-  const totalCycles = thirteenMoonYear + 28000;
 
   return {
     year: thirteenMoonYear,
