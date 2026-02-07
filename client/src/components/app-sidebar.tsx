@@ -37,7 +37,9 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Collapsible,
   CollapsibleContent,
@@ -48,6 +50,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { setOpenMobile } = useSidebar();
+  const isMobile = useIsMobile();
 
   const { data: adminStatus } = useQuery<{ isAdmin: boolean }>({
     queryKey: ["/api/user/admin-status"],
@@ -57,7 +61,14 @@ export function AppSidebar() {
   const isLanding = location === "/";
   const [, navigate] = useLocation();
 
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, setOpenMobile]);
+
   const scrollToSection = useCallback((sectionId: string) => {
+    closeMobileSidebar();
     if (isLanding) {
       const el = document.getElementById(sectionId);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -68,7 +79,7 @@ export function AppSidebar() {
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 300);
     }
-  }, [isLanding, navigate]);
+  }, [isLanding, navigate, closeMobileSidebar]);
 
   return (
     <Sidebar collapsible="icon">
@@ -76,7 +87,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="PlenumNET">
-              <Link href="/" data-testid="link-sidebar-logo">
+              <Link href="/" data-testid="link-sidebar-logo" onClick={closeMobileSidebar}>
                 <Box className="w-4 h-4 text-primary" />
                 <span className="font-semibold text-sm">PlenumNET</span>
               </Link>
@@ -121,7 +132,7 @@ export function AppSidebar() {
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild isActive={location === "/calendar"} className="text-xs" data-testid="link-sidebar-calendar-sub">
-                          <Link href="/calendar">
+                          <Link href="/calendar" onClick={closeMobileSidebar}>
                             <Calendar className="w-3.5 h-3.5" />
                             <span>Calendar</span>
                           </Link>
@@ -134,7 +145,7 @@ export function AppSidebar() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/calendar"} tooltip="Calendar API" data-testid="link-sidebar-calendar" className="text-xs">
-                  <Link href="/calendar">
+                  <Link href="/calendar" onClick={closeMobileSidebar}>
                     <Globe className="w-3.5 h-3.5" />
                     <span>Calendar API</span>
                   </Link>
@@ -143,7 +154,7 @@ export function AppSidebar() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/api-demo"} tooltip="API Demo" data-testid="link-sidebar-api-demo" className="text-xs">
-                  <Link href="/api-demo">
+                  <Link href="/api-demo" onClick={closeMobileSidebar}>
                     <Terminal className="w-3.5 h-3.5" />
                     <span>API Demo</span>
                   </Link>
@@ -152,7 +163,7 @@ export function AppSidebar() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/whitepaper"} tooltip="Whitepaper" data-testid="link-sidebar-whitepaper" className="text-xs">
-                  <Link href="/whitepaper">
+                  <Link href="/whitepaper" onClick={closeMobileSidebar}>
                     <FileText className="w-3.5 h-3.5" />
                     <span>Whitepaper</span>
                   </Link>
@@ -161,7 +172,7 @@ export function AppSidebar() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/docs"} tooltip="Docs" data-testid="link-sidebar-docs" className="text-xs">
-                  <Link href="/docs">
+                  <Link href="/docs" onClick={closeMobileSidebar}>
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Docs</span>
                   </Link>
@@ -170,7 +181,7 @@ export function AppSidebar() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/compliance"} tooltip="CNSA 2.0" data-testid="link-sidebar-compliance" className="text-xs">
-                  <Link href="/compliance">
+                  <Link href="/compliance" onClick={closeMobileSidebar}>
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>CNSA 2.0</span>
                   </Link>
@@ -231,7 +242,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={location === "/admin"} tooltip="Admin Dashboard" data-testid="link-sidebar-admin" className="text-xs">
-                      <Link href="/admin">
+                      <Link href="/admin" onClick={closeMobileSidebar}>
                         <Shield className="w-3.5 h-3.5" />
                         <span>Dashboard</span>
                       </Link>
@@ -239,7 +250,7 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={location === "/github"} tooltip="GitHub Manager" data-testid="link-sidebar-github-manager" className="text-xs">
-                      <Link href="/github">
+                      <Link href="/github" onClick={closeMobileSidebar}>
                         <Github className="w-3.5 h-3.5" />
                         <span>GitHub Manager</span>
                       </Link>
@@ -247,7 +258,7 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={location === "/kong-konnect"} tooltip="Kong Konnect" data-testid="link-sidebar-kong-page" className="text-xs">
-                      <Link href="/kong-konnect">
+                      <Link href="/kong-konnect" onClick={closeMobileSidebar}>
                         <Network className="w-3.5 h-3.5" />
                         <span>Kong Konnect</span>
                       </Link>
