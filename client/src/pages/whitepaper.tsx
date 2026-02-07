@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { 
-  ArrowLeft,
   FileText,
   Download,
   Calendar,
@@ -17,7 +16,6 @@ import {
   Cpu,
   Network,
   Zap,
-  Github
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -141,39 +139,7 @@ export default function WhitepaperPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-primary/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link href="/">
-                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-back-home">
-                  <ArrowLeft className="w-4 h-4" />
-                  Home
-                </Button>
-              </Link>
-              <div className="h-6 w-px bg-primary/20" />
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-foreground">Whitepaper</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/ternarydb">
-                <Button variant="outline" size="sm" data-testid="link-ternarydb">
-                  PlenumDB
-                </Button>
-              </Link>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="icon" data-testid="link-github">
-                  <Github className="w-5 h-5" />
-                </Button>
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="pt-24 pb-16">
+      <main className="pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {isLoading ? (
             <div className="flex items-center justify-center py-24">
@@ -338,7 +304,7 @@ export default function WhitepaperPage() {
 
                   <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
                     <div 
-                      className="prose prose-invert max-w-none whitepaper-content"
+                      className="prose max-w-none whitepaper-content"
                       dangerouslySetInnerHTML={{ __html: parseMarkdownToHTML(whitepaper.content) }}
                       data-testid="whitepaper-content"
                     />
