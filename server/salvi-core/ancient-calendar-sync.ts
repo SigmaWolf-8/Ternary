@@ -122,6 +122,9 @@ export interface ThirteenMoonDate {
   leapDay: boolean;
   weekday: string;
   totalCycles: number;
+  galacticSignature: string;
+  harmonicTone: number | string;
+  arc: string;
   formatted: string;
 }
 
@@ -180,6 +183,14 @@ const THIRTEEN_MOON_NAMES = [
 const THIRTEEN_MOON_WEEKDAYS = [
   'Dali', 'Seli', 'Gamma', 'Kali', 'Alpha', 'Limi', 'Silio'
 ];
+
+const GALACTIC_SIGNATURES = [
+  'Red Dragon', 'White Wind', 'Blue Night', 'Yellow Seed',
+  'Red Serpent', 'White World-Bridger', 'Blue Hand', 'Yellow Star',
+  'Red Moon', 'White Dog', 'Blue Monkey', 'Yellow Human', 'Red Skywalker'
+];
+
+const HARMONIC_TONES: (number | string)[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 /**
  * Mayan Long Count correlation constant (Goodman-Martinez-Thompson correlation)
@@ -555,7 +566,10 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
       leapDay: false,
       weekday: 'Day Out of Time',
       totalCycles,
-      formatted: `Day Out of Time (11/11 — Golden Ratio Point: 364/\u03C6 = ${(364 / GOLDEN_RATIO).toFixed(2)}), Year ${thirteenMoonYear} [Cycle ${totalCycles.toLocaleString()}]`
+      galacticSignature: 'Green Central Sun',
+      harmonicTone: '\u221E',
+      arc: '\u03C6-point',
+      formatted: `Day Out of Time (11/11 \u2014 Golden Ratio Point: 364/\u03C6 = ${(364 / GOLDEN_RATIO).toFixed(2)}), Year ${thirteenMoonYear} [Cycle ${totalCycles.toLocaleString()}]`
     };
   }
 
@@ -570,6 +584,9 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
       leapDay: true,
       weekday: 'Hunab Ku',
       totalCycles,
+      galacticSignature: 'Hunab Ku',
+      harmonicTone: 0,
+      arc: 'Post-\u03C6',
       formatted: `Hunab Ku Day (Leap Day), Year ${thirteenMoonYear} [Cycle ${totalCycles.toLocaleString()}]`
     };
   }
@@ -592,6 +609,9 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
 
   const safeMoon = Math.max(1, Math.min(moon, 13));
   const moonName = THIRTEEN_MOON_NAMES[safeMoon - 1];
+  const galacticSignature = GALACTIC_SIGNATURES[safeMoon - 1];
+  const harmonicTone = HARMONIC_TONES[safeMoon - 1];
+  const arc = safeMoon <= 8 ? 'Pre-\u03C6' : 'Post-\u03C6';
 
   return {
     year: thirteenMoonYear,
@@ -603,6 +623,9 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
     leapDay: false,
     weekday,
     totalCycles,
+    galacticSignature,
+    harmonicTone,
+    arc,
     formatted: `${moonName} Moon, Day ${dayInMoon} (${weekday}), Year ${thirteenMoonYear} [Cycle ${totalCycles.toLocaleString()}]`
   };
 }

@@ -335,23 +335,25 @@ This splits the 13 moons into two Fibonacci groups:
 
 **13-Moon Structure (Salvi Epoch Alignment):**
 
-| Moon # | Name | Days | Approx. Gregorian Range | Phase |
-|--------|------|------|------------------------|-------|
-| 1 | Magnetic | 28 | Apr 1 – Apr 28 | Pre-φ |
-| 2 | Lunar | 28 | Apr 29 – May 26 | Pre-φ |
-| 3 | Electric | 28 | May 27 – Jun 23 | Pre-φ |
-| 4 | Self-Existing | 28 | Jun 24 – Jul 21 | Pre-φ |
-| 5 | Overtone | 28 | Jul 22 – Aug 18 | Pre-φ |
-| 6 | Rhythmic | 28 | Aug 19 – Sep 15 | Pre-φ |
-| 7 | Resonant | 28 | Sep 16 – Oct 13 | Pre-φ |
-| 8 | Galactic | 28 | Oct 14 – Nov 10 | Pre-φ |
-| — | **Day Out of Time** | **1** | **Nov 11 (11/11)** | **φ** |
-| 9 | Solar | 28 | Nov 12 – Dec 9 | Post-φ |
-| 10 | Planetary | 28 | Dec 10 – Jan 6 | Post-φ |
-| 11 | Spectral | 28 | Jan 7 – Feb 3 | Post-φ |
-| 12 | Crystal | 28 | Feb 4 – Mar 3 | Post-φ |
-| 13 | Cosmic | 28 | Mar 4 – Mar 31 | Post-φ |
-| — | Hunab Ku Day | 0-1 | Feb 29 (leap years) | — |
+| Moon # | Name | Days | Gregorian Range | Arc | Galactic Signature | Tone |
+|--------|------|------|----------------|-----|-------------------|------|
+| 1 | Magnetic | 28 | Apr 1 – Apr 28 | Pre-φ | Red Dragon | 1 |
+| 2 | Lunar | 28 | Apr 29 – May 26 | Pre-φ | White Wind | 2 |
+| 3 | Electric | 28 | May 27 – Jun 23 | Pre-φ | Blue Night | 3 |
+| 4 | Self-Existing | 28 | Jun 24 – Jul 21 | Pre-φ | Yellow Seed | 4 |
+| 5 | Overtone | 28 | Jul 22 – Aug 18 | Pre-φ | Red Serpent | 5 |
+| 6 | Rhythmic | 28 | Aug 19 – Sep 15 | Pre-φ | White World-Bridger | 6 |
+| 7 | Resonant | 28 | Sep 16 – Oct 13 | Pre-φ | Blue Hand | 7 |
+| 8 | Galactic | 28 | Oct 14 – Nov 10 | Pre-φ | Yellow Star | 8 |
+| * | **Day Out of Time** | **1** | **Nov 11 (11/11)** | **φ-point** | **Green Central Sun** | **∞** |
+| 9 | Solar | 28 | Nov 12 – Dec 9 | Post-φ | Red Moon | 9 |
+| 10 | Planetary | 28 | Dec 10 – Jan 6 | Post-φ | White Dog | 10 |
+| 11 | Spectral | 28 | Jan 7 – Feb 3 | Post-φ | Blue Monkey | 11 |
+| 12 | Crystal | 28 | Feb 4 – Mar 3 | Post-φ | Yellow Human | 12 |
+| 13 | Cosmic | 28 | Mar 4 – Mar 31 | Post-φ | Red Skywalker | 13 |
+| — | Hunab Ku Day | 0-1 | Feb 29 (leap years) | — | Hunab Ku | 0 |
+
+> For the complete Enhanced Calendar Synchronization Report including deep-dive algorithmic solutions, HPTP timing integration, API specifications, and mathematical proofs, see **[Module 13: Calendar Synchronization](./13_CALENDAR_SYNCHRONIZATION.md)**.
 
 **Key Properties:**
 - Every day of the month falls on the same day of the week, making the calendar perfectly predictable
