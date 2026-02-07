@@ -19,6 +19,9 @@ pub mod hmac;
 pub mod kdf;
 pub mod signature;
 pub mod cnsa2;
+pub mod cipher;
+pub mod sha2;
+pub mod sha3;
 
 use alloc::string::String;
 use alloc::vec::Vec;

@@ -1,0 +1,470 @@
+
+CAPOMASTRO HOLDINGS LTD.
+Applied Physics Division
+
+CNSA 2.0
+Full Compliance Implementation
+Comprehensive Task List & Execution Roadmap
+
+
+
+Salvi Framework  |  github.com/SigmaWolf-8/Ternary
+Target: NSA Commercial National Security Algorithm Suite 2.0
+FIPS 197 | FIPS 180-4 | FIPS 203 | FIPS 204 | NIST SP 800-208
+
+Document Date: February 7, 2026
+Classification: COMPANY CONFIDENTIAL
+Così sia.
+ 
+Executive Summary
+This document provides the comprehensive task list for achieving full CNSA 2.0 compliance within the Salvi Framework. The roadmap spans 8 phases across approximately 24 months, covering all 11 required algorithms, 4 protocol integrations, and the validation pipeline necessary for NSA-grade cryptographic compliance.
+
+Current Implementation Status
+As of February 7, 2026, the CNSA 2.0 implementation has established the documentation, tracking, and compliance infrastructure. The cryptographic implementations themselves remain to be built.
+
+Component	Status	Count	Detail
+Ternary Equivalent	PARTIAL	4 / 11	SHA-384, SHA-512, LMS, XMSS (ternary analogs exist, need FIPS validation)
+Planned (Not Started)	PLANNED	7 / 11	AES-256, ML-KEM-1024/768/512, ML-DSA-87/65/44
+Compliance Page	COMPLETE	✓	/compliance page with algorithm matrix, timeline, ternary advantage
+Documentation	COMPLETE	✓	Updated to match kernel accuracy with honest status
+Navigation	COMPLETE	✓	CNSA 2.0 sidebar link and landing page references
+E2E Tests	COMPLETE	✓	Verified correct rendering and navigation
+Protocol Profiles	NOT STARTED	0 / 4	TLS 1.3, SSH, IPsec, S/MIME
+CAVP Validation	NOT STARTED	0 / 11	No algorithm test vectors run yet
+
+CNSA 2.0 Algorithm Suite Reference
+The complete CNSA 2.0 suite as defined by NSA (December 2024, Ver. 2.1). All algorithms approved for TOP SECRET and below.
+
+Algorithm	Function	Standard	Parameter	Salvi Status
+AES-256	Symmetric encryption	FIPS 197	256-bit key	PLANNED
+SHA-384	Hash / integrity	FIPS 180-4	384-bit digest	TERNARY EQ
+SHA-512	Hash / integrity	FIPS 180-4	512-bit digest	TERNARY EQ
+ML-KEM-1024	Key encapsulation	FIPS 203	Level 5 (1024)	PLANNED
+ML-DSA-87	Digital signature	FIPS 204	Level 5 (87)	PLANNED
+LMS	Firmware signing	SP 800-208	SHA-256/192	TERNARY EQ
+XMSS	Firmware signing	SP 800-208	SHA-256/192	TERNARY EQ
+
+TERNARY EQ = Ternary equivalent primitives exist in Rust kernel but have not been validated against NIST test vectors. Full FIPS compliance requires binary-compatible output verification.
+
+NSA Mandated Transition Timeline
+CNSA 2.0 deadlines as specified in CNSSP 15 (updated December 2024). The Salvi Framework targets the Operating Systems timeline as a ternary computing OS.
+
+System Category	Prefer CNSA 2.0	Exclusively CNSA 2.0	Salvi Target
+Software & Firmware Signing	2025	2030	Q3 2026
+Web Browsers / Cloud Services	2025	2033	Q3 2027
+Network Equipment (VPN, Router)	2026	2030	Q3 2027
+Operating Systems	2027	2033	Q2 2028
+Large PKI / Niche Equipment	2030	2033	Q2 2028
+
+The Salvi Framework targets are set ahead of NSA mandates in all categories, positioning for defense acquisition readiness by Q2 2028.
+ 
+P1: Phase 1: Foundation — Symmetric & Hash Algorithms
+Deadline: Q2 2026    |    Priority: CRITICAL    |    Tasks: 3
+Implement AES-256 symmetric encryption and upgrade SHA hashing to CNSA 2.0 compliant parameters. These are prerequisites for all subsequent cryptographic operations.
+
+Task 1.1: AES-256-GCM Implementation (FIPS 197)
+Status: NOT STARTED	Effort: 3-4 weeks	Dependencies: None — foundational
+
+•	Implement AES-256 in Rust kernel (src/kernel/crypto/)
+•	GCM mode for authenticated encryption (required by CNSA 2.0 TLS & IPsec profiles)
+•	Ternary-native key schedule: map 256-bit key to balanced ternary representation for GF(3) processing
+•	Side-channel hardening: constant-time table lookups, no data-dependent branches
+•	Integration with existing phase-encryption split/recombine pipeline
+•	NIST CAVP test vectors: AES-GCM-256 encrypt/decrypt validation
+
+Acceptance criteria: Pass all NIST AES-GCM-256 known-answer tests. Encrypt/decrypt round-trip with timing-window enforcement.
+
+Task 1.2: SHA-384 / SHA-512 Compliance Verification (FIPS 180-4)
+Status: TERNARY EQUIVALENT	Effort: 1-2 weeks	Dependencies: None — existing ternary hash provides head start
+
+•	Current: Ternary sponge hash exists in kernel — verify output equivalence to FIPS 180-4 SHA-384/512
+•	Add FIPS 180-4 reference implementation alongside ternary variant
+•	Implement binary-compatible SHA-384 output (truncated SHA-512) for interop with external systems
+•	Validate against NIST CAVP SHA test vectors (short/long/Monte Carlo)
+•	Add SHA-512/384 to HMAC-SHA-384/HMAC-SHA-512 for TLS/IPsec key derivation
+•	Document ternary equivalence proof: map ternary sponge state to SHA-2 compression function
+
+Acceptance criteria: Byte-identical output to NIST SHA test vectors. HMAC-SHA-384 interop with OpenSSL.
+
+Task 1.3: SHA-3 Internal Hardware Functions (FIPS 202)
+Status: NOT STARTED	Effort: 1 week	Dependencies: 1.1, 1.2
+
+•	SHA3-384 and SHA3-512 for internal hardware functionality only (boot integrity, TPU FPGA checks)
+•	Integrate with existing hardware driver framework (src/kernel/drivers/)
+•	NOT for general cryptographic use per CNSA 2.0 guidance — scope strictly limited
+•	Keccak sponge: map to ternary state permutation for FPGA boot sequence
+
+Acceptance criteria: SHA3-384/512 pass NIST test vectors. Used only in boot and FPGA integrity paths.
+
+ 
+P2: Phase 2: Stateful Hash-Based Signatures
+Deadline: Q3 2026    |    Priority: CRITICAL    |    Tasks: 3
+Implement LMS and XMSS for firmware and software signing. NSA mandates immediate transition for this use case. These are the most urgently needed CNSA 2.0 algorithms.
+
+Task 2.1: LMS Implementation (NIST SP 800-208)
+Status: TERNARY EQUIVALENT	Effort: 4-5 weeks	Dependencies: 1.2 (SHA-256/192 dependency)
+
+•	Current: Ternary Lamport one-time signatures exist — extend to full Leighton-Micali Signature scheme
+•	Implement LMS with SHA-256/192 parameter set (NSA preferred: Section 4.2 of SP 800-208)
+•	Merkle tree construction for one-time signature aggregation
+•	State management: monotonic counter for signature index tracking (CRITICAL — reuse = key compromise)
+•	Persistent state storage integration with PlenumDB for signature counter durability
+•	HSS (Hierarchical Signature Scheme) is NOT allowed per CNSA 2.0 — do not implement
+•	Binary compatibility gateway: sign firmware images readable by standard LMS verifiers
+
+Acceptance criteria: Sign/verify against NIST SP 800-208 test vectors. State never allows key reuse across restarts.
+
+Task 2.2: XMSS Implementation (NIST SP 800-208)
+Status: TERNARY EQUIVALENT	Effort: 4-5 weeks	Dependencies: 1.2, 2.1 (shares tree construction primitives)
+
+•	Extended Merkle Signature Scheme with WOTS+ (Winternitz one-time signatures)
+•	Leverage existing Lamport signature primitives as foundation
+•	Tree height parameter selection: H=10 (1024 signatures) or H=20 (1M signatures) based on firmware update cadence
+•	Forward-secure: expose previous secret keys without compromising future signatures
+•	XMSSMT (multi-tree) is NOT allowed per CNSA 2.0 — do not implement
+•	Integrate with kernel boot sequence for secure boot chain validation
+
+Acceptance criteria: Sign/verify against SP 800-208 XMSS test vectors. Forward security validated.
+
+Task 2.3: Firmware Signing Pipeline
+Status: NOT STARTED	Effort: 2-3 weeks	Dependencies: 2.1, 2.2
+
+•	Build signing tool: salvi-sign CLI for firmware image signing with LMS/XMSS
+•	Verification integrated into kernel boot path (src/kernel/arch/*/boot.rs)
+•	Key management: hardware-bound key generation via TPU FPGA driver
+•	Signature counter persistence: atomic write-ahead log to prevent counter rollback
+•	Support dual-signing (LMS + XMSS) for algorithm agility during transition
+•	Integrate with existing femtosecond timestamp for signed-at provenance
+
+Acceptance criteria: End-to-end: sign kernel image → boot verifies → reject tampered image. Counter survives crash.
+
+ 
+P3: Phase 3: Post-Quantum Key Encapsulation
+Deadline: Q4 2026    |    Priority: HIGH    |    Tasks: 3
+Implement ML-KEM-1024 (formerly CRYSTALS-Kyber) for quantum-resistant key establishment. Required for TLS 1.3, SSH, and IPsec CNSA 2.0 profiles.
+
+Task 3.1: ML-KEM-1024 Core (FIPS 203)
+Status: PLANNED	Effort: 6-8 weeks	Dependencies: 1.1 (AES for seed expansion), 1.2 (SHA for key derivation)
+
+•	Module-Lattice-Based Key-Encapsulation Mechanism at security level 5 (1024 parameter set)
+•	Key generation: (ek, dk) pair from seed — ternary NTT acceleration for polynomial multiplication
+•	Encapsulation: produce (ciphertext, shared_secret) from encapsulation key
+•	Decapsulation: recover shared_secret from ciphertext + decapsulation key
+•	Ternary advantage: balanced ternary polynomial representation for coefficient arithmetic in Z_q
+•	Constant-time implementation: no branching on secret data, masked comparison
+•	SHAKE-128/SHAKE-256 internal use (required by FIPS 203, allowed for internal ML-KEM functions)
+•	Must be FIPS 203 final standard — earlier Kyber drafts are NOT compliant
+
+Acceptance criteria: Pass all FIPS 203 known-answer tests. Encaps/Decaps round-trip with correct shared secret.
+
+Task 3.2: ML-KEM-768 and ML-KEM-512 (Secondary Parameter Sets)
+Status: PLANNED	Effort: 2 weeks	Dependencies: 3.1
+
+•	ML-KEM-1024 is mandatory for CNSA 2.0 — implement 768/512 for commercial interoperability only
+•	Share core NTT/polynomial infrastructure with ML-KEM-1024
+•	These are NOT CNSA 2.0 compliant but needed for TLS handshakes with non-NSS systems
+•	Flag clearly in API as non-CNSA-compliant parameter sets
+
+Acceptance criteria: Pass FIPS 203 test vectors for all three parameter sets. API warns on non-1024 usage.
+
+Task 3.3: Key Encapsulation API & Integration
+Status: NOT STARTED	Effort: 2-3 weeks	Dependencies: 3.1
+
+•	Unified KEM API: keygen(), encapsulate(ek), decapsulate(ct, dk) → shared_secret
+•	Ephemeral key enforcement: private key destroyed after single use (NIST SP 800-56A compliance)
+•	Integration with phase-encryption: use ML-KEM shared secret as seed for split/recombine keys
+•	Integration with HPTP: timestamp key establishment events at femtosecond precision
+•	Wire format: CNSA 2.0 encoded key/ciphertext sizes (ML-KEM-1024: ek=1568B, ct=1568B, ss=32B)
+
+Acceptance criteria: API round-trip test. Ephemeral keys zeroized. Phase-encryption integration verified.
+
+ 
+P4: Phase 4: Post-Quantum Digital Signatures
+Deadline: Q1 2027    |    Priority: HIGH    |    Tasks: 3
+Implement ML-DSA-87 (formerly CRYSTALS-Dilithium) for general-purpose digital signatures. Required for certificates, TLS authentication, and document signing.
+
+Task 4.1: ML-DSA-87 Core (FIPS 204)
+Status: PLANNED	Effort: 6-8 weeks	Dependencies: 3.1 (shares NTT/polynomial infrastructure)
+
+•	Module-Lattice-Based Digital Signature Algorithm at security level 5 (parameter set 87)
+•	Key generation: (vk, sk) signing key pair
+•	Sign: produce signature σ from message M and signing key sk
+•	Verify: validate (M, σ, vk) → accept/reject
+•	Must use 'pure' ML-DSA (Algorithms 1,2,3 in FIPS 204) — HashML-DSA is NOT allowed in CNSA 2.0
+•	Internal SHAKE-256 use (mandated by FIPS 204 for internal operations)
+•	Ternary NTT: share polynomial multiplication infrastructure with ML-KEM-1024
+•	Constant-time rejection sampling: critical for side-channel resistance
+•	Signature size: ~4627 bytes (larger than ECDSA — test bandwidth impact on torsion network)
+
+Acceptance criteria: Pass all FIPS 204 known-answer tests. Signature verification deterministic.
+
+Task 4.2: ML-DSA-65 and ML-DSA-44 (Secondary Parameter Sets)
+Status: PLANNED	Effort: 2 weeks	Dependencies: 4.1
+
+•	ML-DSA-87 is mandatory for CNSA 2.0 — implement 65/44 for commercial interoperability
+•	Share core infrastructure with ML-DSA-87
+•	Flag as non-CNSA-compliant in API
+•	Useful for resource-constrained torsion network edge nodes
+
+Acceptance criteria: Pass FIPS 204 test vectors for all three parameter sets.
+
+Task 4.3: X.509 Certificate Support with ML-DSA-87
+Status: NOT STARTED	Effort: 3-4 weeks	Dependencies: 4.1
+
+•	CNSA 2.0 certificate profile (draft-jenkins-cnsa2-pkix-profile)
+•	Self-signed root CA with ML-DSA-87 for Salvi Framework PKI
+•	Certificate chain: Root CA → Intermediate → End-entity (all ML-DSA-87)
+•	CRL (Certificate Revocation List) with ML-DSA-87 signatures
+•	Integration with torsion network node identity: each node gets ML-DSA-87 certificate
+•	Binary encoding: DER/PEM format compatible with standard X.509 parsers
+
+Acceptance criteria: Generate cert chain. Verify with OpenSSL (3.5+ with ML-DSA support). Parse with standard tools.
+
+ 
+P5: Phase 5: Protocol Integration
+Deadline: Q2-Q3 2027    |    Priority: HIGH    |    Tasks: 4
+Integrate CNSA 2.0 algorithms into standard security protocols. The NSA publishes CNSA 2.0 profiles for TLS 1.3, SSH, IPsec, and S/MIME through IETF RFCs.
+
+Task 5.1: TLS 1.3 CNSA 2.0 Profile
+Status: NOT STARTED	Effort: 4-6 weeks	Dependencies: 3.1, 4.1, 4.3
+
+•	Per draft-becker-cnsa2-tls-profile: ML-KEM-1024 for key exchange, ML-DSA-87 for authentication
+•	Cipher suite: TLS_AES_256_GCM_SHA384 (mandatory)
+•	Key exchange: mlkem1024 (FIPS 203) — replaces ECDHE
+•	Server/client authentication: ML-DSA-87 certificates
+•	HKDF with SHA-384 for key derivation (SHA-512 allowed but SHA-384 preferred)
+•	Integration with Kong Konnect API gateway: TLS termination with CNSA 2.0
+•	Backward compatibility: hybrid mode for transition period (ML-KEM + ECDHE)
+
+Acceptance criteria: TLS 1.3 handshake completes with CNSA 2.0 cipher suite. Interop with OQS-OpenSSL.
+
+Task 5.2: SSH CNSA 2.0 Profile
+Status: NOT STARTED	Effort: 3-4 weeks	Dependencies: 3.1, 4.1
+
+•	Per draft-becker-cnsa2-ssh-profile: ML-KEM-1024 key exchange, ML-DSA-87 public key auth
+•	Key exchange: mlkem1024-sha384 MUST be first in kex_algorithms list
+•	Public key: ssh-mldsa87 MUST be first in public key algorithms list
+•	Encryption: AEAD_AES_256_GCM (RFC 5647)
+•	No key reuse: ephemeral values used exactly once per key exchange
+•	Integration with torsion network node-to-node SSH tunneling
+
+Acceptance criteria: SSH session establishment with CNSA 2.0 algorithms. Interop with OQS-OpenSSH.
+
+Task 5.3: IPsec/IKEv2 CNSA 2.0 Profile
+Status: NOT STARTED	Effort: 4-5 weeks	Dependencies: 3.1, 4.1
+
+•	Per draft-guthrie-cnsa2-ipsec-profile: ML-KEM-1024 for IKE key exchange
+•	Challenge: ML-KEM-1024 key sizes too large for initial IKE SA (IP fragmentation risk)
+•	Solution: RFC 9370 multiple key exchanges — initial with smaller KEM, then ML-KEM-1024
+•	ESP with AES-256-GCM for data encryption
+•	ML-DSA-87 for IKE authentication
+•	Integration with torsion network TTP (Ternary Transport Protocol) security layer
+
+Acceptance criteria: IKEv2 SA establishment with CNSA 2.0. ESP tunnel encrypts/decrypts correctly.
+
+Task 5.4: S/MIME CNSA 2.0 Profile
+Status: NOT STARTED	Effort: 2-3 weeks	Dependencies: 3.1, 4.1, 4.3
+
+•	Per draft-becker-cnsa2-smime-profile: ML-KEM-1024 for key transport, ML-DSA-87 for signing
+•	CMS (Cryptographic Message Syntax) integration for signed/encrypted messages
+•	Relevant for Maestro ERP secure messaging and document exchange
+•	Integration with blockchain witnessing: signed messages timestamped via Hedera HCS
+
+Acceptance criteria: Sign and encrypt S/MIME message. Verify with standard S/MIME tools.
+
+ 
+P6: Phase 6: Ternary-Native Cryptographic Advantage
+Deadline: Q4 2027    |    Priority: STRATEGIC    |    Tasks: 3
+Develop the unique ternary-native implementations that differentiate the Salvi Framework. Map CNSA 2.0 algorithms to balanced ternary arithmetic for potential performance and security advantages.
+
+Task 6.1: Ternary NTT Engine
+Status: NOT STARTED	Effort: 6-8 weeks	Dependencies: 3.1, 4.1
+
+•	Number Theoretic Transform optimized for balanced ternary {-1, 0, +1} coefficient representation
+•	Shared infrastructure for both ML-KEM and ML-DSA polynomial multiplication
+•	GF(3) acceleration: ternary polynomial operations in the kernel's existing GF(3) arithmetic module
+•	Benchmark against binary NTT: document speedup/slowdown and security properties
+•	FPGA acceleration path: map NTT butterfly to TPU FPGA driver
+
+Acceptance criteria: NTT produces correct results for ML-KEM/ML-DSA test vectors. Performance benchmarked.
+
+Task 6.2: Phase-Encryption with CNSA 2.0 Key Material
+Status: NOT STARTED	Effort: 3-4 weeks	Dependencies: 3.3, 4.1
+
+•	Upgrade existing phase-encryption to use ML-KEM-1024 shared secrets as split/recombine keys
+•	100-femtosecond recombination window enforced with CNSA 2.0 key material
+•	Temporal binding: recombination validity period signed with ML-DSA-87
+•	This is the unique Salvi differentiator: 'not just math-hard, physics-hard'
+•	Document the ternary advantage: GF(3) key space larger than binary for equivalent bit-length
+
+Acceptance criteria: Phase-encrypt with ML-KEM key. Recombine within window succeeds. Outside window fails.
+
+Task 6.3: Ternary Lamport → LMS Migration Bridge
+Status: NOT STARTED	Effort: 2 weeks	Dependencies: 2.1
+
+•	Bridge existing ternary Lamport signatures to CNSA 2.0 compliant LMS
+•	Dual-verification: accept both ternary Lamport (legacy) and LMS (CNSA 2.0) during transition
+•	Migration tool: re-sign existing artifacts from Lamport to LMS
+•	Deprecation timeline: ternary Lamport → warning Q4 2027 → removed Q2 2028
+
+Acceptance criteria: Dual verification works. Migration tool re-signs without data loss.
+
+ 
+P7: Phase 7: Validation, Compliance & Certification
+Deadline: Q1-Q2 2028    |    Priority: HIGH    |    Tasks: 3
+Achieve formal validation of cryptographic implementations. CNSA 2.0 requires CAVP testing at minimum; CMVP (FIPS 140-3) validation needed for signing operations.
+
+Task 7.1: CAVP Algorithm Testing
+Status: NOT STARTED	Effort: 4-6 weeks	Dependencies: All Phase 1-4 implementations
+
+•	NIST Cryptographic Algorithm Validation Program testing for all CNSA 2.0 algorithms
+•	AES-256-GCM: encrypt/decrypt/AAD test vectors
+•	SHA-384/512: short msg, long msg, Monte Carlo test vectors
+•	ML-KEM-1024: keygen/encaps/decaps known-answer tests
+•	ML-DSA-87: keygen/sign/verify known-answer tests
+•	LMS: sign/verify with SHA-256/192 parameter set
+•	XMSS: sign/verify test vectors
+•	Automate: CI pipeline runs CAVP vectors on every commit
+
+Acceptance criteria: 100% CAVP test vector pass rate. CI green on all algorithm validation suites.
+
+Task 7.2: FIPS 140-3 Module Boundary Definition
+Status: NOT STARTED	Effort: 3-4 weeks	Dependencies: 7.1
+
+•	Define cryptographic module boundary for CMVP submission
+•	Identify: module interfaces, roles, services, physical/logical boundary
+•	Security policy document drafting
+•	Self-test requirements: power-up self-tests for all CNSA 2.0 algorithms
+•	Conditional self-tests: pair-wise consistency for ML-KEM/ML-DSA key generation
+•	Entropy source: qualify femtosecond clock jitter as SP 800-90B compliant noise source
+
+Acceptance criteria: Module boundary document complete. Self-tests implemented and passing.
+
+Task 7.3: Cryptographic Agility Framework
+Status: NOT STARTED	Effort: 2-3 weeks	Dependencies: All implementations
+
+•	Algorithm negotiation layer: runtime selection of CNSA 2.0 vs. legacy algorithms
+•	Configuration registry: enforce CNSA 2.0-only mode or allow hybrid during transition
+•	Algorithm deprecation lifecycle: Approved → Preferred → Legacy → Prohibited
+•	Compliance reporting API: enumerate active algorithms, flag non-CNSA-2.0 usage
+•	Integration with /compliance website page: real-time status from kernel
+
+Acceptance criteria: CNSA 2.0 mode blocks all non-approved algorithms. Compliance report accurate.
+
+ 
+P8: Phase 8: Documentation, Testing & Ecosystem
+Deadline: Q2-Q3 2028    |    Priority: MEDIUM    |    Tasks: 4
+Comprehensive documentation, test coverage, and ecosystem integration to support adoption and acquisition due diligence.
+
+Task 8.1: Developer Documentation (05_CRYPTOGRAPHY.md Rewrite)
+Status: NOT STARTED	Effort: 2-3 weeks	Dependencies: All implementations
+
+•	Complete rewrite of salvi_docs/modules/05_CRYPTOGRAPHY.md for CNSA 2.0
+•	Algorithm reference: each algorithm with parameters, security level, FIPS reference, Rust API
+•	Usage guides: key generation, signing, verification, encryption, key exchange
+•	Migration guide: CNSA 1.0 → CNSA 2.0 transition procedures
+•	Security considerations: side-channel resistance, key management, state tracking
+•	Ternary advantage whitepaper: formal analysis of GF(3) cryptographic properties
+
+Acceptance criteria: Doc covers all 11 algorithms with working code examples. Peer reviewed.
+
+Task 8.2: End-to-End Test Suite
+Status: IN PROGRESS	Effort: 3-4 weeks	Dependencies: All implementations
+
+•	Current: e2e tests pass for compliance page rendering and navigation
+•	Expand: cryptographic operation e2e tests (sign → verify → encrypt → decrypt)
+•	Protocol tests: TLS 1.3 handshake, SSH session, IPsec tunnel establishment
+•	Interoperability tests: verify against OQS (Open Quantum Safe) reference implementations
+•	Regression suite: CAVP vectors run on every PR
+•	Performance benchmarks: latency and throughput for each CNSA 2.0 algorithm
+•	Fuzzing: libFuzzer/AFL targets for all cryptographic entry points
+
+Acceptance criteria: >95% code coverage on crypto module. Zero known failures. Fuzz for 72+ hours clean.
+
+Task 8.3: Compliance Dashboard Enhancement
+Status: IN PROGRESS	Effort: 1-2 weeks	Dependencies: 7.3
+
+•	Current: /compliance page shows 4/7/11 algorithm status matrix
+•	Enhance: real-time kernel status integration (live algorithm availability)
+•	Add: CAVP test result display, FIPS 140-3 module status
+•	Add: NSA timeline compliance tracker (milestones vs. actual progress)
+•	Add: cryptographic inventory report exportable for auditors
+•	Update stats as implementations complete (target: 11/0/11)
+
+Acceptance criteria: Dashboard reflects actual kernel state. Export passes auditor review.
+
+Task 8.4: Kong Konnect CNSA 2.0 Plugin Suite
+Status: NOT STARTED	Effort: 3-4 weeks	Dependencies: 5.1, 4.3
+
+•	API gateway plugins for CNSA 2.0 enforcement on all Salvi Framework API routes
+•	mTLS plugin: ML-DSA-87 certificate-based mutual authentication
+•	Encryption plugin: AES-256-GCM request/response encryption
+•	Signing plugin: ML-DSA-87 API request signing and verification
+•	Rate limiting: quantum-safe token validation with ML-KEM key encapsulation
+•	Compliance header injection: X-CNSA-Compliance: 2.0 on all responses
+
+Acceptance criteria: All API traffic through Kong enforced with CNSA 2.0. Plugin suite deployable.
+
+ 
+Consolidated Execution Timeline
+The following table shows the complete implementation sequence across all 8 phases and 27 tasks. Total estimated effort: 80-110 engineering-weeks for a single senior Rust/cryptography engineer, or 40-55 weeks with two engineers working in parallel on independent algorithm implementations.
+
+#	Task	Deadline	Effort	Status	Key Deliverable
+1.1	AES-256-GCM Implementation (FIPS 197)	Q2 2026	3-4 weeks	NOT STARTE	Pass all NIST AES-GCM-256 known-answer tests. Encr...
+1.2	SHA-384 / SHA-512 Compliance Verificatio...	Q2 2026	1-2 weeks	TERNARY	Byte-identical output to NIST SHA test vectors. HM...
+1.3	SHA-3 Internal Hardware Functions (FIPS ...	Q2 2026	1 week	NOT STARTE	SHA3-384/512 pass NIST test vectors. Used only in ...
+2.1	LMS Implementation (NIST SP 800-208)	Q3 2026	4-5 weeks	TERNARY	Sign/verify against NIST SP 800-208 test vectors. ...
+2.2	XMSS Implementation (NIST SP 800-208)	Q3 2026	4-5 weeks	TERNARY	Sign/verify against SP 800-208 XMSS test vectors. ...
+2.3	Firmware Signing Pipeline	Q3 2026	2-3 weeks	NOT STARTE	End-to-end: sign kernel image → boot verifies → re...
+3.1	ML-KEM-1024 Core (FIPS 203)	Q4 2026	6-8 weeks	PLANNED	Pass all FIPS 203 known-answer tests. Encaps/Decap...
+3.2	ML-KEM-768 and ML-KEM-512 (Secondary Par...	Q4 2026	2 weeks	PLANNED	Pass FIPS 203 test vectors for all three parameter...
+3.3	Key Encapsulation API & Integration	Q4 2026	2-3 weeks	NOT STARTE	API round-trip test. Ephemeral keys zeroized. Phas...
+4.1	ML-DSA-87 Core (FIPS 204)	Q1 2027	6-8 weeks	PLANNED	Pass all FIPS 204 known-answer tests. Signature ve...
+4.2	ML-DSA-65 and ML-DSA-44 (Secondary Param...	Q1 2027	2 weeks	PLANNED	Pass FIPS 204 test vectors for all three parameter...
+4.3	X.509 Certificate Support with ML-DSA-87	Q1 2027	3-4 weeks	NOT STARTE	Generate cert chain. Verify with OpenSSL (3.5+ wit...
+5.1	TLS 1.3 CNSA 2.0 Profile	Q2-Q3 2027	4-6 weeks	NOT STARTE	TLS 1.3 handshake completes with CNSA 2.0 cipher s...
+5.2	SSH CNSA 2.0 Profile	Q2-Q3 2027	3-4 weeks	NOT STARTE	SSH session establishment with CNSA 2.0 algorithms...
+5.3	IPsec/IKEv2 CNSA 2.0 Profile	Q2-Q3 2027	4-5 weeks	NOT STARTE	IKEv2 SA establishment with CNSA 2.0. ESP tunnel e...
+5.4	S/MIME CNSA 2.0 Profile	Q2-Q3 2027	2-3 weeks	NOT STARTE	Sign and encrypt S/MIME message. Verify with stand...
+6.1	Ternary NTT Engine	Q4 2027	6-8 weeks	NOT STARTE	NTT produces correct results for ML-KEM/ML-DSA tes...
+6.2	Phase-Encryption with CNSA 2.0 Key Mater...	Q4 2027	3-4 weeks	NOT STARTE	Phase-encrypt with ML-KEM key. Recombine within wi...
+6.3	Ternary Lamport → LMS Migration Bridge	Q4 2027	2 weeks	NOT STARTE	Dual verification works. Migration tool re-signs w...
+7.1	CAVP Algorithm Testing	Q1-Q2 2028	4-6 weeks	NOT STARTE	100% CAVP test vector pass rate. CI green on all a...
+7.2	FIPS 140-3 Module Boundary Definition	Q1-Q2 2028	3-4 weeks	NOT STARTE	Module boundary document complete. Self-tests impl...
+7.3	Cryptographic Agility Framework	Q1-Q2 2028	2-3 weeks	NOT STARTE	CNSA 2.0 mode blocks all non-approved algorithms. ...
+8.1	Developer Documentation (05_CRYPTOGRAPHY...	Q2-Q3 2028	2-3 weeks	NOT STARTE	Doc covers all 11 algorithms with working code exa...
+8.2	End-to-End Test Suite	Q2-Q3 2028	3-4 weeks	IN PROGRES	>95% code coverage on crypto module. Zero known fa...
+8.3	Compliance Dashboard Enhancement	Q2-Q3 2028	1-2 weeks	IN PROGRES	Dashboard reflects actual kernel state. Export pas...
+8.4	Kong Konnect CNSA 2.0 Plugin Suite	Q2-Q3 2028	3-4 weeks	NOT STARTE	All API traffic through Kong enforced with CNSA 2....
+
+Resource Requirements
+Engineering Team
+•	1x Senior Rust/Cryptography Engineer (lead) — ML-KEM, ML-DSA, NTT implementation
+•	1x Systems Engineer — AES-256, SHA, LMS/XMSS, firmware signing pipeline
+•	1x Protocol Engineer (Q2 2027+) — TLS 1.3, SSH, IPsec profile integration
+•	1x QA/Validation Engineer (Q1 2028+) — CAVP testing, FIPS 140-3 preparation
+External Dependencies
+•	NIST CAVP test vectors: publicly available, no cost
+•	OQS (Open Quantum Safe) reference implementations: open source, Apache 2.0
+•	FIPS 140-3 CMVP lab engagement: $50K-$150K (if pursuing formal validation)
+•	OpenSSL 3.5+ with ML-KEM/ML-DSA: required for interoperability testing
+Critical Path
+The critical path runs through: SHA-384/512 validation (P1) → ML-KEM-1024 (P3) → ML-DSA-87 (P4) → TLS 1.3 profile (P5) → CAVP validation (P7). The firmware signing track (P2) can proceed in parallel as it depends only on SHA and the existing Lamport primitives.
+
+Explicitly Excluded (Per CNSA 2.0 Guidance)
+The following algorithms and variants are explicitly prohibited or not approved by NSA for CNSA 2.0. The Salvi Framework will NOT implement these:
+
+•	HSS (Hierarchical Signature Scheme) — multi-tree LMS variant, not allowed
+•	XMSSMT — multi-tree XMSS variant, not allowed
+•	SLH-DSA (SPHINCS+) — hash-based but NOT part of CNSA 2.0, not approved for any NSS use
+•	HashML-DSA — pre-hash mode of ML-DSA, explicitly disallowed (CNSA 2.0 FAQ v2.1, pg 9)
+•	SHAKE-256 — not allowed for general use (only permitted internally within ML-KEM/ML-DSA as specified by FIPS 203/204)
+•	SHA-3 for general cryptographic use — only permitted for internal hardware functions (boot integrity)
+•	Quantum Key Distribution (QKD) — NSA considers it impractical and not recommended
+•	PQ/T hybrid solutions — NSA will not require hybrid; standard CNSA 2.0 algorithms are sufficient
+
+
+
+Così sia.
+Salvi Framework — Capomastro Holdings Ltd.
+"The cipher is not the lock. The cipher is the key."

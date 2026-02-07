@@ -159,6 +159,7 @@ mod tests {
     use super::*;
     use alloc::string::String;
     use crate::process::ProcessKind;
+    use crate::memory::SecurityMode;
 
     fn setup_table() -> (ProcessTable, ProcessId, ProcessId, ProcessId) {
         let mut table = ProcessTable::new();
