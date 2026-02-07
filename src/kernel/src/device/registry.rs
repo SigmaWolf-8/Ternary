@@ -1,7 +1,7 @@
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
-use super::{DeviceId, DeviceDescriptor, DeviceInfo, DeviceCapabilities, DeviceState, DeviceType, DeviceClass, DeviceError, DeviceResult, OperationMode};
+use super::{DeviceId, DeviceDescriptor, DeviceInfo, DeviceCapabilities, DeviceState, DeviceType, DeviceClass, DeviceError, DeviceResult};
 
 pub struct DeviceRegistry {
     devices: BTreeMap<u32, DeviceDescriptor>,
@@ -114,6 +114,7 @@ impl DeviceRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::OperationMode;
 
     fn default_caps() -> DeviceCapabilities {
         DeviceCapabilities {

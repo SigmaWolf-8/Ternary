@@ -7,7 +7,6 @@
 //! appropriate scheduling guarantees.
 
 use alloc::collections::VecDeque;
-use crate::memory::SecurityMode;
 use crate::timing::FemtosecondTimestamp;
 use super::{
     ProcessError, ProcessId, ProcessResult,
@@ -80,7 +79,7 @@ impl Scheduler {
     pub fn reschedule(
         &mut self,
         table: &mut ProcessTable,
-        timestamp: FemtosecondTimestamp,
+        _timestamp: FemtosecondTimestamp,
     ) -> ProcessResult<ProcessId> {
         if let Some(current) = self.current_pid {
             if let Ok(proc) = table.get_mut(current) {

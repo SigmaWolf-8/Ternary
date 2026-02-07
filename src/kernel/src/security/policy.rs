@@ -6,6 +6,7 @@
 
 use alloc::collections::BTreeMap;
 use alloc::string::String;
+use alloc::vec;
 use alloc::vec::Vec;
 use crate::memory::SecurityMode;
 use super::{Action, ResourceId, SecurityError, SecurityResult};

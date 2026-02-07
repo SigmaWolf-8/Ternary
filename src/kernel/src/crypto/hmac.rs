@@ -5,7 +5,7 @@
 //!   HMAC(K, M) = H((K ^ opad) || H((K ^ ipad) || M))
 
 use alloc::vec::Vec;
-use super::{TernaryDigest, TERNARY_KEY_TRITS, TERNARY_HASH_TRITS};
+use super::{TernaryDigest, TERNARY_KEY_TRITS};
 use super::sponge::TernarySponge;
 
 const IPAD_TRIT: i8 = 1;
@@ -89,6 +89,7 @@ fn bytes_to_trits(bytes: &[u8]) -> Vec<i8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::TERNARY_HASH_TRITS;
 
     #[test]
     fn test_hmac_deterministic() {

@@ -230,7 +230,7 @@ pub enum Representation {
 pub fn information_density(trit_count: u32) -> DensityComparison {
     let ternary_states = 3u128.pow(trit_count);
     let equivalent_bits = (trit_count as f64) * 1.585; // log2(3) ≈ 1.585
-    let bit_count = equivalent_bits.ceil() as u32;
+    let bit_count = if equivalent_bits == (equivalent_bits as u32 as f64) { equivalent_bits as u32 } else { equivalent_bits as u32 + 1 };
     let binary_states = 2u128.pow(bit_count);
 
     DensityComparison {

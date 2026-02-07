@@ -69,9 +69,9 @@ impl X86_64Arch {
             size: 0x9_FC00,
             region_type: MemoryRegionType::Usable,
         });
-        memory_map.insert(0x100000, MemoryRegion {
-            base: 0x100000,
-            size: 0x1F00000,
+        memory_map.insert(0x10_0000, MemoryRegion {
+            base: 0x10_0000,
+            size: 0x1F0_0000,
             region_type: MemoryRegionType::Usable,
         });
 
@@ -91,8 +91,8 @@ impl X86_64Arch {
             tsc_ticks: 0,
             tsc_target: 0,
             boot_info: BootInfo {
-                kernel_start: 0x100000,
-                kernel_end: 0x200000,
+                kernel_start: 0x10_0000,
+                kernel_end: 0x20_0000,
                 memory_map,
                 command_line: String::from("console=ttyS0 root=/dev/sda1"),
             },

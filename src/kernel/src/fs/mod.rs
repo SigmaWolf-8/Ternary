@@ -3,7 +3,6 @@ pub mod dir;
 pub mod file;
 pub mod mount;
 
-use alloc::string::String;
 use core::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,6 +73,7 @@ pub fn validate_name(name: &str) -> FsResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::String;
 
     #[test]
     fn test_validate_name() {

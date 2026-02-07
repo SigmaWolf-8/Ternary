@@ -40,18 +40,11 @@ impl DeviceState {
         matches!(
             (self, target),
             (Uninitialized, Initializing)
-                | (Initializing, Ready)
-                | (Initializing, Error)
-                | (Ready, Busy)
-                | (Ready, Suspended)
-                | (Ready, Removed)
-                | (Ready, Error)
-                | (Busy, Ready)
-                | (Busy, Error)
-                | (Suspended, Ready)
-                | (Suspended, Removed)
-                | (Error, Initializing)
-                | (Error, Removed)
+                | (Initializing, Ready | Error)
+                | (Ready, Busy | Suspended | Removed | Error)
+                | (Busy, Ready | Error)
+                | (Suspended, Ready | Removed)
+                | (Error, Initializing | Removed)
         )
     }
 }

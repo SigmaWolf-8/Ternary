@@ -62,7 +62,7 @@ impl AuditEntry {
         kind: AuditEventKind,
         subject: ProcessId,
     ) -> u32 {
-        let mut hash: u32 = 0x5A1F1;
+        let mut hash: u32 = 0x5_A1F1;
         hash = hash.wrapping_mul(31).wrapping_add(sequence as u32);
         hash = hash.wrapping_mul(31).wrapping_add((timestamp & 0xFFFFFFFF) as u32);
         hash = hash.wrapping_mul(31).wrapping_add(kind as u32);
