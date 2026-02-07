@@ -64,6 +64,7 @@ function Header() {
     { href: "#architecture", label: "Architecture" },
     { href: "#components", label: "Components" },
     { href: "#performance", label: "Performance" },
+    { href: "/calendar", label: "Calendar API" },
     { href: "/whitepaper", label: "Whitepaper" },
     { href: "/docs", label: "Docs" },
   ];
@@ -959,6 +960,135 @@ function PerformanceSection() {
   );
 }
 
+function CalendarPreviewSection() {
+  const problems = [
+    {
+      problem: "Calendar Fragmentation",
+      description: "12+ epoch dates with incompatible rules. Hebrew lunisolar, Islamic lunar, and Mayan vigesimal need 144 conversion functions.",
+      solution: "Single JDN intermediary: O(n) instead of O(n\u00B2). 24 functions cover all 12 calendars.",
+      icon: Globe,
+    },
+    {
+      problem: "Y2038 Overflow",
+      description: "32-bit timestamps overflow January 19, 2038. Billions of systems will fail.",
+      solution: "128-bit femtosecond timestamps. No rollover until year ~3.9 x 10\u00B2\u2079.",
+      icon: Clock,
+    },
+    {
+      problem: "Precision Drift",
+      description: "IEEE 754 floating-point errors accumulate. 1ms/day becomes 365ms/year -- fails regulatory compliance.",
+      solution: "Integer-only calculations. Zero accumulation error. FINRA 613 & MiFID II ready.",
+      icon: Shield,
+    },
+  ];
+
+  return (
+    <section className="py-20 md:py-28" data-testid="section-calendar-preview">
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
+              Calendar Synchronization API
+            </Badge>
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-3xl md:text-4xl font-bold mb-4"
+            data-testid="text-calendar-preview-title"
+          >
+            One Timestamp. Every Calendar. 30,000 Years.
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="text-muted-foreground text-lg max-w-3xl mx-auto"
+          >
+            Convert any date across 12 major calendar systems -- from Mayan Long Count to Islamic Hijri -- with femtosecond precision.
+            The 13-Moon Harmonic Calendar places the Day Out of Time at the golden ratio point (364/\u03C6 = Day 225, November 11),
+            creating an 8/5 Fibonacci moon split that embeds organic growth mathematics into temporal architecture.
+          </motion.p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {problems.map((item, index) => (
+            <motion.div
+              key={item.problem}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <Card 
+                className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm"
+                data-testid={`card-calendar-problem-${index}`}
+              >
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">{item.problem}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-4">{item.description}</p>
+                <div className="pt-4 border-t border-primary/10">
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="text-sm font-medium">{item.solution}</p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Card className="max-w-4xl mx-auto p-6 md:p-8 border-primary/10 bg-card/80 backdrop-blur-sm">
+            <div className="grid sm:grid-cols-3 gap-6 text-center mb-8">
+              <div>
+                <div className="text-3xl font-bold text-primary">12</div>
+                <div className="text-sm text-muted-foreground mt-1">Calendar Systems</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary">30,000+</div>
+                <div className="text-sm text-muted-foreground mt-1">Years of Coverage</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary">10\u207B\u00B9\u2075s</div>
+                <div className="text-sm text-muted-foreground mt-1">Timing Precision</div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 border-t border-foreground/10">
+              <Button asChild data-testid="button-explore-calendar">
+                <Link href="/calendar">
+                  <Globe className="w-4 h-4 mr-2" />
+                  Explore Calendar API
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Link>
+              </Button>
+              <Button variant="outline" asChild data-testid="button-calendar-docs">
+                <Link href="/docs">View Documentation</Link>
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 function TargetMarketsSection() {
   const markets = [
     {
@@ -1298,6 +1428,7 @@ export default function Landing() {
         <ArchitectureSection />
         <ComponentsSection />
         <PerformanceSection />
+        <CalendarPreviewSection />
         <TargetMarketsSection />
         <DeveloperCTASection />
       </main>
