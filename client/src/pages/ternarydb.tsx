@@ -23,8 +23,6 @@ import {
   Building2,
   FlaskConical,
   Factory,
-  Menu,
-  X,
   Play,
   RefreshCw,
   Table2,
@@ -80,116 +78,10 @@ function ternaryCompress(input: string): {
   return { originalSize, ternarySize, compressedSize, compressionRatio };
 }
 
-function Header() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const navLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#demo", label: "Live Demo" },
-    { href: "#architecture", label: "Architecture" },
-    { href: "#performance", label: "Performance" },
-    { href: "#pricing", label: "Pricing" },
-  ];
-
-  return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? "bg-background/95 backdrop-blur-xl border-b border-primary/10" 
-          : "bg-transparent"
-      }`}
-      data-testid="header-ternarydb"
-    >
-      <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 text-primary font-bold text-xl" data-testid="link-logo">
-          <Box className="w-7 h-7" />
-          <span>PlenumNET</span>
-        </Link>
-        
-        <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <a 
-              key={link.href}
-              href={link.href} 
-              className="text-muted-foreground hover:text-primary transition-colors font-medium text-sm"
-              data-testid={`link-nav-${link.label.toLowerCase()}`}
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
-        
-        <div className="hidden md:flex items-center gap-3">
-          <Button variant="outline" asChild className="border-primary/50 text-primary">
-            <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer" data-testid="link-github">
-              <Github className="w-4 h-4 mr-2" />
-              GitHub
-            </a>
-          </Button>
-          <Button asChild data-testid="button-get-started">
-            <a href="#pricing">Get Started</a>
-          </Button>
-        </div>
-
-        <Button 
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          data-testid="button-mobile-menu"
-        >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-      </div>
-
-      {mobileMenuOpen && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="md:hidden bg-background/98 backdrop-blur-xl border-b border-primary/10 px-5 py-6"
-        >
-          <nav className="flex flex-col gap-4 mb-6">
-            {navLinks.map((link) => (
-              <a 
-                key={link.href}
-                href={link.href} 
-                className="text-muted-foreground hover:text-primary transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-                data-testid={`link-mobile-nav-${link.label.toLowerCase()}`}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-          <div className="flex flex-col gap-3">
-            <Button variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-mobile-github">
-              <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
-                <Github className="w-4 h-4 mr-2" />
-                GitHub
-              </a>
-            </Button>
-            <Button asChild data-testid="button-mobile-get-started">
-              <a href="#pricing">Get Started</a>
-            </Button>
-          </div>
-        </motion.div>
-      )}
-    </header>
-  );
-}
 
 function HeroSection() {
   return (
-    <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden" data-testid="section-hero">
+    <section className="relative pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden" data-testid="section-hero">
       <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
       <div className="absolute inset-0 gradient-radial" />
       
@@ -1898,7 +1790,6 @@ function Footer() {
 export default function SalviDB() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
       <main>
         <HeroSection />
         <FeaturesSection />
