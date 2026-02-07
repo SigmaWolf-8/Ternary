@@ -62,34 +62,65 @@ assert_eq!(hash.len(), 243);            // 385.4 equivalent bits
 - Extended squeeze produces 486 trits = 770.8 equivalent bits (exceeds SHA-512)
 - Sponge capacity of 486 trits provides 770.8-bit security against generic attacks
 
-### Key Encapsulation: ML-KEM → Ternary Lattice KEM (Planned)
+### Key Encapsulation: ML-KEM → Ternary Lattice KEM (Foundations Complete)
 
-**Status:** Planned
+**Status:** Planned (Lattice Foundations Implemented)
 
-ML-KEM (CRYSTALS-Kyber) key encapsulation will be implemented as Ternary Lattice KEM (TL-KEM). The Module-LWE problem maps naturally to ternary arithmetic since Kyber already uses ternary error distributions.
+ML-KEM (CRYSTALS-Kyber) key encapsulation will be implemented as Ternary Lattice KEM (TL-KEM). The underlying lattice arithmetic foundations are now complete in `salvi_kernel::crypto::ternary_lattice`:
 
-**Planned Security Levels:**
-- TL-KEM-512: NIST Security Level 1 (128-bit classical)
-- TL-KEM-768: NIST Security Level 3 (192-bit classical)
-- TL-KEM-1024: NIST Security Level 5 (256-bit classical)
+- GF(3) polynomial ring R_q = Z_3[X]/(X^n + 1) with ring multiplication
+- Module-LWE instance generation and verification
+- Module-SIS problem structure and solution verification
+- Polynomial sampling: Centered Binomial Distribution (CBD) and uniform
+- Polynomial evaluation and pointwise operations over GF(3)
+- Polynomial compression/decompression for ciphertext compactness
+- Parameterized security levels: k=2 (Level 1), k=3 (Level 3), k=4 (Level 5)
 
-**Ternary Advantage:** ML-KEM internally uses coefficients from {-1, 0, 1} for its error terms, which maps directly to PlenumNET's balanced ternary Representation A {-1, 0, +1}. This means ternary-native TL-KEM can represent these coefficients without encoding overhead.
-
-### Digital Signatures: ML-DSA → Ternary Lattice DSA (Planned)
-
-**Status:** Planned (Stubs exist)
-
-ML-DSA (CRYSTALS-Dilithium) digital signatures will be implemented as Ternary Lattice DSA (TL-DSA). The signature module already contains enum stubs for Dilithium at all security levels.
+*Note: Ring multiplication uses schoolbook convolution with X^n+1 reduction. GF(3) lacks the primitive roots of unity needed for standard NTT; future work may lift to a larger modulus q with NTT support.*
 
 ```rust
-use salvi_kernel::crypto::signature::SignatureScheme;
+use salvi_kernel::crypto::ternary_lattice::*;
 
-// Stub exists, returns UnsupportedAlgorithm until implementation
-let scheme = SignatureScheme::Dilithium;
-assert_eq!(scheme.security_level(), 256);
+// Generate Module-LWE instance (foundation for TL-KEM)
+let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1];
+let instance = generate_module_lwe(&seed, 3, 256, 2)?; // k=3, n=256, eta=2
+assert!(verify_module_lwe(&instance)?);
+
+// Polynomial ring arithmetic
+let a = TernaryPolynomial::from_coeffs(vec![1, 0, -1, 1])?;
+let b = TernaryPolynomial::from_coeffs(vec![0, 1, 1, -1])?;
+let product = a.ring_mul(&b)?; // Multiplication in Z_3[X]/(X^4+1)
 ```
 
-**Planned Security Levels:**
+**Security Levels:**
+- TL-KEM-512: NIST Security Level 1 (128-bit classical, k=2, n=256)
+- TL-KEM-768: NIST Security Level 3 (192-bit classical, k=3, n=256)
+- TL-KEM-1024: NIST Security Level 5 (256-bit classical, k=4, n=256)
+
+**Ternary Advantage:** ML-KEM internally uses coefficients from {-1, 0, 1} for its error terms, which maps directly to PlenumNET's balanced ternary Representation A {-1, 0, +1}. The `ternary_lattice` module represents these coefficients natively without encoding overhead.
+
+### Digital Signatures: ML-DSA → Ternary Lattice DSA (Foundations Complete)
+
+**Status:** Planned (Lattice Foundations Implemented, Signature Stubs Exist)
+
+ML-DSA (CRYSTALS-Dilithium) digital signatures will be implemented as Ternary Lattice DSA (TL-DSA). The lattice arithmetic foundations are shared with TL-KEM via `salvi_kernel::crypto::ternary_lattice`, and signature scheme stubs exist in `salvi_kernel::crypto::signature`.
+
+The Module-SIS problem (basis for Dilithium's security) is implemented with:
+- Matrix-vector operations over polynomial rings
+- L-infinity norm bounds for short vector verification
+- Parameterized beta bounds for security level configuration
+
+```rust
+use salvi_kernel::crypto::ternary_lattice::*;
+
+// Module-SIS instance (foundation for TL-DSA)
+let seed = vec![0i8, 1, -1];
+let sis = generate_module_sis(&seed, 3, 256, 1); // k=3, n=256, beta=1
+let zero = TernaryPolyVec::new(3, 256);
+assert!(verify_sis_solution(&sis, &zero)?);
+```
+
+**Security Levels:**
 - TL-DSA-44: NIST Security Level 2
 - TL-DSA-65: NIST Security Level 3
 - TL-DSA-87: NIST Security Level 5
@@ -118,7 +149,7 @@ assert!(verify(&vk, &message, &sig)?);
 | Year | Milestone | Status |
 |------|-----------|--------|
 | 2025 | Foundation Complete: Ternary sponge hash, HMAC, KDF, Lamport OTS, phase encryption | Complete |
-| 2026 | Lattice Foundations: GF(3) polynomial ring arithmetic primitives | In Progress |
+| 2026 | Lattice Foundations: GF(3) polynomial ring arithmetic, Module-LWE/SIS, AES-256-GCM, SHA-2, SHA-3 | Complete |
 | 2027 | TL-KEM Implementation: All three ML-KEM security levels | Planned |
 | 2028 | TL-DSA Implementation: All three ML-DSA security levels | Planned |
 | 2029 | XMSS Merkle Tree Extension: Stateful hash-based signature trees | Planned |

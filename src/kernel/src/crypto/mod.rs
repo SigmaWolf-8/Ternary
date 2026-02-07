@@ -22,6 +22,7 @@ pub mod cnsa2;
 pub mod cipher;
 pub mod sha2;
 pub mod sha3;
+pub mod ternary_lattice;
 
 use alloc::string::String;
 use alloc::vec::Vec;
