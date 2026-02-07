@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check, Database, TrendingUp } from "lucide-react";
+import { Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check, Database, TrendingUp } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface TimestampData {
@@ -480,33 +479,6 @@ export default function APIDemo() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm" data-testid="button-back">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">PlenumNET API Demo</h1>
-              <p className="text-sm text-muted-foreground">Interactive demonstration of PlenumNET Framework APIs</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/kong-konnect">
-              <Button variant="ghost" size="sm" data-testid="button-kong-konnect">
-                Kong Konnect
-              </Button>
-            </Link>
-            <Badge variant="outline" className="text-primary border-primary">
-              Live API
-            </Badge>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 space-y-4">
           <Card>
