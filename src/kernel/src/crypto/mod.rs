@@ -18,6 +18,7 @@ pub mod sponge;
 pub mod hmac;
 pub mod kdf;
 pub mod signature;
+pub mod cnsa2;
 
 use alloc::string::String;
 use alloc::vec::Vec;
