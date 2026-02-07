@@ -11,7 +11,9 @@ I prefer iterative development with a focus on delivering working features incre
 ### Frontend
 The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui` for components, and Wouter for routing. It adheres to a light theme with a white background and blue accents. Key pages include the Landing Page, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub (/docs), and Admin Dashboard (/admin).
 
-**Documentation**: The `salvi_docs/` directory contains comprehensive developer documentation (15 files, ~7,316 lines) covering tutorials and module guides for the Salvi Framework. The `/docs` page on the site provides a browsable index linking to GitHub-hosted markdown files.
+**Documentation**: The `salvi_docs/` directory contains comprehensive developer documentation (15 files, ~7,316+ lines) covering tutorials and module guides for the Salvi Framework. The `/docs` page on the site provides a browsable index linking to GitHub-hosted markdown files.
+
+**Ancient Calendar Synchronization**: The Salvi Epoch (April 1, 2025 00:00:00 UTC) is anchored to 9 ancient calendar systems spanning 30,000+ years: Mayan Long Count, Hebrew (Anno Mundi), Chinese Sexagenary (Yellow Emperor epoch, Cycle 78), Vedic Kali Yuga, Egyptian Civil, Julian Day Number, Islamic Hijri, Byzantine Anno Mundi, and 13-Moon Natural Time (13 months x 28 days = 364-day cycle, prehistoric attestation ~28,000 BCE). All conversions computed via JDN with verified backward time compatibility.
 
 ### Backend and Core Framework
 The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM.

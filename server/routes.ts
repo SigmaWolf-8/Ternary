@@ -58,7 +58,8 @@ import {
   toEgyptianCivil,
   toJulianDayNumber,
   toIslamicHijri,
-  toByzantineAnnoMundi
+  toByzantineAnnoMundi,
+  toThirteenMoonDate
 } from "./salvi-core/ancient-calendar-sync";
 
 const demoRunSchema = z.object({
@@ -657,7 +658,8 @@ export async function registerRoutes(
             egyptian: "GET /api/salvi/timing/epoch/calendars/egyptian",
             julianDay: "GET /api/salvi/timing/epoch/calendars/julian-day",
             islamic: "GET /api/salvi/timing/epoch/calendars/islamic",
-            byzantine: "GET /api/salvi/timing/epoch/calendars/byzantine"
+            byzantine: "GET /api/salvi/timing/epoch/calendars/byzantine",
+            thirteenMoon: "GET /api/salvi/timing/epoch/calendars/thirteen-moon"
           }
         },
         phase: {
@@ -1059,6 +1061,19 @@ export async function registerRoutes(
       res.json({ success: true, calendar: "Byzantine Anno Mundi", ...toByzantineAnnoMundi(date) });
     } catch (error) {
       res.status(500).json({ error: "Byzantine calendar conversion failed" });
+    }
+  });
+
+  app.get("/api/salvi/timing/epoch/calendars/thirteen-moon", (req, res) => {
+    try {
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam ? new Date(dateParam) : new Date();
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      res.json({ success: true, calendar: "13-Moon Natural Time", ...toThirteenMoonDate(date) });
+    } catch (error) {
+      res.status(500).json({ error: "13-Moon calendar conversion failed" });
     }
   });
 
