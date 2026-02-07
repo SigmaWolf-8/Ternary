@@ -240,8 +240,8 @@ function PlatformSection() {
     {
       icon: Lock,
       title: "Post-Quantum Security",
-      description: "Phase encryption, Lamport signatures, ternary HMAC, and sponge-based hashing resistant to quantum attacks.",
-      stats: "Quantum-safe",
+      description: "CNSA 2.0 compliance coverage with phase encryption, Lamport signatures, ternary HMAC, and sponge-based hashing resistant to quantum attacks.",
+      stats: "CNSA 2.0",
     },
   ];
 
@@ -398,6 +398,10 @@ function ArchitectureSection() {
               <div className="flex items-center gap-3 text-sm">
                 <Check className="w-5 h-5 text-primary flex-shrink-0" />
                 <span>Runs on existing binary hardware via Binary-Ternary Gateway</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Check className="w-5 h-5 text-primary flex-shrink-0" />
+                <span>CNSA 2.0 post-quantum algorithm coverage with ternary equivalents</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Check className="w-5 h-5 text-primary flex-shrink-0" />
@@ -658,7 +662,7 @@ function PerformanceSection() {
   const comparisonItems = [
     { label: "Information per Digit", current: "1.0 bit", ternary: "1.585 bits (+59%)", highlight: true },
     { label: "Storage Efficiency", current: "Baseline", ternary: "3:2 compression ratio", highlight: true },
-    { label: "Quantum Resistance", current: "Vulnerable", ternary: "Post-quantum encryption", highlight: true },
+    { label: "Quantum Resistance", current: "Vulnerable", ternary: "CNSA 2.0 ternary equivalents", highlight: true },
     { label: "Logic States", current: "2 states (0,1)", ternary: "3 states per trit", highlight: true },
     { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10^-15s)", highlight: true },
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },

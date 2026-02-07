@@ -446,47 +446,25 @@ export default function GitHubManager() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm" data-testid="link-home">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Github className="w-5 h-5" />
-              <h1 className="text-xl font-semibold">GitHub Manager</h1>
-            </div>
+      <main className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+          <div className="flex items-center gap-2">
+            <Github className="w-5 h-5" />
+            <h1 className="text-xl font-semibold">GitHub Manager</h1>
             <Badge variant="secondary">{REPO_OWNER}/{REPO_NAME}</Badge>
           </div>
           <div className="flex items-center gap-2">
             {adminStatus?.hasGithubToken && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTokenUpdate(!showTokenUpdate)}
-                data-testid="button-update-token"
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowTokenUpdate(!showTokenUpdate)} data-testid="button-update-token">
                 <Key className="w-4 h-4 mr-1" />
                 {showTokenUpdate ? "Cancel" : "Update Token"}
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetchContents()}
-              disabled={!adminStatus?.hasGithubToken}
-              data-testid="button-refresh"
-            >
+            <Button variant="outline" size="sm" onClick={() => refetchContents()} disabled={!adminStatus?.hasGithubToken} data-testid="button-refresh">
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6">
         {(!adminStatus?.hasGithubToken || showTokenUpdate) ? (
           <Card className="max-w-lg mx-auto">
             <CardHeader>

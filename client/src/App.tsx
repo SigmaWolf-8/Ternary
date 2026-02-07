@@ -15,6 +15,7 @@ import KongKonnect from "@/pages/kong-konnect";
 import Admin from "@/pages/admin";
 import Docs from "@/pages/docs";
 import CalendarPage from "@/pages/calendar";
+import CompliancePage from "@/pages/compliance";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/docs" component={Docs} />
       <Route path="/calendar" component={CalendarPage} />
+      <Route path="/compliance" component={CompliancePage} />
       <Route component={NotFound} />
     </Switch>
   );

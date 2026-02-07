@@ -13,6 +13,7 @@ import {
   Terminal,
   FileText,
   BookOpen,
+  ShieldCheck,
   Github,
   ExternalLink,
   LogIn,
@@ -163,6 +164,15 @@ export function AppSidebar() {
                   <Link href="/docs">
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Docs</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/compliance"} tooltip="CNSA 2.0" data-testid="link-sidebar-compliance" className="text-xs">
+                  <Link href="/compliance">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>CNSA 2.0</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
