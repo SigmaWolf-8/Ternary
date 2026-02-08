@@ -1,0 +1,25 @@
+# PlenumNET/Ternary Repository Code Owners
+# Each line is a file pattern followed by one or more owners.
+
+# Global fallback
+* @SigmaWolf-8
+
+# Kernel crypto modules
+src/kernel/src/crypto/ @SigmaWolf-8
+
+# Compliance and security
+src/kernel/src/crypto/cnsa2.rs @SigmaWolf-8
+.github/workflows/compliance-check.yml @SigmaWolf-8
+.github/workflows/security-scan.yml @SigmaWolf-8
+
+# CI/CD pipelines
+.github/workflows/ @SigmaWolf-8
+
+# Key management
+keys/ @SigmaWolf-8
+
+# API gateway configuration
+kong/ @SigmaWolf-8
+
+# Schema and database
+shared/schema.ts @SigmaWolf-8

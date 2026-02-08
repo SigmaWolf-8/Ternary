@@ -56,7 +56,7 @@ The `src/kernel/` directory contains a robust kernel developed in Rust, encompas
 -   **Torsion Network**: N-dimensional torus topology, greedy geodesic routing, Ternary Transport Protocol (TTP), Ternary Transfer Protocol (T3P), and Ternary DNS (TDNS).
 -   **Ternary Virtual Machine**: 35-opcode ISA, execution engine with ternary ops, and a ternary-aware mark-sweep garbage collector (TAGC).
 -   **High-Precision Timing Protocol (HPTP)**: Synchronization protocol, optical clock manager, and regulatory compliance certification.
--   **Binary Compatibility Layer**: Gateway for balanced ternary conversion and a universal ternary adapter for format-transparent data handling.
+-   **Binary Compatibility Layer**: Gateway for balanced ternary conversion, a universal ternary adapter for format-transparent data handling, and CryptoInteropBridge for ML-KEM/ML-DSA binary format interoperability.
 
 ### GitHub Integration
 The GitHub Manager page (`/github`, admin-only) provides:
@@ -67,12 +67,14 @@ The GitHub Manager page (`/github`, admin-only) provides:
 -   **P0 Status**: All P0 infrastructure items complete. Workflow files in `.github/workflows/` ready for push.
 
 ## Recent Changes (February 2026)
+-   **Stage 4 Complete**: Branch protection, code signing, FIPS validation plan, binary interoperability layer, whitepaper completion (17 sections), and libternary v2.0.0 package update.
+-   **Binary Interoperability**: CryptoInteropBridge (`src/kernel/src/compat/crypto_interop.rs`) provides ML-KEM/ML-DSA format conversion with full round-trip testing.
+-   **FIPS Validation Plan**: Formal certification roadmap at `docs/compliance/fips-validation-plan.md` with KAT requirements and evidence inventory.
+-   **Whitepaper Completion**: 18 total whitepapers in database (1 main + 17 sections) covering all PlenumNET framework topics.
+-   **libternary v2.0.0**: Package updated with CNSA 2.0 keywords, CHANGELOG, and VERSION_MANIFEST.json.
 -   **Phase 3 Crypto Complete**: TL-KEM (FIPS 203 equivalent) and TL-DSA (FIPS 204 equivalent) implemented with 3 security levels each. CNSA 2.0 coverage at 100% (11/11 algorithms).
 -   **P1 GitHub Workflows**: 5 production workflows (build-fpga, docs-publish, verify-timing, compliance-check, docker-build) added to `.github/workflows/`.
--   **Security Template**: Security vulnerability report template added to `.github/ISSUE_TEMPLATE/`.
--   **Compliance Page Updated**: `/compliance` page reflects full algorithm coverage with updated timeline.
 -   **P0 Completion**: Added batch push endpoints for CI/CD workflows and kernel files. GitHub Manager now has P0 Actions buttons.
--   **Mobile Sidebar Fix**: Sidebar auto-closes after navigation link taps on mobile.
 
 ## External Dependencies
 

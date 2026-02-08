@@ -1,5 +1,6 @@
 pub mod gateway;
 pub mod adapter;
+pub mod crypto_interop;
 
 use alloc::string::String;
 use core::fmt;
