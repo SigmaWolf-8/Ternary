@@ -1519,6 +1519,241 @@ export async function registerRoutes(
     }
   });
 
+  // Batch push CI/CD workflow files to GitHub
+  app.post("/api/github/push-workflows/:owner/:repo", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const token = req.adminUser.githubToken;
+
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const fs = await import('fs/promises');
+      const pathModule = await import('path');
+
+      const workflowDir = pathModule.join(process.cwd(), '.github', 'workflows');
+
+      try {
+        await fs.access(workflowDir);
+      } catch {
+        return res.status(404).json({ error: "No .github/workflows/ directory found locally" });
+      }
+
+      const workflowFiles = await fs.readdir(workflowDir);
+      const ymlFiles = workflowFiles.filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
+
+      if (ymlFiles.length === 0) {
+        return res.status(404).json({ error: "No workflow files (.yml) found in .github/workflows/" });
+      }
+
+      const results: { file: string; status: string; error?: string }[] = [];
+
+      for (const fileName of ymlFiles) {
+        try {
+          const filePath = pathModule.join(workflowDir, fileName);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const encodedContent = Buffer.from(content).toString('base64');
+          const githubPath = `.github/workflows/${fileName}`;
+
+          const existingResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${githubPath}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "User-Agent": "Salvi-Framework"
+              }
+            }
+          );
+
+          let sha: string | undefined;
+          if (existingResponse.ok) {
+            const existingFile = await existingResponse.json();
+            sha = existingFile.sha;
+          }
+
+          const body: any = {
+            message: `CI/CD: Update ${fileName}`,
+            content: encodedContent
+          };
+          if (sha) body.sha = sha;
+
+          const pushResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${githubPath}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "Content-Type": "application/json",
+                "User-Agent": "Salvi-Framework"
+              },
+              body: JSON.stringify(body)
+            }
+          );
+
+          if (pushResponse.ok) {
+            results.push({ file: fileName, status: "success" });
+          } else {
+            const errorData = await pushResponse.json().catch(() => ({}));
+            results.push({ file: fileName, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
+          }
+        } catch (fileError: any) {
+          results.push({ file: fileName, status: "error", error: fileError.message });
+        }
+      }
+
+      const succeeded = results.filter(r => r.status === "success").length;
+      const failed = results.filter(r => r.status === "error").length;
+
+      res.json({
+        success: failed === 0,
+        message: `Pushed ${succeeded}/${ymlFiles.length} workflow files`,
+        results
+      });
+    } catch (error) {
+      console.error("GitHub workflow push error:", error);
+      res.status(500).json({ error: "Failed to push workflow files" });
+    }
+  });
+
+  // Batch push local files to GitHub (allowlisted paths only)
+  const ALLOWED_PUSH_PREFIXES = [
+    "src/kernel/",
+    "src/tsl/",
+    "src/thdl/",
+    "src/libternary/",
+    "src/timing-api/",
+    "salvi_docs/",
+    ".github/",
+    "kong/",
+    "scripts/",
+    "docs/",
+    "tests/",
+    "PQTI-P0-STATUS.md",
+    "PQTI-REMAINING-WORK.md",
+    "GITHUB-REPOSITORY-ARCHITECTURE.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "CHANGELOG.md",
+    "ROADMAP.md",
+    "Makefile",
+    "Cargo.toml",
+  ];
+
+  const isPathAllowed = (filePath: string): boolean => {
+    const normalized = filePath.replace(/\.\./g, "").replace(/^\/+/, "");
+    if (normalized !== filePath) return false;
+    return ALLOWED_PUSH_PREFIXES.some(prefix => normalized.startsWith(prefix) || normalized === prefix);
+  };
+
+  app.post("/api/github/push-batch/:owner/:repo", requireAdmin, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const token = req.adminUser.githubToken;
+
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured" });
+      }
+
+      const schema = z.object({
+        files: z.array(z.object({
+          localPath: z.string().min(1),
+          githubPath: z.string().min(1),
+        })),
+        message: z.string().min(1),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+
+      const { files, message } = parsed.data;
+      const fs = await import('fs/promises');
+      const pathModule = await import('path');
+
+      const rejectedFiles = files.filter(f => !isPathAllowed(f.localPath));
+      if (rejectedFiles.length > 0) {
+        return res.status(403).json({
+          error: "Path not allowed",
+          rejected: rejectedFiles.map(f => f.localPath),
+        });
+      }
+
+      const results: { file: string; status: string; error?: string }[] = [];
+
+      for (const file of files) {
+        try {
+          const localFilePath = pathModule.resolve(process.cwd(), file.localPath);
+          if (!localFilePath.startsWith(process.cwd())) {
+            results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
+            continue;
+          }
+          const content = await fs.readFile(localFilePath, 'utf-8');
+          const encodedContent = Buffer.from(content).toString('base64');
+          const ghPath = sanitizePath(file.githubPath);
+
+          const existingResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "User-Agent": "Salvi-Framework"
+              }
+            }
+          );
+
+          let sha: string | undefined;
+          if (existingResponse.ok) {
+            const existingFile = await existingResponse.json();
+            sha = existingFile.sha;
+          }
+
+          const body: any = { message: `${message} - ${file.githubPath}`, content: encodedContent };
+          if (sha) body.sha = sha;
+
+          const pushResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "Content-Type": "application/json",
+                "User-Agent": "Salvi-Framework"
+              },
+              body: JSON.stringify(body)
+            }
+          );
+
+          if (pushResponse.ok) {
+            results.push({ file: file.githubPath, status: "success" });
+          } else {
+            const errorData = await pushResponse.json().catch(() => ({}));
+            results.push({ file: file.githubPath, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
+          }
+        } catch (fileError: any) {
+          results.push({ file: file.githubPath, status: "error", error: fileError.message });
+        }
+      }
+
+      const succeeded = results.filter(r => r.status === "success").length;
+      res.json({
+        success: results.every(r => r.status === "success"),
+        message: `Pushed ${succeeded}/${files.length} files`,
+        results
+      });
+    } catch (error) {
+      console.error("GitHub batch push error:", error);
+      res.status(500).json({ error: "Failed to push files" });
+    }
+  });
+
   // Get user admin status
   app.get("/api/user/admin-status", async (req: any, res) => {
     try {

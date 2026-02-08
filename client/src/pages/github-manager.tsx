@@ -177,6 +177,57 @@ export default function GitHubManager() {
     },
   });
 
+  const pushWorkflowsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/github/push-workflows/${REPO_OWNER}/${REPO_NAME}`, {});
+    },
+    onSuccess: async (response: any) => {
+      const data = await response.json();
+      toast({
+        title: data.success ? "Workflows Pushed" : "Partial Success",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      refetchContents();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const pushKernelFilesMutation = useMutation({
+    mutationFn: async () => {
+      const kernelFiles = [
+        { localPath: "src/kernel/src/crypto/cipher.rs", githubPath: "src/kernel/src/crypto/cipher.rs" },
+        { localPath: "src/kernel/src/crypto/sha2.rs", githubPath: "src/kernel/src/crypto/sha2.rs" },
+        { localPath: "src/kernel/src/crypto/sha3.rs", githubPath: "src/kernel/src/crypto/sha3.rs" },
+        { localPath: "src/kernel/src/crypto/ternary_lattice.rs", githubPath: "src/kernel/src/crypto/ternary_lattice.rs" },
+        { localPath: "src/kernel/src/crypto/cnsa2.rs", githubPath: "src/kernel/src/crypto/cnsa2.rs" },
+        { localPath: "src/kernel/src/crypto/mod.rs", githubPath: "src/kernel/src/crypto/mod.rs" },
+        { localPath: "src/kernel/src/process/scheduler.rs", githubPath: "src/kernel/src/process/scheduler.rs" },
+        { localPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md", githubPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md" },
+        { localPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md", githubPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md" },
+        { localPath: "PQTI-P0-STATUS.md", githubPath: "PQTI-P0-STATUS.md" },
+      ];
+      return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
+        files: kernelFiles,
+        message: "Phase 2: CNSA 2.0 crypto + lattice foundations",
+      });
+    },
+    onSuccess: async (response: any) => {
+      const data = await response.json();
+      toast({
+        title: data.success ? "Kernel Files Pushed" : "Partial Success",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      refetchContents();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const fetchFileContent = async (path: string) => {
     try {
       const res = await fetch(`/api/github/file/${REPO_OWNER}/${REPO_NAME}?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(selectedBranch)}`);
@@ -549,6 +600,42 @@ export default function GitHubManager() {
                 </CardContent>
               </Card>
             )}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">P0 Actions</CardTitle>
+                <CardDescription className="text-xs">Push local files to GitHub repository</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => pushWorkflowsMutation.mutate()}
+                    disabled={pushWorkflowsMutation.isPending}
+                    data-testid="button-push-workflows"
+                  >
+                    {pushWorkflowsMutation.isPending ? (
+                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Pushing...</>
+                    ) : (
+                      <><Settings className="w-4 h-4 mr-1" />Push CI/CD Workflows</>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => pushKernelFilesMutation.mutate()}
+                    disabled={pushKernelFilesMutation.isPending}
+                    data-testid="button-push-kernel"
+                  >
+                    {pushKernelFilesMutation.isPending ? (
+                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Pushing...</>
+                    ) : (
+                      <><FileCode className="w-4 h-4 mr-1" />Push Kernel Crypto (Phase 2)</>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>

@@ -1,0 +1,23 @@
+Salvi, here's the full repository review.
+
+Repository: SigmaWolf-8/Ternary — "Salvi Framework - Bijective Ternary Logic Library"
+Branch: main | 156 commits | 1 ⭐
+Top-Level Structure (15 directories, 10 root files):
+DirectoryPurposeclient/src/pages/React frontend — compliance.tsx, docs.tsx, kong-konnect.tsx, calendar.tsx, whitepaper.tsx, etc.server/salvi-core/Core APIs — phase-encryption, femtosecond-timing, blockchain integrations, ternary opslibternary/src/TypeScript ternary library — types, operations, timing, encryptionkong/Kong API Gateway configurationcontracts/Blockchain smart contractsservices/blockchain/Blockchain service layerdeployments/docker/Docker configstests/integration/Integration test suitesalvi_docs/Salvi documentation
+Key Root Files:
+
+PQTI-P0-STATUS.md — P0 at 95% complete: Build/test infrastructure ✅, security config ✅, documentation ✅, Kong Cloud Gateway ✅ deployed with services available. Only GitHub Workflows pending (token scope limitation).
+PQTI-REMAINING-WORK.md — 14 work streams across 5 phases (40 weeks): Foundation → Core Dev → Testing/Security → Hardware/Deployment → Documentation/Polish. Includes kernel, TSL, THDL, hardware drivers, FPGA/ASIC, compliance tests.
+GITHUB-REPOSITORY-ARCHITECTURE.md — Defines 8 architecture components: Ternary Kernel, LibTernary, Salvi Core APIs, SalviDB, THDL Compiler, TSL Interpreter, Timing API, Hardware.
+libternary.tar.gz — Compiled Rust kernel distribution artifact.
+
+Current Crypto State on main:
+The Rust kernel (where this session's Phase 1 + Phase 2 work lives) compiles into the libternary.tar.gz artifact. The work we completed earlier — AES-256-GCM cipher, SHA-2 compliance, SHA-3 internal, GF(3) polynomial ring lattice foundations, the scheduler SecurityMode fix, and ternary key conversion fix (all 1117 tests passing) — is in the development environment and has not yet been pushed to this repo.
+The compliance.tsx frontend page exists and is live, currently showing the 4/7/11 algorithm status. The CNSA 2.0 compliance tracking in cnsa2.rs and the documentation updates are all staged locally.
+What needs pushing to bring main current:
+
+Updated libternary Rust kernel crate (cipher.rs, sha2.rs, sha3.rs, ternary_lattice.rs, mod.rs exports)
+Updated compliance tracking (cnsa2.rs — lattice foundation milestones)
+Scheduler fix (process/scheduler.rs — SecurityMode import)
+Documentation updates (05_CRYPTOGRAPHY.md)
+Recompiled libternary.tar.gz
