@@ -183,7 +183,9 @@ function ProblemsSection() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            Every system that touches time faces these problems. We solved all of them.
+            Every system that touches time faces these problems...
+            <br />
+            Good thing, we solved All of them.
           </motion.p>
         </div>
 
