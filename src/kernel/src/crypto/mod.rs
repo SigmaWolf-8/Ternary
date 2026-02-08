@@ -5,7 +5,11 @@
 //! - **Sponge Construction**: Keccak-inspired sponge for ternary domains
 //! - **HMAC**: Keyed message authentication using ternary hash
 //! - **Key Derivation**: KDF for generating keys from passwords/seeds
-//! - **Post-Quantum Signatures**: Stub interface for lattice-based signatures
+//! - **Post-Quantum KEM**: TL-KEM key encapsulation (FIPS 203 equivalent)
+//! - **Post-Quantum DSA**: TL-DSA digital signatures (FIPS 204 equivalent)
+//! - **FIPS Validation**: KAT vectors, side-channel analysis, cross-impl testing
+//! - **FPGA Synthesis**: Hardware accelerator specifications
+//! - **Performance**: Benchmark framework for all algorithms
 //!
 //! All operations work with both binary byte arrays and ternary trit arrays,
 //! with automatic conversion between representations.
@@ -25,6 +29,11 @@ pub mod sha3;
 pub mod ternary_lattice;
 pub mod tl_kem;
 pub mod tl_dsa;
+pub mod kat_vectors;
+pub mod side_channel;
+pub mod cross_impl;
+pub mod fpga_synth;
+pub mod perf_bench;
 
 use alloc::string::String;
 use alloc::vec::Vec;

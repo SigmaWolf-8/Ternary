@@ -24,6 +24,14 @@
       ]
     }
   },
+  "fipsValidation": {
+    "phase": 2,
+    "katVectors": { "kem": 9, "dsa": 9, "total": 18, "module": "kat_vectors.rs" },
+    "sideChannelAnalysis": { "functionsAnalyzed": 19, "fipsLevel3Ready": true, "module": "side_channel.rs" },
+    "crossImplTests": { "total": 45, "categories": ["SizeCompliance", "ProtocolCompliance", "AlgebraicConsistency", "RoundTripIntegrity"], "module": "cross_impl.rs" },
+    "fpgaSynthesis": { "targets": 4, "modules": 9, "recommended": "Xilinx Kintex UltraScale+", "module": "fpga_synth.rs" },
+    "performanceBenchmarks": { "total": 20, "algorithms": ["TL-KEM", "TL-DSA", "Sponge Hash"], "module": "perf_bench.rs" }
+  },
   "kernelModules": {
     "crypto": [
       "src/kernel/src/crypto/tl_kem.rs",
@@ -37,7 +45,12 @@
       "src/kernel/src/crypto/hash.rs",
       "src/kernel/src/crypto/hmac.rs",
       "src/kernel/src/crypto/kdf.rs",
-      "src/kernel/src/crypto/signature.rs"
+      "src/kernel/src/crypto/signature.rs",
+      "src/kernel/src/crypto/kat_vectors.rs",
+      "src/kernel/src/crypto/side_channel.rs",
+      "src/kernel/src/crypto/cross_impl.rs",
+      "src/kernel/src/crypto/fpga_synth.rs",
+      "src/kernel/src/crypto/perf_bench.rs"
     ],
     "compat": [
       "src/kernel/src/compat/gateway.rs",

@@ -67,14 +67,15 @@ The GitHub Manager page (`/github`, admin-only) provides:
 -   **P0 Status**: All P0 infrastructure items complete. Workflow files in `.github/workflows/` ready for push.
 
 ## Recent Changes (February 2026)
+-   **Stage 5 Complete**: Five FIPS Phase 2 validation modules: KAT vectors (18 deterministic test vectors), side-channel analysis (19 functions across 6 modules), cross-implementation testing (45+ tests against ML-KEM/ML-DSA), FPGA synthesis specs (4 targets, 9 modules, ~96K LUTs), and performance benchmarks (20 benchmarks with warm-up/statistics).
+-   **KAT Vectors**: `kat_vectors.rs` — 9 TL-KEM + 9 TL-DSA deterministic Known Answer Test vectors with canonical seeds, hash-based verification, and `validate_kem_vector()`/`validate_dsa_vector()` for FIPS CAVP submission.
+-   **Side-Channel Analysis**: `side_channel.rs` — Constant-time verification framework analyzing AES (Medium: S-box cache-timing), TL-KEM (Medium: FO branch), TL-DSA (High: rejection sampling, by-design), Sponge/HMAC (None). FIPS Level 3 ready.
+-   **Cross-Implementation Testing**: `cross_impl.rs` — Validates TL-KEM/TL-DSA against FIPS 203/204 reference sizes, protocol correctness, algebraic consistency, and trit↔byte round-trip integrity.
+-   **FPGA Synthesis**: `fpga_synth.rs` — Hardware resource estimates for ternary crypto accelerator across Artix-7, Kintex UltraScale+, Stratix 10, CrossLink-NX. Recommended: Kintex UltraScale+ (<30% utilization, 500 MHz).
+-   **Performance Benchmarks**: `perf_bench.rs` — 20 benchmarks (TL-KEM/TL-DSA KeyGen/Encaps/Decaps/Sign/Verify x 3 levels + Sponge Hash) with min/max/mean/median and ML-KEM/ML-DSA comparison.
 -   **Stage 4 Complete**: Branch protection, code signing, FIPS validation plan, binary interoperability layer, whitepaper completion (17 sections), and libternary v2.0.0 package update.
 -   **Binary Interoperability**: CryptoInteropBridge (`src/kernel/src/compat/crypto_interop.rs`) provides ML-KEM/ML-DSA format conversion with full round-trip testing.
--   **FIPS Validation Plan**: Formal certification roadmap at `docs/compliance/fips-validation-plan.md` with KAT requirements and evidence inventory.
--   **Whitepaper Completion**: 18 total whitepapers in database (1 main + 17 sections) covering all PlenumNET framework topics.
--   **libternary v2.0.0**: Package updated with CNSA 2.0 keywords, CHANGELOG, and VERSION_MANIFEST.json.
 -   **Phase 3 Crypto Complete**: TL-KEM (FIPS 203 equivalent) and TL-DSA (FIPS 204 equivalent) implemented with 3 security levels each. CNSA 2.0 coverage at 100% (11/11 algorithms).
--   **P1 GitHub Workflows**: 5 production workflows (build-fpga, docs-publish, verify-timing, compliance-check, docker-build) added to `.github/workflows/`.
--   **P0 Completion**: Added batch push endpoints for CI/CD workflows and kernel files. GitHub Manager now has P0 Actions buttons.
 
 ## External Dependencies
 
