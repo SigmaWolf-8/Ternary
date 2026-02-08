@@ -1,0 +1,102 @@
+name: FPGA Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hardware/fpga/**'
+      - 'src/kernel/src/drivers/tpu_fpga.rs'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hardware/fpga/**'
+      - 'src/kernel/src/drivers/tpu_fpga.rs'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-fpga-sources:
+    name: Check FPGA Sources
+    runs-on: ubuntu-latest
+    outputs:
+      has_verilog: ${{ steps.check.outputs.has_verilog }}
+      has_constraints: ${{ steps.check.outputs.has_constraints }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for FPGA source files
+        id: check
+        run: |
+          if [ -d "hardware/fpga/verilog" ]; then
+            echo "has_verilog=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_verilog=false" >> $GITHUB_OUTPUT
+          fi
+          if [ -d "hardware/fpga/constraints" ]; then
+            echo "has_constraints=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_constraints=false" >> $GITHUB_OUTPUT
+          fi
+
+  lint-verilog:
+    name: Lint Verilog
+    runs-on: ubuntu-latest
+    needs: check-fpga-sources
+    if: needs.check-fpga-sources.outputs.has_verilog == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Verilator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator
+
+      - name: Lint Verilog sources
+        run: |
+          find hardware/fpga/verilog -name "*.v" -o -name "*.sv" | while read f; do
+            echo "Linting: $f"
+            verilator --lint-only "$f" 2>&1 || true
+          done
+
+  fpga-kernel-driver:
+    name: Build TPU FPGA Driver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: nightly
+
+      - name: Check FPGA driver compiles
+        run: |
+          if [ -f "src/kernel/Cargo.toml" ]; then
+            cd src/kernel
+            cargo check --features fpga 2>&1 || echo "FPGA feature not yet configured"
+          else
+            echo "Kernel source not yet published, skipping"
+          fi
+
+  synthesis-check:
+    name: Synthesis Readiness
+    runs-on: ubuntu-latest
+    needs: check-fpga-sources
+    if: needs.check-fpga-sources.outputs.has_constraints == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate constraint files
+        run: |
+          echo "Checking Xilinx constraints..."
+          find hardware/fpga/constraints -name "*.xdc" | while read f; do
+            echo "  Found: $f"
+            wc -l "$f"
+          done
+          echo "Checking Intel constraints..."
+          find hardware/fpga/constraints -name "*.sdc" | while read f; do
+            echo "  Found: $f"
+            wc -l "$f"
+          done

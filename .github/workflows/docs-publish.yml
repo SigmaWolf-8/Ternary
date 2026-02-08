@@ -1,0 +1,115 @@
+name: Documentation Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'salvi_docs/**'
+      - 'src/kernel/src/**'
+      - 'README.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'salvi_docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  validate-docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check markdown files
+        run: |
+          echo "=== Documentation Summary ==="
+          echo ""
+          echo "Salvi Framework Docs:"
+          find salvi_docs -name "*.md" 2>/dev/null | wc -l || echo "0 files"
+          echo ""
+          echo "Project Docs:"
+          find docs -name "*.md" 2>/dev/null | wc -l || echo "0 files"
+          echo ""
+          total_lines=0
+          for f in $(find salvi_docs docs -name "*.md" 2>/dev/null); do
+            lines=$(wc -l < "$f")
+            total_lines=$((total_lines + lines))
+          done
+          echo "Total documentation lines: $total_lines"
+
+      - name: Check for broken internal links
+        run: |
+          echo "Checking for broken relative links in markdown..."
+          find salvi_docs docs -name "*.md" 2>/dev/null | while read f; do
+            grep -oP '\[.*?\]\((?!http)([^)]+)\)' "$f" 2>/dev/null | while read link; do
+              target=$(echo "$link" | grep -oP '\(([^)]+)\)' | tr -d '()')
+              dir=$(dirname "$f")
+              if [ ! -f "$dir/$target" ] && [ ! -f "$target" ]; then
+                echo "WARNING: Possible broken link in $f -> $target"
+              fi
+            done
+          done
+
+  generate-rust-docs:
+    name: Generate Rust API Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: nightly
+
+      - name: Generate kernel documentation
+        run: |
+          if [ -f "src/kernel/Cargo.toml" ]; then
+            cd src/kernel
+            cargo doc --no-deps --document-private-items 2>&1 || echo "Doc generation requires published source"
+          else
+            echo "Kernel source not yet published, skipping rustdoc"
+          fi
+
+      - name: Upload docs artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-docs
+          path: src/kernel/target/doc/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  count-documentation:
+    name: Documentation Metrics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate documentation metrics
+        run: |
+          echo "# Documentation Metrics" > doc-metrics.txt
+          echo "" >> doc-metrics.txt
+          echo "## File Counts" >> doc-metrics.txt
+          echo "- Salvi Docs: $(find salvi_docs -name '*.md' 2>/dev/null | wc -l)" >> doc-metrics.txt
+          echo "- Project Docs: $(find docs -name '*.md' 2>/dev/null | wc -l)" >> doc-metrics.txt
+          echo "- Kernel Source Comments: $(find src/kernel -name '*.rs' 2>/dev/null | xargs grep -c '///' 2>/dev/null | awk -F: '{sum+=$2} END {print sum}')" >> doc-metrics.txt
+          echo "" >> doc-metrics.txt
+          echo "## Line Counts by Directory" >> doc-metrics.txt
+          for dir in salvi_docs docs; do
+            if [ -d "$dir" ]; then
+              lines=$(find "$dir" -name "*.md" -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}')
+              echo "- $dir: $lines lines" >> doc-metrics.txt
+            fi
+          done
+          cat doc-metrics.txt

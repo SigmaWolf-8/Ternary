@@ -23,6 +23,8 @@ pub mod cipher;
 pub mod sha2;
 pub mod sha3;
 pub mod ternary_lattice;
+pub mod tl_kem;
+pub mod tl_dsa;
 
 use alloc::string::String;
 use alloc::vec::Vec;

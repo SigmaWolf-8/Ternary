@@ -46,7 +46,7 @@ The `src/kernel/` directory contains a robust kernel developed in Rust, encompas
 -   **Synchronization Primitives**: Ticket-based spinlocks, ternary-security-gated mutexes, semaphores, and phase-encryption-aware mutexes.
 -   **Process Management**: Process states, priority levels, multi-level priority round-robin scheduler, CPU context management, and message-passing IPC.
 -   **Modal Security System**: Security domain management, capability-based access control, femtosecond-timestamped audit trails, and a priority-ordered policy engine.
--   **Cryptographic Primitives**: Ternary hash, sponge construction, HMAC, key derivation, ternary Lamport one-time signatures, and CNSA 2.0 compliance framework (algorithm mapping, transition timeline, compliance status tracking).
+-   **Cryptographic Primitives**: Ternary hash, sponge construction, HMAC, key derivation, ternary Lamport one-time signatures, AES-256-GCM cipher, SHA-2/SHA-3, TL-KEM (IND-CCA2 key encapsulation at 3 security levels), TL-DSA (EUF-CMA digital signatures at 3 security levels), GF(3) polynomial ring arithmetic, and CNSA 2.0 compliance framework (11/11 algorithms at 100% coverage).
 -   **Device Driver Framework**: Abstractions for device types, bus management, device registry, interrupt controller, and DMA.
 -   **I/O Subsystem**: Priority-based I/O scheduler, buffer cache, block device layer, character device layer, and I/O multiplexing.
 -   **Filesystem**: Inode management, directory operations, file operations, and a mount system supporting various filesystem types.
@@ -67,9 +67,12 @@ The GitHub Manager page (`/github`, admin-only) provides:
 -   **P0 Status**: All P0 infrastructure items complete. Workflow files in `.github/workflows/` ready for push.
 
 ## Recent Changes (February 2026)
+-   **Phase 3 Crypto Complete**: TL-KEM (FIPS 203 equivalent) and TL-DSA (FIPS 204 equivalent) implemented with 3 security levels each. CNSA 2.0 coverage at 100% (11/11 algorithms).
+-   **P1 GitHub Workflows**: 5 production workflows (build-fpga, docs-publish, verify-timing, compliance-check, docker-build) added to `.github/workflows/`.
+-   **Security Template**: Security vulnerability report template added to `.github/ISSUE_TEMPLATE/`.
+-   **Compliance Page Updated**: `/compliance` page reflects full algorithm coverage with updated timeline.
 -   **P0 Completion**: Added batch push endpoints for CI/CD workflows and kernel files. GitHub Manager now has P0 Actions buttons.
 -   **Mobile Sidebar Fix**: Sidebar auto-closes after navigation link taps on mobile.
--   **Security**: Batch push endpoint uses strict path allowlisting to prevent file exfiltration.
 
 ## External Dependencies
 

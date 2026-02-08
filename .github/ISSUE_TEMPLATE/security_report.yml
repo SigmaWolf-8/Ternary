@@ -1,0 +1,112 @@
+name: Security Report
+description: Report a security vulnerability in the PlenumNET kernel or cryptographic modules
+title: "[Security]: "
+labels: ["security", "priority-critical"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Security Vulnerability Report
+
+        **IMPORTANT**: For critical vulnerabilities affecting production deployments,
+        please email security@plenumnet.io directly instead of using this public form.
+
+        This form is for reporting security issues in the open-source kernel and
+        cryptographic library components.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which component is affected?
+      options:
+        - Cryptographic Primitives (crypto/)
+        - TL-KEM (Key Encapsulation)
+        - TL-DSA (Digital Signatures)
+        - AES-256-GCM (Symmetric Cipher)
+        - SHA-2/SHA-3 (Hash Functions)
+        - Ternary Lamport OTS (Signatures)
+        - CNSA 2.0 Compliance Tracker
+        - Phase Encryption
+        - Femtosecond Timing / HPTP
+        - Memory Management
+        - Process Scheduler
+        - Network Stack (Torsion)
+        - Device Drivers
+        - Binary Compatibility Layer
+        - API Gateway / Kong
+        - Payment Processing
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this vulnerability?
+      options:
+        - Critical (Remote code execution, key compromise)
+        - High (Authentication bypass, information disclosure)
+        - Medium (Denial of service, timing attack)
+        - Low (Minor information leak, hardening improvement)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability Description
+      description: Describe the vulnerability. Include attack vector if known.
+      placeholder: |
+        Describe the vulnerability, its impact, and how it can be exploited.
+        Include any relevant technical details about the attack vector.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the vulnerability.
+      placeholder: |
+        1. Configure module with...
+        2. Send input...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact of this vulnerability?
+      placeholder: |
+        - Confidentiality impact:
+        - Integrity impact:
+        - Availability impact:
+        - CNSA 2.0 compliance impact:
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: Do you have a suggested fix or mitigation?
+      placeholder: |
+        Describe any known workarounds or suggested fixes.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: disclosure
+    attributes:
+      label: Disclosure Timeline
+      description: When do you plan to publicly disclose?
+      options:
+        - Coordinated (90-day window)
+        - Immediate (already public)
+        - Flexible (no deadline)
+    validations:
+      required: true

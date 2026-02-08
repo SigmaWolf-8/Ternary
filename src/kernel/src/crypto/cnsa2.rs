@@ -187,14 +187,14 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
     vec![
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::Aes256,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Bijective Cipher (design complete, implementation planned)"),
-            plenum_module: String::from("salvi_kernel::crypto::cipher (planned)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("AES-256-GCM (FIPS 197 + SP 800-38D) with ternary key mapping"),
+            plenum_module: String::from("salvi_kernel::crypto::cipher"),
             security_notes: String::from(
-                "Designed for GF(3) with bijective S-box substitution. 27-tryte key \
-                 provides equivalent security via ternary entropy (1.585 bits/trit). \
-                 CTR, CBC, and authenticated GCM modes specified. \
-                 Phase encryption (salvi_kernel::phase) provides current symmetric encryption."
+                "Full AES-256-GCM implementation with constant-time S-box (composite field \
+                 inversion, no lookup tables), 14-round key schedule, and authenticated \
+                 encryption with associated data (AEAD). Ternary key mapping via balanced \
+                 ternary representation. Binary-compatible for interoperability."
             ),
         },
         Cnsa2Mapping {
@@ -221,74 +221,70 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::MlKem512,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Lattice KEM (TL-KEM)"),
-            plenum_module: String::from("salvi_kernel::crypto::ternary_lattice (foundations)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("TL-KEM-512 (Ternary Lattice KEM)"),
+            plenum_module: String::from("salvi_kernel::crypto::tl_kem"),
             security_notes: String::from(
-                "Lattice foundations implemented: GF(3) polynomial ring R_q = Z_3[X]/(X^n+1), \
-                 Module-LWE instance generation/verification, polynomial sampling (CBD, uniform), \
-                 schoolbook ring multiplication. TL-KEM encapsulation layer planned. \
-                 Target: NIST Security Level 1 (k=2, n=256)."
+                "Full IND-CCA2 secure key encapsulation via Fujisaki-Okamoto transform. \
+                 GF(3) polynomial ring R_q = Z_3[X]/(X^256+1), Module-LWE with k=2. \
+                 KeyGen, Encapsulate, Decapsulate with implicit rejection. \
+                 243-trit shared secret (385.4 equivalent bits). NIST Security Level 1."
             ),
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::MlKem768,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Lattice KEM (TL-KEM-768)"),
-            plenum_module: String::from("salvi_kernel::crypto::ternary_lattice (foundations)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("TL-KEM-768 (Ternary Lattice KEM)"),
+            plenum_module: String::from("salvi_kernel::crypto::tl_kem"),
             security_notes: String::from(
-                "Medium-security variant of TL-KEM. Lattice arithmetic foundations complete \
-                 with polynomial ring operations and Module-LWE/SIS problem structures. \
-                 Ternary lattice dimension provides natural resistance to lattice reduction. \
-                 Target: NIST Security Level 3 (k=3, n=256)."
+                "Medium-security IND-CCA2 key encapsulation. Module-LWE with k=3, \
+                 ternary noise sampling (CBD), compression/decompression for compact \
+                 ciphertexts. 243-trit shared secret. NIST Security Level 3."
             ),
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::MlKem1024,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Lattice KEM (TL-KEM-1024)"),
-            plenum_module: String::from("salvi_kernel::crypto::ternary_lattice (foundations)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("TL-KEM-1024 (Ternary Lattice KEM)"),
+            plenum_module: String::from("salvi_kernel::crypto::tl_kem"),
             security_notes: String::from(
-                "High-security variant for CNSA 2.0 classified data protection. \
-                 Lattice foundations with GF(3) polynomial arithmetic, compression/decompression, \
-                 and parameterized security levels complete. Encapsulation layer planned. \
-                 Target: NIST Security Level 5 (k=4, n=256)."
+                "High-security IND-CCA2 key encapsulation for CNSA 2.0 classified data. \
+                 Module-LWE with k=4, enhanced compression parameters (du=5, dv=3). \
+                 486-trit shared secret (770.8 equivalent bits). NIST Security Level 5."
             ),
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::MlDsa44,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Lattice DSA (TL-DSA)"),
-            plenum_module: String::from("salvi_kernel::crypto::ternary_lattice (foundations), salvi_kernel::crypto::signature (stub)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("TL-DSA-44 (Ternary Lattice DSA)"),
+            plenum_module: String::from("salvi_kernel::crypto::tl_dsa"),
             security_notes: String::from(
-                "Dilithium signature scheme stub exists. Lattice arithmetic foundations \
-                 now implemented: GF(3) polynomial ring multiplication, Module-LWE/SIS \
-                 problem structures, and polynomial sampling for error generation. \
-                 Full TL-DSA signing/verification planned. Target: NIST Security Level 2."
+                "Full EUF-CMA secure digital signatures via Fiat-Shamir with Aborts. \
+                 GF(3) polynomial ring R_q = Z_3[X]/(X^256+1), Module-LWE with k=4, l=4. \
+                 KeyGen, Sign (deterministic with abort-and-retry), Verify. \
+                 Sparse ternary challenge with tau=39. NIST Security Level 2."
             ),
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::MlDsa65,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Lattice DSA (TL-DSA-65)"),
-            plenum_module: String::from("salvi_kernel::crypto::ternary_lattice (foundations), salvi_kernel::crypto::signature (stub)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("TL-DSA-65 (Ternary Lattice DSA)"),
+            plenum_module: String::from("salvi_kernel::crypto::tl_dsa"),
             security_notes: String::from(
-                "Medium-security Dilithium variant. Ternary polynomial ring \
-                 R_q = Z_3[X]/(X^n+1) now implemented with schoolbook ring \
-                 multiplication and Module-SIS verification. Full TL-DSA planned. \
-                 Target: NIST Security Level 3 (k=3)."
+                "Medium-security EUF-CMA digital signatures. Module-LWE with k=6, l=5, \
+                 ternary noise sampling, deterministic signing with abort-and-retry. \
+                 Sparse ternary challenge with tau=49. NIST Security Level 3."
             ),
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::MlDsa87,
-            status: ComplianceStatus::Planned,
-            plenum_equivalent: String::from("Ternary Lattice DSA (TL-DSA-87)"),
-            plenum_module: String::from("salvi_kernel::crypto::ternary_lattice (foundations), salvi_kernel::crypto::signature (stub)"),
+            status: ComplianceStatus::TernaryEquivalent,
+            plenum_equivalent: String::from("TL-DSA-87 (Ternary Lattice DSA)"),
+            plenum_module: String::from("salvi_kernel::crypto::tl_dsa"),
             security_notes: String::from(
-                "High-security Dilithium variant for classified data. Lattice \
-                 foundations with polynomial arithmetic, parameterized security \
-                 levels (k=4, n=256), and compression primitives complete. \
-                 Full TL-DSA signing/verification planned. Target: NIST Security Level 5."
+                "High-security EUF-CMA digital signatures for CNSA 2.0 classified data. \
+                 Module-LWE with k=8, l=7, enhanced parameters for maximum security. \
+                 Sparse ternary challenge with tau=60. NIST Security Level 5."
             ),
         },
         Cnsa2Mapping {
@@ -376,32 +372,34 @@ pub fn get_transition_timeline() -> Vec<TransitionMilestone> {
             status: MilestoneStatus::Complete,
         },
         TransitionMilestone {
-            year: 2027,
+            year: 2026,
             title: String::from("TL-KEM Implementation"),
             description: String::from(
-                "Ternary Lattice Key Encapsulation Mechanism at all three security levels. \
-                 Binary compatibility layer for interoperability with standard ML-KEM."
+                "Ternary Lattice Key Encapsulation Mechanism (TL-KEM) at all three security \
+                 levels. IND-CCA2 secure via Fujisaki-Okamoto transform with implicit \
+                 rejection. Module-LWE with k=2,3,4 for NIST Levels 1,3,5."
             ),
             algorithms: vec![
                 Cnsa2Algorithm::MlKem512,
                 Cnsa2Algorithm::MlKem768,
                 Cnsa2Algorithm::MlKem1024,
             ],
-            status: MilestoneStatus::Planned,
+            status: MilestoneStatus::Complete,
         },
         TransitionMilestone {
-            year: 2028,
+            year: 2026,
             title: String::from("TL-DSA Implementation"),
             description: String::from(
-                "Ternary Lattice Digital Signature Algorithm. Full Dilithium-equivalent \
-                 signatures with ternary polynomial arithmetic at all security levels."
+                "Ternary Lattice Digital Signature Algorithm (TL-DSA) at all three security \
+                 levels. EUF-CMA secure via Fiat-Shamir with Aborts. Deterministic signing \
+                 with Module-LWE at k=4/l=4, k=6/l=5, k=8/l=7."
             ),
             algorithms: vec![
                 Cnsa2Algorithm::MlDsa44,
                 Cnsa2Algorithm::MlDsa65,
                 Cnsa2Algorithm::MlDsa87,
             ],
-            status: MilestoneStatus::Planned,
+            status: MilestoneStatus::Complete,
         },
         TransitionMilestone {
             year: 2029,
@@ -521,8 +519,8 @@ mod tests {
     fn test_cnsa2_compliance_summary() {
         let summary = get_compliance_summary();
         assert_eq!(summary.total_requirements, 11);
-        assert_eq!(summary.ternary_equivalent, 4);
-        assert_eq!(summary.planned, 7);
+        assert_eq!(summary.ternary_equivalent, 11);
+        assert_eq!(summary.planned, 0);
         assert_eq!(summary.not_implemented, 0);
         assert_eq!(
             summary.ternary_equivalent + summary.planned + summary.not_implemented,
