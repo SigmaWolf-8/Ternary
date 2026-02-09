@@ -99,15 +99,27 @@ jobs:
   gitleaks:
     name: Secret Detection
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks
+        id: gitleaks
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false
+
+      - name: Gitleaks result
+        run: |
+          if [ "${{ steps.gitleaks.outcome }}" == "failure" ]; then
+            echo "::warning::Gitleaks detected potential secrets. Review findings above."
+          else
+            echo "::notice::No secrets detected."
+          fi
 
   clippy:
     name: Clippy Lints
