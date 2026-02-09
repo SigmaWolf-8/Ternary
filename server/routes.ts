@@ -398,15 +398,16 @@ export async function registerRoutes(
   });
 
   app.get("/api/whitepapers/active", async (req, res) => {
+    res.setHeader("Content-Type", "application/json");
     try {
       const whitepaper = await storage.getActiveWhitepaper();
       if (!whitepaper) {
-        return res.status(404).json({ error: "No active whitepaper found" });
+        return res.status(404).json({ success: false, error: "No active whitepaper found" });
       }
       res.json({ success: true, whitepaper });
     } catch (error) {
       console.error("Get active whitepaper error:", error);
-      res.status(500).json({ error: "Failed to get whitepaper" });
+      res.status(500).json({ success: false, error: "Failed to get whitepaper" });
     }
   });
 
@@ -1084,19 +1085,30 @@ export async function registerRoutes(
   // Get phase configuration
   app.get("/api/salvi/phase/config/:mode", (req, res) => {
     try {
-      const mode = req.params.mode as EncryptionMode;
+      const modeAliases: Record<string, string> = {
+        "standard": "balanced",
+        "default": "balanced",
+        "fast": "performance",
+        "secure": "high_security",
+        "auto": "adaptive",
+      };
+      const rawMode = req.params.mode.toLowerCase();
+      const resolvedMode = (modeAliases[rawMode] || rawMode) as EncryptionMode;
       const validModes = ["high_security", "balanced", "performance", "adaptive"];
-      if (!validModes.includes(mode)) {
+      if (!validModes.includes(resolvedMode)) {
         return res.status(400).json({ 
+          success: false,
           error: "Invalid mode",
-          validModes 
+          provided: rawMode,
+          validModes,
+          aliases: modeAliases
         });
       }
       
-      const config = getPhaseConfig(mode);
+      const config = getPhaseConfig(resolvedMode);
       res.json({ success: true, config });
     } catch (error) {
-      res.status(500).json({ error: "Config retrieval failed" });
+      res.status(500).json({ success: false, error: "Config retrieval failed" });
     }
   });
 
