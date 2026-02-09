@@ -338,7 +338,31 @@ Validates against FIPS 203/204 reference sizes (ML-KEM-512/768/1024, ML-DSA-44/6
 
 **Action**: Use GitHub Manager > P0 Actions > "Push All Stages (1-5)" button
 
-**Note**: `libternary.tar.gz` requires separate recompilation with all crypto modules before push.
+**Note**: `libternary.tar.gz` requires separate recompilation before push (see below).
+
+### Tarball Recompilation Steps
+
+The `libternary.tar.gz` on main is v1.0.0 (TypeScript-only). It needs to be rebuilt to include Stage 4-5 Rust crypto modules:
+
+1. **Install Rust toolchain**: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+2. **Build kernel crypto**: `cd src/kernel && cargo build --release`
+3. **Package distribution**:
+   ```
+   cd libternary
+   npm run build          # TypeScript compilation
+   tar czf libternary.tar.gz \
+     dist/ src/ package.json VERSION_MANIFEST.json \
+     CHANGELOG.md README.md LICENSE
+   ```
+4. **Upload as GitHub Release asset** (not via Contents API — binary file):
+   ```
+   gh release create v2.0.0 libternary.tar.gz \
+     --repo SigmaWolf-8/Ternary \
+     --title "libternary v2.0.0 - CNSA 2.0 Complete" \
+     --notes "11/11 CNSA 2.0 algorithms, FIPS Phase 2 validation"
+   ```
+
+**Why separate**: GitHub Contents API has a 100MB limit and isn't suitable for binary artifacts. The `gh` CLI or Releases API should be used instead.
 
 ---
 

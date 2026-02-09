@@ -1207,6 +1207,13 @@ export async function registerRoutes(
   // GITHUB FILE MANAGER API (Admin Only)
   // =====================================================
 
+  // Resolve GitHub token: per-user DB token first, then GITHUB_TOKEN env var fallback
+  const resolveGitHubToken = (adminUser: any): string | null => {
+    if (adminUser?.githubToken) return adminUser.githubToken;
+    if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+    return null;
+  };
+
   // Middleware to check admin access
   const requireAdmin = async (req: any, res: any, next: any) => {
     if (!req.isAuthenticated?.() || !req.user?.claims?.sub) {
@@ -1242,8 +1249,9 @@ export async function registerRoutes(
   // Check if GitHub token is configured
   app.get("/api/github/status", requireAdmin, async (req: any, res) => {
     try {
-      const hasToken = !!req.adminUser.githubToken;
-      res.json({ success: true, hasToken });
+      const token = resolveGitHubToken(req.adminUser);
+      const tokenSource = req.adminUser?.githubToken ? "user" : (process.env.GITHUB_TOKEN ? "env" : "none");
+      res.json({ success: true, hasToken: !!token, tokenSource });
     } catch (error) {
       res.status(500).json({ error: "Failed to check status" });
     }
@@ -1261,7 +1269,7 @@ export async function registerRoutes(
   app.get("/api/github/repos/:owner/:repo/branches", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
       
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1297,7 +1305,7 @@ export async function registerRoutes(
       const { owner, repo } = req.params;
       const path = sanitizePath((req.query.path as string) || "");
       const branch = (req.query.branch as string) || "";
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
       
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1338,7 +1346,7 @@ export async function registerRoutes(
       const { owner, repo } = req.params;
       const path = sanitizePath((req.query.path as string) || "");
       const branch = (req.query.branch as string) || "";
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
       
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1393,7 +1401,7 @@ export async function registerRoutes(
   app.put("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
       
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1462,7 +1470,7 @@ export async function registerRoutes(
   app.delete("/api/github/file/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
       
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1523,7 +1531,7 @@ export async function registerRoutes(
   app.post("/api/github/push-workflows/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
 
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1597,7 +1605,12 @@ export async function registerRoutes(
             results.push({ file: fileName, status: "success" });
           } else {
             const errorData = await pushResponse.json().catch(() => ({}));
-            results.push({ file: fileName, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
+            const httpStatus = pushResponse.status;
+            let errorMsg = (errorData as any).message || `HTTP ${httpStatus}`;
+            if (httpStatus === 403 || httpStatus === 422) {
+              errorMsg += " — Your GitHub token likely needs the 'workflow' scope to push to .github/workflows/. Regenerate your PAT with 'workflow' scope enabled.";
+            }
+            results.push({ file: fileName, status: "error", error: errorMsg });
           }
         } catch (fileError: any) {
           results.push({ file: fileName, status: "error", error: fileError.message });
@@ -1606,10 +1619,11 @@ export async function registerRoutes(
 
       const succeeded = results.filter(r => r.status === "success").length;
       const failed = results.filter(r => r.status === "error").length;
+      const workflowScopeHint = failed > 0 ? " If workflow pushes failed with 403/422, your token needs the 'workflow' scope." : "";
 
       res.json({
         success: failed === 0,
-        message: `Pushed ${succeeded}/${ymlFiles.length} workflow files`,
+        message: `Pushed ${succeeded}/${ymlFiles.length} workflow files.${workflowScopeHint}`,
         results
       });
     } catch (error) {
@@ -1654,7 +1668,7 @@ export async function registerRoutes(
   app.post("/api/github/push-batch/:owner/:repo", requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
-      const token = req.adminUser.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
 
       if (!token) {
         return res.status(400).json({ error: "GitHub token not configured" });
@@ -1736,7 +1750,12 @@ export async function registerRoutes(
             results.push({ file: file.githubPath, status: "success" });
           } else {
             const errorData = await pushResponse.json().catch(() => ({}));
-            results.push({ file: file.githubPath, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
+            const httpStatus = pushResponse.status;
+            let errorMsg = (errorData as any).message || `HTTP ${httpStatus}`;
+            if ((httpStatus === 403 || httpStatus === 422) && file.githubPath.startsWith(".github/workflows/")) {
+              errorMsg += " — Token needs 'workflow' scope to push to .github/workflows/. Regenerate PAT with 'workflow' scope.";
+            }
+            results.push({ file: file.githubPath, status: "error", error: errorMsg });
           }
         } catch (fileError: any) {
           results.push({ file: file.githubPath, status: "error", error: fileError.message });
@@ -1769,7 +1788,7 @@ export async function registerRoutes(
       res.json({ 
         isAdmin: user?.isAdmin || false, 
         authenticated: true,
-        hasGithubToken: !!user?.githubToken
+        hasGithubToken: !!(user?.githubToken || process.env.GITHUB_TOKEN)
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to check status" });
@@ -2306,8 +2325,9 @@ export async function registerRoutes(
   app.post("/api/kong/save-to-github", requireAdmin, async (req: any, res) => {
     try {
       const user = req.adminUser; // Set by requireAdmin middleware
-      if (!user?.githubToken) {
-        return res.status(400).json({ error: "GitHub token not configured. Please add your GitHub token in the GitHub Manager." });
+      const token = resolveGitHubToken(user);
+      if (!token) {
+        return res.status(400).json({ error: "GitHub token not configured. Please add your GitHub token in the GitHub Manager or set GITHUB_TOKEN env var." });
       }
 
       const { owner, repo, path = "kong/kong.yaml", message = "Update Kong Konnect configuration" } = req.body;
@@ -2324,7 +2344,7 @@ export async function registerRoutes(
 
       const existingResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
         headers: {
-          "Authorization": `token ${user.githubToken}`,
+          "Authorization": `token ${token}`,
           "Accept": "application/vnd.github.v3+json"
         }
       });
@@ -2338,7 +2358,7 @@ export async function registerRoutes(
       const createResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
         method: 'PUT',
         headers: {
-          "Authorization": `token ${user.githubToken}`,
+          "Authorization": `token ${token}`,
           "Accept": "application/vnd.github.v3+json",
           "Content-Type": "application/json"
         },
@@ -2667,10 +2687,10 @@ echo "📊 View logs: docker-compose logs -f"
 
       const { cpId } = req.params;
       const { platform = "render", owner, repo } = req.body;
-      const token = req.adminUser?.githubToken;
+      const token = resolveGitHubToken(req.adminUser);
 
       if (!token) {
-        return res.status(400).json({ error: "GitHub token not configured" });
+        return res.status(400).json({ error: "GitHub token not configured. Set a personal token in GitHub Manager or ensure GITHUB_TOKEN env var is set." });
       }
 
       if (!owner || !repo) {
