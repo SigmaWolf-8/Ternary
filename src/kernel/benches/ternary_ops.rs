@@ -1,7 +1,381 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, black_box, BenchmarkId, BatchSize};
+use plenumnet_kernel::ternary::{Trit, Tryte, TernaryWord, information_density, Representation, convert_representation};
+use plenumnet_kernel::compat::gateway::{
+    binary_to_balanced_ternary, balanced_ternary_to_binary,
+    binary_bytes_to_ternary, ternary_to_binary_bytes,
+    binary_u8_to_representation_b, representation_b_to_binary_u8,
+    BinaryTernaryGateway, GatewayMode,
+};
+use plenumnet_kernel::phase::EncryptionMode;
+use plenumnet_kernel::vm::engine::TernaryVm;
+use plenumnet_kernel::vm::instruction::{Instruction, Opcode, Program};
 
-fn ternary_benchmarks(_c: &mut Criterion) {
+fn bench_trit_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trit_ops");
+
+    let a = Trit::from_a(1).unwrap();
+    let b = Trit::from_a(-1).unwrap();
+
+    group.bench_function("add", |bench| {
+        bench.iter(|| black_box(a.add(&black_box(b))))
+    });
+
+    group.bench_function("multiply", |bench| {
+        bench.iter(|| black_box(a.multiply(&black_box(b))))
+    });
+
+    group.bench_function("xor", |bench| {
+        bench.iter(|| black_box(a.xor(&black_box(b))))
+    });
+
+    group.bench_function("not", |bench| {
+        bench.iter(|| black_box(a.not()))
+    });
+
+    group.bench_function("rotate", |bench| {
+        bench.iter(|| black_box(a.rotate()))
+    });
+
+    group.bench_function("rotate_inverse", |bench| {
+        bench.iter(|| black_box(a.rotate_inverse()))
+    });
+
+    group.bench_function("to_b_bijection", |bench| {
+        bench.iter(|| black_box(a.to_b()))
+    });
+
+    group.bench_function("to_c_bijection", |bench| {
+        bench.iter(|| black_box(a.to_c()))
+    });
+
+    group.finish();
 }
 
-criterion_group!(benches, ternary_benchmarks);
+fn bench_tryte_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tryte_ops");
+
+    let ta = Tryte::from_decimal(365).unwrap();
+    let tb = Tryte::from_decimal(42).unwrap();
+
+    group.bench_function("add", |bench| {
+        bench.iter(|| black_box(ta.add(&black_box(tb))))
+    });
+
+    group.bench_function("not", |bench| {
+        bench.iter(|| black_box(ta.not()))
+    });
+
+    group.bench_function("to_decimal", |bench| {
+        bench.iter(|| black_box(ta.to_decimal()))
+    });
+
+    group.bench_function("from_decimal", |bench| {
+        bench.iter(|| black_box(Tryte::from_decimal(black_box(365))))
+    });
+
+    group.finish();
+}
+
+fn bench_representation_conversion(c: &mut Criterion) {
+    let mut group = c.benchmark_group("repr_conversion");
+
+    group.bench_function("a_to_b", |bench| {
+        bench.iter(|| black_box(convert_representation(black_box(1), Representation::A, Representation::B)))
+    });
+
+    group.bench_function("a_to_c", |bench| {
+        bench.iter(|| black_box(convert_representation(black_box(1), Representation::A, Representation::C)))
+    });
+
+    group.bench_function("b_to_a", |bench| {
+        bench.iter(|| black_box(convert_representation(black_box(2), Representation::B, Representation::A)))
+    });
+
+    group.bench_function("c_to_a", |bench| {
+        bench.iter(|| black_box(convert_representation(black_box(3), Representation::C, Representation::A)))
+    });
+
+    group.bench_function("a_to_b_roundtrip", |bench| {
+        bench.iter(|| {
+            let b = convert_representation(black_box(1), Representation::A, Representation::B);
+            black_box(convert_representation(b, Representation::B, Representation::A))
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_gateway_conversion(c: &mut Criterion) {
+    let mut group = c.benchmark_group("gateway");
+
+    group.bench_function("i64_to_balanced_ternary/small", |bench| {
+        bench.iter(|| black_box(binary_to_balanced_ternary(black_box(42))))
+    });
+
+    group.bench_function("i64_to_balanced_ternary/large", |bench| {
+        bench.iter(|| black_box(binary_to_balanced_ternary(black_box(1_000_000_000))))
+    });
+
+    group.bench_function("i64_roundtrip/small", |bench| {
+        bench.iter(|| {
+            let trits = binary_to_balanced_ternary(black_box(42));
+            black_box(balanced_ternary_to_binary(&trits).unwrap())
+        })
+    });
+
+    for size in [16, 64, 256, 1024] {
+        let data: Vec<u8> = (0..size).map(|i| (i * 37 + 17) as u8).collect();
+
+        group.bench_with_input(
+            BenchmarkId::new("bytes_to_ternary", size),
+            &data,
+            |bench, data| {
+                bench.iter(|| black_box(binary_bytes_to_ternary(black_box(data))))
+            },
+        );
+
+        let trits = binary_bytes_to_ternary(&data);
+        group.bench_with_input(
+            BenchmarkId::new("ternary_to_bytes", size),
+            &trits,
+            |bench, trits| {
+                bench.iter(|| black_box(ternary_to_binary_bytes(black_box(trits)).unwrap()))
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("bytes_roundtrip", size),
+            &data,
+            |bench, data| {
+                bench.iter(|| {
+                    let trits = binary_bytes_to_ternary(black_box(data));
+                    black_box(ternary_to_binary_bytes(&trits).unwrap())
+                })
+            },
+        );
+    }
+
+    group.bench_function("u8_to_repr_b", |bench| {
+        bench.iter(|| black_box(binary_u8_to_representation_b(black_box(200))))
+    });
+
+    group.bench_function("repr_b_roundtrip", |bench| {
+        bench.iter(|| {
+            let rep = binary_u8_to_representation_b(black_box(200));
+            black_box(representation_b_to_binary_u8(&rep).unwrap())
+        })
+    });
+
+    for mode in [GatewayMode::Strict, GatewayMode::Balanced, GatewayMode::Lossy] {
+        let data: Vec<u8> = (0..256).map(|i| i as u8).collect();
+        group.bench_with_input(
+            BenchmarkId::new("gateway_256b", format!("{:?}", mode)),
+            &(data, mode),
+            |bench, (data, mode)| {
+                bench.iter_batched(
+                    || BinaryTernaryGateway::new(*mode),
+                    |mut gw| {
+                        let trits = gw.convert_to_ternary(black_box(data)).unwrap();
+                        black_box(gw.convert_to_binary(&trits).unwrap())
+                    },
+                    BatchSize::SmallInput,
+                )
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_information_density(c: &mut Criterion) {
+    let mut group = c.benchmark_group("info_density");
+
+    for n in [1, 6, 12, 18, 27] {
+        group.bench_with_input(
+            BenchmarkId::new("calculate", n),
+            &n,
+            |bench, &n| {
+                bench.iter(|| black_box(information_density(black_box(n))))
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_vm_instructions(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vm_instructions");
+
+    group.bench_function("add_instruction", |bench| {
+        bench.iter_batched(
+            || {
+                let mut vm = TernaryVm::new(4096);
+                vm.set_register(0, 100).unwrap();
+                vm.set_register(1, 200).unwrap();
+                vm
+            },
+            |mut vm| {
+                let inst = Instruction::new(Opcode::Add, 2, 0, 1, 0);
+                vm.execute_instruction(&inst).unwrap();
+                black_box(vm.get_register(2).unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("tadd_instruction", |bench| {
+        bench.iter_batched(
+            || {
+                let mut vm = TernaryVm::new(4096);
+                vm.set_register(0, 1).unwrap();
+                vm.set_register(1, -1).unwrap();
+                vm
+            },
+            |mut vm| {
+                let inst = Instruction::new(Opcode::TAdd, 2, 0, 1, 0);
+                vm.execute_instruction(&inst).unwrap();
+                black_box(vm.get_register(2).unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("tmul_instruction", |bench| {
+        bench.iter_batched(
+            || {
+                let mut vm = TernaryVm::new(4096);
+                vm.set_register(0, 1).unwrap();
+                vm.set_register(1, 1).unwrap();
+                vm
+            },
+            |mut vm| {
+                let inst = Instruction::new(Opcode::TMul, 2, 0, 1, 0);
+                vm.execute_instruction(&inst).unwrap();
+                black_box(vm.get_register(2).unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("load_store_cycle", |bench| {
+        bench.iter_batched(
+            || {
+                let mut vm = TernaryVm::new(4096);
+                vm.set_register(0, 0).unwrap();
+                vm.set_register(1, 42).unwrap();
+                vm
+            },
+            |mut vm| {
+                let store = Instruction::new(Opcode::Store, 1, 0, 0, 0);
+                vm.execute_instruction(&store).unwrap();
+                let load = Instruction::new(Opcode::Load, 2, 0, 0, 0);
+                vm.execute_instruction(&load).unwrap();
+                black_box(vm.get_register(2).unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("push_pop_cycle", |bench| {
+        bench.iter_batched(
+            || {
+                let mut vm = TernaryVm::new(4096);
+                vm.set_register(0, 42).unwrap();
+                vm
+            },
+            |mut vm| {
+                let push = Instruction::new(Opcode::Push, 0, 0, 0, 0);
+                vm.execute_instruction(&push).unwrap();
+                let pop = Instruction::new(Opcode::Pop, 1, 0, 0, 0);
+                vm.execute_instruction(&pop).unwrap();
+                black_box(vm.get_register(1).unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("instruction_encode", |bench| {
+        let inst = Instruction::new(Opcode::Add, 0, 1, 2, 42);
+        bench.iter(|| black_box(inst.encode()))
+    });
+
+    group.bench_function("instruction_decode", |bench| {
+        let inst = Instruction::new(Opcode::Add, 0, 1, 2, 42);
+        let bytes = inst.encode();
+        bench.iter(|| black_box(Instruction::decode(black_box(&bytes)).unwrap()))
+    });
+
+    group.finish();
+}
+
+fn bench_vm_programs(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vm_programs");
+
+    group.bench_function("fibonacci_10", |bench| {
+        bench.iter_batched(
+            || {
+                let mut prog = Program::new("fibonacci");
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 0));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 3, 0, 0, 10));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 4, 0, 0, 0));
+                prog.add_instruction(Instruction::new(Opcode::Add, 2, 0, 1, 0));
+                prog.add_instruction(Instruction::new(Opcode::Move, 0, 1, 0, 0));
+                prog.add_instruction(Instruction::new(Opcode::Move, 1, 2, 0, 0));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 5, 0, 0, 1));
+                prog.add_instruction(Instruction::new(Opcode::Add, 4, 4, 5, 0));
+                prog.add_instruction(Instruction::new(Opcode::Cmp, 0, 4, 3, 0));
+                prog.add_instruction(Instruction::new(Opcode::JumpNeg, 0, 0, 0, 4));
+                prog.add_instruction(Instruction::new(Opcode::Halt, 0, 0, 0, 0));
+                let mut vm = TernaryVm::new(4096);
+                vm.load_program(prog).unwrap();
+                vm
+            },
+            |mut vm| {
+                black_box(vm.run().unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.bench_function("ternary_gf3_batch_100", |bench| {
+        bench.iter_batched(
+            || {
+                let mut prog = Program::new("gf3_batch");
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, -1));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 3, 0, 0, 100));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 4, 0, 0, 0));
+                prog.add_instruction(Instruction::new(Opcode::TAdd, 2, 0, 1, 0));
+                prog.add_instruction(Instruction::new(Opcode::TMul, 2, 2, 0, 0));
+                prog.add_instruction(Instruction::new(Opcode::TRot, 0, 0, 2, 0));
+                prog.add_instruction(Instruction::new(Opcode::LoadImm, 5, 0, 0, 1));
+                prog.add_instruction(Instruction::new(Opcode::Add, 4, 4, 5, 0));
+                prog.add_instruction(Instruction::new(Opcode::Cmp, 0, 4, 3, 0));
+                prog.add_instruction(Instruction::new(Opcode::JumpNeg, 0, 0, 0, 4));
+                prog.add_instruction(Instruction::new(Opcode::Halt, 0, 0, 0, 0));
+                let mut vm = TernaryVm::new(4096);
+                vm.load_program(prog).unwrap();
+                vm
+            },
+            |mut vm| {
+                black_box(vm.run().unwrap())
+            },
+            BatchSize::SmallInput,
+        )
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_trit_operations,
+    bench_tryte_operations,
+    bench_representation_conversion,
+    bench_gateway_conversion,
+    bench_information_density,
+    bench_vm_instructions,
+    bench_vm_programs,
+);
 criterion_main!(benches);

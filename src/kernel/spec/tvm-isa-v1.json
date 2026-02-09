@@ -1,0 +1,75 @@
+{
+  "spec_version": "1.0.0",
+  "title": "PlenumNET Ternary Virtual Machine ISA",
+  "architecture": {
+    "name": "TVM",
+    "word_size": 64,
+    "register_count": 27,
+    "register_width_bits": 64,
+    "instruction_width_bytes": 16,
+    "endianness": "little",
+    "stack_model": "LIFO",
+    "max_stack_depth": 4096,
+    "ternary_field": "GF(3)"
+  },
+  "instruction_encoding": {
+    "format": "fixed-width-16-byte",
+    "fields": [
+      { "name": "opcode", "offset": 0, "size": 1, "type": "u8" },
+      { "name": "dst", "offset": 1, "size": 1, "type": "u8" },
+      { "name": "src1", "offset": 2, "size": 1, "type": "u8" },
+      { "name": "src2", "offset": 3, "size": 1, "type": "u8" },
+      { "name": "immediate", "offset": 4, "size": 8, "type": "i64_le" },
+      { "name": "reserved", "offset": 12, "size": 4, "type": "padding" }
+    ]
+  },
+  "opcodes": {
+    "0x00": { "mnemonic": "NOP", "category": "arithmetic", "operands": [], "behavior": "no-op" },
+    "0x01": { "mnemonic": "HALT", "category": "arithmetic", "operands": [], "behavior": "flags.halted = true", "flags": ["halted"] },
+    "0x02": { "mnemonic": "ADD", "category": "arithmetic", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 + src2", "flags": ["zero", "negative", "overflow"] },
+    "0x03": { "mnemonic": "SUB", "category": "arithmetic", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 - src2", "flags": ["zero", "negative", "overflow"] },
+    "0x04": { "mnemonic": "MUL", "category": "arithmetic", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 * src2", "flags": ["zero", "negative", "overflow"] },
+    "0x05": { "mnemonic": "DIV", "category": "arithmetic", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 / src2", "flags": ["zero", "negative"], "errors": ["DivisionByZero"] },
+    "0x06": { "mnemonic": "MOD", "category": "arithmetic", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 % src2", "flags": ["zero", "negative"], "errors": ["DivisionByZero"] },
+    "0x07": { "mnemonic": "NEG", "category": "arithmetic", "operands": ["dst", "src1"], "behavior": "dst = -src1", "flags": ["zero", "negative"] },
+    "0x10": { "mnemonic": "TADD", "category": "ternary", "operands": ["dst", "src1", "src2"], "behavior": "dst = (src1 + src2) mod 3 [GF(3)]", "flags": ["zero", "negative"] },
+    "0x11": { "mnemonic": "TMUL", "category": "ternary", "operands": ["dst", "src1", "src2"], "behavior": "dst = (src1 * src2) mod 3 [GF(3)]", "flags": ["zero", "negative"] },
+    "0x12": { "mnemonic": "TNEG", "category": "ternary", "operands": ["dst", "src1"], "behavior": "dst = -src1 [GF(3)]", "flags": ["zero", "negative"] },
+    "0x13": { "mnemonic": "TROT", "category": "ternary", "operands": ["dst", "src1", "src2"], "behavior": "dst = rotate(src1, src2 mod 3)", "flags": ["zero", "negative"] },
+    "0x14": { "mnemonic": "TXOR", "category": "ternary", "operands": ["dst", "src1", "src2"], "behavior": "dst = (src1 + src2) mod 3 [GF(3)]", "flags": ["zero", "negative"] },
+    "0x15": { "mnemonic": "TCONVERT", "category": "ternary", "operands": ["dst", "src1", "src2", "immediate"], "behavior": "dst = convert(src1, from=src2, to=immediate)", "flags": ["zero", "negative"] },
+    "0x20": { "mnemonic": "LOAD", "category": "memory", "operands": ["dst", "src1", "immediate"], "behavior": "dst = mem[src1 + immediate]", "errors": ["SegmentationFault"] },
+    "0x21": { "mnemonic": "STORE", "category": "memory", "operands": ["dst", "src1", "immediate"], "behavior": "mem[src1 + immediate] = dst", "errors": ["SegmentationFault"] },
+    "0x22": { "mnemonic": "MOVE", "category": "memory", "operands": ["dst", "src1"], "behavior": "dst = src1" },
+    "0x23": { "mnemonic": "LOADIMM", "category": "memory", "operands": ["dst", "immediate"], "behavior": "dst = immediate" },
+    "0x24": { "mnemonic": "PUSH", "category": "memory", "operands": ["src1"], "behavior": "stack.push(src1)", "errors": ["StackOverflow"] },
+    "0x25": { "mnemonic": "POP", "category": "memory", "operands": ["dst"], "behavior": "dst = stack.pop()", "errors": ["StackUnderflow"] },
+    "0x30": { "mnemonic": "JUMP", "category": "control", "operands": ["immediate"], "behavior": "PC = immediate" },
+    "0x31": { "mnemonic": "JUMPZERO", "category": "control", "operands": ["immediate"], "behavior": "if zero: PC = immediate" },
+    "0x32": { "mnemonic": "JUMPNEG", "category": "control", "operands": ["immediate"], "behavior": "if negative: PC = immediate" },
+    "0x33": { "mnemonic": "JUMPPOS", "category": "control", "operands": ["immediate"], "behavior": "if !zero && !negative: PC = immediate" },
+    "0x34": { "mnemonic": "CALL", "category": "control", "operands": ["immediate"], "behavior": "stack.push(PC); PC = immediate", "errors": ["StackOverflow"] },
+    "0x35": { "mnemonic": "RETURN", "category": "control", "operands": [], "behavior": "PC = stack.pop()", "errors": ["StackUnderflow"] },
+    "0x36": { "mnemonic": "JUMPNOTZERO", "category": "control", "operands": ["immediate"], "behavior": "if !zero: PC = immediate" },
+    "0x40": { "mnemonic": "CMP", "category": "compare", "operands": ["src1", "src2"], "behavior": "update_flags(src1 - src2)", "flags": ["zero", "negative"] },
+    "0x41": { "mnemonic": "CMPIMM", "category": "compare", "operands": ["src1", "immediate"], "behavior": "update_flags(src1 - immediate)", "flags": ["zero", "negative"] },
+    "0x50": { "mnemonic": "AND", "category": "bitwise", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 & src2", "flags": ["zero", "negative"] },
+    "0x51": { "mnemonic": "OR", "category": "bitwise", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 | src2", "flags": ["zero", "negative"] },
+    "0x52": { "mnemonic": "XOR", "category": "bitwise", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 ^ src2", "flags": ["zero", "negative"] },
+    "0x53": { "mnemonic": "SHL", "category": "bitwise", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 << (src2 & 63)", "flags": ["zero", "negative"] },
+    "0x54": { "mnemonic": "SHR", "category": "bitwise", "operands": ["dst", "src1", "src2"], "behavior": "dst = src1 >> (src2 & 63)", "flags": ["zero", "negative"] },
+    "0x55": { "mnemonic": "NOT", "category": "bitwise", "operands": ["dst", "src1"], "behavior": "dst = !src1", "flags": ["zero", "negative"] }
+  },
+  "conformance_tests": {
+    "gf3_addition": [
+      [-1, -1, 1], [-1, 0, -1], [-1, 1, 0],
+      [0, -1, -1], [0, 0, 0], [0, 1, 1],
+      [1, -1, 0], [1, 0, 1], [1, 1, -1]
+    ],
+    "gf3_multiplication": [
+      [-1, -1, 1], [-1, 0, 0], [-1, 1, -1],
+      [0, -1, 0], [0, 0, 0], [0, 1, 0],
+      [1, -1, -1], [1, 0, 0], [1, 1, 1]
+    ]
+  }
+}

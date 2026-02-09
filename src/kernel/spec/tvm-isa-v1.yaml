@@ -1,0 +1,650 @@
+spec_version: "1.0.0"
+title: "PlenumNET Ternary Virtual Machine ISA"
+description: "Formal specification for the 35-opcode Ternary VM instruction set"
+copyright: "Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved."
+architecture:
+  name: "TVM (Ternary Virtual Machine)"
+  word_size: 64
+  register_count: 27
+  register_width_bits: 64
+  instruction_width_bytes: 16
+  endianness: "little"
+  stack_model: "LIFO"
+  max_stack_depth: 4096
+  ternary_field: "GF(3)"
+
+representations:
+  A:
+    name: "Computational"
+    domain: [-1, 0, 1]
+    purpose: "Arithmetic operations"
+  B:
+    name: "Network"
+    domain: [0, 1, 2]
+    purpose: "Network transmission"
+  C:
+    name: "Human"
+    domain: [1, 2, 3]
+    purpose: "Human-readable display"
+
+bijections:
+  A_to_B: "f(a) = a + 1"
+  A_to_C: "f(a) = a + 2"
+  B_to_C: "f(b) = b + 1"
+
+instruction_encoding:
+  format: "fixed-width 16-byte"
+  layout:
+    - { field: "opcode",    offset: 0,  size: 1, type: "u8"  }
+    - { field: "dst",       offset: 1,  size: 1, type: "u8"  }
+    - { field: "src1",      offset: 2,  size: 1, type: "u8"  }
+    - { field: "src2",      offset: 3,  size: 1, type: "u8"  }
+    - { field: "immediate", offset: 4,  size: 8, type: "i64_le" }
+    - { field: "reserved",  offset: 12, size: 4, type: "padding" }
+
+flags:
+  zero:
+    bit: 0
+    description: "Set when result equals zero"
+  negative:
+    bit: 1
+    description: "Set when result is negative"
+  overflow:
+    bit: 2
+    description: "Set on arithmetic overflow"
+  ternary:
+    bit: 3
+    description: "Set when operating in ternary mode"
+  halted:
+    bit: 4
+    description: "Set when VM is halted"
+
+categories:
+  arithmetic:
+    description: "Standard integer arithmetic"
+    opcode_range: "0x00-0x07"
+  ternary:
+    description: "GF(3) ternary arithmetic"
+    opcode_range: "0x10-0x15"
+  memory:
+    description: "Memory and data transfer"
+    opcode_range: "0x20-0x25"
+  control:
+    description: "Control flow"
+    opcode_range: "0x30-0x36"
+  compare:
+    description: "Comparison operations"
+    opcode_range: "0x40-0x41"
+  bitwise:
+    description: "Bitwise logic operations"
+    opcode_range: "0x50-0x55"
+
+opcodes:
+  # ═══════════════════════════════════════════
+  # ARITHMETIC OPERATIONS (0x00 - 0x07)
+  # ═══════════════════════════════════════════
+  - mnemonic: "NOP"
+    opcode: 0x00
+    category: "arithmetic"
+    operands: []
+    description: "No operation. Advances program counter without side effects."
+    behavior: "PC += 1"
+    flags_affected: []
+    errors: []
+    cycles: 1
+
+  - mnemonic: "HALT"
+    opcode: 0x01
+    category: "arithmetic"
+    operands: []
+    description: "Halts VM execution. Sets halted flag."
+    behavior: "flags.halted = true"
+    flags_affected: ["halted"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "ADD"
+    opcode: 0x02
+    category: "arithmetic"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Add two registers with overflow detection."
+    behavior: "(dst, overflow) = src1.overflowing_add(src2)"
+    flags_affected: ["zero", "negative", "overflow"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "SUB"
+    opcode: 0x03
+    category: "arithmetic"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Subtract src2 from src1 with overflow detection."
+    behavior: "(dst, overflow) = src1.overflowing_sub(src2)"
+    flags_affected: ["zero", "negative", "overflow"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "MUL"
+    opcode: 0x04
+    category: "arithmetic"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Multiply two registers with overflow detection."
+    behavior: "(dst, overflow) = src1.overflowing_mul(src2)"
+    flags_affected: ["zero", "negative", "overflow"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "DIV"
+    opcode: 0x05
+    category: "arithmetic"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Integer division of src1 by src2."
+    behavior: "dst = src1 / src2"
+    flags_affected: ["zero", "negative"]
+    errors: ["DivisionByZero if src2 == 0"]
+    cycles: 1
+
+  - mnemonic: "MOD"
+    opcode: 0x06
+    category: "arithmetic"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Modulo of src1 by src2."
+    behavior: "dst = src1 % src2"
+    flags_affected: ["zero", "negative"]
+    errors: ["DivisionByZero if src2 == 0"]
+    cycles: 1
+
+  - mnemonic: "NEG"
+    opcode: 0x07
+    category: "arithmetic"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+    description: "Two's complement negation."
+    behavior: "dst = -src1"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  # ═══════════════════════════════════════════
+  # TERNARY OPERATIONS (0x10 - 0x15)
+  # ═══════════════════════════════════════════
+  - mnemonic: "TADD"
+    opcode: 0x10
+    category: "ternary"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "GF(3) addition. Maps register values to GF(3) via rem_euclid(3), adds, normalizes to balanced ternary."
+    behavior: |
+      a_gf = src1.rem_euclid(3)
+      b_gf = src2.rem_euclid(3)
+      sum = (a_gf + b_gf) % 3
+      dst = if sum > 1 then sum - 3 else sum
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+    field: "GF(3)"
+
+  - mnemonic: "TMUL"
+    opcode: 0x11
+    category: "ternary"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "GF(3) multiplication. Maps register values to GF(3) via rem_euclid(3), multiplies, normalizes."
+    behavior: |
+      a_gf = src1.rem_euclid(3)
+      b_gf = src2.rem_euclid(3)
+      product = (a_gf * b_gf) % 3
+      dst = if product > 1 then product - 3 else product
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+    field: "GF(3)"
+
+  - mnemonic: "TNEG"
+    opcode: 0x12
+    category: "ternary"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+    description: "Ternary negation. Equivalent to additive inverse in GF(3)."
+    behavior: "dst = -src1"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+    field: "GF(3)"
+
+  - mnemonic: "TROT"
+    opcode: 0x13
+    category: "ternary"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Ternary rotation. Cycles values through -1 -> 0 -> 1 -> -1, repeated src2 mod 3 times."
+    behavior: |
+      val = src1
+      rot_count = src2.rem_euclid(3)
+      repeat rot_count times:
+        val = match val { -1 => 0, 0 => 1, 1 => -1, _ => val }
+      dst = val
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+    field: "GF(3)"
+
+  - mnemonic: "TXOR"
+    opcode: 0x14
+    category: "ternary"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Ternary XOR in GF(3). Identical to TADD (addition modulo 3)."
+    behavior: |
+      a_gf = src1.rem_euclid(3)
+      b_gf = src2.rem_euclid(3)
+      sum = (a_gf + b_gf) % 3
+      dst = if sum > 1 then sum - 3 else sum
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+    field: "GF(3)"
+
+  - mnemonic: "TCONVERT"
+    opcode: 0x15
+    category: "ternary"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source", description: "Value to convert" }
+      - { name: "src2", type: "register", role: "source", description: "Source representation (0=A, 1=B, 2=C)" }
+      - { name: "immediate", type: "i64", role: "parameter", description: "Target representation (0=A, 1=B, 2=C)" }
+    description: "Convert between ternary representations A, B, C using bijection formulas."
+    behavior: |
+      a_val = match src2 { 0 => src1, 1 => src1 - 1, 2 => src1 - 2, _ => src1 }
+      dst = match immediate { 0 => a_val, 1 => a_val + 1, 2 => a_val + 2, _ => a_val }
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+    field: "GF(3)"
+
+  # ═══════════════════════════════════════════
+  # MEMORY OPERATIONS (0x20 - 0x25)
+  # ═══════════════════════════════════════════
+  - mnemonic: "LOAD"
+    opcode: 0x20
+    category: "memory"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "base_address" }
+      - { name: "immediate", type: "i64", role: "offset" }
+    description: "Load 64-bit value from memory at base + offset into register."
+    behavior: "dst = mem[src1 + immediate] (8 bytes, little-endian)"
+    flags_affected: []
+    errors: ["SegmentationFault", "InvalidMemoryAccess"]
+    cycles: 1
+
+  - mnemonic: "STORE"
+    opcode: 0x21
+    category: "memory"
+    operands:
+      - { name: "dst", type: "register", role: "value_source" }
+      - { name: "src1", type: "register", role: "base_address" }
+      - { name: "immediate", type: "i64", role: "offset" }
+    description: "Store 64-bit register value to memory at base + offset."
+    behavior: "mem[src1 + immediate] = dst (8 bytes, little-endian)"
+    flags_affected: []
+    errors: ["SegmentationFault", "InvalidMemoryAccess"]
+    cycles: 1
+
+  - mnemonic: "MOVE"
+    opcode: 0x22
+    category: "memory"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+    description: "Copy value from src1 to dst register."
+    behavior: "dst = src1"
+    flags_affected: []
+    errors: []
+    cycles: 1
+
+  - mnemonic: "LOADIMM"
+    opcode: 0x23
+    category: "memory"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "immediate", type: "i64", role: "value" }
+    description: "Load immediate 64-bit value into register."
+    behavior: "dst = immediate"
+    flags_affected: []
+    errors: []
+    cycles: 1
+
+  - mnemonic: "PUSH"
+    opcode: 0x24
+    category: "memory"
+    operands:
+      - { name: "src1", type: "register", role: "source" }
+    description: "Push register value onto the stack."
+    behavior: "stack.push(src1)"
+    flags_affected: []
+    errors: ["StackOverflow"]
+    cycles: 1
+
+  - mnemonic: "POP"
+    opcode: 0x25
+    category: "memory"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+    description: "Pop top value from stack into register."
+    behavior: "dst = stack.pop()"
+    flags_affected: []
+    errors: ["StackUnderflow"]
+    cycles: 1
+
+  # ═══════════════════════════════════════════
+  # CONTROL FLOW OPERATIONS (0x30 - 0x36)
+  # ═══════════════════════════════════════════
+  - mnemonic: "JUMP"
+    opcode: 0x30
+    category: "control"
+    operands:
+      - { name: "immediate", type: "i64", role: "target_address" }
+    description: "Unconditional jump to target address."
+    behavior: "PC = immediate"
+    flags_affected: []
+    errors: ["ProgramCounterOutOfBounds"]
+    cycles: 1
+
+  - mnemonic: "JUMPZERO"
+    opcode: 0x31
+    category: "control"
+    operands:
+      - { name: "immediate", type: "i64", role: "target_address" }
+    description: "Jump to target if zero flag is set."
+    behavior: "if flags.zero then PC = immediate"
+    flags_affected: []
+    errors: ["ProgramCounterOutOfBounds"]
+    cycles: 1
+
+  - mnemonic: "JUMPNEG"
+    opcode: 0x32
+    category: "control"
+    operands:
+      - { name: "immediate", type: "i64", role: "target_address" }
+    description: "Jump to target if negative flag is set."
+    behavior: "if flags.negative then PC = immediate"
+    flags_affected: []
+    errors: ["ProgramCounterOutOfBounds"]
+    cycles: 1
+
+  - mnemonic: "JUMPPOS"
+    opcode: 0x33
+    category: "control"
+    operands:
+      - { name: "immediate", type: "i64", role: "target_address" }
+    description: "Jump to target if result is positive (not zero and not negative)."
+    behavior: "if !flags.zero && !flags.negative then PC = immediate"
+    flags_affected: []
+    errors: ["ProgramCounterOutOfBounds"]
+    cycles: 1
+
+  - mnemonic: "CALL"
+    opcode: 0x34
+    category: "control"
+    operands:
+      - { name: "immediate", type: "i64", role: "target_address" }
+    description: "Call subroutine. Pushes return address (current PC) onto stack, jumps to target."
+    behavior: |
+      stack.push(PC)
+      PC = immediate
+    flags_affected: []
+    errors: ["StackOverflow", "ProgramCounterOutOfBounds"]
+    cycles: 1
+
+  - mnemonic: "RETURN"
+    opcode: 0x35
+    category: "control"
+    operands: []
+    description: "Return from subroutine. Pops return address from stack."
+    behavior: "PC = stack.pop()"
+    flags_affected: []
+    errors: ["StackUnderflow"]
+    cycles: 1
+
+  - mnemonic: "JUMPNOTZERO"
+    opcode: 0x36
+    category: "control"
+    operands:
+      - { name: "immediate", type: "i64", role: "target_address" }
+    description: "Jump to target if zero flag is NOT set."
+    behavior: "if !flags.zero then PC = immediate"
+    flags_affected: []
+    errors: ["ProgramCounterOutOfBounds"]
+    cycles: 1
+
+  # ═══════════════════════════════════════════
+  # COMPARISON OPERATIONS (0x40 - 0x41)
+  # ═══════════════════════════════════════════
+  - mnemonic: "CMP"
+    opcode: 0x40
+    category: "compare"
+    operands:
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Compare two registers by subtraction. Sets flags but discards result."
+    behavior: "result = src1.wrapping_sub(src2); update_flags(result)"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "CMPIMM"
+    opcode: 0x41
+    category: "compare"
+    operands:
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "immediate", type: "i64", role: "comparand" }
+    description: "Compare register against immediate value. Sets flags but discards result."
+    behavior: "result = src1.wrapping_sub(immediate); update_flags(result)"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  # ═══════════════════════════════════════════
+  # BITWISE OPERATIONS (0x50 - 0x55)
+  # ═══════════════════════════════════════════
+  - mnemonic: "AND"
+    opcode: 0x50
+    category: "bitwise"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Bitwise AND of two registers."
+    behavior: "dst = src1 & src2"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "OR"
+    opcode: 0x51
+    category: "bitwise"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Bitwise OR of two registers."
+    behavior: "dst = src1 | src2"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "XOR"
+    opcode: 0x52
+    category: "bitwise"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Bitwise XOR of two registers."
+    behavior: "dst = src1 ^ src2"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "SHL"
+    opcode: 0x53
+    category: "bitwise"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Left shift src1 by (src2 & 63) positions."
+    behavior: "dst = src1 << (src2 & 63)"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "SHR"
+    opcode: 0x54
+    category: "bitwise"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+      - { name: "src2", type: "register", role: "source" }
+    description: "Arithmetic right shift src1 by (src2 & 63) positions."
+    behavior: "dst = src1 >> (src2 & 63)"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+  - mnemonic: "NOT"
+    opcode: 0x55
+    category: "bitwise"
+    operands:
+      - { name: "dst", type: "register", role: "destination" }
+      - { name: "src1", type: "register", role: "source" }
+    description: "Bitwise NOT (one's complement) of register."
+    behavior: "dst = !src1"
+    flags_affected: ["zero", "negative"]
+    errors: []
+    cycles: 1
+
+errors:
+  - name: "InvalidOpcode"
+    code: 1
+    description: "Opcode byte does not correspond to any defined instruction"
+  - name: "InvalidRegister"
+    code: 2
+    description: "Register index exceeds 26 (max index for 27 registers)"
+  - name: "StackOverflow"
+    code: 3
+    description: "Stack has reached maximum depth (4096)"
+  - name: "StackUnderflow"
+    code: 4
+    description: "Pop or return attempted on empty stack"
+  - name: "DivisionByZero"
+    code: 5
+    description: "Division or modulo by zero"
+  - name: "SegmentationFault"
+    code: 6
+    description: "Memory access outside allocated region"
+  - name: "InvalidMemoryAccess"
+    code: 7
+    description: "Memory access would exceed region bounds"
+  - name: "ProgramCounterOutOfBounds"
+    code: 8
+    description: "PC points beyond program instruction count"
+  - name: "HaltRequested"
+    code: 9
+    description: "HALT instruction executed (not a true error)"
+  - name: "InvalidProgram"
+    code: 10
+    description: "Program validation failed (empty, invalid opcodes, etc.)"
+  - name: "OutOfMemory"
+    code: 11
+    description: "Memory allocation failed"
+  - name: "GcError"
+    code: 12
+    description: "Garbage collector encountered an error"
+  - name: "TernaryOverflow"
+    code: 13
+    description: "Ternary operation produced value outside GF(3)"
+  - name: "InvalidTritValue"
+    code: 14
+    description: "Trit value outside valid range for current representation"
+
+program_format:
+  structure:
+    instructions: "Vec<Instruction>"
+    entry_point: "u64 (instruction index)"
+    name: "String"
+    data_segment: "Vec<u8>"
+  validation_rules:
+    - "Program must contain at least one instruction"
+    - "All register indices must be in range [0, 26]"
+    - "All opcodes must be valid"
+    - "Entry point must be within instruction count"
+
+conformance_tests:
+  - name: "GF(3) Addition Table"
+    description: "Verify TADD produces correct results for all 9 input pairs"
+    test_vectors:
+      - { src1: -1, src2: -1, expected: 1 }
+      - { src1: -1, src2: 0,  expected: -1 }
+      - { src1: -1, src2: 1,  expected: 0 }
+      - { src1: 0,  src2: -1, expected: -1 }
+      - { src1: 0,  src2: 0,  expected: 0 }
+      - { src1: 0,  src2: 1,  expected: 1 }
+      - { src1: 1,  src2: -1, expected: 0 }
+      - { src1: 1,  src2: 0,  expected: 1 }
+      - { src1: 1,  src2: 1,  expected: -1 }
+
+  - name: "GF(3) Multiplication Table"
+    description: "Verify TMUL produces correct results for all 9 input pairs"
+    test_vectors:
+      - { src1: -1, src2: -1, expected: 1 }
+      - { src1: -1, src2: 0,  expected: 0 }
+      - { src1: -1, src2: 1,  expected: -1 }
+      - { src1: 0,  src2: -1, expected: 0 }
+      - { src1: 0,  src2: 0,  expected: 0 }
+      - { src1: 0,  src2: 1,  expected: 0 }
+      - { src1: 1,  src2: -1, expected: -1 }
+      - { src1: 1,  src2: 0,  expected: 0 }
+      - { src1: 1,  src2: 1,  expected: 1 }
+
+  - name: "Representation Conversion Roundtrip"
+    description: "Verify TCONVERT bijections are lossless"
+    test_vectors:
+      - { value: -1, from: 0, to: 1, expected: 0 }
+      - { value: 0,  from: 0, to: 1, expected: 1 }
+      - { value: 1,  from: 0, to: 1, expected: 2 }
+      - { value: -1, from: 0, to: 2, expected: 1 }
+      - { value: 0,  from: 0, to: 2, expected: 2 }
+      - { value: 1,  from: 0, to: 2, expected: 3 }
+
+  - name: "Ternary Rotation Period"
+    description: "Verify TROT with 3 rotations returns to original value"
+    test_vectors:
+      - { value: -1, rotations: 3, expected: -1 }
+      - { value: 0,  rotations: 3, expected: 0 }
+      - { value: 1,  rotations: 3, expected: 1 }

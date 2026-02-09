@@ -1,0 +1,25 @@
+[package]
+name = "plenumnet-wasm"
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd <kernel@plenumnet.io>"]
+description = "PlenumNET Ternary Computing - WebAssembly interface for browser-side GF(3) operations"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+
+[dependencies.plenumnet-kernel]
+path = ".."
+default-features = true
+
+[profile.release]
+opt-level = "s"
+lto = true

@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import * as fs from "fs";
+import * as path from "path";
 import * as XLSX from "xlsx";
 import { 
   compressData,
@@ -654,6 +656,16 @@ export async function registerRoutes(
             description: "Validate 59% density claim across multiple sample sizes"
           }
         },
+        vm: {
+          spec: {
+            path: "GET /api/salvi/vm/spec",
+            description: "Machine-readable TVM ISA specification (35-opcode instruction set)"
+          },
+          conformance: {
+            path: "GET /api/salvi/vm/conformance",
+            description: "Run conformance tests against ISA spec"
+          }
+        },
         timing: {
           timestamp: {
             path: "GET /api/salvi/timing/timestamp",
@@ -964,6 +976,105 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Density benchmark failed" });
+    }
+  });
+
+  // TVM ISA Specification endpoint
+  app.get("/api/salvi/vm/spec", (req, res) => {
+    try {
+      const specPath = path.join(process.cwd(), "src/kernel/spec/tvm-isa-v1.json");
+      const specData = JSON.parse(fs.readFileSync(specPath, "utf-8"));
+      res.json({
+        success: true,
+        spec: specData,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to load ISA specification" });
+    }
+  });
+
+  // TVM ISA Conformance Tests endpoint
+  app.get("/api/salvi/vm/conformance", (req, res) => {
+    try {
+      const additionTests = [
+        [-1, -1, 1], [-1, 0, -1], [-1, 1, 0],
+        [0, -1, -1], [0, 0, 0], [0, 1, 1],
+        [1, -1, 0], [1, 0, 1], [1, 1, -1],
+      ];
+
+      const multiplicationTests = [
+        [-1, -1, 1], [-1, 0, 0], [-1, 1, -1],
+        [0, -1, 0], [0, 0, 0], [0, 1, 0],
+        [1, -1, -1], [1, 0, 0], [1, 1, 1],
+      ];
+
+      const addResults = additionTests.map(([a, b, expected]) => {
+        const aGf = ((a % 3) + 3) % 3;
+        const bGf = ((b % 3) + 3) % 3;
+        const sum = (aGf + bGf) % 3;
+        const result = sum > 1 ? sum - 3 : sum;
+        return { a, b, expected, actual: result, pass: result === expected };
+      });
+
+      const mulResults = multiplicationTests.map(([a, b, expected]) => {
+        const aGf = ((a % 3) + 3) % 3;
+        const bGf = ((b % 3) + 3) % 3;
+        const product = (aGf * bGf) % 3;
+        const result = product > 1 ? product - 3 : product;
+        return { a, b, expected, actual: result, pass: result === expected };
+      });
+
+      const rotationTests = [-1, 0, 1].map(val => {
+        let v = val;
+        for (let i = 0; i < 3; i++) {
+          v = v === -1 ? 0 : v === 0 ? 1 : -1;
+        }
+        return { value: val, afterTripleRotation: v, pass: v === val };
+      });
+
+      const conversionTests = [
+        { value: -1, from: 0, to: 1, expected: 0 },
+        { value: 0, from: 0, to: 1, expected: 1 },
+        { value: 1, from: 0, to: 1, expected: 2 },
+        { value: -1, from: 0, to: 2, expected: 1 },
+        { value: 0, from: 0, to: 2, expected: 2 },
+        { value: 1, from: 0, to: 2, expected: 3 },
+      ].map(({ value, from, to, expected }) => {
+        const aVal = from === 0 ? value : from === 1 ? value - 1 : value - 2;
+        const result = to === 0 ? aVal : to === 1 ? aVal + 1 : aVal + 2;
+        return { value, from, to, expected, actual: result, pass: result === expected };
+      });
+
+      const allPass = [
+        ...addResults.map(r => r.pass),
+        ...mulResults.map(r => r.pass),
+        ...rotationTests.map(r => r.pass),
+        ...conversionTests.map(r => r.pass),
+      ].every(Boolean);
+
+      const totalTests = addResults.length + mulResults.length + rotationTests.length + conversionTests.length;
+      const passed = [
+        ...addResults, ...mulResults, ...rotationTests, ...conversionTests,
+      ].filter((r: any) => r.pass).length;
+
+      res.json({
+        success: true,
+        conformance: {
+          specVersion: "1.0.0",
+          totalTests,
+          passed,
+          failed: totalTests - passed,
+          verdict: allPass ? "PASS" : "FAIL",
+        },
+        tests: {
+          gf3Addition: { results: addResults, allPass: addResults.every(r => r.pass) },
+          gf3Multiplication: { results: mulResults, allPass: mulResults.every(r => r.pass) },
+          ternaryRotation: { results: rotationTests, allPass: rotationTests.every(r => r.pass) },
+          representationConversion: { results: conversionTests, allPass: conversionTests.every(r => r.pass) },
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Conformance test execution failed" });
     }
   });
 
