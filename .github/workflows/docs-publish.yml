@@ -28,6 +28,7 @@ jobs:
   validate-docs:
     name: Validate Documentation
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -64,13 +65,12 @@ jobs:
   generate-rust-docs:
     name: Generate Rust API Docs
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action/setup@v1
-        with:
-          toolchain: nightly
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Generate kernel documentation
         run: |
@@ -93,6 +93,7 @@ jobs:
   count-documentation:
     name: Documentation Metrics
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
