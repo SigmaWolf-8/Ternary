@@ -237,7 +237,8 @@ function EndpointReference() {
     { method: "GET", path: "/api/salvi/timing/metrics", desc: "Clock source & sync status" },
     { method: "GET", path: "/api/salvi/timing/batch/:count", desc: "Batch timestamp generation" },
     { method: "GET", path: "/api/salvi/timing/epoch/anchors", desc: "Salvi Epoch anchor points" },
-    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "24 global calendar systems" },
+    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "All 24 calendars (add ?date=YYYY-MM-DD for any date)" },
+    { method: "GET", path: "/api/salvi/timing/epoch/calendars/:system", desc: "Individual calendar (add ?date= for any date)" },
   ];
 
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -355,9 +356,117 @@ function BatchDemo() {
   );
 }
 
+function UniversalDateConverter() {
+  const [inputDate, setInputDate] = useState("");
+  const [results, setResults] = useState<CalendarsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const convertDate = async (dateStr?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = dateStr
+        ? `/api/salvi/timing/epoch/calendars?date=${encodeURIComponent(dateStr)}`
+        : "/api/salvi/timing/epoch/calendars";
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setResults(data);
+      } else {
+        setError(data.error || "Conversion failed");
+      }
+    } catch {
+      setError("Failed to reach API");
+    }
+    setLoading(false);
+  };
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  return (
+    <Card data-testid="card-date-converter">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 text-primary" />
+          Universal Date Converter
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Query any Gregorian date and get its equivalent across all 24 calendrical systems. Leave blank for today's date.
+        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="date"
+            value={inputDate}
+            onChange={(e) => setInputDate(e.target.value)}
+            className="h-9 px-3 rounded-md border bg-background text-sm font-mono"
+            data-testid="input-date-converter"
+          />
+          <Button
+            onClick={() => convertDate(inputDate || undefined)}
+            disabled={loading}
+            data-testid="button-convert-date"
+          >
+            {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Globe className="w-4 h-4 mr-2" />}
+            Convert
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => { setInputDate(""); convertDate(); }}
+            disabled={loading}
+            data-testid="button-convert-today"
+          >
+            Today
+          </Button>
+        </div>
+        {error && (
+          <p className="text-xs text-destructive">{error}</p>
+        )}
+        {results && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="default" data-testid="badge-converter-count">{results.allMappings.length} systems</Badge>
+              <span className="text-xs text-muted-foreground">
+                Showing equivalents for: <span className="font-mono font-medium text-foreground">{inputDate || new Date().toISOString().split("T")[0]}</span>
+              </span>
+            </div>
+            <div className="max-h-96 overflow-y-auto rounded-md space-y-1" data-testid="list-converter-results">
+              {results.allMappings.map((m, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50" data-testid={`row-converted-${i}`}>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">{m.calendarSystem}</div>
+                    <div className="text-xs font-mono text-foreground truncate">{m.salviEpochEquivalent}</div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Year {m.yearInCalendar}</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="border-t pt-3 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">API Usage</p>
+          <code className="block text-[10px] font-mono text-muted-foreground break-all">
+            GET {baseUrl}/api/salvi/timing/epoch/calendars?date=2025-04-01
+          </code>
+          <code className="block text-[10px] font-mono text-muted-foreground break-all">
+            GET {baseUrl}/api/salvi/timing/epoch/calendars/mayan?date=2000-01-01
+          </code>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CalendarSync() {
+  const todayStr = new Date().toISOString().split("T")[0];
   const { data, isLoading } = useQuery<CalendarsResponse>({
-    queryKey: ["/api/salvi/timing/epoch/calendars"],
+    queryKey: ["/api/salvi/timing/epoch/calendars", todayStr],
+    queryFn: async () => {
+      const res = await fetch(`/api/salvi/timing/epoch/calendars?date=${todayStr}`);
+      return res.json();
+    },
   });
 
   const regionLabels: Record<string, string> = {
@@ -392,7 +501,7 @@ function CalendarSync() {
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Globe className="w-4 h-4 text-primary" />
-          Ancient Calendar Anchoring
+          Calendar Epoch Origins
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -404,18 +513,27 @@ function CalendarSync() {
           </div>
         ) : data?.allMappings ? (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Badge variant="default" data-testid="badge-calendar-count">{data.allMappings.length} calendars</Badge>
               <span className="text-xs text-muted-foreground">
-                Salvi Epoch anchored across all major civilizations spanning 30,000+ years
+                Synchronized via Salvi Epoch (April 1, 2025 UTC)
               </span>
             </div>
+            <p className="text-xs text-muted-foreground mb-3" data-testid="text-epoch-explanation">
+              Each calendar system has its own historical starting point (epoch). The dates below show when each calendar began counting, not today's date.
+              Today's equivalents are shown via the Universal Date Converter above, or by querying any endpoint with <code className="font-mono bg-muted px-1 rounded">?date=YYYY-MM-DD</code>.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {data.allMappings.map((m, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50" data-testid={`row-calendar-${i}`}>
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="text-sm font-medium truncate">{m.calendarSystem}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{m.origin}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      Epoch: {m.origin}
+                    </div>
+                    <div className="text-[10px] font-mono text-foreground/70 truncate">
+                      Today: {m.salviEpochEquivalent}
+                    </div>
                   </div>
                   <Badge variant="outline" className="text-[10px] shrink-0">
                     {regionLabels[m.calendarSystem] || `Year ${m.yearInCalendar}`}
@@ -530,6 +648,7 @@ export default function HPTPDemo() {
       </div>
 
       <EndpointReference />
+      <UniversalDateConverter />
       <CalendarSync />
     </div>
   );
