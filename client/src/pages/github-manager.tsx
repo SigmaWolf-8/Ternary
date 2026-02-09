@@ -228,6 +228,65 @@ export default function GitHubManager() {
     },
   });
 
+  const pushAllStagesMutation = useMutation({
+    mutationFn: async () => {
+      const allStagesFiles = [
+        { localPath: "src/kernel/src/crypto/cipher.rs", githubPath: "src/kernel/src/crypto/cipher.rs" },
+        { localPath: "src/kernel/src/crypto/sha2.rs", githubPath: "src/kernel/src/crypto/sha2.rs" },
+        { localPath: "src/kernel/src/crypto/sha3.rs", githubPath: "src/kernel/src/crypto/sha3.rs" },
+        { localPath: "src/kernel/src/crypto/ternary_lattice.rs", githubPath: "src/kernel/src/crypto/ternary_lattice.rs" },
+        { localPath: "src/kernel/src/crypto/cnsa2.rs", githubPath: "src/kernel/src/crypto/cnsa2.rs" },
+        { localPath: "src/kernel/src/crypto/tl_kem.rs", githubPath: "src/kernel/src/crypto/tl_kem.rs" },
+        { localPath: "src/kernel/src/crypto/tl_dsa.rs", githubPath: "src/kernel/src/crypto/tl_dsa.rs" },
+        { localPath: "src/kernel/src/crypto/kat_vectors.rs", githubPath: "src/kernel/src/crypto/kat_vectors.rs" },
+        { localPath: "src/kernel/src/crypto/side_channel.rs", githubPath: "src/kernel/src/crypto/side_channel.rs" },
+        { localPath: "src/kernel/src/crypto/cross_impl.rs", githubPath: "src/kernel/src/crypto/cross_impl.rs" },
+        { localPath: "src/kernel/src/crypto/fpga_synth.rs", githubPath: "src/kernel/src/crypto/fpga_synth.rs" },
+        { localPath: "src/kernel/src/crypto/perf_bench.rs", githubPath: "src/kernel/src/crypto/perf_bench.rs" },
+        { localPath: "src/kernel/src/crypto/mod.rs", githubPath: "src/kernel/src/crypto/mod.rs" },
+        { localPath: "src/kernel/src/crypto/hash.rs", githubPath: "src/kernel/src/crypto/hash.rs" },
+        { localPath: "src/kernel/src/crypto/sponge.rs", githubPath: "src/kernel/src/crypto/sponge.rs" },
+        { localPath: "src/kernel/src/crypto/hmac.rs", githubPath: "src/kernel/src/crypto/hmac.rs" },
+        { localPath: "src/kernel/src/crypto/kdf.rs", githubPath: "src/kernel/src/crypto/kdf.rs" },
+        { localPath: "src/kernel/src/crypto/signature.rs", githubPath: "src/kernel/src/crypto/signature.rs" },
+        { localPath: "src/kernel/src/compat/crypto_interop.rs", githubPath: "src/kernel/src/compat/crypto_interop.rs" },
+        { localPath: "src/kernel/src/compat/mod.rs", githubPath: "src/kernel/src/compat/mod.rs" },
+        { localPath: "src/kernel/src/compat/gateway.rs", githubPath: "src/kernel/src/compat/gateway.rs" },
+        { localPath: "src/kernel/src/compat/adapter.rs", githubPath: "src/kernel/src/compat/adapter.rs" },
+        { localPath: "src/kernel/src/process/scheduler.rs", githubPath: "src/kernel/src/process/scheduler.rs" },
+        { localPath: "libternary/package.json", githubPath: "libternary/package.json" },
+        { localPath: "libternary/VERSION_MANIFEST.json", githubPath: "libternary/VERSION_MANIFEST.json" },
+        { localPath: "libternary/CHANGELOG.md", githubPath: "libternary/CHANGELOG.md" },
+        { localPath: "libternary/README.md", githubPath: "libternary/README.md" },
+        { localPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md", githubPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md" },
+        { localPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md", githubPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md" },
+        { localPath: "docs/compliance/fips-validation-plan.md", githubPath: "docs/compliance/fips-validation-plan.md" },
+        { localPath: ".github/BRANCH_PROTECTION.md", githubPath: ".github/BRANCH_PROTECTION.md" },
+        { localPath: ".github/CODEOWNERS", githubPath: ".github/CODEOWNERS" },
+        { localPath: "keys/signing/SIGNING_PROCEDURES.md", githubPath: "keys/signing/SIGNING_PROCEDURES.md" },
+        { localPath: "keys/encryption/README.md", githubPath: "keys/encryption/README.md" },
+        { localPath: "keys/README.md", githubPath: "keys/README.md" },
+        { localPath: "PQTI-P0-STATUS.md", githubPath: "PQTI-P0-STATUS.md" },
+      ];
+      return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
+        files: allStagesFiles,
+        message: "Stages 1-5: CNSA 2.0 complete (11/11 algorithms), FIPS Phase 2, binary interop, crypto validation",
+      });
+    },
+    onSuccess: async (response: any) => {
+      const data = await response.json();
+      toast({
+        title: data.success ? "All Stages Pushed Successfully" : "Partial Success",
+        description: `${data.message}. ${data.results?.filter((r: any) => r.status === "error").length || 0} errors.`,
+        variant: data.success ? "default" : "destructive",
+      });
+      refetchContents();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Push Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const fetchFileContent = async (path: string) => {
     try {
       const res = await fetch(`/api/github/file/${REPO_OWNER}/${REPO_NAME}?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(selectedBranch)}`);
@@ -633,7 +692,24 @@ export default function GitHubManager() {
                       <><FileCode className="w-4 h-4 mr-1" />Push Kernel Crypto (Phase 2)</>
                     )}
                   </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => pushAllStagesMutation.mutate()}
+                    disabled={pushAllStagesMutation.isPending}
+                    data-testid="button-push-all-stages"
+                  >
+                    {pushAllStagesMutation.isPending ? (
+                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Pushing 36 files...</>
+                    ) : (
+                      <><Archive className="w-4 h-4 mr-1" />Push All Stages (1-5)</>
+                    )}
+                  </Button>
                 </div>
+                {pushAllStagesMutation.isPending && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Pushing 36 files: 18 crypto modules, 4 compat modules, scheduler fix, 4 libternary files, 2 docs, FIPS plan, 3 governance docs, 3 key mgmt docs, status doc...
+                  </p>
+                )}
               </CardContent>
             </Card>
 

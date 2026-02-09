@@ -318,5 +318,30 @@ Validates against FIPS 203/204 reference sizes (ML-KEM-512/768/1024, ML-DSA-44/6
 
 ---
 
-*Last Updated: February 2026*
+## GitHub Sync Status
+
+**Main branch sync gap**: Stages 1-5 completed in development environment, NOT YET PUSHED to `main`.
+
+### Files Pending Push (36 total)
+| Category | Files | Count |
+|----------|-------|-------|
+| Crypto Modules (new) | cipher, sha2, sha3, ternary_lattice, kat_vectors, side_channel, cross_impl, fpga_synth, perf_bench | 9 |
+| Crypto Modules (updated) | mod, hash, sponge, hmac, kdf, signature, cnsa2, tl_kem, tl_dsa | 9 |
+| Compat Modules | crypto_interop, mod, gateway, adapter | 4 |
+| Process | scheduler (SecurityMode fix) | 1 |
+| libternary | package.json, VERSION_MANIFEST.json, CHANGELOG.md, README.md | 4 |
+| Documentation | 05_CRYPTOGRAPHY.md, 14_CNSA2_COMPLIANCE.md | 2 |
+| FIPS Compliance | fips-validation-plan.md | 1 |
+| Governance | BRANCH_PROTECTION.md, CODEOWNERS | 2 |
+| Key Management | SIGNING_PROCEDURES.md, encryption/README.md, keys/README.md | 3 |
+| Status | PQTI-P0-STATUS.md | 1 |
+
+**Action**: Use GitHub Manager > P0 Actions > "Push All Stages (1-5)" button
+
+**Note**: `libternary.tar.gz` requires separate recompilation with all crypto modules before push.
+
+---
+
+*Last Updated: February 9, 2026*
 *Status: P0 Complete, Phase 3 Crypto Complete, P1 Complete, Stage 4 Complete, Stage 5 Complete*
+*Sync Status: 36 files pending push to main branch*

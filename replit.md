@@ -61,10 +61,14 @@ The `src/kernel/` directory contains a robust kernel developed in Rust, encompas
 ### GitHub Integration
 The GitHub Manager page (`/github`, admin-only) provides:
 -   **File Browser**: Browse, edit, create, and delete files in the `SigmaWolf-8/Ternary` repository.
--   **P0 Actions**: Batch push CI/CD workflow files and kernel crypto files to GitHub via dedicated API endpoints.
-    -   `POST /api/github/push-workflows/:owner/:repo` — Pushes all `.github/workflows/*.yml` files.
-    -   `POST /api/github/push-batch/:owner/:repo` — Pushes allowlisted local files (kernel, docs, config) to GitHub with path traversal protection.
--   **P0 Status**: All P0 infrastructure items complete. Workflow files in `.github/workflows/` ready for push.
+-   **P0 Actions**: Three push actions available:
+    -   **Push CI/CD Workflows** — Pushes all `.github/workflows/*.yml` files.
+    -   **Push Kernel Crypto (Phase 2)** — Pushes Stage 1-3 crypto modules (10 files).
+    -   **Push All Stages (1-5)** — Pushes complete Stages 1-5 sync (36 files): 18 crypto modules, 4 compat modules, scheduler fix, libternary package, docs, FIPS plan, governance docs, key management docs, and status doc.
+-   **API Endpoints**:
+    -   `POST /api/github/push-workflows/:owner/:repo` — Workflow file push.
+    -   `POST /api/github/push-batch/:owner/:repo` — Allowlisted batch push with path traversal protection.
+-   **Sync Status**: Stages 1-5 complete locally, pending push to main branch via "Push All Stages (1-5)" button. `libternary.tar.gz` requires separate recompilation before push.
 
 ## Recent Changes (February 2026)
 -   **Stage 5 Complete**: Five FIPS Phase 2 validation modules: KAT vectors (18 deterministic test vectors), side-channel analysis (19 functions across 6 modules), cross-implementation testing (45+ tests against ML-KEM/ML-DSA), FPGA synthesis specs (4 targets, 9 modules, ~96K LUTs), and performance benchmarks (20 benchmarks with warm-up/statistics).
