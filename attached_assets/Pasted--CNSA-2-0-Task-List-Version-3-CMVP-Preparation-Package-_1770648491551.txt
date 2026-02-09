@@ -1,0 +1,1235 @@
+# CNSA 2.0 Task List — Version 3
+## CMVP Preparation Package Milestone
+### Capomastro Holdings Ltd. | Applied Physics Division
+### February 9, 2026
+
+---
+
+## Target Milestone
+
+**FIPS 140-3 CMVP Submission-Ready Package** — everything a Cryptographic and Security Testing Laboratory (CSTL) needs to begin formal validation of the Salvi Ternary Cryptographic Module at Security Level 1.
+
+This is NOT the validation itself (that's the lab's job at $50K–$150K, 6–12 months). This is the vendor evidence and implementation work required BEFORE engaging a CSTL.
+
+---
+
+## What Already Exists on `main` (606 commits, v2.0.0)
+
+### Crypto Modules — 27 files in `src/kernel/src/crypto/`
+| Module | CMVP Relevance | Status |
+|---|---|---|
+| `cipher.rs` | AES-256-GCM (FIPS 197) — approved algorithm | ✅ Implemented |
+| `sha2.rs` | SHA-384/512 (FIPS 180-4) — approved algorithm | ✅ Implemented |
+| `sha3.rs` | SHA3-384/512 (FIPS 202) — approved algorithm (internal only) | ✅ Implemented |
+| `hash.rs` | Ternary sponge hash — NON-approved (internal only) | ✅ Implemented |
+| `sponge.rs` | Keccak sponge construction | ✅ Implemented |
+| `hmac.rs` | HMAC-SHA-384/512 — approved (FIPS 198-1) | ✅ Implemented |
+| `kdf.rs` | Key derivation — needs SP 800-108 mapping | ✅ Implemented |
+| `tl_kem.rs` | TL-KEM (ternary ML-KEM) — needs ACVTS mapping to FIPS 203 | ✅ Implemented |
+| `tl_dsa.rs` | TL-DSA (ternary ML-DSA) — needs ACVTS mapping to FIPS 204 | ✅ Implemented |
+| `signature.rs` | LMS/XMSS (SP 800-208) — approved algorithm | ✅ Implemented |
+| `ternary_lattice.rs` | GF(3) polynomial ring — internal component | ✅ Implemented |
+| `ct_utils.rs` | Constant-time primitives + zeroization | ✅ Implemented |
+| `cavp_package.rs` | 210 KAT vectors in .req/.rsp format | ✅ Implemented |
+| `cross_impl.rs` | Cross-implementation interop testing | ✅ Implemented |
+| `side_channel.rs` | Side-channel analysis | ✅ Implemented |
+| `perf_bench.rs` | Performance benchmarks | ✅ Implemented |
+| `formal_verify.rs` | 13 properties (8 exhaustive, 5 dynamic) | ✅ Implemented |
+| `fpga_hdl.rs` | FPGA Verilog generation | ✅ Implemented |
+| `fpga_synth.rs` | FPGA resource estimation | ✅ Implemented |
+| `hw_test.rs` | 14+ hardware test cases | ✅ Implemented |
+| `kat_vectors.rs` | KAT framework + frozen regression | ✅ Implemented |
+| `cnsa2.rs` | CNSA 2.0 compliance tracker | ✅ Implemented |
+| `agility.rs` | Algorithm policy enforcement | ✅ Implemented |
+| `firmware_sign.rs` | Firmware signing pipeline | ✅ Implemented |
+| `x509.rs` | X.509 certificate chain (ML-DSA-87) | ✅ Implemented |
+| `phase_cnsa.rs` | Phase-encryption with ML-KEM keys | ✅ Implemented |
+| `mod.rs` | Module registry | ✅ Implemented |
+
+### Documentation — Already on `main`
+| Document | CMVP Relevance | Status |
+|---|---|---|
+| `docs/compliance/security-policy.md` | SP 800-140B Security Policy | ✅ Exists — needs CMVP formatting |
+| `docs/compliance/fips-validation-plan.md` | Validation roadmap | ✅ Exists |
+| `docs/compliance/cavp-submission-guide.md` | CAVP procedures | ✅ Exists — needs ACVTS update |
+| `docs/compliance/formal-verification-report.md` | Formal methods evidence | ✅ Exists |
+| `docs/compliance/fpga-prototype-spec.md` | Hardware target spec | ✅ Exists |
+| `salvi_docs/modules/15_FIPS_BOUNDARY.md` | Module boundary definition | ✅ Exists |
+| `salvi_docs/modules/16_MIGRATION_GUIDE.md` | Lamport → LMS/XMSS | ✅ Exists |
+| `salvi_docs/modules/05_CRYPTOGRAPHY.md` | Developer reference | ✅ Exists |
+| `salvi_docs/modules/14_CNSA2_COMPLIANCE.md` | Algorithm compliance | ✅ Exists |
+
+### Compat & Network — on `main`
+| Module | Status |
+|---|---|
+| `compat/crypto_interop.rs` | ✅ ML-KEM/ML-DSA bidirectional bridge |
+| `compat/adapter.rs` | ✅ Format adapter |
+| `compat/gateway.rs` | ✅ Gateway abstraction |
+| `network/cnsa_profiles.rs` | ✅ TLS 1.3, SSH, IPsec, S/MIME profiles |
+| `network/ttp.rs` | ✅ Ternary Transport Protocol |
+| `drivers/femtoclock.rs` | ✅ Femtosecond clock driver |
+
+---
+
+## FIPS 140-3 CMVP Requirements — Gap Analysis
+
+The CMVP submission package requires specific deliverables across 11 requirement areas defined in ISO/IEC 19790:2012. Here is where each stands:
+
+| # | ISO 19790 Area | What CMVP Needs | What We Have | Gap |
+|---|---|---|---|---|
+| 1 | Crypto Module Specification | Module name, type, boundary diagram | 15_FIPS_BOUNDARY.md | MINOR — needs formal boundary diagram |
+| 2 | Crypto Module Interfaces | Data input/output, control, status | API surface exists | GAP — formal interface specification document |
+| 3 | Roles, Services & Authentication | Defined roles + available services | security-policy.md §3-4 | MINOR — expand service table |
+| 4 | Software/Firmware Security | Integrity test, approved mode | ct_utils.rs, agility.rs | GAP — no integrity verification of module binary |
+| 5 | Operational Environment | Platform + OS definition | Not documented | GAP — full document needed |
+| 6 | Physical Security | N/A for Security Level 1 software | N/A | NONE |
+| 7 | Non-Invasive Security | Side-channel resistance (Level 3+) | side_channel.rs, ct_utils.rs | NONE at Level 1 (Level 3+ only) |
+| 8 | SSP Management | Key lifecycle, zeroization, storage | ct_zeroize, x509.rs, kdf.rs | GAP — formal SSP inventory |
+| 9 | Self-Tests | POST + conditional tests | cavp_package.rs (vectors only) | CRITICAL GAP — no runtime self-test module |
+| 10 | Life-Cycle Assurance | CM, config mgmt, delivery | GitHub, CODEOWNERS | MINOR — vendor evidence doc |
+| 11 | Mitigation of Other Attacks | Documentation of mitigations | side_channel.rs, formal_verify.rs | MINOR — consolidate into single doc |
+
+### Additional CMVP Prerequisites
+| Requirement | What CMVP Needs | What We Have | Gap |
+|---|---|---|---|
+| CAVP Algorithm Certs | ACVTS JSON-format validated results per algorithm | 210 KATs in .req/.rsp | CRITICAL — need ACVTS JSON migration |
+| SP 800-90A DRBG | Approved deterministic random bit generator | None | CRITICAL — no DRBG module |
+| SP 800-90B Entropy Source | Qualified noise source + health tests | femtoclock.rs (raw driver) | CRITICAL — no entropy qualification module |
+| Finite State Model | State diagram: init, operational, error, zeroize | None | GAP — document needed |
+| SP 800-140B Security Policy | Formatted per CMVP template | security-policy.md (partial) | GAP — reformat to SP 800-140B |
+| Web Cryptik Submission | Package formatted for NIST submission tool | None | GAP — packaging script needed |
+| Approved Mode Indicator | Runtime status showing FIPS mode | agility.rs (partial) | GAP — formal indicator API |
+
+---
+
+## 18 TASKS TO CMVP SUBMISSION-READY
+
+### CATEGORY A: Critical Kernel Modules (Rust)
+These are FIPS 140-3 hard requirements — no module passes validation without them.
+
+---
+
+#### TASK A1: SP 800-90A DRBG (Deterministic Random Bit Generator)
+**File:** NEW `crypto/drbg.rs`
+**Priority:** P0-CRITICAL — every FIPS module requires an approved DRBG
+**Effort:** ~250-350 lines
+**FIPS Reference:** SP 800-90A Rev.1
+
+**Why this is critical:** FIPS 140-3 requires all random number generation within the module boundary to use an approved DRBG. Raw entropy sources (femtoclock) feed INTO the DRBG, but all cryptographic operations consume randomness FROM the DRBG only. Without this module, no CAVP certificate, no CMVP submission.
+
+**What to build:**
+```
+1. HMAC-DRBG (SP 800-90A Section 10.1.2)
+   - Preferred for CNSA 2.0: HMAC-DRBG with SHA-384 (matches TLS/IPsec KDF)
+   - Internal state: V (value), Key, reseed_counter
+   - Security strength: 256 bits (CNSA 2.0 minimum)
+
+2. Core Operations (per SP 800-90A)
+   - drbg_instantiate(entropy, nonce, personalization) -> DrbgState
+     * entropy: minimum 384 bits from entropy source
+     * nonce: minimum 192 bits
+     * personalization: optional application context
+   - drbg_generate(state, requested_bits, additional_input) -> (output, DrbgState)
+     * Must track request count against reseed_interval
+     * Max 2^48 requests between reseeds (SP 800-90A Table 2)
+     * Max 2^19 bits per request
+   - drbg_reseed(state, entropy, additional_input) -> DrbgState
+     * Mandatory when reseed_counter exceeds interval
+   - drbg_uninstantiate(state)
+     * Zeroize all internal state using ct_zeroize()
+
+3. HMAC-DRBG Update Function
+   - hmac_drbg_update(provided_data, Key, V) -> (Key, V)
+     * K = HMAC(K, V || 0x00 || provided_data)
+     * V = HMAC(K, V)
+     * If provided_data: K = HMAC(K, V || 0x01 || provided_data), V = HMAC(K, V)
+
+4. Health Tests (mandatory per SP 800-90A Section 11.3)
+   - Continuous DRBG output test: compare each output block to previous
+     * Fail → enter error state, refuse further output
+   - Instantiation test: run once at POST with known seed, verify output
+
+5. Prediction Resistance Mode
+   - When enabled: automatic reseed before every generate call
+   - Required for CNSA 2.0 highest assurance applications
+   - prediction_resistance: bool field in DrbgState
+
+6. Integration Points
+   - tl_kem.rs: keygen uses drbg_generate() for seed
+   - tl_dsa.rs: keygen + signing nonce from drbg_generate()
+   - cipher.rs: IV/nonce generation from drbg_generate()
+   - x509.rs: serial number generation from drbg_generate()
+   - phase_cnsa.rs: key material from drbg_generate()
+   - signature.rs: LMS/XMSS seed generation from drbg_generate()
+```
+
+**Tests:**
+- SP 800-90A HMAC-DRBG test vectors (NIST publishes these — 14 test cases per configuration)
+- Instantiate → generate → compare to known output
+- Reseed counter enforcement: hit limit → force reseed
+- Continuous output test: duplicate detection
+- Zeroization: verify state is cleared after uninstantiate
+- Prediction resistance: verify reseed on every generate
+
+**Acceptance:** HMAC-DRBG-SHA384 passes all SP 800-90A test vectors. All crypto modules consume randomness exclusively through drbg_generate().
+
+---
+
+#### TASK A2: SP 800-90B Entropy Source Module
+**File:** NEW `crypto/entropy.rs`
+**Priority:** P0-CRITICAL — DRBG requires a qualified entropy source
+**Effort:** ~200-250 lines
+**FIPS Reference:** SP 800-90B
+
+**Why this is critical:** The DRBG needs entropy input. SP 800-90B defines how to qualify the noise source and run health tests. The `femtoclock.rs` driver provides raw timing data, but FIPS requires a structured entropy conditioning pipeline with mandatory health tests.
+
+**What to build:**
+```
+1. Noise Source Abstraction
+   - NoiseSource trait
+     * fn sample() -> u64 (raw noise sample)
+     * fn source_description() -> &str
+   - FemtoclockNoise: implements NoiseSource using femtoclock.rs
+     * Extracts jitter from femtosecond clock LSBs
+     * Documents noise model: thermal jitter in clock oscillator
+   - TestNoise: deterministic source for testing (NOT for production)
+
+2. SP 800-90B Health Tests (mandatory — module fails without these)
+   - Repetition Count Test (Section 4.4.1)
+     * Detects stuck noise source
+     * Cutoff C = 1 + ceil(-log2(alpha) / H)
+     * alpha = 2^-20 (NIST recommended)
+     * Track consecutive identical samples; fail if >= C
+   - Adaptive Proportion Test (Section 4.4.2)
+     * Detects bias drift in noise source
+     * Window W = 1024 for binary sources, 512 for non-binary
+     * Count occurrences of first sample in window
+     * Cutoff per SP 800-90B Table 2
+     * Fail if count exceeds cutoff
+
+3. Conditioning Component (vetted — required by CMVP)
+   - Use HMAC-SHA-384 as vetted conditioning component
+     * Per SP 800-90B Section 3.1.5.1.1
+     * Input: raw noise samples (concatenated)
+     * Output: conditioned entropy at full strength
+     * Narrowest internal width: 384 bits ≥ 256 bits security strength ✓
+   - conditioning_function(raw_samples: &[u64], output_bits: usize) -> Vec<u8>
+
+4. Entropy Source Interface (feeds into DRBG)
+   - get_entropy(requested_bits: usize) -> Result<Vec<u8>, EntropyError>
+     * Collect sufficient raw samples
+     * Run health tests on every sample (fail → EntropyError::HealthTestFailed)
+     * Condition via HMAC-SHA-384
+     * Return conditioned output
+   - get_nonce() -> Vec<u8>
+     * Per SP 800-90A Section 8.6.7: timestamp or counter-based
+     * Use femtoclock timestamp + monotonic counter
+
+5. Error States
+   - EntropyError::RepetitionCountFailed
+   - EntropyError::AdaptiveProportionFailed
+   - EntropyError::SourceUnavailable
+   - On any error: module enters error state per finite state model
+```
+
+**Tests:**
+- Repetition count: feed stuck source → detect failure
+- Adaptive proportion: feed biased source → detect failure
+- Healthy source: pass both tests with simulated jitter
+- Conditioning: verify output entropy matches expected length
+- Integration: get_entropy() → feeds drbg_instantiate()
+
+**Acceptance:** Health tests catch stuck/biased sources. Conditioned output feeds DRBG. SP 800-90B documentation describes noise model for lab review.
+
+---
+
+#### TASK A3: Power-On Self-Tests (POST) Module
+**File:** NEW `crypto/self_test.rs`
+**Priority:** P0-CRITICAL — FIPS 140-3 Section 7.10.1 mandatory
+**Effort:** ~250-300 lines
+**FIPS Reference:** ISO/IEC 19790 Section 7.10, SP 800-140E
+
+**Why this is critical:** Every FIPS 140-3 module MUST run known-answer tests on power-up (initialization) before ANY cryptographic service is available. If any POST fails, the module enters an error state and refuses all operations. This is the single most-tested requirement during CMVP lab evaluation.
+
+**What to build:**
+```
+1. POST Orchestrator
+   - pub fn run_power_on_self_tests() -> Result<PostReport, PostFailure>
+   - Called ONCE at module initialization before any crypto service
+   - Runs KAT for every approved algorithm in the module
+   - If ANY test fails → module enters ERROR state
+   - Returns PostReport listing each algorithm + pass/fail + execution time
+
+2. Algorithm KATs (one per approved algorithm — minimum 1 known vector each)
+   POST-AES-256-GCM:
+     * Known plaintext + key + nonce → encrypt → compare to known ciphertext
+     * Known ciphertext → decrypt → compare to known plaintext
+     * Use first vector from cavp_package.rs AES-GCM set
+
+   POST-SHA-384:
+     * Known message → hash → compare to known digest
+     * Use NIST "abc" test vector: SHA-384("abc") = cb00753f45a35e...
+
+   POST-SHA-512:
+     * Known message → hash → compare to known digest
+     * Use NIST "abc" test vector: SHA-512("abc") = ddaf35a193617a...
+
+   POST-SHA3-384:
+     * Known message → hash → compare
+     * Use NIST "abc" test vector
+
+   POST-SHA3-512:
+     * Known message → hash → compare
+     * Use NIST "abc" test vector
+
+   POST-HMAC-SHA-384:
+     * Known message + key → HMAC → compare
+     * Use RFC 4231 test vector 2
+
+   POST-TL-KEM-1024:
+     * Known seed → keygen → compare to known pk/sk
+     * Known pk + randomness → encapsulate → compare to known ct/ss
+     * Known ct + sk → decapsulate → compare to known ss
+     * Use first frozen vector from kat_vectors.rs
+
+   POST-TL-DSA-87:
+     * Known seed → keygen → compare to known vk/sk
+     * Known message + sk → sign → compare to known signature
+     * Known message + signature + vk → verify → expect true
+     * Use first frozen vector from kat_vectors.rs
+
+   POST-LMS:
+     * Known seed → keygen → sign → verify → expect true
+     * Verify deterministic output matches known vector
+
+   POST-XMSS:
+     * Known seed → keygen → sign → verify → expect true
+     * Verify deterministic output matches known vector
+
+   POST-HMAC-DRBG:
+     * Known entropy + nonce → instantiate → generate → compare to known output
+     * SP 800-90A test case (see Task A1)
+
+3. Integrity Test (SP 800-140E Section 5)
+   - Compute HMAC-SHA-384 over module binary/source
+   - Compare to stored reference value
+   - This verifies the module itself hasn't been tampered with
+   - stored_integrity_hash: [u8; 48] (embedded in module or adjacent file)
+   - fn verify_module_integrity() -> Result<(), IntegrityFailure>
+
+4. Module State Machine Integration
+   - ModuleState::Uninitialized → run_power_on_self_tests() → ModuleState::Operational
+   - If POST fails → ModuleState::Error (no crypto services available)
+   - All crypto entry points check: if state != Operational → return Err(ModuleNotReady)
+
+5. PostReport struct
+   - algorithm_results: Vec<(AlgorithmId, bool, Duration)>
+   - integrity_result: bool
+   - overall: Pass | Fail
+   - timestamp: u64 (femtoclock)
+```
+
+**Tests:**
+- All KATs pass with correct vectors → PostReport.overall == Pass
+- Corrupt one vector → PostReport.overall == Fail, module in Error state
+- After failure: call any crypto function → returns ModuleNotReady error
+- Integrity test: correct hash → pass; wrong hash → fail
+- Timing: measure total POST execution time (benchmark)
+
+**Acceptance:** Module refuses all crypto operations until POST passes. Every approved algorithm has at least one KAT. Integrity verification operational.
+
+---
+
+#### TASK A4: Conditional Self-Tests
+**File:** Extend `crypto/self_test.rs`
+**Priority:** P0-CRITICAL — FIPS 140-3 Section 7.10.2 mandatory
+**Effort:** ~120-150 lines (addition to A3)
+**FIPS Reference:** ISO/IEC 19790 Section 7.10.2
+
+**What to build:**
+```
+1. Pair-Wise Consistency Test (for asymmetric keygen)
+   - Run automatically every time keygen is called
+   - TL-KEM: generate keypair → encapsulate with pk → decapsulate with sk → verify shared secrets match
+   - TL-DSA: generate keypair → sign test message with sk → verify with vk → expect true
+   - LMS/XMSS: generate keypair → sign test message → verify → expect true
+   - If test fails → module enters Error state, key pair destroyed
+
+2. Continuous Random Number Generator Test (CRNGT)
+   - Already partially in DRBG (A1) continuous output test
+   - Wrap in conditional self-test API
+   - Compare each DRBG output block to previous
+   - Fail → Error state
+
+3. Software/Firmware Load Test
+   - Run integrity verification on any module update
+   - Re-run integrity HMAC check after loading
+
+4. Conditional Self-Test API
+   - pub fn conditional_keygen_test(algorithm: AlgorithmId, keypair: &Keypair) -> Result<(), ConditionalTestFailure>
+   - pub fn conditional_rng_test(current_block: &[u8], previous_block: &[u8]) -> Result<(), ConditionalTestFailure>
+   - Called internally by tl_kem.rs, tl_dsa.rs, signature.rs, drbg.rs
+   - Transparent to caller — integrated into keygen/generate functions
+
+5. Integration Points
+   - tl_kem.rs::keygen() → calls conditional_keygen_test() before returning keypair
+   - tl_dsa.rs::keygen() → calls conditional_keygen_test()
+   - signature.rs::lms_keygen() / xmss_keygen() → calls conditional_keygen_test()
+   - drbg.rs::drbg_generate() → calls conditional_rng_test()
+```
+
+**Tests:**
+- Keygen → conditional test passes → keypair returned
+- Force inconsistent keypair → conditional test fails → Error state
+- DRBG duplicate output → CRNGT catches → Error state
+
+---
+
+#### TASK A5: Module State Machine (Finite State Model)
+**File:** NEW `crypto/module_state.rs`
+**Priority:** P0-CRITICAL — FIPS 140-3 requires formal state transitions
+**Effort:** ~150-180 lines
+
+**What to build:**
+```
+1. ModuleState enum
+   - PowerOff          — module not loaded
+   - Uninitialized     — loaded, no self-tests run
+   - SelfTest          — POST in progress
+   - Operational       — all tests passed, crypto services available
+   - ApprovedMode      — CNSA 2.0 only algorithms permitted (from agility.rs)
+   - NonApprovedMode   — non-CNSA algorithms permitted (hybrid/legacy)
+   - Error             — self-test failed or critical error
+   - Zeroization       — key destruction in progress
+   - Shutdown          — module unloaded, all state cleared
+
+2. Transition Table (deterministic)
+   PowerOff       → Uninitialized     [module load]
+   Uninitialized  → SelfTest          [run_power_on_self_tests() called]
+   SelfTest       → Operational       [all POST pass]
+   SelfTest       → Error             [any POST fails]
+   Operational    → ApprovedMode      [set_policy(CnsaOnly)]
+   Operational    → NonApprovedMode   [set_policy(Hybrid)]
+   Operational    → Error             [conditional self-test fails]
+   Operational    → Zeroization       [zeroize() called]
+   ApprovedMode   → NonApprovedMode   [policy change with auth]
+   NonApprovedMode→ ApprovedMode      [policy change with auth]
+   *Any*          → Error             [self-test failure / integrity failure]
+   Error          → Uninitialized     [module reload only — no recovery without restart]
+   Zeroization    → Shutdown          [all keys destroyed]
+   Shutdown       → PowerOff          [module unloaded]
+
+3. Transition Enforcement
+   - pub fn transition(current: ModuleState, event: ModuleEvent) -> Result<ModuleState, InvalidTransition>
+   - All transitions logged with timestamp
+   - InvalidTransition: source state, attempted event, reason
+
+4. Approved Mode Indicator (SP 800-140B requirement)
+   - pub fn is_approved_mode() -> bool
+   - pub fn get_mode_indicator() -> ModeIndicator { Approved, NonApproved, Error }
+   - Must be queryable by external services and logged
+   - Corresponds to agility.rs CnsaOnly policy = Approved mode
+
+5. Integration
+   - Wire into crypto/mod.rs as module-level singleton state
+   - All crypto entry points check state before proceeding
+   - Replaces ad-hoc checks scattered across modules
+```
+
+**Tests:**
+- Walk through all valid transitions → succeed
+- Attempt invalid transition (Error → Operational) → fails
+- After Error state: all crypto calls return ModuleNotReady
+- Mode indicator: CnsaOnly → Approved, Hybrid → NonApproved
+
+---
+
+#### TASK A6: Approved Mode Indicator & Service Interface
+**File:** Extend `crypto/agility.rs` + NEW `crypto/services.rs`
+**Priority:** P1-HIGH — CMVP requires formal service enumeration
+**Effort:** ~150-180 lines
+
+**What to build:**
+```
+1. Service Enumeration (ISO/IEC 19790 Section 7.4)
+   Every cryptographic service the module provides, mapped to approved status:
+
+   pub enum CryptoService {
+     // Approved Services (available in Approved Mode)
+     Aes256GcmEncrypt,
+     Aes256GcmDecrypt,
+     Sha384Hash,
+     Sha512Hash,
+     Sha3_384Hash,    // internal hardware only
+     Sha3_512Hash,    // internal hardware only
+     HmacSha384,
+     HmacSha512,
+     TlKem1024Keygen,
+     TlKem1024Encapsulate,
+     TlKem1024Decapsulate,
+     TlDsa87Keygen,
+     TlDsa87Sign,
+     TlDsa87Verify,
+     LmsKeygen,
+     LmsSign,
+     LmsVerify,
+     XmssKeygen,
+     XmssSign,
+     XmssVerify,
+     DrbgInstantiate,
+     DrbgGenerate,
+     DrbgReseed,
+     KeyZeroize,
+     SelfTestRun,
+     StatusShow,     // returns mode indicator
+
+     // Non-Approved Services (available in Non-Approved Mode only)
+     TlKem768Keygen,   // non-CNSA parameter
+     TlKem512Keygen,   // non-CNSA parameter
+     TlDsa65Keygen,    // non-CNSA parameter
+     TlDsa44Keygen,    // non-CNSA parameter
+     PhaseEncrypt,     // ternary-native, not FIPS-approved
+     PhaseDecrypt,
+   }
+
+2. Service Authorization
+   - pub fn is_service_available(service: CryptoService, state: ModuleState) -> bool
+   - In ApprovedMode: only approved services return true
+   - In NonApprovedMode: all services return true
+   - In Error/SelfTest/etc: no services return true except StatusShow
+
+3. Role-Based Access (ISO/IEC 19790 Section 7.5)
+   pub enum ModuleRole {
+     CryptoOfficer,  // can: set policy, zeroize, run self-tests, all crypto ops
+     User,           // can: crypto ops, status query
+   }
+   - pub fn authorize(role: ModuleRole, service: CryptoService) -> bool
+
+4. Status Output Interface
+   - pub fn module_status() -> ModuleStatusReport
+   - Includes: state, mode indicator, firmware version, last POST result, algorithm list
+   - This is what auditors / CSTL will query
+```
+
+---
+
+### CATEGORY B: ACVTS / CAVP Infrastructure (Rust)
+
+---
+
+#### TASK B1: ACVTS JSON Vector Format Migration
+**File:** NEW `crypto/acvts.rs`
+**Priority:** P0-CRITICAL — NIST requires ACVTS format since 2020, .req/.rsp is legacy
+**Effort:** ~300-350 lines
+**Reference:** NIST ACVTS Protocol Specification
+
+**Why this is critical:** CMVP will not accept .req/.rsp format submissions. The Automated Cryptographic Validation Testing System (ACVTS) uses JSON. The existing 210 KAT vectors in `cavp_package.rs` need to be exportable in ACVTS JSON format.
+
+**What to build:**
+```
+1. ACVTS JSON Schema per Algorithm
+
+   AES-GCM (ACVTS spec "acvp-aes-gcm"):
+   {
+     "algorithm": "ACVP-AES-GCM",
+     "revision": "1.0",
+     "direction": ["encrypt", "decrypt"],
+     "keyLen": [256],
+     "ivLen": [96],
+     "tagLen": [128],
+     "aadLen": [0, 128],
+     "payloadLen": [128, 256]
+   }
+
+   SHA-2 (ACVTS spec "acvp-sha"):
+   {
+     "algorithm": "SHA2-384" | "SHA2-512",
+     "revision": "1.0",
+     "messageLength": [{"min": 0, "max": 65536, "increment": 8}]
+   }
+
+   ML-KEM (ACVTS spec "acvp-ml-kem"):
+   {
+     "algorithm": "ML-KEM",
+     "revision": "1.0",
+     "parameterSet": ["ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"],
+     "function": ["keyGen", "encapDecap"]
+   }
+
+   ML-DSA (ACVTS spec "acvp-ml-dsa"):
+   {
+     "algorithm": "ML-DSA",
+     "revision": "1.0",
+     "parameterSet": ["ML-DSA-44", "ML-DSA-65", "ML-DSA-87"],
+     "function": ["keyGen", "sigGen", "sigVer"],
+     "deterministic": [true]
+   }
+
+   HMAC (ACVTS spec "acvp-hmac"):
+   {
+     "algorithm": "HMAC-SHA2-384" | "HMAC-SHA2-512",
+     "revision": "1.0",
+     "keyLen": [{"min": 8, "max": 524288, "increment": 8}],
+     "macLen": [{"min": 32, "max": 384|512, "increment": 8}]
+   }
+
+   HMAC-DRBG (ACVTS spec "acvp-drbg"):
+   {
+     "algorithm": "hmacDRBG",
+     "revision": "1.0",
+     "predResistanceEnabled": [true, false],
+     "capabilities": [{
+       "mode": "SHA2-384",
+       "derFuncEnabled": false,
+       "entropyInputLen": [384],
+       "nonceLen": [192],
+       "persoStringLen": [0, 384],
+       "additionalInputLen": [0, 384],
+       "returnedBitsLen": 1536
+     }]
+   }
+
+   LMS (ACVTS spec "acvp-lms"):
+   {
+     "algorithm": "LMS",
+     "revision": "1.0",
+     "lmsMode": ["keyGen", "sigGen", "sigVer"],
+     "capabilities": [{"lmOtsType": "LMOTS_SHA256_N32_W8", "lmsType": "LMS_SHA256_M32_H10"}]
+   }
+
+   XMSS (ACVTS spec "acvp-xmss"):
+   {
+     "algorithm": "XMSS",
+     "revision": "1.0",
+     "capabilities": [{"xmssParameterSet": "XMSS-SHA2_10_256"}]
+   }
+
+2. Registration Generator
+   - pub fn generate_acvts_registration() -> Vec<AcvtsRegistration>
+   - Outputs JSON registration file for each algorithm
+   - This is what gets uploaded to NIST ACVTS server
+
+3. Response Generator
+   - pub fn generate_acvts_response(request: &AcvtsTestGroup) -> AcvtsResponse
+   - Takes ACVTS test vectors (from NIST server), runs algorithm, returns results
+   - Wraps existing cavp_package.rs KAT execution with JSON I/O
+
+4. Validation Runner
+   - pub fn run_acvts_validation() -> AcvtsReport
+   - Execute all vectors, generate .json response files
+   - Report pass/fail per algorithm, per test group
+```
+
+**Tests:**
+- Registration JSON validates against ACVTS schema
+- Generate response for known test → matches expected output
+- Round-trip: registration → request → response → validate
+
+---
+
+#### TASK B2: CAVP Certificate Tracking
+**File:** NEW `crypto/cavp_certs.rs`
+**Priority:** P1-HIGH
+**Effort:** ~80-100 lines
+
+**What to build:**
+```
+1. CavpCertificate struct
+   - algorithm: String
+   - certificate_number: Option<String>  // assigned by NIST after validation
+   - validation_date: Option<String>
+   - acvts_test_session_id: Option<String>
+   - status: Pending | Submitted | Validated | Expired
+
+2. Certificate Registry
+   - One entry per approved algorithm (11 CNSA + HMAC + DRBG = 13 total)
+   - pub fn get_certificate_status() -> Vec<CavpCertificate>
+   - pub fn update_certificate(algorithm, cert_number, date)
+
+3. Integration with module_status()
+   - CAVP cert status included in ModuleStatusReport
+   - Auditors can verify which algorithms have valid certs
+```
+
+---
+
+### CATEGORY C: Documentation (Markdown/PDF)
+All CMVP submission documents. CSTL will review these line-by-line.
+
+---
+
+#### TASK C1: SP 800-140B Non-Proprietary Security Policy
+**File:** Rewrite `docs/compliance/security-policy.md` to SP 800-140B format
+**Priority:** P0-CRITICAL — this is the primary public-facing CMVP document
+**Effort:** ~600-800 lines (full rewrite)
+
+**Required sections per SP 800-140B:**
+```
+1. General
+   1.1 Module Name: Salvi Ternary Cryptographic Module
+   1.2 Module Version: [from VERSION_MANIFEST.json]
+   1.3 Module Type: Software
+   1.4 Security Level: Level 1 (overall)
+   1.5 Tested Operational Environments (Task C3)
+   1.6 Validation Scope
+
+2. Cryptographic Module Specification
+   2.1 Module Description (1 paragraph)
+   2.2 Cryptographic Boundary (diagram — Task C5)
+   2.3 Block Diagram showing all components within boundary
+   2.4 Hardware/Software/Firmware components
+   2.5 Module interfaces (data input, data output, control input, status output)
+
+3. Module Interfaces
+   3.1 Interface Types (all software — API calls)
+   3.2 Input interfaces: function call parameters
+   3.3 Output interfaces: function return values
+   3.4 Control interfaces: policy configuration, self-test trigger
+   3.5 Status interfaces: mode indicator, self-test status
+
+4. Roles, Services, and Authentication
+   4.1 Roles: Crypto Officer, User
+   4.2 Services Table: every CryptoService (from Task A6) with:
+       - Service name
+       - Description
+       - Input/Output
+       - Role(s) authorized
+       - Approved? (Yes/No)
+       - Algorithm/Standard reference
+   4.3 Authentication: N/A at Security Level 1 (implicit)
+
+5. Software/Firmware Security
+   5.1 Module integrity mechanism (HMAC-SHA-384 over binary)
+   5.2 Approved mode indication
+   5.3 Software version: version string, how to query
+
+6. Operational Environment
+   6.1 Tested platforms (from Task C3)
+   6.2 Single-operator mode
+   6.3 No modification of module allowed
+
+7. Physical Security
+   7.1 N/A — Security Level 1 software module
+
+8. Non-Invasive Security
+   8.1 N/A at Security Level 1 (Level 3+ requirement)
+   8.2 Note: side-channel mitigations implemented as defense-in-depth
+
+9. Sensitive Security Parameter Management
+   9.1 SSP Inventory Table (from Task C2):
+       - SSP name, type (symmetric key, asymmetric key, seed, etc.)
+       - Generation method
+       - Storage location
+       - Zeroization method
+       - Access control
+   9.2 Key entry and output methods
+   9.3 Key storage
+   9.4 Key zeroization (ct_zeroize from ct_utils.rs)
+
+10. Self-Tests
+    10.1 Power-On Self-Tests table: algorithm, test type (KAT), when run
+    10.2 Conditional Self-Tests table: trigger condition, test performed
+    10.3 Error indicators on failure
+
+11. Life-Cycle Assurance
+    11.1 Configuration management: Git, signed commits, CODEOWNERS
+    11.2 Design documentation: 05_CRYPTOGRAPHY.md, 15_FIPS_BOUNDARY.md
+    11.3 Delivery and operation: tarball build, installation procedure
+    11.4 Development environment: Rust no_std, compilation flags
+
+12. Mitigation of Other Attacks
+    12.1 Side-channel: constant-time operations (ct_utils.rs)
+    12.2 AES: Fermat inversion S-box (no lookup tables)
+    12.3 TL-KEM: FO transform hardening
+    12.4 Formal verification: 13 properties (formal_verify.rs)
+```
+
+---
+
+#### TASK C2: Sensitive Security Parameter (SSP) Inventory
+**File:** NEW `docs/compliance/ssp-inventory.md`
+**Priority:** P0-CRITICAL — CSTL will audit every key/secret in the module
+**Effort:** ~300-400 lines
+
+**What to document (every secret value in every module):**
+```
+SSP-001: AES-256 Key (cipher.rs)
+  Type: Symmetric Key
+  Size: 256 bits
+  Generation: DRBG output
+  Storage: In-memory only (zeroized on drop)
+  Zeroization: ct_zeroize() — overwrite with zeros, verified
+  Entry: API parameter to encrypt/decrypt functions
+  Output: Never exported in plaintext
+
+SSP-002: AES-256-GCM Nonce (cipher.rs)
+  Type: IV/Nonce
+  Size: 96 bits
+  Generation: DRBG output or counter
+  ...
+
+SSP-003: TL-KEM-1024 Decapsulation Key (tl_kem.rs)
+SSP-004: TL-KEM-1024 Shared Secret (tl_kem.rs)
+SSP-005: TL-DSA-87 Signing Key (tl_dsa.rs)
+SSP-006: HMAC Key (hmac.rs)
+SSP-007: KDF Secret (kdf.rs)
+SSP-008: LMS Private Key + State Index (signature.rs)
+SSP-009: XMSS Private Key + State Index (signature.rs)
+SSP-010: DRBG Internal State — V, Key (drbg.rs)
+SSP-011: DRBG Seed / Entropy Input (entropy.rs → drbg.rs)
+SSP-012: Firmware Signing Key (firmware_sign.rs)
+SSP-013: X.509 CA Signing Key (x509.rs)
+SSP-014: Phase-Encryption Key Material (phase_cnsa.rs)
+SSP-015: Module Integrity HMAC Key (self_test.rs)
+
+For EACH SSP:
+  - Name and identifier
+  - Type (symmetric key, asymmetric private key, seed, state, CSP, PSP)
+  - Bit length
+  - Generation method (DRBG, derivation, external input)
+  - Storage (memory, PlenumDB, none)
+  - Zeroization method (ct_zeroize details)
+  - Entry method (API, internal generation)
+  - Output method (never exported / encapsulated / wrapped)
+  - Which services use this SSP
+  - Relationship to other SSPs
+```
+
+---
+
+#### TASK C3: Operational Environment Specification
+**File:** NEW `docs/compliance/operational-environments.md`
+**Priority:** P1-HIGH — required for Security Policy and CMVP submission
+**Effort:** ~150-200 lines
+
+**What to document:**
+```
+1. Tested Operational Environments (CMVP requires at least one)
+   Primary:
+   - OS: Linux (Ubuntu 24.04 LTS, kernel 6.8+)
+   - Architecture: x86_64
+   - Rust compiler: rustc 1.75+ (no_std, release mode)
+   - Compilation flags: --release, LTO enabled, panic=abort
+
+   Secondary (if testing resources allow):
+   - OS: Linux (Ubuntu 24.04 LTS)
+   - Architecture: aarch64 (ARM64)
+   - Same Rust compiler
+
+2. GPC (General Purpose Computer) Attestation
+   - Module operates in single-operator mode
+   - Module does not modify the OS
+   - Module relies on OS for process isolation
+   - No concurrent operator access
+
+3. Module Installation Procedure
+   - Build from source: cargo build --release --no-default-features
+   - Install libternary: copy .rlib to target system
+   - Verify integrity: check HMAC-SHA-384 of binary
+
+4. Module Operational Procedure
+   - Initialize: call module_init() (triggers POST)
+   - Set policy: call set_policy(CnsaOnly) for approved mode
+   - Use services: call crypto API functions
+   - Shutdown: call module_shutdown() (triggers zeroization)
+```
+
+---
+
+#### TASK C4: Finite State Model Diagram
+**File:** NEW `docs/compliance/finite-state-model.md`
+**Priority:** P1-HIGH — lab evaluators reference this constantly
+**Effort:** ~100-150 lines + ASCII/Mermaid diagram
+
+Maps directly to Task A5 (module_state.rs) but as a visual document:
+```
+State diagram (Mermaid format):
+  PowerOff --> Uninitialized : module_load
+  Uninitialized --> SelfTest : init()
+  SelfTest --> Operational : POST_pass
+  SelfTest --> Error : POST_fail
+  Operational --> ApprovedMode : set_policy(CnsaOnly)
+  Operational --> NonApprovedMode : set_policy(Hybrid)
+  Operational --> Zeroization : zeroize()
+  Operational --> Error : conditional_test_fail
+  ApprovedMode --> NonApprovedMode : policy_change
+  NonApprovedMode --> ApprovedMode : policy_change
+  Error --> Uninitialized : module_reload
+  Zeroization --> Shutdown : keys_destroyed
+  Shutdown --> PowerOff : module_unload
+
+Per-state: list available services, inputs, outputs
+Error state: no crypto services, only status_show
+```
+
+---
+
+#### TASK C5: Cryptographic Boundary Diagram
+**File:** NEW `docs/compliance/boundary-diagram.md`
+**Priority:** P1-HIGH — visual requirement in Security Policy
+**Effort:** ~80-100 lines (ASCII art or Mermaid)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              CRYPTOGRAPHIC MODULE BOUNDARY               │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │              APPROVED ALGORITHMS                  │   │
+│  │  cipher.rs  sha2.rs  sha3.rs  hmac.rs  kdf.rs   │   │
+│  │  tl_kem.rs  tl_dsa.rs  signature.rs              │   │
+│  │  drbg.rs  entropy.rs                              │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │              SECURITY SERVICES                    │   │
+│  │  self_test.rs  module_state.rs  agility.rs        │   │
+│  │  ct_utils.rs  services.rs  cavp_certs.rs          │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │              NON-APPROVED (Non-Approved Mode)     │   │
+│  │  phase_cnsa.rs  ternary_lattice.rs  hash.rs       │   │
+│  │  sponge.rs  fpga_hdl.rs                           │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                          │
+│  Interfaces:                                             │
+│  [Data In] ← API function parameters                    │
+│  [Data Out] → API function return values                │
+│  [Control In] ← set_policy(), init(), zeroize()         │
+│  [Status Out] → module_status(), mode_indicator()       │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+    │                                        │
+    ▼                                        ▼
+ EXCLUDED                               EXCLUDED
+ firmware_sign.rs (application)      x509.rs (application)
+ cnsa_profiles.rs (protocol)         crypto_interop.rs (compat)
+ compat/* (adapter layer)            network/* (transport)
+```
+
+---
+
+#### TASK C6: Vendor Evidence Package Index
+**File:** NEW `docs/compliance/vendor-evidence-index.md`
+**Priority:** P1-HIGH — organizes submission for CSTL
+**Effort:** ~150-200 lines
+
+```
+VENDOR EVIDENCE PACKAGE
+Salvi Ternary Cryptographic Module v[X.Y.Z]
+Capomastro Holdings Ltd.
+
+Document Index:
+VE-001  Non-Proprietary Security Policy        → security-policy.md
+VE-002  Cryptographic Boundary Diagram          → boundary-diagram.md
+VE-003  Finite State Model                      → finite-state-model.md
+VE-004  SSP Inventory                           → ssp-inventory.md
+VE-005  Operational Environment Specification   → operational-environments.md
+VE-006  CAVP Algorithm Certificates             → cavp_certs.rs output
+VE-007  Self-Test Evidence (POST + Conditional) → self_test.rs output
+VE-008  Source Code (crypto module boundary)    → src/kernel/src/crypto/
+VE-009  Build Instructions                      → [compilation procedure]
+VE-010  Formal Verification Report              → formal-verification-report.md
+VE-011  Side-Channel Analysis Report            → side_channel.rs + ct_utils.rs
+VE-012  FPGA Prototype Specification            → fpga-prototype-spec.md
+VE-013  Entropy Source Documentation            → entropy.rs + femtoclock.rs
+VE-014  ACVTS Registration Files                → acvts.rs output
+VE-015  ACVTS Response Files                    → acvts.rs output
+VE-016  Configuration Management Evidence       → GitHub history, CODEOWNERS
+VE-017  Developer Cryptographic Documentation   → 05_CRYPTOGRAPHY.md
+
+Lab Contact Information:
+  [CSTL to be selected — see Task E2]
+```
+
+---
+
+#### TASK C7: Entropy Source Documentation (SP 800-90B)
+**File:** NEW `docs/compliance/entropy-assessment.md`
+**Priority:** P1-HIGH — CMVP requires separate entropy documentation
+**Effort:** ~200-250 lines
+
+```
+1. Noise Source Description
+   - Source: Femtosecond clock oscillator jitter (drivers/femtoclock.rs)
+   - Type: Physical non-deterministic noise source
+   - Noise model: Thermal noise in oscillator circuit → LSB jitter
+   - Sampling rate: [depends on clock design]
+   - Raw entropy estimate: [bits per sample — requires measurement]
+
+2. Health Tests (maps to Task A2)
+   - Startup health tests: repetition count + adaptive proportion
+   - Continuous health tests: same, on every sample
+   - Failure response: module enters Error state
+
+3. Conditioning Component
+   - Algorithm: HMAC-SHA-384 (vetted conditioning per SP 800-90B §3.1.5.1.1)
+   - Input: concatenated raw samples
+   - Output: conditioned seed for DRBG
+   - Narrowest internal width: 384 bits
+
+4. Entropy Rate Justification
+   - Min-entropy per sample: [to be measured — requires hardware]
+   - Samples required per DRBG seed: [calculated from min-entropy]
+   - Note: Full SP 800-90B entropy assessment requires physical hardware
+     testing by an accredited lab. This document provides the design
+     specification. The lab will perform IID and non-IID entropy testing.
+
+5. DRBG Seeding
+   - HMAC-DRBG-SHA384 receives conditioned entropy
+   - Seed length: 384 bits ≥ 256-bit security strength
+   - Reseed: per DRBG policy or on demand
+```
+
+---
+
+### CATEGORY D: CI/CD & Build Infrastructure
+
+---
+
+#### TASK D1: CMVP Build Reproducibility Script
+**File:** NEW `scripts/cmvp-build.sh`
+**Priority:** P1-HIGH — lab must reproduce exact binary
+**Effort:** ~60-80 lines
+
+```bash
+#!/bin/bash
+# CMVP Reproducible Build Script
+# Produces byte-identical binary for integrity verification
+
+set -euo pipefail
+
+RUST_VERSION="1.75.0"  # Pin exact version
+TARGET="x86_64-unknown-linux-gnu"
+PROFILE="release"
+
+# Verify toolchain
+rustc --version | grep "$RUST_VERSION" || { echo "ERROR: Wrong Rust version"; exit 1; }
+
+# Build with deterministic flags
+CARGO_BUILD_RUSTFLAGS="-C lto=fat -C codegen-units=1 -C panic=abort -C strip=none" \
+  cargo build --target "$TARGET" --profile "$PROFILE" --no-default-features
+
+# Compute integrity hash (matches POST integrity check)
+BINARY="target/$TARGET/$PROFILE/libternary.rlib"
+INTEGRITY_HASH=$(openssl dgst -sha384 "$BINARY" | awk '{print $2}')
+echo "Module binary: $BINARY"
+echo "HMAC-SHA-384 integrity hash: $INTEGRITY_HASH"
+echo "$INTEGRITY_HASH" > target/integrity-hash.txt
+
+# Generate ACVTS registration files
+cargo test --test acvts_export -- --nocapture
+
+echo "CMVP build complete. Submit integrity-hash.txt with vendor evidence."
+```
+
+---
+
+#### TASK D2: POST / Self-Test CI Integration
+**File:** Update `.github/workflows/test-kernel.yml`
+**Priority:** P1-HIGH
+**Effort:** ~30-40 lines added to existing workflow
+
+```yaml
+  cmvp-self-tests:
+    name: FIPS 140-3 Self-Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run POST
+        run: cargo test --test power_on_self_tests -- --nocapture
+      - name: Run Conditional Self-Tests
+        run: cargo test --test conditional_self_tests -- --nocapture
+      - name: Verify ACVTS Vector Export
+        run: cargo test --test acvts_export -- --nocapture
+      - name: Module State Transitions
+        run: cargo test --test state_machine_validation -- --nocapture
+      - name: Entropy Health Tests
+        run: cargo test --test entropy_health -- --nocapture
+```
+
+---
+
+### CATEGORY E: External Process Tasks (Non-Replit)
+
+---
+
+#### TASK E1: ACVTS Server Registration (External)
+**Priority:** P1-HIGH — must happen before CSTL engagement
+**Owner:** Capomastro (vendor account required)
+
+```
+1. Create NIST ACVTS vendor account at https://acvts.nist.gov
+2. Upload registration JSON files (generated by acvts.rs)
+3. Receive test vectors from ACVTS server
+4. Run test vectors against module (acvts.rs response generator)
+5. Upload response files
+6. Receive algorithm certificates (CAVP certs)
+7. Record certificate numbers in cavp_certs.rs
+```
+
+#### TASK E2: CSTL Lab Selection (External)
+**Priority:** P1-HIGH — 3-6 month lead time
+**Owner:** Capomastro
+
+```
+Accredited CST Labs (NVLAP accredited for FIPS 140-3):
+- Leidos (formerly CygnaCom) — largest, most experience
+- atsec Information Security — strong in software modules
+- Lightship Security — Canadian, efficient for Canadian companies
+- Gossamer Security Solutions
+- UL Verification Services
+
+Selection criteria:
+- Experience with software-only Level 1 modules
+- Experience with post-quantum algorithms (ML-KEM, ML-DSA)
+- Turnaround time (typical: 6-12 months)
+- Cost ($50K-$150K depending on complexity)
+- Queue depth (some labs have 6-month wait)
+
+Recommendation: Lightship Security (Canadian — aligns with Capomastro Holdings Ltd.)
+or atsec (strong PQC experience)
+```
+
+#### TASK E3: Web Cryptik Submission Package (External)
+**Priority:** P2-MEDIUM — after CAVP certs obtained
+**Owner:** Capomastro + CSTL jointly
+
+```
+Web Cryptik is NIST's online submission tool for FIPS 140-3.
+CSTL creates the submission package after testing. Vendor provides:
+- Security Policy (C1)
+- Vendor Evidence Package (C6)
+- CAVP certificate numbers (E1)
+- Build environment details (D1)
+```
+
+---
+
+## EXECUTION ORDER
+
+### Stage 9: CMVP Critical Path (Kernel — Replit)
+| # | Task | File | New/Extend | Lines | Blocks |
+|---|---|---|---|---|---|
+| A1 | SP 800-90A DRBG | `crypto/drbg.rs` | New | ~300 | A2, A3 |
+| A2 | SP 800-90B Entropy | `crypto/entropy.rs` | New | ~220 | A1 |
+| A3 | Power-On Self-Tests | `crypto/self_test.rs` | New | ~280 | A4 |
+| A4 | Conditional Self-Tests | `crypto/self_test.rs` | Extend | ~140 | — |
+| A5 | Module State Machine | `crypto/module_state.rs` | New | ~170 | A3, A6 |
+| A6 | Service Interface | `crypto/services.rs` + extend `agility.rs` | New + Extend | ~170 | — |
+| B1 | ACVTS JSON Migration | `crypto/acvts.rs` | New | ~330 | B2 |
+| B2 | CAVP Cert Tracking | `crypto/cavp_certs.rs` | New | ~90 | — |
+
+**Dependency chain:** A2 (entropy) → A1 (DRBG) → A3 (POST) → A4 (conditional) → A5 (state machine) → A6 (services). B1 and B2 are independent.
+
+### Stage 10: CMVP Documentation (Replit or local)
+| # | Task | File | Lines |
+|---|---|---|---|
+| C1 | SP 800-140B Security Policy | `docs/compliance/security-policy.md` rewrite | ~700 |
+| C2 | SSP Inventory | `docs/compliance/ssp-inventory.md` | ~350 |
+| C3 | Operational Environments | `docs/compliance/operational-environments.md` | ~170 |
+| C4 | Finite State Model | `docs/compliance/finite-state-model.md` | ~120 |
+| C5 | Boundary Diagram | `docs/compliance/boundary-diagram.md` | ~100 |
+| C6 | Vendor Evidence Index | `docs/compliance/vendor-evidence-index.md` | ~180 |
+| C7 | Entropy Assessment | `docs/compliance/entropy-assessment.md` | ~230 |
+
+### Stage 11: Build & External
+| # | Task | Type |
+|---|---|---|
+| D1 | CMVP Build Script | `scripts/cmvp-build.sh` — ~70 lines |
+| D2 | CI Self-Test Integration | `.github/workflows/test-kernel.yml` update |
+| E1 | ACVTS Registration | External — NIST account + vector exchange |
+| E2 | CSTL Lab Selection | External — engagement + SOW |
+| E3 | Web Cryptik Submission | External — CSTL-led after testing |
+
+---
+
+## COMPLETION CHECKLIST
+
+### Code Complete (Stages 9)
+- [ ] `crypto/drbg.rs` — HMAC-DRBG-SHA384, health tests, prediction resistance
+- [ ] `crypto/entropy.rs` — noise source, SP 800-90B health tests, conditioning
+- [ ] `crypto/self_test.rs` — POST for 11 algorithms + DRBG + integrity check
+- [ ] `crypto/self_test.rs` — conditional tests (pair-wise, CRNGT)
+- [ ] `crypto/module_state.rs` — finite state machine with transition enforcement
+- [ ] `crypto/services.rs` — service enumeration, role-based access, mode indicator
+- [ ] `crypto/acvts.rs` — JSON registration/response for all algorithms
+- [ ] `crypto/cavp_certs.rs` — certificate tracking registry
+- [ ] `crypto/mod.rs` — all new modules registered
+- [ ] All existing crypto modules updated: consume DRBG for randomness
+- [ ] All keygen functions: call conditional pair-wise test
+- [ ] All crypto entry points: check ModuleState == Operational
+- [ ] All tests pass (existing 1117 + new)
+
+### Documentation Complete (Stage 10)
+- [ ] Security Policy conforms to SP 800-140B template (all 12 sections)
+- [ ] SSP inventory covers every secret in every module (15+ SSPs)
+- [ ] Operational environments specify exact OS + compiler + flags
+- [ ] Finite state model matches module_state.rs transitions exactly
+- [ ] Boundary diagram shows approved vs non-approved partition
+- [ ] Vendor evidence index references every artifact
+- [ ] Entropy assessment documents noise model + health tests + conditioning
+
+### Build & Submission Ready (Stage 11)
+- [ ] cmvp-build.sh produces reproducible binary with integrity hash
+- [ ] CI runs POST + conditional tests on every commit
+- [ ] ACVTS registration JSON files generated and validated
+- [ ] CSTL selected and SOW signed
+- [ ] ACVTS server account created, test vectors exchanged, certs issued
+
+### Post-Submission (Lab Phase — Not In Scope)
+- [ ] CSTL performs testing (~6-12 months)
+- [ ] Coordination comments resolved
+- [ ] Validation certificate issued
+- [ ] Module appears on NIST CMVP validated modules list
+
+---
+
+## NEW MODULE COUNT AFTER STAGE 9
+
+**Crypto modules: 33** (currently 27 + 6 new)
+```
+NEW:
+  crypto/drbg.rs          — SP 800-90A HMAC-DRBG
+  crypto/entropy.rs       — SP 800-90B entropy source
+  crypto/self_test.rs     — POST + conditional tests
+  crypto/module_state.rs  — finite state machine
+  crypto/services.rs      — service enumeration + roles
+  crypto/acvts.rs         — ACVTS JSON format vectors
+  crypto/cavp_certs.rs    — certificate tracking
+
+EXTENDED:
+  crypto/mod.rs           — register 6 new modules
+  crypto/agility.rs       — approved mode indicator
+  crypto/tl_kem.rs        — DRBG integration + conditional test call
+  crypto/tl_dsa.rs        — DRBG integration + conditional test call
+  crypto/signature.rs     — DRBG integration + conditional test call
+  crypto/cipher.rs        — DRBG integration for IV generation
+  crypto/x509.rs          — DRBG integration for serial numbers
+  crypto/phase_cnsa.rs    — DRBG integration for key material
+```
+
+**Documentation: 7 new/rewritten** in `docs/compliance/`
+
+**Total estimated new code: ~1,700 lines Rust + ~1,850 lines documentation**
+
+---
+
+## VERSION TARGET
+
+Upon completion of Stages 9-10: tag **v3.0.0** — "CMVP Submission Ready"
+
+Release notes should reference:
+- HMAC-DRBG-SHA384 (SP 800-90A)
+- Entropy source with SP 800-90B health tests
+- FIPS 140-3 POST + conditional self-tests
+- Module finite state machine
+- ACVTS JSON format CAVP vectors
+- SP 800-140B Security Policy
+- Complete vendor evidence package
+
+---
+
+*Così sia.*
+*Salvi Framework — Capomastro Holdings Ltd.*
+*"The cipher is not the lock. The cipher is the key."*

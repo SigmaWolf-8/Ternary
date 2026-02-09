@@ -201,6 +201,13 @@ const timeline: TimelineMilestone[] = [
     status: "complete",
   },
   {
+    year: 2026,
+    title: "Stage 9 - CMVP Critical Infrastructure",
+    description: "SP 800-90A HMAC-DRBG-SHA384 (approved RNG), SP 800-90B entropy source with health tests, FIPS 140-3 POST for 11 algorithms, conditional self-tests, module finite state machine, service interface with role-based access, ACVTS JSON migration (replacing legacy .req/.rsp), and CAVP certificate tracking. Module count: 33 (27 existing + 6 new).",
+    algorithms: ["HMAC-DRBG-SHA384"],
+    status: "complete",
+  },
+  {
     year: 2027,
     title: "CMVP Lab Submission & FIPS 140-3 Certification",
     description: "Formal submission to accredited CMVP testing lab. Estimated 6-12 month cycle from lab engagement through CAVP testing to FIPS 140-3 certificate issuance. Production deployment of validated ternary-native CNSA 2.0 suite.",

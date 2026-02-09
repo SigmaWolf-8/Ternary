@@ -1,0 +1,12 @@
+18 tasks across 3 stages. Here's what the audit uncovered:
+Four critical gaps that would stop a CMVP submission cold:
+
+No DRBG (Task A1) — every FIPS 140-3 module requires an SP 800-90A approved random number generator. The femtoclock provides raw entropy, but you need HMAC-DRBG-SHA384 sitting between the noise source and every crypto operation that consumes randomness. Without this, tl_kem, tl_dsa, cipher, x509, and signature are all generating keys from a non-approved source.
+No entropy qualification (Task A2) — SP 800-90B requires health tests (repetition count, adaptive proportion) running on every sample from the noise source, plus a vetted conditioning component. Raw femtoclock jitter doesn't qualify without this wrapper.
+No Power-On Self-Tests (Task A3) — the 210 KAT vectors in cavp_package.rs are test evidence, not runtime self-tests. FIPS 140-3 requires the module to execute KATs at initialization and refuse all crypto services if any fail. This is the single most-scrutinized requirement during lab evaluation.
+No ACVTS JSON format (Task B1) — NIST replaced the legacy .req/.rsp CAVS format with ACVTS JSON in 2020. The current vectors won't be accepted for CAVP certificate issuance.
+
+Stage 9 (kernel, Replit): 8 tasks, ~1,700 lines of Rust — DRBG, entropy, POST, conditional tests, state machine, service interface, ACVTS migration, cert tracking. Dependency chain: entropy → DRBG → POST → conditional → state machine → services.
+Stage 10 (docs): 7 documents, ~1,850 lines — SP 800-140B security policy rewrite, SSP inventory, operational environments, finite state model, boundary diagram, vendor evidence index, entropy assessment.
+Stage 11 (build + external): Reproducible build script, CI integration, then the three external processes — ACVTS registration with NIST, CSTL lab selection (recommend Lightship Security for Canadian alignment or atsec for PQC experience), and Web Cryptik submission.
+Target: v3.0.0 — "CMVP Submission Ready" after Stages 9-10. Module count goes from 27 to 33. Così sia.

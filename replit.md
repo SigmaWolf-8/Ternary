@@ -84,6 +84,7 @@ The GitHub Manager page (`/github`, admin-only) provides:
 -   **Phase 3 CMVP Preparation Complete**: Production hardening, CAVP submission package, FPGA HDL generator, hardware testing framework, formal verification, and compliance documentation.
 -   **Production Hardening**: `ct_utils.rs` — Constant-time primitives (ct_select_u8, ct_eq_u8, ct_eq_slices, ct_select_vec, ct_zeroize). AES S-box replaced with GF(2^8) Fermat inversion (a^254, no lookup tables). TL-KEM decaps hardened with ct_select_vec for FO transform.
 -   **Phase 3 Crypto Complete**: TL-KEM (FIPS 203 equivalent) and TL-DSA (FIPS 204 equivalent) implemented with 3 security levels each. CNSA 2.0 coverage at 100% (11/11 algorithms).
+-   **Stage 9 CMVP Critical Infrastructure**: 6 new kernel modules (~1,700 lines) implementing SP 800-90A HMAC-DRBG-SHA384, SP 800-90B entropy source with health tests, FIPS 140-3 POST for 11 algorithms, conditional self-tests, module finite state machine (9 states), service interface with role-based access (32 services, 3 roles), ACVTS JSON format migration (replacing legacy .req/.rsp), and CAVP certificate tracking. Module count: 33 (27 existing + 6 new). 9 files pushed to GitHub (7 new modules, 2 updated: crypto/mod.rs, compliance.tsx).
 
 ## External Dependencies
 

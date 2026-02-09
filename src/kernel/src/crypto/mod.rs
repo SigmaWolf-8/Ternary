@@ -43,6 +43,13 @@ pub mod firmware_sign;
 pub mod x509;
 pub mod agility;
 pub mod phase_cnsa;
+pub mod entropy;
+pub mod drbg;
+pub mod self_test;
+pub mod module_state;
+pub mod services;
+pub mod acvts;
+pub mod cavp_certs;
 
 use alloc::string::String;
 use alloc::vec::Vec;
