@@ -195,29 +195,53 @@ export default function GitHubManager() {
     },
   });
 
-  const pushKernelFilesMutation = useMutation({
+  const pushCryptoModulesMutation = useMutation({
     mutationFn: async () => {
-      const kernelFiles = [
+      const cryptoFiles = [
         { localPath: "src/kernel/src/crypto/cipher.rs", githubPath: "src/kernel/src/crypto/cipher.rs" },
         { localPath: "src/kernel/src/crypto/sha2.rs", githubPath: "src/kernel/src/crypto/sha2.rs" },
         { localPath: "src/kernel/src/crypto/sha3.rs", githubPath: "src/kernel/src/crypto/sha3.rs" },
         { localPath: "src/kernel/src/crypto/ternary_lattice.rs", githubPath: "src/kernel/src/crypto/ternary_lattice.rs" },
         { localPath: "src/kernel/src/crypto/cnsa2.rs", githubPath: "src/kernel/src/crypto/cnsa2.rs" },
+        { localPath: "src/kernel/src/crypto/tl_kem.rs", githubPath: "src/kernel/src/crypto/tl_kem.rs" },
+        { localPath: "src/kernel/src/crypto/tl_dsa.rs", githubPath: "src/kernel/src/crypto/tl_dsa.rs" },
+        { localPath: "src/kernel/src/crypto/signature.rs", githubPath: "src/kernel/src/crypto/signature.rs" },
+        { localPath: "src/kernel/src/crypto/ct_utils.rs", githubPath: "src/kernel/src/crypto/ct_utils.rs" },
+        { localPath: "src/kernel/src/crypto/phase_cnsa.rs", githubPath: "src/kernel/src/crypto/phase_cnsa.rs" },
+        { localPath: "src/kernel/src/crypto/x509.rs", githubPath: "src/kernel/src/crypto/x509.rs" },
+        { localPath: "src/kernel/src/crypto/agility.rs", githubPath: "src/kernel/src/crypto/agility.rs" },
+        { localPath: "src/kernel/src/crypto/firmware_sign.rs", githubPath: "src/kernel/src/crypto/firmware_sign.rs" },
         { localPath: "src/kernel/src/crypto/mod.rs", githubPath: "src/kernel/src/crypto/mod.rs" },
-        { localPath: "src/kernel/src/process/scheduler.rs", githubPath: "src/kernel/src/process/scheduler.rs" },
-        { localPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md", githubPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md" },
-        { localPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md", githubPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md" },
-        { localPath: "PQTI-P0-STATUS.md", githubPath: "PQTI-P0-STATUS.md" },
+        { localPath: "src/kernel/src/crypto/hash.rs", githubPath: "src/kernel/src/crypto/hash.rs" },
+        { localPath: "src/kernel/src/crypto/sponge.rs", githubPath: "src/kernel/src/crypto/sponge.rs" },
+        { localPath: "src/kernel/src/crypto/hmac.rs", githubPath: "src/kernel/src/crypto/hmac.rs" },
+        { localPath: "src/kernel/src/crypto/kdf.rs", githubPath: "src/kernel/src/crypto/kdf.rs" },
+        { localPath: "src/kernel/src/crypto/kat_vectors.rs", githubPath: "src/kernel/src/crypto/kat_vectors.rs" },
+        { localPath: "src/kernel/src/crypto/side_channel.rs", githubPath: "src/kernel/src/crypto/side_channel.rs" },
+        { localPath: "src/kernel/src/crypto/cross_impl.rs", githubPath: "src/kernel/src/crypto/cross_impl.rs" },
+        { localPath: "src/kernel/src/crypto/fpga_synth.rs", githubPath: "src/kernel/src/crypto/fpga_synth.rs" },
+        { localPath: "src/kernel/src/crypto/fpga_hdl.rs", githubPath: "src/kernel/src/crypto/fpga_hdl.rs" },
+        { localPath: "src/kernel/src/crypto/perf_bench.rs", githubPath: "src/kernel/src/crypto/perf_bench.rs" },
+        { localPath: "src/kernel/src/crypto/formal_verify.rs", githubPath: "src/kernel/src/crypto/formal_verify.rs" },
+        { localPath: "src/kernel/src/crypto/hw_test.rs", githubPath: "src/kernel/src/crypto/hw_test.rs" },
+        { localPath: "src/kernel/src/crypto/cavp_package.rs", githubPath: "src/kernel/src/crypto/cavp_package.rs" },
+        { localPath: "src/kernel/src/crypto/drbg.rs", githubPath: "src/kernel/src/crypto/drbg.rs" },
+        { localPath: "src/kernel/src/crypto/entropy.rs", githubPath: "src/kernel/src/crypto/entropy.rs" },
+        { localPath: "src/kernel/src/crypto/self_test.rs", githubPath: "src/kernel/src/crypto/self_test.rs" },
+        { localPath: "src/kernel/src/crypto/module_state.rs", githubPath: "src/kernel/src/crypto/module_state.rs" },
+        { localPath: "src/kernel/src/crypto/services.rs", githubPath: "src/kernel/src/crypto/services.rs" },
+        { localPath: "src/kernel/src/crypto/acvts.rs", githubPath: "src/kernel/src/crypto/acvts.rs" },
+        { localPath: "src/kernel/src/crypto/cavp_certs.rs", githubPath: "src/kernel/src/crypto/cavp_certs.rs" },
       ];
       return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
-        files: kernelFiles,
-        message: "Phase 2: CNSA 2.0 crypto + lattice foundations",
+        files: cryptoFiles,
+        message: "Crypto modules: all 34 modules, CNSA 2.0 (11/11), CMVP infrastructure",
       });
     },
     onSuccess: async (response: any) => {
       const data = await response.json();
       toast({
-        title: data.success ? "Kernel Files Pushed" : "Partial Success",
+        title: data.success ? "Crypto Modules Pushed" : "Partial Success",
         description: data.message,
         variant: data.success ? "default" : "destructive",
       });
@@ -228,9 +252,9 @@ export default function GitHubManager() {
     },
   });
 
-  const pushAllStagesMutation = useMutation({
+  const pushFullSyncMutation = useMutation({
     mutationFn: async () => {
-      const allStagesFiles = [
+      const allFiles = [
         { localPath: "src/kernel/src/crypto/cipher.rs", githubPath: "src/kernel/src/crypto/cipher.rs" },
         { localPath: "src/kernel/src/crypto/sha2.rs", githubPath: "src/kernel/src/crypto/sha2.rs" },
         { localPath: "src/kernel/src/crypto/sha3.rs", githubPath: "src/kernel/src/crypto/sha3.rs" },
@@ -242,6 +266,7 @@ export default function GitHubManager() {
         { localPath: "src/kernel/src/crypto/side_channel.rs", githubPath: "src/kernel/src/crypto/side_channel.rs" },
         { localPath: "src/kernel/src/crypto/cross_impl.rs", githubPath: "src/kernel/src/crypto/cross_impl.rs" },
         { localPath: "src/kernel/src/crypto/fpga_synth.rs", githubPath: "src/kernel/src/crypto/fpga_synth.rs" },
+        { localPath: "src/kernel/src/crypto/fpga_hdl.rs", githubPath: "src/kernel/src/crypto/fpga_hdl.rs" },
         { localPath: "src/kernel/src/crypto/perf_bench.rs", githubPath: "src/kernel/src/crypto/perf_bench.rs" },
         { localPath: "src/kernel/src/crypto/mod.rs", githubPath: "src/kernel/src/crypto/mod.rs" },
         { localPath: "src/kernel/src/crypto/hash.rs", githubPath: "src/kernel/src/crypto/hash.rs" },
@@ -249,10 +274,26 @@ export default function GitHubManager() {
         { localPath: "src/kernel/src/crypto/hmac.rs", githubPath: "src/kernel/src/crypto/hmac.rs" },
         { localPath: "src/kernel/src/crypto/kdf.rs", githubPath: "src/kernel/src/crypto/kdf.rs" },
         { localPath: "src/kernel/src/crypto/signature.rs", githubPath: "src/kernel/src/crypto/signature.rs" },
+        { localPath: "src/kernel/src/crypto/ct_utils.rs", githubPath: "src/kernel/src/crypto/ct_utils.rs" },
+        { localPath: "src/kernel/src/crypto/phase_cnsa.rs", githubPath: "src/kernel/src/crypto/phase_cnsa.rs" },
+        { localPath: "src/kernel/src/crypto/x509.rs", githubPath: "src/kernel/src/crypto/x509.rs" },
+        { localPath: "src/kernel/src/crypto/agility.rs", githubPath: "src/kernel/src/crypto/agility.rs" },
+        { localPath: "src/kernel/src/crypto/firmware_sign.rs", githubPath: "src/kernel/src/crypto/firmware_sign.rs" },
+        { localPath: "src/kernel/src/crypto/formal_verify.rs", githubPath: "src/kernel/src/crypto/formal_verify.rs" },
+        { localPath: "src/kernel/src/crypto/hw_test.rs", githubPath: "src/kernel/src/crypto/hw_test.rs" },
+        { localPath: "src/kernel/src/crypto/cavp_package.rs", githubPath: "src/kernel/src/crypto/cavp_package.rs" },
+        { localPath: "src/kernel/src/crypto/drbg.rs", githubPath: "src/kernel/src/crypto/drbg.rs" },
+        { localPath: "src/kernel/src/crypto/entropy.rs", githubPath: "src/kernel/src/crypto/entropy.rs" },
+        { localPath: "src/kernel/src/crypto/self_test.rs", githubPath: "src/kernel/src/crypto/self_test.rs" },
+        { localPath: "src/kernel/src/crypto/module_state.rs", githubPath: "src/kernel/src/crypto/module_state.rs" },
+        { localPath: "src/kernel/src/crypto/services.rs", githubPath: "src/kernel/src/crypto/services.rs" },
+        { localPath: "src/kernel/src/crypto/acvts.rs", githubPath: "src/kernel/src/crypto/acvts.rs" },
+        { localPath: "src/kernel/src/crypto/cavp_certs.rs", githubPath: "src/kernel/src/crypto/cavp_certs.rs" },
         { localPath: "src/kernel/src/compat/crypto_interop.rs", githubPath: "src/kernel/src/compat/crypto_interop.rs" },
         { localPath: "src/kernel/src/compat/mod.rs", githubPath: "src/kernel/src/compat/mod.rs" },
         { localPath: "src/kernel/src/compat/gateway.rs", githubPath: "src/kernel/src/compat/gateway.rs" },
         { localPath: "src/kernel/src/compat/adapter.rs", githubPath: "src/kernel/src/compat/adapter.rs" },
+        { localPath: "src/kernel/src/network/cnsa_profiles.rs", githubPath: "src/kernel/src/network/cnsa_profiles.rs" },
         { localPath: "src/kernel/src/process/scheduler.rs", githubPath: "src/kernel/src/process/scheduler.rs" },
         { localPath: "libternary/package.json", githubPath: "libternary/package.json" },
         { localPath: "libternary/VERSION_MANIFEST.json", githubPath: "libternary/VERSION_MANIFEST.json" },
@@ -260,23 +301,41 @@ export default function GitHubManager() {
         { localPath: "libternary/README.md", githubPath: "libternary/README.md" },
         { localPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md", githubPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md" },
         { localPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md", githubPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md" },
+        { localPath: "salvi_docs/modules/15_FIPS_BOUNDARY.md", githubPath: "salvi_docs/modules/15_FIPS_BOUNDARY.md" },
+        { localPath: "salvi_docs/modules/16_MIGRATION_GUIDE.md", githubPath: "salvi_docs/modules/16_MIGRATION_GUIDE.md" },
+        { localPath: "docs/compliance/security-policy.md", githubPath: "docs/compliance/security-policy.md" },
+        { localPath: "docs/compliance/ssp-inventory.md", githubPath: "docs/compliance/ssp-inventory.md" },
+        { localPath: "docs/compliance/finite-state-model.md", githubPath: "docs/compliance/finite-state-model.md" },
+        { localPath: "docs/compliance/boundary-diagram.md", githubPath: "docs/compliance/boundary-diagram.md" },
+        { localPath: "docs/compliance/entropy-assessment.md", githubPath: "docs/compliance/entropy-assessment.md" },
+        { localPath: "docs/compliance/operational-environments.md", githubPath: "docs/compliance/operational-environments.md" },
+        { localPath: "docs/compliance/vendor-evidence-index.md", githubPath: "docs/compliance/vendor-evidence-index.md" },
         { localPath: "docs/compliance/fips-validation-plan.md", githubPath: "docs/compliance/fips-validation-plan.md" },
+        { localPath: "docs/compliance/cstl-engagement.md", githubPath: "docs/compliance/cstl-engagement.md" },
+        { localPath: "docs/compliance/formal-verification-report.md", githubPath: "docs/compliance/formal-verification-report.md" },
+        { localPath: "docs/compliance/fpga-prototype-spec.md", githubPath: "docs/compliance/fpga-prototype-spec.md" },
+        { localPath: "docs/compliance/cavp-submission-guide.md", githubPath: "docs/compliance/cavp-submission-guide.md" },
+        { localPath: "docs/KONG_API_SERVICES.md", githubPath: "docs/KONG_API_SERVICES.md" },
+        { localPath: "kong/kong.yaml", githubPath: "kong/kong.yaml" },
+        { localPath: "scripts/cmvp-build.sh", githubPath: "scripts/cmvp-build.sh" },
+        { localPath: "scripts/collect-entropy-samples.sh", githubPath: "scripts/collect-entropy-samples.sh" },
         { localPath: ".github/BRANCH_PROTECTION.md", githubPath: ".github/BRANCH_PROTECTION.md" },
         { localPath: ".github/CODEOWNERS", githubPath: ".github/CODEOWNERS" },
         { localPath: "keys/signing/SIGNING_PROCEDURES.md", githubPath: "keys/signing/SIGNING_PROCEDURES.md" },
         { localPath: "keys/encryption/README.md", githubPath: "keys/encryption/README.md" },
         { localPath: "keys/README.md", githubPath: "keys/README.md" },
         { localPath: "PQTI-P0-STATUS.md", githubPath: "PQTI-P0-STATUS.md" },
+        { localPath: "CHANGELOG.md", githubPath: "CHANGELOG.md" },
       ];
       return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
-        files: allStagesFiles,
-        message: "Stages 1-5: CNSA 2.0 complete (11/11 algorithms), FIPS Phase 2, binary interop, crypto validation",
+        files: allFiles,
+        message: "Full sync: 34 crypto modules, CMVP package, CNSA 2.0 compliance, Kong gateway, docs",
       });
     },
     onSuccess: async (response: any) => {
       const data = await response.json();
       toast({
-        title: data.success ? "All Stages Pushed Successfully" : "Partial Success",
+        title: data.success ? "Full Sync Complete" : "Partial Success",
         description: `${data.message}. ${data.results?.filter((r: any) => r.status === "error").length || 0} errors.`,
         variant: data.success ? "default" : "destructive",
       });
@@ -682,32 +741,32 @@ export default function GitHubManager() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => pushKernelFilesMutation.mutate()}
-                    disabled={pushKernelFilesMutation.isPending}
-                    data-testid="button-push-kernel"
+                    onClick={() => pushCryptoModulesMutation.mutate()}
+                    disabled={pushCryptoModulesMutation.isPending}
+                    data-testid="button-push-crypto"
                   >
-                    {pushKernelFilesMutation.isPending ? (
-                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Pushing...</>
+                    {pushCryptoModulesMutation.isPending ? (
+                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Pushing 34 modules...</>
                     ) : (
-                      <><FileCode className="w-4 h-4 mr-1" />Push Kernel Crypto (Phase 2)</>
+                      <><FileCode className="w-4 h-4 mr-1" />Push Crypto Modules</>
                     )}
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => pushAllStagesMutation.mutate()}
-                    disabled={pushAllStagesMutation.isPending}
-                    data-testid="button-push-all-stages"
+                    onClick={() => pushFullSyncMutation.mutate()}
+                    disabled={pushFullSyncMutation.isPending}
+                    data-testid="button-push-full-sync"
                   >
-                    {pushAllStagesMutation.isPending ? (
-                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Pushing 36 files...</>
+                    {pushFullSyncMutation.isPending ? (
+                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Syncing 70 files...</>
                     ) : (
-                      <><Archive className="w-4 h-4 mr-1" />Push All Stages (1-5)</>
+                      <><Archive className="w-4 h-4 mr-1" />Push Full Sync</>
                     )}
                   </Button>
                 </div>
-                {pushAllStagesMutation.isPending && (
+                {pushFullSyncMutation.isPending && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Pushing 36 files: 18 crypto modules, 4 compat modules, scheduler fix, 4 libternary files, 2 docs, FIPS plan, 3 governance docs, 3 key mgmt docs, status doc...
+                    Syncing 70 files: 34 crypto modules, 5 compat/network, 12 compliance docs, 4 libternary, 4 salvi docs, Kong config, scripts, governance, keys...
                   </p>
                 )}
               </CardContent>

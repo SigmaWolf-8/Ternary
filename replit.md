@@ -72,13 +72,13 @@ The `src/kernel/` directory contains a robust kernel developed in Rust, encompas
 The GitHub Manager page (`/github`, admin-only) provides:
 -   **File Browser**: Browse, edit, create, and delete files in the `SigmaWolf-8/Ternary` repository.
 -   **P0 Actions**: Three push actions available:
-    -   **Push CI/CD Workflows** — Pushes all `.github/workflows/*.yml` files.
-    -   **Push Kernel Crypto (Phase 2)** — Pushes Stage 1-3 crypto modules (10 files).
-    -   **Push All Stages (1-5)** — Pushes complete Stages 1-5 sync (36 files): 18 crypto modules, 4 compat modules, scheduler fix, libternary package, docs, FIPS plan, governance docs, key management docs, and status doc.
+    -   **Push CI/CD Workflows** — Pushes all `.github/workflows/*.yml` files (11 workflows).
+    -   **Push Crypto Modules** — Pushes all 34 crypto modules from `src/kernel/src/crypto/`.
+    -   **Push Full Sync** — Pushes complete project sync (~70 files): 34 crypto modules, 5 compat/network modules, 12 CMVP compliance docs, 4 libternary files, 4 salvi docs, Kong config, build scripts, governance docs, key management docs, and changelog.
 -   **API Endpoints**:
     -   `POST /api/github/push-workflows/:owner/:repo` — Workflow file push.
     -   `POST /api/github/push-batch/:owner/:repo` — Allowlisted batch push with path traversal protection.
--   **Sync Status**: Stages 1-5 complete locally, pending push to main branch via "Push All Stages (1-5)" button. `libternary.tar.gz` requires separate recompilation before push.
+-   **Sync Status**: All modules complete locally, pending push to main branch via "Push Full Sync" button. `libternary.tar.gz` requires separate recompilation before push.
 
 ## Recent Changes (February 2026)
 -   **SP 800-208 Gap CLOSED**: Full XMSS (WOTS+ with Merkle tree, heights 10/16/20, w=16, L-tree compression) and LMS (LM-OTS with Merkle tree, heights 5/10/15/20/25, W=1/2/4/8) in `signature.rs`. Stateful signing with monotonic index advancement and `StateExhausted` enforcement.
