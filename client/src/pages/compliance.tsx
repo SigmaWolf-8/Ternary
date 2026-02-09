@@ -187,13 +187,6 @@ const timeline: TimelineMilestone[] = [
     status: "complete",
   },
   {
-    year: 2027,
-    title: "FIPS Phase 3 - CAVP Submission",
-    description: "Formal NIST CAVP submission with KAT vectors and compliance evidence package. Side-channel hardening on target hardware. FPGA prototype validation on Kintex UltraScale+.",
-    algorithms: [],
-    status: "in_progress",
-  },
-  {
     year: 2026,
     title: "SP 800-208 Hash-Based Signatures Complete",
     description: "Full XMSS (WOTS+ with Merkle tree, heights 10/16/20) and LMS (LM-OTS with Merkle tree, heights 5-25, W=1/2/4/8) implementations. Stateful signing with monotonic index enforcement. Firmware signing pipeline, X.509 PKI, algorithm agility policy engine, and CNSA 2.0 protocol profiles for TLS 1.3, SSH, IPsec/IKEv2, and S/MIME.",
@@ -201,11 +194,18 @@ const timeline: TimelineMilestone[] = [
     status: "complete",
   },
   {
-    year: 2030,
-    title: "FIPS Certification",
-    description: "Complete FIPS certification for all cryptographic modules. Production deployment of validated ternary-native CNSA 2.0 suite.",
+    year: 2026,
+    title: "FIPS Phase 3 - CAVP Submission",
+    description: "CAVP submission package complete: 210 KATs (35/variant) in NIST .req/.rsp format. Side-channel hardening with constant-time primitives. FPGA HDL generator and synthesis estimation for Kintex UltraScale+. Formal verification (13 properties). CMVP lab engagement and testing cycle underway.",
     algorithms: [],
-    status: "planned",
+    status: "complete",
+  },
+  {
+    year: 2027,
+    title: "FIPS 140-3 Certification",
+    description: "CMVP lab testing and FIPS 140-3 validation for all cryptographic modules. Estimated 6-12 month cycle from CAVP submission to certificate issuance. Production deployment of validated ternary-native CNSA 2.0 suite.",
+    algorithms: [],
+    status: "in_progress",
   },
 ];
 
