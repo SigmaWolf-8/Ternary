@@ -1,0 +1,309 @@
+# =============================================================================
+# PlenumNET Theory Validation Pipeline
+# =============================================================================
+# This workflow ensures no commit breaks the connection between the theoretical
+# framework (GF(3) field axioms, τ timing invariants, 13D density consistency)
+# and the implementation in libternary + the full-stack application.
+#
+# Runs on every PR to main and on every push to main.
+# =============================================================================
+
+name: Theory Validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+
+  # ===========================================================================
+  # Stage 1: GF(3) Algebraic Property Tests
+  # ===========================================================================
+  # Exhaustive verification of field axioms over all input combinations.
+  # This is the foundation — if GF(3) arithmetic is wrong, everything above
+  # it (crypto, timing, density) is meaningless.
+  # ===========================================================================
+  gf3-field-axioms:
+    name: "GF(3) Field Axiom Verification"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./libternary
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            libternary/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('libternary/Cargo.lock') }}
+
+      - name: Run GF(3) algebraic property tests
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  GF(3) FIELD AXIOM VERIFICATION"
+          echo "  Testing all 9 input pairs for binary operations"
+          echo "══════════════════════════════════════════════════════"
+          cargo test --release -- gf3_field_axioms --nocapture
+          echo "✓ Associativity (addition & multiplication)"
+          echo "✓ Commutativity (addition & multiplication)"
+          echo "✓ Distributivity"
+          echo "✓ Identity elements (additive: 0, multiplicative: 1)"
+          echo "✓ Inverse existence (additive for all, multiplicative for non-zero)"
+
+      - name: Run bijective mapping verification
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  BIJECTIVE MAPPING VERIFICATION"
+          echo "  Every GF(3) transformation must be invertible"
+          echo "══════════════════════════════════════════════════════"
+          cargo test --release -- bijective_mapping --nocapture
+
+      - name: Clippy lint (crypto-safety checks)
+        run: |
+          cargo clippy --all-targets -- \
+            -D warnings \
+            -W clippy::integer_arithmetic \
+            -W clippy::cast_possible_truncation
+
+  # ===========================================================================
+  # Stage 2: verifyTau() Self-Test
+  # ===========================================================================
+  # Executes the τ polynomial identity check across all 35 opcodes.
+  # τ encodes the timing-density invariant from the 13D Torsion Plenum model.
+  # A single failure here means the theory-implementation link is broken.
+  # ===========================================================================
+  verify-tau:
+    name: "verifyTau() — Timing-Density Invariant"
+    runs-on: ubuntu-latest
+    needs: gf3-field-axioms
+    defaults:
+      run:
+        working-directory: ./libternary
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            libternary/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('libternary/Cargo.lock') }}
+
+      - name: Execute verifyTau() across all opcodes
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  verifyTau() SELF-TEST"
+          echo "  Polynomial identity check: 35 opcodes × τ invariant"
+          echo "══════════════════════════════════════════════════════"
+          cargo test --release -- verify_tau --nocapture
+        env:
+          PLENUMNET_TAU_STRICT: "true"
+
+      - name: Verify τ consistency across GF(3^k) extensions
+        run: |
+          echo "── Checking τ in GF(3^2) = GF(9) extension ──"
+          cargo test --release -- tau_gf9_extension --nocapture
+          echo "── Checking τ in GF(3^3) = GF(27) extension ──"
+          cargo test --release -- tau_gf27_extension --nocapture
+
+  # ===========================================================================
+  # Stage 3: Density & Timing Self-Tests
+  # ===========================================================================
+  # Validates the 13-component state vector remains consistent after timing
+  # opcode sequences, and that HPTP synchronisation tolerances are met.
+  # ===========================================================================
+  density-timing:
+    name: "Density/Timing — 13D State Vector Consistency"
+    runs-on: ubuntu-latest
+    needs: verify-tau
+    defaults:
+      run:
+        working-directory: ./libternary
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            libternary/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('libternary/Cargo.lock') }}
+
+      - name: Run 13D state vector consistency tests
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  13D STATE VECTOR CONSISTENCY"
+          echo "  3 spatial + 1 temporal + 9 torsion components"
+          echo "══════════════════════════════════════════════════════"
+          cargo test --release -- density_state_vector --nocapture
+
+      - name: HPTP timing tolerance validation
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  HPTP TIMING TOLERANCE VALIDATION"
+          echo "  Checking opcode execution within sync tolerances"
+          echo "══════════════════════════════════════════════════════"
+          cargo test --release -- hptp_timing --nocapture
+
+      - name: Timing opcode sequence determinism check
+        run: |
+          echo "── Running 1000 identical opcode sequences ──"
+          echo "── Verifying deterministic output across all runs ──"
+          cargo test --release -- timing_determinism --nocapture
+
+  # ===========================================================================
+  # Stage 4: Cryptographic Layer Validation
+  # ===========================================================================
+  # Tests both Lamport (hash-based) and lattice (MLWE-based) layers.
+  # Ensures the dual-layer architecture from ADR-003 is intact.
+  # ===========================================================================
+  crypto-validation:
+    name: "Cryptographic Layer — Lamport + Lattice"
+    runs-on: ubuntu-latest
+    needs: gf3-field-axioms
+    defaults:
+      run:
+        working-directory: ./libternary
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            libternary/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('libternary/Cargo.lock') }}
+
+      - name: Lamport OTS correctness
+        run: |
+          echo "── Lamport one-time signature: sign → verify cycle ──"
+          cargo test --release -- lamport_ots --nocapture
+
+      - name: Lamport key-state isolation
+        run: |
+          echo "── Verifying used key detection & rejection ──"
+          cargo test --release -- lamport_key_state --nocapture
+
+      - name: Lattice NTT butterfly correctness
+        run: |
+          echo "── NTT forward → inverse round-trip over GF(3) ──"
+          cargo test --release -- ntt_roundtrip --nocapture
+
+      - name: Merkle path verification
+        run: |
+          echo "── Merkle tree: leaf → root authentication path ──"
+          cargo test --release -- merkle_path --nocapture
+
+  # ===========================================================================
+  # Stage 5: Full-Stack Build & Integration
+  # ===========================================================================
+  # Builds the complete application (Rust kernel + Node server + React client)
+  # and runs integration tests that exercise the API with GF(3)-encoded payloads.
+  # ===========================================================================
+  full-stack:
+    name: "Full-Stack Build & Integration"
+    runs-on: ubuntu-latest
+    needs: [verify-tau, density-timing, crypto-validation]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Build libternary
+        run: |
+          cd libternary
+          cargo build --release
+          echo "── libternary artifact compiled ──"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Build client
+        run: npm run build
+
+      - name: Run integration tests
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  INTEGRATION TESTS"
+          echo "  Full-stack: Rust kernel ↔ Node API ↔ React client"
+          echo "══════════════════════════════════════════════════════"
+          npm test -- --run
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+
+  # ===========================================================================
+  # Summary Gate
+  # ===========================================================================
+  # All theory-connected stages must pass for a PR to be mergeable.
+  # This job exists so branch protection can reference a single check.
+  # ===========================================================================
+  theory-gate:
+    name: "✓ Theory Validation Gate"
+    runs-on: ubuntu-latest
+    needs: [gf3-field-axioms, verify-tau, density-timing, crypto-validation, full-stack]
+    if: always()
+    steps:
+      - name: Check all stages passed
+        run: |
+          echo "══════════════════════════════════════════════════════"
+          echo "  THEORY VALIDATION GATE"
+          echo "══════════════════════════════════════════════════════"
+          if [[ "${{ needs.gf3-field-axioms.result }}" != "success" ]] || \
+             [[ "${{ needs.verify-tau.result }}" != "success" ]] || \
+             [[ "${{ needs.density-timing.result }}" != "success" ]] || \
+             [[ "${{ needs.crypto-validation.result }}" != "success" ]] || \
+             [[ "${{ needs.full-stack.result }}" != "success" ]]; then
+            echo "✗ One or more theory validation stages failed."
+            echo "  The connection between theory and implementation is broken."
+            echo "  Review the failed stage(s) above before merging."
+            exit 1
+          fi
+          echo "✓ All theory validation stages passed."
+          echo "  GF(3) axioms    — verified"
+          echo "  verifyTau()     — passed"
+          echo "  13D density     — consistent"
+          echo "  Crypto layers   — intact"
+          echo "  Full-stack      — builds & integrates"
+          echo ""
+          echo "  Così sia."

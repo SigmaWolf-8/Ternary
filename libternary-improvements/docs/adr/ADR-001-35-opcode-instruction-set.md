@@ -1,69 +1,71 @@
 # ADR-001: 35-Opcode Instruction Set for the PlenumNET VM
 
-| Field       | Value |
-|-------------|-------|
-| **Status**  | Accepted |
-| **Date**    | 2025-12-15 |
-| **Author**  | Capomastro Holdings Ltd |
-| **Context** | Defining the instruction set architecture for the Ternary Virtual Machine (TVM) |
+| Field       | Value                          |
+|-------------|--------------------------------|
+| **Status**  | Accepted                       |
+| **Date**    | 2026-02-09                     |
+| **Author**  | Salvi · Capomastro Holdings Ltd — Applied Physics Division |
+| **Context** | PlenumNET Ternary VM · `libternary` Rust Kernel |
+
+---
 
 ## 1 · Context
 
-PlenumNET requires a virtual machine capable of executing ternary programs natively on binary hardware. The VM must support GF(3) field arithmetic as first-class operations alongside conventional integer arithmetic, memory access, and control flow. The instruction set must be compact enough for efficient WASM compilation while expressive enough to implement the full Salvi Framework — including phase encryption, timing verification, and ternary data processing.
+The PlenumNET virtual machine executes bijective ternary programs compiled through the Salvi Framework. Every opcode consumes exactly one *tryte* (a 3-trit word) from the instruction stream. The question is how many opcodes the VM should expose and why.
 
-The number of general-purpose registers is fixed at 27 (3^3), reflecting the ternary architecture. The instruction encoding must be fixed-width for deterministic decoding and cycle counting.
+Balanced ternary (digits {−1, 0, +1}) yields 3^n unique states per n-trit word. A single tryte of 3 trits gives 27 states; a 4-trit word gives 81. Both extremes have problems:
+
+* **27 opcodes** saturates the entire 3-trit encoding space, leaving zero room for inline operand hints, future extensions, or a `NOP`/`RESERVED` sentinel class. It also forces every cryptographic primitive (Lamport hash-chain ops, lattice reduction steps) to be macro-expanded from a dangerously small basis set — increasing code size and verification surface.
+* **81 opcodes** (4 trits) wastes encoding bandwidth for a VM that is intentionally minimal. Most of those slots would sit empty, and the wider instruction word penalises the timing-critical fetch-decode path that must stay within HPTP synchronisation tolerances.
 
 ## 2 · Decision
 
-The TVM uses a **35-opcode instruction set** organized into six categories:
+**The VM exposes exactly 35 opcodes encoded in a 3-trit primary field plus a 1-trit extension flag (total: 4 trits per opcode word, but only 35 of the 81 slots are defined).**
 
-| Category | Opcodes | Count |
-|----------|---------|-------|
-| **Arithmetic** | NOP, HALT, ADD, SUB, MUL, DIV, MOD, NEG | 8 |
-| **Ternary** | TADD, TMUL, TNEG, TROT, TXOR, TCONVERT | 6 |
-| **Memory** | LOAD, STORE, MOVE, LOADIMM, PUSH, POP | 6 |
-| **Control** | JUMP, JUMPZERO, JUMPNEG, JUMPPOS, CALL, RETURN, JUMPNOTZERO | 7 |
-| **Compare** | CMP, CMPIMM | 2 |
-| **Bitwise** | AND, OR, XOR, SHL, SHR, NOT | 6 |
+The 35 opcodes partition into five functional classes:
 
-Key design properties:
+| Class | Count | Purpose |
+|-------|-------|---------|
+| **Arithmetic / GF(3)** | 9 | Trit-native add, mul, inv, and the full GF(3) field operations needed for algebraic self-tests |
+| **Stack & Memory** | 7 | Push, pop, load, store, dup, swap, rot — standard stack-machine primitives |
+| **Control Flow** | 5 | Jump, branch-on-trit, call, return, halt |
+| **Cryptographic** | 8 | Lamport one-time signature ops (hash-chain step, leaf-verify, Merkle-path-check), lattice basis sample, NTT butterfly, modular reduce — the CNSA 2.0 critical path |
+| **Timing & Density** | 6 | τ-register read/write, density-field sample, HPTP sync pulse, epoch-boundary fence, `verifyTau` intrinsic, timing self-test trigger |
 
-- **Fixed-width 16-byte instructions.** Each instruction encodes: opcode (1 byte), dst register (1 byte), src1 register (1 byte), src2 register (1 byte), immediate value (8 bytes), padding (4 bytes). This enables O(1) instruction fetch and deterministic cycle counting.
-- **27 general-purpose registers** (R0-R26), each 64 bits wide. 27 = 3^3 aligns with the ternary architecture.
-- **Dedicated ternary opcodes.** TADD, TMUL, TNEG, TROT, TXOR, and TCONVERT operate in GF(3) directly, avoiding the overhead of encoding GF(3) operations as sequences of binary arithmetic.
-- **TCONVERT** bridges between balanced ternary {-1,0,+1}, unbalanced {0,1,2}, and bijective {1,2,3} representations within the VM, enabling zero-copy interop between representation conventions.
-- **Stack model** is LIFO with a maximum depth of 4096, supporting PUSH/POP for register saves and CALL/RETURN for subroutine linkage.
+### 2.1 · Why not 27?
 
-Theory-derived parameters within the VM:
+Removing the extension flag and collapsing to 27 opcodes would force one of two bad trade-offs:
 
-- Finalization rounds: 13 (from T(7) = 13, the dimensional constant)
-- Hash seed base: tau^2 (from SO(8) graph stability)
-- Hash mixing multiplier: tau^7 (instanton action volume)
-- GC cycle interval: tau^13 (fundamental period constant)
+1. **Merge the Crypto and Timing classes** into overloaded opcodes selected by stack context. This creates implicit state that is hostile to formal verification — exactly the opposite of what a post-quantum system needs.
+2. **Drop timing intrinsics** into userspace library calls. This destroys the nanosecond-determinism guarantee that HPTP alignment requires. The τ-register must be read atomically at the VM level; a library call crosses the FFI boundary and introduces jitter.
+
+### 2.2 · Why not 81?
+
+Filling 81 slots would require inventing opcodes that exist only for encoding symmetry. Empty opcode slots in a post-quantum VM are a security surface: a malicious program that lands on an undefined opcode must trap deterministically, and the more undefined slots exist, the more trap-path testing the implementation demands. 35 defined + 46 reserved-as-`ILLEGAL` is a better ratio than 27 + 0 or 81 + 0.
+
+### 2.3 · Why exactly 35?
+
+35 = 27 + 8. The base 27 (3^3) opcodes cover the general-purpose VM. The 8 extension opcodes — accessible only when the extension trit is non-zero — are reserved for the cryptographic class, which is the hottest path in post-quantum handshake execution. Separating them behind an extension flag means:
+
+* General-purpose programs never pay the decode cost of crypto opcodes.
+* The crypto opcodes can be hardware-accelerated (or FPGA-gated) independently.
+* FIPS validation can scope its audit to the 8-opcode crypto surface without reviewing the entire instruction set.
 
 ## 3 · Consequences
 
-**Positive:**
-- The 35-opcode set is small enough that exhaustive conformance testing is feasible (all opcodes can be tested with bounded input spaces).
-- Fixed-width encoding eliminates variable-length decode complexity and enables WASM compilation with predictable performance.
-- Dedicated ternary opcodes make GF(3) arithmetic a first-class citizen, avoiding lossy binary emulation of ternary operations.
-- The ISA is formally specified in machine-readable YAML/JSON (`src/kernel/spec/tvm-isa-v1.yaml`), enabling automated conformance test generation.
-
-**Negative:**
-- 35 opcodes leaves limited room for future expansion without breaking the encoding scheme. Reserved opcode slots should be consumed sparingly (new opcodes require an ADR).
-- Fixed-width 16-byte encoding wastes 4 bytes of padding per instruction. This is an acceptable trade-off for decode simplicity, but increases program memory footprint by ~33% compared to a variable-width encoding.
-- The register file is intentionally small (27 registers). Programs requiring more working state must spill to memory via PUSH/POP, adding latency.
+* The instruction decoder in `libternary` is a two-stage pipeline: 3-trit primary decode → optional 1-trit extension decode. This is slightly more complex than a flat table but allows the timing class to sit alongside crypto without polluting the general namespace.
+* Future opcode additions must justify consuming a reserved slot via a new ADR. The 46 reserved slots provide ample runway.
+* All 35 opcodes must have corresponding entries in the `verifyTau()` self-test matrix; any opcode without a timing-correctness proof is considered unshipped.
 
 ## 4 · Alternatives Considered
 
-**Variable-width instruction encoding (2-16 bytes):**
-Rejected. Variable-width decoding adds branch prediction complexity and makes cycle counting non-deterministic, which conflicts with HPTP timing guarantees.
+| Alternative | Reason Rejected |
+|-------------|-----------------|
+| 27-opcode flat encoding | Insufficient separation of crypto/timing from general ops; hostile to FIPS scoping |
+| 81-opcode 4-trit flat encoding | Excessive undefined-opcode surface; wasted fetch bandwidth |
+| Variable-length encoding (CISC-style) | Incompatible with deterministic timing guarantees; decode jitter breaks HPTP sync |
+| 32 opcodes (power-of-two compromise) | Misaligned with ternary word boundaries; wastes 5 encoding states in a 3^3 space |
 
-**64 opcodes (6-bit opcode field):**
-Rejected. A larger opcode space invites feature creep. 35 opcodes cover arithmetic, ternary ops, memory, control flow, comparison, and bitwise — the minimal set needed for the Salvi Framework. Additional functionality (e.g., SIMD-style trit-vector operations) can be implemented as library routines composed from the base opcodes.
+---
 
-**Stack-based architecture (no registers):**
-Rejected. Stack-based VMs have lower code density for the expression patterns common in GF(3) arithmetic (many binary operations on the same operands). A register machine with 27 registers reduces redundant loads and stores.
-
-**Binary-only opcodes with GF(3) as a library:**
-Rejected. Encoding GF(3) addition as `((a + b) % 3)` using binary ADD and MOD requires 3 instructions per trit operation and introduces timing variability from the MOD division. A dedicated TADD opcode is constant-time and single-cycle.
+*Così sia.*
