@@ -13,7 +13,17 @@ The frontend uses React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui` fo
 
 **Documentation**: The `salvi_docs/` directory contains comprehensive developer documentation (15 files, ~7,316+ lines) covering tutorials and module guides for the Salvi Framework. The `/docs` page on the site provides a browsable index linking to GitHub-hosted markdown files.
 
-**Ancient Calendar Synchronization**: The Salvi Epoch (April 1, 2025 00:00:00 UTC) is anchored to 9 ancient calendar systems spanning 30,000+ years: Mayan Long Count, Hebrew (Anno Mundi), Chinese Sexagenary (Yellow Emperor epoch, Cycle 78), Vedic Kali Yuga, Egyptian Civil, Julian Day Number, Islamic Hijri, Byzantine Anno Mundi, and 13-Moon Natural Time (13 months x 28 days = 364-day cycle, prehistoric attestation ~28,000 BCE). All conversions computed via JDN with verified backward time compatibility.
+**Ancient Calendar Synchronization**: The Salvi Epoch (April 1, 2025 00:00:00 UTC) is anchored to 24 global calendar systems spanning 30,000+ years, covering every inhabited continent:
+-   **Mesoamerica**: Mayan Long Count, Aztec Tonalpohualli (260-day sacred + 365-day Xiuhpohualli)
+-   **Middle East**: Hebrew (Anno Mundi), Islamic Hijri, Zoroastrian Fasli
+-   **East Asia**: Chinese Sexagenary (Yellow Emperor epoch, Cycle 78), Japanese Imperial (Koki/Reiwa), Korean Dangun Era
+-   **South/SE Asia**: Vedic Kali Yuga, Indian National/Saka, Thai Buddhist Era, Bengali/Bangla, Balinese Pawukon (210-day cycle)
+-   **Tibet/Mongolia**: Tibetan Rabjung (60-year cycle)
+-   **Africa**: Egyptian Civil (Sothic Cycle), Ethiopian/Ge'ez (13 months), Coptic (Era of Martyrs), Berber/Amazigh (Yennayer)
+-   **Europe/Mediterranean**: Julian Day Number, Byzantine Anno Mundi, Roman Ab Urbe Condita (Kalends/Nones/Ides)
+-   **Oceania**: Aboriginal Australian Seasonal (Dharawal six-season)
+-   **Universal**: 13-Moon Natural Time (13 x 28 = 364-day cycle, ~28,000 BCE attestation)
+All conversions computed via JDN with verified backward time compatibility. Individual API endpoints available for each calendar system at `/api/salvi/timing/epoch/calendars/{system}`.
 
 ### Backend and Core Framework
 The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM.

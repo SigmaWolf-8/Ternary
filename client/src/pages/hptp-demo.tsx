@@ -237,7 +237,7 @@ function EndpointReference() {
     { method: "GET", path: "/api/salvi/timing/metrics", desc: "Clock source & sync status" },
     { method: "GET", path: "/api/salvi/timing/batch/:count", desc: "Batch timestamp generation" },
     { method: "GET", path: "/api/salvi/timing/epoch/anchors", desc: "Salvi Epoch anchor points" },
-    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "9 ancient calendar mappings" },
+    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "24 global calendar systems" },
   ];
 
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -360,16 +360,31 @@ function CalendarSync() {
     queryKey: ["/api/salvi/timing/epoch/calendars"],
   });
 
-  const calendarIcons: Record<string, string> = {
-    "Mayan Long Count": "13.0.12.8.4",
-    "Hebrew Calendar": "5785 AM",
-    "Chinese Sexagenary Cycle": "Cycle 78",
-    "Vedic Kali Yuga": "Year 5,126",
-    "Egyptian Civil Calendar": "Year 4805",
-    "Julian Day Number": "JD 2460766",
-    "Islamic Hijri": "1446 AH",
-    "Byzantine Anno Mundi": "7534 AM",
-    "13-Moon Natural Time": "Cycle 30,025",
+  const regionLabels: Record<string, string> = {
+    "Mayan Long Count": "Mesoamerica",
+    "Hebrew Calendar": "Middle East",
+    "Chinese Sexagenary Cycle": "East Asia",
+    "Vedic Kali Yuga": "South Asia",
+    "Egyptian Civil Calendar": "North Africa",
+    "Julian Day Number": "Astronomical",
+    "Islamic Hijri": "Islamic World",
+    "Byzantine Anno Mundi": "Eastern Europe",
+    "13-Moon Natural Time": "Prehistoric",
+    "Persian/Solar Hijri": "Iran/Central Asia",
+    "Ethiopian/Ge'ez Calendar": "East Africa",
+    "Coptic Calendar": "Egypt/Coptic",
+    "Japanese Imperial (Koki)": "Japan",
+    "Korean Dangun Era": "Korea",
+    "Thai Buddhist Era": "Southeast Asia",
+    "Indian National/Saka": "India",
+    "Tibetan Rabjung Cycle": "Tibet/Mongolia",
+    "Aztec Tonalpohualli": "Mesoamerica",
+    "Roman Ab Urbe Condita": "Mediterranean",
+    "Bengali/Bangla Calendar": "Bangladesh/Bengal",
+    "Berber/Amazigh (Yennayer)": "North Africa",
+    "Balinese Pawukon": "Indonesia",
+    "Zoroastrian Fasli": "Persia",
+    "Aboriginal Australian Seasonal": "Oceania",
   };
 
   return (
@@ -389,20 +404,25 @@ function CalendarSync() {
           </div>
         ) : data?.allMappings ? (
           <div className="space-y-2">
-            <div className="text-xs text-muted-foreground mb-2">
-              Salvi Epoch anchored to 9 calendar systems spanning 30,000+ years
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="default" data-testid="badge-calendar-count">{data.allMappings.length} calendars</Badge>
+              <span className="text-xs text-muted-foreground">
+                Salvi Epoch anchored across all major civilizations spanning 30,000+ years
+              </span>
             </div>
-            {data.allMappings.map((m, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50" data-testid={`row-calendar-${i}`}>
-                <div className="space-y-0.5 min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{m.calendarSystem}</div>
-                  <div className="text-[10px] text-muted-foreground truncate">{m.origin}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {data.allMappings.map((m, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50" data-testid={`row-calendar-${i}`}>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">{m.calendarSystem}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{m.origin}</div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {regionLabels[m.calendarSystem] || `Year ${m.yearInCalendar}`}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="font-mono text-[10px] shrink-0">
-                  {calendarIcons[m.calendarSystem] || `Year ${m.yearInCalendar}`}
-                </Badge>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : (
           <div className="text-sm text-muted-foreground">Unable to load calendar data</div>
@@ -492,7 +512,7 @@ export default function HPTPDemo() {
           <Badge variant="default" data-testid="badge-live">LIVE</Badge>
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl" data-testid="text-page-description">
-          High-Precision Timing Protocol delivering femtosecond-resolution timestamps synchronized across 9 ancient calendar systems. 
+          High-Precision Timing Protocol delivering femtosecond-resolution timestamps synchronized across 24 global calendar systems spanning every inhabited continent. 
           Production-grade API powering FINRA CAT and MiFID II regulatory compliance for quantum-resistant financial infrastructure.
         </p>
       </div>

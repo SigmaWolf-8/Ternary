@@ -59,7 +59,22 @@ import {
   toJulianDayNumber,
   toIslamicHijri,
   toByzantineAnnoMundi,
-  toThirteenMoonDate
+  toThirteenMoonDate,
+  toPersianDate,
+  toEthiopianDate,
+  toCopticDate,
+  toJapaneseKokiDate,
+  toKoreanDangunDate,
+  toThaiBuddhistDate,
+  toIndianSakaDate,
+  toTibetanDate,
+  toAztecTonalpohualliDate,
+  toRomanAUCDate,
+  toBengaliDate,
+  toBerberDate,
+  toBalinesePawukonDate,
+  toZoroastrianFasliDate,
+  toAboriginalSeasonalDate,
 } from "./salvi-core/ancient-calendar-sync";
 
 const demoRunSchema = z.object({
@@ -644,11 +659,11 @@ export async function registerRoutes(
           },
           epochAnchors: {
             path: "GET /api/salvi/timing/epoch/anchors",
-            description: "Get Salvi Epoch anchor points across 8 ancient calendar systems"
+            description: "Get Salvi Epoch anchor points across 24 ancient calendar systems"
           },
           epochCalendars: {
             path: "GET /api/salvi/timing/epoch/calendars",
-            description: "Full ancient calendar synchronization (Mayan, Hebrew, Chinese, Vedic, Egyptian, Julian Day, Islamic, Byzantine)",
+            description: "Full ancient calendar synchronization across 24 global calendar systems spanning 30,000+ years",
             query: { date: "ISO 8601 date (optional, defaults to Salvi Epoch)" }
           },
           calendarEndpoints: {
@@ -660,7 +675,22 @@ export async function registerRoutes(
             julianDay: "GET /api/salvi/timing/epoch/calendars/julian-day",
             islamic: "GET /api/salvi/timing/epoch/calendars/islamic",
             byzantine: "GET /api/salvi/timing/epoch/calendars/byzantine",
-            thirteenMoon: "GET /api/salvi/timing/epoch/calendars/thirteen-moon"
+            thirteenMoon: "GET /api/salvi/timing/epoch/calendars/thirteen-moon",
+            persian: "GET /api/salvi/timing/epoch/calendars/persian",
+            ethiopian: "GET /api/salvi/timing/epoch/calendars/ethiopian",
+            coptic: "GET /api/salvi/timing/epoch/calendars/coptic",
+            japanese: "GET /api/salvi/timing/epoch/calendars/japanese",
+            korean: "GET /api/salvi/timing/epoch/calendars/korean",
+            thai: "GET /api/salvi/timing/epoch/calendars/thai",
+            indianSaka: "GET /api/salvi/timing/epoch/calendars/indian-saka",
+            tibetan: "GET /api/salvi/timing/epoch/calendars/tibetan",
+            aztec: "GET /api/salvi/timing/epoch/calendars/aztec",
+            roman: "GET /api/salvi/timing/epoch/calendars/roman",
+            bengali: "GET /api/salvi/timing/epoch/calendars/bengali",
+            berber: "GET /api/salvi/timing/epoch/calendars/berber",
+            balinese: "GET /api/salvi/timing/epoch/calendars/balinese",
+            zoroastrian: "GET /api/salvi/timing/epoch/calendars/zoroastrian",
+            aboriginal: "GET /api/salvi/timing/epoch/calendars/aboriginal"
           }
         },
         phase: {
@@ -1077,6 +1107,42 @@ export async function registerRoutes(
       res.status(500).json({ error: "13-Moon calendar conversion failed" });
     }
   });
+
+  const calendarRouteHelper = (
+    app: Express,
+    path: string,
+    calendarName: string,
+    converter: (date: Date) => any
+  ) => {
+    app.get(`/api/salvi/timing/epoch/calendars/${path}`, (req, res) => {
+      try {
+        const dateParam = req.query.date as string | undefined;
+        const date = dateParam ? new Date(dateParam) : new Date();
+        if (isNaN(date.getTime())) {
+          return res.status(400).json({ error: "Invalid date format" });
+        }
+        res.json({ success: true, calendar: calendarName, ...converter(date) });
+      } catch (error) {
+        res.status(500).json({ error: `${calendarName} calendar conversion failed` });
+      }
+    });
+  };
+
+  calendarRouteHelper(app, "persian", "Persian/Solar Hijri", toPersianDate);
+  calendarRouteHelper(app, "ethiopian", "Ethiopian/Ge'ez", toEthiopianDate);
+  calendarRouteHelper(app, "coptic", "Coptic", toCopticDate);
+  calendarRouteHelper(app, "japanese", "Japanese Imperial (Koki)", toJapaneseKokiDate);
+  calendarRouteHelper(app, "korean", "Korean Dangun Era", toKoreanDangunDate);
+  calendarRouteHelper(app, "thai", "Thai Buddhist Era", toThaiBuddhistDate);
+  calendarRouteHelper(app, "indian-saka", "Indian National/Saka", toIndianSakaDate);
+  calendarRouteHelper(app, "tibetan", "Tibetan Rabjung", toTibetanDate);
+  calendarRouteHelper(app, "aztec", "Aztec Tonalpohualli", toAztecTonalpohualliDate);
+  calendarRouteHelper(app, "roman", "Roman Ab Urbe Condita", toRomanAUCDate);
+  calendarRouteHelper(app, "bengali", "Bengali/Bangla", toBengaliDate);
+  calendarRouteHelper(app, "berber", "Berber/Amazigh", toBerberDate);
+  calendarRouteHelper(app, "balinese", "Balinese Pawukon", toBalinesePawukonDate);
+  calendarRouteHelper(app, "zoroastrian", "Zoroastrian Fasli", toZoroastrianFasliDate);
+  calendarRouteHelper(app, "aboriginal", "Aboriginal Australian Seasonal", toAboriginalSeasonalDate);
 
   // =====================================================
   // SALVI CORE API - Phase Encryption
