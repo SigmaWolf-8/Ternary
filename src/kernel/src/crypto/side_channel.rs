@@ -22,7 +22,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
-use super::CryptoResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnalysisCategory {

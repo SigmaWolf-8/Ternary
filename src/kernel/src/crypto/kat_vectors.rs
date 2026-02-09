@@ -32,8 +32,8 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
-use super::{CryptoResult, TernaryDigest};
-use super::tl_kem::{self, TlKemVariant, SharedSecret};
+use super::CryptoResult;
+use super::tl_kem::{self, TlKemVariant};
 use super::tl_dsa::{self, TlDsaVariant};
 use super::sponge::TernarySponge;
 

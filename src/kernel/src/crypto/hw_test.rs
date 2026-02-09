@@ -26,7 +26,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
-use alloc::format;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestCategory {

@@ -26,9 +26,9 @@
 
 use alloc::vec::Vec;
 use alloc::vec;
-use super::{CryptoError, CryptoResult};
+use super::CryptoResult;
 use super::ternary_lattice::{
-    TernaryPolynomial, TernaryPolyMatrix, TernaryPolyVec, LatticeParams,
+    TernaryPolynomial, TernaryPolyVec, LatticeParams,
     sample_matrix, sample_noise_vec, compress_ternary, decompress_ternary,
 };
 use super::sponge::TernarySponge;
