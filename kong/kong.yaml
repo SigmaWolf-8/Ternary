@@ -8,16 +8,24 @@ _transform: true
 # Copyright: Capomastro Holdings Ltd 2026
 # For AI Agents: This configuration can be synced to Kong Konnect
 # using the decK CLI or the PlenumNET admin interface
+#
+# Total Services: 18 | Total Endpoints: 70+
 
 services:
-  # Femtosecond Timing API Service
+  # =====================================================
+  # CORE PLATFORM SERVICES
+  # =====================================================
+
+  # 1. Femtosecond Timing API Service (HPTP Protocol)
   - name: plenumnet-timing
     url: https://plenumnet.replit.app/api/salvi/timing
     enabled: true
     tags:
       - plenumnet
       - timing
+      - hptp
       - finra-cat
+      - mifid-ii
     routes:
       - name: timing-api
         paths:
@@ -30,7 +38,27 @@ services:
           - plenumnet
           - timing
 
-  # Ternary Operations API Service
+  # 2. Ancient Calendar Synchronization Service (24 calendars)
+  - name: plenumnet-calendars
+    url: https://plenumnet.replit.app/api/salvi/timing/epoch
+    enabled: true
+    tags:
+      - plenumnet
+      - calendars
+      - epoch
+      - synchronization
+    routes:
+      - name: calendars-api
+        paths:
+          - /api/calendars
+        methods:
+          - GET
+        strip_path: true
+        tags:
+          - plenumnet
+          - calendars
+
+  # 3. Ternary Computing Engine Service
   - name: plenumnet-ternary
     url: https://plenumnet.replit.app/api/salvi/ternary
     enabled: true
@@ -38,6 +66,7 @@ services:
       - plenumnet
       - ternary
       - quantum-safe
+      - gf3
     routes:
       - name: ternary-api
         paths:
@@ -50,13 +79,14 @@ services:
           - plenumnet
           - ternary
 
-  # Phase Encryption API Service
+  # 4. Phase Encryption API Service
   - name: plenumnet-phase
     url: https://plenumnet.replit.app/api/salvi/phase
     enabled: true
     tags:
       - plenumnet
       - encryption
+      - phase
       - quantum-safe
     routes:
       - name: phase-api
@@ -70,16 +100,17 @@ services:
           - plenumnet
           - encryption
 
-  # Demo Compression API Service
-  - name: plenumnet-demo
+  # 5. Compression Engine Service (PlenumDB)
+  - name: plenumnet-compression
     url: https://plenumnet.replit.app/api/demo
     enabled: true
     tags:
       - plenumnet
-      - demo
       - compression
+      - plenumdb
+      - benchmarks
     routes:
-      - name: demo-api
+      - name: compression-api
         paths:
           - /api/demo
         methods:
@@ -88,9 +119,36 @@ services:
         strip_path: true
         tags:
           - plenumnet
-          - demo
+          - compression
 
-  # Whitepaper API Service
+  # 6. Kernel Crypto Modules Service (CNSA 2.0 - 11/11 algorithms)
+  - name: plenumnet-crypto
+    url: https://plenumnet.replit.app/api/salvi/crypto
+    enabled: true
+    tags:
+      - plenumnet
+      - crypto
+      - cnsa2
+      - fips-140-3
+      - quantum-safe
+    routes:
+      - name: crypto-api
+        paths:
+          - /api/crypto
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - crypto
+          - cnsa2
+
+  # =====================================================
+  # DOCUMENTATION & CONTENT SERVICES
+  # =====================================================
+
+  # 7. Whitepaper Management Service
   - name: plenumnet-whitepapers
     url: https://plenumnet.replit.app/api/whitepapers
     enabled: true
@@ -104,12 +162,13 @@ services:
           - /api/whitepapers
         methods:
           - GET
+          - POST
         strip_path: true
         tags:
           - plenumnet
           - whitepapers
 
-  # API Documentation Service
+  # 8. API Documentation Service (Self-describing schema)
   - name: plenumnet-docs
     url: https://plenumnet.replit.app/api/salvi/docs
     enabled: true
@@ -117,6 +176,7 @@ services:
       - plenumnet
       - docs
       - documentation
+      - openapi
     routes:
       - name: docs-api
         paths:
@@ -128,7 +188,101 @@ services:
           - plenumnet
           - docs
 
-  # GitHub Integration API Service (Admin Only)
+  # =====================================================
+  # USER & IDENTITY SERVICES
+  # =====================================================
+
+  # 9. Authentication Service (Replit Auth - GitHub, Google, Apple, X, email)
+  - name: plenumnet-auth
+    url: https://plenumnet.replit.app/api/auth
+    enabled: true
+    tags:
+      - plenumnet
+      - auth
+      - identity
+      - oauth
+    routes:
+      - name: auth-api
+        paths:
+          - /api/auth
+          - /api/login
+          - /api/callback
+          - /api/logout
+        methods:
+          - GET
+          - POST
+        strip_path: false
+        tags:
+          - plenumnet
+          - auth
+
+  # 10. User Management Service
+  - name: plenumnet-user
+    url: https://plenumnet.replit.app/api/user
+    enabled: true
+    tags:
+      - plenumnet
+      - user
+      - profile
+    routes:
+      - name: user-api
+        paths:
+          - /api/user
+        methods:
+          - GET
+        strip_path: true
+        tags:
+          - plenumnet
+          - user
+
+  # 11. Developer Signup Service (early access waitlist)
+  - name: plenumnet-developer-signup
+    url: https://plenumnet.replit.app/api/developer-signup
+    enabled: true
+    tags:
+      - plenumnet
+      - developer
+      - signup
+      - waitlist
+    routes:
+      - name: developer-signup-api
+        paths:
+          - /api/developer-signup
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - developer
+          - signup
+
+  # =====================================================
+  # ADMIN & INTEGRATION SERVICES
+  # =====================================================
+
+  # 12. Admin Dashboard Service
+  - name: plenumnet-admin
+    url: https://plenumnet.replit.app/api/admin
+    enabled: true
+    tags:
+      - plenumnet
+      - admin
+      - management
+    routes:
+      - name: admin-api
+        paths:
+          - /api/admin
+        methods:
+          - GET
+          - POST
+          - DELETE
+        strip_path: true
+        tags:
+          - plenumnet
+          - admin
+
+  # 13. GitHub Integration Service
   - name: plenumnet-github
     url: https://plenumnet.replit.app/api/github
     enabled: true
@@ -137,6 +291,7 @@ services:
       - github
       - admin
       - integration
+      - cicd
     routes:
       - name: github-api
         paths:
@@ -152,7 +307,7 @@ services:
           - github
           - admin
 
-  # Kong Gateway Management API Service
+  # 14. Kong Gateway Management Service
   - name: plenumnet-kong
     url: https://plenumnet.replit.app/api/kong
     enabled: true
@@ -174,29 +329,112 @@ services:
           - kong
           - gateway
 
-  # User/Auth Status API Service
-  - name: plenumnet-user
-    url: https://plenumnet.replit.app/api/user
+  # =====================================================
+  # COMPLIANCE & CERTIFICATION SERVICES
+  # =====================================================
+
+  # 15. Certification & Audit Trail Service
+  - name: plenumnet-certification
+    url: https://plenumnet.replit.app/api/salvi/certification
     enabled: true
     tags:
       - plenumnet
-      - user
-      - auth
+      - certification
+      - audit
+      - finra-cat
+      - mifid-ii
+      - compliance
     routes:
-      - name: user-api
+      - name: certification-api
         paths:
-          - /api/user
+          - /api/certification
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - certification
+
+  # =====================================================
+  # FINANCIAL & BLOCKCHAIN SERVICES
+  # =====================================================
+
+  # 16. Payment Processing Service (Stripe, Interac, Crypto)
+  - name: plenumnet-payments
+    url: https://plenumnet.replit.app/api/payments
+    enabled: true
+    tags:
+      - plenumnet
+      - payments
+      - stripe
+      - interac
+      - crypto
+      - financial
+    routes:
+      - name: payments-api
+        paths:
+          - /api/payments
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - payments
+
+  # 17. Blockchain Witnessing Service (Hedera, XRPL, Algorand)
+  - name: plenumnet-blockchain
+    url: https://plenumnet.replit.app/api/blockchain
+    enabled: true
+    tags:
+      - plenumnet
+      - blockchain
+      - hedera
+      - xrpl
+      - algorand
+      - witnessing
+    routes:
+      - name: blockchain-api
+        paths:
+          - /api/blockchain
+        methods:
+          - GET
+          - POST
+        strip_path: true
+        tags:
+          - plenumnet
+          - blockchain
+
+  # 18. Health & Observability Service
+  - name: plenumnet-health
+    url: https://plenumnet.replit.app/api/health
+    enabled: true
+    tags:
+      - plenumnet
+      - health
+      - monitoring
+      - observability
+    routes:
+      - name: health-api
+        paths:
+          - /api/health
         methods:
           - GET
         strip_path: true
         tags:
           - plenumnet
-          - user
-          - auth
+          - health
 
-# Security Plugins
+# =====================================================
+# SECURITY PLUGINS
+# =====================================================
 plugins:
-  # Rate Limiting - Protect against abuse
+  # ---------------------------------------------------
+  # Per-Service Rate Limiting
+  # ---------------------------------------------------
+
+  # 1. Timing API - High-frequency financial data
   - name: rate-limiting
     service: plenumnet-timing
     config:
@@ -209,6 +447,20 @@ plugins:
       - security
       - rate-limit
 
+  # 2. Calendar API - Reference data
+  - name: rate-limiting
+    service: plenumnet-calendars
+    config:
+      minute: 120
+      hour: 1200
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  # 3. Ternary Engine - Compute operations
   - name: rate-limiting
     service: plenumnet-ternary
     config:
@@ -221,6 +473,7 @@ plugins:
       - security
       - rate-limit
 
+  # 4. Phase Encryption - Crypto operations
   - name: rate-limiting
     service: plenumnet-phase
     config:
@@ -233,8 +486,9 @@ plugins:
       - security
       - rate-limit
 
+  # 5. Compression Engine - Resource-intensive
   - name: rate-limiting
-    service: plenumnet-demo
+    service: plenumnet-compression
     config:
       minute: 50
       hour: 500
@@ -245,6 +499,21 @@ plugins:
       - security
       - rate-limit
 
+  # 6. Kernel Crypto - Security-critical
+  - name: rate-limiting
+    service: plenumnet-crypto
+    config:
+      minute: 80
+      hour: 800
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - cnsa2
+
+  # 7. Whitepapers - Documentation access
   - name: rate-limiting
     service: plenumnet-whitepapers
     config:
@@ -257,6 +526,7 @@ plugins:
       - security
       - rate-limit
 
+  # 8. API Docs - High-frequency developer access
   - name: rate-limiting
     service: plenumnet-docs
     config:
@@ -269,6 +539,61 @@ plugins:
       - security
       - rate-limit
 
+  # 9. Authentication - Login flow
+  - name: rate-limiting
+    service: plenumnet-auth
+    config:
+      minute: 30
+      hour: 300
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - auth
+
+  # 10. User API - Profile access
+  - name: rate-limiting
+    service: plenumnet-user
+    config:
+      minute: 100
+      hour: 1000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  # 11. Developer Signup - Controlled intake
+  - name: rate-limiting
+    service: plenumnet-developer-signup
+    config:
+      minute: 20
+      hour: 200
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+
+  # 12. Admin Dashboard - Restricted access
+  - name: rate-limiting
+    service: plenumnet-admin
+    config:
+      minute: 60
+      hour: 600
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - admin
+
+  # 13. GitHub Integration - Admin operations
   - name: rate-limiting
     service: plenumnet-github
     config:
@@ -282,6 +607,7 @@ plugins:
       - rate-limit
       - admin
 
+  # 14. Kong Gateway - Gateway management
   - name: rate-limiting
     service: plenumnet-kong
     config:
@@ -295,28 +621,87 @@ plugins:
       - rate-limit
       - admin
 
+  # 15. Certification - Audit operations
   - name: rate-limiting
-    service: plenumnet-user
+    service: plenumnet-certification
     config:
-      minute: 100
-      hour: 1000
+      minute: 50
+      hour: 500
       policy: local
       fault_tolerant: true
       hide_client_headers: false
     tags:
       - security
       - rate-limit
+      - compliance
 
+  # 16. Payments - Financial transactions
+  - name: rate-limiting
+    service: plenumnet-payments
+    config:
+      minute: 30
+      hour: 300
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - financial
+
+  # 17. Blockchain - Witnessing operations
+  - name: rate-limiting
+    service: plenumnet-blockchain
+    config:
+      minute: 40
+      hour: 400
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - blockchain
+
+  # 18. Health - Monitoring
+  - name: rate-limiting
+    service: plenumnet-health
+    config:
+      minute: 300
+      hour: 3000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - monitoring
+
+  # ---------------------------------------------------
   # Request Size Limiting
+  # ---------------------------------------------------
   - name: request-size-limiting
-    service: plenumnet-demo
+    service: plenumnet-compression
     config:
       allowed_payload_size: 10
       size_unit: megabytes
     tags:
       - security
 
-  # Correlation ID - For tracing requests
+  - name: request-size-limiting
+    service: plenumnet-payments
+    config:
+      allowed_payload_size: 1
+      size_unit: megabytes
+    tags:
+      - security
+      - financial
+
+  # ---------------------------------------------------
+  # Global Plugins (applied to all services)
+  # ---------------------------------------------------
+
+  # Correlation ID - For distributed tracing
   - name: correlation-id
     config:
       header_name: X-PlenumNET-Request-ID
@@ -336,8 +721,11 @@ plugins:
     tags:
       - security
 
-  # CNSA 2.0 TLS Enforcement - Restrict cipher suites to CNSA-compliant only
-  # Applied globally to enforce quantum-resistant transport security
+  # ---------------------------------------------------
+  # CNSA 2.0 Compliance Enforcement (Global)
+  # ---------------------------------------------------
+
+  # CNSA 2.0 TLS Enforcement - Restrict to quantum-resistant algorithms
   - name: request-transformer
     config:
       add:
@@ -353,7 +741,7 @@ plugins:
       - cnsa2
       - quantum-safe
 
-  # CNSA 2.0 Response Headers - Advertise compliance to clients
+  # CNSA 2.0 Response Headers - Advertise compliance
   - name: response-transformer
     config:
       add:
@@ -368,7 +756,7 @@ plugins:
       - cnsa2
       - compliance
 
-  # Block non-CNSA cipher negotiation attempts on crypto endpoints
+  # Block non-CNSA cipher negotiation on crypto endpoints
   - name: request-termination
     service: plenumnet-crypto
     config:
@@ -380,7 +768,9 @@ plugins:
       - cnsa2
       - enforcement
 
-# Consumers (API Keys for AI Agents)
+# =====================================================
+# API CONSUMERS
+# =====================================================
 consumers:
   - username: ai-agent-default
     tags:
@@ -396,7 +786,23 @@ consumers:
     keyauth_credentials:
       - key: plenumnet-ai-premium-key
 
-# Upstreams for load balancing (future use)
+  - username: financial-partner
+    tags:
+      - financial
+      - partner
+    keyauth_credentials:
+      - key: plenumnet-financial-partner-key
+
+  - username: blockchain-service
+    tags:
+      - blockchain
+      - service
+    keyauth_credentials:
+      - key: plenumnet-blockchain-service-key
+
+# =====================================================
+# UPSTREAMS (Load Balancing)
+# =====================================================
 upstreams:
   - name: plenumnet-timing-upstream
     algorithm: round-robin
@@ -408,6 +814,34 @@ upstreams:
         unhealthy:
           interval: 5
           http_failures: 3
+    targets:
+      - target: plenumnet.replit.app:443
+        weight: 100
+
+  - name: plenumnet-crypto-upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 30
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 3
+    targets:
+      - target: plenumnet.replit.app:443
+        weight: 100
+
+  - name: plenumnet-payments-upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        healthy:
+          interval: 15
+          successes: 2
+        unhealthy:
+          interval: 5
+          http_failures: 2
     targets:
       - target: plenumnet.replit.app:443
         weight: 100

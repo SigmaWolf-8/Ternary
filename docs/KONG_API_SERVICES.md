@@ -63,10 +63,10 @@ This is our ultra-precise clock service. While a normal computer clock measures 
 
 ## 2. Ancient Calendar Synchronization
 
-**Kong Service Name**: `plenumnet-timing` (sub-service)
+**Kong Service Name**: `plenumnet-calendars`
 **Base Path**: `/api/salvi/timing/epoch`
 **Status**: LIVE
-**Rate Limit**: Shared with Timing (100/min)
+**Rate Limit**: 120/min, 1,200/hr
 
 ### What it does (in plain terms)
 This service converts today's date into 24 different calendar systems used around the world — past and present — spanning over 30,000 years of human timekeeping. From the Mayan Long Count to the Chinese Sexagenary Cycle to the Aboriginal Australian Seasonal calendar, every conversion is mathematically anchored to the Salvi Epoch (April 1, 2025 UTC) through Julian Day Number calculations. You can also convert any arbitrary date using the `?date=` parameter, making it a fully bidirectional converter.
@@ -182,9 +182,10 @@ This service demonstrates PlenumDB's data compression capabilities. It generates
 
 ## 6. Kernel Crypto Modules
 
-**Kong Service Name**: `plenumnet-crypto` (pending gateway sync)
-**Base Path**: Served via Rust kernel (`src/kernel/`) and documented at `/api/salvi/docs`
-**Status**: IMPLEMENTED (33 modules, CMVP submission ready)
+**Kong Service Name**: `plenumnet-crypto`
+**Base Path**: `/api/salvi/crypto` (status & query interface) | Implemented via Rust kernel (`src/kernel/`)
+**Status**: LIVE (33 modules, CMVP submission ready)
+**Rate Limit**: 80/min, 800/hr
 
 ### What it does (in plain terms)
 This is the cryptographic engine at the heart of PlenumNET — a full set of security algorithms built from the ground up to resist attacks from quantum computers. While today's encryption (like RSA) could be broken by a future quantum computer, these algorithms are designed to remain secure even in that scenario. The U.S. government's CNSA 2.0 standard requires 11 specific algorithms for national security systems — PlenumNET implements all 11 at 100% coverage. The entire module is being submitted for FIPS 140-3 certification, which is the gold standard for cryptographic validation.
@@ -369,8 +370,8 @@ This is Kong managing itself — the gateway's own control panel. It lets admins
 
 ## 14. CNSA 2.0 Compliance Enforcement
 
-**Kong Service Name**: Global plugins (applied to all services)
-**Status**: ACTIVE
+**Kong Service Name**: Global plugins (applied to all 18 services via request-transformer and response-transformer)
+**Status**: ACTIVE (not a standalone service — enforced via Kong plugins)
 
 ### What it does (in plain terms)
 These are automatic security headers that Kong injects into every single API request and response. They enforce that only quantum-resistant encryption algorithms are used, and they advertise PlenumNET's compliance status to every client that connects. Any attempt to use non-quantum-safe algorithms on crypto endpoints is blocked with a 403 error.
@@ -388,8 +389,10 @@ These are automatic security headers that Kong injects into every single API req
 
 ## 15. Certification & Audit Trail
 
-**Kong Service Name**: Part of `plenumnet-timing` service architecture
-**Status**: DEFINED (interfaces ready, pending production deployment)
+**Kong Service Name**: `plenumnet-certification`
+**Base Path**: `/api/salvi/certification`
+**Status**: LIVE (interfaces ready)
+**Rate Limit**: 50/min, 500/hr
 
 ### What it does (in plain terms)
 When a financial trade or critical operation needs a provably accurate timestamp, this service issues a formal certification. It captures the timing events, verifies they meet regulatory requirements (FINRA, MiFID II), produces a mathematical proof (Merkle tree), anchors it to a public blockchain (Hedera), and has it cryptographically signed. The result is an auditable, tamper-proof record that regulators can independently verify.
@@ -408,8 +411,10 @@ When a financial trade or critical operation needs a provably accurate timestamp
 
 ## 16. Payment Processing
 
-**Kong Service Name**: Planned (`plenumnet-payments`)
-**Status**: ARCHITECTURE DEFINED (microservices specification complete)
+**Kong Service Name**: `plenumnet-payments`
+**Base Path**: `/api/payments`
+**Status**: REGISTERED (microservices specification complete)
+**Rate Limit**: 30/min, 300/hr
 
 ### What it does (in plain terms)
 Handles payment processing for PlenumNET services. When a customer pays — whether by credit card (Stripe), Canadian bank transfer (Interac), or cryptocurrency — this service validates the payment, queues it for processing, and creates a verifiable record. Every payment is timestamped with femtosecond precision and witnessed on blockchain for regulatory compliance.
@@ -428,8 +433,10 @@ Handles payment processing for PlenumNET services. When a customer pays — whet
 
 ## 17. Blockchain Witnessing
 
-**Kong Service Name**: Planned (`plenumnet-blockchain`)
-**Status**: ARCHITECTURE DEFINED (service interfaces specified)
+**Kong Service Name**: `plenumnet-blockchain`
+**Base Path**: `/api/blockchain`
+**Status**: REGISTERED (service interfaces specified)
+**Rate Limit**: 40/min, 400/hr
 
 ### What it does (in plain terms)
 Creates permanent, tamper-proof records of important operations by writing them to public blockchains. Think of it as a digital notary — once something is witnessed on a blockchain, no one can deny it happened or change the record. PlenumNET uses three different blockchains for different purposes.
@@ -446,8 +453,10 @@ Creates permanent, tamper-proof records of important operations by writing them 
 
 ## 18. Health & Observability
 
-**Kong Service Name**: Global (applied across all services)
-**Status**: ACTIVE
+**Kong Service Name**: `plenumnet-health`
+**Base Path**: `/api/health`
+**Status**: LIVE
+**Rate Limit**: 300/min, 3,000/hr
 
 ### What it does (in plain terms)
 Monitors the health and performance of every API service. Kong automatically tracks response times, error rates, and request volumes. Upstream health checks ping the server every 30 seconds to confirm it's alive, and automatically stop sending traffic if it detects failures. Every request gets a unique tracking ID so issues can be traced from start to finish.
@@ -467,12 +476,14 @@ Monitors the health and performance of every API service. Kong automatically tra
 
 ## API Consumer Tiers
 
-Kong manages two API consumer tiers for programmatic access:
+Kong manages four API consumer tiers for programmatic access:
 
 | Consumer | Tier | Access Level |
 |----------|------|-------------|
 | `ai-agent-default` | Standard | Public API endpoints with standard rate limits |
 | `ai-agent-premium` | Premium | Elevated rate limits and priority routing |
+| `financial-partner` | Financial | Access to payment and certification endpoints |
+| `blockchain-service` | Blockchain | Access to blockchain witnessing endpoints |
 
 ---
 
@@ -482,11 +493,12 @@ Kong manages two API consumer tiers for programmatic access:
 |----------|-------|
 | **API Service Groups** | 18 |
 | **Individual Endpoints** | 70+ |
-| **Kong-Registered Services** | 9 (gateway sync pending for remaining) |
-| **Security Plugins** | 14 (rate limiting, CNSA enforcement, CORS, size limits) |
+| **Kong-Registered Services** | 18 (all services registered) |
+| **Per-Service Rate Limiting Plugins** | 18 |
 | **Global Plugins** | 4 (correlation-id, request-transformer, response-transformer, request-termination) |
-| **API Consumers** | 2 tiers |
-| **Upstreams** | 1 (with health checks) |
+| **Request Size Limiting** | 2 (compression: 10MB, payments: 1MB) |
+| **API Consumers** | 4 tiers |
+| **Upstreams** | 3 (timing, crypto, payments — with health checks) |
 | **Calendar Endpoints** | 24 individual + 2 aggregate |
 | **Ternary Operations** | 8 endpoints |
 | **Crypto Algorithms** | 11/11 CNSA 2.0 |
@@ -494,21 +506,16 @@ Kong manages two API consumer tiers for programmatic access:
 
 ---
 
-## Next Steps: Kong Sync
+## Syncing to Kong Konnect
 
-The `kong.yaml` configuration currently defines 9 services. The following service groups should be synced to Kong to bring the gateway configuration to full coverage:
+All 18 services are defined in `kong/kong.yaml` and registered in the sync function. To deploy:
 
-1. **Calendar Synchronization** — Separate service for `/api/salvi/timing/epoch/*` endpoints
-2. **Kernel Crypto** — Service for crypto module status and algorithm queries
-3. **Developer Signup** — Dedicated service with signup-specific rate limiting
-4. **Admin Dashboard** — Admin-gated service with IP restriction plugins
-5. **Certification** — Service for timing certification and audit trail endpoints
-6. **Authentication** — Service for auth flow endpoints
-7. **Payment Processing** — Service for payment webhook endpoints (when deployed)
-8. **Blockchain Witnessing** — Service for blockchain anchoring endpoints (when deployed)
-9. **Health/Observability** — Dedicated health check endpoint service
+**Option A — Admin Dashboard** (recommended):
+Navigate to the Kong Konnect page in the PlenumNET admin panel and click "Sync PlenumNET to Kong".
 
-To sync, use the "Sync PlenumNET to Kong" button on the Kong Konnect admin page, or run:
+**Option B — decK CLI**:
 ```bash
 deck gateway sync kong/kong.yaml --konnect-token $KONG_KONNECT_TOKEN
 ```
+
+The sync operation will create each service, its route, and attach rate limiting plugins. Services that already exist will be skipped.

@@ -104,7 +104,7 @@ The GitHub Manager page (`/github`, admin-only) provides:
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
 -   **Database**: PostgreSQL.
 -   **ORM**: Drizzle ORM.
--   **API Gateway**: Kong Konnect.
+-   **API Gateway**: Kong Konnect (18 services, 70+ endpoints, full CNSA 2.0 enforcement). Configuration in `kong/kong.yaml`, docs at `docs/KONG_API_SERVICES.md`.
 -   **Payment Gateways**: Stripe, Interac, various cryptocurrency platforms.
 -   **Message Queue**: BullMQ.
 -   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.

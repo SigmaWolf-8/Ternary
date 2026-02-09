@@ -171,7 +171,7 @@ function ConnectionStatus() {
                 ) : (
                   <XCircle className="w-4 h-4 text-red-500" />
                 )}
-                <span>Config Synced: {status.configSynced ? '9 services, 9 routes deployed' : 'Not synced'}</span>
+                <span>Config Synced: {status.configSynced ? '18 services, 18 routes deployed' : 'Not synced'}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 {status.gatewayReady ? (
@@ -445,34 +445,36 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            This will create the following services in Kong:
+            This will create all 18 PlenumNET services in Kong:
           </p>
-          <ul className="text-sm space-y-1">
-            <li className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <code className="text-xs bg-secondary px-1 rounded">plenumnet-timing</code> - Femtosecond Timing API
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <code className="text-xs bg-secondary px-1 rounded">plenumnet-ternary</code> - Ternary Operations API
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <code className="text-xs bg-secondary px-1 rounded">plenumnet-phase</code> - Phase Encryption API
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <code className="text-xs bg-secondary px-1 rounded">plenumnet-demo</code> - Demo Compression API
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <code className="text-xs bg-secondary px-1 rounded">plenumnet-whitepapers</code> - Whitepaper API
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-500" />
-              <code className="text-xs bg-secondary px-1 rounded">plenumnet-docs</code> - API Documentation
-            </li>
-          </ul>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            {[
+              { code: "plenumnet-timing", label: "HPTP Timing API" },
+              { code: "plenumnet-calendars", label: "Calendar Sync (24 systems)" },
+              { code: "plenumnet-ternary", label: "Ternary Computing Engine" },
+              { code: "plenumnet-phase", label: "Phase Encryption" },
+              { code: "plenumnet-compression", label: "Compression Engine" },
+              { code: "plenumnet-crypto", label: "Kernel Crypto (CNSA 2.0)" },
+              { code: "plenumnet-whitepapers", label: "Whitepaper Management" },
+              { code: "plenumnet-docs", label: "API Documentation" },
+              { code: "plenumnet-auth", label: "Authentication" },
+              { code: "plenumnet-user", label: "User Management" },
+              { code: "plenumnet-developer-signup", label: "Developer Signup" },
+              { code: "plenumnet-admin", label: "Admin Dashboard" },
+              { code: "plenumnet-github", label: "GitHub Integration" },
+              { code: "plenumnet-kong", label: "Kong Gateway Mgmt" },
+              { code: "plenumnet-certification", label: "Certification & Audit" },
+              { code: "plenumnet-payments", label: "Payment Processing" },
+              { code: "plenumnet-blockchain", label: "Blockchain Witnessing" },
+              { code: "plenumnet-health", label: "Health & Observability" },
+            ].map((svc) => (
+              <div key={svc.code} className="flex items-center gap-1.5 text-xs">
+                <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
+                <code className="bg-secondary px-1 rounded whitespace-nowrap">{svc.code}</code>
+                <span className="text-muted-foreground truncate">{svc.label}</span>
+              </div>
+            ))}
+          </div>
           <Button 
             onClick={() => selectedCP && syncMutation.mutate(selectedCP)}
             disabled={!selectedCP || syncMutation.isPending}
