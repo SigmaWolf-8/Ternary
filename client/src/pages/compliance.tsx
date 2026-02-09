@@ -195,17 +195,17 @@ const timeline: TimelineMilestone[] = [
   },
   {
     year: 2026,
-    title: "FIPS Phase 3 - CAVP Submission",
-    description: "CAVP submission package complete: 210 KATs (35/variant) in NIST .req/.rsp format. Side-channel hardening with constant-time primitives. FPGA HDL generator and synthesis estimation for Kintex UltraScale+. Formal verification (13 properties). CMVP lab engagement and testing cycle underway.",
+    title: "FIPS Phase 3 - CAVP Package Ready",
+    description: "CAVP submission package prepared: 210 KATs (35/variant) in NIST .req/.rsp format. Side-channel hardening with constant-time primitives. FPGA HDL generator and synthesis estimation for Kintex UltraScale+. Formal verification (13 properties). Ready for CMVP lab engagement.",
     algorithms: [],
     status: "complete",
   },
   {
     year: 2027,
-    title: "FIPS 140-3 Certification",
-    description: "CMVP lab testing and FIPS 140-3 validation for all cryptographic modules. Estimated 6-12 month cycle from CAVP submission to certificate issuance. Production deployment of validated ternary-native CNSA 2.0 suite.",
+    title: "CMVP Lab Submission & FIPS 140-3 Certification",
+    description: "Formal submission to accredited CMVP testing lab. Estimated 6-12 month cycle from lab engagement through CAVP testing to FIPS 140-3 certificate issuance. Production deployment of validated ternary-native CNSA 2.0 suite.",
     algorithms: [],
-    status: "in_progress",
+    status: "planned",
   },
 ];
 
