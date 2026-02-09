@@ -8,8 +8,11 @@ A TypeScript/JavaScript library implementing the Unified Ternary Logic System fr
 
 - **Three Bijective Representations** (A, B, C) with seamless conversions
 - **GF(3) Ternary Operations** - Addition, Multiplication, Rotation, XOR, NOT
-- **Femtosecond Timestamp Generation** - 10⁻¹⁵ second precision timestamps
+- **Femtosecond Timestamp Generation** - 10^-15 second precision timestamps
 - **Phase-aware Encryption** - Adaptive dual-phase quantum encryption system
+- **CNSA 2.0 Compliance** - 11/11 algorithm coverage (100%) via kernel crypto modules
+- **Post-Quantum Cryptography** - TL-KEM (FIPS 203) and TL-DSA (FIPS 204) equivalents
+- **Binary Interoperability** - ML-KEM/ML-DSA format conversion via CryptoInteropBridge
 
 ## Installation
 
