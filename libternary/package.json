@@ -1,7 +1,7 @@
 {
   "name": "libternary",
-  "version": "1.0.0",
-  "description": "Salvi Framework Core Library - Bijective Ternary Logic for Post-Quantum Applications",
+  "version": "2.0.0",
+  "description": "Salvi Framework Core Library - Bijective Ternary Logic for Post-Quantum Applications with CNSA 2.0 Compliance",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -24,7 +24,14 @@
     "salvi",
     "bijective",
     "femtosecond",
-    "phase-encryption"
+    "phase-encryption",
+    "cnsa-2.0",
+    "ml-kem",
+    "ml-dsa",
+    "fips-203",
+    "fips-204",
+    "quantum-resistant",
+    "lattice-cryptography"
   ],
   "author": "Capomastro Holdings Ltd",
   "license": "SEE LICENSE IN LICENSE",
