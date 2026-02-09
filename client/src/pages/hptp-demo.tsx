@@ -688,8 +688,15 @@ function ComplianceBanner() {
 
 function CurlExample() {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const curlCmd = `curl -s ${baseUrl}/api/salvi/timing/timestamp | jq .`;
+  const [activeTab, setActiveTab] = useState<"bash" | "powershell">("bash");
   const [copied, setCopied] = useState(false);
+
+  const commands = {
+    bash: `curl -s ${baseUrl}/api/salvi/timing/timestamp | jq .`,
+    powershell: `Invoke-RestMethod -Uri "${baseUrl}/api/salvi/timing/timestamp" | ConvertTo-Json -Depth 10`,
+  };
+
+  const activeCmd = commands[activeTab];
 
   return (
     <Card data-testid="card-curl-example">
@@ -701,18 +708,36 @@ function CurlExample() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
-          Copy this command and run it in any terminal to see live results:
+          Copy this command and run it in your terminal:
+        </div>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant={activeTab === "bash" ? "default" : "ghost"}
+            onClick={() => setActiveTab("bash")}
+            data-testid="button-tab-bash"
+          >
+            Bash / macOS / Linux
+          </Button>
+          <Button
+            size="sm"
+            variant={activeTab === "powershell" ? "default" : "ghost"}
+            onClick={() => setActiveTab("powershell")}
+            data-testid="button-tab-powershell"
+          >
+            PowerShell
+          </Button>
         </div>
         <div
           className="relative p-3 rounded-md bg-muted/50 font-mono text-xs break-all cursor-pointer hover-elevate"
           onClick={() => {
-            navigator.clipboard.writeText(curlCmd);
+            navigator.clipboard.writeText(activeCmd);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           }}
           data-testid="code-curl-command"
         >
-          <code>{curlCmd}</code>
+          <code>{activeCmd}</code>
           <div className="absolute top-2 right-2">
             {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
           </div>
