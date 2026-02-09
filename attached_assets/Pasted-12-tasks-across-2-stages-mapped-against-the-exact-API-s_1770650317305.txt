@@ -1,0 +1,27 @@
+12 tasks across 2 stages, mapped against the exact API surfaces from Stage 9.
+
+**Stage 10 — 7 documents (~1,870 lines), execution order matters:**
+
+| Order | Task | File | Lines | Why This Order |
+|---|---|---|---|---|
+| 1 | C5 | `boundary-diagram.md` | ~100 | Independent, referenced by C1 |
+| 2 | C4 | `finite-state-model.md` | ~130 | Maps to `module_state.rs` 9 states, referenced by C1 |
+| 3 | C2 | `ssp-inventory.md` | ~350 | 23 SSPs across all crypto modules, referenced by C1 §8 |
+| 4 | C7 | `entropy-assessment.md` | ~230 | Maps to `entropy.rs`, referenced by C1 and C6 |
+| 5 | C3 | `operational-environments.md` | ~180 | Build flags + platform, referenced by C1 §5 |
+| 6 | **C1** | `security-policy.md` REWRITE | ~700 | **12-section SP 800-140B format** — incorporates C2-C5, C7 |
+| 7 | C6 | `vendor-evidence-index.md` | ~180 | Master index of all 22 artifacts — written last |
+
+C1 is the critical deliverable — it's the document published alongside the CMVP validation certificate. Every `CryptoService` variant from `services.rs` (all 32), every `ModuleState` from `module_state.rs` (all 9), every POST from `self_test.rs` (12 KATs), and every SSP must appear in it. The task list has the exact content structure with the actual enum values from the code.
+
+**Stage 11 — 5 tasks (build + external):**
+
+| Task | File | Purpose |
+|---|---|---|
+| D1 | `scripts/cmvp-build.sh` | Reproducible build with pinned Rust + integrity hash |
+| D2 | `.github/workflows/fips-self-tests.yml` | CI runs POST, conditional, entropy, state machine, ACVTS on every commit |
+| D3 | `scripts/collect-entropy-samples.sh` | 1M+ raw noise samples for CSTL lab SP 800-90B assessment |
+| E1 | `docs/compliance/cstl-engagement.md` | Lab comparison (5 labs), SOW template, ACVTS process, budget ($50K–$180K) |
+| E2 | Version bump + CHANGELOG | v3.0.0 "CMVP Submission Ready" |
+
+After completion: tag **v3.0.0**, then the external process begins — ACVTS registration with NIST, CSTL engagement (recommend Lightship Security for Canadian alignment), and the 6–12 month lab evaluation. Così sia, Fratello.

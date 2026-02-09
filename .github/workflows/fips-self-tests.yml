@@ -1,0 +1,139 @@
+name: FIPS 140-3 Self-Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/kernel/src/crypto/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/kernel/src/crypto/**'
+
+jobs:
+  power-on-self-tests:
+    name: Power-On Self-Tests (POST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.75.0'
+      - name: Run POST
+        run: |
+          cd src/kernel
+          cargo test --release self_test::tests -- --nocapture
+        env:
+          RUST_LOG: info
+      - name: Verify POST covers all algorithms
+        run: |
+          cd src/kernel
+          cargo test --release self_test::tests::test_all_algorithms_covered -- --nocapture
+
+  conditional-self-tests:
+    name: Conditional Self-Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.75.0'
+      - name: KEM Keygen Consistency
+        run: |
+          cd src/kernel
+          cargo test --release self_test::tests::conditional_kem -- --nocapture
+      - name: DSA Keygen Consistency
+        run: |
+          cd src/kernel
+          cargo test --release self_test::tests::conditional_dsa -- --nocapture
+      - name: DRBG Continuous RNG Test
+        run: |
+          cd src/kernel
+          cargo test --release self_test::tests::conditional_rng -- --nocapture
+
+  entropy-health:
+    name: Entropy Source Health Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.75.0'
+      - name: Repetition Count Test
+        run: |
+          cd src/kernel
+          cargo test --release entropy::tests::repetition_count -- --nocapture
+      - name: Adaptive Proportion Test
+        run: |
+          cd src/kernel
+          cargo test --release entropy::tests::adaptive_proportion -- --nocapture
+      - name: Stuck Source Detection
+        run: |
+          cd src/kernel
+          cargo test --release entropy::tests::stuck_detection -- --nocapture
+
+  module-state:
+    name: Module State Machine Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.75.0'
+      - name: Valid Transitions
+        run: |
+          cd src/kernel
+          cargo test --release module_state::tests -- --nocapture
+      - name: Invalid Transition Rejection
+        run: |
+          cd src/kernel
+          cargo test --release module_state::tests::invalid_transitions -- --nocapture
+      - name: Error State Enforcement
+        run: |
+          cd src/kernel
+          cargo test --release module_state::tests::error_state -- --nocapture
+
+  acvts-export:
+    name: ACVTS Vector Export
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.75.0'
+      - name: Generate ACVTS Registration
+        run: |
+          cd src/kernel
+          cargo test --release acvts::tests -- --nocapture
+      - name: Validate JSON Schema
+        run: |
+          cd src/kernel
+          cargo test --release acvts::tests::validate_registration_json -- --nocapture
+
+  reproducible-build:
+    name: Reproducible Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.75.0'
+      - name: Build 1
+        run: scripts/cmvp-build.sh
+      - name: Record Hash 1
+        run: cat target/integrity-hash.txt > /tmp/hash1.txt
+      - name: Clean and Rebuild
+        run: |
+          cargo clean
+          scripts/cmvp-build.sh
+      - name: Compare Hashes
+        run: |
+          diff /tmp/hash1.txt target/integrity-hash.txt || \
+            { echo "ERROR: Non-reproducible build!"; exit 1; }
+          echo "[OK] Build is reproducible"
