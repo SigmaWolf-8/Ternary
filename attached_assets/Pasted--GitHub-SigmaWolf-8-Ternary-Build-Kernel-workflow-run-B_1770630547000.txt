@@ -1,0 +1,59 @@
+ 
+GitHub
+[SigmaWolf-8/Ternary] Build Kernel workflow run
+ 
+
+ 
+Build Kernel: Some jobs were not successful
+ 
+View workflow run
+ 
+Status	Job	Annotations
+Build THDL Synthesizer	
+Build Kernel / Build THDL Synthesizer
+Failed in 9 seconds
+
+annotations for Build Kernel / Build THDL Synthesizer 1
+Build TSL Compiler	
+Build Kernel / Build TSL Compiler
+Failed in 7 seconds
+
+annotations for Build Kernel / Build TSL Compiler 1
+Build Microservices (blockchain/algorand-service)	
+Build Kernel / Build Microservices (blockchain/algorand-service)
+Succeeded in 15 seconds
+
+Build Microservices (blockchain/hedera-service)	
+Build Kernel / Build Microservices (blockchain/hedera-service)
+Succeeded in 26 seconds
+
+Build Microservices (sfk-core-api)	
+Build Kernel / Build Microservices (sfk-core-api)
+Succeeded in 4 seconds
+
+annotations for Build Kernel / Build Microservices (sfk-core-api) 1
+Build Kernel Core (aarch64-unknown-linux-gnu, finra-613)	
+Build Kernel / Build Kernel Core (aarch64-unknown-linux-gnu, finra-613)
+Succeeded in 4 seconds
+
+annotations for Build Kernel / Build Kernel Core (aarch64-unknown-linux-gnu, finra-613) 1
+Build Microservices (timing/femtosecond-service)	
+Build Kernel / Build Microservices (timing/femtosecond-service)
+Succeeded in 6 seconds
+
+annotations for Build Kernel / Build Microservices (timing/femtosecond-service) 1
+Build Microservices (blockchain/xrpl-service)	
+Build Kernel / Build Microservices (blockchain/xrpl-service)
+Succeeded in 7 seconds
+
+annotations for Build Kernel / Build Microservices (blockchain/xrpl-service) 1
+Build Microservices (timing/certification-service)	
+Build Kernel / Build Microservices (timing/certification-service)
+Succeeded in 6 seconds
+
+annotations for Build Kernel / Build Microservices (timing/certification-service) 1
+Build Microservices (payment-listener)	
+Build Kernel / Build Microservices (payment-listener)
+Succeeded in 5 seconds
+
+annotations for Build Kernel / Build Microservices (payment-listener)
