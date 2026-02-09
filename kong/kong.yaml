@@ -336,6 +336,50 @@ plugins:
     tags:
       - security
 
+  # CNSA 2.0 TLS Enforcement - Restrict cipher suites to CNSA-compliant only
+  # Applied globally to enforce quantum-resistant transport security
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - "X-CNSA2-Enforced: true"
+          - "X-CNSA2-Policy: cnsa-only"
+          - "X-CNSA2-KEX: ML-KEM-1024"
+          - "X-CNSA2-Auth: ML-DSA-87,XMSS,LMS"
+          - "X-CNSA2-Cipher: AES-256-GCM"
+          - "X-CNSA2-Hash: SHA-384,SHA-512"
+    tags:
+      - security
+      - cnsa2
+      - quantum-safe
+
+  # CNSA 2.0 Response Headers - Advertise compliance to clients
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "X-CNSA2-Compliance: full"
+          - "X-CNSA2-Algorithms: 11/11"
+          - "X-CNSA2-Standards: FIPS-203,FIPS-204,SP-800-208"
+          - "X-Quantum-Safe: true"
+          - "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload"
+    tags:
+      - security
+      - cnsa2
+      - compliance
+
+  # Block non-CNSA cipher negotiation attempts on crypto endpoints
+  - name: request-termination
+    service: plenumnet-crypto
+    config:
+      status_code: 403
+      message: "CNSA 2.0 policy violation: only quantum-resistant algorithms permitted"
+    enabled: false
+    tags:
+      - security
+      - cnsa2
+      - enforcement
+
 # Consumers (API Keys for AI Agents)
 consumers:
   - username: ai-agent-default

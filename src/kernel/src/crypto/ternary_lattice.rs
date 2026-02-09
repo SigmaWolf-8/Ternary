@@ -613,6 +613,176 @@ impl LatticeParams {
     }
 }
 
+/// NTT-like transform extension for accelerated polynomial multiplication.
+///
+/// Since GF(3) lacks primitive n-th roots of unity for n=256, we lift
+/// ternary coefficients to a larger modulus q (e.g., 7681) that supports
+/// NTT, perform fast multiplication there, then reduce back to GF(3).
+///
+/// This gives O(n log n) polynomial multiplication instead of O(n²)
+/// schoolbook convolution.
+
+fn mod_reduce(val: i32, q: i16) -> i16 {
+    let q32 = q as i32;
+    ((val % q32) + q32) as i16 % q
+}
+
+fn mod_pow(mut base: i32, mut exp: i32, modulus: i32) -> i32 {
+    let mut result = 1i32;
+    base %= modulus;
+    while exp > 0 {
+        if exp & 1 == 1 {
+            result = result * base % modulus;
+        }
+        exp >>= 1;
+        base = base * base % modulus;
+    }
+    result
+}
+
+fn find_primitive_root(q: i16) -> i16 {
+    let q32 = q as i32;
+    let phi = q32 - 1;
+    let factors = small_prime_factors(phi);
+    for g in 2..q32 {
+        let mut is_root = true;
+        for &f in &factors {
+            if mod_pow(g, phi / f, q32) == 1 {
+                is_root = false;
+                break;
+            }
+        }
+        if is_root {
+            return g as i16;
+        }
+    }
+    2
+}
+
+fn small_prime_factors(mut n: i32) -> Vec<i32> {
+    let mut factors = Vec::new();
+    let mut d = 2;
+    while d * d <= n {
+        if n % d == 0 {
+            factors.push(d);
+            while n % d == 0 { n /= d; }
+        }
+        d += 1;
+    }
+    if n > 1 { factors.push(n); }
+    factors
+}
+
+fn bit_reverse(mut x: usize, log_n: usize) -> usize {
+    let mut result = 0;
+    for _ in 0..log_n {
+        result = (result << 1) | (x & 1);
+        x >>= 1;
+    }
+    result
+}
+
+pub fn ntt_forward_lifted(poly: &TernaryPolynomial, q: i16) -> Vec<i16> {
+    let n = poly.n;
+    let log_n = (n as f64).log2() as usize;
+    let q32 = q as i32;
+    let g = find_primitive_root(q);
+    let omega = mod_pow(g as i32, (q32 - 1) / n as i32, q32) as i16;
+
+    let mut a: Vec<i16> = Vec::with_capacity(n);
+    for i in 0..n {
+        a.push(mod_reduce(poly.coeffs[i] as i32, q));
+    }
+
+    for i in 0..n {
+        let j = bit_reverse(i, log_n);
+        if i < j {
+            a.swap(i, j);
+        }
+    }
+
+    let mut len = 2;
+    while len <= n {
+        let half = len / 2;
+        let w_len = mod_pow(omega as i32, (n / len) as i32, q32) as i16;
+        let mut start = 0;
+        while start < n {
+            let mut w = 1i16;
+            for j in 0..half {
+                let u = a[start + j] as i32;
+                let v = a[start + j + half] as i32 * w as i32 % q32;
+                a[start + j] = mod_reduce(u + v, q);
+                a[start + j + half] = mod_reduce(u - v + q32, q);
+                w = (w as i32 * w_len as i32 % q32) as i16;
+            }
+            start += len;
+        }
+        len <<= 1;
+    }
+    a
+}
+
+pub fn ntt_inverse_lifted(ntt_vals: &[i16], q: i16, n: usize) -> TernaryPolynomial {
+    let log_n = (n as f64).log2() as usize;
+    let q32 = q as i32;
+    let g = find_primitive_root(q);
+    let omega = mod_pow(g as i32, (q32 - 1) / n as i32, q32) as i16;
+    let omega_inv = mod_pow(omega as i32, q32 - 2, q32) as i16;
+    let n_inv = mod_pow(n as i32, q32 - 2, q32) as i16;
+
+    let mut a = ntt_vals.to_vec();
+
+    for i in 0..n {
+        let j = bit_reverse(i, log_n);
+        if i < j {
+            a.swap(i, j);
+        }
+    }
+
+    let mut len = 2;
+    while len <= n {
+        let half = len / 2;
+        let w_len = mod_pow(omega_inv as i32, (n / len) as i32, q32) as i16;
+        let mut start = 0;
+        while start < n {
+            let mut w = 1i16;
+            for j in 0..half {
+                let u = a[start + j] as i32;
+                let v = a[start + j + half] as i32 * w as i32 % q32;
+                a[start + j] = mod_reduce(u + v, q);
+                a[start + j + half] = mod_reduce(u - v + q32, q);
+                w = (w as i32 * w_len as i32 % q32) as i16;
+            }
+            start += len;
+        }
+        len <<= 1;
+    }
+
+    let mut result = TernaryPolynomial::new(n);
+    for i in 0..n {
+        let val = a[i] as i32 * n_inv as i32 % q32;
+        let balanced = if val > q32 / 2 { val - q32 } else { val };
+        let coeff = ((balanced % 3) + 3) % 3;
+        result.coeffs[i] = if coeff == 2 { -1 } else { coeff as i8 };
+    }
+    result
+}
+
+pub fn ntt_pointwise_mul(a: &[i16], b: &[i16], q: i16) -> Vec<i16> {
+    let q32 = q as i32;
+    a.iter().zip(b.iter())
+        .map(|(&ai, &bi)| mod_reduce(ai as i32 * bi as i32, q))
+        .collect()
+}
+
+pub fn ntt_ring_mul(a: &TernaryPolynomial, b: &TernaryPolynomial, q: i16) -> TernaryPolynomial {
+    let n = a.n;
+    let a_ntt = ntt_forward_lifted(a, q);
+    let b_ntt = ntt_forward_lifted(b, q);
+    let c_ntt = ntt_pointwise_mul(&a_ntt, &b_ntt, q);
+    ntt_inverse_lifted(&c_ntt, q, n)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -997,5 +1167,37 @@ mod tests {
         let a = TernaryPolynomial::from_coeffs(vec![1, 0]).unwrap();
         let b = TernaryPolynomial::from_coeffs(vec![1, 0, -1]).unwrap();
         assert!(a.ring_mul(&b).is_err());
+    }
+
+    #[test]
+    fn test_ntt_forward_inverse_roundtrip() {
+        let poly = TernaryPolynomial::from_coeffs(vec![1, -1, 0, 1, -1, 0, 1, 0]).unwrap();
+        let q = 7681i16;
+        let forward = ntt_forward_lifted(&poly, q);
+        let recovered = ntt_inverse_lifted(&forward, q, poly.degree());
+        assert_eq!(recovered.coeffs, poly.coeffs);
+    }
+
+    #[test]
+    fn test_ntt_mul_matches_schoolbook() {
+        let a = TernaryPolynomial::from_coeffs(vec![1, -1, 0, 1]).unwrap();
+        let b = TernaryPolynomial::from_coeffs(vec![0, 1, -1, 0]).unwrap();
+        let schoolbook = a.ring_mul(&b).unwrap();
+        let q = 7681i16;
+        let ntt_result = ntt_ring_mul(&a, &b, q);
+        assert_eq!(ntt_result.coeffs, schoolbook.coeffs);
+    }
+
+    #[test]
+    fn test_ntt_pointwise_mul() {
+        let n = 8;
+        let q = 7681i16;
+        let a = vec![1i16, 2, 3, 4, 5, 6, 7, 8];
+        let b = vec![8i16, 7, 6, 5, 4, 3, 2, 1];
+        let c = ntt_pointwise_mul(&a, &b, q);
+        assert_eq!(c.len(), n);
+        for i in 0..n {
+            assert_eq!(c[i], (a[i] as i32 * b[i] as i32 % q as i32) as i16);
+        }
     }
 }

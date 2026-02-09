@@ -39,6 +39,10 @@ pub mod cavp_package;
 pub mod fpga_hdl;
 pub mod hw_test;
 pub mod formal_verify;
+pub mod firmware_sign;
+pub mod x509;
+pub mod agility;
+pub mod phase_cnsa;
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -52,6 +56,7 @@ pub enum CryptoError {
     SignatureInvalid,
     KeyGenerationFailed(String),
     UnsupportedAlgorithm(String),
+    StateExhausted(String),
 }
 
 impl core::fmt::Display for CryptoError {
@@ -73,6 +78,9 @@ impl core::fmt::Display for CryptoError {
             }
             CryptoError::UnsupportedAlgorithm(alg) => {
                 write!(f, "Unsupported algorithm: {}", alg)
+            }
+            CryptoError::StateExhausted(msg) => {
+                write!(f, "State exhausted: {}", msg)
             }
         }
     }

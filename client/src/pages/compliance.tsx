@@ -139,9 +139,9 @@ const cnsa2Matrix: ComplianceMapping[] = [
     securityBits: 256,
     deadline: "By 2030",
     status: "equivalent",
-    plenumEquivalent: "Ternary Lamport OTS with Key Chain",
+    plenumEquivalent: "Full Leighton-Micali Signatures with LM-OTS",
     plenumModule: "salvi_kernel::crypto::signature",
-    securityNotes: "Fully implemented. Security relies only on hash preimage resistance. LamportKeyChain supports indexed multi-message signing.",
+    securityNotes: "Complete SP 800-208 implementation. LM-OTS Winternitz one-time signatures (W=1/2/4/8) with Merkle tree authentication (heights 5/10/15/20/25). Stateful signing with monotonic index tracking and StateExhausted enforcement. Ternary sponge hash with domain separation.",
   },
   {
     algorithm: "XMSS",
@@ -150,9 +150,9 @@ const cnsa2Matrix: ComplianceMapping[] = [
     securityBits: 256,
     deadline: "By 2030",
     status: "equivalent",
-    plenumEquivalent: "Ternary Lamport OTS (Merkle extension planned)",
+    plenumEquivalent: "Full XMSS with WOTS+ and Merkle Tree",
     plenumModule: "salvi_kernel::crypto::signature",
-    securityNotes: "Lamport OTS provides the foundational primitive. XMSS-equivalent Merkle tree structure planned for stateful multi-use signing.",
+    securityNotes: "Complete SP 800-208 implementation. WOTS+ one-time signatures (w=16) with L-tree compression and full Merkle tree authentication paths (heights 10/16/20). Stateful signing with monotonic index advancement and StateExhausted enforcement. Up to 1,048,576 signatures per key pair.",
   },
 ];
 
@@ -194,11 +194,11 @@ const timeline: TimelineMilestone[] = [
     status: "in_progress",
   },
   {
-    year: 2029,
-    title: "XMSS Merkle Extension",
-    description: "Stateful hash-based signature trees using ternary sponge hash. Full XMSS-equivalent Merkle tree construction for multi-use signing.",
-    algorithms: ["XMSS"],
-    status: "planned",
+    year: 2026,
+    title: "SP 800-208 Hash-Based Signatures Complete",
+    description: "Full XMSS (WOTS+ with Merkle tree, heights 10/16/20) and LMS (LM-OTS with Merkle tree, heights 5-25, W=1/2/4/8) implementations. Stateful signing with monotonic index enforcement. Firmware signing pipeline, X.509 PKI, algorithm agility policy engine, and CNSA 2.0 protocol profiles for TLS 1.3, SSH, IPsec/IKEv2, and S/MIME.",
+    algorithms: ["XMSS", "LMS"],
+    status: "complete",
   },
   {
     year: 2030,

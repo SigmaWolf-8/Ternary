@@ -1,0 +1,674 @@
+# CNSA 2.0 Full Compliance — Replit Execution Task List
+## Revision 2.1 | February 9, 2026
+
+### Current State: 23 crypto modules + 4 compat modules on `main` (v2.0.0)
+### Target State: 100% CNSA 2.0 compliance with complete developer documentation
+
+---
+
+## Module Inventory (What Exists on `main`)
+
+### `src/kernel/src/crypto/` — 23 modules
+| Module | Category | Status |
+|---|---|---|
+| `cipher.rs` | AES-256-GCM | ✅ Complete — constant-time Fermat S-box, ternary key mapping |
+| `hash.rs` | Ternary sponge hash | ✅ Complete — 243-trit (SHA-384 equiv), 486-trit (SHA-512 equiv) |
+| `sha2.rs` | FIPS 180-4 binary SHA | ✅ Complete — binary-compatible SHA-384/512 for interop |
+| `sha3.rs` | SHA-3 hardware | ✅ Complete — SHA3-384/512 for boot/FPGA only |
+| `sponge.rs` | Sponge construction | ✅ Complete — Keccak mapped to ternary state |
+| `hmac.rs` | HMAC-SHA-384/512 | ✅ Complete — TLS/IPsec key derivation |
+| `kdf.rs` | Key derivation | ✅ Complete — SHA-2 based KDF |
+| `tl_kem.rs` | TL-KEM-512/768/1024 | ✅ Complete — IND-CCA2 via FO transform, GF(3) Module-LWE |
+| `tl_dsa.rs` | TL-DSA-44/65/87 | ✅ Complete — EUF-CMA via Fiat-Shamir with Aborts |
+| `signature.rs` | LMS + partial XMSS | ⚠️ Gap — Lamport OTS + KeyChain; Merkle tree extension needed |
+| `ternary_lattice.rs` | GF(3) polynomial ring | ✅ Complete — 37 tests, all ring operations |
+| `cnsa2.rs` | Compliance tracker | ✅ Complete — all 11 algorithms tracked |
+| `cavp_package.rs` | CAVP vectors | ✅ Complete — 210 KATs (35/variant), NIST .req/.rsp format |
+| `ct_utils.rs` | Constant-time primitives | ✅ Complete — AES Fermat S-box, TL-KEM FO hardened |
+| `cross_impl.rs` | Cross-implementation | ✅ Complete — interop validation with bounds checks |
+| `side_channel.rs` | Side-channel analysis | ✅ Complete — timing, cache, power analysis |
+| `perf_bench.rs` | Performance benchmarks | ✅ Complete — throughput/latency metrics |
+| `fpga_hdl.rs` | FPGA Verilog generator | ✅ Complete — GF(3) ALU, sponge, AES S-box |
+| `fpga_synth.rs` | FPGA synthesis estimation | ✅ Complete — DSP/BRAM/LUT budgets |
+| `hw_test.rs` | Hardware test cases | ✅ Complete — 14+ FPGA validation tests |
+| `formal_verify.rs` | Formal verification | ✅ Complete — 13 properties (8 exhaustive, 5 dynamic) |
+| `kat_vectors.rs` | KAT framework | ✅ Complete — deterministic gen, frozen validation |
+| `mod.rs` | Module registry | ✅ Complete — all exports |
+
+### `src/kernel/src/compat/` — 4 modules
+| Module | Status |
+|---|---|
+| `crypto_interop.rs` | ✅ CryptoInteropBridge for ML-KEM/ML-DSA bidirectional conversion |
+| `adapter.rs` | ✅ Format adapter layer |
+| `gateway.rs` | ✅ Gateway abstraction |
+| `mod.rs` | ✅ Exports |
+
+### Other Kernel Modules
+| Path | Module | Status |
+|---|---|---|
+| `arch/boot.rs` | Boot sequence | ✅ Exists — needs firmware verification integration |
+| `arch/aarch64.rs` | ARM64 arch | ✅ Exists |
+| `arch/riscv64.rs` | RISC-V arch | ✅ Exists |
+| `drivers/femtoclock.rs` | Femtosecond clock | ✅ Exists |
+| `memory/heap.rs` | Ternary heap | ✅ Exists |
+| `network/ttp.rs` | Ternary Transport Protocol | ✅ Exists — needs CNSA 2.0 security layer |
+| `process/scheduler.rs` | Process scheduler | ✅ Exists — SecurityMode fixed |
+
+---
+
+## GAP ANALYSIS — 14 Remaining Tasks to 100%
+
+### CATEGORY A: Kernel Crypto (Rust — `src/kernel/src/crypto/`)
+
+---
+
+#### TASK A1: XMSS Merkle Tree Extension
+**File:** `crypto/signature.rs` (extend existing)
+**Priority:** P0-CRITICAL — closes last algorithm gap
+**Effort:** ~200-300 lines added to signature.rs
+
+**What exists:** Lamport OTS with `KeyChain` for sequential multi-message signing. This is the foundational primitive but NOT full XMSS.
+
+**What to build:**
+```
+1. WOTS+ (Winternitz One-Time Signature Plus)
+   - Parameterized Winternitz parameter w (typically w=16)
+   - WOTS+ key generation from seed + address
+   - WOTS+ sign: chain hash with configurable w
+   - WOTS+ verify: reconstruct public key from signature
+   - Use existing hash.rs/sha2.rs for internal hashing
+
+2. Merkle Tree Construction
+   - Binary tree of height H (H=10 → 1024 signatures, H=20 → 1M)
+   - L-tree for compressing WOTS+ public key
+   - Tree hash algorithm per SP 800-208 Section 4.1.5
+   - Root node = XMSS public key
+
+3. XMSS Sign/Verify
+   - Sign: pick leaf index → WOTS+ sign → auth path
+   - Verify: recompute root from signature + auth path
+   - Index = monotonic counter (CRITICAL: reuse = compromise)
+
+4. State Management
+   - XmssState struct: { secret_seed, index: u32, tree_height: u8 }
+   - increment_index() — panics/returns error if exhausted
+   - Serialization for PlenumDB persistence
+   - MUST NOT allow index reuse across restarts
+
+5. Parameter Sets (per CNSA 2.0)
+   - XMSS-SHA2_10_256: H=10, n=32, w=16, SHA-256
+   - XMSS-SHA2_16_256: H=16, n=32, w=16, SHA-256
+   - XMSS-SHA2_20_256: H=20, n=32, w=16, SHA-256
+   - Do NOT implement XMSSMT (multi-tree) — prohibited by CNSA 2.0
+```
+
+**Tests to add:**
+- WOTS+ sign/verify round-trip for each w value
+- Merkle tree: generate tree, verify auth path for every leaf (small H=4 test tree)
+- Index exhaustion: verify panic/error when tree is fully used
+- State serialization round-trip
+- SP 800-208 test vectors (if available in cavp_package.rs, extend there)
+
+**Acceptance:** Full XMSS construction with stateful index management. `signature.rs` exports `XmssKeypair`, `xmss_sign()`, `xmss_verify()`, `XmssState`.
+
+---
+
+#### TASK A2: LMS Full Construction Enhancement
+**File:** `crypto/signature.rs` (extend existing)
+**Priority:** P0-CRITICAL — firmware signing dependency
+**Effort:** ~150-200 lines
+
+**What exists:** Lamport OTS with KeyChain. Need full Leighton-Micali Scheme.
+
+**What to build:**
+```
+1. LM-OTS (Leighton-Micali One-Time Signature)
+   - Parameter sets: LMOTS_SHA256_N32_W1/W2/W4/W8
+   - Coeff() function per SP 800-208 Algorithm 1
+   - LM-OTS sign/verify per Algorithms 3/4a
+
+2. LMS Tree
+   - Merkle tree over LM-OTS public keys
+   - LMS parameter sets: LMS_SHA256_M32_H5/H10/H15/H20/H25
+   - Tree node computation per Algorithm 6
+   - LMS sign: pick leaf → LM-OTS sign → auth path (Algorithm 8)
+   - LMS verify: Algorithm 6a
+
+3. State Management (same pattern as XMSS)
+   - LmsState struct with monotonic index
+   - HSS (Hierarchical) is NOT allowed — do not implement
+```
+
+**Tests:** LM-OTS round-trip, LMS sign/verify, index exhaustion, state persistence.
+
+**Acceptance:** `lms_sign()`, `lms_verify()`, `LmsKeypair`, `LmsState` exported.
+
+---
+
+#### TASK A3: Firmware Signing Pipeline
+**File:** NEW `crypto/firmware_sign.rs`
+**Priority:** P1-HIGH — NSA most urgent mandate (2025 prefer, 2030 exclusive)
+**Effort:** ~150 lines
+
+**What to build:**
+```
+1. FirmwareSignature struct
+   - algorithm: enum { Lms, Xmss, DualSign }
+   - signature_bytes: Vec<u8> / [u8; N]
+   - signer_id: [u8; 32]
+   - timestamp: u64 (femtosecond from drivers/femtoclock.rs)
+
+2. sign_firmware(image: &[u8], key: &SigningKey, algo: SignAlgo) -> FirmwareSignature
+   - Hash image with SHA-256 (LMS/XMSS use SHA-256 internally)
+   - Sign hash with selected algorithm
+   - Attach femtosecond timestamp from timing service
+   - Support dual-sign mode: LMS + XMSS for algorithm agility
+
+3. verify_firmware(image: &[u8], sig: &FirmwareSignature, pk: &VerifyKey) -> bool
+   - Re-hash image
+   - Verify signature
+   - For dual-sign: both must pass
+
+4. Integration point with arch/boot.rs
+   - verify_boot_image() called from boot sequence
+   - Reject tampered images
+   - Log verification result with timestamp
+```
+
+**Tests:** sign/verify round-trip, tamper detection (flip bit → reject), dual-sign mode, timestamp presence.
+
+**Register in:** `crypto/mod.rs` and update `cnsa2.rs` compliance tracker.
+
+---
+
+#### TASK A4: X.509 Certificate Support
+**File:** NEW `crypto/x509.rs`
+**Priority:** P1-HIGH — required for TLS 1.3, SSH auth, IPsec IKE
+**Effort:** ~250-350 lines
+
+**What to build:**
+```
+1. Minimal X.509v3 Certificate Structure (DER encoding)
+   - TBSCertificate: version, serial, issuer, validity, subject, spki, extensions
+   - SignatureAlgorithm: ML-DSA-87 OID (per draft-jenkins-cnsa2-pkix-profile)
+   - SubjectPublicKeyInfo: ML-DSA-87 verification key
+
+2. DER Encoder (subset — no full ASN.1 library needed)
+   - encode_sequence(), encode_integer(), encode_oid()
+   - encode_bitstring(), encode_utctime(), encode_utf8string()
+   - Length encoding: short form (<128) and long form
+
+3. Certificate Operations
+   - generate_self_signed(subject, tl_dsa_keypair, validity_days) -> Certificate
+   - sign_certificate(tbs, signing_key) -> Certificate
+   - verify_certificate(cert, issuer_pk) -> bool
+   - Certificate chain validation: root → intermediate → end-entity
+
+4. PEM Encoding
+   - Base64 encode DER with -----BEGIN CERTIFICATE----- wrapper
+   - parse_pem() -> DER bytes
+
+5. CRL (Certificate Revocation List)
+   - Minimal CRL structure with ML-DSA-87 signature
+   - is_revoked(serial, crl) -> bool
+```
+
+**Tests:**
+- Self-signed cert generation and verification
+- Certificate chain: generate 3-level chain, verify
+- Tampered cert detection
+- PEM round-trip (encode → decode → verify)
+- CRL: issue → revoke → check
+
+**Note:** This is a minimal no_std implementation. Full X.509 parsing is out of scope — we generate CNSA 2.0 compliant certs and can verify our own chain. External interop (OpenSSL verification) tested in integration tests, not kernel tests.
+
+---
+
+#### TASK A5: Cryptographic Agility Framework
+**File:** NEW `crypto/agility.rs`
+**Priority:** P1-HIGH — required for FIPS 140-3 compliance mode
+**Effort:** ~150-200 lines
+
+**What to build:**
+```
+1. CryptoPolicy enum
+   - CnsaOnly: reject all non-CNSA-2.0 algorithms
+   - Hybrid: allow CNSA 2.0 + legacy during transition
+   - Legacy: allow all (development/testing only)
+
+2. AlgorithmRegistry
+   - register_algorithm(id, status: Approved|Legacy|Prohibited)
+   - is_allowed(id, policy) -> bool
+   - list_active() -> Vec<AlgorithmInfo>
+   - list_violations() -> Vec<AlgorithmViolation>
+
+3. Algorithm Lifecycle States
+   - Approved → Preferred → Legacy → Prohibited
+   - transition(id, new_state) with validation
+   - Each of 11 CNSA 2.0 algorithms registered at init
+
+4. Compliance Reporter
+   - generate_report() -> ComplianceReport struct
+   - Enumerates: algorithm name, FIPS reference, status, implementation module
+   - Flags any non-CNSA-2.0 usage detected
+
+5. Runtime Enforcement
+   - check_algorithm(id) -> Result<(), PolicyViolation>
+   - Called at entry points of cipher.rs, tl_kem.rs, tl_dsa.rs, signature.rs
+   - In CnsaOnly mode: blocks SHA-3 general use, blocks ML-KEM-512/768 non-CNSA params
+```
+
+**Tests:**
+- CnsaOnly blocks non-approved algorithm
+- Hybrid allows both
+- Lifecycle transitions validated
+- Report enumerates all 11 correctly
+- Policy violation generates proper error
+
+---
+
+#### TASK A6: Phase-Encryption CNSA 2.0 Upgrade
+**File:** Extend existing server-side `phase-encryption.ts` + NEW `crypto/phase_cnsa.rs`
+**Priority:** P2-STRATEGIC — unique differentiator
+**Effort:** ~120-150 lines (kernel) + ~50 lines (TypeScript update)
+
+**What to build in kernel:**
+```
+1. phase_encrypt_cnsa(plaintext, ml_kem_shared_secret, window_fs) -> PhaseCiphertext
+   - Use ML-KEM-1024 shared secret as key material for split/recombine
+   - Split into phase components using AES-256-GCM (cipher.rs)
+   - Bind temporal window: window_fs in femtoseconds (default: 100fs)
+
+2. phase_decrypt_cnsa(ciphertext, ml_kem_shared_secret, current_time_fs) -> Result<Plaintext, TemporalViolation>
+   - Verify current_time within recombination window
+   - Recombine phase components
+   - Return error if outside temporal window
+
+3. TemporalBinding struct
+   - ml_dsa_signature: sign the window parameters with ML-DSA-87
+   - window_start_fs: u64
+   - window_end_fs: u64
+   - Verify binding before allowing recombination
+```
+
+**What to update in TypeScript (`server/salvi-core/phase-encryption.ts`):**
+- Add `cnsaMode: boolean` parameter to encrypt/decrypt functions
+- When cnsaMode=true, route through CNSA 2.0 key material path
+- Document that this uses ML-KEM-1024 shared secrets
+
+**Tests:** Encrypt/decrypt within window succeeds, outside window fails, temporal binding signature validates.
+
+---
+
+#### TASK A7: Ternary NTT Finalization
+**File:** `crypto/ternary_lattice.rs` (extend)
+**Priority:** P2-STRATEGIC
+**Effort:** ~100-150 lines added
+
+**What exists:** GF(3) polynomial ring arithmetic (add, sub, mul, negate, scalar, eval, 37 tests).
+
+**What to build:**
+```
+1. NTT-like Transform for GF(3)
+   - Since Z_3 lacks primitive 256th roots of unity, implement:
+     Option A: Evaluation-based approach (evaluate at n points for n-point multiplication)
+     Option B: Mixed-radix NTT using composite modulus (e.g., work in Z_q where q ≡ 1 mod n, then reduce)
+   - ntt_forward(poly) -> NttPoly
+   - ntt_inverse(ntt_poly) -> Poly
+   - ntt_multiply(a, b) -> NttPoly (pointwise in NTT domain)
+
+2. Benchmark Infrastructure
+   - bench_ntt_vs_schoolbook() — compare NTT multiply vs existing multiply()
+   - Record operation counts for n=256, n=512, n=1024
+   - Document speedup factor and when NTT becomes advantageous
+
+3. Integration
+   - Wire into tl_kem.rs polynomial multiplication path
+   - Wire into tl_dsa.rs polynomial multiplication path
+   - Feature flag: use_ntt (default: true when poly degree > threshold)
+```
+
+**Tests:** NTT forward/inverse round-trip, NTT multiply matches schoolbook multiply for random polys, benchmark output.
+
+---
+
+### CATEGORY B: Protocol Profiles (Rust — `src/kernel/src/network/`)
+
+---
+
+#### TASK B1: CNSA 2.0 Protocol Profiles
+**Files:** NEW modules in `network/` directory
+**Priority:** P1-HIGH
+**Effort:** ~400-500 lines total across 4 files
+
+These are specification-level implementations — the kernel defines the protocol parameter negotiation and crypto operations. Full network stack integration depends on the TTP (ttp.rs) and external runtime.
+
+**What to build:**
+
+**`network/tls13_cnsa.rs`** (~150 lines)
+```
+1. Tls13CnsaConfig struct
+   - cipher_suite: TLS_AES_256_GCM_SHA384 (mandatory, only allowed suite)
+   - key_exchange: MlKem1024 (mandatory)
+   - auth_algorithm: MlDsa87 (mandatory)
+   - hkdf: HkdfSha384
+
+2. tls13_key_exchange(client_ek, server_dk) -> SharedSecret
+   - ML-KEM-1024 encapsulate/decapsulate
+   - Derive TLS keys via HKDF-SHA-384
+
+3. tls13_authenticate(cert_chain, signing_key) -> TlsAuth
+   - Sign with ML-DSA-87
+   - Attach X.509 cert chain (from x509.rs)
+
+4. Hybrid mode stub
+   - HybridKeyExchange: ML-KEM-1024 + ECDHE (for transition)
+   - Combine shared secrets per draft spec
+```
+
+**`network/ssh_cnsa.rs`** (~100 lines)
+```
+1. SshCnsaConfig
+   - kex: mlkem1024_sha384 (MUST be first in list)
+   - public_key: ssh_mldsa87 (MUST be first)
+   - encryption: AEAD_AES_256_GCM
+
+2. ssh_key_exchange() -> SharedSecret
+3. ssh_authenticate(host_key, signing_key) -> SshAuth
+```
+
+**`network/ipsec_cnsa.rs`** (~100 lines)
+```
+1. IpsecCnsaConfig
+   - ike_kex: MlKem1024 via RFC 9370 multiple key exchange
+   - esp_cipher: Aes256Gcm
+   - ike_auth: MlDsa87
+
+2. ike_sa_establish() -> IkeSaKeys
+   - Handle ML-KEM-1024 large key size via multiple exchanges
+3. esp_encrypt/decrypt for tunnel mode
+```
+
+**`network/smime_cnsa.rs`** (~80 lines)
+```
+1. SmimeCnsaConfig
+   - key_transport: MlKem1024
+   - signing: MlDsa87
+
+2. smime_encrypt(message, recipient_ek) -> EncryptedMessage
+3. smime_sign(message, signing_key) -> SignedMessage
+4. smime_verify(signed, signer_pk) -> bool
+```
+
+**Tests for each:** Config validation (only CNSA 2.0 algorithms accepted), key exchange round-trip, authentication round-trip.
+
+**Register all 4 in:** `network/mod.rs` (create if not exists), update `cnsa2.rs` protocol tracking.
+
+---
+
+### CATEGORY C: Documentation (Markdown)
+
+---
+
+#### TASK C1: Complete 05_CRYPTOGRAPHY.md Rewrite
+**File:** `salvi_docs/modules/05_CRYPTOGRAPHY.md`
+**Priority:** P1-HIGH
+**Effort:** Full rewrite, ~800-1200 lines
+
+**Structure:**
+```
+# Salvi Framework Cryptographic Module — Developer Reference
+
+## 1. Overview
+   - CNSA 2.0 compliance summary (11/11 algorithms)
+   - Architecture diagram: crypto module dependency graph
+
+## 2. Algorithm Reference (one subsection per algorithm)
+   For EACH of the 11 algorithms:
+   ### 2.X: [Algorithm Name] ([FIPS Reference])
+   - Parameters and security level
+   - Rust API: function signatures with types
+   - Usage example (Rust code)
+   - Ternary advantage: how GF(3) representation benefits this algorithm
+   - CAVP validation status
+   - Known limitations
+
+## 3. Ternary-Native Implementations
+   - TL-KEM vs ML-KEM: architecture comparison
+   - TL-DSA vs ML-DSA: architecture comparison
+   - GF(3) polynomial ring operations
+   - NTT engine (when available)
+
+## 4. Phase-Encryption with CNSA 2.0
+   - Architecture: ML-KEM shared secret → phase split/recombine
+   - Temporal binding with ML-DSA-87
+   - 100fs recombination window
+
+## 5. Protocol Profiles
+   - TLS 1.3 CNSA 2.0 configuration
+   - SSH CNSA 2.0 configuration
+   - IPsec/IKEv2 CNSA 2.0 configuration
+   - S/MIME CNSA 2.0 configuration
+
+## 6. Key Management
+   - LMS/XMSS stateful key management
+   - Ephemeral key lifecycle (ML-KEM)
+   - Certificate chain (X.509 with ML-DSA-87)
+   - Key storage integration with PlenumDB
+
+## 7. Side-Channel Resistance
+   - Constant-time operations (ct_utils.rs)
+   - AES Fermat inversion S-box
+   - TL-KEM FO transform hardening
+   - What's validated, what needs hardware testing
+
+## 8. FIPS Validation Status
+   - CAVP package: 210 KAT vectors
+   - Formal verification: 13 properties
+   - FPGA HDL: target devices and resource utilization
+   - FIPS 140-3 module boundary
+
+## 9. Migration Guide
+   - CNSA 1.0 → CNSA 2.0 transition procedures
+   - Lamport → LMS/XMSS migration
+   - Algorithm deprecation timeline
+
+## 10. Cryptographic Agility
+   - Policy modes: CnsaOnly, Hybrid, Legacy
+   - Runtime enforcement
+   - Compliance reporting API
+
+## 11. Security Considerations
+   - Excluded algorithms (HSS, XMSSMT, SLH-DSA, HashML-DSA, QKD)
+   - Threat model assumptions
+   - Known limitations and future work
+```
+
+---
+
+#### TASK C2: FIPS 140-3 Module Boundary Document
+**File:** `docs/compliance/fips-140-3-module-boundary.md`
+**Priority:** P1-HIGH
+**Effort:** ~300-400 lines
+
+**Structure:**
+```
+1. Cryptographic Module Identification
+   - Module name: Salvi Ternary Cryptographic Module
+   - Module version: 2.0.0
+   - Module type: Software
+
+2. Cryptographic Boundary
+   - Logical boundary: src/kernel/src/crypto/* + src/kernel/src/compat/*
+   - Interfaces: keygen/encrypt/decrypt/sign/verify/hash entry points
+   - Excluded components: network protocols, UI, database
+
+3. Approved Security Functions
+   - Table of all 11 algorithms with FIPS references
+
+4. Roles and Services
+   - Crypto Officer: key management, policy configuration
+   - User: crypto operations (encrypt, sign, verify)
+
+5. Self-Test Requirements
+   - Power-up: KAT for each algorithm on initialization
+   - Conditional: pair-wise consistency for keygen (KEM, DSA)
+   - Implementation: leverage cavp_package.rs first 3 vectors per algorithm
+
+6. Entropy Source
+   - Primary: femtoclock jitter (drivers/femtoclock.rs)
+   - SP 800-90B compliance requirements
+   - Health tests: repetition count, adaptive proportion
+
+7. Physical Security
+   - N/A for software module (Security Level 1)
+   - Zeroization: secret keys overwritten on drop
+
+8. Evidence Inventory
+   - Source code (23 crypto modules + 4 compat)
+   - CAVP results (210 KAT vectors)
+   - Formal verification (13 properties)
+   - Side-channel analysis (ct_utils.rs)
+```
+
+---
+
+#### TASK C3: Lamport → LMS/XMSS Migration Guide
+**File:** `docs/compliance/signature-migration.md`
+**Priority:** P2-MEDIUM
+**Effort:** ~150 lines
+
+Covers: dual-verification during transition, re-signing existing artifacts, deprecation timeline (warning Q4 2027, removal Q2 2028).
+
+---
+
+### CATEGORY D: Frontend (React/TypeScript)
+
+---
+
+#### TASK D1: Compliance Dashboard Update
+**File:** `client/src/pages/compliance.tsx`
+**Priority:** P1-HIGH
+**Effort:** Update hardcoded values + add real-time sections
+
+**Changes:**
+```
+1. Update algorithm count: 11/0/11 (11 Implemented, 0 Planned, 11 Total)
+   - Previously showed 4/7/11 — now all 11 have implementations
+
+2. Update algorithm matrix status for each:
+   - AES-256: "Implemented" (was "Planned")
+   - ML-KEM-512/768/1024: "Implemented" (was "Planned")
+   - ML-DSA-44/65/87: "Implemented" (was "Planned")
+   - SHA-384/512: "Implemented" (was "Ternary Equivalent")
+   - LMS: "Implemented" (Lamport OTS + KeyChain)
+   - XMSS: "Partial" — note Merkle tree extension pending
+
+3. Add CAVP status section
+   - 210 KAT vectors generated
+   - Show pass/total per algorithm
+   - Link to formal verification: 13 properties
+
+4. Add FIPS 140-3 timeline
+   - Module boundary: Defined
+   - Self-tests: Framework built
+   - CMVP submission: Target date
+
+5. Add protocol profile status (0/4 → track as they're built)
+```
+
+---
+
+### CATEGORY E: Kong API Gateway
+
+---
+
+#### TASK E1: Kong CNSA 2.0 Plugin Configuration
+**File:** NEW `kong/plugins/cnsa-enforcement.yaml` + updates to `kong/kong.yaml`
+**Priority:** P2-MEDIUM (depends on protocol profiles)
+**Effort:** ~100 lines YAML + plugin stubs
+
+**What to build:**
+```
+1. cnsa-enforcement plugin config:
+   - Enforce TLS_AES_256_GCM_SHA384 cipher suite
+   - Require ML-DSA-87 client certificates (mTLS)
+   - Inject X-CNSA-Compliance: 2.0 response header
+   - Log compliance violations
+
+2. Update kong.yaml:
+   - Add plugin reference to all 4 existing services
+   - Configure TLS termination parameters
+
+3. Plugin stubs (for when protocol profiles are ready):
+   - cnsa-signing: ML-DSA-87 request signing
+   - cnsa-encryption: AES-256-GCM body encryption
+   - cnsa-token: ML-KEM token validation
+```
+
+---
+
+## EXECUTION ORDER (Prioritized for Replit)
+
+### Stage 6: Core Compliance Closure
+| Task | File(s) | New/Extend | Effort | Blocks |
+|---|---|---|---|---|
+| A1: XMSS Merkle Tree | `crypto/signature.rs` | Extend | ~250 lines | A3 |
+| A2: LMS Full Construction | `crypto/signature.rs` | Extend | ~180 lines | A3 |
+| A3: Firmware Signing Pipeline | `crypto/firmware_sign.rs` | New | ~150 lines | — |
+| A4: X.509 Certificate Support | `crypto/x509.rs` | New | ~300 lines | B1 |
+| A5: Crypto Agility Framework | `crypto/agility.rs` | New | ~180 lines | — |
+
+### Stage 7: Protocol & Differentiation
+| Task | File(s) | New/Extend | Effort | Blocks |
+|---|---|---|---|---|
+| B1: TLS 1.3 Profile | `network/tls13_cnsa.rs` | New | ~150 lines | E1 |
+| B1: SSH Profile | `network/ssh_cnsa.rs` | New | ~100 lines | — |
+| B1: IPsec Profile | `network/ipsec_cnsa.rs` | New | ~100 lines | — |
+| B1: S/MIME Profile | `network/smime_cnsa.rs` | New | ~80 lines | — |
+| A6: Phase-Encrypt CNSA | `crypto/phase_cnsa.rs` | New | ~130 lines | — |
+| A7: NTT Finalization | `crypto/ternary_lattice.rs` | Extend | ~120 lines | — |
+
+### Stage 8: Documentation & Ecosystem
+| Task | File(s) | New/Extend | Effort | Blocks |
+|---|---|---|---|---|
+| C1: 05_CRYPTOGRAPHY.md | `salvi_docs/modules/05_CRYPTOGRAPHY.md` | Rewrite | ~1000 lines | — |
+| C2: FIPS 140-3 Boundary | `docs/compliance/fips-140-3-module-boundary.md` | New | ~350 lines | — |
+| C3: Migration Guide | `docs/compliance/signature-migration.md` | New | ~150 lines | — |
+| D1: Compliance Dashboard | `client/src/pages/compliance.tsx` | Extend | ~200 lines | — |
+| E1: Kong CNSA Plugins | `kong/plugins/` + `kong.yaml` | New | ~100 lines | — |
+
+### Post-Build: Status Updates
+After each stage, update:
+- `crypto/mod.rs` — register new modules
+- `crypto/cnsa2.rs` — update compliance tracker
+- `PQTI-P0-STATUS.md` — mark completed tasks
+- `replit.md` — update stage documentation
+- `libternary/VERSION_MANIFEST.json` — bump version
+
+---
+
+## COMPLETION CHECKLIST
+
+When ALL tasks complete, verify:
+
+- [ ] 11/11 CNSA 2.0 algorithms implemented with test coverage
+- [ ] XMSS has full Merkle tree construction (not just Lamport OTS)
+- [ ] LMS has full Leighton-Micali construction
+- [ ] Firmware signing pipeline: sign → boot verify → reject tampered
+- [ ] X.509 certificate chain: root → intermediate → end-entity (ML-DSA-87)
+- [ ] 4/4 protocol profiles: TLS 1.3, SSH, IPsec, S/MIME
+- [ ] Crypto agility: CnsaOnly mode blocks non-approved algorithms
+- [ ] Phase-encryption uses ML-KEM-1024 shared secrets
+- [ ] NTT-like transform for GF(3) polynomial multiplication
+- [ ] 05_CRYPTOGRAPHY.md covers all 11 algorithms with API reference
+- [ ] FIPS 140-3 module boundary document complete
+- [ ] Compliance dashboard shows 11/0/11
+- [ ] Kong plugins configured for CNSA 2.0 enforcement
+- [ ] All new modules registered in mod.rs and cnsa2.rs
+- [ ] All tests pass
+- [ ] Architect review passed
+- [ ] Pushed to GitHub main
+- [ ] Version bumped (v2.1.0 or v3.0.0)
+
+**Target: CNSA 2.0 Full Compliance — 27/27 tasks at 100%**

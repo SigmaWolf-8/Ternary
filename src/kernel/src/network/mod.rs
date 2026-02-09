@@ -6,6 +6,7 @@ pub mod routing;
 pub mod ttp;
 pub mod t3p;
 pub mod tdns;
+pub mod cnsa_profiles;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NetworkError {

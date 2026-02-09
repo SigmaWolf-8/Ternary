@@ -71,16 +71,18 @@ The GitHub Manager page (`/github`, admin-only) provides:
 -   **Sync Status**: Stages 1-5 complete locally, pending push to main branch via "Push All Stages (1-5)" button. `libternary.tar.gz` requires separate recompilation before push.
 
 ## Recent Changes (February 2026)
+-   **SP 800-208 Gap CLOSED**: Full XMSS (WOTS+ with Merkle tree, heights 10/16/20, w=16, L-tree compression) and LMS (LM-OTS with Merkle tree, heights 5/10/15/20/25, W=1/2/4/8) in `signature.rs`. Stateful signing with monotonic index advancement and `StateExhausted` enforcement.
+-   **Firmware Signing**: `firmware_sign.rs` — Sign → boot verify → reject pipeline with manifest validation for secure boot.
+-   **X.509 PKI**: `x509.rs` — Minimal X.509v3 certificates with DER/PEM encoding, chain validation, ML-DSA-87 signature support.
+-   **Algorithm Agility**: `agility.rs` — CnsaOnly/Hybrid/Legacy policy engine with algorithm classification and enforcement.
+-   **CNSA Protocol Profiles**: `network/cnsa_profiles.rs` — TLS 1.3, SSH, IPsec/IKEv2, S/MIME profiles with cipher suite validation and forbidden algorithm rejection.
+-   **Hybrid Key Exchange**: `phase_cnsa.rs` — ML-KEM-1024 + phase encryption temporal binding for session key derivation with forward secrecy.
+-   **NTT Extension**: `ternary_lattice.rs` — NTT-like transform via modulus lifting (q=7681) for O(n log n) polynomial multiplication. Forward/inverse/pointwise operations.
+-   **Documentation**: Full `05_CRYPTOGRAPHY.md` rewrite (11 algorithms, API reference), `15_FIPS_BOUNDARY.md` (FIPS 140-3 module boundary spec), `16_MIGRATION_GUIDE.md` (Lamport → XMSS/LMS migration).
+-   **Compliance Dashboard**: Updated compliance.tsx with full XMSS/LMS descriptions and timeline.
+-   **Kong CNSA Plugin**: CNSA 2.0 enforcement headers (request-transformer, response-transformer) in kong.yaml.
 -   **Phase 3 CMVP Preparation Complete**: Production hardening, CAVP submission package, FPGA HDL generator, hardware testing framework, formal verification, and compliance documentation.
 -   **Production Hardening**: `ct_utils.rs` — Constant-time primitives (ct_select_u8, ct_eq_u8, ct_eq_slices, ct_select_vec, ct_zeroize). AES S-box replaced with GF(2^8) Fermat inversion (a^254, no lookup tables). TL-KEM decaps hardened with ct_select_vec for FO transform.
--   **CAVP Package**: `cavp_package.rs` — 210 KAT vectors (35/variant), NIST SP 800-185 formatted .req/.rsp files, capability descriptions, frozen vector regression.
--   **FPGA HDL**: `fpga_hdl.rs` — Verilog generator for GF(3) ALU, sponge permutation (729-trit/27-round), AES Fermat S-box, polynomial MAC, top-level integration. Target: ~50,240 LUTs on Kintex UltraScale+.
--   **Hardware Testing**: `hw_test.rs` — 14+ test cases for Kintex UltraScale+ (functional, timing, power, environmental, endurance).
--   **Formal Verification**: `formal_verify.rs` — 13 properties (8 proven exhaustively, 5 verified dynamically): constant-time (CT-001-005), GF(3)/GF(2^8) arithmetic (ARITH-001-005), memory safety (MEM-001), protocol correctness (PROTO-001-002).
--   **Side-Channel Update**: AES risk reduced from Medium to None (Fermat S-box). TL-KEM risk reduced from Low to None (ct_select_vec). All modules except TL-DSA sign (High, BY DESIGN) now verified constant-time.
--   **Compliance Docs**: Security policy, CAVP submission guide, FPGA prototype spec, formal verification report in `docs/compliance/`.
--   **Stage 5 Complete**: Five FIPS Phase 2 validation modules: KAT vectors, side-channel analysis, cross-implementation testing, FPGA synthesis specs, and performance benchmarks.
--   **Stage 4 Complete**: Branch protection, code signing, FIPS validation plan, binary interoperability layer, whitepaper completion (17 sections), and libternary v2.0.0 package update.
 -   **Phase 3 Crypto Complete**: TL-KEM (FIPS 203 equivalent) and TL-DSA (FIPS 204 equivalent) implemented with 3 security levels each. CNSA 2.0 coverage at 100% (11/11 algorithms).
 
 ## External Dependencies
