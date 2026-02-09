@@ -1,0 +1,74 @@
+{
+  "name": "libternary",
+  "version": "2.0.0",
+  "releaseDate": "2026-02",
+  "framework": "Salvi Framework",
+  "organization": "Capomastro Holdings Ltd.",
+  "repository": "https://github.com/SigmaWolf-8/Ternary",
+  "compliance": {
+    "cnsa2": {
+      "coverage": "11/11",
+      "percentage": 100,
+      "algorithms": [
+        { "id": 1, "name": "AES-256", "standard": "FIPS 197", "equivalent": "AES-256-GCM with ternary key mapping", "module": "cipher.rs" },
+        { "id": 2, "name": "SHA-384", "standard": "FIPS 180-4", "equivalent": "Ternary Sponge Hash (243-trit)", "module": "sponge.rs" },
+        { "id": 3, "name": "SHA-512", "standard": "FIPS 180-4", "equivalent": "Ternary Sponge Hash (486-trit)", "module": "sponge.rs" },
+        { "id": 4, "name": "ML-KEM-512", "standard": "FIPS 203", "equivalent": "TL-KEM-512", "module": "tl_kem.rs" },
+        { "id": 5, "name": "ML-KEM-768", "standard": "FIPS 203", "equivalent": "TL-KEM-768", "module": "tl_kem.rs" },
+        { "id": 6, "name": "ML-KEM-1024", "standard": "FIPS 203", "equivalent": "TL-KEM-1024", "module": "tl_kem.rs" },
+        { "id": 7, "name": "ML-DSA-44", "standard": "FIPS 204", "equivalent": "TL-DSA-44", "module": "tl_dsa.rs" },
+        { "id": 8, "name": "ML-DSA-65", "standard": "FIPS 204", "equivalent": "TL-DSA-65", "module": "tl_dsa.rs" },
+        { "id": 9, "name": "ML-DSA-87", "standard": "FIPS 204", "equivalent": "TL-DSA-87", "module": "tl_dsa.rs" },
+        { "id": 10, "name": "LMS", "standard": "SP 800-208", "equivalent": "Ternary Lamport OTS", "module": "signature.rs" },
+        { "id": 11, "name": "XMSS", "standard": "SP 800-208", "equivalent": "Ternary Lamport OTS Chain", "module": "signature.rs" }
+      ]
+    }
+  },
+  "fipsValidation": {
+    "phase": 2,
+    "katVectors": { "kem": 9, "dsa": 9, "total": 18, "module": "kat_vectors.rs" },
+    "sideChannelAnalysis": { "functionsAnalyzed": 19, "fipsLevel3Ready": true, "module": "side_channel.rs" },
+    "crossImplTests": { "total": 45, "categories": ["SizeCompliance", "ProtocolCompliance", "AlgebraicConsistency", "RoundTripIntegrity"], "module": "cross_impl.rs" },
+    "fpgaSynthesis": { "targets": 4, "modules": 9, "recommended": "Xilinx Kintex UltraScale+", "module": "fpga_synth.rs" },
+    "performanceBenchmarks": { "total": 20, "algorithms": ["TL-KEM", "TL-DSA", "Sponge Hash"], "module": "perf_bench.rs" }
+  },
+  "kernelModules": {
+    "crypto": [
+      "src/kernel/src/crypto/tl_kem.rs",
+      "src/kernel/src/crypto/tl_dsa.rs",
+      "src/kernel/src/crypto/cipher.rs",
+      "src/kernel/src/crypto/sha2.rs",
+      "src/kernel/src/crypto/sha3.rs",
+      "src/kernel/src/crypto/ternary_lattice.rs",
+      "src/kernel/src/crypto/cnsa2.rs",
+      "src/kernel/src/crypto/sponge.rs",
+      "src/kernel/src/crypto/hash.rs",
+      "src/kernel/src/crypto/hmac.rs",
+      "src/kernel/src/crypto/kdf.rs",
+      "src/kernel/src/crypto/signature.rs",
+      "src/kernel/src/crypto/kat_vectors.rs",
+      "src/kernel/src/crypto/side_channel.rs",
+      "src/kernel/src/crypto/cross_impl.rs",
+      "src/kernel/src/crypto/fpga_synth.rs",
+      "src/kernel/src/crypto/perf_bench.rs"
+    ],
+    "compat": [
+      "src/kernel/src/compat/gateway.rs",
+      "src/kernel/src/compat/adapter.rs",
+      "src/kernel/src/compat/crypto_interop.rs"
+    ]
+  },
+  "interoperability": {
+    "mlKem": ["ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"],
+    "mlDsa": ["ML-DSA-44", "ML-DSA-65", "ML-DSA-87"],
+    "bridge": "src/kernel/src/compat/crypto_interop.rs"
+  },
+  "typescript": {
+    "modules": [
+      "src/ternary-types.ts",
+      "src/ternary-operations.ts",
+      "src/femtosecond-timing.ts",
+      "src/phase-encryption.ts"
+    ]
+  }
+}
