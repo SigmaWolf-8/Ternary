@@ -290,25 +290,29 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::Lms,
             status: ComplianceStatus::TernaryEquivalent,
-            plenum_equivalent: String::from("Ternary Lamport OTS with Key Chain"),
+            plenum_equivalent: String::from("LMS with LM-OTS (SP 800-208 §4)"),
             plenum_module: String::from("salvi_kernel::crypto::signature"),
             security_notes: String::from(
-                "Fully implemented ternary Lamport one-time signature scheme. \
-                 Hash-based construction inherently quantum-resistant. \
-                 LamportKeyChain supports multi-message signing via key indexing. \
-                 Security relies only on hash function preimage resistance."
+                "Full Leighton-Micali Signature scheme with LM-OTS one-time \
+                 signatures and Merkle tree construction. Supports tree heights \
+                 H=5,10,15,20,25 and Winternitz parameters W=1,2,4,8. Stateful \
+                 index management with monotonic advancement prevents signature \
+                 reuse. Ternary sponge hash as underlying hash function. \
+                 SP 800-208 compliant (single-tree LMS; HSS prohibited)."
             ),
         },
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::Xmss,
             status: ComplianceStatus::TernaryEquivalent,
-            plenum_equivalent: String::from("Ternary Lamport OTS (Merkle tree extension planned)"),
+            plenum_equivalent: String::from("XMSS with WOTS+ (SP 800-208 §5)"),
             plenum_module: String::from("salvi_kernel::crypto::signature"),
             security_notes: String::from(
-                "Current Lamport OTS provides the foundational primitive. \
-                 XMSS-equivalent Merkle tree structure for stateful multi-use \
-                 signing is architecturally planned. Ternary sponge hash \
-                 provides the underlying hash tree construction."
+                "Full eXtended Merkle Signature Scheme with WOTS+ (w=16) \
+                 one-time signatures, L-tree compression, and Merkle tree \
+                 construction. Supports tree heights H=10,16,20. Stateful \
+                 index management with monotonic advancement prevents signature \
+                 reuse. Ternary sponge hash as underlying hash function. \
+                 SP 800-208 compliant (single-tree XMSS; XMSS^MT prohibited)."
             ),
         },
     ]
@@ -345,14 +349,16 @@ pub fn get_transition_timeline() -> Vec<TransitionMilestone> {
             year: 2025,
             title: String::from("Foundation Complete"),
             description: String::from(
-                "Ternary sponge hash, HMAC, KDF, and Lamport OTS \
-                 provide GF(3)-native equivalents for SHA-384/512 and LMS/XMSS. \
+                "Ternary sponge hash, HMAC, KDF, Lamport OTS, full XMSS with \
+                 WOTS+ Merkle tree, and full LMS with LM-OTS Merkle tree provide \
+                 GF(3)-native equivalents for SHA-384/512 and SP 800-208. \
                  Phase encryption provides current symmetric encryption capability."
             ),
             algorithms: vec![
                 Cnsa2Algorithm::Sha384,
                 Cnsa2Algorithm::Sha512,
                 Cnsa2Algorithm::Lms,
+                Cnsa2Algorithm::Xmss,
             ],
             status: MilestoneStatus::Complete,
         },
