@@ -1,11 +1,17 @@
 /**
- * Salvi Framework - Phase Encryption
+ * Salvi Framework - Phase Encryption (IMPROVED)
  * 
  * Implements the Adaptive Dual-Phase Quantum Encryption System from the whitepaper:
  * - Tunable Phase-Split Architecture
  * - Primary Phase: 360°/0° reference (fixed)
  * - Secondary Phase: Δθ(t) = (1°-10°) tunable
  * - Guardian Phase: 358° offset for tamper detection
+ *
+ * IMPROVEMENT: Replaced weak djb2 checksum with Tribonacci-weighted mixing.
+ * The guardian phase checksum now uses τ-derived constants for better
+ * tamper detection, directly connecting to the theory's mathematics.
+ * Note: This is a non-cryptographic checksum. For cryptographic integrity,
+ * use the CNSA 2.0 algorithms (HMAC-SHA-384, etc.) in the kernel crypto module.
  */
 
 import { getFemtosecondTimestamp, FemtosecondTimestamp } from './femtosecond-timing';
@@ -48,6 +54,14 @@ export interface RecombinationResult {
   guardianValidation?: boolean;
   error?: string;
 }
+
+/**
+ * The Tribonacci constant τ — real root of τ³ = τ² + τ + 1
+ * Inlined here to avoid circular dependency with libternary
+ */
+const TAU = 1.8392867552141612;
+const TAU_2 = TAU ** 2;
+const TAU_7 = TAU ** 7;
 
 /**
  * Get phase configuration based on encryption mode
@@ -125,7 +139,7 @@ export function phaseSplit(
   
   if (config.guardianEnabled) {
     const guardianTimestamp = getFemtosecondTimestamp();
-    const hash = simpleHash(data);
+    const hash = tribonacciHash(data);
     result.guardianPhase = {
       hash,
       phase: config.guardianOffset,
@@ -186,7 +200,7 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
     
     let guardianValidation: boolean | undefined;
     if (encrypted.guardianPhase) {
-      const currentHash = simpleHash(recombinedData);
+      const currentHash = tribonacciHash(recombinedData);
       guardianValidation = currentHash === encrypted.guardianPhase.hash;
       
       if (!guardianValidation) {
@@ -232,16 +246,44 @@ function calculatePhaseAlignment(
 }
 
 /**
- * Simple hash function for guardian phase
+ * Tribonacci-weighted checksum for guardian phase tamper detection
+ *
+ * Non-cryptographic checksum using τ-derived mixing constants
+ * from the 13D Torsion Plenum Theory:
+ *   - τ² as the initial seed (from SO(8) graph stability)
+ *   - τ⁷ as the mixing multiplier (instanton action volume)
+ *   - 13-round finalization (dimensional constant D=13)
+ *
+ * Produces a 64-bit checksum with better avalanche behavior
+ * than the previous djb2-style shift-and-add approach.
  */
-function simpleHash(data: string): string {
-  let hash = 0;
+function tribonacciHash(data: string): string {
+  const SEED = Math.floor(TAU_2 * 1e9);
+  const MIX = Math.floor(TAU_7 * 1e6);
+
+  let h0 = SEED >>> 0;
+  let h1 = (SEED * 3) >>> 0;
+
   for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+    const c = data.charCodeAt(i);
+
+    h0 = Math.imul(h0 ^ c, MIX) >>> 0;
+    h0 = ((h0 << 13) | (h0 >>> 19)) >>> 0;
+    h0 = (h0 + Math.imul(c, i + 1)) >>> 0;
+
+    h1 = Math.imul(h1 ^ (c * 3), MIX + 1) >>> 0;
+    h1 = ((h1 << 7) | (h1 >>> 25)) >>> 0;
+    h1 = (h1 ^ h0) >>> 0;
   }
-  return Math.abs(hash).toString(16).padStart(8, '0');
+
+  for (let r = 0; r < 13; r++) {
+    h0 = Math.imul(h0 ^ (h0 >>> 16), MIX) >>> 0;
+    h1 = Math.imul(h1 ^ (h1 >>> 16), MIX + 1) >>> 0;
+    h0 = (h0 ^ h1) >>> 0;
+    h1 = (h1 ^ h0) >>> 0;
+  }
+
+  return h0.toString(16).padStart(8, '0') + h1.toString(16).padStart(8, '0');
 }
 
 /**

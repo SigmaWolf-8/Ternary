@@ -1,0 +1,81 @@
+# libternary Improvements
+
+Three changes derived directly from the mathematics displayed on the Project 13D site.
+
+---
+
+## 1. GF(3) Arithmetic Fix (`ternary-operations.ts`)
+
+**Bug**: The mapping from balanced ternary {-1, 0, +1} to GF(3) {0, 1, 2} used `f(a) = a + 1`, which maps -1→0, 0→1, 1→2. This is NOT a ring homomorphism — it maps -1 to GF(3)'s additive identity (0), which breaks both addition and multiplication.
+
+**Verification of the bug (old code)**:
+
+| Operation | Old result | Correct result | Status |
+|-----------|-----------|---------------|--------|
+| `ternaryAdd(-1, -1)` | -1 | +1 | BUG (maps to 0+0=0, back to -1; but -1+-1 ≡ 2+2 = 4 mod 3 = 1) |
+| `ternaryMultiply(-1, -1)` | -1 | +1 | BUG (maps to 0×0=0, back to -1; but -1×-1 = +1) |
+| `ternaryAdd(-1, 1)` | 1 | 0 | BUG (maps to 0+2=2, back to +1; but -1+1 = 0) |
+| `ternaryMultiply(1, 1)` | 0 | +1 | BUG (maps to 2×2=4%3=1, back to 0; but 1×1 = 1) |
+
+**Root cause**: The offset mapping `a + 1` is an affine shift, not a field isomorphism. In GF(3), element 0 is the additive identity (a+0=a) and absorbs in multiplication (a×0=0). By mapping balanced-ternary -1 to 0, we make -1 behave like zero, which is algebraically wrong.
+
+**Fix**: Use the standard modular equivalence: -1↔2, 0↔0, 1↔1
+- Forward: `toGF3(a) = ((a % 3) + 3) % 3`
+- Inverse: `fromGF3(g) = g === 2 ? -1 : g`
+
+This is the unique ring isomorphism between balanced ternary and GF(3).
+
+**Files changed**: `src/ternary-operations.ts`
+
+---
+
+## 2. Tribonacci Constants & Sequences (`tribonacci.ts`) — NEW FILE
+
+The theory prominently features τ = 1.839286755... and derived values throughout the site, but none of these constants existed in the library. All values are computed from TAU at module load (not hardcoded) to ensure consistency. The `verifyTau()` function confirms τ³ = τ² + τ + 1 holds to machine precision.
+
+This module adds:
+
+- **TAU**: The Tribonacci constant (real root of τ³ = τ² + τ + 1)
+- **TAU_POWERS**: Pre-computed τ², τ³, τ⁵, τ⁷, τ¹³
+- **DERIVED_CONSTANTS**: Physical constants computed from TAU
+  - S_inst = 2τ⁷ (instanton action)
+  - Δθ = 9/τ⁵ (CMB birefringence)
+  - P_sid = 28(1 - τ⁻⁶) (lunar sidereal period)
+  - And more
+- **tribonacci(n)**: Generate T(n) values (T(7)=13, etc.)
+- **tribonacciSequence(n)**: Full sequence up to index n
+- **resonanceMass(n)**: LHC resonance masses M_n = M₁ × T(n+6)/T(7)
+- **qgnDecoherence(E)**: Quantum Graphitic Noise rate Γ ≈ τ⁻⁵ E²/M_P
+- **verifyTau()**: Validation that τ³ = τ² + τ + 1
+
+**Files added**: `src/tribonacci.ts`
+**Update needed**: `src/index.ts` — add exports for the new module
+
+---
+
+## 3. Guardian Phase Checksum Improvement (`phase-encryption.ts`)
+
+**Issue**: The guardian phase used a simple djb2-style hash (shift-and-add) producing a 32-bit value. While not intended as cryptographic security (the actual encryption is handled by the CNSA 2.0 suite), a stronger checksum improves tamper detection for the guardian phase.
+
+**Improvement**: Replaced with a Tribonacci-weighted non-cryptographic checksum that:
+- Uses τ² as the initial seed (connects to SO(8) graph stability)
+- Uses τ⁷ as the mixing multiplier (instanton action volume)
+- Applies 13-round finalization (the dimensional constant D=13)
+- Produces a 64-bit checksum (16 hex chars) vs the old 32-bit (8 hex chars)
+- Better avalanche behavior than the previous shift-and-add approach
+
+**Note**: This is a non-cryptographic checksum for data integrity detection, not a security primitive. For cryptographic integrity, use the CNSA 2.0 algorithms in the kernel crypto module (HMAC-SHA-384, etc.).
+
+**Files changed**: `src/phase-encryption.ts` (also imports from new `tribonacci.ts`)
+
+---
+
+## How to Apply
+
+Drop these files into the `libternary/src/` directory in the GitHub repo, replacing the originals. Then update `index.ts` to export the new tribonacci module:
+
+```typescript
+export * from './tribonacci';
+```
+
+Recommended: run the existing test suite after applying to confirm no regressions.

@@ -17,7 +17,7 @@
  */
 
 import { getFemtosecondTimestamp, FemtosecondTimestamp } from './femtosecond-timing';
-import { TAU_POWERS } from './tribonacci';
+import { TAU, TAU_POWERS } from './tribonacci';
 
 export type EncryptionMode = 'high_security' | 'balanced' | 'performance' | 'adaptive';
 

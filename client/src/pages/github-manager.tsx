@@ -299,6 +299,12 @@ export default function GitHubManager() {
         { localPath: "libternary/VERSION_MANIFEST.json", githubPath: "libternary/VERSION_MANIFEST.json" },
         { localPath: "libternary/CHANGELOG.md", githubPath: "libternary/CHANGELOG.md" },
         { localPath: "libternary/README.md", githubPath: "libternary/README.md" },
+        { localPath: "libternary/src/index.ts", githubPath: "libternary/src/index.ts" },
+        { localPath: "libternary/src/ternary-types.ts", githubPath: "libternary/src/ternary-types.ts" },
+        { localPath: "libternary/src/ternary-operations.ts", githubPath: "libternary/src/ternary-operations.ts" },
+        { localPath: "libternary/src/femtosecond-timing.ts", githubPath: "libternary/src/femtosecond-timing.ts" },
+        { localPath: "libternary/src/phase-encryption.ts", githubPath: "libternary/src/phase-encryption.ts" },
+        { localPath: "libternary/src/tribonacci.ts", githubPath: "libternary/src/tribonacci.ts" },
         { localPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md", githubPath: "salvi_docs/modules/05_CRYPTOGRAPHY.md" },
         { localPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md", githubPath: "salvi_docs/modules/14_CNSA2_COMPLIANCE.md" },
         { localPath: "salvi_docs/modules/15_FIPS_BOUNDARY.md", githubPath: "salvi_docs/modules/15_FIPS_BOUNDARY.md" },
@@ -329,7 +335,7 @@ export default function GitHubManager() {
       ];
       return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
         files: allFiles,
-        message: "Full sync: 34 crypto modules, CMVP package, CNSA 2.0 compliance, Kong gateway, docs",
+        message: "Full sync: 34 crypto modules, libternary GF(3) fix + tribonacci, CMVP package, CNSA 2.0, Kong gateway, docs",
       });
     },
     onSuccess: async (response: any) => {

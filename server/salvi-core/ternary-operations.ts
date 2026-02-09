@@ -1,10 +1,18 @@
 /**
- * Salvi Framework - Ternary Operations
+ * Salvi Framework - Ternary Operations (IMPROVED)
  * 
  * Implements the Enhanced Galois Ternary Field operations from the whitepaper:
  * - Ternary addition: a ⊕₃ b
  * - Ternary multiplication: a ⊗₃ b
  * - Dynamic bijective rotations: TBR(θ)
+ *
+ * FIX: Corrected GF(3) ring isomorphism. Previous mapping f(a) = a + 1
+ * mapped -1→0, 0→1, 1→2, which is NOT a ring homomorphism — it maps the
+ * balanced-ternary element -1 to GF(3)'s additive identity 0, breaking
+ * multiplication (e.g., (-1)*(-1) incorrectly returned -1 instead of +1).
+ *
+ * Correct mapping: -1 ↔ 2, 0 ↔ 0, 1 ↔ 1 (standard modular equivalence)
+ * This preserves both addition and multiplication structure.
  */
 
 import { TritA, TritB, Representation, convertTrit } from './ternary-types';
@@ -21,18 +29,33 @@ export interface OperationResult {
 }
 
 /**
+ * Map balanced ternary (-1, 0, +1) to GF(3) (0, 1, 2)
+ * Uses the correct ring isomorphism: -1 ↔ 2, 0 ↔ 0, 1 ↔ 1
+ * Formula: (a + 3) % 3
+ */
+function toGF3(a: TritA): number {
+  return ((a % 3) + 3) % 3;
+}
+
+/**
+ * Map GF(3) (0, 1, 2) back to balanced ternary (-1, 0, +1)
+ * Inverse of toGF3: 0 → 0, 1 → 1, 2 → -1
+ */
+function fromGF3(g: number): TritA {
+  if (g === 2) return -1;
+  return g as TritA;
+}
+
+/**
  * Ternary Addition in GF(3)
  * a ⊕₃ b = (a + b) mod 3
- * 
- * Uses Representation A internally (-1, 0, +1)
- * Mapped to (0, 1, 2) for modular arithmetic
+ *
+ * Uses the correct ring isomorphism for balanced ternary ↔ GF(3).
+ * Verified: (-1)+(-1)=1, (-1)+1=0, 1+1=-1 (all correct in GF(3))
  */
 export function ternaryAdd(a: TritA, b: TritA): OperationResult {
-  const aMapped = a + 1;
-  const bMapped = b + 1;
-  const sumMod3 = (aMapped + bMapped) % 3;
-  const result = (sumMod3 - 1) as TritA;
-  
+  const result = fromGF3((toGF3(a) + toGF3(b)) % 3);
+
   return {
     operands: { a, b },
     operation: 'ternary_addition',
@@ -45,13 +68,13 @@ export function ternaryAdd(a: TritA, b: TritA): OperationResult {
 /**
  * Ternary Multiplication in GF(3)
  * a ⊗₃ b = (a × b) mod 3
+ *
+ * FIX: Now uses correct ring isomorphism.
+ * Verified: (-1)*(-1)=1, (-1)*1=-1, 1*1=1, 0*x=0 (all correct)
  */
 export function ternaryMultiply(a: TritA, b: TritA): OperationResult {
-  const aMapped = a + 1;
-  const bMapped = b + 1;
-  const productMod3 = (aMapped * bMapped) % 3;
-  const result = (productMod3 - 1) as TritA;
-  
+  const result = fromGF3((toGF3(a) * toGF3(b)) % 3);
+
   return {
     operands: { a, b },
     operation: 'ternary_multiplication',
@@ -70,14 +93,12 @@ export function ternaryMultiply(a: TritA, b: TritA): OperationResult {
  */
 export function ternaryRotate(value: TritA, steps: number = 1): OperationResult {
   const normalizedSteps = ((steps % 3) + 3) % 3;
-  const mapped = value + 1;
-  const rotated = (mapped + normalizedSteps) % 3;
-  const result = (rotated - 1) as TritA;
-  
+  const rotated = fromGF3((toGF3(value) + normalizedSteps) % 3);
+
   return {
     operands: { a: value, b: steps },
     operation: 'ternary_rotation',
-    result,
+    result: rotated,
     representation: 'A',
     constantTime: true
   };
