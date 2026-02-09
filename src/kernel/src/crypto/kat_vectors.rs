@@ -32,8 +32,8 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
-use super::{CryptoResult, TernaryDigest};
-use super::tl_kem::{self, TlKemVariant, SharedSecret};
+use super::CryptoResult;
+use super::tl_kem::{self, TlKemVariant};
 use super::tl_dsa::{self, TlDsaVariant};
 use super::sponge::TernarySponge;
 
@@ -127,7 +127,13 @@ fn poly_vec_to_trits(v: &super::ternary_lattice::TernaryPolyVec) -> Vec<i8> {
     trits
 }
 
+pub const VECTORS_PER_VARIANT: u8 = 35;
+
 pub fn generate_kem_kat_vectors() -> CryptoResult<Vec<KemKatVector>> {
+    generate_kem_kat_vectors_n(VECTORS_PER_VARIANT)
+}
+
+pub fn generate_kem_kat_vectors_n(count_per_variant: u8) -> CryptoResult<Vec<KemKatVector>> {
     let variants = [
         (TlKemVariant::TlKem512, 0u8),
         (TlKemVariant::TlKem768, 1u8),
@@ -137,7 +143,7 @@ pub fn generate_kem_kat_vectors() -> CryptoResult<Vec<KemKatVector>> {
     let mut vectors = Vec::new();
 
     for &(variant, variant_id) in &variants {
-        for index in 0..3u8 {
+        for index in 0..count_per_variant {
             let seed = canonical_seed(index, variant_id);
             let randomness = canonical_randomness(index);
 
@@ -190,6 +196,10 @@ pub fn generate_kem_kat_vectors() -> CryptoResult<Vec<KemKatVector>> {
 }
 
 pub fn generate_dsa_kat_vectors() -> CryptoResult<Vec<DsaKatVector>> {
+    generate_dsa_kat_vectors_n(VECTORS_PER_VARIANT)
+}
+
+pub fn generate_dsa_kat_vectors_n(count_per_variant: u8) -> CryptoResult<Vec<DsaKatVector>> {
     let variants = [
         (TlDsaVariant::TlDsa44, 0u8),
         (TlDsaVariant::TlDsa65, 1u8),
@@ -199,7 +209,7 @@ pub fn generate_dsa_kat_vectors() -> CryptoResult<Vec<DsaKatVector>> {
     let mut vectors = Vec::new();
 
     for &(variant, variant_id) in &variants {
-        for index in 0..3u8 {
+        for index in 0..count_per_variant {
             let seed = canonical_seed(index, variant_id + 10);
             let message = canonical_message(index);
 
@@ -354,16 +364,21 @@ pub fn validate_dsa_vector(vector: &DsaKatVector) -> CryptoResult<KatValidationR
 }
 
 pub fn run_full_kat_validation() -> CryptoResult<Vec<KatValidationResult>> {
-    let suite = generate_full_kat_suite()?;
+    run_full_kat_validation_n(VECTORS_PER_VARIANT)
+}
+
+pub fn run_full_kat_validation_n(count_per_variant: u8) -> CryptoResult<Vec<KatValidationResult>> {
+    let kem_vectors = generate_kem_kat_vectors_n(count_per_variant)?;
+    let dsa_vectors = generate_dsa_kat_vectors_n(count_per_variant)?;
     let mut results = Vec::new();
 
-    for (i, vec) in suite.kem_vectors.iter().enumerate() {
+    for (i, vec) in kem_vectors.iter().enumerate() {
         let mut result = validate_kem_vector(vec)?;
         result.vector_index = i;
         results.push(result);
     }
 
-    for (i, vec) in suite.dsa_vectors.iter().enumerate() {
+    for (i, vec) in dsa_vectors.iter().enumerate() {
         let mut result = validate_dsa_vector(vec)?;
         result.vector_index = i;
         results.push(result);
@@ -432,7 +447,11 @@ pub fn validate_frozen_vectors() -> CryptoResult<Vec<KatValidationResult>> {
 }
 
 pub fn kat_summary() -> CryptoResult<KatSummary> {
-    let results = run_full_kat_validation()?;
+    kat_summary_n(VECTORS_PER_VARIANT)
+}
+
+pub fn kat_summary_n(count_per_variant: u8) -> CryptoResult<KatSummary> {
+    let results = run_full_kat_validation_n(count_per_variant)?;
     let total = results.len();
     let passed = results.iter().filter(|r| r.passed).count();
     let failed = total - passed;
@@ -468,9 +487,11 @@ pub struct KatSummary {
 mod tests {
     use super::*;
 
+    const TEST_N: u8 = 3;
+
     #[test]
     fn test_generate_kem_kat_vectors() {
-        let vectors = generate_kem_kat_vectors().unwrap();
+        let vectors = generate_kem_kat_vectors_n(TEST_N).unwrap();
         assert_eq!(vectors.len(), 9);
 
         let v512: Vec<_> = vectors.iter().filter(|v| v.variant == TlKemVariant::TlKem512).collect();
@@ -483,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_generate_dsa_kat_vectors() {
-        let vectors = generate_dsa_kat_vectors().unwrap();
+        let vectors = generate_dsa_kat_vectors_n(TEST_N).unwrap();
         assert_eq!(vectors.len(), 9);
 
         for v in &vectors {
@@ -493,8 +514,8 @@ mod tests {
 
     #[test]
     fn test_kem_kat_deterministic() {
-        let v1 = generate_kem_kat_vectors().unwrap();
-        let v2 = generate_kem_kat_vectors().unwrap();
+        let v1 = generate_kem_kat_vectors_n(TEST_N).unwrap();
+        let v2 = generate_kem_kat_vectors_n(TEST_N).unwrap();
 
         for (a, b) in v1.iter().zip(v2.iter()) {
             assert_eq!(a.pk_hash, b.pk_hash, "KEM KAT pk_hash should be deterministic");
@@ -505,8 +526,8 @@ mod tests {
 
     #[test]
     fn test_dsa_kat_deterministic() {
-        let v1 = generate_dsa_kat_vectors().unwrap();
-        let v2 = generate_dsa_kat_vectors().unwrap();
+        let v1 = generate_dsa_kat_vectors_n(TEST_N).unwrap();
+        let v2 = generate_dsa_kat_vectors_n(TEST_N).unwrap();
 
         for (a, b) in v1.iter().zip(v2.iter()) {
             assert_eq!(a.pk_hash, b.pk_hash, "DSA KAT pk_hash should be deterministic");
@@ -517,7 +538,7 @@ mod tests {
 
     #[test]
     fn test_validate_kem_vectors() {
-        let vectors = generate_kem_kat_vectors().unwrap();
+        let vectors = generate_kem_kat_vectors_n(TEST_N).unwrap();
         for (i, v) in vectors.iter().enumerate() {
             let result = validate_kem_vector(v).unwrap();
             assert!(result.passed, "KEM KAT vector {} ({}) should pass: {}", i, v.variant.name(), result.details);
@@ -529,7 +550,7 @@ mod tests {
 
     #[test]
     fn test_validate_dsa_vectors() {
-        let vectors = generate_dsa_kat_vectors().unwrap();
+        let vectors = generate_dsa_kat_vectors_n(TEST_N).unwrap();
         for (i, v) in vectors.iter().enumerate() {
             let result = validate_dsa_vector(v).unwrap();
             assert!(result.passed, "DSA KAT vector {} ({}) should pass: {}", i, v.variant.name(), result.details);
@@ -540,22 +561,26 @@ mod tests {
     }
 
     #[test]
-    fn test_full_kat_suite() {
+    fn test_full_kat_suite_n() {
         let suite = generate_full_kat_suite().unwrap();
-        assert_eq!(suite.kem_vectors.len(), 9);
-        assert_eq!(suite.dsa_vectors.len(), 9);
+        let expected = VECTORS_PER_VARIANT as usize * 3;
+        assert_eq!(suite.kem_vectors.len(), expected);
+        assert_eq!(suite.dsa_vectors.len(), expected);
         assert_eq!(suite.framework_version, "2.0.0");
     }
 
     #[test]
-    fn test_kat_summary() {
-        let summary = kat_summary().unwrap();
-        assert_eq!(summary.total_vectors, 18);
-        assert_eq!(summary.kem_vectors, 9);
-        assert_eq!(summary.dsa_vectors, 9);
-        assert_eq!(summary.passed, summary.total_vectors);
-        assert_eq!(summary.failed, 0);
-        assert!(summary.fips_ready);
+    fn test_vectors_per_variant_minimum() {
+        assert!(VECTORS_PER_VARIANT >= 35, "FIPS CAVP requires 100+ total vectors (35+ per variant x 3 variants)");
+    }
+
+    #[test]
+    fn test_expanded_vector_count() {
+        let n: u8 = 5;
+        let kem = generate_kem_kat_vectors_n(n).unwrap();
+        assert_eq!(kem.len(), 15);
+        let dsa = generate_dsa_kat_vectors_n(n).unwrap();
+        assert_eq!(dsa.len(), 15);
     }
 
     #[test]

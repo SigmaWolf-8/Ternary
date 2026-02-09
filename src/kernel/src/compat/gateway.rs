@@ -135,6 +135,7 @@ pub struct GatewayStats {
     pub precision_losses: u64,
 }
 
+#[allow(dead_code)]
 pub struct BinaryTernaryGateway {
     conversions_count: u64,
     bytes_converted: u64,

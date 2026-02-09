@@ -126,7 +126,7 @@ pub fn test_kem_size_compliance() -> Vec<CrossImplTestResult> {
         let tl_ss_trits = tl_kem::shared_secret_size(*variant);
 
         let tl_pk_bytes = (tl_pk_trits as f64 / 1.585).ceil() as usize;
-        let tl_sk_bytes = (tl_sk_trits as f64 / 1.585).ceil() as usize;
+        let _tl_sk_bytes = (tl_sk_trits as f64 / 1.585).ceil() as usize;
         let tl_ss_bytes = (tl_ss_trits as f64 / 1.585).ceil() as usize;
 
         let pk_within_4x = tl_pk_bytes <= ref_sz.pk_bytes * 4;
@@ -201,7 +201,7 @@ pub fn test_dsa_size_compliance() -> Vec<CrossImplTestResult> {
         let tl_sig_trits = tl_dsa::signature_size(*variant);
 
         let tl_pk_bytes = (tl_pk_trits as f64 / 1.585).ceil() as usize;
-        let tl_sk_bytes = (tl_sk_trits as f64 / 1.585).ceil() as usize;
+        let _tl_sk_bytes = (tl_sk_trits as f64 / 1.585).ceil() as usize;
         let tl_sig_bytes = (tl_sig_trits as f64 / 1.585).ceil() as usize;
 
         let pk_within_4x = tl_pk_bytes <= ref_sz.pk_bytes * 4;
@@ -392,7 +392,7 @@ pub fn test_round_trip_integrity() -> CryptoResult<Vec<CrossImplTestResult>> {
 
     for variant in &kem_variants {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, sk) = tl_kem::keygen(*variant, &seed)?;
+        let (pk, _sk) = tl_kem::keygen(*variant, &seed)?;
 
         let pk_trits = poly_vec_to_trits(&pk.public_vec_t);
         let pk_bytes: Vec<u8> = pk_trits.iter().map(|&t| (t + 1) as u8).collect();
@@ -416,7 +416,7 @@ pub fn test_round_trip_integrity() -> CryptoResult<Vec<CrossImplTestResult>> {
         });
 
         let ss_roundtrip_seed = vec![1i8, 0, -1, 1, 0];
-        let (ct, shared) = tl_kem::encapsulate(&pk, &ss_roundtrip_seed)?;
+        let (_ct, shared) = tl_kem::encapsulate(&pk, &ss_roundtrip_seed)?;
         let ss_bytes: Vec<u8> = shared.trits.iter().map(|&t| (t + 1) as u8).collect();
         let ss_restored: Vec<i8> = ss_bytes.iter().map(|&b| b as i8 - 1).collect();
 
@@ -442,7 +442,7 @@ pub fn test_round_trip_integrity() -> CryptoResult<Vec<CrossImplTestResult>> {
 
     for variant in &dsa_variants {
         let seed = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1];
-        let (pk, sk) = tl_dsa::keygen(*variant, &seed)?;
+        let (pk, _sk) = tl_dsa::keygen(*variant, &seed)?;
 
         let pk_trits = poly_vec_to_trits(&pk.public_t);
         let pk_bytes: Vec<u8> = pk_trits.iter().map(|&t| (t + 1) as u8).collect();
@@ -482,7 +482,7 @@ pub fn generate_full_cross_impl_report() -> CryptoResult<CrossImplReport> {
     let passed = all_results.iter().filter(|r| r.passed).count();
     let failed = total - passed;
 
-    let mut categories = vec![
+    let categories = vec![
         TestCategory::SizeCompliance,
         TestCategory::ProtocolCompliance,
         TestCategory::AlgebraicConsistency,
@@ -504,8 +504,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_kem_size_compliance() {
-        let results = test_kem_size_compliance();
+    fn test_kem_sizes() {
+        let results = super::test_kem_size_compliance();
         assert_eq!(results.len(), 9);
         for r in &results {
             assert!(r.passed, "KEM size test failed: {} {}: {}", r.variant, r.test_name, r.details);
@@ -513,8 +513,8 @@ mod tests {
     }
 
     #[test]
-    fn test_dsa_size_compliance() {
-        let results = test_dsa_size_compliance();
+    fn test_dsa_sizes() {
+        let results = super::test_dsa_size_compliance();
         assert_eq!(results.len(), 6);
         for r in &results {
             assert!(r.passed, "DSA size test failed: {} {}: {}", r.variant, r.test_name, r.details);

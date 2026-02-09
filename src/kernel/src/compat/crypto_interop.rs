@@ -28,7 +28,6 @@
 
 use alloc::vec::Vec;
 use alloc::vec;
-use alloc::string::String;
 use super::{CompatError, CompatResult};
 use super::gateway::{binary_bytes_to_ternary, ternary_to_binary_bytes};
 
