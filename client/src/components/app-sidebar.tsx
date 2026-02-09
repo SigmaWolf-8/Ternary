@@ -21,6 +21,7 @@ import {
   User,
   Shield,
   ChevronRight,
+  Radio,
 } from "lucide-react";
 import {
   Sidebar,
@@ -148,6 +149,15 @@ export function AppSidebar() {
                   <Link href="/calendar" onClick={closeMobileSidebar}>
                     <Globe className="w-3.5 h-3.5" />
                     <span>Calendar API</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/hptp"} tooltip="HPTP Timing API" data-testid="link-sidebar-hptp" className="text-xs">
+                  <Link href="/hptp" onClick={closeMobileSidebar}>
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>HPTP Timing</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
