@@ -1,0 +1,61 @@
+# ADR-002: GF(3) Field Arithmetic as the Kernel Primitive
+
+| Field       | Value                          |
+|-------------|--------------------------------|
+| **Status**  | Accepted                       |
+| **Date**    | 2026-02-09                     |
+| **Author**  | Salvi · Capomastro Holdings Ltd — Applied Physics Division |
+| **Context** | `libternary` Rust Kernel · Algebraic Foundation |
+
+---
+
+## 1 · Context
+
+Ternary computing has two dominant numeric representations:
+
+* **Balanced ternary** — digits {−1, 0, +1}. Natural for signed arithmetic; historically used in the Setun computer (Moscow State University, 1958). Negation is digit-wise complement. Addition carries are simple.
+* **GF(3)** (Galois Field of order 3) — elements {0, 1, 2} with addition and multiplication modulo 3. A finite field with well-defined inverses (every non-zero element has a multiplicative inverse).
+
+The Salvi Framework `libternary` kernel must choose which representation sits at the lowest layer of the stack — the layer that the 35 VM opcodes operate on directly.
+
+## 2 · Decision
+
+**The kernel operates natively in GF(3). Balanced ternary is available as a presentation-layer encoding but is not the algebraic primitive.**
+
+### 2.1 · Algebraic Closure
+
+GF(3) is a *field*: it has additive and multiplicative identity, every non-zero element has a multiplicative inverse, and both operations are associative, commutative, and distributive. Balanced ternary is a *signed-digit system* — it is useful for representation but does not form a field under standard operations. The distinction matters because:
+
+* **Cryptographic primitives require field arithmetic.** Lattice-based schemes (CRYSTALS-Kyber, CRYSTALS-Dilithium) perform polynomial arithmetic over finite fields. Operating in GF(3) natively means the kernel never needs to translate between a balanced-ternary internal representation and a field representation at the crypto boundary. The Lamport hash-chain operations similarly benefit from field-native modular arithmetic.
+* **The `verifyTau()` self-test is an algebraic identity check.** τ (tau), the framework's timing-density constant, is verified by confirming that a set of GF(3) polynomial identities hold after every state transition. These identities are naturally expressed as field equations. In balanced ternary, the same checks would require sign-handling overhead that adds both code complexity and timing variance.
+
+### 2.2 · Bijective Mapping Guarantee
+
+The Salvi Framework uses *bijective* ternary logic — every transformation must be invertible. GF(3) guarantees bijectivity for multiplication by any non-zero element (since inverses exist). Balanced ternary multiplication by −1 is bijective (it is negation), but multiplication by 0 collapses state, and there is no systematic inverse structure. Building a bijective VM on GF(3) means every arithmetic opcode is provably invertible by construction, rather than by case analysis.
+
+### 2.3 · Extension to GF(3^k)
+
+GF(3) extends naturally to GF(3^k) for polynomial arithmetic over larger trit-words. The 9-element field GF(3^2) = GF(9) and the 27-element field GF(3^3) = GF(27) arise naturally when operating on tryte-width data. These extensions are well-characterized algebraically and have efficient implementation via irreducible polynomials over GF(3). Balanced ternary does not have an analogous extension tower — moving from 1-trit to 3-trit balanced-ternary words does not produce a larger field; it produces a multi-digit signed-integer system with carries.
+
+### 2.4 · Density Field Compatibility
+
+The 13-dimensional Torsion Plenum model defines density as a GF(3)-valued field at each lattice site in the torsion manifold. The VM's density-sampling opcodes read directly from this field. If the kernel were balanced-ternary, every density read would require a {−1, 0, +1} → {0, 1, 2} translation at the hardware boundary — adding latency and a potential source of off-by-one trit errors.
+
+## 3 · Consequences
+
+* All arithmetic opcodes in `libternary` implement GF(3) semantics: `add(a, b) = (a + b) mod 3`, `mul(a, b) = (a × b) mod 3`, `inv(a)` for a ≠ 0.
+* The Rust kernel represents trits as `u8` values in {0, 1, 2} internally. Debug/display output can render in balanced ternary ({T, 0, 1} or {−, 0, +}) for human readability, but this is a formatting concern, not an algebraic one.
+* Contributors must understand the distinction: GF(3) is not "base 3 unsigned." It is a *field*. The difference shows up when you need inverses, polynomial factorization, or extension fields — all of which the crypto layer requires.
+* Interoperability with balanced-ternary systems (e.g., the Tern Systems BTMC format) is handled by an explicit encoding/decoding layer at the I/O boundary, never inside the kernel.
+
+## 4 · Alternatives Considered
+
+| Alternative | Reason Rejected |
+|-------------|-----------------|
+| Balanced ternary as kernel primitive | Not a field; no systematic multiplicative inverses; requires translation at every crypto boundary |
+| GF(3) with lazy balanced-ternary coercion | Hybrid approach introduces implicit conversion bugs; "which representation am I in?" becomes a class of errors |
+| Operating over ℤ/3ℤ without field structure | Mathematically identical to GF(3) but framing it as "integers mod 3" rather than "finite field" leads contributors to think in carry-chain arithmetic rather than field algebra — a pedagogical footgun |
+
+---
+
+*Così sia.*

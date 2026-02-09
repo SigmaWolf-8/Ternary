@@ -1,0 +1,81 @@
+# ADR-003: Dual-Layer Cryptographic Architecture — Lamport + Lattice
+
+| Field       | Value                          |
+|-------------|--------------------------------|
+| **Status**  | Accepted                       |
+| **Date**    | 2026-02-09                     |
+| **Author**  | Salvi · Capomastro Holdings Ltd — Applied Physics Division |
+| **Context** | CNSA 2.0 Compliance · FIPS Validation Path · Post-Quantum Cryptographic Stack |
+
+---
+
+## 1 · Context
+
+The NSA's CNSA 2.0 mandate (published September 2022, with transition deadlines through 2035) requires migration to post-quantum cryptographic algorithms. The primary NIST-standardised candidates are lattice-based:
+
+* **CRYSTALS-Kyber** (ML-KEM) for key encapsulation
+* **CRYSTALS-Dilithium** (ML-DSA) for digital signatures
+
+These are mathematically sophisticated, rely on the hardness of Module Learning With Errors (MLWE), and their security proofs are grounded in worst-case lattice problems. They are the correct long-term answer.
+
+However, the Salvi Framework also implements **Lamport one-time signatures (OTS)** — a hash-based scheme from 1979 that predates both lattice cryptography and public-key infrastructure as we know it. The question is: why carry both?
+
+## 2 · Decision
+
+**PlenumNET implements a dual-layer cryptographic architecture where Lamport OTS provides the root-of-trust anchor and lattice-based schemes handle session-level operations.**
+
+### 2.1 · Assumption Diversity
+
+Lattice security rests on a single hardness assumption: MLWE (or the related Short Integer Solution problem). If a breakthrough — quantum or classical — cracks MLWE, every lattice scheme falls simultaneously. This is not paranoia; it is actuarial risk management for a framework targeting regulated industries (financial compliance, critical infrastructure timing).
+
+Lamport signatures rest on a fundamentally different assumption: the *preimage resistance* of the underlying hash function. As long as the hash function is one-way, Lamport signatures are secure — against classical computers, quantum computers, and anything else. The two assumption families (lattice hardness vs. hash preimage resistance) are cryptographically independent. Compromising one does not compromise the other.
+
+The dual-layer architecture therefore provides **defense in depth**: even if lattice assumptions fail, the Lamport root-of-trust layer remains intact.
+
+### 2.2 · Implementation Simplicity of the Trust Anchor
+
+Lamport signatures are *trivially simple* to implement:
+
+1. Generate 256 pairs of random secrets (for a 256-bit hash).
+2. Publish the hashes of all secrets as the public key.
+3. To sign a message, reveal one secret from each pair based on each bit of the message hash.
+
+There are no polynomial rings, no NTT transforms, no modular reduction chains. The entire Lamport implementation in `libternary` is under 200 lines of Rust. This matters for two reasons:
+
+* **FIPS audit surface.** The trust anchor — the thing that signs the root key material — should be the simplest possible code. Lattice implementations are thousands of lines with subtle constant-time requirements. Lamport is small enough to be formally verified line by line.
+* **Ternary-native hashing.** The Salvi Framework hashes over GF(3) trit-strings. Lamport works with *any* hash function, so it adapts natively to trit-width hash outputs without the polynomial-ring assumptions that lattice schemes bring.
+
+### 2.3 · Protocol-Level Separation
+
+The architecture assigns each layer a specific role:
+
+| Layer | Scheme | Role | Frequency |
+|-------|--------|------|-----------|
+| **Root of Trust** | Lamport OTS + Merkle tree (hash-based) | Signs epoch-boundary key material; authenticates firmware/kernel updates; anchors the HPTP timing chain | Rare — once per epoch or key rotation event |
+| **Session Operations** | ML-KEM (Kyber) + ML-DSA (Dilithium) | Key encapsulation for session establishment; digital signatures on transaction payloads; TLS-equivalent handshakes | Frequent — every session, every signed message |
+
+Lamport's one-time limitation (each key pair can sign exactly one message) is not a problem at the root-of-trust layer because root signing events are infrequent and planned. The Merkle tree extension (using the 8 crypto opcodes' `merkle-path-check` instruction) allows a single Lamport public key to anchor a tree of one-time keys, amortising the key-size cost.
+
+### 2.4 · CNSA 2.0 Alignment
+
+CNSA 2.0 explicitly includes hash-based signatures (XMSS, LMS) as approved algorithms alongside lattice schemes. Lamport is the theoretical ancestor of both XMSS and LMS. By implementing Lamport at the opcode level, the framework has a direct upgrade path to XMSS/LMS (which add statefulness management and tree traversal on top of the same hash-chain primitive) without redesigning the VM instruction set.
+
+## 3 · Consequences
+
+* The 8 cryptographic opcodes (ADR-001) split evenly: 4 serve the hash-based layer (hash-chain step, leaf-verify, Merkle-path-check, Lamport-sign) and 4 serve the lattice layer (NTT butterfly, basis-sample, modular-reduce, lattice-verify).
+* Key management must track Lamport key-state (which one-time keys have been used). This state is stored in the epoch-boundary record on the blockchain integration layer.
+* Contributors working on the crypto layer must understand both paradigms. The contribution guide (CONTRIBUTING.md) specifies separate prerequisite reading for each.
+* The dual-layer design adds ~15% overhead to the initial handshake compared to lattice-only. This is acceptable because the root-of-trust signing path is not latency-critical (it occurs at epoch boundaries, not per-packet).
+
+## 4 · Alternatives Considered
+
+| Alternative | Reason Rejected |
+|-------------|-----------------|
+| Lattice-only (Kyber + Dilithium) | Single-assumption risk; larger audit surface at the trust anchor; no fallback if MLWE is broken |
+| Hash-based only (XMSS/LMS everywhere) | Stateful signature management for high-frequency session operations is impractical; key sizes and signature sizes are too large for per-message use |
+| Hybrid lattice+hash at every layer (sign everything twice) | Doubles signature size and verification time for every operation; overkill for session-level messages where lattice alone is sufficient |
+| Classical RSA/ECDSA fallback | Not post-quantum; explicitly disallowed under CNSA 2.0 timelines |
+
+---
+
+*Così sia.*
