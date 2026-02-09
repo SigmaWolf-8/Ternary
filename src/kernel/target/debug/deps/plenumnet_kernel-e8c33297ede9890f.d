@@ -1,8 +1,8 @@
-/home/runner/workspace/src/kernel/target/debug/deps/libplenumnet_kernel-e8c33297ede9890f.rmeta: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs
+/home/runner/workspace/src/kernel/target/debug/deps/libplenumnet_kernel-e8c33297ede9890f.rmeta: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs src/security/mod.rs src/security/domain.rs src/security/capability.rs src/security/audit.rs src/security/policy.rs src/crypto/mod.rs src/crypto/hash.rs src/crypto/sponge.rs src/crypto/hmac.rs src/crypto/kdf.rs src/crypto/signature.rs src/crypto/cnsa2.rs src/crypto/ct_utils.rs src/crypto/cipher.rs src/crypto/sha2.rs src/crypto/sha3.rs src/crypto/ternary_lattice.rs src/crypto/tl_kem.rs src/crypto/tl_dsa.rs src/crypto/kat_vectors.rs src/crypto/side_channel.rs src/crypto/cross_impl.rs src/crypto/fpga_synth.rs src/crypto/perf_bench.rs src/crypto/cavp_package.rs src/crypto/fpga_hdl.rs src/crypto/hw_test.rs src/crypto/formal_verify.rs src/device/mod.rs src/device/bus.rs src/device/registry.rs src/device/interrupt.rs src/device/dma.rs src/io/mod.rs src/io/scheduler.rs src/io/buffer.rs src/io/block.rs src/io/chardev.rs src/io/poll.rs src/fs/mod.rs src/fs/inode.rs src/fs/dir.rs src/fs/file.rs src/fs/mount.rs src/arch/mod.rs src/arch/x86_64.rs src/arch/aarch64.rs src/arch/riscv64.rs src/arch/boot.rs src/drivers/mod.rs src/drivers/tpu.rs src/drivers/femtoclock.rs src/network/mod.rs src/network/torus.rs src/network/routing.rs src/network/ttp.rs src/network/t3p.rs src/network/tdns.rs src/vm/mod.rs src/vm/instruction.rs src/vm/engine.rs src/vm/gc.rs src/hptp/mod.rs src/hptp/protocol.rs src/hptp/optical.rs src/hptp/certification.rs src/compat/mod.rs src/compat/gateway.rs src/compat/adapter.rs src/compat/crypto_interop.rs
 
-/home/runner/workspace/src/kernel/target/debug/deps/libplenumnet_kernel-e8c33297ede9890f.rlib: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs
+/home/runner/workspace/src/kernel/target/debug/deps/libplenumnet_kernel-e8c33297ede9890f.rlib: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs src/security/mod.rs src/security/domain.rs src/security/capability.rs src/security/audit.rs src/security/policy.rs src/crypto/mod.rs src/crypto/hash.rs src/crypto/sponge.rs src/crypto/hmac.rs src/crypto/kdf.rs src/crypto/signature.rs src/crypto/cnsa2.rs src/crypto/ct_utils.rs src/crypto/cipher.rs src/crypto/sha2.rs src/crypto/sha3.rs src/crypto/ternary_lattice.rs src/crypto/tl_kem.rs src/crypto/tl_dsa.rs src/crypto/kat_vectors.rs src/crypto/side_channel.rs src/crypto/cross_impl.rs src/crypto/fpga_synth.rs src/crypto/perf_bench.rs src/crypto/cavp_package.rs src/crypto/fpga_hdl.rs src/crypto/hw_test.rs src/crypto/formal_verify.rs src/device/mod.rs src/device/bus.rs src/device/registry.rs src/device/interrupt.rs src/device/dma.rs src/io/mod.rs src/io/scheduler.rs src/io/buffer.rs src/io/block.rs src/io/chardev.rs src/io/poll.rs src/fs/mod.rs src/fs/inode.rs src/fs/dir.rs src/fs/file.rs src/fs/mount.rs src/arch/mod.rs src/arch/x86_64.rs src/arch/aarch64.rs src/arch/riscv64.rs src/arch/boot.rs src/drivers/mod.rs src/drivers/tpu.rs src/drivers/femtoclock.rs src/network/mod.rs src/network/torus.rs src/network/routing.rs src/network/ttp.rs src/network/t3p.rs src/network/tdns.rs src/vm/mod.rs src/vm/instruction.rs src/vm/engine.rs src/vm/gc.rs src/hptp/mod.rs src/hptp/protocol.rs src/hptp/optical.rs src/hptp/certification.rs src/compat/mod.rs src/compat/gateway.rs src/compat/adapter.rs src/compat/crypto_interop.rs
 
-/home/runner/workspace/src/kernel/target/debug/deps/plenumnet_kernel-e8c33297ede9890f.d: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs
+/home/runner/workspace/src/kernel/target/debug/deps/plenumnet_kernel-e8c33297ede9890f.d: src/lib.rs src/timing.rs src/ternary.rs src/phase.rs src/error.rs src/memory/mod.rs src/memory/allocator.rs src/memory/page.rs src/memory/heap.rs src/sync/mod.rs src/sync/spinlock.rs src/sync/mutex.rs src/sync/semaphore.rs src/sync/phase_mutex.rs src/process/mod.rs src/process/table.rs src/process/scheduler.rs src/process/context.rs src/process/ipc.rs src/security/mod.rs src/security/domain.rs src/security/capability.rs src/security/audit.rs src/security/policy.rs src/crypto/mod.rs src/crypto/hash.rs src/crypto/sponge.rs src/crypto/hmac.rs src/crypto/kdf.rs src/crypto/signature.rs src/crypto/cnsa2.rs src/crypto/ct_utils.rs src/crypto/cipher.rs src/crypto/sha2.rs src/crypto/sha3.rs src/crypto/ternary_lattice.rs src/crypto/tl_kem.rs src/crypto/tl_dsa.rs src/crypto/kat_vectors.rs src/crypto/side_channel.rs src/crypto/cross_impl.rs src/crypto/fpga_synth.rs src/crypto/perf_bench.rs src/crypto/cavp_package.rs src/crypto/fpga_hdl.rs src/crypto/hw_test.rs src/crypto/formal_verify.rs src/device/mod.rs src/device/bus.rs src/device/registry.rs src/device/interrupt.rs src/device/dma.rs src/io/mod.rs src/io/scheduler.rs src/io/buffer.rs src/io/block.rs src/io/chardev.rs src/io/poll.rs src/fs/mod.rs src/fs/inode.rs src/fs/dir.rs src/fs/file.rs src/fs/mount.rs src/arch/mod.rs src/arch/x86_64.rs src/arch/aarch64.rs src/arch/riscv64.rs src/arch/boot.rs src/drivers/mod.rs src/drivers/tpu.rs src/drivers/femtoclock.rs src/network/mod.rs src/network/torus.rs src/network/routing.rs src/network/ttp.rs src/network/t3p.rs src/network/tdns.rs src/vm/mod.rs src/vm/instruction.rs src/vm/engine.rs src/vm/gc.rs src/hptp/mod.rs src/hptp/protocol.rs src/hptp/optical.rs src/hptp/certification.rs src/compat/mod.rs src/compat/gateway.rs src/compat/adapter.rs src/compat/crypto_interop.rs
 
 src/lib.rs:
 src/timing.rs:
@@ -18,3 +18,78 @@ src/sync/spinlock.rs:
 src/sync/mutex.rs:
 src/sync/semaphore.rs:
 src/sync/phase_mutex.rs:
+src/process/mod.rs:
+src/process/table.rs:
+src/process/scheduler.rs:
+src/process/context.rs:
+src/process/ipc.rs:
+src/security/mod.rs:
+src/security/domain.rs:
+src/security/capability.rs:
+src/security/audit.rs:
+src/security/policy.rs:
+src/crypto/mod.rs:
+src/crypto/hash.rs:
+src/crypto/sponge.rs:
+src/crypto/hmac.rs:
+src/crypto/kdf.rs:
+src/crypto/signature.rs:
+src/crypto/cnsa2.rs:
+src/crypto/ct_utils.rs:
+src/crypto/cipher.rs:
+src/crypto/sha2.rs:
+src/crypto/sha3.rs:
+src/crypto/ternary_lattice.rs:
+src/crypto/tl_kem.rs:
+src/crypto/tl_dsa.rs:
+src/crypto/kat_vectors.rs:
+src/crypto/side_channel.rs:
+src/crypto/cross_impl.rs:
+src/crypto/fpga_synth.rs:
+src/crypto/perf_bench.rs:
+src/crypto/cavp_package.rs:
+src/crypto/fpga_hdl.rs:
+src/crypto/hw_test.rs:
+src/crypto/formal_verify.rs:
+src/device/mod.rs:
+src/device/bus.rs:
+src/device/registry.rs:
+src/device/interrupt.rs:
+src/device/dma.rs:
+src/io/mod.rs:
+src/io/scheduler.rs:
+src/io/buffer.rs:
+src/io/block.rs:
+src/io/chardev.rs:
+src/io/poll.rs:
+src/fs/mod.rs:
+src/fs/inode.rs:
+src/fs/dir.rs:
+src/fs/file.rs:
+src/fs/mount.rs:
+src/arch/mod.rs:
+src/arch/x86_64.rs:
+src/arch/aarch64.rs:
+src/arch/riscv64.rs:
+src/arch/boot.rs:
+src/drivers/mod.rs:
+src/drivers/tpu.rs:
+src/drivers/femtoclock.rs:
+src/network/mod.rs:
+src/network/torus.rs:
+src/network/routing.rs:
+src/network/ttp.rs:
+src/network/t3p.rs:
+src/network/tdns.rs:
+src/vm/mod.rs:
+src/vm/instruction.rs:
+src/vm/engine.rs:
+src/vm/gc.rs:
+src/hptp/mod.rs:
+src/hptp/protocol.rs:
+src/hptp/optical.rs:
+src/hptp/certification.rs:
+src/compat/mod.rs:
+src/compat/gateway.rs:
+src/compat/adapter.rs:
+src/compat/crypto_interop.rs:

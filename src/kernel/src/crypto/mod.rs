@@ -23,6 +23,7 @@ pub mod hmac;
 pub mod kdf;
 pub mod signature;
 pub mod cnsa2;
+pub mod ct_utils;
 pub mod cipher;
 pub mod sha2;
 pub mod sha3;
@@ -34,6 +35,10 @@ pub mod side_channel;
 pub mod cross_impl;
 pub mod fpga_synth;
 pub mod perf_bench;
+pub mod cavp_package;
+pub mod fpga_hdl;
+pub mod hw_test;
+pub mod formal_verify;
 
 use alloc::string::String;
 use alloc::vec::Vec;

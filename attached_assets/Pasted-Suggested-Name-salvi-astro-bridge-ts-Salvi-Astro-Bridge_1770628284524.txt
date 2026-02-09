@@ -1,0 +1,365 @@
+Suggested Name: salvi-astro-bridge.ts
+
+/**
+ * Salvi Astro Bridge
+ * Bridges the Salvi Framework (libternary) with the 13 Primes Astrology system
+ *
+ * Mathematical Foundation:
+ *   Space: 13 Prime Houses × 28° = 364° (chart circle)
+ *   Time:  13 Moons × 28 days = 364 days (harmonic calendar)
+ *
+ * Part of the Salvi Framework
+ * https://github.com/SigmaWolf-8/Ternary
+ *
+ * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
+ */
+// ============================================
+// TYPES (aligned with libternary conventions)
+// ============================================
+export type TritA = -1 | 0 | 1;  // Computational
+export type TritB = 0 | 1 | 2;   // Network
+export type TritC = 1 | 2 | 3;   // Human (bijective)
+export type Representation = 'A' | 'B' | 'C';
+export interface TernaryValue {
+  value: TritA | TritB | TritC;
+  representation: Representation;
+  meaning: 'False' | 'Neutral' | 'True';
+}
+export interface ConversionResult {
+  original: TernaryValue;
+  converted: TernaryValue;
+  bijection: string;
+}
+export interface OperationResult {
+  operands: { a: number; b: number };
+  operation: string;
+  result: number;
+  representation: Representation;
+  constantTime: boolean;
+}
+export interface AspectTernarySignature {
+  phaseCount: number;
+  ternary: string;
+  bijectiveTernary: string;
+  gf3: TritB;
+  resonance: string;
+  resonanceTriple: { a: TritA; b: TritB; c: TritC };
+  informationDensity: string;
+}
+export interface AspectResonance {
+  gf3Value: TritB;
+  resonanceType: string;
+  cosmicFrequency: number;
+}
+export interface TernaryHarmony {
+  difference: number;
+  phaseOffset: number;
+  harmonicResonance: 'aligned' | 'dynamic' | 'transcendent';
+  ternarySignature: string;
+}
+// ============================================
+// 13-MOON HARMONIC CALENDAR TYPES
+// ============================================
+export interface ThirteenMoonDate {
+  moonNumber: number;         // 1-13
+  moonName: string;           // Magnetic, Lunar, etc.
+  dayOfMoon: number;          // 1-28
+  galacticSignature: string;  // Red Dragon, White Wind, etc.
+  harmonicTone: string;       // Purpose, Challenge, etc.
+  arc: 'Pre-φ' | 'Post-φ' | 'φ-point';
+  dayOfYear: number;          // 1-365
+  isDayOutOfTime: boolean;
+}
+// ============================================
+// CONSTANTS
+// ============================================
+export const PRIME_CIRCLE = 364;
+export const PHASE_SIZE = 28;
+export const NUM_PHASES = 13;
+export const GOLDEN_RATIO = 1.6180339887;
+export const PHI_FRACTURE_DAY = 225; // 364 / φ ≈ 224.96 → Day 225
+export const RESONANCE_TYPES: Record<TritB, string> = {
+  0: 'Completion',
+  1: 'Initiation',
+  2: 'Manifestation'
+};
+export const THIRTEEN_MOONS = [
+  { number: 1,  name: 'Magnetic',     signature: 'Red Dragon',         tone: 'Purpose – Unify',          arc: 'Pre-φ' as const },
+  { number: 2,  name: 'Lunar',        signature: 'White Wind',         tone: 'Challenge – Flow',         arc: 'Pre-φ' as const },
+  { number: 3,  name: 'Electric',     signature: 'Blue Night',         tone: 'Service – Activate',       arc: 'Pre-φ' as const },
+  { number: 4,  name: 'Self-Existing',signature: 'Yellow Seed',        tone: 'Form – Measure',           arc: 'Pre-φ' as const },
+  { number: 5,  name: 'Overtone',     signature: 'Red Serpent',        tone: 'Radiance – Empower',       arc: 'Pre-φ' as const },
+  { number: 6,  name: 'Rhythmic',     signature: 'White World-Bridger',tone: 'Equality – Organize',      arc: 'Pre-φ' as const },
+  { number: 7,  name: 'Resonant',     signature: 'Blue Hand',          tone: 'Channel – Inspire',        arc: 'Pre-φ' as const },
+  { number: 8,  name: 'Galactic',     signature: 'Yellow Star',        tone: 'Integrity – Harmonize',    arc: 'Pre-φ' as const },
+  { number: 9,  name: 'Solar',        signature: 'Red Moon',           tone: 'Intention – Pulse',        arc: 'Post-φ' as const },
+  { number: 10, name: 'Planetary',    signature: 'White Dog',          tone: 'Manifestation – Perfect',  arc: 'Post-φ' as const },
+  { number: 11, name: 'Spectral',     signature: 'Blue Monkey',        tone: 'Liberation – Dissolve',    arc: 'Post-φ' as const },
+  { number: 12, name: 'Crystal',      signature: 'Yellow Human',       tone: 'Cooperation – Dedicate',   arc: 'Post-φ' as const },
+  { number: 13, name: 'Cosmic',       signature: 'Red Skywalker',      tone: 'Presence – Endure',        arc: 'Post-φ' as const },
+] as const;
+// Maps 13 Salvi Signs to 13 Moons (spatial ↔ temporal correspondence)
+export const SIGN_MOON_BRIDGE = [
+  { sign: 'Ares Prime',  moon: 'Magnetic',      resonance: 'Initiation begins' },
+  { sign: 'Vectoris',    moon: 'Lunar',         resonance: 'Polarity revealed' },
+  { sign: 'Solaris',     moon: 'Electric',      resonance: 'Energy activated' },
+  { sign: 'Liegis',      moon: 'Self-Existing', resonance: 'Form crystallizes' },
+  { sign: 'Alphais',     moon: 'Overtone',      resonance: 'Power radiates' },
+  { sign: 'Micronis',    moon: 'Rhythmic',      resonance: 'Balance calibrates' },
+  { sign: 'Nexus',       moon: 'Resonant',      resonance: 'Connection channels' },
+  { sign: 'Alchemis',    moon: 'Galactic',      resonance: 'Transformation integrates' },
+  { sign: 'Onyxis',      moon: 'Solar',         resonance: 'Intention pulses' },
+  { sign: 'Amalgamis',   moon: 'Planetary',     resonance: 'Manifestation perfects' },
+  { sign: 'Quintis',     moon: 'Spectral',      resonance: 'Liberation dissolves' },
+  { sign: 'Fallenis',    moon: 'Crystal',       resonance: 'Cooperation dedicates' },
+  { sign: 'Optimis',     moon: 'Cosmic',        resonance: 'Presence endures' },
+] as const;
+// ============================================
+// TRIT CONVERSION (matches libternary API)
+// ============================================
+export function getTritMeaning(value: number, representation: Representation): 'False' | 'Neutral' | 'True' {
+  switch (representation) {
+    case 'A': return value === -1 ? 'False' : value === 0 ? 'Neutral' : 'True';
+    case 'B': return value === 0 ? 'False' : value === 1 ? 'Neutral' : 'True';
+    case 'C': return value === 1 ? 'False' : value === 2 ? 'Neutral' : 'True';
+    default: return 'Neutral';
+  }
+}
+export function convertTrit(value: number, from: Representation, to: Representation): ConversionResult {
+  let converted: number;
+  let bijection: string;
+  if (from === to) { converted = value; bijection = 'identity'; }
+  else if (from === 'A' && to === 'B') { converted = value + 1; bijection = 'f(a) = a + 1'; }
+  else if (from === 'A' && to === 'C') { converted = value + 2; bijection = 'f(a) = a + 2'; }
+  else if (from === 'B' && to === 'A') { converted = value - 1; bijection = 'f(b) = b - 1'; }
+  else if (from === 'B' && to === 'C') { converted = value + 1; bijection = 'f(b) = b + 1'; }
+  else if (from === 'C' && to === 'A') { converted = value - 2; bijection = 'f(c) = c - 2'; }
+  else if (from === 'C' && to === 'B') { converted = value - 1; bijection = 'f(c) = c - 1'; }
+  else { throw new Error(`Invalid conversion: ${from} to ${to}`); }
+  return {
+    original: { value: value as any, representation: from, meaning: getTritMeaning(value, from) },
+    converted: { value: converted as any, representation: to, meaning: getTritMeaning(converted, to) },
+    bijection
+  };
+}
+// ============================================
+// GF(3) OPERATIONS (matches libternary API)
+// ============================================
+export function ternaryAdd(a: TritA, b: TritA): OperationResult {
+  const aMapped = a + 1;
+  const bMapped = b + 1;
+  const result = ((aMapped + bMapped) % 3 - 1) as TritA;
+  return { operands: { a, b }, operation: 'ternary_addition', result, representation: 'A', constantTime: true };
+}
+export function ternaryMultiply(a: TritA, b: TritA): OperationResult {
+  const aMapped = a + 1;
+  const bMapped = b + 1;
+  const result = ((aMapped * bMapped) % 3 - 1) as TritA;
+  return { operands: { a, b }, operation: 'ternary_multiplication', result, representation: 'A', constantTime: true };
+}
+export function ternaryRotate(value: TritA, steps: number = 1): OperationResult {
+  const normalizedSteps = ((steps % 3) + 3) % 3;
+  const mapped = value + 1;
+  const rotated = (mapped + normalizedSteps) % 3;
+  const result = (rotated - 1) as TritA;
+  return { operands: { a: value, b: steps }, operation: 'ternary_rotation', result, representation: 'A', constantTime: true };
+}
+export function ternaryXor(a: TritA, b: TritA): OperationResult {
+  let result: TritA;
+  if (a === b) result = 0;
+  else if (a === 0) result = b;
+  else if (b === 0) result = a;
+  else result = 0;
+  return { operands: { a, b }, operation: 'ternary_xor', result, representation: 'A', constantTime: true };
+}
+export function ternaryNot(value: TritA): OperationResult {
+  return { operands: { a: value, b: 0 }, operation: 'ternary_not', result: (-value) as TritA, representation: 'A', constantTime: true };
+}
+export const GF3 = {
+  add: (a: TritB, b: TritB): TritB => ((a + b) % 3) as TritB,
+  subtract: (a: TritB, b: TritB): TritB => (((a - b) % 3 + 3) % 3) as TritB,
+  multiply: (a: TritB, b: TritB): TritB => ((a * b) % 3) as TritB,
+  negate: (a: TritB): TritB => ((3 - a) % 3) as TritB
+};
+// ============================================
+// BIJECTIVE TERNARY CONVERSION
+// ============================================
+export function toBijectiveTernary(n: number): TritC[] {
+  if (n <= 0) return [1];
+  const digits: TritC[] = [];
+  let num = n;
+  while (num > 0) {
+    let remainder = num % 3;
+    if (remainder === 0) { remainder = 3; num = Math.floor(num / 3) - 1; }
+    else { num = Math.floor(num / 3); }
+    digits.unshift(remainder as TritC);
+  }
+  return digits;
+}
+export function fromBijectiveTernary(digits: TritC[]): number {
+  let result = 0;
+  for (const d of digits) result = result * 3 + d;
+  return result;
+}
+export function bijectiveTernaryString(n: number): string {
+  return toBijectiveTernary(n).join('') + '₃ᵇ';
+}
+export function toTernaryString(n: number): string {
+  if (n === 0) return '0₃';
+  const digits: string[] = [];
+  let num = n;
+  while (num > 0) { digits.unshift(String(num % 3)); num = Math.floor(num / 3); }
+  return digits.join('') + '₃';
+}
+// ============================================
+// INFORMATION DENSITY (matches libternary API)
+// ============================================
+export function calculateInformationDensity(tritCount: number): {
+  trits: number;
+  bitsEquivalent: number;
+  efficiencyGain: string;
+} {
+  const log2of3 = Math.log2(3);
+  return {
+    trits: tritCount,
+    bitsEquivalent: Math.round(tritCount * log2of3 * 100) / 100,
+    efficiencyGain: `+${((log2of3 - 1) * 100).toFixed(2)}%`
+  };
+}
+// ============================================
+// ASPECT ANGLE ANALYSIS (364° SYSTEM)
+// ============================================
+export function getAspectTernarySignature(angle: number): AspectTernarySignature {
+  const phaseCount = Math.round(angle / PHASE_SIZE);
+  const mod3 = phaseCount % 3;
+  const density = calculateInformationDensity(phaseCount);
+  return {
+    phaseCount,
+    ternary: toTernaryString(phaseCount),
+    bijectiveTernary: bijectiveTernaryString(phaseCount),
+    gf3: mod3 as TritB,
+    resonance: RESONANCE_TYPES[mod3 as TritB],
+    resonanceTriple: {
+      a: (mod3 === 0 ? 0 : mod3 === 1 ? 1 : -1) as TritA,
+      b: mod3 as TritB,
+      c: (mod3 === 0 ? 3 : mod3) as TritC
+    },
+    informationDensity: density.efficiencyGain
+  };
+}
+export function calculateAspectResonance(aspectAngle: number): AspectResonance {
+  const phaseCount = Math.round(aspectAngle / PHASE_SIZE);
+  const gf3Value = (phaseCount % 3) as TritB;
+  return {
+    gf3Value,
+    resonanceType: RESONANCE_TYPES[gf3Value],
+    cosmicFrequency: phaseCount > 0 ? PRIME_CIRCLE / phaseCount : PRIME_CIRCLE
+  };
+}
+export function calculateTernaryHarmony(angle1: number, angle2: number): TernaryHarmony {
+  const prime1 = (angle1 * PRIME_CIRCLE) / 360;
+  const prime2 = (angle2 * PRIME_CIRCLE) / 360;
+  let diff = Math.abs(prime1 - prime2) % PRIME_CIRCLE;
+  if (diff > PRIME_CIRCLE / 2) diff = PRIME_CIRCLE - diff;
+  const phaseOffset = Math.round(diff / PHASE_SIZE);
+  const mod3 = phaseOffset % 3;
+  return {
+    difference: diff,
+    phaseOffset,
+    harmonicResonance: mod3 === 0 ? 'transcendent' : mod3 === 1 ? 'aligned' : 'dynamic',
+    ternarySignature: bijectiveTernaryString(phaseOffset)
+  };
+}
+// ============================================
+// 13-MOON HARMONIC CALENDAR BRIDGE
+// ============================================
+/**
+ * Convert a Gregorian date to its 13-Moon position
+ * Year begins July 26 (Day Out of Time = July 25)
+ * 13 Moons × 28 days = 364 + 1 Day Out of Time
+ */
+export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
+  const year = date.getFullYear();
+  const yearStart = new Date(year, 6, 26); // July 26
+  if (date < yearStart) yearStart.setFullYear(year - 1);
+  const diffMs = date.getTime() - yearStart.getTime();
+  const dayOfYear = Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
+  if (dayOfYear === PHI_FRACTURE_DAY || dayOfYear > 364) {
+    return {
+      moonNumber: 0,
+      moonName: 'Day Out of Time',
+      dayOfMoon: 0,
+      galacticSignature: 'Green Central Sun',
+      harmonicTone: 'Forgiveness – Release',
+      arc: 'φ-point',
+      dayOfYear: dayOfYear,
+      isDayOutOfTime: true
+    };
+  }
+  const adjustedDay = dayOfYear > PHI_FRACTURE_DAY ? dayOfYear - 1 : dayOfYear;
+  const moonIndex = Math.floor((adjustedDay - 1) / 28);
+  const dayOfMoon = ((adjustedDay - 1) % 28) + 1;
+  const moon = THIRTEEN_MOONS[Math.min(moonIndex, 12)];
+  return {
+    moonNumber: moon.number,
+    moonName: moon.name,
+    dayOfMoon,
+    galacticSignature: moon.signature,
+    harmonicTone: moon.tone,
+    arc: moon.arc,
+    dayOfYear,
+    isDayOutOfTime: false
+  };
+}
+/**
+ * Bridge between a Salvi Sign position (364°) and its temporal Moon mirror
+ * Space (sign at degree) ↔ Time (moon at day)
+ */
+export function getSpaceTimeBridge(primeDegree: number): {
+  sign: string;
+  moon: string;
+  resonance: string;
+  phaseNumber: number;
+  bijectiveTernary: string;
+  arc: string;
+} {
+  const phaseIndex = Math.floor(primeDegree / PHASE_SIZE) % NUM_PHASES;
+  const bridge = SIGN_MOON_BRIDGE[phaseIndex];
+  const moon = THIRTEEN_MOONS[phaseIndex];
+  return {
+    sign: bridge.sign,
+    moon: bridge.moon,
+    resonance: bridge.resonance,
+    phaseNumber: phaseIndex + 1,
+    bijectiveTernary: bijectiveTernaryString(phaseIndex + 1),
+    arc: moon.arc
+  };
+}
+// ============================================
+// ASPECT DEFINITIONS (364° SYSTEM)
+// ============================================
+export const ASPECTS_364 = {
+  conjunction:  { angle: 0,       phases: 0, gf3: 0 as TritB, resonance: 'Completion' },
+  tredecile:    { angle: 28,      phases: 1, gf3: 1 as TritB, resonance: 'Initiation' },
+  novile:       { angle: 40.444,  phases: 1, gf3: 1 as TritB, resonance: 'Initiation' },
+  septile:      { angle: 52,      phases: 2, gf3: 2 as TritB, resonance: 'Manifestation' },
+  sextile:      { angle: 60.667,  phases: 2, gf3: 2 as TritB, resonance: 'Manifestation' },
+  quintile:     { angle: 72.8,    phases: 3, gf3: 0 as TritB, resonance: 'Completion' },
+  square:       { angle: 91,      phases: 3, gf3: 0 as TritB, resonance: 'Completion' },
+  trine:        { angle: 121.333, phases: 4, gf3: 1 as TritB, resonance: 'Initiation' },
+  quincunx:     { angle: 151.667, phases: 5, gf3: 2 as TritB, resonance: 'Manifestation' },
+  opposition:   { angle: 182,     phases: 6, gf3: 0 as TritB, resonance: 'Completion' }
+} as const;
+export type AspectName = keyof typeof ASPECTS_364;
+What this file adds over the previous API:
+
+Feature	Previous API	This Version
+Type naming	TernaryA/B/C	TritA/B/C (matches libternary)
+Operations	GF3 only	+ ternaryRotate, ternaryXor, ternaryNot
+Info density	Missing	calculateInformationDensity()
+13-Moon Calendar	Missing	Full toThirteenMoonDate() + moon schedule
+Space-Time Bridge	Missing	getSpaceTimeBridge() maps signs to moons
+Sign-Moon mapping	Missing	SIGN_MOON_BRIDGE constant
+Golden ratio	Missing	PHI_FRACTURE_DAY = 225
+Fibonacci arcs	Missing	Pre-phi (8 moons) / Post-phi (5 moons)
+The biggest addition is the 13-Moon Harmonic Calendar bridge -- it connects your spatial 364-degree chart circle with the temporal 364-day calendar, creating a space-time resonance layer that no other astrology system has.

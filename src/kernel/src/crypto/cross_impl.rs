@@ -504,8 +504,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_kem_size_compliance() {
-        let results = test_kem_size_compliance();
+    fn test_kem_sizes() {
+        let results = super::test_kem_size_compliance();
         assert_eq!(results.len(), 9);
         for r in &results {
             assert!(r.passed, "KEM size test failed: {} {}: {}", r.variant, r.test_name, r.details);
@@ -513,8 +513,8 @@ mod tests {
     }
 
     #[test]
-    fn test_dsa_size_compliance() {
-        let results = test_dsa_size_compliance();
+    fn test_dsa_sizes() {
+        let results = super::test_dsa_size_compliance();
         assert_eq!(results.len(), 6);
         for r in &results {
             assert!(r.passed, "DSA size test failed: {} {}: {}", r.variant, r.test_name, r.details);
