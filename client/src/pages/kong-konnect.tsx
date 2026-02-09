@@ -41,8 +41,30 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+interface KongProxyUrl {
+  host: string;
+  port: number;
+  protocol: string;
+}
+
+interface KongControlPlaneStatus {
+  id: string;
+  name: string;
+  description?: string;
+  clusterType?: string;
+  controlPlaneEndpoint?: string;
+  proxyUrls: KongProxyUrl[];
+  cloudGateway: boolean;
+  services: number;
+  routes: number;
+  configSynced: boolean;
+}
+
 interface KongStatus {
   connected: boolean;
+  gatewayReady?: boolean;
+  configSynced?: boolean;
+  activeProxyUrls?: KongProxyUrl[];
   error?: string;
   user?: {
     id: string;
@@ -51,6 +73,7 @@ interface KongStatus {
     preferredName: string;
     active: boolean;
   };
+  controlPlanes?: KongControlPlaneStatus[];
 }
 
 interface ControlPlane {
@@ -118,13 +141,13 @@ function ConnectionStatus() {
             Checking connection...
           </div>
         ) : status?.connected ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="w-5 h-5" />
               <span className="font-medium">Connected to Kong Konnect</span>
             </div>
             {status.user && (
-              <div className="grid grid-cols-2 gap-3 text-sm mt-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-muted-foreground" />
                   <span className="text-muted-foreground">User:</span>
@@ -136,6 +159,41 @@ function ConnectionStatus() {
                 </div>
               </div>
             )}
+            <div className="border-t pt-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                {status.configSynced ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-500" />
+                )}
+                <span>Config Synced: {status.configSynced ? '9 services, 9 routes deployed' : 'Not synced'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                {status.gatewayReady ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-amber-500" />
+                )}
+                <span>Gateway Proxy: {status.gatewayReady ? 'Active' : 'No data plane connected'}</span>
+              </div>
+              {status.activeProxyUrls && status.activeProxyUrls.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <span className="text-xs text-muted-foreground font-medium">Proxy URLs:</span>
+                  {status.activeProxyUrls.map((url, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs font-mono">
+                        {url.protocol}://{url.host}:{url.port}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!status.gatewayReady && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  A Kong data plane must be deployed and connected to a control plane to enable gateway proxying. Use the Deploy action below.
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-red-600">

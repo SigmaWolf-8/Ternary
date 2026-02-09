@@ -1811,7 +1811,7 @@ export async function registerRoutes(
   const KONG_API_BASE = "https://us.api.konghq.com/v2";
   const KONG_KONNECT_TOKEN = process.env.KONG_KONNECT_TOKEN;
 
-  // Check Kong Konnect connection status
+  // Check Kong Konnect connection status with full gateway readiness
   app.get("/api/kong/status", async (req, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
@@ -1821,12 +1821,12 @@ export async function registerRoutes(
         });
       }
 
-      const response = await fetch(`${KONG_API_BASE}/users/me`, {
-        headers: {
-          "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      });
+      const kongHeaders = {
+        "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+        "Content-Type": "application/json"
+      };
+
+      const response = await fetch(`${KONG_API_BASE}/users/me`, { headers: kongHeaders });
 
       if (!response.ok) {
         return res.json({ 
@@ -1836,15 +1836,62 @@ export async function registerRoutes(
       }
 
       const user = await response.json();
+
+      // Fetch control planes with proxy_urls and service/route counts
+      let controlPlanes: any[] = [];
+      let gatewayReady = false;
+      let activeProxyUrls: any[] = [];
+      try {
+        const cpResp = await fetch(`${KONG_API_BASE}/control-planes`, { headers: kongHeaders });
+        if (cpResp.ok) {
+          const cpData = await cpResp.json();
+          for (const cp of (cpData.data || [])) {
+            let serviceCount = 0;
+            let routeCount = 0;
+            try {
+              const [svcResp, rtResp] = await Promise.all([
+                fetch(`${KONG_API_BASE}/control-planes/${cp.id}/core-entities/services`, { headers: kongHeaders }),
+                fetch(`${KONG_API_BASE}/control-planes/${cp.id}/core-entities/routes`, { headers: kongHeaders })
+              ]);
+              if (svcResp.ok) { const s = await svcResp.json(); serviceCount = s.data?.length || 0; }
+              if (rtResp.ok) { const r = await rtResp.json(); routeCount = r.data?.length || 0; }
+            } catch {}
+
+            const proxyUrls = cp.config?.proxy_urls || [];
+            if (proxyUrls.length > 0) {
+              gatewayReady = true;
+              activeProxyUrls.push(...proxyUrls);
+            }
+
+            controlPlanes.push({
+              id: cp.id,
+              name: cp.name,
+              description: cp.description,
+              clusterType: cp.config?.cluster_type,
+              controlPlaneEndpoint: cp.config?.control_plane_endpoint,
+              proxyUrls: proxyUrls,
+              cloudGateway: cp.config?.cloud_gateway || false,
+              services: serviceCount,
+              routes: routeCount,
+              configSynced: serviceCount >= 9
+            });
+          }
+        }
+      } catch {}
+
       res.json({ 
         connected: true, 
+        gatewayReady,
+        configSynced: controlPlanes.some(cp => cp.configSynced),
+        activeProxyUrls,
         user: {
           id: user.id,
           email: user.email,
           fullName: user.full_name,
           preferredName: user.preferred_name,
           active: user.active
-        }
+        },
+        controlPlanes
       });
     } catch (error) {
       res.json({ 
