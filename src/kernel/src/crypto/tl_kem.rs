@@ -26,12 +26,13 @@
 
 use alloc::vec::Vec;
 use alloc::vec;
-use super::{CryptoError, CryptoResult};
+use super::CryptoResult;
 use super::ternary_lattice::{
-    TernaryPolynomial, TernaryPolyMatrix, TernaryPolyVec, LatticeParams,
+    TernaryPolynomial, TernaryPolyVec, LatticeParams,
     sample_matrix, sample_noise_vec, compress_ternary, decompress_ternary,
 };
 use super::sponge::TernarySponge;
+use super::ct_utils;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TlKemVariant {
@@ -223,20 +224,21 @@ pub fn decapsulate(sk: &TlKemSecretKey, ct: &TlKemCiphertext) -> CryptoResult<Sh
     let (ct_prime, _) = encapsulate_inner(&sk.public_key, &message, encaps_coins)?;
 
     let ct_trits = ciphertext_to_trits(&ct.compressed_u, &ct.compressed_v);
+    let ct_prime_trits = ciphertext_to_trits(&ct_prime.compressed_u, &ct_prime.compressed_v);
 
-    let ciphertexts_match = ct_trits == ciphertext_to_trits(&ct_prime.compressed_u, &ct_prime.compressed_v);
+    let match_flag = ct_utils::ct_eq_slices(&ct_trits, &ct_prime_trits);
+    let match_bit = match_flag & 1;
 
-    let shared_trits = if ciphertexts_match {
-        kem_hash(
-            &[shared_key_seed, &ct_trits],
-            sk.variant.shared_secret_trits(),
-        )
-    } else {
-        kem_hash(
-            &[&sk.implicit_reject_seed, &ct_trits],
-            sk.variant.shared_secret_trits(),
-        )
-    };
+    let ss_accept = kem_hash(
+        &[shared_key_seed, &ct_trits],
+        sk.variant.shared_secret_trits(),
+    );
+    let ss_reject = kem_hash(
+        &[&sk.implicit_reject_seed, &ct_trits],
+        sk.variant.shared_secret_trits(),
+    );
+
+    let shared_trits = ct_utils::ct_select_vec(match_bit, &ss_accept, &ss_reject);
 
     Ok(SharedSecret { trits: shared_trits })
 }
