@@ -15,6 +15,7 @@
  */
 
 import { getFemtosecondTimestamp, FemtosecondTimestamp } from './femtosecond-timing';
+import { TAU_POWERS } from '@shared/tribonacci-constants';
 
 export type EncryptionMode = 'high_security' | 'balanced' | 'performance' | 'adaptive';
 
@@ -55,13 +56,8 @@ export interface RecombinationResult {
   error?: string;
 }
 
-/**
- * The Tribonacci constant τ — real root of τ³ = τ² + τ + 1
- * Inlined here to avoid circular dependency with libternary
- */
-const TAU = 1.8392867552141612;
-const TAU_2 = TAU ** 2;
-const TAU_7 = TAU ** 7;
+const TAU_2 = TAU_POWERS.TAU_2;
+const TAU_7 = TAU_POWERS.TAU_7;
 
 /**
  * Get phase configuration based on encryption mode

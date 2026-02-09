@@ -5,21 +5,16 @@
  * τ (Tribonacci constant) is DERIVED from pre-geometric SO(8) quantum graph stability,
  * satisfying τ³ = τ² + τ + 1.
  *
- * These constants appear throughout PlenumNET's applied physics implementations
- * and connect the theoretical framework to production engineering.
+ * CANONICAL SOURCE: shared/tribonacci-constants.ts
+ * This file mirrors the constants defined there. When updating TAU or derived values,
+ * update the shared module first, then sync this file to match.
+ * Server-side code (server/salvi-core/) imports from the shared module directly.
  *
  * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
  */
 
-/**
- * The Tribonacci constant τ — real root of τ³ = τ² + τ + 1
- * Derived from SO(8) quantum graph stability (V9.8Rf)
- */
 export const TAU = 1.8392867552141612;
 
-/**
- * Pre-computed powers of τ used throughout the theory
- */
 export const TAU_POWERS = {
   TAU_2: TAU ** 2,
   TAU_3: TAU ** 3,
@@ -28,39 +23,29 @@ export const TAU_POWERS = {
   TAU_13: TAU ** 13,
 } as const;
 
-/**
- * Key physical constants derived from τ
- */
 export const DERIVED_CONSTANTS = {
-  /** τ¹³ = 2757.038 — fundamental period constant */
   TAU_13: TAU_POWERS.TAU_13,
-
-  /** S_inst = 2τ⁷ = 142.42 — instanton action for dark energy suppression */
   S_INST: 2 * TAU_POWERS.TAU_7,
-
-  /** Δθ = 9/τ⁵ = 0.4275° — CMB birefringence prediction (confirmed by observation) */
   DELTA_THETA_DEG: 9 / TAU_POWERS.TAU_5,
-
-  /** M₁ = 1.30 TeV — first LHC resonance mass */
   M1_TEV: 1.30,
-
-  /** m_T ≈ 1.49×10⁻⁴² GeV — torsion mass scale */
   M_T_GEV: 1.49e-42,
-
-  /** D₄ gauge group dimension = 28 */
   D4_DIM: 28,
-
-  /** Fundamental period = 1152 days (harmonic alignment) */
   FUNDAMENTAL_PERIOD_DAYS: 1152,
-
-  /** P_sid = 28(1 - τ⁻⁶) = 27.28 days — lunar sidereal period */
   P_SID_DAYS: 28 * (1 - TAU ** -6),
-
-  /** log₂(3) ≈ 1.585 — information density advantage per trit */
   LOG2_3: Math.log2(3),
-
-  /** 59% density advantage: (log₂(3) - 1) × 100 */
   DENSITY_ADVANTAGE_PCT: (Math.log2(3) - 1) * 100,
+} as const;
+
+export const VM_CONSTANTS = {
+  REGISTER_COUNT: 27,
+  DEFAULT_STACK_SIZE: 4096,
+  MAX_CYCLES: 1_000_000,
+  HASH_SEED: Math.floor(TAU_POWERS.TAU_2 * 1e9),
+  HASH_MIX: Math.floor(TAU_POWERS.TAU_7 * 1e6),
+  HASH_ROUNDS: 13,
+  GC_THRESHOLD_RATIO: TAU ** -2,
+  INSTRUCTION_CACHE_SIZE: Math.floor(TAU_POWERS.TAU_5 * 4),
+  TRIT_BUFFER_SIZE: Math.floor(TAU_POWERS.TAU_7 * 2),
 } as const;
 
 /**

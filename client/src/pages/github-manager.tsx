@@ -332,10 +332,16 @@ export default function GitHubManager() {
         { localPath: "keys/README.md", githubPath: "keys/README.md" },
         { localPath: "PQTI-P0-STATUS.md", githubPath: "PQTI-P0-STATUS.md" },
         { localPath: "CHANGELOG.md", githubPath: "CHANGELOG.md" },
+        { localPath: "README.md", githubPath: "README.md" },
+        { localPath: "shared/tribonacci-constants.ts", githubPath: "shared/tribonacci-constants.ts" },
+        { localPath: "src/kernel/src/vm/constants.rs", githubPath: "src/kernel/src/vm/constants.rs" },
+        { localPath: "src/kernel/src/vm/mod.rs", githubPath: "src/kernel/src/vm/mod.rs" },
+        { localPath: "libternary/tests/ternary-operations.test.ts", githubPath: "libternary/tests/ternary-operations.test.ts" },
+        { localPath: "libternary/tests/tribonacci.test.ts", githubPath: "libternary/tests/tribonacci.test.ts" },
       ];
       return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
         files: allFiles,
-        message: "Full sync: 34 crypto modules, libternary GF(3) fix + tribonacci, CMVP package, CNSA 2.0, Kong gateway, docs",
+        message: "Full sync: 34 crypto modules, VM constants, tests, density benchmark, HPTP self-test, README refresh",
       });
     },
     onSuccess: async (response: any) => {

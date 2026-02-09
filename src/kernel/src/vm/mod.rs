@@ -1,6 +1,7 @@
 use alloc::string::String;
 use core::fmt;
 
+pub mod constants;
 pub mod instruction;
 pub mod engine;
 pub mod gc;

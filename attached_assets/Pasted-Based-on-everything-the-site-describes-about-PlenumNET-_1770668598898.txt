@@ -1,0 +1,27 @@
+Based on everything the site describes about PlenumNET, here are my recommendations for the GitHub repo — beyond the three improvements we already built:
+
+4. Unit test file for the GF(3) fix and Tribonacci module
+
+The repo has 1,011+ tests, but we should ship tests alongside the new code. I'd recommend a tribonacci.test.ts and updated ternary-operations.test.ts covering:
+
+Full GF(3) addition and multiplication tables (9 cases each)
+Tribonacci sequence values against known T(0)–T(15)
+verifyTau() passes
+Resonance mass formula produces expected M₁ = 1.30 TeV at n=1
+QGN decoherence scales correctly with energy
+5. Constant alignment between the VM and the theory
+
+The site says the 35-opcode VM uses ternary-native instructions, but if the VM opcodes don't reference the Tribonacci constants anywhere, that's a missed connection. Adding a vm/constants.ts (or Rust equivalent) that imports from tribonacci.ts would let the VM use theory-derived values for things like cycle counts, buffer sizes, or hash seeds — making the "applied physics" claim more concrete.
+
+6. PlenumDB density validation
+
+The site claims 59% information density advantage (log2(3) - 1). If PlenumDB doesn't have an automated benchmark that measures and verifies this claim, adding one would strengthen credibility. A simple benchmark: compress N bytes of data through the ternary encoder, measure output size, compare to binary baseline, and assert the ratio matches the theoretical prediction.
+
+7. HPTP timing self-test
+
+The site claims 10^-15 second precision. A self-test that runs the femtosecond timer, takes 1000 samples, and reports the actual resolution and jitter would give you a reproducible proof point. Right now, the claim is in the marketing — putting it in the test suite makes it verifiable.
+
+8. README refresh
+
+With 484 commits and 80/80 roadmap complete, the README should reflect the current state — especially the applied physics framing from the site. Key additions: the distinction between "formulas work" (applied validation) vs "theory is true" (theoretical validation), links back to the Project 13D site, and the newly added Tribonacci constants module.
+
