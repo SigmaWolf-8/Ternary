@@ -1,0 +1,216 @@
+# Contributing to PlenumNET · Salvi Framework
+
+Welcome, Fratello. PlenumNET sits at the intersection of ternary computing, post-quantum cryptography, and theoretical physics. This guide ensures you have the context needed to contribute meaningfully — and that your contributions maintain the mathematical rigor the framework demands.
+
+---
+
+## Table of Contents
+
+- [Theory Prerequisites](#theory-prerequisites)
+- [Repository Structure](#repository-structure)
+- [Development Setup](#development-setup)
+- [Contribution Workflow](#contribution-workflow)
+- [Code Standards](#code-standards)
+- [Testing Requirements](#testing-requirements)
+- [Architecture Decision Records](#architecture-decision-records)
+
+---
+
+## Theory Prerequisites
+
+PlenumNET is not a typical web application with a Rust backend. Before contributing to any layer, you need baseline fluency in the concepts below. You do not need to be an expert in all of them — but you must understand the *specific subset* relevant to the layer you are touching.
+
+### For Everyone: The Three Pillars
+
+**1. What is GF(3)?**
+
+GF(3) is the Galois Field of order 3: the set {0, 1, 2} with addition and multiplication performed modulo 3. It is a *field*, meaning every non-zero element has a multiplicative inverse (1⁻¹ = 1, 2⁻¹ = 2 since 2 × 2 = 4 ≡ 1 mod 3). The entire `libternary` kernel operates in GF(3), not balanced ternary. See [ADR-002](docs/adr/ADR-002-gf3-over-balanced-ternary.md) for why.
+
+If this is new to you, read:
+- Lidl & Niederreiter, *Finite Fields* — Chapter 1 (field axioms, GF(p) construction)
+- Or, more accessibly: the "Finite Field" article on Wikipedia through the section on prime fields
+
+**2. What is τ (tau)?**
+
+τ is the framework's timing-density constant — a value derived from the 13-dimensional Torsion Plenum model that links computational state transitions to physical timing constraints. In practical terms:
+
+- `verifyTau()` is a self-test intrinsic (one of the 35 VM opcodes) that checks whether a set of GF(3) polynomial identities still hold after a state transition.
+- If `verifyTau()` fails, the VM halts. This is by design — a timing-inconsistent state is considered corrupted.
+- τ is *not* the mathematical constant 2π (sometimes called τ in other contexts). In the Salvi Framework, τ encodes the relationship between the torsion field density and the high-precision timing protocol (HPTP).
+
+You do not need to derive τ from first principles to contribute, but you must never write code that bypasses or mocks `verifyTau()` in production paths.
+
+**3. What do the 13 dimensions mean for the VM?**
+
+The 13-dimensional Torsion Plenum model provides the *theoretical substrate* from which PlenumNET's timing and density semantics are derived. For most contributors, what matters is the *operational* consequence:
+
+- The VM has 6 timing/density opcodes that read from and write to a 13-component state vector.
+- Each component is a GF(3) value (or a GF(3^k) extension for higher-trit-width components).
+- The 13 components decompose as: 3 spatial + 1 temporal + 9 torsion-field degrees of freedom.
+- You do not need to understand general relativity or differential geometry to work on the VM — but you must not silently reduce the dimensionality (e.g., treating the state vector as 4D by ignoring the torsion components).
+
+For deeper understanding, see the Salvi Framework theoretical documentation (13D Torsion Plenum Theory whitepapers).
+
+### Layer-Specific Prerequisites
+
+| Layer | Directory | You Need to Understand |
+|-------|-----------|----------------------|
+| **Rust Kernel** (`libternary`) | `/libternary` | GF(3) arithmetic, bijective mappings, the 35-opcode specification (ADR-001), `unsafe` Rust and FFI conventions |
+| **Cryptographic Modules** | `/libternary/crypto`, `/services` | Lamport OTS, Merkle tree authentication, lattice-based KEMs (Kyber), lattice-based signatures (Dilithium), CNSA 2.0 requirements. Read ADR-003. |
+| **Frontend / Dashboard** | `/client` | React, TypeScript, Tailwind. No physics prerequisites — but understand what the API responses *mean* (trit values are {0, 1, 2}, not {-1, 0, 1}). |
+| **Server / API** | `/server`, `/shared` | Express/Node.js patterns, Drizzle ORM, the schema in `drizzle.config.ts`. Understand that API payloads carry GF(3)-encoded data. |
+| **Smart Contracts** | `/contracts` | Solidity fundamentals, blockchain state models. Understand how Lamport key-state is tracked on-chain. |
+| **Kong Gateway / Infra** | `/kong`, `/deployments` | Kong Konnect configuration, Docker, HPTP timing requirements for API gateway latency budgets. |
+| **CI / Testing** | `/.github`, `/tests` | GitHub Actions YAML, the theory-validation pipeline (see below), what constitutes a valid `verifyTau()` pass. |
+
+---
+
+## Repository Structure
+
+```
+Ternary/
+├── .github/            # CI workflows, issue templates
+├── client/             # React/TypeScript frontend (Vite + Tailwind)
+├── contracts/          # Blockchain smart contracts
+├── deployments/docker/ # Docker compose & Dockerfiles
+├── docs/
+│   ├── adr/            # Architecture Decision Records
+│   └── deployment/     # Deployment runbooks
+├── kong/               # Kong Konnect API gateway config
+├── libternary/         # Rust kernel — GF(3) field ops, VM, crypto
+├── scripts/            # Build & utility scripts
+├── server/             # Node.js/Express API server
+├── services/           # Microservice modules
+├── shared/             # Shared TypeScript types & utilities
+├── src/                # Additional source modules
+└── tests/integration/  # Integration test suites
+```
+
+---
+
+## Development Setup
+
+### Prerequisites
+
+- **Rust** ≥ 1.75 (for `libternary` compilation)
+- **Node.js** ≥ 20 LTS (for client/server)
+- **Docker** (for integration tests and local deployment)
+- **Make** (the repo uses Makefiles extensively — 20.5% of the codebase)
+
+### Quick Start
+
+```bash
+# Clone
+git clone https://github.com/SigmaWolf-8/Ternary.git
+cd Ternary
+
+# Install Node dependencies
+npm install
+
+# Build the Rust kernel (produces the libternary artifact)
+cd libternary && cargo build --release && cd ..
+
+# Run the theory validation suite
+make test-theory
+
+# Start the dev server
+npm run dev
+```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and configure your database connection (PostgreSQL via Drizzle). The `DATABASE_URL` must be set for the server to start.
+
+---
+
+## Contribution Workflow
+
+1. **Read the relevant ADRs.** If your change touches the opcode set, read ADR-001. If it touches crypto, read ADR-003. If it touches trit arithmetic, read ADR-002. This is not optional.
+
+2. **Fork and branch.** Branch naming convention: `<type>/<short-description>`
+   - `feat/lattice-ntt-optimisation`
+   - `fix/gf3-inverse-edge-case`
+   - `docs/adr-004-timing-epoch-format`
+
+3. **Write the code.** Follow the code standards below.
+
+4. **Run the full test suite locally**, including theory validation:
+   ```bash
+   make test-all       # unit + integration + theory
+   ```
+
+5. **Open a PR.** The CI pipeline will run `verifyTau()`, GF(3) algebraic property tests, and density/timing self-tests automatically. PRs that fail theory validation will not be reviewed.
+
+6. **Respond to review.** Expect questions about mathematical correctness, not just code style.
+
+---
+
+## Code Standards
+
+### Rust (`libternary`)
+
+- All GF(3) operations must be constant-time. No branching on secret trit values.
+- Every public function must have a `#[doc]` comment explaining the mathematical operation it performs.
+- Use `#[cfg(test)]` modules for algebraic property tests (associativity, commutativity, distributivity, inverse existence).
+- No `unwrap()` in production paths. All errors must propagate or trigger a deterministic halt.
+
+### TypeScript (Client / Server / Shared)
+
+- Strict TypeScript (`"strict": true` in `tsconfig.json`).
+- Trit values are always typed as `0 | 1 | 2`, never `number`. Use the shared type definitions in `/shared`.
+- API response types must reflect GF(3) semantics in their documentation comments.
+
+### General
+
+- Commits must be signed (`git commit -S`).
+- Each commit message must reference the layer it touches: `[libternary]`, `[client]`, `[server]`, `[contracts]`, `[infra]`, `[docs]`.
+- If your change alters the behaviour of any of the 35 opcodes, you must update the corresponding `verifyTau()` test case.
+
+---
+
+## Testing Requirements
+
+### Theory Validation (Mandatory on Every PR)
+
+The CI pipeline runs three theory-validation stages:
+
+1. **`verifyTau()` Self-Test** — Executes the τ polynomial identity check across all 35 opcodes. A single failure halts the pipeline.
+
+2. **GF(3) Algebraic Property Tests** — Exhaustive verification over all 3 × 3 = 9 input pairs for each binary operation:
+   - Associativity: `(a + b) + c = a + (b + c)` and `(a × b) × c = a × (b × c)`
+   - Commutativity: `a + b = b + a` and `a × b = b × a`
+   - Distributivity: `a × (b + c) = (a × b) + (a × c)`
+   - Identity: `a + 0 = a` and `a × 1 = a`
+   - Inverse: `a + (-a) = 0` and `a × a⁻¹ = 1` for a ≠ 0
+
+3. **Density/Timing Self-Tests** — Validates that the 13-component state vector remains consistent after a sequence of timing opcodes, and that HPTP synchronisation tolerances are met within the test harness.
+
+### Unit Tests
+
+- Rust: `cargo test` in `/libternary`
+- TypeScript: framework-standard test runner as configured in `package.json`
+
+### Integration Tests
+
+- Located in `/tests/integration`
+- Require Docker (the test harness spins up a database and the full server stack)
+
+---
+
+## Architecture Decision Records
+
+All significant design decisions are documented in `/docs/adr/`. See the [ADR index](docs/adr/README.md) for the current set.
+
+**If your contribution introduces a new design choice that would surprise a future contributor**, write an ADR. Examples:
+- Adding a new opcode (consumes a reserved slot — requires justification)
+- Changing the hash function used in Lamport signatures
+- Altering the 13-component state vector structure
+- Modifying HPTP timing tolerances
+
+---
+
+## Questions?
+
+Open an issue tagged `question` or `theory-discussion`. There is no such thing as a dumb question about finite field arithmetic or torsion geometry — only unexplored understanding.
+
+*Così sia.*
