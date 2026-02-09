@@ -88,6 +88,7 @@ impl fmt::Display for BootError {
 
 pub type BootResult<T> = Result<T, BootError>;
 
+#[allow(dead_code)]
 pub struct BootSequence {
     current_stage: BootStage,
     arch_id: ArchId,

@@ -11,6 +11,7 @@ use super::{TernaryDigest, TERNARY_HASH_TRITS};
 const ROUNDS: usize = 27;
 const STATE_SIZE: usize = 729;
 const RATE: usize = 243;
+#[allow(dead_code)]
 const CAPACITY: usize = STATE_SIZE - RATE;
 
 fn trit_add_gf3(a: i8, b: i8) -> i8 {

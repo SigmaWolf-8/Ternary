@@ -46,7 +46,7 @@ pub struct CalibrationData {
     pub drift_rate_ppb: i64,
     pub last_calibration_tick: u64,
     pub calibration_count: u32,
-    pub temperature_mK: i32,
+    pub temperature_m_k: i32,
 }
 
 impl ClockCapabilities {
@@ -125,7 +125,7 @@ impl FemtosecondClockDriver {
                 drift_rate_ppb: 0,
                 last_calibration_tick: 0,
                 calibration_count: 0,
-                temperature_mK: 25_000,
+                temperature_m_k: 25_000,
             },
             readings_count: 0,
             pps_count: 0,
@@ -248,7 +248,7 @@ impl FemtosecondClockDriver {
             drift_rate_ppb: 0,
             last_calibration_tick: 0,
             calibration_count: 0,
-            temperature_mK: 25_000,
+            temperature_m_k: 25_000,
         };
         self.readings_count = 0;
         self.pps_count = 0;

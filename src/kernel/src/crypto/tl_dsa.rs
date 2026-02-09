@@ -161,7 +161,6 @@ fn sample_challenge(seed: &[i8], n: usize, tau: usize) -> TernaryPolynomial {
             let ext_val = if extended.get(1).copied().unwrap_or(0) >= 0 { 1i8 } else { -1i8 };
             if coeffs[ext_pos] == 0 {
                 coeffs[ext_pos] = ext_val;
-                placed += 1;
             }
             break;
         }

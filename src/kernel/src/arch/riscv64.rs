@@ -29,6 +29,7 @@ pub const CSR_MCAUSE: u16 = 0x342;
 pub const CSR_SATP: u16 = 0x180;
 pub const CSR_SSTATUS: u16 = 0x100;
 
+#[allow(dead_code)]
 pub struct RiscV64Arch {
     privilege_level: PrivilegeLevel,
     privilege_mode: u8,
@@ -135,6 +136,7 @@ impl RiscV64Arch {
         }
     }
 
+    #[allow(dead_code)]
     fn mode_to_privilege(mode: u8) -> PrivilegeLevel {
         match mode {
             MODE_USER => PrivilegeLevel::User,

@@ -165,6 +165,7 @@ impl TtpSegment {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TtpConnection {
     state: TtpState,

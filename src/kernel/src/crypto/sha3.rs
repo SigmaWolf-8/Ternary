@@ -22,6 +22,7 @@ use alloc::vec::Vec;
 
 const KECCAK_LANES: usize = 25;
 const KECCAK_ROUNDS: usize = 24;
+#[allow(dead_code)]
 const KECCAK_STATE_BYTES: usize = 200;
 
 const SHA3_384_RATE: usize = 104;
@@ -93,6 +94,7 @@ fn keccak_f1600(state: &mut [u64; KECCAK_LANES]) {
     }
 }
 
+#[allow(dead_code)]
 fn keccak_absorb(state: &mut [u64; KECCAK_LANES], rate: usize, data: &[u8]) {
     let rate_lanes = rate / 8;
 

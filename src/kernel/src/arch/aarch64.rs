@@ -22,6 +22,7 @@ pub const EL3_SECURE_MONITOR: u8 = 3;
 pub const DAIF_IRQ: u64 = 1 << 7;
 pub const DAIF_FIQ: u64 = 1 << 6;
 
+#[allow(dead_code)]
 pub struct Aarch64Arch {
     privilege_level: PrivilegeLevel,
     exception_level: u8,
@@ -118,6 +119,7 @@ impl Aarch64Arch {
         }
     }
 
+    #[allow(dead_code)]
     fn el_to_privilege(el: u8) -> PrivilegeLevel {
         match el {
             0 => PrivilegeLevel::User,

@@ -27,7 +27,9 @@ use crate::timing::FemtosecondTimestamp;
 
 pub type ProcessId = u64;
 
+#[allow(dead_code)]
 const PID_KERNEL: ProcessId = 0;
+#[allow(dead_code)]
 const PID_INIT: ProcessId = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

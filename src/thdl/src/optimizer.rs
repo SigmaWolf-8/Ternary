@@ -381,7 +381,7 @@ fn optimize_ternary_expr(expr: &Expression) -> Expression {
 ///
 /// Restructures logic to meet timing constraints.
 pub fn timing_optimization(module: &Module, options: &SynthesisOptions) -> Result<Module, SynthesisError> {
-    let mut result = module.clone();
+    let result = module.clone();
     
     // Calculate critical path and add pipeline registers if needed
     let _critical_path = estimate_critical_path(&result);

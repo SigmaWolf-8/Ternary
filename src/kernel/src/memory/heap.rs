@@ -21,6 +21,7 @@ impl BlockHeader {
     const SIZE: usize = core::mem::size_of::<Self>();
 }
 
+#[allow(dead_code)]
 pub struct HeapAllocator {
     base: usize,
     size: usize,
