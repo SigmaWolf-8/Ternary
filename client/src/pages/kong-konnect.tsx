@@ -41,10 +41,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-interface KongProxyUrl {
-  host: string;
-  port: number;
-  protocol: string;
+interface DataPlaneGroup {
+  id: string;
+  region: string;
+  state: string;
+  hostnames: string[];
+  controlPlaneId: string;
+  kind: string;
 }
 
 interface KongControlPlaneStatus {
@@ -53,8 +56,9 @@ interface KongControlPlaneStatus {
   description?: string;
   clusterType?: string;
   controlPlaneEndpoint?: string;
-  proxyUrls: KongProxyUrl[];
+  proxyUrls: string[];
   cloudGateway: boolean;
+  dataPlaneState: string;
   services: number;
   routes: number;
   configSynced: boolean;
@@ -64,7 +68,8 @@ interface KongStatus {
   connected: boolean;
   gatewayReady?: boolean;
   configSynced?: boolean;
-  activeProxyUrls?: KongProxyUrl[];
+  activeProxyUrls?: string[];
+  dataPlaneGroups?: DataPlaneGroup[];
   error?: string;
   user?: {
     id: string;
@@ -174,24 +179,35 @@ function ConnectionStatus() {
                 ) : (
                   <XCircle className="w-4 h-4 text-amber-500" />
                 )}
-                <span>Gateway Proxy: {status.gatewayReady ? 'Active' : 'No data plane connected'}</span>
+                <span>Data Plane: {status.gatewayReady ? 'Connected & Ready' : 'No data plane connected'}</span>
               </div>
               {status.activeProxyUrls && status.activeProxyUrls.length > 0 && (
                 <div className="mt-2 space-y-1">
-                  <span className="text-xs text-muted-foreground font-medium">Proxy URLs:</span>
+                  <span className="text-xs text-muted-foreground font-medium">Gateway Proxy Hostnames:</span>
                   {status.activeProxyUrls.map((url, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs font-mono">
-                        {url.protocol}://{url.host}:{url.port}
+                        {url}
                       </Badge>
                     </div>
                   ))}
                 </div>
               )}
-              {!status.gatewayReady && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  A Kong data plane must be deployed and connected to a control plane to enable gateway proxying. Use the Deploy action below.
-                </p>
+              {status.dataPlaneGroups && status.dataPlaneGroups.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <span className="text-xs text-muted-foreground font-medium">Data Plane Groups:</span>
+                  {status.dataPlaneGroups.map((dp) => (
+                    <div key={dp.id} className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={dp.state === 'ready' ? 'default' : 'secondary'} className="text-xs">
+                        {dp.state}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{dp.region} ({dp.kind})</span>
+                      {dp.hostnames.map((h, i) => (
+                        <Badge key={i} variant="outline" className="text-xs font-mono">{h}</Badge>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

@@ -187,6 +187,15 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/kong-konnect"} tooltip="Kong Konnect" data-testid="link-sidebar-kong-konnect" className="text-xs">
+                  <Link href="/kong-konnect" onClick={closeMobileSidebar}>
+                    <Network className="w-3.5 h-3.5" />
+                    <span>Kong Konnect</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

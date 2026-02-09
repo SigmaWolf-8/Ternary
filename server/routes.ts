@@ -1837,10 +1837,39 @@ export async function registerRoutes(
 
       const user = await response.json();
 
-      // Fetch control planes with proxy_urls and service/route counts
       let controlPlanes: any[] = [];
       let gatewayReady = false;
-      let activeProxyUrls: any[] = [];
+      let activeProxyUrls: string[] = [];
+      let dataPlaneGroups: any[] = [];
+
+      // Fetch cloud gateway configurations (global API) for data plane info
+      const KONG_GLOBAL_API = "https://global.api.konghq.com/v2";
+      try {
+        const cgResp = await fetch(`${KONG_GLOBAL_API}/cloud-gateways/configurations`, { headers: kongHeaders });
+        if (cgResp.ok) {
+          const cgData = await cgResp.json();
+          for (const config of (cgData.data || [])) {
+            for (const dpGroup of (config.dataplane_groups || [])) {
+              const hostnames = dpGroup.hostnames || [];
+              const isReady = dpGroup.state === "ready";
+              if (isReady && hostnames.length > 0) {
+                gatewayReady = true;
+                activeProxyUrls.push(...hostnames.map((h: string) => `https://${h}`));
+              }
+              dataPlaneGroups.push({
+                id: dpGroup.id,
+                region: dpGroup.region,
+                state: dpGroup.state,
+                hostnames,
+                controlPlaneId: config.control_plane_id,
+                kind: config.kind
+              });
+            }
+          }
+        }
+      } catch {}
+
+      // Fetch control planes with service/route counts
       try {
         const cpResp = await fetch(`${KONG_API_BASE}/control-planes`, { headers: kongHeaders });
         if (cpResp.ok) {
@@ -1857,11 +1886,9 @@ export async function registerRoutes(
               if (rtResp.ok) { const r = await rtResp.json(); routeCount = r.data?.length || 0; }
             } catch {}
 
-            const proxyUrls = cp.config?.proxy_urls || [];
-            if (proxyUrls.length > 0) {
-              gatewayReady = true;
-              activeProxyUrls.push(...proxyUrls);
-            }
+            const cpDataPlanes = dataPlaneGroups.filter(dp => dp.controlPlaneId === cp.id);
+            const cpHostnames = cpDataPlanes.flatMap((dp: any) => dp.hostnames.map((h: string) => `https://${h}`));
+            const cpGatewayReady = cpDataPlanes.some((dp: any) => dp.state === "ready");
 
             controlPlanes.push({
               id: cp.id,
@@ -1869,8 +1896,9 @@ export async function registerRoutes(
               description: cp.description,
               clusterType: cp.config?.cluster_type,
               controlPlaneEndpoint: cp.config?.control_plane_endpoint,
-              proxyUrls: proxyUrls,
+              proxyUrls: cpHostnames,
               cloudGateway: cp.config?.cloud_gateway || false,
+              dataPlaneState: cpGatewayReady ? "ready" : (cpDataPlanes.length > 0 ? cpDataPlanes[0].state : "none"),
               services: serviceCount,
               routes: routeCount,
               configSynced: serviceCount >= 9
@@ -1884,6 +1912,7 @@ export async function registerRoutes(
         gatewayReady,
         configSynced: controlPlanes.some(cp => cp.configSynced),
         activeProxyUrls,
+        dataPlaneGroups,
         user: {
           id: user.id,
           email: user.email,
