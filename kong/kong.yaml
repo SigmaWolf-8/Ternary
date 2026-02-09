@@ -9,7 +9,7 @@ _transform: true
 # For AI Agents: This configuration can be synced to Kong Konnect
 # using the decK CLI or the PlenumNET admin interface
 #
-# Total Services: 18 | Total Endpoints: 70+
+# Total Services: 18 | Total Endpoints: 75+
 
 services:
   # =====================================================

@@ -338,10 +338,11 @@ export default function GitHubManager() {
         { localPath: "src/kernel/src/vm/mod.rs", githubPath: "src/kernel/src/vm/mod.rs" },
         { localPath: "libternary/tests/ternary-operations.test.ts", githubPath: "libternary/tests/ternary-operations.test.ts" },
         { localPath: "libternary/tests/tribonacci.test.ts", githubPath: "libternary/tests/tribonacci.test.ts" },
+        { localPath: ".github/workflows/codeql-analysis.yml", githubPath: ".github/workflows/codeql-analysis.yml" },
       ];
       return apiRequest("POST", `/api/github/push-batch/${REPO_OWNER}/${REPO_NAME}`, {
         files: allFiles,
-        message: "Full sync: 34 crypto modules, VM constants, tests, density benchmark, HPTP self-test, README refresh",
+        message: "Full sync: 34 crypto modules, VM constants, tests, self-test endpoints, Kong config, CodeQL fix",
       });
     },
     onSuccess: async (response: any) => {
@@ -770,7 +771,7 @@ export default function GitHubManager() {
                     data-testid="button-push-full-sync"
                   >
                     {pushFullSyncMutation.isPending ? (
-                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Syncing 70 files...</>
+                      <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Syncing 77 files...</>
                     ) : (
                       <><Archive className="w-4 h-4 mr-1" />Push Full Sync</>
                     )}
@@ -778,7 +779,7 @@ export default function GitHubManager() {
                 </div>
                 {pushFullSyncMutation.isPending && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Syncing 70 files: 34 crypto modules, 5 compat/network, 12 compliance docs, 4 libternary, 4 salvi docs, Kong config, scripts, governance, keys...
+                    Syncing 77 files: 34 crypto modules, 5 compat/network, 12 compliance docs, 8 libternary, 4 salvi docs, Kong config, scripts, governance, tests, workflows...
                   </p>
                 )}
               </CardContent>

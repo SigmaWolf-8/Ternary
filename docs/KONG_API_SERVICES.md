@@ -9,7 +9,7 @@
 
 Kong Konnect serves as the API gateway for the PlenumNET platform, managing traffic, security, rate limiting, and observability across all public and internal API services. This document provides a comprehensive inventory of every API service, what it does, and the endpoints it exposes.
 
-**Current Service Count**: 18 distinct API service groups | 70+ individual endpoints
+**Current Service Count**: 18 distinct API service groups | 75+ individual endpoints
 
 ---
 
@@ -53,6 +53,7 @@ This is our ultra-precise clock service. While a normal computer clock measures 
 | GET | `/api/salvi/timing/timestamp` | Returns the current femtosecond-precision timestamp with HPTP latency correction (T2/T3 server-side capture for NTP-symmetric round-trip compensation) |
 | GET | `/api/salvi/timing/metrics` | Returns timing performance metrics — clock source, sync status, drift rates |
 | GET | `/api/salvi/timing/batch/:count` | Generates a batch of sequential timestamps (up to 100) for benchmarking |
+| GET | `/api/salvi/timing/self-test` | Runs 1,000-sample timer resolution and jitter analysis — validates monotonicity, measures resolution in femtoseconds, reports min/max/mean/stddev jitter |
 
 ### Regulatory Coverage
 - **FINRA 613 / CAT**: Exceeds the 50 microsecond synchronization threshold
@@ -132,6 +133,7 @@ Normal computers use binary — just 0s and 1s. PlenumNET uses ternary — three
 | POST | `/api/salvi/ternary/xor` | Performs ternary XOR in GF(3) — key building block for encryption |
 | POST | `/api/salvi/ternary/batch` | Processes a batch of ternary additions in one call |
 | GET | `/api/salvi/ternary/density/:tritCount` | Calculates information density — shows how many states N trits can represent vs. N bits |
+| GET | `/api/salvi/ternary/density-benchmark` | Validates the 59% density advantage claim across 4 sample sizes (10, 100, 1000, 10000 trits) — returns PASS/FAIL verdict |
 
 ---
 
