@@ -30,6 +30,7 @@ lazy_static = { version = "1.4", features = ["spin_no_std"] }
 
 [dev-dependencies]
 criterion = "0.5"
+proptest = "1.4"
 
 [[bench]]
 name = "ternary_ops"

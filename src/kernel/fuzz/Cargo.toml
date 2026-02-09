@@ -1,0 +1,33 @@
+[package]
+name = "plenumnet-kernel-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.plenumnet-kernel]
+path = ".."
+
+[[bin]]
+name = "fuzz_trit_ops"
+path = "fuzz_targets/fuzz_trit_ops.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_gateway"
+path = "fuzz_targets/fuzz_gateway.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_tryte_ops"
+path = "fuzz_targets/fuzz_tryte_ops.rs"
+test = false
+doc = false

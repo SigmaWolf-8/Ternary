@@ -76,6 +76,10 @@ import {
   toZoroastrianFasliDate,
   toAboriginalSeasonalDate,
 } from "./salvi-core/ancient-calendar-sync";
+import {
+  startErrorBudgetMonitor,
+  getErrorBudgetReport,
+} from "./salvi-core/hptp-error-budget";
 
 const demoRunSchema = z.object({
   datasetName: z.enum(["sensor", "events", "logs"]),
@@ -89,6 +93,8 @@ export async function registerRoutes(
   
   await setupAuth(app);
   registerAuthRoutes(app);
+  
+  startErrorBudgetMonitor();
   
   app.post("/api/demo/run", async (req, res) => {
     try {
@@ -657,6 +663,10 @@ export async function registerRoutes(
             path: "GET /api/salvi/timing/self-test",
             description: "1000-sample timer resolution and jitter analysis"
           },
+          errorBudget: {
+            path: "GET /api/salvi/timing/error-budget",
+            description: "HPTP drift tracking, jitter analysis, FINRA 613/MiFID II compliance monitoring"
+          },
           metrics: {
             path: "GET /api/salvi/timing/metrics",
             description: "Get timing metrics and synchronization status"
@@ -1032,6 +1042,19 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Timing self-test failed" });
+    }
+  });
+
+  // HPTP Error Budget - drift tracking & compliance monitoring
+  app.get("/api/salvi/timing/error-budget", (req, res) => {
+    try {
+      const report = getErrorBudgetReport();
+      res.json({
+        success: true,
+        errorBudget: report,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Error budget report generation failed" });
     }
   });
 
