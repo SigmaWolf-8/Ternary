@@ -903,8 +903,14 @@ export async function registerRoutes(
 
   // Get current timestamp
   app.get("/api/salvi/timing/timestamp", (req, res) => {
+    const t2_wall = Date.now();
+    const t2_perf = performance.now();
     try {
       const timestamp = getFemtosecondTimestamp();
+
+      const t3_wall = Date.now();
+      const serverProcessingUs = Math.round((performance.now() - t2_perf) * 1000);
+
       res.json({ 
         success: true, 
         timestamp: {
@@ -915,6 +921,14 @@ export async function registerRoutes(
         epoch: {
           salviEpoch: new Date(SALVI_EPOCH).toISOString(),
           description: "Femtoseconds since 2025-04-01T00:00:00Z (Salvi Epoch)"
+        },
+        hptp: {
+          t2_server_receive_ms: t2_wall,
+          t3_server_send_ms: t3_wall,
+          server_processing_us: serverProcessingUs,
+          protocol: "HPTP/1.0",
+          correction_model: "NTP-symmetric",
+          description: "T2 captured at request entry, T3 captured just before response. Client uses NTP offset theta = ((T2-T1)+(T3-T4))/2 to correct its local clock reading to server time."
         }
       });
     } catch (error) {

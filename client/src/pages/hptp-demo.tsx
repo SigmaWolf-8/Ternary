@@ -25,6 +25,14 @@ interface TimestampData {
   salviEpochOffset: string;
 }
 
+interface HptpData {
+  t2_server_receive_ms: number;
+  t3_server_send_ms: number;
+  server_processing_us: number;
+  protocol: string;
+  correction_model: string;
+}
+
 interface TimestampResponse {
   success: boolean;
   timestamp: TimestampData;
@@ -32,6 +40,7 @@ interface TimestampResponse {
     salviEpoch: string;
     description: string;
   };
+  hptp?: HptpData;
 }
 
 interface TimingMetrics {
@@ -70,22 +79,85 @@ function formatFemtoseconds(fs: string): string {
   return `${seconds}.${millis}.${micros}.${nanos}.${picos}.${femtos}`;
 }
 
+interface LatencyCorrection {
+  roundTripMs: number;
+  networkDelayMs: number;
+  serverProcessingUs: number;
+  clockOffsetMs: number;
+  correctedTimestamp: string;
+  correctedFemtoseconds: string;
+  protocol: string;
+}
+
+function computeHptpCorrection(
+  t1: number,
+  t4: number,
+  hptp: HptpData,
+  rawTimestamp: TimestampData
+): LatencyCorrection {
+  const t2 = hptp.t2_server_receive_ms;
+  const t3 = hptp.t3_server_send_ms;
+
+  const roundTripMs = (t4 - t1) - (t3 - t2);
+  const networkDelayMs = roundTripMs / 2;
+  const clockOffsetMs = ((t2 - t1) + (t3 - t4)) / 2;
+
+  const rawFs = BigInt(rawTimestamp.femtoseconds);
+
+  const elapsedSinceGenMs = (t4 - t1) / 2;
+  const currentServerTimeFs = rawFs + BigInt(Math.round(elapsedSinceGenMs * 1e12));
+
+  return {
+    roundTripMs: Math.round(roundTripMs * 100) / 100,
+    networkDelayMs: Math.round(networkDelayMs * 100) / 100,
+    serverProcessingUs: hptp.server_processing_us,
+    clockOffsetMs: Math.round(clockOffsetMs * 100) / 100,
+    correctedTimestamp: formatCorrectedHumanReadable(currentServerTimeFs),
+    correctedFemtoseconds: currentServerTimeFs.toString(),
+    protocol: hptp.protocol,
+  };
+}
+
+function formatCorrectedHumanReadable(fs: bigint): string {
+  const SALVI_EPOCH = new Date("2025-04-01T00:00:00.000Z").getTime();
+  const msFromFs = Number(fs / 1_000_000_000_000n);
+  const date = new Date(SALVI_EPOCH + msFromFs);
+  const remainingFs = fs % 1_000_000_000_000n;
+  const ns = String(remainingFs / 1_000_000n).padStart(3, "0");
+  const ps = String((remainingFs % 1_000_000n) / 1_000n).padStart(3, "0");
+  const fsStr = String(remainingFs % 1_000n).padStart(3, "0");
+  const y = date.getUTCFullYear();
+  const mo = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  const h = String(date.getUTCHours()).padStart(2, "0");
+  const mi = String(date.getUTCMinutes()).padStart(2, "0");
+  const s = String(date.getUTCSeconds()).padStart(2, "0");
+  const ms = String(date.getUTCMilliseconds()).padStart(3, "0");
+  return `${y}-${mo}-${d} ${h}:${mi}:${s}.${ms}.${ns}.${ps}.${fsStr} UTC`;
+}
+
 function LiveTimestamp() {
   const [ts, setTs] = useState<TimestampData | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [requestCount, setRequestCount] = useState(0);
   const [latency, setLatency] = useState(0);
+  const [correction, setCorrection] = useState<LatencyCorrection | null>(null);
 
   const fetchTimestamp = useCallback(async () => {
-    const start = performance.now();
+    const t1 = Date.now();
+    const startPerf = performance.now();
     try {
       const res = await fetch("/api/salvi/timing/timestamp");
       const data: TimestampResponse = await res.json();
-      setLatency(Math.round(performance.now() - start));
+      const t4 = Date.now();
+      setLatency(Math.round(performance.now() - startPerf));
       if (data.success) {
         setTs(data.timestamp);
         setRequestCount((c) => c + 1);
+        if (data.hptp) {
+          setCorrection(computeHptpCorrection(t1, t4, data.hptp, data.timestamp));
+        }
       }
     } catch {
       /* silently retry */
@@ -139,19 +211,53 @@ function LiveTimestamp() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="font-mono text-2xl tracking-tight text-foreground break-all leading-relaxed" data-testid="text-femtosecond-value">
-          {ts ? formatFemtoseconds(ts.femtoseconds) : "Loading..."}
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">
+            {correction ? "Current Server Time (HPTP-corrected)" : "Server Timestamp (uncorrected)"}
+          </div>
+          <div className="font-mono text-2xl tracking-tight text-foreground break-all leading-relaxed" data-testid="text-femtosecond-value">
+            {correction
+              ? formatFemtoseconds(correction.correctedFemtoseconds)
+              : ts
+                ? formatFemtoseconds(ts.femtoseconds)
+                : "Loading..."}
+          </div>
+          <div className="text-sm text-muted-foreground" data-testid="text-human-readable">
+            {correction ? correction.correctedTimestamp : ts?.humanReadable || ""}
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground" data-testid="text-human-readable">
-          {ts?.humanReadable || ""}
-        </div>
+
+        {correction && (
+          <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Shield className="w-3 h-3" />
+              HPTP Latency Correction (NTP-Symmetric Model)
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div className="text-muted-foreground">Round-trip network delay</div>
+              <div className="font-mono" data-testid="text-round-trip">{correction.roundTripMs}ms</div>
+              <div className="text-muted-foreground">One-way network delay</div>
+              <div className="font-mono" data-testid="text-network-delay">{correction.networkDelayMs}ms</div>
+              <div className="text-muted-foreground">Server processing time</div>
+              <div className="font-mono" data-testid="text-server-processing">{correction.serverProcessingUs}us</div>
+              <div className="text-muted-foreground">Clock offset estimate</div>
+              <div className="font-mono" data-testid="text-clock-offset">{correction.clockOffsetMs}ms</div>
+              <div className="text-muted-foreground">Time advancement applied</div>
+              <div className="font-mono" data-testid="text-correction-applied">+{correction.roundTripMs / 2}ms</div>
+            </div>
+            <div className="text-xs text-muted-foreground pt-1 border-t">
+              The server timestamp is generated at T2 (request receipt). The displayed time is the estimated current server time at the moment of display, computed by adding half the round-trip time to the generation timestamp. Uses {correction.protocol} four-timestamp model (T1/T2/T3/T4) assuming symmetric network paths.
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Precision</div>
             <div className="text-sm font-medium" data-testid="text-precision">{ts?.precision || "—"}</div>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">API Latency</div>
+            <div className="text-xs text-muted-foreground">Round-trip Latency</div>
             <div className="text-sm font-medium" data-testid="text-latency">{latency}ms</div>
           </div>
           <div className="space-y-1">

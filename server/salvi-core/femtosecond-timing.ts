@@ -164,3 +164,61 @@ export function generateTimestampBatch(count: number): FemtosecondTimestamp[] {
   }
   return timestamps;
 }
+
+/**
+ * HPTP Latency Correction — NTP-Symmetric Four-Timestamp Model
+ *
+ * Implements network latency compensation using the standard NTP algorithm:
+ *
+ *   T1 = client send time (ms since Unix epoch)
+ *   T2 = server receive time (ms since Unix epoch)
+ *   T3 = server send time (ms since Unix epoch)
+ *   T4 = client receive time (ms since Unix epoch)
+ *
+ * Network round-trip delay:  d = (T4 - T1) - (T3 - T2)
+ * One-way network delay:     delta = d / 2
+ * Clock offset estimate:     theta = ((T2 - T1) + (T3 - T4)) / 2
+ *
+ * The estimated current server time at moment of display is:
+ *   Tcurrent = Tserver + (T4-T1)/2 * 10^12  (converting ms to femtoseconds)
+ *
+ * The server timestamp represents the generation time (at T2). By adding
+ * half the round-trip time, we estimate what the server clock reads "now"
+ * at the moment the client displays the value.
+ *
+ * Limitations:
+ * - Assumes symmetric network paths (equal inbound/outbound latency)
+ * - Sub-millisecond precision depends on process.hrtime() entropy
+ * - Production deployments should use optical atomic clock sources
+ */
+export interface HptpCorrectionParams {
+  t1_client_send_ms: number;
+  t2_server_receive_ms: number;
+  t3_server_send_ms: number;
+  t4_client_receive_ms: number;
+  server_processing_us: number;
+}
+
+export interface HptpCorrectionResult {
+  roundTripDelayMs: number;
+  oneWayDelayMs: number;
+  clockOffsetMs: number;
+  correctionFemtoseconds: bigint;
+  protocol: string;
+}
+
+export function computeHptpCorrection(params: HptpCorrectionParams): HptpCorrectionResult {
+  const { t1_client_send_ms, t2_server_receive_ms, t3_server_send_ms, t4_client_receive_ms } = params;
+  const roundTrip = (t4_client_receive_ms - t1_client_send_ms) - (t3_server_send_ms - t2_server_receive_ms);
+  const oneWay = roundTrip / 2;
+  const clockOffset = ((t2_server_receive_ms - t1_client_send_ms) + (t3_server_send_ms - t4_client_receive_ms)) / 2;
+  const correctionFs = BigInt(Math.round(oneWay * 1e12));
+
+  return {
+    roundTripDelayMs: roundTrip,
+    oneWayDelayMs: oneWay,
+    clockOffsetMs: clockOffset,
+    correctionFemtoseconds: correctionFs,
+    protocol: 'HPTP/1.0',
+  };
+}
