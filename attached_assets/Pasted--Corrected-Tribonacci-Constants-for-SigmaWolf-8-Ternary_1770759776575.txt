@@ -1,0 +1,83 @@
+/**
+ * Corrected Tribonacci Constants for SigmaWolf-8/Ternary
+ * 
+ * Drop-in replacement/supplement for:
+ *   shared/tribonacci-constants.ts
+ * 
+ * Ensures full TAU precision and adds verification + derived constants.
+ */
+
+// Tribonacci constant - real root of x^3 = x^2 + x + 1
+// Full precision (50 digits): 1.83928675521416113255185256465328660042417874609759
+// OEIS A058265 — for Rust f128 / arbitrary precision, use the full value above
+// JS/TS IEEE 754 double is limited to ~17 significant digits
+export const TAU = 1.8392867552141612;
+
+// === TAU Verification ===
+// Confirms the defining identity: tau^3 = tau^2 + tau + 1
+
+export const verifyTau = (): { valid: boolean; lhs: number; rhs: number; error: number } => {
+  const lhs = TAU ** 3;               // 6.22199...
+  const rhs = TAU ** 2 + TAU + 1;     // 6.22199...
+  const error = Math.abs(lhs - rhs);
+  return {
+    valid: error < 1e-10,
+    lhs,
+    rhs,
+    error, // Expected: ~4.44e-16 (machine epsilon for IEEE 754 double)
+  };
+};
+
+// === TAU Powers ===
+// Pre-computed for use in derived constants
+
+export const TAU_POWERS = {
+  TAU_1: TAU,                 // 1.83928...
+  TAU_2: TAU ** 2,            // 3.38298...
+  TAU_3: TAU ** 3,            // 6.22199...
+  TAU_5: TAU ** 5,            // 21.0496...
+  TAU_7: TAU ** 7,            // 71.2078...
+  TAU_13: TAU ** 13,          // 8149.78...
+};
+
+// === Derived Constants ===
+// System parameters derived from TAU for mathematical consistency
+
+export const DERIVED_CONSTANTS = {
+  TAU_13: TAU_POWERS.TAU_13,
+  S_INST: 2 * TAU_POWERS.TAU_7,                     // ~142.4156...
+  DELTA_THETA_DEG: 9 / TAU_POWERS.TAU_5,            // ~0.4276... degrees
+};
+
+// === VM Constants ===
+// All derived from powers of 3 and TAU for ternary computing alignment
+
+export const VM_CONSTANTS = {
+  MAX_TRITS: 729,                                    // 3^6
+  WORD_SIZE: 27,                                     // 3^3
+  MAX_REGISTERS: 81,                                 // 3^4
+  HASH_SEED: Math.floor(TAU_POWERS.TAU_2 * 1e9),    // 3382985...
+  HASH_MIX: Math.floor(TAU_POWERS.TAU_7 * 1e6),     // 71207818...
+  MAX_ROUNDS: 13,                                    // Tribonacci-aligned
+  GC_THRESHOLD: 243,                                 // 3^5
+  INSTRUCTION_CACHE_SIZE: Math.floor(TAU_POWERS.TAU_5 * 4),  // 84
+  TRIT_BUFFER_SIZE: Math.floor(TAU_POWERS.TAU_7 * 2),        // 142
+};
+
+// === Tribonacci Sequence ===
+// First 20 values of the Tribonacci sequence: T(n) = T(n-1) + T(n-2) + T(n-3)
+// Starting values: T(0)=0, T(1)=0, T(2)=1
+
+export const TRIBONACCI_SEQUENCE = [
+  0, 0, 1, 1, 2, 4, 7, 13, 24, 44,
+  81, 149, 274, 504, 927, 1705, 3136, 5768, 10609, 19513,
+];
+
+// The ratio T(n+1)/T(n) converges to TAU as n grows
+export const TRIBONACCI_RATIO_CONVERGENCE = TRIBONACCI_SEQUENCE
+  .slice(3)
+  .map((val, i) => ({
+    n: i + 3,
+    ratio: val / TRIBONACCI_SEQUENCE[i + 2],
+    error: Math.abs(val / TRIBONACCI_SEQUENCE[i + 2] - TAU),
+  }));

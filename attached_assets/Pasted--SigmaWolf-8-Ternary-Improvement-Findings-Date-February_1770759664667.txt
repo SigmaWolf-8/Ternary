@@ -1,0 +1,202 @@
+# SigmaWolf-8/Ternary - Improvement Findings
+
+**Date:** February 10, 2026  
+**Reviewed by:** TTC Protocol Platform (Capomastro Holdings)  
+**Repo:** https://github.com/SigmaWolf-8/Ternary  
+**Live App:** https://PlenumNET.replit.app
+
+---
+
+## Critical: GF(3) Arithmetic Mapping Bug
+
+### Location
+`libternary/src/ternary-operations.ts`
+
+### The Problem
+The current code uses `a + 1` to map balanced ternary values {-1, 0, +1} into GF(3) for arithmetic operations. This is **incorrect for arithmetic** and produces wrong results.
+
+The repo's own `CONTRIBUTING.md` flags this as a known issue:
+> "Representation conversion (A to B) uses `a+1` which is correct for bijection, but GF(3) arithmetic must use `((a%3)+3)%3` for proper ring homomorphism"
+
+### Why It Matters
+With the broken `a + 1` mapping:
+- `-1 x -1` maps to `0 x 0 = 0`, which maps back to `-1` ... **WRONG**
+- The correct answer is `-1 x -1 = +1` (negative times negative equals positive)
+
+With the correct `((a%3)+3)%3` mapping:
+- `-1` maps to GF(3) value `2`
+- `2 x 2 = 4`, mod 3 = `1`
+- `1` maps back to `+1` ... **CORRECT**
+
+### The Fix
+Replace the arithmetic mapping from `a + 1` to `((a % 3) + 3) % 3`:
+
+```typescript
+// WRONG (current code) - simple offset, not a ring homomorphism
+const toGF3_broken = (a: TritA): number => a + 1;
+
+// CORRECT - proper ring homomorphism
+const toGF3 = (a: TritA): number => ((a % 3) + 3) % 3;
+```
+
+The reverse mapping:
+```typescript
+const fromGF3 = (g: number): TritA => {
+  const v = ((g % 3) + 3) % 3;
+  if (v === 0) return 0;
+  if (v === 1) return 1;
+  return -1; // v === 2
+};
+```
+
+### Important Distinction
+The `a + 1` formula is **correct** for representation conversion (A{-1,0,+1} to B{0,1,2}). It is only **wrong** when used for GF(3) field arithmetic. These are two different operations:
+
+| Operation | Formula | Purpose |
+|-----------|---------|---------|
+| Representation A to B | `a + 1` | Bijective mapping between trit encodings |
+| GF(3) arithmetic mapping | `((a%3)+3)%3` | Ring homomorphism for field operations |
+
+---
+
+## Recommended: Complete GF(3) Operation Set
+
+The repo should export a complete set of GF(3) operations using the corrected mapping:
+
+```typescript
+export const toGF3 = (a: TritA): number => ((a % 3) + 3) % 3;
+export const fromGF3 = (g: number): TritA => {
+  const v = ((g % 3) + 3) % 3;
+  if (v === 0) return 0;
+  if (v === 1) return 1;
+  return -1;
+};
+
+export const gf3Add = (a: TritA, b: TritA): TritA => {
+  return fromGF3((toGF3(a) + toGF3(b)) % 3);
+};
+
+export const gf3Multiply = (a: TritA, b: TritA): TritA => {
+  return fromGF3((toGF3(a) * toGF3(b)) % 3);
+};
+
+export const gf3Xor = (a: TritA, b: TritA): TritA => {
+  return fromGF3((toGF3(a) + toGF3(b)) % 3); // XOR = addition in GF(3)
+};
+
+export const gf3Not = (a: TritA): TritA => (-a) as TritA;
+
+export const gf3Rotate = (value: TritA, steps: number = 1): TritA => {
+  const gf3Val = toGF3(value);
+  const rotated = (gf3Val + ((steps % 3) + 3) % 3) % 3;
+  return fromGF3(rotated);
+};
+```
+
+---
+
+## Recommended: Pre-computed Truth Tables
+
+Add pre-computed GF(3) addition and multiplication tables as a single source of truth, so consumers don't need to recompute:
+
+### GF(3) Addition Table (correct)
+```
+     | -1 |  0 | +1
+-----+----+----+----
+  -1 | +1 | -1 |  0
+   0 | -1 |  0 | +1
+  +1 |  0 | +1 | -1
+```
+
+### GF(3) Multiplication Table (correct)
+```
+     | -1 |  0 | +1
+-----+----+----+----
+  -1 | +1 |  0 | -1
+   0 |  0 |  0 |  0
+  +1 | -1 |  0 | +1
+```
+
+Key verification: `-1 x -1 = +1` (not `-1` as the broken mapping produces).
+
+---
+
+## Recommended: TAU Constant Precision
+
+### Location
+`shared/tribonacci-constants.ts`
+
+### Finding
+Ensure the TAU constant has full precision and document the extended value for Rust:
+
+```typescript
+// Full precision (50 digits): 1.83928675521416113255185256465328660042417874609759
+// OEIS A058265 — for Rust f128 / arbitrary precision, use the full value above
+// JS/TS IEEE 754 double is limited to ~17 significant digits
+export const TAU = 1.8392867552141612;
+```
+
+For the Rust kernel, use:
+```rust
+// f64 (same as JS)
+const TAU: f64 = 1.8392867552141612;
+
+// f128 or arbitrary precision
+const TAU_FULL: &str = "1.83928675521416113255185256465328660042417874609759";
+```
+
+Add a verification function:
+```typescript
+export const verifyTau = () => {
+  const TAU = 1.8392867552141612;
+  const lhs = TAU ** 3;                    // tau cubed
+  const rhs = TAU ** 2 + TAU + 1;          // tau squared + tau + 1
+  const error = Math.abs(lhs - rhs);
+  return { valid: error < 1e-10, lhs, rhs, error };
+};
+// Result: error ≈ 4.44e-16 (machine epsilon)
+```
+
+This confirms the identity: **tau^3 = tau^2 + tau + 1**
+
+---
+
+## Suggested: Derived Constants from TAU
+
+All VM and system constants should be derived from TAU powers for mathematical consistency:
+
+```typescript
+// Full precision (50 digits): 1.83928675521416113255185256465328660042417874609759
+// OEIS A058265 — for Rust f128 / arbitrary precision, use the full value above
+const TAU = 1.8392867552141612; // JS/TS double-precision limit
+
+export const TAU_POWERS = {
+  TAU_2: TAU ** 2,    // 3.38298...
+  TAU_3: TAU ** 3,    // 6.22199...
+  TAU_5: TAU ** 5,    // 21.0496...
+  TAU_7: TAU ** 7,    // 71.2078...
+  TAU_13: TAU ** 13,  // 8149.78...
+};
+
+export const VM_CONSTANTS = {
+  MAX_TRITS: 729,                                    // 3^6
+  WORD_SIZE: 27,                                     // 3^3
+  MAX_REGISTERS: 81,                                 // 3^4
+  HASH_SEED: Math.floor(TAU_POWERS.TAU_2 * 1e9),    // 3382985...
+  HASH_MIX: Math.floor(TAU_POWERS.TAU_7 * 1e6),     // 71207818...
+  MAX_ROUNDS: 13,                                    // Tribonacci-aligned
+  GC_THRESHOLD: 243,                                 // 3^5
+};
+```
+
+---
+
+## Summary of Priorities
+
+| Priority | Issue | Impact |
+|----------|-------|--------|
+| **Critical** | GF(3) mapping uses `a+1` instead of `((a%3)+3)%3` | Wrong arithmetic results (e.g., -1 x -1 = -1 instead of +1) |
+| **High** | No exported GF(3) operation functions | Consumers must implement their own (risk of repeating the bug) |
+| **Medium** | No pre-computed truth tables | No easy way to verify correctness |
+| **Low** | TAU precision and verification | Minor but improves mathematical rigor |
+| **Low** | Derived constants from TAU | Architectural consistency |

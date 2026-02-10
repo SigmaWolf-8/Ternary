@@ -4,25 +4,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
   Box,
-  Layers,
-  Network,
-  Cpu,
-  Gauge,
-  Calendar,
-  Globe,
-  Terminal,
+  Home,
+  Database,
   FileText,
   BookOpen,
   ShieldCheck,
+  Globe,
+  Moon,
+  Radio,
+  Terminal,
   Github,
-  ExternalLink,
+  Network,
+  Shield,
   LogIn,
   LogOut,
   User,
-  Shield,
-  ChevronRight,
-  Radio,
-  Moon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,18 +31,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function AppSidebar() {
@@ -60,28 +48,11 @@ export function AppSidebar() {
     enabled: isAuthenticated,
   });
 
-  const isLanding = location === "/";
-  const [, navigate] = useLocation();
-
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
   }, [isMobile, setOpenMobile]);
-
-  const scrollToSection = useCallback((sectionId: string) => {
-    closeMobileSidebar();
-    if (isLanding) {
-      const el = document.getElementById(sectionId);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      navigate("/");
-      setTimeout(() => {
-        const el = document.getElementById(sectionId);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 300);
-    }
-  }, [isLanding, navigate, closeMobileSidebar]);
 
   return (
     <Sidebar collapsible="icon">
@@ -100,51 +71,45 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Explore</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <Collapsible defaultOpen={false} className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip="Platform" data-testid="button-sidebar-platform" className="text-xs">
-                      <Layers className="w-3.5 h-3.5" />
-                      <span>Platform</span>
-                      <ChevronRight className="ml-auto w-3.5 h-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton onClick={() => scrollToSection("architecture")} className="cursor-pointer text-xs" data-testid="link-sidebar-architecture">
-                          <Cpu className="w-3.5 h-3.5" />
-                          <span>Architecture</span>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton onClick={() => scrollToSection("components")} className="cursor-pointer text-xs" data-testid="link-sidebar-components">
-                          <Network className="w-3.5 h-3.5" />
-                          <span>Components</span>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton onClick={() => scrollToSection("performance")} className="cursor-pointer text-xs" data-testid="link-sidebar-performance">
-                          <Gauge className="w-3.5 h-3.5" />
-                          <span>Performance</span>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={location === "/calendar"} className="text-xs" data-testid="link-sidebar-calendar-sub">
-                          <Link href="/calendar" onClick={closeMobileSidebar}>
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Calendar</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/"} tooltip="Home" data-testid="link-sidebar-home" className="text-xs">
+                  <Link href="/" onClick={closeMobileSidebar}>
+                    <Home className="w-3.5 h-3.5" />
+                    <span>Home</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/ternarydb"} tooltip="PlenumDB" data-testid="link-sidebar-ternarydb" className="text-xs">
+                  <Link href="/ternarydb" onClick={closeMobileSidebar}>
+                    <Database className="w-3.5 h-3.5" />
+                    <span>PlenumDB</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/whitepaper"} tooltip="Whitepaper" data-testid="link-sidebar-whitepaper" className="text-xs">
+                  <Link href="/whitepaper" onClick={closeMobileSidebar}>
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Whitepaper</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Technology</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/calendar"} tooltip="Calendar API" data-testid="link-sidebar-calendar" className="text-xs">
                   <Link href="/calendar" onClick={closeMobileSidebar}>
@@ -164,7 +129,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/hptp"} tooltip="HPTP Timing API" data-testid="link-sidebar-hptp" className="text-xs">
+                <SidebarMenuButton asChild isActive={location === "/hptp"} tooltip="HPTP Timing" data-testid="link-sidebar-hptp" className="text-xs">
                   <Link href="/hptp" onClick={closeMobileSidebar}>
                     <Radio className="w-3.5 h-3.5" />
                     <span>HPTP Timing</span>
@@ -180,21 +145,21 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/whitepaper"} tooltip="Whitepaper" data-testid="link-sidebar-whitepaper" className="text-xs">
-                  <Link href="/whitepaper" onClick={closeMobileSidebar}>
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Whitepaper</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+        <SidebarSeparator />
 
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Resources</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/docs"} tooltip="Docs" data-testid="link-sidebar-docs" className="text-xs">
+                <SidebarMenuButton asChild isActive={location === "/docs"} tooltip="Documentation" data-testid="link-sidebar-docs" className="text-xs">
                   <Link href="/docs" onClick={closeMobileSidebar}>
                     <BookOpen className="w-3.5 h-3.5" />
-                    <span>Docs</span>
+                    <span>Documentation</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -207,55 +172,6 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/kong-konnect"} tooltip="Kong Konnect" data-testid="link-sidebar-kong-konnect" className="text-xs">
-                  <Link href="/kong-konnect" onClick={closeMobileSidebar}>
-                    <Network className="w-3.5 h-3.5" />
-                    <span>Kong Konnect</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <Collapsible defaultOpen={false} className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip="App Links" data-testid="button-sidebar-applinks" className="text-xs">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>App Links</span>
-                      <ChevronRight className="ml-auto w-3.5 h-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild className="text-xs" data-testid="link-sidebar-github">
-                          <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
-                            <Github className="w-3.5 h-3.5" />
-                            <span>GitHub</span>
-                          </a>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild className="text-xs" data-testid="link-sidebar-kong">
-                          <a href="https://cloud.konghq.com/us/gateway-manager" target="_blank" rel="noopener noreferrer">
-                            <Network className="w-3.5 h-3.5" />
-                            <span>Kong Konnect</span>
-                          </a>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

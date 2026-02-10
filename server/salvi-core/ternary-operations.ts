@@ -176,6 +176,59 @@ export function ternaryNot(value: TritA): OperationResult {
  * log₂(3) ≈ 1.585 bits per trit vs 1 bit per bit
  * Returns the efficiency gain percentage
  */
+export const toGF3Export = toGF3;
+export const fromGF3Export = fromGF3;
+
+export const gf3Add = (a: TritA, b: TritA): TritA => {
+  return fromGF3((toGF3(a) + toGF3(b)) % 3);
+};
+
+export const gf3Multiply = (a: TritA, b: TritA): TritA => {
+  return fromGF3((toGF3(a) * toGF3(b)) % 3);
+};
+
+// GF(3) XOR: In GF(3), XOR is addition mod 3. This differs from
+// the balanced-ternary XOR (ternaryXor) which uses a different truth table.
+// Use gf3Xor for field-algebraic operations; use ternaryXor for logic gates.
+export const gf3Xor = (a: TritA, b: TritA): TritA => {
+  return gf3Add(a, b);
+};
+
+export const gf3Not = (a: TritA): TritA => (-a) as TritA;
+
+export const gf3Rotate = (value: TritA, steps: number = 1): TritA => {
+  const gf3Val = toGF3(value);
+  const rotated = (gf3Val + ((steps % 3) + 3) % 3) % 3;
+  return fromGF3(rotated);
+};
+
+export const GF3_ADDITION_TABLE: TritA[][] = [
+  [gf3Add(-1, -1), gf3Add(-1, 0), gf3Add(-1, 1)],
+  [gf3Add(0, -1),  gf3Add(0, 0),  gf3Add(0, 1)],
+  [gf3Add(1, -1),  gf3Add(1, 0),  gf3Add(1, 1)],
+];
+
+export const GF3_MULTIPLICATION_TABLE: TritA[][] = [
+  [gf3Multiply(-1, -1), gf3Multiply(-1, 0), gf3Multiply(-1, 1)],
+  [gf3Multiply(0, -1),  gf3Multiply(0, 0),  gf3Multiply(0, 1)],
+  [gf3Multiply(1, -1),  gf3Multiply(1, 0),  gf3Multiply(1, 1)],
+];
+
+export const verifyGF3 = (): boolean => {
+  const test1 = gf3Multiply(-1, -1) === 1;
+  const test2 = gf3Multiply(-1, 1) === -1;
+  const test3 = gf3Multiply(0, 1) === 0;
+  const test4 = gf3Multiply(1, 1) === 1;
+  const test5 = gf3Multiply(-1, 0) === 0;
+  const test6 = gf3Multiply(1, 0) === 0;
+  const test7 = gf3Add(-1, 0) === -1;
+  const test8 = gf3Add(0, 0) === 0;
+  const test9 = gf3Add(1, 0) === 1;
+  const test10 = gf3Add(1, -1) === 0;
+  return test1 && test2 && test3 && test4 && test5 &&
+         test6 && test7 && test8 && test9 && test10;
+};
+
 export function calculateInformationDensity(tritCount: number): {
   trits: number;
   bitsEquivalent: number;
