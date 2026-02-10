@@ -1,0 +1,606 @@
+import { useState } from "react";
+
+const PHI = 1.6180339887;
+
+// ORIGINAL: 13 continuous 28-day moons from Apr 1 (as in the Salvi Epoch doc)
+const originalMoons = [
+  { num: 1, name: "Magnetic Moon", start: "Apr 1", end: "Apr 28", arc: "pre" },
+  { num: 2, name: "Lunar Moon", start: "Apr 29", end: "May 26", arc: "pre" },
+  { num: 3, name: "Electric Moon", start: "May 27", end: "Jun 23", arc: "pre" },
+  { num: 4, name: "Self-Existing Moon", start: "Jun 24", end: "Jul 21", arc: "pre" },
+  { num: 5, name: "Overtone Moon", start: "Jul 22", end: "Aug 18", arc: "pre" },
+  { num: 6, name: "Rhythmic Moon", start: "Aug 19", end: "Sep 15", arc: "pre" },
+  { num: 7, name: "Resonant Moon", start: "Sep 16", end: "Oct 13", arc: "pre" },
+  { num: 8, name: "Galactic Moon", start: "Oct 14", end: "Nov 10", arc: "pre" },
+  { num: "DOT", name: "Day Out of Time", start: "Nov 11", end: "Nov 11", arc: "phi", days: 1 },
+  { num: 9, name: "Solar Moon", start: "Nov 12", end: "Dec 9", arc: "post" },
+  { num: 10, name: "Planetary Moon", start: "Dec 10", end: "Jan 6", arc: "post" },
+  { num: 11, name: "Spectral Moon", start: "Jan 7", end: "Feb 3", arc: "post" },
+  { num: 12, name: "Crystal Moon", start: "Feb 4", end: "Mar 3", arc: "post" },
+  { num: 13, name: "Cosmic Moon", start: "Mar 4", end: "Mar 31", arc: "post" },
+];
+
+// ALTERNATE: 12 moons aligned 1st-28th + 1 intercalary Cosmic Moon at phi-point
+// 8 pre-phi x 28 = 224 + DOT(1) + Cosmic(28) + 4 post-phi x 28 = 112 = 365
+const alternateMoons = [
+  { num: 1, name: "Magnetic Moon", start: "Apr 1", end: "Apr 28", arc: "pre", days: 28 },
+  { num: 2, name: "Lunar Moon", start: "May 1", end: "May 28", arc: "pre", days: 28 },
+  { num: 3, name: "Electric Moon", start: "Jun 1", end: "Jun 28", arc: "pre", days: 28 },
+  { num: 4, name: "Self-Existing Moon", start: "Jul 1", end: "Jul 28", arc: "pre", days: 28 },
+  { num: 5, name: "Overtone Moon", start: "Aug 1", end: "Aug 28", arc: "pre", days: 28 },
+  { num: 6, name: "Rhythmic Moon", start: "Sep 1", end: "Sep 28", arc: "pre", days: 28 },
+  { num: 7, name: "Resonant Moon", start: "Oct 1", end: "Oct 28", arc: "pre", days: 28 },
+  { num: 8, name: "Galactic Moon", start: "Nov 1", end: "Nov 28", arc: "pre", days: 28 },
+  { num: "DOT", name: "Day Out of Time", start: "\u2014", end: "\u2014", arc: "phi", days: 1 },
+  { num: 13, name: "Cosmic Moon", start: "Intercalary", end: "28 Days", arc: "intercalary", days: 28, isIntercalary: true },
+  { num: 9, name: "Solar Moon", start: "Dec 1", end: "Dec 28", arc: "post", days: 28 },
+  { num: 10, name: "Planetary Moon", start: "Jan 1", end: "Jan 28", arc: "post", days: 28 },
+  { num: 11, name: "Spectral Moon", start: "Feb 1", end: "Feb 28", arc: "post", days: 28 },
+  { num: 12, name: "Crystal Moon", start: "Mar 1", end: "Mar 28", arc: "post", days: 28 },
+];
+
+const goldenAngle = 137.508;
+
+function SpiralDot({ index, total, radius }) {
+  const angle = index * goldenAngle * (Math.PI / 180);
+  const r = radius * Math.sqrt(index / total);
+  const x = 50 + r * Math.cos(angle);
+  const y = 50 + r * Math.sin(angle);
+  return <circle cx={x} cy={y} r={1.2} fill="#c9a84c" opacity={0.12 + (index / total) * 0.35} />;
+}
+
+function GoldenSpiral() {
+  return (
+    <svg viewBox="0 0 100 100" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0.06, pointerEvents: "none" }}>
+      {Array.from({ length: 200 }, (_, i) => (
+        <SpiralDot key={i} index={i} total={200} radius={48} />
+      ))}
+    </svg>
+  );
+}
+
+function MoonRow({ moon, side, index, isHovered, onHover, onLeave }) {
+  const isDot = moon.arc === "phi";
+  const isIntercalary = moon.isIntercalary;
+
+  const arcColors = {
+    pre: { main: "#c9a84c", dim: "rgba(201,168,76,0.5)" },
+    post: { main: "#7090b8", dim: "rgba(112,144,184,0.5)" },
+    phi: { main: "#c9a84c", dim: "#c9a84c" },
+    intercalary: { main: "#d4845a", dim: "rgba(212,132,90,0.5)" },
+  };
+  const colors = arcColors[moon.arc];
+
+  if (isDot) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+        background: "rgba(201,168,76,0.06)",
+        borderTop: "1px solid rgba(201,168,76,0.12)",
+        borderBottom: "1px solid rgba(201,168,76,0.12)",
+        animation: `fadeIn 0.5s ease-out ${0.04 * index}s both`
+      }}>
+        <div style={{
+          width: 8, height: 8, borderRadius: "50%", background: "#c9a84c",
+          animation: "dotPulse 3s ease-in-out infinite", flexShrink: 0
+        }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#c9a84c", letterSpacing: 0.5 }}>
+            Day Out of Time
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#8a7a5c", marginTop: 1 }}>
+            {side === "original" ? "Nov 11 \u00b7 Day 225 \u00b7 \u230a364/\u03c6\u230b" : "Day 225 \u00b7 \u03c6-fracture \u00b7 1 day"}
+          </div>
+        </div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#c9a84c",
+          letterSpacing: 1, padding: "2px 8px", border: "1px solid rgba(201,168,76,0.25)"
+        }}>
+          \u03c6 SPLIT
+        </div>
+      </div>
+    );
+  }
+
+  if (isIntercalary) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "12px 12px",
+        background: "rgba(212,132,90,0.05)",
+        borderTop: "1px solid rgba(212,132,90,0.12)",
+        borderBottom: "1px solid rgba(212,132,90,0.12)",
+        animation: `fadeIn 0.5s ease-out ${0.04 * index}s both`
+      }}>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+          color: "rgba(212,132,90,0.6)", width: 24, textAlign: "center", flexShrink: 0
+        }}>13</div>
+        <div style={{
+          width: 6, height: 6, borderRadius: "50%", background: "#d4845a", opacity: 0.7, flexShrink: 0
+        }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#d4845a", letterSpacing: 0.5 }}>
+            Cosmic Moon <span style={{ fontSize: 11, fontWeight: 400, fontStyle: "italic", color: "#a06840" }}>\u2014 Intercalary</span>
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#7a5a3c", marginTop: 1 }}>
+            28 epagomenal days \u00b7 collected from 29th\u201331st of months
+          </div>
+        </div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#d4845a", flexShrink: 0
+        }}>28d</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onMouseEnter={onHover} onMouseLeave={onLeave}
+      style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+        borderBottom: "1px solid rgba(201,168,76,0.04)",
+        transition: "background 0.3s",
+        background: isHovered ? "rgba(201,168,76,0.03)" : "transparent",
+        animation: `fadeIn 0.4s ease-out ${0.04 * index}s both`,
+        cursor: "default"
+      }}
+    >
+      <div style={{
+        fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+        color: colors.dim, width: 24, textAlign: "center", flexShrink: 0
+      }}>
+        {String(moon.num).padStart(2, "0")}
+      </div>
+      <div style={{
+        width: 6, height: 6, borderRadius: "50%", background: colors.main,
+        opacity: isHovered ? 1 : 0.35, transition: "opacity 0.3s", flexShrink: 0
+      }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 14, fontWeight: isHovered ? 600 : 400,
+          color: isHovered ? colors.main : "#e8e4dc",
+          transition: "all 0.3s", letterSpacing: 0.3
+        }}>
+          {moon.name}
+        </div>
+      </div>
+      <div style={{
+        fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
+        color: "#a09888", display: "flex", gap: 5, alignItems: "center", flexShrink: 0
+      }}>
+        <span>{moon.start}</span>
+        <span style={{ color: "#3a3428", fontSize: 9 }}>\u2192</span>
+        <span>{moon.end}</span>
+      </div>
+    </div>
+  );
+}
+
+export default function SalviCalendarComparison() {
+  const [hoveredMoon, setHoveredMoon] = useState(null);
+  const [activeView, setActiveView] = useState("comparison");
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0a0b0f", color: "#e8e4dc",
+      fontFamily: "'Cormorant Garamond', Georgia, serif",
+      position: "relative", overflow: "hidden"
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@300;400;500&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 15px rgba(201,168,76,0.04); }
+          50% { box-shadow: 0 0 30px rgba(201,168,76,0.1); }
+        }
+        @keyframes dotPulse {
+          0%, 100% { transform: scale(1); opacity: 0.7; }
+          50% { transform: scale(1.5); opacity: 1; }
+        }
+        .tab-btn {
+          background: none; border: 1px solid rgba(201,168,76,0.2); color: #8a8070;
+          padding: 7px 18px; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+          letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; transition: all 0.3s;
+        }
+        .tab-btn:hover { border-color: rgba(201,168,76,0.5); color: #c9a84c; }
+        .tab-btn.active { background: rgba(201,168,76,0.1); border-color: #c9a84c; color: #c9a84c; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0a0b0f; }
+        ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 3px; }
+      `}</style>
+
+      <GoldenSpiral />
+
+      <div style={{ maxWidth: 1150, margin: "0 auto", padding: "36px 20px", position: "relative" }}>
+
+        {/* Header */}
+        <header style={{ textAlign: "center", marginBottom: 40, animation: "fadeIn 0.7s ease-out" }}>
+          <div style={{
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 4,
+            color: "#4a4438", textTransform: "uppercase", marginBottom: 14
+          }}>
+            Capomastro Holdings Ltd. \u00b7 Applied Physics Division
+          </div>
+          <h1 style={{
+            fontSize: "clamp(26px, 4.5vw, 44px)", fontWeight: 300, letterSpacing: 2,
+            color: "#e8e4dc", lineHeight: 1.2, marginBottom: 6
+          }}>
+            The 13-Moon <span style={{ color: "#c9a84c", fontWeight: 500 }}>Harmonic</span> Calendar
+          </h1>
+          <div style={{ fontSize: 15, fontStyle: "italic", color: "#8a8070", marginBottom: 20 }}>
+            Salvi Epoch \u00b7 April 1, 2025 \u00b7 Year 1 \u2014 8/5 Fibonacci Split at{" "}
+            <span style={{ color: "#c9a84c", fontWeight: 600, fontStyle: "italic" }}>\u03c6</span>
+          </div>
+          <div style={{
+            width: 50, height: 1, margin: "0 auto 20px",
+            background: "linear-gradient(to right, transparent, #c9a84c, transparent)"
+          }} />
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+            {[
+              { key: "comparison", label: "Side-by-Side" },
+              { key: "structure", label: "Day Count" },
+              { key: "info", label: "Architecture" }
+            ].map(tab => (
+              <button key={tab.key} className={`tab-btn ${activeView === tab.key ? "active" : ""}`}
+                onClick={() => setActiveView(tab.key)}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        {/* Stats */}
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: 12, marginBottom: 36, animation: "fadeIn 0.8s ease-out 0.15s both"
+        }}>
+          {[
+            { label: "Total Days", value: "365", sub: "13 \u00d7 28 + 1 DOT" },
+            { label: "Pre-\u03c6 Arc", value: "8 Moons", sub: "224 days" },
+            { label: "DOT", value: "Day 225", sub: "\u230a364/\u03c6\u230b" },
+            { label: "Intercalary", value: "28 Days", sub: "Cosmic Moon (13th)" },
+            { label: "Post-\u03c6 Arc", value: "5 Moons", sub: "140 days" },
+          ].map((stat, i) => (
+            <div key={i} style={{
+              background: "rgba(201,168,76,0.03)", border: "1px solid rgba(201,168,76,0.08)",
+              padding: "14px 10px", textAlign: "center",
+              animation: `glowPulse ${3 + i * 0.4}s ease-in-out infinite`
+            }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 2, color: "#4a4438", textTransform: "uppercase", marginBottom: 5 }}>
+                {stat.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 600, color: "#c9a84c", lineHeight: 1 }}>
+                {stat.value}
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#5a5244", marginTop: 3 }}>
+                {stat.sub}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* COMPARISON VIEW */}
+        {activeView === "comparison" && (
+          <div style={{ animation: "fadeIn 0.5s ease-out" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+
+              {/* Original Column */}
+              <div>
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2,
+                  color: "#5a5244", textTransform: "uppercase", padding: "10px 12px",
+                  borderBottom: "1px solid rgba(201,168,76,0.15)", marginBottom: 2
+                }}>
+                  Original \u2014 Continuous Count
+                  <div style={{ fontSize: 8, color: "#3a3428", marginTop: 3, letterSpacing: 1 }}>
+                    13 \u00d7 28 + 1 DOT = 365 \u00b7 Apr 1 \u2192 Mar 31
+                  </div>
+                </div>
+                {originalMoons.map((moon, i) => (
+                  <MoonRow key={`orig-${i}`} moon={moon} side="original" index={i}
+                    isHovered={hoveredMoon === `orig-${moon.num}`}
+                    onHover={() => setHoveredMoon(`orig-${moon.num}`)}
+                    onLeave={() => setHoveredMoon(null)} />
+                ))}
+              </div>
+
+              {/* Alternate Column */}
+              <div>
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 2,
+                  color: "#5a5244", textTransform: "uppercase", padding: "10px 12px",
+                  borderBottom: "1px solid rgba(201,168,76,0.15)", marginBottom: 2
+                }}>
+                  Alternate \u2014 1st-Aligned + Intercalary
+                  <div style={{ fontSize: 8, color: "#3a3428", marginTop: 3, letterSpacing: 1 }}>
+                    8 \u00d7 28 + DOT + Cosmic(28) + 4 \u00d7 28 = 365 \u00b7 8/5 \u03c6-split
+                  </div>
+                </div>
+                {alternateMoons.map((moon, i) => (
+                  <MoonRow key={`alt-${i}`} moon={moon} side="alternate" index={i}
+                    isHovered={hoveredMoon === `alt-${moon.num}`}
+                    onHover={() => setHoveredMoon(`alt-${moon.num}`)}
+                    onLeave={() => setHoveredMoon(null)} />
+                ))}
+              </div>
+            </div>
+
+            {/* Epagomenal Breakdown */}
+            <div style={{
+              marginTop: 20, padding: "16px", background: "rgba(212,132,90,0.04)",
+              border: "1px solid rgba(212,132,90,0.1)", animation: "fadeIn 0.6s ease-out 0.3s both"
+            }}>
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5,
+                color: "#d4845a", textTransform: "uppercase", marginBottom: 10
+              }}>
+                \u25c6 Cosmic Moon \u2014 Epagomenal / Intercalary Composition
+              </div>
+              <div style={{
+                display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                gap: 6, marginBottom: 12
+              }}>
+                {[
+                  { month: "Apr", days: "29\u201330", count: 2 },
+                  { month: "May", days: "29\u201331", count: 3 },
+                  { month: "Jun", days: "29\u201330", count: 2 },
+                  { month: "Jul", days: "29\u201331", count: 3 },
+                  { month: "Aug", days: "29\u201331", count: 3 },
+                  { month: "Sep", days: "29\u201330", count: 2 },
+                  { month: "Oct", days: "29\u201331", count: 3 },
+                  { month: "Nov", days: "29\u201330", count: 2 },
+                  { month: "Dec", days: "29\u201331", count: 3 },
+                  { month: "Jan", days: "29\u201331", count: 3 },
+                  { month: "Mar", days: "29\u201331", count: 3 },
+                ].map((g, i) => (
+                  <div key={i} style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#8a6840",
+                    padding: "4px 8px", background: "rgba(212,132,90,0.04)",
+                    border: "1px solid rgba(212,132,90,0.08)", display: "flex", justifyContent: "space-between"
+                  }}>
+                    <span>{g.month} {g.days}</span>
+                    <span style={{ color: "#6a5030" }}>{g.count}d</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6a5a3c",
+                lineHeight: 1.8, borderTop: "1px solid rgba(212,132,90,0.08)", paddingTop: 10
+              }}>
+                <span style={{ color: "#d4845a" }}>TOTAL:</span> 2+3+2+3+3+2+3+2+3+3+3 ={" "}
+                <span style={{ color: "#d4845a", fontWeight: 600 }}>29 days</span> \u2192{" "}
+                28 (Cosmic Moon) + 1 (DOT) ={" "}
+                <span style={{ color: "#c9a84c", fontWeight: 600 }}>365</span>
+                <br />
+                <span style={{ color: "#d4845a" }}>FEB:</span> Exactly 28 days \u2014 zero epagomenal remainder. In leap years, Feb 29 = Hunab Ku day.
+                <br />
+                <span style={{ color: "#d4845a" }}>PLACEMENT:</span> Intercalary month sits at the \u03c6-fracture \u2014 mirroring Egyptian epagomenal days,
+                Roman Mercedonius, and Celtic intercalary periods near the winter solstice boundary.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STRUCTURE VIEW */}
+        {activeView === "structure" && (
+          <div style={{ animation: "fadeIn 0.5s ease-out" }}>
+            <div style={{ marginBottom: 20, textAlign: "center", fontSize: 14, color: "#8a8070", fontStyle: "italic" }}>
+              Day-by-day accumulation \u2014 how the two systems map across 365 days
+            </div>
+
+            {/* Timeline bar */}
+            <div style={{ position: "relative", marginBottom: 60 }}>
+              <div style={{ height: 44, display: "flex", border: "1px solid rgba(201,168,76,0.1)" }}>
+                <div style={{
+                  width: `${(224/365)*100}%`,
+                  background: "linear-gradient(135deg, rgba(201,168,76,0.12), rgba(201,168,76,0.05))",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#c9a84c", letterSpacing: 1
+                }}>8 MOONS \u00b7 224d</div>
+                <div style={{ width: `${(1/365)*100}%`, minWidth: 3, background: "#c9a84c", position: "relative" }}>
+                  <div style={{
+                    position: "absolute", top: -22, left: "50%", transform: "translateX(-50%)",
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: "#c9a84c", whiteSpace: "nowrap"
+                  }}>DOT</div>
+                </div>
+                <div style={{
+                  width: `${(28/365)*100}%`,
+                  background: "linear-gradient(135deg, rgba(212,132,90,0.15), rgba(212,132,90,0.06))",
+                  borderLeft: "1px solid rgba(212,132,90,0.3)", borderRight: "1px solid rgba(212,132,90,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: "#d4845a", letterSpacing: 1
+                }}>COSMIC \u00b7 28d</div>
+                <div style={{
+                  flex: 1,
+                  background: "linear-gradient(135deg, rgba(112,144,184,0.1), rgba(112,144,184,0.03))",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#7090b8", letterSpacing: 1
+                }}>4 MOONS \u00b7 112d (+ Cosmic = 5)</div>
+              </div>
+              {[
+                { label: "Day 1", left: 0 },
+                { label: "224", left: (223/365)*100 },
+                { label: "225", left: (224.5/365)*100 },
+                { label: "253", left: (253/365)*100 },
+                { label: "365", left: 97 },
+              ].map((m, i) => (
+                <div key={i} style={{
+                  position: "absolute", left: `${m.left}%`, top: 52,
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: "#4a4438"
+                }}>
+                  <div style={{ width: 1, height: 5, background: "rgba(201,168,76,0.15)", marginBottom: 2 }} />
+                  {m.label}
+                </div>
+              ))}
+            </div>
+
+            {/* Comparison table */}
+            <div style={{ marginTop: 30 }}>
+              <div style={{
+                display: "grid", gridTemplateColumns: "100px 1fr 1fr",
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1.5,
+                color: "#4a4438", textTransform: "uppercase", padding: "8px 12px",
+                borderBottom: "1px solid rgba(201,168,76,0.15)"
+              }}>
+                <div>Salvi Days</div>
+                <div>Original (Continuous)</div>
+                <div>Alternate (1st-Aligned)</div>
+              </div>
+              {[
+                { range: "1\u2013224", orig: "Moons 1\u20138 (Apr 1 \u2192 Nov 10)", alt: "Moons 1\u20138 (Apr 1\u201328 \u2192 Nov 1\u201328)", hl: "" },
+                { range: "225", orig: "DOT \u2014 Nov 11", alt: "DOT \u2014 \u03c6-fracture", hl: "phi" },
+                { range: "226\u2013253", orig: "Moon 9 partial + Moon 10 start", alt: "Cosmic Moon (Intercalary, 28d)", hl: "intercalary" },
+                { range: "254\u2013365", orig: "Moons 10\u201313 \u2192 Mar 31", alt: "Moons 9\u201312 (Dec 1\u201328 \u2192 Mar 1\u201328)", hl: "" },
+              ].map((row, i) => (
+                <div key={i} style={{
+                  display: "grid", gridTemplateColumns: "100px 1fr 1fr",
+                  padding: "10px 12px", borderBottom: "1px solid rgba(201,168,76,0.04)",
+                  background: row.hl === "phi" ? "rgba(201,168,76,0.04)"
+                    : row.hl === "intercalary" ? "rgba(212,132,90,0.04)" : "transparent",
+                  animation: `fadeIn 0.4s ease-out ${i * 0.08}s both`
+                }}>
+                  <div style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 600,
+                    color: row.hl === "phi" ? "#c9a84c" : row.hl === "intercalary" ? "#d4845a" : "#6a6050"
+                  }}>{row.range}</div>
+                  <div style={{ fontSize: 13, color: "#a09888" }}>{row.orig}</div>
+                  <div style={{
+                    fontSize: 13, fontWeight: row.hl ? 500 : 400,
+                    color: row.hl === "phi" ? "#c9a84c" : row.hl === "intercalary" ? "#d4845a" : "#c9a84c"
+                  }}>{row.alt}</div>
+                </div>
+              ))}
+              <div style={{
+                display: "grid", gridTemplateColumns: "100px 1fr 1fr",
+                padding: "12px 12px", borderTop: "1px solid rgba(201,168,76,0.12)",
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600
+              }}>
+                <div style={{ color: "#c9a84c" }}>365</div>
+                <div style={{ color: "#8a8070" }}>224 + 1 + 140 = 365</div>
+                <div style={{ color: "#c9a84c" }}>224 + 1 + 28 + 112 = 365 (8+[1+1]+4)</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INFO VIEW */}
+        {activeView === "info" && (
+          <div style={{ animation: "fadeIn 0.5s ease-out", maxWidth: 680, margin: "0 auto" }}>
+            <div style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 400, color: "#c9a84c", marginBottom: 10, letterSpacing: 1 }}>
+                Structural Difference
+              </h2>
+              <p style={{ fontSize: 14, lineHeight: 1.8, color: "#a09888", marginBottom: 12 }}>
+                The <span style={{ color: "#c9a84c" }}>Original</span> runs 13 continuous 28-day moons with no relation to Gregorian month boundaries. The DOT falls on November 11, splitting 8 pre-\u03c6 from 5 post-\u03c6 moons.
+              </p>
+              <p style={{ fontSize: 14, lineHeight: 1.8, color: "#a09888", marginBottom: 12 }}>
+                The <span style={{ color: "#c9a84c" }}>Alternate</span> aligns 12 moons to the 1st\u201328th of each Gregorian month (April through March), then gathers the 29 remaining epagomenal days (the 29th, 30th, 31st of each month) into a{" "}
+                <span style={{ color: "#d4845a" }}>13th intercalary Cosmic Moon</span> of 28 days + 1 DOT, placed at the \u03c6-fracture between the pre-\u03c6 and post-\u03c6 arcs.
+              </p>
+              <p style={{ fontSize: 14, lineHeight: 1.8, color: "#a09888" }}>
+                This mirrors ancient traditions: Egypt\u2019s 5 epagomenal days appended to their 12\u00d730 calendar, Rome\u2019s Mercedonius intercalary month, and Celtic/Norse intercalary periods near the winter solstice.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 400, color: "#c9a84c", marginBottom: 14, letterSpacing: 1 }}>
+                24 Calendar Systems at Epoch Zero
+              </h2>
+              <div style={{ fontSize: 12, color: "#6a6050", fontStyle: "italic", marginBottom: 14 }}>
+                Feb 10, 2026 equivalents across world calendar traditions
+              </div>
+              {[
+                { sys: "Gregorian", val: "February 10, 2026", epoch: "—", region: "Global" },
+                { sys: "Julian Day Number", val: "JD 2,461,081.5 | MJD 61,081.0", epoch: "Jan 1, 4713 BCE", region: "Astronomical" },
+                { sys: "Mayan Long Count", val: "13.0.13.5.19", epoch: "Aug 11, 3114 BCE (GMT)", region: "Mesoamerica" },
+                { sys: "Aztec Tonalpohualli", val: "3 Xochitl | Tititl Day 15", epoch: "Aug 11, 3114 BCE (GMT)", region: "Mesoamerica" },
+                { sys: "Hebrew Calendar", val: "10 Shevat 5786 AM", epoch: "Oct 7, 3761 BCE", region: "Middle East" },
+                { sys: "Chinese Sexagenary", val: "Bing-Wu (Horse/Fire) Yr 42, Cycle 78", epoch: "~2637 BCE", region: "East Asia" },
+                { sys: "Vedic Kali Yuga", val: "Year 5,127 of 432,000 (1.19%)", epoch: "Feb 17, 3102 BCE", region: "South Asia" },
+                { sys: "Egyptian Civil", val: "Yr 4806, Akhet, Month 2, Day 11", epoch: "~2781 BCE (Sothic)", region: "North Africa" },
+                { sys: "Islamic Hijri", val: "22 Shaban 1447 AH", epoch: "Jul 16, 622 CE", region: "Islamic World" },
+                { sys: "Persian / Solar Hijri", val: "21 Bahman 1404 SH", epoch: "Mar 22, 622 CE", region: "Iran / Central Asia" },
+                { sys: "Byzantine Anno Mundi", val: "AM 7,535, Indiction 5", epoch: "Sep 1, 5509 BCE", region: "Eastern Europe" },
+                { sys: "Ethiopian / Ge\u2019ez", val: "3 Yekatit 2018", epoch: "Aug 29, 8 CE", region: "East Africa" },
+                { sys: "Coptic (Era of Martyrs)", val: "3 Meshir 1742 AM", epoch: "Aug 29, 284 CE", region: "Egypt / Coptic" },
+                { sys: "Indian National / Saka", val: "21 Magha 1947 SE", epoch: "Mar 22, 78 CE", region: "India" },
+                { sys: "Japanese Imperial (Koki)", val: "K\u014dki 2686 / Reiwa 8", epoch: "Feb 11, 660 BCE", region: "Japan" },
+                { sys: "Korean Dangun Era", val: "Dangun 4,359", epoch: "Oct 3, 2333 BCE", region: "Korea" },
+                { sys: "Thai Buddhist Era", val: "BE 2569", epoch: "543 BCE", region: "Southeast Asia" },
+                { sys: "Tibetan Rabjung Cycle", val: "Earth Rabbit Yr 40, Rabjung 17", epoch: "1027 CE", region: "Tibet / Mongolia" },
+                { sys: "Roman Ab Urbe Condita", val: "2779 AUC", epoch: "Apr 21, 753 BCE", region: "Mediterranean" },
+                { sys: "Bengali / Bangla", val: "27 Magh 1432", epoch: "Apr 14, 594 CE", region: "Bengal" },
+                { sys: "Berber / Amazigh", val: "Yennayer 2,976", epoch: "~950 BCE", region: "North Africa" },
+                { sys: "Balinese Pawukon", val: "Wuku Matal (Wk 21), Day 4, 144/210", epoch: "210-day cycle", region: "Indonesia" },
+                { sys: "Zoroastrian Fasli", val: "27 Bahman 1394 YZ", epoch: "632 CE", region: "Persia" },
+                { sys: "Aboriginal Dharawal", val: "Burran \u2014 Hot\u2192Cool, fig fruiting", epoch: "Continuous ecological", region: "Australia" },
+                { sys: "13-Moon Natural Time", val: "Crystal Moon, Day 7 (Silio), Cycle 30,025", epoch: "~28,000 BCE (Abri Blanchard)", region: "Prehistoric" },
+                { sys: "13-Moon (Salvi)", val: "Crystal Moon, Day 7, Year 1", epoch: "Apr 1, 2025", region: "Salvi Framework", highlight: true },
+              ].map((cal, i) => (
+                <div key={i} style={{
+                  display: "grid", gridTemplateColumns: "1fr 1fr 100px", padding: "8px 14px",
+                  background: cal.highlight ? "rgba(201,168,76,0.06)"
+                    : i % 2 === 0 ? "rgba(201,168,76,0.015)" : "transparent",
+                  borderBottom: cal.highlight ? "1px solid rgba(201,168,76,0.15)" : "none",
+                  borderTop: cal.highlight ? "1px solid rgba(201,168,76,0.15)" : "none",
+                  animation: `fadeIn 0.3s ease-out ${i * 0.025}s both`
+                }}>
+                  <div>
+                    <div style={{
+                      fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                      color: cal.highlight ? "#c9a84c" : "#6a6050"
+                    }}>{cal.sys}</div>
+                    {cal.epoch !== "\u2014" && (
+                      <div style={{
+                        fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                        color: "#3a3428", marginTop: 1
+                      }}>Epoch: {cal.epoch}</div>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: cal.highlight ? "#c9a84c" : "#a09888",
+                    fontWeight: cal.highlight ? 600 : 400,
+                    display: "flex", alignItems: "center"
+                  }}>{cal.val}</div>
+                  <div style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                    color: "#4a4438", display: "flex", alignItems: "center", justifyContent: "flex-end"
+                  }}>{cal.region}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: 16, border: "1px solid rgba(201,168,76,0.08)", background: "rgba(201,168,76,0.02)" }}>
+              <h3 style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "#c9a84c", letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>
+                Femtosecond Precision Layer
+              </h3>
+              <p style={{ fontSize: 13, lineHeight: 1.7, color: "#7a7060" }}>
+                All time stored as 128-bit integers counting femtoseconds (10\u207b\u00b9\u2075s) since epoch via BigInt. HPTP provides optical-lattice accuracy at ~10\u207b\u00b9\u2078, ensuring zero floating-point accumulation across conversions.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <footer style={{
+          marginTop: 44, padding: "20px 0", borderTop: "1px solid rgba(201,168,76,0.06)",
+          textAlign: "center", animation: "fadeIn 0.8s ease-out 0.5s both"
+        }}>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, letterSpacing: 3, color: "#3a3428", textTransform: "uppercase", marginBottom: 6 }}>
+            Salvi Framework \u00b7 Capomastro Holdings Ltd.
+          </div>
+          <div style={{ fontSize: 13, fontStyle: "italic", color: "#4a4438" }}>
+            \u201cTime is not a line. It is a torus.\u201d
+          </div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: "#2a2820", marginTop: 6 }}>
+            Cos\u00ec sia.
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}

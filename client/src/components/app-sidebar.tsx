@@ -22,6 +22,7 @@ import {
   Shield,
   ChevronRight,
   Radio,
+  Moon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -149,6 +150,15 @@ export function AppSidebar() {
                   <Link href="/calendar" onClick={closeMobileSidebar}>
                     <Globe className="w-3.5 h-3.5" />
                     <span>Calendar API</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/13-moon"} tooltip="13-Moon Calendar" data-testid="link-sidebar-13-moon" className="text-xs">
+                  <Link href="/13-moon" onClick={closeMobileSidebar}>
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>13-Moon</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
