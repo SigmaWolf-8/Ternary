@@ -8,8 +8,9 @@ import {
   type CompressionHistory, type InsertCompressionHistory,
   type Whitepaper, type InsertWhitepaper,
   type DeveloperSignup, type InsertDeveloperSignup,
+  type CompressedDocument, type InsertCompressedDocument,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
-  fileUploads, compressionHistory, whitepapers, developerSignups
+  fileUploads, compressionHistory, whitepapers, developerSignups, compressedDocuments
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -52,6 +53,11 @@ export interface IStorage {
   getDeveloperSignupCount(): Promise<number>;
   getAllDeveloperSignups(): Promise<DeveloperSignup[]>;
   deleteDeveloperSignup(id: number): Promise<void>;
+
+  createCompressedDocument(data: InsertCompressedDocument): Promise<CompressedDocument>;
+  getCompressedDocument(id: number): Promise<CompressedDocument | undefined>;
+  getAllCompressedDocuments(): Promise<CompressedDocument[]>;
+  deleteCompressedDocument(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -189,6 +195,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDeveloperSignup(id: number): Promise<void> {
     await db.delete(developerSignups).where(eq(developerSignups.id, id));
+  }
+
+  async createCompressedDocument(data: InsertCompressedDocument): Promise<CompressedDocument> {
+    const [result] = await db.insert(compressedDocuments).values(data).returning();
+    return result;
+  }
+
+  async getCompressedDocument(id: number): Promise<CompressedDocument | undefined> {
+    const [doc] = await db.select().from(compressedDocuments).where(eq(compressedDocuments.id, id));
+    return doc;
+  }
+
+  async getAllCompressedDocuments(): Promise<CompressedDocument[]> {
+    return await db.select().from(compressedDocuments).orderBy(desc(compressedDocuments.createdAt));
+  }
+
+  async deleteCompressedDocument(id: number): Promise<void> {
+    await db.delete(compressedDocuments).where(eq(compressedDocuments.id, id));
   }
 }
 

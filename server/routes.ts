@@ -409,6 +409,273 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // STANDALONE FILE COMPRESSION API
+  // ==========================================
+  
+  app.post("/api/compression/file", async (req, res) => {
+    try {
+      const schema = z.object({
+        fileName: z.string().min(1),
+        content: z.string().min(1),
+        encrypt: z.boolean().optional().default(false),
+        encryptionMode: z.enum(["high_security", "balanced", "performance", "adaptive"]).optional().default("balanced"),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      
+      const { fileName, content, encrypt, encryptionMode } = parsed.data;
+      const { createTernFile } = await import("./compression-layer");
+      
+      const inputBuffer = Buffer.from(content, 'base64');
+      const startTime = performance.now();
+      
+      const { ternFile, header } = createTernFile(inputBuffer, fileName, {
+        encrypt,
+        encryptionMode: encrypt ? encryptionMode : undefined,
+      });
+      
+      const processingTimeMs = performance.now() - startTime;
+      
+      res.json({
+        success: true,
+        fileName: fileName.replace(/\.[^.]+$/, '') + '.tern',
+        originalSize: header.originalSize,
+        compressedSize: ternFile.length,
+        compressionRatio: header.compressionRatio.toFixed(1),
+        encrypted: header.encrypted,
+        encryptionMode: header.encryptionMode,
+        processingTimeMs: processingTimeMs.toFixed(2),
+        data: ternFile.toString('base64'),
+        header,
+      });
+    } catch (error: any) {
+      console.error("File compression error:", error);
+      res.status(500).json({ error: "Compression failed", details: error.message });
+    }
+  });
+
+  app.post("/api/compression/decompress", async (req, res) => {
+    try {
+      const schema = z.object({
+        content: z.string().min(1),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      
+      const { parseTernFile } = await import("./compression-layer");
+      const ternBuffer = Buffer.from(parsed.data.content, 'base64');
+      const startTime = performance.now();
+      
+      const { header, originalData } = parseTernFile(ternBuffer);
+      const processingTimeMs = performance.now() - startTime;
+      
+      res.json({
+        success: true,
+        originalFileName: header.originalFileName,
+        originalSize: header.originalSize,
+        compressedSize: header.compressedSize,
+        wasEncrypted: header.encrypted,
+        encryptionMode: header.encryptionMode,
+        processingTimeMs: processingTimeMs.toFixed(2),
+        data: originalData.toString('base64'),
+        header,
+      });
+    } catch (error: any) {
+      console.error("File decompression error:", error);
+      res.status(500).json({ error: "Decompression failed", details: error.message });
+    }
+  });
+
+  // ==========================================
+  // TRANSPARENT DATABASE COMPRESSION API
+  // ==========================================
+
+  app.post("/api/compression/db/store", async (req, res) => {
+    try {
+      const schema = z.object({
+        title: z.string().min(1),
+        content: z.string().min(1),
+        compress: z.boolean().optional().default(true),
+        encrypt: z.boolean().optional().default(false),
+        encryptionMode: z.enum(["high_security", "balanced", "performance", "adaptive"]).optional().default("balanced"),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      
+      const { title, content, compress, encrypt, encryptionMode } = parsed.data;
+      const { compressForStorage, getCompressionMetadata } = await import("./compression-layer");
+      
+      const originalSize = Buffer.from(content, 'utf-8').length;
+      let storedContent: string;
+      let storedSize: number;
+      let ratio: number | null = null;
+      
+      if (compress) {
+        storedContent = compressForStorage(content, {
+          enabled: true,
+          encrypt,
+          encryptionMode,
+        });
+        storedSize = Buffer.from(storedContent, 'utf-8').length;
+        ratio = ((originalSize - storedSize) / originalSize) * 100;
+      } else {
+        storedContent = content;
+        storedSize = originalSize;
+      }
+      
+      const doc = await storage.createCompressedDocument({
+        title,
+        content: storedContent,
+        isCompressed: compress ? 1 : 0,
+        isEncrypted: encrypt ? 1 : 0,
+        encryptionMode: encrypt ? encryptionMode : null,
+        originalSizeBytes: originalSize,
+        storedSizeBytes: storedSize,
+        compressionRatio: ratio,
+      });
+      
+      res.json({
+        success: true,
+        document: {
+          id: doc.id,
+          title: doc.title,
+          isCompressed: !!doc.isCompressed,
+          isEncrypted: !!doc.isEncrypted,
+          encryptionMode: doc.encryptionMode,
+          originalSizeBytes: doc.originalSizeBytes,
+          storedSizeBytes: doc.storedSizeBytes,
+          compressionRatio: doc.compressionRatio,
+          createdAt: doc.createdAt,
+        },
+      });
+    } catch (error: any) {
+      console.error("DB compression store error:", error);
+      res.status(500).json({ error: "Failed to store document", details: error.message });
+    }
+  });
+
+  app.get("/api/compression/db/retrieve/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid document ID" });
+      }
+      
+      const doc = await storage.getCompressedDocument(id);
+      if (!doc) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      const { decompressFromStorage, getCompressionMetadata } = await import("./compression-layer");
+      
+      let decompressedContent: string;
+      if (doc.isCompressed) {
+        decompressedContent = decompressFromStorage(doc.content);
+      } else {
+        decompressedContent = doc.content;
+      }
+      
+      const metadata = doc.isCompressed ? getCompressionMetadata(doc.content) : null;
+      
+      res.json({
+        success: true,
+        document: {
+          id: doc.id,
+          title: doc.title,
+          content: decompressedContent,
+          isCompressed: !!doc.isCompressed,
+          isEncrypted: !!doc.isEncrypted,
+          encryptionMode: doc.encryptionMode,
+          originalSizeBytes: doc.originalSizeBytes,
+          storedSizeBytes: doc.storedSizeBytes,
+          compressionRatio: doc.compressionRatio,
+          createdAt: doc.createdAt,
+        },
+        storageMetadata: metadata,
+      });
+    } catch (error: any) {
+      console.error("DB compression retrieve error:", error);
+      res.status(500).json({ error: "Failed to retrieve document", details: error.message });
+    }
+  });
+
+  app.get("/api/compression/db/documents", async (req, res) => {
+    try {
+      const docs = await storage.getAllCompressedDocuments();
+      
+      res.json({
+        success: true,
+        documents: docs.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          isCompressed: !!doc.isCompressed,
+          isEncrypted: !!doc.isEncrypted,
+          encryptionMode: doc.encryptionMode,
+          originalSizeBytes: doc.originalSizeBytes,
+          storedSizeBytes: doc.storedSizeBytes,
+          compressionRatio: doc.compressionRatio,
+          createdAt: doc.createdAt,
+        })),
+      });
+    } catch (error: any) {
+      console.error("DB documents list error:", error);
+      res.status(500).json({ error: "Failed to list documents" });
+    }
+  });
+
+  app.get("/api/compression/db/raw/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid document ID" });
+      }
+      
+      const doc = await storage.getCompressedDocument(id);
+      if (!doc) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      res.json({
+        success: true,
+        raw: {
+          id: doc.id,
+          title: doc.title,
+          storedContent: doc.content.substring(0, 500) + (doc.content.length > 500 ? '...' : ''),
+          storedContentLength: doc.content.length,
+          isCompressed: !!doc.isCompressed,
+          isEncrypted: !!doc.isEncrypted,
+        },
+      });
+    } catch (error: any) {
+      console.error("DB raw view error:", error);
+      res.status(500).json({ error: "Failed to get raw document" });
+    }
+  });
+
+  app.delete("/api/compression/db/documents/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid document ID" });
+      }
+      await storage.deleteCompressedDocument(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("DB document delete error:", error);
+      res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
   // Whitepaper API routes
   app.get("/api/whitepapers", async (req, res) => {
     try {

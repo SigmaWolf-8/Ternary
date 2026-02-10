@@ -18,6 +18,7 @@ import CalendarPage from "@/pages/calendar";
 import CompliancePage from "@/pages/compliance";
 import HPTPDemo from "@/pages/hptp-demo";
 import ThirteenMoonPage from "@/pages/thirteen-moon";
+import CompressionPage from "@/pages/compression";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/compliance" component={CompliancePage} />
       <Route path="/hptp" component={HPTPDemo} />
       <Route path="/13-moon" component={ThirteenMoonPage} />
+      <Route path="/compression" component={CompressionPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -100,6 +100,21 @@ export const developerSignups = pgTable("developer_signups", {
 export const insertWhitepaperSchema = createInsertSchema(whitepapers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDeveloperSignupSchema = createInsertSchema(developerSignups).omit({ id: true, createdAt: true });
 
+export const compressedDocuments = pgTable("compressed_documents", {
+  id: serial("id").primaryKey(),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  isCompressed: integer("is_compressed").default(0).notNull(),
+  isEncrypted: integer("is_encrypted").default(0).notNull(),
+  encryptionMode: varchar("encryption_mode"),
+  originalSizeBytes: integer("original_size_bytes"),
+  storedSizeBytes: integer("stored_size_bytes"),
+  compressionRatio: real("compression_ratio"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCompressedDocumentSchema = createInsertSchema(compressedDocuments).omit({ id: true, createdAt: true });
+
 export type InsertDemoSession = z.infer<typeof insertDemoSessionSchema>;
 export type DemoSession = typeof demoSessions.$inferSelect;
 export type InsertBinaryStorage = z.infer<typeof insertBinaryStorageSchema>;
@@ -116,3 +131,5 @@ export type InsertWhitepaper = z.infer<typeof insertWhitepaperSchema>;
 export type Whitepaper = typeof whitepapers.$inferSelect;
 export type InsertDeveloperSignup = z.infer<typeof insertDeveloperSignupSchema>;
 export type DeveloperSignup = typeof developerSignups.$inferSelect;
+export type InsertCompressedDocument = z.infer<typeof insertCompressedDocumentSchema>;
+export type CompressedDocument = typeof compressedDocuments.$inferSelect;

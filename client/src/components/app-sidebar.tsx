@@ -16,6 +16,7 @@ import {
   Github,
   Network,
   Shield,
+  Archive,
   LogIn,
   LogOut,
   User,
@@ -133,6 +134,15 @@ export function AppSidebar() {
                   <Link href="/hptp" onClick={closeMobileSidebar}>
                     <Radio className="w-3.5 h-3.5" />
                     <span>HPTP Timing</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/compression"} tooltip="Compression" data-testid="link-sidebar-compression" className="text-xs">
+                  <Link href="/compression" onClick={closeMobileSidebar}>
+                    <Archive className="w-3.5 h-3.5" />
+                    <span>Compression</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

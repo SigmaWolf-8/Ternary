@@ -2,41 +2,39 @@ export function ternaryEncode(binaryData: Buffer): Buffer {
   const trits: number[] = [];
   for (let i = 0; i < binaryData.length; i++) {
     let byte = binaryData[i];
-    for (let j = 0; j < 5; j++) {
+    for (let j = 0; j < 6; j++) {
       trits.push(byte % 3);
       byte = Math.floor(byte / 3);
     }
   }
-  return packTrits(trits);
-}
-
-function packTrits(trits: number[]): Buffer {
-  const packedBytes: number[] = [];
-  for (let i = 0; i < trits.length; i += 5) {
+  
+  const packed: number[] = [];
+  for (let i = 0; i < trits.length; i += 4) {
     let value = 0;
-    for (let j = Math.min(4, trits.length - i - 1); j >= 0; j--) {
+    for (let j = Math.min(3, trits.length - i - 1); j >= 0; j--) {
       value = value * 3 + (trits[i + j] || 0);
     }
-    packedBytes.push(value);
+    packed.push(value);
   }
-  return Buffer.from(packedBytes);
+  return Buffer.from(packed);
 }
 
 export function ternaryDecode(ternaryData: Buffer): Buffer {
   const trits: number[] = [];
   for (let i = 0; i < ternaryData.length; i++) {
     let value = ternaryData[i];
-    for (let j = 0; j < 5; j++) {
+    for (let j = 0; j < 4; j++) {
       trits.push(value % 3);
       value = Math.floor(value / 3);
     }
   }
   
   const bytes: number[] = [];
-  for (let i = 0; i < trits.length; i += 5) {
+  for (let i = 0; i < trits.length; i += 6) {
+    if (i + 5 >= trits.length) break;
     let byte = 0;
     let multiplier = 1;
-    for (let j = 0; j < 5 && i + j < trits.length; j++) {
+    for (let j = 0; j < 6; j++) {
       byte += trits[i + j] * multiplier;
       multiplier *= 3;
     }
@@ -122,19 +120,6 @@ export interface CompressionResult {
   compressionRatio: number;
 }
 
-const TERNARY_MIN_SAVINGS = 0.56;
-const TERNARY_MAX_SAVINGS = 0.62;
-
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
-
 export function compressData(jsonData: string): CompressionResult {
   const originalBuffer = Buffer.from(jsonData, 'utf-8');
   const originalSize = originalBuffer.length;
@@ -143,24 +128,19 @@ export function compressData(jsonData: string): CompressionResult {
   const ternarySize = ternaryEncoded.length;
   
   const rleCompressed = runLengthCompress(ternaryEncoded);
-  
-  const hash = hashString(jsonData);
-  const normalizedVariation = (hash % 1000) / 1000;
-  const savingsRange = TERNARY_MAX_SAVINGS - TERNARY_MIN_SAVINGS;
-  const targetSavings = TERNARY_MIN_SAVINGS + (normalizedVariation * savingsRange);
-  
-  const compressedSize = Math.max(1, Math.floor(originalSize * (1 - targetSavings)));
-  
-  const paddedCompressed = Buffer.alloc(compressedSize);
-  rleCompressed.copy(paddedCompressed, 0, 0, Math.min(rleCompressed.length, compressedSize));
+  const compressedSize = rleCompressed.length;
   
   const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
   
+  const lengthPrefix = Buffer.alloc(4);
+  lengthPrefix.writeUInt32BE(originalSize, 0);
+  const withPrefix = Buffer.concat([lengthPrefix, rleCompressed]);
+  
   return {
     originalData: jsonData,
-    compressedData: paddedCompressed.toString('base64'),
+    compressedData: withPrefix.toString('base64'),
     originalSize,
-    ternarySize: compressedSize,
+    ternarySize,
     compressedSize,
     compressionRatio
   };
@@ -168,9 +148,14 @@ export function compressData(jsonData: string): CompressionResult {
 
 export function decompressData(base64Data: string): string {
   const compressed = Buffer.from(base64Data, 'base64');
-  const ternaryEncoded = runLengthDecompress(compressed);
-  const originalBuffer = ternaryDecode(ternaryEncoded);
-  return originalBuffer.toString('utf-8');
+  
+  const originalSize = compressed.readUInt32BE(0);
+  const rleData = compressed.subarray(4);
+  
+  const ternaryEncoded = runLengthDecompress(rleData);
+  const decoded = ternaryDecode(ternaryEncoded);
+  
+  return decoded.subarray(0, originalSize).toString('utf-8');
 }
 
 export function generateSensorData(count: number): object[] {
