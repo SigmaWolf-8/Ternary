@@ -1000,92 +1000,269 @@ export default function APIDemo() {
           </TabsContent>
         </Tabs>
 
-        <div className="mt-8">
+        <div className="mt-8 space-y-6">
+          <h2 className="text-2xl font-bold" data-testid="text-api-reference-title">API Endpoints Reference</h2>
+          <p className="text-muted-foreground text-sm">Complete reference for all public PlenumNET Framework API endpoints. Admin endpoints require authentication.</p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  Timing API
+                </CardTitle>
+                <CardDescription>Femtosecond-precision timestamps and Salvi Epoch</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "GET", path: "/api/salvi/timing/timestamp", desc: "Current femtosecond timestamp" },
+                    { method: "GET", path: "/api/salvi/timing/metrics", desc: "Clock source and sync status" },
+                    { method: "GET", path: "/api/salvi/timing/batch/:count", desc: "Batch timestamp generation" },
+                    { method: "GET", path: "/api/salvi/timing/self-test", desc: "Timing subsystem self-test" },
+                    { method: "GET", path: "/api/salvi/timing/error-budget", desc: "Precision error budget" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  Calendar / Epoch API
+                </CardTitle>
+                <CardDescription>24 ancient calendar synchronization endpoints</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "GET", path: "/api/salvi/timing/epoch/anchors", desc: "All epoch anchor points" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "All 24 calendar conversions" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/mayan", desc: "Mayan Long Count" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/hebrew", desc: "Hebrew calendar" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/chinese", desc: "Chinese calendar" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/vedic", desc: "Vedic calendar" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/egyptian", desc: "Egyptian calendar" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/julian-day", desc: "Julian Day Number" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/islamic", desc: "Islamic Hijri" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/byzantine", desc: "Byzantine calendar" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/thirteen-moon", desc: "13-Moon Harmonic" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-primary" />
+                  Ternary Operations API
+                </CardTitle>
+                <CardDescription>GF(3) arithmetic, conversion, and density analysis</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "POST", path: "/api/salvi/ternary/convert", desc: "Convert between representations A/B/C" },
+                    { method: "POST", path: "/api/salvi/ternary/add", desc: "GF(3) addition" },
+                    { method: "POST", path: "/api/salvi/ternary/multiply", desc: "GF(3) multiplication" },
+                    { method: "POST", path: "/api/salvi/ternary/rotate", desc: "Ternary rotation" },
+                    { method: "POST", path: "/api/salvi/ternary/not", desc: "Ternary negation" },
+                    { method: "POST", path: "/api/salvi/ternary/xor", desc: "Ternary XOR (field addition)" },
+                    { method: "POST", path: "/api/salvi/ternary/batch", desc: "Batch ternary operations" },
+                    { method: "GET", path: "/api/salvi/ternary/density/:tritCount", desc: "Information density for N trits" },
+                    { method: "GET", path: "/api/salvi/ternary/density-benchmark", desc: "Density benchmark suite" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant={ep.method === "POST" ? "secondary" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  Phase Encryption API
+                </CardTitle>
+                <CardDescription>Quantum-resistant phase-split encryption</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "POST", path: "/api/salvi/phase/split", desc: "Split data into phase components" },
+                    { method: "POST", path: "/api/salvi/phase/recombine", desc: "Recombine phase components" },
+                    { method: "GET", path: "/api/salvi/phase/config/:mode", desc: "Encryption mode configuration" },
+                    { method: "GET", path: "/api/salvi/phase/recommend", desc: "Recommended mode for use case" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant={ep.method === "POST" ? "secondary" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Database className="w-4 h-4 text-primary" />
+                  Compression Demo API
+                </CardTitle>
+                <CardDescription>Live ternary compression demonstrations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "POST", path: "/api/demo/run", desc: "Run compression on dataset" },
+                    { method: "POST", path: "/api/demo/upload", desc: "Upload custom data for compression" },
+                    { method: "GET", path: "/api/demo/stats", desc: "Aggregated compression statistics" },
+                    { method: "GET", path: "/api/demo/session/:sessionId", desc: "Session details" },
+                    { method: "GET", path: "/api/demo/data/:sessionId", desc: "Session data export" },
+                    { method: "GET", path: "/api/demo/history", desc: "Compression run history" },
+                    { method: "GET", path: "/api/demo/files", desc: "Available demo files" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant={ep.method === "POST" ? "secondary" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  VM, Docs & Whitepapers API
+                </CardTitle>
+                <CardDescription>Virtual machine specs, documentation, and whitepapers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "GET", path: "/api/salvi/vm/spec", desc: "TVM 35-opcode instruction set spec" },
+                    { method: "GET", path: "/api/salvi/vm/conformance", desc: "TVM conformance test suite" },
+                    { method: "GET", path: "/api/salvi/docs", desc: "Documentation index" },
+                    { method: "GET", path: "/api/whitepapers", desc: "List all whitepapers" },
+                    { method: "GET", path: "/api/whitepapers/active", desc: "Active whitepapers only" },
+                    { method: "GET", path: "/api/whitepapers/:id", desc: "Whitepaper by ID" },
+                    { method: "POST", path: "/api/whitepapers", desc: "Create whitepaper (admin)" },
+                    { method: "POST", path: "/api/developer-signup", desc: "Developer waitlist signup" },
+                    { method: "GET", path: "/api/developer-signup/count", desc: "Waitlist count" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant={ep.method === "POST" ? "secondary" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
-            <CardHeader>
-              <CardTitle>API Endpoints Reference</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-muted-foreground">Admin-Only Endpoints</CardTitle>
+              <CardDescription>These endpoints require authentication and admin privileges</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
-                  <div className="font-bold text-primary mb-3">Timing API</div>
-                  <div className="space-y-2 text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/salvi/timing/timestamp</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/salvi/timing/metrics</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/salvi/timing/batch/:count</code>
-                    </div>
+                  <div className="font-medium text-sm mb-2">GitHub Integration</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    {[
+                      { method: "POST", path: "/api/github/token" },
+                      { method: "GET", path: "/api/github/status" },
+                      { method: "GET", path: "/api/github/repos/:owner/:repo/branches" },
+                      { method: "GET", path: "/api/github/repos/:owner/:repo/contents" },
+                      { method: "GET", path: "/api/github/file/:owner/:repo" },
+                      { method: "PUT", path: "/api/github/file/:owner/:repo" },
+                      { method: "DELETE", path: "/api/github/file/:owner/:repo" },
+                      { method: "POST", path: "/api/github/push-workflows/:owner/:repo" },
+                      { method: "POST", path: "/api/github/push-batch/:owner/:repo" },
+                    ].map((ep) => (
+                      <div key={ep.method + ep.path} className="flex items-start gap-2">
+                        <Badge variant={ep.method === "GET" ? "outline" : ep.method === "DELETE" ? "destructive" : "secondary"} className="shrink-0 text-xs">{ep.method}</Badge>
+                        <code className="text-xs break-all">{ep.path}</code>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-primary mb-3">Ternary API</div>
-                  <div className="space-y-2 text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/salvi/ternary/convert</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/salvi/ternary/add</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/salvi/ternary/multiply</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/salvi/ternary/rotate</code>
-                    </div>
+                  <div className="font-medium text-sm mb-2">Kong Konnect Gateway</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    {[
+                      { method: "GET", path: "/api/kong/status" },
+                      { method: "GET", path: "/api/kong/organization" },
+                      { method: "GET", path: "/api/kong/control-planes" },
+                      { method: "GET", path: "/api/kong/control-planes/:cpId/services" },
+                      { method: "GET", path: "/api/kong/control-planes/:cpId/routes" },
+                      { method: "GET", path: "/api/kong/control-planes/:cpId/plugins" },
+                      { method: "POST", path: "/api/kong/control-planes/:cpId/services" },
+                      { method: "POST", path: "/api/kong/.../routes" },
+                      { method: "POST", path: "/api/kong/.../plugins" },
+                    ].map((ep, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <Badge variant={ep.method === "GET" ? "outline" : "secondary"} className="shrink-0 text-xs">{ep.method}</Badge>
+                        <code className="text-xs break-all">{ep.path}</code>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-primary mb-3">Phase API</div>
-                  <div className="space-y-2 text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/salvi/phase/split</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/salvi/phase/recombine</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/salvi/phase/config/:mode</code>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="font-bold text-primary mb-3">Compression API</div>
-                  <div className="space-y-2 text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
-                      <code className="text-xs break-all">/api/demo/run</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/demo/stats</code>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/demo/history</code>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="font-bold text-primary mb-3">Density API</div>
-                  <div className="space-y-2 text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
-                      <code className="text-xs break-all">/api/salvi/ternary/density/:count</code>
-                    </div>
+                  <div className="font-medium text-sm mb-2">Deployment & Admin</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    {[
+                      { method: "POST", path: "/api/kong/.../sync-plenumnet" },
+                      { method: "POST", path: "/api/kong/save-to-github" },
+                      { method: "GET", path: "/api/kong/.../deploy-instructions" },
+                      { method: "POST", path: "/api/kong/.../generate-deployment" },
+                      { method: "POST", path: "/api/kong/.../deploy-to-cloud" },
+                      { method: "GET", path: "/api/kong/config" },
+                      { method: "GET", path: "/api/user/admin-status" },
+                      { method: "GET", path: "/api/admin/developer-signups" },
+                      { method: "DELETE", path: "/api/admin/developer-signups/:id" },
+                    ].map((ep, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <Badge variant={ep.method === "GET" ? "outline" : ep.method === "DELETE" ? "destructive" : "secondary"} className="shrink-0 text-xs">{ep.method}</Badge>
+                        <code className="text-xs break-all">{ep.path}</code>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
