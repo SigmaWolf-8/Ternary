@@ -1006,44 +1006,86 @@ export default function APIDemo() {
               <CardTitle>API Endpoints Reference</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm font-mono">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
                 <div>
-                  <div className="font-bold text-primary mb-2">Timing API</div>
-                  <div className="space-y-1 text-muted-foreground">
-                    <div>GET /api/salvi/timing/timestamp</div>
-                    <div>GET /api/salvi/timing/metrics</div>
-                    <div>GET /api/salvi/timing/batch/:count</div>
+                  <div className="font-bold text-primary mb-3">Timing API</div>
+                  <div className="space-y-2 text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/salvi/timing/timestamp</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/salvi/timing/metrics</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/salvi/timing/batch/:count</code>
+                    </div>
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-primary mb-2">Ternary API</div>
-                  <div className="space-y-1 text-muted-foreground">
-                    <div>POST /api/salvi/ternary/convert</div>
-                    <div>POST /api/salvi/ternary/add</div>
-                    <div>POST /api/salvi/ternary/multiply</div>
-                    <div>POST /api/salvi/ternary/rotate</div>
+                  <div className="font-bold text-primary mb-3">Ternary API</div>
+                  <div className="space-y-2 text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/salvi/ternary/convert</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/salvi/ternary/add</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/salvi/ternary/multiply</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/salvi/ternary/rotate</code>
+                    </div>
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-primary mb-2">Phase API</div>
-                  <div className="space-y-1 text-muted-foreground">
-                    <div>POST /api/salvi/phase/split</div>
-                    <div>POST /api/salvi/phase/recombine</div>
-                    <div>GET /api/salvi/phase/config/:mode</div>
+                  <div className="font-bold text-primary mb-3">Phase API</div>
+                  <div className="space-y-2 text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/salvi/phase/split</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/salvi/phase/recombine</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/salvi/phase/config/:mode</code>
+                    </div>
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-primary mb-2">Compression API</div>
-                  <div className="space-y-1 text-muted-foreground">
-                    <div>POST /api/demo/run</div>
-                    <div>GET /api/demo/stats</div>
-                    <div>GET /api/demo/history</div>
+                  <div className="font-bold text-primary mb-3">Compression API</div>
+                  <div className="space-y-2 text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="secondary" className="shrink-0 text-xs">POST</Badge>
+                      <code className="text-xs break-all">/api/demo/run</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/demo/stats</code>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/demo/history</code>
+                    </div>
                   </div>
                 </div>
                 <div>
-                  <div className="font-bold text-primary mb-2">Density API</div>
-                  <div className="space-y-1 text-muted-foreground">
-                    <div>GET /api/salvi/ternary/density/:count</div>
+                  <div className="font-bold text-primary mb-3">Density API</div>
+                  <div className="space-y-2 text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0 text-xs">GET</Badge>
+                      <code className="text-xs break-all">/api/salvi/ternary/density/:count</code>
+                    </div>
                   </div>
                 </div>
               </div>
