@@ -28,7 +28,7 @@ interface CalendarData {
   success: boolean;
   salviEpoch: string;
   calendars: {
-    mayanLongCount: { longCount: string; calendarRound: string };
+    mayanLongCount: { longCount: string; calendarRound: string; formatted?: string };
     hebrew: { formatted: string };
     chineseSexagenary: { formatted: string };
     vedic: { formatted: string };
@@ -45,6 +45,21 @@ interface CalendarData {
       arc: string;
       dayOutOfTime: boolean;
     };
+    persian: { formatted: string };
+    ethiopian: { formatted: string };
+    coptic: { formatted: string };
+    japaneseKoki: { formatted: string };
+    koreanDangun: { formatted: string };
+    thaiBuddhist: { formatted: string };
+    indianSaka: { formatted: string };
+    tibetan: { formatted: string };
+    aztecTonalpohualli: { formatted: string; tonalpohualliDay?: string };
+    romanAUC: { formatted: string };
+    bengali: { formatted: string };
+    berber: { formatted: string };
+    balinesePawukon: { formatted: string };
+    zoroastrianFasli: { formatted: string };
+    aboriginalSeasonal: { formatted: string };
   };
 }
 
@@ -60,7 +75,7 @@ function HeroSection() {
             transition={{ duration: 0.5 }}
           >
             <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-6">
-              12 Calendar Systems / 1 API Call
+              24 Calendar Systems / 1 API Call
             </Badge>
           </motion.div>
           <motion.h1
@@ -79,8 +94,8 @@ function HeroSection() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed"
           >
-            Convert any date across 12 major calendar systems with femtosecond precision.
-            From Mayan Long Count to Islamic Hijri, from Julian Day Numbers to the 13-Moon Harmonic Calendar --
+            Convert any date across 24 global calendar systems with femtosecond precision.
+            From Mayan Long Count to Zoroastrian Fasli, from Julian Day Numbers to Aboriginal Seasonal --
             all routed through Kong Konnect with deterministic caching and a single JDN intermediary for guaranteed bijective accuracy.
           </motion.p>
           <motion.div
@@ -112,8 +127,8 @@ function ProblemsSection() {
       icon: AlertTriangle,
       problem: "Calendar Fragmentation",
       severity: "Critical",
-      description: "12+ different epoch dates, each with unique rules. Converting between Hebrew lunisolar, Islamic lunar, and Mayan vigesimal systems requires 144 separate conversion functions.",
-      solution: "Single JDN intermediary reduces O(n\u00B2) conversions to O(n). Just 24 functions cover all 12 calendars bidirectionally.",
+      description: "24+ different epoch dates, each with unique rules. Converting between Hebrew lunisolar, Islamic lunar, and Mayan vigesimal systems requires 576 separate conversion functions.",
+      solution: "Single JDN intermediary reduces O(n\u00B2) conversions to O(n). Just 48 functions cover all 24 calendars bidirectionally.",
     },
     {
       icon: Clock,
@@ -236,8 +251,21 @@ function CalendarSystemsSection() {
     { name: "Islamic Hijri", origin: "622 CE", depth: "~1,400 years", type: "Lunar", key: "30-year cycle" },
     { name: "Byzantine", origin: "5509 BCE", depth: "~7,500 years", type: "Julian-based", key: "Offset calc" },
     { name: "13-Moon Harmonic", origin: "~28,000 BCE", depth: "~30,000 years", type: "364-day", key: "Golden ratio" },
-    { name: "Mayan Tzolkin", origin: "3114 BCE", depth: "~5,100 years", type: "260-day sacred", key: "Modular arithmetic" },
-    { name: "Mayan Haab", origin: "3114 BCE", depth: "~5,100 years", type: "365-day civil", key: "Positional" },
+    { name: "Persian/Solar Hijri", origin: "622 CE", depth: "~1,400 years", type: "Solar", key: "Jalali algorithm" },
+    { name: "Ethiopian/Ge'ez", origin: "8 CE", depth: "~2,000 years", type: "Solar (13 mo)", key: "Coptic-derived" },
+    { name: "Coptic (Era of Martyrs)", origin: "284 CE", depth: "~1,700 years", type: "Solar (13 mo)", key: "Diocletian offset" },
+    { name: "Japanese Imperial (Koki)", origin: "660 BCE", depth: "~2,700 years", type: "Solar", key: "Era system" },
+    { name: "Korean Dangun Era", origin: "2333 BCE", depth: "~4,400 years", type: "Solar", key: "Foundation offset" },
+    { name: "Thai Buddhist Era", origin: "543 BCE", depth: "~2,600 years", type: "Solar", key: "Parinibbana offset" },
+    { name: "Indian National/Saka", origin: "78 CE", depth: "~1,900 years", type: "Solar", key: "Saka era calc" },
+    { name: "Tibetan Rabjung", origin: "1027 CE", depth: "~1,000 years", type: "Lunisolar", key: "60-year cycle" },
+    { name: "Aztec Tonalpohualli", origin: "3114 BCE", depth: "~5,100 years", type: "260-day sacred", key: "Trecena + day sign" },
+    { name: "Roman Ab Urbe Condita", origin: "753 BCE", depth: "~2,800 years", type: "Solar", key: "Kalends/Nones/Ides" },
+    { name: "Bengali/Bangla", origin: "594 CE", depth: "~1,400 years", type: "Solar", key: "Shashanka era" },
+    { name: "Berber/Amazigh", origin: "950 BCE", depth: "~3,000 years", type: "Solar", key: "Yennayer offset" },
+    { name: "Balinese Pawukon", origin: "210-day cycle", depth: "Cyclic", type: "210-day", key: "Wuku weeks" },
+    { name: "Zoroastrian Fasli", origin: "632 CE", depth: "~1,400 years", type: "Solar (365d)", key: "Nowruz anchor" },
+    { name: "Aboriginal Seasonal", origin: "Continuous", depth: "~65,000 years", type: "Ecological", key: "Dharawal six-season" },
   ];
 
   return (
@@ -251,7 +279,7 @@ function CalendarSystemsSection() {
             transition={{ duration: 0.5 }}
           >
             <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
-              12 Calendar Systems
+              24 Calendar Systems
             </Badge>
           </motion.div>
           <motion.h2
@@ -272,7 +300,7 @@ function CalendarSystemsSection() {
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
             Every calendar system synchronized through the Julian Day Number intermediary.
-            One API call returns all 12 simultaneously.
+            One API call returns all 24 simultaneously.
           </motion.p>
         </div>
 
@@ -500,7 +528,7 @@ function LiveDemoSection() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            Enter any date and see it converted across all 12 calendar systems instantly.
+            Enter any date and see it converted across all 24 calendar systems instantly.
           </motion.p>
         </div>
 
@@ -545,6 +573,21 @@ function LiveDemoSection() {
                   { label: "Islamic Hijri", value: calendarData.calendars.islamic?.formatted },
                   { label: "Byzantine", value: calendarData.calendars.byzantine?.formatted },
                   { label: "13-Moon", value: calendarData.calendars.thirteenMoon?.formatted },
+                  { label: "Persian/Solar Hijri", value: calendarData.calendars.persian?.formatted },
+                  { label: "Ethiopian/Ge'ez", value: calendarData.calendars.ethiopian?.formatted },
+                  { label: "Coptic", value: calendarData.calendars.coptic?.formatted },
+                  { label: "Japanese Imperial", value: calendarData.calendars.japaneseKoki?.formatted },
+                  { label: "Korean Dangun", value: calendarData.calendars.koreanDangun?.formatted },
+                  { label: "Thai Buddhist", value: calendarData.calendars.thaiBuddhist?.formatted },
+                  { label: "Indian Saka", value: calendarData.calendars.indianSaka?.formatted },
+                  { label: "Tibetan Rabjung", value: calendarData.calendars.tibetan?.formatted },
+                  { label: "Aztec Tonalpohualli", value: calendarData.calendars.aztecTonalpohualli?.formatted },
+                  { label: "Roman AUC", value: calendarData.calendars.romanAUC?.formatted },
+                  { label: "Bengali/Bangla", value: calendarData.calendars.bengali?.formatted },
+                  { label: "Berber/Amazigh", value: calendarData.calendars.berber?.formatted },
+                  { label: "Balinese Pawukon", value: calendarData.calendars.balinesePawukon?.formatted },
+                  { label: "Zoroastrian Fasli", value: calendarData.calendars.zoroastrianFasli?.formatted },
+                  { label: "Aboriginal Seasonal", value: calendarData.calendars.aboriginalSeasonal?.formatted },
                 ].filter(item => item.value).map((item, index) => (
                   <div
                     key={item.label}
@@ -755,7 +798,7 @@ function UseCasesSection() {
       icon: Globe,
       title: "International Business",
       description: "Global operations span Islamic, Hebrew, Chinese, and Gregorian calendars. Convert scheduling, contracts, and reporting dates across all systems with a single API call -- no custom conversion logic needed.",
-      benefit: "12 calendars, 1 API",
+      benefit: "24 calendars, 1 API",
     },
     {
       icon: Layers,
