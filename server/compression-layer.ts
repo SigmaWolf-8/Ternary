@@ -50,7 +50,7 @@ export function compressForStorage(
     envelope.data = '';
   }
 
-  return JSON.stringify(envelope);
+  return JSON.stringify(envelope, (_, v) => typeof v === 'bigint' ? v.toString() : v);
 }
 
 export function decompressFromStorage(storedValue: string): string {
@@ -169,7 +169,7 @@ export function createTernFile(
   if (options.encrypt) {
     const base64Compressed = compressed.toString('base64');
     const phaseResult = phaseSplit(base64Compressed, options.encryptionMode || 'balanced');
-    const phaseJson = JSON.stringify(phaseResult);
+    const phaseJson = JSON.stringify(phaseResult, (_, v) => typeof v === 'bigint' ? v.toString() : v);
     finalData = Buffer.from(phaseJson, 'utf-8');
     encrypted = true;
     encryptionMode = options.encryptionMode || 'balanced';
