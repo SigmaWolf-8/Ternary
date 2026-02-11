@@ -1,3 +1,5 @@
+import zlib from 'zlib';
+
 export function ternaryEncode(binaryData: Buffer): Buffer {
   const trits: number[] = [];
   for (let i = 0; i < binaryData.length; i++) {
@@ -124,7 +126,9 @@ export function compressData(jsonData: string): CompressionResult {
   const originalBuffer = Buffer.from(jsonData, 'utf-8');
   const originalSize = originalBuffer.length;
   
-  const ternaryEncoded = ternaryEncode(originalBuffer);
+  const deflated = zlib.deflateSync(originalBuffer, { level: 9 });
+  
+  const ternaryEncoded = ternaryEncode(deflated);
   const ternarySize = ternaryEncoded.length;
   
   const rleCompressed = runLengthCompress(ternaryEncoded);
@@ -155,7 +159,9 @@ export function decompressData(base64Data: string): string {
   const ternaryEncoded = runLengthDecompress(rleData);
   const decoded = ternaryDecode(ternaryEncoded);
   
-  return decoded.subarray(0, originalSize).toString('utf-8');
+  const inflated = zlib.inflateSync(decoded);
+  
+  return inflated.subarray(0, originalSize).toString('utf-8');
 }
 
 export function generateSensorData(count: number): object[] {

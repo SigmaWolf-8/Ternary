@@ -2270,6 +2270,7 @@ export async function registerRoutes(
     "src/thdl/",
     "src/timing-api/",
     "libternary/",
+    "ternary-math/",
     "salvi_docs/",
     ".github/",
     "kong/",

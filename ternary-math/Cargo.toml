@@ -1,0 +1,23 @@
+[package]
+name = "ternary-math"
+version = "0.1.0"
+edition = "2021"
+description = "Mathematical foundations for the Salvi Framework ternary computing platform"
+license = "Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+
+[dependencies]
+
+[dev-dependencies]
+# Tests use exhaustive enumeration (no sampling framework needed for GF(3)).
+# Uncomment for benchmarks when using Rust 1.80+:
+# proptest = "1.4"
+# criterion = { version = "0.5", features = ["html_reports"] }
+
+# [[bench]]
+# name = "radix_economy"
+# harness = false
+# 
+# [[bench]]
+# name = "clifford_compose"
+# harness = false

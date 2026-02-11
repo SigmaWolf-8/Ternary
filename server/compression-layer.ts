@@ -1,3 +1,4 @@
+import zlib from 'zlib';
 import { compressData, decompressData, ternaryEncode, ternaryDecode, runLengthCompress, runLengthDecompress } from './ternary';
 import { phaseSplit, phaseRecombine, type EncryptionMode, type EncryptedPhaseData } from './salvi-core/phase-encryption';
 
@@ -121,7 +122,8 @@ export function compressFileBuffer(inputBuffer: Buffer): {
   compressionRatio: number;
 } {
   const originalSize = inputBuffer.length;
-  const ternaryEncoded = ternaryEncode(inputBuffer);
+  const deflated = zlib.deflateSync(inputBuffer, { level: 9 });
+  const ternaryEncoded = ternaryEncode(deflated);
   const compressed = runLengthCompress(ternaryEncoded);
   const compressedSize = compressed.length;
   const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
@@ -131,7 +133,8 @@ export function compressFileBuffer(inputBuffer: Buffer): {
 
 export function decompressFileBuffer(compressedBuffer: Buffer): Buffer {
   const ternaryEncoded = runLengthDecompress(compressedBuffer);
-  return ternaryDecode(ternaryEncoded);
+  const deflated = ternaryDecode(ternaryEncoded);
+  return zlib.inflateSync(deflated);
 }
 
 export interface TernFileHeader {
