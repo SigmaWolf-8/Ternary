@@ -1,0 +1,152 @@
+NOTICE
+======
+
+Salvi Framework — PlenumNET Ternary Computing Platform
+Copyright (c) 2025-2026 Capomastro Holdings Ltd.
+Applied Physics Division
+All Rights Reserved.
+
+This product includes software developed by Capomastro Holdings Ltd.
+(https://github.com/SigmaWolf-8/Ternary)
+
+=========================================================================
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+=========================================================================
+
+This project incorporates material from the third-party projects listed
+below. The original copyright notices and license terms are provided for
+informational purposes and to comply with attribution requirements.
+
+The inclusion of these notices does not imply any endorsement by the
+respective copyright holders, nor does it grant any rights to the
+Salvi Framework or PlenumNET beyond what is specified in each respective
+license.
+
+-------------------------------------------------------------------------
+1. Express.js
+   Copyright (c) 2009-2014 TJ Holowaychuk
+   Copyright (c) 2013-2014 Roman Shtylman
+   Copyright (c) 2014-2015 Douglas Christopher Wilson
+   License: MIT
+   https://github.com/expressjs/express
+
+2. React
+   Copyright (c) Meta Platforms, Inc. and affiliates.
+   License: MIT
+   https://github.com/facebook/react
+
+3. Drizzle ORM
+   Copyright (c) 2022-2024 Drizzle Team
+   License: Apache-2.0
+   https://github.com/drizzle-team/drizzle-orm
+
+4. Vite
+   Copyright (c) 2019-present Evan You and Vite contributors
+   License: MIT
+   https://github.com/vitejs/vite
+
+5. Tailwind CSS
+   Copyright (c) Tailwind Labs, Inc.
+   License: MIT
+   https://github.com/tailwindlabs/tailwindcss
+
+6. Radix UI
+   Copyright (c) 2022 WorkOS
+   License: MIT
+   https://github.com/radix-ui/primitives
+
+7. Zod
+   Copyright (c) 2020 Colin McDonnell
+   License: MIT
+   https://github.com/colinhacks/zod
+
+8. Recharts
+   Copyright (c) 2015-2024 Recharts Group
+   License: MIT
+   https://github.com/recharts/recharts
+
+9. Framer Motion
+   Copyright (c) 2018 Framer B.V.
+   License: MIT
+   https://github.com/framer/motion
+
+10. TanStack Query (React Query)
+    Copyright (c) 2021-2024 Tanner Linsley
+    License: MIT
+    https://github.com/TanStack/query
+
+11. Lucide React
+    Copyright (c) 2020 Lucide Contributors
+    License: ISC
+    https://github.com/lucide-icons/lucide
+
+12. date-fns
+    Copyright (c) 2021 Sasha Koss and Lesha Koss
+    License: MIT
+    https://github.com/date-fns/date-fns
+
+13. class-variance-authority
+    Copyright (c) 2022 Joe Bell
+    License: Apache-2.0
+    https://github.com/joe-bell/cva
+
+14. clsx
+    Copyright (c) Luke Edwards
+    License: MIT
+    https://github.com/lukeed/clsx
+
+15. Wouter
+    Copyright (c) 2019-2024 Alexey Taktarov
+    License: ISC
+    https://github.com/molefrog/wouter
+
+16. ws (WebSocket)
+    Copyright (c) 2011 Einar Otto Stangvik
+    License: MIT
+    https://github.com/websockets/ws
+
+17. SheetJS (xlsx)
+    Copyright (c) SheetJS LLC
+    License: Apache-2.0
+    https://github.com/SheetJS/sheetjs
+
+18. Passport.js
+    Copyright (c) 2011-2021 Jared Hanson
+    License: MIT
+    https://github.com/jaredhanson/passport
+
+19. node-postgres (pg)
+    Copyright (c) 2010-2024 Brian Carlson
+    License: MIT
+    https://github.com/brianc/node-postgres
+
+20. TypeScript
+    Copyright (c) Microsoft Corporation
+    License: Apache-2.0
+    https://github.com/microsoft/TypeScript
+
+21. esbuild
+    Copyright (c) 2020 Evan Wallace
+    License: MIT
+    https://github.com/evanw/esbuild
+
+22. PostCSS
+    Copyright (c) 2013 Andrey Sitnik
+    License: MIT
+    https://github.com/postcss/postcss
+
+23. PyTEAL (Algorand Smart Contracts)
+    Copyright (c) 2020-2024 Algorand, Inc.
+    License: MIT
+    https://github.com/algorand/pyteal
+
+-------------------------------------------------------------------------
+
+Full license texts for MIT, Apache-2.0, and ISC are available at:
+  - MIT: https://opensource.org/licenses/MIT
+  - Apache-2.0: https://www.apache.org/licenses/LICENSE-2.0
+  - ISC: https://opensource.org/licenses/ISC
+
+=========================================================================
+END OF THIRD-PARTY NOTICES
+=========================================================================
