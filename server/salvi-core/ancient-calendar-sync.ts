@@ -78,6 +78,9 @@ export interface HebrewDate {
 
 export interface ChineseSexagenary {
   year: number;
+  month: number;
+  monthName: string;
+  day: number;
   heavenlyStem: string;
   earthlyBranch: string;
   zodiacAnimal: string;
@@ -123,6 +126,9 @@ export interface IslamicHijri {
 
 export interface ByzantineAnnoMundi {
   year: number;
+  month: number;
+  monthName: string;
+  day: number;
   indiction: number;
   formatted: string;
 }
@@ -171,16 +177,25 @@ export interface JapaneseKokiDate {
   kokiYear: number;
   era: string;
   eraYear: number;
+  month: number;
+  monthName: string;
+  day: number;
   formatted: string;
 }
 
 export interface KoreanDangunDate {
   year: number;
+  month: number;
+  monthName: string;
+  day: number;
   formatted: string;
 }
 
 export interface ThaiBuddhistDate {
   year: number;
+  month: number;
+  monthName: string;
+  day: number;
   formatted: string;
 }
 
@@ -197,6 +212,9 @@ export interface TibetanDate {
   yearInCycle: number;
   element: string;
   animal: string;
+  month: number;
+  monthName: string;
+  day: number;
   formatted: string;
 }
 
@@ -228,6 +246,9 @@ export interface BengaliDate {
 
 export interface BerberDate {
   year: number;
+  month: number;
+  monthName: string;
+  day: number;
   formatted: string;
 }
 
@@ -374,6 +395,43 @@ const AZTEC_XIUHPOHUALLI_MONTHS = [
 const BENGALI_MONTHS = [
   'Boishakh', 'Jyoishtha', 'Asharh', 'Shrabon', 'Bhadro', 'Ashwin',
   'Kartik', 'Ogrohayon', 'Poush', 'Magh', 'Falgun', 'Choitro'
+];
+
+const CHINESE_MONTHS = [
+  'Zhēngyuè', 'Èryuè', 'Sānyuè', 'Sìyuè', 'Wǔyuè', 'Liùyuè',
+  'Qīyuè', 'Bāyuè', 'Jiǔyuè', 'Shíyuè', 'Shíyīyuè', 'Làyuè'
+];
+
+const BYZANTINE_MONTHS = [
+  'Septemvrios', 'Oktovrios', 'Noevrios', 'Dekemvrios',
+  'Ianouarios', 'Fevrouarios', 'Martios', 'Aprilios',
+  'Maios', 'Iounios', 'Ioulios', 'Avgoustos'
+];
+
+const JAPANESE_MONTHS = [
+  'Mutsuki', 'Kisaragi', 'Yayoi', 'Uzuki', 'Satsuki', 'Minazuki',
+  'Fumizuki', 'Hazuki', 'Nagatsuki', 'Kannazuki', 'Shimotsuki', 'Shiwasu'
+];
+
+const KOREAN_MONTHS = [
+  'Jeongwol', 'Iwol', 'Samwol', 'Sawol', 'Owol', 'Yuwol',
+  'Chirwol', 'Palwol', 'Guwol', 'Siwol', 'Sipilwol', 'Sipiwol'
+];
+
+const THAI_MONTHS = [
+  'Mokarakhom', 'Kumphaphan', 'Minakhom', 'Mesayon',
+  'Phruetsaphakhom', 'Mithunayon', 'Karakadakhom', 'Singhakhom',
+  'Kanyayon', 'Tulakhom', 'Phruetsachikayon', 'Thanwakhom'
+];
+
+const TIBETAN_MONTHS = [
+  'Mchu', 'Dbo', 'Nag', 'Sa-ga', 'Snron', 'Chu-stod',
+  'Gro-bzhin', 'Khrums', 'Tha-skar', 'Smin-drug', 'Mgo', 'Rgyal'
+];
+
+const BERBER_MONTHS = [
+  'Yennayer', 'Yebrayer', 'Mares', 'Yebrir', 'Mayyu', 'Yunyu',
+  'Yulyuz', 'Ghusht', 'Shutanbir', 'Ktuber', 'Nwanbir', 'Dujanbir'
 ];
 
 const WUKU_NAMES = [
@@ -542,8 +600,10 @@ export function toHebrewDate(date: Date): HebrewDate {
  */
 export function toChineseSexagenary(date: Date): ChineseSexagenary {
   const year = date.getUTCFullYear();
+  const gMonth = date.getUTCMonth();
+  const gDay = date.getUTCDate();
 
-  const chineseNewYearOffset = date.getUTCMonth() < 1 || (date.getUTCMonth() === 1 && date.getUTCDate() < 4) ? -1 : 0;
+  const chineseNewYearOffset = gMonth < 1 || (gMonth === 1 && gDay < 4) ? -1 : 0;
   const chineseYear = year + chineseNewYearOffset;
 
   const stemIndex = (chineseYear - 4) % 10;
@@ -556,15 +616,44 @@ export function toChineseSexagenary(date: Date): ChineseSexagenary {
   const cycleYear = ((yearsSinceEmperor - 1) % 60) + 1;
   const cycleNumber = Math.floor((yearsSinceEmperor - 1) / 60) + 1;
 
+  const chineseNewYearMs = Date.UTC(chineseYear, 1, 4);
+  const dateMs = date.getTime();
+  let daysSinceNewYear: number;
+  if (dateMs >= chineseNewYearMs) {
+    daysSinceNewYear = Math.floor((dateMs - chineseNewYearMs) / MS_PER_DAY) + 1;
+  } else {
+    const prevNewYearMs = Date.UTC(chineseYear - 1, 1, 4);
+    daysSinceNewYear = Math.floor((dateMs - prevNewYearMs) / MS_PER_DAY) + 1;
+  }
+  daysSinceNewYear = Math.max(1, Math.min(daysSinceNewYear, 385));
+
+  const monthLengths = [29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30];
+  let chineseMonth = 1;
+  let chineseDay = daysSinceNewYear;
+  for (let i = 0; i < 12; i++) {
+    if (chineseDay <= monthLengths[i]) {
+      chineseMonth = i + 1;
+      break;
+    }
+    chineseDay -= monthLengths[i];
+    chineseMonth = i + 2;
+  }
+  chineseMonth = Math.min(chineseMonth, 12);
+  chineseDay = Math.max(1, Math.min(chineseDay, 30));
+  const monthName = CHINESE_MONTHS[chineseMonth - 1];
+
   return {
     year: chineseYear,
+    month: chineseMonth,
+    monthName,
+    day: chineseDay,
     heavenlyStem: HEAVENLY_STEMS[positiveStemIndex],
     earthlyBranch: EARTHLY_BRANCHES[positiveBranchIndex],
     zodiacAnimal: ZODIAC_ANIMALS[positiveBranchIndex],
     element: CHINESE_ELEMENTS[positiveStemIndex],
     cycleNumber,
     yearInCycle: cycleYear,
-    formatted: `${HEAVENLY_STEMS[positiveStemIndex]}-${EARTHLY_BRANCHES[positiveBranchIndex]} (${ZODIAC_ANIMALS[positiveBranchIndex]}/${CHINESE_ELEMENTS[positiveStemIndex]}) Year ${cycleYear} of Cycle ${cycleNumber}`
+    formatted: `${chineseDay} ${monthName}, ${HEAVENLY_STEMS[positiveStemIndex]}-${EARTHLY_BRANCHES[positiveBranchIndex]} (${ZODIAC_ANIMALS[positiveBranchIndex]}/${CHINESE_ELEMENTS[positiveStemIndex]}) Year ${cycleYear} of Cycle ${cycleNumber}`
   };
 }
 
@@ -705,15 +794,22 @@ export function toIslamicHijri(date: Date): IslamicHijri {
  */
 export function toByzantineAnnoMundi(date: Date): ByzantineAnnoMundi {
   const year = date.getUTCFullYear();
-  const month = date.getUTCMonth();
+  const gMonth = date.getUTCMonth();
+  const gDay = date.getUTCDate();
 
-  const byzantineYear = year + 5509 + (month >= 8 ? 1 : 0);
+  const byzantineYear = year + 5509 + (gMonth >= 8 ? 1 : 0);
   const indiction = ((byzantineYear - 1) % 15) + 1;
+
+  const byzMonthIndex = ((gMonth - 8) + 12) % 12;
+  const monthName = BYZANTINE_MONTHS[byzMonthIndex];
 
   return {
     year: byzantineYear,
+    month: byzMonthIndex + 1,
+    monthName,
+    day: gDay,
     indiction,
-    formatted: `Anno Mundi ${byzantineYear.toLocaleString()}, Indiction ${indiction}`
+    formatted: `${gDay} ${monthName}, Anno Mundi ${byzantineYear.toLocaleString()}, Indiction ${indiction}`
   };
 }
 
@@ -1004,11 +1100,16 @@ export function toJapaneseKokiDate(date: Date): JapaneseKokiDate {
 
   if (eraYear < 1) eraYear = 1;
 
+  const monthName = JAPANESE_MONTHS[gMonth];
+
   return {
     kokiYear,
     era,
     eraYear,
-    formatted: `Koki ${kokiYear} / ${era} ${eraYear}`
+    month: gMonth + 1,
+    monthName,
+    day: gDay,
+    formatted: `${gDay} ${monthName}, Koki ${kokiYear} / ${era} ${eraYear}`
   };
 }
 
@@ -1019,11 +1120,17 @@ export function toJapaneseKokiDate(date: Date): JapaneseKokiDate {
  * Dangun year = Gregorian year + 2333.
  */
 export function toKoreanDangunDate(date: Date): KoreanDangunDate {
+  const gMonth = date.getUTCMonth();
+  const gDay = date.getUTCDate();
   const year = date.getUTCFullYear() + 2333;
+  const monthName = KOREAN_MONTHS[gMonth];
 
   return {
     year,
-    formatted: `Dangun ${year.toLocaleString()}`
+    month: gMonth + 1,
+    monthName,
+    day: gDay,
+    formatted: `${gDay} ${monthName}, Dangun ${year.toLocaleString()}`
   };
 }
 
@@ -1035,11 +1142,17 @@ export function toKoreanDangunDate(date: Date): KoreanDangunDate {
  * Used officially in Thailand and parts of Southeast Asia.
  */
 export function toThaiBuddhistDate(date: Date): ThaiBuddhistDate {
+  const gMonth = date.getUTCMonth();
+  const gDay = date.getUTCDate();
   const year = date.getUTCFullYear() + 543;
+  const monthName = THAI_MONTHS[gMonth];
 
   return {
     year,
-    formatted: `BE ${year}`
+    month: gMonth + 1,
+    monthName,
+    day: gDay,
+    formatted: `${gDay} ${monthName}, BE ${year}`
   };
 }
 
@@ -1112,6 +1225,8 @@ export function toIndianSakaDate(date: Date): IndianSakaDate {
  */
 export function toTibetanDate(date: Date): TibetanDate {
   const gYear = date.getUTCFullYear();
+  const gMonth = date.getUTCMonth();
+  const gDay = date.getUTCDate();
 
   const yearsSinceStart = gYear - 1027;
   const rabjungCycle = Math.floor(yearsSinceStart / 60) + 1;
@@ -1123,12 +1238,18 @@ export function toTibetanDate(date: Date): TibetanDate {
   const element = TIBETAN_ELEMENTS[elementIndex];
   const animal = ZODIAC_ANIMALS[animalIndex];
 
+  const tibMonth = ((gMonth - 1) + 12) % 12 + 1;
+  const monthName = TIBETAN_MONTHS[tibMonth - 1];
+
   return {
     rabjungCycle,
     yearInCycle,
     element,
     animal,
-    formatted: `${element} ${animal} Year ${yearInCycle} of Rabjung ${rabjungCycle}`
+    month: tibMonth,
+    monthName,
+    day: gDay,
+    formatted: `${gDay} ${monthName}, ${element} ${animal} Year ${yearInCycle} of Rabjung ${rabjungCycle}`
   };
 }
 
@@ -1274,11 +1395,41 @@ export function toBengaliDate(date: Date): BengaliDate {
  * Yennayer (New Year) falls on January 12-14 depending on region.
  */
 export function toBerberDate(date: Date): BerberDate {
-  const year = date.getUTCFullYear() + 950;
+  const gMonth = date.getUTCMonth();
+  const gDay = date.getUTCDate();
+
+  const afterYennayer = gMonth > 0 || (gMonth === 0 && gDay >= 13);
+  const year = afterYennayer ? date.getUTCFullYear() + 950 : date.getUTCFullYear() + 949;
+
+  const newYearMs = afterYennayer
+    ? Date.UTC(date.getUTCFullYear(), 0, 13)
+    : Date.UTC(date.getUTCFullYear() - 1, 0, 13);
+
+  const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
+  const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
+
+  let berberMonth: number;
+  let berberDay: number;
+
+  if (safeDays <= 186) {
+    berberMonth = Math.floor((safeDays - 1) / 31) + 1;
+    berberDay = ((safeDays - 1) % 31) + 1;
+    berberMonth = Math.min(berberMonth, 6);
+  } else {
+    const remaining = safeDays - 186;
+    berberMonth = Math.floor((remaining - 1) / 30) + 7;
+    berberDay = ((remaining - 1) % 30) + 1;
+    berberMonth = Math.min(berberMonth, 12);
+  }
+
+  const monthName = BERBER_MONTHS[berberMonth - 1];
 
   return {
     year,
-    formatted: `Yennayer ${year.toLocaleString()}`
+    month: berberMonth,
+    monthName,
+    day: berberDay,
+    formatted: `${berberDay} ${monthName}, Yennayer ${year.toLocaleString()}`
   };
 }
 
