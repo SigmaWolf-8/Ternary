@@ -5,3 +5,8 @@ server/public
 vite.config.ts.*
 *.tar.gz
 target/
+
+# Confidential internal strategy documents — NEVER commit to public repo
+TRADEMARK-STRATEGY-INTERNAL.md
+PATENT-STRATEGY-INTERNAL.md
+*-INTERNAL.md

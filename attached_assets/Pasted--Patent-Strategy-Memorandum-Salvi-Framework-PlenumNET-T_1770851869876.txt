@@ -1,0 +1,199 @@
+# Patent Strategy Memorandum
+## Salvi Framework — PlenumNET Ternary Computing Platform
+### Capomastro Holdings Ltd., Applied Physics Division
+
+**⛔ CONFIDENTIAL — INTERNAL USE ONLY — DO NOT COMMIT TO PUBLIC REPOSITORY ⛔**
+
+**Date:** February 11, 2026  
+**Classification:** Attorney-Client Privileged Work Product  
+**Purpose:** Identify patentable subject matter and recommend engagement of patent counsel
+
+> **WARNING:** This document contains privileged analysis of patentable subject matter,
+> filing strategies, cost estimates, and competitive assessments. Public disclosure
+> could waive attorney-client privilege and compromise patent prosecution strategy.
+> This document must NEVER be placed in a public repository, shared externally,
+> or referenced in any public-facing materials.
+
+---
+
+## 1. Scope and Disclaimer
+
+This memorandum identifies potentially patentable innovations within the Salvi Framework / PlenumNET platform for the purpose of engaging qualified patent counsel. **This document does not constitute a patentability opinion.** Formal patentability analysis — including novelty searches, prior art analysis, and claim drafting — requires a registered patent attorney or agent before the USPTO.
+
+Capomastro Holdings Ltd. should engage patent counsel promptly, as the United States operates under a **first-inventor-to-file** system (35 U.S.C. §102, post-AIA). Public disclosure of an invention without a filed application risks loss of patent rights. The GitHub repository is public, and each commit constitutes a potential disclosure event.
+
+---
+
+## 2. Grace Period Alert
+
+Under U.S. patent law, an inventor has a **one-year grace period** from the date of first public disclosure to file a patent application (35 U.S.C. §102(b)(1)(A)). However, most foreign jurisdictions have **no grace period** — public disclosure before filing destroys novelty worldwide.
+
+The repository at https://github.com/SigmaWolf-8/Ternary is publicly visible. The earliest commit date establishes the potential disclosure date. **Patent counsel should review the git log to determine which inventions may still fall within the U.S. grace period and which, if any, have been barred by foreign absolute novelty requirements.**
+
+Provisional patent applications ($320 USPTO filing fee for small entity, $160 for micro entity) can be filed quickly to secure a priority date while full applications are prepared. This is strongly recommended for any high-priority inventions identified below.
+
+---
+
+## 3. Potentially Patentable Subject Matter
+
+The following innovations have been identified through code and documentation review. They are organized by technical domain and assessed for patent viability.
+
+### 3.1 Ternary Computing Architecture
+
+| Innovation | Description | Patentability Assessment |
+|-----------|-------------|------------------------|
+| **Bijective Ternary Representation System** | Three-representation mapping (A: {-1,0,+1}, B: {0,1,2}, C: {1,2,3}) with verified ring isomorphism via modular arithmetic | Moderate — GF(3) arithmetic is known, but the specific bijective mapping system and its application to computing may be novel. Prior art search needed. |
+| **Ternary Virtual Machine (35-Opcode ISA)** | Custom instruction set architecture with ternary-native operations (TAdd, TMul, TNeg, TRot, TXor, TConvert), 27 registers (3³), Tribonacci-derived cycle limits | Strong — novel ISA with mathematically derived parameters. The specific opcode set and Tribonacci-constant integration appear unique. |
+| **Tribonacci-Derived Constant Architecture** | Systematic derivation of all system constants from τ ≈ 1.8392867552141612 (root of τ³ = τ² + τ + 1), including buffer sizes (τ¹³ ≈ 2757), hash seeds (S_inst = 2τ⁷ ≈ 142.42), GC thresholds (τ⁻²), and VM parameters | Strong — the systematic use of a single mathematical constant to derive an entire computing platform's parameters appears novel. The self-test intrinsic (verifyTau) that halts the VM on inconsistency adds to the claim. |
+| **Mark-Sweep GC with Tribonacci Thresholds** | Garbage collection system where trigger thresholds, sweep intervals, and memory pressure indicators are derived from τ | Moderate — garbage collection is well-known, but parameterization from Tribonacci constants may be novel as a method claim. |
+
+### 3.2 Post-Quantum Cryptography
+
+| Innovation | Description | Patentability Assessment |
+|-----------|-------------|------------------------|
+| **Phase Encryption** | Adaptive dual-phase quantum encryption with guardian phase tamper detection using Tribonacci-weighted checksums | Strong — appears to be a novel encryption methodology. The dual-phase approach with guardian detection and Tribonacci weighting has no obvious prior art. Priority filing recommended. |
+| **TL-KEM / TL-DSA Interop Bridge** | Ternary-lattice hybrid that bridges standard ML-KEM/ML-DSA (FIPS 203/204) with ternary computing primitives | Strong — the specific method of bridging NIST post-quantum standards to ternary arithmetic appears novel. The interop architecture enabling FIPS compliance within a non-binary computing environment is likely inventive. |
+| **Cryptographic Agility Policy Engine** | Three-mode policy enforcement (CnsaOnly, Hybrid, Legacy) for algorithm selection during quantum transition | Moderate — policy-based algorithm selection exists, but the specific three-phase transition model aligned to CNSA 2.0 timelines may have method claims. |
+
+### 3.3 Timing and Synchronization
+
+| Innovation | Description | Patentability Assessment |
+|-----------|-------------|------------------------|
+| **High-Precision Timing Protocol (HPTP)** | Femtosecond-scale timestamp generation anchored to Salvi Epoch (April 1, 2025), with network latency correction and self-test jitter analysis | Strong — femtosecond-precision timing with a novel epoch anchoring system and integrated self-test diagnostics appears unique. Particularly patentable as a method claim for financial timestamp compliance (FINRA 613, MiFID II). |
+| **24-Calendar Synchronization System** | Real-time synchronization across 24 global calendar systems spanning 30,000+ years, with femtosecond precision | Strong — the scale and precision of multi-calendar synchronization appears unprecedented. Method and system claims both viable. |
+
+### 3.4 Hardware and Language Design
+
+| Innovation | Description | Patentability Assessment |
+|-----------|-------------|------------------------|
+| **THDL (Ternary Hardware Description Language)** | Hardware synthesis language specifically designed for ternary computing targets (FPGA and ASIC) | Strong — domain-specific HDLs for non-binary computing architectures are rare. The specific synthesis methodology for ternary logic gates could yield valuable hardware method patents. |
+| **TSL (Ternary System Language)** | High-level programming language with ternary-native type system and compiler | Moderate — programming language design is generally not patentable as such, but specific compilation methods (ternary optimization passes, GF(3) type inference) may have method claims. |
+
+### 3.5 Data and Network
+
+| Innovation | Description | Patentability Assessment |
+|-----------|-------------|------------------------|
+| **PlenumDB Compression** | Ternary-native compression and storage architecture leveraging log₂(3) ≈ 1.585 information density advantage | Moderate-Strong — if the compression algorithm achieves measurable density improvements through ternary encoding, the method is likely patentable. Quantitative benchmarks would strengthen the application. |
+| **Torsion Network Protocol** | Network communication protocol derived from 13D Torsion Plenum Theory | Moderate — depends on how much of the implementation is novel vs. theoretical. The applied networking aspects (packet structure, routing, error correction) are more patentable than the theoretical physics. |
+
+---
+
+## 4. Priority Filing Recommendations
+
+Based on the assessment above, the following inventions should be prioritized for provisional patent applications:
+
+### Tier 1 — File Provisionals Immediately (Within 30 Days)
+
+1. **Phase Encryption Methodology** — Novel, commercially valuable, likely no prior art, risk of independent discovery as post-quantum field matures
+2. **HPTP Femtosecond Timing Protocol** — Novel, directly monetizable in financial services, clear method claims
+3. **TL-KEM / TL-DSA Interop Bridge** — Novel, strategically important for FIPS compliance positioning
+
+### Tier 2 — File Within 90 Days
+
+4. **Tribonacci-Derived Constant Architecture** (system claim for τ-based computing platform parameterization)
+5. **Ternary Virtual Machine ISA** (35-opcode instruction set with ternary-native operations)
+6. **THDL Synthesis Methodology** (ternary-to-FPGA/ASIC compilation method)
+
+### Tier 3 — Evaluate After Prior Art Search
+
+7. PlenumDB compression algorithm
+8. 24-Calendar synchronization system
+9. Bijective ternary representation system
+10. Cryptographic agility policy engine
+
+---
+
+## 5. Patent Claim Strategy
+
+### 5.1 Claim Types
+
+For maximum protection, each application should include a combination of:
+
+- **Method claims** — the steps performed by the algorithm/protocol
+- **System claims** — the computing system configured to perform the method
+- **Computer-readable medium claims** — the software embodying the method
+- **Apparatus claims** (for THDL) — the hardware synthesized by the language
+
+### 5.2 Alice/Mayo Considerations
+
+Under *Alice Corp. v. CLS Bank* (2014) and *Mayo Collaborative Services v. Prometheus Laboratories* (2012), abstract ideas implemented on a generic computer are not patentable. To survive Alice scrutiny, claims should emphasize:
+
+- **Technical improvement** — e.g., HPTP achieves femtosecond precision where existing protocols achieve nanosecond; Phase Encryption provides tamper detection that existing methods lack
+- **Specific implementation** — tie claims to concrete computational steps, specific data structures, and measurable performance metrics
+- **Non-obvious combinations** — the integration of Tribonacci constants with GF(3) arithmetic with post-quantum cryptography is not an abstract idea; it's a specific technical architecture
+
+Patent counsel experienced in software patent prosecution post-Alice should be engaged for claim drafting.
+
+---
+
+## 6. International Filing Strategy
+
+### 6.1 PCT Application
+
+For inventions with global commercial potential (Phase Encryption, HPTP, TL-KEM/TL-DSA), a Patent Cooperation Treaty (PCT) application should be filed within 12 months of the provisional filing date. This preserves rights in 150+ countries and provides an additional 18 months to decide which national phases to enter.
+
+### 6.2 Priority National Offices
+
+| Office | Reason | Estimated Cost (filing through prosecution) |
+|--------|--------|---------------------------------------------|
+| USPTO (US) | Primary market, home jurisdiction | $15,000–$25,000 per application |
+| EPO (Europe) | Key enterprise market, defense/finance | $20,000–$35,000 per application |
+| CIPO (Canada) | FVEY partner, defense/finance market | $8,000–$15,000 per application |
+| IP Australia | FVEY partner, emerging quantum ecosystem | $10,000–$18,000 per application |
+| JPO (Japan) | Major tech market, quantum computing investment | $15,000–$25,000 per application |
+
+### 6.3 Estimated Budget
+
+| Phase | Per Application | 3 Tier-1 Applications | 6 Tier-1+2 Applications |
+|-------|----------------|----------------------|------------------------|
+| Provisional (US only) | $2,000–$4,000 | $6,000–$12,000 | $12,000–$24,000 |
+| Non-provisional (US) | $15,000–$25,000 | $45,000–$75,000 | $90,000–$150,000 |
+| PCT + National Phase (3 offices) | $40,000–$60,000 | $120,000–$180,000 | $240,000–$360,000 |
+
+These are rough estimates. Actual costs depend on claim complexity, number of office actions, and attorney rates. Patent counsel will provide detailed quotes after reviewing the technology.
+
+---
+
+## 7. Trade Secret Alternative
+
+For innovations where patent disclosure is strategically undesirable (e.g., if describing the Phase Encryption methodology in a published patent application would aid adversaries), **trade secret protection** under the Defend Trade Secrets Act (DTSA, 18 U.S.C. §1836) is an alternative. Trade secrets require:
+
+- The information derives independent economic value from not being generally known
+- Reasonable measures are taken to maintain secrecy
+
+The proprietary license, source file headers, confidentiality provisions, NDA requirements for enterprise customers, and access controls already in place or recommended in this engagement collectively support trade secret claims. Patent counsel should advise on the patent-vs-trade-secret decision for each invention.
+
+---
+
+## 8. Recommended Patent Counsel Qualifications
+
+When engaging patent counsel, seek the following qualifications:
+
+- Registered USPTO patent attorney/agent
+- Technical background in computer science, electrical engineering, or mathematics (for examiner credibility on ternary computing claims)
+- Post-Alice software patent prosecution experience (demonstrated track record of obtaining software patent claims)
+- Experience with cryptographic or security-related patents
+- Familiarity with FIPS/CMVP/government procurement IP requirements
+- International filing experience (PCT, EPO)
+
+Professional organizations for referrals:
+- American Intellectual Property Law Association (AIPLA)
+- Intellectual Property Owners Association (IPO)
+- Local bar association IP sections
+
+---
+
+## 9. Immediate Action Items
+
+| Action | Responsible | Deadline |
+|--------|------------|----------|
+| Engage patent counsel with qualifications per Section 8 | Capomastro Holdings Ltd. | Within 14 days |
+| Provide patent counsel with: this memo, source code access, technical documentation, git history | Salvi / Applied Physics Division | Upon engagement |
+| Request prior art searches for Tier 1 inventions | Patent counsel | Within 30 days of engagement |
+| File provisional applications for Tier 1 inventions | Patent counsel | Within 60 days of engagement |
+| Implement invention disclosure process for future innovations | Patent counsel + Applied Physics Division | Within 90 days |
+| Evaluate trade secret vs. patent decision for Phase Encryption | Patent counsel + Licensing counsel | Within 60 days |
+
+---
+
+*This memorandum is provided as a licensing and IP strategy analysis. It does not constitute a patentability opinion and should not be relied upon as such. Formal patentability analysis requires a registered patent attorney or agent. All cost estimates are approximate and subject to variation based on counsel selection and claim complexity.*
