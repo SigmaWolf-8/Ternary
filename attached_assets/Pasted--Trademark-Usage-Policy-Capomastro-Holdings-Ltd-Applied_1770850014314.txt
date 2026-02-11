@@ -1,0 +1,227 @@
+# Trademark Usage Policy
+## Capomastro Holdings Ltd., Applied Physics Division
+
+**Effective Date:** February 11, 2026  
+**Version:** 1.0
+
+---
+
+## 1. Purpose
+
+This Trademark Usage Policy ("Policy") governs the use of trademarks, service marks, trade names, logos, and other brand identifiers owned by Capomastro Holdings Ltd. ("Company"). This Policy ensures consistent brand representation and protects the Company's intellectual property rights in its marks.
+
+---
+
+## 2. Trademarks Covered
+
+The following marks are owned by Capomastro Holdings Ltd. and are subject to this Policy (collectively, the "Marks"):
+
+### 2.1 Word Marks
+
+| Mark | Status | Usage Context |
+|------|--------|---------------|
+| **Salvi** | Common law trademark (™) | The overarching framework and brand identity |
+| **Salvi Framework** | Common law trademark (™) | The software platform and development framework |
+| **PlenumNET** | Common law trademark (™) | The post-quantum internet infrastructure and SaaS platform |
+| **Salvi Calendar** | Common law trademark (™) | The 13-Moon calendar system |
+| **libternary** | Common law trademark (™) | The core ternary logic library |
+| **THDL** | Common law trademark (™) | Ternary Hardware Description Language |
+| **TSL** | Common law trademark (™) | Ternary System Language |
+| **PlenumDB** | Common law trademark (™) | Ternary-native database/compression system |
+| **HPTP** | Common law trademark (™) | High-Precision Timing Protocol |
+
+### 2.2 Logo Marks
+
+All graphical logos, wordmarks, and design marks associated with the above word marks are trademarks of Capomastro Holdings Ltd. Specific logo files and usage guidelines are available upon request.
+
+### 2.3 Registration Status
+
+The Marks listed above are currently asserted under common law trademark rights (™). Federal registration with the USPTO (®) is recommended and should be pursued for the primary marks: **Salvi**, **Salvi Framework**, and **PlenumNET**. Until registration is obtained, all marks should use the ™ symbol, not the ® symbol.
+
+---
+
+## 3. Permitted Uses (Without Prior Approval)
+
+The following uses of the Marks are permitted without prior written approval from the Company, provided they comply with the guidelines in Section 5:
+
+### 3.1 Nominative Fair Use
+
+You may use the Marks to accurately refer to or identify the Company's products and services in:
+
+- News reporting, journalism, and commentary
+- Academic research and publications
+- Technical discussions, blog posts, and conference presentations
+- Comparative advertising (truthful and non-misleading)
+- Interoperability statements (e.g., "compatible with Salvi Framework")
+
+### 3.2 Attribution
+
+You may reference the Marks when attributing functionality, outputs, or results to the Company's technology, provided you include proper trademark attribution (see Section 5.5).
+
+---
+
+## 4. Restricted Uses (Require Prior Written Approval)
+
+The following uses of the Marks require prior written approval from the Company:
+
+4.1 Use of any Mark in a product name, service name, domain name, social media handle, or application name (e.g., "Salvi Analytics," "PlenumNET Tools").
+
+4.2 Use of any Mark in merchandise, promotional materials, or physical goods.
+
+4.3 Use of any Logo Mark in any context other than nominative fair use.
+
+4.4 Use of any Mark in a manner that suggests endorsement, sponsorship, affiliation, or partnership with the Company.
+
+4.5 Use of any Mark in connection with a product or service that competes with the Company's offerings.
+
+4.6 Modification, abbreviation, or combination of any Mark with other words, logos, or marks (e.g., "SuperSalvi," "PlenumNET+," "Salvi-Powered").
+
+4.7 Translation or transliteration of any Mark into another language or script.
+
+4.8 Use of any Mark in a domain name, except as permitted under Section 3.
+
+To request approval, contact [trademark contact to be specified].
+
+---
+
+## 5. Usage Guidelines
+
+When using the Marks under any permitted use, you must comply with the following guidelines:
+
+### 5.1 Accurate Representation
+
+Always use the Marks accurately and in their correct form. Do not misspell, hyphenate, abbreviate, or alter the Marks. Correct forms:
+
+| Correct | Incorrect |
+|---------|-----------|
+| Salvi | salvi, SALVI (all-caps in body text), Salvee |
+| Salvi Framework | Salvi framework, salvi-framework, SalviFramework |
+| PlenumNET | Plenumnet, Plenum-NET, PLENUMNET, Plenum Net |
+| libternary | Libternary, lib-ternary, LibTernary |
+| THDL | Thdl, thdl (acceptable in code contexts only) |
+| TSL | Tsl, tsl (acceptable in code contexts only) |
+| HPTP | Hptp, hptp (acceptable in code contexts only) |
+
+### 5.2 Trademark Symbol Usage
+
+- Use ™ on first prominent use of each Mark in any document, webpage, or publication
+- Subsequent uses in the same document do not require the symbol
+- Do not use ® unless and until the specific Mark has been registered with the USPTO
+- In code, configuration files, and command-line contexts, the ™ symbol is not required
+
+### 5.3 Distinguish from Surrounding Text
+
+When used in running text, Marks should be visually distinguished from surrounding content. Preferred methods:
+
+- **Bold face** on first use (e.g., "The **Salvi Framework™** provides...")
+- Initial capitalization consistent with the Mark's canonical form
+- Never use a Mark as a verb (e.g., not "Salvi your data" or "PlenumNET the network")
+- Never use a Mark as a possessive unless referring to the Company (e.g., not "Salvi's algorithm" unless quoting the Company)
+- Never pluralize a Mark (e.g., not "PlenumNETs" or "Salvis")
+
+### 5.4 No Implied Affiliation
+
+Your use of the Marks must not create a likelihood of confusion as to the source, sponsorship, endorsement, or affiliation of your product or service with the Company. When referencing the Company's products, include a clarifying statement if there is any risk of confusion:
+
+> "[Product name] is not affiliated with, endorsed by, or sponsored by Capomastro Holdings Ltd."
+
+### 5.5 Attribution Notice
+
+In publications, websites, and documentation that use the Marks, include the following attribution notice (typically in a footnote, credits section, or legal notice):
+
+> Salvi, Salvi Framework, PlenumNET, libternary, THDL, TSL, PlenumDB, HPTP, and the Salvi Calendar are trademarks of Capomastro Holdings Ltd. All other trademarks are the property of their respective owners.
+
+---
+
+## 6. Prohibited Uses
+
+The following uses of the Marks are strictly prohibited:
+
+6.1 Any use that disparages, defames, or brings the Company or its products into disrepute.
+
+6.2 Any use in connection with illegal activities, hate speech, discrimination, or content that violates applicable law.
+
+6.3 Any use that implies the Company's products or services are unsafe, insecure, or unreliable, unless supported by documented, verifiable evidence.
+
+6.4 Registration or attempted registration of any Mark (or any confusingly similar mark) as a trademark, service mark, domain name, business name, or social media handle by any party other than the Company.
+
+6.5 Use of any Mark in a manner that dilutes, tarnishes, or diminishes the distinctiveness of the Mark.
+
+6.6 Use of any Mark as a metatag, keyword for search engine advertising, or hidden text for the purpose of manipulating search engine rankings.
+
+---
+
+## 7. Domain Names
+
+7.1 You may not register any domain name that contains, is confusingly similar to, or incorporates any of the Marks without prior written approval.
+
+7.2 If you own a domain name that you believe may conflict with this Policy, please contact us to discuss a resolution.
+
+---
+
+## 8. Open Source and Community Use
+
+8.1 If the Company releases any component under an open-source license (current or future), the open-source license grants rights to the code, **not** to the Marks. You may use the code under the terms of the applicable license, but you may not use the Marks in your project name, logo, or marketing beyond nominative fair use.
+
+8.2 Forks of the Company's open-source components must be renamed and must not use the Marks in a way that suggests the fork is an official release of the Company.
+
+8.3 Community projects built on top of or integrating with the Company's technology may describe compatibility (e.g., "Built for use with Salvi Framework™") but may not incorporate the Marks into their project name without approval.
+
+---
+
+## 9. Enforcement
+
+The Company monitors the use of its Marks and reserves the right to take action against unauthorized or improper use. Actions may include:
+
+- Requesting voluntary compliance
+- Issuing cease-and-desist notices
+- Filing complaints with domain registrars (UDRP proceedings)
+- Pursuing legal action for trademark infringement, dilution, or unfair competition
+
+The Company's failure to enforce this Policy in any particular instance does not constitute a waiver of its right to enforce the Policy in the future.
+
+---
+
+## 10. Reporting Violations
+
+If you become aware of any unauthorized or improper use of the Marks, please report it to [trademark contact to be specified]. We appreciate your help in protecting the integrity of our brand.
+
+---
+
+## 11. Amendments
+
+The Company reserves the right to amend this Policy at any time. Updated versions will be posted to the Company's website and/or repository. Your continued use of the Marks after any amendment constitutes acceptance of the updated Policy.
+
+---
+
+## 12. Contact
+
+For trademark usage inquiries, permissions, or to report violations:
+
+Capomastro Holdings Ltd.  
+Applied Physics Division  
+Email: [trademark contact to be specified]  
+Repository: https://github.com/SigmaWolf-8/Ternary
+
+---
+
+## Appendix A: Recommended Federal Trademark Registrations
+
+The following marks should be prioritized for USPTO registration under the Madrid Protocol or direct filing:
+
+| Mark | Nice Classification | Goods/Services Description | Priority |
+|------|-------------------|---------------------------|----------|
+| **Salvi** | Class 9, Class 42 | Computer software; SaaS for cryptographic and computational services | High |
+| **PlenumNET** | Class 9, Class 42 | Post-quantum network infrastructure; cloud-based ternary computing services | High |
+| **Salvi Framework** | Class 9 | Computer software development framework for ternary computing | High |
+| **HPTP** | Class 9, Class 42 | High-precision timing technology and services | Medium |
+| **PlenumDB** | Class 9, Class 42 | Database software; data compression and storage services | Medium |
+| **libternary** | Class 9 | Computer software library for ternary arithmetic | Low |
+| **THDL** | Class 9 | Hardware description language software | Low |
+| **TSL** | Class 9 | Programming language software | Low |
+
+**Estimated cost for initial filing (3 high-priority marks, 2 classes each):** $1,650–$2,250 in USPTO fees (TEAS Plus at $275/class), plus attorney fees ($2,000–$5,000 total for preparation and prosecution).
+
+**Timeline:** 8–12 months from filing to registration, assuming no office actions or oppositions.
+
+*This Policy does not constitute legal advice. Consult with a trademark attorney before initiating registration proceedings.*
