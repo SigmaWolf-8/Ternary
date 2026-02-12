@@ -1,0 +1,131 @@
+# ADR-007: Carry Propagation as Computational Jerk in PQTI Timing Protocols
+
+**Status:** Accepted  
+**Date:** 2026-02-11  
+**Author:** Salvi — Applied Physics Division, Capomastro Holdings Ltd.  
+**Deciders:** Salvi  
+**Supersedes:** None  
+**Related:** ADR-003 (Ternary Arithmetic Engine), ADR-005 (Precision Timing Protocol), ADR-008 (Ternary Circle Geometry — 364°/π=14)
+
+---
+
+## Context
+
+PlenumNET's Post-Quantum Ternary Internet (PQTI) protocol requires precision clock synchronization between nodes. The timing subsystem currently computes clock offset corrections in decimal arithmetic before converting to ternary wire format. This introduces two inefficiencies: a conversion overhead at every synchronization cycle, and the loss of structural information about the correction's computational complexity — information that is directly observable in native ternary arithmetic but invisible in decimal.
+
+The Salvi Framework's unified theoretical foundation establishes a formal equivalence between ternary arithmetic operations and the physics of motion. Specifically, the three kinematic quantities — position, velocity, and acceleration — map to the three terms of the Tribonacci recurrence, and the **carry propagation** that occurs during base-3 addition maps to **jerk** (the third derivative of position, da/dt). This is not an analogy; it is a structural identity: carry propagation IS the discrete event that changes the rate of change of the rate of change — the point where the arithmetic "exceeds its current digit capacity" and must ripple upward.
+
+Further, the adoption of the **364° ternary circle** (where π = 14 and 1 radian = 13° = `111₃` = T₇) means that angular corrections in timing synchronization are expressed as positions in the cyclic group **Z₂₈** — 28 discrete directions separated by exactly one ternary radian. Phase corrections between clocks map to Z₂₈ offsets, and the carry-propagation jerk index becomes a measure of how violently the phase correction walks across the 28-position lattice.
+
+## Decision
+
+**We will implement native ternary clock correction arithmetic in the PQTI timing protocol, with carry propagation tracked and exposed as a timing quality metric ("jerk index"). The timing module will leverage the kernel's representation-agnostic A/B/C architecture to use the optimal encoding at each layer.**
+
+The specific changes are:
+
+1. **Clock offsets represented as TritVec values** (from `libternary::tribonacci`), not decimal floats converted to ternary at the wire boundary. The kernel's three representations serve distinct roles in the timing pipeline:
+   - **Rep A (Balanced `{-1,0,+1}`)** for signed clock corrections — negation is a trit-flip with zero carry overhead, making "clock ahead" vs "clock behind" symmetric.
+   - **Rep B (Standard `{0,1,2}`)** for internal arithmetic — the kernel's native addition with carry tracking operates in this representation.
+   - **Rep C (Bijective `{1,2,3}`)** for wire format serialization — the zero-free encoding eliminates padding-oracle ambiguity in protocol messages.
+
+2. **Every timing correction addition tracks carry metadata** using `TritVec::add_with_carry_tracking()`, producing a `TernaryAddResult` that includes `carry_count` and `max_carry_chain`.
+
+3. **The "Jerk Index" — a new timing quality metric** defined as the carry propagation density of the most recent correction:
+
+   ```
+   J(t) = carry_count(t) / trit_length(correction(t))
+   ```
+
+   A jerk index of 0.0 means the correction was carry-free (a smooth, low-complexity adjustment — analogous to zero jerk in physical motion). A jerk index approaching 1.0 means nearly every trit position generated a carry (a violent, cascading correction — analogous to high jerk, i.e., sudden changes in acceleration).
+
+4. **Ternary power alignment detection as an optimization trigger.** When a timing correction lands on a pure power of 3 (detected by `TritVec::is_power_of_3()`), the carry complexity is exactly zero. These alignment events mark natural synchronization points where the protocol can safely reduce its polling frequency without risk of drift amplification.
+
+5. **Borromean invariant validation for three-party timing handshakes.** When three PQTI nodes perform mutual clock synchronization, the three correction vectors must satisfy the Borromean condition (their digit-wise ternary XOR must never be identically zero). This ensures that no single node's failure can silently nullify the synchronization — the topological property of non-separability guarantees that the timing consensus requires all three participants.
+
+6. **Phase corrections on Z₂₈.** Clock phase offsets are expressed as positions in the cyclic group Z₂₈, where each position corresponds to a ternary radian (13° in the 364° circle). Phase correction velocity is the rate of Z₂₈ traversal; phase acceleration is the change in traversal rate; and phase jerk is the carry propagation when adding corrections. A correction that moves the phase by one Z₂₈ position (13°) is the minimum quantum of angular adjustment — any smaller correction is sub-radian and indicates the clocks are within one ternary radian of alignment (see `ternary_circle.rs::Z28`).
+
+## Rationale
+
+### Why carry propagation maps to jerk
+
+In classical mechanics, position s(t) and its derivatives form a hierarchy:
+
+| Derivative | Physical Quantity | Ternary Arithmetic Analogue |
+|---|---|---|
+| s(t) | Position | The trit-vector value itself |
+| ds/dt | Velocity | The difference between successive values (Δ per time step) |
+| d²s/dt² | Acceleration | The difference of differences (rate of change of Δ) |
+| d³s/dt³ | **Jerk** | **Carry propagation** — the event that forces a digit to "overflow" and affect the next higher digit |
+
+The key insight is that in base-3 addition, a carry event is precisely the moment when the local arithmetic exceeds the capacity of the current trit position and must propagate upward. This upward propagation is a discrete, non-local effect — it changes not just the current digit but potentially all higher digits (a carry chain). In the timing domain, this corresponds to a correction that doesn't just adjust the clock but **changes the rate at which corrections are changing** — which is jerk.
+
+### Why this matters for timing quality
+
+A timing protocol that experiences frequent high-jerk corrections is unstable. The corrections are not converging smoothly; they are oscillating and cascading. By measuring carry propagation directly, we get a leading indicator of timing instability before it manifests as observable clock drift.
+
+Conversely, a correction with zero carries (especially one that lands on a ternary power) indicates the system has found a natural resonance with the base-3 structure of the protocol. These are moments of maximal stability.
+
+### Why native ternary, not decimal-then-convert
+
+Computing in decimal and converting to ternary destroys the carry information. A decimal addition that produces a carry in base 10 does NOT correspond to a carry in base 3 — the two carry structures are incommensurable. The jerk index is only meaningful when computed in the native base of the protocol.
+
+Additionally, the ternary power alignment events (T(10) = 81 = 3⁴ = 10000₃) are invisible in decimal. The number 81 has no special structure in base 10, but in base 3 it is a singularity — a point of zero carry complexity. These events can only be detected if the arithmetic stays in base 3 throughout.
+
+### Why the A/B/C interchange matters for timing
+
+The three kernel representations are not interchangeable by accident — each serves a specific role in the timing protocol pipeline:
+
+**Rep A (Balanced) at the correction layer.** When a node determines it is 5 trits ahead of the reference clock, the correction is `−5`. In balanced ternary, negation is a per-trit sign flip with zero carry propagation: `+1,−1,+1` becomes `−1,+1,−1`. In standard ternary, negation requires subtraction from 3^n, which cascades carries. By expressing signed corrections in Rep A, the timing module avoids introducing artificial jerk from the negation operation itself — the only jerk observed is genuine timing instability.
+
+**Rep B (Standard) at the arithmetic layer.** The Tribonacci recurrence and carry tracking operate in `{0,1,2}`. This is where the jerk index is computed. Rep A corrections are translated to Rep B for the addition, carry metadata is captured, and the result is translated back to Rep A for the next correction cycle.
+
+**Rep C (Bijective) at the wire layer.** When corrections are serialized into PQTI protocol messages, the bijective encoding `{1,2,3}` guarantees that every trit in the message carries information. There is no ambiguity between "three leading zeros" (a small correction) and "empty padding" (no correction). This eliminates a class of protocol-level padding oracle attacks that would be possible if standard ternary were used on the wire.
+
+## Consequences
+
+### Positive
+
+- **New diagnostic observable.** The jerk index provides a timing quality metric that has no decimal equivalent. Protocol operators can monitor timing health at the arithmetic level.
+- **Adaptive polling.** Ternary power alignment events create natural "rest points" where synchronization polling frequency can be safely reduced, saving bandwidth.
+- **Three-party integrity.** The Borromean invariant ensures that mutual synchronization between three nodes cannot be silently compromised by a single node failure.
+- **Elimination of conversion overhead.** Native ternary arithmetic removes the decimal-to-ternary conversion at the wire boundary.
+- **Theoretical coherence.** The timing protocol now shares the same mathematical foundation as the rest of the Salvi Framework — Tribonacci recurrence, Borromean topology, and the Triskellion geometry are all expressed in their native base.
+
+### Negative
+
+- **Increased complexity in the timing module.** Carry tracking adds per-addition overhead (estimated < 5% for the counter increment and chain tracking).
+- **Developer familiarity.** Contributors must understand ternary arithmetic to work on the timing code. This is mitigated by the `libternary` API, which encapsulates the trit-level operations.
+- **Validation burden.** Every timing correction must now be cross-validated for carry metadata correctness, adding test surface area.
+
+### Neutral
+
+- **Wire format unchanged.** The ternary values are already the wire format; this ADR changes only the computation path, not the protocol bytes.
+- **Backward compatibility.** Existing nodes that compute in decimal and convert will produce identical correction values. They simply cannot report jerk index or detect alignment events. The metric is additive, not breaking.
+
+## Implementation Plan
+
+1. **Phase 1:** Integrate `tribonacci.rs` TritVec arithmetic into the timing module. Replace decimal offset computation with `TritVec::add_with_carry_tracking()`.
+
+2. **Phase 2:** Expose jerk index in the node's timing health API endpoint. Add dashboarding for carry density over time.
+
+3. **Phase 3:** Implement ternary power alignment detection as an adaptive polling trigger. When `is_power_of_3()` returns true on a correction, extend the polling interval by one Tribonacci step.
+
+4. **Phase 4:** Implement Borromean invariant validation for three-node mutual synchronization using `borromean.rs::validate_borromean_triple()`.
+
+5. **Phase 5:** CI pipeline integration — mathematical validation tests asserting that carry metrics are correctly computed for the canonical Tribonacci test vectors (T(0) through T(20)).
+
+## References
+
+- Salvi Framework — "The Ternary Rosetta Stone" (internal document)
+- Salvi Framework — "Unification: The Ternary Circle and the Tribonacci Radian" (internal document)
+- `libternary::tribonacci` — Tribonacci base-3 generator with carry tracking
+- `libternary::borromean` — Borromean ternary XOR invariant primitives
+- `libternary::ternary_circle` — 364° geometry, Z₂₈ cyclic group, spiral walk engine
+- `shared/ternary-circle.ts` — TypeScript constants and conversion functions
+- Tribonacci sequence: OEIS A000073
+- Tribonacci constant: τ ≈ 1.839286755214161 (real root of x³ − x² − x − 1 = 0)
+- Base-3 repunits: 1, 4, 13, 40, 121, **364**, 1093, … (OEIS A003462)
+
+---
+
+*Così sia.*
