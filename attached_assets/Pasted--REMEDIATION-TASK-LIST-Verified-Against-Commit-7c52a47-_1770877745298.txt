@@ -1,0 +1,229 @@
+# REMEDIATION TASK LIST
+## Verified Against Commit `7c52a47` — February 12, 2026
+### Capomastro Holdings Ltd. — Salvi Framework / PlenumNET
+
+---
+
+## ✅ COMPLETED (Verified in Current Repo)
+
+| ID | Finding | Evidence |
+|----|---------|----------|
+| C-3 | Patent-scope innovations in IP Notice | All 7 enumerated with file references |
+| C-4 | IP Notice ↔ Trademark Notice sync | 13 marks listed; forward reference to TRADEMARK-NOTICE.md |
+| C-5 | Contact placeholders (17 instances) | All 17 now `Rsalvi@Salvigroup.com` (including LICENSE, fixed in latest commit) |
+| C-6 | NOTICE entity → Province of Alberta | Confirmed |
+| H-2 | Cargo.toml → `LicenseRef-Proprietary` | All 3 files normalized; `repository` field added |
+| H-3 | libternary/LICENSE entity → Province of Alberta | Confirmed |
+| H-5 | Remove empty `attached_assets/` | Directory gone |
+| M-1 | SECURITY.md PGP + contact | `Rsalvi@Salvigroup.com`; PGP via GitHub Security Advisories |
+
+---
+
+## 🔴 P0 — IMMEDIATE (Legal Exposure — Live Site)
+
+---
+
+### TASK 1: Create Legal Page Routes and Components
+
+**Status:** Not done
+**Evidence:** `client/src/App.tsx` lines 24–34 contain no `/terms`, `/privacy`, `/aup`, or `/security` routes. No page component files for these exist in `client/src/pages/`.
+
+**What to do:**
+
+**1a.** Create `client/src/pages/legal.tsx` (or separate files per policy) that renders the content of TERMS-OF-SERVICE.md, PRIVACY-POLICY.md, ACCEPTABLE-USE-POLICY.md, and .github/SECURITY.md as formatted HTML.
+
+**1b.** Add routes to `client/src/App.tsx`:
+```tsx
+// Add after line 33 (before the NotFound catch-all):
+<Route path="/terms" component={TermsPage} />
+<Route path="/privacy" component={PrivacyPage} />
+<Route path="/aup" component={AUPPage} />
+<Route path="/security" component={SecurityPage} />
+```
+
+**1c.** Update footer links in `client/src/pages/landing.tsx`:
+```
+Line 1130: { label: "Privacy", href: "#" }    → { label: "Privacy", href: "/privacy" }
+Line 1131: { label: "Terms", href: "#" }      → { label: "Terms", href: "/terms" }
+Line 1132: { label: "Security", href: "#" }   → { label: "Security", href: "/security" }
+```
+
+**Effort:** 2–3 hours
+**Why P0:** Live SaaS with authentication and data collection has no accessible privacy policy or terms. PIPEDA requires privacy practices be readily available.
+
+---
+
+### TASK 2: Revise FINRA/MiFID Marketing Language
+
+**Status:** Not done
+**Evidence:** All instances unchanged in source at current commit.
+
+**What to change — `client/src/pages/landing.tsx`:**
+
+| Line | Current | Replace With |
+|------|---------|-------------|
+| 225 | `"...regulatory certification for FINRA 613 & MiFID II."` | `"...regulatory-grade precision targeting FINRA 613 & MiFID II requirements."` |
+| 408 | `"FINRA 613 & MiFID II regulatory compliance built in"` | `"FINRA 613 & MiFID II architecture designed in"` |
+| 592 | `"...built-in regulatory certification."` | `"...regulatory-grade precision for compliance environments."` |
+| 595 | `"FINRA 613 compliance (50ms threshold)"` | `"FINRA 613 targeting (50ms threshold)"` |
+| 596 | `"MiFID II compliance (100us/1ms tiers)"` | `"MiFID II targeting (100us/1ms tiers)"` |
+| 670 | `"FINRA 613 & MiFID II built-in"` | `"FINRA 613 & MiFID II ready"` |
+| 779 | OK as-is — `"FINRA 613 & MiFID II ready"` already uses "ready" | No change needed |
+| 896 | `"FINRA 613 & MiFID II compliant timing..."` | `"FINRA 613 & MiFID II ready timing..."` |
+| 897 | `"Compliance built-in"` | `"Compliance ready"` |
+
+**What to change — other pages:**
+
+| File | Line | Current | Replace With |
+|------|------|---------|-------------|
+| `calendar.tsx` | 749 | `"FINRA 613 and MiFID II require sub-millisecond..."` | OK as-is — describes the standard, not a claim of compliance |
+| `calendar.tsx` | 750 | `"Built-in compliance"` | `"Compliance ready"` |
+| `compliance.tsx` | 654 | `"FINRA Rule 613"` (section title) | OK — informational section title |
+| `compliance.tsx` | 661 | `"MiFID II Article 50"` (section title) | OK — informational section title |
+| `docs.tsx` | 136 | `"...FINRA 613 and MiFID II compliance."` | `"...FINRA 613 and MiFID II targeting."` |
+| `kong-konnect.tsx` | 971 | `"...FINRA Rule 613 CAT compliant precision."` | `"...FINRA Rule 613 CAT targeting precision."` |
+
+**Principle:** Replace "compliant" / "compliance built-in" / "regulatory certification" with "targeting" / "ready" / "designed for." Factual descriptions of the regulatory standards themselves are fine.
+
+**Effort:** 30 minutes
+**Why P0:** Marketing language overstating compliance status creates misrepresentation risk if a regulated customer relies on it.
+
+---
+
+## 🟠 P1 — THIS WEEK (Enforcement Hardening)
+
+---
+
+### TASK 3: Apply Copyright Headers to 99 Source Files
+
+**Status:** Not done — 68/167 have headers, 99 still missing
+**Evidence:** `grep -L "Capomastro Holdings"` returns 99 files at current commit.
+
+**Breakdown by directory:**
+
+| Directory | Missing | Files |
+|-----------|---------|-------|
+| `client/src/components/ui/` | 47 | shadcn/ui component wrappers |
+| `server/` | 7 | `db.ts`, `index.ts`, `routes.ts`, `static.ts`, `ternary.ts`, `vite.ts`, `storage.ts` |
+| `server/salvi-core/` | 5 | `femtosecond-timing.ts`, `index.ts`, `phase-encryption.ts`, `ternary-operations.ts`, `ternary-types.ts` |
+| `server/salvi-core/libternary/` | 1 | `aspect-api.ts` |
+| `server/replit_integrations/auth/` | 4 | `index.ts`, `replitAuth.ts`, `routes.ts`, `storage.ts` |
+| `src/kernel/src/crypto/` | 4 | `hash.rs`, `hmac.rs`, `kdf.rs`, `sponge.rs` ← **Crown Jewels** |
+| `src/kernel/src/arch/` | 3 | `aarch64.rs`, `boot.rs`, `riscv64.rs` |
+| `src/kernel/src/compat/` | 3 | `adapter.rs`, `gateway.rs`, `mod.rs` |
+| `src/kernel/src/vm/` | 2 | `constants.rs`, `mod.rs` |
+| `src/kernel/src/network/` | 2 | `mod.rs`, `ttp.rs` |
+| `src/kernel/src/drivers/` | 1 | `femtoclock.rs` |
+| `src/kernel/src/memory/` | 1 | `heap.rs` |
+| `src/kernel/src/process/` | 1 | `scheduler.rs` |
+| `src/tsl/src/` | 3 | `ast.rs`, `lexer.rs`, `parser.rs` |
+| `src/thdl/src/` | 2 | `ir.rs`, `timing.rs` |
+| `client/src/pages/` | 4 | `compliance.tsx`, `github-manager.tsx`, `kong-konnect.tsx`, `not-found.tsx` |
+| `client/src/hooks/` | 3 | `use-auth.ts`, `use-mobile.tsx`, `use-toast.ts` |
+| `client/src/lib/` | 3 | `auth-utils.ts`, `queryClient.ts`, `utils.ts` |
+| `client/src/` | 2 | `App.tsx`, `main.tsx` |
+| `client/src/components/` | 1 | `app-sidebar.tsx` |
+| `shared/` | 1 | `tribonacci-constants.ts` |
+
+**Batch approach — Rust files (use header from FILE-HEADER-TEMPLATE.md):**
+```bash
+HEADER='// Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+// Patent(s) Pending.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+'
+
+# For each .rs file missing the header:
+for f in $(find src/ ternary-math/src/ -name "*.rs" -exec grep -L "Capomastro" {} \;); do
+  echo "${HEADER}" | cat - "$f" > temp && mv temp "$f"
+done
+```
+
+**TypeScript/TSX files — same pattern, different comment style or same `//` style.**
+
+**Note on `client/src/components/ui/` (47 files):** These are shadcn/ui component wrappers. They are thin adapter files over open-source components. The copyright header still applies (they are part of the proprietary distribution), but these are lowest priority within this task. The Rust crypto files (`hash.rs`, `hmac.rs`, `kdf.rs`, `sponge.rs`) are highest priority.
+
+**Effort:** 2–3 hours (scripted batch + manual review)
+**Why P1:** 17 U.S.C. §401(d) — innocent infringement defense is defeated by proper notice. Crypto primitives without ownership assertion are the highest-risk gap.
+
+---
+
+### TASK 4: Fix CLA Entity Description
+
+**Status:** Not done — discovered during this audit
+**Evidence:** `CLA.md` line 9: *"a corporation incorporated under the laws of Canada"*
+
+**What to change:**
+```
+"laws of Canada" → "laws of the Province of Alberta"
+```
+
+Same pattern already corrected in NOTICE, libternary/LICENSE, and root LICENSE. CLA was missed.
+
+**Effort:** 5 minutes
+**Why P1:** Consistency across all legal instruments. CLA is a binding agreement — entity description should be precise.
+
+---
+
+## 🟡 P2 — TWO WEEKS (Housekeeping)
+
+---
+
+### TASK 5: Update README Statistics
+
+**Status:** Not done
+**Evidence:** README line 9: `80/80 milestones complete`; line 10: `Commits | 484+`; actual commit count: 1,047.
+
+**What to change:**
+```
+Line 10: | Commits | 484+ |  →  | Commits | 1,047+ |
+```
+
+Consider also: is "80/80 milestones complete" still accurate, or should the denominator change?
+
+**Effort:** 10 minutes
+
+---
+
+### TASK 6: `.env.example` at Project Root
+
+**Status:** Partially done — exists at `deployments/docker/.env.example` (Docker only)
+**What to do:** Create a root-level `.env.example` documenting the Replit/development environment variables (DATABASE_URL, session secrets, etc.), or add a note in README pointing to the Docker version.
+
+**Effort:** 15 minutes
+
+---
+
+## 🔵 P3 — ONE MONTH (Best Practice / Optional)
+
+| ID | Task | Effort |
+|----|------|--------|
+| 7 | **SBOM generation** — Add CycloneDX or SPDX to CI for enterprise procurement | 2 hrs |
+| 8 | **CLA execution mechanism** — Implement CLA Assistant GitHub App or DocuSign flow | 2 hrs |
+| 9 | **GitHub repository description** — Update from "Bijective Ternary Logic Library" to include "Post-Quantum • Ternary Computing • CNSA 2.0" | 5 min |
+| 10 | **Release tags** — Create `v1.0.0` git tag with changelog for patent priority dating | 1 hr |
+| 11 | **Structured NOTICE-FILE.md** — SBOM-style attribution with versions and SPDX identifiers | 1 hr |
+
+---
+
+## SUMMARY
+
+| Priority | Tasks | Total Effort | Deadline |
+|----------|-------|-------------|----------|
+| **P0** | 2 tasks (Legal routes + Marketing language) | ~3 hours | 48 hours |
+| **P1** | 2 tasks (Copyright headers + CLA entity) | ~3 hours | 1 week |
+| **P2** | 2 tasks (README + .env) | ~25 minutes | 2 weeks |
+| **P3** | 5 tasks (SBOM, CLA mechanism, description, tags, NOTICE) | ~6 hours | 1 month |
+| | **Total remaining** | **~12 hours** | |
+
+**Already completed:** 8 items (C-3, C-4, C-5, C-6, H-2, H-3, H-5, M-1)
+
+**Net position:** Documentation layer is strong. Code-layer and live-site items (Tasks 1–3) are the remaining gap.
