@@ -689,7 +689,7 @@ export default function GitHubManager() {
             <CardContent className="space-y-4">
               <Input
                 type="password"
-                placeholder="ghp_xxxxxxxxxxxxxxxx"
+                placeholder="your-github-token-here"
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
                 data-testid="input-github-token"
