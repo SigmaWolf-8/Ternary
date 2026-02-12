@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
  * Applied Physics Division
  *
  * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check, Database, TrendingUp } from "lucide-react";
+import { Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check, Database, TrendingUp, Cpu } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface TimestampData {
@@ -439,6 +439,11 @@ export default function APIDemo() {
   const [toRep, setToRep] = useState<string>("B");
   const [phaseData, setPhaseData] = useState<string>("Hello PlenumNET");
   const [phaseMode, setPhaseMode] = useState<string>("balanced");
+  const [notValue, setNotValue] = useState<number>(1);
+  const [xorA, setXorA] = useState<number>(1);
+  const [xorB, setXorB] = useState<number>(-1);
+  const [rotateValue, setRotateValue] = useState<number>(1);
+  const [configMode, setConfigMode] = useState<string>("balanced");
   
   const { data: timestamp, refetch: refetchTimestamp, isFetching: isTimestampFetching } = useQuery<TimestampResponse>({
     queryKey: ["/api/salvi/timing/timestamp"],
@@ -475,6 +480,64 @@ export default function APIDemo() {
       const res = await apiRequest("POST", "/api/salvi/phase/split", { data, mode });
       return res.json();
     },
+  });
+
+  const notMutation = useMutation({
+    mutationFn: async ({ value }: { value: number }) => {
+      const res = await apiRequest("POST", "/api/salvi/ternary/not", { value });
+      return res.json();
+    },
+  });
+
+  const xorMutation = useMutation({
+    mutationFn: async ({ a, b }: { a: number; b: number }) => {
+      const res = await apiRequest("POST", "/api/salvi/ternary/xor", { a, b });
+      return res.json();
+    },
+  });
+
+  const rotateMutation = useMutation({
+    mutationFn: async ({ value }: { value: number }) => {
+      const res = await apiRequest("POST", "/api/salvi/ternary/rotate", { value });
+      return res.json();
+    },
+  });
+
+  const phaseRecombineMutation = useMutation({
+    mutationFn: async (encrypted: any) => {
+      const res = await apiRequest("POST", "/api/salvi/phase/recombine", encrypted);
+      return res.json();
+    },
+  });
+
+  const { data: selfTestData, refetch: refetchSelfTest, isFetching: isSelfTestFetching } = useQuery<any>({
+    queryKey: ["/api/salvi/timing/self-test"],
+    enabled: false,
+  });
+
+  const { data: errorBudgetData, refetch: refetchErrorBudget, isFetching: isErrorBudgetFetching } = useQuery<any>({
+    queryKey: ["/api/salvi/timing/error-budget"],
+    enabled: false,
+  });
+
+  const { data: phaseConfigData, refetch: refetchPhaseConfig, isFetching: isPhaseConfigFetching } = useQuery<any>({
+    queryKey: [`/api/salvi/phase/config/${configMode}`],
+    enabled: false,
+  });
+
+  const { data: phaseRecommendData, refetch: refetchPhaseRecommend, isFetching: isPhaseRecommendFetching } = useQuery<any>({
+    queryKey: ["/api/salvi/phase/recommend"],
+    enabled: false,
+  });
+
+  const { data: vmSpecData, refetch: refetchVmSpec, isFetching: isVmSpecFetching } = useQuery<any>({
+    queryKey: ["/api/salvi/vm/spec"],
+    enabled: false,
+  });
+
+  const { data: vmConformanceData, refetch: refetchVmConformance, isFetching: isVmConformanceFetching } = useQuery<any>({
+    queryKey: ["/api/salvi/vm/conformance"],
+    enabled: false,
   });
 
   const copyToClipboard = (text: string, endpoint: string) => {
@@ -562,7 +625,7 @@ export default function APIDemo() {
         </div>
 
         <Tabs defaultValue="timing" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-4xl">
             <TabsTrigger value="timing" data-testid="tab-timing" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Timing
@@ -582,6 +645,10 @@ export default function APIDemo() {
             <TabsTrigger value="density" data-testid="tab-density" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
               Density
+            </TabsTrigger>
+            <TabsTrigger value="vm" data-testid="tab-vm" className="flex items-center gap-2">
+              <Cpu className="w-4 h-4" />
+              VM
             </TabsTrigger>
           </TabsList>
 
@@ -691,6 +758,86 @@ export default function APIDemo() {
                 </div>
               </CardContent>
             </Card>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Timing Self-Test</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/timing/self-test - Run timing subsystem diagnostics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    onClick={() => refetchSelfTest()}
+                    disabled={isSelfTestFetching}
+                    data-testid="button-timing-self-test"
+                  >
+                    {isSelfTestFetching ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
+                    Run Self-Test
+                  </Button>
+
+                  {selfTestData && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-self-test-results">
+                      {selfTestData.tests ? (
+                        Object.entries(selfTestData.tests).map(([key, val]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}:</span>
+                            <Badge variant={val === true || val === 'pass' ? 'default' : 'destructive'} data-testid={`badge-selftest-${key}`}>
+                              {String(val)}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(selfTestData, null, 2)}</pre>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Error Budget</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/timing/error-budget - Precision error budget breakdown
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    onClick={() => refetchErrorBudget()}
+                    disabled={isErrorBudgetFetching}
+                    data-testid="button-error-budget"
+                  >
+                    {isErrorBudgetFetching ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
+                    Get Error Budget
+                  </Button>
+
+                  {errorBudgetData && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-error-budget-results">
+                      {errorBudgetData.budget ? (
+                        Object.entries(errorBudgetData.budget).map(([key, val]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}:</span>
+                            <span className="text-foreground">{typeof val === 'object' ? JSON.stringify(val) : String(val)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(errorBudgetData, null, 2)}</pre>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="ternary" className="space-y-6">
@@ -878,6 +1025,164 @@ export default function APIDemo() {
               </Card>
             </div>
 
+            <div className="grid md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ternary NOT (Negation)</CardTitle>
+                  <CardDescription>
+                    POST /api/salvi/ternary/not
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Trit Value</Label>
+                    <Select value={notValue.toString()} onValueChange={(v) => setNotValue(parseInt(v))}>
+                      <SelectTrigger data-testid="select-not-value">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="-1">-1</SelectItem>
+                        <SelectItem value="0">0</SelectItem>
+                        <SelectItem value="1">+1</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    onClick={() => notMutation.mutate({ value: notValue })}
+                    disabled={notMutation.isPending}
+                    data-testid="button-ternary-not"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Negate
+                  </Button>
+
+                  {notMutation.data && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">NOT Result:</span>
+                        <Badge variant="default" className="text-lg" data-testid="badge-not-result">
+                          {(notMutation.data as TernaryResult).result}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        NOT({notValue}) = {(notMutation.data as TernaryResult).result}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ternary XOR</CardTitle>
+                  <CardDescription>
+                    POST /api/salvi/ternary/xor
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Trit A</Label>
+                      <Select value={xorA.toString()} onValueChange={(v) => setXorA(parseInt(v))}>
+                        <SelectTrigger data-testid="select-xor-a">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-1">-1</SelectItem>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">+1</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Trit B</Label>
+                      <Select value={xorB.toString()} onValueChange={(v) => setXorB(parseInt(v))}>
+                        <SelectTrigger data-testid="select-xor-b">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-1">-1</SelectItem>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">+1</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => xorMutation.mutate({ a: xorA, b: xorB })}
+                    disabled={xorMutation.isPending}
+                    data-testid="button-ternary-xor"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    XOR
+                  </Button>
+
+                  {xorMutation.data && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">XOR Result:</span>
+                        <Badge variant="default" className="text-lg" data-testid="badge-xor-result">
+                          {(xorMutation.data as TernaryResult).result}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {xorA} XOR {xorB} = {(xorMutation.data as TernaryResult).result}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ternary Rotate</CardTitle>
+                  <CardDescription>
+                    POST /api/salvi/ternary/rotate
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Trit Value</Label>
+                    <Select value={rotateValue.toString()} onValueChange={(v) => setRotateValue(parseInt(v))}>
+                      <SelectTrigger data-testid="select-rotate-value">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="-1">-1</SelectItem>
+                        <SelectItem value="0">0</SelectItem>
+                        <SelectItem value="1">+1</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    onClick={() => rotateMutation.mutate({ value: rotateValue })}
+                    disabled={rotateMutation.isPending}
+                    data-testid="button-ternary-rotate"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Rotate
+                  </Button>
+
+                  {rotateMutation.data && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Rotate Result:</span>
+                        <Badge variant="default" className="text-lg" data-testid="badge-rotate-result">
+                          {(rotateMutation.data as TernaryResult).result}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        ROTATE({rotateValue}) = {(rotateMutation.data as TernaryResult).result}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Ternary Representations</CardTitle>
@@ -975,6 +1280,150 @@ export default function APIDemo() {
               </CardContent>
             </Card>
 
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Phase Recombine</CardTitle>
+                  <CardDescription>
+                    POST /api/salvi/phase/recombine - Recombine phase components
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {phaseSplitMutation.data && (phaseSplitMutation.data as PhaseResult).encrypted ? (
+                    <>
+                      <Button
+                        onClick={() => phaseRecombineMutation.mutate((phaseSplitMutation.data as PhaseResult).encrypted)}
+                        disabled={phaseRecombineMutation.isPending}
+                        data-testid="button-phase-recombine"
+                      >
+                        {phaseRecombineMutation.isPending ? (
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Shield className="w-4 h-4 mr-2" />
+                        )}
+                        Recombine
+                      </Button>
+
+                      {phaseRecombineMutation.data && (
+                        <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-recombine-results">
+                          {(phaseRecombineMutation.data as any).decrypted && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Decrypted:</span>
+                              <span className="text-foreground" data-testid="text-recombine-decrypted">{(phaseRecombineMutation.data as any).decrypted}</span>
+                            </div>
+                          )}
+                          {(phaseRecombineMutation.data as any).phaseAlignment !== undefined && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Phase Alignment:</span>
+                              <Badge variant="default" data-testid="badge-phase-alignment">{String((phaseRecombineMutation.data as any).phaseAlignment)}</Badge>
+                            </div>
+                          )}
+                          {(phaseRecombineMutation.data as any).timestampValid !== undefined && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Timestamp Valid:</span>
+                              <Badge variant={(phaseRecombineMutation.data as any).timestampValid ? 'default' : 'destructive'} data-testid="badge-timestamp-valid">
+                                {String((phaseRecombineMutation.data as any).timestampValid)}
+                              </Badge>
+                            </div>
+                          )}
+                          {!(phaseRecombineMutation.data as any).decrypted && (
+                            <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(phaseRecombineMutation.data, null, 2)}</pre>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-sm text-muted-foreground py-4">
+                      Run a Phase Split first to enable recombination.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Phase Recommend</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/phase/recommend - Get recommended mode
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    onClick={() => refetchPhaseRecommend()}
+                    disabled={isPhaseRecommendFetching}
+                    data-testid="button-phase-recommend"
+                  >
+                    {isPhaseRecommendFetching ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
+                    Get Recommendation
+                  </Button>
+
+                  {phaseRecommendData && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-phase-recommend-results">
+                      <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(phaseRecommendData, null, 2)}</pre>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Phase Config Viewer</CardTitle>
+                <CardDescription>
+                  GET /api/salvi/phase/config/:mode - View encryption mode configuration
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="w-48">
+                    <Label>Mode</Label>
+                    <Select value={configMode} onValueChange={setConfigMode}>
+                      <SelectTrigger data-testid="select-config-mode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high_security">High Security</SelectItem>
+                        <SelectItem value="balanced">Balanced</SelectItem>
+                        <SelectItem value="performance">Performance</SelectItem>
+                        <SelectItem value="adaptive">Adaptive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => refetchPhaseConfig()}
+                    disabled={isPhaseConfigFetching}
+                    data-testid="button-phase-config"
+                  >
+                    {isPhaseConfigFetching ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 mr-2" />
+                    )}
+                    Fetch Config
+                  </Button>
+                </div>
+
+                {phaseConfigData && (
+                  <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-phase-config-results">
+                    {phaseConfigData.config ? (
+                      Object.entries(phaseConfigData.config).map(([key, val]: [string, any]) => (
+                        <div key={key} className="flex justify-between items-center">
+                          <span className="text-muted-foreground">{key}:</span>
+                          <span className="text-foreground">{typeof val === 'object' ? JSON.stringify(val) : String(val)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(phaseConfigData, null, 2)}</pre>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Encryption Modes</CardTitle>
@@ -1012,6 +1461,108 @@ export default function APIDemo() {
 
           <TabsContent value="density" className="space-y-6">
             <DensityCalculator />
+          </TabsContent>
+
+          <TabsContent value="vm" className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">VM Specification</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/vm/spec - TVM instruction set specification
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    onClick={() => refetchVmSpec()}
+                    disabled={isVmSpecFetching}
+                    data-testid="button-vm-spec"
+                  >
+                    {isVmSpecFetching ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Cpu className="w-4 h-4 mr-2" />
+                    )}
+                    Fetch VM Spec
+                  </Button>
+
+                  {vmSpecData && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-vm-spec-results">
+                      {vmSpecData.spec ? (
+                        <>
+                          {vmSpecData.spec.opcodeCount !== undefined && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Opcode Count:</span>
+                              <Badge variant="default" data-testid="badge-opcode-count">{vmSpecData.spec.opcodeCount}</Badge>
+                            </div>
+                          )}
+                          {vmSpecData.spec.registers !== undefined && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Registers:</span>
+                              <span className="text-foreground" data-testid="text-vm-registers">{vmSpecData.spec.registers}</span>
+                            </div>
+                          )}
+                          {vmSpecData.spec.encodingModes !== undefined && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Encoding Modes:</span>
+                              <span className="text-foreground" data-testid="text-vm-encoding">{Array.isArray(vmSpecData.spec.encodingModes) ? vmSpecData.spec.encodingModes.join(', ') : String(vmSpecData.spec.encodingModes)}</span>
+                            </div>
+                          )}
+                          {Object.entries(vmSpecData.spec).filter(([k]) => !['opcodeCount', 'registers', 'encodingModes'].includes(k)).map(([key, val]: [string, any]) => (
+                            <div key={key} className="flex justify-between items-center">
+                              <span className="text-muted-foreground">{key}:</span>
+                              <span className="text-foreground">{typeof val === 'object' ? JSON.stringify(val) : String(val)}</span>
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(vmSpecData, null, 2)}</pre>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">VM Conformance</CardTitle>
+                  <CardDescription>
+                    GET /api/salvi/vm/conformance - Run TVM conformance tests
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    onClick={() => refetchVmConformance()}
+                    disabled={isVmConformanceFetching}
+                    data-testid="button-vm-conformance"
+                  >
+                    {isVmConformanceFetching ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Cpu className="w-4 h-4 mr-2" />
+                    )}
+                    Run Conformance
+                  </Button>
+
+                  {vmConformanceData && (
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-vm-conformance-results">
+                      {vmConformanceData.results ? (
+                        Object.entries(vmConformanceData.results).map(([key, val]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}:</span>
+                            <Badge variant={val === true || val === 'pass' ? 'default' : 'destructive'} data-testid={`badge-conformance-${key}`}>
+                              {String(val)}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(vmConformanceData, null, 2)}</pre>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -1071,6 +1622,21 @@ export default function APIDemo() {
                     { method: "GET", path: "/api/salvi/timing/epoch/calendars/islamic", desc: "Islamic Hijri" },
                     { method: "GET", path: "/api/salvi/timing/epoch/calendars/byzantine", desc: "Byzantine calendar" },
                     { method: "GET", path: "/api/salvi/timing/epoch/calendars/thirteen-moon", desc: "13-Moon Harmonic" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/persian", desc: "Persian/Solar Hijri" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/ethiopian", desc: "Ethiopian/Ge'ez" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/coptic", desc: "Coptic" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/japanese", desc: "Japanese Imperial" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/korean", desc: "Korean Dangun Era" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/thai", desc: "Thai Buddhist Era" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/indian-saka", desc: "Indian National/Saka" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/tibetan", desc: "Tibetan Rabjung" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/aztec", desc: "Aztec Tonalpohualli" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/roman", desc: "Roman Ab Urbe Condita" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/bengali", desc: "Bengali/Bangla" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/berber", desc: "Berber/Amazigh" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/balinese", desc: "Balinese Pawukon" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/zoroastrian", desc: "Zoroastrian Fasli" },
+                    { method: "GET", path: "/api/salvi/timing/epoch/calendars/aboriginal", desc: "Aboriginal Australian" },
                   ].map((ep) => (
                     <div key={ep.path} className="flex items-start gap-2">
                       <Badge variant="outline" className="shrink-0 text-xs">{ep.method}</Badge>
@@ -1194,10 +1760,67 @@ export default function APIDemo() {
                     { method: "GET", path: "/api/whitepapers/active", desc: "Active whitepapers only" },
                     { method: "GET", path: "/api/whitepapers/:id", desc: "Whitepaper by ID" },
                     { method: "POST", path: "/api/whitepapers", desc: "Create whitepaper (admin)" },
+                  ].map((ep) => (
+                    <div key={ep.path} className="flex items-start gap-2">
+                      <Badge variant={ep.method === "POST" ? "secondary" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Database className="w-4 h-4 text-primary" />
+                  Compression DB API
+                </CardTitle>
+                <CardDescription>Compression with database storage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "POST", path: "/api/compression/file", desc: "Compress/decompress file" },
+                    { method: "POST", path: "/api/compression/decompress", desc: "Decompress data" },
+                    { method: "POST", path: "/api/compression/db/store", desc: "Store compressed data" },
+                    { method: "GET", path: "/api/compression/db/retrieve/:id", desc: "Retrieve compressed document" },
+                    { method: "GET", path: "/api/compression/db/documents", desc: "List compressed documents" },
+                    { method: "GET", path: "/api/compression/db/raw/:id", desc: "Raw stored data" },
+                    { method: "DELETE", path: "/api/compression/db/documents/:id", desc: "Delete document" },
+                  ].map((ep) => (
+                    <div key={ep.method + ep.path} className="flex items-start gap-2">
+                      <Badge variant={ep.method === "POST" ? "secondary" : ep.method === "DELETE" ? "destructive" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
+                      <div className="min-w-0">
+                        <code className="text-xs break-all">{ep.path}</code>
+                        <div className="text-xs text-muted-foreground">{ep.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  Legal & Auth API
+                </CardTitle>
+                <CardDescription>Legal documents, authentication, and developer signup</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { method: "GET", path: "/api/legal/:type", desc: "Legal documents (terms, privacy, security, aup)" },
+                    { method: "GET", path: "/api/user/admin-status", desc: "Check admin status" },
                     { method: "POST", path: "/api/developer-signup", desc: "Developer waitlist signup" },
                     { method: "GET", path: "/api/developer-signup/count", desc: "Waitlist count" },
                   ].map((ep) => (
-                    <div key={ep.path} className="flex items-start gap-2">
+                    <div key={ep.method + ep.path} className="flex items-start gap-2">
                       <Badge variant={ep.method === "POST" ? "secondary" : "outline"} className="shrink-0 text-xs">{ep.method}</Badge>
                       <div className="min-w-0">
                         <code className="text-xs break-all">{ep.path}</code>
@@ -1269,7 +1892,6 @@ export default function APIDemo() {
                       { method: "POST", path: "/api/kong/.../generate-deployment" },
                       { method: "POST", path: "/api/kong/.../deploy-to-cloud" },
                       { method: "GET", path: "/api/kong/config" },
-                      { method: "GET", path: "/api/user/admin-status" },
                       { method: "GET", path: "/api/admin/developer-signups" },
                       { method: "DELETE", path: "/api/admin/developer-signups/:id" },
                     ].map((ep, i) => (
@@ -1286,7 +1908,7 @@ export default function APIDemo() {
         </div>
       </main>
 
-      <footer className="border-t bg-white py-6 mt-12">
+      <footer className="border-t bg-background py-6 mt-12">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>PlenumNET Framework - Post-Quantum Ternary Internet</p>
           <p className="mt-1">Copyright (c) 2026 Capomastro Holdings Ltd. All Rights Reserved.</p>
