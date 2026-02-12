@@ -6,7 +6,7 @@
 
 ---
 
-Thank you for your interest in contributing to the Salvi Framework / PlenumNET project ("Project"), owned and maintained by Capomastro Holdings Ltd., a corporation incorporated under the laws of Canada ("Company"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Company. To make this document effective, please sign it and send it to the Company at Rsalvi@Salvigroup.com. This is a legally binding document, so please read it carefully before agreeing to it.
+Thank you for your interest in contributing to the Salvi Framework / PlenumNET project ("Project"), owned and maintained by Capomastro Holdings Ltd., a corporation incorporated under the laws of the Province of Alberta ("Company"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Company. To make this document effective, please sign it and send it to the Company at Rsalvi@Salvigroup.com. This is a legally binding document, so please read it carefully before agreeing to it.
 
 ---
 
