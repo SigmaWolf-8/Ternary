@@ -174,10 +174,33 @@ function HeroSection() {
             data-testid="text-hero-title"
             id="hero-title"
             style={{
-              textShadow: "0 1px 0 rgba(255,255,255,0.4), 0 -1px 0 rgba(0,0,0,0.15), 0 2px 1px rgba(0,0,0,0.12), 0 3px 2px rgba(0,0,0,0.09), 0 5px 4px rgba(0,0,0,0.06), 0 8px 8px rgba(0,0,0,0.04)",
+              textShadow: `
+                0 1px 0 rgba(255,255,255,0.5),
+                0 -1px 0 rgba(0,0,0,0.25),
+                0 2px 0 rgba(0,0,0,0.22),
+                0 3px 0 rgba(0,0,0,0.19),
+                0 4px 0 rgba(0,0,0,0.16),
+                0 5px 0 rgba(0,0,0,0.13),
+                0 6px 0 rgba(0,0,0,0.10),
+                0 7px 0 rgba(0,0,0,0.07),
+                0 8px 7px rgba(0,0,0,0.15),
+                0 12px 14px rgba(0,0,0,0.12),
+                0 18px 24px rgba(0,0,0,0.08)
+              `,
             }}
           >
-            The World's First <span className="text-primary" style={{ textShadow: "0 1px 0 rgba(255,255,255,0.3), 0 -1px 0 rgba(0,50,150,0.2), 0 2px 1px rgba(0,50,150,0.18), 0 3px 2px rgba(0,50,150,0.14), 0 5px 4px rgba(0,50,150,0.08), 0 8px 8px rgba(0,50,150,0.05)" }}>Ternary Computing</span> Platform
+            The World's First <span className="text-primary" style={{ textShadow: `
+                0 1px 0 rgba(0,80,200,0.5),
+                0 2px 0 rgba(0,70,180,0.45),
+                0 3px 0 rgba(0,60,160,0.40),
+                0 4px 0 rgba(0,50,140,0.35),
+                0 5px 0 rgba(0,40,120,0.30),
+                0 6px 0 rgba(0,30,100,0.25),
+                0 7px 0 rgba(0,20,80,0.20),
+                0 8px 7px rgba(0,30,100,0.20),
+                0 12px 14px rgba(0,30,100,0.15),
+                0 18px 24px rgba(0,30,100,0.10)
+              ` }}>Ternary Computing</span> Platform
           </motion.h1>
           
           <motion.p 
