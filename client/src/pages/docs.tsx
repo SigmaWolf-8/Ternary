@@ -133,7 +133,7 @@ const modules = [
   {
     id: "12",
     title: "Timing Protocol (HPTP)",
-    description: "Femtosecond synchronization, optical clock manager, FINRA 613 and MiFID II compliance.",
+    description: "Femtosecond synchronization, optical clock manager, designed for FINRA 613 and MiFID II timing requirements.",
     priority: "P3",
     tests: "~55",
     icon: Clock,

@@ -222,7 +222,7 @@ function PlatformSection() {
     {
       icon: Clock,
       title: "Femtosecond Timing (HPTP)",
-      description: "High-Precision Timing Protocol with optical clock sync and regulatory certification for FINRA 613 & MiFID II.",
+      description: "High-Precision Timing Protocol with optical clock sync, designed for FINRA 613 & MiFID II timing requirements.",
       stats: "Sub-microsecond",
     },
     {
@@ -405,7 +405,7 @@ function ArchitectureSection() {
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Check className="w-5 h-5 text-primary flex-shrink-0" />
-                <span>FINRA 613 & MiFID II regulatory compliance built in</span>
+                <span>Architecture targeting FINRA 613 & MiFID II timing requirements</span>
               </div>
             </motion.div>
           </div>
@@ -586,14 +586,14 @@ function ComponentsSection() {
       ],
     },
     {
-      badge: "Regulatory Compliant",
+      badge: "Regulatory-Grade Timing",
       icon: Clock,
       title: "HPTP Timing Protocol",
-      description: "Sub-microsecond precision timing with optical clock synchronization and built-in regulatory certification.",
+      description: "Sub-microsecond precision timing with optical clock synchronization, designed for regulatory timing requirements.",
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
-        "FINRA 613 compliance (50ms threshold)",
-        "MiFID II compliance (100us/1ms tiers)",
+        "Targeting FINRA 613 timing threshold (50ms)",
+        "Targeting MiFID II granularity tiers (100us/1ms)",
         "Optical clock: Strontium, Ytterbium, Aluminum, Mercury",
         "Best master clock selection algorithm",
       ],
@@ -667,7 +667,7 @@ function PerformanceSection() {
     { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10^-15s)", highlight: true },
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
-    { label: "Regulatory Compliance", current: "Custom build", ternary: "FINRA 613 & MiFID II built-in", highlight: true },
+    { label: "Regulatory Timing", current: "Custom build", ternary: "Designed for FINRA 613 & MiFID II", highlight: true },
   ];
 
   return (
@@ -776,7 +776,7 @@ function CalendarPreviewSection() {
     {
       problem: "Precision Drift",
       description: "IEEE 754 floating-point errors accumulate. 1ms/day becomes 365ms/year -- fails regulatory compliance.",
-      solution: "Integer-only calculations. Zero accumulation error. FINRA 613 & MiFID II ready.",
+      solution: "Integer-only calculations. Zero accumulation error. Designed for FINRA 613 & MiFID II timing requirements.",
       icon: Shield,
     },
   ];
@@ -893,8 +893,8 @@ function TargetMarketsSection() {
     {
       icon: Building2,
       title: "Financial Services",
-      description: "FINRA 613 & MiFID II compliant timing for high-frequency trading, regulatory reporting, and immutable audit trails with femtosecond precision.",
-      stats: "Compliance built-in",
+      description: "Precision timing designed for FINRA 613 & MiFID II requirements in high-frequency trading, regulatory reporting, and immutable audit trails.",
+      stats: "Regulatory-grade timing",
     },
     {
       icon: FlaskConical,

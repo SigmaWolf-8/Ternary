@@ -674,8 +674,8 @@ function CalendarSync() {
 
 function ComplianceBanner() {
   const standards = [
-    { label: "FINRA CAT", desc: "50μs reporting threshold exceeded" },
-    { label: "MiFID II", desc: "1ms granularity requirement met" },
+    { label: "FINRA CAT", desc: "Targeting 50μs reporting threshold" },
+    { label: "MiFID II", desc: "Targeting 1ms granularity requirement" },
     { label: "CNSA 2.0", desc: "11/11 algorithms implemented" },
     { label: "FIPS 140-3", desc: "CMVP submission ready (v3.0.0)" },
   ];
@@ -778,7 +778,7 @@ export default function HPTPDemo() {
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl" data-testid="text-page-description">
           High-Precision Timing Protocol delivering femtosecond-resolution timestamps synchronized across 24 global calendar systems spanning every inhabited continent. 
-          Production-grade API powering FINRA CAT and MiFID II regulatory compliance for quantum-resistant financial infrastructure.
+          Production-grade API designed for FINRA CAT and MiFID II timing requirements in quantum-resistant financial infrastructure.
         </p>
       </div>
 

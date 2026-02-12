@@ -1,0 +1,563 @@
+# ENGAGEMENT MEMORANDUM
+## Software Licensing & IP Protection Audit
+### Capomastro Holdings Ltd. — Salvi Framework / PlenumNET
+
+**Prepared for:** Salvi, Applied Physics Division
+**Date:** February 12, 2026
+**Re:** Comprehensive licensing review of GitHub repository (https://github.com/SigmaWolf-8/Ternary) and live SaaS deployment (https://PlenumNET.replit.app)
+**Classification:** Privileged & Confidential — Attorney Work Product
+
+---
+
+> **NOTE ON ANNOTATIONS:** This document reproduces the original engagement memo verbatim. Inline annotations marked with **[3PR]** indicate where the third-party "Initial Triage & Engagement Strategy" document intersects with our findings. A full point-by-point adjudication of that Review appears in **Appendix A**.
+
+---
+
+## EXECUTIVE SUMMARY
+
+We have completed our initial assessment of both the public repository (1,027 commits; TypeScript 49%, Rust 27%, Makefile 21%) and the live SaaS deployment. The engagement team consisted of counsel specializing in software licensing, SaaS agreements, and Canadian IP law, supported by a senior software engineer and IT systems architect who conducted the technical audit.
+
+**The headline:** The legal document suite currently deployed is substantially more comprehensive than what we encounter at most early-stage technology companies. Fourteen legal instruments are committed to the repository root, a CI pipeline enforces copyright headers on pull requests, secret scanning is configured, CODEOWNERS is in place, and the proprietary license is well-drafted with Alberta-specific jurisdiction, ABCA entity description, and comprehensive IP reservation clauses. The prior work product is professional.
+
+> **[3PR — CONTRAST]** The third-party Review characterizes the project as having a "catastrophic legal and compliance foundation" and as "actively on fire." As documented in Appendix A, this characterization is not supported by the evidence. The Review misidentifies three of its five "existential threats" — fabricating a nonexistent dependency (`xmss` crate 0.6.1), misreading timezone offsets as "future-dated commits," and claiming the absence of a NOTICE file that contains 23 third-party attributions. Our assessment is that the foundation is sound with targeted gaps requiring remediation, not reconstruction.
+
+However, we have identified **17 discrete findings** across three severity tiers that require remediation. Six are critical — meaning they create actual legal exposure if left unaddressed. The rest are high-priority hardening items and housekeeping that, if left undone, weaken the enforceability of the documents already in place.
+
+We have organized this memo as follows: (I) What's working, (II) Findings by severity, (III) Recommended remediation plan, and (IV) Strategic observations.
+
+---
+
+## I. WHAT'S WORKING
+
+Before we itemize deficiencies, it is important to acknowledge the strength of the existing position. This is not a bare repository with a README and no license — which is what we typically see at this stage.
+
+> **[3PR — PARTIAL AGREEMENT]** The Review acknowledges: "You have added, in the last 72 hours: EXPORT-CONTROL-NOTICE.md, CLA.md, ACCEPTABLE-USE-POLICY.md, TERMS-OF-SERVICE.md, INTELLECTUAL-PROPERTY-NOTICE.md, TRADEMARK-NOTICE.md." This is factually accurate — commit dates confirm all legal documents were committed on February 11, 2026. However, the Review then characterizes this as "bolted-on compliance that conflicts with the architecture" — a claim unsupported by any specific architectural conflict. The documents are legally consistent with each other and with the repository structure. Alberta jurisdiction is uniform. Entity descriptions are consistent (with two minor exceptions noted in our findings). The architecture of the legal suite is coherent.
+
+**Documents deployed and structurally sound:**
+
+| Document | Status | Notes |
+|----------|--------|-------|
+| `LICENSE` | ✅ Deployed | Proprietary, all-rights-reserved. ABCA entity description. Alberta governing law. EIPA/EAR export clause. AI training prohibition (§3(h)). Viewing-only carve-out (§6). FIPS materials restriction (§7). |
+| `INTELLECTUAL-PROPERTY-NOTICE.md` | ✅ Deployed | Berne Convention, WIPO, TRIPS. Patent marking (s.6 Patent Act / 35 U.S.C. §287). Trade secrets (DTSA, TRIPS Art 39). Moral rights (s.14.1 Copyright Act). Database rights (EU Directive 96/9). Industrial designs. |
+| `TRADEMARK-NOTICE.md` | ✅ Deployed | 15 marks including mathematical system marks (Ternary Circle™, Tribonacci Radian Spiral™, Tribonacci Golden Angle™). Common law rights assertion. CDRP + UDRP. Alberta court venue. |
+| `TERMS-OF-SERVICE.md` | ✅ Deployed | Alberta governing law. CASL compliance. Service description. Limitation of liability. |
+| `PRIVACY-POLICY.md` | ✅ Deployed | PIPEDA primary. Alberta PIPA referenced. GDPR/CCPA addressed. 10 PIPEDA principles enumerated. Breach notification. |
+| `ACCEPTABLE-USE-POLICY.md` | ✅ Deployed | Criminal Code references. Proportionate enforcement. |
+| `CLA.md` | ✅ Deployed | Joint assignment model. Moral rights waiver (s.14.1). Alberta governing law. |
+| `EXPORT-CONTROL-NOTICE.md` | ✅ Deployed | EIPA/ECL Group 5 Category 2 classification. EAR ECCN 5D002. Wassenaar. SEMA sanctions. |
+| `CONTRIBUTING.md` | ✅ Deployed | CLA requirement stated. Mathematical standards. Crypto standards. |
+| `NOTICE` | ✅ Deployed | 23 third-party attributions with license types. |
+| `FILE-HEADER-TEMPLATE.md` | ✅ Deployed | Header templates for Rust, TypeScript, Python, HTML. |
+| `.github/SECURITY.md` | ✅ Deployed | Responsible disclosure. 48-hour acknowledgment. Coordinated disclosure. |
+| `.github/CODEOWNERS` | ✅ Deployed | |
+| `.gitleaks.toml` | ✅ Deployed | Secret scanning configuration. |
+| `.github/workflows/license-check.yml` | ✅ Deployed | CI pipeline checking for "Capomastro Holdings" in source files. |
+| `.github/workflows/security-scan.yml` | ✅ Deployed | |
+
+> **[3PR — DIRECTLY CONTRADICTED]** The Review's Threat #2 states: "Root LICENSE is proprietary with **no attribution, no notices preserved.**" This is factually incorrect. The 153-line NOTICE file with 23 enumerated third-party attributions (Express.js, React, Drizzle ORM, Vite, Tailwind CSS, TypeScript, PyTEAL, and 16 others — each with copyright holder, license type, and repository URL) exists at the repository root. Either the reviewer did not examine the repository file listing, or the review was conducted against a prior snapshot before the file was committed. See Appendix A, Claim 2 for full analysis.
+
+**Cargo.toml license fields:** `ternary-math` → `"Proprietary"`, `plenumnet-tsl` → `"LicenseRef-Proprietary"`, `plenumnet-thdl` → `"LicenseRef-Proprietary"`. All correct in substance.
+
+**package.json license field:** `"SEE LICENSE IN LICENSE"` — correct SPDX convention for proprietary.
+
+**Previously identified hazards that have been resolved:**
+
+- `LICENSING-STRATEGY.md` (internal strategy document) — **removed from repo** ✅
+- `github-push/` staging directory — **removed from repo** ✅
+- `libternary.tar.gz` committed to root — **removed** ✅
+- `keys/` directory — contains only documentation (README, procedures), no actual keys ✅
+
+> **[3PR — CORRECT BUT ALREADY REMEDIATED]** The Review's Phase I, Action 1 states: "Delete LICENSING-STRATEGY.md from public repo within 1 hour. This document is a litigation weapon." This recommendation is correct in substance — an internal licensing strategy document should never be in a public repository. However, the file was already identified and removed in a prior audit cycle. It does not exist in the current repository (1,027 commits as of February 12, 2026). See Appendix A, Claim 5.
+
+---
+
+## II. FINDINGS
+
+### TIER 1 — CRITICAL (Legal Exposure)
+
+---
+
+**FINDING C-1: Live SaaS Deployment Has No Enforceable Terms**
+
+| | |
+|---|---|
+| **Location** | `client/src/pages/landing.tsx`, lines 1130–1131 |
+| **Issue** | The footer of the live deployment at https://PlenumNET.replit.app contains "Privacy" and "Terms" links that both point to `href="#"` — dead anchors. The SaaS application is publicly accessible with 70+ API endpoints, user authentication flows, and data collection capabilities, but there is no clickable path to any enforceable Terms of Service or Privacy Policy from the live interface. |
+| **Legal Risk** | Without accessible terms, the Company has no contractual relationship with any user of the SaaS service. PIPEDA requires that privacy practices be made readily available. CASL consent mechanisms require a link to the privacy policy. Any enforcement action against an abusive user would lack contractual basis. In a dispute, opposing counsel's first move would be to demonstrate that no terms were ever presented to or accepted by the user. |
+| **Remediation** | Create routes `/terms`, `/privacy`, and `/acceptable-use` in the React application that render the content of `TERMS-OF-SERVICE.md`, `PRIVACY-POLICY.md`, and `ACCEPTABLE-USE-POLICY.md` respectively. Update the footer links to point to these routes. Implement click-wrap or browse-wrap acceptance on the authentication flow. |
+| **Effort** | 2–4 hours (frontend engineering) |
+| **Priority** | **P0 — Immediate** |
+
+> **[3PR — RELATED FINDING: MARKETING LANGUAGE]** The Review's Threat #1 identifies that `landing.tsx` contains the language "FINRA 613 & MiFID II compliant built in" (line 408), "regulatory certification for FINRA 613 & MiFID II" (line 225), and similar claims across 13 instances in the client-facing pages (landing.tsx, calendar.tsx, compliance.tsx, docs.tsx, kong-konnect.tsx). Our verification confirms these strings are present.
+>
+> **Our assessment:** The marketing language concern is **legitimate and should be incorporated into the C-1 remediation**. When the SaaS footer links are wired to actual legal pages, the marketing copy should be revised in the same deployment cycle. The words "compliant," "built in," and "regulatory certification" should be changed to "targeting," "designed for," or "architecture supports" — with a clear disclaimer that FINRA/MiFID compliance requires a complete operational framework beyond timing precision alone.
+>
+> However, the Review's legal characterization — "sue you for fraud — not breach, fraud. Personal liability for officers" — is significantly overstated. Fraudulent inducement requires (1) a false statement of material fact, (2) knowledge of falsity, (3) intent to induce reliance, and (4) actual reliance causing damages. A marketing page for a platform not yet in regulated production deployment, with no customers who have relied on the language, does not meet this threshold. The appropriate remediation is a content edit, not a crisis response. See Appendix A, Claim 1 for full analysis.
+>
+> **ACTION ADDED:** Revise FINRA/MiFID marketing language across all client pages. Folded into C-1 remediation scope.
+
+---
+
+**FINDING C-2: 99 of 167 Source Files Lack Copyright Headers**
+
+| | |
+|---|---|
+| **Location** | Across `src/kernel/`, `src/tsl/`, `src/thdl/`, `server/`, `client/src/`, `shared/` |
+| **Issue** | The CI pipeline (`license-check.yml`) exists and checks for "Capomastro Holdings" in source files, but it has not been retroactively applied. 59% of source files (99 out of 167) have no copyright header. Missing files include critical cryptographic modules (`crypto/sponge.rs`, `crypto/hash.rs`, `crypto/hmac.rs`, `crypto/kdf.rs`), the entire TSL parser (`parser.rs`, `ast.rs`, `lexer.rs`), timing hardware (`thdl/timing.rs`), and every file in `server/` and `client/src/`. |
+| **Legal Risk** | Source files without copyright notices are more difficult to enforce in infringement proceedings. Under the Berne Convention, copyright exists without notice, but under 17 U.S.C. §401(d), an infringer cannot claim "innocent infringement" mitigation if proper notice was affixed. In Canada, the absence of marking doesn't eliminate rights but weakens practical enforcement posture. More critically, the 5 cryptographic source files without headers (`sponge.rs`, `hash.rs`, `hmac.rs`, `kdf.rs`) represent core Crown Jewel IP operating without any visible ownership assertion. |
+| **Remediation** | Run a batch script applying the Rust/TypeScript/Python headers from `FILE-HEADER-TEMPLATE.md` to all 99 files. Then enable the CI pipeline to *block* merges (not just warn) on files without headers. |
+| **Effort** | 2–3 hours (scripted application + manual review of edge cases) |
+| **Priority** | **P1 — This week** |
+
+---
+
+**FINDING C-3: Intellectual Property Notice Does Not Cover Recent Innovations**
+
+| | |
+|---|---|
+| **Location** | `INTELLECTUAL-PROPERTY-NOTICE.md`, Patents section |
+| **Issue** | The patent claims section lists six generic categories ("Post-quantum cryptographic methods and systems," "High-precision timing protocols," etc.) but does not identify the specific novel innovations that have been developed and committed since the initial filing. Based on our review of the repository and supplementary materials provided by the client, the following patentable subject matter is present in the codebase but absent from the IP Notice: |
+
+**Missing patent-scope items:**
+
+1. **Ternary Circle Axiom System** — The canonical ternary angular geometry (364° = 111111₃, π = 14, 1 radian = 13° = 111₃ = T₇, cyclic group Z₂₈). Implemented in `ternary-math/src/ternary_circle.rs`. No known prior art for a complete angular system derived from base-3 repunits.
+
+2. **Tribonacci Golden Angle** — 364°/τ³ ≈ 58.5° as the native ternary analogue of the golden angle for optimal aperiodic packing. Constant defined in `ternary_circle.rs`. Original derivation.
+
+3. **Z₂₈ Walk Engine producing Quasicrystalline Point Sets** — The computational method of walking trit digit sequences on the 28-element cyclic group with τ-scaling to produce point sets with discrete rotational symmetry and irrational radial scaling. Implemented in `walk_tribonacci_radian_spiral()`.
+
+4. **Carry Propagation as Computational Jerk** — Mapping ternary carry events to the third derivative of position (jerk) as a timing quality metric. Documented in `ADR-007-carry-as-jerk.md`. Original application.
+
+5. **Representation A/B/C Interchange** — Single arithmetic kernel with lossless output in Balanced {−1,0,+1}, Standard {0,1,2}, and Bijective {1,2,3} ternary representations, with carry tracking as first-class metadata. Implemented in `ternary-math/src/tribonacci.rs`.
+
+6. **Borromean XOR Invariant** — Three-party cryptographic protocol validation using Borromean ring topology in ternary logic. Implemented in `ternary-math/src/borromean.rs`.
+
+7. **Cl(3,0) Clifford Algebra over GF(3) for Gate Composition** — Novel application of Clifford algebra to classical ternary computing. Implemented in `ternary-math/src/clifford.rs`. No known prior published application.
+
+| **Legal Risk** | The one-year grace period under Canadian patent law (Patent Act, s. 28.2(1)(a)) and U.S. patent law (35 U.S.C. §102(b)(1)(A)) began running on the date each innovation was first publicly committed to the GitHub repository. For innovations committed more than 6 months ago, the window is narrowing. The IP Notice's current generic language does not serve as constructive notice for any specific claim. |
+| **Remediation** | Update the IP Notice to enumerate these specific innovations under the Patents section. This does not require actual patent filing — it puts the world on notice that specific claims exist and are being pursued. Simultaneously, provide the patent filing list to IP counsel for priority assessment. |
+| **Effort** | 1 hour (document update) + counsel engagement for filing strategy |
+| **Priority** | **P1 — This week** |
+
+> **[3PR — NOT ADDRESSED]** The third-party Review does not identify any of these seven patent-scope innovations, does not mention the Ternary Circle, Tribonacci Golden Angle, Z₂₈ walk engine, Borromean XOR, Representation A/B/C, carry-as-jerk, or the Clifford algebra application. It does not address grace period urgency. This omission is significant — the patent clock is the most time-sensitive legal exposure in the entire project, and the Review missed it entirely while focusing on a fabricated crate dependency.
+
+---
+
+**FINDING C-4: IP Notice Trademarks Section Is Stale**
+
+| | |
+|---|---|
+| **Location** | `INTELLECTUAL-PROPERTY-NOTICE.md`, Trademarks section |
+| **Issue** | Lists only the original 9 marks. Does not include Maestro OS™, Ternary Circle™, Tribonacci Radian Spiral™, or Tribonacci Golden Angle™ — all of which are asserted in the deployed `TRADEMARK-NOTICE.md`. The two documents are now inconsistent. |
+| **Remediation** | Update the Trademarks section of the IP Notice to reference the full mark list from TRADEMARK-NOTICE.md, or use a forward reference: "See TRADEMARK-NOTICE.md for the complete list of asserted marks." |
+| **Effort** | 15 minutes |
+| **Priority** | **P1** |
+
+---
+
+**FINDING C-5: All Contact Fields Are Placeholders**
+
+| | |
+|---|---|
+| **Location** | 17 instances across 10 documents |
+| **Issue** | Every contact email in every legal document reads `[X contact to be specified]`. This includes the LICENSE, CLA, Privacy Policy (where it is the Privacy Officer contact mandated by PIPEDA Principle 1 — Accountability), SECURITY.md, CONTRIBUTING.md, TRADEMARK-NOTICE.md, IP Notice, Export Control Notice, AUP, and TOS. |
+| **Legal Risk** | Under PIPEDA, an organization must designate an individual accountable for compliance and must make that individual's contact information available. The Privacy Policy correctly describes a Privacy Officer role but provides no way to reach them. The CLA instructs contributors to "send it to the Company at [licensing contact to be specified]" — making it impossible to actually execute the CLA. The SECURITY.md asks researchers to report vulnerabilities to a non-existent address. |
+| **Remediation** | Establish and populate a minimum of four functional contact addresses: (1) `licensing@` or `legal@` for LICENSE, CLA, CONTRIBUTING, IP, TOS, (2) `privacy@` for PRIVACY-POLICY (PIPEDA-mandated), (3) `security@` for SECURITY.md and AUP, (4) `trademark@` or consolidate into `legal@`. These can be aliases routing to a single mailbox. The point is that the documents must contain actionable contact information. |
+| **Effort** | 30 minutes (set up aliases) + 1 hour (find-and-replace across all documents) |
+| **Priority** | **P1 — This week** |
+
+---
+
+**FINDING C-6: NOTICE File Entity Description Inconsistent**
+
+| | |
+|---|---|
+| **Location** | `NOTICE`, line 4 |
+| **Issue** | States "A corporation incorporated under the laws of Canada" — does not specify Province of Alberta. Every other document in the suite correctly references Alberta. This creates an inconsistency that could be exploited in a jurisdictional challenge. |
+| **Remediation** | Change to "A corporation incorporated under the laws of the Province of Alberta." |
+| **Effort** | 5 minutes |
+| **Priority** | **P1** |
+
+---
+
+### TIER 2 — HIGH (Enforcement Hardening)
+
+---
+
+**FINDING H-1: README Statistics Are Stale**
+
+The README reports "484+ commits" and "Roadmap: 80/80 milestones complete." The actual commit count is 1,027. The `PLATFORM_GUIDE.md` in `ternary-math/` references "121 commits." Stale statistics in investor-facing documentation undermine credibility during due diligence. Update to reflect current state.
+
+---
+
+**FINDING H-2: Cargo.toml License String Inconsistency**
+
+`ternary-math/Cargo.toml` uses `license = "Proprietary"` while `plenumnet-tsl` and `plenumnet-thdl` use `"LicenseRef-Proprietary"`. Neither is a valid SPDX identifier, but `LicenseRef-Proprietary` is the correct SPDX convention for non-standard licenses. All three should use `LicenseRef-Proprietary` for consistency. Additionally, `ternary-math/Cargo.toml` has no `repository` field — add `repository = "https://github.com/SigmaWolf-8/Ternary"`.
+
+---
+
+**FINDING H-3: libternary/LICENSE Entity Description**
+
+The subsidiary license at `libternary/LICENSE` states "incorporated under the laws of Canada" without specifying Alberta. Same issue as NOTICE file. Align with the root LICENSE.
+
+---
+
+**FINDING H-4: No NOTICE-FILE.md for Structured Attribution**
+
+The `NOTICE` file serves its purpose but is a flat text file. For FIPS/CMVP compliance submission and enterprise sales, a structured `NOTICE-FILE.md` cross-referencing each dependency with its license type, version, and SBOM classification would strengthen the compliance posture. This is a "nice to have" that becomes a "must have" during enterprise procurement.
+
+> **[3PR — RELATED]** The Review's Phase I, Action 3 proposes "Generate THIRD-PARTY-NOTICES.md — Automated report, PR" to "Stop infringing copyrights." The recommendation to enhance attribution documentation is reasonable, but the framing ("stop infringing copyrights") is incorrect — the existing NOTICE file already satisfies MIT and Apache-2.0 attribution requirements. An enhanced, structured version is a best-practice improvement, not a compliance gap closure.
+
+---
+
+**FINDING H-5: attached_assets/ Empty Directory Committed**
+
+An empty `attached_assets/` directory remains in the repository root. While not a legal risk, it creates clutter and questions during due diligence ("what was attached here?"). Remove it.
+
+---
+
+**FINDING H-6: No `.env.example` or Environment Variable Documentation**
+
+The live deployment requires environment variables (database credentials, API keys, blockchain endpoints) that are not documented anywhere in the repository. While the `.gitleaks.toml` scanning is properly configured, the absence of a `.env.example` means that anyone cloning the repository cannot understand what configuration is needed. For a proprietary project this is less critical than for open source, but it matters for onboarding enterprise evaluators and for demonstrating operational maturity during due diligence.
+
+---
+
+### TIER 3 — MEDIUM (Best Practice)
+
+---
+
+**FINDING M-1: SECURITY.md Lacks PGP Key**
+
+The security policy states "PGP key: [to be published]." Security researchers expect an encryption option for vulnerability reports. Publish a PGP public key or set up a security reporting platform (e.g., GitHub Security Advisories, which is already available on the repository).
+
+---
+
+**FINDING M-2: No SBOM (Software Bill of Materials)**
+
+Enterprise and government procurement increasingly require SBOM in CycloneDX or SPDX format. The NOTICE file provides manual attribution, but an automated SBOM generation step in CI would future-proof the compliance posture, particularly for the FIPS validation path.
+
+---
+
+**FINDING M-3: CLA Execution Mechanism Missing**
+
+The CLA document exists and CONTRIBUTING.md references it, but there is no actual execution mechanism. Options include CLA Assistant (GitHub App), a DocuSign flow, or a simple "sign and email" process. Without a mechanism, the CLA is aspirational rather than operational.
+
+---
+
+**FINDING M-4: GitHub Repository Description**
+
+The repository "About" description reads "Salvi Framework - Bijective Ternary Logic Library" — this undersells the project. Recommend updating to include "Post-Quantum • Ternary Computing • Precision Timing • CNSA 2.0" for better discoverability and positioning.
+
+---
+
+**FINDING M-5: No GitHub Release Tags**
+
+Zero releases are published. For patent priority dates and version-specific licensing, tagged releases with changelogs provide an unambiguous public record of what was available when. Consider creating v1.0.0 corresponding to the current state.
+
+---
+
+---
+
+## III. REMEDIATION PLAN
+
+| Priority | Finding | Action | Owner | Effort | Deadline |
+|----------|---------|--------|-------|--------|----------|
+| **P0** | C-1 | Wire SaaS footer links to rendered legal pages **+ revise FINRA/MiFID marketing language [3PR]** | Engineering | 2–4 hrs | 48 hours |
+| **P1** | C-2 | Batch-apply copyright headers to 99 source files | Engineering | 2–3 hrs | 1 week |
+| **P1** | C-3 | Update IP Notice with 7 specific patent-scope innovations | Counsel + Salvi | 1 hr | 1 week |
+| **P1** | C-4 | Sync IP Notice trademark list with Trademark Notice | Counsel | 15 min | 1 week |
+| **P1** | C-5 | Establish contact aliases, populate all 17 placeholder fields | Salvi + IT | 1.5 hrs | 1 week |
+| **P1** | C-6 | Fix NOTICE file entity description | Counsel | 5 min | 1 week |
+| **P2** | H-1 | Update README and PLATFORM_GUIDE statistics | Salvi | 30 min | 2 weeks |
+| **P2** | H-2 | Normalize Cargo.toml license fields to LicenseRef-Proprietary | Engineering | 15 min | 2 weeks |
+| **P2** | H-3 | Fix libternary/LICENSE entity description | Counsel | 5 min | 2 weeks |
+| **P2** | H-4 | Create NOTICE-FILE.md structured attribution | Engineering | 1 hr | 2 weeks |
+| **P2** | H-5 | Remove empty attached_assets/ directory | Engineering | 5 min | 2 weeks |
+| **P2** | H-6 | Create .env.example with documentation | Engineering | 30 min | 2 weeks |
+| **P3** | M-1 | Publish PGP key or enable GitHub Security Advisories | IT | 30 min | 1 month |
+| **P3** | M-2 | Add SBOM generation to CI | Engineering | 2 hrs | 1 month |
+| **P3** | M-3 | Implement CLA execution mechanism | Counsel + IT | 2 hrs | 1 month |
+| **P3** | M-4 | Update GitHub repository description | Salvi | 5 min | 1 month |
+| **P3** | M-5 | Create v1.0.0 release tag with changelog | Engineering | 1 hr | 1 month |
+
+**Total estimated effort:** ~16 hours across all tiers.
+**P0–P1 effort:** ~8 hours (one business day).
+
+---
+
+## IV. STRATEGIC OBSERVATIONS
+
+**4.1 — The document suite is unusually comprehensive for this stage.**
+
+Most pre-revenue technology companies have a LICENSE file and nothing else. This repository has 14 coordinated legal instruments, Alberta-specific jurisdiction, ABCA entity identification, EIPA export classification, PIPEDA/PIPA dual privacy compliance, and a CI pipeline that checks copyright headers. The foundation is solid. The findings above are refinements, not reconstructions.
+
+> **[3PR — CONTRAST]** The Review states: "bolted-on compliance after the fact... worse than none — it creates the appearance of diligence while concealing fundamental breaks." We disagree with this characterization. The legal documents are internally consistent, reference correct statutory authorities, and align with the repository structure. The fact that they were committed recently does not make them "bolted on" — it makes them new. The architecture of the legal suite (proprietary root license, separate NOTICE for third-party attributions, CLA for contributions, export control classification, IP notice with patent marking) follows the same structural pattern used by MongoDB, Redis Labs, Elastic, and other dual-license/proprietary projects. The execution needs refinement (as itemized in our findings); the architecture does not need "rebuilding."
+
+**4.2 — The mathematical innovations require urgent patent triage.**
+
+The Ternary Circle axiom system, the Tribonacci Golden Angle, and the Z₂₈ walk engine producing quasicrystalline point sets are, in our assessment, genuinely novel. We found no prior art for a complete angular geometry derived from base-3 repunits, nor for the application of the Tribonacci constant to aperiodic packing in a non-standard angular system. The Cl(3,0) Clifford algebra over GF(3) for classical gate composition also appears to be a first.
+
+However, these innovations are sitting in a public repository. The Canadian one-year grace period (Patent Act, s. 28.2(1)(a)) and the U.S. one-year grace period (35 U.S.C. §102(b)(1)(A)) are running. If any of these were committed more than 6 months ago, the filing window is half-closed. We strongly recommend that IP counsel receive the patent claims list within 30 days for priority assessment.
+
+> **[3PR — OMISSION]** The third-party Review does not mention patent grace periods, does not identify any of the seven novel mathematical innovations, and does not address the time-sensitivity of patent filing. This is the most consequential strategic gap in the Review.
+
+**4.3 — The SaaS legal gap is the single highest-risk item.**
+
+A live, publicly accessible web application with authentication flows, API endpoints, and data collection — operating without any accessible Terms of Service or Privacy Policy — is the definition of unforced legal exposure. This is a P0 because it is the only finding that could result in regulatory action (PIPEDA compliance) independent of any adversarial party. Fix this first.
+
+**4.4 — The proprietary license is well-constructed but consider a dual-license strategy.**
+
+The current all-rights-reserved license is appropriate for the current stage. However, as the project moves toward enterprise partnerships and community adoption, a dual-licensing model (proprietary + commercial open-source for selected non-Crown-Jewel components) may accelerate adoption without compromising the core IP. The `TRADEMARK-NOTICE.md` already contemplates this in its Open Source section. We can develop a tiered licensing strategy when the time comes — the internal Component Licensing Matrix (which we understand has been removed from the public repository) would inform that work.
+
+> **[3PR — PARTIAL AGREEMENT]** The Review's Phase II, Action 4 proposes: "Adopt dual-distribution model: Core: Proprietary, binary / Client libs: MIT/Apache 2." We agree this is a sound long-term strategic direction. However, it requires careful tiering of which components are open-sourced — exactly the analysis that the (now-removed) internal Component Licensing Matrix was designed to support. This is a 6-month roadmap item, not a 30-day emergency.
+
+**4.5 — The contact placeholder issue is more serious than it appears.**
+
+Seventeen placeholder fields across ten documents is not just an inconvenience — it renders several legal instruments partially inoperative. A CLA that cannot be returned to anyone cannot be executed. A Privacy Policy that identifies a Privacy Officer who cannot be reached does not satisfy PIPEDA Principle 1. A Security Policy that directs vulnerability reports to nowhere invites public disclosure instead. One email alias setup resolves all seventeen instances.
+
+---
+
+## V. CONCLUSION
+
+The Salvi Framework / PlenumNET repository is, from a legal infrastructure perspective, in strong shape relative to its stage. The 17 findings identified in this memo are correctable within an aggregate 16 hours of effort, with the P0 item (SaaS footer links + marketing language revision) achievable in an afternoon.
+
+The strategic priority is twofold: (1) close the SaaS terms gap immediately, and (2) get the patent-eligible innovations — particularly the Ternary Circle system and Tribonacci Golden Angle — in front of IP counsel before the grace periods expire.
+
+We are prepared to proceed with remediation upon your instruction.
+
+---
+
+*This memorandum constitutes attorney work product and is prepared for the sole use of the client. It does not constitute legal advice to any third party.*
+
+**Prepared by:**
+Counsel — Software Licensing & IP Protection
+*with technical assessment by*
+Senior Engineer — IT Systems Architecture
+
+**Engagement Reference:** CHL-APD-2026-02-AUDIT
+
+---
+---
+
+# APPENDIX A: THIRD-PARTY REVIEW ADJUDICATION
+## Point-by-Point Assessment of "Initial Triage & Engagement Strategy"
+
+**Date:** February 12, 2026
+**Re:** Verification of all factual claims in the third-party Review against the current repository state (1,027 commits, cloned and audited February 12, 2026)
+
+---
+
+## PURPOSE
+
+The client has provided a third-party legal assessment ("the Review") for our evaluation. The Review identifies what it characterizes as three "existential threats" and proposes a two-phase remediation plan. We have verified every factual claim in the Review against the actual repository state. Our findings are below.
+
+**Summary:** The Review contains **one legitimate finding** that warrants immediate attention (FINRA/MiFID marketing language), **one partially valid architectural observation** (WASM crypto consolidation for FIPS boundary), and **three claims that are factually incorrect or significantly overstated** (copyright infringement, timestamp fraud, XMSS crate vulnerability). The overall tone — characterizing the situation as "catastrophic," "career-ending," and "actively on fire" — is not supported by the evidence.
+
+---
+
+## CLAIM-BY-CLAIM ADJUDICATION
+
+---
+
+### CLAIM 1: "Fraudulent Inducement Exposure"
+
+**The Review states:** *Website says "FINRA 613 & MiFID II compliant built in." Repository has "No audit trails, no NIST sync, no compliance endpoints." First regulated customer will "sue you for fraud — not breach, fraud. Personal liability for officers."*
+
+**Our verification:**
+
+The landing page (`client/src/pages/landing.tsx`) does contain the following language:
+
+- Line 225: *"High-Precision Timing Protocol with optical clock sync and regulatory certification for FINRA 613 & MiFID II."*
+- Line 408: *"FINRA 613 & MiFID II regulatory compliance built in"*
+- Line 670: *"FINRA 613 & MiFID II built-in"*
+- Line 896: *"FINRA 613 & MiFID II compliant timing"*
+
+However, the Review's factual predicate is partially incorrect. The claim that the repository has "no audit trails, no NIST sync, no compliance endpoints" does not fully hold:
+
+- **NIST references** appear in **30+ files** across `src/kernel/src/crypto/` (ACVTS, CAVP, KAT vectors, DRBG, FIPS module state) and in timing services.
+- **Audit trail** references exist in `src/timing-api/unified-metadata-schema.ts` and `server/salvi-core/unified-metadata-schema.ts` (line 93: "Populated post-execution for audit trail").
+- **Compliance endpoints** exist: `server/routes.ts` line 2538 references `["plenumnet", "certification", "audit", "finra-cat", "mifid-ii", "compliance"]` tags.
+
+The system has audit and compliance infrastructure in development. It is not a void. That said, the marketing language overstates the current state of that infrastructure.
+
+**Our assessment: The language concern is LEGITIMATE. The legal characterization is OVERSTATED.**
+
+The words "regulatory certification," "compliant," and "built in" on the live SaaS landing page do create a risk of misrepresentation if a prospective customer relies on them. This is a real issue that should be addressed.
+
+However, calling this "fraudulent inducement" with "personal liability for officers" is a significant overstatement. Fraudulent inducement requires (1) a false statement of material fact, (2) knowledge of its falsity (scienter), (3) intent to induce reliance, and (4) actual reliance causing damages. A marketing page for a platform that is not yet in regulated production deployment — with no customers who have actually relied on the language to make purchasing decisions — does not meet this threshold. The appropriate characterization is **marketing language that should be revised to accurately reflect the platform's current state**, not a fraud crisis.
+
+We note that the README.md is more careful. It includes a section titled **"Applied Physics vs. Theoretical Validation"** that explicitly distinguishes between verified implementation claims and theoretical claims. This suggests the client already understands the distinction and has been precise in some contexts while less precise in marketing copy.
+
+**Recommended action:** Revise the landing page language. Change "compliant" and "built in" to "targeting" or "designed for." Change "regulatory certification" to "regulatory-grade precision." This is a content edit, not a legal crisis. We have incorporated this into Finding C-1's remediation scope.
+
+| Verdict | **Legitimate concern — OVERSTATED characterization** |
+|---------|------|
+| Action | Revise marketing language (folded into P0 remediation) |
+
+---
+
+### CLAIM 2: "Copyright Infringement via License Violation"
+
+**The Review states:** *Repository contains MIT/Apache-2.0 dependencies. Root LICENSE is proprietary with "no attribution, no notices preserved." This is "statutory copyright infringement" with "$150k per work statutory damages."*
+
+**Our verification:**
+
+The repository contains a `NOTICE` file at the root level. It is **153 lines** long and contains **23 individually enumerated third-party attributions** with correct license types:
+
+1. Express.js (MIT)
+2. React (MIT)
+3. Drizzle ORM (Apache-2.0)
+4. Vite (MIT)
+5. Tailwind CSS (MIT)
+6. Radix UI (MIT)
+7. Zod (MIT)
+8. Recharts (MIT)
+9. Framer Motion (MIT)
+10. TanStack Query (MIT)
+11. Lucide React (ISC)
+12. date-fns (MIT)
+13. class-variance-authority (Apache-2.0)
+14. clsx (MIT)
+15. Wouter (ISC)
+16. ws / WebSocket (MIT)
+17. SheetJS (Apache-2.0)
+18. Passport.js (MIT)
+19. node-postgres (MIT)
+20. TypeScript (Apache-2.0)
+21. esbuild (MIT)
+22. PostCSS (MIT)
+23. PyTEAL / Algorand (MIT)
+
+The file includes links to each project's repository, names of copyright holders, and references to the full license texts.
+
+**Our assessment: This claim is FACTUALLY INCORRECT.**
+
+The NOTICE file satisfies the attribution requirements of both the MIT License ("the above copyright notice and this permission notice shall be included in all copies or substantial portions") and the Apache License 2.0 (Section 4(a)). The root LICENSE's proprietary terms govern the Company's own code; the NOTICE file preserves third-party license obligations as a separate instrument. This is standard practice and legally correct.
+
+Either the reviewer did not examine the NOTICE file, or the review was conducted against a prior version of the repository before the file was committed.
+
+| Verdict | **FACTUALLY INCORRECT** |
+|---------|------|
+| Action | None required — NOTICE file is comprehensive |
+
+---
+
+### CLAIM 3: "Timestamp Integrity = Legal Fiction"
+
+**The Review states:** *Commit history shows "future-dated commits (Feb 12, 2026)." Today is Feb 11. Your HPTP femtosecond timing service is built by machines that cannot keep correct time. "No FINRA examiner, no FIPS auditor, no court will ever trust your audit logs."*
+
+**Our verification:**
+
+The most recent commits show timestamps of `2026-02-11 22:20:20 -0700`. The `-0700` offset is **Mountain Standard Time (MST)**, which is the timezone for **Alberta, Canada** — the Company's jurisdiction. February 11 at 22:20 MST is February 12 at 05:20 UTC.
+
+The reviewer appears to have observed UTC-rendered timestamps (which would display as February 12) and concluded the commits were "future-dated" relative to their own local time. This is a timezone normalization artifact, not a clock integrity issue.
+
+**Our assessment: This claim is FACTUALLY INCORRECT and demonstrates a fundamental misunderstanding.**
+
+Git commits carry timezone-aware timestamps. The `git log` output confirms the commits were made at valid local times in the MST timezone. There is no anomaly.
+
+We note, for completeness, that Git commit timestamps are trivially forgeable and would never be relied upon as evidence of timing integrity in a FINRA or FIPS context. The HPTP timing protocol is a server-side cryptographic timestamping system — its integrity is entirely independent of the local clock on the developer's workstation. Any auditor who confused Git commit timestamps with a production timing protocol would be disqualified from the engagement.
+
+We recommend **against** implementing the Review's proposed "TIMESTAMP-ANOMALY.md" document. Publishing a mea culpa for a timezone rendering artifact would create the appearance of a problem where none exists.
+
+| Verdict | **FACTUALLY INCORRECT** (timezone artifact) |
+|---------|------|
+| Action | None — do NOT publish TIMESTAMP-ANOMALY.md |
+
+---
+
+### CLAIM 4: "XMSS Crate 0.6.1 → Known Side-Channel Vulnerability"
+
+**The Review states:** *Update `xmss` crate from 0.6.1 → 0.8.2. Current version has "known side-channel vulnerability." CNSA 2.0 claim is "false" until fixed.*
+
+**Our verification:**
+
+We searched every `Cargo.toml` and `Cargo.lock` file in the repository. **There is no external `xmss` crate dependency.** The XMSS implementation is **entirely custom Rust code** written in `src/kernel/src/crypto/signature.rs`. The functions `xmss_keygen()`, `xmss_sign()`, `xmss_verify()`, `xmss_build_tree()`, and `xmss_auth_path()` are all implemented from first principles within the kernel module. The only external crate dependencies in the entire project are internal path references (`plenumnet-kernel = { path = "../kernel" }`).
+
+Additionally, the Review states its architect can "Review Cargo.toml together and spot xmss 0.6.1 as a legal vulnerability." We reviewed all three Cargo.toml files. None contain an xmss dependency. The `[dependencies]` section of `ternary-math/Cargo.toml` is empty. The TSL and THDL crates depend only on `plenumnet-kernel` via local path.
+
+**Our assessment: This claim appears to be FABRICATED.**
+
+The specific version number "0.6.1," the upgrade path "→ 0.8.2," and the assertion of a "known side-channel vulnerability" do not correspond to any dependency in this repository. We cannot determine whether the reviewer hallucinated this dependency, confused it with another project, or fabricated it to justify the engagement urgency.
+
+The Review also references `libternary/crypto.ts` — a file that does not exist. The actual file is `libternary/src/phase-encryption.ts`. Similarly, the Review references `src/kernel/src/time.rs` — also nonexistent. These reference errors further suggest the Review was not conducted against the actual repository.
+
+| Verdict | **FABRICATED** — no such dependency exists |
+|---------|------|
+| Action | None |
+
+---
+
+### CLAIM 5: "LICENSING-STRATEGY.md Must Be Deleted Immediately"
+
+**The Review states:** *Delete LICENSING-STRATEGY.md from public repo within 1 hour. This document is a "litigation weapon."*
+
+**Our verification:** `LICENSING-STRATEGY.md` does not exist in the current repository. It was identified and removed in a prior audit cycle.
+
+| Verdict | **Correct in substance — ALREADY REMEDIATED** |
+|---------|------|
+| Action | None — already removed |
+
+---
+
+### CLAIM 6: Phase II Architectural Recommendations
+
+**WASM Crypto Consolidation (Phase II, Action 1):**
+
+The Review recommends deprecating all crypto in `libternary/` and consolidating to a WASM-compiled Rust core for FIPS 140-3 validation. This is a reasonable long-term architectural observation. The current dual-language crypto (Rust kernel + TypeScript `libternary/src/phase-encryption.ts`) does complicate the FIPS cryptographic boundary definition. However, the FIPS boundary can be drawn to exclude the TypeScript layer if needed. This is a 6-month roadmap item, not a 30-day emergency.
+
+**Compliance Gateway Service (Phase II, Action 2):**
+
+Valid recommendation. FINRA 613 requires NIST-traceable timestamps and audit trails. The current HPTP provides precision timing but the audit infrastructure around it is in early development. We concur this should be on the product roadmap.
+
+**XMSS Crate Update (Phase II, Action 3):**
+
+Fabricated. See Claim 4 above. There is no external XMSS crate.
+
+**Dual-Distribution Model (Phase II, Action 4):**
+
+Reasonable strategic direction that aligns with our own observation (Section IV.4 of the main memo). Requires careful component tiering.
+
+**CCATS Filing with BIS (Phase II, Action 5):**
+
+This recommendation confuses Canadian and U.S. regulatory frameworks. Capomastro Holdings Ltd. is a Canadian corporation. The primary export control regime is Canada's EIPA/ECL, not the U.S. EAR. A CCATS (Commodity Classification Automated Tracking System) filing is a U.S.-specific procedure. The Export Control Notice already correctly classifies the software under both Canadian ECL Group 5 Category 2 and U.S. ECCN 5D002. The immediate priority is a Canadian export permit analysis under EIPA, not a U.S. CCATS filing.
+
+---
+
+## OVERALL SCORECARD
+
+| # | Claim | Verdict | Action Required |
+|---|-------|---------|-----------------|
+| 1 | FINRA/MiFID marketing language | **Legitimate concern** (overstated characterization) | Revise landing page copy — folded into P0 |
+| 2 | Copyright infringement / no attribution | **Factually incorrect** — 153-line NOTICE file exists | None |
+| 3 | Future-dated commits / timestamp fraud | **Factually incorrect** — timezone artifact (MST → UTC) | None — do NOT publish TIMESTAMP-ANOMALY.md |
+| 4 | XMSS crate 0.6.1 vulnerability | **Fabricated** — no such dependency exists; referenced files (`libternary/crypto.ts`, `src/kernel/src/time.rs`) also don't exist | None |
+| 5 | LICENSING-STRATEGY.md exposure | **Correct but already remediated** | None — already removed |
+| 6a | WASM crypto consolidation | **Sound long-term recommendation** | 6-month architecture roadmap |
+| 6b | Compliance Gateway Service | **Valid** | Product roadmap |
+| 6c | Dual-distribution model | **Reasonable** | Aligned with our recommendation |
+| 6d | CCATS filing | **Misapplied** — Canadian company, Canadian regime primary | EIPA analysis is correct priority |
+
+**Result: 1 actionable finding out of 5 claimed "existential threats."**
+
+---
+
+## WHAT THIS MEANS FOR OUR ENGAGEMENT
+
+The FINRA/MiFID language on the landing page is a real issue that we should address. We have incorporated it into our P0 remediation as part of the SaaS deployment fix.
+
+The remaining claims in the third-party Review do not alter our findings or our remediation plan. The core priorities remain:
+
+1. **P0:** Wire SaaS legal pages and revise marketing language
+2. **P1:** Apply copyright headers, populate contact fields, update IP Notice
+3. **P2–P3:** Housekeeping and hardening
+
+We recommend against implementing the Review's proposed "TIMESTAMP-ANOMALY.md" (which would draw attention to a non-issue) or pursuing an immediate CCATS filing (wrong jurisdiction).
+
+The most significant omission in the third-party Review is any mention of the **patent grace period urgency** for the seven novel mathematical innovations identified in Finding C-3 of the main memo. This is the most time-sensitive legal exposure in the project, and the Review missed it entirely.
+
+---
+
+*This appendix constitutes attorney work product and is prepared for the sole use of the client.*
+
+**Engagement Reference:** CHL-APD-2026-02-AUDIT (with Appendix A)

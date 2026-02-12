@@ -1044,7 +1044,7 @@ function FeaturesSection() {
     {
       icon: Clock,
       title: "Femtosecond Timing",
-      description: "Route timing-critical APIs through Kong with FINRA Rule 613 CAT compliant precision."
+      description: "Route timing-critical APIs through Kong with precision targeting FINRA Rule 613 CAT timing requirements."
     },
     {
       icon: Network,

@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in the Salvi Framework or
 PlenumNET, please report it responsibly by emailing
-[security contact to be specified].
+Rsalvi@Salvigroup.com.
 
 Do NOT create a public GitHub issue for security vulnerabilities.
 
@@ -38,9 +38,9 @@ contribution in our security advisories.
 
 ## Contact
 
-Security reports: [security contact to be specified]
-PGP key: [to be published]
+Security reports: Rsalvi@Salvigroup.com
+PGP key: Available via GitHub Security Advisories
 
 Capomastro Holdings Ltd.
 Applied Physics Division
-Canada
+Sherwood Park, AB Canada

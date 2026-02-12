@@ -670,14 +670,14 @@ function RegulatoryContextSection() {
       title: "FINRA Rule 613",
       subtitle: "Consolidated Audit Trail",
       requirement: "Sub-50ms NIST synchronization for US securities trading",
-      plenumResponse: "HPTP femtosecond timing exceeds threshold by orders of magnitude. Audit records signed with quantum-resistant Lamport OTS.",
+      plenumResponse: "HPTP femtosecond timing is designed to exceed this threshold by orders of magnitude. Audit records signed with quantum-resistant Lamport OTS.",
     },
     {
       icon: Shield,
       title: "MiFID II Article 50",
       subtitle: "EU Trading Regulation",
       requirement: "100us synchronization for HFT, 1ms for standard trading",
-      plenumResponse: "HPTP with optical clock sync provides sub-picosecond precision. All timing certificates cryptographically signed.",
+      plenumResponse: "HPTP with optical clock sync is designed to provide sub-picosecond precision. All timing certificates cryptographically signed.",
     },
     {
       icon: FileSignature,

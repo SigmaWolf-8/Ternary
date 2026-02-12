@@ -3,8 +3,9 @@ name = "ternary-math"
 version = "0.1.0"
 edition = "2021"
 description = "Mathematical foundations for the Salvi Framework ternary computing platform"
-license = "Proprietary"
+license = "LicenseRef-Proprietary"
 authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
 
 [dependencies]
 

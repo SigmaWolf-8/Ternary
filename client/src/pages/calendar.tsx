@@ -791,8 +791,8 @@ function UseCasesSection() {
     {
       icon: Building2,
       title: "Financial Services & Compliance",
-      description: "FINRA 613 and MiFID II require sub-millisecond timestamp accuracy. Our femtosecond timing with calendar synchronization provides regulatory-grade timestamps across any calendar system used in global markets.",
-      benefit: "Built-in compliance",
+      description: "FINRA 613 and MiFID II require sub-millisecond timestamp accuracy. Our femtosecond timing with calendar synchronization is designed to provide regulatory-grade timestamps across any calendar system used in global markets.",
+      benefit: "Regulatory-grade timing",
     },
     {
       icon: Globe,
