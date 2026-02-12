@@ -1,0 +1,487 @@
+# PlenumNET Front-End Marketing Audit
+## Comprehensive Review & Phased Implementation Checklist
+
+**Prepared for:** Salvi — Applied Physics Division, Capomastro Holdings Ltd.
+**Audit Target:** https://PlenumNET.replit.app (marketing front-end for https://github.com/SigmaWolf-8/Ternary)
+**Date:** February 12, 2026
+**Methodology:** UPIID V1.1 — Critical Analysis & Constructive Creation
+
+---
+
+## EXECUTIVE SUMMARY
+
+The PlenumNET Replit app has a **strong technical foundation** — 1,238-line landing page with motion animations, 15 routed pages, 70+ live API endpoints, authentication, admin dashboard, and a well-structured React/TypeScript codebase with comprehensive test coverage attributes (`data-testid` on every interactive element). The underlying product — a post-quantum ternary computing platform — is genuinely differentiated and technically impressive.
+
+However, the front-end is currently built as an **engineering dashboard wearing a marketing hat**. The audit identifies **47 discrete issues** across brand identity, UX/navigation, SEO, accessibility, performance, conversion optimization, trust signals, and code quality. These are organized below into 5 implementation phases (0-4) from critical fixes to strategic enhancements.
+
+**Key Metrics from Audit:**
+- Brand names used inconsistently: 4 (Salvi, PlenumNET, Salvi Framework, Capomastro)
+- Dead links in footer: 6 (`#` hrefs)
+- Accessibility violations found: 0 aria-labels on landing page, 0 alt text, 0 skip-nav
+- React Rules of Hooks violations: 1 (useRef inside `.map()` at landing.tsx:285)
+- Pages eagerly imported (no code splitting): 15
+- Analytics integrations: 0
+- Error boundaries: 0
+- OG/Twitter meta tags present: partial (missing og:image, og:url, all twitter tags)
+- `prefers-reduced-motion` handling: none
+- Dark mode toggle: none (despite `next-themes` being installed)
+- Public assets beyond favicon: 0 (no robots.txt, sitemap.xml, og-image, apple-touch-icon)
+
+---
+
+## COMBINED FINDINGS — FIRST & SECOND PASS
+
+### A. BRAND IDENTITY & MESSAGING
+
+**A1. Brand Name Fragmentation**
+Four different names compete for the visitor's attention: the `<title>` tag says "Salvi", the hero says "Ternary Computing Platform", the header bar says "PlenumNET", the GitHub repo is "Salvi Framework", and the footer copyright is "Capomastro Holdings Ltd." A prospect hitting this page cannot form a single mental model of what they're looking at. Establish and enforce a clear hierarchy: **PlenumNET** = product name, **Salvi Framework** = underlying technology, **Capomastro Holdings** = parent company.
+
+**A2. Meta Description Conflicts with Page Content**
+The `og:description` meta tag claims "12.7% efficiency gain" while the landing page prominently features "59% information density advantage." These are different metrics but a visitor encountering both will see a contradiction. Unify the headline number.
+
+**A3. Package Name is Generic**
+`package.json` declares the project name as `"rest-express"` — a Replit template default. This leaks into build tools, error messages, and dev tooling. Should be `"plenumnet"` or `"salvi-framework"`.
+
+**A4. 404 Page Exposes Developer Language**
+The not-found page (`not-found.tsx`) displays: "Did you forget to add the page to the router?" This is a developer-facing message that should never reach end users. Replace with a professional 404 with navigation back to the landing page.
+
+### B. UX & NAVIGATION
+
+**B1. No Top Navigation Bar**
+The landing page relies exclusively on a collapsed sidebar as navigation. This is a dashboard/internal-tool pattern, not a marketing site pattern. First-time visitors have no visible way to navigate sections without scrolling the entire page. A sticky top nav with anchor links (Platform | Architecture | Performance | Markets | Docs | Early Access) is essential.
+
+**B2. Sidebar is Wrong Pattern for Marketing**
+The sidebar (app-sidebar.tsx) groups 13 navigation items across 3 categories (Explore, Technology, Resources) plus admin tools. This is excellent for the developer dashboard but overwhelming and confusing as the first navigation a marketing visitor encounters. The sidebar should only appear after the user enters the app/tool sections.
+
+**B3. Mobile Navigation Gap**
+On mobile, the sidebar collapses to a hamburger trigger in a thin 48px header. For marketing, the landing page should use a standard mobile pattern: sticky header with hamburger → full-screen mobile menu overlay with clear CTAs.
+
+**B4. Too Many Sections — Funnel Unfocused**
+Eight major sections before the footer: Hero → Platform → Architecture → Components → Performance → Calendar Preview → Target Markets → Developer CTA. The visitor journey should follow: Problem → Solution → Proof → Trust → CTA. The Calendar Preview section (13-Moon Harmonic Calendar, Fibonacci moon splits) is brilliant IP but will confuse enterprise fintech prospects seeking timing compliance info. Move it to a dedicated sub-page.
+
+**B5. Section Redundancy**
+PlatformSection and ComponentsSection present overlapping information about the same 6 capabilities — once as overview cards and again as detailed cards. Merge these into a single, stronger section.
+
+### C. HERO SECTION
+
+**C1. No Visual Element**
+The hero is entirely text-based: badges + headline + paragraph + email form + buttons + stats. For a platform claiming "world's first" status, there must be a hero visual — an architecture diagram, network visualization, animated compression demo, or at minimum a product screenshot/mockup.
+
+**C2. Email Capture Too Aggressive Above the Fold**
+The email signup form appears before the visitor has any reason to trust or understand the product. Move the email capture below the fold (after establishing credibility) or make it visually secondary to the "View Source" and "Live Demo" action buttons.
+
+**C3. Stats Row Lacks Context**
+The hero stats (+59%, 1,011, 80/80, 35) are meaningless without comparison context. "+59%" compared to what? "80/80" of what? Add micro-labels that create instant understanding: "+59% vs Binary", "1,011 Tests Green", "80/80 Roadmap Milestones", "35 VM Opcodes".
+
+### D. CONVERSION & CTA OPTIMIZATION
+
+**D1. Duplicate CTAs with Identical Copy**
+Two nearly identical email capture forms ("Get Early Access") in hero and DeveloperCTA sections. The bottom adds a name field but is otherwise a clone. Differentiate: hero CTA should be lightweight ("Join the waitlist"), bottom should be high-commitment ("Apply for SDK Access" with company name, role, use case fields).
+
+**D2. No "Book a Demo" Path**
+Enterprise prospects — the financial services, defense, and telecom verticals prominently featured — need a human conversation path, not just an email waitlist. Add a "Book a Demo" or "Talk to Our Team" CTA.
+
+**D3. Social Proof Completely Absent**
+Zero testimonials, zero partner logos, zero press mentions, zero advisory board names, zero GitHub stars social proof. The repo has 1 star and 0 forks — linking to it prominently in three places actually hurts credibility. Lead with technical proof (live demo, test results) rather than GitHub vanity metrics until traction exists.
+
+**D4. Comparison Table Has No Trade-offs**
+Every row in PerformanceSection shows ternary winning with zero trade-offs acknowledged. This reads as marketing, not engineering credibility. Add at least one honest row (e.g., "Native Hardware: Ubiquitous → Emulated via Binary-Ternary Gateway"). Sophisticated prospects trust transparency.
+
+### E. SEO & TECHNICAL METADATA
+
+**E1. Missing OG Image**
+No `og:image` meta tag. Every social share of PlenumNET.replit.app shows a blank preview card. This is the single highest-impact SEO fix — create a 1200×630px branded image.
+
+**E2. Missing Twitter Card Tags**
+No `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image`. Twitter/X shares have no formatted preview.
+
+**E3. No Canonical URL**
+No `<link rel="canonical">`. Search engines may index multiple URL variants.
+
+**E4. No JSON-LD Structured Data**
+No Organization, SoftwareApplication, or WebSite schema markup. Missed opportunity for rich search results.
+
+**E5. No robots.txt**
+No `robots.txt` file in the public directory. Search engines have no crawl guidance.
+
+**E6. No sitemap.xml**
+No `sitemap.xml` for the 15 routed pages. Search engines can't efficiently discover all content.
+
+**E7. No Dynamic Meta Tags Per Page**
+No `react-helmet` or equivalent. Every page serves the same title/description regardless of route. The whitepaper page, API demo, compliance page — all show "Salvi | Deployable Post-Quantum Internet Solutions" as the browser tab title.
+
+**E8. Public Assets Directory is Bare**
+The `/client/public/` directory contains only `favicon.png`. Missing: `apple-touch-icon.png`, multiple favicon sizes (16, 32, 192, 512), `manifest.json`, `browserconfig.xml`.
+
+### F. ACCESSIBILITY
+
+**F1. Zero ARIA Labels on Landing Page**
+The entire 1,238-line landing page has zero `aria-label`, `aria-labelledby`, `aria-describedby`, `role`, or `alt` attributes. Every icon-only button, every stat, every comparison table row is invisible to screen readers.
+
+**F2. No Skip Navigation Link**
+No "Skip to main content" link for keyboard users. The sidebar + header navigation forces keyboard users to tab through many elements before reaching page content.
+
+**F3. No `prefers-reduced-motion` Handling**
+Every section uses `framer-motion` animations with staggered delays. Users with vestibular disorders or motion sensitivity preferences are ignored. The hero alone has 8 animation stages from 0s to 0.7s delay.
+
+**F4. Color Contrast Not Verified**
+The `text-muted-foreground` color against various backgrounds (especially on cards with `bg-card/70 backdrop-blur-sm`) has not been verified against WCAG AA (4.5:1 text) or AAA (7:1 text) contrast ratios.
+
+**F5. Form Labels Missing**
+The hero email input and developer signup form rely on `placeholder` text as the only label. Placeholders disappear on focus and are not reliable labels for accessibility.
+
+### G. VISUAL DESIGN & THEME
+
+**G1. Light/Dark Mode Brand Color Mismatch**
+Light mode uses blue primary (`hsl(210 100% 45%)` — a professional blue). Dark mode uses orange-red primary (`hsl(9 75% 61%)` — a warm coral/rust). These are completely different brand identities. A visitor switching between modes will think they've landed on a different product. Unify the brand color across both themes.
+
+**G2. Dark Mode Toggle Missing**
+`next-themes` is installed as a dependency but the `ThemeProvider` is never wired into `App.tsx` and there is no user-facing toggle anywhere. The site relies entirely on system preference. Developer audiences expect a manual toggle.
+
+**G3. Font Loading Strategy**
+Only Inter is loaded via Google Fonts. The CSS declares `'Inter', 'Poppins', sans-serif` as the font stack but Poppins is never loaded — it's a phantom fallback that will never render. Either load Poppins or remove it from the stack. The document standard (Felix Titling headers / Century Gothic body) is not reflected in the web app.
+
+**G4. No Hero Visual / Product Screenshot**
+Reiterated from C1 — the entire above-the-fold experience is text-only. There is no visual representation of what the product looks like or does.
+
+### H. CODE QUALITY & PERFORMANCE
+
+**H1. React Rules of Hooks Violation**
+`landing.tsx` line 285-286: `useRef()` and `useInView()` are called inside a `.map()` callback within `PlatformSection`. This violates React's Rules of Hooks. It works coincidentally because the array length is static, but it will break if the array becomes dynamic and will cause issues with React strict mode and future React versions. Extract to a separate component.
+
+**H2. Zero Code Splitting**
+All 15 pages are eagerly imported in `App.tsx`. Pages like `api-demo.tsx` (60KB), `ternarydb.tsx` (70KB), `github-manager.tsx` (54KB), `calendar.tsx` (46KB) are all bundled and loaded upfront even when the user only visits the landing page. Use `React.lazy()` + `Suspense` for route-level code splitting.
+
+**H3. No Error Boundary**
+No `ErrorBoundary` component exists anywhere in the app. A runtime error in any child component will crash the entire application with a white screen.
+
+**H4. No Analytics**
+Zero analytics integration — no Google Analytics, Plausible, Umami, PostHog, or Mixpanel. There is no way to measure traffic, conversion rates, or user behavior. This makes all marketing decisions blind.
+
+**H5. Animation Performance Budget**
+Framer Motion staggered animations on every section create a "loading in" feel on slower connections. The hero has 8 animation stages. Reduce animation on mobile, respect `prefers-reduced-motion`, and tighten stagger delays.
+
+**H6. No Service Worker / PWA**
+No service worker, no web app manifest, no offline capability. Low priority for a marketing site but expected for a technology platform demo.
+
+### I. CONTENT & FOOTER
+
+**I1. Six Dead Footer Links**
+Company section links (About, Blog, Careers, Contact) all point to `"#"`. Social icons (Twitter, LinkedIn) also point to `"#"`. Dead links on a production page signal "not ready for business."
+
+**I2. No Developer Quick-Start Code Snippet**
+For a platform with 70+ API endpoints, there is no code example on the landing page showing integration simplicity. A `curl` or `npm install` example instantly communicates "production-ready and usable today" better than any badge.
+
+**I3. Legal Pages Render as `<pre>` Blocks**
+The legal page (`legal.tsx` line 74-79) renders document content inside a `<pre>` tag with `whitespace-pre-wrap`. This produces raw, unformatted text blocks rather than properly structured legal documents. These pages represent the company legally and should use proper heading/paragraph formatting.
+
+**I4. Whitepaper Uses Custom Markdown Parser**
+The whitepaper page (`whitepaper.tsx`) implements a regex-based markdown-to-HTML parser (lines 46-72). This is fragile and incomplete — it will break on edge cases. Use a proper library like `marked` or `react-markdown`.
+
+---
+
+## PHASED IMPLEMENTATION CHECKLIST
+
+### PHASE 0 — CRITICAL FIXES (Week 1)
+*Stop the bleeding. Fix things that actively hurt credibility or break functionality.*
+
+- [ ] **0.1** Fix brand naming hierarchy across all touchpoints
+  - [ ] Update `<title>` to "PlenumNET — Post-Quantum Ternary Computing Platform"
+  - [ ] Update `og:title` to match
+  - [ ] Update hero to lead with "PlenumNET" prominently
+  - [ ] Ensure header, sidebar, footer all use "PlenumNET" consistently
+  - [ ] Reserve "Salvi Framework" for technical/documentation contexts only
+  - [ ] Reserve "Capomastro Holdings Ltd." for legal/copyright contexts only
+
+- [ ] **0.2** Fix meta description conflict (12.7% vs 59%)
+  - [ ] Align `og:description` with the landing page's headline number
+  - [ ] Use consistent metric: "59% information density advantage"
+
+- [ ] **0.3** Kill all dead links
+  - [ ] Remove or hide footer Company links (About, Blog, Careers) pointing to `#`
+  - [ ] Remove or connect social icons (Twitter, LinkedIn) to real profiles
+  - [ ] If real social profiles don't exist yet, remove icons entirely
+
+- [ ] **0.4** Fix the 404 page
+  - [ ] Replace "Did you forget to add the page to the router?" with user-friendly copy
+  - [ ] Add PlenumNET branding, navigation links, and search or CTA
+  - [ ] Apply theme system colors (currently uses hardcoded `bg-gray-50`, `text-gray-900`)
+
+- [ ] **0.5** Fix React Rules of Hooks violation
+  - [ ] Extract the `.map()` callback in PlatformSection (line 284-312) into a `<CapabilityCard>` component
+  - [ ] Move `useRef` and `useInView` into the extracted component
+
+- [ ] **0.6** Fix package.json name
+  - [ ] Change `"name": "rest-express"` to `"name": "plenumnet"`
+
+- [ ] **0.7** Add `og:image` for social sharing
+  - [ ] Create 1200×630px branded OG image (PlenumNET logo, tagline, visual)
+  - [ ] Add to `/client/public/og-image.png`
+  - [ ] Add `<meta property="og:image" content="https://plenumnet.replit.app/og-image.png" />`
+
+- [ ] **0.8** Add complete Twitter/X card meta tags
+  - [ ] `twitter:card` = "summary_large_image"
+  - [ ] `twitter:title`, `twitter:description`, `twitter:image`
+
+- [ ] **0.9** Add canonical URL
+  - [ ] `<link rel="canonical" href="https://plenumnet.replit.app/" />`
+
+- [ ] **0.10** Add `og:url` meta tag
+
+---
+
+### PHASE 1 — NAVIGATION & STRUCTURE (Weeks 2-3)
+*Make the marketing front door work like a marketing site.*
+
+- [ ] **1.1** Add sticky top navigation bar to landing page
+  - [ ] Logo (left) + anchor links: Platform | Architecture | Performance | Docs | Early Access
+  - [ ] "Get Early Access" primary CTA button (right)
+  - [ ] Auto-hide/show on scroll direction
+  - [ ] Smooth scroll to anchored sections
+
+- [ ] **1.2** Mobile navigation
+  - [ ] Hamburger menu → full-screen overlay on mobile
+  - [ ] Same anchor links + CTA button
+  - [ ] Close on link click
+
+- [ ] **1.3** Separate marketing layout from dashboard layout
+  - [ ] Landing page: top nav only, no sidebar
+  - [ ] Dashboard pages (ternarydb, api-demo, calendar, etc.): sidebar layout
+  - [ ] Create a `MarketingLayout` wrapper and a `DashboardLayout` wrapper
+
+- [ ] **1.4** Consolidate landing page sections
+  - [ ] Merge PlatformSection + ComponentsSection into a single stronger section
+  - [ ] Move CalendarPreviewSection to its own route `/calendar-overview`
+  - [ ] Target structure: Hero → Platform → Architecture → Performance → Markets → CTA → Footer
+  - [ ] Reduce from 8 sections to 6
+
+- [ ] **1.5** Add dynamic page titles per route
+  - [ ] Install `react-helmet-async` or equivalent
+  - [ ] Each page sets its own `<title>`, `description`, and OG tags
+  - [ ] Whitepaper page: "PlenumNET Whitepaper — Unified Ternary Logic System"
+  - [ ] API Demo: "PlenumNET API Explorer — Live Ternary Operations"
+  - [ ] Calendar: "PlenumNET Calendar API — 12 Systems, 30,000 Years"
+
+- [ ] **1.6** Add `robots.txt` to `/client/public/`
+  - [ ] Allow all crawlers
+  - [ ] Reference sitemap location
+
+- [ ] **1.7** Add `sitemap.xml` to `/client/public/`
+  - [ ] Include all 15 public routes with proper priorities and changefreq
+
+- [ ] **1.8** Add skip navigation link
+  - [ ] First focusable element: "Skip to main content" → jumps to `<main>`
+  - [ ] Visually hidden until focused
+
+---
+
+### PHASE 2 — CONVERSION & TRUST (Weeks 3-5)
+*Turn visitors into leads and leads into believers.*
+
+- [ ] **2.1** Add hero visual
+  - [ ] Option A: Animated architecture diagram (5-layer stack visualization)
+  - [ ] Option B: Live compression demo widget (type text → see ternary conversion)
+  - [ ] Option C: Network topology particle animation (Three.js or Canvas)
+  - [ ] Option D: High-fidelity product screenshot/mockup of PlenumDB in action
+  - [ ] Place right-side or below the hero text, above the stats row
+
+- [ ] **2.2** Add developer quick-start code snippet
+  - [ ] Syntax-highlighted `curl` example hitting a live PlenumNET endpoint
+  - [ ] Copy button
+  - [ ] Place in Components section or as a standalone "Try It Now" mini-section
+  - [ ] Example:
+    ```bash
+    curl -X POST https://plenumnet.replit.app/api/salvi/ternary/convert \
+      -H "Content-Type: application/json" \
+      -d '{"value": 42, "from": "B", "to": "A"}'
+    ```
+
+- [ ] **2.3** Differentiate the two CTAs
+  - [ ] Hero CTA: Lightweight — email only, "Join the Waitlist"
+  - [ ] Bottom CTA: High-commitment — name, email, company, role, use case dropdown
+  - [ ] Bottom CTA copy: "Apply for SDK Access" or "Request Developer Preview"
+  - [ ] Add "Book a Demo" button for enterprise prospects (links to Calendly or similar)
+
+- [ ] **2.4** Add social proof / trust signals section
+  - [ ] "Built With" technology logos (Rust, TypeScript, Kong, Algorand, XRPL, Hedera)
+  - [ ] Target partner pipeline (if appropriate to disclose)
+  - [ ] Compliance badges: CNSA 2.0, FIPS 140-3 target, FINRA 613 architecture
+  - [ ] GitHub commit count, test count, code coverage as verified metrics
+  - [ ] Position between Performance and Markets sections
+
+- [ ] **2.5** Add honesty row to comparison table
+  - [ ] "Native Hardware Support: Ubiquitous → Emulated (Binary-Ternary Gateway)"
+  - [ ] "Ecosystem Maturity: 40+ years → Emerging (v1.0)"
+  - [ ] This increases credibility with technical evaluators
+
+- [ ] **2.6** Improve stat labels for instant comprehension
+  - [ ] "+59%" → "+59% vs Binary Density"
+  - [ ] "1,011" → "1,011 Tests Passing"
+  - [ ] "80/80" → "80/80 Milestones Complete"
+  - [ ] "35" → "35 VM Opcodes"
+
+- [ ] **2.7** Add analytics
+  - [ ] Install Plausible, Umami, or PostHog (privacy-respecting analytics)
+  - [ ] Track: page views, scroll depth, CTA clicks, email signups, demo usage
+  - [ ] Set up conversion funnels: Landing → Demo → Signup
+
+- [ ] **2.8** Format legal pages properly
+  - [ ] Replace `<pre>` rendering with proper markdown/HTML rendering
+  - [ ] Add heading structure, paragraph spacing, section anchors
+  - [ ] Add "Last Updated" date and version number
+
+---
+
+### PHASE 3 — ACCESSIBILITY & PERFORMANCE (Weeks 5-7)
+*Make it work for everyone and load fast everywhere.*
+
+- [ ] **3.1** Accessibility pass — landing page
+  - [ ] Add `aria-label` to all icon-only buttons and links
+  - [ ] Add `role="region"` and `aria-labelledby` to major sections
+  - [ ] Add descriptive `aria-label` to the comparison table
+  - [ ] Add visible (or sr-only) labels to all form inputs (not just placeholder)
+  - [ ] Verify tab order is logical and complete
+
+- [ ] **3.2** Accessibility pass — all pages
+  - [ ] Audit all 15 pages for aria-labels, roles, alt text
+  - [ ] Ensure all interactive elements are keyboard accessible
+  - [ ] Test with screen reader (VoiceOver or NVDA)
+
+- [ ] **3.3** Handle `prefers-reduced-motion`
+  - [ ] Add CSS: `@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; } }`
+  - [ ] Or: wrap framer-motion in a hook that checks `window.matchMedia('(prefers-reduced-motion: reduce)')`
+  - [ ] Disable staggered delays for users who prefer reduced motion
+
+- [ ] **3.4** Color contrast audit
+  - [ ] Run axe-core or Lighthouse accessibility audit
+  - [ ] Verify all text/background combinations meet WCAG AA (4.5:1)
+  - [ ] Pay special attention to `text-muted-foreground` on card backgrounds
+  - [ ] Fix any failing contrast ratios
+
+- [ ] **3.5** Implement code splitting
+  - [ ] Convert all page imports in `App.tsx` to `React.lazy()`
+  - [ ] Wrap `<Router>` in `<Suspense fallback={<LoadingSpinner />}>`
+  - [ ] Priority lazy pages: github-manager (54K), api-demo (60K), ternarydb (70K), calendar (46K), kong-konnect (43K)
+  - [ ] Keep landing page eagerly loaded (it's the entry point)
+
+- [ ] **3.6** Add Error Boundary
+  - [ ] Create `ErrorBoundary` component with fallback UI
+  - [ ] Wrap at the app level in `App.tsx`
+  - [ ] Optionally wrap each page route for granular error handling
+  - [ ] Include "Return to Home" link and error reporting
+
+- [ ] **3.7** Tighten animation budget
+  - [ ] Reduce hero animation stages from 8 to 3-4
+  - [ ] Reduce stagger delays (currently up to 0.7s) to max 0.3s total
+  - [ ] Remove animations entirely on mobile for performance
+  - [ ] Use `will-change` CSS property sparingly on animated elements
+
+- [ ] **3.8** Unify light/dark brand colors
+  - [ ] Choose one brand color direction (recommend keeping the blue: `hsl(210, 100%, 45%)`)
+  - [ ] Adjust dark mode to use the same hue with appropriate luminance shift
+  - [ ] Example dark mode primary: `hsl(210, 80%, 55%)` (same blue, lighter for dark bg)
+
+- [ ] **3.9** Wire up dark mode toggle
+  - [ ] Add `ThemeProvider` from `next-themes` to `App.tsx`
+  - [ ] Add sun/moon toggle button in the sticky header
+  - [ ] Persist preference in localStorage
+  - [ ] Default to system preference
+
+- [ ] **3.10** Fix phantom Poppins font reference
+  - [ ] Either load Poppins via Google Fonts link, or remove it from CSS `--font-sans` stack
+  - [ ] Clean up font stack to only reference loaded fonts
+
+- [ ] **3.11** Add favicon sizes and web manifest
+  - [ ] Generate favicon set: 16x16, 32x32, 180x180 (apple-touch-icon), 192x192, 512x512
+  - [ ] Add `manifest.json` with app name, colors, icons
+  - [ ] Add `<link rel="apple-touch-icon">` and `<link rel="manifest">`
+
+---
+
+### PHASE 4 — STRATEGIC ENHANCEMENTS (Weeks 7-10+)
+*Elevate from good to best-in-class.*
+
+- [ ] **4.1** Add JSON-LD structured data
+  - [ ] `Organization` schema for Capomastro Holdings
+  - [ ] `SoftwareApplication` schema for PlenumNET
+  - [ ] `WebSite` schema with search action
+  - [ ] `FAQPage` schema if FAQ section is added
+
+- [ ] **4.2** Build dedicated pages for dead footer links
+  - [ ] `/about` — Company story, team, mission, Capomastro Holdings context
+  - [ ] `/blog` — Even a single launch post establishes presence
+  - [ ] `/contact` — Contact form, email, location (not just email capture)
+
+- [ ] **4.3** Replace custom markdown parser in whitepaper
+  - [ ] Install `react-markdown` with `remark-gfm`
+  - [ ] Replace the regex-based `parseMarkdownToHTML()` in whitepaper.tsx
+  - [ ] Ensure code blocks, tables, and headings all render correctly
+
+- [ ] **4.4** Add interactive demo widget to hero
+  - [ ] Embed a mini ternary converter: type binary → see ternary live
+  - [ ] Hit actual `/api/salvi/ternary/convert` endpoint
+  - [ ] Show compression ratio in real-time
+  - [ ] This becomes the "aha moment" above the fold
+
+- [ ] **4.5** Implement email capture confirmation flow
+  - [ ] Show success state with next steps after signup
+  - [ ] Send confirmation/welcome email (if email service is configured)
+  - [ ] Add to a proper mailing list (Resend, ConvertKit, etc.)
+
+- [ ] **4.6** Add changelog / updates section
+  - [ ] Show recent GitHub commits or release notes
+  - [ ] Demonstrates active development to prospects
+  - [ ] Can be auto-populated from GitHub API
+
+- [ ] **4.7** Performance optimization pass
+  - [ ] Run Lighthouse audit and optimize for 90+ scores
+  - [ ] Optimize images (WebP format, lazy loading)
+  - [ ] Add resource hints: `preconnect`, `dns-prefetch` for API endpoints
+  - [ ] Consider service worker for static asset caching
+
+- [ ] **4.8** Add A/B testing infrastructure
+  - [ ] Test hero headline variants
+  - [ ] Test CTA copy variants ("Get Early Access" vs "Start Building" vs "Join the Beta")
+  - [ ] Test email capture position (above fold vs below fold)
+
+- [ ] **4.9** Internationalization foundation
+  - [ ] Extract all UI strings to a constants file
+  - [ ] Prepare for future i18n if targeting international markets
+  - [ ] Ensure date/time formatting respects locale
+
+- [ ] **4.10** Progressive Web App (PWA)
+  - [ ] Add service worker for offline demo capability
+  - [ ] Add installability for mobile users
+  - [ ] Cache API demo results for offline access
+
+---
+
+## PRIORITY IMPACT MATRIX
+
+| Phase | Items | Effort | Impact | Timeline |
+|-------|-------|--------|--------|----------|
+| **Phase 0** | 10 items | Low-Medium | Critical — fixes broken/embarrassing issues | Week 1 |
+| **Phase 1** | 8 items | Medium | High — transforms from dashboard to marketing site | Weeks 2-3 |
+| **Phase 2** | 8 items | Medium-High | High — drives conversions and builds trust | Weeks 3-5 |
+| **Phase 3** | 11 items | Medium | Medium-High — accessibility compliance and performance | Weeks 5-7 |
+| **Phase 4** | 10 items | High | Medium — strategic competitive advantages | Weeks 7-10+ |
+
+## WHAT'S WORKING WELL
+
+These strengths should be preserved and amplified:
+
+1. **Technical depth** — The landing page content is substantively correct and detailed, not vaporware
+2. **Test coverage attributes** — `data-testid` on every interactive element shows engineering discipline
+3. **Live demo integration** — PlenumDB, API demo, HPTP timing, and Calendar API are all functional and impressive
+4. **Animation quality** — Framer Motion scroll-triggered animations are smooth and professional (just needs budget tuning)
+5. **Architecture visualization** — The 5-layer stack diagram is clear and compelling
+6. **Component library** — shadcn/ui + Radix provides a solid, accessible component foundation
+7. **Legal infrastructure** — Terms, Privacy, Security, AUP pages all exist and are served from the database
+8. **Auth + Admin** — Authentication, admin dashboard, GitHub manager, and Kong management are production features that demonstrate platform maturity
+9. **70+ live API endpoints** — This is the strongest proof point and should be featured more prominently
+10. **Responsive design** — The layout adapts well across viewport sizes (aside from the navigation pattern issue)
+
+---
+
+*Prepared under the Salvi Standard of Scrutiny — Critical Analysis paired with Constructive Creation.*
+*Così sia, Fratello.*
