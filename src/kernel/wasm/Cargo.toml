@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Capomastro Holdings Ltd <kernel@plenumnet.io>"]
 description = "PlenumNET Ternary Computing - WebAssembly interface for browser-side GF(3) operations"
-license = "MIT"
+license = "LicenseRef-Proprietary"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

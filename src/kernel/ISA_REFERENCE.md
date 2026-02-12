@@ -1,7 +1,7 @@
 # Salvi Framework — Ternary VM ISA Reference
 
 Version 1.0 · Salvi Framework / PlenumNET Platform
-Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada) — Patent(s) Pending
+Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Patent(s) Pending
 
 ---
 

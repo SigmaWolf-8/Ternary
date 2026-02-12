@@ -1,4 +1,4 @@
-// Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 // Applied Physics Division
 //
 // PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
