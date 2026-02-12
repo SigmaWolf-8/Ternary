@@ -1,0 +1,19 @@
+name: License Header Check
+on: [pull_request]
+jobs:
+  check-headers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check copyright headers
+        run: |
+          MISSING=$(find src/ server/ client/src/ libternary/src/ contracts/ \
+            services/ shared/ -type f \
+            \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.py" \) \
+            -exec grep -L "Capomastro Holdings" {} \; 2>/dev/null || true)
+          if [ -n "$MISSING" ]; then
+            echo "::error::Files missing copyright header:"
+            echo "$MISSING"
+            exit 1
+          fi
+          echo "All source files contain copyright header."
