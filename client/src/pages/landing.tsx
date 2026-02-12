@@ -175,31 +175,45 @@ function HeroSection() {
             id="hero-title"
             style={{
               textShadow: `
-                0 1px 0 rgba(255,255,255,0.5),
-                0 -1px 0 rgba(0,0,0,0.25),
-                0 2px 0 rgba(0,0,0,0.22),
-                0 3px 0 rgba(0,0,0,0.19),
-                0 4px 0 rgba(0,0,0,0.16),
-                0 5px 0 rgba(0,0,0,0.13),
-                0 6px 0 rgba(0,0,0,0.10),
-                0 7px 0 rgba(0,0,0,0.07),
-                0 8px 7px rgba(0,0,0,0.15),
-                0 12px 14px rgba(0,0,0,0.12),
-                0 18px 24px rgba(0,0,0,0.08)
+                0 1px 0 rgba(255,255,255,0.6),
+                0 -1px 0 rgba(0,0,0,0.3),
+                0 2px 0 rgba(0,0,0,0.28),
+                0 3px 0 rgba(0,0,0,0.26),
+                0 4px 0 rgba(0,0,0,0.24),
+                0 5px 0 rgba(0,0,0,0.22),
+                0 6px 0 rgba(0,0,0,0.20),
+                0 7px 0 rgba(0,0,0,0.18),
+                0 8px 0 rgba(0,0,0,0.16),
+                0 9px 0 rgba(0,0,0,0.14),
+                0 10px 0 rgba(0,0,0,0.12),
+                0 11px 0 rgba(0,0,0,0.10),
+                0 12px 0 rgba(0,0,0,0.08),
+                0 13px 0 rgba(0,0,0,0.06),
+                0 14px 0 rgba(0,0,0,0.04),
+                0 15px 10px rgba(0,0,0,0.20),
+                0 22px 20px rgba(0,0,0,0.15),
+                0 32px 40px rgba(0,0,0,0.10)
               `,
             }}
           >
             The World's First <span className="text-primary" style={{ textShadow: `
-                0 1px 0 rgba(0,80,200,0.5),
-                0 2px 0 rgba(0,70,180,0.45),
-                0 3px 0 rgba(0,60,160,0.40),
-                0 4px 0 rgba(0,50,140,0.35),
-                0 5px 0 rgba(0,40,120,0.30),
-                0 6px 0 rgba(0,30,100,0.25),
-                0 7px 0 rgba(0,20,80,0.20),
-                0 8px 7px rgba(0,30,100,0.20),
-                0 12px 14px rgba(0,30,100,0.15),
-                0 18px 24px rgba(0,30,100,0.10)
+                0 1px 0 rgba(0,90,220,0.6),
+                0 2px 0 rgba(0,85,210,0.55),
+                0 3px 0 rgba(0,80,200,0.50),
+                0 4px 0 rgba(0,75,190,0.45),
+                0 5px 0 rgba(0,70,180,0.42),
+                0 6px 0 rgba(0,65,170,0.39),
+                0 7px 0 rgba(0,60,160,0.36),
+                0 8px 0 rgba(0,55,150,0.33),
+                0 9px 0 rgba(0,50,140,0.30),
+                0 10px 0 rgba(0,45,130,0.27),
+                0 11px 0 rgba(0,40,120,0.24),
+                0 12px 0 rgba(0,35,110,0.21),
+                0 13px 0 rgba(0,30,100,0.18),
+                0 14px 0 rgba(0,25,90,0.15),
+                0 15px 10px rgba(0,30,100,0.25),
+                0 22px 20px rgba(0,30,100,0.18),
+                0 32px 40px rgba(0,30,100,0.12)
               ` }}>Ternary Computing</span> Platform
           </motion.h1>
           
