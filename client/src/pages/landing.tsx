@@ -1139,7 +1139,7 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-5">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
-            <a href="#" className="flex items-center gap-2 text-primary font-bold text-xl mb-4" data-testid="link-footer-logo">
+            <a href="/" className="flex items-center gap-2 text-primary font-bold text-xl mb-4" data-testid="link-footer-logo">
               <Box className="w-6 h-6" />
               <span>PlenumNET</span>
             </a>
