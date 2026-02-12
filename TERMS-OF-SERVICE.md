@@ -178,6 +178,6 @@ For questions regarding these Terms:
 
 Capomastro Holdings Ltd.
 Applied Physics Division
-Canada
-Email: [contact to be specified]
+Sherwood Park, AB Canada
+Email: Rsalvi@Salvigroup.com
 Website: https://PlenumNET.replit.app

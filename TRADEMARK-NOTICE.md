@@ -150,7 +150,7 @@ For trademark usage inquiries or to request permission:
 Capomastro Holdings Ltd.
 Applied Physics Division
 Sherwood Park, AB Canada
-Email: [trademark contact to be specified]
+Email: Rsalvi@Salvigroup.com
 Repository: https://github.com/SigmaWolf-8/Ternary
 
 ---

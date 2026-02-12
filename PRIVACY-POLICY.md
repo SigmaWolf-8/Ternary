@@ -76,7 +76,7 @@ We will not use personal information for purposes beyond those identified withou
 
 5.2 **Implied Consent.** Where appropriate and permitted by PIPEDA, we rely on implied consent for non-sensitive personal information collected in the course of providing the Service.
 
-5.3 **Withdrawal of Consent.** You may withdraw your consent at any time by contacting our Privacy Officer at [privacy contact to be specified]. We will inform you of the implications of withdrawal. Withdrawal of consent may limit our ability to provide certain features of the Service.
+5.3 **Withdrawal of Consent.** You may withdraw your consent at any time by contacting our Privacy Officer at Rsalvi@Salvigroup.com. We will inform you of the implications of withdrawal. Withdrawal of consent may limit our ability to provide certain features of the Service.
 
 ---
 
@@ -150,7 +150,7 @@ If you are in the European Economic Area, you have additional rights including t
 ### 10.4 Rights Under CCPA/CPRA (California Users)
 If you are a California resident, you have additional rights including the right to know, the right to delete, and the right to opt-out of the sale of personal information. We do not sell personal information.
 
-To exercise any of these rights, contact our Privacy Officer at [privacy contact to be specified]. We will respond within the timeframe required by applicable law.
+To exercise any of these rights, contact our Privacy Officer at Rsalvi@Salvigroup.com. We will respond within the timeframe required by applicable law.
 
 ---
 
@@ -185,8 +185,8 @@ Capomastro Holdings Ltd. has designated a Privacy Officer responsible for compli
 **Privacy Officer**
 Capomastro Holdings Ltd.
 Applied Physics Division
-Canada
-Email: [privacy contact to be specified]
+Sherwood Park, AB Canada
+Email: Rsalvi@Salvigroup.com
 
 If you are not satisfied with our response, you may file a complaint with:
 

@@ -160,9 +160,8 @@ For export control inquiries or license requests:
 
 Capomastro Holdings Ltd.
 Applied Physics Division
-Export Compliance Officer: [to be designated]
-Canada
-Email: [export-compliance contact to be specified]
+Sherwood Park, AB Canada
+Email: Rsalvi@Salvigroup.com
 
 For Canadian Government inquiries:
 Global Affairs Canada, Trade Controls Bureau: https://www.international.gc.ca

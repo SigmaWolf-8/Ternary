@@ -120,8 +120,8 @@ For licensing inquiries, patent questions, or intellectual property matters:
 
 Capomastro Holdings Ltd.
 Applied Physics Division
-Canada
-Email: [ip-counsel contact to be specified]
+Sherwood Park, AB Canada
+Email: Rsalvi@Salvigroup.com
 Repository: https://github.com/SigmaWolf-8/Ternary
 
 ---

@@ -6,7 +6,7 @@
 
 ---
 
-Thank you for your interest in contributing to the Salvi Framework / PlenumNET project ("Project"), owned and maintained by Capomastro Holdings Ltd., a corporation incorporated under the laws of Canada ("Company"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Company. To make this document effective, please sign it and send it to the Company at [licensing contact to be specified]. This is a legally binding document, so please read it carefully before agreeing to it.
+Thank you for your interest in contributing to the Salvi Framework / PlenumNET project ("Project"), owned and maintained by Capomastro Holdings Ltd., a corporation incorporated under the laws of Canada ("Company"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Company. To make this document effective, please sign it and send it to the Company at Rsalvi@Salvigroup.com. This is a legally binding document, so please read it carefully before agreeing to it.
 
 ---
 
@@ -118,5 +118,5 @@ Date: ___________________________________________
 
 ---
 
-*Return signed copies to: [licensing contact to be specified]*
+*Return signed copies to: Rsalvi@Salvigroup.com*
 *Repository: https://github.com/SigmaWolf-8/Ternary*

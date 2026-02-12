@@ -75,7 +75,7 @@ If accessing the Service via API:
 
 ## 4. Reporting Violations
 
-If You become aware of any violation of this AUP, please report it to [security contact to be specified]. We take all reports seriously and will investigate promptly.
+If You become aware of any violation of this AUP, please report it to Rsalvi@Salvigroup.com. We take all reports seriously and will investigate promptly.
 
 ---
 
@@ -107,5 +107,5 @@ For questions regarding this Acceptable Use Policy:
 
 Capomastro Holdings Ltd.
 Applied Physics Division
-Canada
-Email: [contact to be specified]
+Sherwood Park, AB Canada
+Email: Rsalvi@Salvigroup.com

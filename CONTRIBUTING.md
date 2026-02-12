@@ -26,7 +26,7 @@ Before we can accept any contributions, you must sign and submit the
 Contributor License Agreement (CLA). See [CLA.md](CLA.md) for the full
 agreement. No pull requests will be merged without a signed CLA on file.
 
-Return signed copies to: [licensing contact to be specified]
+Return signed copies to: Rsalvi@Salvigroup.com
 
 ---
 
@@ -91,6 +91,6 @@ Do **NOT** create a public GitHub issue for security vulnerabilities. See [SECUR
 
 ## Questions
 
-For questions about contributing, contact [contributing contact to be specified].
+For questions about contributing, contact Rsalvi@Salvigroup.com.
 
 Repository: https://github.com/SigmaWolf-8/Ternary
