@@ -15,6 +15,7 @@
 use alloc::vec::Vec;
 use super::{VmError, VmResult};
 use super::instruction::*;
+use crate::ternary::{Trit, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left};
 
 pub struct VmMemory {
     data: Vec<u8>,
@@ -245,73 +246,199 @@ impl TernaryVm {
             Opcode::TAdd => {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
-                let a_gf = a.rem_euclid(3);
-                let b_gf = b.rem_euclid(3);
-                let sum = (a_gf + b_gf) % 3;
-                let result = if sum > 1 { sum - 3 } else { sum };
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.add(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.add(&tb).to_a() as i64
+                };
                 self.set_register(inst.dst, result)?;
+                self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
                 self.update_flags(result, false);
             }
             Opcode::TMul => {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
-                let a_gf = a.rem_euclid(3);
-                let b_gf = b.rem_euclid(3);
-                let product = (a_gf * b_gf) % 3;
-                let result = if product > 1 { product - 3 } else { product };
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.multiply(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.multiply(&tb).to_a() as i64
+                };
                 self.set_register(inst.dst, result)?;
+                self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
                 self.update_flags(result, false);
             }
             Opcode::TNeg => {
                 let a = self.get_register(inst.src1)?;
-                let result = -a;
+                let result = if self.is_ternary_mode(inst.src1) {
+                    packed_map(a, |t| t.not())
+                } else {
+                    let ta = scalar_to_trit(a);
+                    ta.not().to_a() as i64
+                };
                 self.set_register(inst.dst, result)?;
+                self.copy_ternary_mode(inst.dst, inst.src1)?;
                 self.update_flags(result, false);
             }
             Opcode::TRot => {
                 let a = self.get_register(inst.src1)?;
                 let positions = self.get_register(inst.src2)?;
-                let mut val = a;
-                let rot_count = positions.rem_euclid(3);
-                for _ in 0..rot_count {
-                    val = match val {
-                        -1 => 0,
-                        0 => 1,
-                        1 => -1,
-                        _ => val,
-                    };
-                }
-                self.set_register(inst.dst, val)?;
-                self.update_flags(val, false);
+                let result = if self.is_ternary_mode(inst.src1) {
+                    let rot_count = (positions.rem_euclid(3)) as usize;
+                    let mut val = a;
+                    for _ in 0..rot_count {
+                        val = packed_map(val, |t| t.rotate());
+                    }
+                    val
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let rot_count = positions.rem_euclid(3);
+                    let mut t = ta;
+                    for _ in 0..rot_count {
+                        t = t.rotate();
+                    }
+                    t.to_a() as i64
+                };
+                self.set_register(inst.dst, result)?;
+                self.copy_ternary_mode(inst.dst, inst.src1)?;
+                self.update_flags(result, false);
             }
             Opcode::TXor => {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
-                let a_gf = a.rem_euclid(3);
-                let b_gf = b.rem_euclid(3);
-                let sum = (a_gf + b_gf) % 3;
-                let result = if sum > 1 { sum - 3 } else { sum };
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.sub(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.sub(&tb).to_a() as i64
+                };
                 self.set_register(inst.dst, result)?;
+                self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
                 self.update_flags(result, false);
             }
             Opcode::TConvert => {
                 let val = self.get_register(inst.src1)?;
-                let from_repr = self.get_register(inst.src2)?;
-                let to_repr = inst.immediate;
-                let a_val = match from_repr {
-                    0 => val,
-                    1 => val - 1,
-                    2 => val - 2,
-                    _ => val,
+                let from_repr_id = self.get_register(inst.src2)?;
+                let to_repr_id = inst.immediate;
+                let from_repr = match from_repr_id {
+                    0 => Representation::A,
+                    1 => Representation::B,
+                    2 => Representation::C,
+                    _ => return Err(VmError::InvalidProgram(alloc::string::String::from(
+                        "Invalid source representation for TConvert",
+                    ))),
                 };
-                let result = match to_repr {
-                    0 => a_val,
-                    1 => a_val + 1,
-                    2 => a_val + 2,
-                    _ => a_val,
+                let to_repr = match to_repr_id {
+                    0 => Representation::A,
+                    1 => Representation::B,
+                    2 => Representation::C,
+                    _ => return Err(VmError::InvalidProgram(alloc::string::String::from(
+                        "Invalid target representation for TConvert",
+                    ))),
+                };
+                let result = convert_representation(val as i8, from_repr, to_repr) as i64;
+                self.set_register(inst.dst, result)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TAnd => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.and(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.and(&tb).to_a() as i64
+                };
+                self.set_register(inst.dst, result)?;
+                self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TOr => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.or(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.or(&tb).to_a() as i64
+                };
+                self.set_register(inst.dst, result)?;
+                self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TSub => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.sub(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.sub(&tb).to_a() as i64
+                };
+                self.set_register(inst.dst, result)?;
+                self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TInv => {
+                let a = self.get_register(inst.src1)?;
+                let result = if self.is_ternary_mode(inst.src1) {
+                    packed_map(a, |t| t.not())
+                } else {
+                    let ta = scalar_to_trit(a);
+                    ta.not().to_a() as i64
+                };
+                self.set_register(inst.dst, result)?;
+                self.copy_ternary_mode(inst.dst, inst.src1)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TShift => {
+                let a = self.get_register(inst.src1)?;
+                let shift_amount = if inst.immediate != 0 {
+                    inst.immediate
+                } else {
+                    self.get_register(inst.src2)?
+                };
+                let result = if shift_amount >= 0 {
+                    packed_shift_left(a, shift_amount as usize)
+                } else {
+                    packed_shift_right(a, (-shift_amount) as usize)
+                };
+                self.set_register(inst.dst, result)?;
+                self.copy_ternary_mode(inst.dst, inst.src1)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TCmp => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
+                    packed_zip(a, b, |x, y| x.cmp_trit(y))
+                } else {
+                    let ta = scalar_to_trit(a);
+                    let tb = scalar_to_trit(b);
+                    ta.cmp_trit(&tb).to_a() as i64
                 };
                 self.set_register(inst.dst, result)?;
                 self.update_flags(result, false);
+            }
+            Opcode::TLoad => {
+                let base = self.get_register(inst.src1)?;
+                let addr = (base + inst.immediate) as u64;
+                let val = self.memory.read_i64(addr)?;
+                self.set_register(inst.dst, val)?;
+                self.set_ternary_mode(inst.dst, true)?;
+            }
+            Opcode::TStore => {
+                let base = self.get_register(inst.src1)?;
+                let addr = (base + inst.immediate) as u64;
+                let val = self.get_register(inst.dst)?;
+                self.memory.write_i64(addr, val)?;
             }
             Opcode::Load => {
                 let base = self.get_register(inst.src1)?;
@@ -424,6 +551,143 @@ impl TernaryVm {
                 self.set_register(inst.dst, result)?;
                 self.update_flags(result, false);
             }
+            Opcode::TPolyMul => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let ta = unpack_trits(a);
+                let tb = unpack_trits(b);
+                let zero_trit = Trit::from_a(0).unwrap();
+                let mut result_trits = [zero_trit; 27];
+                let degree = if inst.immediate > 0 && (inst.immediate as usize) < 27 {
+                    inst.immediate as usize
+                } else {
+                    13
+                };
+                for i in 0..degree {
+                    for j in 0..degree {
+                        let k = (i + j) % degree;
+                        result_trits[k] = result_trits[k].add(&ta[i].multiply(&tb[j]));
+                    }
+                }
+                let result = pack_trits(&result_trits);
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TNTT => {
+                let a = self.get_register(inst.src1)?;
+                let is_inverse = inst.immediate != 0;
+                let mut trits = unpack_trits(a);
+                let n = 27;
+                if is_inverse {
+                    trits.reverse();
+                    let first = trits[0];
+                    for i in 0..(n - 1) {
+                        trits[i] = trits[i + 1];
+                    }
+                    trits[n - 1] = first;
+                } else {
+                    let last = trits[n - 1];
+                    for i in (1..n).rev() {
+                        trits[i] = trits[i - 1];
+                    }
+                    trits[0] = last;
+                    trits.reverse();
+                }
+                for i in 0..n {
+                    for j in (i + 1)..n {
+                        let sum = trits[i].add(&trits[j]);
+                        let diff = trits[i].sub(&trits[j]);
+                        trits[i] = sum;
+                        trits[j] = diff;
+                    }
+                }
+                let result = pack_trits(&trits);
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
+            Opcode::THash => {
+                let a = self.get_register(inst.src1)?;
+                let trits = unpack_trits(a);
+                let seed = super::constants::HASH_SEED;
+                let mix = super::constants::HASH_MIX;
+                let rounds = super::constants::HASH_ROUNDS;
+                let mut state = seed;
+                for trit in &trits {
+                    let t_val = (trit.to_a() as i64 + 1) as u64;
+                    state ^= t_val.wrapping_mul(mix);
+                    state = state.wrapping_mul(0x517cc1b727220a95);
+                    state ^= state >> 28;
+                }
+                for _ in 0..rounds {
+                    state ^= state >> 17;
+                    state = state.wrapping_mul(0xbf58476d1ce4e5b9);
+                    state ^= state >> 31;
+                }
+                let result = state as i64;
+                self.set_register(inst.dst, result)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TEntropy => {
+                let seed1 = self.get_register(inst.src1)?;
+                let seed2 = self.get_register(inst.src2)?;
+                let mut state = (seed1 as u64).wrapping_add(super::constants::HASH_SEED);
+                state ^= (seed2 as u64).wrapping_mul(super::constants::HASH_MIX);
+                state = state.wrapping_mul(0x517cc1b727220a95);
+                state ^= state >> 28;
+                state ^= self.cycles.wrapping_mul(0xd6e8feb86659fd93);
+                state ^= state >> 32;
+                let zero_trit = Trit::from_a(0).unwrap();
+                let mut result_trits = [zero_trit; 27];
+                for i in 0..27 {
+                    let bits = (state >> (i * 2)) & 0b11;
+                    result_trits[i] = Trit::from_a(match bits % 3 {
+                        0 => 0,
+                        1 => 1,
+                        _ => -1,
+                    }).unwrap();
+                }
+                let result = pack_trits(&result_trits);
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TAddV => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let result = packed_zip(a, b, |x, y| x.add(y));
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TMulV => {
+                let a = self.get_register(inst.src1)?;
+                let b = self.get_register(inst.src2)?;
+                let result = packed_zip(a, b, |x, y| x.multiply(y));
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TNegV => {
+                let a = self.get_register(inst.src1)?;
+                let result = packed_map(a, |t| t.not());
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
+            Opcode::TRotV => {
+                let a = self.get_register(inst.src1)?;
+                let positions = if inst.immediate != 0 {
+                    inst.immediate as usize
+                } else {
+                    self.get_register(inst.src2)? as usize
+                };
+                let result = packed_rotate_left(a, positions);
+                self.set_register(inst.dst, result)?;
+                self.set_ternary_mode(inst.dst, true)?;
+                self.update_flags(result, false);
+            }
         }
         Ok(())
     }
@@ -461,6 +725,31 @@ impl TernaryVm {
         self.registers.flags.zero = result == 0;
         self.registers.flags.negative = result < 0;
         self.registers.flags.overflow = overflow;
+    }
+
+    fn is_ternary_mode(&self, reg: u8) -> bool {
+        if reg > 26 {
+            return false;
+        }
+        self.registers.registers[reg as usize].ternary_mode
+    }
+
+    fn set_ternary_mode(&mut self, reg: u8, mode: bool) -> VmResult<()> {
+        if reg > 26 {
+            return Err(VmError::InvalidRegister(reg));
+        }
+        self.registers.registers[reg as usize].ternary_mode = mode;
+        Ok(())
+    }
+
+    fn propagate_ternary_mode(&mut self, dst: u8, src1: u8, src2: u8) -> VmResult<()> {
+        let mode = self.is_ternary_mode(src1) || self.is_ternary_mode(src2);
+        self.set_ternary_mode(dst, mode)
+    }
+
+    fn copy_ternary_mode(&mut self, dst: u8, src: u8) -> VmResult<()> {
+        let mode = self.is_ternary_mode(src);
+        self.set_ternary_mode(dst, mode)
     }
 }
 
@@ -926,5 +1215,287 @@ mod tests {
         vm.run().unwrap();
         assert!(vm.registers.flags.negative);
         assert!(!vm.registers.flags.zero);
+    }
+
+    #[test]
+    fn test_vm_txor_is_sub_not_add() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("txor_sub");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TXor, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_vm_tneg_per_trit() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tneg_trit");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TNeg, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(1).unwrap(), -1);
+    }
+
+    #[test]
+    fn test_vm_tneg_zero() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tneg_zero");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 0));
+        prog.add_instruction(Instruction::new(Opcode::TNeg, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(1).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_vm_tand() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tand");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, -1));
+        prog.add_instruction(Instruction::new(Opcode::TAnd, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), -1);
+    }
+
+    #[test]
+    fn test_vm_tor() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tor");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, -1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TOr, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_vm_tsub() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tsub");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TSub, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_vm_tinv() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tinv");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TInv, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(1).unwrap(), -1);
+    }
+
+    #[test]
+    fn test_vm_tcmp_equal() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tcmp_eq");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TCmp, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_vm_tcmp_greater() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tcmp_gt");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, -1));
+        prog.add_instruction(Instruction::new(Opcode::TCmp, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_vm_tload_tstore() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tload_tstore");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 42));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::new(Opcode::TStore, 0, 1, 0, 0));
+        prog.add_instruction(Instruction::new(Opcode::TLoad, 2, 1, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert_eq!(vm.get_register(2).unwrap(), 42);
+        assert!(vm.registers.registers[2].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_thash_deterministic() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("thash");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::THash, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        let hash1 = vm.get_register(1).unwrap();
+        vm.reset();
+        let mut prog2 = Program::new("thash2");
+        prog2.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog2.add_instruction(Instruction::new(Opcode::THash, 1, 0, 0, 0));
+        prog2.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog2).unwrap();
+        vm.run().unwrap();
+        let hash2 = vm.get_register(1).unwrap();
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_vm_thash_different_inputs() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("thash_a");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::THash, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        let hash_a = vm.get_register(1).unwrap();
+        vm.reset();
+        let mut prog2 = Program::new("thash_b");
+        prog2.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, -1));
+        prog2.add_instruction(Instruction::new(Opcode::THash, 1, 0, 0, 0));
+        prog2.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog2).unwrap();
+        vm.run().unwrap();
+        let hash_b = vm.get_register(1).unwrap();
+        assert_ne!(hash_a, hash_b);
+    }
+
+    #[test]
+    fn test_vm_tentropy() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tentropy");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 42));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 7));
+        prog.add_instruction(Instruction::new(Opcode::TEntropy, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert!(vm.registers.registers[2].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_tpolymul() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tpolymul");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TPolyMul, 2, 0, 1, 3));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert!(vm.registers.registers[2].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_tntt() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tntt");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TNTT, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert!(vm.registers.registers[1].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_taddv() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("taddv");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TAddV, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        let result = vm.get_register(2).unwrap();
+        let trits = crate::ternary::unpack_trits(result);
+        assert_eq!(trits[0].to_a(), -1); // 1+1 = 2 mod 3 = -1
+        assert!(vm.registers.registers[2].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_tmulv() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tmulv");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TMulV, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        let result = vm.get_register(2).unwrap();
+        let trits = crate::ternary::unpack_trits(result);
+        assert_eq!(trits[0].to_a(), 1); // 1*1 = 1
+        assert!(vm.registers.registers[2].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_tnegv() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("tnegv");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TNegV, 1, 0, 0, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        let result = vm.get_register(1).unwrap();
+        let trits = crate::ternary::unpack_trits(result);
+        assert_eq!(trits[0].to_a(), -1);
+        assert!(vm.registers.registers[1].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_trotv() {
+        let mut vm = make_vm();
+        let mut prog = Program::new("trotv");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
+        prog.add_instruction(Instruction::new(Opcode::TRotV, 1, 0, 0, 1));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert!(vm.registers.registers[1].ternary_mode);
+    }
+
+    #[test]
+    fn test_vm_ternary_mode_propagation() {
+        let mut vm = make_vm();
+        vm.set_register(0, 1).unwrap();
+        vm.registers.registers[0].ternary_mode = true;
+        vm.set_register(1, 1).unwrap();
+        let mut prog = Program::new("mode_prop");
+        prog.add_instruction(Instruction::new(Opcode::TAdd, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+        assert!(vm.registers.registers[2].ternary_mode);
     }
 }

@@ -1,0 +1,298 @@
+# Salvi Framework — Ternary VM ISA: Full Engineering Audit & Task List
+
+**Source Audit Scope:** `src/kernel/src/vm/`, `src/kernel/src/ternary.rs`, `src/kernel/src/crypto/ternary_lattice.rs`, `src/kernel/src/crypto/tl_kem.rs`, `src/kernel/src/crypto/tl_dsa.rs`, `ternary-math/src/gf3.rs`, `libternary/src/ternary-operations.ts`, `src/thdl/src/ir.rs`, `src/kernel/src/phase.rs`, `shared/tribonacci-constants.ts`, `server/ternary.ts`
+
+**Date:** February 12, 2026
+
+---
+
+## Part I: Critical Bugs & Contradictions
+
+### BUG-01: Three Incompatible XOR Definitions Across the Codebase
+
+This is the most serious consistency failure in the framework. "Ternary XOR" means three different things depending on which module you're in:
+
+| Location | Definition | Truth Table (-1,-1) | (-1,1) | (1,1) |
+|----------|-----------|---------------------|--------|-------|
+| **VM opcode `TXor`** (engine.rs:287) | `(a + b) mod 3` balanced | 1 | 0 | -1 |
+| **Kernel `Trit::xor()`** (ternary.rs:101) | `min(a, b)` | -1 | -1 | 1 |
+| **libternary `ternaryXor()`** (ternary-operations.ts:138) | Identity-if-one-zero, else 0 | 0 | 0 | 0 |
+
+The libternary TypeScript even has a *comment* acknowledging the divergence (line 192–194) — `gf3Xor` is defined as addition, while `ternaryXor` uses a different truth table. But the VM's `TXor` opcode matches neither `ternaryXor` nor `Trit::xor()`.
+
+**Impact:** Any program that uses `TXor` expecting the Kleene/Łukasiewicz min-gate (which is what `Trit::xor()` implements) will get GF(3) addition instead. Any code ported from libternary will get a third behavior.
+
+### BUG-02: `TXor` Is Byte-for-Byte Identical to `TAdd`
+
+Even setting aside the semantic question, lines 245–254 and 287–296 in `engine.rs` are the exact same code. One of these opcodes is a wasted slot.
+
+### BUG-03: `TNeg` Has No Ternary Semantics
+
+`engine.rs:265–270`:
+```rust
+Opcode::TNeg => {
+    let a = self.get_register(inst.src1)?;
+    let result = -a;  // ← This is binary i64 negation
+```
+
+Compare with `ternary.rs:82–84`:
+```rust
+pub fn not(&self) -> Self {
+    Self { value: -self.value }  // ← Correct for single trit
+```
+
+For a single trit in {-1, 0, +1}, binary negation and trit negation happen to coincide. But the VM stores i64 values. If R0 = 42 (a multi-trit balanced ternary number), `TNeg` produces -42, but true ternary negation should flip each trit individually (every -1 ↔ +1, 0 stays). The kernel's `Tryte::not()` does this correctly (line 181–187), but the VM ignores the kernel types entirely.
+
+### BUG-04: `TRot` Silently Discards Multi-Trit Values
+
+`engine.rs:277–283`:
+```rust
+val = match val {
+    -1 => 0, 0 => 1, 1 => -1,
+    _ => val,  // ← Values like 42 pass through unchanged
+};
+```
+
+No error, no warning, no per-trit rotation. The kernel has `Trit::rotate()` and `Trit::rotate_inverse()` that work correctly for single trits, but the VM doesn't decompose words into trits.
+
+### BUG-05: All 6 Ternary Opcodes Operate on Single Trits Only
+
+Every ternary opcode does `a.rem_euclid(3)` as its first step, discarding all but the lowest trit of the register value. The kernel defines `Tryte` (6-trit) and `TernaryWord` (27-trit = 3 trytes) types — none are used by the VM. This means:
+
+- You cannot add two 6-trit trytes in the VM
+- You cannot multiply two ternary polynomials using VM opcodes
+- The 27-register file (3³) is symbolic — the registers store i64s, not TernaryWords
+
+### BUG-06: `TernaryRegister.ternary_mode` Is Dead Code
+
+`instruction.rs:22`: `pub ternary_mode: bool` — never set, never read by any opcode. The VM cannot distinguish whether a register holds a binary or ternary value.
+
+### BUG-07: `TConvert` Does Offset Arithmetic, Not Representation Conversion
+
+`engine.rs:297–315` — the conversion is `val ± {0,1,2}`, which is the correct transform for a *single trit* between Representations A/B/C. But for multi-trit values (which is what registers actually hold), you need per-trit conversion. The kernel's `convert_representation()` function (ternary.rs:216–230) has the same limitation — it only works for single i8 values.
+
+---
+
+## Part II: Architectural Gaps
+
+### GAP-01: VM Is Disconnected from Kernel Type System
+
+The kernel has a rich type hierarchy: `Trit` → `Tryte` (6 trits) → `TernaryWord` (27 trits). The `ternary-math` crate has `Gf3`, `BalancedTrit`, polynomial rings, Clifford algebras, torus geometry. **None of this is accessible from the VM.** The VM operates on raw i64 values with inline GF(3) arithmetic that doesn't even match the kernel's own implementations.
+
+### GAP-02: No System Call / Interrupt / Trap Mechanism
+
+The kernel has a full process subsystem (`process/scheduler.rs`, `process/ipc.rs`, `process/context.rs`), a security domain model (`security/domain.rs`, `security/capability.rs`), and memory management (`memory/allocator.rs`, `memory/page.rs`). **None of these are reachable from VM code.** There is no `Syscall` opcode, no interrupt vector table, no privilege level separation. The VM is a sealed calculator with no IO.
+
+### GAP-03: No Heap Allocation Opcodes Despite GC Existing
+
+`vm/gc.rs` implements a full mark-sweep garbage collector with generational support, object types (`Integer`, `TernaryValue`, `Array`, `String`, `Closure`), and the Tribonacci-derived threshold ratio (τ⁻² ≈ 0.2956). But there are no opcodes for `Alloc`, `Free`, `GcHint`, or `GcCollect`. The GC is inert.
+
+### GAP-04: No Timing Opcode Despite Femtosecond Timing Being Core
+
+`src/kernel/src/timing.rs` and `libternary/src/femtosecond-timing.ts` implement the HPTP (High-Precision Timing Protocol) with femtosecond resolution. Phase encryption (`phase.rs`) requires recombination within 50–500 femtosecond windows. There is no `ReadTime`, `TimerStart`, `TimerRead`, or `PhaseSplit` opcode.
+
+### GAP-05: THDL IR Defines Operations the VM Cannot Execute
+
+The THDL hardware description language (`src/thdl/src/ir.rs`) defines these operations as hardware primitives:
+
+| THDL `UnaryOp` | VM Equivalent | Gap |
+|----------------|---------------|-----|
+| `Not` | `Not` (0x55) | ✓ Present |
+| `TritNot` | `TNeg` (0x12) | ⚠️ TNeg is broken (see BUG-03) |
+| `TritRotate` | `TRot` (0x13) | ⚠️ TRot is broken (see BUG-04) |
+| `Reduce` | — | ✗ **Missing entirely** |
+
+| THDL `BinaryOp` | VM Equivalent | Gap |
+|-----------------|---------------|-----|
+| `TritAdd` | `TAdd` (0x10) | ✓ Present |
+| `TritMul` | `TMul` (0x11) | ✓ Present |
+| `TritXor` | `TXor` (0x14) | ⚠️ Wrong semantics (see BUG-01) |
+| `Eq`, `Ne`, `Lt`, `Gt` | — | ✗ **No ternary comparison opcodes** |
+
+This means THDL-synthesized hardware and the VM cannot agree on the semantics of a ternary program. You cannot simulate THDL designs in the VM.
+
+### GAP-06: O(n²) Crypto With No VM Acceleration Path
+
+`ternary_lattice.rs:172–202` implements `ring_mul()` as schoolbook O(n²) convolution. The comment at line 28 explicitly acknowledges NTT is not available in GF(3). For n=256 (TL-KEM-512), that's 65,536 multiply-accumulates *per polynomial multiplication*, and each TL-KEM encapsulation requires many such multiplications across a module rank of 2–4.
+
+The VM has no vectorized or polynomial-aware opcodes. Every coefficient operation would require separate `TAdd`/`TMul` instructions — and those only work on single trits, so each coefficient itself requires decomposition.
+
+### GAP-07: No IO / Network Opcodes
+
+PlenumNET is a network protocol. The VM has `Load`/`Store` for memory but no `In`/`Out`, `Send`/`Recv`, or port-mapped IO. There's no way for a VM program to interact with the network stack (`src/kernel/src/network/`), the filesystem (`src/kernel/src/fs/`), or device drivers (`src/kernel/src/drivers/`).
+
+### GAP-08: Instruction Encoding Is Wasteful
+
+Every instruction is 16 bytes: `[op:8bits][dst:8bits][src1:8bits][src2:8bits][imm:64bits][reserved:32bits]`.
+
+- 35 opcodes need 6 bits, not 8. Wasting 2 bits per instruction.
+- 27 registers need 5 bits, not 8. Wasting 3 bits × 3 fields = 9 bits.
+- Reserved 4 bytes are always zero.
+- A compact encoding could fit most instructions in 4 bytes (6 + 5 + 5 + 5 = 21 bits) with variable-length immediates. At 16 bytes per instruction, a 1000-instruction program is 16KB — at 4 bytes it would be 4KB. This matters for instruction cache (configured at 84 instructions = 1,344 bytes, already tight).
+
+### GAP-09: No Assembler, No Compiler Target
+
+Programs must be constructed by manually instantiating `Instruction::new(Opcode::..., dst, src1, src2, imm)` in Rust. There is no text-based assembly language, no macro assembler, and no compiler backend. This makes the VM unusable for anyone who isn't writing Rust test harnesses.
+
+---
+
+## Part III: Prioritized Task List
+
+### P0 — Critical: Fix What's Broken
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-01 | **Resolve XOR semantics**: Choose ONE definition for ternary XOR across all modules. Recommendation: adopt `min(a,b)` (Kleene strong conjunction) as `TXor`, make GF(3) addition available only through `TAdd`. Update `ternary.rs`, `libternary`, and `engine.rs` to agree. | `engine.rs`, `ternary.rs`, `ternary-operations.ts` | M | — |
+| T-02 | **Repurpose or fix `TXor`**: If `TXor` becomes `min(a,b)`, implement it. If keeping GF(3) addition, rename or remove the duplicate. Either way, eliminate the identical-code problem. | `instruction.rs`, `engine.rs` | S | T-01 |
+| T-03 | **Fix `TNeg` for multi-trit words**: Decompose the i64 register value into balanced trits, negate each, reassemble. Delegate to `Tryte::not()` or equivalent logic. | `engine.rs` | M | T-08 |
+| T-04 | **Fix `TRot` for multi-trit words**: Either rotate each trit independently, or emit `VmError::InvalidTritValue` for values outside {-1,0,1}. | `engine.rs` | M | T-08 |
+| T-05 | **Fix `TConvert` for multi-trit words**: Decompose, convert each trit between Repr A/B/C, reassemble. Use the `Representation` enum from `ternary.rs`. | `engine.rs`, `ternary.rs` | M | T-08 |
+| T-06 | **Fix `TAdd`/`TMul` for multi-trit words**: Operate per-trit with carry semantics (or explicitly document single-trit-only behavior and add multi-trit variants). | `engine.rs` | L | T-08 |
+| T-07 | **Wire `ternary_mode` flag**: Set it on ternary opcode execution, check it for type safety, optionally auto-convert on mixed operations. | `engine.rs`, `instruction.rs` | M | — |
+| T-08 | **Define trit packing format**: Standardize how trits are packed into i64 registers (e.g., 2 bits per trit, 32 trits per register, or 27 trits matching register count). All multi-trit fixes depend on this. | `instruction.rs`, `engine.rs`, new `trit_pack.rs` | L | — |
+
+### P0 — Critical: Core ISA Completions
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-09 | **Add `Syscall` opcode (0x70)**: Trap to kernel, pass syscall number in register, enable IO/IPC/memory management from VM code. | `instruction.rs`, `engine.rs`, new `syscall.rs` | L | — |
+| T-10 | **Add `Int` / `Trap` opcode (0x71)**: Software interrupt for error handling, debugger breakpoints, privilege transitions. | `instruction.rs`, `engine.rs` | M | T-09 |
+| T-11 | **Add `Alloc` (0x72) and `Free` (0x73)**: Wire the existing GC heap into the VM. `Alloc` returns pointer, `Free` marks for collection. | `instruction.rs`, `engine.rs`, `gc.rs` | L | T-09 |
+| T-12 | **Add `ReadTime` opcode (0x74)**: Read HPTP femtosecond timestamp into register pair (128-bit value across 2 registers). Essential for phase encryption. | `instruction.rs`, `engine.rs`, `timing.rs` | M | — |
+
+### P1 — Essential: Expand Ternary Group
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-13 | **Add `TAnd` (0x16)**: Ternary min gate per trit — `min(a, b)`. (Or if T-01 assigns `min` to `TXor`, then use a Łukasiewicz definition.) | `instruction.rs`, `engine.rs` | S | T-01, T-08 |
+| T-14 | **Add `TOr` (0x17)**: Ternary max gate per trit — `max(a, b)`. | `instruction.rs`, `engine.rs` | S | T-08 |
+| T-15 | **Add `TSub` (0x18)**: GF(3) subtraction: `(a - b) mod 3`, per trit. Distinct from `TAdd` (non-self-inverse in balanced representation). | `instruction.rs`, `engine.rs` | S | T-08 |
+| T-16 | **Add `TInv` (0x19)**: GF(3) multiplicative inverse per trit. `0→error`, `1→1`, `2→2` in GF(3). | `instruction.rs`, `engine.rs` | S | T-08 |
+| T-17 | **Add `TShift` (0x1A)**: Shift trits left/right within a packed trit-word. Analogous to `Shl`/`Shr` but operating on trit boundaries. | `instruction.rs`, `engine.rs` | M | T-08 |
+| T-18 | **Add `TCmp` (0x1B)**: Ternary three-way compare returning {-1, 0, +1} natively. Sets all three flags (`negative`, `zero`, and a new `positive` flag) in one operation. | `instruction.rs`, `engine.rs` | M | — |
+| T-19 | **Add `TReduce` (0x1C)**: Reduction operation — fold all trits in a word via a specified gate (add, mul, min, max). Maps to THDL's `Reduce` unary op. | `instruction.rs`, `engine.rs` | M | T-08 |
+| T-20 | **Add `TRotInv` (0x1D)**: Inverse rotation (1→0→-1→1). The kernel has `rotate_inverse()` but the VM only has forward rotation. | `instruction.rs`, `engine.rs` | S | T-04 |
+
+### P1 — Essential: Crypto Acceleration
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-21 | **Add `TPolyAdd` (0x60)**: Vector addition of n GF(3) coefficients packed in registers. Accelerates `TernaryPolynomial::add()`. | `instruction.rs`, `engine.rs` | L | T-08 |
+| T-22 | **Add `TPolyMul` (0x61)**: Polynomial ring multiplication in Z₃[X]/(Xⁿ+1). Single opcode replaces the O(n²) schoolbook loop. Even if implemented as microcode internally, it moves the hot loop out of interpreted VM execution. | `instruction.rs`, `engine.rs`, `ternary_lattice.rs` | XL | T-08, T-21 |
+| T-23 | **Add `TPolySample` (0x62)**: Sample a ternary polynomial with specified weight distribution (CBD or uniform). Accelerates `sample_noise_vec()` for TL-KEM/TL-DSA key generation. | `instruction.rs`, `engine.rs`, `ternary_lattice.rs` | L | T-08 |
+| T-24 | **Add `THash` (0x63)**: Tribonacci hash round using `HASH_SEED` (3,383,023,751) and `HASH_MIX` (71,210,242) constants from `constants.rs`. Single opcode per round, 13 rounds total (T(7)). | `instruction.rs`, `engine.rs`, `constants.rs` | M | — |
+| T-25 | **Add `TCompress` / `TDecompress` (0x64/0x65)**: Lossy trit compression for TL-KEM ciphertext compactness. Maps to `compress_ternary()` / `decompress_ternary()`. | `instruction.rs`, `engine.rs`, `ternary_lattice.rs` | M | T-08 |
+
+### P1 — Essential: Instruction Encoding
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-26 | **Design compact instruction format**: 4-byte base encoding with variable-length immediate extension. Proposal: `[op:6][dst:5][src1:5][format:2][src2:5|imm:5][ext:8?]`. Maintain 16-byte format as "wide" variant for backward compatibility. | New `encoding.rs`, `instruction.rs` | XL | — |
+| T-27 | **Encode opcodes in balanced ternary**: A 4-trit opcode field gives 81 values (ample for current 35 + expansions). This makes the ISA genuinely ternary-native at the encoding level, not just at the operation level. | `instruction.rs` | L | T-26 |
+
+### P2 — Important: Developer Toolchain
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-28 | **Build a text assembler**: Human-readable mnemonics (e.g., `TADD R0, R1, R2`) that compile to opcode bytes. Include labels, directives (`.data`, `.text`), and pseudo-instructions. | New `assembler/` crate | XL | — |
+| T-29 | **Build a disassembler**: Convert opcode bytes back to assembly text for debugging and inspection. | New `disassembler.rs` | M | T-28 |
+| T-30 | **Add VM debugger**: Step, breakpoint, register dump, memory inspect, trit-display mode. Integrate with the existing benchmark harness. | New `debugger.rs`, `engine.rs` | L | T-29 |
+| T-31 | **Write ISA reference document**: Full opcode table with encoding, cycle counts, flag effects, exception conditions, and examples. Publish as part of `docs/`. | `docs/isa-reference.md` | L | All T-01 through T-25 |
+| T-32 | **THDL-to-VM compiler**: Compile THDL hardware descriptions into VM programs for simulation. Requires THDL IR and VM ISA to agree on semantics (blocked by T-01, T-03, T-04). | `src/thdl/`, new `thdl-compiler/` | XL | T-01–T-05, T-13–T-20 |
+
+### P2 — Important: Architecture Improvements
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-33 | **Add SIMD-style trit vector ops**: `TAddV`, `TMulV`, `TXorV` that operate on all trits packed in a register simultaneously. Leverage the packed format from T-08. | `instruction.rs`, `engine.rs` | L | T-08 |
+| T-34 | **Add `TLoad` / `TStore` (0x1E/0x1F)**: Memory access with ternary addressing (address computed in base-3). Maps to the Ternary Circle geometry — address space = 3⁶ - 1 / 2 = 364 base units. | `instruction.rs`, `engine.rs` | M | T-08 |
+| T-35 | **Implement privilege levels**: At minimum ring-0 (kernel) and ring-1 (user). Certain opcodes (`Syscall`, `ReadTime`, `Alloc`) require ring-0. Add a `Privilege` field to `VmFlags`. | `instruction.rs`, `engine.rs` | L | T-09 |
+| T-36 | **Wire VM to process scheduler**: Allow `scheduler.rs` to preempt running VMs, save/restore `RegisterFile` state, support multiple concurrent VM instances. | `engine.rs`, `process/scheduler.rs`, `process/context.rs` | XL | T-09, T-35 |
+| T-37 | **Wire VM to security domains**: Integrate `security/capability.rs` so VM programs run within capability-bounded domains. | `engine.rs`, `security/domain.rs` | L | T-35, T-36 |
+
+### P3 — Polish: Optimization & Hardening
+
+| # | Task | Files | Effort | Depends On |
+|---|------|-------|--------|------------|
+| T-38 | **Constant-time ternary operations**: All ternary opcodes should execute in constant time (no branching on secret values). Currently, `TRot` has a match statement that is not constant-time. Critical for crypto workloads. | `engine.rs` | M | T-03, T-04 |
+| T-39 | **Instruction cache with Tribonacci sizing**: The cache size constant is 84 (τ⁵ × 4), but there's no actual cache implementation. Implement a decoded instruction cache in the VM engine. | `engine.rs`, `constants.rs` | L | T-26 |
+| T-40 | **Fuzz all ternary opcodes with multi-trit inputs**: Extend `src/kernel/fuzz/fuzz_targets/` to cover packed trit words, edge cases (max/min i64), and all ternary opcode combinations. | `fuzz/fuzz_targets/` | M | T-08 |
+| T-41 | **Property-test GF(3) algebraic laws in the VM**: Verify associativity, commutativity, distributivity, identity, and inverse laws hold for `TAdd`/`TMul` at the VM level (not just at the `Gf3` type level). | `tests/proptest_vm.rs` | M | T-06 |
+| T-42 | **Benchmark VM opcodes vs native Rust**: Compare `TAdd` opcode throughput against direct `Gf3::add()` calls to quantify interpreter overhead and justify JIT or hardware acceleration priorities. | `benches/ternary_ops.rs` | M | T-06 |
+| T-43 | **Unify all GF(3) arithmetic into single crate**: Delete inline GF(3) in `engine.rs`, `ternary.rs`, `ternary_lattice.rs`, and `ternary-operations.ts`. All implementations call `ternary-math::gf3` as single source of truth. TypeScript gets a generated binding. | All GF(3)-containing files | XL | T-01 |
+
+---
+
+## Part IV: Dependency Graph (Critical Path)
+
+```
+T-08 (trit packing format) ─────────────────────┐
+  │                                               │
+  ├──→ T-03 (fix TNeg)                           │
+  ├──→ T-04 (fix TRot)                           │
+  ├──→ T-05 (fix TConvert)                       │
+  ├──→ T-06 (fix TAdd/TMul multi-trit)           │
+  ├──→ T-13–T-20 (new ternary opcodes)           │
+  ├──→ T-21–T-25 (crypto acceleration)           │
+  ├──→ T-33 (SIMD trit vectors)                  │
+  └──→ T-34 (ternary addressing)                 │
+                                                  │
+T-01 (resolve XOR semantics) ────────────────────┐│
+  └──→ T-02 (fix/repurpose TXor)                ││
+  └──→ T-13 (TAnd semantics depend on XOR choice)││
+                                                  ││
+T-09 (Syscall opcode) ───────────────────────────┐││
+  ├──→ T-10 (Int/Trap)                           │││
+  ├──→ T-11 (Alloc/Free → GC)                   │││
+  ├──→ T-35 (privilege levels)                   │││
+  │     └──→ T-36 (process scheduler)            │││
+  │           └──→ T-37 (security domains)       │││
+  └──→ T-36                                      │││
+                                                  │││
+T-26 (compact encoding) ────────────────────────┐│││
+  └──→ T-27 (ternary-encoded opcodes)           ││││
+  └──→ T-39 (instruction cache)                 ││││
+                                                 ││││
+T-28 (assembler) ───────────────────────────────┐│││││
+  └──→ T-29 (disassembler)                     ││││││
+       └──→ T-30 (debugger)                    ││││││
+  └──→ T-32 (THDL-to-VM compiler)             ││││││
+                                               ││││││
+T-43 (unify GF(3)) ← Foundational, unblocks everything
+```
+
+**Critical path to minimum viable ternary VM:**
+`T-01 → T-08 → T-03/T-04/T-05/T-06 → T-09 → T-28 → T-31`
+
+---
+
+## Part V: Effort Estimates
+
+| Size | Meaning | Estimated Hours |
+|------|---------|-----------------|
+| S | Small | 2–4 hours |
+| M | Medium | 4–12 hours |
+| L | Large | 12–40 hours |
+| XL | Extra Large | 40–80+ hours |
+
+**Total P0 tasks:** 12 tasks, ~160–240 hours
+**Total P1 tasks:** 13 tasks, ~200–320 hours
+**Total P2 tasks:** 10 tasks, ~240–400 hours
+**Total P3 tasks:** 6 tasks, ~80–160 hours
+**Total all tasks:** 43 tasks, ~680–1,120 hours
+
+---
+
+## Part VI: Quick Wins (Ship This Week)
+
+These are small, high-impact fixes that require no architectural decisions:
+
+1. **T-07: Wire `ternary_mode` flag** — 15 lines of code in `engine.rs`. Every `T*` opcode sets `self.registers.registers[inst.dst].ternary_mode = true`. Immediate type safety.
+
+2. **T-02: Delete duplicate `TXor` code** — Even before deciding on XOR semantics, make `TXor` do *something different* from `TAdd`. Minimum viable: implement `min(a,b)` to match `Trit::xor()`.
+
+3. **T-20: Add `TRotInv`** — Copy `TRot` logic, reverse the match arms. 10 lines.
+
+4. **T-18: Add `TCmp`** — Copy `Cmp`, but set result register to {-1, 0, +1} directly instead of just flags. Enables three-way branching without flag inspection.
+
+5. **T-12: Add `ReadTime`** — Stub it with a cycle counter for now. `dst = self.cycles`. Placeholder until HPTP integration.

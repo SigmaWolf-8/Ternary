@@ -89,6 +89,14 @@ pub enum Opcode {
     TRot = 0x13,
     TXor = 0x14,
     TConvert = 0x15,
+    TAnd = 0x16,
+    TOr = 0x17,
+    TSub = 0x18,
+    TInv = 0x19,
+    TShift = 0x1A,
+    TCmp = 0x1B,
+    TLoad = 0x1C,
+    TStore = 0x1D,
 
     Load = 0x20,
     Store = 0x21,
@@ -114,6 +122,16 @@ pub enum Opcode {
     Shl = 0x53,
     Shr = 0x54,
     Not = 0x55,
+
+    TPolyMul = 0x60,
+    TNTT = 0x61,
+    THash = 0x62,
+    TEntropy = 0x63,
+
+    TAddV = 0x70,
+    TMulV = 0x71,
+    TNegV = 0x72,
+    TRotV = 0x73,
 }
 
 impl Opcode {
@@ -133,6 +151,14 @@ impl Opcode {
             0x13 => Ok(Opcode::TRot),
             0x14 => Ok(Opcode::TXor),
             0x15 => Ok(Opcode::TConvert),
+            0x16 => Ok(Opcode::TAnd),
+            0x17 => Ok(Opcode::TOr),
+            0x18 => Ok(Opcode::TSub),
+            0x19 => Ok(Opcode::TInv),
+            0x1A => Ok(Opcode::TShift),
+            0x1B => Ok(Opcode::TCmp),
+            0x1C => Ok(Opcode::TLoad),
+            0x1D => Ok(Opcode::TStore),
             0x20 => Ok(Opcode::Load),
             0x21 => Ok(Opcode::Store),
             0x22 => Ok(Opcode::Move),
@@ -154,6 +180,14 @@ impl Opcode {
             0x53 => Ok(Opcode::Shl),
             0x54 => Ok(Opcode::Shr),
             0x55 => Ok(Opcode::Not),
+            0x60 => Ok(Opcode::TPolyMul),
+            0x61 => Ok(Opcode::TNTT),
+            0x62 => Ok(Opcode::THash),
+            0x63 => Ok(Opcode::TEntropy),
+            0x70 => Ok(Opcode::TAddV),
+            0x71 => Ok(Opcode::TMulV),
+            0x72 => Ok(Opcode::TNegV),
+            0x73 => Ok(Opcode::TRotV),
             _ => Err(VmError::InvalidOpcode(value)),
         }
     }
@@ -223,6 +257,80 @@ impl Instruction {
             immediate,
         })
     }
+
+    /// Compact encoding (variable-width):
+    /// Format A (4 bytes, register-only): [opcode:8][dst:5|src1:5|src2:5|flags:1][reserved:8]
+    /// Format B (6 bytes, with immediate): [opcode:8][dst:5|src1:5|src2:5|flags:1][imm16:16]
+    /// The flags bit indicates whether immediate is present.
+    pub fn encode_compact(&self) -> Vec<u8> {
+        let has_imm = self.immediate != 0;
+        let reg_packed: u16 = ((self.dst as u16 & 0x1F) << 11)
+            | ((self.src1 as u16 & 0x1F) << 6)
+            | ((self.src2 as u16 & 0x1F) << 1)
+            | if has_imm { 1 } else { 0 };
+        if has_imm {
+            let mut bytes = Vec::with_capacity(6);
+            bytes.push(self.opcode.to_u8());
+            bytes.extend_from_slice(&reg_packed.to_le_bytes());
+            let imm_clamped = self.immediate.clamp(-32768, 32767) as i16;
+            bytes.extend_from_slice(&imm_clamped.to_le_bytes());
+            bytes.push(0); // pad to 6 bytes
+            bytes
+        } else {
+            let mut bytes = Vec::with_capacity(4);
+            bytes.push(self.opcode.to_u8());
+            bytes.extend_from_slice(&reg_packed.to_le_bytes());
+            bytes.push(0); // pad to 4 bytes
+            bytes
+        }
+    }
+
+    pub fn decode_compact(bytes: &[u8]) -> VmResult<(Self, usize)> {
+        if bytes.len() < 4 {
+            return Err(VmError::InvalidProgram(String::from("Compact instruction too short")));
+        }
+        let opcode = Opcode::from_u8(bytes[0])?;
+        let mut reg_bytes = [0u8; 2];
+        reg_bytes.copy_from_slice(&bytes[1..3]);
+        let reg_packed = u16::from_le_bytes(reg_bytes);
+
+        let dst = ((reg_packed >> 11) & 0x1F) as u8;
+        let src1 = ((reg_packed >> 6) & 0x1F) as u8;
+        let src2 = ((reg_packed >> 1) & 0x1F) as u8;
+        let has_imm = (reg_packed & 1) != 0;
+
+        if has_imm {
+            if bytes.len() < 6 {
+                return Err(VmError::InvalidProgram(String::from("Compact immediate instruction too short")));
+            }
+            let mut imm_bytes = [0u8; 2];
+            imm_bytes.copy_from_slice(&bytes[3..5]);
+            let immediate = i16::from_le_bytes(imm_bytes) as i64;
+            Ok((Self { opcode, dst, src1, src2, immediate }, 6))
+        } else {
+            Ok((Self { opcode, dst, src1, src2, immediate: 0 }, 4))
+        }
+    }
+
+    /// Dual-format decoder: tries v1 (16-byte) first by checking length, then compact.
+    /// The format_byte parameter selects: 0 = v1 legacy (16-byte), 1 = compact.
+    pub fn decode_auto(bytes: &[u8], format: InstructionFormat) -> VmResult<(Self, usize)> {
+        match format {
+            InstructionFormat::Legacy => {
+                let inst = Self::decode(bytes)?;
+                Ok((inst, 16))
+            }
+            InstructionFormat::Compact => {
+                Self::decode_compact(bytes)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstructionFormat {
+    Legacy,
+    Compact,
 }
 
 #[derive(Debug, Clone)]
@@ -302,12 +410,16 @@ mod tests {
             Opcode::Nop, Opcode::Halt, Opcode::Add, Opcode::Sub, Opcode::Mul,
             Opcode::Div, Opcode::Mod, Opcode::Neg, Opcode::TAdd, Opcode::TMul,
             Opcode::TNeg, Opcode::TRot, Opcode::TXor, Opcode::TConvert,
+            Opcode::TAnd, Opcode::TOr, Opcode::TSub, Opcode::TInv,
+            Opcode::TShift, Opcode::TCmp, Opcode::TLoad, Opcode::TStore,
             Opcode::Load, Opcode::Store, Opcode::Move, Opcode::LoadImm,
             Opcode::Push, Opcode::Pop, Opcode::Jump, Opcode::JumpZero,
             Opcode::JumpNeg, Opcode::JumpPos, Opcode::Call, Opcode::Return,
             Opcode::JumpNotZero, Opcode::Cmp, Opcode::CmpImm,
             Opcode::And, Opcode::Or, Opcode::Xor, Opcode::Shl, Opcode::Shr,
             Opcode::Not,
+            Opcode::TPolyMul, Opcode::TNTT, Opcode::THash, Opcode::TEntropy,
+            Opcode::TAddV, Opcode::TMulV, Opcode::TNegV, Opcode::TRotV,
         ];
         for op in &opcodes {
             let val = op.to_u8();
@@ -504,5 +616,59 @@ mod tests {
         let mut prog = Program::new("test");
         prog.set_data(alloc::vec![1, 2, 3, 4]);
         assert_eq!(prog.data_segment.len(), 4);
+    }
+
+    #[test]
+    fn test_compact_encode_decode_no_imm() {
+        let inst = Instruction::new(Opcode::TAdd, 3, 7, 11, 0);
+        let bytes = inst.encode_compact();
+        assert_eq!(bytes.len(), 4);
+        let (decoded, consumed) = Instruction::decode_compact(&bytes).unwrap();
+        assert_eq!(consumed, 4);
+        assert_eq!(decoded.opcode, Opcode::TAdd);
+        assert_eq!(decoded.dst, 3);
+        assert_eq!(decoded.src1, 7);
+        assert_eq!(decoded.src2, 11);
+        assert_eq!(decoded.immediate, 0);
+    }
+
+    #[test]
+    fn test_compact_encode_decode_with_imm() {
+        let inst = Instruction::new(Opcode::LoadImm, 5, 0, 0, 1234);
+        let bytes = inst.encode_compact();
+        assert_eq!(bytes.len(), 6);
+        let (decoded, consumed) = Instruction::decode_compact(&bytes).unwrap();
+        assert_eq!(consumed, 6);
+        assert_eq!(decoded.opcode, Opcode::LoadImm);
+        assert_eq!(decoded.dst, 5);
+        assert_eq!(decoded.immediate, 1234);
+    }
+
+    #[test]
+    fn test_compact_negative_immediate() {
+        let inst = Instruction::new(Opcode::LoadImm, 0, 0, 0, -100);
+        let bytes = inst.encode_compact();
+        let (decoded, _) = Instruction::decode_compact(&bytes).unwrap();
+        assert_eq!(decoded.immediate, -100);
+    }
+
+    #[test]
+    fn test_decode_auto_legacy() {
+        let inst = Instruction::new(Opcode::Add, 0, 1, 2, 42);
+        let bytes = inst.encode();
+        let (decoded, consumed) = Instruction::decode_auto(&bytes, InstructionFormat::Legacy).unwrap();
+        assert_eq!(consumed, 16);
+        assert_eq!(decoded.opcode, Opcode::Add);
+        assert_eq!(decoded.immediate, 42);
+    }
+
+    #[test]
+    fn test_decode_auto_compact() {
+        let inst = Instruction::new(Opcode::TAdd, 3, 7, 11, 0);
+        let bytes = inst.encode_compact();
+        let (decoded, consumed) = Instruction::decode_auto(&bytes, InstructionFormat::Compact).unwrap();
+        assert_eq!(consumed, 4);
+        assert_eq!(decoded.opcode, Opcode::TAdd);
+        assert_eq!(decoded.dst, 3);
     }
 }

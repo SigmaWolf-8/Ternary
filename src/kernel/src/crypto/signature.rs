@@ -230,6 +230,8 @@ pub fn signature_size(scheme: SignatureScheme) -> usize {
         SignatureScheme::Dilithium => 3293,
         SignatureScheme::Falcon => 1280,
         SignatureScheme::SphincsPlus => 49856,
+        SignatureScheme::Xmss => 2500,
+        SignatureScheme::Lms => 4064,
     }
 }
 

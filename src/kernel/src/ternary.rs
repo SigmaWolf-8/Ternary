@@ -125,6 +125,188 @@ impl Trit {
         };
         Self { value: rotated }
     }
+
+    /// Ternary subtraction in GF(3): (a - b) mod 3
+    pub fn sub(&self, other: &Trit) -> Self {
+        self.add(&other.not())
+    }
+
+    /// Ternary AND (min of absolute values, sign product)
+    /// Kleene strong conjunction: min(a, b)
+    pub fn and(&self, other: &Trit) -> Self {
+        Self {
+            value: core::cmp::min(self.value, other.value),
+        }
+    }
+
+    /// Ternary OR (max operation)
+    /// Kleene strong disjunction: max(a, b)
+    pub fn or(&self, other: &Trit) -> Self {
+        Self {
+            value: core::cmp::max(self.value, other.value),
+        }
+    }
+
+    /// Compare two trits: returns -1 if self < other, 0 if equal, +1 if self > other
+    pub fn cmp_trit(&self, other: &Trit) -> Self {
+        let diff = self.value - other.value;
+        let clamped = if diff < 0 { -1 } else if diff > 0 { 1 } else { 0 };
+        Self { value: clamped }
+    }
+}
+
+/// Packed trit word: 27 trits stored in an i64 using 2-bit encoding per trit.
+///
+/// Encoding per trit (2 bits):
+///   00 = 0
+///   01 = +1
+///   10 = -1
+///   11 = unused/invalid
+///
+/// Bits [0..53] hold 27 trits (54 bits total). Bits [54..63] are reserved/zero.
+/// This enables SIMD-style parallel trit operations via bitwise manipulation.
+
+const TRITS_PER_WORD: usize = 27;
+const BITS_PER_TRIT: usize = 2;
+
+/// Pack a slice of Trit values into an i64. Up to 27 trits; excess are ignored.
+/// Fewer than 27 trits are zero-padded in the high positions.
+pub fn pack_trits(trits: &[Trit]) -> i64 {
+    let mut packed: u64 = 0;
+    let count = if trits.len() > TRITS_PER_WORD { TRITS_PER_WORD } else { trits.len() };
+    for i in 0..count {
+        let bits: u64 = match trits[i].to_a() {
+            0 => 0b00,
+            1 => 0b01,
+            -1 => 0b10,
+            _ => 0b00,
+        };
+        packed |= bits << (i * BITS_PER_TRIT);
+    }
+    packed as i64
+}
+
+/// Unpack an i64 into exactly 27 Trit values.
+pub fn unpack_trits(packed: i64) -> [Trit; TRITS_PER_WORD] {
+    let bits = packed as u64;
+    let mut trits = [Trit { value: 0 }; TRITS_PER_WORD];
+    for i in 0..TRITS_PER_WORD {
+        let pair = (bits >> (i * BITS_PER_TRIT)) & 0b11;
+        trits[i] = match pair {
+            0b00 => Trit { value: 0 },
+            0b01 => Trit { value: 1 },
+            0b10 => Trit { value: -1 },
+            _ => Trit { value: 0 },
+        };
+    }
+    trits
+}
+
+/// Apply a unary operation to each trit in a packed word.
+pub fn packed_map<F>(packed: i64, f: F) -> i64
+where
+    F: Fn(&Trit) -> Trit,
+{
+    let trits = unpack_trits(packed);
+    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    for i in 0..TRITS_PER_WORD {
+        result[i] = f(&trits[i]);
+    }
+    pack_trits(&result)
+}
+
+/// Apply a binary operation element-wise to two packed trit words.
+pub fn packed_zip<F>(a: i64, b: i64, f: F) -> i64
+where
+    F: Fn(&Trit, &Trit) -> Trit,
+{
+    let ta = unpack_trits(a);
+    let tb = unpack_trits(b);
+    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    for i in 0..TRITS_PER_WORD {
+        result[i] = f(&ta[i], &tb[i]);
+    }
+    pack_trits(&result)
+}
+
+/// Check if a packed word contains only valid trit encodings (no 0b11 pairs).
+pub fn is_valid_packed(packed: i64) -> bool {
+    let bits = packed as u64;
+    for i in 0..TRITS_PER_WORD {
+        let pair = (bits >> (i * BITS_PER_TRIT)) & 0b11;
+        if pair == 0b11 {
+            return false;
+        }
+    }
+    let reserved_mask = !((1u64 << (TRITS_PER_WORD * BITS_PER_TRIT)) - 1);
+    (bits & reserved_mask) == 0
+}
+
+/// Shift trits left by n positions within a packed word (zero-fill from right).
+pub fn packed_shift_left(packed: i64, n: usize) -> i64 {
+    if n >= TRITS_PER_WORD {
+        return 0;
+    }
+    let mut trits = unpack_trits(packed);
+    for i in (n..TRITS_PER_WORD).rev() {
+        trits[i] = trits[i - n];
+    }
+    for i in 0..n {
+        trits[i] = Trit { value: 0 };
+    }
+    pack_trits(&trits)
+}
+
+/// Shift trits right by n positions within a packed word (zero-fill from left).
+pub fn packed_shift_right(packed: i64, n: usize) -> i64 {
+    if n >= TRITS_PER_WORD {
+        return 0;
+    }
+    let mut trits = unpack_trits(packed);
+    for i in 0..(TRITS_PER_WORD - n) {
+        trits[i] = trits[i + n];
+    }
+    for i in (TRITS_PER_WORD - n)..TRITS_PER_WORD {
+        trits[i] = Trit { value: 0 };
+    }
+    pack_trits(&trits)
+}
+
+/// Rotate trits left within a packed word (wrapping).
+pub fn packed_rotate_left(packed: i64, n: usize) -> i64 {
+    let n = n % TRITS_PER_WORD;
+    if n == 0 {
+        return packed;
+    }
+    let trits = unpack_trits(packed);
+    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    for i in 0..TRITS_PER_WORD {
+        result[(i + n) % TRITS_PER_WORD] = trits[i];
+    }
+    pack_trits(&result)
+}
+
+/// Pack a single trit value (for scalar-mode backward compatibility).
+pub fn pack_single_trit(trit: &Trit) -> i64 {
+    match trit.to_a() {
+        0 => 0,
+        1 => 1,
+        -1 => -1,
+        _ => 0,
+    }
+}
+
+/// Extract first trit from a scalar i64 value (backward-compatible).
+/// Normalizes any i64 to a valid trit value in {-1, 0, +1}.
+pub fn scalar_to_trit(val: i64) -> Trit {
+    let normalized = val.rem_euclid(3);
+    let trit_val = match normalized {
+        0 => 0i8,
+        1 => 1,
+        2 => -1,
+        _ => 0,
+    };
+    Trit { value: trit_val }
 }
 
 /// A tryte (6 trits = 729 values, equivalent to ~9.5 bits)
@@ -587,5 +769,154 @@ mod tests {
         let binary_per_unit = 1024.0 / 10.0;
         let gain = (ternary_per_unit / binary_per_unit - 1.0) * 100.0;
         assert!(gain > 15.0, "Ternary should have >15% information density advantage per digit: {:.1}%", gain);
+    }
+
+    #[test]
+    fn test_trit_sub_full_table() {
+        let vals = [-1i8, 0, 1];
+        for &a in &vals {
+            for &b in &vals {
+                let ta = Trit::from_a(a).unwrap();
+                let tb = Trit::from_a(b).unwrap();
+                let result = ta.sub(&tb);
+                let neg_b = (-b).rem_euclid(3);
+                let expected = ((a as i16 + neg_b as i16) % 3) as i8;
+                let expected_norm = if expected == 2 { -1 } else { expected };
+                assert_eq!(result.to_a(), expected_norm, "GF(3) sub: {} - {}", a, b);
+            }
+        }
+    }
+
+    #[test]
+    fn test_trit_and_or() {
+        let n = Trit::from_a(-1).unwrap();
+        let z = Trit::from_a(0).unwrap();
+        let p = Trit::from_a(1).unwrap();
+        assert_eq!(n.and(&p).to_a(), -1);
+        assert_eq!(z.and(&p).to_a(), 0);
+        assert_eq!(p.and(&p).to_a(), 1);
+        assert_eq!(n.or(&p).to_a(), 1);
+        assert_eq!(z.or(&n).to_a(), 0);
+        assert_eq!(n.or(&n).to_a(), -1);
+    }
+
+    #[test]
+    fn test_trit_cmp() {
+        let n = Trit::from_a(-1).unwrap();
+        let z = Trit::from_a(0).unwrap();
+        let p = Trit::from_a(1).unwrap();
+        assert_eq!(z.cmp_trit(&z).to_a(), 0);
+        assert_eq!(p.cmp_trit(&n).to_a(), 1);
+        assert_eq!(n.cmp_trit(&p).to_a(), -1);
+    }
+
+    #[test]
+    fn test_pack_unpack_roundtrip() {
+        let trits = [
+            Trit::from_a(-1).unwrap(),
+            Trit::from_a(0).unwrap(),
+            Trit::from_a(1).unwrap(),
+            Trit::from_a(1).unwrap(),
+            Trit::from_a(-1).unwrap(),
+        ];
+        let packed = pack_trits(&trits);
+        let unpacked = unpack_trits(packed);
+        for i in 0..5 {
+            assert_eq!(unpacked[i].to_a(), trits[i].to_a(), "Trit {} mismatch", i);
+        }
+        for i in 5..27 {
+            assert_eq!(unpacked[i].to_a(), 0, "Trit {} should be zero-padded", i);
+        }
+    }
+
+    #[test]
+    fn test_pack_full_27_trits() {
+        let mut trits = [Trit { value: 0 }; 27];
+        for i in 0..27 {
+            trits[i] = Trit::from_a([-1, 0, 1][i % 3]).unwrap();
+        }
+        let packed = pack_trits(&trits);
+        let unpacked = unpack_trits(packed);
+        for i in 0..27 {
+            assert_eq!(unpacked[i].to_a(), trits[i].to_a(), "Full 27-trit roundtrip failed at {}", i);
+        }
+    }
+
+    #[test]
+    fn test_packed_map_negation() {
+        let trits = [
+            Trit::from_a(-1).unwrap(),
+            Trit::from_a(0).unwrap(),
+            Trit::from_a(1).unwrap(),
+        ];
+        let packed = pack_trits(&trits);
+        let negated = packed_map(packed, |t| t.not());
+        let result = unpack_trits(negated);
+        assert_eq!(result[0].to_a(), 1);
+        assert_eq!(result[1].to_a(), 0);
+        assert_eq!(result[2].to_a(), -1);
+    }
+
+    #[test]
+    fn test_packed_zip_add() {
+        let a = [Trit::from_a(1).unwrap(), Trit::from_a(-1).unwrap()];
+        let b = [Trit::from_a(1).unwrap(), Trit::from_a(1).unwrap()];
+        let pa = pack_trits(&a);
+        let pb = pack_trits(&b);
+        let result = packed_zip(pa, pb, |x, y| x.add(y));
+        let trits = unpack_trits(result);
+        assert_eq!(trits[0].to_a(), -1); // 1+1 = 2 mod 3 = -1
+        assert_eq!(trits[1].to_a(), 0);  // -1+1 = 0
+    }
+
+    #[test]
+    fn test_is_valid_packed() {
+        let trits = [Trit::from_a(1).unwrap(), Trit::from_a(-1).unwrap()];
+        let packed = pack_trits(&trits);
+        assert!(is_valid_packed(packed));
+        let invalid: i64 = 0b11; // 0b11 = invalid encoding
+        assert!(!is_valid_packed(invalid));
+    }
+
+    #[test]
+    fn test_packed_shift_left() {
+        let trits = [Trit::from_a(1).unwrap(), Trit::from_a(-1).unwrap(), Trit::from_a(0).unwrap()];
+        let packed = pack_trits(&trits);
+        let shifted = packed_shift_left(packed, 1);
+        let result = unpack_trits(shifted);
+        assert_eq!(result[0].to_a(), 0);
+        assert_eq!(result[1].to_a(), 1);
+        assert_eq!(result[2].to_a(), -1);
+    }
+
+    #[test]
+    fn test_packed_shift_right() {
+        let trits = [Trit::from_a(1).unwrap(), Trit::from_a(-1).unwrap(), Trit::from_a(0).unwrap()];
+        let packed = pack_trits(&trits);
+        let shifted = packed_shift_right(packed, 1);
+        let result = unpack_trits(shifted);
+        assert_eq!(result[0].to_a(), -1);
+        assert_eq!(result[1].to_a(), 0);
+    }
+
+    #[test]
+    fn test_packed_rotate_left() {
+        let mut trits = [Trit { value: 0 }; 27];
+        trits[0] = Trit::from_a(1).unwrap();
+        trits[26] = Trit::from_a(-1).unwrap();
+        let packed = pack_trits(&trits);
+        let rotated = packed_rotate_left(packed, 1);
+        let result = unpack_trits(rotated);
+        assert_eq!(result[0].to_a(), -1); // wrapped from position 26
+        assert_eq!(result[1].to_a(), 1);  // moved from position 0
+    }
+
+    #[test]
+    fn test_scalar_to_trit() {
+        assert_eq!(scalar_to_trit(0).to_a(), 0);
+        assert_eq!(scalar_to_trit(1).to_a(), 1);
+        assert_eq!(scalar_to_trit(-1).to_a(), -1);
+        assert_eq!(scalar_to_trit(2).to_a(), -1);
+        assert_eq!(scalar_to_trit(4).to_a(), 1);
     }
 }

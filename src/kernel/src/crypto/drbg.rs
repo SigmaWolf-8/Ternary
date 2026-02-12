@@ -69,7 +69,7 @@ impl core::fmt::Display for DrbgError {
 
 pub type DrbgResult<T> = core::result::Result<T, DrbgError>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DrbgState {
     key: [u8; OUTLEN],
     v: [u8; OUTLEN],

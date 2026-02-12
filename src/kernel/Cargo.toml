@@ -10,6 +10,7 @@ documentation = "https://docs.plenumnet.io/kernel"
 readme = "README.md"
 keywords = ["ternary", "post-quantum", "cryptography", "kernel", "femtosecond"]
 categories = ["cryptography", "embedded", "no-std"]
+rust-version = "1.77"
 
 [lib]
 name = "plenumnet_kernel"
@@ -24,17 +25,12 @@ asic = ["no_std"]
 finra-613 = []
 
 [dependencies]
-# Core dependencies
 spin = { version = "0.9", default-features = false }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
+libm = "0.2"
 
 [dev-dependencies]
-criterion = "0.5"
-proptest = "1.4"
-
-[[bench]]
-name = "ternary_ops"
-harness = false
+proptest = { version = "=1.4.0", default-features = false, features = ["std"] }
 
 [profile.release]
 opt-level = 3

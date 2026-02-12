@@ -38,7 +38,7 @@ The `src/kernel/` directory contains a robust kernel developed in Rust, encompas
 -   **Architecture Support**: Generic traits and specific implementations for `x86_64`, `aarch64`, and `riscv64`.
 -   **Hardware Drivers**: Drivers for TPU FPGA/ASIC and femtosecond clock.
 -   **Torsion Network**: N-dimensional torus topology, greedy geodesic routing, Ternary Transport Protocol (TTP), Ternary Transfer Protocol (T3P), and Ternary DNS (TDNS).
--   **Ternary Virtual Machine**: 35-opcode ISA, execution engine with ternary ops, and a ternary-aware mark-sweep garbage collector (TAGC).
+-   **Ternary Virtual Machine**: 47-opcode ISA (Tier 1: 6 fixed core ops TAdd/TMul/TXor/TNeg/TRot/TConvert; Tier 2: 8 extended ops TAnd/TOr/TSub/TInv/TShift/TCmp/TLoad/TStore; Tier 3: 4 crypto acceleration ops TPolyMul/TNTT/THash/TEntropy; Tier 4: 4 SIMD vector ops TAddV/TMulV/TNegV/TRotV), packed-trit architecture (27 trits per i64 register via 2-bit encoding), variable-width instruction encoding (legacy 16-byte + compact 4/6-byte), ternary_mode flag propagation, and a ternary-aware mark-sweep garbage collector (TAGC).
 -   **Binary Compatibility Layer**: Gateway for balanced ternary conversion, a universal ternary adapter, and CryptoInteropBridge for ML-KEM/ML-DSA interoperability.
 
 ### Legal & IP Compliance
