@@ -1127,9 +1127,9 @@ function Footer() {
       { label: "Contact", href: "#early-access" },
     ],
     Legal: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
-      { label: "Security", href: "#" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
+      { label: "Security", href: "/security" },
     ],
   };
 

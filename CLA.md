@@ -66,7 +66,7 @@ You agree to notify the Company of any facts or circumstances of which You becom
 
 ## 8. Governing Law
 
-This Agreement shall be governed by and construed in accordance with the federal laws of Canada and the laws of the Province of Ontario applicable therein, without regard to conflict of laws principles. The parties irrevocably attorn to the jurisdiction of the courts of the Province of Ontario, Canada.
+This Agreement shall be governed by and construed in accordance with the federal laws of Canada and the laws of the Province of Alberta applicable therein, without regard to conflict of laws principles. The parties irrevocably attorn to the jurisdiction of the courts of the Province of Alberta, Canada.
 
 ---
 

@@ -1,9 +1,26 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * PROPRIETARY AND CONFIDENTIAL
+ * All Rights Reserved.
+ *
+ * This file is part of the Salvi Framework / PlenumNET platform.
+ * Unauthorized copying, modification, distribution, or use of this file,
+ * via any medium, is strictly prohibited without the prior written
+ * permission of Capomastro Holdings Ltd.
+ *
+ * See LICENSE in the repository root for full terms.
+ */
+
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import * as fs from "fs";
+import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
 import { 
@@ -93,6 +110,27 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  const legalDocMap: Record<string, { file: string; title: string }> = {
+    terms: { file: "TERMS-OF-SERVICE.md", title: "Terms of Service" },
+    privacy: { file: "PRIVACY-POLICY.md", title: "Privacy Policy" },
+    security: { file: ".github/SECURITY.md", title: "Security Policy" },
+  };
+
+  app.get("/api/legal/:type", async (req, res) => {
+    const docInfo = legalDocMap[req.params.type];
+    if (!docInfo) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    try {
+      const filePath = path.join(process.cwd(), docInfo.file);
+      const content = await readFile(filePath, "utf-8");
+      res.json({ title: docInfo.title, content });
+    } catch (err) {
+      console.error("Legal doc read error:", err);
+      res.status(500).json({ error: "Failed to read document" });
+    }
+  });
+
   await setupAuth(app);
   registerAuthRoutes(app);
   

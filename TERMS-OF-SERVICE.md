@@ -156,9 +156,9 @@ You agree to indemnify, defend, and hold harmless the Company, its affiliates, d
 
 ## 14. General Provisions
 
-14.1 **Governing Law.** These Terms shall be governed by and construed in accordance with the federal laws of Canada and the laws of the Province of Ontario applicable therein, without regard to conflict of laws principles.
+14.1 **Governing Law.** These Terms shall be governed by and construed in accordance with the federal laws of Canada and the laws of the Province of Alberta applicable therein, without regard to conflict of laws principles.
 
-14.2 **Dispute Resolution.** Any dispute arising from these Terms or the Service shall be resolved exclusively in the courts of the Province of Ontario, Canada. The parties irrevocably attorn to the jurisdiction of such courts.
+14.2 **Dispute Resolution.** Any dispute arising from these Terms or the Service shall be resolved exclusively in the courts of the Province of Alberta, Canada. The parties irrevocably attorn to the jurisdiction of such courts.
 
 14.3 **Severability.** If any provision of these Terms is held unenforceable, the remaining provisions shall continue in full force and effect.
 

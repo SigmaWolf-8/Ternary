@@ -97,7 +97,7 @@ We may update this AUP from time to time. Material changes will be communicated 
 
 ## 7. Governing Law
 
-This AUP is governed by the federal laws of Canada and the laws of the Province of Ontario applicable therein. See the Terms of Service for full dispute resolution provisions.
+This AUP is governed by the federal laws of Canada and the laws of the Province of Alberta applicable therein. See the Terms of Service for full dispute resolution provisions.
 
 ---
 

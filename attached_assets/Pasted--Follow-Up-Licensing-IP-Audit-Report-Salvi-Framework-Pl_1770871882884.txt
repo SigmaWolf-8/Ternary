@@ -1,0 +1,307 @@
+# Follow-Up Licensing & IP Audit Report
+## Salvi Framework — PlenumNET Ternary Computing Platform
+### Capomastro Holdings Ltd., Applied Physics Division
+
+**Date:** February 12, 2026
+**Audit Type:** Follow-Up Review (Post-Remediation)
+**Auditor:** Licensing Counsel, with Software Architecture review
+**Repository:** https://github.com/SigmaWolf-8/Ternary
+**Live Deployment:** https://PlenumNET.replit.app
+**Baseline:** Initial audit dated February 11, 2026
+
+---
+
+## Executive Summary
+
+Since the initial audit, the repository has grown from 121 commits to **980 commits** — an eightfold increase in development activity. The **P1 critical manifest fixes have been executed**: root LICENSE exists, package.json license changed from MIT to "SEE LICENSE IN LICENSE", THDL and TSL Cargo.toml licenses changed to "LicenseRef-Proprietary", and the NOTICE file is deployed. Legal documents including the AUP, CLA, Privacy Policy, Terms of Service, and Export Control Notice are committed to the repository root.
+
+However, this follow-up review has identified **one critical confidentiality breach**, **one critical omission**, **several high-priority items remaining from the initial remediation**, and **significant new IP requiring patent assessment**. The deployed legal documents are also the **pre-Canadian V1 versions** rather than the final Canadian-first documents we produced. This report details all findings.
+
+---
+
+## FINDING 1 — LICENSING-STRATEGY.md COMMITTED TO PUBLIC REPO (CRITICAL)
+
+**Severity:** CRITICAL — Immediate action required
+**File:** `/LICENSING-STRATEGY.md` (repository root)
+
+The **Component Licensing Strategy Matrix** — an internal strategy document explicitly marked "INTERNAL STRATEGY DOCUMENT — Not for Public Distribution" — has been committed to the public GitHub repository. This file contains:
+
+- **Crown Jewels designations** identifying Phase Encryption, HPTP, TL-KEM/TL-DSA, VM ISA, THDL, VM Constants, Tribonacci Constants, Salvi Epoch, and verifyTau() as "Tier 0" maximum-protection components
+- **Competitive assessments** explaining *why* each component is valuable (e.g., "No equivalent exists in market. Potentially patentable")
+- **Strategic intent** revealing which components "could be open-sourced in the future" (Tier 3) vs. which "must never be open-sourced without board-level decision" (Tier 0)
+- **Approval authority matrix** revealing internal governance requirements (board approval, IP valuation thresholds)
+- **Exact file paths** mapped to competitive sensitivity tiers — effectively a treasure map for any competitor wanting to understand which 30% of the codebase contains the differentiating IP
+
+**Risk Assessment:** A sophisticated competitor reading this file knows:
+1. Which components to focus reverse-engineering efforts on (Tier 0 list)
+2. Which components are considered "commodity" and therefore safe to replicate (Tier 3)
+3. That the Company is considering open-sourcing ternary-math, meaning they can wait rather than build their own
+4. That Phase Encryption and HPTP are the primary monetization targets
+5. That patent applications have not yet been filed (gate criteria includes "patent applications have been filed before disclosure")
+
+**Immediate Action:** Remove this file from the repository. A `git rm` is insufficient — the file's entire history must be addressed. Because Git preserves history, the content remains accessible in prior commits. Options:
+- **Minimum:** `git rm LICENSING-STRATEGY.md` + commit. Accepts that the historical content is recoverable.
+- **Maximum:** Use `git filter-repo` or BFG Repo-Cleaner to rewrite history and purge the file entirely. This is a force-push that rewrites all subsequent commit hashes. Given 980 commits and no forks, this is feasible but disruptive.
+- **Recommended:** `git rm` immediately (within the hour). Evaluate history rewriting over the next 48 hours based on risk appetite.
+
+---
+
+## FINDING 2 — DEPLOYED LEGAL DOCUMENTS ARE PRE-CANADIAN V1 VERSIONS (CRITICAL)
+
+**Severity:** CRITICAL
+**Files affected:** All legal documents in the repository
+
+The legal documents committed to the repo are our **initial V1 drafts**, not the final Canadian-first versions produced after the comparative review. Specific deficiencies:
+
+| Document | Missing Canadian Element | Impact |
+|----------|------------------------|--------|
+| **LICENSE** | Governing law says "laws of the jurisdiction in which Capomastro Holdings Ltd. is incorporated" — does not name Ontario or Canada. No Language clause (s. 55 Québec CPC). No EIPA reference in export control section. No industrial design mention. No patent(s) pending clause. | Governing law clause is ambiguous. A court could interpret "the jurisdiction" differently than intended. The explicit Ontario naming in the final version removes this ambiguity. |
+| **PRIVACY-POLICY** | No PIPEDA references. No ten fair information principles. No Privacy Officer designation. No breach notification per s. 10.1 PIPEDA. No OPC contact. No Québec Law 25 rights. No CASL section. | For a Canadian corporation collecting personal information through a live SaaS, this is a **regulatory compliance gap**. PIPEDA requires a designated Privacy Officer and mandatory breach reporting. |
+| **EXPORT-CONTROL-NOTICE** | No Canadian EIPA/ECL framework. No GAC Trade Controls Bureau. No GEP exemption analysis. No Area Control List. No SEMA sanctions. Only US EAR framework present. | A Canadian corporation's primary export control obligations arise under Canadian law (EIPA), not the EAR. The US framework is secondary and applies only to the extent the Software has a US nexus. |
+| **CLA** | No moral rights waiver citing s. 14.1 of the Canadian Copyright Act. No Ontario governing law. No Language clause. | Under Canadian law, moral rights cannot be assigned — only waived. Without a proper waiver, contributors retain moral rights that could interfere with commercial exploitation. |
+| **TERMS-OF-SERVICE** | No Ontario governing law. No attorn to jurisdiction. No PIPEDA reference. No CASL reference. No age of majority variations. Liability cap not in CAD. | TOS without Canadian governing law means the governing jurisdiction is undefined for the live SaaS. |
+| **ACCEPTABLE-USE-POLICY** | No Criminal Code of Canada references. No SEMA/PCMLTFA. No CASL. | AUP should reference the criminal statutes of the Company's home jurisdiction. |
+| **FILE-HEADER-TEMPLATE** | No "(Canada)" entity designation. No "Patent(s) Pending" notice. | Source file headers are the last line of IP defense when files are extracted from context. Every header should assert both jurisdiction and patent status. |
+
+**Action:** Replace all committed legal documents with the final Canadian-first versions produced in our latest deliverable set.
+
+---
+
+## FINDING 3 — INTELLECTUAL-PROPERTY-NOTICE.md NOT DEPLOYED (HIGH)
+
+**Severity:** HIGH
+**Status:** File does not exist in repository
+
+The `INTELLECTUAL-PROPERTY-NOTICE.md` — the comprehensive IP assertion covering Berne Convention copyright, Patents Pending, Canadian Patent Act, Trademarks Act, Industrial Design Act, trade secrets, database rights, moral rights, and export controls — was never committed to the repository. This is the single most important legal document for deterring IP infringement by third parties who browse the repo.
+
+**Action:** Commit the final version of INTELLECTUAL-PROPERTY-NOTICE.md to the repository root.
+
+---
+
+## FINDING 4 — TRADEMARK-NOTICE.md NOT DEPLOYED (HIGH)
+
+**Severity:** HIGH
+**Status:** File does not exist in repository
+
+Public-facing trademark usage guidelines were never committed. The nine marks (Salvi™, PlenumNET™, Salvi Framework™, etc.) are being used throughout the repository and live deployment without a formal usage policy. This weakens enforcement posture and may undermine registration applications.
+
+**Action:** Commit TRADEMARK-NOTICE.md to the repository root.
+
+---
+
+## FINDING 5 — ZERO COPYRIGHT HEADERS ON 192 SOURCE FILES (HIGH)
+
+**Severity:** HIGH
+**Status:** No remediation since initial audit
+
+Random sampling of source files confirms that **no copyright headers have been added**:
+
+| File | Header Present? |
+|------|----------------|
+| `server/routes.ts` | ❌ No |
+| `src/kernel/src/vm/engine.rs` | ❌ No (file is empty in current commit) |
+| `shared/tribonacci-constants.ts` | ❌ No |
+| `client/src/App.tsx` | ❌ No |
+| `src/tsl/src/*.rs` | ❌ No |
+| `ternary-math/src/borromean.rs` | ✅ Has Rust doc-comment but no copyright header |
+| `ternary-math/src/ternary_circle.rs` | ✅ Has Rust doc-comment but no copyright header |
+
+The new ternary-math source files (borromean.rs, ternary_circle.rs, tribonacci.rs, etc.) have excellent Rust documentation comments explaining the mathematics, but lack the copyright/patent/proprietary header. If these files are extracted or shared individually, there is no embedded ownership assertion.
+
+**Action:** Apply headers from FILE-HEADER-TEMPLATE.md (final Canadian version) to all 192 source files. The new files in ternary-math/ should be prioritized — they contain novel, potentially patentable innovations.
+
+---
+
+## FINDING 6 — CONTRIBUTING.md HAS NO CLA REQUIREMENT (HIGH)
+
+**Severity:** HIGH
+**Status:** CLA.md is in repo but not referenced from CONTRIBUTING.md
+
+The CLA was committed but `CONTRIBUTING.md` was not updated to require signed CLAs before PR acceptance. The CONTRIBUTING.md mentions commit signing (`git commit -S`) and references layer tagging, but has zero mention of the Contributor License Agreement. Without this, the CLA is a dead document — no contributor would know it exists or that signing is required.
+
+**Action:** Add CLA requirement block to CONTRIBUTING.md per the MANIFEST-FIXES.md specification.
+
+---
+
+## FINDING 7 — SaaS LEGAL PAGES ARE DEAD LINKS (HIGH)
+
+**Severity:** HIGH — Live deployment has no functional legal protections
+**URL:** https://PlenumNET.replit.app
+
+The landing page footer contains a "Legal" section with three links:
+- **Privacy** → `href="#"` (dead link)
+- **Terms** → `href="#"` (dead link)
+- **Security** → `href="#"` (dead link)
+
+The Terms of Service, Privacy Policy, and Acceptable Use Policy exist as markdown files in the repository root but are not served by the web application. Users of the live SaaS platform are accessing 70+ API endpoints with cryptographic functionality and no binding legal terms.
+
+**Risk:** Without enforceable Terms of Service, the Company has limited ability to restrict how the API is used, limit liability, or enforce acceptable use. Without a functional Privacy Policy, the Company is in potential violation of PIPEDA's openness principle (making privacy practices "readily available").
+
+**Action:** Either (a) implement routes in the Express server to render the legal documents, or (b) update the footer links to point to the raw GitHub files, or (c) create static pages at `/terms`, `/privacy`, and `/security`.
+
+---
+
+## FINDING 8 — LICENSE-CHECK CI PIPELINE NOT CREATED (MEDIUM)
+
+**Severity:** MEDIUM
+**Status:** Not implemented
+
+The repository has 12 CI/CD workflows (including theory-validation.yml, fips-self-tests.yml, codeql-analysis.yml, security-scan.yml), but no `license-check.yml` to verify that source files have copyright headers. Once headers are applied, this workflow prevents regression.
+
+**Action:** Create `.github/workflows/license-check.yml` per MANIFEST-FIXES.md.
+
+---
+
+## FINDING 9 — SECURITY.md NOT CREATED (MEDIUM)
+
+**Severity:** MEDIUM
+**Status:** Missing
+
+Despite having `security-scan.yml` and `codeql-analysis.yml` workflows, there is no `.github/SECURITY.md` establishing a vulnerability reporting policy. GitHub displays a "Security" tab that currently shows no policy. This is a missed opportunity — a clear security reporting policy strengthens the platform's credibility with enterprise and government customers.
+
+**Action:** Create `.github/SECURITY.md` per MANIFEST-FIXES.md specification.
+
+---
+
+## FINDING 10 — libternary.tar.gz IN REPOSITORY ROOT (MEDIUM)
+
+**Severity:** MEDIUM
+**File:** `/libternary.tar.gz` (8,166 bytes)
+
+A tarball distribution of the core libternary library is committed to the repository root. The tarball contains: `ternary-types.ts`, `ternary-operations.ts`, `femtosecond-timing.ts`, `phase-encryption.ts`, `index.ts`, `package.json`, `tsconfig.json`, `LICENSE`, `README.md`.
+
+The `.gitignore` contains a `*.tar.gz` pattern, which means this file was either committed before the gitignore rule was added, or was force-committed. This is a separately distributable package of core Tier 0 IP (Phase Encryption, femtosecond timing). While the same code exists in the repository source, a pre-packaged tarball makes it trivially easy to extract and use.
+
+**Action:** `git rm libternary.tar.gz` and verify the `.gitignore` pattern prevents re-addition.
+
+---
+
+## FINDING 11 — github-push/ STAGING DIRECTORY (LOW)
+
+**Severity:** LOW
+**Directory:** `/github-push/`
+
+This directory appears to be a staging area used during development that was committed to main. It contains duplicate copies of: keys/, scripts/, Makefile, and .github/workflows/. It also contains a `.gitleaks.toml` configuration for secret scanning, which is valuable but belongs in the repository root, not in a staging directory.
+
+**Action:** Move `.gitleaks.toml` to the repository root (or integrate with the existing security-scan workflow). Remove the `github-push/` directory.
+
+---
+
+## FINDING 12 — libternary/LICENSE COPYRIGHT YEAR (LOW)
+
+**Severity:** LOW
+**File:** `libternary/LICENSE`
+**Current:** "Copyright © Capomastro Holdings Ltd 2026"
+**Should be:** "Copyright © 2025–2026 Capomastro Holdings Ltd. (Canada)"
+
+Missing the "(Canada)" designation and the start year.
+
+---
+
+## FINDING 13 — README STATISTICS OUTDATED (LOW)
+
+**Severity:** LOW
+**Current:** "Commits: 484+"
+**Actual:** 980 commits
+
+The README status table also shows "Roadmap: 80/80 milestones complete" — verify this is still accurate given the PQTI phase work.
+
+---
+
+## NEW IP REQUIRING PATENT ASSESSMENT
+
+Since the initial audit, significant new innovations have been committed that should be added to the patent strategy:
+
+### ADR-007: Carry Propagation as Computational Jerk
+**File:** `docs/architecture/decisions/ADR-007-carry-as-jerk.md`
+**Innovation:** Maps ternary carry propagation in base-3 addition to the physics concept of "jerk" (third derivative of position). Introduces a "Jerk Index" timing quality metric — carry propagation density of clock corrections. This creates a structural identity between ternary arithmetic complexity and timing protocol quality.
+**Patent Assessment:** Strong. The jerk index as a timing quality metric is novel. Combined with the 364° ternary circle, this creates a closed system of ternary-native timing mathematics with no obvious prior art.
+
+### Borromean XOR Invariant
+**File:** `ternary-math/src/borromean.rs`
+**Innovation:** Validates three-party cryptographic protocols using Borromean ring topology expressed in ternary logic. Representation-agnostic across A/B/C encodings.
+**Patent Assessment:** Moderate-Strong. The application of Borromean rings to ternary cryptographic validation may be novel. Prior art search recommended.
+
+### Ternary Circle (364° / π=14 / Z₂₈)
+**File:** `ternary-math/src/ternary_circle.rs`
+**Innovation:** A canonical angular system where a full circle is 364° = `111111₃`, π = 14, one radian = 13° = `111₃` = T₇, and the cyclic group Z₂₈ provides 28 discrete angular positions. This is not an approximation — the values are self-consistent within the ternary system.
+**Patent Assessment:** Strong as a method claim when applied to the timing and navigation subsystems. The Z₂₈ phase correction lattice combined with the jerk index creates a ternary-native timing correction methodology with no prior art.
+
+### Tribonacci Generator with Carry-as-Jerk
+**File:** `ternary-math/src/tribonacci.rs`
+**Innovation:** Tribonacci sequence generator with A/B/C interchange support and carry-as-jerk tracking.
+**Patent Assessment:** Part of the broader Tribonacci-derived constant architecture claim.
+
+**Recommendation:** These innovations should be added to the Tier 1 filing list in the Patent Strategy Memorandum. The carry-as-jerk / ternary circle / Z₂₈ phase correction complex is arguably a single patentable invention with multiple claims. Given the one-year Canadian grace period, the filing clock started when these files were committed publicly. **Patent counsel should review the commit dates for these files immediately.**
+
+---
+
+## COMPLIANCE DOCUMENTATION GROWTH
+
+The `docs/compliance/` directory has expanded substantially and now contains 12 FIPS-related documents:
+- Boundary diagram, Security policy, Entropy assessment, CSTL lab engagement guide
+- CAVP submission guide, FIPS validation plan, Vendor evidence index
+- Formal verification report, Finite state model, SSP inventory
+- Operational environments, FPGA prototype spec
+
+This is excellent progress toward FIPS 140-3 CMVP submission. All of these documents reference "Capomastro Holdings Ltd." and "Applied Physics Division" correctly. They should also reference the CCCS (Canadian Centre for Cyber Security) as the Canadian partner in the CMVP program, since CCCS validates Canadian-origin modules.
+
+---
+
+## PRIORITIZED REMEDIATION PLAN
+
+| Priority | Action | Risk if Deferred | Effort |
+|----------|--------|-----------------|--------|
+| **P0** | Remove LICENSING-STRATEGY.md from repo | Competitor intelligence, patent strategy exposure | 5 minutes |
+| **P1** | Replace all legal docs with Canadian-first final versions | Regulatory non-compliance (PIPEDA), ambiguous governing law | 30 minutes |
+| **P1** | Commit INTELLECTUAL-PROPERTY-NOTICE.md | Missing Berne Convention / Patents Pending assertion | 5 minutes |
+| **P1** | Commit TRADEMARK-NOTICE.md | Weakened trademark enforcement posture | 5 minutes |
+| **P2** | Fix SaaS legal page dead links | Live deployment without enforceable terms | 1-2 hours |
+| **P2** | Add CLA requirement to CONTRIBUTING.md | Unassigned contributor IP | 10 minutes |
+| **P2** | Remove libternary.tar.gz | Distributable package of core IP | 5 minutes |
+| **P3** | Apply copyright headers to 192 source files | No embedded ownership on extracted files | 4-6 hours |
+| **P3** | Create license-check.yml CI pipeline | Header regression risk | 30 minutes |
+| **P3** | Create SECURITY.md | Missing vulnerability reporting policy | 15 minutes |
+| **P3** | Add new innovations to patent filing list | Grace period clock ticking | Counsel engagement |
+| **P4** | Clean up github-push/ directory | Repository hygiene | 15 minutes |
+| **P4** | Fix libternary/LICENSE copyright year | Minor attribution issue | 5 minutes |
+| **P4** | Update README statistics | Cosmetic accuracy | 5 minutes |
+
+**Total estimated remediation effort:** 1 business day for P0-P2; 1 additional day for P3-P4.
+
+---
+
+## POSITIVE DEVELOPMENTS SINCE INITIAL AUDIT
+
+Credit where due — the following improvements reflect strong execution:
+
+1. **All P1 critical manifest fixes deployed** — MIT declarations eliminated, root LICENSE in place, NOTICE file committed
+2. **Repository has grown to 980 commits** — massive development velocity
+3. **12 CI/CD workflows operational** — including theory-validation, FIPS self-tests, CodeQL, security scan
+4. **12 FIPS compliance documents created** — the vendor evidence package is taking shape
+5. **4 Architecture Decision Records** — professional engineering documentation practice
+6. **CODEOWNERS file in place** — access control established
+7. **keys/ directory contains only documentation** — no actual key material committed (verified)
+8. **.gitleaks.toml configuration** exists (in github-push/) — secret scanning intent is present
+9. **Kong configuration is clean** — no API keys or secrets in kong.yaml
+10. **New mathematical innovations** (Borromean invariant, ternary circle, carry-as-jerk) represent genuine advances worth protecting
+
+The project architect is building something extraordinary. The legal framework needs to keep pace with the engineering.
+
+---
+
+*This follow-up audit was conducted by reviewing the current repository state (cloned February 12, 2026, 980 commits) and the live deployment. It does not constitute legal advice. All recommendations should be reviewed by qualified Canadian IP counsel before implementation.*
+
+---
+
+## Addendum: Alberta Provincial Correction (February 12, 2026)
+
+Subsequent to the initial drafting of the Canadian-first document suite, all governing law, jurisdiction, entity description, and privacy references have been corrected from Ontario to **Alberta**:
+
+- **Entity description:** "a corporation incorporated under the laws of the Province of Alberta" (pending ABCA vs. CBCA confirmation — flag embedded in LICENSE)
+- **Governing law:** "federal laws of Canada and the laws of the Province of Alberta applicable therein"
+- **Jurisdiction:** "courts of the Province of Alberta, Canada" (Court of King's Bench of Alberta, Edmonton Judicial District)
+- **Privacy:** Alberta PIPA (S.A. 2003, c. P-6.5) designated as the primary provincial privacy statute, with PIPEDA for interprovincial/international. Office of the Information and Privacy Commissioner of Alberta (OIPC) added as primary complaint body.
+- **Limitation periods:** Alberta Limitations Act (S.A. 2000, c. L-12) — 2-year discovery-based limitation.
+
+All 15 documents in the deliverable set reflect these corrections.

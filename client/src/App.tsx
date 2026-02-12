@@ -1,3 +1,19 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * PROPRIETARY AND CONFIDENTIAL
+ * All Rights Reserved.
+ *
+ * This file is part of the Salvi Framework / PlenumNET platform.
+ * Unauthorized copying, modification, distribution, or use of this file,
+ * via any medium, is strictly prohibited without the prior written
+ * permission of Capomastro Holdings Ltd.
+ *
+ * See LICENSE in the repository root for full terms.
+ */
+
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -19,6 +35,7 @@ import CompliancePage from "@/pages/compliance";
 import HPTPDemo from "@/pages/hptp-demo";
 import ThirteenMoonPage from "@/pages/thirteen-moon";
 import CompressionPage from "@/pages/compression";
+import LegalPage from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -37,6 +54,9 @@ function Router() {
       <Route path="/hptp" component={HPTPDemo} />
       <Route path="/13-moon" component={ThirteenMoonPage} />
       <Route path="/compression" component={CompressionPage} />
+      <Route path="/terms" component={LegalPage} />
+      <Route path="/privacy" component={LegalPage} />
+      <Route path="/security" component={LegalPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,19 +1,68 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
+# See LICENSE in the repository root for full terms.
+
 name: License Header Check
-on: [pull_request]
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
 jobs:
   check-headers:
+    name: "Verify Copyright Headers"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check copyright headers
+
+      - name: Check source files for copyright headers
         run: |
-          MISSING=$(find src/ server/ client/src/ libternary/src/ contracts/ \
-            services/ shared/ -type f \
-            \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.py" \) \
-            -exec grep -L "Capomastro Holdings" {} \; 2>/dev/null || true)
+          echo "============================================"
+          echo "  COPYRIGHT HEADER VERIFICATION"
+          echo "  Checking all source files for headers"
+          echo "============================================"
+
+          MISSING=$(find \
+            ternary-math/src/ \
+            src/kernel/src/ \
+            src/tsl/src/ \
+            src/thdl/src/ \
+            server/ \
+            client/src/ \
+            shared/ \
+            libternary/src/ \
+            -type f \
+            \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" \) \
+            -not -name "*.d.ts" \
+            -not -path "*/node_modules/*" \
+            -exec grep -L "Capomastro Holdings" {} \; 2>/dev/null)
+
           if [ -n "$MISSING" ]; then
-            echo "::error::Files missing copyright header:"
-            echo "$MISSING"
+            echo ""
+            echo "  The following files are missing copyright headers:"
+            echo "$MISSING" | while read -r f; do echo "    - $f"; done
+            echo ""
+            echo "  Apply headers from FILE-HEADER-TEMPLATE.md"
+            echo "  See: https://github.com/SigmaWolf-8/Ternary/blob/main/FILE-HEADER-TEMPLATE.md"
             exit 1
           fi
-          echo "All source files contain copyright header."
+
+          TOTAL=$(find \
+            ternary-math/src/ \
+            src/kernel/src/ \
+            src/tsl/src/ \
+            src/thdl/src/ \
+            server/ \
+            client/src/ \
+            shared/ \
+            libternary/src/ \
+            -type f \
+            \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" \) \
+            -not -name "*.d.ts" \
+            -not -path "*/node_modules/*" 2>/dev/null | wc -l)
+
+          echo "  All $TOTAL source files have copyright headers."
+          echo "  Capomastro Holdings Ltd. (Canada)"
