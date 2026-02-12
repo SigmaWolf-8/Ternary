@@ -21,45 +21,102 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Suspense, lazy } from "react";
+import { Sun, Moon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ErrorBoundary } from "@/components/error-boundary";
 import Landing from "@/pages/landing";
-import TernaryDB from "@/pages/ternarydb";
-import Whitepaper from "@/pages/whitepaper";
-import GitHubManager from "@/pages/github-manager";
-import APIDemo from "@/pages/api-demo";
-import KongKonnect from "@/pages/kong-konnect";
-import Admin from "@/pages/admin";
-import Docs from "@/pages/docs";
-import CalendarPage from "@/pages/calendar";
-import CompliancePage from "@/pages/compliance";
-import HPTPDemo from "@/pages/hptp-demo";
-import ThirteenMoonPage from "@/pages/thirteen-moon";
-import CompressionPage from "@/pages/compression";
 import LegalPage from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 
+const TernaryDB = lazy(() => import("@/pages/ternarydb"));
+const Whitepaper = lazy(() => import("@/pages/whitepaper"));
+const GitHubManager = lazy(() => import("@/pages/github-manager"));
+const APIDemo = lazy(() => import("@/pages/api-demo"));
+const KongKonnect = lazy(() => import("@/pages/kong-konnect"));
+const Admin = lazy(() => import("@/pages/admin"));
+const Docs = lazy(() => import("@/pages/docs"));
+const CalendarPage = lazy(() => import("@/pages/calendar"));
+const CompliancePage = lazy(() => import("@/pages/compliance"));
+const HPTPDemo = lazy(() => import("@/pages/hptp-demo"));
+const ThirteenMoonPage = lazy(() => import("@/pages/thirteen-moon"));
+const CompressionPage = lazy(() => import("@/pages/compression"));
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen w-full">
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/ternarydb" component={TernaryDB} />
-      <Route path="/whitepaper" component={Whitepaper} />
-      <Route path="/github" component={GitHubManager} />
-      <Route path="/api-demo" component={APIDemo} />
-      <Route path="/kong-konnect" component={KongKonnect} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/docs" component={Docs} />
-      <Route path="/calendar" component={CalendarPage} />
-      <Route path="/compliance" component={CompliancePage} />
-      <Route path="/hptp" component={HPTPDemo} />
-      <Route path="/13-moon" component={ThirteenMoonPage} />
-      <Route path="/compression" component={CompressionPage} />
-      <Route path="/terms" component={LegalPage} />
-      <Route path="/privacy" component={LegalPage} />
-      <Route path="/security" component={LegalPage} />
-      <Route path="/aup" component={LegalPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route path="/ternarydb" component={TernaryDB} />
+        <Route path="/whitepaper" component={Whitepaper} />
+        <Route path="/github" component={GitHubManager} />
+        <Route path="/api-demo" component={APIDemo} />
+        <Route path="/kong-konnect" component={KongKonnect} />
+        <Route path="/admin" component={Admin} />
+        <Route path="/docs" component={Docs} />
+        <Route path="/calendar" component={CalendarPage} />
+        <Route path="/compliance" component={CompliancePage} />
+        <Route path="/hptp" component={HPTPDemo} />
+        <Route path="/13-moon" component={ThirteenMoonPage} />
+        <Route path="/compression" component={CompressionPage} />
+        <Route path="/terms" component={LegalPage} />
+        <Route path="/privacy" component={LegalPage} />
+        <Route path="/security" component={LegalPage} />
+        <Route path="/aup" component={LegalPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
+  );
+}
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark" || saved === "light") {
+      setTheme(saved);
+    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      setTheme("dark");
+    }
+  }, []);
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+      data-testid="button-theme-toggle"
+    >
+      {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+    </Button>
   );
 }
 
@@ -102,32 +159,37 @@ function App() {
   } as React.CSSProperties;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SidebarProvider defaultOpen={false} style={sidebarStyle}>
-          <div className="flex min-h-screen w-full">
-            <div className="relative flex">
-              <AppSidebar />
-              <div
-                className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-50 hover:bg-primary/20 active:bg-primary/30 transition-colors"
-                onMouseDown={handleMouseDown}
-                data-testid="sidebar-resize-handle"
-              />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <SidebarProvider defaultOpen={false} style={sidebarStyle}>
+            <div className="flex min-h-screen w-full">
+              <div className="relative flex">
+                <AppSidebar />
+                <div
+                  className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-50 hover:bg-primary/20 active:bg-primary/30 transition-colors"
+                  onMouseDown={handleMouseDown}
+                  data-testid="sidebar-resize-handle"
+                />
+              </div>
+              <div className="flex flex-col flex-1 min-w-0">
+                <header className="sticky top-0 z-50 flex items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 h-12">
+                  <SidebarTrigger data-testid="button-sidebar-toggle" />
+                  <span className="text-xs font-medium text-muted-foreground">PlenumNET</span>
+                  <div className="ml-auto">
+                    <ThemeToggle />
+                  </div>
+                </header>
+                <main className="flex-1 overflow-auto">
+                  <Router />
+                </main>
+              </div>
             </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <header className="sticky top-0 z-50 flex items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 h-12">
-                <SidebarTrigger data-testid="button-sidebar-toggle" />
-                <span className="text-xs font-medium text-muted-foreground">PlenumNET</span>
-              </header>
-              <main className="flex-1 overflow-auto">
-                <Router />
-              </main>
-            </div>
-          </div>
-        </SidebarProvider>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+          </SidebarProvider>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

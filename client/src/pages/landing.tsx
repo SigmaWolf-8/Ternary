@@ -38,7 +38,9 @@ import {
   Binary,
   Activity,
   Globe,
-  Server
+  Server,
+  Copy,
+  Calendar
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { motion, useInView } from "framer-motion";
@@ -70,6 +72,47 @@ function AnimatedStat({ value, label, suffix, delay }: { value: string; label: s
   );
 }
 
+function HeroVisual() {
+  const layers = [
+    { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
+    { label: "Protocols", items: ["HPTP", "T3P", "TTP", "TDNS"], delay: 0.6 },
+    { label: "Virtual Machine", items: ["35 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
+    { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
+    { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.5 }}
+      className="mt-12 max-w-2xl"
+      aria-label="PlenumNET 5-layer architecture diagram"
+      role="img"
+      data-testid="hero-architecture-visual"
+    >
+      <div className="space-y-1.5">
+        {layers.map((layer, i) => (
+          <motion.div
+            key={layer.label}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: layer.delay }}
+            className="flex items-center gap-3"
+          >
+            <span className="text-xs font-medium text-muted-foreground w-20 text-right flex-shrink-0">{layer.label}</span>
+            <div className={`flex-1 flex gap-1.5 p-2 rounded-md border border-primary/${15 + i * 8} bg-primary/${5 + i * 3}`}>
+              {layer.items.map((item) => (
+                <span key={item} className="text-xs text-foreground/80 bg-background/60 rounded px-2 py-0.5 flex-1 text-center">{item}</span>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 function HeroSection() {
   const [email, setEmail] = useState("");
   const { toast } = useToast();
@@ -89,7 +132,7 @@ function HeroSection() {
   });
 
   return (
-    <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero">
+    <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
       <div className="absolute inset-0 gradient-radial" />
       
@@ -126,9 +169,10 @@ function HeroSection() {
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
             data-testid="text-hero-title"
+            id="hero-title"
           >
             The World's First <span className="text-primary">Ternary Computing</span> Platform
           </motion.h1>
@@ -136,7 +180,7 @@ function HeroSection() {
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-lg md:text-xl text-muted-foreground mb-8 max-w-3xl"
             data-testid="text-hero-description"
           >
@@ -147,7 +191,7 @@ function HeroSection() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
             className="mb-10"
           >
             <form 
@@ -158,6 +202,7 @@ function HeroSection() {
               className="flex flex-col sm:flex-row gap-3 max-w-lg"
               data-testid="form-hero-signup"
             >
+              <label htmlFor="hero-email" className="sr-only">Email address</label>
               <Input
                 type="email"
                 placeholder="Enter your email for early access"
@@ -166,6 +211,8 @@ function HeroSection() {
                 className="flex-1"
                 required
                 data-testid="input-hero-email"
+                id="hero-email"
+                aria-label="Email address for early access"
               />
               <Button 
                 type="submit" 
@@ -173,17 +220,17 @@ function HeroSection() {
                 disabled={signupMutation.isPending}
                 data-testid="button-hero-signup"
               >
-                {signupMutation.isPending ? "Joining..." : "Get Early Access"}
+                {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </form>
-            <p className="text-xs text-muted-foreground mt-2">Join developers building the next generation of computing infrastructure.</p>
+            <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
           </motion.div>
           
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             className="flex flex-wrap gap-4 mb-12"
           >
             <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-view-github">
@@ -207,11 +254,12 @@ function HeroSection() {
           </motion.div>
           
           <div className="flex flex-wrap gap-8 md:gap-12">
-            <AnimatedStat value="+59" suffix="%" label="Information Density" delay={0.4} />
-            <AnimatedStat value="1,011" label="Tests Passing" delay={0.5} />
-            <AnimatedStat value="80/80" label="Roadmap Complete" delay={0.6} />
-            <AnimatedStat value="35" label="VM Opcodes" delay={0.7} />
+            <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
+            <AnimatedStat value="1,011" label="Tests Passing" delay={0.28} />
+            <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
+            <AnimatedStat value="35" label="VM Opcodes" delay={0.34} />
           </div>
+          <HeroVisual />
         </div>
       </div>
     </section>
@@ -288,7 +336,7 @@ function PlatformSection() {
   ];
 
   return (
-    <section id="platform" className="py-20 md:py-28" data-testid="section-platform">
+    <section id="platform" className="py-20 md:py-28" data-testid="section-platform" role="region" aria-labelledby="platform-title">
       <div className="max-w-7xl mx-auto px-5">
         <div className="text-center mb-16">
           <motion.div
@@ -305,9 +353,10 @@ function PlatformSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.06 }}
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-platform-title"
+            id="platform-title"
           >
             Everything You Need to Build on Ternary
           </motion.h2>
@@ -315,7 +364,7 @@ function PlatformSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.15 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
             From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,011 passing tests.
@@ -380,7 +429,7 @@ function ArchitectureSection() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+              transition={{ duration: 0.5, delay: 0.06 }}
               className="text-3xl md:text-4xl font-bold mb-6"
               data-testid="text-architecture-title"
             >
@@ -390,7 +439,7 @@ function ArchitectureSection() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.15 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
               className="text-muted-foreground text-lg mb-8"
             >
               Five integrated layers spanning hardware abstraction to application services. 
@@ -400,7 +449,7 @@ function ArchitectureSection() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.12 }}
               className="space-y-3"
             >
               <div className="flex items-center gap-3 text-sm">
@@ -430,7 +479,7 @@ function ArchitectureSection() {
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.12 }}
             className="space-y-3"
           >
             {layers.map((layer, index) => (
@@ -439,7 +488,7 @@ function ArchitectureSection() {
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: 0.1 + index * 0.08 }}
+                transition={{ duration: 0.4, delay: 0.06 + index * 0.08 }}
               >
                 <Card className={`p-4 border ${layer.color}`} data-testid={`layer-${index}`}>
                   <div className="flex items-center gap-3 mb-2">
@@ -647,7 +696,7 @@ function ComponentsSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.06 }}
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-components-title"
           >
@@ -657,7 +706,7 @@ function ComponentsSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.15 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
             Every component is built, tested, and ready for integration. Not a roadmap -- this is what exists right now.
@@ -684,10 +733,12 @@ function PerformanceSection() {
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
     { label: "Regulatory Timing", current: "Custom build", ternary: "Designed for FINRA 613 & MiFID II", highlight: true },
+    { label: "Native Hardware", current: "Ubiquitous", ternary: "Emulated via Binary-Ternary Gateway", highlight: false },
+    { label: "Ecosystem Maturity", current: "40+ years", ternary: "Emerging (v1.0)", highlight: false },
   ];
 
   return (
-    <section id="performance" className="py-20 md:py-28 bg-secondary/30" data-testid="section-performance">
+    <section id="performance" className="py-20 md:py-28 bg-secondary/30" data-testid="section-performance" role="region" aria-labelledby="performance-title">
       <div className="max-w-7xl mx-auto px-5">
         <div className="text-center mb-16">
           <motion.div
@@ -704,9 +755,10 @@ function PerformanceSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.06 }}
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-performance-title"
+            id="performance-title"
           >
             Why Ternary Wins
           </motion.h2>
@@ -714,7 +766,7 @@ function PerformanceSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.15 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
             Not theoretical advantages -- measured, tested, and verifiable performance improvements you can see in our live demo.
@@ -725,9 +777,9 @@ function PerformanceSection() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.12 }}
         >
-          <Card className="max-w-4xl mx-auto p-6 md:p-10 border-primary/10 bg-card/80 backdrop-blur-sm">
+          <Card className="max-w-4xl mx-auto p-6 md:p-10 border-primary/10 bg-card/80 backdrop-blur-sm" role="table" aria-label="Binary vs Ternary comparison">
             <div className="flex flex-col md:flex-row justify-between gap-6 mb-8 pb-6 border-b border-foreground/10">
               <div className="flex-1 text-center">
                 <h3 className="text-xl font-semibold mb-2">Binary Systems</h3>
@@ -746,13 +798,13 @@ function PerformanceSection() {
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  transition={{ duration: 0.3, delay: index * 0.03 }}
                   className="flex flex-col md:flex-row items-start md:items-center justify-between py-4 border-b border-foreground/5 last:border-b-0 gap-2"
                   data-testid={`comparison-item-${index}`}
                 >
                   <div className="flex-1 md:flex-[2] font-medium text-sm md:text-base">{item.label}</div>
                   <div className="flex-1 text-muted-foreground text-sm md:text-center">{item.current}</div>
-                  <div className="flex-1 text-sm md:text-center font-semibold text-primary">
+                  <div className={`flex-1 text-sm md:text-center ${item.highlight ? "font-semibold text-primary" : "text-muted-foreground"}`}>
                     {item.ternary}
                   </div>
                 </motion.div>
@@ -770,6 +822,100 @@ function PerformanceSection() {
             </div>
           </Card>
         </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function TrustSignals() {
+  const signals = [
+    { label: "1,252+", description: "Git Commits" },
+    { label: "1,011", description: "Tests Passing" },
+    { label: "224", description: "Source Files" },
+    { label: "70+", description: "API Endpoints" },
+  ];
+
+  return (
+    <section className="py-12 border-y border-primary/10 bg-muted/30" data-testid="section-trust-signals" aria-label="Trust signals and verified metrics">
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex flex-wrap items-center justify-center gap-6">
+            <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-3 py-1">
+              <Check className="w-3 h-3 mr-1" />
+              CNSA 2.0 Architecture
+            </Badge>
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-3 py-1">
+              <Shield className="w-3 h-3 mr-1" />
+              Targeting FIPS 140-3
+            </Badge>
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-3 py-1">
+              <Clock className="w-3 h-3 mr-1" />
+              Targeting FINRA 613
+            </Badge>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-8">
+            {signals.map((s) => (
+              <div key={s.description} className="text-center" data-testid={`trust-metric-${s.description.toLowerCase().replace(/\s+/g, '-')}`}>
+                <div className="text-lg font-bold text-foreground">{s.label}</div>
+                <div className="text-xs text-muted-foreground">{s.description}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CodeSnippet() {
+  const [copied, setCopied] = useState(false);
+  const code = `curl -X POST https://plenumnet.replit.app/api/salvi/ternary/convert \\
+  -H "Content-Type: application/json" \\
+  -d '{"value": 42, "from": "B", "to": "A"}'`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <section className="py-16 md:py-20" data-testid="section-code-snippet">
+      <div className="max-w-4xl mx-auto px-5">
+        <div className="text-center mb-8">
+          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
+            Try It Now
+          </Badge>
+          <h2 className="text-2xl md:text-3xl font-bold mb-3" data-testid="text-code-snippet-title">
+            One API Call Away
+          </h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            70+ live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.
+          </p>
+        </div>
+        <Card className="p-0 overflow-hidden border-primary/10 bg-card/80">
+          <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-primary/10">
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground font-medium">Quick Start</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleCopy} data-testid="button-copy-code" aria-label="Copy code to clipboard">
+              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              <span className="ml-1.5 text-xs">{copied ? "Copied" : "Copy"}</span>
+            </Button>
+          </div>
+          <pre className="p-5 text-sm font-mono text-foreground/90 overflow-x-auto" data-testid="text-code-content">
+            <code>{code}</code>
+          </pre>
+        </Card>
+        <div className="flex justify-center mt-6">
+          <Button variant="outline" asChild data-testid="button-explore-api">
+            <Link href="/api-demo">
+              Explore All 70+ Endpoints
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
+        </div>
       </div>
     </section>
   );
@@ -815,7 +961,7 @@ function CalendarPreviewSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.06 }}
             className="text-3xl md:text-4xl font-bold mb-4"
             data-testid="text-calendar-preview-title"
           >
@@ -825,7 +971,7 @@ function CalendarPreviewSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.15 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-3xl mx-auto"
           >
             Convert any date across 12 major calendar systems -- from Mayan Long Count to Islamic Hijri -- with femtosecond precision.
@@ -841,7 +987,7 @@ function CalendarPreviewSection() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              transition={{ duration: 0.5, delay: index * 0.06 }}
             >
               <Card 
                 className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm"
@@ -867,7 +1013,7 @@ function CalendarPreviewSection() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          transition={{ duration: 0.5, delay: 0.18 }}
         >
           <Card className="max-w-4xl mx-auto p-6 md:p-8 border-primary/10 bg-card/80 backdrop-blur-sm">
             <div className="grid sm:grid-cols-3 gap-6 text-center mb-8">
@@ -962,7 +1108,7 @@ function TargetMarketsSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.5, delay: 0.06 }}
             className="text-3xl md:text-4xl font-bold mb-4"
           >
             Built for Industries That Demand More
@@ -971,7 +1117,7 @@ function TargetMarketsSection() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.15 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
             Targeted deployments with measurable ROI across sectors where efficiency, security, and compliance are non-negotiable.
@@ -985,7 +1131,7 @@ function TargetMarketsSection() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.08 }}
+              transition={{ duration: 0.5, delay: index * 0.05 }}
             >
               <Card 
                 className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm"
@@ -1046,7 +1192,7 @@ function DeveloperCTASection() {
           <Card className="max-w-4xl mx-auto p-8 md:p-12 lg:p-16 border-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
             <div className="text-center mb-8">
               <h2 className="text-3xl md:text-4xl font-bold mb-4" data-testid="text-cta-title">
-                Build the Future of Computing
+                Request Developer Preview
               </h2>
               <p className="text-lg opacity-90 max-w-2xl mx-auto mb-2">
                 Get early access to the PlenumNET SDK, developer documentation, and direct support from the core team. 
@@ -1067,6 +1213,7 @@ function DeveloperCTASection() {
               className="max-w-lg mx-auto space-y-3"
               data-testid="form-developer-signup"
             >
+              <label htmlFor="signup-name" className="sr-only">Your name</label>
               <Input
                 type="text"
                 placeholder="Your name (optional)"
@@ -1074,7 +1221,9 @@ function DeveloperCTASection() {
                 onChange={(e) => setName(e.target.value)}
                 className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
                 data-testid="input-signup-name"
+                id="signup-name"
               />
+              <label htmlFor="signup-email" className="sr-only">Email address</label>
               <Input
                 type="email"
                 placeholder="developer@company.com"
@@ -1083,6 +1232,7 @@ function DeveloperCTASection() {
                 required
                 className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
                 data-testid="input-signup-email"
+                id="signup-email"
               />
               <Button 
                 type="submit" 
@@ -1092,10 +1242,19 @@ function DeveloperCTASection() {
                 disabled={signupMutation.isPending}
                 data-testid="button-developer-signup"
               >
-                {signupMutation.isPending ? "Signing Up..." : "Get Early Access"}
+                {signupMutation.isPending ? "Submitting..." : "Apply for SDK Access"}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </form>
+
+            <div className="flex justify-center mt-4">
+              <Button variant="outline" size="lg" className="border-primary-foreground/30 text-primary-foreground" asChild data-testid="button-book-demo">
+                <a href="mailto:Rsalvi@Salvigroup.com?subject=PlenumNET%20Demo%20Request">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Book a Demo
+                </a>
+              </Button>
+            </div>
 
             <div className="flex flex-wrap gap-6 justify-center mt-8 text-sm opacity-80">
               <div className="flex items-center gap-2">
@@ -1168,6 +1327,7 @@ function Footer() {
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
                 data-testid="link-social-github"
+                aria-label="GitHub repository"
               >
                 <Github className="w-5 h-5" />
               </a>
@@ -1175,6 +1335,7 @@ function Footer() {
                 href="mailto:Rsalvi@Salvigroup.com" 
                 className="text-muted-foreground hover:text-primary transition-colors"
                 data-testid="link-social-email"
+                aria-label="Send email"
               >
                 <Mail className="w-5 h-5" />
               </a>
@@ -1228,7 +1389,8 @@ export default function Landing() {
         <ArchitectureSection />
         <ComponentsSection />
         <PerformanceSection />
-        <CalendarPreviewSection />
+        <TrustSignals />
+        <CodeSnippet />
         <TargetMarketsSection />
         <DeveloperCTASection />
       </main>

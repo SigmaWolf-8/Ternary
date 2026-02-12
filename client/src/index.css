@@ -31,7 +31,7 @@
   --secondary: 220 10% 94%;
   --secondary-foreground: 220 20% 20%;
   --muted: 220 10% 96%;
-  --muted-foreground: 220 10% 40%;
+  --muted-foreground: 220 10% 37%;
   --accent: 210 30% 92%;
   --accent-foreground: 220 20% 15%;
   --destructive: 0 84% 60%;
@@ -43,8 +43,8 @@
   --chart-3: 45 90% 55%;
   --chart-4: 140 70% 45%;
   --chart-5: 340 75% 55%;
-  --font-sans: 'Inter', 'Poppins', sans-serif;
-  --font-serif: 'Inter', 'Poppins', sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, monospace;
   --radius: 0.5rem;
   --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.03);
@@ -96,26 +96,26 @@
   --sidebar: 20 14% 8%;
   --sidebar-foreground: 45 25% 85%;
   --sidebar-border: 20 14% 15%;
-  --sidebar-primary: 9 75% 61%;
+  --sidebar-primary: 210 80% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 25 45% 20%;
-  --sidebar-accent-foreground: 45 25% 85%;
-  --sidebar-ring: 9 75% 61%;
+  --sidebar-accent: 210 30% 18%;
+  --sidebar-accent-foreground: 210 20% 85%;
+  --sidebar-ring: 210 80% 55%;
   --popover: 20 14% 4%;
   --popover-foreground: 45 25% 91%;
   --popover-border: 218 45% 14%;
-  --primary: 9 75% 61%;
+  --primary: 210 80% 55%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 30 15% 52%;
+  --secondary: 210 15% 25%;
   --secondary-foreground: 0 0% 100%;
   --muted: 20 14% 15%;
   --muted-foreground: 45 15% 46%;
-  --accent: 25 45% 20%;
-  --accent-foreground: 45 25% 85%;
+  --accent: 210 30% 18%;
+  --accent-foreground: 210 20% 85%;
   --destructive: 356.3033 90.5579% 54.3137%;
   --destructive-foreground: 0 0% 100%;
   --input: 20 14% 18%;
-  --ring: 9 75% 61%;
+  --ring: 210 80% 55%;
   --chart-1: 203.8863 88.2845% 53.1373%;
   --chart-2: 159.7826 100% 36.0784%;
   --chart-3: 42.0290 92.8251% 56.2745%;
@@ -163,6 +163,15 @@
 
   html {
     scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
