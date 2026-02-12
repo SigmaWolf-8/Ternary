@@ -150,6 +150,7 @@ impl ThdlCompiler {
 mod tests {
     use super::*;
     use super::super::engine::TernaryVm;
+    use crate::timing::SimulatedHptp;
 
     #[test]
     fn test_compile_simple_add() {
@@ -163,7 +164,7 @@ mod tests {
         let prog = compiler.compile(&circuit).unwrap();
         assert!(prog.instructions.len() >= 2);
 
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         vm.set_register(0, 1).unwrap();
         vm.set_register(1, 1).unwrap();
         vm.load_program(prog).unwrap();
@@ -180,7 +181,7 @@ mod tests {
         let mut compiler = ThdlCompiler::new();
         let prog = compiler.compile(&circuit).unwrap();
 
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         vm.set_register(0, 1).unwrap();
         vm.load_program(prog).unwrap();
         vm.run().unwrap();
@@ -198,7 +199,7 @@ mod tests {
         let mut compiler = ThdlCompiler::new();
         let prog = compiler.compile(&circuit).unwrap();
 
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         vm.set_register(0, 0).unwrap();
         vm.set_register(1, 1).unwrap();
         vm.set_register(2, -1).unwrap();
@@ -216,7 +217,7 @@ mod tests {
         let mut compiler = ThdlCompiler::new();
         let prog = compiler.compile(&circuit).unwrap();
 
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         vm.set_register(0, 42).unwrap();
         vm.load_program(prog).unwrap();
         vm.run().unwrap();
@@ -234,7 +235,7 @@ mod tests {
         let mut compiler = ThdlCompiler::new();
         let prog = compiler.compile(&circuit).unwrap();
 
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         vm.set_register(0, 1).unwrap();
         vm.set_register(1, -1).unwrap();
         vm.load_program(prog).unwrap();

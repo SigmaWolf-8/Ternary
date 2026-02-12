@@ -21,6 +21,7 @@ use plenumnet_kernel::compat::gateway::{
 };
 use plenumnet_kernel::phase::EncryptionMode;
 use plenumnet_kernel::vm::engine::TernaryVm;
+use plenumnet_kernel::timing::SimulatedHptp;
 use plenumnet_kernel::vm::instruction::{Instruction, Opcode, Program};
 
 fn bench_trit_operations(c: &mut Criterion) {
@@ -222,7 +223,7 @@ fn bench_vm_instructions(c: &mut Criterion) {
     group.bench_function("add_instruction", |bench| {
         bench.iter_batched(
             || {
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.set_register(0, 100).unwrap();
                 vm.set_register(1, 200).unwrap();
                 vm
@@ -239,7 +240,7 @@ fn bench_vm_instructions(c: &mut Criterion) {
     group.bench_function("tadd_instruction", |bench| {
         bench.iter_batched(
             || {
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.set_register(0, 1).unwrap();
                 vm.set_register(1, -1).unwrap();
                 vm
@@ -256,7 +257,7 @@ fn bench_vm_instructions(c: &mut Criterion) {
     group.bench_function("tmul_instruction", |bench| {
         bench.iter_batched(
             || {
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.set_register(0, 1).unwrap();
                 vm.set_register(1, 1).unwrap();
                 vm
@@ -273,7 +274,7 @@ fn bench_vm_instructions(c: &mut Criterion) {
     group.bench_function("load_store_cycle", |bench| {
         bench.iter_batched(
             || {
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.set_register(0, 0).unwrap();
                 vm.set_register(1, 42).unwrap();
                 vm
@@ -292,7 +293,7 @@ fn bench_vm_instructions(c: &mut Criterion) {
     group.bench_function("push_pop_cycle", |bench| {
         bench.iter_batched(
             || {
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.set_register(0, 42).unwrap();
                 vm
             },
@@ -340,7 +341,7 @@ fn bench_vm_programs(c: &mut Criterion) {
                 prog.add_instruction(Instruction::new(Opcode::Cmp, 0, 4, 3, 0));
                 prog.add_instruction(Instruction::new(Opcode::JumpNeg, 0, 0, 0, 4));
                 prog.add_instruction(Instruction::new(Opcode::Halt, 0, 0, 0, 0));
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.load_program(prog).unwrap();
                 vm
             },
@@ -367,7 +368,7 @@ fn bench_vm_programs(c: &mut Criterion) {
                 prog.add_instruction(Instruction::new(Opcode::Cmp, 0, 4, 3, 0));
                 prog.add_instruction(Instruction::new(Opcode::JumpNeg, 0, 0, 0, 4));
                 prog.add_instruction(Instruction::new(Opcode::Halt, 0, 0, 0, 0));
-                let mut vm = TernaryVm::new(4096);
+                let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
                 vm.load_program(prog).unwrap();
                 vm
             },

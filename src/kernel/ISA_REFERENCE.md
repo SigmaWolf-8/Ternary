@@ -249,24 +249,30 @@ These operate identically to their scalar counterparts but always set `ternary_m
 | 0x81 | TRAP | INT | #imm | Ring0-only trap; raises error with trap code |
 | 0x82 | ALLOC | — | dst, src1, #imm | GC-managed allocation; size = src1, type = imm; handle in dst |
 | 0x83 | FREE | — | dst, src1 | Remove GC root for handle in src1; dst ← 0 |
-| 0x84 | READTIME | RDTIME | dst, #imm | dst ← HPTP timestamp component selected by imm (see below) |
+| 0x84 | READTIME | RDTIME | dst, src1, #imm | dst ← HPTP timestamp component selected by imm (see below) |
 
-**READTIME Component Selector (via READTIME #imm):**
+**READTIME Component Selector (via READTIME dst, src1, #imm):**
 
-Timestamp is computed as `hptp_epoch_fs + cycles × cycle_period_fs` where
-`hptp_epoch_fs` is the Salvi Epoch offset at VM boot (default: 0) and
-`cycle_period_fs` is femtoseconds per cycle (default: 1000 = 1 ps/cycle).
+Timestamp is obtained from the injected `HptpProvider` trait object. The VM
+constructor `TernaryVm::new(memory_size, Box<dyn HptpProvider>)` enforces
+explicit provider injection at compile time — there are no hidden defaults.
+
+Provider implementations:
+- `SimulatedHptp::new().with_epoch(fs).with_cycle_period(fs)` — deterministic
+  builder for tests/simulation (default: epoch=0, period=1000 fs).
+- `LiveHptp::new(callback, source)` — production hardware clocks via callback.
+- Hot-swap at runtime via `vm.set_hptp_provider(new_provider)`.
 
 | imm | Returns |
 |-----|---------|
-| 0 | Femtoseconds — low 64 bits (default) |
-| 1 | Femtoseconds — high 64 bits |
-| 2 | Seconds since Salvi Epoch |
-| 3 | Milliseconds component |
-| 4 | Nanoseconds component |
-| 5 | Picoseconds component |
-| 6 | Remaining femtoseconds |
-| 7 | Raw cycle count (backward compat) |
+| 0 | Atomic fs pair — low 64 bits in dst, high 64 bits auto-stored in src1 register |
+| 1 | Seconds since Salvi Epoch |
+| 2 | Milliseconds component |
+| 3 | Nanoseconds component |
+| 4 | Picoseconds component |
+| 5 | Remaining femtoseconds (sub-picosecond residual) |
+| 6 | Raw cycle count |
+| 7 | TimingSource discriminant (for clock quality branching) |
 
 **Syscall Numbers (via SYSCALL src1):**
 

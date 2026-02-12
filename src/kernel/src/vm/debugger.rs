@@ -213,9 +213,10 @@ mod tests {
     use super::*;
     use super::super::engine::TernaryVm;
     use super::super::instruction::*;
+    use crate::timing::SimulatedHptp;
 
     fn make_test_vm() -> TernaryVm {
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         let mut prog = Program::new("debug_test");
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 10));
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 20));
@@ -268,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_debugger_memory_dump() {
-        let vm = TernaryVm::new(4096);
+        let vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         let dump = VmDebugger::dump_memory(&vm, 0, 16);
         assert!(dump.contains("Memory"));
     }

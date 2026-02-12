@@ -328,7 +328,7 @@ pub fn run_vm_program(program_json: &str) -> JsValue {
         Err(e) => return JsValue::from_str(&format!("Parse error: {}", e)),
     };
 
-    let mut vm = TernaryVm::new(input.memory_size);
+    let mut vm = TernaryVm::new(input.memory_size, Box::new(plenumnet_kernel::timing::SimulatedHptp::new()));
 
     for (reg, val) in &input.initial_registers {
         if vm.set_register(*reg, *val).is_err() {

@@ -25,6 +25,7 @@
 //! - Milliseconds (10⁻³ seconds) - FINRA minimum requirement
 
 use crate::{SALVI_EPOCH_NS, TimingSource};
+use alloc::boxed::Box;
 use alloc::string::String;
 
 /// Femtoseconds per time unit
@@ -153,6 +154,104 @@ impl Duration {
 
     pub fn as_ms(&self) -> u128 {
         self.femtoseconds / FS_PER_MS
+    }
+}
+
+pub trait HptpProvider: Send {
+    fn read_timestamp(&self, cycle_count: u64) -> FemtosecondTimestamp;
+    fn timing_source(&self) -> TimingSource;
+    fn cycle_period_fs(&self) -> u128;
+    fn epoch_fs(&self) -> u128;
+}
+
+pub struct SimulatedHptp {
+    epoch_fs: u128,
+    cycle_period_fs: u128,
+}
+
+impl SimulatedHptp {
+    pub fn new() -> Self {
+        Self {
+            epoch_fs: 0,
+            cycle_period_fs: 1000,
+        }
+    }
+
+    pub fn with_epoch(mut self, epoch_fs: u128) -> Self {
+        self.epoch_fs = epoch_fs;
+        self
+    }
+
+    pub fn with_cycle_period(mut self, period_fs: u128) -> Self {
+        self.cycle_period_fs = period_fs;
+        self
+    }
+}
+
+impl HptpProvider for SimulatedHptp {
+    fn read_timestamp(&self, cycle_count: u64) -> FemtosecondTimestamp {
+        FemtosecondTimestamp::new(self.epoch_fs + (cycle_count as u128) * self.cycle_period_fs)
+    }
+
+    fn timing_source(&self) -> TimingSource {
+        TimingSource::SystemClock
+    }
+
+    fn cycle_period_fs(&self) -> u128 {
+        self.cycle_period_fs
+    }
+
+    fn epoch_fs(&self) -> u128 {
+        self.epoch_fs
+    }
+}
+
+pub struct LiveHptp {
+    callback: Box<dyn Fn(u64) -> FemtosecondTimestamp + Send>,
+    source: TimingSource,
+    period_fs: u128,
+    epoch_fs: u128,
+}
+
+impl LiveHptp {
+    pub fn new(
+        callback: Box<dyn Fn(u64) -> FemtosecondTimestamp + Send>,
+        source: TimingSource,
+    ) -> Self {
+        Self {
+            callback,
+            source,
+            period_fs: 1000,
+            epoch_fs: 0,
+        }
+    }
+
+    pub fn with_period(mut self, period_fs: u128) -> Self {
+        self.period_fs = period_fs;
+        self
+    }
+
+    pub fn with_epoch(mut self, epoch_fs: u128) -> Self {
+        self.epoch_fs = epoch_fs;
+        self
+    }
+}
+
+impl HptpProvider for LiveHptp {
+    fn read_timestamp(&self, cycle_count: u64) -> FemtosecondTimestamp {
+        (self.callback)(cycle_count)
+    }
+
+    fn timing_source(&self) -> TimingSource {
+        self.source
+    }
+
+    fn cycle_period_fs(&self) -> u128 {
+        self.period_fs
+    }
+
+    fn epoch_fs(&self) -> u128 {
+        self.epoch_fs
     }
 }
 

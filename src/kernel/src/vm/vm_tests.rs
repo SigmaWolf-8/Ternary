@@ -17,6 +17,8 @@ mod property_tests {
     use crate::ternary::*;
     use crate::vm::engine::TernaryVm;
     use crate::vm::instruction::*;
+    use crate::timing::SimulatedHptp;
+    use alloc::boxed::Box;
 
     const TRIT_VALUES: [i8; 3] = [-1, 0, 1];
 
@@ -276,7 +278,7 @@ mod property_tests {
 
     #[test]
     fn test_benchmark_add_throughput() {
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         let mut prog = Program::new("bench_add");
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
@@ -291,7 +293,7 @@ mod property_tests {
 
     #[test]
     fn test_benchmark_mul_throughput() {
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         let mut prog = Program::new("bench_mul");
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
@@ -306,7 +308,7 @@ mod property_tests {
 
     #[test]
     fn test_benchmark_hash_throughput() {
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         let mut prog = Program::new("bench_hash");
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 42));
         for _ in 0..50 {
@@ -320,7 +322,7 @@ mod property_tests {
 
     #[test]
     fn test_benchmark_simd_throughput() {
-        let mut vm = TernaryVm::new(4096);
+        let mut vm = TernaryVm::new(4096, Box::new(SimulatedHptp::new()));
         let mut prog = Program::new("bench_simd");
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 1));
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 1));
