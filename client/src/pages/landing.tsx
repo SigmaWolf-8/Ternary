@@ -174,11 +174,10 @@ function HeroSection() {
             data-testid="text-hero-title"
             id="hero-title"
             style={{
-              textShadow: "0 1px 0 hsl(var(--foreground) / 0.15), 0 2px 3px hsl(var(--foreground) / 0.1), 0 4px 6px hsl(var(--background) / 0.15)",
-              WebkitTextStroke: "0.3px hsl(var(--foreground) / 0.08)",
+              textShadow: "0 1px 0 rgba(255,255,255,0.4), 0 -1px 0 rgba(0,0,0,0.15), 0 2px 1px rgba(0,0,0,0.12), 0 3px 2px rgba(0,0,0,0.09), 0 5px 4px rgba(0,0,0,0.06), 0 8px 8px rgba(0,0,0,0.04)",
             }}
           >
-            The World's First <span className="text-primary" style={{ textShadow: "0 1px 0 hsl(var(--primary) / 0.3), 0 2px 4px hsl(var(--primary) / 0.15), 0 4px 8px hsl(var(--primary) / 0.1)", WebkitTextStroke: "0.3px hsl(var(--primary) / 0.12)" }}>Ternary Computing</span> Platform
+            The World's First <span className="text-primary" style={{ textShadow: "0 1px 0 rgba(255,255,255,0.3), 0 -1px 0 rgba(0,50,150,0.2), 0 2px 1px rgba(0,50,150,0.18), 0 3px 2px rgba(0,50,150,0.14), 0 5px 4px rgba(0,50,150,0.08), 0 8px 8px rgba(0,50,150,0.05)" }}>Ternary Computing</span> Platform
           </motion.h1>
           
           <motion.p 
