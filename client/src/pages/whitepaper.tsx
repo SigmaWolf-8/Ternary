@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Whitepaper {
   id: number;
@@ -55,36 +57,6 @@ interface TableOfContentsItem {
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-function parseMarkdownToHTML(markdown: string): string {
-  let html = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  
-  html = html.replace(/^### \*\*(.+?)\*\*$/gm, (_, title) => `<h3 id="${slugify(title)}" class="text-xl font-bold text-foreground mt-8 mb-4 scroll-mt-24">${title}</h3>`);
-  html = html.replace(/^## \*\*(.+?)\*\*$/gm, (_, title) => `<h2 id="${slugify(title)}" class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20 scroll-mt-24">${title}</h2>`);
-  html = html.replace(/^# \*\*(.+?)\*\*$/gm, (_, title) => `<h1 id="${slugify(title)}" class="text-3xl font-bold text-foreground mt-12 mb-8 scroll-mt-24">${title}</h1>`);
-  html = html.replace(/^### (.+)$/gm, (_, title) => `<h3 id="${slugify(title)}" class="text-xl font-semibold text-foreground mt-8 mb-4 scroll-mt-24">${title}</h3>`);
-  html = html.replace(/^## (.+)$/gm, (_, title) => `<h2 id="${slugify(title)}" class="text-2xl font-bold text-foreground mt-10 mb-6 pb-2 border-b border-primary/20 scroll-mt-24">${title}</h2>`);
-  html = html.replace(/^# (.+)$/gm, (_, title) => `<h1 id="${slugify(title)}" class="text-3xl font-bold text-foreground mt-12 mb-8 scroll-mt-24">${title}</h1>`);
-  html = html.replace(/^#### (.+)$/gm, (_, title) => `<h4 id="${slugify(title)}" class="text-lg font-semibold text-foreground mt-6 mb-3 scroll-mt-24">${title}</h4>`);
-  
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-secondary px-1.5 py-0.5 rounded text-primary text-sm font-mono">$1</code>');
-  
-  html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
-    return `<pre class="bg-secondary/50 border border-primary/10 rounded-lg p-4 overflow-x-auto my-4"><code class="text-sm font-mono text-muted-foreground">${code.trim()}</code></pre>`;
-  });
-  
-  html = html.replace(/^  • (.+)$/gm, '<li class="ml-6 text-muted-foreground">$1</li>');
-  html = html.replace(/^- (.+)$/gm, '<li class="ml-4 text-muted-foreground list-disc">$1</li>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 text-muted-foreground list-decimal">$1</li>');
-  
-  html = html.replace(/^---$/gm, '<hr class="my-8 border-primary/20" />');
-  
-  html = html.replace(/^(?!<[h|l|p|u|o|d|c|b|t|s|a]|$)(.+)$/gm, '<p class="text-muted-foreground leading-relaxed mb-4">$1</p>');
-  
-  return html;
 }
 
 function extractTableOfContents(content: string): TableOfContentsItem[] {
@@ -320,9 +292,35 @@ export default function WhitepaperPage() {
                   <Card className="p-6 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm">
                     <div 
                       className="prose max-w-none whitepaper-content"
-                      dangerouslySetInnerHTML={{ __html: parseMarkdownToHTML(whitepaper.content) }}
                       data-testid="whitepaper-content"
-                    />
+                    >
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({children}) => <h1 className="text-3xl font-bold mt-8 mb-4 text-foreground">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-2xl font-semibold mt-6 mb-3 text-foreground">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-xl font-semibold mt-5 mb-2 text-foreground">{children}</h3>,
+                          p: ({children}) => <p className="mb-4 text-base leading-relaxed text-foreground/90">{children}</p>,
+                          ul: ({children}) => <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>,
+                          li: ({children}) => <li className="text-foreground/90">{children}</li>,
+                          a: ({href, children}) => <a href={href} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                          code: ({children, className}) => {
+                            const isBlock = className?.includes("language-");
+                            if (isBlock) return <pre className="bg-muted rounded-md p-4 mb-4 overflow-x-auto"><code className="text-sm font-mono">{children}</code></pre>;
+                            return <code className="bg-muted rounded px-1.5 py-0.5 text-sm font-mono">{children}</code>;
+                          },
+                          pre: ({children}) => <>{children}</>,
+                          table: ({children}) => <div className="overflow-x-auto mb-4"><table className="min-w-full border-collapse border border-border">{children}</table></div>,
+                          th: ({children}) => <th className="border border-border bg-muted px-3 py-2 text-left text-sm font-semibold">{children}</th>,
+                          td: ({children}) => <td className="border border-border px-3 py-2 text-sm">{children}</td>,
+                          hr: () => <hr className="my-6 border-t border-muted-foreground/20" />,
+                          blockquote: ({children}) => <blockquote className="border-l-4 border-primary/30 pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
+                        }}
+                      >
+                        {whitepaper.content}
+                      </ReactMarkdown>
+                    </div>
                   </Card>
                 </motion.div>
               </article>

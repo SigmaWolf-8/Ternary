@@ -42,7 +42,7 @@ import {
   Copy,
   Calendar
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -113,8 +113,79 @@ function HeroVisual() {
   );
 }
 
+function HeroDemo() {
+  const [inputValue, setInputValue] = useState("42");
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const num = parseInt(inputValue);
+      if (isNaN(num)) return;
+      setLoading(true);
+      try {
+        const res = await fetch("/api/salvi/ternary/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ value: num, from: "B", to: "A" }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setResult(data);
+        }
+      } catch (e) {
+        // silently fail
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.4 }}
+      className="mt-8 max-w-md"
+      data-testid="hero-demo-widget"
+    >
+      <Card className="p-4 border-primary/20 bg-card/90 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="w-4 h-4 text-primary" />
+          <span className="text-xs font-medium text-muted-foreground">Live Ternary Converter</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label htmlFor="hero-demo-input" className="sr-only">Enter a number to convert</label>
+            <Input
+              id="hero-demo-input"
+              type="number"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter a number..."
+              className="text-sm"
+              data-testid="input-hero-demo"
+            />
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex-1 text-sm font-mono text-primary" data-testid="text-hero-demo-result">
+            {loading ? "..." : result ? (result.result || result.converted || JSON.stringify(result).slice(0, 30)) : "—"}
+          </div>
+        </div>
+        {result && !loading && (
+          <div className="mt-2 text-xs text-muted-foreground">
+            Binary → Ternary conversion with 59% density advantage
+          </div>
+        )}
+      </Card>
+    </motion.div>
+  );
+}
+
 function HeroSection() {
   const [email, setEmail] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
   const signupMutation = useMutation({
@@ -125,6 +196,7 @@ function HeroSection() {
     onSuccess: (data) => {
       toast({ title: "You're in!", description: data.message });
       setEmail("");
+      setShowSuccess(true);
     },
     onError: () => {
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
@@ -226,37 +298,58 @@ function HeroSection() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="mb-10"
           >
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (email) signupMutation.mutate({ email });
-              }}
-              className="flex flex-col sm:flex-row gap-3 max-w-lg"
-              data-testid="form-hero-signup"
-            >
-              <label htmlFor="hero-email" className="sr-only">Email address</label>
-              <Input
-                type="email"
-                placeholder="Enter your email for early access"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1"
-                required
-                data-testid="input-hero-email"
-                id="hero-email"
-                aria-label="Email address for early access"
-              />
-              <Button 
-                type="submit" 
-                size="default"
-                disabled={signupMutation.isPending}
-                data-testid="button-hero-signup"
+            {showSuccess ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="max-w-lg"
+                data-testid="hero-signup-success"
               >
-                {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </form>
-            <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
+                <Card className="p-6 border-green-500/30 bg-green-500/5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Check className="w-5 h-5 text-green-500" />
+                    <span className="font-semibold text-foreground">You're on the list!</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    We'll send you SDK access details, documentation links, and priority updates. Check your inbox soon.
+                  </p>
+                </Card>
+              </motion.div>
+            ) : (
+              <>
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (email) signupMutation.mutate({ email });
+                  }}
+                  className="flex flex-col sm:flex-row gap-3 max-w-lg"
+                  data-testid="form-hero-signup"
+                >
+                  <label htmlFor="hero-email" className="sr-only">Email address</label>
+                  <Input
+                    type="email"
+                    placeholder="Enter your email for early access"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1"
+                    required
+                    data-testid="input-hero-email"
+                    id="hero-email"
+                    aria-label="Email address for early access"
+                  />
+                  <Button 
+                    type="submit" 
+                    size="default"
+                    disabled={signupMutation.isPending}
+                    data-testid="button-hero-signup"
+                  >
+                    {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </form>
+                <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
+              </>
+            )}
           </motion.div>
           
           <motion.div 
@@ -292,6 +385,7 @@ function HeroSection() {
             <AnimatedStat value="35" label="VM Opcodes" delay={0.34} />
           </div>
           <HeroVisual />
+          <HeroDemo />
         </div>
       </div>
     </section>
@@ -1191,6 +1285,7 @@ function TargetMarketsSection() {
 function DeveloperCTASection() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
   const { data: countData } = useQuery<{ count: number }>({
@@ -1206,6 +1301,7 @@ function DeveloperCTASection() {
       toast({ title: "You're in!", description: data.message });
       setEmail("");
       setName("");
+      setShowSuccess(true);
     },
     onError: () => {
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
@@ -1237,77 +1333,176 @@ function DeveloperCTASection() {
               )}
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (email) signupMutation.mutate({ email, name: name || undefined });
-              }}
-              className="max-w-lg mx-auto space-y-3"
-              data-testid="form-developer-signup"
-            >
-              <label htmlFor="signup-name" className="sr-only">Your name</label>
-              <Input
-                type="text"
-                placeholder="Your name (optional)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
-                data-testid="input-signup-name"
-                id="signup-name"
-              />
-              <label htmlFor="signup-email" className="sr-only">Email address</label>
-              <Input
-                type="email"
-                placeholder="developer@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
-                data-testid="input-signup-email"
-                id="signup-email"
-              />
-              <Button 
-                type="submit" 
-                size="lg"
-                variant="secondary"
-                className="w-full bg-background text-foreground"
-                disabled={signupMutation.isPending}
-                data-testid="button-developer-signup"
+            {showSuccess ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="max-w-lg mx-auto text-center"
+                data-testid="developer-signup-success"
               >
-                {signupMutation.isPending ? "Submitting..." : "Apply for SDK Access"}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </form>
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-foreground/20 mb-4">
+                  <Check className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Application Received!</h3>
+                <p className="opacity-90">
+                  Our team will review your request and reach out within 48 hours with SDK access credentials and onboarding documentation.
+                </p>
+              </motion.div>
+            ) : (
+              <>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (email) signupMutation.mutate({ email, name: name || undefined });
+                  }}
+                  className="max-w-lg mx-auto space-y-3"
+                  data-testid="form-developer-signup"
+                >
+                  <label htmlFor="signup-name" className="sr-only">Your name</label>
+                  <Input
+                    type="text"
+                    placeholder="Your name (optional)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
+                    data-testid="input-signup-name"
+                    id="signup-name"
+                  />
+                  <label htmlFor="signup-email" className="sr-only">Email address</label>
+                  <Input
+                    type="email"
+                    placeholder="developer@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
+                    data-testid="input-signup-email"
+                    id="signup-email"
+                  />
+                  <Button 
+                    type="submit" 
+                    size="lg"
+                    variant="secondary"
+                    className="w-full bg-background text-foreground"
+                    disabled={signupMutation.isPending}
+                    data-testid="button-developer-signup"
+                  >
+                    {signupMutation.isPending ? "Submitting..." : "Apply for SDK Access"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </form>
 
-            <div className="flex justify-center mt-4">
-              <Button variant="outline" size="lg" className="border-primary-foreground/30 text-primary-foreground" asChild data-testid="button-book-demo">
-                <a href="mailto:Rsalvi@Salvigroup.com?subject=PlenumNET%20Demo%20Request">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Book a Demo
-                </a>
-              </Button>
-            </div>
+                <div className="flex justify-center mt-4">
+                  <Button variant="outline" size="lg" className="border-primary-foreground/30 text-primary-foreground" asChild data-testid="button-book-demo">
+                    <a href="mailto:Rsalvi@Salvigroup.com?subject=PlenumNET%20Demo%20Request">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Book a Demo
+                    </a>
+                  </Button>
+                </div>
 
-            <div className="flex flex-wrap gap-6 justify-center mt-8 text-sm opacity-80">
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>SDK Access</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Developer Docs</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Core Team Support</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                <span>Priority Updates</span>
-              </div>
-            </div>
+                <div className="flex flex-wrap gap-6 justify-center mt-8 text-sm opacity-80">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    <span>SDK Access</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    <span>Developer Docs</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    <span>Core Team Support</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    <span>Priority Updates</span>
+                  </div>
+                </div>
+              </>
+            )}
           </Card>
         </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function ChangelogSection() {
+  const [commits, setCommits] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/SigmaWolf-8/Ternary/commits?per_page=5")
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { setCommits(data); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  if (!loaded || commits.length === 0) return null;
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `${days}d ago`;
+    return `${Math.floor(days / 30)}mo ago`;
+  };
+
+  return (
+    <section className="py-16 md:py-20 bg-secondary/30" data-testid="section-changelog">
+      <div className="max-w-4xl mx-auto px-5">
+        <div className="text-center mb-10">
+          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
+            Active Development
+          </Badge>
+          <h2 className="text-2xl md:text-3xl font-bold mb-3">Recent Updates</h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Continuous development on the Ternary kernel and platform.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {commits.map((commit: any, i: number) => (
+            <motion.div
+              key={commit.sha}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: i * 0.05 }}
+            >
+              <a
+                href={commit.html_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+                data-testid={`changelog-commit-${i}`}
+              >
+                <Card className="p-4 border-primary/10 bg-card/70 hover-elevate">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{commit.commit.message.split("\n")[0]}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {commit.commit.author?.name || "Unknown"} 
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">{timeAgo(commit.commit.author?.date)}</span>
+                  </div>
+                </Card>
+              </a>
+            </motion.div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-6">
+          <Button variant="outline" asChild data-testid="button-view-all-commits">
+            <a href="https://github.com/SigmaWolf-8/Ternary/commits" target="_blank" rel="noopener noreferrer">
+              View All Commits
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </a>
+          </Button>
+        </div>
       </div>
     </section>
   );
@@ -1328,9 +1523,10 @@ function Footer() {
       { label: "GitHub", href: "https://github.com/SigmaWolf-8/Ternary" },
     ],
     Company: [
+      { label: "About", href: "/about" },
       { label: "Documentation", href: "/docs" },
       { label: "CNSA 2.0 Compliance", href: "/compliance" },
-      { label: "Contact", href: "#early-access" },
+      { label: "Contact", href: "/contact" },
     ],
     Legal: [
       { label: "Privacy", href: "/privacy" },
@@ -1424,6 +1620,7 @@ export default function Landing() {
         <TrustSignals />
         <CodeSnippet />
         <TargetMarketsSection />
+        <ChangelogSection />
         <DeveloperCTASection />
       </main>
       <Footer />

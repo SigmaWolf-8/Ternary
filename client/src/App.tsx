@@ -41,6 +41,8 @@ const CompliancePage = lazy(() => import("@/pages/compliance"));
 const HPTPDemo = lazy(() => import("@/pages/hptp-demo"));
 const ThirteenMoonPage = lazy(() => import("@/pages/thirteen-moon"));
 const CompressionPage = lazy(() => import("@/pages/compression"));
+const About = lazy(() => import("@/pages/about"));
+const Contact = lazy(() => import("@/pages/contact"));
 
 function LoadingSpinner() {
   return (
@@ -70,6 +72,8 @@ function Router() {
         <Route path="/hptp" component={HPTPDemo} />
         <Route path="/13-moon" component={ThirteenMoonPage} />
         <Route path="/compression" component={CompressionPage} />
+        <Route path="/about" component={About} />
+        <Route path="/contact" component={Contact} />
         <Route path="/terms" component={LegalPage} />
         <Route path="/privacy" component={LegalPage} />
         <Route path="/security" component={LegalPage} />
