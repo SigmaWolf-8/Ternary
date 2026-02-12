@@ -1,0 +1,242 @@
+# Enterprise Service Level Agreement
+## PlenumNET — Deployable Post-Quantum Internet Solutions
+### Capomastro Holdings Ltd., Applied Physics Division
+
+**⛔ CONFIDENTIAL — INTERNAL USE ONLY — DO NOT COMMIT TO PUBLIC REPOSITORY ⛔**
+
+**Version:** 1.0
+**Effective Date:** February 11, 2026
+**Document Classification:** Template — To be executed as an exhibit to the Master Service Agreement
+
+---
+
+## 1. Scope
+
+This Service Level Agreement ("SLA") defines the performance commitments, availability targets, support obligations, and compliance warranties provided by Capomastro Holdings Ltd., a corporation incorporated under the laws of Canada ("Provider") to the contracting enterprise customer ("Customer") for use of the PlenumNET platform and associated services (the "Service"). This SLA is incorporated by reference into the Master Service Agreement ("MSA") between the parties.
+
+---
+
+## 2. Service Tiers
+
+| Feature | Standard | Professional | Enterprise |
+|---------|----------|-------------|------------|
+| Monthly Uptime Target | 99.5% | 99.9% | 99.99% |
+| API Rate Limit | 1,000 req/min | 10,000 req/min | Custom |
+| Support Response (Severity 1) | 4 business hours | 1 hour (24/7) | 15 minutes (24/7) |
+| Support Response (Severity 2) | 8 business hours | 4 business hours | 1 hour |
+| Support Response (Severity 3) | 2 business days | 1 business day | 4 business hours |
+| Dedicated Account Manager | No | No | Yes |
+| Custom Deployment Options | No | Limited | Full (on-premise, private cloud, hybrid) |
+| HPTP Timing Compliance Pack | Add-on | Included | Included |
+| FIPS 140-3 / CCCS Module Access | No | Add-on | Included |
+| Source Code Escrow | No | No | Available |
+| Quarterly Business Reviews | No | No | Yes |
+
+---
+
+## 3. Availability
+
+### 3.1 Definitions
+
+**"Monthly Uptime Percentage"** means the total number of minutes in a calendar month minus the number of minutes of Downtime, divided by the total number of minutes in the month, expressed as a percentage.
+
+**"Downtime"** means the period during which the Service is unavailable, as measured by Provider's monitoring systems. Downtime does not include: (a) scheduled maintenance windows communicated at least 72 hours in advance; (b) force majeure events; (c) failures caused by Customer's equipment, software, or network; (d) failures resulting from Customer's use of the Service in violation of the Terms of Service or Acceptable Use Policy; or (e) DNS propagation delays outside Provider's control.
+
+### 3.2 Service Credits
+
+If the Monthly Uptime Percentage falls below the applicable target, Customer is eligible for service credits:
+
+| Monthly Uptime | Standard Credit | Professional Credit | Enterprise Credit |
+|---------------|----------------|--------------------|--------------------|
+| 99.0% – target | 5% of monthly fee | 10% of monthly fee | 10% of monthly fee |
+| 95.0% – 99.0% | 10% | 20% | 25% |
+| 90.0% – 95.0% | 20% | 30% | 40% |
+| Below 90.0% | 30% | 50% | 50% + right to terminate |
+
+Service credits are applied against future invoices. Credits do not exceed 50% of the monthly fee for the affected month. Credits are the Customer's sole and exclusive remedy for failure to meet the uptime target.
+
+### 3.3 Maintenance Windows
+
+Standard maintenance windows are: Sundays 02:00–06:00 UTC. Emergency maintenance may occur outside this window with best-effort advance notice.
+
+---
+
+## 4. Support
+
+### 4.1 Severity Classification
+
+| Severity | Definition | Example |
+|----------|-----------|---------|
+| **1 — Critical** | Service completely unavailable or cryptographic operations producing incorrect results; data loss imminent | API returns 5xx on all endpoints; encryption/decryption produces non-deterministic output |
+| **2 — High** | Major feature degraded or unavailable; workaround exists but impact is significant | HPTP timing exceeds tolerance thresholds; specific API endpoints failing; authentication issues |
+| **3 — Low** | Minor issue; cosmetic defect; feature request; documentation correction | UI rendering issue; non-critical API response delay; documentation error |
+
+### 4.2 Escalation Path
+
+| Escalation Level | Trigger | Contact |
+|-----------------|---------|---------|
+| Level 1 | Initial report | Support team (email/ticket) |
+| Level 2 | SLA response time exceeded or Severity 1 unresolved >1 hour | Engineering lead |
+| Level 3 | Severity 1 unresolved >4 hours or recurring Severity 2 | Applied Physics Division head |
+| Executive | Severity 1 unresolved >8 hours or systemic failure | C-level / Designated executive |
+
+---
+
+## 5. High-Precision Timing Protocol (HPTP) — Regulatory Compliance Pack
+
+### 5.1 Overview
+
+The HPTP Compliance Pack provides timing guarantees and audit capabilities designed to support Customer's obligations under applicable financial timing regulations. This section applies to Customers who have subscribed to the Professional or Enterprise tier, or who have added the HPTP Compliance Pack.
+
+### 5.2 Canadian Securities Regulation — IIROC / CSA
+
+The Investment Industry Regulatory Organization of Canada (IIROC, now part of the Canadian Investment Regulatory Organization — CIRO) and the Canadian Securities Administrators (CSA) require market participants to maintain synchronized clocks for audit trail purposes under National Instrument 23-103 (Electronic Trading and Direct Electronic Access).
+
+| Requirement | NI 23-103 / CIRO Guidance | PlenumNET HPTP Capability |
+|------------|--------------------------|--------------------------|
+| Clock synchronization | Synchronized to a reliable time source | Femtosecond-scale precision anchored to Salvi Epoch with UTC cross-reference |
+| Timestamp granularity | Millisecond (minimum) | Femtosecond (10⁻¹⁵ seconds) |
+| Audit trail | Required for order routing records | Self-test endpoint provides 1,000-sample jitter analysis; synchronization certificates available |
+
+**Provider Warranty (Canadian Securities):** Provider warrants that the HPTP service is designed to generate timestamps with a precision that substantially exceeds CIRO/CSA timing requirements. Provider will supply synchronization certificates and calibration reports suitable for presentation to CIRO examiners upon reasonable request.
+
+### 5.3 FINRA Rule 613 (U.S. Consolidated Audit Trail) Compliance
+
+| Requirement | FINRA 613 Specification | PlenumNET HPTP Capability |
+|------------|------------------------|--------------------------|
+| Clock synchronization tolerance | ±50 milliseconds of NIST atomic clock | Femtosecond-scale precision (exceeds by >10⁹ factor) |
+| Timestamp granularity | Millisecond | Femtosecond |
+| Clock offset measurement | Required | Self-test endpoint provides 1,000-sample jitter analysis |
+| Audit trail retention | Per CAT NMS Plan | Customer responsibility; Provider supplies timestamp metadata |
+
+**Provider Warranty (FINRA):** Provider warrants that the HPTP service, when properly configured and operating within documented parameters, is designed to synchronize timestamps to an accuracy that exceeds FINRA Rule 613 timing requirements by a margin of not less than six orders of magnitude. Provider will supply synchronization certificates, jitter analysis reports, and calibration records suitable for FINRA examination upon reasonable request.
+
+### 5.4 MiFID II / MiFIR (EU) — RTS 25 Compliance
+
+| Requirement | RTS 25 Specification | PlenumNET HPTP Capability |
+|------------|---------------------|--------------------------|
+| Maximum divergence from UTC | Activity-dependent (1 second to 100 microseconds) | Femtosecond precision (exceeds all tiers) |
+| Granularity for HFT | 1 microsecond or better | Femtosecond (exceeds by >10⁹ factor) |
+| Traceability to UTC | Required | Anchored to Salvi Epoch with deterministic UTC cross-reference |
+| Record retention | 5 years | Provider supplies; Customer retains |
+
+**Provider Warranty (MiFID II):** Provider warrants that the HPTP service is designed to exceed RTS 25 timing requirements across all activity categories. Provider will supply UTC traceability documentation, calibration reports, and network latency correction methodology documentation upon reasonable request.
+
+### 5.5 OSFI Expectations (Canadian Financial Institutions)
+
+For Customers that are federally regulated financial institutions (FRFIs), the Office of the Superintendent of Financial Institutions (OSFI) Guideline B-13 (Technology and Cyber Risk Management) requires sound technology risk management, including auditability of critical systems.
+
+**Provider Commitment (OSFI):** Provider will cooperate with Customer's OSFI compliance requirements by providing: (a) technology risk assessments for the HPTP service upon request; (b) third-party audit reports (SOC 2 Type II or equivalent) when available; (c) business continuity and disaster recovery documentation; and (d) incident notification within timelines consistent with OSFI expectations.
+
+### 5.6 Salvi Epoch Cross-Reference
+
+The HPTP system anchors timestamps to the **Salvi Epoch** (April 1, 2025, 00:00:00.000000000000000 UTC). All HPTP timestamps can be deterministically converted to Unix time, UTC, TAI, and GPS time. Provider maintains and publishes the conversion formulas and leap-second tables required for regulatory cross-referencing.
+
+### 5.7 Limitations and Disclaimers
+
+5.7.1 **Provider does not warrant regulatory compliance.** The warranties in Sections 5.2–5.4 are limited to the technical capabilities of the HPTP service. Regulatory compliance is a function of how the Customer implements, configures, and uses the timing data. Provider is not responsible for Customer's overall compliance posture.
+
+5.7.2 **Network dependency.** Femtosecond-precision warranties apply to timestamps as generated at the Provider's infrastructure. Actual precision at the Customer's endpoint may be reduced by network conditions. The HPTP network latency correction feature mitigates but does not eliminate this effect.
+
+5.7.3 **Regulatory changes.** Provider monitors relevant regulations. If requirements change, Provider will use commercially reasonable efforts to adapt. Provider does not guarantee future compliance with regulations not yet enacted.
+
+---
+
+## 6. Cryptographic Services — FIPS 140-3 / CCCS Compliance
+
+### 6.1 CMVP Certification Status
+
+| Item | Status |
+|------|--------|
+| Target validation level | FIPS 140-3, Security Level 1 |
+| ACVTS registration | Ready (JSON registration files generated) |
+| CAVP algorithm certificates | Pending |
+| CMVP module certificate | Pending |
+
+**Disclosure:** As of the Effective Date, the Salvi Ternary Cryptographic Module has **not yet received** FIPS 140-3 CMVP certification. The CMVP is jointly administered by NIST (USA) and the Canadian Centre for Cyber Security (CCCS). References to FIPS 140-3 describe design targets and compliance objectives.
+
+### 6.2 CCCS Guidance Alignment
+
+The Service is designed to align with CCCS guidance including ITSAP.00.017 (Post-Quantum Cryptography) and ITSP.40.111 (Cryptographic Algorithms for UNCLASSIFIED, PROTECTED A, and PROTECTED B Information). Full alignment documentation is available upon request under NDA.
+
+### 6.3 Canadian Government Procurement — Crown Use Notice
+
+Customers who are Canadian federal government entities should be aware of **section 19 of the Patent Act** (R.S.C., 1985, c. P-4), which permits the Government of Canada to use patented inventions for government purposes, subject to payment of reasonable compensation to the patent holder. Provider acknowledges this statutory provision and will negotiate Crown use terms in good faith as part of the MSA for government customers.
+
+### 6.4 CNSA 2.0 Algorithm Coverage
+
+Provider warrants that the Service implements all 11 algorithms required by NSA CNSA 2.0 guidance, using implementations designed for constant-time execution and side-channel resistance.
+
+### 6.5 Post-Certification Warranty
+
+Upon FIPS 140-3 CMVP certification, Provider will (a) update this SLA with the certificate number, (b) provide Customer with the Security Policy and validation certificate, and (c) warrant that subsequent updates maintain validated status or are clearly identified as non-validated builds.
+
+---
+
+## 7. Data Protection
+
+### 7.1 PIPEDA Compliance
+
+Provider's processing of Customer personal information complies with the Personal Information Protection and Electronic Documents Act (S.C. 2000, c. 5) ("PIPEDA") and applicable provincial privacy legislation. Provider acts as an agent of Customer for the purposes of PIPEDA when processing personal information on Customer's behalf.
+
+### 7.2 Data Processing
+
+Provider processes Customer data solely for the purpose of delivering the Service. Provider does not use Customer data for any other purpose, including training machine learning models, analytics, advertising, or sale to third parties.
+
+### 7.3 Data Residency
+
+For Enterprise tier customers, Provider will accommodate reasonable data residency requirements. Available regions will be specified in the MSA. For Canadian financial institution customers subject to OSFI Guideline B-10, Provider will provide notification and comply with applicable outsourcing requirements for cross-border data flows.
+
+### 7.4 Breach Notification
+
+In the event of a breach of security safeguards involving Customer personal information, Provider will: (a) notify Customer within 72 hours of confirmed detection; (b) cooperate with Customer's notification obligations under PIPEDA section 10.1; (c) provide a preliminary incident report within 5 business days; (d) provide a root cause analysis within 30 days; and (e) implement remediation measures.
+
+---
+
+## 8. Source Code Escrow (Enterprise Tier)
+
+Upon Customer request and subject to the MSA, Provider will deposit a copy of the Service source code, build instructions, and cryptographic key material necessary to independently build and operate the Service into a third-party escrow account with a recognized Canadian or international escrow agent. Release conditions include: (a) Provider ceases business operations; (b) Provider files for bankruptcy or insolvency proceedings under the Bankruptcy and Insolvency Act (R.S.C., 1985, c. B-3) or the Companies' Creditors Arrangement Act (R.S.C., 1985, c. C-36); (c) Provider fails to cure a material breach of the MSA within 60 days of notice.
+
+---
+
+## 9. General Terms
+
+### 9.1 Term
+
+This SLA is coterminous with the MSA between the parties.
+
+### 9.2 Modifications
+
+Provider may modify this SLA upon 90 days' written notice to Customer. Modifications that materially reduce service levels during the current contract term require Customer consent.
+
+### 9.3 Governing Law
+
+This SLA is governed by the federal laws of Canada and the laws of the Province of Ontario applicable therein. The parties irrevocably attorn to the jurisdiction of the courts of the Province of Ontario, Canada.
+
+### 9.4 Language
+
+Les parties ont expressément exigé que la présente entente et tous les documents qui s'y rapportent soient rédigés en anglais.
+
+### 9.5 Currency
+
+All fees, credits, and financial amounts in this SLA are denominated in Canadian Dollars (CAD) unless otherwise specified in the MSA.
+
+### 9.6 Order of Precedence
+
+In the event of a conflict between this SLA and the MSA, the MSA controls unless this SLA explicitly states otherwise.
+
+---
+
+## 10. Contact
+
+Service Status: [status page URL to be specified]
+Support: [support contact to be specified]
+Account Management: [account contact to be specified]
+
+Capomastro Holdings Ltd.
+Applied Physics Division
+Canada
+
+---
+
+*This SLA is a template for negotiation and execution as an exhibit to a Master Service Agreement. It does not constitute a binding commitment until executed by both parties. All performance targets, warranties, and credits are subject to the MSA.*

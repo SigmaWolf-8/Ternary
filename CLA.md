@@ -6,7 +6,7 @@
 
 ---
 
-Thank you for your interest in contributing to the Salvi Framework / PlenumNET project ("Project"), owned and maintained by Capomastro Holdings Ltd. ("Company"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Company. To make this document effective, please sign it and send it to the Company at Rsalvi@Salvigroup.com. This is a legally binding document, so please read it carefully before agreeing to it.
+Thank you for your interest in contributing to the Salvi Framework / PlenumNET project ("Project"), owned and maintained by Capomastro Holdings Ltd., a corporation incorporated under the laws of Canada ("Company"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Company. To make this document effective, please sign it and send it to the Company at [licensing contact to be specified]. This is a legally binding document, so please read it carefully before agreeing to it.
 
 ---
 
@@ -24,7 +24,7 @@ Thank you for your interest in contributing to the Salvi Framework / PlenumNET p
 
 Subject to the terms and conditions of this Agreement, You hereby assign to the Company joint ownership of the copyright in all Your Contributions. This assignment includes all rights to use, reproduce, modify, distribute, publicly perform, publicly display, sublicense, and create derivative works from Your Contributions, in any form and for any purpose, without restriction.
 
-To the extent that the above assignment is or becomes invalid or unenforceable, You hereby grant to the Company a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute Your Contributions and such derivative works.
+To the extent that the above assignment is or becomes invalid or unenforceable under any applicable law, including the **Canadian Copyright Act** (R.S.C., 1985, c. C-42), You hereby grant to the Company a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute Your Contributions and such derivative works.
 
 ---
 
@@ -46,47 +46,51 @@ You represent that:
 
 ---
 
-## 5. Support and Warranty Disclaimer
+## 5. Moral Rights
+
+To the fullest extent permitted by applicable law, including **section 14.1 of the Canadian Copyright Act** (R.S.C., 1985, c. C-42), You hereby waive and agree not to assert any moral rights You may have in Your Contributions, including but not limited to the right of attribution, the right of integrity, and the right to be associated with the work. You acknowledge that under Canadian law, moral rights cannot be assigned but can be waived, and this waiver is intended to be as broad as permitted by law.
+
+---
+
+## 6. Support and Warranty Disclaimer
 
 You are not expected to provide support for Your Contributions, except to the extent You desire to provide support. You may provide support for free, for a fee, or not at all. Unless required by applicable law or agreed to in writing, You provide Your Contributions on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE.
 
 ---
 
-## 6. Notification
+## 7. Notification
 
 You agree to notify the Company of any facts or circumstances of which You become aware that would make these representations inaccurate in any respect.
 
 ---
 
-## 7. Moral Rights
-
-To the fullest extent permitted by applicable law, You hereby waive and agree not to assert any moral rights You may have in Your Contributions, including but not limited to the right of attribution, the right of integrity, and the right to object to derogatory treatment.
-
----
-
 ## 8. Governing Law
 
-This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which Capomastro Holdings Ltd. is incorporated.
+This Agreement shall be governed by and construed in accordance with the federal laws of Canada and the laws of the Province of Ontario applicable therein, without regard to conflict of laws principles. The parties irrevocably attorn to the jurisdiction of the courts of the Province of Ontario, Canada.
 
 ---
 
-## 9. Entire Agreement
+## 9. Language
+
+The parties have expressly required that this Agreement and all related documents be drawn up in the English language. Les parties ont expressément exigé que la présente entente et tous les documents qui s'y rapportent soient rédigés en anglais.
+
+---
+
+## 10. Entire Agreement
 
 This Agreement constitutes the entire agreement between the parties with respect to the subject matter hereof, and supersedes all prior and contemporaneous understandings, agreements, representations, and warranties.
 
 ---
 
-## Signature
-
-Please sign below to indicate your agreement to the terms of this Contributor License Agreement.
-
-**Contributor:**
+## Signature — Individual Contributor
 
 Full Legal Name: ___________________________________________
 
 GitHub Username: ___________________________________________
 
 Email Address: ___________________________________________
+
+Country of Residence: ___________________________________________
 
 Employer (if applicable): ___________________________________________
 
@@ -96,11 +100,13 @@ Date: ___________________________________________
 
 ---
 
-**For Corporate Contributors:**
+## Signature — Corporate Contributor
 
 If You are making Contributions on behalf of a legal entity, an authorized representative of that entity must also sign:
 
 Corporate Name: ___________________________________________
+
+Jurisdiction of Incorporation: ___________________________________________
 
 Authorized Representative: ___________________________________________
 
@@ -112,5 +118,5 @@ Date: ___________________________________________
 
 ---
 
-*Return signed copies to: Rsalvi@Salvigroup.com*
+*Return signed copies to: [licensing contact to be specified]*
 *Repository: https://github.com/SigmaWolf-8/Ternary*

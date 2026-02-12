@@ -2,89 +2,112 @@
 ## Salvi Framework — PlenumNET Ternary Computing Platform
 ### Capomastro Holdings Ltd., Applied Physics Division
 
-**Effective Date:** February 11, 2026  
+**Effective Date:** February 11, 2026
 **Classification Review Date:** February 11, 2026
 
 ---
 
-## 1. Classification Statement
+## 1. Overview
 
-The Salvi Framework and PlenumNET platform contain cryptographic functionality that is subject to the export control laws and regulations of the United States and other jurisdictions. Based on a self-classification review of the software's capabilities, the following determination has been made:
+Capomastro Holdings Ltd. is a **Canadian corporation**. The Salvi Framework and PlenumNET platform contain cryptographic functionality subject to the export control laws of **both Canada and the United States**, as well as international multilateral regimes. This notice addresses compliance obligations under all applicable frameworks.
+
+---
+
+## 2. Canadian Export Controls
+
+### 2.1 Governing Legislation
+
+- **Export and Import Permits Act** (R.S.C., 1985, c. E-19) ("EIPA")
+- **Export Control List** (SOR/89-202) ("ECL")
+- **Area Control List** (SOR/81-543)
+- **Automatic Firearms Country Control List** (SOR/91-575)
+- **Special Economic Measures Act** (S.C. 1992, c. 17) ("SEMA")
+- **United Nations Act** (R.S.C., 1985, c. U-2) — implementing UN Security Council sanctions
+- **Administered by:** Global Affairs Canada (GAC), Trade Controls Bureau
+
+### 2.2 ECL Classification
 
 | Parameter | Classification |
 |-----------|---------------|
-| **Export Control Classification Number (ECCN)** | **5D002** |
+| **ECL Group** | **Group 5 — Telecommunications and Information Security** |
+| **ECL Category** | **Category 2 — Information Security** |
+| **ECL Item** | **5-2.D.1** — Software specially designed or modified for the development, production, or use of technology controlled under 5-2.A.1 (information security systems and equipment) |
+| **Wassenaar Basis** | Wassenaar Arrangement, Category 5, Part 2 |
+
+### 2.3 Controlled Cryptographic Functionality
+
+The following cryptographic capabilities trigger ECL Group 5, Category 2 controls:
+
+| Algorithm / Function | Standard | Control Basis |
+|---------------------|----------|---------------|
+| AES-256-GCM | FIPS 197 / SP 800-38D | Symmetric encryption >56-bit key |
+| ML-KEM-512 / 768 / 1024 | FIPS 203 | Asymmetric key exchange |
+| ML-DSA-44 / 65 / 87 | FIPS 204 | Asymmetric digital signature |
+| SHA-384 / SHA-512 | FIPS 180-4 | Ancillary to controlled algorithms |
+| SHA3-384 / SHA3-512 | FIPS 202 | Ancillary to controlled algorithms |
+| HMAC-SHA-384 / HMAC-SHA-512 | FIPS 198-1 | Ancillary to controlled algorithms |
+| LMS / XMSS | SP 800-208 | Asymmetric authentication |
+| HMAC-DRBG-SHA384 | SP 800-90A | Ancillary to controlled algorithms |
+| Phase Encryption | Proprietary | Proprietary encryption methodology |
+| TL-KEM / TL-DSA | Proprietary (interop bridge) | Proprietary key exchange / authentication |
+
+### 2.4 Canadian Export Permit Requirements
+
+Under EIPA section 7, an **export permit** from GAC is required before exporting controlled goods or technology to any country, unless an exemption applies.
+
+**Exemptions and General Export Permits (GEPs):**
+- **GEP No. 45 (Export of Cryptography for Use by Certain Consignees):** May exempt certain exports of mass-market or publicly available cryptographic software. Applicability to the Salvi Framework must be assessed by export counsel, as the Software contains proprietary (non-mass-market) cryptographic implementations.
+- **GEP No. 12 (United States):** Permits most controlled exports to the United States without an individual permit. Applicable to the Salvi Framework for US-destined exports.
+
+**Prohibited Destinations:** Export is prohibited to countries on the **Area Control List** (currently: Belarus, North Korea) and to destinations subject to sanctions under SEMA or UN Act regulations (currently including: Iran, Syria, Russia (partial), and others as updated by GAC).
+
+**Status:** Assessment of applicable GEP exemptions is **PENDING**. No exports to controlled destinations may occur until this assessment is complete.
+
+### 2.5 Post-Quantum Considerations (Canadian)
+
+As of the date of this notice, GAC has not issued specific guidance on the classification of post-quantum cryptographic algorithms under the ECL. The Canadian Centre for Cyber Security (CCCS) has issued guidance on post-quantum preparedness (ITSAP.00.017) but has not addressed export classification. This notice treats post-quantum algorithms under the same ECL Group 5 framework applicable to classical cryptography. This classification should be reviewed upon issuance of any GAC or CCCS advisory.
+
+---
+
+## 3. United States Export Controls
+
+### 3.1 Applicability to a Canadian Corporation
+
+The U.S. Export Administration Regulations (EAR) apply to the Software to the extent that it: (a) is of U.S. origin; (b) contains U.S.-origin components or technology; (c) is exported from the United States; or (d) is re-exported to a third country from Canada. As the Software is developed in Canada using primarily Canadian-origin technology, direct EAR jurisdiction over the Software is limited. However, because the PlenumNET SaaS platform may be accessed by U.S. persons and from U.S. territory, and because some third-party dependencies may be of U.S. origin, we maintain EAR compliance as a precautionary measure.
+
+### 3.2 EAR Self-Classification
+
+| Parameter | Classification |
+|-----------|---------------|
+| **ECCN** | **5D002** |
 | **Reason for Control** | National Security (NS), Anti-Terrorism (AT) |
-| **Applicable Regulations** | U.S. Export Administration Regulations (EAR), 15 CFR Parts 730–774 |
-| **License Exception** | ENC (§740.17) — subject to conditions described below |
-| **Wassenaar Arrangement Category** | Category 5, Part 2 — Information Security |
+| **License Exception** | ENC (§740.17) — subject to conditions |
 
-### 1.1 Basis for ECCN 5D002 Classification
+### 3.3 License Exception ENC (§740.17)
 
-The Software implements, contains, or provides access to the following controlled cryptographic algorithms and functionality:
+The Software may qualify for export under License Exception ENC. A **self-classification filing** with BIS and the ENC Encryption Request Coordinator (NSA) is required before export under this exception.
 
-| Algorithm / Function | Standard | Key Length / Security Level | EAR Control Basis |
-|---------------------|----------|---------------------------|-------------------|
-| AES-256-GCM | FIPS 197 / SP 800-38D | 256-bit symmetric | §742.15(b)(1) — symmetric >56-bit |
-| ML-KEM-512 / 768 / 1024 | FIPS 203 | Lattice-based KEM, multiple levels | §742.15(b)(3) — asymmetric key exchange |
-| ML-DSA-44 / 65 / 87 | FIPS 204 | Lattice-based signatures | §742.15(b)(3) — asymmetric authentication |
-| SHA-384 / SHA-512 | FIPS 180-4 | 384/512-bit digest | Ancillary to controlled algorithms |
-| SHA3-384 / SHA3-512 | FIPS 202 | 384/512-bit digest | Ancillary to controlled algorithms |
-| HMAC-SHA-384 / HMAC-SHA-512 | FIPS 198-1 | Keyed hash | Ancillary to controlled algorithms |
-| LMS / XMSS | SP 800-208 | Stateful hash-based signatures | §742.15(b)(3) — asymmetric authentication |
-| HMAC-DRBG-SHA384 | SP 800-90A | Deterministic random bit generation | Ancillary to controlled algorithms |
-| Phase Encryption | Proprietary | Dual-phase, Tribonacci-weighted | §742.15(b)(1) — proprietary encryption |
-| TL-KEM / TL-DSA | Proprietary (interop bridge) | Ternary-lattice hybrid | §742.15(b)(3) — proprietary key exchange/auth |
+**Status:** Self-classification filing is **PENDING**. No exports may occur under License Exception ENC until this filing is complete.
 
-### 1.2 Post-Quantum Considerations
+### 3.4 Prohibited Destinations and End-Users (U.S.)
 
-As of the date of this notice, NIST post-quantum algorithms (ML-KEM, ML-DSA) are newly standardized under FIPS 203 and FIPS 204. The Bureau of Industry and Security (BIS) has not issued specific guidance distinguishing post-quantum algorithms from classical cryptographic controls. Accordingly, this classification treats post-quantum algorithms under the same ECCN 5D002 framework applicable to classical asymmetric cryptography. This classification should be reviewed upon issuance of BIS guidance specific to post-quantum cryptography.
+Under the EAR, the Software may not be exported or re-exported to:
 
----
+- **Embargoed Countries (Country Group E:1 and E:2):** Cuba, Iran, North Korea, Syria, and the Crimea, Donetsk, and Luhansk regions of Ukraine
+- **Military, Intelligence, and Law Enforcement End-Users in Country Group D:1** (including China, Russia, Venezuela, Belarus) without a specific license
+- **Entity List / SDN List:** Any entity or individual on the BIS Entity List, OFAC SDN List, or Denied Persons List
 
-## 2. License Exception ENC (§740.17)
+### 3.5 SaaS / Cloud Access
 
-The Software may qualify for export under License Exception ENC, subject to the following conditions:
-
-### 2.1 Self-Classification Filing
-
-Pursuant to §740.17(b)(1), a self-classification report must be filed with BIS and the ENC Encryption Request Coordinator (NSA) before any export or re-export under License Exception ENC. The required information includes:
-
-- Product name and model/version number
-- ECCN and authorization paragraph under §740.17
-- Encryption algorithm and key length
-- Description of encryption functionality
-- Product availability (commercial, custom, or internal use)
-
-**Status:** Self-classification filing is PENDING. No exports may occur under License Exception ENC until this filing is complete and acknowledged.
-
-### 2.2 Eligible End-Users and Destinations
-
-Under License Exception ENC, the Software may be exported to most commercial end-users in most countries, **except**:
-
-- **Embargoed Countries (Country Group E:1 and E:2):** Cuba, Iran, North Korea, Syria, and the Crimea, Donetsk, and Luhansk regions of Ukraine. Export to these destinations is **prohibited** without a specific BIS license.
-- **Military, Intelligence, and Law Enforcement End-Users in Country Group D:1:** Exports to government end-users (as defined in §740.17(d)) in countries listed in Country Group D:1 (including but not limited to China, Russia, Venezuela, and Belarus) require a license and do not qualify for License Exception ENC.
-- **Entity List / SDN List:** No export to any entity or individual on the BIS Entity List, OFAC Specially Designated Nationals (SDN) List, or Denied Persons List.
-
-### 2.3 SaaS / Cloud Access Considerations
-
-Access to the PlenumNET SaaS platform (including API endpoints that perform cryptographic operations) constitutes a "deemed export" when accessed by foreign nationals and an "export" when accessed from foreign territories. The EAR applies to cloud-based cryptographic services in the same manner as downloadable software. Geo-blocking or access controls should be implemented for embargoed destinations.
-
----
-
-## 3. ITAR Considerations
-
-Based on the current functionality of the Software, it does not appear to fall under the International Traffic in Arms Regulations (ITAR) or the United States Munitions List (USML). The cryptographic functionality is commercial in nature and is not specifically designed, developed, configured, adapted, or modified for military applications.
-
-However, if the Software is subsequently modified for or integrated into defense articles, or if it is specifically designed for military, intelligence, or space applications, a separate ITAR jurisdictional determination should be conducted.
+Access to the PlenumNET SaaS platform (including API endpoints performing cryptographic operations) constitutes a "deemed export" under the EAR when accessed by foreign nationals from U.S. territory, and an "export" when accessed from foreign territory. Geo-blocking or access controls should be implemented for embargoed destinations.
 
 ---
 
 ## 4. Wassenaar Arrangement
 
-The Wassenaar Arrangement on Export Controls for Conventional Arms and Dual-Use Goods and Technologies includes cryptographic software in Category 5, Part 2 (Information Security). Participating states implement Wassenaar controls through their national export control regimes. Users and distributors of the Software outside the United States should consult their national export control authority for applicable requirements.
+The Wassenaar Arrangement on Export Controls for Conventional Arms and Dual-Use Goods and Technologies includes cryptographic software in **Category 5, Part 2 (Information Security)**. Canada, the United States, and 40 other participating states implement Wassenaar controls through their national export control regimes.
 
-Key Wassenaar participating states with significant cryptographic export controls include: Australia, Canada, France, Germany, Japan, the Netherlands, and the United Kingdom. Regulations vary by jurisdiction.
+Users and distributors of the Software outside Canada should consult their national export control authority for applicable requirements.
 
 ---
 
@@ -92,32 +115,29 @@ Key Wassenaar participating states with significant cryptographic export control
 
 By accessing, downloading, or using the Software or the PlenumNET Service, you acknowledge and agree that:
 
-5.1 You will comply with all applicable export control laws and regulations, including the EAR, ITAR, EU Dual-Use Regulation (EU 2021/821), and equivalent laws of your jurisdiction.
+5.1 You will comply with all applicable export control laws and regulations, including Canada's EIPA and ECL, the U.S. EAR, and the export control laws of your jurisdiction.
 
-5.2 You are not located in, and will not access the Software from, any country subject to a U.S. comprehensive embargo (Cuba, Iran, North Korea, Syria, Crimea/Donetsk/Luhansk regions of Ukraine).
+5.2 You are not located in, and will not access the Software from, any country subject to Canadian sanctions under SEMA or the UN Act, or U.S. comprehensive embargoes.
 
-5.3 You are not listed on, and are not acting on behalf of any entity listed on, the BIS Entity List, OFAC SDN List, Denied Persons List, or any equivalent restricted party list.
+5.3 You are not listed on, and are not acting on behalf of any entity listed on, Canada's Consolidated Canadian Autonomous Sanctions List, the BIS Entity List, OFAC SDN List, Denied Persons List, or any equivalent restricted party list.
 
-5.4 You will not use the Software for any end-use prohibited by the EAR, including but not limited to: the design, development, production, stockpiling, or use of chemical, biological, or nuclear weapons, or missiles capable of delivering such weapons.
+5.4 You will not use the Software for any end-use prohibited by applicable export control laws, including the development of weapons of mass destruction.
 
-5.5 You will not re-export, transfer, or divert the Software or any technical data derived from it to any destination, end-user, or end-use prohibited by applicable export control laws without first obtaining the required authorization.
+5.5 You will not re-export, transfer, or divert the Software to any prohibited destination, end-user, or end-use without obtaining required authorization.
 
 ---
 
-## 6. Encryption Source Code
+## 6. Encryption Source Code — Public Availability
 
-Portions of the Software's encryption source code are publicly available on GitHub. Under EAR §742.15(b) Note, publicly available encryption source code is not subject to the EAR when it is available to the public without restriction, provided that:
+Portions of the Software's encryption source code are publicly visible on GitHub. Under Canadian law, the EIPA controls apply to "exports," defined as shipment out of Canada; the public availability of source code on a globally accessible platform may constitute an export. Under the EAR, publicly available encryption source code may qualify for an exclusion under §742.15(b) Note, provided notification is sent to BIS and the code is not subject to a licensing fee for commercial use.
 
-- Notification is sent to BIS and the ENC Encryption Request Coordinator
-- The code is not subject to an express agreement for payment of a licensing fee or royalty for commercial production or sale of any product
-
-The current repository is publicly visible but subject to a proprietary license that restricts commercial use. Accordingly, the publicly available source code exception may **not** apply, and the Software should be treated as controlled under ECCN 5D002 regardless of its visibility on GitHub.
+The current repository is publicly visible but subject to a **proprietary license** that restricts commercial use. Accordingly, the EAR publicly available source code exception may **not** apply. The Software should be treated as controlled under both Canadian and U.S. export control regimes regardless of its visibility on GitHub.
 
 ---
 
 ## 7. Record-Keeping
 
-Capomastro Holdings Ltd. will maintain records of all exports, re-exports, and transfers of the Software as required by EAR §762. Records will be retained for a minimum of five (5) years from the date of export.
+Capomastro Holdings Ltd. will maintain records of all exports, re-exports, and transfers of the Software as required by the EIPA and applicable regulations, and by EAR §762 to the extent applicable. Records will be retained for a minimum of **six (6) years** from the date of export (the longer of the Canadian and U.S. retention requirements).
 
 ---
 
@@ -126,9 +146,10 @@ Capomastro Holdings Ltd. will maintain records of all exports, re-exports, and t
 This Export Control Notice will be updated upon:
 
 - Changes to the cryptographic functionality of the Software
+- Issuance of GAC or CCCS guidance on post-quantum cryptographic export controls
 - Issuance of BIS guidance on post-quantum cryptographic controls
-- Changes to the EAR, ITAR, Wassenaar Arrangement, or equivalent regulations
-- Completion of the License Exception ENC self-classification filing
+- Changes to the EIPA, ECL, EAR, Wassenaar Arrangement, SEMA sanctions, or equivalent regulations
+- Completion of the GEP assessment and BIS self-classification filing
 - FIPS 140-3 CMVP certification (which may affect classification)
 
 ---
@@ -137,16 +158,20 @@ This Export Control Notice will be updated upon:
 
 For export control inquiries or license requests:
 
-Capomastro Holdings Ltd.  
-Applied Physics Division  
-98 Sioux Rd  
-Sherwood Park, AB Canada T8A-3X5  
-Email: Rsalvi@Salvigroup.com
+Capomastro Holdings Ltd.
+Applied Physics Division
+Export Compliance Officer: [to be designated]
+Canada
+Email: [export-compliance contact to be specified]
 
-For U.S. Government inquiries:  
-Bureau of Industry and Security: https://www.bis.doc.gov  
+For Canadian Government inquiries:
+Global Affairs Canada, Trade Controls Bureau: https://www.international.gc.ca
+Canadian Centre for Cyber Security (CCCS): https://www.cyber.gc.ca
+
+For U.S. Government inquiries:
+Bureau of Industry and Security: https://www.bis.doc.gov
 OFAC: https://ofac.treasury.gov
 
 ---
 
-*This notice is provided for compliance purposes and does not constitute legal advice. Capomastro Holdings Ltd. should consult with qualified export control counsel before initiating any export, re-export, or transfer of the Software. The classifications stated herein are based on self-assessment and have not been validated by BIS or any government authority.*
+*This notice is provided for compliance purposes and does not constitute legal advice. Capomastro Holdings Ltd. should consult with qualified Canadian and U.S. export control counsel before initiating any export, re-export, or transfer of the Software. The classifications stated herein are based on self-assessment and have not been validated by GAC, BIS, or any government authority.*

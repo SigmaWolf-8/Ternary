@@ -1,7 +1,7 @@
 PROPRIETARY SOFTWARE LICENSE
 ============================
 
-Copyright (c) 2025-2026 Capomastro Holdings Ltd.
+Copyright (c) 2025–2026 Capomastro Holdings Ltd.
 Applied Physics Division
 All Rights Reserved and Preserved.
 
@@ -17,8 +17,8 @@ Version: Effective February 11, 2026
    repository located at https://github.com/SigmaWolf-8/Ternary and any
    derivative works, updates, or modifications thereof.
 
-   "Licensor" means Capomastro Holdings Ltd., acting through its Applied Physics
-   Division.
+   "Licensor" means Capomastro Holdings Ltd., a corporation incorporated under
+   the laws of Canada, acting through its Applied Physics Division.
 
    "You" or "Your" means any individual or legal entity exercising permissions
    granted by this License, or attempting to access, use, copy, modify, or
@@ -30,8 +30,8 @@ Version: Effective February 11, 2026
 
    "Intellectual Property" means all patents, patent applications, trademarks,
    trade names, service marks, copyrights, trade secrets, know-how, algorithms,
-   mathematical frameworks, theoretical models, and any other intellectual
-   property rights embodied in or relating to the Software.
+   mathematical frameworks, theoretical models, industrial designs, and any other
+   intellectual property rights embodied in or relating to the Software.
 
 2. GRANT OF RIGHTS
 
@@ -96,22 +96,31 @@ Version: Effective February 11, 2026
        - Kong API gateway service architecture
        - Blockchain integration protocols (Algorand, Hedera, Oracle Bridge)
 
-   (b) All Intellectual Property in and to the Software, including any
+   (b) Certain methods, systems, and architectures embodied in the Software
+       are the subject of one or more patent applications filed or to be
+       filed with the Canadian Intellectual Property Office (CIPO) under
+       the Patent Act (R.S.C., 1985, c. P-4), the United States Patent
+       and Trademark Office (USPTO), and international patent offices
+       under the Patent Cooperation Treaty (PCT).
+       Patent(s) Pending.
+
+   (c) All Intellectual Property in and to the Software, including any
        improvements, modifications, or derivative works, shall remain the
        sole and exclusive property of Capomastro Holdings Ltd.
 
-   (c) Nothing in this License shall be construed as granting any license or
+   (d) Nothing in this License shall be construed as granting any license or
        right, by implication, estoppel, or otherwise, under any patent,
-       trademark, copyright, or other intellectual property right of the
-       Licensor, except as expressly set forth herein.
+       trademark, copyright, industrial design, or other intellectual property
+       right of the Licensor, except as expressly set forth herein.
 
 5. CONFIDENTIALITY
 
    The Software, including its source code, architecture, algorithms,
-   mathematical frameworks, and documentation, constitutes confidential
-   and proprietary information of the Licensor. You agree to maintain the
-   confidentiality of the Software and not to disclose any portion thereof
-   to any third party without the prior written consent of the Licensor.
+   mathematical frameworks, and documentation, constitutes proprietary
+   information of the Licensor. You agree not to disclose any portion thereof
+   to any third party without the prior written consent of the Licensor,
+   except to the extent that such information has become generally known to the
+   public through no fault of Your own.
 
 6. VIEWING AND REFERENCE
 
@@ -164,43 +173,52 @@ Version: Effective February 11, 2026
 
 11. EXPORT CONTROL
 
-    The Software may contain cryptographic technology subject to export
+    The Software contains cryptographic technology subject to export
     controls under applicable laws and regulations, including but not
-    limited to the U.S. Export Administration Regulations (EAR) and the
-    International Traffic in Arms Regulations (ITAR). You shall comply
-    with all applicable export control laws and regulations and shall
-    not export or re-export the Software to any prohibited destination,
-    entity, or person.
+    limited to Canada's Export and Import Permits Act (R.S.C., 1985,
+    c. E-19) and the Export Control List (SOR/89-202), the U.S. Export
+    Administration Regulations (EAR), and the Wassenaar Arrangement on
+    Export Controls for Conventional Arms and Dual-Use Goods and
+    Technologies. You shall comply with all applicable export control
+    laws and regulations and shall not export or re-export the Software
+    to any prohibited destination, entity, or person.
 
 12. GOVERNING LAW AND JURISDICTION
 
     This License shall be governed by and construed in accordance with the
-    laws of the jurisdiction in which Capomastro Holdings Ltd. is incorporated,
-    without regard to its conflict of laws principles. Any disputes arising
-    under or in connection with this License shall be subject to the exclusive
-    jurisdiction of the courts in that jurisdiction.
+    federal laws of Canada and the laws of the Province of Ontario applicable
+    therein, without regard to conflict of laws principles. Any disputes
+    arising under or in connection with this License shall be subject to the
+    exclusive jurisdiction of the courts of the Province of Ontario, Canada.
+    The parties irrevocably attorn to the jurisdiction of such courts.
 
-13. SEVERABILITY
+13. LANGUAGE
+
+    The parties have expressly required that this License and all related
+    documents be drawn up in the English language. Les parties ont
+    expressément exigé que la présente licence et tous les documents qui
+    s'y rapportent soient rédigés en anglais.
+
+14. SEVERABILITY
 
     If any provision of this License is held to be unenforceable or invalid,
     such provision shall be modified to the minimum extent necessary to make
     it enforceable and valid, and the remaining provisions shall continue in
     full force and effect.
 
-14. ENTIRE AGREEMENT
+15. ENTIRE AGREEMENT
 
     This License constitutes the entire agreement between You and the Licensor
     with respect to the Software and supersedes all prior or contemporaneous
     understandings, agreements, representations, and warranties, whether
     written or oral, regarding the Software.
 
-15. CONTACT
+16. CONTACT
 
     For licensing inquiries, partnership proposals, or permission requests:
 
     Capomastro Holdings Ltd.
     Applied Physics Division
-    98 Sioux Rd
-    Sherwood Park, AB Canada T8A-3X5
-    Email: Rsalvi@Salvigroup.com
+    Canada
+    Email: [licensing contact to be specified]
     Repository: https://github.com/SigmaWolf-8/Ternary

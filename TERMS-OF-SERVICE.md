@@ -2,7 +2,7 @@
 ## PlenumNET — Deployable Post-Quantum Internet Solutions
 ### Capomastro Holdings Ltd., Applied Physics Division
 
-**Last Updated:** February 11, 2026  
+**Last Updated:** February 11, 2026
 **Effective Date:** February 11, 2026
 
 ---
@@ -28,13 +28,13 @@ PlenumNET is a post-quantum ternary computing platform providing, among other ca
 - Blockchain integration services
 - API access to the above capabilities
 
-The Service is provided by Capomastro Holdings Ltd. ("Company," "We," "Us," or "Our"), operating through its Applied Physics Division.
+The Service is provided by Capomastro Holdings Ltd. ("Company," "We," "Us," or "Our"), a corporation incorporated under the laws of Canada, operating through its Applied Physics Division.
 
 ---
 
 ## 3. Eligibility
 
-You must be at least 18 years of age or the age of majority in your jurisdiction to use the Service. By using the Service, you represent and warrant that you meet this requirement.
+You must be at least 18 years of age or the age of majority in your jurisdiction (19 in British Columbia, New Brunswick, Newfoundland and Labrador, Northwest Territories, Nova Scotia, Nunavut, and Yukon) to use the Service. By using the Service, you represent and warrant that you meet this requirement.
 
 ---
 
@@ -54,7 +54,7 @@ You must be at least 18 years of age or the age of majority in your jurisdiction
 
 5.2 **Restrictions.** You shall not:
 
-(a) Use the Service for any unlawful purpose or in violation of any applicable law or regulation;
+(a) Use the Service for any unlawful purpose or in violation of any applicable law or regulation, including but not limited to the Criminal Code of Canada (R.S.C., 1985, c. C-46) and equivalent foreign statutes;
 
 (b) Reverse engineer, decompile, disassemble, or attempt to derive the source code, algorithms, or mathematical frameworks underlying the Service;
 
@@ -70,7 +70,7 @@ You must be at least 18 years of age or the age of majority in your jurisdiction
 
 (h) Use the Service output, API responses, or any data derived therefrom to train, fine-tune, or develop any machine learning model, artificial intelligence system, or automated system without express written permission;
 
-(i) Use the cryptographic services provided by the Service for any purpose that violates applicable export control laws or regulations;
+(i) Use the cryptographic services provided by the Service for any purpose that violates applicable export control laws or regulations, including Canada's Export and Import Permits Act (R.S.C., 1985, c. E-19) and the U.S. Export Administration Regulations;
 
 (j) Misrepresent your identity or affiliation when using the Service.
 
@@ -80,11 +80,13 @@ You must be at least 18 years of age or the age of majority in your jurisdiction
 
 6.1 **Ownership.** The Service, including all software, algorithms, mathematical frameworks, documentation, designs, and other materials, is and remains the exclusive property of Capomastro Holdings Ltd. These Terms do not transfer any ownership rights to You.
 
-6.2 **Proprietary Technology.** The Service embodies proprietary technology including, without limitation, the Salvi Framework bijective ternary logic system, Tribonacci-derived constant architecture, GF(3) arithmetic implementations, Phase Encryption methodology, High-Precision Timing Protocol, and Ternary Virtual Machine. All such technology is protected by intellectual property laws and treaties.
+6.2 **Proprietary Technology.** The Service embodies proprietary technology including, without limitation, the Salvi Framework™ bijective ternary logic system, Tribonacci-derived constant architecture, GF(3) arithmetic implementations, Phase Encryption methodology, High-Precision Timing Protocol (HPTP™), and Ternary Virtual Machine. All such technology is protected by intellectual property laws and treaties, including the Canadian Copyright Act (R.S.C., 1985, c. C-42), the Canadian Patent Act (R.S.C., 1985, c. P-4), and equivalent international legislation.
 
-6.3 **Feedback.** If You provide feedback, suggestions, or ideas regarding the Service ("Feedback"), You grant the Company a perpetual, irrevocable, worldwide, royalty-free license to use, modify, and incorporate such Feedback without obligation to You.
+6.3 **Patents Pending.** Certain methods and systems used in the Service are the subject of pending patent applications. See the Intellectual Property Notice in the repository for details.
 
-6.4 **Trademarks.** "PlenumNET," "Salvi Framework," "Salvi," and associated logos and marks are trademarks of Capomastro Holdings Ltd. You may not use these marks without prior written permission.
+6.4 **Feedback.** If You provide feedback, suggestions, or ideas regarding the Service ("Feedback"), You grant the Company a perpetual, irrevocable, worldwide, royalty-free license to use, modify, and incorporate such Feedback without obligation to You.
+
+6.5 **Trademarks.** "PlenumNET™," "Salvi Framework™," "Salvi™," and associated logos and marks are trademarks of Capomastro Holdings Ltd. You may not use these marks without prior written permission. See TRADEMARK-NOTICE.md for usage guidelines.
 
 ---
 
@@ -92,7 +94,7 @@ You must be at least 18 years of age or the age of majority in your jurisdiction
 
 7.1 **User Data.** You retain ownership of any data You submit to the Service ("User Data"). By submitting User Data, You grant the Company a limited license to process such data solely for the purpose of providing the Service.
 
-7.2 **Privacy.** Our collection and use of personal information is governed by our Privacy Policy, which is incorporated into these Terms by reference.
+7.2 **Privacy.** Our collection and use of personal information is governed by our Privacy Policy, which is incorporated into these Terms by reference. Our privacy practices comply with the Personal Information Protection and Electronic Documents Act (S.C. 2000, c. 5) ("PIPEDA") and applicable provincial privacy legislation.
 
 7.3 **Data Security.** While we implement reasonable security measures, including post-quantum cryptographic protections, We do not guarantee that the Service will be completely secure or free from vulnerabilities.
 
@@ -112,11 +114,11 @@ You must be at least 18 years of age or the age of majority in your jurisdiction
 
 ## 9. Compliance and Export Control
 
-9.1 **Cryptographic Technology.** The Service includes cryptographic technology that may be subject to export controls under applicable laws, including the U.S. Export Administration Regulations (EAR), the International Traffic in Arms Regulations (ITAR), and equivalent regulations in other jurisdictions.
+9.1 **Cryptographic Technology.** The Service includes cryptographic technology that may be subject to export controls under applicable laws, including Canada's Export and Import Permits Act (R.S.C., 1985, c. E-19) and Export Control List (SOR/89-202, Group 5, Category 2), the U.S. Export Administration Regulations (EAR), and the Wassenaar Arrangement.
 
 9.2 **User Compliance.** You agree to comply with all applicable export control laws and regulations and shall not use the Service in any country or by any person prohibited under such laws.
 
-9.3 **FIPS 140-3 Disclaimer.** References to FIPS 140-3, CNSA 2.0, or other regulatory standards in the Service or its documentation describe the design targets and compliance objectives of the underlying technology. Unless explicitly stated otherwise with reference to specific certificate numbers, such references do not constitute a representation that the Service has received formal government certification or validation.
+9.3 **FIPS 140-3 Disclaimer.** References to FIPS 140-3, CNSA 2.0, CCCS (Canadian Centre for Cyber Security) guidance, or other regulatory standards in the Service or its documentation describe the design targets and compliance objectives of the underlying technology. Unless explicitly stated otherwise with reference to specific certificate numbers, such references do not constitute a representation that the Service has received formal government certification or validation.
 
 ---
 
@@ -130,15 +132,15 @@ THE COMPANY DOES NOT WARRANT THAT: (A) THE SERVICE WILL MEET YOUR REQUIREMENTS; 
 
 ## 11. Limitation of Liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE COMPANY, ITS AFFILIATES, DIRECTORS, OFFICERS, EMPLOYEES, AGENTS, OR LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, PUNITIVE, OR EXEMPLARY DAMAGES, INCLUDING BUT NOT LIMITED TO DAMAGES FOR LOSS OF PROFITS, GOODWILL, USE, DATA, OR OTHER INTANGIBLE LOSSES, REGARDLESS OF WHETHER THE COMPANY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, INCLUDING THE LAWS OF THE PROVINCE OF ONTARIO AND THE FEDERAL LAWS OF CANADA APPLICABLE THEREIN, IN NO EVENT SHALL THE COMPANY, ITS AFFILIATES, DIRECTORS, OFFICERS, EMPLOYEES, AGENTS, OR LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, PUNITIVE, OR EXEMPLARY DAMAGES, INCLUDING BUT NOT LIMITED TO DAMAGES FOR LOSS OF PROFITS, GOODWILL, USE, DATA, OR OTHER INTANGIBLE LOSSES, REGARDLESS OF WHETHER THE COMPANY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-THE COMPANY'S TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THESE TERMS OR THE SERVICE SHALL NOT EXCEED THE GREATER OF: (A) THE AMOUNTS PAID BY YOU TO THE COMPANY IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM; OR (B) ONE HUNDRED DOLLARS (USD $100).
+THE COMPANY'S TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THESE TERMS OR THE SERVICE SHALL NOT EXCEED THE GREATER OF: (A) THE AMOUNTS PAID BY YOU TO THE COMPANY IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM; OR (B) ONE HUNDRED CANADIAN DOLLARS (CAD $100).
 
 ---
 
 ## 12. Indemnification
 
-You agree to indemnify, defend, and hold harmless the Company, its affiliates, directors, officers, employees, agents, and licensors from and against any claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising out of or relating to: (a) Your use of the Service; (b) Your violation of these Terms; (c) Your violation of any applicable law or regulation; or (d) Your violation of any rights of a third party.
+You agree to indemnify, defend, and hold harmless the Company, its affiliates, directors, officers, employees, agents, and licensors from and against any claims, liabilities, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or relating to: (a) Your use of the Service; (b) Your violation of these Terms; (c) Your violation of any applicable law or regulation; or (d) Your violation of any rights of a third party.
 
 ---
 
@@ -154,9 +156,9 @@ You agree to indemnify, defend, and hold harmless the Company, its affiliates, d
 
 ## 14. General Provisions
 
-14.1 **Governing Law.** These Terms shall be governed by and construed in accordance with the laws of the jurisdiction in which Capomastro Holdings Ltd. is incorporated, without regard to conflict of laws principles.
+14.1 **Governing Law.** These Terms shall be governed by and construed in accordance with the federal laws of Canada and the laws of the Province of Ontario applicable therein, without regard to conflict of laws principles.
 
-14.2 **Dispute Resolution.** Any dispute arising from these Terms or the Service shall be resolved exclusively in the courts of the jurisdiction in which Capomastro Holdings Ltd. is incorporated.
+14.2 **Dispute Resolution.** Any dispute arising from these Terms or the Service shall be resolved exclusively in the courts of the Province of Ontario, Canada. The parties irrevocably attorn to the jurisdiction of such courts.
 
 14.3 **Severability.** If any provision of these Terms is held unenforceable, the remaining provisions shall continue in full force and effect.
 
@@ -166,15 +168,16 @@ You agree to indemnify, defend, and hold harmless the Company, its affiliates, d
 
 14.6 **Assignment.** You may not assign these Terms without the Company's prior written consent. The Company may assign these Terms without restriction.
 
+14.7 **Language.** The parties have expressly required that these Terms and all related documents be drawn up in the English language. Les parties ont expressément exigé que les présentes conditions et tous les documents qui s'y rapportent soient rédigés en anglais.
+
 ---
 
 ## 15. Contact
 
 For questions regarding these Terms:
 
-Capomastro Holdings Ltd.  
-Applied Physics Division  
-98 Sioux Rd  
-Sherwood Park, AB Canada T8A-3X5  
-Email: Rsalvi@Salvigroup.com  
+Capomastro Holdings Ltd.
+Applied Physics Division
+Canada
+Email: [contact to be specified]
 Website: https://PlenumNET.replit.app

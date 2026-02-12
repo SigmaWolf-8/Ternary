@@ -9,4 +9,7 @@ target/
 # Confidential internal strategy documents — NEVER commit to public repo
 TRADEMARK-STRATEGY-INTERNAL.md
 PATENT-STRATEGY-INTERNAL.md
+INTERNAL-IP-STRATEGY.md
+ENTERPRISE-SLA.md
+COMPONENT-LICENSING-MATRIX.md
 *-INTERNAL.md
