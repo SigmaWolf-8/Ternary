@@ -113,34 +113,32 @@ function HeroVisual() {
   );
 }
 
+function decimalToBalancedTernary(n: number): string {
+  if (n === 0) return "0";
+  const digits: string[] = [];
+  let num = Math.abs(n);
+  while (num > 0) {
+    const rem = num % 3;
+    if (rem === 0) { digits.push("0"); num = Math.floor(num / 3); }
+    else if (rem === 1) { digits.push("+"); num = Math.floor(num / 3); }
+    else { digits.push("\u2212"); num = Math.floor(num / 3) + 1; }
+  }
+  digits.reverse();
+  if (n < 0) {
+    return digits.map(d => d === "+" ? "\u2212" : d === "\u2212" ? "+" : "0").join("");
+  }
+  return digits.join("");
+}
+
 function HeroDemo() {
   const [inputValue, setInputValue] = useState("42");
-  const [result, setResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      const num = parseInt(inputValue);
-      if (isNaN(num)) return;
-      setLoading(true);
-      try {
-        const res = await fetch("/api/salvi/ternary/convert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ value: num, from: "B", to: "A" }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setResult(data);
-        }
-      } catch (e) {
-        // silently fail
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [inputValue]);
+  const num = parseInt(inputValue);
+  const isValid = !isNaN(num) && inputValue.trim() !== "";
+  const ternary = isValid ? decimalToBalancedTernary(num) : null;
+  const binaryLen = isValid && num !== 0 ? Math.ceil(Math.log2(Math.abs(num) + 1)) : (isValid ? 1 : 0);
+  const ternaryLen = ternary ? ternary.length : 0;
+  const savings = binaryLen > 0 && ternaryLen > 0 ? Math.round((1 - ternaryLen / binaryLen) * 100) : 0;
 
   return (
     <motion.div
@@ -170,12 +168,12 @@ function HeroDemo() {
           </div>
           <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
           <div className="flex-1 text-sm font-mono text-primary" data-testid="text-hero-demo-result">
-            {loading ? "..." : result ? (result.result || result.converted || JSON.stringify(result).slice(0, 30)) : "—"}
+            {ternary || "\u2014"}
           </div>
         </div>
-        {result && !loading && (
+        {ternary && (
           <div className="mt-2 text-xs text-muted-foreground">
-            Binary → Ternary conversion with 59% density advantage
+            {binaryLen} binary digits → {ternaryLen} ternary trits{savings > 0 ? ` (${savings}% fewer digits)` : ""}
           </div>
         )}
       </Card>

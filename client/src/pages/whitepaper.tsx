@@ -36,6 +36,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 
 interface Whitepaper {
   id: number;
@@ -296,6 +297,7 @@ export default function WhitepaperPage() {
                     >
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{
                           h1: ({children}) => <h1 className="text-3xl font-bold mt-8 mb-4 text-foreground">{children}</h1>,
                           h2: ({children}) => <h2 className="text-2xl font-semibold mt-6 mb-3 text-foreground">{children}</h2>,
