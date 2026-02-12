@@ -1,0 +1,292 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// All Rights Reserved.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+
+use alloc::vec::Vec;
+use alloc::string::String;
+use alloc::format;
+use super::engine::TernaryVm;
+use super::instruction::*;
+use super::assembler::Disassembler;
+use super::VmResult;
+
+#[derive(Debug, Clone)]
+pub struct Breakpoint {
+    pub address: u64,
+    pub enabled: bool,
+    pub hit_count: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct RegisterSnapshot {
+    pub values: [(i64, bool); 27],
+    pub pc: u64,
+    pub flags: VmFlags,
+    pub cycles: u64,
+}
+
+pub struct VmDebugger {
+    breakpoints: Vec<Breakpoint>,
+    history: Vec<RegisterSnapshot>,
+    max_history: usize,
+    step_mode: bool,
+}
+
+impl VmDebugger {
+    pub fn new() -> Self {
+        Self {
+            breakpoints: Vec::new(),
+            history: Vec::new(),
+            max_history: 1000,
+            step_mode: false,
+        }
+    }
+
+    pub fn add_breakpoint(&mut self, address: u64) -> usize {
+        let bp = Breakpoint { address, enabled: true, hit_count: 0 };
+        self.breakpoints.push(bp);
+        self.breakpoints.len() - 1
+    }
+
+    pub fn remove_breakpoint(&mut self, index: usize) -> bool {
+        if index < self.breakpoints.len() {
+            self.breakpoints.remove(index);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn toggle_breakpoint(&mut self, index: usize) -> bool {
+        if let Some(bp) = self.breakpoints.get_mut(index) {
+            bp.enabled = !bp.enabled;
+            bp.enabled
+        } else {
+            false
+        }
+    }
+
+    pub fn breakpoints(&self) -> &[Breakpoint] {
+        &self.breakpoints
+    }
+
+    pub fn set_step_mode(&mut self, enabled: bool) {
+        self.step_mode = enabled;
+    }
+
+    pub fn is_step_mode(&self) -> bool {
+        self.step_mode
+    }
+
+    fn snapshot(vm: &TernaryVm) -> RegisterSnapshot {
+        let mut values = [(0i64, false); 27];
+        for i in 0..27 {
+            if let Ok(val) = vm.get_register(i as u8) {
+                values[i] = (val, vm.registers.registers[i].ternary_mode);
+            }
+        }
+        RegisterSnapshot {
+            values,
+            pc: vm.registers.program_counter,
+            flags: vm.registers.flags,
+            cycles: vm.cycles(),
+        }
+    }
+
+    pub fn capture_snapshot(&mut self, vm: &TernaryVm) {
+        let snap = Self::snapshot(vm);
+        self.history.push(snap);
+        if self.history.len() > self.max_history {
+            self.history.remove(0);
+        }
+    }
+
+    pub fn history(&self) -> &[RegisterSnapshot] {
+        &self.history
+    }
+
+    pub fn is_at_breakpoint(&self, pc: u64) -> bool {
+        self.breakpoints.iter().any(|bp| bp.enabled && bp.address == pc)
+    }
+
+    pub fn step_and_capture(&mut self, vm: &mut TernaryVm) -> VmResult<bool> {
+        self.capture_snapshot(vm);
+        let pc = vm.registers.program_counter;
+        
+        for bp in &mut self.breakpoints {
+            if bp.enabled && bp.address == pc {
+                bp.hit_count += 1;
+            }
+        }
+        
+        vm.step()?;
+        Ok(vm.is_halted())
+    }
+
+    pub fn run_until_breakpoint(&mut self, vm: &mut TernaryVm, max_steps: u64) -> VmResult<(bool, u64)> {
+        let mut steps: u64 = 0;
+        loop {
+            if vm.is_halted() {
+                return Ok((true, steps));
+            }
+            if steps >= max_steps {
+                return Ok((false, steps));
+            }
+            let pc = vm.registers.program_counter;
+            if steps > 0 && self.is_at_breakpoint(pc) {
+                return Ok((false, steps));
+            }
+            self.step_and_capture(vm)?;
+            steps += 1;
+        }
+    }
+
+    pub fn dump_registers(vm: &TernaryVm) -> String {
+        let mut output = String::new();
+        output.push_str(&format!("PC: {:08x}  Cycles: {}\n", vm.registers.program_counter, vm.cycles()));
+        output.push_str(&format!("Flags: Z={} N={} P={} O={} T={} H={}\n",
+            vm.registers.flags.zero as u8,
+            vm.registers.flags.negative as u8,
+            vm.registers.flags.positive as u8,
+            vm.registers.flags.overflow as u8,
+            vm.registers.flags.ternary as u8,
+            vm.registers.flags.halted as u8,
+        ));
+        output.push_str(&format!("Privilege: {:?}\n", vm.registers.privilege));
+        for i in 0..27 {
+            if let Ok(val) = vm.get_register(i as u8) {
+                let mode = if vm.registers.registers[i].ternary_mode { "T" } else { "B" };
+                if val != 0 || vm.registers.registers[i].ternary_mode {
+                    output.push_str(&format!("  r{:02}: {:16} [{}]\n", i, val, mode));
+                }
+            }
+        }
+        output
+    }
+
+    pub fn dump_memory(vm: &TernaryVm, start: u64, count: usize) -> String {
+        let mut output = String::new();
+        output.push_str(&format!("Memory [{:#06x}..{:#06x}]:\n", start, start + count as u64));
+        for i in 0..count {
+            let addr = start + i as u64;
+            if let Ok(byte) = vm.memory.read_u8(addr) {
+                if i % 16 == 0 {
+                    output.push_str(&format!("  {:04x}: ", addr));
+                }
+                output.push_str(&format!("{:02x} ", byte));
+                if i % 16 == 15 || i == count - 1 {
+                    output.push('\n');
+                }
+            }
+        }
+        output
+    }
+
+    pub fn disassemble_at(vm: &TernaryVm, count: usize) -> String {
+        let mut output = String::new();
+        let pc = vm.registers.program_counter;
+        if let Some(prog) = &vm.program {
+            let start = pc as usize;
+            let end = core::cmp::min(start + count, prog.instructions.len());
+            for i in start..end {
+                let marker = if i == start { ">>>" } else { "   " };
+                let inst = &prog.instructions[i];
+                output.push_str(&format!("{} {:04}: {}\n", marker, i, Disassembler::disassemble_instruction(inst)));
+            }
+        }
+        output
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::engine::TernaryVm;
+    use super::super::instruction::*;
+
+    fn make_test_vm() -> TernaryVm {
+        let mut vm = TernaryVm::new(4096);
+        let mut prog = Program::new("debug_test");
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 10));
+        prog.add_instruction(Instruction::new(Opcode::LoadImm, 1, 0, 0, 20));
+        prog.add_instruction(Instruction::new(Opcode::Add, 2, 0, 1, 0));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm
+    }
+
+    #[test]
+    fn test_debugger_step() {
+        let mut vm = make_test_vm();
+        let mut dbg = VmDebugger::new();
+        let halted = dbg.step_and_capture(&mut vm).unwrap();
+        assert!(!halted);
+        assert_eq!(vm.get_register(0).unwrap(), 10);
+        assert_eq!(dbg.history().len(), 1);
+    }
+
+    #[test]
+    fn test_debugger_breakpoint() {
+        let mut vm = make_test_vm();
+        let mut dbg = VmDebugger::new();
+        dbg.add_breakpoint(2);
+        let (halted, steps) = dbg.run_until_breakpoint(&mut vm, 100).unwrap();
+        assert!(!halted);
+        assert_eq!(steps, 2);
+        assert_eq!(vm.get_register(0).unwrap(), 10);
+        assert_eq!(vm.get_register(1).unwrap(), 20);
+    }
+
+    #[test]
+    fn test_debugger_run_to_halt() {
+        let mut vm = make_test_vm();
+        let mut dbg = VmDebugger::new();
+        let (halted, steps) = dbg.run_until_breakpoint(&mut vm, 100).unwrap();
+        assert!(halted);
+        assert_eq!(steps, 4);
+        assert_eq!(vm.get_register(2).unwrap(), 30);
+    }
+
+    #[test]
+    fn test_debugger_register_dump() {
+        let mut vm = make_test_vm();
+        vm.step().unwrap();
+        let dump = VmDebugger::dump_registers(&vm);
+        assert!(dump.contains("r00"));
+        assert!(dump.contains("10"));
+    }
+
+    #[test]
+    fn test_debugger_memory_dump() {
+        let vm = TernaryVm::new(4096);
+        let dump = VmDebugger::dump_memory(&vm, 0, 16);
+        assert!(dump.contains("Memory"));
+    }
+
+    #[test]
+    fn test_debugger_disassemble_at() {
+        let vm = make_test_vm();
+        let disasm = VmDebugger::disassemble_at(&vm, 3);
+        assert!(disasm.contains(">>>"));
+        assert!(disasm.contains("LDI"));
+    }
+
+    #[test]
+    fn test_debugger_toggle_breakpoint() {
+        let mut dbg = VmDebugger::new();
+        let idx = dbg.add_breakpoint(5);
+        assert!(dbg.breakpoints()[idx].enabled);
+        dbg.toggle_breakpoint(idx);
+        assert!(!dbg.breakpoints()[idx].enabled);
+    }
+}

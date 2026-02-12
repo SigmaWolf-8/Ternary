@@ -35,6 +35,7 @@ impl Default for TernaryRegister {
 pub struct VmFlags {
     pub zero: bool,
     pub negative: bool,
+    pub positive: bool,
     pub overflow: bool,
     pub ternary: bool,
     pub halted: bool,
@@ -45,10 +46,23 @@ impl Default for VmFlags {
         Self {
             zero: false,
             negative: false,
+            positive: false,
             overflow: false,
             ternary: false,
             halted: false,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrivilegeLevel {
+    Ring0 = 0,
+    Ring1 = 1,
+}
+
+impl Default for PrivilegeLevel {
+    fn default() -> Self {
+        PrivilegeLevel::Ring0
     }
 }
 
@@ -58,6 +72,7 @@ pub struct RegisterFile {
     pub program_counter: u64,
     pub stack_pointer: u64,
     pub flags: VmFlags,
+    pub privilege: PrivilegeLevel,
 }
 
 impl Default for RegisterFile {
@@ -67,6 +82,7 @@ impl Default for RegisterFile {
             program_counter: 0,
             stack_pointer: 0,
             flags: VmFlags::default(),
+            privilege: PrivilegeLevel::default(),
         }
     }
 }
@@ -128,10 +144,24 @@ pub enum Opcode {
     THash = 0x62,
     TEntropy = 0x63,
 
+    TReduce = 0x1E,
+    TRotInv = 0x1F,
+
+    TPolyAdd = 0x64,
+    TPolySample = 0x65,
+    TCompress = 0x66,
+    TDecompress = 0x67,
+
     TAddV = 0x70,
     TMulV = 0x71,
     TNegV = 0x72,
     TRotV = 0x73,
+
+    Syscall = 0x80,
+    Trap = 0x81,
+    Alloc = 0x82,
+    Free = 0x83,
+    ReadTime = 0x84,
 }
 
 impl Opcode {
@@ -159,6 +189,8 @@ impl Opcode {
             0x1B => Ok(Opcode::TCmp),
             0x1C => Ok(Opcode::TLoad),
             0x1D => Ok(Opcode::TStore),
+            0x1E => Ok(Opcode::TReduce),
+            0x1F => Ok(Opcode::TRotInv),
             0x20 => Ok(Opcode::Load),
             0x21 => Ok(Opcode::Store),
             0x22 => Ok(Opcode::Move),
@@ -184,10 +216,19 @@ impl Opcode {
             0x61 => Ok(Opcode::TNTT),
             0x62 => Ok(Opcode::THash),
             0x63 => Ok(Opcode::TEntropy),
+            0x64 => Ok(Opcode::TPolyAdd),
+            0x65 => Ok(Opcode::TPolySample),
+            0x66 => Ok(Opcode::TCompress),
+            0x67 => Ok(Opcode::TDecompress),
             0x70 => Ok(Opcode::TAddV),
             0x71 => Ok(Opcode::TMulV),
             0x72 => Ok(Opcode::TNegV),
             0x73 => Ok(Opcode::TRotV),
+            0x80 => Ok(Opcode::Syscall),
+            0x81 => Ok(Opcode::Trap),
+            0x82 => Ok(Opcode::Alloc),
+            0x83 => Ok(Opcode::Free),
+            0x84 => Ok(Opcode::ReadTime),
             _ => Err(VmError::InvalidOpcode(value)),
         }
     }
@@ -312,8 +353,68 @@ impl Instruction {
         }
     }
 
-    /// Dual-format decoder: tries v1 (16-byte) first by checking length, then compact.
-    /// The format_byte parameter selects: 0 = v1 legacy (16-byte), 1 = compact.
+    pub fn encode_ternary(&self) -> Vec<u8> {
+        let opcode_val = self.opcode.to_u8();
+        let mut ternary_opcode: u32 = 0;
+        let mut val = opcode_val as u32;
+        for i in 0..9 {
+            let rem = val % 3;
+            ternary_opcode |= rem << (i * 2);
+            val /= 3;
+        }
+        let has_imm = self.immediate != 0;
+        let reg_packed: u16 = ((self.dst as u16 & 0x1F) << 11)
+            | ((self.src1 as u16 & 0x1F) << 6)
+            | ((self.src2 as u16 & 0x1F) << 1)
+            | if has_imm { 1 } else { 0 };
+        
+        let mut bytes = Vec::with_capacity(7);
+        bytes.push((ternary_opcode & 0xFF) as u8);
+        bytes.push(((ternary_opcode >> 8) & 0xFF) as u8);
+        bytes.push(((ternary_opcode >> 16) & 0xFF) as u8);
+        bytes.extend_from_slice(&reg_packed.to_le_bytes());
+        if has_imm {
+            let imm_clamped = self.immediate.clamp(-32768, 32767) as i16;
+            bytes.extend_from_slice(&imm_clamped.to_le_bytes());
+        }
+        bytes
+    }
+
+    pub fn decode_ternary(bytes: &[u8]) -> VmResult<(Self, usize)> {
+        if bytes.len() < 5 {
+            return Err(VmError::InvalidProgram(String::from("Ternary instruction too short")));
+        }
+        let ternary_opcode = (bytes[0] as u32) | ((bytes[1] as u32) << 8) | ((bytes[2] as u32) << 16);
+        let mut opcode_val: u32 = 0;
+        let mut multiplier: u32 = 1;
+        for i in 0..9 {
+            let trit = (ternary_opcode >> (i * 2)) & 0x03;
+            opcode_val += trit * multiplier;
+            multiplier *= 3;
+        }
+        let opcode = Opcode::from_u8(opcode_val as u8)?;
+        
+        let mut reg_bytes = [0u8; 2];
+        reg_bytes.copy_from_slice(&bytes[3..5]);
+        let reg_packed = u16::from_le_bytes(reg_bytes);
+        let dst = ((reg_packed >> 11) & 0x1F) as u8;
+        let src1 = ((reg_packed >> 6) & 0x1F) as u8;
+        let src2 = ((reg_packed >> 1) & 0x1F) as u8;
+        let has_imm = (reg_packed & 1) != 0;
+        
+        if has_imm {
+            if bytes.len() < 7 {
+                return Err(VmError::InvalidProgram(String::from("Ternary immediate instruction too short")));
+            }
+            let mut imm_bytes = [0u8; 2];
+            imm_bytes.copy_from_slice(&bytes[5..7]);
+            let immediate = i16::from_le_bytes(imm_bytes) as i64;
+            Ok((Self { opcode, dst, src1, src2, immediate }, 7))
+        } else {
+            Ok((Self { opcode, dst, src1, src2, immediate: 0 }, 5))
+        }
+    }
+
     pub fn decode_auto(bytes: &[u8], format: InstructionFormat) -> VmResult<(Self, usize)> {
         match format {
             InstructionFormat::Legacy => {
@@ -323,6 +424,9 @@ impl Instruction {
             InstructionFormat::Compact => {
                 Self::decode_compact(bytes)
             }
+            InstructionFormat::Ternary => {
+                Self::decode_ternary(bytes)
+            }
         }
     }
 }
@@ -331,6 +435,7 @@ impl Instruction {
 pub enum InstructionFormat {
     Legacy,
     Compact,
+    Ternary,
 }
 
 #[derive(Debug, Clone)]
@@ -418,8 +523,11 @@ mod tests {
             Opcode::JumpNotZero, Opcode::Cmp, Opcode::CmpImm,
             Opcode::And, Opcode::Or, Opcode::Xor, Opcode::Shl, Opcode::Shr,
             Opcode::Not,
+            Opcode::TReduce, Opcode::TRotInv,
             Opcode::TPolyMul, Opcode::TNTT, Opcode::THash, Opcode::TEntropy,
+            Opcode::TPolyAdd, Opcode::TPolySample, Opcode::TCompress, Opcode::TDecompress,
             Opcode::TAddV, Opcode::TMulV, Opcode::TNegV, Opcode::TRotV,
+            Opcode::Syscall, Opcode::Trap, Opcode::Alloc, Opcode::Free, Opcode::ReadTime,
         ];
         for op in &opcodes {
             let val = op.to_u8();
@@ -670,5 +778,42 @@ mod tests {
         assert_eq!(consumed, 4);
         assert_eq!(decoded.opcode, Opcode::TAdd);
         assert_eq!(decoded.dst, 3);
+    }
+
+    #[test]
+    fn test_ternary_encoding_roundtrip() {
+        let inst = Instruction::new(Opcode::TAdd, 1, 2, 3, 0);
+        let encoded = inst.encode_ternary();
+        let (decoded, size) = Instruction::decode_ternary(&encoded).unwrap();
+        assert_eq!(decoded.opcode, Opcode::TAdd);
+        assert_eq!(decoded.dst, 1);
+        assert_eq!(decoded.src1, 2);
+        assert_eq!(decoded.src2, 3);
+        assert_eq!(size, 5);
+    }
+
+    #[test]
+    fn test_ternary_encoding_with_immediate() {
+        let inst = Instruction::new(Opcode::LoadImm, 5, 0, 0, 42);
+        let encoded = inst.encode_ternary();
+        let (decoded, size) = Instruction::decode_ternary(&encoded).unwrap();
+        assert_eq!(decoded.opcode, Opcode::LoadImm);
+        assert_eq!(decoded.dst, 5);
+        assert_eq!(decoded.immediate, 42);
+        assert_eq!(size, 7);
+    }
+
+    #[test]
+    fn test_ternary_encoding_all_opcodes() {
+        let opcodes = [
+            Opcode::Nop, Opcode::Halt, Opcode::Add, Opcode::TAdd,
+            Opcode::TMul, Opcode::TXor, Opcode::Syscall, Opcode::ReadTime,
+        ];
+        for op in &opcodes {
+            let inst = Instruction::new(*op, 0, 0, 0, 0);
+            let encoded = inst.encode_ternary();
+            let (decoded, _) = Instruction::decode_ternary(&encoded).unwrap();
+            assert_eq!(decoded.opcode, *op, "Failed roundtrip for {:?}", op);
+        }
     }
 }

@@ -153,6 +153,32 @@ impl Trit {
         let clamped = if diff < 0 { -1 } else if diff > 0 { 1 } else { 0 };
         Self { value: clamped }
     }
+
+    /// GF(3) multiplicative inverse per trit.
+    /// 0 → 0 (no inverse), 1 → 1, -1 → -1
+    /// In balanced representation: each nonzero trit is its own inverse.
+    pub fn gf3_inverse(&self) -> Self {
+        *self
+    }
+
+    /// Łukasiewicz conjunction: max(a + b - 1, -1) in balanced ternary
+    pub fn lukasiewicz_and(&self, other: &Trit) -> Self {
+        let sum = self.value + other.value - 1;
+        let val = if sum < -1 { -1 } else { sum };
+        Self { value: val }
+    }
+
+    /// Reduce via specified gate across a trit word's positions.
+    /// Gate 0 = add, 1 = mul, 2 = min, 3 = max
+    pub fn reduce_with(acc: &Trit, elem: &Trit, gate: u8) -> Trit {
+        match gate {
+            0 => acc.add(elem),
+            1 => acc.multiply(elem),
+            2 => Trit { value: core::cmp::min(acc.value, elem.value) },
+            3 => Trit { value: core::cmp::max(acc.value, elem.value) },
+            _ => acc.add(elem),
+        }
+    }
 }
 
 /// Packed trit word: 27 trits stored in an i64 using 2-bit encoding per trit.
@@ -282,6 +308,28 @@ pub fn packed_rotate_left(packed: i64, n: usize) -> i64 {
     let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
     for i in 0..TRITS_PER_WORD {
         result[(i + n) % TRITS_PER_WORD] = trits[i];
+    }
+    pack_trits(&result)
+}
+
+/// Reduce all trits in a packed word using a specified gate.
+/// Gate: 0=add, 1=mul, 2=min, 3=max
+pub fn packed_reduce(packed: i64, gate: u8) -> Trit {
+    let trits = unpack_trits(packed);
+    let mut acc = trits[0];
+    for i in 1..TRITS_PER_WORD {
+        acc = Trit::reduce_with(&acc, &trits[i], gate);
+    }
+    acc
+}
+
+/// Convert each trit in a packed word between representations.
+pub fn packed_convert(packed: i64, from: Representation, to: Representation) -> i64 {
+    let trits = unpack_trits(packed);
+    let mut result = [Trit { value: 0 }; TRITS_PER_WORD];
+    for i in 0..TRITS_PER_WORD {
+        let converted = convert_representation(trits[i].to_a(), from, to);
+        result[i] = Trit { value: converted.clamp(-1, 1) };
     }
     pack_trits(&result)
 }

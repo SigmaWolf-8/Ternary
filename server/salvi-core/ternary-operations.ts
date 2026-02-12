@@ -146,25 +146,48 @@ export function batchTernaryAdd(pairs: Array<{ a: TritA; b: TritA }>): Operation
 }
 
 /**
- * Ternary XOR (exclusive or)
- * Different from addition - returns True only when exactly one input is True
+ * Ternary XOR — Kleene min(a, b)
+ * Canonical semantics from the Rust kernel (TXor).
+ * This is NOT GF(3) addition; GF(3) addition is handled by TAdd / ternaryAdd.
  */
 export function ternaryXor(a: TritA, b: TritA): OperationResult {
-  let result: TritA;
-  
-  if (a === b) {
-    result = 0;
-  } else if (a === 0) {
-    result = b;
-  } else if (b === 0) {
-    result = a;
-  } else {
-    result = 0;
-  }
+  const result = Math.min(a, b) as TritA;
   
   return {
     operands: { a, b },
     operation: 'ternary_xor',
+    result,
+    representation: 'A',
+    constantTime: true
+  };
+}
+
+/**
+ * Ternary AND — Łukasiewicz conjunction: max(a + b - 1, -1)
+ * Canonical semantics from the Rust kernel (TAnd).
+ */
+export function ternaryAnd(a: TritA, b: TritA): OperationResult {
+  const result = Math.max(a + b - 1, -1) as TritA;
+  
+  return {
+    operands: { a, b },
+    operation: 'ternary_and',
+    result,
+    representation: 'A',
+    constantTime: true
+  };
+}
+
+/**
+ * Ternary OR — Kleene max(a, b)
+ * Canonical semantics from the Rust kernel (TOr).
+ */
+export function ternaryOr(a: TritA, b: TritA): OperationResult {
+  const result = Math.max(a, b) as TritA;
+  
+  return {
+    operands: { a, b },
+    operation: 'ternary_or',
     result,
     representation: 'A',
     constantTime: true
@@ -203,11 +226,20 @@ export const gf3Multiply = (a: TritA, b: TritA): TritA => {
   return fromGF3((toGF3(a) * toGF3(b)) % 3);
 };
 
-// GF(3) XOR: In GF(3), XOR is addition mod 3. This differs from
-// the balanced-ternary XOR (ternaryXor) which uses a different truth table.
-// Use gf3Xor for field-algebraic operations; use ternaryXor for logic gates.
+// Kleene min — matches the Rust kernel's TXor canonical semantics.
+// For GF(3) field addition, use gf3Add (TAdd) instead.
 export const gf3Xor = (a: TritA, b: TritA): TritA => {
-  return gf3Add(a, b);
+  return Math.min(a, b) as TritA;
+};
+
+// Łukasiewicz conjunction — matches the Rust kernel's TAnd canonical semantics.
+export const gf3And = (a: TritA, b: TritA): TritA => {
+  return Math.max(a + b - 1, -1) as TritA;
+};
+
+// Kleene max — matches the Rust kernel's TOr canonical semantics.
+export const gf3Or = (a: TritA, b: TritA): TritA => {
+  return Math.max(a, b) as TritA;
 };
 
 export const gf3Not = (a: TritA): TritA => (-a) as TritA;

@@ -19,6 +19,12 @@ pub mod constants;
 pub mod instruction;
 pub mod engine;
 pub mod gc;
+pub mod assembler;
+pub mod debugger;
+pub mod compiler;
+pub mod cache;
+#[cfg(test)]
+mod vm_tests;
 
 #[derive(Debug, Clone)]
 pub enum VmError {

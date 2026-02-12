@@ -66,18 +66,18 @@ for (const [a, b, expected] of mulTable) {
   assertEquals(result.result, expected, `(${a}) * (${b}) = ${expected}`);
 }
 
-console.log('=== GF(3) XOR Table ===');
+console.log('=== Ternary XOR Table (Kleene min) ===');
 
 const xorTable: [TritA, TritA, number][] = [
-  [-1, -1,  0],
+  [-1, -1, -1],
   [-1,  0, -1],
-  [-1,  1,  0],
+  [-1,  1, -1],
   [ 0, -1, -1],
   [ 0,  0,  0],
-  [ 0,  1,  1],
-  [ 1, -1,  0],
-  [ 1,  0,  1],
-  [ 1,  1,  0],
+  [ 0,  1,  0],
+  [ 1, -1, -1],
+  [ 1,  0,  0],
+  [ 1,  1,  1],
 ];
 
 for (const [a, b, expected] of xorTable) {
