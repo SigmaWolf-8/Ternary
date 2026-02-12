@@ -779,7 +779,7 @@ export async function registerRoutes(
     try {
       const { sessionId } = req.params;
       const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 100;
+      const pageSize = Math.min(Math.max(parseInt(req.query.pageSize as string) || 100, 1), 1000);
       
       const fetchStart = performance.now();
       const ternaryData = await storage.getTernaryStorage(sessionId);
@@ -1222,8 +1222,8 @@ export async function registerRoutes(
   app.get("/api/salvi/ternary/density/:tritCount", (req, res) => {
     try {
       const tritCount = parseInt(req.params.tritCount);
-      if (isNaN(tritCount) || tritCount < 1 || tritCount > 1000000) {
-        return res.status(400).json({ error: "tritCount must be between 1 and 1000000" });
+      if (isNaN(tritCount) || tritCount < 1 || tritCount > 1000) {
+        return res.status(400).json({ error: "tritCount must be between 1 and 1000" });
       }
       
       const result = calculateInformationDensity(tritCount);
@@ -1850,7 +1850,7 @@ export async function registerRoutes(
   // Get recommended encryption mode
   app.get("/api/salvi/phase/recommend", (req, res) => {
     try {
-      const dataLength = parseInt(req.query.length as string) || 1000;
+      const dataLength = Math.min(Math.max(parseInt(req.query.length as string) || 1000, 1), 10000);
       const isSensitive = req.query.sensitive === "true";
       
       const mode = getRecommendedMode(dataLength, isSensitive);
@@ -1877,9 +1877,11 @@ export async function registerRoutes(
   // GITHUB FILE MANAGER API (Admin Only)
   // =====================================================
 
-  // Resolve GitHub token: per-user DB token first, then GITHUB_TOKEN env var fallback
   const resolveGitHubToken = (adminUser: any): string | null => {
-    if (adminUser?.githubToken) return adminUser.githubToken;
+    if (adminUser?.githubToken) {
+      const { decryptToken } = require('./crypto-utils');
+      return decryptToken(adminUser.githubToken);
+    }
     if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
     return null;
   };
@@ -1927,12 +1929,23 @@ export async function registerRoutes(
     }
   });
 
-  // Helper to validate and sanitize paths
-  const sanitizePath = (path: string): string => {
-    return path
+  const sanitizePath = (inputPath: string): string => {
+    let decoded = inputPath;
+    try {
+      decoded = decodeURIComponent(decoded);
+      decoded = decodeURIComponent(decoded);
+    } catch (_e) {
+    }
+    const nodePath = require('path');
+    let normalized = nodePath.posix.normalize(decoded);
+    normalized = normalized
       .replace(/\.\./g, "")
       .replace(/^\/+/, "")
       .replace(/\/+$/, "");
+    if (normalized.includes("..")) {
+      return "";
+    }
+    return normalized;
   };
 
   // Get repository branches
@@ -3344,10 +3357,9 @@ helm install kong kong/kong --namespace kong --create-namespace \\
         notAfter: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 10) // 10 years
       };
 
-      // Use openssl-like certificate generation via child process
-      const { exec } = await import('child_process');
+      const { execFile } = await import('child_process');
       const { promisify } = await import('util');
-      const execAsync = promisify(exec);
+      const execFileAsync = promisify(execFile);
       const fs = await import('fs/promises');
       const path = await import('path');
       
@@ -3357,8 +3369,11 @@ helm install kong kong/kong --namespace kong --create-namespace \\
       const keyPath = path.join(tempDir, 'tls.key');
       const certPath = path.join(tempDir, 'tls.crt');
 
-      // Generate certificate using openssl
-      await execAsync(`openssl req -new -x509 -nodes -newkey rsa:2048 -subj "/CN=kong-dp/O=PlenumNET/C=US" -keyout ${keyPath} -out ${certPath} -days 3650`);
+      await execFileAsync('openssl', [
+        'req', '-new', '-x509', '-nodes', '-newkey', 'rsa:2048',
+        '-subj', '/CN=kong-dp/O=PlenumNET/C=US',
+        '-keyout', keyPath, '-out', certPath, '-days', '3650'
+      ]);
       
       const tlsKey = await fs.readFile(keyPath, 'utf-8');
       const tlsCert = await fs.readFile(certPath, 'utf-8');
@@ -3531,10 +3546,9 @@ echo "📊 View logs: docker-compose logs -f"
         return res.status(400).json({ error: "GitHub owner and repo required" });
       }
 
-      // Generate certificates
-      const { exec } = await import('child_process');
+      const { execFile } = await import('child_process');
       const { promisify } = await import('util');
-      const execAsync = promisify(exec);
+      const execFileAsync = promisify(execFile);
       const fs = await import('fs/promises');
       const path = await import('path');
       
@@ -3544,7 +3558,11 @@ echo "📊 View logs: docker-compose logs -f"
       const keyPath = path.join(tempDir, 'tls.key');
       const certPath = path.join(tempDir, 'tls.crt');
 
-      await execAsync(`openssl req -new -x509 -nodes -newkey rsa:2048 -subj "/CN=kong-dp/O=PlenumNET/C=US" -keyout ${keyPath} -out ${certPath} -days 3650`);
+      await execFileAsync('openssl', [
+        'req', '-new', '-x509', '-nodes', '-newkey', 'rsa:2048',
+        '-subj', '/CN=kong-dp/O=PlenumNET/C=US',
+        '-keyout', keyPath, '-out', certPath, '-days', '3650'
+      ]);
       
       const tlsKey = await fs.readFile(keyPath, 'utf-8');
       const tlsCert = await fs.readFile(certPath, 'utf-8');

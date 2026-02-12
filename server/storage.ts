@@ -14,6 +14,7 @@
  * See LICENSE in the repository root for full terms.
  */
 
+import { encryptToken, decryptToken } from "./crypto-utils";
 import { 
   type User, type UpsertUser,
   type DemoSession, type InsertDemoSession,
@@ -36,6 +37,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: UpsertUser): Promise<User>;
   updateUserGithubToken(id: string, token: string): Promise<User | undefined>;
+  getDecryptedGithubToken(id: string): Promise<string | null>;
   setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined>;
   
   createDemoSession(session: InsertDemoSession): Promise<DemoSession>;
@@ -93,8 +95,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserGithubToken(id: string, token: string): Promise<User | undefined> {
-    const [user] = await db.update(users).set({ githubToken: token }).where(eq(users.id, id)).returning();
+    const encrypted = encryptToken(token);
+    const [user] = await db.update(users).set({ githubToken: encrypted }).where(eq(users.id, id)).returning();
     return user;
+  }
+
+  async getDecryptedGithubToken(id: string): Promise<string | null> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    if (!user?.githubToken) return null;
+    return decryptToken(user.githubToken);
   }
 
   async setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined> {

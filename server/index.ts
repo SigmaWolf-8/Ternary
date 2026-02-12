@@ -18,6 +18,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { securityHeaders } from "./middleware/security-headers";
+import { corsMiddleware } from "./middleware/cors-config";
+import { globalLimiter } from "./middleware/rate-limiter";
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,6 +30,10 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use("/api/", globalLimiter);
 
 app.use(
   express.json({
