@@ -114,6 +114,7 @@ export async function registerRoutes(
     terms: { file: "TERMS-OF-SERVICE.md", title: "Terms of Service" },
     privacy: { file: "PRIVACY-POLICY.md", title: "Privacy Policy" },
     security: { file: ".github/SECURITY.md", title: "Security Policy" },
+    aup: { file: "ACCEPTABLE-USE-POLICY.md", title: "Acceptable Use Policy" },
   };
 
   app.get("/api/legal/:type", async (req, res) => {

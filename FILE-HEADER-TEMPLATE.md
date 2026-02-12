@@ -1,22 +1,19 @@
 # Source File License Header Templates
-
 ## Salvi Framework — PlenumNET
-
 ### Capomastro Holdings Ltd.
 
 Apply the appropriate header to the top of every source file in the repository.
 
------
+---
 
 ## Rust (.rs) Files
 
 ```rust
-// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-// Patent(s) Pending — All Rights Reserved
+// Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
 // Applied Physics Division
 //
-// PROPRIETARY AND CONFIDENTIAL
-// All Rights Reserved.
+// PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+// Patent(s) Pending.
 //
 // This file is part of the Salvi Framework / PlenumNET platform.
 // Unauthorized copying, modification, distribution, or use of this file,
@@ -26,18 +23,17 @@ Apply the appropriate header to the top of every source file in the repository.
 // See LICENSE in the repository root for full terms.
 ```
 
------
+---
 
 ## TypeScript / JavaScript (.ts, .tsx, .js, .jsx) Files
 
 ```typescript
 /**
- * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
- * Patent(s) Pending — All Rights Reserved
+ * Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
  * Applied Physics Division
  *
- * PROPRIETARY AND CONFIDENTIAL
- * All Rights Reserved.
+ * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+ * Patent(s) Pending.
  *
  * This file is part of the Salvi Framework / PlenumNET platform.
  * Unauthorized copying, modification, distribution, or use of this file,
@@ -48,17 +44,16 @@ Apply the appropriate header to the top of every source file in the repository.
  */
 ```
 
------
+---
 
 ## Python (.py) Files
 
 ```python
-# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-# Patent(s) Pending — All Rights Reserved
+# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division
 #
-# PROPRIETARY AND CONFIDENTIAL
-# All Rights Reserved.
+# PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+# Patent(s) Pending.
 #
 # This file is part of the Salvi Framework / PlenumNET platform.
 # Unauthorized copying, modification, distribution, or use of this file,
@@ -68,18 +63,17 @@ Apply the appropriate header to the top of every source file in the repository.
 # See LICENSE in the repository root for full terms.
 ```
 
------
+---
 
 ## Shell (.sh) Files
 
 ```bash
 #!/bin/bash
-# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-# Patent(s) Pending — All Rights Reserved
+# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division
 #
-# PROPRIETARY AND CONFIDENTIAL
-# All Rights Reserved.
+# PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+# Patent(s) Pending.
 #
 # This file is part of the Salvi Framework / PlenumNET platform.
 # Unauthorized copying, modification, distribution, or use of this file,
@@ -89,59 +83,56 @@ Apply the appropriate header to the top of every source file in the repository.
 # See LICENSE in the repository root for full terms.
 ```
 
------
+---
 
 ## YAML (.yml, .yaml) Configuration Files
 
 ```yaml
-# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-# Patent(s) Pending — All Rights Reserved
+# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
-# See LICENSE in the repository root for full terms.
+# Patent(s) Pending. See LICENSE in the repository root for full terms.
 ```
 
------
+---
 
 ## Dockerfile
 
 ```dockerfile
-# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-# Patent(s) Pending — All Rights Reserved
+# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
-# See LICENSE in the repository root for full terms.
+# Patent(s) Pending. See LICENSE in the repository root for full terms.
 ```
 
------
+---
 
 ## Makefile
 
 ```makefile
-# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-# Patent(s) Pending — All Rights Reserved
+# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
-# See LICENSE in the repository root for full terms.
+# Patent(s) Pending. See LICENSE in the repository root for full terms.
 ```
 
------
+---
 
 ## Application Notes
 
 1. **Placement:** Headers go at the very top of the file, before any imports, module declarations, or shebang lines (except for shell scripts where `#!/bin/bash` must be first).
-1. **Existing doc comments:** For Rust files that begin with `//!` module-level doc comments, place the copyright header ABOVE the doc comments.
-1. **Generated files:** Files that are auto-generated (e.g., by build tools, drizzle migrations) may use a shorter header:
-   
+
+2. **Existing doc comments:** For Rust files that begin with `//!` module-level doc comments, place the copyright header ABOVE the doc comments.
+
+3. **Generated files:** Files that are auto-generated (e.g., by build tools, drizzle migrations) may use a shorter header:
    ```
-   // Auto-generated — Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-   // Patent(s) Pending — All Rights Reserved
-   // See LICENSE in the repository root for full terms.
+   // Auto-generated — Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+   // Patent(s) Pending. See LICENSE in the repository root for full terms.
    ```
-1. **CI Enforcement:** Consider adding a CI check to `.github/workflows/` that verifies all source files contain the copyright header. A simple grep-based check:
-   
+
+4. **CI Enforcement:** Consider adding a CI check to `.github/workflows/` that verifies all source files contain the copyright header. A simple grep-based check:
    ```bash
    find src/ server/ client/src/ libternary/src/ contracts/ -type f \
      \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.py" \) \
      -exec grep -L "Capomastro Holdings" {} \;
    ```
-   
    If the command produces any output, the check fails.
-1. **Scope:** Apply headers to all files in: `src/`, `server/`, `client/src/`, `libternary/src/`, `contracts/`, `services/`, `shared/`, `scripts/`, `kong/` (Dockerfile and service files).
+
+5. **Scope:** Apply headers to all files in: `src/`, `server/`, `client/src/`, `libternary/src/`, `contracts/`, `services/`, `shared/`, `scripts/`, `kong/` (Dockerfile and service files).

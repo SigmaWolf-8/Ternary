@@ -57,6 +57,7 @@ function Router() {
       <Route path="/terms" component={LegalPage} />
       <Route path="/privacy" component={LegalPage} />
       <Route path="/security" component={LegalPage} />
+      <Route path="/aup" component={LegalPage} />
       <Route component={NotFound} />
     </Switch>
   );

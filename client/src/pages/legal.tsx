@@ -19,13 +19,14 @@ import { Link, useRoute } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const VALID_TYPES = ["terms", "privacy", "security"] as const;
+const VALID_TYPES = ["terms", "privacy", "security", "aup"] as const;
 type LegalType = (typeof VALID_TYPES)[number];
 
 export default function LegalPage() {
   const [, paramsTerms] = useRoute("/terms");
   const [, paramsPrivacy] = useRoute("/privacy");
   const [, paramsSecurity] = useRoute("/security");
+  const [, paramsAup] = useRoute("/aup");
 
   const type: LegalType = paramsTerms
     ? "terms"
@@ -33,7 +34,9 @@ export default function LegalPage() {
       ? "privacy"
       : paramsSecurity
         ? "security"
-        : "terms";
+        : paramsAup
+          ? "aup"
+          : "terms";
 
   const { data, isLoading, error } = useQuery<{ title: string; content: string }>({
     queryKey: ["/api/legal", type],

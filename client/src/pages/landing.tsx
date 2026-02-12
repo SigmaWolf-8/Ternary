@@ -1130,6 +1130,7 @@ function Footer() {
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
       { label: "Security", href: "/security" },
+      { label: "Acceptable Use", href: "/aup" },
     ],
   };
 
