@@ -273,18 +273,16 @@ impl Mul for Multivector {
 
     fn mul(self, rhs: Self) -> Self {
         let mut result = [Gf3::ZERO; 8];
-        for i in 0..8 {
+        for (i, &blade_i) in INDEX_TO_BLADE.iter().enumerate() {
             let ai = self.components[i];
             if ai.is_zero() {
                 continue;
             }
-            let blade_i = INDEX_TO_BLADE[i];
-            for j in 0..8 {
+            for (j, &blade_j) in INDEX_TO_BLADE.iter().enumerate() {
                 let bj = rhs.components[j];
                 if bj.is_zero() {
                     continue;
                 }
-                let blade_j = INDEX_TO_BLADE[j];
                 let (target_idx, sign) = blade_product(blade_i, blade_j);
                 result[target_idx] = result[target_idx] + ai * bj * sign;
             }
@@ -395,7 +393,7 @@ pub mod ternary_circle_bridge {
     use super::*;
 
     /// Z₂₈ angular step size in ternary degrees
-    const RADIAN_DEG: u32 = 13;
+    const _RADIAN_DEG: u32 = 13;
 
     /// Map a Tribonacci symbol {A=0, B=1, C=2} to a Clifford rotor encoding
     /// its angular step.
@@ -652,7 +650,7 @@ mod tests {
         let orbit = rotor_orbit(&r);
         assert!(orbit.len() <= 81,
             "Orbit of a rotor in GF(3) should be finite and ≤81");
-        assert!(orbit.len() >= 1);
+        assert!(!orbit.is_empty());
     }
 
     #[test]

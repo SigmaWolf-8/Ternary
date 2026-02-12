@@ -70,7 +70,7 @@ impl Gf3 {
 
     /// Additive inverse (negation). 0→0, 1→2, 2→1.
     #[inline]
-    pub fn neg(self) -> Self {
+    pub fn negate(self) -> Self {
         Gf3((3 - self.0) % 3)
     }
 
@@ -121,7 +121,7 @@ impl Neg for Gf3 {
     type Output = Self;
     #[inline]
     fn neg(self) -> Self {
-        Gf3::neg(self)
+        Gf3::negate(self)
     }
 }
 

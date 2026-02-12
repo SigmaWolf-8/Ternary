@@ -158,8 +158,8 @@ pub fn opcode_encoding_efficiency(num_opcodes: u64) -> OpcodeEfficiency {
         num_opcodes,
         binary_bits,
         ternary_trits,
-        binary_wasted_fraction: 1.0 - (num_opcodes as f64 / 2.0f64.powi(binary_bits as i32)),
-        ternary_wasted_fraction: 1.0 - (num_opcodes as f64 / 3.0f64.powi(ternary_trits as i32)),
+        binary_wasted_fraction: 1.0 - (num_opcodes as f64 / 2.0f64.powi(i32::try_from(binary_bits).unwrap())),
+        ternary_wasted_fraction: 1.0 - (num_opcodes as f64 / 3.0f64.powi(i32::try_from(ternary_trits).unwrap())),
         ternary_info_bits,
         density_ratio: ternary_info_bits / binary_bits as f64,
     }
@@ -191,8 +191,8 @@ impl fmt::Display for OpcodeEfficiency {
 pub fn address_space_efficiency(node_count: u64) -> AddressEfficiency {
     let binary_bits = digits_needed(2, node_count);
     let ternary_trits = digits_needed(3, node_count);
-    let binary_capacity = 2u64.checked_pow(binary_bits as u32).unwrap_or(u64::MAX);
-    let ternary_capacity = 3u64.checked_pow(ternary_trits as u32).unwrap_or(u64::MAX);
+    let binary_capacity = 2u64.checked_pow(u32::try_from(binary_bits).unwrap()).unwrap_or(u64::MAX);
+    let ternary_capacity = 3u64.checked_pow(u32::try_from(ternary_trits).unwrap()).unwrap_or(u64::MAX);
 
     AddressEfficiency {
         node_count,

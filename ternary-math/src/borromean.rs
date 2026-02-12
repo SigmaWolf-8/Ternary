@@ -122,7 +122,7 @@ impl TernaryWord {
         let trits: Vec<u8> = balanced
             .iter()
             .map(|&d| {
-                assert!(d >= -1 && d <= 1, "Balanced trit must be -1, 0, or +1; got {}", d);
+                assert!((-1..=1).contains(&d), "Balanced trit must be -1, 0, or +1; got {}", d);
                 ((d + 3) % 3) as u8
             })
             .collect();
@@ -136,7 +136,7 @@ impl TernaryWord {
         let trits: Vec<u8> = bijective
             .iter()
             .map(|&d| {
-                assert!(d >= 1 && d <= 3, "Bijective trit must be 1, 2, or 3; got {}", d);
+                assert!((1..=3).contains(&d), "Bijective trit must be 1, 2, or 3; got {}", d);
                 d % 3
             })
             .collect();
@@ -167,7 +167,7 @@ impl TernaryWord {
     }
 
     /// Create a ternary word from a string of characters '0', '1', '2'.
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse_str(s: &str) -> Self {
         let trits: Vec<u8> = s
             .chars()
             .map(|c| match c {
@@ -315,16 +315,14 @@ pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, Tern
 
         if i == 0 {
             b_trits.push((3 - ai) % 3);
-            c_trits.push(if ai == 0 { 1 } else { 1 });
+            c_trits.push(1);
         } else if i == 1 && length > 1 {
             c_trits.push((3 - ai) % 3);
-            b_trits.push(if ai == 0 { 2 } else { 2 });
+            b_trits.push(2);
         } else if i == 2 && length > 2 {
-            let b_val = 1u8;
-            let c_val = 2u8;
             if ai != 0 {
-                b_trits.push(b_val);
-                c_trits.push(c_val);
+                b_trits.push(1);
+                c_trits.push(2);
             } else {
                 b_trits.push(1);
                 c_trits.push(1);
@@ -348,9 +346,9 @@ mod tests {
 
     #[test]
     fn test_ternary_xor_basic() {
-        let a = TernaryWord::from_str("012");
-        let b = TernaryWord::from_str("012");
-        let c = TernaryWord::from_str("012");
+        let a = TernaryWord::parse_str("012");
+        let b = TernaryWord::parse_str("012");
+        let c = TernaryWord::parse_str("012");
 
         let xor = TernaryWord::xor_triple(&a, &b, &c);
         assert_eq!(xor, vec![0, 0, 0]);
@@ -358,9 +356,9 @@ mod tests {
 
     #[test]
     fn test_identical_words_not_borromean() {
-        let a = TernaryWord::from_str("012");
-        let b = TernaryWord::from_str("012");
-        let c = TernaryWord::from_str("012");
+        let a = TernaryWord::parse_str("012");
+        let b = TernaryWord::parse_str("012");
+        let c = TernaryWord::parse_str("012");
 
         let result = check_borromean_invariant(&a, &b, &c);
         assert!(!result.is_borromean, "Three identical words cannot be Borromean");
@@ -368,9 +366,9 @@ mod tests {
 
     #[test]
     fn test_first_position_not_borromean() {
-        let a = TernaryWord::from_str("000");
-        let b = TernaryWord::from_str("000");
-        let c = TernaryWord::from_str("000");
+        let a = TernaryWord::parse_str("000");
+        let b = TernaryWord::parse_str("000");
+        let c = TernaryWord::parse_str("000");
 
         let result = check_borromean_invariant(&a, &b, &c);
         assert!(!result.is_borromean);
@@ -379,9 +377,9 @@ mod tests {
 
     #[test]
     fn test_valid_borromean_triple() {
-        let a = TernaryWord::from_str("012");
-        let b = TernaryWord::from_str("120");
-        let c = TernaryWord::from_str("120");
+        let a = TernaryWord::parse_str("012");
+        let b = TernaryWord::parse_str("120");
+        let c = TernaryWord::parse_str("120");
 
         let result = check_borromean_invariant(&a, &b, &c);
         assert!(result.is_borromean, "This triple should satisfy the Borromean condition");
@@ -391,9 +389,9 @@ mod tests {
 
     #[test]
     fn test_borromean_strength() {
-        let a = TernaryWord::from_str("012");
-        let b = TernaryWord::from_str("021");
-        let c = TernaryWord::from_str("000");
+        let a = TernaryWord::parse_str("012");
+        let b = TernaryWord::parse_str("021");
+        let c = TernaryWord::parse_str("000");
         let result = check_borromean_invariant(&a, &b, &c);
         assert!(!result.is_borromean);
         assert!(result.strength < 1.0);
@@ -401,9 +399,9 @@ mod tests {
 
     #[test]
     fn test_pairwise_separability() {
-        let a = TernaryWord::from_str("012");
-        let b = TernaryWord::from_str("021");
-        let c = TernaryWord::from_str("210");
+        let a = TernaryWord::parse_str("012");
+        let b = TernaryWord::parse_str("021");
+        let c = TernaryWord::parse_str("210");
 
         let (borromean, pairwise) = validate_borromean_triple(&a, &b, &c);
 
@@ -429,9 +427,9 @@ mod tests {
 
     #[test]
     fn test_xor_commutativity() {
-        let a = TernaryWord::from_str("01221");
-        let b = TernaryWord::from_str("21012");
-        let c = TernaryWord::from_str("10201");
+        let a = TernaryWord::parse_str("01221");
+        let b = TernaryWord::parse_str("21012");
+        let c = TernaryWord::parse_str("10201");
 
         let abc = TernaryWord::xor_triple(&a, &b, &c);
         let bca = TernaryWord::xor_triple(&b, &c, &a);
@@ -443,9 +441,9 @@ mod tests {
 
     #[test]
     fn test_word_length_mismatch_padding() {
-        let a = TernaryWord::from_str("12");
-        let b = TernaryWord::from_str("1");
-        let c = TernaryWord::from_str("121");
+        let a = TernaryWord::parse_str("12");
+        let b = TernaryWord::parse_str("1");
+        let c = TernaryWord::parse_str("121");
 
         let xor = TernaryWord::xor_triple(&a, &b, &c);
         assert_eq!(xor.len(), 3);
@@ -470,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_to_repr_roundtrip() {
-        let word = TernaryWord::from_str("012");
+        let word = TernaryWord::parse_str("012");
 
         let as_a = word.to_repr(WordRepr::Balanced);
         assert_eq!(as_a, vec![0, 1, -1]);
@@ -484,9 +482,9 @@ mod tests {
 
     #[test]
     fn test_borromean_invariant_across_representations() {
-        let a_from_b = TernaryWord::from_str("012");
-        let b_from_b = TernaryWord::from_str("120");
-        let c_from_b = TernaryWord::from_str("120");
+        let a_from_b = TernaryWord::parse_str("012");
+        let b_from_b = TernaryWord::parse_str("120");
+        let c_from_b = TernaryWord::parse_str("120");
 
         let a_from_a = TernaryWord::from_balanced(&[0, 1, -1]);
         let b_from_a = TernaryWord::from_balanced(&[1, -1, 0]);

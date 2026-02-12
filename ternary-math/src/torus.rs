@@ -145,11 +145,11 @@ pub struct TorusProperties {
 
 /// Compute properties of a 3-ary n-cube.
 pub fn torus_properties(n: usize) -> TorusProperties {
-    let node_count = 3u64.pow(n as u32);
+    let node_count = 3u64.pow(u32::try_from(n).unwrap());
     let degree = 2 * n;
     let diameter = n; // Each ring of 3 has diameter 1
     let total_links = n as u64 * node_count; // Each dimension contributes 3^n links
-    let bisection_bandwidth = 2 * 3u64.pow((n - 1) as u32);
+    let bisection_bandwidth = 2 * 3u64.pow(u32::try_from(n - 1).unwrap());
     // Average distance: each dimension contributes 2/3 on average
     // (1/3 chance of distance 0, 2/3 chance of distance 1)
     let average_distance = n as f64 * (2.0 / 3.0);
@@ -182,8 +182,9 @@ impl fmt::Display for TorusProperties {
 pub fn topology_comparison(ternary_dims: usize) -> TopologyComparison {
     let ternary = torus_properties(ternary_dims);
     // Find binary hypercube with closest node count
-    let binary_dims = ((ternary.node_count as f64).log2().ceil()) as usize;
-    let binary_nodes = 2u64.pow(binary_dims as u32);
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let binary_dims = (ternary.node_count as f64).log2().ceil() as usize;
+    let binary_nodes = 2u64.pow(u32::try_from(binary_dims).unwrap());
 
     TopologyComparison {
         ternary_dims,

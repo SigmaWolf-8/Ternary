@@ -212,17 +212,17 @@ impl Z28 {
     }
 
     /// Add two elements in Z₂₈ (group operation).
-    pub fn add(self, other: Z28) -> Z28 {
+    pub fn wrapping_add(self, other: Z28) -> Z28 {
         Z28(((self.0 as u32 + other.0 as u32) % 28) as u8)
     }
 
     /// Subtract (inverse addition) in Z₂₈.
-    pub fn sub(self, other: Z28) -> Z28 {
+    pub fn wrapping_sub(self, other: Z28) -> Z28 {
         Z28(((self.0 as u32 + 28 - other.0 as u32) % 28) as u8)
     }
 
     /// Negate (additive inverse) in Z₂₈.
-    pub fn neg(self) -> Z28 {
+    pub fn wrapping_neg(self) -> Z28 {
         if self.0 == 0 { Z28(0) } else { Z28(28 - self.0) }
     }
 
@@ -239,7 +239,7 @@ impl Z28 {
     /// Advance by a trit instruction (0, 1, or 2 ternary radians).
     pub fn step(self, trit: u8) -> Z28 {
         debug_assert!(trit <= 2);
-        self.add(Z28(trit))
+        self.wrapping_add(Z28(trit))
     }
 
     /// Check if this position is reachable from the origin by
@@ -378,7 +378,8 @@ mod tests {
 
     #[test]
     fn test_radian_is_tribonacci_t7() {
-        assert_eq!(RADIAN_DEG as u64, 13);
+        #[allow(clippy::cast_possible_truncation)]
+        { assert_eq!(RADIAN_DEG as u64, 13); }
     }
 
     #[test]
@@ -433,7 +434,7 @@ mod tests {
     fn test_z28_closure() {
         for a in 0..28u8 {
             for b in 0..28u8 {
-                let sum = Z28(a).add(Z28(b));
+                let sum = Z28(a).wrapping_add(Z28(b));
                 assert!(sum.0 < 28);
             }
         }
@@ -442,15 +443,15 @@ mod tests {
     #[test]
     fn test_z28_identity() {
         for a in 0..28u8 {
-            assert_eq!(Z28(a).add(Z28::zero()), Z28(a));
+            assert_eq!(Z28(a).wrapping_add(Z28::zero()), Z28(a));
         }
     }
 
     #[test]
     fn test_z28_inverse() {
         for a in 0..28u8 {
-            let inv = Z28(a).neg();
-            assert_eq!(Z28(a).add(inv), Z28::zero());
+            let inv = Z28(a).wrapping_neg();
+            assert_eq!(Z28(a).wrapping_add(inv), Z28::zero());
         }
     }
 
@@ -459,7 +460,7 @@ mod tests {
         let gen = Z28(1);
         let mut current = Z28::zero();
         for i in 1..=28 {
-            current = current.add(gen);
+            current = current.wrapping_add(gen);
             if i < 28 {
                 assert_ne!(current, Z28::zero());
             }

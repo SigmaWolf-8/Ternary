@@ -53,7 +53,7 @@
 use std::fmt;
 
 /// Maximum number of trits supported (covers T(n) up to n ≈ 200).
-const MAX_TRITS: usize = 128;
+const _MAX_TRITS: usize = 128;
 
 /// The three ternary representations supported by the kernel.
 ///
@@ -282,12 +282,12 @@ impl TritVec {
         let mut value: i64 = 0;
         let mut power: i64 = 1;
         for &d in balanced.iter().rev() {
-            assert!(d >= -1 && d <= 1, "Balanced trit must be -1, 0, or +1; got {}", d);
+            assert!((-1..=1).contains(&d), "Balanced trit must be -1, 0, or +1; got {}", d);
             value += d as i64 * power;
             power *= 3;
         }
         assert!(value >= 0, "Negative values not yet supported in TritVec");
-        Self::from_decimal(value as u64)
+        Self::from_decimal(u64::try_from(value).unwrap())
     }
 
     /// Create a TritVec from **Representation C** (Bijective) digits.
@@ -301,7 +301,7 @@ impl TritVec {
         let mut value: u64 = 0;
         let mut power: u64 = 1;
         for &d in bijective.iter().rev() {
-            assert!(d >= 1 && d <= 3, "Bijective trit must be 1, 2, or 3; got {}", d);
+            assert!((1..=3).contains(&d), "Bijective trit must be 1, 2, or 3; got {}", d);
             value += d as u64 * power;
             power *= 3;
         }
@@ -372,7 +372,7 @@ impl TritVec {
     /// If this is a power of 3, return the exponent k where self = 3^k.
     pub fn ternary_exponent(&self) -> Option<u32> {
         if self.is_power_of_3() {
-            Some((self.trit_length() - 1) as u32)
+            Some(u32::try_from(self.trit_length() - 1).unwrap())
         } else {
             None
         }
@@ -385,7 +385,7 @@ impl TritVec {
         for i in 0..len {
             seen[self.trits[i] as usize] = true;
         }
-        seen.iter().filter(|&&s| s).count() as u8
+        u8::try_from(seen.iter().filter(|&&s| s).count()).unwrap()
     }
 
     /// Add two trit vectors in native base-3 arithmetic.
@@ -601,15 +601,19 @@ pub fn tribonacci_constant_base3(n_digits: usize) -> Vec<u8> {
     let mut tau: f64 = 1.839286755214161;
     let mut digits = Vec::with_capacity(n_digits);
 
-    let int_part = tau.floor() as u8;
-    digits.push(int_part);
-    tau -= int_part as f64;
+    let int_part = tau.floor();
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let int_part_u8 = int_part as u64;
+    digits.push(u8::try_from(int_part_u8).unwrap());
+    tau -= int_part;
 
     for _ in 1..n_digits {
         tau *= 3.0;
-        let digit = tau.floor() as u8;
-        digits.push(digit.min(2));
-        tau -= digit as f64;
+        let digit = tau.floor();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let digit_u8 = u8::try_from(digit as u64).unwrap();
+        digits.push(digit_u8.min(2));
+        tau -= digit;
     }
 
     digits
@@ -777,7 +781,7 @@ mod tests {
             let bij = tv.to_repr_c();
             for (i, &d) in bij.iter().enumerate() {
                 assert!(
-                    d >= 1 && d <= 3,
+                    (1..=3).contains(&d),
                     "Bijective digit at position {} for value {} is {} (must be 1,2,3)",
                     i, n, d
                 );
@@ -826,7 +830,7 @@ mod tests {
             let bal = tv.to_repr_a();
             for (i, &d) in bal.iter().enumerate() {
                 assert!(
-                    d >= -1 && d <= 1,
+                    (-1..=1).contains(&d),
                     "Balanced digit at position {} for value {} is {} (must be -1,0,+1)",
                     i, n, d
                 );
