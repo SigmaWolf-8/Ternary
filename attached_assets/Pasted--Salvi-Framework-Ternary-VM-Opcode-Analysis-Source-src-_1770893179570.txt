@@ -1,0 +1,206 @@
+# Salvi Framework — Ternary VM Opcode Analysis
+
+## Source: `src/kernel/src/vm/instruction.rs` + `engine.rs`
+
+---
+
+## Complete ISA: All 35 Opcodes
+
+The VM uses a fixed 16-byte instruction encoding: `[opcode:1][dst:1][src1:1][src2:1][immediate:8][reserved:4]`
+
+27 registers (3³), indexed 0–26. Flags: `zero`, `negative`, `overflow`, `ternary`, `halted`.
+
+### Group 0x00 — System & Binary Arithmetic (8 opcodes)
+
+| Hex  | Opcode | Operands           | Semantics |
+|------|--------|--------------------|-----------|
+| 0x00 | `Nop`  | —                  | No operation |
+| 0x01 | `Halt` | —                  | Sets `halted` flag; VM stops |
+| 0x02 | `Add`  | dst, src1, src2    | `dst = src1 + src2` (overflowing) |
+| 0x03 | `Sub`  | dst, src1, src2    | `dst = src1 - src2` (overflowing) |
+| 0x04 | `Mul`  | dst, src1, src2    | `dst = src1 × src2` (overflowing) |
+| 0x05 | `Div`  | dst, src1, src2    | `dst = src1 / src2` (error on zero) |
+| 0x06 | `Mod`  | dst, src1, src2    | `dst = src1 % src2` (error on zero) |
+| 0x07 | `Neg`  | dst, src1          | `dst = -src1` |
+
+### Group 0x10 — Ternary-Native Operations (6 opcodes)
+
+| Hex  | Opcode     | Operands           | Semantics |
+|------|------------|--------------------|-----------|
+| 0x10 | `TAdd`     | dst, src1, src2    | GF(3) addition: `(a + b) mod 3`, mapped to balanced {-1,0,+1} |
+| 0x11 | `TMul`     | dst, src1, src2    | GF(3) multiplication: `(a × b) mod 3`, mapped to balanced |
+| 0x12 | `TNeg`     | dst, src1          | Ternary negation: `dst = -src1` |
+| 0x13 | `TRot`     | dst, src1, src2    | Cyclic rotation through {-1→0→+1→-1}, `src2 mod 3` positions |
+| 0x14 | `TXor`     | dst, src1, src2    | Ternary XOR: `(a + b) mod 3`, balanced mapping |
+| 0x15 | `TConvert` | dst, src1, src2, imm | Convert between ternary representations (src2=from, imm=to) |
+
+### Group 0x20 — Memory & Data Movement (6 opcodes)
+
+| Hex  | Opcode    | Operands       | Semantics |
+|------|-----------|----------------|-----------|
+| 0x20 | `Load`    | dst, src1, imm | `dst = mem[src1 + imm]` (reads i64) |
+| 0x21 | `Store`   | dst, src1, imm | `mem[src1 + imm] = dst` (writes i64) |
+| 0x22 | `Move`    | dst, src1      | `dst = src1` |
+| 0x23 | `LoadImm` | dst, imm       | `dst = immediate` |
+| 0x24 | `Push`    | src1           | Push `src1` onto stack |
+| 0x25 | `Pop`     | dst            | Pop stack into `dst` |
+
+### Group 0x30 — Control Flow (7 opcodes)
+
+| Hex  | Opcode       | Operands | Semantics |
+|------|--------------|----------|-----------|
+| 0x30 | `Jump`       | imm      | `PC = immediate` |
+| 0x31 | `JumpZero`   | imm      | If `zero` flag: `PC = immediate` |
+| 0x32 | `JumpNeg`    | imm      | If `negative` flag: `PC = immediate` |
+| 0x33 | `JumpPos`    | imm      | If `!zero && !negative`: `PC = immediate` |
+| 0x34 | `Call`       | imm      | Push PC, `PC = immediate` |
+| 0x35 | `Return`     | —        | Pop PC from stack |
+| 0x36 | `JumpNotZero`| imm      | If `!zero` flag: `PC = immediate` |
+
+### Group 0x40 — Comparison (2 opcodes)
+
+| Hex  | Opcode   | Operands        | Semantics |
+|------|----------|-----------------|-----------|
+| 0x40 | `Cmp`    | src1, src2      | Sets flags from `src1 - src2` |
+| 0x41 | `CmpImm` | src1, imm       | Sets flags from `src1 - immediate` |
+
+### Group 0x50 — Binary Bitwise Logic (6 opcodes)
+
+| Hex  | Opcode | Operands        | Semantics |
+|------|--------|-----------------|-----------|
+| 0x50 | `And`  | dst, src1, src2 | `dst = src1 & src2` |
+| 0x51 | `Or`   | dst, src1, src2 | `dst = src1 \| src2` |
+| 0x52 | `Xor`  | dst, src1, src2 | `dst = src1 ^ src2` |
+| 0x53 | `Shl`  | dst, src1, src2 | `dst = src1 << (src2 & 63)` |
+| 0x54 | `Shr`  | dst, src1, src2 | `dst = src1 >> (src2 & 63)` |
+| 0x55 | `Not`  | dst, src1       | `dst = !src1` (bitwise NOT) |
+
+**Total: 35 opcodes across 6 functional groups.**
+
+---
+
+## Critical Issues Identified in Current Implementation
+
+### Issue 1: `TXor` Is Identical to `TAdd`
+
+This is the most significant bug. Both opcodes execute the exact same logic:
+
+```rust
+// TAdd (line 245–254)
+let a_gf = a.rem_euclid(3);
+let b_gf = b.rem_euclid(3);
+let sum = (a_gf + b_gf) % 3;
+let result = if sum > 1 { sum - 3 } else { sum };
+
+// TXor (line 287–296) — IDENTICAL CODE
+let a_gf = a.rem_euclid(3);
+let b_gf = b.rem_euclid(3);
+let sum = (a_gf + b_gf) % 3;
+let result = if sum > 1 { sum - 3 } else { sum };
+```
+
+In GF(3), addition *is* the natural analogue of XOR (both are the group operation), so mathematically this isn't wrong — but having two opcodes that do the same thing wastes an opcode slot. Either differentiate `TXor` (e.g., make it `max(a,b) - min(a,b)` or a different ternary logic gate like Łukasiewicz implication), or repurpose the slot.
+
+### Issue 2: `TNeg` Is Identical to Binary `Neg`
+
+Both execute `dst = -src1`. The ternary negation should operate trit-by-trit on the balanced ternary representation (flip every trit: -1↔+1, 0→0), not just negate the i64 value. For single-trit values they happen to coincide, but for multi-trit words they diverge. The `ternary-math/src/gf3.rs` module has the correct implementation (`(3 - self.0) % 3`), but the VM opcode doesn't use it.
+
+### Issue 3: Balanced Ternary Mapping Is Inconsistent
+
+The `TAdd`/`TMul` opcodes map results to balanced ternary with:
+```rust
+let result = if sum > 1 { sum - 3 } else { sum };
+```
+This maps: `0→0, 1→1, 2→-1`. But GF(3) element `2` should map to balanced trit `-1` via the standard bijection `{0↔0, 1↔+1, 2↔-1}`. The code produces this correctly, but it's fragile — the mapping should use the `Gf3::to_balanced()` method from `ternary-math/src/gf3.rs` rather than inline arithmetic, ensuring a single source of truth.
+
+### Issue 4: `TRot` Only Operates on Single Trits
+
+```rust
+val = match val {
+    -1 => 0,
+    0 => 1,
+    1 => -1,
+    _ => val,  // ← silently passes multi-trit values through unchanged
+};
+```
+
+The fallthrough `_ => val` means any register value outside {-1, 0, 1} is silently ignored. This should either: (a) operate on each trit of a multi-trit word, or (b) return an error for out-of-range inputs.
+
+### Issue 5: `TConvert` Semantics Are Unclear
+
+The current implementation does simple offset arithmetic:
+```rust
+let a_val = match from_repr { 0 => val, 1 => val - 1, 2 => val - 2, _ => val };
+let result = match to_repr { 0 => a_val, 1 => a_val + 1, 2 => a_val + 2, _ => a_val };
+```
+
+This is a linear offset, not a genuine representation conversion between unbalanced GF(3) {0,1,2} and balanced {-1,0,+1}. A proper conversion would need to decompose multi-trit words and remap each trit.
+
+### Issue 6: Ternary Operations Don't Touch Multi-Trit Words
+
+All six ternary opcodes operate on a single trit (they `rem_euclid(3)` the input, discarding higher trits). The VM stores i64 values but treats them as single-element GF(3). This means there's no way to do ternary arithmetic on ternary *words* (e.g., a 27-trit register). The `ternary-math` crate has `Gf3` vectors and radix conversion — none of it is wired into the VM.
+
+---
+
+## Recommended Improvements
+
+### Tier 1 — Fix What's There (No New Opcodes)
+
+1. **Fix `TXor`**: Implement a distinct ternary logic gate. Recommendation: tritwise `(a - b) mod 3` balanced — this gives a non-commutative "difference" gate that's genuinely distinct from `TAdd`.
+
+2. **Fix `TNeg`**: Implement trit-by-trit negation across the full word width, using `Gf3::neg()` per trit.
+
+3. **Fix `TRot`**: Apply rotation per-trit across the full word, or error on values outside {-1,0,1}.
+
+4. **Fix `TConvert`**: Wire in `Gf3::to_balanced()` / `BalancedTrit::to_gf3()` from the math crate, operating across full word width.
+
+5. **Unify the math**: All ternary opcodes should delegate to `ternary-math::gf3` rather than reimplementing GF(3) arithmetic inline.
+
+### Tier 2 — Expand the Ternary Group (Use Available Opcode Space)
+
+The hex gap `0x16–0x1F` gives you 10 available slots. Recommendations:
+
+| Proposed Hex | Opcode     | Purpose |
+|-------------|------------|---------|
+| 0x16 | `TAnd`     | Ternary min (Łukasiewicz AND): `min(a, b)` per trit |
+| 0x17 | `TOr`      | Ternary max (Łukasiewicz OR): `max(a, b)` per trit |
+| 0x18 | `TSub`     | GF(3) subtraction: `(a - b) mod 3` — distinct from TAdd |
+| 0x19 | `TInv`     | GF(3) multiplicative inverse per trit |
+| 0x1A | `TShift`   | Ternary shift: shift trits left/right within a word |
+| 0x1B | `TCmp`     | Ternary three-way compare: result ∈ {-1, 0, +1} directly |
+| 0x1C | `TLoad`    | Load with ternary addressing (base-3 address computation) |
+| 0x1D | `TStore`   | Store with ternary addressing |
+
+### Tier 3 — Crypto Acceleration
+
+Given PlenumNET's CNSA 2.0 focus, add domain-specific opcodes:
+
+| Proposed Hex | Opcode      | Purpose |
+|-------------|-------------|---------|
+| 0x60 | `TPolyMul`  | Polynomial multiplication in GF(3)[x] — accelerates lattice ops (ML-KEM/ML-DSA) |
+| 0x61 | `TNTT`      | Number Theoretic Transform step in GF(3) — core of Kyber/Dilithium |
+| 0x62 | `THash`     | Tribonacci hash round using `HASH_SEED`/`HASH_MIX` constants |
+| 0x63 | `TEntropy`  | Sample from ternary entropy source |
+
+### Tier 4 — Architecture Improvements
+
+1. **Ternary-encoded opcodes**: The ISA claims ternary-native but encodes opcodes in binary (u8). Consider encoding in balanced ternary — a 3-trit opcode field gives 27 values (close to the current 35, which could be trimmed or grouped with a 4-trit prefix giving 81 slots).
+
+2. **Register mode awareness**: `TernaryRegister` has a `ternary_mode: bool` field that is *never set or read* anywhere in the engine. Wire this up so ternary opcodes auto-set it and binary opcodes on a ternary-mode register raise a warning or convert.
+
+3. **Instruction width**: 16 bytes per instruction is large. With 35 opcodes (6 bits) and 27 registers (5 bits), you could pack an instruction into 4–6 bytes: `[op:6][dst:5][src1:5][src2:5][imm:variable]`.
+
+4. **SIMD-style trit vectors**: Introduce a `TAddV` / `TMulV` that operates on all 27 trits of a register in parallel, treating the i64 as a packed trit vector (each trit in 2 bits). This leverages the existing register width.
+
+---
+
+## Summary Table
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Working correctly | 29 | Binary arithmetic, memory, control flow, bitwise |
+| Functionally correct but fragile | 2 | `TAdd`, `TMul` (inline GF(3), should delegate) |
+| Duplicate / wasted slot | 1 | `TXor` (identical to `TAdd`) |
+| Semantically wrong for multi-trit | 2 | `TNeg` (= binary Neg), `TRot` (single-trit only) |
+| Unclear / placeholder | 1 | `TConvert` (offset, not real conversion) |
+| **Unused `ternary_mode` flag** | — | Never read or written by any opcode |
