@@ -41,6 +41,9 @@ The `src/kernel/` directory contains a robust kernel developed in Rust, encompas
 -   **Ternary Virtual Machine**: 35-opcode ISA, execution engine with ternary ops, and a ternary-aware mark-sweep garbage collector (TAGC).
 -   **Binary Compatibility Layer**: Gateway for balanced ternary conversion, a universal ternary adapter, and CryptoInteropBridge for ML-KEM/ML-DSA interoperability.
 
+### Legal & IP Compliance
+All source files (224 total: 121 Rust, 103 TypeScript/JavaScript) carry standardized copyright headers with "Patent(s) Pending" and "Capomastro Holdings Ltd. (Canada)" designation. A `license-check.yml` CI workflow enforces header presence on all commits. Legal pages at `/terms`, `/privacy`, `/security` are served via `/api/legal/:type` with content from local markdown files. Key legal documents on GitHub: LICENSE, CLA.md, CONTRIBUTING.md, TERMS-OF-SERVICE.md, ACCEPTABLE-USE-POLICY.md, INTELLECTUAL-PROPERTY-NOTICE.md, TRADEMARK-NOTICE.md, SECURITY.md, FILE-HEADER-TEMPLATE.md, and CODE-OF-CONDUCT.md.
+
 ### GitHub Integration
 The GitHub Manager page (`/github`, admin-only) provides a file browser for the `SigmaWolf-8/Ternary` repository and enables push actions for CI/CD workflows, crypto modules, and a full project sync.
 
