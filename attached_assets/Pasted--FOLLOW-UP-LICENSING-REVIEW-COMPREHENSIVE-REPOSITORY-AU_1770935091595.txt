@@ -1,0 +1,462 @@
+
+FOLLOW-UP LICENSING REVIEW
+&
+COMPREHENSIVE REPOSITORY AUDIT
+Salvi Framework / PlenumNET Ternary Computing Platform
+Repository: github.com/SigmaWolf-8/Ternary
+Live Deployment: PlenumNET.replit.app
+Prepared for Capomastro Holdings Ltd.
+Applied Physics Division
+Audit Date: February 12, 2026
+Commit Count at Follow-Up: 121 (main branch)
+Prepared by: Licensing Counsel & Systems Architecture Review
+Incorporates Independent 3rd-Party Engineering Review
+Classification: CONFIDENTIAL — Attorney Work Product
+ 
+PART I: LICENSING & IP FOLLOW-UP REVIEW
+1. Executive Summary
+This is a follow-up review to the initial Licensing & IP Audit Report dated February 11, 2026. The original audit identified six critical findings across the SigmaWolf-8/Ternary repository. This review assesses the remediation status of each finding, identifies new issues arising from subsequent development, and incorporates findings from an independent third-party engineering review conducted concurrently.
+Overall Assessment: Significant progress has been made. Of the six original critical findings, four have been fully remediated. However, the most financially significant issue — the kernel's MIT license declaration — persists. Additionally, the third-party review uncovered 280 MB of build artifacts committed to version control, incorrect jurisdiction references in legal documents, and 34 Rust source files missing copyright headers. The repository’s legal posture has improved substantially but requires immediate Phase 0 action.
+2. Original Finding Remediation Status
+#	Original Finding	Severity	Status	Notes
+F1	No Root LICENSE File	CRITICAL	DONE	Comprehensive 227-line proprietary license deployed at root. Properly references ABCA R.S.A. 2000, c. B-9. Effective Feb 11, 2026.
+F2	Conflicting License Declarations	CRITICAL	PARTIAL	Root package.json, thdl, tsl, ternary-math FIXED. KERNEL Cargo.toml files STILL MIT. See § 3.
+F3	No Source File License Headers	HIGH	PARTIAL	88 TS/TSX files have headers. Most Rust files have headers. 20+ TS and 34 Rust files still missing. See § 3 and § 4.
+F4	No Contributor License Agreement	HIGH	DONE	CLA.md deployed. 122 lines, Version 1.0, effective Feb 11, 2026.
+F5	No Third-Party Attribution	MEDIUM	DONE	NOTICE file deployed. 100+ lines. Covers all major dependencies.
+F6	No Terms of Service for SaaS	HIGH	DONE	TOS, AUP, Privacy Policy deployed. API routes at /api/legal/:type. Client routes at /terms, /privacy.
+3. Persistent Issues (Unremediated from Original Audit)
+Finding F2-R: Kernel Cargo.toml Files Still Declare MIT License
+Severity: CRITICAL
+Files Affected: src/kernel/Cargo.toml (line 8) and src/kernel/wasm/Cargo.toml (line 7)
+The main kernel crate (plenumnet-kernel) and the WASM interface crate (plenumnet-wasm) both still declare license = "MIT" in their Cargo.toml manifests. This is the most valuable component of the entire IP portfolio — approximately 47,230 lines of Rust code comprising the cryptographic engine, virtual machine, memory subsystem, network stack, and FIPS compliance modules. Publishing these under MIT is an acute IP exposure.
+Risk Assessment: If any party has cloned or forked this repository while MIT was declared on the kernel, they may have a colorable claim to an MIT license grant for the kernel code. The earlier these files are corrected, the shorter the exposure window.
+Remediation: Phase 0, Tasks 0-1 and 0-2. Change license = "MIT" to license = "LicenseRef-Proprietary" in both files. Push via GitHub API immediately.
+Finding F3-R: 20+ TypeScript Source Files Still Missing License Headers
+Severity: HIGH
+Files Affected (Confirmed): 6 files in server/salvi-core/, 6 files in libternary/src/, 2 files in libternary/tests/, shared/tribonacci-constants.ts, script/build.ts, 3 config files, contracts/oracle-bridge/src/main.ts.
+The license-check CI workflow (.github/workflows/license-check.yml) is correctly configured to catch these on pull requests, but direct pushes to main bypass this check.
+Remediation: Phase 1, Tasks 1-1 through 1-4.
+4. New Findings (Post-Original Audit)
+Finding NF-1: 522 Rust Build Artifacts Tracked in Git (280 MB)
+Severity: CRITICAL
+Source: Third-Party Engineering Review
+The directory src/kernel/target/ contains 522 compiled Rust artifacts (.rlib, .rmeta, .so, .d files) totaling approximately 280 MB. These are debug build outputs that should never be committed to version control. The root .gitignore contains target/ but this only matches a top-level target/ directory — it does not match the nested src/kernel/target/ path because the files were added to git tracking before the .gitignore rule existed. GitHub is already issuing file size warnings for objects exceeding 50 MB.
+Impact: Every clone of the repository downloads 280 MB of useless binaries. This slows CI/CD pipelines, increases storage costs, and creates a poor first impression for any technical due diligence reviewer.
+Remediation: Phase 0, Tasks 0-4 and 0-5. Remove from tracking with git rm -r --cached, update .gitignore to use **/target/ glob, and force-push the cleaned history.
+Finding NF-2: Incorrect Jurisdiction in 3 Legal Documents
+Severity: CRITICAL
+Source: Third-Party Engineering Review
+Three internal legal documents reference Ontario as the governing jurisdiction instead of the Province of Alberta, which is the correct incorporation jurisdiction for Capomastro Holdings Ltd. under the Alberta Business Corporations Act:
+•	INTERNAL-IP-STRATEGY.md — "Ontario governing law"
+•	COMPONENT-LICENSING-MATRIX.md — "Ontario governing law" (2 references)
+•	ENTERPRISE-SLA.md — "Province of Ontario" for governing law and courts
+While these files are listed in .gitignore and should not be in the public repository, if they exist in any working copy or have ever been committed, the jurisdictional inconsistency creates a material risk: if an enterprise customer signs an SLA with Ontario as governing law while the LICENSE file specifies Alberta, a conflict-of-laws issue arises that could void key protections.
+Remediation: Phase 0, Task 0-6. Correct all jurisdiction references to Province of Alberta in all three documents. If these files are only local, update them locally. If they were ever committed, verify they are not in git history.
+Finding NF-3: 34 Rust Source Files Missing Copyright Headers
+Severity: CRITICAL
+Source: Third-Party Engineering Review
+While the initial audit identified TypeScript files missing headers, the third-party review found 34 Rust source files also missing copyright headers. These are predominantly in the cryptographic subsystem (19 files in src/kernel/src/crypto/) plus mod.rs files in the memory, sync, process, and security modules, and the main lib.rs entry point. These are the crown jewels of the IP portfolio — the cryptographic implementation files that are most likely to be individually extracted or referenced.
+Remediation: Phase 1, Task 1-5. Apply Rust copyright headers to all 34 files.
+Finding NF-4: Copyright Header Inconsistency (En-Dash vs. Hyphen)
+Severity: LOW
+10 files use an en-dash (–) in "2025–2026" while 88 files use a standard hyphen. Standardize on the hyphen variant as it is dominant and avoids encoding edge cases.
+Remediation: Phase 1, Task 1-6.
+Finding NF-5: Referenced Files Missing from Repository
+Severity: HIGH
+Source: Third-Party Engineering Review
+CODE-OF-CONDUCT.md and SECURITY.md are referenced in replit.md but do not exist at the repository root. SECURITY.md exists at .github/SECURITY.md (the correct GitHub auto-detection path), but CODE-OF-CONDUCT.md does not exist anywhere. For FIPS/CMVP submissions and enterprise due diligence, both files should exist at root.
+Remediation: Phase 1, Task 1-7.
+Finding NF-6: 11 Rust Compiler Warnings
+Severity: MEDIUM
+Source: Third-Party Engineering Review
+The kernel compiles with zero errors but produces 11 warnings: unused imports (CryptoError, CryptoResult, SimulatedHptp, etc.), unused variables, and dead code. While not blocking, these are unacceptable for a production-grade kernel targeting FIPS certification. CMVP reviewers will flag compiler warnings as evidence of insufficient code hygiene.
+Remediation: Phase 2, Task 2-8.
+Finding NF-7: GitHub Token Placeholder in Client Source
+Severity: MEDIUM
+Source: Third-Party Engineering Review
+client/src/pages/github-manager.tsx line 692 contains ghp_xxxxxxxxxxxxxxxx as a UI placeholder. While confirmed not to be a real token, this pattern trips automated secret scanning tools (GitHub Secret Scanning, GitLeaks, TruffleHog) and will generate false positive alerts in CI. Replace with a clearly non-token placeholder like "your-github-token-here".
+Remediation: Phase 2, Task 2-9.
+Finding NF-8: Duplicate Legal Document Drafts in attached_assets/
+Severity: LOW
+The attached_assets/ directory contains multiple timestamped drafts of legal documents (3 versions each of AUP, CLA, IP Notice, Export Control, plus multiple CNSA compliance task lists) totaling ~3.3 MB. These could be problematic during discovery or litigation if draft language differs from final versions.
+Remediation: Phase 5, Task 5-3.
+Finding NF-9: No DATA-PROCESSING-AGREEMENT.md
+Severity: MEDIUM
+Given the CNSA 2.0 compliance path and FIPS 140-3 Level 1 certification target, enterprise and government customers will require a Data Processing Agreement. Recommend drafting before enterprise sales engagement.
+Remediation: Phase 5, Task 5-1.
+5. Confirmed Clean Areas
+The following areas were audited and confirmed clean by both the primary review and the independent third-party engineering review:
+Area	Status	Notes
+Secrets/Tokens/Keys in Source	CLEAN	No real credentials leaked. Placeholder token identified and flagged (NF-7).
+.confidential/ Directory	CLEAN	Properly gitignored, not tracked.
+.env Files	CLEAN	Not tracked in version control.
+Private Key Files (.pem, .key)	CLEAN	Not tracked. keys/ contains only READMEs and procedures.
+.cache/ Directory	CLEAN	Not tracked.
+CI/CD Workflows	CLEAN	14 workflows configured (license-check, build-kernel, security-scan, compliance, etc.).
+Key Legal Documents	CLEAN	LICENSE, CLA, TOS, AUP, IP-NOTICE, TRADEMARK-NOTICE, CONTRIBUTING all present.
+Rust Kernel Compilation	CLEAN	Zero compilation errors. 11 warnings (flagged in NF-6).
+VM Test Suite	CLEAN	All VM tests passing.
+Dependency License Compliance	CLEAN	No GPL/AGPL/copyleft. All MIT/Apache-2.0/ISC/BSD.
+npm package.json License Field	CLEAN	Root and libternary both correctly reference LICENSE file.
+Cargo.lock Files	CLEAN	All 4 Rust workspaces have locked dependency files.
+package-lock.json	CLEAN	25K+ lines tracked. Standard npm practice; intentional.
+ 
+PART II: SECURITY & CODE QUALITY AUDIT
+Systems Architecture & Engineering Review
+6. Repository Statistics
+Metric	Value
+Total Repository Size	511 MB (280 MB are build artifacts — see NF-1)
+Language Composition	TypeScript 49.1%, Rust 27.1%, Makefile 20.5%, Other 3.3%
+Commit History	121 commits on main branch
+API Endpoints	81 registered Express routes
+Server Routes File	3,732 lines (server/routes.ts) — OVERSIZED
+Rust Kernel	~47,230 lines across all kernel modules
+salvi-core Modules	~5,610 lines across 13 TypeScript files
+Client-Side Code	75 files, ~19,333 lines
+Test Files	6 test files total — CRITICALLY LOW
+CI/CD Workflows	14 GitHub Actions workflows
+7. Security Findings
+SEC-1: No Server-Side Rate Limiting Middleware
+Severity: HIGH
+Rate limit configurations appear in route metadata (for Kong gateway docs) but NO actual rate limiting middleware exists in the Express application. The server is directly exposed at PlenumNET.replit.app without Kong or any API gateway in front. All 81 API endpoints are unprotected against abuse, brute force, or denial-of-service.
+Remediation: Phase 2, Task 2-1.
+SEC-2: No CORS Configuration
+Severity: MEDIUM
+No CORS headers or middleware are configured. The server accepts requests from any origin. For a platform with authentication and GitHub token management, this creates cross-origin request forgery risk.
+Remediation: Phase 2, Task 2-2.
+SEC-3: No Helmet.js Security Headers
+Severity: MEDIUM
+No security headers configured (X-Content-Type-Options, X-Frame-Options, HSTS, CSP, etc.). These are baseline requirements for any production web application.
+Remediation: Phase 2, Task 2-3.
+SEC-4: child_process exec() in Kong Certificate Generation
+Severity: MEDIUM
+Location: server/routes.ts, line 3348
+The Kong certificate generation route uses exec() with string interpolation to call openssl. While parameters are currently hardcoded, exec() invokes a shell and is susceptible to injection if any parameter becomes user-influenced in future modifications.
+Remediation: Phase 2, Task 2-4.
+SEC-5: sanitizePath Vulnerable to Encoded Path Traversal
+Severity: MEDIUM
+Location: server/routes.ts, line 1931
+The sanitizePath function uses regex to remove ".." sequences but does not handle URL-encoded traversal (%2e%2e%2f) or double-encoding. While GitHub's API provides a second layer of defense, defense-in-depth requires proper path normalization.
+Remediation: Phase 2, Task 2-5.
+SEC-6: GitHub Tokens Stored Without Encryption-at-Rest
+Severity: HIGH
+GitHub Personal Access Tokens are stored via storage.updateUserGithubToken(). If the Drizzle/PostgreSQL storage uses no column-level encryption, tokens are plaintext in the database. The project already has AES-256-GCM encryption utilities in services/payment-listener/config/secrets-config.ts that should be reused.
+Remediation: Phase 2, Task 2-6.
+SEC-7: No Input Validation Bounds on Numeric Parameters
+Severity: MEDIUM
+Several endpoints accept unbounded numeric parameters (batch timestamp count, pagination sizes, trit counts). A request for count=1000000 could cause memory exhaustion.
+Remediation: Phase 2, Task 2-7.
+8. Code Quality & Bug Risk Assessment
+BUG-1: Monolithic Routes File (3,732 Lines)
+Severity: HIGH (Maintenance Risk)
+server/routes.ts contains ALL 81 API routes, all middleware, all GitHub integration, all Kong management, all ternary computation, all calendar conversion, and all legal document serving in a single file. This is the single biggest maintenance risk in the codebase.
+Remediation: Phase 3, Task 3-1.
+BUG-2: Critically Low Test Coverage
+Severity: CRITICAL (Quality Risk)
+Only 6 test files exist for a 70,000+ line codebase. Zero tests for: phase encryption round-trip, GF(3) arithmetic correctness, API route input validation, calendar conversion accuracy, compression layer, GitHub API integration, authentication flows, or Kong management operations. For FIPS 140-3 certification, comprehensive self-tests and known-answer tests (KATs) are mandatory.
+Remediation: Phase 4, Tasks 4-1 through 4-6.
+BUG-3: Excessive use of catch (error: any)
+Severity: MEDIUM
+50+ catch blocks use error: any which defeats TypeScript type safety. Errors should be typed as unknown with instanceof narrowing.
+Remediation: Phase 3, Task 3-2.
+BUG-4: Console Logging in Production
+Severity: LOW
+33 console.log/error/warn calls bypass the structured log() utility, resulting in unformatted production logs.
+Remediation: Phase 3, Task 3-3.
+BUG-5: Unbounded Batch Operations
+Severity: MEDIUM
+The batch timestamp endpoint (GET /api/salvi/timing/batch/:count) accepts a user-supplied count with no upper bound. Same pattern exists in other batch endpoints.
+Remediation: Addressed by SEC-7 / Phase 2, Task 2-7.
+ 
+PART III: PHASED TASK LIST
+All Files Must Be Pushed Using the GitHub API Directly
+CRITICAL INSTRUCTION: All file modifications, creations, and updates described in this task list MUST be committed and pushed to the SigmaWolf-8/Ternary repository using the GitHub Contents API (PUT /repos/{owner}/{repo}/contents/{path}). Do not rely on git push from a local clone. Use the existing /api/github/file/:owner/:repo endpoint in the PlenumNET application or direct GitHub API calls with the configured Personal Access Token. Each task specifies the exact file path and action. For the git history cleanup task (0-4), use the GitHub API with git data endpoints for tree/blob manipulation, or execute from an authenticated local clone and force-push.
+PHASE 0: Emergency IP & Repository Remediation
+Deadline: IMMEDIATE (within 24 hours)
+Estimated Effort: 2-3 hours
+Blocking: All subsequent phases are blocked until Phase 0 is complete.
+
+Task 0-1: Fix Kernel Cargo.toml MIT License
+Finding	F2-R (CRITICAL)
+File	src/kernel/Cargo.toml
+Action	Change line 8 from license = "MIT" to license = "LicenseRef-Proprietary"
+GitHub API	GET current SHA, then PUT with updated content. Commit: "fix(legal): change kernel license from MIT to proprietary"
+
+Task 0-2: Fix WASM Cargo.toml MIT License
+Finding	F2-R (CRITICAL)
+File	src/kernel/wasm/Cargo.toml
+Action	Change line 7 from license = "MIT" to license = "LicenseRef-Proprietary"
+GitHub API	GET current SHA, then PUT. Commit: "fix(legal): change WASM license from MIT to proprietary"
+
+Task 0-3: Update MANIFEST-FIXES.md
+Finding	F2-R tracking
+File	MANIFEST-FIXES.md
+Action	Add new Fix 1.6 and 1.7 entries for kernel and WASM Cargo.toml. Mark as DONE once Tasks 0-1 and 0-2 are complete.
+GitHub API	PUT /repos/SigmaWolf-8/Ternary/contents/MANIFEST-FIXES.md
+
+Task 0-4: Remove Build Artifacts from Git Tracking
+Finding	NF-1 (CRITICAL) — 3rd-Party Review
+Directory	src/kernel/target/ (522 files, ~280 MB)
+Action	Execute: git rm -r --cached src/kernel/target/ && git commit -m "fix(repo): remove 280MB build artifacts from tracking" && git push origin main --force
+Note	This requires an authenticated local clone with force-push rights, or use the GitHub Git Data API (trees/blobs) to reconstruct the tree without the target/ directory. Cannot be done via the Contents API alone for directory removal.
+
+Task 0-5: Fix .gitignore for Nested target/ Directories
+Finding	NF-1 (CRITICAL) — 3rd-Party Review
+File	.gitignore
+Action	Change target/ to **/target/ so the rule matches at any directory depth. This prevents the same issue from recurring.
+GitHub API	PUT /repos/SigmaWolf-8/Ternary/contents/.gitignore. Commit: "fix(repo): gitignore nested target/ directories"
+
+Task 0-6: Correct Jurisdiction in Internal Legal Documents
+Finding	NF-2 (CRITICAL) — 3rd-Party Review
+Files	INTERNAL-IP-STRATEGY.md, COMPONENT-LICENSING-MATRIX.md, ENTERPRISE-SLA.md
+Action	Replace all references to "Ontario" / "Province of Ontario" with "Alberta" / "Province of Alberta". Total: 4 references across 3 files.
+Note	These files are in .gitignore and should NOT be pushed to the public repo. Update locally or in the private/confidential store. Verify none were ever committed to git history.
+PHASE 1: License Header Completion
+Deadline: Days 1-3
+Estimated Effort: 6-8 hours
+
+Task 1-1: Add Headers to salvi-core TypeScript Files (6 files)
+Finding	F3-R (HIGH) + 3rd-Party Review HP-1
+Files	server/salvi-core/unified-metadata-schema.ts, error-handling.ts, payment-listener-api.ts, timing-service.ts, sfk-operations-api.ts, blockchain-integrations.ts
+Action	Apply the proprietary TypeScript header template from FILE-HEADER-TEMPLATE.md to all 6 files.
+GitHub API	Six sequential PUT requests to /repos/SigmaWolf-8/Ternary/contents/server/salvi-core/{filename}
+
+Task 1-2: Add Headers to libternary Source & Test Files (8 files)
+Finding	F3-R (HIGH)
+Files	libternary/src/index.ts, ternary-types.ts, ternary-operations.ts, phase-encryption.ts, femtosecond-timing.ts, tribonacci.ts; libternary/tests/tribonacci.test.ts, ternary-operations.test.ts
+Action	Apply TypeScript header template to all 8 files.
+GitHub API	Eight sequential PUT requests
+
+Task 1-3: Add Headers to Shared, Config & Contract Files (6 files)
+Finding	F3-R (HIGH)
+Files	shared/tribonacci-constants.ts, script/build.ts, tailwind.config.ts, vite.config.ts, drizzle.config.ts, contracts/oracle-bridge/src/main.ts
+Action	Apply TypeScript header template.
+GitHub API	Six sequential PUT requests
+
+Task 1-4: Standardize Copyright Header Format (10 files)
+Finding	NF-4 (LOW)
+Action	Change en-dash – to standard hyphen - in the year range "2025–2026" for all 10 affected files.
+GitHub API	Ten PUT requests. Commit: "style(legal): standardize copyright year format to hyphen"
+
+Task 1-5: Add Headers to 34 Rust Kernel Files
+Finding	NF-3 (CRITICAL) — 3rd-Party Review
+Scope	19 files in src/kernel/src/crypto/, plus mod.rs files in memory, sync, process, security modules, and lib.rs
+Action	Apply the Rust header template from FILE-HEADER-TEMPLATE.md. Use the // Copyright (c) 2025-2026 format.
+GitHub API	34 sequential PUT requests. Batch commit message: "fix(legal): add copyright headers to kernel source files"
+
+Task 1-6: Create Root CODE-OF-CONDUCT.md
+Finding	NF-5 (HIGH) — 3rd-Party Review
+File	CODE-OF-CONDUCT.md (new file)
+Action	Create a Code of Conduct document. Recommend Contributor Covenant v2.1 adapted for proprietary project context.
+GitHub API	PUT without SHA (new file). Commit: "docs: add Code of Conduct"
+
+Task 1-7: Copy SECURITY.md to Root
+Finding	NF-5 (HIGH) — 3rd-Party Review
+File	SECURITY.md (new root copy)
+Action	Copy .github/SECURITY.md to the repository root so it is visible at both the GitHub-recognized path and the standard root location referenced in replit.md.
+GitHub API	GET .github/SECURITY.md content, PUT to root SECURITY.md.
+PHASE 2: Security Hardening
+Deadline: Days 3-6
+Estimated Effort: 10-14 hours
+
+Task 2-1: Install and Configure express-rate-limit
+Finding	SEC-1 (HIGH)
+Action	Add express-rate-limit to package.json. Create server/middleware/rate-limiter.ts with tiered limits: 100 req/min global, 20/min auth endpoints, 10/min GitHub token endpoints, 50/min computation.
+GitHub API	PUT package.json, PUT server/middleware/rate-limiter.ts (new), PUT server/index.ts
+
+Task 2-2: Install and Configure CORS Middleware
+Finding	SEC-2 (MEDIUM)
+Action	Add cors to package.json. Create server/middleware/cors-config.ts with allowed origins restricted to PlenumNET domain.
+GitHub API	PUT package.json, PUT server/middleware/cors-config.ts (new), PUT server/index.ts
+
+Task 2-3: Install and Configure Helmet.js
+Finding	SEC-3 (MEDIUM)
+Action	Add helmet to package.json. Configure in server/index.ts before route registration.
+GitHub API	PUT package.json, PUT server/index.ts
+
+Task 2-4: Replace exec() with execFile() in Kong Cert Generation
+Finding	SEC-4 (MEDIUM)
+Location	server/routes.ts, ~line 3348
+Action	Refactor to use execFile() (no shell invocation) or replace entirely with Node.js crypto X509 APIs.
+GitHub API	PUT server/routes.ts
+
+Task 2-5: Harden sanitizePath Function
+Finding	SEC-5 (MEDIUM)
+Location	server/routes.ts, line 1931
+Action	Apply decodeURIComponent() before sanitization, normalize with path.normalize(), reject paths containing ".." after normalization.
+GitHub API	PUT server/routes.ts
+
+Task 2-6: Encrypt GitHub Tokens at Rest
+Finding	SEC-6 (HIGH)
+Action	Create shared/crypto-utils.ts wrapping existing AES-256-GCM from secrets-config.ts. Modify server/storage.ts to encrypt before store, decrypt on retrieval.
+GitHub API	PUT shared/crypto-utils.ts (new), PUT server/storage.ts
+
+Task 2-7: Add Input Validation Bounds to All Numeric Parameters
+Finding	SEC-7 (MEDIUM) + BUG-5
+Action	Add max validation: batch count ≤ 10,000; pagination ≤ 1,000; trit count ≤ 1,000. Return 400 on exceeded.
+GitHub API	PUT server/routes.ts
+
+Task 2-8: Resolve 11 Rust Compiler Warnings
+Finding	NF-6 (MEDIUM) — 3rd-Party Review
+Action	Remove unused imports (CryptoError, CryptoResult, SimulatedHptp, etc.), prefix unused variables with _, remove dead code. Target: zero warnings on cargo build.
+GitHub API	PUT for each affected .rs file
+
+Task 2-9: Replace GitHub Token Placeholder in Client
+Finding	NF-7 (MEDIUM) — 3rd-Party Review
+File	client/src/pages/github-manager.tsx, line 692
+Action	Change ghp_xxxxxxxxxxxxxxxx to your-github-token-here or use an empty string with a label.
+GitHub API	PUT client/src/pages/github-manager.tsx
+PHASE 3: Code Architecture Improvements
+Deadline: Days 6-14
+Estimated Effort: 20-30 hours
+
+Task 3-1: Decompose server/routes.ts into Route Modules
+Finding	BUG-1 (HIGH)
+Action	Create 8 route module files and migrate handlers from the monolithic 3,732-line routes.ts
+New Files	server/routes/ternary-routes.ts, timing-routes.ts, calendar-routes.ts, github-routes.ts, kong-routes.ts, legal-routes.ts, admin-routes.ts, demo-routes.ts
+GitHub API	PUT 8 new files + PUT updated routes.ts + PUT updated index.ts
+
+Task 3-2: Replace catch (error: any) with Proper Error Typing
+Finding	BUG-3 (MEDIUM)
+Scope	50+ catch blocks across server/routes.ts (and its decomposed modules after Task 3-1)
+Action	Change to catch (error: unknown) with instanceof narrowing. Create shared/error-utils.ts for common patterns.
+GitHub API	PUT all affected route module files + PUT shared/error-utils.ts (new)
+
+Task 3-3: Migrate Console Logging to Structured Logger
+Finding	BUG-4 (LOW)
+Scope	33 console.log/error/warn calls in route handlers
+Action	Replace with the structured log() utility from server/index.ts. Add log levels (info, warn, error, debug).
+GitHub API	PUT all affected route module files
+
+Task 3-4: Create Centralized Environment Configuration
+Finding	Architecture recommendation
+File	server/config.ts (new)
+Action	Validate all required env vars at startup (GITHUB_TOKEN, KONG_KONNECT_TOKEN, DATABASE_URL, REPLIT_DOMAINS, etc.). Fail fast if missing. Export typed config objects.
+GitHub API	PUT server/config.ts (new), update all files that read process.env directly
+
+Task 3-5: Add API Versioning Prefix
+Finding	Architecture recommendation
+Action	Prefix all API routes with /api/v1/. Configure backward-compatible redirects from /api/ during transition. Update client API calls.
+GitHub API	PUT all route modules, PUT affected client files
+PHASE 4: Test Coverage Expansion
+Deadline: Days 14-28
+Estimated Effort: 40-60 hours
+Note: This is the most labor-intensive phase but is mandatory for FIPS 140-3 certification. CMVP requires evidence of comprehensive self-tests and known-answer tests (KATs) for all cryptographic operations.
+
+Task 4-1: Create API Route Integration Tests
+Finding	BUG-2 (CRITICAL)
+Action	Write integration tests for all 81 API endpoints using Vitest + supertest. Cover happy paths, error paths, input validation.
+GitHub API	PUT tests/integration/api-routes.test.ts (new) + PUT package.json (add test deps)
+
+Task 4-2: Create Phase Encryption Round-Trip Tests
+Finding	BUG-2 (CRITICAL)
+Action	Property-based tests: phaseSplit then phaseRecombine returns original data for all modes (balanced, performance, security).
+GitHub API	PUT tests/integration/phase-encryption.test.ts (new)
+
+Task 4-3: Create GF(3) Arithmetic Known-Answer Tests
+Finding	BUG-2 (CRITICAL) — FIPS KAT requirement
+Action	Exhaustive tests for all GF(3) operations (add, multiply, negate) covering complete 3x3 operation tables. These are required for CMVP submission.
+GitHub API	PUT tests/integration/gf3-arithmetic.test.ts (new)
+
+Task 4-4: Create Calendar Conversion Accuracy Tests
+Finding	BUG-2 (CRITICAL)
+Action	Reference date tests for all 10+ calendar conversions. Include epoch boundaries, leap years, calendar transitions.
+GitHub API	PUT tests/integration/calendar-conversion.test.ts (new)
+
+Task 4-5: Expand Rust Kernel Test Suite
+Finding	BUG-2 (CRITICAL) — FIPS KAT requirement
+Action	Module-level tests for: memory management, process scheduling, VM instruction execution, cryptographic operations, network protocols. Target: 80%+ code coverage.
+GitHub API	PUT multiple test files in src/kernel/src/*/tests/
+
+Task 4-6: Add TypeScript Test Execution to CI
+Finding	BUG-2 (CRITICAL)
+Action	Create .github/workflows/test-typescript.yml running the TypeScript test suite. Update test-kernel.yml to report coverage.
+GitHub API	PUT .github/workflows/test-typescript.yml (new), PUT .github/workflows/test-kernel.yml
+PHASE 5: Legal Enhancement & Documentation
+Deadline: Days 28-35
+Estimated Effort: 10-15 hours
+
+Task 5-1: Draft Data Processing Agreement Template
+Finding	NF-9 (MEDIUM)
+File	DATA-PROCESSING-AGREEMENT.md (new)
+Action	Cover GDPR, PIPEDA, CCPA requirements. Template with configurable customer name, date, data categories.
+GitHub API	PUT /repos/SigmaWolf-8/Ternary/contents/DATA-PROCESSING-AGREEMENT.md
+
+Task 5-2: Create CHANGELOG.md
+Finding	FIPS audit expectation
+File	CHANGELOG.md (new)
+Action	Document all material changes since repository creation. Follow Keep a Changelog format.
+GitHub API	PUT /repos/SigmaWolf-8/Ternary/contents/CHANGELOG.md
+
+Task 5-3: Clean Up attached_assets/ Directory
+Finding	NF-8 (LOW)
+Action	Remove superseded draft documents (AUP drafts, CLA drafts, IP Notice drafts, Export Control drafts). Keep kernel spec docs (01-13) and getting-started guides.
+GitHub API	DELETE requests for each superseded file via Contents API
+
+Task 5-4: Update LICENSING-AUDIT-REPORT.md with Follow-Up
+Finding	Documentation
+File	LICENSING-AUDIT-REPORT.md
+Action	Append Follow-Up section documenting all new findings, 3rd-party review incorporation, and Phase 0-5 task completion status.
+GitHub API	PUT /repos/SigmaWolf-8/Ternary/contents/LICENSING-AUDIT-REPORT.md
+
+Task 5-5: Verify Branch Protection Rules via API
+Finding	Repository governance
+Action	GET /repos/SigmaWolf-8/Ternary/branches/main/protection to verify rules match .github/BRANCH_PROTECTION.md. If not configured, PUT to enable.
+Note	Requires admin-level GitHub token
+
+Task 5-6: Update replit.md References
+Finding	NF-5 (HIGH)
+File	replit.md
+Action	Update file references to point to correct locations for SECURITY.md and CODE-OF-CONDUCT.md now that they exist at root.
+GitHub API	PUT /repos/SigmaWolf-8/Ternary/contents/replit.md
+ 
+9. Master Summary
+9.1 Phase Summary & Priority Matrix
+Phase	Focus	Tasks	Task IDs	Effort	Deadline	Risk if Delayed
+0	Emergency IP & Repo Fix	6	0-1 to 0-6	2-3 hrs	Immediate	CRITICAL
+1	License Headers	7	1-1 to 1-7	6-8 hrs	Days 1-3	HIGH
+2	Security Hardening	9	2-1 to 2-9	10-14 hrs	Days 3-6	HIGH
+3	Code Architecture	5	3-1 to 3-5	20-30 hrs	Days 6-14	MEDIUM
+4	Test Coverage	6	4-1 to 4-6	40-60 hrs	Days 14-28	CRITICAL
+5	Legal & Docs	6	5-1 to 5-6	10-15 hrs	Days 28-35	MEDIUM
+
+Total Tasks: 39
+Total Estimated Effort: 88-130 hours (~11-16 business days)
+Phase 0 Gate: All subsequent phases are blocked until Phase 0 is complete. The kernel MIT license exposure and the 280 MB build artifacts are the two highest-priority items.
+9.2 Findings Cross-Reference
+ID	Finding	Severity	Source	Resolution
+F2-R	Kernel Cargo.toml MIT License	CRITICAL	Primary	Tasks 0-1, 0-2
+F3-R	TypeScript Files Missing Headers	HIGH	Primary	Tasks 1-1 to 1-4
+NF-1	280 MB Build Artifacts in Git	CRITICAL	3rd-Party	Tasks 0-4, 0-5
+NF-2	Wrong Jurisdiction (3 docs)	CRITICAL	3rd-Party	Task 0-6
+NF-3	34 Rust Files Missing Headers	CRITICAL	3rd-Party	Task 1-5
+NF-4	En-Dash vs. Hyphen Headers	LOW	Primary	Task 1-4
+NF-5	Missing CODE-OF-CONDUCT & Root SECURITY.md	HIGH	3rd-Party	Tasks 1-6, 1-7
+NF-6	11 Rust Compiler Warnings	MEDIUM	3rd-Party	Task 2-8
+NF-7	Token Placeholder Trips Scanners	MEDIUM	3rd-Party	Task 2-9
+NF-8	Draft Legal Docs in attached_assets/	LOW	Primary	Task 5-3
+NF-9	No Data Processing Agreement	MEDIUM	Primary	Task 5-1
+SEC-1	No Rate Limiting	HIGH	Primary	Task 2-1
+SEC-2	No CORS	MEDIUM	Primary	Task 2-2
+SEC-3	No Security Headers	MEDIUM	Primary	Task 2-3
+SEC-4	exec() Shell Injection Risk	MEDIUM	Primary	Task 2-4
+SEC-5	Path Traversal in sanitizePath	MEDIUM	Primary	Task 2-5
+SEC-6	Tokens Unencrypted at Rest	HIGH	Primary	Task 2-6
+SEC-7	Unbounded Numeric Parameters	MEDIUM	Primary	Task 2-7
+BUG-1	3,732-Line Monolith Routes File	HIGH	Primary	Task 3-1
+BUG-2	6 Test Files for 70K+ LOC	CRITICAL	Primary	Tasks 4-1 to 4-6
+BUG-3	50+ catch (error: any)	MEDIUM	Primary	Task 3-2
+BUG-4	33 Console Logs Bypass Logger	LOW	Primary	Task 3-3
+10. GitHub API Push Protocol
+All tasks in this document specify file paths that must be updated via the GitHub Contents API. The standard workflow for each file modification is:
+1.	GET the current file to obtain its SHA: GET /repos/SigmaWolf-8/Ternary/contents/{path}?ref=main
+2.	Base64-encode the new file content.
+3.	PUT the updated file: PUT /repos/SigmaWolf-8/Ternary/contents/{path} with body: { message, content (base64), sha, branch: "main" }
+4.	For new files, omit the sha field in the PUT request body.
+5.	For deletions, use DELETE /repos/SigmaWolf-8/Ternary/contents/{path} with the file's current SHA.
+The PlenumNET application has this workflow implemented at PUT /api/github/file/:owner/:repo (server/routes.ts line 2071). Use this endpoint with a valid admin session, or make direct GitHub API calls with the configured Personal Access Token.
+Exception — Task 0-4 (Build Artifact Removal): Directory-level removal from git history cannot be accomplished via the Contents API. This task requires either: (a) an authenticated local clone with git rm -r --cached and force-push, or (b) use of the GitHub Git Data API to reconstruct the tree/commit objects without the target/ directory.
+Commit Message Convention: fix(legal): for licensing changes; fix(security): for security fixes; fix(repo): for repository hygiene; refactor(arch): for architecture changes; test(module): for test additions; docs: for documentation.
+— End of Report —
+This report constitutes a combined legal review and technical audit incorporating findings from an independent third-party engineering review. It does not constitute legal advice. Capomastro Holdings Ltd. should consult with retained counsel before executing any changes that affect third-party rights or regulatory submissions.
