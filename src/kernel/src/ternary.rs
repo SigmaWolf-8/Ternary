@@ -155,10 +155,14 @@ impl Trit {
     }
 
     /// GF(3) multiplicative inverse per trit.
-    /// 0 → 0 (no inverse), 1 → 1, -1 → -1
-    /// In balanced representation: each nonzero trit is its own inverse.
+    /// 1 → 1, -1 → -1 (each nonzero trit is its own inverse).
+    /// Panics on zero — zero has no multiplicative inverse in GF(3).
+    /// Consistent with ternary-math/src/gf3.rs Gf3::inv().
     pub fn gf3_inverse(&self) -> Self {
-        *self
+        match self.value {
+            0 => panic!("Zero has no multiplicative inverse in GF(3)"),
+            _ => *self,
+        }
     }
 
     /// Łukasiewicz conjunction: max(a + b - 1, -1) in balanced ternary

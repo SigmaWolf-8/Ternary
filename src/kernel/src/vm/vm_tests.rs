@@ -248,8 +248,10 @@ mod property_tests {
             let roti = ta.rotate_inverse().to_a();
             assert!(roti >= -1 && roti <= 1, "rotate_inverse({}) out of range", a);
 
-            let inv = ta.gf3_inverse().to_a();
-            assert!(inv >= -1 && inv <= 1, "gf3_inverse({}) out of range", a);
+            if a != 0 {
+                let inv = ta.gf3_inverse().to_a();
+                assert!(inv >= -1 && inv <= 1, "gf3_inverse({}) out of range", a);
+            }
         }
     }
 

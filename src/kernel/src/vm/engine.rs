@@ -16,6 +16,7 @@ use alloc::vec::Vec;
 use super::{VmError, VmResult};
 use super::instruction::*;
 use super::gc::GcHeap;
+use super::cache::ConstantTimeTernary;
 use crate::ternary::{Trit, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left, packed_reduce, packed_convert};
 
 pub struct VmMemory {
@@ -262,11 +263,9 @@ impl TernaryVm {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
                 let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
-                    packed_zip(a, b, |x, y| x.add(y))
+                    ConstantTimeTernary::ct_packed_add(a, b)
                 } else {
-                    let ta = scalar_to_trit(a);
-                    let tb = scalar_to_trit(b);
-                    ta.add(&tb).to_a() as i64
+                    ConstantTimeTernary::ct_add(a as i8, b as i8) as i64
                 };
                 self.set_register(inst.dst, result)?;
                 self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
@@ -276,11 +275,9 @@ impl TernaryVm {
                 let a = self.get_register(inst.src1)?;
                 let b = self.get_register(inst.src2)?;
                 let result = if self.is_ternary_mode(inst.src1) || self.is_ternary_mode(inst.src2) {
-                    packed_zip(a, b, |x, y| x.multiply(y))
+                    ConstantTimeTernary::ct_packed_mul(a, b)
                 } else {
-                    let ta = scalar_to_trit(a);
-                    let tb = scalar_to_trit(b);
-                    ta.multiply(&tb).to_a() as i64
+                    ConstantTimeTernary::ct_mul(a as i8, b as i8) as i64
                 };
                 self.set_register(inst.dst, result)?;
                 self.propagate_ternary_mode(inst.dst, inst.src1, inst.src2)?;
@@ -409,10 +406,22 @@ impl TernaryVm {
             Opcode::TInv => {
                 let a = self.get_register(inst.src1)?;
                 let result = if self.is_ternary_mode(inst.src1) {
-                    packed_map(a, |t| t.gf3_inverse())
+                    let trits = unpack_trits(a);
+                    for i in 0..27 {
+                        if trits[i].to_a() == 0 {
+                            return Err(VmError::InvalidProgram(
+                                alloc::string::String::from("GF(3) inverse of zero is undefined")
+                            ));
+                        }
+                    }
+                    a // nonzero trits are self-inverse in balanced representation
                 } else {
-                    let ta = scalar_to_trit(a);
-                    ta.gf3_inverse().to_a() as i64
+                    if a == 0 {
+                        return Err(VmError::InvalidProgram(
+                            alloc::string::String::from("GF(3) inverse of zero is undefined")
+                        ));
+                    }
+                    a // nonzero scalar trits are self-inverse in balanced
                 };
                 self.set_register(inst.dst, result)?;
                 self.copy_ternary_mode(inst.dst, inst.src1)?;
@@ -817,6 +826,9 @@ impl TernaryVm {
                 self.update_flags(0, false);
             }
             Opcode::ReadTime => {
+                // TODO(HPTP): Replace cycle-counter stub with FemtosecondTimestamp
+                // from crate::timing when hardware/HPTP integration is available.
+                // Current behavior: returns VM cycle count as a monotonic proxy.
                 let result = self.cycles as i64;
                 self.set_register(inst.dst, result)?;
                 self.update_flags(result, false);
@@ -1549,15 +1561,14 @@ mod tests {
     }
 
     #[test]
-    fn test_vm_tinv_zero() {
+    fn test_vm_tinv_zero_errors() {
         let mut vm = make_vm();
         let mut prog = Program::new("tinv_zero");
         prog.add_instruction(Instruction::new(Opcode::LoadImm, 0, 0, 0, 0));
         prog.add_instruction(Instruction::new(Opcode::TInv, 1, 0, 0, 0));
         prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
         vm.load_program(prog).unwrap();
-        vm.run().unwrap();
-        assert_eq!(vm.get_register(1).unwrap(), 0); // GF(3) inverse of 0 = 0
+        assert!(vm.run().is_err()); // GF(3) inverse of 0 is undefined
     }
 
     #[test]
