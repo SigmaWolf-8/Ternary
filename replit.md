@@ -6,6 +6,9 @@ PlenumNET is a post-quantum internet solutions company focused on building quant
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
 
+## Legal Jurisdiction
+All legal documents use **Province of Alberta** (not Ontario) for governing law, jurisdiction, court references, and entity incorporation ("incorporated under the laws of the Province of Alberta"). Capomastro Holdings Ltd. is an Alberta corporation.
+
 ## System Architecture
 
 ### Frontend
