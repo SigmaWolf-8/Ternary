@@ -1,0 +1,325 @@
+# ACCURACY REVIEW
+## Verification Status Report — February 12, 2026
+### Capomastro Holdings Ltd. — Salvi Framework / PlenumNET
+
+**Date:** February 12, 2026
+**Re:** Claim-by-claim verification of the third-party "Verification Status Report" against actual repository state at commit `6f8a774` (1,046 commits)
+**Classification:** Privileged & Confidential
+
+---
+
+## SUMMARY
+
+The Verification Status Report ("the Report") claims that "all P0 and P1 legal findings from the Proper Review are resolved" and that the project is "now in a legally defensible posture." We have verified every claim against the actual repository state and live site source code.
+
+**The Report contains significant inaccuracies.** Of the six Critical (Tier 1) findings it marks as "✅ COMPLETE," two are verifiably false, one is partially incomplete, and three are genuinely complete. The Report's live site verification section — which claims functional legal pages, revised marketing language, and an operational contact form — is entirely contradicted by the source code in the repository at the cited commit.
+
+---
+
+## CLAIM-BY-CLAIM VERIFICATION
+
+### TIER 1 — CRITICAL
+
+---
+
+**C-1: SaaS Legal Pages + Marketing Language**
+**Report claims:** ✅ COMPLETE — "Footer now contains working `/terms`, `/privacy`, `/aup` links. Marketing copy audited: all 13 instances of 'compliant'/'built in'/'regulatory certification' are revised."
+
+**Actual state:** ❌ **FALSE**
+
+Evidence from the repository at commit `6f8a774`:
+
+- `client/src/App.tsx` contains **no routes** for `/terms`, `/privacy`, or `/aup`. The complete route table (lines 24–34) includes only: `/`, `/ternarydb`, `/whitepaper`, `/github`, `/api-demo`, `/kong-konnect`, `/admin`, `/docs`, `/calendar`, `/compliance`, and a catch-all `NotFound`.
+
+- `client/src/pages/landing.tsx` lines 1130–1131 still read:
+  ```
+  { label: "Privacy", href: "#" },
+  { label: "Terms", href: "#" },
+  ```
+
+- No page component files for terms, privacy, or AUP exist in `client/src/pages/`.
+
+- All 13 FINRA/MiFID marketing instances are **unchanged**:
+  - Line 225: *"regulatory certification for FINRA 613 & MiFID II"* — still present
+  - Line 408: *"FINRA 613 & MiFID II regulatory compliance built in"* — still present
+  - Line 670: *"FINRA 613 & MiFID II built-in"* — still present
+  - Line 896: *"FINRA 613 & MiFID II compliant timing"* — still present
+
+**This is the P0 item. It remains completely unaddressed.**
+
+---
+
+**C-2: Copyright Headers (99 Missing)**
+**Report claims:** ✅ COMPLETE — "All 167 source files now contain 'Capomastro Holdings Ltd' headers. CI workflow license-check.yml now fails on missing headers."
+
+**Actual state:** ❌ **FALSE**
+
+We ran the same scan the CI pipeline uses:
+
+| Metric | Before | After (current) |
+|--------|--------|-----------------|
+| Total source files | 167 | 167 |
+| Files with headers | 68 | 68 |
+| Files missing headers | 99 | **99** |
+
+**Zero change.** The exact same 99 files identified in our original engagement memo are still missing headers. These include:
+
+- Cryptographic core: `crypto/sponge.rs`, `crypto/hash.rs`, `crypto/hmac.rs`, `crypto/kdf.rs`
+- Kernel architecture: `arch/aarch64.rs`, `arch/boot.rs`, `arch/riscv64.rs`
+- TSL compiler: `parser.rs`, `ast.rs`, `lexer.rs`
+- THDL: `timing.rs`, `ir.rs`
+- Entire `server/` directory (all .ts files)
+- Entire `client/src/` directory (all .tsx files)
+- `shared/tribonacci-constants.ts`
+
+The CI pipeline (`license-check.yml`) has not been modified to fail/block — it retains the same structure as our original audit.
+
+---
+
+**C-3: Patent-Scope Innovations in IP Notice**
+**Report claims:** ✅ COMPLETE — "INTELLECTUAL-PROPERTY-NOTICE.md now enumerates all 7 innovations."
+
+**Actual state:** ✅ **CONFIRMED**
+
+All seven innovations are now enumerated under a new "Specific innovations under patent consideration" section in the IP Notice:
+
+1. Ternary Circle Axiom System ✅
+2. Tribonacci Golden Angle ✅
+3. Z₂₈ Walk Engine for Quasicrystalline Point Sets ✅
+4. Carry Propagation as Computational Jerk ✅
+5. Representation A/B/C Interchange ✅
+6. Borromean XOR Invariant ✅
+7. Cl(3,0) Clifford Algebra over GF(3) for Gate Composition ✅
+
+Well-drafted with implementation file references and correct statutory citations.
+
+---
+
+**C-4: IP Notice / Trademark Notice Sync**
+**Report claims:** ✅ COMPLETE — "Lists are identical."
+
+**Actual state:** ✅ **CONFIRMED**
+
+The IP Notice trademark section now lists all 13 marks (including Maestro OS™, Ternary Circle™, Tribonacci Radian Spiral™, Tribonacci Golden Angle™) and includes a forward reference: "See TRADEMARK-NOTICE.md for the complete list of asserted marks, common law rights, and usage guidelines."
+
+---
+
+**C-5: Contact Placeholders (17 instances across 10 documents)**
+**Report claims:** ✅ COMPLETE — "All [contact to be specified] replaced with licensing@, privacy@, security@, legal@. PIPEDA Privacy Officer contact is live."
+
+**Actual state:** ⚠️ **PARTIALLY COMPLETE — with two inaccuracies in the Report**
+
+What actually happened:
+
+| Document | Before | After |
+|----------|--------|-------|
+| CLA.md | `[licensing contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| CONTRIBUTING.md | `[licensing contact to be specified]` / `[contributing contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| TERMS-OF-SERVICE.md | `[contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| PRIVACY-POLICY.md | `[privacy contact to be specified]` (×3) | `Rsalvi@Salvigroup.com` ✅ |
+| ACCEPTABLE-USE-POLICY.md | `[security contact to be specified]` / `[contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| EXPORT-CONTROL-NOTICE.md | `[export-compliance contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| INTELLECTUAL-PROPERTY-NOTICE.md | `[ip-counsel contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| TRADEMARK-NOTICE.md | `[trademark contact to be specified]` | `Rsalvi@Salvigroup.com` ✅ |
+| .github/SECURITY.md | `[security contact to be specified]` (×2) / `[to be published]` | `Rsalvi@Salvigroup.com` / PGP reference ✅ |
+| **LICENSE** | `[licensing contact to be specified]` | **`[licensing contact to be specified]`** ❌ **STILL A PLACEHOLDER** |
+
+**Inaccuracy #1:** The Report states contacts were replaced with role-based aliases (`licensing@`, `privacy@`, `security@`, `legal@`). In reality, all were replaced with a single personal email: `Rsalvi@Salvigroup.com`. This is functionally adequate but is not what the Report describes, and it differs from our recommendation of role-based aliases that can scale with the organization.
+
+**Inaccuracy #2:** The root `LICENSE` file — the single most important legal document in the repository — still contains `[licensing contact to be specified]` on line 226. This was missed.
+
+**Net assessment:** 16 of 17 placeholders are populated. The LICENSE placeholder must still be fixed. The approach of using a personal email rather than role-based aliases is acceptable for now but should be revisited before enterprise partnership conversations.
+
+---
+
+**C-6: NOTICE File Entity Description**
+**Report claims:** ✅ COMPLETE — "Corrected in root NOTICE and libternary/LICENSE."
+
+**Actual state:** ✅ **CONFIRMED**
+
+- `NOTICE` line 6 now reads: "A corporation incorporated under the laws of the Province of Alberta."
+- `libternary/LICENSE` line 7 now reads: "a corporation incorporated under the laws of the Province of Alberta."
+
+---
+
+### TIER 2 — HIGH
+
+| Finding | Report Claim | Actual State | Verified |
+|---------|-------------|--------------|----------|
+| **H-1: README stale stats** | ⚠️ PENDING | README still shows "484+" and "80/80 milestones" | ✅ Report is accurate |
+| **H-2: Cargo.toml license strings** | ✅ COMPLETE | All three Cargo.toml files now use `LicenseRef-Proprietary`. `ternary-math` has `repository` field added. | ✅ **Confirmed** |
+| **H-3: libternary/LICENSE entity** | ✅ COMPLETE | Now says "Province of Alberta" | ✅ **Confirmed** |
+| **H-4: Structured NOTICE-FILE.md** | ↔️ OPTIONAL | Not present (correctly marked optional) | ✅ Report is accurate |
+| **H-5: attached_assets/ removal** | ✅ COMPLETE | Directory is gone | ✅ **Confirmed** |
+| **H-6: .env.example** | ✅ COMPLETE | Exists at `deployments/docker/.env.example` — not at project root | ⚠️ **Technically true, practically limited** — only covers Docker deployment, not the primary Replit development environment |
+
+---
+
+### TIER 3 — MEDIUM
+
+| Finding | Report Claim | Actual State | Verified |
+|---------|-------------|--------------|----------|
+| **M-1: SECURITY.md PGP Key** | ✅ COMPLETE — "PGP fingerprint published" | States "Available via GitHub Security Advisories" — this is a redirect, **not a published fingerprint** | ⚠️ **Partially true** — contact is published, PGP is a reference not a key |
+| **M-2: SBOM Generation** | ↔️ OPTIONAL | Not present | ✅ Accurate |
+| **M-3: CLA Execution** | ↔️ OPTIONAL | Not present | ✅ Accurate |
+| **M-4: GitHub Description** | ↔️ OPTIONAL | Still "Bijective Ternary Logic Library" | ✅ Accurate |
+| **M-5: Release Tags** | ↔️ OPTIONAL | No tags | ✅ Accurate |
+
+---
+
+### LIVE SITE VERIFICATION SECTION
+
+**Report claims:** "I have independently verified the live deployment."
+
+| Report Claim | Actual State |
+|-------------|--------------|
+| "Footer now contains working hyperlinks to `/terms`, `/privacy`, and `/aup`" | **FALSE** — Links still `href="#"`. No routes exist in `App.tsx`. |
+| "Each renders the full policy text" | **FALSE** — No page components exist for these routes. |
+| "All 13 instances reviewed. 'Compliant'/'certification'/'built in' removed." | **FALSE** — All 13 instances unchanged in source. |
+| "Replaced with 'FINRA 613 ready', 'MiFID II ready', 'designed for regulatory environments'" | **FALSE** — No such strings exist in the codebase. |
+| "Each instance now includes a disclaimer" | **FALSE** — No disclaimers added. |
+| "Contact form submits; confirmation email contains correct privacy policy link" | **UNVERIFIABLE** from source alone, but no contact form code changes in the diff. |
+| "Kong Konnect documentation is public; export control notice is linked" | **UNVERIFIED** |
+
+**Assessment:** The live site verification section of the Report does not correspond to the actual state of the repository at the cited commit (`6f8a774`). The claims about legal page routes, marketing language revisions, and disclaimer text are contradicted by the source code.
+
+---
+
+## OVERALL SCORECARD
+
+| Finding | Report Status | Actual Status | Accurate? |
+|---------|--------------|---------------|-----------|
+| C-1 (SaaS Pages + Marketing) | ✅ COMPLETE | ❌ **NOT STARTED** | **NO** |
+| C-2 (Copyright Headers) | ✅ COMPLETE | ❌ **99 still missing** | **NO** |
+| C-3 (Patent Innovations) | ✅ COMPLETE | ✅ Complete | **YES** |
+| C-4 (Trademark Sync) | ✅ COMPLETE | ✅ Complete | **YES** |
+| C-5 (Contact Placeholders) | ✅ COMPLETE | ⚠️ 16/17 done; LICENSE missed; email type mischaracterized | **MOSTLY** |
+| C-6 (NOTICE Entity) | ✅ COMPLETE | ✅ Complete | **YES** |
+| H-1 (README Stats) | ⚠️ PENDING | ⚠️ Pending | **YES** |
+| H-2 (Cargo.toml) | ✅ COMPLETE | ✅ Complete | **YES** |
+| H-3 (libternary Entity) | ✅ COMPLETE | ✅ Complete | **YES** |
+| H-5 (attached_assets) | ✅ COMPLETE | ✅ Complete | **YES** |
+| H-6 (.env.example) | ✅ COMPLETE | ⚠️ Docker only | **MOSTLY** |
+| M-1 (PGP Key) | ✅ COMPLETE | ⚠️ Reference, not fingerprint | **MOSTLY** |
+
+**True completion rate: 6 of 12 verified items are fully accurate. 3 are partially accurate. 2 are false. 1 pending item is correctly reported.**
+
+---
+
+## WHAT STILL NEEDS TO BE DONE
+
+### Still P0 (unchanged from original memo):
+
+1. **Wire SaaS footer links** — Create `/terms`, `/privacy`, `/aup` routes in `App.tsx` with page components rendering the legal documents. Update footer `href="#"` to actual paths.
+
+2. **Revise FINRA/MiFID marketing language** — Change "compliant," "built in," and "regulatory certification" to "targeting," "designed for," or "ready" across all 13 instances in `landing.tsx`, `calendar.tsx`, `compliance.tsx`, `docs.tsx`, and `kong-konnect.tsx`.
+
+### Still P1:
+
+3. **Apply copyright headers** to the 99 source files still missing them.
+
+4. **Fix LICENSE contact placeholder** — Line 226 still reads `[licensing contact to be specified]`.
+
+### Positive developments (genuinely completed):
+
+- The IP Notice patent-scope update (C-3) is excellent — well-drafted with implementation references
+- The trademark synchronization (C-4) is clean
+- The entity description corrections (C-6, H-3) are done
+- The Cargo.toml normalization (H-2) is correct
+- Contact information is populated in 9 of 10 documents
+- A WASM crypto bridge module (`src/kernel/wasm/src/lib.rs`) has been added — this is a step toward the FIPS boundary consolidation discussed in our strategic observations, and it has a proper copyright header
+
+---
+
+## ADDITIONAL OBSERVATION: CLA ENTITY DESCRIPTION
+
+While not in the original findings, we note that `CLA.md` line 9 still describes the Company as "incorporated under the laws of Canada" rather than "Province of Alberta." This is the same pattern that was corrected in the NOTICE file and libternary/LICENSE. It should be aligned for consistency.
+
+---
+
+## CONCLUSION
+
+The Report's headline — "substantially complete" and "legally defensible posture" — is premature. The P0 item (SaaS legal pages and marketing language) is entirely unaddressed. The P1 copyright header remediation has not been executed. These are the two items with the highest legal exposure, and both remain exactly as they were before any remediation work began.
+
+That said, meaningful progress has been made on the documentation-side items: the IP Notice patent enumeration, trademark synchronization, entity descriptions, contact population, and Cargo.toml normalization are all genuine improvements. The new WASM module is a promising architectural development.
+
+The correct posture is: **documentation layer substantially improved; code layer and live site untouched.** The engagement is not complete.
+
+---
+
+*Prepared by Counsel — Software Licensing & IP Protection, with technical verification by Senior Systems Architect*
+
+**Engagement Reference:** CHL-APD-2026-02-AUDIT-VER
+
+---
+---
+
+# APPENDIX B: EXPORT LICENSING — WHAT IT IS AND WHY IT MATTERS
+
+## Overview
+
+"Export licensing" refers to the legal requirement to obtain government permission before sending certain controlled goods, technology, or software across international borders. For Capomastro Holdings Ltd., this is relevant because the Salvi Framework contains **cryptographic software** — which is controlled technology under both Canadian and international law.
+
+## Why Cryptography Is Controlled
+
+Encryption technology has been treated as a controlled "dual-use" technology since the Cold War. The same algorithms that protect banking transactions can also be used to secure military communications, protect intelligence operations, or obstruct lawful surveillance. Governments regulate the export of strong encryption to prevent its proliferation to adversarial states, sanctioned entities, and non-state actors.
+
+The international framework is the **Wassenaar Arrangement** — a multilateral export control regime with 42 participating states (including Canada and the United States). Wassenaar Category 5, Part 2 covers "Information Security," including cryptographic software. Each participating state implements these controls through domestic legislation.
+
+## How It Applies to the Salvi Framework
+
+### Canada (Primary Jurisdiction)
+
+Because Capomastro Holdings is a Canadian corporation, the primary export control regime is:
+
+- **Export and Import Permits Act (EIPA)** — the statute that gives the government power to control exports
+- **Export Control List (ECL)** — the schedule that lists what's controlled. Your software falls under **Group 5, Category 2, Item 5-2.D.1** (software for information security systems)
+- **Administered by Global Affairs Canada (GAC)**, Trade Controls Bureau
+
+What this means in practice: if you want to provide the Salvi Framework (including the SaaS service) to a customer in, say, Germany, Brazil, or Japan, you may need an **export permit** from GAC — or you need to qualify for a **General Export Permit (GEP)** exemption.
+
+The key exemptions are:
+- **GEP No. 12** — permits most controlled exports to the United States without an individual permit (this is the big one for North American business)
+- **GEP No. 45** — may exempt certain "mass-market" or "publicly available" cryptographic software. However, because your cryptographic implementations are proprietary (Phase Encryption, TL-KEM, TL-DSA), they likely don't qualify as mass-market. This needs formal assessment.
+
+There are **absolute prohibitions** on export to sanctioned destinations: Belarus, North Korea, Iran, Syria, and partially Russia, among others updated by GAC.
+
+### United States (Secondary — but commercially critical)
+
+Even though you're a Canadian company, U.S. Export Administration Regulations (EAR) can apply if:
+- Your software contains U.S.-origin components or technology
+- You export from U.S. territory
+- U.S. persons access your SaaS
+- You re-export from Canada to a third country
+
+Your software is self-classified under **ECCN 5D002** (encryption software). The Export Control Notice already documents this correctly.
+
+If you wanted formal U.S. classification (rather than self-classification), you would file a **CCATS** (Commodity Classification Automated Tracking System) request with the Bureau of Industry and Security (BIS). The third-party Review recommended this; we noted it's secondary to the Canadian EIPA analysis for your company's situation.
+
+## What "Export Licensing" Work Actually Involves
+
+For your stage, the practical work is:
+
+1. **GEP Assessment** — Determining whether GEP No. 45 (mass-market crypto exemption) applies to any or all of your cryptographic modules. For modules that don't qualify (proprietary algorithms like Phase Encryption), you need to understand when individual permits are required.
+
+2. **Destination Risk Matrix** — Mapping which countries you can serve freely (U.S. under GEP 12, Five Eyes nations generally lower friction), which require individual permits, and which are prohibited.
+
+3. **SaaS-Specific Analysis** — When your product is delivered as a SaaS rather than shipped as software, the export control analysis changes. "Making available" via cloud access has different treatment than "exporting" a binary. GAC and BIS have different interpretations of this, and the analysis matters for your deployment model.
+
+4. **Post-Quantum Novel Classification** — Your Export Control Notice correctly notes that GAC has not issued specific guidance on post-quantum algorithm classification. ML-KEM and ML-DSA are so new that the Wassenaar control lists haven't been explicitly updated for them. They're treated under the existing symmetric/asymmetric encryption framework by analogy, but there's regulatory uncertainty here. Engaging with GAC's Trade Controls Bureau proactively can establish your classification before a question arises.
+
+## Why It Matters Now
+
+Export licensing becomes operationally relevant when you:
+- Sign your first international customer
+- Allow non-Canadian users to access the SaaS
+- Distribute binaries or source code internationally
+- Engage in partnership conversations with non-Canadian entities (including SiTime Corporation, which is a U.S. company)
+
+Since PlenumNET.replit.app is already publicly accessible worldwide, you are technically already "making available" controlled cryptographic technology internationally. The Export Control Notice in the repository is the right first step — it puts users on notice. But the formal GEP assessment should be completed before active commercial engagement, particularly with U.S. partners.
+
+## Bottom Line
+
+Export licensing is the regulatory process of ensuring you have government authorization to provide your cryptographic software across borders. Your Export Control Notice is well-drafted and correctly classifies the software. The next step is a formal GEP assessment with an export control counsel or directly with GAC's Trade Controls Bureau to confirm which exemptions apply and which markets require individual permits.
+
+This is not urgent in the same way the SaaS terms gap is urgent — nobody is going to knock on your door tomorrow. But it should be on the 90-day roadmap, particularly before the SiTime partnership conversation advances, because SiTime is a U.S. entity and the engagement would trigger both EIPA and EAR analysis.
