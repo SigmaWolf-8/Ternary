@@ -18,23 +18,7 @@ use super::instruction::*;
 use super::gc::GcHeap;
 use super::cache::ConstantTimeTernary;
 use crate::ternary::{Trit, Representation, convert_representation, scalar_to_trit, pack_trits, unpack_trits, packed_map, packed_zip, packed_shift_left, packed_shift_right, packed_rotate_left, packed_reduce, packed_convert};
-use crate::timing::{FemtosecondTimestamp, FS_PER_NS};
-
-pub type TimingProviderFn = fn() -> FemtosecondTimestamp;
-
-#[cfg(feature = "std")]
-fn system_clock_now() -> FemtosecondTimestamp {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let unix_ns = now.as_nanos();
-    FemtosecondTimestamp::from_unix_ns(unix_ns)
-}
-
-#[cfg(not(feature = "std"))]
-fn cycle_counter_fallback() -> FemtosecondTimestamp {
-    FemtosecondTimestamp::new(0)
-}
+use crate::timing::FemtosecondTimestamp;
 
 pub struct VmMemory {
     data: Vec<u8>,
@@ -153,7 +137,8 @@ pub struct TernaryVm {
     pub time_slice: u64,
     pub time_remaining: u64,
     pub security_domain: u8,
-    timing_provider: TimingProviderFn,
+    hptp_epoch_fs: u128,
+    cycle_period_fs: u128,
 }
 
 impl TernaryVm {
@@ -170,16 +155,21 @@ impl TernaryVm {
             time_slice: 1000,
             time_remaining: 1000,
             security_domain: 0,
-            #[cfg(feature = "std")]
-            timing_provider: system_clock_now,
-            #[cfg(not(feature = "std"))]
-            timing_provider: cycle_counter_fallback,
+            hptp_epoch_fs: 0,
+            cycle_period_fs: 1000,
         }
     }
 
-    pub fn with_timing_provider(mut self, provider: TimingProviderFn) -> Self {
-        self.timing_provider = provider;
-        self
+    pub fn set_hptp_epoch(&mut self, epoch_fs: u128) {
+        self.hptp_epoch_fs = epoch_fs;
+    }
+
+    pub fn set_cycle_period_fs(&mut self, period_fs: u128) {
+        self.cycle_period_fs = period_fs;
+    }
+
+    pub fn current_hptp_timestamp(&self) -> FemtosecondTimestamp {
+        FemtosecondTimestamp::new(self.hptp_epoch_fs + (self.cycles as u128) * self.cycle_period_fs)
     }
 
     pub fn load_program(&mut self, program: Program) -> VmResult<()> {
@@ -853,15 +843,20 @@ impl TernaryVm {
                 self.update_flags(0, false);
             }
             Opcode::ReadTime => {
-                let ts = (self.timing_provider)();
-                let ns_since_epoch = (ts.femtoseconds / FS_PER_NS) as i64;
-                let sub_ns_fs = (ts.femtoseconds % FS_PER_NS) as i64;
-                self.set_register(inst.dst, ns_since_epoch)?;
-                let next_reg = if inst.dst < 26 { inst.dst + 1 } else { inst.dst };
-                if next_reg != inst.dst {
-                    self.set_register(next_reg, sub_ns_fs)?;
-                }
-                self.update_flags(ns_since_epoch, false);
+                let ts = self.current_hptp_timestamp();
+                let result = match inst.immediate {
+                    0 => ts.femtoseconds as i64,
+                    1 => (ts.femtoseconds >> 64) as i64,
+                    2 => ts.seconds() as i64,
+                    3 => ts.milliseconds() as i64,
+                    4 => ts.nanoseconds() as i64,
+                    5 => ts.picoseconds() as i64,
+                    6 => ts.remaining_femtoseconds() as i64,
+                    7 => self.cycles as i64,
+                    _ => ts.femtoseconds as i64,
+                };
+                self.set_register(inst.dst, result)?;
+                self.update_flags(result, false);
             }
             Opcode::TAddV => {
                 let a = self.get_register(inst.src1)?;
@@ -1856,36 +1851,59 @@ mod tests {
         assert!(vm.get_register(1).unwrap() >= 0);
     }
 
-    fn fixed_timestamp() -> crate::timing::FemtosecondTimestamp {
-        crate::timing::FemtosecondTimestamp::new(
-            42_000_000 * crate::timing::FS_PER_NS + 123_456,
-        )
-    }
-
     #[test]
-    fn test_vm_readtime_hptp() {
-        let vm = TernaryVm::new(4096).with_timing_provider(fixed_timestamp);
-        let mut vm = vm;
-        let mut prog = Program::new("readtime_hptp");
-        prog.add_instruction(Instruction::new(Opcode::ReadTime, 0, 0, 0, 0));
-        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
-        vm.load_program(prog).unwrap();
-        vm.run().unwrap();
-        assert_eq!(vm.get_register(0).unwrap(), 42_000_000, "R0 = nanoseconds since Salvi Epoch");
-        assert_eq!(vm.get_register(1).unwrap(), 123_456, "R1 = sub-nanosecond femtosecond remainder");
-    }
-
-    #[cfg(feature = "std")]
-    #[test]
-    fn test_vm_readtime_system_clock() {
+    fn test_vm_readtime() {
         let mut vm = make_vm();
-        let mut prog = Program::new("readtime_sysclock");
+        let mut prog = Program::new("readtime");
+        prog.add_instruction(Instruction::new(Opcode::Nop, 0, 0, 0, 0));
         prog.add_instruction(Instruction::new(Opcode::ReadTime, 0, 0, 0, 0));
+        prog.add_instruction(Instruction::new(Opcode::ReadTime, 1, 0, 0, 7));
         prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
         vm.load_program(prog).unwrap();
         vm.run().unwrap();
-        let ns = vm.get_register(0).unwrap();
-        assert!(ns > 0, "System clock should return positive nanoseconds since Salvi Epoch");
+        assert_eq!(vm.get_register(0).unwrap(), 1000,
+            "imm=0: femtoseconds after 1 NOP cycle (1 cycle × 1000 fs/cycle)");
+        assert_eq!(vm.get_register(1).unwrap(), 2,
+            "imm=7: raw cycle count after NOP + first ReadTime");
+    }
+
+    #[test]
+    fn test_vm_readtime_hptp_components() {
+        let mut vm = make_vm();
+        vm.set_hptp_epoch(2_500_000_000_000_000_000);
+        vm.set_cycle_period_fs(500_000_000_000);
+
+        let ts_at = |cycles: u128| -> crate::timing::FemtosecondTimestamp {
+            crate::timing::FemtosecondTimestamp::new(
+                2_500_000_000_000_000_000u128 + cycles * 500_000_000_000u128,
+            )
+        };
+
+        let mut prog = Program::new("readtime_components");
+        prog.add_instruction(Instruction::new(Opcode::Nop, 0, 0, 0, 0));
+        prog.add_instruction(Instruction::new(Opcode::ReadTime, 0, 0, 0, 0));
+        prog.add_instruction(Instruction::new(Opcode::ReadTime, 1, 0, 0, 2));
+        prog.add_instruction(Instruction::new(Opcode::ReadTime, 2, 0, 0, 3));
+        prog.add_instruction(Instruction::new(Opcode::ReadTime, 3, 0, 0, 7));
+        prog.add_instruction(Instruction::from_opcode(Opcode::Halt));
+        vm.load_program(prog).unwrap();
+        vm.run().unwrap();
+
+        let ts1 = ts_at(1);
+        assert_eq!(vm.get_register(0).unwrap(), ts1.femtoseconds as i64,
+            "imm=0 at cycle 1: femtoseconds low 64 bits");
+        let ts2 = ts_at(2);
+        assert_eq!(vm.get_register(1).unwrap(), ts2.seconds() as i64,
+            "imm=2 at cycle 2: seconds since Salvi Epoch");
+        let ts3 = ts_at(3);
+        assert_eq!(vm.get_register(2).unwrap(), ts3.milliseconds() as i64,
+            "imm=3 at cycle 3: milliseconds component");
+        assert_eq!(vm.get_register(3).unwrap(), 4,
+            "imm=7 at cycle 4: raw cycle count");
+
+        let ext_ts = vm.current_hptp_timestamp();
+        assert!(ext_ts.femtoseconds > 2_500_000_000_000_000_000,
+            "current_hptp_timestamp() returns HPTP time with epoch");
     }
 
     #[test]

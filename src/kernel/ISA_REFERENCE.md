@@ -249,7 +249,24 @@ These operate identically to their scalar counterparts but always set `ternary_m
 | 0x81 | TRAP | INT | #imm | Ring0-only trap; raises error with trap code |
 | 0x82 | ALLOC | — | dst, src1, #imm | GC-managed allocation; size = src1, type = imm; handle in dst |
 | 0x83 | FREE | — | dst, src1 | Remove GC root for handle in src1; dst ← 0 |
-| 0x84 | READTIME | RDTIME | dst | dst ← current cycle counter |
+| 0x84 | READTIME | RDTIME | dst, #imm | dst ← HPTP timestamp component selected by imm (see below) |
+
+**READTIME Component Selector (via READTIME #imm):**
+
+Timestamp is computed as `hptp_epoch_fs + cycles × cycle_period_fs` where
+`hptp_epoch_fs` is the Salvi Epoch offset at VM boot (default: 0) and
+`cycle_period_fs` is femtoseconds per cycle (default: 1000 = 1 ps/cycle).
+
+| imm | Returns |
+|-----|---------|
+| 0 | Femtoseconds — low 64 bits (default) |
+| 1 | Femtoseconds — high 64 bits |
+| 2 | Seconds since Salvi Epoch |
+| 3 | Milliseconds component |
+| 4 | Nanoseconds component |
+| 5 | Picoseconds component |
+| 6 | Remaining femtoseconds |
+| 7 | Raw cycle count (backward compat) |
 
 **Syscall Numbers (via SYSCALL src1):**
 

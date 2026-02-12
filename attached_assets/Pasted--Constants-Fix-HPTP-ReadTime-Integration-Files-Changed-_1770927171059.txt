@@ -1,0 +1,67 @@
+# Constants Fix & HPTP ReadTime Integration
+
+## Files Changed (3 files, +87 / -21)
+
+### 1. `src/kernel/src/vm/constants.rs` — Tribonacci Power Correction
+
+**Root cause:** `TAU` (1.8392867552141612) was correct, but all stored powers (`TAU_2` through `TAU_13`) were hardcoded from an unknown source and did not equal `TAU^n`. The drift was 4.8×10⁻⁵ at τ² and compounded upward. The TypeScript file (`shared/tribonacci-constants.ts`) computes powers at runtime (`TAU ** 2`) and was never affected.
+
+| Constant | Old (wrong) | New (TAU^n) | Error |
+|----------|------------|-------------|-------|
+| TAU_2 | 3.3830237514006 | 3.3829757679062378 | 4.80e-05 |
+| TAU_3 | 6.222310506614761 | 6.222262523120399 | 4.80e-05 |
+| TAU_5 | 21.05866186688145 | 21.049763337267436 | 8.90e-03 |
+| TAU_7 | 71.21024218846628 | 71.21083929013687 | 5.97e-04 |
+| TAU_13 | 2757.0383547068004 | 2757.038084480335 | 2.70e-04 |
+
+**Derived constants updated:**
+
+| Constant | Old | New | Formula |
+|----------|-----|-----|---------|
+| HASH_SEED | 3,383,023,751 | 3,382,975,767 | floor(τ² × 10⁹) |
+| HASH_MIX | 71,210,242 | 71,210,839 | floor(τ⁷ × 10⁶) |
+| GC_THRESHOLD_RATIO | 0.29564989581955394 | 0.29559774252208476 | 1/τ² |
+| TRIBONACCI_GOLDEN_ANGLE_DEG | 58.50637090738759 | 58.499621102045346 | 364/τ³ |
+| TRANSLATED_GOLDEN_ANGLE_DEG | 139.16407864998738 | 139.03562809503825 | 2·7·13·(3−√5) |
+
+**Unchanged** (floor values didn't shift): INSTRUCTION_CACHE_SIZE (84), TRIT_BUFFER_SIZE (142).
+
+**Tests fixed:** `test_gc_ratio_is_tau_neg2`, `test_tribonacci_golden_angle`, `test_translated_golden_angle` — all 19 constants tests now pass.
+
+---
+
+### 2. `src/kernel/src/vm/engine.rs` — HPTP FemtosecondTimestamp Integration
+
+**ReadTime opcode (0x84)** now computes real HPTP timestamps instead of returning raw cycle count.
+
+**New VM fields:**
+- `hptp_epoch_fs: u128` — Salvi Epoch offset at VM boot (default: 0)
+- `cycle_period_fs: u128` — femtoseconds per cycle (default: 1000 = 1 ps/cycle)
+
+**Timestamp computation:** `current_fs = hptp_epoch_fs + cycles × cycle_period_fs`
+
+**Component selector via immediate field:**
+
+| imm | Returns |
+|-----|---------|
+| 0 | Femtoseconds — low 64 bits (default) |
+| 1 | Femtoseconds — high 64 bits |
+| 2 | Seconds since Salvi Epoch |
+| 3 | Milliseconds component |
+| 4 | Nanoseconds component |
+| 5 | Picoseconds component |
+| 6 | Remaining femtoseconds |
+| 7 | Raw cycle count (backward compat) |
+
+**New public API:**
+- `set_hptp_epoch(epoch_fs: u128)` — set boot time
+- `set_cycle_period_fs(period_fs: u128)` — set cycle duration
+- `current_hptp_timestamp() -> FemtosecondTimestamp` — get current HPTP time externally
+
+**Test updated:** `test_vm_readtime` now tests both HPTP femtoseconds (imm=0 → 1000 fs after 1 cycle) and raw cycle count (imm=7 → 2 after 2 cycles).
+
+---
+
+### 3. `src/kernel/ISA_REFERENCE.md` — Documentation Update
+
+ReadTime entry updated from "dst ← current cycle counter" to full component selector table matching the implementation.
