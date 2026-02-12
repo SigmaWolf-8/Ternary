@@ -18,7 +18,29 @@ The system supports ancient calendar synchronization, anchoring the Salvi Epoch 
 
 ### Backend and Core Framework
 The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic System operations (conversion, arithmetic, XOR in GF(3)), Femtosecond Timing, and Phase Encryption. Ternary representations include Computational (`{-1, 0, +1}`), Network (`{0, 1, 2}`), and Human (`{1, 2, 3}`).
-The architecture includes microservices for payment processing and blockchain witnessing. These services handle payment webhooks, orchestrate CRUD operations, and integrate with blockchain platforms like Hedera HCS, XRPL, and Algorand. A Femtosecond Timing Service provides high-precision timing, and a Certification Service ensures regulatory compliance. Security features include HMAC validation, timing-safe equality checks, idempotency, and rate limiting.
+
+**Route Architecture** (refactored 2026-02-12): The monolithic `server/routes.ts` was decomposed into focused modules:
+- `server/routes.ts` — Core routes: auth, ternary operations, compression, timing, whitepapers, legal, contact (~890 lines)
+- `server/routes/github.ts` — GitHub file browser, push actions, CI/CD triggers (544 lines)
+- `server/routes/kong.ts` — Kong Konnect integration, service/route/plugin management (1278 lines)
+- `server/routes/salvi.ts` — Salvi epoch, calendar sync, CNSA compliance, phase encryption API (1038 lines)
+- `server/routes/middleware.ts` — Shared auth and admin middleware (49 lines)
+
+**Security Stack** (added 2026-02-12):
+- Rate limiting via express-rate-limit: global (100/min), auth (20/min), GitHub token (10/min), computation (50/min)
+- CORS restricted to Replit deployment domains
+- Helmet.js security headers (HSTS, CSP, X-Content-Type-Options)
+- AES-256-GCM token encryption for stored credentials (`server/crypto-utils.ts`)
+- Input validation bounds: pageSize ≤ 1000, tritCount ≤ 1000, dataLength ≤ 10000, batch ≤ 100
+- `execFile()` instead of `exec()` to prevent command injection
+- Hardened `sanitizePath()` with null-byte stripping and double-encoding protection
+
+**Infrastructure**:
+- Structured Winston logger (`server/logger.ts`) with JSON formatting and log levels
+- Centralized environment config (`server/config.ts`) with typed defaults and validation
+- All error handling uses `catch(error: unknown)` with `toErrorMessage()` helper
+
+The architecture includes microservices for payment processing and blockchain witnessing. These services handle payment webhooks, orchestrate CRUD operations, and integrate with blockchain platforms like Hedera HCS, XRPL, and Algorand. A Femtosecond Timing Service provides high-precision timing, and a Certification Service ensures regulatory compliance.
 The database schema includes tables for `users`, `sessions`, `demo_sessions`, `binary_storage`, `ternary_storage`, `compression_benchmarks`, `compression_history`, and `whitepapers`.
 
 ### Rust Kernel Architecture
@@ -46,6 +68,19 @@ All source files (224 total: 121 Rust, 103 TypeScript/JavaScript) carry standard
 
 ### GitHub Integration
 The GitHub Manager page (`/github`, admin-only) provides a file browser for the `SigmaWolf-8/Ternary` repository and enables push actions for CI/CD workflows, crypto modules, and a full project sync.
+
+### Testing
+- **Framework**: Vitest (configured in `vitest.config.ts`)
+- **Run tests**: `npx vitest run` (86 tests across 3 files)
+- **Test files**:
+  - `tests/ternary-operations.test.ts` — 50 GF(3) arithmetic KAT tests
+  - `tests/phase-encryption.test.ts` — 25 phase encryption round-trip tests
+  - `tests/calendar-sync.test.ts` — 11 calendar synchronization tests
+- **CI**: `.github/workflows/test-typescript.yml` triggers on push/PR to main/develop
+
+### Recent Changes (2026-02-12)
+- Completed 6-phase repository remediation (IP, legal, security, architecture, testing, documentation)
+- See `CHANGELOG.md` for full details
 
 ## External Dependencies
 
