@@ -173,8 +173,12 @@ function HeroSection() {
             className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
             data-testid="text-hero-title"
             id="hero-title"
+            style={{
+              textShadow: "0 1px 0 hsl(var(--foreground) / 0.15), 0 2px 3px hsl(var(--foreground) / 0.1), 0 4px 6px hsl(var(--background) / 0.15)",
+              WebkitTextStroke: "0.3px hsl(var(--foreground) / 0.08)",
+            }}
           >
-            The World's First <span className="text-primary">Ternary Computing</span> Platform
+            The World's First <span className="text-primary" style={{ textShadow: "0 1px 0 hsl(var(--primary) / 0.3), 0 2px 4px hsl(var(--primary) / 0.15), 0 4px 8px hsl(var(--primary) / 0.1)", WebkitTextStroke: "0.3px hsl(var(--primary) / 0.12)" }}>Ternary Computing</span> Platform
           </motion.h1>
           
           <motion.p 
