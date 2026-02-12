@@ -21,10 +21,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MarketingTopNav } from "@/components/marketing-top-nav";
+import { MarketingFooter } from "@/components/marketing-footer";
 import { useState, useCallback, useRef, useEffect, Suspense, lazy } from "react";
 import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { usePageTitle } from "@/hooks/use-page-title";
 import Landing from "@/pages/landing";
 import LegalPage from "@/pages/legal";
 import NotFound from "@/pages/not-found";
@@ -55,32 +58,15 @@ function LoadingSpinner() {
   );
 }
 
-function Router() {
+function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <Switch>
-        <Route path="/" component={Landing} />
-        <Route path="/ternarydb" component={TernaryDB} />
-        <Route path="/whitepaper" component={Whitepaper} />
-        <Route path="/github" component={GitHubManager} />
-        <Route path="/api-demo" component={APIDemo} />
-        <Route path="/kong-konnect" component={KongKonnect} />
-        <Route path="/admin" component={Admin} />
-        <Route path="/docs" component={Docs} />
-        <Route path="/calendar" component={CalendarPage} />
-        <Route path="/compliance" component={CompliancePage} />
-        <Route path="/hptp" component={HPTPDemo} />
-        <Route path="/13-moon" component={ThirteenMoonPage} />
-        <Route path="/compression" component={CompressionPage} />
-        <Route path="/about" component={About} />
-        <Route path="/contact" component={Contact} />
-        <Route path="/terms" component={LegalPage} />
-        <Route path="/privacy" component={LegalPage} />
-        <Route path="/security" component={LegalPage} />
-        <Route path="/aup" component={LegalPage} />
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <MarketingTopNav />
+      <main id="main-content" className="flex-1">
+        {children}
+      </main>
+      <MarketingFooter />
+    </div>
   );
 }
 
@@ -129,7 +115,7 @@ const MAX_SIDEBAR_WIDTH = 400;
 const DEFAULT_SIDEBAR_WIDTH = 220;
 const ICON_WIDTH = "3rem";
 
-function App() {
+function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const isResizing = useRef(false);
 
@@ -163,33 +149,106 @@ function App() {
   } as React.CSSProperties;
 
   return (
+    <SidebarProvider defaultOpen={false} style={sidebarStyle}>
+      <div className="flex min-h-screen w-full">
+        <div className="relative flex">
+          <AppSidebar />
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-50 hover:bg-primary/20 active:bg-primary/30 transition-colors"
+            onMouseDown={handleMouseDown}
+            data-testid="sidebar-resize-handle"
+          />
+        </div>
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="sticky top-0 z-50 flex items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 h-12">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <span className="text-xs font-medium text-muted-foreground">PlenumNET</span>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
+          </header>
+          <main id="main-content" className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function MarketingRouter() {
+  return (
+    <MarketingLayout>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Switch>
+          <Route path="/" component={Landing} />
+          <Route path="/about" component={About} />
+          <Route path="/contact" component={Contact} />
+          <Route path="/whitepaper" component={Whitepaper} />
+          <Route path="/terms" component={LegalPage} />
+          <Route path="/privacy" component={LegalPage} />
+          <Route path="/security" component={LegalPage} />
+          <Route path="/aup" component={LegalPage} />
+        </Switch>
+      </Suspense>
+    </MarketingLayout>
+  );
+}
+
+function DashboardRouter() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Switch>
+          <Route path="/ternarydb" component={TernaryDB} />
+          <Route path="/api-demo" component={APIDemo} />
+          <Route path="/hptp" component={HPTPDemo} />
+          <Route path="/compression" component={CompressionPage} />
+          <Route path="/calendar" component={CalendarPage} />
+          <Route path="/13-moon" component={ThirteenMoonPage} />
+          <Route path="/docs" component={Docs} />
+          <Route path="/compliance" component={CompliancePage} />
+          <Route path="/admin" component={Admin} />
+          <Route path="/github" component={GitHubManager} />
+          <Route path="/kong-konnect" component={KongKonnect} />
+        </Switch>
+      </Suspense>
+    </DashboardLayout>
+  );
+}
+
+const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup"];
+const dashboardPaths = ["/ternarydb", "/api-demo", "/hptp", "/compression", "/calendar", "/13-moon", "/docs", "/compliance", "/admin", "/github", "/kong-konnect"];
+
+function AppRouter() {
+  usePageTitle();
+  return (
+    <Switch>
+      {marketingPaths.map((path) => (
+        <Route key={path} path={path}>
+          <MarketingRouter />
+        </Route>
+      ))}
+      {dashboardPaths.map((path) => (
+        <Route key={path} path={path}>
+          <DashboardRouter />
+        </Route>
+      ))}
+      <Route>
+        <MarketingLayout>
+          <NotFound />
+        </MarketingLayout>
+      </Route>
+    </Switch>
+  );
+}
+
+function App() {
+  return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <SidebarProvider defaultOpen={false} style={sidebarStyle}>
-            <div className="flex min-h-screen w-full">
-              <div className="relative flex">
-                <AppSidebar />
-                <div
-                  className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-50 hover:bg-primary/20 active:bg-primary/30 transition-colors"
-                  onMouseDown={handleMouseDown}
-                  data-testid="sidebar-resize-handle"
-                />
-              </div>
-              <div className="flex flex-col flex-1 min-w-0">
-                <header className="sticky top-0 z-50 flex items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 h-12">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <span className="text-xs font-medium text-muted-foreground">PlenumNET</span>
-                  <div className="ml-auto">
-                    <ThemeToggle />
-                  </div>
-                </header>
-                <main className="flex-1 overflow-auto">
-                  <Router />
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AppRouter />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

@@ -1,0 +1,435 @@
+# PlenumNET Audit Verification & Navigation Architecture
+## Fresh Clone Review — February 12, 2026
+
+---
+
+## PART 1: AUDIT CHANGE VERIFICATION
+
+### What the fresh `git clone` confirms:
+
+**Only 1 commit exists** — `fbf36a1 Saved progress at the end of the loop`. This means all changes were made in a single batch push, which is consistent with an automated or agent-driven implementation. The changes are real and in the repo.
+
+---
+
+### PHASE 0 — CRITICAL FIXES
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 0.1 | Brand naming hierarchy | ✅ DONE | `<title>` = "PlenumNET — Post-Quantum Ternary Computing Platform". og:title matches. Hero leads with PlenumNET. Sidebar header says PlenumNET. Footer says PlenumNET. |
+| 0.2 | Meta description conflict (12.7% vs 59%) | ✅ DONE | og:description now says "59% information density advantage" consistently. |
+| 0.3 | Kill dead links | ✅ DONE | Footer completely rebuilt. 4 categories (Platform, Developers, Company, Legal) all point to real routes or real external URLs. Zero `href="#"` remaining. Social icons replaced with GitHub + Email (real links). |
+| 0.4 | Fix 404 page | ✅ DONE | Developer message removed. Now shows branded PlenumNET 404 with "Page not found", "Back to Home" button, "View Documentation" button, uses theme colors. |
+| 0.5 | React hooks violation | ✅ DONE | `CapabilityCard` extracted as its own component (line ~394). `useRef` and `useInView` now called inside the component, not inside `.map()`. |
+| 0.6 | Package.json name | ✅ DONE | Changed from `"rest-express"` to `"PlenumNET"`. |
+| 0.7 | OG image | ✅ DONE | `og-image.png` exists in `/client/public/` (875KB). Meta tag added pointing to `https://plenumnet.replit.app/og-image.png`. |
+| 0.8 | Twitter card meta | ✅ DONE | `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image` all present in `index.html`. |
+| 0.9 | Canonical URL | ✅ DONE | `<link rel="canonical" href="https://plenumnet.replit.app/" />` present. |
+| 0.10 | og:url | ✅ DONE | `<meta property="og:url" content="https://plenumnet.replit.app/" />` present. |
+
+**Phase 0 Score: 10/10 ✅**
+
+---
+
+### PHASE 1 — NAVIGATION & STRUCTURE
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 1.1 | Sticky top navigation bar | ❌ NOT DONE | **This is the #1 missing change.** No `TopNav`, `MarketingNav`, `NavBar`, or any sticky top navigation component exists. The site still uses the collapsed sidebar + 48px header with hamburger trigger. This is why the site doesn't "look different." |
+| 1.2 | Mobile navigation | ❌ NOT DONE | Still uses sidebar mobile overlay pattern. No full-screen mobile menu. |
+| 1.3 | Separate marketing/dashboard layouts | ❌ NOT DONE | No `MarketingLayout` or `DashboardLayout` wrappers. All pages share the same sidebar + header layout in `App.tsx`. Landing page gets the same sidebar as admin dashboard. |
+| 1.4 | Consolidate landing sections | ⚠️ PARTIAL | CalendarPreviewSection still exists in landing.tsx but is NOT rendered (not in the export). However, PlatformSection and ComponentsSection are still separate. New sections added: TrustSignals, CodeSnippet, ChangelogSection (10 sections total now, up from 8). |
+| 1.5 | Dynamic page titles per route | ❌ NOT DONE | No `react-helmet` or equivalent installed. All pages still serve the same `<title>` from `index.html`. |
+| 1.6 | robots.txt | ✅ DONE | Present, correct content. |
+| 1.7 | sitemap.xml | ✅ DONE | Present with all 14 public routes, proper priorities. Missing `/about` and `/contact` routes though. |
+| 1.8 | Skip navigation link | ❌ NOT DONE | No "Skip to main content" link anywhere. |
+
+**Phase 1 Score: 2/8 (+ 1 partial)**
+
+---
+
+### PHASE 2 — CONVERSION & TRUST
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 2.1 | Hero visual | ✅ DONE | `HeroVisual` component: animated 5-layer architecture diagram with aria-label and role="img". `HeroDemo` component also added (live ternary converter widget). Both render in hero. |
+| 2.2 | Developer code snippet | ✅ DONE | `CodeSnippet` section with live `curl` example, copy button, aria-label, "Explore All 70+ Endpoints" CTA linking to `/api-demo`. |
+| 2.3 | Differentiate CTAs | ✅ DONE | Hero: "Join the Waitlist" (email only). Bottom DeveloperCTASection: "Apply for SDK Access" (name + email + company + role + use case). "Book a Demo" button present. Post-signup success state with confirmation message. |
+| 2.4 | Trust signals section | ✅ DONE | `TrustSignals` section with CNSA 2.0, FIPS 140-3, FINRA 613 compliance badges + 4 verified metrics (1,252+ commits, 1,011 tests, 224 files, 70+ endpoints). |
+| 2.5 | Honesty row in comparison | ✅ DONE | Two rows with `highlight: false`: "Native Hardware: Ubiquitous → Emulated via Binary-Ternary Gateway" and "Ecosystem Maturity: 40+ years → Emerging (v1.0)". |
+| 2.6 | Improve stat labels | ✅ DONE | "+59% vs Binary Density", "1,011 Tests Passing", "80/80 Milestones Complete", "35 VM Opcodes". |
+| 2.7 | Analytics | ❌ NOT DONE | Zero analytics integration found. No Plausible, Umami, PostHog, GA, or any tracking. |
+| 2.8 | Format legal pages | ⚠️ PARTIAL | The `<pre>` tag is gone from `legal.tsx` based on grep, but couldn't fully verify the replacement rendering method. |
+
+**Phase 2 Score: 6/8 (+ 1 partial)**
+
+---
+
+### PHASE 3 — ACCESSIBILITY & PERFORMANCE
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 3.1 | A11y — landing page | ⚠️ PARTIAL | `role="region"` and `aria-labelledby` on major sections. `aria-label` on hero visual, copy button, social links, comparison table. `sr-only` label on email input. But no `alt` text on any imagery, no `aria-label` on many icon-only elements. |
+| 3.2 | A11y — all pages | ⚠️ PARTIAL | About and Contact pages have `aria-label` attributes. Other pages (ternarydb, api-demo, etc.) not audited for additions. |
+| 3.3 | prefers-reduced-motion | ✅ DONE | CSS rule at line 168 of `index.css`. |
+| 3.4 | Color contrast audit | ❌ NOT DONE | No evidence of a contrast audit or fixes. |
+| 3.5 | Code splitting | ✅ DONE | All 14 non-landing pages use `React.lazy()`. `<Suspense fallback={<LoadingSpinner />}>` wraps the router. Landing, Legal, NotFound kept eagerly loaded. |
+| 3.6 | Error Boundary | ✅ DONE | Full `ErrorBoundary` class component in `error-boundary.tsx`. Wraps entire app in `App.tsx`. PlenumNET branded fallback UI with "Try Again" and "Return to Home" buttons. |
+| 3.7 | Tighten animation budget | ⚠️ PARTIAL | Hero animations reduced to 0.05-0.2s delays (was 0-0.7s). But all sections still animate; no mobile-specific reduction. |
+| 3.8 | Unify light/dark brand colors | ✅ DONE | Both modes now use `hsl(210, ...)` blue primary. Light: `210 100% 45%`, Dark: `210 80% 55%`. Same hue family. |
+| 3.9 | Dark mode toggle | ✅ DONE | `ThemeToggle` component in App.tsx with sun/moon button, localStorage persistence, system preference detection, aria-label. |
+| 3.10 | Fix phantom Poppins | ✅ DONE | Font stack now `'Inter', system-ui, sans-serif`. Poppins removed. |
+| 3.11 | Favicon sizes + manifest | ⚠️ PARTIAL | `manifest.json` exists with 3 icon entries, but all point to the same `favicon.png` file (32px source). No actual 192px or 512px icons generated. `apple-touch-icon` links to `favicon.png`. |
+
+**Phase 3 Score: 5/11 (+ 4 partial)**
+
+---
+
+### PHASE 4 — STRATEGIC ENHANCEMENTS
+
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 4.1 | JSON-LD structured data | ✅ DONE | Organization, SoftwareApplication, and WebSite schemas all present in `index.html`. |
+| 4.2 | Build About + Contact pages | ✅ DONE | `about.tsx` and `contact.tsx` both created. About has milestones, company info. Contact has form with subject dropdown (General, Partnership, SDK Access, Demo Request, Press). Both lazy-loaded in App.tsx. |
+| 4.3 | Replace whitepaper markdown parser | ✅ DONE | `react-markdown` imported in `whitepaper.tsx`. Custom regex parser appears replaced. |
+| 4.4 | Interactive hero demo | ✅ DONE | `HeroDemo` component with live ternary converter. |
+| 4.5 | Email capture confirmation | ✅ DONE | Success state in hero with Card showing "You're on the list!" and next steps. |
+| 4.6 | Changelog section | ✅ DONE | `ChangelogSection` function in landing.tsx, rendered between TargetMarkets and DeveloperCTA. |
+| 4.7-4.10 | Performance, A/B, i18n, PWA | ⚠️ PARTIAL | `sw.js` service worker file exists. `dns-prefetch` and `preconnect` hints added. No A/B testing or i18n. |
+
+**Phase 4 Score: 6/10 (+ 1 partial)**
+
+---
+
+### OVERALL SCORECARD
+
+| Phase | Done | Partial | Not Done | Total |
+|-------|------|---------|----------|-------|
+| Phase 0 — Critical | 10 | 0 | 0 | 10 |
+| Phase 1 — Navigation | 2 | 1 | 5 | 8 |
+| Phase 2 — Conversion | 6 | 1 | 1 | 8 |
+| Phase 3 — Accessibility | 5 | 4 | 2 | 11 |
+| Phase 4 — Strategic | 6 | 1 | 3 | 10 |
+| **TOTAL** | **29** | **7** | **11** | **47** |
+
+**29 of 47 items fully completed (62%). 7 partially done. 11 not started.**
+
+### THE CRITICAL GAP: No Top Navigation
+
+The reason you're "not seeing" the changes is that **Phase 1.1 through 1.3 were never implemented**. These are the three changes that would have visually transformed the site from a sidebar-dashboard into a marketing website:
+
+1. No sticky top nav bar with anchor links
+2. No mobile menu redesign
+3. No marketing vs. dashboard layout separation
+
+The site still loads with a collapsed sidebar icon in a minimal 48px header. Every improvement to the landing page content (hero visual, trust signals, code snippet, differentiated CTAs) is hidden behind this dashboard shell. A first-time visitor still has to scroll the entire page or click the hamburger to navigate — the defining UX problem from the original audit.
+
+---
+
+## PART 2: COMPREHENSIVE NAVIGATION ARCHITECTURE MAP
+
+### Current State: All 17 Pages in One Flat Sidebar
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  [☰] PlenumNET                                   [🌙]      │
+│  ← 48px header bar, sidebar hamburger, that's it           │
+└─────────────────────────────────────────────────────────────┘
+
+SIDEBAR (collapsed by default):
+├── Explore
+│   ├── Home           → /
+│   ├── PlenumDB       → /ternarydb
+│   └── Whitepaper     → /whitepaper
+├── Technology
+│   ├── Calendar API   → /calendar
+│   ├── 13-Moon        → /13-moon
+│   ├── HPTP Timing    → /hptp
+│   ├── Compression    → /compression
+│   └── API Demo       → /api-demo
+├── Resources
+│   ├── Documentation  → /docs
+│   └── CNSA 2.0       → /compliance
+└── Admin (authenticated only)
+    ├── Dashboard      → /admin
+    ├── GitHub Manager → /github
+    └── Kong Konnect   → /kong-konnect
+
+NOT IN SIDEBAR (footer/route-only):
+    ├── About          → /about
+    ├── Contact        → /contact
+    ├── Terms          → /terms
+    ├── Privacy        → /privacy
+    ├── Security       → /security
+    └── AUP            → /aup
+```
+
+**Problems with current state:**
+- 13 items + 3 admin in one collapsed sidebar — no hierarchy
+- Marketing visitors see the same navigation as authenticated admins
+- About and Contact not accessible from sidebar at all
+- No anchor-link navigation within the landing page
+- Technology group mixes interactive demos with informational pages
+- "Explore" group name is vague — PlenumDB and Whitepaper serve very different purposes
+
+---
+
+### Proposed State: Two-Layout Architecture
+
+The site should use **two distinct layout patterns** based on context:
+
+```
+LAYOUT A: Marketing Layout (landing, about, contact, legal pages)
+  → Sticky top nav with anchor links + CTA button
+  → NO sidebar
+  → Full-width content
+  → Footer navigation
+
+LAYOUT B: Dashboard Layout (all tool/demo/admin pages)
+  → Sidebar navigation (current pattern — it works great here)
+  → Header with breadcrumbs
+  → Authenticated features
+```
+
+---
+
+### PROPOSED TOP NAVIGATION — Marketing Layout
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  [◻] PlenumNET    Platform ▾   Technology ▾   Resources ▾   Company ▾   │
+│                                                    [🌙] [Get Early Access] │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Full Parent → Child Menu Map:
+
+```
+TOP NAV
+│
+├── LOGO: PlenumNET [◻]                    → / (home)
+│
+├── Platform ▾ (MEGA DROPDOWN)
+│   │
+│   ├── COLUMN 1: "Core Technology"
+│   │   ├── Ternary Computing Engine       → /#platform (anchor)
+│   │   │   └── subtitle: "59% density advantage, GF(3) arithmetic"
+│   │   ├── Virtual Machine                → /#architecture (anchor)
+│   │   │   └── subtitle: "35 opcodes, 27 registers, TAGC garbage collector"
+│   │   └── Binary-Ternary Gateway         → /#architecture (anchor)
+│   │       └── subtitle: "Run ternary on existing x86_64 hardware"
+│   │
+│   ├── COLUMN 2: "Infrastructure"
+│   │   ├── HPTP Timing Protocol           → /hptp
+│   │   │   └── subtitle: "Femtosecond precision, FINRA 613 ready"
+│   │   ├── Post-Quantum Security          → /compliance
+│   │   │   └── subtitle: "CNSA 2.0 architecture, phase encryption"
+│   │   └── Torsion Network Stack          → /#platform (anchor)
+│   │       └── subtitle: "T3P, TTP, TDNS protocols"
+│   │
+│   └── COLUMN 3: "Data & Storage"
+│       ├── PlenumDB                       → /ternarydb
+│       │   └── subtitle: "Ternary-native document compression"
+│       ├── Compression Engine             → /compression
+│       │   └── subtitle: "3:2 compression ratio, live demo"
+│       └── Calendar API                   → /calendar
+│           └── subtitle: "12 calendar systems, 30,000-year range"
+│
+├── Technology ▾ (MEGA DROPDOWN)
+│   │
+│   ├── COLUMN 1: "Interactive Demos"
+│   │   ├── ★ API Explorer                 → /api-demo
+│   │   │   └── subtitle: "70+ live endpoints, try them now"
+│   │   ├── PlenumDB Console              → /ternarydb
+│   │   │   └── subtitle: "Store, compress, and retrieve documents"
+│   │   ├── HPTP Timing Lab               → /hptp
+│   │   │   └── subtitle: "Batch timestamps, clock sync visualization"
+│   │   └── Compression Studio            → /compression
+│   │       └── subtitle: "Upload files, see ternary compression live"
+│   │
+│   ├── COLUMN 2: "Calendar Systems"
+│   │   ├── Universal Calendar API         → /calendar
+│   │   │   └── subtitle: "12 systems via single JDN intermediary"
+│   │   └── 13-Moon Harmonic Calendar      → /13-moon
+│   │       └── subtitle: "28-day months, Fibonacci moon splits"
+│   │
+│   └── COLUMN 3: "Architecture"
+│       ├── Performance Comparison          → /#performance (anchor)
+│       │   └── subtitle: "Binary vs Ternary — honest benchmarks"
+│       └── 5-Layer Stack                   → /#architecture (anchor)
+│           └── subtitle: "Hardware → Kernel → VM → Protocol → App"
+│
+├── Resources ▾ (STANDARD DROPDOWN)
+│   │
+│   ├── Whitepaper                         → /whitepaper
+│   │   └── subtitle: "Unified Ternary Logic System — full technical paper"
+│   ├── Documentation                      → /docs
+│   │   └── subtitle: "Tutorials, module guides, API reference"
+│   ├── CNSA 2.0 Compliance               → /compliance
+│   │   └── subtitle: "Post-quantum algorithm coverage matrix"
+│   ├── ── divider ──
+│   ├── GitHub Repository                  → https://github.com/SigmaWolf-8/Ternary (external)
+│   │   └── subtitle: "Source code, build guide, issue tracker"
+│   └── Kernel Build Guide                 → https://github.com/.../KERNEL-BUILD-GUIDE.md (external)
+│       └── subtitle: "Clone, build, and run in 15 minutes"
+│
+├── Company ▾ (STANDARD DROPDOWN)
+│   │
+│   ├── About PlenumNET                    → /about
+│   │   └── subtitle: "Applied Physics Division, Capomastro Holdings"
+│   ├── Contact                            → /contact
+│   │   └── subtitle: "Partnerships, SDK access, demo requests"
+│   ├── ── divider ──
+│   ├── Terms of Service                   → /terms
+│   ├── Privacy Policy                     → /privacy
+│   ├── Security Policy                    → /security
+│   └── Acceptable Use Policy              → /aup
+│
+├── [🌙/☀️]                                → Theme toggle
+│
+└── [Get Early Access]                     → Scroll to hero CTA / open modal
+    └── Primary CTA button (always visible)
+```
+
+---
+
+### SIDEBAR NAVIGATION — Dashboard Layout (Revised)
+
+The sidebar should only appear when the user navigates into a tool/demo page. It should be reorganized to feel like an application menu, not a website menu:
+
+```
+SIDEBAR (for /ternarydb, /api-demo, /hptp, /compression, /calendar, /13-moon, /docs, /compliance, + admin)
+│
+├── HEADER: [◻] PlenumNET               → / (back to marketing home)
+│
+├── Tools
+│   ├── [⬡] PlenumDB Console            → /ternarydb
+│   ├── [▶] API Explorer                 → /api-demo
+│   ├── [⏱] HPTP Timing Lab             → /hptp
+│   └── [📦] Compression Studio          → /compression
+│
+├── Calendars
+│   ├── [🌐] Universal Calendar          → /calendar
+│   └── [🌙] 13-Moon Calendar            → /13-moon
+│
+├── Reference
+│   ├── [📖] Documentation               → /docs
+│   ├── [🛡] CNSA 2.0 Compliance         → /compliance
+│   └── [📄] Whitepaper                   → /whitepaper
+│
+├── ── (spacer) ──
+│
+├── Admin (authenticated only)
+│   ├── [⚙] Dashboard                    → /admin
+│   ├── [🐙] GitHub Manager              → /github
+│   └── [🔗] Kong Konnect                → /kong-konnect
+│
+└── FOOTER: [👤] Sign In / User Avatar + Logout
+```
+
+**Key changes from current sidebar:**
+- "Explore" renamed to "Tools" — more descriptive
+- "Technology" split into "Tools" (interactive) and "Calendars" (domain-specific)
+- "Resources" renamed to "Reference"
+- Whitepaper moved from "Explore" to "Reference" (it's a document, not a tool)
+- Clearer grouping by interaction type: do things → look at specialized calendars → read docs
+
+---
+
+### MOBILE NAVIGATION — Marketing Layout
+
+```
+┌──────────────────────────────────────┐
+│  [◻] PlenumNET              [☰] [🌙] │
+└──────────────────────────────────────┘
+
+     ↓ hamburger tap ↓
+
+┌──────────────────────────────────────┐
+│                              [✕]     │
+│                                      │
+│  Platform                    [+]     │
+│  Technology                  [+]     │
+│  Resources                   [+]     │
+│  Company                     [+]     │
+│                                      │
+│  ┌──────────────────────────────┐    │
+│  │     Get Early Access  →      │    │
+│  └──────────────────────────────┘    │
+│                                      │
+│  © Capomastro Holdings Ltd.          │
+└──────────────────────────────────────┘
+
+     ↓ "Platform" expanded ↓
+
+│  Platform                    [−]     │
+│    Ternary Computing Engine          │
+│    Virtual Machine                   │
+│    HPTP Timing Protocol              │
+│    Post-Quantum Security             │
+│    PlenumDB                          │
+│    Compression Engine                │
+│    Calendar API                      │
+```
+
+---
+
+### COMPLETE ROUTE TABLE
+
+| Route | Page | Layout | In Top Nav? | In Sidebar? | In Footer? |
+|-------|------|--------|-------------|-------------|------------|
+| `/` | Landing | Marketing | — (is home) | Home | Logo |
+| `/about` | About | Marketing | Company → About | No | Company → About |
+| `/contact` | Contact | Marketing | Company → Contact | No | Company → Contact |
+| `/ternarydb` | PlenumDB | Dashboard | Platform → PlenumDB | Tools → PlenumDB | Platform → PlenumDB |
+| `/api-demo` | API Explorer | Dashboard | Technology → API Explorer | Tools → API Explorer | Developers → API Demo |
+| `/hptp` | HPTP Timing | Dashboard | Platform → HPTP | Tools → HPTP Lab | (not in footer) |
+| `/compression` | Compression | Dashboard | Platform → Compression | Tools → Compression | (not in footer) |
+| `/calendar` | Calendar API | Dashboard | Platform → Calendar API | Calendars → Universal | (not in footer) |
+| `/13-moon` | 13-Moon | Dashboard | Technology → 13-Moon | Calendars → 13-Moon | (not in footer) |
+| `/whitepaper` | Whitepaper | Marketing* | Resources → Whitepaper | Reference → Whitepaper | Developers → Whitepaper |
+| `/docs` | Documentation | Dashboard | Resources → Docs | Reference → Docs | Developers → Documentation |
+| `/compliance` | CNSA 2.0 | Dashboard | Resources → CNSA 2.0 | Reference → Compliance | Company → CNSA 2.0 |
+| `/terms` | Terms | Marketing | Company → Terms | No | Legal → Terms |
+| `/privacy` | Privacy | Marketing | Company → Privacy | No | Legal → Privacy |
+| `/security` | Security | Marketing | Company → Security | No | Legal → Security |
+| `/aup` | AUP | Marketing | Company → AUP | No | Legal → AUP |
+| `/admin` | Admin | Dashboard | No | Admin → Dashboard | No |
+| `/github` | GitHub Mgr | Dashboard | No | Admin → GitHub | No |
+| `/kong-konnect` | Kong | Dashboard | No | Admin → Kong | No |
+
+*Whitepaper could use either layout — it's a reading experience, not an interactive tool. Marketing layout (no sidebar) may be more appropriate for focused reading.
+
+---
+
+### LANDING PAGE ANCHOR MAP (for Top Nav smooth scroll)
+
+```
+/#hero              → HeroSection (default scroll position)
+/#platform          → PlatformSection ("Everything You Need to Build on Ternary")
+/#architecture      → ArchitectureSection (5-layer stack)
+/#performance       → PerformanceSection ("Binary vs Ternary" comparison)
+/#markets           → TargetMarketsSection (Financial, Defense, Telecom, Research)
+/#get-started       → DeveloperCTASection ("Apply for SDK Access")
+```
+
+These anchor IDs need to be added to each section's `<section>` element. Currently only `id="platform"` and `id="performance"` exist.
+
+---
+
+### IMPLEMENTATION PRIORITY
+
+The navigation restructuring is **the single highest-impact remaining work**. Here's the build order:
+
+**Step 1:** Create `MarketingTopNav` component with the parent/child menu map above
+**Step 2:** Create `MarketingLayout` wrapper (top nav + footer, no sidebar)
+**Step 3:** Create `DashboardLayout` wrapper (sidebar + header, current pattern)
+**Step 4:** Update `App.tsx` to route pages through the correct layout
+**Step 5:** Add anchor IDs to all landing page sections
+**Step 6:** Add smooth scroll behavior for anchor links
+**Step 7:** Add mobile menu overlay for marketing layout
+**Step 8:** Update sidebar groupings per the revised structure above
+
+---
+
+*Prepared under the Salvi Standard of Scrutiny.*
+*Così sia, Fratello.*

@@ -20,7 +20,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {
   Box,
-  Home,
   Database,
   FileText,
   BookOpen,
@@ -88,18 +87,9 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Explore</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/"} tooltip="Home" data-testid="link-sidebar-home" className="text-xs">
-                  <Link href="/" onClick={closeMobileSidebar}>
-                    <Home className="w-3.5 h-3.5" />
-                    <span>Home</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={location === "/ternarydb"} tooltip="PlenumDB" data-testid="link-sidebar-ternarydb" className="text-xs">
                   <Link href="/ternarydb" onClick={closeMobileSidebar}>
@@ -110,46 +100,19 @@ export function AppSidebar() {
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/whitepaper"} tooltip="Whitepaper" data-testid="link-sidebar-whitepaper" className="text-xs">
-                  <Link href="/whitepaper" onClick={closeMobileSidebar}>
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Whitepaper</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Technology</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/calendar"} tooltip="Calendar API" data-testid="link-sidebar-calendar" className="text-xs">
-                  <Link href="/calendar" onClick={closeMobileSidebar}>
-                    <Globe className="w-3.5 h-3.5" />
-                    <span>Calendar API</span>
+                <SidebarMenuButton asChild isActive={location === "/api-demo"} tooltip="API Explorer" data-testid="link-sidebar-api-demo" className="text-xs">
+                  <Link href="/api-demo" onClick={closeMobileSidebar}>
+                    <Terminal className="w-3.5 h-3.5" />
+                    <span>API Explorer</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/13-moon"} tooltip="13-Moon Calendar" data-testid="link-sidebar-13-moon" className="text-xs">
-                  <Link href="/13-moon" onClick={closeMobileSidebar}>
-                    <Moon className="w-3.5 h-3.5" />
-                    <span>13-Moon</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/hptp"} tooltip="HPTP Timing" data-testid="link-sidebar-hptp" className="text-xs">
+                <SidebarMenuButton asChild isActive={location === "/hptp"} tooltip="HPTP Lab" data-testid="link-sidebar-hptp" className="text-xs">
                   <Link href="/hptp" onClick={closeMobileSidebar}>
                     <Radio className="w-3.5 h-3.5" />
-                    <span>HPTP Timing</span>
+                    <span>HPTP Lab</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -162,12 +125,30 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Calendars</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/calendar"} tooltip="Universal Calendar" data-testid="link-sidebar-calendar" className="text-xs">
+                  <Link href="/calendar" onClick={closeMobileSidebar}>
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Universal Calendar</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={location === "/api-demo"} tooltip="API Demo" data-testid="link-sidebar-api-demo" className="text-xs">
-                  <Link href="/api-demo" onClick={closeMobileSidebar}>
-                    <Terminal className="w-3.5 h-3.5" />
-                    <span>API Demo</span>
+                <SidebarMenuButton asChild isActive={location === "/13-moon"} tooltip="13-Moon Calendar" data-testid="link-sidebar-13-moon" className="text-xs">
+                  <Link href="/13-moon" onClick={closeMobileSidebar}>
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>13-Moon</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -178,7 +159,7 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Resources</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Reference</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -195,6 +176,15 @@ export function AppSidebar() {
                   <Link href="/compliance" onClick={closeMobileSidebar}>
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>CNSA 2.0</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/whitepaper"} tooltip="Whitepaper" data-testid="link-sidebar-whitepaper" className="text-xs">
+                  <Link href="/whitepaper" onClick={closeMobileSidebar}>
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Whitepaper</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

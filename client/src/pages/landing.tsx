@@ -202,7 +202,7 @@ function HeroSection() {
   });
 
   return (
-    <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
+    <section id="hero" className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
       <div className="absolute inset-0 gradient-radial" />
       
@@ -1215,7 +1215,7 @@ function TargetMarketsSection() {
   ];
 
   return (
-    <section className="py-20 md:py-28" data-testid="section-markets">
+    <section id="markets" className="py-20 md:py-28" data-testid="section-markets">
       <div className="max-w-7xl mx-auto px-5">
         <div className="text-center mb-16">
           <motion.div
@@ -1608,20 +1608,17 @@ function Footer() {
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main>
-        <HeroSection />
-        <PlatformSection />
-        <ArchitectureSection />
-        <ComponentsSection />
-        <PerformanceSection />
-        <TrustSignals />
-        <CodeSnippet />
-        <TargetMarketsSection />
-        <ChangelogSection />
-        <DeveloperCTASection />
-      </main>
-      <Footer />
-    </div>
+    <>
+      <HeroSection />
+      <PlatformSection />
+      <ArchitectureSection />
+      <ComponentsSection />
+      <PerformanceSection />
+      <TrustSignals />
+      <CodeSnippet />
+      <TargetMarketsSection />
+      <ChangelogSection />
+      <DeveloperCTASection />
+    </>
   );
 }
