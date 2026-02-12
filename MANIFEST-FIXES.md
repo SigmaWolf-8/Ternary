@@ -47,6 +47,24 @@
 
 **STATUS: AWAITING FILE FROM USER**
 
+### Fix 1.6: Kernel Cargo.toml — Remove MIT License Declaration
+
+**File:** `src/kernel/Cargo.toml`  
+**Current:** `license = "MIT"`  
+**Change to:** `license = "LicenseRef-Proprietary"`  
+**Reason:** The main kernel crate (47,230 lines) was inadvertently offered under MIT — the most valuable component of the entire IP portfolio.
+
+**STATUS: DONE**
+
+### Fix 1.7: WASM Cargo.toml — Remove MIT License Declaration
+
+**File:** `src/kernel/wasm/Cargo.toml`  
+**Current:** `license = "MIT"`  
+**Change to:** `license = "LicenseRef-Proprietary"`  
+**Reason:** The WASM interface crate was inadvertently offered under MIT.
+
+**STATUS: DONE**
+
 ---
 
 ## PRIORITY 2 — HIGH (Execute Within 7 Days)
