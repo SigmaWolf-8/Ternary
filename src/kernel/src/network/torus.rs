@@ -67,6 +67,7 @@ pub enum DimensionType {
     Ternary,
     Frequency,
     Polarization,
+    Angular,
 }
 
 #[derive(Debug, Clone)]
@@ -253,6 +254,53 @@ pub fn torus_13d() -> TorusTopology {
     ];
     let weights: [u32; 13] = [1000, 1000, 1000, 800, 1200, 1500, 900, 700, 600, 1000, 1100, 1400, 850];
     for i in 0..13 {
+        topo.set_coefficient(i, weights[i], types[i]).unwrap();
+    }
+    topo
+}
+
+/// Ternary Circle–aware torus: 13 spatial/functional dimensions + 1 Angular
+/// dimension with side length 28 (the Z₂₈ cyclic group from 1 rad = 13°).
+///
+/// The Angular dimension encodes the Tribonacci radian spiral's discrete
+/// rotational symmetry. Routing in this dimension is mod-28 arithmetic,
+/// natively representing the 28 distinct directions of the ternary circle.
+pub fn torus_13d_angular() -> TorusTopology {
+    let mut side_lengths = vec![3u16; 13];
+    side_lengths.push(28);
+    let mut topo = TorusTopology::new(side_lengths).unwrap();
+    let types = [
+        DimensionType::Spatial, DimensionType::Spatial, DimensionType::Spatial,
+        DimensionType::Temporal, DimensionType::Phase, DimensionType::Security,
+        DimensionType::Ternary, DimensionType::Frequency, DimensionType::Polarization,
+        DimensionType::Spatial, DimensionType::Phase, DimensionType::Security,
+        DimensionType::Temporal,
+        DimensionType::Angular,
+    ];
+    let weights: [u32; 14] = [
+        1000, 1000, 1000, 800, 1200, 1500, 900, 700, 600, 1000, 1100, 1400, 850,
+        1300,
+    ];
+    for i in 0..14 {
+        topo.set_coefficient(i, weights[i], types[i]).unwrap();
+    }
+    topo
+}
+
+/// Compact 7D+Angular torus for smaller deployments: 7 functional dimensions
+/// plus the Z₂₈ angular coordinate.
+pub fn torus_7d_angular() -> TorusTopology {
+    let mut side_lengths = vec![3u16; 7];
+    side_lengths.push(28);
+    let mut topo = TorusTopology::new(side_lengths).unwrap();
+    let types = [
+        DimensionType::Spatial, DimensionType::Spatial, DimensionType::Spatial,
+        DimensionType::Temporal, DimensionType::Phase, DimensionType::Security,
+        DimensionType::Ternary,
+        DimensionType::Angular,
+    ];
+    let weights: [u32; 8] = [1000, 1000, 1000, 800, 1200, 1500, 900, 1300];
+    for i in 0..8 {
         topo.set_coefficient(i, weights[i], types[i]).unwrap();
     }
     topo
@@ -537,6 +585,52 @@ mod tests {
         assert_ne!(DimensionType::Phase, DimensionType::Security);
         assert_ne!(DimensionType::Ternary, DimensionType::Frequency);
         assert_ne!(DimensionType::Frequency, DimensionType::Polarization);
+        assert_ne!(DimensionType::Angular, DimensionType::Spatial);
+    }
+
+    #[test]
+    fn test_13d_angular_preset() {
+        let topo = torus_13d_angular();
+        assert_eq!(topo.dimensions(), 14);
+        assert_eq!(topo.get_coefficient(13).unwrap().dim_type, DimensionType::Angular);
+        assert_eq!(topo.side_lengths()[13], 28);
+    }
+
+    #[test]
+    fn test_13d_angular_total_positions() {
+        let topo = torus_13d_angular();
+        assert_eq!(topo.total_positions(), 1594323 * 28);
+    }
+
+    #[test]
+    fn test_7d_angular_preset() {
+        let topo = torus_7d_angular();
+        assert_eq!(topo.dimensions(), 8);
+        assert_eq!(topo.get_coefficient(7).unwrap().dim_type, DimensionType::Angular);
+        assert_eq!(topo.side_lengths()[7], 28);
+    }
+
+    #[test]
+    fn test_7d_angular_total_positions() {
+        let topo = torus_7d_angular();
+        assert_eq!(topo.total_positions(), 2187 * 28);
+    }
+
+    #[test]
+    fn test_angular_dimension_wrapping() {
+        let topo = torus_7d_angular();
+        let mut coord = TorusCoordinate::new(vec![0, 0, 0, 0, 0, 0, 0, 30]);
+        topo.wrap_coordinate(&mut coord);
+        assert_eq!(coord.get(7), Some(2)); // 30 mod 28 = 2
+    }
+
+    #[test]
+    fn test_angular_dimension_distance() {
+        let topo = torus_7d_angular();
+        let a = TorusCoordinate::new(vec![0, 0, 0, 0, 0, 0, 0, 1]);
+        let b = TorusCoordinate::new(vec![0, 0, 0, 0, 0, 0, 0, 27]);
+        let dist = a.distance_to(&b, topo.side_lengths());
+        assert_eq!(dist, 2); // min(26, 28-26) = 2
     }
 
     #[test]

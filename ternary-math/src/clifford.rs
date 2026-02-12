@@ -368,9 +368,110 @@ pub fn all_invertible_rotors() -> Vec<Multivector> {
     rotors
 }
 
+/// Ternary Circle Bridge — connecting Clifford rotors to Z₂₈ angular steps.
+///
+/// In the ternary circle, there are 28 discrete angular positions (multiples
+/// of 13°). The Tribonacci word maps symbols {A=0, B=1, C=2} to angular
+/// offsets in Z₂₈. This bridge encodes those angular steps as Clifford rotors
+/// in Cl(3,0)/GF(3), enabling gate compression of angular sequences.
+///
+/// A sequence of N angular steps can be composed into a single rotor via
+/// the geometric product, making the composed rotation O(1) to apply.
+pub mod ternary_circle_bridge {
+    use super::*;
+
+    /// Z₂₈ angular step size in ternary degrees
+    const RADIAN_DEG: u32 = 13;
+
+    /// Map a Tribonacci symbol {A=0, B=1, C=2} to a Clifford rotor encoding
+    /// its angular step.
+    ///
+    /// - A (0 radians = 0°) → identity rotor (no rotation)
+    /// - B (1 radian = 13°) → rotor in e₁e₂ plane, scalar=1, bivector12=1
+    /// - C (2 radians = 26°) → rotor in e₁e₂ plane, scalar=1, bivector12=2
+    ///
+    /// The key property: compose_tribonacci_walk([s₁,s₂,...,sₙ]) compresses
+    /// an N-step angular walk into a single rotor via the geometric product.
+    /// The bivector12 coefficient encodes the Z₂₈ radian count because
+    /// Gf3 addition mod 3 in the bivector component mirrors the angular
+    /// step accumulation (both are mod-3 in GF(3) arithmetic).
+    pub fn angular_step_rotor(symbol: u8) -> Multivector {
+        match symbol % 3 {
+            0 => Multivector::scalar(Gf3::ONE),
+            1 => Multivector::rotor(Gf3::ONE, Gf3::ONE, Gf3::ZERO, Gf3::ZERO),
+            2 => Multivector::rotor(Gf3::ONE, Gf3::ZERO, Gf3::ONE, Gf3::ZERO),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Convert a Z₂₈ radian count to the corresponding GF(3) bivector encoding.
+    /// Since GF(3) has period 3, the radian count is reduced mod 3 to get
+    /// the bivector12 coefficient.
+    pub fn z28_to_rotor(radian_count: u32) -> Multivector {
+        angular_step_rotor((radian_count % 3) as u8)
+    }
+
+    pub fn compose_tribonacci_walk(symbols: &[u8]) -> Multivector {
+        let rotors: Vec<Multivector> = symbols.iter().map(|&s| angular_step_rotor(s)).collect();
+        Multivector::compose_chain(&rotors)
+    }
+
+    pub fn rotor_orbit(rotor: &Multivector) -> Vec<Multivector> {
+        let mut orbit = Vec::new();
+        let mut current = Multivector::scalar(Gf3::ONE);
+        loop {
+            orbit.push(current);
+            current = *rotor * current;
+            if current == Multivector::scalar(Gf3::ONE) {
+                break;
+            }
+            if orbit.len() > 81 {
+                break;
+            }
+        }
+        orbit
+    }
+
+    pub fn angular_step_rotor_sequence(length: usize) -> Vec<Multivector> {
+        let mut word = Vec::with_capacity(length);
+        let mut buffer: Vec<u8> = vec![0]; // Start with A
+        while word.len() < length {
+            let mut next = Vec::new();
+            for &sym in &buffer {
+                match sym {
+                    0 => { next.push(0); next.push(1); } // A → AB
+                    1 => { next.push(0); next.push(2); } // B → AC
+                    2 => { next.push(0); }                // C → A
+                    _ => {}
+                }
+            }
+            buffer = next;
+            word.clear();
+            word.extend_from_slice(&buffer);
+        }
+        word.truncate(length);
+        word.iter().map(|&s| angular_step_rotor(s)).collect()
+    }
+
+    pub fn apply_angular_rotation(rotor: &Multivector, vector: &Multivector) -> Multivector {
+        rotor.sandwich(vector)
+    }
+
+    pub fn cumulative_rotors(symbols: &[u8]) -> Vec<Multivector> {
+        let mut result = Vec::with_capacity(symbols.len());
+        let mut accumulated = Multivector::scalar(Gf3::ONE);
+        for &s in symbols {
+            accumulated = angular_step_rotor(s) * accumulated;
+            result.push(accumulated);
+        }
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::ternary_circle_bridge::*;
 
     fn e1() -> Multivector { Multivector::vector(Gf3::ONE, Gf3::ZERO, Gf3::ZERO) }
     fn e2() -> Multivector { Multivector::vector(Gf3::ZERO, Gf3::ONE, Gf3::ZERO) }
@@ -496,5 +597,108 @@ mod tests {
         let v = Multivector::vector(Gf3::ONE, Gf3::TWO, Gf3::ONE);
         // For identity: sandwich = 1 * v * 1 = v
         assert_eq!(id.sandwich(&v), v);
+    }
+
+    #[test]
+    fn angular_step_a_is_identity() {
+        let rotor = angular_step_rotor(0);
+        assert_eq!(rotor, Multivector::scalar(Gf3::ONE));
+    }
+
+    #[test]
+    fn angular_step_b_is_rotor() {
+        let rotor = angular_step_rotor(1);
+        assert_ne!(rotor, Multivector::scalar(Gf3::ONE));
+        assert_ne!(rotor, Multivector::scalar(Gf3::ZERO));
+    }
+
+    #[test]
+    fn angular_step_c_is_rotor() {
+        let rotor = angular_step_rotor(2);
+        assert_ne!(rotor, Multivector::scalar(Gf3::ONE));
+        assert_ne!(rotor, Multivector::scalar(Gf3::ZERO));
+    }
+
+    #[test]
+    fn compose_walk_identity_for_all_a() {
+        let walk = compose_tribonacci_walk(&[0, 0, 0, 0]);
+        assert_eq!(walk, Multivector::scalar(Gf3::ONE),
+            "Walk of all A symbols should compose to identity");
+    }
+
+    #[test]
+    fn compose_walk_nontrivial() {
+        let walk = compose_tribonacci_walk(&[0, 1, 2, 0, 1]);
+        assert_ne!(walk, Multivector::scalar(Gf3::ZERO));
+    }
+
+    #[test]
+    fn rotor_orbit_is_finite() {
+        let r = angular_step_rotor(1);
+        let orbit = rotor_orbit(&r);
+        assert!(orbit.len() <= 81,
+            "Orbit of a rotor in GF(3) should be finite and ≤81");
+        assert!(orbit.len() >= 1);
+    }
+
+    #[test]
+    fn cumulative_rotors_correct_length() {
+        let symbols = vec![0u8, 1, 2, 0, 1, 0, 2, 1];
+        let cumu = cumulative_rotors(&symbols);
+        assert_eq!(cumu.len(), symbols.len());
+    }
+
+    #[test]
+    fn cumulative_rotors_first_matches_single() {
+        let symbols = vec![1u8];
+        let cumu = cumulative_rotors(&symbols);
+        assert_eq!(cumu[0], angular_step_rotor(1));
+    }
+
+    #[test]
+    fn angular_rotation_preserves_grade() {
+        let r = angular_step_rotor(1);
+        let v = e1();
+        let rotated = apply_angular_rotation(&r, &v);
+        let is_vector = rotated.components[0] == Gf3::ZERO
+            && rotated.components[4] == Gf3::ZERO
+            && rotated.components[5] == Gf3::ZERO
+            && rotated.components[6] == Gf3::ZERO
+            && rotated.components[7] == Gf3::ZERO;
+        assert!(is_vector, "Sandwich product should preserve vector grade");
+    }
+
+    #[test]
+    fn angular_rotor_sequence_generates() {
+        let seq = angular_step_rotor_sequence(10);
+        assert_eq!(seq.len(), 10);
+        for r in &seq {
+            assert_ne!(*r, Multivector::scalar(Gf3::ZERO));
+        }
+    }
+
+    #[test]
+    fn z28_to_rotor_periodicity() {
+        for r in 0..28u32 {
+            let rotor = z28_to_rotor(r);
+            let equiv = z28_to_rotor(r + 3);
+            assert_eq!(rotor, equiv,
+                "Z₂₈ radian {} should map to same GF(3) rotor as {}", r, r + 3);
+        }
+    }
+
+    #[test]
+    fn z28_to_rotor_zero_is_identity() {
+        assert_eq!(z28_to_rotor(0), Multivector::scalar(Gf3::ONE));
+    }
+
+    #[test]
+    fn z28_to_rotor_covers_gf3() {
+        let r0 = z28_to_rotor(0);
+        let r1 = z28_to_rotor(1);
+        let r2 = z28_to_rotor(2);
+        assert_ne!(r0, r1);
+        assert_ne!(r1, r2);
+        assert_ne!(r0, r2);
     }
 }

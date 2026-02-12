@@ -1,0 +1,278 @@
+/**
+ * @module ternary-circle
+ * @description Foundational geometric constants for the Salvi Framework's
+ * native angular system — the canonical ternary circle.
+ *
+ * ## The Axiom
+ *
+ * Full circle = 364° = 111111₃ (six-digit base-3 repunit)
+ * π = 14 (ratio of circumference to diameter)
+ * 1 radian = 13° = 111₃ = T₇ (seventh Tribonacci number)
+ * Full circle = 28 ternary radians
+ *
+ * ## Z₂₈ Cyclic Group
+ *
+ * The 28 discrete angular positions {0·13°, 1·13°, …, 27·13°} form
+ * a cyclic group under addition mod 28. The Tribonacci word walks
+ * this group with τ-scaling, producing a quasicrystalline spiral
+ * with 28-fold rotational symmetry.
+ *
+ * ## Representations A, B, C
+ *
+ * All angular values can be expressed in any of the three kernel
+ * representations. The walk instruction digits {0,1,2} in Rep B
+ * become {0,+1,−1+carry} in Rep A and {3,1,2} in Rep C. The
+ * angular meaning is invariant across representations.
+ */
+
+// ══════════════════════════════════════════════════════════════
+// TERNARY CIRCLE CONSTANTS
+// ══════════════════════════════════════════════════════════════
+
+/** Full circle: 364° = 111111₃ = (3⁶ − 1)/2 */
+export const FULL_CIRCLE_DEG = 364;
+
+/** Full circle in base 3 (six-digit repunit). */
+export const FULL_CIRCLE_BASE3 = '111111';
+
+/** π in the ternary system: exactly 14. */
+export const PI_TERNARY = 14;
+
+/** 2π in the ternary system: 28. A full circle is 28 ternary radians. */
+export const TWO_PI_TERNARY = 28;
+
+/** One ternary radian = 13° = 111₃ = T₇. */
+export const RADIAN_DEG = 13;
+
+/** One ternary radian in base 3. */
+export const RADIAN_BASE3 = '111';
+
+/** Order of the cyclic group Z₂₈. */
+export const CYCLIC_ORDER = 28;
+
+// ══════════════════════════════════════════════════════════════
+// TRIBONACCI CONSTANTS
+// ══════════════════════════════════════════════════════════════
+
+/** The Tribonacci constant τ ≈ 1.839286755214161 (root of x³ = x² + x + 1). */
+export const TAU_TRIBONACCI = 1.839286755214161;
+
+/** τ² */
+export const TAU_SQUARED = TAU_TRIBONACCI * TAU_TRIBONACCI;
+
+/** τ³ = τ² + τ + 1 */
+export const TAU_CUBED = TAU_SQUARED + TAU_TRIBONACCI + 1;
+
+/** Tribonacci golden angle: 364° / τ³ ≈ 58.5° */
+export const TRIBONACCI_GOLDEN_ANGLE_DEG = FULL_CIRCLE_DEG / TAU_CUBED;
+
+/** Classical golden angle in ternary circle: 364° / φ² */
+export const GOLDEN_ANGLE_TERNARY_DEG = FULL_CIRCLE_DEG / (((1 + Math.sqrt(5)) / 2) ** 2);
+
+// ══════════════════════════════════════════════════════════════
+// WALK INSTRUCTION ANGLES (in ternary degrees)
+// ══════════════════════════════════════════════════════════════
+
+/** Trit 0 → 0 ternary radians = 0° (step forward, no turn). */
+export const WALK_TURN_0 = 0;
+
+/** Trit 1 → 1 ternary radian = 13° (turn left by 13°). */
+export const WALK_TURN_1 = RADIAN_DEG;
+
+/** Trit 2 → 2 ternary radians = 26° (turn left by 26°). */
+export const WALK_TURN_2 = 2 * RADIAN_DEG;
+
+/** Walk turn angles indexed by trit digit. */
+export const WALK_TURNS = [WALK_TURN_0, WALK_TURN_1, WALK_TURN_2] as const;
+
+// ══════════════════════════════════════════════════════════════
+// CONVERSION FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+//
+// These bridge the ternary angular system with standard geometry
+// libraries that expect 360° circles and 2π radians. Use them at
+// the boundary — internal computation stays in ternary degrees.
+
+/**
+ * Convert ternary degrees (364° circle) → standard degrees (360° circle).
+ *
+ * @example ternaryDegToStdDeg(364) → 360
+ * @example ternaryDegToStdDeg(13) → ≈12.857 (one ternary radian)
+ */
+export function ternaryDegToStdDeg(ternaryDeg: number): number {
+  return ternaryDeg * (360 / FULL_CIRCLE_DEG);
+}
+
+/**
+ * Convert standard degrees (360° circle) → ternary degrees (364° circle).
+ *
+ * @example stdDegToTernaryDeg(360) → 364
+ * @example stdDegToTernaryDeg(120) → ≈121.33
+ */
+export function stdDegToTernaryDeg(stdDeg: number): number {
+  return stdDeg * (FULL_CIRCLE_DEG / 360);
+}
+
+/**
+ * Convert ternary radians (28/circle) → standard radians (2π/circle).
+ *
+ * Use this when passing angles to Math.cos() / Math.sin().
+ *
+ * @example ternaryRadToStdRad(28) → 2π
+ * @example ternaryRadToStdRad(1) → ≈0.2244 (one ternary radian)
+ */
+export function ternaryRadToStdRad(ternaryRad: number): number {
+  return ternaryRad * (2 * Math.PI / TWO_PI_TERNARY);
+}
+
+/**
+ * Convert standard radians → ternary radians.
+ */
+export function stdRadToTernaryRad(stdRad: number): number {
+  return stdRad * (TWO_PI_TERNARY / (2 * Math.PI));
+}
+
+/**
+ * Convert ternary degrees → ternary radians.
+ *
+ * @example ternaryDegToTernaryRad(13) → 1
+ * @example ternaryDegToTernaryRad(364) → 28
+ */
+export function ternaryDegToTernaryRad(deg: number): number {
+  return deg / RADIAN_DEG;
+}
+
+/**
+ * Convert a trit digit (0, 1, 2) → walk angle in standard radians.
+ *
+ * This is the primary function for feeding walk angles to cos/sin:
+ *   trit 0 → 0 rad
+ *   trit 1 → 2π/28 rad ≈ 0.2244 rad (≈12.857°)
+ *   trit 2 → 4π/28 rad ≈ 0.4488 rad (≈25.714°)
+ */
+export function tritToStdRad(trit: number): number {
+  return ternaryRadToStdRad(trit);
+}
+
+/**
+ * Convert a trit digit to its walk angle in ternary degrees.
+ *   trit 0 → 0°, trit 1 → 13°, trit 2 → 26°
+ */
+export function tritToTernaryDeg(trit: number): number {
+  return trit * RADIAN_DEG;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Z₂₈ CYCLIC GROUP
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * A position in the cyclic group Z₂₈.
+ * Represents one of the 28 discrete angular directions in the ternary circle.
+ */
+export class Z28 {
+  readonly value: number;
+
+  constructor(val: number) {
+    this.value = ((val % CYCLIC_ORDER) + CYCLIC_ORDER) % CYCLIC_ORDER;
+  }
+
+  static zero(): Z28 {
+    return new Z28(0);
+  }
+
+  /** Group addition. */
+  add(other: Z28): Z28 {
+    return new Z28(this.value + other.value);
+  }
+
+  /** Group subtraction. */
+  sub(other: Z28): Z28 {
+    return new Z28(this.value - other.value);
+  }
+
+  /** Additive inverse. */
+  neg(): Z28 {
+    return new Z28(-this.value);
+  }
+
+  /** Advance by a trit instruction (0, 1, or 2 ternary radians). */
+  step(trit: number): Z28 {
+    return this.add(new Z28(trit));
+  }
+
+  /** The ternary degree value: position × 13°. */
+  toTernaryDeg(): number {
+    return this.value * RADIAN_DEG;
+  }
+
+  /** Standard radians for cos/sin. */
+  toStdRad(): number {
+    return ternaryRadToStdRad(this.value);
+  }
+
+  /** Standard degrees (360° system) — for display only. */
+  toStdDeg(): number {
+    return ternaryDegToStdDeg(this.toTernaryDeg());
+  }
+
+  equals(other: Z28): boolean {
+    return this.value === other.value;
+  }
+
+  toString(): string {
+    return `Z₂₈(${this.value})`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// REPUNIT VERIFICATION
+// ══════════════════════════════════════════════════════════════
+
+/** Check if n is a base-3 repunit (111...1₃). */
+export function isBase3Repunit(n: number): boolean {
+  if (n <= 0) return false;
+  let m = 2 * n + 1;
+  while (m > 1) {
+    if (m % 3 !== 0) return false;
+    m = Math.floor(m / 3);
+  }
+  return m === 1;
+}
+
+/** Return the repunit order (number of 1's) or null. */
+export function base3RepunitOrder(n: number): number | null {
+  if (!isBase3Repunit(n)) return null;
+  let m = 2 * n + 1;
+  let order = 0;
+  while (m > 1) {
+    m = Math.floor(m / 3);
+    order++;
+  }
+  return order;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MIGRATION GUIDE — REPLACING LEGACY CONSTANTS
+// ══════════════════════════════════════════════════════════════
+//
+// Search the codebase for these patterns and replace:
+//
+//   360           → FULL_CIRCLE_DEG (364)
+//   Math.PI       → PI_TERNARY / 2 ... or use conversion functions
+//   2 * Math.PI   → TWO_PI_TERNARY (28) ... then convert at boundary
+//   120           → RADIAN_DEG * (121.33/13) ... or reconsider the geometry
+//   Math.PI / 3   → 1 ternary radian (at boundary: ternaryRadToStdRad(1))
+//   2 * Math.PI / 3 → 2 ternary radians (ternaryRadToStdRad(2))
+//
+// The key principle: compute in ternary degrees/radians internally,
+// convert to standard only at the cos()/sin() boundary using
+// ternaryRadToStdRad() or ternaryDegToStdDeg().
+//
+// Example migration:
+//
+//   BEFORE: const angle = (2 * Math.PI) / 3;  // 120°
+//   AFTER:  const angle = ternaryRadToStdRad(1);  // 1 ternary radian = 13°
+//
+//   BEFORE: Math.cos(step * 2 * Math.PI / 3)
+//   AFTER:  Math.cos(tritToStdRad(trit))

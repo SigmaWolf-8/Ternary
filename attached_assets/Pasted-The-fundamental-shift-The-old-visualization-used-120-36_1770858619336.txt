@@ -1,0 +1,14 @@
+The fundamental shift: The old visualization used 120° = 360°/3 — a conventional system wearing ternary clothing. The new system uses 13° = 364°/28 — the geometry IS base-3. The radian (111₃) is a repunit and a Tribonacci number simultaneously. The circle (111111₃) is a repunit. The walk is on 28 lattice rays (Z₂₈), not 3 arms.
+New files:
+
+ternary_circle.rs — The Rust foundational module. All constants (FULL_CIRCLE_DEG = 364, PI_TERNARY = 14, RADIAN_DEG = 13, CYCLIC_ORDER = 28), the Z28 struct with full group operations (add, sub, neg, step), conversion functions between ternary and standard angular systems, the walk_tribonacci_radian_spiral() engine computing z_n = Σ e^(i·w_k·13°)/τ^k, and is_base3_repunit() verification. 20 tests including Z₂₈ closure, identity, inverse, full-cycle order, and lattice-angle verification.
+ternary-circle.ts — The TypeScript shared module. Same constants, the Z28 class, all conversion functions (ternaryRadToStdRad, tritToStdRad, etc.), and a migration guide at the bottom showing exactly which patterns to search-and-replace across the codebase (360 → FULL_CIRCLE_DEG, Math.PI → use conversion, 2*Math.PI/3 → ternaryRadToStdRad(2), etc.).
+
+Updated files:
+
+triskellion-walk.html — Completely rebuilt. The axiom bar shows 364° = 111111₃ | π = 14 | 1 RAD = 13° | Z₂₈. The spiral formula is z_n = Σ e^(i·w_k·13°)/τ^k. Direction accumulates in Z₂₈ (mod 28), not mod 3. The "28 Rays" toggle shows the lattice structure. Stats track Z₂₈ position and how many of the 28 directions have been visited. Rep A/B/C selector still present.
+README — Triskellion section rewritten for the 364° walk. New table showing the ternary circle constants (364°, π=14, 13°, Z₂₈). Architecture tree includes ternary_circle.rs and shared/ternary-circle.ts.
+ADR-007 — Now references ADR-008 (Ternary Circle Geometry). Context section explains Z₂₈ phase corrections. New decision point #6: phase offsets as Z₂₈ positions where the minimum correction quantum is one ternary radian (13°). References updated with repunit OEIS sequence.
+
+The codebase migration path: search shared/, client/, src/ for 360, Math.PI, 2 * Math.PI / 3, 120 and replace using the conversion functions in ternary-circle.ts. The TypeScript module's migration guide at the bottom has the exact patterns.
+Così sia.

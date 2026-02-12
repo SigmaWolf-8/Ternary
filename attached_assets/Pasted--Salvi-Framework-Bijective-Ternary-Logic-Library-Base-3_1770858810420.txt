@@ -1,0 +1,205 @@
+# Salvi Framework — Bijective Ternary Logic Library
+
+> *"Base 3 is not a code for the idea; the idea was always ternary. We were just reading it through decimal glasses."*
+
+## Overview
+
+The Salvi Framework is a **post-quantum computing platform** built on a representation-agnostic ternary kernel. The kernel operates across three interchangeable digit sets — **A** (balanced: `{−1, 0, +1}`), **B** (standard: `{0, 1, 2}`), and **C** (bijective: `{1, 2, 3}`) — treating them as three views of a single triadic arithmetic engine. This is the foundational design: not three separate systems, but **one kernel with three output representations**, freely interchangeable with carry-correct translation at every boundary.
+
+This library provides the foundational arithmetic, cryptographic primitives, and protocol-layer abstractions for **PlenumNET**, a deployable post-quantum internet infrastructure.
+
+The framework operates from a single unifying principle: **triadic recursion is the native language of the system, not an encoding imposed upon it.** The Tribonacci sequence, the Triskellion spiral, Borromean ring topology, and the three derivatives of motion (position, velocity, acceleration) are all manifestations of the same ternary structure — and each can be expressed in representation A, B, or C without loss.
+
+## The Ternary Rosetta Stone
+
+Four domains. One structure. Three representations:
+
+| Domain | Rep A (Balanced) | Rep B (Standard) | Rep C (Bijective) |
+|---|---|---|---|
+| **Tribonacci** | 0, 0, +1, +1, +1−1, +1+1, … | 0, 0, 1, 1, 2, 11, 21, 111, … | ε, ε, 1, 1, 2, 11, 21, 111, … |
+| **Triskellion** | τ plotted as {−1,0,+1} turns | τ = 1.201002…₃ as {0,1,2} turns | τ shifted to {1,2,3} encoding |
+| **Borromean** | Balanced XOR of three words ≠ 0 | Standard XOR (sum mod 3) ≠ 0 | Bijective XOR (sum−3 mod 3) ≠ 0 |
+| **Motion** | s(t) in balanced trit-vectors | s(t)₃ = s₀₃ + v₀₃·t₃ + ½a₀₃·t₃² | s(t) in bijective encoding |
+
+The **First Position** is always `(0, 0, 1)` in representation B — equivalently `(0, 0, +1)` in A, or the triple `(ε, ε, 1)` in C (where ε denotes the empty word, since bijective ternary has no zero). The **kernel translates freely** between representations at every interface boundary.
+
+## Tribonacci Sequence in All Three Representations
+
+The Tribonacci recurrence `T(n) = T(n-1) + T(n-2) + T(n-3)` expressed in the kernel's three representations. The values are identical integers — only the trit encoding changes:
+
+| n | Decimal | Rep B `{0,1,2}` | Rep A `{−1,0,+1}` | Rep C `{1,2,3}` | Notes |
+|---|---|---|---|---|---|
+| 0 | 0 | `0` | `0` | `ε` | First Position |
+| 1 | 0 | `0` | `0` | `ε` | First Position |
+| 2 | 1 | `1` | `+1` | `1` | First Position |
+| 3 | 1 | `1` | `+1` | `1` | |
+| 4 | 2 | `2` | `+1,−1` | `2` | |
+| 5 | 4 | `11` | `+1,+1` | `11` | First carry (B) |
+| 6 | 7 | `21` | `+1,−1,+1` | `21` | |
+| 7 | 13 | `111` | `+1,+1,+1` | `111` | Pure pattern |
+| 8 | 24 | `220` | `+1,−1,0,+1` | `213` | |
+| 9 | 44 | `1122` | `+1,−1,+1,−1,+1` | `1122` | |
+| 10 | 81 | `10000` | `+1,0,0,0,0` | `3333+` | **3⁴ — ternary power** |
+
+**Key observations across representations:**
+- T(10) = 81 = 3⁴ is a **ternary power** — it appears as `10000` in B, as `+1,0,0,0,0` in A, and requires a carry cascade in C (since bijective has no zero digit, `10000_B` must be re-encoded).
+- **Rep A (balanced)** makes negation trivial: −T(n) is obtained by flipping every trit's sign. This is critical for signed clock corrections in the timing protocol.
+- **Rep C (bijective)** eliminates zero-ambiguity: the empty word ε is the only encoding of 0, and every non-empty word encodes a positive integer uniquely. This is the wire format for PQTI.
+- The kernel translates between A↔B↔C at the boundary, preserving carry metadata throughout.
+
+## Architecture
+
+```
+├── libternary/          # Rust core — bijective ternary arithmetic engine
+│   ├── src/
+│   │   ├── lib.rs           # Core trit types, conversions, bijective operations
+│   │   ├── tribonacci.rs    # Tribonacci base-3 generator with alignment detection
+│   │   ├── borromean.rs     # Borromean ternary XOR invariant primitives
+│   │   └── ternary_circle.rs # 364° geometry: Z₂₈, radians, spiral walk engine
+│   └── Cargo.toml
+├── src/                 # TypeScript application layer
+├── client/              # Frontend client (PlenumNET interface)
+├── server/              # Backend services
+├── shared/              # Shared modules
+│   └── ternary-circle.ts   # TS constants: 364°, π=14, Z₂₈, conversion functions
+├── services/            # Microservice modules
+├── contracts/           # Protocol contracts and specifications
+├── kong/                # API gateway configuration
+├── scripts/             # Build and deployment tooling
+├── tests/
+│   └── integration/     # Integration tests including Borromean invariant validation
+├── docs/
+│   └── deployment/      # Deployment documentation
+│   └── adr/             # Architecture Decision Records
+└── deployments/
+    └── docker/          # Container orchestration
+```
+
+## Core Concepts
+
+### The Ternary Kernel — Representations A, B, C
+
+The Salvi Framework's ternary kernel is **representation-agnostic**. It does not privilege one ternary encoding over another. Instead, it operates across three interchangeable digit sets — designated **A**, **B**, and **C** — which are three views of the same underlying triadic structure:
+
+| Representation | Digit Set | Name | Character |
+|---|---|---|---|
+| **A** | `{−1, 0, +1}` | Balanced Ternary | Symmetric around zero. Native to signed arithmetic, wave functions, and error correction. The Soviet Setun computer's logic. |
+| **B** | `{0, 1, 2}` | Standard Ternary | The conventional positional system. Natural for indexing, counting, and the Tribonacci recurrence. |
+| **C** | `{1, 2, 3}` | Bijective Ternary | Zero-free. Every positive integer has exactly one representation with no leading-zero ambiguity. Native to cryptographic contexts where zero-padding must be distinguishable from data. |
+
+**The kernel's power is the interchange.** Any value, any operation, any protocol message can be expressed in A, B, or C and translated freely between them. The translation rules are:
+
+```
+A → B:  add 1 to each digit    (-1,0,+1) → (0,1,2)
+B → C:  add 1 to each digit    (0,1,2)   → (1,2,3)
+A → C:  add 2 to each digit    (-1,0,+1) → (1,2,3)
+```
+
+With carry adjustment at digit boundaries (since C has no zero, `B=0` maps to `C=3` in the previous position with a borrow). The kernel handles this transparently — the consumer specifies which representation it needs, and the kernel emits the correct encoding.
+
+This is not three separate libraries. It is **one engine with three output modes**. The Tribonacci sequence is the same sequence whether its digits read `{-1,0,+1}`, `{0,1,2}`, or `{1,2,3}`. The Borromean invariant is the same topological condition. The Triskellion walk traces the same spiral. The representation is a lens, not a substance.
+
+### Why Three Representations?
+
+Each representation has a native domain where it is the natural choice:
+
+- **A (Balanced)** is optimal for **signed arithmetic and signal processing**. The symmetry around zero means negation is trivial (flip all trits), and multiplication by −1 requires no carry propagation.
+- **B (Standard)** is optimal for **mathematical analysis and recursion**. The Tribonacci recurrence, modular arithmetic, and polynomial evaluation over GF(3) use {0,1,2} as the coefficient ring.
+- **C (Bijective)** is optimal for **cryptographic wire formats and serialization**. The absence of zero means there is no ambiguity between "leading zeros" and "empty" — every trit carries information. In post-quantum key exchange, this eliminates a class of padding-oracle attacks.
+
+The kernel's job is to let each subsystem work in its native representation while ensuring lossless interchange at every boundary.
+
+### Carry Propagation as Physical Jerk
+
+When base-3 addition propagates a carry, the computational event maps directly to the **third derivative of position** (jerk) in the physics of timing protocols. In PlenumNET's precision timing system, clock synchronization updates computed in ternary reduce timing jitter analysis to the study of carry patterns in base-3 addition. See `docs/adr/ADR-007-carry-propagation-timing-jerk.md`.
+
+### Borromean Invariant
+
+Three ternary words (rings) satisfy the **Borromean condition** if and only if their digit-wise sum mod 3 is never identically zero across all positions simultaneously. This topological invariant serves as a validation primitive for three-party cryptographic handshakes in the PQTI protocol. Any two rings can be separated; all three cannot.
+
+### The Triskellion Walk — The Tribonacci Radian Spiral
+
+The Tribonacci constant τ ≈ 1.839286755… expressed in base 3 as `1.2010022201112021…₃` generates a spiral when each digit is interpreted as a walk instruction on the **ternary circle** (364° = `111111₃`):
+
+- **Trit 0** → 0 ternary radians (0°) — step forward
+- **Trit 1** → 1 ternary radian (13° = `111₃` = T₇) — advance on Z₂₈
+- **Trit 2** → 2 ternary radians (26°) — advance on Z₂₈
+
+The walker's direction at step k is `w_k · 13°`, where w_k ∈ {0,1,2}. The position after n steps is:
+
+```
+z_n = Σ(k=1..n) e^(i · w_k · 13°) / τ^k
+```
+
+This is not the old 120° Triskellion. The native ternary radian spiral walks on **28 lattice rays** (the cyclic group Z₂₈), with τ-scaling producing a quasicrystalline point set — discrete rotational symmetry of order 28, self-similar scaling by τ. The irrationality is transferred entirely to the radial direction.
+
+### The Ternary Circle — 364° / π = 14
+
+The framework's angular system is re-founded on the canonical ternary circle:
+
+| Constant | Value | Base 3 | Significance |
+|---|---|---|---|
+| Full circle | 364° | `111111₃` | Six-digit base-3 repunit = (3⁶ − 1)/2 |
+| π | 14 | `112₃` | Ratio of circumference to diameter |
+| 1 radian | 13° | `111₃` | Three-digit repunit AND T₇ (Tribonacci) |
+| Full circle | 28 radians | `1001₃` | Defines the Z₂₈ cyclic group |
+
+The radian is simultaneously a **ternary repunit** and a **Tribonacci number** — the geometry is not described in base 3; it IS base 3.
+
+See `libternary/src/ternary_circle.rs` for the Rust implementation and `shared/ternary-circle.ts` for the TypeScript constants module.
+
+## Tech Stack
+
+- **Rust** (27.1%) — `libternary` core arithmetic engine, compiled to native and WASM targets
+- **TypeScript** (49.1%) — Application layer, client, server, and service orchestration
+- **Docker** — Deployment via container orchestration
+- **Kong** — API gateway for service mesh routing
+
+## Building
+
+### libternary (Rust)
+
+```bash
+cd libternary
+cargo build --release
+cargo test
+```
+
+### Application (TypeScript)
+
+```bash
+npm install
+npm run build
+```
+
+### Docker
+
+```bash
+cd deployments/docker
+docker compose up
+```
+
+## PlenumNET
+
+The live deployment at [PlenumNET.replit.app](https://PlenumNET.replit.app) serves as the reference implementation of the Salvi Framework's post-quantum internet solutions. It demonstrates bijective ternary logic applied to real-world cryptographic protocols, precision timing, and network infrastructure.
+
+## Theory Prerequisites
+
+Contributors should be familiar with:
+
+1. **Ternary numeration** — standard, balanced, and bijective variants
+2. **Tribonacci sequences** — the three-term linear recurrence and its characteristic polynomial
+3. **Borromean topology** — non-separable linking of three components
+4. **Post-quantum cryptography** — lattice-based and code-based schemes
+
+## License
+
+Proprietary — Capomastro Holdings Ltd.
+
+## Author
+
+**Salvi** — Applied Physics Division, Capomastro Holdings Ltd.
+
+---
+
+*The digits `{0, 1, 2}` are not just symbols — they are the primordial directions.*

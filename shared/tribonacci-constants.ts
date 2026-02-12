@@ -79,3 +79,29 @@ export const TRIBONACCI_RATIO_CONVERGENCE = TRIBONACCI_SEQUENCE
     ratio: val / TRIBONACCI_SEQUENCE[i + 2],
     error: Math.abs(val / TRIBONACCI_SEQUENCE[i + 2] - TAU),
   }));
+
+export const TERNARY_CIRCLE = {
+  DEGREES: 364,
+  PI: 14,
+  RADIAN_DEG: 13,
+  FULL_CIRCLE_RADIANS: 28,
+  CYCLIC_GROUP_ORDER: 28,
+  TRIBONACCI_GOLDEN_ANGLE_DEG: 364 / TAU_POWERS.TAU_3,
+  TRANSLATED_GOLDEN_ANGLE_DEG: 2 * 7 * 13 * (3 - Math.sqrt(5)),
+  TRIBONACCI_WORD_ANGLES: [0, 13, 26] as const,
+} as const;
+
+export const verifyTernaryCircle = (): { valid: boolean; checks: Record<string, boolean> } => {
+  const c = TERNARY_CIRCLE;
+  const checks = {
+    degIsRepunit: c.DEGREES === (3 ** 6 - 1) / 2,
+    radianIsT7: c.RADIAN_DEG === TRIBONACCI_SEQUENCE[7],
+    fullCircle: c.FULL_CIRCLE_RADIANS === c.DEGREES / c.RADIAN_DEG,
+    twoPi: c.FULL_CIRCLE_RADIANS === 2 * c.PI,
+    radianIsRepunit: c.RADIAN_DEG === 1 + 3 + 9,
+  };
+  return {
+    valid: Object.values(checks).every(Boolean),
+    checks,
+  };
+};
