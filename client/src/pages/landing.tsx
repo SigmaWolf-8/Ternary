@@ -18,8 +18,6 @@ import {
   FlaskConical,
   Factory,
   Mail,
-  Linkedin,
-  Twitter,
   Terminal,
   Lock,
   Binary,
@@ -205,6 +203,35 @@ function HeroSection() {
   );
 }
 
+function CapabilityCard({ cap, index }: { cap: { icon: any; title: string; description: string; stats: string }; index: number }) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      transition={{ duration: 0.5, delay: index * 0.08 }}
+    >
+      <Card 
+        className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm"
+        data-testid={`card-capability-${index}`}
+      >
+        <div className="flex items-start justify-between mb-4 gap-3">
+          <div className="text-primary">
+            <cap.icon className="w-8 h-8" />
+          </div>
+          <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary text-xs flex-shrink-0">
+            {cap.stats}
+          </Badge>
+        </div>
+        <h3 className="text-lg font-semibold mb-2 text-foreground">{cap.title}</h3>
+        <p className="text-muted-foreground text-sm leading-relaxed">{cap.description}</p>
+      </Card>
+    </motion.div>
+  );
+}
+
 function PlatformSection() {
   const capabilities = [
     {
@@ -281,35 +308,9 @@ function PlatformSection() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {capabilities.map((cap, index) => {
-            const ref = useRef(null);
-            const isInView = useInView(ref, { once: true, margin: "-50px" });
-            return (
-              <motion.div
-                key={cap.title}
-                ref={ref}
-                initial={{ opacity: 0, y: 30 }}
-                animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-              >
-                <Card 
-                  className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm"
-                  data-testid={`card-capability-${index}`}
-                >
-                  <div className="flex items-start justify-between mb-4 gap-3">
-                    <div className="text-primary">
-                      <cap.icon className="w-8 h-8" />
-                    </div>
-                    <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary text-xs flex-shrink-0">
-                      {cap.stats}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2 text-foreground">{cap.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{cap.description}</p>
-                </Card>
-              </motion.div>
-            );
-          })}
+          {capabilities.map((cap, index) => (
+            <CapabilityCard key={cap.title} cap={cap} index={index} />
+          ))}
         </div>
       </div>
     </section>
@@ -1121,9 +1122,8 @@ function Footer() {
       { label: "GitHub", href: "https://github.com/SigmaWolf-8/Ternary" },
     ],
     Company: [
-      { label: "About", href: "#" },
-      { label: "Blog", href: "#" },
-      { label: "Careers", href: "#" },
+      { label: "Documentation", href: "/docs" },
+      { label: "CNSA 2.0 Compliance", href: "/compliance" },
       { label: "Contact", href: "#early-access" },
     ],
     Legal: [
@@ -1148,20 +1148,6 @@ function Footer() {
             </p>
             <div className="flex gap-3">
               <a 
-                href="#" 
-                className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="link-social-twitter"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="link-social-linkedin"
-              >
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a 
                 href="https://github.com/SigmaWolf-8/Ternary" 
                 target="_blank" 
                 rel="noopener noreferrer"
@@ -1171,7 +1157,7 @@ function Footer() {
                 <Github className="w-5 h-5" />
               </a>
               <a 
-                href="#early-access" 
+                href="mailto:Rsalvi@Salvigroup.com" 
                 className="text-muted-foreground hover:text-primary transition-colors"
                 data-testid="link-social-email"
               >
