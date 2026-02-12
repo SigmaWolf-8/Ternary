@@ -31,18 +31,22 @@ export const resolveGitHubToken = (adminUser: any): string | null => {
 
 export const sanitizePath = (inputPath: string): string => {
   let decoded = inputPath;
+  decoded = decoded.replace(/\0/g, "");
+  decoded = decoded.replace(/\\/g, "/");
   try {
     decoded = decodeURIComponent(decoded);
     decoded = decodeURIComponent(decoded);
   } catch (_e) {
   }
+  decoded = decoded.replace(/\0/g, "");
+  decoded = decoded.replace(/\\/g, "/");
   const nodePath = require('path');
   let normalized = nodePath.posix.normalize(decoded);
   normalized = normalized
     .replace(/\.\./g, "")
     .replace(/^\/+/, "")
     .replace(/\/+$/, "");
-  if (normalized.includes("..")) {
+  if (normalized.includes("..") || normalized.includes("\0")) {
     return "";
   }
   return normalized;
