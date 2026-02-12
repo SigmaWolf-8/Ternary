@@ -7,7 +7,7 @@ Post-quantum ternary computing platform implementing the Unified 13D Torsion Ple
 | Metric | Value |
 |--------|-------|
 | Roadmap | 80/80 milestones complete |
-| Commits | 484+ |
+| Commits | 1,252+ |
 | Crypto modules | 34 |
 | CNSA 2.0 coverage | 11/11 algorithms (100%) |
 | Test count | 1,011+ |
