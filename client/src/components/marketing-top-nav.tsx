@@ -320,7 +320,7 @@ function DesktopNav() {
           <NavigationMenuTrigger data-testid="nav-trigger-platform">
             Platform
           </NavigationMenuTrigger>
-          <NavigationMenuContent>
+          <NavigationMenuContent className="left-0">
             <MegaDropdown columns={platformColumns} />
           </NavigationMenuContent>
         </NavigationMenuItem>
@@ -329,7 +329,7 @@ function DesktopNav() {
           <NavigationMenuTrigger data-testid="nav-trigger-technology">
             Technology
           </NavigationMenuTrigger>
-          <NavigationMenuContent>
+          <NavigationMenuContent className="left-1/2 -translate-x-1/2">
             <MegaDropdown columns={technologyColumns} />
           </NavigationMenuContent>
         </NavigationMenuItem>
@@ -338,7 +338,7 @@ function DesktopNav() {
           <NavigationMenuTrigger data-testid="nav-trigger-resources">
             Resources
           </NavigationMenuTrigger>
-          <NavigationMenuContent>
+          <NavigationMenuContent className="left-0">
             <ul className="w-[220px] p-2">
               {resourcesItems.map((item) => (
                 <StandardDropdownItem key={item.title} item={item} />
@@ -357,7 +357,7 @@ function DesktopNav() {
           <NavigationMenuTrigger data-testid="nav-trigger-company">
             Company
           </NavigationMenuTrigger>
-          <NavigationMenuContent>
+          <NavigationMenuContent className="right-0 left-auto">
             <ul className="w-[220px] p-2">
               {companyItems.map((item) => (
                 <StandardDropdownItem key={item.title} item={item} />
