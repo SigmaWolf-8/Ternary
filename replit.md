@@ -87,8 +87,18 @@ The GitHub Manager page (`/github`, admin-only) provides a file browser for the 
   - `tests/calendar-sync.test.ts` — 11 calendar synchronization tests
 - **CI**: `.github/workflows/test-typescript.yml` triggers on push/PR to main/develop
 
-### Recent Changes (2026-02-12)
-- Completed 6-phase repository remediation (IP, legal, security, architecture, testing, documentation)
+### Kong Gateway Integration (updated 2026-02-13)
+- **Kong Konnect API**: Admin routes at `/api/kong/*` manage services, routes, plugins via Kong Konnect REST API
+- **Service Sync**: `POST /api/kong/control-planes/:cpId/sync-plenumnet` registers 17 services with routes and rate-limiting plugins
+- **strip_path: false**: All Kong routes use `strip_path: false` so paths pass through unchanged to Express
+- **Kong Proxy Routing**: Frontend supports optional Kong proxy via `VITE_KONG_PROXY_URL` env var — when set, all `/api/*` requests route through the Kong data plane proxy URL
+- **CORS**: Allows Kong cloud gateway domains (`.konghq.com`, `.konghq.tech`, `.kongcloud.dev`)
+- **Health Endpoint**: `/api/health` returns server status, uptime, and database connectivity for Kong health checks
+- **Services**: timing, calendars, ternary, phase, vm, docs, demo, compression, whitepapers, legal, auth, user, developer-signup, admin, github, kong, health
+
+### Recent Changes (2026-02-13)
+- Kong Gateway routing: audited service list, fixed strip_path, added health endpoint, Kong proxy support in frontend
+- Completed 6-phase repository remediation (IP, legal, security, architecture, testing, documentation) (2026-02-12)
 - See `CHANGELOG.md` for full details
 
 ## External Dependencies

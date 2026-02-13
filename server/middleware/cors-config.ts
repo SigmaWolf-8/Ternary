@@ -20,6 +20,9 @@ const allowedOrigins = [
   /\.replit\.dev$/,
   /localhost:\d+$/,
   /127\.0\.0\.1:\d+$/,
+  /\.konghq\.com$/,
+  /\.konghq\.tech$/,
+  /\.kongcloud\.dev$/,
 ];
 
 export const corsMiddleware = cors({

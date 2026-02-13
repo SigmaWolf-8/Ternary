@@ -16,6 +16,18 @@
 
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+const KONG_PROXY_URL = import.meta.env.VITE_KONG_PROXY_URL || "";
+
+function resolveUrl(path: string): string {
+  if (!KONG_PROXY_URL) return path;
+  if (!path.startsWith("/api/")) return path;
+  return `${KONG_PROXY_URL.replace(/\/$/, "")}${path}`;
+}
+
+function isProxied(path: string): boolean {
+  return !!KONG_PROXY_URL && path.startsWith("/api/");
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -28,11 +40,12 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const proxied = isProxied(url);
+  const res = await fetch(resolveUrl(url), {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: proxied ? "omit" : "include",
   });
 
   await throwIfResNotOk(res);
@@ -45,8 +58,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
+    const rawUrl = queryKey.join("/") as string;
+    const proxied = isProxied(rawUrl);
+    const res = await fetch(resolveUrl(rawUrl), {
+      credentials: proxied ? "omit" : "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

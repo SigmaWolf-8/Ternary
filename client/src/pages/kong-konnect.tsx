@@ -186,7 +186,7 @@ function ConnectionStatus() {
                 ) : (
                   <XCircle className="w-4 h-4 text-red-500" />
                 )}
-                <span>Config Synced: {status.configSynced ? '18 services, 18 routes deployed' : 'Not synced'}</span>
+                <span>Config Synced: {status.configSynced ? '17 services, 17 routes deployed' : 'Not synced'}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 {status.gatewayReady ? (
@@ -460,7 +460,7 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            This will create all 18 PlenumNET services in Kong:
+            This will create all 17 PlenumNET services in Kong:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
             {[
@@ -468,19 +468,18 @@ function SyncSection({ selectedCP }: { selectedCP: string | null }) {
               { code: "plenumnet-calendars", label: "Calendar Sync (24 systems)" },
               { code: "plenumnet-ternary", label: "Ternary Computing Engine" },
               { code: "plenumnet-phase", label: "Phase Encryption" },
-              { code: "plenumnet-compression", label: "Compression Engine" },
-              { code: "plenumnet-crypto", label: "Kernel Crypto (CNSA 2.0)" },
-              { code: "plenumnet-whitepapers", label: "Whitepaper Management" },
+              { code: "plenumnet-vm", label: "Virtual Machine ISA" },
               { code: "plenumnet-docs", label: "API Documentation" },
+              { code: "plenumnet-demo", label: "Compression Demo" },
+              { code: "plenumnet-compression", label: "Compression Storage" },
+              { code: "plenumnet-whitepapers", label: "Whitepaper Management" },
+              { code: "plenumnet-legal", label: "Legal Documents" },
               { code: "plenumnet-auth", label: "Authentication" },
               { code: "plenumnet-user", label: "User Management" },
               { code: "plenumnet-developer-signup", label: "Developer Signup" },
               { code: "plenumnet-admin", label: "Admin Dashboard" },
               { code: "plenumnet-github", label: "GitHub Integration" },
               { code: "plenumnet-kong", label: "Kong Gateway Mgmt" },
-              { code: "plenumnet-certification", label: "Certification & Audit" },
-              { code: "plenumnet-payments", label: "Payment Processing" },
-              { code: "plenumnet-blockchain", label: "Blockchain Witnessing" },
               { code: "plenumnet-health", label: "Health & Observability" },
             ].map((svc) => (
               <div key={svc.code} className="flex items-center gap-1.5 text-xs">

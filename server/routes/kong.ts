@@ -106,7 +106,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
               dataPlaneState: cpGatewayReady ? "ready" : (cpDataPlanes.length > 0 ? cpDataPlanes[0].state : "none"),
               services: serviceCount,
               routes: routeCount,
-              configSynced: serviceCount >= 9
+              configSynced: serviceCount >= 17
             });
           }
         }
@@ -410,7 +410,8 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           name: "plenumnet-timing",
           url: `${baseUrl}/api/salvi/timing`,
           tags: ["plenumnet", "timing", "hptp", "finra-cat", "mifid-ii"],
-          routePath: "/api/timing",
+          routePath: "/api/salvi/timing",
+          stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
           methods: ["GET", "POST"]
         },
@@ -418,7 +419,8 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           name: "plenumnet-calendars",
           url: `${baseUrl}/api/salvi/timing/epoch`,
           tags: ["plenumnet", "calendars", "epoch", "synchronization"],
-          routePath: "/api/calendars",
+          routePath: "/api/salvi/timing/epoch",
+          stripPath: false,
           rateLimit: { minute: 120, hour: 1200 },
           methods: ["GET"]
         },
@@ -426,7 +428,8 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           name: "plenumnet-ternary",
           url: `${baseUrl}/api/salvi/ternary`,
           tags: ["plenumnet", "ternary", "quantum-safe", "gf3"],
-          routePath: "/api/ternary",
+          routePath: "/api/salvi/ternary",
+          stripPath: false,
           rateLimit: { minute: 200, hour: 2000 },
           methods: ["GET", "POST"]
         },
@@ -434,47 +437,70 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           name: "plenumnet-phase",
           url: `${baseUrl}/api/salvi/phase`,
           tags: ["plenumnet", "encryption", "phase", "quantum-safe"],
-          routePath: "/api/phase",
+          routePath: "/api/salvi/phase",
+          stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
           methods: ["GET", "POST"]
         },
         {
-          name: "plenumnet-compression",
+          name: "plenumnet-vm",
+          url: `${baseUrl}/api/salvi/vm`,
+          tags: ["plenumnet", "vm", "virtual-machine", "isa"],
+          routePath: "/api/salvi/vm",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET"]
+        },
+        {
+          name: "plenumnet-docs",
+          url: `${baseUrl}/api/salvi/docs`,
+          tags: ["plenumnet", "docs", "documentation", "openapi"],
+          routePath: "/api/salvi/docs",
+          stripPath: false,
+          rateLimit: { minute: 200, hour: 2000 },
+          methods: ["GET"]
+        },
+        {
+          name: "plenumnet-demo",
           url: `${baseUrl}/api/demo`,
-          tags: ["plenumnet", "compression", "plenumdb", "benchmarks"],
+          tags: ["plenumnet", "demo", "compression", "plenumdb"],
           routePath: "/api/demo",
+          stripPath: false,
           rateLimit: { minute: 50, hour: 500 },
           methods: ["GET", "POST"]
         },
         {
-          name: "plenumnet-crypto",
-          url: `${baseUrl}/api/salvi/crypto`,
-          tags: ["plenumnet", "crypto", "cnsa2", "fips-140-3", "quantum-safe"],
-          routePath: "/api/crypto",
-          rateLimit: { minute: 80, hour: 800 },
-          methods: ["GET", "POST"]
+          name: "plenumnet-compression",
+          url: `${baseUrl}/api/compression`,
+          tags: ["plenumnet", "compression", "storage", "plenumdb"],
+          routePath: "/api/compression",
+          stripPath: false,
+          rateLimit: { minute: 50, hour: 500 },
+          methods: ["GET", "POST", "DELETE"]
         },
         {
           name: "plenumnet-whitepapers",
           url: `${baseUrl}/api/whitepapers`,
           tags: ["plenumnet", "whitepapers", "documentation"],
           routePath: "/api/whitepapers",
+          stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
           methods: ["GET", "POST"]
         },
         {
-          name: "plenumnet-docs",
-          url: `${baseUrl}/api/salvi/docs`,
-          tags: ["plenumnet", "docs", "documentation", "openapi"],
-          routePath: "/api/docs",
-          rateLimit: { minute: 200, hour: 2000 },
+          name: "plenumnet-legal",
+          url: `${baseUrl}/api/legal`,
+          tags: ["plenumnet", "legal", "terms", "privacy"],
+          routePath: "/api/legal",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
           methods: ["GET"]
         },
         {
           name: "plenumnet-auth",
           url: `${baseUrl}/api/auth`,
           tags: ["plenumnet", "auth", "identity", "oauth"],
-          routePaths: ["/api/auth", "/api/login", "/api/callback", "/api/logout"],
+          routePath: "/api/auth",
           stripPath: false,
           rateLimit: { minute: 30, hour: 300 },
           methods: ["GET", "POST"]
@@ -484,6 +510,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           url: `${baseUrl}/api/user`,
           tags: ["plenumnet", "user", "profile"],
           routePath: "/api/user",
+          stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
           methods: ["GET"]
         },
@@ -492,6 +519,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           url: `${baseUrl}/api/developer-signup`,
           tags: ["plenumnet", "developer", "signup", "waitlist"],
           routePath: "/api/developer-signup",
+          stripPath: false,
           rateLimit: { minute: 20, hour: 200 },
           methods: ["GET", "POST"]
         },
@@ -500,6 +528,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           url: `${baseUrl}/api/admin`,
           tags: ["plenumnet", "admin", "management"],
           routePath: "/api/admin",
+          stripPath: false,
           rateLimit: { minute: 60, hour: 600 },
           methods: ["GET", "POST", "DELETE"]
         },
@@ -508,6 +537,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           url: `${baseUrl}/api/github`,
           tags: ["plenumnet", "github", "admin", "integration", "cicd"],
           routePath: "/api/github",
+          stripPath: false,
           rateLimit: { minute: 60, hour: 600 },
           methods: ["GET", "POST", "PUT", "DELETE"]
         },
@@ -516,31 +546,8 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           url: `${baseUrl}/api/kong`,
           tags: ["plenumnet", "kong", "gateway", "admin"],
           routePath: "/api/kong",
+          stripPath: false,
           rateLimit: { minute: 60, hour: 600 },
-          methods: ["GET", "POST"]
-        },
-        {
-          name: "plenumnet-certification",
-          url: `${baseUrl}/api/salvi/certification`,
-          tags: ["plenumnet", "certification", "audit", "finra-cat", "mifid-ii", "compliance"],
-          routePath: "/api/certification",
-          rateLimit: { minute: 50, hour: 500 },
-          methods: ["GET", "POST"]
-        },
-        {
-          name: "plenumnet-payments",
-          url: `${baseUrl}/api/payments`,
-          tags: ["plenumnet", "payments", "stripe", "interac", "crypto", "financial"],
-          routePath: "/api/payments",
-          rateLimit: { minute: 30, hour: 300 },
-          methods: ["GET", "POST"]
-        },
-        {
-          name: "plenumnet-blockchain",
-          url: `${baseUrl}/api/blockchain`,
-          tags: ["plenumnet", "blockchain", "hedera", "xrpl", "algorand", "witnessing"],
-          routePath: "/api/blockchain",
-          rateLimit: { minute: 40, hour: 400 },
           methods: ["GET", "POST"]
         },
         {
@@ -548,6 +555,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           url: `${baseUrl}/api/health`,
           tags: ["plenumnet", "health", "monitoring", "observability"],
           routePath: "/api/health",
+          stripPath: false,
           rateLimit: { minute: 300, hour: 3000 },
           methods: ["GET"]
         }
