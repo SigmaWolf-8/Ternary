@@ -904,7 +904,8 @@ function PerformanceSection() {
           transition={{ duration: 0.5, delay: 0.12 }}
         >
           <Card className="max-w-4xl mx-auto p-6 md:p-10 border-primary/10 bg-card/80 backdrop-blur-sm" role="table" aria-label="Binary vs Ternary comparison">
-            <div className="flex flex-col md:flex-row justify-between gap-6 mb-8 pb-6 border-b border-foreground/10">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-6 border-b border-foreground/10 gap-2">
+              <div className="flex-1 md:flex-[2]" />
               <div className="flex-1 text-center">
                 <h3 className="text-xl font-semibold mb-2">Binary Systems</h3>
                 <p className="text-sm text-muted-foreground">Current infrastructure</p>
