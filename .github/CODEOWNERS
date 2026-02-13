@@ -1,25 +1,34 @@
-# PlenumNET/Ternary Repository Code Owners
-# Each line is a file pattern followed by one or more owners.
+# ══════════════════════════════════════════════════════════════
+# CODEOWNERS — Salvi Framework
+# Capomastro Holdings Ltd. · Applied Physics Division
+#
+# Changes to these paths require review before merge.
+# ══════════════════════════════════════════════════════════════
 
-# Global fallback
-* @SigmaWolf-8
+# ── Cryptographic Core ─────────────────────────────────────
+# All changes to the Rust arithmetic engine require review.
+/libternary/                      @SigmaWolf-8
 
-# Kernel crypto modules
-src/kernel/src/crypto/ @SigmaWolf-8
+# ── Protocol Contracts ─────────────────────────────────────
+# Contract changes affect all downstream consumers.
+/contracts/                       @SigmaWolf-8
 
-# Compliance and security
-src/kernel/src/crypto/cnsa2.rs @SigmaWolf-8
-.github/workflows/compliance-check.yml @SigmaWolf-8
-.github/workflows/security-scan.yml @SigmaWolf-8
+# ── Shared Constants ───────────────────────────────────────
+# Angular constants and conversion functions used everywhere.
+/shared/ternary-circle.ts         @SigmaWolf-8
+/shared/                          @SigmaWolf-8
 
-# CI/CD pipelines
-.github/workflows/ @SigmaWolf-8
+# ── Security-Sensitive Paths ───────────────────────────────
+/server/                          @SigmaWolf-8
+/kong/                            @SigmaWolf-8
+/deployments/                     @SigmaWolf-8
+/.github/workflows/               @SigmaWolf-8
 
-# Key management
-keys/ @SigmaWolf-8
+# ── Architecture Decisions ─────────────────────────────────
+/docs/adr/                        @SigmaWolf-8
 
-# API gateway configuration
-kong/ @SigmaWolf-8
-
-# Schema and database
-shared/schema.ts @SigmaWolf-8
+# ── Root Configuration ─────────────────────────────────────
+/package.json                     @SigmaWolf-8
+/tsconfig.json                    @SigmaWolf-8
+/Cargo.toml                       @SigmaWolf-8
+SECURITY.md                       @SigmaWolf-8
