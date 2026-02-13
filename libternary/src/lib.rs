@@ -1,0 +1,113 @@
+//! # libternary — Bijective Ternary Logic Library
+//!
+//! The core arithmetic engine of the **Salvi Framework**, providing
+//! ternary numeration, Tribonacci sequence generation, Borromean
+//! topology primitives, and the 364° ternary circle geometry.
+//!
+//! ## The Kernel: Representations A, B, C
+//!
+//! The entire library operates on one principle: there are **three
+//! equivalent digit encodings** for the same ternary values, and
+//! the kernel translates losslessly between them at every boundary.
+//!
+//! | Repr | Digits | Domain | Translation from B |
+//! |------|--------|--------|--------------------|
+//! | **A** (Balanced) | `{-1, 0, +1}` | Signed arithmetic, negation | Subtract 1 (with carry) |
+//! | **B** (Standard) | `{0, 1, 2}` | Recurrence, analysis | Identity (internal) |
+//! | **C** (Bijective) | `{1, 2, 3}` | Wire format, crypto | Add 1 (with carry) |
+//!
+//! Internal computation uses **Rep B**. Conversion happens at
+//! module boundaries via `to_repr_a()`, `to_repr_c()`, etc.
+//!
+//! ## The Ternary Circle
+//!
+//! The framework's angular system:
+//! - Full circle = **364°** = `111111₃` (six-digit base-3 repunit)
+//! - **π = 14** (circumference / diameter)
+//! - **1 radian = 13°** = `111₃` = T₇ (seventh Tribonacci number)
+//! - **28 ternary radians** per circle → cyclic group **Z₂₈**
+//!
+//! ## Modules
+//!
+//! - [`tribonacci`] — Tribonacci recurrence in base 3, τ expansion,
+//!   carry tracking, alignment detection, Rep A/B/C conversions
+//! - [`borromean`] — Three-word ternary XOR invariant for
+//!   non-separable linking (cryptographic handshake validation)
+//! - [`ternary_circle`] — 364° geometry, Z₂₈ cyclic group,
+//!   radian spiral walk engine, repunit verification
+//!
+//! ## Feature Flags
+//!
+//! - `wasm` — Enable `wasm-bindgen` exports for browser targets
+//! - `serde` — Derive `Serialize`/`Deserialize` on core types
+//! - `rand` — Enable random generation of ternary words (testing)
+//!
+//! ## Example
+//!
+//! ```rust
+//! use libternary::tribonacci::{TribonacciBase3, TernaryRepr};
+//! use libternary::ternary_circle::{Z28, RADIAN_DEG, walk_tribonacci_radian_spiral};
+//!
+//! // Generate Tribonacci sequence in base 3
+//! let mut gen = TribonacciBase3::new();
+//! let terms: Vec<_> = (0..20).map(|_| gen.next_term()).collect();
+//!
+//! // View T(10) = 81 = 10000₃ in all three representations
+//! let t10 = &terms[10];
+//! println!("Rep B: {}", t10.format_repr(TernaryRepr::Standard));
+//! println!("Rep A: {}", t10.format_repr(TernaryRepr::Balanced));
+//! println!("Rep C: {}", t10.format_repr(TernaryRepr::Bijective));
+//!
+//! // Walk the ternary radian spiral on Z₂₈
+//! let trits = vec![1, 2, 0, 1, 0, 2, 2, 0, 1, 1];
+//! let points = walk_tribonacci_radian_spiral(&trits);
+//! for p in &points[1..] {
+//!     println!("Step {}: Z₂₈({}) = {}°, pos=({:.4}, {:.4})",
+//!         p.step, p.position.0, p.position.0 as f64 * RADIAN_DEG,
+//!         p.x, p.y);
+//! }
+//! ```
+
+#![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
+#![warn(missing_docs)]
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::must_use_candidate)]
+// Nightly: uncomment for doc-cfg labels on feature-gated items
+// #![cfg_attr(docsrs, feature(doc_cfg))]
+
+pub mod tribonacci;
+pub mod borromean;
+pub mod ternary_circle;
+
+// ══════════════════════════════════════════════════════════════
+// RE-EXPORTS — the most commonly used types at crate root
+// ══════════════════════════════════════════════════════════════
+
+pub use tribonacci::{TritVec, TribonacciBase3, TernaryRepr};
+pub use borromean::{TernaryWord, WordRepr};
+pub use ternary_circle::{
+    Z28,
+    FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
+    CYCLIC_ORDER, TAU_TRIBONACCI,
+    ternary_deg_to_std_deg, ternary_rad_to_std_rad,
+    trit_to_std_rad, walk_tribonacci_radian_spiral,
+    is_base3_repunit,
+};
+
+// ══════════════════════════════════════════════════════════════
+// CRATE-LEVEL CONSTANTS
+// ══════════════════════════════════════════════════════════════
+
+/// Library version (matches Cargo.toml).
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The Salvi Framework identifier.
+pub const FRAMEWORK: &str = "Salvi Framework";
+
+/// The division responsible for this codebase.
+pub const DIVISION: &str = "Applied Physics Division";
+
+/// The organization.
+pub const ORG: &str = "Capomastro Holdings Ltd.";
