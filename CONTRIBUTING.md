@@ -1,96 +1,163 @@
 # Contributing to the Salvi Framework
-## Capomastro Holdings Ltd., Applied Physics Division
 
-Thank you for your interest in contributing to the Salvi Framework / PlenumNET project.
-
----
-
-## Intellectual Property Notice
-
-All contributions to this project become the joint property of Capomastro
-Holdings Ltd. under the terms of our Contributor License Agreement (CLA).
-By submitting a pull request, you represent that you have the right to
-grant the licenses described in the CLA and that you have read and agree
-to its terms.
-
-The Salvi Framework™, PlenumNET™, and all associated technology are the
-exclusive intellectual property of Capomastro Holdings Ltd. (Canada).
-Patent(s) Pending. See the LICENSE and INTELLECTUAL-PROPERTY-NOTICE.md
-files in the repository root for full terms.
+**Organization:** Capomastro Holdings Ltd.
+**Division:** Applied Physics Division
 
 ---
 
-## Contributor License Agreement
+## Intellectual Standards
 
-Before we can accept any contributions, you must sign and submit the
-Contributor License Agreement (CLA). See [CLA.md](CLA.md) for the full
-agreement. No pull requests will be merged without a signed CLA on file.
+All contributions to this repository are held to the **Salvi Standard of Scrutiny** as defined by the UPIID Framework v1.1.
 
-Return signed copies to: Rsalvi@Salvigroup.com
+### The UPIID Dual-Path
 
----
+Every contribution must demonstrate competence in **both** paths:
 
-## Code of Conduct
+1. **Critical Analysis** — The ability to rigorously examine, challenge, and verify claims (the A→Z methodology: Authority, Bias, Consistency, Data, Evidence, Falsifiability, … through to Zygote — first principles)
 
-All contributors are expected to conduct themselves professionally and respectfully. Harassment, discrimination, and disruptive behavior will not be tolerated.
+2. **Constructive Creation** — The ability to synthesize disparate sources into a unified framework or working system (the Synthesis methodology: Gather → Analyze → Deconstruct → Integrate → Reconceptualize → Articulate)
 
----
+A pull request that adds features without tests is incomplete (creation without analysis). A pull request that only critiques without proposing alternatives is incomplete (analysis without creation).
 
-## Submitting Changes
+### The Value Metabolism Cycle
 
-### Prerequisites
-
-1. **Sign the CLA.** No exceptions.
-2. **Read the LICENSE** and understand that all contributions are subject to the proprietary license.
-3. **Understand the mathematical requirements.** The Salvi Framework operates under rigorous mathematical standards derived from the Unified 13D Torsion Plenum Theory and GF(3) arithmetic.
-
-### Process
-
-1. Fork the repository (if external) or create a feature branch (if internal).
-2. Make your changes in a focused, well-scoped branch.
-3. Ensure all source files include the appropriate copyright header (see SOURCE-FILE-LICENSE-HEADERS.md).
-4. Write clear, descriptive commit messages.
-5. Submit a pull request with:
-   - A description of the change and its purpose
-   - Any relevant issue numbers
-   - Confirmation that you have a signed CLA on file
-6. Wait for code review. All PRs require at least one approval.
-
-### Code Standards
-
-- **Rust:** Follow standard Rust formatting (`cargo fmt`). All code must pass `cargo clippy` without warnings.
-- **TypeScript/JavaScript:** Follow the existing code style. Use TypeScript where possible.
-- **Python:** Follow PEP 8.
-- **Documentation:** All public APIs must be documented.
-
-### Mathematical Standards
-
-Contributions involving ternary arithmetic, GF(3) operations, or Tribonacci-derived constants must:
-
-- Use the canonical Tribonacci constant (τ) as defined in `shared/tribonacci-constants.ts`
-- Implement `verifyTau()` checks where applicable
-- Support all three ternary representations: Computational ({-1, 0, +1}), Network ({0, 1, 2}), Human ({1, 2, 3})
-- Include property-based tests for mathematical correctness
-
-### Cryptographic Standards
-
-Contributions to the cryptographic layer must:
-
-- Maintain constant-time execution (no timing side channels)
-- Preserve CNSA 2.0 algorithm coverage
-- Not weaken any existing security guarantees
-- Include CAVP/ACVTS test vector validation where applicable
+Code enters the repository as raw material. Through review, testing, and integration, it is metabolized into framework value. Contributions should accelerate this cycle, not add inert mass.
 
 ---
 
-## Security Vulnerabilities
+## Development Workflow
 
-Do **NOT** create a public GitHub issue for security vulnerabilities. See [SECURITY.md](.github/SECURITY.md) for responsible disclosure procedures.
+### Branch Naming
+
+```
+feature/   — New functionality
+fix/       — Bug fixes
+refactor/  — Internal restructuring (no behavioral change)
+docs/      — Documentation only
+security/  — Security-related changes
+perf/      — Performance improvements
+```
+
+Example: `feature/z28-phase-correction-protocol`
+
+### Commit Messages
+
+Use the imperative mood. Reference the affected module:
+
+```
+[libternary] Add Z₂₈ group inverse operation
+[shared] Migrate angular constants to 364° ternary circle
+[contracts] Enforce Borromean invariant in three-party handshake
+[docs] Update ADR-007 with Z₂₈ phase correction specification
+```
+
+### Pull Request Requirements
+
+1. **Description** — What changed and why. Reference relevant ADRs.
+2. **Tests** — All new code must have tests. Aim for property-based tests where mathematical invariants exist.
+3. **Documentation** — Public APIs must have doc comments. Non-obvious algorithms must have inline explanations.
+4. **No regressions** — All existing tests must pass.
+5. **Single responsibility** — One logical change per PR.
 
 ---
 
-## Questions
+## Code Standards
 
-For questions about contributing, contact Rsalvi@Salvigroup.com.
+### Rust (`libternary/`)
 
-Repository: https://github.com/SigmaWolf-8/Ternary
+- **Edition:** 2021
+- **MSRV:** 1.75
+- **Formatting:** `cargo fmt` (default config)
+- **Linting:** `cargo clippy -- -D warnings` (zero warnings)
+- **Testing:** `cargo test --all-features`
+- **Documentation:** `cargo doc --no-deps` must compile without warnings
+
+#### Naming Conventions
+
+- Types: `PascalCase` (e.g., `TritVec`, `Z28`, `TernaryWord`)
+- Functions: `snake_case` (e.g., `to_repr_a`, `walk_tribonacci_radian_spiral`)
+- Constants: `SCREAMING_SNAKE_CASE` (e.g., `FULL_CIRCLE_DEG`, `TAU_TRIBONACCI`)
+- Modules: `snake_case` (e.g., `ternary_circle`, `tribonacci`)
+
+#### Mathematical Constants
+
+All angular and geometric constants live in `ternary_circle.rs`. Do not hardcode `360`, `3.14159`, `Math.PI`, or `120` anywhere. Use the conversion functions at the boundary.
+
+### TypeScript (`src/`, `client/`, `server/`, `shared/`)
+
+- **Target:** ES2022
+- **Strict mode:** enabled
+- **Formatting:** project config (see `.prettierrc` if present, otherwise Vite defaults)
+- **Imports:** Use the shared constants from `shared/ternary-circle.ts`
+
+### Document Formatting
+
+Professional documents produced by the framework use:
+- **Headers:** Felix Titling font
+- **Body text:** Century Gothic font
+
+---
+
+## Testing Philosophy
+
+### Unit Tests
+
+Every public function has at least one unit test. Mathematical functions have tests that verify known values from the literature (e.g., OEIS sequences).
+
+### Property-Based Tests
+
+Use `proptest` (Rust) for invariant verification:
+- **Representation roundtrip:** `∀ n: from_repr_a(to_repr_a(n)) == n`
+- **Borromean invariant:** `∀ (a,b,c): borromean_check(a,b,c) == true ⟹ removing any one ring allows separation`
+- **Z₂₈ closure:** `∀ a,b ∈ Z₂₈: a + b ∈ Z₂₈`
+- **Repunit verification:** `∀ k: is_base3_repunit((3^k - 1) / 2) == true`
+
+### Integration Tests
+
+Located in `tests/integration/`. These verify cross-module properties:
+- Tribonacci terms rendered in all three representations produce identical decimal values
+- The ternary radian spiral walk directions are all exact multiples of 13°
+- Borromean triples constructed from Tribonacci terms satisfy the invariant
+
+---
+
+## Architecture Decision Records
+
+Significant architectural decisions are documented in `docs/adr/`. When your contribution changes a structural aspect of the framework, either update the relevant ADR or propose a new one.
+
+ADR format:
+```
+# ADR-NNN: Title
+Status: Proposed | Accepted | Deprecated | Superseded
+Date: YYYY-MM-DD
+Related: ADR-XXX, ADR-YYY
+
+## Context
+[Why this decision is being made]
+
+## Decision
+[What we decided and why]
+
+## Consequences
+[What follows from the decision — good, bad, and neutral]
+```
+
+---
+
+## The Three Representations
+
+When working with ternary values anywhere in the codebase, remember the kernel principle:
+
+| If you're doing… | Use Rep… | Because… |
+|---|---|---|
+| Signed arithmetic, negation | **A** (Balanced: {-1,0,+1}) | Negation is trit-flip, zero carry |
+| Internal computation, recurrence | **B** (Standard: {0,1,2}) | Native to addition |
+| Wire serialization, crypto | **C** (Bijective: {1,2,3}) | Zero-free, no padding oracle |
+
+Convert at the boundary using `to_repr_a()`, `to_repr_c()`, `from_repr_a()`, `from_repr_c()`. Never assume a caller's representation.
+
+---
+
+*"The dual path: analyze with the rigor of a physicist, create with the vision of an architect."*
+
+*— UPIID Framework v1.1*
