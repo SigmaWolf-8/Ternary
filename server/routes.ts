@@ -22,6 +22,7 @@ import { z } from "zod";
 import { registerGitHubRoutes } from "./routes/github";
 import { registerKongRoutes } from "./routes/kong";
 import { registerSalviRoutes } from "./routes/salvi";
+import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -35,6 +36,8 @@ import {
 import { insertDeveloperSignupSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { createLogger, toErrorMessage } from "./logger";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 const log = createLogger("routes");
 
@@ -54,6 +57,28 @@ export async function registerRoutes(
     security: { file: ".github/SECURITY.md", title: "Security Policy" },
     aup: { file: "ACCEPTABLE-USE-POLICY.md", title: "Acceptable Use Policy" },
   };
+
+  app.get("/api/health", async (_req, res) => {
+    let dbStatus = "error";
+    try {
+      const result = await db.execute(sql`SELECT 1`);
+      if (result.rows.length > 0) {
+        dbStatus = "connected";
+      }
+    } catch {}
+
+    const isHealthy = dbStatus === "connected";
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? "healthy" : "degraded",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: "1.0.0",
+      services: {
+        database: dbStatus,
+        server: "running"
+      }
+    });
+  });
 
   app.get("/api/legal/:type", async (req, res) => {
     const docInfo = legalDocMap[req.params.type];
@@ -883,6 +908,11 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to check status" });
     }
   });
+
+  // =====================================================
+  // TRIBONACCI INDEXING LAYER API — extracted to server/routes/tribonacci.ts
+  // =====================================================
+  registerTribonacciRoutes(app);
 
   // =====================================================
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
