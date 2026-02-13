@@ -45,7 +45,7 @@ rand = { version = "0.8", optional = true }
 # Property-based testing
 proptest = "1.4"
 # Benchmarking
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 # ── Profiles ───────────────────────────────────────────────
 
