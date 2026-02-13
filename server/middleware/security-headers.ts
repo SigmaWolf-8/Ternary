@@ -20,7 +20,7 @@ export const securityHeaders = helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
   xContentTypeOptions: true,
-  xFrameOptions: { action: "deny" },
+  xFrameOptions: false,
   xXssProtection: true,
   hsts: {
     maxAge: 31536000,
