@@ -488,8 +488,9 @@ function GoldenRatioSection() {
 }
 
 function LiveDemoSection() {
-  const [dateInput, setDateInput] = useState("2025-04-01");
-  const [queryDate, setQueryDate] = useState("2025-04-01");
+  const today = new Date().toISOString().split("T")[0];
+  const [dateInput, setDateInput] = useState(today);
+  const [queryDate, setQueryDate] = useState(today);
   const { toast } = useToast();
 
   const { data: calendarData, isLoading, error } = useQuery<CalendarData>({
@@ -614,18 +615,27 @@ function LiveDemoSection() {
                   </div>
                 ))}
 
-                {calendarData.calendars.thirteenMoon && !calendarData.calendars.thirteenMoon.dayOutOfTime && (
+                {calendarData.calendars.thirteenMoon && (
                   <div className="mt-4 pt-4 border-t border-primary/10">
                     <div className="flex flex-wrap items-center gap-3">
-                      <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+                      <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary" data-testid="badge-galactic-signature">
                         {calendarData.calendars.thirteenMoon.galacticSignature}
                       </Badge>
-                      <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+                      <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary" data-testid="badge-harmonic-tone">
                         Tone {calendarData.calendars.thirteenMoon.harmonicTone}
                       </Badge>
-                      <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+                      <Badge variant="outline" className={`border-primary/30 text-primary ${
+                        calendarData.calendars.thirteenMoon.dayOutOfTime
+                          ? "bg-primary/15 font-semibold"
+                          : "bg-primary/5"
+                      }`} data-testid="badge-arc">
                         {calendarData.calendars.thirteenMoon.arc}
                       </Badge>
+                      {calendarData.calendars.thirteenMoon.dayOutOfTime && (
+                        <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400" data-testid="badge-dot">
+                          Day Out of Time
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 )}
