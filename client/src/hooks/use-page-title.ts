@@ -22,6 +22,7 @@ const pageTitles: Record<string, string> = {
   "/github": "GitHub Manager — PlenumNET",
   "/kong-konnect": "Kong Konnect — PlenumNET",
   "/tribonacci-28ds": "Tribonacci 28-Dimension Symmetry — PlenumNET",
+  "/distribution": "Salvi Framework Distribution — PlenumNET",
 };
 
 export function usePageTitle() {

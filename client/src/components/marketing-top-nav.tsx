@@ -100,6 +100,7 @@ const resourcesItems: NavLinkItem[] = [
   { title: "Whitepaper", href: "/whitepaper" },
   { title: "Documentation", href: "/docs" },
   { title: "CNSA 2.0 Compliance", href: "/compliance" },
+  { title: "Module Distribution", href: "/distribution" },
 ];
 
 const resourcesExternal: NavLinkItem[] = [

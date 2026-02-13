@@ -12,6 +12,7 @@ const footerLinks = {
     { label: "Whitepaper", href: "/whitepaper" },
     { label: "API Demo", href: "/api-demo" },
     { label: "Documentation", href: "/docs" },
+    { label: "Module Distribution", href: "/distribution" },
     { label: "GitHub", href: "https://github.com/SigmaWolf-8/Ternary" },
   ],
   Company: [
