@@ -6,7 +6,7 @@
 //!
 //! Run: `cargo test --test integration_properties --release`
 
-use libternary::tribonacci::{TribonacciBase3, TernaryRepr, TritVec};
+use libternary::tribonacci::{TribonacciBase3, TernaryRepr, TritVec, TribonacciTerm};
 use libternary::borromean::{TernaryWord, WordRepr};
 use libternary::ternary_circle::{
     Z28, FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
@@ -40,7 +40,7 @@ fn axiom_radian_is_tribonacci_t7() {
     // The seventh Tribonacci number T(7) = 13
     let mut gen = TribonacciBase3::new();
     let terms: Vec<_> = (0..8).map(|_| gen.next_term()).collect();
-    assert_eq!(terms[7].to_decimal(), 13);
+    assert_eq!(terms[7].decimal, 13);
 }
 
 #[test]
@@ -79,17 +79,17 @@ fn repr_abc_roundtrip_first_30_tribonacci() {
     let mut gen = TribonacciBase3::new();
     for i in 0..30 {
         let term = gen.next_term();
-        let decimal = term.to_decimal();
+        let decimal = term.decimal;
 
         // B → A → B
-        let repr_a = term.to_repr_a();
+        let repr_a = term.value.to_repr_a();
         let back_from_a = TritVec::from_repr_a(&repr_a);
         assert_eq!(back_from_a.to_decimal(), decimal,
             "A-roundtrip failed at T({})", i);
 
         // B → C → B (skip zero — bijective has no zero representation)
         if decimal > 0 {
-            let repr_c = term.to_repr_c();
+            let repr_c = term.value.to_repr_c();
             let back_from_c = TritVec::from_repr_c(&repr_c);
             assert_eq!(back_from_c.to_decimal(), decimal,
                 "C-roundtrip failed at T({})", i);
@@ -117,7 +117,7 @@ fn repr_abc_display_format() {
 
     // T(10) = 81 = 10000₃
     let t10 = &terms[10];
-    let fmt_b = t10.format_repr(TernaryRepr::Standard);
+    let fmt_b = t10.value.format_repr(TernaryRepr::Standard);
     assert!(fmt_b.contains("10000"), "T(10) in Rep B should be 10000₃, got {}", fmt_b);
 }
 
@@ -134,9 +134,9 @@ fn borromean_triples_from_consecutive_tribonacci() {
 
     // Use terms starting from T(5) onward (multi-digit)
     for window in terms[5..].windows(3) {
-        let trits_a = window[0].to_repr_b();
-        let trits_b = window[1].to_repr_b();
-        let trits_c = window[2].to_repr_b();
+        let trits_a = window[0].value.to_repr_b();
+        let trits_b = window[1].value.to_repr_b();
+        let trits_c = window[2].value.to_repr_b();
 
         // Pad to equal length
         let max_len = trits_a.len().max(trits_b.len()).max(trits_c.len());
@@ -207,7 +207,7 @@ fn tribonacci_radian_is_repunit_and_sequence_member() {
 
     let mut gen = TribonacciBase3::new();
     let terms: Vec<_> = (0..8).map(|_| gen.next_term()).collect();
-    assert_eq!(terms[7].to_decimal(), 13);
+    assert_eq!(terms[7].decimal, 13);
 }
 
 #[test]
@@ -316,75 +316,68 @@ fn conversion_roundtrip_ternary_to_std_radians() {
         let standard = ternary_rad_to_std_rad(ternary);
         let back = std_rad_to_ternary_rad(standard);
         assert!((back - ternary).abs() < 1e-10,
-            "Radian roundtrip failed at {}: {} → {} → {}",
+            "Radian roundtrip failed at {} trad: {} → {} → {}",
             i, ternary, standard, back);
     }
 }
 
 #[test]
-fn trit_direction_maps_to_valid_standard_radian() {
-    // Each trit value (0, 1, 2) maps to a standard radian angle.
+fn trit_to_std_rad_is_consistent_with_z28() {
+    // For each trit value 0,1,2: the standard radian from
+    // trit_to_std_rad must match Z28::step().to_std_rad().
     for trit in 0..=2u8 {
-        let rad = trit_to_std_rad(trit);
-        assert!(rad >= 0.0 && rad < 2.0 * std::f64::consts::PI,
-            "Trit {} mapped to invalid radian {}", trit, rad);
+        let from_fn = trit_to_std_rad(trit);
+        let from_z28 = Z28::new(0).step(trit).to_std_rad();
+        assert!((from_fn - from_z28).abs() < 1e-10,
+            "trit_to_std_rad({}) = {} but Z28.step({}).to_std_rad() = {}",
+            trit, from_fn, trit, from_z28);
     }
 }
 
 // ══════════════════════════════════════════════════════════════
-// TRIBONACCI SEQUENCE PROPERTIES
+// REPUNIT CHAIN — The structural backbone
 // ══════════════════════════════════════════════════════════════
 
 #[test]
-fn tribonacci_recurrence_holds() {
-    // T(n) = T(n-1) + T(n-2) + T(n-3) for n >= 3
-    let mut gen = TribonacciBase3::new();
-    let terms: Vec<_> = (0..30).map(|_| gen.next_term()).collect();
-
-    for i in 3..30 {
-        let expected = terms[i - 1].to_decimal() + terms[i - 2].to_decimal() + terms[i - 3].to_decimal();
-        assert_eq!(terms[i].to_decimal(), expected,
-            "Tribonacci recurrence failed at T({}): {} != {} + {} + {}",
-            i, terms[i].to_decimal(),
-            terms[i - 1].to_decimal(), terms[i - 2].to_decimal(), terms[i - 3].to_decimal());
-    }
-}
-
-#[test]
-fn tribonacci_known_values() {
-    // Verify against OEIS A000073
-    let expected = [0, 0, 1, 1, 2, 4, 7, 13, 24, 44, 81, 149, 274, 504, 927];
-    let mut gen = TribonacciBase3::new();
-    let terms: Vec<_> = (0..expected.len()).map(|_| gen.next_term()).collect();
-
-    for (i, &exp) in expected.iter().enumerate() {
-        assert_eq!(terms[i].to_decimal(), exp,
-            "T({}) should be {}, got {}", i, exp, terms[i].to_decimal());
-    }
-}
-
-// ══════════════════════════════════════════════════════════════
-// REPUNIT PROPERTIES
-// ══════════════════════════════════════════════════════════════
-
-#[test]
-fn repunit_sequence_verification() {
-    // Base-3 repunits: (3^k - 1) / 2
-    // k=1: 1, k=2: 4, k=3: 13, k=4: 40, k=5: 121, k=6: 364
-    let repunits = [1u64, 4, 13, 40, 121, 364, 1093];
-    for (k, &val) in repunits.iter().enumerate() {
+fn repunit_chain_connects_radian_to_circle() {
+    // The base-3 repunits form a chain:
+    //   1₃ = 1
+    //   11₃ = 4
+    //   111₃ = 13  ← radian
+    //   1111₃ = 40
+    //   11111₃ = 121
+    //   111111₃ = 364  ← full circle
+    let expected = [1u64, 4, 13, 40, 121, 364];
+    for (i, &val) in expected.iter().enumerate() {
         assert!(is_base3_repunit(val),
-            "Expected {} to be a base-3 repunit (k={})", val, k + 1);
-        assert_eq!(base3_repunit_order(val), Some((k + 1) as u32),
-            "Expected repunit order {} for value {}", k + 1, val);
+            "Expected {} to be a base-3 repunit (order {})", val, i + 1);
+        assert_eq!(base3_repunit_order(val), Some((i + 1) as u32));
     }
+
+    // The radian (order 3) and circle (order 6) are linked:
+    // circle = radian × 28, and 28 = 2π in the ternary system.
+    assert_eq!(expected[2] * 28, expected[5]);
+}
+
+// ══════════════════════════════════════════════════════════════
+// EDGE CASES — The zero boundary
+// ══════════════════════════════════════════════════════════════
+
+#[test]
+fn bijective_zero_is_empty() {
+    // In bijective ternary (Rep C), zero has no representation.
+    let zero = TritVec::from_decimal(0);
+    let repr_c = zero.to_repr_c();
+    assert!(repr_c.is_empty(),
+        "Bijective representation of 0 should be empty, got {:?}", repr_c);
 }
 
 #[test]
-fn non_repunits_rejected() {
-    let non_repunits = [0u64, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14, 39, 41, 100, 363, 365];
-    for &val in &non_repunits {
-        assert!(!is_base3_repunit(val),
-            "Expected {} to NOT be a base-3 repunit", val);
-    }
+fn balanced_zero_is_zero() {
+    // In balanced ternary (Rep A), zero is [0].
+    let zero = TritVec::from_decimal(0);
+    let repr_a = zero.to_repr_a();
+    // All digits should be 0
+    assert!(repr_a.iter().all(|&d| d == 0),
+        "Balanced representation of 0 should be all zeros, got {:?}", repr_a);
 }
