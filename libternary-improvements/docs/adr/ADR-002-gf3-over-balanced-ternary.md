@@ -16,7 +16,7 @@ Ternary computing has two dominant numeric representations:
 * **Balanced ternary** — digits {−1, 0, +1}. Natural for signed arithmetic; historically used in the Setun computer (Moscow State University, 1958). Negation is digit-wise complement. Addition carries are simple.
 * **GF(3)** (Galois Field of order 3) — elements {0, 1, 2} with addition and multiplication modulo 3. A finite field with well-defined inverses (every non-zero element has a multiplicative inverse).
 
-The Salvi Framework `libternary` kernel must choose which representation sits at the lowest layer of the stack — the layer that the 35 VM opcodes operate on directly.
+The Salvi Framework `libternary` kernel must choose which representation sits at the lowest layer of the stack — the layer that the 55 VM opcodes operate on directly.
 
 ## 2 · Decision
 

@@ -76,7 +76,7 @@ function HeroVisual() {
   const layers = [
     { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
     { label: "Protocols", items: ["HPTP", "T3P", "TTP", "TDNS"], delay: 0.6 },
-    { label: "Virtual Machine", items: ["35 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
+    { label: "Virtual Machine", items: ["55 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
   ];
@@ -202,7 +202,7 @@ function HeroSection() {
   });
 
   return (
-    <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
+    <section id="hero" className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
       <div className="absolute inset-0 gradient-radial" />
       
@@ -380,7 +380,7 @@ function HeroSection() {
             <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
             <AnimatedStat value="1,011" label="Tests Passing" delay={0.28} />
             <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
-            <AnimatedStat value="35" label="VM Opcodes" delay={0.34} />
+            <AnimatedStat value="55" label="VM Opcodes" delay={0.34} />
           </div>
           <HeroVisual />
           <HeroDemo />
@@ -429,7 +429,7 @@ function PlatformSection() {
     },
     {
       icon: Terminal,
-      title: "35-Opcode Virtual Machine",
+      title: "55-Opcode Virtual Machine",
       description: "Register-based VM with ternary-native instructions, garbage collection, and full execution engine.",
       stats: "27 registers",
     },
@@ -519,7 +519,7 @@ function ArchitectureSection() {
     },
     {
       label: "Virtual Machine",
-      items: ["35-Opcode ISA", "27 Ternary Registers", "TAGC Garbage Collector", "GF(3) Arithmetic"],
+      items: ["55-Opcode ISA", "27 Ternary Registers", "TAGC Garbage Collector", "GF(3) Arithmetic"],
       color: "bg-primary/20 border-primary/50",
     },
     {
@@ -739,7 +739,7 @@ function ComponentsSection() {
       badge: "Virtual Machine",
       icon: Terminal,
       title: "Ternary VM (TVM)",
-      description: "35-opcode register-based virtual machine with ternary-native arithmetic and automatic memory management.",
+      description: "55-opcode register-based virtual machine with ternary-native arithmetic and automatic memory management.",
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
         "GF(3) ops: TAdd, TMul, TNeg, TRot, TXor",
@@ -904,7 +904,8 @@ function PerformanceSection() {
           transition={{ duration: 0.5, delay: 0.12 }}
         >
           <Card className="max-w-4xl mx-auto p-6 md:p-10 border-primary/10 bg-card/80 backdrop-blur-sm" role="table" aria-label="Binary vs Ternary comparison">
-            <div className="flex flex-col md:flex-row justify-between gap-6 mb-8 pb-6 border-b border-foreground/10">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-6 border-b border-foreground/10 gap-2">
+              <div className="flex-1 md:flex-[2]" />
               <div className="flex-1 text-center">
                 <h3 className="text-xl font-semibold mb-2">Binary Systems</h3>
                 <p className="text-sm text-muted-foreground">Current infrastructure</p>
@@ -1215,7 +1216,7 @@ function TargetMarketsSection() {
   ];
 
   return (
-    <section className="py-20 md:py-28" data-testid="section-markets">
+    <section id="markets" className="py-20 md:py-28" data-testid="section-markets">
       <div className="max-w-7xl mx-auto px-5">
         <div className="text-center mb-16">
           <motion.div
@@ -1608,20 +1609,17 @@ function Footer() {
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main>
-        <HeroSection />
-        <PlatformSection />
-        <ArchitectureSection />
-        <ComponentsSection />
-        <PerformanceSection />
-        <TrustSignals />
-        <CodeSnippet />
-        <TargetMarketsSection />
-        <ChangelogSection />
-        <DeveloperCTASection />
-      </main>
-      <Footer />
-    </div>
+    <>
+      <HeroSection />
+      <PlatformSection />
+      <ArchitectureSection />
+      <ComponentsSection />
+      <PerformanceSection />
+      <TrustSignals />
+      <CodeSnippet />
+      <TargetMarketsSection />
+      <ChangelogSection />
+      <DeveloperCTASection />
+    </>
   );
 }
