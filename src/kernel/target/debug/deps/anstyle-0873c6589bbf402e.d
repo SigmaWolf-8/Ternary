@@ -1,0 +1,12 @@
+/home/runner/workspace/src/kernel/target/debug/deps/libanstyle-0873c6589bbf402e.rmeta: /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/lib.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/macros.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/color.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/effect.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/reset.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/style.rs
+
+/home/runner/workspace/src/kernel/target/debug/deps/libanstyle-0873c6589bbf402e.rlib: /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/lib.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/macros.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/color.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/effect.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/reset.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/style.rs
+
+/home/runner/workspace/src/kernel/target/debug/deps/anstyle-0873c6589bbf402e.d: /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/lib.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/macros.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/color.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/effect.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/reset.rs /home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/style.rs
+
+/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/lib.rs:
+/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/macros.rs:
+/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/color.rs:
+/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/effect.rs:
+/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/reset.rs:
+/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/anstyle-1.0.13/src/style.rs:
