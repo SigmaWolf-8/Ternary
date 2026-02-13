@@ -317,7 +317,7 @@ function ArchitectureSection() {
     },
     {
       title: "Storage Engine Layer",
-      items: ["Ternary-compressed heap", "Ternary TOAST compression", "Bijective indexing (B-tree, GiST, GIN)"],
+      items: ["Ternary-compressed heap", "Ternary TOAST compression", "Bijective indexing (B-tree, GiST, GIN)", "Tribonacci Canonical Test Oracle"],
       color: "bg-primary/10",
     },
     {

@@ -17,7 +17,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, Check, Shield, Cpu, Globe, FileCode, Server, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Shield, Cpu, Globe, FileCode, Server, Users, FlaskConical } from "lucide-react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Link } from "wouter";
@@ -146,6 +146,35 @@ export default function AboutPage() {
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">35-Opcode VM</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">HPTP Timing</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Post-Quantum Crypto</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Tribonacci Test Oracle</Badge>
+            </div>
+          </Card>
+        </AnimatedSection>
+
+        <AnimatedSection delay={0.22}>
+          <Card className="p-6 md:p-8 border-primary/10 mb-8" data-testid="section-test-oracle">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="text-primary">
+                <FlaskConical className="w-8 h-8" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Tribonacci Canonical Test Oracle</h2>
+              </div>
+            </div>
+            <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-test-oracle-description">
+              Every ternary operation in the Salvi Framework is validated against the Tribonacci word -- the
+              fixed point of the morphism 0&#8594;01, 1&#8594;02, 2&#8594;0. This 3-automatic sequence over
+              the alphabet &#123;0, 1, 2&#125; serves as the canonical test oracle: any correct bijective
+              ternary encoder, decoder, or arithmetic operation must preserve its structural properties.
+              The Tribonacci word links the recurrence T(n) = T(n-1) + T(n-2) + T(n-3) to the ternary
+              circle geometry (364&#176; = 111111&#8323;) and Borromean topology, providing a single
+              mathematical object that validates all three modules simultaneously.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">3-Automatic Sequence</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Morphism: 0&#8594;01, 1&#8594;02, 2&#8594;0</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Rep A/B/C Invariant</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Cross-Module Verification</Badge>
             </div>
           </Card>
         </AnimatedSection>
