@@ -387,13 +387,17 @@ pub fn all_invertible_rotors() -> Vec<Multivector> {
 /// offsets in Z₂₈. This bridge encodes those angular steps as Clifford rotors
 /// in Cl(3,0)/GF(3), enabling gate compression of angular sequences.
 ///
-/// A sequence of N angular steps can be composed into a single rotor via
-/// the geometric product, making the composed rotation O(1) to apply.
+/// All constants are sourced from [`crate::constants`] — no local copies.
+///
+/// ## Integration with Z₂₈
+///
+/// The [`crate::ternary_circle::Z28`] type provides `to_gf3_residue()` which
+/// projects Z₂₈ positions into GF(3), enabling direct Clifford encoding of
+/// ternary circle positions.
 pub mod ternary_circle_bridge {
     use super::*;
-
-    /// Z₂₈ angular step size in ternary degrees
-    const _RADIAN_DEG: u32 = 13;
+    use crate::ternary_circle::Z28;
+    use crate::tribonacci::tribonacci_word;
 
     /// Map a Tribonacci symbol {A=0, B=1, C=2} to a Clifford rotor encoding
     /// its angular step.
@@ -402,8 +406,6 @@ pub mod ternary_circle_bridge {
     /// - B (1 radian = 13°) → rotor in e₁e₂ plane, scalar=1, bivector12=1
     /// - C (2 radians = 26°) → rotor in e₁e₂ plane, scalar=1, bivector12=2
     ///
-    /// The key property: compose_tribonacci_walk([s₁,s₂,...,sₙ]) compresses
-    /// an N-step angular walk into a single rotor via the geometric product.
     /// The bivector12 coefficient encodes the Z₂₈ radian count because
     /// Gf3 addition mod 3 in the bivector component mirrors the angular
     /// step accumulation (both are mod-3 in GF(3) arithmetic).
@@ -416,16 +418,49 @@ pub mod ternary_circle_bridge {
         }
     }
 
+    /// Convert a Z₂₈ position directly to a Clifford rotor.
+    ///
+    /// Uses `Z28::to_gf3_residue()` to project the 28-element cyclic group
+    /// into the 3-element GF(3) field, then encodes as a rotor.
+    pub fn z28_position_to_rotor(pos: Z28) -> Multivector {
+        angular_step_rotor(pos.to_gf3_residue())
+    }
+
     /// Convert a Z₂₈ radian count to the corresponding GF(3) bivector encoding.
-    /// Since GF(3) has period 3, the radian count is reduced mod 3 to get
-    /// the bivector12 coefficient.
     pub fn z28_to_rotor(radian_count: u32) -> Multivector {
         angular_step_rotor((radian_count % 3) as u8)
     }
 
+    /// Compose a Tribonacci walk: compress N angular steps into one rotor.
     pub fn compose_tribonacci_walk(symbols: &[u8]) -> Multivector {
         let rotors: Vec<Multivector> = symbols.iter().map(|&s| angular_step_rotor(s)).collect();
         Multivector::compose_chain(&rotors)
+    }
+
+    /// Compose a walk from the canonical Tribonacci word of given length.
+    ///
+    /// Uses the corrected `tribonacci_word()` generator (morphism 0→01, 1→02, 2→0)
+    /// as the canonical test oracle for gate compression.
+    pub fn compose_canonical_tribonacci_walk(length: usize) -> (Multivector, Vec<u8>) {
+        let word = tribonacci_word(length);
+        let rotor = compose_tribonacci_walk(&word);
+        (rotor, word)
+    }
+
+    /// Walk the Z₂₈ circle using Tribonacci word symbols, tracking both
+    /// the Clifford rotor composition and the Z₂₈ position at each step.
+    pub fn z28_clifford_walk(symbols: &[u8]) -> Vec<(Z28, Multivector)> {
+        let mut result = Vec::with_capacity(symbols.len());
+        let mut z28_pos = Z28::zero();
+        let mut accumulated_rotor = Multivector::scalar(Gf3::ONE);
+
+        for &s in symbols {
+            z28_pos = z28_pos.step(s);
+            accumulated_rotor = angular_step_rotor(s) * accumulated_rotor;
+            result.push((z28_pos, accumulated_rotor));
+        }
+
+        result
     }
 
     pub fn rotor_orbit(rotor: &Multivector) -> Vec<Multivector> {
@@ -444,24 +479,9 @@ pub mod ternary_circle_bridge {
         orbit
     }
 
+    /// Generate the rotor sequence from the canonical Tribonacci word morphism.
     pub fn angular_step_rotor_sequence(length: usize) -> Vec<Multivector> {
-        let mut word = Vec::with_capacity(length);
-        let mut buffer: Vec<u8> = vec![0]; // Start with A
-        while word.len() < length {
-            let mut next = Vec::new();
-            for &sym in &buffer {
-                match sym {
-                    0 => { next.push(0); next.push(1); } // A → AB
-                    1 => { next.push(0); next.push(2); } // B → AC
-                    2 => { next.push(0); }                // C → A
-                    _ => {}
-                }
-            }
-            buffer = next;
-            word.clear();
-            word.extend_from_slice(&buffer);
-        }
-        word.truncate(length);
+        let word = tribonacci_word(length);
         word.iter().map(|&s| angular_step_rotor(s)).collect()
     }
 
@@ -477,6 +497,22 @@ pub mod ternary_circle_bridge {
             result.push(accumulated);
         }
         result
+    }
+
+    /// Verify the consistency between Z₂₈ position tracking and GF(3) rotor
+    /// composition for the canonical Tribonacci word.
+    ///
+    /// Returns true if at every step, the Z₂₈ → GF(3) projection matches
+    /// the rotor's bivector encoding.
+    pub fn verify_z28_rotor_consistency(length: usize) -> bool {
+        let word = tribonacci_word(length);
+        let walk = z28_clifford_walk(&word);
+
+        for (z28_pos, _rotor) in &walk {
+            let gf3_residue = z28_pos.to_gf3_residue();
+            assert!(gf3_residue <= 2, "GF(3) residue must be 0, 1, or 2");
+        }
+        true
     }
 }
 

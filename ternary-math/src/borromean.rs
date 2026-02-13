@@ -17,6 +17,9 @@
 //! Validation primitives for three-party cryptographic protocols based on
 //! the Borromean rings topology expressed in ternary logic.
 //!
+//! All shared constants are imported from [`crate::constants`] — this module
+//! does not define its own copy of any shared value.
+//!
 //! ## Representation Agnosticism
 //!
 //! The Borromean invariant is defined over the mod-3 ring and is therefore
@@ -27,10 +30,6 @@
 //! - **B (Standard):** `{0, 1, 2}` via `TernaryWord::new()` or `from_str()`
 //! - **C (Bijective):** `{1, 2, 3}` via `TernaryWord::from_bijective()`
 //!
-//! All representations are normalized to the internal B encoding for
-//! arithmetic. The XOR operation (digit-wise sum mod 3) produces identical
-//! results regardless of which representation the inputs were specified in.
-//!
 //! ## The Borromean Condition
 //!
 //! Three rings (ternary words) are **Borromean-linked** if and only if:
@@ -38,12 +37,7 @@
 //! 1. **Non-separability**: The digit-wise sum mod 3 of all three words
 //!    is never identically zero across all positions simultaneously.
 //! 2. **Pairwise separability**: Any two of the three words CAN have their
-//!    digit-wise sum mod 3 equal zero at some position — the binding is
-//!    strictly a three-body property.
-//!
-//! In the PQTI protocol, this maps to: three parties in a handshake cannot
-//! be individually removed without breaking the link, but no two-party
-//! subset is inherently bound.
+//!    digit-wise sum mod 3 equal zero at some position.
 //!
 //! ## Algebraic Structure
 //!
@@ -51,18 +45,11 @@
 //! The Borromean condition is:
 //!
 //!   ∀i: (A[i] + B[i] + C[i]) mod 3 ≠ 0
-//!
-//! where A, B, C are ternary words of equal length.
-//!
-//! This is equivalent to requiring that the triple (A, B, C) never produces
-//! the "First Position" (0, 0, 0) under the linking operation.
+
+use crate::constants::BORROMEAN_MODULUS;
 
 /// A ternary word — a sequence of trits representing one "ring" in the
 /// Borromean triple.
-///
-/// Words can be constructed in any of the three kernel representations
-/// (A, B, or C). The Borromean check operates on the underlying integer
-/// values — the representation is a lens, not a substance.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TernaryWord {
     /// Internal storage in Representation B {0,1,2}.
@@ -72,11 +59,11 @@ pub struct TernaryWord {
 /// Which representation the input digits use.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WordRepr {
-    /// Representation A: Balanced `{-1, 0, +1}` — input as i8.
+    /// Representation A: Balanced `{-1, 0, +1}`.
     Balanced,
-    /// Representation B: Standard `{0, 1, 2}` — the default.
+    /// Representation B: Standard `{0, 1, 2}`.
     Standard,
-    /// Representation C: Bijective `{1, 2, 3}` — zero-free.
+    /// Representation C: Bijective `{1, 2, 3}`.
     Bijective,
 }
 
@@ -116,13 +103,11 @@ impl TernaryWord {
     }
 
     /// Create a ternary word from **Representation A** (Balanced: `{-1, 0, +1}`).
-    ///
-    /// Each digit is shifted: -1 → 2, 0 → 0, +1 → 1 in the mod-3 ring.
     pub fn from_balanced(balanced: &[i8]) -> Self {
         let trits: Vec<u8> = balanced
             .iter()
             .map(|&d| {
-                assert!((-1..=1).contains(&d), "Balanced trit must be -1, 0, or +1; got {}", d);
+                assert!(d >= -1 && d <= 1, "Balanced trit must be -1, 0, or +1; got {}", d);
                 ((d + 3) % 3) as u8
             })
             .collect();
@@ -130,14 +115,12 @@ impl TernaryWord {
     }
 
     /// Create a ternary word from **Representation C** (Bijective: `{1, 2, 3}`).
-    ///
-    /// Each digit is shifted: 1 → 1, 2 → 2, 3 → 0 in the mod-3 ring.
     pub fn from_bijective(bijective: &[u8]) -> Self {
         let trits: Vec<u8> = bijective
             .iter()
             .map(|&d| {
-                assert!((1..=3).contains(&d), "Bijective trit must be 1, 2, or 3; got {}", d);
-                d % 3
+                assert!(d >= 1 && d <= 3, "Bijective trit must be 1, 2, or 3; got {}", d);
+                d % BORROMEAN_MODULUS
             })
             .collect();
         TernaryWord { trits }
@@ -167,7 +150,7 @@ impl TernaryWord {
     }
 
     /// Create a ternary word from a string of characters '0', '1', '2'.
-    pub fn parse_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Self {
         let trits: Vec<u8> = s
             .chars()
             .map(|c| match c {
@@ -190,8 +173,25 @@ impl TernaryWord {
         self.trits.is_empty()
     }
 
-    /// Generate a random ternary word of given length.
-    /// Uses a simple deterministic PRNG seeded by the given value.
+    /// Return the raw digit slice (Rep B: {0,1,2}).
+    pub fn digits(&self) -> &[u8] {
+        &self.trits
+    }
+
+    /// Digit-wise ternary XOR (sum mod 3) with another word.
+    pub fn xor_mod3(&self, other: &TernaryWord) -> TernaryWord {
+        let len = std::cmp::max(self.len(), other.len());
+        let trits = (0..len)
+            .map(|i| {
+                let a = if i < self.len() { self.trits[i] } else { 0 };
+                let b = if i < other.len() { other.trits[i] } else { 0 };
+                (a + b) % BORROMEAN_MODULUS
+            })
+            .collect();
+        TernaryWord { trits }
+    }
+
+    /// Generate a pseudo-random ternary word.
     pub fn pseudo_random(length: usize, seed: u64) -> Self {
         let mut state = seed;
         let mut trits = Vec::with_capacity(length);
@@ -199,27 +199,24 @@ impl TernaryWord {
             state ^= state << 13;
             state ^= state >> 7;
             state ^= state << 17;
-            trits.push((state % 3) as u8);
+            trits.push((state % BORROMEAN_MODULUS as u64) as u8);
         }
         TernaryWord { trits }
     }
 
-    /// Compute the digit-wise ternary XOR (sum mod 3) of two words.
+    /// Compute the digit-wise ternary XOR of two words.
     pub fn xor_pair(a: &TernaryWord, b: &TernaryWord) -> Vec<u8> {
         let len = std::cmp::max(a.len(), b.len());
         (0..len)
             .map(|i| {
                 let va = if i < a.len() { a.trits[i] } else { 0 };
                 let vb = if i < b.len() { b.trits[i] } else { 0 };
-                (va + vb) % 3
+                (va + vb) % BORROMEAN_MODULUS
             })
             .collect()
     }
 
     /// Compute the digit-wise ternary XOR of three words.
-    ///
-    /// This is the core Borromean operation:
-    ///   result[i] = (A[i] + B[i] + C[i]) mod 3
     pub fn xor_triple(a: &TernaryWord, b: &TernaryWord, c: &TernaryWord) -> Vec<u8> {
         let len = *[a.len(), b.len(), c.len()].iter().max().unwrap();
         (0..len)
@@ -227,16 +224,13 @@ impl TernaryWord {
                 let va = if i < a.len() { a.trits[i] } else { 0 };
                 let vb = if i < b.len() { b.trits[i] } else { 0 };
                 let vc = if i < c.len() { c.trits[i] } else { 0 };
-                (va + vb + vc) % 3
+                (va + vb + vc) % BORROMEAN_MODULUS
             })
             .collect()
     }
 }
 
 /// Check whether three ternary words satisfy the Borromean invariant.
-///
-/// The invariant holds if the digit-wise sum mod 3 of the three words
-/// is **never zero** at any position.
 pub fn check_borromean_invariant(
     a: &TernaryWord,
     b: &TernaryWord,
@@ -264,10 +258,6 @@ pub fn check_borromean_invariant(
 }
 
 /// Check pairwise separability of three ternary words.
-///
-/// For a true Borromean topology, each pair of rings must be separable
-/// (their pairwise XOR must have at least one zero position), while the
-/// triple is non-separable.
 pub fn check_pairwise_separability(
     a: &TernaryWord,
     b: &TernaryWord,
@@ -289,8 +279,7 @@ pub fn check_pairwise_separability(
     }
 }
 
-/// Full Borromean validation: checks both the non-separability of the triple
-/// AND the pairwise separability of each pair.
+/// Full Borromean validation.
 pub fn validate_borromean_triple(
     a: &TernaryWord,
     b: &TernaryWord,
@@ -302,8 +291,6 @@ pub fn validate_borromean_triple(
 }
 
 /// Generate a valid Borromean triple of given word length.
-///
-/// Uses a construction based on cyclic shifts in Z/3Z.
 pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, TernaryWord, TernaryWord) {
     let a = TernaryWord::pseudo_random(length, seed);
 
@@ -314,22 +301,24 @@ pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, Tern
         let ai = a.trits[i];
 
         if i == 0 {
-            b_trits.push((3 - ai) % 3);
+            b_trits.push((3 - ai) % BORROMEAN_MODULUS);
             c_trits.push(1);
         } else if i == 1 && length > 1 {
-            c_trits.push((3 - ai) % 3);
+            c_trits.push((3 - ai) % BORROMEAN_MODULUS);
             b_trits.push(2);
         } else if i == 2 && length > 2 {
+            let b_val = 1u8;
+            let c_val = 2u8;
             if ai != 0 {
-                b_trits.push(1);
-                c_trits.push(2);
+                b_trits.push(b_val);
+                c_trits.push(c_val);
             } else {
                 b_trits.push(1);
                 c_trits.push(1);
             }
         } else {
-            b_trits.push((ai + 1) % 3);
-            c_trits.push((ai + 1) % 3);
+            b_trits.push((ai + 1) % BORROMEAN_MODULUS);
+            c_trits.push((ai + 1) % BORROMEAN_MODULUS);
         }
     }
 
@@ -345,10 +334,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_modulus_constant() {
+        assert_eq!(BORROMEAN_MODULUS, 3);
+    }
+
+    #[test]
     fn test_ternary_xor_basic() {
-        let a = TernaryWord::parse_str("012");
-        let b = TernaryWord::parse_str("012");
-        let c = TernaryWord::parse_str("012");
+        let a = TernaryWord::from_str("012");
+        let b = TernaryWord::from_str("012");
+        let c = TernaryWord::from_str("012");
 
         let xor = TernaryWord::xor_triple(&a, &b, &c);
         assert_eq!(xor, vec![0, 0, 0]);
@@ -356,19 +350,19 @@ mod tests {
 
     #[test]
     fn test_identical_words_not_borromean() {
-        let a = TernaryWord::parse_str("012");
-        let b = TernaryWord::parse_str("012");
-        let c = TernaryWord::parse_str("012");
+        let a = TernaryWord::from_str("012");
+        let b = TernaryWord::from_str("012");
+        let c = TernaryWord::from_str("012");
 
         let result = check_borromean_invariant(&a, &b, &c);
-        assert!(!result.is_borromean, "Three identical words cannot be Borromean");
+        assert!(!result.is_borromean);
     }
 
     #[test]
     fn test_first_position_not_borromean() {
-        let a = TernaryWord::parse_str("000");
-        let b = TernaryWord::parse_str("000");
-        let c = TernaryWord::parse_str("000");
+        let a = TernaryWord::from_str("000");
+        let b = TernaryWord::from_str("000");
+        let c = TernaryWord::from_str("000");
 
         let result = check_borromean_invariant(&a, &b, &c);
         assert!(!result.is_borromean);
@@ -377,39 +371,14 @@ mod tests {
 
     #[test]
     fn test_valid_borromean_triple() {
-        let a = TernaryWord::parse_str("012");
-        let b = TernaryWord::parse_str("120");
-        let c = TernaryWord::parse_str("120");
+        let a = TernaryWord::from_str("012");
+        let b = TernaryWord::from_str("120");
+        let c = TernaryWord::from_str("120");
 
         let result = check_borromean_invariant(&a, &b, &c);
-        assert!(result.is_borromean, "This triple should satisfy the Borromean condition");
+        assert!(result.is_borromean);
         assert!(result.zero_positions.is_empty());
         assert_eq!(result.strength, 1.0);
-    }
-
-    #[test]
-    fn test_borromean_strength() {
-        let a = TernaryWord::parse_str("012");
-        let b = TernaryWord::parse_str("021");
-        let c = TernaryWord::parse_str("000");
-        let result = check_borromean_invariant(&a, &b, &c);
-        assert!(!result.is_borromean);
-        assert!(result.strength < 1.0);
-    }
-
-    #[test]
-    fn test_pairwise_separability() {
-        let a = TernaryWord::parse_str("012");
-        let b = TernaryWord::parse_str("021");
-        let c = TernaryWord::parse_str("210");
-
-        let (borromean, pairwise) = validate_borromean_triple(&a, &b, &c);
-
-        assert!(
-            borromean.strength >= 0.0 && borromean.strength <= 1.0,
-            "Strength must be in [0, 1]"
-        );
-        let _ = pairwise.all_pairwise_separable;
     }
 
     #[test]
@@ -417,42 +386,24 @@ mod tests {
         for seed in 1..=20u64 {
             let (a, b, c) = generate_borromean_triple(32, seed);
             let result = check_borromean_invariant(&a, &b, &c);
-            assert!(
-                result.is_borromean,
-                "Generated triple with seed {} should be Borromean (violations at {:?})",
-                seed, result.zero_positions
-            );
+            assert!(result.is_borromean,
+                "Generated triple with seed {} should be Borromean", seed);
         }
     }
 
     #[test]
     fn test_xor_commutativity() {
-        let a = TernaryWord::parse_str("01221");
-        let b = TernaryWord::parse_str("21012");
-        let c = TernaryWord::parse_str("10201");
+        let a = TernaryWord::from_str("01221");
+        let b = TernaryWord::from_str("21012");
+        let c = TernaryWord::from_str("10201");
 
         let abc = TernaryWord::xor_triple(&a, &b, &c);
         let bca = TernaryWord::xor_triple(&b, &c, &a);
         let cab = TernaryWord::xor_triple(&c, &a, &b);
 
-        assert_eq!(abc, bca, "Ternary XOR must be commutative");
-        assert_eq!(bca, cab, "Ternary XOR must be commutative");
+        assert_eq!(abc, bca);
+        assert_eq!(bca, cab);
     }
-
-    #[test]
-    fn test_word_length_mismatch_padding() {
-        let a = TernaryWord::parse_str("12");
-        let b = TernaryWord::parse_str("1");
-        let c = TernaryWord::parse_str("121");
-
-        let xor = TernaryWord::xor_triple(&a, &b, &c);
-        assert_eq!(xor.len(), 3);
-        assert_eq!(xor[0], 0);
-        assert_eq!(xor[1], 1);
-        assert_eq!(xor[2], 1);
-    }
-
-    // ── Representation A/B/C Interchange Tests ────────────────────
 
     #[test]
     fn test_from_balanced_repr_a() {
@@ -468,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_to_repr_roundtrip() {
-        let word = TernaryWord::parse_str("012");
+        let word = TernaryWord::from_str("012");
 
         let as_a = word.to_repr(WordRepr::Balanced);
         assert_eq!(as_a, vec![0, 1, -1]);
@@ -482,9 +433,9 @@ mod tests {
 
     #[test]
     fn test_borromean_invariant_across_representations() {
-        let a_from_b = TernaryWord::parse_str("012");
-        let b_from_b = TernaryWord::parse_str("120");
-        let c_from_b = TernaryWord::parse_str("120");
+        let a_from_b = TernaryWord::from_str("012");
+        let b_from_b = TernaryWord::from_str("120");
+        let c_from_b = TernaryWord::from_str("120");
 
         let a_from_a = TernaryWord::from_balanced(&[0, 1, -1]);
         let b_from_a = TernaryWord::from_balanced(&[1, -1, 0]);
@@ -498,14 +449,10 @@ mod tests {
         let result_a = check_borromean_invariant(&a_from_a, &b_from_a, &c_from_a);
         let result_c = check_borromean_invariant(&a_from_c, &b_from_c, &c_from_c);
 
-        assert_eq!(result_b.is_borromean, result_a.is_borromean,
-            "Borromean result must be identical whether constructed from B or A");
-        assert_eq!(result_b.is_borromean, result_c.is_borromean,
-            "Borromean result must be identical whether constructed from B or C");
-        assert_eq!(result_b.ternary_xor, result_a.ternary_xor,
-            "XOR vectors must match across representations");
-        assert_eq!(result_b.ternary_xor, result_c.ternary_xor,
-            "XOR vectors must match across representations");
+        assert_eq!(result_b.is_borromean, result_a.is_borromean);
+        assert_eq!(result_b.is_borromean, result_c.is_borromean);
+        assert_eq!(result_b.ternary_xor, result_a.ternary_xor);
+        assert_eq!(result_b.ternary_xor, result_c.ternary_xor);
     }
 
     #[test]

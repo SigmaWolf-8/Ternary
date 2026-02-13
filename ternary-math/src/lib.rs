@@ -18,6 +18,7 @@
 //!
 //! ## Modules
 //!
+//! - **constants**: Unified shared constants — singular source of truth for all modules
 //! - **gf3**: Galois Field GF(3) arithmetic with exhaustive axiom verification
 //! - **clifford**: Clifford algebra Cl(3,0)/GF(3) for ternary gate composition
 //! - **radix**: Radix economy analysis quantifying ternary efficiency
@@ -26,6 +27,7 @@
 //! - **tribonacci**: Native base-3 Tribonacci generator with A/B/C representation interchange
 //! - **borromean**: Borromean ternary XOR invariant for three-party cryptographic protocols
 
+pub mod constants;
 pub mod gf3;
 pub mod clifford;
 pub mod radix;
