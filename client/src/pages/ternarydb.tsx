@@ -53,6 +53,9 @@ import {
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
 
 const TERNARY_MIN_SAVINGS = 0.56;
 const TERNARY_MAX_SAVINGS = 0.62;
@@ -526,6 +529,398 @@ SET ternarydb.efficiency_target = 1.59;  -- 59% improvement`;
             <CodeBlock code={queryCode} language="sql" title="queries.sql" />
           </motion.div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+type HookRow = { description: string; value: string };
+type PermRow = { step_num: number; hash_position: number };
+type CoverageRow = { residue: number; first_seen_at: number | null; times_seen: string };
+type DistRow = { shard: number; key_count: string };
+type TribApiResponse<T> = { success: boolean; data: T };
+type TribDistResponse = { success: boolean; distribution: DistRow[] };
+
+function TribonacciIndexingSection() {
+  const [hashKey, setHashKey] = useState("12345");
+  const [hashResult, setHashResult] = useState<{ shard_28: number; trib_hash: number } | null>(null);
+  const [generatedId, setGeneratedId] = useState<string | null>(null);
+  const [workerHistory, setWorkerHistory] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState<"hook" | "permutation" | "coverage" | "distribution">("hook");
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const inView = useInView(sectionRef, { once: true });
+
+  const hookQuery = useQuery<TribApiResponse<HookRow[]>>({
+    queryKey: ["/api/tribonacci/hook"],
+    enabled: inView,
+  });
+
+  const permQuery = useQuery<TribApiResponse<PermRow[]>>({
+    queryKey: ["/api/tribonacci/permutation"],
+    enabled: inView,
+  });
+
+  const coverageQuery = useQuery<TribApiResponse<CoverageRow[]>>({
+    queryKey: ["/api/tribonacci/coverage?terms=200"],
+    enabled: inView,
+  });
+
+  const distQuery = useQuery<TribDistResponse>({
+    queryKey: ["/api/tribonacci/hash-distribution?count=10000"],
+    enabled: inView,
+  });
+
+  const hashMutation = useMutation({
+    mutationFn: async (key: number) => {
+      const res = await apiRequest("GET", `/api/tribonacci/hash?key=${key}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) setHashResult({ shard_28: data.shard_28, trib_hash: data.trib_hash });
+    },
+  });
+
+  const idMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/tribonacci/generate-id");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) setGeneratedId(data.id);
+    },
+  });
+
+  const workerMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("GET", "/api/tribonacci/next-worker");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) setWorkerHistory(prev => [...prev.slice(-27), data.worker_id]);
+    },
+  });
+
+  const computeHash = () => {
+    const key = parseInt(hashKey);
+    if (!isNaN(key)) hashMutation.mutate(key);
+  };
+
+  const hookData = hookQuery.data?.data ?? [];
+  const permData = permQuery.data?.data ?? [];
+  const coverageData = coverageQuery.data?.data ?? [];
+  const distData = distQuery.data?.distribution ?? [];
+  const maxCount = distData.length > 0 ? Math.max(...distData.map(d => parseInt(d.key_count))) : 1;
+  const isLoadingData = hookQuery.isLoading || permQuery.isLoading || coverageQuery.isLoading || distQuery.isLoading;
+
+  const TABS: { key: typeof activeTab; label: string; icon: typeof Database }[] = [
+    { key: "hook", label: "Hook Demo", icon: Zap },
+    { key: "permutation", label: "13-Step", icon: RefreshCw },
+    { key: "coverage", label: "Residues", icon: Grid3X3 },
+    { key: "distribution", label: "Distribution", icon: BarChart3 },
+  ];
+
+  return (
+    <section id="tribonacci-indexing" className="py-20 md:py-28 bg-secondary/20" data-testid="section-tribonacci-indexing" ref={sectionRef}>
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="outline" className="mb-4" data-testid="badge-trib-label">Live PostgreSQL</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" data-testid="text-trib-title">
+              Tribonacci Indexing Layer
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+              28-fold symmetry powered by T&#8327; = 13 and the self-referential hook T&#8329; = 44.
+              Every query below runs live against the deployed PostgreSQL module.
+            </p>
+          </motion.div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card className="p-5 h-full" data-testid="card-hash-tool">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2 flex-wrap">
+                <Database className="w-4 h-4 text-muted-foreground" />
+                Ternary Radian Hash
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Maps any integer to a shard (0-27) via (key x 13) mod 28
+              </p>
+              <div className="flex gap-2 mb-3 flex-wrap">
+                <Input
+                  type="text"
+                  value={hashKey}
+                  onChange={(e) => setHashKey(e.target.value)}
+                  className="flex-1 min-w-0"
+                  placeholder="Enter key..."
+                  data-testid="input-hash-key"
+                />
+                <Button size="sm" onClick={computeHash} disabled={hashMutation.isPending} data-testid="button-compute-hash">
+                  <Play className="w-3.5 h-3.5 mr-1" />
+                  Hash
+                </Button>
+              </div>
+              {hashResult && (
+                <div className="space-y-1 text-sm" data-testid="text-hash-result">
+                  <div className="flex justify-between gap-2 flex-wrap">
+                    <span className="text-muted-foreground">trad_hash_28:</span>
+                    <span className="font-mono font-semibold">Shard {hashResult.shard_28}</span>
+                  </div>
+                  <div className="flex justify-between gap-2 flex-wrap">
+                    <span className="text-muted-foreground">tribonacci_hash:</span>
+                    <span className="font-mono font-semibold">Bucket {hashResult.trib_hash}</span>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <Card className="p-5 h-full" data-testid="card-id-gen">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2 flex-wrap">
+                <Shield className="w-4 h-4 text-muted-foreground" />
+                Anti-Hotspot ID Generator
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Generates IDs that automatically spread across 28 partitions
+              </p>
+              <Button size="sm" onClick={() => idMutation.mutate()} disabled={idMutation.isPending} className="mb-3" data-testid="button-generate-id">
+                <Zap className="w-3.5 h-3.5 mr-1" />
+                Generate ID
+              </Button>
+              {generatedId && (
+                <div className="text-sm" data-testid="text-generated-id">
+                  <span className="text-muted-foreground">ID: </span>
+                  <span className="font-mono font-semibold">{generatedId}</span>
+                  <span className="text-muted-foreground ml-2">
+                    (shard {parseInt(generatedId) % 28})
+                  </span>
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <Card className="p-5 h-full" data-testid="card-round-robin">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2 flex-wrap">
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                Round-Robin Scheduler
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Cycles through 28 workers via 13-step permutation
+              </p>
+              <Button size="sm" onClick={() => workerMutation.mutate()} disabled={workerMutation.isPending} className="mb-3" data-testid="button-next-worker">
+                <Play className="w-3.5 h-3.5 mr-1" />
+                Next Worker
+              </Button>
+              {workerHistory.length > 0 && (
+                <div className="flex gap-1 flex-wrap" data-testid="text-worker-history">
+                  {workerHistory.map((w, i) => (
+                    <Badge key={i} variant="outline" className="text-xs font-mono">
+                      {w}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card className="p-0 overflow-hidden" data-testid="card-trib-explorer">
+            <div className="flex border-b flex-wrap">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === tab.key
+                      ? "bg-accent text-foreground border-b-2 border-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                  data-testid={`button-tab-${tab.key}`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-5">
+              {isLoadingData && (
+                <div className="flex items-center justify-center py-8 text-sm text-muted-foreground" data-testid="text-loading">
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Loading data from PostgreSQL...
+                </div>
+              )}
+              {!isLoadingData && activeTab === "hook" && (
+                <div data-testid="panel-hook">
+                  <h3 className="text-base font-semibold mb-1">Self-Referential Hook</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    T&#8329; = 44 points back into the sequence: T&#8324;&#8324; = 80,641,778,674. The identity 13 x 28 = 364 = 111111&#8323; completes the circle.
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 pr-4 text-muted-foreground font-medium">Property</th>
+                          <th className="text-right py-2 text-muted-foreground font-medium">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hookData.map((row, i) => (
+                          <tr key={i} className="border-b last:border-0">
+                            <td className="py-2 pr-4">{row.description}</td>
+                            <td className="py-2 text-right font-mono font-semibold">{row.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {!isLoadingData && activeTab === "permutation" && (
+                <div data-testid="panel-permutation">
+                  <h3 className="text-base font-semibold mb-1">13-Step Permutation</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Since gcd(13, 28) = 1, multiplying by 13 mod 28 visits all 28 positions. This is the engine powering every hash function in the module.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {permData.map((row) => (
+                      <div
+                        key={row.step_num}
+                        className="flex flex-col items-center rounded-md border px-2 py-1.5 min-w-[3rem]"
+                        data-testid={`perm-step-${row.step_num}`}
+                      >
+                        <span className="text-[10px] text-muted-foreground">{row.step_num}</span>
+                        <span className="text-sm font-mono font-semibold">{row.hash_position}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!isLoadingData && activeTab === "coverage" && (
+                <div data-testid="panel-coverage">
+                  <h3 className="text-base font-semibold mb-1">Mod-28 Residue Coverage</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Tribonacci mod 28 visits 20 of 28 residues. The 13-step permutation (not the sequence itself) provides full coverage.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {coverageData.map((row) => {
+                      const hit = row.first_seen_at !== null && parseInt(row.times_seen) > 0;
+                      return (
+                        <div
+                          key={row.residue}
+                          className={`flex flex-col items-center rounded-md border px-2 py-1.5 min-w-[3rem] ${
+                            hit ? "bg-accent" : "opacity-40"
+                          }`}
+                          data-testid={`coverage-residue-${row.residue}`}
+                        >
+                          <span className="text-sm font-mono font-semibold">{row.residue}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {hit ? `${row.times_seen}x` : "miss"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {!isLoadingData && activeTab === "distribution" && (
+                <div data-testid="panel-distribution">
+                  <h3 className="text-base font-semibold mb-1">Hash Distribution (10,000 keys)</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    trad_hash_28 applied to keys 1-10,000. Perfect distribution means max-min spread of 1.
+                  </p>
+                  <div className="space-y-1">
+                    {distData.map((row) => {
+                      const count = parseInt(row.key_count);
+                      const pct = (count / maxCount) * 100;
+                      return (
+                        <div key={row.shard} className="flex items-center gap-2" data-testid={`dist-shard-${row.shard}`}>
+                          <span className="text-xs font-mono w-6 text-right text-muted-foreground">{row.shard}</span>
+                          <div className="flex-1 h-4 rounded-sm bg-secondary overflow-hidden">
+                            <div
+                              className="h-full bg-foreground/20 rounded-sm transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-mono w-10 text-right">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="mt-8"
+        >
+          <Card className="p-6 border-dashed" data-testid="card-trib-findings">
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2 flex-wrap">
+              <FlaskConical className="w-4 h-4 text-muted-foreground" />
+              Verified Properties
+            </h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              {[
+                { label: "T\u2087 = 13", desc: "Ternary radian", verified: true },
+                { label: "T\u2089 = 44", desc: "The hook index", verified: true },
+                { label: "T\u2084\u2084 = 80,641,778,674", desc: "Hook target", verified: true },
+                { label: "13 \u00d7 28 = 364 = 111111\u2083", desc: "Full circle", verified: true },
+                { label: "(n \u00d7 13) mod 28", desc: "Complete permutation", verified: true },
+                { label: "Trib mod 28", desc: "20/28 partial coverage", verified: false },
+                { label: "Hash spread", desc: "Max-min = 1 (10K keys)", verified: true },
+                { label: "Round-robin", desc: "Returns to 0 after 28", verified: true },
+              ].map((prop) => (
+                <div key={prop.label} className="flex items-start gap-2">
+                  {prop.verified ? (
+                    <Check className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                  ) : (
+                    <span className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0 text-center text-xs font-bold">~</span>
+                  )}
+                  <div>
+                    <span className="font-mono font-medium">{prop.label}</span>
+                    <p className="text-muted-foreground text-xs">{prop.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
       </div>
     </section>
   );
@@ -1810,6 +2205,7 @@ export default function SalviDB() {
         <FeaturesSection />
         <ArchitectureSection />
         <InstallationSection />
+        <TribonacciIndexingSection />
         <LiveDemoSection />
         <PerformanceSection />
         <UseCasesSection />

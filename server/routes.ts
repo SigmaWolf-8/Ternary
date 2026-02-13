@@ -22,6 +22,7 @@ import { z } from "zod";
 import { registerGitHubRoutes } from "./routes/github";
 import { registerKongRoutes } from "./routes/kong";
 import { registerSalviRoutes } from "./routes/salvi";
+import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -907,6 +908,11 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to check status" });
     }
   });
+
+  // =====================================================
+  // TRIBONACCI INDEXING LAYER API — extracted to server/routes/tribonacci.ts
+  // =====================================================
+  registerTribonacciRoutes(app);
 
   // =====================================================
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
