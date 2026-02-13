@@ -34,12 +34,18 @@
 //! forms a **finite cyclic group of order 28**. The Tribonacci word,
 //! read modulo 28, produces a dense subset that covers all residues.
 
-use crate::constants::{
+pub use crate::constants::{
     FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
     TAU_TRIBONACCI, TAU_SQUARED, TAU_CUBED,
     TRIBONACCI_GOLDEN_ANGLE_DEG, FULL_CIRCLE_BASE3, RADIAN_BASE3,
-    CYCLIC_ORDER,
-    ternary_rad_to_std_rad,
+    CYCLIC_ORDER, RADIANS_PER_CIRCLE, Z28_DIMENSIONS,
+    Z28_GENERATOR, Z28_CO_GENERATOR,
+    WALK_TURN_0, WALK_TURN_1, WALK_TURN_2,
+    GOLDEN_ANGLE_TERNARY_DEG, MAX_TRITS,
+    ternary_deg_to_std_deg, std_deg_to_ternary_deg,
+    ternary_rad_to_std_rad, std_rad_to_ternary_rad,
+    ternary_deg_to_ternary_rad, ternary_rad_to_ternary_deg,
+    trit_to_walk_angle_deg, trit_to_std_rad,
 };
 
 
@@ -112,6 +118,18 @@ impl Z28 {
     /// Since the Clifford algebra operates over GF(3), this maps the
     /// 28-element group to its GF(3) residue: position mod 3.
     /// This is the projection used by the Clifford bridge.
+    ///
+    /// # Fiber sizes (non-uniform)
+    ///
+    /// Because 28 is not divisible by 3, the fibers are **not** equal:
+    /// - Residue 0: 10 positions (0, 3, 6, 9, 12, 15, 18, 21, 24, 27)
+    /// - Residue 1:  9 positions (1, 4, 7, 10, 13, 16, 19, 22, 25)
+    /// - Residue 2:  9 positions (2, 5, 8, 11, 14, 17, 20, 23, 26)
+    ///
+    /// This 10/9/9 imbalance is acceptable for classification and
+    /// visualization but **must not** feed into any security-sensitive
+    /// path without additional mitigation (e.g., rejecting position 27
+    /// to obtain uniform 9/9/9 fibers over positions 0–26).
     pub fn to_gf3_residue(self) -> u8 {
         self.0 % 3
     }
