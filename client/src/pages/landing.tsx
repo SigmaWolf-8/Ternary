@@ -76,7 +76,7 @@ function HeroVisual() {
   const layers = [
     { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
     { label: "Protocols", items: ["HPTP", "T3P", "TTP", "TDNS"], delay: 0.6 },
-    { label: "Virtual Machine", items: ["35 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
+    { label: "Virtual Machine", items: ["55 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
   ];
@@ -429,7 +429,7 @@ function PlatformSection() {
     },
     {
       icon: Terminal,
-      title: "35-Opcode Virtual Machine",
+      title: "55-Opcode Virtual Machine",
       description: "Register-based VM with ternary-native instructions, garbage collection, and full execution engine.",
       stats: "27 registers",
     },
@@ -519,7 +519,7 @@ function ArchitectureSection() {
     },
     {
       label: "Virtual Machine",
-      items: ["35-Opcode ISA", "27 Ternary Registers", "TAGC Garbage Collector", "GF(3) Arithmetic"],
+      items: ["55-Opcode ISA", "27 Ternary Registers", "TAGC Garbage Collector", "GF(3) Arithmetic"],
       color: "bg-primary/20 border-primary/50",
     },
     {
