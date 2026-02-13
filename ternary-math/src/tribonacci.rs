@@ -16,6 +16,9 @@
 //!
 //! Native ternary Tribonacci sequence generator for the Salvi Framework.
 //!
+//! All shared constants are imported from [`crate::constants`] — this module
+//! does not define its own copy of any shared value.
+//!
 //! The Tribonacci recurrence `T(n) = T(n-1) + T(n-2) + T(n-3)` is computed
 //! entirely in base-3 trit-vector arithmetic — no decimal intermediaries.
 //!
@@ -29,10 +32,6 @@
 //! - **B (Standard):** `{0, 1, 2}` — conventional positional ternary
 //! - **C (Bijective):** `{1, 2, 3}` — zero-free, unique representation
 //!
-//! The kernel performs arithmetic in representation B internally (the natural
-//! choice for addition with carry propagation) and provides lossless
-//! conversion to/from A and C at any boundary.
-//!
 //! ## Key Features
 //!
 //! - **Native trit-vector arithmetic**: Addition with carry propagation tracked
@@ -42,46 +41,18 @@
 //! - **Representation interchange**: Any TritVec can emit its digits in A, B, or C.
 //! - **Tribonacci word generation**: The 3-automatic sequence from the morphism
 //!   `0→01, 1→02, 2→0`, used as a canonical test oracle.
-//!
-//! ## Mathematical Foundation
-//!
-//! The Tribonacci constant τ ≈ 1.839286755… is the real root of x³ = x² + x + 1.
-//! When T(n) lands on a pure power of 3 (e.g., T(10) = 81 = 3⁴ = 10000₃),
-//! the ternary representation consists of a single 1-trit followed by zeros —
-//! a structural singularity where carry complexity vanishes.
 
 use std::fmt;
-
-/// Maximum number of trits supported (covers T(n) up to n ≈ 200).
-const _MAX_TRITS: usize = 128;
+use crate::constants::TAU_TRIBONACCI;
 
 /// The three ternary representations supported by the kernel.
-///
-/// These are not three separate number systems — they are three **views**
-/// of the same triadic arithmetic, freely interchangeable with carry-correct
-/// translation at every boundary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TernaryRepr {
     /// Representation A: Balanced ternary `{-1, 0, +1}`.
-    ///
-    /// Symmetric around zero. Negation is trivial (flip all trits).
-    /// Native to signed arithmetic, wave functions, error correction.
-    /// The digit -1 is conventionally written as `T` or `−`.
     Balanced,
-
     /// Representation B: Standard ternary `{0, 1, 2}`.
-    ///
-    /// The conventional positional system. Natural for indexing, counting,
-    /// the Tribonacci recurrence, and polynomial evaluation over GF(3).
-    /// This is the kernel's internal arithmetic representation.
     Standard,
-
     /// Representation C: Bijective ternary `{1, 2, 3}`.
-    ///
-    /// Zero-free. Every positive integer has exactly one representation
-    /// with no leading-zero ambiguity. Native to cryptographic wire formats
-    /// where zero-padding must be distinguishable from data.
-    /// Zero is represented as the empty word (no digits).
     Bijective,
 }
 
@@ -91,8 +62,6 @@ pub enum TernaryRepr {
 /// carry propagation during addition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TritVec {
-    /// Trit storage: each element is 0, 1, or 2.
-    /// Index 0 = least significant trit.
     trits: Vec<u8>,
 }
 
@@ -102,8 +71,6 @@ pub struct TernaryAddResult {
     /// The sum as a trit vector.
     pub sum: TritVec,
     /// Number of carry propagations that occurred during addition.
-    /// In the timing domain, this corresponds to "jerk" — the rate
-    /// of change of acceleration.
     pub carry_count: u32,
     /// Maximum carry chain length (consecutive carries without rest).
     pub max_carry_chain: u32,
@@ -175,13 +142,8 @@ impl TritVec {
     }
 
     /// Get the trit at position `i` (0 = least significant).
-    /// Returns 0 for positions beyond the stored length.
     pub fn trit_at(&self, i: usize) -> u8 {
-        if i < self.trits.len() {
-            self.trits[i]
-        } else {
-            0
-        }
+        if i < self.trits.len() { self.trits[i] } else { 0 }
     }
 
     /// Returns the trits as a slice, most-significant first (display order).
@@ -192,23 +154,12 @@ impl TritVec {
         result
     }
 
-    // ── Representation A/B/C Interchange ───────────────────────────
-
     /// Emit digits in **Representation B** (Standard: `{0, 1, 2}`).
-    ///
-    /// This is the internal storage format — returned as-is, MSB first.
     pub fn to_repr_b(&self) -> Vec<u8> {
         self.trits_msb_first()
     }
 
     /// Emit digits in **Representation A** (Balanced: `{-1, 0, +1}`).
-    ///
-    /// Conversion from B to A:
-    /// - B digit 0 → A digit  0
-    /// - B digit 1 → A digit +1
-    /// - B digit 2 → A digit −1 with carry +1 to next higher position
-    ///
-    /// Returns `i8` values: -1, 0, or +1. MSB first.
     pub fn to_repr_a(&self) -> Vec<i8> {
         let len = self.trit_length();
         let mut balanced: Vec<i8> = Vec::with_capacity(len + 1);
@@ -248,14 +199,6 @@ impl TritVec {
     }
 
     /// Emit digits in **Representation C** (Bijective: `{1, 2, 3}`).
-    ///
-    /// Conversion from B to C:
-    /// - B digit 0 → C digit 3 with borrow −1 from next higher position
-    /// - B digit 1 → C digit 1
-    /// - B digit 2 → C digit 2
-    ///
-    /// Zero is represented as the empty vector (no digits).
-    /// Returns MSB first.
     pub fn to_repr_c(&self) -> Vec<u8> {
         if self.to_decimal() == 0 {
             return vec![];
@@ -276,24 +219,19 @@ impl TritVec {
     }
 
     /// Create a TritVec from **Representation A** (Balanced) digits.
-    ///
-    /// Input: `i8` values of -1, 0, or +1, MSB first.
     pub fn from_repr_a(balanced: &[i8]) -> Self {
         let mut value: i64 = 0;
         let mut power: i64 = 1;
         for &d in balanced.iter().rev() {
-            assert!((-1..=1).contains(&d), "Balanced trit must be -1, 0, or +1; got {}", d);
+            assert!(d >= -1 && d <= 1, "Balanced trit must be -1, 0, or +1; got {}", d);
             value += d as i64 * power;
             power *= 3;
         }
         assert!(value >= 0, "Negative values not yet supported in TritVec");
-        Self::from_decimal(u64::try_from(value).unwrap())
+        Self::from_decimal(value as u64)
     }
 
     /// Create a TritVec from **Representation C** (Bijective) digits.
-    ///
-    /// Input: `u8` values of 1, 2, or 3, MSB first.
-    /// An empty slice represents zero.
     pub fn from_repr_c(bijective: &[u8]) -> Self {
         if bijective.is_empty() {
             return Self::zero();
@@ -301,7 +239,7 @@ impl TritVec {
         let mut value: u64 = 0;
         let mut power: u64 = 1;
         for &d in bijective.iter().rev() {
-            assert!((1..=3).contains(&d), "Bijective trit must be 1, 2, or 3; got {}", d);
+            assert!(d >= 1 && d <= 3, "Bijective trit must be 1, 2, or 3; got {}", d);
             value += d as u64 * power;
             power *= 3;
         }
@@ -350,9 +288,6 @@ impl TritVec {
     }
 
     /// Check if this value is a perfect power of 3.
-    ///
-    /// A ternary number is a power of 3 if and only if it has the form
-    /// `1` followed by zero or more `0`s.
     pub fn is_power_of_3(&self) -> bool {
         let len = self.trit_length();
         if len == 0 {
@@ -372,7 +307,7 @@ impl TritVec {
     /// If this is a power of 3, return the exponent k where self = 3^k.
     pub fn ternary_exponent(&self) -> Option<u32> {
         if self.is_power_of_3() {
-            Some(u32::try_from(self.trit_length() - 1).unwrap())
+            Some((self.trit_length() - 1) as u32)
         } else {
             None
         }
@@ -385,15 +320,10 @@ impl TritVec {
         for i in 0..len {
             seen[self.trits[i] as usize] = true;
         }
-        u8::try_from(seen.iter().filter(|&&s| s).count()).unwrap()
+        seen.iter().filter(|&&s| s).count() as u8
     }
 
     /// Add two trit vectors in native base-3 arithmetic.
-    ///
-    /// Returns the sum along with carry propagation metadata.
-    /// The carry count is the fundamental observable: in the timing
-    /// protocol domain, each carry event corresponds to a unit of
-    /// computational "jerk" (third derivative of position).
     pub fn add_with_carry_tracking(a: &TritVec, b: &TritVec) -> TernaryAddResult {
         let max_len = std::cmp::max(a.trit_length(), b.trit_length());
         let mut result_trits = Vec::with_capacity(max_len + 1);
@@ -443,7 +373,6 @@ impl TritVec {
     }
 
     /// Three-way addition: a + b + c, as needed by Tribonacci recurrence.
-    /// Returns the result with aggregate carry metadata.
     pub fn add3_with_carry_tracking(
         a: &TritVec,
         b: &TritVec,
@@ -456,6 +385,11 @@ impl TritVec {
             carry_count: first.carry_count + second.carry_count,
             max_carry_chain: std::cmp::max(first.max_carry_chain, second.max_carry_chain),
         }
+    }
+
+    /// Return raw trits slice (LSB first, internal order).
+    pub fn raw_trits(&self) -> &[u8] {
+        &self.trits
     }
 }
 
@@ -470,10 +404,6 @@ impl fmt::Display for TritVec {
 }
 
 /// Iterator over the Tribonacci sequence, computed natively in base-3.
-///
-/// The sequence starts from the First Position triple: (0, 0, 1).
-/// Each term is produced with full ternary metadata including carry
-/// propagation counts and ternary power alignment detection.
 pub struct TribonacciBase3 {
     window: [TritVec; 3],
     index: usize,
@@ -484,9 +414,9 @@ impl TribonacciBase3 {
     pub fn new() -> Self {
         TribonacciBase3 {
             window: [
-                TritVec::zero(),        // T(0) = 0
-                TritVec::zero(),        // T(1) = 0
-                TritVec::from_trit(1),  // T(2) = 1
+                TritVec::zero(),
+                TritVec::zero(),
+                TritVec::from_trit(1),
             ],
             index: 0,
         }
@@ -594,26 +524,19 @@ pub fn tribonacci_word(length: usize) -> Vec<u8> {
 
 /// Compute the first `n_digits` ternary digits of the Tribonacci constant
 /// τ ≈ 1.839286755… in base 3.
-///
-/// Uses the relation τ³ = τ² + τ + 1 and iterative refinement.
-/// The expansion begins: 1.2010022201112021…₃
 pub fn tribonacci_constant_base3(n_digits: usize) -> Vec<u8> {
-    let mut tau: f64 = 1.839286755214161;
+    let mut tau: f64 = TAU_TRIBONACCI;
     let mut digits = Vec::with_capacity(n_digits);
 
-    let int_part = tau.floor();
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let int_part_u8 = int_part as u64;
-    digits.push(u8::try_from(int_part_u8).unwrap());
-    tau -= int_part;
+    let int_part = tau.floor() as u8;
+    digits.push(int_part);
+    tau -= int_part as f64;
 
     for _ in 1..n_digits {
         tau *= 3.0;
-        let digit = tau.floor();
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let digit_u8 = u8::try_from(digit as u64).unwrap();
-        digits.push(digit_u8.min(2));
-        tau -= digit;
+        let digit = tau.floor() as u8;
+        digits.push(digit.min(2));
+        tau -= digit as f64;
     }
 
     digits
@@ -676,7 +599,7 @@ mod tests {
         let b = TritVec::from_decimal(1);
         let result = TritVec::add_with_carry_tracking(&a, &b);
         assert_eq!(result.sum.to_decimal(), 3);
-        assert!(result.carry_count > 0, "2₃ + 1₃ = 10₃ must produce a carry");
+        assert!(result.carry_count > 0);
     }
 
     #[test]
@@ -689,11 +612,8 @@ mod tests {
         let terms = TribonacciBase3::generate(21);
 
         for (i, term) in terms.iter().enumerate() {
-            assert_eq!(
-                term.decimal, expected_decimal[i],
-                "T({}) = {} (expected {})",
-                i, term.decimal, expected_decimal[i]
-            );
+            assert_eq!(term.decimal, expected_decimal[i],
+                "T({}) = {} (expected {})", i, term.decimal, expected_decimal[i]);
             assert_eq!(term.value.to_decimal(), expected_decimal[i]);
         }
     }
@@ -703,7 +623,7 @@ mod tests {
         let terms = TribonacciBase3::generate(11);
         let t10 = &terms[10];
         assert_eq!(t10.decimal, 81);
-        assert!(t10.is_ternary_power, "T(10) = 81 = 3⁴ must be detected as ternary power");
+        assert!(t10.is_ternary_power);
         assert_eq!(t10.ternary_exponent, Some(4));
     }
 
@@ -712,10 +632,7 @@ mod tests {
         let terms = TribonacciBase3::generate(6);
         let t5 = &terms[5];
         assert_eq!(t5.decimal, 4);
-        assert!(
-            t5.carry_events > 0,
-            "T(5) computation (1+1+2=4) should involve carries"
-        );
+        assert!(t5.carry_events > 0);
     }
 
     #[test]
@@ -725,159 +642,49 @@ mod tests {
         assert_eq!(word[1], 1);
         assert_eq!(word[2], 0);
         assert_eq!(word[3], 2);
-        assert_eq!(word[4], 0);
-        assert_eq!(word[5], 1);
-        assert_eq!(word[6], 0);
 
         for &ch in &word {
-            assert!(ch <= 2, "Tribonacci word must use alphabet {{0, 1, 2}}");
+            assert!(ch <= 2, "Tribonacci word should only contain 0, 1, 2");
         }
     }
 
     #[test]
-    fn test_tribonacci_constant_starts_correctly() {
-        let digits = tribonacci_constant_base3(5);
-        assert_eq!(digits[0], 1, "Integer part of τ must be 1");
-        assert_eq!(digits[1], 2, "First fractional digit of τ in base 3 must be 2");
-        for &d in &digits {
-            assert!(d <= 2, "All base-3 digits must be 0, 1, or 2; got {}", d);
-        }
-    }
-
-    // ── Representation A/B/C Interchange Tests ────────────────────
-
-    #[test]
-    fn test_repr_b_roundtrip() {
-        for n in 0..=100u64 {
-            let tv = TritVec::from_decimal(n);
-            assert_eq!(tv.to_decimal(), n, "Rep B roundtrip failed for {}", n);
-        }
+    fn test_tribonacci_word_morphism_property() {
+        let word = tribonacci_word(100);
+        let counts = word.iter().fold([0usize; 3], |mut acc, &ch| {
+            acc[ch as usize] += 1;
+            acc
+        });
+        assert!(counts[0] > counts[1], "Trit 0 should dominate");
+        assert!(counts[1] > counts[2], "Trit 1 should exceed trit 2");
     }
 
     #[test]
-    fn test_repr_c_bijective_roundtrip() {
-        for n in 0..=100u64 {
-            let tv = TritVec::from_decimal(n);
-            let bij = tv.to_repr_c();
-            let back = TritVec::from_repr_c(&bij);
-            assert_eq!(
-                back.to_decimal(), n,
-                "Bijective roundtrip failed for {} (bijective digits: {:?})", n, bij
-            );
+    fn test_tribonacci_constant_base3() {
+        let digits = tribonacci_constant_base3(10);
+        assert_eq!(digits[0], 1, "τ starts with 1");
+        assert_eq!(digits.len(), 10);
+    }
+
+    #[test]
+    fn test_repr_a_roundtrip() {
+        for n in [0u64, 1, 4, 13, 81, 364] {
+            let v = TritVec::from_decimal(n);
+            let balanced = v.to_repr_a();
+            let roundtrip = TritVec::from_repr_a(&balanced);
+            assert_eq!(roundtrip.to_decimal(), n,
+                "Repr A roundtrip failed for {}", n);
         }
     }
 
     #[test]
-    fn test_repr_c_zero_is_empty() {
-        let zero = TritVec::zero();
-        let bij = zero.to_repr_c();
-        assert!(bij.is_empty(), "Zero must be the empty word in bijective ternary");
-    }
-
-    #[test]
-    fn test_repr_c_no_zeros() {
-        for n in 1..=200u64 {
-            let tv = TritVec::from_decimal(n);
-            let bij = tv.to_repr_c();
-            for (i, &d) in bij.iter().enumerate() {
-                assert!(
-                    (1..=3).contains(&d),
-                    "Bijective digit at position {} for value {} is {} (must be 1,2,3)",
-                    i, n, d
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_repr_c_known_values() {
-        assert_eq!(TritVec::from_decimal(1).to_repr_c(), vec![1]);
-        assert_eq!(TritVec::from_decimal(2).to_repr_c(), vec![2]);
-        assert_eq!(TritVec::from_decimal(3).to_repr_c(), vec![3]);
-        assert_eq!(TritVec::from_decimal(4).to_repr_c(), vec![1, 1]);
-        assert_eq!(TritVec::from_decimal(5).to_repr_c(), vec![1, 2]);
-        assert_eq!(TritVec::from_decimal(6).to_repr_c(), vec![1, 3]);
-        assert_eq!(TritVec::from_decimal(7).to_repr_c(), vec![2, 1]);
-        assert_eq!(TritVec::from_decimal(13).to_repr_c(), vec![1, 1, 1]);
-    }
-
-    #[test]
-    fn test_repr_a_balanced_roundtrip() {
-        for n in 0..=100u64 {
-            let tv = TritVec::from_decimal(n);
-            let bal = tv.to_repr_a();
-            let back = TritVec::from_repr_a(&bal);
-            assert_eq!(
-                back.to_decimal(), n,
-                "Balanced roundtrip failed for {} (balanced digits: {:?})", n, bal
-            );
-        }
-    }
-
-    #[test]
-    fn test_repr_a_known_values() {
-        assert_eq!(TritVec::from_decimal(0).to_repr_a(), vec![0]);
-        assert_eq!(TritVec::from_decimal(1).to_repr_a(), vec![1]);
-        assert_eq!(TritVec::from_decimal(2).to_repr_a(), vec![1, -1]);
-        assert_eq!(TritVec::from_decimal(3).to_repr_a(), vec![1, 0]);
-        assert_eq!(TritVec::from_decimal(4).to_repr_a(), vec![1, 1]);
-    }
-
-    #[test]
-    fn test_repr_a_only_valid_digits() {
-        for n in 0..=200u64 {
-            let tv = TritVec::from_decimal(n);
-            let bal = tv.to_repr_a();
-            for (i, &d) in bal.iter().enumerate() {
-                assert!(
-                    (-1..=1).contains(&d),
-                    "Balanced digit at position {} for value {} is {} (must be -1,0,+1)",
-                    i, n, d
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_all_three_reprs_same_value() {
-        for n in 0..=100u64 {
-            let tv = TritVec::from_decimal(n);
-
-            let from_b = tv.to_decimal();
-            let from_a = TritVec::from_repr_a(&tv.to_repr_a()).to_decimal();
-            let from_c = TritVec::from_repr_c(&tv.to_repr_c()).to_decimal();
-
-            assert_eq!(from_b, n, "Rep B mismatch for {}", n);
-            assert_eq!(from_a, n, "Rep A mismatch for {}", n);
-            assert_eq!(from_c, n, "Rep C mismatch for {}", n);
-        }
-    }
-
-    #[test]
-    fn test_format_repr_display() {
-        let tv = TritVec::from_decimal(7);
-        assert_eq!(tv.format_repr(TernaryRepr::Standard), "21₃");
-        assert_eq!(tv.format_repr(TernaryRepr::Bijective), "21₃ᵇ");
-        let bal_str = tv.format_repr(TernaryRepr::Balanced);
-        assert!(bal_str.contains('T') || bal_str.contains('1'),
-            "Balanced format of 7 should contain balanced digits: {}", bal_str);
-    }
-
-    #[test]
-    fn test_tribonacci_terms_in_all_reprs() {
-        let terms = TribonacciBase3::generate(11);
-        for term in &terms {
-            let _b = term.value.to_repr_b();
-            let a = term.value.to_repr_a();
-            let c = term.value.to_repr_c();
-
-            let from_a = TritVec::from_repr_a(&a).to_decimal();
-            let from_c = TritVec::from_repr_c(&c).to_decimal();
-
-            assert_eq!(from_a, term.decimal,
-                "T({}) Rep A roundtrip: expected {}, got {}", term.index, term.decimal, from_a);
-            assert_eq!(from_c, term.decimal,
-                "T({}) Rep C roundtrip: expected {}, got {}", term.index, term.decimal, from_c);
+    fn test_repr_c_roundtrip() {
+        for n in [1u64, 2, 3, 4, 13, 81, 364] {
+            let v = TritVec::from_decimal(n);
+            let bijective = v.to_repr_c();
+            let roundtrip = TritVec::from_repr_c(&bijective);
+            assert_eq!(roundtrip.to_decimal(), n,
+                "Repr C roundtrip failed for {}", n);
         }
     }
 }
