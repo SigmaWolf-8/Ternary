@@ -1,0 +1,76 @@
+# ══════════════════════════════════════════════════════════════
+# Dependabot — Automated Dependency Updates
+# Salvi Framework · Capomastro Holdings Ltd.
+# ══════════════════════════════════════════════════════════════
+
+version: 2
+
+updates:
+  # ── Rust (libternary) ────────────────────────────────────
+  - package-ecosystem: "cargo"
+    directory: "/libternary"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"
+    reviewers:
+      - "SigmaWolf-8"
+    commit-message:
+      prefix: "[deps/rust]"
+
+  # ── npm (TypeScript application) ─────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "typescript"
+    reviewers:
+      - "SigmaWolf-8"
+    commit-message:
+      prefix: "[deps/npm]"
+    # Group minor/patch updates to reduce PR noise
+    groups:
+      production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── GitHub Actions ───────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "ci"
+    reviewers:
+      - "SigmaWolf-8"
+    commit-message:
+      prefix: "[deps/actions]"
+
+  # ── Docker ───────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/deployments/docker"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+    reviewers:
+      - "SigmaWolf-8"
+    commit-message:
+      prefix: "[deps/docker]"
