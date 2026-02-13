@@ -59,8 +59,8 @@ export const STRINGS = {
   codeSnippet: {
     badge: "Try It Now",
     title: "One API Call Away",
-    description: "70+ live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.",
-    exploreButton: "Explore All 70+ Endpoints",
+    description: "97 live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.",
+    exploreButton: "Explore All 97 Endpoints",
   },
   markets: {
     badge: "Market Opportunity",

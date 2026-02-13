@@ -129,7 +129,7 @@ const MODULES: Module[] = [
     id: "plenumnet-client",
     name: "PlenumNET Client SDK",
     version: "v0.1.0",
-    desc: "Full TypeScript client library for PlenumNET integration. 70+ API endpoint bindings, post-quantum key establishment (ML-KEM-1024), Borromean handshake protocol.",
+    desc: "Full TypeScript client library for PlenumNET integration. 97 API endpoint bindings, post-quantum key establishment (ML-KEM-1024), Borromean handshake protocol.",
     tiers: ["developer", "enterprise"],
     size: "320 KB",
     format: ".ts (npm package)",
