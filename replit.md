@@ -36,16 +36,16 @@ The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle O
 - `server/routes/middleware.ts` — Shared auth and admin middleware (49 lines)
 
 **Security Stack** (added 2026-02-12):
-- Rate limiting via express-rate-limit: global (100/min), auth (20/min), GitHub token (10/min), computation (50/min)
-- CORS restricted to Replit deployment domains
-- Helmet.js security headers (HSTS, CSP, X-Content-Type-Options)
+- Rate limiting via express-rate-limit (`server/middleware/rate-limiter.ts`): global (100/min), auth (20/min), GitHub token (10/min), computation (50/min)
+- CORS restricted to Replit deployment domains (`server/middleware/cors-config.ts`)
+- Helmet.js security headers (`server/middleware/security-headers.ts`): HSTS, X-Content-Type-Options, referrer-policy (X-Frame-Options disabled for iframe compatibility)
 - AES-256-GCM token encryption for stored credentials (`server/crypto-utils.ts`)
 - Input validation bounds: pageSize ≤ 1000, tritCount ≤ 1000, dataLength ≤ 10000, batch ≤ 100
 - `execFile()` instead of `exec()` to prevent command injection
 - Hardened `sanitizePath()` with null-byte stripping and double-encoding protection
 
 **Infrastructure**:
-- Structured Winston logger (`server/logger.ts`) with JSON formatting and log levels
+- Custom structured logger (`server/logger.ts`) with level-gated output (debug/info/warn/error), module-scoped context, JSON metadata, and `toErrorMessage()` helper
 - Centralized environment config (`server/config.ts`) with typed defaults and validation
 - All error handling uses `catch(error: unknown)` with `toErrorMessage()` helper
 
