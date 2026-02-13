@@ -1,0 +1,202 @@
+# ══════════════════════════════════════════════════════════════
+# Salvi Framework — Continuous Integration Pipeline
+# Capomastro Holdings Ltd. · Applied Physics Division
+#
+# Triggers: push to main, all PRs, weekly security audit
+# Matrix: Rust stable + nightly, Node 20
+# ══════════════════════════════════════════════════════════════
+
+name: Salvi Framework CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly security audit: Sunday 03:00 UTC
+    - cron: '0 3 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  NODE_VERSION: '20'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ── Rust Core: libternary ────────────────────────────────
+  rust-test:
+    name: Rust · ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, nightly]
+    defaults:
+      run:
+        working-directory: libternary
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            libternary/target
+          key: rust-${{ matrix.toolchain }}-${{ hashFiles('libternary/Cargo.lock') }}
+          restore-keys: rust-${{ matrix.toolchain }}-
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build (release)
+        run: cargo build --release --all-features
+
+      - name: Test (all features)
+        run: cargo test --release --all-features -- --nocapture
+
+      - name: Test (no default features — minimal build)
+        run: cargo test --no-default-features
+
+      - name: Doc generation
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  # ── Rust WASM Target ─────────────────────────────────────
+  rust-wasm:
+    name: Rust · WASM
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libternary
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM (release)
+        run: wasm-pack build --release --target web
+
+  # ── Rust Security Audit ──────────────────────────────────
+  rust-audit:
+    name: Rust · Security Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libternary
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Audit dependencies
+        run: cargo audit
+
+  # ── TypeScript Application ───────────────────────────────
+  typescript:
+    name: TypeScript · Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Build (production)
+        run: npm run build
+
+  # ── Integration Tests ────────────────────────────────────
+  integration:
+    name: Integration · Mathematical Properties
+    needs: [rust-test, typescript]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run integration tests
+        working-directory: libternary
+        run: cargo test --release --test '*' -- --nocapture
+
+  # ── Dependency Review (PRs only) ─────────────────────────
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: AGPL-3.0, GPL-3.0
+
+  # ── SBOM Generation (main only) ──────────────────────────
+  sbom:
+    name: SBOM · Software Bill of Materials
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate SBOM (Rust)
+        uses: anchore/sbom-action@v0
+        with:
+          path: libternary/
+          format: cyclonedx-json
+          output-file: sbom-rust.json
+
+      - name: Generate SBOM (Node)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-node.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom-*.json
+          retention-days: 90
