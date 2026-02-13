@@ -1922,13 +1922,12 @@ function PricingSection() {
     {
       name: "Community",
       price: "Free",
-      description: "Open source core features",
+      description: "Core features for community use",
       features: [
         "Ternary data types",
         "Basic compression",
         "Standard SQL support",
         "Community support",
-        "Open Source",
       ],
       cta: "Download",
       ctaLink: "https://github.com/SigmaWolf-8/Ternary",
@@ -2134,7 +2133,7 @@ function CTASection() {
               Ready to Save 59% on Storage?
             </h2>
             <p className="text-lg opacity-90 mb-8 max-w-xl mx-auto">
-              Get started with PlenumDB today. Open source and free for community use.
+              Get started with PlenumDB today. Free for community use.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button 

@@ -380,7 +380,7 @@ function HeroSection() {
             <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
             <AnimatedStat value="1,011" label="Tests Passing" delay={0.28} />
             <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
-            <AnimatedStat value="35" label="VM Opcodes" delay={0.34} />
+            <AnimatedStat value="55" label="VM Opcodes" delay={0.34} />
           </div>
           <HeroVisual />
           <HeroDemo />
@@ -739,7 +739,7 @@ function ComponentsSection() {
       badge: "Virtual Machine",
       icon: Terminal,
       title: "Ternary VM (TVM)",
-      description: "35-opcode register-based virtual machine with ternary-native arithmetic and automatic memory management.",
+      description: "55-opcode register-based virtual machine with ternary-native arithmetic and automatic memory management.",
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
         "GF(3) ops: TAdd, TMul, TNeg, TRot, TXor",

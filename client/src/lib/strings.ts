@@ -33,7 +33,7 @@ export const STRINGS = {
     density: { value: "+59", suffix: "%", label: "vs Binary Density" },
     tests: { value: "1,011", label: "Tests Passing" },
     milestones: { value: "80/80", label: "Milestones Complete" },
-    opcodes: { value: "35", label: "VM Opcodes" },
+    opcodes: { value: "55", label: "VM Opcodes" },
   },
   platform: {
     badge: "Complete Platform",

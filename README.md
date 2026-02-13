@@ -12,7 +12,7 @@ Post-quantum ternary computing platform implementing the Unified 13D Torsion Ple
 | CNSA 2.0 coverage | 11/11 algorithms (100%) |
 | Test count | 1,011+ |
 | CMVP target | FIPS 140-3 Level 1 |
-| VM opcodes | 35 |
+| VM opcodes | 55 |
 
 ## Architecture
 
