@@ -232,6 +232,143 @@ impl fmt::Display for TopologyComparison {
     }
 }
 
+/// Ternary Circle Bridge — connecting torus topology to Z₂₈ geometry.
+///
+/// This bridge maps Z₂₈ cyclic group positions to torus node addresses,
+/// enabling Tribonacci-guided walks on the torus network. The integration
+/// connects the angular geometry of the ternary circle (28 discrete positions)
+/// with the GF(3)-addressed torus topology.
+///
+/// ## Architecture
+///
+/// Z₂₈ positions are decomposed into torus coordinates via mod-3 projections:
+/// - Position → [pos mod 3, (pos/1) mod 3, (pos/3) mod 3, ...]
+/// - This maps the 28-element cyclic group into a multi-dimensional GF(3) lattice
+///
+/// Tribonacci word digits drive walks on both Z₂₈ and the torus simultaneously,
+/// providing a unified walk model across angular and topological spaces.
+pub mod ternary_circle_bridge {
+    use super::*;
+    use crate::constants::{TAU_TRIBONACCI, TORUS_RADIX};
+    use crate::ternary_circle::Z28;
+    use crate::tribonacci::tribonacci_word;
+
+    /// Map a Z₂₈ position to a torus address by decomposing the position
+    /// into GF(3) coordinates across `dims` dimensions.
+    ///
+    /// The mapping uses successive division by 3:
+    ///   coord[0] = pos mod 3
+    ///   coord[1] = (pos / 3) mod 3
+    ///   coord[2] = (pos / 9) mod 3
+    ///   ...
+    ///
+    /// This embeds Z₂₈ into the torus lattice GF(3)^dims.
+    pub fn z28_to_torus_address(pos: Z28, dims: usize) -> TorusAddress {
+        let mut value = pos.value() as u32;
+        let mut trits = Vec::with_capacity(dims);
+        for _ in 0..dims {
+            let gf3_val = match value % TORUS_RADIX {
+                0 => Gf3::ZERO,
+                1 => Gf3::ONE,
+                2 => Gf3::TWO,
+                _ => unreachable!(),
+            };
+            trits.push(gf3_val);
+            value /= TORUS_RADIX;
+        }
+        TorusAddress::new(trits)
+    }
+
+    /// Map a torus address back to the nearest Z₂₈ position.
+    ///
+    /// Reconstructs a Z₂₈ position from GF(3) coordinates. Only the first
+    /// few dimensions contribute meaningfully (since 3^3 = 27 ≈ 28).
+    pub fn torus_address_to_z28(addr: &TorusAddress) -> Z28 {
+        let mut value: u32 = 0;
+        let mut power: u32 = 1;
+        let dims = std::cmp::min(addr.dimensions(), 3);
+        for i in 0..dims {
+            let trit = addr.trits.get(i);
+            let v = if trit == Gf3::ONE { 1u32 }
+                    else if trit == Gf3::TWO { 2u32 }
+                    else { 0u32 };
+            value += v * power;
+            power *= TORUS_RADIX;
+        }
+        Z28::new(value)
+    }
+
+    /// Walk the torus using Tribonacci word digits as routing instructions.
+    ///
+    /// Each Tribonacci digit (0, 1, 2) advances the torus position in a
+    /// cyclic dimension:
+    ///   0 → no hop (stay)
+    ///   1 → forward hop (+1 in GF(3))
+    ///   2 → backward hop (-1 = +2 in GF(3))
+    ///
+    /// The walk proceeds dimension-by-dimension in round-robin fashion,
+    /// creating a Tribonacci-guided path through the torus.
+    pub fn tribonacci_torus_walk(dims: usize, steps: usize) -> Vec<TorusAddress> {
+        let word = tribonacci_word(steps);
+        let mut path = Vec::with_capacity(steps + 1);
+        let mut current: Vec<Gf3> = vec![Gf3::ZERO; dims];
+        path.push(TorusAddress::new(current.clone()));
+
+        for (step, &trit) in word.iter().enumerate() {
+            let dim = step % dims;
+            let offset = match trit {
+                0 => Gf3::ZERO,
+                1 => Gf3::ONE,
+                2 => Gf3::TWO,
+                _ => unreachable!(),
+            };
+            current[dim] = current[dim] + offset;
+            path.push(TorusAddress::new(current.clone()));
+        }
+
+        path
+    }
+
+    /// Simultaneous Z₂₈ + torus walk using Tribonacci word.
+    ///
+    /// Returns pairs of (Z₂₈ angular position, torus network address)
+    /// at each step, providing unified tracking across both spaces.
+    pub fn z28_torus_walk(dims: usize, steps: usize) -> Vec<(Z28, TorusAddress)> {
+        let word = tribonacci_word(steps);
+        let mut result = Vec::with_capacity(steps);
+        let mut z28_pos = Z28::zero();
+        let mut torus_coords: Vec<Gf3> = vec![Gf3::ZERO; dims];
+
+        for (step, &trit) in word.iter().enumerate() {
+            z28_pos = z28_pos.step(trit);
+
+            let dim = step % dims;
+            let offset = match trit {
+                0 => Gf3::ZERO,
+                1 => Gf3::ONE,
+                2 => Gf3::TWO,
+                _ => unreachable!(),
+            };
+            torus_coords[dim] = torus_coords[dim] + offset;
+
+            result.push((z28_pos, TorusAddress::new(torus_coords.clone())));
+        }
+
+        result
+    }
+
+    /// Compute the τ-scaled distance between two Z₂₈-mapped torus positions.
+    ///
+    /// The distance is the standard torus hop-count, scaled by 1/τ^k where
+    /// k is the step index. This mirrors the Tribonacci spiral scaling in
+    /// the angular domain.
+    pub fn tau_scaled_torus_distance(a: &TorusAddress, b: &TorusAddress, step: usize) -> f64 {
+        let hops = a.distance(b) as f64;
+        let tau_power = TAU_TRIBONACCI.powi(step as i32);
+        hops / tau_power
+    }
+}
+
 /// Run the full topology analysis for PlenumNET.
 pub fn full_topology_report() -> String {
     let mut report = String::new();
@@ -257,6 +394,58 @@ pub fn full_topology_report() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::ternary_circle_bridge::*;
+    use crate::ternary_circle::Z28;
+
+    #[test]
+    fn z28_to_torus_roundtrip_3d() {
+        for i in 0..28u8 {
+            let pos = Z28(i);
+            let addr = z28_to_torus_address(pos, 3);
+            let back = torus_address_to_z28(&addr);
+            if i < 27 {
+                assert_eq!(back.value(), i,
+                    "Z₂₈({}) → torus → Z₂₈ roundtrip failed (got {})", i, back.value());
+            }
+        }
+    }
+
+    #[test]
+    fn z28_origin_maps_to_torus_origin() {
+        let addr = z28_to_torus_address(Z28::zero(), 3);
+        for i in 0..3 {
+            assert_eq!(addr.trits.get(i), Gf3::ZERO);
+        }
+    }
+
+    #[test]
+    fn tribonacci_torus_walk_starts_at_origin() {
+        let path = tribonacci_torus_walk(3, 10);
+        assert_eq!(path.len(), 11);
+        let origin = &path[0];
+        for i in 0..3 {
+            assert_eq!(origin.trits.get(i), Gf3::ZERO);
+        }
+    }
+
+    #[test]
+    fn z28_torus_walk_tracks_both() {
+        let walk = z28_torus_walk(3, 20);
+        assert_eq!(walk.len(), 20);
+        for (z28_pos, torus_addr) in &walk {
+            assert!(z28_pos.value() < 28);
+            assert_eq!(torus_addr.dimensions(), 3);
+        }
+    }
+
+    #[test]
+    fn tau_scaled_distance_decreases() {
+        let a = TorusAddress::origin(3);
+        let b = TorusAddress::new(vec![Gf3::ONE, Gf3::ONE, Gf3::ONE]);
+        let d1 = tau_scaled_torus_distance(&a, &b, 1);
+        let d5 = tau_scaled_torus_distance(&a, &b, 5);
+        assert!(d5 < d1, "τ-scaled distance should decrease with step index");
+    }
 
     #[test]
     fn origin_address() {
