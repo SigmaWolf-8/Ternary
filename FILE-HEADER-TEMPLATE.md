@@ -9,7 +9,7 @@ Apply the appropriate header to the top of every source file in the repository.
 ## Rust (.rs) Files
 
 ```rust
-// Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 // Applied Physics Division
 //
 // PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
@@ -29,7 +29,7 @@ Apply the appropriate header to the top of every source file in the repository.
 
 ```typescript
 /**
- * Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
  * Applied Physics Division
  *
  * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
@@ -49,7 +49,7 @@ Apply the appropriate header to the top of every source file in the repository.
 ## Python (.py) Files
 
 ```python
-# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division
 #
 # PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
@@ -69,7 +69,7 @@ Apply the appropriate header to the top of every source file in the repository.
 
 ```bash
 #!/bin/bash
-# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division
 #
 # PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
@@ -88,7 +88,7 @@ Apply the appropriate header to the top of every source file in the repository.
 ## YAML (.yml, .yaml) Configuration Files
 
 ```yaml
-# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
 # Patent(s) Pending. See LICENSE in the repository root for full terms.
 ```
@@ -98,7 +98,7 @@ Apply the appropriate header to the top of every source file in the repository.
 ## Dockerfile
 
 ```dockerfile
-# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
 # Patent(s) Pending. See LICENSE in the repository root for full terms.
 ```
@@ -108,7 +108,7 @@ Apply the appropriate header to the top of every source file in the repository.
 ## Makefile
 
 ```makefile
-# Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 # Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
 # Patent(s) Pending. See LICENSE in the repository root for full terms.
 ```
@@ -123,7 +123,7 @@ Apply the appropriate header to the top of every source file in the repository.
 
 3. **Generated files:** Files that are auto-generated (e.g., by build tools, drizzle migrations) may use a shorter header:
    ```
-   // Auto-generated — Copyright (c) 2025–2026 Capomastro Holdings Ltd. (Canada)
+   // Auto-generated — Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
    // Patent(s) Pending. See LICENSE in the repository root for full terms.
    ```
 

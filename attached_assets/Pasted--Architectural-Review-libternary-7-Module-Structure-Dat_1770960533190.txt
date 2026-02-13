@@ -1,0 +1,339 @@
+# Architectural Review — libternary 7-Module Structure
+
+**Date:** 2026-02-12
+**Reviewer:** Claude (Applied Physics Division session)
+**Scope:** Post-push review of constants.rs refactor + clifford.rs + torus.rs additions
+
+---
+
+## 1. VERDICT: Architecture Is Sound
+
+The refactoring from scattered constants to a single `constants.rs` source of truth is the right call. The addition of `clifford.rs` (geometric algebra bridge) and `torus.rs` (topological tracking) extends the framework along its natural mathematical grain: Z₂₈ is simultaneously a cyclic group (circle), a rotor generator (Clifford algebra), and a coordinate on the torus T².
+
+**All seven modules form a clean dependency DAG:**
+
+```
+constants.rs          ← Leaf node. No internal dependencies. Every other module imports from here.
+    ↑
+    ├── ternary_circle.rs    ← Z₂₈ group, angular conversions, spiral walk
+    ├── tribonacci.rs        ← Recurrence engine, Rep A/B/C interchange
+    ├── borromean.rs         ← Topological invariant, XOR mod BORROMEAN_MODULUS
+    ├── clifford.rs          ← Z₂₈ → rotor bridge, Clifford walk composition
+    └── torus.rs             ← Z₂₈ → T² address mapping, tau-scaled distance
+
+lib.rs                ← Root: exports all six modules + re-exports key types
+```
+
+No circular dependencies. `constants.rs` at the root. Mathematical modules import only from `constants` and optionally from `ternary_circle` (for the Z₂₈ type). This is correct.
+
+---
+
+## 2. ITEMS REQUIRING ATTENTION
+
+### 2.1 ⚠️ lib.rs Re-exports Must Be Updated
+
+The `lib.rs` we shipped in our previous session exports only 3 modules:
+
+```rust
+pub mod tribonacci;
+pub mod borromean;
+pub mod ternary_circle;
+```
+
+The pushed version must now include:
+
+```rust
+pub mod constants;       // ← NEW: single source of truth
+pub mod tribonacci;
+pub mod borromean;
+pub mod ternary_circle;
+pub mod clifford;        // ← NEW: Clifford algebra bridge
+pub mod torus;           // ← NEW: torus mapping
+```
+
+**Verify:** The `pub use` re-exports at the crate root should include key items from the new modules. Recommended:
+
+```rust
+pub use constants::*;     // All shared constants at crate root
+pub use clifford::{z28_position_to_rotor, z28_clifford_walk};
+pub use torus::{z28_to_torus_address, tribonacci_torus_walk};
+```
+
+**Status:** User confirmed lib.rs was updated. ✓ (Cannot verify source directly.)
+
+---
+
+### 2.2 ⚠️ Constant Re-export Path Compatibility
+
+Our `integration_properties.rs` imports constants via:
+
+```rust
+use libternary::ternary_circle::{
+    FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
+    CYCLIC_ORDER, TAU_TRIBONACCI, ...
+};
+```
+
+If `constants.rs` is now the canonical location, there are two valid approaches:
+
+**Option A (recommended): Re-export from ternary_circle.rs**
+```rust
+// In ternary_circle.rs:
+pub use crate::constants::{
+    FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
+    CYCLIC_ORDER, TAU_TRIBONACCI, // ... all angular constants
+};
+```
+This preserves backward compatibility. Our integration tests, the TypeScript migration guide, and any downstream code that imports `libternary::ternary_circle::FULL_CIRCLE_DEG` will continue to work.
+
+**Option B: Break the path, import from constants directly**
+```rust
+use libternary::constants::{FULL_CIRCLE_DEG, ...};
+```
+Cleaner, but requires updating all consumers including our integration_properties.rs.
+
+**Recommendation:** Use Option A. Re-export from the original path. The DRY principle is satisfied because `constants.rs` is the definition site; the re-export is just a convenience alias. This is standard Rust practice (see `std::io::Error` re-exported from `std::io`).
+
+**Action needed:** Confirm which approach was taken, and update `integration_properties.rs` if Option B.
+
+---
+
+### 2.3 ⚠️ Integration Tests Need Clifford/Torus Coverage
+
+Our `integration_properties.rs` (383 lines, 16 tests) covers:
+- Axiom verification (repunits, T₇, π=14)
+- Representation roundtrips (A/B/C × 30 Tribonacci terms)
+- Borromean invariant across representations
+- Spiral lattice and τ-scaling verification
+- Z₂₈ completeness and group inverse
+- Conversion roundtrips
+- Edge cases
+
+**Not yet covered:**
+- `clifford.rs` — No tests for `z28_position_to_rotor()` consistency (rotor angle should equal Z₂₈ position × 2π/28)
+- `clifford.rs` — No tests for `z28_clifford_walk()` composition (sequential rotors should compose to same result as direct jump)
+- `torus.rs` — No tests for `z28_to_torus_address()` coordinate ranges
+- `torus.rs` — No tests for `tribonacci_torus_walk()` consistency with `walk_tribonacci_radian_spiral()`
+- Cross-module: No test verifying `z28_clifford_walk()` and `z28_torus_walk()` produce geometrically equivalent results for the same input trits
+
+**These tests should be added.** See Section 5 below for proposed test specifications.
+
+---
+
+### 2.4 ⚠️ Cargo.toml Needs Benchmark Entries
+
+Our Cargo.toml includes:
+
+```toml
+[[bench]]
+name = "tribonacci_bench"
+harness = false
+
+[[bench]]
+name = "ternary_circle_bench"
+harness = false
+```
+
+If clifford.rs and torus.rs have non-trivial computation (especially `compose_canonical_tribonacci_walk` which runs full spiral walks through geometric algebra), they should have benchmark entries:
+
+```toml
+[[bench]]
+name = "clifford_bench"
+harness = false
+
+[[bench]]
+name = "torus_bench"
+harness = false
+```
+
+---
+
+### 2.5 ℹ️ CI Pipeline Covers New Modules Automatically
+
+Our `ci.yml` uses `cargo test --release --all-features` and `cargo clippy --all-targets --all-features`. Since the new modules are declared in `lib.rs`, they're automatically included in both test and lint targets. **No CI changes needed.** ✓
+
+---
+
+### 2.6 ℹ️ CODEOWNERS Already Covers New Files
+
+Our `CODEOWNERS` has `/libternary/ @SigmaWolf-8` which matches all files under `libternary/src/`. **No changes needed.** ✓
+
+---
+
+## 3. MATHEMATICAL REVIEW
+
+### 3.1 Z₂₈ → GF(3) Projection (`to_gf3_residue`)
+
+The map `Z₂₈ → GF(3)` via `n mod 3` is a group homomorphism because `gcd(28, 3) = 1` (28 = 4 × 7, coprime to 3).
+
+- **Kernel:** {0, 3, 6, 9, 12, 15, 18, 21, 24, 27} — the 10 positions congruent to 0 mod 3. These are "invisible" to GF(3).
+- **Image:** All of GF(3) = {0, 1, 2}. The map is surjective.
+- **Fiber sizes:** 10 positions map to residue 0, 9 to residue 1, 9 to residue 2. (Not perfectly balanced: 28/3 is not integer.)
+
+**Concern:** This is a lossy projection. 10 distinct Z₂₈ positions collapse to the same GF(3) residue. If this is used for any cryptographic purpose (e.g., deriving trit values from angular positions), the non-uniform fiber sizes (10/9/9) introduce a detectable bias.
+
+**Use case matters:** If `to_gf3_residue()` is for visualization or classification only, the bias is irrelevant. If it feeds into any security-sensitive path, the 10/9/9 imbalance must be documented and either accepted or mitigated (e.g., by using only positions 0–26 and rejecting position 27, giving 9/9/9).
+
+### 3.2 Clifford Bridge
+
+A Z₂₈ position `k` corresponds to rotation by angle `θ_k = k × 2π/28` standard radians. In Cl(2,0) (the geometric algebra of the Euclidean plane), the rotor is:
+
+```
+R_k = cos(θ_k / 2) + sin(θ_k / 2) · e₁₂
+```
+
+**Key properties to verify:**
+- `R_0 = 1` (identity rotor at position 0)
+- `R_14 = cos(π/2) + sin(π/2)·e₁₂ = e₁₂` (half-turn rotor at the antipodal position)
+- `R_k · R_j = R_{(k+j) mod 28}` (rotor composition mirrors Z₂₈ addition)
+- `verify_z28_rotor_consistency()` should check this last property exhaustively for all 28 × 28 pairs
+
+### 3.3 Torus Mapping
+
+The torus T² has two independent angular coordinates (θ, φ). The natural mapping from Z₂₈ would be:
+
+- **Option A (product decomposition):** Since 28 = 4 × 7, map to Z₄ × Z₇ via CRT. Then θ = k mod 4 (on the "small" circle) and φ = k mod 7 (on the "large" circle). This gives uniform coverage of a 4×7 lattice on the torus.
+
+- **Option B (diagonal embedding):** Map k → (k·α, k·β) where α, β are rationally independent fractions of 2π. This gives a dense orbit.
+
+- **Option C (Tribonacci-specific):** Use the trit values to drive two independent angles — e.g., accumulate θ from the trit and φ from the τ-scaling.
+
+**Which was chosen?** The function signatures suggest Option A or C given the names `z28_to_torus_address` (direct position mapping) and `tribonacci_torus_walk` (walk-based mapping). The `tau_scaled_torus_distance` function suggests the τ-scaling factor is integrated into the metric, consistent with the spiral geometry.
+
+---
+
+## 4. UPDATED MODULE INVENTORY
+
+| Module | Lines | Tests | Role |
+|---|---|---|---|
+| **constants.rs** | 300 | — | Singular source of truth for all shared constants |
+| **ternary_circle.rs** | ~590 | 20 | Z₂₈ group, angular conversions, spiral walk, GF(3) projection |
+| **tribonacci.rs** | 921 | 22 | Recurrence, base-3 generator, Rep A/B/C, Tribonacci word morphism oracle |
+| **borromean.rs** | ~620 | 14 | XOR invariant, triple validation, pairwise separability |
+| **clifford.rs** | NEW | ? | Z₂₈→rotor bridge, Clifford walk, canonical composition |
+| **torus.rs** | NEW | ? | Z₂₈→T² address, torus walk, τ-scaled distance |
+| **lib.rs** | ~120 | — | Root exports, feature gates, crate docs |
+
+**Total estimated:** ~3,200+ lines of Rust across 7 modules, 56+ unit tests + 16 integration tests = 72+ total tests.
+
+---
+
+## 5. PROPOSED ADDITIONAL INTEGRATION TESTS
+
+The following tests should be added to `integration_properties.rs` to cover the new modules:
+
+```rust
+// ═══════════════════════════════════════════════════════
+// CLIFFORD × TERNARY CIRCLE — Rotors from lattice points
+// ═══════════════════════════════════════════════════════
+
+#[test]
+fn clifford_identity_rotor_at_z28_zero() {
+    // Z₂₈(0) must produce the identity rotor R = 1 + 0·e₁₂
+    let rotor = z28_position_to_rotor(Z28::zero());
+    assert!((rotor.scalar - 1.0).abs() < 1e-10);
+    assert!((rotor.bivector).abs() < 1e-10);
+}
+
+#[test]
+fn clifford_rotor_composition_mirrors_z28_addition() {
+    // For all pairs (a, b) in Z₂₈:
+    // rotor(a) * rotor(b) ≈ rotor(a + b)
+    for a in 0..28u8 {
+        for b in 0..28u8 {
+            let ra = z28_position_to_rotor(Z28(a));
+            let rb = z28_position_to_rotor(Z28(b));
+            let composed = ra.compose(rb);
+            let direct = z28_position_to_rotor(Z28(a).add(Z28(b)));
+            assert!((composed.scalar - direct.scalar).abs() < 1e-8,
+                "Rotor composition failed at ({}, {})", a, b);
+            assert!((composed.bivector - direct.bivector).abs() < 1e-8,
+                "Rotor composition failed at ({}, {})", a, b);
+        }
+    }
+}
+
+#[test]
+fn clifford_walk_matches_spiral_walk_positions() {
+    // A Clifford walk and a spiral walk driven by the same trits
+    // must arrive at the same Z₂₈ position at each step.
+    let trits: Vec<u8> = vec![1, 2, 0, 1, 0, 2, 2, 0, 1, 1];
+    let spiral = walk_tribonacci_radian_spiral(&trits);
+    let clifford = z28_clifford_walk(&trits);
+    for (s, c) in spiral.iter().zip(clifford.iter()) {
+        assert_eq!(s.position, c.z28_position,
+            "Spiral and Clifford walks diverge at step {}", s.step);
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+// TORUS × TERNARY CIRCLE — Topology from cyclic structure
+// ═══════════════════════════════════════════════════════
+
+#[test]
+fn torus_address_covers_all_28_positions() {
+    // Every Z₂₈ position maps to a valid torus address
+    // with coordinates in [0, 2π) × [0, 2π).
+    let mut addresses = Vec::new();
+    for k in 0..28u8 {
+        let addr = z28_to_torus_address(Z28(k));
+        assert!(addr.theta >= 0.0 && addr.theta < 2.0 * std::f64::consts::PI);
+        assert!(addr.phi >= 0.0 && addr.phi < 2.0 * std::f64::consts::PI);
+        addresses.push(addr);
+    }
+    // All 28 addresses must be distinct
+    for i in 0..28 {
+        for j in (i+1)..28 {
+            let d = (addresses[i].theta - addresses[j].theta).abs()
+                  + (addresses[i].phi - addresses[j].phi).abs();
+            assert!(d > 1e-10,
+                "Torus addresses for Z₂₈({}) and Z₂₈({}) collide", i, j);
+        }
+    }
+}
+
+#[test]
+fn torus_walk_consistent_with_spiral_walk() {
+    // Both walks accumulate Z₂₈ positions identically.
+    let trits: Vec<u8> = vec![2, 0, 1, 1, 2, 0, 1, 2];
+    let spiral = walk_tribonacci_radian_spiral(&trits);
+    let torus = tribonacci_torus_walk(&trits);
+    for (s, t) in spiral.iter().zip(torus.iter()) {
+        assert_eq!(s.position, t.z28_position);
+    }
+}
+```
+
+---
+
+## 6. ITEMS CONFIRMED GOOD
+
+| Item | Status |
+|---|---|
+| Single source of truth for constants | ✓ Correct architectural decision |
+| Z₂₈ `to_gf3_residue()` is a valid group homomorphism | ✓ (with bias caveat noted) |
+| Tribonacci word morphism σ: 0→01, 1→02, 2→0 as test oracle | ✓ Canonical |
+| `BORROMEAN_MODULUS` extracted to constants | ✓ DRY |
+| CI pipeline (`ci.yml`) auto-covers new modules | ✓ No changes needed |
+| CODEOWNERS covers all `libternary/` paths | ✓ No changes needed |
+| SECURITY.md posture unaffected by internal refactor | ✓ |
+| CONTRIBUTING.md workflow still applies | ✓ |
+| Makefile `make test` covers new modules via `cargo test --all-features` | ✓ |
+
+---
+
+## 7. RECOMMENDATIONS (Priority Order)
+
+1. **Confirm constant import paths** — Verify that `ternary_circle.rs` re-exports constants from `constants.rs` so downstream `use libternary::ternary_circle::FULL_CIRCLE_DEG` still resolves. If not, update `integration_properties.rs`.
+
+2. **Add integration tests** for clifford.rs and torus.rs (see Section 5).
+
+3. **Document GF(3) projection bias** — The 10/9/9 fiber imbalance in `to_gf3_residue()` should be noted in the doc comment. Not a bug, but must not be used in security paths without mitigation.
+
+4. **Add benchmark entries** for clifford and torus in Cargo.toml.
+
+5. **Update `shared/ternary-circle.ts`** — If constants moved in Rust, the TypeScript mirror should reflect the same structure. Consider a `constants.ts` if the TS layer is also growing.
+
+---
+
+*Review complete. The architecture is solid. The dependency DAG is acyclic with constants at the root. The new modules extend along the natural mathematical axes. Patch the import paths and add the integration tests, and this is production-ready.*

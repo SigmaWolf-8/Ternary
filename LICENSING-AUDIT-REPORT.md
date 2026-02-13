@@ -165,4 +165,33 @@ Given the IP portfolio, commercial sensitivity, FIPS 140-3 certification path, a
 
 ---
 
+## 7. Follow-Up — Remediation Status (Updated 2026-02-13)
+
+All six findings from the original audit have been addressed:
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| F1: No root LICENSE file | **REMEDIATED** | `LICENSE` deployed at repository root with comprehensive proprietary terms |
+| F2: Conflicting license declarations | **REMEDIATED** | `package.json` license field changed to `"SEE LICENSE IN LICENSE"`; `src/kernel/Cargo.toml` and `src/kernel/wasm/Cargo.toml` changed from MIT to `LicenseRef-Proprietary` |
+| F3: No source file headers | **REMEDIATED** | 232 files now carry standardized Capomastro Holdings headers (107 Rust, 125 TypeScript/TSX). CI workflow `license-check.yml` enforces header presence on all commits |
+| F4: No CLA | **REMEDIATED** | `CLA.md` deployed at repository root with IP assignment requirements |
+| F5: No third-party attribution | **REMEDIATED** | `NOTICE` file generated listing all dependency attributions |
+| F6: No Terms of Service | **REMEDIATED** | `TERMS-OF-SERVICE.md`, `ACCEPTABLE-USE-POLICY.md`, and privacy policy deployed; served via `/terms`, `/privacy`, `/security`, `/aup` routes |
+
+### Additional Remediation Actions Taken
+
+- **Build artifacts removed:** 627 compiled artifacts removed from git tracking; `.gitignore` updated with `**/target/` pattern
+- **Jurisdiction corrected:** All legal references updated from Province of Ontario to **Province of Alberta**
+- **Security hardening:** Rate limiting (4 tiers), CORS restrictions, Helmet.js headers, AES-256-GCM token encryption, input validation bounds, `execFile()` replacing `exec()`, hardened path sanitization
+- **Code architecture:** Route decomposition from 3,732 lines to 893 lines (76% reduction) across 4 focused modules
+- **Test coverage:** 86 automated tests (50 GF(3) arithmetic, 25 phase encryption, 11 calendar synchronization) via Vitest with CI workflow
+
+### Remaining Considerations
+
+- **Git history cleanup:** Build artifacts are no longer tracked but remain in git history. Full cleanup requires `git filter-branch` or BFG Repo-Cleaner to reduce repository size
+- **NOTICE file maintenance:** Should be regenerated periodically as npm dependencies change
+- **CLA enforcement:** Consider integrating a CLA bot (e.g., CLA Assistant) into the GitHub repository for automated contributor agreement tracking
+
+---
+
 *This report constitutes a legal review of licensing and IP posture. It does not constitute legal advice. Capomastro Holdings Ltd. should consult with retained counsel before executing any licensing changes that affect third-party rights or regulatory submissions.*
