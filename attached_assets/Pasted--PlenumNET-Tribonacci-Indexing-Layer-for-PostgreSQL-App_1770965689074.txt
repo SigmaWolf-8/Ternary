@@ -1,0 +1,103 @@
+# PlenumNET Tribonacci Indexing Layer for PostgreSQL
+
+**Applied Physics Division — Capomastro Holdings Ltd.**
+
+---
+
+## Overview
+
+A PostgreSQL extension module that leverages the Tribonacci sequence's algebraic
+properties — specifically the coprimality of T₇ = 13 with 28 and the self-referential
+hook T₉ = 44 → T₄₄ — for database indexing, partitioning, and scheduling.
+
+## What's in the Module
+
+| Component | Function | Purpose |
+|-----------|----------|---------|
+| `tribonacci(n)` | Returns T_n | Core sequence generator |
+| `tribonacci_mod(n, m)` | Returns T_n mod m | Overflow-safe modular computation |
+| `tribonacci_table(n)` | Returns first n terms with mod-28 | Diagnostics & verification |
+| `trad_hash_28(key)` | Maps key → shard 0–27 | **28-fold partitioning** |
+| `trad_hash(key, N, m)` | Maps key → shard 0–(N-1) | Generalized N-fold partitioning |
+| `tribonacci_hash(key, b)` | Avalanche hash using (13,24,44) kernel | General-purpose hashing |
+| `create_partitioned_table()` | Generates DDL for hash-partitioned tables | Schema automation |
+| `generate_trib_id()` | Anti-hotspot ID generator | Write distribution |
+| `skip_levels` table | Precomputed Tribonacci jump distances | Skip-index support |
+| `skip_lookup(pos)` | Decomposes position into Tribonacci jumps | Range query acceleration |
+| `double_hash_probe()` | Collision resolution via 13-step | Hash table probing |
+| `next_worker()` | Round-robin scheduler | Load balancing |
+| `verify_28fold_coverage()` | Residue coverage analysis | Mathematical verification |
+| `verify_permutation()` | 13-step completeness proof | Mathematical verification |
+| `demonstrate_hook()` | Shows T₉=44 → T₄₄ | Educational / demo |
+
+## Deployment
+
+```bash
+# Connect to your PostgreSQL instance
+psql -U your_user -d your_database -f plenumnet_tribonacci_index.sql
+
+# Verify installation
+psql -U your_user -d your_database -c "SELECT * FROM plenumnet.demonstrate_hook();"
+psql -U your_user -d your_database -c "SELECT * FROM plenumnet.verify_permutation();"
+```
+
+## Quick Start
+
+```sql
+-- See the hook in action
+SELECT * FROM plenumnet.demonstrate_hook();
+
+-- Verify the 13-step permutation covers all 28 positions
+SELECT * FROM plenumnet.verify_permutation();
+
+-- Hash a key to a shard
+SELECT plenumnet.trad_hash_28(12345);  -- Returns shard 0–27
+
+-- Generate an anti-hotspot ID
+SELECT plenumnet.generate_trib_id();
+
+-- Get the next worker in round-robin
+SELECT plenumnet.next_worker();
+
+-- Create a 28-partition table (returns DDL to execute)
+SELECT plenumnet.create_partitioned_table('my_table');
+```
+
+## Important Mathematical Finding
+
+During verification, we confirmed that **Tribonacci mod 28 visits only 20 of the 28
+residues** (missing: {6, 10, 11, 14, 15, 21, 23, 26}), not all 28 as originally
+theorized. However, this does **not** affect the indexing layer because:
+
+- The **13-step permutation** `(key × 13) mod 28` is the actual engine for full
+  coverage, and it is mathematically proven to visit all 28 positions (since
+  gcd(13, 28) = 1).
+- The Tribonacci sequence provides the **constants** (13, 24, 44) used as mixing
+  coefficients, not as direct partition selectors.
+- The self-referential hook (T₉ = 44 → T₄₄ = 80,641,778,674) and the identity
+  13 × 28 = 364 = 111111₃ remain fully verified.
+
+This is a refinement of the theory: the sequence **generates** the coprime constant 13,
+and that constant — applied as a multiplicative permutation — is what delivers the
+full 28-fold symmetry. The distinction is between the sequence's internal residue
+coverage (partial) and the derived permutation's coverage (complete).
+
+## Verified Properties
+
+| Property | Status | Details |
+|----------|--------|---------|
+| T₇ = 13 | ✓ | Ternary radian |
+| T₈ = 24 | ✓ | Convolution kernel |
+| T₉ = 44 | ✓ | The hook index |
+| T₄₄ = 80,641,778,674 | ✓ | The hook target |
+| 13 × 28 = 364 = 111111₃ | ✓ | Full circle / base-3 repunit |
+| (n × 13) mod 28 visits all 28 | ✓ | Complete permutation |
+| Trib mod 28 visits all 28 | ✗ → 20/28 | Partial coverage (see note above) |
+| Hash distribution (10K keys) | ✓ | Max-min spread = 1 |
+| Round-robin returns to 0 | ✓ | After exactly 28 steps |
+
+## Requirements
+
+- PostgreSQL 12+ (uses `PARTITION BY HASH`, `PARALLEL SAFE`)
+- Schema creation privileges
+- No external dependencies

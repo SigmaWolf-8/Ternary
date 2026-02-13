@@ -1,0 +1,524 @@
+-- ============================================================================
+-- PlenumNET Tribonacci Indexing Layer for PostgreSQL
+-- Applied Physics Division — Capomastro Holdings Ltd.
+-- ============================================================================
+--
+-- Leverages the Tribonacci sequence's 28-fold symmetry and self-referential
+-- hook properties for database indexing, partitioning, and ID generation.
+--
+-- Core mathematical properties exploited:
+--   • T_7 = 13 is coprime to 28 → (13 × n) mod 28 is a COMPLETE permutation ✓
+--   • Tribonacci mod 28 visits 20/28 residues (partial coverage)
+--     NOTE: The 13-step permutation (key × 13 mod 28) is the true engine for
+--     full coverage — this is what the indexing layer relies on.
+--   • T_9 = 44 → T_44 = 80,641,778,674 (self-referential exponential jump) ✓
+--   • 13 × 28 = 364 = 111111₃ (base-3 repunit) ✓
+--
+-- ============================================================================
+
+-- Schema namespace for all PlenumNET indexing objects
+CREATE SCHEMA IF NOT EXISTS plenumnet;
+
+-- ============================================================================
+-- 1. TRIBONACCI SEQUENCE GENERATOR
+-- ============================================================================
+
+-- Returns the nth Tribonacci number (iterative, O(n) time)
+CREATE OR REPLACE FUNCTION plenumnet.tribonacci(n INTEGER)
+RETURNS BIGINT
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+DECLARE
+    a BIGINT := 0;
+    b BIGINT := 0;
+    c BIGINT := 1;
+    tmp BIGINT;
+    i INTEGER;
+BEGIN
+    IF n < 0 THEN
+        RAISE EXCEPTION 'Tribonacci index must be non-negative, got %', n;
+    END IF;
+    IF n = 0 OR n = 1 THEN RETURN 0; END IF;
+    IF n = 2 THEN RETURN 1; END IF;
+
+    FOR i IN 3..n LOOP
+        tmp := a + b + c;
+        a := b;
+        b := c;
+        c := tmp;
+    END LOOP;
+
+    RETURN c;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.tribonacci(INTEGER) IS
+'Returns the nth Tribonacci number. Sequence: 0,0,1,1,2,4,7,13,24,44,81,149,...';
+
+-- Returns Tribonacci(n) mod m — avoids overflow for large n
+CREATE OR REPLACE FUNCTION plenumnet.tribonacci_mod(n INTEGER, m INTEGER)
+RETURNS INTEGER
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+DECLARE
+    a INTEGER := 0;
+    b INTEGER := 0;
+    c INTEGER := 1 % m;
+    tmp INTEGER;
+    i INTEGER;
+BEGIN
+    IF n < 0 OR m < 1 THEN
+        RAISE EXCEPTION 'Invalid arguments: n=%, m=%', n, m;
+    END IF;
+    IF n = 0 OR n = 1 THEN RETURN 0; END IF;
+    IF n = 2 THEN RETURN 1 % m; END IF;
+
+    FOR i IN 3..n LOOP
+        tmp := (a + b + c) % m;
+        a := b;
+        b := c;
+        c := tmp;
+    END LOOP;
+
+    RETURN c;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.tribonacci_mod(INTEGER, INTEGER) IS
+'Returns Tribonacci(n) mod m without overflow. Core function for 28-fold symmetry.';
+
+-- Generate a table of the first N Tribonacci numbers with their mod-28 residues
+CREATE OR REPLACE FUNCTION plenumnet.tribonacci_table(num_terms INTEGER DEFAULT 50)
+RETURNS TABLE(term_index INTEGER, term_value BIGINT, residue_mod28 INTEGER)
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+DECLARE
+    a BIGINT := 0;
+    b BIGINT := 0;
+    c BIGINT := 1;
+    tmp BIGINT;
+    i INTEGER;
+BEGIN
+    -- Emit T_0
+    term_index := 0; term_value := 0; residue_mod28 := 0;
+    RETURN NEXT;
+
+    IF num_terms <= 1 THEN RETURN; END IF;
+
+    -- Emit T_1
+    term_index := 1; term_value := 0; residue_mod28 := 0;
+    RETURN NEXT;
+
+    IF num_terms <= 2 THEN RETURN; END IF;
+
+    -- Emit T_2
+    term_index := 2; term_value := 1; residue_mod28 := 1;
+    RETURN NEXT;
+
+    FOR i IN 3..(num_terms - 1) LOOP
+        tmp := a + b + c;
+        a := b;
+        b := c;
+        c := tmp;
+        term_index := i;
+        term_value := c;
+        residue_mod28 := (c % 28)::INTEGER;
+        RETURN NEXT;
+    END LOOP;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.tribonacci_table(INTEGER) IS
+'Returns a table of Tribonacci terms with their mod-28 residues. Use to verify 28-fold coverage.';
+
+-- ============================================================================
+-- 2. THE 13-STEP PERMUTATION (TERNARY RADIAN HASH)
+-- ============================================================================
+
+-- Core hash: maps any integer to a shard 0–27 using the ternary radian
+CREATE OR REPLACE FUNCTION plenumnet.trad_hash_28(key BIGINT)
+RETURNS INTEGER
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+    -- T_7 = 13 is coprime to 28; multiplication by 13 mod 28 is a permutation
+    -- We take key mod 28 first, then apply the 13-step rotation
+    SELECT ((((key % 28) + 28) % 28) * 13 % 28)::INTEGER;
+$$;
+
+COMMENT ON FUNCTION plenumnet.trad_hash_28(BIGINT) IS
+'Ternary Radian Hash: maps key → shard (0–27) via the 13-step permutation. Guaranteed full coverage.';
+
+-- Generalized version: maps to N shards using a coprime multiplier
+CREATE OR REPLACE FUNCTION plenumnet.trad_hash(key BIGINT, num_shards INTEGER, multiplier INTEGER DEFAULT 13)
+RETURNS INTEGER
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+BEGIN
+    IF gcd(multiplier, num_shards) != 1 THEN
+        RAISE EXCEPTION 'Multiplier % and shard count % must be coprime', multiplier, num_shards;
+    END IF;
+    RETURN ((((key % num_shards) + num_shards) % num_shards) * multiplier % num_shards)::INTEGER;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.trad_hash(BIGINT, INTEGER, INTEGER) IS
+'Generalized Ternary Radian Hash for N shards. Multiplier must be coprime to num_shards.';
+
+-- ============================================================================
+-- 3. TRIBONACCI-MIXED HASH (for general-purpose hashing)
+-- ============================================================================
+
+-- A stronger hash that mixes the input through Tribonacci recurrence steps
+CREATE OR REPLACE FUNCTION plenumnet.tribonacci_hash(key BIGINT, buckets INTEGER DEFAULT 28)
+RETURNS INTEGER
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+DECLARE
+    -- Use T_7=13, T_8=24, T_9=44 as mixing constants (the convolution kernel)
+    a BIGINT;
+    b BIGINT;
+    c BIGINT;
+    mixed BIGINT;
+BEGIN
+    -- Avalanche mixing using the Tribonacci kernel (13, 24, 44)
+    a := key * 13;
+    b := (key >> 16) * 24;
+    c := (key >> 32) * 44;
+
+    -- Tribonacci-style fold: each depends on the previous three
+    mixed := a + b + c;
+    mixed := mixed # (mixed >> 17);   -- XOR shift
+    mixed := mixed * 13;              -- Ternary radian multiply
+    mixed := mixed # (mixed >> 13);   -- Another XOR shift at T_7
+    mixed := mixed * 24;              -- T_8 multiply
+    mixed := mixed # (mixed >> 9);    -- Shift at T_9's index
+
+    RETURN (((mixed % buckets) + buckets) % buckets)::INTEGER;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.tribonacci_hash(BIGINT, INTEGER) IS
+'Tribonacci-mixed hash function using the (13,24,44) convolution kernel for avalanche mixing.';
+
+-- ============================================================================
+-- 4. PARTITIONING SUPPORT (28-fold or N-fold)
+-- ============================================================================
+
+-- Create a partitioned table using the Tribonacci 28-fold scheme
+-- This is a template function that generates DDL
+CREATE OR REPLACE FUNCTION plenumnet.create_partitioned_table(
+    table_name TEXT,
+    schema_name TEXT DEFAULT 'public',
+    num_partitions INTEGER DEFAULT 28,
+    key_column TEXT DEFAULT 'id',
+    extra_columns TEXT DEFAULT 'data JSONB, created_at TIMESTAMPTZ DEFAULT now()'
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    ddl TEXT := '';
+    fqn TEXT;
+    i INTEGER;
+BEGIN
+    fqn := format('%I.%I', schema_name, table_name);
+
+    -- Parent table with hash partitioning
+    ddl := ddl || format(
+        'CREATE TABLE %s (%I BIGINT NOT NULL, %s) PARTITION BY HASH (%I);',
+        fqn, key_column, extra_columns, key_column
+    ) || E'\n\n';
+
+    -- Create each partition
+    FOR i IN 0..(num_partitions - 1) LOOP
+        ddl := ddl || format(
+            'CREATE TABLE %I.%I PARTITION OF %s FOR VALUES WITH (MODULUS %s, REMAINDER %s);',
+            schema_name,
+            table_name || '_p' || lpad(i::TEXT, 2, '0'),
+            fqn,
+            num_partitions,
+            i
+        ) || E'\n';
+    END LOOP;
+
+    ddl := ddl || E'\n-- Index on each partition (auto-created by PostgreSQL for hash partitioning)\n';
+    ddl := ddl || format(
+        'CREATE INDEX ON %s (%I);', fqn, key_column
+    ) || E'\n';
+
+    RETURN ddl;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.create_partitioned_table IS
+'Generates DDL for a 28-fold (or N-fold) hash-partitioned table aligned with PlenumNET symmetry.';
+
+-- ============================================================================
+-- 5. TRIBONACCI ID GENERATOR (anti-hotspot)
+-- ============================================================================
+
+-- Sequence-backed ID generator that spreads writes across partitions
+CREATE OR REPLACE FUNCTION plenumnet.generate_trib_id()
+RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    seq_val BIGINT;
+    trib_mixed BIGINT;
+BEGIN
+    -- Get monotonic counter
+    seq_val := nextval('plenumnet.trib_id_seq');
+
+    -- Mix with Tribonacci kernel to scatter across partition space
+    -- while preserving uniqueness (bijective transform)
+    -- Uses: id = seq * 13 + (seq / 28) * 7 to spread mod-28 residues
+    trib_mixed := seq_val * 13 + (seq_val / 28) * 7;
+
+    RETURN trib_mixed;
+END;
+$$;
+
+-- The backing sequence
+CREATE SEQUENCE IF NOT EXISTS plenumnet.trib_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    CACHE 100;  -- Cache 100 values for performance
+
+COMMENT ON FUNCTION plenumnet.generate_trib_id() IS
+'Generates unique IDs that are automatically spread across 28 partitions using the ternary radian.';
+
+-- ============================================================================
+-- 6. SKIP-INDEX SUPPORT (Tribonacci jump pointers)
+-- ============================================================================
+
+-- Precomputed Tribonacci jump distances for skip-index levels
+CREATE TABLE IF NOT EXISTS plenumnet.skip_levels (
+    level       INTEGER PRIMARY KEY,
+    jump_distance BIGINT NOT NULL,
+    description TEXT
+);
+
+INSERT INTO plenumnet.skip_levels (level, jump_distance, description)
+VALUES
+    (0,   1,    'Level 0: single step'),
+    (1,   2,    'Level 1: T_4 = 2'),
+    (2,   4,    'Level 2: T_5 = 4'),
+    (3,   7,    'Level 3: T_6 = 7'),
+    (4,   13,   'Level 4: T_7 = 13 (ternary radian)'),
+    (5,   24,   'Level 5: T_8 = 24'),
+    (6,   44,   'Level 6: T_9 = 44 (the hook)'),
+    (7,   81,   'Level 7: T_10 = 81'),
+    (8,   149,  'Level 8: T_11 = 149'),
+    (9,   274,  'Level 9: T_12 = 274'),
+    (10,  504,  'Level 10: T_13 = 504'),
+    (11,  927,  'Level 11: T_14 = 927'),
+    (12,  1705, 'Level 12: T_15 = 1705')
+ON CONFLICT (level) DO NOTHING;
+
+COMMENT ON TABLE plenumnet.skip_levels IS
+'Precomputed Tribonacci jump distances for multi-level skip indexing.';
+
+-- Given a position, find the nearest landmark below it using Tribonacci jumps
+CREATE OR REPLACE FUNCTION plenumnet.skip_lookup(target_pos BIGINT)
+RETURNS TABLE(level INTEGER, landmark_pos BIGINT, remaining BIGINT)
+LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+DECLARE
+    pos BIGINT := target_pos;
+    lvl INTEGER;
+    jd BIGINT;
+BEGIN
+    -- Greedily subtract the largest Tribonacci jump that fits
+    FOR lvl, jd IN
+        SELECT sl.level, sl.jump_distance
+        FROM plenumnet.skip_levels sl
+        ORDER BY sl.jump_distance DESC
+    LOOP
+        WHILE pos >= jd LOOP
+            level := lvl;
+            landmark_pos := target_pos - pos + jd;
+            pos := pos - jd;
+            remaining := pos;
+            RETURN NEXT;
+        END LOOP;
+    END LOOP;
+
+    -- Final position
+    IF pos > 0 THEN
+        level := -1;
+        landmark_pos := target_pos - pos;
+        remaining := pos;
+        RETURN NEXT;
+    END IF;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.skip_lookup(BIGINT) IS
+'Decomposes a position into Tribonacci-sized jumps for skip-index traversal.';
+
+-- ============================================================================
+-- 7. DOUBLE HASHING FOR COLLISION RESOLUTION
+-- ============================================================================
+
+-- Given a primary hash position and collision count, compute probe position
+CREATE OR REPLACE FUNCTION plenumnet.double_hash_probe(
+    primary_hash INTEGER,
+    collision_number INTEGER,
+    table_size INTEGER DEFAULT 28
+)
+RETURNS INTEGER
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+AS $$
+    -- Step size = 13 (ternary radian), guaranteed to visit all slots
+    SELECT ((primary_hash + collision_number * 13) % table_size)::INTEGER;
+$$;
+
+COMMENT ON FUNCTION plenumnet.double_hash_probe IS
+'Double-hashing probe using 13-step (ternary radian). Visits all slots before repeating.';
+
+-- ============================================================================
+-- 8. ROUND-ROBIN SCHEDULER
+-- ============================================================================
+
+-- Stateful round-robin that cycles through 28 workers using the 13-step
+CREATE TABLE IF NOT EXISTS plenumnet.scheduler_state (
+    scheduler_name TEXT PRIMARY KEY,
+    current_position INTEGER NOT NULL DEFAULT 0,
+    num_workers INTEGER NOT NULL DEFAULT 28,
+    step_size INTEGER NOT NULL DEFAULT 13
+);
+
+CREATE OR REPLACE FUNCTION plenumnet.next_worker(sched_name TEXT DEFAULT 'default')
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    pos INTEGER;
+    workers INTEGER;
+    step INTEGER;
+BEGIN
+    -- Upsert scheduler state
+    INSERT INTO plenumnet.scheduler_state (scheduler_name, current_position)
+    VALUES (sched_name, 0)
+    ON CONFLICT (scheduler_name) DO NOTHING;
+
+    -- Atomically advance and return
+    UPDATE plenumnet.scheduler_state
+    SET current_position = (current_position + step_size) % num_workers
+    WHERE scheduler_name = sched_name
+    RETURNING current_position, num_workers, step_size
+    INTO pos, workers, step;
+
+    RETURN pos;
+END;
+$$;
+
+COMMENT ON FUNCTION plenumnet.next_worker(TEXT) IS
+'Returns the next worker ID (0–27) using the 13-step ternary radian round-robin.';
+
+-- ============================================================================
+-- 9. VERIFICATION & DIAGNOSTICS
+-- ============================================================================
+
+-- Verify the 28-fold coverage: show which residues mod 28 appear in first N terms
+CREATE OR REPLACE FUNCTION plenumnet.verify_28fold_coverage(num_terms INTEGER DEFAULT 200)
+RETURNS TABLE(
+    residue INTEGER,
+    first_seen_at INTEGER,
+    times_seen BIGINT
+)
+LANGUAGE sql STABLE
+AS $$
+    WITH terms AS (
+        SELECT term_index, residue_mod28
+        FROM plenumnet.tribonacci_table(num_terms)
+    )
+    SELECT
+        r.residue,
+        MIN(t.term_index) AS first_seen_at,
+        COUNT(t.term_index) AS times_seen
+    FROM generate_series(0, 27) AS r(residue)
+    LEFT JOIN terms t ON t.residue_mod28 = r.residue
+    GROUP BY r.residue
+    ORDER BY r.residue;
+$$;
+
+COMMENT ON FUNCTION plenumnet.verify_28fold_coverage(INTEGER) IS
+'Verifies that Tribonacci mod 28 visits all 28 residues. Shows first occurrence and frequency.';
+
+-- Verify the 13-step permutation covers all 28 positions
+CREATE OR REPLACE FUNCTION plenumnet.verify_permutation()
+RETURNS TABLE(step INTEGER, position INTEGER)
+LANGUAGE sql IMMUTABLE
+AS $$
+    SELECT
+        s.step,
+        ((s.step * 13) % 28)::INTEGER AS position
+    FROM generate_series(0, 27) AS s(step);
+$$;
+
+COMMENT ON FUNCTION plenumnet.verify_permutation() IS
+'Demonstrates that multiplying by 13 mod 28 produces a complete permutation of 0–27.';
+
+-- Show the self-referential hook: T_9 = 44, then T_44
+CREATE OR REPLACE FUNCTION plenumnet.demonstrate_hook()
+RETURNS TABLE(description TEXT, value TEXT)
+LANGUAGE sql STABLE
+AS $$
+    VALUES
+        ('T_7 (ternary radian)',      plenumnet.tribonacci(7)::TEXT),
+        ('T_8',                        plenumnet.tribonacci(8)::TEXT),
+        ('T_9 (the hook index)',       plenumnet.tribonacci(9)::TEXT),
+        ('T_9 mod 28 (clock position)', plenumnet.tribonacci_mod(9, 28)::TEXT),
+        ('T_44 (the hook target)',     plenumnet.tribonacci(44)::TEXT),
+        ('13 × 28 = 364 (full circle)', '364'),
+        ('364 in base 3',              '111111');
+$$;
+
+COMMENT ON FUNCTION plenumnet.demonstrate_hook() IS
+'Demonstrates the T_9=44 self-referential hook and key PlenumNET constants.';
+
+-- ============================================================================
+-- 10. EXAMPLE: COMPLETE PARTITIONED TABLE WITH TRIBONACCI IDS
+-- ============================================================================
+
+-- Uncomment to create an example table:
+/*
+-- Generate the DDL
+SELECT plenumnet.create_partitioned_table(
+    'sensor_readings',
+    'public',
+    28,
+    'reading_id',
+    'sensor_name TEXT, value DOUBLE PRECISION, recorded_at TIMESTAMPTZ DEFAULT now()'
+);
+
+-- Example insert using Tribonacci ID
+INSERT INTO public.sensor_readings (reading_id, sensor_name, value)
+VALUES (plenumnet.generate_trib_id(), 'temperature_01', 22.5);
+
+-- Verify distribution across partitions
+SELECT
+    tableoid::regclass AS partition_name,
+    COUNT(*) AS row_count
+FROM public.sensor_readings
+GROUP BY tableoid
+ORDER BY partition_name;
+*/
+
+-- ============================================================================
+-- QUICK START
+-- ============================================================================
+-- Run these to verify everything works:
+--
+--   SELECT * FROM plenumnet.demonstrate_hook();
+--   SELECT * FROM plenumnet.verify_permutation();
+--   SELECT * FROM plenumnet.verify_28fold_coverage(200);
+--   SELECT * FROM plenumnet.tribonacci_table(20);
+--   SELECT plenumnet.trad_hash_28(12345);
+--   SELECT plenumnet.tribonacci_hash(12345);
+--   SELECT plenumnet.generate_trib_id();
+--   SELECT plenumnet.next_worker();
+--
+-- ============================================================================
