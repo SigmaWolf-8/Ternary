@@ -25,7 +25,7 @@ server/salvi-core/   Express API server — timing, ternary ops, calendars,
 src/kernel/          Rust kernel — crypto, VM, memory, I/O, filesystem,
                      process scheduler, device drivers, HPTP, torsion network
 client/              React frontend — investor demo, docs, admin dashboard
-kong/                Kong Konnect gateway config (18 services, 70+ endpoints)
+kong/                Kong Konnect gateway config (17 services, 97 endpoints)
 salvi_docs/          Developer documentation (15 modules, 7,300+ lines)
 ```
 
@@ -96,7 +96,7 @@ npx tsx libternary/tests/tribonacci.test.ts           # Tribonacci module (58 te
 
 ## API Surface
 
-The platform exposes 70+ endpoints through Kong Konnect:
+The platform exposes 97 endpoints through Kong Konnect:
 
 | Category | Endpoints | Description |
 |----------|-----------|-------------|

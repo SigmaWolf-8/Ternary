@@ -957,7 +957,7 @@ function TrustSignals() {
     { label: "1,252+", description: "Git Commits" },
     { label: "1,011", description: "Tests Passing" },
     { label: "224", description: "Source Files" },
-    { label: "70+", description: "API Endpoints" },
+    { label: "97", description: "API Endpoints" },
   ];
 
   return (
@@ -1015,7 +1015,7 @@ function CodeSnippet() {
             One API Call Away
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            70+ live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.
+            97 live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.
           </p>
         </div>
         <Card className="p-0 overflow-hidden border-primary/10 bg-card/80">
@@ -1036,7 +1036,7 @@ function CodeSnippet() {
         <div className="flex justify-center mt-6">
           <Button variant="outline" asChild data-testid="button-explore-api">
             <Link href="/api-demo">
-              Explore All 70+ Endpoints
+              Explore All 97 Endpoints
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </Button>
