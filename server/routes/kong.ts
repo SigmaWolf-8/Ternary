@@ -390,22 +390,12 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
     }
   });
 
-  // Sync PlenumNET services to Kong Konnect (Admin only)
-  app.post("/api/kong/control-planes/:cpId/sync-plenumnet", requireAdmin, async (req: any, res) => {
-    try {
-      if (!KONG_KONNECT_TOKEN) {
-        return res.status(401).json({ error: "Kong Konnect token not configured" });
-      }
-
-      const { cpId } = req.params;
-      
-      // Use REPLIT_DOMAINS env var or default to known domain - never trust client input
-      const replitDomains = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
-      const baseUrl = replitDomains 
-        ? `https://${replitDomains.split(',')[0]}`
-        : 'https://plenumnet.replit.app';
-      
-      const services = [
+  function getPlenumnetServices() {
+    const replitDomains = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
+    const baseUrl = replitDomains 
+      ? `https://${replitDomains.split(',')[0]}`
+      : 'https://plenumnet.replit.app';
+    return { baseUrl, services: [
         {
           name: "plenumnet-timing",
           url: `${baseUrl}/api/salvi/timing`,
@@ -413,7 +403,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/salvi/timing",
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 5,
+          endpoints: ["GET /timestamp", "GET /metrics", "GET /batch/:count", "GET /self-test", "GET /error-budget"]
         },
         {
           name: "plenumnet-calendars",
@@ -422,7 +414,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/salvi/timing/epoch",
           stripPath: false,
           rateLimit: { minute: 120, hour: 1200 },
-          methods: ["GET"]
+          methods: ["GET"],
+          endpointCount: 26,
+          endpoints: ["GET /anchors", "GET /calendars", "GET /calendars/mayan", "GET /calendars/hebrew", "GET /calendars/chinese", "GET /calendars/vedic", "GET /calendars/egyptian", "GET /calendars/julian-day", "GET /calendars/islamic", "GET /calendars/byzantine", "GET /calendars/thirteen-moon", "GET /calendars/persian", "GET /calendars/ethiopian", "GET /calendars/coptic", "GET /calendars/japanese", "GET /calendars/korean", "GET /calendars/thai", "GET /calendars/indian-saka", "GET /calendars/tibetan", "GET /calendars/aztec", "GET /calendars/roman", "GET /calendars/bengali", "GET /calendars/berber", "GET /calendars/balinese", "GET /calendars/zoroastrian", "GET /calendars/aboriginal"]
         },
         {
           name: "plenumnet-ternary",
@@ -431,7 +425,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/salvi/ternary",
           stripPath: false,
           rateLimit: { minute: 200, hour: 2000 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 8,
+          endpoints: ["POST /convert", "POST /add", "POST /multiply", "POST /rotate", "POST /not", "POST /xor", "POST /batch", "GET /density/:tritCount"]
         },
         {
           name: "plenumnet-phase",
@@ -440,7 +436,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/salvi/phase",
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 4,
+          endpoints: ["GET /config/:mode", "POST /split", "POST /recombine", "GET /recommend"]
         },
         {
           name: "plenumnet-vm",
@@ -449,7 +447,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/salvi/vm",
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
-          methods: ["GET"]
+          methods: ["GET"],
+          endpointCount: 2,
+          endpoints: ["GET /spec", "GET /conformance"]
         },
         {
           name: "plenumnet-docs",
@@ -458,7 +458,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/salvi/docs",
           stripPath: false,
           rateLimit: { minute: 200, hour: 2000 },
-          methods: ["GET"]
+          methods: ["GET"],
+          endpointCount: 1,
+          endpoints: ["GET /"]
         },
         {
           name: "plenumnet-demo",
@@ -467,7 +469,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/demo",
           stripPath: false,
           rateLimit: { minute: 50, hour: 500 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 7,
+          endpoints: ["POST /run", "GET /stats", "GET /session/:id", "POST /upload", "GET /history", "GET /files", "GET /data/:id"]
         },
         {
           name: "plenumnet-compression",
@@ -476,7 +480,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/compression",
           stripPath: false,
           rateLimit: { minute: 50, hour: 500 },
-          methods: ["GET", "POST", "DELETE"]
+          methods: ["GET", "POST", "DELETE"],
+          endpointCount: 6,
+          endpoints: ["POST /file", "POST /decompress", "POST /db/store", "GET /db/retrieve/:id", "GET /db/documents", "DELETE /db/documents/:id"]
         },
         {
           name: "plenumnet-whitepapers",
@@ -485,7 +491,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/whitepapers",
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 4,
+          endpoints: ["GET /", "GET /active", "GET /:id", "POST /"]
         },
         {
           name: "plenumnet-legal",
@@ -494,7 +502,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/legal",
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
-          methods: ["GET"]
+          methods: ["GET"],
+          endpointCount: 4,
+          endpoints: ["GET /terms", "GET /privacy", "GET /security", "GET /aup"]
         },
         {
           name: "plenumnet-auth",
@@ -503,7 +513,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/auth",
           stripPath: false,
           rateLimit: { minute: 30, hour: 300 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 3,
+          endpoints: ["GET /login", "GET /callback", "POST /logout"]
         },
         {
           name: "plenumnet-user",
@@ -512,7 +524,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/user",
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
-          methods: ["GET"]
+          methods: ["GET"],
+          endpointCount: 1,
+          endpoints: ["GET /admin-status"]
         },
         {
           name: "plenumnet-developer-signup",
@@ -521,7 +535,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/developer-signup",
           stripPath: false,
           rateLimit: { minute: 20, hour: 200 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 2,
+          endpoints: ["POST /", "GET /count"]
         },
         {
           name: "plenumnet-admin",
@@ -530,7 +546,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/admin",
           stripPath: false,
           rateLimit: { minute: 60, hour: 600 },
-          methods: ["GET", "POST", "DELETE"]
+          methods: ["GET", "POST", "DELETE"],
+          endpointCount: 2,
+          endpoints: ["GET /developer-signups", "DELETE /developer-signups/:id"]
         },
         {
           name: "plenumnet-github",
@@ -539,7 +557,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/github",
           stripPath: false,
           rateLimit: { minute: 60, hour: 600 },
-          methods: ["GET", "POST", "PUT", "DELETE"]
+          methods: ["GET", "POST", "PUT", "DELETE"],
+          endpointCount: 9,
+          endpoints: ["POST /token", "GET /status", "GET /repos/:owner/:repo/branches", "GET /repos/:owner/:repo/contents", "GET /file/:owner/:repo", "PUT /file/:owner/:repo", "DELETE /file/:owner/:repo", "POST /push-workflows/:owner/:repo", "POST /push-batch/:owner/:repo"]
         },
         {
           name: "plenumnet-kong",
@@ -548,7 +568,9 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/kong",
           stripPath: false,
           rateLimit: { minute: 60, hour: 600 },
-          methods: ["GET", "POST"]
+          methods: ["GET", "POST"],
+          endpointCount: 12,
+          endpoints: ["GET /status", "GET /organization", "GET /control-planes", "GET /control-planes/:cpId/services", "GET /control-planes/:cpId/routes", "GET /control-planes/:cpId/plugins", "GET /config", "POST /control-planes/:cpId/services", "POST /control-planes/:cpId/sync-plenumnet", "POST /save-to-github", "GET /control-planes/:cpId/deploy-instructions", "POST /control-planes/:cpId/deploy-to-cloud"]
         },
         {
           name: "plenumnet-health",
@@ -557,156 +579,212 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           routePath: "/api/health",
           stripPath: false,
           rateLimit: { minute: 300, hour: 3000 },
-          methods: ["GET"]
+          methods: ["GET"],
+          endpointCount: 1,
+          endpoints: ["GET /"]
         }
-      ];
+      ]};
+  }
 
-      const results: any[] = [];
-      
-      // First, get all existing services to check what already exists
-      const existingServicesResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
-        headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
-      });
-      const existingServicesData = existingServicesResponse.ok ? await existingServicesResponse.json() : { data: [] };
-      const existingServices = existingServicesData.data || [];
+  async function syncControlPlane(cpId: string) {
+    if (!KONG_KONNECT_TOKEN) {
+      throw new Error("Kong Konnect token not configured");
+    }
 
-      for (const service of services) {
-        try {
-          // Step 1: Check if service exists, create if not
-          let serviceId: string | null = null;
-          const existingService = existingServices.find((s: any) => s.name === service.name);
-          
-          if (existingService) {
-            serviceId = existingService.id;
-            results.push({ 
-              service: service.name, 
-              status: 'already_exists',
-              id: serviceId
-            });
+    const { services } = getPlenumnetServices();
+    const results: any[] = [];
+
+    const existingServicesResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+      headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}` }
+    });
+    const existingServicesData = existingServicesResponse.ok ? await existingServicesResponse.json() : { data: [] };
+    const existingServices = existingServicesData.data || [];
+
+    for (const service of services) {
+      try {
+        let serviceId: string | null = null;
+        const existingService = existingServices.find((s: any) => s.name === service.name);
+        
+        if (existingService) {
+          serviceId = existingService.id;
+          results.push({ service: service.name, status: 'already_exists', id: serviceId });
+        } else {
+          const createResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
+            method: 'POST',
+            headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ name: service.name, url: service.url, enabled: true, tags: service.tags })
+          });
+
+          if (createResponse.ok) {
+            const createdService = await createResponse.json();
+            serviceId = createdService.id;
+            results.push({ service: service.name, status: 'created', id: serviceId });
           } else {
-            const createResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services`, {
-              method: 'POST',
-              headers: {
-                "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                name: service.name,
-                url: service.url,
-                enabled: true,
-                tags: service.tags
-              })
-            });
-
-            if (createResponse.ok) {
-              const createdService = await createResponse.json();
-              serviceId = createdService.id;
-              results.push({ 
-                service: service.name, 
-                status: 'created',
-                id: serviceId
-              });
-            } else {
-              const errorText = await createResponse.text();
-              results.push({ 
-                service: service.name, 
-                status: 'error',
-                error: `HTTP ${createResponse.status}: ${errorText}`
-              });
-              continue;
-            }
+            const errorText = await createResponse.text();
+            results.push({ service: service.name, status: 'error', error: `HTTP ${createResponse.status}: ${errorText}` });
+            continue;
           }
+        }
 
-          if (!serviceId) continue;
+        if (!serviceId) continue;
 
-          // Step 2: Create route for the service
-          const routePaths = (service as any).routePaths || [service.routePath];
-          const stripPath = (service as any).stripPath !== undefined ? (service as any).stripPath : true;
-          const routeResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/routes`, {
-            method: 'POST',
-            headers: {
-              "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              name: `${service.name}-route`,
-              paths: routePaths,
-              methods: service.methods,
-              strip_path: stripPath,
-              tags: service.tags
-            })
+        const routePaths = (service as any).routePaths || [service.routePath];
+        const stripPath = (service as any).stripPath !== undefined ? (service as any).stripPath : true;
+        const routeResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/routes`, {
+          method: 'POST',
+          headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${service.name}-route`,
+            paths: routePaths,
+            methods: service.methods,
+            strip_path: stripPath,
+            tags: service.tags
+          })
+        });
+
+        if (routeResponse.ok) {
+          const route = await routeResponse.json();
+          results.push({ route: `${service.name}-route`, status: 'route_created', id: route.id });
+        } else if (routeResponse.status === 409) {
+          results.push({ route: `${service.name}-route`, status: 'route_exists' });
+        }
+
+        const pluginResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/plugins`, {
+          method: 'POST',
+          headers: { "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: "rate-limiting",
+            config: { minute: service.rateLimit.minute, hour: service.rateLimit.hour, policy: "local", fault_tolerant: true, hide_client_headers: false },
+            tags: ["plenumnet", "rate-limit"]
+          })
+        });
+
+        if (pluginResponse.ok) {
+          const plugin = await pluginResponse.json();
+          results.push({ plugin: `rate-limiting (${service.rateLimit.minute}/min)`, service: service.name, status: 'plugin_created', id: plugin.id });
+        } else if (pluginResponse.status === 409) {
+          results.push({ plugin: 'rate-limiting', service: service.name, status: 'plugin_exists' });
+        }
+
+      } catch (err: unknown) {
+        results.push({ service: service.name, status: 'error', error: toErrorMessage(err) });
+      }
+    }
+
+    const totalEndpoints = services.reduce((sum, s) => sum + (s.endpointCount || 0), 0);
+    return { 
+      success: true, 
+      services: results.filter(r => r.status === 'created' || r.status === 'already_exists').length,
+      routes: results.filter(r => r.status === 'route_created' || r.status === 'route_exists').length,
+      plugins: results.filter(r => r.status === 'plugin_created' || r.status === 'plugin_exists').length,
+      errors: results.filter(r => r.status === 'error').length,
+      totalEndpoints,
+      totalServices: services.length,
+      results 
+    };
+  }
+
+  app.post("/api/kong/control-planes/:cpId/sync-plenumnet", requireAdmin, async (req: any, res) => {
+    try {
+      const result = await syncControlPlane(req.params.cpId);
+      res.json(result);
+    } catch (error: unknown) {
+      res.status(500).json({ error: toErrorMessage(error) });
+    }
+  });
+
+  app.post("/api/kong/sync-all-control-planes", requireAdmin, async (req: any, res) => {
+    try {
+      if (!KONG_KONNECT_TOKEN) {
+        return res.status(401).json({ error: "Kong Konnect token not configured" });
+      }
+
+      const kongHeaders = {
+        "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
+        "Content-Type": "application/json"
+      };
+
+      const cpResp = await fetch(`${KONG_API_BASE}/control-planes`, { headers: kongHeaders });
+      if (!cpResp.ok) {
+        return res.status(cpResp.status).json({ error: `Failed to fetch control planes: ${cpResp.status}` });
+      }
+      const cpData = await cpResp.json();
+      const controlPlanes = cpData.data || [];
+
+      if (controlPlanes.length === 0) {
+        return res.json({ success: false, error: "No control planes found" });
+      }
+
+      const allResults: any[] = [];
+
+      for (const cp of controlPlanes) {
+        try {
+          const syncResult = await syncControlPlane(cp.id);
+          allResults.push({
+            controlPlane: cp.name,
+            controlPlaneId: cp.id,
+            ...syncResult
           });
-
-          if (routeResponse.ok) {
-            const route = await routeResponse.json();
-            results.push({
-              route: `${service.name}-route`,
-              status: 'route_created',
-              id: route.id
-            });
-          } else if (routeResponse.status === 409) {
-            results.push({
-              route: `${service.name}-route`,
-              status: 'route_exists'
-            });
-          }
-
-          // Step 3: Add rate limiting plugin
-          const pluginResponse = await fetch(`${KONG_API_BASE}/control-planes/${cpId}/core-entities/services/${serviceId}/plugins`, {
-            method: 'POST',
-            headers: {
-              "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              name: "rate-limiting",
-              config: {
-                minute: service.rateLimit.minute,
-                hour: service.rateLimit.hour,
-                policy: "local",
-                fault_tolerant: true,
-                hide_client_headers: false
-              },
-              tags: ["plenumnet", "rate-limit"]
-            })
-          });
-
-          if (pluginResponse.ok) {
-            const plugin = await pluginResponse.json();
-            results.push({
-              plugin: `rate-limiting (${service.rateLimit.minute}/min)`,
-              service: service.name,
-              status: 'plugin_created',
-              id: plugin.id
-            });
-          } else if (pluginResponse.status === 409) {
-            results.push({
-              plugin: 'rate-limiting',
-              service: service.name,
-              status: 'plugin_exists'
-            });
-          }
-
         } catch (err: unknown) {
-          results.push({ 
-            service: service.name, 
-            status: 'error',
+          allResults.push({
+            controlPlane: cp.name,
+            controlPlaneId: cp.id,
+            success: false,
             error: toErrorMessage(err)
           });
         }
       }
 
-      res.json({ 
-        success: true, 
-        services: results.filter(r => r.status === 'created' || r.status === 'already_exists').length,
-        routes: results.filter(r => r.status === 'route_created' || r.status === 'route_exists').length,
-        plugins: results.filter(r => r.status === 'plugin_created' || r.status === 'plugin_exists').length,
-        errors: results.filter(r => r.status === 'error').length,
-        results 
+      res.json({
+        success: true,
+        controlPlanesProcessed: allResults.length,
+        results: allResults
       });
     } catch (error: unknown) {
       res.status(500).json({ error: toErrorMessage(error) });
     }
+  });
+
+  app.get("/api/kong/service-catalog", async (_req, res) => {
+    const replitDomains = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
+    const baseUrl = replitDomains 
+      ? `https://${replitDomains.split(',')[0]}`
+      : 'https://plenumnet.replit.app';
+
+    const catalog = [
+      { name: "plenumnet-timing", label: "HPTP Timing API", routePath: "/api/salvi/timing", endpointCount: 5, category: "core", endpoints: ["GET /timestamp", "GET /metrics", "GET /batch/:count", "GET /self-test", "GET /error-budget"] },
+      { name: "plenumnet-calendars", label: "Calendar Synchronization", routePath: "/api/salvi/timing/epoch", endpointCount: 26, category: "core", endpoints: ["GET /anchors", "GET /calendars", "GET /calendars/mayan", "GET /calendars/hebrew", "GET /calendars/chinese", "GET /calendars/vedic", "GET /calendars/egyptian", "GET /calendars/julian-day", "GET /calendars/islamic", "GET /calendars/byzantine", "GET /calendars/thirteen-moon", "GET /calendars/persian", "GET /calendars/ethiopian", "GET /calendars/coptic", "GET /calendars/japanese", "GET /calendars/korean", "GET /calendars/thai", "GET /calendars/indian-saka", "GET /calendars/tibetan", "GET /calendars/aztec", "GET /calendars/roman", "GET /calendars/bengali", "GET /calendars/berber", "GET /calendars/balinese", "GET /calendars/zoroastrian", "GET /calendars/aboriginal"] },
+      { name: "plenumnet-ternary", label: "Ternary Computing Engine", routePath: "/api/salvi/ternary", endpointCount: 8, category: "core", endpoints: ["POST /convert", "POST /add", "POST /multiply", "POST /rotate", "POST /not", "POST /xor", "POST /batch", "GET /density/:tritCount"] },
+      { name: "plenumnet-phase", label: "Phase Encryption", routePath: "/api/salvi/phase", endpointCount: 4, category: "core", endpoints: ["GET /config/:mode", "POST /split", "POST /recombine", "GET /recommend"] },
+      { name: "plenumnet-vm", label: "Ternary Virtual Machine", routePath: "/api/salvi/vm", endpointCount: 2, category: "core", endpoints: ["GET /spec", "GET /conformance"] },
+      { name: "plenumnet-docs", label: "API Documentation", routePath: "/api/salvi/docs", endpointCount: 1, category: "reference", endpoints: ["GET /"] },
+      { name: "plenumnet-demo", label: "Compression Demo", routePath: "/api/demo", endpointCount: 7, category: "tools", endpoints: ["POST /run", "GET /stats", "GET /session/:id", "POST /upload", "GET /history", "GET /files", "GET /data/:id"] },
+      { name: "plenumnet-compression", label: "Compression Storage", routePath: "/api/compression", endpointCount: 6, category: "tools", endpoints: ["POST /file", "POST /decompress", "POST /db/store", "GET /db/retrieve/:id", "GET /db/documents", "DELETE /db/documents/:id"] },
+      { name: "plenumnet-whitepapers", label: "Whitepaper Management", routePath: "/api/whitepapers", endpointCount: 4, category: "reference", endpoints: ["GET /", "GET /active", "GET /:id", "POST /"] },
+      { name: "plenumnet-legal", label: "Legal Documents", routePath: "/api/legal", endpointCount: 4, category: "reference", endpoints: ["GET /terms", "GET /privacy", "GET /security", "GET /aup"] },
+      { name: "plenumnet-auth", label: "Authentication", routePath: "/api/auth", endpointCount: 3, category: "platform", endpoints: ["GET /login", "GET /callback", "POST /logout"] },
+      { name: "plenumnet-user", label: "User Management", routePath: "/api/user", endpointCount: 1, category: "platform", endpoints: ["GET /admin-status"] },
+      { name: "plenumnet-developer-signup", label: "Developer Waitlist", routePath: "/api/developer-signup", endpointCount: 2, category: "platform", endpoints: ["POST /", "GET /count"] },
+      { name: "plenumnet-admin", label: "Admin Dashboard", routePath: "/api/admin", endpointCount: 2, category: "admin", endpoints: ["GET /developer-signups", "DELETE /developer-signups/:id"] },
+      { name: "plenumnet-github", label: "GitHub Integration", routePath: "/api/github", endpointCount: 9, category: "admin", endpoints: ["POST /token", "GET /status", "GET /repos/:owner/:repo/branches", "GET /repos/:owner/:repo/contents", "GET /file/:owner/:repo", "PUT /file/:owner/:repo", "DELETE /file/:owner/:repo", "POST /push-workflows/:owner/:repo", "POST /push-batch/:owner/:repo"] },
+      { name: "plenumnet-kong", label: "Kong Gateway Management", routePath: "/api/kong", endpointCount: 12, category: "admin", endpoints: ["GET /status", "GET /organization", "GET /control-planes", "GET /control-planes/:cpId/services", "GET /control-planes/:cpId/routes", "GET /control-planes/:cpId/plugins", "GET /config", "POST /control-planes/:cpId/services", "POST /control-planes/:cpId/sync-plenumnet", "POST /save-to-github", "GET /control-planes/:cpId/deploy-instructions", "POST /control-planes/:cpId/deploy-to-cloud"] },
+      { name: "plenumnet-health", label: "Health & Observability", routePath: "/api/health", endpointCount: 1, category: "platform", endpoints: ["GET /"] }
+    ];
+
+    const totalEndpoints = catalog.reduce((sum, s) => sum + s.endpointCount, 0);
+    res.json({
+      totalServices: catalog.length,
+      totalEndpoints,
+      baseUrl,
+      categories: {
+        core: catalog.filter(s => s.category === "core"),
+        tools: catalog.filter(s => s.category === "tools"),
+        reference: catalog.filter(s => s.category === "reference"),
+        platform: catalog.filter(s => s.category === "platform"),
+        admin: catalog.filter(s => s.category === "admin")
+      },
+      services: catalog
+    });
   });
 
   // Save Kong config to GitHub (Admin only)
