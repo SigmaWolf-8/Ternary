@@ -85,7 +85,7 @@ pub mod ternary_circle;
 // RE-EXPORTS — the most commonly used types at crate root
 // ══════════════════════════════════════════════════════════════
 
-pub use tribonacci::{TritVec, TribonacciBase3, TernaryRepr};
+pub use tribonacci::{TritVec, TribonacciBase3, TernaryRepr, TribonacciTerm};
 pub use borromean::{TernaryWord, WordRepr};
 pub use ternary_circle::{
     Z28,
@@ -93,7 +93,7 @@ pub use ternary_circle::{
     CYCLIC_ORDER, TAU_TRIBONACCI,
     ternary_deg_to_std_deg, ternary_rad_to_std_rad,
     trit_to_std_rad, walk_tribonacci_radian_spiral,
-    is_base3_repunit,
+    is_base3_repunit, base3_repunit_order,
 };
 
 // ══════════════════════════════════════════════════════════════
