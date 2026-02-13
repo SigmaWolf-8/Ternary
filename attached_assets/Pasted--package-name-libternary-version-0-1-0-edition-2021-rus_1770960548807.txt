@@ -1,0 +1,95 @@
+[package]
+name = "libternary"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Salvi <applied-physics@capomastro.com>"]
+description = "Bijective ternary logic library — Tribonacci arithmetic, Borromean topology, and 364° ternary circle geometry"
+repository = "https://github.com/SigmaWolf-8/Ternary"
+homepage = "https://PlenumNET.replit.app"
+documentation = "https://docs.rs/libternary"
+license = "LicenseRef-Proprietary"
+keywords = ["ternary", "tribonacci", "post-quantum", "bijective", "cryptography"]
+categories = ["mathematics", "cryptography", "no-std"]
+readme = "../README.md"
+
+[lib]
+name = "libternary"
+crate-type = ["lib", "cdylib"]    # cdylib for WASM target
+path = "src/lib.rs"
+
+# ── Feature Flags ──────────────────────────────────────────
+
+[features]
+default = ["std"]
+std = []                          # Standard library (disable for no_std embedded)
+wasm = ["wasm-bindgen", "js-sys"] # Browser WASM target via wasm-pack
+serde = ["dep:serde"]             # Serialization for core types
+rand = ["dep:rand"]               # Random ternary word generation (testing)
+full = ["std", "serde", "rand"]   # Everything except WASM
+
+# ── Dependencies ───────────────────────────────────────────
+
+[dependencies]
+# Optional: WASM bindings
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+
+# Optional: Serialization
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+# Optional: Random generation for testing
+rand = { version = "0.8", optional = true }
+
+[dev-dependencies]
+# Property-based testing
+proptest = "1.4"
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# ── Profiles ───────────────────────────────────────────────
+
+[profile.release]
+opt-level = 3
+lto = "fat"          # Full link-time optimization
+codegen-units = 1    # Single codegen unit for maximum optimization
+strip = "symbols"    # Strip debug symbols from release binary
+panic = "abort"      # Abort on panic (smaller binary, no unwinding)
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true         # Release optimizations + debug symbols for profiling
+strip = "none"
+
+[profile.bench]
+inherits = "release"
+debug = true         # Debug info for profiling benchmarks
+
+# ── Benchmarks ─────────────────────────────────────────────
+
+[[bench]]
+name = "tribonacci_bench"
+harness = false
+
+[[bench]]
+name = "ternary_circle_bench"
+harness = false
+
+[[bench]]
+name = "clifford_bench"
+harness = false
+
+[[bench]]
+name = "torus_bench"
+harness = false
+
+# ── WASM-specific ──────────────────────────────────────────
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O4", "--enable-mutable-globals"]
+
+# ── Documentation ──────────────────────────────────────────
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
