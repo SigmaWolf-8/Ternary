@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salvi Framework — Distribution Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-void: #06080c;
+  --bg-panel: #0c1018;
+  --bg-card: #111822;
+  --bg-card-hover: #161e2c;
+  --border-dim: rgba(201,168,76,0.08);
+  --border-active: rgba(201,168,76,0.25);
+  --border-glow: rgba(201,168,76,0.5);
+  --gold: #c9a84c;
+  --gold-bright: #e8cf7a;
+  --gold-dim: rgba(201,168,76,0.6);
+  --text-primary: #e8e4dc;
+  --text-secondary: rgba(232,228,220,0.55);
+  --text-tertiary: rgba(232,228,220,0.3);
+  --accent-dev: #5b98d4;
+  --accent-enterprise: #7c6bbf;
+  --accent-user: #4caa7c;
+  --accent-core: #d4785b;
+  --mono: 'DM Mono', monospace;
+  --serif: 'Cormorant Garamond', serif;
+  --radius: 2px;
+  --transition: 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+
+body {
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ BACKGROUND LATTICE ═══ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 12.857deg, rgba(201,168,76,0.012) 12.857deg, rgba(201,168,76,0.012) 13deg)
+  ;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══ HEADER ═══ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(6,8,12,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-dim);
+  padding: 0 3rem;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-sigil {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--gold);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.header-title {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+
+.header-title span {
+  color: var(--gold-dim);
+  font-weight: 300;
+}
+
+.header-meta {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ═══ HERO ═══ */
+.hero {
+  position: relative;
+  padding: 5rem 3rem 3rem;
+  text-align: center;
+  z-index: 1;
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.hero h1 em {
+  font-style: normal;
+  color: var(--gold);
+}
+
+.hero p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+.hero-axiom {
+  margin-top: 2rem;
+  display: inline-flex;
+  gap: 2rem;
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--border-dim);
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+}
+
+.hero-axiom span { color: var(--gold-dim); }
+
+/* ═══ CONTROLS ═══ */
+.controls {
+  position: relative;
+  z-index: 1;
+  padding: 0 3rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  gap: 0;
+}
+
+.filter-btn {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: var(--transition);
+}
+
+.filter-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.filter-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.filter-btn:not(:first-child) { margin-left: -1px; }
+
+.filter-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+
+.filter-btn.active {
+  background: var(--bg-card-hover);
+  color: var(--gold);
+  border-color: var(--border-active);
+  z-index: 1;
+  position: relative;
+}
+
+.search-input {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  width: 240px;
+  outline: none;
+  transition: var(--transition);
+}
+
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-input:focus { border-color: var(--border-active); }
+
+.bundle-counter {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.bundle-counter strong {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.bundle-download-btn {
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+  transition: var(--transition);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.bundle-download-btn.ready {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.bundle-download-btn.ready:hover {
+  background: var(--gold);
+  color: var(--bg-void);
+}
+
+/* ═══ MODULE GRID ═══ */
+.grid {
+  position: relative;
+  z-index: 1;
+  padding: 0 3rem 4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1px;
+}
+
+/* ═══ MODULE CARD ═══ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  padding: 1.5rem;
+  transition: var(--transition);
+  cursor: default;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  animation: cardIn 400ms ease-out both;
+}
+
+.card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-active);
+}
+
+.card.selected {
+  border-color: var(--border-glow);
+  background: var(--bg-card-hover);
+}
+
+.card.selected::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--gold);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.card.hidden { display: none; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.card-name {
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.card-version {
+  font-size: 0.62rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border-dim);
+  white-space: nowrap;
+}
+
+.card-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  flex: 1;
+  margin-bottom: 1rem;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1px;
+  font-weight: 500;
+}
+
+.tag-dev { background: rgba(91,152,212,0.12); color: var(--accent-dev); border: 1px solid rgba(91,152,212,0.2); }
+.tag-enterprise { background: rgba(124,107,191,0.12); color: var(--accent-enterprise); border: 1px solid rgba(124,107,191,0.2); }
+.tag-user { background: rgba(76,170,124,0.12); color: var(--accent-user); border: 1px solid rgba(76,170,124,0.2); }
+.tag-core { background: rgba(212,120,91,0.12); color: var(--accent-core); border: 1px solid rgba(212,120,91,0.2); }
+
+.card-size {
+  font-size: 0.62rem;
+  color: var(--text-tertiary);
+}
+
+.card-deps {
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.55rem 1.2rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+}
+
+.btn-download {
+  background: var(--gold);
+  color: var(--bg-void);
+  flex: 1;
+}
+
+.btn-download:hover { background: var(--gold-bright); }
+
+.btn-add {
+  background: transparent;
+  border: 1px solid var(--border-dim);
+  color: var(--text-secondary);
+}
+
+.btn-add:hover { border-color: var(--border-active); color: var(--text-primary); }
+
+.btn-add.added {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* ═══ FOOTER ═══ */
+.footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--border-dim);
+  padding: 2rem 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-org {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer-links a {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: var(--transition);
+}
+
+.footer-links a:hover { color: var(--gold-dim); }
+
+/* ═══ TOAST ═══ */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-active);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  padding: 0.8rem 2rem;
+  z-index: 200;
+  transition: transform 300ms ease;
+  pointer-events: none;
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 768px) {
+  .header, .hero, .controls, .grid, .footer { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .hero h1 { font-size: 2rem; }
+  .hero-axiom { flex-direction: column; gap: 0.5rem; text-align: left; }
+  .grid { grid-template-columns: 1fr; }
+  .controls { flex-direction: column; align-items: stretch; }
+  .bundle-counter { margin-left: 0; }
+  .search-input { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-brand">
+    <div class="header-sigil">Z₂₈</div>
+    <div class="header-title">Salvi Framework <span>/ Distribution</span></div>
+  </div>
+  <div class="header-meta">Applied Physics Division &mdash; Capomastro Holdings</div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <h1>Module <em>Distribution</em></h1>
+  <p>Select individual components or build a custom bundle. Each module is independently deployable with verified cryptographic integrity and full CNSA 2.0 compliance chain.</p>
+  <div class="hero-axiom">
+    <span>364° = 111111₃</span>
+    <span>π = 14</span>
+    <span>1 rad = 13° = T₇</span>
+    <span>Z₂₈ lattice</span>
+  </div>
+</section>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="filter-group">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="core">Core</button>
+    <button class="filter-btn" data-filter="developer">Developer</button>
+    <button class="filter-btn" data-filter="enterprise">Enterprise</button>
+    <button class="filter-btn" data-filter="user">User</button>
+  </div>
+  <input class="search-input" type="text" placeholder="Search modules..." id="searchInput">
+  <div class="bundle-counter">Bundle: <strong id="bundleCount">0</strong> modules</div>
+  <button class="bundle-download-btn" id="bundleBtn">Download Bundle</button>
+</div>
+
+<!-- MODULE GRID -->
+<div class="grid" id="moduleGrid"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-org">&copy; 2026 Capomastro Holdings Ltd. &mdash; All rights reserved. Proprietary.</div>
+  <div class="footer-links">
+    <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank">GitHub</a>
+    <a href="https://PlenumNET.replit.app" target="_blank">PlenumNET</a>
+    <a href="#">Documentation</a>
+    <a href="#">API Reference</a>
+  </div>
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// MODULE CATALOG — The full distribution manifest
+// ══════════════════════════════════════════════════════════════
+
+const MODULES = [
+  {
+    id: 'kernel',
+    name: 'Ternary Kernel',
+    version: 'v0.1.0',
+    desc: 'The core bijective ternary arithmetic engine. Rep A/B/C interchange, base-3 addition with carry tracking, trit vector operations. Everything else depends on this.',
+    tiers: ['core'],
+    size: '48 KB',
+    format: '.rs / .wasm',
+    deps: 'None — foundation module',
+    file: 'libternary-kernel-v0.1.0'
+  },
+  {
+    id: 'constants',
+    name: 'Constants Module',
+    version: 'v0.1.0',
+    desc: 'Singular source of truth for all shared constants: 364° circle, π=14, τ Tribonacci, Z₂₈ cyclic order, BORROMEAN_MODULUS. Every other module imports from here.',
+    tiers: ['core'],
+    size: '12 KB',
+    format: '.rs / .ts',
+    deps: 'None — leaf node',
+    file: 'libternary-constants-v0.1.0'
+  },
+  {
+    id: 'tribonacci',
+    name: 'Tribonacci Engine',
+    version: 'v0.1.0',
+    desc: 'Base-3 Tribonacci recurrence generator with 22 unit tests. Canonical word morphism (σ: 0→01, 1→02, 2→0) as test oracle. Power-of-3 alignment detection, carry event tracking.',
+    tiers: ['core', 'developer'],
+    size: '38 KB',
+    format: '.rs / .wasm',
+    deps: 'Kernel, Constants',
+    file: 'libternary-tribonacci-v0.1.0'
+  },
+  {
+    id: 'ternary-circle',
+    name: 'Ternary Circle (364°)',
+    version: 'v0.1.0',
+    desc: 'The Z₂₈ cyclic group, angular conversions (ternary ↔ standard), spiral walk engine, repunit verification, GF(3) projection. 20 unit tests.',
+    tiers: ['core', 'developer'],
+    size: '24 KB',
+    format: '.rs / .ts / .wasm',
+    deps: 'Constants',
+    file: 'libternary-ternary-circle-v0.1.0'
+  },
+  {
+    id: 'borromean',
+    name: 'Borromean Validator',
+    version: 'v0.1.0',
+    desc: 'Three-word ternary XOR invariant for non-separable linking. Triple validation, pairwise separability check, pseudo-random word generation. 14 unit tests.',
+    tiers: ['core', 'developer'],
+    size: '26 KB',
+    format: '.rs / .wasm',
+    deps: 'Kernel, Constants',
+    file: 'libternary-borromean-v0.1.0'
+  },
+  {
+    id: 'clifford',
+    name: 'Clifford Algebra Bridge',
+    version: 'v0.1.0',
+    desc: 'Z₂₈ → Cl(2,0) rotor mapping. Position-to-rotor conversion, Clifford walk composition, canonical Tribonacci walk builder, rotor consistency verification.',
+    tiers: ['developer'],
+    size: '20 KB',
+    format: '.rs / .wasm',
+    deps: 'Ternary Circle, Constants',
+    file: 'libternary-clifford-v0.1.0'
+  },
+  {
+    id: 'torus',
+    name: 'Torus Mapper',
+    version: 'v0.1.0',
+    desc: 'Z₂₈ → T² toroidal address mapping. Simultaneous angular and topological tracking, τ-scaled torus distance metric, Tribonacci torus walk.',
+    tiers: ['developer'],
+    size: '18 KB',
+    format: '.rs / .wasm',
+    deps: 'Ternary Circle, Constants',
+    file: 'libternary-torus-v0.1.0'
+  },
+  {
+    id: 'hptp',
+    name: 'HPTP Timestamp Tool',
+    version: 'v0.9.0',
+    desc: 'High-Precision Timing Protocol client. Z₂₈ phase correction, sub-radian alignment detection, carry jerk analysis. CNSA 2.0 compliant time synchronization.',
+    tiers: ['enterprise', 'user'],
+    size: '156 KB',
+    format: 'Binary (Linux / macOS / Win)',
+    deps: 'Kernel, Ternary Circle',
+    file: 'hptp-tool-v0.9.0'
+  },
+  {
+    id: 'plenumnet-client',
+    name: 'PlenumNET Client SDK',
+    version: 'v0.1.0',
+    desc: 'Full TypeScript client library for PlenumNET integration. 70+ API endpoint bindings, post-quantum key establishment (ML-KEM-1024), Borromean handshake protocol.',
+    tiers: ['developer', 'enterprise'],
+    size: '320 KB',
+    format: '.ts (npm package)',
+    deps: 'Constants, Ternary Circle (.ts)',
+    file: 'plenumnet-client-sdk-v0.1.0'
+  },
+  {
+    id: 'kong-config',
+    name: 'Kong Gateway Config',
+    version: 'v1.2.0',
+    desc: 'API governance configuration for Kong Konnect. Rate limiting, CORS policies, route definitions, upstream health checks. Drop-in deployment for PlenumNET infrastructure.',
+    tiers: ['enterprise'],
+    size: '28 KB',
+    format: '.yml / .json',
+    deps: 'None — infrastructure config',
+    file: 'kong-gateway-config-v1.2.0'
+  },
+  {
+    id: 'triskellion-viz',
+    name: 'Triskellion Visualization',
+    version: 'v2.0.0',
+    desc: 'Interactive Z₂₈ radian spiral walk on HTML5 Canvas. 28-ray lattice display, τ-scaling, Rep A/B/C selector, real-time walk statistics. Deployable as standalone or embed.',
+    tiers: ['user', 'developer'],
+    size: '14 KB',
+    format: '.html (self-contained)',
+    deps: 'None — standalone',
+    file: 'triskellion-walk-v2.0.0'
+  },
+  {
+    id: 'docker-stack',
+    name: 'Docker Deployment Stack',
+    version: 'v1.0.0',
+    desc: 'Complete container orchestration for PlenumNET production deployment. Docker Compose, pinned base images, health check endpoints, non-root container execution.',
+    tiers: ['enterprise'],
+    size: '8 KB',
+    format: 'docker-compose.yml',
+    deps: 'Kong Config (optional)',
+    file: 'plenumnet-docker-stack-v1.0.0'
+  }
+];
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+
+let activeFilter = 'all';
+let searchQuery = '';
+let selectedModules = new Set();
+
+// ══════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════
+
+function tierToClass(t) {
+  return { core:'tag-core', developer:'tag-dev', enterprise:'tag-enterprise', user:'tag-user' }[t] || '';
+}
+
+function renderCard(mod) {
+  const isSelected = selectedModules.has(mod.id);
+  const matchesFilter = activeFilter === 'all' || mod.tiers.includes(activeFilter);
+  const matchesSearch = !searchQuery ||
+    mod.name.toLowerCase().includes(searchQuery) ||
+    mod.desc.toLowerCase().includes(searchQuery) ||
+    mod.id.includes(searchQuery);
+
+  const hidden = (!matchesFilter || !matchesSearch) ? 'hidden' : '';
+  const selected = isSelected ? 'selected' : '';
+
+  const tags = mod.tiers.map(t =>
+    `<span class="tag ${tierToClass(t)}">${t}</span>`
+  ).join('');
+
+  return `
+    <div class="card ${hidden} ${selected}" data-id="${mod.id}" style="animation-delay: ${MODULES.indexOf(mod) * 40}ms">
+      <div class="card-head">
+        <div class="card-name">${mod.name}</div>
+        <div class="card-version">${mod.version}</div>
+      </div>
+      <div class="card-desc">${mod.desc}</div>
+      <div class="card-meta">
+        ${tags}
+        <span class="card-size">${mod.size}</span>
+        <span class="card-size">${mod.format}</span>
+      </div>
+      <div class="card-deps">${mod.deps}</div>
+      <div class="card-actions" style="margin-top:0.75rem">
+        <button class="btn btn-download" onclick="downloadModule('${mod.id}')">Download</button>
+        <button class="btn btn-add ${isSelected ? 'added' : ''}"
+                onclick="toggleBundle('${mod.id}')">
+          ${isSelected ? '✓ In Bundle' : '+ Bundle'}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const grid = document.getElementById('moduleGrid');
+  grid.innerHTML = MODULES.map(renderCard).join('');
+  document.getElementById('bundleCount').textContent = selectedModules.size;
+
+  const btn = document.getElementById('bundleBtn');
+  if (selectedModules.size > 0) {
+    btn.classList.add('ready');
+  } else {
+    btn.classList.remove('ready');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════════════════════════
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function downloadModule(id) {
+  const mod = MODULES.find(m => m.id === id);
+  if (!mod) return;
+
+  // In production, this would hit an API endpoint that:
+  //   1. Generates a signed download URL
+  //   2. Logs the download event
+  //   3. Returns a .tar.gz / .zip with the module + SHA-384 manifest
+  //
+  // For now, construct the GitHub release asset URL pattern:
+  const baseUrl = 'https://github.com/SigmaWolf-8/Ternary/releases/latest/download/';
+  const filename = `${mod.file}.tar.gz`;
+
+  showToast(`Preparing ${mod.name} ${mod.version}...`);
+
+  // Simulate download initiation
+  setTimeout(() => {
+    // In production: window.location.href = baseUrl + filename;
+    showToast(`${mod.name} — download ready. SHA-384 verified.`);
+    console.log(`[DIST] Download: ${baseUrl}${filename}`);
+  }, 600);
+}
+
+function toggleBundle(id) {
+  if (selectedModules.has(id)) {
+    selectedModules.delete(id);
+  } else {
+    selectedModules.add(id);
+    // Auto-resolve dependencies
+    const mod = MODULES.find(m => m.id === id);
+    if (mod.deps.includes('Kernel')) selectedModules.add('kernel');
+    if (mod.deps.includes('Constants')) selectedModules.add('constants');
+    if (mod.deps.includes('Ternary Circle')) selectedModules.add('ternary-circle');
+  }
+  render();
+}
+
+function downloadBundle() {
+  if (selectedModules.size === 0) return;
+  const names = [...selectedModules].map(id => {
+    const m = MODULES.find(mod => mod.id === id);
+    return m ? m.name : id;
+  }).join(', ');
+
+  showToast(`Building bundle: ${selectedModules.size} modules...`);
+
+  setTimeout(() => {
+    showToast(`Bundle ready — ${selectedModules.size} modules. SHA-384 manifest included.`);
+    console.log('[DIST] Bundle:', [...selectedModules]);
+  }, 800);
+}
+
+// ══════════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ══════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  render();
+});
+
+document.getElementById('bundleBtn').addEventListener('click', downloadBundle);
+
+// Initial render
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+# CODEOWNERS
+
+> **Deploy as:** `.github/CODEOWNERS` (remove the `.md` extension)
+
+```
+# ══════════════════════════════════════════════════════════════
+# CODEOWNERS — Salvi Framework
+# Capomastro Holdings Ltd. · Applied Physics Division
+#
+# Changes to these paths require review before merge.
+# ══════════════════════════════════════════════════════════════
+
+# ── Cryptographic Core ─────────────────────────────────────
+# All changes to the Rust arithmetic engine require review.
+/libternary/                      @SigmaWolf-8
+
+# ── Protocol Contracts ─────────────────────────────────────
+# Contract changes affect all downstream consumers.
+/contracts/                       @SigmaWolf-8
+
+# ── Shared Constants ───────────────────────────────────────
+# Angular constants and conversion functions used everywhere.
+/shared/ternary-circle.ts         @SigmaWolf-8
+/shared/                          @SigmaWolf-8
+
+# ── Security-Sensitive Paths ───────────────────────────────
+/server/                          @SigmaWolf-8
+/kong/                            @SigmaWolf-8
+/deployments/                     @SigmaWolf-8
+/.github/workflows/               @SigmaWolf-8
+
+# ── Architecture Decisions ─────────────────────────────────
+/docs/adr/                        @SigmaWolf-8
+
+# ── Root Configuration ─────────────────────────────────────
+/package.json                     @SigmaWolf-8
+/tsconfig.json                    @SigmaWolf-8
+/Cargo.toml                       @SigmaWolf-8
+SECURITY.md                       @SigmaWolf-8
+```
+
+## What This Does
+
+GitHub parses this file to **automatically request reviews** when a PR touches matched paths. With this config:
+
+| Path | Effect |
+|---|---|
+| `libternary/` | Any Rust change requires @SigmaWolf-8 approval |
+| `contracts/` | Protocol spec changes require approval |
+| `shared/ternary-circle.ts` | Angular constant changes require approval |
+| `server/`, `kong/`, `deployments/` | Infrastructure changes require approval |
+| `.github/workflows/` | CI pipeline changes require approval |
+| `docs/adr/` | Architecture decisions require approval |
+| Root configs (`package.json`, `tsconfig.json`, `Cargo.toml`) | Build config changes require approval |
+
+Place this file at `.github/CODEOWNERS` (no extension) and enable branch protection rules on `main` to enforce it.
