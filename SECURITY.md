@@ -1,46 +1,132 @@
 # Security Policy
 
+## Salvi Framework — Security Posture
+
+**Organization:** Capomastro Holdings Ltd.
+**Division:** Applied Physics Division
+**Classification:** PROPRIETARY — Post-Quantum Cryptographic Infrastructure
+
+---
+
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in the Salvi Framework or
-PlenumNET, please report it responsibly by emailing
-Rsalvi@Salvigroup.com.
+**DO NOT** open a public GitHub issue for security vulnerabilities.
 
-Do NOT create a public GitHub issue for security vulnerabilities.
+### Responsible Disclosure
 
-We will acknowledge receipt within 48 hours and aim to provide a
-substantive response within 7 business days.
+Report vulnerabilities via **private disclosure**:
+
+1. Navigate to the [Security Advisories](https://github.com/SigmaWolf-8/Ternary/security/advisories) page
+2. Click "Report a vulnerability"
+3. Provide a detailed description including:
+   - Affected component (libternary, server, client, contracts, services)
+   - Reproduction steps
+   - Impact assessment
+   - Suggested fix (if applicable)
+
+**Response timeline:**
+- Acknowledgment: **48 hours**
+- Triage and severity assessment: **5 business days**
+- Patch for CRITICAL/HIGH: **14 calendar days**
+- Patch for MEDIUM/LOW: **30 calendar days**
+
+---
+
+## Cryptographic Compliance
+
+### CNSA 2.0 Alignment
+
+The Salvi Framework's post-quantum cryptographic layer targets alignment with the NSA's **Commercial National Security Algorithm Suite 2.0** transition timeline:
+
+| Algorithm Class | CNSA 2.0 Requirement | Framework Implementation |
+|---|---|---|
+| Key Establishment | ML-KEM (CRYSTALS-Kyber) | ML-KEM-1024 |
+| Digital Signatures | ML-DSA (CRYSTALS-Dilithium) | ML-DSA-87 |
+| Hash Functions | SHA-384 / SHA-512 | SHA-384 minimum |
+| Symmetric Encryption | AES-256 | AES-256-GCM |
+| Key Derivation | HKDF-SHA-384 | HKDF-SHA-384 |
+
+**Note:** The bijective ternary encoding (`Rep C: {1,2,3}`) used for wire format serialization eliminates zero-padding oracle vulnerabilities that affect conventional binary encodings. This is a structural defense, not a patch.
+
+### Ternary-Specific Security Properties
+
+1. **Carry propagation timing invariance.** Arithmetic operations in the ternary kernel are designed with constant-time carry propagation to resist timing side-channels. The carry jerk metric (ADR-007) provides a measurable bound on timing variance.
+
+2. **Borromean handshake validation.** Three-party key establishment uses the Borromean ternary XOR invariant — if any one of the three participants is compromised, the topological non-separability condition fails and the handshake aborts. This is verified at the `contracts/` layer.
+
+3. **Z₂₈ phase integrity.** Clock synchronization in HPTP uses the 28-position cyclic group (Z₂₈) derived from the 364° ternary circle. Phase corrections below one ternary radian (13°) are flagged as sub-resolution and require escalated validation.
+
+---
+
+## Supply Chain Integrity
+
+### Dependencies
+
+- **Rust dependencies** are audited via `cargo audit` on every CI run and weekly scheduled audit
+- **npm dependencies** are reviewed via GitHub Dependabot and `npm audit`
+- **SBOM generation** (CycloneDX format) runs on every push to `main` — artifacts retained 90 days
+- **License compliance** enforced in CI: AGPL-3.0 and GPL-3.0 dependencies are denied
+
+### Build Reproducibility
+
+- Rust builds use `Cargo.lock` committed to the repository
+- Docker images pin base image digests (see `deployments/docker/`)
+- Node.js uses `npm ci` with `package-lock.json` committed
+
+### Code Review Requirements
+
+- All changes to `libternary/`, `contracts/`, and `shared/` require review
+- Changes to cryptographic primitives require **two** reviewers
+- No force-pushes to `main`
+
+---
+
+## Supported Versions
+
+| Version | Supported |
+|---|---|
+| `main` (HEAD) | Active development |
+| Tagged releases | Security patches for latest major |
+
+---
 
 ## Scope
 
-This policy applies to all components of the Salvi Framework and
-PlenumNET platform, including:
+### In Scope
 
-- Cryptographic implementations (Phase Encryption, TL-KEM, TL-DSA, etc.)
-- HPTP timing protocol
-- API endpoints and authentication
-- Web application and frontend
-- Build and deployment infrastructure
+- `libternary/` — All Rust arithmetic and cryptographic primitives
+- `server/` — API endpoints and service logic
+- `shared/` — Constants and shared types (including `ternary-circle.ts`)
+- `contracts/` — Protocol specifications
+- `kong/` — API gateway configuration
+- `deployments/` — Docker and infrastructure configuration
+- Authentication and authorization flows
+- Data handling and storage
 
-## Disclosure Policy
+### Out of Scope
 
-We follow a coordinated disclosure approach. We request that you:
+- The Replit hosting platform itself (report to Replit)
+- Third-party dependencies (report upstream, notify us)
+- Social engineering attacks
+- Denial of service (unless amplification via application logic)
 
-1. Allow us reasonable time to investigate and address the issue
-2. Do not publicly disclose the vulnerability before we have released a fix
-3. Do not exploit the vulnerability beyond what is necessary to demonstrate it
+---
 
-## Recognition
+## Security Hardening Checklist
 
-We appreciate security researchers who help us improve the security of
-the Salvi Framework. With your permission, we will acknowledge your
-contribution in our security advisories.
+For deployment operators:
 
-## Contact
+- [ ] All API endpoints behind Kong gateway with rate limiting
+- [ ] TLS 1.3 minimum (TLS 1.2 with PQ hybrid acceptable during transition)
+- [ ] Content Security Policy headers configured
+- [ ] CORS restricted to known origins
+- [ ] Database connections use TLS with certificate pinning
+- [ ] Secrets managed via environment variables, never committed
+- [ ] Docker containers run as non-root
+- [ ] Health check endpoints (`/api/health`) do not leak internal state
+- [ ] Logging excludes cryptographic material and PII
 
-Security reports: Rsalvi@Salvigroup.com
-PGP key: Available via GitHub Security Advisories
+---
 
-Capomastro Holdings Ltd.
-Applied Physics Division
-Sherwood Park, AB Canada
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*"The elimination of zero is not cosmetic. It is a structural defense."*
