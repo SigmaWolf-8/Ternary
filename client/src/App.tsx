@@ -44,6 +44,7 @@ const CompliancePage = lazy(() => import("@/pages/compliance"));
 const HPTPDemo = lazy(() => import("@/pages/hptp-demo"));
 const ThirteenMoonPage = lazy(() => import("@/pages/thirteen-moon"));
 const CompressionPage = lazy(() => import("@/pages/compression"));
+const Tribonacci28DS = lazy(() => import("@/pages/tribonacci-28ds"));
 const About = lazy(() => import("@/pages/about"));
 const Contact = lazy(() => import("@/pages/contact"));
 
@@ -189,6 +190,7 @@ function MarketingRouter() {
           <Route path="/privacy" component={LegalPage} />
           <Route path="/security" component={LegalPage} />
           <Route path="/aup" component={LegalPage} />
+          <Route path="/tribonacci-28ds" component={Tribonacci28DS} />
         </Switch>
       </Suspense>
     </MarketingLayout>
@@ -217,7 +219,7 @@ function DashboardRouter() {
   );
 }
 
-const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup"];
+const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds"];
 const dashboardPaths = ["/ternarydb", "/api-demo", "/hptp", "/compression", "/calendar", "/13-moon", "/docs", "/compliance", "/admin", "/github", "/kong-konnect"];
 
 function AppRouter() {

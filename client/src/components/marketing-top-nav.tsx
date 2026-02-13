@@ -91,6 +91,7 @@ const technologyColumns: NavColumn[] = [
     items: [
       { title: "Performance Comparison", subtitle: "Binary vs ternary", href: "/#performance" },
       { title: "5-Layer Stack", subtitle: "Full architecture view", href: "/#architecture" },
+      { title: "Tribonacci 28DS", subtitle: "28-dimension symmetry", href: "/tribonacci-28ds" },
     ],
   },
 ];
