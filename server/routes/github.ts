@@ -9,13 +9,14 @@ import type { IStorage } from "../storage";
 import { z } from "zod";
 import { createRequireAdmin, resolveGitHubToken, sanitizePath } from "./middleware";
 import { createLogger, toErrorMessage } from "../logger";
+import { githubTokenLimiter, authLimiter } from "../middleware/rate-limiter";
 
 const log = createLogger("github");
 
 export function registerGitHubRoutes(app: Express, storage: IStorage): void {
   const requireAdmin = createRequireAdmin(storage);
 
-  app.post("/api/github/token", requireAdmin, async (req: any, res) => {
+  app.post("/api/github/token", githubTokenLimiter, requireAdmin, async (req: any, res) => {
     try {
       const schema = z.object({
         token: z.string().min(1)
@@ -436,7 +437,7 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
     return ALLOWED_PUSH_PREFIXES.some(prefix => normalized.startsWith(prefix) || normalized === prefix);
   };
 
-  app.post("/api/github/push-batch/:owner/:repo", requireAdmin, async (req: any, res) => {
+  app.post("/api/github/push-batch/:owner/:repo", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       const { owner, repo } = req.params;
       const token = resolveGitHubToken(req.adminUser);
