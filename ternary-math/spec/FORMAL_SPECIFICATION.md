@@ -60,7 +60,7 @@ Since GF(3) has only 3 elements, all 27 triples (a,b,c) can be checked exhaustiv
 
 ### 1.3 Extended Operations for VM Opcodes
 
-Beyond basic field operations, the 35-opcode ISA includes operations that must preserve GF(3) invariants:
+Beyond basic field operations, the 55-opcode ISA includes operations that must preserve GF(3) invariants:
 
 - **Ternary NOT (TNOT):** a → (3 − a) mod 3, equivalently: 0→0, 1→2, 2→1
 - **Ternary MIN:** min(a, b) under natural ordering 0 < 1 < 2
@@ -203,9 +203,9 @@ For PlenumNET benchmarks, we measure:
    - Addition: Binary needs n full-adders; balanced ternary needs n half-adders (no borrow propagation in common cases)
    - Multiplication: Binary n² AND+ADD; ternary n² MUL₃+ADD₃ where MUL₃ is simpler (−1,0,+1 multiply is sign-copy or zero)
 
-3. **VM instruction density:** For the 35-opcode ISA:
-   - Binary encoding: ⌈log₂(35)⌉ = 6 bits per opcode
-   - Ternary encoding: ⌈log₃(35)⌉ = 4 trits per opcode
+3. **VM instruction density:** For the 55-opcode ISA:
+   - Binary encoding: ⌈log₂(55)⌉ = 6 bits per opcode
+   - Ternary encoding: ⌈log₃(55)⌉ = 4 trits per opcode
    - Information per symbol: 4 × 1.585 = 6.34 bits vs 6 bits → ternary carries 5.7% more info per opcode word
 
 ---

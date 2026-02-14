@@ -372,7 +372,7 @@ This is Kong managing itself — the gateway's own control panel. It lets admins
 
 ## 14. CNSA 2.0 Compliance Enforcement
 
-**Kong Service Name**: Global plugins (applied to all 18 services via request-transformer and response-transformer)
+**Kong Service Name**: Global plugins (applied to all 17 services via request-transformer and response-transformer)
 **Status**: ACTIVE (not a standalone service — enforced via Kong plugins)
 
 ### What it does (in plain terms)
@@ -493,10 +493,10 @@ Kong manages four API consumer tiers for programmatic access:
 
 | Category | Count |
 |----------|-------|
-| **API Service Groups** | 18 |
-| **Individual Endpoints** | 70+ |
-| **Kong-Registered Services** | 18 (all services registered) |
-| **Per-Service Rate Limiting Plugins** | 18 |
+| **API Service Groups** | 17 |
+| **Individual Endpoints** | 97 |
+| **Kong-Registered Services** | 17 (all services registered) |
+| **Per-Service Rate Limiting Plugins** | 17 |
 | **Global Plugins** | 4 (correlation-id, request-transformer, response-transformer, request-termination) |
 | **Request Size Limiting** | 2 (compression: 10MB, payments: 1MB) |
 | **API Consumers** | 4 tiers |
@@ -510,7 +510,7 @@ Kong manages four API consumer tiers for programmatic access:
 
 ## Syncing to Kong Konnect
 
-All 18 services are defined in `kong/kong.yaml` and registered in the sync function. To deploy:
+All 17 services are defined in `kong/kong.yaml` and registered in the sync function. To deploy:
 
 **Option A — Admin Dashboard** (recommended):
 Navigate to the Kong Konnect page in the PlenumNET admin panel and click "Sync PlenumNET to Kong".

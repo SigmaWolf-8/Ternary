@@ -75,7 +75,7 @@ High-Precision Timing Protocol providing femtosecond-scale timestamps anchored t
 Adaptive dual-phase quantum encryption with guardian phase tamper detection using Tribonacci-weighted checksums.
 
 ### Ternary Virtual Machine
-35-opcode ISA with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert), 27 registers, mark-sweep GC, and theory-derived constants for cycle limits and buffer sizes.
+55-opcode ISA with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert), 27 registers, mark-sweep GC, and theory-derived constants for cycle limits and buffer sizes.
 
 ### PlenumDB
 Ternary-encoded data storage demonstrating the 58.5% information density advantage. Live compression demo with benchmark validation endpoint.
