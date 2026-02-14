@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - **Route Architecture**: Decomposed monolithic routes.ts (3750 lines) into focused modules — github.ts (544 lines), kong.ts (1278 lines), salvi.ts (1038 lines), middleware.ts (49 lines), reducing routes.ts to 890 lines (76% reduction)
-- **Logging**: Replaced all `console.log`/`console.error` with structured Winston logger (server/logger.ts) with JSON formatting and log levels
+- **Logging**: Replaced all `console.log`/`console.error` with structured logger (server/logger.ts) with JSON formatting, log levels, and module tagging
 - **Configuration**: Created centralized config.ts for environment variables with validation and typed defaults
 - **Legal Jurisdiction**: Corrected all legal documents from "Province of Ontario" to "Province of Alberta" per corporate registration
 
