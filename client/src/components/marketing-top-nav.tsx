@@ -329,9 +329,12 @@ function StandardDropdownItem({ item }: { item: NavLinkItem }) {
   );
 }
 
-function DesktopNav() {
+function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
   return (
-    <NavigationMenu className="hidden md:flex">
+    <NavigationMenu
+      className="hidden md:flex"
+      onValueChange={(val: string) => onOpenChange?.(val !== "")}
+    >
       <NavigationMenuList>
         <NavigationMenuItem>
           <NavigationMenuTrigger data-testid="nav-trigger-platform">
@@ -504,8 +507,10 @@ export function MarketingTopNav() {
 
   const lastScrollY = useRef(0);
   const [visible, setVisible] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleScroll = useCallback(() => {
+    if (menuOpen) return;
     const currentY = window.scrollY;
     if (currentY < 60) {
       setVisible(true);
@@ -515,7 +520,7 @@ export function MarketingTopNav() {
       setVisible(true);
     }
     lastScrollY.current = currentY;
-  }, []);
+  }, [menuOpen]);
 
   useEffect(() => {
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -548,7 +553,7 @@ export function MarketingTopNav() {
             <span className="text-base">PlenumNET</span>
           </Link>
 
-          {!isMobile && <DesktopNav />}
+          {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
           <div className="ml-auto flex items-center gap-2">
             <Button
