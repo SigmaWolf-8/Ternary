@@ -76,7 +76,7 @@ function HeroVisual() {
   const layers = [
     { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
     { label: "Protocols", items: ["HPTP", "T3P", "TTP", "TDNS"], delay: 0.6 },
-    { label: "Virtual Machine", items: ["62 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
+    { label: "Virtual Machine", items: ["160 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
   ];
@@ -380,7 +380,7 @@ function HeroSection() {
             <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
             <AnimatedStat value="1,011" label="Tests Passing" delay={0.28} />
             <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
-            <AnimatedStat value="62" label="VM Opcodes" delay={0.34} />
+            <AnimatedStat value="160" label="VM Opcodes" delay={0.34} />
           </div>
           <HeroVisual />
           <HeroDemo />
@@ -429,7 +429,7 @@ function PlatformSection() {
     },
     {
       icon: Terminal,
-      title: "62-Opcode Virtual Machine",
+      title: "160-Opcode Virtual Machine",
       description: "Register-based VM with ternary-native instructions, garbage collection, and full execution engine.",
       stats: "27 registers",
     },
@@ -519,7 +519,7 @@ function ArchitectureSection() {
     },
     {
       label: "Virtual Machine",
-      items: ["62-Opcode ISA", "27 Ternary Registers", "TAGC Garbage Collector", "GF(3) Arithmetic"],
+      items: ["160-Opcode ISA v2.0", "27 Ternary Registers", "TAGC Garbage Collector", "GF(3) Arithmetic"],
       color: "bg-primary/20 border-primary/50",
     },
     {
@@ -739,7 +739,7 @@ function ComponentsSection() {
       badge: "Virtual Machine",
       icon: Terminal,
       title: "Ternary VM (TVM)",
-      description: "62-opcode register-based virtual machine with ternary-native arithmetic and automatic memory management.",
+      description: "160-opcode register-based virtual machine (ISA v2.0) with ternary-native arithmetic, atomic operations, and automatic memory management.",
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
         "GF(3) ops: TAdd, TMul, TNeg, TRot, TXor",
