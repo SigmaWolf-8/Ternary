@@ -408,5 +408,5 @@ pub fn kernel_version() -> String {
 
 #[wasm_bindgen]
 pub fn spec_version() -> String {
-    "TVM ISA v1.0.0 | 35 opcodes | GF(3) field | 27 registers".into()
+    "TVM ISA v1.0.0 | 55 opcodes | GF(3) field | 27 registers".into()
 }
