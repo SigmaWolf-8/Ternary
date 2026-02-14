@@ -12,7 +12,7 @@ Post-quantum ternary computing platform implementing the Unified 13D Torsion Ple
 | CNSA 2.0 coverage | 11/11 algorithms (100%) |
 | Test count | 1,011+ |
 | CMVP target | FIPS 140-3 Level 1 |
-| VM opcodes | 62 |
+| VM opcodes | 160 (ISA v2.0) |
 
 ## Architecture
 
@@ -75,7 +75,7 @@ High-Precision Timing Protocol providing femtosecond-scale timestamps anchored t
 Adaptive dual-phase quantum encryption with guardian phase tamper detection using Tribonacci-weighted checksums.
 
 ### Ternary Virtual Machine
-62-opcode ISA with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert), 27 registers, mark-sweep GC, and theory-derived constants for cycle limits and buffer sizes.
+160-opcode ISA v2.0 with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert), 27 registers, mark-sweep GC, and theory-derived constants for cycle limits and buffer sizes. Fully backward compatible with v1.0's 62 opcodes.
 
 ### PlenumDB
 Ternary-encoded data storage demonstrating the 58.5% information density advantage. Live compression demo with benchmark validation endpoint.
