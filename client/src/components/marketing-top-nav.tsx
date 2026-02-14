@@ -113,6 +113,7 @@ const technologyColumns: NavColumn[] = [
 
 const resourcesItems: NavLinkItem[] = [
   { title: "Whitepaper", href: "/whitepaper" },
+  { title: "ISA Security Primitives", href: "/isa-security" },
   { title: "Documentation", href: "/docs" },
   { title: "CNSA 2.0 Compliance", href: "/compliance" },
   { title: "Module Distribution", href: "/distribution" },
