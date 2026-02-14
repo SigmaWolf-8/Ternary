@@ -139,7 +139,7 @@ const modules = [
   {
     id: "11",
     title: "Ternary Virtual Machine",
-    description: "55-opcode ISA, 27 registers, GF(3) ALU, and ternary-aware garbage collector (TAGC).",
+    description: "62-opcode ISA, 27 registers, GF(3) ALU, and ternary-aware garbage collector (TAGC).",
     priority: "P3",
     tests: "~95",
     icon: Terminal,

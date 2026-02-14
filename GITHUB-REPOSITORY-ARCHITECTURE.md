@@ -466,7 +466,7 @@ Physical implementation designs:
 | 2 | `plenumnet-calendars` | Core | 26 | Calendar Synchronization (24 ancient systems) |
 | 3 | `plenumnet-ternary` | Core | 8 | Ternary Computing Engine |
 | 4 | `plenumnet-phase` | Core | 4 | Phase Encryption API |
-| 5 | `plenumnet-vm` | Core | 2 | Ternary Virtual Machine (55-opcode ISA) |
+| 5 | `plenumnet-vm` | Core | 2 | Ternary Virtual Machine (62-opcode ISA) |
 | 6 | `plenumnet-docs` | Reference | 1 | API Documentation |
 | 7 | `plenumnet-whitepapers` | Reference | 4 | Whitepaper Management |
 | 8 | `plenumnet-legal` | Reference | 4 | Legal Documents (Terms, Privacy, Security, AUP) |

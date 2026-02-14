@@ -6,7 +6,7 @@ This directory contains the Architecture Decision Records (ADRs) for the PlenumN
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [ADR-001](ADR-001-35-opcode-instruction-set.md) | 55-Opcode Instruction Set for the PlenumNET VM | Accepted |
+| [ADR-001](ADR-001-35-opcode-instruction-set.md) | 62-Opcode Instruction Set for the PlenumNET VM | Accepted |
 | [ADR-002](ADR-002-gf3-over-balanced-ternary.md) | GF(3) Field Arithmetic as the Kernel Primitive | Accepted |
 | [ADR-003](ADR-003-lamport-alongside-lattice.md) | Dual-Layer Cryptographic Architecture — Lamport + Lattice | Accepted |
 
