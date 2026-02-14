@@ -1,0 +1,386 @@
+# Salvi Framework — Ternary VM ISA Reference v2.0
+
+Version 2.0 · Salvi Framework / PlenumNET Platform
+Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Patent(s) Pending
+
+---
+
+## 1. Overview
+
+The Ternary Virtual Machine (TVM) ISA v2.0 extends the original 62-opcode instruction set to **160 opcodes**, targeting enterprise-grade deployment for post-quantum cryptographic systems, HPTP femtosecond timing, financial compliance (FINRA Rule 613 / CAT NMS), and the Sigma Wolf ET trading protocol.
+
+Key v2.0 additions:
+
+- **Extended arithmetic**: fused multiply-accumulate, min/max/clamp, immediate-add
+- **Atomic operations**: compare-and-swap, exchange, atomic add, memory fences
+- **Extended control flow**: indirect call, tail call, loop counter, jump table, interrupt return
+- **Selection & bit manipulation**: conditional moves, popcount, CLZ/CTZ, rotate, PDEP/PEXT, CRC32
+- **Extended crypto acceleration**: lattice multiply, sponge absorb/squeeze, Lamport OTS, KEM encaps/decaps, secure zeroize
+- **Full SIMD vector suite**: all ternary ops vectorized, plus broadcast/extract/insert/permute
+- **Security & audit**: FINRA-compliant audit logging, capability-based access control, constant-time operations, side-channel masking
+- **Debug & profiling**: breakpoints, profiling counters, trace events, assertions
+- **Three-ring privilege model**: Ring0 (kernel), Ring1 (user), Ring2 (service/driver)
+
+Backward compatibility: all 62 v1.0 opcodes retain their original hex values and semantics.
+
+---
+
+## 2. Register File (v2.0 Extended)
+
+### 2.1 General-Purpose Registers
+
+| Register | Width | Description |
+|----------|-------|-------------|
+| r0–r26 | 64-bit | General-purpose; each has an independent `ternary_mode` flag |
+
+### 2.2 Special Registers
+
+| Register | Width | Description |
+|----------|-------|-------------|
+| PC | 64-bit | Program counter (instruction index) |
+| SP | 64-bit | Stack pointer |
+| FP | 64-bit | **v2.0** Frame pointer for call frames |
+| LR | 64-bit | **v2.0** Link register (return address) |
+
+### 2.3 Flags Register (v2.0 Extended)
+
+| Flag | Set when… |
+|------|-----------|
+| zero | Result == 0 |
+| negative | Result < 0 (signed) |
+| positive | Result > 0 |
+| overflow | Arithmetic overflow detected |
+| ternary | (per-register) Register contains packed trit data |
+| halted | HALT instruction has executed |
+| **carry** | **v2.0** Unsigned overflow / borrow detected |
+| **parity** | **v2.0** Result has even number of set bits |
+| **interrupt_enabled** | **v2.0** Interrupts are enabled (default: true) |
+
+### 2.4 Privilege Levels (v2.0 Extended)
+
+| Level | Value | Description |
+|-------|-------|-------------|
+| Ring0 | 0 | Kernel / supervisor — full access |
+| Ring1 | 1 | User — restricted |
+| **Ring2** | **2** | **v2.0** Service / driver — intermediate privilege |
+
+---
+
+## 3. Instruction Encoding Formats
+
+Unchanged from v1.0. All three formats accommodate the full 0x00–0x9F opcode range.
+
+- **Legacy**: 16 bytes (full 64-bit immediate)
+- **Compact**: 4 or 6 bytes (16-bit immediate)
+- **Balanced Ternary**: 5 or 7 bytes (9-trit opcode encoding)
+
+---
+
+## 4. Opcode Table — 160 Instructions
+
+### 4.1 Basic & Extended Arithmetic (0x00–0x0F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x00 | NOP | — | — | No operation | |
+| 0x01 | HALT | HLT | — | Stop execution; set halted flag | |
+| 0x02 | ADD | — | dst, src1, src2 | dst ← src1 + src2 (overflow-detecting) | |
+| 0x03 | SUB | — | dst, src1, src2 | dst ← src1 − src2 | |
+| 0x04 | MUL | — | dst, src1, src2 | dst ← src1 × src2 | |
+| 0x05 | DIV | — | dst, src1, src2 | dst ← src1 / src2 (trap on zero) | |
+| 0x06 | MOD | — | dst, src1, src2 | dst ← src1 % src2 (trap on zero) | |
+| 0x07 | NEG | — | dst, src1 | dst ← −src1 | |
+| 0x08 | ABS | — | dst, src1 | dst ← \|src1\| | ★ |
+| 0x09 | ADDIMM | ADDI | dst, src1, #imm | dst ← src1 + imm (avoids LDI+ADD) | ★ |
+| 0x0A | MULADD | MADD | dst, src1, src2 | dst ← src1 × src2 + dst (fused MAC) | ★ |
+| 0x0B | MULSUB | MSUB | dst, src1, src2 | dst ← src1 × src2 − dst | ★ |
+| 0x0C | DIVMOD | — | dst, src1, src2 | dst ← quotient, src2_reg ← remainder | ★ |
+| 0x0D | MIN | — | dst, src1, src2 | dst ← min(src1, src2) signed | ★ |
+| 0x0E | MAX | — | dst, src1, src2 | dst ← max(src1, src2) signed | ★ |
+| 0x0F | CLAMP | — | dst, src1, src2 | dst ← clamp(dst, lo=src1, hi=src2) | ★ |
+
+**Domain rationale**: MADD/MSUB are critical for polynomial evaluation in lattice crypto and for weighted-signal accumulation in the Sigma Wolf ET trading engine. MIN/MAX/CLAMP support order book price clamping and risk limit enforcement.
+
+### 4.2 Ternary Core (0x10–0x1F) — Unchanged
+
+| Hex | Mnemonic | Alias | Operands | Description |
+|-----|----------|-------|----------|-------------|
+| 0x10 | TADD | — | dst, src1, src2 | GF(3) trit-wise addition |
+| 0x11 | TMUL | — | dst, src1, src2 | GF(3) trit-wise multiplication |
+| 0x12 | TNEG | — | dst, src1 | Trit-wise negation: −t per trit |
+| 0x13 | TROT | — | dst, src1, src2 | Trit-wise rotation (−1→0→+1→−1) |
+| 0x14 | TXOR | — | dst, src1, src2 | Ternary XOR: Kleene min(a, b) |
+| 0x15 | TCONVERT | TCVT | dst, src1, src2, #imm | Convert trits between representations |
+| 0x16 | TAND | — | dst, src1, src2 | Łukasiewicz conjunction |
+| 0x17 | TOR | — | dst, src1, src2 | Kleene disjunction: max(a, b) |
+| 0x18 | TSUB | — | dst, src1, src2 | GF(3) subtraction: add(a, not(b)) |
+| 0x19 | TINV | — | dst, src1 | GF(3) multiplicative inverse per trit |
+| 0x1A | TSHIFT | TSHL | dst, src1, src2/imm | Trit shift left/right; zero-fill |
+| 0x1B | TCMP | — | dst, src1, src2 | Trit-wise compare → {−1, 0, +1} |
+| 0x1C | TLOAD | TLD | dst, src1, #imm | Load via ternary/binary address |
+| 0x1D | TSTORE | TST | dst, src1, #imm | Store via ternary/binary address |
+| 0x1E | TREDUCE | TRED | dst, src1, #imm | Reduce 27 trits via gate |
+| 0x1F | TROTINV | TROTI | dst, src1 | Inverse rotation (+1→0→−1→+1) |
+
+### 4.3 Memory, Register & Atomics (0x20–0x2F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x20 | LOAD | LD | dst, src1, #imm | dst ← mem[src1 + imm] (8-byte) | |
+| 0x21 | STORE | ST | dst, src1, #imm | mem[src1 + imm] ← dst (8-byte) | |
+| 0x22 | MOVE | MOV | dst, src1 | dst ← src1 | |
+| 0x23 | LOADIMM | LDI | dst, #imm | dst ← immediate | |
+| 0x24 | PUSH | — | src1 | Push src1 onto value stack | |
+| 0x25 | POP | — | dst | Pop top of stack into dst | |
+| 0x26 | LEA | — | dst, src1, #imm | dst ← src1 + imm (no memory access) | ★ |
+| 0x27 | LOADBYTE | LDB | dst, src1, #imm | dst ← mem[src1+imm] as u8, zero-ext | ★ |
+| 0x28 | STOREBYTE | STB | dst, src1, #imm | mem[src1+imm] ← dst & 0xFF | ★ |
+| 0x29 | EXCHANGE | XCHG | dst, src1, #imm | Atomic swap: dst ↔ mem[src1+imm] | ★ |
+| 0x2A | COMPARESWAP | CAS | dst, src1, src2 | Atomic CAS: if mem==src1 then mem←src2 | ★ |
+| 0x2B | ATOMICADD | AADD | dst, src1, #imm | Atomic: mem[src1+imm] += dst | ★ |
+| 0x2C | FENCE | — | #imm | Memory fence (0=full, 1=acq, 2=rel) | ★ |
+| 0x2D | PUSHFRAME | ENTER | — | Push FP, set FP ← SP | ★ |
+| 0x2E | POPFRAME | LEAVE | — | Restore SP ← FP, pop old FP | ★ |
+| 0x2F | MEMCOPY | MCOPY | dst, src1, src2 | Copy src2 bytes from src1 to dst addr | ★ |
+
+**Domain rationale**: CAS and AADD are essential for lock-free order matching in the Sigma Wolf ET engine. FENCE ensures proper memory ordering for concurrent trading state. ENTER/LEAVE support proper call-frame management for the THDL compiler.
+
+### 4.4 Control Flow (0x30–0x3F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x30 | JUMP | JMP | #imm | PC ← imm (unconditional) | |
+| 0x31 | JUMPZERO | JZ | #imm | PC ← imm if zero flag | |
+| 0x32 | JUMPNEG | JN | #imm | PC ← imm if negative flag | |
+| 0x33 | JUMPPOS | JP | #imm | PC ← imm if positive flag | |
+| 0x34 | CALL | — | #imm | Push PC; PC ← imm | |
+| 0x35 | RETURN | RET | — | PC ← pop() | |
+| 0x36 | JUMPNOTZERO | JNZ | #imm | PC ← imm if !zero | |
+| 0x37 | JUMPGE | JGE | #imm | PC ← imm if !negative | ★ |
+| 0x38 | JUMPLE | JLE | #imm | PC ← imm if negative \|\| zero | ★ |
+| 0x39 | JUMPOVF | JO | #imm | PC ← imm if overflow flag | ★ |
+| 0x3A | JUMPCARRY | JC | #imm | PC ← imm if carry flag | ★ |
+| 0x3B | CALLIND | CALLI | src1, #imm | Push PC; PC ← reg[src1] + imm | ★ |
+| 0x3C | TAILCALL | TCALL | #imm | PC ← imm (no push; reuse frame) | ★ |
+| 0x3D | LOOP | — | dst, #imm | dst−−; if dst > 0, PC ← imm | ★ |
+| 0x3E | JUMPTABLE | JTAB | src1, #imm | PC ← data[src1 + imm] (dispatch) | ★ |
+| 0x3F | RETURNINT | IRET | — | Return from interrupt handler | ★ |
+
+**Domain rationale**: LOOP is critical for NTT butterfly operations in lattice crypto. JTAB enables efficient opcode dispatch in the TSL interpreter. IRET supports the timing interrupt model needed for HPTP precision.
+
+### 4.5 Comparison & Selection (0x40–0x4F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x40 | CMP | — | src1, src2 | Update flags from src1 − src2 | |
+| 0x41 | CMPIMM | CMPI | src1, #imm | Update flags from src1 − imm | |
+| 0x42 | CMPUNSIGNED | CMPU | src1, src2 | Unsigned comparison | ★ |
+| 0x43 | TEST | — | src1, src2 | Flags from src1 & src2 (bitwise) | ★ |
+| 0x44 | SELECT | SEL | dst, src1, src2 | dst ← zero ? src1 : src2 | ★ |
+| 0x45 | SELECTNEG | SELN | dst, src1, src2 | dst ← negative ? src1 : src2 | ★ |
+| 0x46 | SELECTOVF | SELO | dst, src1, src2 | dst ← overflow ? src1 : src2 | ★ |
+| 0x47 | SIGNEXTEND | SEXT | dst, src1, #imm | Sign-extend from bit width imm | ★ |
+| 0x48 | ZEROEXTEND | ZEXT | dst, src1, #imm | Zero-extend from bit width imm | ★ |
+| 0x49 | COUNTONES | POPCNT | dst, src1 | dst ← popcount(src1) | ★ |
+| 0x4A | LEADZEROS | CLZ | dst, src1 | dst ← count leading zeros | ★ |
+| 0x4B | TRAILZEROS | CTZ | dst, src1 | dst ← count trailing zeros | ★ |
+| 0x4C | BITREVERSE | BREV | dst, src1 | dst ← bit-reverse of src1 | ★ |
+| 0x4D | BYTESWAP | BSWAP | dst, src1 | dst ← byte-swap (endian convert) | ★ |
+| 0x4E | TRITCOUNT | TCNT | dst, src1, #imm | Count trits matching value imm | ★ |
+| 0x4F | TRITBALANCE | TBAL | dst, src1 | dst ← (count_pos − count_neg) | ★ |
+
+**Domain rationale**: SELECT family enables branchless code critical for constant-time crypto. POPCNT/CLZ/CTZ accelerate Hamming weight calculations in code-based crypto. TRITCOUNT and TRITBALANCE directly serve ternary signal analysis in the trading protocol.
+
+### 4.6 Binary Logic & Bit Manipulation (0x50–0x5F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x50 | AND | — | dst, src1, src2 | dst ← src1 & src2 | |
+| 0x51 | OR | — | dst, src1, src2 | dst ← src1 \| src2 | |
+| 0x52 | XOR | — | dst, src1, src2 | dst ← src1 ^ src2 | |
+| 0x53 | SHL | — | dst, src1, src2 | dst ← src1 << (src2 & 63) | |
+| 0x54 | SHR | — | dst, src1, src2 | dst ← src1 >> (src2 & 63) arith. | |
+| 0x55 | NOT | — | dst, src1 | dst ← !src1 | |
+| 0x56 | SHRLOGICAL | SHRL | dst, src1, src2 | Logical shift right (unsigned) | ★ |
+| 0x57 | ROTATELEFT | ROL | dst, src1, src2 | Rotate left | ★ |
+| 0x58 | ROTATERIGHT | ROR | dst, src1, src2 | Rotate right | ★ |
+| 0x59 | ANDNOT | ANDN | dst, src1, src2 | dst ← src1 & (!src2) (bit clear) | ★ |
+| 0x5A | ORNOT | ORN | dst, src1, src2 | dst ← src1 \| (!src2) | ★ |
+| 0x5B | XNOR | — | dst, src1, src2 | dst ← !(src1 ^ src2) | ★ |
+| 0x5C | BITDEPOSIT | PDEP | dst, src1, src2 | Parallel bit deposit | ★ |
+| 0x5D | BITEXTRACT | PEXT | dst, src1, src2 | Parallel bit extract | ★ |
+| 0x5E | BITFIELD | BFX | dst, src1, #imm | Extract bitfield: off=imm[7:0], w=imm[15:8] | ★ |
+| 0x5F | CRC32 | — | dst, src1 | CRC32(dst, src1) accumulate | ★ |
+
+**Domain rationale**: PDEP/PEXT accelerate packed trit encoding/decoding. ROL/ROR are fundamental to hash function implementations. CRC32 provides hardware-accelerated integrity checking for HPTP packet validation.
+
+### 4.7 Crypto Acceleration (0x60–0x6F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x60 | TPOLYMUL | TPMUL | dst, src1, src2, #imm | GF(3) polynomial multiply mod x^d | |
+| 0x61 | TNTT | — | dst, src1, #imm | Number-Theoretic Transform | |
+| 0x62 | THASH | — | dst, src1 | Ternary sponge hash | |
+| 0x63 | TENTROPY | TENT | dst | Read hardware entropy | |
+| 0x64 | TPOLYADD | TPADD | dst, src1, src2, #imm | GF(3) polynomial addition | |
+| 0x65 | TPOLYSAMPLE | TPSAMP | dst, src1 | Random GF(3) poly sampling | |
+| 0x66 | TCOMPRESS | TCOMP | dst, src1 | Compress packed trits for wire | |
+| 0x67 | TDECOMPRESS | TDCOMP | dst, src1 | Decompress packed trits | |
+| 0x68 | TLATTICEMUL | TLATMUL | dst, src1, src2 | Lattice matrix-vector multiply GF(3) | ★ |
+| 0x69 | TSPONGEABSORB | TSPABS | src1 | Sponge absorb: feed into state | ★ |
+| 0x6A | TSPONGESQUEEZE | TSPSQZ | dst | Sponge squeeze: extract from state | ★ |
+| 0x6B | TLAMPORTGEN | TLGEN | dst, src1 | Generate Lamport OTS key segment | ★ |
+| 0x6C | TLAMPORTSIGN | TLSIGN | dst, src1, src2 | Lamport sign: hash → signature | ★ |
+| 0x6D | TKEMENCAPS | TKENC | dst, src1 | KEM encapsulation | ★ |
+| 0x6E | TKEMDECAPS | TKDEC | dst, src1, src2 | KEM decapsulation | ★ |
+| 0x6F | TZEROIZE | TZERO | src1, #imm | Constant-time memory wipe | ★ |
+
+**Domain rationale**: TLATMUL is the core operation for ML-KEM and ML-DSA (CNSA 2.0 compliance). TKENC/TKDEC provide single-instruction key encapsulation for PlenumNET's post-quantum handshake. TZEROIZE ensures FIPS 140-3 compliant key destruction.
+
+### 4.8 SIMD / Vector Ternary (0x70–0x7F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x70 | TADDV | — | dst, src1, src2 | Vector GF(3) addition | |
+| 0x71 | TMULV | — | dst, src1, src2 | Vector GF(3) multiplication | |
+| 0x72 | TNEGV | — | dst, src1 | Vector GF(3) negation | |
+| 0x73 | TROTV | — | dst, src1, src2 | Vector GF(3) rotation | |
+| 0x74 | TXORV | — | dst, src1, src2 | Vector Kleene min | ★ |
+| 0x75 | TANDV | — | dst, src1, src2 | Vector Łukasiewicz conjunction | ★ |
+| 0x76 | TORV | — | dst, src1, src2 | Vector Kleene disjunction | ★ |
+| 0x77 | TCMPV | — | dst, src1, src2 | Vector trit-wise compare | ★ |
+| 0x78 | TSHIFTV | TSHLV | dst, src1, src2 | Vector trit shift | ★ |
+| 0x79 | TREDUCEV | TREDV | dst, src1, #imm | Vector reduce N words → one | ★ |
+| 0x7A | TCONVERTV | TCVTV | dst, src1, src2, #imm | Vector repr conversion | ★ |
+| 0x7B | TSELECTV | TSELV | dst, src1, src2 | Vector conditional per-element | ★ |
+| 0x7C | TBROADCAST | TBCAST | dst, src1 | Broadcast trit across 27 positions | ★ |
+| 0x7D | TEXTRACT | TEXTR | dst, src1, src2 | Extract single trit from word | ★ |
+| 0x7E | TINSERT | TINS | dst, src1, #imm | Insert trit at position imm | ★ |
+| 0x7F | TPERMUTE | TPERM | dst, src1, src2 | Permute trits per index table | ★ |
+
+**Domain rationale**: Full SIMD coverage enables parallel processing of ternary signal vectors in the trading protocol. TBROADCAST/TEXTRACT/TINSERT/TPERM provide the fine-grained trit manipulation needed for Tribonacci sequence computation and NTT butterfly operations.
+
+### 4.9 System & Privilege (0x80–0x8F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x80 | SYSCALL | SYS | #imm | System call | |
+| 0x81 | TRAP | INT | — | Software trap (Ring0) | |
+| 0x82 | ALLOC | — | dst, #imm | GC heap allocate | |
+| 0x83 | FREE | — | src1 | GC heap free | |
+| 0x84 | READTIME | RDTIME | dst | HPTP femtosecond timestamp | |
+| 0x85 | PRIVESCALATE | PRIVESC | src1 | Escalate to Ring0 (cap token) | ★ |
+| 0x86 | PRIVDROP | — | #imm | Drop to Ring1/Ring2 | ★ |
+| 0x87 | DOMAINSET | DOMSET | #imm | Set security domain (Ring0) | ★ |
+| 0x88 | DOMAINGET | DOMGET | dst | Get current security domain | ★ |
+| 0x89 | GETCYCLES | GETCYC | dst | Read cycle counter | ★ |
+| 0x8A | GETPID | — | dst | Read process ID | ★ |
+| 0x8B | MPROTECT | MPROT | src1, src2, #imm | Set memory protection flags | ★ |
+| 0x8C | IOREAD | IOR | dst, src1, #imm | I/O port read | ★ |
+| 0x8D | IOWRITE | IOW | dst, src1, #imm | I/O port write | ★ |
+| 0x8E | CPUID | — | dst, #imm | Query VM capabilities | ★ |
+| 0x8F | YIELD | — | — | Yield time slice | ★ |
+
+**Domain rationale**: PRIVESC/PRIVDROP enable the security domain transitions needed for Ring0/Ring1 crypto boundary enforcement. GETCYCLES provides cycle-accurate profiling for HPTP calibration. CPUID allows runtime feature detection for optimized crypto paths.
+
+### 4.10 Security & Audit (0x90–0x97)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x90 | AUDITLOG | AUDIT | src1, #imm | Write compliance audit event | ★ |
+| 0x91 | CAPCHECK | CAPCHK | dst, #imm | Check capability: dst ← granted? | ★ |
+| 0x92 | CAPGRANT | CAPGNT | src1, #imm | Grant capability (Ring0) | ★ |
+| 0x93 | CAPREVOKE | CAPREV | src1, #imm | Revoke capability (Ring0) | ★ |
+| 0x94 | SIDECHMASK | SCMASK | dst, src1 | Apply side-channel random mask | ★ |
+| 0x95 | SIDECHUNMASK | SCUNM | dst, src1 | Remove side-channel mask | ★ |
+| 0x96 | CONSTTIMEEQ | CTEQ | dst, src1, src2 | Constant-time equality test | ★ |
+| 0x97 | CONSTTIMESEL | CTSEL | dst, src1, src2 | Constant-time conditional select | ★ |
+
+**Domain rationale**: AUDIT provides FINRA Rule 613 / CAT NMS compliant event logging at the instruction level — every order event, timing synchronization, and trade execution can be recorded with femtosecond precision. CTEQ/CTSEL are essential for timing-safe crypto comparisons. SCMASK/SCUNM protect against power analysis attacks on the post-quantum key material.
+
+### 4.11 Debug & Profiling (0x98–0x9F)
+
+| Hex | Mnemonic | Alias | Operands | Description | v2.0 |
+|-----|----------|-------|----------|-------------|------|
+| 0x98 | DEBUGBREAK | DBRK | — | Trigger debugger breakpoint | ★ |
+| 0x99 | DEBUGPRINT | DPRINT | src1 | Print register to debug output | ★ |
+| 0x9A | PROFSTART | PSTART | #imm | Start profiling counter | ★ |
+| 0x9B | PROFSTOP | PSTOP | dst, #imm | Stop counter; dst ← elapsed | ★ |
+| 0x9C | PROFREAD | PREAD | dst, #imm | Read counter without stopping | ★ |
+| 0x9D | TRACEEMIT | TRACE | src1, #imm | Emit typed trace event | ★ |
+| 0x9E | ASSERTEQ | ASRT | src1, src2 | Trap if src1 ≠ src2 | ★ |
+| 0x9F | ASSERTTRIT | ASRTT | src1, #imm | Trap if trit[imm&0x1F] ≠ (imm>>8) | ★ |
+
+**Domain rationale**: PSTART/PSTOP enable microsecond-resolution profiling of crypto operations for CMVP performance benchmarking. TRACE provides the structured event emission needed for HPTP synchronization debugging. ASRT/ASRTT catch invariant violations during development.
+
+---
+
+## 5. Opcode Map (Hex Grid)
+
+```
+         x0       x1       x2       x3       x4       x5       x6       x7       x8       x9       xA       xB       xC       xD       xE       xF
+  0x0_  NOP      HALT     ADD      SUB      MUL      DIV      MOD      NEG      ABS*     ADDI*    MADD*    MSUB*    DIVMOD*  MIN*     MAX*     CLAMP*
+  0x1_  TADD     TMUL     TNEG     TROT     TXOR     TCVT     TAND     TOR      TSUB     TINV     TSHL     TCMP     TLD      TST      TRED     TROTI
+  0x2_  LD       ST       MOV      LDI      PUSH     POP      LEA*     LDB*     STB*     XCHG*    CAS*     AADD*    FENCE*   ENTER*   LEAVE*   MCOPY*
+  0x3_  JMP      JZ       JN       JP       CALL     RET      JNZ      JGE*     JLE*     JO*      JC*      CALLI*   TCALL*   LOOP*    JTAB*    IRET*
+  0x4_  CMP      CMPI     CMPU*    TEST*    SEL*     SELN*    SELO*    SEXT*    ZEXT*    POPCNT*  CLZ*     CTZ*     BREV*    BSWAP*   TCNT*    TBAL*
+  0x5_  AND      OR       XOR      SHL      SHR      NOT      SHRL*    ROL*     ROR*     ANDN*    ORN*     XNOR*    PDEP*    PEXT*    BFX*     CRC32*
+  0x6_  TPMUL    TNTT     THASH    TENT     TPADD    TPSAMP   TCOMP    TDCOMP   TLATMUL* TSPABS*  TSPSQZ*  TLGEN*   TLSIGN*  TKENC*   TKDEC*   TZERO*
+  0x7_  TADDV    TMULV    TNEGV    TROTV    TXORV*   TANDV*   TORV*    TCMPV*   TSHLV*   TREDV*   TCVTV*   TSELV*   TBCAST*  TEXTR*   TINS*    TPERM*
+  0x8_  SYS      INT      ALLOC    FREE     RDTIME   PRIVESC* PRIVDROP* DOMSET* DOMGET*  GETCYC*  GETPID*  MPROT*   IOR*     IOW*     CPUID*   YIELD*
+  0x9_  AUDIT*   CAPCHK*  CAPGNT*  CAPREV*  SCMASK*  SCUNM*   CTEQ*    CTSEL*   DBRK*    DPRINT*  PSTART*  PSTOP*   PREAD*   TRACE*   ASRT*    ASRTT*
+
+  * = v2.0 addition (98 new opcodes)
+```
+
+---
+
+## 6. Summary Statistics
+
+| Metric | v1.0 | v2.0 |
+|--------|------|------|
+| Total opcodes | 62 | **160** |
+| Opcode range | 0x00–0x84 | 0x00–0x9F |
+| Arithmetic | 8 | 16 |
+| Ternary core | 16 | 16 |
+| Memory / atomics | 6 | **16** |
+| Control flow | 7 | **16** |
+| Comparison / selection | 2 | **16** |
+| Binary logic / bits | 6 | **16** |
+| Crypto acceleration | 8 | **16** |
+| SIMD vector | 4 | **16** |
+| System / privilege | 5 | **16** |
+| Security / audit | — | **8** |
+| Debug / profiling | — | **8** |
+| Encoding byte | Single u8 | Single u8 (fits in 0x00–0x9F) |
+| Backward compatible | — | ✓ All 62 v1.0 values unchanged |
+
+---
+
+## 7. CPUID Feature Bits
+
+The CPUID instruction (0x8E) returns capability flags for runtime feature detection:
+
+| Bit | Feature |
+|-----|---------|
+| 0 | Ternary core present |
+| 1 | SIMD vector extensions |
+| 2 | Crypto acceleration |
+| 3 | Atomic operations |
+| 4 | HPTP timing (femtosecond) |
+| 5 | Security domains |
+| 6 | Capability-based access control |
+| 7 | Profiling counters |
+| 8 | Debug extensions |
+| 9 | Ring2 privilege level |
+| 10 | Lamport OTS acceleration |
+| 11 | KEM acceleration |
+| 12 | Side-channel countermeasures |
+| 13 | Audit logging |
+| 14 | Balanced ternary encoding |
+| 15 | NTT acceleration |
+
+---
+
+*End of ISA Reference v2.0.*
+*Salvi Framework — Applied Physics Division — Capomastro Holdings Ltd.*

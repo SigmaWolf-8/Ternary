@@ -91,7 +91,7 @@ Version: Effective February 11, 2026
        - GF(3) Galois Field arithmetic implementations
        - Phase Encryption methodology and algorithms
        - High-Precision Timing Protocol (HPTP)
-       - Ternary Virtual Machine (62-opcode ISA)
+       - Ternary Virtual Machine (160-opcode ISA v2.0)
        - Ternary Hardware Description Language (THDL)
        - Ternary System Language (TSL)
        - PlenumDB compression and storage architecture

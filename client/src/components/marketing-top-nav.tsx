@@ -47,7 +47,7 @@ const platformColumns: NavColumn[] = [
     heading: "Core Technology",
     items: [
       { title: "Ternary Computing Engine", subtitle: "Native base-3 processing", href: "/#platform" },
-      { title: "Virtual Machine", subtitle: "62-opcode ternary VM", href: "/#architecture" },
+      { title: "Virtual Machine", subtitle: "160-opcode ternary VM", href: "/#architecture" },
       { title: "Binary-Ternary Gateway", subtitle: "Seamless interop layer", href: "/#architecture" },
     ],
   },

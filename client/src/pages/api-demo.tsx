@@ -1753,7 +1753,7 @@ export default function APIDemo() {
               <CardContent>
                 <div className="space-y-2">
                   {[
-                    { method: "GET", path: "/api/salvi/vm/spec", desc: "TVM 62-opcode instruction set spec" },
+                    { method: "GET", path: "/api/salvi/vm/spec", desc: "TVM 160-opcode ISA v2.0 instruction set spec" },
                     { method: "GET", path: "/api/salvi/vm/conformance", desc: "TVM conformance test suite" },
                     { method: "GET", path: "/api/salvi/docs", desc: "Documentation index" },
                     { method: "GET", path: "/api/whitepapers", desc: "List all whitepapers" },

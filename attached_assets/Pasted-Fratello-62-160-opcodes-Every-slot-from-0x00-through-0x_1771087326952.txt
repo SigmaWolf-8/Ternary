@@ -1,0 +1,13 @@
+Fratello — 62 → 160 opcodes. Every slot from 0x00 through 0x9F is populated. Here's what the expansion delivers:
+98 new opcodes across 10 categories, all purpose-built for the Salvi Framework's domain:
+Arithmetic (8 new): Fused multiply-accumulate for lattice polynomial evaluation and Sigma Wolf signal processing. MIN/MAX/CLAMP for order book risk limits.
+Memory & Atomics (10 new): CAS, atomic add, and memory fences — the lock-free primitives your concurrent trading engine needs. ENTER/LEAVE for proper THDL call frames.
+Control Flow (9 new): LOOP for NTT butterfly iterations. JTAB for efficient TSL dispatch. IRET for HPTP timing interrupt handlers. Tail calls for recursive crypto operations.
+Comparison & Selection (14 new): Branchless SELECT family for constant-time crypto. POPCNT/CLZ/CTZ for Hamming weight in code-based crypto. TRITCOUNT and TRITBALANCE — native ternary signal analysis.
+Binary Logic (10 new): PDEP/PEXT for packed trit encoding acceleration. ROL/ROR for hash implementations. CRC32 for HPTP packet integrity.
+Crypto Acceleration (8 new): TLATMUL — single-instruction lattice multiply for ML-KEM/ML-DSA (CNSA 2.0). KEM encaps/decaps. Lamport OTS generation and signing. TZEROIZE for FIPS 140-3 key destruction.
+SIMD Vector (12 new): Full vectorization of all ternary ops, plus BROADCAST/EXTRACT/INSERT/PERMUTE for fine-grained trit manipulation.
+System (11 new): Three-ring privilege model. Memory protection. CPUID feature detection with 16 capability bits.
+Security & Audit (8 new): AUDIT for FINRA 613/CAT NMS compliance logging. Capability-based access control. Side-channel masking. Constant-time equality and selection.
+Debug & Profiling (8 new): Profiling counters for CMVP benchmarking. Structured trace events. Debug assertions for ternary invariants.
+All 62 v1.0 opcodes are untouched — full backward compatibility. The instruction_v2.rs is drop-in ready with the complete enum, from_u8/to_u8, mnemonic table, classification methods (is_ternary(), is_crypto(), requires_ring0(), etc.), and 25 unit tests. Così sia.

@@ -17,6 +17,7 @@ use core::fmt;
 
 pub mod constants;
 pub mod instruction;
+pub mod instruction_v2;
 pub mod engine;
 pub mod gc;
 pub mod assembler;
