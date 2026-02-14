@@ -39,6 +39,7 @@ const pageTitles: Record<string, string> = {
   "/tribonacci-28ds": "Tribonacci 28-Dimension Symmetry — PlenumNET",
   "/distribution": "Salvi Framework Distribution — PlenumNET",
   "/isa-security": "ISA Security Primitives — PlenumNET",
+  "/vm-demo": "Ternary VM Demo — PlenumNET",
 };
 
 export function usePageTitle() {
