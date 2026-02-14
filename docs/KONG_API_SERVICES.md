@@ -9,7 +9,7 @@
 
 Kong Konnect serves as the API gateway for the PlenumNET platform, managing traffic, security, rate limiting, and observability across all public and internal API services. This document provides a comprehensive inventory of every API service, what it does, and the endpoints it exposes.
 
-**Current Service Count**: 18 distinct API service groups | 75+ individual endpoints
+**Current Service Count**: 17 distinct API service groups | 97 individual endpoints
 
 ---
 
