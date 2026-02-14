@@ -34,6 +34,7 @@ jobs:
             client/src/ \
             shared/ \
             libternary/src/ \
+            services/ \
             -type f \
             \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" \) \
             -not -name "*.d.ts" \
@@ -59,6 +60,7 @@ jobs:
             client/src/ \
             shared/ \
             libternary/src/ \
+            services/ \
             -type f \
             \( -name "*.rs" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" \) \
             -not -name "*.d.ts" \
