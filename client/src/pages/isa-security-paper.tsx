@@ -13,864 +13,650 @@
  * See LICENSE in the repository root for full terms.
  */
 
-import { useState, useEffect, useRef, useCallback, type CSSProperties, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-const COLORS = {
-  navy: "#0a1628",
-  navyLight: "#111d33",
-  navyMid: "#162340",
-  accent: "#3b82f6",
-  accentGlow: "#60a5fa",
-  accentDim: "#1e40af",
-  gold: "#f59e0b",
-  goldDim: "#b45309",
-  surface: "#0f1a2e",
-  surfaceHover: "#162340",
-  text: "#e2e8f0",
-  textDim: "#94a3b8",
-  textMuted: "#64748b",
-  border: "#1e3a5f",
-  borderLight: "#2d4a6f",
-  white: "#f8fafc",
-  codeBlock: "#0c1524",
-  success: "#10b981",
-  tableBg: "#0d1829",
-  tableHead: "#132242",
-  tableAlt: "#0f1e36",
+const col = {
+  bg: "#0a1628",
+  bg2: "#111d33",
+  ac: "#3b82f6",
+  al: "#60a5fa",
+  gd: "#f59e0b",
+  tx: "#e2e8f0",
+  dm: "#94a3b8",
+  mt: "#64748b",
+  bd: "#1e3a5f",
+  wt: "#f8fafc",
+  sf: "#0f1a2e",
+  th: "#132242",
+  ta: "#0f1e36",
+  cd: "#0c1524",
+  gn: "#10b981",
 };
 
-const fontStack = {
-  heading: "'Playfair Display', 'Georgia', serif",
-  body: "'Source Sans 3', 'Segoe UI', sans-serif",
-  mono: "'JetBrains Mono', 'Fira Code', monospace",
-  label: "'Inter', 'Helvetica Neue', sans-serif",
+const ff = {
+  h: "'Playfair Display',serif",
+  b: "'Source Sans 3',sans-serif",
+  m: "'JetBrains Mono',monospace",
+  l: "'Inter',sans-serif",
 };
 
-// ── Inline Styles ──
-const S = {
-  app: {
-    minHeight: "100vh",
-    background: `linear-gradient(180deg, ${COLORS.navy} 0%, #060d18 100%)`,
-    color: COLORS.text,
-    fontFamily: fontStack.body,
-    fontSize: "16px",
-    lineHeight: 1.7,
-    position: "relative" as const,
-  } as CSSProperties,
-  // Subtle grid pattern overlay
-  gridOverlay: {
-    position: "fixed" as const,
-    inset: 0,
-    backgroundImage: `
-      linear-gradient(${COLORS.border}15 1px, transparent 1px),
-      linear-gradient(90deg, ${COLORS.border}15 1px, transparent 1px)
-    `,
-    backgroundSize: "60px 60px",
-    pointerEvents: "none" as const,
-    zIndex: 0,
-  } as CSSProperties,
-  container: {
-    maxWidth: "900px",
-    margin: "0 auto",
-    padding: "0 24px",
-    position: "relative" as const,
-    zIndex: 1,
-  } as CSSProperties,
-  hero: {
-    padding: "80px 0 60px",
-    textAlign: "center" as const,
-    position: "relative" as const,
-  } as CSSProperties,
-  heroGlow: {
-    position: "absolute" as const,
-    top: "-100px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "600px",
-    height: "400px",
-    background: `radial-gradient(ellipse, ${COLORS.accentDim}20 0%, transparent 70%)`,
-    pointerEvents: "none" as const,
-  } as CSSProperties,
-  heroLabel: {
-    fontFamily: fontStack.label,
-    fontSize: "11px",
-    letterSpacing: "4px",
-    textTransform: "uppercase" as const,
-    color: COLORS.accent,
-    marginBottom: "20px",
-    fontWeight: 600,
-  } as CSSProperties,
-  heroTitle: {
-    fontFamily: fontStack.heading,
-    fontSize: "clamp(2rem, 5vw, 3.2rem)",
-    fontWeight: 700,
-    color: COLORS.white,
-    lineHeight: 1.15,
-    margin: "0 0 12px",
-  },
-  heroSub: {
-    fontFamily: fontStack.heading,
-    fontSize: "clamp(1.1rem, 2.5vw, 1.5rem)",
-    fontWeight: 400,
-    fontStyle: "italic",
-    color: COLORS.accentGlow,
-    margin: "0 0 32px",
-  },
-  heroDivider: {
-    width: "80px",
-    height: "2px",
-    background: `linear-gradient(90deg, transparent, ${COLORS.accent}, transparent)`,
-    margin: "0 auto 28px",
-  },
-  heroMeta: {
-    fontFamily: fontStack.label,
-    fontSize: "13px",
-    color: COLORS.textDim,
-    lineHeight: 1.8,
-  },
-  heroMetaBold: {
-    color: COLORS.text,
-    fontWeight: 600,
-  },
-  heroLinks: {
-    display: "flex",
-    gap: "16px",
-    justifyContent: "center",
-    marginTop: "28px",
-    flexWrap: "wrap" as const,
-  } as CSSProperties,
-  heroLink: {
-    fontFamily: fontStack.label,
-    fontSize: "12px",
-    letterSpacing: "1.5px",
-    textTransform: "uppercase" as const,
-    color: COLORS.accent,
-    textDecoration: "none",
-    padding: "8px 20px",
-    border: `1px solid ${COLORS.accent}40`,
-    borderRadius: "4px",
-    transition: "all 0.25s ease",
-    fontWeight: 500,
-  } as CSSProperties,
-  // ── Nav ──
-  nav: {
-    position: "sticky" as const,
-    top: 0,
-    zIndex: 100,
-    background: `${COLORS.navy}ee`,
-    backdropFilter: "blur(12px)",
-    borderBottom: `1px solid ${COLORS.border}80`,
-    padding: "0",
-  } as CSSProperties,
-  navInner: {
-    maxWidth: "900px",
-    margin: "0 auto",
-    padding: "0 24px",
-    display: "flex",
-    gap: "0",
-    overflowX: "auto" as const,
-  } as CSSProperties,
-  navBtn: (active: boolean): CSSProperties => ({
-    fontFamily: fontStack.label,
-    fontSize: "12px",
-    letterSpacing: "1px",
-    textTransform: "uppercase" as const,
-    color: active ? COLORS.accent : COLORS.textMuted,
-    background: "none",
-    border: "none",
-    borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent",
-    padding: "14px 16px",
-    cursor: "pointer",
-    whiteSpace: "nowrap" as const,
-    fontWeight: active ? 600 : 400,
-    transition: "all 0.2s ease",
-  }),
-  // ── Part Banner ──
-  partBanner: {
-    margin: "60px 0 40px",
-    padding: "32px",
-    textAlign: "center" as const,
-    borderTop: `1px solid ${COLORS.accent}30`,
-    borderBottom: `1px solid ${COLORS.accent}30`,
-    background: `linear-gradient(135deg, ${COLORS.navyLight}80 0%, ${COLORS.navyMid}40 100%)`,
-    borderRadius: "2px",
-  } as CSSProperties,
-  partLabel: {
-    fontFamily: fontStack.label,
-    fontSize: "11px",
-    letterSpacing: "5px",
-    textTransform: "uppercase" as const,
-    color: COLORS.gold,
-    marginBottom: "8px",
-    fontWeight: 600,
-  } as CSSProperties,
-  partTitle: {
-    fontFamily: fontStack.heading,
-    fontSize: "1.6rem",
-    fontWeight: 600,
-    color: COLORS.white,
-    margin: 0,
-  },
-  // ── Headings ──
-  h1: {
-    fontFamily: fontStack.heading,
-    fontSize: "clamp(1.5rem, 3vw, 2rem)",
-    fontWeight: 700,
-    color: COLORS.white,
-    margin: "56px 0 20px",
-    paddingBottom: "12px",
-    borderBottom: `1px solid ${COLORS.border}`,
-  },
-  h2: {
-    fontFamily: fontStack.heading,
-    fontSize: "clamp(1.2rem, 2.5vw, 1.5rem)",
-    fontWeight: 600,
-    color: COLORS.accentGlow,
-    margin: "40px 0 16px",
-  },
-  h3: {
-    fontFamily: fontStack.heading,
-    fontSize: "1.15rem",
-    fontWeight: 600,
-    color: COLORS.text,
-    fontStyle: "italic",
-    margin: "32px 0 12px",
-  },
-  // ── Text ──
-  p: {
-    margin: "0 0 16px",
-    color: COLORS.text,
-    lineHeight: 1.75,
-  },
-  bold: { fontWeight: 700, color: COLORS.white },
-  italic: { fontStyle: "italic", color: COLORS.textDim },
-  code: {
-    fontFamily: fontStack.mono,
-    fontSize: "0.88em",
-    background: COLORS.codeBlock,
-    color: COLORS.accentGlow,
-    padding: "2px 7px",
-    borderRadius: "3px",
-    border: `1px solid ${COLORS.border}60`,
-  },
-  codeBlock: {
-    fontFamily: fontStack.mono,
-    fontSize: "13px",
-    background: COLORS.codeBlock,
-    color: COLORS.accentGlow,
-    padding: "16px 20px",
-    borderRadius: "4px",
-    border: `1px solid ${COLORS.border}`,
-    overflowX: "auto" as const,
-    margin: "12px 0 20px",
-    lineHeight: 1.6,
-    whiteSpace: "pre-wrap" as const,
-  } as CSSProperties,
-  tableWrap: {
-    overflowX: "auto" as const,
-    margin: "16px 0 24px",
-    borderRadius: "4px",
-    border: `1px solid ${COLORS.border}`,
-  } as CSSProperties,
-  table: {
-    width: "100%",
-    borderCollapse: "collapse" as const,
-    fontSize: "14px",
-  } as CSSProperties,
-  th: {
-    fontFamily: fontStack.label,
-    fontSize: "11px",
-    letterSpacing: "1px",
-    textTransform: "uppercase" as const,
-    fontWeight: 600,
-    color: COLORS.accentGlow,
-    background: COLORS.tableHead,
-    padding: "12px 16px",
-    textAlign: "left" as const,
-    borderBottom: `2px solid ${COLORS.accent}30`,
-    whiteSpace: "nowrap" as const,
-  } as CSSProperties,
-  td: (alt: boolean): CSSProperties => ({
-    padding: "10px 16px",
-    borderBottom: `1px solid ${COLORS.border}40`,
-    background: alt ? COLORS.tableAlt : "transparent",
-    color: COLORS.text,
-    verticalAlign: "top",
-    lineHeight: 1.5,
-  }),
-  callout: (type: string): CSSProperties => ({
-    margin: "20px 0",
-    padding: "16px 20px",
-    borderLeft: `3px solid ${type === "theorem" ? COLORS.gold : type === "proof" ? COLORS.success : COLORS.accent}`,
-    background: `${COLORS.surface}80`,
-    borderRadius: "0 4px 4px 0",
-  }),
-  calloutLabel: (type: string): CSSProperties => ({
-    fontFamily: fontStack.label,
-    fontSize: "11px",
-    letterSpacing: "2px",
-    textTransform: "uppercase" as const,
-    fontWeight: 700,
-    color: type === "theorem" ? COLORS.gold : type === "proof" ? COLORS.success : COLORS.accent,
-    marginBottom: "6px",
-  }),
-  keywords: {
-    display: "flex",
-    flexWrap: "wrap" as const,
-    gap: "8px",
-    margin: "16px 0 24px",
-  } as CSSProperties,
-  keyword: {
-    fontFamily: fontStack.label,
-    fontSize: "11px",
-    color: COLORS.accent,
-    background: `${COLORS.accentDim}20`,
-    border: `1px solid ${COLORS.accent}25`,
-    padding: "3px 10px",
-    borderRadius: "3px",
-    letterSpacing: "0.5px",
-  },
-  // ── Footer ──
-  footer: {
-    marginTop: "80px",
-    padding: "32px 0",
-    borderTop: `1px solid ${COLORS.border}`,
-    textAlign: "center" as const,
-    fontFamily: fontStack.label,
-    fontSize: "12px",
-    color: COLORS.textMuted,
-    lineHeight: 2,
-  } as CSSProperties,
-  tocWrap: {
-    margin: "24px 0 40px",
-    padding: "24px 28px",
-    background: `${COLORS.surface}60`,
-    border: `1px solid ${COLORS.border}80`,
-    borderRadius: "4px",
-  },
-  tocTitle: {
-    fontFamily: fontStack.label,
-    fontSize: "11px",
-    letterSpacing: "3px",
-    textTransform: "uppercase" as const,
-    color: COLORS.accent,
-    fontWeight: 600,
-    marginBottom: "16px",
-  } as CSSProperties,
-  tocItem: (level: number): CSSProperties => ({
-    fontFamily: fontStack.body,
-    fontSize: level === 0 ? "14px" : "13px",
-    color: level === 0 ? COLORS.text : COLORS.textDim,
-    padding: `4px 0 4px ${level * 20}px`,
-    cursor: "pointer",
-    transition: "color 0.15s",
-    fontWeight: level === 0 ? 500 : 400,
-    borderLeft: level === 0 ? "none" : `1px solid ${COLORS.border}40`,
-  }),
-  scrollTop: (visible: boolean): CSSProperties => ({
-    position: "fixed" as const,
-    bottom: "24px",
-    right: "24px",
-    width: "40px",
-    height: "40px",
-    borderRadius: "50%",
-    background: COLORS.accent,
-    color: COLORS.navy,
-    border: "none",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "18px",
-    fontWeight: 700,
-    opacity: visible ? 1 : 0,
-    transform: visible ? "translateY(0)" : "translateY(12px)",
-    transition: "all 0.3s ease",
-    pointerEvents: visible ? "auto" as const : "none" as const,
-    zIndex: 200,
-    boxShadow: `0 4px 20px ${COLORS.accent}40`,
-  }),
-};
+const wrapS: React.CSSProperties = { maxWidth: 880, margin: "0 auto", padding: "0 24px" };
 
-// ── Reusable Components ──
-const Table = ({ headers, rows }: { headers: string[]; rows: string[][] }) => (
-  <div style={S.tableWrap}>
-    <table style={S.table}>
-      <thead>
-        <tr>{headers.map((h: string, i: number) => <th key={i} style={S.th}>{h}</th>)}</tr>
-      </thead>
-      <tbody>
-        {rows.map((row: string[], ri: number) => (
-          <tr key={ri}>
-            {row.map((c: string, ci: number) => <td key={ci} style={S.td(ri % 2 === 1)}>{c}</td>)}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+const heroS: React.CSSProperties = { padding: "56px 0 36px", textAlign: "center" as const };
+const heroLabelS: React.CSSProperties = { fontFamily: ff.l, fontSize: 10, letterSpacing: 4, textTransform: "uppercase" as const, color: col.ac, marginBottom: 16, fontWeight: 600 };
+const heroTitleS: React.CSSProperties = { fontFamily: ff.h, fontSize: "clamp(1.6rem,4.5vw,2.6rem)", fontWeight: 700, color: col.wt, lineHeight: 1.12, marginBottom: 10 };
+const heroSubS: React.CSSProperties = { fontFamily: ff.h, fontSize: "clamp(0.95rem,2vw,1.2rem)", fontStyle: "italic" as const, color: col.al, marginBottom: 20 };
+const heroInfoS: React.CSSProperties = { fontFamily: ff.l, fontSize: 12, color: col.dm, lineHeight: 1.8 };
+const heroInfoStrongS: React.CSSProperties = { color: col.tx, fontWeight: 600 };
+const heroLinksS: React.CSSProperties = { display: "flex", gap: 12, justifyContent: "center", marginTop: 20, flexWrap: "wrap" as const };
+const heroLinkS: React.CSSProperties = { fontFamily: ff.l, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase" as const, color: col.ac, textDecoration: "none" as const, padding: "6px 16px", border: "1px solid #3b82f640", borderRadius: 4 };
+const dividerS: React.CSSProperties = { width: 60, height: 2, background: `linear-gradient(90deg,transparent,${col.ac},transparent)`, margin: "0 auto 18px" };
 
-const Callout = ({ type, label, children }: { type: string; label: string; children: ReactNode }) => (
-  <div style={S.callout(type)}>
-    <div style={S.calloutLabel(type)}>{label}</div>
-    <div style={{ ...S.p, margin: 0, fontSize: "14px" }}>{children}</div>
-  </div>
-);
+const navS: React.CSSProperties = { position: "sticky" as const, top: 0, zIndex: 100, background: "#0a1628f0", backdropFilter: "blur(12px)", borderBottom: "1px solid #1e3a5f80" };
+const navInnerS: React.CSSProperties = { maxWidth: 880, margin: "0 auto", display: "flex", overflowX: "auto" as const, padding: "0 16px" };
+const navBtnBase: React.CSSProperties = { fontFamily: ff.l, fontSize: 11, letterSpacing: 0.8, textTransform: "uppercase" as const, background: "none", border: "none", padding: "12px 13px", cursor: "pointer" as const, whiteSpace: "nowrap" as const, transition: "color 0.15s" };
 
-const Code = ({ children }: { children: ReactNode }) => <code style={S.code}>{children}</code>;
+const tabS = (vis: boolean): React.CSSProperties => ({ display: vis ? "block" : "none", padding: "8px 0 50px" });
 
-const sections = [
-  "Overview", "Part I: Executive Overview", "Part II: Technical Specification",
-  "Abstract", "1. Introduction", "2. Related Work", "3. Ternary Logic Substrate",
-  "4. Architectural Support", "5. Security Opcodes", "6. PlenumNET Integration",
-  "7. Security Analysis", "8. Comparison", "9. Implementation", "10. Future Work", "References"
-];
+const h2S: React.CSSProperties = { fontFamily: ff.h, fontSize: "clamp(1.4rem,3vw,1.8rem)", fontWeight: 700, color: col.wt, margin: "36px 0 16px", paddingBottom: 10, borderBottom: `1px solid ${col.bd}` };
+const h3S: React.CSSProperties = { fontFamily: ff.h, fontSize: "clamp(1.1rem,2.5vw,1.35rem)", fontWeight: 600, color: col.al, margin: "28px 0 12px" };
+const h4S: React.CSSProperties = { fontFamily: ff.h, fontSize: "1.05rem", fontWeight: 600, color: col.tx, fontStyle: "italic" as const, margin: "22px 0 10px" };
+const pS: React.CSSProperties = { margin: "0 0 14px" };
+const bS: React.CSSProperties = { fontWeight: 700, color: col.wt };
+const codeS: React.CSSProperties = { fontFamily: ff.m, fontSize: "0.85em", background: col.cd, color: col.al, padding: "1px 6px", borderRadius: 3, border: "1px solid #1e3a5f60" };
+const cbS: React.CSSProperties = { fontFamily: ff.m, fontSize: 12.5, background: col.cd, color: col.al, padding: "14px 18px", borderRadius: 4, border: `1px solid ${col.bd}`, overflowX: "auto" as const, margin: "10px 0 16px", lineHeight: 1.6, whiteSpace: "pre-wrap" as const };
+
+const tblWrapS: React.CSSProperties = { overflowX: "auto" as const, margin: "14px 0 20px", borderRadius: 4, border: `1px solid ${col.bd}` };
+const tableS: React.CSSProperties = { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 };
+const thS: React.CSSProperties = { fontFamily: ff.l, fontSize: 11, letterSpacing: 1, textTransform: "uppercase" as const, fontWeight: 600, color: col.al, background: col.th, padding: "10px 14px", textAlign: "left" as const, borderBottom: "2px solid #3b82f630" };
+const tdS = (alt: boolean): React.CSSProperties => ({ padding: "8px 14px", borderBottom: "1px solid #1e3a5f40", color: col.tx, verticalAlign: "top" as const, lineHeight: 1.5, background: alt ? col.ta : "transparent" });
+
+const bxS = (t: string): React.CSSProperties => ({ margin: "16px 0", padding: "14px 18px", borderRadius: "0 4px 4px 0", borderLeft: `3px solid ${t === "t" ? col.gd : t === "p" ? col.gn : col.ac}`, background: "#0f1a2e80" });
+const bxLabelS = (t: string): React.CSSProperties => ({ fontFamily: ff.l, fontSize: 10, letterSpacing: 2, textTransform: "uppercase" as const, fontWeight: 700, marginBottom: 4, color: t === "t" ? col.gd : t === "p" ? col.gn : col.ac });
+const bxBodyS: React.CSSProperties = { fontSize: 14, lineHeight: 1.65 };
+
+const partS: React.CSSProperties = { margin: "48px 0 32px", padding: 28, textAlign: "center" as const, borderTop: "1px solid #3b82f630", borderBottom: "1px solid #3b82f630", background: "linear-gradient(135deg,#111d3380,#0a162840)", borderRadius: 2 };
+const partLabelS: React.CSSProperties = { fontFamily: ff.l, fontSize: 11, letterSpacing: 5, textTransform: "uppercase" as const, color: col.gd, fontWeight: 600, marginBottom: 6 };
+const partTitleS: React.CSSProperties = { fontFamily: ff.h, fontSize: "1.5rem", fontWeight: 600, color: col.wt };
+
+const tagsS: React.CSSProperties = { display: "flex", flexWrap: "wrap" as const, gap: 7, margin: "14px 0" };
+const tagS: React.CSSProperties = { fontFamily: ff.l, fontSize: 10, color: col.ac, background: "#1e40af20", border: "1px solid #3b82f625", padding: "2px 8px", borderRadius: 3 };
+
+const footerS: React.CSSProperties = { marginTop: 60, padding: "24px 0", borderTop: `1px solid ${col.bd}`, textAlign: "center" as const, fontFamily: ff.l, fontSize: 11, color: col.mt, lineHeight: 2 };
+
+const topBtnS = (show: boolean): React.CSSProperties => ({ position: "fixed" as const, bottom: 24, right: 24, width: 38, height: 38, borderRadius: "50%", background: col.ac, color: col.bg, border: "none", cursor: "pointer" as const, fontSize: 16, fontWeight: 700, opacity: show ? 1 : 0, transition: "opacity 0.3s", boxShadow: "0 4px 20px #3b82f640", zIndex: 200, pointerEvents: show ? "auto" as const : "none" as const });
+
+const refS: React.CSSProperties = { fontSize: 13, color: col.dm, lineHeight: 1.8 };
+const refP: React.CSSProperties = { margin: "0 0 3px", paddingLeft: 28, textIndent: -28 };
+
+const appS: React.CSSProperties = { minHeight: "100vh", background: `linear-gradient(180deg,${col.bg},#060d18)`, color: col.tx, fontFamily: ff.b, fontSize: 16, lineHeight: 1.72 };
+
+function Tbl({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  return (
+    <div style={tblWrapS}>
+      <table style={tableS}>
+        <thead><tr>{headers.map((h: string, i: number) => <th key={i} style={thS}>{h}</th>)}</tr></thead>
+        <tbody>{rows.map((r: string[], ri: number) => (
+          <tr key={ri}>{r.map((c: string, ci: number) => <td key={ci} style={tdS(ri % 2 === 1)}>{c}</td>)}</tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function Bx({ type, label, children }: { type: "t" | "p" | "n"; label: string; children: React.ReactNode }) {
+  return (
+    <div style={bxS(type)}>
+      <div style={bxLabelS(type)}>{label}</div>
+      <div style={bxBodyS}>{children}</div>
+    </div>
+  );
+}
+
+function Cd({ children }: { children: React.ReactNode }) {
+  return <code style={codeS}>{children}</code>;
+}
+
+function B({ children }: { children: React.ReactNode }) {
+  return <b style={bS}>{children}</b>;
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return <p style={pS}>{children}</p>;
+}
+
+function H1({ children }: { children: React.ReactNode }) {
+  return <h2 style={h2S}>{children}</h2>;
+}
+
+function H2({ children }: { children: React.ReactNode }) {
+  return <h3 style={h3S}>{children}</h3>;
+}
+
+function H3({ children }: { children: React.ReactNode }) {
+  return <h4 style={h4S}>{children}</h4>;
+}
+
+function CB({ children }: { children: React.ReactNode }) {
+  return <pre style={cbS}>{children}</pre>;
+}
+
+function Part({ label, title }: { label: string; title: string }) {
+  return (
+    <div style={partS}>
+      <div style={partLabelS}>{label}</div>
+      <div style={partTitleS}>{title}</div>
+    </div>
+  );
+}
+
+const tabs = ["Overview", "Instructions", "Dual-Phase Encryption", "PlenumDB", "Ternary Substrate", "Architecture", "Analysis & Compare", "References"];
 
 export default function ISASecurityPaper() {
-  const [activeNav, setActiveNav] = useState(0);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const [tab, setTab] = useState(0);
+  const [showTop, setShowTop] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => setShowScrollTop(window.scrollY > 600);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setShowTop(window.scrollY > 500);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const scrollToSection = useCallback((id: string) => {
-    const el = sectionRefs.current[id];
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const switchTab = useCallback((i: number) => {
+    setTab(i);
+    window.scrollTo({ top: 0 });
   }, []);
-
-  const ref = (id: string) => (el: HTMLElement | null) => { sectionRefs.current[id] = el; };
 
   return (
-    <div style={S.app}>
+    <div style={appS}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-      <div style={S.gridOverlay} />
 
-      {/* ═══ HERO ═══ */}
-      <div style={S.container}>
-        <div style={S.hero}>
-          <div style={S.heroGlow} />
-          <div style={S.heroLabel}>Salvi Framework ISA v2.0 — Technical Paper</div>
-          <h1 style={S.heroTitle}>ISA-Level Security Primitives<br />for Ternary Computing Architectures</h1>
-          <p style={S.heroSub}>Capability-Based Access Control, Side-Channel Mitigation,<br />and Constant-Time Execution</p>
-          <div style={S.heroDivider} />
-          <div style={S.heroMeta}>
-            <span style={S.heroMetaBold}>Applied Physics Division</span> — Capomastro Holdings Ltd.<br />
-            Alberta, Canada — February 2026<br />
-            PlenumNET Post-Quantum Timing Infrastructure
-          </div>
-          <div style={S.heroLinks}>
-            <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer" style={S.heroLink}
-              onMouseEnter={(e: React.MouseEvent) => { (e.target as HTMLElement).style.background = `${COLORS.accent}20`; }}
-              onMouseLeave={(e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "transparent"; }}>
-              Repository →
-            </a>
-            <a href="https://plenumnet.replit.app" target="_blank" rel="noopener noreferrer" style={S.heroLink}
-              onMouseEnter={(e: React.MouseEvent) => { (e.target as HTMLElement).style.background = `${COLORS.accent}20`; }}
-              onMouseLeave={(e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "transparent"; }}>
-              PlenumNET Platform →
-            </a>
+      {/* HERO */}
+      <div style={wrapS}>
+        <div style={heroS}>
+          <div style={heroLabelS}>Salvi Framework ISA v2.0 {"\u2014"} Technical Paper {"\u2014"} February 2026</div>
+          <h1 style={heroTitleS}>ISA-Level Security Primitives<br />for Ternary Computing Architectures</h1>
+          <p style={heroSubS}>Capability-Based Access Control, Side-Channel Mitigation,<br />Dual-Phase Encryption, and PlenumDB Encrypted Storage</p>
+          <div style={dividerS} />
+          <div style={heroInfoS}><span style={heroInfoStrongS}>Applied Physics Division</span> {"\u2014"} Capomastro Holdings Ltd.<br />Alberta, Canada {"\u2014"} PlenumNET Post-Quantum Timing Infrastructure</div>
+          <div style={heroLinksS}>
+            <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer" style={heroLinkS}>Repository {"\u2192"}</a>
+            <a href="https://plenumnet.replit.app" target="_blank" rel="noopener noreferrer" style={heroLinkS}>PlenumNET Platform {"\u2192"}</a>
           </div>
         </div>
       </div>
 
-      {/* ═══ NAV ═══ */}
-      <div style={S.nav}>
-        <div style={S.navInner}>
-          {sections.map((s, i) => (
-            <button key={i} style={S.navBtn(activeNav === i)}
-              onClick={() => { setActiveNav(i); scrollToSection(s); }}
-              onMouseEnter={(e: React.MouseEvent) => { if (activeNav !== i) (e.target as HTMLElement).style.color = COLORS.text; }}
-              onMouseLeave={(e: React.MouseEvent) => { if (activeNav !== i) (e.target as HTMLElement).style.color = COLORS.textMuted; }}>
-              {s}
-            </button>
+      {/* NAV */}
+      <nav style={navS}>
+        <div style={navInnerS} ref={navRef}>
+          {tabs.map((name: string, i: number) => (
+            <button
+              key={i}
+              data-testid={`tab-btn-${i}`}
+              style={{ ...navBtnBase, color: tab === i ? col.ac : col.mt, borderBottom: tab === i ? `2px solid ${col.ac}` : "2px solid transparent", fontWeight: tab === i ? 600 : 400 }}
+              onClick={() => switchTab(i)}
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => { if (tab !== i) (e.target as HTMLElement).style.color = col.al; }}
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => { if (tab !== i) (e.target as HTMLElement).style.color = col.mt; }}
+            >{name}</button>
           ))}
         </div>
-      </div>
+      </nav>
 
-      {/* ═══ CONTENT ═══ */}
-      <div style={S.container}>
+      <div style={wrapS}>
 
-        {/* ── TABLE OF CONTENTS ── */}
-        <div ref={ref("Overview")} style={S.tocWrap}>
-          <div style={S.tocTitle}>Contents</div>
-          {([
-            [0, "Part I: Executive Overview"],
-            [1, "Why New Security in the Processor?"],
-            [1, "Ternary Computing Primer"],
-            [1, "The Eight Security Instructions"],
-            [1, "Why Ternary Makes It Better"],
-            [0, "Part II: Technical Specification"],
-            [1, "1. Introduction"],
-            [1, "2. Related Work"],
-            [1, "3. Ternary Logic Substrate"],
-            [1, "4. Architectural Support"],
-            [1, "5. Security and Audit Opcodes (0x90–0x97)"],
-            [1, "6. PlenumNET Integration"],
-            [1, "7. Security Analysis"],
-            [1, "8. Comparison with Existing Approaches"],
-            [1, "9. Reference Implementation"],
-            [1, "10. Discussion and Future Work"],
-            [1, "References"],
-          ] as Array<[number, string]>).map(([lvl, text], i) => (
-            <div key={i} style={S.tocItem(lvl)}
-              onClick={() => {
-                const match = sections.find(s => text.includes(s) || s.includes(text.split(".")[0]?.trim()));
-                if (match) { scrollToSection(match); }
-              }}
-              onMouseEnter={(e: React.MouseEvent) => (e.target as HTMLElement).style.color = COLORS.accent}
-              onMouseLeave={(e: React.MouseEvent) => (e.target as HTMLElement).style.color = lvl === 0 ? COLORS.text : COLORS.textDim}>
-              {text}
-            </div>
-          ))}
+        {/* ═══ TAB 0: OVERVIEW ═══ */}
+        <div style={tabS(tab === 0)}>
+          <Part label="Part I" title="Executive Overview" />
+
+          <H1>Making Computers Safer: A New Kind of Security</H1>
+          <P>Imagine your computer as a giant office building. Today's computers are like buildings where every door uses the same flimsy lock, where sound carries through the walls, and where there's no security camera that can't be tampered with. The <B>Salvi Framework</B> is a complete rethinking of computer security, using a different kind of mathematics called <B>ternary logic</B>, built directly into the processor itself.</P>
+          <P>Instead of the usual binary (ON/OFF) that all modern chips use, the Salvi processor works with three-state <B>trits</B>. This isn't just a curiosity{"\u2014"}it gives the hardware genuinely new security powers that binary computers physically cannot have, no matter how much software you pile on top.</P>
+
+          <H1>Three Weaknesses This Addresses</H1>
+          <H3>1. Memory Bugs and Fake Pointers</H3>
+          <P>Every modern computer stores data and instructions in the same flat memory space. Programs routinely confuse one for the other. Attackers exploit this through <B>buffer overflows</B>, <B>use-after-free</B> errors, and <B>pointer forgery</B>{"\u2014"}tricking the computer into treating attacker-controlled data as trusted instructions. Academic solutions like CHERI (Cambridge) bolt capability checks onto binary chips, but they need extra "tag bits" glued to the side of every memory word{"\u2014"}an expensive retrofit.</P>
+
+          <H3>2. The Quantum Threat</H3>
+          <P>Current encryption (RSA, ECC) will be broken by quantum computers. Post-quantum algorithms (lattice-based, hash-based) are being standardised by NIST, but they need <B>efficient hardware support</B>{"\u2014"}and critically, they need constant-time execution guarantees that current processors don't provide.</P>
+
+          <H3>3. Side-Channel Leaks</H3>
+          <P>Even when software is mathematically perfect, <B>hardware whispers secrets</B>. How long an operation takes, how much power it draws, what electromagnetic radiation it emits{"\u2014"}all leak information. Spectre and Meltdown showed that speculative execution in modern CPUs creates exploitable side channels. Current defences are software patches on top of hardware that was never designed to be quiet.</P>
+
+          <H1>How Ternary Computing Changes the Game</H1>
+          <P>A <B>trit</B> (ternary digit) can be -1, 0, or +1 (or equivalently 1, 2, 3 in the "bijective" encoding). This gives <B>1.58 times more information per digit</B> than a bit{"\u2014"}closer to the mathematically optimal radix (<i>e</i> {"\u2248"} 2.718). The Salvi Framework uses three interchangeable representations:</P>
+
+          <Tbl
+            headers={["Representation", "Digit Set", "Purpose"]}
+            rows={[
+              ["A (Computational)", "{\u2212\u200B1, 0, +1}", "Internal arithmetic, GF(3) field operations, algebraic masking, Phase 1 encryption"],
+              ["B (Network)", "{0, 1, 2}", "Wire-level protocol encoding"],
+              ["C (Bijective)", "{1, 2, 3}", "Capability security (excludes 0 for sentinel), human-readable display"],
+            ]}
+          />
+
+          <P>The key insight: in Representation C, the value <B>0 is impossible to produce through arithmetic</B>. If you add, subtract, or multiply numbers whose digits are only 1, 2, or 3, you can never get a 0 in any digit position. This means a "0" placed in a special position acts as an <B>unforgeable seal</B>{"\u2014"}only the hardware itself can put it there. No software trick, no buffer overflow, no attacker manipulation can forge it.</P>
         </div>
 
-        {/* ════════════════════════════════════════════ */}
-        {/* PART I: EXECUTIVE OVERVIEW                  */}
-        {/* ════════════════════════════════════════════ */}
-        <div ref={ref("Part I: Executive Overview")} style={S.partBanner}>
-          <div style={S.partLabel}>Part I</div>
-          <div style={S.partTitle}>Executive Overview</div>
+        {/* ═══ TAB 1: INSTRUCTIONS ═══ */}
+        <div style={tabS(tab === 1)}>
+          <H1>The Eight Security Instructions (0x90{"\u2013"}0x97)</H1>
+          <P>The Salvi ISA v2.0 contains 160 opcodes. Eight of them (opcodes <Cd>0x90</Cd> through <Cd>0x97</Cd>) form the <B>Security and Audit</B> category{"\u2014"}a complete hardware security subsystem that doesn't exist in any other processor architecture.</P>
+
+          <H2>AuditLog (0x90) {"\u2014"} The Camera That Never Lies</H2>
+          <CB>AUDITLOG src1</CB>
+          <P>Every security-relevant event gets recorded into a protected hardware log: the program counter, privilege level, security domain, an event code, and a <B>femtosecond-precision timestamp</B> from the HPTP timing system. The log is append-only with chain integrity verification (tamper-evident hash chain){"\u2014"}any attempt to delete or alter entries is detectable.</P>
+          <P>Twelve event types: AccessGranted, AccessDenied, CapabilityCreated, CapabilityRevoked, CapabilityDelegated, DomainTransition, DomainTransitionDenied, PolicyChange, SecurityModeChange, ProcessCreated, ProcessTerminated, IpcEvent. Any privilege level can emit entries; hardware stamps the <i>actual</i> privilege level, preventing spoofing.</P>
+
+          <H2>CapCheck (0x91) {"\u2014"} Validating Tickets</H2>
+          <CB>CAPCHECK dst, src1, src2</CB>
+          <P>Two independent verification mechanisms running in parallel:</P>
+          <P><B>Mechanism 1 {"\u2014"} Sentinel Validation:</B> Checks that the leading trit of the capability descriptor is a sentinel (value 0 in Representation C). This is an algebraic integrity check{"\u2014"}no tag-controller lookup required.</P>
+          <P><B>Mechanism 2 {"\u2014"} Table Lookup:</B> Queries the hardware capability table for token validity, resource match, action permissions (R/W/X), mode compatibility, and expiration. The table stores full CapabilityToken records with owner ProcessId, security mode, femtosecond timestamps, delegation chain, and revocation status.</P>
+
+          <Tbl
+            headers={["Field", "Trits", "Position", "Description"]}
+            rows={[
+              ["SENTINEL", "1", "[0]", "Capability marker (value 0, outside \u0392\u2083)"],
+              ["PERM", "3", "[1\u20133]", "Permission triple (Read/Write/Execute)"],
+              ["SCOPE", "5", "[4\u20138]", "Scope/domain identifier"],
+              ["BASE", "9", "[9\u201317]", "Base address"],
+              ["BOUND", "9", "[18\u201326]", "Upper bound"],
+            ]}
+          />
+          <P>Compared to CHERI: eliminates the tag-controller lookup (sentinel is inline), reducing the critical path by one memory-subsystem interaction.</P>
+
+          <H2>CapGrant (0x92) {"\u2014"} Creating Tickets (Ring0 Only)</H2>
+          <CB>CAPGRANT dst, src1, src2</CB>
+          <P><B>Table operation:</B> Creates a CapabilityToken with femtosecond creation timestamp, configurable expiration, delegatable flag, and parent_token for full provenance tracking.</P>
+          <P><B>Register operation:</B> Places the unforgeable sentinel trit (value 0) at position [0] of the capability descriptor.</P>
+          <P><B>Monotonic authority principle:</B> Derived capabilities can only have <i>fewer</i> permissions and <i>narrower</i> address ranges than their parent: C<sub>d</sub>.PERM = C<sub>s</sub>.PERM {"\u2229"}{"\u2083"} NewPerm, C<sub>d</sub>.BASE = max(C<sub>s</sub>.BASE, NewBase), C<sub>d</sub>.BOUND = min(C<sub>s</sub>.BOUND, NewBound).</P>
+          <P>Automatically generates a CapabilityCreated audit entry.</P>
+
+          <H2>CapRevoke (0x93) {"\u2014"} Revoking Tickets (Ring0 Only)</H2>
+          <CB>CAPREVOKE dst, src1, src2</CB>
+          <P><B>Dual-mechanism invalidation:</B> Sets the revoked flag in the capability table AND overwrites the sentinel trit with value 1 (making the descriptor fail sentinel validation). Immediate, global within the target security domain. <B>O(1) per register and O(1) per table entry</B>{"\u2014"}unlike CHERI's sweep-based revocation which must scan all memory.</P>
+          <P>Optional HPTP-timestamped revocation proof for non-repudiation. Automatically generates a CapabilityRevoked audit entry.</P>
+
+          <H2>SideChMask (0x94) {"\u2014"} Muffling the Whispers</H2>
+          <CB>SIDECHMASK dst, src1</CB>
+          <P><B>Layer 1 {"\u2014"} Microarchitectural Isolation:</B> A bitmask disables L1 data cache, L1 instruction cache, branch predictor, and speculative execution. Previous SCCR (Side-Channel Control Register) state saved to dst for restoration.</P>
+          <P><B>Layer 2 {"\u2014"} Algebraic Ternary Masking:</B> Activates automatic trit-wise modular addition with hardware random trit generator (HRTG) vectors. In Representation A: d'<sub>i</sub> = (d<sub>i</sub> + m<sub>i</sub>) mod 3. In Representation C: d'<sub>i</sub> = ((d<sub>i</sub> + m<sub>i</sub> {"\u2212"} 1) mod 3) + 1.</P>
+
+          <Bx type="t" label="Theorem 2 \u2014 Perfect Masking">
+            For any data word D {"\u2208"} {"\u0392"}{"\u2083"}<sup>n</sup> and uniform random mask M {"\u2208"} {"\u0392"}{"\u2083"}<sup>n</sup>, the masked value D' = D {"\u2297"} M is uniformly distributed over {"\u0392"}{"\u2083"}<sup>n</sup> and statistically independent of D. <B>Proof:</B> Masking is a bijection for fixed M; uniform M yields uniform output regardless of input. Ternary non-linear operations achieve O(n) complexity vs binary ISW O(n{"\u00B2"}).
+          </Bx>
+
+          <P><B>Structural advantage:</B> Ternary logic gates have uniform transition energy across all six possible single-trit state changes, providing inherent glitch resistance. The dual-layer design means either layer provides independent protection{"\u2014"}graceful degradation if one layer is compromised.</P>
+
+          <H2>SideChUnmask (0x95) {"\u2014"} Restoring Normal Execution</H2>
+          <CB>SIDECHUNMASK src1</CB>
+          <P>Layer 1: Re-enables microarchitectural features per the saved bitmask. Layer 2: Exits automatic masking mode. Inverse operation: d<sub>i</sub> = (d'<sub>i</sub> {"\u2212"} m<sub>i</sub> + 3) mod 3. Guaranteed: D {"\u2297"} M {"\u2298"} M = D for all D, M.</P>
+
+          <H2>ConstTimeEq (0x96) {"\u2014"} Secret-Safe Comparison</H2>
+          <CB>CONSTTIMEEQ dst, src1, src2</CB>
+          <P>Constant-time comparison: identical latency regardless of whether values are equal, where they differ, or what values they contain. Implementation: trit-wise subtraction-and-OR-reduce{"\u2014"}no early exit, no branch prediction involvement, no data-dependent carry propagation. ALU path physically isolated from speculative execution. Use cases: MAC verification, password comparison, key equality checks, FIPS self-test validation.</P>
+
+          <H2>ConstTimeSel (0x97) {"\u2014"} Secret-Safe Selection</H2>
+          <CB>CONSTTIMESEL dst, src1, src2   (condition in flags register)</CB>
+          <P>Constant-time conditional move: both sources read simultaneously, selection via bitwise masking (condition AND src1) OR (NOT condition AND src2). No branch, no speculative path, no data-dependent timing variation. Use cases: elliptic curve point selection, ML-KEM decapsulation padding variants, Fiat-Shamir abort decisions, constant-time table lookups.</P>
         </div>
 
-        <h2 style={S.h1}>Making Computers Safer: A New Kind of Security</h2>
-        <p style={S.p}>
-          Imagine your computer as a giant office building. Inside, there are countless rooms (memory locations) and valuable documents (data). Today's computers are like buildings with flimsy locks—attackers can often pick them, sneak in through air vents, or even listen through the walls to overhear conversations. A new approach, built into the very brain of the computer (the processor), promises to change that. It's called the <span style={S.bold}>Salvi Framework</span>, and it's a complete rethinking of how computers handle security, using a different kind of math called <span style={S.bold}>ternary logic</span>.
-        </p>
-        <p style={S.p}>
-          This section explains, in plain English, a set of eight special security instructions that the Salvi processor uses. They're like a team of super-strict security guards that work at the hardware level, making sure bad actors can't break in or steal secrets—even if the software has bugs.
-        </p>
+        {/* ═══ TAB 2: DUAL-PHASE ENCRYPTION ═══ */}
+        <div style={tabS(tab === 2)}>
+          <H1>6. Dual-Phase Encryption Architecture</H1>
 
-        <h2 style={S.h2}>Why Do We Need New Security in the Processor?</h2>
-        <p style={S.p}>Today's computers are based on binary logic—everything is a 0 or a 1. That's worked for decades, but it has three serious security weaknesses:</p>
-        <p style={S.p}><span style={S.bold}>Memory bugs and fake pointers.</span> Programs often can't tell the difference between ordinary data and special "pointers" that say where data lives. Attackers can trick a program into using a fake pointer, leading to exploits like buffer overflows.</p>
-        <p style={S.p}><span style={S.bold}>Future quantum computers are coming.</span> Once powerful quantum computers arrive, they'll crack many of today's encryption methods. We need new "post-quantum" cryptography, and the hardware must support it efficiently.</p>
-        <p style={S.p}><span style={S.bold}>Side-channel leaks.</span> Even if your software is perfect, the physical hardware can accidentally whisper secrets. The time it takes to do a calculation might reveal your password. Attackers can also measure tiny variations in power usage or electromagnetic radiation—these are called <span style={S.bold}>side-channel attacks</span>.</p>
-        <p style={S.p}>The Salvi project tackles all three problems by designing a new kind of processor from the ground up, using <span style={S.bold}>ternary</span> math (three possible values per digit instead of two) and baking security directly into its instruction set.</p>
+          <H2>6.1 Design Rationale</H2>
+          <P>The Salvi Framework's cryptographic subsystem implements a <B>dual-phase encryption pipeline</B> that unifies symmetric and asymmetric post-quantum cryptography within the ternary ISA. Where conventional systems treat symmetric encryption and key management as separate software-layer concerns, the Salvi approach integrates both phases as <B>first-class ISA operations</B>, leveraging the algebraic properties of the three ternary representations to provide structural security advantages unavailable in binary architectures.</P>
+          <P>The dual-phase design addresses a fundamental limitation of single-layer encryption: symmetric ciphers provide high throughput but require secure key distribution, while asymmetric schemes solve key distribution but are computationally expensive. By coupling both phases at the ISA level and binding them to the capability system, the Salvi Framework ensures that the encryption pipeline is both performant and <B>capability-gated</B>{"\u2014"}no process can invoke encryption or decryption operations without a valid, non-expired capability token.</P>
 
-        <h2 style={S.h2}>Ternary Computing: A Quick Primer</h2>
-        <p style={S.p}>Binary digits (bits) are like light switches: ON (1) or OFF (0). Ternary digits (<span style={S.bold}>trits</span>) are like a dial with three positions. This gives the computer new powers:</p>
-        <p style={S.p}><span style={S.bold}>More information per digit.</span> A trit holds about 1.58× as much information as a bit, so data can be packed more tightly.</p>
-        <p style={S.p}><span style={S.bold}>Special "unforgeable" markers.</span> Because there are three values, we can reserve one value (like 0) as a special marker that ordinary calculations can <em>never</em> produce. That marker can tag sensitive items—like security tickets—making them impossible to fake.</p>
+          <H2>6.2 Phase 1 {"\u2014"} Ternary Symmetric Encryption</H2>
+          <P>Phase 1 operates in the <B>GF(3) Galois field</B> domain (Representation A, digit set {"{"}{"\\u2212"}1, 0, +1{"}"}), implementing a ternary-native symmetric cipher optimised for bulk data encryption. The cipher's round function employs:</P>
+          <P>{"\u2022"} <B>Trit-wise substitution</B> (S-box operations over GF(3))<br />
+          {"\u2022"} <B>Permutation layers</B> operating on the 27-trit word structure<br />
+          {"\u2022"} <B>Key-mixing</B> via trit-wise modular addition{"\u2014"}the same algebraic operation used by <Cd>SideChMask</Cd> for side-channel protection</P>
+          <P>This structural alignment is deliberate: Phase 1 encryption inherits the balanced power-consumption properties of ternary arithmetic (Property P9), meaning the encryption operation itself resists differential power analysis without requiring additional masking. The six possible single-trit transitions exhibit uniform energy profiles, eliminating the data-dependent power variation that plagues binary AES implementations in CMOS logic.</P>
 
-        <h2 style={S.h2}>The Security Team: Eight Special Instructions</h2>
-        <p style={S.p}>Out of the 160 instructions the Salvi processor understands, eight are dedicated entirely to security:</p>
+          <Bx type="t" label="Phase 1 \u2014 Side-Channel Resistance Property">
+            The ternary symmetric cipher operates in GF(3), where all trit-value transitions consume uniform energy. Combined with automatic algebraic masking (when <Cd>SideChMask</Cd> Layer 2 is active), Phase 1 encryption achieves first-order DPA resistance without dedicated countermeasure overhead. The 27-trit word structure provides a natural block size aligned with the machine word, eliminating the padding overhead and alignment penalties that binary ciphers incur.
+          </Bx>
 
-        <h3 style={S.h3}>AuditLog — The Camera That Never Lies</h3>
-        <p style={S.p}>This instruction records what just happened into a protected log, stamped with femtosecond-precision time (a millionth of a billionth of a second). The log can't be faked or erased, providing a perfect record of who did what and when—essential for catching intruders and proving compliance with financial regulations like FINRA or MiFID II.</p>
+          <H2>6.3 Phase 2 {"\u2014"} Post-Quantum Asymmetric Layer</H2>
+          <P>Phase 2 provides key encapsulation and digital signatures using ternary-native lattice-based algorithms, implemented as dedicated ISA opcodes:</P>
+          <Tbl
+            headers={["Opcode", "Mnemonic", "Function", "Classical Analogue"]}
+            rows={[
+              ["0x6D", "TKemEncaps", "Ternary Lattice Key Encapsulation \u2014 generates shared secret + ciphertext", "ML-KEM (FIPS 203)"],
+              ["0x6E", "TKemDecaps", "Ternary Lattice Key Decapsulation \u2014 recovers shared secret from ciphertext", "ML-KEM (FIPS 203)"],
+              ["0x6F", "TDsaSign", "Ternary Lattice Digital Signature \u2014 signs message digest", "ML-DSA (FIPS 204)"],
+              ["0x70", "TDsaVerify", "Ternary Lattice Signature Verification \u2014 verifies against public key", "ML-DSA (FIPS 204)"],
+            ]}
+          />
 
-        <h3 style={S.h3}>CapCheck, CapGrant, CapRevoke — The Ticket System</h3>
-        <p style={S.p}>Instead of just checking "who you are," a <span style={S.bold}>capability</span> is like a physical ticket granting access to a specific resource—a backstage pass to a concert.</p>
-        <p style={S.p}><span style={S.bold}>CapGrant</span> — The kernel creates a new ticket specifying what a program may do (read, write, etc.) and when it expires. <span style={S.bold}>CapCheck</span> — The hardware validates the ticket is authentic and hasn't been revoked. Because tickets use a special ternary value that can't be forged, no program can create a fake ticket. <span style={S.bold}>CapRevoke</span> — Instantly invalidates a ticket; any further attempt to use it fails.</p>
+          <P><B>TL-KEM</B> (Ternary Lattice Key Encapsulation Mechanism) operates over ternary polynomial rings where coefficient arithmetic naturally maps to Representation A. This provides structural advantages: the balanced ternary representation eliminates the modular reduction overhead that binary ML-KEM implementations incur, and the three-valued coefficient space provides a tighter noise distribution for lattice-based security proofs.</P>
+          <P><B>TL-DSA</B> (Ternary Lattice Digital Signature Algorithm) implements the Fiat-Shamir with Aborts paradigm in the ternary domain. The abort decision{"\u2014"}whether to restart the signing process when the signature would leak information about the secret key{"\u2014"}is implemented using <Cd>ConstTimeSel</Cd> (<Cd>0x97</Cd>), ensuring that the abort/proceed decision itself does not leak through timing.</P>
 
-        <h3 style={S.h3}>SideChMask / SideChUnmask — Muffling the Whispers</h3>
-        <p style={S.p}><span style={S.bold}>SideChMask</span> turns off all "leaky parts"—flushing caches, pausing speculative execution, and scrambling data with random numbers using ternary masking that is mathematically guaranteed to hide the original value. <span style={S.bold}>SideChUnmask</span> restores normal performance after the sensitive work is done. It's like putting your conversation inside a soundproof booth.</p>
+          <H2>6.4 Complete Dual-Phase Pipeline</H2>
+          <CB>{`1. CapCheck     \u2014 Verify caller holds encryption capability for target resource
+2. SideChMask   \u2014 Activate side-channel protection (both layers)
+3. TKemEncaps   \u2014 Phase 2: Generate ephemeral symmetric key via TL-KEM
+4. PhaseEnc     \u2014 Phase 1: Encrypt data block with ephemeral key in GF(3)
+5. TDsaSign     \u2014 Phase 2: Sign (ciphertext \u2016 encapsulated_key) with TL-DSA
+6. AuditLog     \u2014 Record encryption event with HPTP femtosecond timestamp
+7. SideChUnmask \u2014 Restore normal execution`}</CB>
+          <P>The decryption pipeline is the inverse, with <Cd>TDsaVerify</Cd> preceding <Cd>TKemDecaps</Cd> (verify-then-decrypt). Each step is capability-gated and audit-logged, creating a complete provenance chain from plaintext to ciphertext. The pipeline is designed to execute within a single <Cd>SideChMask</Cd>/<Cd>SideChUnmask</Cd> bracket, ensuring that key generation, encryption, and signing are side-channel protected as <B>a single atomic unit</B>.</P>
 
-        <h3 style={S.h3}>ConstTimeEq / ConstTimeSel — No Hints From Timing</h3>
-        <p style={S.p}><span style={S.bold}>ConstTimeEq</span> compares two values but always takes the exact same time, regardless of where or whether they differ. <span style={S.bold}>ConstTimeSel</span> chooses between two values in constant time regardless of which is picked. These are essential for cryptographic code—secrets stay secret even under stopwatch scrutiny.</p>
-
-        <h2 style={S.h2}>Defence-in-Depth Summary</h2>
-        <Table
-          headers={["Threat", "Defence", "How It Works"]}
-          rows={[
-            ["Memory bugs, fake pointers", "Capability tickets", "Tickets can't be forged; hardware checks every access"],
-            ["Cache timing, power analysis", "Side-channel masking", "Leaky features turned off; data scrambled"],
-            ["Timing of comparisons", "Constant-time ops", "Operations take fixed time, no clues"],
-            ["Undetected intrusions", "Audit log", "Every important event recorded with precise time"],
-          ]}
-        />
-
-        <h2 style={S.h2}>Why Ternary Makes It Better</h2>
-        <p style={S.p}><span style={S.bold}>Unforgeable markers.</span> In binary, you'd need a separate "tag" memory—extra hardware that attackers might fool. In ternary, the marker is built into the number system itself. The digit set {'{'}1, 2, 3{'}'} doesn't include 0; a 0 placed in a special position acts as an impossible-to-forge seal.</p>
-        <p style={S.p}><span style={S.bold}>Better masking.</span> Ternary's three values give a more uniform power profile, so attackers can't determine what changed by measuring power consumption.</p>
-        <p style={S.p}><span style={S.bold}>More efficient masking.</span> Protecting against higher-order attacks is mathematically simpler in ternary, providing strong protection with less overhead.</p>
-
-
-        {/* ════════════════════════════════════════════ */}
-        {/* PART II: TECHNICAL SPECIFICATION             */}
-        {/* ════════════════════════════════════════════ */}
-        <div ref={ref("Part II: Technical Specification")} style={S.partBanner}>
-          <div style={S.partLabel}>Part II</div>
-          <div style={S.partTitle}>Technical Specification</div>
+          <H2>6.5 CNSA 2.0 Alignment</H2>
+          <P>The dual-phase architecture directly maps to NSA CNSA 2.0 requirements: TL-KEM provides the quantum-resistant key establishment mechanism (equivalent to ML-KEM at security level 3+), TL-DSA provides quantum-resistant authentication (equivalent to ML-DSA), and the Phase 1 symmetric layer provides high-throughput data protection. The FIPS 140-3 boundary encompasses both phases, with <Cd>ConstTimeEq</Cd>/<Cd>ConstTimeSel</Cd> ensuring that all cryptographic comparisons and conditional operations within the pipeline maintain constant-time execution.</P>
         </div>
 
-        {/* ── ABSTRACT ── */}
-        <h2 ref={ref("Abstract")} style={S.h1}>Abstract</h2>
-        <p style={S.p}>Contemporary hardware security research has concentrated on retrofitting capability-based protections onto binary instruction set architectures, most notably through the CHERI programme. This paper presents a unified approach addressing three security domains—capability-based memory protection, side-channel attack mitigation, and constant-time execution guarantees—within a single coherent set of eight ISA-level primitives designed natively for a ternary computing architecture.</p>
-        <p style={S.p}>We describe the complete Security and Audit category (opcodes <Code>0x90</Code>–<Code>0x97</Code>) of the Salvi Framework's 160-opcode ISA v2.0. Unlike prior work, these primitives exploit the inherent information-theoretic advantages of three bijective ternary representations. The bijective encoding (Representation C, digit set {'{'}1, 2, 3{'}'}) provides a deterministic sentinel value distinguishing capability metadata from data payloads without external tag bits, while the balanced ternary domain (Representation A, digit set {'{'}−1, 0, +1{'}'}) provides a natural masking structure resisting differential power analysis at the architectural level.</p>
-        <div style={S.keywords}>
-          {["ternary computing", "capability architecture", "side-channel masking", "ISA security", "post-quantum cryptography", "bijective ternary logic", "hardware security primitives", "constant-time execution", "PlenumNET", "HPTP", "CNSA 2.0", "FIPS 140-3"].map((k, i) => (
-            <span key={i} style={S.keyword}>{k}</span>
-          ))}
+        {/* ═══ TAB 3: PLENUMDB ═══ */}
+        <div style={tabS(tab === 3)}>
+          <H1>7. PlenumDB: Native Encrypted PostgreSQL Framework</H1>
+
+          <H2>7.1 Architecture Overview</H2>
+          <P><B>PlenumDB</B> is the Salvi Framework's database abstraction layer, providing native encrypted compression and storage over PostgreSQL via Drizzle ORM. Unlike conventional database encryption approaches{"\u2014"}which apply encryption as an external wrapper around an unencrypted storage engine{"\u2014"}PlenumDB integrates the dual-phase encryption pipeline and capability-based access control <B>directly into the data path</B>, ensuring that data is never stored, transmitted, or processed in unencrypted form outside of capability-authenticated contexts.</P>
+
+          <Tbl
+            headers={["Layer", "Component", "Function"]}
+            rows={[
+              ["Application", "Drizzle ORM / TypeScript", "Standard SQL and TypeScript query interface; encryption transparent to application code"],
+              ["Framework", "PlenumDB Encryption Engine", "Ternary compression, dual-phase encryption/decryption, capability validation, audit logging"],
+              ["Storage", "PostgreSQL", "Encrypted, compressed column storage; standard PostgreSQL replication and backup"],
+            ]}
+          />
+
+          <H2>7.2 Encrypted Compression Pipeline</H2>
+          <P><B>Stage 1 {"\u2014"} Ternary Compression.</B> Data is converted to ternary representation and compressed using ternary-optimised algorithms that exploit the 1.585-bit information density per trit. The three-valued encoding provides natural run-length patterns that compress more efficiently than binary equivalents for structured data (timestamps, numeric fields, enumerated types). The compression ratio advantage is most pronounced for data with natural three-state patterns{"\u2014"}boolean-with-null, status enumerations, ternary flags.</P>
+          <P><B>Stage 2 {"\u2014"} Dual-Phase Encryption.</B> The compressed ternary data is encrypted through the full dual-phase pipeline: Phase 1 symmetric encryption in GF(3), with the symmetric key wrapped by Phase 2 TL-KEM. The <B>column-level encryption granularity</B> means that each database column can have independent encryption keys, capability requirements, and expiration policies.</P>
+          <P><B>Stage 3 {"\u2014"} PostgreSQL Storage.</B> The encrypted, compressed payload is stored in PostgreSQL columns as binary data. Standard PostgreSQL features{"\u2014"}replication, point-in-time recovery, connection pooling{"\u2014"}operate on the encrypted data without modification. The PostgreSQL instance never sees plaintext.</P>
+
+          <H2>7.3 Capability-Gated Query Access</H2>
+          <P>Every PlenumDB query operation is mediated by the capability system. <Cd>CapCheck</Cd> is integrated at three granularity levels:</P>
+          <Tbl
+            headers={["Level", "Capability Scope", "Enforcement"]}
+            rows={[
+              ["Table", "Read/Write/Admin per table", "CapCheck before any query plan execution on the target table"],
+              ["Column", "Decrypt permission per column", "CapCheck before decryption of each encrypted column in result set"],
+              ["Row", "Optional row-level capability tags", "CapCheck against row-level capability descriptors for fine-grained access"],
+            ]}
+          />
+          <P>This three-level model means that a process may hold a table-level read capability but lack the column-level decrypt capability for sensitive columns{"\u2014"}the query returns the row but with <B>encrypted (opaque) values</B> for unauthorised columns. Capability revocation via <Cd>CapRevoke</Cd> takes immediate effect: a revoked column-decrypt capability causes all subsequent queries to return encrypted values, with <B>no cache window or propagation delay</B>.</P>
+
+          <H2>7.4 Audit Integration and Compliance</H2>
+          <P>Every PlenumDB operation generates <Cd>AuditLog</Cd> entries with HPTP femtosecond timestamps:</P>
+          <Tbl
+            headers={["Regulation", "Requirement", "PlenumDB Implementation"]}
+            rows={[
+              ["FINRA Rule 613", "Consolidated audit trail with precise timestamps", "AuditLog entries with femtosecond HPTP timestamps for every data access"],
+              ["MiFID II (RTS 25)", "Clock synchronisation and transaction reporting", "HPTP-synchronised timestamps anchored to atomic clock sources"],
+              ["FIPS 140-3", "Cryptographic module operational assurance", "Dual-phase encryption within FIPS boundary, self-test validated"],
+              ["GDPR Art. 32", "Encryption of personal data", "Native column-level encryption with capability-gated access"],
+              ["SOX Section 802", "Record retention and integrity", "Blockchain-anchored audit proofs via PlenumNET ledger"],
+            ]}
+          />
+          <P>The audit trail itself is protected: entries are chain-verified (tamper-evident hash chain), HPTP-timestamped, and optionally blockchain-anchored via Hedera HCS, XRPL, or Algorand integrations.</P>
+
+          <H2>7.5 Drizzle ORM Integration</H2>
+          <P>Application developers interact with PlenumDB through standard Drizzle ORM patterns in TypeScript. The encryption, compression, capability checks, and audit logging are handled transparently at the framework layer:</P>
+          <CB>{`// Application code \u2014 encryption is transparent
+const trades = await db.select()
+  .from(tradeRecords)
+  .where(eq(tradeRecords.symbol, 'BTC/USD'));
+
+// Framework layer (transparent to application):
+//   1. CapCheck \u2014 validate caller's table + column capabilities
+//   2. PostgreSQL query \u2014 retrieve encrypted rows
+//   3. Dual-phase decrypt \u2014 Phase 2 TL-KEM decaps, Phase 1 GF(3) decrypt
+//   4. Ternary decompress \u2014 restore original data
+//   5. AuditLog \u2014 record access with HPTP timestamp`}</CB>
+          <P>The Drizzle schema definition (<Cd>drizzle.config.ts</Cd>) includes PlenumDB-specific column annotations for encryption policy, capability requirements, and compression settings. Database migrations (via Drizzle Kit) automatically handle encryption key rotation and capability policy updates.</P>
         </div>
 
-        {/* ── 1. INTRODUCTION ── */}
-        <h2 ref={ref("1. Introduction")} style={S.h1}>1. Introduction</h2>
-        <p style={S.p}>The security of modern computing systems rests on hardware mechanisms designed decades before the current threat landscape materialised. Three distinct vulnerability classes define the contemporary problem:</p>
-        <p style={S.p}>First, the flat memory model of conventional binary architectures provides no intrinsic distinction between data and pointers—generating an entire taxonomy of memory-safety vulnerabilities. The CHERI project has demonstrated that capability registers and tagged memory mitigate these, but CHERI requires dedicated tag bits in physical memory and complex compressed capability encodings.</p>
-        <p style={S.p}>Second, NIST has standardised post-quantum algorithms (ML-KEM, ML-DSA, SLH-DSA), and post-quantum algorithms exhibit significantly different computational profiles—timing side-channels tolerable under classical assumptions may become exploitable in post-quantum deployments.</p>
-        <p style={S.p}>Third, microarchitectural side-channel attacks exploiting cache timing, branch prediction, speculative execution, and power consumption remain persistent. No current production ISA provides dedicated instructions for dynamically controlling microarchitectural side-channel sources, nor hardware-guaranteed constant-time primitives.</p>
-        <p style={S.p}>The Salvi Framework implements a complete ternary computing engine: 160-opcode ISA (v2.0), a compiled Rust kernel (33 MB ELF binary, 47,000+ LOC across 14 subsystems), with live deployment via PlenumNET.</p>
+        {/* ═══ TAB 4: TERNARY SUBSTRATE ═══ */}
+        <div style={tabS(tab === 4)}>
+          <Part label="Part II" title="Technical Specification" />
 
-        <h3 style={S.h3}>Contributions</h3>
-        <p style={S.p}>First, a formal treatment of the sentinel-trit property unique to bijective ternary encoding. Second, a dual-layer side-channel defence combining architectural feature masking with algebraic ternary share masking. Third, hardware-level constant-time primitives guaranteeing timing invariance independent of compiler optimisation. Fourth, integration with PlenumNET HPTP and a three-mode kernel security system. Fifth, comparative analysis showing this combination is unique among current architectures.</p>
-
-        {/* ── 2. RELATED WORK ── */}
-        <h2 ref={ref("2. Related Work")} style={S.h1}>2. Related Work</h2>
-        <h3 style={S.h3}>2.1 Capability Hardware Architectures</h3>
-        <p style={S.p}>The concept dates to the Cambridge CAP computer, Intel iAPX 432, and Plessey System 250. The modern CHERI programme extends MIPS, RISC-V, and ARMv8-A ISAs with 128-bit or 256-bit compressed capability descriptors, protected by a 1-bit tag per word. Arm's Morello SoC (2022) is the first silicon implementation. Our approach eliminates external tag bits entirely by designing capabilities natively for ternary logic—the third logic state provides an in-band algebraically unforgeable sentinel.</p>
-
-        <h3 style={S.h3}>2.2 Side-Channel Countermeasures</h3>
-        <p style={S.p}>The ISW masking countermeasure (CRYPTO 2003) decomposes secrets into random shares. Subsequent work extended the probing model. ISA extensions on RISC-V accelerate masking but remain additive—the underlying binary data representation still exhibits data-dependent power variation.</p>
-
-        <h3 style={S.h3}>2.3 Constant-Time Programming</h3>
-        <p style={S.p}>Software constant-time coding relies on bitwise comparisons and conditional moves, but compilers may optimise away these patterns. No current production ISA provides dedicated constant-time comparison or conditional-selection instructions.</p>
-
-        <h3 style={S.h3}>2.4 Ternary Computing</h3>
-        <p style={S.p}>Balanced ternary carries log₂(3) ≈ 1.585 bits per trit, approaching optimal radix economy (the minimum of n/ln(n) at e ≈ 2.718 makes 3 the closest integer). The Soviet Setun computer (1958) demonstrated practical balanced ternary. Security implications have received limited attention.</p>
-
-        {/* ── 3. TERNARY LOGIC SUBSTRATE ── */}
-        <h2 ref={ref("3. Ternary Logic Substrate")} style={S.h1}>3. Ternary Logic Substrate</h2>
-        <h3 style={S.h3}>3.1 Three Bijective Representations</h3>
-        <Table
-          headers={["Repr.", "Name", "Digit Set", "Domain", "Bijection"]}
-          rows={[
-            ["A", "Computational", "{−1, 0, +1}", "Internal arithmetic, GF(3) field ops, algebraic masking", "Identity"],
-            ["B", "Network", "{0, 1, 2}", "Network transmission, protocol encoding", "f(a) = a + 1"],
-            ["C", "Human/Bijective", "{1, 2, 3}", "Human-readable display, bijective encoding, capability security", "f(a) = a + 2"],
-          ]}
-        />
-        <p style={S.p}>The bijections are single-cycle hardware operations (<Code>TConvert</Code> opcode <Code>0x15</Code>). The security architecture is structurally dependent on three representations: Representation A provides the masking domain, C provides sentinel-trit capabilities, B enables secure wire-level encoding.</p>
-
-        <h3 style={S.h3}>3.2 The Sentinel Property</h3>
-        <Callout type="theorem" label="Definition 1 — Sentinel Trit">
-          A sentinel trit is a trit position containing value 0, outside the bijective digit set Β₃ = {'{'}1, 2, 3{'}'}. No arithmetic operation over Β₃ can produce a sentinel trit from valid operands. A sentinel trit can only be written by a privileged hardware operation.
-        </Callout>
-        <Callout type="theorem" label="Theorem 1 — Unforgeability">
-          Let f: Β₃ⁿ × Β₃ⁿ → Β₃ⁿ be any arithmetic operation over n-trit bijective ternary words. For any inputs A, B ∈ Β₃ⁿ, the result f(A, B) contains no sentinel trits.
-        </Callout>
-        <Callout type="proof" label="Proof">
-          The carry logic for bijective ternary addition produces sum digit s and carry c: if (a + b) ≤ 3 then s = (a + b), c = 0; if 3 {'<'} (a + b) ≤ 6 then s = (a + b) − 3, c = 1. Since all inputs are in {'{'}1, 2, 3{'}'} and carry is in {'{'}0, 1{'}'}, all output digits remain in {'{'}1, 2, 3{'}'}. Extends by induction. ∎
-        </Callout>
-
-        <h3 style={S.h3}>3.3 Machine Word Structure</h3>
-        <p style={S.p}>The architecture defines a 27-trit machine word ("tryte"), where 27 = 3³. This establishes a recursive self-similar structure: three 9-trit "tribbles", each comprising three 3-trit "triples." The Tribonacci sequence T(n) = T(n−1) + T(n−2) + T(n−3) provides a natural basis. The register file contains 27 ternary registers with privilege level, security domain, and extended flags.</p>
-
-        {/* ── 4. ARCHITECTURAL SUPPORT ── */}
-        <h2 ref={ref("4. Architectural Support")} style={S.h1}>4. Architectural Support</h2>
-
-        <h3 style={S.h3}>4.1 Privilege Levels</h3>
-        <Table
-          headers={["Ring", "Name", "Enforcement"]}
-          rows={[
-            ["Ring0", "Kernel", "Full system access. Required for: CapGrant, CapRevoke, DomainSet, MProtect, IoRead, IoWrite, PrivEscalate, Trap"],
-            ["Ring1", "Supervisor", "Restricted system access for device drivers and services"],
-            ["Ring2", "User", "Unprivileged application code"],
-          ]}
-        />
-
-        <h3 style={S.h3}>4.2 Modal Security System</h3>
-        <Table
-          headers={["Mode", "Symbol", "Description"]}
-          rows={[
-            ["ModePhi (Φ)", "phi_plus", "Maximum privilege: kernel operations, cryptographic key management, FIPS boundary"],
-            ["ModeOne (1)", "one", "Standard operation: user processes, normal I/O"],
-            ["ModeZero (0)", "zero", "Restricted/quarantine: untrusted code, sandboxed execution"],
-          ]}
-        />
-
-        <h3 style={S.h3}>4.3 Security Domains</h3>
-        <p style={S.p}>Each domain is a named isolation boundary with a security mode assignment, bounded member processes, controlled inter-domain transitions (Upgrade, Downgrade, Lateral) governed by explicit TransitionRule entries, optional isolation flag, and femtosecond-precision creation timestamp.</p>
-
-        <h3 style={S.h3}>4.4 Capability Table</h3>
-        <Table
-          headers={["Field", "Type", "Description"]}
-          rows={[
-            ["id", "TokenId", "Unique capability identifier"],
-            ["owner", "ProcessId", "Owning process"],
-            ["kind", "CapabilityKind", "Capability category"],
-            ["resource", "ResourceId", "Target resource"],
-            ["actions", "Vec<Action>", "Permitted actions"],
-            ["mode", "SecurityMode", "Required security mode"],
-            ["created_at", "FemtosecondTimestamp", "Creation time (femtosecond precision)"],
-            ["expires_at", "Option<FemtosecondTimestamp>", "Optional expiration time"],
-            ["revoked", "bool", "Revocation status"],
-            ["delegatable", "bool", "Whether delegation is permitted"],
-            ["parent_token", "Option<TokenId>", "Parent capability for provenance tracking"],
-          ]}
-        />
-
-        <h3 style={S.h3}>4.5–4.7 Additional Hardware Structures</h3>
-        <p style={S.p}><span style={S.bold}>Side-Channel Control Register (SCCR)</span> — per-core register controlling microarchitectural side-channel mechanisms, saved/restored across context switches. <span style={S.bold}>Constant-Time ALU</span> — dedicated arithmetic path with no early termination, no data-dependent carry chains, fixed one-cycle latency. <span style={S.bold}>Hardware Random Trit Generator (HRTG)</span> — entropy source producing uniformly random trits for algebraic masking, FIPS 140-3 SP 800-90B compliant.</p>
-
-        {/* ── 5. SECURITY OPCODES ── */}
-        <h2 ref={ref("5. Security Opcodes")} style={S.h1}>5. Security and Audit Opcodes (<Code>0x90</Code>–<Code>0x97</Code>)</h2>
-
-        <h3 style={S.h3}>5.1 AuditLog (<Code>0x90</Code>)</h3>
-        <div style={S.codeBlock}>AUDITLOG src1</div>
-        <p style={S.p}>Emits a hardware-generated audit log entry with program counter, privilege level, security domain, event code, and femtosecond-precision HPTP timestamp. The kernel records twelve event types (AccessGranted, AccessDenied, CapabilityCreated, CapabilityRevoked, CapabilityDelegated, DomainTransition, DomainTransitionDenied, PolicyChange, SecurityModeChange, ProcessCreated, ProcessTerminated, IpcEvent) with chain integrity verification via hash chaining.</p>
-
-        <h3 style={S.h3}>5.2 CapCheck (<Code>0x91</Code>)</h3>
-        <div style={S.codeBlock}>CAPCHECK dst, src1, src2</div>
-        <p style={S.p}>Dual-mechanism verification: <span style={S.bold}>Mechanism 1</span> validates the sentinel trit (algebraic integrity without tag-controller lookup). <span style={S.bold}>Mechanism 2</span> queries the capability table for token validity, resource match, action permission, and security mode compatibility.</p>
-        <Table
-          headers={["Field", "Trits", "Position", "Description"]}
-          rows={[
-            ["SENTINEL", "1", "[0]", "Capability marker (value 0, outside Β₃)"],
-            ["PERM", "3", "[1–3]", "Permission triple (R/W/X in Β₃)"],
-            ["SCOPE", "5", "[4–8]", "Scope/domain identifier"],
-            ["BASE", "9", "[9–17]", "Base address in ternary address space"],
-            ["BOUND", "9", "[18–26]", "Upper bound (base + length)"],
-          ]}
-        />
-
-        <h3 style={S.h3}>5.3 CapGrant (<Code>0x92</Code>) — Ring0 Only</h3>
-        <div style={S.codeBlock}>CAPGRANT dst, src1, src2</div>
-        <p style={S.p}>Creates a capability token with femtosecond timestamp, expiration, delegatable flag, and parent token for provenance. Enforces the monotonic authority principle: derived capability permissions are a trit-wise minimum subset, address range is contained within the granting domain's range.</p>
-
-        <h3 style={S.h3}>5.4 CapRevoke (<Code>0x93</Code>) — Ring0 Only</h3>
-        <div style={S.codeBlock}>CAPREVOKE dst, src1, src2</div>
-        <p style={S.p}>Immediate dual-mechanism invalidation: table flag set + sentinel trit overwritten with non-zero value. Unlike CHERI's sweep-based revocation, this is O(1) per register and O(1) per table entry.</p>
-
-        <h3 style={S.h3}>5.5 SideChMask (<Code>0x94</Code>)</h3>
-        <div style={S.codeBlock}>SIDECHMASK dst, src1</div>
-        <p style={S.p}><span style={S.bold}>Layer 1 — Microarchitectural isolation.</span> Bitmask disables L1 data cache, L1 instruction cache, branch predictor, speculative execution. <span style={S.bold}>Layer 2 — Algebraic ternary masking.</span> Automatic trit-wise modular addition with HRTG random vectors: d'ᵢ = (dᵢ + mᵢ) mod 3.</p>
-        <Callout type="theorem" label="Theorem 2 — Perfect Masking">
-          For any data word D ∈ Β₃ⁿ and uniformly random mask M ∈ Β₃ⁿ, the masked value D' = D ⊗ M is uniformly distributed over Β₃ⁿ and statistically independent of D. Ternary non-linear operations achieve O(n) complexity vs binary ISW O(n²).
-        </Callout>
-
-        <h3 style={S.h3}>5.6 SideChUnmask (<Code>0x95</Code>)</h3>
-        <div style={S.codeBlock}>SIDECHUNMASK src1</div>
-        <p style={S.p}>Restores microarchitectural features and exits algebraic masking mode. Inverse: dᵢ = (d'ᵢ − mᵢ + 3) mod 3. Guaranteed: D ⊗ M ⊘ M = D for all D, M.</p>
-
-        <h3 style={S.h3}>5.7 ConstTimeEq (<Code>0x96</Code>)</h3>
-        <div style={S.codeBlock}>CONSTTIMEEQ dst, src1, src2</div>
-        <p style={S.p}>Constant-time comparison via XOR-and-OR-reduce (binary) or trit-wise subtraction-and-OR-reduce (ternary). No early exit, no branch prediction interaction. ALU path physically isolated from speculative execution. Use: MAC verification, password comparison, key equality, FIPS self-test validation.</p>
-
-        <h3 style={S.h3}>5.8 ConstTimeSel (<Code>0x97</Code>)</h3>
-        <div style={S.codeBlock}>CONSTTIMESEL dst, src1, src2  (condition in flags register)</div>
-        <p style={S.p}>Constant-time conditional move: (condition AND src1) OR (NOT condition AND src2). Both sources read simultaneously. Use: elliptic curve point selection, ML-KEM decapsulation padding, Fiat-Shamir abort decisions.</p>
-
-        {/* ── 6. PLENUMNET INTEGRATION ── */}
-        <h2 ref={ref("6. PlenumNET Integration")} style={S.h1}>6. Integration with PlenumNET Infrastructure</h2>
-        <h3 style={S.h3}>6.1 Post-Quantum Timing Anchors</h3>
-        <p style={S.p}>HPTP generates cryptographically authenticated timestamps from seven clock source types at five precision levels (millisecond to femtosecond). Every <Code>CapGrant</Code> and <Code>CapRevoke</Code> can generate a timing proof signed with TL-DSA (ternary-native ML-DSA equivalent) and stored in the PlenumNET ledger.</p>
-
-        <h3 style={S.h3}>6.2 Timing Isolation</h3>
-        <p style={S.p}>Masked computational regions are bracketed by HPTP timing barriers enforcing constant-time execution. The processor inserts dummy cycles to ensure total execution time is data-independent. Timing barriers are capability-protected.</p>
-
-        <h3 style={S.h3}>6.3 Blockchain Anchoring</h3>
-        <p style={S.p}>Capability lifecycle events recorded via Hedera HCS, XRPL, and Algorand integrations—immutable, post-quantum-signed, consensus-timestamped. Supports MiFID II, FINRA Rule 613, and Reg NMS compliance.</p>
-
-        <h3 style={S.h3}>6.4 CNSA 2.0 and FIPS 140-3 Compliance</h3>
-        <p style={S.p}><Code>ConstTimeEq</Code>/<Code>ConstTimeSel</Code> address FIPS 140-3 Level 3 constant-time requirements. <Code>SideChMask</Code>/<Code>SideChUnmask</Code> address documented side-channel resistance. <Code>AuditLog</Code> provides operational assurance audit infrastructure. The <Code>finra-613</Code> feature flag enables FINRA Rule 613 timing compliance at build time.</p>
-
-        {/* ── 7. SECURITY ANALYSIS ── */}
-        <h2 ref={ref("7. Security Analysis")} style={S.h1}>7. Security Analysis</h2>
-        <h3 style={S.h3}>7.1 Capability Properties</h3>
-        <p style={S.p}><span style={S.bold}>P1 (Provenance)</span> — Every capability traces to a kernel root via parent_token chain with monotonic restriction. <span style={S.bold}>P2 (Integrity)</span> — Unforgeable via dual mechanism: sentinel trit + hardware-managed table. <span style={S.bold}>P3 (Non-bypassability)</span> — No instruction path permits unvalidated access. <span style={S.bold}>P4 (Isolation)</span> — Domain IDs prevent cross-domain interference. <span style={S.bold}>P5 (Temporal Integrity)</span> — Femtosecond creation/expiration timestamps with HPTP proofs. <span style={S.bold}>P6 (Revocability)</span> — O(1) immediate dual-mechanism invalidation.</p>
-
-        <h3 style={S.h3}>7.2 Side-Channel Properties</h3>
-        <p style={S.p}><span style={S.bold}>P7 (Microarchitectural Isolation)</span> — No observable timing differences during masked periods. <span style={S.bold}>P8 (First-Order Algebraic Security)</span> — Single probe reveals zero information (Theorem 2). <span style={S.bold}>P9 (Glitch Resistance)</span> — Uniform transition energy profiles. <span style={S.bold}>P10 (Timing Independence)</span> — Fixed cycle count regardless of inputs.</p>
-
-        <h3 style={S.h3}>7.3–7.4 Defence-in-Depth</h3>
-        <Table
-          headers={["Domain", "Mechanism 1", "Mechanism 2", "Failure Mode"]}
-          rows={[
-            ["Capability integrity", "Sentinel trit (algebraic)", "Capability table (hardware)", "Both must be defeated"],
-            ["Side-channel defence", "Microarchitectural isolation", "Algebraic ternary masking", "Either provides independent protection"],
-            ["Timing", "Constant-time ALU", "HPTP timing barriers", "Both enforce invariance"],
-            ["Audit", "Hardware timestamps", "Chain integrity verification", "Tampering requires breaking both"],
-          ]}
-        />
-
-        <h3 style={S.h3}>7.5 Limitations</h3>
-        <p style={S.p}>The current implementation is a compiled Rust kernel, not silicon—power-consumption properties are theoretical until FPGA synthesis. Higher-order probing analysis remains future work. The sentinel-trit mechanism is specific to bijective ternary encoding.</p>
-
-        {/* ── 8. COMPARISON ── */}
-        <h2 ref={ref("8. Comparison")} style={S.h1}>8. Comparison with Existing Approaches</h2>
-        <Table
-          headers={["Feature", "Intel MPK", "ARM Morello / CHERI", "RISC-V PMP", "Salvi Security Ops"]}
-          rows={[
-            ["Capability model", "No", "Yes (pointers)", "No", "Yes (domain + sentinel + temporal)"],
-            ["Hardware grant/revoke", "No", "Partial", "No", "CapGrant / CapRevoke (Ring0)"],
-            ["Unforgeable tag", "N/A", "1-bit external", "N/A", "Sentinel trit (algebraic, in-band)"],
-            ["Capability provenance", "No", "No", "No", "Parent chain + femtosecond timestamps"],
-            ["Capability expiration", "No", "No", "No", "expires_at with femtosecond precision"],
-            ["Side-channel masking", "No", "No", "No", "SideChMask / SideChUnmask (dual-layer)"],
-            ["Constant-time comparison", "No", "No", "No", "ConstTimeEq"],
-            ["Constant-time selection", "No", "No", "No", "ConstTimeSel"],
-            ["ISA-level audit", "No", "No", "No", "AuditLog (HPTP-timestamped)"],
-            ["PQC integration", "No", "No", "No", "CNSA 2.0, TL-DSA/TL-KEM, FIPS 140-3"],
-            ["Ternary native", "No", "No", "No", "Three bijective representations"],
-          ]}
-        />
-
-        {/* ── 9. IMPLEMENTATION ── */}
-        <h2 ref={ref("9. Implementation")} style={S.h1}>9. Reference Implementation</h2>
-        <p style={S.p}><span style={S.bold}>ISA Decoder and Executor</span> — <Code>instruction_v2.rs</Code>, 1,111 LOC. Eight opcodes as Opcode enum variants (<Code>0x90</Code>–<Code>0x97</Code>) with privilege enforcement.</p>
-        <Table
-          headers={["Module", "LOC", "Functionality"]}
-          rows={[
-            ["capability.rs", "498", "CapabilityToken, CapabilityManager with grant/delegate/revoke/check_access"],
-            ["domain.rs", "457", "SecurityDomain, DomainManager with transition rules and isolation"],
-            ["audit.rs", "405", "AuditEntry, AuditLog with 12 event types, chain integrity verification"],
-            ["policy.rs", "502", "PolicyRule, MAC + DAC engine with configurable scope and mode filters"],
-          ]}
-        />
-        <p style={S.p}><span style={S.bold}>Additional modules:</span> Side-channel analysis (702 LOC, four categories), formal verification (615 LOC, SMTLIB2/Cryptol/SAW), ternary core (974 LOC, all three representations). Testing includes unit tests, privilege enforcement, sentinel unforgeability, masking round-trip correctness, chi-squared statistical independence, Criterion benchmarks, three fuzz targets, PropTest, and audit chain verification. 14 CI/CD workflows maintain security invariants.</p>
-
-        {/* ── 10. FUTURE WORK ── */}
-        <h2 ref={ref("10. Future Work")} style={S.h1}>10. Discussion and Future Work</h2>
-        <p style={S.p}>This work presents the first ISA-level security subsystem designed natively for a non-binary computing substrate, combining all four security functions within a single opcode category. Future directions include FPGA synthesis for empirical side-channel measurement, machine-checked formal proofs, higher-order ternary masking analysis, hardware-accelerated post-quantum key management coupling capability delegation with key distribution, RISC-V custom extension proposal, and application to the Sigma Wolf ET crypto trading protocol.</p>
-        <Callout type="note" label="Core Insight">
-          The choice of number system is not merely an efficiency consideration—it is a security design parameter. The sentinel-trit unforgeability property and balanced-masking domain property are structural consequences of ternary arithmetic that no amount of binary ISA extension can replicate.
-        </Callout>
-
-        {/* ── REFERENCES ── */}
-        <h2 ref={ref("References")} style={S.h1}>References</h2>
-        <div style={{ fontSize: "13px", color: COLORS.textDim, lineHeight: 1.8 }}>
-          {[
-            `[1] H. M. Levy, Capability-Based Computer Systems. Digital Press, 1984.`,
-            `[2] D. J. Bernstein, "Cache-timing attacks on AES," 2005.`,
-            `[3] Y. Ishai, A. Sahai, D. Wagner, "Private Circuits: Securing Hardware Against Probing Attacks," CRYPTO 2003.`,
-            `[3b] Salvi Framework / PlenumNET, github.com/SigmaWolf-8/Ternary, 2026.`,
-            `[4] T. Fritzmann et al., "Masked Accelerators and ISA Extensions for PQC," IACR ePrint 2021/479.`,
-            `[5] E. Rivain, E. Prouff, "Provably Secure Higher-Order Masking of AES," CHES 2010.`,
-            `[6] A. Duc et al., "Unifying Leakage Models: From Probing to Noisy Leakage," EUROCRYPT 2014.`,
-            `[7] P. Kocher et al., "Spectre Attacks: Exploiting Speculative Execution," IEEE S&P 2019.`,
-            `[8] NIST, "PQC Standardization: ML-KEM, ML-DSA, SLH-DSA," FIPS 203/204/205, 2024.`,
-            `[9] B. Battistello et al., "Horizontal Side-Channel Attacks on ISW," CHES 2016.`,
-            `[10] R. N. M. Watson et al., "CHERI: Hybrid Capability-System Architecture," IEEE S&P 2015.`,
-            `[11] S. Nikova et al., "Secure Hardware in the Presence of Glitches," CHES 2006.`,
-            `[12] Arm Ltd., "Morello Programme," 2022.`,
-            `[13] D. E. Knuth, The Art of Computer Programming, Vol. 2, 3rd ed., 1997.`,
-            `[14] ISA Extensions for Shuffling Against Side-Channel Attacks, IEEE Trans. CAD, 2023.`,
-            `[15] S. Cassiers et al., "Towards Tight Random Probing Security," CRYPTO 2021.`,
-            `[16] J. B. Dennis, E. C. Van Horn, "Programming Semantics for Multiprogrammed Computations," CACM, 1966.`,
-            `[17] M. Lipp et al., "Meltdown," USENIX Security 2018.`,
-            `[18] Intel, "Memory Protection Keys," 2016.`,
-            `[19] RISC-V Foundation, "Physical Memory Protection Specification," 2017.`,
-            `[20] N. P. Brusentsov, "Setun: A Ternary Computer," Soviet Academy of Sciences, 1958.`,
-            `[21] R. N. M. Watson et al., "CHERI: RISC Instructions," Cambridge TR-951, 2023.`,
-            `[22] D. W. Jones, "Ternary Number Systems," University of Iowa, unpublished, 2013.`,
-          ].map((r: string, i: number) => <p key={i} style={{ margin: "0 0 4px", paddingLeft: "32px", textIndent: "-32px" }}>{r}</p>)}
-        </div>
-
-        {/* ── FOOTER ── */}
-        <div style={S.footer}>
-          <div style={{ color: COLORS.textDim, marginBottom: "8px" }}>
-            Copyright © 2025–2026 Capomastro Holdings Ltd. (Canada). Patent(s) Pending — All Rights Reserved.
+          <H1>Abstract</H1>
+          <P>This paper presents a unified approach addressing five security domains{"\u2014"}capability-based memory protection, side-channel attack mitigation, constant-time execution guarantees, dual-phase encryption, and native encrypted database storage{"\u2014"}within a coherent set of ISA-level primitives designed natively for a ternary computing architecture. We describe the Security and Audit category (opcodes <Cd>0x90</Cd>{"\u2013"}<Cd>0x97</Cd>) and cryptographic opcodes (<Cd>0x6D</Cd>{"\u2013"}<Cd>0x70</Cd>) of the Salvi Framework's 160-opcode ISA v2.0, alongside the PlenumDB encrypted PostgreSQL framework.</P>
+          <div style={tagsS}>
+            {["ternary computing","capability architecture","side-channel masking","ISA security","post-quantum cryptography","bijective ternary logic","dual-phase encryption","PlenumDB","encrypted PostgreSQL","hardware security primitives","constant-time execution","PlenumNET","HPTP","CNSA 2.0","FIPS 140-3"].map((t: string, i: number) => <span key={i} style={tagS}>{t}</span>)}
           </div>
-          <div>Applied Physics Division — Salvi Framework ISA v2.0 — Repository HEAD 645001e — February 2026</div>
+
+          <H1>1. Introduction</H1>
+          <P>Three vulnerability classes define contemporary hardware security: the flat memory model providing no intrinsic data/pointer distinction, exposing programs to buffer overflows, pointer forgery, and use-after-free exploits; the intersection of post-quantum algorithmic migration with timing guarantee requirements, where new lattice-based schemes need constant-time hardware support; and microarchitectural side-channel attacks (Spectre, Meltdown, and their variants) exploiting speculative execution, cache timing, and power consumption.</P>
+          <P>No current production ISA provides dedicated constant-time comparison or selection primitives with hardware-guaranteed timing invariance. No ISA offers dynamic, programmable side-channel control. No architecture integrates native encrypted database storage with hardware-enforced capability gating.</P>
+          <P>The Salvi Framework implements a complete ternary computing engine: 160-opcode ISA (v2.0), compiled Rust kernel (33 MB ELF binary, 47,000+ LOC across 14 subsystems), with live deployment via PlenumNET.</P>
+          <P><B>Contributions:</B> (1) Sentinel-trit formalism establishing unforgeability in bijective ternary encoding. (2) Dual-layer side-channel defence combining architectural feature masking with algebraic ternary share masking. (3) Hardware constant-time primitives guaranteeing timing invariance independent of compiler optimisation. (4) Integration with PlenumNET HPTP and a three-mode kernel security system. (5) Dual-phase encryption architecture unifying GF(3) symmetric with TL-KEM/TL-DSA post-quantum key management. (6) PlenumDB framework providing native encrypted PostgreSQL with capability-gated access. (7) Comparative analysis demonstrating this combination is unique among current architectures.</P>
+
+          <H1>2. Related Work</H1>
+          <H3>2.1 Capability Architectures</H3>
+          <P>CHERI (Cambridge) extends MIPS/RISC-V/ARMv8-A with 128/256-bit compressed capability descriptors protected by 1-bit tags per capability-sized word, requiring a dedicated tag controller and tag memory. Arm's Morello SoC (2022) is the first silicon implementation. Our approach eliminates external tag bits entirely by designing capabilities natively for a three-valued logic substrate{"\u2014"}the third state provides an algebraically unforgeable in-band sentinel.</P>
+          <H3>2.2 Side-Channel Countermeasures</H3>
+          <P>ISW masking (CRYPTO 2003) decomposes secret values into random shares. Rivain-Prouff (CHES 2010) applied this to AES. RISC-V ISA extensions propose accelerated masking but remain additive extensions to a binary substrate. No production ISA provides combined microarchitectural isolation and algebraic masking as first-class operations.</P>
+          <H3>2.3 Constant-Time Programming</H3>
+          <P>Current practice relies on compiler discipline and software patterns. No ISA provides hardware-guaranteed constant-time comparison or selection primitives where the timing invariance is enforced by a dedicated ALU path independent of compiler behaviour.</P>
+          <H3>2.4 Ternary Computing</H3>
+          <P>Balanced ternary carries log{"\u2082"}(3) {"\u2248"} 1.585 bits per trit, approaching optimal radix economy (the integer closest to <i>e</i> {"\u2248"} 2.718). The Soviet Setun computer (1958) demonstrated practical balanced ternary. The security implications of ternary arithmetic{"\u2014"}particularly the sentinel property and uniform energy profiles{"\u2014"}have received limited attention in the literature.</P>
+
+          <H1>3. Ternary Logic Substrate</H1>
+          <H3>3.1 Three Bijective Representations</H3>
+          <Tbl
+            headers={["Repr.", "Name", "Digit Set", "Domain", "Bijection from A"]}
+            rows={[
+              ["A", "Computational", "{\u22121, 0, +1}", "Internal arithmetic, GF(3) field, algebraic masking, Phase 1 encryption", "Identity"],
+              ["B", "Network", "{0, 1, 2}", "Protocol encoding, wire-level transmission", "f(a) = a + 1"],
+              ["C", "Bijective/Human", "{1, 2, 3}", "Capability security, human-readable display, excludes 0", "f(a) = a + 2"],
+            ]}
+          />
+          <P>Bijections are single-cycle hardware operations via the <Cd>TConvert</Cd> opcode (<Cd>0x15</Cd>).</P>
+
+          <Bx type="t" label="Definition 1 \u2014 Sentinel Trit">
+            A sentinel trit is a trit containing value 0, which lies outside the bijective ternary digit set {"\u0392"}{"\u2083"} = {"{"}1, 2, 3{"}"}. Sentinel trits are only writable by privileged hardware (Ring0 via CapGrant). No user-level instruction can produce a sentinel trit from valid operands.
+          </Bx>
+
+          <Bx type="t" label="Theorem 1 \u2014 Unforgeability">
+            Let f: {"\u0392"}{"\u2083"}<sup>n</sup> {"\u00D7"} {"\u0392"}{"\u2083"}<sup>n</sup> {"\u2192"} {"\u0392"}{"\u2083"}<sup>n</sup> be any arithmetic operation over n-trit bijective ternary words. For any inputs A, B {"\u2208"} {"\u0392"}{"\u2083"}<sup>n</sup>, the result f(A, B) contains no sentinel trits. <B>Proof:</B> The carry logic for bijective ternary addition keeps all output digits in {"{"}1, 2, 3{"}"}. Base case: single-trit addition of any two values from {"{"}1,2,3{"}"} with any carry from {"{"}1,2,3{"}"} produces a digit in {"{"}1,2,3{"}"} and a carry in {"{"}1,2,3{"}"}. Induction: extends to n-trit words. This eliminates the need for CHERI-style external tag memory. {"\u25A0"}
+          </Bx>
+
+          <H3>3.2 Machine Word Structure</H3>
+          <P>The 27-trit machine word ("tryte", 27 = 3{"\u00B3"}) has recursive structure: three 9-trit "tribbles", each composed of three 3-trit "triples." The Tribonacci sequence T(n) = T(n{"\u2212"}1) + T(n{"\u2212"}2) + T(n{"\u2212"}3) provides a natural recursive basis for the word hierarchy.</P>
+          <P><B>Register file:</B> 27 general-purpose ternary registers (R0{"\u2013"}R26), plus PC, SP, FP, LR, flags register, privilege level, security domain ID, and exception vector. Each register holds one 27-trit word.</P>
         </div>
+
+        {/* ═══ TAB 5: ARCHITECTURE ═══ */}
+        <div style={tabS(tab === 5)}>
+          <H1>4. Architectural Support</H1>
+          <H3>4.1 Privilege Levels</H3>
+          <Tbl
+            headers={["Ring", "Name", "Enforcement"]}
+            rows={[
+              ["Ring0", "Kernel", "Full access. Required for CapGrant, CapRevoke, DomainSet, MProtect, Trap"],
+              ["Ring1", "Supervisor", "Restricted access for device drivers and system services"],
+              ["Ring2", "User", "Unprivileged application code"],
+            ]}
+          />
+
+          <H3>4.2 Modal Security System</H3>
+          <Tbl
+            headers={["Mode", "Symbol", "Description"]}
+            rows={[
+              ["ModePhi (\u03A6)", "phi_plus", "Maximum privilege: kernel operations, cryptographic key management, FIPS boundary"],
+              ["ModeOne (1)", "one", "Standard operations: user processes, normal I/O"],
+              ["ModeZero (0)", "zero", "Restricted/quarantine: untrusted code, sandboxed execution"],
+            ]}
+          />
+          <P><B>Security domains</B> are named isolation boundaries with mode assignment, member processes, and transition rules (Upgrade/Downgrade/Lateral), each with a femtosecond creation timestamp.</P>
+
+          <H3>4.3 Hardware Components</H3>
+          <P><B>Capability Table:</B> Hardware-managed BTreeMap&lt;TokenId, CapabilityToken&gt;. Each token stores: id, owner (ProcessId), kind, resource, allowed actions, security mode, created_at and expires_at (FemtosecondTimestamp), revoked flag, delegatable flag, and parent_token for provenance chain tracking.</P>
+          <P><B>Side-Channel Control Register (SCCR):</B> Per-core register controlling microarchitectural features. Saved and restored on context switch to prevent cross-process leakage.</P>
+          <P><B>Constant-Time ALU:</B> A dedicated execution path with no early termination, no data-dependent carry propagation, and fixed one-cycle latency regardless of operand values. Physically isolated from the speculative execution engine.</P>
+          <P><B>Hardware Random Trit Generator (HRTG):</B> Entropy source for algebraic masking operations. FIPS 140-3 SP 800-90B compliant, providing uniform random trits for the masking pipeline.</P>
+
+          <H1>5. Security and Audit Opcodes {"\u2014"} Summary Table</H1>
+          <Tbl
+            headers={["Opcode", "Mnemonic", "Privilege", "Function"]}
+            rows={[
+              ["0x90", "AuditLog", "Any", "Tamper-evident audit entry with HPTP femtosecond timestamp, 12 event types"],
+              ["0x91", "CapCheck", "Any", "Dual-mechanism capability validation (sentinel + table lookup)"],
+              ["0x92", "CapGrant", "Ring0", "Create capability with sentinel trit, table entry, provenance chain"],
+              ["0x93", "CapRevoke", "Ring0", "Immediate O(1) dual-mechanism invalidation (table flag + sentinel overwrite)"],
+              ["0x94", "SideChMask", "Any", "Dual-layer: microarchitectural isolation + algebraic ternary masking"],
+              ["0x95", "SideChUnmask", "Any", "Restore microarchitectural features, exit masking mode"],
+              ["0x96", "ConstTimeEq", "Any", "Fixed-latency comparison, no early exit, physically isolated ALU path"],
+              ["0x97", "ConstTimeSel", "Any", "Constant-time conditional move via bitwise masking, no branch"],
+            ]}
+          />
+
+          <H2>Cryptographic Opcodes (Dual-Phase Pipeline)</H2>
+          <Tbl
+            headers={["Opcode", "Mnemonic", "Function", "NIST Equivalent"]}
+            rows={[
+              ["0x6D", "TKemEncaps", "Ternary Lattice Key Encapsulation \u2014 shared secret + ciphertext", "ML-KEM (FIPS 203)"],
+              ["0x6E", "TKemDecaps", "Ternary Lattice Key Decapsulation \u2014 recovers shared secret", "ML-KEM (FIPS 203)"],
+              ["0x6F", "TDsaSign", "Ternary Lattice Digital Signature \u2014 signs message digest", "ML-DSA (FIPS 204)"],
+              ["0x70", "TDsaVerify", "Ternary Lattice Signature Verification", "ML-DSA (FIPS 204)"],
+            ]}
+          />
+        </div>
+
+        {/* ═══ TAB 6: ANALYSIS & COMPARE ═══ */}
+        <div style={tabS(tab === 6)}>
+          <H1>8. Integration with PlenumNET Infrastructure</H1>
+          <H3>8.1 Post-Quantum Timing Anchors</H3>
+          <P><B>HPTP</B> (High-Precision Timing Protocol) provides authenticated timestamps from seven clock source types: local oscillator, NTP/PTP network, GNSS satellite, rubidium oscillator, caesium beam, hydrogen maser, and optical lattice. Five precision levels range from millisecond to femtosecond.</P>
+          <P>Every <Cd>CapGrant</Cd> and <Cd>CapRevoke</Cd> can generate a <B>TL-DSA-signed timing proof</B> stored in the PlenumNET ledger, providing non-repudiation guarantees for capability lifecycle events.</P>
+
+          <H3>8.2 Timing Isolation</H3>
+          <P>Masked regions (between <Cd>SideChMask</Cd> and <Cd>SideChUnmask</Cd>) are bracketed by HPTP timing barriers. The processor inserts dummy cycles as needed to ensure <B>data-independent total execution time</B> for the masked region, regardless of the code path taken within it.</P>
+
+          <H3>8.3 Blockchain Anchoring</H3>
+          <P>Capability lifecycle events are optionally anchored to distributed ledgers: <B>Hedera HCS</B> (Hashgraph Consensus Service), <B>XRPL</B> (XRP Ledger), and <B>Algorand</B>. This provides cryptographic proof-of-existence for compliance with MiFID II, FINRA Rule 613, and Reg NMS.</P>
+
+          <H3>8.4 CNSA 2.0 and FIPS 140-3 Compliance</H3>
+          <P><Cd>ConstTimeEq</Cd>/<Cd>ConstTimeSel</Cd> address FIPS 140-3 Level 3 constant-time requirements. <Cd>SideChMask</Cd>/<Cd>SideChUnmask</Cd> address side-channel resistance. <Cd>AuditLog</Cd> provides operational assurance. The <Cd>finra-613</Cd> feature flag enables build-time compliance configuration.</P>
+
+          <H1>9. Security Analysis</H1>
+          <H2>9.1 Capability Properties</H2>
+          <P><B>P1 (Provenance)</B> {"\u2014"} Every capability traces to kernel root via parent_token chain, with monotonic restriction at each delegation step. <B>P2 (Integrity)</B> {"\u2014"} Unforgeable via dual mechanism: sentinel trit (algebraic, Theorem 1) + hardware table (structural). <B>P3 (Non-bypassability)</B> {"\u2014"} No unvalidated access path exists in the architecture. <B>P4 (Isolation)</B> {"\u2014"} Security domain IDs prevent cross-domain interference. <B>P5 (Temporal Integrity)</B> {"\u2014"} Femtosecond timestamps with HPTP proofs provide non-repudiable temporal authentication. <B>P6 (Revocability)</B> {"\u2014"} O(1) immediate dual-mechanism invalidation.</P>
+
+          <H2>9.2 Side-Channel Properties</H2>
+          <P><B>P7 (Microarchitectural Isolation)</B> {"\u2014"} No observable timing differences during masked execution. <B>P8 (First-Order Algebraic Security)</B> {"\u2014"} A single probe reveals zero information about the masked value (Theorem 2). <B>P9 (Glitch Resistance)</B> {"\u2014"} Uniform transition energy profiles across all six trit transitions. <B>P10 (Timing Independence)</B> {"\u2014"} Fixed cycle count regardless of input values.</P>
+
+          <H2>9.3 Constant-Time &amp; Encryption Properties</H2>
+          <P><B>P11 (Data-Independent Timing)</B> {"\u2014"} <Cd>ConstTimeEq</Cd>/<Cd>ConstTimeSel</Cd> have fixed latency with no branch prediction, early termination, or speculation involvement.</P>
+
+          <H2>9.4 Defence-in-Depth</H2>
+          <Tbl
+            headers={["Domain", "Mechanism 1", "Mechanism 2", "Failure Mode"]}
+            rows={[
+              ["Capability integrity", "Sentinel trit (algebraic)", "Capability table (hardware)", "Both must be defeated"],
+              ["Side-channel defence", "Microarchitectural isolation", "Algebraic ternary masking", "Either provides independent protection"],
+              ["Timing", "Constant-time ALU", "HPTP timing barriers", "Both enforce invariance"],
+              ["Audit", "Hardware timestamps", "Chain integrity verification", "Tampering requires breaking both"],
+              ["Data encryption", "Phase 1 GF(3) symmetric", "Phase 2 TL-KEM/TL-DSA PQC", "Both layers must be broken"],
+              ["Database access", "Capability-gated queries", "Column-level dual-phase encryption", "Either prevents unauthorised reads"],
+            ]}
+          />
+
+          <H2>9.5 Limitations</H2>
+          <P>(1) Current implementation is a Rust kernel, not silicon{"\u2014"}power consumption properties are theoretical until FPGA synthesis. (2) Higher-order probing analysis (d-th order model) is future work. (3) The sentinel-trit mechanism is specific to bijective ternary; it does not transfer to binary architectures. (4) Microarchitectural masking effectiveness depends on faithful hardware implementation of the SCCR-controlled feature disabling.</P>
+        </div>
+
+        {/* ═══ TAB 7: REFERENCES ═══ */}
+        <div style={tabS(tab === 7)}>
+          <H1>10. Comparison with Existing Approaches</H1>
+          <Tbl
+            headers={["Feature", "Intel MPK", "ARM Morello/CHERI", "RISC-V PMP", "Salvi Security Ops"]}
+            rows={[
+              ["Capability model", "No", "Yes (pointer-based)", "No", "Domain + sentinel-trit + temporal"],
+              ["Hardware grant/revoke", "No", "Partial", "No", "CapGrant/CapRevoke (Ring0, immediate)"],
+              ["Unforgeable tag", "N/A", "1-bit external tag", "N/A", "Algebraic in-band sentinel trit (zero overhead)"],
+              ["Capability provenance", "No", "No", "No", "parent_token chain + femtosecond timestamps"],
+              ["Capability expiration", "No", "No", "No", "expires_at with femtosecond precision"],
+              ["Side-channel masking", "No", "No", "No", "SideChMask/SideChUnmask (dual-layer)"],
+              ["Constant-time ops", "No", "No", "No", "ConstTimeEq/ConstTimeSel (dedicated ALU)"],
+              ["ISA-level audit", "No", "No", "No", "AuditLog (HPTP-timestamped, chain-verified)"],
+              ["Dual-phase encryption", "No", "No", "No", "Phase 1 GF(3) symmetric + Phase 2 TL-KEM/TL-DSA"],
+              ["Native encrypted DB", "No", "No", "No", "PlenumDB column-level + capability-gated queries"],
+              ["PQC integration", "No", "No", "No", "CNSA 2.0, TL-DSA/TL-KEM, FIPS 140-3 pathway"],
+              ["Temporal authentication", "No", "No", "No", "HPTP post-quantum timing proofs"],
+              ["Blockchain provenance", "No", "No", "No", "Hedera HCS, XRPL, Algorand anchoring"],
+              ["Ternary/non-binary native", "No", "No", "No", "Three bijective representations"],
+            ]}
+          />
+
+          <H1>11. Reference Implementation</H1>
+          <P>Repository: <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer" style={{ color: col.al, textDecoration: "none" as const }}>github.com/SigmaWolf-8/Ternary</a>, HEAD 645001e</P>
+          <Tbl
+            headers={["Module", "LOC", "Functionality"]}
+            rows={[
+              ["instruction_v2.rs", "1,111", "ISA decoder: 8 security opcodes + crypto opcodes with privilege enforcement"],
+              ["capability.rs", "498", "CapabilityToken, CapabilityManager: grant/delegate/revoke/check_access"],
+              ["domain.rs", "457", "SecurityDomain, DomainManager: transition rules, isolation boundaries"],
+              ["audit.rs", "405", "AuditEntry, AuditLog: 12 event types, chain integrity verification"],
+              ["policy.rs", "502", "PolicyRule, MAC+DAC engine with scope and mode filters"],
+              ["side_channel.rs", "702", "Four analysis categories: ConstantTime, BranchAnalysis, MemoryAccess, PowerAnalysis"],
+              ["formal_verify.rs", "615", "SMTLIB2/Cryptol/SAW property export, GF(3) verification conditions"],
+              ["ternary.rs", "974", "Three representations, bijective mappings, all arithmetic operations"],
+            ]}
+          />
+          <P>The dual-phase encryption pipeline is implemented in the crypto subsystem with Phase 1 (ternary symmetric) and Phase 2 (TL-KEM/TL-DSA) sharing the GF(3) arithmetic infrastructure. PlenumDB's encryption engine, capability integration, and Drizzle ORM layer are implemented in the server and services directories with <Cd>drizzle.config.ts</Cd> managing the PostgreSQL schema and migration pipeline.</P>
+          <P><B>Testing:</B> Unit tests (all opcodes), privilege enforcement, sentinel unforgeability (exhaustive arithmetic), capability derivation monotonicity, masking round-trip correctness, chi-squared statistical independence, Criterion benchmarks (including phase encryption throughput), three fuzz targets (fuzz_gateway, fuzz_trit_ops, fuzz_tryte_ops), PropTest for VM invariants, audit chain integrity. <B>14 CI/CD workflows</B> including fips-self-tests.yml, security-scan.yml, compliance-check.yml, codeql-analysis.yml.</P>
+
+          <H1>12. Discussion and Future Work</H1>
+          <P>This work presents the first ISA-level security subsystem designed natively for a non-binary computing substrate, combining capability-based access control, side-channel mitigation, constant-time execution, dual-phase encryption, and native encrypted database storage within a unified ternary computing framework.</P>
+          <P><B>Future directions:</B> (1) FPGA synthesis (Xilinx Zynq/Intel Cyclone via existing FPGA HDL generator) for empirical power-consumption measurement. (2) Machine-checked formal proofs of capability invariants and constant-time properties. (3) Higher-order ternary masking: d-th order probing model analysis with O(n) vs O(n{"\u00B2"}) complexity advantage. (4) Hardware-accelerated PQC key management coupling capability delegation with TL-KEM key distribution. (5) RISC-V custom extension proposal. (6) Sigma Wolf ET protocol application: capability-controlled market data feeds, side-channel-masked signal processing, PlenumNET timing proofs for regulatory compliance.</P>
+          <P><B>For dual-phase encryption:</B> Hardware-accelerated Phase 1 cipher on FPGA, formal TL-KEM/TL-DSA security proofs under the ternary algebraic model, Sigma Wolf ET integration for market signal encryption.</P>
+          <P><B>For PlenumDB:</B> Encrypted full-text search via GF(3) homomorphic operations, encrypted aggregation queries, cross-database capability federation, and encrypted time-series data optimised for high-frequency trading compliance workloads.</P>
+
+          <Bx type="n" label="Core Insight">
+            The choice of number system is not merely an efficiency consideration{"\u2014"}it is a <B>security design parameter</B>. The sentinel-trit unforgeability, balanced-masking domain, and GF(3) encryption properties are structural consequences of ternary arithmetic that no amount of binary ISA extension can replicate. When extended through the dual-phase encryption pipeline to native encrypted database storage, the ternary advantage propagates from silicon to storage{"\u2014"}creating a security architecture that is coherent from the ALU to the database column.
+          </Bx>
+
+          <H1>References</H1>
+          <div style={refS}>
+            <p style={refP}>[1] H. M. Levy, <i>Capability-Based Computer Systems</i>, Digital Press, 1984.</p>
+            <p style={refP}>[2] D. J. Bernstein, "Cache-timing attacks on AES," 2005.</p>
+            <p style={refP}>[3] Y. Ishai, A. Sahai, D. Wagner, "Private Circuits: Securing Hardware against Probing Attacks," CRYPTO 2003.</p>
+            <p style={refP}>[3b] Salvi Framework, github.com/SigmaWolf-8/Ternary, 2026.</p>
+            <p style={refP}>[4] T. Fritzmann et al., "Masked Accelerators for Post-Quantum Cryptography," IACR ePrint 2021/479.</p>
+            <p style={refP}>[5] E. Rivain, E. Prouff, "Provably Secure Higher-Order Masking of AES," CHES 2010.</p>
+            <p style={refP}>[6] A. Duc, S. Dziembowski, S. Faust, "Unifying Leakage Models," EUROCRYPT 2014.</p>
+            <p style={refP}>[7] P. Kocher et al., "Spectre Attacks: Exploiting Speculative Execution," IEEE S&amp;P 2019.</p>
+            <p style={refP}>[8] NIST, "ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205)," 2024.</p>
+            <p style={refP}>[9] B. Battistello et al., "Horizontal Side-Channel Attacks and Countermeasures on ISW Masking," CHES 2016.</p>
+            <p style={refP}>[10] R. N. M. Watson et al., "CHERI: A Hybrid Capability-System Architecture," IEEE S&amp;P 2015.</p>
+            <p style={refP}>[11] S. Nikova, C. Rechberger, V. Rijmen, "Threshold Implementations Against Side-Channel Attacks," CHES 2006.</p>
+            <p style={refP}>[12] Arm Ltd., "Morello Programme," 2022.</p>
+            <p style={refP}>[13] D. E. Knuth, <i>The Art of Computer Programming</i>, Vol. 2, 3rd ed., 1997.</p>
+            <p style={refP}>[14] ISA Shuffling Extensions, IEEE Trans. CAD, 2023.</p>
+            <p style={refP}>[15] S. Cassiers, G. Standaert, "Tight Random Probing Security," CRYPTO 2021.</p>
+            <p style={refP}>[16] J. B. Dennis, E. C. Van Horn, "Programming Semantics for Multiprogrammed Computations," CACM 1966.</p>
+            <p style={refP}>[17] M. Lipp et al., "Meltdown: Reading Kernel Memory from User Space," USENIX Security 2018.</p>
+            <p style={refP}>[18] Intel, "Memory Protection Keys," 2016.</p>
+            <p style={refP}>[19] RISC-V Foundation, "Physical Memory Protection," 2017.</p>
+            <p style={refP}>[20] N. P. Brusentsov, "Setun: A Ternary Computer," 1958.</p>
+            <p style={refP}>[21] R. N. M. Watson et al., Cambridge TR-951, 2023.</p>
+            <p style={refP}>[22] D. W. Jones, "Ternary Number Systems" (unpublished), 2013.</p>
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div style={footerS}>
+          Copyright &copy; 2025{"\u2013"}2026 Capomastro Holdings Ltd. (Canada). Patent(s) Pending {"\u2014"} All Rights Reserved.<br />
+          Applied Physics Division {"\u2014"} Salvi Framework ISA v2.0 {"\u2014"} HEAD 645001e {"\u2014"} February 2026
+        </div>
+
       </div>
 
-      {/* Scroll to top */}
-      <button style={S.scrollTop(showScrollTop)} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>↑</button>
+      {/* SCROLL TO TOP */}
+      <button
+        data-testid="button-scroll-top"
+        style={topBtnS(showTop)}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >{"\u2191"}</button>
     </div>
   );
 }
