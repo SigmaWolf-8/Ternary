@@ -48,6 +48,7 @@ const Tribonacci28DS = lazy(() => import("@/pages/tribonacci-28ds"));
 const About = lazy(() => import("@/pages/about"));
 const Contact = lazy(() => import("@/pages/contact"));
 const Distribution = lazy(() => import("@/pages/distribution"));
+const ISASecurityPaper = lazy(() => import("@/pages/isa-security-paper"));
 
 function LoadingSpinner() {
   return (
@@ -193,6 +194,7 @@ function MarketingRouter() {
           <Route path="/aup" component={LegalPage} />
           <Route path="/tribonacci-28ds" component={Tribonacci28DS} />
           <Route path="/distribution" component={Distribution} />
+          <Route path="/isa-security" component={ISASecurityPaper} />
         </Switch>
       </Suspense>
     </MarketingLayout>
@@ -221,7 +223,7 @@ function DashboardRouter() {
   );
 }
 
-const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds", "/distribution"];
+const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds", "/distribution", "/isa-security"];
 const dashboardPaths = ["/ternarydb", "/api-demo", "/hptp", "/compression", "/calendar", "/13-moon", "/docs", "/compliance", "/admin", "/github", "/kong-konnect"];
 
 function AppRouter() {

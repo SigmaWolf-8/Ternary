@@ -33,11 +33,7 @@ export const corsMiddleware = cors({
     const isAllowed = allowedOrigins.some((pattern) =>
       pattern instanceof RegExp ? pattern.test(origin) : pattern === origin
     );
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'), false);
-    }
+    callback(null, isAllowed ? true : false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
