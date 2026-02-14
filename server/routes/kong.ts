@@ -8,6 +8,7 @@ import type { Express } from "express";
 import type { IStorage } from "../storage";
 import { createRequireAdmin, resolveGitHubToken } from "./middleware";
 import { createLogger, toErrorMessage } from "../logger";
+import { authLimiter } from "../middleware/rate-limiter";
 
 const log = createLogger("kong");
 
@@ -277,7 +278,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
   });
 
   // Create a service in Kong Konnect (Admin only)
-  app.post("/api/kong/control-planes/:cpId/services", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/control-planes/:cpId/services", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
@@ -315,7 +316,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
   });
 
   // Create a route for a service in Kong Konnect (Admin only)
-  app.post("/api/kong/control-planes/:cpId/services/:serviceId/routes", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/control-planes/:cpId/services/:serviceId/routes", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
@@ -353,7 +354,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
   });
 
   // Add a plugin to a service (Admin only)
-  app.post("/api/kong/control-planes/:cpId/services/:serviceId/plugins", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/control-planes/:cpId/services/:serviceId/plugins", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
@@ -684,7 +685,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
     };
   }
 
-  app.post("/api/kong/control-planes/:cpId/sync-plenumnet", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/control-planes/:cpId/sync-plenumnet", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       const result = await syncControlPlane(req.params.cpId);
       res.json(result);
@@ -693,7 +694,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
     }
   });
 
-  app.post("/api/kong/sync-all-control-planes", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/sync-all-control-planes", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
@@ -788,7 +789,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
   });
 
   // Save Kong config to GitHub (Admin only)
-  app.post("/api/kong/save-to-github", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/save-to-github", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       const user = req.adminUser; // Set by requireAdmin middleware
       const token = resolveGitHubToken(user);
@@ -951,7 +952,7 @@ helm install kong kong/kong --namespace kong --create-namespace \\
   });
 
   // Generate deployment package with certificates (Admin only)
-  app.post("/api/kong/control-planes/:cpId/generate-deployment", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/control-planes/:cpId/generate-deployment", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
@@ -1147,7 +1148,7 @@ echo "📊 View logs: docker-compose logs -f"
   });
 
   // Deploy Kong to cloud platform (Render/Railway) via GitHub
-  app.post("/api/kong/control-planes/:cpId/deploy-to-cloud", requireAdmin, async (req: any, res) => {
+  app.post("/api/kong/control-planes/:cpId/deploy-to-cloud", authLimiter, requireAdmin, async (req: any, res) => {
     try {
       if (!KONG_KONNECT_TOKEN) {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
