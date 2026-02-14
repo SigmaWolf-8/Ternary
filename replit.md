@@ -6,13 +6,24 @@ PlenumNET is a post-quantum internet solutions company developing quantum-resist
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
 
+## Repository Metrics (as of February 14, 2026)
+- **Commits:** 646+ on main branch
+- **Source Files:** 723 (excl. node_modules, .git, target)
+- **TypeScript/TSX:** 181 files, ~33,263 lines
+- **Rust:** 140 files, ~58,031 lines
+- **Markdown Documentation:** 99+ files
+- **API Endpoints:** 93 registered Express routes (with /api/v1/ versioning alias)
+- **CI/CD Workflows:** 15 GitHub Actions workflows (including fuzz testing)
+- **Vitest Tests:** 86+ base tests + integration test suites (API routes, blockchain, webhooks)
+- **Fuzz Targets:** 3 (trit ops, tryte ops, gateway)
+
 ## System Architecture
 
 ### Frontend
 The frontend is built with React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter for routing, supporting both light and dark modes with a unified blue brand identity. It features a dual-layout navigation system (`MarketingLayout` for public pages and `DashboardLayout` for tools/admin) with dynamic page titles and anchor navigation. Key pages include the Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, and an Admin Dashboard. The system supports ancient calendar synchronization across 24 global systems, anchoring the Salvi Epoch to provide historical and cross-cultural timing conversions. SEO is optimized with robots.txt, sitemap.xml, JSON-LD, and PWA capabilities.
 
 ### Backend and Core Framework
-The backend utilizes Express.js and Node.js with PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic System operations, Femtosecond Timing, and Phase Encryption. The backend routes are modularized for better organization and maintainability. Security is a priority, incorporating rate limiting, CORS restrictions, Helmet.js security headers, AES-256-GCM token encryption, input validation, and hardened path sanitization. The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service for regulatory compliance.
+The backend utilizes Express.js and Node.js with PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic System operations, Femtosecond Timing, and Phase Encryption. The backend routes are modularized across 6 files (routes.ts, github.ts, kong.ts, salvi.ts, tribonacci.ts, middleware.ts) totaling ~4,057 lines organized by domain. Security is a priority, incorporating tiered rate limiting (4 levels: global 100/min, auth 20/min, token 10/min, computation 50/min), CORS enforcement with origin allowlist, Helmet.js security headers (CSP, HSTS, X-Frame-Options: deny), AES-256-GCM token encryption (SESSION_SECRET required), input validation bounds, hardened path sanitization, and execFile()-only subprocess execution. The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service for regulatory compliance. API versioning is supported via /api/v1/ prefix with backward-compatible aliasing.
 
 ### Rust Kernel Architecture
 The `src/kernel/` directory houses a Rust-based kernel providing advanced functionalities:
@@ -32,16 +43,32 @@ The `src/kernel/` directory houses a Rust-based kernel providing advanced functi
 -   **Binary Compatibility Layer**: For balanced ternary conversion and crypto interoperability.
 
 ### Legal & IP Compliance
-All source files include standardized copyright headers from "Capomastro Holdings Ltd. (Canada)" with "Patent(s) Pending." A CI workflow enforces header presence. Legal documents for terms, privacy, and security are served dynamically from markdown content.
+All 321+ source files include standardized copyright headers from "Capomastro Holdings Ltd. (Canada)" with "Patent(s) Pending." A CI workflow (`license-check.yml`) enforces header presence across all directories including services/. Legal documents for terms, privacy, and security are served dynamically from markdown content. IP-NOTICE.md documents patent-pending claims and proprietary algorithms. EXPORT-CONTROL.md provides CNSA 2.0 and Wassenaar classification guidance.
 
 ### GitHub Integration
-An admin-only GitHub Manager page facilitates file browsing for the `SigmaWolf-8/Ternary` repository and enables push actions for CI/CD, crypto modules, and project synchronization.
+An admin-only GitHub Manager page facilitates file browsing for the `SigmaWolf-8/Ternary` repository and enables push actions for CI/CD, crypto modules, and project synchronization. Branch protection is enabled on main with required status checks.
 
 ### Testing
-Testing is conducted using Vitest, with dedicated test files for ternary operations, phase encryption, and calendar synchronization. CI workflows trigger tests on push/PR.
+Testing is conducted using Vitest with multiple test suites:
+- 50 GF(3) arithmetic tests (ternary-operations.test.ts)
+- 25 phase encryption tests (phase-encryption.test.ts)
+- 11 calendar synchronization tests (calendar-sync.test.ts)
+- API route integration tests (tests/integration/api-routes.test.ts)
+- Blockchain service tests (tests/integration/blockchain-services.test.ts)
+- Payment webhook tests (tests/integration/payment-webhooks.test.ts)
+- 3 Rust fuzz targets with CI workflow (fuzz.yml)
+- Kernel tests with cargo test, coverage, Miri, and feature matrix CI
 
 ### Kong Gateway Integration
 Kong Konnect API integration manages services, routes, and plugins. It supports service synchronization for PlenumNET's 17 services (97 endpoints) and allows optional Kong proxy routing in the frontend.
+
+### Security Middleware Stack
+- **Rate Limiting:** 4 tiers (global, auth, token, computation) via express-rate-limit
+- **CORS:** Origin allowlist with strict rejection
+- **Headers:** Helmet.js with CSP, HSTS, X-Frame-Options: deny, X-Content-Type-Options: nosniff
+- **Encryption:** AES-256-GCM for token storage, SESSION_SECRET required (no fallbacks)
+- **Path Security:** Null-byte stripping, double URL-decode protection, post-normalize traversal rejection
+- **Subprocess:** execFile() only, zero exec() calls
 
 ## External Dependencies
 

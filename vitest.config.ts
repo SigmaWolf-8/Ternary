@@ -19,7 +19,7 @@ import path from "path";
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/integration/**"],
+    exclude: ["node_modules/**"],
     globals: false,
   },
   resolve: {

@@ -1,0 +1,91 @@
+name: Fuzz Testing
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/kernel/**'
+      - 'libternary/**'
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Fuzz duration per target (seconds)'
+        required: false
+        default: '60'
+
+env:
+  CARGO_TERM_COLOR: always
+  FUZZ_DURATION: ${{ github.event.inputs.duration || '60' }}
+
+jobs:
+  fuzz:
+    name: Fuzz Targets
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        target:
+          - trit_ops
+          - tryte_ops
+          - gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check fuzz crate exists
+        id: check
+        run: |
+          if [ -f "src/kernel/fuzz/Cargo.toml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::Fuzz crate not found. Skipping."
+          fi
+
+      - name: Install Rust nightly
+        if: steps.check.outputs.exists == 'true'
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-fuzz
+        if: steps.check.outputs.exists == 'true'
+        run: cargo install cargo-fuzz
+
+      - name: Cache cargo
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/kernel/fuzz/target
+            src/kernel/fuzz/corpus
+          key: ${{ runner.os }}-fuzz-${{ matrix.target }}-${{ hashFiles('src/kernel/fuzz/Cargo.lock') }}
+
+      - name: Run fuzz target ${{ matrix.target }}
+        if: steps.check.outputs.exists == 'true'
+        working-directory: src/kernel
+        run: |
+          timeout ${FUZZ_DURATION}s cargo +nightly fuzz run ${{ matrix.target }} -- \
+            -max_total_time=${FUZZ_DURATION} \
+            -max_len=4096 \
+            2>&1 | tee fuzz-${{ matrix.target }}.log || true
+
+      - name: Check for crashes
+        if: steps.check.outputs.exists == 'true'
+        working-directory: src/kernel
+        run: |
+          CRASH_DIR="fuzz/artifacts/${{ matrix.target }}"
+          if [ -d "$CRASH_DIR" ] && [ "$(ls -A $CRASH_DIR 2>/dev/null)" ]; then
+            echo "::error::Fuzz target ${{ matrix.target }} found crashes!"
+            ls -la "$CRASH_DIR"
+            exit 1
+          else
+            echo "No crashes found for ${{ matrix.target }}"
+          fi
+
+      - name: Upload fuzz artifacts
+        if: failure() && steps.check.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes-${{ matrix.target }}
+          path: src/kernel/fuzz/artifacts/${{ matrix.target }}/
+          retention-days: 30

@@ -50,7 +50,14 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  app.use((req, _res, next) => {
+    if (req.path.startsWith("/api/v1/")) {
+      req.url = req.url.replace("/api/v1/", "/api/");
+    }
+    next();
+  });
+
   const legalDocMap: Record<string, { file: string; title: string }> = {
     terms: { file: "TERMS-OF-SERVICE.md", title: "Terms of Service" },
     privacy: { file: "PRIVACY-POLICY.md", title: "Privacy Policy" },
