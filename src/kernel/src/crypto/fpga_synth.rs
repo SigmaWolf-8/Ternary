@@ -108,6 +108,7 @@ pub enum AcceleratorModule {
     TlDsaPipeline,
     ControlUnit,
     HostInterface,
+    IsaV2Decoder,
 }
 
 impl AcceleratorModule {
@@ -122,6 +123,7 @@ impl AcceleratorModule {
             AcceleratorModule::TlDsaPipeline => "TL-DSA Pipeline",
             AcceleratorModule::ControlUnit => "Control Unit & Scheduler",
             AcceleratorModule::HostInterface => "Host Interface (AXI4/PCIe)",
+            AcceleratorModule::IsaV2Decoder => "ISA v2.0 Decoder (Nibble-Aligned)",
         }
     }
 
@@ -136,6 +138,7 @@ impl AcceleratorModule {
             AcceleratorModule::TlDsaPipeline => "tl_dsa_top",
             AcceleratorModule::ControlUnit => "tca_ctrl",
             AcceleratorModule::HostInterface => "axi4_host_if",
+            AcceleratorModule::IsaV2Decoder => "tvm_isa_v2_decoder",
         }
     }
 }
@@ -349,6 +352,67 @@ pub fn host_interface_estimate() -> ResourceEstimate {
     }
 }
 
+pub fn isa_v2_decoder_estimate() -> ResourceEstimate {
+    ResourceEstimate {
+        module: AcceleratorModule::IsaV2Decoder,
+        luts: 420,
+        flip_flops: 280,
+        brams: 0,
+        dsps: 0,
+        latency_cycles: 1,
+        throughput_ops_per_sec: 600_000_000,
+        notes: String::from(
+            "ISA v2.0 hierarchical nibble-aligned decoder for 160 opcodes. \
+             Two-stage decode: upper nibble (opcode[7:4]) selects among 10 categories \
+             via 4-to-11 one-hot decoder, lower nibble (opcode[3:0]) indexes operation \
+             within category. Reduces synthesis area ~35% vs v1 flat 160-way comparator \
+             (v1 est. ~650 LUTs, v2 est. ~420 LUTs). Includes privilege-level checking \
+             (3-ring model), illegal opcode detection, and functional unit dispatch \
+             signals for ALU, ternary unit, memory, branch, crypto, SIMD, and system. \
+             Single-cycle decode at 600 MHz target. Security/audit ops require Ring0; \
+             debug ops require Ring0 or Ring1."
+        ),
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DecodeAreaComparison {
+    pub v1_flat_decode_luts: u32,
+    pub v2_hierarchical_decode_luts: u32,
+    pub lut_savings: u32,
+    pub savings_pct: f64,
+    pub v1_comparator_count: u32,
+    pub v2_stage1_comparators: u32,
+    pub v2_stage2_max_comparators: u32,
+    pub analysis: String,
+}
+
+pub fn decode_area_savings_analysis() -> DecodeAreaComparison {
+    let v1_luts = 650_u32;
+    let v2_luts = 420_u32;
+    let savings = v1_luts - v2_luts;
+    let pct = (savings as f64 / v1_luts as f64) * 100.0;
+
+    DecodeAreaComparison {
+        v1_flat_decode_luts: v1_luts,
+        v2_hierarchical_decode_luts: v2_luts,
+        lut_savings: savings,
+        savings_pct: pct,
+        v1_comparator_count: 160,
+        v2_stage1_comparators: 10,
+        v2_stage2_max_comparators: 16,
+        analysis: String::from(
+            "v1 flat decode: 160-way 8-bit comparator tree => ~160 x 4-LUT slices = ~640 LUTs + control.\n\
+             v2 hierarchical decode: Stage 1 decodes upper nibble (4 bits -> 10 categories, ~10 x 4-LUT) \
+             + Stage 2 decodes lower nibble (4 bits -> max 16 ops per category, ~16 x 4-LUT per active path). \
+             Worst case: 10 + 16 = 26 comparators vs 160. Savings from reduced fan-in and shared decode logic. \
+             Additional savings from nibble-aligned opcode encoding eliminating cross-boundary bit extraction. \
+             Net area reduction: ~35% (230 LUT savings). Critical path shortened by ~0.3ns at 28nm, \
+             enabling 600 MHz decode vs 500 MHz for v1 flat decode."
+        ),
+    }
+}
+
 pub fn generate_synth_target(family: FpgaFamily) -> FpgaSynthTarget {
     let estimates = vec![
         gf3_alu_estimate(),
@@ -360,6 +424,7 @@ pub fn generate_synth_target(family: FpgaFamily) -> FpgaSynthTarget {
         tl_dsa_pipeline_estimate(),
         control_unit_estimate(),
         host_interface_estimate(),
+        isa_v2_decoder_estimate(),
     ];
 
     let total_luts: u32 = estimates.iter().map(|e| e.luts).sum();
@@ -547,7 +612,7 @@ pub fn synthesis_summary() -> SynthesisSummary {
     let fitting: Vec<_> = targets.iter().filter(|t| t.fits_on_target).collect();
 
     SynthesisSummary {
-        total_modules: 9,
+        total_modules: 10,
         total_targets: targets.len(),
         fitting_targets: fitting.len(),
         recommended: recommended_target(),
@@ -619,7 +684,7 @@ mod tests {
     #[test]
     fn test_module_estimates_count() {
         let target = generate_synth_target(FpgaFamily::XilinxArtix7);
-        assert_eq!(target.module_estimates.len(), 9);
+        assert_eq!(target.module_estimates.len(), 10);
     }
 
     #[test]
@@ -652,10 +717,31 @@ mod tests {
     #[test]
     fn test_synthesis_summary() {
         let summary = synthesis_summary();
-        assert_eq!(summary.total_modules, 9);
+        assert_eq!(summary.total_modules, 10);
         assert_eq!(summary.total_targets, 4);
         assert!(summary.fitting_targets >= 2);
         assert_eq!(summary.recommended, FpgaFamily::XilinxKintexUltraScale);
+    }
+
+    #[test]
+    fn test_isa_v2_decoder_estimate() {
+        let est = isa_v2_decoder_estimate();
+        assert_eq!(est.module, AcceleratorModule::IsaV2Decoder);
+        assert_eq!(est.luts, 420);
+        assert_eq!(est.flip_flops, 280);
+        assert_eq!(est.brams, 0);
+        assert_eq!(est.dsps, 0);
+        assert_eq!(est.latency_cycles, 1);
+    }
+
+    #[test]
+    fn test_decode_area_savings() {
+        let comparison = decode_area_savings_analysis();
+        assert!(comparison.savings_pct > 30.0, "v2 should save >30% LUTs vs v1");
+        assert!(comparison.savings_pct < 50.0, "Savings should be realistic");
+        assert_eq!(comparison.v1_comparator_count, 160);
+        assert!(comparison.v2_stage1_comparators + comparison.v2_stage2_max_comparators < 30);
+        assert!(comparison.lut_savings > 200);
     }
 
     #[test]
