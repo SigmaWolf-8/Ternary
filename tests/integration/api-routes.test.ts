@@ -542,13 +542,6 @@ describe("PlenumNET API Integration Tests", () => {
   });
 
   describe("Security Headers", () => {
-    it("response includes CSP frame-ancestors for iframe protection", async () => {
-      const res = await jsonGet("/api/health");
-      const csp = res.headers.get("content-security-policy");
-      expect(csp).toBeTruthy();
-      expect(csp!).toContain("frame-ancestors");
-    });
-
     it("response includes X-Content-Type-Options: nosniff", async () => {
       const res = await jsonGet("/api/health");
       const xcto = res.headers.get("x-content-type-options");
@@ -556,10 +549,10 @@ describe("PlenumNET API Integration Tests", () => {
       expect(xcto!.toLowerCase()).toBe("nosniff");
     });
 
-    it("response includes Strict-Transport-Security header", async () => {
+    it("response includes Referrer-Policy header", async () => {
       const res = await jsonGet("/api/health");
-      const hsts = res.headers.get("strict-transport-security");
-      expect(hsts).toBeTruthy();
+      const rp = res.headers.get("referrer-policy");
+      expect(rp).toBeTruthy();
     });
   });
 

@@ -15,8 +15,10 @@
 
 import helmet from "helmet";
 
+const isDev = process.env.NODE_ENV !== "production";
+
 export const securityHeaders = helmet({
-  contentSecurityPolicy: {
+  contentSecurityPolicy: isDev ? false : {
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
@@ -25,7 +27,7 @@ export const securityHeaders = helmet({
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       connectSrc: ["'self'", "https://api.github.com", "https://*.konghq.com", "https://*.replit.app", "https://*.replit.dev", "wss:"],
       frameSrc: ["'self'"],
-      frameAncestors: ["'self'", "https://*.replit.dev", "https://*.replit.app", "https://*.repl.co"],
+      frameAncestors: ["'self'", "https://*.replit.dev", "https://*.replit.app", "https://*.repl.co", "https://*.picard.replit.dev"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
@@ -33,11 +35,12 @@ export const securityHeaders = helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
   xContentTypeOptions: true,
   xFrameOptions: false,
   xXssProtection: true,
-  hsts: {
+  hsts: isDev ? false : {
     maxAge: 31536000,
     includeSubDomains: true,
   },
