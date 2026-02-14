@@ -79,7 +79,7 @@ The critical value is **T(7) = 13**, which connects the 7-cycle in the compact m
 
 ### How to Verify
 
-The `tribonacci` module includes a `verifyTau()` function that confirms τ³ = τ² + τ + 1 to machine precision. The CI pipeline runs this on every PR. `verifyTau()` is also a self-test intrinsic (one of the 55 VM opcodes) that checks whether a set of GF(3) polynomial identities still hold after a state transition. If `verifyTau()` fails, the VM halts — a timing-inconsistent state is considered corrupted.
+The `tribonacci` module includes a `verifyTau()` function that confirms τ³ = τ² + τ + 1 to machine precision. The CI pipeline runs this on every PR. `verifyTau()` is also a self-test intrinsic (one of the 62 VM opcodes) that checks whether a set of GF(3) polynomial identities still hold after a state transition. If `verifyTau()` fails, the VM halts — a timing-inconsistent state is considered corrupted.
 
 You do not need to derive τ from first principles to contribute, but you must never write code that bypasses or mocks `verifyTau()` in production paths.
 
@@ -151,11 +151,11 @@ The number 13 is not chosen arbitrarily — it emerges from the Tribonacci seque
 
 ### How This Affects the VM
 
-The 55-opcode virtual machine uses theory-derived parameters:
+The 62-opcode virtual machine uses theory-derived parameters:
 
 | VM Parameter | Value | Derivation |
 |-------------|-------|------------|
-| Opcode count | 55 | Engineering choice, maps to ternary register width |
+| Opcode count | 62 | Engineering choice, maps to ternary register width |
 | Finalization rounds | 13 | D = 13, the dimensional constant |
 | Hash seed base | τ² | From SO(8) graph stability |
 | Hash mixing multiplier | τ⁷ | Instanton action volume |
@@ -193,7 +193,7 @@ You do not need to be an expert in all areas — but you must understand the *sp
 
 | Layer | Directory | You Need to Understand |
 |-------|-----------|----------------------|
-| **Rust Kernel** (`libternary`) | `/libternary`, `/src/kernel` | GF(3) arithmetic, bijective mappings, the 55-opcode specification (ADR-001), `unsafe` Rust and FFI conventions |
+| **Rust Kernel** (`libternary`) | `/libternary`, `/src/kernel` | GF(3) arithmetic, bijective mappings, the 62-opcode specification (ADR-001), `unsafe` Rust and FFI conventions |
 | **Cryptographic Modules** | `/libternary/crypto`, `/services` | Lamport OTS, Merkle tree authentication, lattice-based KEMs (Kyber/ML-KEM), lattice-based signatures (Dilithium/ML-DSA), CNSA 2.0 requirements. Read ADR-003. |
 | **Frontend / Dashboard** | `/client` | React, TypeScript, Tailwind. No physics prerequisites — but understand what the API responses *mean* (trit values are {0, 1, 2} in Representation B, not {-1, 0, 1}). |
 | **Server / API** | `/server`, `/shared` | Express/Node.js patterns, Drizzle ORM. Understand that API payloads carry GF(3)-encoded data. |
@@ -234,7 +234,7 @@ Ternary/
 ├── src/
 │   └── kernel/           # Rust kernel — GF(3) field ops, VM, crypto
 │       ├── src/
-│       │   ├── vm/       # 55-opcode virtual machine
+│       │   ├── vm/       # 62-opcode virtual machine
 │       │   ├── crypto/   # Post-quantum encryption (CNSA 2.0)
 │       │   └── compat/   # Binary-ternary gateway
 │       ├── benches/      # Criterion benchmark suite
@@ -411,7 +411,7 @@ All must return `PASS` before any PR is merged.
 
 - Commits must be signed (`git commit -S`).
 - Each commit message must reference the layer it touches: `[libternary]`, `[client]`, `[server]`, `[contracts]`, `[infra]`, `[docs]`.
-- If your change alters the behaviour of any of the 55 opcodes, you must update the corresponding `verifyTau()` test case.
+- If your change alters the behaviour of any of the 62 opcodes, you must update the corresponding `verifyTau()` test case.
 
 ---
 
@@ -421,7 +421,7 @@ All must return `PASS` before any PR is merged.
 
 The CI pipeline runs three theory-validation stages:
 
-1. **`verifyTau()` Self-Test** — Executes the τ polynomial identity check across all 55 opcodes. A single failure halts the pipeline.
+1. **`verifyTau()` Self-Test** — Executes the τ polynomial identity check across all 62 opcodes. A single failure halts the pipeline.
 
 2. **GF(3) Algebraic Property Tests** — Exhaustive verification over all 3 x 3 = 9 input pairs for each binary operation:
    - Associativity: `(a + b) + c = a + (b + c)` and `(a * b) * c = a * (b * c)`
@@ -466,7 +466,7 @@ The CI pipeline runs three theory-validation stages:
 ### Advanced
 
 - Fuzz testing harness for the binary-ternary gateway boundary
-- Formal specification (YAML/JSON) for the 55-opcode instruction set
+- Formal specification (YAML/JSON) for the 62-opcode instruction set
 - Error budget tracking for HPTP timing drift over extended periods
 - New opcode proposals (consumes a reserved slot — requires ADR and justification)
 

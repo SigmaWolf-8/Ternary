@@ -1,4 +1,4 @@
-# ADR-001: 55-Opcode Instruction Set for the PlenumNET VM
+# ADR-001: 62-Opcode Instruction Set for the PlenumNET VM
 
 | Field       | Value                          |
 |-------------|--------------------------------|
@@ -20,17 +20,21 @@ Balanced ternary (digits {−1, 0, +1}) yields 3^n unique states per n-trit word
 
 ## 2 · Decision
 
-**The VM exposes exactly 55 opcodes encoded in a 3-trit primary field plus a 1-trit extension flag (total: 4 trits per opcode word, but only 55 of the 81 slots are defined).**
+**The VM exposes exactly 62 opcodes encoded in a 3-trit primary field plus a 1-trit extension flag (total: 4 trits per opcode word, but only 62 of the 81 slots are defined).**
 
-The 55 opcodes partition into five functional classes:
+The 62 opcodes partition into nine functional classes:
 
 | Class | Count | Purpose |
 |-------|-------|---------|
-| **Core** | 14 | Trit-native add, mul, inv, GF(3) field operations, stack primitives, and algebraic self-tests |
-| **Extended** | 11 | Advanced memory, load/store, dup, swap, rot, and control flow — jump, branch-on-trit, call, return, halt |
-| **Crypto Acceleration** | 14 | Lamport one-time signature ops (hash-chain step, leaf-verify, Merkle-path-check), lattice basis sample, NTT butterfly, modular reduce, AES-256-GCM, SHA-2/SHA-3 — the CNSA 2.0 critical path |
-| **SIMD** | 10 | Ternary SIMD operations for parallel trit-vector arithmetic, batch GF(3) ops, and vectorised crypto primitives |
-| **Timing & Density** | 6 | τ-register read/write, density-field sample, HPTP sync pulse, epoch-boundary fence, `verifyTau` intrinsic, timing self-test trigger |
+| **Core Arithmetic** | 8 | NOP, HALT, integer add, sub, mul, div, mod, neg with overflow detection |
+| **Extended Ternary** | 16 | GF(3) field operations — TAdd, TMul, TNeg, TRot, TXor, TConvert, TAnd, TOr, TSub, TInv, TShift, TCmp, TLoad, TStore, TReduce, TRotInv |
+| **Memory** | 6 | Load, store, move, load-immediate, push, pop — register and stack data transfer |
+| **Control Flow** | 7 | Jump, conditional branches (zero, neg, pos, not-zero), call, return |
+| **Comparison** | 2 | Register-register and register-immediate comparison with flag updates |
+| **Bitwise** | 6 | AND, OR, XOR, SHL, SHR, NOT — standard logic operations |
+| **Crypto Acceleration** | 8 | Polynomial multiply, NTT butterfly, ternary hash, entropy sample, polynomial add, polynomial sample, compress, decompress — the CNSA 2.0 critical path |
+| **SIMD** | 4 | Vectorised ternary add, mul, neg, rot for parallel trit-vector arithmetic |
+| **System** | 5 | Syscall, trap, memory alloc/free, HPTP time read |
 
 ### 2.1 · Why not 27?
 
@@ -41,21 +45,21 @@ Removing the extension flag and collapsing to 27 opcodes would force one of two 
 
 ### 2.2 · Why not 81?
 
-Filling 81 slots would require inventing opcodes that exist only for encoding symmetry. Empty opcode slots in a post-quantum VM are a security surface: a malicious program that lands on an undefined opcode must trap deterministically, and the more undefined slots exist, the more trap-path testing the implementation demands. 55 defined + 26 reserved-as-`ILLEGAL` is a better ratio than 27 + 0 or 81 + 0.
+Filling 81 slots would require inventing opcodes that exist only for encoding symmetry. Empty opcode slots in a post-quantum VM are a security surface: a malicious program that lands on an undefined opcode must trap deterministically, and the more undefined slots exist, the more trap-path testing the implementation demands. 62 defined + 19 reserved-as-`ILLEGAL` is a better ratio than 27 + 0 or 81 + 0.
 
-### 2.3 · Why exactly 55?
+### 2.3 · Why exactly 62?
 
-55 = 27 + 28. The base 27 (3^3) opcodes cover the general-purpose VM (core + extended). The 28 extension opcodes — accessible only when the extension trit is non-zero — are reserved for the cryptographic, SIMD, and timing classes, which form the hottest path in post-quantum handshake execution. The number 28 itself derives from the Tribonacci mod-28 symmetry that governs the indexing layer. Separating them behind an extension flag means:
+62 = 45 base opcodes + 17 extension opcodes. The base 45 opcodes cover the general-purpose VM (core arithmetic, extended ternary, memory, control flow, comparison, and bitwise). The 17 extension opcodes — accessible only when the extension trit is non-zero — are reserved for the crypto acceleration, SIMD, and system classes, which form the hottest path in post-quantum handshake execution. Separating them behind an extension flag means:
 
-* General-purpose programs never pay the decode cost of crypto/SIMD opcodes.
+* General-purpose programs never pay the decode cost of crypto/SIMD/system opcodes.
 * The crypto and SIMD opcodes can be hardware-accelerated (or FPGA-gated) independently.
-* FIPS validation can scope its audit to the 14-opcode crypto surface without reviewing the entire instruction set.
+* FIPS validation can scope its audit to the 8-opcode crypto surface without reviewing the entire instruction set.
 
 ## 3 · Consequences
 
 * The instruction decoder in `libternary` is a two-stage pipeline: 3-trit primary decode → optional 1-trit extension decode. This is slightly more complex than a flat table but allows the timing class to sit alongside crypto without polluting the general namespace.
-* Future opcode additions must justify consuming a reserved slot via a new ADR. The 26 reserved slots provide ample runway.
-* All 55 opcodes must have corresponding entries in the `verifyTau()` self-test matrix; any opcode without a timing-correctness proof is considered unshipped.
+* Future opcode additions must justify consuming a reserved slot via a new ADR. The 19 reserved slots provide runway for future extensions.
+* All 62 opcodes must have corresponding entries in the `verifyTau()` self-test matrix; any opcode without a timing-correctness proof is considered unshipped.
 
 ## 4 · Alternatives Considered
 

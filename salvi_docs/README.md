@@ -105,7 +105,7 @@ Comprehensive documentation for each subsystem:
 
 | Module | Description | Guide |
 |--------|-------------|-------|
-| TVM | 55-opcode ISA, GF(3) ALU, TAGC | [11_TVM.md](./modules/11_TVM.md) |
+| TVM | 62-opcode ISA, GF(3) ALU, TAGC | [11_TVM.md](./modules/11_TVM.md) |
 | Timing Protocol | HPTP, optical clocks, certification | [12_TIMING_PROTOCOL.md](./modules/12_TIMING_PROTOCOL.md) |
 | BTG | Binary-ternary conversion, adapters | [13_BTG.md](./modules/13_BTG.md) |
 

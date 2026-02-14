@@ -1,6 +1,6 @@
 spec_version: "1.0.0"
 title: "PlenumNET Ternary Virtual Machine ISA"
-description: "Formal specification for the 55-opcode Ternary VM instruction set"
+description: "Formal specification for the 62-opcode Ternary VM instruction set"
 copyright: "Copyright (c) 2026 Capomastro Holdings Ltd. All rights reserved."
 architecture:
   name: "TVM (Ternary Virtual Machine)"

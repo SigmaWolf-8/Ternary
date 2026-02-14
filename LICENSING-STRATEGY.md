@@ -60,7 +60,7 @@ This document is an internal planning tool. It does not change the current licen
 
 | Component | Path | Language | Lines (est.) | Tier | Justification |
 |-----------|------|----------|-------------|------|---------------|
-| Ternary Virtual Machine Engine | `src/kernel/src/vm/engine.rs` | Rust | ~2,000 | **Tier 0** | 55-opcode ISA with Tribonacci-derived parameters. Core execution environment. Potentially patentable. |
+| Ternary Virtual Machine Engine | `src/kernel/src/vm/engine.rs` | Rust | ~2,000 | **Tier 0** | 62-opcode ISA with Tribonacci-derived parameters. Core execution environment. Potentially patentable. |
 | VM Instruction Set | `src/kernel/src/vm/instruction.rs` | Rust | ~1,000 | **Tier 0** | The ISA definition itself. TAdd, TMul, TNeg, TRot, TXor, TConvert are novel ternary-native operations. |
 | VM Constants (tau-derived) | `src/kernel/src/vm/constants.rs` | Rust | ~200 | **Tier 0** | Tribonacci-derived parameters. Rosetta Stone for the entire platform's mathematical architecture. |
 | Mark-Sweep GC | `src/kernel/src/vm/gc.rs` | Rust | ~500 | **Tier 1** | GC with Tribonacci thresholds. Novel parameterization but GC itself is commodity. |
