@@ -542,11 +542,11 @@ describe("PlenumNET API Integration Tests", () => {
   });
 
   describe("Security Headers", () => {
-    it("response includes X-Frame-Options: DENY", async () => {
+    it("response includes CSP frame-ancestors for iframe protection", async () => {
       const res = await jsonGet("/api/health");
-      const xfo = res.headers.get("x-frame-options");
-      expect(xfo).toBeTruthy();
-      expect(xfo!.toUpperCase()).toBe("DENY");
+      const csp = res.headers.get("content-security-policy");
+      expect(csp).toBeTruthy();
+      expect(csp!).toContain("frame-ancestors");
     });
 
     it("response includes X-Content-Type-Options: nosniff", async () => {

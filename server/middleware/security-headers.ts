@@ -24,7 +24,8 @@ export const securityHeaders = helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       connectSrc: ["'self'", "https://api.github.com", "https://*.konghq.com", "https://*.replit.app", "https://*.replit.dev", "wss:"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'"],
+      frameAncestors: ["'self'", "https://*.replit.dev", "https://*.replit.app", "https://*.repl.co"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
@@ -34,7 +35,7 @@ export const securityHeaders = helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
   xContentTypeOptions: true,
-  xFrameOptions: { action: "deny" },
+  xFrameOptions: false,
   xXssProtection: true,
   hsts: {
     maxAge: 31536000,
