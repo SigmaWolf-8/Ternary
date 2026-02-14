@@ -1,0 +1,277 @@
+import { useState } from "react";
+
+const col = {bg:"#0a1628",ac:"#3b82f6",al:"#60a5fa",gd:"#f59e0b",tx:"#e2e8f0",dm:"#94a3b8",mt:"#64748b",bd:"#1e3a5f",wt:"#f8fafc",sf:"#0f1a2e",th:"#132242",ta:"#0f1e36",cd:"#0c1524",gn:"#10b981"};
+const fn = {h:"Playfair Display,Georgia,serif",b:"Source Sans 3,sans-serif",c:"JetBrains Mono,monospace",l:"Inter,sans-serif"};
+
+function Tbl({h,r}){return(
+<div style={{overflowX:"auto",margin:"12px 0 18px",borderRadius:4,border:"1px solid "+col.bd}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+<thead><tr>{h.map((x,i)=><th key={i} style={{fontFamily:fn.l,fontSize:11,letterSpacing:1,textTransform:"uppercase",fontWeight:600,color:col.al,background:col.th,padding:"10px 12px",textAlign:"left",borderBottom:"2px solid "+col.ac+"30"}}>{x}</th>)}</tr></thead>
+<tbody>{r.map((row,ri)=><tr key={ri}>{row.map((c,ci)=><td key={ci} style={{padding:"8px 12px",borderBottom:"1px solid "+col.bd+"40",background:ri%2?col.ta:"transparent",color:col.tx,lineHeight:1.5}}>{c}</td>)}</tr>)}</tbody>
+</table></div>
+);}
+
+function Bx({t,lb,ch}){var c=t==="t"?col.gd:t==="p"?col.gn:col.ac;return(
+<div style={{margin:"14px 0",padding:"12px 16px",borderLeft:"3px solid "+c,background:col.sf+"80",borderRadius:"0 4px 4px 0"}}>
+<div style={{fontFamily:fn.l,fontSize:10,letterSpacing:2,textTransform:"uppercase",fontWeight:700,color:c,marginBottom:4}}>{lb}</div>
+<div style={{fontSize:14,lineHeight:1.65,color:col.tx}}>{ch}</div>
+</div>
+);}
+
+var Cd=function(p){return <code style={{fontFamily:fn.c,fontSize:"0.85em",background:col.cd,color:col.al,padding:"1px 5px",borderRadius:3,border:"1px solid "+col.bd+"60"}}>{p.children}</code>;};
+var B=function(p){return <span style={{fontWeight:700,color:col.wt}}>{p.children}</span>;};
+var P=function(p){return <p style={{margin:"0 0 13px",color:col.tx,lineHeight:1.72,fontSize:15}}>{p.children}</p>;};
+var H1=function(p){return <h2 style={{fontFamily:fn.h,fontSize:"1.5rem",fontWeight:700,color:col.wt,margin:"28px 0 14px",paddingBottom:8,borderBottom:"1px solid "+col.bd}}>{p.children}</h2>;};
+var H2=function(p){return <h3 style={{fontFamily:fn.h,fontSize:"1.2rem",fontWeight:600,color:col.al,margin:"22px 0 10px"}}>{p.children}</h3>;};
+var CB=function(p){return <pre style={{fontFamily:fn.c,fontSize:12,background:col.cd,color:col.al,padding:"12px 14px",borderRadius:4,border:"1px solid "+col.bd,overflowX:"auto",margin:"8px 0 14px",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{p.children}</pre>;};
+
+var tabs=["Overview","Instructions","Dual-Phase Encryption","PlenumDB","Ternary Substrate","Architecture","Analysis & Compare","References"];
+
+function S0(){return(<div>
+<H1>Making Computers Safer: A New Kind of Security</H1>
+<P>Imagine your computer as a giant office building. Today's computers are like buildings with flimsy locks. The <B>Salvi Framework</B> rethinks security from the ground up, using <B>ternary logic</B> built directly into the processor.</P>
+<P>This paper presents a unified approach addressing capability-based memory protection, side-channel mitigation, constant-time execution, <B>dual-phase encryption</B>, and <B>native encrypted database storage</B> (PlenumDB) within ISA-level primitives designed natively for a ternary computing architecture.</P>
+<H2>Three Problems This Solves</H2>
+<P><B>Memory bugs:</B> Programs cannot distinguish data from pointers. Attackers exploit buffer overflows and pointer forgery. <B>Quantum threat:</B> Future quantum computers will break today's encryption. <B>Side-channel leaks:</B> Hardware whispers secrets through timing, power, and electromagnetic radiation.</P>
+<H2>Ternary Advantage</H2>
+<P>Binary digits (bits) are ON/OFF. Ternary digits (trits) have three values, giving <B>1.58x more information per digit</B> and special unforgeable markers. The Salvi Framework uses three representations: A for arithmetic/masking, B for networking, C for capability security. The ISA comprises 160 opcodes with a compiled Rust kernel (33 MB, 47,000+ LOC) deployed via PlenumNET.</P>
+<H2>Defence-in-Depth</H2>
+<Tbl h={["Threat","Defence","Mechanism"]} r={[
+["Memory bugs","Capability tickets","Hardware-checked unforgeable ternary sentinels"],
+["Cache/power analysis","Side-channel masking","Microarch isolation + algebraic masking"],
+["Timing leaks","Constant-time ops","Fixed-cycle, no early exit"],
+["Intrusions","Audit log","Femtosecond-stamped tamper-evident chain"],
+["Quantum attack","Dual-phase encryption","GF(3) symmetric + TL-KEM/TL-DSA post-quantum"],
+["Unauthorized access","PlenumDB","Capability-gated column-level encryption"],
+]}/>
+<div style={{display:"flex",flexWrap:"wrap",gap:6,margin:"14px 0"}}>
+{["ternary computing","capability architecture","side-channel masking","post-quantum crypto","dual-phase encryption","PlenumDB","encrypted PostgreSQL","HPTP","CNSA 2.0","FIPS 140-3"].map(function(k,i){return <span key={i} style={{fontFamily:fn.l,fontSize:10,color:col.ac,background:"#1e40af20",border:"1px solid "+col.ac+"25",padding:"2px 7px",borderRadius:3}}>{k}</span>;})}
+</div>
+</div>);}
+
+function S1(){return(<div>
+<H1>The Eight Security Instructions (0x90-0x97)</H1>
+<H2>AuditLog (0x90) - The Camera That Never Lies</H2>
+<CB>AUDITLOG src1</CB>
+<P>Hardware-generated audit entry: PC, privilege level, security domain, event code, femtosecond HPTP timestamp. Twelve event types with tamper-evident hash chain verification. Any privilege level can emit; hardware stamps actual privilege.</P>
+<H2>CapCheck (0x91) - Validating Tickets</H2>
+<CB>CAPCHECK dst, src1, src2</CB>
+<P><B>Mechanism 1:</B> Sentinel validation - verifies leading trit is sentinel (value 0, outside bijective set). <B>Mechanism 2:</B> Table lookup - queries capability table for validity, resource match, permissions, mode compatibility.</P>
+<Tbl h={["Field","Trits","Position","Description"]} r={[
+["SENTINEL","1","[0]","Capability marker (value 0)"],
+["PERM","3","[1-3]","Permission triple (R/W/X)"],
+["SCOPE","5","[4-8]","Domain identifier"],
+["BASE","9","[9-17]","Base address"],
+["BOUND","9","[18-26]","Upper bound"],
+]}/>
+<H2>CapGrant (0x92) / CapRevoke (0x93) - Ring0</H2>
+<P><B>CapGrant</B> creates tokens with femtosecond timestamps, expiration, parent provenance. Monotonic authority: derived permissions are a subset. Hardware places sentinel trit. <B>CapRevoke</B> provides immediate dual-mechanism invalidation: table flag + sentinel overwrite. O(1) per entry, unlike CHERI sweep-based revocation.</P>
+<H2>SideChMask (0x94) / SideChUnmask (0x95)</H2>
+<CB>SIDECHMASK dst, src1</CB>
+<P><B>Layer 1:</B> Microarchitectural isolation - disables L1 caches, branch predictor, speculative execution. <B>Layer 2:</B> Algebraic ternary masking with hardware random trit generator vectors.</P>
+<Bx t="t" lb="Theorem 2 - Perfect Masking" ch="For any data D and uniform random mask M, the masked value D' = D + M (mod 3) is uniform and independent of D. Ternary non-linear operations achieve O(n) complexity vs binary ISW O(n^2). Either layer provides independent protection." />
+<H2>ConstTimeEq (0x96) / ConstTimeSel (0x97)</H2>
+<P><B>ConstTimeEq:</B> Fixed-latency comparison via trit-wise subtraction-and-OR-reduce. No early exit, no branch prediction. <B>ConstTimeSel:</B> Constant-time conditional move. Uses: MAC verification, curve point selection, ML-KEM decapsulation, Fiat-Shamir abort.</P>
+</div>);}
+
+function S2(){return(<div>
+<H1>6. Dual-Phase Encryption Architecture</H1>
+<H2>6.1 Design Rationale</H2>
+<P>The dual-phase pipeline unifies symmetric and asymmetric post-quantum cryptography within the ternary ISA. Both phases are first-class ISA operations, capability-gated. No process can encrypt or decrypt without a valid, non-expired capability token.</P>
+<H2>6.2 Phase 1 - Ternary Symmetric Encryption</H2>
+<P>Operates in GF(3) (Representation A): trit-wise substitution (S-boxes over GF(3)), permutation layers on the 27-trit word, key-mixing via trit-wise modular addition - the same operation used by SideChMask. All six single-trit transitions consume uniform energy, providing inherent DPA resistance without dedicated countermeasures.</P>
+<Bx t="t" lb="Phase 1 - DPA Resistance" ch="The ternary symmetric cipher operates in GF(3) where all trit transitions consume uniform energy. Combined with SideChMask Layer 2, Phase 1 achieves first-order DPA resistance without overhead. The 27-trit word provides a natural block size aligned with the machine word, eliminating padding overhead." />
+<H2>6.3 Phase 2 - Post-Quantum Asymmetric Layer</H2>
+<Tbl h={["Opcode","Mnemonic","Function","Standard"]} r={[
+["0x6D","TKemEncaps","Ternary Lattice Key Encapsulation","ML-KEM (FIPS 203)"],
+["0x6E","TKemDecaps","Ternary Lattice Key Decapsulation","ML-KEM (FIPS 203)"],
+["0x6F","TDsaSign","Ternary Lattice Digital Signature","ML-DSA (FIPS 204)"],
+["0x70","TDsaVerify","Ternary Lattice Signature Verify","ML-DSA (FIPS 204)"],
+]}/>
+<P><B>TL-KEM</B> operates over ternary polynomial rings where coefficient arithmetic maps to Representation A, eliminating binary modular reduction overhead. <B>TL-DSA</B> implements Fiat-Shamir with Aborts, using ConstTimeSel (0x97) for the abort decision to prevent timing leaks.</P>
+<H2>6.4 Complete Pipeline</H2>
+<CB>{[
+"1. CapCheck     - Verify encryption capability",
+"2. SideChMask   - Activate side-channel protection",
+"3. TKemEncaps   - Phase 2: Generate ephemeral key via TL-KEM",
+"4. PhaseEnc     - Phase 1: Encrypt data in GF(3)",
+"5. TDsaSign     - Phase 2: Sign ciphertext + encapsulated key",
+"6. AuditLog     - Record with HPTP femtosecond timestamp",
+"7. SideChUnmask - Restore normal execution",
+].join("\n")}</CB>
+<P>Decryption is verify-then-decrypt. The entire pipeline executes within a single SideChMask/SideChUnmask bracket - key generation, encryption, and signing are side-channel protected as one atomic unit.</P>
+<H2>6.5 CNSA 2.0 Alignment</H2>
+<P>TL-KEM provides quantum-resistant key establishment (ML-KEM security level 3+). TL-DSA provides quantum-resistant authentication. Phase 1 provides high-throughput data protection. The FIPS 140-3 boundary encompasses both phases.</P>
+</div>);}
+
+function S3(){return(<div>
+<H1>7. PlenumDB: Native Encrypted PostgreSQL Framework</H1>
+<H2>7.1 Architecture</H2>
+<P>PlenumDB integrates dual-phase encryption and capability-based access control directly into the data path. Data is never stored, transmitted, or processed unencrypted outside capability-authenticated contexts.</P>
+<Tbl h={["Layer","Component","Function"]} r={[
+["Application","Drizzle ORM / TypeScript","Standard SQL; encryption transparent"],
+["Framework","PlenumDB Engine","Compression, encryption, capability validation, audit"],
+["Storage","PostgreSQL","Encrypted compressed columns; standard replication"],
+]}/>
+<H2>7.2 Encrypted Compression Pipeline</H2>
+<P><B>Stage 1 - Ternary Compression.</B> Data converted to ternary and compressed exploiting 1.585-bit density per trit. Three-valued encoding provides efficient run-length patterns for timestamps, numerics, and enumerations.</P>
+<P><B>Stage 2 - Dual-Phase Encryption.</B> Compressed data encrypted: Phase 1 GF(3) symmetric, key wrapped by Phase 2 TL-KEM. Column-level granularity: each column gets independent keys, capabilities, and expiration policies.</P>
+<P><B>Stage 3 - PostgreSQL Storage.</B> Encrypted payload stored as binary. Standard PostgreSQL features (replication, PITR, pooling) operate on encrypted data. PostgreSQL never sees plaintext.</P>
+<H2>7.3 Capability-Gated Queries</H2>
+<Tbl h={["Level","Scope","Enforcement"]} r={[
+["Table","Read/Write/Admin","CapCheck before query execution"],
+["Column","Decrypt per column","CapCheck before decryption"],
+["Row","Row-level tags","CapCheck against row descriptors"],
+]}/>
+<P>A process may hold table-read capability but lack column-decrypt for sensitive columns. Queries return rows with encrypted (opaque) values for unauthorised columns. CapRevoke takes immediate effect with no cache window.</P>
+<H2>7.4 Regulatory Compliance</H2>
+<Tbl h={["Regulation","Requirement","Implementation"]} r={[
+["FINRA Rule 613","Audit trail with timestamps","AuditLog with femtosecond HPTP"],
+["MiFID II (RTS 25)","Clock sync, reporting","HPTP atomic clock anchoring"],
+["FIPS 140-3","Crypto module assurance","Dual-phase within FIPS boundary"],
+["GDPR Art. 32","Encryption of personal data","Column-level + capability-gated"],
+["SOX Section 802","Record retention","Blockchain-anchored proofs"],
+]}/>
+<H2>7.5 Drizzle ORM Integration</H2>
+<CB>{[
+"// Application code - encryption is transparent",
+"const trades = await db.select()",
+"  .from(tradeRecords)",
+"  .where(eq(tradeRecords.symbol, 'BTC/USD'));",
+"",
+"// Framework layer (transparent to application):",
+"//   1. CapCheck - validate table + column capabilities",
+"//   2. PostgreSQL query - retrieve encrypted rows",
+"//   3. Dual-phase decrypt - TL-KEM decaps + GF(3)",
+"//   4. Ternary decompress - restore original data",
+"//   5. AuditLog - record with HPTP timestamp",
+].join("\n")}</CB>
+<P>Schema definition (drizzle.config.ts) includes PlenumDB annotations for encryption policy, capability requirements, and compression. Migrations handle key rotation automatically.</P>
+</div>);}
+
+function S4(){return(<div>
+<H1>3. Ternary Logic Substrate</H1>
+<Tbl h={["Repr.","Digits","Domain","Bijection"]} r={[
+["A: Computational","{-1, 0, +1}","GF(3), masking, Phase 1 encryption","Identity"],
+["B: Network","{0, 1, 2}","Wire-level, protocol encoding","f(a) = a + 1"],
+["C: Bijective","{1, 2, 3}","Capability security, human display","f(a) = a + 2"],
+]}/>
+<Bx t="t" lb="Theorem 1 - Unforgeability" ch="For any arithmetic operation f over n-trit bijective words and inputs A, B, the result f(A,B) contains no sentinel trits. The carry logic for bijective ternary addition keeps all outputs in {1,2,3}. Sentinel trits (value 0) can only be placed by privileged hardware. This is the ternary analogue of CHERI's tag bit, achieved through algebraic structure." />
+<P><B>Machine Word:</B> 27-trit "tryte" (27=3^3). Three 9-trit "tribbles", each three 3-trit "triples." Tribonacci sequence T(n) = T(n-1)+T(n-2)+T(n-3) provides recursive basis. Register file: 27 ternary registers + PC, SP, FP, LR, flags, privilege, domain.</P>
+<P><B>GF(3) Properties:</B> Trit-wise operations = Galois field arithmetic. For data trit d and uniform random mask m: (d+m) mod 3 is uniform and independent of d. Six trit transitions have uniform energy, eliminating asymmetric leakage of CMOS binary logic.</P>
+</div>);}
+
+function S5(){return(<div>
+<H1>4. Architectural Support</H1>
+<Tbl h={["Ring","Name","Enforcement"]} r={[
+["Ring0","Kernel","Full access; CapGrant, CapRevoke, MProtect, Trap"],
+["Ring1","Supervisor","Restricted; drivers and services"],
+["Ring2","User","Unprivileged application code"],
+]}/>
+<Tbl h={["Mode","Symbol","Description"]} r={[
+["ModePhi","phi_plus","Maximum: kernel, crypto key mgmt, FIPS boundary"],
+["ModeOne","one","Standard: user processes, normal I/O"],
+["ModeZero","zero","Restricted/quarantine: sandboxed"],
+]}/>
+<P><B>Capability Table:</B> Hardware BTreeMap with TokenId, ProcessId, resource, actions, SecurityMode, created_at/expires_at (femtosecond), revoked, delegatable, parent_token. <B>SCCR:</B> Per-core side-channel control register. <B>CT-ALU:</B> Fixed 1-cycle. <B>HRTG:</B> FIPS 140-3 random trit source.</P>
+<H1>5. Opcode Summary</H1>
+<Tbl h={["Opcode","Name","Ring","Function"]} r={[
+["0x90","AuditLog","Any","Tamper-evident audit with HPTP timestamp"],
+["0x91","CapCheck","Any","Dual-mechanism capability validation"],
+["0x92","CapGrant","Ring0","Create capability with sentinel"],
+["0x93","CapRevoke","Ring0","Immediate O(1) dual invalidation"],
+["0x94","SideChMask","Any","Microarch isolation + algebraic masking"],
+["0x95","SideChUnmask","Any","Restore features"],
+["0x96","ConstTimeEq","Any","Fixed-latency comparison"],
+["0x97","ConstTimeSel","Any","Constant-time conditional move"],
+["0x6D","TKemEncaps","Any","TL-KEM key encapsulation (FIPS 203)"],
+["0x6E","TKemDecaps","Any","TL-KEM key decapsulation"],
+["0x6F","TDsaSign","Any","TL-DSA digital signature (FIPS 204)"],
+["0x70","TDsaVerify","Any","TL-DSA signature verification"],
+]}/>
+</div>);}
+
+function S6(){return(<div>
+<H1>8. PlenumNET Integration</H1>
+<P><B>HPTP</B> generates authenticated timestamps from seven clock sources at five precision levels (ms to fs). Every CapGrant/CapRevoke generates TL-DSA-signed timing proofs. Masked regions bracketed by HPTP timing barriers. Lifecycle events blockchain-anchored via Hedera HCS, XRPL, Algorand.</P>
+<H1>9. Security Analysis</H1>
+<P><B>P1</B> Provenance (parent chain). <B>P2</B> Integrity (sentinel + table). <B>P3</B> Non-bypass. <B>P4</B> Isolation. <B>P5</B> Temporal (femtosecond). <B>P6</B> Revocability (O(1)). <B>P7</B> Microarch isolation. <B>P8</B> First-order algebraic security. <B>P9</B> Glitch resistance. <B>P10</B> Timing independence. <B>P11</B> Data-independent CT.</P>
+<Tbl h={["Domain","Mechanism 1","Mechanism 2","Failure"]} r={[
+["Capabilities","Sentinel trit","Hardware table","Both needed"],
+["Side-channel","Microarch","Algebraic masking","Either protects"],
+["Timing","CT-ALU","HPTP barriers","Both enforce"],
+["Audit","HW timestamps","Hash chain","Both needed"],
+["Encryption","Phase 1 GF(3)","Phase 2 TL-KEM/DSA","Both needed"],
+["Database","Capability queries","Column encryption","Either blocks"],
+]}/>
+<H1>10. Comparison</H1>
+<Tbl h={["Feature","Intel MPK","Morello","RISC-V","Salvi"]} r={[
+["Capabilities","No","Yes","No","Domain+sentinel+temporal"],
+["HW grant/revoke","No","Partial","No","Ring0 O(1)"],
+["Unforgeable tag","N/A","1-bit ext","N/A","Algebraic sentinel"],
+["Side-channel","No","No","No","Dual-layer"],
+["Constant-time","No","No","No","ConstTimeEq/Sel"],
+["ISA audit","No","No","No","AuditLog HPTP"],
+["Dual-phase encrypt","No","No","No","GF(3)+TL-KEM/DSA"],
+["Encrypted DB","No","No","No","PlenumDB"],
+["PQC","No","No","No","CNSA 2.0"],
+["Ternary","No","No","No","3 representations"],
+]}/>
+<P><B>Limitations:</B> Rust kernel not silicon (power properties theoretical until FPGA). Higher-order probing analysis future work. Sentinel mechanism specific to bijective ternary.</P>
+</div>);}
+
+function S7(){return(<div>
+<H1>11. Reference Implementation</H1>
+<Tbl h={["Module","LOC","Function"]} r={[
+["instruction_v2.rs","1,111","ISA decoder: security + crypto opcodes"],
+["capability.rs","498","Grant/delegate/revoke/check"],
+["domain.rs","457","Transition rules, isolation"],
+["audit.rs","405","12 event types, chain integrity"],
+["policy.rs","502","MAC+DAC engine"],
+["side_channel.rs","702","4 analysis categories"],
+["formal_verify.rs","615","SMTLIB2/Cryptol/SAW"],
+["ternary.rs","974","3 representations, all arithmetic"],
+]}/>
+<P>PlenumDB engine in server/services with drizzle.config.ts. 14 CI/CD workflows. Testing: unit, privilege, sentinel, masking round-trip, chi-squared, Criterion, 3 fuzz targets, PropTest.</P>
+<H1>12. Future Work</H1>
+<P>FPGA synthesis. Formal TL-KEM/TL-DSA proofs. Higher-order ternary masking. RISC-V custom extension. Sigma Wolf ET protocol. PlenumDB: encrypted full-text search via GF(3) homomorphic ops, encrypted aggregation, capability federation, encrypted time-series for HFT compliance.</P>
+<Bx t="n" lb="Core Insight" ch="The choice of number system is a security design parameter. Sentinel-trit unforgeability, balanced masking, and GF(3) encryption are structural consequences of ternary arithmetic. Extended through dual-phase encryption to PlenumDB, the ternary advantage propagates from silicon to storage." />
+<H1>References</H1>
+<div style={{fontSize:12,color:col.dm,lineHeight:1.7}}>
+{["[1] Levy, Capability-Based Computer Systems, 1984","[2] Bernstein, Cache-timing attacks on AES, 2005","[3] Ishai et al., Private Circuits, CRYPTO 2003","[3b] Salvi Framework, github.com/SigmaWolf-8/Ternary, 2026","[4] Fritzmann et al., Masked Accelerators, 2021","[5] Rivain-Prouff, Higher-Order Masking, CHES 2010","[6] Duc et al., Leakage Models, EUROCRYPT 2014","[7] Kocher et al., Spectre, IEEE S&P 2019","[8] NIST FIPS 203/204/205, 2024","[9] Battistello et al., Horizontal Attacks, CHES 2016","[10] Watson et al., CHERI, IEEE S&P 2015","[11] Nikova et al., Glitch Resistance, CHES 2006","[12] Arm Morello, 2022","[13] Knuth TAOCP Vol.2","[14-22] Dennis, Lipp, Intel MPK, RISC-V PMP, Setun, Watson TR-951, Jones"
+].map(function(r,i){return <p key={i} style={{margin:"0 0 2px"}}>{r}</p>;})}
+</div>
+</div>);}
+
+var content=[S0,S1,S2,S3,S4,S5,S6,S7];
+
+export default function App(){
+var st=useState(0);
+var tab=st[0];
+var setTab=st[1];
+var Content=content[tab];
+return(
+<div style={{minHeight:"100vh",background:"linear-gradient(180deg,"+col.bg+",#060d18)",color:col.tx,fontFamily:fn.b}}>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet"/>
+<div style={{padding:"40px 20px 24px",textAlign:"center",maxWidth:840,margin:"0 auto"}}>
+<div style={{fontFamily:fn.l,fontSize:10,letterSpacing:4,textTransform:"uppercase",color:col.ac,marginBottom:14,fontWeight:600}}>Salvi Framework ISA v2.0 - February 2026</div>
+<h1 style={{fontFamily:fn.h,fontSize:"clamp(1.5rem,4vw,2.4rem)",fontWeight:700,color:col.wt,lineHeight:1.15,margin:"0 0 8px"}}>ISA-Level Security Primitives for Ternary Computing</h1>
+<p style={{fontFamily:fn.h,fontSize:"clamp(0.9rem,2vw,1.15rem)",fontStyle:"italic",color:col.al,margin:"0 0 16px"}}>Capabilities - Side-Channel Mitigation - Dual-Phase Encryption - PlenumDB</p>
+<div style={{fontFamily:fn.l,fontSize:12,color:col.dm}}>Applied Physics Division - Capomastro Holdings Ltd. - Alberta, Canada</div>
+</div>
+<div style={{position:"sticky",top:0,zIndex:100,background:col.bg+"f0",backdropFilter:"blur(12px)",borderBottom:"1px solid "+col.bd+"80"}}>
+<div style={{maxWidth:840,margin:"0 auto",display:"flex",overflowX:"auto",padding:"0 12px"}}>
+{tabs.map(function(t,i){return(
+<button key={i} onClick={function(){setTab(i);window.scrollTo({top:0});}}
+style={{fontFamily:fn.l,fontSize:11,letterSpacing:0.8,textTransform:"uppercase",color:tab===i?col.ac:col.mt,background:"none",border:"none",borderBottom:tab===i?"2px solid "+col.ac:"2px solid transparent",padding:"11px 12px",cursor:"pointer",whiteSpace:"nowrap",fontWeight:tab===i?600:400}}>
+{t}</button>
+);})}
+</div></div>
+<div style={{maxWidth:840,margin:"0 auto",padding:"4px 20px 50px"}}>
+<Content/>
+<div style={{marginTop:50,padding:"20px 0",borderTop:"1px solid "+col.bd,textAlign:"center",fontFamily:fn.l,fontSize:11,color:col.mt}}>
+Copyright 2025-2026 Capomastro Holdings Ltd. (Canada) - Patent(s) Pending - All Rights Reserved
+</div>
+</div>
+</div>
+);}
