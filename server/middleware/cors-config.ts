@@ -36,7 +36,7 @@ export const corsMiddleware = cors({
     if (isAllowed) {
       callback(null, true);
     } else {
-      callback(null, true);
+      callback(new Error('Not allowed by CORS'), false);
     }
   },
   credentials: true,

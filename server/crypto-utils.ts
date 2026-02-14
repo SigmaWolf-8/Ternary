@@ -20,9 +20,9 @@ const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.SESSION_SECRET || process.env.REPL_ID;
+  const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    throw new Error("SESSION_SECRET or REPL_ID environment variable is required for token encryption");
+    throw new Error("SESSION_SECRET environment variable is required for token encryption");
   }
   return crypto.createHash("sha256").update(secret).digest();
 }

@@ -9,6 +9,7 @@ import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
+import { computationLimiter } from "../middleware/rate-limiter";
 import {
   convertTrit,
   convertVector,
@@ -229,7 +230,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Ternary conversion
-  app.post("/api/salvi/ternary/convert", (req, res) => {
+  app.post("/api/salvi/ternary/convert", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         value: z.number(),
@@ -257,7 +258,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Ternary addition
-  app.post("/api/salvi/ternary/add", (req, res) => {
+  app.post("/api/salvi/ternary/add", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         a: z.number().int().min(-1).max(1),
@@ -281,7 +282,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Ternary multiplication
-  app.post("/api/salvi/ternary/multiply", (req, res) => {
+  app.post("/api/salvi/ternary/multiply", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         a: z.number().int().min(-1).max(1),
@@ -301,7 +302,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Ternary rotation
-  app.post("/api/salvi/ternary/rotate", (req, res) => {
+  app.post("/api/salvi/ternary/rotate", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         value: z.number().int().min(-1).max(1),
@@ -321,7 +322,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Ternary NOT
-  app.post("/api/salvi/ternary/not", (req, res) => {
+  app.post("/api/salvi/ternary/not", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         value: z.number().int().min(-1).max(1)
@@ -340,7 +341,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Ternary XOR
-  app.post("/api/salvi/ternary/xor", (req, res) => {
+  app.post("/api/salvi/ternary/xor", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         a: z.number().int().min(-1).max(1),
@@ -360,7 +361,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Batch ternary addition
-  app.post("/api/salvi/ternary/batch", (req, res) => {
+  app.post("/api/salvi/ternary/batch", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         pairs: z.array(z.object({
@@ -937,7 +938,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Phase split
-  app.post("/api/salvi/phase/split", (req, res) => {
+  app.post("/api/salvi/phase/split", computationLimiter, (req, res) => {
     try {
       const schema = z.object({
         data: z.string().min(1).max(100000),
@@ -987,7 +988,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   // Phase recombine
-  app.post("/api/salvi/phase/recombine", (req, res) => {
+  app.post("/api/salvi/phase/recombine", computationLimiter, (req, res) => {
     try {
       // Restore BigInt from strings
       const encrypted = req.body.encrypted;

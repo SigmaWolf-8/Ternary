@@ -1,0 +1,334 @@
+
+FOLLOW-UP LICENSING REVIEW
+&
+COMPREHENSIVE REPOSITORY AUDIT
+Salvi Framework / PlenumNET Ternary Computing Platform
+Repository: github.com/SigmaWolf-8/Ternary
+Live Deployment: PlenumNET.replit.app
+Prepared for Capomastro Holdings Ltd.
+Applied Physics Division
+Audit Date: February 14, 2026  |  Commit Count: 646 (main)
+HEAD: 645001e [docs] ISA v2.0: Update ternary-math/src/radix.rs (62→160 opcodes)
+Classification: CONFIDENTIAL — Attorney Work Product
+ 
+PART I: LICENSING & IP FOLLOW-UP REVIEW
+1. Repository Snapshot
+This review covers the SigmaWolf-8/Ternary repository at commit 645001e on main (646 commits). The repository has grown substantially since the original February 11 audit (121 commits), reflecting major expansion of the kernel instruction set (62 to 160 opcodes), new mathematical modules (Borromean rings, Clifford algebra, torus topology), new documentation infrastructure (16 compliance documents, 15 salvi_docs modules), and infrastructure additions (fuzz testing targets, Docker deployment, scripts directory).
+Metric	Value
+Source Files	723 (excl. node_modules, .git, target)
+TypeScript/TSX	181 files, ~33,263 lines
+Rust	140 files, ~58,031 lines
+Markdown Documentation	99 files
+API Endpoints	93 registered Express routes
+CI/CD Workflows	14 GitHub Actions workflows
+Vitest Tests	86 passing (50 GF(3), 25 phase-encryption, 11 calendar)
+Fuzz Targets	3 (trit ops, tryte ops, gateway)
+2. License Declaration Status
+The critical MIT license exposure identified in the original audit has been fully remediated. All seven Cargo.toml manifest files and both package.json files now declare proprietary licensing. One minor gap remains in the fuzz crate.
+Manifest File	License Field	Status	Notes
+package.json (root)	SEE LICENSE IN LICENSE	DONE	Correct reference
+libternary/package.json	SEE LICENSE IN LICENSE	DONE	Correct reference
+src/kernel/Cargo.toml	LicenseRef-Proprietary	DONE	Previously MIT — FIXED
+src/kernel/wasm/Cargo.toml	LicenseRef-Proprietary	DONE	Previously MIT — FIXED
+ternary-math/Cargo.toml	LicenseRef-Proprietary	DONE	
+src/thdl/Cargo.toml	LicenseRef-Proprietary	DONE	
+src/tsl/Cargo.toml	LicenseRef-Proprietary	DONE	
+libternary/Cargo.toml	LicenseRef-Proprietary	DONE	
+src/kernel/fuzz/Cargo.toml	NONE	NEW	Missing field — Task 0-1
+3. Legal Document Inventory
+The repository now contains a comprehensive legal document suite. Jurisdiction is consistently Province of Alberta across all publicly committed documents. Documents marked as intentionally excluded are correctly listed in .gitignore as confidential internal strategy documents.
+Document	Lines	Status	Notes
+LICENSE	227	DONE	Proprietary. References ABCA R.S.A. 2000, c. B-9.
+NOTICE	153	DONE	Third-party attribution.
+CLA.md	122	DONE	Contributor License Agreement.
+TERMS-OF-SERVICE.md	183	DONE	Province of Alberta governing law.
+ACCEPTABLE-USE-POLICY.md	111	DONE	
+PRIVACY-POLICY.md	201	DONE	PIPEDA, PIPA, CASL, Law 25 compliant.
+DATA-PROCESSING-AGREEMENT.md	172	DONE	GDPR/PIPEDA/CCPA template.
+CODE-OF-CONDUCT.md	77	DONE	At root.
+SECURITY.md	132	DONE	At root AND .github/.
+CONTRIBUTING.md	163	DONE	
+TRADEMARK-NOTICE.md	157	DONE	
+FILE-HEADER-TEMPLATE.md	138	DONE	TS and Rust templates.
+CHANGELOG.md	Present	DONE	Keep a Changelog format.
+ENTERPRISE-SLA.md	—	CLEAN	In .gitignore. Internal only. Correct.
+INTERNAL-IP-STRATEGY.md	—	CLEAN	In .gitignore. Internal only. Correct.
+COMPONENT-LICENSING-MATRIX.md	—	CLEAN	In .gitignore. Internal only. Correct.
+4. Current Findings
+F-1: Build Artifacts Re-Committed to Git (521 files, 226 MB)
+Severity: CRITICAL
+The 280 MB build artifact removal (commit f00cafa) was subsequently undone by the "Sync PlenumNET platform" batch commits, which re-added 521 files under src/kernel/target/. The .gitignore correctly contains **/target/ but this only prevents new additions — files already tracked are unaffected. The .git directory is 222 MB, with individual .rlib files exceeding 57 MB. GitHub imposes a 100 MB file size limit and warns at 50 MB. Every clone downloads this dead weight.
+Remediation: Phase 0, Tasks 0-2 and 0-3. Remove from tracking, prevent re-addition.
+F-2: CORS Middleware Bypass Bug
+Severity: CRITICAL
+In server/middleware/cors-config.ts, the CORS origin callback has identical logic in both branches: if the origin IS allowed, callback(null, true); if the origin is NOT allowed, also callback(null, true). This means CORS is effectively open to ALL origins, completely defeating the purpose of the allowed origins list. Any website can make authenticated cross-origin requests.
+Remediation: Phase 0, Task 0-4. The else branch must call callback(new Error('Not allowed by CORS')) or callback(null, false).
+F-3: Fuzz Crate Missing License Field
+Severity: HIGH
+File: src/kernel/fuzz/Cargo.toml
+The fuzz testing crate has publish = false (so it won't appear on crates.io) but still lacks a license = "LicenseRef-Proprietary" field. While the publish flag provides some protection, completeness requires the field for consistency and to prevent any argument that fuzz targets were intended to be unlicensed.
+Remediation: Phase 0, Task 0-1.
+F-4: 52 Source Files Missing Copyright Headers
+Severity: HIGH
+Despite 269 files now having headers (136 Rust + 133 TS/TSX), 52 source files remain without the proprietary copyright header. Breakdown: 41 TypeScript files in the services/ directory (payment-listener, blockchain services, sfk-core-api, timing services), 4 libternary Rust files (tribonacci.rs, borromean.rs, ternary_circle.rs, integration_properties.rs), 2 client files (marketing-top-nav.tsx, use-page-title.ts), and 5 root config files (drizzle.config.ts, vite.config.ts, vitest.config.ts, tailwind.config.ts, postcss.config.mjs).
+Remediation: Phase 1, Tasks 1-1 through 1-4.
+F-5: License-Check CI Workflow Does Not Scan services/ Directory
+Severity: HIGH
+The license-check.yml workflow scans ternary-math/src/, src/kernel/src/, server/, client/src/, shared/, and libternary/src/ — but NOT the services/ directory, which contains 41 unhealthy files across payment-listener, blockchain services (Algorand, Hedera, XRPL), sfk-core-api, and timing services. These services contain cryptographic webhook validation, payment processing, and blockchain integration code that is arguably as valuable as the kernel.
+Remediation: Phase 1, Task 1-5.
+F-6: Encryption Key Derivation Uses Predictable Fallback
+Severity: MEDIUM
+File: server/crypto-utils.ts
+The getEncryptionKey() function uses process.env.SESSION_SECRET or falls back to process.env.REPL_ID. REPL_ID is a static, publicly-visible Replit deployment identifier — it is not a secret. Any attacker who knows the REPL_ID (visible in Replit URLs) could derive the encryption key and decrypt all stored GitHub tokens. The function correctly throws if neither is set, but the fallback to REPL_ID undermines the security guarantee.
+Remediation: Phase 2, Task 2-4. Remove REPL_ID fallback. Require SESSION_SECRET explicitly.
+F-7: 207 Files in attached_assets/ (3.7 MB)
+Severity: LOW
+The attached_assets/ directory continues to grow and now contains 207 files totaling 3.7 MB. These include multiple timestamped drafts of legal documents, strategy notes, and pasted text snippets. During litigation discovery or IP due diligence, draft language that differs from final versions could create ambiguity.
+Remediation: Phase 5, Task 5-3.
+5. Confirmed Clean Areas
+Area	Status	Notes
+Secrets/Tokens/Keys in Source	CLEAN	No real credentials in committed source.
+.confidential/ Directory	CLEAN	Properly gitignored.
+.env Files	CLEAN	Not tracked. Only .env.example in deployments/.
+Private Key Files	CLEAN	keys/ contains only READMEs and .gitkeep.
+Dependency License Compliance	CLEAN	No GPL/AGPL/copyleft. All MIT/Apache-2.0/ISC/BSD.
+Jurisdiction Consistency	CLEAN	All committed legal docs: Province of Alberta.
+En-Dash vs. Hyphen Headers	CLEAN	0 en-dash, 259 hyphen. Standardized.
+Rust Kernel Compilation	CLEAN	Zero errors. Warnings not assessed (no local Rust).
+VM Test Suite	CLEAN	86 vitest tests passing.
+CODEOWNERS	CLEAN	Comprehensive path-based ownership.
+Branch Protection Docs	CLEAN	BRANCH_PROTECTION.md documents required settings.
+Internal Strategy Docs Excluded	CLEAN	.gitignore prevents commit of *-INTERNAL.md etc.
+ 
+PART II: SECURITY & CODE QUALITY AUDIT
+6. Security Assessment
+SEC-1: CORS Bypass (Duplicate of F-2)
+Severity: CRITICAL
+See Finding F-2. The CORS middleware accepts ALL origins regardless of the allowedOrigins list. Both the if and else branches call callback(null, true).
+SEC-2: Rate Limiting Implementation
+Status: IMPLEMENTED
+Four tiers of rate limiting are properly configured: global (100/min), auth (20/min), GitHub token (10/min), computation (50/min). The middleware files exist at server/middleware/rate-limiter.ts and are imported correctly in server/index.ts. The global limiter is applied to all /api/ routes.
+SEC-3: Helmet.js Security Headers
+Status: IMPLEMENTED
+Helmet is configured with HSTS (1 year, includeSubDomains), X-Content-Type-Options, XSS protection, strict referrer policy. CSP is intentionally disabled (common for SPAs with dynamic content). Cross-origin resource policy is set to "cross-origin" for API consumers.
+SEC-4: AES-256-GCM Token Encryption
+Status: IMPLEMENTED WITH CAVEAT
+GitHub tokens are encrypted at rest using AES-256-GCM with random 12-byte IVs. The encrypt/decrypt cycle is integrated into the storage layer. However, the key derivation uses a REPL_ID fallback (see F-6).
+SEC-5: Path Sanitization
+Status: HARDENED
+The sanitizePath function in server/routes/middleware.ts now implements null-byte stripping, double URL-decode protection, backslash-to-forward-slash normalization, path.posix.normalize(), and post-normalization ".." rejection. This is a significant improvement over the original 3-line regex.
+SEC-6: Command Injection Prevention
+Status: FIXED
+All child_process usage in server/routes/kong.ts now uses execFile() (no shell) instead of exec(). Zero instances of exec() remain in any route file.
+SEC-7: Input Validation Bounds
+Status: IMPLEMENTED
+Batch timing limited to 1-100. Trit count limited to 1-1000. Data length limited to 1-10,000. Page size bounded to 1-1,000 with Math.min/Math.max.
+7. Code Architecture Assessment
+7.1 Route Decomposition
+Status: COMPLETED
+The monolithic server/routes.ts (previously 3,732 lines) has been decomposed into focused modules: routes.ts (923 lines, core routes and orchestration), routes/github.ts (547 lines), routes/kong.ts (1,367 lines), routes/salvi.ts (1,041 lines), routes/tribonacci.ts (126 lines, new), and routes/middleware.ts (53 lines). Total route code is 4,057 lines across 6 files, organized by domain.
+7.2 Structured Logger
+Status: IMPLEMENTED (Custom, not Winston)
+server/logger.ts implements a 60-line custom structured logger with log levels (debug/info/warn/error), JSON metadata, ISO timestamps, module tagging, and safe error serialization. Zero console.log/error/warn calls remain in route files. Note: this is a custom implementation, not the Winston library. The CHANGELOG.md references "Winston" but the actual implementation is bespoke. This is functionally equivalent but should be documented accurately.
+7.3 Centralized Environment Configuration
+Status: IMPLEMENTED
+server/config.ts provides typed configuration objects for port, database, session, and environment detection.
+7.4 Error Handling
+Status: CLEAN
+Zero instances of catch(error: any) in any route file. All catch blocks use error: unknown with the toErrorMessage() helper.
+8. Test Coverage
+The test infrastructure is functional with 86 passing tests across 3 test suites. Vitest is configured with CI workflow integration. However, coverage remains limited relative to the codebase size (58K Rust lines, 33K TypeScript lines):
+•	50 GF(3) arithmetic tests (ternary-operations.test.ts) — comprehensive KATs
+•	25 phase encryption tests (phase-encryption.test.ts) — round-trip, guardian integrity, mode selection
+•	11 calendar synchronization tests (calendar-sync.test.ts) — JDN, Mayan, Hebrew, Islamic, Roman, Chinese, Egyptian
+Missing: API route integration tests (93 endpoints untested), Rust kernel unit tests (no test runner in CI), blockchain service tests, payment webhook round-trip tests.
+ 
+PART III: PHASED TASK LIST
+All Files Must Be Pushed Using the GitHub API Directly
+All modifications must be committed and pushed via the GitHub Contents API (PUT /repos/SigmaWolf-8/Ternary/contents/{path}) or the application's built-in endpoint (PUT /api/github/file/:owner/:repo). Workflow: GET file for SHA, base64-encode new content, PUT with sha and branch: "main". For new files, omit sha. For the build artifact removal (Task 0-2), use git rm --cached from an authenticated local clone.
+PHASE 0: Emergency Remediation
+Deadline: IMMEDIATE (within 24 hours)
+Estimated Effort: 2-3 hours
+Blocking: All subsequent phases.
+
+Task 0-1: Add License Field to Fuzz Crate
+Finding	F-3 (HIGH)
+File	src/kernel/fuzz/Cargo.toml
+Action	Add license = "LicenseRef-Proprietary" to [package] section, below publish = false.
+Commit	fix(legal): add license field to fuzz crate
+
+Task 0-2: Remove Build Artifacts from Git Tracking (Again)
+Finding	F-1 (CRITICAL)
+Scope	521 files, 226 MB in src/kernel/target/
+Action	git rm -r --cached src/kernel/target/ && git commit -m "fix(repo): remove build artifacts from tracking" && git push origin main
+Note	Requires local clone with push access. Cannot be done via Contents API for directory removal. After removal, verify .gitignore **/target/ prevents re-addition. The "Sync PlenumNET" workflow or script that re-added these must be identified and fixed (see Task 0-3).
+
+Task 0-3: Identify and Fix the Sync Script That Re-Adds Artifacts
+Finding	F-1 (CRITICAL) — root cause
+Investigation	Examine scripts/github-sync.mjs and any Replit-side sync workflows. The "Sync PlenumNET platform" commits re-added target/ files after they were removed. The sync script likely uses git add . or git add -A without respecting .gitignore (possible if the files exist in the working tree).
+Action	Add explicit exclusion of **/target/ in the sync script. Alternatively, delete the local target/ directory on the Replit workspace before sync.
+Commit	fix(scripts): exclude build artifacts from sync workflow
+
+Task 0-4: Fix CORS Middleware Bypass Bug
+Finding	F-2 / SEC-1 (CRITICAL)
+File	server/middleware/cors-config.ts
+Action	Change the else branch from callback(null, true) to callback(new Error('Not allowed by CORS'), false). This enforces the origin allowlist.
+Commit	fix(security): reject disallowed CORS origins
+PHASE 1: License Header Completion
+Deadline: Days 1-3
+Estimated Effort: 4-6 hours
+
+Task 1-1: Add Headers to services/ TypeScript Files (41 files)
+Finding	F-4 (HIGH)
+Scope	services/payment-listener/ (14 files), services/blockchain/ (9 files: algorand, hedera, xrpl), services/sfk-core-api/ (10 files), services/timing/ (8 files: certification, femtosecond)
+Action	Apply the TypeScript header from FILE-HEADER-TEMPLATE.md to all 41 files.
+Commit	fix(legal): add copyright headers to services/ source files
+
+Task 1-2: Add Headers to libternary Rust Files (4 files)
+Finding	F-4 (HIGH)
+Files	libternary/src/tribonacci.rs, borromean.rs, ternary_circle.rs, tests/integration_properties.rs
+Action	Apply the Rust header from FILE-HEADER-TEMPLATE.md.
+Commit	fix(legal): add copyright headers to libternary Rust files
+
+Task 1-3: Add Headers to Client Files (2 files)
+Finding	F-4 (HIGH)
+Files	client/src/components/marketing-top-nav.tsx, client/src/hooks/use-page-title.ts
+Action	Apply TypeScript header.
+
+Task 1-4: Add Headers to Root Config Files (5 files)
+Finding	F-4 (HIGH)
+Files	drizzle.config.ts, vite.config.ts, vitest.config.ts, tailwind.config.ts, postcss.config.mjs
+Action	Apply TypeScript header.
+
+Task 1-5: Update License-Check CI to Include services/ Directory
+Finding	F-5 (HIGH)
+File	.github/workflows/license-check.yml
+Action	Add services/ to the find command's search paths, alongside the existing ternary-math/src/, src/kernel/src/, server/, client/src/, shared/, libternary/src/.
+Commit	ci(legal): include services/ in license-check workflow
+PHASE 2: Security Hardening
+Deadline: Days 3-6
+Estimated Effort: 4-6 hours
+
+Task 2-1: Add tiered rate limiters to route modules
+Finding	Security best practice
+Action	Import authLimiter, githubTokenLimiter, computationLimiter from middleware/rate-limiter.ts and apply to appropriate route handlers in github.ts, kong.ts, salvi.ts. Currently only globalLimiter is applied at the app level.
+Commit	fix(security): apply tiered rate limiters to route modules
+
+Task 2-2: Add Content-Security-Policy header
+Finding	Helmet CSP is disabled
+File	server/middleware/security-headers.ts
+Action	Enable CSP with appropriate directives for the SPA (self, inline scripts for Vite, API origin). Currently contentSecurityPolicy: false.
+Commit	fix(security): enable Content-Security-Policy
+
+Task 2-3: Add X-Frame-Options header
+Finding	Helmet xFrameOptions is disabled
+File	server/middleware/security-headers.ts
+Action	Change xFrameOptions: false to xFrameOptions: { action: 'deny' } to prevent clickjacking.
+Commit	fix(security): enable X-Frame-Options
+
+Task 2-4: Remove REPL_ID Fallback from Encryption Key Derivation
+Finding	F-6 (MEDIUM)
+File	server/crypto-utils.ts
+Action	Remove || process.env.REPL_ID from getEncryptionKey(). Require SESSION_SECRET explicitly. The function already throws if no key is found.
+Commit	fix(security): require explicit SESSION_SECRET for encryption
+PHASE 3: Test Coverage Expansion
+Deadline: Days 6-20
+Estimated Effort: 30-50 hours
+
+Task 3-1: Create API Route Integration Tests
+Finding	93 endpoints untested
+Action	Write integration tests for all API endpoints using Vitest + supertest. Cover happy paths, error responses, input validation.
+File	tests/integration/api-routes.test.ts (new)
+
+Task 3-2: Create Blockchain Service Unit Tests
+Finding	services/blockchain/ untested
+Action	Unit tests for Algorand, Hedera, XRPL service modules. Mock external API calls.
+
+Task 3-3: Create Payment Webhook Round-Trip Tests
+Finding	Webhook validation logic untested at integration level
+Action	Test Stripe, Interac, crypto webhook signature validation and payment queue processing.
+
+Task 3-4: Expand Rust Kernel Test Suite
+Finding	58K lines of Rust with no CI test runner
+Action	Add #[test] modules to kernel crate. Update .github/workflows/test-kernel.yml to run cargo test. Target: 80%+ coverage on crypto modules.
+Note	Requires local Rust environment.
+
+Task 3-5: Add Fuzz Testing to CI
+Finding	3 fuzz targets exist but no CI integration
+Action	Create .github/workflows/fuzz.yml to run cargo fuzz for a bounded time (e.g., 60 seconds per target) on PRs touching src/kernel/.
+PHASE 4: Architecture Improvements
+Deadline: Days 20-30
+Estimated Effort: 15-25 hours
+
+Task 4-1: Add API Versioning Prefix
+Action	Prefix all routes with /api/v1/. Add backward-compatible redirects from /api/. Update client API calls.
+Note	Deferred from previous audit. Implement only when client migration can be done atomically.
+
+Task 4-2: Fix CHANGELOG.md Logger Description
+Finding	CHANGELOG references "Winston" but implementation is custom
+File	CHANGELOG.md
+Action	Replace "Winston logger" with "structured logger" to accurately describe the implementation.
+
+Task 4-3: Update LICENSING-AUDIT-REPORT.md
+Finding	Report still shows 121-commit audit from Feb 11
+File	LICENSING-AUDIT-REPORT.md
+Action	Append follow-up section documenting current 646-commit state and Phase 0-5 completion.
+
+Task 4-4: Verify Branch Protection via GitHub API
+Action	GET /repos/SigmaWolf-8/Ternary/branches/main/protection and verify actual settings match BRANCH_PROTECTION.md. Enable if not configured.
+PHASE 5: Documentation & Cleanup
+Deadline: Days 30-35
+Estimated Effort: 8-12 hours
+
+Task 5-1: Update replit.md
+File	replit.md
+Action	Update to reflect current architecture: 646 commits, 160-opcode ISA, 14 CI workflows, 93 endpoints, middleware stack.
+
+Task 5-2: Create IP-NOTICE.md
+Action	Create a consolidated IP notice listing all patent-pending claims, trade secrets, and proprietary algorithms. Reference in README.md.
+
+Task 5-3: Clean attached_assets/ Directory
+Finding	F-7 (LOW)
+Action	Remove superseded draft documents. Keep only current reference materials. Reduce from 207 files to essential set.
+
+Task 5-4: Create EXPORT-CONTROL.md
+Action	Document CNSA 2.0 compliance claims and export classification. Required for government/defense prospects. Reference Canadian Export and Import Permits Act and Wassenaar Arrangement.
+ 
+9. Master Summary
+9.1 Phase Summary
+Phase	Focus	Tasks	Effort	Deadline	Risk if Delayed
+0	Emergency (CORS, artifacts, fuzz)	4	2-3 hrs	Immediate	CRITICAL
+1	License Headers + CI Fix	5	4-6 hrs	Days 1-3	HIGH
+2	Security Hardening	4	4-6 hrs	Days 3-6	HIGH
+3	Test Coverage	5	30-50 hrs	Days 6-20	CRITICAL
+4	Architecture	4	15-25 hrs	Days 20-30	MEDIUM
+5	Documentation & Cleanup	4	8-12 hrs	Days 30-35	LOW
+
+Total Tasks: 26
+Total Estimated Effort: 63-102 hours (~8-13 business days)
+9.2 Findings Cross-Reference
+ID	Finding	Severity	Resolution
+F-1	Build artifacts re-committed (226 MB)	CRITICAL	Tasks 0-2, 0-3
+F-2	CORS middleware bypass bug	CRITICAL	Task 0-4
+F-3	Fuzz crate missing license field	HIGH	Task 0-1
+F-4	52 source files missing headers	HIGH	Tasks 1-1 to 1-4
+F-5	CI license-check ignores services/	HIGH	Task 1-5
+F-6	Encryption key uses REPL_ID fallback	MEDIUM	Task 2-4
+F-7	207 files in attached_assets/	LOW	Task 5-3
+SEC-2	Rate limiting	DONE	Implemented. Tiered application in Task 2-1.
+SEC-3	Helmet.js security headers	DONE	CSP/X-Frame refinement in Tasks 2-2, 2-3.
+SEC-4	Token encryption at rest	DONE	Key derivation fix in Task 2-4.
+SEC-5	Path sanitization	DONE	Hardened.
+SEC-6	Command injection (exec)	DONE	All execFile.
+SEC-7	Input validation bounds	DONE	Bounded.
+10. GitHub API Push Protocol
+Standard workflow for each file modification:
+•	GET /repos/SigmaWolf-8/Ternary/contents/{path}?ref=main to obtain the current file SHA.
+•	Base64-encode the new file content.
+•	PUT /repos/SigmaWolf-8/Ternary/contents/{path} with body: { message, content (base64), sha, branch: "main" }.
+•	For new files, omit the sha field.
+•	For deletions, use DELETE with the file's current SHA.
+Exception — Task 0-2: Build artifact directory removal requires git rm -r --cached from a local clone, followed by git push origin main. The Contents API cannot remove an entire directory tree atomically.
+Commit Message Convention: fix(legal): for licensing; fix(security): for security; fix(repo): for repository hygiene; ci(): for CI changes; test(): for tests; docs: for documentation.
+— End of Report —
+This report constitutes a combined legal and technical audit. It does not constitute legal advice. Capomastro Holdings Ltd. should consult with retained counsel before executing changes affecting third-party rights or regulatory submissions.
