@@ -8,11 +8,11 @@
 
 ## Overview
 
-The Ternary Virtual Machine (TVM) is a complete execution environment for ternary bytecode. It provides a 62-opcode instruction set, 27 registers, GF(3) arithmetic execution, and a ternary-aware garbage collector.
+The Ternary Virtual Machine (TVM) is a complete execution environment for ternary bytecode. It provides a 160-opcode instruction set (ISA v2.0), 27 registers, GF(3) arithmetic execution, and a ternary-aware garbage collector.
 
 ### Key Features
 
-- **62-Opcode ISA** - Comprehensive instruction set for ternary operations
+- **160-Opcode ISA v2.0** - Enterprise-grade instruction set for ternary operations
 - **27 Registers** - 16 GP + 8 ternary coprocessor + 3 special
 - **16-Byte Instructions** - Fixed-width encoding for simplicity
 - **TAGC** - Ternary-Aware Garbage Collector with generational support
