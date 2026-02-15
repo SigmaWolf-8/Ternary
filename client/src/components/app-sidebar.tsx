@@ -35,6 +35,7 @@ import {
   LogIn,
   LogOut,
   User,
+  Atom,
 } from "lucide-react";
 import {
   Sidebar,
@@ -122,6 +123,15 @@ export function AppSidebar() {
                   <Link href="/compression" onClick={closeMobileSidebar}>
                     <Archive className="w-3.5 h-3.5" />
                     <span>Compression</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/quantum-sim"} tooltip="Quantum Simulator" data-testid="link-sidebar-quantum-sim" className="text-xs">
+                  <Link href="/quantum-sim" onClick={closeMobileSidebar}>
+                    <Atom className="w-3.5 h-3.5" />
+                    <span>Quantum Sim</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -53,6 +53,13 @@ Five modules provide classical simulation of quantum ternary (qutrit/qudit) oper
 -   **Qutrit Fault Tolerance**: Classical simulation of fault-tolerant protocols, including error operators, stabilizer codes, syndrome measurement, and magic state distillation.
 -   **Qudit Basics**: Generalized higher-dimensional (d ≥ 2) quantum states, supporting various dimensions with basis, operators, error simulation, and code parameters.
 
+### Quantum-Ternary Simulator (/quantum-sim)
+A public-facing interactive simulator page with three tabs:
+-   **Qutrit FT Mode**: Interactive fault-tolerance simulation — state preparation (4 basis choices), error injection (phase/leak/depolarize), [[3,1,2]]_3 stabilizer encoding + syndrome measurement + correction, triorthogonal magic state distillation (configurable m and noise rate), SUFT phase gate unitarity verification, fidelity tracking.
+-   **FIPS 140-3 Path**: 14-item compliance readiness checklist across 5 categories (Cryptographic Boundary, Fault Tolerance, Quantum Resistance, Invariant Enforcement, Export Control) with ASCII CMVP module boundary diagram.
+-   **Variational Benchmarks (QVQE/QAOA)**: 6 client-side benchmarks — Tribonacci variational action, perturbed sequence recovery, Hamiltonian constraint chain, stabilizer code throughput, distillation scaling, SUFT phase gate stability — with performance.now() timing.
+All computations are client-side using shared modules. A "Qutrit FT Mode" CTA button on the VM demo hero links to this page.
+
 ### Testing
 Testing is conducted using Vitest with multiple test suites covering complex utilities, qutrit/qudit basics, Lagrangian and Hamiltonian mechanics, Noether symmetries, Tribonacci variational methods, ternary operations, phase encryption, calendar synchronization, API route integration, blockchain services, and payment webhooks. Rust fuzz targets and kernel tests are also performed.
 

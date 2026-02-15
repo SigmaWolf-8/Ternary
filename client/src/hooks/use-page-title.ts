@@ -41,6 +41,7 @@ const pageTitles: Record<string, string> = {
   "/isa-security": "ISA Security Primitives — PlenumNET",
   "/vm-demo": "Ternary VM Demo — PlenumNET",
   "/agent-array": "28D Agent Array — PlenumNET",
+  "/quantum-sim": "Quantum-Ternary Simulator — PlenumNET",
 };
 
 export function usePageTitle() {

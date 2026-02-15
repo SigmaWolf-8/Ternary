@@ -93,6 +93,12 @@ export default function VMDemo() {
               <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
                 27-Trit Word
               </Badge>
+              <Link href="/quantum-sim">
+                <Button variant="outline" className="bg-indigo-500/20 border-indigo-400/40 text-indigo-300" data-testid="button-qutrit-ft-mode">
+                  <Zap className="w-3 h-3 mr-1" />
+                  Qutrit FT Mode
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

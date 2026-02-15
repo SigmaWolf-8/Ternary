@@ -52,6 +52,7 @@ const Distribution = lazy(() => import("@/pages/distribution"));
 const ISASecurityPaper = lazy(() => import("@/pages/isa-security-paper"));
 const VMDemo = lazy(() => import("@/pages/vm-demo"));
 const AgentArray = lazy(() => import("@/pages/agent-array"));
+const QuantumSim = lazy(() => import("@/pages/quantum-sim"));
 
 function LoadingSpinner() {
   return (
@@ -200,6 +201,7 @@ function MarketingRouter() {
           <Route path="/isa-security" component={ISASecurityPaper} />
           <Route path="/vm-demo" component={VMDemo} />
           <Route path="/agent-array" component={AgentArray} />
+          <Route path="/quantum-sim" component={QuantumSim} />
         </Switch>
       </Suspense>
     </MarketingLayout>
@@ -228,7 +230,7 @@ function DashboardRouter() {
   );
 }
 
-const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds", "/distribution", "/isa-security", "/vm-demo", "/agent-array"];
+const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds", "/distribution", "/isa-security", "/vm-demo", "/agent-array", "/quantum-sim"];
 const dashboardPaths = ["/ternarydb", "/api-demo", "/hptp", "/compression", "/calendar", "/13-moon", "/docs", "/compliance", "/admin", "/github", "/kong-konnect"];
 
 function AppRouter() {
