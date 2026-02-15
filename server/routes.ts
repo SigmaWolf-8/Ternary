@@ -23,6 +23,7 @@ import { registerGitHubRoutes } from "./routes/github";
 import { registerKongRoutes } from "./routes/kong";
 import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
+import { registerAgentArrayRoutes } from "./routes/agent-array";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -920,6 +921,11 @@ export async function registerRoutes(
   // TRIBONACCI INDEXING LAYER API — extracted to server/routes/tribonacci.ts
   // =====================================================
   registerTribonacciRoutes(app);
+
+  // =====================================================
+  // 28-DIMENSION AI AGENT ARRAY — extracted to server/routes/agent-array.ts
+  // =====================================================
+  registerAgentArrayRoutes(app);
 
   // =====================================================
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts

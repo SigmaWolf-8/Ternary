@@ -40,6 +40,7 @@ const pageTitles: Record<string, string> = {
   "/distribution": "Salvi Framework Distribution — PlenumNET",
   "/isa-security": "ISA Security Primitives — PlenumNET",
   "/vm-demo": "Ternary VM Demo — PlenumNET",
+  "/agent-array": "28D Agent Array — PlenumNET",
 };
 
 export function usePageTitle() {
