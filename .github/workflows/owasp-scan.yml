@@ -1,0 +1,261 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division — PROPRIETARY AND CONFIDENTIAL
+# See LICENSE in the repository root for full terms.
+
+name: OWASP & Dependency Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  npm-audit-strict:
+    name: npm Audit (Strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (high/critical fail)
+        run: |
+          echo "========================================"
+          echo "  npm Dependency Security Audit"
+          echo "  Fail threshold: high"
+          echo "========================================"
+          npm audit --audit-level=high
+
+  license-compliance:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for prohibited licenses
+        run: |
+          echo "========================================"
+          echo "  License Compliance Check"
+          echo "  Prohibited: AGPL-3.0, GPL-3.0, SSPL"
+          echo "========================================"
+
+          npm install --no-save license-checker@25 2>/dev/null
+          npx license-checker --production --failOn "AGPL-3.0;GPL-3.0;SSPL-1.0" --summary || {
+            echo "::error::Prohibited license detected in production dependencies"
+            exit 1
+          }
+
+  owasp-dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate package-lock audit report
+        run: |
+          echo "========================================"
+          echo "  OWASP Dependency Vulnerability Report"
+          echo "========================================"
+
+          AUDIT_OUTPUT=$(npm audit --json 2>/dev/null || true)
+
+          TOTAL=$(echo "$AUDIT_OUTPUT" | node -e "
+            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const v=d.metadata?.vulnerabilities||{};
+            console.log(JSON.stringify(v));
+          " 2>/dev/null || echo '{}')
+
+          echo "Vulnerability Summary: $TOTAL"
+
+          CRITICAL=$(echo "$AUDIT_OUTPUT" | node -e "
+            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const v=d.metadata?.vulnerabilities||{};
+            console.log(v.critical||0);
+          " 2>/dev/null || echo "0")
+
+          HIGH=$(echo "$AUDIT_OUTPUT" | node -e "
+            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const v=d.metadata?.vulnerabilities||{};
+            console.log(v.high||0);
+          " 2>/dev/null || echo "0")
+
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities!"
+            exit 1
+          fi
+
+          if [ "$HIGH" -gt "0" ]; then
+            echo "::warning::Found $HIGH high-severity vulnerabilities. Review required."
+          fi
+
+          echo "::notice::OWASP dependency check complete."
+
+  rust-audit:
+    name: Rust Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Rust projects exist
+        id: check
+        run: |
+          for dir in src/kernel src/tsl src/thdl libternary ternary-math; do
+            if [ -f "$dir/Cargo.toml" ]; then
+              echo "has_rust=true" >> $GITHUB_OUTPUT
+              break
+            fi
+          done
+
+      - name: Install Rust toolchain
+        if: steps.check.outputs.has_rust == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit & cargo-deny
+        if: steps.check.outputs.has_rust == 'true'
+        run: |
+          cargo install cargo-audit
+          cargo install cargo-deny || true
+
+      - name: Audit Rust dependencies
+        if: steps.check.outputs.has_rust == 'true'
+        run: |
+          echo "========================================"
+          echo "  Rust Dependency Security Audit"
+          echo "========================================"
+
+          for dir in src/kernel src/tsl src/thdl libternary ternary-math; do
+            if [ -f "$dir/Cargo.toml" ]; then
+              echo "--- Auditing $dir ---"
+              cd "$dir"
+              cargo audit 2>&1 || echo "::warning::Vulnerabilities found in $dir"
+              cd "$GITHUB_WORKSPACE"
+            fi
+          done
+
+      - name: Skip notice
+        if: steps.check.outputs.has_rust != 'true'
+        run: echo "::notice::No Rust projects found. Audit skipped."
+
+  security-headers-check:
+    name: Security Headers Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate security middleware configuration
+        run: |
+          echo "========================================"
+          echo "  Security Headers Validation"
+          echo "========================================"
+
+          CHECKS_PASSED=0
+          CHECKS_FAILED=0
+
+          check_pattern() {
+            local pattern="$1"
+            local desc="$2"
+            if grep -rq "$pattern" server/ 2>/dev/null; then
+              echo "  [PASS] $desc"
+              CHECKS_PASSED=$((CHECKS_PASSED + 1))
+            else
+              echo "  [FAIL] $desc"
+              CHECKS_FAILED=$((CHECKS_FAILED + 1))
+            fi
+          }
+
+          check_pattern "helmet" "Helmet.js security headers"
+          check_pattern "rateLimit\|rate-limit\|express-rate-limit" "Rate limiting middleware"
+          check_pattern "cors" "CORS configuration"
+          check_pattern "isAuthenticated\|requireAdmin" "Authentication middleware"
+          check_pattern "safeParse\|z\.object\|z\.string" "Zod input validation"
+          check_pattern "sanitize\|sanitizePath" "Input sanitization"
+          check_pattern "execFile" "Safe subprocess execution (execFile)"
+          check_pattern "AES\|aes.*gcm\|encrypt\|decrypt" "Encryption utilities"
+
+          echo ""
+          echo "  Results: $CHECKS_PASSED passed, $CHECKS_FAILED failed"
+
+          if [ "$CHECKS_FAILED" -gt "2" ]; then
+            echo "::error::Multiple security middleware checks failed"
+            exit 1
+          fi
+
+  copyright-headers:
+    name: Copyright Header Enforcement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify copyright headers
+        run: |
+          echo "========================================"
+          echo "  Copyright Header Verification"
+          echo "  Checking all source files"
+          echo "========================================"
+
+          MISSING=""
+          for dir in server client/src shared; do
+            if [ -d "$dir" ]; then
+              FOUND=$(find "$dir" \
+                -type f \
+                \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+                -not -name "*.d.ts" \
+                -not -path "*/node_modules/*" \
+                -exec grep -L "Capomastro Holdings" {} \; 2>/dev/null)
+              if [ -n "$FOUND" ]; then
+                MISSING="$MISSING$FOUND"$'\n'
+              fi
+            fi
+          done
+
+          if [ -n "$MISSING" ]; then
+            echo "  Missing headers in:"
+            echo "$MISSING" | while read -r f; do
+              [ -n "$f" ] && echo "    - $f"
+            done
+            echo ""
+            echo "::error::Source files missing copyright headers"
+            exit 1
+          fi
+
+          TOTAL=$(find server client/src shared \
+            -type f \
+            \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
+            -not -name "*.d.ts" \
+            -not -path "*/node_modules/*" 2>/dev/null | wc -l)
+
+          echo "  All $TOTAL source files have copyright headers."

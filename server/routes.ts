@@ -21,6 +21,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { registerGitHubRoutes } from "./routes/github";
 import { registerKongRoutes } from "./routes/kong";
+import { registerDataSubjectRightsRoutes } from "./routes/data-subject-rights";
 import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { registerAgentArrayRoutes } from "./routes/agent-array";
@@ -34,7 +35,7 @@ import {
   generateUserEvents, 
   generateLogEntries 
 } from "./ternary";
-import { insertDeveloperSignupSchema } from "@shared/schema";
+import { insertDeveloperSignupSchema, insertWhitepaperSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { createLogger, toErrorMessage } from "./logger";
 import { db } from "./db";
@@ -672,9 +673,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/compression/db/documents/:id", async (req, res) => {
+  app.delete("/api/compression/db/documents/:id", isAuthenticated, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid document ID" });
       }
@@ -725,12 +726,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/whitepapers", async (req, res) => {
+  app.post("/api/whitepapers", isAuthenticated, async (req, res) => {
     try {
-      const { version, title, content, summary, author } = req.body;
-      if (!version || !title || !content) {
-        return res.status(400).json({ error: "version, title, and content are required" });
+      const parsed = insertWhitepaperSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
+      const { version, title, content, summary, author } = parsed.data;
       const whitepaper = await storage.createWhitepaper({
         version,
         title,
@@ -933,6 +935,11 @@ export async function registerRoutes(
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
   // =====================================================
   registerKongRoutes(app, storage);
+
+  // =====================================================
+  // GDPR DATA SUBJECT RIGHTS — extracted to server/routes/data-subject-rights.ts
+  // =====================================================
+  registerDataSubjectRightsRoutes(app, storage);
 
   return httpServer;
 }
