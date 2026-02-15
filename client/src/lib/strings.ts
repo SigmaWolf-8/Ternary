@@ -31,14 +31,14 @@ export const STRINGS = {
   },
   stats: {
     density: { value: "+59", suffix: "%", label: "vs Binary Density" },
-    tests: { value: "1,011", label: "Tests Passing" },
+    tests: { value: "1,040", label: "Tests Passing" },
     milestones: { value: "80/80", label: "Milestones Complete" },
     opcodes: { value: "176", label: "VM Opcodes" },
   },
   platform: {
     badge: "Complete Platform",
     title: "Everything You Need to Build on Ternary",
-    description: "From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,011 passing tests.",
+    description: "From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,040 passing tests.",
   },
   architecture: {
     badge: "Full-Stack Architecture",
@@ -89,7 +89,7 @@ export const STRINGS = {
   },
   badges: {
     productionReady: "Production Ready",
-    testsPassing: "1,011 Tests Passing",
+    testsPassing: "1,040 Tests Passing",
     postQuantum: "Post-Quantum Secure",
   },
 } as const;

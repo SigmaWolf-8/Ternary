@@ -16,7 +16,7 @@
 import { useState } from "react";
 import { TernaryVMTerminal } from "@/components/ternary-vm-terminal";
 import { Link } from "wouter";
-import { Terminal, ChevronRight, Shield, Cpu, Zap, Lock } from "lucide-react";
+import { Terminal, ChevronRight, Shield, Cpu, Zap, Lock, Activity, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,17 +36,27 @@ const features = [
   {
     icon: Cpu,
     title: "176-Opcode ISA",
-    desc: "Complete instruction set across 12 categories: Core, Extended, Crypto, SIMD, System, Security, Debug, Quantum-Ternary",
+    desc: "Complete instruction set across 12 categories: Core, Extended, Crypto, SIMD, System, Security, Debug, Quantum-Ternary (0xA0-0xAF)",
   },
   {
     icon: Shield,
-    title: "Capability Security",
-    desc: "Sentinel-trit capabilities with O(1) grant/revoke \u2014 no external tag memory required",
+    title: "Operational Quantum Correction",
+    desc: "[[3,1,2]]_3 stabilizer code on VM registers via QCorrect (0xA5). Syndrome extraction, error injection, and qudit generalization (d\u22653)",
+  },
+  {
+    icon: CheckCircle2,
+    title: "Noether Invariant Verification",
+    desc: "Three post-correction checks: ternary gauge sum, reparametrization energy (SUFT \u03A6 ratio), and periodicity (mod 364) enforcement",
   },
   {
     icon: Lock,
     title: "Post-Quantum Crypto",
     desc: "TL-KEM and TL-DSA hardware opcodes, CNSA 2.0 compliant, FIPS 140-3 boundary",
+  },
+  {
+    icon: Activity,
+    title: "HPTP Jitter Correction",
+    desc: "Qutrit-stabilizer anomaly detection for femtosecond timestamps. Median-based correction with windowed processing",
   },
   {
     icon: Zap,
@@ -115,7 +125,7 @@ export default function VMDemo() {
                     <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                     <div className="w-3 h-3 rounded-full bg-green-500/80" />
                   </div>
-                  <span className="text-xs text-slate-400 ml-2 font-mono">salvi@vm ~ Ternary VM v2.0</span>
+                  <span className="text-xs text-slate-400 ml-2 font-mono">salvi@vm ~ Ternary VM v2.1</span>
                 </div>
                 <Button
                   variant="ghost"

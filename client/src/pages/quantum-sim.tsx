@@ -496,15 +496,17 @@ const fipsChecklist: FIPSCheckItem[] = [
   { id: "cmvp-1", category: "Cryptographic Boundary", requirement: "CMVP Module Boundary Definition", status: "implemented", detail: "AES-256-GCM + SHA-384 boundary defined in kernel crypto module. Hardware/software distinction documented." },
   { id: "cmvp-2", category: "Cryptographic Boundary", requirement: "Approved Algorithms (CNSA 2.0)", status: "implemented", detail: "ML-KEM-1024, ML-DSA-87, AES-256-GCM, SHA-384, XMSS/LMS all implemented in Rust kernel." },
   { id: "cmvp-3", category: "Cryptographic Boundary", requirement: "Key Management Lifecycle", status: "implemented", detail: "TL-KEM key generation, encapsulation, decapsulation with zeroization. HKDF-based key derivation." },
-  { id: "ft-1", category: "Fault Tolerance", requirement: "Error Detection via Stabilizer Codes", status: "prototype", detail: "[[3,1,2]]_3 stabilizer code with syndrome-based detection. Single-error correction demonstrated." },
-  { id: "ft-2", category: "Fault Tolerance", requirement: "Magic State Distillation Protocol", status: "prototype", detail: "Triorthogonal [[9m-k,k,2]]_3 codes with SUFT-scaled (factor 13) distillation. Yield gamma computed." },
-  { id: "ft-3", category: "Fault Tolerance", requirement: "Qutrit Depolarizing Channel Simulation", status: "prototype", detail: "Configurable error rates with normalization-preserving noise model for FIPS crypto resilience testing." },
+  { id: "ft-1", category: "Fault Tolerance", requirement: "Error Detection via Stabilizer Codes", status: "implemented", detail: "[[3,1,2]]_3 stabilizer code with operational syndrome extraction (QSyndrome 0xA4) and correction (QCorrect 0xA5) on VM registers. 14 kernel tests passing." },
+  { id: "ft-2", category: "Fault Tolerance", requirement: "Magic State Distillation Protocol", status: "implemented", detail: "Triorthogonal [[9m-k,k,2]]_3 codes with SUFT-scaled distillation. QDistill (0xA6) opcode and kernel benchmark binaries implemented." },
+  { id: "ft-3", category: "Fault Tolerance", requirement: "Qutrit Depolarizing Channel Simulation", status: "implemented", detail: "Configurable error rates with normalization-preserving noise. QErrInject (0xAC) opcode for controlled error injection on register state." },
+  { id: "ft-4", category: "Fault Tolerance", requirement: "HPTP Qutrit Jitter Correction", status: "implemented", detail: "Treats 3 consecutive femtosecond timestamps as qutrit-encoded triple. Syndrome-based median correction for outlier detection. Windowed processing support." },
   { id: "qr-1", category: "Quantum Resistance", requirement: "Post-Quantum Key Exchange (TL-KEM)", status: "implemented", detail: "Ternary Lattice KEM with CNSA 2.0 parameter sets. Hardware opcode support in VM ISA v2.1." },
   { id: "qr-2", category: "Quantum Resistance", requirement: "Post-Quantum Signatures (TL-DSA)", status: "implemented", detail: "Ternary Lattice Digital Signature Algorithm. Deterministic signing with SHA-384 internal hash." },
   { id: "qr-3", category: "Quantum Resistance", requirement: "Hash-Based Signatures (XMSS/LMS)", status: "implemented", detail: "Stateful hash-based signatures for firmware attestation. Forward-secure key management." },
-  { id: "inv-1", category: "Invariant Enforcement", requirement: "Hamiltonian Energy Conservation", status: "prototype", detail: "Register state energy H = sum(reg_i^2) mod 312 preserved across opcode transitions. Drift tolerance T(7)=13." },
-  { id: "inv-2", category: "Invariant Enforcement", requirement: "Noether Symmetry Checks", status: "prototype", detail: "Ternary gauge (sum theta = 0), reparametrization (H ~ 0), periodicity (mod 364) enforcement." },
-  { id: "inv-3", category: "Invariant Enforcement", requirement: "GF(3) Parity Conservation", status: "prototype", detail: "Per-bank ternary parity (sum mod 3) conservation across opcode execution chains." },
+  { id: "inv-1", category: "Invariant Enforcement", requirement: "Hamiltonian Energy Conservation", status: "implemented", detail: "Register state energy H = sum(reg_i^2) mod 312 preserved across opcode transitions. Drift tolerance T(7)=13. Validated in hamiltonian-constraints module." },
+  { id: "inv-2", category: "Invariant Enforcement", requirement: "Noether Symmetry Checks", status: "implemented", detail: "Three operational kernel checks: ternary gauge sum invariant, reparametrization energy (SUFT phi ratio), periodicity (mod 364). Post-correction verification in noether_checks.rs. 6 kernel tests passing." },
+  { id: "inv-3", category: "Invariant Enforcement", requirement: "GF(3) Parity Conservation", status: "implemented", detail: "Per-bank ternary parity (sum mod 3) conservation across opcode execution chains. Enforced via computeBankTernaryParity." },
+  { id: "inv-4", category: "Invariant Enforcement", requirement: "Qudit Generalized Correction", status: "implemented", detail: "QUDIT_CORRECT_D opcode extends [[3,1,2]]_3 to arbitrary d>=3 (up to d=13). Syndrome-based averaging with per-block normalization. Noether invariants verified post-correction." },
   { id: "exp-1", category: "Export Control", requirement: "ECCN 5D002 Classification", status: "implemented", detail: "Documented in EXPORT-CONTROL.md. Wassenaar Category 5 Part 2 with Canadian ITAR compliance." },
   { id: "exp-2", category: "Export Control", requirement: "GDPR/PIPEDA Data Handling", status: "implemented", detail: "Cookie consent, data minimization, right-to-erasure via API endpoints. Privacy policy dynamic rendering." },
 ];
@@ -601,10 +603,15 @@ function FIPSPathTab() {
 │  │  (TL-KEM)    │  │  (TL-DSA)    │  │ (Hash-based)  │  │
 │  └──────────────┘  └──────────────┘  └───────────────┘  │
 ├─────────────────────────────────────────────────────────┤
-│  Quantum Resilience Layer (Prototype)                    │
+│  Quantum Resilience Layer (Operational — 29 tests)       │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
 │  │ [[3,1,2]]_3  │  │ Magic State  │  │  Hamiltonian  │  │
 │  │ Stabilizer   │  │ Distillation │  │  Constraints  │  │
+│  │ QCorrect     │  │ QDistill     │  │  Noether Chk  │  │
+│  └──────────────┘  └──────────────┘  └───────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │ HPTP Jitter  │  │ Qudit d≥3   │  │ QFT Bench    │  │
+│  │ Correction   │  │ Correction   │  │ (0xAF)       │  │
 │  └──────────────┘  └──────────────┘  └───────────────┘  │
 ├─────────────────────────────────────────────────────────┤
 │  Key: T(7)=13 | T(8)=24 | Φ = 13/28 | mod 312 | mod 3 │
@@ -942,6 +949,8 @@ export default function QuantumSim() {
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">ISA v2.1 (0xA0-0xAF)</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">SUFT-Coupled</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">[[3,1,2]]&#x2083; Stabilizer</Badge>
+                <Badge variant="outline" className="text-[10px] border-green-400/40 text-green-300">Operational Kernel</Badge>
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">Noether Invariants</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">CNSA 2.0</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">QVQE/QAOA</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">Patent Pending</Badge>
