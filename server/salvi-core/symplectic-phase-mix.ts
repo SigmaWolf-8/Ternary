@@ -23,23 +23,22 @@
  *
  * ## Theory
  *
- * A symplectic map M satisfies: M^T · J · M = J, where J is the standard
- * symplectic matrix. For a 1D system, the simplest symplectic map is a
- * shear (area-preserving in 2D phase space):
+ * For ternary-valued state arrays (values in {0, 1, 2}), the natural
+ * conserved quantity under GF(3) operations is the **ternary parity**:
  *
- *   q' = q + f(p)
- *   p' = p + g(q')
+ *   P(state) = Σ(state_i) mod 3
  *
- * We apply this to ternary-valued phase state arrays, preserving a mod-13
- * checksum invariant (from SUFT_RADIUS). The mixing improves avalanche
- * behavior in the guardian phase checksum without breaking the conserved
- * quantity.
+ * The mixing uses XOR-like operations in GF(3) that preserve this parity.
+ * Additionally, a mod-13 checksum is computed for SUFT alignment but is
+ * not claimed to be preserved by the mixing itself — the ternary parity
+ * (mod 3) is the true symplectic invariant.
  *
  * ## Integration
  *
- * Chain after the Tribonacci hash in phaseSplit() for enhanced tamper
- * detection. The symplectic property ensures that the mixing is invertible
- * and preserves the checksum mod structure.
+ * The `symplecticGuardianChecksum` function can be used alongside or
+ * in place of the existing Tribonacci hash in the guardian phase of
+ * phase encryption. It applies symplectic mixing before folding into
+ * a 64-bit checksum.
  *
  * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
  */
@@ -48,15 +47,17 @@ import { SUFT_RADIUS, SUFT_LUNAR_HARMONIC, MAGIC_CONSTANT } from '@shared/saturn
 import { TRIBONACCI_SEQUENCE } from '@shared/tribonacci-constants';
 
 /**
- * Applies a symplectic mixing step to a phase state array.
+ * Applies a symplectic mixing step to a ternary phase state array.
  *
- * The map preserves the checksum invariant: Σ(state_i) mod 13 = constant.
- * Each element is updated using its neighbor as the "conjugate momentum"
- * in a shear-style symplectic map.
+ * The map preserves the ternary parity invariant: Σ(state_i) mod 3 = constant.
+ * Each round applies pairwise transfers: for each adjacent pair (i, j),
+ * a delta is transferred from j to i (add delta to i, subtract delta from j).
+ * This guarantees the total mod-3 sum is conserved because each transfer
+ * is zero-sum in GF(3).
  *
- * @param phaseState Array of integer values representing phase state
+ * @param phaseState Array of integer values (will be reduced mod 3)
  * @param rounds     Number of mixing rounds (default: T(7) = 13)
- * @returns Mixed phase state with invariant preserved
+ * @returns Mixed phase state with ternary parity preserved
  */
 export function symplecticPhaseMix(
   phaseState: number[],
@@ -64,21 +65,24 @@ export function symplecticPhaseMix(
 ): number[] {
   if (phaseState.length === 0) return [];
 
-  const state = [...phaseState];
-  const n = state.length;
-  const invariantBefore = computePhaseInvariant(state);
+  const n = phaseState.length;
+  const state = phaseState.map(v => ((v % 3) + 3) % 3);
 
   for (let r = 0; r < rounds; r++) {
-    // Forward shear: q_i' = q_i + q_{i+1} (mod 3)
-    for (let i = 0; i < n; i++) {
-      const neighbor = state[(i + 1) % n];
-      state[i] = ((state[i] + neighbor) % 3 + 3) % 3;
+    // Forward pass: pairwise zero-sum transfers on even-indexed pairs
+    for (let i = 0; i + 1 < n; i += 2) {
+      const j = i + 1;
+      const delta = (state[i] * (r + 1)) % 3;
+      state[i] = (state[i] + delta) % 3;
+      state[j] = ((state[j] - delta) % 3 + 3) % 3;
     }
 
-    // Backward shear: p_i' = p_i + p_{i-1} (mod 3) — conjugate direction
-    for (let i = n - 1; i >= 0; i--) {
-      const neighbor = state[(i - 1 + n) % n];
-      state[i] = ((state[i] + neighbor) % 3 + 3) % 3;
+    // Backward pass: pairwise zero-sum transfers on odd-indexed pairs
+    for (let i = 1; i + 1 < n; i += 2) {
+      const j = i + 1;
+      const delta = (state[j] * (r + 1)) % 3;
+      state[i] = (state[i] + delta) % 3;
+      state[j] = ((state[j] - delta) % 3 + 3) % 3;
     }
   }
 
@@ -86,12 +90,29 @@ export function symplecticPhaseMix(
 }
 
 /**
- * Computes the phase-space invariant: checksum mod SUFT_RADIUS (13).
+ * Computes the ternary parity invariant: Σ(state_i) mod 3.
+ * This is the quantity preserved by symplecticPhaseMix.
  *
  * @param state Phase state array
- * @returns Invariant value in [0, 12]
+ * @returns Parity value in {0, 1, 2}
  */
-export function computePhaseInvariant(state: number[]): number {
+export function computeTernaryParity(state: number[]): number {
+  let sum = 0;
+  for (const val of state) {
+    sum += ((val % 3) + 3) % 3;
+  }
+  return sum % 3;
+}
+
+/**
+ * Computes a mod-13 phase checksum (SUFT-aligned).
+ * Note: This is NOT preserved by symplectic mixing — use computeTernaryParity
+ * for the conserved invariant. This is a supplementary diagnostic.
+ *
+ * @param state Phase state array
+ * @returns Checksum in [0, 12]
+ */
+export function computePhaseChecksum(state: number[]): number {
   let sum = 0;
   for (const val of state) {
     sum += ((val % SUFT_RADIUS) + SUFT_RADIUS) % SUFT_RADIUS;
@@ -111,20 +132,17 @@ export function computePhaseInvariant(state: number[]): number {
  * @returns 16-character hex checksum
  */
 export function symplecticGuardianChecksum(data: string): string {
-  // Step 1: Convert to ternary phase state
   const phaseState: number[] = [];
   for (let i = 0; i < data.length; i++) {
     phaseState.push(data.charCodeAt(i) % 3);
   }
 
-  // Step 2: Apply symplectic mixing
   const mixed = symplecticPhaseMix(phaseState);
 
-  // Step 3: Fold into 64-bit checksum using Saturnian constants
   let h0 = MAGIC_CONSTANT >>> 0; // 333 seed
   let h1 = (SUFT_LUNAR_HARMONIC * SUFT_RADIUS) >>> 0; // 364 seed
 
-  const MIX = Math.floor(TRIBONACCI_SEQUENCE[7] * TRIBONACCI_SEQUENCE[8]); // 312
+  const MIX = TRIBONACCI_SEQUENCE[7] * TRIBONACCI_SEQUENCE[8]; // 312
 
   for (let i = 0; i < mixed.length; i++) {
     const v = mixed[i];
@@ -135,7 +153,6 @@ export function symplecticGuardianChecksum(data: string): string {
     h0 = (h0 ^ h1) >>> 0;
   }
 
-  // 13-round finalization
   for (let r = 0; r < SUFT_RADIUS; r++) {
     h0 = Math.imul(h0 ^ (h0 >>> 16), MIX) >>> 0;
     h1 = Math.imul(h1 ^ (h1 >>> 16), MIX + 1) >>> 0;
@@ -147,15 +164,12 @@ export function symplecticGuardianChecksum(data: string): string {
 }
 
 /**
- * Verifies that symplectic mixing preserves the ternary parity.
- * The total ternary sum mod 3 should be invariant under symplectic maps.
+ * Verifies that symplectic mixing preserved the ternary parity invariant.
  *
  * @param original  Original phase state
- * @param mixed     Mixed phase state
- * @returns Whether ternary parity is preserved
+ * @param mixed     Mixed phase state (output of symplecticPhaseMix)
+ * @returns Whether ternary parity (mod 3 sum) is preserved
  */
 export function verifySymplecticParity(original: number[], mixed: number[]): boolean {
-  const originalParity = original.reduce((s, v) => s + ((v % 3 + 3) % 3), 0) % 3;
-  const mixedParity = mixed.reduce((s, v) => s + ((v % 3 + 3) % 3), 0) % 3;
-  return originalParity === mixedParity;
+  return computeTernaryParity(original) === computeTernaryParity(mixed);
 }

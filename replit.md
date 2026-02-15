@@ -6,13 +6,24 @@ PlenumNET is a post-quantum internet solutions company developing quantum-resist
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
 
+## Repository Metrics (as of February 14, 2026)
+- **Commits:** 646+ on main branch
+- **Source Files:** 723 (excl. node_modules, .git, target)
+- **TypeScript/TSX:** 181 files, ~33,263 lines
+- **Rust:** 140 files, ~58,031 lines
+- **Markdown Documentation:** 99+ files
+- **API Endpoints:** 93 registered Express routes (with /api/v1/ versioning alias)
+- **CI/CD Workflows:** 15 GitHub Actions workflows (including fuzz testing)
+- **Vitest Tests:** 86+ base tests + integration test suites (API routes, blockchain, webhooks)
+- **Fuzz Targets:** 3 (trit ops, tryte ops, gateway)
+
 ## System Architecture
 
 ### Frontend
 The frontend is built with React, TypeScript, Tailwind CSS, Framer Motion, `shadcn/ui`, and Wouter for routing, supporting both light and dark modes with a unified blue brand identity. It features a dual-layout navigation system (`MarketingLayout` for public pages and `DashboardLayout` for tools/admin) with dynamic page titles and anchor navigation. Key pages include the Landing Page, About, Contact, HPTP Timing API Demo, PlenumDB Product Page, Whitepaper Viewer, GitHub Manager, Kong Konnect Integration, Documentation Hub, CNSA 2.0 Compliance, and an Admin Dashboard. The system supports ancient calendar synchronization across 24 global systems, anchoring the Salvi Epoch to provide historical and cross-cultural timing conversions. SEO is optimized with robots.txt, sitemap.xml, JSON-LD, and PWA capabilities.
 
 ### Backend and Core Framework
-The backend utilizes Express.js and Node.js with PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic System operations, Femtosecond Timing, and Phase Encryption. The backend routes are modularized for better organization and maintainability. Security is a priority, incorporating rate limiting, CORS restrictions, Helmet.js security headers, AES-256-GCM token encryption, input validation, and hardened path sanitization. The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service for regulatory compliance.
+The backend utilizes Express.js and Node.js with PostgreSQL and Drizzle ORM. It implements Unified Ternary Logic System operations, Femtosecond Timing, and Phase Encryption. The backend routes are modularized across 6 files (routes.ts, github.ts, kong.ts, salvi.ts, tribonacci.ts, middleware.ts) totaling ~4,057 lines organized by domain. Security is a priority, incorporating tiered rate limiting (4 levels: global 100/min, auth 20/min, token 10/min, computation 50/min), CORS enforcement with origin allowlist, Helmet.js security headers (CSP, HSTS, X-Frame-Options: deny), AES-256-GCM token encryption (SESSION_SECRET required), input validation bounds, hardened path sanitization, and execFile()-only subprocess execution. The architecture includes microservices for payment processing and blockchain witnessing, a Femtosecond Timing Service, and a Certification Service for regulatory compliance. API versioning is supported via /api/v1/ prefix with backward-compatible aliasing.
 
 ### Rust Kernel Architecture
 The `src/kernel/` directory houses a Rust-based kernel providing advanced functionalities:
@@ -32,16 +43,50 @@ The `src/kernel/` directory houses a Rust-based kernel providing advanced functi
 -   **Binary Compatibility Layer**: For balanced ternary conversion and crypto interoperability.
 
 ### Legal & IP Compliance
-All source files include standardized copyright headers from "Capomastro Holdings Ltd. (Canada)" with "Patent(s) Pending." A CI workflow enforces header presence. Legal documents for terms, privacy, and security are served dynamically from markdown content.
+All 321+ source files include standardized copyright headers from "Capomastro Holdings Ltd. (Canada)" with "Patent(s) Pending." A CI workflow (`license-check.yml`) enforces header presence across all directories including services/. Legal documents for terms, privacy, and security are served dynamically from markdown content. IP-NOTICE.md documents patent-pending claims and proprietary algorithms. EXPORT-CONTROL.md provides CNSA 2.0 and Wassenaar classification guidance.
 
 ### GitHub Integration
-An admin-only GitHub Manager page facilitates file browsing for the `SigmaWolf-8/Ternary` repository and enables push actions for CI/CD, crypto modules, and project synchronization.
+An admin-only GitHub Manager page facilitates file browsing for the `SigmaWolf-8/Ternary` repository and enables push actions for CI/CD, crypto modules, and project synchronization. Branch protection is enabled on main with required status checks.
+
+### Saturnian Magic Square Blueprint (February 15, 2026)
+The `shared/saturnian-blueprint.ts` module provides the 3×3 Saturnian circulant magic square (111, 14, 208 with magic constant 333) as a static foundation for SUFT-derived constants. It bridges directly to the Tribonacci sequence: RADIUS_COSMIC = 13 = T(7), PI_ESOTERIC = 14 = T(7)+T(3), LUNAR_SOLAR_HARMONIC = 28, COSMIC_CIRCUMFERENCE = 364 — all exact integer identities matching the ternary circle axioms. Companion utilities in `shared/saturnian-matrix-utils.ts` provide flattening, cyclic rotation, ternary weighting, and magic/circulant validation. 29 Vitest tests verify all derivations.
+
+### Hamiltonian Mechanics Integration (February 15, 2026)
+Three modules integrate Hamiltonian mechanics concepts into the platform:
+1. **HPTP Symplectic Jitter Corrector** (`server/salvi-core/hptp-symplectic-corrector.ts`): Leapfrog (Störmer–Verlet) integration for femtosecond jitter correction with energy conservation tracking. Reduces cumulative drift in multi-calendar sync.
+2. **Hamiltonian VM Constraints** (`shared/hamiltonian-constraints.ts`): Energy invariant enforcement on 27 registers (3³) with mod-312 constraint modulus (T(7)×T(8)=13×24), per-bank ternary parity, and opcode sequence validation.
+3. **Symplectic Phase Mixing** (`server/salvi-core/symplectic-phase-mix.ts`): Structure-preserving mixing step for phase encryption with mod-13 checksum invariant and symplectic guardian checksum. 28 Vitest tests verify all three modules.
 
 ### Testing
-Testing is conducted using Vitest, with dedicated test files for ternary operations, phase encryption, and calendar synchronization. CI workflows trigger tests on push/PR.
+Testing is conducted using Vitest with multiple test suites:
+- 29 Saturnian blueprint + Tribonacci bridge tests (saturnian-blueprint.test.ts)
+- 28 Hamiltonian mechanics tests (hamiltonian-mechanics.test.ts)
+- 50 GF(3) arithmetic tests (ternary-operations.test.ts)
+- 25 phase encryption tests (phase-encryption.test.ts)
+- 11 calendar synchronization tests (calendar-sync.test.ts)
+- API route integration tests (tests/integration/api-routes.test.ts)
+- Blockchain service tests (tests/integration/blockchain-services.test.ts)
+- Payment webhook tests (tests/integration/payment-webhooks.test.ts)
+- 3 Rust fuzz targets with CI workflow (fuzz.yml)
+- Kernel tests with cargo test, coverage, Miri, and feature matrix CI
+
+### 28-Dimension Agent Array (February 15, 2026)
+The Agent Array system orchestrates 28 specialist AI agents analyzing queries in parallel. Architecture: all agents analyze in English → Etymology Audit → Veritas Fact-Check → synthesize ONE unified Situation Report (with Veritas verdicts incorporated) → Lexical Protocol enforcement → translate into 28 world languages (concurrency=14). Three integrity protocols ensure factual accuracy:
+- **Etymology Engine**: Traces term origins, evolution, cross-cultural notes; flags anachronistic/incorrect usage; identifies synchronized vs unsynchronized terms
+- **Veritas Audit**: 5-source, 3-culture fact-checking with confidence scores and verdicts (VERIFIED/UNVERIFIED/DISPUTED/FALSE); FALSE claims excluded from final report; DISPUTED/UNVERIFIED claims qualified with caveats
+- **Lexical Protocols** (v2.0): Terminological consistency enforcement across 28 translations; etymological anchoring; Latin legal maxims preserved; unsynchronized terms get local equivalent + English parenthetical
+SSE events: agent_result, layer1_complete, layer2_section, executive_summary, etymology_start, etymology_complete, veritas_start, veritas_complete, report_start, report_generated, translation_progress, lexical_applied, translations_complete. Reports persist to `agent_array_reports` PostgreSQL table. Frontend: Integrity Protocols panel (Etymology/Veritas/Lexical), SituationReportViewer with 28-language filter buttons, copy/save, and ReportHistory.
 
 ### Kong Gateway Integration
 Kong Konnect API integration manages services, routes, and plugins. It supports service synchronization for PlenumNET's 17 services (97 endpoints) and allows optional Kong proxy routing in the frontend.
+
+### Security Middleware Stack
+- **Rate Limiting:** 4 tiers (global, auth, token, computation) via express-rate-limit
+- **CORS:** Origin allowlist with strict rejection
+- **Headers:** Helmet.js with CSP, HSTS, X-Frame-Options: deny, X-Content-Type-Options: nosniff
+- **Encryption:** AES-256-GCM for token storage, SESSION_SECRET required (no fallbacks)
+- **Path Security:** Null-byte stripping, double URL-decode protection, post-normalize traversal rejection
+- **Subprocess:** execFile() only, zero exec() calls
 
 ## External Dependencies
 

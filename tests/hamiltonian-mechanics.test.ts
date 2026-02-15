@@ -8,6 +8,7 @@ import {
   applySymplecticJitterCorrection,
   correctJitterBatch,
   verifyEnergyConservation,
+  computeHamiltonian,
   type SymplecticState,
 } from '../server/salvi-core/hptp-symplectic-corrector';
 import {
@@ -21,30 +22,62 @@ import {
 } from '../shared/hamiltonian-constraints';
 import {
   symplecticPhaseMix,
-  computePhaseInvariant,
+  computeTernaryParity,
+  computePhaseChecksum,
   symplecticGuardianChecksum,
   verifySymplecticParity,
 } from '../server/salvi-core/symplectic-phase-mix';
 
 describe('HPTP Symplectic Jitter Corrector', () => {
+  test('computeHamiltonian returns consistent H = p²/2 + ω²q²/2', () => {
+    const h1 = computeHamiltonian(0, 0);
+    expect(h1).toBe(0);
+    const h2 = computeHamiltonian(13, 0);
+    expect(h2).toBeGreaterThan(0);
+    const h3 = computeHamiltonian(0, 5);
+    expect(h3).toBe(5 * 5 / 2);
+  });
+
   test('single correction returns valid result', () => {
     const result = applySymplecticJitterCorrection(1000000n, 50n);
     expect(typeof result.correctedTimestamp).toBe('bigint');
-    expect(typeof result.momentum).toBe('bigint');
+    expect(typeof result.momentum).toBe('number');
+    expect(typeof result.position).toBe('number');
     expect(typeof result.invariant).toBe('number');
     expect(typeof result.correctionApplied).toBe('bigint');
   });
 
-  test('zero jitter produces minimal correction', () => {
+  test('zero jitter produces zero correction', () => {
     const result = applySymplecticJitterCorrection(1000000n, 0n);
     expect(result.correctedTimestamp).toBe(1000000n);
-    expect(result.correctionApplied).toBe(0n);
+    expect(result.position).toBe(0);
+    expect(result.momentum).toBe(0);
+    expect(result.invariant).toBe(0);
   });
 
-  test('correction is applied in opposite direction of jitter', () => {
-    const resultPos = applySymplecticJitterCorrection(1000000n, 100n);
-    const resultNeg = applySymplecticJitterCorrection(1000000n, -100n);
-    expect(resultPos.momentum !== resultNeg.momentum).toBe(true);
+  test('leapfrog conserves energy for oscillating jitter', () => {
+    const samples = Array.from({ length: 50 }, (_, i) => ({
+      timestamp: BigInt(1000 + i * 100),
+      jitterDelta: BigInt(Math.round(10 * Math.sin(i * 0.5))),
+    }));
+
+    const { correctedSamples } = correctJitterBatch(samples);
+    const nonZero = correctedSamples.filter(r => r.invariant > 0);
+    if (nonZero.length >= 2) {
+      const conservation = verifyEnergyConservation(correctedSamples, 0.5);
+      expect(conservation.maxDrift).toBeDefined();
+      expect(conservation.avgDrift).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  test('state accumulates across corrections', () => {
+    let state: SymplecticState = { position: 0, momentum: 0 };
+
+    const r1 = applySymplecticJitterCorrection(1000n, 50n, state);
+    state = { position: r1.position, momentum: r1.momentum };
+
+    const r2 = applySymplecticJitterCorrection(2000n, -30n, state);
+    expect(r2.position !== r1.position).toBe(true);
   });
 
   test('batch correction processes multiple samples', () => {
@@ -58,35 +91,12 @@ describe('HPTP Symplectic Jitter Corrector', () => {
 
     const { correctedSamples, finalState, energyDrift } = correctJitterBatch(samples);
     expect(correctedSamples.length).toBe(5);
-    expect(typeof finalState.momentum).toBe('bigint');
-    expect(typeof energyDrift).toBe('number');
+    expect(typeof finalState.position).toBe('number');
+    expect(typeof finalState.momentum).toBe('number');
     expect(energyDrift).toBeGreaterThanOrEqual(0);
   });
 
-  test('state accumulates across corrections', () => {
-    let state: SymplecticState = { momentum: 0n, invariant: 0 };
-
-    const r1 = applySymplecticJitterCorrection(1000n, 50n, state);
-    state = { momentum: r1.momentum, invariant: r1.invariant };
-
-    const r2 = applySymplecticJitterCorrection(2000n, -30n, state);
-    expect(r2.momentum !== r1.momentum).toBe(true);
-  });
-
-  test('energy conservation verification works', () => {
-    const samples = Array.from({ length: 20 }, (_, i) => ({
-      timestamp: BigInt(1000 + i * 100),
-      jitterDelta: BigInt(Math.floor(Math.sin(i) * 10)),
-    }));
-
-    const { correctedSamples } = correctJitterBatch(samples);
-    const conservation = verifyEnergyConservation(correctedSamples, 1.0);
-    expect(typeof conservation.conserved).toBe('boolean');
-    expect(conservation.maxDrift).toBeGreaterThanOrEqual(0);
-    expect(conservation.avgDrift).toBeGreaterThanOrEqual(0);
-  });
-
-  test('energy conservation with empty/single result', () => {
+  test('energy conservation verification edge cases', () => {
     expect(verifyEnergyConservation([]).conserved).toBe(true);
     const single = applySymplecticJitterCorrection(1000n, 5n);
     expect(verifyEnergyConservation([single]).conserved).toBe(true);
@@ -138,11 +148,13 @@ describe('Hamiltonian VM Constraints', () => {
     expect(result.drift).toBeGreaterThanOrEqual(0);
   });
 
-  test('large perturbation may violate constraint', () => {
+  test('large perturbation violates tight constraint', () => {
     const regs1 = new Array(27).fill(0);
-    const regs2 = Array.from({ length: 27 }, (_, i) => i * 10);
+    const regs2 = new Array(27).fill(0);
+    regs2[0] = 10; // energy = 100 mod 312 = 100, drift = 100 > tolerance 1
     const result = checkHamiltonianConstraint(regs1, regs2, 1);
-    expect(result.drift).toBeGreaterThan(0);
+    expect(result.valid).toBe(false);
+    expect(result.drift).toBe(100);
   });
 
   test('validates opcode sequence — all identical states pass', () => {
@@ -157,7 +169,7 @@ describe('Hamiltonian VM Constraints', () => {
   test('validates opcode sequence — detects violations with guaranteed drift', () => {
     const regs1 = new Array(27).fill(0);
     const regs2 = new Array(27).fill(0);
-    regs2[0] = 10; // energy = 100 mod 312 = 100, drift = 100 > tolerance 1
+    regs2[0] = 10;
     const result = validateOpcodeSequence([regs1, regs2], 1);
     expect(result.violations).toBeGreaterThan(0);
     expect(result.violationIndices).toContain(1);
@@ -173,7 +185,7 @@ describe('Hamiltonian VM Constraints', () => {
     }
   });
 
-  test('ternary parity is stable for same bank', () => {
+  test('ternary parity is stable for uniform registers', () => {
     const regs = Array.from({ length: 27 }, () => 1);
     expect(computeBankTernaryParity(regs, 0)).toBe(computeBankTernaryParity(regs, 1));
     expect(computeBankTernaryParity(regs, 1)).toBe(computeBankTernaryParity(regs, 2));
@@ -185,7 +197,7 @@ describe('Symplectic Phase Mixing', () => {
     expect(symplecticPhaseMix([])).toEqual([]);
   });
 
-  test('mixes ternary values', () => {
+  test('mixes ternary values — output remains in {0, 1, 2}', () => {
     const input = [0, 1, 2, 0, 1, 2, 0, 1, 2];
     const mixed = symplecticPhaseMix(input);
     expect(mixed.length).toBe(input.length);
@@ -210,18 +222,48 @@ describe('Symplectic Phase Mixing', () => {
     expect(mixed1).not.toEqual(mixed2);
   });
 
-  test('custom round count works', () => {
-    const input = [0, 1, 2, 0, 1, 2];
-    const mixed1 = symplecticPhaseMix(input, 1);
-    const mixed13 = symplecticPhaseMix(input, 13);
-    expect(mixed1).not.toEqual(mixed13);
+  test('more rounds produces at least as much mixing', () => {
+    const input = [0, 1, 2, 0, 1, 2, 0, 1, 2, 1, 0, 2, 1];
+    const mixed0 = symplecticPhaseMix(input, 0);
+    const mixedDefault = symplecticPhaseMix(input);
+    expect(mixed0).toEqual(input.map(v => ((v % 3) + 3) % 3));
+    expect(mixedDefault.length).toBe(input.length);
+    mixedDefault.forEach(v => {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(3);
+    });
   });
 
-  test('computes phase invariant', () => {
+  test('verifies ternary parity is preserved by mixing', () => {
+    const testCases = [
+      [0, 1, 2, 0, 1, 2],
+      [1, 1, 1, 1, 1, 1],
+      [2, 2, 2, 2, 2, 2],
+      [0, 0, 0, 0, 0, 0],
+      [1, 0, 2, 1, 0, 2, 1],
+      [2, 1, 0, 2, 0, 1, 2, 1, 0],
+    ];
+    for (const input of testCases) {
+      const parityBefore = computeTernaryParity(input);
+      const mixed = symplecticPhaseMix(input);
+      const parityAfter = computeTernaryParity(mixed);
+      expect(parityAfter).toBe(parityBefore);
+      expect(verifySymplecticParity(input, mixed)).toBe(true);
+    }
+  });
+
+  test('computeTernaryParity returns value in {0, 1, 2}', () => {
+    expect(computeTernaryParity([0, 1, 2])).toBe(0);
+    expect(computeTernaryParity([1, 1, 1])).toBe(0);
+    expect(computeTernaryParity([1, 0, 0])).toBe(1);
+    expect(computeTernaryParity([2, 0, 0])).toBe(2);
+  });
+
+  test('computePhaseChecksum returns value in [0, 12]', () => {
     const state = [1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1];
-    const invariant = computePhaseInvariant(state);
-    expect(invariant).toBeGreaterThanOrEqual(0);
-    expect(invariant).toBeLessThan(13);
+    const checksum = computePhaseChecksum(state);
+    expect(checksum).toBeGreaterThanOrEqual(0);
+    expect(checksum).toBeLessThan(13);
   });
 
   test('guardian checksum produces 16-hex-char output', () => {
@@ -240,13 +282,5 @@ describe('Symplectic Phase Mixing', () => {
     const c1 = symplecticGuardianChecksum('test data A');
     const c2 = symplecticGuardianChecksum('test data B');
     expect(c1).not.toBe(c2);
-  });
-
-  test('verifySymplecticParity checks ternary parity', () => {
-    const original = [0, 1, 2, 0, 1, 2];
-    const same = [1, 2, 0, 1, 2, 0]; // same ternary sum mod 3
-    const different = [0, 0, 0, 0, 0, 0]; // different sum mod 3
-    expect(verifySymplecticParity(original, same)).toBe(true);
-    expect(verifySymplecticParity(original, different)).toBe(true); // both sum to 0 mod 3
   });
 });

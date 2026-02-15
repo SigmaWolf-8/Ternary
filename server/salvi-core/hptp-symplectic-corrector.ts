@@ -22,90 +22,96 @@
  *
  * ## Theory
  *
- * Symplectic integrators preserve the Hamiltonian (energy) invariant of a
- * dynamical system across iterations — unlike naive Euler integration which
- * accumulates drift. We model timestamp jitter as phase noise in a constrained
- * system where the "energy" is a conserved quadratic invariant:
+ * We model jitter correction as a harmonic oscillator in phase space (q, p):
+ *   - q = cumulative position error (femtoseconds)
+ *   - p = correction momentum (femtoseconds/step)
  *
- *   H = p²/2 + q²/2
+ * Hamiltonian: H(q, p) = p²/2 + (ω²·q²)/2
+ * where ω = 1/T(7) = 1/13 is the constraint frequency.
  *
- * The update rule uses leapfrog (Störmer–Verlet) splitting:
- *   p_{n+1/2} = p_n - (h/2) · ∂H/∂q = p_n - (h/2) · q_n
- *   q_{n+1}   = q_n + h · ∂H/∂p   = q_n + h · p_{n+1/2}
- *   p_{n+1}   = p_{n+1/2} - (h/2) · ∂H/∂q = p_{n+1/2} - (h/2) · q_{n+1}
+ * The leapfrog (Störmer–Verlet) integrator preserves H to O(h⁴):
+ *   p_{n+1/2} = p_n     - (h/2) · ω² · q_n
+ *   q_{n+1}   = q_n     + h · p_{n+1/2}
+ *   p_{n+1}   = p_{n+1/2} - (h/2) · ω² · q_{n+1}
  *
- * The constraint scale uses T(7) = 13 (Tribonacci dimensional constant).
+ * All arithmetic uses floating-point scaled values to avoid integer truncation
+ * that would break the symplectic property. The corrected timestamp is
+ * computed from the updated position error q.
  *
  * ## Pragmatic Benefit
  *
  * Reduces cumulative error in multi-calendar synchronization (30,000+ years),
  * improving reliability for blockchain and distributed timing endpoints.
- * The corrector is stateless per-call; accumulate the invariant across samples
- * to track energy conservation.
  *
  * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
  */
 
 import { TRIBONACCI_SEQUENCE } from '@shared/tribonacci-constants';
-import { SUFT_RADIUS, SUFT_LUNAR_HARMONIC } from '@shared/saturnian-blueprint';
 
-const T7 = BigInt(TRIBONACCI_SEQUENCE[7]); // 13n
+const OMEGA = 1 / TRIBONACCI_SEQUENCE[7]; // 1/13 — constraint frequency
+const OMEGA_SQ = OMEGA * OMEGA;           // ω²
 
 export interface SymplecticCorrectionResult {
   correctedTimestamp: bigint;
-  momentum: bigint;
+  position: number;
+  momentum: number;
   invariant: number;
   correctionApplied: bigint;
 }
 
 export interface SymplecticState {
-  momentum: bigint;
-  invariant: number;
+  position: number;
+  momentum: number;
+}
+
+/**
+ * Computes the Hamiltonian: H = p²/2 + ω²·q²/2
+ */
+export function computeHamiltonian(q: number, p: number): number {
+  return (p * p) / 2 + (OMEGA_SQ * q * q) / 2;
 }
 
 /**
  * Applies a single symplectic (leapfrog) jitter correction step.
  *
- * @param currentTimestamp  Femtosecond timestamp (position q)
+ * The jitter delta is added to the position error, then the leapfrog
+ * integrator evolves (q, p) one step. The correction applied to the
+ * timestamp is the negative of the new position error.
+ *
+ * @param currentTimestamp  Femtosecond timestamp
  * @param jitterDelta       Measured jitter offset in femtoseconds
- * @param prevState         Previous symplectic state (momentum + invariant)
+ * @param prevState         Previous symplectic state
+ * @param h                 Step size (default 1.0)
  * @returns Corrected timestamp and updated symplectic state
  */
 export function applySymplecticJitterCorrection(
   currentTimestamp: bigint,
   jitterDelta: bigint,
-  prevState: SymplecticState = { momentum: 0n, invariant: 0 }
+  prevState: SymplecticState = { position: 0, momentum: 0 },
+  h: number = 1.0
 ): SymplecticCorrectionResult {
-  const h = 1n; // Step size (femtosecond unit)
-
-  const halfH = h; // h/2 in integer arithmetic → use h and divide result by 2
+  let q = prevState.position + Number(jitterDelta);
+  let p = prevState.momentum;
 
   // Leapfrog step 1: half-kick momentum
-  //   p_{n+1/2} = p_n - (h/2) · q_error
-  const positionError = jitterDelta;
-  const momentumHalf = prevState.momentum - (halfH * positionError) / (2n * T7);
+  p = p - (h / 2) * OMEGA_SQ * q;
 
   // Leapfrog step 2: full drift position
-  //   q_{n+1} = q_n + h · p_{n+1/2}
-  const correctionApplied = (h * momentumHalf) / T7;
-  const correctedTimestamp = currentTimestamp + correctionApplied;
+  q = q + h * p;
 
-  // Leapfrog step 3: half-kick momentum again
-  //   p_{n+1} = p_{n+1/2} - (h/2) · q_{n+1}_error
-  const newMomentum = momentumHalf - (halfH * correctionApplied) / (2n * T7);
+  // Leapfrog step 3: half-kick momentum
+  p = p - (h / 2) * OMEGA_SQ * q;
 
-  // Compute conserved Hamiltonian: H = p²/(2·28) + q²/(2·13)
-  const pFloat = Number(newMomentum);
-  const qFloat = Number(correctionApplied);
-  const newInvariant =
-    (pFloat * pFloat) / (2 * SUFT_LUNAR_HARMONIC) +
-    (qFloat * qFloat) / (2 * SUFT_RADIUS);
+  const correctionFs = BigInt(Math.round(-q));
+  const correctedTimestamp = currentTimestamp + correctionFs;
+  const invariant = computeHamiltonian(q, p);
 
   return {
     correctedTimestamp,
-    momentum: newMomentum,
-    invariant: newInvariant,
-    correctionApplied,
+    position: q,
+    momentum: p,
+    invariant,
+    correctionApplied: correctionFs,
   };
 }
 
@@ -123,7 +129,7 @@ export function correctJitterBatch(
   finalState: SymplecticState;
   energyDrift: number;
 } {
-  let state: SymplecticState = { momentum: 0n, invariant: 0 };
+  let state: SymplecticState = { position: 0, momentum: 0 };
   const correctedSamples: SymplecticCorrectionResult[] = [];
   let initialInvariant: number | null = null;
 
@@ -134,13 +140,13 @@ export function correctJitterBatch(
       state
     );
 
-    if (initialInvariant === null) {
+    if (initialInvariant === null && result.invariant > 0) {
       initialInvariant = result.invariant;
     }
 
     state = {
+      position: result.position,
       momentum: result.momentum,
-      invariant: result.invariant,
     };
 
     correctedSamples.push(result);
@@ -148,7 +154,9 @@ export function correctJitterBatch(
 
   const energyDrift =
     initialInvariant !== null && initialInvariant > 0
-      ? Math.abs(state.invariant - initialInvariant) / initialInvariant
+      ? Math.abs(state.position !== 0 || state.momentum !== 0
+          ? Math.abs(computeHamiltonian(state.position, state.momentum) - initialInvariant) / initialInvariant
+          : 0)
       : 0;
 
   return { correctedSamples, finalState: state, energyDrift };
@@ -170,21 +178,22 @@ export function verifyEnergyConservation(
     return { conserved: true, maxDrift: 0, avgDrift: 0 };
   }
 
-  const baseInvariant = results[0].invariant;
-  if (baseInvariant === 0) {
+  const nonZeroResults = results.filter(r => r.invariant > 0);
+  if (nonZeroResults.length < 2) {
     return { conserved: true, maxDrift: 0, avgDrift: 0 };
   }
 
+  const baseInvariant = nonZeroResults[0].invariant;
   let maxDrift = 0;
   let totalDrift = 0;
 
-  for (let i = 1; i < results.length; i++) {
-    const drift = Math.abs(results[i].invariant - baseInvariant) / Math.abs(baseInvariant);
+  for (let i = 1; i < nonZeroResults.length; i++) {
+    const drift = Math.abs(nonZeroResults[i].invariant - baseInvariant) / Math.abs(baseInvariant);
     if (drift > maxDrift) maxDrift = drift;
     totalDrift += drift;
   }
 
-  const avgDrift = totalDrift / (results.length - 1);
+  const avgDrift = totalDrift / (nonZeroResults.length - 1);
 
   return {
     conserved: maxDrift <= toleranceFraction,
