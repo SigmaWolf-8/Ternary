@@ -23,6 +23,7 @@ import { registerGitHubRoutes } from "./routes/github";
 import { registerKongRoutes } from "./routes/kong";
 import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
+import { registerAgentArrayRoutes } from "./routes/agent-array";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -50,12 +51,21 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  app.use((req, _res, next) => {
+    if (req.path.startsWith("/api/v1/")) {
+      req.url = req.url.replace("/api/v1/", "/api/");
+    }
+    next();
+  });
+
   const legalDocMap: Record<string, { file: string; title: string }> = {
     terms: { file: "TERMS-OF-SERVICE.md", title: "Terms of Service" },
     privacy: { file: "PRIVACY-POLICY.md", title: "Privacy Policy" },
-    security: { file: ".github/SECURITY.md", title: "Security Policy" },
+    security: { file: "SECURITY.md", title: "Security Policy" },
     aup: { file: "ACCEPTABLE-USE-POLICY.md", title: "Acceptable Use Policy" },
+    "export-control": { file: "EXPORT-CONTROL.md", title: "Export Control Classification" },
+    "ip-notice": { file: "IP-NOTICE.md", title: "Intellectual Property Notice" },
   };
 
   app.get("/api/health", async (_req, res) => {
@@ -913,6 +923,11 @@ export async function registerRoutes(
   // TRIBONACCI INDEXING LAYER API — extracted to server/routes/tribonacci.ts
   // =====================================================
   registerTribonacciRoutes(app);
+
+  // =====================================================
+  // 28-DIMENSION AI AGENT ARRAY — extracted to server/routes/agent-array.ts
+  // =====================================================
+  registerAgentArrayRoutes(app);
 
   // =====================================================
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
