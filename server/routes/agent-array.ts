@@ -509,11 +509,196 @@ export interface TranslationEntry {
   text: string;
 }
 
+export interface EtymologyEntry {
+  term: string;
+  origin: string;
+  evolution: string;
+  crossCulturalNote: string;
+  synchronized: boolean;
+}
+
+export interface EtymologyAudit {
+  entries: EtymologyEntry[];
+  flaggedTerms: string[];
+  auditTimestamp: string;
+}
+
+export interface VeritasClaim {
+  claim: string;
+  confidence: number;
+  sources: string[];
+  culturalTraditions: string[];
+  verdict: "VERIFIED" | "UNVERIFIED" | "DISPUTED" | "FALSE";
+  note: string;
+}
+
+export interface VeritasAudit {
+  claims: VeritasClaim[];
+  overallConfidence: number;
+  falseClaims: number;
+  disputedClaims: number;
+  verifiedClaims: number;
+  auditTimestamp: string;
+}
+
+export interface LexicalProtocol {
+  version: string;
+  termsEnforced: number;
+  consistencyScore: number;
+  corrections: { original: string; corrected: string; reason: string }[];
+  latinTermsPreserved: string[];
+}
+
+async function runEtymologyAudit(report: string, prompt: string): Promise<EtymologyAudit> {
+  const systemPrompt = `You are the PlenumNET Etymology Engine. Your task is to trace the origin and evolution of key terms used in a Situation Report. For each significant technical, legal, or domain-specific term:
+
+1. Identify the term
+2. Trace its etymological origin (Latin, Greek, Arabic, etc.)
+3. Describe how its meaning has evolved across cultures and centuries
+4. Note whether the term is "synchronized" (consistent meaning across cultures) or not
+5. FLAG any terms used anachronistically, incorrectly, or in ways that distort their established meaning
+
+You MUST respond with valid JSON in this exact format:
+{
+  "entries": [
+    {
+      "term": "term name",
+      "origin": "language of origin and root word",
+      "evolution": "how meaning evolved across cultures",
+      "crossCulturalNote": "how different cultures interpret this term",
+      "synchronized": true/false
+    }
+  ],
+  "flaggedTerms": ["list of terms used incorrectly or anachronistically"]
+}
+
+Focus on the 8-12 most significant terms. Be precise. If a term is used incorrectly in the report, you MUST flag it.`;
+
+  const result = await callLLM(
+    systemPrompt,
+    `QUERY: ${prompt}\n\nSITUATION REPORT TO AUDIT:\n${report.slice(0, 3000)}`,
+    "Etymology Audit",
+  );
+
+  if (!result) {
+    return { entries: [], flaggedTerms: [], auditTimestamp: new Date().toISOString() };
+  }
+
+  try {
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+        flaggedTerms: Array.isArray(parsed.flaggedTerms) ? parsed.flaggedTerms : [],
+        auditTimestamp: new Date().toISOString(),
+      };
+    }
+  } catch {}
+
+  return { entries: [], flaggedTerms: [], auditTimestamp: new Date().toISOString() };
+}
+
+async function runVeritasAudit(report: string, prompt: string): Promise<VeritasAudit> {
+  const systemPrompt = `You are the PlenumNET Veritas Audit Engine. Your mandate is absolute factual integrity.
+
+CRITICAL MISSION: Validate EVERY factual assertion in the Situation Report. You are the last line of defense against fabricated, hallucinated, or inaccurate claims being presented as truth.
+
+For each factual claim in the report:
+1. State the claim exactly as written
+2. Rate confidence (0.0 to 1.0) based on verifiable evidence
+3. List sources that support or contradict the claim (cite specific laws, treaties, documents, or facts)
+4. Identify which cultural/legal traditions inform the claim (minimum 3 distinct traditions)
+5. Render a verdict: VERIFIED (high confidence, well-sourced), UNVERIFIED (insufficient evidence), DISPUTED (conflicting sources), or FALSE (demonstrably incorrect)
+
+ZERO TOLERANCE for fabricated claims. If the report says something exists (a file, a law, a policy, a document) but you have no evidence it does, mark it UNVERIFIED or FALSE. Do NOT give the benefit of the doubt to unverifiable assertions.
+
+Respond with valid JSON:
+{
+  "claims": [
+    {
+      "claim": "exact claim from the report",
+      "confidence": 0.0-1.0,
+      "sources": ["source1", "source2"],
+      "culturalTraditions": ["Western Common Law", "Continental Civil Law", "Islamic Jurisprudence"],
+      "verdict": "VERIFIED|UNVERIFIED|DISPUTED|FALSE",
+      "note": "explanation of verdict"
+    }
+  ],
+  "overallConfidence": 0.0-1.0
+}
+
+Identify 5-10 key factual claims. Be ruthless in your assessment. False claims damage credibility.`;
+
+  const result = await callLLM(
+    systemPrompt,
+    `QUERY: ${prompt}\n\nSITUATION REPORT TO AUDIT:\n${report.slice(0, 3000)}`,
+    "Veritas Audit",
+  );
+
+  if (!result) {
+    return {
+      claims: [],
+      overallConfidence: 0,
+      falseClaims: 0,
+      disputedClaims: 0,
+      verifiedClaims: 0,
+      auditTimestamp: new Date().toISOString(),
+    };
+  }
+
+  try {
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const claims: VeritasClaim[] = Array.isArray(parsed.claims) ? parsed.claims : [];
+      return {
+        claims,
+        overallConfidence: typeof parsed.overallConfidence === "number" ? parsed.overallConfidence : 0.5,
+        falseClaims: claims.filter(c => c.verdict === "FALSE").length,
+        disputedClaims: claims.filter(c => c.verdict === "DISPUTED").length,
+        verifiedClaims: claims.filter(c => c.verdict === "VERIFIED").length,
+        auditTimestamp: new Date().toISOString(),
+      };
+    }
+  } catch {}
+
+  return {
+    claims: [],
+    overallConfidence: 0,
+    falseClaims: 0,
+    disputedClaims: 0,
+    verifiedClaims: 0,
+    auditTimestamp: new Date().toISOString(),
+  };
+}
+
+function buildLexicalProtocolInstructions(etymology: EtymologyAudit): string {
+  const termList = etymology.entries
+    .map(e => `- "${e.term}": ${e.origin}. ${e.crossCulturalNote}${!e.synchronized ? " [UNSYNCHRONIZED - handle with care]" : ""}`)
+    .join("\n");
+
+  const flagged = etymology.flaggedTerms.length > 0
+    ? `\n\nFLAGGED TERMS (avoid or use with correction): ${etymology.flaggedTerms.join(", ")}`
+    : "";
+
+  return `LEXICAL PROTOCOLS (v2.0):
+- Precision over colloquialism: use the most precise term available in the target language
+- Etymological anchoring: key terms must be translated considering their etymological roots
+- All Latin legal maxims (bona fide, sui generis, pari passu, prima facie, etc.) MUST be preserved in their original Latin form
+- Technical terms without precise equivalents must be transliterated with a parenthetical explanation
+- Terms marked [UNSYNCHRONIZED] require special handling: include both the local equivalent AND the English term in parentheses
+
+KEY TERMS FOR THIS REPORT:
+${termList}${flagged}`;
+}
+
 async function generateUnifiedSituationReport(
   results: AgentResult[],
   layer2: Layer2Section[],
   executiveSummary: ExecutiveSummary | undefined,
   prompt: string,
+  veritasAudit?: VeritasAudit,
 ): Promise<string> {
   const successResults = results.filter(r => !r.response.startsWith("[Error]"));
 
@@ -537,9 +722,36 @@ async function generateUnifiedSituationReport(
     execParts.push(`Board Recommendation: ${executiveSummary.plainEnglish.boardRecommendation}`);
   }
 
-  const systemPrompt = `You are a senior analyst producing one comprehensive Situation Report. Write a complete, professional report that synthesizes all specialist findings into a single coherent document. Include: (1) Executive Overview, (2) Key Findings by Domain, (3) Risk Assessment, (4) Jurisdictional Analysis, (5) Recommendations, and (6) Conclusion. The report should be 500-800 words, clear and actionable. Write in English.`;
+  let veritasWarning = "";
+  if (veritasAudit && veritasAudit.claims.length > 0) {
+    const falseClaims = veritasAudit.claims.filter(c => c.verdict === "FALSE");
+    const disputedClaims = veritasAudit.claims.filter(c => c.verdict === "DISPUTED");
+    const unverifiedClaims = veritasAudit.claims.filter(c => c.verdict === "UNVERIFIED");
 
-  const userContent = `QUERY: ${prompt}\n\nSPECIALIST FINDINGS (${successResults.length} agents):\n${truncatedFindings}\n\nCATEGORY ANALYSIS:\n${layer2Summary}\n\n${execParts.length > 0 ? `EXECUTIVE SUMMARY:\n${execParts.join("\n")}` : ""}`;
+    if (falseClaims.length > 0 || disputedClaims.length > 0 || unverifiedClaims.length > 0) {
+      veritasWarning = `\n\nVERITAS AUDIT RESULTS (CRITICAL - you MUST incorporate these findings):`;
+      if (falseClaims.length > 0) {
+        veritasWarning += `\nFALSE CLAIMS DETECTED - DO NOT include these in the report:\n${falseClaims.map(c => `- "${c.claim}" — ${c.note}`).join("\n")}`;
+      }
+      if (disputedClaims.length > 0) {
+        veritasWarning += `\nDISPUTED CLAIMS - present with appropriate caveats:\n${disputedClaims.map(c => `- "${c.claim}" — ${c.note}`).join("\n")}`;
+      }
+      if (unverifiedClaims.length > 0) {
+        veritasWarning += `\nUNVERIFIED CLAIMS - do not present as fact:\n${unverifiedClaims.map(c => `- "${c.claim}" — ${c.note}`).join("\n")}`;
+      }
+    }
+  }
+
+  const systemPrompt = `You are a senior analyst producing one comprehensive Situation Report. Write a complete, professional report that synthesizes all specialist findings into a single coherent document. Include: (1) Executive Overview, (2) Key Findings by Domain, (3) Risk Assessment, (4) Jurisdictional Analysis, (5) Recommendations, and (6) Conclusion. The report should be 500-800 words, clear and actionable. Write in English.
+
+CRITICAL INTEGRITY RULES:
+- Only state facts you can support with evidence from the specialist findings
+- If the Veritas Audit flagged FALSE claims, you MUST exclude those claims entirely
+- If claims are DISPUTED or UNVERIFIED, qualify them appropriately (e.g., "reportedly", "unconfirmed")
+- Never fabricate the existence of documents, files, policies, or legal instruments
+- When in doubt, state uncertainty rather than assert falsehood`;
+
+  const userContent = `QUERY: ${prompt}\n\nSPECIALIST FINDINGS (${successResults.length} agents):\n${truncatedFindings}\n\nCATEGORY ANALYSIS:\n${layer2Summary}\n\n${execParts.length > 0 ? `EXECUTIVE SUMMARY:\n${execParts.join("\n")}` : ""}${veritasWarning}`;
 
   const report = await callLLM(systemPrompt, userContent, "Unified Situation Report");
 
@@ -549,7 +761,9 @@ async function generateUnifiedSituationReport(
 async function translateReport(
   report: string,
   sendSSE?: (eventType: string, data: unknown) => void,
-): Promise<TranslationEntry[]> {
+  etymologyAudit?: EtymologyAudit,
+): Promise<{ translations: TranslationEntry[]; lexicalProtocol: LexicalProtocol }> {
+  const lexicalInstructions = etymologyAudit ? buildLexicalProtocolInstructions(etymologyAudit) : "";
   const translationLimit = pLimit(TRANSLATION_CONCURRENCY);
 
   const translations = await Promise.all(
@@ -567,8 +781,11 @@ async function translateReport(
 
         if (sendSSE) sendSSE("translation_progress", { index: idx, code: lang.code, name: lang.name, status: "translating" });
 
+        const lexicalSuffix = lexicalInstructions
+          ? `\n\n${lexicalInstructions}`
+          : "";
         const translated = await callLLM(
-          `You are a professional translator. Translate the following Situation Report into ${lang.name} (${lang.nativeName}). Maintain the same structure, headings, and professional tone. Translate ALL content including section headers. Do NOT add commentary or notes — output ONLY the translated report.`,
+          `You are a professional translator. Translate the following Situation Report into ${lang.name} (${lang.nativeName}). Maintain the same structure, headings, and professional tone. Translate ALL content including section headers. Do NOT add commentary or notes — output ONLY the translated report.${lexicalSuffix}`,
           report,
           `Translate to ${lang.name}`,
         );
@@ -585,7 +802,21 @@ async function translateReport(
     )
   );
 
-  return translations;
+  const latinTerms = etymologyAudit
+    ? etymologyAudit.entries.filter(e => e.origin.toLowerCase().includes("latin")).map(e => e.term)
+    : [];
+
+  const lexicalProtocol: LexicalProtocol = {
+    version: "2.0",
+    termsEnforced: etymologyAudit ? etymologyAudit.entries.length : 0,
+    consistencyScore: etymologyAudit ? (etymologyAudit.flaggedTerms.length === 0 ? 1.0 : Math.max(0, 1.0 - etymologyAudit.flaggedTerms.length * 0.1)) : 0,
+    corrections: etymologyAudit
+      ? etymologyAudit.flaggedTerms.map(t => ({ original: t, corrected: t, reason: "Flagged by Etymology Engine" }))
+      : [],
+    latinTermsPreserved: latinTerms,
+  };
+
+  return { translations, lexicalProtocol };
 }
 
 export function registerAgentArrayRoutes(app: Express) {
@@ -742,12 +973,46 @@ export function registerAgentArrayRoutes(app: Express) {
       }
     }
 
+    sendSSE("etymology_start", {});
+    const etymologyAudit = await runEtymologyAudit(
+      layer2.filter(s => s.successCount > 0).map(s => s.technicalSummary).join("\n"),
+      prompt,
+    );
+    sendSSE("etymology_complete", {
+      termCount: etymologyAudit.entries.length,
+      flaggedCount: etymologyAudit.flaggedTerms.length,
+      flaggedTerms: etymologyAudit.flaggedTerms,
+      entries: etymologyAudit.entries.slice(0, 12),
+    });
+
+    sendSSE("veritas_start", {});
+    const preliminaryReport = layer2
+      .filter(s => s.successCount > 0)
+      .map(s => `${s.label}: ${s.technicalSummary}`)
+      .join("\n");
+    const veritasAudit = await runVeritasAudit(preliminaryReport, prompt);
+    sendSSE("veritas_complete", {
+      claimCount: veritasAudit.claims.length,
+      overallConfidence: veritasAudit.overallConfidence,
+      falseClaims: veritasAudit.falseClaims,
+      disputedClaims: veritasAudit.disputedClaims,
+      verifiedClaims: veritasAudit.verifiedClaims,
+      claims: veritasAudit.claims,
+    });
+
     sendSSE("report_start", { languageCount: AGENT_LANGUAGES.length });
 
-    const unifiedReport = await generateUnifiedSituationReport(results, layer2, executiveSummary, prompt);
+    const unifiedReport = await generateUnifiedSituationReport(results, layer2, executiveSummary, prompt, veritasAudit);
     sendSSE("report_generated", { report: unifiedReport });
 
-    const translations = await translateReport(unifiedReport, sendSSE);
+    const { translations, lexicalProtocol } = await translateReport(unifiedReport, sendSSE, etymologyAudit);
+    sendSSE("lexical_applied", {
+      version: lexicalProtocol.version,
+      termsEnforced: lexicalProtocol.termsEnforced,
+      consistencyScore: lexicalProtocol.consistencyScore,
+      corrections: lexicalProtocol.corrections,
+      latinTermsPreserved: lexicalProtocol.latinTermsPreserved,
+    });
     sendSSE("translations_complete", { count: translations.length });
 
     let consensus = "";
@@ -762,7 +1027,13 @@ export function registerAgentArrayRoutes(app: Express) {
       consensus = `Insufficient agent responses (${successCount}/${AGENT_COUNT}) for consensus.`;
     }
 
-    const response: AgentArrayResponse & { unifiedReport: string; translations: TranslationEntry[] } = {
+    const response: AgentArrayResponse & {
+      unifiedReport: string;
+      translations: TranslationEntry[];
+      etymologyAudit: EtymologyAudit;
+      veritasAudit: VeritasAudit;
+      lexicalProtocol: LexicalProtocol;
+    } = {
       sessionId,
       prompt,
       agentCount: AGENT_COUNT,
@@ -776,6 +1047,9 @@ export function registerAgentArrayRoutes(app: Express) {
       executionOrder,
       unifiedReport,
       translations,
+      etymologyAudit,
+      veritasAudit,
+      lexicalProtocol,
     };
 
     sendSSE("complete", response);

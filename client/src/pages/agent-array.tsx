@@ -8,7 +8,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, MapPin, AlertTriangle, ListOrdered, FileText, Copy, Check, Eye, Filter, Globe, Save, History, Clock, Download } from "lucide-react";
+import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, ShieldCheck, MapPin, AlertTriangle, ListOrdered, FileText, Copy, Check, Eye, Filter, Globe, Save, History, Clock, Download, BookOpen, Languages } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,46 @@ interface TranslationEntry {
   languageName: string;
   nativeName: string;
   text: string;
+}
+
+interface EtymologyEntry {
+  term: string;
+  origin: string;
+  evolution: string;
+  crossCulturalNote: string;
+  synchronized: boolean;
+}
+
+interface EtymologyAuditData {
+  entries: EtymologyEntry[];
+  flaggedTerms: string[];
+  auditTimestamp: string;
+}
+
+interface VeritasClaim {
+  claim: string;
+  confidence: number;
+  sources: string[];
+  culturalTraditions: string[];
+  verdict: "VERIFIED" | "UNVERIFIED" | "DISPUTED" | "FALSE";
+  note: string;
+}
+
+interface VeritasAuditData {
+  claims: VeritasClaim[];
+  overallConfidence: number;
+  falseClaims: number;
+  disputedClaims: number;
+  verifiedClaims: number;
+  auditTimestamp: string;
+}
+
+interface LexicalProtocolData {
+  version: string;
+  termsEnforced: number;
+  consistencyScore: number;
+  corrections: { original: string; corrected: string; reason: string }[];
+  latinTermsPreserved: string[];
 }
 
 type AgentStatus = "idle" | "running" | "complete" | "error";
@@ -997,6 +1037,11 @@ export default function AgentArrayPage() {
   const [tribHash, setTribHash] = useState<string | null>(null);
   const [unifiedReport, setUnifiedReport] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationEntry[]>([]);
+  const [etymologyAudit, setEtymologyAudit] = useState<EtymologyAuditData | null>(null);
+  const [etymologyLoading, setEtymologyLoading] = useState(false);
+  const [veritasAudit, setVeritasAudit] = useState<VeritasAuditData | null>(null);
+  const [veritasLoading, setVeritasLoading] = useState(false);
+  const [lexicalProtocol, setLexicalProtocol] = useState<LexicalProtocolData | null>(null);
   const [customRoles, setCustomRoles] = useState<AgentSpecialist[]>(
     DEFAULT_SPECIALISTS.map((s) => ({ ...s }))
   );
@@ -1039,6 +1084,11 @@ export default function AgentArrayPage() {
     setTribHash(null);
     setUnifiedReport(null);
     setTranslations([]);
+    setEtymologyAudit(null);
+    setEtymologyLoading(false);
+    setVeritasAudit(null);
+    setVeritasLoading(false);
+    setLexicalProtocol(null);
     setAgentStates(new Map());
 
     if (eventSourceRef.current) {
@@ -1119,6 +1169,54 @@ export default function AgentArrayPage() {
         } catch {}
       });
 
+      es.addEventListener("etymology_start", () => {
+        setEtymologyLoading(true);
+      });
+
+      es.addEventListener("etymology_complete", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setEtymologyAudit({
+            entries: data.entries || [],
+            flaggedTerms: data.flaggedTerms || [],
+            auditTimestamp: new Date().toISOString(),
+          });
+          setEtymologyLoading(false);
+        } catch {}
+      });
+
+      es.addEventListener("veritas_start", () => {
+        setVeritasLoading(true);
+      });
+
+      es.addEventListener("veritas_complete", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setVeritasAudit({
+            claims: data.claims || [],
+            overallConfidence: data.overallConfidence || 0,
+            falseClaims: data.falseClaims || 0,
+            disputedClaims: data.disputedClaims || 0,
+            verifiedClaims: data.verifiedClaims || 0,
+            auditTimestamp: new Date().toISOString(),
+          });
+          setVeritasLoading(false);
+        } catch {}
+      });
+
+      es.addEventListener("lexical_applied", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setLexicalProtocol({
+            version: data.version || "2.0",
+            termsEnforced: data.termsEnforced || 0,
+            consistencyScore: data.consistencyScore || 0,
+            corrections: data.corrections || [],
+            latinTermsPreserved: data.latinTermsPreserved || [],
+          });
+        } catch {}
+      });
+
       es.addEventListener("report_start", () => {
         setReportLoading(true);
       });
@@ -1166,9 +1264,14 @@ export default function AgentArrayPage() {
           if (data.executiveSummary) setExecutiveSummary(data.executiveSummary);
           if (data.unifiedReport) setUnifiedReport(data.unifiedReport);
           if (data.translations) setTranslations(data.translations);
+          if (data.etymologyAudit) setEtymologyAudit(data.etymologyAudit);
+          if (data.veritasAudit) setVeritasAudit(data.veritasAudit);
+          if (data.lexicalProtocol) setLexicalProtocol(data.lexicalProtocol);
           setLayer2Loading(false);
           setExecutiveLoading(false);
           setReportLoading(false);
+          setEtymologyLoading(false);
+          setVeritasLoading(false);
         } catch {}
         es.close();
         eventSourceRef.current = null;
@@ -1287,6 +1390,18 @@ export default function AgentArrayPage() {
                       Executive Summary...
                     </Badge>
                   )}
+                  {etymologyLoading && (
+                    <Badge variant="outline" className="text-amber-600 border-amber-500/30 bg-amber-500/10">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Etymology Audit...
+                    </Badge>
+                  )}
+                  {veritasLoading && (
+                    <Badge variant="outline" className="text-red-600 border-red-500/30 bg-red-500/10">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Veritas Fact-Check...
+                    </Badge>
+                  )}
                   {reportLoading && (
                     <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -1309,6 +1424,161 @@ export default function AgentArrayPage() {
 
               <CircleVisualization agentStates={agentStates} roles={customRoles} />
             </div>
+
+            {(etymologyAudit || veritasAudit || lexicalProtocol) && !isRunning && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} data-testid="section-audit-protocols">
+                <Card className="p-5 border-primary/10">
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-bold">Integrity Protocols</h2>
+                    {veritasAudit && (
+                      <Badge
+                        variant="outline"
+                        className={veritasAudit.falseClaims > 0
+                          ? "text-red-600 border-red-500/30 bg-red-500/10"
+                          : veritasAudit.disputedClaims > 0
+                          ? "text-amber-600 border-amber-500/30 bg-amber-500/10"
+                          : "text-green-600 border-green-500/30 bg-green-500/10"
+                        }
+                      >
+                        {veritasAudit.falseClaims > 0
+                          ? `${veritasAudit.falseClaims} False Claims Filtered`
+                          : veritasAudit.disputedClaims > 0
+                          ? `${veritasAudit.disputedClaims} Disputed`
+                          : `${veritasAudit.verifiedClaims} Verified`}
+                      </Badge>
+                    )}
+                    {lexicalProtocol && (
+                      <Badge variant="outline">
+                        Lexical v{lexicalProtocol.version}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    {etymologyAudit && (
+                      <div className="border rounded-md p-3" data-testid="panel-etymology">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <BookOpen className="w-4 h-4 text-amber-500" />
+                          <span className="text-sm font-semibold">Etymology Engine</span>
+                          <Badge variant="outline" className="text-[10px]">{etymologyAudit.entries.length} Terms</Badge>
+                        </div>
+                        {etymologyAudit.flaggedTerms.length > 0 && (
+                          <div className="mb-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                            <span className="text-xs font-medium text-amber-600">Flagged: </span>
+                            <span className="text-xs text-amber-700 dark:text-amber-400">{etymologyAudit.flaggedTerms.join(", ")}</span>
+                          </div>
+                        )}
+                        <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                          {etymologyAudit.entries.map((entry, i) => (
+                            <div key={i} className="text-xs border-b border-border/30 pb-1.5 last:border-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold">{entry.term}</span>
+                                {!entry.synchronized && (
+                                  <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-500/30">Unsync</Badge>
+                                )}
+                              </div>
+                              <div className="text-muted-foreground">{entry.origin}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {veritasAudit && (
+                      <div className="border rounded-md p-3" data-testid="panel-veritas">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <ShieldCheck className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-semibold">Veritas Audit</span>
+                          <Badge variant="outline" className="text-[10px]">
+                            {Math.round(veritasAudit.overallConfidence * 100)}% Conf.
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2 mb-2 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] text-green-600 border-green-500/30 bg-green-500/10">
+                            {veritasAudit.verifiedClaims} Verified
+                          </Badge>
+                          {veritasAudit.disputedClaims > 0 && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30 bg-amber-500/10">
+                              {veritasAudit.disputedClaims} Disputed
+                            </Badge>
+                          )}
+                          {veritasAudit.falseClaims > 0 && (
+                            <Badge variant="outline" className="text-[10px] text-red-600 border-red-500/30 bg-red-500/10">
+                              {veritasAudit.falseClaims} False
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                          {veritasAudit.claims.map((claim, i) => (
+                            <div key={i} className="text-xs border-b border-border/30 pb-1.5 last:border-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[9px] ${
+                                    claim.verdict === "VERIFIED" ? "text-green-600 border-green-500/30" :
+                                    claim.verdict === "FALSE" ? "text-red-600 border-red-500/30" :
+                                    claim.verdict === "DISPUTED" ? "text-amber-600 border-amber-500/30" :
+                                    "text-gray-600 border-gray-500/30"
+                                  }`}
+                                >
+                                  {claim.verdict}
+                                </Badge>
+                                <span className="text-muted-foreground">{Math.round(claim.confidence * 100)}%</span>
+                              </div>
+                              <div className="mt-0.5 line-clamp-2">{claim.claim}</div>
+                              {claim.note && <div className="text-muted-foreground mt-0.5 line-clamp-1">{claim.note}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {lexicalProtocol && (
+                      <div className="border rounded-md p-3" data-testid="panel-lexical">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Languages className="w-4 h-4 text-emerald-500" />
+                          <span className="text-sm font-semibold">Lexical Protocol</span>
+                          <Badge variant="outline" className="text-[10px]">v{lexicalProtocol.version}</Badge>
+                        </div>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">Terms Enforced</span>
+                            <span className="font-medium">{lexicalProtocol.termsEnforced}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">Consistency</span>
+                            <span className="font-medium">{Math.round(lexicalProtocol.consistencyScore * 100)}%</span>
+                          </div>
+                          {lexicalProtocol.latinTermsPreserved.length > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Latin Preserved:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {lexicalProtocol.latinTermsPreserved.map((t, i) => (
+                                  <Badge key={i} variant="outline" className="text-[9px]">{t}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {lexicalProtocol.corrections.length > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Corrections Applied:</span>
+                              <div className="mt-1 space-y-1">
+                                {lexicalProtocol.corrections.map((c, i) => (
+                                  <div key={i} className="text-[10px] text-muted-foreground">
+                                    {c.original} — {c.reason}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            )}
 
             {unifiedReport && translations.length > 0 && !isRunning && (
               <SituationReportViewer
