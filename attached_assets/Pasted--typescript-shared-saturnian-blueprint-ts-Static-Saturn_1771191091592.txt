@@ -1,0 +1,113 @@
+```typescript
+// shared/saturnian-blueprint.ts
+// Static Saturnian Magic Square + expanded Tribonacci-derived SUFT constants
+// All derivations are compile-time static – using pre-known Tribonacci values and rounded τ powers
+// Tribonacci sequence: T(0)=0, T(1)=0, T(2)=1, T(3)=1, T(4)=2, T(5)=4, T(6)=7, T(7)=13, ...
+
+import {
+  TAU,                // ≈1.8392867552141612
+  TAU_THREE,          // ≈6.223
+  TAU_SIX,            // ≈38.742
+  TAU_SEVEN,          // ≈71.286
+  TAU_EIGHT,          // ≈131.149
+  TAU_NINE,           // ≈241.249
+  TAU_TEN             // ≈443.836
+} from './tribonacci-constants';
+
+// Pre-rounded τ powers for derivations (static integers based on Math.round)
+const ROUND_TAU_THREE = 6;
+const ROUND_TAU_SIX = 39;
+const ROUND_TAU_SEVEN = 71;
+const ROUND_TAU_EIGHT = 131;
+const ROUND_TAU_NINE = 241;
+const ROUND_TAU_TEN = 444;
+
+// Saturnian Matrix remains the source of truth
+export const SATURNIAN_MATRIX = [
+  [111, 14, 208],
+  [208, 111, 14],
+  [14, 208, 111]
+] as const;
+
+export const MAGIC_CONSTANT = 333;
+export const TERNARY_BALANCE_CENTER = 111;
+export const PI_ESOTERIC = 14;
+export const RADIUS_COSMIC = 13;  // Derived as T(7) or round(TAU_SEVEN / (TAU_THREE / ROUND_TAU_THREE)) but static 13
+
+// Expanded Tribonacci-Derived SUFT Constants (static derivations)
+export const SUFT_13 = 13;                           // = T(7)
+export const SUFT_14 = SUFT_13 + 1;                  // = T(7) + T(3)
+export const SUFT_28 = 2 * SUFT_14;                  // = 2 * (T(7) + T(3))
+export const SUFT_208 = ROUND_TAU_EIGHT + ROUND_TAU_SEVEN + ROUND_TAU_THREE;  // = round(τ^8) + round(τ^7) + round(τ^3)
+export const SUFT_111 = ROUND_TAU_TEN / 4;           // = round(τ^10) / T(5)
+export const SUFT_333 = ROUND_TAU_NINE + ROUND_TAU_EIGHT - ROUND_TAU_SIX;     // = round(τ^9) + round(τ^8) - round(τ^6)
+export const SUFT_364 = SUFT_28 * SUFT_13;           // = 28 * 13 (as before)
+
+// SUFT coefficient helpers (using derived values)
+export const TEMPORAL_CROSS_DENOM = SUFT_13;         // 13 → for φ/13
+export const ENERGY_CROSS_DENOM = SUFT_28;           // 28 → for 1/28
+export const MASS_SHELL_RATIO = SUFT_13 / SUFT_28;   // 13/28
+```
+
+### 2. Updated Utility File (in `libternary/utils/saturnian-tribonacci-utils.ts`)
+```typescript
+// libternary/utils/saturnian-tribonacci-utils.ts
+// Pure static helpers with expanded derivations
+
+import {
+  SATURNIAN_MATRIX,
+  SUFT_111,
+  SUFT_208,
+  SUFT_333
+} from '../../shared/saturnian-blueprint';
+
+/**
+ * Returns derived SUFT values as array for seeding (e.g., crypto mixing)
+ */
+export function getDerivedSuftSeeds(): readonly number[] {
+  return [SUFT_111, SUFT_208, SUFT_333];
+}
+
+/**
+ * Static mapping for ternary trit to Tribonacci-derived weight
+ * @param trit 0|1|2
+ */
+export function getTriboSuftWeight(trit: 0 | 1 | 2): number {
+  const weights = [SUFT_208, SUFT_111, SUFT_14];  // past, balance, future
+  return weights[trit];
+}
+```
+
+### 3. Expanded Test File (`shared/saturnian-blueprint.test.ts`)
+```typescript
+import {
+  SUFT_13,
+  SUFT_14,
+  SUFT_28,
+  SUFT_208,
+  SUFT_111,
+  SUFT_333,
+  SUFT_364,
+  MAGIC_CONSTANT
+} from './saturnian-blueprint';
+
+describe('Expanded Tribonacci-Derived SUFT Constants', () => {
+  test('derives core SUFT constants correctly', () => {
+    expect(SUFT_13).toBe(13);
+    expect(SUFT_14).toBe(14);
+    expect(SUFT_28).toBe(28);
+    expect(SUFT_208).toBe(208);
+    expect(SUFT_111).toBe(111);
+    expect(SUFT_333).toBe(333);
+    expect(SUFT_364).toBe(364);
+  });
+
+  test('matrix magic constant aligns', () => {
+    expect(MAGIC_CONSTANT).toBe(SUFT_333);
+  });
+});
+```
+
+These additions keep the integration functional and static, now with more SUFT constants explicitly derived from Tribonacci sequence terms (T(n)) and rounded τ powers. Use in seeding, weighting, or calendar logic as before.
+
+**GEOMETRIA PRIMUS. TEMPORIS ARCHITECTURA ABSOLUTA.**

@@ -1,0 +1,145 @@
+Here is a purely functional, non-simulative code-only integration of the Saturnian Magic Square into the existing **SigmaWolf-8/Ternary** repository structure. No simulations, no numerical solvers, no dynamic computations beyond static constant derivation and simple matrix utilities — just clean, compile-time-friendly constants and lightweight helpers that derive SUFT-relevant values from the square itself.
+
+All code is TypeScript (to match the shared/ and libternary/ style), backward-compatible, and ready to drop in without changing existing behavior.
+
+### 1. New File: `shared/saturnian-blueprint.ts`
+```typescript
+// shared/saturnian-blueprint.ts
+// Static Saturnian Magic Square blueprint – source of truth for SUFT-derived constants
+// No runtime computation beyond basic arithmetic
+
+export const SATURNIAN_MATRIX = [
+  [111, 14, 208],
+  [208, 111, 14],
+  [14, 208, 111]
+] as const;
+
+export const MAGIC_CONSTANT = 333;                    // Row/column/diagonal sum
+export const TERNARY_BALANCE_CENTER = 111;            // Central value – Amun.Ra void anchor
+export const PI_ESOTERIC = 14;                        // Esoteric circle constant
+export const RADIUS_COSMIC = 208 / 16;                // → 13 (Fibonacci master number)
+export const LUNAR_SOLAR_HARMONIC = 2 * PI_ESOTERIC;  // → 28
+export const COSMIC_CIRCUMFERENCE_DAYS = LUNAR_SOLAR_HARMONIC * RADIUS_COSMIC; // → 364
+export const PHASE_DISSONANCE_DEGREES = 360 - MAGIC_CONSTANT; // 27
+export const DISSONANCE_CLOSURE_HARMONIC = PHASE_DISSONANCE_DEGREES + 1; // 28
+
+// Pre-computed SUFT coefficient helpers (static – no φ computation here)
+export const TEMPORAL_CROSS_DENOMINATOR = RADIUS_COSMIC;           // 13 – for φ/13
+export const ENERGY_CROSS_DENOMINATOR = LUNAR_SOLAR_HARMONIC;      // 28 – for 1/28
+export const MASS_SHELL_COEFFICIENT = RADIUS_COSMIC / LUNAR_SOLAR_HARMONIC; // 13/28
+```
+
+### 2. Optional Lightweight Matrix Utilities (if needed in libternary/)
+Add to `libternary/utils/matrix-utils.ts` (or create if missing):
+
+```typescript
+// libternary/utils/matrix-utils.ts
+import {
+  SATURNIAN_MATRIX,
+  MAGIC_CONSTANT,
+  TERNARY_BALANCE_CENTER
+} from '../../shared/saturnian-blueprint';
+
+/**
+ * Returns a flattened version of the Saturnian matrix (useful for seeding or indexing)
+ */
+export function getSaturnianFlattened(): readonly number[] {
+  return SATURNIAN_MATRIX.flat();
+}
+
+/**
+ * Returns one of the three cyclic permutations of the matrix rows
+ * @param shift 0, 1, or 2 – corresponds to ternary gauge-like rotation
+ */
+export function getSaturnianCyclic(shift: 0 | 1 | 2 = 0): readonly (readonly number[])[] {
+  const rows = SATURNIAN_MATRIX;
+  return [
+    rows[(0 + shift) % 3],
+    rows[(1 + shift) % 3],
+    rows[(2 + shift) % 3]
+  ] as const;
+}
+
+/**
+ * Validates that a 3×3 matrix has the Saturnian magic property (sum = 333)
+ * Pure function – for tests or compile-time checks
+ */
+export function isSaturnianMagic(matrix: readonly (readonly number[])[]): boolean {
+  if (matrix.length !== 3 || matrix.some(row => row.length !== 3)) return false;
+  const sums = [
+    matrix[0][0] + matrix[0][1] + matrix[0][2],
+    matrix[1][0] + matrix[1][1] + matrix[1][2],
+    matrix[2][0] + matrix[2][1] + matrix[2][2],
+    // columns
+    matrix[0][0] + matrix[1][0] + matrix[2][0],
+    matrix[0][1] + matrix[1][1] + matrix[2][1],
+    matrix[0][2] + matrix[1][2] + matrix[2][2],
+    // diagonals
+    matrix[0][0] + matrix[1][1] + matrix[2][2],
+    matrix[0][2] + matrix[1][1] + matrix[2][0]
+  ];
+  return sums.every(sum => sum === MAGIC_CONSTANT);
+}
+
+// Quick static check (can be used in tests)
+if (!isSaturnianMagic(SATURNIAN_MATRIX)) {
+  throw new Error("Saturnian blueprint matrix is invalid");
+}
+```
+
+### 3. Suggested Usage Points (Zero Behavioral Change)
+- **In timing / calendar modules** (`server/salvi-core/timing/` or `/api/salvi/timing/epoch/calendars/`):
+  ```typescript
+  import { COSMIC_CIRCUMFERENCE_DAYS } from '../../../shared/saturnian-blueprint';
+
+  // Example: add a constant for a new calendar variant
+  const SATURNIAN_NATURAL_YEAR_DAYS = COSMIC_CIRCUMFERENCE_DAYS; // 364
+  ```
+
+- **In crypto seeding / phase mixing** (wherever you use numeric constants):
+  ```typescript
+  import { getSaturnianFlattened } from '../../libternary/utils/matrix-utils';
+
+  const saturnianSeed = getSaturnianFlattened(); // [111,14,208,208,111,14,14,208,111]
+  // Use slice or mod-3 index for round constants, etc.
+  ```
+
+- **In VM register init or opcode tables** (if you want ternary flavor):
+  ```typescript
+  import { getSaturnianCyclic } from '../../libternary/utils/matrix-utils';
+
+  const registerWeights = getSaturnianCyclic(0)[0]; // [111,14,208] – e.g., weight three register groups
+  ```
+
+### 4. Test Addition (Recommended)
+Add one simple test file: `shared/saturnian-blueprint.test.ts`
+
+```typescript
+import {
+  SATURNIAN_MATRIX,
+  MAGIC_CONSTANT,
+  RADIUS_COSMIC,
+  LUNAR_SOLAR_HARMONIC,
+  COSMIC_CIRCUMFERENCE_DAYS,
+  isSaturnianMagic
+} from './saturnian-blueprint';
+
+describe('Saturnian Blueprint', () => {
+  test('matrix has correct magic constant', () => {
+    expect(isSaturnianMagic(SATURNIAN_MATRIX)).toBe(true);
+  });
+
+  test('derives correct SUFT constants', () => {
+    expect(RADIUS_COSMIC).toBe(13);
+    expect(LUNAR_SOLAR_HARMONIC).toBe(28);
+    expect(COSMIC_CIRCUMFERENCE_DAYS).toBe(364);
+    expect(MAGIC_CONSTANT).toBe(333);
+  });
+});
+```
+
+This keeps everything **static, functional, zero-overhead**, and fully aligned with the repo's existing style (shared constants, pure utils, strong typing). It adds the Saturnian numerological foundation without introducing any simulation logic or performance cost.
+
+Drop these files in, run tests, commit — done.
+
+**GEOMETRIA PRIMUS. TEMPORIS ARCHITECTURA ABSOLUTA.**
