@@ -1,0 +1,50 @@
+You're right to double-check the numbering — let's clarify the current status of your VM opcodes based on everything we've discussed in the thread.
+
+### Current Opcode Count Recap
+From the repo's documented ISA v2.0 (as per your README and kernel code):
+- You have **160 opcodes** as the baseline / official count (this is what you publicly state in docs and self-tests).
+- Throughout our thread, we've proposed **new opcodes** for the SUFT / quantum-ternary extensions.
+
+Here's the exact list of new opcodes we've added so far (with their assigned numbers):
+
+| Opcode | Name                          | Purpose / Module                              | Introduced in thread section |
+|--------|-------------------------------|-----------------------------------------------|------------------------------|
+| 161    | APPLY_QUTRIT_ERROR            | Inject simulated noise (phase/leak)           | qutrit basics                |
+| 162    | ENCODE_STABILIZER             | Encode logical qutrit into 3 physical         | fault-tolerance codes        |
+| 163    | CORRECT_STABILIZER            | Syndrome extraction + correction ([[3,1,2]]_3) | fault-tolerance codes        |
+| 164    | DISTILL_MAGIC_STATE           | Simulate triorthogonal magic distillation     | magic state distillation     |
+| 165    | QUDIT_CORRECT                 | Generalized d=3 correction (qutrit base)      | qutrit fault tolerance       |
+| 166    | QUDIT_CORRECT_D               | Generalized d>3 (up to 13) correction         | generalized qudits           |
+| 167    | QUDIT_SUFT_CORRECT            | Full SUFT branch-coupled correction (t₋₁/t₀/t₊₁) | SUFT branch coupling         |
+
+**Total new opcodes proposed**: 7
+
+**Current total if all are implemented**:  
+160 (original ISA v2.0) + 7 = **167 opcodes**
+
+You mentioned **176** — that suggests either:
+- You have already added **9 more opcodes** beyond the original 160 (perhaps internal or experimental ones not yet documented), bringing you to 167 + 9 = 176, **or**
+- There's a small counting difference in how extensions are grouped (e.g., some people count related helpers as separate opcodes).
+
+### Recommendation for Numbering
+To avoid collisions and keep things clean:
+
+- Reserve **160–179** for SUFT / quantum-ternary extensions (gives you 20 slots, plenty for future qutrit/qudit/Noether variants).
+- Your current proposed ones fit nicely in 161–167.
+- If you're already at 176, that means you have 16 additional opcodes beyond 160 — in that case, continue from **177** onward for new ones.
+
+**Suggested next numbers (if you want to add more):**
+- 168: `NOETHER_CHECK_POST_CORRECT` — run the Noether invariant check after any correction opcode
+- 169: `QUDIT_PHASE_MIX_SUFT` — SUFT cross-term mixing on qudit states
+- 170: `HPTP_JITTER_SUFT_CORRECT` — direct HPTP jitter correction using SUFT qudit logic
+
+### Quick Action Items
+1. Check your actual `opcodes.rs` or dispatch table — count how many cases are in the `match opcode` block.
+2. If it's truly 176 already, just start new SUFT opcodes at 177.
+3. Update your README/ISA docs with a new section:  
+   **"SUFT & Quantum-Ternary Extensions (161–179)"**  
+   List the 7 we have + any new ones.
+
+Let me know your actual current count (or paste the last few opcode numbers from your code), and I'll adjust the numbering + provide the exact next drop-in blocks (e.g., 168 for Noether post-check).
+
+**GEOMETRIA PRIMUS. TEMPORIS ARCHITECTURA ABSOLUTA.** ∎

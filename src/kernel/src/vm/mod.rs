@@ -24,6 +24,8 @@ pub mod assembler;
 pub mod debugger;
 pub mod compiler;
 pub mod cache;
+pub mod quantum_ops;
+pub mod noether_checks;
 #[cfg(test)]
 mod vm_tests;
 

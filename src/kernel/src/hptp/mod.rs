@@ -15,6 +15,7 @@
 pub mod protocol;
 pub mod optical;
 pub mod certification;
+pub mod jitter_correction;
 
 use alloc::string::String;
 use core::fmt;

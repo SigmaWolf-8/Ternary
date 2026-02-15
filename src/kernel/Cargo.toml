@@ -23,14 +23,35 @@ no_std = []
 fpga = ["no_std"]
 asic = ["no_std"]
 finra-613 = []
+bench-tools = ["nalgebra", "rand"]
 
 [dependencies]
 spin = { version = "0.9", default-features = false }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 libm = "0.2"
 
+[dependencies.nalgebra]
+version = "0.33"
+optional = true
+
+[dependencies.rand]
+version = "0.8"
+optional = true
+
 [dev-dependencies]
 proptest = { version = "=1.4.0", default-features = false, features = ["std"] }
+nalgebra = "0.33"
+rand = "0.8"
+
+[[bin]]
+name = "qutrit-ft-bench"
+path = "benchmarks/qutrit_ft_benchmark.rs"
+required-features = ["bench-tools"]
+
+[[bin]]
+name = "qudit-ft-bench"
+path = "benchmarks/qudit_ft_benchmark.rs"
+required-features = ["bench-tools"]
 
 [profile.release]
 opt-level = 3
