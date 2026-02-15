@@ -1,0 +1,371 @@
+
+XPLENUM
+RISC-V Ternary Security Extension
+Custom Instruction Set Specification
+
+Version 1.0.0 — Draft Specification
+February 2026
+RISC-V International Proposal Format
+
+Capomastro Holdings Ltd.
+Applied Physics Division
+PlenumNET Infrastructure Programme
+
+Author: Salvi — Principal Architect
+Classification: CONFIDENTIAL — PROPRIETARY
+ 
+Revision History
+Version	Date	Author	Description
+1.0.0	2026-02-15	Salvi	Initial draft specification with complete RTL reference implementation
+
+ 
+Table of Contents
+Revision History	1
+Table of Contents	1
+1. Introduction	1
+1.1 Purpose	1
+1.2 Scope	1
+1.3 Relationship to RISC-V Base ISA	1
+1.4 Design Rationale	1
+1.5 Terminology and Conventions	1
+2. Instruction Encoding	1
+2.1 Opcode Allocation	1
+2.2 R-Type Format	1
+2.3 Functional Group Encoding (funct3)	1
+2.4 CSR Access Encoding	1
+3. Instruction Reference	1
+3.1 Ternary Masking (funct3 = 000)	1
+3.1.1 TMASK — Apply Ternary Mask	1
+3.1.2 TUNMASK — Remove Ternary Mask	1
+3.1.3 TMASKR — Generate Random Mask	1
+3.1.4 TMASKRF — Refresh Mask	1
+3.2 Domain Isolation (funct3 = 001)	1
+3.2.1 TDOMSET — Set Domain Tag	1
+3.2.2 TDOMCHK — Check Domain Permission	1
+3.2.3 TDOMCLR — Clear Domain Tag	1
+3.2.4 TDOMXFR — Transfer Domain Ownership	1
+3.3 Capability Operations (funct3 = 010)	1
+3.3.1 TCAPLD — Load Capability	1
+3.3.2 TCAPCHK — Check Capability	1
+3.3.3 TCAPST — Store Capability	1
+3.3.4 TCAPREV — Revoke Capability	1
+3.4 Ternary Cryptographic Primitives (funct3 = 011)	1
+3.4.1 TROTL — Ternary Rotate Left	1
+3.4.2 TROTR — Ternary Rotate Right	1
+3.4.3 TTBOX — Ternary Substitution Box	1
+3.4.4 TPERM — Ternary Permutation	1
+3.5 Trit Encoding and Decoding (funct3 = 100)	1
+3.5.1 TTRIT — Binary to Ternary Encode	1
+3.5.2 TDETRIT — Ternary to Binary Decode	1
+3.6 Signal Processing (funct3 = 101)	1
+3.6.1 TSIGFLT — Signal Filter	1
+3.6.2 TSIGCMP — Signal Compare	1
+3.6.3 TSIGACC — Signal Accumulate	1
+4. Control and Status Registers	1
+4.1 XPSTATUS Register Detail	1
+4.2 Exception Model	1
+5. Microarchitectural Reference	1
+5.1 Pipeline Integration	1
+5.2 Ternary Arithmetic Core	1
+5.3 Random Number Generation	1
+5.4 T-Box Implementation	1
+5.5 Area and Timing Estimates	1
+6. Security Analysis	1
+6.1 Side-Channel Resistance	1
+6.2 Domain Isolation Guarantees	1
+6.3 Capability Safety Properties	1
+6.4 Post-Quantum Considerations	1
+7. Compliance and Conformance	1
+7.1 RISC-V Compliance	1
+7.2 RTL Reference Implementation	1
+7.3 Testing and Verification	1
+7.4 Intellectual Property	1
+
+ 
+1. Introduction
+1.1 Purpose
+This document specifies the Xplenum extension to the RISC-V instruction set architecture, providing hardware-accelerated ternary security primitives for post-quantum cryptographic operations, side-channel resistant computation, and hardware-enforced isolation domains. The extension is designed as a non-standard custom extension occupying the RISC-V custom-0 opcode space (0x0B) and is fully compatible with both RV32I and RV64I base integer instruction sets.
+1.2 Scope
+The Xplenum extension addresses four critical security domains within a unified hardware framework:
+Ternary Masking: Side-channel resistance through balanced ternary arithmetic masking with hardware TRNG integration, preventing differential power analysis and electromagnetic emanation attacks on sensitive cryptographic operations.
+Domain Isolation: Hardware-enforced compartmentalization using 256-entry tag tables with owner, permission, and state tracking, enabling fine-grained access control at the instruction level without requiring software privilege transitions.
+Capability-Based Security: CHERI-inspired capability descriptors providing unforgeable, bounded memory references with hardware-managed revocation, seal states, and type enforcement through a 64-entry capability table.
+Ternary Cryptographic Primitives: Native balanced ternary encoding, rotation, substitution (T-box), and permutation operations forming the foundation of a ternary-native cipher suite designed for resilience against both classical and quantum cryptanalytic attacks.
+1.3 Relationship to RISC-V Base ISA
+Xplenum is specified as a non-standard extension under the RISC-V naming convention prefix "X", denoting vendor-specific or experimental extensions. The extension uses only the custom-0 opcode space (bits [6:0] = 0001011) reserved by the RISC-V specification for such purpose. All instructions follow standard R-type or I-type encoding formats, ensuring compatibility with existing pipeline architectures and toolchain infrastructure.
+The extension introduces no modifications to the base integer instruction set, floating-point extensions, or standard privilege architecture. Xplenum-specific control and status registers (CSRs) are allocated within the machine-level custom read/write address space (0x7C0–0x7CB), compliant with the RISC-V Privileged Specification allocation policy.
+1.4 Design Rationale
+The ternary computing paradigm offers a fundamentally different attack surface compared to binary systems. Balanced ternary arithmetic (with trit values {-1, 0, +1}) provides intrinsic advantages for cryptographic operations: natural representation of sign without dedicated sign bits, energy-balanced state transitions that resist power analysis, and a larger per-element information density (log2(3) ≈ 1.585 bits per trit) that enables more compact key representations.
+The PlenumNET infrastructure programme requires hardware-level security guarantees that cannot be achieved through software-only approaches. By encoding these primitives directly into the instruction pipeline, Xplenum ensures constant-time execution, eliminates software-visible timing side channels, and provides a tamper-resistant foundation for the Salvi Framework’s post-quantum cryptographic stack.
+1.5 Terminology and Conventions
+Trit: A ternary digit with values in {-1, 0, +1}, encoded in hardware as 2-bit pairs: 00 = 0, 01 = +1, 10 = -1, 11 = invalid/reserved.
+Balanced Ternary: A positional numeral system using base 3 with digit set {-1, 0, +1}, where the value of an n-trit number is ∑(t_i × 3^i) for i = 0 to n-1.
+T-box: A ternary substitution box implementing a nonlinear 3-trit-to-3-trit mapping, analogous to S-boxes in binary cryptographic algorithms but operating in the ternary domain.
+Domain Tag: An 8-bit identifier associated with a hardware isolation domain, encoding owner, permissions (read/write/execute/cross), and lifecycle state.
+Capability Descriptor: A 64-bit structure encoding an unforgeable reference with base address, bounds, permissions, object type, and seal state, managed by the Xplenum capability unit.
+ 
+2. Instruction Encoding
+2.1 Opcode Allocation
+All Xplenum instructions are encoded within the RISC-V custom-0 opcode space, identified by bits [6:0] = 0001011 (0x0B). The 3-bit funct3 field (bits [14:12]) serves as the primary group selector, partitioning the instruction space into seven functional groups with one reserved slot for future expansion.
+2.2 R-Type Format
+The majority of Xplenum instructions use the standard RISC-V R-type encoding format:
+Bits [31:25]	Bits [24:20]	Bits [19:15]	Bits [14:12]	Bits [11:7]	Bits [6:0]	Description
+funct7	rs2	rs1	funct3	rd	0x0B	R-type Xplenum instruction
+
+2.3 Functional Group Encoding (funct3)
+The funct3 field partitions the instruction space as follows:
+funct3	Symbol	Group	Purpose
+000	F3_TMASK	Ternary Masking Operations	Side-channel resistance
+001	F3_TDOM	Domain Isolation Operations	Hardware compartmentalization
+010	F3_TCAP	Capability Operations	CHERI-inspired memory safety
+011	F3_TROT	Ternary Rotation / Crypto	Ternary cipher primitives
+100	F3_TENC	Trit Encoding / Decoding	Binary-ternary conversion
+101	F3_TSIG	Signal Processing	Sigma Wolf timing analysis
+110	—	Reserved	Future expansion
+111	F3_TCSR	CSR Access	Extension configuration
+
+2.4 CSR Access Encoding
+CSR access instructions use a modified R-type format where funct7[6] serves as the write enable flag, rs2 contains the CSR offset within the Xplenum CSR address space (base 0x7C0), and rs1 provides write data. The effective CSR address is computed as 0x7C0 + rs2_data[3:0], supporting up to 16 extension-specific control registers.
+ 
+3. Instruction Reference
+3.1 Ternary Masking (funct3 = 000)
+The masking unit provides side-channel resistant arithmetic using balanced ternary masking with hardware random number generation. Masking operations apply a random ternary mask to sensitive data, transforming it into a representation that leaks no information through power consumption or electromagnetic emissions while preserving the ability to recover the original value.
+3.1.1 TMASK — Apply Ternary Mask
+Mnemonic	tmask rd, rs1, rs2
+Encoding	funct7=0000000 | rs2 | rs1 | funct3=000 | rd | 0001011
+Description	Applies balanced ternary additive mask from rs2 to value in rs1. Each 2-bit trit pair in rs1 is added modulo 3 with the corresponding trit pair in rs2. Result written to rd.
+Operation	rd[2i+1:2i] = trit_add(rs1[2i+1:2i], rs2[2i+1:2i]) for i = 0..15
+Exceptions	MASK_FAULT if MASK_EN = 0 in XPSTATUS
+
+3.1.2 TUNMASK — Remove Ternary Mask
+Mnemonic	tunmask rd, rs1, rs2
+Encoding	funct7=0000001 | rs2 | rs1 | funct3=000 | rd | 0001011
+Description	Removes balanced ternary mask rs2 from masked value rs1. Each trit pair undergoes modular ternary subtraction, recovering the original unmasked value.
+Operation	rd[2i+1:2i] = trit_sub(rs1[2i+1:2i], rs2[2i+1:2i]) for i = 0..15
+Exceptions	MASK_FAULT if MASK_EN = 0 in XPSTATUS
+
+3.1.3 TMASKR — Generate Random Mask
+Mnemonic	tmaskr rd, rs1
+Encoding	funct7=0000010 | 00000 | rs1 | funct3=000 | rd | 0001011
+Description	Generates a random ternary mask using the hardware LFSR-based TRNG and applies it to rs1 in a single atomic operation. The generated mask is stored in the XPMASK_STATE CSR for subsequent unmasking. Uses 32-bit maximal-length LFSR with polynomial x^32+x^22+x^2+x+1.
+Operation	mask = LFSR_next(); XPMASK_STATE = mask; rd = trit_add(rs1, mask)
+Exceptions	MASK_FAULT if MASK_EN = 0 in XPSTATUS
+
+3.1.4 TMASKRF — Refresh Mask
+Mnemonic	tmaskrf rd, rs1
+Encoding	funct7=0000011 | 00000 | rs1 | funct3=000 | rd | 0001011
+Description	Unmasks rs1 with the current mask state, generates a fresh random mask, and reapplies it. This atomic three-step operation prevents any point where the unmasked value is exposed, even to the pipeline itself.
+Operation	temp = trit_sub(rs1, old_mask); new_mask = LFSR_next(); rd = trit_add(temp, new_mask)
+Exceptions	MASK_FAULT if MASK_EN = 0 in XPSTATUS
+
+3.2 Domain Isolation (funct3 = 001)
+The domain isolation unit enforces hardware compartmentalization through a 256-entry tag table, where each entry encodes an 8-bit owner domain ID, permission flags (READ, WRITE, EXECUTE, CROSS-DOMAIN), transfer authorization, and lifecycle state (INVALID, ACTIVE, LOCKED, TRANSFER). Domain operations provide atomic tag manipulation with hardware-checked authorization, enabling fine-grained isolation without software privilege transitions.
+3.2.1 TDOMSET — Set Domain Tag
+Mnemonic	tdomset rd, rs1, rs2
+Encoding	funct7=0000000 | rs2 | rs1 | funct3=001 | rd | 0001011
+Description	Assigns domain tag rs2[31:0] to the resource indexed by rs1[7:0]. The tag format encodes [31:24] owner domain ID, [23:16] permission bitmap, [15:8] transfer authorization bitmap, and [7:0] state. Returns the previous tag value in rd.
+Operation	rd = dom_table[rs1[7:0]]; dom_table[rs1[7:0]] = rs2
+Exceptions	DOM_VIOLATION if DOM_EN = 0, or if caller domain does not own the target entry
+
+3.2.2 TDOMCHK — Check Domain Permission
+Mnemonic	tdomchk rd, rs1, rs2
+Encoding	funct7=0000001 | rs2 | rs1 | funct3=001 | rd | 0001011
+Description	Verifies that the current domain (from XPDOMID CSR) has the permissions specified in rs2 for the resource indexed by rs1. Returns 1 in rd if the permission check passes, 0 otherwise. Does not raise exceptions on permission failure.
+Operation	tag = dom_table[rs1[7:0]]; rd = (tag.owner == XPDOMID && (tag.perms & rs2) == rs2) ? 1 : 0
+Exceptions	DOM_VIOLATION if DOM_EN = 0
+
+3.2.3 TDOMCLR — Clear Domain Tag
+Mnemonic	tdomclr rd, rs1
+Encoding	funct7=0000010 | 00000 | rs1 | funct3=001 | rd | 0001011
+Description	Clears the domain tag at index rs1[7:0], setting it to the INVALID state. Returns the previous tag value in rd. Only the owning domain may clear its own tags.
+Operation	rd = dom_table[rs1[7:0]]; dom_table[rs1[7:0]] = 0 (INVALID)
+Exceptions	DOM_VIOLATION if DOM_EN = 0, or caller does not own the entry
+
+3.2.4 TDOMXFR — Transfer Domain Ownership
+Mnemonic	tdomxfr rd, rs1, rs2
+Encoding	funct7=0000011 | rs2 | rs1 | funct3=001 | rd | 0001011
+Description	Transfers ownership of resource at index rs1[7:0] to the domain specified in rs2[7:0]. The transfer_allowed field of the existing tag must authorize this transfer. State transitions to TRANSFER during handoff. Returns the updated tag in rd.
+Operation	tag = dom_table[rs1[7:0]]; tag.owner = rs2[7:0]; tag.state = TRANSFER; rd = tag
+Exceptions	DOM_VIOLATION if transfer not authorized
+
+3.3 Capability Operations (funct3 = 010)
+The capability unit implements CHERI-inspired unforgeable capability descriptors within a 64-entry hardware table. Each 64-bit descriptor encodes: [63:56] validity tag, [55:48] permission bitmap, [47:32] base address, [31:16] bound, [15:8] object type, and [7:0] seal state (OPEN, SEALED, FROZEN). A hardware revocation bitmap enables O(1) capability invalidation.
+3.3.1 TCAPLD — Load Capability
+Mnemonic	tcapld rd, rs1, rs2
+Encoding	funct7=0000000 | rs2 | rs1 | funct3=010 | rd | 0001011
+Description	Loads the capability descriptor at index rs1[5:0] from the capability table. rs2[0] selects which 32-bit half to return: 0 for the lower half (bound, otype, seal), 1 for the upper half (tag, perms, base). Checks the revocation bitmap before returning.
+Operation	rd = rs2[0] ? cap_table[rs1[5:0]][63:32] : cap_table[rs1[5:0]][31:0]
+Exceptions	CAP_INVALID if index out of range; CAP_REVOKED if revocation bit is set
+
+3.3.2 TCAPCHK — Check Capability
+Mnemonic	tcapchk rd, rs1, rs2
+Encoding	funct7=0000001 | rs2 | rs1 | funct3=010 | rd | 0001011
+Description	Validates that the capability at index rs1[5:0] grants the permissions encoded in rs2. Checks validity tag, revocation status, seal state, and permission bitmap. Returns 1 if all checks pass, 0 otherwise.
+Operation	cap = cap_table[rs1[5:0]]; rd = valid(cap) && !revoked(cap) && (cap.perms & rs2) == rs2 ? 1 : 0
+Exceptions	CAP_INVALID if index out of range
+
+3.3.3 TCAPST — Store Capability
+Mnemonic	tcapst rd, rs1, rs2
+Encoding	funct7=0000010 | rs2 | rs1 | funct3=010 | rd | 0001011
+Description	Stores a 32-bit value from rs2 into the capability descriptor at index rs1[5:0]. The funct7 encoding determines whether the upper or lower half is written. Returns the previous value of the modified half in rd.
+Operation	rd = cap_table[rs1[5:0]][selected_half]; cap_table[rs1[5:0]][selected_half] = rs2
+Exceptions	CAP_INVALID if index out of range; PRIV_FAULT if seal state prevents modification
+
+3.3.4 TCAPREV — Revoke Capability
+Mnemonic	tcaprev rd, rs1
+Encoding	funct7=0000011 | 00000 | rs1 | funct3=010 | rd | 0001011
+Description	Revokes the capability at index rs1[5:0] by setting the corresponding bit in the hardware revocation bitmap. Once revoked, any subsequent load or check of this capability will fail. Returns the previous revocation state (0 or 1) in rd.
+Operation	rd = revoke_bitmap[rs1[5:0]]; revoke_bitmap[rs1[5:0]] = 1
+Exceptions	CAP_INVALID if index out of range
+
+3.4 Ternary Cryptographic Primitives (funct3 = 011)
+The ternary crypto unit provides rotation, substitution, and permutation operations in the balanced ternary domain. These primitives form the algorithmic foundation for ternary block ciphers and hash functions, where operations are defined over trit positions rather than bit positions, exploiting the unique algebraic properties of GF(3).
+3.4.1 TROTL — Ternary Rotate Left
+Mnemonic	trotl rd, rs1, rs2
+Encoding	funct7=0000000 | rs2 | rs1 | funct3=011 | rd | 0001011
+Description	Rotates the 16-trit balanced ternary value in rs1 left by rs2[3:0] trit positions. Rotation operates on 2-bit trit pairs, so a rotation by n trits shifts 2n bits with wraparound.
+Operation	rd = (rs1 << 2*rs2[3:0]) | (rs1 >> (32 - 2*rs2[3:0]))
+Exceptions	None
+
+3.4.2 TROTR — Ternary Rotate Right
+Mnemonic	trotr rd, rs1, rs2
+Encoding	funct7=0000001 | rs2 | rs1 | funct3=011 | rd | 0001011
+Description	Rotates the 16-trit balanced ternary value in rs1 right by rs2[3:0] trit positions. Complementary to TROTL for inverse cipher operations.
+Operation	rd = (rs1 >> 2*rs2[3:0]) | (rs1 << (32 - 2*rs2[3:0]))
+Exceptions	None
+
+3.4.3 TTBOX — Ternary Substitution Box
+Mnemonic	ttbox rd, rs1, rs2
+Encoding	funct7=0000010 | rs2 | rs1 | funct3=011 | rd | 0001011
+Description	Applies the ternary substitution table (T-box) to the value in rs1, with rs2 selecting the substitution variant. The T-box is a 27-entry table mapping each 3-trit input to a 3-trit output through a cryptographically designed nonlinear permutation, analogous to AES S-boxes but in the ternary domain.
+Operation	For each 3-trit group in rs1: output = tbox_table[trit_to_index(input_trits)]
+Exceptions	TRIT_OVERFLOW if invalid trit encoding detected
+
+3.4.4 TPERM — Ternary Permutation
+Mnemonic	tperm rd, rs1, rs2
+Encoding	funct7=0000011 | rs2 | rs1 | funct3=011 | rd | 0001011
+Description	Permutes the trit positions in rs1 according to the permutation schedule encoded in rs2. Each 4-bit nibble in rs2 specifies the destination trit index for the corresponding source trit, enabling arbitrary trit-level rearrangement within a single cycle.
+Operation	For i = 0..7: rd[rs2[4i+3:4i]] = rs1[i] (trit-level permutation)
+Exceptions	None
+
+3.5 Trit Encoding and Decoding (funct3 = 100)
+The encoding unit provides conversion between standard binary integer representation and balanced ternary encoding. These instructions bridge the binary RISC-V register file with the ternary operational domain, enabling seamless integration of ternary security operations into conventional software.
+3.5.1 TTRIT — Binary to Ternary Encode
+Mnemonic	ttrit rd, rs1
+Encoding	funct7=0000000 | 00000 | rs1 | funct3=100 | rd | 0001011
+Description	Converts the unsigned binary integer in rs1 to balanced ternary representation in rd. Uses iterative division by 3 with remainder mapping: 0→0 (00), 1→+1 (01), 2→-1 (10) with carry propagation. Produces up to 16 trits in the 32-bit output register.
+Operation	rd = balanced_ternary_encode(rs1) (repeated div/mod 3 with adjustment)
+Exceptions	TRIT_OVERFLOW if value exceeds 16-trit range
+
+3.5.2 TDETRIT — Ternary to Binary Decode
+Mnemonic	tdetrit rd, rs1
+Encoding	funct7=0000001 | 00000 | rs1 | funct3=100 | rd | 0001011
+Description	Converts the balanced ternary value in rs1 back to unsigned binary representation in rd. Iterates over trit pairs, accumulating the weighted sum of trit values with positional powers of 3.
+Operation	rd = sum(trit_value(rs1[2i+1:2i]) * 3^i) for i = 0..15
+Exceptions	TRIT_OVERFLOW if invalid trit encoding (11) detected
+
+3.6 Signal Processing (funct3 = 101)
+The signal processing group provides timing analysis primitives for the Sigma Wolf trading protocol, enabling hardware-accelerated detection of market microstructure signals through filtered comparison and accumulation operations.
+3.6.1 TSIGFLT — Signal Filter
+Mnemonic	tsigflt rd, rs1, rs2
+Encoding	funct7=0000000 | rs2 | rs1 | funct3=101 | rd | 0001011
+Description	Applies a configurable IIR/FIR filter kernel to the signal sample in rs1 with coefficients from rs2. The filter configuration (order, type) is set via the XPSIG_CFG CSR.
+Operation	rd = filter(rs1, rs2, XPSIG_CFG)
+Exceptions	None
+
+3.6.2 TSIGCMP — Signal Compare
+Mnemonic	tsigcmp rd, rs1, rs2
+Encoding	funct7=0000001 | rs2 | rs1 | funct3=101 | rd | 0001011
+Description	Performs a threshold comparison between signal value rs1 and reference rs2, returning a ternary classification: -1 (below), 0 (within deadband), +1 (above) in balanced ternary encoding.
+Operation	rd = (rs1 > rs2 + threshold) ? +1 : (rs1 < rs2 - threshold) ? -1 : 0
+Exceptions	None
+
+3.6.3 TSIGACC — Signal Accumulate
+Mnemonic	tsigacc rd, rs1, rs2
+Encoding	funct7=0000010 | rs2 | rs1 | funct3=101 | rd | 0001011
+Description	Accumulates signal sample rs1 into the running accumulator with decay factor rs2. Used for exponentially weighted moving average (EWMA) computation in the signal processing pipeline.
+Operation	rd = (accumulator * rs2 + rs1 * (1 - rs2)) >> scale_factor
+Exceptions	None
+
+ 
+4. Control and Status Registers
+The Xplenum extension allocates 12 control and status registers within the RISC-V machine-level custom read/write CSR space (0x7C0–0x7CB). These registers control subsystem enable/disable, configure operational parameters, report exception conditions, and provide performance monitoring. All CSR access follows the Xplenum R-type CSR encoding described in Section 2.4.
+Address	Name	Access	Description
+0x7C0	XPSTATUS	RW	Global status register. Bit [0]: MASK_EN, Bit [1]: DOM_EN, Bit [2]: CAP_EN, Bit [3]: SIG_EN. Controls which subsystems are active.
+0x7C1	XPDOMID	RW	Current domain ID. The 8-bit domain identifier for the currently executing context, used in all domain permission checks.
+0x7C2	XPCAPBASE	RW	Capability table base address. Physical base pointer for the capability descriptor table in memory.
+0x7C3	XPCAPBOUND	RW	Capability table bound. Maximum valid index for capability table access.
+0x7C4	XPMASK_SEED	RW	TRNG seed register. Write to reseed the LFSR-based random mask generator.
+0x7C5	XPMASK_STATE	RO	Current mask state. The most recently generated random mask value, used for subsequent unmasking.
+0x7C6	XPTRIT_MODE	RW	Trit encoding mode. Configures encoding behavior: Bit [0] selects standard vs. extended ternary encoding.
+0x7C7	XPSIG_CFG	RW	Signal processing configuration. Filter type, order, and coefficient scaling for TSIG operations.
+0x7C8	XPEXC_CAUSE	RO	Exception cause register. Holds the 4-bit exception code for the most recent Xplenum exception.
+0x7C9	XPEXC_ADDR	RO	Exception address. The instruction address that caused the most recent Xplenum exception.
+0x7CA	XPPERF_CNT	RW	Performance counter. Counts total Xplenum instructions executed (writable for reset).
+0x7CB	XPVERSION	RO	Version register. Encodes [31:24] major, [23:16] minor, [15:8] patch. Current: 0x01_00_00.
+
+4.1 XPSTATUS Register Detail
+The XPSTATUS register at address 0x7C0 serves as the master enable for all Xplenum subsystems. Each bit independently controls one functional group. Attempting to execute an instruction from a disabled group raises the corresponding exception (MASK_FAULT for masking, DOM_VIOLATION for domains, CAP_INVALID for capabilities). This granular enable mechanism allows software to activate only the security features required for a given workload, minimizing power consumption and attack surface.
+4.2 Exception Model
+Xplenum exceptions are reported through the XPEXC_CAUSE and XPEXC_ADDR CSRs, and optionally propagated to the RISC-V core through the xp_exception output signal. The extension defines eight exception cause codes:
+Code	Name	Description
+0x0	NONE	No exception pending
+0x1	DOM_VIOLATION	Domain permission check failed or domain subsystem disabled
+0x2	CAP_INVALID	Capability index out of range or capability subsystem disabled
+0x3	CAP_REVOKED	Attempted access to a revoked capability
+0x4	CAP_BOUNDS	Capability base/bound check failed
+0x5	MASK_FAULT	Masking operation attempted with masking subsystem disabled
+0x6	TRIT_OVERFLOW	Invalid trit encoding (11) detected or value exceeds trit range
+0x7	PRIV_FAULT	Insufficient privilege for requested operation
+
+ 
+5. Microarchitectural Reference
+5.1 Pipeline Integration
+The Xplenum execution unit integrates at the execute stage of a standard RISC-V in-order pipeline. The top-level module (xplenum_top) accepts decoded instruction fields and register operands from the pipeline’s decode/register-read stage, and produces results and write-enable signals in the same cycle for forwarding to the writeback stage. The interface signals are:
+Inputs: clk, rst_n, instr[31:0], instr_valid, rs1_data[31:0], rs2_data[31:0]
+Outputs: rd_data[31:0], rd_write_en, xp_exception, xp_exc_cause[3:0]
+All functional units operate as single-cycle combinational paths with registered outputs. The result multiplexer selects the active unit’s output based on latched funct3 and validity signals, ensuring stable output when the pipeline advances.
+5.2 Ternary Arithmetic Core
+The fundamental ternary operations (trit_add, trit_sub) are implemented as 2-bit modular arithmetic circuits operating on the encoding: 00 = 0, 01 = +1, 10 = -1, 11 = invalid. Addition and subtraction modulo 3 are computed per-trit as parallel 2-bit operations across all 16 trit positions simultaneously, achieving single-cycle throughput without carry chains.
+5.3 Random Number Generation
+The masking unit’s TRNG is implemented as a 32-bit maximal-length linear feedback shift register with the primitive polynomial x^32 + x^22 + x^2 + x + 1. This polynomial generates a sequence with period 2^32 - 1, providing sufficient entropy for masking operations. The LFSR state can be reseeded via the XPMASK_SEED CSR to support deterministic testing or external entropy injection.
+5.4 T-Box Implementation
+The ternary substitution box is implemented as a 27-entry lookup table (3^3 = 27 entries for 3-trit inputs) with each entry producing a 3-trit (6-bit) output. The T-box permutation is designed to maximize nonlinearity in the ternary domain, achieving differential uniformity comparable to the AES S-box within the constraints of GF(3) arithmetic. The current implementation uses a hardcoded table generated from the Tribonacci sequence applied modulo 3.
+5.5 Area and Timing Estimates
+Preliminary synthesis targeting a generic standard cell library yields the following area estimates for each functional unit:
+Unit	Est. Area	Latency	Notes
+Masking Unit	~850 gates	1 cycle	Includes 32-bit LFSR
+Domain Unit	~2,400 gates	1 cycle	256-entry tag table
+Capability Unit	~3,200 gates	1 cycle	64-entry cap table + bitmap
+Trit Encoding Unit	~1,100 gates	1 cycle	Includes T-box LUT
+Top-Level + CSRs	~600 gates	1 cycle	Decoder + MUX + CSR file
+Total Xplenum	~8,150 gates	1 cycle	All units combined
+
+ 
+6. Security Analysis
+6.1 Side-Channel Resistance
+The ternary masking scheme provides first-order resistance to differential power analysis (DPA) and electromagnetic emanation attacks. By representing all sensitive values as additively masked balanced ternary, each trit’s contribution to power consumption is uniformly distributed across the three states {-1, 0, +1}, eliminating data-dependent Hamming weight leakage. The mask refresh instruction (TMASKRF) provides second-order resistance by atomically re-randomizing the mask without any intermediate unmasked state visible to the pipeline.
+6.2 Domain Isolation Guarantees
+The hardware domain tag table enforces the principle of least privilege at the instruction level. Each domain check is atomic and non-bypassable: the permission verification logic is implemented entirely in combinational hardware between the instruction decoder and the functional unit, with no software-visible intermediate state. Domain transfers require explicit authorization through the transfer_allowed field, preventing privilege escalation through ownership reassignment.
+6.3 Capability Safety Properties
+The capability system maintains three critical invariants enforced by hardware: provenance validity (capabilities can only be derived from existing valid capabilities), monotonicity (derived capabilities can never exceed the permissions of their parent), and revocation completeness (a revoked capability and all its derivatives are immediately invalidated through the hardware revocation bitmap). The sealed/frozen states provide additional temporal invariants for capability delegation across security boundaries.
+6.4 Post-Quantum Considerations
+The ternary cryptographic primitives are designed with post-quantum resistance as a primary design goal. The T-box and ternary permutation operations construct cipher rounds that operate in GF(3) rather than GF(2), presenting a fundamentally different algebraic structure to Grover’s and Simon’s quantum algorithms. While no formal quantum security proof is claimed at this specification level, the ternary operational domain imposes a higher cost on quantum search due to the increased state space per element (3^n vs 2^n) and the non-binary algebraic structure that complicates quantum circuit construction for existing quantum cryptanalytic techniques.
+ 
+7. Compliance and Conformance
+7.1 RISC-V Compliance
+A conforming implementation of the Xplenum extension shall satisfy the following requirements: all 24 instructions shall execute correctly within the custom-0 opcode space with no modification to base ISA decoding; all 12 CSRs shall be accessible and functional within the allocated address range; exception reporting shall correctly propagate to the RISC-V core exception mechanism; and all operations shall complete in deterministic, constant time regardless of operand values.
+7.2 RTL Reference Implementation
+This specification is accompanied by a complete synthesizable RTL reference implementation in Verilog-2012, verified through simulation using Icarus Verilog and synthesizable via Yosys to gate-level netlists. The reference implementation targets the RV32I base and consists of the following source files:
+xplenum_pkg.vh  —  Package definitions, opcodes, CSR addresses, constants
+xplenum_mask_unit.v  —  Ternary masking with LFSR TRNG
+xplenum_domain_unit.v  —  Domain isolation with 256-entry tag table
+xplenum_cap_unit.v  —  Capability descriptors with revocation bitmap
+xplenum_trit_unit.v  —  Trit encoding, T-box, rotation, permutation
+xplenum_top.v  —  Top-level decoder, CSR file, result multiplexer
+7.3 Testing and Verification
+The reference implementation includes a comprehensive testbench (xplenum_tb.v) with 19 directed test vectors covering all functional groups, CSR access, and exception conditions. The testbench generates VCD waveform output for signal-level analysis. Future verification efforts will include constrained random testing, formal property verification, and coverage-driven verification using UVM methodology.
+7.4 Intellectual Property
+The Xplenum extension specification and reference implementation are the proprietary intellectual property of Capomastro Holdings Ltd. All rights reserved. This document is provided for evaluation purposes under the RISC-V International proposal process. Commercial licensing terms are available upon request from the Applied Physics Division.
+
+—  End of Specification  —
