@@ -60,11 +60,19 @@ Three modules integrate Hamiltonian mechanics concepts into the platform:
 ### Lagrangian Mechanics Utilities (February 15, 2026)
 The `shared/lagrangian-ternary-utils.ts` module provides discrete Euler-Lagrange equations adapted for ternary logic, complementing the Hamiltonian formulation. Implements the full SUFT Lagrangian's EL equations (cross-coupling φ/26, energy cross 1/56, periodicity mod 364), canonical momenta for all three temporal branches (past/present/future), mass-shell constraint Φ=0 verification, Noether charge for ternary gauge symmetry, and a full discrete EL evolution step. All functions are pure, use exact rational coefficients, and produce balanced trits {-1, 0, +1}. 30 Vitest tests verify all functions.
 
+### Noether Symmetries (February 15, 2026)
+The `shared/noether-symmetries-utils.ts` module implements conserved quantities from Noether's theorem applied to the SUFT Lagrangian's three symmetries: (1) Ternary Gauge — invariance under t_α → t_α + θ_α with Σθ_α = 0, gauge transform application, enumeration of all 7 valid shifts; (2) Reparametrization — H = λΦ = 0 on-shell energy check via mass-shell constraint (13/28); (3) Periodicity — mod-364 discrete Noether for CTCs, canonical reduction, and shift application. Includes combined VM state validation. 31 Vitest tests verify all functions.
+
+### Tribonacci Variational Methods (February 15, 2026)
+The `shared/tribonacci-variational.ts` module constructs discrete variational functionals for the Tribonacci sequence. Implements: penalty Lagrangian L(n) = ½(T_n − T_{n-1} − T_{n-2} − T_{n-3})² whose stationarity reproduces the exact recurrence; Tribonacci-weighted potential V_Trib(n) = ½(T_n − Σt_α)² coupling branch sums to Tribonacci values; full coupled SUFT-Tribonacci per-site Lagrangian and total discrete action; ratio convergence diagnostics toward τ ≈ 1.8393; variational fitness scoring. 33 Vitest tests verify all functions.
+
 ### Testing
 Testing is conducted using Vitest with multiple test suites:
 - 29 Saturnian blueprint + Tribonacci bridge tests (saturnian-blueprint.test.ts)
 - 29 Hamiltonian mechanics tests (hamiltonian-mechanics.test.ts)
 - 30 Lagrangian ternary utils tests (lagrangian-ternary-utils.test.ts)
+- 31 Noether symmetries tests (noether-symmetries.test.ts)
+- 33 Tribonacci variational tests (tribonacci-variational.test.ts)
 - 50 GF(3) arithmetic tests (ternary-operations.test.ts)
 - 25 phase encryption tests (phase-encryption.test.ts)
 - 11 calendar synchronization tests (calendar-sync.test.ts)
