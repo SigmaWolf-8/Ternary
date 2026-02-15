@@ -1,6 +1,6 @@
 # Quarterly Compliance Report — 2026 Q1
 
-**Generated:** 2026-02-15T20:14:40.213Z
+**Generated:** 2026-02-15T20:17:46.745Z
 **Organization:** Capomastro Holdings Ltd.
 **System:** PlenumNET Framework
 
@@ -19,8 +19,8 @@ privacy, export control, security, and financial regulatory domains.
 
 ### 2.1 Data Subject Rights Infrastructure
 - GDPR/PIPEDA data subject rights API: **Implemented**
-- Data export endpoint: `GET /api/data-subject-requests/export`
-- Account deletion endpoint: `POST /api/data-subject-requests/delete`
+- Data export endpoint: `GET /api/gdpr/data-export`
+- Account deletion endpoint: `DELETE /api/gdpr/delete-account`
 - Request audit trail: `data_subject_requests` table in PostgreSQL
 
 ### 2.2 Cookie Consent
@@ -110,5 +110,5 @@ privacy, export control, security, and financial regulatory domains.
 
 ---
 
-*Generated automatically by `scripts/quarterly-compliance-report.js`*
+*Generated automatically by `scripts/quarterly-compliance-report.cjs`*
 *Review and approve before distribution.*
