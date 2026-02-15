@@ -118,6 +118,7 @@ const resourcesItems: NavLinkItem[] = [
   { title: "Documentation", href: "/docs" },
   { title: "CNSA 2.0 Compliance", href: "/compliance" },
   { title: "Module Distribution", href: "/distribution" },
+  { title: "28D Agent Array", href: "/agent-array" },
 ];
 
 const resourcesExternal: NavLinkItem[] = [
