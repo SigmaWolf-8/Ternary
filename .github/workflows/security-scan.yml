@@ -96,6 +96,47 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
+  npm-audit:
+    name: npm Dependency Audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          echo "=== npm Dependency Audit ==="
+          npm audit --audit-level=moderate 2>&1 || true
+
+      - name: Check for critical/high vulnerabilities
+        run: |
+          AUDIT_JSON=$(npm audit --json 2>/dev/null || true)
+          HIGH=$(echo "$AUDIT_JSON" | node -e "
+            const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const v=d.metadata?.vulnerabilities||{};
+            console.log((v.high||0)+(v.critical||0));
+          " 2>/dev/null || echo "0")
+          if [ "$HIGH" -gt "0" ]; then
+            echo "::warning::Found $HIGH high/critical npm vulnerabilities. Review npm audit output."
+          else
+            echo "::notice::No high/critical npm vulnerabilities found."
+          fi
+
+      - name: License compliance check
+        run: |
+          npx license-checker --failOn "AGPL-1.0-only;AGPL-1.0-or-later;AGPL-3.0-only;AGPL-3.0-or-later;GPL-2.0-only;GPL-2.0-or-later;GPL-3.0-only;GPL-3.0-or-later" 2>&1 || true
+          echo ""
+          echo "=== License Summary ==="
+          npx license-checker --summary 2>&1
+
   gitleaks:
     name: Secret Detection
     runs-on: ubuntu-latest

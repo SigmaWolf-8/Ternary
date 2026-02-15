@@ -1,0 +1,69 @@
+name: SBOM Generation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/kernel/Cargo.toml'
+      - 'src/kernel/Cargo.lock'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-sbom:
+    name: Generate CycloneDX SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install cdxgen
+        run: npm install -g @cyclonedx/cdxgen
+
+      - name: Generate Node.js SBOM (canonical sbom.json)
+        run: cdxgen -o sbom.json --type node
+
+      - name: Check Rust projects exist
+        id: check
+        run: |
+          if [ -f "src/kernel/Cargo.toml" ]; then
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_kernel=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Rust SBOM
+        if: steps.check.outputs.has_kernel == 'true'
+        run: cdxgen -o sbom-rust.json --type rust src/kernel
+
+      - name: SBOM Summary
+        run: |
+          echo "=== SBOM Generation Summary ==="
+          if [ -f "sbom.json" ]; then
+            COMPONENTS=$(node -e "const d=JSON.parse(require('fs').readFileSync('sbom.json','utf8')); console.log((d.components||[]).length)")
+            SPEC=$(node -e "const d=JSON.parse(require('fs').readFileSync('sbom.json','utf8')); console.log(d.specVersion||'?')")
+            echo "Node.js SBOM (sbom.json): $COMPONENTS components (CycloneDX $SPEC)"
+          fi
+          if [ -f "sbom-rust.json" ]; then
+            COMPONENTS=$(node -e "const d=JSON.parse(require('fs').readFileSync('sbom-rust.json','utf8')); console.log((d.components||[]).length)")
+            echo "Rust SBOM (sbom-rust.json): $COMPONENTS components"
+          fi
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: |
+            sbom.json
+            sbom-rust.json
+          retention-days: 90

@@ -62,8 +62,10 @@ export async function registerRoutes(
   const legalDocMap: Record<string, { file: string; title: string }> = {
     terms: { file: "TERMS-OF-SERVICE.md", title: "Terms of Service" },
     privacy: { file: "PRIVACY-POLICY.md", title: "Privacy Policy" },
-    security: { file: ".github/SECURITY.md", title: "Security Policy" },
+    security: { file: "SECURITY.md", title: "Security Policy" },
     aup: { file: "ACCEPTABLE-USE-POLICY.md", title: "Acceptable Use Policy" },
+    "export-control": { file: "EXPORT-CONTROL.md", title: "Export Control Classification" },
+    "ip-notice": { file: "IP-NOTICE.md", title: "Intellectual Property Notice" },
   };
 
   app.get("/api/health", async (_req, res) => {

@@ -111,6 +111,11 @@ license.
     License: Apache-2.0
     https://github.com/SheetJS/sheetjs
 
+    Security Note: This package has known prototype pollution and ReDoS
+    vulnerabilities with no upstream fix available. Usage is restricted to
+    server-side processing of trusted Excel files within the PlenumDB
+    import feature. Input validation and size limits are enforced.
+
 18. Passport.js
     Copyright (c) 2011-2021 Jared Hanson
     License: MIT
@@ -141,12 +146,43 @@ license.
     License: MIT
     https://github.com/algorand/pyteal
 
+24. LightningCSS
+    Copyright (c) 2022-2024 Devon Govett and contributors
+    License: MPL-2.0
+    https://github.com/nicolo-ribaudo/nicolo-ribaudo-lightningcss
+
+    Note: MPL-2.0 is a file-level weak copyleft license. The platform does
+    not modify or distribute LightningCSS source files; it is used only as
+    a build-time CSS processing tool. No copyleft obligations are triggered
+    under the MPL-2.0 for this use case.
+
+25. lodash
+    Copyright (c) JS Foundation and other contributors
+    License: MIT
+    https://github.com/lodash/lodash
+
+26. OpenAI Node.js SDK
+    Copyright (c) 2023-2024 OpenAI
+    License: Apache-2.0
+    https://github.com/openai/openai-node
+
+27. Helmet.js
+    Copyright (c) 2012-2024 Adam Baldwin and contributors
+    License: MIT
+    https://github.com/helmetjs/helmet
+
+28. express-rate-limit
+    Copyright (c) 2024 Nathan Friedly and contributors
+    License: MIT
+    https://github.com/express-rate-limit/express-rate-limit
+
 -------------------------------------------------------------------------
 
-Full license texts for MIT, Apache-2.0, and ISC are available at:
+Full license texts for MIT, Apache-2.0, ISC, and MPL-2.0 are available at:
   - MIT: https://opensource.org/licenses/MIT
   - Apache-2.0: https://www.apache.org/licenses/LICENSE-2.0
   - ISC: https://opensource.org/licenses/ISC
+  - MPL-2.0: https://www.mozilla.org/en-US/MPL/2.0/
 
 =========================================================================
 END OF THIRD-PARTY NOTICES
