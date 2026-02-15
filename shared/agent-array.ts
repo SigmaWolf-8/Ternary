@@ -6,36 +6,30 @@
  * Tribonacci 28-Dimension AI Agent Array
  *
  * Maps the 28 positions of the Z₂₈ cyclic group (Tribonacci Circle)
- * to a parallel AI agent orchestration system. Each of the 28 agents
- * follows a 13-step execution model (1 ternary radian = T₇ = 13).
+ * to a parallel AI agent orchestration system.
  *
- * Generator 13 visits all 28 positions: 0 → 13 → 26 → 11 → 24 → 9 → ...
- * This coprime walk ensures complete coverage with no collisions.
+ * The Math (Why 28 × 13?):
+ *   T₇ = 13 (7th Tribonacci number)
+ *   gcd(13, 28) = 1 — coprime, guaranteeing a complete permutation
+ *   Scheduling: (position × 13) mod 28 visits all 28 positions exactly once
+ *   Walk: 0 → 13 → 26 → 11 → 24 → 9 → 22 → 7 → 20 → 5 → 18 → 3 → 16 → 1 → ...
+ *   13 × 28 = 364 = 111111 in base-3 (ternary palindrome)
  *
- * Dimensional Layer 1: 28 specialist agents execute simultaneously
+ * Each agent performs one LLM inference call, scheduled via the
+ * Tribonacci coprime permutation for bias-free coverage.
+ *
+ * Dimensional Layer 1: 28 specialist agents execute in parallel
  * Dimensional Layer 2: 5-section executive summary synthesis
+ * Integrity Protocols: Etymology Engine → Veritas Audit → Lexical Protocols
  */
 
 export const AGENT_COUNT = 28;
-export const STEPS_PER_AGENT = 13;
 export const TERNARY_RADIAN = 13;
 export const FULL_CIRCLE = 364;
 export const CONVOLUTION_KERNEL = [13, 24, 44] as const;
 
 export const AGENT_STEP_NAMES = [
-  "INIT",
-  "CONTEXT_LOAD",
-  "TRIT_ENCODE",
-  "PHASE_SPLIT",
   "INFERENCE",
-  "CROSS_VALIDATE",
-  "CONSENSUS_CHECK",
-  "TRIT_DECODE",
-  "PHASE_RECOMBINE",
-  "INTEGRITY_VERIFY",
-  "RESULT_COMMIT",
-  "MESH_BROADCAST",
-  "FINALIZE",
 ] as const;
 
 export type AgentStepName = typeof AGENT_STEP_NAMES[number];

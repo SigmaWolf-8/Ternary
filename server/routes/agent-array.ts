@@ -27,7 +27,6 @@ import { agentArrayReports } from "@shared/schema";
 import { desc, eq } from "drizzle-orm";
 import {
   AGENT_COUNT,
-  STEPS_PER_AGENT,
   AGENT_STEP_NAMES,
   AGENT_DOMAINS,
   DEFAULT_SPECIALISTS,
@@ -139,7 +138,7 @@ async function executeAgentSteps(
   const label = `A${String(z28).padStart(2, "0")}`;
   const domain = specialist.title;
   const startTime = Date.now();
-  let stepsCompleted = 0;
+  const permutationPosition = (z28 * TERNARY_RADIAN) % AGENT_COUNT;
 
   const emitStep = (stepIndex: number, status: AgentStepEvent["status"], detail?: string, durationMs?: number) => {
     sendEvent({
@@ -148,7 +147,7 @@ async function executeAgentSteps(
       z28,
       domain,
       stepIndex,
-      stepName: AGENT_STEP_NAMES[stepIndex],
+      stepName: AGENT_STEP_NAMES[Math.min(stepIndex, AGENT_STEP_NAMES.length - 1)],
       status,
       detail,
       durationMs,
@@ -156,25 +155,7 @@ async function executeAgentSteps(
   };
 
   try {
-    const stepStart = Date.now();
-    emitStep(0, "running", "Initializing agent context");
-    emitStep(0, "complete", "Agent initialized", Date.now() - stepStart);
-    stepsCompleted++;
-
-    emitStep(1, "running", "Loading domain context");
-    emitStep(1, "complete", `Domain: ${specialist.subdomain}`, 0);
-    stepsCompleted++;
-
-    emitStep(2, "running", "Encoding input to ternary representation");
-    emitStep(2, "complete", "Trit-encoded prompt ready", 0);
-    stepsCompleted++;
-
-    emitStep(3, "running", "Applying phase-split encryption");
-    emitStep(3, "complete", "Phase-split complete", 0);
-    stepsCompleted++;
-
-    emitStep(4, "running", "Running LLM inference");
-    const inferenceStart = Date.now();
+    emitStep(0, "running", `Permutation position: (${z28} × 13) mod 28 = ${permutationPosition}`);
 
     const truncatedPrompt = prompt.length > 200 ? prompt.slice(0, 200) + "..." : prompt;
     const systemPrompt = buildAgentSystemPrompt(z28, specialist);
@@ -184,41 +165,8 @@ async function executeAgentSteps(
     const finalResponse = response ||
       `As a ${specialist.title}, this query involves complex ${specialist.category} considerations that warrant thorough analysis of applicable frameworks and precedents in ${specialist.subdomain}.`;
 
-    const inferenceDuration = Date.now() - inferenceStart;
-    emitStep(4, "complete", `Inference complete (${inferenceDuration}ms)`, inferenceDuration);
-    stepsCompleted++;
-
-    emitStep(5, "running", "Cross-validating with adjacent agents");
-    emitStep(5, "complete", "Cross-validation passed", 0);
-    stepsCompleted++;
-
-    emitStep(6, "running", "Checking consensus threshold");
-    emitStep(6, "complete", "Consensus check passed", 0);
-    stepsCompleted++;
-
-    emitStep(7, "running", "Decoding ternary response");
-    emitStep(7, "complete", "Trit-decoded output ready", 0);
-    stepsCompleted++;
-
-    emitStep(8, "running", "Recombining phase-encrypted segments");
-    emitStep(8, "complete", "Phase recombination complete", 0);
-    stepsCompleted++;
-
-    emitStep(9, "running", "Verifying response integrity");
-    emitStep(9, "complete", "Integrity hash verified", 0);
-    stepsCompleted++;
-
-    emitStep(10, "running", "Committing result to mesh");
-    emitStep(10, "complete", "Result committed", 0);
-    stepsCompleted++;
-
-    emitStep(11, "running", "Broadcasting to agent mesh");
-    emitStep(11, "complete", "Mesh broadcast sent", 0);
-    stepsCompleted++;
-
-    emitStep(12, "running", "Finalizing agent cycle");
-    emitStep(12, "complete", "Agent cycle complete", Date.now() - startTime);
-    stepsCompleted++;
+    const durationMs = Date.now() - startTime;
+    emitStep(0, "complete", `Inference complete (${durationMs}ms)`, durationMs);
 
     return {
       agentIndex,
@@ -227,14 +175,14 @@ async function executeAgentSteps(
       domain,
       category: specialist.category,
       response: finalResponse,
-      totalDurationMs: Date.now() - startTime,
-      stepsCompleted,
+      totalDurationMs: durationMs,
+      stepsCompleted: 1,
       language: specialist.language,
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     log.error(`Agent ${label} (${domain}) failed: ${errMsg}`);
-    emitStep(stepsCompleted, "error", errMsg);
+    emitStep(0, "error", errMsg);
 
     return {
       agentIndex,
@@ -244,7 +192,7 @@ async function executeAgentSteps(
       category: specialist.category,
       response: `[Error] ${errMsg}`,
       totalDurationMs: Date.now() - startTime,
-      stepsCompleted,
+      stepsCompleted: 0,
       language: specialist.language,
     };
   }
@@ -895,7 +843,7 @@ export function registerAgentArrayRoutes(app: Express) {
       sessionId,
       prompt,
       agentCount: AGENT_COUNT,
-      stepsPerAgent: STEPS_PER_AGENT,
+      stepsPerAgent: 1,
       tribonacciHash: tribHash,
       executionOrder,
     });
@@ -1037,7 +985,7 @@ export function registerAgentArrayRoutes(app: Express) {
       sessionId,
       prompt,
       agentCount: AGENT_COUNT,
-      stepsPerAgent: STEPS_PER_AGENT,
+      stepsPerAgent: 1,
       totalDurationMs: Date.now() - startTime,
       results,
       consensus,
@@ -1139,7 +1087,7 @@ export function registerAgentArrayRoutes(app: Express) {
       walk: generateZ28Walk(),
       executionOrder: scheduleAgents(),
       agentCount: AGENT_COUNT,
-      stepsPerAgent: STEPS_PER_AGENT,
+      stepsPerAgent: 1,
       stepNames: AGENT_STEP_NAMES,
       domains: AGENT_DOMAINS,
       specialists: DEFAULT_SPECIALISTS,

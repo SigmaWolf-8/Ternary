@@ -16,7 +16,6 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   AGENT_COUNT,
-  STEPS_PER_AGENT,
   AGENT_STEP_NAMES,
   DEFAULT_SPECIALISTS,
   LAYER2_SECTIONS,
@@ -200,14 +199,13 @@ function CircleVisualization({
 }
 
 function AgentCard({ position, state }: { position: AgentPosition; state?: AgentState }) {
+  const permPos = (position.z28 * 13) % AGENT_COUNT;
   const statusIcon = () => {
     if (!state || state.status === "idle") return <Circle className="w-3 h-3 text-muted-foreground/40" />;
     if (state.status === "running") return <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />;
     if (state.status === "complete") return <CheckCircle2 className="w-3 h-3 text-green-500" />;
     return <XCircle className="w-3 h-3 text-destructive" />;
   };
-
-  const progress = state ? Math.round((state.currentStep / STEPS_PER_AGENT) * 100) : 0;
 
   return (
     <Card
@@ -225,23 +223,13 @@ function AgentCard({ position, state }: { position: AgentPosition; state?: Agent
         {position.domain}
       </p>
       {state && state.status !== "idle" && (
-        <>
-          <div className="w-full bg-secondary/50 rounded-full h-1 mb-1">
-            <div
-              className={`h-1 rounded-full transition-all duration-300 ${
-                state.status === "error" ? "bg-destructive" : state.status === "complete" ? "bg-green-500" : "bg-yellow-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            {state.status === "complete"
-              ? `${state.result?.totalDurationMs || 0}ms`
-              : state.currentStep < STEPS_PER_AGENT
-                ? AGENT_STEP_NAMES[state.currentStep]
-                : "Finalizing"}
-          </p>
-        </>
+        <p className="text-[10px] text-muted-foreground">
+          {state.status === "running"
+            ? `Inferring... (perm: ${permPos})`
+            : state.status === "complete"
+            ? `${state.result?.totalDurationMs || 0}ms`
+            : "Error"}
+        </p>
       )}
     </Card>
   );
@@ -1125,12 +1113,12 @@ export default function AgentArrayPage() {
             const next = new Map(prev);
             const current = next.get(step.z28) || { status: "idle" as AgentStatus, currentStep: 0 };
             next.set(step.z28, {
-              status: step.status === "complete" && step.stepIndex === STEPS_PER_AGENT - 1
+              status: step.status === "complete"
                 ? "complete"
                 : step.status === "error"
                   ? "error"
                   : "running",
-              currentStep: step.stepIndex + (step.status === "complete" ? 1 : 0),
+              currentStep: step.status === "complete" ? 1 : 0,
               result: current.result,
             });
             return next;
@@ -1251,7 +1239,7 @@ export default function AgentArrayPage() {
           for (const r of results) {
             finalStates.set(r.z28, {
               status: r.response.startsWith("[Error]") ? "error" : "complete",
-              currentStep: STEPS_PER_AGENT,
+              currentStep: 1,
               result: r,
             });
           }
@@ -1312,9 +1300,10 @@ export default function AgentArrayPage() {
             28-Dimension Agent Array
           </h1>
           <p className="text-muted-foreground max-w-2xl" data-testid="text-agent-array-subtitle">
-            Launch 28 specialist AI agents simultaneously via Tribonacci 13-step permutation scheduling.
-            All agents analyze your query in parallel, then produce one unified Situation Report
-            automatically translated into 28 world languages. Reports are copyable and savable to the database for future retrieval.
+            Launch 28 specialist AI agents in parallel, scheduled via the Tribonacci coprime permutation:
+            (position x 13) mod 28 visits all 28 positions exactly once (gcd(13,28) = 1).
+            Results pass through Etymology, Veritas, and Lexical integrity protocols before
+            synthesis into one unified Situation Report, translated into 28 world languages.
           </p>
         </motion.div>
 
@@ -1355,7 +1344,7 @@ export default function AgentArrayPage() {
                   )}
                 </Button>
                 <div className="text-xs text-muted-foreground text-center space-y-0.5">
-                  <div>{AGENT_COUNT} agents &middot; {STEPS_PER_AGENT} steps each</div>
+                  <div>{AGENT_COUNT} agents &middot; T&#x2087; = 13 permutation</div>
                   <div>1 Report &middot; 28 Languages</div>
                   {isCustomized && (
                     <div className="text-primary font-medium">Custom roles active</div>
