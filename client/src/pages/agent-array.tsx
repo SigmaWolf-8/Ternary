@@ -394,7 +394,6 @@ export default function AgentArrayPage() {
   const [customRoles, setCustomRoles] = useState<AgentSpecialist[]>(
     DEFAULT_SPECIALISTS.map((s) => ({ ...s }))
   );
-  const abortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
 
   const positions = getAgentPositions(customRoles);
@@ -416,6 +415,8 @@ export default function AgentArrayPage() {
     r.title !== DEFAULT_SPECIALISTS[i].title || r.description !== DEFAULT_SPECIALISTS[i].description
   );
 
+  const eventSourceRef = useRef<EventSource | null>(null);
+
   const launchAgentArray = useCallback(async () => {
     if (!prompt.trim() || isRunning) return;
 
@@ -427,7 +428,10 @@ export default function AgentArrayPage() {
     setSuccessCount(0);
     setAgentStates(new Map());
 
-    abortRef.current = new AbortController();
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
 
     const body: Record<string, unknown> = { prompt: prompt.trim() };
     if (isCustomized) {
@@ -435,91 +439,90 @@ export default function AgentArrayPage() {
     }
 
     try {
-      const response = await fetch("/api/tribonacci/agent-array", {
+      const createRes = await fetch("/api/tribonacci/agent-array", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: abortRef.current.signal,
       });
 
-      if (!response.ok) {
-        const err = await response.json();
+      if (!createRes.ok) {
+        const err = await createRes.json();
         throw new Error(err.error || "Request failed");
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
+      const { sessionId } = await createRes.json();
 
-      const decoder = new TextDecoder();
-      let buffer = "";
+      const es = new EventSource(`/api/tribonacci/agent-array/stream/${sessionId}`);
+      eventSourceRef.current = es;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      es.addEventListener("agent_step", (e) => {
+        try {
+          const step = JSON.parse(e.data) as AgentStepEvent;
+          setAgentStates((prev) => {
+            const next = new Map(prev);
+            const current = next.get(step.z28) || { status: "idle" as AgentStatus, currentStep: 0 };
+            next.set(step.z28, {
+              status: step.status === "complete" && step.stepIndex === STEPS_PER_AGENT - 1
+                ? "complete"
+                : step.status === "error"
+                  ? "error"
+                  : "running",
+              currentStep: step.stepIndex + (step.status === "complete" ? 1 : 0),
+              result: current.result,
+            });
+            return next;
+          });
+        } catch {}
+      });
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+      es.addEventListener("layer2_start", () => {
+        setLayer2Loading(true);
+      });
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
+      es.addEventListener("layer2_complete", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.sections) {
+            setLayer2Sections(data.sections);
+          }
+          setLayer2Loading(false);
+        } catch {}
+      });
 
-            if (event.type === "agent_step") {
-              const step = event as AgentStepEvent;
-              setAgentStates((prev) => {
-                const next = new Map(prev);
-                const current = next.get(step.z28) || { status: "idle" as AgentStatus, currentStep: 0 };
-                next.set(step.z28, {
-                  status: step.status === "complete" && step.stepIndex === STEPS_PER_AGENT - 1
-                    ? "complete"
-                    : step.status === "error"
-                      ? "error"
-                      : "running",
-                  currentStep: step.stepIndex + (step.status === "complete" ? 1 : 0),
-                  result: current.result,
-                });
-                return next;
-              });
-            }
+      es.addEventListener("complete", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          const results = data.results as AgentResult[];
+          const finalStates = new Map<number, AgentState>();
+          for (const r of results) {
+            finalStates.set(r.z28, {
+              status: r.response.startsWith("[Error]") ? "error" : "complete",
+              currentStep: STEPS_PER_AGENT,
+              result: r,
+            });
+          }
+          setAgentStates(finalStates);
+          setConsensus(data.consensus || null);
+          setTotalDuration(data.totalDurationMs || null);
+          setSuccessCount(results.filter((r: AgentResult) => !r.response.startsWith("[Error]")).length);
+          if (data.layer2) {
+            setLayer2Sections(data.layer2);
+          }
+          setLayer2Loading(false);
+        } catch {}
+        es.close();
+        eventSourceRef.current = null;
+        setIsRunning(false);
+      });
 
-            if (event.type === "layer2_start") {
-              setLayer2Loading(true);
-            }
-
-            if (event.type === "layer2_complete" && event.sections) {
-              setLayer2Sections(event.sections);
-              setLayer2Loading(false);
-            }
-
-            if (event.type === "complete") {
-              const results = event.results as AgentResult[];
-              const finalStates = new Map<number, AgentState>();
-              for (const r of results) {
-                finalStates.set(r.z28, {
-                  status: r.response.startsWith("[Error]") ? "error" : "complete",
-                  currentStep: STEPS_PER_AGENT,
-                  result: r,
-                });
-              }
-              setAgentStates(finalStates);
-              setConsensus(event.consensus || null);
-              setTotalDuration(event.totalDurationMs || null);
-              setSuccessCount(results.filter((r: AgentResult) => !r.response.startsWith("[Error]")).length);
-              if (event.layer2) {
-                setLayer2Sections(event.layer2);
-              }
-              setLayer2Loading(false);
-            }
-          } catch {}
-        }
-      }
+      es.onerror = () => {
+        es.close();
+        eventSourceRef.current = null;
+        setIsRunning(false);
+      };
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
       const msg = err instanceof Error ? err.message : "Unknown error";
       toast({ title: "Agent Array Error", description: msg, variant: "destructive" });
-    } finally {
       setIsRunning(false);
     }
   }, [prompt, isRunning, toast, customRoles, isCustomized]);

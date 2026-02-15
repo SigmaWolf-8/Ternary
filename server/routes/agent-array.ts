@@ -7,7 +7,10 @@
  *
  * Dimensional Layer 1: 28 specialist agents execute simultaneously
  * Dimensional Layer 2: 5-section executive summary (technical + layman)
- * Uses SSE for real-time progress streaming to the frontend.
+ *
+ * Two-step pattern:
+ *   POST /api/tribonacci/agent-array       → creates session, returns sessionId
+ *   GET  /api/tribonacci/agent-array/stream/:id → EventSource SSE stream
  */
 
 import type { Express, Request, Response } from "express";
@@ -34,6 +37,7 @@ import { randomUUID } from "crypto";
 
 const CONCURRENCY_LIMIT = 7;
 const RETRY_ATTEMPTS = 2;
+const SESSION_TTL_MS = 5 * 60 * 1000;
 
 const log = createLogger("agent-array");
 
@@ -41,6 +45,14 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
+
+interface PendingSession {
+  prompt: string;
+  roles: AgentSpecialist[];
+  createdAt: number;
+}
+
+const pendingSessions = new Map<string, PendingSession>();
 
 function buildAgentSystemPrompt(z28: number, specialist: AgentSpecialist): string {
   return `You are Agent A${String(z28).padStart(2, "0")}, position ${z28} on the Z₂₈ Tribonacci Circle.
@@ -183,7 +195,6 @@ async function executeAgentSteps(
 async function generateLayer2(
   results: AgentResult[],
   prompt: string,
-  roles: AgentSpecialist[],
 ): Promise<Layer2Section[]> {
   const layer2Limit = pLimit(3);
   const sections = await Promise.all(
@@ -269,7 +280,7 @@ PLAIN: [your plain language summary]`,
 }
 
 export function registerAgentArrayRoutes(app: Express) {
-  app.post("/api/tribonacci/agent-array", async (req: Request, res: Response) => {
+  app.post("/api/tribonacci/agent-array", (req: Request, res: Response) => {
     const { prompt, customRoles } = req.body;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
@@ -280,7 +291,7 @@ export function registerAgentArrayRoutes(app: Express) {
       return res.status(400).json({ error: "prompt must be under 2000 characters" });
     }
 
-    let roles = DEFAULT_SPECIALISTS;
+    let roles = DEFAULT_SPECIALISTS as AgentSpecialist[];
     if (Array.isArray(customRoles) && customRoles.length === AGENT_COUNT) {
       roles = customRoles.map((r: any, i: number) => ({
         title: typeof r.title === "string" ? r.title.slice(0, 200) : DEFAULT_SPECIALISTS[i].title,
@@ -290,6 +301,28 @@ export function registerAgentArrayRoutes(app: Express) {
     }
 
     const sessionId = randomUUID();
+    pendingSessions.set(sessionId, {
+      prompt: prompt.trim(),
+      roles,
+      createdAt: Date.now(),
+    });
+
+    setTimeout(() => pendingSessions.delete(sessionId), SESSION_TTL_MS);
+
+    res.json({ sessionId });
+  });
+
+  app.get("/api/tribonacci/agent-array/stream/:sessionId", async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const session = pendingSessions.get(sessionId);
+
+    if (!session) {
+      return res.status(404).json({ error: "Session not found or expired" });
+    }
+
+    pendingSessions.delete(sessionId);
+
+    const { prompt, roles } = session;
     const startTime = Date.now();
 
     log.info(`Agent Array session ${sessionId}: launching ${AGENT_COUNT} agents`);
@@ -303,12 +336,9 @@ export function registerAgentArrayRoutes(app: Express) {
     });
     res.flushHeaders();
 
-    const sendSSE = (type: string, data: unknown) => {
+    const sendSSE = (eventType: string, data: unknown) => {
       if (!res.destroyed && !res.writableEnded) {
-        res.write(`data: ${JSON.stringify({ type, ...data as object })}\n\n`);
-        if (typeof (res as any).flush === "function") {
-          (res as any).flush();
-        }
+        res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
       }
     };
 
@@ -316,10 +346,9 @@ export function registerAgentArrayRoutes(app: Express) {
 
     sendSSE("session_start", {
       sessionId,
-      prompt: prompt.trim(),
+      prompt,
       agentCount: AGENT_COUNT,
       stepsPerAgent: STEPS_PER_AGENT,
-      positions,
     });
 
     const limit = pLimit(CONCURRENCY_LIMIT);
@@ -347,7 +376,7 @@ export function registerAgentArrayRoutes(app: Express) {
           pos.index,
           pos.z28,
           roles[pos.z28],
-          prompt.trim(),
+          prompt,
           sendStepEvent,
         );
       })
@@ -373,9 +402,7 @@ export function registerAgentArrayRoutes(app: Express) {
     let layer2: Layer2Section[] = [];
     if (successCount >= 10) {
       sendSSE("layer2_start", { sectionCount: LAYER2_SECTIONS.length });
-
-      layer2 = await generateLayer2(results, prompt.trim(), roles);
-
+      layer2 = await generateLayer2(results, prompt);
       sendSSE("layer2_complete", { sections: layer2 });
     }
 
@@ -414,7 +441,7 @@ export function registerAgentArrayRoutes(app: Express) {
 
     const response: AgentArrayResponse = {
       sessionId,
-      prompt: prompt.trim(),
+      prompt,
       agentCount: AGENT_COUNT,
       stepsPerAgent: STEPS_PER_AGENT,
       totalDurationMs: Date.now() - startTime,
