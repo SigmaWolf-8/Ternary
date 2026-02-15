@@ -1,0 +1,145 @@
+// Xplenum Testbench v2 — check at negedge after registering posedge
+`include "xplenum_pkg.vh"
+`timescale 1ns / 1ps
+module xplenum_tb;
+    reg clk,rst_n,instr_valid; reg [31:0] instr,rs1_data,rs2_data; reg [1:0] priv_level;
+    wire [31:0] rd_data; wire rd_write_en,xp_stall,xp_exception; wire [3:0] xp_exc_cause;
+    integer tests_run, tests_passed, tests_failed;
+
+    xplenum_top dut(.clk(clk),.rst_n(rst_n),.instr(instr),.instr_valid(instr_valid),
+        .rs1_data(rs1_data),.rs2_data(rs2_data),.rd_data(rd_data),.rd_write_en(rd_write_en),
+        .xp_stall(xp_stall),.xp_exception(xp_exception),.xp_exc_cause(xp_exc_cause),.priv_level(priv_level));
+
+    initial clk=0; always #5 clk=~clk;
+
+    function [31:0] encode_r; input [6:0] f7; input [4:0] r2,r1; input [2:0] f3; input [4:0] rd;
+        begin encode_r={f7,r2,r1,f3,rd,`XPLENUM_OPCODE}; end endfunction
+
+    localparam [3:0] CSR_OFF_STATUS=0, CSR_OFF_DOMID=1, CSR_OFF_VERSION=11;
+
+    task issue_instr; input [31:0] instruction,r1,r2;
+        begin @(posedge clk); instr<=instruction;instr_valid<=1;rs1_data<=r1;rs2_data<=r2;
+        @(posedge clk); instr_valid<=0;instr<=0; @(negedge clk); end endtask
+
+    task write_csr; input [3:0] off; input [31:0] val;
+        begin issue_instr(encode_r(7'b1000000,5'd0,5'd0,`F3_TCSR,5'd0),val,{28'b0,off}); end endtask
+
+    task read_csr; input [3:0] off;
+        begin issue_instr(encode_r(7'b0000000,5'd0,5'd0,`F3_TCSR,5'd1),32'b0,{28'b0,off}); end endtask
+
+    task check_result; input [31:0] exp; input [255:0] name;
+        begin tests_run=tests_run+1;
+            if(rd_data===exp&&rd_write_en===1'b1) begin tests_passed=tests_passed+1;
+                $display("[PASS] %0s — rd=0x%08h",name,rd_data); end
+            else begin tests_failed=tests_failed+1;
+                $display("[FAIL] %0s — got 0x%08h exp 0x%08h (wr=%b exc=%b c=%01h)",
+                    name,rd_data,exp,rd_write_en,xp_exception,xp_exc_cause); end
+        end endtask
+
+    task check_exception; input [3:0] exp_c; input [255:0] name;
+        begin tests_run=tests_run+1;
+            if(xp_exception===1'b1&&xp_exc_cause===exp_c) begin tests_passed=tests_passed+1;
+                $display("[PASS] %0s — exc cause=0x%01h",name,xp_exc_cause); end
+            else begin tests_failed=tests_failed+1;
+                $display("[FAIL] %0s — exc=%b c=0x%01h exp exc=1 c=0x%01h",
+                    name,xp_exception,xp_exc_cause,exp_c); end
+        end endtask
+
+    initial begin
+        $dumpfile("xplenum_tb.vcd"); $dumpvars(0,xplenum_tb);
+        tests_run=0;tests_passed=0;tests_failed=0;
+        rst_n=0;instr=0;instr_valid=0;rs1_data=0;rs2_data=0;priv_level=2'b11;
+        repeat(4) @(posedge clk); rst_n=1; repeat(2) @(posedge clk);
+
+        $display("");
+        $display("============================================================");
+        $display("  XPLENUM RISC-V Extension — Functional Verification v2");
+        $display("  Capomastro Holdings Ltd. / PlenumNET Division");
+        $display("============================================================");
+        $display("");
+
+        // === GROUP 1: CSR ===
+        $display("--- Group 1: CSR Access ---");
+        read_csr(CSR_OFF_VERSION);
+        check_result({8'b0,`XPLENUM_MAJOR_VER,`XPLENUM_MINOR_VER,`XPLENUM_PATCH_VER},"T1.1 XPVERSION read");
+        write_csr(CSR_OFF_STATUS,32'hF);
+        read_csr(CSR_OFF_STATUS);
+        check_result(32'hF,"T1.3 XPSTATUS readback");
+        write_csr(CSR_OFF_DOMID,32'h1);
+        read_csr(CSR_OFF_DOMID);
+        check_result(32'h1,"T1.4 XPDOMID write/read");
+        $display("");
+
+        // === GROUP 2: Trit Encoding ===
+        $display("--- Group 2: Trit Encoding ---");
+        issue_instr(encode_r(`F7_TTRIT,5'd0,5'd1,`F3_TENC,5'd2),32'd1,0);
+        check_result(32'h1,"T2.1 ttrit(1)=+1");
+        issue_instr(encode_r(`F7_TTRIT,5'd0,5'd1,`F3_TENC,5'd2),32'd2,0);
+        check_result(32'h6,"T2.2 ttrit(2)=(-1,+1)");
+        issue_instr(encode_r(`F7_TTRIT,5'd0,5'd1,`F3_TENC,5'd2),32'd3,0);
+        check_result(32'h4,"T2.3 ttrit(3)=(0,+1)");
+        issue_instr(encode_r(`F7_TDETRIT,5'd0,5'd1,`F3_TENC,5'd2),32'h1,0);
+        check_result(32'd1,"T2.4 tdetrit(+1)=1");
+        issue_instr(encode_r(`F7_TDETRIT,5'd0,5'd1,`F3_TENC,5'd2),32'h6,0);
+        check_result(32'd2,"T2.5 tdetrit(-1,+1)=2");
+        $display("");
+
+        // === GROUP 3: Rotation ===
+        $display("--- Group 3: Ternary Rotation ---");
+        issue_instr(encode_r(`F7_TROTL,5'd2,5'd1,`F3_TROT,5'd3),32'h1,32'd1);
+        check_result(32'h4,"T3.1 trotl(+1,1)");
+        issue_instr(encode_r(`F7_TROTR,5'd2,5'd1,`F3_TROT,5'd3),32'h4,32'd1);
+        check_result(32'h1,"T3.2 trotr inverse");
+        issue_instr(encode_r(`F7_TROTL,5'd2,5'd1,`F3_TROT,5'd3),32'hDEADBEEF,32'd0);
+        check_result(32'hDEADBEEF,"T3.3 trotl identity");
+        $display("");
+
+        // === GROUP 4: Masking ===
+        $display("--- Group 4: Ternary Masking ---");
+        issue_instr(encode_r(`F7_TMASK_APPLY,5'd2,5'd1,`F3_TMASK,5'd3),0,0);
+        check_result(0,"T4.1 tmask(0,0)=0");
+        issue_instr(encode_r(`F7_TMASK_APPLY,5'd2,5'd1,`F3_TMASK,5'd3),32'h1,32'h1);
+        check_result(32'h2,"T4.2 tmask(+1,+1)=-1");
+        issue_instr(encode_r(`F7_TUNMASK,5'd2,5'd1,`F3_TMASK,5'd3),32'h2,32'h1);
+        check_result(32'h1,"T4.3 tunmask roundtrip");
+        $display("");
+
+        // === GROUP 5: Domain ===
+        $display("--- Group 5: Domain Isolation ---");
+        issue_instr(encode_r(`F7_TDOMSET,5'd2,5'd1,`F3_TDOM,5'd3),0,32'h01FF0101);
+        check_result(0,"T5.1 tdomset tag[0]");
+        issue_instr(encode_r(`F7_TDOMCHK,5'd2,5'd1,`F3_TDOM,5'd3),0,32'h7);
+        check_result(1,"T5.2 tdomchk R+W+X");
+        issue_instr(encode_r(`F7_TDOMCLR,5'd0,5'd1,`F3_TDOM,5'd3),0,0);
+        check_result(32'h01FF0101,"T5.3 tdomclr prev");
+        $display("");
+
+        // === GROUP 6: Capabilities ===
+        $display("--- Group 6: Capabilities ---");
+        issue_instr(encode_r(`F7_TCAPST,5'd2,5'd1,`F3_TCAP,5'd3),0,32'h1001);
+        check_result(0,"T6.1 tcapst cap[0]");
+        issue_instr(encode_r(`F7_TCAPLD,5'd2,5'd1,`F3_TCAP,5'd3),0,0);
+        check_result(32'h1001,"T6.2 tcapld readback");
+        issue_instr(encode_r(`F7_TCAPREV,5'd0,5'd1,`F3_TCAP,5'd3),0,0);
+        check_result(0,"T6.3 tcaprev");
+        issue_instr(encode_r(`F7_TCAPLD,5'd2,5'd1,`F3_TCAP,5'd3),0,0);
+        check_exception(`XPEXC_CAP_REVOKED,"T6.4 tcapld revoked");
+        $display("");
+
+        // === GROUP 7: Disabled ===
+        $display("--- Group 7: Disabled Subsystem ---");
+        write_csr(CSR_OFF_STATUS,32'hE);
+        issue_instr(encode_r(`F7_TMASK_APPLY,5'd2,5'd1,`F3_TMASK,5'd3),32'h1,32'h1);
+        check_exception(`XPEXC_MASK_FAULT,"T7.1 tmask disabled");
+        write_csr(CSR_OFF_STATUS,32'hF);
+        $display("");
+
+        $display("============================================================");
+        $display("  Total: %0d | Passed: %0d | Failed: %0d",tests_run,tests_passed,tests_failed);
+        $display("============================================================");
+        if(tests_failed==0) $display("  *** ALL TESTS PASSED — Cosi sia ***");
+        else $display("  *** %0d TESTS FAILED ***",tests_failed);
+        $display("============================================================");
+        #100; $finish;
+    end
+endmodule
