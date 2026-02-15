@@ -1,5 +1,11 @@
 # PlenumNET / Salvi Framework
 
+[![Salvi Framework CI](https://github.com/SigmaWolf-8/Ternary/actions/workflows/ci.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/SigmaWolf-8/Ternary/actions/workflows/security-scan.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/security-scan.yml)
+[![License Check](https://github.com/SigmaWolf-8/Ternary/actions/workflows/license-check.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/license-check.yml)
+[![OWASP Scan](https://github.com/SigmaWolf-8/Ternary/actions/workflows/owasp-scan.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/owasp-scan.yml)
+[![CodeQL](https://github.com/SigmaWolf-8/Ternary/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/codeql-analysis.yml)
+
 Post-quantum ternary computing platform implementing the Unified 13D Torsion Plenum Theory. Production-grade infrastructure for quantum-resistant data operations, femtosecond timing, and CNSA 2.0 compliant cryptography.
 
 > **Export Control Notice:** This software contains post-quantum cryptography subject to export controls under U.S. EAR (ECCN 5D002), Canadian ECL (Category 5, Part 2), and the Wassenaar Arrangement. Distribution to restricted countries (Cuba, Iran, North Korea, Syria, Russia, Belarus) may require authorization. See [EXPORT-CONTROL.md](EXPORT-CONTROL.md) for full classification details.
@@ -12,9 +18,10 @@ Post-quantum ternary computing platform implementing the Unified 13D Torsion Ple
 | Commits | 1,252+ |
 | Crypto modules | 34 |
 | CNSA 2.0 coverage | 11/11 algorithms (100%) |
-| Test count | 1,011+ |
+| Test count | 1,306+ (1,011 Rust + 295 TypeScript) |
 | CMVP target | FIPS 140-3 Level 1 |
 | VM opcodes | 160 (ISA v2.0) |
+| Quantum modules | 5 (qutrit/qudit simulation) |
 
 ## Architecture
 
@@ -89,11 +96,31 @@ GET /api/salvi/ternary/density-benchmark   — Validates 59% density claim at 4 
 GET /api/salvi/timing/self-test            — 1000-sample timer resolution and jitter analysis
 ```
 
+### Quantum Ternary Modules
+Classical simulation of quantum ternary (qutrit/qudit) operations:
+- **Complex Utilities** — Self-contained complex arithmetic (no external deps)
+- **Qutrit Basics** — 3-level quantum states coupled to SUFT branches, phase gates, Gell-Mann generators
+- **Lagrangian Qutrit** — Discrete Euler-Lagrange for qutrit evolution, Tribonacci-weighted potential
+- **Qutrit Fault Tolerance** — Stabilizer codes, syndrome measurement, triorthogonal distillation
+- **Qudit Basics** — Generalized d>=2 quantum states (qubit through d=13 SUFT)
+
+### Scientific Integrations
+- **Saturnian Magic Square** — 3x3 circulant foundation for SUFT-derived constants
+- **Hamiltonian Mechanics** — Symplectic jitter correction, energy invariant enforcement
+- **Lagrangian Mechanics** — Discrete Euler-Lagrange for ternary logic
+- **Noether Symmetries** — Conserved quantities for ternary gauge/reparametrization
+- **Tribonacci Variational** — Discrete variational functionals, ratio convergence to tau
+
 ## Running Tests
 
 ```bash
-npx tsx libternary/tests/ternary-operations.test.ts   # GF(3) arithmetic (58 tests)
-npx tsx libternary/tests/tribonacci.test.ts           # Tribonacci module (58 tests)
+# Rust tests
+cargo test --release --all-features           # Kernel (1,011+ tests)
+
+# TypeScript tests (295 tests across 10 suites)
+npx vitest run                                # All TypeScript tests
+npx vitest run tests/qutrit-basics.test.ts    # Qutrit module (28 tests)
+npx vitest run tests/qudit-basics.test.ts     # Qudit module (35 tests)
 ```
 
 ## API Surface
@@ -113,6 +140,17 @@ The platform exposes 97 endpoints through Kong Konnect:
 ```bash
 npm run dev           # Start Express + Vite dev server on port 5000
 ```
+
+## Legal & Compliance
+
+All legal and compliance documents are indexed in [docs/legal/INDEX.md](docs/legal/INDEX.md), including:
+- Privacy Policy (GDPR/PIPEDA compliant)
+- Export Control (ECCN 5D002, Wassenaar)
+- Data Processing Agreement
+- Incident Response Plan
+- Enterprise SLA
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for contributor information.
 
 ## License
 
