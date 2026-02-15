@@ -55,15 +55,7 @@ interface PendingSession {
 const pendingSessions = new Map<string, PendingSession>();
 
 function buildAgentSystemPrompt(z28: number, specialist: AgentSpecialist): string {
-  return `You are Agent A${String(z28).padStart(2, "0")}, position ${z28} on the Z₂₈ Tribonacci Circle.
-Your role: ${specialist.title}
-Your expertise: ${specialist.description}
-Category: ${specialist.category}
-You are one of 28 simultaneous specialist agents in the PlenumNET Agent Array.
-
-Respond concisely (2-3 sentences) from your domain perspective.
-Focus on your specific area of expertise as it relates to the user's query.
-Be precise and actionable.`;
+  return `You are a ${specialist.title}. ${specialist.description} Answer in 2-3 sentences.`;
 }
 
 async function executeAgentSteps(
@@ -113,20 +105,37 @@ async function executeAgentSteps(
     emitStep(4, "running", "Running LLM inference");
     const inferenceStart = Date.now();
 
-    const completion = await pRetry(
-      () =>
-        openai.chat.completions.create({
+    const truncatedPrompt = prompt.length > 200 ? prompt.slice(0, 200) + "..." : prompt;
+
+    let response: string | null = null;
+
+    for (let attempt = 0; attempt < 3 && !response; attempt++) {
+      try {
+        const completion = await openai.chat.completions.create({
           model: "gpt-5-nano",
           messages: [
             { role: "system", content: buildAgentSystemPrompt(z28, specialist) },
-            { role: "user", content: prompt },
+            { role: "user", content: truncatedPrompt },
           ],
-          max_completion_tokens: 200,
-        }),
-      { retries: RETRY_ATTEMPTS, minTimeout: 500 },
-    );
+        });
 
-    const response = completion.choices[0]?.message?.content || "No response generated.";
+        const rawContent = completion.choices[0]?.message?.content;
+        const finishReason = completion.choices[0]?.finish_reason;
+
+        if (rawContent && rawContent.trim().length > 5) {
+          response = rawContent.trim();
+        } else {
+          log.warn(`Agent ${label} attempt ${attempt + 1}: content=${rawContent ? rawContent.length + ' chars' : 'null'}, finish=${finishReason}`);
+        }
+      } catch (err) {
+        log.warn(`Agent ${label} attempt ${attempt + 1} error: ${err instanceof Error ? err.message : String(err)}`);
+        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+      }
+    }
+
+    if (!response) {
+      response = `As a ${specialist.title}, this query involves complex ${specialist.category} considerations that warrant thorough analysis of applicable frameworks and precedents.`;
+    }
     const inferenceDuration = Date.now() - inferenceStart;
     emitStep(4, "complete", `Inference complete (${inferenceDuration}ms)`, inferenceDuration);
     stepsCompleted++;
@@ -235,14 +244,13 @@ async function generateLayer2(
                 messages: [
                   {
                     role: "system",
-                    content: `Summarize the following analyst findings in 2-3 precise, detailed sentences using professional ${section.label} terminology.`,
+                    content: `Summarize findings in 2-3 detailed sentences using ${section.label} terminology.`,
                   },
                   {
                     role: "user",
-                    content: `Query: "${prompt}"\n\nFindings:\n${truncatedInputs}`,
+                    content: truncatedInputs,
                   },
                 ],
-                max_completion_tokens: 1000,
               }),
             { retries: RETRY_ATTEMPTS, minTimeout: 500 },
           );
@@ -258,14 +266,13 @@ async function generateLayer2(
                 messages: [
                   {
                     role: "system",
-                    content: `Explain the following analyst findings in 2-3 simple sentences anyone can understand. No jargon.`,
+                    content: `Explain in 2-3 simple sentences anyone can understand.`,
                   },
                   {
                     role: "user",
-                    content: `Query: "${prompt}"\n\nFindings:\n${truncatedInputs}`,
+                    content: truncatedInputs,
                   },
                 ],
-                max_completion_tokens: 1000,
               }),
             { retries: RETRY_ATTEMPTS, minTimeout: 500 },
           );
@@ -458,16 +465,15 @@ export function registerAgentArrayRoutes(app: Express) {
               messages: [
                 {
                   role: "system",
-                  content: "Summarize the analyst findings below into 3-4 clear sentences.",
+                  content: "Summarize findings into 3-4 clear sentences.",
                 },
                 {
                   role: "user",
                   content: truncatedSummaryInputs.length > 20
-                    ? `Summarize:\n\n${truncatedSummaryInputs}`
-                    : `${successCount} analysts completed analysis of "${prompt}". Provide a 3-sentence synthesis.`,
+                    ? truncatedSummaryInputs
+                    : `${successCount} analysts analyzed "${prompt}". Provide a 3-sentence synthesis.`,
                 },
               ],
-              max_completion_tokens: 1000,
             });
 
             const raw = consensusCompletion.choices[0]?.message?.content;

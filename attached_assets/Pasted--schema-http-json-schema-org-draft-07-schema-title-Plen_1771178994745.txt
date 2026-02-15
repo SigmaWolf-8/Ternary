@@ -1,0 +1,319 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlenumNET Compliance Engine Output",
+  "description": "28-Agent International Compliance Engine output schema — Ternary Kernel",
+  "version": "1.0.0",
+
+  "definitions": {
+
+    "agent_deliberation": {
+      "type": "object",
+      "description": "Raw output from a single Layer 1 specialist agent",
+      "properties": {
+        "agent_id": { "type": "integer", "minimum": 0, "maximum": 27 },
+        "agent_name": { "type": "string" },
+        "domain": { "type": "string" },
+        "subdomain": { "type": "string" },
+        "relevance_score": {
+          "type": "number", "minimum": 0, "maximum": 1,
+          "description": "Self-assessed relevance of this agent's domain to the query"
+        },
+        "assessment": {
+          "type": "object",
+          "properties": {
+            "applicable": { "type": "boolean" },
+            "risk_level": { "type": "string", "enum": ["none", "low", "medium", "high", "critical"] },
+            "key_issues": { "type": "array", "items": { "type": "string" } },
+            "applicable_laws": { "type": "array", "items": { "type": "string" } },
+            "jurisdictions_affected": { "type": "array", "items": { "type": "string" } },
+            "recommendations": { "type": "array", "items": { "type": "string" } },
+            "blocking_points": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["applicable", "risk_level", "key_issues"]
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "processing_time_ms": { "type": "integer" }
+      },
+      "required": ["agent_id", "agent_name", "assessment", "confidence"]
+    },
+
+    "etymology_entry": {
+      "type": "object",
+      "description": "Etymology and cross-cultural word synchronization for a key term",
+      "properties": {
+        "term": { "type": "string" },
+        "origin_language": { "type": "string" },
+        "etymology": { "type": "string" },
+        "first_attested": { "type": "string" },
+        "cross_cultural_meanings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "culture": { "type": "string" },
+              "language": { "type": "string" },
+              "meaning": { "type": "string" },
+              "period": { "type": "string" }
+            }
+          }
+        },
+        "synchronization_status": {
+          "type": "string",
+          "enum": ["synchronized", "partially_synchronized", "divergent", "anachronistic"]
+        },
+        "flags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["term", "origin_language", "etymology", "synchronization_status"]
+    },
+
+    "veritas_claim": {
+      "type": "object",
+      "description": "A single claim validated by the Veritas Audit",
+      "properties": {
+        "claim": { "type": "string" },
+        "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "language": { "type": "string" },
+              "culture": { "type": "string" },
+              "source_type": { "type": "string" },
+              "reference": { "type": "string" },
+              "period": { "type": "string" }
+            }
+          },
+          "minItems": 3,
+          "description": "Minimum 3 distinct cultural sources, 5 languages, 200+ years span"
+        },
+        "validation_status": {
+          "type": "string",
+          "enum": ["confirmed", "likely", "uncertain", "disputed", "refuted"]
+        }
+      },
+      "required": ["claim", "confidence_score", "sources", "validation_status"]
+    },
+
+    "verdict": {
+      "type": "object",
+      "description": "Section 1: The Verdict",
+      "properties": {
+        "signal": { "type": "string", "enum": ["GREEN", "YELLOW", "RED"] },
+        "signal_description": { "type": "string" },
+        "prima_facie_assessment": { "type": "string" },
+        "blocking_points": { "type": "array", "items": { "type": "string" } },
+        "confidence_level": { "type": "number", "minimum": 0, "maximum": 1 },
+        "veritas_scores": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/veritas_claim" }
+        }
+      },
+      "required": ["signal", "prima_facie_assessment", "confidence_level"]
+    },
+
+    "jurisdictional_compass": {
+      "type": "object",
+      "description": "Section 2: The Jurisdictional Compass",
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "region": { "type": "string" },
+              "status": { "type": "string", "enum": ["permitted", "conditional", "restricted", "prohibited", "unclear"] },
+              "key_requirements": { "type": "array", "items": { "type": "string" } },
+              "governing_law": { "type": "array", "items": { "type": "string" } },
+              "risk_notes": { "type": "string" }
+            },
+            "required": ["region", "status"]
+          }
+        },
+        "heat_map_data": {
+          "type": "object",
+          "description": "Numeric compliance scores by region for visualization",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 10 }
+        }
+      },
+      "required": ["regions"]
+    },
+
+    "risk_barometer": {
+      "type": "object",
+      "description": "Section 3: The Fiduciary & Tech Risk Barometer",
+      "properties": {
+        "financial_risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": { "type": "string" },
+              "score": { "type": "number", "minimum": 0, "maximum": 10 },
+              "narrative": { "type": "string" },
+              "historical_validation": { "type": "string" }
+            },
+            "required": ["category", "score", "narrative"]
+          }
+        },
+        "technical_risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": { "type": "string" },
+              "score": { "type": "number", "minimum": 0, "maximum": 10 },
+              "narrative": { "type": "string" }
+            },
+            "required": ["category", "score", "narrative"]
+          }
+        },
+        "aggregate_financial_score": { "type": "number" },
+        "aggregate_technical_score": { "type": "number" }
+      },
+      "required": ["financial_risks", "technical_risks"]
+    },
+
+    "critical_path": {
+      "type": "object",
+      "description": "Section 4: The Critical Path",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "order": { "type": "integer" },
+              "action": { "type": "string" },
+              "category": {
+                "type": "string",
+                "enum": ["license", "contract_clause", "regulatory_filing", "technical_implementation", "internal_policy", "due_diligence"]
+              },
+              "jurisdiction": { "type": "string" },
+              "deadline": { "type": "string" },
+              "responsible_party": { "type": "string" },
+              "dependencies": { "type": "array", "items": { "type": "integer" } }
+            },
+            "required": ["order", "action", "category"]
+          }
+        },
+        "estimated_timeline_days": { "type": "integer" },
+        "mandatory_clauses": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["steps"]
+    },
+
+    "plain_english": {
+      "type": "object",
+      "description": "Section 5: The Plain English Translation",
+      "properties": {
+        "summary": { "type": "string" },
+        "key_implications": { "type": "array", "items": { "type": "string" } },
+        "latin_terms_glossary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": { "type": "string" },
+              "meaning": { "type": "string" },
+              "etymology_note": { "type": "string" }
+            }
+          }
+        },
+        "board_recommendation": { "type": "string" }
+      },
+      "required": ["summary", "key_implications", "board_recommendation"]
+    },
+
+    "executive_summary": {
+      "type": "object",
+      "description": "Layer 2 complete executive summary",
+      "properties": {
+        "verdict": { "$ref": "#/definitions/verdict" },
+        "jurisdictional_compass": { "$ref": "#/definitions/jurisdictional_compass" },
+        "risk_barometer": { "$ref": "#/definitions/risk_barometer" },
+        "critical_path": { "$ref": "#/definitions/critical_path" },
+        "plain_english": { "$ref": "#/definitions/plain_english" },
+        "etymology_audit": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/etymology_entry" }
+        },
+        "veritas_audit": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/veritas_claim" }
+        }
+      },
+      "required": ["verdict", "jurisdictional_compass", "risk_barometer", "critical_path", "plain_english"]
+    },
+
+    "translation_bundle": {
+      "type": "object",
+      "description": "Single language translation of the executive summary",
+      "properties": {
+        "language_id": { "type": "integer" },
+        "language_code": { "type": "string" },
+        "language_name": { "type": "string" },
+        "translated_summary": { "$ref": "#/definitions/executive_summary" },
+        "lexical_protocol_applied": { "type": "boolean" },
+        "translation_confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["language_id", "language_code", "translated_summary"]
+    }
+  },
+
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "query_id": { "type": "string", "format": "uuid" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "engine_version": { "type": "string" },
+        "tribonacci_hash": {
+          "type": "string",
+          "description": "Tribonacci-mixed hash of query content for integrity"
+        },
+        "processing_time_ms": { "type": "integer" },
+        "model_used": { "type": "string" },
+        "total_tokens": { "type": "integer" }
+      },
+      "required": ["query_id", "timestamp", "engine_version"]
+    },
+    "query": {
+      "type": "object",
+      "properties": {
+        "original_text": { "type": "string" },
+        "detected_domains": { "type": "array", "items": { "type": "string" } },
+        "detected_jurisdictions": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["original_text"]
+    },
+    "layer1_deliberations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/agent_deliberation" },
+      "minItems": 28,
+      "maxItems": 28
+    },
+    "layer2_executive_summary": { "$ref": "#/definitions/executive_summary" },
+    "layer3_translations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/translation_bundle" },
+      "minItems": 28,
+      "maxItems": 28
+    },
+    "audit_log": {
+      "type": "object",
+      "properties": {
+        "etymology_checks": { "type": "integer" },
+        "veritas_validations": { "type": "integer" },
+        "lexical_protocol_version": { "type": "string" },
+        "agent_execution_order": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "13-step permutation order in which agents were scheduled"
+        }
+      }
+    }
+  },
+  "required": ["metadata", "query", "layer1_deliberations", "layer2_executive_summary"]
+}

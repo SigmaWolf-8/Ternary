@@ -1,0 +1,194 @@
+# PlenumNET 28-Agent International Compliance Engine
+
+**Applied Physics Division — Capomastro Holdings Ltd.**
+
+---
+
+## Overview
+
+A three-layer compliance analysis system that deploys 28 specialist AI agents — aligned with the Tribonacci sequence's 28-fold symmetry — to deliver comprehensive international legal, financial, and technical compliance assessments in 28 languages.
+
+The engine exploits the coprimality of T₇ = 13 with 28 to schedule agents via a complete permutation of ℤ₂₈, ensuring uniform coverage and eliminating scheduling bias. Every query receives the deliberation of all 28 domain experts, synthesized into a 5-section executive summary, and localized into 28 languages with enforced lexical consistency.
+
+## Architecture
+
+```
+┌─────────────────┐
+│   USER QUERY    │
+└────────┬────────┘
+         ↓
+┌─────────────────────────────────────────────────────┐
+│  LAYER 1: 28 SPECIALISTS DELIBERATE (parallel)      │
+│  AsyncAnthropic — all 28 agents via asyncio.gather  │
+│  Scheduled in 13-step permutation order              │
+│  Model: claude-sonnet-4-5-20250929                   │
+└─────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────┐
+│  LAYER 2: ENHANCED SYNTHESIS                         │
+│  ├─ Etymology & Cross-Cultural Word Sync             │
+│  ├─ Veritas Audit (5 langs, 3 cultures, 200+ yrs)   │
+│  ├─ Lexical Protocols applied                        │
+│  └─ 5-Section Executive Summary                      │
+│  Model: claude-opus-4-6                              │
+└─────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────┐
+│  LAYER 3: MULTI-LANGUAGE LOCALIZATION               │
+│  28 parallel translations (or Batch API at -50%)    │
+│  Lexical Protocols enforced across all versions      │
+└─────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────┐
+│  OUTPUT: JSON bundle with metadata + audit trail     │
+└─────────────────────────────────────────────────────┘
+```
+
+## Mathematical Foundation
+
+The system's 28-fold structure derives from the Tribonacci sequence:
+
+| Property | Value | Verification |
+|----------|-------|-------------|
+| T₇ (ternary radian) | 13 | gcd(13, 28) = 1 → complete permutation |
+| T₈ | 24 | Convolution kernel component |
+| T₉ (the hook) | 44 | Self-referential: T₉ = 44 → T₄₄ = 80,641,778,674 |
+| 13 × 28 | 364 = 111111₃ | Full circle (base-3 repunit) |
+| Agent scheduling | (i × 13) mod 28 | Visits all 28 positions exactly once |
+
+## The 28 Specialists
+
+**International Law (0–14)**: Public, Private, Trade, Investment, Tax, IP, Environmental, Human Rights, Criminal/Humanitarian, Maritime/Aviation, Space/Cyber, Energy, Labor, Competition, Dispute Resolution
+
+**Regional Legal Systems (15–19)**: Common Law, Civil Law, Asian, Islamic, African
+
+**Finance (20–22)**: Banking/Regulation, Corporate Finance, AML/Financial Crime
+
+**Crypto (23–24)**: Blockchain Technical, Crypto Legal/Regulatory
+
+**Security (25–27)**: Cybersecurity, Geopolitical Risk, Data Privacy
+
+## The 28 Languages
+
+Latin, English, Mandarin, Spanish, Hindi, Arabic, Russian, French, German, Japanese, Portuguese, Italian, Korean, Turkish, Indonesian, Dutch, Swahili, Polish, Thai, Vietnamese, Hebrew, Persian, Greek, Norwegian, Czech, Romanian, Malay, Tagalog
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/capomastro/ternary-kernel.git
+cd ternary-kernel
+
+# Install dependencies
+pip install -e ".[dev]"
+
+# Set API key
+export ANTHROPIC_API_KEY="your-key-here"
+```
+
+## Usage
+
+### CLI
+
+```bash
+# Run mathematical verification (no API calls)
+python -m kernel.cli --verify
+
+# Run a compliance query
+python -m kernel.cli "Can a Canadian company offer DeFi lending services to EU residents?"
+
+# Save full output to file
+python -m kernel.cli -q "Cross-border data transfer from China to EU" -o output.json
+
+# Skip translations (faster, cheaper)
+python -m kernel.cli --no-translations "Ternary computing hardware export to restricted countries"
+```
+
+### Python API
+
+```python
+import asyncio
+from kernel.core.engine import ComplianceEngine
+
+async def main():
+    engine = ComplianceEngine()
+    result = await engine.process_query(
+        "Can we deploy a post-quantum cryptographic system across ASEAN jurisdictions?",
+        include_translations=True,
+    )
+    print(result.to_json())
+
+asyncio.run(main())
+```
+
+## Output Structure
+
+Every query produces a JSON bundle containing:
+
+1. **Metadata** — query ID, timestamp, Tribonacci hash, processing time
+2. **Layer 1 Deliberations** — 28 agent assessments with relevance scores
+3. **Layer 2 Executive Summary**:
+   - The Verdict (GREEN / YELLOW / RED)
+   - The Jurisdictional Compass (heat map across 8 regions)
+   - The Fiduciary & Tech Risk Barometer (0–10 scores)
+   - The Critical Path (actionable steps with timelines)
+   - The Plain English Translation (board-ready summary)
+   - Etymology Audit (cross-cultural term validation)
+   - Veritas Audit (5-language, 3-culture fact-check)
+4. **Layer 3 Translations** — 28 language versions with lexical protocols
+5. **Audit Log** — execution order, etymology checks, veritas validations
+
+## Cost Optimization
+
+| Mode | Layer 1 | Layer 2 | Layer 3 | Total (approx) |
+|------|---------|---------|---------|-----------------|
+| Full (parallel) | 28 × Sonnet | 1 × Opus | 28 × Sonnet | ~57 API calls |
+| Full (batch L3) | 28 × Sonnet | 1 × Opus | 1 batch (50% off) | ~29 calls + batch |
+| No translations | 28 × Sonnet | 1 × Opus | — | ~29 API calls |
+| Verify only | — | — | — | 0 API calls |
+
+## Testing
+
+```bash
+# Run all tests
+python tests/test_engine.py
+
+# Or with pytest
+pytest tests/ -v
+```
+
+## Repository Structure
+
+```
+/ternary-kernel/
+├── kernel/
+│   ├── core/
+│   │   ├── engine.py                # Main orchestrator (Layers 1-2-3)
+│   │   └── tribonacci_scheduler.py  # 13-step permutation, hashing, skip-index
+│   ├── agents/                      # Individual agent modules (extensible)
+│   ├── layers/
+│   │   ├── layer1_deliberation/     # Parallel agent execution
+│   │   ├── layer2_synthesis/
+│   │   │   ├── etymology_engine/    # Cross-cultural word synchronization
+│   │   │   ├── veritas_audit/       # Historical fact-check (5 langs, 3 cultures)
+│   │   │   ├── lexical_protocols/   # Terminological consistency rules
+│   │   │   └── section_generators/  # 5-section report generators
+│   │   └── layer3_localization/     # Translation engines (parallel + batch)
+│   ├── output_schemas/
+│   │   └── compliance_output.schema.json
+│   └── cli.py                       # CLI entry point
+├── config/
+│   ├── agents_config.yaml           # 28 agent definitions + system prompts
+│   ├── languages.yaml               # 28 languages with lexical notes
+│   └── veritas_sources.yaml         # Trusted sources per culture/language
+├── queries/                         # Historical query outputs (immutable)
+├── tests/
+│   └── test_engine.py               # 31 tests covering math + config + schema
+├── docs/                            # System documentation
+├── pyproject.toml                   # Python project configuration
+└── README.md
+```
+
+## License
+
+Proprietary — Capomastro Holdings Ltd. All rights reserved.
