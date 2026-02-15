@@ -1,0 +1,120 @@
+// Xplenum Top-Level Decoder & CSR Management
+// Execute stage integration for RISC-V pipeline. Decodes custom-0 (0x0B).
+// CSR access: R-type, funct7[6]=write, rs2_data[3:0]=CSR offset from 0x7C0
+`include "xplenum_pkg.vh"
+module xplenum_top (
+    input wire clk, input wire rst_n,
+    input wire [31:0] instr, input wire instr_valid,
+    input wire [31:0] rs1_data, input wire [31:0] rs2_data,
+    output wire [31:0] rd_data, output wire rd_write_en,
+    output wire xp_stall, output wire xp_exception, output wire [3:0] xp_exc_cause,
+    input wire [1:0] priv_level
+);
+    wire [6:0] opcode=instr[6:0], funct7=instr[31:25];
+    wire [2:0] funct3=instr[14:12];
+    wire is_xplenum=(opcode==`XPLENUM_OPCODE)&&instr_valid;
+
+    // CSR file
+    reg [31:0] csr_xpstatus, csr_xpdomid, csr_xpcapbase, csr_xpcapbound;
+    reg [31:0] csr_xpmask_seed, csr_xpmask_state_reg, csr_xptrit_mode, csr_xpsig_cfg;
+    reg [31:0] csr_xpexc_cause, csr_xpexc_addr, csr_xpperf_cnt;
+    wire [31:0] csr_xpversion={8'b0,`XPLENUM_MAJOR_VER,`XPLENUM_MINOR_VER,`XPLENUM_PATCH_VER};
+    wire mask_en=csr_xpstatus[`XPSTATUS_MASK_EN];
+    wire dom_en=csr_xpstatus[`XPSTATUS_DOM_EN];
+    wire cap_en=csr_xpstatus[`XPSTATUS_CAP_EN];
+
+    // --- Functional Units ---
+    wire [31:0] mask_rd; wire mask_valid,mask_exc; wire [3:0] mask_exc_cause; wire [31:0] mask_state_out;
+    xplenum_mask_unit u_mask(.clk(clk),.rst_n(rst_n),
+        .enable(is_xplenum&&(funct3==`F3_TMASK)&&mask_en),
+        .funct7(funct7),.rs1_data(rs1_data),.rs2_data(rs2_data),
+        .rd_data(mask_rd),.valid(mask_valid),.exception(mask_exc),.exc_cause(mask_exc_cause),
+        .mask_seed(csr_xpmask_seed),.mask_state(mask_state_out));
+
+    wire [31:0] dom_rd; wire dom_valid,dom_exc; wire [3:0] dom_exc_cause;
+    xplenum_domain_unit u_domain(.clk(clk),.rst_n(rst_n),
+        .enable(is_xplenum&&(funct3==`F3_TDOM)&&dom_en),
+        .funct7(funct7),.rs1_data(rs1_data),.rs2_data(rs2_data),
+        .rd_data(dom_rd),.valid(dom_valid),.exception(dom_exc),.exc_cause(dom_exc_cause),
+        .current_domain(csr_xpdomid[7:0]),.priv_level(priv_level));
+
+    wire [31:0] cap_rd; wire cap_valid,cap_exc; wire [3:0] cap_exc_cause;
+    xplenum_cap_unit u_cap(.clk(clk),.rst_n(rst_n),
+        .enable(is_xplenum&&(funct3==`F3_TCAP)&&cap_en),
+        .funct7(funct7),.rs1_data(rs1_data),.rs2_data(rs2_data),
+        .rd_data(cap_rd),.valid(cap_valid),.exception(cap_exc),.exc_cause(cap_exc_cause),
+        .cap_base(csr_xpcapbase),.cap_bound(csr_xpcapbound),.current_domain(csr_xpdomid[7:0]));
+
+    wire [31:0] trit_rd; wire trit_valid,trit_exc; wire [3:0] trit_exc_cause;
+    xplenum_trit_unit u_trit(.clk(clk),.rst_n(rst_n),
+        .enable(is_xplenum&&(funct3==`F3_TENC||funct3==`F3_TROT)),
+        .funct3(funct3),.funct7(funct7),.rs1_data(rs1_data),.rs2_data(rs2_data),
+        .rd_data(trit_rd),.valid(trit_valid),.exception(trit_exc),.exc_cause(trit_exc_cause));
+
+    // --- Disabled Subsystem Exception Generator ---
+    reg disabled_exc; reg [3:0] disabled_exc_cause;
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin disabled_exc<=0;disabled_exc_cause<=`XPEXC_NONE; end
+        else begin disabled_exc<=0;disabled_exc_cause<=`XPEXC_NONE;
+            if(is_xplenum) case(funct3)
+                `F3_TMASK: if(!mask_en) begin disabled_exc<=1;disabled_exc_cause<=`XPEXC_MASK_FAULT; end
+                `F3_TDOM:  if(!dom_en)  begin disabled_exc<=1;disabled_exc_cause<=`XPEXC_DOM_VIOLATION; end
+                `F3_TCAP:  if(!cap_en)  begin disabled_exc<=1;disabled_exc_cause<=`XPEXC_CAP_INVALID; end
+                default: ;
+            endcase
+        end
+    end
+
+    // --- CSR Read (R-type: rs2_data[3:0]=offset) ---
+    reg csr_rd_valid; reg [31:0] csr_rd_data; reg csr_rd_exc;
+    wire [11:0] csr_addr={8'h7C,rs2_data[3:0]};
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin csr_rd_valid<=0;csr_rd_data<=0;csr_rd_exc<=0; end
+        else begin csr_rd_valid<=0;csr_rd_exc<=0;
+            if(is_xplenum&&funct3==`F3_TCSR) begin csr_rd_valid<=1;
+                case(csr_addr)
+                    `CSR_XPSTATUS:csr_rd_data<=csr_xpstatus; `CSR_XPDOMID:csr_rd_data<=csr_xpdomid;
+                    `CSR_XPCAPBASE:csr_rd_data<=csr_xpcapbase; `CSR_XPCAPBOUND:csr_rd_data<=csr_xpcapbound;
+                    `CSR_XPMASK_SEED:csr_rd_data<=csr_xpmask_seed; `CSR_XPMASK_STATE:csr_rd_data<=csr_xpmask_state_reg;
+                    `CSR_XPTRIT_MODE:csr_rd_data<=csr_xptrit_mode; `CSR_XPSIG_CFG:csr_rd_data<=csr_xpsig_cfg;
+                    `CSR_XPEXC_CAUSE:csr_rd_data<=csr_xpexc_cause; `CSR_XPEXC_ADDR:csr_rd_data<=csr_xpexc_addr;
+                    `CSR_XPPERF_CNT:csr_rd_data<=csr_xpperf_cnt; `CSR_XPVERSION:csr_rd_data<=csr_xpversion;
+                    default: begin csr_rd_exc<=1;csr_rd_valid<=0; end
+                endcase
+            end
+        end
+    end
+
+    // --- Result Multiplexer ---
+    reg [31:0] result_mux; reg result_valid,result_exc; reg [3:0] result_exc_cause;
+    always @(*) begin
+        result_mux=0;result_valid=0;result_exc=0;result_exc_cause=`XPEXC_NONE;
+        if(mask_valid||mask_exc) begin result_mux=mask_rd;result_valid=mask_valid;result_exc=mask_exc;result_exc_cause=mask_exc_cause; end
+        else if(dom_valid||dom_exc) begin result_mux=dom_rd;result_valid=dom_valid;result_exc=dom_exc;result_exc_cause=dom_exc_cause; end
+        else if(cap_valid||cap_exc) begin result_mux=cap_rd;result_valid=cap_valid;result_exc=cap_exc;result_exc_cause=cap_exc_cause; end
+        else if(trit_valid||trit_exc) begin result_mux=trit_rd;result_valid=trit_valid;result_exc=trit_exc;result_exc_cause=trit_exc_cause; end
+        else if(csr_rd_valid||csr_rd_exc) begin result_mux=csr_rd_data;result_valid=csr_rd_valid;result_exc=csr_rd_exc;result_exc_cause=`XPEXC_PRIV_FAULT; end
+        else if(disabled_exc) begin result_exc=1;result_exc_cause=disabled_exc_cause; end
+    end
+    assign rd_data=result_mux; assign rd_write_en=result_valid;
+    assign xp_stall=0; assign xp_exception=result_exc; assign xp_exc_cause=result_exc_cause;
+
+    // --- CSR Write-back ---
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            csr_xpstatus<=0;csr_xpdomid<=0;csr_xpcapbase<=0;csr_xpcapbound<=32'h40;
+            csr_xpmask_seed<=0;csr_xpmask_state_reg<=0;csr_xptrit_mode<=0;csr_xpsig_cfg<=0;
+            csr_xpexc_cause<=0;csr_xpexc_addr<=0;csr_xpperf_cnt<=0;
+        end else begin
+            if(mask_valid) csr_xpmask_state_reg<=mask_state_out;
+            if(result_exc) csr_xpexc_cause<={28'b0,result_exc_cause};
+            if(result_valid) csr_xpperf_cnt<=csr_xpperf_cnt+1;
+            if(is_xplenum&&funct3==`F3_TCSR&&funct7[6]) case(csr_addr)
+                `CSR_XPSTATUS:csr_xpstatus<=rs1_data; `CSR_XPDOMID:csr_xpdomid<=rs1_data;
+                `CSR_XPCAPBASE:csr_xpcapbase<=rs1_data; `CSR_XPCAPBOUND:csr_xpcapbound<=rs1_data;
+                `CSR_XPMASK_SEED:csr_xpmask_seed<=rs1_data; `CSR_XPTRIT_MODE:csr_xptrit_mode<=rs1_data;
+                `CSR_XPSIG_CFG:csr_xpsig_cfg<=rs1_data; default:;
+            endcase
+        end
+    end
+endmodule

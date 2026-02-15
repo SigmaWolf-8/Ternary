@@ -1,0 +1,45 @@
+// Xplenum Capability Unit — CHERI-inspired with ternary extensions
+// 64-entry table, hi/lo 32-bit halves, hardware revocation bitmap
+`include "xplenum_pkg.vh"
+module xplenum_cap_unit (
+    input wire clk, input wire rst_n, input wire enable,
+    input wire [6:0] funct7, input wire [31:0] rs1_data, input wire [31:0] rs2_data,
+    output reg [31:0] rd_data, output reg valid, output reg exception, output reg [3:0] exc_cause,
+    input wire [31:0] cap_base, input wire [31:0] cap_bound, input wire [7:0] current_domain
+);
+    reg [31:0] cap_table_hi [0:63];
+    reg [31:0] cap_table_lo [0:63];
+    reg [63:0] revoked_bitmap;
+    wire [5:0] idx = rs1_data[5:0];
+    wire idx_valid = ({26'b0,idx} < cap_bound);
+    wire [31:0] hi = cap_table_hi[idx];
+    wire [31:0] lo = cap_table_lo[idx];
+    wire [7:0] tag = hi[31:24];
+    wire [7:0] perms = hi[23:16];
+    wire is_valid = (tag!=8'h00);
+    wire is_revoked = revoked_bitmap[idx];
+    integer i;
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            rd_data<=0;valid<=0;exception<=0;exc_cause<=`XPEXC_NONE;revoked_bitmap<=0;
+            for(i=0;i<64;i=i+1) begin cap_table_hi[i]<=0;cap_table_lo[i]<=0; end
+        end else begin
+            valid<=0;exception<=0;exc_cause<=`XPEXC_NONE;
+            if(enable) case(funct7)
+                `F7_TCAPLD: if(!idx_valid) begin exception<=1;exc_cause<=`XPEXC_CAP_INVALID; end
+                    else if(is_revoked) begin exception<=1;exc_cause<=`XPEXC_CAP_REVOKED; end
+                    else begin rd_data<=rs2_data[0]?hi:lo;valid<=1; end
+                `F7_TCAPCHK: if(!idx_valid) begin exception<=1;exc_cause<=`XPEXC_CAP_INVALID; end
+                    else if(!is_valid) begin exception<=1;exc_cause<=`XPEXC_CAP_INVALID; end
+                    else if(is_revoked) begin exception<=1;exc_cause<=`XPEXC_CAP_REVOKED; end
+                    else begin rd_data<=((perms&rs2_data[7:0])==rs2_data[7:0])?32'b1:32'b0;valid<=1; end
+                `F7_TCAPST: if(!idx_valid) begin exception<=1;exc_cause<=`XPEXC_CAP_INVALID; end
+                    else begin rd_data<=lo;cap_table_lo[idx]<=rs2_data;
+                        if(tag==8'h00) cap_table_hi[idx][31:24]<=current_domain;valid<=1; end
+                `F7_TCAPREV: if(!idx_valid) begin exception<=1;exc_cause<=`XPEXC_CAP_INVALID; end
+                    else begin rd_data<={31'b0,revoked_bitmap[idx]};revoked_bitmap[idx]<=1;valid<=1; end
+                default: begin exception<=1;exc_cause<=`XPEXC_CAP_INVALID; end
+            endcase
+        end
+    end
+endmodule

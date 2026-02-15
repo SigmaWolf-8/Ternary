@@ -1,0 +1,107 @@
+// Xplenum Trit Encoding & Rotation Unit
+// Binary <-> Balanced Ternary, trit rotation, T-box substitution, permutation
+`include "xplenum_pkg.vh"
+module xplenum_trit_unit (
+    input wire clk, input wire rst_n, input wire enable,
+    input wire [2:0] funct3, input wire [6:0] funct7,
+    input wire [31:0] rs1_data, input wire [31:0] rs2_data,
+    output reg [31:0] rd_data, output reg valid, output reg exception, output reg [3:0] exc_cause
+);
+    // Binary to balanced ternary (16 trits packed in 32 bits)
+    function [31:0] binary_to_ternary; input [31:0] bin_val;
+        reg [31:0] quotient; reg [1:0] remainder; reg [31:0] result; integer i;
+        begin result=0; quotient=bin_val;
+            for(i=0;i<16;i=i+1) begin
+                remainder=quotient%3;
+                case(remainder)
+                    2'd0: begin result[i*2+:2]=2'b00; quotient=quotient/3; end
+                    2'd1: begin result[i*2+:2]=2'b01; quotient=quotient/3; end
+                    2'd2: begin result[i*2+:2]=2'b10; quotient=(quotient/3)+1; end
+                    default: begin result[i*2+:2]=2'b00; quotient=quotient/3; end
+                endcase
+            end
+            binary_to_ternary=result;
+        end
+    endfunction
+
+    // Balanced ternary to binary
+    function [31:0] ternary_to_binary; input [31:0] trit_val;
+        reg signed [31:0] result; reg signed [31:0] power_of_3; reg [1:0] trit; integer i;
+        begin result=0; power_of_3=1;
+            for(i=0;i<16;i=i+1) begin
+                trit=trit_val[i*2+:2];
+                case(trit)
+                    2'b01: result=result+power_of_3;
+                    2'b10: result=result-power_of_3;
+                    default: ;
+                endcase
+                power_of_3=power_of_3*3;
+            end
+            ternary_to_binary=result;
+        end
+    endfunction
+
+    // Ternary rotation (each trit = 2 bits, so rotate by 2*amt)
+    function [31:0] trit_rotl; input [31:0] val; input [3:0] amt;
+        reg [5:0] shift; begin shift={1'b0,amt,1'b0};
+            trit_rotl=(val<<shift)|(val>>(32-shift)); end
+    endfunction
+    function [31:0] trit_rotr; input [31:0] val; input [3:0] amt;
+        reg [5:0] shift; begin shift={1'b0,amt,1'b0};
+            trit_rotr=(val>>shift)|(val<<(32-shift)); end
+    endfunction
+
+    // T-box: 27-entry ternary S-box (Tribonacci-sequence derived)
+    function [5:0] tbox_lookup; input [5:0] in_trits;
+        reg [4:0] idx; begin
+            case(in_trits[1:0]) 2'b00:idx[1:0]=0; 2'b01:idx[1:0]=1; 2'b10:idx[1:0]=2; default:idx[1:0]=0; endcase
+            case(in_trits[3:2]) 2'b00:idx[3:2]=0; 2'b01:idx[3:2]=1; 2'b10:idx[3:2]=2; default:idx[3:2]=0; endcase
+            case(in_trits[5:4]) 2'b00:idx[4]=0; 2'b01:idx[4]=1; default:idx[4]=0; endcase
+            case(idx)
+                5'd0: tbox_lookup=6'b010000; 5'd1: tbox_lookup=6'b100001; 5'd2: tbox_lookup=6'b000110;
+                5'd3: tbox_lookup=6'b011000; 5'd4: tbox_lookup=6'b100100; 5'd5: tbox_lookup=6'b010010;
+                5'd6: tbox_lookup=6'b000101; 5'd7: tbox_lookup=6'b011001; 5'd8: tbox_lookup=6'b100010;
+                5'd9: tbox_lookup=6'b010100; 5'd10:tbox_lookup=6'b001000; 5'd11:tbox_lookup=6'b100001;
+                5'd12:tbox_lookup=6'b000010; 5'd13:tbox_lookup=6'b010110; 5'd14:tbox_lookup=6'b100100;
+                5'd15:tbox_lookup=6'b001001; 5'd16:tbox_lookup=6'b011010; 5'd17:tbox_lookup=6'b000100;
+                5'd18:tbox_lookup=6'b010001; 5'd19:tbox_lookup=6'b100010; 5'd20:tbox_lookup=6'b001000;
+                5'd21:tbox_lookup=6'b010100; 5'd22:tbox_lookup=6'b100001; 5'd23:tbox_lookup=6'b000110;
+                5'd24:tbox_lookup=6'b011000; 5'd25:tbox_lookup=6'b100100; 5'd26:tbox_lookup=6'b010010;
+                default:tbox_lookup=6'b000000;
+            endcase
+        end
+    endfunction
+
+    // Ternary permutation via rs2 schedule
+    function [31:0] trit_perm; input [31:0] data_in, perm_sched;
+        reg [31:0] result; reg [3:0] dst; integer i;
+        begin result=0;
+            for(i=0;i<8;i=i+1) begin
+                dst=perm_sched[i*4+:4];
+                if(dst<16) result[dst*2+:2]=data_in[i*2+:2];
+            end
+            trit_perm=result;
+        end
+    endfunction
+
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin rd_data<=0;valid<=0;exception<=0;exc_cause<=`XPEXC_NONE;
+        end else begin
+            valid<=0;exception<=0;exc_cause<=`XPEXC_NONE;
+            if(enable) begin
+                if(funct3==`F3_TENC) case(funct7)
+                    `F7_TTRIT:   begin rd_data<=binary_to_ternary(rs1_data);valid<=1; end
+                    `F7_TDETRIT: begin rd_data<=ternary_to_binary(rs1_data);valid<=1; end
+                    default:     begin exception<=1;exc_cause<=`XPEXC_TRIT_OVERFLOW; end
+                endcase
+                else if(funct3==`F3_TROT) case(funct7)
+                    `F7_TROTL: begin rd_data<=trit_rotl(rs1_data,rs2_data[3:0]);valid<=1; end
+                    `F7_TROTR: begin rd_data<=trit_rotr(rs1_data,rs2_data[3:0]);valid<=1; end
+                    `F7_TTBOX: begin rd_data<={26'b0,tbox_lookup(rs1_data[5:0])};valid<=1; end
+                    `F7_TPERM: begin rd_data<=trit_perm(rs1_data,rs2_data);valid<=1; end
+                    default:   begin exception<=1;exc_cause<=`XPEXC_TRIT_OVERFLOW; end
+                endcase
+            end
+        end
+    end
+endmodule

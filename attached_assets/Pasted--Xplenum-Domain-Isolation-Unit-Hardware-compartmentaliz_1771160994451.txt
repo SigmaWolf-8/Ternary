@@ -1,0 +1,44 @@
+// Xplenum Domain Isolation Unit — Hardware compartmentalization
+// Tag: [31:24]=owner [23:16]=perms [15:8]=xfer [7:0]=state
+`include "xplenum_pkg.vh"
+module xplenum_domain_unit (
+    input wire clk, input wire rst_n, input wire enable,
+    input wire [6:0] funct7, input wire [31:0] rs1_data, input wire [31:0] rs2_data,
+    output reg [31:0] rd_data, output reg valid, output reg exception, output reg [3:0] exc_cause,
+    input wire [7:0] current_domain, input wire [1:0] priv_level
+);
+    reg [31:0] domain_tags [0:255];
+    wire [7:0] tag_index = rs1_data[7:0];
+    wire [31:0] current_tag = domain_tags[tag_index];
+    wire [7:0] tag_owner = current_tag[31:24];
+    wire [7:0] tag_perms = current_tag[23:16];
+    wire [7:0] tag_xfer  = current_tag[15:8];
+    wire [7:0] tag_state = current_tag[7:0];
+    localparam TAG_INVALID=8'h00, TAG_ACTIVE=8'h01, TAG_LOCKED=8'h02, TAG_TRANSFER=8'h03;
+    wire is_owner = (tag_owner == current_domain);
+    wire is_privileged = (priv_level == 2'b11);
+    integer i;
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            rd_data<=0;valid<=0;exception<=0;exc_cause<=`XPEXC_NONE;
+            for(i=0;i<256;i=i+1) domain_tags[i]<=0;
+        end else begin
+            valid<=0;exception<=0;exc_cause<=`XPEXC_NONE;
+            if(enable) case(funct7)
+                `F7_TDOMSET: if(tag_state==TAG_INVALID||is_owner||is_privileged)
+                    begin rd_data<=current_tag;domain_tags[tag_index]<=rs2_data;valid<=1; end
+                    else begin exception<=1;exc_cause<=`XPEXC_DOM_VIOLATION; end
+                `F7_TDOMCHK: begin
+                    rd_data<=(is_owner&&(tag_perms&rs2_data[7:0])==rs2_data[7:0])?32'b1:32'b0;
+                    valid<=1; end
+                `F7_TDOMCLR: if(is_owner||is_privileged)
+                    begin rd_data<=current_tag;domain_tags[tag_index]<=0;valid<=1; end
+                    else begin exception<=1;exc_cause<=`XPEXC_DOM_VIOLATION; end
+                `F7_TDOMXFR: if(is_owner&&tag_xfer!=0&&tag_state==TAG_ACTIVE)
+                    begin domain_tags[tag_index]<={rs2_data[7:0],tag_perms,tag_xfer,TAG_TRANSFER};rd_data<=1;valid<=1; end
+                    else begin exception<=1;exc_cause<=`XPEXC_DOM_VIOLATION; end
+                default: begin exception<=1;exc_cause<=`XPEXC_DOM_VIOLATION; end
+            endcase
+        end
+    end
+endmodule

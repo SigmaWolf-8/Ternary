@@ -47,6 +47,19 @@ function randCapId(): string {
   return `CAP-${randHex(4).toUpperCase()}-${randHex(4).toUpperCase()}`;
 }
 
+interface XPlenumState {
+  maskEn: boolean;
+  domEn: boolean;
+  capEn: boolean;
+  sigEn: boolean;
+  domId: number;
+  maskState: string;
+  perfCnt: number;
+  domTable: Record<number, { owner: number; perms: number; state: string }>;
+  capTable: Record<number, { tag: number; perms: number; base: string; seal: string }>;
+  revokeBitmap: Set<number>;
+}
+
 interface VMState {
   registers: number[];
   pc: number;
@@ -54,6 +67,22 @@ interface VMState {
   capsActive: string[];
   sideChMasked: boolean;
   auditCount: number;
+  xplenum: XPlenumState;
+}
+
+function initXPlenumState(): XPlenumState {
+  return {
+    maskEn: false,
+    domEn: false,
+    capEn: false,
+    sigEn: false,
+    domId: 0,
+    maskState: "0x00000000",
+    perfCnt: 0,
+    domTable: {},
+    capTable: {},
+    revokeBitmap: new Set(),
+  };
 }
 
 function initVMState(): VMState {
@@ -64,7 +93,13 @@ function initVMState(): VMState {
     capsActive: [],
     sideChMasked: false,
     auditCount: 0,
+    xplenum: initXPlenumState(),
   };
+}
+
+function randTritWord(): string {
+  const vals = ["-1", " 0", "+1"];
+  return Array.from({ length: 16 }, () => vals[Math.floor(Math.random() * 3)]).join(",");
 }
 
 const OPCODE_TABLE: Record<string, { hex: string; cat: string; desc: string }> = {
@@ -148,6 +183,27 @@ const OPCODE_TABLE: Record<string, { hex: string; cat: string; desc: string }> =
   "GCFREE": { hex: "0xB1", cat: "GC", desc: "GC free / deallocate" },
   "GCMARK": { hex: "0xB2", cat: "GC", desc: "GC mark phase" },
   "GCSWEEP": { hex: "0xB3", cat: "GC", desc: "GC sweep phase" },
+  "TMASK": { hex: "0x0B:000:00", cat: "XPLENUM", desc: "Apply ternary mask (trit-wise addition mod 3)" },
+  "TUNMASK": { hex: "0x0B:000:01", cat: "XPLENUM", desc: "Remove ternary mask (trit-wise subtraction mod 3)" },
+  "TMASKR": { hex: "0x0B:000:02", cat: "XPLENUM", desc: "Generate random LFSR mask + apply" },
+  "TMASKRF": { hex: "0x0B:000:03", cat: "XPLENUM", desc: "Unmask with old mask, remask with fresh LFSR" },
+  "TDOMSET": { hex: "0x0B:001:00", cat: "XPLENUM", desc: "Set domain isolation tag (256-entry table)" },
+  "TDOMCHK": { hex: "0x0B:001:01", cat: "XPLENUM", desc: "Check domain permission (owner + bitmap)" },
+  "TDOMCLR": { hex: "0x0B:001:02", cat: "XPLENUM", desc: "Clear domain tag (owner-only)" },
+  "TDOMXFR": { hex: "0x0B:001:03", cat: "XPLENUM", desc: "Transfer domain ownership (authorized)" },
+  "TCAPLD": { hex: "0x0B:010:00", cat: "XPLENUM", desc: "Load capability descriptor (64-bit entry)" },
+  "TCAPCHK": { hex: "0x0B:010:01", cat: "XPLENUM", desc: "Check capability permissions (tag + perms)" },
+  "TCAPST": { hex: "0x0B:010:02", cat: "XPLENUM", desc: "Store capability descriptor (unsealed only)" },
+  "TCAPREV": { hex: "0x0B:010:03", cat: "XPLENUM", desc: "Revoke capability O(1) via bitmap flip" },
+  "TROTL": { hex: "0x0B:011:00", cat: "XPLENUM", desc: "Ternary rotate left by N trits" },
+  "TROTR": { hex: "0x0B:011:01", cat: "XPLENUM", desc: "Ternary rotate right by N trits" },
+  "TTBOX": { hex: "0x0B:011:02", cat: "XPLENUM", desc: "T-box substitution (27-entry GF(3)^3 S-box)" },
+  "TPERM": { hex: "0x0B:011:03", cat: "XPLENUM", desc: "Ternary permutation (lane reordering)" },
+  "TTRIT": { hex: "0x0B:100:00", cat: "XPLENUM", desc: "Binary to balanced ternary encoding" },
+  "TDETRIT": { hex: "0x0B:100:01", cat: "XPLENUM", desc: "Balanced ternary to binary decoding" },
+  "TSIGFLT": { hex: "0x0B:101:00", cat: "XPLENUM", desc: "Signal filter (IIR/FIR multiply-accumulate)" },
+  "TSIGCMP": { hex: "0x0B:101:01", cat: "XPLENUM", desc: "Signal compare (ternary threshold classifier)" },
+  "TSIGACC": { hex: "0x0B:101:02", cat: "XPLENUM", desc: "Signal accumulate (EWMA filter)" },
 };
 
 function processCommand(input: string, vm: VMState, term: Terminal): VMState {
@@ -172,6 +228,8 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
       term.writeln(`  ${GREEN}demo${RST}               Run the dual-phase encryption demo`);
       term.writeln(`  ${GREEN}demo-cap${RST}           Run the capability security demo`);
       term.writeln(`  ${GREEN}demo-sidech${RST}        Run the side-channel masking demo`);
+      term.writeln(`  ${GREEN}demo-xplenum${RST}       Run the XPLENUM RISC-V extension demo`);
+      term.writeln(`  ${GREEN}xplenum${RST}            Show XPLENUM extension status & CSRs`);
       term.writeln(`  ${GREEN}registers${RST}          Display all 27 ternary registers`);
       term.writeln(`  ${GREEN}audit${RST}              Show audit trail`);
       term.writeln(`  ${GREEN}arch${RST}               Display architecture summary`);
@@ -360,6 +418,186 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
         term.writeln(`  ${RED}\u25A0 Processor halted${RST}`);
       } else if (mnemonic === "NOP") {
         term.writeln(`  ${DIM}\u2192 No operation (1 cycle)${RST}`);
+      } else if (mnemonic === "TMASK") {
+        const mask = "0x" + randHex(8).toUpperCase();
+        const data = "0x" + randHex(8).toUpperCase();
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM custom-0 (opcode 0x0B, funct3=000, funct7=0000000)${RST}`);
+        term.writeln(`  ${DIM}  data  = ${data}  (16 trits, 2-bit encoded)${RST}`);
+        term.writeln(`  ${DIM}  mask  = ${mask}${RST}`);
+        term.writeln(`  ${DIM}  rd    = trit_add(data, mask) mod 3 per trit-pair${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Masked result: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TUNMASK") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM custom-0 (funct3=000, funct7=0000001)${RST}`);
+        term.writeln(`  ${DIM}  rd = trit_sub(data, mask) mod 3 per trit-pair${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Unmasked: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TMASKR") {
+        const lfsr = "0x" + randHex(8).toUpperCase();
+        newVm.xplenum = { ...newVm.xplenum, maskState: lfsr, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM LFSR-TRNG mask generation${RST}`);
+        term.writeln(`  ${DIM}  Polynomial: x^32 + x^22 + x^2 + x + 1${RST}`);
+        term.writeln(`  ${DIM}  LFSR state \u2192 valid trits (11 \u2192 00 sanitize)${RST}`);
+        term.writeln(`  ${DIM}  Generated mask: ${lfsr}${RST}`);
+        term.writeln(`  ${GREEN}\u2713 CSR 0x7C5 (XPMASK_STATE) updated${RST}`);
+      } else if (mnemonic === "TMASKRF") {
+        const oldMask = newVm.xplenum.maskState;
+        const newMask = "0x" + randHex(8).toUpperCase();
+        newVm.xplenum = { ...newVm.xplenum, maskState: newMask, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM mask refresh (unmask old + remask new)${RST}`);
+        term.writeln(`  ${DIM}  Old mask: ${oldMask}${RST}`);
+        term.writeln(`  ${DIM}  New mask: ${newMask}${RST}`);
+        term.writeln(`  ${DIM}  rd = mask_new(unmask_old(data))${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Mask refreshed (side-channel window minimized)${RST}`);
+      } else if (mnemonic === "TDOMSET") {
+        const idx = Math.floor(Math.random() * 256);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        newVm.xplenum.domTable[idx] = { owner: newVm.xplenum.domId, perms: 0xFF, state: "ACTIVE" };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM domain table write${RST}`);
+        term.writeln(`  ${DIM}  Index:  ${idx} (of 256-entry table)${RST}`);
+        term.writeln(`  ${DIM}  Owner:  Domain ${newVm.xplenum.domId}${RST}`);
+        term.writeln(`  ${DIM}  Perms:  R/W/X/Cross (0xFF)${RST}`);
+        term.writeln(`  ${DIM}  State:  ACTIVE${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Domain tag set${RST}`);
+      } else if (mnemonic === "TDOMCHK") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        const entries = Object.keys(newVm.xplenum.domTable);
+        if (entries.length > 0) {
+          const idx = parseInt(entries[entries.length - 1]);
+          const entry = newVm.xplenum.domTable[idx];
+          term.writeln(`  ${CYAN}\u2192 XPLENUM domain permission check${RST}`);
+          term.writeln(`  ${DIM}  Index:    ${idx}${RST}`);
+          term.writeln(`  ${DIM}  Owner:    Domain ${entry.owner} (current: ${newVm.xplenum.domId})${RST}`);
+          term.writeln(`  ${DIM}  Match:    ${entry.owner === newVm.xplenum.domId ? "YES" : "NO"}${RST}`);
+          term.writeln(`  ${entry.owner === newVm.xplenum.domId ? `${GREEN}\u2713 Permission GRANTED` : `${RED}\u2717 Permission DENIED`}${RST}`);
+        } else {
+          term.writeln(`  ${YELLOW}\u26A0 Domain table empty \u2014 no entries to check${RST}`);
+        }
+      } else if (mnemonic === "TDOMCLR") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        const entries = Object.keys(newVm.xplenum.domTable);
+        if (entries.length > 0) {
+          const idx = parseInt(entries[entries.length - 1]);
+          delete newVm.xplenum.domTable[idx];
+          term.writeln(`  ${CYAN}\u2192 XPLENUM domain clear${RST}`);
+          term.writeln(`  ${DIM}  Index ${idx} \u2192 INVALID (cleared)${RST}`);
+          term.writeln(`  ${GREEN}\u2713 Domain entry cleared${RST}`);
+        } else {
+          term.writeln(`  ${YELLOW}\u26A0 Domain table empty${RST}`);
+        }
+      } else if (mnemonic === "TDOMXFR") {
+        const newOwner = Math.floor(Math.random() * 256);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM domain ownership transfer${RST}`);
+        term.writeln(`  ${DIM}  From: Domain ${newVm.xplenum.domId} \u2192 Domain ${newOwner}${RST}`);
+        term.writeln(`  ${DIM}  State: ACTIVE \u2192 TRANSFER${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Transfer initiated${RST}`);
+      } else if (mnemonic === "TCAPLD") {
+        const idx = Math.floor(Math.random() * 64);
+        const entry = newVm.xplenum.capTable[idx];
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM capability load${RST}`);
+        if (newVm.xplenum.revokeBitmap.has(idx)) {
+          term.writeln(`  ${RED}\u2717 Capability ${idx} REVOKED \u2014 exception raised${RST}`);
+          term.writeln(`  ${DIM}  CSR 0x7C8 (XPEXC_CAUSE) = 0x3 (CAP_REVOKED)${RST}`);
+        } else if (entry) {
+          term.writeln(`  ${DIM}  Index:  ${idx}  Tag: 0x${entry.tag.toString(16).padStart(2, "0")}${RST}`);
+          term.writeln(`  ${DIM}  Perms:  0x${entry.perms.toString(16).padStart(2, "0")}  Base: ${entry.base}${RST}`);
+          term.writeln(`  ${DIM}  Seal:   ${entry.seal}${RST}`);
+          term.writeln(`  ${GREEN}\u2713 Capability loaded to rd${RST}`);
+        } else {
+          term.writeln(`  ${DIM}  Index:  ${idx}  (empty entry)${RST}`);
+          term.writeln(`  ${DIM}  rd = 0x00000000${RST}`);
+          term.writeln(`  ${GREEN}\u2713 OK (zero capability)${RST}`);
+        }
+      } else if (mnemonic === "TCAPCHK") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        const idx = Math.floor(Math.random() * 64);
+        const entry = newVm.xplenum.capTable[idx];
+        term.writeln(`  ${CYAN}\u2192 XPLENUM capability permission check${RST}`);
+        term.writeln(`  ${DIM}  Index: ${idx}  Requested: R/W${RST}`);
+        if (entry && !newVm.xplenum.revokeBitmap.has(idx)) {
+          term.writeln(`  ${GREEN}\u2713 Permission VALID (rd = 1)${RST}`);
+        } else {
+          term.writeln(`  ${RED}\u2717 Permission INVALID (rd = 0)${RST}`);
+        }
+      } else if (mnemonic === "TCAPST") {
+        const idx = Math.floor(Math.random() * 64);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        newVm.xplenum.capTable[idx] = {
+          tag: 0xFF, perms: 0xFF,
+          base: "0x" + randHex(4).toUpperCase(),
+          seal: "OPEN",
+        };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM capability store${RST}`);
+        term.writeln(`  ${DIM}  Index:  ${idx}  Tag: 0xFF (valid)${RST}`);
+        term.writeln(`  ${DIM}  Perms:  R/W/X  Seal: OPEN (modifiable)${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Capability stored${RST}`);
+      } else if (mnemonic === "TCAPREV") {
+        const idx = Math.floor(Math.random() * 64);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        newVm.xplenum.revokeBitmap.add(idx);
+        term.writeln(`  ${CYAN}\u2192 XPLENUM O(1) capability revocation${RST}`);
+        term.writeln(`  ${DIM}  Index: ${idx}  Bitmap[${idx}] \u2192 1${RST}`);
+        term.writeln(`  ${DIM}  Single-cycle bitmap flip (no table sweep)${RST}`);
+        term.writeln(`  ${RED}\u2717 Capability ${idx} REVOKED${RST}`);
+      } else if (mnemonic === "TROTL") {
+        const amt = Math.floor(Math.random() * 16);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM ternary rotate left${RST}`);
+        term.writeln(`  ${DIM}  Rotate amount: ${amt} trits (${amt * 2} bits)${RST}`);
+        term.writeln(`  ${DIM}  rd = (rs1 << ${amt * 2}) | (rs1 >> ${32 - amt * 2})${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Result: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TROTR") {
+        const amt = Math.floor(Math.random() * 16);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM ternary rotate right${RST}`);
+        term.writeln(`  ${DIM}  Rotate amount: ${amt} trits${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Result: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TTBOX") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM T-box substitution${RST}`);
+        term.writeln(`  ${DIM}  27-entry lookup table (GF(3)^3 \u2192 GF(3)^3)${RST}`);
+        term.writeln(`  ${DIM}  5 groups of 3-trit substitution applied${RST}`);
+        term.writeln(`  ${DIM}  Nonlinear mixing for ternary block cipher${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Result: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TPERM") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM trit permutation${RST}`);
+        term.writeln(`  ${DIM}  Lane reorder: rs2 encodes destination indices${RST}`);
+        term.writeln(`  ${DIM}  8-trit shuffle in single cycle${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Result: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TTRIT") {
+        const binVal = Math.floor(Math.random() * 1000);
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM binary \u2192 balanced ternary encoding${RST}`);
+        term.writeln(`  ${DIM}  Input:  ${binVal} (binary)${RST}`);
+        term.writeln(`  ${DIM}  Method: iterative mod-3 with carry correction${RST}`);
+        term.writeln(`  ${DIM}  Trit encoding: 00=0, 01=+1, 10=-1 (2-bit pairs)${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Encoded: 0x${randHex(8).toUpperCase()} (16 trits)${RST}`);
+      } else if (mnemonic === "TDETRIT") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        const binResult = Math.floor(Math.random() * 1000);
+        term.writeln(`  ${CYAN}\u2192 XPLENUM balanced ternary \u2192 binary decoding${RST}`);
+        term.writeln(`  ${DIM}  Input:  0x${randHex(8).toUpperCase()} (16 trits)${RST}`);
+        term.writeln(`  ${DIM}  Method: \u03A3(trit_i * 3^i) signed accumulation${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Decoded: ${binResult} (binary)${RST}`);
+      } else if (mnemonic === "TSIGFLT") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM signal filter (MAC)${RST}`);
+        term.writeln(`  ${DIM}  rd = (rs1 * rs2[15:0]) >> cfg[3:0]${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Filtered: 0x${randHex(8).toUpperCase()}${RST}`);
+      } else if (mnemonic === "TSIGCMP") {
+        const vals = ["+1 (ABOVE)", " 0 (WITHIN)", "-1 (BELOW)"];
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM ternary threshold classifier${RST}`);
+        term.writeln(`  ${DIM}  Deadband from CSR 0x7C7 (XPSIG_CFG)${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Classification: ${vals[Math.floor(Math.random() * 3)]}${RST}`);
+      } else if (mnemonic === "TSIGACC") {
+        newVm.xplenum = { ...newVm.xplenum, perfCnt: newVm.xplenum.perfCnt + 1 };
+        term.writeln(`  ${CYAN}\u2192 XPLENUM EWMA accumulator${RST}`);
+        term.writeln(`  ${DIM}  acc = (acc * alpha + sample * (255-alpha)) >> 8${RST}`);
+        term.writeln(`  ${GREEN}\u2713 Accumulated: 0x${randHex(8).toUpperCase()}${RST}`);
       } else {
         const r1 = Math.floor(Math.random() * 27);
         const r2 = Math.floor(Math.random() * 27);
@@ -504,6 +742,133 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
       return newVm;
     }
 
+    case "demo-xplenum": {
+      term.writeln("");
+      term.writeln(`${BOLD}${BRAND}\u2550\u2550\u2550 XPLENUM RISC-V Ternary Security Extension Demo \u2550\u2550\u2550${RST}`);
+      term.writeln(`${DIM}RISC-V custom-0 (opcode 0x0B) \u2014 6 functional groups, 23 instructions${RST}`);
+      term.writeln(`${DIM}Simulating full hardware pipeline: masking \u2192 domain \u2192 capability \u2192 crypto${RST}`);
+      term.writeln("");
+
+      const xpVm = { ...vm, auditCount: vm.auditCount + 10, pc: vm.pc + 10,
+        xplenum: { ...vm.xplenum, maskEn: true, domEn: true, capEn: true, sigEn: true, domId: 1, perfCnt: vm.xplenum.perfCnt + 10 }
+      };
+      const lfsrMask = "0x" + randHex(8).toUpperCase();
+      const capIdx = Math.floor(Math.random() * 64);
+      const domIdx = Math.floor(Math.random() * 256);
+      xpVm.xplenum.maskState = lfsrMask;
+      xpVm.xplenum.domTable[domIdx] = { owner: 1, perms: 0xFF, state: "ACTIVE" };
+      xpVm.xplenum.capTable[capIdx] = { tag: 0xFF, perms: 0xFF, base: "0x" + randHex(4).toUpperCase(), seal: "OPEN" };
+
+      term.writeln(`  ${WHITE}Step 1/10${RST} ${GREEN}CSR Write${RST} ${DIM}(XPSTATUS \u2192 0x0F)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Enable all subsystems: MASK_EN=1 DOM_EN=1 CAP_EN=1 SIG_EN=1${RST}`);
+      term.writeln(`  ${DIM}  CSR 0x7C0 = 0x0000000F${RST}`);
+      term.writeln(`  ${GREEN}\u2713${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 2/10${RST} ${GREEN}TMASKR${RST} ${DIM}(0x0B:000:02)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Generate LFSR random mask + apply to sensitive data${RST}`);
+      term.writeln(`  ${DIM}  Polynomial: x^32 + x^22 + x^2 + x + 1${RST}`);
+      term.writeln(`  ${DIM}  Generated mask: ${lfsrMask}${RST}`);
+      term.writeln(`  ${DIM}  Data masked via trit-wise addition mod 3${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Side-channel resistant${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 3/10${RST} ${GREEN}TDOMSET${RST} ${DIM}(0x0B:001:00)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Create hardware isolation domain${RST}`);
+      term.writeln(`  ${DIM}  Index: ${domIdx}  Owner: Domain 1  Perms: R/W/X/Cross${RST}`);
+      term.writeln(`  ${DIM}  State: ACTIVE  (256-entry hardware table)${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Domain isolated${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 4/10${RST} ${GREEN}TDOMCHK${RST} ${DIM}(0x0B:001:01)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Verify domain permission (owner match + bitmap)${RST}`);
+      term.writeln(`  ${DIM}  Current domain: 1  Entry owner: 1  Match: YES${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Permission GRANTED (rd = 1)${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 5/10${RST} ${GREEN}TCAPST${RST} ${DIM}(0x0B:010:02)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Store capability descriptor (64-bit CHERI-inspired)${RST}`);
+      term.writeln(`  ${DIM}  Index: ${capIdx}  Tag: 0xFF  Perms: R/W/X  Seal: OPEN${RST}`);
+      term.writeln(`  ${DIM}  [63:56]=tag [55:48]=perms [47:32]=base [31:16]=bound [15:8]=otype [7:0]=seal${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Capability stored${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 6/10${RST} ${GREEN}TCAPCHK${RST} ${DIM}(0x0B:010:01)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Check capability before crypto operation${RST}`);
+      term.writeln(`  ${DIM}  Valid tag + matching permissions = GRANTED${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Capability VALID (rd = 1)${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 7/10${RST} ${GREEN}TTRIT${RST} ${DIM}(0x0B:100:00)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Convert binary data to balanced ternary for crypto${RST}`);
+      term.writeln(`  ${DIM}  Binary \u2192 BT via iterative mod-3 with carry${RST}`);
+      term.writeln(`  ${DIM}  Encoding: 00=0, 01=+1, 10=-1 (16 trits in 32 bits)${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Encoded${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 8/10${RST} ${GREEN}TTBOX${RST} ${DIM}(0x0B:011:02)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Apply T-box substitution (nonlinear ternary S-box)${RST}`);
+      term.writeln(`  ${DIM}  27-entry GF(3)^3 lookup table \u2014 5 parallel substitutions${RST}`);
+      term.writeln(`  ${DIM}  Hardware RTL: 22/22 testbench PASS (iverilog verified)${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Substituted${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 9/10${RST} ${GREEN}TCAPREV${RST} ${DIM}(0x0B:010:03)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Revoke capability via O(1) bitmap flip${RST}`);
+      term.writeln(`  ${DIM}  revoke_bitmap[${capIdx}] \u2192 1  (single-cycle, no sweep)${RST}`);
+      xpVm.xplenum.revokeBitmap.add(capIdx);
+      term.writeln(`  ${RED}\u2717 Capability ${capIdx} REVOKED${RST}`);
+      term.writeln("");
+
+      term.writeln(`  ${WHITE}Step 10/10${RST} ${GREEN}TDETRIT${RST} ${DIM}(0x0B:100:01)${RST}`);
+      term.writeln(`  ${CYAN}\u2192 Convert result back to binary for output${RST}`);
+      term.writeln(`  ${DIM}  \u03A3(trit_i * 3^i) signed accumulation${RST}`);
+      term.writeln(`  ${GREEN}\u2713 Decoded${RST}`);
+      term.writeln("");
+
+      term.writeln(`${BOLD}${GREEN}\u2550\u2550\u2550 XPLENUM pipeline complete. \u2550\u2550\u2550${RST}`);
+      term.writeln(`${DIM}    23 instructions in RISC-V custom-0 opcode space (0x0B)${RST}`);
+      term.writeln(`${DIM}    6 functional groups: Masking, Domain, Capability, Crypto, Encoding, Signal${RST}`);
+      term.writeln(`${DIM}    RTL: 5 Verilog modules, 22/22 testbench PASS${RST}`);
+      term.writeln(`${DIM}    CSR file: 0x7C0\u20130x7CB (12 registers)${RST}`);
+      term.writeln("");
+      return xpVm;
+    }
+
+    case "xplenum": {
+      term.writeln("");
+      term.writeln(`${BOLD}${BRAND}\u250C\u2500 XPLENUM Extension Status \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510${RST}`);
+      term.writeln(`${BRAND}\u2502${RST} ${WHITE}Extension:${RST}     ${CYAN}XPLENUM v1.0.0${RST}`);
+      term.writeln(`${BRAND}\u2502${RST} ${WHITE}Opcode:${RST}        ${CYAN}custom-0 (0x0B)${RST}`);
+      term.writeln(`${BRAND}\u2502${RST} ${WHITE}Instructions:${RST}  ${CYAN}23 across 6 groups${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}`);
+      term.writeln(`${BRAND}\u2502${RST} ${BOLD}${WHITE}CSR File (0x7C0\u20130x7CB):${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}0x7C0 XPSTATUS:${RST}    ${vm.xplenum.maskEn || vm.xplenum.domEn || vm.xplenum.capEn || vm.xplenum.sigEn ? GREEN : DIM}MASK=${vm.xplenum.maskEn ? "1" : "0"} DOM=${vm.xplenum.domEn ? "1" : "0"} CAP=${vm.xplenum.capEn ? "1" : "0"} SIG=${vm.xplenum.sigEn ? "1" : "0"}${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}0x7C1 XPDOMID:${RST}     ${CYAN}${vm.xplenum.domId}${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}0x7C5 MASK_STATE:${RST}  ${DIM}${vm.xplenum.maskState}${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}0x7CA PERF_CNT:${RST}    ${CYAN}${vm.xplenum.perfCnt}${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}0x7CB VERSION:${RST}     ${CYAN}0x00010000 (v1.0.0)${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}`);
+      term.writeln(`${BRAND}\u2502${RST} ${BOLD}${WHITE}Hardware Tables:${RST}`);
+      const domEntries = Object.keys(vm.xplenum.domTable).length;
+      const capEntries = Object.keys(vm.xplenum.capTable).length;
+      const revoked = vm.xplenum.revokeBitmap.size;
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}Domain Table:${RST}    ${CYAN}${domEntries}/256${RST} entries active`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}Cap Table:${RST}       ${CYAN}${capEntries}/64${RST} entries stored`);
+      term.writeln(`${BRAND}\u2502${RST}   ${WHITE}Revoke Bitmap:${RST}   ${revoked > 0 ? RED : DIM}${revoked} revoked${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}`);
+      term.writeln(`${BRAND}\u2502${RST} ${BOLD}${WHITE}Functional Groups:${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${GREEN}000${RST} Masking    ${DIM}TMASK TUNMASK TMASKR TMASKRF${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${GREEN}001${RST} Domain     ${DIM}TDOMSET TDOMCHK TDOMCLR TDOMXFR${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${GREEN}010${RST} Capability ${DIM}TCAPLD TCAPCHK TCAPST TCAPREV${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${GREEN}011${RST} Crypto     ${DIM}TROTL TROTR TTBOX TPERM${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${GREEN}100${RST} Encoding   ${DIM}TTRIT TDETRIT${RST}`);
+      term.writeln(`${BRAND}\u2502${RST}   ${GREEN}101${RST} Signal     ${DIM}TSIGFLT TSIGCMP TSIGACC${RST}`);
+      term.writeln(`${BRAND}\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518${RST}`);
+      term.writeln("");
+      return vm;
+    }
+
     case "audit": {
       term.writeln("");
       term.writeln(`${BOLD}${BRAND}Audit Trail${RST}`);
@@ -546,6 +911,12 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
       term.writeln(`    ${RED}Security/Audit${RST}      Capabilities, side-channel, const-time`);
       term.writeln(`    ${WHITE}Debug/Profiling${RST}    Breakpoints, trace, perf counters`);
       term.writeln("");
+      term.writeln(`  ${BOLD}${WHITE}XPLENUM RISC-V Extension:${RST}`);
+      term.writeln(`    ${CYAN}XPLENUM${RST}             23 custom-0 instructions (opcode 0x0B)`);
+      term.writeln(`    ${DIM}Masking, Domain Isolation, Capabilities, Crypto,${RST}`);
+      term.writeln(`    ${DIM}Trit Encoding, Signal Processing${RST}`);
+      term.writeln(`    ${DIM}CSR 0x7C0\u20130x7CB \u2022 RTL: 5 Verilog modules \u2022 22/22 TB PASS${RST}`);
+      term.writeln("");
       return vm;
     }
 
@@ -564,6 +935,9 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
       term.writeln(`  ${WHITE}Capabilities:${RST}    ${GREEN}Sentinel-trit based${RST}`);
       term.writeln(`  ${WHITE}Compliance:${RST}      ${GREEN}CNSA 2.0, FIPS 140-3${RST}`);
       term.writeln(`  ${WHITE}GC:${RST}              ${GREEN}Ternary-aware mark/sweep${RST}`);
+      term.writeln(`  ${WHITE}XPLENUM:${RST}         ${GREEN}23 custom-0 instrs (0x0B)${RST}`);
+      term.writeln(`  ${WHITE}  Groups:${RST}        ${DIM}Mask/Domain/Cap/Crypto/Enc/Sig${RST}`);
+      term.writeln(`  ${WHITE}  RTL:${RST}           ${DIM}5 Verilog modules, 22/22 TB PASS${RST}`);
       term.writeln("");
       return vm;
     }
@@ -675,6 +1049,7 @@ export function TernaryVMTerminal() {
     term.writeln("");
     term.writeln(`  ${WHITE}Type '${GREEN}help${WHITE}' for available commands.${RST}`);
     term.writeln(`  ${WHITE}Type '${GREEN}demo${WHITE}' to see the encryption pipeline in action.${RST}`);
+    term.writeln(`  ${WHITE}Type '${GREEN}demo-xplenum${WHITE}' for the RISC-V XPLENUM extension demo.${RST}`);
     term.writeln("");
 
     writePrompt(term);
