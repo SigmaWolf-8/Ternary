@@ -131,6 +131,25 @@ export const compressedDocuments = pgTable("compressed_documents", {
 
 export const insertCompressedDocumentSchema = createInsertSchema(compressedDocuments).omit({ id: true, createdAt: true });
 
+export const agentArrayReports = pgTable("agent_array_reports", {
+  id: serial("id").primaryKey(),
+  prompt: text("prompt").notNull(),
+  tribonacciHash: varchar("tribonacci_hash").notNull(),
+  unifiedReport: text("unified_report").notNull(),
+  translations: jsonb("translations").notNull(),
+  executiveSummary: jsonb("executive_summary"),
+  layer2Sections: jsonb("layer2_sections"),
+  agentCount: integer("agent_count").notNull(),
+  successCount: integer("success_count").notNull(),
+  totalDurationMs: integer("total_duration_ms").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAgentArrayReportSchema = createInsertSchema(agentArrayReports).omit({ id: true, createdAt: true });
+
+export type InsertAgentArrayReport = z.infer<typeof insertAgentArrayReportSchema>;
+export type AgentArrayReport = typeof agentArrayReports.$inferSelect;
+
 export type InsertDemoSession = z.infer<typeof insertDemoSessionSchema>;
 export type DemoSession = typeof demoSessions.$inferSelect;
 export type InsertBinaryStorage = z.infer<typeof insertBinaryStorageSchema>;
