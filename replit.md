@@ -28,7 +28,7 @@ The `src/kernel/` directory contains a Rust-based kernel providing advanced func
 -   **I/O Subsystem**: Priority-based scheduler, buffer cache, block/character device layers.
 -   **Filesystem**: Inode management, directory/file operations, mount system.
 -   **Torsion Network**: N-dimensional torus topology, greedy geodesic routing, Ternary Transport Protocol (TTP), Ternary Transfer Protocol (T3P), and Ternary DNS (TDNS).
--   **Ternary Virtual Machine**: A 160-opcode ISA v2.0 supporting various operations with ternary addressing, three-ring privilege levels, and a ternary-aware garbage collector.
+-   **Ternary Virtual Machine**: A 176-opcode ISA v2.1 supporting various operations with ternary addressing, three-ring privilege levels, quantum-ternary simulation (0xA0-0xAF), and a ternary-aware garbage collector.
 -   **Binary Compatibility Layer**: For balanced ternary conversion and crypto interoperability.
 
 ### Legal & IP Compliance

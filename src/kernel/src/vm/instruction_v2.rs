@@ -13,8 +13,8 @@
 // See LICENSE in the repository root for full terms.
 //
 // ============================================================================
-// TVM ISA v2.0 — Enterprise-Grade Instruction Set
-// Expanded from 62 to 160 opcodes
+// TVM ISA v2.1 — Enterprise-Grade Instruction Set
+// Expanded from 62 to 176 opcodes (v2.1: +16 Quantum-Ternary)
 // ============================================================================
 
 use alloc::string::String;
@@ -108,7 +108,7 @@ impl Default for RegisterFile {
 }
 
 // ============================================================================
-// ISA v2.0 Opcode Enumeration — 160 Instructions
+// ISA v2.1 Opcode Enumeration — 176 Instructions
 // ============================================================================
 //
 // Layout by category and hex range:
@@ -124,8 +124,9 @@ impl Default for RegisterFile {
 //   0x80–0x8F  System & Privilege                 (16 opcodes)
 //   0x90–0x97  Security & Audit                   (8 opcodes)
 //   0x98–0x9F  Debug & Profiling                  (8 opcodes)
+//   0xA0–0xAF  Quantum-Ternary Simulation         (16 opcodes)  [v2.1]
 //
-// Total: 160 allocated slots, 160 defined (0 reserved — fully populated)
+// Total: 176 allocated slots, 176 defined (0 reserved — fully populated)
 // ============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -334,6 +335,26 @@ pub enum Opcode {
     TraceEmit   = 0x9D,
     AssertEq    = 0x9E,
     AssertTrit  = 0x9F,
+
+    // ========================================================================
+    // 0xA0–0xAF: Quantum-Ternary Simulation  [v2.1 — Qutrit/Qudit Extension]
+    // ========================================================================
+    QStatePrep  = 0xA0,
+    QGateApply  = 0xA1,
+    QMeasure    = 0xA2,
+    QEntangle   = 0xA3,
+    QSyndrome   = 0xA4,
+    QCorrect    = 0xA5,
+    QDistill    = 0xA6,
+    QPhaseGate  = 0xA7,
+    QFidelity   = 0xA8,
+    QUnitCheck  = 0xA9,
+    QKronProd   = 0xAA,
+    QStabEncode = 0xAB,
+    QErrInject  = 0xAC,
+    QExpectVal  = 0xAD,
+    QNormalize  = 0xAE,
+    QFTBench    = 0xAF,
 }
 
 // ============================================================================
@@ -514,6 +535,23 @@ impl Opcode {
             0x9E => Ok(Opcode::AssertEq),
             0x9F => Ok(Opcode::AssertTrit),
 
+            0xA0 => Ok(Opcode::QStatePrep),
+            0xA1 => Ok(Opcode::QGateApply),
+            0xA2 => Ok(Opcode::QMeasure),
+            0xA3 => Ok(Opcode::QEntangle),
+            0xA4 => Ok(Opcode::QSyndrome),
+            0xA5 => Ok(Opcode::QCorrect),
+            0xA6 => Ok(Opcode::QDistill),
+            0xA7 => Ok(Opcode::QPhaseGate),
+            0xA8 => Ok(Opcode::QFidelity),
+            0xA9 => Ok(Opcode::QUnitCheck),
+            0xAA => Ok(Opcode::QKronProd),
+            0xAB => Ok(Opcode::QStabEncode),
+            0xAC => Ok(Opcode::QErrInject),
+            0xAD => Ok(Opcode::QExpectVal),
+            0xAE => Ok(Opcode::QNormalize),
+            0xAF => Ok(Opcode::QFTBench),
+
             _ => Err(VmError::InvalidOpcode(value)),
         }
     }
@@ -604,6 +642,15 @@ impl Opcode {
             Opcode::ProfStart => "PSTART", Opcode::ProfStop => "PSTOP",
             Opcode::ProfRead => "PREAD", Opcode::TraceEmit => "TRACE",
             Opcode::AssertEq => "ASRT", Opcode::AssertTrit => "ASRTT",
+
+            Opcode::QStatePrep => "QPREP", Opcode::QGateApply => "QGATE",
+            Opcode::QMeasure => "QMEAS", Opcode::QEntangle => "QENT",
+            Opcode::QSyndrome => "QSYN", Opcode::QCorrect => "QCORR",
+            Opcode::QDistill => "QDIST", Opcode::QPhaseGate => "QPHASE",
+            Opcode::QFidelity => "QFID", Opcode::QUnitCheck => "QUNIT",
+            Opcode::QKronProd => "QKRON", Opcode::QStabEncode => "QSTAB",
+            Opcode::QErrInject => "QERR", Opcode::QExpectVal => "QEXP",
+            Opcode::QNormalize => "QNORM", Opcode::QFTBench => "QFTB",
         }
     }
 
@@ -620,6 +667,7 @@ impl Opcode {
             0x80..=0x8F => "System & Privilege",
             0x90..=0x97 => "Security & Audit",
             0x98..=0x9F => "Debug & Profiling",
+            0xA0..=0xAF => "Quantum-Ternary",
             _ => "Unknown",
         }
     }
@@ -906,7 +954,7 @@ mod tests {
                 count += 1;
             }
         }
-        assert_eq!(count, 160, "Expected 160 opcodes, found {}", count);
+        assert_eq!(count, 176, "Expected 176 opcodes, found {}", count);
     }
 
     #[test]

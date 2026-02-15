@@ -27,7 +27,7 @@ const quickCommands = [
   { label: "demo-cap", desc: "Capability security" },
   { label: "demo-sidech", desc: "Side-channel masking" },
   { label: "status", desc: "VM state" },
-  { label: "opcodes", desc: "All 160 opcodes" },
+  { label: "opcodes", desc: "All 176 opcodes" },
   { label: "cpuid", desc: "Processor info" },
   { label: "arch", desc: "Architecture" },
 ];
@@ -35,8 +35,8 @@ const quickCommands = [
 const features = [
   {
     icon: Cpu,
-    title: "160-Opcode ISA",
-    desc: "Complete instruction set across 7 categories: Core, Extended, Crypto, SIMD, System, Security, Debug",
+    title: "176-Opcode ISA",
+    desc: "Complete instruction set across 12 categories: Core, Extended, Crypto, SIMD, System, Security, Debug, Quantum-Ternary",
   },
   {
     icon: Shield,
@@ -79,22 +79,22 @@ export default function VMDemo() {
                 </h1>
               </div>
               <p className="text-slate-300 max-w-2xl text-lg" data-testid="text-vm-subtitle">
-                Interactive simulation of the Salvi Framework's 160-opcode ISA v2.0.
-                Explore ternary computing, post-quantum cryptography, and capability-based security.
+                Interactive simulation of the Salvi Framework's 176-opcode ISA v2.1.
+                Explore ternary computing, quantum-ternary simulation, post-quantum cryptography, and capability-based security.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
-                ISA v2.0
+                ISA v2.1
               </Badge>
               <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30">
-                160 Opcodes
+                176 Opcodes
               </Badge>
-              <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+              <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                 27-Trit Word
               </Badge>
               <Link href="/quantum-sim">
-                <Button variant="outline" className="bg-indigo-500/20 border-indigo-400/40 text-indigo-300" data-testid="button-qutrit-ft-mode">
+                <Button variant="outline" className="bg-blue-500/20 border-blue-400/40 text-blue-300" data-testid="button-qutrit-ft-mode">
                   <Zap className="w-3 h-3 mr-1" />
                   Qutrit FT Mode
                 </Button>
@@ -181,7 +181,7 @@ export default function VMDemo() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 This interactive terminal simulates the Salvi Framework's Ternary Virtual Machine.
                 The VM operates on 27-trit words across three bijective representations and implements
-                160 opcodes including post-quantum cryptographic acceleration, capability-based security,
+                176 opcodes including quantum-ternary simulation, post-quantum cryptographic acceleration, capability-based security,
                 and dual-layer side-channel protection.
               </p>
               <div className="mt-3 pt-3 border-t">

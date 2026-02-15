@@ -499,7 +499,7 @@ const fipsChecklist: FIPSCheckItem[] = [
   { id: "ft-1", category: "Fault Tolerance", requirement: "Error Detection via Stabilizer Codes", status: "prototype", detail: "[[3,1,2]]_3 stabilizer code with syndrome-based detection. Single-error correction demonstrated." },
   { id: "ft-2", category: "Fault Tolerance", requirement: "Magic State Distillation Protocol", status: "prototype", detail: "Triorthogonal [[9m-k,k,2]]_3 codes with SUFT-scaled (factor 13) distillation. Yield gamma computed." },
   { id: "ft-3", category: "Fault Tolerance", requirement: "Qutrit Depolarizing Channel Simulation", status: "prototype", detail: "Configurable error rates with normalization-preserving noise model for FIPS crypto resilience testing." },
-  { id: "qr-1", category: "Quantum Resistance", requirement: "Post-Quantum Key Exchange (TL-KEM)", status: "implemented", detail: "Ternary Lattice KEM with CNSA 2.0 parameter sets. Hardware opcode support in VM ISA v2.0." },
+  { id: "qr-1", category: "Quantum Resistance", requirement: "Post-Quantum Key Exchange (TL-KEM)", status: "implemented", detail: "Ternary Lattice KEM with CNSA 2.0 parameter sets. Hardware opcode support in VM ISA v2.1." },
   { id: "qr-2", category: "Quantum Resistance", requirement: "Post-Quantum Signatures (TL-DSA)", status: "implemented", detail: "Ternary Lattice Digital Signature Algorithm. Deterministic signing with SHA-384 internal hash." },
   { id: "qr-3", category: "Quantum Resistance", requirement: "Hash-Based Signatures (XMSS/LMS)", status: "implemented", detail: "Stateful hash-based signatures for firmware attestation. Forward-secure key management." },
   { id: "inv-1", category: "Invariant Enforcement", requirement: "Hamiltonian Energy Conservation", status: "prototype", detail: "Register state energy H = sum(reg_i^2) mod 312 preserved across opcode transitions. Drift tolerance T(7)=13." },
@@ -787,6 +787,53 @@ function VariationalBenchmarksTab() {
       });
     }
 
+    {
+      const ftCycles = 1000;
+      const ftTrials = 5;
+      const trialTimes: number[] = [];
+      let totalCorrections = 0;
+      let totalFid = 0;
+
+      for (let trial = 0; trial < ftTrials; trial++) {
+        const t0 = performance.now();
+        for (let c = 0; c < ftCycles; c++) {
+          const basisIdx = ([-1, 0, 1] as const)[c % 3];
+          const logical = suftBasisState(basisIdx);
+          const noisy = qutritDepolarizingChannel(logical, 0.1);
+          const encoded = encodeQutritStabilizer(logical);
+          encoded[Math.floor(Math.random() * 3)] = noisy;
+          const { corrected, errorPosition } = correctQutritStabilizer(encoded);
+          const fid = qutritFidelity(corrected, logical);
+          totalFid += fid;
+          if (errorPosition !== null) totalCorrections++;
+        }
+        const t1 = performance.now();
+        trialTimes.push(t1 - t0);
+      }
+
+      const meanMs = trialTimes.reduce((a, b) => a + b, 0) / ftTrials;
+      const stdMs = Math.sqrt(trialTimes.map((t: number) => (t - meanMs) ** 2).reduce((a: number, b: number) => a + b, 0) / ftTrials);
+      const opsPerSec = Math.round((ftCycles * ftTrials) / (trialTimes.reduce((a: number, b: number) => a + b, 0) / 1000));
+      const avgFid = totalFid / (ftCycles * ftTrials);
+
+      benchmarks.push({
+        name: "Qutrit FT Cycle Benchmark (QFTB 0xAF)",
+        time: meanMs,
+        result: {
+          "Opcode": "QFTB (0xAF)",
+          "Cycles/trial": ftCycles,
+          "Trials": ftTrials,
+          "Mean time": meanMs.toFixed(2) + " ms",
+          "Std dev": stdMs.toFixed(2) + " ms",
+          "Ops/sec": opsPerSec.toLocaleString(),
+          "Avg fidelity": (avgFid * 100).toFixed(4) + "%",
+          "Corrections": totalCorrections,
+          "Code": "[[3,1,2]]_3 stabilizer",
+          "Cycle": "Encode\u2192Error\u2192Syndrome\u2192Correct",
+        },
+      });
+    }
+
     setResults(benchmarks);
     setRunning(false);
   }, []);
@@ -888,10 +935,11 @@ export default function QuantumSim() {
               </div>
               <p className="text-slate-300 max-w-2xl text-sm leading-relaxed">
                 Interactive qutrit fault-tolerance simulation, FIPS 140-3 compliance mapping,
-                and variational quantum optimization benchmarks — powered by SUFT variational mechanics
-                on the 27-register ternary VM.
+                and variational quantum optimization benchmarks — powered by the 176-opcode ISA v2.1
+                Quantum-Ternary category (0xA0-0xAF) on the 27-register ternary VM.
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">ISA v2.1 (0xA0-0xAF)</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">SUFT-Coupled</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">[[3,1,2]]&#x2083; Stabilizer</Badge>
                 <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">CNSA 2.0</Badge>
