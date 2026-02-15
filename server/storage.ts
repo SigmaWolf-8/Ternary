@@ -26,8 +26,10 @@ import {
   type Whitepaper, type InsertWhitepaper,
   type DeveloperSignup, type InsertDeveloperSignup,
   type CompressedDocument, type InsertCompressedDocument,
+  type DataSubjectRequest, type InsertDataSubjectRequest,
   users, demoSessions, binaryStorage, ternaryStorage, compressionBenchmarks,
-  fileUploads, compressionHistory, whitepapers, developerSignups, compressedDocuments
+  fileUploads, compressionHistory, whitepapers, developerSignups, compressedDocuments,
+  dataSubjectRequests
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -76,6 +78,12 @@ export interface IStorage {
   getCompressedDocument(id: number): Promise<CompressedDocument | undefined>;
   getAllCompressedDocuments(): Promise<CompressedDocument[]>;
   deleteCompressedDocument(id: number): Promise<void>;
+
+  createDataSubjectRequest(data: InsertDataSubjectRequest): Promise<DataSubjectRequest>;
+  getDataSubjectRequests(userId: string): Promise<DataSubjectRequest[]>;
+  updateDataSubjectRequest(id: number, status: string, responseData?: unknown): Promise<DataSubjectRequest | undefined>;
+  getUserData(userId: string): Promise<Record<string, unknown>>;
+  deleteUserData(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -238,6 +246,45 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCompressedDocument(id: number): Promise<void> {
     await db.delete(compressedDocuments).where(eq(compressedDocuments.id, id));
+  }
+
+  async createDataSubjectRequest(data: InsertDataSubjectRequest): Promise<DataSubjectRequest> {
+    const [result] = await db.insert(dataSubjectRequests).values(data).returning();
+    return result;
+  }
+
+  async getDataSubjectRequests(userId: string): Promise<DataSubjectRequest[]> {
+    return await db.select().from(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId)).orderBy(desc(dataSubjectRequests.requestedAt));
+  }
+
+  async updateDataSubjectRequest(id: number, status: string, responseData?: unknown): Promise<DataSubjectRequest | undefined> {
+    const updateData: Record<string, unknown> = { status, completedAt: new Date() };
+    if (responseData !== undefined) updateData.responseData = responseData;
+    const [result] = await db.update(dataSubjectRequests).set(updateData).where(eq(dataSubjectRequests.id, id)).returning();
+    return result;
+  }
+
+  async getUserData(userId: string): Promise<Record<string, unknown>> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return {};
+    const { githubToken, ...safeUser } = user;
+    const signups = await db.select().from(developerSignups).where(eq(developerSignups.email, user.email || ""));
+    const dsrHistory = await db.select().from(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId));
+    return {
+      account: safeUser,
+      developerSignups: signups,
+      dataSubjectRequests: dsrHistory,
+      exportDate: new Date().toISOString(),
+    };
+  }
+
+  async deleteUserData(userId: string): Promise<void> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (user?.email) {
+      await db.delete(developerSignups).where(eq(developerSignups.email, user.email));
+    }
+    await db.delete(dataSubjectRequests).where(eq(dataSubjectRequests.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
   }
 }
 

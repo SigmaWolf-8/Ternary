@@ -147,6 +147,20 @@ export const agentArrayReports = pgTable("agent_array_reports", {
 
 export const insertAgentArrayReportSchema = createInsertSchema(agentArrayReports).omit({ id: true, createdAt: true });
 
+export const dataSubjectRequests = pgTable("data_subject_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  requestType: varchar("request_type").notNull(),
+  status: varchar("status").notNull().default("pending"),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  responseData: jsonb("response_data"),
+});
+
+export const insertDataSubjectRequestSchema = createInsertSchema(dataSubjectRequests).omit({ id: true, requestedAt: true, completedAt: true });
+export type InsertDataSubjectRequest = z.infer<typeof insertDataSubjectRequestSchema>;
+export type DataSubjectRequest = typeof dataSubjectRequests.$inferSelect;
+
 export type InsertAgentArrayReport = z.infer<typeof insertAgentArrayReportSchema>;
 export type AgentArrayReport = typeof agentArrayReports.$inferSelect;
 

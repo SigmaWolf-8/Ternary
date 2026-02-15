@@ -21,6 +21,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { registerGitHubRoutes } from "./routes/github";
 import { registerKongRoutes } from "./routes/kong";
+import { registerDataSubjectRightsRoutes } from "./routes/data-subject-rights";
 import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { registerAgentArrayRoutes } from "./routes/agent-array";
@@ -933,6 +934,11 @@ export async function registerRoutes(
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
   // =====================================================
   registerKongRoutes(app, storage);
+
+  // =====================================================
+  // GDPR DATA SUBJECT RIGHTS — extracted to server/routes/data-subject-rights.ts
+  // =====================================================
+  registerDataSubjectRightsRoutes(app, storage);
 
   return httpServer;
 }

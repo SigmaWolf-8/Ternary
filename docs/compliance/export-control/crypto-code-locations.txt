@@ -1,0 +1,32 @@
+# Cryptographic Code Location Index
+# Generated: February 15, 2026
+# Purpose: Export control review - identifies all files containing cryptographic functionality
+
+## Rust Kernel Crypto Module (src/kernel/src/crypto/)
+src/kernel/src/crypto/cipher.rs        - AES-256-GCM, Lamport signatures, ternary encryption
+src/kernel/src/crypto/tl_kem.rs        - TL-KEM (Ternary Lattice Key Encapsulation Mechanism)
+src/kernel/src/crypto/tl_dsa.rs        - TL-DSA (Ternary Lattice Digital Signature Algorithm)
+src/kernel/src/crypto/sponge.rs        - Ternary sponge construction, SHA-3 variant
+src/kernel/src/crypto/sha2.rs          - SHA-2 family (SHA-256, SHA-384, SHA-512)
+src/kernel/src/crypto/hmac.rs          - HMAC construction
+src/kernel/src/crypto/kdf.rs           - Key derivation functions (HMAC-based KDF)
+src/kernel/src/crypto/kat_vectors.rs   - Known Answer Test vectors for validation
+src/kernel/src/crypto/formal_verify.rs - Formal verification of crypto properties
+src/kernel/src/crypto/side_channel.rs  - Side-channel resistance testing
+src/kernel/src/crypto/cross_impl.rs    - Cross-implementation compatibility (binary/ternary)
+src/kernel/src/crypto/perf_bench.rs    - Performance benchmarks for crypto operations
+src/kernel/src/crypto/hw_test.rs       - Hardware acceleration testing
+
+## TypeScript Crypto (Server)
+server/crypto-utils.ts                 - AES-256-GCM token encryption/decryption (SESSION_SECRET)
+server/salvi-core/phase-encryption.ts  - Phase encryption (timing-gated split/recombine)
+server/salvi-core/ternary-operations.ts - GF(3) arithmetic (supporting crypto)
+server/salvi-core/timing-service.ts    - Femtosecond timing (used by phase encryption)
+server/salvi-core/blockchain-integrations.ts - Blockchain witnessing (hash operations)
+
+## Rust Kernel Security Modules
+src/kernel/src/sync/phase_mutex.rs     - Phase-encryption-aware mutex
+src/kernel/src/memory/page.rs          - Ternary security levels in page tables
+
+## Compression (uses crypto primitives)
+server/compression-layer.ts            - Data compression (may invoke encryption)

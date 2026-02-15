@@ -27,6 +27,7 @@ import { useState, useCallback, useRef, useEffect, Suspense, lazy } from "react"
 import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { CookieConsent } from "@/components/cookie-consent";
 import { usePageTitle } from "@/hooks/use-page-title";
 import Landing from "@/pages/landing";
 import LegalPage from "@/pages/legal";
@@ -259,6 +260,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppRouter />
+          <CookieConsent />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

@@ -2,6 +2,8 @@
 
 Post-quantum ternary computing platform implementing the Unified 13D Torsion Plenum Theory. Production-grade infrastructure for quantum-resistant data operations, femtosecond timing, and CNSA 2.0 compliant cryptography.
 
+> **Export Control Notice:** This software contains post-quantum cryptography subject to export controls under U.S. EAR (ECCN 5D002), Canadian ECL (Category 5, Part 2), and the Wassenaar Arrangement. Distribution to restricted countries (Cuba, Iran, North Korea, Syria, Russia, Belarus) may require authorization. See [EXPORT-CONTROL.md](EXPORT-CONTROL.md) for full classification details.
+
 ## Status
 
 | Metric | Value |
