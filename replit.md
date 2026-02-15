@@ -51,9 +51,16 @@ An admin-only GitHub Manager page facilitates file browsing for the `SigmaWolf-8
 ### Saturnian Magic Square Blueprint (February 15, 2026)
 The `shared/saturnian-blueprint.ts` module provides the 3×3 Saturnian circulant magic square (111, 14, 208 with magic constant 333) as a static foundation for SUFT-derived constants. It bridges directly to the Tribonacci sequence: RADIUS_COSMIC = 13 = T(7), PI_ESOTERIC = 14 = T(7)+T(3), LUNAR_SOLAR_HARMONIC = 28, COSMIC_CIRCUMFERENCE = 364 — all exact integer identities matching the ternary circle axioms. Companion utilities in `shared/saturnian-matrix-utils.ts` provide flattening, cyclic rotation, ternary weighting, and magic/circulant validation. 29 Vitest tests verify all derivations.
 
+### Hamiltonian Mechanics Integration (February 15, 2026)
+Three modules integrate Hamiltonian mechanics concepts into the platform:
+1. **HPTP Symplectic Jitter Corrector** (`server/salvi-core/hptp-symplectic-corrector.ts`): Leapfrog (Störmer–Verlet) integration for femtosecond jitter correction with energy conservation tracking. Reduces cumulative drift in multi-calendar sync.
+2. **Hamiltonian VM Constraints** (`shared/hamiltonian-constraints.ts`): Energy invariant enforcement on 27 registers (3³) with mod-312 constraint modulus (T(7)×T(8)=13×24), per-bank ternary parity, and opcode sequence validation.
+3. **Symplectic Phase Mixing** (`server/salvi-core/symplectic-phase-mix.ts`): Structure-preserving mixing step for phase encryption with mod-13 checksum invariant and symplectic guardian checksum. 28 Vitest tests verify all three modules.
+
 ### Testing
 Testing is conducted using Vitest with multiple test suites:
 - 29 Saturnian blueprint + Tribonacci bridge tests (saturnian-blueprint.test.ts)
+- 28 Hamiltonian mechanics tests (hamiltonian-mechanics.test.ts)
 - 50 GF(3) arithmetic tests (ternary-operations.test.ts)
 - 25 phase encryption tests (phase-encryption.test.ts)
 - 11 calendar synchronization tests (calendar-sync.test.ts)
