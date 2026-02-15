@@ -59,6 +59,9 @@ Testing is conducted using Vitest with multiple test suites:
 - 3 Rust fuzz targets with CI workflow (fuzz.yml)
 - Kernel tests with cargo test, coverage, Miri, and feature matrix CI
 
+### 28-Dimension Agent Array (February 15, 2026)
+The Agent Array system orchestrates 28 specialist AI agents analyzing queries in parallel. Architecture: all agents analyze in English → synthesize ONE unified Situation Report → translate into 28 world languages (concurrency=14). Reports are streamed via SSE with events: agent_result, layer1_complete, layer2_section, executive_summary, report_start, report_generated, translation_progress, translations_complete. Reports persist to `agent_array_reports` PostgreSQL table (prompt, unifiedReport, translations as JSONB, executiveSummary, layer2Sections, metadata). API: POST `/api/tribonacci/agent-array/analyze` (SSE stream), POST `/save`, GET `/reports`, GET `/reports/:id`. Frontend: SituationReportViewer with 28-language filter buttons, copy/save functionality, and ReportHistory panel.
+
 ### Kong Gateway Integration
 Kong Konnect API integration manages services, routes, and plugins. It supports service synchronization for PlenumNET's 17 services (97 endpoints) and allows optional Kong proxy routing in the frontend.
 

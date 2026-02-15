@@ -4,14 +4,16 @@
  * Applied Physics Division
  */
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, MapPin, AlertTriangle, ListOrdered, FileText, Copy, Check, Eye, Filter, Globe } from "lucide-react";
+import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, MapPin, AlertTriangle, ListOrdered, FileText, Copy, Check, Eye, Filter, Globe, Save, History, Clock, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   AGENT_COUNT,
   STEPS_PER_AGENT,
@@ -30,6 +32,13 @@ import {
   type ExecutiveSummary,
   type VerdictSignal,
 } from "../../../shared/agent-array";
+
+interface TranslationEntry {
+  languageCode: string;
+  languageName: string;
+  nativeName: string;
+  text: string;
+}
 
 type AgentStatus = "idle" | "running" | "complete" | "error";
 
@@ -193,11 +202,6 @@ function AgentCard({ position, state }: { position: AgentPosition; state?: Agent
                 : "Finalizing"}
           </p>
         </>
-      )}
-      {state?.status === "complete" && state.result && !state.result.response.startsWith("[Error]") && (
-        <p className="text-[11px] text-foreground/80 mt-1.5 line-clamp-3 leading-snug">
-          {state.result.response}
-        </p>
       )}
     </Card>
   );
@@ -553,14 +557,14 @@ function ExecutiveSummaryDisplay({ summary }: { summary: ExecutiveSummary }) {
               >
                 <button
                   onClick={() => setOpenSection(isOpen ? null : idx)}
-                  className="w-full flex items-center justify-between gap-2 p-4 text-left"
+                  className="w-full flex items-center justify-between gap-2 p-3 text-left"
                   data-testid={`button-toggle-executive-${idx}`}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     {sec.icon}
-                    <span className="font-semibold text-sm">{sec.title}</span>
+                    <span className="text-sm font-semibold">{sec.title}</span>
                   </div>
-                  {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </button>
                 <AnimatePresence>
                   {isOpen && (
@@ -571,9 +575,7 @@ function ExecutiveSummaryDisplay({ summary }: { summary: ExecutiveSummary }) {
                       transition={{ duration: 0.15 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-4 pb-4">
-                        {sec.content}
-                      </div>
+                      <div className="px-3 pb-3">{sec.content}</div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -586,81 +588,132 @@ function ExecutiveSummaryDisplay({ summary }: { summary: ExecutiveSummary }) {
   );
 }
 
-function ResponseViewer({ results }: { results: AgentResult[] }) {
-  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+function SituationReportViewer({
+  unifiedReport,
+  translations,
+  prompt,
+  tribHash,
+  executiveSummary,
+  layer2Sections,
+  successCount,
+  totalDurationMs,
+  onSaved,
+}: {
+  unifiedReport: string;
+  translations: TranslationEntry[];
+  prompt: string;
+  tribHash: string | null;
+  executiveSummary: ExecutiveSummary | null;
+  layer2Sections: Layer2Section[];
+  successCount: number;
+  totalDurationMs: number | null;
+  onSaved?: () => void;
+}) {
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedLang, setCopiedLang] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const { toast } = useToast();
 
-  const handleFilterChange = useCallback((code: string | null) => {
-    setLanguageFilter(code);
-    setSelectedAgent(null);
-  }, []);
+  const filteredTranslations = useMemo(() => {
+    if (!languageFilter) return translations;
+    return translations.filter(t => t.languageCode === languageFilter);
+  }, [translations, languageFilter]);
 
-  const successResults = useMemo(
-    () => results.filter((r) => !r.response.startsWith("[Error]")),
-    [results],
-  );
+  const selectedTranslation = useMemo(() => {
+    if (languageFilter) return filteredTranslations[0] || null;
+    return null;
+  }, [languageFilter, filteredTranslations]);
 
-  const filteredResults = useMemo(() => {
-    if (!languageFilter) return successResults;
-    return successResults.filter((r) => r.language?.code === languageFilter);
-  }, [successResults, languageFilter]);
-
-  const activeLanguages = useMemo(() => {
-    const codes = new Set(successResults.map((r) => r.language?.code).filter(Boolean));
-    return AGENT_LANGUAGES.filter((l) => codes.has(l.code));
-  }, [successResults]);
-
-  const copyToClipboard = useCallback(async (text: string, agentIdx?: number) => {
+  const copyToClipboard = useCallback(async (text: string, langCode?: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      if (agentIdx !== undefined) {
-        setCopiedId(agentIdx);
-        setTimeout(() => setCopiedId(null), 2000);
+      if (langCode) {
+        setCopiedLang(langCode);
+        setTimeout(() => setCopiedLang(null), 2000);
       } else {
         setCopiedAll(true);
         setTimeout(() => setCopiedAll(false), 2000);
       }
-      toast({ title: "Copied", description: "Response copied to clipboard." });
+      toast({ title: "Copied", description: "Report copied to clipboard." });
     } catch {
       toast({ title: "Copy failed", description: "Could not copy to clipboard.", variant: "destructive" });
     }
   }, [toast]);
 
-  const copyAllFiltered = useCallback(() => {
-    const text = filteredResults
-      .map((r) => `--- ${r.domain} [${r.language?.name || "Unknown"}] (A${String(r.z28).padStart(2, "0")}) ---\n${r.response}`)
-      .join("\n\n");
+  const copyAllTranslations = useCallback(() => {
+    const text = filteredTranslations
+      .map(t => `=== ${t.languageName} (${t.nativeName}) ===\n\n${t.text}`)
+      .join("\n\n" + "=".repeat(60) + "\n\n");
     copyToClipboard(text);
-  }, [filteredResults, copyToClipboard]);
+  }, [filteredTranslations, copyToClipboard]);
 
-  const selectedResult = selectedAgent !== null
-    ? filteredResults.find((r) => r.z28 === selectedAgent) || null
-    : null;
+  const saveToDatabase = useCallback(async () => {
+    setSaving(true);
+    try {
+      await apiRequest("POST", "/api/tribonacci/agent-array/save", {
+        prompt,
+        tribonacciHash: tribHash || "",
+        unifiedReport,
+        translations,
+        executiveSummary: executiveSummary || null,
+        layer2Sections: layer2Sections || null,
+        agentCount: AGENT_COUNT,
+        successCount,
+        totalDurationMs: totalDurationMs || 0,
+      });
+      setSaved(true);
+      toast({ title: "Report Saved", description: "Situation report saved to database. You can re-query it from the history panel." });
+      queryClient.invalidateQueries({ queryKey: ["/api/tribonacci/agent-array/reports"] });
+      if (onSaved) onSaved();
+    } catch (err) {
+      toast({ title: "Save Failed", description: err instanceof Error ? err.message : "Could not save report.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }, [prompt, tribHash, unifiedReport, translations, executiveSummary, layer2Sections, successCount, totalDurationMs, toast, onSaved]);
+
+  const displayText = selectedTranslation ? selectedTranslation.text : unifiedReport;
+  const displayLangLabel = selectedTranslation
+    ? `${selectedTranslation.languageName} (${selectedTranslation.nativeName})`
+    : "English (Original)";
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} data-testid="section-response-viewer">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} data-testid="section-situation-report">
       <Card className="p-5 border-primary/10">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <Eye className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold">Response Viewer</h2>
-          <Badge variant="outline">{successResults.length} Responses</Badge>
+          <Globe className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-bold">Situation Report</h2>
           <Badge variant="outline">
-            <Globe className="w-3 h-3 mr-1" />
-            {activeLanguages.length} Languages
+            {translations.length} Languages
           </Badge>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
-              onClick={copyAllFiltered}
-              disabled={filteredResults.length === 0}
-              data-testid="button-copy-all"
+              onClick={copyAllTranslations}
+              disabled={filteredTranslations.length === 0}
+              data-testid="button-copy-all-translations"
             >
               {copiedAll ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
-              {copiedAll ? "Copied!" : `Copy All${languageFilter ? " Filtered" : ""}`}
+              {copiedAll ? "Copied!" : `Copy ${languageFilter ? "Selected" : "All"}`}
+            </Button>
+            <Button
+              variant={saved ? "outline" : "default"}
+              size="sm"
+              onClick={saveToDatabase}
+              disabled={saving || saved}
+              data-testid="button-save-report"
+            >
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : saved ? (
+                <Check className="w-3.5 h-3.5 mr-1.5 text-green-500" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {saving ? "Saving..." : saved ? "Saved" : "Save to Database"}
             </Button>
           </div>
         </div>
@@ -668,107 +721,263 @@ function ResponseViewer({ results }: { results: AgentResult[] }) {
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filter by Language</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Language</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <Button
               variant={languageFilter === null ? "default" : "outline"}
               size="sm"
-              onClick={() => handleFilterChange(null)}
+              onClick={() => setLanguageFilter(null)}
               data-testid="button-filter-all"
             >
-              All ({successResults.length})
+              Original (English)
             </Button>
-            {activeLanguages.map((lang) => {
-              const count = successResults.filter((r) => r.language?.code === lang.code).length;
-              return (
-                <Button
-                  key={lang.code}
-                  variant={languageFilter === lang.code ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleFilterChange(languageFilter === lang.code ? null : lang.code)}
-                  data-testid={`button-filter-${lang.code}`}
-                >
-                  {lang.nativeName} ({count})
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-[280px_1fr] gap-4">
-          <div className="space-y-1 max-h-[600px] overflow-y-auto pr-1">
-            {filteredResults.map((r) => (
-              <button
-                key={r.z28}
-                onClick={() => setSelectedAgent(selectedAgent === r.z28 ? null : r.z28)}
-                className={`w-full text-left rounded-md px-3 py-2 transition-colors ${
-                  selectedAgent === r.z28
-                    ? "bg-primary/10 border border-primary/30"
-                    : "border border-transparent hover-elevate"
-                }`}
-                data-testid={`button-select-agent-${r.z28}`}
+            {translations.map((t) => (
+              <Button
+                key={t.languageCode}
+                variant={languageFilter === t.languageCode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setLanguageFilter(languageFilter === t.languageCode ? null : t.languageCode)}
+                data-testid={`button-filter-${t.languageCode}`}
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-[10px] text-muted-foreground">{r.agentLabel}</span>
-                  <span className="text-xs font-medium truncate flex-1">{r.domain}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <Badge variant="outline" className={`text-[9px] px-1 py-0 ${CATEGORY_COLORS[r.category]}`}>
-                    {r.category.split(" ")[0]}
-                  </Badge>
-                  <Badge variant="outline" className="text-[9px] px-1 py-0">
-                    {r.language?.nativeName || "—"}
-                  </Badge>
-                </div>
-              </button>
+                {t.nativeName}
+              </Button>
             ))}
           </div>
+        </div>
 
-          <div className="border rounded-md bg-muted/20 min-h-[400px] max-h-[600px] overflow-y-auto">
-            {selectedResult ? (
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  <h3 className="font-semibold text-sm">{selectedResult.domain}</h3>
-                  <Badge variant="outline" className={`text-[10px] ${CATEGORY_COLORS[selectedResult.category]}`}>
-                    {selectedResult.category}
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px]">
-                    <Globe className="w-2.5 h-2.5 mr-1" />
-                    {selectedResult.language?.name || "Unknown"} ({selectedResult.language?.nativeName || "—"})
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground ml-auto">{selectedResult.totalDurationMs}ms</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => copyToClipboard(selectedResult.response, selectedResult.z28)}
-                    data-testid={`button-copy-${selectedResult.z28}`}
-                  >
-                    {copiedId === selectedResult.z28 ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  </Button>
-                </div>
-                <div
-                  className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap select-text"
-                  data-testid={`text-response-${selectedResult.z28}`}
-                >
-                  {selectedResult.response}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full p-8 text-center">
-                <div>
-                  <Eye className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">Select an agent from the list to view its response</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
-                    {filteredResults.length} responses available{languageFilter ? ` (filtered by ${activeLanguages.find(l => l.code === languageFilter)?.name})` : ""}
-                  </p>
-                </div>
-              </div>
-            )}
+        <div className="border rounded-md bg-muted/20">
+          <div className="flex items-center justify-between gap-2 p-3 border-b border-border/50 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Globe className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold" data-testid="text-current-language">{displayLangLabel}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => copyToClipboard(displayText, selectedTranslation?.languageCode || "en")}
+              data-testid="button-copy-current"
+            >
+              {copiedLang === (selectedTranslation?.languageCode || "en") ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </Button>
+          </div>
+          <div
+            className="p-4 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap select-text max-h-[600px] overflow-y-auto"
+            data-testid="text-situation-report"
+          >
+            {displayText}
           </div>
         </div>
+
+        {!languageFilter && translations.length > 0 && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                All Translations Preview
+              </span>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {translations.filter(t => t.languageCode !== "en").map((t) => (
+                <div
+                  key={t.languageCode}
+                  className="rounded-md border border-border/50 p-3 cursor-pointer hover-elevate"
+                  onClick={() => setLanguageFilter(t.languageCode)}
+                  data-testid={`preview-${t.languageCode}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[10px]">{t.languageCode.toUpperCase()}</Badge>
+                      <span className="text-xs font-medium">{t.nativeName}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => { e.stopPropagation(); copyToClipboard(t.text, t.languageCode); }}
+                      data-testid={`button-copy-${t.languageCode}`}
+                    >
+                      {copiedLang === t.languageCode ? (
+                        <Check className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground line-clamp-3 leading-snug">
+                    {t.text.startsWith("[Translation") ? t.text : t.text.slice(0, 200) + (t.text.length > 200 ? "..." : "")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
     </motion.div>
+  );
+}
+
+function ReportHistory() {
+  const { data, isLoading } = useQuery<{ reports: any[] }>({
+    queryKey: ["/api/tribonacci/agent-array/reports"],
+  });
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loadedReport, setLoadedReport] = useState<any | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const { toast } = useToast();
+
+  const loadReport = useCallback(async (id: number) => {
+    setLoadingReport(true);
+    try {
+      const res = await fetch(`/api/tribonacci/agent-array/reports/${id}`);
+      if (!res.ok) throw new Error("Failed to load report");
+      const data = await res.json();
+      setLoadedReport(data.report);
+      setSelectedId(id);
+    } catch (err) {
+      toast({ title: "Load Failed", description: err instanceof Error ? err.message : "Could not load report.", variant: "destructive" });
+    } finally {
+      setLoadingReport(false);
+    }
+  }, [toast]);
+
+  const reports = data?.reports || [];
+
+  if (isLoading) {
+    return (
+      <Card className="p-5 border-primary/10" data-testid="section-report-history">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading saved reports...</span>
+        </div>
+      </Card>
+    );
+  }
+
+  if (reports.length === 0) return null;
+
+  return (
+    <Card className="p-5 border-primary/10" data-testid="section-report-history">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <History className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-bold">Saved Reports</h2>
+        <Badge variant="outline">{reports.length} Reports</Badge>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        {reports.map((r: any) => (
+          <button
+            key={r.id}
+            onClick={() => loadReport(r.id)}
+            className={`w-full text-left rounded-md px-3 py-2.5 transition-colors border ${
+              selectedId === r.id
+                ? "bg-primary/10 border-primary/30"
+                : "border-transparent hover-elevate"
+            }`}
+            data-testid={`button-load-report-${r.id}`}
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground">
+                {new Date(r.createdAt).toLocaleString()}
+              </span>
+              <Badge variant="outline" className="text-[10px]">
+                {r.successCount}/{r.agentCount} agents
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {(r.totalDurationMs / 1000).toFixed(1)}s
+              </span>
+            </div>
+            <p className="text-sm font-medium mt-1 line-clamp-1">{r.prompt}</p>
+          </button>
+        ))}
+      </div>
+
+      {loadingReport && (
+        <div className="flex items-center gap-2 p-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading report...</span>
+        </div>
+      )}
+
+      {loadedReport && selectedId && (
+        <LoadedReportViewer report={loadedReport} />
+      )}
+    </Card>
+  );
+}
+
+function LoadedReportViewer({ report }: { report: any }) {
+  const translations: TranslationEntry[] = Array.isArray(report.translations) ? report.translations : [];
+  const [langFilter, setLangFilter] = useState<string | null>(null);
+  const [copiedLang, setCopiedLang] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const displayed = langFilter
+    ? translations.find(t => t.languageCode === langFilter) || null
+    : null;
+
+  const displayText = displayed ? displayed.text : report.unifiedReport;
+  const displayLabel = displayed ? `${displayed.languageName} (${displayed.nativeName})` : "English (Original)";
+
+  const copyText = useCallback(async (text: string, code?: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedLang(code || "en");
+      setTimeout(() => setCopiedLang(null), 2000);
+      toast({ title: "Copied", description: "Report copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  }, [toast]);
+
+  return (
+    <div className="border-t border-border/50 pt-4 mt-2">
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <Button
+          variant={langFilter === null ? "default" : "outline"}
+          size="sm"
+          onClick={() => setLangFilter(null)}
+          data-testid="button-history-filter-all"
+        >
+          Original
+        </Button>
+        {translations.map(t => (
+          <Button
+            key={t.languageCode}
+            variant={langFilter === t.languageCode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLangFilter(langFilter === t.languageCode ? null : t.languageCode)}
+            data-testid={`button-history-filter-${t.languageCode}`}
+          >
+            {t.nativeName}
+          </Button>
+        ))}
+      </div>
+
+      <div className="border rounded-md bg-muted/20">
+        <div className="flex items-center justify-between gap-2 p-3 border-b border-border/50 flex-wrap">
+          <span className="text-sm font-semibold">{displayLabel}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => copyText(displayText, displayed?.languageCode)}
+            data-testid="button-copy-history-current"
+          >
+            {copiedLang === (displayed?.languageCode || "en") ? (
+              <Check className="w-3.5 h-3.5 text-green-500" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </Button>
+        </div>
+        <div className="p-4 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap select-text max-h-[400px] overflow-y-auto">
+          {displayText}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -781,9 +990,13 @@ export default function AgentArrayPage() {
   const [executiveSummary, setExecutiveSummary] = useState<ExecutiveSummary | null>(null);
   const [layer2Loading, setLayer2Loading] = useState(false);
   const [executiveLoading, setExecutiveLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [translationProgress, setTranslationProgress] = useState<Map<string, string>>(new Map());
   const [totalDuration, setTotalDuration] = useState<number | null>(null);
   const [successCount, setSuccessCount] = useState(0);
   const [tribHash, setTribHash] = useState<string | null>(null);
+  const [unifiedReport, setUnifiedReport] = useState<string | null>(null);
+  const [translations, setTranslations] = useState<TranslationEntry[]>([]);
   const [customRoles, setCustomRoles] = useState<AgentSpecialist[]>(
     DEFAULT_SPECIALISTS.map((s) => ({ ...s }))
   );
@@ -819,9 +1032,13 @@ export default function AgentArrayPage() {
     setExecutiveSummary(null);
     setLayer2Loading(false);
     setExecutiveLoading(false);
+    setReportLoading(false);
+    setTranslationProgress(new Map());
     setTotalDuration(null);
     setSuccessCount(0);
     setTribHash(null);
+    setUnifiedReport(null);
+    setTranslations([]);
     setAgentStates(new Map());
 
     if (eventSourceRef.current) {
@@ -871,6 +1088,13 @@ export default function AgentArrayPage() {
         } catch {}
       });
 
+      es.addEventListener("layer1_complete", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setSuccessCount(data.successCount || 0);
+        } catch {}
+      });
+
       es.addEventListener("layer2_start", () => {
         setLayer2Loading(true);
       });
@@ -878,9 +1102,7 @@ export default function AgentArrayPage() {
       es.addEventListener("layer2_complete", (e) => {
         try {
           const data = JSON.parse(e.data);
-          if (data.sections) {
-            setLayer2Sections(data.sections);
-          }
+          if (data.sections) setLayer2Sections(data.sections);
           setLayer2Loading(false);
         } catch {}
       });
@@ -892,11 +1114,35 @@ export default function AgentArrayPage() {
       es.addEventListener("executive_complete", (e) => {
         try {
           const data = JSON.parse(e.data);
-          if (data.executiveSummary) {
-            setExecutiveSummary(data.executiveSummary);
-          }
+          if (data.executiveSummary) setExecutiveSummary(data.executiveSummary);
           setExecutiveLoading(false);
         } catch {}
+      });
+
+      es.addEventListener("report_start", () => {
+        setReportLoading(true);
+      });
+
+      es.addEventListener("report_generated", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.report) setUnifiedReport(data.report);
+        } catch {}
+      });
+
+      es.addEventListener("translation_progress", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setTranslationProgress(prev => {
+            const next = new Map(prev);
+            next.set(data.code, data.status);
+            return next;
+          });
+        } catch {}
+      });
+
+      es.addEventListener("translations_complete", () => {
+        setReportLoading(false);
       });
 
       es.addEventListener("complete", (e) => {
@@ -916,14 +1162,13 @@ export default function AgentArrayPage() {
           setTotalDuration(data.totalDurationMs || null);
           setSuccessCount(results.filter((r: AgentResult) => !r.response.startsWith("[Error]")).length);
           setTribHash(data.tribonacciHash || null);
-          if (data.layer2) {
-            setLayer2Sections(data.layer2);
-          }
-          if (data.executiveSummary) {
-            setExecutiveSummary(data.executiveSummary);
-          }
+          if (data.layer2) setLayer2Sections(data.layer2);
+          if (data.executiveSummary) setExecutiveSummary(data.executiveSummary);
+          if (data.unifiedReport) setUnifiedReport(data.unifiedReport);
+          if (data.translations) setTranslations(data.translations);
           setLayer2Loading(false);
           setExecutiveLoading(false);
+          setReportLoading(false);
         } catch {}
         es.close();
         eventSourceRef.current = null;
@@ -941,6 +1186,8 @@ export default function AgentArrayPage() {
       setIsRunning(false);
     }
   }, [prompt, isRunning, toast, customRoles, isCustomized]);
+
+  const translationsCompleted = Array.from(translationProgress.values()).filter(s => s === "complete").length;
 
   return (
     <div className="min-h-screen bg-background" data-testid="page-agent-array">
@@ -962,10 +1209,9 @@ export default function AgentArrayPage() {
             28-Dimension Agent Array
           </h1>
           <p className="text-muted-foreground max-w-2xl" data-testid="text-agent-array-subtitle">
-            Launch 28 specialist AI agents in parallel via Tribonacci 13-step permutation scheduling.
-            Each agent responds in a unique language across 28 world languages.
-            Layer 1 delivers individual expert analyses. Layer 2 synthesizes a 5-section executive summary:
-            Verdict, Jurisdictional Compass, Risk Barometer, Critical Path, and Plain English.
+            Launch 28 specialist AI agents simultaneously via Tribonacci 13-step permutation scheduling.
+            All agents analyze your query in parallel, then produce one unified Situation Report
+            automatically translated into 28 world languages. Reports are copyable and savable to the database for future retrieval.
           </p>
         </motion.div>
 
@@ -1007,6 +1253,7 @@ export default function AgentArrayPage() {
                 </Button>
                 <div className="text-xs text-muted-foreground text-center space-y-0.5">
                   <div>{AGENT_COUNT} agents &middot; {STEPS_PER_AGENT} steps each</div>
+                  <div>1 Report &middot; 28 Languages</div>
                   {isCustomized && (
                     <div className="text-primary font-medium">Custom roles active</div>
                   )}
@@ -1022,10 +1269,10 @@ export default function AgentArrayPage() {
               <Card className="p-5 border-primary/10" data-testid="section-agent-status">
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
                   <h2 className="text-lg font-bold">Layer 1 — Agent Deliberation</h2>
-                  {isRunning && !layer2Loading && !executiveLoading && (
+                  {isRunning && !layer2Loading && !executiveLoading && !reportLoading && (
                     <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 bg-yellow-500/10">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Processing
+                      Agents Processing
                     </Badge>
                   )}
                   {layer2Loading && (
@@ -1037,7 +1284,13 @@ export default function AgentArrayPage() {
                   {executiveLoading && (
                     <Badge variant="outline" className="text-violet-600 border-violet-500/30 bg-violet-500/10">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Generating Executive Summary...
+                      Executive Summary...
+                    </Badge>
+                  )}
+                  {reportLoading && (
+                    <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Translating Report ({translationsCompleted}/{AGENT_LANGUAGES.length})...
                     </Badge>
                   )}
                   {!isRunning && totalDuration !== null && (
@@ -1057,14 +1310,18 @@ export default function AgentArrayPage() {
               <CircleVisualization agentStates={agentStates} roles={customRoles} />
             </div>
 
-            {(() => {
-              const completedResults = Array.from(agentStates.entries())
-                .filter(([, s]) => s.status === "complete" && s.result)
-                .map(([, s]) => s.result!);
-              return completedResults.length > 0 && !isRunning ? (
-                <ResponseViewer results={completedResults} />
-              ) : null;
-            })()}
+            {unifiedReport && translations.length > 0 && !isRunning && (
+              <SituationReportViewer
+                unifiedReport={unifiedReport}
+                translations={translations}
+                prompt={prompt}
+                tribHash={tribHash}
+                executiveSummary={executiveSummary}
+                layer2Sections={layer2Sections}
+                successCount={successCount}
+                totalDurationMs={totalDuration}
+              />
+            )}
 
             {executiveSummary && (
               <ExecutiveSummaryDisplay summary={executiveSummary} />
@@ -1072,15 +1329,6 @@ export default function AgentArrayPage() {
 
             {layer2Sections.length > 0 && (
               <Layer2Display sections={layer2Sections} />
-            )}
-
-            {consensus && !executiveSummary && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Card className="p-5 border-primary/10" data-testid="section-consensus">
-                  <h2 className="text-lg font-bold mb-3">Final Consensus</h2>
-                  <p className="text-sm text-foreground/90 leading-relaxed">{consensus}</p>
-                </Card>
-              </motion.div>
             )}
 
             {tribHash && !isRunning && (
@@ -1093,26 +1341,30 @@ export default function AgentArrayPage() {
         )}
 
         {!isRunning && agentStates.size === 0 && (
-          <Card className="p-8 border-primary/10 text-center" data-testid="section-empty-state">
-            <div className="max-w-md mx-auto">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Play className="w-6 h-6 text-primary" />
+          <div className="space-y-6">
+            <Card className="p-8 border-primary/10 text-center" data-testid="section-empty-state">
+              <div className="max-w-md mx-auto">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Play className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold mb-2">Ready to Launch</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Enter a compliance query above and launch the agent array. All 28 specialist agents process your query
+                  simultaneously, then produce one unified Situation Report translated into 28 languages.
+                  Save reports to the database for future reference.
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {LAYER2_SECTIONS.map((s) => (
+                    <Badge key={s.key} variant="outline" className={CATEGORY_COLORS[s.key]}>
+                      {s.label} ({s.agentIndices.length})
+                    </Badge>
+                  ))}
+                </div>
               </div>
-              <h3 className="font-semibold mb-2">Ready to Launch</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Enter a compliance query above and launch the agent array. All 28 specialist agents will process your query
-                via Tribonacci 13-step permutation scheduling. The 5-section executive summary provides Verdict,
-                Jurisdictional Compass, Risk Barometer, Critical Path, and Plain English analysis.
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {LAYER2_SECTIONS.map((s) => (
-                  <Badge key={s.key} variant="outline" className={CATEGORY_COLORS[s.key]}>
-                    {s.label} ({s.agentIndices.length})
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </Card>
+            </Card>
+
+            <ReportHistory />
+          </div>
         )}
       </div>
     </div>

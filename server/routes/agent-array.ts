@@ -6,9 +6,9 @@
  * 28-Dimension AI Agent Array — Tribonacci Circle Orchestration
  *
  * Three-layer processing pipeline:
- *   Layer 1: 28 specialist agents deliberate in parallel
- *   Layer 2: 5-section executive summary (Verdict, Jurisdictional Compass,
- *            Risk Barometer, Critical Path, Plain English)
+ *   Layer 1: 28 specialist agents deliberate in parallel (English)
+ *   Layer 2: 5-section executive summary synthesis
+ *   Layer 3: Unified Situation Report translated into 28 languages
  *
  * Agents scheduled via Tribonacci 13-step permutation:
  *   (i × 13) mod 28 visits all 28 positions exactly once
@@ -21,8 +21,10 @@
 import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
 import pLimit from "p-limit";
-import pRetry from "p-retry";
 import { createLogger } from "../logger";
+import { db } from "../db";
+import { agentArrayReports } from "@shared/schema";
+import { desc, eq } from "drizzle-orm";
 import {
   AGENT_COUNT,
   STEPS_PER_AGENT,
@@ -55,6 +57,7 @@ import { randomUUID } from "crypto";
 import crypto from "crypto";
 
 const CONCURRENCY_LIMIT = 28;
+const TRANSLATION_CONCURRENCY = 14;
 const RETRY_ATTEMPTS = 2;
 const SESSION_TTL_MS = 5 * 60 * 1000;
 
@@ -90,8 +93,11 @@ function generateTribonacciHash(query: string): string {
   return `trib-${bucket.toString(16).padStart(8, "0")}-${shortHash}`;
 }
 
-function buildAgentSystemPrompt(z28: number, specialist: AgentSpecialist): string {
-  return specialist.systemPrompt;
+function buildAgentSystemPrompt(_z28: number, specialist: AgentSpecialist): string {
+  const base = specialist.systemPrompt;
+  const langPattern = /\s*You MUST respond entirely in .+$/;
+  const stripped = base.replace(langPattern, "");
+  return stripped + " You MUST respond entirely in English for the analysis phase. Do not use any other language.";
 }
 
 async function callLLM(
@@ -496,6 +502,92 @@ function parsePlainEnglish(raw: string | null): ExecutiveSummary["plainEnglish"]
   return { summary: raw, boardRecommendation: sentences[sentences.length - 1] || raw };
 }
 
+export interface TranslationEntry {
+  languageCode: string;
+  languageName: string;
+  nativeName: string;
+  text: string;
+}
+
+async function generateUnifiedSituationReport(
+  results: AgentResult[],
+  layer2: Layer2Section[],
+  executiveSummary: ExecutiveSummary | undefined,
+  prompt: string,
+): Promise<string> {
+  const successResults = results.filter(r => !r.response.startsWith("[Error]"));
+
+  const agentFindings = successResults
+    .map(r => `[${r.domain}]: ${r.response}`)
+    .join("\n");
+
+  const truncatedFindings = agentFindings.length > 2000
+    ? agentFindings.slice(0, 2000) + "..."
+    : agentFindings;
+
+  const layer2Summary = layer2
+    .filter(s => s.successCount > 0)
+    .map(s => `${s.label}: ${s.technicalSummary}`)
+    .join("\n");
+
+  const execParts: string[] = [];
+  if (executiveSummary) {
+    execParts.push(`Verdict: ${executiveSummary.verdict.signal} — ${executiveSummary.verdict.assessment}`);
+    execParts.push(`Plain English: ${executiveSummary.plainEnglish.summary}`);
+    execParts.push(`Board Recommendation: ${executiveSummary.plainEnglish.boardRecommendation}`);
+  }
+
+  const systemPrompt = `You are a senior analyst producing one comprehensive Situation Report. Write a complete, professional report that synthesizes all specialist findings into a single coherent document. Include: (1) Executive Overview, (2) Key Findings by Domain, (3) Risk Assessment, (4) Jurisdictional Analysis, (5) Recommendations, and (6) Conclusion. The report should be 500-800 words, clear and actionable. Write in English.`;
+
+  const userContent = `QUERY: ${prompt}\n\nSPECIALIST FINDINGS (${successResults.length} agents):\n${truncatedFindings}\n\nCATEGORY ANALYSIS:\n${layer2Summary}\n\n${execParts.length > 0 ? `EXECUTIVE SUMMARY:\n${execParts.join("\n")}` : ""}`;
+
+  const report = await callLLM(systemPrompt, userContent, "Unified Situation Report");
+
+  return report || `SITUATION REPORT\n\nQuery: ${prompt}\n\n${successResults.length} specialist agents analyzed this query across ${LAYER2_SECTIONS.length} domains.\n\n${layer2Summary}\n\n${execParts.join("\n")}\n\nFull specialist responses are available in the detailed view.`;
+}
+
+async function translateReport(
+  report: string,
+  sendSSE?: (eventType: string, data: unknown) => void,
+): Promise<TranslationEntry[]> {
+  const translationLimit = pLimit(TRANSLATION_CONCURRENCY);
+
+  const translations = await Promise.all(
+    AGENT_LANGUAGES.map((lang, idx) =>
+      translationLimit(async (): Promise<TranslationEntry> => {
+        if (lang.code === "en") {
+          if (sendSSE) sendSSE("translation_progress", { index: idx, code: lang.code, name: lang.name, status: "complete" });
+          return {
+            languageCode: lang.code,
+            languageName: lang.name,
+            nativeName: lang.nativeName,
+            text: report,
+          };
+        }
+
+        if (sendSSE) sendSSE("translation_progress", { index: idx, code: lang.code, name: lang.name, status: "translating" });
+
+        const translated = await callLLM(
+          `You are a professional translator. Translate the following Situation Report into ${lang.name} (${lang.nativeName}). Maintain the same structure, headings, and professional tone. Translate ALL content including section headers. Do NOT add commentary or notes — output ONLY the translated report.`,
+          report,
+          `Translate to ${lang.name}`,
+        );
+
+        if (sendSSE) sendSSE("translation_progress", { index: idx, code: lang.code, name: lang.name, status: "complete" });
+
+        return {
+          languageCode: lang.code,
+          languageName: lang.name,
+          nativeName: lang.nativeName,
+          text: translated || `[Translation to ${lang.name} unavailable]`,
+        };
+      })
+    )
+  );
+
+  return translations;
+}
+
 export function registerAgentArrayRoutes(app: Express) {
   app.post("/api/tribonacci/agent-array", (req: Request, res: Response) => {
     const { prompt, customRoles } = req.body;
@@ -518,6 +610,7 @@ export function registerAgentArrayRoutes(app: Express) {
         keywords: DEFAULT_SPECIALISTS[i].keywords,
         systemPrompt: DEFAULT_SPECIALISTS[i].systemPrompt,
         weight: DEFAULT_SPECIALISTS[i].weight,
+        language: DEFAULT_SPECIALISTS[i].language,
       }));
     }
 
@@ -548,7 +641,7 @@ export function registerAgentArrayRoutes(app: Express) {
     const executionOrder = scheduleAgents();
     const tribHash = generateTribonacciHash(prompt);
 
-    log.info(`Agent Array session ${sessionId}: launching ${AGENT_COUNT} agents (Tribonacci order: ${executionOrder.slice(0, 6).join(",")}...)`);
+    log.info(`Agent Array session ${sessionId}: launching ${AGENT_COUNT} agents in parallel (Tribonacci order: ${executionOrder.slice(0, 6).join(",")}...)`);
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -649,28 +742,19 @@ export function registerAgentArrayRoutes(app: Express) {
       }
     }
 
+    sendSSE("report_start", { languageCount: AGENT_LANGUAGES.length });
+
+    const unifiedReport = await generateUnifiedSituationReport(results, layer2, executiveSummary, prompt);
+    sendSSE("report_generated", { report: unifiedReport });
+
+    const translations = await translateReport(unifiedReport, sendSSE);
+    sendSSE("translations_complete", { count: translations.length });
+
     let consensus = "";
     if (executiveSummary) {
       consensus = executiveSummary.plainEnglish.summary;
     } else if (successCount >= 10) {
-      const summaryInputs = layer2
-        .filter((s) => s.successCount > 0)
-        .map((s) => `[${s.label}]: ${s.technicalSummary}`)
-        .join("\n");
-
-      const truncatedSummaryInputs = summaryInputs.length > 500
-        ? summaryInputs.slice(0, 500) + "..."
-        : summaryInputs;
-
-      const consensusText = await callLLM(
-        "Summarize findings into 3-4 clear sentences.",
-        truncatedSummaryInputs.length > 20
-          ? truncatedSummaryInputs
-          : `${successCount} analysts analyzed "${prompt}". Provide a 3-sentence synthesis.`,
-        "Consensus",
-      );
-
-      consensus = consensusText || layer2
+      consensus = layer2
         .filter((s) => s.successCount > 0 && !s.technicalSummary.startsWith("No agent"))
         .map((s) => s.technicalSummary)
         .join(" ");
@@ -678,7 +762,7 @@ export function registerAgentArrayRoutes(app: Express) {
       consensus = `Insufficient agent responses (${successCount}/${AGENT_COUNT}) for consensus.`;
     }
 
-    const response: AgentArrayResponse = {
+    const response: AgentArrayResponse & { unifiedReport: string; translations: TranslationEntry[] } = {
       sessionId,
       prompt,
       agentCount: AGENT_COUNT,
@@ -690,13 +774,89 @@ export function registerAgentArrayRoutes(app: Express) {
       executiveSummary,
       tribonacciHash: tribHash,
       executionOrder,
+      unifiedReport,
+      translations,
     };
 
     sendSSE("complete", response);
 
-    log.info(`Agent Array session ${sessionId}: completed in ${Date.now() - startTime}ms (${successCount}/${AGENT_COUNT} success, ${layer2.length} sections, executive=${!!executiveSummary})`);
+    log.info(`Agent Array session ${sessionId}: completed in ${Date.now() - startTime}ms (${successCount}/${AGENT_COUNT} success, ${translations.length} translations)`);
 
     res.end();
+  });
+
+  app.post("/api/tribonacci/agent-array/save", async (req: Request, res: Response) => {
+    try {
+      const { prompt, tribonacciHash, unifiedReport, translations, executiveSummary, layer2Sections, agentCount, successCount, totalDurationMs } = req.body;
+
+      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+        return res.status(400).json({ error: "prompt is required" });
+      }
+      if (!unifiedReport || typeof unifiedReport !== "string" || unifiedReport.trim().length === 0) {
+        return res.status(400).json({ error: "unifiedReport is required" });
+      }
+      if (!Array.isArray(translations) || translations.length === 0) {
+        return res.status(400).json({ error: "translations array is required" });
+      }
+      const validTranslations = translations.every((t: any) =>
+        t && typeof t.languageCode === "string" && typeof t.text === "string"
+      );
+      if (!validTranslations) {
+        return res.status(400).json({ error: "Each translation must have languageCode and text" });
+      }
+
+      const [inserted] = await db.insert(agentArrayReports).values({
+        prompt,
+        tribonacciHash: tribonacciHash || "",
+        unifiedReport,
+        translations,
+        executiveSummary: executiveSummary || null,
+        layer2Sections: layer2Sections || null,
+        agentCount: agentCount || AGENT_COUNT,
+        successCount: successCount || 0,
+        totalDurationMs: totalDurationMs || 0,
+      }).returning();
+
+      res.json({ id: inserted.id, createdAt: inserted.createdAt });
+    } catch (err) {
+      log.error(`Failed to save report: ${err instanceof Error ? err.message : String(err)}`);
+      res.status(500).json({ error: "Failed to save report" });
+    }
+  });
+
+  app.get("/api/tribonacci/agent-array/reports", async (_req: Request, res: Response) => {
+    try {
+      const reports = await db.select({
+        id: agentArrayReports.id,
+        prompt: agentArrayReports.prompt,
+        tribonacciHash: agentArrayReports.tribonacciHash,
+        agentCount: agentArrayReports.agentCount,
+        successCount: agentArrayReports.successCount,
+        totalDurationMs: agentArrayReports.totalDurationMs,
+        createdAt: agentArrayReports.createdAt,
+      }).from(agentArrayReports).orderBy(desc(agentArrayReports.createdAt)).limit(50);
+
+      res.json({ reports });
+    } catch (err) {
+      log.error(`Failed to fetch reports: ${err instanceof Error ? err.message : String(err)}`);
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  app.get("/api/tribonacci/agent-array/reports/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid report ID" });
+
+      const [report] = await db.select().from(agentArrayReports).where(eq(agentArrayReports.id, id)).limit(1);
+
+      if (!report) return res.status(404).json({ error: "Report not found" });
+
+      res.json({ report });
+    } catch (err) {
+      log.error(`Failed to fetch report: ${err instanceof Error ? err.message : String(err)}`);
+      res.status(500).json({ error: "Failed to fetch report" });
+    }
   });
 
   app.get("/api/tribonacci/agent-array/positions", (_req: Request, res: Response) => {
