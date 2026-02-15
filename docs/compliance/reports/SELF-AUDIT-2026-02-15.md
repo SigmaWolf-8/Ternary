@@ -121,7 +121,7 @@ The PlenumNET project demonstrates strong compliance infrastructure across licen
 | Rate Limiting | 4 tiers (global 100/min, auth 20/min, token 10/min, computation 50/min) | ACTIVE |
 | CORS | Origin allowlist with strict rejection | ACTIVE |
 | Helmet.js | CSP (production), HSTS, X-Content-Type-Options, referrer policy | ACTIVE |
-| X-XSS-Protection | Enabled | ACTIVE |
+| X-XSS-Protection | Set to 0 (modern best practice via Helmet.js — relies on CSP instead) | ACTIVE |
 | Cross-Origin-Resource-Policy | cross-origin | ACTIVE |
 | Token Encryption | AES-256-GCM (SESSION_SECRET required, no fallbacks) | ACTIVE |
 | Path Sanitization | Null-byte stripping, double URL-decode protection | ACTIVE |
@@ -142,10 +142,11 @@ Headers verified on live server response:
 | X-Permitted-Cross-Domain-Policies | none | PRESENT |
 | Cross-Origin-Resource-Policy | cross-origin | PRESENT |
 | Origin-Agent-Cluster | ?1 | PRESENT |
+| X-XSS-Protection | 0 (modern Helmet default; relies on CSP) | PRESENT |
 | CSP | Disabled in dev (expected) | OK |
 | HSTS | Disabled in dev (expected) | OK |
 
-**Finding: Headers are correctly configured. CSP and HSTS correctly activate in production only.**
+**Finding: Headers are correctly configured. CSP and HSTS correctly activate in production only. X-XSS-Protection is set to 0, which is the modern best practice — legacy XSS auditors caused more issues than they prevented, so Helmet.js disables it in favor of CSP.**
 
 ### 3.3 Authentication & Authorization
 
@@ -323,16 +324,16 @@ None.
 
 | ID | Finding | Recommendation |
 |---|---|---|
-| M-1 | 3 database-writing endpoints lack authentication: `/api/compression/db/store`, `/api/compression/db/documents/:id` (DELETE), `/api/whitepapers` (POST) | Add isAuthenticated middleware to these routes |
-| M-2 | POST /api/whitepapers uses manual field checking instead of the insertWhitepaperSchema Zod validation | Replace manual validation with schema.safeParse() |
-| M-3 | xlsx (SheetJS) has high-severity vulnerability with no upstream fix | Continue monitoring; evaluate replacement when available |
+| M-1 | 3 database-writing endpoints lack authentication: `/api/compression/db/store` (POST), `/api/compression/db/documents/:id` (DELETE), `/api/whitepapers` (POST). These allow unauthenticated database writes and deletes. | Add isAuthenticated middleware to these routes — **recommended for next sprint** |
+| M-2 | POST /api/whitepapers uses manual field checking instead of the insertWhitepaperSchema Zod validation, combined with no auth — user-supplied input written directly to database | Replace manual validation with schema.safeParse() and add auth |
+| M-3 | xlsx (SheetJS) has high-severity vulnerability (prototype pollution + ReDoS) with no upstream fix | Continue monitoring; evaluate replacement when available. Mitigations in place: server-side only, input validation, trusted files only |
 
 ### Low (2)
 
 | ID | Finding | Recommendation |
 |---|---|---|
-| L-1 | `client/src/components/marketing-footer.tsx` missing copyright header | Add standard copyright header |
-| L-2 | 20 auto-generated integration/test files missing copyright headers | Consider adding headers to test files; integration files are auto-generated |
+| L-1 | `client/src/components/marketing-footer.tsx` missing copyright header (only project file affected) | Add standard copyright header |
+| L-2 | 20 auto-generated integration/test files missing copyright headers (Replit integrations and test files) | Consider adding headers to test files; integration files are auto-generated and not pushed to GitHub |
 
 ### Informational (2)
 
