@@ -870,7 +870,7 @@ function VariationalBenchmarksTab() {
 export default function QuantumSim() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-gradient-to-b from-indigo-950 to-slate-900 text-white py-12 px-4">
+      <div className="bg-gradient-to-b from-blue-950 to-slate-900 text-white py-12 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-2 text-sm text-slate-400 mb-4" data-testid="text-breadcrumb">
             <Link href="/" className="hover-elevate rounded px-1">Home</Link>
@@ -881,7 +881,7 @@ export default function QuantumSim() {
           <div className="flex flex-wrap items-start gap-4 justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Atom className="w-8 h-8 text-indigo-400" />
+                <Atom className="w-8 h-8 text-blue-400" />
                 <h1 className="text-3xl font-bold tracking-tight" data-testid="text-quantum-title">
                   Quantum-Ternary Simulator
                 </h1>
@@ -892,11 +892,11 @@ export default function QuantumSim() {
                 on the 27-register ternary VM.
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
-                <Badge variant="outline" className="text-[10px] border-indigo-400/40 text-indigo-300">SUFT-Coupled</Badge>
-                <Badge variant="outline" className="text-[10px] border-indigo-400/40 text-indigo-300">[[3,1,2]]&#x2083; Stabilizer</Badge>
-                <Badge variant="outline" className="text-[10px] border-indigo-400/40 text-indigo-300">CNSA 2.0</Badge>
-                <Badge variant="outline" className="text-[10px] border-indigo-400/40 text-indigo-300">QVQE/QAOA</Badge>
-                <Badge variant="outline" className="text-[10px] border-indigo-400/40 text-indigo-300">Patent Pending</Badge>
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">SUFT-Coupled</Badge>
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">[[3,1,2]]&#x2083; Stabilizer</Badge>
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">CNSA 2.0</Badge>
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">QVQE/QAOA</Badge>
+                <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-300">Patent Pending</Badge>
               </div>
             </div>
             <Link href="/vm-demo">
