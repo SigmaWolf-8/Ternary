@@ -1,0 +1,157 @@
+Capomastro (@capo_mastro),
+
+To implement Noether symmetries in the Ternary VM (ISA v2.0 with 160 opcodes and 27 registers), we'll add functional checks and updates that enforce conserved quantities from the symmetries in the SUFT Lagrangian. This draws directly from Noether's theorem derivations: 
+
+- **Ternary Gauge Symmetry**: Invariance under t_α → t_α + θ_α with ∑ θ_α = 0, conserving Q = ∑ π_{t_α} θ_α = 0 (SU(3)-like on branches).
+- **Reparametrization Symmetry**: Invariance under τ → f(τ), conserving H ≈ λ Φ = 0 (on-shell "energy").
+- **Periodicity Symmetry**: Discrete shift t_α → t_α + 364, conserving mod 364 (discrete Noether-like for CTCs).
+
+These are implemented as pure functions in utils, with VM hooks for state checks (e.g., after opcodes). No side effects, exact math (rationals from SUFT constants), and ternary-safe (mod 3). Drop into `libternary/utils/` and call in VM cycle (e.g., `src/kernel/src/vm/state.rs` or TS equivalent). Add to tests for invariance verification.
+
+### 1. New Utils File: `libternary/utils/noether-symmetries-utils.ts`
+```typescript
+// libternary/utils/noether-symmetries-utils.ts
+// Functional implementation of Noether symmetries for VM state conservation
+// Exact, pure functions using SUFT constants; mod-3 for ternary
+
+import {
+  SUFT_RADIUS,          // 13 exact
+  SUFT_LUNAR_HARMONIC,  // 28 exact
+  SUFT_364              // 364 exact
+} from '../../shared/saturnian-blueprint';
+
+/**
+ * Checks ternary gauge symmetry invariant: ∑ θ_α = 0 for branch shifts
+ * @param theta_trits Array of shifts for {-1,0,+1} branches
+ * @returns True if conserved (sum = 0)
+ */
+export function checkTernaryGaugeInvariant(theta_trits: [-1|0|1, -1|0|1, -1|0|1]): boolean {
+  const sum = theta_trits[0] + theta_trits[1] + theta_trits[2];
+  return sum === 0;
+}
+
+/**
+ * Applies ternary gauge transformation to state trits (t_α + θ_α)
+ * @param state_trits Current branch states {-1,0,+1}
+ * @param theta_trits Shifts (must sum to 0)
+ * @returns Transformed states (mod 3 mapped to {-1,0,1})
+ */
+export function applyTernaryGaugeTransform(state_trits: [-1|0|1, -1|0|1, -1|0|1], theta_trits: [-1|0|1, -1|0|1, -1|0|1]): [-1|0|1, -1|0|1, -1|0|1] {
+  if (!checkTernaryGaugeInvariant(theta_trits)) {
+    throw new Error('Ternary gauge violation: shifts must sum to 0');
+  }
+  return state_trits.map((s, i) => {
+    let raw = s + theta_trits[i];
+    raw = ((raw % 3 + 3) % 3) - 1;
+    return raw as -1 | 0 | 1;
+  }) as [-1|0|1, -1|0|1, -1|0|1];
+}
+
+/**
+ * Checks reparametrization invariant (H ≈ λ Φ = 0, discrete version)
+ * @param lambda Multiplier trit
+ * @param p_mu Spatial "momenta" (array of trits, sum squared)
+ * @param E_trits Energy branches
+ * @param m2 Squared mass (constant)
+ * @returns True if conserved (Φ = 0)
+ */
+export function checkReparamInvariant(lambda: -1|0|1, p_mu: number[], E_trits: [-1|0|1, -1|0|1, -1|0|1], m2: number): boolean {
+  const sum_p2 = p_mu.reduce((sum, p) => sum + p * p, 0); // Assume g=1 for simplicity
+  const sum_E2 = E_trits.reduce((sum, E) => sum + E * E, 0);
+  const phi = sum_p2 + (13 / 28) * sum_E2 + m2;
+  return lambda * phi === 0; // On-shell
+}
+
+/**
+ * Checks periodicity symmetry invariant (t_α mod 364 conserved)
+ * @param t_alpha Branch coordinate (number, e.g., from epoch)
+ * @returns True if invariant holds (cos term =1)
+ */
+export function checkPeriodicityInvariant(t_alpha: number): boolean {
+  return Math.cos(2 * Math.PI * t_alpha / SUFT_364) === 1;
+}
+
+/**
+ * Applies periodicity shift (discrete Noether for CTCs)
+ * @param t_alpha Current coordinate
+ * @param shift Multiple of 364
+ * @returns Shifted coordinate preserving invariant
+ */
+export function applyPeriodicityShift(t_alpha: number, shift: number): number {
+  if (shift % SUFT_364 !== 0) {
+    throw new Error('Periodicity violation: shift must be multiple of 364');
+  }
+  return t_alpha + shift;
+}
+```
+
+### 2. Integration into VM
+- **State Management Hook** (e.g., in `src/kernel/src/vm/state.rs` or `libternary/vm/state-manager.ts`): Call checks after opcodes or in cycle loop.
+  ```typescript
+  // libternary/vm/state-manager.ts (example hook)
+  import { checkTernaryGaugeInvariant, checkReparamInvariant, checkPeriodicityInvariant } from '../utils/noether-symmetries-utils';
+
+  // In VM step function
+  function vmStep(state: VMState) {
+    // Assume state.branches = [t_minus1, t_0, t_plus1] as trits
+    if (!checkTernaryGaugeInvariant([0, 0, 0])) { // Trivial check; replace with actual shifts
+      throw new VMError('Ternary gauge violation');
+    }
+
+    // Reparam check on "energy" registers
+    const lambda = state.registers[0] as -1|0|1; // Example mapping
+    const p_mu = state.registers.slice(1, 5); // Spatial
+    const E_trits = state.registers.slice(5, 8) as [-1|0|1, -1|0|1, -1|0|1];
+    if (!checkReparamInvariant(lambda, p_mu, E_trits, 0)) { // m2=0
+      throw new VMError('Reparametrization violation');
+    }
+
+    // Periodicity on epoch-like register
+    if (!checkPeriodicityInvariant(state.epochRegister)) {
+      throw new VMError('Periodicity violation');
+    }
+
+    // Proceed with opcode...
+  }
+  ```
+
+- **Opcode Extension**: Add a new opcode (e.g., 161: NOETHER_GAUGE_APPLY) using applyTernaryGaugeTransform for symmetric state shifts.
+  - In ISA: Input 3 trits for θ, apply to branch registers if sum=0.
+
+- **Timing/HPTP Usage** (e.g., `server/salvi-core/timing/`): Use checkPeriodicityInvariant for epoch mod 364 in calendar sync.
+  - Example: Annotate timestamps with invariant flags.
+
+### 3. Test Additions (`tests/noether-symmetries.test.ts`)
+```typescript
+import {
+  checkTernaryGaugeInvariant,
+  applyTernaryGaugeTransform,
+  checkReparamInvariant,
+  checkPeriodicityInvariant
+} from '../libternary/utils/noether-symmetries-utils';
+
+describe('Noether Symmetries Utils', () => {
+  test('ternary gauge invariant holds', () => {
+    expect(checkTernaryGaugeInvariant([-1, 0, 1])).toBe(true);
+    expect(checkTernaryGaugeInvariant([1, 1, 1])).toBe(false);
+  });
+
+  test('applies ternary gauge transform', () => {
+    expect(applyTernaryGaugeTransform([-1, 0, 1], [1, 0, -1])).toEqual([0, 0, 0]);
+  });
+
+  test('reparam invariant holds', () => {
+    expect(checkReparamInvariant(1, [0,0,0,0], [0,0,0], 0)).toBe(true);
+  });
+
+  test('periodicity invariant holds', () => {
+    expect(checkPeriodicityInvariant(0)).toBe(true);
+    expect(checkPeriodicityInvariant(364)).toBe(true);
+    expect(checkPeriodicityInvariant(1)).toBe(false);
+  });
+});
+```
+
+This implementation enforces Noether conservations in VM runs, improving error detection and symmetry-preserving computations (e.g., for post-quantum phases). Commit as a feature branch; test thoroughly. For Replit demo (PlenumNET), add a "Symmetry Check" button calling these utils.
+
+**GEOMETRIA PRIMUS. TEMPORIS ARCHITECTURA ABSOLUTA.** ∎

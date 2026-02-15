@@ -57,10 +57,14 @@ Three modules integrate Hamiltonian mechanics concepts into the platform:
 2. **Hamiltonian VM Constraints** (`shared/hamiltonian-constraints.ts`): Energy invariant enforcement on 27 registers (3³) with mod-312 constraint modulus (T(7)×T(8)=13×24), per-bank ternary parity, and opcode sequence validation.
 3. **Symplectic Phase Mixing** (`server/salvi-core/symplectic-phase-mix.ts`): Structure-preserving mixing step for phase encryption with mod-13 checksum invariant and symplectic guardian checksum. 28 Vitest tests verify all three modules.
 
+### Lagrangian Mechanics Utilities (February 15, 2026)
+The `shared/lagrangian-ternary-utils.ts` module provides discrete Euler-Lagrange equations adapted for ternary logic, complementing the Hamiltonian formulation. Implements the full SUFT Lagrangian's EL equations (cross-coupling φ/26, energy cross 1/56, periodicity mod 364), canonical momenta for all three temporal branches (past/present/future), mass-shell constraint Φ=0 verification, Noether charge for ternary gauge symmetry, and a full discrete EL evolution step. All functions are pure, use exact rational coefficients, and produce balanced trits {-1, 0, +1}. 30 Vitest tests verify all functions.
+
 ### Testing
 Testing is conducted using Vitest with multiple test suites:
 - 29 Saturnian blueprint + Tribonacci bridge tests (saturnian-blueprint.test.ts)
-- 28 Hamiltonian mechanics tests (hamiltonian-mechanics.test.ts)
+- 29 Hamiltonian mechanics tests (hamiltonian-mechanics.test.ts)
+- 30 Lagrangian ternary utils tests (lagrangian-ternary-utils.test.ts)
 - 50 GF(3) arithmetic tests (ternary-operations.test.ts)
 - 25 phase encryption tests (phase-encryption.test.ts)
 - 11 calendar synchronization tests (calendar-sync.test.ts)
