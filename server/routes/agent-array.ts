@@ -221,42 +221,71 @@ async function generateLayer2(
           .join("\n");
 
         try {
-          const completion = await pRetry(
+          let technicalSummary = "";
+          let laySummary = "";
+
+          const truncatedInputs = agentInputs.length > 600
+            ? agentInputs.slice(0, 600) + "..."
+            : agentInputs;
+
+          const techCompletion = await pRetry(
             () =>
               openai.chat.completions.create({
                 model: "gpt-5-nano",
                 messages: [
                   {
                     role: "system",
-                    content: `You are the Dimensional Layer 2 Executive Summary Engine for the "${section.label}" section.
-You synthesize insights from ${successCount} specialist agents into a two-part executive summary.
-
-PART 1 - TECHNICAL SUMMARY: Write 2-3 sentences using precise technical and legal terminology appropriate for experts in ${section.label}.
-PART 2 - PLAIN LANGUAGE SUMMARY: Rewrite the same insights in 2-3 sentences using everyday language that a non-specialist can easily understand. Avoid jargon.
-
-Format your response exactly as:
-TECHNICAL: [your technical summary]
-PLAIN: [your plain language summary]`,
+                    content: `Summarize the following analyst findings in 2-3 precise, detailed sentences using professional ${section.label} terminology.`,
                   },
                   {
                     role: "user",
-                    content: `Original query: "${prompt}"\n\nAgent responses:\n${agentInputs}`,
+                    content: `Query: "${prompt}"\n\nFindings:\n${truncatedInputs}`,
                   },
                 ],
-                max_completion_tokens: 400,
+                max_completion_tokens: 1000,
               }),
             { retries: RETRY_ATTEMPTS, minTimeout: 500 },
           );
 
-          const raw = completion.choices[0]?.message?.content || "";
-          const techMatch = raw.match(/TECHNICAL:\s*([\s\S]*?)(?=PLAIN:|$)/i);
-          const plainMatch = raw.match(/PLAIN:\s*([\s\S]*?)$/i);
+          const techRaw = techCompletion.choices[0]?.message?.content;
+          log.info(`Layer2 ${section.label} technical: content=${techRaw ? techRaw.length + ' chars' : 'null'}, finish=${techCompletion.choices[0]?.finish_reason}`);
+          technicalSummary = (techRaw && techRaw.trim().length > 5) ? techRaw.trim() : "";
+
+          const plainCompletion = await pRetry(
+            () =>
+              openai.chat.completions.create({
+                model: "gpt-5-nano",
+                messages: [
+                  {
+                    role: "system",
+                    content: `Explain the following analyst findings in 2-3 simple sentences anyone can understand. No jargon.`,
+                  },
+                  {
+                    role: "user",
+                    content: `Query: "${prompt}"\n\nFindings:\n${truncatedInputs}`,
+                  },
+                ],
+                max_completion_tokens: 1000,
+              }),
+            { retries: RETRY_ATTEMPTS, minTimeout: 500 },
+          );
+
+          const plainRaw = plainCompletion.choices[0]?.message?.content;
+          log.info(`Layer2 ${section.label} plain: content=${plainRaw ? plainRaw.length + ' chars' : 'null'}, finish=${plainCompletion.choices[0]?.finish_reason}`);
+          laySummary = (plainRaw && plainRaw.trim().length > 5) ? plainRaw.trim() : "";
+
+          if (!technicalSummary) {
+            technicalSummary = sectionResults.map((r) => r.response).join(" ").slice(0, 500);
+          }
+          if (!laySummary) {
+            laySummary = technicalSummary;
+          }
 
           return {
             category: section.key,
             label: section.label,
-            technicalSummary: techMatch?.[1]?.trim() || raw,
-            laySummary: plainMatch?.[1]?.trim() || raw,
+            technicalSummary,
+            laySummary,
             agentCount: section.agentIndices.length,
             successCount,
           };
@@ -313,7 +342,7 @@ export function registerAgentArrayRoutes(app: Express) {
   });
 
   app.get("/api/tribonacci/agent-array/stream/:sessionId", async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
+    const sessionId = req.params.sessionId as string;
     const session = pendingSessions.get(sessionId);
 
     if (!session) {
@@ -414,26 +443,63 @@ export function registerAgentArrayRoutes(app: Express) {
           .map((s) => `[${s.label}]: ${s.technicalSummary}`)
           .join("\n");
 
-        const consensusCompletion = await openai.chat.completions.create({
-          model: "gpt-5-nano",
-          messages: [
-            {
-              role: "system",
-              content: `You are the Tribonacci Consensus Engine. You synthesize the 5 executive section summaries from ${successCount} specialist agents arranged on the Z₂₈ cyclic group into a final unified briefing. Provide a 3-4 sentence synthesis that combines both technical precision and clear everyday language. Be authoritative yet accessible.`,
-            },
-            {
-              role: "user",
-              content: `Synthesize these section summaries into a final consensus:\n\n${summaryInputs}`,
-            },
-          ],
-          max_completion_tokens: 300,
-        });
+        const truncatedSummaryInputs = summaryInputs.length > 500
+          ? summaryInputs.slice(0, 500) + "..."
+          : summaryInputs;
 
-        consensus = consensusCompletion.choices[0]?.message?.content || "Consensus generation failed.";
+        log.info(`Consensus input (${summaryInputs.length} chars -> ${truncatedSummaryInputs.length} chars from ${layer2.filter((s) => s.successCount > 0).length} sections)`);
+
+        let consensusText: string | null = null;
+
+        for (let attempt = 0; attempt < 3 && !consensusText; attempt++) {
+          try {
+            const consensusCompletion = await openai.chat.completions.create({
+              model: "gpt-5-nano",
+              messages: [
+                {
+                  role: "system",
+                  content: "Summarize the analyst findings below into 3-4 clear sentences.",
+                },
+                {
+                  role: "user",
+                  content: truncatedSummaryInputs.length > 20
+                    ? `Summarize:\n\n${truncatedSummaryInputs}`
+                    : `${successCount} analysts completed analysis of "${prompt}". Provide a 3-sentence synthesis.`,
+                },
+              ],
+              max_completion_tokens: 1000,
+            });
+
+            const raw = consensusCompletion.choices[0]?.message?.content;
+            const finishReason = consensusCompletion.choices[0]?.finish_reason;
+            log.info(`Consensus attempt ${attempt + 1}: content=${raw ? raw.length + ' chars' : 'null'}, finish_reason=${finishReason}`);
+
+            if (raw && raw.trim().length > 10) {
+              consensusText = raw.trim();
+            }
+          } catch (retryErr) {
+            log.warn(`Consensus attempt ${attempt + 1} error: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          }
+        }
+
+        if (consensusText) {
+          consensus = consensusText;
+        } else {
+          const fallbackParts = layer2
+            .filter((s) => s.successCount > 0 && s.technicalSummary && !s.technicalSummary.startsWith("No agent") && !s.technicalSummary.startsWith("Summary generation"))
+            .map((s) => s.technicalSummary);
+
+          consensus = fallbackParts.length > 0
+            ? fallbackParts.join(" ")
+            : `All ${successCount} of ${AGENT_COUNT} specialist agents completed their analysis successfully across ${layer2.filter(s => s.successCount > 0).length} categories. Expand the Layer 2 Executive Summary sections above for detailed technical and plain-language findings from each domain.`;
+        }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         log.error(`Consensus generation failed: ${errMsg}`);
-        consensus = "Consensus could not be generated due to an error.";
+        consensus = layer2
+          .filter((s) => s.successCount > 0)
+          .map((s) => s.technicalSummary)
+          .join(" ") || `All ${successCount} agents completed their analysis successfully.`;
       }
     } else {
       consensus = `Insufficient agent responses (${successCount}/${AGENT_COUNT}) for consensus.`;
