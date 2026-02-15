@@ -31,7 +31,7 @@ and tooling for ongoing compliance assurance.
 | Data breach response drill | Semi-annually | Tabletop exercise | CISO/Privacy |
 
 **Automated Checks:**
-- `GET /api/data-subject-requests` — verify pending requests are processed within 30-day SLA
+- `GET /api/gdpr/requests` — verify pending requests are processed within 30-day SLA
 - Cookie consent localStorage state verification via E2E tests
 - Data retention SQL audit: flag records exceeding retention period
 
@@ -130,7 +130,7 @@ Privacy and security incidents follow the Incident Response Plan:
 
 The quarterly compliance report is generated via:
 ```bash
-node scripts/quarterly-compliance-report.js
+node scripts/quarterly-compliance-report.cjs
 ```
 
 This script aggregates:
