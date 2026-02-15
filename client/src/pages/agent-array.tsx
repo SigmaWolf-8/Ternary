@@ -8,7 +8,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, MapPin, AlertTriangle, ListOrdered, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,8 @@ import {
   type AgentResult,
   type AgentPosition,
   type Layer2Section,
+  type ExecutiveSummary,
+  type VerdictSignal,
 } from "../../../shared/agent-array";
 
 type AgentStatus = "idle" | "running" | "complete" | "error";
@@ -49,6 +51,20 @@ const CATEGORY_BG: Record<AgentCategory, string> = {
   "Finance": "bg-emerald-500/10 border-emerald-500/20",
   "Crypto": "bg-amber-500/10 border-amber-500/20",
   "Security": "bg-red-500/10 border-red-500/20",
+};
+
+const VERDICT_COLORS: Record<VerdictSignal, { bg: string; text: string; border: string }> = {
+  GREEN: { bg: "bg-green-500/10", text: "text-green-600 dark:text-green-400", border: "border-green-500/30" },
+  YELLOW: { bg: "bg-yellow-500/10", text: "text-yellow-600 dark:text-yellow-400", border: "border-yellow-500/30" },
+  RED: { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", border: "border-red-500/30" },
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  permitted: "text-green-600 dark:text-green-400",
+  conditional: "text-yellow-600 dark:text-yellow-400",
+  restricted: "text-orange-600 dark:text-orange-400",
+  prohibited: "text-red-600 dark:text-red-400",
+  unclear: "text-muted-foreground",
 };
 
 function CircleVisualization({
@@ -312,7 +328,7 @@ function Layer2Display({ sections }: { sections: Layer2Section[] }) {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} data-testid="section-layer2">
       <Card className="p-5 border-primary/10">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <h2 className="text-lg font-bold">Dimensional Layer 2 — Executive Summary</h2>
+          <h2 className="text-lg font-bold">Dimensional Layer 2 — Category Analysis</h2>
           <Badge variant="outline">{sections.length} Sections</Badge>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
@@ -382,15 +398,204 @@ function Layer2Display({ sections }: { sections: Layer2Section[] }) {
   );
 }
 
+function RiskBar({ score, label }: { score: number; label: string }) {
+  const pct = Math.min(100, Math.max(0, score * 10));
+  const color = score <= 3 ? "bg-green-500" : score <= 6 ? "bg-yellow-500" : "bg-red-500";
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-xs font-semibold">{score.toFixed(1)}/10</span>
+      </div>
+      <div className="w-full bg-secondary/50 rounded-full h-2">
+        <div className={`h-2 rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveSummaryDisplay({ summary }: { summary: ExecutiveSummary }) {
+  const [openSection, setOpenSection] = useState<number | null>(0);
+
+  const safeVerdict = summary.verdict || { signal: "YELLOW" as VerdictSignal, assessment: "Analysis pending.", confidence: 0.5 };
+  const safeCompass = summary.jurisdictionalCompass || [];
+  const safeRisk = summary.riskBarometer || { financial: [], technical: [], aggregateFinancial: 5, aggregateTechnical: 5 };
+  const safePath = summary.criticalPath || [];
+  const safePlain = summary.plainEnglish || { summary: "See detailed sections above.", boardRecommendation: "Review findings." };
+
+  const vc = VERDICT_COLORS[safeVerdict.signal] || VERDICT_COLORS.YELLOW;
+
+  const sections = [
+    {
+      title: "The Verdict",
+      icon: <Shield className="w-4 h-4" />,
+      content: (
+        <div className="space-y-3">
+          <div className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 ${vc.bg} ${vc.border}`}>
+            <span className={`text-lg font-bold ${vc.text}`} data-testid="text-verdict-signal">
+              {safeVerdict.signal}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Confidence: {((safeVerdict.confidence || 0.5) * 100).toFixed(0)}%
+            </span>
+          </div>
+          <p className="text-sm text-foreground/90 leading-relaxed" data-testid="text-verdict-assessment">
+            {safeVerdict.assessment || "Assessment pending."}
+          </p>
+        </div>
+      ),
+    },
+    {
+      title: "Jurisdictional Compass",
+      icon: <MapPin className="w-4 h-4" />,
+      content: (
+        <div className="space-y-2">
+          {safeCompass.length > 0 ? safeCompass.map((region, i) => (
+            <div key={i} className="flex items-start gap-3 py-1.5 border-b border-border/30 last:border-0" data-testid={`region-${i}`}>
+              <span className="text-sm font-medium min-w-[120px]">{region.region}</span>
+              <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[region.status] || ""}`}>
+                {(region.status || "unclear").toUpperCase()}
+              </Badge>
+              {region.notes && (
+                <span className="text-xs text-muted-foreground flex-1">{region.notes}</span>
+              )}
+            </div>
+          )) : (
+            <p className="text-xs text-muted-foreground">No jurisdictional data available.</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Risk Barometer",
+      icon: <AlertTriangle className="w-4 h-4" />,
+      content: (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Financial Risk</h4>
+              <RiskBar score={safeRisk.aggregateFinancial ?? 5} label="Aggregate" />
+              {(safeRisk.financial || []).map((r, i) => (
+                <p key={i} className="text-xs text-foreground/80">{r.narrative}</p>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Technical Risk</h4>
+              <RiskBar score={safeRisk.aggregateTechnical ?? 5} label="Aggregate" />
+              {(safeRisk.technical || []).map((r, i) => (
+                <p key={i} className="text-xs text-foreground/80">{r.narrative}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Critical Path",
+      icon: <ListOrdered className="w-4 h-4" />,
+      content: (
+        <div className="space-y-2">
+          {safePath.length > 0 ? safePath.map((step) => (
+            <div key={step.order} className="flex items-start gap-3 py-1.5" data-testid={`critical-step-${step.order}`}>
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                {step.order}
+              </span>
+              <div className="flex-1">
+                <p className="text-sm text-foreground/90">{step.action}</p>
+                <Badge variant="outline" className="text-[10px] mt-1">{(step.category || "general").replace(/_/g, " ")}</Badge>
+              </div>
+            </div>
+          )) : (
+            <p className="text-xs text-muted-foreground">No critical path steps available.</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Plain English Summary",
+      icon: <FileText className="w-4 h-4" />,
+      content: (
+        <div className="space-y-3">
+          <p className="text-sm text-foreground/90 leading-relaxed" data-testid="text-plain-english-summary">
+            {safePlain.summary || "See detailed sections above."}
+          </p>
+          <div className="border-t border-border/50 pt-3">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Board Recommendation</h4>
+            <p className="text-sm text-foreground font-medium" data-testid="text-board-recommendation">
+              {safePlain.boardRecommendation || "Review detailed findings."}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} data-testid="section-executive-summary">
+      <Card className="p-5 border-primary/10">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <h2 className="text-lg font-bold">Executive Summary</h2>
+          <Badge variant="outline" className={`${vc.text} ${vc.border} ${vc.bg}`}>
+            {safeVerdict.signal}
+          </Badge>
+          <Badge variant="outline">5 Sections</Badge>
+        </div>
+        <div className="space-y-2">
+          {sections.map((sec, idx) => {
+            const isOpen = openSection === idx;
+            return (
+              <div
+                key={sec.title}
+                className="rounded-md border border-border/50"
+                data-testid={`executive-section-${idx}`}
+              >
+                <button
+                  onClick={() => setOpenSection(isOpen ? null : idx)}
+                  className="w-full flex items-center justify-between gap-2 p-4 text-left"
+                  data-testid={`button-toggle-executive-${idx}`}
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {sec.icon}
+                    <span className="font-semibold text-sm">{sec.title}</span>
+                  </div>
+                  {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4">
+                        {sec.content}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function AgentArrayPage() {
   const [prompt, setPrompt] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [agentStates, setAgentStates] = useState<Map<number, AgentState>>(new Map());
   const [consensus, setConsensus] = useState<string | null>(null);
   const [layer2Sections, setLayer2Sections] = useState<Layer2Section[]>([]);
+  const [executiveSummary, setExecutiveSummary] = useState<ExecutiveSummary | null>(null);
   const [layer2Loading, setLayer2Loading] = useState(false);
+  const [executiveLoading, setExecutiveLoading] = useState(false);
   const [totalDuration, setTotalDuration] = useState<number | null>(null);
   const [successCount, setSuccessCount] = useState(0);
+  const [tribHash, setTribHash] = useState<string | null>(null);
   const [customRoles, setCustomRoles] = useState<AgentSpecialist[]>(
     DEFAULT_SPECIALISTS.map((s) => ({ ...s }))
   );
@@ -423,9 +628,12 @@ export default function AgentArrayPage() {
     setIsRunning(true);
     setConsensus(null);
     setLayer2Sections([]);
+    setExecutiveSummary(null);
     setLayer2Loading(false);
+    setExecutiveLoading(false);
     setTotalDuration(null);
     setSuccessCount(0);
+    setTribHash(null);
     setAgentStates(new Map());
 
     if (eventSourceRef.current) {
@@ -489,6 +697,20 @@ export default function AgentArrayPage() {
         } catch {}
       });
 
+      es.addEventListener("executive_start", () => {
+        setExecutiveLoading(true);
+      });
+
+      es.addEventListener("executive_complete", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.executiveSummary) {
+            setExecutiveSummary(data.executiveSummary);
+          }
+          setExecutiveLoading(false);
+        } catch {}
+      });
+
       es.addEventListener("complete", (e) => {
         try {
           const data = JSON.parse(e.data);
@@ -505,10 +727,15 @@ export default function AgentArrayPage() {
           setConsensus(data.consensus || null);
           setTotalDuration(data.totalDurationMs || null);
           setSuccessCount(results.filter((r: AgentResult) => !r.response.startsWith("[Error]")).length);
+          setTribHash(data.tribonacciHash || null);
           if (data.layer2) {
             setLayer2Sections(data.layer2);
           }
+          if (data.executiveSummary) {
+            setExecutiveSummary(data.executiveSummary);
+          }
           setLayer2Loading(false);
+          setExecutiveLoading(false);
         } catch {}
         es.close();
         eventSourceRef.current = null;
@@ -547,9 +774,9 @@ export default function AgentArrayPage() {
             28-Dimension Agent Array
           </h1>
           <p className="text-muted-foreground max-w-2xl" data-testid="text-agent-array-subtitle">
-            Launch 28 specialist AI agents simultaneously, each mapped to a Z&#8322;&#8328; position on the Tribonacci Circle.
-            Layer 1 delivers individual expert analyses. Layer 2 synthesizes a 5-section executive summary
-            with both technical detail and plain-language explanations.
+            Launch 28 specialist AI agents via Tribonacci 13-step permutation scheduling.
+            Layer 1 delivers individual expert analyses. Layer 2 synthesizes a 5-section executive summary:
+            Verdict, Jurisdictional Compass, Risk Barometer, Critical Path, and Plain English.
           </p>
         </motion.div>
 
@@ -565,7 +792,7 @@ export default function AgentArrayPage() {
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Enter your query for the 28-agent array..."
+                placeholder="Enter your compliance query for the 28-agent array..."
                 className="flex-1 min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 maxLength={2000}
                 disabled={isRunning}
@@ -605,8 +832,8 @@ export default function AgentArrayPage() {
             <div className="grid lg:grid-cols-[1fr_auto] gap-6">
               <Card className="p-5 border-primary/10" data-testid="section-agent-status">
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
-                  <h2 className="text-lg font-bold">Layer 1 — Agent Status</h2>
-                  {isRunning && !layer2Loading && (
+                  <h2 className="text-lg font-bold">Layer 1 — Agent Deliberation</h2>
+                  {isRunning && !layer2Loading && !executiveLoading && (
                     <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 bg-yellow-500/10">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                       Processing
@@ -615,7 +842,13 @@ export default function AgentArrayPage() {
                   {layer2Loading && (
                     <Badge variant="outline" className="text-blue-600 border-blue-500/30 bg-blue-500/10">
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Generating Layer 2...
+                      Synthesizing Layer 2...
+                    </Badge>
+                  )}
+                  {executiveLoading && (
+                    <Badge variant="outline" className="text-violet-600 border-violet-500/30 bg-violet-500/10">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Generating Executive Summary...
                     </Badge>
                   )}
                   {!isRunning && totalDuration !== null && (
@@ -635,17 +868,28 @@ export default function AgentArrayPage() {
               <CircleVisualization agentStates={agentStates} roles={customRoles} />
             </div>
 
+            {executiveSummary && (
+              <ExecutiveSummaryDisplay summary={executiveSummary} />
+            )}
+
             {layer2Sections.length > 0 && (
               <Layer2Display sections={layer2Sections} />
             )}
 
-            {consensus && (
+            {consensus && !executiveSummary && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <Card className="p-5 border-primary/10" data-testid="section-consensus">
                   <h2 className="text-lg font-bold mb-3">Final Consensus</h2>
                   <p className="text-sm text-foreground/90 leading-relaxed">{consensus}</p>
                 </Card>
               </motion.div>
+            )}
+
+            {tribHash && !isRunning && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <span>Tribonacci Hash:</span>
+                <code className="font-mono bg-muted px-2 py-0.5 rounded" data-testid="text-trib-hash">{tribHash}</code>
+              </div>
             )}
           </motion.div>
         )}
@@ -658,8 +902,9 @@ export default function AgentArrayPage() {
               </div>
               <h3 className="font-semibold mb-2">Ready to Launch</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Enter a prompt above and launch the agent array. All 28 specialist agents will process your query
-                simultaneously. Layer 2 generates a 5-section executive summary with both expert and plain-language analysis.
+                Enter a compliance query above and launch the agent array. All 28 specialist agents will process your query
+                via Tribonacci 13-step permutation scheduling. The 5-section executive summary provides Verdict,
+                Jurisdictional Compass, Risk Barometer, Critical Path, and Plain English analysis.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {LAYER2_SECTIONS.map((s) => (

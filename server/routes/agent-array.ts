@@ -5,10 +5,15 @@
  *
  * 28-Dimension AI Agent Array — Tribonacci Circle Orchestration
  *
- * Dimensional Layer 1: 28 specialist agents execute simultaneously
- * Dimensional Layer 2: 5-section executive summary (technical + layman)
+ * Three-layer processing pipeline:
+ *   Layer 1: 28 specialist agents deliberate in parallel
+ *   Layer 2: 5-section executive summary (Verdict, Jurisdictional Compass,
+ *            Risk Barometer, Critical Path, Plain English)
  *
- * Two-step pattern:
+ * Agents scheduled via Tribonacci 13-step permutation:
+ *   (i × 13) mod 28 visits all 28 positions exactly once
+ *
+ * Two-step SSE pattern:
  *   POST /api/tribonacci/agent-array       → creates session, returns sessionId
  *   GET  /api/tribonacci/agent-array/stream/:id → EventSource SSE stream
  */
@@ -25,15 +30,27 @@ import {
   AGENT_DOMAINS,
   DEFAULT_SPECIALISTS,
   LAYER2_SECTIONS,
+  TERNARY_RADIAN,
+  FULL_CIRCLE,
+  CONVOLUTION_KERNEL,
   generateZ28Walk,
   getAgentPositions,
+  scheduleAgents,
+  tribonacciPermutation,
   type AgentSpecialist,
   type AgentStepEvent,
   type AgentResult,
   type AgentArrayResponse,
   type Layer2Section,
+  type ExecutiveSummary,
+  type ExecutiveVerdict,
+  type JurisdictionalRegion,
+  type RiskScore,
+  type CriticalStep,
+  type VerdictSignal,
 } from "../../shared/agent-array";
 import { randomUUID } from "crypto";
+import crypto from "crypto";
 
 const CONCURRENCY_LIMIT = 7;
 const RETRY_ATTEMPTS = 2;
@@ -54,8 +71,54 @@ interface PendingSession {
 
 const pendingSessions = new Map<string, PendingSession>();
 
+function generateTribonacciHash(query: string): string {
+  const raw = crypto.createHash("sha256").update(query, "utf8").digest();
+  const key = raw.readBigUInt64LE(0);
+  const a = key * 13n;
+  const b = (key >> 16n) * 24n;
+  const c = (key >> 32n) * 44n;
+  let mixed = a + b + c;
+  mixed ^= (mixed >> 17n);
+  mixed *= 13n;
+  mixed ^= (mixed >> 13n);
+  mixed *= 24n;
+  mixed ^= (mixed >> 9n);
+  const bucket = Number((mixed % (2n ** 32n) + 2n ** 32n) % (2n ** 32n));
+  const shortHash = crypto.createHash("sha256").update(query, "utf8").digest("hex").slice(0, 16);
+  return `trib-${bucket.toString(16).padStart(8, "0")}-${shortHash}`;
+}
+
 function buildAgentSystemPrompt(z28: number, specialist: AgentSpecialist): string {
-  return `You are a ${specialist.title}. ${specialist.description} Answer in 2-3 sentences.`;
+  return specialist.systemPrompt;
+}
+
+async function callLLM(
+  systemPrompt: string,
+  userContent: string,
+  label: string,
+): Promise<string | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5-nano",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+      });
+      const raw = completion.choices[0]?.message?.content;
+      const finish = completion.choices[0]?.finish_reason;
+      if (raw && raw.trim().length > 5) {
+        log.info(`${label} attempt ${attempt + 1}: ${raw.length} chars, finish=${finish}`);
+        return raw.trim();
+      }
+      log.warn(`${label} attempt ${attempt + 1}: content=${raw ? raw.length + ' chars' : 'null'}, finish=${finish}`);
+    } catch (err) {
+      log.warn(`${label} attempt ${attempt + 1} error: ${err instanceof Error ? err.message : String(err)}`);
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    }
+  }
+  return null;
 }
 
 async function executeAgentSteps(
@@ -91,7 +154,7 @@ async function executeAgentSteps(
     stepsCompleted++;
 
     emitStep(1, "running", "Loading domain context");
-    emitStep(1, "complete", `Domain: ${domain}`, 0);
+    emitStep(1, "complete", `Domain: ${specialist.subdomain}`, 0);
     stepsCompleted++;
 
     emitStep(2, "running", "Encoding input to ternary representation");
@@ -106,36 +169,13 @@ async function executeAgentSteps(
     const inferenceStart = Date.now();
 
     const truncatedPrompt = prompt.length > 200 ? prompt.slice(0, 200) + "..." : prompt;
+    const systemPrompt = buildAgentSystemPrompt(z28, specialist);
 
-    let response: string | null = null;
+    const response = await callLLM(systemPrompt, truncatedPrompt, `Agent ${label}`);
 
-    for (let attempt = 0; attempt < 3 && !response; attempt++) {
-      try {
-        const completion = await openai.chat.completions.create({
-          model: "gpt-5-nano",
-          messages: [
-            { role: "system", content: buildAgentSystemPrompt(z28, specialist) },
-            { role: "user", content: truncatedPrompt },
-          ],
-        });
+    const finalResponse = response ||
+      `As a ${specialist.title}, this query involves complex ${specialist.category} considerations that warrant thorough analysis of applicable frameworks and precedents in ${specialist.subdomain}.`;
 
-        const rawContent = completion.choices[0]?.message?.content;
-        const finishReason = completion.choices[0]?.finish_reason;
-
-        if (rawContent && rawContent.trim().length > 5) {
-          response = rawContent.trim();
-        } else {
-          log.warn(`Agent ${label} attempt ${attempt + 1}: content=${rawContent ? rawContent.length + ' chars' : 'null'}, finish=${finishReason}`);
-        }
-      } catch (err) {
-        log.warn(`Agent ${label} attempt ${attempt + 1} error: ${err instanceof Error ? err.message : String(err)}`);
-        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
-      }
-    }
-
-    if (!response) {
-      response = `As a ${specialist.title}, this query involves complex ${specialist.category} considerations that warrant thorough analysis of applicable frameworks and precedents.`;
-    }
     const inferenceDuration = Date.now() - inferenceStart;
     emitStep(4, "complete", `Inference complete (${inferenceDuration}ms)`, inferenceDuration);
     stepsCompleted++;
@@ -178,14 +218,13 @@ async function executeAgentSteps(
       z28,
       domain,
       category: specialist.category,
-      response,
+      response: finalResponse,
       totalDurationMs: Date.now() - startTime,
       stepsCompleted,
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     log.error(`Agent ${label} (${domain}) failed: ${errMsg}`);
-
     emitStep(stepsCompleted, "error", errMsg);
 
     return {
@@ -230,63 +269,24 @@ async function generateLayer2(
           .join("\n");
 
         try {
-          let technicalSummary = "";
-          let laySummary = "";
-
           const truncatedInputs = agentInputs.length > 600
             ? agentInputs.slice(0, 600) + "..."
             : agentInputs;
 
-          const techCompletion = await pRetry(
-            () =>
-              openai.chat.completions.create({
-                model: "gpt-5-nano",
-                messages: [
-                  {
-                    role: "system",
-                    content: `Summarize findings in 2-3 detailed sentences using ${section.label} terminology.`,
-                  },
-                  {
-                    role: "user",
-                    content: truncatedInputs,
-                  },
-                ],
-              }),
-            { retries: RETRY_ATTEMPTS, minTimeout: 500 },
+          const techResult = await callLLM(
+            `Summarize the ${section.label} findings in 2-3 detailed sentences using precise terminology.`,
+            truncatedInputs,
+            `Layer2 ${section.label} technical`,
           );
 
-          const techRaw = techCompletion.choices[0]?.message?.content;
-          log.info(`Layer2 ${section.label} technical: content=${techRaw ? techRaw.length + ' chars' : 'null'}, finish=${techCompletion.choices[0]?.finish_reason}`);
-          technicalSummary = (techRaw && techRaw.trim().length > 5) ? techRaw.trim() : "";
-
-          const plainCompletion = await pRetry(
-            () =>
-              openai.chat.completions.create({
-                model: "gpt-5-nano",
-                messages: [
-                  {
-                    role: "system",
-                    content: `Explain in 2-3 simple sentences anyone can understand.`,
-                  },
-                  {
-                    role: "user",
-                    content: truncatedInputs,
-                  },
-                ],
-              }),
-            { retries: RETRY_ATTEMPTS, minTimeout: 500 },
+          const plainResult = await callLLM(
+            `Explain these ${section.label} findings in 2-3 simple sentences that anyone can understand. Avoid jargon.`,
+            truncatedInputs,
+            `Layer2 ${section.label} plain`,
           );
 
-          const plainRaw = plainCompletion.choices[0]?.message?.content;
-          log.info(`Layer2 ${section.label} plain: content=${plainRaw ? plainRaw.length + ' chars' : 'null'}, finish=${plainCompletion.choices[0]?.finish_reason}`);
-          laySummary = (plainRaw && plainRaw.trim().length > 5) ? plainRaw.trim() : "";
-
-          if (!technicalSummary) {
-            technicalSummary = sectionResults.map((r) => r.response).join(" ").slice(0, 500);
-          }
-          if (!laySummary) {
-            laySummary = technicalSummary;
-          }
+          const technicalSummary = techResult || sectionResults.map((r) => r.response).join(" ").slice(0, 500);
+          const laySummary = plainResult || technicalSummary;
 
           return {
             category: section.key,
@@ -315,6 +315,183 @@ async function generateLayer2(
   return sections;
 }
 
+async function generateExecutiveSummary(
+  layer2: Layer2Section[],
+  prompt: string,
+): Promise<ExecutiveSummary> {
+  const summaryInputs = layer2
+    .filter((s) => s.successCount > 0 && !s.technicalSummary.startsWith("No agent") && !s.technicalSummary.startsWith("Summary generation"))
+    .map((s) => `[${s.label}]: ${s.technicalSummary}`)
+    .join("\n");
+
+  const truncated = summaryInputs.length > 900 ? summaryInputs.slice(0, 900) + "..." : summaryInputs;
+  const querySnippet = prompt.length > 100 ? prompt.slice(0, 100) + "..." : prompt;
+
+  const [verdictResult, compassResult, riskResult, pathResult, plainResult] = await Promise.all([
+    callLLM(
+      "You are a compliance verdict system. Rate as GREEN (proceed), YELLOW (proceed with caution), or RED (do not proceed). Respond in format: SIGNAL: GREEN/YELLOW/RED | ASSESSMENT: one sentence | CONFIDENCE: 0.0-1.0",
+      `Query: ${querySnippet}\nFindings:\n${truncated}`,
+      "Executive Verdict",
+    ),
+    callLLM(
+      "You are a jurisdictional analyst. List 4-6 key world regions with compliance status. Format each line as: REGION | STATUS (permitted/conditional/restricted/prohibited/unclear) | brief note",
+      `Query: ${querySnippet}\nFindings:\n${truncated}`,
+      "Jurisdictional Compass",
+    ),
+    callLLM(
+      "You are a risk analyst. Provide financial risk score (0-10) and technical risk score (0-10). Format: FINANCIAL: score | narrative TECHNICAL: score | narrative",
+      `Query: ${querySnippet}\nFindings:\n${truncated}`,
+      "Risk Barometer",
+    ),
+    callLLM(
+      "You are a compliance advisor. List 3-5 critical next steps in priority order. Format each as: number. ACTION | CATEGORY (license/regulatory_filing/technical_implementation/due_diligence/internal_policy)",
+      `Query: ${querySnippet}\nFindings:\n${truncated}`,
+      "Critical Path",
+    ),
+    callLLM(
+      "You are a board-level advisor. Write a 2-3 sentence plain English summary suitable for non-experts. Then provide a one-sentence board recommendation.",
+      `Query: ${querySnippet}\nFindings:\n${truncated}`,
+      "Plain English",
+    ),
+  ]);
+
+  const verdict = parseVerdict(verdictResult);
+  const compass = parseCompass(compassResult);
+  const risk = parseRiskBarometer(riskResult);
+  const criticalPath = parseCriticalPath(pathResult);
+  const plain = parsePlainEnglish(plainResult);
+
+  return {
+    verdict,
+    jurisdictionalCompass: compass,
+    riskBarometer: risk,
+    criticalPath,
+    plainEnglish: plain,
+  };
+}
+
+function parseVerdict(raw: string | null): ExecutiveVerdict {
+  if (!raw) return { signal: "YELLOW", assessment: "Insufficient data for definitive verdict.", confidence: 0.5 };
+
+  let signal: VerdictSignal = "YELLOW";
+  if (/\bGREEN\b/i.test(raw)) signal = "GREEN";
+  else if (/\bRED\b/i.test(raw)) signal = "RED";
+
+  const confMatch = raw.match(/CONFIDENCE[:\s]*([0-9.]+)/i);
+  const confidence = confMatch ? Math.min(1, Math.max(0, parseFloat(confMatch[1]))) : 0.7;
+
+  const assessMatch = raw.match(/ASSESSMENT[:\s]*(.+?)(?:\||CONFIDENCE|$)/i);
+  const assessment = assessMatch ? assessMatch[1].trim() : raw.replace(/SIGNAL[:\s]*\w+\s*\|?\s*/i, "").replace(/CONFIDENCE[:\s]*[0-9.]+/i, "").trim();
+
+  return { signal, assessment: assessment || raw.slice(0, 200), confidence };
+}
+
+function parseCompass(raw: string | null): JurisdictionalRegion[] {
+  if (!raw) return [{ region: "Global", status: "unclear", notes: "Unable to generate jurisdictional analysis." }];
+
+  const regions: JurisdictionalRegion[] = [];
+  const lines = raw.split("\n").filter((l) => l.trim().length > 3);
+
+  for (const line of lines) {
+    const parts = line.split("|").map((p) => p.trim());
+    if (parts.length >= 2) {
+      const statusStr = parts[1]?.toLowerCase() || "";
+      let status: JurisdictionalRegion["status"] = "unclear";
+      if (statusStr.includes("permitted")) status = "permitted";
+      else if (statusStr.includes("conditional")) status = "conditional";
+      else if (statusStr.includes("restricted")) status = "restricted";
+      else if (statusStr.includes("prohibited")) status = "prohibited";
+
+      regions.push({
+        region: parts[0].replace(/^\d+\.\s*/, ""),
+        status,
+        notes: parts[2] || "",
+      });
+    }
+  }
+
+  return regions.length > 0 ? regions : [{ region: "Global", status: "unclear", notes: raw.slice(0, 200) }];
+}
+
+function parseRiskBarometer(raw: string | null): ExecutiveSummary["riskBarometer"] {
+  const defaultResult = {
+    financial: [{ category: "Overall Financial Risk", score: 5, narrative: "Moderate risk assessment pending detailed analysis." }],
+    technical: [{ category: "Overall Technical Risk", score: 5, narrative: "Moderate risk assessment pending detailed analysis." }],
+    aggregateFinancial: 5,
+    aggregateTechnical: 5,
+  };
+
+  if (!raw) return defaultResult;
+
+  let financialScore = 5;
+  let technicalScore = 5;
+  let financialNarrative = "";
+  let technicalNarrative = "";
+
+  const finMatch = raw.match(/FINANCIAL[:\s]*(\d+(?:\.\d+)?)\s*\|?\s*(.*?)(?=TECHNICAL|$)/is);
+  if (finMatch) {
+    financialScore = Math.min(10, Math.max(0, parseFloat(finMatch[1])));
+    financialNarrative = finMatch[2]?.trim() || "";
+  }
+
+  const techMatch = raw.match(/TECHNICAL[:\s]*(\d+(?:\.\d+)?)\s*\|?\s*(.*)/is);
+  if (techMatch) {
+    technicalScore = Math.min(10, Math.max(0, parseFloat(techMatch[1])));
+    technicalNarrative = techMatch[2]?.trim() || "";
+  }
+
+  if (!financialNarrative && !technicalNarrative) {
+    const sentences = raw.split(/[.!]\s+/).filter(s => s.trim().length > 5);
+    financialNarrative = sentences[0] || raw.slice(0, 150);
+    technicalNarrative = sentences[1] || sentences[0] || raw.slice(0, 150);
+  }
+
+  return {
+    financial: [{ category: "Overall Financial Risk", score: financialScore, narrative: financialNarrative || "See detailed section analysis." }],
+    technical: [{ category: "Overall Technical Risk", score: technicalScore, narrative: technicalNarrative || "See detailed section analysis." }],
+    aggregateFinancial: financialScore,
+    aggregateTechnical: technicalScore,
+  };
+}
+
+function parseCriticalPath(raw: string | null): CriticalStep[] {
+  if (!raw) return [{ order: 1, action: "Conduct detailed compliance review based on agent findings.", category: "due_diligence" }];
+
+  const steps: CriticalStep[] = [];
+  const lines = raw.split("\n").filter((l) => l.trim().length > 3);
+
+  for (let i = 0; i < lines.length && steps.length < 7; i++) {
+    const line = lines[i];
+    const parts = line.split("|").map((p) => p.trim());
+    const action = parts[0]?.replace(/^\d+\.\s*/, "").trim();
+    const category = parts[1]?.toLowerCase().replace(/\s+/g, "_") || "due_diligence";
+
+    if (action && action.length > 5) {
+      steps.push({
+        order: steps.length + 1,
+        action,
+        category,
+      });
+    }
+  }
+
+  return steps.length > 0 ? steps : [{ order: 1, action: raw.slice(0, 200), category: "due_diligence" }];
+}
+
+function parsePlainEnglish(raw: string | null): ExecutiveSummary["plainEnglish"] {
+  if (!raw) return { summary: "Analysis complete. Detailed findings available in the sections above.", boardRecommendation: "Review the detailed section summaries for specific guidance." };
+
+  const sentences = raw.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 10);
+  if (sentences.length >= 3) {
+    return {
+      summary: sentences.slice(0, -1).join(" "),
+      boardRecommendation: sentences[sentences.length - 1],
+    };
+  }
+
+  return { summary: raw, boardRecommendation: sentences[sentences.length - 1] || raw };
+}
+
 export function registerAgentArrayRoutes(app: Express) {
   app.post("/api/tribonacci/agent-array", (req: Request, res: Response) => {
     const { prompt, customRoles } = req.body;
@@ -333,6 +510,10 @@ export function registerAgentArrayRoutes(app: Express) {
         title: typeof r.title === "string" ? r.title.slice(0, 200) : DEFAULT_SPECIALISTS[i].title,
         description: typeof r.description === "string" ? r.description.slice(0, 500) : DEFAULT_SPECIALISTS[i].description,
         category: DEFAULT_SPECIALISTS[i].category,
+        subdomain: DEFAULT_SPECIALISTS[i].subdomain,
+        keywords: DEFAULT_SPECIALISTS[i].keywords,
+        systemPrompt: DEFAULT_SPECIALISTS[i].systemPrompt,
+        weight: DEFAULT_SPECIALISTS[i].weight,
       }));
     }
 
@@ -360,8 +541,10 @@ export function registerAgentArrayRoutes(app: Express) {
 
     const { prompt, roles } = session;
     const startTime = Date.now();
+    const executionOrder = scheduleAgents();
+    const tribHash = generateTribonacciHash(prompt);
 
-    log.info(`Agent Array session ${sessionId}: launching ${AGENT_COUNT} agents`);
+    log.info(`Agent Array session ${sessionId}: launching ${AGENT_COUNT} agents (Tribonacci order: ${executionOrder.slice(0, 6).join(",")}...)`);
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -385,6 +568,8 @@ export function registerAgentArrayRoutes(app: Express) {
       prompt,
       agentCount: AGENT_COUNT,
       stepsPerAgent: STEPS_PER_AGENT,
+      tribonacciHash: tribHash,
+      executionOrder,
     });
 
     const limit = pLimit(CONCURRENCY_LIMIT);
@@ -394,7 +579,12 @@ export function registerAgentArrayRoutes(app: Express) {
       if (!isClientGone()) sendSSE("agent_step", event);
     };
 
-    const agentPromises = positions.map((pos) =>
+    const orderedPositions = executionOrder.map((agentId) => {
+      const pos = positions.find((p) => p.z28 === agentId);
+      return pos || positions[agentId];
+    });
+
+    const agentPromises = orderedPositions.map((pos) =>
       limit(() => {
         if (isClientGone()) {
           return Promise.resolve({
@@ -436,77 +626,49 @@ export function registerAgentArrayRoutes(app: Express) {
     });
 
     let layer2: Layer2Section[] = [];
+    let executiveSummary: ExecutiveSummary | undefined;
+
     if (successCount >= 10) {
       sendSSE("layer2_start", { sectionCount: LAYER2_SECTIONS.length });
       layer2 = await generateLayer2(results, prompt);
       sendSSE("layer2_complete", { sections: layer2 });
+
+      if (successCount >= 15) {
+        sendSSE("executive_start", { sections: 5 });
+        try {
+          executiveSummary = await generateExecutiveSummary(layer2, prompt);
+          sendSSE("executive_complete", { executiveSummary });
+        } catch (err) {
+          log.error(`Executive summary generation failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
     }
 
     let consensus = "";
-    if (successCount >= 20) {
-      try {
-        const summaryInputs = layer2
-          .filter((s) => s.successCount > 0)
-          .map((s) => `[${s.label}]: ${s.technicalSummary}`)
-          .join("\n");
+    if (executiveSummary) {
+      consensus = executiveSummary.plainEnglish.summary;
+    } else if (successCount >= 10) {
+      const summaryInputs = layer2
+        .filter((s) => s.successCount > 0)
+        .map((s) => `[${s.label}]: ${s.technicalSummary}`)
+        .join("\n");
 
-        const truncatedSummaryInputs = summaryInputs.length > 500
-          ? summaryInputs.slice(0, 500) + "..."
-          : summaryInputs;
+      const truncatedSummaryInputs = summaryInputs.length > 500
+        ? summaryInputs.slice(0, 500) + "..."
+        : summaryInputs;
 
-        log.info(`Consensus input (${summaryInputs.length} chars -> ${truncatedSummaryInputs.length} chars from ${layer2.filter((s) => s.successCount > 0).length} sections)`);
+      const consensusText = await callLLM(
+        "Summarize findings into 3-4 clear sentences.",
+        truncatedSummaryInputs.length > 20
+          ? truncatedSummaryInputs
+          : `${successCount} analysts analyzed "${prompt}". Provide a 3-sentence synthesis.`,
+        "Consensus",
+      );
 
-        let consensusText: string | null = null;
-
-        for (let attempt = 0; attempt < 3 && !consensusText; attempt++) {
-          try {
-            const consensusCompletion = await openai.chat.completions.create({
-              model: "gpt-5-nano",
-              messages: [
-                {
-                  role: "system",
-                  content: "Summarize findings into 3-4 clear sentences.",
-                },
-                {
-                  role: "user",
-                  content: truncatedSummaryInputs.length > 20
-                    ? truncatedSummaryInputs
-                    : `${successCount} analysts analyzed "${prompt}". Provide a 3-sentence synthesis.`,
-                },
-              ],
-            });
-
-            const raw = consensusCompletion.choices[0]?.message?.content;
-            const finishReason = consensusCompletion.choices[0]?.finish_reason;
-            log.info(`Consensus attempt ${attempt + 1}: content=${raw ? raw.length + ' chars' : 'null'}, finish_reason=${finishReason}`);
-
-            if (raw && raw.trim().length > 10) {
-              consensusText = raw.trim();
-            }
-          } catch (retryErr) {
-            log.warn(`Consensus attempt ${attempt + 1} error: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
-          }
-        }
-
-        if (consensusText) {
-          consensus = consensusText;
-        } else {
-          const fallbackParts = layer2
-            .filter((s) => s.successCount > 0 && s.technicalSummary && !s.technicalSummary.startsWith("No agent") && !s.technicalSummary.startsWith("Summary generation"))
-            .map((s) => s.technicalSummary);
-
-          consensus = fallbackParts.length > 0
-            ? fallbackParts.join(" ")
-            : `All ${successCount} of ${AGENT_COUNT} specialist agents completed their analysis successfully across ${layer2.filter(s => s.successCount > 0).length} categories. Expand the Layer 2 Executive Summary sections above for detailed technical and plain-language findings from each domain.`;
-        }
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        log.error(`Consensus generation failed: ${errMsg}`);
-        consensus = layer2
-          .filter((s) => s.successCount > 0)
-          .map((s) => s.technicalSummary)
-          .join(" ") || `All ${successCount} agents completed their analysis successfully.`;
-      }
+      consensus = consensusText || layer2
+        .filter((s) => s.successCount > 0 && !s.technicalSummary.startsWith("No agent"))
+        .map((s) => s.technicalSummary)
+        .join(" ");
     } else {
       consensus = `Insufficient agent responses (${successCount}/${AGENT_COUNT}) for consensus.`;
     }
@@ -520,11 +682,14 @@ export function registerAgentArrayRoutes(app: Express) {
       results,
       consensus,
       layer2,
+      executiveSummary,
+      tribonacciHash: tribHash,
+      executionOrder,
     };
 
     sendSSE("complete", response);
 
-    log.info(`Agent Array session ${sessionId}: completed in ${Date.now() - startTime}ms (${successCount}/${AGENT_COUNT} success, ${layer2.length} sections)`);
+    log.info(`Agent Array session ${sessionId}: completed in ${Date.now() - startTime}ms (${successCount}/${AGENT_COUNT} success, ${layer2.length} sections, executive=${!!executiveSummary})`);
 
     res.end();
   });
@@ -533,12 +698,19 @@ export function registerAgentArrayRoutes(app: Express) {
     res.json({
       positions: getAgentPositions(),
       walk: generateZ28Walk(),
+      executionOrder: scheduleAgents(),
       agentCount: AGENT_COUNT,
       stepsPerAgent: STEPS_PER_AGENT,
       stepNames: AGENT_STEP_NAMES,
       domains: AGENT_DOMAINS,
       specialists: DEFAULT_SPECIALISTS,
       layer2Sections: LAYER2_SECTIONS.map((s) => ({ key: s.key, label: s.label, agentCount: s.agentIndices.length })),
+      tribonacci: {
+        ternaryRadian: TERNARY_RADIAN,
+        numAgents: AGENT_COUNT,
+        fullCircle: FULL_CIRCLE,
+        convolutionKernel: CONVOLUTION_KERNEL,
+      },
     });
   });
 }
