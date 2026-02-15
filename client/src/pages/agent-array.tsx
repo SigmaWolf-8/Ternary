@@ -4,11 +4,11 @@
  * Applied Physics Division
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, MapPin, AlertTriangle, ListOrdered, FileText } from "lucide-react";
+import { ArrowLeft, Play, Loader2, CheckCircle2, XCircle, Circle, ChevronDown, ChevronUp, Settings2, RotateCcw, Shield, MapPin, AlertTriangle, ListOrdered, FileText, Copy, Check, Eye, Filter, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -18,12 +18,14 @@ import {
   AGENT_STEP_NAMES,
   DEFAULT_SPECIALISTS,
   LAYER2_SECTIONS,
+  AGENT_LANGUAGES,
   getAgentPositions,
   type AgentSpecialist,
   type AgentCategory,
   type AgentStepEvent,
   type AgentResult,
   type AgentPosition,
+  type AgentLanguage,
   type Layer2Section,
   type ExecutiveSummary,
   type VerdictSignal,
@@ -584,6 +586,192 @@ function ExecutiveSummaryDisplay({ summary }: { summary: ExecutiveSummary }) {
   );
 }
 
+function ResponseViewer({ results }: { results: AgentResult[] }) {
+  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const { toast } = useToast();
+
+  const handleFilterChange = useCallback((code: string | null) => {
+    setLanguageFilter(code);
+    setSelectedAgent(null);
+  }, []);
+
+  const successResults = useMemo(
+    () => results.filter((r) => !r.response.startsWith("[Error]")),
+    [results],
+  );
+
+  const filteredResults = useMemo(() => {
+    if (!languageFilter) return successResults;
+    return successResults.filter((r) => r.language?.code === languageFilter);
+  }, [successResults, languageFilter]);
+
+  const activeLanguages = useMemo(() => {
+    const codes = new Set(successResults.map((r) => r.language?.code).filter(Boolean));
+    return AGENT_LANGUAGES.filter((l) => codes.has(l.code));
+  }, [successResults]);
+
+  const copyToClipboard = useCallback(async (text: string, agentIdx?: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (agentIdx !== undefined) {
+        setCopiedId(agentIdx);
+        setTimeout(() => setCopiedId(null), 2000);
+      } else {
+        setCopiedAll(true);
+        setTimeout(() => setCopiedAll(false), 2000);
+      }
+      toast({ title: "Copied", description: "Response copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Could not copy to clipboard.", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const copyAllFiltered = useCallback(() => {
+    const text = filteredResults
+      .map((r) => `--- ${r.domain} [${r.language?.name || "Unknown"}] (A${String(r.z28).padStart(2, "0")}) ---\n${r.response}`)
+      .join("\n\n");
+    copyToClipboard(text);
+  }, [filteredResults, copyToClipboard]);
+
+  const selectedResult = selectedAgent !== null
+    ? filteredResults.find((r) => r.z28 === selectedAgent) || null
+    : null;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} data-testid="section-response-viewer">
+      <Card className="p-5 border-primary/10">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <Eye className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-bold">Response Viewer</h2>
+          <Badge variant="outline">{successResults.length} Responses</Badge>
+          <Badge variant="outline">
+            <Globe className="w-3 h-3 mr-1" />
+            {activeLanguages.length} Languages
+          </Badge>
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyAllFiltered}
+              disabled={filteredResults.length === 0}
+              data-testid="button-copy-all"
+            >
+              {copiedAll ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
+              {copiedAll ? "Copied!" : `Copy All${languageFilter ? " Filtered" : ""}`}
+            </Button>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filter by Language</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              variant={languageFilter === null ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleFilterChange(null)}
+              data-testid="button-filter-all"
+            >
+              All ({successResults.length})
+            </Button>
+            {activeLanguages.map((lang) => {
+              const count = successResults.filter((r) => r.language?.code === lang.code).length;
+              return (
+                <Button
+                  key={lang.code}
+                  variant={languageFilter === lang.code ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleFilterChange(languageFilter === lang.code ? null : lang.code)}
+                  data-testid={`button-filter-${lang.code}`}
+                >
+                  {lang.nativeName} ({count})
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-[280px_1fr] gap-4">
+          <div className="space-y-1 max-h-[600px] overflow-y-auto pr-1">
+            {filteredResults.map((r) => (
+              <button
+                key={r.z28}
+                onClick={() => setSelectedAgent(selectedAgent === r.z28 ? null : r.z28)}
+                className={`w-full text-left rounded-md px-3 py-2 transition-colors ${
+                  selectedAgent === r.z28
+                    ? "bg-primary/10 border border-primary/30"
+                    : "border border-transparent hover-elevate"
+                }`}
+                data-testid={`button-select-agent-${r.z28}`}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-[10px] text-muted-foreground">{r.agentLabel}</span>
+                  <span className="text-xs font-medium truncate flex-1">{r.domain}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <Badge variant="outline" className={`text-[9px] px-1 py-0 ${CATEGORY_COLORS[r.category]}`}>
+                    {r.category.split(" ")[0]}
+                  </Badge>
+                  <Badge variant="outline" className="text-[9px] px-1 py-0">
+                    {r.language?.nativeName || "—"}
+                  </Badge>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="border rounded-md bg-muted/20 min-h-[400px] max-h-[600px] overflow-y-auto">
+            {selectedResult ? (
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <h3 className="font-semibold text-sm">{selectedResult.domain}</h3>
+                  <Badge variant="outline" className={`text-[10px] ${CATEGORY_COLORS[selectedResult.category]}`}>
+                    {selectedResult.category}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    <Globe className="w-2.5 h-2.5 mr-1" />
+                    {selectedResult.language?.name || "Unknown"} ({selectedResult.language?.nativeName || "—"})
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{selectedResult.totalDurationMs}ms</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(selectedResult.response, selectedResult.z28)}
+                    data-testid={`button-copy-${selectedResult.z28}`}
+                  >
+                    {copiedId === selectedResult.z28 ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </Button>
+                </div>
+                <div
+                  className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap select-text"
+                  data-testid={`text-response-${selectedResult.z28}`}
+                >
+                  {selectedResult.response}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full p-8 text-center">
+                <div>
+                  <Eye className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Select an agent from the list to view its response</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    {filteredResults.length} responses available{languageFilter ? ` (filtered by ${activeLanguages.find(l => l.code === languageFilter)?.name})` : ""}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function AgentArrayPage() {
   const [prompt, setPrompt] = useState("");
   const [isRunning, setIsRunning] = useState(false);
@@ -774,7 +962,8 @@ export default function AgentArrayPage() {
             28-Dimension Agent Array
           </h1>
           <p className="text-muted-foreground max-w-2xl" data-testid="text-agent-array-subtitle">
-            Launch 28 specialist AI agents via Tribonacci 13-step permutation scheduling.
+            Launch 28 specialist AI agents in parallel via Tribonacci 13-step permutation scheduling.
+            Each agent responds in a unique language across 28 world languages.
             Layer 1 delivers individual expert analyses. Layer 2 synthesizes a 5-section executive summary:
             Verdict, Jurisdictional Compass, Risk Barometer, Critical Path, and Plain English.
           </p>
@@ -867,6 +1056,15 @@ export default function AgentArrayPage() {
 
               <CircleVisualization agentStates={agentStates} roles={customRoles} />
             </div>
+
+            {(() => {
+              const completedResults = Array.from(agentStates.entries())
+                .filter(([, s]) => s.status === "complete" && s.result)
+                .map(([, s]) => s.result!);
+              return completedResults.length > 0 && !isRunning ? (
+                <ResponseViewer results={completedResults} />
+              ) : null;
+            })()}
 
             {executiveSummary && (
               <ExecutiveSummaryDisplay summary={executiveSummary} />

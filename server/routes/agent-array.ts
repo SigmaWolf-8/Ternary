@@ -48,11 +48,13 @@ import {
   type RiskScore,
   type CriticalStep,
   type VerdictSignal,
+  type AgentLanguage,
+  AGENT_LANGUAGES,
 } from "../../shared/agent-array";
 import { randomUUID } from "crypto";
 import crypto from "crypto";
 
-const CONCURRENCY_LIMIT = 7;
+const CONCURRENCY_LIMIT = 28;
 const RETRY_ATTEMPTS = 2;
 const SESSION_TTL_MS = 5 * 60 * 1000;
 
@@ -221,6 +223,7 @@ async function executeAgentSteps(
       response: finalResponse,
       totalDurationMs: Date.now() - startTime,
       stepsCompleted,
+      language: specialist.language,
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -236,6 +239,7 @@ async function executeAgentSteps(
       response: `[Error] ${errMsg}`,
       totalDurationMs: Date.now() - startTime,
       stepsCompleted,
+      language: specialist.language,
     };
   }
 }
@@ -596,6 +600,7 @@ export function registerAgentArrayRoutes(app: Express) {
             response: "[Error] Client disconnected",
             totalDurationMs: 0,
             stepsCompleted: 0,
+            language: roles[pos.z28]?.language || AGENT_LANGUAGES[pos.z28],
           } as AgentResult);
         }
         return executeAgentSteps(
