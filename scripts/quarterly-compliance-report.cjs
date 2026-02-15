@@ -111,8 +111,8 @@ privacy, export control, security, and financial regulatory domains.
 
 ### 2.1 Data Subject Rights Infrastructure
 - GDPR/PIPEDA data subject rights API: **Implemented**
-- Data export endpoint: \`GET /api/data-subject-requests/export\`
-- Account deletion endpoint: \`POST /api/data-subject-requests/delete\`
+- Data export endpoint: \`GET /api/gdpr/data-export\`
+- Account deletion endpoint: \`DELETE /api/gdpr/delete-account\`
 - Request audit trail: \`data_subject_requests\` table in PostgreSQL
 
 ### 2.2 Cookie Consent
@@ -201,7 +201,7 @@ ${missingHeaders > 0 ? `- [ ] Add copyright headers to ${missingHeaders} source 
 
 ---
 
-*Generated automatically by \`scripts/quarterly-compliance-report.js\`*
+*Generated automatically by \`scripts/quarterly-compliance-report.cjs\`*
 *Review and approve before distribution.*
 `;
 
