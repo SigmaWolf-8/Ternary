@@ -12,6 +12,8 @@
 
 import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
+import pLimit from "p-limit";
+import pRetry from "p-retry";
 import { createLogger } from "../logger";
 import {
   AGENT_COUNT,
@@ -25,6 +27,9 @@ import {
   type AgentArrayResponse,
 } from "../../shared/agent-array";
 import { randomUUID } from "crypto";
+
+const CONCURRENCY_LIMIT = 7;
+const RETRY_ATTEMPTS = 2;
 
 const log = createLogger("agent-array");
 
@@ -90,15 +95,19 @@ async function executeAgentSteps(
     emitStep(4, "running", "Running LLM inference");
     const inferenceStart = Date.now();
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
-      messages: [
-        { role: "system", content: buildAgentSystemPrompt(z28, domain) },
-        { role: "user", content: prompt },
-      ],
-      max_completion_tokens: 200,
-      temperature: 0.7,
-    });
+    const completion = await pRetry(
+      () =>
+        openai.chat.completions.create({
+          model: "gpt-5-nano",
+          messages: [
+            { role: "system", content: buildAgentSystemPrompt(z28, domain) },
+            { role: "user", content: prompt },
+          ],
+          max_completion_tokens: 200,
+          temperature: 0.7,
+        }),
+      { retries: RETRY_ATTEMPTS, minTimeout: 500 },
+    );
 
     const response = completion.choices[0]?.message?.content || "No response generated.";
     const inferenceDuration = Date.now() - inferenceStart;
@@ -201,22 +210,47 @@ export function registerAgentArrayRoutes(app: Express) {
     });
 
     const positions = getAgentPositions();
+    const limit = pLimit(CONCURRENCY_LIMIT);
+    let aborted = false;
+
+    req.on("close", () => {
+      aborted = true;
+      log.info(`Agent Array session ${sessionId}: client disconnected`);
+    });
 
     const sendStepEvent = (event: AgentStepEvent) => {
-      sendSSE("agent_step", event);
+      if (!aborted) sendSSE("agent_step", event);
     };
 
     const agentPromises = positions.map((pos) =>
-      executeAgentSteps(
-        pos.index,
-        pos.z28,
-        pos.domain,
-        prompt.trim(),
-        sendStepEvent,
-      )
+      limit(() => {
+        if (aborted) {
+          return Promise.resolve({
+            agentIndex: pos.index,
+            agentLabel: `A${String(pos.z28).padStart(2, "0")}`,
+            z28: pos.z28,
+            domain: pos.domain,
+            response: "[Error] Client disconnected",
+            totalDurationMs: 0,
+            stepsCompleted: 0,
+          } as AgentResult);
+        }
+        return executeAgentSteps(
+          pos.index,
+          pos.z28,
+          pos.domain,
+          prompt.trim(),
+          sendStepEvent,
+        );
+      })
     );
 
     const results = await Promise.all(agentPromises);
+
+    if (aborted) {
+      res.end();
+      return;
+    }
 
     const successCount = results.filter((r) => !r.response.startsWith("[Error]")).length;
     const totalDuration = Date.now() - startTime;
