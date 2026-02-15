@@ -110,7 +110,6 @@ async function executeAgentSteps(
             { role: "user", content: prompt },
           ],
           max_completion_tokens: 200,
-          temperature: 0.7,
         }),
       { retries: RETRY_ATTEMPTS, minTimeout: 500 },
     );
@@ -234,7 +233,6 @@ PLAIN: [your plain language summary]`,
                   },
                 ],
                 max_completion_tokens: 400,
-                temperature: 0.3,
               }),
             { retries: RETRY_ATTEMPTS, minTimeout: 500 },
           );
@@ -296,14 +294,21 @@ export function registerAgentArrayRoutes(app: Express) {
 
     log.info(`Agent Array session ${sessionId}: launching ${AGENT_COUNT} agents`);
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "identity",
+    });
+    res.flushHeaders();
 
     const sendSSE = (type: string, data: unknown) => {
-      if (!res.destroyed) {
+      if (!res.destroyed && !res.writableEnded) {
         res.write(`data: ${JSON.stringify({ type, ...data as object })}\n\n`);
+        if (typeof (res as any).flush === "function") {
+          (res as any).flush();
+        }
       }
     };
 
@@ -318,20 +323,15 @@ export function registerAgentArrayRoutes(app: Express) {
     });
 
     const limit = pLimit(CONCURRENCY_LIMIT);
-    let aborted = false;
-
-    req.on("close", () => {
-      aborted = true;
-      log.info(`Agent Array session ${sessionId}: client disconnected`);
-    });
+    const isClientGone = () => res.destroyed || (req.socket && req.socket.destroyed);
 
     const sendStepEvent = (event: AgentStepEvent) => {
-      if (!aborted) sendSSE("agent_step", event);
+      if (!isClientGone()) sendSSE("agent_step", event);
     };
 
     const agentPromises = positions.map((pos) =>
       limit(() => {
-        if (aborted) {
+        if (isClientGone()) {
           return Promise.resolve({
             agentIndex: pos.index,
             agentLabel: `A${String(pos.z28).padStart(2, "0")}`,
@@ -355,8 +355,9 @@ export function registerAgentArrayRoutes(app: Express) {
 
     const results = await Promise.all(agentPromises);
 
-    if (aborted) {
-      res.end();
+    if (isClientGone()) {
+      log.info(`Agent Array session ${sessionId}: client disconnected, aborting`);
+      if (!res.writableEnded) res.end();
       return;
     }
 
@@ -399,7 +400,6 @@ export function registerAgentArrayRoutes(app: Express) {
             },
           ],
           max_completion_tokens: 300,
-          temperature: 0.3,
         });
 
         consensus = consensusCompletion.choices[0]?.message?.content || "Consensus generation failed.";
