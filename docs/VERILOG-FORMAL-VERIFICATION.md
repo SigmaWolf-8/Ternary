@@ -7,12 +7,14 @@
 
 **XPLENUM — RISC-V Ternary Security Extension**
 
+[![Formal Verification](https://github.com/SigmaWolf-8/Ternary/actions/workflows/formal-verification.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/formal-verification.yml)
+
 | Field       | Value |
 |-------------|-------|
 | Target      | `rtl/xplenum_top.v` and submodules |
 | Toolchain   | SymbiYosys + Yosys + Boolector |
 | Date        | February 2026 |
-| Status      | Infrastructure ready, awaiting synthesis environment |
+| Status      | CI live — BMC + Cover running on every `rtl/**` push |
 
 ---
 
@@ -107,6 +109,35 @@ Verify all CSRs, outputs, and exception signals are zeroed after reset.
 ### 3.12 Cover Properties (C12.x)
 - Reachability of mask/unmask, T-box, capability exceptions, domain checks, performance counter reaching 10, trit overflow exceptions.
 
+### 3.13 Guardian Checksum Stability (P13.x)
+- Guardian checksum stable after QCorrect completes (no drift).
+- QCorrect output never contains invalid trit encodings.
+
+### 3.14 CSR Access Security (P14.x)
+- Secret-range CSR reads return zero when `mask_en` is disabled.
+- Read-only performance counter immune to CSR write attempts.
+
+### 3.15 HPTP Timestamp Monotonicity (P15.x)
+- Post-jitter-corrected timestamp >= pre-jitter timestamp (no time reversal).
+- HPTP counter monotonically increasing when enabled.
+
+### 3.16 Data-Flow Isolation (P16.x)
+- Binary output from ternary pipeline must carry QCorrect tag (no unverified leakage).
+
+### 3.17 Enhanced Cover Properties (C17.x)
+- Guardian triggered after mask/unmask cycle.
+- QCorrect zero-syndrome (no-error) path reachable.
+- HPTP jitter correction produces non-zero delta.
+- CSR secret read correctly blocked.
+
+## Formal Status
+
+| Mode    | Depth | Sections Covered          | CI Job       | Status     |
+|---------|-------|---------------------------|--------------|------------|
+| BMC     | 20    | All (P1–P16, C12, C17)    | formal-bmc   | Automated  |
+| Cover   | 20    | C12.1–C12.6, C17.1–C17.4  | formal-cover | Automated  |
+| Prove   | 20    | All (P1–P16)              | Manual       | Pending    |
+
 ## 4. Progressive Verification Strategy
 
 | Phase | Target | Timeline |
@@ -156,7 +187,10 @@ assert(post_jitter_timestamp >= pre_jitter_timestamp);
 ```
 rtl/formal/
   xplenum_formal.sby         # SymbiYosys configuration (3 tasks: bmc/prove/cover)
-  xplenum_formal_props.v     # 12 sections, 30+ assertions, 6 cover properties
+  xplenum_formal_props.v     # 17 sections, 40+ assertions, 10 cover properties
+
+.github/workflows/
+  formal-verification.yml    # CI: parallel BMC + Cover jobs, OSS CAD Suite cached
 ```
 
 ## 9. References
