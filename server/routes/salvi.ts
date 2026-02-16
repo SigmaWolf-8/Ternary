@@ -908,7 +908,7 @@ export function registerSalviRoutes(app: Express): void {
   // =====================================================
 
   // Get phase configuration
-  app.get("/api/salvi/phase/config/:mode", (req, res) => {
+  app.get("/api/salvi/phase/config/:mode", computationLimiter, (req, res) => {
     try {
       const modeAliases: Record<string, string> = {
         "standard": "balanced",
@@ -917,7 +917,7 @@ export function registerSalviRoutes(app: Express): void {
         "secure": "high_security",
         "auto": "adaptive",
       };
-      const rawMode = req.params.mode.toLowerCase();
+      const rawMode = (req.params.mode as string).toLowerCase();
       const resolvedMode = (modeAliases[rawMode] || rawMode) as EncryptionMode;
       const validModes = ["high_security", "balanced", "performance", "adaptive"];
       if (!validModes.includes(resolvedMode)) {
@@ -990,13 +990,11 @@ export function registerSalviRoutes(app: Express): void {
   // Phase recombine
   app.post("/api/salvi/phase/recombine", computationLimiter, (req, res) => {
     try {
-      // Restore BigInt from strings
       const encrypted = req.body.encrypted;
       if (!encrypted || !encrypted.primaryPhase || !encrypted.secondaryPhase) {
-        return res.status(400).json({ error: "Invalid encrypted data structure" });
+        return res.status(400).json({ error: "Invalid request" });
       }
       
-      // Convert string timestamps back to BigInt
       encrypted.primaryPhase.timestamp.femtoseconds = BigInt(encrypted.primaryPhase.timestamp.femtoseconds);
       encrypted.primaryPhase.timestamp.salviEpochOffset = BigInt(encrypted.primaryPhase.timestamp.salviEpochOffset);
       encrypted.secondaryPhase.timestamp.femtoseconds = BigInt(encrypted.secondaryPhase.timestamp.femtoseconds);
@@ -1008,14 +1006,35 @@ export function registerSalviRoutes(app: Express): void {
       }
       
       const result = phaseRecombine(encrypted);
-      res.json({ success: true, result });
+
+      if (!result.success) {
+        log.warn("Phase recombine failure", {
+          phaseAlignment: result.phaseAlignment,
+          timestampValidation: result.timestampValidation,
+          guardianValidation: result.guardianValidation,
+        });
+        return res.status(422).json({
+          success: false,
+          error: "Recombination failed",
+        });
+      }
+
+      res.json({
+        success: true,
+        result: {
+          success: result.success,
+          data: result.data,
+          phaseAlignment: result.phaseAlignment,
+          timestampValidation: result.timestampValidation,
+        },
+      });
     } catch (error: unknown) {
-      res.status(500).json({ error: "Phase recombine failed" });
+      res.status(500).json({ error: "Recombination failed" });
     }
   });
 
   // Get recommended encryption mode
-  app.get("/api/salvi/phase/recommend", (req, res) => {
+  app.get("/api/salvi/phase/recommend", computationLimiter, (req, res) => {
     try {
       const dataLength = Math.min(Math.max(parseInt(req.query.length as string) || 1000, 1), 10000);
       const isSensitive = req.query.sensitive === "true";
