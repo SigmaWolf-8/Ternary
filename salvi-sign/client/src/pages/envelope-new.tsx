@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -10,6 +10,9 @@ import {
   Trash2,
   User,
   Mail,
+  Upload,
+  FileText,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +56,10 @@ type FormValues = z.infer<typeof formSchema>;
 export default function EnvelopeNew() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState(1);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -68,10 +75,68 @@ export default function EnvelopeNew() {
     name: "recipients",
   });
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      toast({ title: "Invalid file", description: "Please select a PDF file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 30 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum file size is 30MB", variant: "destructive" });
+      return;
+    }
+
+    setPdfFile(file);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const arrayBuffer = reader.result as ArrayBuffer;
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+      setPdfBase64(base64);
+
+      try {
+        const { pdfjs } = await import("react-pdf");
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+        const loadingTask = pdfjs.getDocument({ data: arrayBuffer.slice(0) });
+        const pdf = await loadingTask.promise;
+        setPageCount(pdf.numPages);
+      } catch {
+        setPageCount(1);
+      }
+
+      if (!form.getValues("title")) {
+        const name = file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ");
+        form.setValue("title", name);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const removePdf = () => {
+    setPdfFile(null);
+    setPdfBase64(null);
+    setPageCount(1);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       const res = await apiRequest("POST", "/api/envelopes", data);
-      return res.json();
+      const envelope = await res.json();
+
+      if (pdfBase64) {
+        await apiRequest("POST", `/api/envelopes/${envelope.id}/upload-pdf`, {
+          pdfData: pdfBase64,
+          pageCount,
+        });
+      }
+
+      return envelope;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
@@ -108,6 +173,54 @@ export default function EnvelopeNew() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Card>
+              <CardContent className="p-4 space-y-3.5">
+                <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Upload Document
+                </h2>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  data-testid="input-pdf-upload"
+                />
+                {pdfFile ? (
+                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate" data-testid="text-pdf-name">{pdfFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {(pdfFile.size / 1024).toFixed(0)} KB | {pageCount} page{pageCount !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={removePdf}
+                      data-testid="button-remove-pdf"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed rounded-md p-8 flex flex-col items-center justify-center cursor-pointer hover-elevate"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="dropzone-pdf"
+                  >
+                    <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                    <p className="text-xs font-medium">Click to upload PDF</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">PDF files up to 30MB</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardContent className="p-4 space-y-3.5">
                 <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Document Details</h2>

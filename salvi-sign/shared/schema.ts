@@ -26,6 +26,8 @@ export const envelopes = pgTable("envelopes", {
   title: text("title").notNull(),
   description: text("description"),
   status: text("status").notNull().default("draft"),
+  pdfData: text("pdf_data"),
+  pageCount: integer("page_count").notNull().default(1),
   zkProof: text("zk_proof"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

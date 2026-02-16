@@ -11,6 +11,9 @@ import {
   Clock,
   FileText,
   ExternalLink,
+  Download,
+  ShieldCheck,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/status-badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 import type { Envelope, Recipient, AuditLog } from "@shared/schema";
 
 export default function EnvelopeDetail() {
@@ -25,6 +29,31 @@ export default function EnvelopeDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const envelopeId = params?.id || "";
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const downloadPdf = async (baked: boolean) => {
+    setIsDownloading(true);
+    try {
+      const url = baked
+        ? `/api/envelopes/${envelopeId}/bake`
+        : `/api/envelopes/${envelopeId}/pdf`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${envelope?.title || "document"}${baked ? "-signed" : ""}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      toast({ title: baked ? "Signed PDF downloaded" : "PDF downloaded" });
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const { data: envelope, isLoading } = useQuery<Envelope>({
     queryKey: ["/api/envelopes", envelopeId],
@@ -40,12 +69,20 @@ export default function EnvelopeDetail() {
 
   const sendMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("PATCH", `/api/envelopes/${envelopeId}`, { status: "sent" });
+      const res = await apiRequest("PATCH", `/api/envelopes/${envelopeId}`, { status: "sent" });
+      return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId] });
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
       toast({ title: "Envelope sent for signing" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot send envelope",
+        description: error.message || "Add at least one signer recipient before sending",
+        variant: "destructive",
+      });
     },
   });
 
@@ -100,6 +137,38 @@ export default function EnvelopeDetail() {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            {envelope.pdfData === "has_pdf" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadPdf(false)}
+                disabled={isDownloading}
+                data-testid="button-download-pdf"
+              >
+                <Download className="w-3 h-3" />
+                {isDownloading ? "Downloading..." : "Download PDF"}
+              </Button>
+            )}
+            {envelope.pdfData === "has_pdf" && envelope.status === "completed" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadPdf(true)}
+                disabled={isDownloading}
+                data-testid="button-download-signed"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Download Signed
+              </Button>
+            )}
+            {envelope.status === "completed" && (
+              <Link href={`/share/${envelopeId}`}>
+                <Button variant="outline" size="sm" data-testid="button-share-zk">
+                  <Share2 className="w-3 h-3" />
+                  Share (ZK)
+                </Button>
+              </Link>
+            )}
             {envelope.status === "draft" && (
               <>
                 <Link href={`/envelope/${envelopeId}/edit`}>
@@ -121,6 +190,40 @@ export default function EnvelopeDetail() {
             )}
           </div>
         </div>
+
+        {envelope.status === "completed" && envelope.zkProof && (
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold" data-testid="text-certified-status">Document Certified</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {(() => {
+                    try {
+                      const proof = JSON.parse(envelope.zkProof);
+                      return `All ${proof.signerCount}/${proof.signerCount} signers completed — HPTP certified at ${proof.certifiedAt}`;
+                    } catch {
+                      return "All signers completed — document certified with HPTP timestamp";
+                    }
+                  })()}
+                </p>
+              </div>
+              {envelope.pdfData === "has_pdf" && (
+                <Button
+                  size="sm"
+                  onClick={() => downloadPdf(true)}
+                  disabled={isDownloading}
+                  data-testid="button-download-certified"
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  Download Certified PDF
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           <Card>
@@ -153,11 +256,13 @@ export default function EnvelopeDetail() {
             <CardContent className="p-3.5">
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">
                 <FileText className="w-2.5 h-2.5" />
-                Status
+                Document
               </div>
-              <p className="text-xs font-medium capitalize">{envelope.status}</p>
-              <p className="text-[10px] text-muted-foreground">
-                Updated {format(new Date(envelope.updatedAt), "MMM d")}
+              <p className="text-xs font-medium">
+                {envelope.pdfData === "has_pdf" ? `${envelope.pageCount} page${envelope.pageCount !== 1 ? "s" : ""}` : "No PDF"}
+              </p>
+              <p className="text-[10px] text-muted-foreground capitalize">
+                {envelope.status}
               </p>
             </CardContent>
           </Card>
@@ -247,6 +352,11 @@ export default function EnvelopeDetail() {
                         <span className="text-[10px] text-muted-foreground">
                           {format(new Date(log.createdAt), "MMM d, h:mm a")}
                         </span>
+                        {log.hpTpTimestamp && (
+                          <span className="text-[9px] text-primary/60 font-mono" data-testid={`audit-hptp-${log.id}`}>
+                            HPTP: {log.hpTpTimestamp.substring(0, 23)}
+                          </span>
+                        )}
                       </div>
                       {log.details && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">

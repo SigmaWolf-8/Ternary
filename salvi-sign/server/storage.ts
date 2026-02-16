@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   tenants,
@@ -76,7 +76,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEnvelopes(): Promise<Envelope[]> {
-    return db.select().from(envelopes).orderBy(desc(envelopes.createdAt));
+    const rows = await db.select({
+      id: envelopes.id,
+      tenantId: envelopes.tenantId,
+      plenumDocId: envelopes.plenumDocId,
+      title: envelopes.title,
+      description: envelopes.description,
+      status: envelopes.status,
+      pdfData: sql<string | null>`CASE WHEN ${envelopes.pdfData} IS NOT NULL THEN 'has_pdf' ELSE NULL END`.as("pdf_data"),
+      pageCount: envelopes.pageCount,
+      zkProof: envelopes.zkProof,
+      createdAt: envelopes.createdAt,
+      updatedAt: envelopes.updatedAt,
+    }).from(envelopes).orderBy(desc(envelopes.createdAt));
+    return rows as Envelope[];
   }
 
   async getEnvelope(id: string): Promise<Envelope | undefined> {

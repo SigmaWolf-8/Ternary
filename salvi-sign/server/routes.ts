@@ -6,7 +6,9 @@ import { z } from "zod";
 import { tenantMiddleware } from "./middleware/tenant";
 import { healthCheck as plenumHealthCheck } from "./services/plenum";
 import { saveEnvelope as hybridSave } from "./services/saveCopy";
-import { getHPTP } from "./services/plenum";
+import { getHPTP, witnessSign, mlDsaSign } from "./services/plenum";
+import { bakeFillablePdf } from "./services/pdfForms";
+import { generateZKProof, verifyZKProofServer } from "./services/zk";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -33,7 +35,8 @@ export async function registerRoutes(
   app.get("/api/envelopes/:id", async (req, res) => {
     const envelope = await storage.getEnvelope(req.params.id);
     if (!envelope) return res.status(404).json({ message: "Not found" });
-    res.json(envelope);
+    const { pdfData, ...rest } = envelope;
+    res.json({ ...rest, pdfData: pdfData ? "has_pdf" : null });
   });
 
   app.post("/api/envelopes", async (req, res) => {
@@ -100,7 +103,8 @@ export async function registerRoutes(
         hpTpTimestamp: epoch,
       });
 
-      res.json(envelope);
+      const { pdfData: _pdf, ...envelopeRest } = envelope;
+      res.json({ ...envelopeRest, pdfData: _pdf ? "has_pdf" : null });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -108,6 +112,16 @@ export async function registerRoutes(
 
   app.patch("/api/envelopes/:id", async (req, res) => {
     try {
+      if (req.body.status === "sent") {
+        const allRecipients = await storage.getRecipientsByEnvelope(req.params.id);
+        const signers = allRecipients.filter((r) => r.role === "signer");
+        if (signers.length === 0) {
+          return res.status(400).json({
+            message: "Cannot send: add at least one signer recipient before sending",
+          });
+        }
+      }
+
       const envelope = await storage.updateEnvelope(req.params.id, req.body);
       if (!envelope) return res.status(404).json({ message: "Not found" });
 
@@ -123,7 +137,8 @@ export async function registerRoutes(
         });
       }
 
-      res.json(envelope);
+      const { pdfData, ...rest } = envelope;
+      res.json({ ...rest, pdfData: pdfData ? "has_pdf" : null });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -132,6 +147,51 @@ export async function registerRoutes(
   app.delete("/api/envelopes/:id", async (req, res) => {
     await storage.deleteEnvelope(req.params.id);
     res.json({ success: true });
+  });
+
+  app.get("/api/envelopes/:id/pdf", async (req, res) => {
+    try {
+      const envelope = await storage.getEnvelope(req.params.id);
+      if (!envelope) return res.status(404).json({ message: "Not found" });
+      if (!envelope.pdfData) return res.status(404).json({ message: "No PDF attached" });
+
+      const pdfBuffer = Buffer.from(envelope.pdfData, "base64");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length.toString());
+      res.setHeader("Content-Disposition", `inline; filename="${envelope.title}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/envelopes/:id/upload-pdf", async (req, res) => {
+    try {
+      const envelope = await storage.getEnvelope(req.params.id);
+      if (!envelope) return res.status(404).json({ message: "Not found" });
+
+      const { pdfData, pageCount } = req.body;
+      if (!pdfData) return res.status(400).json({ message: "pdfData (base64) is required" });
+
+      const updated = await storage.updateEnvelope(req.params.id, {
+        pdfData,
+        pageCount: pageCount || 1,
+      });
+
+      const epoch = await getHPTP();
+      await storage.createAuditLog({
+        envelopeId: req.params.id,
+        tenantId: req.tenantId || null,
+        action: "PDF uploaded",
+        actorName: "System",
+        details: `PDF with ${pageCount || 1} page(s) attached`,
+        hpTpTimestamp: epoch,
+      });
+
+      res.json({ success: true, pageCount: updated?.pageCount });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
   });
 
   app.get("/api/envelopes/:id/recipients", async (req, res) => {
@@ -194,9 +254,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Already signed" });
       }
 
+      const existingFields = await storage.getFieldsByEnvelope(envelopeId);
       if (fieldValues && typeof fieldValues === "object") {
         for (const [fieldId, value] of Object.entries(fieldValues)) {
-          const existingFields = await storage.getFieldsByEnvelope(envelopeId);
           const field = existingFields.find((f) => f.id === fieldId);
           if (field) {
             await storage.updateField(fieldId, { value: value as string });
@@ -204,40 +264,83 @@ export async function registerRoutes(
         }
       }
 
+      const signEpoch = await getHPTP();
+
+      await witnessSign(recipientId, "recipient_sign", req.tenantId || "default");
+
       await storage.updateRecipient(recipientId, {
         status: "signed",
         signedAt: new Date(),
       });
 
-      const epoch = await getHPTP();
       await storage.createAuditLog({
         envelopeId,
         tenantId: req.tenantId || null,
         action: "Document signed",
         actorName: recipient.name,
         details: `Signed by ${recipient.name} (${recipient.email})`,
-        hpTpTimestamp: epoch,
+        hpTpTimestamp: signEpoch,
+        metadata: { recipientId, fieldCount: Object.keys(fieldValues || {}).length },
       });
 
       const allRecipients = await storage.getRecipientsByEnvelope(envelopeId);
       const signers = allRecipients.filter((r) => r.role === "signer");
-      const allSigned = signers.every((r) => r.status === "signed" || r.id === recipientId);
+      const signedCount = signers.filter((r) => r.status === "signed" || r.id === recipientId).length;
+      const allSigned = signedCount === signers.length;
 
       if (allSigned) {
-        await storage.updateEnvelope(envelopeId, { status: "completed" });
+        const certEpoch = await getHPTP();
+
+        const envelope = await storage.getEnvelope(envelopeId);
+        const docHash = envelope?.plenumDocId || envelopeId;
+        const mlDsaResult = await mlDsaSign(
+          JSON.stringify({ envelopeId, docHash, signedCount: signers.length, certifiedAt: certEpoch }),
+          req.tenantId || "default"
+        );
+
+        await storage.updateEnvelope(envelopeId, {
+          status: "completed",
+          zkProof: JSON.stringify({
+            certifiedAt: certEpoch,
+            signerCount: signers.length,
+            mlDsaSignature: mlDsaResult.signature,
+            allSignersCompleted: true,
+          }),
+        });
+
         await storage.createAuditLog({
           envelopeId,
           tenantId: req.tenantId || null,
-          action: "Envelope completed",
-          actorName: "System",
-          details: "All signers have signed the document",
-          hpTpTimestamp: epoch,
+          action: "Document certified",
+          actorName: "HPTP Certification Engine",
+          details: `All ${signers.length}/${signers.length} signers completed — document certified with femtosecond HPTP timestamp and ML-DSA signature`,
+          hpTpTimestamp: certEpoch,
+          metadata: {
+            certifiedAt: certEpoch,
+            signerCount: signers.length,
+            mlDsaSignature: mlDsaResult.signature,
+          },
         });
       } else {
         await storage.updateEnvelope(envelopeId, { status: "signing" });
+
+        await storage.createAuditLog({
+          envelopeId,
+          tenantId: req.tenantId || null,
+          action: "Signing progress",
+          actorName: "System",
+          details: `${signedCount}/${signers.length} signers completed`,
+          hpTpTimestamp: signEpoch,
+        });
       }
 
-      res.json({ success: true });
+      res.json({
+        success: true,
+        signedCount,
+        totalSigners: signers.length,
+        allSigned,
+        certified: allSigned,
+      });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -248,10 +351,121 @@ export async function registerRoutes(
     res.json(logs);
   });
 
+  app.get("/api/envelopes/:id/bake", async (req, res) => {
+    try {
+      const envelope = await storage.getEnvelope(req.params.id);
+      if (!envelope) return res.status(404).json({ message: "Not found" });
+      if (!envelope.pdfData) return res.status(400).json({ message: "No PDF attached" });
+
+      const fieldsList = await storage.getFieldsByEnvelope(req.params.id);
+      const pdfBuffer = Buffer.from(envelope.pdfData, "base64");
+      const bakedPdf = await bakeFillablePdf(pdfBuffer, fieldsList);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", bakedPdf.length.toString());
+      res.setHeader("Content-Disposition", `attachment; filename="${envelope.title} - Signed.pdf"`);
+      res.send(Buffer.from(bakedPdf));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/tenants", async (req, res) => {
     try {
       const tenant = await storage.createTenant(req.body);
       res.status(201).json(tenant);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/envelopes/:id/share-proof", async (req, res) => {
+    try {
+      const envelopeId = req.params.id;
+      const tenantId = req.tenantId || "default";
+      const clientIP = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+
+      const envelope = await storage.getEnvelope(envelopeId);
+      if (!envelope) return res.status(404).json({ message: "Not found" });
+
+      if (envelope.status !== "completed") {
+        return res.status(400).json({ message: "Envelope must be completed before sharing" });
+      }
+
+      const result = await generateZKProof(envelopeId, tenantId);
+
+      const epoch = await getHPTP();
+      await storage.createAuditLog({
+        envelopeId,
+        tenantId,
+        action: "ZK share proof generated",
+        actorName: "ZK Proof Engine",
+        details: "Zero-knowledge authorization proof generated for secure sharing",
+        hpTpTimestamp: epoch,
+        metadata: {
+          ipAddress: typeof clientIP === "string" ? clientIP : clientIP[0],
+          proofCommitment: result.proof.commitment.substring(0, 16) + "...",
+          nullifier: result.proof.nullifier.substring(0, 16) + "...",
+        },
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/envelopes/:id/share", async (req, res) => {
+    try {
+      const envelope = await storage.getEnvelope(req.params.id);
+      if (!envelope) return res.status(404).json({ message: "Not found" });
+
+      const { pdfData, ...rest } = envelope;
+      const recipients = await storage.getRecipientsByEnvelope(req.params.id);
+
+      let zkData = null;
+      if (envelope.zkProof) {
+        try { zkData = JSON.parse(envelope.zkProof); } catch {}
+      }
+
+      res.json({
+        envelope: { ...rest, pdfData: pdfData ? "has_pdf" : null },
+        recipientCount: recipients.length,
+        signedCount: recipients.filter((r) => r.status === "signed").length,
+        zkData,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/envelopes/:id/verify-proof", async (req, res) => {
+    try {
+      const { proof, publicInputs } = req.body;
+      if (!proof || !publicInputs) {
+        return res.status(400).json({ message: "proof and publicInputs required" });
+      }
+
+      const isValid = verifyZKProofServer(proof, publicInputs);
+
+      const clientIP = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+      const epoch = await getHPTP();
+      await storage.createAuditLog({
+        envelopeId: req.params.id,
+        tenantId: req.tenantId || null,
+        action: isValid ? "ZK proof verified" : "ZK proof verification failed",
+        actorName: "ZK Verify Engine",
+        details: isValid
+          ? "Authorization proof verified successfully — access granted"
+          : "Authorization proof verification failed — access denied",
+        hpTpTimestamp: epoch,
+        metadata: {
+          ipAddress: typeof clientIP === "string" ? clientIP : clientIP[0],
+          verified: isValid,
+        },
+      });
+
+      res.json({ valid: isValid });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }

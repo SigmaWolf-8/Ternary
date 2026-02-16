@@ -30,7 +30,7 @@ export function AppSidebar() {
               <Shield className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold tracking-widest uppercase">SalviSign</span>
+              <span className="text-base tracking-wide" style={{ fontFamily: "'Great Vibes', cursive" }}>SalviSign</span>
               <span className="text-[9px] text-muted-foreground tracking-wider leading-none">Secure Signatures</span>
             </div>
           </div>

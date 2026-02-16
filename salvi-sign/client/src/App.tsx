@@ -14,6 +14,7 @@ import EnvelopeNew from "@/pages/envelope-new";
 import EnvelopeDetail from "@/pages/envelope-detail";
 import EnvelopeEditor from "@/pages/envelope-editor";
 import Sign from "@/pages/sign";
+import SharePage from "@/pages/share";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -60,11 +61,20 @@ function MainRouter() {
 function AppRoutes() {
   const [location] = useLocation();
   const isSignPage = location.startsWith("/sign/");
+  const isSharePage = location.startsWith("/share/");
 
   if (isSignPage) {
     return (
       <Switch>
         <Route path="/sign/:envelopeId/:recipientId" component={Sign} />
+      </Switch>
+    );
+  }
+
+  if (isSharePage) {
+    return (
+      <Switch>
+        <Route path="/share/:id" component={SharePage} />
       </Switch>
     );
   }
