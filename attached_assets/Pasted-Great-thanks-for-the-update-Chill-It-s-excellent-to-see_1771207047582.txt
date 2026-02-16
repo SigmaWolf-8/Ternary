@@ -1,0 +1,108 @@
+Great — thanks for the update, Chill.
+
+It's excellent to see that you've taken the formal verification guidance and turned it into concrete infrastructure right away:
+
+- `rtl/formal/xplenum_formal.sby` with the three-mode setup (bmc / prove / cover)
+- `rtl/formal/xplenum_formal_props.v` containing 30+ assertions structured across 12 sections
+- `docs/VERILOG-FORMAL-VERIFICATION.md` documenting the progressive strategy
+
+That kind of rapid implementation + documentation is exactly what moves a research/security-oriented hardware project from "interesting prototype" toward something that can withstand serious scrutiny (academic reviewers, potential collaborators, or future security labs).
+
+Since the files are now live in the main branch (pushed in the previous session), here's how to build on this momentum effectively:
+
+### Immediate Next Actions (Recommended Priority Order)
+
+1. **Run the Initial Formal Checks Locally**  
+   Make sure everything is wired correctly before deeper investment.
+
+   In your project root (or rtl/):
+
+   ```bash
+   # Assuming OSS CAD Suite is sourced
+   cd rtl/formal
+   sby -f xplenum_formal.sby -t bmc     # quick bounded check first (~minutes)
+   sby -f xplenum_formal.sby -t prove    # try inductive proof (longer, hours+ possible)
+   sby -f xplenum_formal.sby -t cover    # check reachability of interesting states
+   ```
+
+   - Watch especially for:
+     - Immediate failures in BMC (usually easy syntax/property bugs)
+     - "Unreachable" cover points (means your testbench or reset sequence isn't exercising key logic)
+     - Solver timeouts → reduce depth or blackbox large submodules temporarily
+
+   - If any counterexample trace appears → open in GTKWave (`gtkwave */trace*.vcd`) and trace back to the failing assertion.
+
+2. **Share First Results (for Feedback / Debugging Help)**  
+   Once you've run at least the BMC mode, paste here:
+   - Summary output from sby (PASS/FAIL/TIMEOUT/UNKNOWN per engine)
+   - If FAIL → which assertion failed + short description of the counterexample (or attach screenshot of waveform if convenient)
+   - Any errors during elaboration (`read_verilog` or `prep` stage)
+
+   This lets me give targeted advice on tightening constraints, improving property style, or handling ternary-specific modeling issues.
+
+3. **Enhance Properties Iteratively (Build on Your 30+ Assertions)**  
+   Common high-value additions for your design:
+
+   - **Ternary state invariants** (prevent invalid trit encodings leaking):
+     ```verilog
+     `ASSERT(forall i in 0..26: (trit_reg[i] inside {-1,0,1}) || reset);
+     ```
+
+   - **Guardian checksum preservation** after QCorrect:
+     ```verilog
+     property guardian_stable_after_correction;
+         @(posedge clk) disable iff (reset)
+         (qcorrect_done |-> ##1 (guardian_checksum == $past(guardian_checksum)));
+     endproperty
+     `ASSERT(guardian_stable_after_correction);
+     ```
+
+   - **No unauthorized CSR read of secret/ternary state**:
+     ```verilog
+     `ASSERT( csr_read_valid && csr_addr inside secret_range |-> csr_rdata == 0 );
+     ```
+
+   - **HPTP monotonicity post-jitter**:
+     ```verilog
+     `ASSERT( post_jitter_ts >= pre_jitter_ts );
+     ```
+
+   Group related assertions into sequences/properties with meaningful names — makes debug much easier.
+
+4. **Integrate with CI (GitHub Actions)**  
+   Add a lightweight formal smoke test to `.github/workflows/` so every push verifies nothing breaks:
+
+   Example minimal job:
+
+   ```yaml
+   name: Formal Smoke
+   on: [push, pull_request]
+   jobs:
+     formal:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v4
+         - name: Install OSS CAD Suite
+           run: |
+             curl -L https://github.com/YosysHQ/oss-cad-suite-build/releases/latest/download/oss-cad-suite-linux-x64-*.sh -o install.sh
+             chmod +x install.sh
+             ./install.sh --prefix $HOME/oss-cad-suite --batch
+         - name: Run BMC on xplenum
+           run: |
+             source $HOME/oss-cad-suite/environment
+             cd rtl/formal
+             sby -f xplenum_formal.sby -t bmc || echo "BMC failed - see logs"
+   ```
+
+   (You can later add prove mode with timeout, or run only on certain branches.)
+
+5. **Longer-Term Polish**  
+   - Add RVFI wrapper (if not already) → leverage riscv-formal's auto-generated checks for base ISA compliance + your custom opcodes.
+   - Document failing → fixed examples in the docs markdown (great for credibility).
+   - When proofs start passing at reasonable depth → consider publishing a short note/screenshot set in docs/ or a blog-style README section.
+
+You're clearly moving very fast and methodically — formal infra in place within hours of guidance is impressive.
+
+What's the current status after your first local run? Any early PASS/FAIL/TIMEOUT results, or specific assertions/properties you'd like feedback on? (Feel free to paste a few lines from `xplenum_formal_props.v` if you want targeted suggestions.)
+
+Keep it rolling!

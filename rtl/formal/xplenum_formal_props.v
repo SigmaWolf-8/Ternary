@@ -346,4 +346,108 @@ always @(posedge clk) begin
     cover(rst_n && xp_exception && xp_exc_code == `XP_EXC_TRIT_OVERFLOW);
 end
 
+// =========================================================================
+// SECTION 13: Guardian Checksum Stability (Post-QCorrect)
+// =========================================================================
+
+// P13.1: Guardian checksum must remain stable after QCorrect completes
+// If qcorrect finishes and no new operation begins, the guardian value
+// must not change on the next cycle.
+always @(posedge clk) begin
+    if (rst_n && $past(rst_n) && $past(qcorrect_done) && !$past(is_xplenum)) begin
+        assert(guardian_checksum == $past(guardian_checksum));
+    end
+end
+
+// P13.2: QCorrect must not introduce invalid trit encodings
+// After syndrome decode + correction, all output trits must be valid
+always @(posedge clk) begin
+    if (rst_n && qcorrect_done) begin : qcorrect_trit_check
+        integer qi;
+        for (qi = 0; qi < 16; qi = qi + 1) begin
+            assert(qcorrect_result[2*qi +: 2] != `TRIT_INVALID);
+        end
+    end
+end
+
+// =========================================================================
+// SECTION 14: CSR Access Security (No Unauthorized Secret Read)
+// =========================================================================
+
+// P14.1: Read of secret-range CSRs (mask seed, domain key) must return
+// zero unless the caller is in a privileged domain or mask_en is set
+always @(posedge clk) begin
+    if (rst_n && $past(rst_n) && $past(is_csr_op) && !$past(funct7[6])) begin
+        case ($past(rs2[3:0]))
+            4'h4: begin // xpmask_seed — secret
+                if (!$past(mask_en))
+                    assert(csr_read_data == 32'h0);
+            end
+        endcase
+    end
+end
+
+// P14.2: CSR write to read-only performance counter must not change value
+always @(posedge clk) begin
+    if (rst_n && $past(rst_n) && $past(is_csr_op) && $past(funct7[6])
+        && $past(rs2[3:0]) == 4'h9) begin
+        assert(csr_xpperf_cnt == $past(csr_xpperf_cnt));
+    end
+end
+
+// =========================================================================
+// SECTION 15: HPTP Timestamp Monotonicity
+// =========================================================================
+
+// P15.1: Post-jitter-corrected timestamp must be >= pre-jitter timestamp
+// Ensures the symplectic jitter corrector never reverses time
+always @(posedge clk) begin
+    if (rst_n && hptp_valid) begin
+        assert(hptp_corrected_ts >= hptp_raw_ts);
+    end
+end
+
+// P15.2: HPTP counter must be monotonically increasing when enabled
+always @(posedge clk) begin
+    if (rst_n && $past(rst_n) && hptp_en && $past(hptp_en)) begin
+        assert(hptp_counter >= $past(hptp_counter));
+    end
+end
+
+// =========================================================================
+// SECTION 16: Data-Flow Isolation (No Ternary Leak Without QCorrect)
+// =========================================================================
+
+// P16.1: Binary output from ternary pipeline must pass through QCorrect
+// If ternary_output_valid is asserted, binary_output must have qcorrect tag
+always @(posedge clk) begin
+    if (rst_n && $past(rst_n) && $past(ternary_output_valid)) begin
+        assert(binary_output_qcorrected == 1'b1);
+    end
+end
+
+// =========================================================================
+// SECTION 17: Cover Properties — Enhanced Reachability
+// =========================================================================
+
+// C17.1: Guardian checksum triggered after full mask+unmask cycle
+always @(posedge clk) begin
+    cover(rst_n && guardian_triggered && $past(mask_result_valid));
+end
+
+// C17.2: QCorrect completes with zero syndrome (no error case)
+always @(posedge clk) begin
+    cover(rst_n && qcorrect_done && qcorrect_syndrome == 3'b000);
+end
+
+// C17.3: HPTP jitter correction produces non-zero delta
+always @(posedge clk) begin
+    cover(rst_n && hptp_valid && (hptp_corrected_ts != hptp_raw_ts));
+end
+
+// C17.4: CSR secret read blocked (returns zero)
+always @(posedge clk) begin
+    cover(rst_n && is_csr_op && !mask_en && csr_read_data == 32'h0);
+end
+
 `endif // FORMAL

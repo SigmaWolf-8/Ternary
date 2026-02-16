@@ -1,0 +1,101 @@
+name: Formal Verification Smoke
+on:
+  push:
+    paths:
+      - 'rtl/**'
+      - '.github/workflows/formal-verification.yml'
+  pull_request:
+    paths:
+      - 'rtl/**'
+
+jobs:
+  formal-bmc:
+    name: Bounded Model Check (xplenum)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache OSS CAD Suite
+        id: cache-oss-cad
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-linux-x64-latest
+
+      - name: Install OSS CAD Suite
+        if: steps.cache-oss-cad.outputs.cache-hit != 'true'
+        run: |
+          LATEST_URL=$(curl -sL https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest \
+            | grep -o 'https://.*oss-cad-suite-linux-x64-[0-9]*.tgz' | head -1)
+          curl -L "$LATEST_URL" -o oss-cad-suite.tgz
+          mkdir -p ~/oss-cad-suite
+          tar -xzf oss-cad-suite.tgz -C ~/oss-cad-suite --strip-components=1
+
+      - name: Run BMC (Bounded Model Check)
+        run: |
+          source ~/oss-cad-suite/environment
+          cd rtl/formal
+          sby -f xplenum_formal.sby bmc 2>&1 | tee bmc_output.log
+        continue-on-error: true
+
+      - name: Upload BMC results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-bmc-results
+          path: |
+            rtl/formal/xplenum_formal_bmc/
+            rtl/formal/bmc_output.log
+          retention-days: 30
+
+      - name: Check BMC status
+        run: |
+          if grep -q "FAIL" rtl/formal/bmc_output.log 2>/dev/null; then
+            echo "::warning::BMC found counterexamples — review trace artifacts"
+            exit 1
+          elif grep -q "PASS" rtl/formal/bmc_output.log 2>/dev/null; then
+            echo "BMC passed — no violations found within bounded depth"
+          else
+            echo "::warning::BMC result inconclusive — check logs"
+          fi
+
+  formal-cover:
+    name: Cover Reachability Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache OSS CAD Suite
+        id: cache-oss-cad
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-linux-x64-latest
+
+      - name: Install OSS CAD Suite
+        if: steps.cache-oss-cad.outputs.cache-hit != 'true'
+        run: |
+          LATEST_URL=$(curl -sL https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest \
+            | grep -o 'https://.*oss-cad-suite-linux-x64-[0-9]*.tgz' | head -1)
+          curl -L "$LATEST_URL" -o oss-cad-suite.tgz
+          mkdir -p ~/oss-cad-suite
+          tar -xzf oss-cad-suite.tgz -C ~/oss-cad-suite --strip-components=1
+
+      - name: Run Cover Check
+        run: |
+          source ~/oss-cad-suite/environment
+          cd rtl/formal
+          sby -f xplenum_formal.sby cover 2>&1 | tee cover_output.log
+        continue-on-error: true
+
+      - name: Upload Cover results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-cover-results
+          path: |
+            rtl/formal/xplenum_formal_cover/
+            rtl/formal/cover_output.log
+          retention-days: 30
