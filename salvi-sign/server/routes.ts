@@ -3,11 +3,27 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertEnvelopeSchema, insertRecipientSchema } from "@shared/schema";
 import { z } from "zod";
+import { tenantMiddleware } from "./middleware/tenant";
+import { healthCheck as plenumHealthCheck } from "./services/plenum";
+import { saveEnvelope as hybridSave } from "./services/saveCopy";
+import { getHPTP } from "./services/plenum";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use(tenantMiddleware);
+
+  app.get("/api/health", async (_req, res) => {
+    const plenum = await plenumHealthCheck();
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      plenum,
+      database: "connected",
+    });
+  });
 
   app.get("/api/envelopes", async (_req, res) => {
     const envelopes = await storage.getEnvelopes();
@@ -22,9 +38,42 @@ export async function registerRoutes(
 
   app.post("/api/envelopes", async (req, res) => {
     try {
-      const { title, description, recipients: recipientList } = req.body;
+      const { title, description, recipients: recipientList, pdfBytes: pdfBase64, fields: fieldsList } = req.body;
+      const tenantId = req.tenantId;
 
-      const parsed = insertEnvelopeSchema.parse({ title, description, status: "draft" });
+      if (pdfBase64 && tenantId) {
+        const pdfBuffer = Buffer.from(pdfBase64, "base64");
+        const result = await hybridSave({
+          pdfBytes: pdfBuffer,
+          fields: fieldsList || [],
+          tenantId,
+          title,
+          description,
+        });
+
+        if (recipientList && Array.isArray(recipientList)) {
+          for (let i = 0; i < recipientList.length; i++) {
+            const r = recipientList[i];
+            await storage.createRecipient({
+              envelopeId: result.envelopeId,
+              name: r.name,
+              email: r.email,
+              role: r.role || "signer",
+              status: "pending",
+              sortOrder: i,
+            });
+          }
+        }
+
+        return res.status(201).json(result);
+      }
+
+      const parsed = insertEnvelopeSchema.parse({
+        title,
+        description,
+        status: "draft",
+        tenantId: tenantId || null,
+      });
       const envelope = await storage.createEnvelope(parsed);
 
       if (recipientList && Array.isArray(recipientList)) {
@@ -41,11 +90,14 @@ export async function registerRoutes(
         }
       }
 
+      const epoch = await getHPTP();
       await storage.createAuditLog({
         envelopeId: envelope.id,
+        tenantId: tenantId || null,
         action: "Envelope created",
         actorName: "System",
         details: `Created with ${recipientList?.length || 0} recipient(s)`,
+        hpTpTimestamp: epoch,
       });
 
       res.json(envelope);
@@ -60,11 +112,14 @@ export async function registerRoutes(
       if (!envelope) return res.status(404).json({ message: "Not found" });
 
       if (req.body.status === "sent") {
+        const epoch = await getHPTP();
         await storage.createAuditLog({
           envelopeId: envelope.id,
+          tenantId: req.tenantId || null,
           action: "Envelope sent for signing",
           actorName: "System",
           details: "Document sent to all recipients",
+          hpTpTimestamp: epoch,
         });
       }
 
@@ -154,11 +209,14 @@ export async function registerRoutes(
         signedAt: new Date(),
       });
 
+      const epoch = await getHPTP();
       await storage.createAuditLog({
         envelopeId,
+        tenantId: req.tenantId || null,
         action: "Document signed",
         actorName: recipient.name,
         details: `Signed by ${recipient.name} (${recipient.email})`,
+        hpTpTimestamp: epoch,
       });
 
       const allRecipients = await storage.getRecipientsByEnvelope(envelopeId);
@@ -169,9 +227,11 @@ export async function registerRoutes(
         await storage.updateEnvelope(envelopeId, { status: "completed" });
         await storage.createAuditLog({
           envelopeId,
+          tenantId: req.tenantId || null,
           action: "Envelope completed",
           actorName: "System",
           details: "All signers have signed the document",
+          hpTpTimestamp: epoch,
         });
       } else {
         await storage.updateEnvelope(envelopeId, { status: "signing" });
@@ -186,6 +246,15 @@ export async function registerRoutes(
   app.get("/api/envelopes/:id/audit", async (req, res) => {
     const logs = await storage.getAuditLogsByEnvelope(req.params.id);
     res.json(logs);
+  });
+
+  app.post("/api/tenants", async (req, res) => {
+    try {
+      const tenant = await storage.createTenant(req.body);
+      res.status(201).json(tenant);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
   });
 
   return httpServer;

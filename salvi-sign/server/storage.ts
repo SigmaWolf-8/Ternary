@@ -1,11 +1,14 @@
 import { eq, desc } from "drizzle-orm";
 import { db } from "./db";
 import {
+  tenants,
   users,
   envelopes,
   recipients,
   fields,
   auditLogs,
+  type Tenant,
+  type InsertTenant,
   type User,
   type InsertUser,
   type Envelope,
@@ -19,6 +22,9 @@ import {
 } from "@shared/schema";
 
 export interface IStorage {
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  getTenant(id: string): Promise<Tenant | undefined>;
+
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -44,6 +50,16 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const [created] = await db.insert(tenants).values(tenant).returning();
+    return created;
+  }
+
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return tenant;
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;

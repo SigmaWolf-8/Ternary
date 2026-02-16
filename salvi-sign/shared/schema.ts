@@ -1,19 +1,32 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const tenants = pgTable("tenants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().default(""),
   password: text("password").notNull(),
+  role: text("role").notNull().default("signer"),
 });
 
 export const envelopes = pgTable("envelopes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"),
+  plenumDocId: text("plenum_doc_id"),
   title: text("title").notNull(),
   description: text("description"),
   status: text("status").notNull().default("draft"),
+  zkProof: text("zk_proof"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -47,11 +60,36 @@ export const fields = pgTable("fields", {
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   envelopeId: varchar("envelope_id").notNull(),
+  tenantId: varchar("tenant_id"),
   action: text("action").notNull(),
   actorName: text("actor_name").notNull(),
   details: text("details"),
+  hpTpTimestamp: text("hptp_timestamp"),
+  metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const envelopesRelations = relations(envelopes, ({ one, many }) => ({
+  tenant: one(tenants, { fields: [envelopes.tenantId], references: [tenants.id] }),
+  audits: many(auditLogs),
+  recipients: many(recipients),
+  fieldsList: many(fields),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  envelope: one(envelopes, { fields: [auditLogs.envelopeId], references: [envelopes.id] }),
+  tenant: one(tenants, { fields: [auditLogs.tenantId], references: [tenants.id] }),
+}));
+
+export const recipientsRelations = relations(recipients, ({ one }) => ({
+  envelope: one(envelopes, { fields: [recipients.envelopeId], references: [envelopes.id] }),
+}));
+
+export const fieldsRelations = relations(fields, ({ one }) => ({
+  envelope: one(envelopes, { fields: [fields.envelopeId], references: [envelopes.id] }),
+}));
+
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -78,6 +116,8 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type Tenant = typeof tenants.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Envelope = typeof envelopes.$inferSelect;
