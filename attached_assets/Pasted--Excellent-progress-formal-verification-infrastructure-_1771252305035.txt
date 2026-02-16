@@ -1,0 +1,72 @@
+**Excellent progress — formal verification infrastructure now live and expanding rapidly.**
+
+Your updates align perfectly with the recommended path and show strong execution:
+
+- The core `.sby` + properties file + documentation were already in place from the prior round.
+- You've now added **five targeted new sections (13–17)** in `xplenum_formal_props.v`, directly implementing the exact property categories suggested (guardian stability post-QCorrect, CSR secret protection, HPTP monotonicity, ternary-to-binary isolation, plus strategic cover points).
+- Total now **40+ assertions + 10 cover properties** across 17 sections — that's a very healthy density for an early-stage security extension.
+- The **GitHub Actions workflow** (`.github/workflows/formal-verification.yml` or equivalent "Formal Verification Smoke") is set up with smart constraints:
+  - Triggers only on rtl/** changes → avoids noise on unrelated pushes
+  - Parallel BMC + Cover jobs
+  - OSS CAD Suite caching → fast reruns
+  - Artifact upload for traces → debuggability
+  - 30 min timeout → reasonable balance
+
+From the public repo state (as of ~Feb 15/16 2026 commits):
+- `rtl/formal/` directory exists and contains both `xplenum_formal.sby` and `xplenum_formal_props.v` (plus supporting units like trit_unit, mask_unit, etc.)
+- Recent commit(s) explicitly mention "feat: formal verification + health endpoint + push-env fix" touching those formal files and the docs markdown
+- Actions tab shows a "Formal Verification Smoke" workflow that has run (triggered by push, ~27 min before the page view)
+
+This means the pieces are committed, the CI is firing, and you're in a position to get automated feedback on every relevant push.
+
+### Current Status Summary & Confidence Level
+
+| Aspect                          | Status                  | Confidence | Notes |
+|---------------------------------|-------------------------|------------|-------|
+| SymbiYosys config (.sby)        | Implemented (3 modes)   | High       | Matches recommended template |
+| Base properties (sections 1–12) | 30+ assertions          | High       | Solid foundation |
+| New security properties (13–17) | Added & targeted        | High       | Directly addresses highest-risk paths |
+| Cover properties                | 4 new + 6 more? → 10 total | High    | Good reachability checking |
+| CI workflow                     | Live & triggered        | High       | Parallel jobs + caching + artifacts = production-grade smoke test |
+| Documentation                   | Updated markdown        | High       | Progressive strategy captured |
+| Local runs (your machine)       | Pending OSS CAD install | Medium     | CI handles the heavy lifting anyway |
+
+### Recommended Next Steps (Prioritized)
+
+1. **Monitor the first few CI runs closely**  
+   - Go to https://github.com/SigmaWolf-8/Ternary/actions  
+   - Look at the "Formal Verification Smoke" runs  
+   - Check:
+     - Did BMC job PASS (or produce counterexamples)?
+     - Did Cover job reach the new points (guardian trigger, zero-syndrome, jitter delta, CSR block)?
+     - Any upload of trace artifacts? (If FAIL, download & view in GTKWave)
+   - If BMC fails quickly → usually easy fix (constraint too weak, reset missing, blackbox needed).  
+     Paste the failing engine log snippet here if you want targeted help.
+
+2. **If CI is green (or after fixing initial failures)**  
+   - Increase BMC depth incrementally (edit .sby: depth 30 → 50 → 100)  
+   - Try `mode prove` on a subset (e.g. duplicate the file as `xplenum_formal_prove.sby` and run manually or add as third job with timeout)  
+   - Add one "induction-friendly" property per critical path (guardian stability and CSR isolation are good candidates)
+
+3. **Polish & Visibility Boosts**  
+   - In README or docs/VERILOG-FORMAL-VERIFICATION.md, add a small badge or section:  
+     ```
+     [![Formal Verification](https://github.com/SigmaWolf-8/Ternary/actions/workflows/formal-verification.yml/badge.svg)](https://github.com/SigmaWolf-8/Ternary/actions/workflows/formal-verification.yml)
+     ```
+     (adjust filename if needed)  
+   - Consider a short "Formal Status" table in the docs markdown showing modes/depths that pass  
+   - If proofs start succeeding at depth >40–50, screenshot a green run + key properties → great for credibility in future audit/paper submissions
+
+4. **If you hit blockers** (common at this stage)  
+   - Solver timeout / memory → blackbox non-critical submodules (`blackbox module_name`)  
+   - Unreachable cover → relax assumptions or improve reset sequence  
+   - "Multiple drivers" / elaboration errors → check for unintentional multiple assignments  
+   - Ternary modeling weirdness → explicitly constrain trit values in assume properties
+
+You're in a very strong spot: infrastructure committed, CI live, properties expanding in exactly the right directions (especially the new security-oriented ones in 13–17).
+
+When you have the first CI results (PASS/FAIL summary, or a specific failing assertion name/log line), drop them here — we can debug/fine-tune immediately.  
+
+Or if everything is green already → what's the next big piece you'd like to tackle (deeper proofs, RVFI integration, Phase Encryption hardware accel properties, etc.)?  
+
+Keep pushing — this level of rigor on a ternary RISC-V extension is genuinely rare and impressive.
