@@ -185,6 +185,8 @@ function getTimingToleranceFs(mode: EncryptionMode): bigint {
  * Implements quantum recombination requiring exact phase relationship
  */
 export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResult {
+  const GENERIC_ERROR = 'Recombination failed';
+
   const phaseAlignment = calculatePhaseAlignment(
     encrypted.primaryPhase.phase,
     encrypted.secondaryPhase.phase,
@@ -201,7 +203,7 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
       success: false,
       phaseAlignment,
       timestampValidation,
-      error: 'Phase alignment below threshold'
+      error: GENERIC_ERROR
     };
   }
   
@@ -220,8 +222,8 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
           success: false,
           phaseAlignment,
           timestampValidation,
-          guardianValidation,
-          error: 'Guardian phase validation failed - data may be tampered'
+          guardianValidation: undefined,
+          error: GENERIC_ERROR
         };
       }
     }
@@ -233,12 +235,12 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
       timestampValidation,
       guardianValidation
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       success: false,
       phaseAlignment,
       timestampValidation,
-      error: `Recombination failed: ${error}`
+      error: GENERIC_ERROR
     };
   }
 }
