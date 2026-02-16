@@ -103,6 +103,17 @@ export async function registerRoutes(
     });
   });
 
+  const { requireApiKey } = await import("./routes/middleware");
+
+  app.get("/api/v1/verify", requireApiKey, (_req: any, res: any) => {
+    res.json({
+      status: "authenticated",
+      service: "PlenumNET",
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.get("/api/legal/:type", async (req, res) => {
     const docInfo = legalDocMap[req.params.type];
     if (!docInfo) {

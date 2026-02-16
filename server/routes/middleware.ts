@@ -29,6 +29,25 @@ export const resolveGitHubToken = (adminUser: any): string | null => {
   return null;
 };
 
+export function requireApiKey(req: any, res: any, next: any) {
+  const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace(/^Bearer\s+/i, '') || req.query.api_key;
+  const validKey = process.env.PLENUM_API_KEY;
+
+  if (!validKey) {
+    return res.status(503).json({ error: "API key not configured on server" });
+  }
+
+  if (!apiKey) {
+    return res.status(401).json({ error: "API key required. Provide via X-API-Key header, Bearer token, or api_key query parameter." });
+  }
+
+  if (apiKey !== validKey) {
+    return res.status(403).json({ error: "Invalid API key" });
+  }
+
+  next();
+}
+
 export const sanitizePath = (inputPath: string): string => {
   let decoded = inputPath;
   decoded = decoded.replace(/\0/g, "");
