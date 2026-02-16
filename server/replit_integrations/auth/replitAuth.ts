@@ -66,14 +66,19 @@ function updateUserSession(
   user.expires_at = user.claims?.exp;
 }
 
+const ADMIN_EMAILS = ["capomastro@outlook.com"];
+
 async function upsertUser(claims: any) {
-  await authStorage.upsertUser({
+  const user = await authStorage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
   });
+  if (ADMIN_EMAILS.includes(claims["email"]) && !user.isAdmin) {
+    await authStorage.setUserAdmin(claims["sub"], true);
+  }
 }
 
 export async function setupAuth(app: Express) {
