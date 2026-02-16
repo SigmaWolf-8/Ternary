@@ -471,21 +471,14 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       for (const file of files) {
         try {
-          log.info(`push-env: processing ${file.localPath} -> ${file.githubPath}`);
           const localFilePath = path.resolve(process.cwd(), file.localPath);
           if (!localFilePath.startsWith(process.cwd())) {
             results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
             continue;
           }
-          log.info(`push-env: reading file ${localFilePath}`);
           const content = fs.readFileSync(localFilePath, 'utf-8');
-          log.info(`push-env: read ${content.length} bytes`);
-          log.info(`push-env: encoding to base64`);
           const encodedContent = Buffer.from(content).toString('base64');
-          log.info(`push-env: encoded ${encodedContent.length} chars`);
-          log.info(`push-env: sanitizing path`);
           const ghPath = sanitizePath(file.githubPath);
-          log.info(`push-env: fetching existing file from GitHub`);
 
           const existingResponse = await fetch(
             `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
@@ -497,7 +490,6 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
             const existingFile = await existingResponse.json();
             sha = (existingFile as any).sha;
           }
-          log.info(`push-env: pushing to GitHub (sha=${sha || 'new'})`);
 
           const body: any = { message: `${message} - ${file.githubPath}`, content: encodedContent, branch: "main" };
           if (sha) body.sha = sha;
@@ -512,11 +504,9 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
           );
 
           if (pushResponse.ok) {
-            log.info(`push-env: success for ${file.githubPath}`);
             results.push({ file: file.githubPath, status: "success" });
           } else {
             const errorData = await pushResponse.json().catch(() => ({}));
-            log.error(`push-env: failed for ${file.githubPath}: ${(errorData as any).message || pushResponse.status}`);
             results.push({ file: file.githubPath, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
           }
         } catch (fileError: unknown) {
