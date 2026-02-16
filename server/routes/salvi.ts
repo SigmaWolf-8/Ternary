@@ -1111,7 +1111,8 @@ export function registerSalviRoutes(app: Express): void {
         const val = registers[reg_start + i];
         const re = (val >> 32) / 1_000_000;
         const mod364 = ((re % PERIOD_MODULUS) + PERIOD_MODULUS) % PERIOD_MODULUS;
-        if (mod364 > PERIOD_MODULUS - tolerance && mod364 < tolerance) {
+        const distFromBoundary = Math.min(mod364, PERIOD_MODULUS - mod364);
+        if (distFromBoundary < tolerance && Math.abs(re) > tolerance) {
           periodicityConsistent = false;
         }
       }
