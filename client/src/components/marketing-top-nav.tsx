@@ -15,7 +15,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { Box, Menu, Sun, Moon, ExternalLink } from "lucide-react";
+import { Menu, Sun, Moon, ExternalLink } from "lucide-react";
+import plenumLogo from "@assets/grok-image-4cc34879-1804-4927-aa4e-597aec4e0b0e_1771282084449.png";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import {
@@ -553,7 +554,7 @@ export function MarketingTopNav() {
             className="flex items-center gap-2 font-semibold text-foreground mr-2"
             data-testid="link-logo"
           >
-            <Box className="w-5 h-5 text-primary" />
+            <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6 rounded-sm" />
             <span className="text-base">PlenumNET</span>
           </Link>
 
@@ -601,7 +602,7 @@ export function MarketingTopNav() {
                 <SheetContent side="right" className="w-[300px] sm:w-[360px]">
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
-                      <Box className="w-5 h-5 text-primary" />
+                      <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5 rounded-sm" />
                       PlenumNET
                     </SheetTitle>
                   </SheetHeader>

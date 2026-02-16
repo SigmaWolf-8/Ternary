@@ -15,7 +15,8 @@
  */
 
 import { Link } from "wouter";
-import { Box, Github, Mail } from "lucide-react";
+import { Github, Mail } from "lucide-react";
+import plenumLogo from "@assets/grok-image-4cc34879-1804-4927-aa4e-597aec4e0b0e_1771282084449.png";
 
 const footerLinks = {
   Platform: [
@@ -55,7 +56,7 @@ export function MarketingFooter() {
               className="flex items-center gap-2 text-primary font-bold text-xl mb-4"
               data-testid="link-footer-logo"
             >
-              <Box className="w-6 h-6" />
+              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6 rounded-sm" />
               <span>PlenumNET</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">

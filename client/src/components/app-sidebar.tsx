@@ -18,8 +18,8 @@ import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
+import plenumLogo from "@assets/grok-image-4cc34879-1804-4927-aa4e-597aec4e0b0e_1771282084449.png";
 import {
-  Box,
   Database,
   FileText,
   BookOpen,
@@ -79,7 +79,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="PlenumNET">
               <Link href="/" data-testid="link-sidebar-logo" onClick={closeMobileSidebar}>
-                <Box className="w-4 h-4 text-primary" />
+                <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5 rounded-sm" />
                 <span className="font-semibold text-sm">PlenumNET</span>
               </Link>
             </SidebarMenuButton>
