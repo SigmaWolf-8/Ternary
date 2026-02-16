@@ -6,8 +6,8 @@
 
 import crypto from "crypto";
 import { db } from "../db";
-import { apiKeys, apiKeyLogs } from "@shared/schema";
-import { eq, desc, and, lt, isNull, sql } from "drizzle-orm";
+import { apiKeys, apiKeyLogs, apiKeyAuditEvents } from "@shared/schema";
+import { eq, desc, and, lt, isNull, sql, gte } from "drizzle-orm";
 import { createLogger } from "../logger";
 
 const log = createLogger("api-key-service");
@@ -266,6 +266,12 @@ export const apiKeyService = {
           .where(eq(apiKeys.id, oldKeyId));
         if (check && check.isActive && !check.revokedAt) {
           await this.revoke(oldKeyId);
+          await this.logAuditEvent(oldKeyId, "auto_revoked", "system", null, {
+            keyPrefix: oldKey.keyPrefix,
+            keyName: oldKey.name,
+            reason: "rotation_grace_period_expired",
+            newKeyId: newKeyData.id,
+          }, null);
           log.info(`Auto-revoked old key ${oldKey.keyPrefix}*** after rotation grace period`);
         }
       } catch (err) {
@@ -358,5 +364,183 @@ export const apiKeyService = {
       }
     }, 6 * 60 * 60 * 1000);
     log.info("Key rotation cron started (every 6 hours)");
+  },
+
+  async logAuditEvent(
+    keyId: string,
+    eventType: string,
+    actorId: string,
+    actorEmail: string | null,
+    details: Record<string, unknown> | null,
+    ipAddress: string | null
+  ) {
+    await db.insert(apiKeyAuditEvents).values({
+      keyId,
+      eventType,
+      actorId,
+      actorEmail,
+      details,
+      ipAddress,
+    });
+  },
+
+  async getAuditEvents(keyId: string, limit: number = 50) {
+    return db
+      .select()
+      .from(apiKeyAuditEvents)
+      .where(eq(apiKeyAuditEvents.keyId, keyId))
+      .orderBy(desc(apiKeyAuditEvents.createdAt))
+      .limit(limit);
+  },
+
+  async getRecentAuditEvents(limit: number = 100) {
+    return db
+      .select()
+      .from(apiKeyAuditEvents)
+      .orderBy(desc(apiKeyAuditEvents.createdAt))
+      .limit(limit);
+  },
+
+  async detectAnomalies(withinDays: number = 7) {
+    const since = new Date(Date.now() - withinDays * 86400000);
+    const anomalies: Array<{
+      keyId: string;
+      keyName: string;
+      keyPrefix: string;
+      type: string;
+      severity: string;
+      description: string;
+      date: string;
+      value: number;
+    }> = [];
+
+    const activeKeys = await db
+      .select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.isActive, true), isNull(apiKeys.revokedAt)));
+
+    for (const key of activeKeys) {
+      const logs = await db
+        .select({
+          date: sql<string>`date_trunc('day', ${apiKeyLogs.createdAt})::text`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(apiKeyLogs)
+        .where(
+          and(
+            eq(apiKeyLogs.keyId, key.id),
+            gte(apiKeyLogs.createdAt, since)
+          )
+        )
+        .groupBy(sql`date_trunc('day', ${apiKeyLogs.createdAt})`)
+        .orderBy(sql`date_trunc('day', ${apiKeyLogs.createdAt})`);
+
+      for (let i = 1; i < logs.length; i++) {
+        const prev = logs[i - 1];
+        const curr = logs[i];
+        if (prev.count > 0) {
+          const pct = ((curr.count - prev.count) / prev.count) * 100;
+          if (pct > 300 && curr.count > 20) {
+            anomalies.push({
+              keyId: key.id,
+              keyName: key.name,
+              keyPrefix: key.keyPrefix,
+              type: "usage_spike",
+              severity: pct > 1000 ? "high" : pct > 500 ? "medium" : "low",
+              description: `${Math.round(pct)}% usage increase day-over-day (${prev.count} → ${curr.count})`,
+              date: curr.date,
+              value: Math.round(pct),
+            });
+          }
+        }
+      }
+
+      const failedValidations = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(apiKeyLogs)
+        .where(
+          and(
+            eq(apiKeyLogs.keyId, key.id),
+            gte(apiKeyLogs.createdAt, since),
+            sql`${apiKeyLogs.statusCode} >= 400`
+          )
+        );
+
+      if (failedValidations[0]?.count > 50) {
+        anomalies.push({
+          keyId: key.id,
+          keyName: key.name,
+          keyPrefix: key.keyPrefix,
+          type: "high_failure_rate",
+          severity: failedValidations[0].count > 200 ? "high" : "medium",
+          description: `${failedValidations[0].count} failed requests in ${withinDays} days`,
+          date: new Date().toISOString(),
+          value: failedValidations[0].count,
+        });
+      }
+
+      const distinctIps = await db
+        .select({ count: sql<number>`count(DISTINCT ${apiKeyLogs.ipAddress})::int` })
+        .from(apiKeyLogs)
+        .where(
+          and(
+            eq(apiKeyLogs.keyId, key.id),
+            gte(apiKeyLogs.createdAt, new Date(Date.now() - 86400000)),
+            sql`${apiKeyLogs.ipAddress} IS NOT NULL`
+          )
+        );
+
+      if (distinctIps[0]?.count > 10) {
+        anomalies.push({
+          keyId: key.id,
+          keyName: key.name,
+          keyPrefix: key.keyPrefix,
+          type: "ip_dispersion",
+          severity: distinctIps[0].count > 25 ? "high" : "medium",
+          description: `Key used from ${distinctIps[0].count} distinct IPs in 24 hours`,
+          date: new Date().toISOString(),
+          value: distinctIps[0].count,
+        });
+      }
+    }
+
+    const tierChanges = await db
+      .select()
+      .from(apiKeyAuditEvents)
+      .where(
+        and(
+          eq(apiKeyAuditEvents.eventType, "tier_change"),
+          gte(apiKeyAuditEvents.createdAt, since)
+        )
+      )
+      .orderBy(desc(apiKeyAuditEvents.createdAt));
+
+    for (const tc of tierChanges) {
+      const details = tc.details as any;
+      if (details?.fromTier && details?.toTier) {
+        const tierOrder = { research: 0, pro: 1, admin: 2 };
+        const from = tierOrder[details.fromTier as keyof typeof tierOrder] ?? 0;
+        const to = tierOrder[details.toTier as keyof typeof tierOrder] ?? 0;
+        if (to > from) {
+          anomalies.push({
+            keyId: tc.keyId,
+            keyName: details.keyName || tc.keyId,
+            keyPrefix: details.keyPrefix || "",
+            type: "tier_escalation",
+            severity: to === 2 ? "medium" : "low",
+            description: `Tier escalated from ${details.fromTier} to ${details.toTier} by ${tc.actorEmail || tc.actorId}`,
+            date: tc.createdAt.toISOString(),
+            value: to - from,
+          });
+        }
+      }
+    }
+
+    anomalies.sort((a, b) => {
+      const sev = { high: 3, medium: 2, low: 1 };
+      return (sev[b.severity as keyof typeof sev] || 0) - (sev[a.severity as keyof typeof sev] || 0);
+    });
+
+    return anomalies;
   },
 };

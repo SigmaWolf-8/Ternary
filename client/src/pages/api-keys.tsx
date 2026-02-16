@@ -28,6 +28,9 @@ import {
   LogIn,
   RefreshCw,
   Gauge,
+  Shield,
+  Info,
+  FileText,
 } from "lucide-react";
 import {
   Dialog,
@@ -44,6 +47,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ApiKeyRecord {
   id: string;
@@ -228,6 +236,41 @@ export default function ApiKeysPage() {
     withinDays: number;
   }>({
     queryKey: ["/api/keys/expiring"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: anomaliesData } = useQuery<{
+    success: boolean;
+    anomalies: Array<{
+      keyId: string;
+      keyName: string;
+      keyPrefix: string;
+      type: string;
+      severity: string;
+      description: string;
+      date: string;
+      value: number;
+    }>;
+    withinDays: number;
+  }>({
+    queryKey: ["/api/keys/anomalies"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: auditData } = useQuery<{
+    success: boolean;
+    events: Array<{
+      id: number;
+      keyId: string;
+      eventType: string;
+      actorId: string;
+      actorEmail: string | null;
+      details: Record<string, unknown> | null;
+      ipAddress: string | null;
+      createdAt: string;
+    }>;
+  }>({
+    queryKey: ["/api/keys/audit"],
     enabled: isAuthenticated,
   });
 
@@ -583,6 +626,97 @@ export default function ApiKeysPage() {
         )}
       </Card>
 
+      <Card className="overflow-hidden" data-testid="card-anomalies">
+        <div className="p-3 border-b flex items-center gap-2">
+          <Shield className="w-4 h-4" />
+          <h2 className="text-sm font-medium">Security Alerts</h2>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs text-xs">
+              <p>Monitors for usage spikes ({">"}300% day-over-day), high failure rates ({">"}50 in 7 days), unusual IP dispersion ({">"}10 IPs in 24h), and tier escalations. Checked across the last 7 days.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        {anomaliesData && anomaliesData.anomalies.length > 0 ? (
+          <div className="divide-y">
+            {anomaliesData.anomalies.map((a, idx) => (
+              <div key={idx} className="p-3 flex items-center gap-3 flex-wrap" data-testid={`row-anomaly-${idx}`}>
+                <Badge
+                  variant={a.severity === "high" ? "destructive" : a.severity === "medium" ? "secondary" : "outline"}
+                  className="text-[10px] shrink-0"
+                >
+                  {a.severity}
+                </Badge>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{a.keyName}</span>
+                    <code className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{a.keyPrefix}...</code>
+                    <Badge variant="outline" className="text-[10px]">{a.type.replace(/_/g, " ")}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{a.description}</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(a.date)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center">
+            <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No anomalies detected in the last 7 days.</p>
+          </div>
+        )}
+      </Card>
+
+      <Card className="overflow-hidden" data-testid="card-audit-trail">
+        <div className="p-3 border-b flex items-center gap-2">
+          <FileText className="w-4 h-4" />
+          <h2 className="text-sm font-medium">Audit Trail</h2>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs text-xs">
+              <p>Records every key lifecycle action: generation, revocation, rotation, and tier changes. Includes who performed the action and from which IP address.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        {auditData && auditData.events.length > 0 ? (
+          <div className="divide-y max-h-80 overflow-y-auto">
+            {auditData.events.slice(0, 25).map((evt) => (
+              <div key={evt.id} className="p-2 px-3 flex items-center gap-3 flex-wrap text-xs" data-testid={`row-audit-${evt.id}`}>
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {evt.eventType.replace(/_/g, " ")}
+                </Badge>
+                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                  {evt.details && (evt.details as any).keyPrefix && (
+                    <code className="text-[10px] text-muted-foreground bg-muted px-1 rounded">
+                      {(evt.details as any).keyPrefix}...
+                    </code>
+                  )}
+                  {evt.details && (evt.details as any).keyName && (
+                    <span className="text-muted-foreground">{(evt.details as any).keyName}</span>
+                  )}
+                  {evt.eventType === "tier_change" && evt.details && (
+                    <span className="text-muted-foreground">
+                      {(evt.details as any).fromTier} {"->"} {(evt.details as any).toTier}
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">by {evt.actorEmail || evt.actorId}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(evt.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center">
+            <FileText className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No audit events recorded yet.</p>
+          </div>
+        )}
+      </Card>
+
       <Card className="p-4 space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-2">
           <ShieldCheck className="w-4 h-4" />
@@ -596,16 +730,58 @@ export default function ApiKeysPage() {
             <p className="text-foreground">?api_key=plm_your_key_here</p>
           </div>
           <div className="mt-2">
-            <p className="font-medium text-foreground mb-1">Rate Limit Tiers:</p>
+            <p className="font-medium text-foreground mb-1 flex items-center gap-1">
+              Rate Limit Tiers
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  <p><strong>Research</strong>: 100 requests/minute. For development and testing.</p>
+                  <p><strong>Pro</strong>: 500 requests/minute. For production integrations.</p>
+                  <p><strong>Admin</strong>: 2000 requests/minute. For internal and high-volume services.</p>
+                  <p>Tier changes are audit-logged and require admin approval.</p>
+                </TooltipContent>
+              </Tooltip>
+            </p>
             <div className="flex gap-3 flex-wrap">
               {Object.entries(TIER_LABELS).map(([tier, label]) => (
                 <span key={tier} className="bg-muted px-2 py-0.5 rounded text-[11px]">{label}</span>
               ))}
             </div>
           </div>
+          <div className="mt-2">
+            <p className="font-medium text-foreground mb-1 flex items-center gap-1">
+              Rotation & Grace Period
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  <p>When a key is rotated, a new key is generated with the same scopes and tier. The old key remains valid for a <strong>7-day grace period</strong>, allowing you to update integrations without downtime. After 7 days, the old key is automatically revoked.</p>
+                  <p>Auto-rotation runs every 6 hours and triggers when a key reaches its scheduled rotation date (typically at expiry).</p>
+                </TooltipContent>
+              </Tooltip>
+            </p>
+            <p>Keys can be rotated manually or automatically at expiry. Both old and new keys work during the 7-day overlap.</p>
+          </div>
+          <div className="mt-2">
+            <p className="font-medium text-foreground mb-1 flex items-center gap-1">
+              HPTP Binding
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  <p>High-Precision Timing Protocol (HPTP) binding adds a femtosecond-precision timestamp to API key validation. This creates a time-bound authentication window, ensuring keys can only be used within specific timing constraints, providing an additional layer of quantum-resistant security.</p>
+                </TooltipContent>
+              </Tooltip>
+            </p>
+            <p>Optional timing-bound validation using the Salvi Framework's femtosecond-precision HPTP for quantum-resistant authentication.</p>
+          </div>
           <p className="mt-2">
             Validate connectivity: <code className="bg-muted px-1 rounded">GET /api/keys/validate-external</code> with your key.
-            Rate limit headers: <code className="bg-muted px-1 rounded">X-RateLimit-Limit</code>, <code className="bg-muted px-1 rounded">X-RateLimit-Remaining</code>.
+            Rate limit headers: <code className="bg-muted px-1 rounded">X-RateLimit-Limit</code>, <code className="bg-muted px-1 rounded">X-RateLimit-Remaining</code>, <code className="bg-muted px-1 rounded">X-RateLimit-Reset</code>.
           </p>
         </div>
       </Card>

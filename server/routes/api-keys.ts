@@ -72,6 +72,19 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
         await apiKeyService.scheduleRotation(keyData.id, expiresDays);
       }
 
+      const actorId = req.adminUser?.id || "admin";
+      const actorEmail = req.adminUser?.email || null;
+      const ip = req.ip || req.connection?.remoteAddress || null;
+      await apiKeyService.logAuditEvent(keyData.id, "key_generated", actorId, actorEmail, {
+        keyPrefix: keyData.keyPrefix,
+        name,
+        scopes,
+        expiresDays,
+        rateLimitTier,
+        rateLimitRpm: rpm,
+        enableRotation,
+      }, ip);
+
       log.info(`API key generated: ${keyData.keyPrefix}*** for ${owner} (${name}) [${rateLimitTier}/${rpm}rpm]`);
 
       res.json({
@@ -126,6 +139,14 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
         return res.status(404).json({ error: "Key not found" });
       }
 
+      const actorId = req.adminUser?.id || "admin";
+      const actorEmail = req.adminUser?.email || null;
+      const ip = req.ip || req.connection?.remoteAddress || null;
+      await apiKeyService.logAuditEvent(id, "key_revoked", actorId, actorEmail, {
+        keyPrefix: result.keyPrefix,
+        keyName: result.name,
+      }, ip);
+
       log.info(`API key revoked: ${result.keyPrefix}*** by ${req.adminUser?.email || "admin"}`);
       res.json({ success: true, message: "Key revoked" });
     } catch (err: any) {
@@ -150,6 +171,17 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
     try {
       const { id } = req.params;
       const result = await apiKeyService.rotateKey(id);
+
+      const actorId = req.adminUser?.id || "admin";
+      const actorEmail = req.adminUser?.email || null;
+      const ip = req.ip || req.connection?.remoteAddress || null;
+      await apiKeyService.logAuditEvent(id, "key_rotated", actorId, actorEmail, {
+        oldKeyId: result.oldKeyId,
+        newKeyId: result.newKey.id,
+        newKeyPrefix: result.newKey.keyPrefix,
+        graceEnds: result.graceEnds,
+      }, ip);
+
       log.info(`API key rotated: ${id} by ${req.adminUser?.email || "admin"}`);
       res.json({
         success: true,
@@ -184,13 +216,32 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
+
+      const keys = await apiKeyService.listAll();
+      const existingKey = keys.find((k: any) => k.id === id);
+      const previousTier = existingKey?.rateLimitTier || "unknown";
+      const previousRpm = existingKey?.rateLimitRpm || 0;
+
       const rpm = RATE_LIMIT_TIERS[parsed.data.tier] || 100;
       const result = await apiKeyService.updateRateLimit(id, parsed.data.tier, rpm);
       if (!result) {
         return res.status(404).json({ error: "Key not found" });
       }
-      log.info(`Rate limit updated for key ${id}: ${parsed.data.tier} (${rpm} rpm)`);
-      res.json({ success: true, tier: parsed.data.tier, rpm });
+
+      const actorId = req.adminUser?.id || "admin";
+      const actorEmail = req.adminUser?.email || null;
+      const ip = req.ip || req.connection?.remoteAddress || null;
+      await apiKeyService.logAuditEvent(id, "tier_change", actorId, actorEmail, {
+        keyPrefix: existingKey?.keyPrefix,
+        keyName: existingKey?.name,
+        fromTier: previousTier,
+        toTier: parsed.data.tier,
+        fromRpm: previousRpm,
+        toRpm: rpm,
+      }, ip);
+
+      log.info(`Rate limit updated for key ${id}: ${previousTier} -> ${parsed.data.tier} (${rpm} rpm) by ${actorEmail || actorId}`);
+      res.json({ success: true, tier: parsed.data.tier, rpm, previousTier });
     } catch (err: any) {
       log.error("Rate limit update error:", err);
       res.status(500).json({ error: "Failed to update rate limit" });
@@ -199,6 +250,40 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
 
   app.get("/api/keys/rate-limit-tiers", (_req, res) => {
     res.json({ tiers: RATE_LIMIT_TIERS });
+  });
+
+  app.get("/api/keys/anomalies", requireAdmin, async (req: any, res) => {
+    try {
+      const days = Math.min(parseInt(req.query.days || "7", 10), 30);
+      const anomalies = await apiKeyService.detectAnomalies(days);
+      res.json({ success: true, anomalies, withinDays: days });
+    } catch (err: any) {
+      log.error("Anomaly detection error:", err);
+      res.status(500).json({ error: "Failed to detect anomalies" });
+    }
+  });
+
+  app.get("/api/keys/audit", requireAdmin, async (req: any, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit || "100", 10), 500);
+      const events = await apiKeyService.getRecentAuditEvents(limit);
+      res.json({ success: true, events });
+    } catch (err: any) {
+      log.error("Audit events error:", err);
+      res.status(500).json({ error: "Failed to get audit events" });
+    }
+  });
+
+  app.get("/api/keys/:id/audit", requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const limit = Math.min(parseInt(req.query.limit || "50", 10), 200);
+      const events = await apiKeyService.getAuditEvents(id, limit);
+      res.json({ success: true, events });
+    } catch (err: any) {
+      log.error("Key audit events error:", err);
+      res.status(500).json({ error: "Failed to get audit events" });
+    }
   });
 
   app.get("/api/keys/validate-external", async (req, res) => {

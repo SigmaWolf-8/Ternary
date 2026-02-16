@@ -69,6 +69,16 @@ The Agent Array system orchestrates 28 specialist AI agents for parallel query a
 ### Kong Gateway Integration
 Kong Konnect API integration manages services, routes, and plugins, supporting synchronization for PlenumNET's 17 services and optional Kong proxy routing.
 
+### API Key Management System
+Complete API key lifecycle management at `/api-keys`:
+-   **Generation**: SHA-256 hashed, `plm_` prefixed, scoped to 13 permission types across 8 categories.
+-   **Validation**: Constant-time comparison, scope enforcement, optional HPTP timing-bound authentication.
+-   **Rotation**: Manual + auto-rotation (6-hour cron), 7-day dual-key grace period, linked via `previousKeyId`.
+-   **Per-Key Rate Limiting**: Three tiers (research: 100 rpm, pro: 500 rpm, admin: 2000 rpm), in-memory partitioned stores, X-RateLimit-* headers on all responses.
+-   **Audit Trail**: `api_key_audit_events` table logging generation, revocation, rotation, tier changes, and auto-revocations with actor identity, IP address, and structured details.
+-   **Anomaly Detection**: Automated detection of usage spikes (>300% day-over-day), high failure rates (>50 in 7 days), IP dispersion (>10 IPs in 24h), and tier escalation events with severity classification (low/medium/high).
+-   **Dashboard**: Stats cards, expiring keys alerts, security alerts card, audit trail viewer, tier selector per key, rotation controls, tooltips explaining tiers/HPTP/grace periods.
+
 ### Security Middleware Stack
 Includes 4-tier rate limiting, CORS with origin allowlist, Helmet.js security headers (CSP, HSTS, X-Frame-Options: deny, X-Content-Type-Options: nosniff), AES-256-GCM token encryption, null-byte stripping, double URL-decode protection, and `execFile()`-only subprocess execution.
 

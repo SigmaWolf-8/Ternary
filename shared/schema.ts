@@ -127,12 +127,25 @@ export const apiKeyLogs = pgTable("api_key_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const apiKeyAuditEvents = pgTable("api_key_audit_events", {
+  id: serial("id").primaryKey(),
+  keyId: varchar("key_id").notNull(),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  actorId: varchar("actor_id", { length: 255 }).notNull(),
+  actorEmail: varchar("actor_email", { length: 255 }),
+  details: jsonb("details").$type<Record<string, unknown>>(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ id: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageCount: true, rotationScheduledAt: true, previousKeyId: true });
 export const insertApiKeyLogSchema = createInsertSchema(apiKeyLogs).omit({ id: true, createdAt: true });
+export const insertApiKeyAuditEventSchema = createInsertSchema(apiKeyAuditEvents).omit({ id: true, createdAt: true });
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type InsertApiKeyLog = z.infer<typeof insertApiKeyLogSchema>;
 export type ApiKeyLog = typeof apiKeyLogs.$inferSelect;
+export type ApiKeyAuditEvent = typeof apiKeyAuditEvents.$inferSelect;
 
 export const insertDemoSessionSchema = createInsertSchema(demoSessions).omit({ id: true, createdAt: true });
 export const insertBinaryStorageSchema = createInsertSchema(binaryStorage).omit({ id: true, createdAt: true });
