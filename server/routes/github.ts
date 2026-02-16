@@ -418,6 +418,10 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
     "docs/",
     "tests/",
     "keys/",
+    "server/",
+    "shared/",
+    "client/",
+    "rtl/",
     "PQTI-P0-STATUS.md",
     "PQTI-REMAINING-WORK.md",
     "GITHUB-REPOSITORY-ARCHITECTURE.md",
@@ -436,6 +440,92 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
     if (normalized !== filePath) return false;
     return ALLOWED_PUSH_PREFIXES.some(prefix => normalized.startsWith(prefix) || normalized === prefix);
   };
+
+  app.post("/api/github/push-env/:owner/:repo", authLimiter, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const token = process.env.GITHUB_TOKEN;
+
+      if (!token) {
+        return res.status(400).json({ error: "No GITHUB_TOKEN environment variable" });
+      }
+
+      const schema = z.object({
+        files: z.array(z.object({
+          localPath: z.string().min(1),
+          githubPath: z.string().min(1),
+        })),
+        message: z.string().min(1),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request" });
+      }
+
+      const { files, message } = parsed.data;
+      const fs = await import('fs/promises');
+      const pathModule = await import('path');
+
+      const rejectedFiles = files.filter(f => !isPathAllowed(f.localPath));
+      if (rejectedFiles.length > 0) {
+        return res.status(403).json({ error: "Path not allowed", rejected: rejectedFiles.map(f => f.localPath) });
+      }
+
+      const results: { file: string; status: string; error?: string }[] = [];
+
+      for (const file of files) {
+        try {
+          const localFilePath = pathModule.resolve(process.cwd(), file.localPath);
+          if (!localFilePath.startsWith(process.cwd())) {
+            results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
+            continue;
+          }
+          const content = await fs.readFile(localFilePath, 'utf-8');
+          const encodedContent = Buffer.from(content).toString('base64');
+          const ghPath = sanitizePath(file.githubPath);
+
+          const existingResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
+            { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json", "User-Agent": "Salvi-Framework" } }
+          );
+
+          let sha: string | undefined;
+          if (existingResponse.ok) {
+            const existingFile = await existingResponse.json();
+            sha = (existingFile as any).sha;
+          }
+
+          const body: any = { message: `${message} - ${file.githubPath}`, content: encodedContent, branch: "main" };
+          if (sha) body.sha = sha;
+
+          const pushResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
+            {
+              method: "PUT",
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json", "User-Agent": "Salvi-Framework" },
+              body: JSON.stringify(body)
+            }
+          );
+
+          if (pushResponse.ok) {
+            results.push({ file: file.githubPath, status: "success" });
+          } else {
+            const errorData = await pushResponse.json().catch(() => ({}));
+            results.push({ file: file.githubPath, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
+          }
+        } catch (fileError: unknown) {
+          results.push({ file: file.githubPath, status: "error", error: toErrorMessage(fileError) });
+        }
+      }
+
+      const succeeded = results.filter(r => r.status === "success").length;
+      res.json({ success: results.every(r => r.status === "success"), message: `Pushed ${succeeded}/${files.length} files`, results });
+    } catch (error: unknown) {
+      log.error("GitHub env push error:", error);
+      res.status(500).json({ error: "Failed to push files" });
+    }
+  });
 
   app.post("/api/github/push-batch/:owner/:repo", authLimiter, requireAdmin, async (req: any, res) => {
     try {

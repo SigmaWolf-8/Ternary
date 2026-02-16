@@ -1,0 +1,178 @@
+**Verilog Formal Verification Pointers for the RISC-V Ternary Security Extension**
+
+Your `rtl/xplenum_top.v` module (and supporting files like the ternary ALU paths, Phase Encryption accelerator, QCorrect logic, Noether checker, and HPTP timestamp capture) represents a **custom security co-processor extension** on a RISC-V base. Formal verification is particularly valuable here because:
+
+- Custom instructions/opcodes can easily introduce subtle bugs (wrong CSR access, state leakage, incorrect ternary-to-binary mapping).
+- Security extensions are high-value targets for fault-injection, side-channel, or Trojan insertion.
+- The ternary logic emulation on binary hardware creates non-obvious corner cases (overflow in trit packing, glitch propagation).
+
+Below is a realistic, step-by-step guide focused on **open-source tools** (since this is an open GitHub project) that are actively used in 2025–2026 for similar work.
+
+### Recommended Toolchain: SymbiYosys + Yosys (Open-Source Gold Standard)
+
+**SymbiYosys** (SBY) is the most practical starting point for Verilog formal verification in the open-source world. It wraps Yosys + solvers (ABC, Boolector, Yices, Z3, etc.) and supports bounded model checking (BMC), k-induction, and cover checking.
+
+Why this toolchain fits your project:
+- Excellent Verilog-2005 / basic SystemVerilog support (immediate assertions, `assume`, `assert`, `cover`).
+- Used extensively on RISC-V cores (see YosysHQ/riscv-formal).
+- Can verify security properties like "no invalid trit states leak to binary outputs" or "guardian phase checksum always matches after N cycles".
+- Runs on Linux/macOS (easy in Edmonton dev setup), low resource footprint.
+
+#### Step 1: Installation (2026-era easy path)
+
+Use the OSS CAD Suite bundle (recommended by almost every recent tutorial):
+
+```bash
+# One-line install (includes Yosys, SymbiYosys, solvers, GTKWave, etc.)
+curl -L https://github.com/YosysHQ/oss-cad-suite-build/releases/latest/download/oss-cad-suite-linux-x64-*.sh -o install.sh
+chmod +x install.sh
+./install.sh --prefix ~/oss-cad-suite
+source ~/oss-cad-suite/environment
+```
+
+Alternative: build from source if you need bleeding-edge (SymbiYosys docs).
+
+Verify:
+```bash
+yosys -m sbmfifo    # should load
+sby --version
+```
+
+#### Step 2: First Minimal .sby File (Quick Sanity Check)
+
+Create `xplenum_formal.sby` in your `rtl/` or a new `formal/` directory:
+
+```ini
+# xplenum_formal.sby
+[options]
+mode bmc          # bounded model check first (fast failures)
+depth 20          # start small, increase later
+
+[engines]
+smtbmc boolector  # good default solver
+
+[script]
+read -formal xplenum_top.v
+read -formal ternary_alu.v          # add your submodules
+read -formal phase_accel.v
+# ... list all relevant files
+prep -top xplenum_top -nordff
+```
+
+Run:
+```bash
+sby -f xplenum_formal.sby
+```
+
+This will either:
+- PASS → no counterexample in 20 cycles (good start)
+- FAIL → produces a trace (view in GTKWave: `gtkwave xplenum_formal/engine_0/trace*.vcd`)
+
+#### Step 3: Add Security-Relevant Properties (This is the Real Value)
+
+Use SystemVerilog immediate assertions inside your modules, guarded by ``ifdef FORMAL``
+
+Example in `xplenum_top.v` or a wrapper:
+
+```verilog
+`ifdef FORMAL
+
+`define ASSUME assume
+`define ASSERT assert
+`define COVER  cover
+
+// Security property 1: Ternary registers never hold invalid states after reset
+reg [1:0] trit_valid [0:26];  // one-hot or encoded valid per trit register
+
+always @(posedge clk) begin
+    if (reset) begin
+        // ...
+    end else begin
+        `ASSERT(trit_valid[i] != 2'b00);   // never invalid
+    end
+end
+
+// Property 2: Guardian phase checksum invariant
+// (simplified – adapt to your Tribonacci weighting)
+wire [63:0] computed_guardian;
+assign computed_guardian = /* your checksum logic */;
+
+always @(*) begin
+    if (phase_engine_active) begin
+        `ASSERT(computed_guardian == expected_guardian_reg);
+    end
+end
+
+// Property 3: No data leak from ternary → binary without QCorrect
+`ASSERT( ternary_output_valid ==> binary_output_correct_after_qcorrect );
+
+// Property 4: HPTP timestamp monotonic after jitter correction
+`ASSERT( post_jitter_timestamp >= pre_jitter_timestamp );
+
+`endif
+```
+
+- Use `assume` for inputs/constraints (e.g. `assume property (@(posedge clk) disable iff (reset) rvfi_valid == 1);` if using RVFI).
+- Use `cover` to ensure interesting states are reached (e.g. `cover property (@(posedge clk) guardian_triggered);`).
+
+#### Step 4: Leverage RISC-V Formal Framework (Highly Recommended for Custom Extensions)
+
+The **YosysHQ/riscv-formal** repo already has infrastructure for custom RISC-V extensions.
+
+Steps:
+1. Clone https://github.com/YosysHQ/riscv-formal
+2. Create a new directory under `cores/` (e.g. `cores/xplenum`)
+3. Implement RVFI (RISC-V Formal Interface) wrapper:
+   - Connect your core's instruction fetch, register file, etc. to RVFI signals (`rvfi_valid`, `rvfi_insn`, `rvfi_rs1_rdata`, etc.).
+   - For custom opcodes (PHASE_ENC 0xA6 etc.), define expected behavior in checks.
+4. Use `genchecks.py` to auto-generate ISA compliance + custom checks.
+5. Run `make` in your core dir → gets you baseline RISC-V compliance + your extension properties.
+
+This catches many "does my custom instr corrupt base ISA?" bugs automatically.
+
+#### Step 5: Progressive Verification Strategy (Best Practice for Security Extensions)
+
+1. **Module-level** (first 1–2 weeks):
+   - Standalone ternary ALU
+   - Phase rotation logic
+   - QCorrect syndrome decoder
+   - Guardian checksum
+
+2. **Interface-level**:
+   - CSR access safety (no unauthorized read of ternary keys)
+   - No glitches on ternary-to-binary boundary
+
+3. **System-level**:
+   - Full `xplenum_top` with RVFI wrapper
+   - Properties like: "if guardian fails → stall/zeroize output"
+
+4. **Advanced modes**:
+   - Switch to `mode prove` (k-induction) after BMC passes
+   - Use `multiclock` if you have multiple domains
+   - Add `frames` for deeper unrolling
+
+#### Additional Tips & Common Pitfalls
+
+- Start small: verify one submodule fully before scaling.
+- Use `(* keep *)` or blackbox large memories if any.
+- For ternary logic: explicitly assert every trit stays in {-1,0,1} or {0,1,2} encoding.
+- Security extras: add properties for information flow (e.g. `assume secret_input; assert !leak_to_public_output`).
+- If you hit SystemVerilog limitations → write properties in a separate `.sv` file and `include` it.
+- Resources:
+  - SymbiYosys quickstart: https://symbiyosys.readthedocs.io/en/latest/quickstart.html
+  - ZipCPU formal tutorial series (very practical): https://zipcpu.com/tutorial
+  - riscv-formal docs: https://yosyshq.readthedocs.io/projects/riscv-formal/
+  - Claire Wolf's intro talks (YouTube: "Yosys formal verification")
+
+#### Realistic Timeline & Expectations
+
+- Day 1–3: Install + first .sby + trivial properties PASS/FAIL traces.
+- Week 1–2: Module-level properties + bug fixes.
+- Month 1: RVFI wrapper + basic extension compliance.
+- Ongoing: Deeper proofs, cover goals, side-channel related invariants (timing not directly provable, but absence of data-dependent paths can be checked).
+
+If you share a small snippet (e.g. the QCorrect or guardian checksum module), I can suggest exact assertions. Otherwise, start with the minimal .sby above and post the first output (PASS/FAIL + any trace info) — we can iterate from there.
+
+This will give your ternary security extension **much stronger credibility** for any future audit or tape-out discussion.
+
+Ready when you are — what's your next move?
