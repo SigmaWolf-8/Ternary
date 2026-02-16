@@ -38,8 +38,8 @@ function AnimatedSection({ children, delay = 0 }: { children: React.ReactNode; d
 }
 
 const milestones = [
-  { value: "1,011", label: "Tests Passing", icon: Check },
-  { value: "224", label: "Source Files", icon: FileCode },
+  { value: "1,040", label: "Tests Passing", icon: Check },
+  { value: "227", label: "Source Files", icon: FileCode },
   { value: "97", label: "API Endpoints", icon: Server },
   { value: "CNSA 2.0", label: "Architecture", icon: Shield },
 ];
@@ -135,15 +135,15 @@ export default function AboutPage() {
             <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-vision-description">
               PlenumNET is built on the Salvi Framework -- a vertically integrated ternary computing
               stack that spans from hardware abstraction to application-layer protocols. The framework
-              includes a bare-metal Rust kernel with GF(3) field arithmetic, a 160-opcode register-based
-              virtual machine, femtosecond-precision timing protocols, and a complete torsion network
+              includes a bare-metal Rust kernel with GF(3) field arithmetic, a 176-opcode register-based
+              virtual machine with quantum-ternary simulation, femtosecond-precision timing protocols, and a complete torsion network
               topology. Every component has been engineered from first principles to operate natively in
               base-3 while maintaining full binary compatibility through our Binary-Ternary Gateway.
             </p>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Salvi Framework</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">GF(3) Arithmetic</Badge>
-              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">160-Opcode VM</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">176-Opcode VM</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">HPTP Timing</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Post-Quantum Crypto</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Tribonacci Test Oracle</Badge>
