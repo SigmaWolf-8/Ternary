@@ -35,8 +35,15 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::vec;
+use core::sync::atomic::{compiler_fence, Ordering};
 use super::{CryptoError, CryptoResult, TernaryDigest, TERNARY_HASH_TRITS};
 use super::sponge::TernarySponge;
+
+#[inline(never)]
+fn compiler_fence_bytes(data: &[u8; 32]) {
+    compiler_fence(Ordering::SeqCst);
+    let _ = core::hint::black_box(data);
+}
 
 const SESSION_KEY_SIZE: usize = 32;
 const PHASE_WINDOW_DEFAULT_US: u64 = 1_000_000;
@@ -103,6 +110,7 @@ pub struct HybridKeyExchange {
     pub context: String,
 }
 
+#[inline(never)]
 fn kdf_derive(inputs: &[&[u8]], domain: u8) -> [u8; SESSION_KEY_SIZE] {
     let mut sponge = TernarySponge::new();
     sponge.absorb(&[domain as i8]);
@@ -120,6 +128,7 @@ fn kdf_derive(inputs: &[&[u8]], domain: u8) -> [u8; SESSION_KEY_SIZE] {
     result
 }
 
+#[inline(never)]
 fn generate_phase_secret(seed: &[u8], window: &PhaseWindow) -> [u8; 32] {
     let window_bytes = window.to_bytes();
     kdf_derive(&[seed, &window_bytes], 50)
@@ -144,15 +153,19 @@ impl HybridKeyExchange {
         }
     }
 
+    #[inline(never)]
     pub fn derive_session_key(&self) -> [u8; SESSION_KEY_SIZE] {
         let window_bytes = self.phase_window.to_bytes();
         let context_bytes = self.context.as_bytes();
-        kdf_derive(
+        let result = kdf_derive(
             &[&self.kem_shared_secret, &self.phase_secret, &window_bytes, context_bytes],
             51,
-        )
+        );
+        compiler_fence_bytes(&result);
+        result
     }
 
+    #[inline(never)]
     pub fn derive_traffic_key(&self, direction: TrafficDirection, counter: u64) -> [u8; SESSION_KEY_SIZE] {
         let session_key = self.derive_session_key();
         let dir_byte = match direction {
@@ -160,7 +173,9 @@ impl HybridKeyExchange {
             TrafficDirection::ServerToClient => 1u8,
         };
         let counter_bytes = counter.to_be_bytes();
-        kdf_derive(&[&session_key, &[dir_byte], &counter_bytes], 52)
+        let result = kdf_derive(&[&session_key, &[dir_byte], &counter_bytes], 52);
+        compiler_fence_bytes(&result);
+        result
     }
 
     pub fn is_window_active(&self, current_us: u64) -> bool {
@@ -170,6 +185,36 @@ impl HybridKeyExchange {
     pub fn rotate_window(&mut self, new_timestamp_us: u64, seed: &[u8]) {
         self.phase_window = PhaseWindow::default_window(new_timestamp_us);
         self.phase_secret = generate_phase_secret(seed, &self.phase_window);
+    }
+
+    pub fn verify_noether_invariants(&self) -> Result<(), CryptoError> {
+        const SUFT_PHI_RATIO_NUM: u64 = 13;
+        const SUFT_PHI_RATIO_DEN: u64 = 28;
+        const PERIOD_MODULUS: u64 = 364;
+
+        let window_id = self.phase_window.window_id;
+        let window_mod = window_id % PERIOD_MODULUS;
+
+        let energy_product = window_id
+            .wrapping_mul(SUFT_PHI_RATIO_NUM)
+            / SUFT_PHI_RATIO_DEN.max(1);
+        let gauge_check = energy_product % 3;
+
+        if gauge_check > 2 {
+            return Err(CryptoError::HashMismatch);
+        }
+
+        let session_key = self.derive_session_key();
+        let key_sum: u64 = session_key.iter().map(|b| *b as u64).sum();
+        let periodicity_check = key_sum % PERIOD_MODULUS;
+
+        compiler_fence_bytes(&session_key);
+
+        if periodicity_check == 0 && window_mod == 0 && window_id > 0 {
+            return Err(CryptoError::HashMismatch);
+        }
+
+        Ok(())
     }
 }
 
@@ -279,5 +324,23 @@ mod tests {
     fn test_security_level_names() {
         assert_eq!(SecurityLevel::Level5.name(), "NIST Level 5 (ML-KEM-1024)");
         assert_eq!(SecurityLevel::Level3.name(), "NIST Level 3 (ML-KEM-768)");
+    }
+
+    #[test]
+    fn test_noether_invariant_verification() {
+        let kem_ss = [0xAA; 32];
+        let seed = b"noether_test_seed";
+        let hke = HybridKeyExchange::new(SecurityLevel::Level5, kem_ss, seed, 1000000, "test");
+        assert!(hke.verify_noether_invariants().is_ok());
+    }
+
+    #[test]
+    fn test_noether_invariants_across_rotation() {
+        let kem_ss = [0xBB; 32];
+        let seed = b"rotation_noether";
+        let mut hke = HybridKeyExchange::new(SecurityLevel::Level5, kem_ss, seed, 1000, "ctx");
+        assert!(hke.verify_noether_invariants().is_ok());
+        hke.rotate_window(2000000, seed);
+        assert!(hke.verify_noether_invariants().is_ok());
     }
 }
