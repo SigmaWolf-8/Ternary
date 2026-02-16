@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   XCircle,
   LogIn,
+  RefreshCw,
+  Gauge,
 } from "lucide-react";
 import {
   Dialog,
@@ -35,6 +37,13 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ApiKeyRecord {
   id: string;
@@ -47,6 +56,10 @@ interface ApiKeyRecord {
   revokedAt: string | null;
   lastUsedAt: string | null;
   usageCount: number;
+  rotationScheduledAt: string | null;
+  previousKeyId: string | null;
+  rateLimitTier: string;
+  rateLimitRpm: number;
   createdAt: string;
 }
 
@@ -67,6 +80,12 @@ const SCOPE_CATEGORIES: Record<string, string[]> = {
   "Agent Array": ["read:agent-array", "write:agent-array"],
   Whitepaper: ["read:whitepaper"],
   Admin: ["admin:keys"],
+};
+
+const TIER_LABELS: Record<string, string> = {
+  research: "Research (100 rpm)",
+  pro: "Pro (500 rpm)",
+  admin: "Admin (2000 rpm)",
 };
 
 function ScopeSelector({
@@ -138,6 +157,16 @@ function KeyStatusBadge({ keyRecord }: { keyRecord: ApiKeyRecord }) {
   return <Badge variant="secondary">Inactive</Badge>;
 }
 
+function TierBadge({ tier }: { tier: string }) {
+  const variant = tier === "admin" ? "default" : tier === "pro" ? "secondary" : "outline";
+  return (
+    <Badge variant={variant} className="text-[10px]" data-testid={`badge-tier-${tier}`}>
+      <Gauge className="w-2.5 h-2.5 mr-1" />
+      {tier}
+    </Badge>
+  );
+}
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "Never";
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -149,6 +178,10 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+function daysUntil(dateStr: string): number {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+}
+
 export default function ApiKeysPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -157,8 +190,12 @@ export default function ApiKeysPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyScopes, setNewKeyScopes] = useState<string[]>([]);
   const [newKeyExpiry, setNewKeyExpiry] = useState(90);
+  const [newKeyTier, setNewKeyTier] = useState("research");
+  const [newKeyRotation, setNewKeyRotation] = useState(true);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyRecord | null>(null);
+  const [rotateTarget, setRotateTarget] = useState<ApiKeyRecord | null>(null);
+  const [rotatedKey, setRotatedKey] = useState<string | null>(null);
 
   const { data: keysData, isLoading: keysLoading } = useQuery<{
     success: boolean;
@@ -176,8 +213,32 @@ export default function ApiKeysPage() {
     enabled: isAuthenticated,
   });
 
+  const { data: expiringData } = useQuery<{
+    success: boolean;
+    keys: Array<{
+      id: string;
+      keyPrefix: string;
+      name: string;
+      owner: string;
+      expiresAt: string | null;
+      rotationScheduledAt: string | null;
+      rateLimitTier: string;
+      rateLimitRpm: number;
+    }>;
+    withinDays: number;
+  }>({
+    queryKey: ["/api/keys/expiring"],
+    enabled: isAuthenticated,
+  });
+
   const generateMutation = useMutation({
-    mutationFn: async (body: { name: string; scopes: string[]; expiresDays: number }) => {
+    mutationFn: async (body: {
+      name: string;
+      scopes: string[];
+      expiresDays: number;
+      rateLimitTier: string;
+      enableRotation: boolean;
+    }) => {
       const res = await apiRequest("POST", "/api/keys/generate", body);
       return res.json();
     },
@@ -186,6 +247,8 @@ export default function ApiKeysPage() {
       setNewKeyName("");
       setNewKeyScopes([]);
       setNewKeyExpiry(90);
+      setNewKeyTier("research");
+      setNewKeyRotation(true);
       queryClient.invalidateQueries({ queryKey: ["/api/keys"] });
       queryClient.invalidateQueries({ queryKey: ["/api/keys/stats"] });
       toast({ title: "Key Generated", description: "Your new API key has been created." });
@@ -218,6 +281,44 @@ export default function ApiKeysPage() {
     },
   });
 
+  const rotateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/keys/rotate/${id}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setRotatedKey(data.newKey);
+      queryClient.invalidateQueries({ queryKey: ["/api/keys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/keys/stats"] });
+      toast({ title: "Key Rotated", description: "New key generated. Old key valid for 7 days." });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to rotate key.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTierMutation = useMutation({
+    mutationFn: async ({ id, tier }: { id: string; tier: string }) => {
+      const res = await apiRequest("PATCH", `/api/keys/${id}/rate-limit`, { tier });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/keys"] });
+      toast({ title: "Rate Limit Updated", description: "Tier has been changed." });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update rate limit.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
       toast({ title: "Copied", description: "API key copied to clipboard." });
@@ -237,6 +338,8 @@ export default function ApiKeysPage() {
       name: newKeyName,
       scopes: newKeyScopes,
       expiresDays: newKeyExpiry,
+      rateLimitTier: newKeyTier,
+      enableRotation: newKeyRotation,
     });
   };
 
@@ -278,7 +381,7 @@ export default function ApiKeysPage() {
             API Key Management
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Generate, manage, and revoke API keys for external integrations.
+            Generate, manage, rotate, and rate-limit API keys for external integrations.
           </p>
         </div>
         <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-key">
@@ -320,6 +423,56 @@ export default function ApiKeysPage() {
         </div>
       )}
 
+      {expiringData && expiringData.keys.length > 0 && (
+        <Card className="overflow-hidden border-amber-300 dark:border-amber-700">
+          <div className="p-3 border-b bg-amber-50 dark:bg-amber-950/30 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              Keys Expiring Within {expiringData.withinDays} Days ({expiringData.keys.length})
+            </h2>
+          </div>
+          <div className="divide-y">
+            {expiringData.keys.map((ek) => (
+              <div
+                key={ek.id}
+                className="p-3 flex items-center justify-between gap-3 flex-wrap"
+                data-testid={`row-expiring-key-${ek.id}`}
+              >
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <span className="font-medium text-sm">{ek.name}</span>
+                  <TierBadge tier={ek.rateLimitTier} />
+                  <code className="text-xs text-muted-foreground bg-muted px-1 rounded">
+                    {ek.keyPrefix}...
+                  </code>
+                  {ek.expiresAt && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                      Expires in {daysUntil(ek.expiresAt)}d ({formatDate(ek.expiresAt)})
+                    </span>
+                  )}
+                  {ek.rotationScheduledAt && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                      Rotation scheduled
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const full = keys.find((k) => k.id === ek.id);
+                    if (full) setRotateTarget(full);
+                  }}
+                  data-testid={`button-rotate-expiring-${ek.id}`}
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Rotate Now
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="overflow-hidden">
         <div className="p-3 border-b">
           <h2 className="text-sm font-medium">API Keys</h2>
@@ -350,6 +503,7 @@ export default function ApiKeysPage() {
                       {keyRecord.name}
                     </span>
                     <KeyStatusBadge keyRecord={keyRecord} />
+                    <TierBadge tier={keyRecord.rateLimitTier} />
                     <code className="text-xs text-muted-foreground bg-muted px-1 rounded" data-testid={`text-key-prefix-${keyRecord.id}`}>
                       {keyRecord.keyPrefix}...
                     </code>
@@ -358,11 +512,26 @@ export default function ApiKeysPage() {
                     <span>Owner: {keyRecord.owner}</span>
                     <span>Created: {formatDate(keyRecord.createdAt)}</span>
                     {keyRecord.expiresAt && (
-                      <span>Expires: {formatDate(keyRecord.expiresAt)}</span>
+                      <span className={
+                        daysUntil(keyRecord.expiresAt) <= 14
+                          ? "text-amber-600 dark:text-amber-400 font-medium"
+                          : ""
+                      }>
+                        Expires: {formatDate(keyRecord.expiresAt)}
+                        {daysUntil(keyRecord.expiresAt) > 0 && daysUntil(keyRecord.expiresAt) <= 14 && (
+                          ` (${daysUntil(keyRecord.expiresAt)}d)`
+                        )}
+                      </span>
                     )}
+                    <span>{keyRecord.rateLimitRpm} rpm</span>
                     <span>Used: {keyRecord.usageCount.toLocaleString()} times</span>
                     {keyRecord.lastUsedAt && (
                       <span>Last: {formatDate(keyRecord.lastUsedAt)}</span>
+                    )}
+                    {keyRecord.rotationScheduledAt && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        Rotation: {formatDate(keyRecord.rotationScheduledAt)}
+                      </span>
                     )}
                   </div>
                   <div className="flex gap-1 flex-wrap">
@@ -374,14 +543,39 @@ export default function ApiKeysPage() {
                   </div>
                 </div>
                 {keyRecord.isActive && !keyRecord.revokedAt && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setRevokeTarget(keyRecord)}
-                    data-testid={`button-revoke-${keyRecord.id}`}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Select
+                      value={keyRecord.rateLimitTier}
+                      onValueChange={(tier) =>
+                        updateTierMutation.mutate({ id: keyRecord.id, tier })
+                      }
+                    >
+                      <SelectTrigger className="w-[110px] h-9 text-xs" data-testid={`select-tier-${keyRecord.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="research">Research</SelectItem>
+                        <SelectItem value="pro">Pro</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setRotateTarget(keyRecord)}
+                      data-testid={`button-rotate-${keyRecord.id}`}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setRevokeTarget(keyRecord)}
+                      data-testid={`button-revoke-${keyRecord.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 )}
               </div>
             ))}
@@ -401,8 +595,17 @@ export default function ApiKeysPage() {
             <p className="text-foreground">Authorization: Bearer plm_your_key_here</p>
             <p className="text-foreground">?api_key=plm_your_key_here</p>
           </div>
-          <p>
+          <div className="mt-2">
+            <p className="font-medium text-foreground mb-1">Rate Limit Tiers:</p>
+            <div className="flex gap-3 flex-wrap">
+              {Object.entries(TIER_LABELS).map(([tier, label]) => (
+                <span key={tier} className="bg-muted px-2 py-0.5 rounded text-[11px]">{label}</span>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2">
             Validate connectivity: <code className="bg-muted px-1 rounded">GET /api/keys/validate-external</code> with your key.
+            Rate limit headers: <code className="bg-muted px-1 rounded">X-RateLimit-Limit</code>, <code className="bg-muted px-1 rounded">X-RateLimit-Remaining</code>.
           </p>
         </div>
       </Card>
@@ -421,7 +624,7 @@ export default function ApiKeysPage() {
             <DialogDescription>
               {generatedKey
                 ? "Copy and store this key securely. It will not be shown again."
-                : "Configure the name, scopes, and expiry for the new API key."}
+                : "Configure the name, scopes, rate limit tier, and expiry for the new API key."}
             </DialogDescription>
           </DialogHeader>
 
@@ -473,16 +676,44 @@ export default function ApiKeysPage() {
                   data-testid="input-key-name"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Expiry (days, 0 = never)</Label>
-                <Input
-                  type="number"
-                  value={newKeyExpiry}
-                  onChange={(e) => setNewKeyExpiry(parseInt(e.target.value) || 0)}
-                  min={0}
-                  max={3650}
-                  data-testid="input-key-expiry"
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Expiry (days, 0 = never)</Label>
+                  <Input
+                    type="number"
+                    value={newKeyExpiry}
+                    onChange={(e) => setNewKeyExpiry(parseInt(e.target.value) || 0)}
+                    min={0}
+                    max={3650}
+                    data-testid="input-key-expiry"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Rate Limit Tier</Label>
+                  <Select value={newKeyTier} onValueChange={setNewKeyTier}>
+                    <SelectTrigger data-testid="select-key-tier">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="research">Research (100 rpm)</SelectItem>
+                      <SelectItem value="pro">Pro (500 rpm)</SelectItem>
+                      <SelectItem value="admin">Admin (2000 rpm)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="enable-rotation"
+                  checked={newKeyRotation}
+                  onChange={(e) => setNewKeyRotation(e.target.checked)}
+                  className="rounded"
+                  data-testid="checkbox-rotation"
                 />
+                <Label htmlFor="enable-rotation" className="text-sm cursor-pointer">
+                  Enable auto-rotation (rotates at expiry, 7-day grace period)
+                </Label>
               </div>
               <div className="space-y-2">
                 <Label>Scopes</Label>
@@ -534,6 +765,79 @@ export default function ApiKeysPage() {
               {revokeMutation.isPending ? "Revoking..." : "Revoke Key"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!rotateTarget || !!rotatedKey} onOpenChange={(open) => {
+        if (!open) {
+          setRotateTarget(null);
+          setRotatedKey(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{rotatedKey ? "Key Rotated" : "Rotate API Key"}</DialogTitle>
+            <DialogDescription>
+              {rotatedKey
+                ? "A new key has been generated. The old key remains valid for 7 days."
+                : `Rotate "${rotateTarget?.name}"? A new key will be generated with the same scopes. The old key stays valid for a 7-day grace period before automatic revocation.`}
+            </DialogDescription>
+          </DialogHeader>
+          {rotatedKey ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 bg-muted rounded-md p-3">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Store this new key securely. It will not be shown again.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={rotatedKey}
+                  readOnly
+                  className="font-mono text-xs"
+                  data-testid="input-rotated-key"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => copyToClipboard(rotatedKey)}
+                  data-testid="button-copy-rotated-key"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    setRotateTarget(null);
+                    setRotatedKey(null);
+                  }}
+                  data-testid="button-done-rotate"
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setRotateTarget(null)}
+                data-testid="button-cancel-rotate"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => rotateTarget && rotateMutation.mutate(rotateTarget.id)}
+                disabled={rotateMutation.isPending}
+                data-testid="button-confirm-rotate"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                {rotateMutation.isPending ? "Rotating..." : "Rotate Key"}
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -110,6 +110,10 @@ export const apiKeys = pgTable("api_keys", {
   revokedAt: timestamp("revoked_at"),
   lastUsedAt: timestamp("last_used_at"),
   usageCount: integer("usage_count").default(0).notNull(),
+  rotationScheduledAt: timestamp("rotation_scheduled_at"),
+  previousKeyId: varchar("previous_key_id", { length: 255 }),
+  rateLimitTier: varchar("rate_limit_tier", { length: 20 }).default("research").notNull(),
+  rateLimitRpm: integer("rate_limit_rpm").default(100).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -123,7 +127,7 @@ export const apiKeyLogs = pgTable("api_key_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ id: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageCount: true });
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ id: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageCount: true, rotationScheduledAt: true, previousKeyId: true });
 export const insertApiKeyLogSchema = createInsertSchema(apiKeyLogs).omit({ id: true, createdAt: true });
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type ApiKey = typeof apiKeys.$inferSelect;

@@ -14,6 +14,8 @@ declare global {
         keyId: string;
         owner: string;
         scopes: string[];
+        rateLimitRpm: number;
+        rateLimitTier: string;
       };
     }
   }
@@ -55,6 +57,8 @@ export function scopedApiKeyAuth(requiredScopes: string[] = []) {
         keyId: result.keyId,
         owner: result.owner,
         scopes: result.scopes,
+        rateLimitRpm: result.rateLimitRpm,
+        rateLimitTier: result.rateLimitTier,
       };
 
       const ip = req.ip || req.socket.remoteAddress || null;

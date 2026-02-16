@@ -7,7 +7,10 @@
 import crypto from "crypto";
 import { db } from "../db";
 import { apiKeys, apiKeyLogs } from "@shared/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, lt, isNull, sql } from "drizzle-orm";
+import { createLogger } from "../logger";
+
+const log = createLogger("api-key-service");
 
 const KEY_PREFIX = "plm_";
 
@@ -82,6 +85,8 @@ export const apiKeyService = {
     keyId: string;
     scopes: string[];
     owner: string;
+    rateLimitRpm: number;
+    rateLimitTier: string;
   } | null> {
     const stripped = rawApiKey.startsWith(KEY_PREFIX)
       ? rawApiKey.slice(KEY_PREFIX.length)
@@ -115,6 +120,8 @@ export const apiKeyService = {
       keyId: keyRecord.id,
       scopes: keyRecord.scopes as string[],
       owner: keyRecord.owner,
+      rateLimitRpm: keyRecord.rateLimitRpm,
+      rateLimitTier: keyRecord.rateLimitTier,
     };
   },
 
@@ -147,6 +154,10 @@ export const apiKeyService = {
         revokedAt: apiKeys.revokedAt,
         lastUsedAt: apiKeys.lastUsedAt,
         usageCount: apiKeys.usageCount,
+        rotationScheduledAt: apiKeys.rotationScheduledAt,
+        previousKeyId: apiKeys.previousKeyId,
+        rateLimitTier: apiKeys.rateLimitTier,
+        rateLimitRpm: apiKeys.rateLimitRpm,
         createdAt: apiKeys.createdAt,
       })
       .from(apiKeys)
@@ -167,6 +178,10 @@ export const apiKeyService = {
         revokedAt: apiKeys.revokedAt,
         lastUsedAt: apiKeys.lastUsedAt,
         usageCount: apiKeys.usageCount,
+        rotationScheduledAt: apiKeys.rotationScheduledAt,
+        previousKeyId: apiKeys.previousKeyId,
+        rateLimitTier: apiKeys.rateLimitTier,
+        rateLimitRpm: apiKeys.rateLimitRpm,
         createdAt: apiKeys.createdAt,
       })
       .from(apiKeys)
@@ -207,5 +222,141 @@ export const apiKeyService = {
       expired: expired.length,
       totalUsage,
     };
+  },
+
+  async scheduleRotation(keyId: string, daysUntil: number = 90) {
+    const scheduledAt = new Date(Date.now() + daysUntil * 86400000);
+    await db
+      .update(apiKeys)
+      .set({ rotationScheduledAt: scheduledAt })
+      .where(eq(apiKeys.id, keyId));
+    return scheduledAt;
+  },
+
+  async rotateKey(oldKeyId: string) {
+    const [oldKey] = await db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.id, oldKeyId));
+
+    if (!oldKey) throw new Error("Key not found");
+    if (oldKey.revokedAt || !oldKey.isActive)
+      throw new Error("Cannot rotate an inactive or revoked key");
+
+    const newKeyData = await this.generate(
+      oldKey.owner,
+      `${oldKey.name} (rotated)`,
+      oldKey.scopes as string[],
+      90
+    );
+
+    await db
+      .update(apiKeys)
+      .set({ previousKeyId: oldKeyId })
+      .where(eq(apiKeys.id, newKeyData.id));
+
+    await this.scheduleRotation(newKeyData.id, 90);
+
+    const gracePeriodMs = 7 * 86400000;
+    setTimeout(async () => {
+      try {
+        const [check] = await db
+          .select()
+          .from(apiKeys)
+          .where(eq(apiKeys.id, oldKeyId));
+        if (check && check.isActive && !check.revokedAt) {
+          await this.revoke(oldKeyId);
+          log.info(`Auto-revoked old key ${oldKey.keyPrefix}*** after rotation grace period`);
+        }
+      } catch (err) {
+        log.error(`Failed to auto-revoke rotated key ${oldKeyId}:`, err);
+      }
+    }, gracePeriodMs);
+
+    log.info(
+      `Key rotated: ${oldKey.keyPrefix}*** -> ${newKeyData.keyPrefix}*** (7-day grace period)`
+    );
+
+    return {
+      newKey: newKeyData,
+      oldKeyId,
+      graceEnds: new Date(Date.now() + gracePeriodMs),
+    };
+  },
+
+  async getExpiringKeys(withinDays: number = 14) {
+    const cutoff = new Date(Date.now() + withinDays * 86400000);
+    return db
+      .select({
+        id: apiKeys.id,
+        keyPrefix: apiKeys.keyPrefix,
+        name: apiKeys.name,
+        owner: apiKeys.owner,
+        expiresAt: apiKeys.expiresAt,
+        rotationScheduledAt: apiKeys.rotationScheduledAt,
+        rateLimitTier: apiKeys.rateLimitTier,
+        rateLimitRpm: apiKeys.rateLimitRpm,
+      })
+      .from(apiKeys)
+      .where(
+        and(
+          isNull(apiKeys.revokedAt),
+          eq(apiKeys.isActive, true),
+          lt(apiKeys.expiresAt, cutoff)
+        )
+      )
+      .orderBy(apiKeys.expiresAt);
+  },
+
+  async updateRateLimit(
+    keyId: string,
+    tier: string,
+    rpm: number
+  ) {
+    const [result] = await db
+      .update(apiKeys)
+      .set({ rateLimitTier: tier, rateLimitRpm: rpm })
+      .where(eq(apiKeys.id, keyId))
+      .returning();
+    return result;
+  },
+
+  async checkRotationsDue() {
+    const now = new Date();
+    const dueKeys = await db
+      .select()
+      .from(apiKeys)
+      .where(
+        and(
+          isNull(apiKeys.revokedAt),
+          eq(apiKeys.isActive, true),
+          lt(apiKeys.rotationScheduledAt, now)
+        )
+      );
+
+    for (const key of dueKeys) {
+      try {
+        await this.rotateKey(key.id);
+        log.info(`Auto-rotated key: ${key.keyPrefix}*** (${key.name})`);
+      } catch (err) {
+        log.error(`Failed to auto-rotate key ${key.id}:`, err);
+      }
+    }
+
+    return dueKeys.length;
+  },
+
+  startRotationCron() {
+    setInterval(async () => {
+      try {
+        const count = await this.checkRotationsDue();
+        if (count > 0) {
+          log.info(`Rotation check completed: ${count} key(s) rotated`);
+        }
+      } catch (err) {
+        log.error("Rotation cron error:", err);
+      }
+    }, 6 * 60 * 60 * 1000);
+    log.info("Key rotation cron started (every 6 hours)");
   },
 };

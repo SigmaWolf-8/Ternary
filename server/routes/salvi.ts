@@ -9,7 +9,7 @@ import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
-import { computationLimiter } from "../middleware/rate-limiter";
+import { computationLimiter, perKeyRateLimiter } from "../middleware/rate-limiter";
 import { scopedApiKeyAuth } from "../middleware/api-key-auth";
 import {
   convertTrit,
@@ -91,7 +91,9 @@ export function registerSalviRoutes(app: Express): void {
       req.query.api_key;
 
     if (hasApiKey) {
-      return scopedApiKeyAuth([])(req, res, next);
+      return scopedApiKeyAuth([])(req, res, () => {
+        perKeyRateLimiter(req, res, next);
+      });
     }
     next();
   });

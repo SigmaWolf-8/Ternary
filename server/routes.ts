@@ -26,6 +26,7 @@ import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { registerAgentArrayRoutes } from "./routes/agent-array";
 import { registerApiKeyRoutes } from "./routes/api-keys";
+import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -960,6 +961,8 @@ export async function registerRoutes(
   // =====================================================
   registerKongRoutes(app, storage);
   registerApiKeyRoutes(app, storage);
+
+  apiKeyService.startRotationCron();
 
   // =====================================================
   // GDPR DATA SUBJECT RIGHTS — extracted to server/routes/data-subject-rights.ts

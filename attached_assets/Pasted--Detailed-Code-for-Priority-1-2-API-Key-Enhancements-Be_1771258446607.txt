@@ -1,0 +1,334 @@
+**Detailed Code for Priority 1 & 2: API Key Enhancements**
+
+Below is **complete, ready-to-copy code** for the two priorities. It integrates seamlessly with your current setup (Drizzle `api_keys` table, `apiKeyService`, `apiKeyAuth` middleware, management routes, React dashboard at `/api-keys`).
+
+**Assumptions & Setup Notes** (before pasting):
+- **Deps to add** (run in Replit shell):  
+  `npm i node-cron express-rate-limit @types/node-cron`  
+- **Migration**: After schema changes, run:  
+  `npx drizzle-kit generate:pg`  
+  `npx drizzle-kit migrate` (or your Replit DB push command).
+- **Replit Scheduler**: For cron, we'll use `node-cron` (works fine on Replit's always-on; fallback to their Scheduled Deployments if needed).
+- **Types**: Extend your shared types (`server/types/api-key.ts`).
+- **Testing**: All changes include unit test hooks (e.g., via Jest/Vitest if you have it).
+
+---
+
+### **Common: Schema Updates** (`server/db/schema.ts`)
+
+Add these to your `apiKeys` table (and new `api_key_limits` for Priority 2). This is additive (safe for existing data).
+
+```ts
+// server/db/schema.ts
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+
+export const apiKeys = pgTable('api_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  keyHash: text('key_hash').notNull().unique(),  // Argon2 or SHA-256
+  name: text('name').notNull(),
+  owner: text('owner').notNull(),
+  scopes: jsonb('scopes').notNull().$type<string[]>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+  revokedAt: timestamp('revoked_at'),
+  lastUsedAt: timestamp('last_used_at'),
+  usageCount: integer('usage_count').default(0),
+  
+  // Priority 1: Rotation fields
+  rotationScheduledAt: timestamp('rotation_scheduled_at'),  // When next rotation happens
+  previousKeyHash: text('previous_key_hash'),  // For dual-key overlap
+  isRotated: boolean('is_rotated').default(false),
+  
+  // Priority 2: Per-key limits (jsonb for flexibility)
+  limits: jsonb('limits').$type<{ tier: 'research' | 'pro' | 'admin'; rpm: number; daily: number }>()
+    .default({ tier: 'research', rpm: 100, daily: 5000 }),
+});
+
+export const apiKeyLogs = pgTable('api_key_logs', { /* your existing */ });
+
+// Relations (for queries)
+export const apiKeysRelations = relations(apiKeys, ({ many }) => ({
+  logs: many(apiKeyLogs),
+}));
+```
+
+**Migration Notes**:
+- Run the generate/migrate commands.
+- Existing keys get defaults (Drizzle handles `default` for new columns).
+
+---
+
+### **Priority 1: Automated Key Rotation & Dual-Key Overlap**
+
+#### 1.1: Extended Service (`server/services/api-key.service.ts`)
+
+```ts
+// server/services/api-key.service.ts
+import { randomBytes } from 'crypto';
+import { hash, verify } from 'argon2';
+import { db } from '../db';
+import { apiKeys } from '../db/schema';
+import { eq, and, lt, isNull, desc } from 'drizzle-orm';
+import cron from 'node-cron';
+
+export const apiKeyService = {
+  // ... your existing generate, validate, etc.
+
+  /** Schedule rotation for a key (called on generation or manually) */
+  async scheduleRotation(keyId: string, daysUntil = 90) {
+    const scheduledAt = new Date(Date.now() + daysUntil * 86400000);
+    await db.update(apiKeys)
+      .set({ rotationScheduledAt: scheduledAt })
+      .where(eq(apiKeys.id, keyId));
+    return scheduledAt;
+  },
+
+  /** Generate new key as rotation (dual-key overlap) */
+  async rotateKey(oldKeyId: string, newName?: string) {
+    const [oldKey] = await db.select().from(apiKeys).where(eq(apiKeys.id, oldKeyId));
+    if (!oldKey) throw new Error('Key not found');
+
+    // Generate new key with same owner/scopes
+    const newKeyData = await this.generate(oldKey.owner, newName || `${oldKey.name} (v2)`, oldKey.scopes, 90);
+    
+    // Link to old (for overlap)
+    await db.update(apiKeys)
+      .set({ 
+        previousKeyHash: oldKey.keyHash, 
+        isRotated: true 
+      })
+      .where(eq(apiKeys.id, newKeyData.id));  // Assuming generate returns id now
+
+    // Schedule revocation of old after 7-day grace
+    setTimeout(async () => {
+      await this.revoke(oldKeyId);
+    }, 7 * 86400000);
+
+    return { newKey: newKeyData, oldKeyId };
+  },
+
+  /** Revoke (existing, but enhanced) */
+  async revoke(keyId: string) {
+    await db.update(apiKeys)
+      .set({ revokedAt: new Date() })
+      .where(eq(apiKeys.id, keyId));
+  },
+
+  // Cron job setup (call once in server startup)
+  startRotationCron() {
+    cron.schedule('0 0 * * *', async () => {  // Daily at midnight
+      console.log('Running key rotation check...');
+      const dueKeys = await db.select()
+        .from(apiKeys)
+        .where(and(
+          isNull(apiKeys.revokedAt),
+          lt(apiKeys.rotationScheduledAt, new Date())
+        ));
+
+      for (const key of dueKeys) {
+        await this.rotateKey(key.id);
+        console.log(`Rotated key: ${key.id}`);
+      }
+    });
+  },
+};
+```
+
+#### 1.2: Update Management Routes (`server/routes/api-keys.routes.ts`)
+
+```ts
+// server/routes/api-keys.routes.ts
+// ... existing imports
+
+router.post('/rotate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newName } = req.body;  // Optional
+    const result = await apiKeyService.rotateKey(id, newName);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
+router.get('/expiring', async (req, res) => {
+  // List keys nearing rotation (for dashboard)
+  const expiring = await db.select()
+    .from(apiKeys)
+    .where(and(
+      isNull(apiKeys.revokedAt),
+      lt(apiKeys.rotationScheduledAt, new Date(Date.now() + 14 * 86400000))  // Next 14 days
+    ))
+    .orderBy(desc(apiKeys.rotationScheduledAt));
+  res.json(expiring);
+});
+```
+
+#### 1.3: Cron Startup (in `server/salvi-core/index.ts` or main server file)
+
+```ts
+// After app setup
+apiKeyService.startRotationCron();
+```
+
+#### 1.4: Dashboard Update (`client/src/pages/Dashboard/Keys.tsx`)
+
+Add to your existing table/actions:
+
+```tsx
+// In Keys.tsx
+import { Button, Tooltip } from 'antd';  // or your UI lib
+
+// In table columns
+{
+  title: 'Actions',
+  render: (_, record) => (
+    <>
+      {record.rotationScheduledAt && (
+        <Tooltip title={`Rotates ${new Date(record.rotationScheduledAt).toLocaleDateString()}`}>
+          <Button 
+            type="primary" 
+            onClick={() => rotateKey(record.id)}
+            disabled={record.isRotated}
+          >
+            Rotate Now
+          </Button>
+        </Tooltip>
+      )}
+      {/* Existing revoke */}
+    </>
+  )
+}
+
+// Handler
+const rotateKey = async (id: string) => {
+  const res = await fetch(`/api/keys/rotate/${id}`, { method: 'POST' });
+  const data = await res.json();
+  // Refresh list, copy new key
+  message.success(`New key generated: ${data.newKey.key}`);
+};
+```
+
+**Test**: Generate key → check `/api/keys/expiring` → rotate → verify dual active for 7 days.
+
+---
+
+### **Priority 2: Usage-Based Rate Limiting per Key**
+
+#### 2.1: Enhanced Schema (already in Priority 1 above)
+
+The `limits` jsonb is there.
+
+#### 2.2: Rate Limiting Middleware (`server/middleware/rate-limit.middleware.ts`)
+
+New/updated file (extend your existing one).
+
+```ts
+// server/middleware/rate-limit.middleware.ts
+import { rateLimit } from 'express-rate-limit';
+import { Request, Response, NextFunction } from 'express';
+import { db } from '../db';
+import { apiKeys } from '../db/schema';
+import { eq } from 'drizzle-orm';
+
+// Dynamic per-key limiter factory
+export const createKeyLimiter = () => rateLimit({
+  windowMs: 60 * 1000,  // 1 min
+  max: (req: Request) => {
+    const key = (req as any).apiKey;  // From apiKeyAuth
+    return key?.limits?.rpm || 100;  // Default
+  },
+  keyGenerator: (req: Request) => {
+    const key = (req as any).apiKey;
+    return key?.id || req.ip;  // Fallback to IP if no key (legacy)
+  },
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({ 
+      error: 'Rate limit exceeded for this API key',
+      retryAfter: Math.ceil((req as any).rateLimit.resetTime - Date.now()) / 1000 
+    });
+  },
+  skip: (req: Request) => {
+    // Skip for admin dashboard or internal
+    return req.path.startsWith('/api/keys') || (req as any).apiKey?.scopes.includes('admin:*');
+  },
+});
+
+// Daily global fallback (optional)
+export const dailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: (req: Request) => (req as any).apiKey?.limits?.daily || 5000,
+  keyGenerator: (req: Request) => (req as any).apiKey?.id || req.ip,
+});
+```
+
+#### 2.3: Wire to API Routes (`server/salvi-core/index.ts` or router)
+
+```ts
+// After apiKeyAuth middleware
+import { createKeyLimiter, dailyLimiter } from '../middleware/rate-limit.middleware';
+
+// Apply to all salvi routes (after auth)
+const salviRouter = Router();
+salviRouter.use(createKeyLimiter());  // Per-key RPM
+salviRouter.use(dailyLimiter);        // Per-key daily
+
+// Then mount: app.use('/api/salvi', apiKeyAuth(), salviRouter);  // Order: auth first
+```
+
+#### 2.4: Dashboard Stats Cards (in `/api-keys`)
+
+Add to React component:
+
+```tsx
+// In Keys.tsx stats section
+const [keyStats, setKeyStats] = useState({});
+
+useEffect(() => {
+  fetch('/api/keys/stats').then(r => r.json()).then(setKeyStats);
+}, []);
+
+// Cards
+<div>
+  <Card title="RPM Limit">
+    {currentKey.limits.rpm} requests/min
+  </Card>
+  <Card title="Daily Limit">
+    {currentKey.limits.daily} requests/day
+  </Card>
+</div>
+```
+
+#### 2.5: Update Validation to Load Limits (`apiKeyService.validate`)
+
+```ts
+// In validate()
+const [keyRecord] = await db.select({
+  ...apiKeys,  // or specific
+  limits: apiKeys.limits,
+}).from(apiKeys).where(eq(apiKeys.keyHash, computedHash));
+
+if (keyRecord) {
+  // Attach limits to result
+  return { ..., limits: keyRecord.limits };
+}
+```
+
+**Test**: Set a key to `{ tier: 'research', rpm: 5 }` → hit endpoint 6x/min → 429.
+
+---
+
+### **Deployment & Next Steps**
+
+1. **Push & Migrate**: Commit all → Replit auto-deploys → run migration in console.
+2. **Verify**:
+   - `/api/keys` dashboard shows rotation buttons/stats.
+   - New key → auto-schedules rotation.
+   - Scoped request → respects per-key RPM.
+3. **CI Impact**: No changes (formal CI unaffected).
+4. **Security Tie-In**: Rotations can be bound to Noether/HPTP for extra tamper-proofing.
+
+This keeps everything audit-compliant (constant-time, indexed, scoped). Total ~150 LOC.
+
+If you hit any schema errors or want tests for these, paste the error/output. Next priorities? (e.g., HPTP binding)

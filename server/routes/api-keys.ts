@@ -13,14 +13,26 @@ import { createLogger } from "../logger";
 
 const log = createLogger("api-keys");
 
+const RATE_LIMIT_TIERS: Record<string, number> = {
+  research: 100,
+  pro: 500,
+  admin: 2000,
+};
+
 const generateKeySchema = z.object({
   name: z.string().min(1).max(255),
   scopes: z.array(z.string()).min(1),
   expiresDays: z.number().int().min(0).max(3650).default(90),
+  rateLimitTier: z.enum(["research", "pro", "admin"]).default("research"),
+  enableRotation: z.boolean().default(true),
 });
 
 const revokeKeySchema = z.object({
   id: z.string().uuid(),
+});
+
+const updateRateLimitSchema = z.object({
+  tier: z.enum(["research", "pro", "admin"]),
 });
 
 export function registerApiKeyRoutes(app: Router, storage: IStorage) {
@@ -37,7 +49,7 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
 
-      const { name, scopes, expiresDays } = parsed.data;
+      const { name, scopes, expiresDays, rateLimitTier, enableRotation } = parsed.data;
 
       const invalidScopes = scopes.filter(
         (s) => !(AVAILABLE_SCOPES as readonly string[]).includes(s)
@@ -51,9 +63,16 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
       }
 
       const owner = req.adminUser?.email || req.adminUser?.id || "admin";
+      const rpm = RATE_LIMIT_TIERS[rateLimitTier] || 100;
       const keyData = await apiKeyService.generate(owner, name, scopes, expiresDays);
 
-      log.info(`API key generated: ${keyData.keyPrefix}*** for ${owner} (${name})`);
+      await apiKeyService.updateRateLimit(keyData.id, rateLimitTier, rpm);
+
+      if (enableRotation && expiresDays > 0) {
+        await apiKeyService.scheduleRotation(keyData.id, expiresDays);
+      }
+
+      log.info(`API key generated: ${keyData.keyPrefix}*** for ${owner} (${name}) [${rateLimitTier}/${rpm}rpm]`);
 
       res.json({
         success: true,
@@ -64,6 +83,8 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
         scopes: keyData.scopes,
         expiresAt: keyData.expiresAt,
         createdAt: keyData.createdAt,
+        rateLimitTier,
+        rateLimitRpm: rpm,
         warning: "Store this key securely. It will not be shown again.",
       });
     } catch (err: any) {
@@ -123,6 +144,61 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
       log.error("Key logs error:", err);
       res.status(500).json({ error: "Failed to get logs" });
     }
+  });
+
+  app.post("/api/keys/rotate/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const result = await apiKeyService.rotateKey(id);
+      log.info(`API key rotated: ${id} by ${req.adminUser?.email || "admin"}`);
+      res.json({
+        success: true,
+        newKey: result.newKey.key,
+        newKeyId: result.newKey.id,
+        newKeyPrefix: result.newKey.keyPrefix,
+        oldKeyId: result.oldKeyId,
+        graceEnds: result.graceEnds,
+        warning: "Store the new key securely. Old key remains valid for 7 days.",
+      });
+    } catch (err: any) {
+      log.error("Key rotation error:", err);
+      res.status(400).json({ error: err.message || "Failed to rotate key" });
+    }
+  });
+
+  app.get("/api/keys/expiring", requireAdmin, async (req: any, res) => {
+    try {
+      const days = Math.min(parseInt(req.query.days || "14", 10), 90);
+      const keys = await apiKeyService.getExpiringKeys(days);
+      res.json({ success: true, keys, withinDays: days });
+    } catch (err: any) {
+      log.error("Expiring keys error:", err);
+      res.status(500).json({ error: "Failed to get expiring keys" });
+    }
+  });
+
+  app.patch("/api/keys/:id/rate-limit", requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parsed = updateRateLimitSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+      const rpm = RATE_LIMIT_TIERS[parsed.data.tier] || 100;
+      const result = await apiKeyService.updateRateLimit(id, parsed.data.tier, rpm);
+      if (!result) {
+        return res.status(404).json({ error: "Key not found" });
+      }
+      log.info(`Rate limit updated for key ${id}: ${parsed.data.tier} (${rpm} rpm)`);
+      res.json({ success: true, tier: parsed.data.tier, rpm });
+    } catch (err: any) {
+      log.error("Rate limit update error:", err);
+      res.status(500).json({ error: "Failed to update rate limit" });
+    }
+  });
+
+  app.get("/api/keys/rate-limit-tiers", (_req, res) => {
+    res.json({ tiers: RATE_LIMIT_TIERS });
   });
 
   app.get("/api/keys/validate-external", async (req, res) => {
