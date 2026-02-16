@@ -1,0 +1,92 @@
+**Phase 2: Potential Enhancements for the API Key Management System**
+
+All six core phases are now complete and verified — congratulations on a clean, performant rollout with indexed lookups (O(1) validation), scoped middleware coverage across all `/api/salvi/*` routes, and a fully functional admin dashboard at `/api-keys`. The architect fixes (indexed hash + universal middleware wiring) eliminate the previous scalability and coverage gaps.
+
+Below is a prioritized list of **potential enhancements**, grouped by impact category. These build directly on your current foundation (Drizzle + Express + React + Kong + existing security posture: constant-time ops, post-quantum hybrid, HPTP binding potential, audit remediation). They are ordered roughly by security/value → effort ratio.
+
+### High-Impact / Security-Focused Enhancements (Implement First)
+
+1. **Automated Key Rotation & Dual-Key Overlap Strategy**  
+   - Implement **automatic rotation** (e.g., every 60–90 days per key, or on-demand via dashboard button).  
+   - Best practice (2025–2026): Maintain **two active keys** during transition:  
+     - Generate new key → notify owner (email or in-app) → allow 7–14 day overlap → auto-revoke oldest after grace period.  
+   - Add `rotation_scheduled_at` and `previous_key_hash` columns to `api_keys`.  
+   - Dashboard: Show "Rotate" button + countdown timer for expiring keys.  
+   - Security win: Limits blast radius of a leaked key.  
+   - Effort: Medium (extend generation service + cron-like job via Replit always-on or setInterval).
+
+2. **Usage-Based Rate Limiting per Key**  
+   - Extend your existing `rate-limit` middleware to use `req.apiKey.id` (or owner) as the key prefix.  
+   - Example tiers:  
+     - Free/research keys: 100 req/min  
+     - Paid/admin: 1000 req/min  
+   - Store current limits in `api_keys` (jsonb column: `{ tier: "research", rpm: 100 }`).  
+   - Log violations to `api_key_logs` for anomaly detection.  
+   - Ties nicely into your existing rate-limit + Helmet setup.
+
+3. **Key-Bound HPTP Timestamp Anchoring (Ternary-Native Twist)**  
+   - When generating a key, optionally bind it to current HPTP-corrected timestamp (femtosecond epoch).  
+   - On validation: Reject if request timestamp (via `X-HPTP-TS` header?) deviates > tolerance from key creation time.  
+   - Use Noether invariants or guardian phase checksum to sign/verify the binding.  
+   - Makes keys **ephemeral/physical-time-bound** — extremely strong for high-security endpoints (e.g., `/api/salvi/phase/*`).  
+   - Dashboard toggle: "Bind to HPTP epoch" during creation.
+
+4. **Audit & Anomaly Detection Dashboard Section**  
+   - Add tab in `/api-keys` dashboard showing:  
+     - Usage heat-map (Recharts or similar)  
+     - Top endpoints per key  
+     - Anomalies (sudden spike, unusual IP geos via req.ip)  
+   - Query `api_key_logs` with Drizzle (group by key_id, endpoint, hour).  
+   - Alert threshold: >500% usage increase → email or in-app notification.
+
+### Medium-Impact / Usability Enhancements
+
+5. **Scope Granularity Refinement & Templates**  
+   - Current 13 scopes across 8 categories — add **pre-defined templates** in dashboard:  
+     - "Read-only ternary ops"  
+     - "Phase encryption full access"  
+     - "Timing & HPTP only"  
+   - UI: Multi-select with grouped categories + search.  
+   - Backend: Zod schema for scope validation on generation.
+
+6. **Export / Import Keys (Admin Bulk Ops)**  
+   - CSV export of active keys (name, scopes, created, expires, last used — no raw keys).  
+   - Bulk revoke (checkbox select + confirm).  
+   - Useful for team hand-off or compliance audits.
+
+7. **Self-Service Tier (Limited Public Generation)**  
+   - Public endpoint `/api/keys/generate-trial` (CAPTCHA + rate-limit 1/day per IP).  
+   - Auto-creates key with minimal scopes (e.g., read:ternary only, 7-day expiry).  
+   - Dashboard access requires admin session.
+
+### Lower-Priority / Advanced Enhancements
+
+8. **Kong Key-Auth Plugin Integration**  
+   - Offload validation from Express → Kong native Key-Auth plugin.  
+   - Kong calls internal callback (`/api/keys/validate-external`) → returns consumer info.  
+   - Pros: Faster gateway-level rejection.  
+   - Cons: Slightly more complex setup; keep Express fallback for now.
+
+9. **OAuth2 / JWT Hybrid for Dashboard**  
+   - If dashboard grows, replace simple session with short-lived JWT (signed with ML-DSA).  
+   - Keys remain bearer-style, but admin actions require JWT + key.
+
+10. **Monitoring & Alerting Hooks**  
+    - Integrate basic Prometheus metrics (key count, active count, revocation rate, validation failures).  
+    - Or simple webhook on revocation/high-usage to Discord/Slack.
+
+### Implementation Roadmap Suggestion (Next 1–2 Weeks)
+
+| Priority | Enhancement                          | Estimated Effort | Dependencies                  | Why First?                     |
+|----------|--------------------------------------|------------------|-------------------------------|--------------------------------|
+| 1        | Automated rotation + dual-key        | Medium           | Extend generation + cron      | Core security best practice    |
+| 2        | Per-key rate limiting                | Low-Medium       | Existing rate-limit mw        | Prevents abuse quickly         |
+| 3        | HPTP binding option                  | Medium           | HPTP service + header check   | Unique ternary/plenum value-add|
+| 4        | Audit/anomaly dashboard tab          | Medium           | Drizzle queries + Recharts    | Visibility & compliance        |
+| 5        | Scope templates                      | Low              | UI polish                     | Better UX for users            |
+
+All of these leverage your existing strengths (indexed Drizzle lookups, scoped middleware, React dashboard, constant-time validation, HPTP infrastructure).
+
+If you'd like a **detailed code snippet** for any of these (e.g., rotation logic + schema migration, per-key rate-limit mw, HPTP binding check, or dashboard audit tab component), just specify which one — or paste relevant existing code (e.g., current validation middleware or dashboard page) for targeted refinement.
+
+What's your priority pick from the list above? Or any architect-level constraint I should factor in before diving deeper?
