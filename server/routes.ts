@@ -105,7 +105,7 @@ export async function registerRoutes(
 
   const { requireApiKey } = await import("./routes/middleware");
 
-  app.get("/api/v1/verify", requireApiKey, (_req: any, res: any) => {
+  app.get("/api/verify", requireApiKey, (_req: any, res: any) => {
     res.json({
       status: "authenticated",
       service: "PlenumNET",
