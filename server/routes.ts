@@ -40,8 +40,18 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { createLogger, toErrorMessage } from "./logger";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-
 const log = createLogger("routes");
+
+const GIT_COMMIT_HASH = process.env.GIT_COMMIT || (() => {
+  try {
+    const { execFileSync } = require("child_process");
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf-8", timeout: 3000 }).trim();
+  } catch {
+    return "unknown";
+  }
+})();
+
+const SERVER_START_TIME = Date.now();
 
 const demoRunSchema = z.object({
   datasetName: z.enum(["sensor", "events", "logs"]),
@@ -84,6 +94,8 @@ export async function registerRoutes(
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       version: "1.0.0",
+      commit: GIT_COMMIT_HASH,
+      startedAt: new Date(SERVER_START_TIME).toISOString(),
       services: {
         database: dbStatus,
         server: "running"
