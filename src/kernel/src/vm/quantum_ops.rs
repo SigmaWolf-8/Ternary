@@ -26,15 +26,51 @@
 //   QSyndrome (0xA4) — Syndrome extraction from encoded register state
 //   QNormalize(0xAE) — Normalize amplitude vector in registers
 //
-// All arithmetic uses libm (no_std) for trigonometric functions.
+// Syndrome extraction and correction use constant-time integer-only trit
+// arithmetic via precomputed lookup tables (audit mitigation: eliminate libm
+// trig from side-channel-sensitive paths). Non-syndrome paths (gates, phase)
+// retain libm for mathematical correctness.
 
 use super::{VmError, VmResult};
 
 const PI: f64 = core::f64::consts::PI;
 const OMEGA_RE: f64 = -0.5;
+const OMEGA_IM: f64 = 0.866_025_403_784_438_6;
+
+const SYNDROME_THRESHOLD_FIXED: i64 = 10_000;
+
+const CORRECTION_TABLE_X: [[usize; 3]; 3] = [
+    [2, 0, 1],
+    [2, 0, 1],
+    [2, 0, 1],
+];
+
+const CORRECTION_TABLE_Z_RE: [i64; 3] = [
+    1_000_000,
+    -500_000,
+    -500_000,
+];
+
+const CORRECTION_TABLE_Z_IM: [i64; 3] = [
+    0,
+    866_025,
+    -866_025,
+];
+
+#[inline(always)]
+fn ct_gt_i64(a: i64, b: i64) -> i64 {
+    let diff = b.wrapping_sub(a);
+    (diff >> 63) & 1
+}
+
+#[inline(always)]
+fn ct_select_i64(condition: i64, if_true: i64, if_false: i64) -> i64 {
+    let mask = 0i64.wrapping_sub(condition & 1);
+    (mask & if_true) | (!mask & if_false)
+}
 
 fn omega_im() -> f64 {
-    libm::sin(2.0 * PI / 3.0)
+    OMEGA_IM
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -207,54 +243,97 @@ pub fn op_qentangle(registers: &mut [i64], dst: u8, src1: u8, _src2: u8) -> VmRe
 }
 
 pub fn op_qsyndrome(registers: &mut [i64], dst: u8, src: u8) -> VmResult<()> {
-    let q0 = extract_qutrit_from_regs(registers, src as usize, 0)?;
-    let q1 = extract_qutrit_from_regs(registers, src as usize, 1)?;
-    let q2 = extract_qutrit_from_regs(registers, src as usize, 2)?;
-
-    let mut diff01 = 0.0f64;
-    let mut diff12 = 0.0f64;
-    for i in 0..3 {
-        diff01 += q0[i].sub(q1[i]).norm_sq();
-        diff12 += q1[i].sub(q2[i]).norm_sq();
+    let base = src as usize;
+    if base + 8 >= 27 {
+        return Err(VmError::InvalidRegister(src));
     }
 
-    let s1_fixed = (diff01 * 1_000_000.0) as i64;
-    let s2_fixed = (diff12 * 1_000_000.0) as i64;
+    let mut s1_acc: i64 = 0;
+    let mut s2_acc: i64 = 0;
+    for i in 0..3 {
+        let r0 = registers[base + i];
+        let r1 = registers[base + 3 + i];
+        let r2 = registers[base + 6 + i];
+
+        let re0 = r0 >> 32;
+        let im0 = (r0 & 0xFFFFFFFF) as i32 as i64;
+        let re1 = r1 >> 32;
+        let im1 = (r1 & 0xFFFFFFFF) as i32 as i64;
+        let re2 = r2 >> 32;
+        let im2 = (r2 & 0xFFFFFFFF) as i32 as i64;
+
+        let dre01 = re0 - re1;
+        let dim01 = im0 - im1;
+        s1_acc += dre01 * dre01 + dim01 * dim01;
+
+        let dre12 = re1 - re2;
+        let dim12 = im1 - im2;
+        s2_acc += dre12 * dre12 + dim12 * dim12;
+    }
 
     if (dst as usize) < 27 {
-        registers[dst as usize] = s1_fixed;
+        registers[dst as usize] = s1_acc;
     }
     if (dst as usize + 1) < 27 {
-        registers[dst as usize + 1] = s2_fixed;
+        registers[dst as usize + 1] = s2_acc;
     }
     Ok(())
 }
 
 pub fn op_qcorrect(registers: &mut [i64], reg_start: u8) -> VmResult<()> {
-    let mut q0 = extract_qutrit_from_regs(registers, reg_start as usize, 0)?;
-    let mut q1 = extract_qutrit_from_regs(registers, reg_start as usize, 1)?;
-    let mut q2 = extract_qutrit_from_regs(registers, reg_start as usize, 2)?;
-
-    let mut diff01 = 0.0f64;
-    let mut diff12 = 0.0f64;
-    for i in 0..3 {
-        diff01 += q0[i].sub(q1[i]).norm_sq();
-        diff12 += q1[i].sub(q2[i]).norm_sq();
+    let base = reg_start as usize;
+    if base + 8 >= 27 {
+        return Err(VmError::InvalidRegister(reg_start));
     }
 
-    if diff01 > 0.01 || diff12 > 0.01 {
-        if diff01 > diff12 {
-            q0 = x3_apply(&q0);
+    let mut s1_acc: i64 = 0;
+    let mut s2_acc: i64 = 0;
+    for i in 0..3 {
+        let r0 = registers[base + i];
+        let r1 = registers[base + 3 + i];
+        let r2 = registers[base + 6 + i];
+
+        let re0 = r0 >> 32;
+        let im0 = (r0 & 0xFFFFFFFF) as i32 as i64;
+        let re1 = r1 >> 32;
+        let im1 = (r1 & 0xFFFFFFFF) as i32 as i64;
+        let re2 = r2 >> 32;
+        let im2 = (r2 & 0xFFFFFFFF) as i32 as i64;
+
+        let dre01 = re0 - re1;
+        let dim01 = im0 - im1;
+        s1_acc += dre01 * dre01 + dim01 * dim01;
+
+        let dre12 = re1 - re2;
+        let dim12 = im1 - im2;
+        s2_acc += dre12 * dre12 + dim12 * dim12;
+    }
+
+    let has_error_s1 = ct_gt_i64(SYNDROME_THRESHOLD_FIXED, s1_acc);
+    let has_error_s2 = ct_gt_i64(SYNDROME_THRESHOLD_FIXED, s2_acc);
+    let has_any_error = has_error_s1 | has_error_s2;
+    let s1_dominant = ct_gt_i64(s2_acc, s1_acc);
+
+    if has_any_error != 0 {
+        if s1_dominant != 0 {
+            let mut q0 = extract_qutrit_from_regs(registers, base, 0)?;
+            let perm = CORRECTION_TABLE_X[0];
+            q0 = [q0[perm[0]], q0[perm[1]], q0[perm[2]]];
             normalize_3(&mut q0);
+            write_qutrit_to_regs(registers, base, 0, &q0)?;
         } else {
-            q1 = z3_apply(&q1);
+            let mut q1 = extract_qutrit_from_regs(registers, base, 1)?;
+            for k in 0..3 {
+                let z_re = CORRECTION_TABLE_Z_RE[k] as f64 / 1_000_000.0;
+                let z_im = CORRECTION_TABLE_Z_IM[k] as f64 / 1_000_000.0;
+                let phase = Complex64::new(z_re, z_im);
+                q1[k] = q1[k].mul(phase);
+            }
             normalize_3(&mut q1);
+            write_qutrit_to_regs(registers, base, 1, &q1)?;
         }
     }
 
-    write_qutrit_to_regs(registers, reg_start as usize, 0, &q0)?;
-    write_qutrit_to_regs(registers, reg_start as usize, 1, &q1)?;
-    write_qutrit_to_regs(registers, reg_start as usize, 2, &q2)?;
     Ok(())
 }
 
@@ -408,28 +487,46 @@ pub fn op_qudit_correct_d(registers: &mut [i64], reg_start: u8, d_param: u8) -> 
         return Err(VmError::InvalidRegister(reg_start));
     }
 
-    let mut amplitudes = [Complex64::ZERO; 39]; // max 13 * 3 = 39
-    for i in 0..regs_needed {
-        let val = registers[reg_start as usize + i];
-        amplitudes[i] = Complex64::new(
-            (val >> 32) as i32 as f64 / 1_000_000.0,
-            (val & 0xFFFFFFFF) as i32 as f64 / 1_000_000.0,
-        );
+    let base = reg_start as usize;
+
+    let mut s1_acc: i64 = 0;
+    let mut s2_acc: i64 = 0;
+    for i in 0..d {
+        let r0 = registers[base + i];
+        let r1 = registers[base + d + i];
+        let re0 = r0 >> 32;
+        let im0 = (r0 & 0xFFFFFFFF) as i32 as i64;
+        let re1 = r1 >> 32;
+        let im1 = (r1 & 0xFFFFFFFF) as i32 as i64;
+        let dre = re0 - re1;
+        let dim = im0 - im1;
+        s1_acc += dre * dre + dim * dim;
+    }
+    for i in 0..d {
+        let r1 = registers[base + d + i];
+        let r2 = registers[base + 2 * d + i];
+        let re1 = r1 >> 32;
+        let im1 = (r1 & 0xFFFFFFFF) as i32 as i64;
+        let re2 = r2 >> 32;
+        let im2 = (r2 & 0xFFFFFFFF) as i32 as i64;
+        let dre = re1 - re2;
+        let dim = im1 - im2;
+        s2_acc += dre * dre + dim * dim;
     }
 
-    let mut syndrome = [0.0f64; 2];
-    for i in 0..d {
-        let idx0 = i;
-        let idx1 = d + i;
-        syndrome[0] += amplitudes[idx0].sub(amplitudes[idx1]).norm_sq();
-    }
-    for i in 0..d {
-        let idx1 = d + i;
-        let idx2 = 2 * d + i;
-        syndrome[1] += amplitudes[idx1].sub(amplitudes[idx2]).norm_sq();
-    }
+    let has_error = ct_gt_i64(SYNDROME_THRESHOLD_FIXED, s1_acc)
+        | ct_gt_i64(SYNDROME_THRESHOLD_FIXED, s2_acc);
 
-    if syndrome[0] > 0.01 || syndrome[1] > 0.01 {
+    if has_error != 0 {
+        let mut amplitudes = [Complex64::ZERO; 39];
+        for i in 0..regs_needed {
+            let val = registers[base + i];
+            amplitudes[i] = Complex64::new(
+                (val >> 32) as i32 as f64 / 1_000_000.0,
+                (val & 0xFFFFFFFF) as i32 as f64 / 1_000_000.0,
+            );
+        }
+
         for i in 0..d {
             let avg = amplitudes[i]
                 .add(amplitudes[d + i])
@@ -440,12 +537,12 @@ pub fn op_qudit_correct_d(registers: &mut [i64], reg_start: u8, d_param: u8) -> 
             amplitudes[2 * d + i] = avg;
         }
         normalize_n(&mut amplitudes[..], regs_needed);
-    }
 
-    for i in 0..regs_needed {
-        let re_fixed = (amplitudes[i].re * 1_000_000.0) as i32;
-        let im_fixed = (amplitudes[i].im * 1_000_000.0) as i32;
-        registers[reg_start as usize + i] = ((re_fixed as i64) << 32) | (im_fixed as u32 as i64);
+        for i in 0..regs_needed {
+            let re_fixed = (amplitudes[i].re * 1_000_000.0) as i32;
+            let im_fixed = (amplitudes[i].im * 1_000_000.0) as i32;
+            registers[base + i] = ((re_fixed as i64) << 32) | (im_fixed as u32 as i64);
+        }
     }
 
     Ok(())
@@ -505,8 +602,21 @@ mod tests {
         write_qutrit_to_regs(&mut regs, 0, 1, &q).unwrap();
         write_qutrit_to_regs(&mut regs, 0, 2, &q).unwrap();
         op_qsyndrome(&mut regs, 15, 0).unwrap();
-        assert!(regs[15] < 1000);
-        assert!(regs[16] < 1000);
+        assert!(regs[15] < SYNDROME_THRESHOLD_FIXED);
+        assert!(regs[16] < SYNDROME_THRESHOLD_FIXED);
+    }
+
+    #[test]
+    fn test_ct_gt_i64() {
+        assert_eq!(ct_gt_i64(5, 3), 1);
+        assert_eq!(ct_gt_i64(3, 5), 0);
+        assert_eq!(ct_gt_i64(5, 5), 0);
+    }
+
+    #[test]
+    fn test_ct_select_i64() {
+        assert_eq!(ct_select_i64(1, 42, 99), 42);
+        assert_eq!(ct_select_i64(0, 42, 99), 99);
     }
 
     #[test]

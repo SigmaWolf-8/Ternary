@@ -25,11 +25,59 @@
 //
 // This is real-time operational code — not a simulation.
 
+use alloc::vec::Vec;
+use crate::crypto::hmac::ternary_hmac_bytes;
+use crate::crypto::hmac::verify_hmac_bytes;
+use crate::crypto::TernaryDigest;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JitterCorrectionResult {
     pub corrections_applied: u64,
     pub timestamps_processed: u64,
     pub max_deviation_fs: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HmacVerifyError {
+    MacMismatch,
+    KeyTooShort,
+}
+
+pub fn hmac_sign_timestamps(key: &[u8], timestamps: &[i64]) -> TernaryDigest {
+    let mut msg = Vec::with_capacity(timestamps.len() * 8);
+    for ts in timestamps {
+        msg.extend_from_slice(&ts.to_be_bytes());
+    }
+    ternary_hmac_bytes(key, &msg)
+}
+
+pub fn hmac_verify_timestamps(
+    key: &[u8],
+    timestamps: &[i64],
+    expected_mac: &TernaryDigest,
+) -> Result<(), HmacVerifyError> {
+    if key.len() < 16 {
+        return Err(HmacVerifyError::KeyTooShort);
+    }
+    let mut msg = Vec::with_capacity(timestamps.len() * 8);
+    for ts in timestamps {
+        msg.extend_from_slice(&ts.to_be_bytes());
+    }
+    if verify_hmac_bytes(key, &msg, expected_mac) {
+        Ok(())
+    } else {
+        Err(HmacVerifyError::MacMismatch)
+    }
+}
+
+pub fn correct_hptp_jitter_authenticated(
+    timestamps: &mut [i64],
+    threshold: f64,
+    key: &[u8],
+    expected_mac: &TernaryDigest,
+) -> Result<JitterCorrectionResult, HmacVerifyError> {
+    hmac_verify_timestamps(key, timestamps, expected_mac)?;
+    Ok(correct_hptp_jitter_with_qudit(timestamps, threshold))
 }
 
 pub fn correct_hptp_jitter_with_qudit(
@@ -235,6 +283,52 @@ mod tests {
     fn test_negative_timestamps() {
         let mut timestamps = [-1000i64, -1000, -5000];
         let result = correct_hptp_jitter_with_qudit(&mut timestamps, 0.1);
+        assert!(result.corrections_applied > 0);
+    }
+
+    #[test]
+    fn test_hmac_sign_and_verify() {
+        let key = b"test_key_for_hptp_1234567890ab";
+        let timestamps = [1000i64, 2000, 3000];
+        let mac = hmac_sign_timestamps(key, &timestamps);
+        assert!(hmac_verify_timestamps(key, &timestamps, &mac).is_ok());
+    }
+
+    #[test]
+    fn test_hmac_verify_wrong_key() {
+        let key = b"test_key_for_hptp_1234567890ab";
+        let timestamps = [1000i64, 2000, 3000];
+        let mac = hmac_sign_timestamps(key, &timestamps);
+        let wrong_key = b"wrong_key_xxxxxxxxxxxxxxxx";
+        assert!(hmac_verify_timestamps(wrong_key, &timestamps, &mac).is_err());
+    }
+
+    #[test]
+    fn test_hmac_verify_tampered_data() {
+        let key = b"test_key_for_hptp_1234567890ab";
+        let timestamps = [1000i64, 2000, 3000];
+        let mac = hmac_sign_timestamps(key, &timestamps);
+        let tampered = [1000i64, 2000, 9999];
+        assert!(hmac_verify_timestamps(key, &tampered, &mac).is_err());
+    }
+
+    #[test]
+    fn test_hmac_key_too_short() {
+        let short_key = b"short";
+        let timestamps = [1000i64, 2000, 3000];
+        let mac = hmac_sign_timestamps(b"test_key_for_hptp_1234567890ab", &timestamps);
+        assert_eq!(
+            hmac_verify_timestamps(short_key, &timestamps, &mac),
+            Err(HmacVerifyError::KeyTooShort)
+        );
+    }
+
+    #[test]
+    fn test_authenticated_jitter_correction() {
+        let key = b"authenticated_hptp_key_here!!";
+        let mut timestamps = [1000i64, 1000, 5000];
+        let mac = hmac_sign_timestamps(key, &timestamps);
+        let result = correct_hptp_jitter_authenticated(&mut timestamps, 0.1, key, &mac).unwrap();
         assert!(result.corrections_applied > 0);
     }
 }
