@@ -1,0 +1,49 @@
+# =============================================================================
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Applied Physics Division — Patent(s) Pending
+#
+# XPLENUM — RISC-V Ternary Security Extension
+# SymbiYosys K-Induction Configuration (Deep Proofs)
+#
+# Targets critical security paths: guardian stability, CSR isolation,
+# HPTP monotonicity, data-flow isolation, trit encoding invariants.
+# Uses dual-engine strategy (SMT + PDR) for stronger convergence.
+# =============================================================================
+
+[tasks]
+induct_smt    # SMT-based k-induction (Boolector, good for arithmetic)
+induct_pdr    # Property-directed reachability (ABC, good for state machines)
+
+[options]
+induct_smt: mode prove
+induct_smt: depth 50
+
+induct_pdr: mode prove
+induct_pdr: depth 60
+
+timeout 1800
+
+[engines]
+induct_smt: smtbmc boolector --unroll
+induct_pdr: abc pdr
+
+[script]
+read -formal -DFORMAL -DINDUCTION ../xplenum_pkg.vh
+read -formal -DFORMAL -DINDUCTION ../xplenum_mask_unit.v
+read -formal -DFORMAL -DINDUCTION ../xplenum_domain_unit.v
+read -formal -DFORMAL -DINDUCTION ../xplenum_cap_unit.v
+read -formal -DFORMAL -DINDUCTION ../xplenum_trit_unit.v
+read -formal -DFORMAL -DINDUCTION ../xplenum_top.v
+read -formal -DFORMAL -DINDUCTION xplenum_formal_props.v
+read -formal -DFORMAL -DINDUCTION xplenum_induction_helpers.v
+prep -top xplenum_top
+
+[files]
+../xplenum_pkg.vh
+../xplenum_mask_unit.v
+../xplenum_domain_unit.v
+../xplenum_cap_unit.v
+../xplenum_trit_unit.v
+../xplenum_top.v
+xplenum_formal_props.v
+xplenum_induction_helpers.v

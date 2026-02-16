@@ -132,11 +132,24 @@ Verify all CSRs, outputs, and exception signals are zeroed after reset.
 
 ## Formal Status
 
-| Mode    | Depth | Sections Covered          | CI Job       | Status     |
-|---------|-------|---------------------------|--------------|------------|
-| BMC     | 20    | All (P1–P16, C12, C17)    | formal-bmc   | Automated  |
-| Cover   | 20    | C12.1–C12.6, C17.1–C17.4  | formal-cover | Automated  |
-| Prove   | 20    | All (P1–P16)              | Manual       | Pending    |
+| Mode         | Depth | Engine          | Sections Covered             | CI Job            | Status     |
+|--------------|-------|-----------------|------------------------------|-------------------|------------|
+| BMC          | 30    | Boolector       | All (P1–P16, C12, C17)       | formal-bmc        | Automated  |
+| Cover        | 30    | Boolector       | C12.1–C12.6, C17.1–C17.4    | formal-cover      | Automated  |
+| Prove (SMT)  | 50    | Boolector       | All + Induction Helpers IA–IG| formal-induction  | Automated  |
+| Prove (PDR)  | 60    | ABC PDR         | All + Induction Helpers IA–IG| formal-induction  | Automated  |
+
+### Induction Helper Sections (xplenum_induction_helpers.v)
+
+| Section | Focus                      | Properties |
+|---------|----------------------------|------------|
+| IA      | Reset stability            | No glitch re-entry after deassert |
+| IB      | Guardian checksum          | Well-formed when valid, validity tracking |
+| IC      | CSR state machine          | Single-cycle write-enable, valid address range |
+| ID      | HPTP counter               | Wrap-with-overflow, bounded jitter delta |
+| IE      | Trit encoding preservation | Cross-cycle validity, ALU output validity |
+| IF      | Subunit mutual exclusion   | Single-hot dispatch, bounded latency |
+| IG      | Data-flow isolation        | QCorrect tag tracking, no stale ternary data |
 
 ## 4. Progressive Verification Strategy
 
@@ -186,11 +199,13 @@ assert(post_jitter_timestamp >= pre_jitter_timestamp);
 
 ```
 rtl/formal/
-  xplenum_formal.sby         # SymbiYosys configuration (3 tasks: bmc/prove/cover)
-  xplenum_formal_props.v     # 17 sections, 40+ assertions, 10 cover properties
+  xplenum_formal.sby              # SymbiYosys config (3 tasks: bmc/prove/cover)
+  xplenum_formal_induction.sby    # Induction config (dual-engine: SMT + PDR)
+  xplenum_formal_props.v          # 17 sections, 40+ assertions, 10 cover properties
+  xplenum_induction_helpers.v     # 7 sections (IA–IG), induction-strengthened invariants
 
 .github/workflows/
-  formal-verification.yml    # CI: parallel BMC + Cover jobs, OSS CAD Suite cached
+  formal-verification.yml         # CI: BMC + Cover + Induction (3 parallel jobs)
 ```
 
 ## 9. References

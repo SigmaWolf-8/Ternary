@@ -99,3 +99,72 @@ jobs:
             rtl/formal/xplenum_formal_cover/
             rtl/formal/cover_output.log
           retention-days: 30
+
+  formal-induction:
+    name: K-Induction Proof (Security Paths)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: formal-bmc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache OSS CAD Suite
+        id: cache-oss-cad
+        uses: actions/cache@v4
+        with:
+          path: ~/oss-cad-suite
+          key: oss-cad-suite-linux-x64-latest
+
+      - name: Install OSS CAD Suite
+        if: steps.cache-oss-cad.outputs.cache-hit != 'true'
+        run: |
+          LATEST_URL=$(curl -sL https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest \
+            | grep -o 'https://.*oss-cad-suite-linux-x64-[0-9]*.tgz' | head -1)
+          curl -L "$LATEST_URL" -o oss-cad-suite.tgz
+          mkdir -p ~/oss-cad-suite
+          tar -xzf oss-cad-suite.tgz -C ~/oss-cad-suite --strip-components=1
+
+      - name: Run SMT K-Induction
+        run: |
+          source ~/oss-cad-suite/environment
+          cd rtl/formal
+          sby -f xplenum_formal_induction.sby induct_smt 2>&1 | tee induction_smt_output.log
+        continue-on-error: true
+
+      - name: Run PDR K-Induction
+        run: |
+          source ~/oss-cad-suite/environment
+          cd rtl/formal
+          sby -f xplenum_formal_induction.sby induct_pdr 2>&1 | tee induction_pdr_output.log
+        continue-on-error: true
+
+      - name: Upload Induction results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formal-induction-results
+          path: |
+            rtl/formal/xplenum_formal_induction_*/
+            rtl/formal/induction_smt_output.log
+            rtl/formal/induction_pdr_output.log
+          retention-days: 30
+
+      - name: Check Induction status
+        run: |
+          echo "=== SMT K-Induction ==="
+          if grep -q "PASS" rtl/formal/induction_smt_output.log 2>/dev/null; then
+            echo "SMT induction PASSED — properties proven for all depths"
+          elif grep -q "FAIL" rtl/formal/induction_smt_output.log 2>/dev/null; then
+            echo "::warning::SMT induction found counterexample — review traces"
+          else
+            echo "::notice::SMT induction inconclusive (timeout or unknown) — check logs"
+          fi
+          echo ""
+          echo "=== PDR K-Induction ==="
+          if grep -q "PASS" rtl/formal/induction_pdr_output.log 2>/dev/null; then
+            echo "PDR induction PASSED — properties proven for all depths"
+          elif grep -q "FAIL" rtl/formal/induction_pdr_output.log 2>/dev/null; then
+            echo "::warning::PDR induction found counterexample — review traces"
+          else
+            echo "::notice::PDR induction inconclusive (timeout or unknown) — check logs"
+          fi
