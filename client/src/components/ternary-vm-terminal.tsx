@@ -216,13 +216,13 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
   switch (cmd) {
     case "help": {
       term.writeln("");
-      term.writeln(`${BOLD}${BRAND}Salvi Framework \u2014 Ternary Virtual Machine v2.0${RST}`);
-      term.writeln(`${DIM}160-Opcode ISA \u2022 27-Trit Word \u2022 3-Ring Privilege \u2022 Post-Quantum${RST}`);
+      term.writeln(`${BOLD}${BRAND}Salvi Framework \u2014 Ternary Virtual Machine v2.1${RST}`);
+      term.writeln(`${DIM}176-Opcode ISA \u2022 27-Trit Word \u2022 3-Ring Privilege \u2022 Post-Quantum${RST}`);
       term.writeln("");
       term.writeln(`${BOLD}${WHITE}Available Commands:${RST}`);
       term.writeln(`  ${GREEN}help${RST}               Show this help message`);
       term.writeln(`  ${GREEN}status${RST}             Display VM state and registers`);
-      term.writeln(`  ${GREEN}opcodes${RST}            List all 160 ISA opcodes by category`);
+      term.writeln(`  ${GREEN}opcodes${RST}            List all 176 ISA opcodes by category`);
       term.writeln(`  ${GREEN}opcode <NAME>${RST}      Show details for a specific opcode`);
       term.writeln(`  ${GREEN}exec <MNEMONIC>${RST}    Simulate execution of an instruction`);
       term.writeln(`  ${GREEN}demo${RST}               Run the dual-phase encryption demo`);
@@ -281,7 +281,7 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
 
     case "opcodes": {
       term.writeln("");
-      term.writeln(`${BOLD}${BRAND}Salvi ISA v2.0 \u2014 160 Opcodes${RST}`);
+      term.writeln(`${BOLD}${BRAND}Salvi ISA v2.1 \u2014 176 Opcodes${RST}`);
       term.writeln(`${DIM}Showing representative opcodes by category. Type 'opcode <NAME>' for details.${RST}`);
       const cats: Record<string, string[]> = {};
       for (const [name, info] of Object.entries(OPCODE_TABLE)) {
@@ -298,8 +298,8 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
         }
       }
       term.writeln("");
-      term.writeln(`${DIM}Total ISA: 160 opcodes across Core, Extended, Crypto Acceleration,${RST}`);
-      term.writeln(`${DIM}SIMD, System, Security/Audit, and Debug/Profiling categories.${RST}`);
+      term.writeln(`${DIM}Total ISA: 176 opcodes across Core, Extended, Crypto Acceleration,${RST}`);
+      term.writeln(`${DIM}SIMD, System, Security/Audit, Quantum-Ternary, and Debug/Profiling categories.${RST}`);
       term.writeln("");
       return vm;
     }
@@ -894,7 +894,7 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
       term.writeln("");
       term.writeln(`${BOLD}${BRAND}Salvi Framework \u2014 Architecture Summary${RST}`);
       term.writeln(`${DIM}${"─".repeat(56)}${RST}`);
-      term.writeln(`  ${WHITE}ISA Version:${RST}       ${CYAN}v2.0 (160 opcodes)${RST}`);
+      term.writeln(`  ${WHITE}ISA Version:${RST}       ${CYAN}v2.1 (176 opcodes)${RST}`);
       term.writeln(`  ${WHITE}Word Size:${RST}         ${CYAN}27 trits (1 tryte = 3\u00B3)${RST}`);
       term.writeln(`  ${WHITE}Register File:${RST}     ${CYAN}27 general-purpose ternary${RST}`);
       term.writeln(`  ${WHITE}Privilege Rings:${RST}   ${RED}Ring0${RST} ${YELLOW}Ring1${RST} ${GREEN}Ring2${RST}`);
@@ -925,8 +925,8 @@ function processCommand(input: string, vm: VMState, term: Terminal): VMState {
       term.writeln(`${BOLD}${BRAND}CPUID \u2014 Processor Capabilities${RST}`);
       term.writeln(`${DIM}${"─".repeat(56)}${RST}`);
       term.writeln(`  ${WHITE}Vendor:${RST}          ${CYAN}Capomastro Holdings Ltd.${RST}`);
-      term.writeln(`  ${WHITE}Model:${RST}           ${CYAN}Salvi T27-160 v2.0${RST}`);
-      term.writeln(`  ${WHITE}ISA:${RST}             ${CYAN}Ternary 160-opcode${RST}`);
+      term.writeln(`  ${WHITE}Model:${RST}           ${CYAN}Salvi T27-176 v2.1${RST}`);
+      term.writeln(`  ${WHITE}ISA:${RST}             ${CYAN}Ternary 176-opcode${RST}`);
       term.writeln(`  ${WHITE}Word:${RST}            ${CYAN}27-trit (42.77 bits equivalent)${RST}`);
       term.writeln(`  ${WHITE}Clock Source:${RST}    ${CYAN}HPTP femtosecond (10\u207B\u00B9\u2075 s)${RST}`);
       term.writeln(`  ${WHITE}Crypto:${RST}          ${GREEN}TL-KEM TL-DSA AES-256 SHA-2/3${RST}`);
@@ -1038,7 +1038,7 @@ export function TernaryVMTerminal() {
     term.writeln(`${BOLD}${BRAND}  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588${RST}`);
     term.writeln(`${BOLD}${BRAND}  \u2588${RST}                                           ${BOLD}${BRAND}\u2588${RST}`);
     term.writeln(`${BOLD}${BRAND}  \u2588${RST}  ${BOLD}${WHITE}Salvi Framework${RST} ${DIM}\u2014 Ternary Virtual Machine${RST}  ${BOLD}${BRAND}\u2588${RST}`);
-    term.writeln(`${BOLD}${BRAND}  \u2588${RST}  ${DIM}ISA v2.0 \u2022 160 Opcodes \u2022 27-Trit Word${RST}     ${BOLD}${BRAND}\u2588${RST}`);
+    term.writeln(`${BOLD}${BRAND}  \u2588${RST}  ${DIM}ISA v2.1 \u2022 176 Opcodes \u2022 27-Trit Word${RST}     ${BOLD}${BRAND}\u2588${RST}`);
     term.writeln(`${BOLD}${BRAND}  \u2588${RST}  ${DIM}Post-Quantum \u2022 CNSA 2.0 \u2022 FIPS 140-3${RST}    ${BOLD}${BRAND}\u2588${RST}`);
     term.writeln(`${BOLD}${BRAND}  \u2588${RST}                                           ${BOLD}${BRAND}\u2588${RST}`);
     term.writeln(`${BOLD}${BRAND}  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588${RST}`);

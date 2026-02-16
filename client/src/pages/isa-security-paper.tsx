@@ -241,7 +241,7 @@ export default function ISASecurityPaper() {
         {/* ═══ TAB 1: INSTRUCTIONS ═══ */}
         <div style={tabS(tab === 1)}>
           <H1>The Eight Security Instructions (0x90{"\u2013"}0x97)</H1>
-          <P>The Salvi ISA v2.0 contains 160 opcodes. Eight of them (opcodes <Cd>0x90</Cd> through <Cd>0x97</Cd>) form the <B>Security and Audit</B> category{"\u2014"}a complete hardware security subsystem that doesn't exist in any other processor architecture.</P>
+          <P>The Salvi ISA v2.1 contains 176 opcodes. Eight of them (opcodes <Cd>0x90</Cd> through <Cd>0x97</Cd>) form the <B>Security and Audit</B> category{"\u2014"}a complete hardware security subsystem that doesn't exist in any other processor architecture.</P>
 
           <H2>AuditLog (0x90) {"\u2014"} The Camera That Never Lies</H2>
           <CB>AUDITLOG src1</CB>
@@ -418,7 +418,7 @@ const trades = await db.select()
           <Part label="Part II" title="Technical Specification" />
 
           <H1>Abstract</H1>
-          <P>This paper presents a unified approach addressing five security domains{"\u2014"}capability-based memory protection, side-channel attack mitigation, constant-time execution guarantees, dual-phase encryption, and native encrypted database storage{"\u2014"}within a coherent set of ISA-level primitives designed natively for a ternary computing architecture. We describe the Security and Audit category (opcodes <Cd>0x90</Cd>{"\u2013"}<Cd>0x97</Cd>) and cryptographic opcodes (<Cd>0x6D</Cd>{"\u2013"}<Cd>0x70</Cd>) of the Salvi Framework's 160-opcode ISA v2.0, alongside the PlenumDB encrypted PostgreSQL framework.</P>
+          <P>This paper presents a unified approach addressing five security domains{"\u2014"}capability-based memory protection, side-channel attack mitigation, constant-time execution guarantees, dual-phase encryption, and native encrypted database storage{"\u2014"}within a coherent set of ISA-level primitives designed natively for a ternary computing architecture. We describe the Security and Audit category (opcodes <Cd>0x90</Cd>{"\u2013"}<Cd>0x97</Cd>) and cryptographic opcodes (<Cd>0x6D</Cd>{"\u2013"}<Cd>0x70</Cd>) of the Salvi Framework's 176-opcode ISA v2.1, alongside the PlenumDB encrypted PostgreSQL framework.</P>
           <div style={tagsS}>
             {["ternary computing","capability architecture","side-channel masking","ISA security","post-quantum cryptography","bijective ternary logic","dual-phase encryption","PlenumDB","encrypted PostgreSQL","hardware security primitives","constant-time execution","PlenumNET","HPTP","CNSA 2.0","FIPS 140-3"].map((t: string, i: number) => <span key={i} style={tagS}>{t}</span>)}
           </div>
@@ -426,7 +426,7 @@ const trades = await db.select()
           <H1>1. Introduction</H1>
           <P>Three vulnerability classes define contemporary hardware security: the flat memory model providing no intrinsic data/pointer distinction, exposing programs to buffer overflows, pointer forgery, and use-after-free exploits; the intersection of post-quantum algorithmic migration with timing guarantee requirements, where new lattice-based schemes need constant-time hardware support; and microarchitectural side-channel attacks (Spectre, Meltdown, and their variants) exploiting speculative execution, cache timing, and power consumption.</P>
           <P>No current production ISA provides dedicated constant-time comparison or selection primitives with hardware-guaranteed timing invariance. No ISA offers dynamic, programmable side-channel control. No architecture integrates native encrypted database storage with hardware-enforced capability gating.</P>
-          <P>The Salvi Framework implements a complete ternary computing engine: 160-opcode ISA (v2.0), compiled Rust kernel (33 MB ELF binary, 47,000+ LOC across 14 subsystems), with live deployment via PlenumNET.</P>
+          <P>The Salvi Framework implements a complete ternary computing engine: 176-opcode ISA (v2.1), compiled Rust kernel (33 MB ELF binary, 47,000+ LOC across 14 subsystems), with live deployment via PlenumNET.</P>
           <P><B>Contributions:</B> (1) Sentinel-trit formalism establishing unforgeability in bijective ternary encoding. (2) Dual-layer side-channel defence combining architectural feature masking with algebraic ternary share masking. (3) Hardware constant-time primitives guaranteeing timing invariance independent of compiler optimisation. (4) Integration with PlenumNET HPTP and a three-mode kernel security system. (5) Dual-phase encryption architecture unifying GF(3) symmetric with TL-KEM/TL-DSA post-quantum key management. (6) PlenumDB framework providing native encrypted PostgreSQL with capability-gated access. (7) Comparative analysis demonstrating this combination is unique among current architectures.</P>
 
           <H1>2. Related Work</H1>

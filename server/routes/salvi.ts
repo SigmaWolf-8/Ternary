@@ -145,7 +145,7 @@ export function registerSalviRoutes(app: Express): void {
         vm: {
           spec: {
             path: "GET /api/salvi/vm/spec",
-            description: "Machine-readable TVM ISA v2.0 specification (160-opcode instruction set)"
+            description: "Machine-readable TVM ISA v2.1 specification (176-opcode instruction set)"
           },
           conformance: {
             path: "GET /api/salvi/vm/conformance",
