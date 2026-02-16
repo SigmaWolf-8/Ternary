@@ -15,7 +15,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, real, jsonb, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, real, jsonb, serial, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -97,6 +97,38 @@ export const whitepapers = pgTable("whitepapers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  keyPrefix: varchar("key_prefix", { length: 12 }).notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  owner: varchar("owner", { length: 255 }).notNull(),
+  scopes: jsonb("scopes").notNull().$type<string[]>(),
+  isActive: boolean("is_active").default(true).notNull(),
+  expiresAt: timestamp("expires_at"),
+  revokedAt: timestamp("revoked_at"),
+  lastUsedAt: timestamp("last_used_at"),
+  usageCount: integer("usage_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const apiKeyLogs = pgTable("api_key_logs", {
+  id: serial("id").primaryKey(),
+  keyId: varchar("key_id").notNull(),
+  endpoint: varchar("endpoint", { length: 512 }).notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  statusCode: integer("status_code"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ id: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageCount: true });
+export const insertApiKeyLogSchema = createInsertSchema(apiKeyLogs).omit({ id: true, createdAt: true });
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKeyLog = z.infer<typeof insertApiKeyLogSchema>;
+export type ApiKeyLog = typeof apiKeyLogs.$inferSelect;
 
 export const insertDemoSessionSchema = createInsertSchema(demoSessions).omit({ id: true, createdAt: true });
 export const insertBinaryStorageSchema = createInsertSchema(binaryStorage).omit({ id: true, createdAt: true });

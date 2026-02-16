@@ -36,6 +36,7 @@ import {
   LogOut,
   User,
   Atom,
+  Key,
 } from "lucide-react";
 import {
   Sidebar,
@@ -232,6 +233,14 @@ export function AppSidebar() {
                       <Link href="/kong-konnect" onClick={closeMobileSidebar}>
                         <Network className="w-3.5 h-3.5" />
                         <span>Kong Konnect</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={location === "/api-keys"} tooltip="API Keys" data-testid="link-sidebar-api-keys" className="text-xs">
+                      <Link href="/api-keys" onClick={closeMobileSidebar}>
+                        <Key className="w-3.5 h-3.5" />
+                        <span>API Keys</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -25,6 +25,7 @@ import { registerDataSubjectRightsRoutes } from "./routes/data-subject-rights";
 import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { registerAgentArrayRoutes } from "./routes/agent-array";
+import { registerApiKeyRoutes } from "./routes/api-keys";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -958,6 +959,7 @@ export async function registerRoutes(
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
   // =====================================================
   registerKongRoutes(app, storage);
+  registerApiKeyRoutes(app, storage);
 
   // =====================================================
   // GDPR DATA SUBJECT RIGHTS — extracted to server/routes/data-subject-rights.ts

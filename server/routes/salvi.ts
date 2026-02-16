@@ -10,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
 import { computationLimiter } from "../middleware/rate-limiter";
+import { scopedApiKeyAuth } from "../middleware/api-key-auth";
 import {
   convertTrit,
   convertVector,
@@ -82,6 +83,18 @@ const log = createLogger("salvi");
 
 export function registerSalviRoutes(app: Express): void {
   startErrorBudgetMonitor();
+
+  app.use("/api/salvi", (req, res, next) => {
+    const hasApiKey =
+      req.headers["x-api-key"] ||
+      (req.headers["authorization"] as string)?.startsWith("Bearer plm_") ||
+      req.query.api_key;
+
+    if (hasApiKey) {
+      return scopedApiKeyAuth([])(req, res, next);
+    }
+    next();
+  });
 
   // =====================================================
   // SALVI CORE API - Ternary Operations
