@@ -139,18 +139,18 @@ const modules = [
   {
     id: "11",
     title: "Ternary Virtual Machine",
-    description: "160-opcode ISA v2.0, 27 registers, GF(3) ALU, and ternary-aware garbage collector (TAGC).",
+    description: "176-opcode ISA v2.1, 27 registers, GF(3) ALU, operational quantum correction (0xA0-0xAF), Noether invariant verification, qudit generalization, and TAGC.",
     priority: "P3",
-    tests: "~95",
+    tests: "~110",
     icon: Terminal,
     file: "modules/11_TVM.md",
   },
   {
     id: "12",
     title: "Timing Protocol (HPTP)",
-    description: "Femtosecond synchronization, optical clock manager, designed for FINRA 613 and MiFID II timing requirements.",
+    description: "Femtosecond synchronization, optical clock manager, qutrit-stabilizer jitter correction, designed for FINRA 613 and MiFID II timing requirements.",
     priority: "P3",
-    tests: "~55",
+    tests: "~65",
     icon: Clock,
     file: "modules/12_TIMING_PROTOCOL.md",
   },
@@ -181,7 +181,7 @@ export default function Docs() {
             7,316 lines across 15 files — from getting started with your first ternary program to advanced kernel internals, network topology, and regulatory compliance.
           </p>
           <div className="flex flex-wrap gap-4 mt-4">
-            <Badge variant="outline">1,011 Tests Passing</Badge>
+            <Badge variant="outline">1,040 Tests Passing</Badge>
             <Badge variant="outline">80/80 Roadmap Complete</Badge>
             <Badge variant="outline">13 Module Guides</Badge>
             <Badge variant="outline">1 Tutorial</Badge>
