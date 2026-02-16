@@ -1039,4 +1039,105 @@ export function registerSalviRoutes(app: Express): void {
       res.status(500).json({ error: "Recommendation failed" });
     }
   });
+
+  const noetherVerifySchema = z.object({
+    registers: z.array(z.number().int()).min(3).max(27),
+    reg_start: z.number().int().min(0).max(24),
+    d: z.number().int().min(1).max(9),
+    tolerance: z.number().positive().max(100).default(0.01),
+  });
+
+  app.post("/api/salvi/ternary/noether-verify", computationLimiter, (req, res) => {
+    try {
+      const parsed = noetherVerifySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid request",
+          details: parsed.error.issues.map(i => i.message),
+        });
+      }
+
+      const { registers, reg_start, d, tolerance } = parsed.data;
+
+      if (reg_start + 2 * d >= 27) {
+        return res.status(400).json({
+          error: "Register range out of bounds",
+          details: `reg_start(${reg_start}) + 2*d(${2 * d}) must be < 27`,
+        });
+      }
+
+      if (registers.length < reg_start + 3 * d) {
+        return res.status(400).json({
+          error: "Insufficient registers",
+          details: `Need at least ${reg_start + 3 * d} registers, got ${registers.length}`,
+        });
+      }
+
+      const SUFT_PHI_RATIO = 13 / 28;
+      const PERIOD_MODULUS = 364;
+      const violations: Array<{ invariant: string; value: number; threshold: number; passed: boolean }> = [];
+
+      const branch0Re = (registers[reg_start] >> 32) / 1_000_000;
+      const branch1Re = (registers[reg_start + d] >> 32) / 1_000_000;
+      const branch2Re = (registers[reg_start + 2 * d] >> 32) / 1_000_000;
+      const branchSum = branch0Re + branch1Re + branch2Re;
+      const gaugePass = Math.abs(branchSum) <= tolerance;
+      violations.push({
+        invariant: "ternary_gauge_symmetry",
+        value: branchSum,
+        threshold: tolerance,
+        passed: gaugePass,
+      });
+
+      let sumNormSq = 0;
+      const regsNeeded = d * 3;
+      for (let i = 0; i < regsNeeded; i++) {
+        const val = registers[reg_start + i];
+        const re = ((val >> 16) & 0xFFFF) / 1_000_000;
+        const im = (val & 0xFFFF) / 1_000_000;
+        sumNormSq += re * re + im * im;
+      }
+      const energyInvariant = SUFT_PHI_RATIO * sumNormSq;
+      const energyPass = energyInvariant <= tolerance || Math.abs(sumNormSq - 1.0) <= tolerance;
+      violations.push({
+        invariant: "reparametrization_energy",
+        value: energyInvariant,
+        threshold: tolerance,
+        passed: energyPass,
+      });
+
+      let periodicityConsistent = true;
+      for (let i = 0; i < d; i++) {
+        const val = registers[reg_start + i];
+        const re = (val >> 32) / 1_000_000;
+        const mod364 = ((re % PERIOD_MODULUS) + PERIOD_MODULUS) % PERIOD_MODULUS;
+        if (mod364 > PERIOD_MODULUS - tolerance && mod364 < tolerance) {
+          periodicityConsistent = false;
+        }
+      }
+      violations.push({
+        invariant: "periodicity",
+        value: 0,
+        threshold: PERIOD_MODULUS,
+        passed: periodicityConsistent,
+      });
+
+      const allPassed = violations.every(v => v.passed);
+
+      res.json({
+        success: true,
+        verified: allPassed,
+        constants: {
+          SUFT_PHI_RATIO: "13/28",
+          PERIOD_MODULUS: 364,
+        },
+        invariants: violations,
+        register_count: registers.length,
+        dimension: d,
+      });
+    } catch (error: unknown) {
+      log.error("Noether verification failed:", toErrorMessage(error));
+      res.status(500).json({ error: "Noether verification failed" });
+    }
+  });
 }
