@@ -261,8 +261,9 @@ function LiveTimestamp() {
               <div className="text-muted-foreground">Time advancement applied</div>
               <div className="font-mono" data-testid="text-correction-applied">+{correction.roundTripMs / 2}ms</div>
             </div>
-            <div className="text-xs text-muted-foreground pt-1 border-t">
-              The server timestamp is generated at T2 (request receipt). The displayed time is the estimated current server time at the moment of display, computed by adding half the round-trip time to the generation timestamp. Uses {correction.protocol} four-timestamp model (T1/T2/T3/T4) assuming symmetric network paths.
+            <div className="text-xs text-muted-foreground pt-1 border-t space-y-1">
+              <p>The server timestamp is generated at T2 (request receipt). The displayed time is the estimated current server time at the moment of display, computed by adding half the round-trip time to the generation timestamp. Uses {correction.protocol} four-timestamp model (T1/T2/T3/T4) assuming symmetric network paths.</p>
+              <p>Kernel module <span className="font-mono">hptp::jitter_correction</span> applies [[3,1,2]]&#x2083; qutrit-stabilizer logic to detect and correct phase-like jitter anomalies in femtosecond timestamp streams, using syndrome-based median correction on 3-timestamp triples.</p>
             </div>
           </div>
         )}
