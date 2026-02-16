@@ -10,6 +10,8 @@ import { z } from "zod";
 import { createRequireAdmin, resolveGitHubToken, sanitizePath } from "./middleware";
 import { createLogger, toErrorMessage } from "../logger";
 import { githubTokenLimiter, authLimiter } from "../middleware/rate-limiter";
+import * as fs from "fs";
+import * as path from "path";
 
 const log = createLogger("github");
 
@@ -309,18 +311,13 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
         return res.status(400).json({ error: "GitHub token not configured" });
       }
 
-      const fs = await import('fs/promises');
-      const pathModule = await import('path');
+      const workflowDir = path.join(process.cwd(), '.github', 'workflows');
 
-      const workflowDir = pathModule.join(process.cwd(), '.github', 'workflows');
-
-      try {
-        await fs.access(workflowDir);
-      } catch {
+      if (!fs.existsSync(workflowDir)) {
         return res.status(404).json({ error: "No .github/workflows/ directory found locally" });
       }
 
-      const workflowFiles = await fs.readdir(workflowDir);
+      const workflowFiles = fs.readdirSync(workflowDir);
       const ymlFiles = workflowFiles.filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
 
       if (ymlFiles.length === 0) {
@@ -331,8 +328,8 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       for (const fileName of ymlFiles) {
         try {
-          const filePath = pathModule.join(workflowDir, fileName);
-          const content = await fs.readFile(filePath, 'utf-8');
+          const filePath = path.join(workflowDir, fileName);
+          const content = fs.readFileSync(filePath, 'utf-8');
           const encodedContent = Buffer.from(content).toString('base64');
           const githubPath = `.github/workflows/${fileName}`;
 
@@ -464,8 +461,6 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
       }
 
       const { files, message } = parsed.data;
-      const fs = await import('fs/promises');
-      const pathModule = await import('path');
 
       const rejectedFiles = files.filter(f => !isPathAllowed(f.localPath));
       if (rejectedFiles.length > 0) {
@@ -476,12 +471,12 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       for (const file of files) {
         try {
-          const localFilePath = pathModule.resolve(process.cwd(), file.localPath);
+          const localFilePath = path.resolve(process.cwd(), file.localPath);
           if (!localFilePath.startsWith(process.cwd())) {
             results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
             continue;
           }
-          const content = await fs.readFile(localFilePath, 'utf-8');
+          const content = fs.readFileSync(localFilePath, 'utf-8');
           const encodedContent = Buffer.from(content).toString('base64');
           const ghPath = sanitizePath(file.githubPath);
 
@@ -515,6 +510,7 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
             results.push({ file: file.githubPath, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
           }
         } catch (fileError: unknown) {
+          log.error(`push-env: exception for ${file.githubPath}: ${toErrorMessage(fileError)}`);
           results.push({ file: file.githubPath, status: "error", error: toErrorMessage(fileError) });
         }
       }
@@ -550,8 +546,6 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
       }
 
       const { files, message } = parsed.data;
-      const fs = await import('fs/promises');
-      const pathModule = await import('path');
 
       const rejectedFiles = files.filter(f => !isPathAllowed(f.localPath));
       if (rejectedFiles.length > 0) {
@@ -565,12 +559,12 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       for (const file of files) {
         try {
-          const localFilePath = pathModule.resolve(process.cwd(), file.localPath);
+          const localFilePath = path.resolve(process.cwd(), file.localPath);
           if (!localFilePath.startsWith(process.cwd())) {
             results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
             continue;
           }
-          const content = await fs.readFile(localFilePath, 'utf-8');
+          const content = fs.readFileSync(localFilePath, 'utf-8');
           const encodedContent = Buffer.from(content).toString('base64');
           const ghPath = sanitizePath(file.githubPath);
 
