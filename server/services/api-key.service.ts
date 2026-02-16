@@ -32,6 +32,8 @@ export const AVAILABLE_SCOPES = [
   "write:hptp",
   "read:compression",
   "write:compression",
+  "read:plenumdb",
+  "write:plenumdb",
   "read:calendar",
   "read:agent-array",
   "write:agent-array",

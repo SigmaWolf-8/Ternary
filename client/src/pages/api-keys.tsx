@@ -100,6 +100,7 @@ const SCOPE_CATEGORIES: Record<string, string[]> = {
   "Phase Encryption": ["read:phase", "write:phase"],
   HPTP: ["read:hptp", "write:hptp"],
   Compression: ["read:compression", "write:compression"],
+  PlenumDB: ["read:plenumdb", "write:plenumdb"],
   Calendar: ["read:calendar"],
   "Agent Array": ["read:agent-array", "write:agent-array"],
   Whitepaper: ["read:whitepaper"],
