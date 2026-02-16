@@ -1,7 +1,7 @@
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Shield, ShieldCheck, ShieldAlert, Lock, Download, FileText, Users, Clock, Fingerprint } from "lucide-react";
+import { Shield, ShieldCheck, ShieldAlert, Lock, Download, FileText, Users, Clock, Fingerprint, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,7 @@ type VerifyStatus = "idle" | "loading" | "verifying" | "valid" | "invalid";
 
 export default function SharePage() {
   const [, params] = useRoute("/share/:id");
+  const [, setLocation] = useLocation();
   const envelopeId = params?.id || "";
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>("idle");
   const [verifyMessage, setVerifyMessage] = useState("");
@@ -112,12 +113,18 @@ export default function SharePage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-4">
+        <div className="flex justify-start mb-2">
+          <Button variant="ghost" size="sm" onClick={() => setLocation("/")} data-testid="button-share-back">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Dashboard
+          </Button>
+        </div>
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Shield className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg tracking-wide" style={{ fontFamily: "'Great Vibes', cursive" }} data-testid="text-share-brand">
+            <span className="tracking-wide" style={{ fontFamily: "'Great Vibes', cursive", fontSize: '1.5rem' }} data-testid="text-share-brand">
               SalviSign
             </span>
           </div>

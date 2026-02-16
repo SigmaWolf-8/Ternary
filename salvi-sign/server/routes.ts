@@ -7,8 +7,10 @@ import { tenantMiddleware } from "./middleware/tenant";
 import { healthCheck as plenumHealthCheck } from "./services/plenum";
 import { saveEnvelope as hybridSave } from "./services/saveCopy";
 import { getHPTP, witnessSign, mlDsaSign } from "./services/plenum";
-import { bakeFillablePdf } from "./services/pdfForms";
+import { bakeFillablePdf, type CertificationData } from "./services/pdfForms";
 import { generateZKProof, verifyZKProofServer } from "./services/zk";
+import { encryptPdf, decryptPdf } from "./services/pdfCrypto";
+import { sendEnvelopeEmails } from "./services/email";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -135,6 +137,25 @@ export async function registerRoutes(
           details: "Document sent to all recipients",
           hpTpTimestamp: epoch,
         });
+
+        const allRecipients = await storage.getRecipientsByEnvelope(req.params.id);
+        const emailResult = await sendEnvelopeEmails(
+          envelope.id,
+          envelope.title,
+          "SalviSign User",
+          allRecipients.map((r) => ({ id: r.id, email: r.email, name: r.name, role: r.role }))
+        );
+        const emailDetails = emailResult.failed > 0
+          ? `${emailResult.sent}/${emailResult.total} emails sent (${emailResult.failed} failed — verify your Resend domain)`
+          : `${emailResult.sent}/${emailResult.total} emails sent successfully`;
+        await storage.createAuditLog({
+          envelopeId: envelope.id,
+          tenantId: req.tenantId || null,
+          action: "Signing emails dispatched",
+          actorName: "System",
+          details: emailDetails,
+          hpTpTimestamp: epoch,
+        });
       }
 
       const { pdfData, ...rest } = envelope;
@@ -155,7 +176,8 @@ export async function registerRoutes(
       if (!envelope) return res.status(404).json({ message: "Not found" });
       if (!envelope.pdfData) return res.status(404).json({ message: "No PDF attached" });
 
-      const pdfBuffer = Buffer.from(envelope.pdfData, "base64");
+      const decryptedBase64 = decryptPdf(envelope.pdfData);
+      const pdfBuffer = Buffer.from(decryptedBase64, "base64");
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Length", pdfBuffer.length.toString());
       res.setHeader("Content-Disposition", `inline; filename="${envelope.title}.pdf"`);
@@ -173,8 +195,9 @@ export async function registerRoutes(
       const { pdfData, pageCount } = req.body;
       if (!pdfData) return res.status(400).json({ message: "pdfData (base64) is required" });
 
+      const encryptedPdf = encryptPdf(pdfData);
       const updated = await storage.updateEnvelope(req.params.id, {
-        pdfData,
+        pdfData: encryptedPdf,
         pageCount: pageCount || 1,
       });
 
@@ -203,6 +226,59 @@ export async function registerRoutes(
     const recipient = await storage.getRecipient(req.params.id);
     if (!recipient) return res.status(404).json({ message: "Not found" });
     res.json(recipient);
+  });
+
+  app.post("/api/envelopes/:id/recipients", async (req, res) => {
+    try {
+      const { name, email, role } = req.body;
+      if (!name || !email) return res.status(400).json({ message: "Name and email are required" });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) return res.status(400).json({ message: "Invalid email address" });
+
+      const existingRecipients = await storage.getRecipientsByEnvelope(req.params.id);
+      const sortOrder = existingRecipients.length;
+
+      const recipient = await storage.createRecipient({
+        envelopeId: req.params.id,
+        name,
+        email,
+        role: role || "signer",
+        sortOrder,
+        status: "pending",
+      });
+      res.status(201).json(recipient);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/recipients/:id", async (req, res) => {
+    try {
+      const { name, email, role } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (email !== undefined) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) return res.status(400).json({ message: "Invalid email address" });
+        updates.email = email;
+      }
+      if (role !== undefined) updates.role = role;
+
+      const updated = await storage.updateRecipient(req.params.id, updates);
+      if (!updated) return res.status(404).json({ message: "Recipient not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/recipients/:id", async (req, res) => {
+    try {
+      await storage.deleteRecipient(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
   });
 
   app.get("/api/envelopes/:id/fields", async (req, res) => {
@@ -358,8 +434,41 @@ export async function registerRoutes(
       if (!envelope.pdfData) return res.status(400).json({ message: "No PDF attached" });
 
       const fieldsList = await storage.getFieldsByEnvelope(req.params.id);
-      const pdfBuffer = Buffer.from(envelope.pdfData, "base64");
-      const bakedPdf = await bakeFillablePdf(pdfBuffer, fieldsList);
+      const decryptedBase64 = decryptPdf(envelope.pdfData);
+      const pdfBuffer = Buffer.from(decryptedBase64, "base64");
+
+      let certData: CertificationData | undefined;
+      if (envelope.status === "completed" && envelope.zkProof) {
+        try {
+          const zkData = JSON.parse(envelope.zkProof);
+          const allRecipients = await storage.getRecipientsByEnvelope(req.params.id);
+          const signers = allRecipients.filter((r) => r.role === "signer");
+          const auditLogs = await storage.getAuditLogsByEnvelope(req.params.id);
+
+          certData = {
+            title: envelope.title,
+            certifiedAt: zkData.certifiedAt || envelope.updatedAt?.toISOString() || new Date().toISOString(),
+            signerCount: zkData.signerCount || signers.length,
+            mlDsaSignature: zkData.mlDsaSignature,
+            signers: signers.map((s) => ({
+              name: s.name,
+              email: s.email,
+              signedAt: s.signedAt ? s.signedAt.toISOString() : null,
+            })),
+            auditTrail: auditLogs.map((log) => ({
+              action: log.action,
+              actorName: log.actorName,
+              details: log.details || "",
+              hpTpTimestamp: log.hpTpTimestamp || null,
+              createdAt: log.createdAt.toISOString(),
+            })),
+          };
+        } catch (e) {
+          console.warn("Failed to build certification data for PDF:", e);
+        }
+      }
+
+      const bakedPdf = await bakeFillablePdf(pdfBuffer, fieldsList, certData);
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Length", bakedPdf.length.toString());

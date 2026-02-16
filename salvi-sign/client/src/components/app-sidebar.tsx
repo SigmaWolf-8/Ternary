@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, FilePlus, Shield } from "lucide-react";
+import { LayoutDashboard, FilePlus, Shield, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +12,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import salviLogo from "@assets/61c7a11d-25db-489e-be25-ada68c5a8504_1771266001045.jpg";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -23,22 +24,31 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-0">
         <Link href="/">
-          <div className="flex items-center gap-2.5 cursor-pointer" data-testid="link-home">
-            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-primary">
-              <Shield className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-base tracking-wide" style={{ fontFamily: "'Great Vibes', cursive" }}>SalviSign</span>
-              <span className="text-[9px] text-muted-foreground tracking-wider leading-none">Secure Signatures</span>
-            </div>
+          <div
+            className="cursor-pointer overflow-hidden"
+            data-testid="link-home"
+            style={{
+              boxShadow: 'inset 0 6px 14px rgba(0,0,0,0.6), inset 0 -6px 14px rgba(0,0,0,0.5), inset 6px 0 14px rgba(0,0,0,0.4), inset -6px 0 14px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.25)',
+              borderTop: '3px solid rgba(0,0,0,0.35)',
+              borderBottom: '3px solid rgba(255,255,255,0.08)',
+              borderLeft: '3px solid rgba(0,0,0,0.2)',
+              borderRight: '3px solid rgba(0,0,0,0.2)',
+            }}
+          >
+            <img
+              src={salviLogo}
+              alt="SalviSign"
+              className="w-full object-cover object-center"
+              style={{ aspectRatio: '4/3', transform: 'scale(1.75)' }}
+            />
           </div>
         </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[9px] tracking-widest uppercase">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[9px] tracking-widest uppercase">Sealed & Delivered</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -58,8 +68,21 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
-        <div className="flex items-center gap-2">
+      <SidebarFooter className="p-2 space-y-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={location === "/settings"}
+            >
+              <Link href="/settings" data-testid="link-nav-settings">
+                <Settings className="w-3.5 h-3.5" />
+                <span className="text-xs">Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <div className="flex items-center gap-2 px-2 pb-1">
           <Shield className="w-2.5 h-2.5 text-muted-foreground" />
           <span className="text-[9px] text-muted-foreground tracking-wider uppercase">Quantum-Secure</span>
         </div>

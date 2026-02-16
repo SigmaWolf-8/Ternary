@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PDFDocument } from "pdf-lib";
 import {
   ArrowLeft,
   Plus,
@@ -13,6 +14,7 @@ import {
   Upload,
   FileText,
   X,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,13 +55,43 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface PdfFileEntry {
+  file: File;
+  pageCount: number;
+  arrayBuffer: ArrayBuffer;
+}
+
+async function stitchPdfs(entries: PdfFileEntry[]): Promise<{ base64: string; pageCount: number }> {
+  if (entries.length === 1) {
+    const base64 = btoa(
+      new Uint8Array(entries[0].arrayBuffer).reduce((d, b) => d + String.fromCharCode(b), "")
+    );
+    return { base64, pageCount: entries[0].pageCount };
+  }
+
+  const merged = await PDFDocument.create();
+  for (const entry of entries) {
+    const src = await PDFDocument.load(entry.arrayBuffer);
+    const pages = await merged.copyPages(src, src.getPageIndices());
+    pages.forEach((p) => merged.addPage(p));
+  }
+  const mergedBytes = await merged.save();
+  const base64 = btoa(
+    new Uint8Array(mergedBytes).reduce((d, b) => d + String.fromCharCode(b), "")
+  );
+  return { base64, pageCount: merged.getPageCount() };
+}
+
 export default function EnvelopeNew() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
-  const [pageCount, setPageCount] = useState(1);
+  const [pdfFiles, setPdfFiles] = useState<PdfFileEntry[]>([]);
+  const [isStitching, setIsStitching] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const totalPages = pdfFiles.reduce((sum, f) => sum + f.pageCount, 0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -76,52 +108,62 @@ export default function EnvelopeNew() {
   });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    if (file.type !== "application/pdf") {
-      toast({ title: "Invalid file", description: "Please select a PDF file", variant: "destructive" });
-      return;
-    }
+    const validFiles: PdfFileEntry[] = [];
+    for (const file of files) {
+      if (file.type !== "application/pdf") {
+        toast({ title: "Invalid file", description: `${file.name} is not a PDF`, variant: "destructive" });
+        continue;
+      }
+      if (file.size > 30 * 1024 * 1024) {
+        toast({ title: "File too large", description: `${file.name} exceeds 30MB`, variant: "destructive" });
+        continue;
+      }
 
-    if (file.size > 30 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Maximum file size is 30MB", variant: "destructive" });
-      return;
-    }
-
-    setPdfFile(file);
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const arrayBuffer = reader.result as ArrayBuffer;
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
-      );
-      setPdfBase64(base64);
-
+      const arrayBuffer = await file.arrayBuffer();
+      let pages = 1;
       try {
         const { pdfjs } = await import("react-pdf");
         pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
         const loadingTask = pdfjs.getDocument({ data: arrayBuffer.slice(0) });
         const pdf = await loadingTask.promise;
-        setPageCount(pdf.numPages);
-      } catch {
-        setPageCount(1);
-      }
+        pages = pdf.numPages;
+      } catch {}
 
-      if (!form.getValues("title")) {
-        const name = file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ");
+      validFiles.push({ file, pageCount: pages, arrayBuffer });
+    }
+
+    if (validFiles.length > 0) {
+      setPdfFiles((prev) => [...prev, ...validFiles]);
+      if (!form.getValues("title") && validFiles.length === 1 && pdfFiles.length === 0) {
+        const name = validFiles[0].file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ");
         form.setValue("title", name);
       }
-    };
-    reader.readAsArrayBuffer(file);
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const removePdf = () => {
-    setPdfFile(null);
-    setPdfBase64(null);
-    setPageCount(1);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const removePdfFile = (idx: number) => {
+    setPdfFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handlePdfReorderDrop = (dropIdx: number) => {
+    if (dragIdx === null || dragIdx === dropIdx) {
+      setDragIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+    setPdfFiles((prev) => {
+      const reordered = [...prev];
+      const [moved] = reordered.splice(dragIdx, 1);
+      reordered.splice(dropIdx, 0, moved);
+      return reordered;
+    });
+    setDragIdx(null);
+    setDragOverIdx(null);
   };
 
   const createMutation = useMutation({
@@ -129,11 +171,17 @@ export default function EnvelopeNew() {
       const res = await apiRequest("POST", "/api/envelopes", data);
       const envelope = await res.json();
 
-      if (pdfBase64) {
-        await apiRequest("POST", `/api/envelopes/${envelope.id}/upload-pdf`, {
-          pdfData: pdfBase64,
-          pageCount,
-        });
+      if (pdfFiles.length > 0) {
+        setIsStitching(true);
+        try {
+          const { base64, pageCount } = await stitchPdfs(pdfFiles);
+          await apiRequest("POST", `/api/envelopes/${envelope.id}/upload-pdf`, {
+            pdfData: base64,
+            pageCount,
+          });
+        } finally {
+          setIsStitching(false);
+        }
       }
 
       return envelope;
@@ -182,30 +230,61 @@ export default function EnvelopeNew() {
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf"
+                  multiple
                   className="hidden"
                   onChange={handleFileSelect}
                   data-testid="input-pdf-upload"
                 />
-                {pdfFile ? (
-                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate" data-testid="text-pdf-name">{pdfFile.name}</p>
+                {pdfFiles.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {pdfFiles.map((entry, idx) => (
+                      <div
+                        key={`${entry.file.name}-${idx}`}
+                        className={`flex items-center gap-2.5 p-2.5 rounded-md bg-muted/50 ${dragOverIdx === idx && dragIdx !== idx ? "ring-1 ring-primary" : ""}`}
+                        draggable
+                        onDragStart={() => setDragIdx(idx)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverIdx(idx); }}
+                        onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                        onDrop={() => handlePdfReorderDrop(idx)}
+                        data-testid={`pdf-file-${idx}`}
+                      >
+                        <GripVertical className="w-3 h-3 text-muted-foreground cursor-grab shrink-0" />
+                        <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                          <FileText className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-medium truncate" data-testid={`text-pdf-name-${idx}`}>{entry.file.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {(entry.file.size / 1024).toFixed(0)} KB | {entry.pageCount} page{entry.pageCount !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removePdfFile(idx)}
+                          data-testid={`button-remove-pdf-${idx}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between gap-2 pt-1">
                       <p className="text-[10px] text-muted-foreground">
-                        {(pdfFile.size / 1024).toFixed(0)} KB | {pageCount} page{pageCount !== 1 ? "s" : ""}
+                        {pdfFiles.length} file{pdfFiles.length !== 1 ? "s" : ""} | {totalPages} total page{totalPages !== 1 ? "s" : ""}
+                        {pdfFiles.length > 1 && " (will be stitched)"}
                       </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        data-testid="button-add-more-pdfs"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add More
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={removePdf}
-                      data-testid="button-remove-pdf"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
                   </div>
                 ) : (
                   <div
@@ -214,8 +293,8 @@ export default function EnvelopeNew() {
                     data-testid="dropzone-pdf"
                   >
                     <Upload className="w-6 h-6 text-muted-foreground mb-2" />
-                    <p className="text-xs font-medium">Click to upload PDF</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">PDF files up to 30MB</p>
+                    <p className="text-xs font-medium">Click to upload PDFs</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Select one or more PDF files (up to 30MB each)</p>
                   </div>
                 )}
               </CardContent>
@@ -379,10 +458,10 @@ export default function EnvelopeNew() {
               <Button
                 type="submit"
                 size="sm"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || isStitching}
                 data-testid="button-create"
               >
-                {createMutation.isPending ? "Creating..." : "Continue to Editor"}
+                {isStitching ? "Stitching PDFs..." : createMutation.isPending ? "Creating..." : "Continue to Editor"}
               </Button>
             </div>
           </form>

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { PDFDocument } from "pdf-lib";
 import {
   ArrowLeft,
   PenLine,
@@ -23,10 +24,28 @@ import {
   Undo2,
   Redo2,
   Save,
+  Plus,
+  CheckCircle2,
+  Eraser,
+  Shield,
+  UserPlus,
+  Pencil,
+  Mail,
+  User,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -35,8 +54,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getSettings } from "@/pages/settings";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateWithTimezone } from "@/pages/settings";
 import type { Envelope, Recipient, Field as FieldType } from "@shared/schema";
+
+const FONT_STYLES = [
+  { name: "Elegant", fontFamily: "'Architects Daughter', cursive" },
+  { name: "Classic", fontFamily: "'Libre Baskerville', serif" },
+  { name: "Script", fontFamily: "'Lora', serif" },
+  { name: "Vibrations", fontFamily: "'Great Vibes', cursive" },
+  { name: "Dancing", fontFamily: "'Dancing Script', cursive" },
+  { name: "Pacifico", fontFamily: "'Pacifico', cursive" },
+  { name: "Sacramento", fontFamily: "'Sacramento', cursive" },
+  { name: "Alex Brush", fontFamily: "'Alex Brush', cursive" },
+];
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -122,6 +154,26 @@ export default function EnvelopeEditor() {
   const justDraggedRef = useRef(false);
   const [reorderDragIdx, setReorderDragIdx] = useState<number | null>(null);
   const [reorderOverIdx, setReorderOverIdx] = useState<number | null>(null);
+  const [pdfVersion, setPdfVersion] = useState(0);
+  const [sigDialogOpen, setSigDialogOpen] = useState(false);
+  const [sigFieldId, setSigFieldId] = useState<string | null>(null);
+  const [sigMode, setSigMode] = useState<"draw" | "type">("type");
+  const [typedName, setTypedName] = useState("");
+  const [selectedFont, setSelectedFont] = useState(0);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const sigCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [textDialogOpen, setTextDialogOpen] = useState(false);
+  const [textFieldId, setTextFieldId] = useState<string | null>(null);
+  const [textValue, setTextValue] = useState("");
+  const [clipboardField, setClipboardField] = useState<FieldType | null>(null);
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
+  const [newRecipientName, setNewRecipientName] = useState("");
+  const [newRecipientEmail, setNewRecipientEmail] = useState("");
+  const [newRecipientRole, setNewRecipientRole] = useState("signer");
+  const [editingRecipientId, setEditingRecipientId] = useState<string | null>(null);
+  const [editRecipientName, setEditRecipientName] = useState("");
+  const [editRecipientEmail, setEditRecipientEmail] = useState("");
+  const [showSealWarning, setShowSealWarning] = useState(false);
 
   const envelopeId = params?.id || "";
 
@@ -148,7 +200,7 @@ export default function EnvelopeEditor() {
   });
 
   const hasPdf = !!envelope?.pdfData;
-  const pdfUrl = hasPdf ? `/api/envelopes/${envelopeId}/pdf` : null;
+  const pdfUrl = hasPdf ? `/api/envelopes/${envelopeId}/pdf?v=${pdfVersion}` : null;
 
   useEffect(() => {
     if (existingFields && !initialized) {
@@ -198,15 +250,72 @@ export default function EnvelopeEditor() {
 
   const saveMutation = useMutation({
     mutationFn: async (fieldsData: FieldType[]) => {
-      await apiRequest("PUT", `/api/envelopes/${envelopeId}/fields`, { fields: fieldsData });
+      const res = await apiRequest("PUT", `/api/envelopes/${envelopeId}/fields`, { fields: fieldsData });
+      return res.json() as Promise<FieldType[]>;
     },
-    onSuccess: () => {
+    onSuccess: (savedFields) => {
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId, "fields"] });
+      if (savedFields && Array.isArray(savedFields)) {
+        resetHistory(savedFields);
+      }
       toast({ title: "Fields saved" });
     },
   });
 
-  const sendMutation = useMutation({
+  const addRecipientMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", `/api/envelopes/${envelopeId}/recipients`, {
+        name: newRecipientName,
+        email: newRecipientEmail,
+        role: newRecipientRole,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId, "recipients"] });
+      setNewRecipientName("");
+      setNewRecipientEmail("");
+      setNewRecipientRole("signer");
+      setShowAddRecipient(false);
+      toast({ title: "Recipient added" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateRecipientMutation = useMutation({
+    mutationFn: async ({ id, name, email }: { id: string; name: string; email: string }) => {
+      await apiRequest("PATCH", `/api/recipients/${id}`, { name, email });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId, "recipients"] });
+      setEditingRecipientId(null);
+      toast({ title: "Recipient updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteRecipientMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/recipients/${id}`);
+      return id;
+    },
+    onSuccess: (deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId, "recipients"] });
+      if (selectedRecipient === deletedId) {
+        const remaining = recipients?.filter((r) => r.id !== deletedId);
+        setSelectedRecipient(remaining && remaining.length > 0 ? remaining[0].id : "");
+      }
+      toast({ title: "Recipient removed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const doSend = useMutation({
     mutationFn: async () => {
       await apiRequest("PUT", `/api/envelopes/${envelopeId}/fields`, { fields: localFields });
       await apiRequest("PATCH", `/api/envelopes/${envelopeId}`, { status: "sent" });
@@ -218,25 +327,71 @@ export default function EnvelopeEditor() {
     },
   });
 
+  const handleSend = useCallback(() => {
+    const lastPage = numPages || 1;
+    const hasLastPageSeal = localFields.some((f) => f.page === lastPage && f.label === "seal");
+    if (!hasLastPageSeal) {
+      setShowSealWarning(true);
+    } else {
+      doSend.mutate();
+    }
+  }, [numPages, localFields, doSend]);
+
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
-      );
-      let pages = 1;
-      try {
-        const loadingTask = pdfjs.getDocument({ data: arrayBuffer.slice(0) });
-        const pdf = await loadingTask.promise;
-        pages = pdf.numPages;
-      } catch {}
+    mutationFn: async (files: File[]) => {
+      const buffers: ArrayBuffer[] = [];
+      for (const file of files) {
+        buffers.push(await file.arrayBuffer());
+      }
+
+      let finalBase64: string;
+      let finalPages: number;
+
+      if (hasPdf && buffers.length > 0) {
+        const existingRes = await fetch(`/api/envelopes/${envelopeId}/pdf`, { credentials: "include" });
+        if (!existingRes.ok) {
+          throw new Error("Could not fetch existing PDF to append pages");
+        }
+        const existingBuf = await existingRes.arrayBuffer();
+        const merged = await PDFDocument.create();
+        const existingSrc = await PDFDocument.load(existingBuf);
+        const existingCopied = await merged.copyPages(existingSrc, existingSrc.getPageIndices());
+        existingCopied.forEach((p) => merged.addPage(p));
+        for (const buf of buffers) {
+          const src = await PDFDocument.load(buf);
+          const pages = await merged.copyPages(src, src.getPageIndices());
+          pages.forEach((p) => merged.addPage(p));
+        }
+        const mergedBytes = await merged.save();
+        finalBase64 = btoa(new Uint8Array(mergedBytes).reduce((d, b) => d + String.fromCharCode(b), ""));
+        finalPages = merged.getPageCount();
+      } else if (buffers.length === 1) {
+        finalBase64 = btoa(new Uint8Array(buffers[0]).reduce((d, b) => d + String.fromCharCode(b), ""));
+        try {
+          const loadingTask = pdfjs.getDocument({ data: buffers[0].slice(0) });
+          const pdf = await loadingTask.promise;
+          finalPages = pdf.numPages;
+        } catch { finalPages = 1; }
+      } else {
+        const merged = await PDFDocument.create();
+        for (const buf of buffers) {
+          const src = await PDFDocument.load(buf);
+          const pages = await merged.copyPages(src, src.getPageIndices());
+          pages.forEach((p) => merged.addPage(p));
+        }
+        const mergedBytes = await merged.save();
+        finalBase64 = btoa(new Uint8Array(mergedBytes).reduce((d, b) => d + String.fromCharCode(b), ""));
+        finalPages = merged.getPageCount();
+      }
+
       await apiRequest("POST", `/api/envelopes/${envelopeId}/upload-pdf`, {
-        pdfData: base64,
-        pageCount: pages,
+        pdfData: finalBase64,
+        pageCount: finalPages,
       });
-      return pages;
+      return finalPages;
     },
     onSuccess: (pages) => {
+      setPdfVersion((v) => v + 1);
       setNumPages(pages);
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId] });
       toast({ title: "PDF uploaded", description: `${pages} page(s) loaded` });
@@ -247,13 +402,21 @@ export default function EnvelopeEditor() {
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.type !== "application/pdf") {
-      toast({ title: "Invalid file", description: "Please select a PDF", variant: "destructive" });
-      return;
-    }
-    uploadMutation.mutate(file);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const valid = files.filter((f) => {
+      if (f.type !== "application/pdf") {
+        toast({ title: "Invalid file", description: `${f.name} is not a PDF`, variant: "destructive" });
+        return false;
+      }
+      if (f.size > 30 * 1024 * 1024) {
+        toast({ title: "File too large", description: `${f.name} exceeds 30MB`, variant: "destructive" });
+        return false;
+      }
+      return true;
+    });
+    if (valid.length > 0) uploadMutation.mutate(valid);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handlePageClick = useCallback(
@@ -262,13 +425,38 @@ export default function EnvelopeEditor() {
         justDraggedRef.current = false;
         return;
       }
+
+      const pageEl = pageRefs.current.get(pageNum);
+      if (!pageEl) return;
+
+      if (clipboardField) {
+        const rect = pageEl.getBoundingClientRect();
+        const scale = pdfZoom;
+        const rawX = (e.clientX - rect.left) / scale;
+        const rawY = (e.clientY - rect.top) / scale;
+        const x = Math.max(0, Math.round(rawX - clipboardField.width / 2));
+        const y = Math.max(0, Math.round(rawY - clipboardField.height / 2));
+        const snappedX = Math.round(x / SNAP_GRID) * SNAP_GRID;
+        const snappedY = Math.round(y / SNAP_GRID) * SNAP_GRID;
+
+        const pastedField: FieldType = {
+          ...clipboardField,
+          id: `temp-${Date.now()}`,
+          page: pageNum,
+          x: snappedX,
+          y: snappedY,
+        };
+
+        pushHistory([...localFields, pastedField]);
+        setClipboardField(null);
+        toast({ title: "Pasted", description: `${pastedField.type} field pasted.` });
+        return;
+      }
+
       if (!dragTool) {
         setSelectedField(null);
         return;
       }
-
-      const pageEl = pageRefs.current.get(pageNum);
-      if (!pageEl) return;
 
       const rect = pageEl.getBoundingClientRect();
       const scale = pdfZoom;
@@ -290,14 +478,14 @@ export default function EnvelopeEditor() {
         y: snappedY,
         width: dragTool.w,
         height: dragTool.h,
-        value: null,
+        value: dragTool.type === "date" ? formatDateWithTimezone(new Date()) : null,
         required: true,
       };
 
       pushHistory([...localFields, newField]);
       setDragTool(null);
     },
-    [dragTool, envelopeId, selectedRecipient, pdfZoom, localFields, pushHistory]
+    [dragTool, clipboardField, envelopeId, selectedRecipient, pdfZoom, localFields, pushHistory, toast]
   );
 
   const handleFieldMouseDown = useCallback(
@@ -414,6 +602,229 @@ export default function EnvelopeEditor() {
     [localFields, pdfZoom, pushHistory]
   );
 
+  const updateFieldValue = useCallback((fieldId: string, value: string | null) => {
+    pushHistory(localFields.map((f) => f.id === fieldId ? { ...f, value } : f));
+  }, [localFields, pushHistory]);
+
+  const handleFieldDoubleClick = useCallback((fieldId: string) => {
+    const field = localFields.find((f) => f.id === fieldId);
+    if (!field) return;
+    if (field.label === "seal") return;
+
+    if (field.type === "signature" || field.type === "initials") {
+      setSigFieldId(fieldId);
+      setSigDialogOpen(true);
+      const r = recipients?.find((r) => r.id === field.recipientId);
+      const settings = getSettings();
+      setTypedName(r?.name || settings.displayName || "");
+    } else if (field.type === "text") {
+      setTextFieldId(fieldId);
+      setTextValue(field.value || "");
+      setTextDialogOpen(true);
+    } else if (field.type === "checkbox") {
+      updateFieldValue(fieldId, field.value === "checked" ? null : "checked");
+    } else if (field.type === "date") {
+      updateFieldValue(fieldId, formatDateWithTimezone(new Date()));
+    }
+  }, [localFields, recipients, updateFieldValue]);
+
+  const clearSigCanvas = useCallback(() => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  const startDraw = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    setIsDrawing(true);
+    const rect = canvas.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.strokeStyle = "hsl(40 65% 50%)";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }, []);
+
+  const onDraw = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  }, [isDrawing]);
+
+  const endDraw = useCallback(() => setIsDrawing(false), []);
+
+  const applySig = () => {
+    if (!sigFieldId) return;
+    if (sigMode === "type") {
+      if (!typedName.trim()) return;
+      updateFieldValue(sigFieldId, `typed:${selectedFont}:${typedName}`);
+    } else {
+      const canvas = sigCanvasRef.current;
+      if (!canvas) return;
+      const dataUrl = canvas.toDataURL();
+      updateFieldValue(sigFieldId, `drawn:${dataUrl}`);
+    }
+    setSigDialogOpen(false);
+    setSigFieldId(null);
+  };
+
+  const applyText = () => {
+    if (textFieldId) {
+      updateFieldValue(textFieldId, textValue || null);
+      setTextDialogOpen(false);
+      setTextFieldId(null);
+      setTextValue("");
+    }
+  };
+
+  const [sealGenerating, setSealGenerating] = useState(false);
+
+  const generateSeal = useCallback(async () => {
+    const pageFields = localFields.filter(
+      (f) => f.page === activePage && f.type !== "initials" && f.type !== "checkbox" && f.label !== "seal"
+    );
+    if (pageFields.length === 0) {
+      toast({ title: "No fields", description: "Place signature, date, or text fields on this page first.", variant: "destructive" });
+      return;
+    }
+
+    setSealGenerating(true);
+
+    try {
+      let gpsText = "GPS: unavailable";
+      if (navigator.geolocation) {
+        try {
+          const pos = await Promise.race<GeolocationPosition | null>([
+            new Promise<GeolocationPosition>((resolve, reject) =>
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 2000 })
+            ),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+          ]);
+          if (pos) {
+            gpsText = `GPS: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+          } else {
+            gpsText = "GPS: not available";
+          }
+        } catch {
+          gpsText = "GPS: not available";
+        }
+      }
+
+      const parts: string[] = [];
+      for (const f of pageFields) {
+        if (f.type === "signature" && f.value) {
+          if (f.value.startsWith("typed:")) {
+            const name = f.value.split(":").slice(2).join(":");
+            parts.push(`SIG: ${name}`);
+          } else if (f.value.startsWith("drawn:")) {
+            parts.push("SIG: [drawn]");
+          } else {
+            parts.push(`SIG: ${f.value}`);
+          }
+        } else if (f.type === "signature") {
+          parts.push("SIG: [pending]");
+        } else if (f.type === "date" && f.value) {
+          parts.push(`Date ${f.value}`);
+        } else if (f.type === "date") {
+          parts.push("DATE: [pending]");
+        } else if (f.type === "text" && f.value) {
+          parts.push(`TXT: ${f.value}`);
+        } else if (f.type === "text") {
+          parts.push("TXT: [pending]");
+        }
+      }
+
+      const now = new Date();
+      const baseTimestamp = formatDateWithTimezone(now);
+      let highPrecFrac = "";
+      if (typeof performance !== "undefined") {
+        const preciseMs = performance.timeOrigin + performance.now();
+        const fracSec = (preciseMs % 1000) / 1000;
+        highPrecFrac = fracSec.toFixed(15).slice(1);
+      } else {
+        highPrecFrac = "." + String(now.getMilliseconds()).padStart(3, "0") + "000000000000";
+      }
+      const sealTimestamp = `${baseTimestamp} [${highPrecFrac}fs]`;
+
+      const sealContent = `SEAL | ${parts.join(" | ")} | ${gpsText} | ${sealTimestamp}`;
+
+      const sealX = 10;
+      const sealWidth = 580;
+      const sealHeight = 24;
+
+      const pageEl = pageRefs.current.get(activePage);
+      const pageHeight = pageEl ? pageEl.offsetHeight / pdfZoom : 1035;
+
+      const sigFields = localFields.filter(
+        (f) => f.page === activePage && f.type === "signature" && f.label !== "seal"
+      );
+
+      const sigGap = 8;
+      const bottomMargin = 20;
+
+      const sealY = Math.round(pageHeight - bottomMargin - sealHeight);
+
+      const totalSigHeight = sigFields.reduce((sum, f) => sum + f.height + sigGap, 0);
+      let currentY = sealY - totalSigHeight;
+
+      const repositionedSigIds = new Set(sigFields.map((f) => f.id));
+
+      const updatedFields: FieldType[] = [];
+      for (const f of sigFields) {
+        updatedFields.push({ ...f, x: sealX, y: Math.round(currentY) });
+        currentY += f.height + sigGap;
+      }
+
+      const existingSealIdx = localFields.findIndex((f) => f.page === activePage && f.label === "seal");
+      const existingSeal = existingSealIdx >= 0 ? localFields[existingSealIdx] : null;
+
+      let newFields = localFields.map((f) => {
+        if (repositionedSigIds.has(f.id)) {
+          const updated = updatedFields.find((u) => u.id === f.id);
+          return updated || f;
+        }
+        if (existingSeal && f.id === existingSeal.id) {
+          return { ...f, value: sealContent, y: sealY, x: sealX, width: sealWidth };
+        }
+        return f;
+      });
+
+      if (!existingSeal) {
+        const sealField: FieldType = {
+          id: `temp-${Date.now()}`,
+          envelopeId,
+          recipientId: selectedRecipient || null,
+          type: "text",
+          label: "seal",
+          page: activePage,
+          x: sealX,
+          y: sealY,
+          width: sealWidth,
+          height: sealHeight,
+          value: sealContent,
+          required: false,
+        };
+        newFields = [...newFields, sealField];
+      }
+
+      pushHistory(newFields);
+      toast({ title: "Seal Generated", description: "Signatures repositioned above seal." });
+    } finally {
+      setSealGenerating(false);
+    }
+  }, [localFields, activePage, envelopeId, selectedRecipient, pushHistory, toast]);
+
   const removeField = (id: string) => {
     pushHistory(localFields.filter((f) => f.id !== id));
     if (selectedField === id) setSelectedField(null);
@@ -421,7 +832,8 @@ export default function EnvelopeEditor() {
 
   const getRecipientIndex = (recipientId: string | null) => {
     if (!recipients || !recipientId) return 0;
-    return recipients.findIndex((r) => r.id === recipientId);
+    const idx = recipients.findIndex((r) => r.id === recipientId);
+    return idx < 0 ? 0 : idx;
   };
 
   const fieldsOnPage = (page: number) => localFields.filter((f) => f.page === page);
@@ -534,65 +946,189 @@ export default function EnvelopeEditor() {
           </Button>
           <Button
             size="sm"
-            onClick={() => sendMutation.mutate()}
-            disabled={sendMutation.isPending}
+            onClick={handleSend}
+            disabled={doSend.isPending}
             data-testid="button-send-envelope"
           >
             <Send className="w-3 h-3" />
-            {sendMutation.isPending ? "Sending..." : "Send"}
+            {doSend.isPending ? "Sending..." : "Send"}
           </Button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-52 shrink-0 border-r p-3 space-y-3.5 overflow-y-auto bg-sidebar">
-          {!hasPdf && (
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadMutation.isPending}
-                data-testid="button-upload-pdf"
-              >
-                <Upload className="w-3 h-3" />
-                {uploadMutation.isPending ? "Uploading..." : "Upload PDF"}
-              </Button>
-            </div>
-          )}
+        <div className="w-52 shrink-0 border-r p-3 space-y-3.5 overflow-y-auto bg-sidebar" style={{ boxShadow: 'inset 2px 2px 6px rgba(255,255,255,0.07), inset -2px -2px 6px rgba(0,0,0,0.4), inset 0 0 20px rgba(0,0,0,0.15)' }}>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMutation.isPending}
+              data-testid="button-upload-pdf"
+            >
+              {hasPdf ? <Plus className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
+              {uploadMutation.isPending ? "Processing..." : hasPdf ? "Add Pages" : "Upload PDF"}
+            </Button>
+          </div>
 
           <div>
-            <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">
-              Assign to
-            </p>
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest">
+                Recipients
+              </p>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-5 w-5"
+                onClick={() => setShowAddRecipient(!showAddRecipient)}
+                data-testid="button-toggle-add-recipient"
+              >
+                <UserPlus className="w-3 h-3" />
+              </Button>
+            </div>
+            {showAddRecipient && (
+              <div className="space-y-1.5 mb-2 p-2 rounded-md bg-muted/50">
+                <div className="relative">
+                  <User className="absolute left-2 top-2 w-3 h-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Name"
+                    className="pl-7 h-7 text-[11px]"
+                    value={newRecipientName}
+                    onChange={(e) => setNewRecipientName(e.target.value)}
+                    data-testid="input-new-recipient-name"
+                  />
+                </div>
+                <div className="relative">
+                  <Mail className="absolute left-2 top-2 w-3 h-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Email"
+                    className="pl-7 h-7 text-[11px]"
+                    value={newRecipientEmail}
+                    onChange={(e) => setNewRecipientEmail(e.target.value)}
+                    data-testid="input-new-recipient-email"
+                  />
+                </div>
+                <Select value={newRecipientRole} onValueChange={setNewRecipientRole}>
+                  <SelectTrigger className="h-7 text-[11px]" data-testid="select-new-recipient-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="signer">Signer</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="witness">Witness</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="w-full h-7 text-[11px]"
+                  onClick={() => addRecipientMutation.mutate()}
+                  disabled={!newRecipientName || !newRecipientEmail || addRecipientMutation.isPending}
+                  data-testid="button-add-new-recipient"
+                >
+                  {addRecipientMutation.isPending ? "Adding..." : "Add Recipient"}
+                </Button>
+              </div>
+            )}
             {recipients && recipients.length > 0 && (
-              <Select value={selectedRecipient} onValueChange={setSelectedRecipient}>
-                <SelectTrigger data-testid="select-assign-recipient">
-                  <SelectValue placeholder="Select recipient" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipients.map((r, i) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      <span className="flex items-center gap-2">
+              <div className="space-y-1">
+                {recipients.map((r, i) => (
+                  <div key={r.id} className="group">
+                    {editingRecipientId === r.id ? (
+                      <div className="space-y-1 p-1.5 rounded-md bg-muted/50">
+                        <Input
+                          className="h-6 text-[10px]"
+                          value={editRecipientName}
+                          onChange={(e) => setEditRecipientName(e.target.value)}
+                          data-testid={`input-edit-recipient-name-${i}`}
+                        />
+                        <Input
+                          className="h-6 text-[10px]"
+                          value={editRecipientEmail}
+                          onChange={(e) => setEditRecipientEmail(e.target.value)}
+                          data-testid={`input-edit-recipient-email-${i}`}
+                        />
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            className="flex-1 h-6 text-[10px]"
+                            onClick={() => updateRecipientMutation.mutate({ id: r.id, name: editRecipientName, email: editRecipientEmail })}
+                            disabled={updateRecipientMutation.isPending}
+                            data-testid={`button-save-recipient-${i}`}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-[10px]"
+                            onClick={() => setEditingRecipientId(null)}
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`flex items-center gap-1.5 px-1.5 py-1 rounded-md cursor-pointer ${
+                          selectedRecipient === r.id ? "bg-muted" : ""
+                        }`}
+                        onClick={() => setSelectedRecipient(r.id)}
+                        data-testid={`recipient-item-${i}`}
+                      >
                         <span
                           className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             RECIPIENT_COLORS[i % RECIPIENT_COLORS.length].split(" ")[0].replace("border-", "bg-")
                           }`}
                         />
-                        <span className="text-xs">{r.name}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-medium truncate">{r.name}</p>
+                          <p className="text-[9px] text-muted-foreground truncate">{r.email}</p>
+                        </div>
+                        <div className="flex items-center gap-0.5 invisible group-hover:visible">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-5 w-5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingRecipientId(r.id);
+                              setEditRecipientName(r.name);
+                              setEditRecipientEmail(r.email);
+                            }}
+                            data-testid={`button-edit-recipient-${i}`}
+                          >
+                            <Pencil className="w-2.5 h-2.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-5 w-5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteRecipientMutation.mutate(r.id);
+                            }}
+                            data-testid={`button-delete-recipient-${i}`}
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {(!recipients || recipients.length === 0) && !showAddRecipient && (
+              <p className="text-[10px] text-muted-foreground">No recipients. Click + to add.</p>
             )}
           </div>
 
@@ -660,6 +1196,18 @@ export default function EnvelopeEditor() {
             </div>
           )}
 
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={generateSeal}
+            disabled={sealGenerating}
+            data-testid="button-generate-seal"
+          >
+            <Shield className="w-3 h-3" />
+            {sealGenerating ? "Generating..." : "Generate Seal"}
+          </Button>
+
           {localFields.length > 0 && (
             <div>
               <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">
@@ -723,7 +1271,14 @@ export default function EnvelopeEditor() {
           )}
         </div>
 
-        <div className="flex-1 overflow-auto bg-muted/30 p-5 flex flex-col items-center gap-6">
+        <div
+          className="flex-1 overflow-auto bg-muted/30 p-5 flex flex-col items-center gap-6"
+          style={{
+            boxShadow: 'inset 3px 3px 8px rgba(0,0,0,0.45), inset -3px -3px 8px rgba(255,255,255,0.05), inset 0 0 24px rgba(0,0,0,0.2)',
+            borderLeft: '1px solid rgba(255,255,255,0.04)',
+            borderTop: '1px solid rgba(255,255,255,0.04)',
+          }}
+        >
           {pdfUrl ? (
             <Document
               file={pdfUrl}
@@ -748,8 +1303,11 @@ export default function EnvelopeEditor() {
                 return (
                   <div
                     key={pageNum}
-                    className="relative shadow-lg mx-auto"
-                    style={{ width: PDF_BASE_WIDTH * pdfZoom }}
+                    className="relative mx-auto"
+                    style={{
+                      width: PDF_BASE_WIDTH * pdfZoom,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3), 2px 2px 0 rgba(255,255,255,0.03), -1px -1px 0 rgba(0,0,0,0.2)',
+                    }}
                     ref={(el) => {
                       if (el) pageRefs.current.set(pageNum, el);
                     }}
@@ -765,7 +1323,7 @@ export default function EnvelopeEditor() {
                     <div
                       className="absolute inset-0"
                       style={{
-                        cursor: dragTool ? "crosshair" : undefined,
+                        cursor: dragTool || clipboardField ? "crosshair" : undefined,
                         pointerEvents: isDragging ? "none" : undefined,
                       }}
                     >
@@ -773,13 +1331,18 @@ export default function EnvelopeEditor() {
                         const ri = getRecipientIndex(f.recipientId);
                         const colorClass = RECIPIENT_COLORS[ri % RECIPIENT_COLORS.length];
                         const isSelected = selectedField === f.id;
+                        const hasValue = !!f.value;
 
                         return (
                           <div
                             key={f.id}
-                            className={`absolute border-2 border-dashed rounded-sm flex flex-col items-center justify-center cursor-move ${colorClass} ${
-                              isSelected ? "ring-2 ring-ring" : ""
-                            }`}
+                            className={`absolute rounded-sm flex flex-col items-center justify-center cursor-move ${
+                              f.label === "seal"
+                                ? "border border-primary/40 bg-primary/5"
+                                : hasValue
+                                  ? "border border-primary/30"
+                                  : `border-2 border-dashed ${colorClass}`
+                            } ${isSelected ? "ring-2 ring-ring" : ""}`}
                             style={{
                               left: f.x * pdfZoom,
                               top: f.y * pdfZoom,
@@ -791,28 +1354,71 @@ export default function EnvelopeEditor() {
                               e.stopPropagation();
                               setSelectedField(f.id);
                             }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              handleFieldDoubleClick(f.id);
+                            }}
                             onMouseDown={(e) => handleFieldMouseDown(f.id, e)}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setClipboardField({ ...f });
+                              toast({ title: "Copied", description: `${f.type} field copied. Left-click on page to paste.` });
+                            }}
                             data-testid={`field-canvas-${f.id}`}
                           >
-                            {f.type === "signature" ? (
+                            {hasValue ? (
+                              <div className="w-full h-full flex items-center justify-center overflow-hidden p-1 pointer-events-none select-none">
+                                {f.value!.startsWith("typed:") ? (
+                                  <span
+                                    className="text-foreground truncate"
+                                    style={{
+                                      fontFamily: FONT_STYLES[parseInt(f.value!.split(":")[1])]?.fontFamily,
+                                      fontSize: `${Math.max(10, 14 * pdfZoom)}px`,
+                                    }}
+                                  >
+                                    {f.value!.split(":").slice(2).join(":")}
+                                  </span>
+                                ) : f.value!.startsWith("drawn:") ? (
+                                  <img
+                                    src={f.value!.replace("drawn:", "")}
+                                    alt="Signature"
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                ) : f.type === "checkbox" && f.value === "checked" ? (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                                ) : f.type === "date" ? (
+                                  <span className="text-[9px] text-foreground truncate">
+                                    <span className="font-semibold">Date </span>{f.value}
+                                  </span>
+                                ) : f.label === "seal" ? (
+                                  <div className="w-full h-full flex items-center gap-1 px-1.5">
+                                    <Shield className="w-3 h-3 shrink-0 text-primary" />
+                                    <span className="text-[8px] font-mono text-foreground truncate">{f.value}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-foreground truncate">{f.value}</span>
+                                )}
+                              </div>
+                            ) : f.type === "signature" ? (
                               <>
                                 <PenLine className="w-4 h-4 text-primary/50 pointer-events-none" />
                                 <span className="text-[8px] font-medium text-primary/60 uppercase tracking-widest select-none pointer-events-none mt-0.5">
-                                  Signature Required
+                                  Double-click to Sign
                                 </span>
                               </>
                             ) : f.type === "initials" ? (
                               <>
                                 <Hash className="w-3 h-3 text-primary/50 pointer-events-none" />
                                 <span className="text-[8px] font-medium text-primary/60 uppercase tracking-widest select-none pointer-events-none mt-0.5">
-                                  Initials
+                                  Double-click
                                 </span>
                               </>
                             ) : f.type === "date" ? (
                               <>
                                 <CalendarDays className="w-3 h-3 text-primary/50 pointer-events-none" />
                                 <span className="text-[7px] font-medium text-primary/60 uppercase tracking-widest select-none pointer-events-none mt-0.5">
-                                  Date (HPTP)
+                                  Double-click
                                 </span>
                               </>
                             ) : f.type === "checkbox" ? (
@@ -821,7 +1427,7 @@ export default function EnvelopeEditor() {
                               <>
                                 <Type className="w-3 h-3 text-primary/50 pointer-events-none" />
                                 <span className="text-[7px] font-medium text-primary/60 uppercase tracking-widest select-none pointer-events-none mt-0.5">
-                                  Text
+                                  Double-click
                                 </span>
                               </>
                             ) : (
@@ -840,10 +1446,10 @@ export default function EnvelopeEditor() {
                         );
                       })}
                     </div>
-                    {dragTool && (
+                    {(dragTool || clipboardField) && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <p className="text-[10px] text-muted-foreground bg-background/80 px-2.5 py-1 rounded-md">
-                          Click to place {dragTool.type}
+                          {clipboardField ? `Click to paste ${clipboardField.type}` : `Click to place ${dragTool!.type}`}
                         </p>
                       </div>
                     )}
@@ -890,6 +1496,120 @@ export default function EnvelopeEditor() {
           )}
         </div>
       </div>
+
+      <Dialog open={sigDialogOpen} onOpenChange={setSigDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {sigFieldId && localFields.find((f) => f.id === sigFieldId)?.type === "initials"
+                ? "Add Initials"
+                : "Add Signature"}
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs value={sigMode} onValueChange={(v) => setSigMode(v as "draw" | "type")}>
+            <TabsList className="w-full">
+              <TabsTrigger value="type" className="flex-1" data-testid="tab-editor-type-sig">
+                <Type className="w-3 h-3 mr-1" />
+                <span className="text-xs">Type</span>
+              </TabsTrigger>
+              <TabsTrigger value="draw" className="flex-1" data-testid="tab-editor-draw-sig">
+                <PenLine className="w-3 h-3 mr-1" />
+                <span className="text-xs">Draw</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="type" className="space-y-3">
+              <Input
+                value={typedName}
+                onChange={(e) => setTypedName(e.target.value)}
+                placeholder="Type your name"
+                data-testid="input-editor-typed-name"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                {FONT_STYLES.map((font, i) => (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-md border cursor-pointer text-center transition-colors ${
+                      selectedFont === i
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover-elevate"
+                    }`}
+                    onClick={() => setSelectedFont(i)}
+                    data-testid={`font-editor-${i}`}
+                  >
+                    <span style={{ fontFamily: font.fontFamily }} className="text-lg">
+                      {typedName || "Preview"}
+                    </span>
+                    <p className="text-[9px] text-muted-foreground mt-1">{font.name}</p>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+            <TabsContent value="draw" className="space-y-3">
+              <div className="border rounded-md overflow-hidden">
+                <canvas
+                  ref={sigCanvasRef}
+                  width={400}
+                  height={150}
+                  className="w-full bg-background cursor-crosshair"
+                  onMouseDown={startDraw}
+                  onMouseMove={onDraw}
+                  onMouseUp={endDraw}
+                  onMouseLeave={endDraw}
+                  data-testid="canvas-editor-draw-sig"
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={clearSigCanvas} data-testid="button-editor-clear-sig">
+                <Eraser className="w-3 h-3" />
+                Clear
+              </Button>
+            </TabsContent>
+          </Tabs>
+          <DialogFooter>
+            <Button onClick={applySig} data-testid="button-editor-apply-sig">
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Enter Text</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={textValue}
+            onChange={(e) => setTextValue(e.target.value)}
+            placeholder="Enter text value"
+            onKeyDown={(e) => { if (e.key === "Enter") applyText(); }}
+            data-testid="input-editor-text-value"
+          />
+          <DialogFooter>
+            <Button onClick={applyText} data-testid="button-editor-apply-text">
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSealWarning} onOpenChange={setShowSealWarning}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Missing Seal on Last Page</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            No seal has been placed on the last page of this document. It is recommended to generate a seal on the final page before sending. Do you want to continue anyway?
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSealWarning(false)} data-testid="button-seal-warning-cancel">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={() => { setShowSealWarning(false); doSend.mutate(); }} data-testid="button-seal-warning-send">
+              Send Anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

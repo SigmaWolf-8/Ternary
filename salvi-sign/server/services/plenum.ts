@@ -72,14 +72,29 @@ export async function mlDsaSign(
   }
 }
 
-export async function healthCheck(): Promise<{ status: string; timestamp: string }> {
+export async function healthCheck(): Promise<{ status: string; timestamp: string; keyValid?: boolean }> {
+  const timestamp = new Date().toISOString();
+  let reachable = false;
+  let keyValid = false;
+
   try {
-    const res = await axios.get(`${PLENUM_BASE}/timing/self-test`, {
-      headers: { "x-api-key": API_KEY },
-      timeout: 5000,
-    });
-    return { status: "connected", timestamp: res.data.epoch || new Date().toISOString() };
-  } catch (err: any) {
-    return { status: "unreachable", timestamp: new Date().toISOString() };
+    const res = await axios.get(`${PLENUM_BASE}/timing/self-test`, { timeout: 5000 });
+    reachable = true;
+  } catch {
+    return { status: "unreachable", timestamp, keyValid: false };
   }
+
+  if (API_KEY) {
+    try {
+      const res = await axios.get(`${PLENUM_BASE}/timing/hptp`, {
+        headers: { "x-api-key": API_KEY },
+        timeout: 5000,
+      });
+      keyValid = res.status === 200;
+    } catch (err: any) {
+      keyValid = false;
+    }
+  }
+
+  return { status: "connected", timestamp, keyValid };
 }

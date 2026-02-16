@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateWithTimezone } from "@/pages/settings";
 import type { Envelope, Recipient, Field as FieldType } from "@shared/schema";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -39,8 +40,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 const FONT_STYLES = [
   { name: "Elegant", fontFamily: "'Architects Daughter', cursive" },
   { name: "Classic", fontFamily: "'Libre Baskerville', serif" },
-  { name: "Modern", fontFamily: "'Space Grotesk', sans-serif" },
   { name: "Script", fontFamily: "'Lora', serif" },
+  { name: "Vibrations", fontFamily: "'Great Vibes', cursive" },
+  { name: "Dancing", fontFamily: "'Dancing Script', cursive" },
+  { name: "Pacifico", fontFamily: "'Pacifico', cursive" },
+  { name: "Sacramento", fontFamily: "'Sacramento', cursive" },
+  { name: "Alex Brush", fontFamily: "'Alex Brush', cursive" },
 ];
 
 const PDF_BASE_WIDTH = 800;
@@ -79,13 +84,43 @@ export default function Sign() {
     queryKey: ["/api/envelopes", envelopeId, "fields"],
   });
 
+  const { data: allRecipients } = useQuery<Recipient[]>({
+    queryKey: ["/api/envelopes", envelopeId, "recipients"],
+  });
+
   const hasPdf = !!envelope?.pdfData;
   const pdfUrl = hasPdf ? `/api/envelopes/${envelopeId}/pdf` : null;
-  const myFields = fields?.filter((f) => f.recipientId === recipientId) || [];
+  const activeRecipientIds = new Set((allRecipients || []).map((r) => r.id));
+  const myFields = fields?.filter((f) => {
+    if (f.recipientId === recipientId) return true;
+    if (f.recipientId && !activeRecipientIds.has(f.recipientId)) return true;
+    return false;
+  }) || [];
+  const otherFields = fields?.filter((f) => f.recipientId !== recipientId && f.recipientId && activeRecipientIds.has(f.recipientId)) || [];
 
   useEffect(() => {
     if (envelope?.pageCount) setNumPages(envelope.pageCount);
   }, [envelope]);
+
+  const myFieldIds = myFields.map((f) => f.id).join(",");
+  useEffect(() => {
+    if (myFields.length > 0) {
+      setFieldValues((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        myFields.forEach((f) => {
+          if (f.type === "date" && !next[f.id]) {
+            next[f.id] = formatDateWithTimezone(new Date());
+            changed = true;
+          } else if (f.value && !next[f.id]) {
+            next[f.id] = f.value;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [myFieldIds]);
 
   const signMutation = useMutation({
     mutationFn: async (data: { fieldValues: Record<string, string> }) => {
@@ -178,7 +213,7 @@ export default function Sign() {
     } else if (field.type === "date") {
       setFieldValues((prev) => ({
         ...prev,
-        [field.id]: new Date().toLocaleDateString(),
+        [field.id]: formatDateWithTimezone(new Date()),
       }));
     } else if (field.type === "checkbox") {
       setFieldValues((prev) => ({
@@ -212,10 +247,19 @@ export default function Sign() {
       return;
     }
 
-    signMutation.mutate({ fieldValues });
+    const finalValues = { ...fieldValues };
+    myFields.forEach((f) => {
+      if (f.type === "date") {
+        finalValues[f.id] = formatDateWithTimezone(new Date());
+      }
+    });
+    setFieldValues(finalValues);
+
+    signMutation.mutate({ fieldValues: finalValues });
   };
 
   const fieldsOnPage = (page: number) => myFields.filter((f) => f.page === page);
+  const otherFieldsOnPage = (page: number) => otherFields.filter((f) => f.page === page);
 
   if (envLoading) {
     return (
@@ -339,6 +383,7 @@ export default function Sign() {
             {Array.from({ length: numPages }, (_, i) => {
               const pageNum = i + 1;
               const pageFields = fieldsOnPage(pageNum);
+              const otherPageFields = otherFieldsOnPage(pageNum);
               return (
                 <div
                   key={pageNum}
@@ -353,6 +398,38 @@ export default function Sign() {
                     renderTextLayer={false}
                   />
                   <div className="absolute inset-0 pointer-events-none">
+                    {otherPageFields.map((f) => (
+                      <div
+                        key={f.id}
+                        className="absolute rounded-sm flex items-center justify-center opacity-40"
+                        style={{
+                          left: f.x * pdfZoom,
+                          top: f.y * pdfZoom,
+                          width: f.width * pdfZoom,
+                          height: f.height * pdfZoom,
+                        }}
+                      >
+                        {f.value ? (
+                          <div className="w-full h-full flex items-center justify-center overflow-hidden p-1">
+                            {f.value.startsWith("typed:") ? (
+                              <span
+                                className="text-muted-foreground truncate"
+                                style={{
+                                  fontFamily: FONT_STYLES[parseInt(f.value.split(":")[1]) || 0]?.fontFamily,
+                                  fontSize: `${Math.max(10, 14 * pdfZoom)}px`,
+                                }}
+                              >
+                                {f.value.split(":").slice(2).join(":")}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">{f.value}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="border border-muted-foreground/30 border-dashed rounded-sm w-full h-full" />
+                        )}
+                      </div>
+                    ))}
                     {pageFields.map((f) => {
                       const value = fieldValues[f.id];
                       const hasValue = !!value;

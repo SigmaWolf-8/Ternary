@@ -6,7 +6,6 @@ import {
   Pencil,
   Send,
   Copy,
-  CheckCircle2,
   User,
   Clock,
   FileText,
@@ -147,18 +146,6 @@ export default function EnvelopeDetail() {
               >
                 <Download className="w-3 h-3" />
                 {isDownloading ? "Downloading..." : "Download PDF"}
-              </Button>
-            )}
-            {envelope.pdfData === "has_pdf" && envelope.status === "completed" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => downloadPdf(true)}
-                disabled={isDownloading}
-                data-testid="button-download-signed"
-              >
-                <CheckCircle2 className="w-3 h-3" />
-                Download Signed
               </Button>
             )}
             {envelope.status === "completed" && (

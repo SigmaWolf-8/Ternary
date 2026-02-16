@@ -39,6 +39,7 @@ export interface IStorage {
   getRecipient(id: string): Promise<Recipient | undefined>;
   createRecipient(recipient: InsertRecipient): Promise<Recipient>;
   updateRecipient(id: string, data: Partial<Recipient>): Promise<Recipient | undefined>;
+  deleteRecipient(id: string): Promise<void>;
 
   getFieldsByEnvelope(envelopeId: string): Promise<Field[]>;
   createField(field: InsertField): Promise<Field>;
@@ -139,6 +140,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(recipients.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteRecipient(id: string): Promise<void> {
+    await db.delete(recipients).where(eq(recipients.id, id));
   }
 
   async getFieldsByEnvelope(envelopeId: string): Promise<Field[]> {

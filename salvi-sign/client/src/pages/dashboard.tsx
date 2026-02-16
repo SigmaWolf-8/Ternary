@@ -154,7 +154,7 @@ export default function Dashboard() {
                         <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <Link href={`/envelope/${envelope.id}`}>
+                        <Link href={`/envelope/${envelope.id}/edit`}>
                           <h3
                             className="text-xs font-medium truncate cursor-pointer"
                             data-testid={`text-envelope-title-${envelope.id}`}
@@ -179,6 +179,12 @@ export default function Dashboard() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <Link href={`/envelope/${envelope.id}/edit`}>
+                              <DropdownMenuItem data-testid={`menu-edit-${envelope.id}`}>
+                                <Pencil className="w-3.5 h-3.5 mr-2" />
+                                Edit Fields
+                              </DropdownMenuItem>
+                            </Link>
                             <Link href={`/envelope/${envelope.id}`}>
                               <DropdownMenuItem data-testid={`menu-view-${envelope.id}`}>
                                 <Eye className="w-3.5 h-3.5 mr-2" />
@@ -187,12 +193,6 @@ export default function Dashboard() {
                             </Link>
                             {envelope.status === "draft" && (
                               <>
-                                <Link href={`/envelope/${envelope.id}/edit`}>
-                                  <DropdownMenuItem data-testid={`menu-edit-${envelope.id}`}>
-                                    <Pencil className="w-3.5 h-3.5 mr-2" />
-                                    Edit Fields
-                                  </DropdownMenuItem>
-                                </Link>
                                 <DropdownMenuItem
                                   onClick={() => sendMutation.mutate(envelope.id)}
                                   data-testid={`menu-send-${envelope.id}`}

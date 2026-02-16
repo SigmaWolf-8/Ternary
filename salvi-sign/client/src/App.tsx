@@ -15,10 +15,11 @@ import EnvelopeDetail from "@/pages/envelope-detail";
 import EnvelopeEditor from "@/pages/envelope-editor";
 import Sign from "@/pages/sign";
 import SharePage from "@/pages/share";
+import SettingsPage from "@/pages/settings";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const style = {
-    "--sidebar-width": "14rem",
+    "--sidebar-width": "12rem",
     "--sidebar-width-icon": "3rem",
   };
 
@@ -52,6 +53,7 @@ function MainRouter() {
         <Route path="/new" component={EnvelopeNew} />
         <Route path="/envelope/:id" component={EnvelopeDetail} />
         <Route path="/envelope/:id/edit" component={EnvelopeEditor} />
+        <Route path="/settings" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
