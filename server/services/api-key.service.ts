@@ -46,7 +46,8 @@ export const apiKeyService = {
     owner: string,
     name: string,
     scopes: string[],
-    expiresDays: number = 90
+    expiresDays: number = 90,
+    wbs?: { entityType?: string; entityName?: string; project?: string; department?: string; tags?: string[]; notes?: string }
   ) {
     const rawKey = crypto.randomBytes(32).toString("hex");
     const fullKey = `${KEY_PREFIX}${rawKey}`;
@@ -64,6 +65,12 @@ export const apiKeyService = {
         expiresAt: expiresDays > 0
           ? new Date(Date.now() + expiresDays * 86400000)
           : null,
+        entityType: wbs?.entityType || null,
+        entityName: wbs?.entityName || null,
+        project: wbs?.project || null,
+        department: wbs?.department || null,
+        tags: wbs?.tags || [],
+        notes: wbs?.notes || null,
       })
       .returning();
 
@@ -158,6 +165,12 @@ export const apiKeyService = {
         previousKeyId: apiKeys.previousKeyId,
         rateLimitTier: apiKeys.rateLimitTier,
         rateLimitRpm: apiKeys.rateLimitRpm,
+        entityType: apiKeys.entityType,
+        entityName: apiKeys.entityName,
+        project: apiKeys.project,
+        department: apiKeys.department,
+        tags: apiKeys.tags,
+        notes: apiKeys.notes,
         createdAt: apiKeys.createdAt,
       })
       .from(apiKeys)
@@ -182,6 +195,12 @@ export const apiKeyService = {
         previousKeyId: apiKeys.previousKeyId,
         rateLimitTier: apiKeys.rateLimitTier,
         rateLimitRpm: apiKeys.rateLimitRpm,
+        entityType: apiKeys.entityType,
+        entityName: apiKeys.entityName,
+        project: apiKeys.project,
+        department: apiKeys.department,
+        tags: apiKeys.tags,
+        notes: apiKeys.notes,
         createdAt: apiKeys.createdAt,
       })
       .from(apiKeys)
@@ -312,6 +331,37 @@ export const apiKeyService = {
         )
       )
       .orderBy(apiKeys.expiresAt);
+  },
+
+  async updateKeyMetadata(
+    keyId: string,
+    updates: {
+      name?: string;
+      entityType?: string | null;
+      entityName?: string | null;
+      project?: string | null;
+      department?: string | null;
+      tags?: string[];
+      notes?: string | null;
+    }
+  ) {
+    const setValues: Record<string, unknown> = {};
+    if (updates.name !== undefined) setValues.name = updates.name;
+    if (updates.entityType !== undefined) setValues.entityType = updates.entityType;
+    if (updates.entityName !== undefined) setValues.entityName = updates.entityName;
+    if (updates.project !== undefined) setValues.project = updates.project;
+    if (updates.department !== undefined) setValues.department = updates.department;
+    if (updates.tags !== undefined) setValues.tags = updates.tags;
+    if (updates.notes !== undefined) setValues.notes = updates.notes;
+
+    if (Object.keys(setValues).length === 0) return null;
+
+    const [result] = await db
+      .update(apiKeys)
+      .set(setValues)
+      .where(eq(apiKeys.id, keyId))
+      .returning();
+    return result;
   },
 
   async updateRateLimit(

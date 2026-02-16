@@ -114,6 +114,12 @@ export const apiKeys = pgTable("api_keys", {
   previousKeyId: varchar("previous_key_id", { length: 255 }),
   rateLimitTier: varchar("rate_limit_tier", { length: 20 }).default("research").notNull(),
   rateLimitRpm: integer("rate_limit_rpm").default(100).notNull(),
+  entityType: varchar("entity_type", { length: 50 }),
+  entityName: varchar("entity_name", { length: 255 }),
+  project: varchar("project", { length: 255 }),
+  department: varchar("department", { length: 255 }),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

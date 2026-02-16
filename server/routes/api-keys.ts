@@ -19,12 +19,30 @@ const RATE_LIMIT_TIERS: Record<string, number> = {
   admin: 2000,
 };
 
+const ENTITY_TYPES = ["customer", "vendor", "partner", "internal", "contractor", "government"] as const;
+
 const generateKeySchema = z.object({
   name: z.string().min(1).max(255),
   scopes: z.array(z.string()).min(1),
   expiresDays: z.number().int().min(0).max(3650).default(90),
   rateLimitTier: z.enum(["research", "pro", "admin"]).default("research"),
   enableRotation: z.boolean().default(true),
+  entityType: z.enum(["customer", "vendor", "partner", "internal", "contractor", "government"]).optional(),
+  entityName: z.string().max(255).optional(),
+  project: z.string().max(255).optional(),
+  department: z.string().max(255).optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+const updateKeyMetadataSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  entityType: z.enum(["customer", "vendor", "partner", "internal", "contractor", "government"]).nullable().optional(),
+  entityName: z.string().max(255).nullable().optional(),
+  project: z.string().max(255).nullable().optional(),
+  department: z.string().max(255).nullable().optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
+  notes: z.string().max(1000).nullable().optional(),
 });
 
 const revokeKeySchema = z.object({
@@ -49,7 +67,7 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
         return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
       }
 
-      const { name, scopes, expiresDays, rateLimitTier, enableRotation } = parsed.data;
+      const { name, scopes, expiresDays, rateLimitTier, enableRotation, entityType, entityName, project, department, tags, notes } = parsed.data;
 
       const invalidScopes = scopes.filter(
         (s) => !(AVAILABLE_SCOPES as readonly string[]).includes(s)
@@ -64,7 +82,8 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
 
       const owner = req.adminUser?.email || req.adminUser?.id || "admin";
       const rpm = RATE_LIMIT_TIERS[rateLimitTier] || 100;
-      const keyData = await apiKeyService.generate(owner, name, scopes, expiresDays);
+      const wbs = { entityType, entityName, project, department, tags, notes };
+      const keyData = await apiKeyService.generate(owner, name, scopes, expiresDays, wbs);
 
       await apiKeyService.updateRateLimit(keyData.id, rateLimitTier, rpm);
 
@@ -250,6 +269,40 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
 
   app.get("/api/keys/rate-limit-tiers", (_req, res) => {
     res.json({ tiers: RATE_LIMIT_TIERS });
+  });
+
+  app.get("/api/keys/entity-types", (_req, res) => {
+    res.json({ entityTypes: ENTITY_TYPES });
+  });
+
+  app.patch("/api/keys/:id/metadata", requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parsed = updateKeyMetadataSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+      }
+
+      const result = await apiKeyService.updateKeyMetadata(id, parsed.data);
+      if (!result) {
+        return res.status(404).json({ error: "Key not found or no changes made" });
+      }
+
+      const actorId = req.adminUser?.id || "admin";
+      const actorEmail = req.adminUser?.email || null;
+      const ip = req.ip || req.connection?.remoteAddress || null;
+      await apiKeyService.logAuditEvent(id, "metadata_updated", actorId, actorEmail, {
+        keyPrefix: result.keyPrefix,
+        keyName: result.name,
+        updatedFields: Object.keys(parsed.data),
+      }, ip);
+
+      log.info(`Key metadata updated: ${result.keyPrefix}*** by ${actorEmail || actorId}`);
+      res.json({ success: true, key: result });
+    } catch (err: any) {
+      log.error("Key metadata update error:", err);
+      res.status(500).json({ error: "Failed to update key metadata" });
+    }
   });
 
   app.get("/api/keys/anomalies", requireAdmin, async (req: any, res) => {

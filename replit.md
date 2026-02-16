@@ -77,6 +77,8 @@ Complete API key lifecycle management at `/api-keys`:
 -   **Per-Key Rate Limiting**: Three tiers (research: 100 rpm, pro: 500 rpm, admin: 2000 rpm), in-memory partitioned stores, X-RateLimit-* headers on all responses.
 -   **Audit Trail**: `api_key_audit_events` table logging generation, revocation, rotation, tier changes, and auto-revocations with actor identity, IP address, and structured details.
 -   **Anomaly Detection**: Automated detection of usage spikes (>300% day-over-day), high failure rates (>50 in 7 days), IP dispersion (>10 IPs in 24h), and tier escalation events with severity classification (low/medium/high).
+-   **WBS Tagging System**: Entity classification (customer/vendor/partner/internal/contractor/government), entity name, project, department, free-form tags (up to 20), and notes. Editable via Save/Edit dialog with `PATCH /api/keys/:id/metadata`.
+-   **Search & Filtering**: Full-text search across key name, prefix, owner, entity name, project, department, and tags. Filter dropdowns for status (active/revoked/expired/inactive), entity type, tier, and tag. Active filter count badge.
 -   **Dashboard**: Stats cards, expiring keys alerts, security alerts card, audit trail viewer, tier selector per key, rotation controls, tooltips explaining tiers/HPTP/grace periods.
 
 ### Security Middleware Stack
