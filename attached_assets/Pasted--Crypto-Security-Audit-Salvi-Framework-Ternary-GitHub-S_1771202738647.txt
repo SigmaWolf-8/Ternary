@@ -1,0 +1,67 @@
+**Crypto Security Audit: Salvi Framework / Ternary (GitHub: SigmaWolf-8/Ternary) + PlenumNET.replit.app**
+
+**Audit Date:** February 15, 2026  
+**Auditor:** Grok (xAI) – independent, automated review  
+**Scope:** Cryptographic implementations, platform architecture, deployment, API surface, and any blockchain/web3 elements.  
+**Assets Reviewed:** Public GitHub repository (structure, README, docs, claims), live site (PlenumNET.replit.app), high-level code patterns via metadata.
+
+### Executive Summary
+This is **not** a traditional cryptocurrency/DeFi project (no tokens, no native smart contracts, no wallet connections). It is an **ambitious experimental post-quantum cryptography and ternary computing framework** built around novel "bijective ternary logic," a custom Ternary Virtual Machine (TVM), and a mix of standard + proprietary primitives.
+
+**Overall Risk Rating: Medium-High**  
+Strengths include use of modern post-quantum standards (ML-KEM, ML-DSA) and decent DevSecOps practices.  
+Major concerns are **heavy reliance on unproven custom cryptography** ("Phase Encryption," Tribonacci-based primitives) and extraordinary claims that outpace visible evidence. No public third-party audits were found.
+
+The project shows thoughtful security hygiene for an early-stage/open-source effort but would not pass a production-grade crypto audit today.
+
+### Positive Findings (Strengths)
+- **Modern Post-Quantum Foundation**  
+  Claims full CNSA 2.0 suite (ML-KEM/Kyber, ML-DSA/Dilithium, XMSS, LMS, AES-256-GCM, SHA-384/512, etc.) implemented in Rust. This is the right direction for quantum resistance.
+
+- **Supply Chain & Compliance Focus**  
+  - `sbom.json` present → good transparency.  
+  - CodeQL workflow, quarterly compliance CI, `SECURITY.md`, incident response plan.  
+  - Rate-limiting, CORS, Helmet.js on the Express backend.
+
+- **Testing & Automation**  
+  1,011+ passing tests mentioned on the live site. CI/CD pipelines visible in `.github/`.
+
+- **No Obvious Blockchain Red Flags**  
+  - `contracts/` directory exists but appears empty (no `.sol`, `.vy`, or other contract files found).  
+  - Blockchain mentions (XRPL, Algorand, Hedera) are high-level integrations only — no custom contracts or token logic visible.
+
+- **Frontend/API Surface**  
+  PlenumNET.replit.app is a clean technical demo with no login/signup or wallet connect (good — reduces attack surface). Live API endpoints (97 via Kong) are documented.
+
+### Critical & High-Risk Findings
+| Issue | Severity | Description | Recommendation |
+|-------|----------|-------------|----------------|
+| **Novel "Phase Encryption" & Tribonacci Crypto** | Critical | Custom dual-phase encryption using Tribonacci constants (τ ≈ 1.839), guardian phase tamper detection, and ternary-weighted checksums. This is **non-standard** and has **zero public cryptanalysis**. | Submit to professional review (e.g., NCC Group, Trail of Bits, or academic cryptographers). Publish design paper + proofs. |
+| **Ternary-Native Cryptography** | High | All primitives built on GF(3) balanced ternary instead of binary. Most crypto libraries and side-channel mitigations assume binary. High risk of implementation bugs or timing leaks. | Use constant-time primitives everywhere. Run differential power analysis / timing audits if hardware (Verilog) is real. |
+| **Extraordinary Physics Claims** | High | "Unified 13D Torsion Plenum Theory," femtosecond HPTP timing in software, 59% density advantage, Salvi Epoch (April 1, 2025). These are **theoretical** at best and risk misleading users/investors. | Clearly label as experimental/theoretical. Remove or heavily caveat production claims. |
+| **Deployment on Replit** | High | Production-grade crypto infrastructure running on a free-tier prototyping platform. Replit has shared resources, potential for neighbor attacks, and is not designed for sensitive key material or high-availability crypto services. | Migrate to hardened cloud (AWS Nitro, GCP Confidential Space) or bare-metal with HSMs. |
+| **Large Unauthenticated API Surface** | Medium | 97 REST endpoints for encryption, timing, ternary ops, etc. If any accept user data without strong auth, easy DoS or data exfil. | Mandate API keys + mTLS for all sensitive endpoints. Add WAF. |
+| **No External Audits Found** | Medium | `docs/audit-reports.md` returns 404. No public reports from reputable firms. | Commission and publish at least one independent audit before any production use. |
+
+### Medium/Low Findings
+- **Hardware Extension (Verilog)**: `rtl/xplenum_top.v` for "RISC-V Ternary Security Extension" is interesting but unverified. Formal verification (e.g., via Coq or JasperGold) is missing.
+- **Key Management**: `keys/` directory exists — ensure no secrets are committed (standard `.gitignore` + git-secrets recommended).
+- **Dependency Hygiene**: Rust + TypeScript stack. Regularly run `cargo audit` and `npm audit`.
+- **Frontend**: React + Vite — standard, no obvious XSS vectors in the demo.
+
+### Recommendations (Prioritized)
+1. **Immediate** — Commission a professional cryptographic audit focused on Phase Encryption and ternary primitives (budget: $50k–$150k).
+2. **Short-term** — Move production API off Replit. Add proper auth, logging, and monitoring.
+3. **Medium-term** — Publish formal specifications and security proofs for custom algorithms (e.g., on ePrint or arXiv).
+4. **Long-term** — If hardware is real, engage a hardware security lab for side-channel and fault-injection testing.
+5. **Transparency** — Add a clear "Experimental / Research" banner on the site and README. The April 1 epoch date raises eyebrows — lean into the experimental nature.
+
+### Verdict
+**Not production-ready for sensitive cryptographic operations or financial use cases.**
+
+The project is technically fascinating and shows real effort in DevSecOps, but the **novel crypto primitives** are the single biggest red flag. Standard PQC libs (liboqs, RustCrypto) are battle-tested; custom ternary phase encryption is not.
+
+If this is a research/hobby project → cool, keep going.  
+If you’re planning to offer this as infrastructure or raise funds → **pause and get real audits**.
+
+Happy to dive deeper into specific files (e.g., phase encryption implementation) if you grant temporary private access or share code snippets. Questions? Fire away.

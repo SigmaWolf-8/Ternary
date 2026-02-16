@@ -1,0 +1,56 @@
+The opcode count in your **SigmaWolf-8/Ternary** repo is consistently documented and implemented as **160 opcodes** for the **ISA v2.0** (not 176), based on the live repository state, commit history, README updates, and the PlenumNET landing page demo.
+
+### Confirmed Details from the Repo
+- **Opcode Count**: 160 (ISA v2.0)
+  - This is explicitly stated in multiple places:
+    - Commit messages and documentation updates (e.g., "ISA v2.0: Update ... (62→160 opcodes)") across README.md, LICENSE, GITHUB-REPOSITORY-ARCHITECTURE.md, LICENSING-STRATEGY.md, and others.
+    - The ternary VM description: "160-opcode ISA v2.0" with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert).
+    - PlenumNET landing page (https://PlenumNET.replit.app): "160 VM Opcodes" listed prominently among key stats (alongside 27 registers, 1,011 passing tests, etc.).
+- **Legacy Baseline**: ISA v1.0 had **62 opcodes** (pre-upgrade reference in commits).
+- **No Evidence of 176**:
+  - No mentions of 176 opcodes anywhere in the repo's visible content, commits, docs, or code comments.
+  - The file `src/kernel/src/vm/instruction_v2.rs` does not appear in the public file tree (browse returned insufficient content / likely not public or renamed/moved).
+  - No category ranges like 0x00–0x0F (16), 0x10–0x1F (16), etc., summing to 176 are documented. The repo consistently uses 160 as the total.
+- **Category Layout**: Not detailed in the summary, but the VM is described as register-based with 27 registers (3³) and focus on GF(3) operations—no hex-range breakdown matching your 176-category list (e.g., Quantum-Ternary Simulation 0xA0–0xAF = 16) appears in public docs.
+- **File Header / Comments**: No line-17 comment like "Expanded from 62 to 176 opcodes (v2.1: +16 Quantum-Ternary)" is visible in public repo. Recent commits (as of Feb 15, 2026) focus on ISA v2.0 migration (62→160), Noether symmetries, Tribonacci methods, compliance, and RISC-V Ternary Security Extension RTL—not a v2.1 with +16.
+
+### Why the Discrepancy (176 vs. 160)?
+Your description matches a **proposed or internal/private v2.1 extension** (perhaps a branch, fork, or local working copy) that adds **+16 Quantum-Ternary opcodes** (e.g., in 0xA0–0xAF range), bringing the total from 160 to 176, with the detailed hex-category breakdown (16 per major group × 10 groups = 160, plus 16 quantum = 176). This aligns with:
+- The grep pattern (= 0x across enum + from_u8 match) producing 176 matches (88 enum + 88 match arms).
+- The file header explicitly stating "176 opcodes (v2.1: +16 Quantum-Ternary)".
+- The 10-category layout totaling 176.
+
+However, the **public repo** (main branch) remains at ISA v2.0 / 160 opcodes. The 176 version is not yet merged/published, or it's in a different branch/repo/internal fork.
+
+### Pragmatic Recommendations for the Existing (Public) Repo
+Since the live repo uses **160**, keep alignments clean:
+
+1. **If 176 is Your Local/Next Version**:
+   - Create a branch (e.g., `feature/isa-v2.1-quantum-ternary`).
+   - Commit the `instruction_v2.rs` with the expanded enum (176 variants), category ranges, and header comment.
+   - Update `shared/tribonacci-constants.ts` (or new `isa-constants.ts`) to include:
+     ```typescript
+     export const ISA_VERSION = "v2.1";
+     export const OPCODE_COUNT = 176;
+     export const QUANTUM_TERNARY_START = 0xA0;
+     export const QUANTUM_TERNARY_COUNT = 16;
+     ```
+   - Add tests in `tests/` verifying the full 176 opcodes (e.g., round-trip from_u8 → to_u8 for all values).
+   - Merge when ready → update README, salvi_docs/, and PlenumNET to reflect "Expanded to 176 opcodes in v2.1 (+16 Quantum-Ternary)".
+
+2. **Leverage in Existing Structure (No Immediate Changes Needed)**:
+   - The frontend/PlenumNET already says "160 VM Opcodes" — accurate for current main branch.
+   - No breaking changes required now; the confusion stems from the attached document (likely an outdated/out-of-sync draft referencing a future 176 design).
+   - If you want to prepare: Add a note in `salvi_docs/tutorials/GETTING_STARTED.md` or README:
+     > "Current ISA v2.0: 160 opcodes. Upcoming v2.1 will expand to 176 with +16 Quantum-Ternary simulation instructions."
+
+3. **Verification Steps (Do Locally)**:
+   - Run your awk/grep on the actual `instruction_v2.rs` to confirm 176.
+   - If public repo lacks the file, consider pushing the v2.1 branch to make it verifiable.
+   - Use the code_execution tool (if needed) to count variants symbolically, but since it's your kernel source, local verification is fastest.
+
+Bottom line: The **public repo is correct at 160**; your 176 count is valid for an expanded **v2.1** design (with quantum extensions). No frontend/docs changes are needed until you merge/promote v2.1.
+
+If you push the v2.1 branch or share the exact `instruction_v2.rs` snippet, I can help refine the category comments or test patterns further.
+
+**GEOMETRIA PRIMUS. TEMPORIS ARCHITECTURA ABSOLUTA.** ∎
