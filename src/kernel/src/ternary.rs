@@ -35,16 +35,16 @@ pub struct Trit {
 }
 
 impl Trit {
-    /// Create from Representation A value (-1, 0, or +1)
-    pub fn from_a(value: i8) -> Option<Self> {
+    #[inline(always)]
+    pub const fn from_a(value: i8) -> Option<Self> {
         match value {
             -1 | 0 | 1 => Some(Self { value }),
             _ => None,
         }
     }
 
-    /// Create from Representation B value (0, 1, or 2)
-    pub fn from_b(value: u8) -> Option<Self> {
+    #[inline(always)]
+    pub const fn from_b(value: u8) -> Option<Self> {
         match value {
             0 => Some(Self { value: -1 }),
             1 => Some(Self { value: 0 }),
@@ -53,8 +53,8 @@ impl Trit {
         }
     }
 
-    /// Create from Representation C value (1, 2, or 3)
-    pub fn from_c(value: u8) -> Option<Self> {
+    #[inline(always)]
+    pub const fn from_c(value: u8) -> Option<Self> {
         match value {
             1 => Some(Self { value: -1 }),
             2 => Some(Self { value: 0 }),
@@ -63,49 +63,48 @@ impl Trit {
         }
     }
 
-    /// Get Representation A value
-    pub fn to_a(&self) -> i8 {
+    #[inline(always)]
+    pub const fn to_a(&self) -> i8 {
         self.value
     }
 
-    /// Get Representation B value
-    pub fn to_b(&self) -> u8 {
+    #[inline(always)]
+    pub const fn to_b(&self) -> u8 {
         (self.value + 1) as u8
     }
 
-    /// Get Representation C value
-    pub fn to_c(&self) -> u8 {
+    #[inline(always)]
+    pub const fn to_c(&self) -> u8 {
         (self.value + 2) as u8
     }
 
-    /// Ternary negation (NOT): -x in GF(3)
-    pub fn not(&self) -> Self {
+    #[inline(always)]
+    pub const fn not(&self) -> Self {
         Self { value: -self.value }
     }
 
-    /// Ternary addition in GF(3): (a + b) mod 3
+    #[inline(always)]
     pub fn add(&self, other: &Trit) -> Self {
         let sum = (self.value + other.value).rem_euclid(3);
         let normalized = if sum == 2 { -1 } else { sum as i8 };
         Self { value: normalized }
     }
 
-    /// Ternary multiplication in GF(3): (a × b) mod 3
+    #[inline(always)]
     pub fn multiply(&self, other: &Trit) -> Self {
         let product = (self.value * other.value).rem_euclid(3);
         let normalized = if product == 2 { -1 } else { product as i8 };
         Self { value: normalized }
     }
 
-    /// Ternary XOR (min operation)
-    pub fn xor(&self, other: &Trit) -> Self {
-        Self {
-            value: core::cmp::min(self.value, other.value),
-        }
+    #[inline(always)]
+    pub const fn xor(&self, other: &Trit) -> Self {
+        let min = if self.value < other.value { self.value } else { other.value };
+        Self { value: min }
     }
 
-    /// Bijective rotation: cycles through -1 → 0 → 1 → -1
-    pub fn rotate(&self) -> Self {
+    #[inline(always)]
+    pub const fn rotate(&self) -> Self {
         let rotated = match self.value {
             -1 => 0,
             0 => 1,
@@ -115,8 +114,8 @@ impl Trit {
         Self { value: rotated }
     }
 
-    /// Inverse rotation: cycles through 1 → 0 → -1 → 1
-    pub fn rotate_inverse(&self) -> Self {
+    #[inline(always)]
+    pub const fn rotate_inverse(&self) -> Self {
         let rotated = match self.value {
             1 => 0,
             0 => -1,
@@ -126,38 +125,31 @@ impl Trit {
         Self { value: rotated }
     }
 
-    /// Ternary subtraction in GF(3): (a - b) mod 3
+    #[inline(always)]
     pub fn sub(&self, other: &Trit) -> Self {
         self.add(&other.not())
     }
 
-    /// Ternary AND (min of absolute values, sign product)
-    /// Kleene strong conjunction: min(a, b)
-    pub fn and(&self, other: &Trit) -> Self {
-        Self {
-            value: core::cmp::min(self.value, other.value),
-        }
+    #[inline(always)]
+    pub const fn and(&self, other: &Trit) -> Self {
+        let min = if self.value < other.value { self.value } else { other.value };
+        Self { value: min }
     }
 
-    /// Ternary OR (max operation)
-    /// Kleene strong disjunction: max(a, b)
-    pub fn or(&self, other: &Trit) -> Self {
-        Self {
-            value: core::cmp::max(self.value, other.value),
-        }
+    #[inline(always)]
+    pub const fn or(&self, other: &Trit) -> Self {
+        let max = if self.value > other.value { self.value } else { other.value };
+        Self { value: max }
     }
 
-    /// Compare two trits: returns -1 if self < other, 0 if equal, +1 if self > other
-    pub fn cmp_trit(&self, other: &Trit) -> Self {
+    #[inline(always)]
+    pub const fn cmp_trit(&self, other: &Trit) -> Self {
         let diff = self.value - other.value;
         let clamped = if diff < 0 { -1 } else if diff > 0 { 1 } else { 0 };
         Self { value: clamped }
     }
 
-    /// GF(3) multiplicative inverse per trit.
-    /// 1 → 1, -1 → -1 (each nonzero trit is its own inverse).
-    /// Panics on zero — zero has no multiplicative inverse in GF(3).
-    /// Consistent with ternary-math/src/gf3.rs Gf3::inv().
+    #[inline(always)]
     pub fn gf3_inverse(&self) -> Self {
         match self.value {
             0 => panic!("Zero has no multiplicative inverse in GF(3)"),
@@ -165,8 +157,8 @@ impl Trit {
         }
     }
 
-    /// Łukasiewicz conjunction: max(a + b - 1, -1) in balanced ternary
-    pub fn lukasiewicz_and(&self, other: &Trit) -> Self {
+    #[inline(always)]
+    pub const fn lukasiewicz_and(&self, other: &Trit) -> Self {
         let sum = self.value + other.value - 1;
         let val = if sum < -1 { -1 } else { sum };
         Self { value: val }
