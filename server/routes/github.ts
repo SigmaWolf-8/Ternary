@@ -10,6 +10,8 @@ import { z } from "zod";
 import { createRequireAdmin, resolveGitHubToken, sanitizePath } from "./middleware";
 import { createLogger, toErrorMessage } from "../logger";
 import { githubTokenLimiter, authLimiter } from "../middleware/rate-limiter";
+import * as fs from "fs";
+import * as path from "path";
 
 const log = createLogger("github");
 
@@ -309,18 +311,13 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
         return res.status(400).json({ error: "GitHub token not configured" });
       }
 
-      const fs = await import('fs/promises');
-      const pathModule = await import('path');
+      const workflowDir = path.join(process.cwd(), '.github', 'workflows');
 
-      const workflowDir = pathModule.join(process.cwd(), '.github', 'workflows');
-
-      try {
-        await fs.access(workflowDir);
-      } catch {
+      if (!fs.existsSync(workflowDir)) {
         return res.status(404).json({ error: "No .github/workflows/ directory found locally" });
       }
 
-      const workflowFiles = await fs.readdir(workflowDir);
+      const workflowFiles = fs.readdirSync(workflowDir);
       const ymlFiles = workflowFiles.filter(f => f.endsWith('.yml') || f.endsWith('.yaml'));
 
       if (ymlFiles.length === 0) {
@@ -331,8 +328,8 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       for (const fileName of ymlFiles) {
         try {
-          const filePath = pathModule.join(workflowDir, fileName);
-          const content = await fs.readFile(filePath, 'utf-8');
+          const filePath = path.join(workflowDir, fileName);
+          const content = fs.readFileSync(filePath, 'utf-8');
           const encodedContent = Buffer.from(content).toString('base64');
           const githubPath = `.github/workflows/${fileName}`;
 
@@ -418,6 +415,10 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
     "docs/",
     "tests/",
     "keys/",
+    "server/",
+    "shared/",
+    "client/",
+    "rtl/",
     "PQTI-P0-STATUS.md",
     "PQTI-REMAINING-WORK.md",
     "GITHUB-REPOSITORY-ARCHITECTURE.md",
@@ -436,6 +437,101 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
     if (normalized !== filePath) return false;
     return ALLOWED_PUSH_PREFIXES.some(prefix => normalized.startsWith(prefix) || normalized === prefix);
   };
+
+  app.post("/api/github/push-env/:owner/:repo", authLimiter, async (req: any, res) => {
+    try {
+      const { owner, repo } = req.params;
+      const token = process.env.GITHUB_TOKEN;
+
+      if (!token) {
+        return res.status(400).json({ error: "No GITHUB_TOKEN environment variable" });
+      }
+
+      const schema = z.object({
+        files: z.array(z.object({
+          localPath: z.string().min(1),
+          githubPath: z.string().min(1),
+        })),
+        message: z.string().min(1),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request" });
+      }
+
+      const { files, message } = parsed.data;
+
+      const rejectedFiles = files.filter(f => !isPathAllowed(f.localPath));
+      if (rejectedFiles.length > 0) {
+        return res.status(403).json({ error: "Path not allowed", rejected: rejectedFiles.map(f => f.localPath) });
+      }
+
+      const results: { file: string; status: string; error?: string }[] = [];
+
+      for (const file of files) {
+        try {
+          log.info(`push-env: processing ${file.localPath} -> ${file.githubPath}`);
+          const localFilePath = path.resolve(process.cwd(), file.localPath);
+          if (!localFilePath.startsWith(process.cwd())) {
+            results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
+            continue;
+          }
+          log.info(`push-env: reading file ${localFilePath}`);
+          const content = fs.readFileSync(localFilePath, 'utf-8');
+          log.info(`push-env: read ${content.length} bytes`);
+          log.info(`push-env: encoding to base64`);
+          const encodedContent = Buffer.from(content).toString('base64');
+          log.info(`push-env: encoded ${encodedContent.length} chars`);
+          log.info(`push-env: sanitizing path`);
+          const ghPath = sanitizePath(file.githubPath);
+          log.info(`push-env: fetching existing file from GitHub`);
+
+          const existingResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
+            { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json", "User-Agent": "Salvi-Framework" } }
+          );
+
+          let sha: string | undefined;
+          if (existingResponse.ok) {
+            const existingFile = await existingResponse.json();
+            sha = (existingFile as any).sha;
+          }
+          log.info(`push-env: pushing to GitHub (sha=${sha || 'new'})`);
+
+          const body: any = { message: `${message} - ${file.githubPath}`, content: encodedContent, branch: "main" };
+          if (sha) body.sha = sha;
+
+          const pushResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`,
+            {
+              method: "PUT",
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json", "User-Agent": "Salvi-Framework" },
+              body: JSON.stringify(body)
+            }
+          );
+
+          if (pushResponse.ok) {
+            log.info(`push-env: success for ${file.githubPath}`);
+            results.push({ file: file.githubPath, status: "success" });
+          } else {
+            const errorData = await pushResponse.json().catch(() => ({}));
+            log.error(`push-env: failed for ${file.githubPath}: ${(errorData as any).message || pushResponse.status}`);
+            results.push({ file: file.githubPath, status: "error", error: (errorData as any).message || `HTTP ${pushResponse.status}` });
+          }
+        } catch (fileError: unknown) {
+          log.error(`push-env: exception for ${file.githubPath}: ${toErrorMessage(fileError)}`);
+          results.push({ file: file.githubPath, status: "error", error: toErrorMessage(fileError) });
+        }
+      }
+
+      const succeeded = results.filter(r => r.status === "success").length;
+      res.json({ success: results.every(r => r.status === "success"), message: `Pushed ${succeeded}/${files.length} files`, results });
+    } catch (error: unknown) {
+      log.error("GitHub env push error:", error);
+      res.status(500).json({ error: "Failed to push files" });
+    }
+  });
 
   app.post("/api/github/push-batch/:owner/:repo", authLimiter, requireAdmin, async (req: any, res) => {
     try {
@@ -460,8 +556,6 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
       }
 
       const { files, message } = parsed.data;
-      const fs = await import('fs/promises');
-      const pathModule = await import('path');
 
       const rejectedFiles = files.filter(f => !isPathAllowed(f.localPath));
       if (rejectedFiles.length > 0) {
@@ -475,12 +569,12 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
 
       for (const file of files) {
         try {
-          const localFilePath = pathModule.resolve(process.cwd(), file.localPath);
+          const localFilePath = path.resolve(process.cwd(), file.localPath);
           if (!localFilePath.startsWith(process.cwd())) {
             results.push({ file: file.githubPath, status: "error", error: "Path traversal blocked" });
             continue;
           }
-          const content = await fs.readFile(localFilePath, 'utf-8');
+          const content = fs.readFileSync(localFilePath, 'utf-8');
           const encodedContent = Buffer.from(content).toString('base64');
           const ghPath = sanitizePath(file.githubPath);
 
