@@ -84,6 +84,14 @@ Complete API key lifecycle management at `/api-keys`:
 ### Security Middleware Stack
 Includes 4-tier rate limiting, CORS with origin allowlist, Helmet.js security headers (CSP, HSTS, X-Frame-Options: deny, X-Content-Type-Options: nosniff), AES-256-GCM token encryption, null-byte stripping, double URL-decode protection, and `execFile()`-only subprocess execution.
 
+### Security Infrastructure Services
+Backend security services under `/api/security/` (admin-protected, v1 prefix supported):
+-   **Security Audit Service** (`server/services/security-audit.service.ts`): Event logging with severity (low/medium/high/critical), source tracking, resolution workflow, severity count aggregation, unresolved alert listing. DB table: `security_audit_log`.
+-   **HPTP Anomaly Detection** (`server/services/hptp-anomaly.service.ts`): Threshold-based detection for jitter_ns, drift_ppm, skew_fs, sync_loss_ms, phase_deviation_deg. 5-tier fallback chain (PTP→NTP→crystal→quartz→cesium) with automatic failover. Auto-escalates high/critical anomalies to security audit log. Redundancy architecture metadata endpoint. DB table: `hptp_anomaly_events`.
+-   **Threat Model Registry** (`server/services/threat-model.service.ts`): CRUD for threat vectors across 10 categories, 8 adversary types, 5 risk levels, 3 scope states. Risk matrix generation, summary statistics. Seeded with 12 default entries covering timing infrastructure, crypto, network, physical security, supply chain, side-channel, quantum, insider, compliance, and software threats. DB table: `threat_model_entries`.
+-   **Implementation Status Tracker** (`server/services/implementation-status.service.ts`): Tracks 50+ components across 17 categories with status (proven/in_progress/planned/concern/blocked), completion %, LOC/test/proof line counts, GitHub paths, blockers, target dates, and verification timestamps. Summary endpoint aggregates overall completion, blocked components, and totals. DB table: `implementation_status`.
+-   **Security Dashboard** (`/api/security/dashboard`): Unified admin endpoint aggregating audit stats, HPTP anomaly statistics, threat model summary, implementation summary, and unresolved alert count for a configurable time period.
+
 ## External Dependencies
 
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
