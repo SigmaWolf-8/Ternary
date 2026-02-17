@@ -283,10 +283,10 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="flex items-start gap-4 mb-8 max-w-3xl"
+            className="flex items-start gap-4 mb-8"
             data-testid="text-hero-description"
           >
-            <p className="text-lg md:text-xl text-muted-foreground flex-1">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
               59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
               A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
             </p>
