@@ -348,6 +348,7 @@ function HeroSection() {
                   <Button 
                     type="submit" 
                     size="default"
+                    className="btn-raised"
                     disabled={signupMutation.isPending}
                     data-testid="button-hero-signup"
                   >
@@ -366,19 +367,19 @@ function HeroSection() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="flex flex-wrap gap-4 mb-12"
           >
-            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-view-github">
+            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
               <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
                 <Github className="w-4 h-4 mr-2" />
                 View Source
               </a>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-view-demo">
+            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-demo">
               <a href="/ternarydb">
                 <Zap className="w-4 h-4 mr-2" />
                 Live Demo
               </a>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary" data-testid="button-view-docs">
+            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-docs">
               <a href="/whitepaper">
                 <Shield className="w-4 h-4 mr-2" />
                 Whitepaper
@@ -947,7 +948,7 @@ function PerformanceSection() {
             </div>
 
             <div className="mt-8 pt-6 border-t border-foreground/10 text-center">
-              <Button asChild data-testid="button-try-demo">
+              <Button asChild className="btn-raised" data-testid="button-try-demo">
                 <a href="/ternarydb">
                   <Zap className="w-4 h-4 mr-2" />
                   Verify It Yourself -- Live Demo
@@ -1034,7 +1035,7 @@ function CodeSnippet() {
               <Terminal className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground font-medium">Quick Start</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleCopy} data-testid="button-copy-code" aria-label="Copy code to clipboard">
+            <Button variant="ghost" size="sm" className="btn-raised" onClick={handleCopy} data-testid="button-copy-code" aria-label="Copy code to clipboard">
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               <span className="ml-1.5 text-xs">{copied ? "Copied" : "Copy"}</span>
             </Button>
@@ -1044,7 +1045,7 @@ function CodeSnippet() {
           </pre>
         </Card>
         <div className="flex justify-center mt-6">
-          <Button variant="outline" asChild data-testid="button-explore-api">
+          <Button variant="outline" asChild className="btn-raised" data-testid="button-explore-api">
             <Link href="/api-demo">
               Explore All 97 Endpoints
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -1167,14 +1168,14 @@ function CalendarPreviewSection() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 border-t border-foreground/10">
-              <Button asChild data-testid="button-explore-calendar">
+              <Button asChild className="btn-raised" data-testid="button-explore-calendar">
                 <Link href="/calendar">
                   <Globe className="w-4 h-4 mr-2" />
                   Explore Calendar API
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
-              <Button variant="outline" asChild data-testid="button-calendar-docs">
+              <Button variant="outline" asChild className="btn-raised" data-testid="button-calendar-docs">
                 <Link href="/docs">View Documentation</Link>
               </Button>
             </div>
@@ -1392,7 +1393,7 @@ function DeveloperCTASection() {
                     type="submit" 
                     size="lg"
                     variant="secondary"
-                    className="w-full bg-background text-foreground"
+                    className="w-full bg-background text-foreground btn-raised"
                     disabled={signupMutation.isPending}
                     data-testid="button-developer-signup"
                   >
@@ -1402,7 +1403,7 @@ function DeveloperCTASection() {
                 </form>
 
                 <div className="flex justify-center mt-4">
-                  <Button variant="outline" size="lg" className="border-primary-foreground/30 text-primary-foreground" asChild data-testid="button-book-demo">
+                  <Button variant="outline" size="lg" className="border-primary-foreground/30 text-primary-foreground btn-raised" asChild data-testid="button-book-demo">
                     <a href="mailto:Rsalvi@Salvigroup.com?subject=PlenumNET%20Demo%20Request">
                       <Calendar className="w-4 h-4 mr-2" />
                       Book a Demo
@@ -1505,7 +1506,7 @@ function ChangelogSection() {
           ))}
         </div>
         <div className="flex justify-center mt-6">
-          <Button variant="outline" asChild data-testid="button-view-all-commits">
+          <Button variant="outline" asChild className="btn-raised" data-testid="button-view-all-commits">
             <a href="https://github.com/SigmaWolf-8/Ternary/commits" target="_blank" rel="noopener noreferrer">
               View All Commits
               <ArrowRight className="w-4 h-4 ml-2" />
