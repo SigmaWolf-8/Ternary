@@ -1545,7 +1545,7 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="flex items-center gap-2 text-primary font-bold text-xl mb-4" data-testid="link-footer-logo">
-              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6 rounded-sm" />
+              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6" />
               <span>PlenumNET</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">

@@ -56,7 +56,7 @@ export function MarketingFooter() {
               className="flex items-center gap-2 text-primary font-bold text-xl mb-4"
               data-testid="link-footer-logo"
             >
-              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6 rounded-sm" />
+              <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6" />
               <span>PlenumNET</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">

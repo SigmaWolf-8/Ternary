@@ -554,7 +554,7 @@ export function MarketingTopNav() {
             className="flex items-center gap-2 font-semibold text-foreground mr-2"
             data-testid="link-logo"
           >
-            <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6 rounded-sm" />
+            <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6" />
             <span className="text-base">PlenumNET</span>
           </Link>
 
@@ -602,7 +602,7 @@ export function MarketingTopNav() {
                 <SheetContent side="right" className="w-[300px] sm:w-[360px]">
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
-                      <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5 rounded-sm" />
+                      <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
                       PlenumNET
                     </SheetTitle>
                   </SheetHeader>

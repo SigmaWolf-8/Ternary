@@ -79,7 +79,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="PlenumNET">
               <Link href="/" data-testid="link-sidebar-logo" onClick={closeMobileSidebar}>
-                <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5 rounded-sm" />
+                <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
                 <span className="font-semibold text-sm">PlenumNET</span>
               </Link>
             </SidebarMenuButton>
