@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
 import {
+  Cpu,
   Database,
   FileText,
   BookOpen,
@@ -196,6 +197,15 @@ export function AppSidebar() {
                   <Link href="/whitepaper" onClick={closeMobileSidebar}>
                     <FileText className="w-3.5 h-3.5" />
                     <span>Whitepaper</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location === "/fpga-benchmarks"} tooltip="FPGA Benchmarks" data-testid="link-sidebar-fpga-benchmarks" className="text-xs">
+                  <Link href="/fpga-benchmarks" onClick={closeMobileSidebar}>
+                    <Cpu className="w-3.5 h-3.5" />
+                    <span>FPGA Benchmarks</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

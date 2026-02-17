@@ -54,6 +54,7 @@ const VMDemo = lazy(() => import("@/pages/vm-demo"));
 const AgentArray = lazy(() => import("@/pages/agent-array"));
 const QuantumSim = lazy(() => import("@/pages/quantum-sim"));
 const ApiKeysPage = lazy(() => import("@/pages/api-keys"));
+const FPGABenchmarks = lazy(() => import("@/pages/fpga-benchmarks"));
 
 function LoadingSpinner() {
   return (
@@ -203,6 +204,7 @@ function MarketingRouter() {
           <Route path="/vm-demo" component={VMDemo} />
           <Route path="/agent-array" component={AgentArray} />
           <Route path="/quantum-sim" component={QuantumSim} />
+          <Route path="/fpga-benchmarks" component={FPGABenchmarks} />
         </Switch>
       </Suspense>
     </MarketingLayout>
@@ -232,7 +234,7 @@ function DashboardRouter() {
   );
 }
 
-const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds", "/distribution", "/isa-security", "/vm-demo", "/agent-array", "/quantum-sim"];
+const marketingPaths = ["/", "/about", "/contact", "/whitepaper", "/terms", "/privacy", "/security", "/aup", "/tribonacci-28ds", "/distribution", "/isa-security", "/vm-demo", "/agent-array", "/quantum-sim", "/fpga-benchmarks"];
 const dashboardPaths = ["/ternarydb", "/api-demo", "/hptp", "/compression", "/calendar", "/13-moon", "/docs", "/compliance", "/admin", "/github", "/kong-konnect", "/api-keys"];
 
 function AppRouter() {
