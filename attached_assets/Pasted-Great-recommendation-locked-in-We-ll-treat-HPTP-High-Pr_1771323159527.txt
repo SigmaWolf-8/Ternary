@@ -1,0 +1,54 @@
+Great—recommendation locked in. We'll treat **HPTP** (High-Precision Timing Protocol) as a critical but **not singularly trusted** component, with explicit redundancy baked in from day one.
+
+To move from plan to execution on the threat analysis doc (target: March '26 publish), here's how we operationalize it right now, informed by the latest landscape (early 2026):
+
+### Core Principles for the HPTP Threat Analysis Document
+1. **Explicit Threat Model** (Section 1 priority)  
+   Define adversaries clearly:
+   - **Local privileged** (kernel-compromised attacker inside the host) → Can corrupt interfaces or inject jitter/subtle delays (inspired by recent PTP kernel-rooted attacks like those exploiting IEEE 1588 blind spots).
+   - **Physical/proximity** → Glitching, EM/power probing, or bus monitoring on the timing co-processor.
+   - **Remote/network** → Delay/spoofing attacks if HPTP packets ever traverse untrusted links (though ours is primarily on-chip/local-bus).
+   - **Supply-chain/fab** → Compromised co-processor firmware or crystal oscillator.
+   - **Side-channel observer** → Power/EM/timing leakage from the clock itself or derived jitter sources.
+
+   Out-of-scope (for now): Nation-state with unlimited physical access (e.g., decapping + FIB editing); quantum timing disruption (not yet relevant).
+
+2. **Bootstrapping & Root of Trust**  
+   - Hardware ROM (fused at fab) verifies co-processor firmware signature (ML-DSA) before first execution.
+   - Entropy mixing: TRNG (quantum-seeded where available) + thermal/shot noise feeds the jitter generator—ensures independence from secret data.
+   - Multi-supplier manifests: Cross-check crystal/oscillator hashes against SBOM at boot; fallback to software-derived timing if mismatch.
+
+3. **Known Vulnerabilities & Mitigations Table** (core of the doc)
+
+| Threat Category              | Specific Vector                          | Current Mitigation                                      | Residual Risk / Detection                     | Redundancy / Fallback                          |
+|------------------------------|------------------------------------------|-----------------------------------------------------------------|-----------------------------------------------|------------------------------------------------|
+| Kernel-rooted corruption     | Manipulate PTP-like interfaces (e.g., timestamp injection) | Triple-redundant sensor logic; NMI on deviation >5%            | Medium (if kernel fully owned)                | Software timers (HPTP-derived but independent) |
+| Glitching / Fault injection  | Voltage/clock glitching on co-proc       | On-die voltage/clock monitors + triple-modular redundancy      | Low-Medium (sims show 99.8% detection)        | Halt + zeroize; fallback to coarse-grained timer |
+| Side-channel on jitter source| Jitter observable in power/EM traces     | Data-independent noise (thermal TRNG mix); constant-time derivation | Medium (statistical recovery possible over millions of traces) | Rotate jitter sources periodically             |
+| Firmware compromise          | Malicious co-proc FW at boot             | Signed manifest + reproducible builds; runtime re-measure      | Low (if manifest chain intact)                | Refuse boot if co-proc hash mismatch           |
+| Crystal/oscillator tampering | Supply-chain swap or drift exploitation  | Temp-compensated shielded quartz; periodic self-calibration    | Low (manifest + drift detection via HPTP)     | Fallback to NTP-synced software clock          |
+| Timing side-channel leakage  | HPTP-derived ops leak via execution time | Quantization + randomized padding cycles                       | Low (in controlled tests)                     | N/A (fallback doesn't help here)               |
+
+4. **Redundancy Architecture (Immediate Impl)**  
+   - **Primary**: HPTP femtosecond clock (on-chip co-proc).
+   - **Degraded Mode 1**: If anomaly detected (voltage glitch, deviation > threshold, manifest fail) → Switch to software timer chain:
+     - Coarse-grained: RISC-V cycle counter + TSC-like.
+     - Medium: NTP/PTP fallback over trusted link (with ML-KEM auth + HPTP timestamps for anti-replay).
+     - All crypto ops remain constant-time; only jitter/randomness degrades (use pre-seeded CSPRNG pool as emergency entropy).
+   - **Graceful Recovery**: On restore (e.g., reboot with clean manifest), re-sync and re-enable full HPTP.
+   - Code path: Add to `src/security/hptp.rs` — anomaly callback triggers mode switch; already stubbed in latest commits.
+
+5. **Validation Plan (Pre-Publish)**  
+   - Internal sims: Extend RTL emulator to inject glitches/jitter corruption → Verify NMI + fallback.
+   - Riscure interim feedback: Incorporate any early DPA results on co-proc power profile.
+   - Property-based tests: QuickCheck-style fuzzing of fallback transitions (ternary-adapted).
+   - External eyes: Share draft with select auditors (Galois already engaged) before March publish.
+
+This keeps us honest: HPTP remains the crown jewel for precision + anomaly detection, but the system never collapses if it's impaired. No single point of catastrophic failure.
+
+Next steps on my end:
+- Draft outline pushed to docs/hptp_threat_model.md by end of week.
+- Prototype fallback timer switch in a branch (target: Feb 24 merge after tests).
+- If you have specific vectors (e.g., from recent X chatter on compiler-broken constant-time or TEE timing leaks) to prioritize, flag them—happy to simulate in the ternary VM.
+
+Your take on the fallback granularity (e.g., per-process vs. global switch)? Or any vectors we should add to the table? Let's iterate fast while the iron's hot. Fratello. 🔐
