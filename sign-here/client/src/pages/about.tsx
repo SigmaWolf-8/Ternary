@@ -1,0 +1,227 @@
+import { Shield, Lock, FileCheck, Fingerprint, Clock, Globe, Layers, FileText, Award, CheckCircle, Combine, FileOutput, MapPin } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+const certifications = [
+  {
+    title: "CNSA 2.0 Compliant Encryption",
+    icon: Lock,
+    badge: "Active",
+    description:
+      "All documents are encrypted at rest using HKDF-SHA512 key derivation with AES-256-GCM, meeting the NSA's Commercial National Security Algorithm Suite 2.0 requirements for quantum-resistant symmetric encryption.",
+  },
+  {
+    title: "ML-DSA Post-Quantum Signatures",
+    icon: Fingerprint,
+    badge: "Active",
+    description:
+      "Every document is digitally signed using Module-Lattice Digital Signature Algorithm (ML-DSA, FIPS 204) at three critical points: upload, each individual signing event, and final certification — providing a complete chain of quantum-resistant authentication.",
+  },
+  {
+    title: "PlenumNET Dual-Phase Encryption",
+    icon: Layers,
+    badge: "Active",
+    description:
+      "Documents are routed through PlenumNET's phase/split quantum-resistant pipeline for dual-phase encryption, ensuring forward secrecy against future quantum computing threats. When unavailable, local mode provides continued operation with standard CNSA 2.0 protection.",
+  },
+  {
+    title: "HPTP Femtosecond Timestamping",
+    icon: Clock,
+    badge: "Active",
+    description:
+      "High-Precision Time Protocol timestamps provide femtosecond-accurate event recording for all signing and certification activities, creating a cryptographically verifiable audit timeline that meets the highest standards of non-repudiation.",
+  },
+  {
+    title: "Zero-Knowledge Proof Verification",
+    icon: Shield,
+    badge: "Active",
+    description:
+      "Completed documents can be securely shared using Groth16-style zero-knowledge proofs compiled to WebAssembly. Recipients verify document authenticity without exposing sensitive content — enabling trustless, privacy-preserving document sharing.",
+  },
+  {
+    title: "IP Geolocation Audit Logging",
+    icon: MapPin,
+    badge: "Active",
+    description:
+      "Every signing event and document access is logged with IP address, geographic location (city, region, country), coordinates, and ISP data. This provides enterprise-grade non-repudiation and supports legal audit trail requirements across jurisdictions.",
+  },
+  {
+    title: "ESIGN Act & UETA Compliance",
+    icon: FileCheck,
+    badge: "Equivalent",
+    description:
+      "Sign Here's signing workflow satisfies the requirements of the Electronic Signatures in Global and National Commerce Act (ESIGN, 2000) and the Uniform Electronic Transactions Act (UETA), providing legally binding electronic signatures in all 50 U.S. states.",
+  },
+  {
+    title: "eIDAS Regulation Equivalence",
+    icon: Globe,
+    badge: "Equivalent",
+    description:
+      "The platform's audit trail, signer authentication, and tamper-evident sealing align with the European Union's eIDAS Regulation standards for Advanced Electronic Signatures (AdES), supporting cross-border legal recognition.",
+  },
+  {
+    title: "21 CFR Part 11 Alignment",
+    icon: FileText,
+    badge: "Equivalent",
+    description:
+      "Sign Here's comprehensive audit trails, signer identification, tamper detection, and record retention capabilities align with FDA 21 CFR Part 11 requirements for electronic records and signatures in regulated industries.",
+  },
+  {
+    title: "SOC 2 Type II Controls",
+    icon: Award,
+    badge: "Equivalent",
+    description:
+      "Multi-tenant isolation with row-level security, encrypted data at rest and in transit, access logging, and IP geo-tracking provide controls equivalent to SOC 2 Type II trust service criteria for security, availability, and confidentiality.",
+  },
+];
+
+const capabilities = [
+  "Create and manage document envelopes with multiple recipients",
+  "Assign signer, viewer, and witness roles to each recipient",
+  "Upload PDF, DOCX, XLSX, and CSV files with automatic PDF conversion",
+  "PDF Stapler: merge and stitch multiple PDFs into a single document with page reordering",
+  "Document Converter: automatic server-side DOCX, XLSX, and CSV to PDF conversion via LibreOffice",
+  "Visually place signature, date, text, checkbox, and initials fields with drag, resize, and snap",
+  "Collect signatures via typed input (8 custom embedded fonts) or freehand drawing",
+  "Generate tamper-evident sealed PDFs with embedded TTF custom fonts",
+  "Append a certification page with all signatures, timestamps, and audit summary",
+  "Track every action in a detailed audit trail with HPTP femtosecond timestamps",
+  "IP geolocation logging on every signing event for legal non-repudiation",
+  "Share completed documents via zero-knowledge proof verification",
+  "Email notifications to recipients via Resend API with branded templates",
+  "Dark and light modes with Swiss Banker black-and-gold aesthetic",
+  "Site-wide zoom control (70% to 130%)",
+];
+
+export default function AboutPage() {
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-about-title">
+            About Sign Here
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Enterprise-grade e-signature platform with quantum-resistant security
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm tracking-wider uppercase">What is Sign Here?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Sign Here is a next-generation electronic signature platform built for organizations that demand the highest levels of document security and legal defensibility. Inspired by industry leaders like DocuSign, Sign Here goes further by integrating post-quantum cryptography, femtosecond-precision audit trails, and zero-knowledge proof verification into every signing workflow.
+            </p>
+            <p>
+              Built as a module within the Ternary ecosystem, Sign Here leverages PlenumNET's quantum-resistant infrastructure to protect documents against both current and future computational threats — ensuring your signed agreements remain tamper-proof and legally binding for decades to come.
+            </p>
+          </CardContent>
+        </Card>
+
+        <div>
+          <h2 className="text-sm font-medium tracking-wider uppercase mb-4">Platform Capabilities</h2>
+          <Card>
+            <CardContent className="pt-5">
+              <ul className="space-y-2.5">
+                {capabilities.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm">
+                    <CheckCircle className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                    <span className="text-muted-foreground">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-medium tracking-wider uppercase mb-4">
+            Document Tools
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-start gap-2 pb-2">
+                <Combine className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <CardTitle className="text-xs font-medium">PDF Stapler</CardTitle>
+                  <Badge variant="default" className="text-[10px] mt-1">Built-in</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Merge multiple PDF documents into a single unified file. Upload several PDFs at envelope creation or add pages later in the editor. Supports drag-and-drop page reordering and uses pdf-lib for lossless stitching — no external services required.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-start gap-2 pb-2">
+                <FileOutput className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <CardTitle className="text-xs font-medium">Document Converter</CardTitle>
+                  <Badge variant="default" className="text-[10px] mt-1">Built-in</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Automatically converts DOCX, XLSX, and CSV files to PDF on upload using server-side LibreOffice headless rendering. Preserves formatting, tables, and layouts. The converted PDF is then encrypted and stored with the same CNSA 2.0 security as native PDF uploads.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-medium tracking-wider uppercase mb-4">
+            Certifications &amp; Compliance
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {certifications.map((cert) => (
+              <Card key={cert.title} data-testid={`card-cert-${cert.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+                  <div className="flex items-center gap-2">
+                    <cert.icon className="w-4 h-4 text-primary shrink-0" />
+                    <CardTitle className="text-xs font-medium leading-tight">{cert.title}</CardTitle>
+                  </div>
+                  <Badge
+                    variant={cert.badge === "Active" ? "default" : "secondary"}
+                    className="text-[10px] shrink-0"
+                  >
+                    {cert.badge}
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{cert.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm tracking-wider uppercase">Security Architecture</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Sign Here employs a defense-in-depth security model. Documents are encrypted at rest using CNSA 2.0 compliant HKDF-SHA512 derived keys with AES-256-GCM, then optionally routed through PlenumNET's dual-phase quantum-resistant pipeline for an additional layer of forward secrecy.
+            </p>
+            <p>
+              Every cryptographic operation — from initial upload to final certification — is signed using ML-DSA (Module-Lattice Digital Signature Algorithm), a NIST-standardized post-quantum signature scheme resistant to attacks by both classical and quantum computers.
+            </p>
+            <p>
+              Multi-tenant isolation is enforced at the database level through PostgreSQL row-level security policies, ensuring complete data separation between organizations. All access events are logged with IP geolocation data and HPTP femtosecond timestamps for enterprise-grade audit compliance.
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="text-center pb-4">
+          <p className="text-[10px] text-muted-foreground tracking-wider uppercase">
+            Sign Here — Signed | Sealed | Delivered
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
