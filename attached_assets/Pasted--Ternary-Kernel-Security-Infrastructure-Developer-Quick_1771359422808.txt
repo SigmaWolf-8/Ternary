@@ -1,0 +1,547 @@
+# Ternary Kernel Security Infrastructure
+## Developer Quick Start Guide
+
+**Date**: February 17, 2026  
+**Status**: Ready for Use  
+**Audience**: Backend engineers, integrators, dashboard developers
+
+---
+
+## Overview
+
+The security infrastructure is fully operational. This guide helps developers integrate with the APIs and understand the architecture.
+
+**Quick Facts**:
+- ✅ **All services deployed** (Audit, HPTP, Threats, Implementation Status)
+- ✅ **PostgreSQL ready** with 4 production tables
+- ✅ **REST API operational** at `/api/security/v1`
+- ✅ **4 backend services** (each with clear responsibilities)
+- ✅ **OpenAPI spec available** (Swagger/API docs)
+
+---
+
+## Core Architecture
+
+### 4 Backend Services
+
+| Service | Responsibility | Key Tables |
+|---------|-----------------|-----------|
+| **Audit Service** | Security event logging & severity aggregation | `security_audit_log` |
+| **HPTP Service** | Timing protocol health monitoring | `hptp_anomaly_events` |
+| **Threat Service** | Risk modeling & mitigation tracking | `threat_model_entries` |
+| **Implementation Service** | Component progress tracking | `implementation_status` |
+
+### 4 Database Tables
+
+```
+security_audit_log        ← All security events (immutable, append-only)
+hptp_anomaly_events       ← Timing anomalies with fallback chain state
+threat_model_entries      ← Threat registry with risk matrices
+implementation_status     ← 50+ component progress tracking
+```
+
+---
+
+## Getting Started (5 Minutes)
+
+### 1. Get API Token
+
+```bash
+# Request JWT token for API access
+curl -X POST https://security.capomastro.dev/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"username":"your-user","password":"your-pass"}'
+
+# Response:
+{
+  "token": "eyJhbGc...",
+  "expires_in": 3600
+}
+
+# Save token as environment variable
+export TOKEN="eyJhbGc..."
+```
+
+### 2. Test Audit Service (Create Event)
+
+```bash
+# Create a security event
+curl -X POST https://security.capomastro.dev/api/security/v1/audit/events \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "severity": "warning",
+    "category": "hptp",
+    "event_type": "clock_drift_detected",
+    "actor": "hptp_monitor",
+    "description": "Drift detected in PTP clock: 2.1 ppm",
+    "affected_component": "hptp/ptp_oscillator",
+    "evidence": {
+      "drift_ppm": 2.1,
+      "tolerance_ppm": 5.0
+    }
+  }'
+
+# Response:
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "timestamp": "2026-02-17T10:15:32Z",
+  "severity": "warning",
+  "category": "hptp",
+  "created_at": "2026-02-17T10:15:32Z"
+}
+```
+
+### 3. Test HPTP Service (Anomaly Detection)
+
+```bash
+# Report HPTP anomaly
+curl -X POST https://security.capomastro.dev/api/security/v1/hptp/anomalies \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "anomaly_type": "jitter_variance",
+    "severity_score": 7.0,
+    "threshold_value": 5.0,
+    "observed_value": 8.2,
+    "variance_percentage": 64.0,
+    "fallback_chain": {
+      "ptp": {
+        "status": "degraded",
+        "latency_ms": 0.8,
+        "jitter_variance": 3.5
+      },
+      "ntp": {
+        "status": "standby",
+        "latency_ms": 12.3,
+        "jitter_variance": 8.5
+      },
+      "crystal": { "status": "standby" },
+      "quartz": { "status": "standby" },
+      "cesium": { "status": "standby" }
+    },
+    "active_tier": "ptp"
+  }'
+```
+
+### 4. Check Dashboard Summary
+
+```bash
+# Get overall status
+curl -H "Authorization: Bearer $TOKEN" \
+  https://security.capomastro.dev/api/security/v1/dashboard
+
+# Returns: Critical metrics from all 4 services
+```
+
+---
+
+## Common Use Cases
+
+### Use Case 1: Monitor Critical Events
+
+**Scenario**: Security team wants to see all unresolved critical/high events
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://security.capomastro.dev/api/security/v1/audit/events/unresolved?severity=critical,high"
+
+# Returns: Array of unresolved critical events with full details
+# Use this for: Morning briefings, dashboard displays, alert routing
+```
+
+### Use Case 2: Track HPTP Health
+
+**Scenario**: Hardware team needs current HPTP status
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://security.capomastro.dev/api/security/v1/hptp/status
+
+# Returns:
+{
+  "active_tier": "ptp",
+  "fallback_chain": { ... },
+  "recent_anomalies_count": 2,
+  "escalation_count_24h": 0,
+  "last_sync": "2026-02-17T10:15:30Z"
+}
+
+# Alert if: active_tier != "ptp" for > 5 minutes
+```
+
+### Use Case 3: Query Risk Matrix
+
+**Scenario**: Security audit needs to see which threats are unmitigated
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://security.capomastro.dev/api/security/v1/threats/risk-matrix
+
+# Returns: Threats organized by category and risk score
+# Use for: Risk reports, compliance audits, board updates
+```
+
+### Use Case 4: Track Implementation Progress
+
+**Scenario**: Project manager wants quarterly milestone status
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://security.capomastro.dev/api/security/v1/implementation/milestones?from=2026-03-01&to=2026-03-31"
+
+# Returns: Components due in Q1 with completion percentage
+# Expected: Should see ~70% average completion for on-track items
+```
+
+### Use Case 5: Export Audit Trail
+
+**Scenario**: Auditor needs complete audit log for compliance review
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://security.capomastro.dev/api/security/v1/audit/events?limit=10000" \
+  > audit_export_feb17.json
+
+# All events immutable; full forensic trail preserved
+```
+
+---
+
+## Integration Examples
+
+### Integrate with Kernel (C Code)
+
+**When**: Crypto subsystem detects anomaly  
+**How**: Call REST endpoint from kernel module
+
+```c
+#include <curl/curl.h>
+
+void report_crypto_anomaly(const char *anomaly_type, double variance) {
+  CURL *curl = curl_easy_init();
+  
+  const char *json_payload = "{\"severity\":\"critical\","
+    "\"category\":\"crypto\","
+    "\"event_type\":\"aes_timing_variance\","
+    "\"actor\":\"kernel/crypto/aes_256_gcm\","
+    "\"description\":\"Timing jitter exceeds threshold\","
+    "\"evidence\":{\"variance_observed\":%.2f}}";
+  
+  curl_easy_setopt(curl, CURLOPT_URL, 
+    "https://security.capomastro.dev/api/security/v1/audit/events");
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_payload);
+  curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
+  curl_easy_setopt(curl, CURLOPT_XOAUTH2_BEARER, bearer_token);
+  
+  curl_easy_perform(curl);
+  curl_easy_cleanup(curl);
+}
+```
+
+### Integrate with Dashboard (JavaScript/React)
+
+**When**: Dashboard renders security status  
+**How**: Query API endpoints and display results
+
+```javascript
+// React component: SecurityDashboard.jsx
+import { useEffect, useState } from 'react';
+
+export function SecurityDashboard() {
+  const [unresolved, setUnresolved] = useState([]);
+  const [hptp, setHptp] = useState({});
+  
+  useEffect(() => {
+    // Fetch unresolved critical/high events
+    fetch('/api/security/v1/audit/events/unresolved?severity=critical,high', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => setUnresolved(data));
+    
+    // Fetch HPTP status
+    fetch('/api/security/v1/hptp/status', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => setHptp(data));
+  }, []);
+  
+  return (
+    <div>
+      <h2>Critical Events: {unresolved.length}</h2>
+      <div>HPTP Active Tier: {hptp.active_tier}</div>
+    </div>
+  );
+}
+```
+
+### Integrate with Monitoring (Python)
+
+**When**: Prometheus scraper collects metrics  
+**How**: Poll API and export metrics
+
+```python
+# prometheus_exporter.py
+import requests
+import time
+from prometheus_client import Gauge, start_http_server
+
+# Define metrics
+critical_events = Gauge('security_critical_events', 'Critical unresolved events')
+hptp_active_tier = Gauge('hptp_active_tier', 'HPTP fallback tier', ['tier'])
+
+def collect_metrics():
+    headers = {'Authorization': f'Bearer {BEARER_TOKEN}'}
+    
+    # Get critical events
+    resp = requests.get(
+        'https://security.capomastro.dev/api/security/v1/audit/summary?hours=1',
+        headers=headers
+    )
+    critical_events.set(resp.json()['critical_count'])
+    
+    # Get HPTP status
+    resp = requests.get(
+        'https://security.capomastro.dev/api/security/v1/hptp/status',
+        headers=headers
+    )
+    tier = resp.json()['active_tier']
+    hptp_active_tier.labels(tier=tier).set(1)
+
+if __name__ == '__main__':
+    start_http_server(8000)  # Prometheus scrapes on :8000/metrics
+    while True:
+        collect_metrics()
+        time.sleep(30)
+```
+
+---
+
+## Testing Guide
+
+### Unit Test (Jest)
+
+```javascript
+// __tests__/audit.test.js
+import { createAuditEvent } from '../api/audit';
+
+describe('Audit Service', () => {
+  test('creates audit event with valid payload', async () => {
+    const event = await createAuditEvent({
+      severity: 'warning',
+      category: 'hptp',
+      event_type: 'clock_drift',
+      actor: 'test',
+      description: 'Test event'
+    });
+    
+    expect(event.id).toBeDefined();
+    expect(event.timestamp).toBeDefined();
+  });
+  
+  test('rejects invalid severity', async () => {
+    await expect(createAuditEvent({
+      severity: 'invalid_level',
+      category: 'hptp',
+      event_type: 'test',
+      actor: 'test',
+      description: 'Test'
+    })).rejects.toThrow('Validation error');
+  });
+});
+```
+
+### Integration Test (cURL + jq)
+
+```bash
+#!/bin/bash
+# test_integration.sh
+
+API="https://security.capomastro.dev/api/security/v1"
+TOKEN=$(cat /root/.security_token)
+
+# Test 1: Create audit event
+echo "Test 1: Create audit event"
+RESPONSE=$(curl -s -X POST "$API/audit/events" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "severity":"warning",
+    "category":"hptp",
+    "event_type":"test_clock_drift",
+    "actor":"integration_test",
+    "description":"Test event"
+  }')
+
+EVENT_ID=$(echo $RESPONSE | jq -r '.id')
+echo "Created event: $EVENT_ID"
+
+# Test 2: Retrieve event
+echo "Test 2: Retrieve event"
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "$API/audit/events/$EVENT_ID" | jq .
+
+# Test 3: Resolve event
+echo "Test 3: Resolve event"
+curl -s -X PUT "$API/audit/events/$EVENT_ID/resolve" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resolution_status":"resolved",
+    "resolution_notes":"Test complete"
+  }' | jq .
+
+echo "All tests passed!"
+```
+
+---
+
+## Troubleshooting
+
+### Issue: 401 Unauthorized
+
+**Problem**: API returns `{"error":"Unauthorized"}`
+
+**Solution**:
+```bash
+# 1. Check token is valid
+curl -X POST https://security.capomastro.dev/auth/verify \
+  -H "Authorization: Bearer $TOKEN"
+
+# 2. Refresh token if expired
+curl -X POST https://security.capomastro.dev/auth/refresh \
+  -H "Authorization: Bearer $TOKEN"
+
+# 3. Verify Authorization header format
+# Correct: "Authorization: Bearer <token>"
+# Wrong: "Authorization: <token>"
+```
+
+### Issue: 400 Validation Error
+
+**Problem**: API returns validation error details
+
+**Solution**:
+```bash
+# Check the validation error details
+curl -X POST https://security.capomastro.dev/api/security/v1/audit/events \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"severity":"invalid"}' | jq .details
+
+# Output shows: [{ field: "severity", message: "Invalid enum value" }]
+# Fix: Use valid enum: "info", "warning", "high", "critical"
+```
+
+### Issue: 5xx Server Error
+
+**Problem**: API returns 500 Internal Server Error
+
+**Solution**:
+```bash
+# 1. Check service status
+curl https://security.capomastro.dev/health
+
+# 2. Check database connectivity
+curl https://security.capomastro.dev/health/db
+
+# 3. View server logs
+kubectl logs -f deployment/security-api -n capomastro
+
+# 4. Escalate to DevOps if persistent
+```
+
+---
+
+## Performance & Limits
+
+### Rate Limits
+
+```
+Default: 100 requests/minute per API key
+Burst: 200 requests/10 seconds
+Headers returned:
+  X-RateLimit-Limit: 100
+  X-RateLimit-Remaining: 87
+  X-RateLimit-Reset: 1613510400
+```
+
+### Response Times (p95)
+
+| Endpoint | Latency | Notes |
+|----------|---------|-------|
+| GET /audit/summary | 50ms | Aggregation query |
+| POST /audit/events | 30ms | Write to audit log |
+| GET /hptp/status | 20ms | Cached last 30s |
+| GET /threats/risk-matrix | 100ms | Complex join query |
+| GET /implementation/summary | 150ms | LOC calculation |
+
+### Payload Limits
+
+- Event description: max 5,000 characters
+- Evidence JSON: max 1 MB
+- Batch operations: max 1,000 items per request
+
+---
+
+## Documentation References
+
+| Document | Purpose |
+|----------|---------|
+| `BACKEND_INFRASTRUCTURE_DOCS.md` | Full architecture & operations guide |
+| `openapi_spec.json` | OpenAPI 3.1 specification (Swagger UI compatible) |
+| `SECURITY_RESPONSE_OFFICIAL.md` | Official technical response to third-party analysis |
+| `Ternary_Kernel_Implementation_Status_Feb2026.docx` | Implementation status report |
+
+---
+
+## Metrics & Monitoring
+
+### Key Metrics to Track
+
+```javascript
+// Dashboard should display
+{
+  audit: {
+    unresolved_critical: 2,      // Should be < 3
+    unresolved_high: 5,          // Should be < 10
+    resolution_time_avg: 120,    // minutes
+    events_per_hour: 15
+  },
+  hptp: {
+    active_tier: "ptp",
+    anomalies_24h: 2,
+    escalations_24h: 0,
+    fallback_activations: 0      // Should be rare
+  },
+  threats: {
+    high_risk_unmitigated: 0,    // Should be 0
+    avg_risk_score: 3.2,
+    mitigation_coverage: 94.2    // percent
+  },
+  implementation: {
+    completion_percent: 68,
+    on_track_components: 43,      // out of 52
+    components_at_risk: 2
+  }
+}
+```
+
+---
+
+## Next Steps
+
+1. **Read full architecture**: Open `BACKEND_INFRASTRUCTURE_DOCS.md`
+2. **Review API spec**: Open `openapi_spec.json` in Swagger UI
+3. **Start integration**: Copy example code from "Integration Examples" section
+4. **Set up monitoring**: Deploy metrics collector using Python example
+5. **Join team**: Contact `security@capomastro.dev` for API credentials
+
+---
+
+**Questions?**  
+Slack: #security-infrastructure  
+Email: security@capomastro.dev  
+GitHub: github.com/SigmaWolf-8/Ternary/docs/infrastructure

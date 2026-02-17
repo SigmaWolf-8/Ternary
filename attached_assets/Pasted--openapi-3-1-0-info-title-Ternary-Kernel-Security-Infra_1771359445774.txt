@@ -1,0 +1,1404 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ternary Kernel Security Infrastructure API",
+    "description": "Backend services for audit logging, HPTP monitoring, threat modeling, and implementation status tracking",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Security Engineering",
+      "email": "security@capomastro.dev"
+    },
+    "license": {
+      "name": "Apache 2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://security.capomastro.dev/api/security/v1",
+      "description": "Production"
+    },
+    {
+      "url": "http://localhost:3000/api/security/v1",
+      "description": "Development"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token for authentication"
+      },
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for internal services"
+      }
+    },
+    "schemas": {
+      "AuditEvent": {
+        "type": "object",
+        "required": [
+          "severity",
+          "category",
+          "event_type",
+          "actor",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "high",
+              "critical"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "auth",
+              "crypto",
+              "boot",
+              "network",
+              "hptp",
+              "firmware",
+              "privilege"
+            ]
+          },
+          "event_type": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "actor": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Process, service, or user triggering event"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "affected_component": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "JSON object with forensic data"
+          },
+          "resolution_status": {
+            "type": "string",
+            "enum": [
+              "unresolved",
+              "acknowledged",
+              "resolved",
+              "false_positive"
+            ],
+            "default": "unresolved"
+          },
+          "resolution_notes": {
+            "type": "string"
+          },
+          "resolved_by": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "HPTPAnomaly": {
+        "type": "object",
+        "required": [
+          "anomaly_type",
+          "severity_score",
+          "threshold_value",
+          "observed_value",
+          "fallback_chain",
+          "active_tier"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "anomaly_type": {
+            "type": "string",
+            "enum": [
+              "jitter_variance",
+              "clock_drift",
+              "sync_failure",
+              "glitch_detected"
+            ]
+          },
+          "severity_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "0-10 severity scale"
+          },
+          "threshold_value": {
+            "type": "number"
+          },
+          "observed_value": {
+            "type": "number"
+          },
+          "variance_percentage": {
+            "type": "number"
+          },
+          "fallback_chain": {
+            "type": "object",
+            "properties": {
+              "ptp": {
+                "$ref": "#/components/schemas/FallbackTierStatus"
+              },
+              "ntp": {
+                "$ref": "#/components/schemas/FallbackTierStatus"
+              },
+              "crystal": {
+                "$ref": "#/components/schemas/FallbackTierStatus"
+              },
+              "quartz": {
+                "$ref": "#/components/schemas/FallbackTierStatus"
+              },
+              "cesium": {
+                "$ref": "#/components/schemas/FallbackTierStatus"
+              }
+            }
+          },
+          "active_tier": {
+            "type": "string",
+            "enum": [
+              "ptp",
+              "ntp",
+              "crystal",
+              "quartz",
+              "cesium"
+            ]
+          },
+          "escalation_triggered": {
+            "type": "boolean"
+          },
+          "escalation_timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "audit_log_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resolved": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "FallbackTierStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "operational",
+              "degraded",
+              "failed",
+              "standby",
+              "active",
+              "emergency_only"
+            ]
+          },
+          "latency_ms": {
+            "type": "number"
+          },
+          "jitter_variance": {
+            "type": "number"
+          },
+          "frequency_ppm": {
+            "type": "number"
+          },
+          "temperature_c": {
+            "type": "number"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "last_sync": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ThreatModelEntry": {
+        "type": "object",
+        "required": [
+          "threat_id",
+          "threat_name",
+          "category",
+          "likelihood",
+          "impact",
+          "mitigation_status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "threat_id": {
+            "type": "string",
+            "pattern": "^THREAT_[0-9]{3}",
+            "description": "Unique threat identifier"
+          },
+          "threat_name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "timing",
+              "crypto",
+              "network",
+              "physical",
+              "supply_chain",
+              "side_channel",
+              "quantum",
+              "insider",
+              "compliance",
+              "software"
+            ]
+          },
+          "attack_vector": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string"
+          },
+          "likelihood": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "very_high"
+            ]
+          },
+          "impact": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "risk_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "readOnly": true,
+            "description": "Calculated as (likelihood × impact) / 10"
+          },
+          "mitigation_status": {
+            "type": "string",
+            "enum": [
+              "mitigated",
+              "in_progress",
+              "acknowledged",
+              "not_addressed"
+            ]
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "control_id": {
+                  "type": "string"
+                },
+                "control_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "implemented",
+                    "in_progress",
+                    "planned",
+                    "verified_by_audit"
+                  ]
+                },
+                "evidence": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "residual_risk": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "notes": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "ImplementationComponent": {
+        "type": "object",
+        "required": [
+          "component_name",
+          "category",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "component_name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "kernel",
+              "crypto",
+              "hptp",
+              "vm",
+              "formal_verification",
+              "hardware",
+              "network",
+              "storage",
+              "testing",
+              "supply_chain",
+              "side_channel",
+              "performance",
+              "documentation",
+              "audit",
+              "deployment",
+              "compliance",
+              "integration"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proven",
+              "in_progress",
+              "planned",
+              "concern",
+              "blocked"
+            ]
+          },
+          "completion_percentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "description": {
+            "type": "string"
+          },
+          "loc_total": {
+            "type": "integer",
+            "description": "Total lines of code"
+          },
+          "loc_tested": {
+            "type": "integer"
+          },
+          "test_count": {
+            "type": "integer"
+          },
+          "proof_count": {
+            "type": "integer"
+          },
+          "proof_coverage_percentage": {
+            "type": "number"
+          },
+          "github_path": {
+            "type": "string"
+          },
+          "responsible_team": {
+            "type": "string"
+          },
+          "milestone_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "summary_line": {
+            "type": "string"
+          },
+          "external_audit_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed",
+              "passed",
+              "failed"
+            ]
+          },
+          "external_auditor": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error",
+          "status"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/audit/events": {
+      "post": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Create security event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Event created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "List all audit events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "severity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "info",
+                "warning",
+                "high",
+                "critical"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/events/unresolved": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "List unresolved critical/high severity events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "severity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "critical,high"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unresolved events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/events/{id}": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Get event details",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEvent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        }
+      }
+    },
+    "/audit/events/{id}/resolve": {
+      "put": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Resolve/close event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "resolution_status"
+                ],
+                "properties": {
+                  "resolution_status": {
+                    "type": "string",
+                    "enum": [
+                      "resolved",
+                      "false_positive",
+                      "acknowledged"
+                    ]
+                  },
+                  "resolution_notes": {
+                    "type": "string"
+                  },
+                  "resolved_by": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit/summary": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Severity aggregation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Severity summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "critical_count": {
+                      "type": "integer"
+                    },
+                    "high_count": {
+                      "type": "integer"
+                    },
+                    "warning_count": {
+                      "type": "integer"
+                    },
+                    "info_count": {
+                      "type": "integer"
+                    },
+                    "by_category": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hptp/anomalies": {
+      "post": {
+        "tags": [
+          "HPTP"
+        ],
+        "summary": "Report HPTP anomaly",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HPTPAnomaly"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Anomaly recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HPTPAnomaly"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "HPTP"
+        ],
+        "summary": "List anomalies",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of anomalies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HPTPAnomaly"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hptp/status": {
+      "get": {
+        "tags": [
+          "HPTP"
+        ],
+        "summary": "Get current HPTP health status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HPTP status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "active_tier": {
+                      "type": "string"
+                    },
+                    "fallback_chain": {
+                      "type": "object"
+                    },
+                    "recent_anomalies_count": {
+                      "type": "integer"
+                    },
+                    "escalation_count_24h": {
+                      "type": "integer"
+                    },
+                    "last_sync": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/threats": {
+      "post": {
+        "tags": [
+          "Threats"
+        ],
+        "summary": "Create threat entry",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreatModelEntry"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Threat created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreatModelEntry"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Threats"
+        ],
+        "summary": "List threat entries",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mitigation_status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of threats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ThreatModelEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/threats/{id}": {
+      "get": {
+        "tags": [
+          "Threats"
+        ],
+        "summary": "Get threat details",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Threat details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreatModelEntry"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Threats"
+        ],
+        "summary": "Update threat",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mitigation_status": {
+                    "type": "string"
+                  },
+                  "residual_risk": {
+                    "type": "number"
+                  },
+                  "controls": {
+                    "type": "array"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Threat updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreatModelEntry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/threats/risk-matrix": {
+      "get": {
+        "tags": [
+          "Threats"
+        ],
+        "summary": "Get risk matrix heatmap",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Risk matrix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "by_category": {
+                      "type": "object"
+                    },
+                    "by_status": {
+                      "type": "object"
+                    },
+                    "high_risk_count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/implementation": {
+      "post": {
+        "tags": [
+          "Implementation"
+        ],
+        "summary": "Create/update component",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImplementationComponent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Component created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImplementationComponent"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Implementation"
+        ],
+        "summary": "List components",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of components",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImplementationComponent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/implementation/summary": {
+      "get": {
+        "tags": [
+          "Implementation"
+        ],
+        "summary": "Get overall progress summary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Progress summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "by_status": {
+                      "type": "object"
+                    },
+                    "by_category": {
+                      "type": "object"
+                    },
+                    "total_loc": {
+                      "type": "integer"
+                    },
+                    "total_loc_tested": {
+                      "type": "integer"
+                    },
+                    "avg_test_coverage": {
+                      "type": "number"
+                    },
+                    "completion_percentage": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/implementation/milestones": {
+      "get": {
+        "tags": [
+          "Implementation"
+        ],
+        "summary": "Get deadline tracking",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Milestone tracking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/implementation/metrics": {
+      "get": {
+        "tags": [
+          "Implementation"
+        ],
+        "summary": "Get LOC and test metrics",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metrics by category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Unified dashboard",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All service stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metadata/categories": {
+      "get": {
+        "tags": [
+          "Metadata"
+        ],
+        "summary": "Get available categories",
+        "responses": {
+          "200": {
+            "description": "Available categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metadata/types": {
+      "get": {
+        "tags": [
+          "Metadata"
+        ],
+        "summary": "Get threat types, event types, etc.",
+        "responses": {
+          "200": {
+            "description": "Available types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

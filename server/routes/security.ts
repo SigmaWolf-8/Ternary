@@ -16,15 +16,38 @@ import { createLogger } from "../logger";
 
 const log = createLogger("security-routes");
 
+const FALLBACK_TIERS = ["ptp", "ntp", "crystal", "quartz", "cesium"] as const;
+
+const fallbackChainEntrySchema = z.object({
+  status: z.enum(["active", "standby", "failed"]),
+  latency_ms: z.number().optional(),
+  jitter_variance: z.number().optional(),
+  frequency_ppm: z.number().optional(),
+  temperature_c: z.number().optional(),
+});
+
+const fallbackChainSchema = z.object({
+  ptp: fallbackChainEntrySchema.optional(),
+  ntp: fallbackChainEntrySchema.optional(),
+  crystal: fallbackChainEntrySchema.optional(),
+  quartz: fallbackChainEntrySchema.optional(),
+  cesium: fallbackChainEntrySchema.optional(),
+}).refine(
+  (chain) => Object.keys(chain).length > 0,
+  { message: "Fallback chain must contain at least one tier" }
+);
+
 export function registerSecurityRoutes(app: Router, storage: IStorage) {
   const requireAdmin = createRequireAdmin(storage);
 
   const logAuditEventSchema = z.object({
+    severity: z.enum(["info", "warning", "high", "critical"]),
+    category: z.enum(["auth", "crypto", "boot", "network", "hptp", "firmware", "privilege"]),
     eventType: z.string().min(1).max(100),
-    severity: z.enum(["low", "medium", "high", "critical"]),
-    source: z.string().min(1).max(100),
-    message: z.string().min(1),
-    details: z.record(z.unknown()).optional(),
+    actor: z.string().max(255).optional(),
+    description: z.string().min(1).max(5000),
+    affectedComponent: z.string().max(255).optional(),
+    evidence: z.record(z.unknown()).optional(),
     ipAddress: z.string().max(45).optional(),
     userId: z.string().max(255).optional(),
   });
@@ -35,7 +58,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const entry = await securityAuditService.logEvent(body);
       res.status(201).json(entry);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "Validation failed", details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
       log.error("Failed to create audit event", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -45,9 +68,8 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     try {
       const filters: any = {};
       if (req.query.severity) filters.severity = req.query.severity;
+      if (req.query.category) filters.category = req.query.category;
       if (req.query.eventType) filters.eventType = req.query.eventType;
-      if (req.query.source) filters.source = req.query.source;
-      if (req.query.resolved !== undefined) filters.resolved = req.query.resolved === "true";
       if (req.query.since) filters.since = new Date(req.query.since);
       if (req.query.limit) filters.limit = parseInt(req.query.limit, 10);
       if (req.query.offset) filters.offset = parseInt(req.query.offset, 10);
@@ -60,12 +82,25 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     }
   });
 
-  app.get("/api/security/audit/unresolved", requireAdmin, async (_req: any, res) => {
+  app.get("/api/security/audit/unresolved", requireAdmin, async (req: any, res) => {
     try {
-      const events = await securityAuditService.getUnresolved();
+      const severity = req.query.severity as string | undefined;
+      const events = await securityAuditService.getUnresolved(severity);
       res.json({ events, count: events.length });
     } catch (err: any) {
       log.error("Failed to fetch unresolved events", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/security/audit/summary", requireAdmin, async (req: any, res) => {
+    try {
+      const hours = req.query.hours ? parseInt(req.query.hours, 10) : 24;
+      const since = new Date(Date.now() - hours * 3600000);
+      const stats = await securityAuditService.getSeverityCounts(since);
+      res.json(stats);
+    } catch (err: any) {
+      log.error("Failed to fetch audit summary", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -81,34 +116,60 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     }
   });
 
+  app.get("/api/security/audit/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const entry = await securityAuditService.getEventById(id);
+      if (!entry) return res.status(404).json({ error: "Event not found" });
+      res.json(entry);
+    } catch (err: any) {
+      log.error("Failed to fetch audit event", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  const resolveEventSchema = z.object({
+    resolutionStatus: z.enum(["resolved", "false_positive", "acknowledged"]),
+    resolutionNotes: z.string().optional(),
+    resolvedBy: z.string().max(255).optional(),
+  });
+
   app.patch("/api/security/audit/:id/resolve", requireAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
-      const updated = await securityAuditService.resolveEvent(id);
+      const body = resolveEventSchema.parse(req.body);
+      const updated = await securityAuditService.resolveEvent(id, body);
       if (!updated) return res.status(404).json({ error: "Event not found" });
       res.json(updated);
     } catch (err: any) {
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
       log.error("Failed to resolve audit event", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
   });
 
   const hptpAnomalySchema = z.object({
-    anomalyType: z.string().min(1).max(100),
-    detectedValue: z.number(),
-    expectedValue: z.number(),
-    sensorId: z.string().max(100).optional(),
-    details: z.record(z.unknown()).optional(),
-  });
+    anomalyType: z.enum(["jitter_variance", "clock_drift", "sync_failure", "glitch_detected"]),
+    severityScore: z.number().min(0).max(10),
+    thresholdValue: z.number(),
+    observedValue: z.number(),
+    variancePercentage: z.number(),
+    fallbackChain: fallbackChainSchema,
+    activeTier: z.enum(["ptp", "ntp", "crystal", "quartz", "cesium"]),
+  }).refine(
+    (data) => data.fallbackChain[data.activeTier] !== undefined,
+    { message: "activeTier must be present in the fallbackChain" }
+  );
 
-  app.post("/api/security/hptp/anomaly", requireAdmin, async (req: any, res) => {
+  app.post("/api/security/hptp/anomalies", requireAdmin, async (req: any, res) => {
     try {
       const body = hptpAnomalySchema.parse(req.body);
-      const event = await hptpAnomalyService.evaluateAndLog(body);
+      const event = await hptpAnomalyService.reportAnomaly(body);
       res.status(201).json(event);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "Validation failed", details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
       log.error("Failed to log HPTP anomaly", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -118,9 +179,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     try {
       const filters: any = {};
       if (req.query.anomalyType) filters.anomalyType = req.query.anomalyType;
-      if (req.query.severity) filters.severity = req.query.severity;
-      if (req.query.fallbackTriggered !== undefined) filters.fallbackTriggered = req.query.fallbackTriggered === "true";
-      if (req.query.since) filters.since = new Date(req.query.since);
+      if (req.query.days) filters.days = parseInt(req.query.days, 10);
       if (req.query.limit) filters.limit = parseInt(req.query.limit, 10);
       if (req.query.offset) filters.offset = parseInt(req.query.offset, 10);
 
@@ -128,6 +187,26 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       res.json({ events, count: events.length });
     } catch (err: any) {
       log.error("Failed to fetch HPTP anomalies", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/security/hptp/status", requireAdmin, async (_req: any, res) => {
+    try {
+      const status = await hptpAnomalyService.getStatus();
+      res.json(status);
+    } catch (err: any) {
+      log.error("Failed to fetch HPTP status", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/security/hptp/fallback-analysis", requireAdmin, async (_req: any, res) => {
+    try {
+      const analysis = await hptpAnomalyService.getFallbackAnalysis();
+      res.json(analysis);
+    } catch (err: any) {
+      log.error("Failed to fetch fallback analysis", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -156,16 +235,23 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
   });
 
   const threatModelSchema = z.object({
-    category: z.string().min(1).max(100),
-    threatVector: z.string().min(1).max(255),
-    scope: z.enum(["in_scope", "out_of_scope", "deferred"]),
-    adversaryType: z.string().min(1).max(100),
-    currentMitigation: z.string().min(1),
-    residualRisk: z.enum(["negligible", "low", "medium", "high", "critical"]),
-    redundancyFallback: z.string().optional(),
-    detectionMechanism: z.string().optional(),
-    cvssScore: z.number().min(0).max(10).optional(),
-    status: z.string().min(1).max(30),
+    threatId: z.string().min(1).max(50),
+    threatName: z.string().min(1).max(255),
+    description: z.string().optional(),
+    category: z.string().min(1).max(50),
+    attackVector: z.string().max(100).optional(),
+    likelihood: z.enum(["low", "medium", "high", "critical"]),
+    impact: z.enum(["low", "medium", "high", "critical"]),
+    mitigationStatus: z.enum(["mitigated", "in_progress", "acknowledged", "not_addressed"]),
+    controls: z.array(z.object({
+      controlId: z.string(),
+      controlName: z.string(),
+      status: z.string(),
+      evidence: z.string().optional(),
+    })).optional(),
+    residualRisk: z.number().min(0).max(10).optional(),
+    notes: z.string().optional(),
+    createdBy: z.string().max(255).optional(),
   });
 
   app.post("/api/security/threats", requireAdmin, async (req: any, res) => {
@@ -174,7 +260,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const entry = await threatModelService.create(body);
       res.status(201).json(entry);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "Validation failed", details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
       log.error("Failed to create threat entry", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -184,10 +270,9 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     try {
       const filters: any = {};
       if (req.query.category) filters.category = req.query.category;
-      if (req.query.scope) filters.scope = req.query.scope;
-      if (req.query.adversaryType) filters.adversaryType = req.query.adversaryType;
-      if (req.query.residualRisk) filters.residualRisk = req.query.residualRisk;
-      if (req.query.status) filters.status = req.query.status;
+      if (req.query.mitigationStatus) filters.mitigationStatus = req.query.mitigationStatus;
+      if (req.query.likelihood) filters.likelihood = req.query.likelihood;
+      if (req.query.impact) filters.impact = req.query.impact;
 
       const entries = await threatModelService.getAll(filters);
       res.json({ entries, count: entries.length });
@@ -197,7 +282,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     }
   });
 
-  app.get("/api/security/threats/matrix", requireAdmin, async (_req: any, res) => {
+  app.get("/api/security/threats/risk-matrix", requireAdmin, async (_req: any, res) => {
     try {
       const matrix = await threatModelService.getRiskMatrix();
       res.json(matrix);
@@ -220,16 +305,20 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
   app.get("/api/security/threats/meta", (_req: any, res) => {
     res.json({
       categories: threatModelService.getCategories(),
-      adversaryTypes: threatModelService.getAdversaryTypes(),
-      riskLevels: threatModelService.getRiskLevels(),
-      scopes: threatModelService.getScopes(),
+      likelihoodLevels: threatModelService.getLikelihoodLevels(),
+      impactLevels: threatModelService.getImpactLevels(),
+      mitigationStatuses: threatModelService.getMitigationStatuses(),
     });
   });
 
   app.get("/api/security/threats/:id", requireAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      if (isNaN(id)) {
+        const entry = await threatModelService.getByThreatId(req.params.id);
+        if (!entry) return res.status(404).json({ error: "Threat entry not found" });
+        return res.json(entry);
+      }
       const entry = await threatModelService.getById(id);
       if (!entry) return res.status(404).json({ error: "Threat entry not found" });
       res.json(entry);
@@ -276,28 +365,31 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
   });
 
   const implStatusSchema = z.object({
-    component: z.string().min(1).max(255),
-    category: z.string().min(1).max(100),
+    componentName: z.string().min(1).max(255),
+    category: z.string().min(1).max(50),
     status: z.enum(["proven", "in_progress", "planned", "concern", "blocked"]),
-    completionPercent: z.number().int().min(0).max(100).optional(),
-    evidence: z.string().optional(),
-    githubPath: z.string().max(512).optional(),
-    dependencies: z.array(z.string()).optional(),
-    blockers: z.string().optional(),
-    targetDate: z.string().max(20).optional(),
-    phase: z.number().int().min(0).max(5).optional(),
-    locCount: z.number().int().min(0).optional(),
+    completionPercentage: z.number().int().min(0).max(100).optional(),
+    description: z.string().optional(),
+    locTotal: z.number().int().min(0).optional(),
+    locTested: z.number().int().min(0).optional(),
     testCount: z.number().int().min(0).optional(),
-    proofLines: z.number().int().min(0).optional(),
+    proofCount: z.number().int().min(0).optional(),
+    proofCoveragePercentage: z.number().min(0).max(100).optional(),
+    githubPath: z.string().max(255).optional(),
+    responsibleTeam: z.string().max(100).optional(),
+    milestoneDate: z.string().max(20).optional(),
+    summaryLine: z.string().optional(),
+    externalAuditStatus: z.string().max(50).optional(),
+    externalAuditor: z.string().max(100).optional(),
   });
 
-  app.post("/api/security/implementation/entry", requireAdmin, async (req: any, res) => {
+  app.post("/api/security/implementation", requireAdmin, async (req: any, res) => {
     try {
       const body = implStatusSchema.parse(req.body);
       const entry = await implementationStatusService.create(body);
       res.status(201).json(entry);
     } catch (err: any) {
-      if (err.name === "ZodError") return res.status(400).json({ error: "Validation failed", details: err.errors });
+      if (err.name === "ZodError") return res.status(400).json({ error: "ValidationError", status: 400, details: err.errors });
       log.error("Failed to create impl status entry", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
@@ -308,7 +400,6 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       const filters: any = {};
       if (req.query.category) filters.category = req.query.category;
       if (req.query.status) filters.status = req.query.status;
-      if (req.query.phase !== undefined) filters.phase = parseInt(req.query.phase, 10);
 
       const entries = await implementationStatusService.getAll(filters);
       res.json({ entries, count: entries.length });
@@ -324,6 +415,28 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       res.json(summary);
     } catch (err: any) {
       log.error("Failed to fetch impl summary", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/security/implementation/metrics", requireAdmin, async (_req: any, res) => {
+    try {
+      const metrics = await implementationStatusService.getMetrics();
+      res.json(metrics);
+    } catch (err: any) {
+      log.error("Failed to fetch impl metrics", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/security/implementation/milestones", requireAdmin, async (req: any, res) => {
+    try {
+      const from = req.query.from as string | undefined;
+      const to = req.query.to as string | undefined;
+      const milestones = await implementationStatusService.getMilestones(from, to);
+      res.json(milestones);
+    } catch (err: any) {
+      log.error("Failed to fetch impl milestones", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -362,19 +475,6 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     }
   });
 
-  app.patch("/api/security/implementation/:id/verify", requireAdmin, async (req: any, res) => {
-    try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
-      const updated = await implementationStatusService.verify(id);
-      if (!updated) return res.status(404).json({ error: "Implementation entry not found" });
-      res.json(updated);
-    } catch (err: any) {
-      log.error("Failed to verify impl entry", { error: err.message });
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
   app.delete("/api/security/implementation/:id", requireAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -402,9 +502,10 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     try {
       const since = req.query.since ? new Date(req.query.since) : new Date(Date.now() - 7 * 86400000);
 
-      const [auditStats, hptpStats, threatStats, implSummary, unresolvedAudit] = await Promise.all([
+      const [auditStats, hptpStats, hptpStatus, threatStats, implSummary, unresolvedAudit] = await Promise.all([
         securityAuditService.getSeverityCounts(since),
         hptpAnomalyService.getStatistics(since),
+        hptpAnomalyService.getStatus(),
         threatModelService.getSummaryStats(),
         implementationStatusService.getSummary(),
         securityAuditService.getUnresolved(),
@@ -414,6 +515,7 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
         period: { since: since.toISOString(), until: new Date().toISOString() },
         auditEvents: auditStats,
         hptpAnomalies: hptpStats,
+        hptpStatus,
         threatModel: threatStats,
         implementation: implSummary,
         unresolvedAlerts: unresolvedAudit.length,
@@ -422,6 +524,27 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
       log.error("Failed to fetch security dashboard", { error: err.message });
       res.status(500).json({ error: "Internal server error" });
     }
+  });
+
+  app.get("/api/security/metadata/categories", (_req: any, res) => {
+    res.json({
+      auditCategories: ["auth", "crypto", "boot", "network", "hptp", "firmware", "privilege"],
+      threatCategories: threatModelService.getCategories(),
+      implementationCategories: implementationStatusService.getCategories(),
+    });
+  });
+
+  app.get("/api/security/metadata/types", (_req: any, res) => {
+    res.json({
+      auditSeverities: ["info", "warning", "high", "critical"],
+      resolutionStatuses: ["unresolved", "resolved", "false_positive", "acknowledged"],
+      anomalyTypes: ["jitter_variance", "clock_drift", "sync_failure", "glitch_detected"],
+      fallbackTiers: FALLBACK_TIERS,
+      likelihoodLevels: threatModelService.getLikelihoodLevels(),
+      impactLevels: threatModelService.getImpactLevels(),
+      mitigationStatuses: threatModelService.getMitigationStatuses(),
+      implementationStatuses: implementationStatusService.getStatuses(),
+    });
   });
 
   log.info("Security routes registered");
