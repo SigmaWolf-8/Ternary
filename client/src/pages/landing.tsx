@@ -262,8 +262,7 @@ function HeroSection() {
               `,
             }}
           >
-            <span className="flex items-center justify-between gap-4 flex-wrap">
-              <span>The World's First <span className="text-primary" style={{ textShadow: `
+            The World's First <span className="text-primary" style={{ textShadow: `
                 0 1px 0 rgba(0,85,210,0.50),
                 0 2px 0 rgba(0,80,200,0.45),
                 0 3px 0 rgba(0,75,190,0.40),
@@ -277,21 +276,22 @@ function HeroSection() {
                 0 12px 8px rgba(0,30,100,0.18),
                 0 18px 16px rgba(0,30,100,0.12),
                 0 26px 30px rgba(0,30,100,0.07)
-              ` }}>Ternary Computing</span> Platform</span>
-              <img src={plenumLogo} alt="PlenumNET" className="w-16 h-16 md:w-20 md:h-20 rounded-xl drop-shadow-lg flex-shrink-0" data-testid="hero-logo" />
-            </span>
+              ` }}>Ternary Computing</span> Platform
           </motion.h1>
           
-          <motion.p 
+          <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg md:text-xl text-muted-foreground mb-8 max-w-3xl"
+            className="flex items-start gap-4 mb-8 max-w-3xl"
             data-testid="text-hero-description"
           >
-            59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
-            A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
-          </motion.p>
+            <p className="text-lg md:text-xl text-muted-foreground flex-1">
+              59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
+              A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
+            </p>
+            <img src={plenumLogo} alt="PlenumNET" className="w-16 h-16 md:w-20 md:h-20 rounded-xl drop-shadow-lg flex-shrink-0" data-testid="hero-logo" />
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
