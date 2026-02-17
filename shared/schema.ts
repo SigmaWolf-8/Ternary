@@ -237,3 +237,82 @@ export type InsertDeveloperSignup = z.infer<typeof insertDeveloperSignupSchema>;
 export type DeveloperSignup = typeof developerSignups.$inferSelect;
 export type InsertCompressedDocument = z.infer<typeof insertCompressedDocumentSchema>;
 export type CompressedDocument = typeof compressedDocuments.$inferSelect;
+
+export const securityAuditLog = pgTable("security_audit_log", {
+  id: serial("id").primaryKey(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  severity: varchar("severity", { length: 20 }).notNull(),
+  source: varchar("source", { length: 100 }).notNull(),
+  message: text("message").notNull(),
+  details: jsonb("details").$type<Record<string, unknown>>(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userId: varchar("user_id", { length: 255 }),
+  resolved: boolean("resolved").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const hptpAnomalyEvents = pgTable("hptp_anomaly_events", {
+  id: serial("id").primaryKey(),
+  anomalyType: varchar("anomaly_type", { length: 100 }).notNull(),
+  severity: varchar("severity", { length: 20 }).notNull(),
+  detectedValue: real("detected_value"),
+  expectedValue: real("expected_value"),
+  deviationPercent: real("deviation_percent"),
+  sensorId: varchar("sensor_id", { length: 100 }),
+  fallbackTriggered: boolean("fallback_triggered").default(false).notNull(),
+  fallbackMode: varchar("fallback_mode", { length: 50 }),
+  mitigationApplied: varchar("mitigation_applied", { length: 255 }),
+  details: jsonb("details").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const threatModelEntries = pgTable("threat_model_entries", {
+  id: serial("id").primaryKey(),
+  category: varchar("category", { length: 100 }).notNull(),
+  threatVector: varchar("threat_vector", { length: 255 }).notNull(),
+  scope: varchar("scope", { length: 20 }).notNull(),
+  adversaryType: varchar("adversary_type", { length: 100 }).notNull(),
+  currentMitigation: text("current_mitigation").notNull(),
+  residualRisk: varchar("residual_risk", { length: 50 }).notNull(),
+  redundancyFallback: text("redundancy_fallback"),
+  detectionMechanism: text("detection_mechanism"),
+  cvssScore: real("cvss_score"),
+  status: varchar("status", { length: 30 }).notNull(),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const implementationStatus = pgTable("implementation_status", {
+  id: serial("id").primaryKey(),
+  component: varchar("component", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  status: varchar("status", { length: 30 }).notNull(),
+  completionPercent: integer("completion_percent").default(0).notNull(),
+  evidence: text("evidence"),
+  githubPath: varchar("github_path", { length: 512 }),
+  dependencies: jsonb("dependencies").$type<string[]>().default([]),
+  blockers: text("blockers"),
+  targetDate: varchar("target_date", { length: 20 }),
+  phase: integer("phase").default(0).notNull(),
+  locCount: integer("loc_count"),
+  testCount: integer("test_count"),
+  proofLines: integer("proof_lines"),
+  lastVerifiedAt: timestamp("last_verified_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSecurityAuditLogSchema = createInsertSchema(securityAuditLog).omit({ id: true, createdAt: true });
+export const insertHptpAnomalyEventSchema = createInsertSchema(hptpAnomalyEvents).omit({ id: true, createdAt: true });
+export const insertThreatModelEntrySchema = createInsertSchema(threatModelEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertImplementationStatusSchema = createInsertSchema(implementationStatus).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type SecurityAuditLogEntry = typeof securityAuditLog.$inferSelect;
+export type InsertSecurityAuditLog = z.infer<typeof insertSecurityAuditLogSchema>;
+export type HptpAnomalyEvent = typeof hptpAnomalyEvents.$inferSelect;
+export type InsertHptpAnomalyEvent = z.infer<typeof insertHptpAnomalyEventSchema>;
+export type ThreatModelEntry = typeof threatModelEntries.$inferSelect;
+export type InsertThreatModelEntry = z.infer<typeof insertThreatModelEntrySchema>;
+export type ImplementationStatusEntry = typeof implementationStatus.$inferSelect;
+export type InsertImplementationStatus = z.infer<typeof insertImplementationStatusSchema>;
