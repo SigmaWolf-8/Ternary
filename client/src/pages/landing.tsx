@@ -278,6 +278,16 @@ function HeroSection() {
                 0 26px 30px rgba(0,30,100,0.07)
               ` }}>Ternary Computing</span> Platform
           </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.08 }}
+            className="mb-6"
+            data-testid="hero-logo"
+          >
+            <img src={plenumLogo} alt="PlenumNET" className="w-28 h-28 md:w-36 md:h-36 rounded-2xl drop-shadow-lg" />
+          </motion.div>
           
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -382,15 +392,6 @@ function HeroSection() {
             <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
             <AnimatedStat value="176" label="VM Opcodes" delay={0.34} />
           </div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex justify-center my-6"
-            data-testid="hero-logo"
-          >
-            <img src={plenumLogo} alt="PlenumNET" className="w-28 h-28 md:w-36 md:h-36 rounded-2xl drop-shadow-lg" />
-          </motion.div>
           <HeroVisual />
           <HeroDemo />
         </div>
