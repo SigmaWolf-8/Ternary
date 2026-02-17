@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import plenumLogo from "@assets/grok-image-4cc34879-1804-4927-aa4e-597aec4e0b0e_1771282084449.png";
+import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
 import { 
   Code, 
   Clock, 
