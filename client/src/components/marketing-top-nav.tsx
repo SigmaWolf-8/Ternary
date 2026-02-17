@@ -554,7 +554,7 @@ export function MarketingTopNav() {
             className="flex items-center gap-2 font-semibold text-foreground mr-2"
             data-testid="link-logo"
           >
-            <img src={plenumLogo} alt="PlenumNET" className="w-6 h-6" />
+            <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
             <span className="text-base">PlenumNET</span>
           </Link>
 
