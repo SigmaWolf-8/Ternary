@@ -290,10 +290,7 @@ function HeroSection() {
               59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
               A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
             </p>
-            <img src={plenumLogo} alt="PlenumNET" className="h-24 md:h-28 w-auto flex-shrink-0 -mt-4"
-              style={{
-                filter: "drop-shadow(0 2px 1px rgba(255,255,255,0.3)) drop-shadow(0 -3px 3px rgba(0,0,0,0.5)) drop-shadow(0 4px 6px rgba(0,0,0,0.4)) drop-shadow(0 8px 12px rgba(0,0,0,0.3))",
-              }} data-testid="hero-logo" />
+            <img src={plenumLogo} alt="PlenumNET" className="h-24 md:h-28 w-auto flex-shrink-0 -mt-4" data-testid="hero-logo" />
           </motion.div>
 
           <motion.div
