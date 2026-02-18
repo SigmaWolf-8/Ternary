@@ -31,7 +31,7 @@ A Rust-based kernel in `src/kernel/` provides core functionalities:
 -   **Ternary Virtual Machine**: A 176-opcode ISA v2.1 with ternary addressing, three-ring privilege levels, quantum-ternary simulation, and a ternary-aware garbage collector.
 -   **Binary Compatibility Layer**: For balanced ternary conversion and crypto interoperability.
 
-### XPlenum RISC-V Hardware Extension (Phases 1–5 Complete)
+### XPlenum RISC-V Hardware Extension (Phases 1–7 Complete)
 CVA6-integrated custom RISC-V extension for ternary security operations:
 -   **Core Selection**: CVA6 (OpenHW Group) selected over Rocket, BOOM, PicoRV32 (score 4.85/5).
 -   **Integration RTL**: `rtl/integration/` — CVA6 wrapper (64-bit data path, sign extension), stall controller (RAW/WAW/structural hazard detection, result forwarding), top-level integration module.
@@ -41,7 +41,9 @@ CVA6-integrated custom RISC-V extension for ternary security operations:
 -   **Testing**: 31-test integration testbench, DRBG testbench, regression framework, benchmark suite, side-channel analysis scripts.
 -   **Phase 4 — NIST DRBG**: LFSR replaced with SP 800-90A CTR_DRBG (AES-256). Includes `rtl/xplenum_aes256_core.v` (14-round AES-256), `rtl/xplenum_ctr_drbg.v` (CTR_DRBG FSM with Instantiate/Generate/Reseed/Update), SP 800-90B health tests (repetition count, adaptive proportion), NIST STS validation script (`scripts/xplenum_drbg_nist_sts.py`), DRBG testbench (`tb/xplenum_drbg_tb.v`). Health error propagated as exception; TMASKR/TMASKRF gated on drbg_buffer_valid. External 256-bit entropy port on xplenum_top.
 -   **Phase 5 — Rust Kernel Interfaces**: Inline assembly wrappers for all 21 instructions (`src/kernel/src/arch/xplenum.rs`), safe abstraction layer with subsystem-enable gating and exception checking (`src/kernel/src/security/xplenum_hal.rs`), unit tests (`src/kernel/src/security/xplenum_tests.rs`), CI/CD pipeline (`.github/workflows/xplenum-riscv.yml`).
--   **Key Files**: `docs/xplenum/phase4_drbg_algorithm_selection_2026-02-18.md`, `rtl/xplenum_aes256_core.v`, `rtl/xplenum_ctr_drbg.v`, `rtl/xplenum_mask_unit.v`, `src/kernel/src/arch/xplenum.rs`, `src/kernel/src/security/xplenum_hal.rs`.
+-   **Phase 6 — Emulation & Validation**: Spike ISS extension (50/50 tests passing, `sim/spike/`), QEMU TCG helpers (`sim/qemu/xplenum_qemu_helper.c`, `sim/qemu/xplenum_qemu_trans.c.inc`), kernel boot validation script, E2E security test suite (6 adversarial scenarios), security fuzzer (1M iterations, 0 invariant violations, `sim/fuzzing/`), cross-verification framework (`sim/cross-verify/`), FPGA synthesis constraints (`synth/xplenum_fpga.sdc`, `synth/xplenum_pinmap.xdc`, `synth/xplenum_synth.tcl`). Performance profiling: 19.4x aggregate HW speedup over software.
+-   **Phase 7 — Documentation & Compliance**: FIPS 140-3 Level 2 compliance mapping, CNSA 2.0 compliance documentation, ISA Specification v1.0, external audit coordination package. All in `docs/xplenum/phase7_*.md`.
+-   **Key Files**: `docs/xplenum/phase4_drbg_algorithm_selection_2026-02-18.md`, `rtl/xplenum_aes256_core.v`, `rtl/xplenum_ctr_drbg.v`, `rtl/xplenum_mask_unit.v`, `src/kernel/src/arch/xplenum.rs`, `src/kernel/src/security/xplenum_hal.rs`, `sim/spike/xplenum_spike_extension.h`, `sim/qemu/xplenum_qemu_helper.c`, `sim/fuzzing/xplenum_fuzz_harness.cpp`, `synth/xplenum_fpga.sdc`.
 
 ### Legal & IP Compliance
 All source files include standardized copyright headers. Legal documents (terms, privacy, security) are served dynamically. `IP-NOTICE.md` documents patent-pending claims, and `EXPORT-CONTROL.md` provides CNSA 2.0 and Wassenaar classification guidance.
