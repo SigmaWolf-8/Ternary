@@ -31,6 +31,16 @@ A Rust-based kernel in `src/kernel/` provides core functionalities:
 -   **Ternary Virtual Machine**: A 176-opcode ISA v2.1 with ternary addressing, three-ring privilege levels, quantum-ternary simulation, and a ternary-aware garbage collector.
 -   **Binary Compatibility Layer**: For balanced ternary conversion and crypto interoperability.
 
+### XPlenum RISC-V Hardware Extension (Phases 1–3 Complete)
+CVA6-integrated custom RISC-V extension for ternary security operations:
+-   **Core Selection**: CVA6 (OpenHW Group) selected over Rocket, BOOM, PicoRV32 (score 4.85/5).
+-   **Integration RTL**: `rtl/integration/` — CVA6 wrapper (64-bit data path, sign extension), stall controller (RAW/WAW/structural hazard detection, result forwarding), top-level integration module.
+-   **21 Custom Instructions**: Masking (TMASK/TUNMASK/TMASKR/TMASKRF), Domain (TDOMSET/TDOMCHK/TDOMCLR/TDOMXFR), Capability (TCAPST/TCAPLD/TCAPCHK/TCAPREV), Crypto (TROTL/TROTR/TTBOX/TPERM), Encoding (TTRIT/TDETRIT), Signal (TSIGFLT/TSIGCMP/TSIGACC).
+-   **12 Custom CSRs**: 0x7C0–0x7CB (XPSTATUS, XPDOMID, XPCAPBASE, XPCAPBOUND, XPMASK_SEED, XPMASK_STATE, XPTRIT_MODE, XPSIG_CFG, XPEXC_CAUSE, XPEXC_ADDR, XPPERF_CNT, XPVERSION).
+-   **Formal Verification**: 115+ properties across standalone (454-line) + integration (65 new) files.
+-   **Testing**: 31-test integration testbench, regression framework, benchmark suite, side-channel analysis scripts.
+-   **Key Files**: `docs/xplenum/phase1_core_selection_2026-02-18.md`, `docs/xplenum/phase1_pipeline_analysis_2026-02-18.md`, `docs/xplenum/phase1_interface_specification_2026-02-18.md`, `rtl/integration/xplenum_cva6_wrapper.v`, `rtl/integration/xplenum_stall_controller.v`, `rtl/integration/xplenum_cva6_top.v`, `tb/xplenum_cva6_integration_tb.v`, `rtl/formal/xplenum_integration_formal_props.v`.
+
 ### Legal & IP Compliance
 All source files include standardized copyright headers. Legal documents (terms, privacy, security) are served dynamically. `IP-NOTICE.md` documents patent-pending claims, and `EXPORT-CONTROL.md` provides CNSA 2.0 and Wassenaar classification guidance.
 

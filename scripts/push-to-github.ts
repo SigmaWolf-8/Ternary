@@ -70,7 +70,7 @@ async function pushFile(localPath: string, repoPath: string): Promise<boolean> {
 
 async function main() {
   console.log("=".repeat(60));
-  console.log("  PUSH TO GITHUB — Phase 1 + Phase 2 Security Deliverables");
+  console.log("  PUSH TO GITHUB — Security + XPlenum Phase 1-3 Deliverables");
   console.log("  Repository:", `${REPO_OWNER}/${REPO_NAME}`);
   console.log("  Branch:", BRANCH);
   console.log("  Date:", new Date().toISOString());
@@ -95,11 +95,32 @@ async function main() {
     "smoke-test-http.ts",
     "load-test-security.ts",
     "hptp-fallback-test.ts",
+    "xplenum_regression.sh",
+    "xplenum_benchmark.sh",
+    "xplenum_sidechannel.sh",
   ];
   for (const f of scriptFiles) {
     const fullPath = path.join(scriptsDir, f);
     if (fs.existsSync(fullPath)) {
       filesToPush.push({ local: fullPath, remote: `scripts/${f}` });
+    }
+  }
+
+  const xplenumDirs: { localDir: string; remotePrefix: string }[] = [
+    { localDir: path.resolve(__dirname, "../docs/xplenum"), remotePrefix: "docs/xplenum" },
+    { localDir: path.resolve(__dirname, "../rtl/integration"), remotePrefix: "rtl/integration" },
+    { localDir: path.resolve(__dirname, "../rtl/formal"), remotePrefix: "rtl/formal" },
+    { localDir: path.resolve(__dirname, "../tb"), remotePrefix: "tb" },
+  ];
+  for (const { localDir, remotePrefix } of xplenumDirs) {
+    if (fs.existsSync(localDir)) {
+      const files = fs.readdirSync(localDir);
+      for (const f of files) {
+        const fullPath = path.join(localDir, f);
+        if (fs.statSync(fullPath).isFile()) {
+          filesToPush.push({ local: fullPath, remote: `${remotePrefix}/${f}` });
+        }
+      }
     }
   }
 

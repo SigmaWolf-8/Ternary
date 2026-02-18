@@ -1,0 +1,737 @@
+# XPlenum RISC-V Extension — Completion Task List (Final Unified)
+
+**Simulation-Completable Development Tasks**
+**Excludes: FPGA Board Validation | Physical TRNG Characterisation | FIPS 140-3 Lab Certification**
+
+**Capomastro Holdings Ltd.**
+**Applied Physics Division**
+**February 2026**
+
+**CONFIDENTIAL**
+
+---
+
+## Executive Summary
+
+This document enumerates all development tasks required to bring the XPlenum RISC-V custom extension from its current state — a complete, formally verified, standalone IP block — to a fully integrated and operational system. Every task listed below can be completed in simulated environments using standard development tools and AI-assisted engineering workflows.
+
+Three items are explicitly excluded from this scope because they require physical-world interaction: FPGA board validation (loading the design onto physical silicon), physical True Random Number Generator characterisation (measuring actual hardware entropy), and FIPS 140-3 laboratory certification (formal evaluation by an accredited testing facility). These three activities become relevant only after every task in this document is complete.
+
+The document is structured in two tiers:
+
+**Tier 1 — Core Completion (Phases 1–7)**: The 42 tasks required to bring XPlenum from standalone IP block to a simulation-proven, kernel-integrated, fuzz-tested, documentation-ready system. Estimated effort: 60–78 person-days with AI-assisted workflows. Add 20–30% buffer for solo or small-team execution with learning curve on the selected core.
+
+**Tier 2 — Beyond Defense-Grade (Phase 8)**: Five optional enhancement tracks that elevate XPlenum from defense-grade (FIPS 140-3 Level 3–4, EAL5–6 equivalent) into ultra-high-assurance / national security-grade territory (EAL7-level formal proofs, higher-order side-channel resistance, quantum-resistant cryptographic primitives, independent red-team validation, and Protection Profile targeting for national security systems). Estimated additional effort: 65–130 person-days plus external costs.
+
+**Tier 1 Phases**:
+
+**Phase 1** — RISC-V Core Selection and Preparation: Choose and prepare the target processor core for integration.
+
+**Phase 2** — Hardware Integration: Wire XPlenum into the selected core's pipeline at the Register-Transfer Level.
+
+**Phase 3** — Integrated Simulation and Verification: Validate the combined system through testbenches, formal proofs, power simulation, and benchmarks.
+
+**Phase 4** — Deterministic Random Bit Generator Implementation: Replace the Linear Feedback Shift Register with a NIST-compliant algorithm.
+
+**Phase 5** — Rust Kernel Integration: Build software interfaces so the Salvi Framework kernel can issue XPlenum instructions.
+
+**Phase 6** — Emulation and System Validation: Boot and test the full system in a RISC-V emulator, including security fuzzing.
+
+**Phase 7** — Documentation and Compliance Preparation: Produce the technical documentation and compliance paperwork.
+
+**Tier 2 Phase**:
+
+**Phase 8** — Beyond Defense-Grade Enhancements: Full-system formal verification, higher-order masking, quantum-resistant primitives, adversarial red-team validation, and national security Protection Profile targeting.
+
+---
+
+## Critical Path and Dependency Diagram
+
+```mermaid
+graph LR
+    subgraph "Critical Path (Tier 1)"
+        P1[Phase 1: Core Selection] --> P2[Phase 2: HW Integration]
+        P2 --> P3[Phase 3: Sim & Verification]
+        P3 --> G1{Gate 1: Integration Stable}
+        G1 --> P5[Phase 5: Rust Kernel]
+        P5 --> G2{Gate 2: Kernel Ready}
+        G2 --> P6[Phase 6: Emulation & Validation]
+    end
+
+    subgraph "Parallel Track A"
+        P4[Phase 4: DRBG] --> P4_merge[Merge into Phase 3/5]
+    end
+
+    subgraph "Parallel Track B"
+        P7[Phase 7: Documentation]
+    end
+
+    subgraph "Tier 2 (Beyond Defense-Grade)"
+        P6 --> G3{Gate 3: Tier 1 Complete}
+        G3 --> P8a[8A: Full Formal Verification]
+        P8a --> P8b[8B: Higher-Order Masking]
+        P8b --> P8c[8C: Quantum-Resistant Primitives]
+        P8c --> P8d[8D: Red-Team Validation]
+        P8d --> P8e[8E: Protection Profile Targeting]
+    end
+
+    P1 -->|After 1.1| P4
+    P4_merge --> G1
+    P3 --> P7
+    P5 --> P7
+    P6 --> P7
+
+    style G1 fill:#CC8800,color:#fff
+    style G2 fill:#CC8800,color:#fff
+    style G3 fill:#CC0000,color:#fff
+```
+
+**Critical Path (Tier 1)**: Phase 1 → Phase 2 → Phase 3 → Gate 1 → Phase 5 → Gate 2 → Phase 6
+
+**Parallel Track A**: Phase 4 (DRBG) can begin after Task 1.1 completes and runs alongside Phases 2–3. Its outputs merge at Gate 1.
+
+**Parallel Track B**: Phase 7 (Documentation) is developed incrementally alongside every other phase, not deferred to the end.
+
+**Tier 2 Sequencing**: Phase 8 tracks begin after Gate 3 (Tier 1 complete). Within Tier 2, formal verification (8A) establishes the assurance foundation, higher-order masking (8B) and quantum-resistant primitives (8C) build on it, and red-team validation (8D) plus Protection Profile targeting (8E) provide final external validation. Tracks 8B and 8C can run in parallel.
+
+---
+
+## Phase Gate Checkpoints
+
+### Gate 1 — Integration Stable (After Phases 2, 3, and 4)
+
+Before any Rust kernel work begins, the following conditions must be met:
+
+- All 21 XPlenum instructions execute correctly in the integrated core simulation (Phase 3, Task 3.2 complete).
+- Baseline RISC-V regression suite passes with zero failures (Task 3.3 complete).
+- Formal verification properties pass without counterexamples (Task 3.4 complete).
+- DRBG module is integrated into the masking unit and passes NIST Statistical Test Suite (Task 4.5 complete).
+- Power and side-channel simulation shows no first-order leakage from masking unit, with Hamming weight correlation coefficient below 0.05 for all masked operations (Task 3.6 complete).
+
+**Gate 1 deliverable**: Signed-off simulation report with waveform evidence, formal proof logs, NIST STS results, and side-channel analysis report with quantified leakage threshold.
+
+### Gate 2 — Kernel Ready (After Phase 5)
+
+Before full system emulation begins, the following conditions must be met:
+
+- All Rust abstraction layer unit tests pass against emulator hooks (Task 5.7 complete).
+- CI/CD pipeline executes full test suite on every commit without manual intervention (Task 5.8 complete).
+- Kernel compiles for RISC-V target with all XPlenum modules linked (Tasks 5.3–5.6 complete).
+
+**Gate 2 deliverable**: Green CI pipeline, compiled kernel binary, and unit test coverage report.
+
+### Gate 3 — Tier 1 Complete (After Phase 6)
+
+Before any beyond-defense-grade enhancement work begins, the following conditions must be met:
+
+- Full system boots and runs in emulation (Task 6.2 complete).
+- All end-to-end security tests pass, including adversarial scenarios (Task 6.3 complete).
+- Security fuzzing completes 10 million+ iterations without crash (Task 6.6 complete).
+- Cross-verification between RTL simulation and emulator confirms output equivalence (Task 6.7 complete).
+- All Tier 1 documentation deliverables produced (Phase 7 complete).
+
+**Gate 3 deliverable**: Complete Tier 1 package — simulation-proven, kernel-integrated, fuzz-tested, cross-verified, and documented system ready for FPGA bring-up or Tier 2 enhancement.
+
+---
+
+# TIER 1 — CORE COMPLETION
+
+---
+
+## Task Register
+
+### Phase 1: RISC-V Core Selection & Preparation
+
+**Goal**: Select and prepare a compatible open-source RISC-V core.
+**Risk**: Pipeline mismatch could require XPlenum interface redesign. Mitigate by prioritising cores with extensible decode stages and standardised extension interfaces (CV-X-IF in CVA6 or RoCC in Rocket).
+**Effort Estimate**: 5–7 person-days.
+**Parallelism**: Phase 4 can begin after Task 1.1 completes.
+
+**Core Selection Guidance (2026 Context)**: CVA6 (from OpenHW Group) is strongly recommended for this integration. It provides native CV-X-IF (CORE-V eXtension Interface) — a standardised coprocessor/extension interface designed specifically for adding custom instructions without deeply modifying the decode stage. Its 6-stage in-order pipeline is clean and well-documented, with active community maintenance and 2025–2026 releases targeting TRL 4–5. Rocket Chip remains an excellent alternative if generator-based configurability or the RoCC (Rocket Custom Coprocessor) interface is preferred for a tightly-coupled coprocessor approach. BOOM (out-of-order) is overkill for initial integration and harder to modify for custom decode. PicoRV32 is too minimal for 64-bit operation with complex extensions like capabilities and trit DSP.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 1 | 1.1 | Select Open-Source RISC-V Core | Evaluate Rocket, BOOM, CVA6, and PicoRV32 cores for pipeline compatibility (5–6 stage in-order preferred), license terms (Apache 2.0 or MIT), extensibility (CV-X-IF, RoCC, or direct decode hooks), community activity, and verification status. CVA6 strongly preferred for native CV-X-IF coprocessor/extension support, clean 6-stage pipeline, and active OpenHW maintenance. Fall back to Rocket if generator configurability or RoCC-style coprocessor interface is preferred. | Hardware | Critical | — | 2d | Decision document comparing all four cores on five criteria (pipeline fit, extension mechanism, area/power estimates, community momentum, verification maturity). Selected core identified with explicit rationale and risk assessment. CVA6 recommended unless specific requirements favour Rocket. |
+| 1 | 1.2 | Fork and Set Up Core Repository | Clone selected RISC-V core, establish Git version control with branching strategy, and configure build and simulation environment (Verilator preferred for speed; Icarus Verilog as fallback). Install RISC-V GCC/LLVM cross-compilation toolchain. | Tooling | Critical | 1.1 | 1d | Repository cloned, default core simulation compiles and runs "hello world" test successfully. Toolchain versions documented. |
+| 1 | 1.3 | Analyse Core Pipeline Architecture | Document the decode, execute, and writeback stages of the selected core. Map signal names and timing to XPlenum's interface ports: instruction[31:0], rs1_data[63:0], rs2_data[63:0], rd_data[63:0], rd_wen. Identify where custom instruction decode hooks exist (CV-X-IF interface in CVA6, or RoCC port in Rocket) or must be added. | Hardware | Critical | 1.2 | 2d | Pipeline diagram produced showing all stages with signal names. XPlenum port mapping table complete. Extension interface hook points identified in core source with file and line references. |
+| 1 | 1.4 | Define Integration Interface Specification | Write a formal interface document specifying signal widths (64-bit XLEN), clock and reset synchronisation, pipeline stall protocol (bubble insertion vs. scoreboard), and exception handling between core and XPlenum. If using CV-X-IF, document how XPlenum maps to the interface's request/response protocol. | Documentation | Critical | 1.3 | 1d | Interface specification reviewed, covering all signal definitions, timing diagrams for stall scenarios, and exception flow. Stored in repository as Markdown. |
+
+---
+
+### Phase 2: Hardware Integration
+
+**Goal**: Integrate XPlenum RTL into the selected RISC-V core's pipeline.
+**Risk**: Integration bugs could break baseline RISC-V functionality. Mitigate with incremental commits — wire one unit at a time and run baseline regression after each commit.
+**Effort Estimate**: 10–12 person-days.
+**Parallelism**: Can overlap with Phase 4 preparation work.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 2 | 2.1 | Wire XPlenum Decode into Core Decode Stage | Connect the core's instruction decode output to xplenum_top.v. Route opcode[6:0], funct3[2:0], funct7[6:0] fields and register source data (rs1_data, rs2_data). If using CVA6 with CV-X-IF, implement the extension interface adapter. If using direct decode, add multiplexer to detect XPlenum opcodes on custom-0 (0x0B) and custom-1 (0x2B) encoding spaces. | Hardware | Critical | 1.4 | 2d | XPlenum top module receives decoded instruction fields. Simulation shows correct opcode, funct3, funct7, and register data arriving at xplenum_top inputs for a test instruction. |
+| 2 | 2.2 | Integrate XPlenum Result Path | Connect XPlenum's rd_data[63:0] and rd_wen outputs back into the core's writeback multiplexer so results are written to the general-purpose register file. Handle 64-bit RV64I compatibility if core supports multiple XLEN. | Hardware | Critical | 2.1 | 2d | A custom instruction's result appears in the destination register. Verified by reading back rd after XPlenum execution in simulation. |
+| 2 | 2.3 | Integrate CSR File | Connect XPlenum's 8 custom Control and Status Registers (addresses 0x800–0x807) into the core's CSR read/write path, handling privilege-level access checks (M-mode only) and address decoding. | Hardware | Critical | 2.1 | 2d | All 8 CSRs readable and writable from M-mode. S-mode and U-mode access triggers illegal instruction exception. Verified in simulation. |
+| 2 | 2.4 | Handle Pipeline Stalls and Hazards | Implement stall logic for multi-cycle XPlenum operations (particularly trit unit DSP instructions). Insert pipeline bubbles during multi-cycle execution. Ensure data hazard forwarding works correctly when XPlenum results feed back into immediately subsequent instructions. | Hardware | Critical | 2.2 | 2d | Back-to-back instruction test passes: XPlenum instruction followed by dependent ALU instruction produces correct result. No pipeline corruption observed in 1000-cycle random instruction stream. |
+| 2 | 2.5 | Add Exception and Interrupt Support | Wire illegal-instruction exceptions for invalid XPlenum opcodes (mcause=2) and integrate domain violation traps from the Domain Isolation Unit into the core's trap handler via custom cause code (0x10). Route all exceptions through the core's MTVEC vector. | Hardware | High | 2.3 | 1d | Invalid opcode triggers trap. Domain violation triggers trap. Both verified by checking mcause value and PC redirect in simulation. |
+| 2 | 2.6 | Clock Domain Alignment | Verify XPlenum and the RISC-V core operate in the same clock domain. If they differ, implement proper clock-domain crossing with synchroniser flip-flops. Validate with timing simulation including post-synthesis timing estimates. | Hardware | Medium | 2.1 | 1d | Timing simulation confirms no setup/hold violations across XPlenum interface. If CDC required, metastability MTBF calculated and documented. |
+
+---
+
+### Phase 3: Integrated Simulation & Verification
+
+**Goal**: Comprehensively verify the integrated design — functional correctness, formal properties, performance, and side-channel resistance.
+**Risk**: Undetected interaction bugs between core and XPlenum. Mitigate with coverage-driven verification — track functional coverage and require 95%+ before Gate 1.
+**Effort Estimate**: 14–17 person-days.
+**Parallelism**: Tasks 3.4, 3.5, and 3.6 can run concurrently once 3.1 is complete.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 3 | 3.1 | Build Combined Testbench | Create a unified simulation testbench that instantiates the full RISC-V core with XPlenum integrated. Implement simulated memory with DPI-C or Verilog $readmemh for ELF binary loading. Add waveform dumping and assertion monitoring. | Verification | Critical | 2.4 | 2d | Testbench compiles, loads a test binary, executes it, and produces a VCD waveform. At least one XPlenum instruction executes to completion. |
+| 3 | 3.2 | Write Integration Test Programs | Develop RISC-V assembly test programs that exercise all 21 XPlenum instructions in architectural context: register setup, XPlenum execution, result verification via self-checking assertions. Use the riscv-tests framework structure. Each instruction must have positive (correct result) and negative (exception on bad input) test cases. | Verification | Critical | 3.1 | 3d | All 21 instructions have at least one dedicated test. All tests pass. Coverage includes boundary values, privilege violations, and domain/capability edge cases. |
+| 3 | 3.3 | Regression Test: Baseline Core Functionality | Run the selected core's existing ISA compliance test suite (riscv-arch-test) to confirm all standard RISC-V instructions are completely unaffected by the XPlenum integration. | Verification | Critical | 3.1 | 2d | 100% of pre-existing core tests pass with zero regressions. Diff report against pre-integration results shows no changes. |
+| 3 | 3.4 | Extend Formal Verification | Adapt the existing 454-line formal properties file (xplenum_formal_props.v) to cover the integrated pipeline. Add assertions for register file integrity (rd never written when rd_wen is low), CSR access control (privilege violations always trap), pipeline flush correctness, and no-deadlock on stalls. Target 100+ new properties using SystemVerilog Assertions (SVA). | Verification | High | 3.1 | 3d | All formal properties pass bounded model checking to depth 50+ cycles. No counterexamples. Property count exceeds 550 total. |
+| 3 | 3.5 | Performance Benchmarking in Simulation | Simulate cycle-accurate execution and measure instruction throughput, pipeline stall frequency, and cycle counts for each XPlenum operation within the integrated core. Establish baseline performance metrics for comparison against software-only equivalents. | Verification | Medium | 3.2 | 2d | Benchmark report produced with per-instruction cycle counts, stall ratios, and throughput figures. Compared against equivalent software operation cycle counts. |
+| 3 | 3.6 | Power and Side-Channel Simulation | Use Verilator's toggle-count output to estimate switching activity and dynamic power. Simulate Hamming weight and Hamming distance leakage models for the masking unit to verify that first-order side-channel leakage is below detection threshold (correlation coefficient below 0.05 for all masked operations). | Verification | High | 3.4 | 3d | Toggle activity report generated. Hamming weight correlation coefficient below 0.05 for all masked operations. Report documenting methodology, leakage threshold, and results. |
+
+---
+
+### Phase 4: DRBG Implementation (LFSR Replacement)
+
+**Goal**: Replace the pseudo-random LFSR with a NIST SP 800-90A compliant Deterministic Random Bit Generator, suitable for eventual FIPS 140-3 certification.
+**Risk**: DRBG implementation errors could compromise all masking security. Mitigate with statistical validation, Known Answer Tests, and pre-verified AES core if available.
+**Effort Estimate**: 9–11 person-days.
+**Parallelism**: Can begin after Task 1.1. Independent of Phases 2–3 until integration merge at Gate 1.
+**Algorithm Selection**: CTR_DRBG with AES-256 recommended for hardware efficiency and wide NIST acceptance. Hash_DRBG (SHA-512 based) is a viable fallback if AES IP licensing or availability is a concern in open-source flows — it avoids AES dependency at the cost of larger area and lower throughput.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 4 | 4.1 | Select DRBG Algorithm | Choose a NIST SP 800-90A compliant Deterministic Random Bit Generator algorithm. CTR_DRBG with AES-256 is recommended for hardware implementation efficiency. Hash_DRBG (SHA-512) is a documented fallback if AES IP licensing or gate count is prohibitive. Document selection rationale including throughput requirements, gate count estimates, and compliance pathway. | Crypto | Critical | — | 1d | Algorithm selection document produced with comparison of CTR_DRBG vs Hash_DRBG on four criteria (area, throughput, compliance, implementation complexity). Fallback path documented. |
+| 4 | 4.2 | Implement DRBG in RTL | Write Verilog implementation of CTR_DRBG, replacing the current 32-bit Linear Feedback Shift Register in xplenum_mask_unit.v. This requires an AES-256 encryption core (use open-source IP or implement from FIPS 197 specification) plus the CTR_DRBG state machine (instantiate, reseed, generate per SP 800-90A Section 10.2.1). Production implementation must include full Instantiate/Update/Generate functions, derivation function, and reseed resistance. | Hardware | Critical | 4.1 | 3d | DRBG module synthesises without errors. Standalone testbench demonstrates generate operation producing output that differs from input seed. Known Answer Tests (KATs) from NIST CAVP pass. |
+| 4 | 4.3 | Add Seed and Reseed Interface | Design the interface for injecting initial entropy (256-bit seed) and periodic reseeding. In simulation, use a deterministic seed for reproducibility. Leave the physical entropy input as an unconnected port with documented interface specification for future FPGA integration with a hardware entropy source. | Hardware | High | 4.2 | 1d | Seed port accepts 256-bit value. Reseed triggers internal state update. Deterministic seed produces reproducible output sequence. Port specification documented for physical entropy source. |
+| 4 | 4.4 | DRBG Health Tests | Implement the mandatory startup self-tests and continuous health checks required by NIST SP 800-90B: repetition count test (identical consecutive outputs) and adaptive proportion test (statistical bias detection). These run automatically on initialisation and continuously during operation. | Verification | High | 4.2 | 2d | Health test module integrated. Deliberately injected stuck-at fault triggers health test failure flag. Normal operation runs 10,000+ generate cycles without false alarm. |
+| 4 | 4.5 | Statistical Validation | Capture DRBG output from simulation (minimum 1 million bits) and run the NIST Statistical Test Suite (STS) offline in Python. Verify all 15 test categories pass at the 0.01 significance level. | Verification | High | 4.4 | 2d | NIST STS report showing pass on all 15 categories. Output file and test scripts committed to repository. |
+| 4 | 4.6 | DRBG Integration Test | Verify DRBG output correctly feeds the masking unit's random number generation path. Confirm XMASK.RNG instruction now returns DRBG output instead of LFSR output. Run existing masking unit testbench against the new DRBG backend. | Verification | Medium | 4.3 | 1d | XMASK.RNG returns DRBG-sourced values. Existing masking unit tests pass unchanged. Waveform confirms DRBG generate signal triggers on XMASK.RNG execution. |
+
+---
+
+### Phase 5: Rust Kernel Integration
+
+**Goal**: Build the software bridge between the Salvi Framework's Rust kernel and XPlenum's hardware instructions.
+**Risk**: Inline assembly encoding errors produce silent wrong-instruction execution. Mitigate with exhaustive encoding verification against xplenum_pkg.vh definitions, objdump disassembly cross-checking, and emulator validation.
+**Effort Estimate**: 11–14 person-days.
+**Parallelism**: Task 5.1 can begin any time (encoding is defined in xplenum_pkg.vh). Remaining tasks require Gate 1 for confidence in hardware correctness.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 5 | 5.1 | Define Inline Assembly Wrappers | Write Rust unsafe inline assembly functions for each of the 21 XPlenum custom instructions using the .insn r directive for custom opcode encoding. Each wrapper encodes opcode, funct3, funct7, and register operands per the definitions in xplenum_pkg.vh. | Software | Critical | — | 2d | 21 wrapper functions implemented. Each function's emitted machine code verified against the encoding table in xplenum_pkg.vh using objdump disassembly. |
+| 5 | 5.2 | Create Safe Abstraction Layer | Build a safe Rust API over the inline assembly wrappers, organised into four modules: XPlenumMask (masking operations), XPlenumDomain (domain isolation), XPlenumCap (capability management), and XPlenumTrit (ternary, crypto, and DSP). Use Rust's type system to enforce correct operand types and prevent misuse. | Software | Critical | 5.1 | 2d | Four modules compile. Public API uses safe Rust types (no raw u64 in public signatures except where semantically correct). Documentation comments on every public function. |
+| 5 | 5.3 | Integrate Masking into Kernel Crypto | Replace software-based side-channel masking in the kernel's cryptographic subsystem with calls to XPlenum's hardware masking instructions: XMASK.APPLY (apply mask), XMASK.STRIP (remove mask), XMASK.REFRESH (re-randomise mask), and XMASK.RNG (generate random value from DRBG). | Software | Critical | 5.2 | 2d | Kernel cryptographic operations produce identical outputs with hardware masking as with previous software masking. Timing variance reduced (measured via instruction count). |
+| 5 | 5.4 | Integrate Domain Isolation | Wire the kernel's security domain manager to use XPlenum hardware domain instructions: XDOM.SET (assign domain), XDOM.GET (read current domain), XDOM.CHK (verify domain permission), and XDOM.CLR (clear domain entry). Replace pure software enforcement with hardware-backed checks. | Software | Critical | 5.2 | 1d | Domain violation triggers hardware trap instead of software exception. Domain assignment and query round-trip correctly through hardware. |
+| 5 | 5.5 | Integrate Capability System | Connect the kernel's capability-based access control to XPlenum's hardware capability unit: XCAP.MINT (create capability), XCAP.CHK (validate capability), XCAP.REV (revoke capability), and XCAP.SHR (share/delegate capability). Replace software table lookups with O(1) hardware operations. | Software | Critical | 5.2 | 1d | Capability mint-check-revoke cycle completes via hardware. Revoked capability fails CHK immediately. Concurrent access test (mint while revoking) handled correctly. |
+| 5 | 5.6 | Integrate Trit/Crypto/DSP Instructions | Expose XPlenum's nine trit-unit instructions to kernel modules: ternary arithmetic (XTRIT.ADD, XTRIT.MUL), T-box substitution (XTRIT.TBOX), bit rotation (XTRIT.ROT), balanced ternary encoding (XTRIT.ENC, XTRIT.DEC), and Digital Signal Processing operations (XTRIT.MAC, XTRIT.FIR, XTRIT.FFT). | Software | High | 5.2 | 1d | All nine trit-unit instructions callable from Rust. Each produces expected output for known test vectors derived from the standalone xplenum_trit_unit.v testbench. |
+| 5 | 5.7 | Kernel Unit Tests | Write Rust unit tests for every abstraction layer function. Use RISC-V emulator hooks (Spike for quick iteration, then QEMU for full-system validation) or mock register injection to verify correct instruction encoding and expected results. Achieve 100% function coverage. | Software | Critical | 5.3 | 2d | All unit tests pass. Coverage report shows 100% of public API functions tested. Tests include boundary values, error conditions, and encoding verification. |
+| 5 | 5.8 | CI/CD Pipeline Setup | Configure GitHub Actions (or equivalent) to run the full Rust test suite on a RISC-V cross-compilation target on every commit and pull request. Include compilation, unit tests, linting (clippy), and formatting checks. | Tooling | Medium | 5.7 | 1d | Pipeline triggers on push and PR. All stages pass on current main branch. Failed test blocks merge. Configuration committed as .github/workflows YAML. |
+
+---
+
+### Phase 6: Emulation & System Validation
+
+**Goal**: Boot the complete Salvi Framework kernel with XPlenum hardware support in a full-system emulator and validate end-to-end security properties.
+**Risk**: Emulator instruction semantics may diverge from RTL simulation. Mitigate by cross-checking emulator outputs against RTL simulation results for the same test vectors (Task 6.7).
+**Effort Estimate**: 11–15 person-days.
+**Parallelism**: Task 6.1 (QEMU extension) can begin once xplenum_pkg.vh instruction definitions are stable (effectively any time). Task 6.5 is independent and can run after Phase 3.
+**Emulation Strategy**: Begin with Spike for rapid ISA-level custom instruction iteration (simpler to patch, faster execution). Port to QEMU once instruction semantics are validated for full-system emulation (kernel boot, device models, interrupt handling).
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 6 | 6.1a | Add XPlenum to Spike | Extend Spike's RISC-V instruction set simulator to recognise and execute all 21 XPlenum custom instructions. Spike is faster to patch and provides quicker iteration for ISA-level validation before committing to full QEMU integration. | Software | High | — | 1d | All 21 instructions emulated in Spike. Register-level outputs match RTL simulation for the Task 3.2 test programs. |
+| 6 | 6.1b | Add XPlenum to QEMU RISC-V Target | Extend QEMU's RISC-V translation module (target/riscv/) to recognise and emulate all 21 XPlenum custom instructions. Implement each instruction's semantics in the Tiny Code Generator (TCG) backend, enabling full-system emulation with device models and interrupt handling. | Software | High | 6.1a | 2d | All 21 instructions emulated in QEMU. QEMU test harness produces identical register-level outputs as both Spike and RTL simulation for the same test programs. |
+| 6 | 6.2 | Boot Rust Kernel in Emulator | Configure QEMU with XPlenum custom instruction support and boot the full Salvi Framework Rust kernel. Verify kernel initialisation sequence, CSR configuration, and basic instruction execution for all four XPlenum subsystems (masking, domain, capability, trit). | Integration | Critical | 6.1b, 5.7 | 1d | Kernel boots to prompt or initialisation complete message. CSR read-back matches expected configuration. One instruction from each subsystem executes successfully. |
+| 6 | 6.3 | End-to-End Security Tests | Execute comprehensive test scenarios: domain isolation enforcement under adversarial memory access patterns, capability revocation under concurrent access from multiple kernel threads, masked cryptographic operations with timing analysis to confirm constant-time execution, and cross-domain escalation attempts that must fail. | Integration | Critical | 6.2 | 2d | All adversarial test scenarios produce expected security outcomes (access denied, trap triggered, timing invariant). Zero false negatives in 1000 randomised test iterations. |
+| 6 | 6.4 | Performance Profiling | Profile the kernel running on the emulated XPlenum-enhanced core. Measure latency improvements from hardware-accelerated security operations versus pure software equivalents. Produce comparison table for masking, domain checks, and capability lookups. | Integration | Medium | 6.2 | 1d | Performance report with per-operation latency comparison (hardware vs software). Minimum 2x improvement demonstrated for capability revocation (O(1) hardware vs O(n) software scan). |
+| 6 | 6.5 | FPGA Synthesis Preparation | Write Synopsys Design Constraints (SDC) files, pin mapping constraints, and clock configuration for the target FPGA platform (Xilinx or Intel). Run synthesis through the vendor toolchain to identify timing closure issues, resource utilisation, and maximum clock frequency — even without a physical board. | Hardware | Medium | 3.5 | 1d | Synthesis completes without errors. Timing report generated. Resource utilisation summary (LUTs, FFs, BRAMs, DSPs) documented. Any timing violations identified with remediation notes. |
+| 6 | 6.6 | Security Fuzzing | Use AFL++ or libFuzzer targeting the emulated kernel's XPlenum instruction entry points. Fuzz all four subsystems with randomised operands, malformed CSR writes, rapid domain switches, and interleaved capability operations to discover edge-case crashes or security violations. | Integration | High | 6.3 | 2d | Fuzzer runs 10 million+ iterations without crash. Any discovered issues logged, triaged, and fixed. Final clean run documented. |
+| 6 | 6.7 | Cross-Verification: RTL vs Emulator | Run the identical test suite from Task 3.2 on both the Verilator RTL simulation and the QEMU/Spike emulator. Compare register dump traces and memory state at every instruction retirement. Any divergence indicates either an RTL bug or an emulation inaccuracy and must be resolved before Gate 3. | Verification | High | 6.1b, 3.2 | 1d | Register and memory traces match exactly across all 21 instruction tests between RTL simulation and emulator. Divergence log is empty or all divergences explained and resolved. |
+
+---
+
+### Phase 7: Documentation & Compliance Preparation
+
+**Goal**: Produce all technical documentation required for external consumption, partnership discussions, and FIPS 140-3 certification submission paperwork.
+**Risk**: Incomplete or inconsistent documentation delays certification and partnership timelines. Mitigate by developing documentation incrementally alongside each phase rather than deferring to the end.
+**Effort Estimate**: 6–8 person-days.
+**Parallelism**: All tasks can begin as soon as their dependency phases produce stable outputs.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 7 | 7.1 | XPlenum Programmer's Reference Manual | Complete instruction set documentation: encoding tables (opcode, funct3, funct7 for all 21 instructions), operand formats, CSR map (addresses 0x800–0x807 with field definitions), privilege requirements, exception conditions, and usage examples for every instruction. | Documentation | High | 5.2 | 2d | Manual covers all 21 instructions with encoding, operand, privilege, exception, and example sections. Peer-reviewed for accuracy against xplenum_pkg.vh. |
+| 7 | 7.2 | Integration Guide | Write step-by-step instructions for integrating XPlenum into any compatible RISC-V core, including interface requirements (with CV-X-IF and RoCC specific guidance), signal descriptions, timing constraints, configuration parameters, and a worked example based on the integration performed in Phase 2. | Documentation | Medium | 2.5 | 1d | Guide enables a competent hardware engineer to integrate XPlenum into a new RISC-V core without consulting the original developers. Tested by walkthrough against a second core's documentation. |
+| 7 | 7.3 | DRBG Compliance Documentation | Prepare the algorithm description, security policy, finite state model, and test evidence package required for FIPS 140-3 submission (CMVP Module Validation). This is the paperwork that precedes physical lab testing. Include NIST STS results from Task 4.5 and health test evidence from Task 4.4. | Documentation | High | 4.5 | 2d | Documentation package meets CMVP submission checklist requirements. Algorithm description matches implementation. All test evidence cross-referenced. |
+| 7 | 7.4 | Security Architecture Whitepaper | Document the complete security model: how hardware masking (side-channel protection), domain isolation (memory and resource partitioning), and capabilities (access control with O(1) revocation) work together as a unified hardware-enforced security framework. Target audience: security architects and potential partners. | Documentation | Medium | 6.3 | 1d | Whitepaper explains the security model to a knowledgeable reader without requiring access to source code. Threat model, security boundaries, and trust assumptions documented. |
+| 7 | 7.5 | Repository Documentation | Produce comprehensive README, API reference (auto-generated from Rust doc comments), build instructions, simulation quickstart guide, and contribution guidelines. Ensure a new developer can clone the repository and run their first simulation within 30 minutes. | Documentation | Medium | 7.1 | 1d | README covers setup, build, simulate, and test workflows. API reference generated and published. New-developer 30-minute onboarding target validated. |
+
+---
+
+## Tier 1 Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Tasks (Tier 1) | 42 |
+| Hardware Engineering Tasks | 13 |
+| Software Development Tasks | 10 |
+| Verification & Testing Tasks | 10 |
+| Integration Tasks | 4 |
+| Documentation Tasks | 5 |
+| Tooling / Infrastructure Tasks | 3 |
+| Critical Priority | 22 |
+| High Priority | 13 |
+| Medium Priority | 7 |
+| Estimated Total Effort (Tier 1) | 60–78 person-days |
+| Effort with Learning Curve Buffer (+25%) | 75–98 person-days |
+| Phase Gate Checkpoints | 3 |
+
+---
+
+# TIER 2 — BEYOND DEFENSE-GRADE ENHANCEMENTS
+
+---
+
+## Phase 8: Beyond Defense-Grade
+
+**Goal**: Elevate XPlenum from defense-grade assurance (FIPS 140-3 Level 3–4, EAL5–6 equivalent) into ultra-high-assurance territory suitable for national security systems, classified edge compute, secure bootstrap, or MILS (Multiple Independent Levels of Security) architectures.
+**Prerequisite**: Gate 3 (all Tier 1 tasks complete).
+**Risk**: Scope creep, high external costs, and limited availability of formal verification expertise. Mitigate by treating each track as independently scoped and budgeted — pursue only those tracks justified by the target deployment environment's threat model.
+**Total Effort Estimate**: 65–130 person-days plus external costs ($50K–$200K+ for independent red-team and certification lab fees).
+**Internal Sequencing**: Track 8A (formal verification) first, as it establishes the assurance foundation. Tracks 8B (masking) and 8C (quantum-resistant) can run in parallel after 8A. Track 8D (red-team) follows all technical tracks. Track 8E (Protection Profile) is the final step.
+
+---
+
+### Track 8A: Full-System Formal Verification
+
+**Current State**: Tier 1 produces 550+ standalone formal properties for XPlenum internals and integrated pipeline assertions with bounded model checking.
+
+**Beyond Defense-Grade Value**: Full-system formal verification of the core pipeline plus custom extension proves architectural correctness end-to-end, eliminating hidden hardware trojans, microarchitectural bugs, and interaction flaws. This is rare even in defense procurement — most certified RISC-V cores use bounded model checking plus simulation hybrids. Full unbounded proofs approach EAL7 assurance or academic/government research programme levels.
+
+**Approach**: Extend the riscv-formal framework (SymbiYosys-based, open-source) to the integrated CVA6 + XPlenum design. riscv-formal verifies against the official RISC-V ISA specification via SystemVerilog Assertions. Recent extensions support custom instructions. For highest assurance, supplement with commercial tools (Siemens OneSpin or Synopsys VC Formal) for RISC-V ISA compliance plus custom extension "no-harm" proofs (proving standard RV64I paths are unmodified).
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 8A | 8A.1 | Extend riscv-formal for XPlenum | Fork riscv-formal, add custom instruction property generators for all 21 XPlenum instructions. Define formal specifications for each instruction's pre-conditions, post-conditions, and side-effects. | Verification | Critical | Gate 3 | 5d | riscv-formal property files generated for all 21 instructions. Each property compilable in SymbiYosys. |
+| 8A | 8A.2 | Full Pipeline Formal Proofs | Run bounded model checking (depth 100+ cycles) on the complete CVA6 + XPlenum integrated design. Prove pipeline integrity (no deadlocks, correct forwarding/stalls), CSR access control, exception flows, and XPlenum result/CSR interactions. Use modular assume-guarantee reasoning to manage state explosion. | Verification | Critical | 8A.1 | 8d | All properties pass to depth 100+. No counterexamples. Coverage analysis confirms all critical paths explored. Proof logs archived. |
+| 8A | 8A.3 | "No-Harm" Verification | Prove formally that adding XPlenum to the RISC-V core does not alter the behaviour of any standard RV64I instruction under any input sequence. This is the strongest guarantee that the extension is purely additive. | Verification | High | 8A.2 | 5d | No-harm proof passes: for every standard RV64I instruction, the output is identical with and without XPlenum present. Proof script and results committed to repository. |
+| 8A | 8A.4 | Formal Verification Report | Produce a formal methods report suitable for inclusion in Common Criteria evidence packages (ATE_FUN, ADV_FSP). Document proof methodology, tool versions, property coverage, bounded depth, and any assumptions. | Documentation | High | 8A.3 | 2d | Report meets Common Criteria evidence format requirements. Peer-reviewed by formal methods practitioner. |
+
+**Challenges**: State explosion for full pipeline proofs. Mitigate with modular decomposition (prove subunits independently, then compose) and assume-guarantee contracts between XPlenum units and the core pipeline.
+
+**Estimated Track Effort**: 15–25 person-days.
+
+---
+
+### Track 8B: Higher-Order Masking (2nd/3rd Order Side-Channel Resistance)
+
+**Current State**: Tier 1 masking unit provides first-order side-channel protection via two-share boolean masking with DRBG refresh.
+
+**Beyond Defense-Grade Value**: First-order masking is the enterprise and defense baseline. Second and third-order masking protects against sophisticated adversaries who combine multiple leakage traces (higher statistical moments), glitch attacks, or electromagnetic probing — the threat model for nation-state physical access scenarios. This is state-of-the-art in protected post-quantum cryptographic hardware and rare in general-purpose processor extensions.
+
+**Approach**: Upgrade to 3–4 shares using Domain-Oriented Masking (DOM) or ISW gadgets for non-linear operations. Recent publications demonstrate 2nd/3rd-order masked implementations of Ascon, Kyber (ML-KEM), and Dilithium (ML-DSA) on RISC-V platforms. Hardware support requires new custom instructions for secure multi-share AND/XOR/multiplication operations.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 8B | 8B.1 | Select Masking Scheme | Choose between DOM (Domain-Oriented Masking) and ISW (Ishai-Sahai-Wagner) gadget framework. Evaluate for the target number of shares (3 shares for 2nd-order, 4 shares for 3rd-order), area overhead, and randomness consumption. | Crypto | Critical | Gate 3 | 1d | Selection document with comparison on area, randomness cost, latency, and provable security order. Target order (2nd or 3rd) justified by threat model. |
+| 8B | 8B.2 | Implement Higher-Order Gadgets in RTL | Design and implement secure multi-share AND, XOR, and multiplication gadgets in Verilog. Add pipeline registers between shares for glitch resistance. Integrate as new instructions or modes within the masking unit. | Hardware | Critical | 8B.1 | 4d | Gadget modules synthesise. Standalone testbench verifies correct output for known input shares. Share separation verified — no combinational path between shares without a register boundary. |
+| 8B | 8B.3 | Update DRBG Throughput | Higher-order masking requires significantly more random bits per operation (quadratic in the number of shares). Verify DRBG throughput is sufficient or implement parallel DRBG instances to meet demand. | Hardware | High | 8B.2 | 2d | DRBG supplies required random bits per masked operation without stalling the pipeline. Throughput measured and documented. |
+| 8B | 8B.4 | Update Rust API for Higher-Order Masking | Extend the XPlenumMask Rust module to support multi-share operations. Add API functions for 3-share and 4-share masking, refresh, and strip operations. | Software | High | 8B.2 | 1d | Extended API compiles. Unit tests verify correct 3/4-share round-trip (mask → operate → strip produces original value). |
+| 8B | 8B.5 | Higher-Order TVLA Validation | Run Test Vector Leakage Assessment (TVLA) at 2nd and 3rd order using power simulation traces from Verilator. Verify no statistically significant leakage at the target order (t-test threshold below 4.5 for 100,000+ traces). | Verification | Critical | 8B.2 | 3d | TVLA report showing no leakage at target order. t-test values below 4.5 for all operations at all tested orders. Methodology and trace counts documented. |
+
+**Challenges**: Area overhead (3–5x for 3rd-order), randomness consumption increase, and glitch sensitivity. Mitigate with share separation via register boundaries and secure refresh protocols.
+
+**Estimated Track Effort**: 10–15 person-days.
+
+---
+
+### Track 8C: Quantum-Resistant Primitives in Trit/Crypto Unit
+
+**Current State**: Trit unit provides ternary arithmetic, T-box substitution, bit rotation, balanced ternary encoding, and DSP — a good foundation for lattice-based operations.
+
+**Beyond Defense-Grade Value**: Full quantum resistance (addressing post-2030 threat timelines) elevates XPlenum to CNSA 2.0 (Commercial National Security Algorithm Suite, version 2.0) compliance. Hardware acceleration for lattice-based primitives (ML-KEM, ML-DSA) provides 5–10x speedup over software-only implementations on RISC-V.
+
+**Approach**: Add custom instructions for Number Theoretic Transform (NTT) butterfly operations, modular reduction (Plantard or Barrett), and polynomial sampling. These are the computational bottlenecks in ML-KEM (Kyber) and ML-DSA (Dilithium). Hash-based signatures (SLH-DSA) can be accelerated via SHA-3/SHAKE hardware support if lattice complexity is excessive.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 8C | 8C.1 | Select PQC Primitives | Identify which post-quantum cryptographic operations to accelerate in hardware. Prioritise ML-KEM (Kyber) key encapsulation and ML-DSA (Dilithium) digital signatures as NIST-standardised algorithms. Document which operations are bottlenecks (NTT, modular arithmetic, sampling) and which benefit most from hardware acceleration. | Crypto | Critical | Gate 3 | 1d | Primitive selection document identifying target algorithms, bottleneck operations, expected speedup, and instruction count estimates for 10–20 new custom instructions. |
+| 8C | 8C.2 | Design PQC Custom Instructions | Define ISA encodings for new instructions: NTT butterfly (forward and inverse), modular reduction (configurable modulus for Kyber q=3329 and Dilithium q=8380417), polynomial coefficient sampling (CBD and rejection sampling), and polynomial multiply-accumulate. | Hardware | Critical | 8C.1 | 2d | ISA encoding document with opcode, funct3, funct7, and operand specifications for all new instructions. Encoding verified non-conflicting with existing 21 XPlenum instructions. |
+| 8C | 8C.3 | Implement PQC Unit in RTL | Write Verilog implementation of the PQC instruction execution unit. Integrate into XPlenum's top-level pipeline alongside existing trit, mask, domain, and capability units. | Hardware | Critical | 8C.2 | 6d | PQC unit synthesises. Standalone testbench demonstrates NTT butterfly, modular reduction, and sampling operations produce correct outputs for NIST Known Answer Test vectors. |
+| 8C | 8C.4 | Benchmark PQC Operations | Measure cycle counts for complete ML-KEM KeyGen/Encaps/Decaps and ML-DSA Sign/Verify operations using hardware-accelerated instructions versus software-only RISC-V implementation. | Verification | High | 8C.3 | 2d | Benchmark report showing per-operation cycle counts. Minimum 5x speedup for NTT-heavy operations. Results compared against published RISC-V PQC benchmarks. |
+| 8C | 8C.5 | Update Rust Kernel for PQC | Add Rust wrappers and safe API for PQC custom instructions. Integrate into the kernel's cryptographic subsystem alongside existing trit-unit interfaces. If combining with Track 8B (higher-order masking), implement masked PQC operations. | Software | High | 8C.3 | 3d | PQC Rust API compiles. ML-KEM and ML-DSA operations execute correctly using hardware acceleration. Unit tests pass for all NIST KAT vectors. |
+
+**Challenges**: Large parameter sets (Kyber-1024 requires 256-element polynomials over Z_3329). Mitigate with vectorised processing if RISC-V Vector Extension (RVV) is available, or iterative processing with polynomial buffer registers.
+
+**Estimated Track Effort**: 12–20 person-days.
+
+---
+
+### Track 8D: Independent Red-Team Adversarial Validation
+
+**Current State**: Tier 1 provides AFL++ fuzzing (10M+ iterations), scripted adversarial security tests, and cross-verification between RTL and emulator.
+
+**Beyond Defense-Grade Value**: Professional red-teaming simulates nation-state adversaries employing fault injection, electromagnetic probing, supply-chain analysis, combined side-channel attacks, and microarchitectural exploitation. This level of validation is required for high-robustness Separation Kernel Protection Profiles (SKPP), MILS architectures, or Commercial Solutions for Classified (CSfC) programme inclusion.
+
+**Approach**: Combine internal adversarial simulation (fault injection modelling, tamper response testing) with external independent evaluation by a specialised security assessment firm.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 8D | 8D.1 | Internal Fault Injection Simulation | Model fault attacks in simulation: clock glitching (skip/repeat cycles), voltage glitching (bit-flip injection in registers and memory), and laser fault injection (targeted bit-flips in specific pipeline stages). Verify that XPlenum's security properties hold or degrade gracefully under fault conditions. | Verification | Critical | Gate 3 | 3d | Fault injection test suite covering clock glitch, voltage glitch, and targeted bit-flip scenarios. Security property violations logged. Graceful degradation (trap or lockdown) confirmed for detectable faults. |
+| 8D | 8D.2 | Tamper Response Mechanism | Implement a hardware tamper response: when health tests, domain checks, or capability validations detect anomalous conditions consistent with fault injection, XPlenum enters a locked state that zeroises sensitive CSRs and disables further security operations until reset. | Hardware | High | 8D.1 | 2d | Tamper response triggers on injected fault. CSR zeroisation confirmed. Locked state prevents further security instruction execution. Reset recovers normal operation. |
+| 8D | 8D.3 | Scope and Contract External Red-Team | Engage an independent security assessment firm (specialising in hardware side-channel analysis and fault injection) to evaluate XPlenum. Define scope: physical SCA on FPGA prototype (post-Tier 1 exclusions), fault attack resistance, microarchitectural analysis, and Trojan detection. This task produces the Statement of Work, not the evaluation itself. | Integration | High | 8D.1 | 2d | Statement of Work signed with qualified firm. Scope covers SCA, fault injection, and Trojan detection. Timeline and deliverables defined. Budget allocated ($50K–$200K depending on scope). |
+| 8D | 8D.4 | Red-Team Findings Remediation | Address any vulnerabilities identified by internal fault simulation or external red-team assessment. Implement fixes, re-verify, and document remediation evidence. | Integration | Critical | 8D.3 | 3d | All Critical and High severity findings remediated. Fix verification evidence produced. Updated formal properties added for any newly discovered attack vectors. |
+
+**Challenges**: Cost and access to qualified hardware security assessment expertise. External engagements require physical FPGA prototypes (overlaps with Tier 1 exclusions — can be sequenced after FPGA bring-up).
+
+**Estimated Track Effort**: 8–12 person-days internal + external budget ($50K–$200K+).
+
+---
+
+### Track 8E: National Security Protection Profile Targeting
+
+**Current State**: Tier 1 targets FIPS 140-3 certification (post physical-exclusion activities).
+
+**Beyond Defense-Grade Value**: Targeting Common Criteria Protection Profiles recognised by NIAP (National Information Assurance Partnership) positions XPlenum for inclusion in the CSfC (Commercial Solutions for Classified) programme, enabling deployment in U.S. government classified environments. Relevant profiles include the General-Purpose Computing Platforms collaborative Protection Profile (GPCP cPP), the Secure Sub-System in SoC Protection Profile (3S in SoC PP), and emerging MILS separation kernel profiles.
+
+**Approach**: Map XPlenum's security functions to Security Functional Requirements (SFRs) and Security Assurance Requirements (SARs) defined in the target Protection Profile. Prepare a Security Target (ST) document. Engage a NIAP-approved Common Criteria Testing Laboratory (CCTL) for evaluation.
+
+| Phase | # | Task | Description | Type | Priority | Depends | Effort | Acceptance Criteria |
+|-------|---|------|-------------|------|----------|---------|--------|---------------------|
+| 8E | 8E.1 | Select Target Protection Profile | Evaluate GPCP cPP, 3S in SoC PP, and MILS-related profiles for best fit with XPlenum's security architecture. Consider mutual recognition via CCRA (Common Criteria Recognition Arrangement) for international applicability. | Documentation | Critical | Gate 3 | 2d | Protection Profile selected with rationale. SFR/SAR mapping gap analysis produced. Required EAL level identified (target EAL5+ or AVA_VAN.5). |
+| 8E | 8E.2 | Map SFRs to XPlenum Security Functions | Create a detailed mapping between the selected Protection Profile's Security Functional Requirements and XPlenum's hardware security mechanisms (masking → FCS, domain isolation → FDP, capabilities → FMT, DRBG → FCS_RBG). | Documentation | Critical | 8E.1 | 3d | Complete SFR mapping table. Every SFR mapped to specific XPlenum mechanism with implementation evidence reference (task number, test result, formal proof). |
+| 8E | 8E.3 | Prepare Security Target Document | Write the Security Target (ST) — the formal document defining the Target of Evaluation (TOE), its security environment, security objectives, and how they are met by XPlenum's implementation. This is the primary submission document for Common Criteria evaluation. | Documentation | Critical | 8E.2 | 5d | Security Target conforms to CC Part 1 Annex A structure. TOE description, threat model, security objectives, SFR rationale, and SAR evidence references complete. |
+| 8E | 8E.4 | Engage Common Criteria Testing Laboratory | Identify and contract a NIAP-approved CCTL. Provide Security Target, design documentation, formal verification evidence (from Track 8A), test evidence, and source code access. This task initiates the evaluation process. | Integration | High | 8E.3 | 2d | CCTL engaged. Evaluation agreement signed. Evidence package submitted. Evaluation timeline established (typically 6–12 months for EAL5+). |
+
+**Challenges**: Open-source RISC-V designs face additional scrutiny in high-EAL evaluations due to public code visibility (attack surface analysis is easier for adversaries). Mitigate by demonstrating that transparency enables stronger verification, not weaker security. High EAL evaluations for custom extensions are rare and may require evaluator education on the RISC-V extension model.
+
+**Estimated Track Effort**: 10–15 person-days internal + CCTL evaluation fees ($100K–$500K+ depending on EAL level and scope).
+
+---
+
+## Tier 2 Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Tasks (Tier 2) | 21 |
+| Track 8A: Full-System Formal Verification | 4 tasks |
+| Track 8B: Higher-Order Masking | 5 tasks |
+| Track 8C: Quantum-Resistant Primitives | 5 tasks |
+| Track 8D: Red-Team Adversarial Validation | 4 tasks |
+| Track 8E: Protection Profile Targeting | 4 tasks (note: 8E.4 overlaps with physical-world exclusion) |
+| Estimated Internal Effort (Tier 2) | 65–100 person-days |
+| Estimated External Costs (Tier 2) | $150K–$700K+ |
+
+---
+
+## Combined Project Statistics
+
+| Metric | Tier 1 | Tier 2 | Combined |
+|--------|--------|--------|----------|
+| Total Tasks | 42 | 21 | 63 |
+| Internal Effort (person-days) | 60–78 | 65–100 | 125–178 |
+| With Buffer (+25%) | 75–98 | 81–125 | 156–223 |
+| External Costs | — | $150K–$700K+ | $150K–$700K+ |
+| Phase Gates | 3 | — | 3 |
+| Timeline (parallel, AI-assisted) | 3–4 months | 4–6 months | 7–10 months |
+
+---
+
+## Key Observations
+
+**Tier 1 Critical Path**: Phases 1 through 3 and Phase 5 form the critical path. The three phase gate checkpoints (Integration Stable, Kernel Ready, Tier 1 Complete) prevent cascading rework from premature phase transitions. Phase 4 (DRBG) operates as an independent parallel track beginning after core selection. Phase 7 (Documentation) develops incrementally throughout.
+
+**Tier 2 Sequencing**: Within Phase 8, formal verification (Track 8A) must come first as it establishes the assurance foundation that all subsequent tracks build upon. Higher-order masking (8B) and quantum-resistant primitives (8C) can run in parallel after 8A completes. Red-team validation (8D) follows all technical tracks, and Protection Profile targeting (8E) is the final step. Tracks 8D and 8E involve external parties and physical-world activities that partially overlap with Tier 1's excluded items — they are best sequenced after FPGA bring-up.
+
+**Effort Distribution (Tier 1)**: Approximately 55% hardware engineering and verification in Verilog simulation, 24% software development in Rust, and 21% documentation, tooling, and integration testing. All 42 Tier 1 tasks can be executed on standard development machines using open-source tools.
+
+**Core Selection**: CVA6 is strongly recommended for its native CV-X-IF extension interface, which significantly reduces integration effort in Phase 2. The CV-X-IF request/response protocol was designed specifically for the type of custom instruction integration XPlenum requires.
+
+**Emulation Strategy**: The Spike-first, QEMU-second approach (Tasks 6.1a and 6.1b) provides faster iteration on instruction semantics before committing to the more complex full-system emulator integration. Cross-verification (Task 6.7) between RTL simulation and emulator catches semantic divergence early.
+
+**Beyond Defense-Grade Positioning**: Completing Tier 2 positions XPlenum as one of the most assured open RISC-V security extensions in existence — potentially suitable for classified edge compute, secure bootstrap in national systems, or foundational security components in MILS architectures. The combined formal verification, higher-order masking, quantum resistance, and independent red-team validation exceeds the assurance level of most commercially available security processors.
+
+---
+
+## Appendix A: Sample Code
+
+### A.1 — Decode Wiring (Verilog, Task 2.1)
+
+```verilog
+// In core_decode_stage.v — Example for a generic 5-stage RISC-V core
+// Detect XPlenum custom opcodes (Custom-0 and Custom-1 encoding spaces)
+wire is_xplenum = (opcode == 7'b0001011) || (opcode == 7'b0101011);
+
+// Route decoded fields to XPlenum top module
+assign xplenum_instruction = instruction;
+assign xplenum_rs1_data    = regfile_rs1;
+assign xplenum_rs2_data    = regfile_rs2;
+
+// Writeback multiplexer: select XPlenum result when applicable
+wire [63:0] exec_result = is_xplenum ? xplenum_rd_data : alu_result;
+wire        exec_wen    = is_xplenum ? xplenum_rd_wen  : alu_rd_wen;
+```
+
+*Note: If using CVA6 with CV-X-IF, replace direct decode wiring with the extension interface adapter — the CV-X-IF handles instruction routing, operand delivery, and result writeback through its standardised request/response protocol. See CVA6 documentation for cv32a60x extension interface specifics.*
+
+### A.2 — CV-X-IF Extension Interface Adapter (Verilog, Task 2.1 CVA6 Variant)
+
+```verilog
+// CVA6 CV-X-IF adapter for XPlenum
+// Maps CV-X-IF request/response to xplenum_top.v interface
+module xplenum_cvxif_adapter (
+    input         clk,
+    input         rst_n,
+    // CV-X-IF compressed interface
+    input         x_issue_valid,
+    output        x_issue_ready,
+    input  [31:0] x_issue_req_instr,
+    input  [63:0] x_issue_req_rs1,
+    input  [63:0] x_issue_req_rs2,
+    output        x_result_valid,
+    output [63:0] x_result_data,
+    output [4:0]  x_result_rd,
+    output        x_result_we
+);
+    // Decode: accept only XPlenum opcodes
+    wire [6:0] opcode = x_issue_req_instr[6:0];
+    wire accept = (opcode == 7'b0001011) || (opcode == 7'b0101011);
+    assign x_issue_ready = accept;
+
+    // Instantiate XPlenum core
+    xplenum_top xp (
+        .clk(clk), .rst_n(rst_n),
+        .instruction(x_issue_req_instr),
+        .rs1_data(x_issue_req_rs1),
+        .rs2_data(x_issue_req_rs2),
+        .rd_data(x_result_data),
+        .rd_wen(x_result_we)
+    );
+
+    assign x_result_valid = accept & x_result_we;
+    assign x_result_rd    = x_issue_req_instr[11:7];
+endmodule
+```
+
+*Note: Simplified. Production adapter must handle multi-cycle operations (result_valid delayed), kill signals, and speculative issue. See CV-X-IF specification for complete protocol.*
+
+### A.3 — Integration Test (RISC-V Assembly, Task 3.2)
+
+```assembly
+# test_xmask_apply.S — Verify XMASK.APPLY instruction
+# Encoding: Custom-0, funct7=0x00, funct3=0x0
+    .section .text
+    .global _start
+_start:
+    li   x1, 0x12345678DEADBEEF   # rs1: data to mask
+    li   x2, 0xFFFFFFFF00000000   # rs2: mask value
+    .insn r 0x0B, 0, 0, x3, x1, x2  # XMASK.APPLY rd=x3, rs1=x1, rs2=x2
+    beqz x3, fail                    # Masked result should be non-zero
+    j    pass
+
+fail:
+    li   a0, 1                       # FAIL exit code
+    ecall
+pass:
+    li   a0, 0                       # PASS exit code
+    ecall
+```
+
+### A.4 — Simplified CTR_DRBG (Verilog, Task 4.2)
+
+```verilog
+// Conceptual CTR_DRBG module — replace LFSR in xplenum_mask_unit.v
+// IMPORTANT: Production version must implement full Instantiate/Update/Generate
+// per NIST SP 800-90A §10.2.1, including derivation function and reseed resistance.
+module drbg_ctr_aes (
+    input         clk,
+    input         rst_n,
+    input         reseed,
+    input         generate,
+    input  [255:0] seed,
+    output [31:0]  rand_out,
+    output         valid
+);
+    reg [127:0] V;          // Counter block
+    reg [255:0] Key;        // AES key
+    wire [127:0] aes_out;
+
+    aes_256_encrypt aes_inst (
+        .clk(clk), .key(Key), .plaintext(V), .ciphertext(aes_out)
+    );
+
+    assign rand_out = aes_out[31:0];
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            V   <= 128'b0;
+            Key <= 256'b0;
+        end else if (reseed) begin
+            Key <= seed;
+            V   <= 128'b0;
+        end else if (generate) begin
+            V <= V + 1;
+        end
+    end
+endmodule
+```
+
+### A.5 — Rust Inline Assembly Wrapper (Task 5.1)
+
+```rust
+/// Apply mask to data using XPlenum hardware masking unit.
+///
+/// Executes XMASK.APPLY: rd = mask_operation(rs1_data, rs2_mask)
+/// Encoding: Custom-0 (0x0B), funct3=0x0, funct7=0x00
+#[inline(always)]
+pub unsafe fn xmask_apply(data: u64, mask: u64) -> u64 {
+    let result: u64;
+    core::arch::asm!(
+        ".insn r 0b0001011, 0, 0, {rd}, {rs1}, {rs2}",
+        rd  = out(reg) result,
+        rs1 = in(reg) data,
+        rs2 = in(reg) mask,
+    );
+    result
+}
+
+/// Safe wrapper with type enforcement
+pub fn apply_mask(data: SensitiveValue, mask: MaskValue) -> MaskedValue {
+    // SAFETY: Instruction encoding verified against xplenum_pkg.vh.
+    // Hardware guarantees constant-time execution.
+    let raw = unsafe { xmask_apply(data.as_u64(), mask.as_u64()) };
+    MaskedValue::from_raw(raw)
+}
+```
+
+### A.6 — QEMU Custom Instruction Emulation (C, Task 6.1b)
+
+```c
+// In target/riscv/insn_trans/trans_xplenum.c.inc (QEMU patch)
+// Emulate XMASK.APPLY: rd = rs1 ^ (rs2 & lfsr_state)
+// Simplified — full emulation requires per-unit dispatch
+static bool trans_xmask_apply(DisasContext *ctx, arg_r *a)
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+
+    // Emulate masking operation (simplified XOR model)
+    tcg_gen_xor_tl(dest, src1, src2);
+
+    gen_set_gpr(ctx, a->rd, dest);
+    return true;
+}
+```
+
+*Note: Full emulation requires implementing all four functional units (mask, domain, capability, trit) with accurate internal state tracking. Begin with Spike (simpler API) before porting to QEMU.*
+
+---
+
+## Appendix B: Toolchain Configuration
+
+| Tool | Recommended Version | Purpose | Configuration Notes |
+|------|-------------------|---------|---------------------|
+| Verilator | 5.x+ | Fast RTL simulation | `--trace` for VCD, `--coverage` for functional coverage. Use `--threads` for parallel simulation. |
+| Icarus Verilog | 12.x+ | RTL simulation (fallback) | Slower but supports full SystemVerilog assertions. Use for formal property debugging. |
+| SymbiYosys | Latest | Formal verification | Requires Yosys + SMT solver (Z3 or Boolector). Configure for bounded model checking depth 50+ (Tier 1) or 100+ (Tier 2). |
+| riscv-formal | Latest | ISA formal verification | SymbiYosys-based. Extend for custom instructions (Track 8A). Supports CVA6 and Rocket cores. |
+| QEMU | 8.x+ | Full-system RISC-V emulation | Patch `target/riscv/` for custom instructions. Build with `--target-list=riscv64-softmmu`. |
+| Spike | Latest | ISA-level RISC-V simulation | Lighter than QEMU. Custom instruction extension via `--extension` flag. Start here for instruction semantics iteration. |
+| Rust (nightly) | nightly-2025+ | Kernel compilation | Target `riscv64gc-unknown-none-elf`. Requires `#![feature(asm_const)]` for .insn support. |
+| RISC-V GCC | 13.x+ | Assembly test compilation | `riscv64-unknown-elf-gcc` with `-march=rv64gc` plus custom extension flag. |
+| RISC-V LLVM | 17.x+ | Alternative compiler | Better .insn support than GCC in some cases. Use for encoding verification via objdump. |
+| NIST STS | 2.1.2 | DRBG statistical validation | Python wrapper available. Requires minimum 1M bits input. Run all 15 test categories. |
+| AFL++ | 4.x+ | Security fuzzing | Target QEMU user-mode for instruction-level fuzzing. Configure with RISC-V cross-compilation. |
+| Vivado / Quartus | Latest | FPGA synthesis (dry run) | No physical board required. Run synthesis + place-and-route for timing and utilisation reports. |
+| OneSpin / VC Formal | Latest (commercial) | Commercial formal verification | Tier 2 Track 8A. RISC-V ISA compliance checking + custom extension verification. License required. |
+
+---
+
+## Appendix C: Acronym Glossary
+
+| Acronym | Full Definition |
+|---------|-----------------|
+| AFL++ | American Fuzzy Lop Plus Plus — an advanced coverage-guided fuzzing tool for discovering software bugs and security vulnerabilities |
+| AES | Advanced Encryption Standard — a symmetric block cipher standardised as FIPS 197, used worldwide for data encryption |
+| AES-256 | Advanced Encryption Standard with 256-bit key — the highest security level of AES |
+| ALU | Arithmetic Logic Unit — the processor component that performs mathematical and logical operations |
+| API | Application Programming Interface — a defined set of functions and protocols for building software |
+| AVA_VAN | Vulnerability Analysis — an assurance family in Common Criteria measuring resistance to attack (Level 5 being the highest practical level) |
+| BOOM | Berkeley Out-of-Order Machine — an open-source superscalar RISC-V processor core |
+| BRAM | Block Random Access Memory — dedicated memory blocks embedded in FPGA silicon |
+| CAVP | Cryptographic Algorithm Validation Program — NIST's programme for testing cryptographic implementations |
+| CBD | Centered Binomial Distribution — a sampling method used in lattice-based cryptography (ML-KEM/Kyber) |
+| CC | Common Criteria — an international standard (ISO/IEC 15408) for computer security certification |
+| CCRA | Common Criteria Recognition Arrangement — a multilateral agreement for mutual recognition of CC evaluations across participating nations |
+| CCTL | Common Criteria Testing Laboratory — an accredited lab authorised to perform CC evaluations |
+| CDC | Clock Domain Crossing — the boundary where signals pass between circuits running on different clocks |
+| CI/CD | Continuous Integration / Continuous Deployment — automated build, test, and release pipelines |
+| CMVP | Cryptographic Module Validation Program — the joint NIST/CCCS programme that certifies cryptographic modules under FIPS 140-3 |
+| CNSA 2.0 | Commercial National Security Algorithm Suite, Version 2.0 — NSA's recommended algorithm suite for protecting classified information, mandating transition to quantum-resistant algorithms |
+| cPP | Collaborative Protection Profile — a Protection Profile developed collaboratively by multiple nations' certification bodies under CCRA |
+| CSfC | Commercial Solutions for Classified — a U.S. NSA programme allowing layered commercial products to protect classified information |
+| CSR | Control and Status Register — special processor registers for configuration and state reporting |
+| CTR_DRBG | Counter-mode Deterministic Random Bit Generator — a DRBG construction using a block cipher in counter mode |
+| CV-X-IF | CORE-V eXtension Interface — a standardised coprocessor/extension interface for RISC-V cores developed by the OpenHW Group |
+| CVA6 | CORE-V Application processor 6-stage — an open-source 6-stage RISC-V core from the OpenHW Group |
+| DOM | Domain-Oriented Masking — a hardware masking scheme providing provable higher-order side-channel resistance with reduced randomness requirements |
+| DPI-C | Direct Programming Interface for C — a SystemVerilog mechanism for calling C functions from hardware simulation |
+| DRBG | Deterministic Random Bit Generator — an algorithm that produces cryptographically secure pseudo-random output from a seed |
+| DSP | Digital Signal Processing — mathematical operations on signals in digital form (filtering, frequency analysis, modulation) |
+| EAL | Evaluation Assurance Level — a numerical rating (EAL1–EAL7) describing the depth and rigour of a Common Criteria evaluation |
+| ELF | Executable and Linkable Format — the standard binary format for executables on Unix-like systems |
+| EM | Electromagnetic — in the context of side-channel attacks, refers to analysing electromagnetic emissions to extract secret information |
+| FF | Flip-Flop — a basic digital circuit element that stores one bit of state |
+| FIPS 140-3 | Federal Information Processing Standard, Publication 140, Version 3 — the U.S. government standard for cryptographic module security |
+| FIPS 197 | Federal Information Processing Standard, Publication 197 — the specification defining the AES algorithm |
+| FPGA | Field-Programmable Gate Array — a chip that can be reconfigured after manufacturing to implement any digital circuit |
+| GCC | GNU Compiler Collection — an open-source compiler system supporting multiple programming languages and architectures |
+| GPCP | General-Purpose Computing Platforms — a NIAP collaborative Protection Profile for general computing platform security evaluation |
+| Hash_DRBG | Hash-based Deterministic Random Bit Generator — a DRBG construction using cryptographic hash functions |
+| IP | Intellectual Property (in hardware context) — a reusable, self-contained hardware design block |
+| ISA | Instruction Set Architecture — the complete vocabulary of commands a processor understands |
+| ISW | Ishai-Sahai-Wagner — a foundational scheme for provably secure higher-order masking based on secret sharing |
+| KAT | Known Answer Test — a test using pre-computed input/output pairs to verify an implementation matches the specification |
+| LFSR | Linear Feedback Shift Register — a simple circuit generating a predictable pseudo-random sequence |
+| LLVM | Low Level Virtual Machine — a compiler infrastructure project providing modular compilation tools |
+| LUT | Look-Up Table — the fundamental logic element in an FPGA, implementing arbitrary Boolean functions |
+| MILS | Multiple Independent Levels of Security — an architecture for systems that must process information at different classification levels simultaneously |
+| ML-DSA | Module-Lattice-Based Digital Signature Algorithm — NIST's standardised post-quantum digital signature algorithm (formerly Dilithium) |
+| ML-KEM | Module-Lattice-Based Key Encapsulation Mechanism — NIST's standardised post-quantum key encapsulation algorithm (formerly Kyber) |
+| MTBF | Mean Time Between Failures — the average time a system operates before a failure occurs |
+| MTVEC | Machine Trap-Vector Base-Address — the RISC-V CSR that holds the address of the trap handler |
+| NIAP | National Information Assurance Partnership — the U.S. government organisation responsible for Common Criteria evaluations of commercial IT products |
+| NIST | National Institute of Standards and Technology — the U.S. federal agency that develops measurement standards, including cryptographic standards |
+| NTT | Number Theoretic Transform — a mathematical transform (analogous to FFT over finite fields) used as the core computational primitive in lattice-based cryptography |
+| O(1) | Order of One — computational complexity notation meaning constant time regardless of input size |
+| O(n) | Order of N — computational complexity notation meaning time scales linearly with input size |
+| PQC | Post-Quantum Cryptography — cryptographic algorithms designed to resist attacks from both classical and quantum computers |
+| QEMU | Quick Emulator — an open-source full-system emulator supporting multiple processor architectures |
+| RISC-V | Reduced Instruction Set Computer, Fifth Generation — an open-standard processor architecture |
+| RoCC | Rocket Custom Coprocessor — the coprocessor interface in the Rocket Chip RISC-V generator for tightly-coupled custom instruction units |
+| RTL | Register-Transfer Level — a hardware description abstraction defining data flow between registers and logic operations |
+| RV64I | RISC-V 64-bit Integer base instruction set — the foundational 64-bit RISC-V ISA |
+| RVV | RISC-V Vector Extension — the standard RISC-V extension for single-instruction-multiple-data (SIMD) vector processing |
+| SAR | Security Assurance Requirement — a Common Criteria requirement specifying the assurance measures applied during development and evaluation |
+| SCA | Side-Channel Analysis/Attack — extracting secret information by analysing physical characteristics (power, timing, electromagnetic emissions) of a cryptographic device |
+| SDC | Synopsys Design Constraints — an industry-standard file format for specifying timing and placement constraints in FPGA/ASIC synthesis |
+| SFR | Security Functional Requirement — a Common Criteria requirement specifying a security function that the product must provide |
+| SKPP | Separation Kernel Protection Profile — a high-assurance Common Criteria Protection Profile for operating systems that enforce strict domain separation |
+| SLH-DSA | Stateless Hash-Based Digital Signature Algorithm — NIST's standardised hash-based post-quantum signature algorithm (formerly SPHINCS+) |
+| SP 800-90A | NIST Special Publication 800-90A — the standard specifying approved DRBG algorithms |
+| SP 800-90B | NIST Special Publication 800-90B — the standard specifying requirements for entropy sources used in random number generation |
+| ST | Security Target — the formal Common Criteria document defining a product's security claims, environment, and objectives for evaluation |
+| STS | Statistical Test Suite — NIST's collection of 15 statistical tests for evaluating randomness |
+| SVA | SystemVerilog Assertions — formal property specification language embedded in SystemVerilog for hardware verification |
+| TCG | Tiny Code Generator — QEMU's internal just-in-time compiler that translates guest instructions to host code |
+| TOE | Target of Evaluation — the specific product or system being evaluated under Common Criteria |
+| TRL | Technology Readiness Level — a numerical scale (1–9) measuring the maturity of a technology from concept to deployment |
+| TRNG | True Random Number Generator — hardware that produces genuinely unpredictable numbers from physical phenomena |
+| TVLA | Test Vector Leakage Assessment — a statistical methodology for evaluating side-channel leakage using the Welch's t-test on power/EM traces |
+| VCD | Value Change Dump — a standard file format recording signal transitions during hardware simulation |
+| XLEN | Register width in a RISC-V implementation — 32 bits for RV32, 64 bits for RV64 |
+| 3S in SoC | Secure Sub-System in System on Chip — a Protection Profile for evaluating security subsystems embedded within larger chip designs |
