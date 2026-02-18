@@ -1,0 +1,226 @@
+/// GF(3) Ternary Gradient Operator
+///
+/// Computes field gradients natively in balanced ternary arithmetic.
+/// Three-valued output: field is rising (+1), falling (-1), or flat (0).
+/// Runs directly on TVM opcodes — no floating point needed.
+
+/// Balanced ternary trit for gradient computation
+pub type Trit = i8; // constrained to {-1, 0, 1}
+
+pub const TRIT_NEG: Trit = -1;
+pub const TRIT_ZERO: Trit = 0;
+pub const TRIT_POS: Trit = 1;
+
+/// GF(3) subtraction: a ⊖₃ b in balanced ternary
+#[inline]
+pub fn gf3_sub(a: Trit, b: Trit) -> Trit {
+    let raw = ((a as i16 - b as i16) % 3 + 3) % 3;
+    match raw {
+        0 => TRIT_ZERO,
+        1 => TRIT_POS,
+        2 => TRIT_NEG,
+        _ => unreachable!(),
+    }
+}
+
+/// GF(3) addition: a ⊕₃ b in balanced ternary
+#[inline]
+pub fn gf3_add(a: Trit, b: Trit) -> Trit {
+    let raw = ((a as i16 + b as i16) % 3 + 3) % 3;
+    match raw {
+        0 => TRIT_ZERO,
+        1 => TRIT_POS,
+        2 => TRIT_NEG,
+        _ => unreachable!(),
+    }
+}
+
+/// GF(3) negation
+#[inline]
+pub fn gf3_neg(a: Trit) -> Trit {
+    -a
+}
+
+/// Axis classification for neighbor relationships on the torus
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToroidalAxis {
+    Eta,   // radial: distance from core
+    Theta, // poloidal: regional group
+    Psi,   // toroidal: ring position
+}
+
+/// Neighbor entry for gradient computation
+pub struct GradientNeighbor {
+    pub id: u64,
+    pub field_value: Trit,
+    pub dominant_axis: ToroidalAxis,
+}
+
+/// Result of ternary gradient computation
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TernaryGradient {
+    pub eta: Trit,
+    pub theta: Trit,
+    pub psi: Trit,
+}
+
+impl TernaryGradient {
+    pub fn zero() -> Self {
+        Self { eta: TRIT_ZERO, theta: TRIT_ZERO, psi: TRIT_ZERO }
+    }
+
+    /// Magnitude: count of non-zero components
+    pub fn magnitude(&self) -> u8 {
+        (self.eta != 0) as u8 + (self.theta != 0) as u8 + (self.psi != 0) as u8
+    }
+}
+
+/// Compute the ternary gradient of the tonal field at a node.
+///
+/// For each toroidal axis, collects GF(3) differences with neighbors
+/// along that axis and returns the majority vote.
+///
+/// F_{T,η}^{(3)} = -(Φ_T(η + Δη) ⊖₃ Φ_T(η))
+pub fn ternary_gradient(
+    local_value: Trit,
+    neighbors: &[GradientNeighbor],
+) -> TernaryGradient {
+    let mut eta_diffs: Vec<Trit> = Vec::new();
+    let mut theta_diffs: Vec<Trit> = Vec::new();
+    let mut psi_diffs: Vec<Trit> = Vec::new();
+
+    for n in neighbors {
+        let diff = gf3_neg(gf3_sub(n.field_value, local_value)); // F = -∇Φ
+        match n.dominant_axis {
+            ToroidalAxis::Eta => eta_diffs.push(diff),
+            ToroidalAxis::Theta => theta_diffs.push(diff),
+            ToroidalAxis::Psi => psi_diffs.push(diff),
+        }
+    }
+
+    TernaryGradient {
+        eta: majority_vote(&eta_diffs),
+        theta: majority_vote(&theta_diffs),
+        psi: majority_vote(&psi_diffs),
+    }
+}
+
+/// Majority vote over trits: returns the sign of the sum.
+/// Empty input returns TRIT_ZERO (no information = flat).
+pub fn majority_vote(trits: &[Trit]) -> Trit {
+    if trits.is_empty() {
+        return TRIT_ZERO;
+    }
+    let sum: i16 = trits.iter().map(|&t| t as i16).sum();
+    if sum > 0 {
+        TRIT_POS
+    } else if sum < 0 {
+        TRIT_NEG
+    } else {
+        TRIT_ZERO
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gf3_sub_complete_table() {
+        // Full 3x3 subtraction table for GF(3) balanced
+        assert_eq!(gf3_sub(0, 0), 0);
+        assert_eq!(gf3_sub(1, 0), 1);
+        assert_eq!(gf3_sub(-1, 0), -1);
+        assert_eq!(gf3_sub(0, 1), -1);
+        assert_eq!(gf3_sub(0, -1), 1);
+        assert_eq!(gf3_sub(1, 1), 0);
+        assert_eq!(gf3_sub(-1, -1), 0);
+        assert_eq!(gf3_sub(1, -1), -1); // 1 - (-1) = 2 mod 3 → -1 balanced
+        assert_eq!(gf3_sub(-1, 1), 1);  // -1 - 1 = -2 mod 3 → 1 balanced
+    }
+
+    #[test]
+    fn gf3_add_complete_table() {
+        assert_eq!(gf3_add(0, 0), 0);
+        assert_eq!(gf3_add(1, 0), 1);
+        assert_eq!(gf3_add(-1, 0), -1);
+        assert_eq!(gf3_add(1, 1), -1);  // 2 mod 3 → -1 balanced
+        assert_eq!(gf3_add(-1, -1), 1); // -2 mod 3 → 1 balanced
+        assert_eq!(gf3_add(1, -1), 0);
+    }
+
+    #[test]
+    fn gf3_negation() {
+        assert_eq!(gf3_neg(1), -1);
+        assert_eq!(gf3_neg(-1), 1);
+        assert_eq!(gf3_neg(0), 0);
+    }
+
+    #[test]
+    fn gf3_sub_is_add_neg() {
+        // a ⊖ b = a ⊕ (-b) for all combinations
+        for &a in &[-1i8, 0, 1] {
+            for &b in &[-1i8, 0, 1] {
+                assert_eq!(gf3_sub(a, b), gf3_add(a, gf3_neg(b)),
+                    "sub({},{}) != add({},neg({}))", a, b, a, b);
+            }
+        }
+    }
+
+    #[test]
+    fn gradient_uniform_field_is_zero() {
+        let neighbors = vec![
+            GradientNeighbor { id: 1, field_value: 0, dominant_axis: ToroidalAxis::Eta },
+            GradientNeighbor { id: 2, field_value: 0, dominant_axis: ToroidalAxis::Theta },
+            GradientNeighbor { id: 3, field_value: 0, dominant_axis: ToroidalAxis::Psi },
+        ];
+        let grad = ternary_gradient(0, &neighbors);
+        assert_eq!(grad, TernaryGradient::zero());
+    }
+
+    #[test]
+    fn gradient_detects_rising_field_along_eta() {
+        // Neighbors along eta have one-step higher potential than local
+        // local = 0, neighbors = 1 → ∇Φ = +(outward), F = -∇Φ = -(inward)
+        let neighbors = vec![
+            GradientNeighbor { id: 1, field_value: 1, dominant_axis: ToroidalAxis::Eta },
+            GradientNeighbor { id: 2, field_value: 1, dominant_axis: ToroidalAxis::Eta },
+            GradientNeighbor { id: 3, field_value: 0, dominant_axis: ToroidalAxis::Theta },
+        ];
+        let grad = ternary_gradient(0, &neighbors);
+        // gf3_sub(1, 0) = 1, gf3_neg(1) = -1 → force points inward
+        assert_eq!(grad.eta, TRIT_NEG);
+    }
+
+    #[test]
+    fn gradient_no_neighbors_on_axis_gives_zero() {
+        // Only eta neighbors — theta and psi should be zero
+        let neighbors = vec![
+            GradientNeighbor { id: 1, field_value: 1, dominant_axis: ToroidalAxis::Eta },
+        ];
+        let grad = ternary_gradient(0, &neighbors);
+        assert_eq!(grad.theta, TRIT_ZERO);
+        assert_eq!(grad.psi, TRIT_ZERO);
+    }
+
+    #[test]
+    fn majority_vote_clear_winner() {
+        assert_eq!(majority_vote(&[1, 1, -1]), TRIT_POS);
+        assert_eq!(majority_vote(&[-1, -1, 0]), TRIT_NEG);
+        assert_eq!(majority_vote(&[0, 0, 1]), TRIT_POS);
+    }
+
+    #[test]
+    fn majority_vote_tie_returns_zero() {
+        assert_eq!(majority_vote(&[1, -1]), TRIT_ZERO);
+        assert_eq!(majority_vote(&[1, -1, 0]), TRIT_ZERO);
+        assert_eq!(majority_vote(&[]), TRIT_ZERO);
+    }
+
+    #[test]
+    fn gradient_magnitude() {
+        let g = TernaryGradient { eta: 1, theta: 0, psi: -1 };
+        assert_eq!(g.magnitude(), 2);
+        assert_eq!(TernaryGradient::zero().magnitude(), 0);
+    }
+}

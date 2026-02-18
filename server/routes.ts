@@ -28,6 +28,7 @@ import { registerAgentArrayRoutes } from "./routes/agent-array";
 import { registerApiKeyRoutes } from "./routes/api-keys";
 import { registerSecurityRoutes } from "./routes/security";
 import { registerEphemerisRoutes } from "./routes/ephemeris";
+import { registerTonalFieldRoutes } from "./routes/tonal-field";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
@@ -980,6 +981,11 @@ export async function registerRoutes(
   // TERNARY EPHEMERIS API — extracted to server/routes/ephemeris.ts
   // =====================================================
   registerEphemerisRoutes(app);
+
+  // =====================================================
+  // TONAL DIFFUSION API — tonal field, resonance, metrics
+  // =====================================================
+  registerTonalFieldRoutes(app);
 
   return httpServer;
 }

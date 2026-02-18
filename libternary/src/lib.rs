@@ -80,6 +80,40 @@
 pub mod tribonacci;
 pub mod borromean;
 pub mod ternary_circle;
+pub mod fm_timing;
+
+// ══════════════════════════════════════════════════════════════
+// CORE TYPE — Balanced Ternary Trit
+// ══════════════════════════════════════════════════════════════
+
+/// Balanced ternary trit — the fundamental unit of the Salvi Framework.
+/// Representations: A={-1,0,+1}, B={0,1,2}, C={1,2,3}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TernaryTrit {
+    /// Behind / decreasing / -1
+    Neg  = -1,
+    /// Synchronized / flat / 0
+    Zero =  0,
+    /// Ahead / increasing / +1
+    Pos  =  1,
+}
+
+impl TernaryTrit {
+    /// Convert to i8
+    pub fn to_i8(self) -> i8 {
+        self as i8
+    }
+
+    /// Convert from i8
+    pub fn from_i8(v: i8) -> Option<Self> {
+        match v {
+            -1 => Some(Self::Neg),
+             0 => Some(Self::Zero),
+             1 => Some(Self::Pos),
+             _ => None,
+        }
+    }
+}
 
 // ══════════════════════════════════════════════════════════════
 // RE-EXPORTS — the most commonly used types at crate root
@@ -95,6 +129,10 @@ pub use ternary_circle::{
     trit_to_std_rad, walk_tribonacci_radian_spiral,
     is_base3_repunit, base3_repunit_order,
 };
+pub use fm_timing::oscillator::TonalOscillator;
+pub use fm_timing::packet::{FmTimingPacket, FrequencyState, PacketError};
+pub use fm_timing::hrv::{HrvEntropy, EntropyHealth};
+pub use fm_timing::gf3_gradient::{TernaryGradient, ToroidalAxis};
 
 // ══════════════════════════════════════════════════════════════
 // CRATE-LEVEL CONSTANTS

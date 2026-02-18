@@ -1,0 +1,1702 @@
+# PlenumNET Tonal Diffusion Buildout — Implementation Code
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**February 2026**
+
+---
+
+## Module 1: FM Timing Engine
+
+**Location:** `libternary/src/fm_timing/`
+
+### mod.rs
+
+```rust
+pub mod oscillator;
+pub mod packet;
+pub mod hrv;
+pub mod spectrum;
+pub mod gf3_gradient;
+
+pub use oscillator::TonalOscillator;
+pub use packet::{FmTimingPacket, FrequencyState};
+pub use hrv::HrvEntropy;
+pub use gf3_gradient::{Trit, gf3_sub, ternary_gradient};
+```
+
+### oscillator.rs
+
+```rust
+use crate::ternary::TernaryTrit;
+use crate::fm_timing::hrv::HrvEntropy;
+
+const THRESHOLD: f64 = 0.1;
+
+pub struct TonalOscillator {
+    omega_0: f64,                          // intrinsic angular frequency (~2π Hz)
+    mu: f64,                               // nonlinear damping coefficient
+    state: [f64; 2],                       // [V, dV/dt]
+    modulation: Box<dyn Fn(f64) -> f64>,   // autonomic input m(t)
+    noise_source: HrvEntropy,
+    time: f64,
+    reference_phase: f64,
+}
+
+impl TonalOscillator {
+    pub fn new(
+        freq_hz: f64,
+        mu: f64,
+        modulation: Box<dyn Fn(f64) -> f64>,
+        noise_source: HrvEntropy,
+    ) -> Self {
+        Self {
+            omega_0: 2.0 * std::f64::consts::PI * freq_hz,
+            mu,
+            state: [1.0, 0.0],  // initial conditions
+            modulation,
+            noise_source,
+            time: 0.0,
+            reference_phase: 0.0,
+        }
+    }
+
+    /// Advance one timestep using RK4 integration of the van der Pol equation:
+    /// d²V/dt² - μ(1-V²)dV/dt + ω₀²V = F_ext(t) + ξ(t)
+    pub fn step(&mut self, dt: f64) -> TernaryTrit {
+        let xi = self.noise_source.sample();
+        let f_ext = (self.modulation)(self.time);
+
+        // RK4 integration
+        let k1 = self.derivatives(self.state, f_ext, xi);
+        let s1 = [self.state[0] + 0.5 * dt * k1[0], self.state[1] + 0.5 * dt * k1[1]];
+
+        let k2 = self.derivatives(s1, f_ext, xi);
+        let s2 = [self.state[0] + 0.5 * dt * k2[0], self.state[1] + 0.5 * dt * k2[1]];
+
+        let k3 = self.derivatives(s2, f_ext, xi);
+        let s3 = [self.state[0] + dt * k3[0], self.state[1] + dt * k3[1]];
+
+        let k4 = self.derivatives(s3, f_ext, xi);
+
+        self.state[0] += dt / 6.0 * (k1[0] + 2.0 * k2[0] + 2.0 * k3[0] + k4[0]);
+        self.state[1] += dt / 6.0 * (k1[1] + 2.0 * k2[1] + 2.0 * k3[1] + k4[1]);
+        self.time += dt;
+        self.reference_phase += self.omega_0 * dt;
+
+        self.phase_to_trit()
+    }
+
+    fn derivatives(&self, s: [f64; 2], f_ext: f64, xi: f64) -> [f64; 2] {
+        let v = s[0];
+        let dv = s[1];
+        let ddv = self.mu * (1.0 - v * v) * dv
+                - self.omega_0.powi(2) * v
+                + f_ext
+                + xi;
+        [dv, ddv]
+    }
+
+    /// Instantaneous phase from state variables
+    pub fn instantaneous_phase(&self) -> f64 {
+        self.state[1].atan2(self.state[0])
+    }
+
+    /// Instantaneous frequency (Hz)
+    pub fn instantaneous_frequency(&self) -> f64 {
+        // Numerical derivative of phase via Hilbert analytic signal
+        let phase = self.instantaneous_phase();
+        self.omega_0 / (2.0 * std::f64::consts::PI)
+            + (phase - self.reference_phase) / (2.0 * std::f64::consts::PI)
+    }
+
+    /// Quantize phase error to ternary: {Behind, Synchronized, Ahead}
+    fn phase_to_trit(&self) -> TernaryTrit {
+        let phase_error = self.instantaneous_phase() - self.reference_phase;
+        // Normalize to [-π, π]
+        let normalized = ((phase_error + std::f64::consts::PI) % (2.0 * std::f64::consts::PI))
+                       - std::f64::consts::PI;
+        if normalized < -THRESHOLD {
+            TernaryTrit::Neg  // Behind: -1
+        } else if normalized > THRESHOLD {
+            TernaryTrit::Pos  // Ahead: +1
+        } else {
+            TernaryTrit::Zero // Synchronized: 0
+        }
+    }
+
+    pub fn elapsed(&self) -> f64 {
+        self.time
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn oscillator_produces_stable_limit_cycle() {
+        let mut osc = TonalOscillator::new(
+            1.0,
+            1.0,
+            Box::new(|_| 0.0),
+            HrvEntropy::new_deterministic(0.0),
+        );
+        // Run for 10 seconds at 1000 Hz sample rate
+        let mut trits = Vec::new();
+        for _ in 0..10_000 {
+            trits.push(osc.step(0.001));
+        }
+        // After transient, should see regular oscillation
+        let last_1000: Vec<_> = trits[9000..].to_vec();
+        let sync_count = last_1000.iter().filter(|t| matches!(t, TernaryTrit::Zero)).count();
+        // Expect roughly periodic crossing through zero
+        assert!(sync_count > 50 && sync_count < 500, "Expected periodic sync crossings");
+    }
+
+    #[test]
+    fn fm_modulation_produces_sidebands() {
+        let f_m = 0.25; // respiratory rate ~15 bpm
+        let a_m = 0.3;
+        let mut osc = TonalOscillator::new(
+            1.0,
+            1.0,
+            Box::new(move |t| a_m * (2.0 * std::f64::consts::PI * f_m * t).cos()),
+            HrvEntropy::new_deterministic(0.0),
+        );
+        let mut freqs = Vec::new();
+        for _ in 0..10_000 {
+            osc.step(0.001);
+            freqs.push(osc.instantaneous_frequency());
+        }
+        let f_min = freqs.iter().cloned().fold(f64::INFINITY, f64::min);
+        let f_max = freqs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        // FM should produce frequency deviation
+        assert!(f_max - f_min > 0.05, "Expected measurable frequency modulation");
+    }
+}
+```
+
+### packet.rs
+
+```rust
+use crate::ternary::TernaryTrit;
+use crate::crypto::PqSignature;
+
+/// FM timing packet: carries both time reference AND network state
+/// in a single ternary-encoded structure.
+///
+/// The instantaneous frequency of the trit-stream carries information —
+/// this is the applied realization of Φ_T(η,θ,ψ,t).
+#[derive(Clone, Debug)]
+pub struct FmTimingPacket {
+    /// 3³ = 27 trits encode the timestamp in balanced ternary
+    pub timestamp_trits: [TernaryTrit; 27],
+    /// Current instantaneous frequency and spectral state
+    pub frequency_state: FrequencyState,
+    /// β = A_m/ω_m quantized to u8 (modulation index)
+    pub modulation_index: u8,
+    /// Aggregate tonal state of the originating node
+    pub network_health: TernaryTrit,
+    /// Entropy nonce derived from HRV noise source
+    pub entropy_nonce: [u8; 8],
+    /// Post-quantum authentication signature
+    pub signature: PqSignature,
+}
+
+#[derive(Clone, Debug)]
+pub struct FrequencyState {
+    /// Instantaneous frequency in Hz
+    pub f_inst: f64,
+    /// Power at sidebands f₀ ± n·f_m (n = 1..4)
+    pub sidebands: [f64; 4],
+    /// Synchronization quality metric: 0.0 = no sync, 1.0 = perfect lock
+    pub coherence: f64,
+}
+
+impl FmTimingPacket {
+    /// Encode a timestamp (nanoseconds since HPTP epoch) into 27 balanced trits
+    pub fn encode_timestamp(nanos: i64) -> [TernaryTrit; 27] {
+        let mut trits = [TernaryTrit::Zero; 27];
+        let mut val = nanos;
+        for i in 0..27 {
+            let rem = ((val % 3) + 3) % 3;
+            trits[i] = match rem {
+                0 => TernaryTrit::Zero,
+                1 => TernaryTrit::Pos,
+                2 => { val += 1; TernaryTrit::Neg }
+                _ => unreachable!(),
+            };
+            val /= 3;
+        }
+        trits
+    }
+
+    /// Decode 27 balanced trits back to nanoseconds
+    pub fn decode_timestamp(trits: &[TernaryTrit; 27]) -> i64 {
+        let mut result: i64 = 0;
+        let mut power: i64 = 1;
+        for trit in trits.iter() {
+            result += match trit {
+                TernaryTrit::Neg => -1,
+                TernaryTrit::Zero => 0,
+                TernaryTrit::Pos => 1,
+            } * power;
+            power *= 3;
+        }
+        result
+    }
+
+    /// Serialize to bytes for network transmission
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(128);
+        // Pack 27 trits into 14 bytes (2 bits per trit, 54 bits total)
+        for chunk in self.timestamp_trits.chunks(4) {
+            let mut byte: u8 = 0;
+            for (i, trit) in chunk.iter().enumerate() {
+                let val: u8 = match trit {
+                    TernaryTrit::Neg => 0b00,
+                    TernaryTrit::Zero => 0b01,
+                    TernaryTrit::Pos => 0b10,
+                };
+                byte |= val << (i * 2);
+            }
+            buf.push(byte);
+        }
+        buf.extend_from_slice(&self.frequency_state.f_inst.to_le_bytes());
+        for sb in &self.frequency_state.sidebands {
+            buf.extend_from_slice(&sb.to_le_bytes());
+        }
+        buf.extend_from_slice(&self.frequency_state.coherence.to_le_bytes());
+        buf.push(self.modulation_index);
+        buf.push(match self.network_health {
+            TernaryTrit::Neg => 0,
+            TernaryTrit::Zero => 1,
+            TernaryTrit::Pos => 2,
+        });
+        buf.extend_from_slice(&self.entropy_nonce);
+        buf.extend_from_slice(&self.signature.to_bytes());
+        buf
+    }
+
+    /// Deserialize from network bytes
+    pub fn from_bytes(data: &[u8]) -> Result<Self, PacketError> {
+        if data.len() < 64 {
+            return Err(PacketError::TooShort);
+        }
+        // Unpack trits
+        let mut timestamp_trits = [TernaryTrit::Zero; 27];
+        let mut trit_idx = 0;
+        for &byte in &data[..7] {
+            for i in 0..4 {
+                if trit_idx >= 27 { break; }
+                timestamp_trits[trit_idx] = match (byte >> (i * 2)) & 0b11 {
+                    0b00 => TernaryTrit::Neg,
+                    0b01 => TernaryTrit::Zero,
+                    0b10 => TernaryTrit::Pos,
+                    _ => return Err(PacketError::InvalidTrit),
+                };
+                trit_idx += 1;
+            }
+        }
+        // ... remaining field deserialization follows same pattern
+        todo!("Complete deserialization")
+    }
+}
+
+#[derive(Debug)]
+pub enum PacketError {
+    TooShort,
+    InvalidTrit,
+    InvalidSignature,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn timestamp_roundtrip() {
+        let test_values = [0i64, 1, -1, 42, -42, 3_652_500_000, -3_652_500_000];
+        for &val in &test_values {
+            let trits = FmTimingPacket::encode_timestamp(val);
+            let decoded = FmTimingPacket::decode_timestamp(&trits);
+            assert_eq!(val, decoded, "Failed roundtrip for {}", val);
+        }
+    }
+
+    #[test]
+    fn timestamp_range_covers_hptp_epoch() {
+        // 27 balanced trits cover ±(3^27 - 1)/2 = ±3_812_798_742_493
+        // That's ±3812 seconds in nanoseconds — sufficient for sub-epoch offsets
+        let max = (3i64.pow(27) - 1) / 2;
+        assert!(max > 3_600_000_000_000, "Range must cover at least 1 hour in nanos");
+    }
+}
+```
+
+### hrv.rs
+
+```rust
+use std::collections::VecDeque;
+
+const MAX_JITTER: f64 = 0.05;
+const POOL_SIZE: usize = 256;
+const BUFFER_CAPACITY: usize = 1024;
+
+/// Heart Rate Variability entropy source.
+///
+/// The stochastic noise term ξ(t) from the van der Pol model becomes a
+/// hardware-free entropy source. Bounded jitter across network nodes
+/// aggregates into a distributed pool for PQ key generation.
+pub struct HrvEntropy {
+    buffer: VecDeque<f64>,
+    pool: [u8; POOL_SIZE],
+    pool_idx: usize,
+    state: f64,           // logistic map state
+    health: EntropyHealth,
+}
+
+#[derive(Debug, Clone)]
+pub struct EntropyHealth {
+    pub min_entropy_estimate: f64,
+    pub samples_collected: u64,
+    pub last_health_check: u64,
+    pub healthy: bool,
+}
+
+impl HrvEntropy {
+    pub fn new(seed: f64) -> Self {
+        assert!(seed > 0.0 && seed < 1.0, "Seed must be in (0, 1)");
+        Self {
+            buffer: VecDeque::with_capacity(BUFFER_CAPACITY),
+            pool: [0u8; POOL_SIZE],
+            pool_idx: 0,
+            state: seed,
+            health: EntropyHealth {
+                min_entropy_estimate: 0.0,
+                samples_collected: 0,
+                last_health_check: 0,
+                healthy: false, // not healthy until sufficient samples
+            },
+        }
+    }
+
+    /// Deterministic source for testing (constant output)
+    pub fn new_deterministic(value: f64) -> Self {
+        let mut e = Self::new(0.5);
+        e.state = value.clamp(0.01, 0.99);
+        e
+    }
+
+    /// Sample one noise value, bounded to ±MAX_JITTER
+    pub fn sample(&mut self) -> f64 {
+        let raw = self.chaotic_map_step();
+        self.buffer.push_back(raw);
+        if self.buffer.len() > BUFFER_CAPACITY {
+            self.buffer.pop_front();
+        }
+        self.update_pool(raw);
+        self.health.samples_collected += 1;
+
+        // Periodic health check (NIST SP 800-90B)
+        if self.health.samples_collected % 1024 == 0 {
+            self.run_health_check();
+        }
+
+        raw.clamp(-MAX_JITTER, MAX_JITTER)
+    }
+
+    /// Extract whitened entropy bytes for PQ key material
+    pub fn extract_bytes(&mut self, n: usize) -> Option<Vec<u8>> {
+        if !self.health.healthy {
+            return None; // refuse extraction if health check failing
+        }
+        if n > POOL_SIZE {
+            return None;
+        }
+        let result: Vec<u8> = self.pool.iter().take(n).copied().collect();
+        // Re-key the pool after extraction
+        for i in 0..POOL_SIZE {
+            self.pool[i] ^= self.sample().to_bits() as u8;
+        }
+        Some(result)
+    }
+
+    /// Logistic map: x_{n+1} = r * x_n * (1 - x_n), r = 3.99 (chaotic regime)
+    fn chaotic_map_step(&mut self) -> f64 {
+        const R: f64 = 3.99;
+        self.state = R * self.state * (1.0 - self.state);
+        // Center around zero: map (0,1) -> (-0.5, 0.5)
+        self.state - 0.5
+    }
+
+    fn update_pool(&mut self, sample: f64) {
+        let bytes = sample.to_le_bytes();
+        for &b in &bytes {
+            self.pool[self.pool_idx] ^= b;
+            self.pool_idx = (self.pool_idx + 1) % POOL_SIZE;
+        }
+    }
+
+    fn run_health_check(&mut self) {
+        // Simplified NIST SP 800-90B minimum entropy estimate
+        // Count distinct values in buffer (approximation)
+        if self.buffer.len() < 256 {
+            self.health.healthy = false;
+            return;
+        }
+        let mut bins = [0u32; 20];
+        for &val in self.buffer.iter().take(256) {
+            let idx = ((val + 0.5) * 19.0).clamp(0.0, 19.0) as usize;
+            bins[idx] += 1;
+        }
+        let max_count = *bins.iter().max().unwrap() as f64;
+        let p_max = max_count / 256.0;
+        self.health.min_entropy_estimate = -p_max.log2();
+        self.health.healthy = self.health.min_entropy_estimate > 1.0; // >1 bit min entropy
+        self.health.last_health_check = self.health.samples_collected;
+    }
+
+    pub fn health(&self) -> &EntropyHealth {
+        &self.health
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entropy_bounded() {
+        let mut hrv = HrvEntropy::new(0.4);
+        for _ in 0..10_000 {
+            let s = hrv.sample();
+            assert!(s.abs() <= MAX_JITTER, "Sample {} exceeds bound", s);
+        }
+    }
+
+    #[test]
+    fn entropy_health_converges() {
+        let mut hrv = HrvEntropy::new(0.4);
+        for _ in 0..2048 {
+            hrv.sample();
+        }
+        assert!(hrv.health().healthy, "Should be healthy after 2048 samples");
+        assert!(hrv.health().min_entropy_estimate > 1.0);
+    }
+
+    #[test]
+    fn extraction_fails_when_unhealthy() {
+        let hrv = HrvEntropy::new(0.4);
+        // No samples collected yet — should refuse
+        assert!(hrv.health().healthy == false);
+    }
+
+    #[test]
+    fn pool_diverges_from_seed() {
+        let mut h1 = HrvEntropy::new(0.4);
+        let mut h2 = HrvEntropy::new(0.400001);
+        for _ in 0..2048 {
+            h1.sample();
+            h2.sample();
+        }
+        // Chaotic divergence: pools should differ significantly
+        let diff: usize = h1.pool.iter().zip(h2.pool.iter())
+            .filter(|(a, b)| a != b).count();
+        assert!(diff > 200, "Pools should diverge chaotically, diff={}", diff);
+    }
+}
+```
+
+### gf3_gradient.rs
+
+```rust
+/// GF(3) Ternary Gradient Operator
+///
+/// Computes field gradients natively in balanced ternary arithmetic.
+/// Runs directly on TVM opcodes — no floating point needed.
+/// Three-valued output: field is rising (+1), falling (-1), or flat (0).
+
+/// Balanced ternary trit
+pub type Trit = i8;  // constrained to {-1, 0, 1}
+
+pub const TRIT_NEG: Trit = -1;
+pub const TRIT_ZERO: Trit = 0;
+pub const TRIT_POS: Trit = 1;
+
+/// GF(3) subtraction: balanced ternary {-1, 0, +1}
+/// Result = a ⊖₃ b, mapped back to balanced representation
+#[inline]
+pub fn gf3_sub(a: Trit, b: Trit) -> Trit {
+    let raw = ((a as i16 - b as i16) % 3 + 3) % 3;
+    match raw {
+        0 => TRIT_ZERO,
+        1 => TRIT_POS,
+        2 => TRIT_NEG,
+        _ => unreachable!(),
+    }
+}
+
+/// GF(3) addition
+#[inline]
+pub fn gf3_add(a: Trit, b: Trit) -> Trit {
+    let raw = ((a as i16 + b as i16) % 3 + 3) % 3;
+    match raw {
+        0 => TRIT_ZERO,
+        1 => TRIT_POS,
+        2 => TRIT_NEG,
+        _ => unreachable!(),
+    }
+}
+
+/// GF(3) negation
+#[inline]
+pub fn gf3_neg(a: Trit) -> Trit {
+    -a
+}
+
+/// Axis classification for neighbor relationships
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ToroidalAxis {
+    Eta,
+    Theta,
+    Psi,
+}
+
+/// Neighbor entry for gradient computation
+pub struct GradientNeighbor {
+    pub id: u64,
+    pub field_value: Trit,
+    pub dominant_axis: ToroidalAxis,
+}
+
+/// Result of ternary gradient computation
+#[derive(Clone, Debug, PartialEq)]
+pub struct TernaryGradient {
+    pub eta: Trit,
+    pub theta: Trit,
+    pub psi: Trit,
+}
+
+/// Compute the ternary gradient of the tonal field at a node.
+///
+/// For each toroidal axis, collects GF(3) differences with neighbors
+/// along that axis and returns the majority vote.
+///
+/// F_{T,η}^{(3)} = -(Φ_T(η + Δη) ⊖₃ Φ_T(η))
+pub fn ternary_gradient(
+    local_value: Trit,
+    neighbors: &[GradientNeighbor],
+) -> TernaryGradient {
+    let mut eta_diffs: Vec<Trit> = Vec::new();
+    let mut theta_diffs: Vec<Trit> = Vec::new();
+    let mut psi_diffs: Vec<Trit> = Vec::new();
+
+    for n in neighbors {
+        let diff = gf3_neg(gf3_sub(n.field_value, local_value));
+        match n.dominant_axis {
+            ToroidalAxis::Eta => eta_diffs.push(diff),
+            ToroidalAxis::Theta => theta_diffs.push(diff),
+            ToroidalAxis::Psi => psi_diffs.push(diff),
+        }
+    }
+
+    TernaryGradient {
+        eta: majority_vote(&eta_diffs),
+        theta: majority_vote(&theta_diffs),
+        psi: majority_vote(&psi_diffs),
+    }
+}
+
+/// Majority vote over trits: returns the sign of the sum.
+/// Empty input returns TRIT_ZERO (no information = flat).
+fn majority_vote(trits: &[Trit]) -> Trit {
+    if trits.is_empty() {
+        return TRIT_ZERO;
+    }
+    let sum: i16 = trits.iter().map(|&t| t as i16).sum();
+    if sum > 0 { TRIT_POS }
+    else if sum < 0 { TRIT_NEG }
+    else { TRIT_ZERO }
+}
+
+// --- WASM exports for TypeScript consumption ---
+
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn wasm_gf3_sub(a: i8, b: i8) -> i8 {
+    gf3_sub(a.clamp(-1, 1), b.clamp(-1, 1))
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn wasm_majority_vote(trits: &[i8]) -> i8 {
+    let clamped: Vec<Trit> = trits.iter().map(|&t| t.clamp(-1, 1)).collect();
+    majority_vote(&clamped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gf3_sub_table() {
+        // Full GF(3) subtraction table
+        assert_eq!(gf3_sub(0, 0), 0);
+        assert_eq!(gf3_sub(1, 0), 1);
+        assert_eq!(gf3_sub(-1, 0), -1);
+        assert_eq!(gf3_sub(0, 1), -1);
+        assert_eq!(gf3_sub(0, -1), 1);
+        assert_eq!(gf3_sub(1, 1), 0);
+        assert_eq!(gf3_sub(-1, -1), 0);
+        assert_eq!(gf3_sub(1, -1), -1); // 1 - (-1) = 2 mod 3 → -1
+        assert_eq!(gf3_sub(-1, 1), 1);  // -1 - 1 = -2 mod 3 → 1
+    }
+
+    #[test]
+    fn gradient_uniform_field_is_zero() {
+        let neighbors = vec![
+            GradientNeighbor { id: 1, field_value: 0, dominant_axis: ToroidalAxis::Eta },
+            GradientNeighbor { id: 2, field_value: 0, dominant_axis: ToroidalAxis::Theta },
+            GradientNeighbor { id: 3, field_value: 0, dominant_axis: ToroidalAxis::Psi },
+        ];
+        let grad = ternary_gradient(0, &neighbors);
+        assert_eq!(grad, TernaryGradient { eta: 0, theta: 0, psi: 0 });
+    }
+
+    #[test]
+    fn gradient_detects_rising_field() {
+        let neighbors = vec![
+            GradientNeighbor { id: 1, field_value: 1, dominant_axis: ToroidalAxis::Eta },
+            GradientNeighbor { id: 2, field_value: 1, dominant_axis: ToroidalAxis::Eta },
+            GradientNeighbor { id: 3, field_value: 0, dominant_axis: ToroidalAxis::Eta },
+        ];
+        let grad = ternary_gradient(-1, &neighbors);
+        // Neighbors have higher potential → gradient points inward → negative (toward core)
+        assert_eq!(grad.eta, -1);
+    }
+
+    #[test]
+    fn majority_vote_tie_returns_zero() {
+        assert_eq!(majority_vote(&[1, -1]), 0);
+        assert_eq!(majority_vote(&[1, -1, 0]), 0);
+    }
+
+    #[test]
+    fn majority_vote_clear_winner() {
+        assert_eq!(majority_vote(&[1, 1, -1]), 1);
+        assert_eq!(majority_vote(&[-1, -1, 0]), -1);
+    }
+}
+```
+
+---
+
+## Module 2: Tonal Potential Field Service
+
+**Location:** `services/tonal-field/`
+
+### index.ts
+
+```typescript
+import express from 'express';
+import { WebSocketServer, WebSocket } from 'ws';
+import { TonalField } from './field';
+import { DiffusionSolver } from './diffusion';
+import { ToroidalAddress, toroidalDistance } from '../../shared/topology';
+import { PlenumMetrics, computePlenumMetrics } from './metrics';
+
+const app = express();
+app.use(express.json());
+
+const field = new TonalField({ alpha: 0.1, couplingStrength: 0.01 });
+const solver = new DiffusionSolver({ D: 0.1, kT: 1.0, dt: 0.01, freqCoupling: 0.001 });
+
+// --- REST endpoints ---
+
+app.get('/api/tonal/field', (req, res) => {
+  res.json({
+    potential: field.getPotential(),
+    gradient: field.getGradient(),
+    neighborCount: field.getNeighborCount(),
+    lastUpdate: field.getLastUpdate(),
+  });
+});
+
+app.get('/api/tonal/neighbors', (req, res) => {
+  res.json(field.getNeighborStates());
+});
+
+app.post('/api/tonal/packet', (req, res) => {
+  const { nodeId, packet, address } = req.body;
+  try {
+    field.updateFromPacket(nodeId, packet, address);
+    res.json({ accepted: true, potential: field.getPotential() });
+  } catch (err) {
+    res.status(400).json({ accepted: false, error: (err as Error).message });
+  }
+});
+
+app.get('/api/metrics/plenum', (req, res) => {
+  res.json(computePlenumMetrics(field.getNetworkState()));
+});
+
+// --- WebSocket for real-time neighbor broadcast ---
+
+const wss = new WebSocketServer({ noServer: true });
+const subscribers = new Set<WebSocket>();
+
+wss.on('connection', (ws) => {
+  subscribers.add(ws);
+  ws.on('close', () => subscribers.delete(ws));
+});
+
+function broadcastFieldUpdate() {
+  const msg = JSON.stringify({
+    type: 'field_update',
+    potential: field.getPotential(),
+    gradient: field.getGradient(),
+    timestamp: Date.now(),
+  });
+  for (const ws of subscribers) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(msg);
+    }
+  }
+}
+
+// Broadcast on every field update
+field.on('update', broadcastFieldUpdate);
+
+export { app, wss };
+```
+
+### field.ts
+
+```typescript
+import { EventEmitter } from 'events';
+import { ToroidalAddress, toroidalDistance } from '../../shared/topology';
+
+export interface FmTimingPacketData {
+  frequencyState: {
+    f_inst: number;
+    sidebands: [number, number, number, number];
+    coherence: number;
+  };
+  modulationIndex: number;
+  networkHealth: -1 | 0 | 1;
+  entropyNonce: Uint8Array;
+}
+
+interface NeighborState {
+  potential: number;
+  coherence: number;
+  distance: ToroidalAddress;
+  lastUpdate: number;
+}
+
+interface TonalFieldConfig {
+  alpha: number;           // attenuation coefficient
+  couplingStrength: number; // gradient-to-correction scaling
+  staleThresholdMs?: number;
+}
+
+export class TonalField extends EventEmitter {
+  private potential: number = 0;
+  private gradient = { eta: 0, theta: 0, psi: 0 };
+  private neighbors: Map<string, NeighborState> = new Map();
+  private alpha: number;
+  private couplingStrength: number;
+  private staleThresholdMs: number;
+  private t: number = 0;
+  private k = { eta: 1.0, theta: 0.0, psi: 0.0 }; // wave vector
+
+  constructor(config: TonalFieldConfig) {
+    super();
+    this.alpha = config.alpha;
+    this.couplingStrength = config.couplingStrength;
+    this.staleThresholdMs = config.staleThresholdMs ?? 30_000;
+  }
+
+  updateFromPacket(
+    nodeId: string,
+    packet: FmTimingPacketData,
+    distance: ToroidalAddress
+  ): void {
+    // Φ_T = Φ₀ · e^{-αη} · cos(f_inst · t + k·r)
+    const attenuation = Math.exp(-this.alpha * distance.eta);
+    const contribution = packet.frequencyState.coherence * attenuation;
+    const dot = this.k.eta * distance.eta
+              + this.k.theta * distance.theta
+              + this.k.psi * distance.psi;
+
+    this.neighbors.set(nodeId, {
+      potential: contribution * Math.cos(
+        packet.frequencyState.f_inst * this.t + dot
+      ),
+      coherence: packet.frequencyState.coherence,
+      distance,
+      lastUpdate: Date.now(),
+    });
+
+    this.pruneStaleNeighbors();
+    this.recomputePotential();
+    this.recomputeGradient();
+    this.emit('update');
+  }
+
+  private pruneStaleNeighbors(): void {
+    const now = Date.now();
+    for (const [id, state] of this.neighbors) {
+      if (now - state.lastUpdate > this.staleThresholdMs) {
+        this.neighbors.delete(id);
+      }
+    }
+  }
+
+  private recomputePotential(): void {
+    // Local potential = sum of neighbor contributions
+    let sum = 0;
+    for (const state of this.neighbors.values()) {
+      sum += state.potential;
+    }
+    this.potential = this.neighbors.size > 0 ? sum / this.neighbors.size : 0;
+  }
+
+  private recomputeGradient(): void {
+    // Finite-difference gradient in toroidal coordinates
+    // Group neighbors by dominant axis direction
+    let dEta = 0, dTheta = 0, dPsi = 0;
+    let nEta = 0, nTheta = 0, nPsi = 0;
+
+    for (const state of this.neighbors.values()) {
+      const d = state.distance;
+      if (Math.abs(d.eta) > Math.abs(d.theta) && Math.abs(d.eta) > Math.abs(d.psi)) {
+        dEta += (state.potential - this.potential) / Math.max(d.eta, 0.001);
+        nEta++;
+      } else if (Math.abs(d.theta) > Math.abs(d.psi)) {
+        dTheta += (state.potential - this.potential) / Math.max(d.theta, 0.001);
+        nTheta++;
+      } else {
+        dPsi += (state.potential - this.potential) / Math.max(d.psi, 0.001);
+        nPsi++;
+      }
+    }
+
+    // F_T = -∇Φ_T
+    this.gradient = {
+      eta: nEta > 0 ? -(dEta / nEta) : 0,
+      theta: nTheta > 0 ? -(dTheta / nTheta) : 0,
+      psi: nPsi > 0 ? -(dPsi / nPsi) : 0,
+    };
+  }
+
+  getSyncCorrection(): number {
+    return -this.gradient.eta * this.couplingStrength;
+  }
+
+  getConfidence(nodeId: string): number {
+    return this.neighbors.get(nodeId)?.coherence ?? 0;
+  }
+
+  getPotential(): number { return this.potential; }
+  getGradient() { return { ...this.gradient }; }
+  getNeighborCount(): number { return this.neighbors.size; }
+  getLastUpdate(): number {
+    let latest = 0;
+    for (const s of this.neighbors.values()) {
+      if (s.lastUpdate > latest) latest = s.lastUpdate;
+    }
+    return latest;
+  }
+  getNeighborStates() {
+    const out: Record<string, NeighborState> = {};
+    for (const [id, state] of this.neighbors) { out[id] = state; }
+    return out;
+  }
+  getNetworkState() {
+    return {
+      potential: this.potential,
+      gradient: this.gradient,
+      neighborCount: this.neighbors.size,
+      averageCoherence: this.neighbors.size > 0
+        ? [...this.neighbors.values()].reduce((s, n) => s + n.coherence, 0) / this.neighbors.size
+        : 0,
+    };
+  }
+
+  advanceTime(dt: number): void {
+    this.t += dt;
+  }
+}
+```
+
+### diffusion.ts
+
+```typescript
+import { TonalField } from './field';
+import { Trit, ternaryGradient, NeighborEntry } from '../../shared/topology';
+
+interface DiffusionConfig {
+  D: number;           // diffusion coefficient
+  kT: number;          // thermal energy (scaling parameter)
+  dt: number;          // timestep
+  freqCoupling: number; // frequency adjustment strength
+}
+
+interface ClockState {
+  offset: number;       // current time offset from consensus
+  frequency: number;    // current oscillator frequency
+  confidence: number;   // 0.0–1.0 sync confidence
+}
+
+interface ClockCorrection {
+  offsetAdjust: number;
+  frequencyAdjust: number;
+  newConfidence: number;
+}
+
+type NeighborGraph = Map<string, {
+  neighborId: string;
+  distance: { eta: number };
+  coherence: number;
+}[]>;
+
+/**
+ * Graph Laplacian diffusion solver.
+ *
+ * Network is a weighted graph where edges carry ternary-valued gradients
+ * from the GF(3) operator. The Laplacian matrix L drives diffusion.
+ *
+ * dc_i/dt = -Σ_j L_ij · c_j - (c_i / kT) · q · F_T^{(3)}
+ */
+export class DiffusionSolver {
+  private laplacian: Map<string, Map<string, number>> = new Map();
+  private D: number;
+  private kT: number;
+  private dt: number;
+  private freqCoupling: number;
+
+  constructor(config: DiffusionConfig) {
+    this.D = config.D;
+    this.kT = config.kT;
+    this.dt = config.dt;
+    this.freqCoupling = config.freqCoupling;
+  }
+
+  /**
+   * Build or rebuild the graph Laplacian from current neighbor topology.
+   *
+   * L_ij = deg(i)·δ_ij - w_ij
+   * w_ij = e^{-α·η_ij} · coherence_ij
+   *
+   * Called when topology changes (node join/leave).
+   */
+  buildLaplacian(neighbors: NeighborGraph, field: TonalField): void {
+    this.laplacian = new Map();
+    for (const [nodeId, edges] of neighbors) {
+      const row = new Map<string, number>();
+      let degree = 0;
+      for (const edge of edges) {
+        const w = Math.exp(-0.1 * edge.distance.eta) * edge.coherence;
+        row.set(edge.neighborId, -w);
+        degree += w;
+      }
+      row.set(nodeId, degree); // diagonal: L_ii = deg(i)
+      this.laplacian.set(nodeId, row);
+    }
+  }
+
+  /**
+   * One diffusion step for a single node.
+   *
+   * Combines the graph Laplacian (smooth diffusion) with the GF(3)
+   * ternary gradient (discrete directional drift).
+   *
+   * Laplacian term: -D · Σ_j L_ij · c_j  (spreads confidence)
+   * Drift term: (D·c_i/kT) · η_trit      (GF(3) directional push)
+   */
+  step(
+    nodeId: string,
+    localClock: ClockState,
+    field: TonalField,
+    ternGrad: { eta: Trit; theta: Trit; psi: Trit }
+  ): ClockCorrection {
+    const row = this.laplacian.get(nodeId);
+    if (!row) {
+      return { offsetAdjust: 0, frequencyAdjust: 0, newConfidence: localClock.confidence };
+    }
+
+    // Laplacian term: sparse matrix-vector multiply — O(k) per node
+    let laplacianTerm = 0;
+    for (const [j, Lij] of row) {
+      laplacianTerm += Lij * field.getConfidence(j);
+    }
+
+    const diffusion = -this.D * laplacianTerm;
+
+    // Drift term: GF(3) ternary gradient provides directional signal
+    // η = -1 → behind core, speed up; η = +1 → ahead, slow down; η = 0 → hold
+    const drift = (this.D * localClock.confidence / this.kT) * ternGrad.eta;
+
+    return {
+      offsetAdjust: (diffusion + drift) * this.dt,
+      frequencyAdjust: ternGrad.psi * this.freqCoupling,
+      newConfidence: this.updateConfidence(localClock, field),
+    };
+  }
+
+  private updateConfidence(localClock: ClockState, field: TonalField): number {
+    // Confidence increases when gradient is small (near consensus),
+    // decreases when gradient is large (far from consensus)
+    const gradMag = Math.abs(field.getGradient().eta)
+                  + Math.abs(field.getGradient().theta)
+                  + Math.abs(field.getGradient().psi);
+    const decay = 0.99;
+    const boost = gradMag < 0.01 ? 0.01 : 0;
+    const penalty = gradMag > 0.5 ? 0.02 : 0;
+    return Math.min(1.0, Math.max(0.0,
+      localClock.confidence * decay + boost - penalty
+    ));
+  }
+
+  /**
+   * Check if Laplacian needs rebuild (topology change detected)
+   */
+  needsRebuild(currentNeighborCount: Map<string, number>): boolean {
+    if (currentNeighborCount.size !== this.laplacian.size) return true;
+    for (const [nodeId, count] of currentNeighborCount) {
+      const row = this.laplacian.get(nodeId);
+      if (!row || row.size - 1 !== count) return true; // -1 for diagonal
+    }
+    return false;
+  }
+}
+```
+
+### metrics.ts
+
+```typescript
+/**
+ * Dimensionless parameters from Section 8.2 of the unified model,
+ * computed as real-time KPIs for PlenumNET.
+ */
+
+export interface PlenumMetrics {
+  /** Π₁: Field/Pressure Ratio — tonal field energy vs network load. Target: ~10⁻⁶ */
+  pi1: number;
+  /** Π₂: Sync/Resonance Ratio — sync frequency vs network resonance. Target: ≈1.0 */
+  pi2: number;
+  /** Π₃: Information Density — metadata throughput vs sync bandwidth. Target: ≫1 */
+  pi3: number;
+  /** Π₄: Tonal Authority — gradient force vs network inertia. Context-dependent */
+  pi4: number;
+}
+
+export interface NetworkState {
+  tonalFieldEnergy: number;
+  networkLoadPressure: number;
+  currentSyncRate: number;
+  detectedResonance: number;
+  metadataThroughput: number;
+  syncBandwidth: number;
+  D: number;
+  q: number;
+  gradPhiT: number;
+  kT: number;
+  viscosity: number;
+  flowVelocity: number;
+  pathLength: number;
+}
+
+export function computePlenumMetrics(state: Partial<NetworkState>): PlenumMetrics {
+  const s = {
+    tonalFieldEnergy: 0,
+    networkLoadPressure: 1,
+    currentSyncRate: 1,
+    detectedResonance: 1,
+    metadataThroughput: 0,
+    syncBandwidth: 1,
+    D: 0.1,
+    q: 1,
+    gradPhiT: 0,
+    kT: 1,
+    viscosity: 1,
+    flowVelocity: 1,
+    pathLength: 1,
+    ...state,
+  };
+
+  return {
+    pi1: s.networkLoadPressure !== 0
+      ? s.tonalFieldEnergy / s.networkLoadPressure
+      : 0,
+    pi2: s.detectedResonance !== 0
+      ? s.currentSyncRate / s.detectedResonance
+      : 0,
+    pi3: s.syncBandwidth !== 0
+      ? s.metadataThroughput / s.syncBandwidth
+      : 0,
+    pi4: (s.viscosity * s.flowVelocity) !== 0
+      ? (s.D * s.q * s.gradPhiT / s.kT)
+        / (s.viscosity * s.flowVelocity / (s.pathLength ** 2))
+      : 0,
+  };
+}
+
+/** Alert thresholds for dashboard */
+export const THRESHOLDS = {
+  pi2: { warning: [0.85, 1.15], critical: [0.7, 1.3] },
+  pi3: { minimum: 2.0 },
+  pi4: { low: 0.1, high: 10.0 },
+} as const;
+
+export function evaluateHealth(metrics: PlenumMetrics): {
+  status: 'optimal' | 'warning' | 'critical';
+  issues: string[];
+} {
+  const issues: string[] = [];
+
+  if (metrics.pi2 < THRESHOLDS.pi2.critical[0] || metrics.pi2 > THRESHOLDS.pi2.critical[1]) {
+    issues.push(`Π₂ critical: ${metrics.pi2.toFixed(3)} (target ≈1.0)`);
+  } else if (metrics.pi2 < THRESHOLDS.pi2.warning[0] || metrics.pi2 > THRESHOLDS.pi2.warning[1]) {
+    issues.push(`Π₂ warning: ${metrics.pi2.toFixed(3)} (target ≈1.0)`);
+  }
+
+  if (metrics.pi3 < THRESHOLDS.pi3.minimum) {
+    issues.push(`Π₃ low: ${metrics.pi3.toFixed(3)} (target ≫1)`);
+  }
+
+  return {
+    status: issues.some(i => i.includes('critical')) ? 'critical'
+          : issues.length > 0 ? 'warning' : 'optimal',
+    issues,
+  };
+}
+```
+
+---
+
+## Module 3: Toroidal Network Topology
+
+**Location:** `shared/topology/`
+
+### index.ts
+
+```typescript
+export { ToroidalAddress, toroidalDistance, naturalNeighbors } from './coordinates';
+export { Trit, gf3Sub, gf3Add, ternaryGradient, majorityVote } from './gf3';
+export type { NeighborEntry, TernaryGradient } from './gf3';
+```
+
+### coordinates.ts
+
+```typescript
+export interface ToroidalAddress {
+  eta: number;    // 0 = core timing node, increasing = edge
+  theta: number;  // regional group angle [0, 2π)
+  psi: number;    // ring position [0, 2π)
+}
+
+/**
+ * Geodesic distance on the torus.
+ *
+ * ds² = (R + η·cos θ)² dψ² + dη² + η² dθ²
+ *
+ * R = major radius (network scale parameter)
+ */
+export function toroidalDistance(
+  a: ToroidalAddress,
+  b: ToroidalAddress,
+  R: number
+): number {
+  const dPsi = angleDiff(a.psi, b.psi);
+  const dTheta = angleDiff(a.theta, b.theta);
+  const dEta = Math.abs(a.eta - b.eta);
+
+  return Math.sqrt(
+    (R + a.eta * Math.cos(a.theta)) ** 2 * dPsi ** 2
+    + dEta ** 2
+    + a.eta ** 2 * dTheta ** 2
+  );
+}
+
+/**
+ * Shortest angular difference, accounting for wraparound.
+ */
+function angleDiff(a: number, b: number): number {
+  let d = ((b - a) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+  return Math.abs(d);
+}
+
+/**
+ * Find k-nearest neighbors in toroidal metric.
+ */
+export function naturalNeighbors(
+  node: ToroidalAddress,
+  allNodes: { id: string; address: ToroidalAddress }[],
+  k: number,
+  R: number
+): { id: string; address: ToroidalAddress; distance: number }[] {
+  return allNodes
+    .map(n => ({
+      id: n.id,
+      address: n.address,
+      distance: toroidalDistance(node, n.address, R),
+    }))
+    .filter(n => n.distance > 0) // exclude self
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, k);
+}
+
+/**
+ * Classify which toroidal axis dominates between two nodes.
+ */
+export function dominantAxis(
+  a: ToroidalAddress,
+  b: ToroidalAddress,
+  R: number
+): 'eta' | 'theta' | 'psi' {
+  const dEta = Math.abs(a.eta - b.eta);
+  const dTheta = a.eta * angleDiff(a.theta, b.theta);
+  const dPsi = (R + a.eta * Math.cos(a.theta)) * angleDiff(a.psi, b.psi);
+
+  if (dEta >= dTheta && dEta >= dPsi) return 'eta';
+  if (dTheta >= dPsi) return 'theta';
+  return 'psi';
+}
+```
+
+### gf3.ts
+
+```typescript
+/**
+ * GF(3) Ternary Gradient Operator — TypeScript implementation.
+ *
+ * Mirrors libternary/src/fm_timing/gf3_gradient.rs for use in
+ * TypeScript services without WASM overhead for simple operations.
+ */
+
+export type Trit = -1 | 0 | 1;
+
+export interface NeighborEntry {
+  id: string;
+  fieldValue: Trit;
+  dominantAxis: 'eta' | 'theta' | 'psi';
+}
+
+export interface TernaryGradient {
+  eta: Trit;
+  theta: Trit;
+  psi: Trit;
+}
+
+/** GF(3) subtraction: a ⊖₃ b in balanced ternary */
+export function gf3Sub(a: Trit, b: Trit): Trit {
+  const raw = ((a - b) % 3 + 4) % 3;
+  return (raw === 2 ? -1 : raw) as Trit;
+}
+
+/** GF(3) addition: a ⊕₃ b in balanced ternary */
+export function gf3Add(a: Trit, b: Trit): Trit {
+  const raw = ((a + b) % 3 + 3) % 3;
+  return (raw === 2 ? -1 : raw) as Trit;
+}
+
+/**
+ * Compute the ternary gradient of the tonal field at a node.
+ *
+ * F_{T,η}^{(3)} = -(Φ_T(η + Δη) ⊖₃ Φ_T(η))
+ *
+ * For each toroidal axis, collects GF(3) differences with neighbors
+ * along that axis and returns the majority vote.
+ */
+export function ternaryGradient(
+  localValue: Trit,
+  neighbors: NeighborEntry[]
+): TernaryGradient {
+  const byAxis: Record<'eta' | 'theta' | 'psi', Trit[]> = {
+    eta: [], theta: [], psi: []
+  };
+
+  for (const n of neighbors) {
+    const diff = gf3Sub(n.fieldValue, localValue);
+    const negated: Trit = (diff === 0 ? 0 : -diff) as Trit; // F = -∇Φ
+    byAxis[n.dominantAxis].push(negated);
+  }
+
+  return {
+    eta: majorityVote(byAxis.eta),
+    theta: majorityVote(byAxis.theta),
+    psi: majorityVote(byAxis.psi),
+  };
+}
+
+/** Majority vote: returns sign of sum. Empty → 0 (no information = flat). */
+export function majorityVote(trits: Trit[]): Trit {
+  if (trits.length === 0) return 0;
+  const sum = trits.reduce((s, t) => s + t, 0);
+  return sum > 0 ? 1 : sum < 0 ? -1 : 0;
+}
+```
+
+---
+
+## Module 4: Adaptive Resonance Tuning
+
+**Location:** `server/resonance/`
+
+### index.ts
+
+```typescript
+/**
+ * Adaptive Resonance Tuning
+ *
+ * Cardiac efficiency peaks when f_inst ≈ f_resonance (Section 5.2).
+ * Network analog: sync interval matches round-trip propagation characteristics.
+ * The FM sweep behavior (HRV sweeping through resonances) becomes
+ * adaptive sync rate tuning.
+ */
+
+export interface SweepResult {
+  optimalRate: number;
+  peakCoherence: number;
+  resonanceProfile: { frequency: number; coherence: number }[];
+}
+
+export class ResonanceDetector {
+  private rttHistory: number[] = [];
+  private maxHistory: number;
+  private currentSyncRate: number;
+  private pathLengths: number[] = [];
+
+  constructor(config: {
+    initialSyncRate: number;
+    maxHistory?: number;
+  }) {
+    this.currentSyncRate = config.initialSyncRate;
+    this.maxHistory = config.maxHistory ?? 1000;
+  }
+
+  /** Record a round-trip time measurement */
+  recordRtt(rttMs: number): void {
+    this.rttHistory.push(rttMs);
+    if (this.rttHistory.length > this.maxHistory) {
+      this.rttHistory.shift();
+    }
+  }
+
+  /** Record a path length measurement (in hops or distance units) */
+  recordPathLength(length: number): void {
+    this.pathLengths.push(length);
+    if (this.pathLengths.length > this.maxHistory) {
+      this.pathLengths.shift();
+    }
+  }
+
+  /** Median RTT in ms */
+  get medianRtt(): number {
+    if (this.rttHistory.length === 0) return Infinity;
+    const sorted = [...this.rttHistory].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  get averagePathLength(): number {
+    if (this.pathLengths.length === 0) return 1;
+    return this.pathLengths.reduce((s, l) => s + l, 0) / this.pathLengths.length;
+  }
+
+  get longestPath(): number {
+    return this.pathLengths.length > 0 ? Math.max(...this.pathLengths) : 1;
+  }
+
+  /**
+   * Moens-Korteweg analog: c₀ = √(Eh / 2ρR)
+   * Network: propagation speed from RTT statistics
+   */
+  get networkWaveSpeed(): number {
+    const rtt = this.medianRtt;
+    if (rtt === 0 || rtt === Infinity) return 1;
+    return this.averagePathLength / (rtt / 1000); // convert ms to s
+  }
+
+  /**
+   * Quarter-wave resonance: f_r = c₀ / (4L)
+   */
+  get resonantFrequency(): number {
+    return this.networkWaveSpeed / (4 * this.longestPath);
+  }
+
+  /**
+   * Optimal sync condition from Section 5.2:
+   * Round-trip = T/2 + nT (reflected wave augments next cycle)
+   */
+  computeOptimalSyncRate(): number {
+    const c0 = this.networkWaveSpeed;
+    const L = this.averagePathLength;
+    const T_roundtrip = 2 * L / c0;
+    if (T_roundtrip === 0) return this.currentSyncRate;
+    return 1 / (2 * T_roundtrip);
+  }
+
+  /**
+   * FM sweep: vary sync rate to find resonance peaks.
+   *
+   * Chirps through ±20% of estimated resonant frequency,
+   * measures sync quality at each step, returns optimal rate.
+   *
+   * @param measureCoherence - callback that tests a given sync rate
+   *        and returns measured coherence (0–1). This runs on a
+   *        shadow channel so active sync is not disrupted.
+   */
+  async sweep(
+    measureCoherence: (syncRate: number) => Promise<number>,
+    steps: number = 20
+  ): Promise<SweepResult> {
+    const fCenter = this.resonantFrequency;
+    const fLow = fCenter * 0.8;
+    const fHigh = fCenter * 1.2;
+    const fStep = (fHigh - fLow) / steps;
+
+    const profile: { frequency: number; coherence: number }[] = [];
+
+    for (let i = 0; i <= steps; i++) {
+      const f = fLow + i * fStep;
+      const coherence = await measureCoherence(f);
+      profile.push({ frequency: f, coherence });
+    }
+
+    // Find peak
+    const peak = profile.reduce((best, p) =>
+      p.coherence > best.coherence ? p : best
+    );
+
+    this.currentSyncRate = peak.frequency;
+
+    return {
+      optimalRate: peak.frequency,
+      peakCoherence: peak.coherence,
+      resonanceProfile: profile,
+    };
+  }
+
+  /** Current sync rate (Hz) */
+  get syncRate(): number {
+    return this.currentSyncRate;
+  }
+
+  /** Π₂ = current sync rate / detected resonance */
+  get pi2(): number {
+    const fr = this.resonantFrequency;
+    return fr !== 0 ? this.currentSyncRate / fr : 0;
+  }
+
+  /** Whether Π₂ is within acceptable range */
+  get isResonant(): boolean {
+    const p = this.pi2;
+    return p > 0.85 && p < 1.15;
+  }
+}
+```
+
+---
+
+## Module 5: Plenum Metrics Dashboard
+
+**Location:** `client/src/components/plenum-metrics/`
+
+### PlenumDashboard.tsx
+
+```tsx
+import { useState, useEffect, useRef } from 'react';
+
+interface PlenumMetrics {
+  pi1: number;
+  pi2: number;
+  pi3: number;
+  pi4: number;
+}
+
+interface MetricHealth {
+  status: 'optimal' | 'warning' | 'critical';
+  issues: string[];
+}
+
+export default function PlenumDashboard() {
+  const [metrics, setMetrics] = useState<PlenumMetrics>({ pi1: 0, pi2: 0, pi3: 0, pi4: 0 });
+  const [health, setHealth] = useState<MetricHealth>({ status: 'optimal', issues: [] });
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    // Initial fetch
+    fetch('/api/metrics/plenum')
+      .then(r => r.json())
+      .then(setMetrics)
+      .catch(console.error);
+
+    // WebSocket for real-time updates
+    const ws = new WebSocket(`wss://${window.location.host}/ws/tonal`);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'field_update') {
+        fetch('/api/metrics/plenum')
+          .then(r => r.json())
+          .then(m => {
+            setMetrics(m);
+            setHealth(evaluateHealth(m));
+          });
+      }
+    };
+    wsRef.current = ws;
+    return () => ws.close();
+  }, []);
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Plenum Tonal Field</h2>
+        <StatusBadge status={health.status} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <MetricGauge label="Π₁ Field/Pressure"
+          value={metrics.pi1} format="scientific"
+          target="~10⁻⁶" />
+        <MetricGauge label="Π₂ Sync/Resonance"
+          value={metrics.pi2} format="decimal"
+          target="≈ 1.0"
+          warning={[0.85, 1.15]} critical={[0.7, 1.3]} />
+        <MetricGauge label="Π₃ Info Density"
+          value={metrics.pi3} format="decimal"
+          target="≫ 1" />
+        <MetricGauge label="Π₄ Tonal Authority"
+          value={metrics.pi4} format="decimal"
+          target="context" />
+      </div>
+
+      {health.issues.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+          {health.issues.map((issue, i) => (
+            <p key={i} className="text-sm text-yellow-800">{issue}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricGauge({ label, value, format, target, warning, critical }: {
+  label: string;
+  value: number;
+  format: 'scientific' | 'decimal';
+  target: string;
+  warning?: [number, number];
+  critical?: [number, number];
+}) {
+  const display = format === 'scientific' ? value.toExponential(2) : value.toFixed(4);
+  let color = 'text-green-600';
+  if (critical && (value < critical[0] || value > critical[1])) color = 'text-red-600';
+  else if (warning && (value < warning[0] || value > warning[1])) color = 'text-yellow-600';
+
+  return (
+    <div className="bg-white rounded-lg border p-4">
+      <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className={`text-2xl font-mono font-bold ${color}`}>{display}</p>
+      <p className="text-xs text-gray-400">target: {target}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    optimal: 'bg-green-100 text-green-800',
+    warning: 'bg-yellow-100 text-yellow-800',
+    critical: 'bg-red-100 text-red-800',
+  };
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] ?? ''}`}>
+      {status.toUpperCase()}
+    </span>
+  );
+}
+
+function evaluateHealth(m: PlenumMetrics): MetricHealth {
+  const issues: string[] = [];
+  if (m.pi2 < 0.7 || m.pi2 > 1.3) issues.push(`Π₂ critical: ${m.pi2.toFixed(3)}`);
+  else if (m.pi2 < 0.85 || m.pi2 > 1.15) issues.push(`Π₂ warning: ${m.pi2.toFixed(3)}`);
+  if (m.pi3 < 2.0) issues.push(`Π₃ low: ${m.pi3.toFixed(3)}`);
+  return {
+    status: issues.some(i => i.includes('critical')) ? 'critical'
+          : issues.length > 0 ? 'warning' : 'optimal',
+    issues,
+  };
+}
+```
+
+---
+
+## Module 6: Kong Gateway Routes
+
+**Location:** `kong/`
+
+### tonal-routes.yml
+
+```yaml
+# PlenumNET Tonal Diffusion API Routes
+# Add to existing Kong declarative config
+
+services:
+  - name: tonal-field
+    url: http://localhost:3001
+    routes:
+      - name: tonal-field-status
+        paths: ["/api/tonal/field"]
+        methods: ["GET"]
+      - name: tonal-neighbors
+        paths: ["/api/tonal/neighbors"]
+        methods: ["GET"]
+      - name: tonal-packet-ingest
+        paths: ["/api/tonal/packet"]
+        methods: ["POST"]
+
+  - name: resonance
+    url: http://localhost:3000
+    routes:
+      - name: resonance-status
+        paths: ["/api/resonance/status"]
+        methods: ["GET"]
+      - name: resonance-sweep
+        paths: ["/api/resonance/sweep"]
+        methods: ["POST"]
+
+  - name: plenum-metrics
+    url: http://localhost:3000
+    routes:
+      - name: plenum-metrics-read
+        paths: ["/api/metrics/plenum"]
+        methods: ["GET"]
+
+# All routes inherit existing PQ auth plugin from global config
+```
+
+---
+
+## Build Phases
+
+| Phase | Duration | Deliverables |
+|-------|----------|-------------|
+| **1: Foundation** | Weeks 1–2 | `shared/topology` (coordinates + GF(3)), `libternary/fm_timing/oscillator.rs`, `libternary/fm_timing/hrv.rs`, `libternary/fm_timing/gf3_gradient.rs` |
+| **2: Packets & Field** | Weeks 3–4 | `libternary/fm_timing/packet.rs`, `services/tonal-field/` (field + graph Laplacian diffusion), Kong routes |
+| **3: Resonance & Metrics** | Weeks 5–6 | `server/resonance/`, `client/plenum-metrics/`, integration tests |
+| **4: Hardening** | Week 7+ | Benchmarks, API docs, SiTime interface spec |
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Così sia, Fratello.*
