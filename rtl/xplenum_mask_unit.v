@@ -7,7 +7,8 @@
 //
 // XPLENUM — RISC-V Ternary Security Extension
 // Ternary Masking Unit (xplenum_mask_unit.v)
-// Stage 3 — Side-channel resistant ternary masking with hardware TRNG
+// Stage 3 — Side-channel resistant ternary masking with NIST CTR_DRBG
+// Revision 2.0: LFSR replaced with SP 800-90A CTR_DRBG (AES-256)
 // =============================================================================
 
 `include "xplenum_pkg.vh"
@@ -25,9 +26,18 @@ module xplenum_mask_unit (
     input  wire [31:0] rs1_data,
     input  wire [31:0] rs2_data,
 
-    // LFSR seed interface
+    // DRBG seed interface (256-bit for CTR_DRBG, backward-compatible 32-bit write)
     input  wire        seed_wr,
     input  wire [31:0] seed_data,
+
+    // Extended seed interface for full 256-bit entropy injection
+    input  wire [255:0] seed_full_i,
+    input  wire         seed_full_valid_i,
+    input  wire         reseed_i,
+
+    // DRBG health status
+    output wire         drbg_health_error_o,
+    output wire         drbg_ready_o,
 
     // Outputs
     output reg  [31:0] result,
@@ -37,20 +47,41 @@ module xplenum_mask_unit (
 );
 
     // -----------------------------------------------------------------------
-    // LFSR-based TRNG — 32-bit maximal-length
-    // Polynomial: x^32 + x^22 + x^2 + x + 1
+    // CTR_DRBG (NIST SP 800-90A) — replaces legacy LFSR
+    // Uses AES-256 in counter mode for FIPS 140-3 compliant random generation
     // -----------------------------------------------------------------------
-    reg [31:0] lfsr;
+    wire [31:0]  drbg_data;
+    wire         drbg_valid;
+    reg  [31:0]  drbg_buffer;
+    reg          drbg_buffer_valid;
 
-    wire lfsr_feedback = lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0];
+    wire [255:0] seed_256 = seed_full_valid_i ? seed_full_i :
+                            seed_wr ? {224'h0, seed_data} : 256'h0;
+    wire         seed_trigger = seed_full_valid_i | seed_wr;
+
+    wire         drbg_generate_req = valid && mask_en &&
+                                     (funct7 == `F7_TMASKR || funct7 == `F7_TMASKRF);
+
+    xplenum_ctr_drbg u_drbg (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .seed_i       (seed_256),
+        .seed_valid_i (seed_trigger),
+        .reseed_i     (reseed_i),
+        .generate_i   (drbg_generate_req),
+        .drbg_data_o  (drbg_data),
+        .drbg_valid_o (drbg_valid),
+        .health_error_o (drbg_health_error_o),
+        .ready_o      (drbg_ready_o)
+    );
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            lfsr <= 32'hDEAD_BEEF;
-        end else if (seed_wr) begin
-            lfsr <= (seed_data != 32'h0) ? seed_data : 32'hDEAD_BEEF;
-        end else if (valid && mask_en) begin
-            lfsr <= {lfsr[30:0], lfsr_feedback};
+            drbg_buffer       <= 32'hDEAD_BEEF;
+            drbg_buffer_valid <= 1'b0;
+        end else if (drbg_valid) begin
+            drbg_buffer       <= drbg_data;
+            drbg_buffer_valid <= 1'b1;
         end
     end
 
@@ -128,23 +159,23 @@ module xplenum_mask_unit (
     endfunction
 
     // -----------------------------------------------------------------------
-    // Convert raw LFSR bits to valid trit encoding
+    // Convert raw DRBG bits to valid trit encoding
     // Map 2-bit pairs: 00→00, 01→01, 10→10, 11→00 (invalid→zero)
     // -----------------------------------------------------------------------
-    function [31:0] lfsr_to_trits;
+    function [31:0] raw_to_trits;
         input [31:0] raw;
         integer i;
         begin
             for (i = 0; i < 16; i = i + 1) begin
                 if (raw[2*i +: 2] == `TRIT_INVALID)
-                    lfsr_to_trits[2*i +: 2] = `TRIT_ZERO;
+                    raw_to_trits[2*i +: 2] = `TRIT_ZERO;
                 else
-                    lfsr_to_trits[2*i +: 2] = raw[2*i +: 2];
+                    raw_to_trits[2*i +: 2] = raw[2*i +: 2];
             end
         end
     endfunction
 
-    wire [31:0] random_mask = lfsr_to_trits(lfsr);
+    wire [31:0] random_mask = raw_to_trits(drbg_buffer);
 
     // -----------------------------------------------------------------------
     // Main execution logic
@@ -163,32 +194,40 @@ module xplenum_mask_unit (
                 exc_code     <= `XP_EXC_MASK_FAULT;
                 result_valid <= 1'b1;
                 result       <= 32'h0;
+            end else if (drbg_health_error_o) begin
+                exc_code     <= `XP_EXC_MASK_FAULT;
+                result_valid <= 1'b1;
+                result       <= 32'h0;
             end else begin
                 result_valid <= 1'b1;
                 case (funct7)
                     `F7_TMASK: begin
-                        // TMASK rd, rs1, rs2 — apply mask
                         result <= apply_mask(rs1_data, rs2_data);
                     end
 
                     `F7_TUNMASK: begin
-                        // TUNMASK rd, rs1, rs2 — remove mask
                         result <= remove_mask(rs1_data, rs2_data);
                     end
 
                     `F7_TMASKR: begin
-                        // TMASKR rd, rs1 — generate random mask + apply
-                        mask_state_reg <= random_mask;
-                        result <= apply_mask(rs1_data, random_mask);
+                        if (!drbg_buffer_valid) begin
+                            result_valid <= 1'b0;
+                        end else begin
+                            mask_state_reg <= random_mask;
+                            result <= apply_mask(rs1_data, random_mask);
+                        end
                     end
 
                     `F7_TMASKRF: begin
-                        // TMASKRF rd, rs1 — unmask with old, remask with new
-                        result <= apply_mask(
-                            remove_mask(rs1_data, mask_state_reg),
-                            random_mask
-                        );
-                        mask_state_reg <= random_mask;
+                        if (!drbg_buffer_valid) begin
+                            result_valid <= 1'b0;
+                        end else begin
+                            result <= apply_mask(
+                                remove_mask(rs1_data, mask_state_reg),
+                                random_mask
+                            );
+                            mask_state_reg <= random_mask;
+                        end
                     end
 
                     default: begin
