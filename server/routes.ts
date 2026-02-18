@@ -25,6 +25,11 @@ import { registerDataSubjectRightsRoutes } from "./routes/data-subject-rights";
 import { registerSalviRoutes } from "./routes/salvi";
 import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { registerAgentArrayRoutes } from "./routes/agent-array";
+import { registerApiKeyRoutes } from "./routes/api-keys";
+import { registerSecurityRoutes } from "./routes/security";
+import { registerEphemerisRoutes } from "./routes/ephemeris";
+import { registerTonalFieldRoutes } from "./routes/tonal-field";
+import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
 import * as XLSX from "xlsx";
@@ -100,6 +105,17 @@ export async function registerRoutes(
         database: dbStatus,
         server: "running"
       }
+    });
+  });
+
+  const { requireApiKey } = await import("./routes/middleware");
+
+  app.get("/api/verify", requireApiKey, (_req: any, res: any) => {
+    res.json({
+      status: "authenticated",
+      service: "PlenumNET",
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
     });
   });
 
@@ -947,11 +963,29 @@ export async function registerRoutes(
   // KONG KONNECT INTEGRATION API — extracted to server/routes/kong.ts
   // =====================================================
   registerKongRoutes(app, storage);
+  registerApiKeyRoutes(app, storage);
+
+  apiKeyService.startRotationCron();
 
   // =====================================================
   // GDPR DATA SUBJECT RIGHTS — extracted to server/routes/data-subject-rights.ts
   // =====================================================
   registerDataSubjectRightsRoutes(app, storage);
+
+  // =====================================================
+  // SECURITY INFRASTRUCTURE — extracted to server/routes/security.ts
+  // =====================================================
+  registerSecurityRoutes(app, storage);
+
+  // =====================================================
+  // TERNARY EPHEMERIS API — extracted to server/routes/ephemeris.ts
+  // =====================================================
+  registerEphemerisRoutes(app);
+
+  // =====================================================
+  // TONAL DIFFUSION API — tonal field, resonance, metrics
+  // =====================================================
+  registerTonalFieldRoutes(app);
 
   return httpServer;
 }
