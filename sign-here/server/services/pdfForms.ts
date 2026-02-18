@@ -212,6 +212,22 @@ export async function bakeFillablePdf(
             thickness: 1,
             color: rgb(0.3, 0.3, 0.3),
           });
+        } else if (f.label === "seal") {
+          const sealFontSize = 6.5 * scaleX;
+          const fieldW = f.width * scaleX;
+          const fieldH = f.height * scaleY;
+          const sealColor = rgb(0.35, 0.35, 0.35);
+          drawWrappedText(
+            page,
+            f.value,
+            pdfX + 4,
+            pdfY + fieldH - sealFontSize * 0.8,
+            fieldW - 8,
+            helvetica,
+            sealFontSize,
+            sealColor,
+            sealFontSize * 1.3
+          );
         } else {
           page.drawText(f.value, {
             x: pdfX + 4,

@@ -29,6 +29,7 @@ export const envelopes = pgTable("envelopes", {
   pdfData: text("pdf_data"),
   pageCount: integer("page_count").notNull().default(1),
   zkProof: text("zk_proof"),
+  wbsTagId: varchar("wbs_tag_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -88,6 +89,32 @@ export const templates = pgTable("templates", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const wbsTags = pgTable("wbs_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#D4A017"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const envelopeWbsTags = pgTable("envelope_wbs_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  envelopeId: varchar("envelope_id").notNull(),
+  wbsTagId: varchar("wbs_tag_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const envelopeWbsTagsRelations = relations(envelopeWbsTags, ({ one }) => ({
+  envelope: one(envelopes, { fields: [envelopeWbsTags.envelopeId], references: [envelopes.id] }),
+  wbsTag: one(wbsTags, { fields: [envelopeWbsTags.wbsTagId], references: [wbsTags.id] }),
+}));
+
+export const wbsTagsRelations = relations(wbsTags, ({ one, many }) => ({
+  tenant: one(tenants, { fields: [wbsTags.tenantId], references: [tenants.id] }),
+  envelopeTags: many(envelopeWbsTags),
+}));
+
 export const templatesRelations = relations(templates, ({ one }) => ({
   tenant: one(tenants, { fields: [templates.tenantId], references: [tenants.id] }),
 }));
@@ -97,6 +124,7 @@ export const envelopesRelations = relations(envelopes, ({ one, many }) => ({
   audits: many(auditLogs),
   recipients: many(recipients),
   fieldsList: many(fields),
+  wbsTags: many(envelopeWbsTags),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
@@ -145,6 +173,11 @@ export const insertTemplateSchema = createInsertSchema(templates).omit({
   updatedAt: true,
 });
 
+export const insertWbsTagSchema = createInsertSchema(wbsTags).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -159,3 +192,6 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type Template = typeof templates.$inferSelect;
 export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export type WbsTag = typeof wbsTags.$inferSelect;
+export type InsertWbsTag = z.infer<typeof insertWbsTagSchema>;
+export type EnvelopeWbsTag = typeof envelopeWbsTags.$inferSelect;

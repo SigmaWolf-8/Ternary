@@ -87,34 +87,34 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
-  --background: 30 6% 6%;
+  --background: 30 6% 3%;
   --foreground: 38 15% 88%;
-  --border: 30 5% 14%;
-  --card: 30 5% 8%;
+  --border: 30 5% 10%;
+  --card: 30 5% 5%;
   --card-foreground: 38 15% 88%;
-  --card-border: 30 5% 11%;
-  --sidebar: 30 4% 9%;
+  --card-border: 30 5% 8%;
+  --sidebar: 30 4% 4%;
   --sidebar-foreground: 38 12% 80%;
-  --sidebar-border: 30 5% 13%;
+  --sidebar-border: 30 5% 9%;
   --sidebar-primary: 40 65% 50%;
-  --sidebar-primary-foreground: 30 6% 6%;
-  --sidebar-accent: 30 5% 13%;
+  --sidebar-primary-foreground: 30 6% 3%;
+  --sidebar-accent: 30 5% 9%;
   --sidebar-accent-foreground: 38 12% 80%;
   --sidebar-ring: 40 65% 50%;
-  --popover: 30 5% 10%;
+  --popover: 30 5% 5%;
   --popover-foreground: 38 12% 82%;
-  --popover-border: 30 5% 15%;
+  --popover-border: 30 5% 10%;
   --primary: 40 65% 50%;
-  --primary-foreground: 30 6% 6%;
-  --secondary: 30 5% 14%;
+  --primary-foreground: 30 6% 3%;
+  --secondary: 30 5% 10%;
   --secondary-foreground: 38 12% 80%;
-  --muted: 30 4% 13%;
-  --muted-foreground: 30 5% 52%;
-  --accent: 38 8% 13%;
+  --muted: 30 4% 8%;
+  --muted-foreground: 30 5% 48%;
+  --accent: 38 8% 9%;
   --accent-foreground: 38 10% 82%;
   --destructive: 0 72% 40%;
   --destructive-foreground: 0 20% 98%;
-  --input: 30 5% 22%;
+  --input: 30 5% 16%;
   --ring: 40 65% 50%;
   --chart-1: 40 65% 55%;
   --chart-2: 28 55% 58%;
@@ -164,6 +164,12 @@
     letter-spacing: 0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@media print {
+  [data-geo-sensitive] {
+    visibility: hidden !important;
   }
 }
 

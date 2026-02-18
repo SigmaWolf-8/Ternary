@@ -117,6 +117,7 @@ export async function seedDatabase() {
   const existing = await storage.getEnvelopes();
   if (existing.length > 0) {
     await seedTemplates();
+    await seedWbsTags();
     return;
   }
 
@@ -337,6 +338,34 @@ export async function seedDatabase() {
   await storage.createAuditLog({ envelopeId: env4.id, action: "Document signed", actorName: "Priya Sharma", details: "Signed by Priya Sharma (priya@consultpro.com)" });
 
   await seedTemplates();
+  await seedWbsTags();
 
   log("Database seeded successfully", "seed");
+}
+
+async function seedWbsTags() {
+  const existing = await storage.getWbsTags();
+  if (existing.length > 0) return;
+
+  log("Seeding WBS tags...", "seed");
+
+  const tags = [
+    { name: "Construction Agreement", color: "#C0392B", sortOrder: 0 },
+    { name: "Lease Agreement", color: "#C0392B", sortOrder: 1 },
+    { name: "Change Order", color: "#C0392B", sortOrder: 2 },
+    { name: "Pre Occupancy Closeout", color: "#2980B9", sortOrder: 3 },
+    { name: "Subcontract Agreement", color: "#2980B9", sortOrder: 4 },
+    { name: "Consulting Agreement", color: "#2980B9", sortOrder: 5 },
+    { name: "Employment Offer", color: "#3498DB", sortOrder: 6 },
+    { name: "Human Resources", color: "#8E44AD", sortOrder: 7 },
+    { name: "NDA - Non Disclosure Agreement", color: "#27AE60", sortOrder: 8 },
+    { name: "Safety & Compliance", color: "#F39C12", sortOrder: 9 },
+    { name: "Legal", color: "#E67E22", sortOrder: 10 },
+  ];
+
+  for (const tag of tags) {
+    await storage.createWbsTag(tag);
+  }
+
+  log("WBS tags seeded successfully", "seed");
 }

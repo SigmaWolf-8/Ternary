@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,7 +15,11 @@ import {
   FileText,
   X,
   GripVertical,
+  Tag,
+  ChevronDown,
+  CheckCircle2,
 } from "lucide-react";
+import type { WbsTag } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -101,6 +111,17 @@ export default function EnvelopeNew() {
   const [isStitching, setIsStitching] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  const { data: wbsTags } = useQuery<WbsTag[]>({
+    queryKey: ["/api/wbs-tags"],
+  });
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
 
   const totalPages = pdfFiles.reduce((sum, f) => sum + f.pageCount, 0);
 
@@ -219,10 +240,15 @@ export default function EnvelopeNew() {
         }
       }
 
+      if (selectedTagIds.length > 0) {
+        await apiRequest("PUT", `/api/envelopes/${envelope.id}/wbs-tags`, { tagIds: selectedTagIds });
+      }
+
       return envelope;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/envelope-wbs-tags"] });
       toast({ title: "Envelope created" });
       setLocation(`/envelope/${data.id}/edit`);
     },
@@ -483,6 +509,77 @@ export default function EnvelopeNew() {
                 </div>
               </CardContent>
             </Card>
+
+            {wbsTags && wbsTags.length > 0 && (
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <h2 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">WBS Tags</h2>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="w-full justify-between text-[11px]" data-testid="dropdown-new-wbs-tags">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <Tag className="w-3 h-3 shrink-0" />
+                          {selectedTagIds.length === 0
+                            ? "Select tags..."
+                            : `${selectedTagIds.length} tag${selectedTagIds.length > 1 ? "s" : ""} selected`}
+                        </span>
+                        <ChevronDown className="w-3 h-3 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-56 max-h-64 overflow-y-auto p-1">
+                      {wbsTags.map((tag) => {
+                        const isActive = selectedTagIds.includes(tag.id);
+                        return (
+                          <div
+                            key={tag.id}
+                            onClick={() => toggleTag(tag.id)}
+                            className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate transition-colors cursor-pointer"
+                            data-testid={`toggle-new-wbs-${tag.id}`}
+                          >
+                            <div
+                              className="w-3 h-3 rounded border flex items-center justify-center shrink-0"
+                              style={{
+                                backgroundColor: isActive ? tag.color : "transparent",
+                                borderColor: tag.color,
+                              }}
+                            >
+                              {isActive && (
+                                <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                              )}
+                            </div>
+                            <div
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className={isActive ? "font-medium" : "text-muted-foreground"}>
+                              {tag.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </PopoverContent>
+                  </Popover>
+                  {selectedTagIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedTagIds.map((tagId) => {
+                        const tag = wbsTags.find((t) => t.id === tagId);
+                        if (!tag) return null;
+                        return (
+                          <Badge
+                            key={tagId}
+                            variant="outline"
+                            className="text-[9px] no-default-active-elevate"
+                            style={{ borderColor: tag.color, color: tag.color }}
+                          >
+                            {tag.name}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <div className="flex items-center justify-end gap-1.5">
               <Link href="/">

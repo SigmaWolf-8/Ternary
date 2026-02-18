@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ZoomProvider, ZoomControl } from "@/components/zoom-control";
+import { DashboardFilterProvider } from "@/lib/dashboard-context";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import EnvelopeNew from "@/pages/envelope-new";
@@ -21,6 +22,8 @@ import AdminPage from "@/pages/admin";
 import CertificatePage from "@/pages/certificate";
 import TemplatesPage from "@/pages/templates";
 import TemplateEditorPage from "@/pages/template-editor";
+import WbsTagsPage from "@/pages/wbs-tags";
+import WbsTaggingPage from "@/pages/wbs-tagging";
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -29,27 +32,29 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center justify-between gap-2 px-3 py-1.5 border-b shrink-0 bg-background sticky top-0 z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-1">
-              <span className="text-[9px] text-muted-foreground tracking-wider uppercase mr-2 hidden sm:inline" data-testid="text-version">
-                v1.0.0 | PlenumNET v2.1
-              </span>
-              <ZoomControl />
-              <div className="w-px h-4 bg-border mx-1" />
-              <ThemeToggle />
-            </div>
-          </header>
-          <main className="flex-1 overflow-hidden flex flex-col">
-            {children}
-          </main>
+    <DashboardFilterProvider>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1 min-w-0">
+            <header className="flex items-center justify-between gap-2 px-3 py-1.5 border-b shrink-0 bg-background sticky top-0 z-50">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground tracking-wider uppercase mr-2 hidden sm:inline" data-testid="text-version">
+                  v1.0.0 | PlenumNET v2.1
+                </span>
+                <ZoomControl />
+                <div className="w-px h-4 bg-border mx-1" />
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="flex-1 overflow-hidden flex flex-col">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </DashboardFilterProvider>
   );
 }
 
@@ -64,6 +69,8 @@ function MainRouter() {
         <Route path="/envelope/:id/certificate" component={CertificatePage} />
         <Route path="/templates" component={TemplatesPage} />
         <Route path="/templates/:id/edit" component={TemplateEditorPage} />
+        <Route path="/wbs-tags" component={WbsTagsPage} />
+        <Route path="/wbs-tagging" component={WbsTaggingPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/admin" component={AdminPage} />
         <Route path="/settings" component={SettingsPage} />

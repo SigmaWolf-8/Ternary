@@ -66,12 +66,17 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getSettings } from "@/pages/settings";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateWithTimezone } from "@/pages/settings";
-import type { Envelope, Recipient, Field as FieldType, Template } from "@shared/schema";
+import type { Envelope, Recipient, Field as FieldType, Template, WbsTag } from "@shared/schema";
 import { useCollab, type CollabUser, type CursorPosition } from "@/lib/useCollab";
 import { cacheFields, cacheEnvelope, cacheRecipients, getCachedEnvelope, getCachedFields, getCachedRecipients, addPendingOp, syncPendingOps } from "@/lib/offlineCache";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const FONT_STYLES = [
   { name: "Elegant", fontFamily: "'Architects Daughter', cursive" },
@@ -242,6 +247,10 @@ export default function EnvelopeEditor() {
   const { data: allTemplates, isLoading: templatesLoading } = useQuery<Template[]>({
     queryKey: ["/api/templates"],
     enabled: showTemplatePanel,
+  });
+
+  const { data: wbsTags } = useQuery<WbsTag[]>({
+    queryKey: ["/api/wbs-tags"],
   });
 
   const hasPdf = !!envelope?.pdfData;
@@ -607,6 +616,36 @@ export default function EnvelopeEditor() {
       setLocation(`/envelope/${envelopeId}`);
     },
   });
+
+  const { data: envWbsTags } = useQuery<{ id: string; envelopeId: string; wbsTagId: string }[]>({
+    queryKey: ["/api/envelopes", envelopeId, "wbs-tags"],
+    queryFn: async () => {
+      const res = await fetch(`/api/envelopes/${envelopeId}/wbs-tags`);
+      return res.json();
+    },
+    enabled: !!envelopeId,
+  });
+
+  const envWbsTagIds = useMemo(() => (envWbsTags || []).map((t) => t.wbsTagId), [envWbsTags]);
+
+  const wbsTagMutation = useMutation({
+    mutationFn: async (tagIds: string[]) => {
+      await apiRequest("PUT", `/api/envelopes/${envelopeId}/wbs-tags`, { tagIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId, "wbs-tags"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/envelope-wbs-tags"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
+    },
+  });
+
+  const toggleWbsTag = useCallback((tagId: string) => {
+    const current = envWbsTagIds;
+    const newIds = current.includes(tagId)
+      ? current.filter((id) => id !== tagId)
+      : [...current, tagId];
+    wbsTagMutation.mutate(newIds);
+  }, [envWbsTagIds, wbsTagMutation]);
 
   const handleSend = useCallback(() => {
     const lastPage = numPages || 1;
@@ -1194,7 +1233,7 @@ export default function EnvelopeEditor() {
       const inlineGap = 10;
       const footerLineHeight = 4;
       const sigRowHeight = sigFields.length > 0 ? Math.max(...sigFields.map((f) => f.height)) : 40;
-      const sealHeight = 24;
+      const sealHeight = 48;
       const leftMargin = 40;
       const rightMargin = 40;
       const usableWidth = pageWidth - leftMargin - rightMargin;
@@ -1204,9 +1243,7 @@ export default function EnvelopeEditor() {
       const footerLineY = Math.round(sigRowY - footerLineHeight - 6);
 
       const sigCount = sigFields.length;
-      const sealInlineWidth = Math.min(usableWidth * 0.35, 280);
-      const sigAreaWidth = usableWidth - sealInlineWidth - inlineGap;
-      const sigItemWidth = sigCount > 0 ? Math.min(Math.floor((sigAreaWidth - (sigCount - 1) * inlineGap) / sigCount), 200) : 0;
+      const sigItemWidth = sigCount > 0 ? Math.min(Math.floor((usableWidth - (sigCount - 1) * inlineGap) / sigCount), 200) : 0;
 
       const repositionedSigIds = new Set(sigFields.map((f) => f.id));
 
@@ -1217,8 +1254,8 @@ export default function EnvelopeEditor() {
         sigX += sigItemWidth + inlineGap;
       }
 
-      const sealX = Math.round(pageWidth - rightMargin - sealInlineWidth);
-      const sealWidth = Math.round(sealInlineWidth);
+      const sealX = leftMargin;
+      const sealWidth = Math.round(usableWidth);
 
       const existingSealIdx = localFields.findIndex((f) => f.page === activePage && f.label === "seal");
       const existingSeal = existingSealIdx >= 0 ? localFields[existingSealIdx] : null;
@@ -1231,7 +1268,7 @@ export default function EnvelopeEditor() {
           return updated || f;
         }
         if (existingSeal && f.id === existingSeal.id) {
-          return { ...f, value: sealContent, y: sealY, x: sealX, width: sealWidth };
+          return { ...f, value: sealContent, y: sealY, x: sealX, width: sealWidth, height: sealHeight };
         }
         if (existingFooter && f.id === existingFooter.id) {
           return { ...f, y: footerLineY, x: leftMargin, width: Math.round(usableWidth) };
@@ -1495,6 +1532,77 @@ export default function EnvelopeEditor() {
               {uploadMutation.isPending ? "Processing..." : hasPdf ? "Add Pages" : "Upload PDF"}
             </Button>
           </div>
+
+          {wbsTags && wbsTags.length > 0 && (
+            <div>
+              <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">
+                WBS Tags
+              </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between text-[10px]" data-testid="dropdown-wbs-tags">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <Tag className="w-3 h-3 shrink-0" />
+                      {envWbsTagIds.length === 0
+                        ? "Select tags..."
+                        : `${envWbsTagIds.length} tag${envWbsTagIds.length > 1 ? "s" : ""} selected`}
+                    </span>
+                    <ChevronDown className="w-3 h-3 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 max-h-64 overflow-y-auto p-1">
+                  {wbsTags.map((tag) => {
+                    const isActive = envWbsTagIds.includes(tag.id);
+                    return (
+                      <div
+                        key={tag.id}
+                        onClick={() => toggleWbsTag(tag.id)}
+                        className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] hover-elevate transition-colors cursor-pointer"
+                        data-testid={`toggle-wbs-${tag.id}`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded border flex items-center justify-center shrink-0"
+                          style={{
+                            backgroundColor: isActive ? tag.color : "transparent",
+                            borderColor: tag.color,
+                          }}
+                        >
+                          {isActive && (
+                            <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                          )}
+                        </div>
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className={isActive ? "font-medium" : "text-muted-foreground"}>
+                          {tag.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </PopoverContent>
+              </Popover>
+              {envWbsTagIds.length > 0 && (
+                <div className="flex flex-wrap gap-0.5 mt-1">
+                  {envWbsTagIds.map((tagId) => {
+                    const tag = wbsTags.find((t) => t.id === tagId);
+                    if (!tag) return null;
+                    return (
+                      <Badge
+                        key={tagId}
+                        variant="outline"
+                        className="text-[8px] py-0 no-default-active-elevate"
+                        style={{ borderColor: tag.color, color: tag.color }}
+                      >
+                        {tag.name}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <button
@@ -2158,9 +2266,9 @@ export default function EnvelopeEditor() {
                                 ) : f.label === "footer-line" ? (
                                   <div className="w-full flex items-center justify-center" style={{ borderTop: "1.5px solid #555", marginTop: "1px" }} />
                                 ) : f.label === "seal" ? (
-                                  <div className="w-full h-full flex items-center gap-1 px-1.5">
-                                    <Shield className="w-3 h-3 shrink-0 text-primary" />
-                                    <span className="text-[8px] font-mono truncate" style={{ color: "#333" }}>{f.value}</span>
+                                  <div className="w-full h-full flex items-start gap-1 px-1.5 py-0.5 overflow-hidden">
+                                    <Shield className="w-3 h-3 shrink-0 text-primary mt-0.5" />
+                                    <span className="text-[7px] font-mono leading-tight break-all" style={{ color: "#333", wordBreak: "break-all" }}>{f.value}</span>
                                   </div>
                                 ) : (
                                   <span className="text-[10px] truncate" style={{ color: "#333" }}>{f.value}</span>

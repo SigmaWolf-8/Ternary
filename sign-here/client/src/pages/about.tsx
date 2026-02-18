@@ -46,18 +46,18 @@ const certifications = [
       "Every signing event and document access is logged with IP address, geographic location (city, region, country), coordinates, and ISP data. This provides enterprise-grade non-repudiation and supports legal audit trail requirements across jurisdictions.",
   },
   {
-    title: "ESIGN Act & UETA Compliance",
+    title: "ESIGN, UETA & International Compliance",
     icon: FileCheck,
     badge: "Equivalent",
     description:
-      "Sign Here's signing workflow satisfies the requirements of the Electronic Signatures in Global and National Commerce Act (ESIGN, 2000) and the Uniform Electronic Transactions Act (UETA), providing legally binding electronic signatures in all 50 U.S. states.",
+      "Sign Here's signing workflow satisfies the requirements of the U.S. Electronic Signatures in Global and National Commerce Act (ESIGN, 2000) and the Uniform Electronic Transactions Act (UETA), providing legally binding electronic signatures in all 50 U.S. states. In Canada, the platform aligns with the Personal Information Protection and Electronic Documents Act (PIPEDA), the Uniform Electronic Commerce Act (UECA), and provincial legislation including Ontario's Electronic Commerce Act and Quebec's Act to Establish a Legal Framework for Information Technology. Internationally, Sign Here's identity verification, audit trail integrity, and tamper-evident certification support enforceability under the UNCITRAL Model Law on Electronic Signatures, providing a foundation for legal recognition across signatory nations worldwide.",
   },
   {
     title: "eIDAS Regulation Equivalence",
     icon: Globe,
     badge: "Equivalent",
     description:
-      "The platform's audit trail, signer authentication, and tamper-evident sealing align with the European Union's eIDAS Regulation standards for Advanced Electronic Signatures (AdES), supporting cross-border legal recognition.",
+      "The platform's audit trail, signer authentication, and tamper-evident sealing align with the European Union's eIDAS Regulation standards for Advanced Electronic Signatures (AdES), supporting cross-border legal recognition across EU and EEA member states.",
   },
   {
     title: "21 CFR Part 11 Alignment",
@@ -205,14 +205,37 @@ export default function AboutPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
             <p>
-              Sign Here employs a defense-in-depth security model. Documents are encrypted at rest using CNSA 2.0 compliant HKDF-SHA512 derived keys with AES-256-GCM, then optionally routed through PlenumNET's dual-phase quantum-resistant pipeline for an additional layer of forward secrecy.
+              Sign Here employs a defense-in-depth security model with dual-phase encryption across all database tables. Every sensitive field — recipient names, email addresses, signature values, envelope titles, audit details, and document content — is encrypted at rest using CNSA 2.0 compliant HKDF-SHA512 derived keys with AES-256-GCM. Document payloads are additionally routed through PlenumNET's dual-phase quantum-resistant pipeline for forward secrecy.
             </p>
             <p>
-              Every cryptographic operation — from initial upload to final certification — is signed using ML-DSA (Module-Lattice Digital Signature Algorithm), a NIST-standardized post-quantum signature scheme resistant to attacks by both classical and quantum computers.
+              All data in flight is protected by TLS 1.3 encryption between the application and database, and between the application and PlenumNET services. Every cryptographic operation — from initial upload to final certification — is signed using ML-DSA (Module-Lattice Digital Signature Algorithm), a NIST-standardized post-quantum signature scheme resistant to attacks by both classical and quantum computers.
             </p>
             <p>
-              Multi-tenant isolation is enforced at the database level through PostgreSQL row-level security policies, ensuring complete data separation between organizations. All access events are logged with IP geolocation data and HPTP femtosecond timestamps for enterprise-grade audit compliance.
+              Multi-tenant isolation is enforced at the database level through PostgreSQL row-level security policies, ensuring complete data separation between organizations. All access events are logged with IP geolocation data and HPTP femtosecond timestamps for enterprise-grade audit compliance. Eight database tables are covered by field-level encryption: tenants, users, envelopes, recipients, fields, audit logs, templates, and WBS tags.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="space-y-1">
+                <p className="text-xs font-medium tracking-wider uppercase">Version</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-app-version">v1.0.0</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium tracking-wider uppercase">Platform</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-platform-version">PlenumNET v2.1</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium tracking-wider uppercase">Phase</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-phase-status">Phase 4 — Complete</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium tracking-wider uppercase">Build</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-build-date">February 2026</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

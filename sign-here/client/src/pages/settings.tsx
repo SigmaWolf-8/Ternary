@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Globe, User, Clock } from "lucide-react";
+import { Save, Globe, User, Clock, ShieldCheck, ChevronRight } from "lucide-react";
+import { Link } from "wouter";
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern Time (ET)" },
@@ -102,6 +103,7 @@ export default function Settings() {
   const [email, setEmail] = useState("");
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [dateFormat, setDateFormat] = useState("full");
+  const [role, setRole] = useState("signer");
   const [currentTime, setCurrentTime] = useState("");
 
   useEffect(() => {
@@ -110,6 +112,7 @@ export default function Settings() {
     setEmail(settings.email || "");
     setTimezone(settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
     setDateFormat(settings.dateFormat || "full");
+    setRole(settings.role || "signer");
   }, []);
 
   useEffect(() => {
@@ -137,7 +140,7 @@ export default function Settings() {
   }, [timezone]);
 
   const handleSave = () => {
-    saveSettings({ displayName, email, timezone, dateFormat });
+    saveSettings({ displayName, email, timezone, dateFormat, role });
     toast({ title: "Settings saved", description: "Your preferences have been updated" });
     window.history.back();
   };
@@ -178,6 +181,20 @@ export default function Settings() {
                 placeholder="you@example.com"
                 data-testid="input-email"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Role</label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger data-testid="select-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="signer">Signer</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -228,6 +245,29 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {role === "admin" && (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Administration</span>
+              </div>
+              <Link href="/admin">
+                <Button variant="outline" className="w-full justify-between" data-testid="link-admin-panel">
+                  <span className="flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Admin Panel
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 opacity-50" />
+                </Button>
+              </Link>
+              <p className="text-[9px] text-muted-foreground">
+                Manage tenants, users, roles, and view platform statistics
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Button onClick={handleSave} className="w-full" data-testid="button-save-settings">
           <Save className="w-3.5 h-3.5" />

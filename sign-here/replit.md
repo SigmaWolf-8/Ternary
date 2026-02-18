@@ -22,6 +22,7 @@ client/src/
     sign.tsx            - Signing view for recipients (standalone, no sidebar)
     certificate.tsx     - Certificate of Completion view (gold seal, HPTP, PDF viewer)
     templates.tsx       - Template Gallery (search, filter, preview, fork, use)
+    wbs-tagging.tsx     - Multi-tag assignment page (assign multiple WBS tags per envelope)
     settings.tsx        - User settings (timezone, profile, date format)
   components/
     app-sidebar.tsx     - Sidebar navigation
@@ -43,7 +44,8 @@ server/
     plenum.ts           - PlenumNET API wrappers (phase/split, witness, timing, ml-dsa)
     saveCopy.ts         - Hybrid save logic (PlenumDB → witness → Postgres + HPTP audit)
     pdfForms.ts         - PDF form baking with pdf-lib
-    pdfCrypto.ts        - CNSA 2.0 compliant encryption (HKDF-SHA512 + AES-256-GCM) with legacy backward-compat
+    pdfCrypto.ts        - CNSA 2.0 compliant encryption for PDF documents (HKDF-SHA512 + AES-256-GCM) with legacy backward-compat
+    fieldCrypto.ts      - CNSA 2.0 field-level encryption for all database tables (HKDF-SHA512 + AES-256-GCM)
     fileConvert.ts      - LibreOffice-based DOCX/XLSX/CSV to PDF conversion
     zk.ts               - ZK proof generation + verification (server-side)
     wsCollab.ts         - WebSocket collaboration server (room registry, presence, field sync)
@@ -73,6 +75,7 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - Audit trail with timeline view + HPTP timestamps
 - Multi-tenant isolation with RLS
 - CNSA 2.0 encryption pipeline (HKDF-SHA512 key derivation + AES-256-GCM + PlenumNET dual-phase split)
+- Field-level encryption at rest for ALL database tables (8 tables, all PII fields encrypted with fenc: prefix)
 - ML-DSA post-quantum signatures at document upload AND each signing event
 - PlenumDB hybrid save (immutable truth + Postgres metadata)
 - File format support: PDF, DOCX, XLSX, CSV (auto-converted to PDF via LibreOffice)
@@ -94,6 +97,14 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - Template Gallery with search, category filter, preview modal, fork, use, and delete actions
 - 6 built-in public templates (NDA, Employment Offer, Service Agreement, Lease, Consent Form, Invoice)
 - Save envelope fields as reusable template from envelope detail page
+- WBS Tags system: 13 configurable Work Breakdown Structure tags per tenant for envelope categorization and filtering
+- Multi-tag WBS assignment: envelopes can have multiple WBS tags (many-to-many junction table)
+- WBS Tagging page for bulk multi-tag assignment across all envelopes
+- WBS tag toggles in envelope editor sidebar (multi-select, replaces single dropdown)
+- Dashboard WBS tag filter row with colored tag buttons and untagged filter
+- Drag-and-drop WBS tag reordering via @dnd-kit
+- Separate Templates menu section in sidebar (Templates + WBS Tags)
+- Logo click navigates to Dashboard and replays video animation twice
 
 ## Database Schema
 - `tenants` - Multi-tenant accounts
@@ -103,6 +114,8 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - `fields` - Placed fields (signature, date, text, checkbox, initials)
 - `audit_logs` - Activity tracking with tenantId, hpTpTimestamp, metadata (JSONB)
 - `templates` - Reusable document templates (name, description, category, tags, fieldDefs jsonb, isPublic, tenantId, forkedFromId)
+- `wbs_tags` - Work Breakdown Structure tags (name, color, sortOrder, tenantId, max 13 per tenant)
+- `envelope_wbs_tags` - Many-to-many junction table for envelope-to-WBS-tag assignments
 
 ## API Routes
 - `GET /api/health` - Health check (includes Plenum connectivity status)
@@ -134,6 +147,13 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - `POST /api/templates/:id/fork` - Fork a template (creates copy with forkedFromId)
 - `DELETE /api/templates/:id` - Delete template
 - `POST /api/envelopes/:id/save-as-template` - Save envelope fields as reusable template
+- `GET /api/envelope-wbs-tags` - List all envelope-WBS-tag associations
+- `GET /api/envelopes/:id/wbs-tags` - Get WBS tags assigned to an envelope
+- `PUT /api/envelopes/:id/wbs-tags` - Set WBS tags for an envelope (replaces all)
+- `GET /api/wbs-tags` - List WBS tags (tenant-scoped)
+- `POST /api/wbs-tags` - Create WBS tag (max 13 per tenant)
+- `PATCH /api/wbs-tags/:id` - Update WBS tag (name, color, sortOrder)
+- `DELETE /api/wbs-tags/:id` - Delete WBS tag
 
 ## Environment Secrets
 - `DATABASE_URL` - PostgreSQL connection string

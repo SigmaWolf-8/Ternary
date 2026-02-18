@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertEnvelopeSchema, insertRecipientSchema, insertTenantSchema, insertUserSchema, insertTemplateSchema } from "@shared/schema";
+import { insertEnvelopeSchema, insertRecipientSchema, insertTenantSchema, insertUserSchema, insertTemplateSchema, insertWbsTagSchema } from "@shared/schema";
 import { z } from "zod";
 import { tenantMiddleware } from "./middleware/tenant";
 import { healthCheck as plenumHealthCheck } from "./services/plenum";
@@ -30,6 +30,14 @@ export async function registerRoutes(
       timestamp: new Date().toISOString(),
       plenum,
       database: "connected",
+      encryption: {
+        atRest: "CNSA 2.0 (HKDF-SHA512 + AES-256-GCM)",
+        inFlight: "TLS 1.3 + PlenumNET dual-phase",
+        fieldLevel: "All PII encrypted (fenc: prefix)",
+        documentLevel: "PDF encrypted (hkdf: prefix)",
+        signatures: "ML-DSA post-quantum (FIPS 204)",
+        tables: ["tenants", "users", "envelopes", "recipients", "fields", "audit_logs", "templates", "wbs_tags"],
+      },
     });
   });
 
@@ -516,7 +524,20 @@ export async function registerRoutes(
 
   app.get("/api/envelopes/:id/audit", async (req, res) => {
     const logs = await storage.getAuditLogsByEnvelope(req.params.id);
-    res.json(logs);
+    const sanitized = logs.map(log => {
+      const meta = log.metadata ? { ...log.metadata as Record<string, any> } : null;
+      if (meta) {
+        delete meta.geoCoordinates;
+        if (meta.ipAddress) {
+          const parts = (meta.ipAddress as string).split(".");
+          meta.ipAddress = parts.length === 4
+            ? `${parts[0]}.${parts[1]}.***.***`
+            : (meta.ipAddress as string).replace(/:[^:]+$/, ":****");
+        }
+      }
+      return { ...log, metadata: meta };
+    });
+    res.json(sanitized);
   });
 
   app.get("/api/envelopes/:id/bake", async (req, res) => {
@@ -631,15 +652,27 @@ export async function registerRoutes(
           signedAt: s.signedAt,
         })),
         signatureCount: signatureFields.length,
-        auditTrail: auditLogs.map(log => ({
-          id: log.id,
-          action: log.action,
-          actorName: log.actorName,
-          details: log.details,
-          createdAt: log.createdAt,
-          hpTpTimestamp: log.hpTpTimestamp,
-          metadata: log.metadata,
-        })),
+        auditTrail: auditLogs.map(log => {
+          const meta = log.metadata ? { ...log.metadata as Record<string, any> } : null;
+          if (meta) {
+            delete meta.geoCoordinates;
+            if (meta.ipAddress) {
+              const parts = (meta.ipAddress as string).split(".");
+              meta.ipAddress = parts.length === 4
+                ? `${parts[0]}.${parts[1]}.***.***`
+                : (meta.ipAddress as string).replace(/:[^:]+$/, ":****");
+            }
+          }
+          return {
+            id: log.id,
+            action: log.action,
+            actorName: log.actorName,
+            details: log.details,
+            createdAt: log.createdAt,
+            hpTpTimestamp: log.hpTpTimestamp,
+            metadata: meta,
+          };
+        }),
       };
 
       res.json(certificate);
@@ -950,6 +983,301 @@ export async function registerRoutes(
     try {
       await storage.deleteTemplate(req.params.id);
       res.json({ message: "Template deleted" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/wbs-tags", async (req, res) => {
+    try {
+      const tenantId = req.tenantId || undefined;
+      const tags = await storage.getWbsTags(tenantId);
+      res.json(tags);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/wbs-tags", async (req, res) => {
+    try {
+      const tenantId = req.tenantId || null;
+      const existing = await storage.getWbsTags(tenantId || undefined);
+      if (existing.length >= 13) {
+        return res.status(400).json({ message: "Maximum of 13 WBS tags allowed" });
+      }
+      const parsed = insertWbsTagSchema.parse({
+        ...req.body,
+        tenantId,
+        sortOrder: req.body.sortOrder ?? existing.length,
+      });
+      const tag = await storage.createWbsTag(parsed);
+      res.status(201).json(tag);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/wbs-tags/reorder", async (req, res) => {
+    try {
+      const tenantId = req.tenantId || null;
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+        return res.status(400).json({ message: "orderedIds array is required" });
+      }
+      const updates = [];
+      for (let i = 0; i < orderedIds.length; i++) {
+        const updated = await storage.updateWbsTag(orderedIds[i], { sortOrder: i });
+        if (updated) updates.push(updated);
+      }
+      res.json(updates);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/wbs-tags/:id", async (req, res) => {
+    try {
+      const tenantId = req.tenantId || null;
+      const existing = await storage.getWbsTag(req.params.id);
+      if (!existing) return res.status(404).json({ message: "WBS tag not found" });
+      if (existing.tenantId !== tenantId) return res.status(403).json({ message: "Access denied" });
+      const { name, color, sortOrder } = req.body;
+      const updates: Record<string, any> = {};
+      if (typeof name === "string" && name.trim()) updates.name = name.trim();
+      if (typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color)) updates.color = color;
+      if (typeof sortOrder === "number" && sortOrder >= 0) updates.sortOrder = sortOrder;
+      const updated = await storage.updateWbsTag(req.params.id, updates);
+      if (!updated) return res.status(404).json({ message: "WBS tag not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  const WBS_INDUSTRY_TEMPLATES: Record<string, { name: string; color: string }[]> = {
+    "Legal": [
+      { name: "Case Intake", color: "#D4A017" }, { name: "Discovery", color: "#C0392B" },
+      { name: "Litigation", color: "#2980B9" }, { name: "Contracts", color: "#27AE60" },
+      { name: "Compliance", color: "#8E44AD" }, { name: "Corporate Governance", color: "#E67E22" },
+      { name: "Intellectual Property", color: "#1ABC9C" }, { name: "Employment Law", color: "#E74C3C" },
+      { name: "Real Estate", color: "#3498DB" }, { name: "Regulatory Filing", color: "#2ECC71" },
+      { name: "Arbitration", color: "#9B59B6" }, { name: "Client Relations", color: "#F39C12" },
+      { name: "Billing & Collections", color: "#16A085" },
+    ],
+    "Real Estate": [
+      { name: "Property Acquisition", color: "#D4A017" }, { name: "Leasing", color: "#C0392B" },
+      { name: "Title & Escrow", color: "#2980B9" }, { name: "Property Management", color: "#27AE60" },
+      { name: "Inspections", color: "#8E44AD" }, { name: "Mortgage & Financing", color: "#E67E22" },
+      { name: "Tenant Relations", color: "#1ABC9C" }, { name: "Appraisals", color: "#E74C3C" },
+      { name: "Zoning & Permits", color: "#3498DB" }, { name: "Closing Documents", color: "#2ECC71" },
+      { name: "Insurance", color: "#9B59B6" }, { name: "Renovations", color: "#F39C12" },
+      { name: "Compliance", color: "#16A085" },
+    ],
+    "Healthcare": [
+      { name: "Patient Intake", color: "#D4A017" }, { name: "Clinical Records", color: "#C0392B" },
+      { name: "Insurance & Billing", color: "#2980B9" }, { name: "Consent Forms", color: "#27AE60" },
+      { name: "HIPAA Compliance", color: "#8E44AD" }, { name: "Prescriptions", color: "#E67E22" },
+      { name: "Lab & Diagnostics", color: "#1ABC9C" }, { name: "Referrals", color: "#E74C3C" },
+      { name: "Discharge", color: "#3498DB" }, { name: "Staff Credentialing", color: "#2ECC71" },
+      { name: "Quality Assurance", color: "#9B59B6" }, { name: "Research & Trials", color: "#F39C12" },
+      { name: "Facility Management", color: "#16A085" },
+    ],
+    "Finance & Banking": [
+      { name: "Account Opening", color: "#D4A017" }, { name: "Loan Origination", color: "#C0392B" },
+      { name: "KYC / AML", color: "#2980B9" }, { name: "Investment Services", color: "#27AE60" },
+      { name: "Wealth Management", color: "#8E44AD" }, { name: "Regulatory Compliance", color: "#E67E22" },
+      { name: "Risk Assessment", color: "#1ABC9C" }, { name: "Treasury Operations", color: "#E74C3C" },
+      { name: "Audit", color: "#3498DB" }, { name: "Insurance Products", color: "#2ECC71" },
+      { name: "Client Onboarding", color: "#9B59B6" }, { name: "Mergers & Acquisitions", color: "#F39C12" },
+      { name: "Fraud Prevention", color: "#16A085" },
+    ],
+    "Construction": [
+      { name: "Pre-Construction", color: "#D4A017" }, { name: "Design & Engineering", color: "#C0392B" },
+      { name: "Permitting", color: "#2980B9" }, { name: "Site Preparation", color: "#27AE60" },
+      { name: "Structural Work", color: "#8E44AD" }, { name: "Mechanical Systems", color: "#E67E22" },
+      { name: "Electrical", color: "#1ABC9C" }, { name: "Plumbing", color: "#E74C3C" },
+      { name: "Interior Finishing", color: "#3498DB" }, { name: "Safety & Compliance", color: "#2ECC71" },
+      { name: "Inspections", color: "#9B59B6" }, { name: "Subcontractor Mgmt", color: "#F39C12" },
+      { name: "Closeout & Handover", color: "#16A085" },
+    ],
+    "Technology & SaaS": [
+      { name: "Product Design", color: "#D4A017" }, { name: "Development", color: "#C0392B" },
+      { name: "QA & Testing", color: "#2980B9" }, { name: "DevOps", color: "#27AE60" },
+      { name: "Security", color: "#8E44AD" }, { name: "Customer Success", color: "#E67E22" },
+      { name: "Sales Operations", color: "#1ABC9C" }, { name: "Licensing", color: "#E74C3C" },
+      { name: "Data & Analytics", color: "#3498DB" }, { name: "Compliance (SOC2/GDPR)", color: "#2ECC71" },
+      { name: "Vendor Management", color: "#9B59B6" }, { name: "HR & Onboarding", color: "#F39C12" },
+      { name: "Finance & Billing", color: "#16A085" },
+    ],
+    "Education": [
+      { name: "Admissions", color: "#D4A017" }, { name: "Enrollment", color: "#C0392B" },
+      { name: "Curriculum", color: "#2980B9" }, { name: "Faculty Affairs", color: "#27AE60" },
+      { name: "Student Services", color: "#8E44AD" }, { name: "Financial Aid", color: "#E67E22" },
+      { name: "Research Grants", color: "#1ABC9C" }, { name: "Accreditation", color: "#E74C3C" },
+      { name: "Facilities", color: "#3498DB" }, { name: "Athletics", color: "#2ECC71" },
+      { name: "Alumni Relations", color: "#9B59B6" }, { name: "Compliance (FERPA)", color: "#F39C12" },
+      { name: "IT Services", color: "#16A085" },
+    ],
+    "Government & Public Sector": [
+      { name: "Procurement", color: "#D4A017" }, { name: "Contracts & Grants", color: "#C0392B" },
+      { name: "Policy & Legislation", color: "#2980B9" }, { name: "Citizen Services", color: "#27AE60" },
+      { name: "Infrastructure", color: "#8E44AD" }, { name: "Public Safety", color: "#E67E22" },
+      { name: "Environmental", color: "#1ABC9C" }, { name: "Budget & Finance", color: "#E74C3C" },
+      { name: "Human Resources", color: "#3498DB" }, { name: "IT Modernization", color: "#2ECC71" },
+      { name: "Records Management", color: "#9B59B6" }, { name: "Inter-Agency", color: "#F39C12" },
+      { name: "Audit & Oversight", color: "#16A085" },
+    ],
+    "Human Resources": [
+      { name: "Recruitment", color: "#D4A017" }, { name: "Onboarding", color: "#C0392B" },
+      { name: "Compensation", color: "#2980B9" }, { name: "Benefits Admin", color: "#27AE60" },
+      { name: "Performance Reviews", color: "#8E44AD" }, { name: "Training & Dev", color: "#E67E22" },
+      { name: "Employee Relations", color: "#1ABC9C" }, { name: "Compliance (EEOC)", color: "#E74C3C" },
+      { name: "Payroll", color: "#3498DB" }, { name: "Termination", color: "#2ECC71" },
+      { name: "Workplace Safety", color: "#9B59B6" }, { name: "Diversity & Inclusion", color: "#F39C12" },
+      { name: "Policy Management", color: "#16A085" },
+    ],
+    "Manufacturing": [
+      { name: "Product Design", color: "#D4A017" }, { name: "Procurement", color: "#C0392B" },
+      { name: "Production", color: "#2980B9" }, { name: "Quality Control", color: "#27AE60" },
+      { name: "Supply Chain", color: "#8E44AD" }, { name: "Inventory Mgmt", color: "#E67E22" },
+      { name: "Shipping & Logistics", color: "#1ABC9C" }, { name: "Equipment Maint.", color: "#E74C3C" },
+      { name: "Safety & Compliance", color: "#3498DB" }, { name: "R&D", color: "#2ECC71" },
+      { name: "Vendor Relations", color: "#9B59B6" }, { name: "Waste Management", color: "#F39C12" },
+      { name: "Workforce Mgmt", color: "#16A085" },
+    ],
+    "Insurance": [
+      { name: "Underwriting", color: "#D4A017" }, { name: "Policy Issuance", color: "#C0392B" },
+      { name: "Claims Processing", color: "#2980B9" }, { name: "Renewals", color: "#27AE60" },
+      { name: "Risk Assessment", color: "#8E44AD" }, { name: "Reinsurance", color: "#E67E22" },
+      { name: "Fraud Investigation", color: "#1ABC9C" }, { name: "Agent Management", color: "#E74C3C" },
+      { name: "Actuarial", color: "#3498DB" }, { name: "Regulatory Filing", color: "#2ECC71" },
+      { name: "Customer Service", color: "#9B59B6" }, { name: "Product Development", color: "#F39C12" },
+      { name: "Compliance", color: "#16A085" },
+    ],
+    "Nonprofit & NGO": [
+      { name: "Fundraising", color: "#D4A017" }, { name: "Grant Management", color: "#C0392B" },
+      { name: "Program Delivery", color: "#2980B9" }, { name: "Volunteer Mgmt", color: "#27AE60" },
+      { name: "Donor Relations", color: "#8E44AD" }, { name: "Events", color: "#E67E22" },
+      { name: "Advocacy", color: "#1ABC9C" }, { name: "Communications", color: "#E74C3C" },
+      { name: "Board Governance", color: "#3498DB" }, { name: "Financial Reporting", color: "#2ECC71" },
+      { name: "Impact Assessment", color: "#9B59B6" }, { name: "Compliance (501c3)", color: "#F39C12" },
+      { name: "Partnerships", color: "#16A085" },
+    ],
+    "General Business": [
+      { name: "Sales", color: "#D4A017" }, { name: "Marketing", color: "#C0392B" },
+      { name: "Operations", color: "#2980B9" }, { name: "Finance", color: "#27AE60" },
+      { name: "Human Resources", color: "#8E44AD" }, { name: "Legal", color: "#E67E22" },
+      { name: "IT & Technology", color: "#1ABC9C" }, { name: "Customer Service", color: "#E74C3C" },
+      { name: "Procurement", color: "#3498DB" }, { name: "Compliance", color: "#2ECC71" },
+      { name: "Administration", color: "#9B59B6" }, { name: "Strategic Planning", color: "#F39C12" },
+      { name: "Facilities", color: "#16A085" },
+    ],
+  };
+
+  app.get("/api/wbs-tags/industries", (_req, res) => {
+    res.json(Object.keys(WBS_INDUSTRY_TEMPLATES));
+  });
+
+  app.post("/api/wbs-tags/recommend", (req, res) => {
+    const { industry } = req.body;
+    if (!industry || typeof industry !== "string") {
+      return res.status(400).json({ message: "Industry is required" });
+    }
+    const recommendations = WBS_INDUSTRY_TEMPLATES[industry];
+    if (!recommendations) {
+      return res.status(400).json({ message: "Industry not recognized" });
+    }
+    res.json(recommendations);
+  });
+
+  const seedTagSchema = z.object({
+    tags: z.array(z.object({
+      name: z.string().min(1).max(50),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    })).min(1).max(13),
+  });
+
+  app.post("/api/wbs-tags/seed", async (req, res) => {
+    try {
+      const tenantId = req.tenantId || null;
+      const parsed = seedTagSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid tag data", errors: parsed.error.flatten() });
+      }
+
+      const { tags: seedTags } = parsed.data;
+      const existingTags = await storage.getWbsTags(tenantId ?? undefined);
+      const slotsAvailable = 13 - existingTags.length;
+      if (slotsAvailable <= 0) {
+        return res.status(400).json({ message: "All 13 WBS tag slots are already filled" });
+      }
+
+      const tagsToCreate = seedTags.slice(0, slotsAvailable);
+      const created = [];
+      for (let i = 0; i < tagsToCreate.length; i++) {
+        const tag = tagsToCreate[i];
+        const newTag = await storage.createWbsTag({
+          name: tag.name,
+          color: tag.color,
+          sortOrder: existingTags.length + i,
+          tenantId,
+        });
+        created.push(newTag);
+      }
+
+      res.json({ created, count: created.length, slotsRemaining: 13 - existingTags.length - created.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/envelopes/:id/wbs-tags", async (req, res) => {
+    try {
+      const envelope = await storage.getEnvelope(req.params.id);
+      if (!envelope) return res.status(404).json({ message: "Envelope not found" });
+      const tags = await storage.getEnvelopeWbsTags(req.params.id);
+      res.json(tags);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  const setEnvTagsSchema = z.object({
+    tagIds: z.array(z.string().min(1)).max(13),
+  });
+
+  app.put("/api/envelopes/:id/wbs-tags", async (req, res) => {
+    try {
+      const envelope = await storage.getEnvelope(req.params.id);
+      if (!envelope) return res.status(404).json({ message: "Envelope not found" });
+      const parsed = setEnvTagsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid tag data", errors: parsed.error.flatten() });
+      }
+      const result = await storage.setEnvelopeWbsTags(req.params.id, parsed.data.tagIds);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/envelope-wbs-tags", async (_req, res) => {
+    try {
+      const all = await storage.getAllEnvelopeWbsTags();
+      res.json(all);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/wbs-tags/:id", async (req, res) => {
+    try {
+      const tenantId = req.tenantId || null;
+      const existing = await storage.getWbsTag(req.params.id);
+      if (!existing) return res.status(404).json({ message: "WBS tag not found" });
+      if (existing.tenantId !== tenantId) return res.status(403).json({ message: "Access denied" });
+      await storage.deleteWbsTag(req.params.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
