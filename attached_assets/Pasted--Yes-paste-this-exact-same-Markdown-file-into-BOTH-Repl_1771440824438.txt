@@ -1,0 +1,62 @@
+**Yes — paste this exact same Markdown file into BOTH Replit projects.**
+
+That’s the whole point of giving you one unified file: it acts as the **single source of truth** that tells each project (frontend and backend) what its role is, what it should **not** touch, and how they connect via the API.
+
+### Where exactly to paste it in each project
+
+1. **13 Primes Astrology Front End**  
+   (`https://a4e186d0-f0e0-465b-bb7c-760c300e33be-00-s25an8rpo6lv.kirk.replit.dev/`)  
+   - Create a new file in the root or in a `docs/` folder  
+   - Name: `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`  
+   - Paste the full content  
+   - **Why?** So Replit AI (when helping you on the frontend) reads it and knows:  
+     - “I am frontend only → I call the API, I never write Rust or BalancedFloat”  
+     - It will help you correctly add fetch calls, display resonance, build the space-time bridge UI, etc.
+
+2. **PlenumNET**  
+   (`https://PlenumNET.replit.app`)  
+   - Create the same file in the root or `docs/`  
+   - Name: `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`  
+   - Paste the full content  
+   - **Why?** So Replit AI (when helping on the backend) reads it and knows:  
+     - “I am backend only → I implement BalancedFloat, ephemeris endpoints, Rust server”  
+     - It will help you correctly add Axum routes, extend `ternary-math`, avoid writing any JavaScript.
+
+### Quick workflow reminder when using Replit AI / Agent
+
+In **either** project, start your next prompt like this:
+
+```
+Following the instructions in TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md:
+
+I want to [do something specific]...
+```
+
+- If you're in the **Astrology frontend** project → AI will only suggest JS/React/fetch code
+- If you're in the **PlenumNET** project → AI will only suggest Rust/Axum/ternary-math code
+
+That prevents it from getting confused and trying to write frontend logic in the backend or vice-versa.
+
+### Optional enhancement
+
+If you want to make it even clearer for Replit AI, you can add one tiny line at the very top of the file in each project:
+
+**In Astrology frontend version:**
+```markdown
+# THIS IS THE FRONTEND VERSION – ONLY JAVASCRIPT / UI / API CALLS ALLOWED
+```
+
+**In PlenumNET version:**
+```markdown
+# THIS IS THE BACKEND VERSION – ONLY RUST / API / TERNARY-MATH ALLOWED
+```
+
+But honestly, the existing file already has very strong “YOU ARE RESPONSIBLE FOR” and “DO NOT TOUCH” sections, so it should be fine as-is.
+
+Let me know if you want me to generate:
+
+- A slightly split version (two files: one for frontend, one for backend)
+- A starter `server.js` / `main.rs` snippet to go with it
+- Or anything else to speed up the next step
+
+Otherwise — go ahead and paste the same file into both Replits right now. You're good to go. 🚀
