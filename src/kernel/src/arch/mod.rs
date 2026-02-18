@@ -16,6 +16,7 @@ pub mod x86_64;
 pub mod aarch64;
 pub mod riscv64;
 pub mod boot;
+pub mod xplenum;
 
 use alloc::collections::BTreeMap;
 use alloc::string::String;

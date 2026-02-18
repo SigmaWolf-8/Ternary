@@ -96,17 +96,22 @@ module xplenum_cva6_wrapper (
         : rs1_narrow;
 
     xplenum_top u_xplenum_core (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .instruction  (core_instruction),
-        .instr_valid  (core_instr_valid),
-        .rs1_data     (core_rs1),
-        .rs2_data     (rs2_narrow),
-        .rd_data      (core_rd_data),
-        .rd_write_en  (core_rd_write_en),
-        .rd_addr      (core_rd_addr),
-        .xp_exception (core_xp_exception),
-        .xp_exc_code  (core_xp_exc_code)
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .instruction       (core_instruction),
+        .instr_valid       (core_instr_valid),
+        .rs1_data          (core_rs1),
+        .rs2_data          (rs2_narrow),
+        .rd_data           (core_rd_data),
+        .rd_write_en       (core_rd_write_en),
+        .rd_addr           (core_rd_addr),
+        .xp_exception      (core_xp_exception),
+        .xp_exc_code       (core_xp_exc_code),
+        .entropy_i         (256'h0),
+        .entropy_valid_i   (1'b0),
+        .reseed_req_i      (1'b0),
+        .drbg_health_err_o (),
+        .drbg_ready_o      ()
     );
 
     // -----------------------------------------------------------------------

@@ -31,6 +31,7 @@ pub mod domain;
 pub mod capability;
 pub mod audit;
 pub mod policy;
+pub mod xplenum_hal;
 
 use alloc::string::String;
 use crate::memory::SecurityMode;

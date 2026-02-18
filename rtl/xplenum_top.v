@@ -29,7 +29,16 @@ module xplenum_top (
 
     // Exception interface
     output wire        xp_exception,   // Exception signal to core
-    output wire [3:0]  xp_exc_code     // Exception cause code
+    output wire [3:0]  xp_exc_code,    // Exception cause code
+
+    // External entropy source for CTR_DRBG (optional)
+    input  wire [255:0] entropy_i,     // 256-bit entropy from external TRNG
+    input  wire         entropy_valid_i, // Entropy valid strobe
+    input  wire         reseed_req_i,  // External reseed request
+
+    // DRBG status outputs
+    output wire         drbg_health_err_o, // Health test failure
+    output wire         drbg_ready_o       // DRBG ready for generation
 );
 
     // -----------------------------------------------------------------------
@@ -83,26 +92,33 @@ module xplenum_top (
     // Subunit instances
     // -----------------------------------------------------------------------
 
-    // Mask Unit
+    // Mask Unit (with CTR_DRBG for FIPS 140-3 compliance)
     wire [31:0] mask_result;
     wire        mask_result_valid;
     wire [31:0] mask_state_out;
     wire [3:0]  mask_exc;
+    wire        drbg_health_error;
+    wire        drbg_ready;
 
     xplenum_mask_unit u_mask (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .mask_en    (mask_en),
-        .funct7     (funct7),
-        .valid      (mask_valid),
-        .rs1_data   (rs1_data),
-        .rs2_data   (rs2_data),
-        .seed_wr    (seed_wr),
-        .seed_data  (rs1_data),
-        .result     (mask_result),
-        .result_valid(mask_result_valid),
-        .mask_state (mask_state_out),
-        .exc_code   (mask_exc)
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .mask_en           (mask_en),
+        .funct7            (funct7),
+        .valid             (mask_valid),
+        .rs1_data          (rs1_data),
+        .rs2_data          (rs2_data),
+        .seed_wr           (seed_wr),
+        .seed_data         (rs1_data),
+        .seed_full_i       (entropy_i),
+        .seed_full_valid_i (entropy_valid_i),
+        .reseed_i          (reseed_req_i),
+        .drbg_health_error_o (drbg_health_error),
+        .drbg_ready_o      (drbg_ready),
+        .result            (mask_result),
+        .result_valid      (mask_result_valid),
+        .mask_state        (mask_state_out),
+        .exc_code          (mask_exc)
     );
 
     // Domain Unit
@@ -309,5 +325,9 @@ module xplenum_top (
     // -----------------------------------------------------------------------
     assign xp_exception = mux_valid && (mux_exc != `XP_EXC_NONE);
     assign xp_exc_code  = mux_exc;
+
+    // DRBG status outputs
+    assign drbg_health_err_o = drbg_health_error;
+    assign drbg_ready_o      = drbg_ready;
 
 endmodule
