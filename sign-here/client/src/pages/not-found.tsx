@@ -18,7 +18,7 @@ export default function NotFound() {
           <Link href="/">
             <Button variant="outline" size="sm" data-testid="button-go-home">
               <ArrowLeft className="w-3 h-3" />
-              Back to Dashboard
+              Back to File Cabinet
             </Button>
           </Link>
         </CardContent>

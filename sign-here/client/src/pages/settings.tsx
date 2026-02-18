@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Globe, User, Clock, ShieldCheck, ChevronRight } from "lucide-react";
+import { Save, Globe, User, Clock, ShieldCheck, ChevronRight, RotateCcw } from "lucide-react";
+import { resetTour } from "@/components/onboarding-tour";
 import { Link } from "wouter";
 
 const TIMEZONES = [
@@ -268,6 +269,30 @@ export default function Settings() {
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Onboarding</span>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                resetTour();
+                toast({ title: "Tour reset", description: "The onboarding tour will appear next time you visit" });
+              }}
+              data-testid="button-restart-tour"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restart Onboarding Tour
+            </Button>
+            <p className="text-[9px] text-muted-foreground">
+              Re-enable the guided walkthrough of Sign Here features
+            </p>
+          </CardContent>
+        </Card>
 
         <Button onClick={handleSave} className="w-full" data-testid="button-save-settings">
           <Save className="w-3.5 h-3.5" />

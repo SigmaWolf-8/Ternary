@@ -15,7 +15,7 @@ Sign Here is a clean, sleek e-signature platform inspired by DocuSign, built as 
 ```
 client/src/
   pages/
-    dashboard.tsx       - Main dashboard with envelope listing
+    dashboard.tsx       - File Cabinet (main envelope listing)
     envelope-new.tsx    - Create new envelope with recipients
     envelope-editor.tsx - Visual field placement editor
     envelope-detail.tsx - Envelope detail view with audit trail + sign links
@@ -27,6 +27,7 @@ client/src/
   components/
     app-sidebar.tsx     - Sidebar navigation
     zoom-control.tsx    - Site-wide zoom control (70-130%)
+    onboarding-tour.tsx - Guided onboarding tour with opt-out (localStorage persistence)
     status-badge.tsx    - Status badge component (gold palette)
     theme-provider.tsx  - Dark/light mode provider
     theme-toggle.tsx    - Theme toggle button

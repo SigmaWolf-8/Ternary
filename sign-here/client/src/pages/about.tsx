@@ -235,7 +235,11 @@ export default function AboutPage() {
             <p className="text-xs leading-relaxed text-muted-foreground">
               Install Sign Here as a standalone app on your device for quick access, offline support, and a full-screen experience without browser chrome.
             </p>
-            {!isInstalled ? (
+            {isInstalled ? (
+              <p className="text-xs text-muted-foreground">
+                Sign Here is installed on this device.
+              </p>
+            ) : canInstall ? (
               <Button
                 onClick={() => install()}
                 data-testid="button-pwa-install"
@@ -244,46 +248,84 @@ export default function AboutPage() {
                 Install Sign Here
               </Button>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Sign Here is installed on this device.
-              </p>
+              <div className="space-y-3">
+                <Button
+                  onClick={() => install()}
+                  data-testid="button-pwa-install"
+                >
+                  <Download className="w-3.5 h-3.5 mr-2" />
+                  Install Sign Here
+                </Button>
+                <div className="rounded-md border p-3 space-y-2">
+                  <p className="text-xs font-medium text-foreground">How to install:</p>
+                  {iosDevice ? (
+                    <ol className="space-y-1.5 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="font-semibold text-foreground shrink-0">1.</span>
+                        <span>Tap the <Share className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Share button in Safari</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="font-semibold text-foreground shrink-0">2.</span>
+                        <span>Scroll down and tap <Plus className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Add to Home Screen</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="font-semibold text-foreground shrink-0">3.</span>
+                        <span>Tap Add to confirm</span>
+                      </li>
+                    </ol>
+                  ) : (
+                    <ol className="space-y-1.5 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <span className="font-semibold text-foreground shrink-0">1.</span>
+                        <span>Open this page directly in Chrome, Edge, or another supported browser (not inside an embedded preview)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="font-semibold text-foreground shrink-0">2.</span>
+                        <span>Click the install icon in the browser address bar, or use the browser menu and select "Install app"</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="font-semibold text-foreground shrink-0">3.</span>
+                        <span>Confirm the installation — the app will launch in its own window</span>
+                      </li>
+                    </ol>
+                  )}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {iosDevice && (
-          <Dialog open={showIosGuide} onOpenChange={(open) => !open && dismissIosGuide()}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle className="text-sm">Install Sign Here</DialogTitle>
-                <DialogDescription className="text-xs">
-                  To install this app on your device:
-                </DialogDescription>
-              </DialogHeader>
-              <ol className="space-y-3 text-xs text-muted-foreground pl-1">
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold text-foreground shrink-0">1.</span>
-                  <span>Tap the <Share className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Share button in Safari</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold text-foreground shrink-0">2.</span>
-                  <span>Scroll down and tap <Plus className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Add to Home Screen</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-semibold text-foreground shrink-0">3.</span>
-                  <span>Tap Add to confirm</span>
-                </li>
-              </ol>
-            </DialogContent>
-          </Dialog>
-        )}
+        <Dialog open={showIosGuide} onOpenChange={(open) => !open && dismissIosGuide()}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-sm">Install Sign Here</DialogTitle>
+              <DialogDescription className="text-xs">
+                To install this app on your iOS device:
+              </DialogDescription>
+            </DialogHeader>
+            <ol className="space-y-3 text-xs text-muted-foreground pl-1">
+              <li className="flex items-start gap-2">
+                <span className="font-semibold text-foreground shrink-0">1.</span>
+                <span>Tap the <Share className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Share button in Safari</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-semibold text-foreground shrink-0">2.</span>
+                <span>Scroll down and tap <Plus className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Add to Home Screen</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-semibold text-foreground shrink-0">3.</span>
+                <span>Tap Add to confirm</span>
+              </li>
+            </ol>
+          </DialogContent>
+        </Dialog>
 
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="space-y-1">
                 <p className="text-xs font-medium tracking-wider uppercase">Version</p>
-                <p className="text-sm text-muted-foreground" data-testid="text-app-version">v1.1.0</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-app-version">v1.1.2</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium tracking-wider uppercase">Platform</p>

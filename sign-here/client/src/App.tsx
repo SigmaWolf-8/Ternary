@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ZoomProvider, ZoomControl } from "@/components/zoom-control";
 import { DashboardFilterProvider } from "@/lib/dashboard-context";
 import { InstallButton } from "@/components/install-button";
+import { OnboardingTour } from "@/components/onboarding-tour";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import EnvelopeNew from "@/pages/envelope-new";
@@ -42,7 +43,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <div className="flex items-center gap-1">
                 <span className="text-[9px] text-muted-foreground tracking-wider uppercase mr-2 hidden sm:inline" data-testid="text-version">
-                  v1.1.0 | PlenumNET v2.1
+                  v1.1.2 | PlenumNET v2.1
                 </span>
                 <ZoomControl />
                 <div className="w-px h-4 bg-border mx-1" />
@@ -113,6 +114,7 @@ function App() {
           <TooltipProvider>
             <AppRoutes />
             <InstallButton />
+            <OnboardingTour />
             <Toaster />
           </TooltipProvider>
         </QueryClientProvider>

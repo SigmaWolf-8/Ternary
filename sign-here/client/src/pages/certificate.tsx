@@ -583,7 +583,7 @@ export default function CertificatePage() {
 
         <div className="text-center py-4">
           <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
-            Sign Here v1.1.0 | PlenumNET v2.1 | CNSA 2.0 Compliant
+            Sign Here v1.1.2 | PlenumNET v2.1 | CNSA 2.0 Compliant
           </p>
           <p className="text-[8px] text-muted-foreground/60 mt-1">
             This certificate was generated from an immutable audit trail and is independently verifiable

@@ -116,7 +116,7 @@ export default function SharePage() {
         <div className="flex justify-start mb-2">
           <Button variant="ghost" size="sm" onClick={() => setLocation("/")} data-testid="button-share-back">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Dashboard
+            File Cabinet
           </Button>
         </div>
         <div className="text-center mb-6">

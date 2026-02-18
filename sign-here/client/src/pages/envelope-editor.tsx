@@ -1559,7 +1559,7 @@ export default function EnvelopeEditor() {
               </Button>
             </Link>
             <Link href="/">
-              <Button size="icon" variant="ghost" data-testid="button-editor-forward" title="Dashboard">
+              <Button size="icon" variant="ghost" data-testid="button-editor-forward" title="File Cabinet">
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </Link>

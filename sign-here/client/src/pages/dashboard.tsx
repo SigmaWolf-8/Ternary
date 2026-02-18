@@ -175,7 +175,7 @@ export default function Dashboard() {
                 </Button>
               )}
               <h1 className="text-sm font-semibold tracking-tight" data-testid="text-dashboard-title">
-                Dashboard
+                File Cabinet
               </h1>
             </div>
             <div className="flex items-center gap-2">

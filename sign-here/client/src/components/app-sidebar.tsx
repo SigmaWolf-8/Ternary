@@ -1,6 +1,6 @@
 import { useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, FilePlus, Shield, Settings, Info, Grid3X3, Tag, Tags } from "lucide-react";
+import { Archive, FilePlus, Shield, Settings, Info, Grid3X3, Tag, Tags } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +17,7 @@ import {
 import signHereVideo from "@assets/grok-video-ea17a914-4cbc-478f-ae96-ffe0c6abb977_(1)_1771375777069.mp4";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "File Cabinet", url: "/", icon: Archive },
   { title: "Tag Envelopes", url: "/wbs-tagging", icon: Tags },
   { title: "New Envelope", url: "/new", icon: FilePlus },
   { title: "About", url: "/about", icon: Info },
@@ -71,8 +71,8 @@ export function AppSidebar() {
             borderBottom: '3px solid rgba(255,255,255,0.08)',
             borderLeft: '3px solid rgba(0,0,0,0.2)',
             borderRight: '3px solid rgba(0,0,0,0.2)',
-            minHeight: '200px',
-            maxHeight: '200px',
+            minHeight: isMobile ? '320px' : '200px',
+            maxHeight: isMobile ? '320px' : '200px',
           }}
         >
           <video
@@ -83,7 +83,7 @@ export function AppSidebar() {
             playsInline
             onEnded={handleVideoEnded}
             className="object-cover pointer-events-none"
-            style={{ width: '100%', height: '180px', objectPosition: 'center center' }}
+            style={{ width: '100%', height: isMobile ? '320px' : '180px', objectPosition: 'center center' }}
           />
         </div>
       </SidebarHeader>
