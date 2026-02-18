@@ -37,10 +37,12 @@ async function pushFile(localPath: string, repoPath: string): Promise<boolean> {
   const base64Content = content.toString("base64");
   const sha = await getFileSha(repoPath);
 
+  const isPhase2 = path.basename(repoPath).includes("2026-02-18") || path.basename(repoPath) === "hptp-fallback-test.ts";
+  const phase = isPhase2 ? "Phase 2" : "Phase 1";
   const body: any = {
     message: sha
-      ? `Update ${path.basename(repoPath)} — Phase 1 security deliverables`
-      : `Add ${path.basename(repoPath)} — Phase 1 security deliverables`,
+      ? `Update ${path.basename(repoPath)} — ${phase} security deliverables`
+      : `Add ${path.basename(repoPath)} — ${phase} security deliverables`,
     content: base64Content,
     branch: BRANCH,
   };
@@ -68,7 +70,7 @@ async function pushFile(localPath: string, repoPath: string): Promise<boolean> {
 
 async function main() {
   console.log("=".repeat(60));
-  console.log("  PUSH TO GITHUB — Phase 1 Security Deliverables");
+  console.log("  PUSH TO GITHUB — Phase 1 + Phase 2 Security Deliverables");
   console.log("  Repository:", `${REPO_OWNER}/${REPO_NAME}`);
   console.log("  Branch:", BRANCH);
   console.log("  Date:", new Date().toISOString());
@@ -92,6 +94,7 @@ async function main() {
     "smoke-test-security.ts",
     "smoke-test-http.ts",
     "load-test-security.ts",
+    "hptp-fallback-test.ts",
   ];
   for (const f of scriptFiles) {
     const fullPath = path.join(scriptsDir, f);

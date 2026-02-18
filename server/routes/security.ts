@@ -526,6 +526,188 @@ export function registerSecurityRoutes(app: Router, storage: IStorage) {
     }
   });
 
+  app.get("/api/security/kri", requireAdmin, async (_req: any, res) => {
+    try {
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const unresolvedCritical = await securityAuditService.getEvents({
+        severity: "critical",
+        resolutionStatus: "unresolved",
+      });
+
+      const recentAnomalies = await hptpAnomalyService.getEvents({
+        days: 30,
+        limit: 1000,
+      });
+      const monthlyFallbacks = recentAnomalies.filter(
+        (a: any) => a.escalationTriggered === true
+      );
+
+      const threats = await threatModelService.getAll();
+      const highRiskUnmitigated = threats.filter(
+        (t: any) =>
+          t.riskScore >= 6.0 &&
+          t.mitigationStatus !== "mitigated" &&
+          t.mitigationStatus !== "transferred"
+      );
+
+      const implStatus = await implementationStatusService.getAll();
+      const totalImpl = implStatus.length;
+      const provenOrComplete = implStatus.filter(
+        (c: any) => c.status === "proven" || c.status === "complete"
+      );
+      const inProgress = implStatus.filter(
+        (c: any) => c.status === "in_progress"
+      );
+
+      const provenComponents = implStatus.filter(
+        (c: any) => c.category === "formal_verification" || c.category === "kernel"
+      );
+      const provenCount = provenComponents.filter(
+        (c: any) => c.status === "proven" || c.completionPercentage >= 100
+      ).length;
+      const criticalPathTotal = Math.max(provenComponents.length, 1);
+      const proofCoverage = Math.round((provenCount / criticalPathTotal) * 100);
+
+      const sideChannelComponents = implStatus.filter(
+        (c: any) => c.category === "hardware" || c.category === "crypto"
+      );
+      const sideChannelComplete = sideChannelComponents.filter(
+        (c: any) => c.completionPercentage >= 80
+      ).length;
+      const sideChannelTotal = Math.max(sideChannelComponents.length, 1);
+      const sideChannelProgress = Math.round(
+        (sideChannelComplete / sideChannelTotal) * 100
+      );
+
+      const kris = {
+        timestamp: now.toISOString(),
+        indicators: [
+          {
+            id: "KRI-001",
+            name: "Unresolved Critical Audit Events",
+            target: 0,
+            current: unresolvedCritical.length,
+            trend: unresolvedCritical.length === 0 ? "stable" : "increasing",
+            status: unresolvedCritical.length === 0 ? "green" : "red",
+            threshold: { green: 0, yellow: 1, red: 3 },
+          },
+          {
+            id: "KRI-002",
+            name: "HPTP Fallback Activations (30d)",
+            target: "< 5/month",
+            current: monthlyFallbacks.length,
+            trend:
+              monthlyFallbacks.length < 5
+                ? "stable"
+                : monthlyFallbacks.length < 10
+                  ? "warning"
+                  : "critical",
+            status:
+              monthlyFallbacks.length < 5
+                ? "green"
+                : monthlyFallbacks.length < 10
+                  ? "yellow"
+                  : "red",
+            threshold: { green: 5, yellow: 10, red: 20 },
+          },
+          {
+            id: "KRI-003",
+            name: "High-Risk Unmitigated Threats",
+            target: 0,
+            current: highRiskUnmitigated.length,
+            trend: highRiskUnmitigated.length === 0 ? "stable" : "warning",
+            status: highRiskUnmitigated.length === 0 ? "green" : "red",
+            threshold: { green: 0, yellow: 1, red: 2 },
+            details: highRiskUnmitigated.map((t: any) => ({
+              threatId: t.threatId,
+              riskScore: t.riskScore,
+              status: t.mitigationStatus,
+            })),
+          },
+          {
+            id: "KRI-004",
+            name: "Side-Channel Eval Progress",
+            target: "> 80%",
+            current: `${sideChannelProgress}%`,
+            trend: "increasing",
+            status:
+              sideChannelProgress >= 80
+                ? "green"
+                : sideChannelProgress >= 50
+                  ? "yellow"
+                  : "red",
+            threshold: { green: 80, yellow: 50, red: 25 },
+          },
+          {
+            id: "KRI-005",
+            name: "Formal Verification Coverage (Critical Path)",
+            target: "> 60%",
+            current: `${proofCoverage}%`,
+            trend: "increasing",
+            status:
+              proofCoverage >= 60
+                ? "green"
+                : proofCoverage >= 40
+                  ? "yellow"
+                  : "red",
+            threshold: { green: 60, yellow: 40, red: 20 },
+            details: {
+              completed: completedProofs,
+              inProgress: inProgressProofs,
+              planned: plannedProofs,
+            },
+          },
+          {
+            id: "KRI-006",
+            name: "Implementation Completion",
+            target: "> 70%",
+            current: `${totalImpl > 0 ? Math.round((provenOrComplete.length / totalImpl) * 100) : 0}%`,
+            trend: "increasing",
+            status:
+              totalImpl > 0 &&
+              provenOrComplete.length / totalImpl >= 0.7
+                ? "green"
+                : totalImpl > 0 &&
+                    provenOrComplete.length / totalImpl >= 0.5
+                  ? "yellow"
+                  : "red",
+            threshold: { green: 70, yellow: 50, red: 30 },
+            details: {
+              total: totalImpl,
+              proven: provenOrComplete.length,
+              inProgress: inProgress.length,
+            },
+          },
+        ],
+        alerts: [] as { kriId: string; message: string; severity: string }[],
+      };
+
+      for (const kri of kris.indicators) {
+        if (kri.status === "red") {
+          kris.alerts.push({
+            kriId: kri.id,
+            message: `${kri.name}: current value ${kri.current} exceeds red threshold`,
+            severity: "critical",
+          });
+        } else if (kri.status === "yellow") {
+          kris.alerts.push({
+            kriId: kri.id,
+            message: `${kri.name}: current value ${kri.current} in warning range`,
+            severity: "warning",
+          });
+        }
+      }
+
+      res.json(kris);
+    } catch (err: any) {
+      log.error("Failed to fetch KRI dashboard", { error: err.message });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.get("/api/security/metadata/categories", (_req: any, res) => {
     res.json({
       auditCategories: ["auth", "crypto", "boot", "network", "hptp", "firmware", "privilege"],
