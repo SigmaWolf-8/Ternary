@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().default(""),
   password: text("password").notNull(),
   role: text("role").notNull().default("signer"),
+  isPlatformCreator: boolean("is_platform_creator").notNull().default(false),
 });
 
 export const envelopes = pgTable("envelopes", {
@@ -142,9 +143,8 @@ export const fieldsRelations = relations(fields, ({ one }) => ({
 
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
 });
 
 export const insertEnvelopeSchema = createInsertSchema(envelopes).omit({

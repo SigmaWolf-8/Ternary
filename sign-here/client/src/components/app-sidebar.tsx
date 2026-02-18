@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import signHereVideo from "@assets/grok-video-ea17a914-4cbc-478f-ae96-ffe0c6abb977_(1)_1771375777069.mp4";
 
@@ -29,19 +30,24 @@ const templateItems = [
 
 export function AppSidebar() {
   const [location, navigate] = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
   const videoRef = useRef<HTMLVideoElement>(null);
   const playCountRef = useRef(0);
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, setOpenMobile]);
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     navigate("/");
+    closeMobileSidebar();
     const video = videoRef.current;
     if (video) {
       playCountRef.current = 0;
       video.currentTime = 0;
       video.play();
     }
-  }, [navigate]);
+  }, [navigate, closeMobileSidebar]);
 
   const handleVideoEnded = useCallback(() => {
     const video = videoRef.current;
@@ -54,7 +60,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-0">
+      <SidebarHeader className="p-0" style={{ boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45), 0 3px 6px -2px rgba(0,0,0,0.3)" }}>
         <div
           className="cursor-pointer overflow-hidden flex items-center justify-center bg-black"
           data-testid="link-home"
@@ -65,7 +71,8 @@ export function AppSidebar() {
             borderBottom: '3px solid rgba(255,255,255,0.08)',
             borderLeft: '3px solid rgba(0,0,0,0.2)',
             borderRight: '3px solid rgba(0,0,0,0.2)',
-            maxHeight: '210px',
+            minHeight: '200px',
+            maxHeight: '200px',
           }}
         >
           <video
@@ -76,7 +83,7 @@ export function AppSidebar() {
             playsInline
             onEnded={handleVideoEnded}
             className="object-cover pointer-events-none"
-            style={{ width: '100%', height: '200px', objectPosition: 'center center' }}
+            style={{ width: '100%', height: '180px', objectPosition: 'center center' }}
           />
         </div>
       </SidebarHeader>
@@ -90,8 +97,9 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === item.url}
+                    style={{ boxShadow: "0 2px 4px -1px rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)" }}
                   >
-                    <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                    <Link href={item.url} onClick={closeMobileSidebar} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                       <item.icon className="w-3.5 h-3.5" />
                       <span className="text-xs">{item.title}</span>
                     </Link>
@@ -110,8 +118,9 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === item.url}
+                    style={{ boxShadow: "0 2px 4px -1px rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)" }}
                   >
-                    <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                    <Link href={item.url} onClick={closeMobileSidebar} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                       <item.icon className="w-3.5 h-3.5" />
                       <span className="text-xs">{item.title}</span>
                     </Link>
@@ -122,14 +131,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-2 space-y-2">
+      <SidebarFooter className="p-2 space-y-2" style={{ boxShadow: "inset 0 8px 16px -4px rgba(0,0,0,0.45), inset 0 3px 6px -2px rgba(0,0,0,0.3)" }}>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               isActive={location === "/settings"}
             >
-              <Link href="/settings" data-testid="link-nav-settings">
+              <Link href="/settings" onClick={closeMobileSidebar} data-testid="link-nav-settings">
                 <Settings className="w-3.5 h-3.5" />
                 <span className="text-xs">Settings</span>
               </Link>

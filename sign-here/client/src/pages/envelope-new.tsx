@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -103,6 +103,22 @@ async function stitchPdfs(entries: PdfFileEntry[]): Promise<{ base64: string; pa
   return { base64, pageCount: merged.getPageCount() };
 }
 
+const DRAFT_KEY = "envelope-new-draft";
+
+function loadDraft(): { title: string; description: string; recipients: FormValues["recipients"]; tagIds: string[] } | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft() {
+  sessionStorage.removeItem(DRAFT_KEY);
+}
+
 export default function EnvelopeNew() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -111,7 +127,9 @@ export default function EnvelopeNew() {
   const [isStitching, setIsStitching] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const draft = loadDraft();
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(draft?.tagIds || []);
+  const [draftRestored, setDraftRestored] = useState(!!draft);
 
   const { data: wbsTags } = useQuery<WbsTag[]>({
     queryKey: ["/api/wbs-tags"],
@@ -128,9 +146,9 @@ export default function EnvelopeNew() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      recipients: [{ name: "", email: "", role: "signer" }],
+      title: draft?.title || "",
+      description: draft?.description || "",
+      recipients: draft?.recipients?.length ? draft.recipients : [{ name: "", email: "", role: "signer" }],
     },
   });
 
@@ -138,6 +156,36 @@ export default function EnvelopeNew() {
     control: form.control,
     name: "recipients",
   });
+
+  const saveDraft = useCallback(() => {
+    const values = form.getValues();
+    const hasContent = values.title || values.description ||
+      values.recipients.some((r) => r.name || r.email);
+    if (hasContent) {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+        title: values.title,
+        description: values.description,
+        recipients: values.recipients,
+        tagIds: selectedTagIds,
+      }));
+    }
+  }, [form, selectedTagIds]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => saveDraft();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      saveDraft();
+    };
+  }, [saveDraft]);
+
+  useEffect(() => {
+    if (draftRestored) {
+      toast({ title: "Draft restored", description: "Your previous entries have been loaded" });
+      setDraftRestored(false);
+    }
+  }, [draftRestored]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -247,6 +295,7 @@ export default function EnvelopeNew() {
       return envelope;
     },
     onSuccess: (data) => {
+      clearDraft();
       queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/envelope-wbs-tags"] });
       toast({ title: "Envelope created" });

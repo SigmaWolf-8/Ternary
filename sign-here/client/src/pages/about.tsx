@@ -1,6 +1,9 @@
-import { Shield, Lock, FileCheck, Fingerprint, Clock, Globe, Layers, FileText, Award, CheckCircle, Combine, FileOutput, MapPin } from "lucide-react";
+import { Shield, Lock, FileCheck, Fingerprint, Clock, Globe, Layers, FileText, Award, CheckCircle, Combine, FileOutput, MapPin, Download, Share, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 const certifications = [
   {
@@ -94,6 +97,8 @@ const capabilities = [
 ];
 
 export default function AboutPage() {
+  const { canInstall, isInstalled, install, showIosGuide, dismissIosGuide, iosDevice } = usePwaInstall();
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
@@ -217,11 +222,68 @@ export default function AboutPage() {
         </Card>
 
         <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary shrink-0" />
+              <CardTitle className="text-sm tracking-wider uppercase">Install App</CardTitle>
+            </div>
+            {isInstalled && (
+              <Badge variant="default" className="text-[10px]">Installed</Badge>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Install Sign Here as a standalone app on your device for quick access, offline support, and a full-screen experience without browser chrome.
+            </p>
+            {!isInstalled ? (
+              <Button
+                onClick={() => install()}
+                data-testid="button-pwa-install"
+              >
+                <Download className="w-3.5 h-3.5 mr-2" />
+                Install Sign Here
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Sign Here is installed on this device.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {iosDevice && (
+          <Dialog open={showIosGuide} onOpenChange={(open) => !open && dismissIosGuide()}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-sm">Install Sign Here</DialogTitle>
+                <DialogDescription className="text-xs">
+                  To install this app on your device:
+                </DialogDescription>
+              </DialogHeader>
+              <ol className="space-y-3 text-xs text-muted-foreground pl-1">
+                <li className="flex items-start gap-2">
+                  <span className="font-semibold text-foreground shrink-0">1.</span>
+                  <span>Tap the <Share className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Share button in Safari</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-semibold text-foreground shrink-0">2.</span>
+                  <span>Scroll down and tap <Plus className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Add to Home Screen</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-semibold text-foreground shrink-0">3.</span>
+                  <span>Tap Add to confirm</span>
+                </li>
+              </ol>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="space-y-1">
                 <p className="text-xs font-medium tracking-wider uppercase">Version</p>
-                <p className="text-sm text-muted-foreground" data-testid="text-app-version">v1.0.0</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-app-version">v1.1.0</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium tracking-wider uppercase">Platform</p>

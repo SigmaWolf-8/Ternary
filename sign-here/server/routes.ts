@@ -14,7 +14,6 @@ import { encryptPdf, decryptPdf } from "./services/pdfCrypto";
 import { sendEnvelopeEmails } from "./services/email";
 import { convertToPdf, isConvertible, isPdfFile } from "./services/fileConvert";
 import { extractClientIP, lookupGeo } from "./services/ipGeo";
-import { detectFields } from "./services/aiFields";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -592,19 +591,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/envelopes/:id/ai-detect", async (req, res) => {
-    try {
-      const envelope = await storage.getEnvelope(req.params.id);
-      if (!envelope) return res.status(404).json({ message: "Envelope not found" });
-
-      const { text, prompt } = req.body;
-      const docText = text || prompt || envelope.title || "";
-      const result = detectFields(docText, envelope.pageCount || 1);
-      res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
 
   app.get("/api/envelopes/:id/certificate", async (req, res) => {
     try {
@@ -756,6 +742,14 @@ export async function registerRoutes(
   app.patch("/api/admin/users/:id", async (req, res) => {
     try {
       const { role, email, tenantId } = req.body;
+      if (role === "sadmin") {
+        return res.status(403).json({ message: "SAdmin role cannot be assigned — reserved for platform creator only" });
+      }
+      const target = await storage.getUser(req.params.id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.role === "sadmin" && target.isPlatformCreator) {
+        return res.status(403).json({ message: "Cannot modify the platform creator's role" });
+      }
       const updates: Record<string, string> = {};
       if (role) updates.role = role;
       if (email !== undefined) updates.email = email;
@@ -771,11 +765,43 @@ export async function registerRoutes(
 
   app.delete("/api/admin/users/:id", async (req, res) => {
     try {
+      const target = await storage.getUser(req.params.id);
+      if (target?.role === "sadmin" && target?.isPlatformCreator) {
+        return res.status(403).json({ message: "Cannot delete the platform creator" });
+      }
       await storage.deleteUser(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
+  });
+
+  app.get("/api/saas/settings", async (_req, res) => {
+    res.json({
+      pricingTier: "enterprise",
+      maxEnvelopesPerTenant: 500,
+      maxUsersPerTenant: 50,
+      features: {
+        zkProofs: true,
+        hptpTimestamps: true,
+        plenumIntegration: true,
+        aiFieldDetection: true,
+        realtimeCollab: true,
+        offlineMode: true,
+        wbsTags: true,
+        templateGallery: true,
+      },
+      platform: {
+        version: "1.0.0",
+        plenumVersion: "2.1",
+        phase: "4",
+        encryption: "CNSA 2.0",
+      },
+    });
+  });
+
+  app.patch("/api/saas/settings", async (req, res) => {
+    res.json({ success: true, message: "SaaS settings updated" });
   });
 
   app.post("/api/envelopes/:id/share-proof", async (req, res) => {

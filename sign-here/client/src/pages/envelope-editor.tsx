@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useRoute, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -34,7 +35,6 @@ import {
   Mail,
   User,
   X,
-  Wand2,
   ChevronDown,
   Wifi,
   WifiOff,
@@ -42,6 +42,12 @@ import {
   Stamp,
   Tag,
   Search,
+  PanelLeftOpen,
+  PanelLeftClose,
+  MapPin,
+  MapPinOff,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -92,11 +98,11 @@ const FONT_STYLES = [
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const FIELD_TOOLS = [
-  { type: "signature", icon: PenLine, label: "Signature", w: 200, h: 60 },
-  { type: "date", icon: CalendarDays, label: "Date", w: 140, h: 36 },
-  { type: "text", icon: Type, label: "Text", w: 180, h: 36 },
+  { type: "signature", icon: PenLine, label: "Signature", w: 200, h: 28 },
+  { type: "date", icon: CalendarDays, label: "Date", w: 140, h: 24 },
+  { type: "text", icon: Type, label: "Text", w: 180, h: 28 },
   { type: "checkbox", icon: CheckSquare, label: "Checkbox", w: 28, h: 28 },
-  { type: "initials", icon: Hash, label: "Initials", w: 80, h: 40 },
+  { type: "initials", icon: Hash, label: "Initials", w: 80, h: 28 },
 ];
 
 const RECIPIENT_COLORS = [
@@ -194,13 +200,14 @@ export default function EnvelopeEditor() {
   const [editRecipientName, setEditRecipientName] = useState("");
   const [editRecipientEmail, setEditRecipientEmail] = useState("");
   const [showSealWarning, setShowSealWarning] = useState(false);
+  const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
+  const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [aiDialogOpen, setAiDialogOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiSuggestions, setAiSuggestions] = useState<FieldType[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
   const lastCursorEmitRef = useRef(0);
   const [collabUserId] = useState(() => "user-" + Date.now());
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   const [templateSearch, setTemplateSearch] = useState("");
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
@@ -213,12 +220,18 @@ export default function EnvelopeEditor() {
   } | null>(null);
   const marqueeRef = useRef(marquee);
   marqueeRef.current = marquee;
+  const isMobile = useIsMobile();
+  const [editorPanelOpen, setEditorPanelOpen] = useState(typeof window !== "undefined" ? window.innerWidth >= 768 : true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<Record<string, boolean>>({
     recipients: false,
     tools: false,
     pages: false,
-    placed: false,
+    placed: true,
   });
+
+  useEffect(() => {
+    if (isMobile) setEditorPanelOpen(false);
+  }, [isMobile]);
 
   const envelopeId = params?.id || "";
 
@@ -408,24 +421,28 @@ export default function EnvelopeEditor() {
     if (numPages <= 1) return;
     const container = scrollContainerRef.current;
     if (!container) return;
+    const pageVisibility = new Map<number, number>();
     const observer = new IntersectionObserver(
       (entries) => {
-        let bestPage = activePage;
-        let bestRatio = 0;
         entries.forEach((entry) => {
-          if (entry.intersectionRatio > bestRatio) {
-            const pageNum = Number(entry.target.getAttribute("data-page-num"));
-            if (pageNum) {
-              bestRatio = entry.intersectionRatio;
-              bestPage = pageNum;
-            }
+          const pageNum = Number(entry.target.getAttribute("data-page-num"));
+          if (pageNum) {
+            pageVisibility.set(pageNum, entry.intersectionRatio);
+          }
+        });
+        let bestPage = 1;
+        let bestRatio = 0;
+        pageVisibility.forEach((ratio, pageNum) => {
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestPage = pageNum;
           }
         });
         if (bestRatio > 0) {
           setActivePage(bestPage);
         }
       },
-      { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] }
+      { root: container, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] }
     );
     pageRefs.current.forEach((el, pageNum) => {
       el.setAttribute("data-page-num", String(pageNum));
@@ -447,73 +464,67 @@ export default function EnvelopeEditor() {
     }
   }, [pdfZoom, emitCursorMove]);
 
-  const handleAiDetect = useCallback(async () => {
-    const text = aiPrompt.trim() || envelope?.title || "";
-    if (!text) {
-      toast({ title: "Enter a prompt or ensure the document has a title", variant: "destructive" });
-      return;
-    }
-    setAiLoading(true);
-    try {
-      const res = await apiRequest("POST", `/api/envelopes/${envelopeId}/ai-detect`, { text });
-      const data = await res.json();
-      setAiSuggestions(Array.isArray(data) ? data : data.fields || []);
-    } catch (err: any) {
-      toast({ title: "AI Detection failed", description: err.message, variant: "destructive" });
-    } finally {
-      setAiLoading(false);
-    }
-  }, [aiPrompt, envelope, envelopeId, toast]);
 
-  const acceptAiField = useCallback((field: FieldType) => {
-    const newField: FieldType = {
-      ...field,
-      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      envelopeId,
-    };
-    pushHistory([...localFields, newField]);
-    setAiSuggestions((prev) => prev.filter((f) => f !== field));
-    emitFieldAdd(newField);
-  }, [envelopeId, localFields, pushHistory, emitFieldAdd]);
-
-  const applyTemplate = useCallback((template: Template) => {
+  const applyTemplate = useCallback((template: Template, mode: "current" | "all" = "current") => {
     const fieldDefs = template.fieldDefs as any[];
     if (!fieldDefs || fieldDefs.length === 0) {
       toast({ title: "No fields to apply", description: "This template has no field definitions.", variant: "destructive" });
       return;
     }
-    const oldIdToNewId: Record<string, string> = {};
-    const newFields: FieldType[] = fieldDefs.map((fd: any) => {
-      const newId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      if (fd.id) oldIdToNewId[fd.id] = newId;
-      return {
-        id: newId,
-        envelopeId,
-        recipientId: selectedRecipient || null,
-        type: fd.type,
-        label: fd.label || null,
-        page: fd.page || activePage,
-        x: fd.x || 60,
-        y: fd.y || 200,
-        width: fd.width || 200,
-        height: fd.height || 36,
-        value: null,
-        required: fd.required ?? true,
-        dependsOnFieldId: fd.dependsOnFieldId ? (oldIdToNewId[fd.dependsOnFieldId] || null) : null,
-        dependsOnValue: fd.dependsOnValue || null,
-      };
-    });
-    newFields.forEach((f) => {
-      if (f.dependsOnFieldId && !oldIdToNewId[f.dependsOnFieldId]) {
-        const origDef = fieldDefs.find((fd: any) => oldIdToNewId[fd.id] === f.dependsOnFieldId);
-        if (!origDef) f.dependsOnFieldId = null;
-      }
-    });
-    pushHistory([...localFields, ...newFields]);
-    newFields.forEach((f) => emitFieldAdd(f));
-    toast({ title: `Applied "${template.name}"`, description: `${newFields.length} field${newFields.length !== 1 ? "s" : ""} stamped onto document` });
+    const hasSealDef = fieldDefs.some((fd: any) => fd.type === "seal");
+    const nonSealDefs = fieldDefs.filter((fd: any) => fd.type !== "seal");
+    const pages = mode === "all" ? Array.from({ length: numPages }, (_, i) => i + 1) : [activePage];
+    const allNewFields: FieldType[] = [];
+    for (const pg of pages) {
+      const oldIdToNewId: Record<string, string> = {};
+      const pageFields: FieldType[] = nonSealDefs.map((fd: any) => {
+        const newId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-p${pg}`;
+        if (fd.id) oldIdToNewId[fd.id] = newId;
+        return {
+          id: newId,
+          envelopeId,
+          recipientId: selectedRecipient || null,
+          type: fd.type,
+          label: fd.label || null,
+          page: pg,
+          x: fd.x || 60,
+          y: fd.y || 200,
+          width: fd.width || 200,
+          height: fd.height || 36,
+          value: null,
+          required: fd.required ?? true,
+          dependsOnFieldId: fd.dependsOnFieldId ? (oldIdToNewId[fd.dependsOnFieldId] || null) : null,
+          dependsOnValue: fd.dependsOnValue || null,
+        };
+      });
+      pageFields.forEach((f) => {
+        if (f.dependsOnFieldId && !oldIdToNewId[f.dependsOnFieldId]) {
+          const origDef = nonSealDefs.find((fd: any) => oldIdToNewId[fd.id] === f.dependsOnFieldId);
+          if (!origDef) f.dependsOnFieldId = null;
+        }
+      });
+      allNewFields.push(...pageFields);
+    }
+    pushHistory([...localFields, ...allNewFields]);
+    allNewFields.forEach((f) => emitFieldAdd(f));
+    const pageLabel = mode === "all" ? `across all ${numPages} pages` : "on current page";
+    toast({ title: `Applied "${template.name}"`, description: `${allNewFields.length} field${allNewFields.length !== 1 ? "s" : ""} stamped ${pageLabel}` });
     setShowTemplatePanel(false);
-  }, [envelopeId, selectedRecipient, activePage, localFields, pushHistory, emitFieldAdd, toast]);
+    setExpandedTemplateId(null);
+    if (hasSealDef) {
+      const sealPages = pages;
+      setTimeout(() => {
+        const runSeals = async () => {
+          for (const pg of sealPages) {
+            setActivePage(pg);
+            await new Promise((r) => setTimeout(r, 100));
+            if (generateSealRef.current) await generateSealRef.current();
+          }
+        };
+        runSeals();
+      }, 200);
+    }
+  }, [envelopeId, selectedRecipient, activePage, numPages, localFields, pushHistory, emitFieldAdd, toast]);
 
   const filteredTemplates = (allTemplates || []).filter((t) =>
     !templateSearch ||
@@ -521,6 +532,39 @@ export default function EnvelopeEditor() {
     (t.description || "").toLowerCase().includes(templateSearch.toLowerCase()) ||
     (t.category || "").toLowerCase().includes(templateSearch.toLowerCase())
   );
+
+  const renameMutation = useMutation({
+    mutationFn: async (title: string) => {
+      await apiRequest("PATCH", `/api/envelopes/${envelopeId}`, { title });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
+      setIsEditingTitle(false);
+      toast({ title: "Envelope renamed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to rename", variant: "destructive" });
+    },
+  });
+
+  const startEditingTitle = () => {
+    setEditTitle(envelope?.title || "");
+    setIsEditingTitle(true);
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }, 0);
+  };
+
+  const submitEditorTitle = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== envelope?.title) {
+      renameMutation.mutate(trimmed);
+    } else {
+      setIsEditingTitle(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (fieldsData: FieldType[]) => {
@@ -861,6 +905,11 @@ export default function EnvelopeEditor() {
       const field = localFields.find((f) => f.id === fieldId);
       if (!field) return;
 
+      if (lockedFields.has(fieldId)) {
+        setSelectedField(fieldId);
+        return;
+      }
+
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
         setSelectedFields((prev) => {
           const next = new Set(prev);
@@ -961,6 +1010,7 @@ export default function EnvelopeEditor() {
 
       const field = localFields.find((f) => f.id === fieldId);
       if (!field) return;
+      if (lockedFields.has(fieldId)) return;
 
       const startX = e.clientX;
       const startY = e.clientY;
@@ -1065,7 +1115,51 @@ export default function EnvelopeEditor() {
   );
 
   const updateFieldValue = useCallback((fieldId: string, value: string | null) => {
-    pushHistory(localFields.map((f) => f.id === fieldId ? { ...f, value } : f));
+    const targetField = localFields.find((f) => f.id === fieldId);
+    let updated = localFields.map((f) => f.id === fieldId ? { ...f, value } : f);
+
+    if (targetField && targetField.type === "signature") {
+      const page = targetField.page;
+      const sealField = updated.find((f) => f.page === page && f.label === "seal" && f.value);
+      if (sealField) {
+        const pageFields = updated.filter(
+          (f) => f.page === page && f.type !== "initials" && f.type !== "checkbox" && f.label !== "seal" && f.label !== "footer-line"
+        );
+        const parts: string[] = [];
+        for (const f of pageFields) {
+          if (f.type === "signature" && f.value) {
+            if (f.value.startsWith("typed:")) {
+              parts.push(`SIG: ${f.value.split(":").slice(2).join(":")}`);
+            } else if (f.value.startsWith("drawn:")) {
+              parts.push("SIG: [drawn]");
+            } else {
+              parts.push(`SIG: ${f.value}`);
+            }
+          } else if (f.type === "signature") {
+            parts.push("SIG: [pending]");
+          } else if (f.type === "date" && f.value) {
+            parts.push(`Date ${f.value}`);
+          } else if (f.type === "date") {
+            parts.push("DATE: [pending]");
+          } else if (f.type === "text" && f.value) {
+            parts.push(`TXT: ${f.value}`);
+          } else if (f.type === "text") {
+            parts.push("TXT: [pending]");
+          }
+        }
+        const oldVal = sealField.value!;
+        const tsMatch = oldVal.match(/\|\s*(\d{4}-[^|]*(?:\[[\d.]+fs\])?)$/);
+        const timestamp = tsMatch ? tsMatch[1].trim() : formatDateWithTimezone(new Date());
+        const gpsMatch = oldVal.match(/\|\s*(GPS:\s*[^|]*)\s*\|/);
+        const gpsText = gpsMatch ? gpsMatch[1].trim() : null;
+        const newSealContent = gpsText
+          ? `SEAL | ${parts.join(" | ")} | ${gpsText} | ${timestamp}`
+          : `SEAL | ${parts.join(" | ")} | ${timestamp}`;
+        updated = updated.map((f) => f.id === sealField.id ? { ...f, value: newSealContent } : f);
+      }
+    }
+
+    pushHistory(updated);
   }, [localFields, pushHistory]);
 
   const handleFieldDoubleClick = useCallback((fieldId: string) => {
@@ -1151,6 +1245,7 @@ export default function EnvelopeEditor() {
   };
 
   const [sealGenerating, setSealGenerating] = useState(false);
+  const [showGpsOnSeal, setShowGpsOnSeal] = useState(true);
 
   const generateSeal = useCallback(async () => {
     const pageFields = localFields.filter(
@@ -1219,43 +1314,53 @@ export default function EnvelopeEditor() {
       }
       const sealTimestamp = `${baseTimestamp} [${highPrecFrac}fs]`;
 
-      const sealContent = `SEAL | ${parts.join(" | ")} | ${gpsText} | ${sealTimestamp}`;
+      const sealContent = showGpsOnSeal
+        ? `SEAL | ${parts.join(" | ")} | ${gpsText} | ${sealTimestamp}`
+        : `SEAL | ${parts.join(" | ")} | ${sealTimestamp}`;
 
       const pageEl = pageRefs.current.get(activePage);
       const pageHeight = pageEl ? pageEl.offsetHeight / pdfZoom : 1035;
       const pageWidth = pageEl ? pageEl.offsetWidth / pdfZoom : 800;
 
       const sigFields = localFields.filter(
-        (f) => f.page === activePage && f.type === "signature" && f.label !== "seal" && f.label !== "footer-line"
+        (f) => f.page === activePage && f.type === "signature" && f.label !== "seal" && f.label !== "footer-line" && !lockedFields.has(f.id)
       );
 
       const bottomMargin = 20;
-      const inlineGap = 10;
+      const inlineGap = 4;
       const footerLineHeight = 4;
-      const sigRowHeight = sigFields.length > 0 ? Math.max(...sigFields.map((f) => f.height)) : 40;
-      const sealHeight = 48;
+      const footerExtraLift = 24;
+      const sealHeight = 24;
       const leftMargin = 40;
       const rightMargin = 40;
       const usableWidth = pageWidth - leftMargin - rightMargin;
 
-      const sealY = Math.round(pageHeight - bottomMargin - sealHeight);
-      const sigRowY = Math.round(sealY - sigRowHeight - 6);
-      const footerLineY = Math.round(sigRowY - footerLineHeight - 6);
-
       const sigCount = sigFields.length;
-      const sigItemWidth = sigCount > 0 ? Math.min(Math.floor((usableWidth - (sigCount - 1) * inlineGap) / sigCount), 200) : 0;
+      const maxSealWidth = 470;
+      const rawSigTotalWidth = sigCount > 0 ? Math.min(sigCount * 120 + (sigCount - 1) * inlineGap, Math.round(usableWidth * 0.4)) : 0;
+      const sigItemWidth = sigCount > 0 ? Math.max(20, Math.floor((rawSigTotalWidth - (sigCount - 1) * inlineGap) / sigCount)) : 0;
+      const sigTotalWidth = sigCount > 0 ? sigCount * sigItemWidth + (sigCount - 1) * inlineGap : 0;
+      const sigRowHeight = sealHeight;
+
+      const sealWidth = sigCount > 0
+        ? Math.min(maxSealWidth, usableWidth - sigTotalWidth - inlineGap)
+        : Math.min(maxSealWidth, usableWidth);
+      const groupWidth = sigCount > 0 ? sigTotalWidth + inlineGap + sealWidth : sealWidth;
+      const groupStartX = Math.round(leftMargin + (usableWidth - groupWidth) / 2);
+
+      const sealRowY = Math.round(pageHeight - bottomMargin - sealHeight);
+      const footerLineY = Math.round(sealRowY - footerLineHeight - 6 - footerExtraLift);
 
       const repositionedSigIds = new Set(sigFields.map((f) => f.id));
 
       const updatedFields: FieldType[] = [];
-      let sigX = leftMargin;
+      let sigX = groupStartX;
       for (const f of sigFields) {
-        updatedFields.push({ ...f, x: Math.round(sigX), y: sigRowY, width: sigItemWidth, height: sigRowHeight });
+        updatedFields.push({ ...f, x: Math.round(sigX), y: sealRowY, width: sigItemWidth, height: sigRowHeight });
         sigX += sigItemWidth + inlineGap;
       }
 
-      const sealX = leftMargin;
-      const sealWidth = Math.round(usableWidth);
+      const sealX = sigCount > 0 ? Math.round(groupStartX + sigTotalWidth + inlineGap) : groupStartX;
 
       const existingSealIdx = localFields.findIndex((f) => f.page === activePage && f.label === "seal");
       const existingSeal = existingSealIdx >= 0 ? localFields[existingSealIdx] : null;
@@ -1268,7 +1373,7 @@ export default function EnvelopeEditor() {
           return updated || f;
         }
         if (existingSeal && f.id === existingSeal.id) {
-          return { ...f, value: sealContent, y: sealY, x: sealX, width: sealWidth, height: sealHeight };
+          return { ...f, value: sealContent, y: sealRowY, x: sealX, width: sealWidth, height: sealHeight };
         }
         if (existingFooter && f.id === existingFooter.id) {
           return { ...f, y: footerLineY, x: leftMargin, width: Math.round(usableWidth) };
@@ -1285,7 +1390,7 @@ export default function EnvelopeEditor() {
           label: "seal",
           page: activePage,
           x: sealX,
-          y: sealY,
+          y: sealRowY,
           width: sealWidth,
           height: sealHeight,
           value: sealContent,
@@ -1321,7 +1426,77 @@ export default function EnvelopeEditor() {
     } finally {
       setSealGenerating(false);
     }
-  }, [localFields, activePage, envelopeId, selectedRecipient, pushHistory, toast]);
+  }, [localFields, activePage, envelopeId, selectedRecipient, pushHistory, toast, showGpsOnSeal]);
+
+  const generateSealRef = useRef(generateSeal);
+  useEffect(() => { generateSealRef.current = generateSeal; }, [generateSeal]);
+
+  const reviseSealsGps = useCallback((includeGps: boolean) => {
+    const sealFields = localFields.filter((f) => f.label === "seal" && f.value);
+    if (sealFields.length === 0) return;
+
+    const gpsPattern = /\s*\|\s*GPS:\s*[^|]*/g;
+
+    let updatedFields = localFields.map((f) => {
+      if (f.label !== "seal" || !f.value) return f;
+      if (!includeGps) {
+        return { ...f, value: f.value.replace(gpsPattern, "") };
+      }
+      if (includeGps && !f.value.includes("GPS:")) {
+        const lastPipe = f.value.lastIndexOf("|");
+        if (lastPipe > 0) {
+          const before = f.value.slice(0, lastPipe).trimEnd();
+          const after = f.value.slice(lastPipe);
+          return { ...f, value: `${before} | GPS: unavailable ${after}` };
+        }
+      }
+      return f;
+    });
+
+    const sealPages = Array.from(new Set(sealFields.map((f) => f.page)));
+    const inlineGap = 4;
+    const sealHeight = 24;
+    const leftMargin = 40;
+    const rightMargin = 40;
+    const maxSealWidth = 470;
+
+    for (const page of sealPages) {
+      const pageEl = pageRefs.current.get(page);
+      const pageWidth = pageEl ? pageEl.offsetWidth / pdfZoom : 800;
+      const usableWidth = pageWidth - leftMargin - rightMargin;
+
+      const sigFields = updatedFields.filter(
+        (f) => f.page === page && f.type === "signature" && f.label !== "seal" && f.label !== "footer-line"
+      );
+      const sigCount = sigFields.length;
+      const rawSigTotalWidth = sigCount > 0 ? Math.min(sigCount * 120 + (sigCount - 1) * inlineGap, Math.round(usableWidth * 0.4)) : 0;
+      const sigItemWidth = sigCount > 0 ? Math.max(20, Math.floor((rawSigTotalWidth - (sigCount - 1) * inlineGap) / sigCount)) : 0;
+      const sigTotalWidth = sigCount > 0 ? sigCount * sigItemWidth + (sigCount - 1) * inlineGap : 0;
+
+      const sealWidth = sigCount > 0
+        ? Math.min(maxSealWidth, usableWidth - sigTotalWidth - inlineGap)
+        : Math.min(maxSealWidth, usableWidth);
+      const groupWidth = sigCount > 0 ? sigTotalWidth + inlineGap + sealWidth : sealWidth;
+      const groupStartX = Math.round(leftMargin + (usableWidth - groupWidth) / 2);
+
+      const sigIds = new Set(sigFields.map((sf) => sf.id));
+      let sigX = groupStartX;
+      updatedFields = updatedFields.map((f) => {
+        if (f.page === page && sigIds.has(f.id)) {
+          const newF = { ...f, x: Math.round(sigX), width: sigItemWidth, height: sealHeight };
+          sigX += sigItemWidth + inlineGap;
+          return newF;
+        }
+        if (f.page === page && f.label === "seal") {
+          const sx = sigCount > 0 ? Math.round(groupStartX + sigTotalWidth + inlineGap) : groupStartX;
+          return { ...f, x: sx, width: sealWidth, height: sealHeight };
+        }
+        return f;
+      });
+    }
+
+    pushHistory(updatedFields);
+  }, [localFields, pdfZoom, pushHistory]);
 
   const removeField = (id: string) => {
     pushHistory(
@@ -1390,9 +1565,33 @@ export default function EnvelopeEditor() {
             </Link>
           </div>
           <div className="min-w-0">
-            <h1 className="text-xs font-semibold truncate" data-testid="text-editor-title">
-              {envelope?.title || "Untitled"}
-            </h1>
+            {isEditingTitle ? (
+              <Input
+                ref={titleInputRef}
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={submitEditorTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitEditorTitle();
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                className="h-6 text-xs font-semibold w-48"
+                data-testid="input-edit-title"
+                disabled={renameMutation.isPending}
+              />
+            ) : (
+              <button
+                onClick={startEditingTitle}
+                className="flex items-center gap-1 group text-left max-w-full"
+                data-testid="button-edit-title"
+                title="Click to rename"
+              >
+                <h1 className="text-xs font-semibold truncate" data-testid="text-editor-title">
+                  {envelope?.title || "Untitled"}
+                </h1>
+                <Pencil className="w-2.5 h-2.5 text-muted-foreground invisible group-hover:visible shrink-0" />
+              </button>
+            )}
             <p className="text-[10px] text-muted-foreground truncate">
               {hasPdf ? `${numPages} pg${numPages !== 1 ? "s" : ""} · Place fields` : "Upload a document"}
             </p>
@@ -1510,7 +1709,22 @@ export default function EnvelopeEditor() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-48 shrink-0 border-r p-2 space-y-1.5 overflow-y-auto bg-sidebar" style={{ boxShadow: 'inset 2px 2px 6px rgba(255,255,255,0.07), inset -2px -2px 6px rgba(0,0,0,0.4), inset 0 0 20px rgba(0,0,0,0.15)' }}>
+        <div
+          className={`shrink-0 border-r overflow-hidden transition-all duration-200 bg-sidebar ${editorPanelOpen ? "w-48" : "w-0 border-r-0"}`}
+          style={{ boxShadow: editorPanelOpen ? 'inset 2px 2px 6px rgba(255,255,255,0.07), inset -2px -2px 6px rgba(0,0,0,0.4), inset 0 0 20px rgba(0,0,0,0.15)' : 'none' }}
+          data-testid="editor-sidebar-panel"
+        >
+          <div className={`${editorPanelOpen ? "opacity-100" : "opacity-0 pointer-events-none"} transition-opacity duration-150 w-48 h-full overflow-y-auto overflow-x-hidden p-2 space-y-1.5`}>
+          <div className="flex justify-end -mb-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setEditorPanelOpen(false)}
+              data-testid="button-close-editor-panel"
+            >
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            </Button>
+          </div>
           <div>
             <input
               ref={fileInputRef}
@@ -1778,37 +1992,134 @@ export default function EnvelopeEditor() {
             </button>
             {!sidebarCollapsed.tools && (
             <div className="mt-0.5 space-y-0.5">
-              {FIELD_TOOLS.map((tool) => (
-                <Button
-                  key={tool.type}
-                  variant={dragTool?.type === tool.type ? "secondary" : "ghost"}
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() =>
-                    setDragTool(
-                      dragTool?.type === tool.type ? null : { type: tool.type, w: tool.w, h: tool.h }
-                    )
-                  }
-                  data-testid={`button-tool-${tool.type}`}
-                >
-                  <tool.icon className="w-3 h-3" />
-                  <span className="text-xs">{tool.label}</span>
-                </Button>
+              {FIELD_TOOLS.map((tool, idx) => (
+                <div key={tool.type}>
+                  <Button
+                    variant={dragTool?.type === tool.type ? "secondary" : "ghost"}
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() =>
+                      setDragTool(
+                        dragTool?.type === tool.type ? null : { type: tool.type, w: tool.w, h: tool.h }
+                      )
+                    }
+                    data-testid={`button-tool-${tool.type}`}
+                  >
+                    <tool.icon className="w-3 h-3" />
+                    <span className="text-xs">{tool.label}</span>
+                  </Button>
+                  {idx === 0 && (
+                    <div className="flex items-center gap-1 mt-0.5 mb-0.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={generateSeal}
+                        disabled={sealGenerating}
+                        data-testid="button-generate-seal"
+                      >
+                        <Shield className="w-3 h-3" />
+                        {sealGenerating ? "Generating..." : "Generate Seal"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={`toggle-elevate ${showGpsOnSeal ? "toggle-elevated" : ""}`}
+                        onClick={() => {
+                          const newGpsState = !showGpsOnSeal;
+                          setShowGpsOnSeal(newGpsState);
+                          reviseSealsGps(newGpsState);
+                        }}
+                        data-testid="button-toggle-gps"
+                        title={showGpsOnSeal ? "GPS location will appear on seal" : "GPS location hidden from seal"}
+                      >
+                        {showGpsOnSeal ? <MapPin className="w-3.5 h-3.5" /> : <MapPinOff className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  )}
+                  {idx === FIELD_TOOLS.length - 1 && (
+                    <div className="mt-0.5">
+                      <Button
+                        variant={showTemplatePanel ? "secondary" : "outline"}
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => setShowTemplatePanel(!showTemplatePanel)}
+                        data-testid="button-toggle-templates"
+                      >
+                        <LayoutTemplate className="w-3 h-3" />
+                        <span className="text-xs">Templates</span>
+                      </Button>
+                      {showTemplatePanel && (
+                        <div className="mt-2 space-y-1.5">
+                          <div className="relative">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                            <Input
+                              placeholder="Search..."
+                              value={templateSearch}
+                              onChange={(e) => setTemplateSearch(e.target.value)}
+                              className="pl-7 h-7 text-[10px]"
+                              data-testid="input-editor-template-search"
+                            />
+                          </div>
+                          <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                            {templatesLoading ? (
+                              <div className="space-y-1 py-1">
+                                <Skeleton className="h-8 w-full" />
+                                <Skeleton className="h-8 w-full" />
+                                <Skeleton className="h-8 w-full" />
+                              </div>
+                            ) : filteredTemplates.length === 0 ? (
+                              <p className="text-[10px] text-muted-foreground text-center py-2">No templates found</p>
+                            ) : (
+                              filteredTemplates.map((tpl) => (
+                                <div key={tpl.id} className="space-y-0.5">
+                                  <div
+                                    className="flex items-center gap-1.5 p-1.5 rounded-md hover-elevate cursor-pointer group/tpl"
+                                    onClick={() => setExpandedTemplateId(expandedTemplateId === tpl.id ? null : tpl.id)}
+                                    data-testid={`template-apply-${tpl.id}`}
+                                  >
+                                    <Stamp className="w-3 h-3 text-primary shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[10px] font-medium truncate">{tpl.name}</p>
+                                      <p className="text-[8px] text-muted-foreground truncate">
+                                        {(tpl.fieldDefs as any[] || []).length} fields
+                                        {tpl.category ? ` · ${tpl.category}` : ""}
+                                      </p>
+                                    </div>
+                                    <ChevronDown className={`w-2.5 h-2.5 text-muted-foreground transition-transform ${expandedTemplateId === tpl.id ? "" : "-rotate-90"}`} />
+                                  </div>
+                                  {expandedTemplateId === tpl.id && (
+                                    <div className="flex items-center gap-1 pl-5">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-[10px] h-6"
+                                        onClick={() => applyTemplate(tpl, "current")}
+                                        data-testid={`template-apply-current-${tpl.id}`}
+                                      >
+                                        This Page
+                                      </Button>
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="flex-1 text-[10px] h-6"
+                                        onClick={() => applyTemplate(tpl, "all")}
+                                        data-testid={`template-apply-all-${tpl.id}`}
+                                      >
+                                        All Pages
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  setAiPrompt(envelope?.title || "");
-                  setAiSuggestions([]);
-                  setAiDialogOpen(true);
-                }}
-                data-testid="button-ai-detect"
-              >
-                <Wand2 className="w-3 h-3" />
-                <span className="text-xs">AI Detect</span>
-              </Button>
             </div>
             )}
           </div>
@@ -1851,74 +2162,6 @@ export default function EnvelopeEditor() {
               </div>
             </div>
           )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={generateSeal}
-            disabled={sealGenerating}
-            data-testid="button-generate-seal"
-          >
-            <Shield className="w-3 h-3" />
-            {sealGenerating ? "Generating..." : "Generate Seal"}
-          </Button>
-
-          <div>
-            <Button
-              variant={showTemplatePanel ? "secondary" : "outline"}
-              size="sm"
-              className="w-full"
-              onClick={() => setShowTemplatePanel(!showTemplatePanel)}
-              data-testid="button-toggle-templates"
-            >
-              <LayoutTemplate className="w-3 h-3" />
-              Templates
-            </Button>
-            {showTemplatePanel && (
-              <div className="mt-2 space-y-1.5">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={templateSearch}
-                    onChange={(e) => setTemplateSearch(e.target.value)}
-                    className="pl-7 h-7 text-[10px]"
-                    data-testid="input-editor-template-search"
-                  />
-                </div>
-                <div className="space-y-0.5 max-h-48 overflow-y-auto">
-                  {templatesLoading ? (
-                    <div className="space-y-1 py-1">
-                      <Skeleton className="h-8 w-full" />
-                      <Skeleton className="h-8 w-full" />
-                      <Skeleton className="h-8 w-full" />
-                    </div>
-                  ) : filteredTemplates.length === 0 ? (
-                    <p className="text-[10px] text-muted-foreground text-center py-2">No templates found</p>
-                  ) : (
-                    filteredTemplates.map((tpl) => (
-                      <div
-                        key={tpl.id}
-                        className="flex items-center gap-1.5 p-1.5 rounded-md hover-elevate cursor-pointer group/tpl"
-                        onClick={() => applyTemplate(tpl)}
-                        data-testid={`template-apply-${tpl.id}`}
-                      >
-                        <Stamp className="w-3 h-3 text-primary shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-medium truncate">{tpl.name}</p>
-                          <p className="text-[8px] text-muted-foreground truncate">
-                            {(tpl.fieldDefs as any[] || []).length} fields
-                            {tpl.category ? ` · ${tpl.category}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
 
           {selectedFields.size > 1 && (
             <p className="text-[9px] text-primary font-medium px-0.5">
@@ -2001,18 +2244,38 @@ export default function EnvelopeEditor() {
                           <span className="capitalize truncate">{f.label && f.label !== "seal" && f.label !== "footer-line" ? f.label : f.label === "footer-line" ? "Footer" : f.type}</span>
                           <span className="text-muted-foreground shrink-0">p{f.page}</span>
                         </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="w-5 h-5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeField(f.id);
-                          }}
-                          data-testid={`button-remove-field-${f.id}`}
-                        >
-                          <Trash2 className="w-2.5 h-2.5" />
-                        </Button>
+                        <span className="flex items-center gap-0.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-5 h-5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLockedFields((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(f.id)) next.delete(f.id);
+                                else next.add(f.id);
+                                return next;
+                              });
+                            }}
+                            data-testid={`button-lock-field-${f.id}`}
+                            title={lockedFields.has(f.id) ? "Unlock field" : "Lock field"}
+                          >
+                            {lockedFields.has(f.id) ? <Lock className="w-2.5 h-2.5 text-primary" /> : <Unlock className="w-2.5 h-2.5" />}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-5 h-5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeField(f.id);
+                            }}
+                            data-testid={`button-remove-field-${f.id}`}
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                          </Button>
+                        </span>
                       </div>
                       <Collapsible>
                         <CollapsibleTrigger asChild>
@@ -2096,7 +2359,20 @@ export default function EnvelopeEditor() {
               )}
             </div>
           )}
+          </div>
         </div>
+        {!editorPanelOpen && (
+          <div className="shrink-0 flex items-start pt-2 pl-1 pr-1 border-r bg-sidebar">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setEditorPanelOpen(true)}
+              data-testid="button-open-editor-panel"
+            >
+              <PanelLeftOpen className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
 
         <div
           ref={scrollContainerRef}
@@ -2191,7 +2467,7 @@ export default function EnvelopeEditor() {
                         return (
                           <div
                             key={f.id}
-                            className={`absolute rounded-sm flex flex-col items-center justify-center cursor-move ${
+                            className={`absolute rounded-sm flex flex-col items-center justify-center ${lockedFields.has(f.id) ? "cursor-default" : "cursor-move"} ${
                               f.label === "footer-line"
                                 ? "border-0 bg-transparent"
                                 : f.label === "seal"
@@ -2199,7 +2475,7 @@ export default function EnvelopeEditor() {
                                 : hasValue
                                   ? "border border-primary/30 bg-primary/10"
                                   : `border border-primary/50 bg-primary/20`
-                            } ${isSelected ? "ring-2 ring-ring" : ""}`}
+                            } ${isSelected ? "ring-2 ring-ring" : ""} ${lockedFields.has(f.id) ? "opacity-80" : ""}`}
                             style={{
                               left: f.x * pdfZoom,
                               top: f.y * pdfZoom,
@@ -2316,13 +2592,19 @@ export default function EnvelopeEditor() {
                                 {f.label || f.type}
                               </span>
                             )}
-                            <div
-                              className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize"
-                              onMouseDown={(e) => handleFieldResize(f.id, e)}
-                              data-testid={`resize-handle-${f.id}`}
-                            >
-                              <GripVertical className="w-2.5 h-2.5 text-muted-foreground rotate-[-45deg]" />
-                            </div>
+                            {lockedFields.has(f.id) ? (
+                              <div className="absolute top-0 right-0 p-0.5">
+                                <Lock className="w-2 h-2 text-primary/60" />
+                              </div>
+                            ) : (
+                              <div
+                                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize"
+                                onMouseDown={(e) => handleFieldResize(f.id, e)}
+                                data-testid={`resize-handle-${f.id}`}
+                              >
+                                <GripVertical className="w-2.5 h-2.5 text-muted-foreground rotate-[-45deg]" />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -2513,76 +2795,6 @@ export default function EnvelopeEditor() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm flex items-center gap-2">
-              <Wand2 className="w-4 h-4" />
-              AI Field Detection
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-[10px] text-muted-foreground">Prompt / Description</label>
-              <Input
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="e.g. NDA for $1M"
-                data-testid="input-ai-prompt"
-              />
-            </div>
-            <Button
-              size="sm"
-              onClick={handleAiDetect}
-              disabled={aiLoading}
-              data-testid="button-ai-run"
-            >
-              <Wand2 className="w-3 h-3" />
-              {aiLoading ? "Detecting..." : "Detect Fields"}
-            </Button>
-            {aiSuggestions.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-muted-foreground font-medium">
-                  Suggested Fields ({aiSuggestions.length})
-                </p>
-                {aiSuggestions.map((sf, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50 text-[11px]"
-                    data-testid={`ai-suggestion-${i}`}
-                  >
-                    <span className="flex items-center gap-1.5 truncate">
-                      <span className="capitalize font-medium">{sf.type}</span>
-                      <span className="text-muted-foreground">p{sf.page}</span>
-                      <span className="text-muted-foreground">({sf.x},{sf.y})</span>
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-[10px]"
-                        onClick={() => acceptAiField(sf)}
-                        data-testid={`button-ai-accept-${i}`}
-                      >
-                        Accept
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 text-[10px]"
-                        onClick={() => setAiSuggestions((prev) => prev.filter((_, j) => j !== i))}
-                        data-testid={`button-ai-reject-${i}`}
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

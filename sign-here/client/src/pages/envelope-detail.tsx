@@ -23,7 +23,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/status-badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 import type { Envelope, Recipient, AuditLog } from "@shared/schema";
 
 export default function EnvelopeDetail() {
@@ -32,6 +33,46 @@ export default function EnvelopeDetail() {
   const { toast } = useToast();
   const envelopeId = params?.id || "";
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const renameMutation = useMutation({
+    mutationFn: async (title: string) => {
+      await apiRequest("PATCH", `/api/envelopes/${envelopeId}`, { title });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes", envelopeId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/envelopes"] });
+      setIsEditingTitle(false);
+      toast({ title: "Envelope renamed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to rename", variant: "destructive" });
+    },
+  });
+
+  const startEditingTitle = () => {
+    if (envelope?.status === "completed") return;
+    setEditTitle(envelope?.title || "");
+    setIsEditingTitle(true);
+  };
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const submitTitle = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== envelope?.title) {
+      renameMutation.mutate(trimmed);
+    } else {
+      setIsEditingTitle(false);
+    }
+  };
 
   const downloadPdf = async (baked: boolean) => {
     setIsDownloading(true);
@@ -147,9 +188,35 @@ export default function EnvelopeDetail() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-semibold" data-testid="text-detail-title">
-                  {envelope.title}
-                </h1>
+                {isEditingTitle ? (
+                  <Input
+                    ref={titleInputRef}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={submitTitle}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitTitle();
+                      if (e.key === "Escape") setIsEditingTitle(false);
+                    }}
+                    className="h-7 text-sm font-semibold w-60"
+                    data-testid="input-edit-title"
+                    disabled={renameMutation.isPending}
+                  />
+                ) : (
+                  <button
+                    onClick={startEditingTitle}
+                    className="flex items-center gap-1.5 group text-left"
+                    data-testid="button-edit-title"
+                    title={envelope.status === "completed" ? "Completed envelopes cannot be renamed" : "Click to rename"}
+                  >
+                    <h1 className="text-sm font-semibold" data-testid="text-detail-title">
+                      {envelope.title}
+                    </h1>
+                    {envelope.status !== "completed" && (
+                      <Pencil className="w-3 h-3 text-muted-foreground invisible group-hover:visible" />
+                    )}
+                  </button>
+                )}
                 <StatusBadge status={envelope.status} />
               </div>
               {envelope.description && (

@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -41,7 +42,12 @@ const STATUS_ORDER: Record<string, number> = {
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const [subSidebarOpen, setSubSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [subSidebarOpen, setSubSidebarOpen] = useState(typeof window !== "undefined" ? window.innerWidth >= 768 : true);
+
+  useEffect(() => {
+    if (isMobile) setSubSidebarOpen(false);
+  }, [isMobile]);
   const {
     searchQuery,
     statusFilter,
@@ -286,7 +292,7 @@ export default function Dashboard() {
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {(envTagMap[envelope.id] || []).map((tagId) => {
+                          {!isMobile && (envTagMap[envelope.id] || []).map((tagId) => {
                             const tag = wbsTagMap[tagId];
                             if (!tag) return null;
                             return (
@@ -304,7 +310,7 @@ export default function Dashboard() {
                               </Badge>
                             );
                           })}
-                          <StatusBadge status={envelope.status} />
+                          {!isMobile && <StatusBadge status={envelope.status} />}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button

@@ -20,10 +20,10 @@ async function seedTemplates() {
       { type: "text", label: "Party A Name", page: 1, x: 60, y: 200, width: 220, height: 36, required: true },
       { type: "text", label: "Party B Name", page: 1, x: 320, y: 200, width: 220, height: 36, required: true },
       { type: "date", label: "Effective Date", page: 1, x: 60, y: 260, width: 150, height: 36, required: true },
-      { type: "signature", label: "Party A Signature", page: 1, x: 60, y: 650, width: 200, height: 60, required: true },
-      { type: "date", label: "Date Signed", page: 1, x: 280, y: 665, width: 140, height: 36, required: true },
-      { type: "signature", label: "Party B Signature", page: 1, x: 60, y: 740, width: 200, height: 60, required: true },
-      { type: "date", label: "Date Signed", page: 1, x: 280, y: 755, width: 140, height: 36, required: true },
+      { type: "signature", label: "Party A Signature", page: 1, x: 60, y: 500, width: 200, height: 50, required: true },
+      { type: "date", label: "Date Signed", page: 1, x: 280, y: 510, width: 140, height: 36, required: true },
+      { type: "signature", label: "Party B Signature", page: 1, x: 60, y: 580, width: 200, height: 50, required: true },
+      { type: "date", label: "Date Signed", page: 1, x: 280, y: 590, width: 140, height: 36, required: true },
     ],
   });
 
@@ -38,9 +38,9 @@ async function seedTemplates() {
       { type: "text", label: "Position Title", page: 1, x: 60, y: 240, width: 250, height: 36, required: true },
       { type: "text", label: "Annual Salary", page: 1, x: 60, y: 300, width: 180, height: 36, required: true },
       { type: "date", label: "Start Date", page: 1, x: 280, y: 300, width: 150, height: 36, required: true },
-      { type: "signature", label: "Candidate Signature", page: 1, x: 60, y: 650, width: 200, height: 60, required: true },
-      { type: "date", label: "Date", page: 1, x: 280, y: 665, width: 140, height: 36, required: true },
-      { type: "signature", label: "Employer Signature", page: 1, x: 60, y: 740, width: 200, height: 60, required: true },
+      { type: "signature", label: "Candidate Signature", page: 1, x: 60, y: 500, width: 200, height: 50, required: true },
+      { type: "date", label: "Date", page: 1, x: 280, y: 510, width: 140, height: 36, required: true },
+      { type: "signature", label: "Employer Signature", page: 1, x: 60, y: 580, width: 200, height: 50, required: true },
     ],
   });
 
@@ -55,8 +55,8 @@ async function seedTemplates() {
       { type: "text", label: "Client Name", page: 1, x: 320, y: 180, width: 220, height: 36, required: true },
       { type: "text", label: "Scope of Work", page: 1, x: 60, y: 300, width: 480, height: 60, required: true },
       { type: "text", label: "Total Fee", page: 1, x: 60, y: 400, width: 180, height: 36, required: true },
-      { type: "signature", label: "Provider Signature", page: 1, x: 60, y: 650, width: 200, height: 60, required: true },
-      { type: "signature", label: "Client Signature", page: 1, x: 60, y: 740, width: 200, height: 60, required: true },
+      { type: "signature", label: "Provider Signature", page: 1, x: 60, y: 500, width: 200, height: 50, required: true },
+      { type: "signature", label: "Client Signature", page: 1, x: 60, y: 580, width: 200, height: 50, required: true },
     ],
   });
 
@@ -73,9 +73,9 @@ async function seedTemplates() {
       { type: "text", label: "Monthly Rent", page: 1, x: 60, y: 300, width: 180, height: 36, required: true },
       { type: "date", label: "Lease Start", page: 1, x: 280, y: 300, width: 130, height: 36, required: true },
       { type: "date", label: "Lease End", page: 1, x: 430, y: 300, width: 130, height: 36, required: true },
-      { type: "initials", label: "Tenant Initials", page: 1, x: 60, y: 600, width: 100, height: 50, required: true },
-      { type: "signature", label: "Landlord Signature", page: 1, x: 60, y: 680, width: 200, height: 60, required: true },
-      { type: "signature", label: "Tenant Signature", page: 1, x: 60, y: 770, width: 200, height: 60, required: true },
+      { type: "initials", label: "Tenant Initials", page: 1, x: 60, y: 460, width: 100, height: 40, required: true },
+      { type: "signature", label: "Landlord Signature", page: 1, x: 60, y: 520, width: 200, height: 50, required: true },
+      { type: "signature", label: "Tenant Signature", page: 1, x: 60, y: 600, width: 200, height: 50, required: true },
     ],
   });
 
@@ -88,10 +88,10 @@ async function seedTemplates() {
     fieldDefs: [
       { type: "text", label: "Patient/Participant Name", page: 1, x: 60, y: 200, width: 280, height: 36, required: true },
       { type: "date", label: "Date of Birth", page: 1, x: 380, y: 200, width: 150, height: 36, required: true },
-      { type: "checkbox", label: "I consent to the terms", page: 1, x: 60, y: 550, width: 28, height: 28, required: true },
-      { type: "signature", label: "Signature", page: 1, x: 60, y: 650, width: 200, height: 60, required: true },
-      { type: "date", label: "Date", page: 1, x: 280, y: 665, width: 140, height: 36, required: true },
-      { type: "signature", label: "Witness Signature", page: 1, x: 60, y: 740, width: 200, height: 60, required: false },
+      { type: "checkbox", label: "I consent to the terms", page: 1, x: 60, y: 420, width: 28, height: 28, required: true },
+      { type: "signature", label: "Signature", page: 1, x: 60, y: 500, width: 200, height: 50, required: true },
+      { type: "date", label: "Date", page: 1, x: 280, y: 510, width: 140, height: 36, required: true },
+      { type: "signature", label: "Witness Signature", page: 1, x: 60, y: 580, width: 200, height: 50, required: false },
     ],
   });
 
@@ -102,18 +102,37 @@ async function seedTemplates() {
     tags: ["invoice", "billing", "payment"],
     isPublic: true,
     fieldDefs: [
-      { type: "text", label: "Invoice Number", page: 1, x: 380, y: 100, width: 160, height: 36, required: true },
-      { type: "date", label: "Invoice Date", page: 1, x: 380, y: 150, width: 160, height: 36, required: true },
+      { type: "text", label: "Invoice Number", page: 1, x: 350, y: 100, width: 160, height: 36, required: true },
+      { type: "date", label: "Invoice Date", page: 1, x: 350, y: 150, width: 160, height: 36, required: true },
       { type: "text", label: "Bill To", page: 1, x: 60, y: 200, width: 250, height: 36, required: true },
-      { type: "text", label: "Amount Due", page: 1, x: 380, y: 500, width: 160, height: 36, required: true },
-      { type: "signature", label: "Authorized Signature", page: 1, x: 60, y: 700, width: 200, height: 60, required: true },
+      { type: "text", label: "Amount Due", page: 1, x: 350, y: 400, width: 160, height: 36, required: true },
+      { type: "signature", label: "Authorized Signature", page: 1, x: 60, y: 540, width: 200, height: 50, required: true },
     ],
   });
 
   log("Built-in templates seeded", "seed");
 }
 
+async function seedSAdmin() {
+  const allUsers = await storage.getAllUsers();
+  const hasSAdmin = allUsers.some((u: any) => u.role === "sadmin" && u.isPlatformCreator);
+  if (hasSAdmin) return;
+
+  log("Seeding SAdmin (platform creator)...", "seed");
+  await storage.createUser({
+    username: "sadmin",
+    password: "admin",
+    email: "admin@signhere.io",
+    role: "sadmin",
+    isPlatformCreator: true,
+    tenantId: "default",
+  });
+  log("SAdmin user created (username: sadmin)", "seed");
+}
+
 export async function seedDatabase() {
+  await seedSAdmin();
+
   const existing = await storage.getEnvelopes();
   if (existing.length > 0) {
     await seedTemplates();

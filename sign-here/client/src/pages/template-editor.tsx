@@ -24,6 +24,7 @@ import {
   Plus,
   ChevronDown,
   X,
+  Stamp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 const FIELD_TOOLS = [
   { type: "signature", label: "Signature", icon: PenLine, w: 200, h: 60 },
+  { type: "seal", label: "Seal", icon: Stamp, w: 470, h: 24 },
   { type: "date", label: "Date", icon: CalendarDays, w: 150, h: 36 },
   { type: "text", label: "Text", icon: Type, w: 200, h: 36 },
   { type: "checkbox", label: "Checkbox", icon: CheckSquare, w: 28, h: 28 },
@@ -84,8 +86,23 @@ export default function TemplateEditorPage() {
   const [scale, setScale] = useState(1);
   const [dragTool, setDragTool] = useState<{ type: string; w: number; h: number } | null>(null);
   const [selectedField, setSelectedField] = useState<string | null>(null);
-  const [dragState, setDragState] = useState<{ id: string; startX: number; startY: number; fieldX: number; fieldY: number } | null>(null);
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const [dragState, setDragState] = useState<{
+    ids: string[];
+    startX: number;
+    startY: number;
+    origins: { id: string; x: number; y: number }[];
+  } | null>(null);
   const [resizeState, setResizeState] = useState<{ id: string; startX: number; startY: number; startW: number; startH: number } | null>(null);
+  const [marquee, setMarquee] = useState<{
+    pageNum: number;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<Record<string, boolean>>({});
 
@@ -160,42 +177,125 @@ export default function TemplateEditorPage() {
     return () => observer.disconnect();
   }, [numPages]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const tag = document.activeElement?.tagName?.toLowerCase() || "";
+        const isEditable = tag === "input" || tag === "textarea" || (document.activeElement as HTMLElement)?.isContentEditable;
+        if (!isEditable) {
+          const idsToDelete = selectedFields.size > 0
+            ? new Set(selectedFields)
+            : selectedField
+              ? new Set([selectedField])
+              : null;
+          if (idsToDelete && idsToDelete.size > 0) {
+            e.preventDefault();
+            setFields((prev) => prev.filter((f) => !idsToDelete.has(f.id)));
+            setSelectedField(null);
+            setSelectedFields(new Set());
+          }
+        }
+      }
+      if (e.key === "Escape") {
+        setSelectedField(null);
+        setSelectedFields(new Set());
+        setDragTool(null);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        const aTag = document.activeElement?.tagName?.toLowerCase() || "";
+        const aEditable = aTag === "input" || aTag === "textarea" || (document.activeElement as HTMLElement)?.isContentEditable;
+        if (!aEditable) {
+          e.preventDefault();
+          setSelectedFields(new Set(fields.map((f) => f.id)));
+          setSelectedField(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedField, selectedFields, fields]);
+
+  const handlePageMouseDown = (pageNum: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (dragTool) return;
+    if ((e.target as HTMLElement).closest("[data-field-id]")) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    setMarquee({ pageNum, startX: x, startY: y, currentX: x, currentY: y });
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      setSelectedField(null);
+      setSelectedFields(new Set());
+    }
+  };
+
   const handlePageClick = (pageNum: number, e: React.MouseEvent<HTMLDivElement>) => {
     if (!dragTool) {
-      setSelectedField(null);
+      if (!(e.target as HTMLElement).closest("[data-field-id]") && !marqueeRef.current) {
+        setSelectedField(null);
+        setSelectedFields(new Set());
+      }
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top) / scale;
     const tool = FIELD_TOOLS.find((t) => t.type === dragTool.type);
     if (!tool) return;
+    const FIXED_Y = CANVAS_HEIGHT * 0.75;
     const newField: FieldDef = {
       id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type: tool.type,
       label: tool.label,
       page: pageNum,
       x: Math.max(0, x - tool.w / 2),
-      y: Math.max(0, y - tool.h / 2),
+      y: FIXED_Y,
       width: tool.w,
       height: tool.h,
       required: true,
     };
     setFields((prev) => [...prev, newField]);
     setSelectedField(newField.id);
+    setSelectedFields(new Set());
+    setDragTool(null);
   };
 
   const handleFieldMouseDown = (fieldId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedField(fieldId);
-    const f = fields.find((ff) => ff.id === fieldId);
-    if (!f) return;
+    const isMultiKey = e.shiftKey || e.ctrlKey || e.metaKey;
+
+    let nextSelected: Set<string>;
+
+    if (isMultiKey) {
+      nextSelected = new Set(selectedFields);
+      if (selectedField) nextSelected.add(selectedField);
+      if (nextSelected.has(fieldId)) {
+        nextSelected.delete(fieldId);
+      } else {
+        nextSelected.add(fieldId);
+      }
+      setSelectedFields(nextSelected);
+      setSelectedField(null);
+    } else {
+      if (selectedFields.has(fieldId) && selectedFields.size > 1) {
+        nextSelected = new Set(selectedFields);
+      } else {
+        nextSelected = new Set([fieldId]);
+        setSelectedField(fieldId);
+        setSelectedFields(new Set());
+      }
+    }
+
+    const allDragIds = Array.from(nextSelected);
+    if (allDragIds.length === 0) allDragIds.push(fieldId);
+
+    const origins = allDragIds.map((id) => {
+      const f = fields.find((ff) => ff.id === id);
+      return { id, x: f?.x ?? 0, y: f?.y ?? 0 };
+    });
     setDragState({
-      id: fieldId,
+      ids: allDragIds,
       startX: e.clientX,
       startY: e.clientY,
-      fieldX: f.x,
-      fieldY: f.y,
+      origins,
     });
   };
 
@@ -217,10 +317,14 @@ export default function TemplateEditorPage() {
       if (dragState) {
         const dx = (e.clientX - dragState.startX) / scale;
         const dy = (e.clientY - dragState.startY) / scale;
+        const dragIds = new Set(dragState.ids);
         setFields((prev) =>
-          prev.map((f) =>
-            f.id === dragState.id ? { ...f, x: Math.max(0, dragState.fieldX + dx), y: Math.max(0, dragState.fieldY + dy) } : f
-          )
+          prev.map((f) => {
+            if (!dragIds.has(f.id)) return f;
+            const origin = dragState.origins.find((o) => o.id === f.id);
+            if (!origin) return f;
+            return { ...f, x: Math.max(0, origin.x + dx), y: Math.max(0, origin.y + dy) };
+          })
         );
       }
       if (resizeState) {
@@ -232,14 +336,51 @@ export default function TemplateEditorPage() {
           )
         );
       }
+      if (marqueeRef.current) {
+        const pageEl = pageRefs.current.get(marqueeRef.current.pageNum);
+        if (pageEl) {
+          const rect = pageEl.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / scale;
+          const y = (e.clientY - rect.top) / scale;
+          setMarquee((prev) => prev ? { ...prev, currentX: x, currentY: y } : null);
+        }
+      }
     },
     [dragState, resizeState, scale]
   );
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e: MouseEvent) => {
+    if (marqueeRef.current) {
+      const m = marqueeRef.current;
+      const minX = Math.min(m.startX, m.currentX);
+      const maxX = Math.max(m.startX, m.currentX);
+      const minY = Math.min(m.startY, m.currentY);
+      const maxY = Math.max(m.startY, m.currentY);
+      if (Math.abs(maxX - minX) > 3 || Math.abs(maxY - minY) > 3) {
+        const hit = fields.filter(
+          (f) =>
+            f.page === m.pageNum &&
+            f.x + f.width > minX &&
+            f.x < maxX &&
+            f.y + f.height > minY &&
+            f.y < maxY
+        );
+        if (hit.length > 0) {
+          const hitIds = hit.map((f) => f.id);
+          const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+          setSelectedFields((prev) => {
+            const next = additive ? new Set(prev) : new Set<string>();
+            hitIds.forEach((id) => next.add(id));
+            return next;
+          });
+          setSelectedField(null);
+        }
+      }
+      setMarquee(null);
+    }
     setDragState(null);
     setResizeState(null);
-  }, []);
+  }, [fields]);
 
   useEffect(() => {
     window.addEventListener("mousemove", handleMouseMove);
@@ -253,6 +394,11 @@ export default function TemplateEditorPage() {
   const deleteField = (id: string) => {
     setFields((prev) => prev.filter((f) => f.id !== id));
     if (selectedField === id) setSelectedField(null);
+    setSelectedFields((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const saveMutation = useMutation({
@@ -311,14 +457,17 @@ export default function TemplateEditorPage() {
     text: Type,
     checkbox: CheckSquare,
     initials: Hash,
+    seal: Stamp,
   };
 
   const renderField = (f: FieldDef) => {
     const Icon = ICON_MAP[f.type] || FileText;
-    const isSelected = selectedField === f.id;
+    const isSelected = selectedField === f.id || selectedFields.has(f.id);
+    const isDragTarget = dragState?.ids.includes(f.id);
     return (
       <div
         key={f.id}
+        data-field-id={f.id}
         className={`absolute flex items-center gap-1 border-2 rounded-sm transition-shadow ${
           isSelected
             ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/30"
@@ -329,7 +478,7 @@ export default function TemplateEditorPage() {
           top: f.y * scale,
           width: f.width * scale,
           height: f.height * scale,
-          cursor: dragState?.id === f.id ? "grabbing" : "grab",
+          cursor: isDragTarget ? "grabbing" : "grab",
           zIndex: isSelected ? 20 : 10,
         }}
         onMouseDown={(e) => handleFieldMouseDown(f.id, e)}
@@ -339,7 +488,7 @@ export default function TemplateEditorPage() {
           <Icon className="shrink-0" style={{ width: Math.max(8, 10 * scale), height: Math.max(8, 10 * scale) }} />
           <span className="truncate opacity-70">{f.label}</span>
         </div>
-        {isSelected && (
+        {isSelected && selectedFields.size <= 1 && (
           <div
             className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-primary rounded-tl-sm cursor-se-resize"
             onMouseDown={(e) => handleResizeMouseDown(f.id, e)}
@@ -542,7 +691,7 @@ export default function TemplateEditorPage() {
                 data-testid="button-toggle-template-placed-section"
               >
                 <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest">
-                  Placed ({fields.length})
+                  Placed ({fields.length}){selectedFields.size > 1 ? ` · ${selectedFields.size} selected` : ""}
                 </p>
                 <ChevronDown className={`w-2.5 h-2.5 text-muted-foreground transition-transform ${sidebarCollapsed.placed ? "-rotate-90" : ""}`} />
               </button>
@@ -553,9 +702,21 @@ export default function TemplateEditorPage() {
                     return (
                       <div
                         key={f.id}
-                        className={`flex items-center justify-between gap-1 p-1 rounded-md text-[10px] hover-elevate cursor-pointer ${selectedField === f.id ? "bg-accent" : ""}`}
-                        onClick={() => {
-                          setSelectedField(f.id);
+                        className={`flex items-center justify-between gap-1 p-1 rounded-md text-[10px] hover-elevate cursor-pointer ${selectedField === f.id || selectedFields.has(f.id) ? "bg-accent" : ""}`}
+                        onClick={(e) => {
+                          if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                            setSelectedFields((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(f.id)) next.delete(f.id);
+                              else next.add(f.id);
+                              if (selectedField && !next.has(selectedField)) next.add(selectedField);
+                              return next;
+                            });
+                            setSelectedField(null);
+                          } else {
+                            setSelectedField(f.id);
+                            setSelectedFields(new Set());
+                          }
                           setActivePage(f.page);
                         }}
                         data-testid={`template-field-item-${f.id}`}
@@ -704,6 +865,7 @@ export default function TemplateEditorPage() {
                   }}
                   className="relative mb-6 shadow-lg bg-white"
                   style={{ width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale }}
+                  onMouseDown={(e) => handlePageMouseDown(pageNum, e)}
                   onClick={(e) => handlePageClick(pageNum, e)}
                   data-testid={`template-page-${pageNum}`}
                 >
@@ -717,6 +879,19 @@ export default function TemplateEditorPage() {
                   {fields
                     .filter((f) => f.page === pageNum)
                     .map((f) => renderField(f))}
+
+                  {marquee && marquee.pageNum === pageNum && (
+                    <div
+                      className="absolute border border-primary/60 bg-primary/10 pointer-events-none"
+                      style={{
+                        left: Math.min(marquee.startX, marquee.currentX) * scale,
+                        top: Math.min(marquee.startY, marquee.currentY) * scale,
+                        width: Math.abs(marquee.currentX - marquee.startX) * scale,
+                        height: Math.abs(marquee.currentY - marquee.startY) * scale,
+                        zIndex: 50,
+                      }}
+                    />
+                  )}
                 </div>
               ))}
             </Document>
@@ -727,6 +902,7 @@ export default function TemplateEditorPage() {
               }}
               className="relative shadow-lg bg-white"
               style={{ width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale }}
+              onMouseDown={(e) => handlePageMouseDown(1, e)}
               onClick={(e) => handlePageClick(1, e)}
               data-testid="template-page-blank"
             >
@@ -804,6 +980,19 @@ export default function TemplateEditorPage() {
               {fields
                 .filter((f) => f.page === 1)
                 .map((f) => renderField(f))}
+
+              {marquee && marquee.pageNum === 1 && (
+                <div
+                  className="absolute border border-primary/60 bg-primary/10 pointer-events-none"
+                  style={{
+                    left: Math.min(marquee.startX, marquee.currentX) * scale,
+                    top: Math.min(marquee.startY, marquee.currentY) * scale,
+                    width: Math.abs(marquee.currentX - marquee.startX) * scale,
+                    height: Math.abs(marquee.currentY - marquee.startY) * scale,
+                    zIndex: 50,
+                  }}
+                />
+              )}
             </div>
           )}
         </div>

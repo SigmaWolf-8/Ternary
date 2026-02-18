@@ -70,7 +70,8 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - Create envelopes with multiple recipients (signer/viewer/witness roles)
 - Visual field placement editor (signature, date, text, checkbox, initials)
 - Graphical field placeholders with icons and labels
-- Signing flow with typed signature (4 fonts) or drawn signature
+- Signing flow with typed signature (8 fonts) or drawn signature
+- iOS mobile-optimized signing view: responsive PDF (full-width), full-screen touch signature pad, 44px touch targets, haptic feedback, gold confetti completion, floating Next Field FAB, sticky progress header with conic-gradient ring, dark zinc-950 theme with amber/gold accents, undo strokes, ink color picker, safe-area padding, overscroll-behavior-none, 100dvh viewport
 - HPTP certification when all signers complete (femtosecond timestamps + ML-DSA)
 - Audit trail with timeline view + HPTP timestamps
 - Multi-tenant isolation with RLS
@@ -92,7 +93,9 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - Femtosecond-precision seal timestamps (performance.now() high-resolution timing)
 - Email notifications via Resend API when envelopes are sent (Swiss Banker themed HTML template)
 - About page with certifications, compliance equivalences, PDF Stapler and Document Converter feature descriptions
-- Admin page with tenant/user CRUD, role management, platform statistics, and SaaS architecture documentation
+- Admin page with tenant/user CRUD, role management, platform statistics, SaaS architecture documentation, and SAdmin-exclusive SaaS panel
+- 5-tier role model: SAdmin (platform creator), Admin (tenant owner), Manager (envelope oversight), Signer (document signing), Viewer (read-only compliance)
+- SAdmin role: isPlatformCreator flag, protected from deletion/role change, exclusive SaaS settings tab with customer management, feature toggles, and pricing tiers
 - Version display in app header (v1.0.0 | PlenumNET v2.1)
 - Template Gallery with search, category filter, preview modal, fork, use, and delete actions
 - 6 built-in public templates (NDA, Employment Offer, Service Agreement, Lease, Consent Form, Invoice)
@@ -154,6 +157,8 @@ github-push/            - Scripts for pushing to GitHub (SigmaWolf-8/Ternary)
 - `POST /api/wbs-tags` - Create WBS tag (max 13 per tenant)
 - `PATCH /api/wbs-tags/:id` - Update WBS tag (name, color, sortOrder)
 - `DELETE /api/wbs-tags/:id` - Delete WBS tag
+- `GET /api/saas/settings` - SaaS platform settings (SAdmin-only)
+- `PATCH /api/saas/settings` - Update SaaS platform settings (SAdmin-only)
 
 ## Environment Secrets
 - `DATABASE_URL` - PostgreSQL connection string
