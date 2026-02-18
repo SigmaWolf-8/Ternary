@@ -179,9 +179,53 @@
 `define DOM_PERM_CROSS   3            // Bit [3]: Cross-domain access
 
 // ---------------------------------------------------------------------------
+// Phase 8: Higher-Order Masking (funct3 = 000, extended funct7)
+// ---------------------------------------------------------------------------
+`define F7_HO_MASK_APPLY   7'b0010000  // 0x10 — HO mask apply (share split)
+`define F7_HO_MASK_STRIP   7'b0010001  // 0x11 — HO mask strip (recombine)
+`define F7_HO_MASK_REFRESH 7'b0010010  // 0x12 — HO mask refresh
+`define F7_HO_MASK_AND     7'b0010011  // 0x13 — HO secure AND (DOM gadget)
+
+// ---------------------------------------------------------------------------
+// Phase 8: PQC Acceleration (Custom-1 opcode 0x2B, funct3 = 100)
+// ---------------------------------------------------------------------------
+`define XP_OPCODE_PQC    7'b0101011   // custom-1 = 0x2B
+`define F3_PQC           3'b100       // PQC functional group
+
+`define F7_PQC_NTT_BF    7'b0100000  // 0x20 — NTT butterfly (forward)
+`define F7_PQC_INTT_BF   7'b0100001  // 0x21 — Inverse NTT butterfly
+`define F7_PQC_MOD_RED   7'b0100010  // 0x22 — Modular reduction (Barrett)
+`define F7_PQC_MOD_MUL   7'b0100011  // 0x23 — Modular multiplication (Montgomery)
+`define F7_PQC_MOD_ADD   7'b0100100  // 0x24 — Modular addition
+`define F7_PQC_CBD_SAMP  7'b0100101  // 0x25 — CBD sampling
+`define F7_PQC_REJ_SAMP  7'b0100110  // 0x26 — Rejection sampling
+`define F7_PQC_POLY_MAC  7'b0100111  // 0x27 — Polynomial MAC
+`define F7_PQC_COMPRESS  7'b0101000  // 0x28 — Coefficient compression
+`define F7_PQC_DECOMP    7'b0101001  // 0x29 — Coefficient decompression
+
+// ---------------------------------------------------------------------------
+// Phase 8: Extended CSR Addresses
+// ---------------------------------------------------------------------------
+`define CSR_PQC_CONFIG   12'h7CC      // PQC parameter set configuration
+
+// ---------------------------------------------------------------------------
+// Phase 8: Extended Exception Cause Codes
+// ---------------------------------------------------------------------------
+`define XP_EXC_DRBG_HEALTH  4'h8     // DRBG health check failure
+`define XP_EXC_TAMPER       4'h9     // Tamper detection lockdown
+`define XP_EXC_PQC_FAULT    4'hA     // PQC unit fault
+
+// ---------------------------------------------------------------------------
+// Phase 8: XPSTATUS Extended Bit Positions
+// ---------------------------------------------------------------------------
+`define XPSTATUS_HO_EN   4            // Bit [4]: Higher-order masking enable
+`define XPSTATUS_PQC_EN  5            // Bit [5]: PQC unit enable
+`define XPSTATUS_TAMPER   6            // Bit [6]: Tamper response enable
+
+// ---------------------------------------------------------------------------
 // Version
 // ---------------------------------------------------------------------------
-`define XP_VERSION       32'h01_00_00 // v1.0.0
+`define XP_VERSION       32'h02_00_00 // v2.0.0 (Phase 8)
 
 // ---------------------------------------------------------------------------
 // LFSR Polynomial (32-bit maximal-length)

@@ -1,0 +1,85 @@
+# ===================================================================
+# SymbiYosys Configuration for XPlenum Formal Verification
+# Task 8A.2 -- Full Pipeline Bounded Model Checking
+# ===================================================================
+
+[tasks]
+bmc_pipeline    # Bounded model checking -- pipeline properties
+bmc_no_harm     # Bounded model checking -- no-harm proofs
+cover_pipeline  # Coverage analysis
+
+[options]
+bmc_pipeline:   mode bmc
+bmc_pipeline:   depth 100
+bmc_pipeline:   timeout 7200
+
+bmc_no_harm:    mode bmc
+bmc_no_harm:    depth 100
+bmc_no_harm:    timeout 7200
+
+cover_pipeline: mode cover
+cover_pipeline: depth 50
+
+[engines]
+# Use SMTLib with Boolector for speed, Z3 as fallback
+smtbmc boolector
+# smtbmc z3
+
+[script]
+# Read design (Phase 8 v2 top-level with all subunits)
+read -sv rtl/xplenum_pkg.vh
+read -sv rtl/xplenum_top_v2.v
+read -sv rtl/xplenum_top.v
+read -sv rtl/xplenum_mask_unit.v
+read -sv rtl/xplenum_domain_unit.v
+read -sv rtl/xplenum_cap_unit.v
+read -sv rtl/xplenum_trit_unit.v
+read -sv rtl/xplenum_dom_gadgets.v
+read -sv rtl/xplenum_pqc_unit.v
+read -sv rtl/xplenum_tamper_response.v
+
+# Read CVA6 core (simplified -- actual paths depend on CVA6 checkout)
+read -sv core/cva6/src/ariane_pkg.sv
+read -sv core/cva6/src/decoder.sv
+read -sv core/cva6/src/issue_stage.sv
+read -sv core/cva6/src/ex_stage.sv
+read -sv core/cva6/src/commit_stage.sv
+read -sv core/cva6/src/csr_regfile.sv
+
+# Read property modules
+bmc_pipeline:   read -sv formal/xplenum_pipeline_props.sv
+bmc_no_harm:    read -sv formal/xplenum_no_harm.sv
+
+# Read generated instruction properties
+read -sv formal/generated/xplenum_rvfi_props.sv
+read -sv formal/generated/rvfi_insn_xmask_apply.sv
+read -sv formal/generated/rvfi_insn_xmask_strip.sv
+read -sv formal/generated/rvfi_insn_xmask_refresh.sv
+read -sv formal/generated/rvfi_insn_xmask_rng.sv
+read -sv formal/generated/rvfi_insn_xdom_set.sv
+read -sv formal/generated/rvfi_insn_xdom_get.sv
+read -sv formal/generated/rvfi_insn_xdom_chk.sv
+read -sv formal/generated/rvfi_insn_xdom_clr.sv
+read -sv formal/generated/rvfi_insn_xcap_mint.sv
+read -sv formal/generated/rvfi_insn_xcap_chk.sv
+read -sv formal/generated/rvfi_insn_xcap_rev.sv
+read -sv formal/generated/rvfi_insn_xcap_shr.sv
+read -sv formal/generated/rvfi_insn_xtrit_add.sv
+read -sv formal/generated/rvfi_insn_xtrit_mul.sv
+read -sv formal/generated/rvfi_insn_xtrit_tbox.sv
+read -sv formal/generated/rvfi_insn_xtrit_rot.sv
+read -sv formal/generated/rvfi_insn_xtrit_enc.sv
+read -sv formal/generated/rvfi_insn_xtrit_dec.sv
+read -sv formal/generated/rvfi_insn_xtrit_mac.sv
+read -sv formal/generated/rvfi_insn_xtrit_fir.sv
+read -sv formal/generated/rvfi_insn_xtrit_fft.sv
+
+# Prepare
+prep -top xplenum_pipeline_tb
+
+[files]
+formal/xplenum_pipeline_props.sv
+formal/xplenum_no_harm.sv
+formal/generated/
+rtl/
+core/cva6/src/
