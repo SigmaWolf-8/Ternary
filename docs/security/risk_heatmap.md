@@ -220,14 +220,14 @@ All metrics in this appendix are derived from the Security Infrastructure API:
 
 | Metric Source | API Endpoint |
 |--------------|-------------|
-| Threat data | `GET /api/security/threats/risk-matrix` |
-| Threat statistics | `GET /api/security/threats/stats` |
-| Audit event summary | `GET /api/security/audit/summary` |
+| Threat data | `GET /api/security/threats` |
+| Audit events | `GET /api/security/audit` |
+| Unresolved events | `GET /api/security/audit/unresolved` |
 | HPTP status | `GET /api/security/hptp/status` |
-| Implementation summary | `GET /api/security/implementation/summary` |
-| Implementation metrics | `GET /api/security/implementation/metrics` |
-| Milestone tracking | `GET /api/security/implementation/milestones` |
+| HPTP fallback analysis | `GET /api/security/hptp/fallback-analysis` |
+| Implementation status | `GET /api/security/implementation` |
 | Unified dashboard | `GET /api/security/dashboard` |
+| **KRI Dashboard** | **`GET /api/security/kri`** (Phase 2) |
 
 ---
 
