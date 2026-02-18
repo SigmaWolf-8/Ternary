@@ -1,3 +1,18 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Applied Physics Division
+ *
+ * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+ * Patent(s) Pending.
+ *
+ * This file is part of the Salvi Framework / PlenumNET platform.
+ * Unauthorized copying, modification, distribution, or use of this file,
+ * via any medium, is strictly prohibited without the prior written
+ * permission of Capomastro Holdings Ltd.
+ *
+ * See LICENSE in the repository root for full terms.
+ */
+import { useState } from "react";
 import { Shield, Lock, FileCheck, Fingerprint, Clock, Globe, Layers, FileText, Award, CheckCircle, Combine, FileOutput, MapPin, Download, Share, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +113,14 @@ const capabilities = [
 
 export default function AboutPage() {
   const { canInstall, isInstalled, install, showIosGuide, dismissIosGuide, iosDevice } = usePwaInstall();
+  const [showManualGuide, setShowManualGuide] = useState(false);
+
+  const handleInstallClick = async () => {
+    const result = await install();
+    if (!result && !iosDevice) {
+      setShowManualGuide(true);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -239,57 +262,51 @@ export default function AboutPage() {
               <p className="text-xs text-muted-foreground">
                 Sign Here is installed on this device.
               </p>
-            ) : canInstall ? (
-              <Button
-                onClick={() => install()}
-                data-testid="button-pwa-install"
-              >
-                <Download className="w-3.5 h-3.5 mr-2" />
-                Install Sign Here
-              </Button>
             ) : (
               <div className="space-y-3">
                 <Button
-                  onClick={() => install()}
+                  onClick={handleInstallClick}
                   data-testid="button-pwa-install"
                 >
                   <Download className="w-3.5 h-3.5 mr-2" />
                   Install Sign Here
                 </Button>
-                <div className="rounded-md border p-3 space-y-2">
-                  <p className="text-xs font-medium text-foreground">How to install:</p>
-                  {iosDevice ? (
-                    <ol className="space-y-1.5 text-xs text-muted-foreground">
-                      <li className="flex items-start gap-2">
-                        <span className="font-semibold text-foreground shrink-0">1.</span>
-                        <span>Tap the <Share className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Share button in Safari</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="font-semibold text-foreground shrink-0">2.</span>
-                        <span>Scroll down and tap <Plus className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Add to Home Screen</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="font-semibold text-foreground shrink-0">3.</span>
-                        <span>Tap Add to confirm</span>
-                      </li>
-                    </ol>
-                  ) : (
-                    <ol className="space-y-1.5 text-xs text-muted-foreground">
-                      <li className="flex items-start gap-2">
-                        <span className="font-semibold text-foreground shrink-0">1.</span>
-                        <span>Open this page directly in Chrome, Edge, or another supported browser (not inside an embedded preview)</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="font-semibold text-foreground shrink-0">2.</span>
-                        <span>Click the install icon in the browser address bar, or use the browser menu and select "Install app"</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="font-semibold text-foreground shrink-0">3.</span>
-                        <span>Confirm the installation — the app will launch in its own window</span>
-                      </li>
-                    </ol>
-                  )}
-                </div>
+                {(showManualGuide || !canInstall) && (
+                  <div className="rounded-md border p-3 space-y-2">
+                    <p className="text-xs font-medium text-foreground">How to install:</p>
+                    {iosDevice ? (
+                      <ol className="space-y-1.5 text-xs text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                          <span className="font-semibold text-foreground shrink-0">1.</span>
+                          <span>Tap the <Share className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Share button in Safari</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-semibold text-foreground shrink-0">2.</span>
+                          <span>Scroll down and tap <Plus className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> Add to Home Screen</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-semibold text-foreground shrink-0">3.</span>
+                          <span>Tap Add to confirm</span>
+                        </li>
+                      </ol>
+                    ) : (
+                      <ol className="space-y-1.5 text-xs text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                          <span className="font-semibold text-foreground shrink-0">1.</span>
+                          <span>Open the published app URL directly in Chrome or Edge (not inside Replit's preview window)</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-semibold text-foreground shrink-0">2.</span>
+                          <span>Look for the install icon <Download className="inline w-3.5 h-3.5 text-foreground -mt-0.5" /> in the browser address bar, or open the browser menu and select "Install app"</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-semibold text-foreground shrink-0">3.</span>
+                          <span>Confirm the installation — the app will launch in its own window</span>
+                        </li>
+                      </ol>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

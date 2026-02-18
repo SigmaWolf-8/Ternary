@@ -1,3 +1,5 @@
+// Auto-generated — Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending. See LICENSE in the repository root for full terms.
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"

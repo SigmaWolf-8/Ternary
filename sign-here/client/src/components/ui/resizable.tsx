@@ -1,3 +1,5 @@
+// Auto-generated — Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending. See LICENSE in the repository root for full terms.
 "use client"
 
 import { GripVertical } from "lucide-react"
