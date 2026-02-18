@@ -17,7 +17,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, Check, Shield, Cpu, Globe, FileCode, Server, Users, FlaskConical } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Shield, Cpu, Globe, FileCode, Server, Users, FlaskConical, GitBranch, Lock, Rocket } from "lucide-react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Link } from "wouter";
@@ -152,6 +152,87 @@ export default function AboutPage() {
         </AnimatedSection>
 
         <AnimatedSection delay={0.22}>
+          <Card className="p-6 md:p-8 border-primary/10 mb-8" data-testid="section-version-history">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="text-primary">
+                <GitBranch className="w-8 h-8" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-1">PlenumNET Version History</h2>
+                <p className="text-muted-foreground text-sm">Current release: ISA v2.1 &middot; Crypto Module v3.0.0 target</p>
+              </div>
+            </div>
+            <div className="space-y-6">
+              <div className="relative pl-8 border-l-2 border-primary/20">
+                <div className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold" data-testid="text-version-v3">v3.0.0</h3>
+                  <Badge variant="outline" className="border-yellow-500/40 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs">Target</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Salvi Ternary Cryptographic Module &mdash; FIPS 140-3 CMVP submission release. Adds
+                  certified post-quantum primitives (TL-KEM, TL-DSA), hardware-bound key storage, and
+                  CNSA 2.0 full compliance. Formal verification coverage target: 85% of critical path.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-xs border-primary/20"><Lock className="w-3 h-3 mr-1" />FIPS 140-3</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">CNSA 2.0 Full</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">TL-KEM / TL-DSA</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">Hardware Key Storage</Badge>
+                </div>
+              </div>
+
+              <div className="relative pl-8 border-l-2 border-primary/40">
+                <div className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-background" />
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold" data-testid="text-version-v2">v2.1</h3>
+                  <Badge variant="outline" className="border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400 text-xs">Current</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  176-opcode ISA with quantum-ternary simulation (opcodes 0xA0&ndash;0xAF), 27 ternary registers,
+                  TAGC garbage collector, torsion network stack (TTP/T3P/TDNS), 5-tier HPTP femtosecond timing,
+                  phase encryption, and the 28-Dimension Agent Array. Full binary compatibility via
+                  Binary-Ternary Gateway.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-xs border-primary/20"><Cpu className="w-3 h-3 mr-1" />176 Opcodes</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">Quantum-Ternary Sim</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">HPTP 5-Tier</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">Torsion Network</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">28D Agent Array</Badge>
+                </div>
+              </div>
+
+              <div className="relative pl-8 border-l-2 border-muted-foreground/20">
+                <div className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-muted-foreground/30 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/60" />
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold" data-testid="text-version-v1">v1.0</h3>
+                  <Badge variant="outline" className="text-xs border-muted-foreground/30">Foundation</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Initial Salvi Framework release &mdash; 62-opcode ISA with GF(3) field arithmetic,
+                  bare-metal Rust kernel, bitmap frame allocator, capability-based access control,
+                  ternary hash and sponge primitives, and the core virtual machine. Established the
+                  balanced ternary computing foundation that all subsequent versions build upon.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-xs border-muted-foreground/20"><Rocket className="w-3 h-3 mr-1" />62 Opcodes</Badge>
+                  <Badge variant="outline" className="text-xs border-muted-foreground/20">GF(3) Arithmetic</Badge>
+                  <Badge variant="outline" className="text-xs border-muted-foreground/20">Rust Kernel</Badge>
+                  <Badge variant="outline" className="text-xs border-muted-foreground/20">Capability System</Badge>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </AnimatedSection>
+
+        <AnimatedSection delay={0.26}>
           <Card className="p-6 md:p-8 border-primary/10 mb-8" data-testid="section-test-oracle">
             <div className="flex items-start gap-4 mb-4">
               <div className="text-primary">
@@ -179,7 +260,7 @@ export default function AboutPage() {
           </Card>
         </AnimatedSection>
 
-        <AnimatedSection delay={0.25}>
+        <AnimatedSection delay={0.3}>
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-6" data-testid="text-milestones-title">Key Milestones</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -198,7 +279,7 @@ export default function AboutPage() {
           </div>
         </AnimatedSection>
 
-        <AnimatedSection delay={0.3}>
+        <AnimatedSection delay={0.35}>
           <Card className="p-6 md:p-8 border-primary/10 text-center" data-testid="section-cta">
             <h2 className="text-2xl font-bold mb-3">Join the Future of Computing</h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
