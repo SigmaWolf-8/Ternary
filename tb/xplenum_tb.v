@@ -38,17 +38,22 @@ module xplenum_tb;
     // DUT instantiation
     // -----------------------------------------------------------------------
     xplenum_top dut (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .instruction  (instruction),
-        .instr_valid  (instr_valid),
-        .rs1_data     (rs1_data),
-        .rs2_data     (rs2_data),
-        .rd_data      (rd_data),
-        .rd_write_en  (rd_write_en),
-        .rd_addr      (rd_addr),
-        .xp_exception (xp_exception),
-        .xp_exc_code  (xp_exc_code)
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .instruction       (instruction),
+        .instr_valid       (instr_valid),
+        .rs1_data          (rs1_data),
+        .rs2_data          (rs2_data),
+        .rd_data           (rd_data),
+        .rd_write_en       (rd_write_en),
+        .rd_addr           (rd_addr),
+        .xp_exception      (xp_exception),
+        .xp_exc_code       (xp_exc_code),
+        .entropy_i         (256'h0),
+        .entropy_valid_i   (1'b0),
+        .reseed_req_i      (1'b0),
+        .drbg_health_err_o (),
+        .drbg_ready_o      ()
     );
 
     // -----------------------------------------------------------------------
