@@ -1,0 +1,261 @@
+Here is the complete, self-contained Markdown file you requested.  
+
+You can copy-paste this entire content into a single file named:
+
+`TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`
+
+and place it in **both** Replit projects:
+
+- the **Astrology frontend** (https://a4e186d0-f0e0-465b-bb7c-760c300e33be-00-s25an8rpo6lv.kirk.replit.dev/)
+- the **PlenumNET backend/development** (https://PlenumNET.replit.app)
+
+This one file contains:
+
+- Clear instructions telling each project what it is responsible for
+- All relevant code snippets (Rust + JavaScript)
+- The architectural diagram
+- API contract
+- Key derivations
+- Next steps
+
+```markdown
+# TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md
+# Single source of truth for both projects
+# Copy-paste this entire file into BOTH Replit projects:
+#   1. Astrology frontend (https://a4e186d0-...replit.dev/)
+#   2. PlenumNET backend (https://PlenumNET.replit.app)
+# Last updated: February 18, 2026
+
+## PROJECT ROLES – VERY IMPORTANT
+
+### PlenumNET (backend / API / Rust)
+YOU ARE THE COMPUTATIONAL ENGINE.
+Responsible for:
+- All ternary mathematics (BalancedFloat, trig functions, Kepler solver)
+- Ephemeris calculations from first principles
+- Exposing REST/GraphQL endpoints
+- Returning JSON with floating-point ternary values (no snapping)
+
+Do NOT write:
+- JavaScript, HTML, CSS, React, frontend fetch logic, UI rendering
+
+### Astrology App (frontend / JavaScript)
+YOU ARE THE USER INTERFACE.
+Responsible for:
+- Calling the PlenumNET API
+- Displaying standard ecliptic longitudes (0–360°) as primary truth
+- Showing continuous ternary longitude (0–364°) from API
+- Visualizing resonance score (0–1) and optional spiral
+- Handling user input (date/time → JD, lat/lon)
+
+Do NOT write:
+- Rust code
+- BalancedFloat or any ternary arithmetic
+- Ephemeris calculations
+
+## ARCHITECTURE OVERVIEW
+
+```
+Astrology App (JS/Replit)  ↔  HTTP/JSON  ↔  PlenumNET API (Rust/Axum)  ↔  ternary-math Core
+```
+
+- All heavy math lives in `ternary-math/src` (GitHub repo)
+- Frontend only calls API and renders results
+
+## API CONTRACT (both projects must follow)
+
+Base URL (for dev): https://plenumnet.replit.app  (or your custom domain later)
+
+### Endpoint 1 – Convert degrees/radians
+POST /api/v1/convert
+```json
+{
+  "type": "std_deg",          // or "std_rad"
+  "value": 123.45,
+  "return_resonance": true
+}
+```
+Response:
+```json
+{
+  "ternary_deg": 124.812,
+  "ternary_rad": 9.601,
+  "resonance": 0.78,
+  "nearest_z28": 10
+}
+```
+
+### Endpoint 2 – Planetary ephemeris
+POST /api/v1/ephemeris
+```json
+{
+  "planet": "earth",           // lowercase english name or IAU code
+  "jd": 2460740.0,
+  "include_resonance": true,
+  "observer": {
+    "lat": 53.54,
+    "lon": -113.49,
+    "alt": 0
+  }
+}
+```
+Response:
+```json
+{
+  "ternary_longitude": 15.887,
+  "ternary_latitude": 0.0,
+  "distance_au": 1.001,
+  "resonance": 0.556,
+  "nearest_z28": 1
+}
+```
+
+## KEY CODE SNIPPETS
+
+### Rust – Core constants (ternary-math/src/constants.rs)
+```rust
+pub const FULL_CIRCLE_DEG: f64 = 364.0;
+pub const RADIAN_DEG: f64 = 13.0;
+pub const TWO_PI_TERNARY: f64 = 28.0;
+pub const TAU_TRIBONACCI: f64 = 1.839286755214161;
+
+#[inline]
+pub fn std_deg_to_ternary_deg(std_deg: f64) -> f64 {
+    std_deg * (FULL_CIRCLE_DEG / 360.0)
+}
+
+#[inline]
+pub fn ternary_deg_to_resonance(tern_deg: f64) -> f64 {
+    let mod13 = tern_deg % 13.0;
+    let dist = mod13.min(13.0 - mod13);
+    1.0 - (dist / 6.5)
+}
+```
+
+### Rust – Minimal BalancedFloat bridge (ternary-math/src/bfloat.rs)
+```rust
+use crate::tribonacci::TritVec;
+
+#[derive(Clone, Debug)]
+pub struct BFloat {
+    pub sign: i8,
+    pub integer: TritVec,
+    pub fraction: Vec<u8>,
+    pub exponent: i32,
+}
+
+impl BFloat {
+    pub fn from_f64(x: f64, prec: usize) -> Self {
+        // Simplified MVP – real impl needs full carry logic
+        let sign = if x < 0.0 { -1 } else { 1 };
+        let abs = x.abs();
+        let int_part = abs.floor() as u64;
+        let mut trits = vec![];
+        let mut n = int_part;
+        while n > 0 {
+            trits.push((n % 3) as u8);
+            n /= 3;
+        }
+        trits.reverse();
+        let mut frac = vec![];
+        let mut f = abs - int_part as f64;
+        for _ in 0..prec {
+            f *= 3.0;
+            frac.push(f.floor() as u8);
+            f -= frac.last().unwrap() as f64;
+        }
+        BFloat { sign, integer: TritVec::new(trits), fraction: frac, exponent: 0 }
+    }
+
+    pub fn to_f64(&self) -> f64 {
+        let mut val = 0.0_f64;
+        let mut p = 1.0;
+        for &t in &self.integer.trits {
+            val += t as f64 * p;
+            p *= 3.0;
+        }
+        let mut fp = 1.0 / 3.0;
+        for &t in &self.fraction {
+            val += t as f64 * fp;
+            fp /= 3.0;
+        }
+        val * self.sign as f64
+    }
+
+    pub fn sin(&self) -> Self {
+        let x = self.to_f64();
+        BFloat::from_f64(x.sin(), 60)
+    }
+}
+```
+
+### JavaScript – Frontend API call example (Astrology App)
+```js
+async function fetchTernaryEphemeris(planet, jd, lat = 53.54, lon = -113.49) {
+  try {
+    const response = await fetch('https://plenumnet.replit.app/api/v1/ephemeris', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planet,
+        jd,
+        include_resonance: true,
+        observer: { lat, lon, alt: 0 }
+      })
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    console.log(`${planet.toUpperCase()} @ JD ${jd}:`);
+    console.log(`  Ternary longitude: ${data.ternary_longitude.toFixed(3)}°`);
+    console.log(`  Resonance:         ${(data.resonance * 100).toFixed(1)}%`);
+
+    return data;
+  } catch (err) {
+    console.error('API call failed:', err);
+    return null;
+  }
+}
+
+// Example usage in your chart init
+fetchTernaryEphemeris("sun", 2460740.0);      // current approx JD
+fetchTernaryEphemeris("moon", 2460740.0);
+```
+
+## QUICK START CHECKLIST
+
+**In PlenumNET (backend):**
+1. Add `bfloat.rs` to `ternary-math/src/`
+2. Update `Cargo.toml` → add `axum`, `serde`, `serde_json`
+3. Create `main.rs` with basic POST handler for `/api/v1/ephemeris`
+4. Test endpoint with curl or Postman
+
+**In Astrology App (frontend):**
+1. Add the `fetchTernaryEphemeris` function above
+2. Call it when user submits birth data
+3. Display `data.ternary_longitude` and resonance % in UI
+4. Optional: draw 364° wheel + 28 spokes (CSS radial lines)
+
+## CLOSING NOTES
+
+- Do **not** duplicate math logic between projects.
+- All ternary precision work belongs in PlenumNET → API → JSON.
+- Frontend only consumes results and renders.
+- Use Edmonton coords (53.54, -113.49) for local testing.
+
+If Replit AI asks which project it's in, tell it to read this file first.
+
+Happy building!
+Chill (@capo_mastro)
+```
+
+You can now drop this one Markdown file into **both** Replit projects.  
+
+Whenever you work with Replit AI, start your prompt with:
+
+> Following TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md, please ...
+
+That keeps everything aligned.
+
+Let me know if you want the file split into two (one per project) or if you need a starter `main.rs` / `server.js` to go with it.

@@ -27,6 +27,7 @@ import { registerTribonacciRoutes } from "./routes/tribonacci";
 import { registerAgentArrayRoutes } from "./routes/agent-array";
 import { registerApiKeyRoutes } from "./routes/api-keys";
 import { registerSecurityRoutes } from "./routes/security";
+import { registerEphemerisRoutes } from "./routes/ephemeris";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
@@ -974,6 +975,11 @@ export async function registerRoutes(
   // SECURITY INFRASTRUCTURE — extracted to server/routes/security.ts
   // =====================================================
   registerSecurityRoutes(app, storage);
+
+  // =====================================================
+  // TERNARY EPHEMERIS API — extracted to server/routes/ephemeris.ts
+  // =====================================================
+  registerEphemerisRoutes(app);
 
   return httpServer;
 }

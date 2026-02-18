@@ -83,6 +83,18 @@ Admin-protected backend services under `/api/security/`:
 -   **Implementation Status Tracker**: Tracks component status, completion percentage, and testing metrics.
 -   **Security Dashboard**: Unified endpoint aggregating security stats.
 
+### Ternary Ephemeris API
+REST API for the separate Astrology App frontend. Endpoints under `/api/v1/ephemeris/`:
+-   **POST /convert**: Standard ↔ ternary degree conversion with resonance scoring.
+-   **POST /position**: Single planet ephemeris (Keplerian elements, Kepler solver, ecliptic → ternary).
+-   **POST /batch**: All planets at once for a given Julian Date.
+-   **GET /info**: API metadata, supported planets, system constants.
+-   Supports: sun, moon, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto.
+-   Ternary system: 364° circle, 13° ternary radian, Z₂₈ lattice (resonance only — no snapping).
+-   Key files: `server/ternary-ephemeris.ts` (math engine), `server/routes/ephemeris.ts` (API routes).
+-   Integration docs: `REPLIT_AI_INSTRUCTIONS.md`, `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`.
+-   CORS allows `*.replit.dev` and `*.replit.app` for cross-origin frontend access.
+
 ## External Dependencies
 
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).

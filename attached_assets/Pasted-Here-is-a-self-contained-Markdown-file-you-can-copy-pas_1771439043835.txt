@@ -1,0 +1,128 @@
+Here is a self-contained **Markdown file** (you can copy-paste it into a file named `REPLIT_AI_INSTRUCTIONS.md` or similar) that you can drop into **both** Replit projects:
+
+- the **PlenumNET backend/development version** (`https://PlenumNET.replit.app`)
+- the **front-end Astrology app** (`https://a4e186d0-f0e0-465b-bb7c-760c300e33be-00-s25an8rpo6lv.kirk.replit.dev/`)
+
+The instructions are written in clear, imperative language that Replit AI (Ghostwriter / Replit Agent) can understand and follow. They define **responsibilities**, **boundaries**, and **how the two projects interact**.
+
+```markdown
+# REPLIT_AI_INSTRUCTIONS.md
+# Instructions for Replit AI / Agent in both PlenumNET and Astrology App projects
+# Last updated: February 18, 2026
+# Author: Chill (@capo_mastro)
+
+## OVERALL PROJECT GOAL
+Build a hybrid astronomy/astrology application that:
+- Uses REAL, high-precision planetary positions (from astronomy-engine or embedded VSOP87)
+- Applies a continuous ternary angular system (364° circle, 13° ternary radian, Z₂₈ lattice)
+- NEVER snaps positions to the lattice (max error 6.5° unacceptable)
+- Uses the ternary lattice ONLY for resonance scoring and symbolic overlays
+- Keeps all heavy ternary math (BalancedFloat, trig series, Kepler solver, Clifford rotors) in the GitHub repo under ternary-math/src
+- PlenumNET backend acts as the single source of truth for ternary computations via API
+
+## PROJECT BOUNDARIES – VERY IMPORTANT
+
+### PlenumNET (https://PlenumNET.replit.app) – BACKEND / API
+YOU ARE RESPONSIBLE FOR:
+- Rust-based HTTP/GraphQL server (Axum + async-graphql preferred)
+- Extending ternary_math crate with BalancedFloat (fractional trits, sign, exponent)
+- Implementing sin/cos/atan2/sqrt via Taylor series in BalancedFloat
+- Pre-computing constants in BalancedFloat (π base-3, 180/(13π), 13π/180, etc.)
+- Embedding simplified VSOP87 or JPL elements as BalancedFloat constants
+- Implementing full first-principles ephemeris (mean anomaly → Kepler → true anomaly → ecliptic longitude)
+- Exposing clean API endpoints (see below)
+- Returning JSON with floating-point ternary_deg / ternary_rad (converted from BalancedFloat.to_f64())
+- NEVER doing frontend rendering or UI logic
+
+ALLOWED FOLDERS / FILES TO MODIFY:
+- src/main.rs (server setup)
+- src/ephemeris.rs (new – Kepler solver, planet functions)
+- src/bfloat.rs (new – BalancedFloat impl)
+- ternary_math/src/* (only add BalancedFloat module + trig helpers)
+- Cargo.toml (add axum, async-graphql, etc.)
+
+DO NOT TOUCH:
+- Any JavaScript, HTML, CSS, React code
+- Client-side fetch logic
+- UI rendering
+
+### Astrology App (https://a4e186d0-...replit.dev/) – FRONTEND ONLY
+YOU ARE RESPONSIBLE FOR:
+- JavaScript/React frontend logic
+- Calling the PlenumNET API (https://plenumnet-api.yourdomain.com or Replit URL)
+- Displaying standard ecliptic longitudes (0–360°) as primary truth
+- Converting/displaying continuous ternary_deg (0–364°) from API
+- Computing and showing resonance score (0–1) based on ternary_deg mod 13
+- Visualizing the 364° wheel with 28 faint 13° spokes (guide lines only – no snapping)
+- Optional: rendering Tribonacci spiral from gf3 residues (nearest Z28 mod 3)
+- Handling user input (birth date/time, lat/lon → JD + observer)
+
+ALLOWED FOLDERS / FILES TO MODIFY:
+- Any .js, .jsx, .css, .html files
+- package.json (add axios or fetch wrappers if needed)
+
+DO NOT TOUCH:
+- Any Rust code
+- ternary_math folder (belongs in GitHub repo only)
+- BalancedFloat logic (must come from API)
+
+## API CONTRACT – BOTH PROJECTS MUST FOLLOW THIS
+
+Base URL (PlenumNET): https://plenumnet-api.yourdomain.com (or Replit URL during dev)
+
+Preferred: GraphQL endpoint /graphql
+Fallback: REST endpoints under /api/v1/
+
+Key endpoints:
+
+1. POST /api/v1/convert
+   Body: { "type": "std_deg", "value": 123.45, "return_resonance": true }
+   Response: { "ternary_deg": 124.812, "resonance": 0.78, "nearest_z28": 10 }
+
+2. POST /api/v1/ephemeris
+   Body: { "planet": "earth", "jd": 2460740.0, "include_resonance": true, "observer": { "lat": 53.54, "lon": -113.49 } }
+   Response: { "ternary_longitude": 15.887, "ternary_latitude": 0.0, "distance_au": 1.001, "resonance": 0.556 }
+
+3. POST /api/v1/symbolic/walk (optional for spiral viz)
+   Body: { "sequence": [0,1,2,0,1], "start_z28": 0 }
+   Response: { "z28_positions": [0,1,3,5,6], "clifford_rotor": [1,0,0,0,1,0,0,0] }
+
+Authentication: Bearer token in header (API key for now – later JWT)
+
+## DEVELOPMENT RULES FOR REPLIT AI
+
+- When working in PlenumNET: focus only on Rust, API, BalancedFloat, ephemeris math. Never write JS.
+- When working in Astrology App: focus only on frontend fetch calls, UI rendering, resonance display. Never write Rust.
+- Never duplicate math logic between projects – all ternary calculations belong in PlenumNET → API → JSON response.
+- Use environment variables: PLENUMNET_API_URL, API_KEY
+- For testing: hardcode Edmonton coords (lat:53.54, lon:-113.49) and current date (2026-02-18)
+- Validate JD range: 2400000 to 2500000 only
+- Always return ternary_longitude as continuous float (never snapped)
+
+## PRIORITY ORDER FOR FEATURES (BUILD IN THIS SEQUENCE)
+
+1. BalancedFloat + basic trig in ternary_math (add/mul/sin/cos)
+2. /api/v1/convert endpoint (std_deg ↔ ternary_deg + resonance)
+3. /api/v1/ephemeris for Sun + Earth (full Kepler chain)
+4. Extend ephemeris to all planets
+5. Frontend fetch + display ternary_longitude + resonance bar/glow
+6. 364° wheel with 28 spokes (CSS/SVG)
+7. Optional spiral viz from nearest Z28 residues
+
+If you are unsure which project you are in, ask the user.
+
+Happy building!
+Chill (@capo_mastro)
+```
+
+### How to Use This File
+
+1. Create a new file called `REPLIT_AI_INSTRUCTIONS.md` in **both** Replit projects.
+2. Paste the entire content above.
+3. Whenever you ask Replit AI / Agent to build something, start your prompt with:
+
+   > Following the instructions in REPLIT_AI_INSTRUCTIONS.md, please ...
+
+This way the AI stays within scope and doesn't try to write Rust in the frontend or JS math in the backend.
+
+Let me know if you want a shorter version, a version split into two files (one per project), or additions like specific endpoint examples or deployment commands.
