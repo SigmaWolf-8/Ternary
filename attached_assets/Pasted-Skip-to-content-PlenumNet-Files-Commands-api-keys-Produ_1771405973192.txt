@@ -1,0 +1,217 @@
+Skip to content
+
+
+PlenumNet
+Files
+Commands
+/api-keys
+
+Production
+Status
+capomastro published 1 day ago
+Visibility
+Public
+Domain
+https://PlenumNET.replit.app
+Type
+Autoscale
+(4 vCPU / 8 GiB RAM / 3 Max)
+See all usage
+Database
+Production database connected
+Your production database is ready! Your app can now save and manage live user data securely.
+97f52aaa
+CA
+capomastro
+capomastro
+published 1 day ago
+bded1925
+CA
+capomastro
+capomastro
+published 1 day ago
+823c4fa4
+CA
+capomastro
+capomastro
+published 3 days ago
+1c83f221
+CA
+capomastro
+capomastro
+published 5 days ago
+ec275e52
+CA
+capomastro
+capomastro
+published 5 days ago
+709b9c58
+CA
+capomastro
+capomastro
+published 9 days ago
+12ec314f
+CA
+capomastro
+capomastro
+published 9 days ago
+2bd39ff5
+CA
+capomastro
+capomastro
+published 11 days ago
+93c2d43f
+CA
+capomastro
+capomastro
+published 12 days ago
+npm run dev
+5m
+ • 
+6 minutes ago
+Commit
+There are no changes to commit.
+Secrets
+Secrets are accessible to anyone who has access to this App. To restrict secret access, you must update App invite permissions. For more information, visit our documentation.
+SESSION_SECRET
+••••••••
+GITHUB_TOKEN
+••••••••
+AI_INTEGRATIONS_OPENAI_BASE_URL
+••••••••
+AI_INTEGRATIONS_OPENAI_API_KEY
+••••••••
+PLENUM_API_KEY
+••••••••
+Configurations
+Configurations are similar to secrets, but should only be used for non-sensitive information. They're useful for having a variable that's different between your published app and when testing on Replit.
+GIT_COMMIT
+2cf6ba2
+KONG_KONNECT_TOKEN
+kpat_wNYrrD2A47tLxKMUU1O4soQp5gesU03f1XSLs7TJPbIhBzeiA
+Saved progress at the end of the loop
+Isn't there a PlenumNET Version 3? What Version are we on? Add information to About PlenumNET Page.
+
+I can see the platform has evolved through several versions — ISA v1.0 with 62 opcodes, ISA v2.1 with 176 opcodes (current), and the crypto module targeting v3.0.0 for FIPS 140-3 certification. When you mention PlenumNET Version 3, are you referring to the v3.0.0 cryptographic module release, or is there a broader platform versioning (like PlenumNET v1, v2, v3) that you'd like me to document on the About page? What version details would you like shown?
+
+Use the ISA/crypto module versioning I found (v1.0, v2.1, v3.0.0 target)
+is the XPlenum Extension Fully Built out and functional?
+
+Work Through Phases 1-3/7
+
+Proceed with Tier 1 Phases (4-5)/7 and also note the Attached
+
+Let me first read the full attached task list to understand the detailed requirements for Phases 4 and 5:
+
+Now let me read the existing XPlenum files to understand the current state before planning:
+
+Let me also check the existing kernel crypto and security modules:
+
+Now let me also check the existing kernel security and crypto modules for integration targets:
+
+Now I have full context. Let me plan Phases 4 and 5 with the architect:
+
+Your payment is past due. Please update your payment method to continue using Replit.
+
+
+Scroll to latest
+Proceed with Tier 1 Phases (4-5)/7 and also note the Attached
+
+
+Attached file
+Pasted--XPlenum-RISC-V-Extension-Completion-Task-List-Final-Un_1771405095532.txt
+# XPlenum RISC-V Extension — Completion Task List (Final Unified)
+
+**Simulation-Completable Development Tasks**
+**Excludes: FPGA Board Validation | Physical TRNG Characterisation | FIPS 140-3 Lab Certification**
+
+**Capomastro Holdings Ltd.**
+**Applied Physics Division**
+**February 2026**
+
+**CONFIDENTIAL**
+
+---
+
+## Executive Summary
+
+This document enumerates all development tasks required to bring the XPlenum RISC-V custom extension from its current state — a complete, formally verified, standalone IP block — to a fully integrated and operational system. Every task listed below can be completed in simulated environments using standard development tools and AI-assisted engineering workflows.
+
+Three items are explicitly excluded from this scope because they require physical-world interaction: FPGA board validation (loading the design onto physical silicon), physical True Random Number Generator characterisation (measuring actual hardware entropy), and FIPS 140-3 laboratory certification (formal evaluation by an accredited testing facility). These three activities become relevant only after every task in this document is complete.
+
+The document is structured in two tiers:
+
+**Tier 1 — Core Completion (Phases 1–7)**: The 42 tasks required to bring XPlenum from standalone IP block to a simulation-proven, kernel-integrated, fuzz-tested, documentation-ready system. Estimated effort: 60–78 person-days with AI-assisted workflows. Add 20–30% buffer for solo or small-team execution with learning curve on the selected core.
+
+**Tier 2 — Beyond Defense-Grade (Phase 8)**: Five optional enhancement tracks that elevate XPlenum from defense-grade (FIPS 140-3 Level 3–4, EAL5–6 equivalent) into ultra-high-assurance / national security-grade territory (EAL7-level formal proofs, higher-order side-channel resistance, quantum-resistant cryptographic primitives, independent red-team validation, and Protection Profile targeting for national security systems). Estimated additional effort: 65–130 person-days plus external costs.
+
+**Tier 1 Phases**:
+
+**Phase 1** — RISC-V Core Selection and Preparation: Choose and prepare the target processor core for integration.
+
+**Phase 2** — Hardware Integration: Wire XPlenum into the selected core's pipeline at the Register-Transfer Level.
+
+**Phase 3** — Integrated Simulation and Verification: Validate the combined system through testbenches, formal proofs, power simulation, and benchmarks.
+
+**Phase 4** — Deterministic Random Bit Generator Implementation: Replace the Linear Feedback Shift Register with a NIST-compliant algorithm.
+
+**Phase 5** — Rust Kernel Integration: Build software interfaces so the Salvi Framework kernel can issue XPlenum instructions.
+
+**Phase 6** — Emulation and System Validation: Boot and test the full system in a RISC-V emulator, including security fuzzing.
+
+**Phase 7** — Documentation and Compliance Preparation: Produce the technical documentation and compliance paperwork.
+
+**Tier 2 Phase**:
+
+**Phase 8** — Beyond Defense-Grade Enhancements: Full-system formal verification, higher-order masking, quantum-resistant primitives, adversarial red-team validation, and national security Protection Profile targeting.
+
+---
+
+## Critical Path and Dependency Diagram
+
+```mermaid
+graph LR
+    subgraph "Critical Path (Tier 1)"
+        P1[Phase 1: Core Selection] --> P2[Phase 2: HW Integration]
+        P2 --> P3[Phase 3: Sim & Verification]
+        P3 --> G1{Gate 1: Integration Stable}
+        G1 --> P5[Phase 5: Rust Kernel]
+        P5 --> G2{Gate 2: Kernel Ready}
+        G2 --> P6[Phase 6: Emulation & Validation]
+    end
+
+    subgraph "Parallel Track A"
+        P4[Phase 4: DRBG] --> P4_merge[Merge into Phase 3/5]
+    end
+
+    subgraph "Parallel Track B"
+        P7[Phase 7: Documentation]
+    end
+
+    subgraph "Tier 2 (Beyond Defense-Grade)"
+        P6 --> G3{Gate 3: Tier 1 Complete}
+        G3 --> P8a[8A: Full Formal Verification]
+        P8a --> P8b[8B: Higher-Order Masking]
+        P8b --> P8c[8C: Quantum-Resistant Primitives]
+        P8c --> P8d[8D: Red-Team Validation]
+        P8d --> P8e[8E: Protection Profile Targeting]
+    end
+
+    P1 -->|After 1.1| P4
+    P4_merge --> G1
+    P3 --> P7
+    P5 --> P7
+    P6 --> P7
+
+    style G1 fill:#CC8800,color:#fff
+    style G2 fill:#CC8800,color:#fff
+    style G3 fill:#CC0000,color:#fff
+```
+
+**Critical Path (Tier 1)**: Phase 1 → Phase 2 → Phase 3 → Gate 1 → Phase 5 → Gate 2 → Phase 6
+
+**Parallel Track A**: Phase 4 (DRBG) can begin after Task 1.1 completes and runs alongside Phases 2–3. Its outputs merge at Gate 1.
+
+**Parallel Track B**: Phase 7 (Documentation) is developed incrementally alongside every other phase, not deferred to the end.
+
+**Tier 2 Sequencing**: Phase 8 tracks begin after Gate 3 (Tier 1 complete). Within Tier 2, formal verification (8A) establishes the assurance foundation, higher-order masking (8B) and quantum-resistant primitives (8C) bu...
