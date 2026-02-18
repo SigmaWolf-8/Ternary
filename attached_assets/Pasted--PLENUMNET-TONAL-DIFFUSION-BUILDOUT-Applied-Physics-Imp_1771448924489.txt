@@ -1,0 +1,437 @@
+
+
+
+
+PLENUMNET
+TONAL DIFFUSION BUILDOUT
+
+Applied Physics Implementation Specification
+
+Integrating the Unified Tonal Diffusion Model into the
+Existing Salvi Framework Repository Architecture
+
+
+Capomastro Holdings Ltd. — Applied Physics Division
+February 2026
+
+EXECUTIVE DIRECTIVE
+This document specifies the complete buildout of tonal diffusion capabilities within PlenumNET, mapped to the existing Ternary repository structure. Every module described here is an applied physics implementation—working code that embodies the mathematical framework without altering the current architecture. The principle is additive integration: new modules slot into existing directories, new services extend existing patterns, and new Rust crates compose with libternary.
+
+Constraint: No structural changes to the repository. All additions follow existing conventions (TypeScript services, Rust crates, shared types, Kong routes). Every module must compile, test, and deploy within the current CI/CD pipeline.
+
+MODULE 1: FM TIMING ENGINE
+Location: libternary/src/fm_timing/
+
+Purpose
+Replaces fixed-interval timing heartbeats with frequency-modulated ternary timing packets. Each sync pulse carries network state metadata encoded directly in its instantaneous frequency, not just in the payload. This is the paper’s van der Pol oscillator (Section 2.1) realized as a timing protocol engine.
+
+File Structure
+File	Purpose	Paper Reference
+mod.rs	Module root, public API exports	—
+oscillator.rs	Van der Pol oscillator with FM modulation	Sec 2.1–2.2
+packet.rs	Ternary FM timing packet codec	Sec 2.3
+hrv.rs	Heart Rate Variability entropy source	Sec 2.1 ξ(t)
+spectrum.rs	Sideband analysis for packet validation	Sec 2.2
+gf3_gradient.rs	GF(3) ternary gradient operator (Rust-native, WASM-exported)	Sec 2.3 + GF(3)
+
+oscillator.rs — Core Implementation
+The van der Pol oscillator generates the base timing signal. The key departure from theory: we discretize into ternary states {-1, 0, +1} representing {BEHIND, SYNCHRONIZED, AHEAD} relative to network consensus.
+
+pub struct TonalOscillator {
+    omega_0: f64,          // intrinsic angular frequency (~1 Hz base)
+    mu: f64,               // nonlinear damping coefficient
+    state: [f64; 2],       // [V, dV/dt]
+    modulation: Box<dyn Fn(f64) -> f64>,  // autonomic input m(t)
+    noise_source: HrvEntropy,
+}
+
+impl TonalOscillator {
+    pub fn step(&mut self, dt: f64) -> TernaryTrit {
+        // Runge-Kutta 4th order integration of:
+        // d²V/dt² - μ(1-V²)dV/dt + ω²V = F_ext + ξ(t)
+        let v = self.state[0];
+        let dv = self.state[1];
+        let xi = self.noise_source.sample();
+        let f_ext = (self.modulation)(self.elapsed());
+        let ddv = self.mu * (1.0 - v*v) * dv
+              - self.omega_0.powi(2) * v + f_ext + xi;
+        // ... RK4 update ...
+        // Quantize phase to ternary
+        self.phase_to_trit()
+    }
+
+    fn phase_to_trit(&self) -> TernaryTrit {
+        let phase_error = self.instantaneous_phase() - self.reference_phase();
+        match phase_error {
+            e if e < -THRESHOLD => TernaryTrit::Behind,
+            e if e >  THRESHOLD => TernaryTrit::Ahead,
+            _ => TernaryTrit::Synchronized,
+        }
+    }
+}
+
+packet.rs — FM Timing Packet
+The timing packet encodes both time reference AND network state in a single ternary-encoded structure. The instantaneous frequency of the trit-stream carries the information—this is the applied realization of Φ_T(η,θ,ψ,t).
+
+pub struct FmTimingPacket {
+    pub timestamp_trits: [TernaryTrit; 27],  // 3³ ternary timestamp
+    pub frequency_state: FrequencyState,      // current f_inst encoding
+    pub modulation_index: u8,  // β = A_m/ω_m (quantized)
+    pub network_health: TernaryTrit,  // aggregate tonal state
+    pub entropy_nonce: [u8; 8],  // from HRV noise source
+    pub signature: PqSignature,  // post-quantum auth
+}
+
+pub struct FrequencyState {
+    pub f_inst: f64,        // instantaneous frequency
+    pub sidebands: [f64; 4], // power at f±nf_m
+    pub coherence: f64,      // 0.0–1.0 sync quality
+}
+
+hrv.rs — Entropy Source
+The stochastic noise term ξ(t) from the oscillator model becomes a hardware-free entropy source. Bounded jitter across network nodes aggregates into a distributed entropy pool for post-quantum key generation.
+
+pub struct HrvEntropy {
+    buffer: VecDeque<f64>,    // ring buffer of jitter samples
+    pool: [u8; 256],          // accumulated entropy pool
+    health: EntropyHealth,    // NIST SP 800-90B metrics
+}
+
+impl HrvEntropy {
+    pub fn sample(&mut self) -> f64 {
+        // Bounded stochastic noise: |xi| < MAX_JITTER
+        let raw = self.chaotic_map_step();
+        self.buffer.push_back(raw);
+        self.update_pool();
+        raw.clamp(-MAX_JITTER, MAX_JITTER)
+    }
+    pub fn extract_bytes(&mut self, n: usize) -> Vec<u8> {
+        // Whitened entropy for PQ key material
+        self.pool.iter().take(n).copied().collect()
+    }
+}
+
+Integration point: HrvEntropy feeds directly into the existing post-quantum signature generation in libternary. No changes to the PQ crypto modules—just a new entropy source option.
+
+MODULE 2: TONAL POTENTIAL FIELD SERVICE
+Location: services/tonal-field/
+
+Purpose
+Each PlenumNET node maintains a local tonal potential Φ_T representing its timing confidence. This service computes, propagates, and responds to the gradient field. It replaces hierarchical stratum-based time distribution with gradient-driven diffusion. Nodes follow ∇Φ_T toward consensus.
+
+Architecture
+The tonal field service runs as a sidecar to the existing HPTP service. It consumes FM timing packets from neighboring nodes, computes the local potential, and exposes the gradient to the sync engine.
+
+File	Purpose
+index.ts	Service entry, Express routes, WebSocket handlers
+field.ts	TonalField class — potential computation and gradient
+diffusion.ts	Diffusion solver — iterative gradient descent sync
+topology.ts	Toroidal mesh neighbor management
+metrics.ts	Dimensionless parameter computation (Π₁–Π₄)
+
+field.ts — Core Tonal Field
+The tonal potential at each node is computed from the aggregate of received FM packets weighted by the toroidal distance attenuation e^{–αη}. This is Section 2.3 of the paper applied to a network graph.
+
+export class TonalField {
+  private potential: number = 0;
+  private gradient: Vector3 = { eta: 0, theta: 0, psi: 0 };
+  private neighbors: Map<string, NeighborState> = new Map();
+
+  updateFromPacket(nodeId: string, packet: FmTimingPacket, distance: ToroidalCoord) {
+    const attenuation = Math.exp(-this.alpha * distance.eta);
+    const contribution = packet.frequencyState.coherence * attenuation;
+    this.neighbors.set(nodeId, {
+      potential: contribution * Math.cos(packet.frequencyState.f_inst * this.t
+               + dot(this.k, distance)),
+      distance,
+      lastUpdate: Date.now(),
+    });
+    this.recomputeGradient();
+  }
+
+  private recomputeGradient() {
+    // F_T = -nabla(Phi_T) in toroidal coords
+    // Numerical gradient from neighbor potential differences
+    this.gradient = this.finiteDifferenceGradient();
+  }
+
+  getSyncCorrection(): number {
+    // The gradient tells the node which direction to adjust
+    // Positive gradient.eta = our clock is behind core, speed up
+    return -this.gradient.eta * this.couplingStrength;
+  }
+}
+
+diffusion.ts — Consensus by Diffusion
+Instead of NTP’s stratum hierarchy, PlenumNET achieves time consensus through the modified advection-diffusion equation from Section 4.2. The implementation uses a graph Laplacian rather than a continuum stencil: the network is a weighted graph where edges carry ternary-valued gradients from the GF(3) operator (Module 3), and the Laplacian matrix L drives diffusion directly. This is cleaner for a discrete node network—graph Laplacians are well-studied, have known convergence guarantees, and parallelize trivially.
+
+export class DiffusionSolver {
+  private laplacian: Map<string, Map<string, number>>; // sparse L_ij
+
+  buildLaplacian(neighbors: NeighborGraph, field: TonalField) {
+    // L_ij = deg(i)*delta_ij - w_ij
+    // w_ij = attenuation * coherence (from FM packets)
+    this.laplacian = new Map();
+    for (const [nodeId, edges] of neighbors) {
+      const row = new Map<string, number>();
+      let degree = 0;
+      for (const edge of edges) {
+        const w = Math.exp(-field.alpha * edge.distance.eta)
+              * edge.coherence;
+        row.set(edge.neighborId, -w);
+        degree += w;
+      }
+      row.set(nodeId, degree); // diagonal
+      this.laplacian.set(nodeId, row);
+    }
+  }
+
+  step(nodeId: string, localClock: ClockState,
+       field: TonalField, ternGrad: TernaryGradient): ClockCorrection {
+    // dc_i/dt = -sum_j L_ij * c_j - (c_i/kT) * q * F_T^(3)
+    const row = this.laplacian.get(nodeId);
+    let laplacianTerm = 0;
+    for (const [j, Lij] of row!) {
+      laplacianTerm += Lij * field.getConfidence(j);
+    }
+    const diffusion = -this.D * laplacianTerm;
+    const drift = (this.D * localClock.confidence / this.kT)
+                * ternGrad.eta;  // GF(3) directional: -1, 0, +1
+    return {
+      offsetAdjust: (diffusion + drift) * this.dt,
+      frequencyAdjust: ternGrad.psi * this.freqCoupling,
+      newConfidence: this.updateConfidence(localClock, field),
+    };
+  }
+}
+
+The graph Laplacian is rebuilt whenever the neighbor topology changes (node join/leave). Between rebuilds, each step is a sparse matrix-vector multiply—O(k) per node where k is the neighbor count. The GF(3) ternary gradient from shared/topology feeds the drift term directly: no quantization needed because it’s already ternary-native.
+
+MODULE 3: TOROIDAL NETWORK TOPOLOGY
+Location: shared/topology/
+
+Purpose
+The toroidal coordinate system from Section 1.1 becomes a network addressing and routing scheme. Every node gets a toroidal address (η, θ, ψ) that determines its role in timing propagation, its natural neighbors, and the attenuation of signals it receives.
+
+Coordinate Mapping
+Coordinate	Network Meaning	Range
+η (eta)	Distance from core timing authority (hop count from HPTP primary)	0 = core, increasing = edge
+θ (theta)	Poloidal group (geographic region or functional cluster)	0–2π mapped to region IDs
+ψ (psi)	Toroidal position (position in global consensus ring)	0–2π mapped to ring position
+
+The metric ds² = (R + ηcosθ)² dψ² + dη² + η² dθ² defines the “cost” of communication between nodes. Nodes close in toroidal distance are natural sync partners. The major radius R represents the overall network scale.
+
+export interface ToroidalAddress {
+  eta: number;   // 0 = core timing node
+  theta: number; // regional group angle
+  psi: number;   // ring position
+}
+
+export function toroidalDistance(
+  a: ToroidalAddress, b: ToroidalAddress, R: number
+): number {
+  // Geodesic distance on the torus
+  const dPsi = angleDiff(a.psi, b.psi);
+  const dTheta = angleDiff(a.theta, b.theta);
+  const dEta = Math.abs(a.eta - b.eta);
+  return Math.sqrt(
+    (R + a.eta * Math.cos(a.theta)) ** 2 * dPsi ** 2
+    + dEta ** 2
+    + a.eta ** 2 * dTheta ** 2
+  );
+}
+
+export function naturalNeighbors(
+  node: ToroidalAddress, allNodes: ToroidalAddress[], k: number
+): ToroidalAddress[] {
+  // k-nearest in toroidal metric
+  return allNodes
+    .map(n => ({ addr: n, dist: toroidalDistance(node, n, R_NETWORK) }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, k)
+    .map(n => n.addr);
+}
+
+GF(3) Ternary Gradient Operator
+The continuous gradient ∇Φ_T must be computed between discrete nodes. Rather than interpolating to floating point, the gradient is computed natively in GF(3)—balanced ternary subtraction yields a three-valued result: the field is rising (+1), falling (–1), or flat (0). This runs directly on TVM opcodes with no floating-point overhead, and gives the diffusion solver a ternary-native signal that composes with the existing balanced representation in libternary.
+
+// GF(3) subtraction: balanced ternary {-1, 0, +1}
+export type Trit = -1 | 0 | 1;
+
+export function gf3Sub(a: Trit, b: Trit): Trit {
+  const raw = ((a - b) % 3 + 4) % 3;  // normalize to {0,1,2}
+  return (raw === 2 ? -1 : raw) as Trit; // bijective remap
+}
+
+export function ternaryGradient(
+  field: Map<string, Trit>,
+  nodeId: string,
+  neighbors: NeighborEntry[]
+): { eta: Trit; theta: Trit; psi: Trit } {
+  const local = field.get(nodeId) ?? 0;
+  // Gradient component along each toroidal axis:
+  // F_{T,eta} = -(Phi_T(eta + d_eta) minus_3 Phi_T(eta))
+  const byAxis = { eta: [] as Trit[], theta: [] as Trit[], psi: [] as Trit[] };
+  for (const n of neighbors) {
+    const remote = field.get(n.id) ?? 0;
+    const diff = gf3Sub(remote, local);
+    byAxis[n.dominantAxis].push(diff);
+  }
+  return {
+    eta:   majorityvote(byAxis.eta),
+    theta: majorityvote(byAxis.theta),
+    psi:   majorityvote(byAxis.psi),
+  };
+}
+
+function majorityvote(trits: Trit[]): Trit {
+  const sum = trits.reduce((s, t) => s + t, 0);
+  return sum > 0 ? 1 : sum < 0 ? -1 : 0;
+}
+
+The ternary gradient provides a coarse but noise-resistant directional signal. The continuous-valued gradient (from field.ts) handles fine adjustment; the GF(3) gradient handles fast directional decisions. Both are exposed by the topology module; consumers choose based on their precision requirement.
+
+Integration: The shared/topology module is imported by both services/tonal-field and server routes. The Kong API gateway routes can use η to determine which nodes serve as regional timing authorities.
+
+MODULE 4: ADAPTIVE RESONANCE TUNING
+Location: server/resonance/
+
+Purpose
+Section 5.2 of the paper shows that cardiac efficiency peaks when the heart’s instantaneous frequency matches the vascular tree’s natural resonance. For PlenumNET, this means the sync interval should adaptively match the network’s round-trip propagation characteristics. The FM sweep behavior (HRV sweeping through resonances) becomes adaptive sync rate tuning.
+
+Resonance Detection
+export class ResonanceDetector {
+  private rttHistory: RingBuffer<number>;
+  private currentSyncRate: number;
+
+  // Moens-Korteweg analog: c_0 = sqrt(Eh / 2ρR)
+  // Network: propagation speed from RTT statistics
+  get networkWaveSpeed(): number {
+    return this.averagePathLength / this.medianRtt;
+  }
+
+  // Quarter-wave resonance: f_r = c_0 / (4L)
+  get resonantFrequency(): number {
+    return this.networkWaveSpeed / (4 * this.longestPath);
+  }
+
+  // Optimal sync condition from Sec 5.2:
+  // Round-trip = T/2 + nT (reflected wave augments next cycle)
+  computeOptimalSyncRate(): number {
+    const c0 = this.networkWaveSpeed;
+    const L = this.averagePathLength;
+    // Find n such that f_sync ~ f_resonant
+    const T_roundtrip = 2 * L / c0;
+    return 1 / (2 * T_roundtrip); // fundamental
+  }
+
+  // FM sweep: vary sync rate to find resonance peaks
+  sweep(): SweepResult {
+    const fLow = this.resonantFrequency * 0.8;
+    const fHigh = this.resonantFrequency * 1.2;
+    // Chirp through frequency range, measure sync quality
+    return this.chirpTest(fLow, fHigh, SWEEP_STEPS);
+  }
+}
+
+The sweep function implements the paper’s insight that FM modulation allows the system to find optimal resonances dynamically. PlenumNET literally chirps its sync rate, measures the response (timing accuracy per bandwidth), and locks onto the network’s natural frequency. This is active resonance tuning—applied physics, not theory.
+
+MODULE 5: PLENUM METRICS DASHBOARD
+Location: client/src/components/plenum-metrics/
+
+Purpose
+Section 8.2 defines four dimensionless parameters that characterize the plenum’s state. These become the real-time KPIs on PlenumNET’s monitoring dashboard—live, computed values that tell operators whether the network is in optimal resonance.
+
+Dimensionless Parameters as KPIs
+Parameter	Name	Target	Meaning
+Π₁	Field/Pressure Ratio	~10⁻⁶	Tonal field energy vs. network load pressure. Low but measurable = healthy.
+Π₂	Sync/Resonance Ratio	≈ 1.0	Sync frequency matches network resonance. 1.0 = optimal tuning.
+Π₃	Information Density	≫ 1	Metadata throughput vs. sync bandwidth. High = efficient encoding.
+Π₄	Tonal Authority	Context-dependent	Tonal gradient force vs. network inertia. Measures actuation strength.
+
+export function computePlenumMetrics(state: NetworkState): PlenumMetrics {
+  return {
+    pi1: state.tonalFieldEnergy / state.networkLoadPressure,
+    pi2: state.currentSyncRate / state.detectedResonance,
+    pi3: state.metadataThroughput / state.syncBandwidth,
+    pi4: (state.D * state.q * state.gradPhiT / state.kT)
+         / (state.viscosity * state.flowVelocity / state.pathLength ** 2),
+  };
+}
+
+These metrics feed into the existing client dashboard components. The Π₂ gauge is the headline indicator—when it drifts from 1.0, the resonance tuner (Module 4) activates a sweep.
+
+MODULE 6: API GATEWAY EXTENSIONS
+Location: kong/
+
+New Routes
+Route	Method	Service	Purpose
+/api/tonal/field	GET	tonal-field	Current node potential and gradient
+/api/tonal/neighbors	GET	tonal-field	Toroidal neighbor list with distances
+/api/tonal/packet	POST	tonal-field	Submit FM timing packet
+/api/resonance/status	GET	server	Current sync rate and resonance metrics
+/api/resonance/sweep	POST	server	Trigger adaptive frequency sweep
+/api/metrics/plenum	GET	server	Dimensionless parameters Π₁–Π₄
+
+All routes follow existing Kong configuration patterns. Authentication uses the existing PQ signature middleware—no changes to the security layer.
+
+INTEGRATION MAP
+
+Repository Directory Mapping
+Existing Directory	New Addition	Dependencies
+libternary/src/	fm_timing/ (Rust crate, incl. gf3_gradient.rs)	Existing ternary types, PQ crypto
+services/	tonal-field/ (TypeScript service)	shared/topology (GF(3) gradient), libternary via WASM
+shared/	topology/ (TypeScript module)	None (pure math, GF(3) arithmetic)
+server/	resonance/ (TypeScript module)	services/tonal-field, shared/topology
+client/src/components/	plenum-metrics/ (React components)	server API, shared types
+kong/	New route configs (YAML)	Existing gateway patterns
+tests/integration/	tonal-field tests	All modules
+
+Data Flow
+The complete data flow follows the paper’s structure: the oscillator (heart) generates FM packets (tone), which propagate through the toroidal mesh (plenum), creating gradients (diffusion conditions) that guide nodes toward consensus (blood flow). Specifically:
+
+•	libternary/fm_timing → generates FM timing packets from the van der Pol oscillator; exports GF(3) gradient via WASM
+•	services/tonal-field → receives packets, builds graph Laplacian from neighbor topology, computes diffusion corrections
+•	shared/topology → provides toroidal addressing, geodesic distance, and GF(3) ternary gradient operator
+•	server/resonance → monitors Π₂, triggers adaptive sync rate sweeps
+•	client/plenum-metrics → displays all four Π parameters in real time
+•	kong → routes API traffic with existing PQ auth, no new auth patterns
+
+BUILD PHASES
+
+Phase 1: Foundation (Weeks 1–2)
+•	shared/topology: Toroidal coordinate types, distance function, neighbor selection, and GF(3) ternary gradient operator. Pure math, no network I/O. Fully testable in isolation.
+•	libternary/fm_timing/oscillator.rs: Van der Pol integrator with RK4, ternary phase quantization. Unit tests against known solutions.
+•	libternary/fm_timing/hrv.rs: Entropy source with NIST SP 800-90B health checks. Feeds existing PQ key generation.
+
+Phase 2: Packets and Field (Weeks 3–4)
+•	libternary/fm_timing/packet.rs: FM timing packet codec. Encode/decode round-trip tests. WASM compilation for TypeScript consumption.
+•	services/tonal-field: Field computation service with graph Laplacian diffusion solver. Consumes packets, builds sparse Laplacian from neighbor topology, computes corrections using GF(3) drift terms. WebSocket broadcast to neighbors.
+•	Kong routes: Wire tonal-field endpoints through existing gateway.
+
+Phase 3: Resonance and Metrics (Weeks 5–6)
+•	server/resonance: RTT-based resonance detection, adaptive sync rate computation, FM sweep implementation.
+•	client/plenum-metrics: Dashboard components for Π₁–Π₄ with real-time WebSocket feeds.
+•	tests/integration: End-to-end tests: oscillator → packet → field → gradient → correction loop.
+
+Phase 4: Hardening (Week 7+)
+•	Benchmarks: Measure Π₂ convergence time, entropy extraction rate, sync accuracy under adversarial conditions.
+•	Documentation: API docs for all new endpoints, Rust crate docs, architecture diagrams.
+•	SiTime integration spec: Hardware oscillator interface spec for FM timing—positions HPTP as the protocol layer for their precision hardware.
+
+RISK ASSESSMENT
+
+Risk	Severity	Mitigation
+WASM bridge latency for Rust FM engine	Medium	Profile early; fallback to pure TS oscillator if >1ms overhead
+Toroidal topology doesn’t scale past ~1000 nodes	Low	Hierarchical tori: regional tori connected at core
+Resonance sweep disrupts active sync	Medium	Sweep uses shadow frequency channel, applies winner atomically
+HRV entropy insufficient for PQ key material	Low	Pool across nodes; supplement with existing sources, not replace
+Kong route proliferation	Low	All new routes under /api/tonal/* prefix, single upstream service
+
+CONCLUSION
+This buildout transforms the unified tonal diffusion model from a theoretical framework into six deployable modules within the existing Salvi Framework repository. Every line of code maps to a specific equation in the paper, but the deliverable is working infrastructure—not theory. The heart of PlenumNET becomes a literal tonal diffusion actuator: an FM oscillator that creates the gradient conditions for network-wide time consensus through diffusion rather than dictation.
+
+The approach is deliberately conservative with the existing architecture and deliberately ambitious with the physics. No directory moves, no CI/CD changes, no new frameworks. Just new crates in libternary, new services in services/, new shared types, and new dashboard components. The repository absorbs the unified physics model the way blood absorbs oxygen—through diffusion along natural gradients, not through force.
+
+
+Così sia, Fratello.
