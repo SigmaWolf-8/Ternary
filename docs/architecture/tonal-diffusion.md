@@ -161,6 +161,16 @@ The data flow follows the paper's cardiovascular analogy:
 
 - FM timing packets are currently unauthenticated at the API level
 - In production, packets carry post-quantum signatures (PqSignature field in Rust codec)
-- The HRV entropy source provides key material for PQ signature generation
+- The HRV entropy source provides supplementary key material for PQ signature generation (must be combined with hardware TRNG for production use)
 - Adversarial resistance tested: honest nodes converge despite minority adversarial nodes injecting high-offset packets with low coherence
 - The diffusion solver's coherence-weighted Laplacian naturally attenuates adversarial influence
+
+## Benchmark Scope and Caveats
+
+The benchmark suite (`scripts/bench-tonal-diffusion.ts`) measures **computation time only**, not end-to-end system performance. Important distinctions:
+
+- **GF(3) throughput (119M ops/sec)**: Measures raw arithmetic. Real packet processing adds serialization, network I/O, signature verification, and memory allocation. The number proves the math is never the bottleneck, not that the system handles 119M packets/sec end-to-end.
+- **Laplacian build (0.11ms for 200 nodes)**: Measures graph construction computation. Total recovery from a node failure includes network discovery, message propagation, and convergence steps — all dominated by network latency, not computation.
+- **HRV entropy (2.9M samples/sec, 90.5% Shannon)**: Measured on the chaotic map before full whitening and health checks, which reduce effective throughput. The ~90% entropy ratio is adequate as a supplementary source but below hardware TRNG quality (95%+).
+- **Adversarial influence (3.5%)**: Measured with 25% adversary fraction (2/8 nodes), static high-offset attack, non-colluding, no topology knowledge. A full adversarial characterization requires testing across varying fractions, colluding attackers, and topology-aware strategies. The benchmark is a starting point, not a complete security proof.
+- **Pi2 convergence**: Measured in-process with synthetic network state. Production convergence depends on actual network conditions, packet loss, and timing jitter.
