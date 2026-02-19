@@ -458,7 +458,7 @@ function PlatformSection() {
     {
       icon: Lock,
       title: "Post-Quantum Security",
-      description: "CNSA 2.0 compliance coverage with phase encryption, Lamport signatures, ternary HMAC, and sponge-based hashing resistant to quantum attacks.",
+      description: "CNSA 2.0 algorithm coverage with phase encryption, Lamport signatures, ternary HMAC, and sponge-based hashing resistant to quantum attacks.",
       stats: "CNSA 2.0",
     },
   ];
@@ -860,7 +860,7 @@ function PerformanceSection() {
     { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10^-15s)", highlight: true },
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
-    { label: "Regulatory Timing", current: "Custom build", ternary: "Designed for FINRA 613 & MiFID II", highlight: true },
+    { label: "Regulatory Timing", current: "Custom build", ternary: "Targeting FINRA 613 & MiFID II thresholds", highlight: true },
     { label: "Native Hardware", current: "Ubiquitous", ternary: "Emulated via Binary-Ternary Gateway", highlight: false },
     { label: "Ecosystem Maturity", current: "40+ years", ternary: "Emerging (v1.0)", highlight: false },
   ];
@@ -1067,7 +1067,7 @@ function CalendarPreviewSection() {
     {
       problem: "Precision Drift",
       description: "IEEE 754 floating-point errors accumulate. 1ms/day becomes 365ms/year -- fails regulatory compliance.",
-      solution: "Integer-only calculations. Zero accumulation error. Designed for FINRA 613 & MiFID II timing requirements.",
+      solution: "Integer-only calculations. Zero accumulation error. Architecture targeting FINRA 613 & MiFID II timing thresholds.",
       icon: Shield,
     },
   ];
@@ -1184,7 +1184,7 @@ function TargetMarketsSection() {
     {
       icon: Building2,
       title: "Financial Services",
-      description: "Precision timing designed for FINRA 613 & MiFID II requirements in high-frequency trading, regulatory reporting, and immutable audit trails.",
+      description: "Precision timing targeting FINRA 613 & MiFID II thresholds for high-frequency trading, regulatory reporting, and immutable audit trails.",
       stats: "Regulatory-grade timing",
     },
     {

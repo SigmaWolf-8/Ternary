@@ -299,12 +299,22 @@ function benchAdversarialSync(): BenchmarkResult {
 
   const passed = maxDeviation < 20 && adversaryInfluence < 0.5;
 
+  const adversaryFraction = adversaryCount / nodeCount;
+
   const result: BenchmarkResult = {
     name: 'Adversarial Sync Accuracy',
     passed,
     metrics: {
       nodeCount,
       adversaryCount,
+      adversaryFraction: Number(adversaryFraction.toFixed(2)),
+      attackStrategy: 'static-high-offset' as any,
+      attackDescription: 'Fixed 50-100ms offset, low coherence (0.3), networkHealth=-1, no collusion, no topology knowledge' as any,
+      topology: 'fully-connected (all-to-all), adversaries at nodes 0..1, no topology knowledge advantage' as any,
+      collusionModel: 'independent (non-colluding)' as any,
+      adversaryInitialOffset: '50-100ms (random)' as any,
+      adversaryCoherence: 0.3,
+      honestCoherence: 0.9,
       iterations,
       honestMeanOffset: Number(meanOffset.toFixed(4)),
       maxDeviation: Number(maxDeviation.toFixed(4)),
@@ -312,7 +322,8 @@ function benchAdversarialSync(): BenchmarkResult {
       convergenceRatio: Number(convergenceRatio.toFixed(4)),
       adversaryInfluence: Number(adversaryInfluence.toFixed(4)),
     },
-    details: `${nodeCount} nodes (${adversaryCount} adversarial) over ${iterations} iterations. ` +
+    details: `${nodeCount} nodes (${adversaryCount} adversarial, ${(adversaryFraction * 100).toFixed(0)}% fraction) over ${iterations} iterations. ` +
+      `Attack: static high-offset (50-100ms), non-colluding, no topology knowledge. ` +
       `Honest mean offset: ${meanOffset.toFixed(4)}, max deviation: ${maxDeviation.toFixed(4)}, ` +
       `adversary influence: ${(adversaryInfluence * 100).toFixed(1)}% (limit: 50%).`,
   };

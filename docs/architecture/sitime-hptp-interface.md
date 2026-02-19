@@ -244,6 +244,6 @@ SiT5008:  1.8V, 3 mA typical (edge nodes, low power)
 
 This specification is designed to accommodate:
 
-- **Future PQ signature integration**: The `entropy_nonce` field in FM packets will carry hardware-derived entropy from SiTime ADEV fluctuations, feeding the post-quantum signature chain
+- **Future PQ signature integration**: The `entropy_nonce` field in FM packets will carry hardware-derived entropy from SiTime ADEV fluctuations, XOR-mixed with the supplementary HRV chaotic-map entropy, feeding the post-quantum signature chain. The SiTime ADEV source serves as the primary entropy; the HRV source is supplementary
 - **Multi-oscillator configurations**: Core nodes may run multiple SiTime oscillators in voting configurations for fault tolerance
 - **FPGA integration**: The XPlenum RISC-V extension can directly interface with SiTime AFC via memory-mapped I/O, eliminating host processor latency

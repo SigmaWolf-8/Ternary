@@ -118,7 +118,7 @@ const MODULES: Module[] = [
     id: "hptp",
     name: "HPTP Timestamp Tool",
     version: "v0.9.0",
-    desc: "High-Precision Timing Protocol client. Z\u2082\u2088 phase correction, sub-radian alignment detection, carry jerk analysis. CNSA 2.0 compliant time synchronization.",
+    desc: "High-Precision Timing Protocol client. Z\u2082\u2088 phase correction, sub-radian alignment detection, carry jerk analysis. CNSA 2.0 aligned time synchronization.",
     tiers: ["enterprise", "user"],
     size: "156 KB",
     format: "Binary (Linux / macOS / Win)",

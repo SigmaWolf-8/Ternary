@@ -670,14 +670,14 @@ function RegulatoryContextSection() {
       title: "FINRA Rule 613",
       subtitle: "Consolidated Audit Trail",
       requirement: "Sub-50ms NIST synchronization for US securities trading",
-      plenumResponse: "HPTP femtosecond timing is designed to exceed this threshold by orders of magnitude. Audit records signed with quantum-resistant Lamport OTS.",
+      plenumResponse: "HPTP femtosecond timing architecture targets exceeding this threshold by orders of magnitude. Audit records signed with quantum-resistant Lamport OTS.",
     },
     {
       icon: Shield,
       title: "MiFID II Article 50",
       subtitle: "EU Trading Regulation",
       requirement: "100us synchronization for HFT, 1ms for standard trading",
-      plenumResponse: "HPTP with optical clock sync is designed to provide sub-picosecond precision. All timing certificates cryptographically signed.",
+      plenumResponse: "HPTP with optical clock sync targets sub-picosecond precision. All timing certificates cryptographically signed.",
     },
     {
       icon: FileSignature,
@@ -710,7 +710,7 @@ function RegulatoryContextSection() {
             className="text-2xl md:text-3xl font-bold mb-3"
             data-testid="text-regulatory-title"
           >
-            CNSA 2.0 Meets Financial Compliance
+            CNSA 2.0 and Regulatory Timing Alignment
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -719,7 +719,7 @@ function RegulatoryContextSection() {
             transition={{ duration: 0.5, delay: 0.15 }}
             className="text-muted-foreground max-w-2xl mx-auto"
           >
-            CNSA 2.0 cryptographic compliance intersects with PlenumNET's existing regulatory framework for financial services.
+            CNSA 2.0 cryptographic algorithm coverage intersects with PlenumNET's architecture targeting financial services timing requirements.
           </motion.p>
         </div>
 

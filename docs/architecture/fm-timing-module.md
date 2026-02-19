@@ -116,9 +116,9 @@ pub struct FrequencyState {
 - `encode(&self) -> Vec<u8>` — Serialize to byte stream
 - `decode(bytes: &[u8]) -> Result<Self, PacketError>` — Deserialize from byte stream
 
-## hrv.rs — HRV Entropy Source
+## hrv.rs — HRV Entropy Source (Supplementary)
 
-Implements the stochastic noise term ξ(t) as a deterministic chaotic map, providing bounded entropy for post-quantum key material generation.
+Implements the stochastic noise term ξ(t) as a deterministic chaotic map, providing **supplementary** bounded entropy for post-quantum key material generation. This source is designed to augment — not replace — a hardware TRNG (e.g., Intel RDRAND, ARM TRNG, or SiTime ADEV-derived entropy). In production deployments, the HRV pool should be XOR-mixed with hardware entropy before use in key generation.
 
 ### Implementation
 
@@ -153,6 +153,8 @@ Inspired by NIST SP 800-90B:
 - Tracks min-entropy estimate
 - Monitors for stuck states (repeated outputs)
 - Reports health status for upstream consumers
+
+**Entropy quality note:** The chaotic map achieves ~90% Shannon entropy ratio, which is adequate for a supplementary source but below the 95%+ typical of hardware TRNGs. The `extract_bytes()` output should be conditioned through HMAC-DRBG and mixed with hardware entropy before cryptographic use.
 
 ## gf3_gradient.rs — GF(3) Ternary Gradient Operator
 
@@ -203,7 +205,7 @@ Returns the sign of the sum: positive sum → Pos, negative → Neg, zero → Ze
 
 ## Integration Points
 
-- **HRV → PQ Crypto**: `HrvEntropy::extract_bytes()` feeds into existing post-quantum signature generation in `libternary`. No changes to PQ modules needed.
+- **HRV → PQ Crypto**: `HrvEntropy::extract_bytes()` provides supplementary entropy that is XOR-mixed with hardware TRNG output before feeding into post-quantum signature generation in `libternary`. The HRV source alone is insufficient for primary key material — it must be combined with a qualified hardware entropy source.
 - **Oscillator → Packet**: `FmTimingPacket::from_oscillator()` captures the oscillator's instantaneous state.
 - **GF(3) Gradient → Diffusion**: The `TernaryGradient` struct maps directly to the TypeScript `{ eta: Trit; theta: Trit; psi: Trit }` type consumed by `DiffusionSolver.step()`.
 - **TernaryTrit → TypeScript Trit**: `TernaryTrit::Neg` = `-1`, `TernaryTrit::Zero` = `0`, `TernaryTrit::Pos` = `+1`.

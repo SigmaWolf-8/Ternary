@@ -71,7 +71,7 @@ const platformColumns: NavColumn[] = [
     heading: "Infrastructure",
     items: [
       { title: "HPTP Timing Protocol", subtitle: "Femtosecond precision", href: "/hptp" },
-      { title: "Post-Quantum Security", subtitle: "CNSA 2.0 compliant", href: "/compliance" },
+      { title: "Post-Quantum Security", subtitle: "CNSA 2.0 aligned", href: "/compliance" },
       { title: "Torsion Network Stack", subtitle: "3-ary torus topology", href: "/#platform" },
     ],
   },

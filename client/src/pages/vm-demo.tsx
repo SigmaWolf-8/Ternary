@@ -51,7 +51,7 @@ const features = [
   {
     icon: Lock,
     title: "Post-Quantum Crypto",
-    desc: "TL-KEM and TL-DSA hardware opcodes, CNSA 2.0 compliant, FIPS 140-3 boundary",
+    desc: "TL-KEM and TL-DSA hardware opcodes, CNSA 2.0 aligned, targeting FIPS 140-3 boundary",
   },
   {
     icon: Activity,
