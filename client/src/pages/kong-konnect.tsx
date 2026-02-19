@@ -560,7 +560,7 @@ function SyncSection({ selectedCP, setSelectedCP }: { selectedCP: string | null;
             Deploy Services to Kong
           </CardTitle>
           <CardDescription>
-            Sync all 17 PlenumNET services (97 endpoints) to your Kong control planes
+            Sync all 17 PlenumNET services (175 endpoints) to your Kong control planes
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -852,7 +852,7 @@ function HeroSection() {
             data-testid="text-hero-description"
           >
             Manage your Kong Konnect API gateway directly from PlenumNET. 
-            Deploy 17 services covering 97 endpoints across all control planes.
+            Deploy 17 services covering 175 endpoints across all control planes.
           </motion.p>
 
           <motion.div
@@ -867,7 +867,7 @@ function HeroSection() {
             </Badge>
             <Badge variant="secondary" className="text-xs">
               <Globe className="w-3 h-3 mr-1" />
-              97 Endpoints
+              175 Endpoints
             </Badge>
             <Badge variant="secondary" className="text-xs">
               <Shield className="w-3 h-3 mr-1" />

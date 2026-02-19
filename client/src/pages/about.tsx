@@ -40,7 +40,7 @@ function AnimatedSection({ children, delay = 0 }: { children: React.ReactNode; d
 const milestones = [
   { value: "1,040", label: "Tests Passing", icon: Check },
   { value: "227", label: "Source Files", icon: FileCode },
-  { value: "97", label: "API Endpoints", icon: Server },
+  { value: "175", label: "API Endpoints", icon: Server },
   { value: "CNSA 2.0", label: "Architecture", icon: Shield },
 ];
 
