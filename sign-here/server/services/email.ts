@@ -35,11 +35,12 @@ export async function sendSigningEmail(params: SigningEmailParams) {
     ? `${senderName} via Sign Here <${senderEmail}>`
     : DEFAULT_FROM;
 
-  const host = process.env.REPLIT_DEV_DOMAIN
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.REPLIT_DOMAINS
+  const host = process.env.APP_URL
+    || (process.env.REPLIT_DOMAINS
       ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : "http://localhost:5000";
+      : process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : "http://localhost:5000");
 
   const signUrl = `${host}/sign/${envelopeId}/${recipientId}`;
 

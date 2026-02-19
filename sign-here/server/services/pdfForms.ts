@@ -149,7 +149,8 @@ export async function bakeFillablePdf(
     const pageWidth = page.getWidth();
 
     const scaleX = pageWidth / 800;
-    const scaleY = pageHeight / 1131;
+    const renderedHeight = (pageHeight / pageWidth) * 800;
+    const scaleY = pageHeight / renderedHeight;
 
     const pdfX = f.x * scaleX;
     const pdfY = pageHeight - (f.y * scaleY) - (f.height * scaleY);
