@@ -1,0 +1,39 @@
+[tasks]
+bmc
+prove
+
+[options]
+bmc: mode bmc
+bmc: depth 60
+prove: mode prove
+prove: depth 50
+
+[engines]
+smtbmc z3
+
+[script]
+read_verilog -formal -DFORMAL rtl/xplenum_pkg.vh
+read_verilog -formal -DFORMAL rtl/xplenum_mask_unit.v
+read_verilog -formal -DFORMAL rtl/xplenum_domain_unit.v
+read_verilog -formal -DFORMAL rtl/xplenum_cap_unit.v
+read_verilog -formal -DFORMAL rtl/xplenum_trit_unit.v
+read_verilog -formal -DFORMAL rtl/xplenum_top.v
+read_verilog -formal -DFORMAL rtl/integration/xplenum_cva6_wrapper.v
+read_verilog -formal -DFORMAL rtl/integration/xplenum_stall_controller.v
+read_verilog -formal -DFORMAL rtl/integration/xplenum_cva6_top.v
+read_verilog -formal -DFORMAL rtl/formal/xplenum_formal_props.v
+read_verilog -formal -DFORMAL rtl/formal/xplenum_integration_formal_props.v
+prep -top xplenum_cva6_top
+
+[files]
+rtl/xplenum_pkg.vh
+rtl/xplenum_mask_unit.v
+rtl/xplenum_domain_unit.v
+rtl/xplenum_cap_unit.v
+rtl/xplenum_trit_unit.v
+rtl/xplenum_top.v
+rtl/integration/xplenum_cva6_wrapper.v
+rtl/integration/xplenum_stall_controller.v
+rtl/integration/xplenum_cva6_top.v
+rtl/formal/xplenum_formal_props.v
+rtl/formal/xplenum_integration_formal_props.v
