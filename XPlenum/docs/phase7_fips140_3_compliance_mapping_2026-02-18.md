@@ -36,9 +36,9 @@ This document provides a complete mapping between the XPlenum RISC-V Security Ex
 
 | Requirement | XPlenum Implementation | Status | Evidence |
 |-------------|----------------------|--------|----------|
-| Module type (hardware/software/firmware) | Hardware IP block integrated into CVA6 | Compliant | `rtl/xplenum_top.v`, `rtl/integration/xplenum_cva6_wrapper.v` |
+| Module type (hardware/software/firmware) | Hardware IP block integrated into CVA6 | Compliant | `XPlenum/rtl/xplenum_top.v`, `XPlenum/rtl/integration/xplenum_cva6_wrapper.v` |
 | Cryptographic boundary definition | XPlenum functional unit: AES-256 core + CTR_DRBG + security logic | Compliant | Block diagram in ISA spec |
-| Approved security functions list | AES-256 (FIPS 197), CTR_DRBG (SP 800-90A) | Compliant | `rtl/xplenum_aes256_core.v`, `rtl/xplenum_ctr_drbg.v` |
+| Approved security functions list | AES-256 (FIPS 197), CTR_DRBG (SP 800-90A) | Compliant | `XPlenum/rtl/xplenum_aes256_core.v`, `XPlenum/rtl/xplenum_ctr_drbg.v` |
 | Non-approved security functions | GF(3) S-Box, ternary permutation (non-standard) | Documented | Listed as non-approved; not used for FIPS-approved purposes |
 | Operating modes | Normal, Degraded (DRBG health error) | Compliant | XPSTATUS register controls |
 
@@ -232,11 +232,11 @@ All interfaces are logical (internal to SoC). Physical tamper boundaries defined
 | Document | Description | File |
 |----------|-------------|------|
 | Security Policy | Module description, boundaries, and security rules | To be generated |
-| Finite State Model | DRBG FSM and instruction decode state diagrams | `rtl/xplenum_ctr_drbg.v` header |
-| Algorithm Specifications | AES-256, CTR_DRBG implementation details | `rtl/xplenum_aes256_core.v`, `rtl/xplenum_ctr_drbg.v` |
+| Finite State Model | DRBG FSM and instruction decode state diagrams | `XPlenum/rtl/xplenum_ctr_drbg.v` header |
+| Algorithm Specifications | AES-256, CTR_DRBG implementation details | `XPlenum/rtl/xplenum_aes256_core.v`, `XPlenum/rtl/xplenum_ctr_drbg.v` |
 | Source Code | Complete RTL source | `rtl/` directory |
-| Formal Verification Results | SVA property proofs | `formal/` directory |
-| Test Results | Spike ISS, fuzzer, security suite | `sim/` directory, this document |
+| Formal Verification Results | SVA property proofs | `XPlenum/rtl/formal/` directory |
+| Test Results | Spike ISS, fuzzer, security suite | `XPlenum/sim/` directory, this document |
 | Design Documentation | ISA specification, architecture guide | `docs/xplenum/` directory |
 | CNSA 2.0 Compliance | NSA CNSA 2.0 algorithm mapping | `docs/xplenum/phase7_cnsa2_compliance_2026-02-18.md` |
 
