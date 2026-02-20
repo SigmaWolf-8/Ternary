@@ -25,18 +25,18 @@ Phase 6 delivers a complete emulation and validation framework for the XPlenum R
 
 | Task   | Description                        | Status   | Artifacts                                   |
 |--------|------------------------------------|----------|----------------------------------------------|
-| 6.1a   | Spike ISS Extension                | Complete | `sim/spike/xplenum_spike_extension.h`        |
-|        |                                    |          | `sim/spike/xplenum_spike_test.cpp`           |
-| 6.1b   | QEMU TCG Helpers                   | Complete | `sim/qemu/xplenum_qemu_helper.c`            |
-|        |                                    |          | `sim/qemu/xplenum_qemu_trans.c.inc`         |
-| 6.2    | Kernel Boot Validation             | Complete | `sim/qemu/xplenum_boot_test.sh`             |
-| 6.3    | E2E Security Tests                 | Complete | `sim/qemu/xplenum_e2e_security_tests.py`    |
+| 6.1a   | Spike ISS Extension                | Complete | `XPlenum/sim/spike/xplenum_spike_extension.h`        |
+|        |                                    |          | `XPlenum/sim/spike/xplenum_spike_test.cpp`           |
+| 6.1b   | QEMU TCG Helpers                   | Complete | `XPlenum/sim/qemu/xplenum_qemu_helper.c`            |
+|        |                                    |          | `XPlenum/sim/qemu/xplenum_qemu_trans.c.inc`         |
+| 6.2    | Kernel Boot Validation             | Complete | `XPlenum/sim/qemu/xplenum_boot_test.sh`             |
+| 6.3    | E2E Security Tests                 | Complete | `XPlenum/sim/qemu/xplenum_e2e_security_tests.py`    |
 | 6.4    | Performance Profiling              | Complete | Integrated in E2E test suite (--perf-report) |
-| 6.5    | FPGA Synthesis Preparation         | Complete | `synth/xplenum_fpga.sdc`                    |
-|        |                                    |          | `synth/xplenum_pinmap.xdc`                  |
-|        |                                    |          | `synth/xplenum_synth.tcl`                   |
-| 6.6    | Security Fuzzing                   | Complete | `sim/fuzzing/xplenum_fuzz_harness.cpp`       |
-| 6.7    | Cross-Verification Framework       | Complete | `sim/cross-verify/xplenum_cross_verify.py`   |
+| 6.5    | FPGA Synthesis Preparation         | Complete | `XPlenum/synth/xplenum_fpga.sdc`                    |
+|        |                                    |          | `XPlenum/synth/xplenum_pinmap.xdc`                  |
+|        |                                    |          | `XPlenum/synth/xplenum_synth.tcl`                   |
+| 6.6    | Security Fuzzing                   | Complete | `XPlenum/sim/fuzzing/xplenum_fuzz_harness.cpp`       |
+| 6.7    | Cross-Verification Framework       | Complete | `XPlenum/sim/cross-verify/xplenum_cross_verify.py`   |
 
 ---
 
@@ -157,9 +157,9 @@ Exception distribution confirms subsystem-disable logic dominates (expected, as 
 
 ### Deliverables
 
-- `synth/xplenum_fpga.sdc` — Synopsys Design Constraints (timing, I/O delays, multi-cycle paths, false paths)
-- `synth/xplenum_pinmap.xdc` — Pin assignments for Nexys A7 board
-- `synth/xplenum_synth.tcl` — Vivado batch synthesis script with reporting
+- `XPlenum/synth/xplenum_fpga.sdc` — Synopsys Design Constraints (timing, I/O delays, multi-cycle paths, false paths)
+- `XPlenum/synth/xplenum_pinmap.xdc` — Pin assignments for Nexys A7 board
+- `XPlenum/synth/xplenum_synth.tcl` — Vivado batch synthesis script with reporting
 
 ---
 
