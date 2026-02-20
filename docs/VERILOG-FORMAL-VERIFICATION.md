@@ -14,7 +14,7 @@
 | Target      | `XPlenum/rtl/xplenum_top.v` and submodules |
 | Toolchain   | SymbiYosys + Yosys + Boolector |
 | Date        | February 2026 |
-| Status      | CI live — BMC + Cover running on every `rtl/**` push |
+| Status      | CI live — BMC + Cover running on every `XPlenum/rtl/**` push |
 
 ---
 
