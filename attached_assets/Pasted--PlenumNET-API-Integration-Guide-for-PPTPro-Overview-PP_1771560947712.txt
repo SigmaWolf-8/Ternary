@@ -1,0 +1,271 @@
+# PlenumNET API Integration Guide for PPTPro
+
+## Overview
+
+PPTPro (Plenum Pulse Tonal Professor) is the **tonal intelligence engine** — it computes physics, coherence indices, and phase-advance recommendations. PlenumNET is the **conductor** — it orchestrates hardware, enforces safety governors, runs the ternary kernel, and stores coherence logs.
+
+**PPTPro knows nothing about hardware. It produces data structures that PlenumNET consumes.**
+
+---
+
+## Connection Details
+
+| Field | Value |
+|-------|-------|
+| **Base URL** | `https://PlenumNET.replit.app` |
+| **Auth** | `Authorization: Bearer ${PLENUMNET_API_KEY}` |
+| **Content-Type** | `application/json` |
+| **Protocol** | HTTPS, REST |
+
+The `PLENUMNET_API_KEY` secret is already configured in Replit.
+
+---
+
+## API Endpoints
+
+### 1. `GET /api/v1/status`
+**Purpose:** Check PlenumNET hardware readiness and ternary kernel state.
+**When to call:** On app load, and periodically (every 30s) for connection status indicator.
+
+**Response:**
+```json
+{
+  "status": "online",
+  "kernel": "ternary_v3",
+  "uptime_s": 84210,
+  "safety_governor": "active",
+  "actuators": {
+    "haptic": "standby",
+    "optical": "standby",
+    "audio": "standby"
+  },
+  "version": "2.3.0"
+}
+```
+
+### 2. `GET /api/v1/safety/limits`
+**Purpose:** Retrieve current safety governor limits. PPTPro must respect these when computing phase-advance targets.
+**When to call:** On app load and before any `entrain/advise` POST.
+
+**Response:**
+```json
+{
+  "woe_max_pct": 10,
+  "freq_shift_max_hz": 0.1,
+  "freq_shift_window_s": 60,
+  "dissonance_kill_threshold": 0.2,
+  "hr_floor_bpm": 45,
+  "hr_ceiling_bpm": 180,
+  "spo2_floor_pct": 94
+}
+```
+
+### 3. `GET /api/v1/ternary/state`
+**Purpose:** Fetch current ternary oscillator state from the TVM (Ternary Virtual Machine).
+**When to call:** After module execution, to display live ternary state alongside computed results.
+
+**Response:**
+```json
+{
+  "trit_vector": [1, 0, -1],
+  "labels": ["frequency", "phase", "amplitude"],
+  "interpretation": {
+    "frequency": "+1 = Advance",
+    "phase": "0 = Equilibrium",
+    "amplitude": "-1 = Retrograde"
+  },
+  "timestamp": "2026-02-19T12:34:56Z",
+  "kernel_cycle": 4821903
+}
+```
+
+**Trit-Vector States (from V2.3 §9.2):**
+- `+1` (Advance): Active pulling to synchronize
+- `0` (Equilibrium): Perfect Plenum achieved; system sustains rhythm
+- `-1` (Retrograde/Lag): Corrective damping for over-active states
+
+### 4. `POST /api/v1/entrain/advise`
+**Purpose:** Send computed phase-advance target from PPTPro to PlenumNET for actuator dispatch.
+**When to call:** After coherence computation, when PPTPro has a phase-advance recommendation.
+
+**Request:**
+```json
+{
+  "cvp": 0.7234,
+  "sub_indices": {
+    "heart": 0.8912,
+    "arterial": 0.7654,
+    "micro": 0.6321,
+    "venous": 0.7500,
+    "lymph": 0.5840,
+    "vasomotion": 0.6190
+  },
+  "phase_advance": {
+    "delta_phi_rad": 0.0872,
+    "target_freq_hz": 1.05,
+    "current_freq_hz": 1.02,
+    "confidence": 0.85
+  },
+  "source_modules": ["coupled_oscillators", "vascular_network", "fsi_1d_solver"],
+  "safety_margins": {
+    "hr_shift_pct": 2.9,
+    "freq_shift_hz": 0.03
+  },
+  "timestamp": "2026-02-19T12:35:00Z"
+}
+```
+
+**Response:**
+```json
+{
+  "accepted": true,
+  "adjusted": false,
+  "actuator_queue": {
+    "haptic_lead_ms": 25,
+    "optical_pwv_ms": 222,
+    "audio_binaural_hz": 3.5
+  },
+  "ternary_state": [1, 0, 0],
+  "governor_status": "within_limits"
+}
+```
+
+If safety limits are approached, PlenumNET may adjust:
+```json
+{
+  "accepted": true,
+  "adjusted": true,
+  "adjustment_reason": "freq_shift_capped_to_0.1_hz",
+  "actuator_queue": { ... },
+  "ternary_state": [-1, 0, 0],
+  "governor_status": "limit_approached"
+}
+```
+
+### 5. `POST /api/v1/logs/coherence`
+**Purpose:** Upload coherence report for long-term storage and longitudinal tracking.
+**When to call:** After every module execution that updates a coherence sub-index.
+
+**Request:**
+```json
+{
+  "report": {
+    "cvp": 0.7234,
+    "sub_indices": {
+      "heart": { "value": 0.8912, "source": "coupled_oscillators" },
+      "arterial": { "value": 0.7654, "source": "vascular_network" },
+      "micro": { "value": 0.6321, "source": "electrokinetic_NO" },
+      "venous": { "value": 0.7500, "source": "fsi_1d_solver" },
+      "lymph": { "value": 0.5840, "source": "lymphangion_pemf" },
+      "vasomotion": { "value": 0.6190, "source": "coupled_oscillators" }
+    },
+    "module_outputs": {
+      "coupled_oscillators": {
+        "final_r": 0.8912,
+        "entrainment_pct": 89.1,
+        "integration_method": "RK4",
+        "N": 100,
+        "dt": 0.02
+      }
+    }
+  },
+  "timestamp": "2026-02-19T12:35:00Z"
+}
+```
+
+**Response:**
+```json
+{
+  "stored": true,
+  "log_id": "coh_2026021912350042",
+  "longitudinal_trend": "improving",
+  "session_count": 47
+}
+```
+
+---
+
+## Integration Workflow (from V2.3 §24.4)
+
+```
+┌─────────────────────────────────────────────────────┐
+│ PPTPro (Tonal Intelligence Engine)                  │
+│                                                     │
+│  1. User adjusts params, clicks Compute             │
+│  2. Physics engine runs (client-side, zero-sim)     │
+│  3. Module produces coherence sub-index             │
+│  4. POST /api/v1/logs/coherence ──────────────────┐ │
+│  5. Compute phase-advance target                  │ │
+│  6. GET /api/v1/safety/limits ◄───────────────┐   │ │
+│  7. Validate target against limits             │   │ │
+│  8. POST /api/v1/entrain/advise ──────────────┐│   │ │
+│  9. Display ternary state + actuator response  ││   │ │
+│  10. GET /api/v1/ternary/state ◄──────────────┘│   │ │
+│                                                │   │ │
+└────────────────────────────────────────────────┼───┼─┘
+                                                 │   │
+                                                 ▼   ▼
+┌─────────────────────────────────────────────────────┐
+│ PlenumNET (Conductor)                               │
+│  https://PlenumNET.replit.app                       │
+│                                                     │
+│  - Validates against safety governor                │
+│  - Applies ternary-state modulation (TVM)           │
+│  - Queues actuator commands                         │
+│  - Stores coherence logs                            │
+│  - Returns confirmation + adjusted params           │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Error Handling
+
+| HTTP Status | Meaning | PPTPro Behavior |
+|-------------|---------|-----------------|
+| 200 | Success | Process response, update UI |
+| 401 | Invalid API key | Show "PlenumNET: Auth Failed" in status bar |
+| 503 | PlenumNET offline | Show "PlenumNET: Offline" — computations still work locally |
+| 422 | Validation error | Display governor rejection reason in console |
+| 429 | Rate limited | Back off, retry with exponential delay |
+
+**Critical:** PPTPro MUST function fully even when PlenumNET is unreachable. The physics engine runs client-side. PlenumNET integration adds logging, safety validation, actuator dispatch, and ternary state — but the computational core is independent.
+
+---
+
+## Auth Pattern (for Replit server-side proxy)
+
+Since the `PLENUMNET_API_KEY` is a secret, it should NOT be exposed to the browser. The Replit app should include a **server-side proxy**:
+
+```
+Browser → POST /api/proxy/plenumnet → Replit Server → PlenumNET API
+                                        (injects Bearer token)
+```
+
+**Proxy routes needed:**
+
+| PPTPro Client Route | Proxied To |
+|---------------------|------------|
+| `GET /api/proxy/status` | `GET https://PlenumNET.replit.app/api/v1/status` |
+| `GET /api/proxy/safety` | `GET https://PlenumNET.replit.app/api/v1/safety/limits` |
+| `GET /api/proxy/ternary` | `GET https://PlenumNET.replit.app/api/v1/ternary/state` |
+| `POST /api/proxy/entrain` | `POST https://PlenumNET.replit.app/api/v1/entrain/advise` |
+| `POST /api/proxy/log` | `POST https://PlenumNET.replit.app/api/v1/logs/coherence` |
+
+---
+
+## Ternary Math Integration Points
+
+PPTPro should display ternary state alongside physics outputs. The trit-vector `T = [f, φ, a]` maps to:
+
+| Component | Physics Meaning | Source |
+|-----------|----------------|--------|
+| `f` (frequency) | Heart rate deviation from target | `coupled_oscillators` output |
+| `φ` (phase) | Phase-advance Δφ direction | `entrain/advise` response |
+| `a` (amplitude) | Actuation intensity | Safety governor clamp |
+
+Display format: `T = [+1, 0, −1]` with color coding (+1 = green, 0 = neutral, −1 = red).
+
+---
+
+**All Rights Reserved and Preserved | Capomastro Holdings Ltd. 2026**
