@@ -51,7 +51,7 @@ sby --version
 ### 2.2 Running Verification
 
 ```bash
-cd rtl/formal/
+cd XPlenum/rtl/formal/
 sby -f xplenum_formal.sby bmc      # Bounded model check (fast)
 sby -f xplenum_formal.sby prove    # K-induction proof (thorough)
 sby -f xplenum_formal.sby cover    # Reachability analysis
@@ -198,14 +198,14 @@ assert(post_jitter_timestamp >= pre_jitter_timestamp);
 ## 8. File Structure
 
 ```
-rtl/formal/
+XPlenum/rtl/formal/
   xplenum_formal.sby              # SymbiYosys config (3 tasks: bmc/prove/cover)
   xplenum_formal_induction.sby    # Induction config (dual-engine: SMT + PDR)
   xplenum_formal_props.v          # 17 sections, 40+ assertions, 10 cover properties
   xplenum_induction_helpers.v     # 7 sections (IA–IG), induction-strengthened invariants
 
-.github/workflows/
-  formal-verification.yml         # CI: BMC + Cover + Induction (3 parallel jobs)
+XPlenum/ci/
+  xplenum-riscv.yml               # CI workflow (moved from .github/workflows/)
 ```
 
 ## 9. References
