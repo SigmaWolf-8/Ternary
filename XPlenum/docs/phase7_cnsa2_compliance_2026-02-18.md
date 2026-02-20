@@ -133,12 +133,12 @@ The complete PlenumNET quantum resistance architecture layers CNSA 2.0 algorithm
 
 | CNSA 2.0 Requirement | Evidence | Location |
 |----------------------|----------|----------|
-| AES-256 implementation | RTL source, formal verification (115+ properties) | `rtl/xplenum_aes256_core.v`, `formal/` |
-| SP 800-90A CTR_DRBG | RTL source, DRBG testbench, health tests | `rtl/xplenum_ctr_drbg.v`, `tb/xplenum_drbg_tb.v` |
-| SP 800-90B health testing | Repetition Count + Adaptive Proportion tests | `rtl/xplenum_ctr_drbg.v` (integrated) |
-| Side-channel resistance | Boolean masking subsystem, constant-time ALU | `rtl/xplenum_mask_unit.v` |
-| Key isolation | Domain isolation, capability-based access | `rtl/xplenum_domain_unit.v`, `rtl/xplenum_cap_unit.v` |
-| Validation testing | 50 ISS tests, 1M fuzz iterations, 115+ formal properties | `sim/`, `formal/`, this document |
+| AES-256 implementation | RTL source, formal verification (115+ properties) | `XPlenum/rtl/xplenum_aes256_core.v`, `XPlenum/rtl/formal/` |
+| SP 800-90A CTR_DRBG | RTL source, DRBG testbench, health tests | `XPlenum/rtl/xplenum_ctr_drbg.v`, `XPlenum/tb/xplenum_drbg_tb.v` |
+| SP 800-90B health testing | Repetition Count + Adaptive Proportion tests | `XPlenum/rtl/xplenum_ctr_drbg.v` (integrated) |
+| Side-channel resistance | Boolean masking subsystem, constant-time ALU | `XPlenum/rtl/xplenum_mask_unit.v` |
+| Key isolation | Domain isolation, capability-based access | `XPlenum/rtl/xplenum_domain_unit.v`, `XPlenum/rtl/xplenum_cap_unit.v` |
+| Validation testing | 50 ISS tests, 1M fuzz iterations, 115+ formal properties | `XPlenum/sim/`, `XPlenum/rtl/formal/`, this document |
 
 ---
 
