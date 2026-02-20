@@ -316,6 +316,22 @@ export const implementationStatus = pgTable("implementation_status", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const coherenceLogs = pgTable("coherence_logs", {
+  id: serial("id").primaryKey(),
+  logId: varchar("log_id", { length: 64 }).notNull().unique(),
+  cvp: real("cvp").notNull(),
+  subIndices: jsonb("sub_indices").notNull().$type<Record<string, { value: number; source: string }>>(),
+  moduleOutputs: jsonb("module_outputs").$type<Record<string, unknown>>(),
+  phaseAdvance: jsonb("phase_advance").$type<Record<string, unknown>>(),
+  governorStatus: varchar("governor_status", { length: 50 }),
+  sourceTimestamp: timestamp("source_timestamp"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCoherenceLogSchema = createInsertSchema(coherenceLogs).omit({ id: true, createdAt: true });
+export type InsertCoherenceLog = z.infer<typeof insertCoherenceLogSchema>;
+export type CoherenceLog = typeof coherenceLogs.$inferSelect;
+
 export const insertSecurityAuditLogSchema = createInsertSchema(securityAuditLog).omit({ id: true, createdAt: true });
 export const insertHptpAnomalyEventSchema = createInsertSchema(hptpAnomalyEvents).omit({ id: true, createdAt: true });
 export const insertThreatModelEntrySchema = createInsertSchema(threatModelEntries).omit({ id: true, createdAt: true, updatedAt: true });

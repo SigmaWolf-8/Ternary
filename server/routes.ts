@@ -29,6 +29,7 @@ import { registerApiKeyRoutes } from "./routes/api-keys";
 import { registerSecurityRoutes } from "./routes/security";
 import { registerEphemerisRoutes } from "./routes/ephemeris";
 import { registerTonalFieldRoutes } from "./routes/tonal-field";
+import { registerPPTProIntegrationRoutes } from "./routes/pptpro-integration";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
@@ -67,6 +68,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // =====================================================
+  // PPTPro INTEGRATION API — must register before v1 rewrite
+  // =====================================================
+  registerPPTProIntegrationRoutes(app);
 
   app.use((req, _res, next) => {
     if (req.path.startsWith("/api/v1/")) {
