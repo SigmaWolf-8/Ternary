@@ -26,8 +26,11 @@ This system enables network-wide time synchronization using FM timing packets, a
 ### Legal & IP Compliance
 All source files include standardized copyright headers. Legal documents (terms, privacy, security) are served dynamically. `IP-NOTICE.md` documents patent-pending claims, and `EXPORT-CONTROL.md` provides CNSA 2.0 and Wassenaar classification guidance.
 
+### PPTPro Integration
+PPTPro (Plenum Pulse Tonal Professor V2.2) is a separate private Python package at `https://github.com/SigmaWolf-8/PPTPro` (managed via `GITHUB_PPTPro_Token`). It provides the tonal intelligence engine — HRV analysis, vascular coherence (C_VP), phase-advance target generation — consumed by PlenumNET as a private dependency. PPTPro's landing page deploys to `https://PPTPro.Replit.App`. The integration manifest is at `docs/pptpro-integration-manifest.md`. PPTPro depends on the Salvi Framework (`SigmaWolf-8/Ternary`) for bijective ternary logic.
+
 ### GitHub Integration
-An admin-only GitHub Manager page allows browsing and push actions for the `SigmaWolf-8/Ternary` repository.
+An admin-only GitHub Manager page allows browsing and push actions for the `SigmaWolf-8/Ternary` repository. The `SigmaWolf-8/PPTPro` repository is managed separately via the `GITHUB_PPTPro_Token` secret.
 
 ### Scientific Integrations
 The system incorporates mathematical and physics concepts such as the Saturnian Magic Square Blueprint, Hamiltonian Mechanics (HPTP Symplectic Jitter Corrector, Hamiltonian VM Constraints, Symplectic Phase Mixing), Lagrangian Mechanics (Discrete Euler-Lagrange equations), Noether Symmetries (conserved quantities for ternary gauge), and Tribonacci Variational Methods.
