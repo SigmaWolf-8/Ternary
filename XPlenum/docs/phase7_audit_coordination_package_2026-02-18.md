@@ -57,40 +57,40 @@
 
 | Component | File | Lines | Description |
 |-----------|------|-------|-------------|
-| Top-level | `rtl/xplenum_top.v` | ~500 | Instruction decode, CSR file, subsystem dispatch |
-| Package | `rtl/xplenum_pkg.vh` | ~100 | Constants, opcodes, CSR addresses |
-| Mask Unit | `rtl/xplenum_mask_unit.v` | ~200 | Boolean masking with DRBG interface |
-| Domain Unit | `rtl/xplenum_domain_unit.v` | ~150 | 256-entry domain table, permission checks |
-| Capability Unit | `rtl/xplenum_cap_unit.v` | ~200 | 64-entry capability table, bounds checking |
-| Trit Unit | `rtl/xplenum_trit_unit.v` | ~150 | Binary↔ternary encoding, S-box, permutation |
-| Signal Unit | `rtl/xplenum_signal_unit.v` | ~100 | FIR filter, comparator, accumulator |
-| AES-256 Core | `rtl/xplenum_aes256_core.v` | ~400 | 14-round AES-256 pipeline |
-| CTR_DRBG | `rtl/xplenum_ctr_drbg.v` | ~500 | SP 800-90A CTR_DRBG FSM |
-| CVA6 Wrapper | `rtl/integration/xplenum_cva6_wrapper.v` | ~300 | CVA6 integration adapter |
-| Stall Controller | `rtl/integration/xplenum_stall_controller.v` | ~200 | Pipeline hazard management |
-| CVA6 Top | `rtl/integration/xplenum_cva6_top.v` | ~200 | Complete SoC integration |
+| Top-level | `XPlenum/rtl/xplenum_top.v` | ~500 | Instruction decode, CSR file, subsystem dispatch |
+| Package | `XPlenum/rtl/xplenum_pkg.vh` | ~100 | Constants, opcodes, CSR addresses |
+| Mask Unit | `XPlenum/rtl/xplenum_mask_unit.v` | ~200 | Boolean masking with DRBG interface |
+| Domain Unit | `XPlenum/rtl/xplenum_domain_unit.v` | ~150 | 256-entry domain table, permission checks |
+| Capability Unit | `XPlenum/rtl/xplenum_cap_unit.v` | ~200 | 64-entry capability table, bounds checking |
+| Trit Unit | `XPlenum/rtl/xplenum_trit_unit.v` | ~150 | Binary↔ternary encoding, S-box, permutation |
+| Signal Unit | `XPlenum/rtl/xplenum_signal_unit.v` | ~100 | FIR filter, comparator, accumulator |
+| AES-256 Core | `XPlenum/rtl/xplenum_aes256_core.v` | ~400 | 14-round AES-256 pipeline |
+| CTR_DRBG | `XPlenum/rtl/xplenum_ctr_drbg.v` | ~500 | SP 800-90A CTR_DRBG FSM |
+| CVA6 Wrapper | `XPlenum/rtl/integration/xplenum_cva6_wrapper.v` | ~300 | CVA6 integration adapter |
+| Stall Controller | `XPlenum/rtl/integration/xplenum_stall_controller.v` | ~200 | Pipeline hazard management |
+| CVA6 Top | `XPlenum/rtl/integration/xplenum_cva6_top.v` | ~200 | Complete SoC integration |
 
 ### 2.3 Verification Evidence
 
 | Category | File | Description |
 |----------|------|-------------|
-| Formal Verification | `formal/xplenum_formal_properties.sv` | 115+ SVA properties |
-| Formal Verification | `formal/xplenum_integration_formal.sv` | 65 integration properties |
-| Integration Tests | `tb/xplenum_integration_tb.v` | 31-test integration testbench |
-| DRBG Testbench | `tb/xplenum_drbg_tb.v` | CTR_DRBG validation testbench |
-| Spike ISS Tests | `sim/spike/xplenum_spike_test.cpp` | 50 instruction-level tests |
-| Security Fuzzing | `sim/fuzzing/xplenum_fuzz_harness.cpp` | 1M iterations, 0 violations |
-| E2E Security Tests | `sim/qemu/xplenum_e2e_security_tests.py` | 6 adversarial scenarios |
-| Cross-Verification | `sim/cross-verify/xplenum_cross_verify.py` | RTL vs emulator trace comparison |
-| NIST STS Validation | `scripts/xplenum_drbg_nist_sts.py` | DRBG statistical testing |
+| Formal Verification | `XPlenum/rtl/formal/xplenum_formal_properties.sv` | 115+ SVA properties |
+| Formal Verification | `XPlenum/rtl/formal/xplenum_integration_formal.sv` | 65 integration properties |
+| Integration Tests | `XPlenum/tb/xplenum_integration_tb.v` | 31-test integration testbench |
+| DRBG Testbench | `XPlenum/tb/xplenum_drbg_tb.v` | CTR_DRBG validation testbench |
+| Spike ISS Tests | `XPlenum/sim/spike/xplenum_spike_test.cpp` | 50 instruction-level tests |
+| Security Fuzzing | `XPlenum/sim/fuzzing/xplenum_fuzz_harness.cpp` | 1M iterations, 0 violations |
+| E2E Security Tests | `XPlenum/sim/qemu/xplenum_e2e_security_tests.py` | 6 adversarial scenarios |
+| Cross-Verification | `XPlenum/sim/cross-verify/xplenum_cross_verify.py` | RTL vs emulator trace comparison |
+| NIST STS Validation | `XPlenum/scripts/xplenum_drbg_nist_sts.py` | DRBG statistical testing |
 
 ### 2.4 Synthesis Artifacts
 
 | File | Description |
 |------|-------------|
-| `synth/xplenum_fpga.sdc` | Timing constraints (SDC) |
-| `synth/xplenum_pinmap.xdc` | FPGA pin assignments (XDC) |
-| `synth/xplenum_synth.tcl` | Vivado batch synthesis script |
+| `XPlenum/synth/xplenum_fpga.sdc` | Timing constraints (SDC) |
+| `XPlenum/synth/xplenum_pinmap.xdc` | FPGA pin assignments (XDC) |
+| `XPlenum/synth/xplenum_synth.tcl` | Vivado batch synthesis script |
 
 ### 2.5 Kernel Interface
 
