@@ -48,7 +48,7 @@ The Ternary Kernel is a post-quantum operating system kernel built on balanced t
 | Component | Repository Path | Access Scope |
 |-----------|-----------------|--------------|
 | Kernel Source | `src/kernel/` | Full read access to Rust kernel, proofs, and specifications |
-| RISC-V Extensions | `rtl/xplenum_*.v` | Verilog RTL for xplenum security extension |
+| RISC-V Extensions | `XPlenum/rtl/xplenum_*.v` | Verilog RTL for xplenum security extension |
 | TVM Implementation | `src/kernel/src/vm/tvm.rs` | Ternary Virtual Machine bytecode interpreter |
 | Cryptographic Core | `src/kernel/src/crypto/` | GF(3) arithmetic, capability tokens, phase encryption |
 

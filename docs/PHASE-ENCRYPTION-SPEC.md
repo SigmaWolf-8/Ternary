@@ -205,7 +205,7 @@ Full test vector suite (100+ vectors) available in repository: `tests/phase_encr
 
 ### 7.2 Hardware Acceleration
 
-RISC-V Ternary Extension (`rtl/xplenum_top.v`) accelerates Phase + Guardian operations in silicon.
+RISC-V Ternary Extension (`XPlenum/rtl/xplenum_top.v`) accelerates Phase + Guardian operations in silicon.
 
 ### 7.3 API Endpoints
 
