@@ -13,6 +13,7 @@ import { db } from "../db";
 import { coherenceLogs } from "@shared/schema";
 import { desc, count } from "drizzle-orm";
 import { createLogger } from "../logger";
+import { apiKeyService } from "../services/api-key.service";
 
 const log = createLogger("pptpro-integration");
 
@@ -28,35 +29,42 @@ const SAFETY_LIMITS = {
   spo2_floor_pct: 94,
 } as const;
 
-function requirePlenumApiKey(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  const plenumKey = process.env.PLENUM_API_KEY;
-
-  if (!plenumKey) {
-    log.error("PLENUM_API_KEY not configured");
-    return res.status(500).json({ error: "Server misconfigured" });
-  }
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing or invalid Authorization header" });
-  }
-
-  const token = authHeader.slice(7);
-
-  if (token.length !== plenumKey.length) {
-    return res.status(401).json({ error: "Invalid API key" });
-  }
-
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
   let mismatch = 0;
-  for (let i = 0; i < token.length; i++) {
-    mismatch |= token.charCodeAt(i) ^ plenumKey.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+async function requirePlenumApiKey(req: Request, res: Response, next: NextFunction) {
+  const token =
+    req.headers.authorization?.replace(/^Bearer\s+/i, "") ||
+    (req.headers["x-api-key"] as string) ||
+    (req.query.api_key as string);
+
+  if (!token) {
+    return res.status(401).json({ error: "Missing API key. Provide via Authorization: Bearer, X-API-Key header, or api_key query parameter." });
   }
 
-  if (mismatch !== 0) {
-    return res.status(401).json({ error: "Invalid API key" });
+  const sharedSecret = process.env.PLENUMNET_API_KEY || process.env.PLENUM_API_KEY;
+  if (sharedSecret && constantTimeEqual(token, sharedSecret)) {
+    return next();
   }
 
-  next();
+  if (token.startsWith("plm_")) {
+    try {
+      const result = await apiKeyService.validate(token);
+      if (result && result.valid) {
+        return next();
+      }
+    } catch (err) {
+      log.error("API key validation error:", err);
+    }
+  }
+
+  return res.status(401).json({ error: "Invalid API key" });
 }
 
 function computeTernaryState(): { trit_vector: number[]; labels: string[]; interpretation: Record<string, string>; timestamp: string; kernel_cycle: number } {
