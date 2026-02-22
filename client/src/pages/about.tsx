@@ -21,6 +21,7 @@ import { ArrowLeft, ArrowRight, Check, Shield, Cpu, Globe, FileCode, Server, Use
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Link } from "wouter";
+import { PLATFORM } from "@shared/constants";
 
 function AnimatedSection({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref = useRef(null);
@@ -40,7 +41,7 @@ function AnimatedSection({ children, delay = 0 }: { children: React.ReactNode; d
 const milestones = [
   { value: "1,040", label: "Tests Passing", icon: Check },
   { value: "227", label: "Source Files", icon: FileCode },
-  { value: "175", label: "API Endpoints", icon: Server },
+  { value: String(PLATFORM.API_ENDPOINTS), label: "API Endpoints", icon: Server },
   { value: "CNSA 2.0", label: "Architecture", icon: Shield },
 ];
 
@@ -135,7 +136,7 @@ export default function AboutPage() {
             <p className="text-muted-foreground leading-relaxed mb-4" data-testid="text-vision-description">
               PlenumNET is built on the Salvi Framework -- a vertically integrated ternary computing
               stack that spans from hardware abstraction to application-layer protocols. The framework
-              includes a bare-metal Rust kernel with GF(3) field arithmetic, a 176-opcode register-based
+              includes a bare-metal Rust kernel with GF(3) field arithmetic, a {PLATFORM.VM_OPCODES}-opcode register-based
               virtual machine with quantum-ternary simulation, femtosecond-precision timing protocols, and a complete torsion network
               topology. Every component has been engineered from first principles to operate natively in
               base-3 while maintaining full binary compatibility through our Binary-Ternary Gateway.
@@ -143,7 +144,7 @@ export default function AboutPage() {
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Salvi Framework</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">GF(3) Arithmetic</Badge>
-              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">176-Opcode VM</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">{PLATFORM.VM_OPCODES}-Opcode VM</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">HPTP Timing</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Post-Quantum Crypto</Badge>
               <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">Tribonacci Test Oracle</Badge>
@@ -193,13 +194,13 @@ export default function AboutPage() {
                   <Badge variant="outline" className="border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400 text-xs">Current</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mb-2">
-                  176-opcode ISA with quantum-ternary simulation (opcodes 0xA0&ndash;0xAF), 27 ternary registers,
+                  {PLATFORM.VM_OPCODES}-opcode ISA with quantum-ternary simulation (opcodes 0xA0&ndash;0xAF), 27 ternary registers,
                   TAGC garbage collector, torsion network stack (TTP/T3P/TDNS), 5-tier HPTP femtosecond timing,
                   phase encryption, and the 28-Dimension Agent Array. Full binary compatibility via
                   Binary-Ternary Gateway.
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className="text-xs border-primary/20"><Cpu className="w-3 h-3 mr-1" />176 Opcodes</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20"><Cpu className="w-3 h-3 mr-1" />{PLATFORM.VM_OPCODES} Opcodes</Badge>
                   <Badge variant="outline" className="text-xs border-primary/20">Quantum-Ternary Sim</Badge>
                   <Badge variant="outline" className="text-xs border-primary/20">HPTP 5-Tier</Badge>
                   <Badge variant="outline" className="text-xs border-primary/20">Torsion Network</Badge>

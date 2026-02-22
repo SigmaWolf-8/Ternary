@@ -119,7 +119,7 @@ For technical readers, here is what PlenumNET is actually built with:
 - **Core engine (libternary):** Written in Rust. The ternary VM, GF(3) arithmetic, and Clifford algebra implementation. Compiled to native code for maximum performance.
 - **Application layer:** TypeScript (49% of codebase). Server (Express/Node.js), client (React with Vite bundling, Tailwind CSS), and shared libraries.
 - **Database:** Drizzle ORM with PostgreSQL. Schema-first design with type-safe queries.
-- **API gateway:** Kong Konnect managing 17 service groups across 97 endpoints.
+- **API gateway:** Kong Konnect managing 17 service groups across 171 endpoints.
 - **Blockchain:** Hedera Hashgraph (primary, for timing authentication), Algorand, and XRP Ledger for immutable multi-ledger record anchoring.
 - **Deployment:** Docker containers with deployment documentation. CI/CD via GitHub Actions. Live deployment at PlenumNET.replit.app.
 - **Testing:** Integration test suite, exhaustive mathematical verification (48 tests covering all field axioms, algebra axioms, topology properties).

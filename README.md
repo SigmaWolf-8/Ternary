@@ -20,7 +20,7 @@ Post-quantum ternary computing platform implementing the Unified 13D Torsion Ple
 | CNSA 2.0 coverage | 11/11 algorithms (100%) |
 | Test count | 1,306+ (1,011 Rust + 295 TypeScript) |
 | CMVP target | FIPS 140-3 Level 1 |
-| VM opcodes | 160 (ISA v2.0) |
+| VM opcodes | 176 (ISA v2.1) |
 | Quantum modules | 5 (qutrit/qudit simulation) |
 
 ## Architecture
@@ -34,7 +34,7 @@ server/salvi-core/   Express API server — timing, ternary ops, calendars,
 src/kernel/          Rust kernel — crypto, VM, memory, I/O, filesystem,
                      process scheduler, device drivers, HPTP, torsion network
 client/              React frontend — investor demo, docs, admin dashboard
-kong/                Kong Konnect gateway config (17 services, 97 endpoints)
+kong/                Kong Konnect gateway config (17 services, 171 endpoints)
 salvi_docs/          Developer documentation (15 modules, 7,300+ lines)
 ```
 
@@ -84,7 +84,7 @@ High-Precision Timing Protocol providing femtosecond-scale timestamps anchored t
 Adaptive dual-phase quantum encryption with guardian phase tamper detection using Tribonacci-weighted checksums.
 
 ### Ternary Virtual Machine
-160-opcode ISA v2.0 with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert), 27 registers, mark-sweep GC, and theory-derived constants for cycle limits and buffer sizes. Fully backward compatible with v1.0's 62 opcodes.
+176-opcode ISA v2.1 with ternary-native instructions (TAdd, TMul, TNeg, TRot, TXor, TConvert), quantum-ternary simulation (opcodes 0xA0–0xAF), 27 registers, mark-sweep GC, and theory-derived constants for cycle limits and buffer sizes. Fully backward compatible with v2.0's 160 opcodes and v1.0's 62 opcodes.
 
 ### PlenumDB
 Ternary-encoded data storage demonstrating the 58.5% information density advantage. Live compression demo with benchmark validation endpoint.
@@ -125,7 +125,7 @@ npx vitest run tests/qudit-basics.test.ts     # Qudit module (35 tests)
 
 ## API Surface
 
-The platform exposes 97 endpoints through Kong Konnect:
+The platform exposes 171 endpoints through Kong Konnect:
 
 | Category | Endpoints | Description |
 |----------|-----------|-------------|

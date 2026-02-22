@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Calculator, Shield, RefreshCw, Zap, Play, Copy, Check, Database, TrendingUp, Cpu } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { PLATFORM } from "@shared/constants";
 
 interface TimestampData {
   femtoseconds: string;
@@ -1753,7 +1754,7 @@ export default function APIDemo() {
               <CardContent>
                 <div className="space-y-2">
                   {[
-                    { method: "GET", path: "/api/salvi/vm/spec", desc: "TVM 176-opcode ISA v2.1 instruction set spec" },
+                    { method: "GET", path: "/api/salvi/vm/spec", desc: `TVM ${PLATFORM.VM_OPCODES}-opcode ISA ${PLATFORM.VM_ISA_VERSION} instruction set spec` },
                     { method: "GET", path: "/api/salvi/vm/conformance", desc: "TVM conformance test suite" },
                     { method: "GET", path: "/api/salvi/docs", desc: "Documentation index" },
                     { method: "GET", path: "/api/whitepapers", desc: "List all whitepapers" },

@@ -60,7 +60,7 @@ Since GF(3) has only 3 elements, all 27 triples (a,b,c) can be checked exhaustiv
 
 ### 1.3 Extended Operations for VM Opcodes
 
-Beyond basic field operations, the 160-opcode ISA v2.0 includes operations that must preserve GF(3) invariants:
+Beyond basic field operations, the 176-opcode ISA v2.1 includes operations that must preserve GF(3) invariants:
 
 - **Ternary NOT (TNOT):** a → (3 − a) mod 3, equivalently: 0→0, 1→2, 2→1
 - **Ternary MIN:** min(a, b) under natural ordering 0 < 1 < 2
@@ -203,10 +203,10 @@ For PlenumNET benchmarks, we measure:
    - Addition: Binary needs n full-adders; balanced ternary needs n half-adders (no borrow propagation in common cases)
    - Multiplication: Binary n² AND+ADD; ternary n² MUL₃+ADD₃ where MUL₃ is simpler (−1,0,+1 multiply is sign-copy or zero)
 
-3. **VM instruction density:** For the 160-opcode ISA v2.0:
-   - Binary encoding: ⌈log₂(160)⌉ = 8 bits per opcode
-   - Ternary encoding: ⌈log₃(160)⌉ = 5 trits per opcode
-   - Information per symbol: 5 × 1.585 = 7.925 bits vs 8 bits → ternary encodes all 160 opcodes in 5 trits (99% efficiency)
+3. **VM instruction density:** For the 176-opcode ISA v2.1:
+   - Binary encoding: ⌈log₂(176)⌉ = 8 bits per opcode
+   - Ternary encoding: ⌈log₃(176)⌉ = 5 trits per opcode
+   - Information per symbol: 5 × 1.585 = 7.925 bits vs 8 bits → ternary encodes all 176 opcodes in 5 trits (97% efficiency)
 
 ---
 

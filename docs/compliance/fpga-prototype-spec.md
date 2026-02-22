@@ -52,7 +52,7 @@ Version 2.0 adds a hierarchical nibble-aligned ISA decoder supporting all 160 TV
 
 | Module | Function | Est. LUTs | Est. FFs | Target MHz |
 |--------|----------|-----------|----------|------------|
-| tvm_isa_v2_decoder | ISA v2.0 nibble-aligned decoder, 160 opcodes | 420 | 280 | 600 |
+| tvm_isa_v2_decoder | ISA v2.1 nibble-aligned decoder, 176 opcodes | 420 | 280 | 600 |
 | gf3_alu | GF(3) add/mul/neg, 243 trits | 2,916 | 1,458 | 500 |
 | sponge_permutation | 729-trit state, 27 rounds | 43,740 | 2,916 | 400 |
 | aes_sbox | Fermat-method GF(2^8) inverse | 512 | 16 | 500 |
@@ -87,7 +87,7 @@ The ISA v2.0 uses a nibble-aligned encoding where the upper nibble (`opcode[7:4]
 | 0x98-0x9F | Debug & Profiling | 8 | Ring0/Ring1 |
 | 0xA0-0xFF | Reserved (illegal) | 0 | N/A |
 
-**Total: 160 opcodes in 5 trits (ceil(log3(160)) = 5)**
+**Total: 176 opcodes in 6 trits (ceil(log3(176)) = 6)**
 
 ### Two-Stage Decode
 

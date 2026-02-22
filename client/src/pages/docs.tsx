@@ -16,6 +16,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PLATFORM } from "@shared/constants";
 import {
   BookOpen,
   Cpu,
@@ -139,7 +140,7 @@ const modules = [
   {
     id: "11",
     title: "Ternary Virtual Machine",
-    description: "176-opcode ISA v2.1, 27 registers, GF(3) ALU, operational quantum correction (0xA0-0xAF), Noether invariant verification, qudit generalization, and TAGC.",
+    description: `${PLATFORM.VM_OPCODES}-opcode ISA ${PLATFORM.VM_ISA_VERSION}, 27 registers, GF(3) ALU, operational quantum correction (0xA0-0xAF), Noether invariant verification, qudit generalization, and TAGC.`,
     priority: "P3",
     tests: "~110",
     icon: Terminal,

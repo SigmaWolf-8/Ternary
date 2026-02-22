@@ -13,7 +13,7 @@ The following technologies, methods, and systems described in this repository ar
 
 ### 1.1 Ternary Computing Architecture
 - Balanced ternary arithmetic operations using GF(3) field arithmetic
-- 160-opcode Ternary Virtual Machine (TVM) ISA v2.0 with nibble-aligned encoding
+- 176-opcode Ternary Virtual Machine (TVM) ISA v2.1 with nibble-aligned encoding
 - Hierarchical two-stage instruction decode with crypto dispatch acceleration
 - Ternary-aware garbage collector with three-ring privilege levels
 - Ternary SIMD (Single Instruction, Multiple Data) operations

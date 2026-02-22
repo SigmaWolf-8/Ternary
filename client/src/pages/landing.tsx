@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
+import { PLATFORM } from "@shared/constants";
 import { 
   Code, 
   Clock, 
@@ -76,7 +77,7 @@ function HeroVisual() {
   const layers = [
     { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
     { label: "Protocols", items: ["HPTP", "T3P", "TTP", "TDNS"], delay: 0.6 },
-    { label: "Virtual Machine", items: ["176 Opcodes", "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
+    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
   ];
@@ -384,7 +385,7 @@ function HeroSection() {
             <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
             <AnimatedStat value="1,040" label="Tests Passing" delay={0.28} />
             <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
-            <AnimatedStat value="176" label="VM Opcodes" delay={0.34} />
+            <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.34} />
           </div>
           <HeroVisual />
           <HeroDemo />
@@ -433,7 +434,7 @@ function PlatformSection() {
     },
     {
       icon: Terminal,
-      title: "176-Opcode Virtual Machine",
+      title: `${PLATFORM.VM_OPCODES}-Opcode Virtual Machine`,
       description: "Register-based VM with ternary-native instructions, quantum-ternary simulation, garbage collection, and full execution engine.",
       stats: "27 registers",
     },
@@ -523,7 +524,7 @@ function ArchitectureSection() {
     },
     {
       label: "Virtual Machine",
-      items: ["176-Opcode ISA v2.1", "27 Ternary Registers", "TAGC Garbage Collector", "Quantum-Ternary Sim"],
+      items: [`${PLATFORM.VM_OPCODES}-Opcode ISA ${PLATFORM.VM_ISA_VERSION}`, "27 Ternary Registers", "TAGC Garbage Collector", "Quantum-Ternary Sim"],
       color: "bg-primary/20 border-primary/50",
     },
     {
@@ -743,7 +744,7 @@ function ComponentsSection() {
       badge: "Virtual Machine",
       icon: Terminal,
       title: "Ternary VM (TVM)",
-      description: "176-opcode register-based virtual machine (ISA v2.1) with ternary-native arithmetic, quantum-ternary simulation opcodes, atomic operations, and automatic memory management.",
+      description: `${PLATFORM.VM_OPCODES}-opcode register-based virtual machine (ISA ${PLATFORM.VM_ISA_VERSION}) with ternary-native arithmetic, quantum-ternary simulation opcodes, atomic operations, and automatic memory management.`,
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
         "GF(3) ops: TAdd, TMul, TNeg, TRot, TXor",

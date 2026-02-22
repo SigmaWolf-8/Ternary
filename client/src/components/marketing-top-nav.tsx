@@ -41,6 +41,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 
 type AnchorScrollFn = (id: string) => void;
@@ -63,7 +64,7 @@ const platformColumns: NavColumn[] = [
     heading: "Core Technology",
     items: [
       { title: "Ternary Computing Engine", subtitle: "Native base-3 processing", href: "/#platform" },
-      { title: "Virtual Machine", subtitle: "176-opcode ternary VM", href: "/#architecture" },
+      { title: "Virtual Machine", subtitle: `${PLATFORM.VM_OPCODES}-opcode ternary VM`, href: "/#architecture" },
       { title: "Binary-Ternary Gateway", subtitle: "Seamless interop layer", href: "/#architecture" },
     ],
   },

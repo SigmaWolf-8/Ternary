@@ -458,7 +458,7 @@ Physical implementation designs:
 
 ## Kong Gateway Configuration
 
-17 API services (97 endpoints) configured across the PlenumNET platform:
+17 API services (171 endpoints) configured across the PlenumNET platform:
 
 | # | Service | Category | Endpoints | Description |
 |---|---------|----------|-----------|-------------|
@@ -466,7 +466,7 @@ Physical implementation designs:
 | 2 | `plenumnet-calendars` | Core | 26 | Calendar Synchronization (24 ancient systems) |
 | 3 | `plenumnet-ternary` | Core | 8 | Ternary Computing Engine |
 | 4 | `plenumnet-phase` | Core | 4 | Phase Encryption API |
-| 5 | `plenumnet-vm` | Core | 2 | Ternary Virtual Machine (160-opcode ISA v2.0) |
+| 5 | `plenumnet-vm` | Core | 2 | Ternary Virtual Machine (176-opcode ISA v2.1) |
 | 6 | `plenumnet-docs` | Reference | 1 | API Documentation |
 | 7 | `plenumnet-whitepapers` | Reference | 4 | Whitepaper Management |
 | 8 | `plenumnet-legal` | Reference | 4 | Legal Documents (Terms, Privacy, Security, AUP) |

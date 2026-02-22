@@ -146,7 +146,7 @@ The Ternary Kernel is a post-quantum operating system kernel built on balanced t
 
 ### 4.4 TVM Instruction Set Formal Safety Model
 
-**Current State**: TVM instruction set proof is 40% complete (62/160 opcodes formalized).
+**Current State**: TVM instruction set proof is 40% complete (62/176 opcodes formalized).
 
 **Properties Under Verification**:
 - Opcode decoding correctness

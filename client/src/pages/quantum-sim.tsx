@@ -24,6 +24,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PLATFORM } from "@shared/constants";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -942,7 +943,7 @@ export default function QuantumSim() {
               </div>
               <p className="text-slate-300 max-w-2xl text-sm leading-relaxed">
                 Interactive qutrit fault-tolerance simulation, FIPS 140-3 compliance mapping,
-                and variational quantum optimization benchmarks — powered by the 176-opcode ISA v2.1
+                and variational quantum optimization benchmarks — powered by the {PLATFORM.VM_OPCODES}-opcode ISA {PLATFORM.VM_ISA_VERSION}
                 Quantum-Ternary category (0xA0-0xAF) on the 27-register ternary VM.
               </p>
               <div className="flex flex-wrap gap-2 mt-4">

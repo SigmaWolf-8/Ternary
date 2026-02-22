@@ -226,7 +226,7 @@ Four proofs are currently in active development:
 - No undefined behavior on malformed bytecode input
 - Memory isolation between TVM execution contexts
 
-**Current Status**: 40% complete. Opcode decoding proof covers 62/160 opcodes. Ring transition validation is the critical remaining work.
+**Current Status**: 40% complete. Opcode decoding proof covers 62/176 opcodes. Ring transition validation is the critical remaining work.
 
 ### 6.2 Phase Encryption Correctness
 

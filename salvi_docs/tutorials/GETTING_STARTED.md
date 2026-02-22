@@ -103,7 +103,7 @@ fn main() {
 
 ## Step 4: Running Code on the TVM
 
-The Ternary Virtual Machine (TVM) executes ternary bytecode with a 160-opcode ISA v2.0:
+The Ternary Virtual Machine (TVM) executes ternary bytecode with a 176-opcode ISA v2.1:
 
 ```rust
 use salvi_tvm::{TVM, Instruction, Register};

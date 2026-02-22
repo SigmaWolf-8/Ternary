@@ -20,6 +20,7 @@ import { Terminal, ChevronRight, Shield, Cpu, Zap, Lock, Activity, CheckCircle2 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PLATFORM } from "@shared/constants";
 
 const quickCommands = [
   { label: "help", desc: "See all commands" },
@@ -27,7 +28,7 @@ const quickCommands = [
   { label: "demo-cap", desc: "Capability security" },
   { label: "demo-sidech", desc: "Side-channel masking" },
   { label: "status", desc: "VM state" },
-  { label: "opcodes", desc: "All 176 opcodes" },
+  { label: "opcodes", desc: `All ${PLATFORM.VM_OPCODES} opcodes` },
   { label: "cpuid", desc: "Processor info" },
   { label: "arch", desc: "Architecture" },
 ];
@@ -35,7 +36,7 @@ const quickCommands = [
 const features = [
   {
     icon: Cpu,
-    title: "176-Opcode ISA",
+    title: `${PLATFORM.VM_OPCODES}-Opcode ISA`,
     desc: "Complete instruction set across 12 categories: Core, Extended, Crypto, SIMD, System, Security, Debug, Quantum-Ternary (0xA0-0xAF)",
   },
   {
@@ -89,7 +90,7 @@ export default function VMDemo() {
                 </h1>
               </div>
               <p className="text-slate-300 max-w-2xl text-lg" data-testid="text-vm-subtitle">
-                Interactive simulation of the Salvi Framework's 176-opcode ISA v2.1.
+                Interactive simulation of the Salvi Framework's {PLATFORM.VM_OPCODES}-opcode ISA {PLATFORM.VM_ISA_VERSION}.
                 Explore ternary computing, quantum-ternary simulation, post-quantum cryptography, and capability-based security.
               </p>
             </div>
@@ -98,7 +99,7 @@ export default function VMDemo() {
                 ISA v2.1
               </Badge>
               <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30">
-                176 Opcodes
+                {PLATFORM.VM_OPCODES} Opcodes
               </Badge>
               <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                 27-Trit Word
@@ -191,7 +192,7 @@ export default function VMDemo() {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 This interactive terminal simulates the Salvi Framework's Ternary Virtual Machine.
                 The VM operates on 27-trit words across three bijective representations and implements
-                176 opcodes including quantum-ternary simulation, post-quantum cryptographic acceleration, capability-based security,
+                {PLATFORM.VM_OPCODES} opcodes including quantum-ternary simulation, post-quantum cryptographic acceleration, capability-based security,
                 and dual-layer side-channel protection.
               </p>
               <div className="mt-3 pt-3 border-t">

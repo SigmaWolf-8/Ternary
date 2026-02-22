@@ -6,6 +6,9 @@ PlenumNET is developing post-quantum internet solutions. This project creates a 
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
 
+### Single Source of Truth Pattern
+Platform-wide constants (opcode count, API endpoint count, ISA version, etc.) are defined once in `shared/constants.ts` and imported everywhere. The frontend `client/src/lib/strings.ts` references these constants so all UI text auto-updates. When adding new endpoints or updating platform numbers, update `shared/constants.ts` only — frontend propagation is automatic. Documentation files (README.md, etc.) must be updated manually since they cannot import TypeScript.
+
 ## System Architecture
 
 ### Frontend

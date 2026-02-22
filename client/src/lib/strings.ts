@@ -14,12 +14,14 @@
  * See LICENSE in the repository root for full terms.
  */
 
+import { PLATFORM } from "@shared/constants";
+
 export const STRINGS = {
   hero: {
     title: "The World's First",
     titleHighlight: "Ternary Computing",
     titleSuffix: "Platform",
-    description: "59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.",
+    description: `${PLATFORM.DENSITY_ADVANTAGE}% more information per digit. Femtosecond-precision timing. Post-quantum encryption. A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.`,
     ctaButton: "Join the Waitlist",
     ctaPending: "Joining...",
     ctaHelper: "No spam. Unsubscribe anytime.",
@@ -30,15 +32,15 @@ export const STRINGS = {
     successMessage: "We'll send you SDK access details, documentation links, and priority updates. Check your inbox soon.",
   },
   stats: {
-    density: { value: "+59", suffix: "%", label: "vs Binary Density" },
-    tests: { value: "1,040", label: "Tests Passing" },
-    milestones: { value: "80/80", label: "Milestones Complete" },
-    opcodes: { value: "176", label: "VM Opcodes" },
+    density: { value: `+${PLATFORM.DENSITY_ADVANTAGE}`, suffix: "%", label: "vs Binary Density" },
+    tests: { value: PLATFORM.TESTS_PASSING, label: "Tests Passing" },
+    milestones: { value: PLATFORM.MILESTONES, label: "Milestones Complete" },
+    opcodes: { value: String(PLATFORM.VM_OPCODES), label: "VM Opcodes" },
   },
   platform: {
     badge: "Complete Platform",
     title: "Everything You Need to Build on Ternary",
-    description: "From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,040 passing tests.",
+    description: `From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with ${PLATFORM.TESTS_PASSING} passing tests.`,
   },
   architecture: {
     badge: "Full-Stack Architecture",
@@ -59,8 +61,8 @@ export const STRINGS = {
   codeSnippet: {
     badge: "Try It Now",
     title: "One API Call Away",
-    description: "175 live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.",
-    exploreButton: "Explore All 175 Endpoints",
+    description: `${PLATFORM.API_ENDPOINTS} live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.`,
+    exploreButton: `Explore All ${PLATFORM.API_ENDPOINTS} Endpoints`,
   },
   markets: {
     badge: "Market Opportunity",
@@ -89,7 +91,7 @@ export const STRINGS = {
   },
   badges: {
     productionReady: "Production Ready",
-    testsPassing: "1,040 Tests Passing",
+    testsPassing: `${PLATFORM.TESTS_PASSING} Tests Passing`,
     postQuantum: "Post-Quantum Secure",
   },
 } as const;

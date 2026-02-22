@@ -244,8 +244,8 @@ pub fn full_benchmark_report() -> String {
         (ternary_advantage_ratio() - 1.0) * 100.0,
     ));
 
-    // Opcode encoding for 160-opcode ISA v2.0
-    report.push_str(&format!("{}\n", opcode_encoding_efficiency(160)));
+    // Opcode encoding for 176-opcode ISA v2.1
+    report.push_str(&format!("{}\n", opcode_encoding_efficiency(176)));
 
     // Address spaces
     for &nodes in &[27, 81, 243, 729, 2187, 6561] {

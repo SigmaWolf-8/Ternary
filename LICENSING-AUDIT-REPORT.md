@@ -71,7 +71,7 @@ The project depends on approximately 60+ npm packages and references PyTEAL. Whi
 
 ### FINDING 6 — No Terms of Service for Live SaaS Deployment (SEVERITY: HIGH)
 
-The PlenumNET application is live at https://PlenumNET.replit.app and appears to expose 97 API endpoints. There are no Terms of Service, Acceptable Use Policy, or Privacy Policy governing use of this service.
+The PlenumNET application is live at https://PlenumNET.replit.app and appears to expose 171 API endpoints. There are no Terms of Service, Acceptable Use Policy, or Privacy Policy governing use of this service.
 
 **Risk:** Without TOS, there is no contractual limitation on liability, no usage restrictions, no warranty disclaimers, and no IP protection for the service output. Any user of the API could argue implied license rights.
 
@@ -213,7 +213,7 @@ All six findings from the original audit have been addressed:
 | CI/CD Workflows | 14 GitHub Actions workflows |
 | Vitest Tests | 86+ passing (50 GF(3), 25 phase-encryption, 11 calendar) |
 | Fuzz Targets | 3 (trit ops, tryte ops, gateway) |
-| TVM ISA | v2.0 — 160 opcodes, nibble-aligned encoding |
+| TVM ISA | v2.1 — 176 opcodes, nibble-aligned encoding |
 
 ### 8.2 Phase 0: Emergency Remediation (COMPLETED)
 
