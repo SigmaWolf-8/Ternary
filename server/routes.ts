@@ -30,6 +30,7 @@ import { registerSecurityRoutes } from "./routes/security";
 import { registerEphemerisRoutes } from "./routes/ephemeris";
 import { registerTonalFieldRoutes } from "./routes/tonal-field";
 import { registerPPTProIntegrationRoutes } from "./routes/pptpro-integration";
+import { registerPqtiRoutes } from "./routes/pqti";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
@@ -73,6 +74,10 @@ export async function registerRoutes(
   // PPTPro INTEGRATION API — must register before v1 rewrite
   // =====================================================
   registerPPTProIntegrationRoutes(app);
+
+  // PQTI Service Proxy — forwards to Rust microservice on port 3001
+  // =====================================================
+  registerPqtiRoutes(app);
 
   app.use((req, _res, next) => {
     if (req.path.startsWith("/api/v1/")) {

@@ -16,6 +16,10 @@ pub mod x86_64;
 pub mod aarch64;
 pub mod riscv64;
 pub mod boot;
+#[cfg(target_arch = "riscv64")]
+pub mod xplenum;
+#[cfg(not(target_arch = "riscv64"))]
+#[path = "xplenum_stub.rs"]
 pub mod xplenum;
 
 use alloc::collections::BTreeMap;
