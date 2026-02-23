@@ -583,6 +583,17 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           methods: ["GET"],
           endpointCount: 1,
           endpoints: ["GET /"]
+        },
+        {
+          name: "plenumnet-signing",
+          url: `${baseUrl}/api/pqti`,
+          tags: ["plenumnet", "signing", "pqti", "tl-dsa", "tl-kem", "post-quantum", "cnsa2", "fips-203", "fips-204"],
+          routePath: "/api/pqti",
+          stripPath: false,
+          rateLimit: { minute: 60, hour: 600 },
+          methods: ["GET", "POST"],
+          endpointCount: 9,
+          endpoints: ["GET /algorithms", "GET /interop/capabilities", "POST /tldsa/keygen", "POST /tldsa/sign", "POST /tldsa/verify", "POST /tlkem/keygen", "POST /tlkem/encapsulate", "POST /tlkem/decapsulate", "GET /pqti-status"]
         }
       ]};
   }
@@ -769,7 +780,8 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
       { name: "plenumnet-admin", label: "Admin Dashboard", routePath: "/api/admin", endpointCount: 2, category: "admin", endpoints: ["GET /developer-signups", "DELETE /developer-signups/:id"] },
       { name: "plenumnet-github", label: "GitHub Integration", routePath: "/api/github", endpointCount: 9, category: "admin", endpoints: ["POST /token", "GET /status", "GET /repos/:owner/:repo/branches", "GET /repos/:owner/:repo/contents", "GET /file/:owner/:repo", "PUT /file/:owner/:repo", "DELETE /file/:owner/:repo", "POST /push-workflows/:owner/:repo", "POST /push-batch/:owner/:repo"] },
       { name: "plenumnet-kong", label: "Kong Gateway Management", routePath: "/api/kong", endpointCount: 12, category: "admin", endpoints: ["GET /status", "GET /organization", "GET /control-planes", "GET /control-planes/:cpId/services", "GET /control-planes/:cpId/routes", "GET /control-planes/:cpId/plugins", "GET /config", "POST /control-planes/:cpId/services", "POST /control-planes/:cpId/sync-plenumnet", "POST /save-to-github", "GET /control-planes/:cpId/deploy-instructions", "POST /control-planes/:cpId/deploy-to-cloud"] },
-      { name: "plenumnet-health", label: "Health & Observability", routePath: "/api/health", endpointCount: 1, category: "platform", endpoints: ["GET /"] }
+      { name: "plenumnet-health", label: "Health & Observability", routePath: "/api/health", endpointCount: 1, category: "platform", endpoints: ["GET /"] },
+      { name: "plenumnet-signing", label: "Post-Quantum Signing (PQTI)", routePath: "/api/pqti", endpointCount: 9, category: "core", endpoints: ["GET /algorithms", "GET /interop/capabilities", "POST /tldsa/keygen", "POST /tldsa/sign", "POST /tldsa/verify", "POST /tlkem/keygen", "POST /tlkem/encapsulate", "POST /tlkem/decapsulate", "GET /pqti-status"] }
     ];
 
     const totalEndpoints = catalog.reduce((sum, s) => sum + s.endpointCount, 0);
