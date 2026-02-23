@@ -9,18 +9,39 @@ async function proxyToPqti(req: Request, res: Response) {
   const targetUrl = `${PQTI_BASE}${path}`;
 
   try {
+    const headers: Record<string, string> = {};
+    if (req.headers["content-type"]) {
+      headers["Content-Type"] = req.headers["content-type"] as string;
+    }
+    if (req.headers["authorization"]) {
+      headers["Authorization"] = req.headers["authorization"] as string;
+    }
+    if (req.headers["x-api-key"]) {
+      headers["X-API-Key"] = req.headers["x-api-key"] as string;
+    }
+
     const fetchOptions: RequestInit = {
       method: req.method,
-      headers: { "Content-Type": "application/json" },
+      headers,
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
       fetchOptions.body = JSON.stringify(req.body);
+      if (!headers["Content-Type"]) {
+        headers["Content-Type"] = "application/json";
+      }
     }
 
     const response = await fetch(targetUrl, fetchOptions);
-    const data = await response.json();
-    res.status(response.status).json(data);
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } else {
+      const text = await response.text();
+      res.status(response.status).type(contentType).send(text);
+    }
   } catch (error: any) {
     log.error(`PQTI proxy error: ${error.message}`);
     res.status(502).json({

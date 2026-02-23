@@ -21,6 +21,9 @@ import { createServer } from "http";
 import { securityHeaders } from "./middleware/security-headers";
 import { corsMiddleware } from "./middleware/cors-config";
 import { globalLimiter } from "./middleware/rate-limiter";
+import { spawn, type ChildProcess } from "child_process";
+import { existsSync } from "fs";
+import * as path from "path";
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,7 +86,37 @@ app.use((req, res, next) => {
   next();
 });
 
+function startPqtiService(): ChildProcess | null {
+  const binaryPath = path.resolve("target/release/pqti-service");
+  if (!existsSync(binaryPath)) {
+    log("PQTI binary not found at target/release/pqti-service — skipping", "pqti");
+    return null;
+  }
+  const child = spawn(binaryPath, [], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env },
+  });
+  child.stdout?.on("data", (data: Buffer) => {
+    const msg = data.toString().trim();
+    if (msg) log(msg, "pqti");
+  });
+  child.stderr?.on("data", (data: Buffer) => {
+    const msg = data.toString().trim();
+    if (msg) log(`error: ${msg}`, "pqti");
+  });
+  child.on("exit", (code) => {
+    log(`PQTI service exited with code ${code}`, "pqti");
+  });
+  log("PQTI service started on port 3001", "pqti");
+  return child;
+}
+
 (async () => {
+  const pqtiProcess = startPqtiService();
+
+  process.on("SIGTERM", () => { pqtiProcess?.kill(); process.exit(0); });
+  process.on("SIGINT", () => { pqtiProcess?.kill(); process.exit(0); });
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
