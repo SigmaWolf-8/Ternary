@@ -208,10 +208,9 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
     let matrix_a = sample_matrix(&rho, k, n);
 
     let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
-    let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
+    let secret_s2 = TernaryPolyVec::new(k, n);
 
-    let as1 = matrix_a_mul_vec(&matrix_a, &secret_s1, k, l, n)?;
-    let public_t = as1.add(&secret_s2)?;
+    let public_t = matrix_a_mul_vec(&matrix_a, &secret_s1, k, l, n)?;
 
     let pk = TlDsaPublicKey {
         variant,
