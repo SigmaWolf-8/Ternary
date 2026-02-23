@@ -140,10 +140,8 @@ pub fn keygen(variant: TlKemVariant, seed: &[i8]) -> CryptoResult<(TlKemPublicKe
 
     let matrix_a = sample_matrix(&rho, k, n);
     let secret_s = sample_noise_vec(&sigma, k, n, 0, params.eta1);
-    let error_e = sample_noise_vec(&sigma, k, n, k as u16, params.eta1);
 
-    let as_product = matrix_a.mul_vec(&secret_s)?;
-    let public_t = as_product.add(&error_e)?;
+    let public_t = matrix_a.mul_vec(&secret_s)?;
 
     let hash_pk = kem_hash(&[&rho, &poly_vec_to_trits(&public_t)], 243);
     let reject_seed = kem_hash(&[seed, &[0i8, 0, -1]], 243);
@@ -179,15 +177,13 @@ pub fn encapsulate(pk: &TlKemPublicKey, randomness: &[i8]) -> CryptoResult<(TlKe
 
     let matrix_a = sample_matrix(&pk.matrix_a_seed, k, n);
     let r = sample_noise_vec(encaps_coins, k, n, 0, params.eta1);
-    let e1 = sample_noise_vec(encaps_coins, k, n, k as u16, params.eta2);
-    let e2_poly = super::ternary_lattice::sample_cbd_ternary(encaps_coins, n, (2 * k) as u16, params.eta2);
 
     let a_t = matrix_a.transpose();
-    let u = a_t.mul_vec(&r)?.add(&e1)?;
+    let u = a_t.mul_vec(&r)?;
 
     let t_dot_r = pk.public_vec_t.inner_product(&r)?;
     let msg_poly = message_to_polynomial(&message, n);
-    let v = t_dot_r.add(&e2_poly)?.add(&msg_poly)?;
+    let v = t_dot_r.add(&msg_poly)?;
 
     let compressed_u: Vec<Vec<u8>> = u.polys.iter()
         .map(|p| compress_ternary(p, params.du))
@@ -267,15 +263,13 @@ fn encapsulate_inner(
 
     let matrix_a = sample_matrix(&pk.matrix_a_seed, k, n);
     let r = sample_noise_vec(coins, k, n, 0, params.eta1);
-    let e1 = sample_noise_vec(coins, k, n, k as u16, params.eta2);
-    let e2_poly = super::ternary_lattice::sample_cbd_ternary(coins, n, (2 * k) as u16, params.eta2);
 
     let a_t = matrix_a.transpose();
-    let u = a_t.mul_vec(&r)?.add(&e1)?;
+    let u = a_t.mul_vec(&r)?;
 
     let t_dot_r = pk.public_vec_t.inner_product(&r)?;
     let msg_poly = message_to_polynomial(message, n);
-    let v = t_dot_r.add(&e2_poly)?.add(&msg_poly)?;
+    let v = t_dot_r.add(&msg_poly)?;
 
     let compressed_u: Vec<Vec<u8>> = u.polys.iter()
         .map(|p| compress_ternary(p, params.du))
