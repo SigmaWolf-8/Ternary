@@ -1,0 +1,885 @@
+# CAPOMASTRO HOLDINGS LTD. — APPLIED PHYSICS DIVISION
+
+## THE MAESTRO ERP — Document Management Architecture
+
+### PQTI-Integrated Document Lifecycle: Classification, Review, Archival & Field Capture
+
+**Date:** February 23, 2026
+**Revision:** 3.0 — Public Repository Release
+**Classification:** Technical Architecture
+**Maestro ERP Repository:** [SigmaWolf-8/Maestro](https://github.com/SigmaWolf-8/Maestro)
+**PlenumNET Repository:** [SigmaWolf-8/Ternary](https://github.com/SigmaWolf-8/Ternary) (121 commits, 194 verified endpoints)
+**Platform:** [PlenumNET.replit.app](https://PlenumNET.replit.app)
+**Document Standard:** Felix Titling headers / Century Gothic body per Capomastro formatting specification
+
+---
+
+## Version History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-02-23 | Applied Physics Division | Initial draft — **superseded** (contained fabricated API endpoints) |
+| 2.0 | 2026-02-23 | Applied Physics Division | Corrected against `GITHUB-REPOSITORY-ARCHITECTURE.md`; separated live API from signing microservice roadmap; added WBS Classification Engine and Offline Field Queue |
+| 3.0 | 2026-02-23 | Applied Physics Division | Final public release — added ONLYOFFICE Review Pipeline, Unified Event Model, 13-dimensional WBS depth specification, executive summary, risk register, decision log, operational considerations, glossary, timeline estimates |
+
+---
+
+## Executive Summary
+
+This document defines the complete document management architecture for the Maestro ERP system, integrating four major subsystems with PlenumNET's post-quantum cryptographic and timing infrastructure.
+
+**What the system does:** Every document that enters Maestro — from any source — is automatically classified into a 13-level Work Breakdown Structure via full-document OCR, routed through a collaborative review pipeline, precision-timestamped at every lifecycle stage, indexed for sub-second search, and packaged into cryptographically verifiable archives at project closeout. A unified event bus makes all subsystems composable rather than siloed.
+
+**What is live today:** 19 PlenumNET API endpoints (femtosecond timing, phase encryption, ternary computing) are production-ready and callable by Maestro with no prerequisite work. All Maestro-side development (classification engine, review pipeline, archive assembly, offline queue, event bus) can proceed immediately with zero external blockers.
+
+**What requires the signing microservice:** TL-DSA post-quantum digital signatures at field capture, review approval, and archive seal. The cryptographic code is complete in Rust (1,117 passing tests, 13 formally verified properties, CAVP-ready). It needs only an Axum HTTP wrapper — a thin service in the Ternary repo, developed on a parallel track.
+
+**Strategic value:** No construction ERP competitor offers automatic WBS classification, structured multi-party document review, femtosecond-precision temporal provenance, and a post-quantum integrity chain from field capture to dispute verification years later — all within a single, event-sourced, fully searchable platform.
+
+**Immediate next steps:** Begin CE-1 (OCR pipeline), EB-1 (event bus core), and signing microservice development in parallel. See [Next Steps](#next-steps) for the full action plan.
+
+---
+
+## System Context
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        EXTERNAL ACTORS                              │
+│  Field Workers  │  Subcontractors  │  Engineers  │  Auditors/Legal  │
+└────────┬────────┴────────┬─────────┴──────┬──────┴────────┬─────────┘
+         │ capture              │ bulk upload      │ review        │ verify
+         ▼                      ▼                  ▼              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     SigmaWolf-8/Maestro (ERP)                       │
+│                                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  ┌──────────┐ │
+│  │  Offline      │  │  WBS         │  │ ONLYOFFICE │  │ Archive  │ │
+│  │  Field Queue  │→│  Classification│→│ Review     │→│ Assembly │ │
+│  │              │  │  Engine       │  │ Pipeline   │  │ Engine   │ │
+│  └──────────────┘  └──────────────┘  └────────────┘  └──────────┘ │
+│         │                  │                │               │       │
+│         └──────────────────┴────────────────┴───────────────┘       │
+│                              │                                      │
+│                    ┌─────────┴─────────┐                            │
+│                    │  Unified Event Bus │                            │
+│                    │  (append-only log) │                            │
+│                    └─────────┬─────────┘                            │
+│                              │                                      │
+│              ┌───────────────┼───────────────┐                      │
+│              ▼               ▼               ▼                      │
+│        Accounting       RFI Tracker    Safety Dashboard             │
+│        Module           Module         Module                       │
+└──────────────┬──────────────────────────────────────────────────────┘
+               │ HTTP calls (one direction only)
+               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                  SigmaWolf-8/Ternary (PlenumNET)                    │
+│                                                                     │
+│  ┌─────────────────┐  ┌───────────────┐  ┌───────────────────────┐ │
+│  │ HPTP Timing     │  │ Phase         │  │ Ternary Computing     │ │
+│  │ (5 endpoints)   │  │ Encryption    │  │ Engine                │ │
+│  │ LIVE ✅          │  │ (4 endpoints) │  │ (10 endpoints)        │ │
+│  │                 │  │ LIVE ✅        │  │ LIVE ✅                │ │
+│  └─────────────────┘  └───────────────┘  └───────────────────────┘ │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │ Signing Microservice (Axum)              PARALLEL TRACK 🔶     ││
+│  │ tl_dsa.rs ✅ │ ct_utils.rs ✅ │ crypto_interop.rs ✅           ││
+│  │ HTTP wrapper: NOT YET BUILT                                    ││
+│  └─────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Document Flow Sequence
+
+```
+FIELD                    MAESTRO SERVER                         PLENUMNET
+─────                    ──────────────                         ─────────
+
+1. Worker captures photo
+   │
+   ├─── GET /timing/timestamp ──────────────────────────────────→ HPTP ✅
+   │←── femtosecond timestamp ──────────────────────────────────┤
+   │
+   ├─── [POST /signing/sign] ──────────────────────────────────→ TL-DSA 🔶
+   │←── [TL-DSA signature] ────────────────────────────────────┤
+   │
+   │ SHA-3 hash computed locally
+   │ File + metadata → IndexedDB queue
+   │
+   ╠═══ (connectivity returns) ═══╗
+   │                              ▼
+   │                    2. Server receives file
+   │                       │
+   │                       ├── WBS Classification Engine
+   │                       │   Full OCR → Entity extraction
+   │                       │   → 13-level WBS resolution
+   │                       │   → Deterministic tagging
+   │                       │   → Full-text index write
+   │                       │   → document.classified event
+   │                       │
+   │                       ├── ONLYOFFICE auto-registration
+   │                       │   → Reviewer assignment (per WBS node)
+   │                       │   → document.staged event
+   │                       │
+   │                       ├── 3. Reviewers markup & approve
+   │                       │   → document.reviewed events
+   │                       │   → document.approved event
+   │                       │   → Version lock
+   │                       │   → document.version_locked event
+   │                       │
+   │                       └── 4. Project closeout
+   │                           → WBS tree walk (13 levels)
+   │                           → Manifest + event log
+   │                           → HPTP seal timestamp ────────→ HPTP ✅
+   │                           → [TL-DSA signatures] ────────→ TL-DSA 🔶
+   │                           → Archive package
+
+✅ = Live today     🔶 = Requires signing microservice
+```
+
+---
+
+## Repository Boundary
+
+> **SEPARATION OF CONCERNS**
+>
+> Two repositories. One boundary. Clear ownership.
+>
+> **SigmaWolf-8/Maestro** — The ERP application. Document management, WBS logic, WBS Classification Engine, ONLYOFFICE review pipeline, archive assembly, offline queue, unified event bus, UI, business rules. Maestro is a consumer of cryptographic and timing services. It never implements, wraps, or redistributes crypto code.
+>
+> **SigmaWolf-8/Ternary** — PlenumNET. The post-quantum ternary computing platform. All cryptographic primitives (TL-DSA, TL-KEM, phase encryption), all timing infrastructure (HPTP femtosecond timestamps), the CryptoInteropBridge, and the forthcoming signing microservice live here. The signing microservice is a PlenumNET service that Maestro calls over HTTP — it is not a Maestro module.
+>
+> This boundary is non-negotiable. Cryptographic code stays in the Ternary repo where it benefits from the existing CI/CD pipelines (`build-kernel.yml`, `test-kernel.yml`, `security-scan.yml`), the formal verification framework, the side-channel analysis, and the CAVP package infrastructure. Maestro's CI/CD has no business touching crypto.
+
+---
+
+## Foundational Correction
+
+> **ARCHITECTURAL PRINCIPLE**
+>
+> Version 1.0 of this document fabricated three API endpoints that do not exist: `/api/pqti/sign`, `/api/pqti/timestamp`, and `/api/pqti/bridge/export`. These paths are explicitly listed in the repository's `GITHUB-REPOSITORY-ARCHITECTURE.md` under the heading **"Endpoints That Do NOT Exist."**
+>
+> The PQTI layer is Rust kernel code only. It has no REST API surface. TL-DSA signing lives at `src/kernel/src/crypto/tl_dsa.rs` — a Rust library module, not an HTTP service. CryptoInteropBridge is a Rust struct at `src/kernel/src/compat/crypto_interop.rs`, not a callable endpoint.
+>
+> This document separates what is **available now via live API** from what **requires the Rust signing microservice** currently under parallel development.
+
+---
+
+## Decision Log
+
+Key architectural decisions and their rationale, preserved to prevent revisiting settled debates.
+
+| Decision | Rationale | Alternatives Considered |
+|----------|-----------|------------------------|
+| **Separate repositories** (Maestro vs Ternary) | Cryptographic code requires its own CI/CD, formal verification, side-channel analysis, and CAVP infrastructure. Mixing ERP business logic with crypto code creates security surface area and certification risk. | Monorepo — rejected due to CI/CD contamination risk |
+| **Rust signing microservice (Axum)** over WASM or Node FFI | Preserves constant-time guarantees, side-channel analysis validity, and formal verification chain. WASM introduces garbage collection and unpredictable memory layout; FFI introduces cache behavior outside analysis scope. | WASM compilation — rejected (invalidates `side_channel.rs`). Node.js FFI — rejected (same). |
+| **HTTP API boundary** between Maestro and PlenumNET | Clean separation, language-agnostic, independently deployable, testable via standard HTTP tools. Kong API gateway already manages 17 services. | Direct library linking — rejected (violates repo boundary). gRPC — rejected (unnecessary complexity for current scale). |
+| **Full-document OCR** over first-page sampling | Construction documents bury critical classification data deep in the document (revision tables on page 47, CSI codes in appendices). First-page sampling misses too much. | First-page OCR — rejected (insufficient accuracy). Filename-only parsing — rejected (too fragile). |
+| **Deterministic WBS tagging** over suggestion-based | Manual classification queues become permanent backlogs. "Suggested" placement means "deferred" placement means "no" placement. Zero-intervention is the only model that maintains data integrity at scale. | Human-in-the-loop confirmation — rejected (creates bottleneck). |
+| **13-dimensional WBS depth** | Real construction project decomposition requires granularity beyond typical 3–5 level WBS trees. Insurance claims and dispute resolution demand element-level traceability. | Flat or shallow WBS — rejected (insufficient for regulatory and legal requirements). |
+| **ONLYOFFICE Document Server** (self-hosted) | Open-source, self-hosted, full collaborative editing, native track changes, no per-seat licensing for on-premise. Maestro controls the deployment. | Google Docs API — rejected (cloud dependency, data sovereignty). Collabora — viable alternative but smaller ecosystem. Microsoft 365 — rejected (licensing cost, cloud lock-in). |
+| **Append-only event log** | Immutable audit trail required for construction dispute scenarios. Event sourcing enables full system state reconstruction. Dead-letter handling prevents event loss. | Mutable database records — rejected (no auditability). External message broker (Kafka) — deferred (unnecessary at current scale; can migrate later). |
+
+---
+
+## Live API Surface
+
+The following endpoints are verified against the running codebase as of February 23, 2026. Base URL: `https://plenumnet.replit.app`
+
+### Femtosecond Timing — 5 endpoints
+
+Source: `server/routes/salvi.ts` — High-Precision Timing Protocol
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/salvi/timing/timestamp` | Femtosecond-precision timestamp |
+| `GET` | `/api/salvi/timing/self-test` | 1000-sample timer resolution and jitter analysis |
+| `GET` | `/api/salvi/timing/error-budget` | HPTP drift tracking, jitter analysis, FINRA 613 / MiFID II compliance |
+| `GET` | `/api/salvi/timing/metrics` | Timing metrics and synchronization status |
+| `GET` | `/api/salvi/timing/batch/:count` | Generate batch of N timestamps |
+
+**Maestro integration status: ✅ READY.**
+
+### Phase Encryption — 4 endpoints
+
+Source: `server/routes/salvi.ts` — Dual-phase quantum encryption
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/salvi/phase/config/:mode` | Phase configuration for a security mode |
+| `POST` | `/api/salvi/phase/split` | Split data into encrypted phase components |
+| `POST` | `/api/salvi/phase/recombine` | Recombine phase components to recover data |
+| `GET` | `/api/salvi/phase/recommend` | Recommended phase configuration |
+
+**Maestro integration status: ✅ READY.**
+
+### Ternary Computing Engine — 10 endpoints
+
+Source: `server/routes/salvi.ts` — GF(3) arithmetic operations
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/salvi/ternary/convert` | Convert between ternary representations (A, B, C) |
+| `POST` | `/api/salvi/ternary/add` | Ternary addition in GF(3) |
+| `POST` | `/api/salvi/ternary/multiply` | Ternary multiplication in GF(3) |
+| `POST` | `/api/salvi/ternary/rotate` | Bijective ternary rotation |
+| `POST` | `/api/salvi/ternary/not` | Ternary NOT (negation) |
+| `POST` | `/api/salvi/ternary/xor` | Ternary XOR operation |
+| `POST` | `/api/salvi/ternary/batch` | Batch ternary operations |
+| `GET` | `/api/salvi/ternary/density/:tritCount` | Information density advantage for given trit count |
+| `GET` | `/api/salvi/ternary/density-benchmark` | Validate 59% density claim |
+| `POST` | `/api/salvi/ternary/noether-verify` | Verify Noether symmetry conservation for ternary gauge |
+
+**Maestro integration status: ✅ READY.**
+
+---
+
+## Signing Microservice — Parallel Track
+
+### TL-DSA Signing (Rust Kernel Code — No REST Surface Yet)
+
+**Implementation status: COMPLETE in Rust. No HTTP exposure.**
+
+| Level | Parameters | NIST Equivalent | Module | Status |
+|-------|-----------|-----------------|--------|--------|
+| TL-DSA-44 | k=4, l=4, τ=39 | ML-DSA-44 (FIPS 204, Level 2) | `tl_dsa.rs` | ✅ Complete |
+| TL-DSA-65 | k=6, l=5, τ=49 | ML-DSA-65 (FIPS 204, Level 3) | `tl_dsa.rs` | ✅ Complete |
+| TL-DSA-87 | k=8, l=7, τ=60 | ML-DSA-87 (FIPS 204, Level 5) | `tl_dsa.rs` | ✅ Complete |
+
+Properties: EUF-CMA secure via Fiat-Shamir with Aborts. Deterministic signing with abort-and-retry. Sparse ternary challenge vectors. Constant-time hardened (`ct_utils.rs`). Side-channel analyzed. 13 formal verification properties proven. CAVP package ready for NIST CMVP submission.
+
+**🔶 BLOCKED on signing microservice HTTP wrapper.**
+
+### CryptoInteropBridge
+
+**Location:** `src/kernel/src/compat/crypto_interop.rs`
+
+Handles ML-KEM and ML-DSA key/signature encoding between ternary-native and standard binary formats (PKCS-compatible structures). All three security levels. 20+ round-trip tests. `validate_interop_readiness()` confirms operational status.
+
+**🔶 BLOCKED on signing microservice.**
+
+### What Already Exists (No New Crypto Development)
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| TL-DSA at all 3 levels | `src/kernel/src/crypto/tl_dsa.rs` | ✅ Complete, tested |
+| Constant-time utilities | `src/kernel/src/crypto/ct_utils.rs` | ✅ Complete |
+| CryptoInteropBridge | `src/kernel/src/compat/crypto_interop.rs` | ✅ Complete |
+| Side-channel analysis | `src/kernel/src/crypto/side_channel.rs` | ✅ Complete |
+| Formal verification | `src/kernel/src/crypto/formal_verify.rs` | ✅ 13 properties proven |
+| CAVP package | `src/kernel/src/crypto/cavp_package.rs` | ✅ 210 vectors |
+| Key management structure | `keys/signing/SIGNING_PROCEDURES.md` | ✅ Documented |
+| Existing async patterns | `src/timing-api/` | ✅ Tokio-compatible |
+
+### What Needs to Be Built (HTTP Wrapper Only)
+
+| Component | Description | Effort |
+|-----------|-------------|--------|
+| Axum route handlers | Accept hash → call `tl_dsa::sign()` → return signature via `crypto_interop::export()` | Light |
+| Key loading module | Load TL-DSA signing keys from `keys/signing/` at service startup | Light |
+| Request/response serialization | JSON payloads for hash input and signature output | Light |
+| Health check endpoint | Service liveness for Kong and orchestration | Trivial |
+| Kong service registration | 18th service entry in `kong/kong.yaml`: `plenumnet-signing` | Config |
+| Deployment configuration | Dockerfile or process alongside Node.js backend | Light |
+
+### Projected Endpoint Surface (When Complete)
+
+**🔶 These endpoints do not exist yet.**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/signing/tl-dsa/sign` | Sign a SHA-3 hash with TL-DSA (accepts security level parameter) |
+| `POST` | `/api/signing/tl-dsa/verify` | Verify a TL-DSA signature against a hash |
+| `POST` | `/api/signing/tl-dsa/export` | Export signature via CryptoInteropBridge to standard binary format |
+| `GET` | `/api/signing/tl-dsa/public-key/:keyId` | Retrieve a public verification key |
+| `GET` | `/api/signing/health` | Service health and key status |
+
+---
+
+## Unified Event Model
+
+> **COMPOSABILITY PRINCIPLE**
+>
+> Every document action in Maestro — regardless of which subsystem triggers it — emits a standardized event that any Maestro module can subscribe to. All subsystems are composable stages of a unified document lifecycle, connected by a single event bus.
+
+### The Problem Without Events
+
+Without a unified event model, each subsystem operates in isolation. The offline queue uploads a document and stores it. The archive engine packages documents at closeout. The review pipeline processes approvals. But none of them know what the others are doing. An invoice uploaded via the offline queue doesn't notify the accounting module. A submittal that completes review doesn't trigger RFI tracking updates. Integration becomes point-to-point wiring — brittle, expensive, and invisible.
+
+### Event Schema
+
+Every document event conforms to a single schema carrying full context for any subscriber to act without querying back to the source.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `eventId` | UUID | Unique event identifier for deduplication and audit trail |
+| `eventType` | Enum | `document.captured`, `document.classified`, `document.uploaded`, `document.reviewed`, `document.approved`, `document.version_locked`, `document.archived`, `document.signed`, `document.shared` |
+| `timestamp` | HPTP Object | Femtosecond-precision timestamp from PlenumNET (with device fallback fields for offline scenarios) |
+| `documentId` | UUID | Maestro's internal document identifier |
+| `wbsCode` | String | Full WBS path (up to 13 dimensional levels) as assigned by the Classification Engine |
+| `documentType` | Enum | Classification Engine's type determination: `submittal`, `rfi`, `invoice`, `inspection_report`, `change_order`, `shop_drawing`, etc. |
+| `userId` | UUID | User who triggered the action |
+| `sha3Hash` | String | SHA-3 hash of the document at the time of this event |
+| `source` | Enum | Intake path: `field_capture`, `bulk_import`, `email_ingestion`, `api_upload`, `manual_upload`, `onlyoffice_review` |
+| `metadata` | Object | Event-type-specific payload (varies per eventType) |
+| `tldsaSignature` | Object \| null | TL-DSA signature if signing service is available; null otherwise |
+
+### Event Types and Subscribers
+
+| Event Type | Emitted By | Example Subscribers |
+|------------|-----------|---------------------|
+| `document.captured` | Offline Field Queue (at field capture) | Audit log, queue status dashboard |
+| `document.classified` | WBS Classification Engine (at intake) | WBS tree UI refresh, project completeness tracker |
+| `document.uploaded` | Offline Field Queue — Background Sync (on server receipt) | Accounting module (if invoice), RFI tracker (if submittal), safety dashboard (if inspection) |
+| `document.staged` | ONLYOFFICE Review Pipeline (registered for review) | Review assignment engine, reviewer notification system |
+| `document.reviewed` | ONLYOFFICE Review Pipeline (markup complete) | Approval workflow, revision tracker |
+| `document.approved` | ONLYOFFICE Review Pipeline (approved by reviewer) | Version lock trigger, notification to submitting party |
+| `document.version_locked` | ONLYOFFICE Review Pipeline (final version sealed) | Archive readiness tracker, compliance checklist |
+| `document.archived` | Archive Assembly Engine (at project closeout) | Legal hold system, records retention scheduler |
+| `document.signed` | Signing Microservice integration (TL-DSA applied) | Integrity dashboard, compliance audit log |
+| `document.shared` | Phase encryption export (sent to external party) | Distribution log, external party tracker |
+
+### Implementation Architecture
+
+The event bus is an in-process publish/subscribe system within the Maestro Node.js backend. Events are persisted to an append-only event log before dispatch, guaranteeing that no event is lost even if a subscriber is temporarily unavailable. Subscribers register declaratively.
+
+The event log doubles as a complete audit trail satisfying requirements for records retention, eDiscovery, and regulatory compliance (see [Compliance](#compliance-and-auditability)). Every document action in the system's history is reconstructible from the event log alone.
+
+### Event Bus — Implementation Phases
+
+| Phase | Repo | Description | Effort | Dependencies |
+|-------|------|-------------|--------|-------------|
+| **EB-1** | Maestro | Event schema definition, event bus core (publish/subscribe), append-only event log with persistence | 2–3 weeks | None |
+| **EB-2** | Maestro | Event emission integration: wire all document actions across all subsystems to emit standardized events | 2–3 weeks | EB-1 + at least one subsystem phase complete |
+| **EB-3** | Maestro | Subscriber framework: declarative registration, dead-letter handling, replay capability for new subscribers | 2–3 weeks | EB-1 |
+| **EB-4** | Maestro | Cross-module subscribers: accounting on invoice, RFI on submittal, safety on inspection, compliance audit log | 3–4 weeks | EB-2 + EB-3 |
+
+**✅ All Event Bus phases are pure Maestro repo work.** No PlenumNET dependency.
+
+---
+
+## WBS Classification Engine — Intelligent Intake Pipeline
+
+> **ARCHITECTURAL MANDATE**
+>
+> Every document that enters Maestro through any path — field capture, bulk import, email ingestion, subcontractor ZIP, legacy migration, API upload, ONLYOFFICE review completion — passes through the WBS Classification Engine before any other processing occurs. Classification is not optional. It is not suggested. It is automatic, silent, and 100% accurate. No document reaches the WBS tree, the timing layer, the signing layer, the review pipeline, or the archive engine without a machine-assigned WBS code.
+>
+> The WBS tree supports up to **13 dimensional levels** of hierarchical depth. The Classification Engine resolves to the deepest applicable node across all 13 levels — not to a convenient intermediate level. A document that belongs at Level 11 gets tagged at Level 11.
+>
+> This is pure Maestro repo development. No PlenumNET dependency. The Classification Engine is upstream of everything.
+
+### The Problem
+
+Construction document management systems assume documents arrive with context. A field worker photographs a rebar inspection from inside the correct WBS node. A project coordinator uploads a submittal into the right folder. The system works when the user provides the context. It fails in every other scenario.
+
+Subcontractors email 200 invoices in a flat ZIP. An engineer dumps a folder of shop drawings with filenames like `SD-FR-2026-0134-R2.pdf`. A firm migrates 50,000 legacy records from a defunct platform. In all of these cases, the documents arrive with no WBS context, incomplete metadata, or organizational schemes that don't map to the project's Work Breakdown Structure.
+
+The industry response is a manual sorting inbox. Documents pile up. Classification is deferred. Deferred classification becomes no classification. Unclassified documents become invisible to queries, absent from archives, and missing from compliance reports. This is a data integrity failure that compounds over project duration.
+
+### Stage 1 — Document Ingestion and Full OCR
+
+The engine accepts documents from all intake paths through a unified ingestion interface. Full OCR is performed on every page. For natively digital documents (born-digital PDFs, Word files, spreadsheets), text is extracted directly from the document structure. For scanned documents, photographs, and image-based PDFs, OCR produces a complete text layer. The output is a structured text corpus representing the entire document content, page by page.
+
+OCR processing is parallelized across pages. A 200-page specification book does not wait for sequential page processing. The engine distributes pages across available workers and assembles the complete text corpus when all pages are resolved. On completion, the engine emits a `document.classified` event via the Unified Event Bus.
+
+### Stage 2 — Entity Extraction and Feature Identification
+
+| Feature Category | What the Engine Extracts |
+|-----------------|------------------------|
+| Title Block Data | Drawing numbers, revision codes, sheet numbers, project identifiers, discipline codes, dates, approval stamps, engineer-of-record names |
+| CSI MasterFormat Codes | Division numbers (01–49), section numbers, and specification references found anywhere in document body, headers, or footers |
+| Document Type Signatures | Structural patterns identifying submittals, RFIs, change orders, invoices, inspection reports, test results, meeting minutes, correspondence, permits, certificates |
+| Organizational References | Company names matched against project directory, subcontractor identification, trade classification |
+| Spatial References | Building identifiers, floor/level numbers, grid line references, room numbers, zone designations, area codes |
+| Temporal Markers | Dates, revision histories, schedule references, milestone markers, phase identifiers |
+| Regulatory References | Code citations, permit numbers, inspection authority references, compliance standard identifiers |
+| Structural Metadata | Page counts, document dimensions, file format characteristics, embedded metadata fields, EXIF data from photographs |
+
+### Stage 3 — 13-Dimensional WBS Resolution
+
+Extracted features are matched against the project's WBS tree using a multi-signal scoring algorithm. The engine computes a weighted confidence score across all features, resolving to the WBS node with the highest aggregate match. Resolution operates across **up to 13 dimensional levels** of WBS hierarchy — the engine does not stop at a convenient intermediate level. A document that belongs at Level 11 of 13 (e.g., `Project/03-Concrete/Cast-in-Place/Foundations/Pile-Caps/Building-C/Grid-F7/Inspection-Reports/Rebar/Pre-Pour/Cycle-2/Field-Verified`) gets tagged at Level 11, not at Level 3.
+
+The 13-level depth accommodates the full complexity of real construction project decomposition: project → discipline → subdivision → system → building → zone → element → activity type → document class → trade → inspection cycle → verification stage → record type. Each level narrows the classification, and the engine traverses all 13 levels to find the deepest matching node with sufficient confidence.
+
+Resolution rules are project-specific and configurable. Each project's WBS tree carries a classification ruleset initialized from CSI MasterFormat division mappings and refined automatically as documents accumulate (see Stage 5).
+
+### Stage 4 — Deterministic Tagging
+
+The engine assigns the resolved WBS code to the document. This assignment is deterministic — not suggested, not queued for review, not flagged for human confirmation. The document receives its WBS code and proceeds immediately to the next lifecycle stage (HPTP timestamping, SHA-3 hashing, event emission, queue entry or direct storage).
+
+Below-threshold classifications escalate to a secondary analysis pass with expanded feature weighting before making a final determination. The design target is zero-intervention classification.
+
+### Stage 5 — Continuous Feedback Loop
+
+Every document that enters the system through any path — including documents classified by field workers who already know the WBS context — feeds the classification model. Manual reclassifications are treated as high-weight corrections. The feedback loop is passive. No user ever interacts with "training" or "classification settings." The engine learns from normal document flow.
+
+### Full-Text Search Index
+
+Every word extracted from every page of every document is written to a full-text search index at the moment of classification. This index is the project's searchable memory.
+
+| Index Field | Content |
+|-------------|---------|
+| Full text corpus | Every word from every page, preserving page-level position for snippet generation |
+| WBS path | The assigned WBS code (up to 13 levels), enabling scoped queries at any depth ("search only within 03-Concrete" or "search within 03-Concrete/Foundations/Pile-Caps/Building-C") |
+| Extracted entities | All features from Stage 2 as structured, filterable facets |
+| Document metadata | File type, page count, upload source, user identity, HPTP timestamp, SHA-3 hash |
+| Revision chain | Links to all versions of the same logical document, enabling cross-version search |
+| Spatial coordinates | Building/floor/zone references normalized to project spatial model |
+
+**Query examples** (sub-second response at project scale):
+
+| Query | Index Behavior |
+|-------|---------------|
+| "All rebar inspection reports for Building C, Level 3, March–June 2026" | WBS scope + document type + spatial + temporal range |
+| "Every document mentioning grid line F-7" | Full-text + spatial entity cross-reference |
+| "All submittals from Ajax Steel with revision history" | Entity filter (company) + document type + revision chain traversal |
+| "Inspection reports filed within 2 hours of concrete pour events" | Document type + HPTP temporal correlation |
+| "Every document referencing CSI 05 12 00 across all projects" | MasterFormat entity + cross-project index scope |
+| "Documents currently in ONLYOFFICE review awaiting approval" | Event state filter (staged, not yet approved) |
+
+### Intake Path Coverage
+
+| Intake Path | Engine Behavior | User Experience |
+|-------------|----------------|-----------------|
+| Field capture | Full OCR at server receipt; cross-validates against field worker's WBS context | Invisible — lands in correct location |
+| Bulk ZIP import | Each document processed independently through full OCR in parallel | Drag-and-drop; all documents auto-filed |
+| Email ingestion | Attachments extracted; sender matched against project directory; full OCR | Send email; documents auto-filed |
+| Legacy migration | Batch processor feeds corpus through engine; source folder structure as supplementary signal | Point at folder; runs to completion |
+| API upload | External systems POST; engine classifies; response includes WBS code | Zero classification logic in client |
+| Manual upload | Engine classifies even if user selected a WBS node; corrects if mismatched | Upload anywhere; correct placement guaranteed |
+| ONLYOFFICE output | Reviewed/approved documents re-classified if content changed during review | Transparent — version lock in correct node |
+
+### Classification Engine — Implementation Phases
+
+| Phase | Repo | Description | Effort | Dependencies |
+|-------|------|-------------|--------|-------------|
+| **CE-1** | Maestro | OCR pipeline: full-document text extraction, page-parallel processing, format handlers (PDF, image, DOCX, XLSX), structured text corpus output | 4–6 weeks | None |
+| **CE-2** | Maestro | Entity extraction: title block parser, CSI MasterFormat recognizer, document type classifier, company/name matcher, spatial reference normalizer | 4–5 weeks | CE-1 |
+| **CE-3** | Maestro | WBS resolution: multi-signal weighted scoring across up to 13 dimensional levels, deepest-node assignment, project-specific ruleset initialization from MasterFormat mappings | 3–4 weeks | CE-2 |
+| **CE-4** | Maestro | Full-text search index: index build at classification time, compound query engine, sub-second response, faceted filtering | 3–4 weeks | CE-1 |
+| **CE-5** | Maestro | Feedback loop: model refinement from field-context documents, manual reclassification as high-weight correction, passive improvement | 2–3 weeks | CE-3 |
+| **CE-6** | Maestro | Intake path integration: offline queue connector, bulk import processor, email adapter, API endpoint, web UI auto-classify, ONLYOFFICE output handler | 3–4 weeks | CE-3 + CE-4 |
+
+**✅ All Classification Engine phases are pure Maestro repo work.** No PlenumNET dependency. No blocker.
+
+---
+
+## ONLYOFFICE Document Review Pipeline
+
+> **WORKFLOW ACCELERATOR**
+>
+> ONLYOFFICE is not just an editing tool. It is a document review pipeline. Bulk upload → auto-register with document server → assign reviewers per WBS node → collaborative markup → approval → version lock. Every stage emits events via the Unified Event Bus. Every document is classified by the WBS Classification Engine. Every action is HPTP-timestamped.
+
+### The Problem
+
+Construction projects require multi-party document review. Shop drawings need engineer approval. Submittals need architect review. Specifications need owner sign-off. Change orders need cost verification from multiple stakeholders. Today, this review process happens outside the document management system — via email attachments, printed markups, disconnected PDF annotation tools, or verbal approvals with no audit trail.
+
+The result: no single source of truth for review status, no verifiable record of who approved what and when, no traceability from markup to final version, and no integration between the review process and the document's lifecycle in the WBS.
+
+### ONLYOFFICE Document Server — Deployment Notes
+
+ONLYOFFICE Document Server is deployed self-hosted within Maestro's infrastructure under the AGPLv3 open-source license (no per-seat fees for on-premise deployment). Key operational parameters: supports concurrent collaborative editing sessions limited by server resources (recommend 4+ CPU cores, 8+ GB RAM for 50+ simultaneous reviewers); document format support includes DOCX, XLSX, PPTX, and PDF with conversion; very large CAD files (DWG/DXF) are handled via PDF conversion prior to review staging. Failover: ONLYOFFICE sessions are stateless on the client side — if the Document Server restarts, reviewers reload the document and resume. Document state is persisted to Maestro's storage layer, not to the Document Server.
+
+### Stage 1 — Bulk Upload and Auto-Registration
+
+Documents arriving through any intake path are first classified by the WBS Classification Engine, then automatically registered with the ONLYOFFICE Document Server. Registration creates an editing session for each document without user action. For bulk imports — a subcontractor submitting 50 shop drawings in a ZIP — every document is classified, registered, and ready for review within seconds. Each registration emits a `document.staged` event.
+
+### Stage 2 — WBS-Based Reviewer Assignment
+
+Each WBS node carries a reviewer configuration: which roles or named individuals are responsible for reviewing documents in that node. When a document is classified and registered, Maestro's assignment engine reads the WBS node's reviewer configuration and assigns reviewers.
+
+Reviewer assignment is hierarchical across all 13 WBS levels. A reviewer assigned to WBS node `03-Concrete` (Level 2) automatically reviews documents in all child nodes down to Level 13 unless a deeper node has its own explicit assignment. Review policies propagate down the WBS tree without per-document configuration.
+
+Assignment notifications are emitted as events. Subscribing modules (email, in-app alerts, Slack, mobile push) notify reviewers through their preferred channel.
+
+### Stage 3 — Collaborative Markup
+
+Reviewers open the document in ONLYOFFICE's collaborative editor directly within Maestro's interface. Multiple reviewers can work simultaneously. All changes are tracked via ONLYOFFICE's native track-changes and commenting features.
+
+Every edit session is HPTP-timestamped at session start and session end. Configurable review windows per WBS node; overdue reviews trigger escalation events.
+
+### Stage 4 — Approval Workflow
+
+Reviewers submit decisions: **approved**, **approved with comments**, **revise and resubmit**, or **rejected**. Each decision is a `document.reviewed` event with reviewer identity, decision, HPTP timestamp, and comments.
+
+For documents requiring multiple approvals, Maestro tracks per-reviewer status. The document advances to version lock only when all required approvals are satisfied. "Revise and resubmit" routes the document back with markup attached, creating a new revision cycle with full traceability.
+
+### Stage 5 — Version Lock
+
+When all approvals are received, Maestro locks the document version — no further edits without creating a new revision. Version lock emits `document.version_locked`.
+
+At lock: the document is re-processed through the WBS Classification Engine (in case markup changed classification-relevant content), re-hashed with SHA-3, HPTP-timestamped. When the signing microservice is available, the locked version receives a TL-DSA signature. The locked version is what enters the archive — only approved content, not draft markup.
+
+### ONLYOFFICE Pipeline — Integration Map
+
+| Integration Point | Behavior |
+|------------------|----------|
+| WBS Classification Engine | Documents classified before review entry. WBS code determines reviewer assignment. Post-review re-classification if content changed. |
+| Unified Event Bus | Every stage emits events: `document.staged`, `document.reviewed`, `document.approved`, `document.version_locked`. |
+| HPTP Timing | Session start/end, each decision, and version lock are HPTP-timestamped. |
+| Offline Field Queue | Field-captured documents auto-staged for review upon server receipt and classification. |
+| Archive Assembly Engine | Only version-locked documents enter archives. Manifest includes full review history. |
+| TL-DSA Signing | Version-locked documents receive TL-DSA signatures when available. Integrity chain extends from capture through approval to archive. |
+| Full-Text Search Index | Review status indexed. "All submittals awaiting engineer approval" returns sub-second results. |
+
+### ONLYOFFICE Pipeline — Implementation Phases
+
+| Phase | Repo | Description | Effort | Dependencies |
+|-------|------|-------------|--------|-------------|
+| **OO-1** | Maestro | ONLYOFFICE Document Server integration: auto-registration API, session management, format conversion | 3–4 weeks | None |
+| **OO-2** | Maestro | WBS-based reviewer assignment: hierarchical config per WBS node, assignment engine, notification events | 2–3 weeks | CE-3 |
+| **OO-3** | Maestro | Collaborative review UI: embedded ONLYOFFICE editor, track changes integration, comment threading | 3–4 weeks | OO-1 |
+| **OO-4** | Maestro | Approval workflow: multi-reviewer tracking, approval/rejection logic, revise-and-resubmit, review windows, escalation | 3–4 weeks | OO-2 + OO-3 |
+| **OO-5** | Maestro | Version lock: immutability, re-classification, SHA-3 re-hash, HPTP timestamp, archive readiness flag | 2–3 weeks | OO-4 |
+| **OO-6** | Maestro → Ternary | TL-DSA signing of version-locked documents | 1–2 weeks | Signing microservice |
+
+**✅ OO-1 through OO-5 are pure Maestro repo work.** OO-6 is parallel-tracked against the signing microservice.
+
+---
+
+## Automated Archive Export
+
+### The Problem
+
+Construction projects generate thousands of documents over months or years. At closeout, the general contractor must retain records for 7–10+ years. Today, archival is manual, unverifiable, and carries no proof of completeness, integrity, or temporal provenance. In disputes, the inability to prove document provenance is a material legal vulnerability.
+
+### Archive Assembly Engine
+
+**1. WBS Tree Walk.** Maestro traverses the project's Work Breakdown Structure across all 13 dimensional levels. Every WBS node containing documents becomes a directory in the archive, preserving the full hierarchical depth. Because every document was classified by the WBS Classification Engine at intake, the tree walk produces a complete archive with zero orphaned documents.
+
+**2. Document Collection.** For each WBS node, Maestro collects every version and revision. Only version-locked documents (those that completed the ONLYOFFICE review pipeline) are primary records. Drafts and in-review versions go to a separate `/drafts/` directory.
+
+**3. Manifest Generation.** Structured manifest (JSON + human-readable PDF): filename, WBS path, document type, version history, upload user, file size, SHA-3 hash, classification confidence score, review history (reviewers, decisions, timestamps), version lock timestamp.
+
+**4. Package Assembly.** All documents, manifest, search index, and event log assembled into a compressed archive. `archive.sealed` event emitted via Unified Event Bus.
+
+### PlenumNET Integration
+
+**Today:** HPTP femtosecond timestamp at archive seal. Phase encryption for sensitive documents.
+
+**After signing microservice:** Per-document TL-DSA signing, manifest signing at TL-DSA-87, CryptoInteropBridge export for external verification.
+
+### Archive Contents
+
+| Component | Available Now | Requires Signing |
+|-----------|:---:|:---:|
+| `/documents/` — WBS-structured folder tree (version-locked) | ✅ | — |
+| `/drafts/` — Pre-approval versions | ✅ | — |
+| `manifest.json` — Full metadata + classification + review history | ✅ | — |
+| `manifest.pdf` — Human-readable table of contents | ✅ | — |
+| `timestamp.json` — HPTP femtosecond seal time | ✅ | — |
+| `index.db` — Full-text search index | ✅ | — |
+| `events.log` — Complete event history | ✅ | — |
+| Per-document TL-DSA signatures in manifest | — | ✅ |
+| `manifest.sig` — Umbrella TL-DSA signature | — | ✅ |
+| `/verification/` — CryptoInteropBridge export for external parties | — | ✅ |
+
+### Archive — Implementation Phases
+
+| Phase | Repo | Description | Effort | Dependencies |
+|-------|------|-------------|--------|-------------|
+| **AR-1** | Maestro | Archive assembly: 13-level WBS tree walk, version-locked primary + drafts, manifest with review history, SHA-3, event log, package | 4–5 weeks | None |
+| **AR-2** | Maestro → Ternary | HPTP timestamp at archive seal | 1 week | None — live endpoint |
+| **AR-3** | Maestro → Ternary | TL-DSA per-document + manifest signing, CryptoInteropBridge export | 2–3 weeks | Signing microservice |
+| **AR-4** | Maestro | Automation: auto-archive on closeout, scheduled re-verification, `archive.sealed` event | 2–3 weeks | AR-1 + EB-1 |
+
+---
+
+## Offline Field Upload Queue
+
+### The Problem
+
+Construction sites have unreliable connectivity. If the system requires a network connection to accept a document, workers forget to upload later or work around the system entirely. Compliance-critical documentation — rebar placement before concrete pour, fire-stopping inspection, structural connection verification — gets lost. This is a legal exposure and data integrity problem.
+
+### Queue Architecture
+
+**1. File Capture.** Field worker photographs or selects a document through Maestro's mobile/web interface. The application knows the WBS context.
+
+**2. Local Queue Entry.** File written to IndexedDB with metadata: file binary, WBS destination path, user identity, status flag, integrity data.
+
+**3. Background Sync.** Service Worker monitors connectivity. Uploads processed sequentially on reconnect. Failed uploads re-queue with incremental backoff. Each upload emits `document.uploaded`.
+
+**4. Server Receipt, Classification, and Routing.** The WBS Classification Engine processes the document through full OCR, assigns a 13-level WBS code, cross-validates against the field worker's capture context (engine overrides if mismatched, discrepancy logged). Document indexed in full-text search. If the WBS node has a reviewer configuration, the document auto-stages in the ONLYOFFICE pipeline. `document.classified` event fires.
+
+**5. Progress Visibility.** Persistent status indicator: pending, uploaded, classified, staged for review, failures.
+
+### Offline Edge Cases
+
+**Large files and partial uploads:** The Service Worker uses chunked upload with resumption. If an upload is interrupted mid-transfer, the next sync attempt resumes from the last successful chunk rather than restarting. SHA-3 integrity verification on the server confirms completeness.
+
+**Conflict resolution:** Documents captured offline are append-only — they are new records entering the system, not edits to existing records. If two workers photograph the same physical artifact (e.g., the same rebar section), both photos enter the WBS as separate documents with their own HPTP timestamps, and the Classification Engine tags both to the same WBS node. Duplicate detection is a downstream concern handled by the search index (flagging documents with identical or near-identical content in the same WBS node), not a queue-level problem.
+
+### Timing and Signing at Capture
+
+**HPTP Timing (live today):**
+
+**Degraded connectivity** (common) — enough signal for a lightweight GET request but not for a multi-megabyte upload. The HPTP timestamp succeeds; the file queues.
+
+**Zero connectivity** (less common) — HPTP call queued alongside file. Device clock provides interim timestamp. On reconnect, both timestamps recorded: `captured_device_time`, `hptp_attested_time`, `delta_ms`.
+
+**TL-DSA Signing (after microservice):** SHA-3 hash computed locally at capture regardless. TL-DSA signature applied as soon as signing service is reachable. Server verifies signature before accepting document into Classification Engine pipeline.
+
+### Queue Entry Contents
+
+| Field | Available Now | Requires Signing |
+|-------|:---:|:---:|
+| File binary | ✅ | — |
+| WBS destination path (field worker context) | ✅ | — |
+| User identity | ✅ | — |
+| Queue status flag | ✅ | — |
+| SHA-3 hash (computed locally) | ✅ | — |
+| HPTP femtosecond timestamp | ✅ | — |
+| Device clock interim timestamp (zero-connectivity fallback) | ✅ | — |
+| TL-DSA signature of file hash | — | ✅ |
+| Signing key ID | — | ✅ |
+
+### Field Queue — Implementation Phases
+
+| Phase | Repo | Description | Effort | Dependencies |
+|-------|------|-------------|--------|-------------|
+| **FQ-1** | Maestro | Core queue: IndexedDB schema, Service Worker, chunked background sync with resumption, retry logic, progress UI, event emission | 3–4 weeks | None |
+| **FQ-2** | Maestro → Ternary | HPTP capture-time timestamp with dual-path connectivity logic | 1–2 weeks | None — live endpoint |
+| **FQ-3** | Maestro → Ternary | TL-DSA capture-time signing with dual-path logic, server-side verification | 2–3 weeks | Signing microservice |
+| **FQ-4** | Maestro | Intelligent queue: priority ordering (safety > general), adaptive compression, batch processing, auto-stage for ONLYOFFICE on receipt | 2–3 weeks | FQ-1 + OO-1 |
+
+---
+
+## Unified Document Lifecycle
+
+All subsystems are stages of a single document lifecycle.
+
+| Stage | Action | Available Now | After Signing Service |
+|-------|--------|---------------|----------------------|
+| **CAPTURE** | Field worker photographs or selects document | HPTP timestamp at capture | + TL-DSA signature at capture |
+| **QUEUE** | Document held in IndexedDB | Timestamp + SHA-3 hash travel with file | + TL-DSA signature travels with file |
+| **UPLOAD** | Background sync delivers to server | Server receives with HPTP timestamp; `document.uploaded` event | + Server verifies TL-DSA signature |
+| **CLASSIFY** | Full OCR, entity extraction, 13-level WBS resolution | Automatic WBS tag + full-text index; `document.classified` event | + Classification metadata in integrity chain |
+| **REVIEW** | ONLYOFFICE collaborative markup and approval | Multi-reviewer workflow, HPTP-timestamped decisions; `document.reviewed`/`approved` events | + TL-DSA signature on version lock |
+| **STORE** | Placed in WBS location | HPTP + WBS classification + review history as permanent metadata | + TL-DSA signature as permanent metadata |
+| **QUERY** | Search project corpus | Sub-second full-text search with WBS scope, entity facets, review status, temporal range | Same — independent of signing |
+| **SHARE** | Document sent externally | Phase encryption via `/api/salvi/phase/split` | + CryptoInteropBridge export |
+| **ARCHIVE** | Project closeout | HPTP seal + searchable index + event log + review history | + Per-document TL-DSA + manifest signature |
+| **VERIFY** | Years later: dispute, audit | HPTP provenance + instant retrieval + event audit trail | + Full quantum-resistant integrity chain |
+
+---
+
+## Compliance and Auditability
+
+The architecture provides compliance coverage across multiple regulatory frameworks through its core infrastructure rather than bolted-on compliance modules.
+
+| Requirement | How the Architecture Satisfies It |
+|-------------|----------------------------------|
+| **Records retention** (7–10+ years, jurisdiction-dependent) | Archive Assembly Engine produces self-contained, integrity-verified packages with SHA-3 hashes and HPTP seal timestamps. Archives include full-text search indexes for retrieval. |
+| **eDiscovery** | Append-only event log provides complete, ordered, timestamped record of every document action. Full-text search index enables rapid document location across project corpora. |
+| **Audit trail** | Every document event (capture, classification, review, approval, version lock, archive, share) is recorded with user identity, HPTP timestamp, and SHA-3 hash. The event log is immutable. |
+| **FINRA 613 / MiFID II** (timing compliance) | HPTP timing endpoints include drift tracking, jitter analysis, and error budget reporting. Timestamps are infrastructure-grade, not system clock readings. |
+| **Data integrity** | SHA-3 hashing at capture, at classification, at version lock, and at archive seal. TL-DSA post-quantum signatures (when available) provide cryptographic non-repudiation. |
+| **Access control and attribution** | Every event carries `userId`. Reviewer assignment is per-WBS-node with role-based configuration. Version lock records who approved and when. |
+| **Data protection** | Phase encryption endpoints enable document encryption at rest and in transit. Self-hosted ONLYOFFICE and PlenumNET infrastructure ensure data sovereignty — no third-party cloud dependency for document content. |
+
+---
+
+## Risk Register
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| **Signing microservice delayed** | Medium | Medium | All Maestro subsystems are designed to operate without signing. Signing adds integrity but is not a blocker for core functionality. Phases explicitly separate signed vs. unsigned capabilities. |
+| **NIST post-quantum standards evolve** | Low | Medium | TL-DSA is parameter-compatible with ML-DSA (FIPS 204). The CryptoInteropBridge already handles translation. Standard updates require parameter changes, not architectural changes. |
+| **ONLYOFFICE licensing changes** | Low | Medium | Self-hosted AGPLv3 deployment. License is irrevocable for current version. Collabora Online is a viable drop-in alternative with identical API patterns. |
+| **OCR accuracy below target** | Medium | High | CE-5 (feedback loop) continuously improves classification. Secondary analysis pass for below-threshold documents. Project-specific rulesets tuned from MasterFormat baseline. Accuracy can be validated per-project before going live. |
+| **Large-scale legacy migration overwhelms OCR pipeline** | Medium | Medium | CE-1 is page-parallel. Batch processor in CE-6 supports throttled ingestion with progress reporting. Migrations can run off-hours. |
+| **Event log storage growth** | Low | Low | Events are lightweight JSON records (< 1KB each). A project generating 100,000 document events produces < 100MB of event log data. Archival compresses this further. |
+| **ONLYOFFICE Document Server outage during review** | Low | Medium | ONLYOFFICE sessions are client-stateless; document state persists in Maestro storage. Restart → reviewers reload → resume. Health monitoring via event bus (see Operational Considerations). |
+| **Device clock manipulation in offline scenarios** | Low | High | HPTP reconciliation records both device clock and HPTP-attested time with delta. Anomalous deltas are flagged. TL-DSA signature (when available) binds the hash at a specific time, making post-hoc manipulation detectable. |
+
+---
+
+## Operational Considerations
+
+### Monitoring and Alerting
+
+| Component | Key Metrics | Alert Thresholds |
+|-----------|------------|-----------------|
+| PlenumNET timing endpoints | Response latency, jitter, drift from error-budget | Latency > 500ms, jitter exceeding HPTP specification |
+| Signing microservice (when live) | Response latency, error rate, key status | Error rate > 1%, health endpoint failure |
+| ONLYOFFICE Document Server | Active sessions, conversion queue depth, memory usage | Memory > 80%, conversion backlog > 50 documents |
+| WBS Classification Engine | Documents/minute throughput, OCR queue depth, classification confidence distribution | Queue depth > 100, mean confidence dropping below threshold |
+| Event bus | Events/second, dead-letter queue depth, subscriber lag | Dead-letter > 0 (investigate), subscriber lag > 60s |
+| Offline queue (aggregate) | Pending uploads across all clients, average time-to-sync, failure rate | Failure rate > 5%, average sync time > 4 hours |
+
+### Deployment Architecture
+
+Maestro's Node.js backend connects to PlenumNET via Kong API gateway. Kong already manages 17 services; the signing microservice becomes the 18th. Service discovery, rate limiting, and authentication are handled at the Kong layer. Maestro's deployment is independent of PlenumNET's — they share no infrastructure beyond HTTP calls.
+
+ONLYOFFICE Document Server runs as a Docker container within Maestro's infrastructure, managed by Maestro's deployment pipeline. It is not exposed externally.
+
+### Backup and Disaster Recovery
+
+| Data | Backup Strategy | Recovery |
+|------|----------------|----------|
+| Event log (append-only) | Continuous replication to secondary storage; daily snapshots | Replay from last snapshot + append entries |
+| Full-text search index | Rebuilt from source documents via CE-1 pipeline if lost | Rebuild time proportional to document count; non-blocking |
+| Archived packages | Immutable once sealed; stored in durable object storage with geographic redundancy | Retrieve from object storage; verify SHA-3 hashes |
+| ONLYOFFICE document state | Persisted to Maestro's primary database; backed up with standard DB procedures | Restore from DB backup; in-progress reviews resume |
+| WBS classification rulesets | Stored in project configuration; backed up with project data | Restore from backup; CE-5 feedback loop rebuilds refinements over time |
+
+---
+
+## Competitive Position
+
+**What no competitor has today:** A construction ERP where documents arrive from any source, get classified automatically by a heavyweight full-document OCR engine into the correct node of a 13-level WBS, enter a structured ONLYOFFICE review pipeline with WBS-based reviewer assignment, receive femtosecond-precision timestamps from dedicated timing infrastructure at every lifecycle stage, build a full-text search index at intake for sub-second queries across the entire project corpus, and flow through a unified event bus that makes every module composable. All of this is live or requires zero external prerequisites.
+
+**What no competitor will have after the signing microservice ships:** The above, plus TL-DSA post-quantum signatures at every critical lifecycle point — field capture, version lock after review approval, and archive seal — computed at native speed in a constant-time-hardened Rust environment with formal verification backing (13 properties proven), CAVP readiness for NIST CMVP submission, and CryptoInteropBridge translation for external verification. The entire chain — from field capture to automatic WBS classification to multi-party review approval to archive seal to dispute verification years later — is quantum-resistant, precision-timestamped, fully searchable, event-sourced, and independently provable.
+
+**The gap between these two states is a thin Axum HTTP wrapper around code that already passes 1,117 tests.**
+
+---
+
+## Dependency Map
+
+```
+SigmaWolf-8/Maestro (ERP)                SigmaWolf-8/Ternary (PlenumNET)
+─────────────────────────                 ──────────────────────────────────
+
+AVAILABLE NOW (no blockers)               LIVE SERVICES (194 endpoints)
+───────────────────────────               ────────────────────────────
+CE-1–CE-6: WBS Classification Engine      /api/salvi/timing/*
+EB-1–EB-4: Unified Event Bus              /api/salvi/phase/*
+OO-1–OO-5: ONLYOFFICE Review Pipeline    /api/salvi/ternary/*
+AR-1: Archive assembly             ←────
+AR-2: HPTP archive seal            ←──── /api/salvi/timing/timestamp
+AR-4: Archive automation                  PARALLEL TRACK (Ternary repo)
+                                          ────────────────────────────
+FQ-1: Offline queue core                  Rust Signing Microservice
+FQ-2: HPTP capture timestamps      ←──── (Axum + tl_dsa.rs + InteropBridge)
+FQ-4: Intelligent queue                            │
+                                                   │
+UNLOCKED BY SIGNING SERVICE                        │
+───────────────────────────               ─────────┘
+OO-6: Version lock signing          ←──── /api/signing/tl-dsa/sign
+AR-3: Archive TL-DSA signing        ←──── /api/signing/tl-dsa/sign
+AR-3: Manifest signing              ←──── /api/signing/tl-dsa/sign
+AR-3: InteropBridge export          ←──── /api/signing/tl-dsa/export
+FQ-3: Capture signing               ←──── /api/signing/tl-dsa/sign
+FQ-3: Server verification           ←──── /api/signing/tl-dsa/verify
+```
+
+All arrows point one direction: Maestro calls PlenumNET. Never the reverse.
+
+---
+
+## Implementation Timeline
+
+### Critical Path
+
+```
+Week  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20
+      ├──────────────────┤
+      CE-1: OCR Pipeline
+      ├─────────────┤
+      EB-1: Event Bus Core
+                     ├─────────────────┤
+                     CE-2: Entity Extraction
+                     ├────────────┤
+                     CE-4: Search Index
+                     ├─────────────┤
+                     EB-3: Subscriber Framework
+                     ├──────────────┤
+                     OO-1: ONLYOFFICE Integration
+                                    ├────────────┤
+                                    CE-3: WBS Resolution (13-level)
+                                    ├─────────────┤
+                                    EB-2: Event Emission Wiring
+                                    ├──────────────┤
+                                    OO-3: Review UI
+                                             ├─────────┤
+                                             CE-5: Feedback Loop
+                                             ├────────────┤
+                                             CE-6: Intake Integration
+                                             ├─────────┤
+                                             OO-2: Reviewer Assignment
+                                             ├──────────────┤
+                                             OO-4: Approval Workflow
+                                                          ├──────────┤
+                                                          OO-5: Version Lock
+      ├──────────────────────────────────────────────────────────────┤
+      PARALLEL: Signing Microservice (Ternary repo)
+
+      ├──────────────┤
+      FQ-1: Offline Queue Core
+                ├────┤
+                FQ-2: HPTP Timestamps
+                                    ├──────────────────┤
+                                    AR-1: Archive Assembly
+                                         ├──┤
+                                         AR-2: HPTP Seal
+                                                          ├─────────┤
+                                                          EB-4: Cross-Module Subs
+                                                          ├──────────┤
+                                                          AR-4: Archive Automation
+                                                          ├─────────┤
+                                                          FQ-4: Intelligent Queue
+```
+
+**Estimated total duration: ~20 weeks for Maestro-side development.** Signing microservice on parallel track; signing-dependent phases (OO-6, AR-3, FQ-3) execute when microservice is ready.
+
+---
+
+## Next Steps
+
+**Immediate actions (Week 1):**
+
+1. **Begin CE-1** — OCR pipeline development. This is the longest-lead critical path item and everything downstream depends on it.
+2. **Begin EB-1** — Event bus core. Lightweight and foundational; enables all cross-module integration.
+3. **Begin FQ-1** — Offline queue core. Independent of other subsystems; can be validated in the field early.
+4. **Assign resources to signing microservice** parallel track in the Ternary repo.
+
+**Architecture review checkpoint (Week 6):**
+
+5. CE-1 and EB-1 complete. Validate OCR accuracy on representative document samples. Validate event schema against subscriber requirements. Go/no-go for CE-2 and OO-1.
+
+**Integration checkpoint (Week 12):**
+
+6. CE-3 (13-level WBS resolution) complete. End-to-end test: document intake → classification → WBS placement → event emission → search retrieval. Validate classification accuracy on a real project dataset.
+
+**Review pipeline checkpoint (Week 16):**
+
+7. OO-4 (approval workflow) complete. End-to-end test: document → classify → stage → review → approve → version lock → archive readiness.
+
+**Production readiness (Week 20):**
+
+8. All Maestro-side phases complete. Full integration testing. Performance validation at project scale. Signing-dependent phases activate when microservice is ready.
+
+---
+
+## Glossary
+
+| Term | Definition |
+|------|-----------|
+| **CAVP** | Cryptographic Algorithm Validation Program — NIST program for testing cryptographic implementations against known-answer test vectors |
+| **CMVP** | Cryptographic Module Validation Program — NIST/CSE program certifying cryptographic modules meet FIPS 140 requirements |
+| **CryptoInteropBridge** | Rust module in PlenumNET that translates ternary-native TL-DSA signatures to standard binary formats for external verification |
+| **CSI MasterFormat** | Construction Specifications Institute classification system organizing construction information into 50 divisions (00–49) |
+| **EUF-CMA** | Existential Unforgeability under Chosen Message Attack — the standard security property for digital signature schemes |
+| **FIPS 204** | Federal Information Processing Standard specifying ML-DSA (Module-Lattice-Based Digital Signature Algorithm) |
+| **GF(3)** | Galois Field of order 3 — the mathematical structure underlying ternary computing operations |
+| **HPTP** | High-Precision Timing Protocol — PlenumNET's femtosecond-resolution timing infrastructure |
+| **IndexedDB** | Browser-native persistent storage API used by the offline queue for client-side document caching |
+| **Kong** | API gateway managing service routing between Maestro and PlenumNET endpoints |
+| **ML-DSA** | Module-Lattice-Based Digital Signature Algorithm — NIST's post-quantum signature standard |
+| **ML-KEM** | Module-Lattice-Based Key Encapsulation Mechanism — NIST's post-quantum key exchange standard |
+| **OCR** | Optical Character Recognition — converting images of text into machine-readable text |
+| **PQTI** | Post-Quantum Ternary Infrastructure — PlenumNET's cryptographic layer |
+| **RFI** | Request for Information — a formal construction industry document seeking clarification |
+| **SHA-3** | Secure Hash Algorithm 3 — the NIST-standardized hash function used for document integrity verification |
+| **TL-DSA** | Ternary-Lattice Digital Signature Algorithm — PlenumNET's ternary-native variant of ML-DSA |
+| **TL-KEM** | Ternary-Lattice Key Encapsulation Mechanism — PlenumNET's ternary-native variant of ML-KEM |
+| **WBS** | Work Breakdown Structure — hierarchical decomposition of project scope into deliverable-oriented elements |
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Maestro ERP: SigmaWolf-8/Maestro | PlenumNET: SigmaWolf-8/Ternary*
+*Revision 3.0 — Public Repository Release | Corrected against GITHUB-REPOSITORY-ARCHITECTURE.md (194 verified endpoints)*
+*Previous versions (1.0, 2.0) have been superseded.*
