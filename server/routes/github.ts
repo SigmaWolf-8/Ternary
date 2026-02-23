@@ -422,6 +422,7 @@ export function registerGitHubRoutes(app: Express, storage: IStorage): void {
     "PQTI-P0-STATUS.md",
     "PQTI-REMAINING-WORK.md",
     "GITHUB-REPOSITORY-ARCHITECTURE.md",
+    "LICENSING-AUDIT-REPORT.md",
     "README.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
