@@ -9,7 +9,7 @@ _transform: true
 # For AI Agents: This configuration can be synced to Kong Konnect
 # using the decK CLI or the PlenumNET admin interface
 #
-# Total Services: 18 | Total Endpoints: 75+
+# Total Services: 19 | Total Endpoints: 85+
 
 services:
   # =====================================================
@@ -426,6 +426,37 @@ services:
           - plenumnet
           - health
 
+  # =====================================================
+  # POST-QUANTUM CRYPTOGRAPHIC SERVICES
+  # =====================================================
+
+  # 19. Post-Quantum Signing & KEM Service (TL-DSA / TL-KEM — Rust Microservice)
+  - name: plenumnet-signing
+    url: https://plenumnet.replit.app/api/pqti
+    enabled: true
+    tags:
+      - plenumnet
+      - signing
+      - pqti
+      - tl-dsa
+      - tl-kem
+      - post-quantum
+      - cnsa2
+      - fips-203
+      - fips-204
+    routes:
+      - name: pqti-api
+        paths:
+          - /api/pqti
+        methods:
+          - GET
+          - POST
+        strip_path: false
+        tags:
+          - plenumnet
+          - signing
+          - post-quantum
+
 # =====================================================
 # SECURITY PLUGINS
 # =====================================================
@@ -676,6 +707,21 @@ plugins:
       - security
       - rate-limit
       - monitoring
+
+  # 19. PQTI Signing - Cryptographic operations (security-critical)
+  - name: rate-limiting
+    service: plenumnet-signing
+    config:
+      minute: 60
+      hour: 600
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+    tags:
+      - security
+      - rate-limit
+      - post-quantum
+      - cnsa2
 
   # ---------------------------------------------------
   # Request Size Limiting
