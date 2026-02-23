@@ -34,7 +34,7 @@ server/salvi-core/   Express API server — timing, ternary ops, calendars,
 src/kernel/          Rust kernel — crypto, VM, memory, I/O, filesystem,
                      process scheduler, device drivers, HPTP, torsion network
 client/              React frontend — investor demo, docs, admin dashboard
-kong/                Kong Konnect gateway config (17 services, 171 endpoints)
+kong/                Kong Konnect gateway config (17 services, 194 endpoints)
 salvi_docs/          Developer documentation (15 modules, 7,300+ lines)
 ```
 
@@ -125,7 +125,7 @@ npx vitest run tests/qudit-basics.test.ts     # Qudit module (35 tests)
 
 ## API Surface
 
-The platform exposes 171 endpoints through Kong Konnect:
+The platform exposes 194 endpoints through Kong Konnect:
 
 | Category | Endpoints | Description |
 |----------|-----------|-------------|

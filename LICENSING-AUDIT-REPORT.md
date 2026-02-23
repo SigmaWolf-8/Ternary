@@ -71,7 +71,7 @@ The project depends on approximately 60+ npm packages and references PyTEAL. Whi
 
 ### FINDING 6 — No Terms of Service for Live SaaS Deployment (SEVERITY: HIGH)
 
-The PlenumNET application is live at https://PlenumNET.replit.app and appears to expose 171 API endpoints. There are no Terms of Service, Acceptable Use Policy, or Privacy Policy governing use of this service.
+The PlenumNET application is live at https://PlenumNET.replit.app and appears to expose 194 API endpoints. There are no Terms of Service, Acceptable Use Policy, or Privacy Policy governing use of this service.
 
 **Risk:** Without TOS, there is no contractual limitation on liability, no usage restrictions, no warranty disclaimers, and no IP protection for the service output. Any user of the API could argue implied license rights.
 
