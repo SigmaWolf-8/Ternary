@@ -561,6 +561,7 @@ export function MarketingTopNav() {
           >
             <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
             <span className="text-base">PlenumNET</span>
+            <span className="text-[10px] font-mono font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded" data-testid="text-version">v{PLATFORM.PLATFORM_VERSION}</span>
           </Link>
 
           {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
@@ -609,6 +610,7 @@ export function MarketingTopNav() {
                     <SheetTitle className="flex items-center gap-2">
                       <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
                       PlenumNET
+                      <span className="text-[10px] font-mono font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">v{PLATFORM.PLATFORM_VERSION}</span>
                     </SheetTitle>
                   </SheetHeader>
                   <MobileNav onClose={() => setMobileOpen(false)} />
