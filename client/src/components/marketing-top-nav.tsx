@@ -57,6 +57,9 @@ import { createContext, useContext } from "react";
 type AnchorScrollFn = (id: string) => void;
 const AnchorScrollContext = createContext<AnchorScrollFn>(() => {});
 
+type NavigateFn = (href: string) => void;
+const NavigateContext = createContext<NavigateFn>(() => {});
+
 interface NavLinkItem {
   title: string;
   subtitle?: string;
@@ -251,16 +254,21 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
     );
   }
 
+  const navigate = useContext(NavigateContext);
   return (
     <li>
       <NavigationMenuLink asChild>
-        <Link
+        <a
           href={item.href}
           className={baseClass}
           data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate(item.href);
+          }}
         >
           {content}
-        </Link>
+        </a>
       </NavigationMenuLink>
     </li>
   );
@@ -336,16 +344,21 @@ function StandardDropdownItem({ item }: { item: NavLinkItem }) {
     );
   }
 
+  const navigate = useContext(NavigateContext);
   return (
     <li>
       <NavigationMenuLink asChild>
-        <Link
+        <a
           href={item.href}
           className={baseClass}
           data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate(item.href);
+          }}
         >
           {item.title}
-        </Link>
+        </a>
       </NavigationMenuLink>
     </li>
   );
@@ -531,87 +544,93 @@ export function MarketingTopNav() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
+  const handleNavigate = useCallback((href: string) => {
+    setLocation(href);
+  }, [setLocation]);
+
   return (
-    <AnchorScrollContext.Provider value={handleAnchorScroll}>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-background focus:text-foreground focus:px-4 focus:py-2 focus:rounded-md focus:border"
-        data-testid="link-skip-navigation"
-      >
-        Skip to main content
-      </a>
-      <header
-        className={cn(
-          "sticky top-0 z-[9999] w-full border-b bg-background/95 backdrop-blur-sm transition-transform duration-300",
-          !visible && "-translate-y-full"
-        )}
-        data-testid="marketing-top-nav"
-      >
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 lg:px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-semibold text-foreground mr-2"
-            data-testid="link-logo"
-          >
-            <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
-            <span className="text-base">PlenumNET</span>
-          </Link>
-
-          {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
-
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-              data-testid="button-theme-toggle"
+    <NavigateContext.Provider value={handleNavigate}>
+      <AnchorScrollContext.Provider value={handleAnchorScroll}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-background focus:text-foreground focus:px-4 focus:py-2 focus:rounded-md focus:border"
+          data-testid="link-skip-navigation"
+        >
+          Skip to main content
+        </a>
+        <header
+          className={cn(
+            "sticky top-0 z-[9999] w-full border-b bg-background/95 backdrop-blur-sm transition-transform duration-300",
+            !visible && "-translate-y-full"
+          )}
+          data-testid="marketing-top-nav"
+        >
+          <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 lg:px-6">
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-semibold text-foreground mr-2"
+              data-testid="link-logo"
             >
-              {theme === "light" ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
-            </Button>
+              <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
+              <span className="text-base">PlenumNET</span>
+            </Link>
 
-            {!isMobile && (
-              <a
-                href="/#hero"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleAnchorScroll("hero");
-                }}
+            {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
+
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+                data-testid="button-theme-toggle"
               >
-                <Button data-testid="button-cta">Get Early Access</Button>
-              </a>
-            )}
+                {theme === "light" ? (
+                  <Moon className="w-4 h-4" />
+                ) : (
+                  <Sun className="w-4 h-4" />
+                )}
+              </Button>
 
-            {isMobile && (
-              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Open menu"
-                    data-testid="button-mobile-menu"
-                  >
-                    <Menu className="w-5 h-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[300px] sm:w-[360px]">
-                  <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                      <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
-                      PlenumNET
-                    </SheetTitle>
-                  </SheetHeader>
-                  <MobileNav onClose={() => setMobileOpen(false)} />
-                </SheetContent>
-              </Sheet>
-            )}
+              {!isMobile && (
+                <a
+                  href="/#hero"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleAnchorScroll("hero");
+                  }}
+                >
+                  <Button data-testid="button-cta">Get Early Access</Button>
+                </a>
+              )}
+
+              {isMobile && (
+                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Open menu"
+                      data-testid="button-mobile-menu"
+                    >
+                      <Menu className="w-5 h-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[300px] sm:w-[360px]">
+                    <SheetHeader>
+                      <SheetTitle className="flex items-center gap-2">
+                        <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
+                        PlenumNET
+                      </SheetTitle>
+                    </SheetHeader>
+                    <MobileNav onClose={() => setMobileOpen(false)} />
+                  </SheetContent>
+                </Sheet>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
-    </AnchorScrollContext.Provider>
+        </header>
+      </AnchorScrollContext.Provider>
+    </NavigateContext.Provider>
   );
 }
