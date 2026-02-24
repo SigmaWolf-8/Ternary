@@ -22,7 +22,7 @@ export const PLATFORM = {
   TESTS_PASSING: "1,040",
   MILESTONES: "80/80",
   DENSITY_ADVANTAGE: 59,
-  PLATFORM_VERSION: "2.3.0",
+  PLATFORM_VERSION: "2.3.2",
 } as const;
 
 export type Platform = typeof PLATFORM;
