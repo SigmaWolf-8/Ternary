@@ -312,6 +312,7 @@ export class TsaService {
   private certificateParsed: crypto.X509Certificate | null = null;
   private serialCounter: bigint = BigInt(0);
   private tokenLog: TsaTokenRecord[] = [];
+  private serialIndex: Map<string, TsaTokenRecord> = new Map();
   private merkleLog!: MerkleAuditLog;
   private startTime: number = Date.now();
 
@@ -682,8 +683,20 @@ export class TsaService {
   queryTokenLog(filters: {
     since?: string; until?: string;
     hashAlgorithm?: string; policyTier?: string;
+    serialNumber?: string;
     limit?: number;
   }): { total: number; merkleRoot: string; merkleDepth: number; merkleLeaves: number; tokens: TsaTokenRecord[] } {
+    if (filters.serialNumber) {
+      const record = this.getTokenBySerial(filters.serialNumber);
+      return {
+        total: record ? 1 : 0,
+        merkleRoot: this.merkleLog.getRoot(),
+        merkleDepth: this.merkleLog.getDepth(),
+        merkleLeaves: this.merkleLog.getSize(),
+        tokens: record ? [record] : [],
+      };
+    }
+
     let records = [...this.tokenLog];
     if (filters.since) records = records.filter(r => r.createdAt >= filters.since!);
     if (filters.until) records = records.filter(r => r.createdAt <= filters.until!);
@@ -1262,9 +1275,21 @@ export class TsaService {
     });
   }
 
+  public getTokenBySerial(serialNumber: string): TsaTokenRecord | null {
+    return this.serialIndex.get(serialNumber) || null;
+  }
+
   private logToken(record: TsaTokenRecord): void {
     this.tokenLog.push(record);
-    if (this.tokenLog.length > 100000) this.tokenLog = this.tokenLog.slice(-50000);
+    this.serialIndex.set(record.serialNumber, record);
+
+    if (this.tokenLog.length > 100000) {
+      this.tokenLog = this.tokenLog.slice(-50000);
+      this.serialIndex.clear();
+      for (const r of this.tokenLog) {
+        this.serialIndex.set(r.serialNumber, r);
+      }
+    }
 
     const logPath = path.join(this.config.keysDirectory, 'token-audit.jsonl');
     fs.appendFileSync(logPath, JSON.stringify(record) + '\n');

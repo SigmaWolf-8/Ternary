@@ -20,8 +20,16 @@ import * as prom from 'prom-client';
 import { TsaService, type JsonTimestampResponse, type HptpClient, type TldsaClient } from './tsa-service';
 import { resolveTsaPolicy, resolveTierName } from './notification-tsa-policy';
 
-const parsedPhase = parseInt(process.env.TSA_NOTIFICATION_PHASE || '2', 10);
-const TSA_PHASE = (parsedPhase === 2 || parsedPhase === 3) ? parsedPhase : 2;
+const VALID_PHASES = new Set([2, 3]);
+const TSA_PHASE_RAW = parseInt(process.env.TSA_NOTIFICATION_PHASE || '2', 10);
+export const EFFECTIVE_PHASE = VALID_PHASES.has(TSA_PHASE_RAW) ? TSA_PHASE_RAW : 2;
+
+if (!VALID_PHASES.has(TSA_PHASE_RAW)) {
+  console.error(
+    `Invalid TSA_NOTIFICATION_PHASE=${TSA_PHASE_RAW}. ` +
+    `Must be 2 (dual) or 3 (tsa-only). Defaulting to 2.`,
+  );
+}
 
 export const tsaMetricsRegistry = new prom.Registry();
 prom.collectDefaultMetrics({ register: tsaMetricsRegistry });
@@ -55,7 +63,14 @@ const tsaTokenSizeHistogram = new prom.Histogram({
   registers: [tsaMetricsRegistry],
 });
 
-tsaPhaseGauge.set(TSA_PHASE);
+const legacyFallbackCounter = new prom.Counter({
+  name: 'plenumnet_notification_legacy_fallback_total',
+  help: 'Times legacy headers were used as TSA fallback',
+  labelNames: ['phase', 'channel'] as const,
+  registers: [tsaMetricsRegistry],
+});
+
+tsaPhaseGauge.set(EFFECTIVE_PHASE);
 
 export interface NotificationServiceDeps {
   hptpClient: HptpClient;
@@ -89,7 +104,7 @@ export class NotificationService {
   ): Promise<JsonTimestampResponse | null> {
     if (!this.tsaService) {
       tsaRequestCounter.inc({
-        phase: String(TSA_PHASE),
+        phase: String(EFFECTIVE_PHASE),
         channel,
         policy_tier: 'none',
         status: 'skipped_no_service',
@@ -100,7 +115,7 @@ export class NotificationService {
     const tierName = resolveTierName(channel, contentType);
 
     const endTimer = tsaDurationHistogram.startTimer({
-      phase: String(TSA_PHASE),
+      phase: String(EFFECTIVE_PHASE),
       channel,
       policy_tier: tierName,
     });
@@ -130,7 +145,7 @@ export class NotificationService {
 
       endTimer();
       tsaRequestCounter.inc({
-        phase: String(TSA_PHASE),
+        phase: String(EFFECTIVE_PHASE),
         channel,
         policy_tier: response.policyTier,
         status: 'success',
@@ -147,7 +162,7 @@ export class NotificationService {
         tier: response.policyTier,
         merkleLeaf: response.merkleLeafHash.slice(0, 16) + '...',
         tokenChars: response.token.length,
-        phase: TSA_PHASE,
+        phase: EFFECTIVE_PHASE,
       });
 
       return response;
@@ -160,7 +175,7 @@ export class NotificationService {
         : 'error';
 
       tsaRequestCounter.inc({
-        phase: String(TSA_PHASE),
+        phase: String(EFFECTIVE_PHASE),
         channel,
         policy_tier: tierName,
         status,
@@ -170,8 +185,8 @@ export class NotificationService {
         channel,
         contentType,
         error: (err as Error).message,
-        phase: TSA_PHASE,
-        fallback: TSA_PHASE <= 2 ? 'legacy' : 'none',
+        phase: EFFECTIVE_PHASE,
+        fallback: EFFECTIVE_PHASE <= 2 ? 'legacy' : 'none',
       });
 
       return null;
@@ -195,6 +210,13 @@ export class NotificationService {
       headers['X-PlenumNET-TSA-Policy'] = tsa.policyTier;
       headers['X-PlenumNET-TSA-Merkle'] = tsa.merkleLeafHash;
 
+      headers['X-PlenumNET-Proof-Summary'] = [
+        `tier:${tsa.policyTier}`,
+        `serial:${tsa.serialNumber}`,
+        `time:${tsa.genTime}`,
+        `merkle:${tsa.merkleLeafHash.slice(0, 16)}`,
+      ].join('; ');
+
       if (tsa.token.length > 4096) {
         console.warn('Large TST detected', {
           tokenChars: tsa.token.length,
@@ -204,7 +226,7 @@ export class NotificationService {
         });
       }
 
-      if (TSA_PHASE === 2) {
+      if (EFFECTIVE_PHASE === 2) {
         const legacy = await this.buildLegacyHeaders(payload);
         Object.assign(headers, legacy);
         headers['X-PlenumNET-Proof-Mode'] = 'tsa+legacy';
@@ -213,16 +235,18 @@ export class NotificationService {
       }
 
     } else {
-      if (TSA_PHASE <= 2) {
+      if (EFFECTIVE_PHASE <= 2) {
         const legacy = await this.buildLegacyHeaders(payload);
         Object.assign(headers, legacy);
         headers['X-PlenumNET-Proof-Mode'] = 'legacy-fallback';
+        legacyFallbackCounter.inc({ phase: String(EFFECTIVE_PHASE), channel });
       } else {
         headers['X-PlenumNET-Proof-Mode'] = 'none';
+        legacyFallbackCounter.inc({ phase: String(EFFECTIVE_PHASE), channel });
         console.warn('TSA unavailable in Phase 3 — notification sent without proof', {
           channel,
           contentType,
-          phase: TSA_PHASE,
+          phase: EFFECTIVE_PHASE,
         });
       }
     }
@@ -380,7 +404,7 @@ export class NotificationService {
   }
 
   getPhase(): number {
-    return TSA_PHASE;
+    return EFFECTIVE_PHASE;
   }
 
   hasTsaService(): boolean {

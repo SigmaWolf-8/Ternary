@@ -26,7 +26,7 @@ import { existsSync } from "fs";
 import * as path from "path";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
-import { NotificationService, tsaMetricsRegistry } from "./services/notification-service";
+import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 
 const app = express();
 const httpServer = createServer(app);
@@ -213,7 +213,13 @@ function startPqtiService(): ChildProcess | null {
     tldsaClient: tldsaClientForTsa,
     tsaService: tsaService,
   });
-  log(`Notification TSA integration active — Phase ${process.env.TSA_NOTIFICATION_PHASE || '2'}`, 'notify');
+  log(`Notification TSA integration active — Phase ${EFFECTIVE_PHASE}`, 'notify');
+  if (EFFECTIVE_PHASE === 3) {
+    console.warn(
+      'Notification TSA integration running Phase 3 (TSA-only). ' +
+      'Legacy headers disabled. Confirm all downstream consumers have migrated.',
+    );
+  }
 
   app.get('/metrics/notification-tsa', async (_req, res) => {
     res.set('Content-Type', tsaMetricsRegistry.contentType);

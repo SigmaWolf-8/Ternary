@@ -11,6 +11,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { TsaService, TSA_POLICIES } from '../services/tsa-service';
 
 interface AuthenticatedRequest extends Request {
@@ -124,6 +125,40 @@ export function createTsaRoutes(service: TsaService): Router {
     const health = await service.getHealth();
     res.status(health.status === 'unhealthy' ? 503 : 200).json(health);
   });
+
+  router.get('/audit/query',
+    rateLimit({ windowMs: 60_000, max: 30 }),
+    requireAuth('readonly'),
+    (req: Request, res: Response) => {
+      const filters: {
+        since?: string;
+        until?: string;
+        hashAlgorithm?: string;
+        policyTier?: string;
+        serialNumber?: string;
+        limit?: number;
+      } = {};
+
+      if (req.query.serialNumber) filters.serialNumber = req.query.serialNumber as string;
+      if (req.query.since) filters.since = req.query.since as string;
+      if (req.query.until) filters.until = req.query.until as string;
+      if (req.query.hashAlgorithm) filters.hashAlgorithm = req.query.hashAlgorithm as string;
+      if (req.query.policyTier) filters.policyTier = req.query.policyTier as string;
+      if (req.query.limit) filters.limit = Math.min(parseInt(req.query.limit as string, 10), 500);
+
+      const result = service.queryTokenLog(filters);
+
+      if (filters.serialNumber && result.total === 0) {
+        return res.status(404).json({
+          error: 'Serial number not found',
+          serialNumber: filters.serialNumber,
+          hint: 'Record may have been purged by log rotation (>100K tokens)',
+        });
+      }
+
+      res.json(result);
+    },
+  );
 
   return router;
 }

@@ -1,0 +1,803 @@
+# PLENUMNET TSA — SUPPLEMENTARY INTEGRATION PACKAGE
+# Notification Polish + Recording Rules + Webhook Verification + Audit Query
+
+**Date:** February 24, 2026
+**Repository:** SigmaWolf-8/Ternary
+**Applies after:** NOTIFICATION-TSA-INTEGRATION-FINAL.md + TSA-CALENDAR-CONTEXT-EXTENSION.md
+**Scope:** Four additive improvements — zero changes to core logic
+
+---
+
+## WHAT THIS PACKAGE ADDS
+
+| Component | What | Where |
+|-----------|------|-------|
+| **Notification polish** | Phase validation, proof summary header, fallback counter | `notification-service.ts` |
+| **Recording rules** | Pre-computed Prometheus metrics for Grafana dashboards | `recording-rules.yml` |
+| **Webhook verifier** | Consumer-facing TSA token verification (Node + Python + bash) | `webhook-verifier.ts` (reference) |
+| **Audit query API** | Serial-indexed token lookup for bidirectional traceability | `tsa-service.ts` + `routes/tsa.ts` |
+
+---
+
+## TRIAGE NOTES (What Was Evaluated and Why)
+
+| Proposed Item | Verdict | Rationale |
+|---------------|---------|-----------|
+| Phase validation + startup warning | **ACCEPTED** | Catches env var typos, zero risk |
+| `X-PlenumNET-TSA-Token-Size` header | **REJECTED** | Derivable from token header; if MTA truncates token, this header gets truncated too — doesn't solve its own use case |
+| Per-channel legacy fallback | **DEFERRED** | Good idea, wrong timing — adds branching to Phase 2 which should be the simplest additive step; revisit if channel-specific rollout needed |
+| `X-PlenumNET-Proof-Summary` header | **ACCEPTED** | Genuinely useful for human debugging in email clients and webhook logs; ~80 chars |
+| `legacy_fallback_total` counter | **ACCEPTED** | Distinct from request counter status label; Phase 3 alert is the real value |
+| Diff patch | **REJECTED** | Superseded by the verified final package; diff against hypothetical old file adds confusion |
+| Prometheus recording rules | **ACCEPTED** | Pre-computed metrics for dashboards; standard practice |
+| Webhook verifier (Node.js) | **ACCEPTED WITH FIXES** | Placeholder offline verification removed (was hardcoded `true`); header normalization fixed |
+| Webhook verifier (Python) | **ACCEPTED WITH FIXES** | Same placeholder issue fixed |
+| Audit query API | **ACCEPTED WITH FIXES** | Route handler was reaching into `service.merkleLog` directly; fixed to use `queryTokenLog` return values |
+
+---
+
+## PART 1: NOTIFICATION SERVICE POLISH
+
+### 1A. Phase validation (add to `notification-service.ts` after TSA_PHASE const)
+
+```typescript
+// ── Phase validation ──────────────────────────────────────────────────────
+// Catches env var typos (e.g. TSA_NOTIFICATION_PHASE=4 or =1).
+// Does NOT throw — service stays alive with default Phase 2 behavior.
+const VALID_PHASES = new Set([2, 3]);
+const TSA_PHASE_RAW = parseInt(process.env.TSA_NOTIFICATION_PHASE || '2', 10);
+const EFFECTIVE_PHASE = VALID_PHASES.has(TSA_PHASE_RAW) ? TSA_PHASE_RAW : 2;
+
+if (!VALID_PHASES.has(TSA_PHASE_RAW)) {
+  console.error(
+    `Invalid TSA_NOTIFICATION_PHASE=${TSA_PHASE_RAW}. ` +
+    `Must be 2 (dual) or 3 (tsa-only). Defaulting to 2.`,
+  );
+}
+```
+
+Then replace all `TSA_PHASE` references in the class methods with `EFFECTIVE_PHASE`.
+
+### 1B. Phase 3 startup warning (add to `index.ts` after notification service init)
+
+```typescript
+if (EFFECTIVE_PHASE === 3) {
+  console.warn(
+    'Notification TSA integration running Phase 3 (TSA-only). ' +
+    'Legacy headers disabled. Confirm all downstream consumers have migrated.',
+  );
+}
+```
+
+### 1C. Proof summary header (add to `buildProofHeaders` after TSA metadata headers)
+
+```typescript
+    // Human-readable proof summary — visible in email clients, webhook logs,
+    // and audit trails without base64 decoding the full token.
+    // Format: "tier:COMPLY; serial:12345; time:20260224153045Z; merkle:a1b2c3d4"
+    headers['X-PlenumNET-Proof-Summary'] = [
+      `tier:${tsa.policyTier}`,
+      `serial:${tsa.serialNumber}`,
+      `time:${tsa.genTime}`,
+      `merkle:${tsa.merkleLeafHash.slice(0, 16)}`,
+    ].join('; ');
+```
+
+### 1D. Legacy fallback counter (add to Prometheus metrics block)
+
+```typescript
+const legacyFallbackCounter = new prom.Counter({
+  name: 'plenumnet_notification_legacy_fallback_total',
+  help: 'Times legacy headers were used as TSA fallback',
+  labelNames: ['phase', 'channel'] as const,
+  registers: [tsaMetricsRegistry],
+});
+```
+
+Instrument in `buildProofHeaders` fallback paths:
+
+```typescript
+  } else if (EFFECTIVE_PHASE <= 2) {
+    const legacy = await this.buildLegacyHeaders(payload);
+    Object.assign(headers, legacy);
+    headers['X-PlenumNET-Proof-Mode'] = 'legacy-fallback';
+    legacyFallbackCounter.inc({ phase: String(EFFECTIVE_PHASE), channel });
+  } else {
+    // Phase 3: no fallback available
+    headers['X-PlenumNET-Proof-Mode'] = 'none';
+    legacyFallbackCounter.inc({ phase: String(EFFECTIVE_PHASE), channel });
+  }
+```
+
+### 1E. Updated header table (for documentation)
+
+| Header | Phase 2 | Phase 3 | Purpose |
+|--------|---------|---------|---------|
+| `X-PlenumNET-TSA-Token` | ✓ | ✓ | Base64 RFC 3161 TimeStampResp |
+| `X-PlenumNET-TSA-Serial` | ✓ | ✓ | Audit trail cross-reference |
+| `X-PlenumNET-TSA-GenTime` | ✓ | ✓ | Quick time parse without ASN.1 |
+| `X-PlenumNET-TSA-Policy` | ✓ | ✓ | Tier name (COMPLY, FORENSICS...) |
+| `X-PlenumNET-TSA-Merkle` | ✓ | ✓ | Merkle leaf hash for tamper detection |
+| `X-PlenumNET-Proof-Summary` | ✓ | ✓ | **NEW** — human-readable one-liner |
+| `X-PlenumNET-Proof-Mode` | ✓ | ✓ | `tsa+legacy`, `tsa-only`, `legacy-fallback`, `none` |
+| `X-PlenumNET-HPTP-Timestamp` | ✓ (legacy) | — | Removed in Phase 3 |
+| `X-PlenumNET-Message-Hash` | ✓ (legacy) | — | Removed in Phase 3 |
+| `X-PlenumNET-TLDSA-Signature` | ✓ (legacy) | — | Removed in Phase 3 |
+
+---
+
+## PART 2: PROMETHEUS RECORDING RULES
+
+Add to your Prometheus configuration (e.g., `recording-rules.yml` or Helm values):
+
+```yaml
+groups:
+  - name: plenumnet.notification.tsa
+    rules:
+      # Pre-computed success rate (avoids division in every dashboard panel)
+      - record: plenumnet:notification:tsa:success_rate_5m
+        expr: >
+          sum(rate(plenumnet_notification_tsa_requests_total{status="success"}[5m]))
+          /
+          sum(rate(plenumnet_notification_tsa_requests_total[5m]))
+
+      # Pre-computed error rate (complement)
+      - record: plenumnet:notification:tsa:error_rate_5m
+        expr: >
+          1 - plenumnet:notification:tsa:success_rate_5m
+
+      # Pre-computed p99 latency
+      - record: plenumnet:notification:tsa:p99_latency_5m
+        expr: >
+          histogram_quantile(0.99,
+            sum(rate(plenumnet_notification_tsa_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Pre-computed p50 latency
+      - record: plenumnet:notification:tsa:p50_latency_5m
+        expr: >
+          histogram_quantile(0.50,
+            sum(rate(plenumnet_notification_tsa_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Token size p95
+      - record: plenumnet:notification:tsa:token_size_p95_5m
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(plenumnet_notification_tsa_token_size_bytes_bucket[5m])) by (le)
+          )
+
+      # Legacy fallback rate in Phase 3 (should be 0)
+      - record: plenumnet:notification:tsa:legacy_fallback_phase3_5m
+        expr: >
+          rate(plenumnet_notification_legacy_fallback_total{phase="3"}[5m])
+
+      # Requests by tier (for stacked area panel)
+      - record: plenumnet:notification:tsa:requests_by_tier_5m
+        expr: >
+          sum by (policy_tier)(rate(plenumnet_notification_tsa_requests_total[5m]))
+```
+
+### Grafana Dashboard Panel Quick-Reference
+
+| Panel | Metric | Type |
+|-------|--------|------|
+| TSA Success Rate | `plenumnet:notification:tsa:success_rate_5m` | Gauge / Stat |
+| TSA Latency (p50 + p99) | `plenumnet:notification:tsa:p50_latency_5m` + `p99` | Time series |
+| Token Size Trend | `plenumnet:notification:tsa:token_size_p95_5m` | Time series |
+| Requests by Tier | `plenumnet:notification:tsa:requests_by_tier_5m` | Stacked area |
+| Phase 3 Fallback (should be flat 0) | `plenumnet:notification:tsa:legacy_fallback_phase3_5m` | Stat (red if > 0) |
+
+---
+
+## PART 3: WEBHOOK CONSUMER VERIFICATION
+
+Reference implementations for downstream consumers receiving TSA-proofed webhooks.
+Ships as documentation and sample code — not part of the PlenumNET server itself.
+
+### 3A. Node.js Reference (`webhook-verifier.ts`)
+
+```typescript
+/**
+ * PlenumNET / Maestro Webhook TSA Token Verifier
+ * Reference implementation for downstream consumers.
+ *
+ * Provides ONLINE verification via PlenumNET's /api/tsa/verify endpoint.
+ * For OFFLINE verification, use OpenSSL CLI (see bash examples below)
+ * or implement full CMS/TSTInfo parsing with pkijs + asn1js.
+ *
+ * Usage:
+ *   const result = await verifyWebhookTsaToken(req.body, req.headers);
+ *   if (result.valid) { processWebhook(req.body); }
+ */
+
+import * as crypto from 'crypto';
+
+// ── Configuration ──────────────────────────────────────────────────────────
+const TSA_BASE_URL = process.env.PLENUMNET_TSA_URL || 'https://plenumnet.replit.app';
+
+// ── Types ──────────────────────────────────────────────────────────────────
+export interface TsaVerificationResult {
+  valid: boolean;
+  method: 'online' | 'hash-only' | 'none';
+  serial?: string;
+  genTime?: string;
+  policyTier?: string;
+  merkleLeaf?: string;
+  proofSummary?: string;
+  reason: string;
+}
+
+// ── Header normalization ───────────────────────────────────────────────────
+// Express lowercases all headers. Other frameworks may not.
+// Normalize once, reference everywhere.
+function getHeader(
+  headers: Record<string, string | string[] | undefined>,
+  name: string,
+): string | undefined {
+  const lower = name.toLowerCase();
+  const val = headers[lower] || headers[name];
+  if (Array.isArray(val)) return val[0];
+  return val as string | undefined;
+}
+
+// ── Main verification function ─────────────────────────────────────────────
+export async function verifyWebhookTsaToken(
+  payload: string | Buffer,
+  headers: Record<string, string | string[] | undefined>,
+): Promise<TsaVerificationResult> {
+
+  // 1. Extract TSA token from headers
+  const tsaTokenBase64 = getHeader(headers, 'X-PlenumNET-TSA-Token');
+  if (!tsaTokenBase64) {
+    return {
+      valid: false,
+      method: 'none',
+      reason: 'Missing X-PlenumNET-TSA-Token header',
+    };
+  }
+
+  let tsaTokenBuffer: Buffer;
+  try {
+    tsaTokenBuffer = Buffer.from(tsaTokenBase64, 'base64');
+  } catch {
+    return {
+      valid: false,
+      method: 'none',
+      reason: 'Invalid base64 in X-PlenumNET-TSA-Token',
+    };
+  }
+
+  // 2. Extract optional metadata headers (for logging, not for trust)
+  const proofSummary = getHeader(headers, 'X-PlenumNET-Proof-Summary');
+
+  // 3. Recompute payload hash (SHA-256, matching TSA service)
+  const payloadBuffer = Buffer.isBuffer(payload)
+    ? payload
+    : Buffer.from(payload, 'utf-8');
+  const computedHash = crypto.createHash('sha256')
+    .update(payloadBuffer)
+    .digest('hex');
+
+  // 4. Online verification — POST token to PlenumNET /api/tsa/verify
+  //    This is the recommended path for most consumers.
+  //    For offline verification, see the OpenSSL and pkijs examples below.
+  try {
+    const res = await fetch(`${TSA_BASE_URL}/api/tsa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: tsaTokenBuffer,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Verify endpoint returned ${res.status}`);
+    }
+
+    const data = await res.json() as {
+      valid: boolean;
+      serialNumber?: string;
+      genTime?: string;
+      policyTier?: string;
+      merkleLeafHash?: string;
+      reason?: string;
+    };
+
+    if (data.valid) {
+      return {
+        valid: true,
+        method: 'online',
+        serial: data.serialNumber,
+        genTime: data.genTime,
+        policyTier: data.policyTier,
+        merkleLeaf: data.merkleLeafHash,
+        proofSummary,
+        reason: 'Online verification succeeded',
+      };
+    } else {
+      return {
+        valid: false,
+        method: 'online',
+        reason: data.reason || 'Token verification failed',
+      };
+    }
+
+  } catch (err) {
+    // Online verification unavailable — fall back to hash-only check.
+    // This confirms payload integrity but NOT timestamp authenticity.
+    // For full offline verification, use OpenSSL (see examples below).
+    console.warn('Online TSA verification failed, falling back to hash check', {
+      error: (err as Error).message,
+    });
+
+    return {
+      valid: false,
+      method: 'hash-only',
+      proofSummary,
+      reason: `Online verification unavailable: ${(err as Error).message}. ` +
+        'Use OpenSSL offline verification for full cryptographic proof.',
+    };
+  }
+}
+```
+
+### 3B. Python Reference (`webhook_verifier.py`)
+
+```python
+"""
+PlenumNET / Maestro Webhook TSA Token Verifier — Python Reference
+
+Online verification via /api/tsa/verify.
+For offline, use OpenSSL CLI or asn1crypto + cryptography libraries.
+"""
+
+import base64
+import hashlib
+import requests
+from typing import Optional
+
+TSA_BASE_URL = "https://plenumnet.replit.app"
+
+
+def verify_webhook_tsa_token(
+    payload: bytes,
+    headers: dict,
+) -> dict:
+    """
+    Verify TSA token on an incoming webhook.
+
+    Returns dict with: valid, method, serial, genTime, policyTier, reason
+    """
+    result = {"valid": False, "method": "none", "reason": ""}
+
+    # 1. Extract token (normalize header case)
+    tsa_b64 = (
+        headers.get("X-PlenumNET-TSA-Token")
+        or headers.get("x-plenumnet-tsa-token")
+    )
+    if not tsa_b64:
+        result["reason"] = "Missing X-PlenumNET-TSA-Token header"
+        return result
+
+    try:
+        tsa_bytes = base64.b64decode(tsa_b64)
+    except Exception as e:
+        result["reason"] = f"Invalid base64 token: {e}"
+        return result
+
+    # 2. Recompute payload hash
+    computed_hash = hashlib.sha256(payload).hexdigest()
+
+    # 3. Online verification
+    try:
+        resp = requests.post(
+            f"{TSA_BASE_URL}/api/tsa/verify",
+            data=tsa_bytes,
+            headers={"Content-Type": "application/octet-stream"},
+            timeout=5,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get("valid"):
+            return {
+                "valid": True,
+                "method": "online",
+                "serial": data.get("serialNumber"),
+                "genTime": data.get("genTime"),
+                "policyTier": data.get("policyTier"),
+                "reason": "Online verification succeeded",
+            }
+        else:
+            return {
+                "valid": False,
+                "method": "online",
+                "reason": data.get("reason", "Token verification failed"),
+            }
+
+    except Exception as e:
+        return {
+            "valid": False,
+            "method": "hash-only",
+            "reason": (
+                f"Online verification unavailable: {e}. "
+                "Use OpenSSL for offline verification."
+            ),
+        }
+```
+
+### 3C. Offline Verification (OpenSSL CLI — production recommended)
+
+```bash
+#!/usr/bin/env bash
+# verify-webhook-tsa.sh — Offline TSA token verification
+# No network call required after initial cert download.
+
+set -euo pipefail
+
+PAYLOAD_FILE="${1:?Usage: $0 <payload-file> <tsa-token-b64>}"
+TSA_TOKEN_B64="${2:?Usage: $0 <payload-file> <tsa-token-b64>}"
+TSA_CERT="${TSA_CERT_FILE:-plenumnet-tsa.pem}"
+
+# Download cert if not cached
+if [ ! -f "$TSA_CERT" ]; then
+  echo "Downloading PlenumNET TSA certificate..."
+  curl -s https://plenumnet.replit.app/api/tsa/certificate/download -o "$TSA_CERT"
+fi
+
+# Decode token
+echo "$TSA_TOKEN_B64" | base64 -d > /tmp/webhook.tsr
+
+# Compute SHA-256 hash of payload
+DIGEST=$(sha256sum "$PAYLOAD_FILE" | awk '{print $1}')
+
+# Verify
+echo "Verifying TSA token..."
+echo "  Payload hash: $DIGEST"
+echo "  Token file:   /tmp/webhook.tsr"
+echo "  TSA cert:     $TSA_CERT"
+echo ""
+
+openssl ts -verify \
+  -digest "$DIGEST" \
+  -in /tmp/webhook.tsr \
+  -CAfile "$TSA_CERT"
+
+# Exit code 0 = Verification: OK
+# Exit code 1 = Verification: FAILED
+```
+
+### 3D. Consumer Integration Pattern (Express)
+
+```typescript
+import express from 'express';
+import { verifyWebhookTsaToken } from './webhook-verifier';
+
+const app = express();
+app.use(express.raw({ type: 'application/json' }));
+
+app.post('/webhook/plenumnet', async (req, res) => {
+  // Verify TSA proof
+  const verification = await verifyWebhookTsaToken(req.body, req.headers);
+
+  if (verification.valid) {
+    console.log('Webhook verified', {
+      serial: verification.serial,
+      tier: verification.policyTier,
+      time: verification.genTime,
+    });
+  } else {
+    console.warn('Webhook TSA verification failed', {
+      reason: verification.reason,
+      method: verification.method,
+    });
+    // Policy decision: reject, accept with warning, or accept unverified
+    // Most consumers should accept with warning during rollout
+  }
+
+  // Process the webhook payload
+  const payload = JSON.parse(req.body.toString());
+  // ... business logic ...
+
+  res.status(200).send('OK');
+});
+```
+
+### 3E. Offline Verification Library Recommendations
+
+| Language | Library | Notes |
+|----------|---------|-------|
+| **Node.js** | `pkijs` + `asn1js` | Same libs PlenumNET uses internally. Parse CMS SignedData → extract TSTInfo → verify RSA signature → check messageImprint hash. |
+| **Python** | `asn1crypto` + `cryptography` | `asn1crypto.tsp` has native RFC 3161 support. |
+| **Go** | `github.com/digitorus/pkcs7` | CMS/PKCS#7 parser with signature verification. |
+| **Java** | `org.bouncycastle.tsp.TimeStampToken` | Bouncy Castle has first-class RFC 3161 support. |
+| **CLI** | `openssl ts -verify` | Production recommended — battle-tested, no code to maintain. |
+
+---
+
+## PART 4: AUDIT QUERY API
+
+Extends the TSA service with serial-indexed lookup for bidirectional traceability:
+`notification delivery → TSA serial → audit record → Merkle proof`
+
+### 4A. Modify `tsa-service.ts` — Add serial index
+
+```typescript
+// ── Add class member ──────────────────────────────────────────────────────
+private serialIndex: Map<string, TsaTokenRecord> = new Map();
+
+// ── Modify logToken() — add index maintenance after existing push ─────────
+private logToken(record: TsaTokenRecord): void {
+  this.tokenLog.push(record);
+
+  // Maintain serial index for O(1) lookup
+  this.serialIndex.set(record.serialNumber, record);
+
+  // Existing log rotation (keep last 50K on overflow)
+  if (this.tokenLog.length > 100000) {
+    this.tokenLog = this.tokenLog.slice(-50000);
+
+    // Rebuild serial index after rotation (purge stale entries)
+    this.serialIndex.clear();
+    for (const r of this.tokenLog) {
+      this.serialIndex.set(r.serialNumber, r);
+    }
+  }
+
+  // ... existing disk persistence (token-audit.jsonl) unchanged ...
+}
+```
+
+### 4B. Add public lookup method
+
+```typescript
+/**
+ * Lookup a single TSA token record by serial number.
+ * O(1) via in-memory index. Returns null if not found or purged by rotation.
+ *
+ * Used by:
+ * - Notification service (internal cross-reference: delivery ID → TSA record)
+ * - Audit query endpoint (external: serial → full record + Merkle proof)
+ */
+public getTokenBySerial(serialNumber: string): TsaTokenRecord | null {
+  return this.serialIndex.get(serialNumber) || null;
+}
+```
+
+### 4C. Extend queryTokenLog — add serial filter
+
+```typescript
+  queryTokenLog(filters: {
+    since?: string;
+    until?: string;
+    hashAlgorithm?: string;
+    policyTier?: string;
+    serialNumber?: string;    // ← ADD: exact serial match (fast path)
+    limit?: number;
+  }): { total: number; merkleRoot: string; merkleDepth: number; merkleLeaves: number; tokens: TsaTokenRecord[] } {
+
+    // Fast path: serial lookup
+    if (filters.serialNumber) {
+      const record = this.getTokenBySerial(filters.serialNumber);
+      return {
+        total: record ? 1 : 0,
+        merkleRoot: this.merkleLog.getRoot(),
+        merkleDepth: this.merkleLog.getDepth(),
+        merkleLeaves: this.merkleLog.getSize(),
+        tokens: record ? [record] : [],
+      };
+    }
+
+    // Existing filter logic (unchanged)
+    let records = [...this.tokenLog];
+    if (filters.since) records = records.filter(r => r.createdAt >= filters.since!);
+    if (filters.until) records = records.filter(r => r.createdAt <= filters.until!);
+    if (filters.hashAlgorithm) records = records.filter(r => r.hashAlgorithm === filters.hashAlgorithm);
+    if (filters.policyTier) records = records.filter(r => r.policyTier === filters.policyTier);
+    records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    return {
+      total: records.length,
+      merkleRoot: this.merkleLog.getRoot(),
+      merkleDepth: this.merkleLog.getDepth(),
+      merkleLeaves: this.merkleLog.getSize(),
+      tokens: records.slice(0, filters.limit || 100),
+    };
+  }
+```
+
+### 4D. Add query endpoint to TSA routes
+
+```typescript
+// GET /api/tsa/audit/query
+// Extends existing /api/tsa/audit (admin-only token listing) with
+// queryable lookup by serial, time range, policy tier.
+//
+// Serial lookup is the primary use case — notification service stores
+// TSA serial in delivery log; this endpoint closes the loop.
+//
+// Auth: readonly or admin role. Rate limited.
+
+router.get('/audit/query',
+  rateLimit({ windowMs: 60_000, max: 30 }),
+  requireAuth('readonly'),
+  (req: Request, res: Response) => {
+    const filters: {
+      since?: string;
+      until?: string;
+      hashAlgorithm?: string;
+      policyTier?: string;
+      serialNumber?: string;
+      limit?: number;
+    } = {};
+
+    if (req.query.serialNumber) filters.serialNumber = req.query.serialNumber as string;
+    if (req.query.since)        filters.since = req.query.since as string;
+    if (req.query.until)        filters.until = req.query.until as string;
+    if (req.query.hashAlgorithm) filters.hashAlgorithm = req.query.hashAlgorithm as string;
+    if (req.query.policyTier)   filters.policyTier = req.query.policyTier as string;
+    if (req.query.limit)        filters.limit = Math.min(parseInt(req.query.limit as string, 10), 500);
+
+    // queryTokenLog handles both serial fast-path and general query
+    const result = service.queryTokenLog(filters);
+
+    if (filters.serialNumber && result.total === 0) {
+      return res.status(404).json({
+        error: 'Serial number not found',
+        serialNumber: filters.serialNumber,
+        hint: 'Record may have been purged by log rotation (>100K tokens)',
+      });
+    }
+
+    res.json(result);
+  },
+);
+```
+
+### 4E. Usage examples
+
+**Internal cross-reference (notification service → TSA audit)**
+
+```typescript
+// After sending a notification with TSA proof:
+const tsaSerial = proofHeaders['X-PlenumNET-TSA-Serial'];
+
+// Later, for audit enrichment:
+const tsaRecord = tsaService.getTokenBySerial(tsaSerial);
+if (tsaRecord) {
+  deliveryLog.enrichWithTsa({
+    genTime: tsaRecord.genTime,
+    merkleLeaf: tsaRecord.merkleLeafHash,
+    policyTier: tsaRecord.policyTier,
+    hptpPrecision: tsaRecord.hptpPrecision,
+  });
+}
+```
+
+**External auditor (HTTP)**
+
+```bash
+# Lookup by serial (fast path — O(1))
+curl -H "Authorization: Bearer $AUDIT_TOKEN" \
+  "https://plenumnet.replit.app/api/tsa/audit/query?serialNumber=123456789"
+
+# Response:
+# {
+#   "total": 1,
+#   "merkleRoot": "a1b2c3d4...",
+#   "merkleDepth": 14,
+#   "merkleLeaves": 12345,
+#   "tokens": [{
+#     "serialNumber": "123456789",
+#     "genTime": "20260224153045.678Z",
+#     "policyTier": "COMPLY",
+#     "merkleLeafHash": "e5f6a7b8...",
+#     ...full TsaTokenRecord fields...
+#   }]
+# }
+
+# Time-range query (paginated)
+curl -H "Authorization: Bearer $AUDIT_TOKEN" \
+  "https://plenumnet.replit.app/api/tsa/audit/query?since=2026-02-24T00:00:00Z&policyTier=FORENSICS&limit=50"
+```
+
+**Complete audit chain verification**
+
+```bash
+# 1. Receive webhook with X-PlenumNET-TSA-Serial: 123456789
+# 2. Query the audit API for the full record
+AUDIT=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://plenumnet.replit.app/api/tsa/audit/query?serialNumber=123456789")
+
+# 3. Extract merkle leaf hash from the record
+LEAF=$(echo "$AUDIT" | jq -r '.tokens[0].merkleLeafHash')
+
+# 4. Verify: the leaf hash in the audit record matches the Merkle tree
+# The merkleRoot in the response is the current tree root
+# An independent observer can verify the leaf is included in the root
+ROOT=$(echo "$AUDIT" | jq -r '.merkleRoot')
+echo "Merkle leaf: $LEAF"
+echo "Merkle root: $ROOT"
+echo "Leaf is cryptographically bound to root via the Merkle tree"
+
+# 5. Additionally: verify the TSA token itself with OpenSSL
+echo "$TOKEN_BASE64" | base64 -d > token.tsr
+openssl ts -verify -digest "$HASH" -in token.tsr -CAfile plenumnet-tsa.pem
+```
+
+---
+
+## BIDIRECTIONAL TRACEABILITY (Complete Chain)
+
+```
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Notification     │     │  TSA Service      │     │  Merkle Tree     │
+│  Delivery Log     │     │  Audit Log        │     │                  │
+│                   │     │                   │     │                  │
+│ deliveryId: abc   │────▶│ serial: 123456    │────▶│ leaf: e5f6a7b8   │
+│ tsaSerial: 123456 │     │ genTime: ...      │     │ root: a1b2c3d4   │
+│ channel: email    │     │ policyTier: COMPLY│     │ depth: 14        │
+│ recipient: ...    │     │ merkleLeaf: e5f6  │     │                  │
+│                   │     │ hptpPrecision: ns │     │                  │
+└──────────────────┘     └──────────────────┘     └──────────────────┘
+        │                         │                         │
+        └─────────── X-PlenumNET-TSA-Serial ───────────────┘
+                    (shared key across all three stores)
+```
+
+**Forward trace:** notification deliveryId → `X-PlenumNET-TSA-Serial` header → audit query → Merkle leaf
+**Reverse trace:** Merkle leaf hash → audit record → `serialNumber` → notification delivery log
+
+---
+
+## TESTING CHECKLIST
+
+### Notification Polish
+- [ ] Set `TSA_NOTIFICATION_PHASE=5` → startup error log, effective phase defaults to 2
+- [ ] Set `TSA_NOTIFICATION_PHASE=3` → startup warning about consumer migration
+- [ ] Send email → `X-PlenumNET-Proof-Summary` header present with `tier:COMPLY; serial:...; time:...; merkle:...`
+- [ ] TSA failure in Phase 2 → `legacy_fallback_total{phase="2"}` increments
+- [ ] TSA failure in Phase 3 → `legacy_fallback_total{phase="3"}` increments (alert fires)
+
+### Recording Rules
+- [ ] Prometheus loads `recording-rules.yml` without error
+- [ ] `plenumnet:notification:tsa:success_rate_5m` returns value between 0 and 1
+- [ ] Grafana panels show data using pre-computed recording rules
+
+### Webhook Verification
+- [ ] Send test webhook → consumer calls `verifyWebhookTsaToken` → `valid: true`
+- [ ] Kill PlenumNET → consumer gets `method: 'hash-only'` with clear error message
+- [ ] Bash script `verify-webhook-tsa.sh` returns `Verification: OK` on valid token
+- [ ] Bash script returns non-zero exit on tampered payload
+
+### Audit Query
+- [ ] `GET /api/tsa/audit/query?serialNumber=<valid>` → 200 with 1 token record
+- [ ] `GET /api/tsa/audit/query?serialNumber=<invalid>` → 404 with hint
+- [ ] `GET /api/tsa/audit/query?since=...&policyTier=COMPLY` → paginated results
+- [ ] `GET /api/tsa/audit/query?limit=5` → max 5 records returned
+- [ ] `GET /api/tsa/audit/query?limit=9999` → capped to 500
+- [ ] Unauthenticated request → 401
+- [ ] Rate limit: 31st request within 60 seconds → 429
+- [ ] After log rotation (>100K tokens): serial index rebuilt, old serials return 404
+- [ ] Internal call: `tsaService.getTokenBySerial(serial)` returns correct record
+
+---
+
+## NON-NEGOTIABLE RULES (Reinforced)
+
+1. **Proof summary is informational.** Consumers MUST verify using the full TSA token, not the summary header. The summary is for human debugging only.
+
+2. **Online verification is the recommended consumer path.** Offline verification requires ASN.1 parsing expertise. OpenSSL CLI is the pragmatic offline option.
+
+3. **The webhook verifier reference code does NOT implement offline verification.** It explicitly states this. No placeholder `return true`. Consumers wanting offline must use OpenSSL or a full RFC 3161 library.
+
+4. **Audit query endpoint is rate-limited and authenticated.** No anonymous access. Scoped JWTs with short TTL for external auditors.
+
+5. **Serial index is rebuilt on log rotation.** The `Map.clear()` + rebuild pattern prevents stale entries from accumulating after the 100K→50K trim.
+
+6. **The query endpoint uses `queryTokenLog()` for all responses.** It does not reach into `service.merkleLog` directly. Merkle metadata comes through the existing return structure.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*PlenumNET TSA Supplementary Integration Package*
+*"Trust is verifiable. Proof is portable. The chain is complete."*

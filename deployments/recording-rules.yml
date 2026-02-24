@@ -1,0 +1,38 @@
+groups:
+  - name: plenumnet.notification.tsa
+    rules:
+      - record: plenumnet:notification:tsa:success_rate_5m
+        expr: >
+          sum(rate(plenumnet_notification_tsa_requests_total{status="success"}[5m]))
+          /
+          sum(rate(plenumnet_notification_tsa_requests_total[5m]))
+
+      - record: plenumnet:notification:tsa:error_rate_5m
+        expr: >
+          1 - plenumnet:notification:tsa:success_rate_5m
+
+      - record: plenumnet:notification:tsa:p99_latency_5m
+        expr: >
+          histogram_quantile(0.99,
+            sum(rate(plenumnet_notification_tsa_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: plenumnet:notification:tsa:p50_latency_5m
+        expr: >
+          histogram_quantile(0.50,
+            sum(rate(plenumnet_notification_tsa_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      - record: plenumnet:notification:tsa:token_size_p95_5m
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(plenumnet_notification_tsa_token_size_bytes_bucket[5m])) by (le)
+          )
+
+      - record: plenumnet:notification:tsa:legacy_fallback_phase3_5m
+        expr: >
+          rate(plenumnet_notification_legacy_fallback_total{phase="3"}[5m])
+
+      - record: plenumnet:notification:tsa:requests_by_tier_5m
+        expr: >
+          sum by (policy_tier)(rate(plenumnet_notification_tsa_requests_total[5m]))
