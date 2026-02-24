@@ -216,7 +216,7 @@ function HeroSection() {
         >
           <source src={heroVideo} type="video/mp4" />
         </video>
-        <div className="absolute inset-0" style={{ backgroundColor: 'hsl(var(--background) / 0.45)' }} />
+        <div className="absolute inset-0" />
       </div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-5">
