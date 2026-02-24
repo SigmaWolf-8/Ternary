@@ -113,23 +113,31 @@ function startPqtiService(): ChildProcess | null {
     log("PQTI binary not found at target/release/pqti-service — skipping", "pqti");
     return null;
   }
-  const child = spawn(binaryPath, [], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env },
-  });
-  child.stdout?.on("data", (data: Buffer) => {
-    const msg = data.toString().trim();
-    if (msg) log(msg, "pqti");
-  });
-  child.stderr?.on("data", (data: Buffer) => {
-    const msg = data.toString().trim();
-    if (msg) log(`error: ${msg}`, "pqti");
-  });
-  child.on("exit", (code) => {
-    log(`PQTI service exited with code ${code}`, "pqti");
-  });
-  log("PQTI service started on port 3001", "pqti");
-  return child;
+  try {
+    const child = spawn(binaryPath, [], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env },
+    });
+    child.on("error", (err) => {
+      log(`PQTI spawn error (non-fatal): ${err.message}`, "pqti");
+    });
+    child.stdout?.on("data", (data: Buffer) => {
+      const msg = data.toString().trim();
+      if (msg) log(msg, "pqti");
+    });
+    child.stderr?.on("data", (data: Buffer) => {
+      const msg = data.toString().trim();
+      if (msg) log(`error: ${msg}`, "pqti");
+    });
+    child.on("exit", (code) => {
+      log(`PQTI service exited with code ${code}`, "pqti");
+    });
+    log("PQTI service started on port 3001", "pqti");
+    return child;
+  } catch (err) {
+    log(`PQTI failed to start (non-fatal): ${(err as Error).message}`, "pqti");
+    return null;
+  }
 }
 
 (async () => {
