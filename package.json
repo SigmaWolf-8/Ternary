@@ -73,6 +73,7 @@
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
     "pkijs": "^3.3.3",
+    "prom-client": "^15.1.3",
     "pvutils": "^1.1.5",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",

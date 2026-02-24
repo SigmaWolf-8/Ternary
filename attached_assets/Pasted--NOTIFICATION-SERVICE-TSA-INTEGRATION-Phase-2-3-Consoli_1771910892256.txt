@@ -1,0 +1,821 @@
+# NOTIFICATION SERVICE — TSA INTEGRATION (Phase 2/3)
+# Consolidated Implementation Package — Final
+
+**Date:** February 24, 2026
+**Repository:** SigmaWolf-8/Ternary
+**Modifies:** `server/services/notification-service.ts` + `server/index.ts`
+**Creates:** `server/services/notification-tsa-policy.ts`
+**Depends on:** `server/services/tsa-service.ts` (Kong #21 — already built + hardened)
+**Migration Goal:** Three proprietary headers → one standards-compliant RFC 3161 TST header
+
+---
+
+## BEFORE vs AFTER (At a Glance)
+
+| Header | Phase 1 (Legacy) | Phase 2 (Migration) | Phase 3 (TSA Primary) |
+|--------|-------------------|---------------------|----------------------|
+| `X-PlenumNET-HPTP-Timestamp` | Raw HPTP string | Still sent (fallback) | Removed |
+| `X-PlenumNET-Message-Hash` | SHA-3 hex | Still sent (fallback) | Removed |
+| `X-PlenumNET-TLDSA-Signature` | TL-DSA sig | Still sent (fallback) | Removed |
+| `X-PlenumNET-TSA-Token` | — | Base64 RFC 3161 TST | Only proof header |
+| `X-PlenumNET-TSA-Serial` | — | Added (traceability) | Kept |
+| `X-PlenumNET-TSA-GenTime` | — | Added (quick parse) | Kept |
+| `X-PlenumNET-TSA-Policy` | — | Added (tier visibility) | Kept |
+| `X-PlenumNET-TSA-Merkle` | — | Added (audit linkage) | Kept |
+| `X-PlenumNET-Proof-Mode` | — | `tsa+legacy` | `tsa-only` / `none` |
+
+**Verification:** Any RFC 3161 tool (OpenSSL, Adobe, jarsigner) verifies the TST offline — no PlenumNET dependency.
+
+---
+
+## PHASE STRATEGY
+
+| Phase | Headers Sent | TSA Failure Behavior | Rollback | When to Advance |
+|-------|-------------|---------------------|----------|-----------------|
+| **2** (default) | Legacy + TSA (additive) | Fall back to legacy headers | Remove TSA call; legacy intact | After 1–2 weeks of dual sending |
+| **3** | TSA only; legacy removed | Log warning; send without proof | Set `TSA_NOTIFICATION_PHASE=2` | After consumers confirm TST parsing works |
+
+Control via env var: `TSA_NOTIFICATION_PHASE=2` (default) | `3`
+
+> **Why two phases, not four:**
+> The original design had Phase 3 and Phase 4 as separate stages, but they were
+> code-identical — both sent TSA-only and both had no legacy fallback. Collapsing
+> them eliminates a phantom distinction that would confuse the agent. If a future
+> requirement emerges (e.g., "hard-fail: refuse to send notification if TSA is
+> down"), add Phase 4 at that time with an explicit behavioral difference.
+
+---
+
+## FILE MAP
+
+```
+server/
+├── services/
+│   ├── notification-service.ts       ← MODIFY (add TSA logic + metrics)
+│   ├── tsa-service.ts                ← EXISTING (do not touch)
+│   └── notification-tsa-policy.ts    ← NEW FILE (policy mapping)
+├── index.ts                          ← MODIFY (inject tsaService)
+```
+
+---
+
+## FILE 1 OF 1 (NEW): `server/services/notification-tsa-policy.ts`
+
+```typescript
+/**
+ * NOTIFICATION → TSA POLICY TIER MAPPING
+ *
+ * Repository: SigmaWolf-8/Ternary
+ * Location:   server/services/notification-tsa-policy.ts
+ *
+ * Determines which TSA tier (COMPLY, FORENSICS, SENTINEL, etc.) applies
+ * to each outbound notification based on channel and content type.
+ * Separated from notification-service.ts for clean imports and testability.
+ */
+
+import { TSA_POLICIES, TSA_POLICY_METADATA } from './tsa-service';
+
+// ── Channel-based default policy tiers ────────────────────────────────────
+export const CHANNEL_POLICY: Record<string, string> = {
+  email:    TSA_POLICIES.COMPLY,     // Most commonly subpoenaed business record
+  sms:      TSA_POLICIES.DEFAULT,    // Transactional alerts
+  push:     TSA_POLICIES.DEFAULT,    // Ephemeral notifications
+  webhook:  TSA_POLICIES.SECURE,     // Machine-to-machine in zero-trust
+  event:    TSA_POLICIES.SENTINEL,   // Internal events for timeline reconstruction
+};
+
+// ── Content-based policy overrides (take precedence over channel) ─────────
+export const CONTENT_POLICY: Record<string, string> = {
+  // Legal / eDiscovery
+  'legal-notice':         TSA_POLICIES.FORENSICS,
+  'litigation-hold':      TSA_POLICIES.FORENSICS,
+  'ediscovery-alert':     TSA_POLICIES.FORENSICS,
+  // Financial / Regulatory
+  'trade-confirmation':   TSA_POLICIES.COMPLY,
+  'regulatory-filing':    TSA_POLICIES.COMPLY,
+  'audit-notification':   TSA_POLICIES.COMPLY,
+  // Security / Incident
+  'security-alert':       TSA_POLICIES.SENTINEL,
+  'incident-response':    TSA_POLICIES.SENTINEL,
+  'access-violation':     TSA_POLICIES.SENTINEL,
+  // Document workflow
+  'document-signed':      TSA_POLICIES.FORENSICS,
+  'document-delivered':   TSA_POLICIES.FORENSICS,
+  'document-rejected':    TSA_POLICIES.FORENSICS,
+};
+
+/**
+ * Resolve the TSA policy OID for a notification.
+ * Priority: content classification > channel default > global default.
+ */
+export function resolveTsaPolicy(
+  channel: string,
+  contentType?: string,
+): string {
+  if (contentType && CONTENT_POLICY[contentType]) {
+    return CONTENT_POLICY[contentType];
+  }
+  return CHANNEL_POLICY[channel] || TSA_POLICIES.DEFAULT;
+}
+
+/**
+ * Resolve the human-readable tier name for a policy OID.
+ * Used for Prometheus labels and structured logging.
+ *
+ * Returns 'DEFAULT', 'COMPLY', 'FORENSICS', 'SENTINEL', or 'SECURE'.
+ * Falls back to 'UNKNOWN' if OID not found in metadata.
+ */
+export function resolveTierName(
+  channel: string,
+  contentType?: string,
+): string {
+  const oid = resolveTsaPolicy(channel, contentType);
+  const meta = TSA_POLICY_METADATA[oid];
+  return meta?.tier || 'UNKNOWN';
+}
+```
+
+---
+
+## MODIFICATIONS TO `notification-service.ts`
+
+### Add imports (top of file)
+
+```typescript
+import * as crypto from 'crypto';
+import * as prom from 'prom-client';
+import { TsaService, JsonTimestampResponse } from './tsa-service';
+import { resolveTsaPolicy, resolveTierName } from './notification-tsa-policy';
+```
+
+### Add phase control constant
+
+```typescript
+// ── Phase control ─────────────────────────────────────────────────────────
+// TSA_NOTIFICATION_PHASE=2 (default): Send BOTH legacy + TSA headers.
+// TSA_NOTIFICATION_PHASE=3: Send TSA headers only; legacy headers omitted.
+const TSA_PHASE = parseInt(process.env.TSA_NOTIFICATION_PHASE || '2', 10);
+```
+
+### Add Prometheus metrics
+
+```typescript
+// ── Prometheus metrics ────────────────────────────────────────────────────
+// Exported via registry for the /metrics endpoint in index.ts
+
+export const tsaMetricsRegistry = new prom.Registry();
+prom.collectDefaultMetrics({ register: tsaMetricsRegistry });
+
+const tsaRequestCounter = new prom.Counter({
+  name: 'plenumnet_notification_tsa_requests_total',
+  help: 'Total TSA token requests from notification service',
+  labelNames: ['phase', 'channel', 'policy_tier', 'status'] as const,
+  registers: [tsaMetricsRegistry],
+});
+
+const tsaDurationHistogram = new prom.Histogram({
+  name: 'plenumnet_notification_tsa_request_duration_seconds',
+  help: 'Duration of TSA token acquisition (seconds)',
+  labelNames: ['phase', 'channel', 'policy_tier'] as const,
+  buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  registers: [tsaMetricsRegistry],
+});
+
+const tsaPhaseGauge = new prom.Gauge({
+  name: 'plenumnet_notification_tsa_phase',
+  help: 'Current TSA integration phase (2=dual, 3=tsa-only)',
+  registers: [tsaMetricsRegistry],
+});
+
+const tsaTokenSizeHistogram = new prom.Histogram({
+  name: 'plenumnet_notification_tsa_token_size_bytes',
+  help: 'Base64-encoded TSA token size in characters (for header budget monitoring)',
+  labelNames: ['policy_tier'] as const,
+  buckets: [512, 1024, 2048, 3072, 4096, 6144, 8192],
+  registers: [tsaMetricsRegistry],
+});
+
+tsaPhaseGauge.set(TSA_PHASE);
+```
+
+### Add class member
+
+```typescript
+// ── Add to NotificationService constructor deps interface ─────────────────
+interface NotificationServiceDeps {
+  // ... existing deps (hptpClient, tldsaClient, emailTransport, etc.) ...
+  tsaService?: TsaService;  // Optional — null means TSA not yet initialized
+}
+
+// ── Add as class member ───────────────────────────────────────────────────
+private tsaService: TsaService | null;
+
+// ── In constructor body ───────────────────────────────────────────────────
+// this.tsaService = deps.tsaService ?? null;
+```
+
+### Method: acquireTsaToken (non-blocking, instrumented)
+
+```typescript
+/**
+ * Request an RFC 3161 Time-Stamp Token for a notification payload.
+ *
+ * This is the core Phase 2 integration point:
+ *   1. Hashes notification content with SHA-256
+ *   2. Calls tsaService.processJsonRequest() (same-process, no HTTP)
+ *   3. Returns base64 TST + metadata for header injection and audit
+ *
+ * On failure, returns null — NEVER blocks notification delivery.
+ * Prometheus metrics are recorded for every outcome.
+ */
+private async acquireTsaToken(
+  payload: string | Buffer,
+  channel: string,
+  contentType?: string,
+): Promise<JsonTimestampResponse | null> {
+  if (!this.tsaService) {
+    tsaRequestCounter.inc({
+      phase: String(TSA_PHASE),
+      channel,
+      policy_tier: 'none',
+      status: 'skipped_no_service',
+    });
+    return null;
+  }
+
+  // Resolve tier name BEFORE the call — needed for error-path metrics
+  // so the label value is consistent with the success path
+  // (response.policyTier on success, this on error — both are tier NAMES)
+  const tierName = resolveTierName(channel, contentType);
+
+  const endTimer = tsaDurationHistogram.startTimer({
+    phase: String(TSA_PHASE),
+    channel,
+    policy_tier: tierName,
+  });
+
+  try {
+    // 1. Hash the payload with SHA-256
+    //    SHA-256 (not SHA-3) because:
+    //    - Universal default for RFC 3161 clients
+    //    - OpenSSL ts -verify expects SHA-256 by default
+    //    - SHA-3 still used in legacy headers if Phase 2 dual-mode
+    const payloadBuffer = Buffer.isBuffer(payload)
+      ? payload
+      : Buffer.from(payload, 'utf-8');
+    const hash = crypto.createHash('sha256')
+      .update(payloadBuffer)
+      .digest('hex');
+
+    // 2. Resolve policy OID
+    const policyOid = resolveTsaPolicy(channel, contentType);
+
+    // 3. Nonce for replay protection (128-bit entropy)
+    const nonce = crypto.randomBytes(16).toString('hex');
+
+    // 4. Call TSA (same-process, no HTTP overhead)
+    const response = await this.tsaService.processJsonRequest(
+      {
+        hash,
+        algorithm: 'sha256',
+        policy: policyOid,
+        nonce,
+        includeChain: false,  // Internal consumer — chain not needed in header, saves ~1-2KB
+      },
+      'notification-service',
+    );
+
+    // 5. Record metrics
+    endTimer();
+    tsaRequestCounter.inc({
+      phase: String(TSA_PHASE),
+      channel,
+      policy_tier: response.policyTier,
+      status: 'success',
+    });
+    tsaTokenSizeHistogram.observe(
+      { policy_tier: response.policyTier },
+      response.token.length,
+    );
+
+    // 6. Structured log
+    console.info('TSA token acquired', {
+      channel,
+      contentType,
+      serial: response.serialNumber,
+      tier: response.policyTier,
+      merkleLeaf: response.merkleLeafHash.slice(0, 16) + '...',
+      tokenChars: response.token.length,
+      phase: TSA_PHASE,
+    });
+
+    return response;
+
+  } catch (err) {
+    endTimer();
+
+    const status = (err as Error).message.includes('timeout')
+      ? 'timeout'
+      : 'error';
+
+    tsaRequestCounter.inc({
+      phase: String(TSA_PHASE),
+      channel,
+      policy_tier: tierName,  // Tier NAME, not OID — matches success path labels
+      status,
+    });
+
+    console.error('TSA token failed', {
+      channel,
+      contentType,
+      error: (err as Error).message,
+      phase: TSA_PHASE,
+      fallback: TSA_PHASE <= 2 ? 'legacy' : 'none',
+    });
+
+    return null;
+  }
+}
+```
+
+### Method: buildProofHeaders
+
+```typescript
+/**
+ * Build cryptographic proof headers for an outbound notification.
+ *
+ * Phase 2: Returns BOTH legacy headers AND TSA token header.
+ * Phase 3: Returns TSA token header only.
+ *
+ * TSA failure NEVER blocks delivery — Phase 2 falls back to legacy,
+ * Phase 3 sends without proof and logs the gap.
+ */
+private async buildProofHeaders(
+  payload: string | Buffer,
+  channel: string,
+  contentType?: string,
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+
+  // ── Attempt TSA token acquisition ────────────────────────────────────
+  const tsa = await this.acquireTsaToken(payload, channel, contentType);
+
+  if (tsa) {
+    // ── TSA token acquired ─────────────────────────────────────────────
+    // Primary header: base64 RFC 3161 TimeStampResp
+    // Contains: trusted time + hash proof + classical sig + TL-DSA dual-sig
+    // Verifiable: openssl ts -verify -in <token> -CAfile plenumnet-tsa.pem
+    headers['X-PlenumNET-TSA-Token'] = tsa.token;
+
+    // Metadata headers (same data is in the TST, but these save a DER parse)
+    headers['X-PlenumNET-TSA-Serial'] = tsa.serialNumber;
+    headers['X-PlenumNET-TSA-GenTime'] = tsa.genTime;
+    headers['X-PlenumNET-TSA-Policy'] = tsa.policyTier;
+    headers['X-PlenumNET-TSA-Merkle'] = tsa.merkleLeafHash;
+
+    // Header size safety check
+    // tsa.token is a base64 STRING — .length gives the actual character count
+    // the MTA will see in the header. Most MTAs allow 100+ KB total headers.
+    // RFC 5322 recommends individual lines under 998 chars; fold if needed.
+    if (tsa.token.length > 4096) {
+      console.warn('Large TST detected', {
+        tokenChars: tsa.token.length,
+        serial: tsa.serialNumber,
+        tier: tsa.policyTier,
+        note: 'Consider header folding per RFC 5322 §2.2.3',
+      });
+    }
+
+    if (TSA_PHASE === 2) {
+      // Phase 2: Also send legacy headers for backward compatibility
+      const legacy = await this.buildLegacyHeaders(payload);
+      Object.assign(headers, legacy);
+      headers['X-PlenumNET-Proof-Mode'] = 'tsa+legacy';
+    } else {
+      headers['X-PlenumNET-Proof-Mode'] = 'tsa-only';
+    }
+
+  } else {
+    // ── TSA unavailable ────────────────────────────────────────────────
+
+    if (TSA_PHASE <= 2) {
+      // Phase 2: Fall back to legacy headers (same as Phase 1 behavior)
+      const legacy = await this.buildLegacyHeaders(payload);
+      Object.assign(headers, legacy);
+      headers['X-PlenumNET-Proof-Mode'] = 'legacy-fallback';
+    } else {
+      // Phase 3: No legacy fallback exists
+      headers['X-PlenumNET-Proof-Mode'] = 'none';
+      console.warn('TSA unavailable in Phase 3 — notification sent without proof', {
+        channel,
+        contentType,
+        phase: TSA_PHASE,
+      });
+    }
+  }
+
+  return headers;
+}
+```
+
+### Method: buildLegacyHeaders (Phase 1 preservation)
+
+```typescript
+/**
+ * Build the original Phase 1 cryptographic headers.
+ *
+ * AGENT: If notification-service.ts ALREADY has a method that builds
+ * these three headers (possibly named buildHeaders, prepareHeaders,
+ * getTimestampHeaders, or inline in the send method), RENAME that
+ * existing method to buildLegacyHeaders and use it here. Do NOT
+ * duplicate the logic.
+ *
+ * If the existing code builds these headers INLINE (not in a method),
+ * EXTRACT the logic into this method and call it from both the
+ * original location and from buildProofHeaders.
+ *
+ * The implementation below is the reference — adapt to match existing
+ * client method names and error handling patterns.
+ */
+private async buildLegacyHeaders(
+  payload: string | Buffer,
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+
+  try {
+    // 1. HPTP trusted timestamp
+    const hptpResult = await this.hptpClient.getTimestamp();
+    headers['X-PlenumNET-HPTP-Timestamp'] = hptpResult.timestamp;
+
+    // 2. SHA-3 hash of notification content
+    const payloadBuffer = Buffer.isBuffer(payload)
+      ? payload
+      : Buffer.from(payload, 'utf-8');
+    const messageHash = crypto.createHash('sha3-256')
+      .update(payloadBuffer)
+      .digest('hex');
+    headers['X-PlenumNET-Message-Hash'] = messageHash;
+
+    // 3. TL-DSA post-quantum signature of the hash
+    try {
+      const sig = await this.tldsaClient.sign(messageHash);
+      headers['X-PlenumNET-TLDSA-Signature'] = sig.signature;
+      headers['X-PlenumNET-TLDSA-KeyId'] = sig.publicKeyId;
+    } catch {
+      // TL-DSA failure is non-fatal (same policy as TSA dual-sign)
+    }
+  } catch (error) {
+    console.error('Legacy header build failed', {
+      error: (error as Error).message,
+    });
+  }
+
+  return headers;
+}
+```
+
+### Integration point: dispatch methods
+
+```typescript
+// ── Replace existing header-building in each dispatch method ──────────────
+//
+// BEFORE (Phase 1):
+//   const hptpTimestamp = await this.getTimestampSafe();
+//   const messageHash = this.sha3Hash(messageContent);
+//   const tldsaSig = await this.signHash(messageHash);
+//   headers['X-PlenumNET-HPTP-Timestamp'] = hptpTimestamp;
+//   headers['X-PlenumNET-Message-Hash'] = messageHash;
+//   headers['X-PlenumNET-TLDSA-Signature'] = tldsaSig;
+//
+// AFTER (Phase 2):
+//   const proofHeaders = await this.buildProofHeaders(body, 'email', opts?.contentType);
+//   Object.assign(headers, proofHeaders);
+//
+// One call replaces three. Apply to each channel:
+
+// Email
+async sendEmail(to: string, subject: string, body: string, opts?: { contentType?: string }) {
+  const headers = await this.buildProofHeaders(body, 'email', opts?.contentType);
+  // ... existing dispatch unchanged ...
+}
+
+// Webhook
+async sendWebhook(url: string, payload: object, opts?: { contentType?: string }) {
+  const body = JSON.stringify(payload);
+  const headers = await this.buildProofHeaders(body, 'webhook', opts?.contentType);
+  // ... existing dispatch unchanged ...
+}
+
+// SMS (no headers on wire, but TSA token logged for audit trail)
+async sendSms(to: string, message: string, opts?: { contentType?: string }) {
+  const proofHeaders = await this.buildProofHeaders(message, 'sms', opts?.contentType);
+  // Log TSA serial for audit: this.auditLog.record({ tsaSerial: proofHeaders['X-PlenumNET-TSA-Serial'] });
+}
+
+// Event bus
+async emitEvent(name: string, payload: object, opts?: { contentType?: string }) {
+  const body = JSON.stringify(payload);
+  const proofHeaders = await this.buildProofHeaders(body, 'event', opts?.contentType);
+  // Attach metadata: this.eventBus.emit(name, { ...payload, _tsaSerial: proofHeaders['X-PlenumNET-TSA-Serial'] });
+}
+```
+
+---
+
+## MODIFICATIONS TO `server/index.ts`
+
+```typescript
+// ── Inject TSA service into notification service ──────────────────────────
+//
+// AGENT: Find where NotificationService is instantiated.
+// The tsaService instance already exists from Kong #21 initialization above.
+// Pass it through.
+
+const notificationService = new NotificationService({
+  hptpClient: hptpClientForNotify,
+  tldsaClient: tldsaClientForNotify,
+  emailTransport: emailTransport,
+  tsaService: tsaService,        // ← ADD THIS — same instance from TSA init
+  // ... other existing deps ...
+});
+
+console.log(
+  `Notification TSA integration active — Phase ${process.env.TSA_NOTIFICATION_PHASE || '2'}`,
+);
+
+// ── Expose Prometheus metrics (add if not already present) ────────────────
+import { tsaMetricsRegistry } from './services/notification-service';
+
+app.get('/metrics/notification-tsa', async (_req, res) => {
+  res.set('Content-Type', tsaMetricsRegistry.contentType);
+  res.end(await tsaMetricsRegistry.metrics());
+});
+```
+
+---
+
+## ENVIRONMENT VARIABLES
+
+```bash
+# TSA Integration Phase (default: 2)
+# 2 = Both legacy + TSA headers (zero-risk migration)
+# 3 = TSA token only (legacy headers removed)
+TSA_NOTIFICATION_PHASE=2
+```
+
+---
+
+## PROMETHEUS METRICS REFERENCE
+
+| Metric | Type | Labels | Purpose |
+|--------|------|--------|---------|
+| `plenumnet_notification_tsa_requests_total` | Counter | `phase`, `channel`, `policy_tier`, `status` | Total TSA requests; status = `success`, `error`, `timeout`, `skipped_no_service` |
+| `plenumnet_notification_tsa_request_duration_seconds` | Histogram | `phase`, `channel`, `policy_tier` | Latency p50/p95/p99 |
+| `plenumnet_notification_tsa_phase` | Gauge | — | Current phase (for dashboard annotation) |
+| `plenumnet_notification_tsa_token_size_bytes` | Histogram | `policy_tier` | Token size distribution (header budget) |
+
+### Alerting Rules (Prometheus YAML)
+
+```yaml
+groups:
+  - name: plenumnet_notification_tsa
+    rules:
+      # TSA error rate > 5% sustained for 5 minutes
+      - alert: PlenumnetTsaHighErrorRate
+        expr: >
+          rate(plenumnet_notification_tsa_requests_total{status=~"error|timeout"}[5m])
+          / rate(plenumnet_notification_tsa_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TSA request error rate high ({{ $value | humanizePercentage }})"
+          description: "Channel: {{ $labels.channel }}, Tier: {{ $labels.policy_tier }}"
+
+      # TSA p99 latency > 2 seconds sustained for 10 minutes
+      - alert: PlenumnetTsaHighLatency
+        expr: >
+          histogram_quantile(0.99,
+            rate(plenumnet_notification_tsa_request_duration_seconds_bucket[5m])
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TSA p99 latency exceeds 2s ({{ $value | humanizeDuration }})"
+          description: "Channel: {{ $labels.channel }}, Tier: {{ $labels.policy_tier }}"
+
+      # Phase 3: any non-success requests mean notifications sent without proof
+      - alert: PlenumnetTsaUnexpectedFallback
+        expr: >
+          rate(plenumnet_notification_tsa_requests_total{status!="success", phase="3"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TSA failures in Phase 3 — notifications sent without proof"
+          description: "Status: {{ $labels.status }}, Channel: {{ $labels.channel }}"
+```
+
+### Grafana Dashboard Queries
+
+```promql
+# Fallback rate (Phase 2 — how often legacy headers are used instead of TSA)
+rate(plenumnet_notification_tsa_requests_total{status!="success"}[5m])
+/ rate(plenumnet_notification_tsa_requests_total[5m])
+
+# Token size p95 (header budget monitoring)
+histogram_quantile(0.95,
+  rate(plenumnet_notification_tsa_token_size_bytes_bucket[5m])
+)
+
+# Requests by tier (stacked area)
+sum by (policy_tier)(rate(plenumnet_notification_tsa_requests_total[5m]))
+```
+
+### Label Consistency Note
+
+Both success and error paths emit `policy_tier` as a human-readable tier
+name (`COMPLY`, `FORENSICS`, `SENTINEL`, etc.), NOT the raw OID. This is
+handled by `resolveTierName()` in the policy file, which does a reverse
+lookup through `TSA_POLICY_METADATA`. Consistent label values prevent
+cardinality explosions in Prometheus.
+
+---
+
+## CONSUMER VERIFICATION GUIDE
+
+```bash
+# ── Step 1: Extract token from email header ─────────────────────────────
+echo "$X_PlenumNET_TSA_Token" | base64 -d > notification.tsr
+
+# ── Step 2: Download PlenumNET TSA certificate (one-time) ───────────────
+curl https://plenumnet.replit.app/api/tsa/certificate/download -o plenumnet-tsa.pem
+
+# ── Step 3: Hash the exact notification content received ────────────────
+sha256sum received-body.txt   # copy the hex digest
+
+# ── Step 4: Verify ──────────────────────────────────────────────────────
+openssl ts -verify \
+  -digest <paste-sha256-hex-here> \
+  -in notification.tsr \
+  -CAfile plenumnet-tsa.pem
+
+# Expected: Verification: OK
+#
+# This proves:
+#   1. The notification existed at TSTInfo.genTime (HPTP-sourced)
+#   2. It was signed by PlenumNET's TSA key (not forged)
+#   3. The serial links to PlenumNET's Merkle audit log
+#   4. Content has not been modified since timestamping
+```
+
+---
+
+## CONSUMER MIGRATION EMAIL
+
+**Subject:** PlenumNET Notification Headers — Migration to RFC 3161 Time-Stamp Token
+
+---
+
+Dear [Team / Integration Partner],
+
+We are upgrading the cryptographic proof mechanism on all outbound PlenumNET
+notifications — email, webhook, and event bus — to use a single, standards-compliant
+RFC 3161 Time-Stamp Token in place of the three legacy proprietary headers.
+
+**What is changing**
+
+One verifiable token (`X-PlenumNET-TSA-Token`) replaces three separate headers
+(`X-PlenumNET-HPTP-Timestamp`, `X-PlenumNET-Message-Hash`, `X-PlenumNET-TLDSA-Signature`).
+The new token is offline-verifiable with standard tools — OpenSSL, Adobe Acrobat,
+jarsigner — with no dependency on PlenumNET infrastructure. It includes serial number,
+Merkle audit linkage, policy tier classification, and hybrid post-quantum dual-signing.
+
+**Timeline**
+
+| Phase | Target Date | What Happens |
+|-------|------------|-------------|
+| Phase 2 (current) | Now | Both legacy headers AND new TSA token are sent. No action required yet. |
+| Phase 3 | [Date + 3 weeks] | Legacy headers removed. Only TSA token sent. |
+
+During Phase 2, you can continue using the legacy headers while preparing your
+consumer logic. We recommend switching to the TSA token as early as possible.
+
+**What you need to do**
+
+Update your verification logic to parse `X-PlenumNET-TSA-Token` (a base64-encoded
+RFC 3161 TimeStampResp). Verification with OpenSSL:
+
+```
+# Extract token from header
+echo "$TOKEN" | base64 -d > notification.tsr
+
+# Download our TSA certificate (one-time)
+curl https://plenumnet.replit.app/api/tsa/certificate/download -o plenumnet-tsa.pem
+
+# Hash the exact notification body received
+sha256sum body.txt
+
+# Verify
+openssl ts -verify -digest <sha256-hex> -in notification.tsr -CAfile plenumnet-tsa.pem
+```
+
+**Resources**
+
+- Verification guide: [link to internal documentation]
+- Sample code (Python, Node, Java): [link or attachment]
+- TSA certificate (direct download): `https://plenumnet.replit.app/api/tsa/certificate/download`
+- TSA policy information: `https://plenumnet.replit.app/api/tsa/policy`
+
+For questions or integration support, contact the Applied Physics Division
+at [support-email] or reply to this message.
+
+Regards,
+
+**Salvatore Capomastro**
+Director, Applied Physics Division
+Capomastro Holdings Ltd.
+PlenumNET — Hardened Precision Timing & Trust Infrastructure
+[email] | [phone]
+
+---
+
+## TESTING CHECKLIST
+
+### Phase 2 Validation
+- [ ] Send test email → `X-PlenumNET-TSA-Token` header present
+- [ ] Same email also has `X-PlenumNET-HPTP-Timestamp`, `X-PlenumNET-Message-Hash`, `X-PlenumNET-TLDSA-Signature`
+- [ ] `X-PlenumNET-Proof-Mode: tsa+legacy`
+- [ ] `X-PlenumNET-TSA-Serial` is a valid integer, increasing across sends
+- [ ] `X-PlenumNET-TSA-Policy` matches expected tier (email → COMPLY)
+- [ ] `X-PlenumNET-TSA-Merkle` matches an entry in TSA audit log
+- [ ] Extract token → `openssl ts -verify` → `Verification: OK`
+- [ ] Kill TSA service → send notification → legacy headers present, no TSA headers
+- [ ] Console shows "TSA token failed... fallback: legacy"
+- [ ] Send with `contentType: 'legal-notice'` → policy is FORENSICS
+- [ ] Channel mapping: email→COMPLY, webhook→SECURE, event→SENTINEL
+- [ ] Nonce uniqueness: two rapid sends have different nonces
+- [ ] Cross-reference: TSA audit log serial matches notification delivery log serial
+- [ ] Prometheus: `plenumnet_notification_tsa_requests_total{status="success"}` increments
+- [ ] Prometheus: after TSA failure, `{status="error"}` increments, `{policy_tier}` is tier NAME not OID
+
+### Phase 3 Validation
+- [ ] Set `TSA_NOTIFICATION_PHASE=3`
+- [ ] Email has TSA headers only — no legacy `X-PlenumNET-HPTP-Timestamp`
+- [ ] `X-PlenumNET-Proof-Mode: tsa-only`
+- [ ] TSA failure → `X-PlenumNET-Proof-Mode: none` + structured warning log
+
+### Restart Persistence
+- [ ] Restart → TSA serial counter continues (serial-counter.txt)
+- [ ] Merkle tree persists (merkle-leaves.jsonl)
+- [ ] Token audit log persists (token-audit.jsonl)
+
+---
+
+## SIZE BUDGET
+
+| Component | Size | Notes |
+|-----------|------|-------|
+| `X-PlenumNET-TSA-Token` | ~1.5–3 KB base64 | CMS SignedData with RSA-4096 |
+| `X-PlenumNET-TSA-Serial` | ~5–20 chars | Integer string |
+| `X-PlenumNET-TSA-GenTime` | ~20 chars | GeneralizedTime |
+| `X-PlenumNET-TSA-Policy` | ~10 chars | Tier name |
+| `X-PlenumNET-TSA-Merkle` | ~64 chars | SHA-256 hex |
+| **Total overhead** | **~2–3.5 KB** | Well within MTA limits (100+ KB typical) |
+
+---
+
+## ISSUES FIXED IN THIS REVISION
+
+| # | Issue | Original | Fixed |
+|---|-------|----------|-------|
+| 1 | **Buffer.byteLength bug** | `Buffer.byteLength(tsa.token, 'base64') > 4096` — measures decoded bytes, not base64 string length | `tsa.token.length > 4096` — measures actual header character count |
+| 2 | **Phase 3/4 code-identical** | Four phases documented but Phase 3 and 4 had identical code paths | Collapsed to two phases (2, 3); documented rationale for re-adding Phase 4 if hard-fail behavior needed |
+| 3 | **includeChain omitted** | `includeChain` parameter dropped from processJsonRequest call | Explicitly passes `includeChain: false` with comment explaining why |
+| 4 | **buildLegacyHeaders missing** | Referenced as "existing method" but no implementation provided | Full implementation included with agent instructions for merging with existing code |
+| 5 | **Prometheus label inconsistency** | Error path used `resolveTsaPolicy()` (returns OID); success used `response.policyTier` (returns name) | Added `resolveTierName()` for error path; both paths now emit tier NAMES |
+
+---
+
+## NON-NEGOTIABLE RULES
+
+1. **TSA failure NEVER blocks notification delivery.** `acquireTsaToken` is wrapped in try-catch. Phase 2 falls back to legacy; Phase 3 sends without proof. Log the failure; never throw.
+
+2. **Phase 2 is additive only.** No existing functionality removed or changed. Legacy headers continue to be built the same way. TSA token is added alongside.
+
+3. **Policy tier mapping is deterministic.** Same channel + content type always produces the same OID. No randomness, no per-user overrides.
+
+4. **Prometheus labels are consistent.** `policy_tier` is always a tier NAME (COMPLY, FORENSICS, etc.), never a raw OID, in both success and error paths.
+
+5. **The notification service does NOT parse TSA tokens.** It treats the base64 string as opaque. TSA service handles all ASN.1/CMS internally.
+
+6. **Cross-reference serial numbers.** Every notification delivery log entry includes the TSA serial. Two-way audit trail: notification → TSA and TSA → notification.
+
+7. **Environment variable controls phase.** `TSA_NOTIFICATION_PHASE` is the only switch. No code changes to advance.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*PlenumNET Notification Service — TSA Integration Package (Phase 2/3)*
+*"One token. All the proof."*
