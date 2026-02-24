@@ -15,3 +15,6 @@ COMPONENT-LICENSING-MATRIX.md
 LICENSING-STRATEGY-MATRIX.md
 *-INTERNAL.md
 .confidential/
+
+# TSA cryptographic key material and audit logs — auto-generated on startup
+server/crypto/tsa-keys/

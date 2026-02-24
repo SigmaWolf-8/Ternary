@@ -9,7 +9,7 @@ _transform: true
 # For AI Agents: This configuration can be synced to Kong Konnect
 # using the decK CLI or the PlenumNET admin interface
 #
-# Total Services: 19 | Total Endpoints: 87+
+# Total Services: 21 | Total Endpoints: 95+
 
 services:
   # =====================================================
@@ -456,6 +456,35 @@ services:
           - plenumnet
           - signing
           - post-quantum
+
+  # =====================================================
+  # TRUST INFRASTRUCTURE SERVICES
+  # =====================================================
+
+  # 21. RFC 3161 Time-Stamping Authority (TSA — Digital Notary)
+  - name: plenumnet-tsa
+    url: https://plenumnet.replit.app/api/tsa
+    enabled: true
+    tags:
+      - plenumnet
+      - tsa
+      - rfc3161
+      - timestamping
+      - trust-infrastructure
+      - digital-notary
+      - post-quantum
+    routes:
+      - name: tsa-api
+        paths:
+          - /api/tsa
+        methods:
+          - GET
+          - POST
+        strip_path: false
+        tags:
+          - plenumnet
+          - tsa
+          - rfc3161
 
 # =====================================================
 # SECURITY PLUGINS

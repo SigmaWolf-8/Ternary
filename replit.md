@@ -45,7 +45,10 @@ Five modules provide classical simulation of quantum ternary (qutrit/qudit) oper
 This system orchestrates 28 specialist AI agents for parallel query analysis, featuring an Etymology Audit, Veritas Fact-Check, unified Situation Report generation, and Lexical Protocol enforcement.
 
 ### Kong Gateway Integration
-Kong Konnect API integration manages services, routes, and plugins for PlenumNET's 17 services.
+Kong Konnect API integration manages services, routes, and plugins for PlenumNET's 21 services.
+
+### RFC 3161 Time-Stamping Authority (Kong #21)
+A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161. Features 5 policy tiers (DEFAULT, COMPLY for FINRA CAT, FORENSICS for legal evidence, SENTINEL for government/military, SECURE for Zero-Trust), Merkle tamper-evident audit log, dual-signature (RSA-4096 + post-quantum TL-DSA), HPTP timing integration, and ASN.1 wire protocol via asn1js. 8 endpoints: POST /api/tsa/timestamp (binary RFC 3161), POST /api/tsa/timestamp/json, POST /api/tsa/verify, GET /api/tsa/certificate, GET /api/tsa/certificate/download, GET /api/tsa/tokens (admin), GET /api/tsa/policy, GET /api/tsa/health. Keys and Merkle state persist at server/crypto/tsa-keys/. CMS SignedData uses SET-encoded signed attributes for verification per RFC 5652.
 
 ### API Key Management System
 A comprehensive system at `/api-keys` handles API key generation, validation (constant-time, scope, optional HPTP timing-bound), rotation (manual/auto), per-key rate limiting (three tiers), and audit trails. It includes anomaly detection for usage spikes, high failure rates, and IP dispersion. WBS Tagging System allows entity classification and project metadata, with robust search and filtering capabilities. A dashboard provides stats, alerts, and management controls.

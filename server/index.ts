@@ -24,6 +24,8 @@ import { globalLimiter } from "./middleware/rate-limiter";
 import { spawn, type ChildProcess } from "child_process";
 import { existsSync } from "fs";
 import * as path from "path";
+import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
+import { createTsaRoutes } from "./routes/tsa";
 
 const app = express();
 const httpServer = createServer(app);
@@ -37,6 +39,24 @@ declare module "http" {
 app.use(securityHeaders);
 app.use(corsMiddleware);
 app.use("/api/", globalLimiter);
+
+// Raw body parsing for RFC 3161 binary requests (before JSON parser)
+const TSA_MAX_BODY_BYTES = 65536;
+app.use('/api/tsa/timestamp', (req, _res, next) => {
+  if (req.headers['content-type'] === 'application/timestamp-query') {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    req.on('data', (chunk: Buffer) => {
+      totalBytes += chunk.length;
+      if (totalBytes > TSA_MAX_BODY_BYTES) {
+        req.destroy(new Error(`Request body exceeds ${TSA_MAX_BODY_BYTES} bytes`));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => { req.body = Buffer.concat(chunks); next(); });
+  } else { next(); }
+});
 
 app.use(
   express.json({
@@ -116,6 +136,68 @@ function startPqtiService(): ChildProcess | null {
 
   process.on("SIGTERM", () => { pqtiProcess?.kill(); process.exit(0); });
   process.on("SIGINT", () => { pqtiProcess?.kill(); process.exit(0); });
+
+  // === RFC 3161 TIME-STAMPING AUTHORITY (Kong service #21) ===
+  const tsaKeysDir = path.join(process.cwd(), 'server/crypto/tsa-keys');
+  const tsaConfig: TsaConfig = {
+    privateKeyPath: path.join(tsaKeysDir, 'tsa-private.pem'),
+    certificatePath: path.join(tsaKeysDir, 'tsa-cert.pem'),
+    chainPath: path.join(tsaKeysDir, 'tsa-chain.pem'),
+    keysDirectory: tsaKeysDir,
+    defaultPolicy: TSA_POLICIES.DEFAULT,
+    enableDualSign: true,
+    maxRequestSize: 65536,
+  };
+
+  const hptpClientForTsa: HptpClient = {
+    async getTimestamp() {
+      try {
+        const resp = await fetch('http://localhost:5000/api/salvi/timing/now');
+        if (!resp.ok) throw new Error(`HPTP ${resp.status}`);
+        const data = await resp.json() as any;
+        return {
+          timestamp: data.timestamp || data.hptp_timestamp || new Date().toISOString(),
+          precision: data.precision || data.hptp_precision || 'femtosecond',
+          source: data.source || 'hptp-engine',
+        };
+      } catch {
+        return {
+          timestamp: new Date().toISOString(),
+          precision: 'millisecond-fallback',
+          source: 'system-clock',
+        };
+      }
+    },
+  };
+
+  const tldsaClientForTsa: TldsaClient = {
+    async sign(hash: string) {
+      const resp = await fetch('http://localhost:5000/api/pqti/tldsa/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: hash }),
+      });
+      if (!resp.ok) throw new Error(`TL-DSA ${resp.status}`);
+      const data = await resp.json() as any;
+      return {
+        signature: data.signature || '',
+        publicKeyId: data.public_key_id || data.publicKeyId || 'tldsa-primary',
+        securityLevel: data.security_level || 'CNSA-2.0',
+        algorithm: data.algorithm || 'TL-DSA-44',
+      };
+    },
+  };
+
+  const tsaService = new TsaService(tsaConfig, hptpClientForTsa, tldsaClientForTsa);
+  try {
+    const tsaInit = await tsaService.initialize();
+    log(`TSA initialized — serial: ${tsaInit.serialRestored}, cert: ${tsaInit.certSubject}, expires: ${tsaInit.certExpiry}`, 'tsa');
+  } catch (error) {
+    log(`TSA initialization failed: ${(error as Error).message}`, 'tsa');
+  }
+
+  app.use('/api/tsa', createTsaRoutes(tsaService));
+  log('TSA — 8 endpoints at /api/tsa/* (Kong service #21)', 'tsa');
 
   await registerRoutes(httpServer, app);
 
