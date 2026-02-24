@@ -340,6 +340,8 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
   return (
     <NavigationMenu
       className="hidden md:flex"
+      delayDuration={100}
+      skipDelayDuration={300}
       onValueChange={(val: string) => onOpenChange?.(val !== "")}
     >
       <NavigationMenuList>
@@ -519,11 +521,12 @@ export function MarketingTopNav() {
   const handleScroll = useCallback(() => {
     if (menuOpen) return;
     const currentY = window.scrollY;
-    if (currentY < 60) {
+    const delta = currentY - lastScrollY.current;
+    if (currentY < 80) {
       setVisible(true);
-    } else if (currentY > lastScrollY.current) {
+    } else if (delta > 8) {
       setVisible(false);
-    } else {
+    } else if (delta < -4) {
       setVisible(true);
     }
     lastScrollY.current = currentY;
