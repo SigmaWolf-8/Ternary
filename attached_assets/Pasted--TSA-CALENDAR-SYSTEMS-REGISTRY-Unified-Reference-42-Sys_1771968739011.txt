@@ -1,0 +1,594 @@
+# TSA CALENDAR SYSTEMS REGISTRY
+# Unified Reference — 42 Systems
+
+**Date:** February 24, 2026
+**Version:** 3.1
+**Repository:** SigmaWolf-8/Ternary
+**Applies to:** `server/services/tsa-calendar-enrichment.ts` + `/api/salvi/timing/epoch/calendars`
+**Authority:** Salvi Framework — Applied Physics Division, Capomastro Holdings Ltd.
+
+---
+
+## MASTER REGISTRY — SORTED BY TIME DEPTH (OLDEST FIRST)
+
+Every system is a computationally distinct date-reckoning method. Each converts through Julian Day Number as the universal intermediary. Systems with oral or continuous traditions are placed by their estimated cultural depth. Systems with known epoch years are placed by epoch.
+
+| # | Key | Calendar | Origin / Epoch | Time Depth | Type | Salvi Method | Region |
+|---|-----|----------|---------------|------------|------|-------------|--------|
+| 1 | `aboriginal` | Aboriginal Seasonal | Continuous | ~65,000 years | Ecological | Dharawal six-season | Oceania |
+| 2 | `13-moon` | 13-Moon Harmonic | ~28,000 BCE | ~30,000 years | 364-day | Golden ratio (13 × 28 + day-out-of-time) | Global |
+| 3 | `byzantine` | Byzantine | 5509 BCE | ~7,500 years | Julian-based | Offset calc (year begins Sept 1) | Europe |
+| 4 | `assyrian` | Assyrian | 4750 BCE | ~6,800 years | Solar | Epoch offset (Assyrian institutional era) | West Asia |
+| 5 | `julian-day` | Julian Day Number | 4713 BCE | ~6,700 years | Continuous | Universal intermediary (identity function) | Global |
+| 6 | `nisgaa` | Nisg̱a'a Seasonal | Pre-contact | ~5,000+ years (oral) | Ecological | Salmon-run anchor (latitude ~55°N) | Americas |
+| 7 | `hebrew` | Hebrew (Anno Mundi) | 3761 BCE | ~5,800 years | Lunisolar | Metonic cycle (19-year intercalation) | West Asia |
+| 8 | `mayan` | Mayan Long Count | 3114 BCE | ~5,100 years | Vigesimal | GMT correlation (Goodman-Martínez-Thompson) | Americas |
+| 9 | `aztec` | Aztec Tonalpohualli | 3114 BCE | ~5,100 years | 260-day sacred | Trecena + day sign (13 × 20 cycle) | Americas |
+| 10 | `kali-yuga` | Vedic Kali Yuga | 3102 BCE | ~5,100 years | Solar | 432,000-year cosmic age computation | South Asia |
+| 11 | `igbo` | Igbo | Traditional | ~3,000+ years | Lunar | 4-day week (Eke/Orie/Afo/Nkwo) + 13 months | Africa |
+| 12 | `yoruba` | Yoruba | Traditional | ~3,000+ years | Lunar | 4-day Ojó week cycle | Africa |
+| 13 | `akan` | Akan | Traditional | ~3,000+ years | Lunar / Cyclic | 42-day Adae cycle | Africa |
+| 14 | `egyptian` | Egyptian Civil | 2781 BCE | ~4,800 years | Solar (365d) | Sothic cycle (no leap; 1,461-year drift) | Africa |
+| 15 | `chinese` | Chinese Sexagenary | 2637 BCE | ~4,600 years | Lunisolar | 60-year stem-branch cycle | East Asia |
+| 16 | `korean` | Korean Dangun Era | 2333 BCE | ~4,400 years | Solar | Foundation offset (Dangun myth epoch) | East Asia |
+| 17 | `tamil` | Tamil | ~300 BCE est. | ~2,300 years | Solar | Zodiac-based months (sidereal Sankranti) | South Asia |
+| 18 | `vietnamese` | Vietnamese | ~200 BCE est. | ~2,200 years | Lunisolar | Independent intercalation (separate new year calc) | Southeast Asia |
+| 19 | `amazigh` | Berber / Amazigh | 950 BCE | ~3,000 years | Solar | Yennayer offset (Julian-based) | Africa |
+| 20 | `roman-auc` | Roman Ab Urbe Condita | 753 BCE | ~2,800 years | Solar | Kalends/Nones/Ides + AUC epoch | Europe |
+| 21 | `japanese` | Japanese Imperial (Kōki) | 660 BCE | ~2,700 years | Solar | Era system (Kōki + Reiwa naming) | East Asia |
+| 22 | `buddhist` | Thai Buddhist Era | 543 BCE | ~2,600 years | Solar | Parinibbāna offset (Gregorian + 543) | Southeast Asia |
+| 23 | `jain` | Jain (Vira Nirvana Samvat) | 527 BCE | ~2,550 years | Lunisolar | Mahavira nirvana epoch | South Asia |
+| 24 | `vikram-samvat` | Vikram Samvat | 57 BCE | ~2,100 years | Lunisolar | Metonic cycle (sidereal year) | South Asia |
+| 25 | `ethiopian` | Ethiopian / Ge'ez | 8 CE | ~2,000 years | Solar (13 mo) | Coptic-derived (13 × 30 + 5/6 epagomenal) | Africa |
+| 26 | `indian-saka` | Indian National / Saka | 78 CE | ~1,900 years | Solar | Saka era calc (tropical zodiac months) | South Asia |
+| 27 | `coptic` | Coptic (Era of Martyrs) | 284 CE | ~1,700 years | Solar (13 mo) | Diocletian offset (13 × 30 + 5/6) | Africa |
+| 28 | `khmer` | Khmer | ~500 CE est. | ~1,500 years | Lunisolar | Surya Siddhanta variant (Cambodian intercalation) | Southeast Asia |
+| 29 | `bengali` | Bengali / Bangla | 594 CE | ~1,400 years | Solar | Shashanka era (sidereal, Sankranti months) | South Asia |
+| 30 | `solar-hijri` | Persian / Solar Hijri | 622 CE | ~1,400 years | Solar | Jalali algorithm (astronomical vernal equinox) | West Asia |
+| 31 | `hijri` | Islamic Hijri | 622 CE | ~1,400 years | Lunar | 30-year leap cycle (12 × 29/30) | Global |
+| 32 | `zoroastrian` | Zoroastrian Fasli | 632 CE | ~1,400 years | Solar (365d) | Nowruz anchor (vernal equinox) | West Asia |
+| 33 | `burmese` | Burmese | 638 CE | ~1,400 years | Lunisolar | Surya Siddhanta variant (Myanmar intercalation) | Southeast Asia |
+| 34 | `javanese` | Javanese | ~8th c. CE | ~1,200 years | Hybrid | 5-day pasaran + 7-day week dual cycle | Southeast Asia |
+| 35 | `malayalam` | Malayalam / Kollam | 825 CE | ~1,200 years | Solar | Kollam epoch offset (sidereal solar) | South Asia |
+| 36 | `nepal-sambat` | Nepal Sambat | 879 CE | ~1,150 years | Lunisolar | Distinct Newar epoch (lunisolar) | South Asia |
+| 37 | `balinese` | Balinese Pawukon | ~10th c. CE | ~1,000 years | Cyclic (210-day) | 30 wuku × 7 days (no year count) | Southeast Asia |
+| 38 | `tibetan` | Tibetan Rabjung | 1027 CE | ~1,000 years | Lunisolar | 60-year Rabjung cycle (stem-branch variant) | Central Asia |
+| 39 | `nanakshahi` | Nanakshahi (Sikh) | 1469 CE | ~560 years | Solar | Fixed Gregorian alignment + month table | South Asia / Global |
+| 40 | `gregorian` | Gregorian | 1582 CE | ~440 years | Solar | Direct anchor (universal civil standard) | Global |
+| 41 | `bahai` | Bahá'í (Badí') | 1844 CE | ~180 years | Solar | 19 × 19 + Ayyám-i-Há intercalary | Global |
+| 42 | `minguo` | Minguo (ROC) | 1912 CE | ~110 years | Solar | Gregorian − 1911 | East Asia |
+
+---
+
+## GEOGRAPHIC INDEX
+
+### Africa (7)
+`egyptian` · `ethiopian` · `coptic` · `amazigh` · `igbo` · `akan` · `yoruba`
+
+### Americas (3)
+`mayan` · `aztec` · `nisgaa`
+
+### Central Asia (1)
+`tibetan`
+
+### East Asia (4)
+`chinese` · `korean` · `japanese` · `minguo`
+
+### Europe (2)
+`byzantine` · `roman-auc`
+
+### Global (5)
+`gregorian` · `julian-day` · `hijri` · `13-moon` · `bahai`
+
+### Oceania (1)
+`aboriginal`
+
+### South Asia (9)
+`kali-yuga` · `vikram-samvat` · `indian-saka` · `bengali` · `tamil` · `malayalam` · `nepal-sambat` · `jain` · `nanakshahi`
+
+### Southeast Asia (6)
+`buddhist` · `burmese` · `khmer` · `vietnamese` · `javanese` · `balinese`
+
+### West Asia (4)
+`hebrew` · `solar-hijri` · `assyrian` · `zoroastrian`
+
+**Total: 42** (7 + 3 + 1 + 4 + 2 + 5 + 1 + 9 + 6 + 4 = 42) ✓
+
+---
+
+## COMPUTATION TYPE INDEX
+
+### Solar Calendars (17)
+`gregorian` · `egyptian` · `solar-hijri` · `zoroastrian` · `bengali` · `tamil` · `malayalam` · `japanese` · `korean` · `buddhist` · `indian-saka` · `coptic` · `ethiopian` · `amazigh` · `roman-auc` · `minguo` · `nanakshahi`
+
+### Lunar Calendars (4)
+`hijri` · `igbo` · `akan` · `yoruba`
+
+### Lunisolar Calendars (10)
+`hebrew` · `chinese` · `vikram-samvat` · `nepal-sambat` · `tibetan` · `burmese` · `khmer` · `vietnamese` · `jain` · `kali-yuga`
+
+### Cyclic / Non-Annual (4)
+`aztec` (260-day) · `balinese` (210-day) · `13-moon` (364-day) · `javanese` (5+7 dual cycle)
+
+### Ecological / Seasonal (2)
+`aboriginal` · `nisgaa`
+
+### Continuous Count (2)
+`julian-day` · `byzantine`
+
+### Epoch-Offset Systems (3)
+`assyrian` · `bahai` · `minguo`
+
+**Total: 17 + 4 + 10 + 4 + 2 + 2 + 3 = 42** ✓
+
+---
+
+## YEAR 2026 REFERENCE
+
+Range notations (e.g., 5786–5787) indicate the year transitions mid-Gregorian-year — Hebrew at Rosh Hashanah (~Sept), Ethiopian at Mäskäräm (~Sept 11), Byzantine at September 1, Bahá'í at Naw-Rúz (~March 20), etc.
+
+| Key | Calendar | Year in 2026 | Era | New Year Transition |
+|-----|----------|-------------|-----|---------------------|
+| `aboriginal` | Aboriginal Seasonal | — | Six-season cycle | Seasonal (latitude-dependent) |
+| `13-moon` | 13-Moon Harmonic | — | Cyclic | Day Out of Time (~July 25) |
+| `byzantine` | Byzantine | 7534–7535 | AM | September 1 |
+| `assyrian` | Assyrian | 6776 | — | Kha b-Nisan (~April 1) |
+| `julian-day` | Julian Day Number | ~2,461,055 | Continuous | — |
+| `hebrew` | Hebrew | 5786–5787 | AM | Rosh Hashanah (~Sept) |
+| `mayan` | Mayan Long Count | 13.0.13.5.X | — | — |
+| `kali-yuga` | Vedic Kali Yuga | 5128 | Kali | — |
+| `chinese` | Chinese Sexagenary | 4724 | Year of the Snake | Lunar New Year (~Jan/Feb) |
+| `korean` | Korean Dangun | 4359 | 단기 | — |
+| `amazigh` | Amazigh | 2976 | Yennayer | January 12–13 |
+| `roman-auc` | Roman AUC | 2779 | AUC | — |
+| `japanese` | Japanese Imperial | Reiwa 8 | 令和 | — |
+| `buddhist` | Buddhist Era | 2569 | BE | — |
+| `jain` | Jain | 2553 | VNS | — |
+| `vikram-samvat` | Vikram Samvat | 2082–2083 | VS | Baisakh (~April) |
+| `tamil` | Tamil | — | Thiruvalluvar | Chithirai (~April 14) |
+| `ethiopian` | Ethiopian | 2018–2019 | EM | Mäskäräm (~Sept 11) |
+| `indian-saka` | Indian Saka | 1947–1948 | SE | Chaitra (~March 22) |
+| `coptic` | Coptic | 1742–1743 | AM | Thout (~Sept 11) |
+| `hijri` | Islamic Hijri | 1447–1448 | AH | 1 Muharram |
+| `solar-hijri` | Solar Hijri | 1404–1405 | SH | Nowruz (~March 20) |
+| `bengali` | Bengali | 1432–1433 | BS | Pohela Boishakh (~April 14) |
+| `burmese` | Burmese | 1388 | ME | Thingyan (~April) |
+| `malayalam` | Malayalam (Kollam) | 1201–1202 | ME | Chingam (~Aug 17) |
+| `nepal-sambat` | Nepal Sambat | 1146–1147 | NS | Mha Puja (~Oct/Nov) |
+| `tibetan` | Tibetan | Rabjung 17-60 | — | Losar (~Feb) |
+| `nanakshahi` | Nanakshahi | 558 | NS | 1 Chet (~March 14) |
+| `gregorian` | Gregorian | 2026 | CE | January 1 |
+| `bahai` | Bahá'í | 182–183 | BE | Naw-Rúz (~March 20) |
+| `minguo` | Minguo | 115 | 民國 | January 1 |
+
+---
+
+## EXAMPLE TOKEN EXTENSION PAYLOAD
+
+JSON structure embedded as non-critical X.509v3 extension (OID `1.3.6.1.4.1.0.100.2.1`) within TSTInfo.
+
+### DEFAULT + 1 request supplement (~180 bytes JSON)
+
+```json
+{
+  "v": 1,
+  "utc": "2026-02-24T14:30:00.000Z",
+  "jdn": 2461055,
+  "sed": 20462,
+  "tier": "DEFAULT",
+  "src": { "policy": [], "request": ["buddhist"] },
+  "cal": [
+    { "sys": "buddhist", "d": "Thai Buddhist Era", "y": 2569, "m": 2, "day": 24, "era": "BE" }
+  ]
+}
+```
+
+### COMPLY (11 defaults, ~1.2 KB JSON)
+
+```json
+{
+  "v": 1,
+  "utc": "2026-02-24T14:30:00.000Z",
+  "jdn": 2461055,
+  "sed": 20462,
+  "tier": "COMPLY",
+  "src": {
+    "policy": ["hijri","solar-hijri","hebrew","japanese","buddhist","chinese","indian-saka","vikram-samvat","korean","nanakshahi","minguo"],
+    "request": []
+  },
+  "cal": [
+    { "sys": "hijri", "d": "Islamic Hijri", "y": 1447, "m": 8, "day": 26, "era": "AH" },
+    { "sys": "solar-hijri", "d": "Persian / Solar Hijri", "y": 1404, "m": 12, "day": 5, "era": "SH" },
+    { "sys": "hebrew", "d": "Hebrew (Anno Mundi)", "y": 5786, "m": "Adar I", "day": 26, "era": "AM" },
+    { "sys": "japanese", "d": "Japanese Imperial (Kōki)", "y": 2686, "m": 2, "day": 24, "era": "Kōki", "nengo": "Reiwa 8" },
+    { "sys": "buddhist", "d": "Thai Buddhist Era", "y": 2569, "m": 2, "day": 24, "era": "BE" },
+    { "sys": "chinese", "d": "Chinese Sexagenary", "y": 4724, "m": 1, "day": 27, "era": "Snake" },
+    { "sys": "indian-saka", "d": "Indian National (Saka)", "y": 1947, "m": "Phalguna", "day": 5, "era": "SE" },
+    { "sys": "vikram-samvat", "d": "Vikram Samvat", "y": 2082, "m": "Phalguna", "day": 12, "era": "VS" },
+    { "sys": "korean", "d": "Korean (Dangun Era)", "y": 4359, "m": 2, "day": 24, "era": "단기" },
+    { "sys": "nanakshahi", "d": "Nanakshahi (Sikh)", "y": 558, "m": "Phagun", "day": 12, "era": "NS" },
+    { "sys": "minguo", "d": "Minguo (Republic of China)", "y": 115, "m": 2, "day": 24, "era": "民國" }
+  ]
+}
+```
+
+**Fields:**
+
+| Field | Description |
+|-------|-------------|
+| `v` | Schema version (bump on format changes) |
+| `utc` | ISO 8601 UTC timestamp (mirrors TSTInfo genTime) |
+| `jdn` | Julian Day Number — universal bridge for independent verification |
+| `sed` | Salvi Epoch Day (days since PlenumNET epoch) |
+| `tier` | Policy tier that generated this context |
+| `src.policy` | Calendar keys contributed by policy defaults |
+| `src.request` | Calendar keys contributed by request-level supplement |
+| `cal[].sys` | Calendar system key (matches CALENDAR_SYSTEMS enum) |
+| `cal[].d` | Human-readable display name |
+| `cal[].y` | Year in target calendar |
+| `cal[].m` | Month (integer or name string for lunisolar systems) |
+| `cal[].day` | Day of month |
+| `cal[].era` | Era designation (optional — present when applicable) |
+
+Per-entry size: **80–150 bytes** depending on display name and month name length. FORENSICS with all 42 calendars produces ~5.5 KB JSON → ~7.3 KB base64 in the ASN.1 extension.
+
+---
+
+## COMPLETE ENUM
+
+```typescript
+export const CALENDAR_SYSTEMS = {
+  // ── Deep-Time & Continuous Systems (65,000+ to 4,700 BCE) ──────────
+  ABORIGINAL:     'aboriginal',       // ~65,000 yrs — Dharawal six-season — Oceania
+  THIRTEEN_MOON:  '13-moon',          // ~30,000 yrs — Golden ratio 13×28 — Global
+  BYZANTINE:      'byzantine',        // 5509 BCE — Offset calc — Europe
+  ASSYRIAN:       'assyrian',         // 4750 BCE — Epoch offset — West Asia
+  JULIAN_DAY:     'julian-day',       // 4713 BCE — Universal intermediary — Global
+  HEBREW:         'hebrew',           // 3761 BCE — Metonic cycle — West Asia
+
+  // ── Ancient World (3100 BCE to 1000 BCE) ───────────────────────────
+  MAYAN:          'mayan',            // 3114 BCE — GMT correlation — Americas
+  AZTEC:          'aztec',            // 3114 BCE — Trecena + day sign — Americas
+  KALI_YUGA:      'kali-yuga',        // 3102 BCE — 432,000-year age — South Asia
+  NISGAA:         'nisgaa',           // Pre-contact ~5,000+ yrs — Salmon-run — Americas
+  EGYPTIAN:       'egyptian',         // 2781 BCE — Sothic cycle — Africa
+  CHINESE:        'chinese',          // 2637 BCE — 60-year cycle — East Asia
+  KOREAN:         'korean',           // 2333 BCE — Foundation offset — East Asia
+
+  // ── West African Traditional (3,000+ years continuous) ─────────────
+  IGBO:           'igbo',             // Traditional — 4-day week — Nigeria (45M+)
+  YORUBA:         'yoruba',           // Traditional — 4-day Ojó — Nigeria/Benin (45M+)
+  AKAN:           'akan',             // Traditional — 42-day Adae — Ghana (30M+)
+
+  // ── Classical & Pre-Common Era (950 BCE to 1 BCE) ──────────────────
+  AMAZIGH:        'amazigh',          // 950 BCE — Yennayer offset — Africa
+  ROMAN_AUC:      'roman-auc',        // 753 BCE — Kalends/Nones/Ides — Europe
+  JAPANESE:       'japanese',         // 660 BCE — Era system (Kōki/Reiwa) — East Asia
+  BUDDHIST:       'buddhist',         // 543 BCE — Parinibbāna offset — SE Asia
+  JAIN:           'jain',             // 527 BCE — Mahavira nirvana — South Asia
+  TAMIL:          'tamil',            // ~300 BCE — Zodiac sidereal months — South Asia
+  VIETNAMESE:     'vietnamese',       // ~200 BCE — Independent intercalation — SE Asia
+  VIKRAM_SAMVAT:  'vikram-samvat',    // 57 BCE — Metonic (sidereal) — South Asia
+
+  // ── Common Era (1 CE to 1000 CE) ──────────────────────────────────
+  ETHIOPIAN:      'ethiopian',        // 8 CE — Coptic-derived — Africa
+  INDIAN_SAKA:    'indian-saka',      // 78 CE — Saka era calc — South Asia
+  COPTIC:         'coptic',           // 284 CE — Diocletian offset — Africa
+  KHMER:          'khmer',            // ~500 CE — Surya Siddhanta — SE Asia
+  BENGALI:        'bengali',          // 594 CE — Shashanka era — South Asia
+  SOLAR_HIJRI:    'solar-hijri',      // 622 CE — Jalali algorithm — West Asia
+  HIJRI:          'hijri',            // 622 CE — 30-year cycle — Global
+  ZOROASTRIAN:    'zoroastrian',      // 632 CE — Nowruz anchor — West Asia
+  BURMESE:        'burmese',          // 638 CE — Surya Siddhanta — SE Asia
+  JAVANESE:       'javanese',         // ~8th c. — 5+7 day hybrid — SE Asia
+  MALAYALAM:      'malayalam',        // 825 CE — Kollam epoch — South Asia
+  NEPAL_SAMBAT:   'nepal-sambat',     // 879 CE — Newar epoch — South Asia
+  BALINESE:       'balinese',         // ~10th c. — Wuku 210-day — SE Asia
+
+  // ── Medieval to Pre-Modern (1000 CE to 1900 CE) ───────────────────
+  TIBETAN:        'tibetan',          // 1027 CE — 60-year Rabjung — Central Asia
+  NANAKSHAHI:     'nanakshahi',       // 1469 CE — Fixed Gregorian — South Asia / Global
+  GREGORIAN:      'gregorian',        // 1582 CE — Direct anchor — Global (168 nations)
+  BAHAI:          'bahai',            // 1844 CE — 19×19 + intercalary — Global
+
+  // ── Modern Era (1900 CE to present) ────────────────────────────────
+  MINGUO:         'minguo',           // 1912 CE — Gregorian − 1911 — East Asia
+
+} as const;
+```
+
+**Total: 42 unique systems. Zero duplicates.**
+
+---
+
+## DISPLAY NAMES
+
+```typescript
+export const CALENDAR_DISPLAY_NAMES: Record<string, string> = {
+  'aboriginal':    'Aboriginal Seasonal (Dharawal)',
+  '13-moon':       '13-Moon Harmonic',
+  'byzantine':     'Byzantine (Anno Mundi)',
+  'assyrian':      'Assyrian',
+  'julian-day':    'Julian Day Number',
+  'hebrew':        'Hebrew (Anno Mundi)',
+  'mayan':         'Mayan Long Count',
+  'aztec':         'Aztec Tonalpohualli',
+  'kali-yuga':     'Vedic Kali Yuga',
+  'nisgaa':        'Nisg̱a\'a Seasonal',
+  'egyptian':      'Egyptian Civil',
+  'chinese':       'Chinese Sexagenary',
+  'korean':        'Korean (Dangun Era)',
+  'igbo':          'Igbo',
+  'yoruba':        'Yoruba',
+  'akan':          'Akan',
+  'amazigh':       'Amazigh / Berber',
+  'roman-auc':     'Roman (Ab Urbe Condita)',
+  'japanese':      'Japanese Imperial (Kōki)',
+  'buddhist':      'Thai Buddhist Era',
+  'jain':          'Jain (Vira Nirvana Samvat)',
+  'tamil':         'Tamil',
+  'vietnamese':    'Vietnamese',
+  'vikram-samvat': 'Vikram Samvat',
+  'ethiopian':     'Ethiopian / Ge\'ez',
+  'indian-saka':   'Indian National (Saka)',
+  'coptic':        'Coptic (Era of Martyrs)',
+  'khmer':         'Khmer (Cambodian)',
+  'bengali':       'Bengali / Bangla',
+  'solar-hijri':   'Persian / Solar Hijri',
+  'hijri':         'Islamic Hijri',
+  'zoroastrian':   'Zoroastrian Fasli',
+  'burmese':       'Burmese',
+  'javanese':      'Javanese',
+  'malayalam':     'Malayalam (Kollam Era)',
+  'nepal-sambat':  'Nepal Sambat',
+  'balinese':      'Balinese Pawukon',
+  'tibetan':       'Tibetan (Rabjung)',
+  'nanakshahi':    'Nanakshahi (Sikh)',
+  'gregorian':     'Gregorian',
+  'bahai':         'Bahá\'í (Badí\')',
+  'minguo':        'Minguo (Republic of China)',
+};
+```
+
+---
+
+## SALVI METHOD REFERENCE
+
+Each method describes the algorithm for converting Julian Day Number to the target system. Reference: Dershowitz & Reingold, *Calendrical Calculations* (4th ed.) for formally documented systems; primary sources for cultural/ecological systems.
+
+| Salvi Method | Systems | Algorithm |
+|-------------|---------|-----------|
+| **Direct anchor** | `gregorian` | Base reference. JDN ↔ Gregorian is the foundation conversion. All other systems ultimately route through this or directly from JDN. |
+| **Universal intermediary** | `julian-day` | Identity function. JDN is the intermediary itself — continuous integer day count since 4713 BCE January 1 (Julian proleptic). |
+| **Epoch offset** | `assyrian`, `minguo` | JDN → Gregorian year ± fixed constant. Assyrian = Gregorian + 4750. Minguo = Gregorian − 1911. Computationally trivial but legally significant (Assyrian institutional publications, Taiwan government filings). |
+| **Parinibbāna / era offset** | `buddhist`, `japanese` | JDN → Gregorian year + era constant. BE = Gregorian + 543. Kōki = Gregorian + 660. Japanese also carries current era name (Reiwa since 2019). |
+| **Foundation offset** | `korean` | JDN → Gregorian year + 2333. Dangun founding myth of Gojoseon. Cultural reference on Korean government documents. |
+| **Offset calc (Sept epoch)** | `byzantine` | JDN → Julian year + 5509. Year begins September 1 (not January 1). Months follow Julian calendar. Used in Eastern Orthodox liturgical computations. |
+| **Metonic cycle** | `hebrew`, `vikram-samvat`, `nepal-sambat` | JDN → lunisolar with 19-year intercalation. Hebrew adds leap month Adar II seven times per 19-year cycle. Vikram Samvat uses sidereal year with adhika māsa (extra month) insertion. Nepal Sambat follows distinct Newar intercalation rules from 879 CE epoch. |
+| **60-year cycle** | `chinese`, `tibetan` | JDN → lunisolar with sexagenary stem-branch mapping. 10 Heavenly Stems × 12 Earthly Branches = 60-year cycle. Chinese uses Beijing meridian; Tibetan Rabjung starts 1027 CE with distinct intercalation. |
+| **30-year cycle** | `hijri` | JDN → pure lunar. 12 months alternating 29/30 days. Leap day added 11 times per 30-year cycle (years 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29). Year drifts ~11 days vs solar annually. |
+| **Jalali algorithm** | `solar-hijri` | JDN → solar with astronomical observation of vernal equinox at Tehran meridian (52.5°E). More accurate than Gregorian leap rules over multi-century periods. Grand cycle of 2820 years. |
+| **Sothic cycle** | `egyptian` | JDN → fixed 365-day year with no leap day. Drifts 1 day per 4 years against the tropical year. Full Sothic cycle (alignment with heliacal rising of Sirius) = 1,461 Egyptian years. Three seasons of four months each (Akhet, Peret, Shemu). |
+| **Saka era calc** | `indian-saka` | JDN → solar with tropical zodiac month boundaries. Month 1 (Chaitra) begins at vernal equinox (~March 22). Chaitra has 30 days in leap years, 31 in normal — inverse of Gregorian convention. Official Indian national calendar since 1957. |
+| **GMT correlation** | `mayan` | JDN → vigesimal long count. 1 kin = 1 day, 20 kins = 1 uinal, 18 uinals = 1 tun (360 days), 20 tuns = 1 katun, 20 katuns = 1 baktun. Goodman-Martínez-Thompson correlation constant = 584,283. Current era began 13.0.0.0.0. |
+| **Trecena + day sign** | `aztec` | JDN → 260-day cycle (13 numbers × 20 named days — tonalpohualli). Concurrent 365-day cycle (xiuhpohualli) creates Calendar Round of 18,980 days (~52 years). Requires known anchor date for absolute correlation. |
+| **Wuku weeks** | `balinese` | JDN → 210-day cycle (30 wuku of 7 days). Purely cyclic with no year count. Multiple concurrent week-cycles (1-day through 10-day) overlay for ceremony scheduling. The 5-day (pancawara) and 7-day (saptawara) cycles are most significant. |
+| **432,000-year age** | `kali-yuga` | JDN → position within 432,000-year fourth cosmic age. Kali Yuga began 3102 BCE February 18 at midnight, Ujjain meridian. Part of four-yuga cycle totaling 4,320,000 years. Current position is year 5,128 of 432,000. |
+| **Kalends/Nones/Ides** | `roman-auc` | JDN → Julian calendar + AUC epoch (753 BCE). Days named by countdown to three fixed points: Kalends (1st of month), Nones (5th or 7th), Ides (13th or 15th). March, May, July, October have Nones on 7th and Ides on 15th; all others on 5th and 13th. |
+| **Shashanka era** | `bengali` | JDN → sidereal solar. Month begins at Sankranti (sun's entry into a zodiac sign per sidereal reckoning). Epoch 594 CE (Shashanka era). Official in Bangladesh (revised 1987) and West Bengal. Six seasons (ṛtu) of two months each. |
+| **Yennayer offset** | `amazigh` | JDN → Julian calendar + ~950 BCE epoch offset. New year (Yennayer) falls on January 12 or 13 Gregorian. Officially recognized as national holiday in Morocco (2018) and Algeria (2018). Year 2976 = 2026 CE. |
+| **Nowruz anchor** | `zoroastrian` | JDN → 365-day solar year anchored to Nowruz (vernal equinox). Fasli variant reformed to track astronomical year (unlike Shenshai and Kadmi variants that have drifted). 12 months of 30 days + 5 epagomenal (Gatha) days. |
+| **Dharawal six-season** | `aboriginal` | JDN → ecological season mapping. Not a date-count system but a seasonal classification tied to observable flora/fauna indicators (flowering of specific plants, migration of animals, wind patterns). Calibrated to latitude (~34°S for Dharawal nation, Sydney basin). Other Aboriginal nations use different seasonal systems for their regions. |
+| **Surya Siddhanta variant** | `burmese`, `khmer` | JDN → lunisolar using astronomical constants from the Surya Siddhanta (~400 CE). Burmese epoch 638 CE, Khmer ~500 CE. Intercalary months and days computed differently from Indian systems — watat (intercalary month) and wangètat (intercalary day) rules are country-specific. |
+| **Independent intercalation** | `vietnamese` | JDN → lunisolar (Chinese-derived structure of 12/13 months of 29/30 days). Computes new moon and intercalary months using Hanoi meridian (105.8°E), not Beijing (116.4°E). Tết can differ from Chinese New Year by ±1 day, and in rare cases by ±1 month. |
+| **Zodiac-based months (sidereal)** | `tamil` | JDN → sidereal solar. Month begins when sun enters a zodiac constellation (same principle as Bengali but with Tamil month names and distinct regional conventions). Chithirai 1 (~April 14) is Tamil New Year. |
+| **Kollam epoch offset** | `malayalam` | JDN → sidereal solar + 825 CE epoch (Kollam Era). Month boundaries follow sidereal solar. Used in Kerala state government documents. Chingam (~Aug 17) begins the year. |
+| **5+7 day hybrid** | `javanese` | JDN → dual cycle. 5-day pasaran (Legi, Pahing, Pon, Wage, Kliwon) × 7-day week = 35-day combined cycle governing market days. Additional 210-day cycle overlays for ceremonies. Hindu-Buddhist-Islamic hybrid that preserved pre-Islamic structure. |
+| **Salmon-run anchor** | `nisgaa` | JDN → ecological seasonal mapping (Pacific salmon cycle, latitude ~55°N, Nass River watershed). Six to eight seasons named for food resources. Treaty-recognized (Nisg̱a'a Final Agreement, Canada, 2000). |
+| **19×19 + intercalary** | `bahai` | JDN → solar. 19 months × 19 days = 361 days + 4/5 Ayyám-i-Há intercalary days. New year at Naw-Rúz (vernal equinox, Tehran reference). Epoch 1844 CE (declaration of the Báb). |
+| **Mahavira nirvana** | `jain` | JDN → lunisolar with 527 BCE epoch (nirvana of Mahavira). Structurally similar to Hindu lunisolar systems but with distinct era count and observance calendar. 4–5M adherents. |
+| **4-day week** | `igbo`, `yoruba` | JDN mod 4 → named day. Igbo: Eke, Orie, Afo, Nkwo. Yoruba: Ojó Aìkú, Ojó Ajé, Ojó Ìsẹ́gun, Ojó Rù. Months follow lunar cycles (~29/30 days). Year = 13 lunar months. Culturally independent systems despite geographic proximity. |
+| **42-day Adae cycle** | `akan` | JDN mod 42 → position in Adae cycle. 7 named days with the 42-day Adae period as the significant cultural cycle. Governs chiefly courts and traditional governance in Ashanti. |
+| **Golden ratio** | `13-moon` | JDN → 364-day year (13 months × 28 days) + 1 Day Out of Time (~July 25). Encodes golden ratio (φ) relationships in the 13/28 month-day structure. 28 = 4 × 7 (perfect week divisibility). |
+| **Fixed Gregorian** | `nanakshahi` | JDN → Gregorian → Nanakshahi month table. Solar calendar permanently fixed to Gregorian (reformed 2003 by SGPC). 12 months, fixed day counts. Epoch 1469 CE (birth of Guru Nanak Dev Ji). Year 558 = 2026 CE. No intercalation needed. |
+
+---
+
+## POLICY CALENDAR DEFAULTS
+
+```typescript
+export const POLICY_CALENDAR_CONFIG: Record<string, string[]> = {
+  'DEFAULT':    [],    // Clean tokens. Use request-level calendars: ['buddhist'] etc.
+
+  'COMPLY':     [
+    // Sovereign financial jurisdictions + major financial communities
+    CALENDAR_SYSTEMS.HIJRI,            // Islamic finance (GCC, MENA — 18 nations)
+    CALENDAR_SYSTEMS.SOLAR_HIJRI,      // Iran, Afghanistan (official civil)
+    CALENDAR_SYSTEMS.HEBREW,           // Israeli markets (TASE)
+    CALENDAR_SYSTEMS.JAPANESE,         // Tokyo exchange (JPX), corporate filings
+    CALENDAR_SYSTEMS.BUDDHIST,         // Thai financial system (SET — BE year)
+    CALENDAR_SYSTEMS.CHINESE,          // East Asian financial dates (lunar)
+    CALENDAR_SYSTEMS.INDIAN_SAKA,      // Indian regulatory filings (SEBI)
+    CALENDAR_SYSTEMS.VIKRAM_SAMVAT,    // Nepal (NEPSE exchange — sovereign jurisdiction)
+    CALENDAR_SYSTEMS.KOREAN,           // Korean markets (KRX)
+    CALENDAR_SYSTEMS.NANAKSHAHI,       // Sikh financial community (Canada/UK/India)
+    CALENDAR_SYSTEMS.MINGUO,           // Taiwan (TWSE filings, semiconductor supply chain)
+  ],
+
+  'FORENSICS':  ['*'],                // All 42 — maximum provenance for evidence
+
+  'SENTINEL':   [],                   // Military/government — UTC only
+
+  'SECURE':     [],                   // Zero-trust — UTC only
+};
+```
+
+---
+
+## SIZE IMPACT
+
+| Scenario | Systems | Extension JSON | Base64 in ASN.1 | Token Overhead |
+|----------|---------|---------------|-----------------|---------------|
+| DEFAULT (no calendars) | 0 | 0 bytes | 0 bytes | None |
+| DEFAULT + 1 supplement | 1 | ~180 bytes | ~240 bytes | ~5% |
+| DEFAULT + 2 supplements | 2 | ~320 bytes | ~430 bytes | ~8% |
+| COMPLY (11 defaults) | 11 | ~1.2 KB | ~1.6 KB | ~30% |
+| COMPLY + supplements | 11–16 | ~1.6 KB | ~2.1 KB | ~40% |
+| FORENSICS (all 42) | 42 | ~5.5 KB | ~7.3 KB | ~140% |
+
+**With Ternary Compression (TERN_FULL pipeline via `compressData()` — see TSA-CALENDAR-COMPRESSION-SPEC.md v2.0):**
+
+| Scenario | Systems | Compressed + Envelope | Base64 in ASN.1 | Reduction vs Raw |
+|----------|---------|----------------------|-----------------|-----------------|
+| DEFAULT + 1 | 1 | ~180 B (below threshold — not compressed) | ~240 B | 0% |
+| COMPLY (11) | 11 | ~318 B | ~424 B | **65%** |
+| FORENSICS (42) | 42 | ~1.12 KB | ~1.50 KB | **79%** |
+
+Compression is transparent, non-blocking, and version-negotiated. Tokens self-identify via first 4 bytes: `"TERN"` magic (0x5445524E) = compressed envelope, `"{"` (0x7B) = raw JSON v1. Compression calls `compressData()` from `server/ternary.ts` (deflate → ternaryEncode → runLengthCompress). Failure falls back to raw JSON. See companion specification for full wire format, decompression client interface, and Prometheus instrumentation.
+
+Add a **8192 bucket** to `tsaTokenSizeHistogram` (reduced from 16384 — compressed FORENSICS tokens stay under 6 KB total).
+
+---
+
+## INCLUSION CRITERIA
+
+For any calendar system to enter this registry, it must satisfy **at least one** of:
+
+1. **Official civil calendar** of a UN member state
+2. **Co-official or constitutionally referenced** in a sovereign nation
+3. **Religious calendar** governing institutional life of a community exceeding 1 million adherents
+4. **Treaty-recognized** Indigenous system with formal legal standing
+5. **Computationally distinct** date-reckoning method with documented cultural depth exceeding 500 years
+
+**Exclusion rules:**
+
+- Trivial offsets of existing entries (no distinct reckoning method)
+- Formatting conventions on existing calendars (display modes, not reckoning systems)
+- Systems deprecated by their own governments or institutions
+- Holidays and observances are events ON calendars, not calendar systems
+- Operational schedules (retention timers, cert rotation) are infrastructure, not calendars
+
+**Process:** Addition requires two independent scholarly or governmental sources confirming computational distinctness and active use. Deprecation requires official government or institutional cessation.
+
+---
+
+## TESTING CHECKLIST
+
+### Enum integrity
+- [ ] `CALENDAR_SYSTEMS` has exactly 42 entries
+- [ ] No duplicate string values
+
+### All 42 systems present
+- [ ] `assyrian` present with epoch 4750 BCE
+- [ ] `julian-day`, `kali-yuga`, `egyptian`, `aztec`, `roman-auc`, `aboriginal` present
+- [ ] `vikram-samvat`, `nepal-sambat`, `burmese`, `nanakshahi`, `minguo` present
+- [ ] `vietnamese`, `khmer`, `tamil`, `malayalam`, `javanese`, `nisgaa` present
+- [ ] `bahai`, `jain` present
+- [ ] `igbo`, `akan`, `yoruba` present
+
+### Indexes verify
+- [ ] Geographic index sums to 42 (7+3+1+4+2+5+1+9+6+4)
+- [ ] Computation type index sums to 42 (17+4+10+4+2+2+3)
+- [ ] Display names map has exactly 42 entries
+
+### Policy defaults
+- [ ] COMPLY: 11 systems
+- [ ] FORENSICS wildcard: resolves to all 42
+- [ ] DEFAULT, SENTINEL, SECURE: empty
+
+### Year verification (2026) — All systems with computable year values
+
+**Deep-time & continuous**
+- [ ] Byzantine: 7534–7535 (year starts Sept 1)
+- [ ] Assyrian: 6776 (Kha b-Nisan ~April 1)
+- [ ] Julian Day Number: 2,461,055 (for Feb 24, 2026)
+- [ ] Hebrew: 5786–5787 (Rosh Hashanah ~Sept)
+- [ ] Kali Yuga: 5128
+
+**Ancient world**
+- [ ] Mayan Long Count: 13.0.13.5.X (verify day glyph)
+- [ ] Chinese: 4724, Year of the Snake (Lunar New Year ~Jan/Feb)
+- [ ] Korean Dangun: 4359
+
+**Classical & pre-common era**
+- [ ] Amazigh: 2976 (Yennayer Jan 12–13)
+- [ ] Roman AUC: 2779
+- [ ] Japanese: Reiwa 8 / Kōki 2686
+- [ ] Buddhist Era: 2569
+- [ ] Jain (VNS): 2553
+- [ ] Tamil: verify Thiruvalluvar year and Chithirai 1 (~April 14)
+- [ ] Vietnamese: verify lunisolar year and Tết date vs Chinese New Year
+- [ ] Vikram Samvat: 2082–2083 (Baisakh ~April)
+
+**Common era**
+- [ ] Ethiopian: 2018–2019 (Mäskäräm ~Sept 11)
+- [ ] Indian Saka: 1947–1948 (Chaitra ~March 22)
+- [ ] Coptic: 1742–1743 (Thout ~Sept 11)
+- [ ] Khmer: verify Buddhist-derived lunisolar year (Choul Chnam Thmey ~April)
+- [ ] Hijri: 1447–1448 (1 Muharram)
+- [ ] Solar Hijri: 1404–1405 (Nowruz ~March 20)
+- [ ] Zoroastrian Fasli: verify year and Nowruz alignment
+- [ ] Bengali: 1432–1433 (Pohela Boishakh ~April 14)
+- [ ] Burmese: 1388 (Thingyan ~April)
+- [ ] Malayalam (Kollam): 1201–1202 (Chingam ~Aug 17)
+- [ ] Nepal Sambat: 1146–1147 (Mha Puja ~Oct/Nov)
+- [ ] Tibetan: Rabjung 17, Year 60 (Losar ~Feb)
+
+**Medieval to modern**
+- [ ] Nanakshahi: 558 (1 Chet ~March 14)
+- [ ] Gregorian: 2026 (sanity check — if this fails, everything fails)
+- [ ] Bahá'í: 182–183 (Naw-Rúz ~March 20)
+- [ ] Minguo: 115 (January 1)
+
+**Cyclic / non-year systems (verify cycle position, not year)**
+- [ ] 13-Moon: verify month (1–13) and day-of-moon (1–28) from JDN
+- [ ] Egyptian: verify Sothic drift position and 365-day year day count
+- [ ] Aztec Tonalpohualli: verify 260-day position from known anchor
+- [ ] Balinese Pawukon: verify wuku + pancawara/saptawara from JDN mod 210
+- [ ] Javanese: verify pasaran (5-day) + weekday (7-day) dual position from JDN
+- [ ] Igbo: verify 4-day position (Eke/Orie/Afo/Nkwo) from JDN mod 4
+- [ ] Yoruba: verify 4-day position (Ojó) from JDN mod 4
+- [ ] Akan: verify 42-day Adae cycle position from JDN mod 42
+
+**Ecological systems (verify season, not year)**
+- [ ] Aboriginal: verify Dharawal season for Feb 24 at ~34°S (late summer / Parra'dowee)
+- [ ] Nisg̱a'a: verify season for Feb 24 at ~55°N (late winter / pre-oolichan)
+
+### Token size & compression
+- [ ] `tsaTokenSizeHistogram` has 8192 bucket (reduced from 16384 with compression)
+- [ ] FORENSICS token with 42 calendars verifies in OpenSSL (`ts -verify` → OK)
+- [ ] Compressed FORENSICS token (TERN envelope) verifies in OpenSSL (`ts -verify` → OK)
+- [ ] `parseCalendarExtension()` handles both v1 (raw JSON, first byte `{`) and v2 (TERN magic) tokens
+- [ ] Compression calls `compressData()` from `server/ternary.ts` — no parallel implementation
+- [ ] Round-trip: `parse(build(ctx))` equals `ctx` for all tiers
+- [ ] See TSA-CALENDAR-COMPRESSION-SPEC.md v2.0 for full compression testing checklist (42 items)
+
+### JSON payload
+- [ ] DEFAULT + 1 calendar produces valid JSON matching example structure
+- [ ] COMPLY produces valid JSON with 11 calendar entries
+- [ ] All fields present: `v`, `utc`, `jdn`, `sed`, `tier`, `src`, `cal[]`
+
+---
+
+## NON-NEGOTIABLE RULES
+
+1. **Calendar enrichment NEVER blocks token issuance.** Best-effort, same as TL-DSA co-signature.
+2. **Extension is NON-CRITICAL** (`critical: FALSE` in ASN.1). Standard verifiers skip it.
+3. **Request-level calendars are ADDITIVE.** Merge with policy defaults, never replace.
+4. **No calendars resolved = no extension.** Clean token, zero overhead.
+5. **Calendar data is derived, not authoritative.** UTC genTime from HPTP is the legal timestamp.
+6. **Schema versioned** (JSON payload `"v": 1`). Bump on format changes.
+7. **Julian Day Number is the bridge.** Included in every CalendarContext for independent verification.
+8. **Source attribution.** Every CalendarContext records policy vs request origin.
+9. **Invalid system names silently dropped.** Warning logged, token not blocked.
+10. **No duplicate keys.** Each CALENDAR_SYSTEMS entry maps to a computationally distinct system.
+11. **"Vedic" is not a calendar.** Kali Yuga is. The distinction is non-negotiable.
+12. **Holidays are not calendar systems.** Events on calendars are not date-reckoning methods.
+13. **Operational schedules are not calendar systems.** Retention timers and cert rotation are infrastructure.
+14. **Inclusion criteria are formal.** No system enters without meeting at least one criterion plus two independent sources.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*PlenumNET TSA Calendar Systems Registry v3.1*
+*42 systems. Every epoch. Every tradition. One provable token.*

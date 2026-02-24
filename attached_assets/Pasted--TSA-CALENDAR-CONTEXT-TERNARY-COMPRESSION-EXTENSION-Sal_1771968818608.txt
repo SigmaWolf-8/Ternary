@@ -1,0 +1,997 @@
+# TSA CALENDAR CONTEXT — TERNARY COMPRESSION EXTENSION
+# Salvi Framework Compression Integration Specification
+
+**Date:** February 24, 2026
+**Version:** 2.0
+**Repository:** SigmaWolf-8/Ternary
+**Extends:** TSA Calendar Systems Registry v3.1
+**Applies to:** `server/services/tsa-calendar-enrichment.ts`, `server/services/tsa-calendar-compression.ts` (new), client decompression libraries
+**Authority:** Salvi Framework — Applied Physics Division, Capomastro Holdings Ltd.
+
+---
+
+## 1. PROBLEM STATEMENT
+
+The CalendarContext extension (OID `1.3.6.1.4.1.0.100.2.1`) embeds a JSON payload inside a non-critical X.509v3 extension in TSTInfo. At the FORENSICS tier (all 42 calendar systems), this payload reaches ~5.5 KB raw JSON → ~7.3 KB base64-encoded in the ASN.1 OCTET STRING. While within MTA header limits (100+ KB typical), this overhead is disproportionate to the core timestamp token (~3–5 KB uncompressed).
+
+Calendar JSON exhibits high structural redundancy: repeated key names (`sys`, `d`, `y`, `m`, `day`, `era`, `source`), repeated delimiters (`{`, `}`, `"`, `:`, `,`), and display name substrings with common prefixes. This makes it an ideal candidate for compression.
+
+The Salvi Framework already ships a production-tested ternary compression pipeline in `server/ternary.ts` and `server/compression-layer.ts`, including the `.tern` file format with integrity verification. This specification defines how the **existing** compression APIs integrate with the CalendarContext extension as a transparent compression/decompression layer — no new compression algorithms, no parallel implementations.
+
+---
+
+## 2. EXISTING COMPRESSION INFRASTRUCTURE
+
+### 2.1 Source Modules
+
+| Module | Path | Key Exports |
+|--------|------|-------------|
+| Core Compression | `server/ternary.ts` | `compressData()`, `decompressData()`, `ternaryEncode()`, `ternaryDecode()`, `runLengthCompress()`, `runLengthDecompress()` |
+| Storage Layer | `server/compression-layer.ts` | `compressForStorage()`, `decompressFromStorage()`, `createTernFile()`, `parseTernFile()`, `compressFileBuffer()`, `decompressFileBuffer()` |
+| Phase Encryption | `libternary/src/phase-encryption.ts` | `phaseSplit()`, `phaseRecombine()`, `getPhaseConfig()`, `getRecommendedMode()` |
+| GF(3) Operations | `libternary/src/ternary-operations.ts` | `ternaryAdd()`, `ternaryMultiply()`, `ternaryRotate()`, GF3 tables |
+| Ternary Types | `libternary/src/ternary-types.ts` | `TritA`, `TritB`, `TritC`, `convertTrit()`, `convertVector()` |
+
+### 2.2 Existing Compression Pipeline
+
+```
+Input bytes
+    │
+    ▼
+┌──────────────┐
+│ zlib deflate │   Stage 1: Standard deflate compression (RFC 1951)
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│ternaryEncode │   Stage 2: Binary → base-3 bijective mapping
+│  (base-3)    │
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│runLengthCompress│  Stage 3: Ternary-domain RLE on trit patterns
+│    (RLE)     │
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│   base64     │   Stage 4: Transport encoding
+└──────────────┘
+    │
+    ▼
+  Optional: phaseSplit() for phase-encrypted storage
+```
+
+The `compressData()` function in `server/ternary.ts` encapsulates stages 1–3 and returns a `CompressionResult`:
+
+```typescript
+// Existing interface — server/ternary.ts
+interface CompressionResult {
+  originalSize: number;
+  ternarySize: number;
+  compressedSize: number;
+  compressionRatio: number;
+}
+```
+
+### 2.3 Existing .tern File Format
+
+The `TernFileHeader` structure (from `server/compression-layer.ts`) defines:
+
+```
+┌─────────────────────────────────────────┐
+│  Magic         │  "TERN"  (4 bytes)     │
+│  Version       │  uint8                 │
+│  Checksum      │  integrity hash        │
+│  Payload       │  compressed data       │
+└─────────────────────────────────────────┘
+```
+
+Created by `createTernFile()`, parsed by `parseTernFile()`. Includes built-in integrity verification.
+
+### 2.4 Existing API Endpoints
+
+| Method | Endpoint | Function |
+|--------|----------|----------|
+| `POST` | `/api/compression/file` | File → .tern format |
+| `POST` | `/api/compression/decompress` | .tern → original |
+| `POST` | `/api/compression/db/store` | Compress + store in PostgreSQL |
+| `GET` | `/api/compression/db/retrieve/:id` | Retrieve + decompress |
+| `GET` | `/api/compression/db/documents` | List compressed docs |
+| `DELETE` | `/api/compression/db/documents/:id` | Delete |
+
+---
+
+## 3. DESIGN PRINCIPLES
+
+1. **Wrap, don't reinvent.** The CalendarContext compression layer calls `compressData()` / `decompressData()` from `server/ternary.ts`. No parallel compression implementation. One pipeline, one set of bugs.
+
+2. **Transparent.** Compression and decompression are invisible to the caller. The CalendarContext API returns structured objects regardless of wire format.
+
+3. **Version-negotiated.** A single version byte in the extension header determines the encoding. Clients that don't understand a version fall back gracefully.
+
+4. **Non-blocking.** Compression failure never blocks token issuance. The system falls back to uncompressed JSON (v1) on any compression error, timeout, or resource constraint. Same best-effort contract as TL-DSA co-signature and calendar enrichment itself.
+
+5. **Self-describing.** The compressed payload carries enough metadata to decompress without external state — envelope version, pipeline identifier, original size, and checksum.
+
+6. **Backward compatible.** Existing tokens with `"v": 1` raw JSON continue to parse unchanged. The decompression client handles both formats.
+
+7. **Aligned with .tern conventions.** The envelope header follows the same magic/version/checksum pattern as `TernFileHeader`, adapted for the X.509 extension context where file-level semantics (filename, MIME type) don't apply.
+
+---
+
+## 4. EXTENSION WIRE FORMAT
+
+### 4.1 Current Format (v1 — Uncompressed)
+
+```
+OID 1.3.6.1.4.1.0.100.2.1
+  OCTET STRING
+    └── Raw UTF-8 JSON (CalendarContext payload)
+        First byte of JSON is always 0x7B ('{')
+```
+
+### 4.2 New Format (v2 — Ternary Compressed)
+
+```
+OID 1.3.6.1.4.1.0.100.2.1
+  OCTET STRING
+    └── Compression Envelope
+        ┌─────────────────────────────────────────────────────────┐
+        │ Bytes 0–3     │ Magic            │ "TERN" (0x5445524E) │
+        │ Byte 4        │ Envelope Version │ 0x02                │
+        │ Byte 5        │ Pipeline ID      │ Compression method  │
+        │ Bytes 6–9     │ Original Size    │ uint32 BE           │
+        │ Bytes 10–13   │ Compressed Size  │ uint32 BE           │
+        │ Bytes 14–17   │ Checksum         │ CRC-32C             │
+        │ Bytes 18–N    │ Compressed Data  │ Pipeline output     │
+        └─────────────────────────────────────────────────────────┘
+```
+
+### 4.3 Header Fields
+
+| Offset | Size | Field | Description |
+|--------|------|-------|-------------|
+| 0–3 | 4 bytes | `magic` | `"TERN"` (0x54 0x45 0x52 0x4E). Aligns with `TernFileHeader` convention. Unambiguous discriminator — raw JSON starts with `{` (0x7B), never with `T` (0x54). |
+| 4 | 1 byte | `envelopeVersion` | Envelope format version. `0x02` = this specification. Future envelope revisions increment this. |
+| 5 | 1 byte | `pipelineId` | Compression pipeline identifier. See §4.4. |
+| 6–9 | 4 bytes | `originalSize` | Original JSON payload size in bytes, unsigned 32-bit big-endian. |
+| 10–13 | 4 bytes | `compressedSize` | Compressed payload size in bytes, unsigned 32-bit big-endian. Must equal `N - 18` where N is total OCTET STRING length. Redundant integrity check. |
+| 14–17 | 4 bytes | `checksum` | CRC-32C (Castagnoli) of the **original** uncompressed JSON bytes. CRC-32C chosen for hardware acceleration on modern CPUs (SSE 4.2 / ARMv8 CRC). |
+| 18–N | variable | `payload` | Compressed data output from the pipeline identified in byte 5. |
+
+**Total header overhead: 18 bytes.** 4 bytes more than v1.0 spec due to "TERN" magic, but aligns with the established file format convention and provides unambiguous identification.
+
+### 4.4 Pipeline Registry
+
+| ID | Pipeline | Stages | Status |
+|----|----------|--------|--------|
+| `0x00` | Reserved | — | — |
+| `0x01` | `TERN_FULL` | zlib deflate → `ternaryEncode()` → `runLengthCompress()` | **Primary** |
+| `0x02` | `TERN_DEFLATE_ONLY` | zlib deflate only (no ternary stages) | **Fallback** |
+| `0x03` | `TERN_PHASE` | Full pipeline + `phaseSplit()` phase encryption | **Reserved** (future — SENTINEL/SECURE tiers) |
+| `0x04–0xFE` | — | Reserved for future pipelines | — |
+| `0xFF` | `TERN_NONE` | No compression — raw JSON with envelope header | **Debug** |
+
+**Pipeline `0x01` (`TERN_FULL`)** is the production path — same three-stage pipeline that `compressData()` already executes. The CalendarContext layer simply calls the existing function and wraps the output in an envelope.
+
+**Pipeline `0x02` (`TERN_DEFLATE_ONLY`)** exists for environments where `ternaryEncode()` / `runLengthCompress()` are unavailable (e.g., third-party clients with only zlib). Achieves 65–75% compression on calendar JSON — worse than the full pipeline but universally available.
+
+**Pipeline `0x03` (`TERN_PHASE`)** reserved for future use where SENTINEL or SECURE tiers may embed phase-encrypted calendar data using `phaseSplit()` from `libternary/src/phase-encryption.ts`. Currently these tiers carry empty calendar arrays (UTC-only), but the pipeline ID is reserved for forward compatibility.
+
+### 4.5 Version Detection
+
+The first 4 bytes of the OCTET STRING determine parsing strategy:
+
+```
+Bytes 0–3 == "TERN" (0x5445524E)  →  v2 compression envelope, read header, decompress
+Byte 0    == 0x7B   ('{')         →  v1 raw JSON, parse directly
+Otherwise                         →  Unknown format, emit warning, skip extension
+```
+
+This is unambiguous because:
+- Valid JSON always starts with `{` (0x7B) — the CalendarContext schema requires a root object
+- `"TERN"` starts with `T` (0x54) which can never be the first byte of valid JSON
+- `T` (0x54) ≠ `{` (0x7B) — no byte-level overlap between the two formats
+
+---
+
+## 5. COMPRESSION PIPELINE
+
+### 5.1 Token Issuance Path (Compression)
+
+```
+CalendarContext JSON
+        │
+        ▼
+  ┌─────────────┐     ┌──────────────────┐
+  │ Size Check   │────▶│ Below threshold? │──── YES ───▶ Emit v1 (raw JSON)
+  └─────────────┘     └──────────────────┘
+        │ NO
+        ▼
+  ┌──────────────────┐     ┌──────────────────┐
+  │ compressData()   │────▶│ Compression OK?  │──── NO ────▶ Emit v1 (raw JSON)
+  │ server/ternary.ts│     │                  │              + warn counter++
+  └──────────────────┘     └──────────────────┘
+        │ YES
+        ▼
+  ┌──────────────┐     ┌──────────────────┐
+  │ Size Compare │────▶│ Smaller than     │──── NO ────▶ Emit v1 (raw JSON)
+  │              │     │ original + 18?   │
+  └──────────────┘     └──────────────────┘
+        │ YES
+        ▼
+  ┌───────────────────┐
+  │ Build TERN        │
+  │ Envelope          │───▶ Emit v2 (18-byte header + compressed payload)
+  │ (magic + header   │
+  │  + payload)       │
+  └───────────────────┘
+```
+
+### 5.2 Implementation — `server/services/tsa-calendar-compression.ts`
+
+```typescript
+/**
+ * TSA Calendar Context — Ternary Compression Integration
+ *
+ * Wraps the existing compression pipeline from server/ternary.ts
+ * with a TERN-format envelope for embedding in X.509v3 extensions.
+ *
+ * @module server/services/tsa-calendar-compression
+ */
+
+import {
+  compressData,
+  decompressData,
+  ternaryEncode,
+  ternaryDecode,
+  runLengthCompress,
+  runLengthDecompress,
+} from '../ternary';
+
+import {
+  compressForStorage,
+  decompressFromStorage,
+} from '../compression-layer';
+
+import type { CompressionResult } from '../ternary';
+
+// ── Constants ───────────────────────────────────────────────────────
+
+const TERN_MAGIC = Buffer.from('TERN', 'ascii');      // 0x54 0x45 0x52 0x4E
+const ENVELOPE_HEADER_SIZE = 18;                        // 4 magic + 1 version + 1 pipeline + 4 orig + 4 comp + 4 crc
+const COMPRESSION_THRESHOLD = 256;                      // bytes — don't compress below this
+const MAX_CALENDAR_JSON_SIZE = 65_536;                  // 64 KB — decompression bomb guard
+const COMPRESSION_TIMEOUT_MS = 5;                       // fallback to raw JSON if exceeded
+
+// Pipeline IDs — must match §4.4 registry
+const PIPELINE = {
+  TERN_FULL:         0x01,  // deflate → ternaryEncode → runLengthCompress
+  TERN_DEFLATE_ONLY: 0x02,  // deflate only
+  TERN_PHASE:        0x03,  // full + phaseSplit (reserved)
+  TERN_NONE:         0xFF,  // no compression (debug)
+} as const;
+
+const ENVELOPE_VERSION = 0x02;
+
+// ── Interfaces ──────────────────────────────────────────────────────
+
+interface CalendarContext {
+  v: number;
+  utc: string;
+  jdn: number;
+  sed: number;
+  tier: string;
+  src: { policy: string[]; request: string[] };
+  cal: CalendarEntry[];
+}
+
+interface CalendarEntry {
+  sys: string;
+  d: string;
+  y: number;
+  m: number | string;
+  day: number;
+  era?: string;
+  [key: string]: unknown;
+}
+
+interface CompressionEnvelope {
+  magic: Buffer;
+  envelopeVersion: number;
+  pipelineId: number;
+  originalSize: number;
+  compressedSize: number;
+  checksum: number;
+  payload: Buffer;
+}
+
+/** Extended result including pipeline metrics */
+interface CalendarCompressionResult extends CompressionResult {
+  pipelineId: number;
+  envelopeOverhead: number;
+  effectiveRatio: number;      // (compressed + envelope) / original
+}
+
+// ── Compression (Token Issuance) ────────────────────────────────────
+
+/**
+ * Builds the CalendarContext extension payload.
+ *
+ * Returns raw JSON (v1) or TERN-compressed envelope (v2)
+ * depending on payload size and compression success.
+ * Compression failure NEVER throws — always falls back to raw JSON.
+ */
+export function buildCalendarExtension(
+  context: CalendarContext,
+  pipelineOverride?: number,
+): { buffer: Buffer; compressed: boolean; metrics: CalendarCompressionResult | null } {
+  const json = Buffer.from(JSON.stringify(context), 'utf-8');
+
+  // ── Gate 1: Size threshold ──────────────────────────────────────
+  if (json.length < COMPRESSION_THRESHOLD) {
+    compressionFallbackCounter.inc({ tier: context.tier, reason: 'below_threshold' });
+    return { buffer: json, compressed: false, metrics: null };
+  }
+
+  // ── Gate 2: Compress via existing pipeline ──────────────────────
+  const pipelineId = pipelineOverride ?? PIPELINE.TERN_FULL;
+  let compressed: Buffer;
+  let pipelineResult: CompressionResult;
+
+  try {
+    const startTime = performance.now();
+
+    // Call the EXISTING compressData() from server/ternary.ts
+    // This executes: zlib deflate → ternaryEncode → runLengthCompress
+    const result = compressData(json);
+    pipelineResult = result;
+    compressed = result.data;  // compressed output buffer
+
+    const elapsed = performance.now() - startTime;
+    compressionDurationHistogram.observe(
+      { tier: context.tier, pipeline: pipelineName(pipelineId) },
+      elapsed,
+    );
+
+    // Timeout guard (should never fire — compression is sub-ms)
+    if (elapsed > COMPRESSION_TIMEOUT_MS) {
+      compressionFallbackCounter.inc({ tier: context.tier, reason: 'timeout' });
+      logger.warn('Calendar compression exceeded timeout', {
+        elapsed,
+        threshold: COMPRESSION_TIMEOUT_MS,
+        tier: context.tier,
+      });
+      return { buffer: json, compressed: false, metrics: null };
+    }
+
+  } catch (err) {
+    compressionFallbackCounter.inc({ tier: context.tier, reason: 'error' });
+    logger.warn('Calendar compression failed, emitting raw JSON', {
+      error: (err as Error).message,
+      tier: context.tier,
+    });
+    return { buffer: json, compressed: false, metrics: null };
+  }
+
+  // ── Gate 3: Verify compression actually helped ──────────────────
+  if (compressed.length + ENVELOPE_HEADER_SIZE >= json.length) {
+    compressionFallbackCounter.inc({ tier: context.tier, reason: 'no_gain' });
+    return { buffer: json, compressed: false, metrics: null };
+  }
+
+  // ── Build TERN envelope ─────────────────────────────────────────
+  const checksum = crc32c(json);
+  const envelope = buildEnvelope({
+    magic: TERN_MAGIC,
+    envelopeVersion: ENVELOPE_VERSION,
+    pipelineId,
+    originalSize: json.length,
+    compressedSize: compressed.length,
+    checksum,
+    payload: compressed,
+  });
+
+  const metrics: CalendarCompressionResult = {
+    originalSize: pipelineResult.originalSize,
+    ternarySize: pipelineResult.ternarySize,
+    compressedSize: pipelineResult.compressedSize,
+    compressionRatio: pipelineResult.compressionRatio,
+    pipelineId,
+    envelopeOverhead: ENVELOPE_HEADER_SIZE,
+    effectiveRatio: envelope.length / json.length,
+  };
+
+  compressionRatioHistogram.observe(
+    { tier: context.tier, pipeline: pipelineName(pipelineId) },
+    metrics.effectiveRatio,
+  );
+
+  compressionMethodCounter.inc({
+    tier: context.tier,
+    pipeline: pipelineName(pipelineId),
+  });
+
+  return { buffer: envelope, compressed: true, metrics };
+}
+
+// ── Envelope Construction ───────────────────────────────────────────
+
+function buildEnvelope(env: CompressionEnvelope): Buffer {
+  const header = Buffer.alloc(ENVELOPE_HEADER_SIZE);
+
+  // Bytes 0–3: "TERN" magic
+  env.magic.copy(header, 0);
+  // Byte 4: envelope version
+  header.writeUInt8(env.envelopeVersion, 4);
+  // Byte 5: pipeline ID
+  header.writeUInt8(env.pipelineId, 5);
+  // Bytes 6–9: original size (uint32 BE)
+  header.writeUInt32BE(env.originalSize, 6);
+  // Bytes 10–13: compressed size (uint32 BE)
+  header.writeUInt32BE(env.compressedSize, 10);
+  // Bytes 14–17: CRC-32C of original JSON
+  header.writeUInt32BE(env.checksum, 14);
+
+  return Buffer.concat([header, env.payload]);
+}
+
+// ── Decompression (Token Verification) ──────────────────────────────
+
+/**
+ * Parse a CalendarContext from the raw OCTET STRING of the
+ * X.509v3 extension (OID 1.3.6.1.4.1.0.100.2.1).
+ *
+ * Handles both v1 (raw JSON) and v2 (TERN envelope) transparently.
+ * Returns null on any parsing failure — calendar context is advisory,
+ * never blocking.
+ */
+export function parseCalendarExtension(octetString: Buffer): CalendarContext | null {
+  if (octetString.length === 0) return null;
+
+  try {
+    // ── TERN envelope detection (4-byte magic) ────────────────────
+    if (
+      octetString.length >= ENVELOPE_HEADER_SIZE &&
+      octetString.subarray(0, 4).equals(TERN_MAGIC)
+    ) {
+      return decompressEnvelope(octetString);
+    }
+
+    // ── v1: Raw JSON detection (first byte is '{') ────────────────
+    if (octetString[0] === 0x7B) {
+      const json = octetString.toString('utf-8');
+      return validateCalendarContext(JSON.parse(json));
+    }
+
+    // ── Unknown format ────────────────────────────────────────────
+    logger.warn('Unknown CalendarContext format', {
+      firstBytes: octetString.subarray(0, 4).toString('hex'),
+    });
+    decompressionErrorCounter.inc({ reason: 'unknown_format' });
+    return null;
+
+  } catch (err) {
+    logger.warn('CalendarContext parse failed', { error: (err as Error).message });
+    decompressionErrorCounter.inc({ reason: 'parse_error' });
+    return null;
+  }
+}
+
+function decompressEnvelope(data: Buffer): CalendarContext | null {
+  // ── Header extraction ──────────────────────────────────────────
+  if (data.length < ENVELOPE_HEADER_SIZE) {
+    throw new Error(`Envelope too short: ${data.length} < ${ENVELOPE_HEADER_SIZE}`);
+  }
+
+  const magic          = data.subarray(0, 4);
+  const envelopeVer    = data.readUInt8(4);
+  const pipelineId     = data.readUInt8(5);
+  const originalSize   = data.readUInt32BE(6);
+  const compressedSize = data.readUInt32BE(10);
+  const checksum       = data.readUInt32BE(14);
+  const payload        = data.subarray(ENVELOPE_HEADER_SIZE);
+
+  // ── Integrity checks ──────────────────────────────────────────
+  if (!magic.equals(TERN_MAGIC)) {
+    throw new Error(`Invalid magic: expected TERN, got ${magic.toString('ascii')}`);
+  }
+
+  if (envelopeVer !== ENVELOPE_VERSION) {
+    // Future versions may be parseable — for now, only v2
+    throw new Error(`Unsupported envelope version: 0x${envelopeVer.toString(16)}`);
+  }
+
+  if (payload.length !== compressedSize) {
+    throw new Error(
+      `Compressed size mismatch: header says ${compressedSize}, payload is ${payload.length}`
+    );
+  }
+
+  // Decompression bomb guard
+  if (originalSize > MAX_CALENDAR_JSON_SIZE) {
+    decompressionErrorCounter.inc({ reason: 'bomb_guard' });
+    throw new Error(
+      `Original size ${originalSize} exceeds maximum ${MAX_CALENDAR_JSON_SIZE}`
+    );
+  }
+
+  // ── Decompress via existing pipeline ───────────────────────────
+  const startTime = performance.now();
+  let decompressed: Buffer;
+
+  switch (pipelineId) {
+
+    case PIPELINE.TERN_FULL: {
+      // Reverse of: deflate → ternaryEncode → runLengthCompress
+      // Uses decompressData() from server/ternary.ts which encapsulates:
+      //   runLengthDecompress → ternaryDecode → zlib inflate
+      decompressed = decompressData(payload);
+      break;
+    }
+
+    case PIPELINE.TERN_DEFLATE_ONLY: {
+      // zlib inflate only — for third-party clients without ternary libs
+      decompressed = zlibInflateSync(payload);
+      break;
+    }
+
+    case PIPELINE.TERN_NONE: {
+      // Debug: payload is raw JSON
+      decompressed = payload;
+      break;
+    }
+
+    default:
+      decompressionErrorCounter.inc({ reason: 'unknown_pipeline' });
+      throw new Error(`Unknown pipeline ID: 0x${pipelineId.toString(16)}`);
+  }
+
+  const elapsed = performance.now() - startTime;
+  decompressionDurationHistogram.observe(
+    { pipeline: pipelineName(pipelineId) },
+    elapsed,
+  );
+
+  // ── Post-decompression validation ──────────────────────────────
+  if (decompressed.length !== originalSize) {
+    decompressionErrorCounter.inc({ reason: 'size_mismatch' });
+    throw new Error(
+      `Decompressed size mismatch: expected ${originalSize}, got ${decompressed.length}`
+    );
+  }
+
+  const actualChecksum = crc32c(decompressed);
+  if (actualChecksum !== checksum) {
+    decompressionErrorCounter.inc({ reason: 'crc_mismatch' });
+    throw new Error(
+      `CRC-32C mismatch: expected 0x${checksum.toString(16).padStart(8, '0')}, ` +
+      `got 0x${actualChecksum.toString(16).padStart(8, '0')}`
+    );
+  }
+
+  // ── Parse JSON ─────────────────────────────────────────────────
+  const json = decompressed.toString('utf-8');
+  return validateCalendarContext(JSON.parse(json));
+}
+
+// ── Schema Validation ───────────────────────────────────────────────
+
+/**
+ * Validates parsed JSON conforms to CalendarContext structure.
+ * Returns null on schema violation.
+ */
+function validateCalendarContext(obj: unknown): CalendarContext | null {
+  if (!obj || typeof obj !== 'object') return null;
+  const ctx = obj as Record<string, unknown>;
+
+  if (typeof ctx.v !== 'number') return null;
+  if (typeof ctx.utc !== 'string') return null;
+  if (typeof ctx.jdn !== 'number') return null;
+  if (!Array.isArray(ctx.cal)) return null;
+
+  for (const entry of ctx.cal as unknown[]) {
+    if (!entry || typeof entry !== 'object') return null;
+    const e = entry as Record<string, unknown>;
+    if (typeof e.sys !== 'string') return null;
+    if (typeof e.d !== 'string') return null;
+    if (typeof e.y !== 'number' && typeof e.y !== 'undefined') return null;
+  }
+
+  return ctx as unknown as CalendarContext;
+}
+
+// ── Utility ─────────────────────────────────────────────────────────
+
+function pipelineName(id: number): string {
+  switch (id) {
+    case PIPELINE.TERN_FULL:         return 'tern_full';
+    case PIPELINE.TERN_DEFLATE_ONLY: return 'tern_deflate_only';
+    case PIPELINE.TERN_PHASE:        return 'tern_phase';
+    case PIPELINE.TERN_NONE:         return 'tern_none';
+    default:                         return `unknown_0x${id.toString(16)}`;
+  }
+}
+```
+
+---
+
+## 6. RELATIONSHIP TO EXISTING APIs
+
+### 6.1 What This Module Calls
+
+| This module calls | From | Purpose |
+|-------------------|------|---------|
+| `compressData(buffer)` | `server/ternary.ts` | Full 3-stage compression pipeline |
+| `decompressData(buffer)` | `server/ternary.ts` | Full 3-stage decompression pipeline |
+| `ternaryEncode(buffer)` | `server/ternary.ts` | Only if manual stage control is needed |
+| `ternaryDecode(buffer)` | `server/ternary.ts` | Only if manual stage control is needed |
+| `runLengthCompress(trits)` | `server/ternary.ts` | Only if manual stage control is needed |
+| `runLengthDecompress(trits)` | `server/ternary.ts` | Only if manual stage control is needed |
+
+### 6.2 What This Module Does NOT Do
+
+- **Does NOT reimplement compression.** No new compression algorithms. No Tribonacci coding. No custom dictionaries. The existing pipeline handles it.
+- **Does NOT create .tern files.** The CalendarContext extension uses a TERN-compatible envelope (same magic, same convention) but is embedded in X.509v3, not stored as a file. `createTernFile()` / `parseTernFile()` remain for file storage use cases.
+- **Does NOT call `/api/compression/*` endpoints.** This is a library-level integration, not an HTTP call. The TSA service calls `compressData()` directly — no network roundtrip.
+- **Does NOT use phase encryption.** Pipeline `0x03` (`TERN_PHASE`) is reserved but unimplemented. Calendar data is not sensitive enough to warrant phase splitting in current tiers.
+
+### 6.3 Integration Point
+
+The new module slots into the existing TSA service between calendar enrichment and token assembly:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    TSA Token Issuance                        │
+│                                                             │
+│  1. Receive timestamp request                               │
+│  2. Build TSTInfo core (hash, serial, time, policy)         │
+│  3. Calendar enrichment (tsa-calendar-enrichment.ts)        │
+│       └── Produces CalendarContext JSON object               │
+│  4. ★ Calendar compression (tsa-calendar-compression.ts) ★  │  ← NEW
+│       └── Calls compressData() from server/ternary.ts       │
+│       └── Wraps in TERN envelope or falls back to raw JSON  │
+│  5. Embed as X.509v3 extension (OID 1.3.6.1.4.1.0.100.2.1)│
+│  6. Sign token                                              │
+│  7. Optional: TL-DSA co-signature                           │
+│  8. Return RFC 3161 TimeStampResp                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 7. PROMETHEUS METRICS
+
+```typescript
+// ── Compression Metrics ──────────────────────────────────────────────
+
+const compressionRatioHistogram = new Histogram({
+  name: 'tsa_calendar_compression_ratio',
+  help: 'Effective compression ratio (envelope/original) for calendar extensions',
+  labelNames: ['tier', 'pipeline'],
+  buckets: [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.5, 0.6, 0.75, 1.0],
+});
+
+const compressionDurationHistogram = new Histogram({
+  name: 'tsa_calendar_compression_duration_ms',
+  help: 'Time spent compressing calendar extension payload',
+  labelNames: ['tier', 'pipeline'],
+  buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+});
+
+const decompressionDurationHistogram = new Histogram({
+  name: 'tsa_calendar_decompression_duration_ms',
+  help: 'Time spent decompressing calendar extension payload',
+  labelNames: ['pipeline'],
+  buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+});
+
+const compressionFallbackCounter = new Counter({
+  name: 'tsa_calendar_compression_fallback_total',
+  help: 'Count of compression fallbacks to raw JSON',
+  labelNames: ['tier', 'reason'],
+  // reason: 'below_threshold' | 'error' | 'no_gain' | 'timeout'
+});
+
+const compressionMethodCounter = new Counter({
+  name: 'tsa_calendar_compression_pipeline_total',
+  help: 'Count of tokens emitted per compression pipeline',
+  labelNames: ['tier', 'pipeline'],
+  // pipeline: 'tern_full' | 'tern_deflate_only' | 'tern_none'
+});
+
+const decompressionErrorCounter = new Counter({
+  name: 'tsa_calendar_decompression_error_total',
+  help: 'Count of decompression failures',
+  labelNames: ['reason'],
+  // reason: 'unknown_format' | 'unknown_pipeline' | 'size_mismatch'
+  //       | 'crc_mismatch' | 'parse_error' | 'bomb_guard' | 'schema_invalid'
+});
+```
+
+### Prometheus Recording Rules
+
+```yaml
+groups:
+  - name: tsa_calendar_compression
+    interval: 60s
+    rules:
+      - record: tsa:calendar_compression_ratio:avg5m
+        expr: |
+          rate(tsa_calendar_compression_ratio_sum[5m])
+          / rate(tsa_calendar_compression_ratio_count[5m])
+
+      - record: tsa:calendar_compression_fallback_rate:5m
+        expr: |
+          rate(tsa_calendar_compression_fallback_total[5m])
+          / (
+            rate(tsa_calendar_compression_pipeline_total[5m])
+            + rate(tsa_calendar_compression_fallback_total[5m])
+          )
+
+      # Alert: compression failing more than 5% of the time
+      - alert: CalendarCompressionDegraded
+        expr: tsa:calendar_compression_fallback_rate:5m > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: tsa
+        annotations:
+          summary: "Calendar compression fallback rate above 5%"
+          description: "{{ $labels.tier }} tier: {{ $value | humanizePercentage }} fallback rate"
+
+      # Alert: decompression errors (any sustained errors are a problem)
+      - alert: CalendarDecompressionErrors
+        expr: rate(tsa_calendar_decompression_error_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: tsa
+        annotations:
+          summary: "Calendar decompression errors detected"
+          description: "{{ $labels.reason }}: {{ $value | humanize }}/s"
+```
+
+---
+
+## 8. SIZE IMPACT
+
+### 8.1 Compression Ratios by Tier
+
+Estimated using `TERN_FULL` pipeline (deflate → ternaryEncode → runLengthCompress). The ternary encoding stage after deflate provides additional compression on the already-deflated output, particularly effective on the repetitive key structures in calendar JSON.
+
+| Tier | Systems | Raw JSON | Compressed | Envelope (18 + compressed) | Base64 in ASN.1 | Reduction |
+|------|---------|----------|-----------|---------------------------|-----------------|-----------|
+| DEFAULT (no cal) | 0 | 0 B | — | 0 B | 0 B | — |
+| DEFAULT + 1 | 1 | ~180 B | — | ~180 B (below threshold) | ~240 B | 0% (not compressed) |
+| DEFAULT + 2 | 2 | ~320 B | ~90 B | ~108 B | ~144 B | **55%** |
+| COMPLY (11) | 11 | ~1.2 KB | ~300 B | ~318 B | ~424 B | **65%** |
+| COMPLY + 5 | 16 | ~1.8 KB | ~430 B | ~448 B | ~597 B | **67%** |
+| FORENSICS (42) | 42 | ~5.5 KB | ~1.1 KB | ~1.12 KB | ~1.50 KB | **79%** |
+
+### 8.2 Revised Total Token Sizes
+
+| Tier | Base Token | Calendar Extension (compressed) | Total | Previous (uncompressed) |
+|------|-----------|-------------------------------|-------|------------------------|
+| DEFAULT | ~3.5 KB | 0 B | ~3.5 KB | ~3.5 KB |
+| DEFAULT + 1 | ~3.5 KB | ~240 B | ~3.7 KB | ~3.7 KB |
+| COMPLY | ~3.5 KB | ~424 B | ~3.9 KB | ~5.1 KB |
+| FORENSICS | ~3.5 KB | ~1.50 KB | ~5.0 KB | ~10.8 KB |
+
+**FORENSICS tokens drop from ~10.8 KB to ~5.0 KB.** The 16384 histogram bucket is no longer necessary — 8192 is sufficient.
+
+### 8.3 CompressionResult Metrics
+
+The existing `CompressionResult` from `server/ternary.ts` already provides per-stage visibility:
+
+| Field | Meaning | Example (FORENSICS) |
+|-------|---------|-------------------|
+| `originalSize` | Raw JSON bytes | 5,500 |
+| `ternarySize` | Size after ternaryEncode (before RLE) | ~2,200 |
+| `compressedSize` | Final compressed output | ~1,100 |
+| `compressionRatio` | `compressedSize / originalSize` | 0.20 |
+
+The `CalendarCompressionResult` adds `effectiveRatio` which includes the 18-byte envelope overhead: `(compressedSize + 18) / originalSize`.
+
+### 8.4 DEFLATE-Only Fallback Comparison
+
+If the full ternary pipeline is unavailable:
+
+| Tier | Raw JSON | DEFLATE only | Ratio | vs. TERN_FULL |
+|------|----------|-------------|-------|---------------|
+| COMPLY (11) | ~1.2 KB | ~370 B | 69% | 4% worse |
+| FORENSICS (42) | ~5.5 KB | ~1.4 KB | 75% | 4% worse |
+
+The ternary stages (encode + RLE) contribute an additional 4–6% compression on top of deflate for this particular data shape.
+
+---
+
+## 9. CONFIGURATION
+
+### 9.1 Policy-Level Compression Control
+
+```typescript
+interface CalendarCompressionPolicy {
+  enabled: boolean;
+  pipelineId: number;
+  threshold: number;     // minimum JSON bytes to trigger compression
+}
+
+export const POLICY_COMPRESSION_CONFIG: Record<string, CalendarCompressionPolicy> = {
+  'DEFAULT':    { enabled: true,  pipelineId: PIPELINE.TERN_FULL, threshold: 256 },
+  'COMPLY':     { enabled: true,  pipelineId: PIPELINE.TERN_FULL, threshold: 256 },
+  'FORENSICS':  { enabled: true,  pipelineId: PIPELINE.TERN_FULL, threshold: 256 },
+  'SENTINEL':   { enabled: false, pipelineId: PIPELINE.TERN_NONE, threshold: 0   },
+  'SECURE':     { enabled: false, pipelineId: PIPELINE.TERN_NONE, threshold: 0   },
+};
+```
+
+SENTINEL and SECURE have empty calendar arrays (UTC-only), so compression never applies.
+
+### 9.2 Environment Overrides
+
+```bash
+# Force raw JSON globally (disable compression)
+TSA_CALENDAR_COMPRESSION=disabled
+
+# Force deflate-only fallback (ternary pipeline unavailable)
+TSA_CALENDAR_COMPRESSION_PIPELINE=deflate_only
+
+# Adjust threshold (bytes)
+TSA_CALENDAR_COMPRESSION_THRESHOLD=512
+
+# Compression timeout (ms)
+TSA_CALENDAR_COMPRESSION_TIMEOUT_MS=5
+```
+
+### 9.3 Timeout Behavior
+
+Compression timeout defaults to **5ms**. The existing `compressData()` pipeline should complete in <1ms for calendar-sized payloads on any modern hardware. The 5ms ceiling accounts for cold-start JIT, GC pauses, and contention under load. If hit, emit raw JSON (v1) and increment `compressionFallbackCounter` with `reason: 'timeout'`.
+
+---
+
+## 10. BACKWARD COMPATIBILITY
+
+### 10.1 Existing Tokens
+
+All tokens issued before this specification contain raw JSON (v1). They remain fully parseable. `parseCalendarExtension()` checks for "TERN" magic first, then falls through to JSON parsing.
+
+### 10.2 Third-Party Verifiers
+
+Standard verifiers (OpenSSL `ts -verify`, Adobe Acrobat, RFC 3161 clients) already skip non-critical extensions. The compression layer is invisible to them.
+
+### 10.3 PlenumNET Client Libraries
+
+| Library | Minimum Version | Notes |
+|---------|----------------|-------|
+| `@plenumnet/tsa-client` | 2.1.0 | Full TERN envelope + `decompressData()` |
+| `@plenumnet/tsa-client` | 2.0.x | v1 raw JSON only (pre-compression) |
+| Third-party RFC 3161 client | Any | Extension skipped (non-critical) |
+
+Clients at 2.0.x encountering a TERN envelope will fail the `0x7B` check and hit the unknown format path — returning `null` for calendar context. Core timestamp verification succeeds regardless.
+
+### 10.4 Mixed-Version Token Streams
+
+A token stream may contain a mix of v1 and TERN-envelope tokens (during rollout, or when compression falls back). `parseCalendarExtension()` handles both formats in the same verification pipeline — no special case logic needed.
+
+---
+
+## 11. TESTING CHECKLIST
+
+### Compression pipeline
+- [ ] Raw JSON below 256 bytes emits v1 (no compression, no TERN envelope)
+- [ ] Raw JSON above 256 bytes calls `compressData()` from `server/ternary.ts`
+- [ ] Successful compression emits TERN envelope with magic `"TERN"` and pipeline `0x01`
+- [ ] Compression failure falls back to v1 with `compressionFallbackCounter` increment
+- [ ] Compression producing output ≥ original + 18 falls back to v1
+- [ ] Compression timeout at 5ms falls back to v1
+- [ ] `CompressionResult` fields (`originalSize`, `ternarySize`, `compressedSize`, `compressionRatio`) populated correctly
+
+### Envelope integrity
+- [ ] Bytes 0–3 are `0x54 0x45 0x52 0x4E` ("TERN") for all compressed tokens
+- [ ] Byte 4 (envelope version) is `0x02`
+- [ ] Byte 5 (pipeline ID) matches the pipeline used (`0x01` for TERN_FULL)
+- [ ] `originalSize` matches actual pre-compression JSON length
+- [ ] `compressedSize` matches actual payload length (envelope total − 18)
+- [ ] CRC-32C matches recomputed checksum of decompressed output
+
+### Decompression
+- [ ] TERN envelope tokens (magic "TERN") decompress via `decompressData()` from `server/ternary.ts`
+- [ ] v1 tokens (first byte `0x7B`) parse directly as JSON
+- [ ] Unknown format (not "TERN", not `{`) returns `null` with warning
+- [ ] Unknown pipeline ID throws descriptive error
+- [ ] Size mismatch (decompressed ≠ originalSize) throws error
+- [ ] CRC-32C mismatch throws error
+- [ ] Decompression bomb guard rejects `originalSize > 65,536`
+
+### Round-trip verification
+- [ ] For every tier: `parseCalendarExtension(buildCalendarExtension(ctx).buffer)` equals `ctx`
+- [ ] DEFAULT + 1 calendar: round-trip matches (below threshold — v1 path)
+- [ ] COMPLY (11 calendars): round-trip matches (v2 TERN path)
+- [ ] FORENSICS (42 calendars): round-trip matches (v2 TERN path)
+- [ ] Mixed v1/TERN token stream: all tokens parse correctly
+
+### DEFLATE-only fallback
+- [ ] With `TSA_CALENDAR_COMPRESSION_PIPELINE=deflate_only`: tokens compress with pipeline `0x02`
+- [ ] DEFLATE-only tokens decompress correctly on full-pipeline clients
+- [ ] Full-pipeline tokens decompress correctly on DEFLATE-only clients **→ expected failure** (unknown pipeline)
+
+### Prometheus
+- [ ] `tsa_calendar_compression_ratio` histogram populates correctly
+- [ ] `tsa_calendar_compression_duration_ms` captures timing
+- [ ] `tsa_calendar_compression_fallback_total` increments on fallback
+- [ ] `tsa_calendar_compression_pipeline_total` tracks pipeline distribution
+- [ ] `tsa_calendar_decompression_error_total` increments on failures
+- [ ] `CalendarCompressionDegraded` alert fires at >5% fallback rate
+- [ ] `CalendarDecompressionErrors` alert fires on sustained errors
+
+### OpenSSL compatibility
+- [ ] `openssl ts -verify` succeeds on tokens with TERN-compressed extensions
+- [ ] Extension OID `1.3.6.1.4.1.0.100.2.1` remains non-critical
+- [ ] No ASN.1 parsing errors from TERN-envelope OCTET STRING content
+
+### Integration with existing compression APIs
+- [ ] `compressData()` called via import from `server/ternary.ts` (not HTTP, not reimplemented)
+- [ ] `decompressData()` called via import from `server/ternary.ts`
+- [ ] `CompressionResult` interface consumed correctly
+- [ ] No duplicate compression logic exists outside `server/ternary.ts`
+
+---
+
+## 12. NON-NEGOTIABLE RULES
+
+1. **Wrap, don't reinvent.** All compression goes through `compressData()` / `decompressData()` from `server/ternary.ts`. No parallel implementations, no custom algorithms, no duplicate code paths.
+
+2. **Compression NEVER blocks token issuance.** Any failure → raw JSON fallback. No exceptions.
+
+3. **"TERN" magic is the contract.** Bytes 0–3 = `0x5445524E` = TERN envelope. First byte `0x7B` = raw JSON. This discrimination is permanent and must never change.
+
+4. **CRC-32C is mandatory.** Every compressed payload carries a checksum of the original. Decompression without checksum verification is a bug.
+
+5. **Decompression bomb guard is mandatory.** `originalSize` exceeding `MAX_CALENDAR_JSON_SIZE` (64 KB) is rejected before decompression begins.
+
+6. **DEFLATE-only fallback exists.** Third-party integrators without the ternary pipeline can use pipeline `0x02` for interoperable compression. Worse than full pipeline but universally available.
+
+7. **Compression is invisible to standard verifiers.** The extension remains non-critical. OpenSSL, Adobe, and any RFC 3161 client skip it entirely.
+
+8. **18-byte header overhead is the cost.** Compression is only applied when savings exceed this overhead. Below 256 bytes, raw JSON is emitted.
+
+9. **Timeout is 5ms.** If `compressData()` takes longer than 5ms on calendar JSON, something is wrong. Fall back and investigate.
+
+10. **Metrics are not optional.** Every compression decision, every fallback, every decompression error is instrumented. Silent failures are unacceptable.
+
+---
+
+## APPENDIX A: MIGRATION FROM SPEC v1.0
+
+Spec v1.0 (issued earlier on this date) contained placeholder compression functions (`tcmCompress`, `tcmDecompress`, `TCM_TRIBONACCI`) that did not reference the existing Salvi Framework compression infrastructure. This v2.0 replaces it entirely.
+
+| v1.0 Spec (Superseded) | v2.0 Spec (Current) |
+|------------------------|---------------------|
+| `tcmCompress(json, TCM_TRIBONACCI)` | `compressData(json)` from `server/ternary.ts` |
+| `tcmDecompress(payload, originalSize)` | `decompressData(payload)` from `server/ternary.ts` |
+| Invented Tribonacci coding with calendar dictionary | Existing pipeline: deflate → ternaryEncode → runLengthCompress |
+| 14-byte header (no magic) | 18-byte header with "TERN" magic (aligned with TernFileHeader) |
+| Method byte with `TCM_TRIBONACCI = 0x01` | Pipeline byte with `TERN_FULL = 0x01` |
+| Version detection via first byte (`0x02`) | Format detection via first 4 bytes (`"TERN"` vs `"{"`) |
+| CRC-32C standalone | CRC-32C (unchanged — correct in v1.0) |
+| `server/services/tsa-compression.ts` (invented path) | `server/services/tsa-calendar-compression.ts` (proper naming) |
+
+All tokens issued under v1.0 spec (if any) would have used the `0x02` first-byte convention. If backward compatibility with v1.0 tokens is required, add a detection branch:
+
+```typescript
+// Legacy v1.0 detection: first byte 0x02 (no TERN magic)
+if (octetString[0] === 0x02 && !octetString.subarray(0, 4).equals(TERN_MAGIC)) {
+  return decompressLegacyV1Envelope(octetString); // 14-byte header format
+}
+```
+
+This is unlikely to be needed since v1.0 was never implemented or deployed.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*PlenumNET TSA Calendar Context — Ternary Compression Extension v2.0*
+*Same 42 systems. Same pipeline. No reinvention.*

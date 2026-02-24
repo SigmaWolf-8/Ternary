@@ -59,7 +59,7 @@ const tsaTokenSizeHistogram = new prom.Histogram({
   name: 'plenumnet_notification_tsa_token_size_bytes',
   help: 'Base64-encoded TSA token size in characters (for header budget monitoring)',
   labelNames: ['policy_tier'] as const,
-  buckets: [512, 1024, 2048, 3072, 4096, 6144, 8192],
+  buckets: [512, 1024, 2048, 3072, 4096, 6144, 8192, 16384],
   registers: [tsaMetricsRegistry],
 });
 

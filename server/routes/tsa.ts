@@ -66,7 +66,7 @@ export function createTsaRoutes(service: TsaService): Router {
               policy: `OID. DEFAULT=${TSA_POLICIES.DEFAULT}, COMPLY=${TSA_POLICIES.COMPLY}, FORENSICS=${TSA_POLICIES.FORENSICS}, SENTINEL=${TSA_POLICIES.SENTINEL}, SECURE=${TSA_POLICIES.SECURE}`,
               nonce: 'hex-encoded nonce for replay protection',
               includeChain: 'boolean — include TSA certificate chain',
-              calendars: 'string[] — calendar systems to embed (e.g. ["buddhist","hebrew"]). Additive to policy defaults. Use ["*"] for all 24.',
+              calendars: 'string[] — calendar systems to embed (e.g. ["buddhist","hebrew"]). Additive to policy defaults. Use ["*"] for all 42.',
             },
           });
         }
