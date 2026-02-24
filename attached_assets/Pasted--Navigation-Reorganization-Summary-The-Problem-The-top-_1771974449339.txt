@@ -1,0 +1,86 @@
+# Navigation Reorganization Summary
+
+## The Problem
+
+The top nav had 4 dropdowns where 3 of them (Platform, Technology, Resources) meant roughly the same thing. Result: 8 duplicate links and no clear reason for a user to choose one dropdown over another.
+
+### Duplicates removed
+
+- /ternarydb appeared in Platform (PlenumDB) AND Technology (PlenumDB Console)
+- /hptp appeared in Platform (HPTP Timing Protocol) AND Technology (HPTP Timing Lab)
+- /compression appeared in Platform (Compression Engine) AND Technology (Compression Studio)
+- /calendar appeared in Platform (Calendar API) AND Technology (Universal Calendar API)
+- /compliance appeared in Platform (Post-Quantum Security) AND Resources (CNSA 2.0 Compliance)
+- /#architecture appeared in Platform (x2) AND Technology (x1)
+- /api-demo appeared in footer Platform (Salvi API) AND footer Developers (API Demo)
+- GitHub appeared in footer Platform AND footer Developers
+
+---
+
+## The Fix
+
+| Before (4 dropdowns) | After (3 dropdowns) |
+|---|---|
+| **Platform** - What we built (9 items, mixes descriptions with tool links) | **Platform** - Understand the system (10 items: architecture anchors + research papers) |
+| **Technology** - What we built rephrased (10 items, duplicates 4 from Platform) | **Developers** - Use the tools (12 items: all interactive labs + docs + distribution + GitHub) |
+| **Resources** - Dump bucket (9 items) | *(absorbed into the above two)* |
+| **Company** - About, Contact, Legal (6 items) | **Company** - unchanged (6 items) |
+
+---
+
+## New Structure
+
+```
+[Logo] PlenumNET   Platform   Developers   Company   [Theme] [Get Early Access]
+```
+
+### Platform dropdown (2-column mega-menu)
+
+| Architecture | Research and Security |
+|---|---|
+| Ternary Computing Engine | Whitepaper |
+| 176-Opcode Virtual Machine | ISA Security Primitives |
+| Binary-Ternary Gateway | CNSA 2.0 Compliance |
+| Torsion Network Stack | Tribonacci 28DS |
+| Performance Metrics | FPGA Benchmarks |
+
+### Developers dropdown (3-column mega-menu)
+
+| Interactive Labs | Simulators and Calendars | Get Started |
+|---|---|---|
+| PlenumDB Console | Quantum Simulator | Documentation |
+| API Explorer | 28D Agent Array | Module Distribution |
+| HPTP Timing Lab | Universal Calendar | GitHub Repository |
+| Compression Studio | 13-Moon Harmonic | |
+| Ternary VM Terminal | | |
+
+### Company dropdown (standard list)
+
+- About PlenumNET
+- Contact
+- Terms of Service
+- Privacy Policy
+- Security Policy
+- Acceptable Use Policy
+
+---
+
+## Files Changed
+
+| File | What changed |
+|---|---|
+| client/src/App.tsx | Removed DashboardLayout, SidebarProvider, AppSidebar. All routes use single layout: MarketingTopNav then content then MarketingFooter. |
+| client/src/components/marketing-top-nav.tsx | Data arrays reorganized. DesktopNav renders 3 dropdowns instead of 4. MobileNav renders 3 accordion sections instead of 4. MegaDropdown adapts grid cols to data (2-col for Platform, 3-col for Developers). All rendering logic unchanged. |
+| client/src/components/marketing-footer.tsx | Footer links aligned to same taxonomy. Removed Kong Gateway (admin page), removed duplicate /api-demo and GitHub entries. |
+
+---
+
+## Counts
+
+| Metric | Before | After |
+|---|---|---|
+| Dropdowns | 4 | 3 |
+| Total items across dropdowns | 34 | 28 |
+| Duplicate links | 8 | 0 |
+| Pages with no nav entry | 0 | 0 |
+| Mobile accordion sections | 4 | 3 |

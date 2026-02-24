@@ -11,6 +11,16 @@
  * permission of Capomastro Holdings Ltd.
  *
  * See LICENSE in the repository root for full terms.
+ *
+ * ──────────────────────────────────────────────
+ * NAVIGATION TAXONOMY (3 dropdowns, zero duplicates):
+ *
+ *   Platform    → "Understand the system"  (architecture + research)
+ *   Developers  → "Use the tools"          (all interactive pages + docs)
+ *   Company     → "Who we are"             (about + contact + legal)
+ *
+ * Every page appears exactly once.
+ * ──────────────────────────────────────────────
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -61,72 +71,55 @@ interface NavColumn {
 
 const platformColumns: NavColumn[] = [
   {
-    heading: "Core Technology",
-    items: [
-      { title: "Ternary Computing Engine", subtitle: "Native base-3 processing", href: "/#platform" },
-      { title: "Virtual Machine", subtitle: `${PLATFORM.VM_OPCODES}-opcode ternary VM`, href: "/#architecture" },
-      { title: "Binary-Ternary Gateway", subtitle: "Seamless interop layer", href: "/#architecture" },
-    ],
-  },
-  {
-    heading: "Infrastructure",
-    items: [
-      { title: "HPTP Timing Protocol", subtitle: "Femtosecond precision", href: "/hptp" },
-      { title: "Post-Quantum Security", subtitle: "CNSA 2.0 aligned", href: "/compliance" },
-      { title: "Torsion Network Stack", subtitle: "3-ary torus topology", href: "/#platform" },
-    ],
-  },
-  {
-    heading: "Data & Storage",
-    items: [
-      { title: "PlenumDB", subtitle: "Ternary-native database", href: "/ternarydb" },
-      { title: "Compression Engine", subtitle: "Ternary encoding", href: "/compression" },
-      { title: "Calendar API", subtitle: "Multi-calendar support", href: "/calendar" },
-    ],
-  },
-];
-
-const technologyColumns: NavColumn[] = [
-  {
-    heading: "Interactive Demos",
-    items: [
-      { title: "API Explorer", subtitle: "Try the REST API", href: "/api-demo" },
-      { title: "PlenumDB Console", subtitle: "Query ternary data", href: "/ternarydb" },
-      { title: "HPTP Timing Lab", subtitle: "Precision timing demo", href: "/hptp" },
-      { title: "Compression Studio", subtitle: "Encode & decode", href: "/compression" },
-    ],
-  },
-  {
-    heading: "Calendar Systems",
-    items: [
-      { title: "Universal Calendar API", subtitle: "Cross-calendar conversion", href: "/calendar" },
-      { title: "13-Moon Harmonic Calendar", subtitle: "Natural time system", href: "/13-moon" },
-    ],
-  },
-  {
     heading: "Architecture",
     items: [
-      { title: "Performance Comparison", subtitle: "Binary vs ternary", href: "/#performance" },
-      { title: "5-Layer Stack", subtitle: "Full architecture view", href: "/#architecture" },
+      { title: "Ternary Computing Engine", subtitle: "Native base-3 processing", href: "/#platform" },
+      { title: `${PLATFORM.VM_OPCODES}-Opcode Virtual Machine`, subtitle: "Full ternary ISA", href: "/#architecture" },
+      { title: "Binary-Ternary Gateway", subtitle: "Seamless interop layer", href: "/#architecture" },
+      { title: "Torsion Network Stack", subtitle: "3-ary torus topology", href: "/#platform" },
+      { title: "Performance Metrics", subtitle: `${PLATFORM.DENSITY_ADVANTAGE}% density advantage`, href: "/#performance" },
+    ],
+  },
+  {
+    heading: "Research & Security",
+    items: [
+      { title: "Whitepaper", subtitle: "Technical deep-dive", href: "/whitepaper" },
+      { title: "ISA Security Primitives", subtitle: "Instruction-level hardening", href: "/isa-security" },
+      { title: "CNSA 2.0 Compliance", subtitle: "Post-quantum aligned", href: "/compliance" },
       { title: "Tribonacci 28DS", subtitle: "28-dimension symmetry", href: "/tribonacci-28ds" },
-      { title: "FPGA Benchmarks", subtitle: "Yosys/Vivado synthesis", href: "/fpga-benchmarks" },
+      { title: "FPGA Benchmarks", subtitle: "Yosys / Vivado synthesis", href: "/fpga-benchmarks" },
     ],
   },
 ];
 
-const resourcesItems: NavLinkItem[] = [
-  { title: "Whitepaper", href: "/whitepaper" },
-  { title: "ISA Security Primitives", href: "/isa-security" },
-  { title: "Ternary VM Demo", href: "/vm-demo" },
-  { title: "Quantum Simulator", subtitle: "Qutrit FT / FIPS / QVQE", href: "/quantum-sim" },
-  { title: "Documentation", href: "/docs" },
-  { title: "CNSA 2.0 Compliance", href: "/compliance" },
-  { title: "Module Distribution", href: "/distribution" },
-  { title: "28D Agent Array", href: "/agent-array" },
-];
-
-const resourcesExternal: NavLinkItem[] = [
-  { title: "GitHub Repository", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
+const developersColumns: NavColumn[] = [
+  {
+    heading: "Interactive Labs",
+    items: [
+      { title: "PlenumDB Console", subtitle: "Query ternary data", href: "/ternarydb" },
+      { title: "API Explorer", subtitle: "Try the REST API", href: "/api-demo" },
+      { title: "HPTP Timing Lab", subtitle: "Femtosecond precision", href: "/hptp" },
+      { title: "Compression Studio", subtitle: "Encode & decode", href: "/compression" },
+      { title: "Ternary VM Terminal", subtitle: "Execute ternary opcodes", href: "/vm-demo" },
+    ],
+  },
+  {
+    heading: "Simulators & Calendars",
+    items: [
+      { title: "Quantum Simulator", subtitle: "Qutrit FT / FIPS / QVQE", href: "/quantum-sim" },
+      { title: "28D Agent Array", subtitle: "Multi-agent ternary simulation", href: "/agent-array" },
+      { title: "Universal Calendar", subtitle: "Cross-calendar conversion", href: "/calendar" },
+      { title: "13-Moon Harmonic", subtitle: "Natural time system", href: "/13-moon" },
+    ],
+  },
+  {
+    heading: "Get Started",
+    items: [
+      { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
+      { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
+      { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
+    ],
+  },
 ];
 
 const companyItems: NavLinkItem[] = [
@@ -199,11 +192,7 @@ function NavItemLink({
   );
 }
 
-function MegaDropdownItem({
-  item,
-}: {
-  item: NavLinkItem;
-}) {
+function MegaDropdownItem({ item }: { item: NavLinkItem }) {
   const scrollToAnchor = useContext(AnchorScrollContext);
   const isAnchor = item.href.startsWith("/#");
   const anchorId = isAnchor ? item.href.slice(2) : "";
@@ -212,7 +201,10 @@ function MegaDropdownItem({
 
   const content = (
     <>
-      <div className="text-sm font-medium leading-none">{item.title}</div>
+      <div className="text-sm font-medium leading-none flex items-center gap-1">
+        {item.title}
+        {item.external && <ExternalLink className="w-3 h-3 text-muted-foreground" />}
+      </div>
       {item.subtitle && (
         <p className="line-clamp-2 text-xs leading-snug text-muted-foreground mt-1">
           {item.subtitle}
@@ -241,6 +233,24 @@ function MegaDropdownItem({
     );
   }
 
+  if (item.external) {
+    return (
+      <li>
+        <NavigationMenuLink asChild>
+          <a
+            href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={baseClass}
+            data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+          >
+            {content}
+          </a>
+        </NavigationMenuLink>
+      </li>
+    );
+  }
+
   return (
     <li>
       <NavigationMenuLink asChild>
@@ -257,8 +267,13 @@ function MegaDropdownItem({
 }
 
 function MegaDropdown({ columns }: { columns: NavColumn[] }) {
+  const colCount = columns.length;
+  const gridClass = colCount === 2
+    ? "grid gap-3 p-4 md:w-[460px] lg:w-[520px] md:grid-cols-2"
+    : "grid gap-3 p-4 md:w-[600px] lg:w-[700px] md:grid-cols-3";
+
   return (
-    <div className="grid gap-3 p-4 md:w-[600px] lg:w-[700px] md:grid-cols-3">
+    <div className={gridClass}>
       {columns.map((col) => (
         <div key={col.heading}>
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground px-3">
@@ -355,30 +370,11 @@ function DesktopNav({ onOpenChange }: { onOpenChange?: (open: boolean) => void }
         </NavigationMenuItem>
 
         <NavigationMenuItem>
-          <NavigationMenuTrigger data-testid="nav-trigger-technology">
-            Technology
-          </NavigationMenuTrigger>
-          <NavigationMenuContent className="left-1/2 -translate-x-1/2">
-            <MegaDropdown columns={technologyColumns} />
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-
-        <NavigationMenuItem>
-          <NavigationMenuTrigger data-testid="nav-trigger-resources">
-            Resources
+          <NavigationMenuTrigger data-testid="nav-trigger-developers">
+            Developers
           </NavigationMenuTrigger>
           <NavigationMenuContent className="left-0">
-            <ul className="w-[220px] p-2">
-              {resourcesItems.map((item) => (
-                <StandardDropdownItem key={item.title} item={item} />
-              ))}
-              <li>
-                <div className="my-1 mx-3 h-px bg-border" />
-              </li>
-              {resourcesExternal.map((item) => (
-                <StandardDropdownItem key={item.title} item={item} />
-              ))}
-            </ul>
+            <MegaDropdown columns={developersColumns} />
           </NavigationMenuContent>
         </NavigationMenuItem>
 
@@ -441,16 +437,14 @@ function MobileAccordionSection({
 function MobileNav({ onClose }: { onClose: () => void }) {
   const scrollToAnchor = useContext(AnchorScrollContext);
   const allPlatformItems = platformColumns.flatMap((c) => c.items);
-  const allTechnologyItems = technologyColumns.flatMap((c) => c.items);
-  const allResourcesItems = [...resourcesItems, ...resourcesExternal];
+  const allDevelopersItems = developersColumns.flatMap((c) => c.items);
   const allCompanyItems = [...companyItems, ...companyLegalItems];
 
   return (
     <div className="flex flex-col gap-4 mt-4">
       <Accordion type="multiple" className="w-full">
         <MobileAccordionSection title="Platform" items={allPlatformItems} onNavigate={onClose} />
-        <MobileAccordionSection title="Technology" items={allTechnologyItems} onNavigate={onClose} />
-        <MobileAccordionSection title="Resources" items={allResourcesItems} onNavigate={onClose} />
+        <MobileAccordionSection title="Developers" items={allDevelopersItems} onNavigate={onClose} />
         <MobileAccordionSection title="Company" items={allCompanyItems} onNavigate={onClose} />
       </Accordion>
       <a
@@ -519,18 +513,18 @@ export function MarketingTopNav() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleScroll = useCallback(() => {
-    if (menuOpen || mobileOpen) return;
+    if (menuOpen) return;
     const currentY = window.scrollY;
     const delta = currentY - lastScrollY.current;
-    if (currentY < 120) {
+    if (currentY < 80) {
       setVisible(true);
-    } else if (delta > 30) {
+    } else if (delta > 8) {
       setVisible(false);
-    } else if (delta < -10) {
+    } else if (delta < -4) {
       setVisible(true);
     }
     lastScrollY.current = currentY;
-  }, [menuOpen, mobileOpen]);
+  }, [menuOpen]);
 
   useEffect(() => {
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -561,7 +555,6 @@ export function MarketingTopNav() {
           >
             <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
             <span className="text-base">PlenumNET</span>
-            <span className="text-[10px] font-mono font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded" data-testid="text-version">v{PLATFORM.PLATFORM_VERSION}</span>
           </Link>
 
           {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
@@ -610,7 +603,6 @@ export function MarketingTopNav() {
                     <SheetTitle className="flex items-center gap-2">
                       <img src={plenumLogo} alt="PlenumNET" className="w-5 h-5" />
                       PlenumNET
-                      <span className="text-[10px] font-mono font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">v{PLATFORM.PLATFORM_VERSION}</span>
                     </SheetTitle>
                   </SheetHeader>
                   <MobileNav onClose={() => setMobileOpen(false)} />

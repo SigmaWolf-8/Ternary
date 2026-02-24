@@ -1,16 +1,12 @@
 /**
  * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
- * Patent(s) Pending — All Rights Reserved
+ * Patent(s) Pending - All Rights Reserved
  * Applied Physics Division
  *
- * PROPRIETARY AND CONFIDENTIAL
- * All Rights Reserved.
+ * PROPRIETARY AND CONFIDENTIAL - All Rights Reserved.
+ * Patent(s) Pending.
  *
  * This file is part of the Salvi Framework / PlenumNET platform.
- * Unauthorized copying, modification, distribution, or use of this file,
- * via any medium, is strictly prohibited without the prior written
- * permission of Capomastro Holdings Ltd.
- *
  * See LICENSE in the repository root for full terms.
  */
 
@@ -20,14 +16,14 @@ import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_
 
 const footerLinks = {
   Platform: [
-    { label: "Ternary Kernel", href: "https://github.com/SigmaWolf-8/Ternary" },
-    { label: "PlenumDB Demo", href: "/ternarydb" },
-    { label: "Salvi API", href: "/api-demo" },
-    { label: "Kong Gateway", href: "/kong-konnect" },
+    { label: "Whitepaper", href: "/whitepaper" },
+    { label: "CNSA 2.0 Compliance", href: "/compliance" },
+    { label: "ISA Security", href: "/isa-security" },
+    { label: "FPGA Benchmarks", href: "/fpga-benchmarks" },
   ],
   Developers: [
-    { label: "Whitepaper", href: "/whitepaper" },
-    { label: "API Demo", href: "/api-demo" },
+    { label: "PlenumDB Console", href: "/ternarydb" },
+    { label: "API Explorer", href: "/api-demo" },
     { label: "Documentation", href: "/docs" },
     { label: "Module Distribution", href: "/distribution" },
     { label: "GitHub", href: "https://github.com/SigmaWolf-8/Ternary" },
@@ -35,7 +31,6 @@ const footerLinks = {
   Company: [
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
-    { label: "CNSA 2.0 Compliance", href: "/compliance" },
   ],
   Legal: [
     { label: "Privacy", href: "/privacy" },
