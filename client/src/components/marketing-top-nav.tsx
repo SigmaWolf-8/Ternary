@@ -519,18 +519,18 @@ export function MarketingTopNav() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleScroll = useCallback(() => {
-    if (menuOpen) return;
+    if (menuOpen || mobileOpen) return;
     const currentY = window.scrollY;
     const delta = currentY - lastScrollY.current;
-    if (currentY < 80) {
+    if (currentY < 120) {
       setVisible(true);
-    } else if (delta > 8) {
+    } else if (delta > 30) {
       setVisible(false);
-    } else if (delta < -4) {
+    } else if (delta < -10) {
       setVisible(true);
     }
     lastScrollY.current = currentY;
-  }, [menuOpen]);
+  }, [menuOpen, mobileOpen]);
 
   useEffect(() => {
     window.addEventListener("scroll", handleScroll, { passive: true });
