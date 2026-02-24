@@ -15,6 +15,7 @@
 
 /**
  * Salvi Framework - Ancient Calendar Synchronization
+ * @version 3.1.0
  * 
  * Anchors the Salvi Epoch (April 1, 2025 00:00:00.000 UTC) to ancient
  * calendar systems spanning tens of thousands of years, providing a universal

@@ -4,6 +4,7 @@
  * Applied Physics Division
  *
  * TSA CALENDAR CONTEXT ENRICHMENT
+ * @version 3.1.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/services/tsa-calendar-enrichment.ts
