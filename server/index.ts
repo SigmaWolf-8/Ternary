@@ -26,6 +26,7 @@ import { existsSync } from "fs";
 import * as path from "path";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
+import { NotificationService, tsaMetricsRegistry } from "./services/notification-service";
 
 const app = express();
 const httpServer = createServer(app);
@@ -198,6 +199,56 @@ function startPqtiService(): ChildProcess | null {
 
   app.use('/api/tsa', createTsaRoutes(tsaService));
   log('TSA — 8 endpoints at /api/tsa/* (Kong service #21)', 'tsa');
+
+  const notificationService = new NotificationService({
+    hptpClient: hptpClientForTsa,
+    tldsaClient: tldsaClientForTsa,
+    tsaService: tsaService,
+  });
+  log(`Notification TSA integration active — Phase ${process.env.TSA_NOTIFICATION_PHASE || '2'}`, 'notify');
+
+  app.get('/metrics/notification-tsa', async (_req, res) => {
+    res.set('Content-Type', tsaMetricsRegistry.contentType);
+    res.end(await tsaMetricsRegistry.metrics());
+  });
+
+  app.post('/api/notifications/test', async (req, res) => {
+    try {
+      const { channel = 'email', to = 'test@example.com', subject = 'Test', body = 'Test notification', contentType } = req.body || {};
+      let result;
+      switch (channel) {
+        case 'webhook':
+          result = await notificationService.sendWebhook(to, { message: body }, { contentType });
+          break;
+        case 'sms':
+          result = await notificationService.sendSms(to, body, { contentType });
+          break;
+        case 'event':
+          result = await notificationService.emitEvent(subject, { message: body }, { contentType });
+          break;
+        case 'push':
+          result = await notificationService.sendPush(to, subject, body, { contentType });
+          break;
+        default:
+          result = await notificationService.sendEmail(to, subject, body, { contentType });
+          break;
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/notifications/status', (_req, res) => {
+    res.json({
+      phase: notificationService.getPhase(),
+      tsaAvailable: notificationService.hasTsaService(),
+      channels: ['email', 'webhook', 'sms', 'event', 'push'],
+      proofModes: notificationService.getPhase() === 2
+        ? ['tsa+legacy', 'legacy-fallback']
+        : ['tsa-only', 'none'],
+    });
+  });
 
   await registerRoutes(httpServer, app);
 
