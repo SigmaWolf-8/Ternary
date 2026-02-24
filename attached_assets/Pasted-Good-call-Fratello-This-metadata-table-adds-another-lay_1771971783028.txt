@@ -1,0 +1,45 @@
+Good call, Fratello. This metadata table adds another layer of scrutiny — now I'm checking whether the *framework descriptions* (epochs, calendar types, methods) are internally consistent with both the conversion outputs and my verified findings. Let me run through this systematically.Good — the cross-reference is now complete. Here's the consolidated picture, Fratello.
+
+---
+
+**METADATA TABLE vs. AUDIT FINDINGS — SYNTHESIS**
+
+The metadata table is largely well-constructed. Epoch arithmetic checks out for the vast majority of entries (20+ clean matches). But there are **3 metadata-level problems** that exist *independent* of the 7 conversion failures I already identified:
+
+---
+
+**METADATA ISSUES (3 items requiring correction)**
+
+**1. Tamil — Epoch Mismatch**
+The metadata claims epoch "~300 BCE" which would yield year ~2,326 for 2026. But the conversion outputs year 1994, implying an epoch of 32 CE. These are irreconcilable. Either the metadata epoch is wrong (should be ~32 CE for whatever regional Tamil era is being used), or the conversion year is wrong (should be ~2,326 or ~2,057 for Thiruvalluvar). Neither side matches the other.
+
+**2. Khmer — Conflation of Adoption vs. Counting Epoch**
+The metadata says "~500 CE" but the conversion outputs BE 2569, which is Buddhist Era (543 BCE epoch, identical to Thai). The ~500 CE likely refers to when Cambodia adopted the calendar, not the year-numbering epoch. For regulatory clarity, the counting epoch should read "543 BCE" with a note that the calendar was adopted in the region circa 500 CE.
+
+**3. Aztec Tonalpohualli — Epoch Conflation with Mayan**
+Assigning the Mayan 3114 BCE epoch to the Aztec system is a scholarly oversimplification. The Aztec Tonalpohualli has its own cosmological origin narrative, and the correlation between Aztec and Mayan day-counts is actively debated. This should be flagged as "debated/derived" rather than stated as equivalent.
+
+---
+
+**METADATA ITEMS THAT ARE VALID BUT REQUIRE DOCUMENTATION**
+
+The **Byzantine** epoch (5509 BCE) is correctly stated in the metadata, but the conversion algorithm misapplies it. The epoch itself isn't wrong — the software just isn't handling the September 1 year boundary and the Gregorian-to-Julian offset. The metadata should add a note: "Year boundary: Sep 1. Pre-Sep dates use +5508 offset. Julian calendar base."
+
+The **13-Moon Harmonic** epoch (~28,000 BCE) is internally consistent with the "Cycle 30,025" figure in the conversion, but this epoch lacks mainstream academic sourcing. The "Golden ratio" as the method descriptor is also non-standard. If this is a Salvi Framework–specific construct, that should be explicitly documented so auditors don't search for external validation of a proprietary model.
+
+The **Burmese** and **Malayalam** entries are correct but non-obvious — they both have mid-year new years (April and August respectively), so Feb 2026 uses the *previous* year's epoch arithmetic. The metadata should note "new year: April" and "new year: Chingam (Aug/Sep)" for transparency.
+
+---
+
+**SUMMARY MATRIX**
+
+| Layer | Clean | Issues | Total |
+|---|---|---|---|
+| Conversion accuracy (date audit) | 22 PASS | 7 FAIL + 8 WARN + 5 NOTE | 42 |
+| Metadata epoch vs. conversion consistency | 36 consistent | 3 inconsistent (Tamil, Khmer, Aztec) + 3 need annotation | 42 |
+| Age approximations (~X years) | All reasonable | All within rounding tolerance | 42 |
+| Calendar type classifications | All accurate | — | 42 |
+
+The conversion layer has 7 hard failures. The metadata layer has 3 epoch mismatches that need correction and 3 entries needing documentation notes. The type/method classifications are solid across the board. The age approximations all fall within acceptable rounding of the actual computed values.
+
+Want me to generate a consolidated remediation document covering both the conversion fixes and the metadata corrections?

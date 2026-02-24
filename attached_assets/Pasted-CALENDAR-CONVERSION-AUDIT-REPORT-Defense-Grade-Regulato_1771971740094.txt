@@ -1,0 +1,91 @@
+CALENDAR CONVERSION AUDIT REPORT
+Defense Grade & Regulatory Compliance Assessment
+Base Date: Tuesday, February 24, 2026 CE (Gregorian) | JD 2461095.5
+EXECUTIVE SUMMARY
+Comprehensive audit of 42 calendar system conversions against the Gregorian base date of February 24, 2026 CE. Verification performed using independent mathematical computation, authoritative web sources (Chabad.org, Hebcal, datehijri.com, hijria.com), and cross-referenced algorithmic libraries.
+Status	Count	Assessment
+PASS	22/42	Independently verified correct.
+FAIL	7/42	Confirmed incorrect. Requires immediate remediation.
+WARN	8/42	Ambiguous, convention-dependent, or off by 1 day. Requires documentation of convention used.
+NOTE	5/42	Cannot independently verify. Insufficient public epoch/correlation data for these cultural calendars.
+
+CRITICAL FAILURES REQUIRING REMEDIATION
+Hebrew (Anno Mundi): Given "24 Shevat 5786" → Should be "7 Adar 5786"
+Wrong month entirely. Shevat ended ~Feb 1. Multiple authoritative sources confirm 7 Adar.
+13-Moon Harmonic: Given "Crystal Moon (12), Day 21" → Should be "Galactic Moon (8), Day 18"
+Off by 4 moons and 3 days. Jul 26 epoch gives Moon 8, not Crystal Moon 12.
+Tibetan Rabjung: Given "Earth Rabbit, Rabjung 17 Yr 40" → Should be "Fire Horse, Rabjung 18 Yr 40"
+Wrong cycle number (17 vs 18) AND wrong animal/element (Earth Rabbit vs Fire Horse).
+Byzantine: Given "AM 7,535, Indiction 5" → Should be "AM 7,534, Indiction 4 (Julian Feb 11)"
+Wrong AM year (should use +5508 for pre-Sep), wrong Indiction, should use Julian date.
+Vikram Samvat: Given "13 Magha 2082" → Should be "~Phalguna 2082"
+Wrong month. Magha ends mid-Feb. Feb 24 is in Phalguna.
+Amazigh / Berber: Given "12 Yebrayer 2976" → Should be "11 Yebrayer 2976"
+Off by 1 day. Berber uses Julian calendar; Gregorian Feb 24 = Julian Feb 11.
+Javanese: Given "Wage Selasa, Day 10/35" → Should be "Pahing Selasa, Day 7/35"
+Wrong Pasaran day. Verified against Wikipedia reference. Wetonan position also wrong.
+ 
+DETAILED AUDIT RESULTS
+All 42 calendar conversions audited below with status, expected values, and verification notes.
+Region	Calendar System	Given Value	Expected Value	Status	Verification Notes
+Global	Gregorian	24/2/2026 CE	24/2/2026 CE	PASS	Base reference date. Tuesday.
+Global	Julian Day	JD 2461095.500000 | MJD 61095.000000	JD 2461095.5 | MJD 61095.0	PASS	Independently computed and verified.
+Global	Islamic Hijri	7 Ramadan 1447 AH	7 Ramadan 1447 AH	PASS	Confirmed via hijria.com, datehijri.com, and hijri-converter library.
+Global	13-Moon Harmonic	Crystal Moon, Day 21 (Silio), Year 2025	Galactic Moon (Moon 8), Day 18	FAIL	CRITICAL: Crystal Moon is Moon 12. Feb 24 is 213 days from Jul 26, 2025 = Moon 8 (Galactic), Day 18. Off by 4 moons and 3 days.
+Global	Baha'i (Badi')	19 Mulk 182 BE	19 Mulk 182 BE	PASS	Mulk starts Feb 6, 2026. Day 19 = Feb 24. Year 182 (epoch 1844 CE). Verified.
+Africa	Egyptian Civil	Year 4806, Akhet, Month 2, Day 25	Year 4806 (epoch ~2781 BCE plausible)	NOTE	Wandering calendar cannot be independently verified without authoritative epoch alignment. Year arithmetic is consistent with a 2781 BCE epoch.
+Africa	Ethiopian / Ge'ez	17 Yekatit 2018	17 Yekatit 2018	PASS	Meskerem 1 = Sep 11, 2025. Yekatit = Month 6. Day 17 = Feb 24. Verified.
+Africa	Coptic	17 Meshir 1742 AM	17 Meshir 1742 AM	PASS	Same day structure as Ethiopian. Year = 2026 - 284 = 1742 (Diocletian era). Verified.
+Africa	Amazigh / Berber	12 Yebrayer 2976	11 Yebrayer 2976	FAIL	Berber calendar follows Julian calendar + 950 years. Gregorian Feb 24 = Julian Feb 11. Should be 11 Yebrayer, not 12. Off by 1 day.
+Africa	Igbo	Eke, Month 2 Day 27	Cannot independently verify	NOTE	Igbo 4-day market week and 13-month structure lacks standardized epoch correlation for independent computation.
+Africa	Akan	Adae Cycle Day 23/42 - Awukudae period	Cannot independently verify	NOTE	42-day Adae cycle lacks public epoch data. Feb 24 is Tuesday; Awukudae refers to Wednesday Adae, consistent as a cycle period label.
+Africa	Yoruba	Ojo-Aiku, Month 2 Day 27	Cannot independently verify	NOTE	Yoruba 4-day week cycle requires specialized correlation data. No standard public epoch available.
+Americas	Mayan Long Count	13.0.13.6.13 | 7 Ben 11 Kayab	13.0.13.6.13 | 7 Ben 11 Kayab	PASS	GMT correlation (584283). Day count = 1,876,813. Long Count, Tzolkin, and Haab all independently verified mathematically.
+Americas	Aztec Tonalpohualli	4 Ocelotl | Izcalli Day 9	Expected ~7 Acatl (if aligned to Mayan Tzolkin)	WARN	Aztec-Mayan correlation is debated among scholars. If directly mapped, 7 Ben = 7 Acatl, not 4 Ocelotl. Requires specialized Aztec epoch which lacks universal consensus.
+Americas	Nisga'a Seasonal	Hobiyee (Celebration and renewal)	Seasonally plausible	PASS	Hobiyee falls in late Jan-Feb, corresponding to ice breakup and the arrival of the oolichan. Appropriate for Feb 24.
+Central Asia	Tibetan Rabjung	Earth Rabbit Year 40 of Rabjung 17, 24 Mchu	Fire Horse Year 40 of Rabjung 18	FAIL	CRITICAL: Rabjung 17 = 1927-1986. Rabjung 18 = 1987-2046. Year 40 of Rabjung 18 = 2026. Also, 2026 = Fire Horse (Bing-Wu), not Earth Rabbit. Both cycle and animal/element are wrong.
+East Asia	Chinese Sexagenary	8 Zhengyue, Bing-Wu Year 42 of Cycle 78	8 Zhengyue, Bing-Wu Year 42/43 of Cycle 78	WARN	Month day ✓ (CNY Feb 17 + 7 = Feb 24). Bing-Wu (Fire Horse) ✓. Year 42 valid with 0-indexed counting (Jia-Zi = 0); year 43 with 1-indexed. Convention ambiguity. Document which convention is used.
+East Asia	Korean Dangun	24 Iwol, Dangun 4,359	24 Iwol, Dangun 4,359	PASS	Epoch 2333 BCE. 2026 + 2333 = 4359. Iwol = 2nd month. Day 24. All verified.
+East Asia	Japanese Imperial	24 Kisaragi, Koki 2686 / Reiwa 8	24 Kisaragi, Koki 2686 / Reiwa 8	PASS	Koki: 2026 + 660 = 2686. Reiwa: 2026 - 2019 + 1 = 8. Kisaragi = Feb. All verified.
+East Asia	Minguo (ROC)	24/2/115	24/2/115	PASS	2026 - 1911 = 115. Verified.
+Europe	Byzantine	24 Fevrouarios, AM 7,535, Indiction 5	11 Fevrouarios, AM 7,534, Indiction 4	FAIL	Multiple issues: (1) Byzantine uses Julian calendar; Feb 24 Gregorian = Feb 11 Julian. (2) For dates before Sep 1: AM = year + 5508 = 7534, not 7535. (3) Indiction for AM 7534 = 4, not 5. Software appears to apply Gregorian day + wrong epoch offset.
+Europe	Roman AUC	2779 AUC (ante diem 11 post Idus)	2779 AUC (ante diem VI Kalendas Martias)	WARN	Year 2779 ✓ (753 + 2026). However, 'ante diem 11 post Idus' is NOT standard Roman notation. Romans counted forward to the next reference point. Feb 24 = a.d. VI Kal. Mart. (6th day before Kalends of March, inclusive).
+South Asia	Vedic (Kali Yuga)	Year 5,127 of 432,000 (1.1868%)	Year 5,127 (1.1868%)	PASS	3102 + 2026 - 1 = 5127. Percentage: 5127/432000 = 1.1868%. Verified.
+South Asia	Vikram Samvat	13 Magha 2082 VS	~Phalguna Shukla ~7, 2082 VS	FAIL	Feb 24, 2026 falls in PHALGUNA, not Magha, in the lunisolar VS calendar. Hindu calendar sources confirm Magha ends ~Feb 17-18 (Amanta) or ~Feb 1-2 (Purnimanta). Month is incorrect.
+South Asia	Indian Saka	5 Phalguna 1947 SE	5 Phalguna 1947 SE	PASS	National Calendar: Chaitra 1 = Mar 22, 2025. Phalguna 1 = Feb 20. Feb 24 = Phalguna 5. Year 1947 (before new year). Verified.
+South Asia	Bengali / Bangla	11 Falgun 1432	~12 Falgun 1432 (revised calendar)	WARN	Revised Bengali: Falgun starts ~Feb 13. Feb 24 = Falgun 12. Off by 1 day. May depend on traditional vs. revised calendar variant or astronomical calculation.
+South Asia	Tamil	11 Maasi 1994	~12 Maasi; year 1994 uses non-standard epoch	WARN	Maasi starts ~Feb 13 (solar ingress). Feb 24 = ~Maasi 12, off by 1. Year 1994 implies epoch 32 CE, which is non-standard. Standard Thiruvalluvar = 2057. Document epoch used.
+South Asia	Malayalam (Kollam)	6 Kumbham 1200 ME	~6-12 Kumbham 1200/1201 ME	WARN	Kumbham starts at solar ingress into Aquarius (~Feb 13-18, varies by year). Day depends on exact transit time, which requires ephemeris data. Year 1200 plausible (epoch ~825 CE). Cannot definitively confirm day without precise astronomical calculation.
+South Asia	Nepal Sambat	24/2/1147 NS	24/2/1147 NS	PASS	Epoch ~879 CE. 2026 - 879 = 1147. Verified.
+South Asia	Jain	24/2/2552 VNS	24/2/2552 VNS	PASS	Vira Nirvana Samvat: 527 + 2026 - 1 = 2552. Verified.
+South Asia	Nanakshahi	13 Phagun 557 NS	~13 Phagun 557 NS	PASS	Epoch 1469 CE. 2026 - 1469 = 557. Phagun starts ~Feb 12. Feb 24 = ~Phagun 13. Verified.
+SE Asia	Thai Buddhist	24 Kumphaphan, BE 2569	24 Kumphaphan, BE 2569	PASS	2026 + 543 = 2569. Kumphaphan = February. Day 24. Verified.
+SE Asia	Burmese	24/2/1387 ME	24/2/1387 ME	PASS	Myanmar Era 1387 runs ~Apr 2025 to ~Apr 2026. Feb 2026 is within. Verified.
+SE Asia	Khmer	24/2/2569 BE	24/2/2569 BE	PASS	Buddhist Era 2569 (same as Thai). Verified.
+SE Asia	Vietnamese	8/1/2026	8/1/2026 (Lunar)	PASS	Vietnamese Tet = Feb 17, 2026 (same as Chinese NY). Feb 24 = 8th day of 1st lunar month. Verified.
+SE Asia	Javanese	Wage Selasa, Cycle Day 10/35	Pahing Selasa, Cycle Day 7/35	FAIL	Selasa (Tuesday) ✓. However, Pasaran verified against reference (May 6, 2008 = Selasa Wage per Wikipedia): 6503 days mod 5 = 3 steps, yielding Pahing, not Wage. Wetonan position also incorrect (7 vs 10).
+SE Asia	Balinese Pawukon	Wuku Menail (Wk 23), Day 4, Cycle Day 158/210	Internal math: (22x7)+4 = 158 ✓	NOTE	Internal consistency verified (Wuku 23, Day 4 = cycle day 158). Absolute position cannot be verified without authoritative Pawukon epoch reference.
+West Asia	Hebrew (Anno Mundi)	24 Shevat 5786 AM	7 Adar 5786 AM	FAIL	CRITICAL: Chabad.org, Hebcal, and JCal all confirm Feb 24, 2026 = 7 Adar 5786. Shevat ended ~Feb 1. The given date is off by approximately 1 month (wrong month entirely).
+West Asia	Persian / Solar Hijri	6 Esfand 1404 SH	5 or 6 Esfand 1404 SH	WARN	Depends on Nowruz 1404 start. Equinox = 12:31 PM IRST on Mar 20, 2025. If after solar noon => Nowruz = Mar 21 => 5 Esfand. If Mar 20 => 6 Esfand. datehijri.com says 5 Esfand. Edge case requiring authoritative Iranian calendar authority ruling.
+West Asia	Assyrian	24/2/6776	24/2/6776	PASS	Epoch 4750 BCE. 2026 + 4750 = 6776. Verified.
+West Asia	Zoroastrian Fasli	12 Esfand 1394 YZ	11 or 12 Esfand 1394 YZ	WARN	Year 1394 ✓ (2026 - 632). Day depends on Fasli Nowruz (Mar 20 vs 21). If Mar 20: day 341/30 = Esfand 12 ✓. If Mar 21: Esfand 11. Marginally acceptable; document epoch assumption.
+Oceania	Aboriginal Seasonal	Burran (Hot becoming cool)	Seasonally plausible	PASS	Feb 24 in Southern Hemisphere = late summer transitioning to autumn. Ecological indicators (flying foxes, fig trees) consistent.
+ 
+VERIFICATION METHODOLOGY
+Each calendar conversion was audited using one or more of the following methods, consistent with the Salvi Standard of Scrutiny:
+Independent Mathematical Computation: Julian Day calculations, modular arithmetic for cyclic calendars (Mayan Long Count/Tzolkin/Haab, Pasaran, sexagenary cycles), epoch-based year computations.
+Authoritative Web Sources: Chabad.org (Hebrew), Hebcal (Hebrew), datehijri.com (Islamic/Solar Hijri), hijria.com (Islamic), Wikipedia Mesoamerican Long Count (Mayan).
+Algorithmic Libraries: Python hijri-converter (Islamic), datetime computations for Julian Day Numbers, modular cycle verification.
+Cross-Reference Validation: Multiple independent sources compared for contested dates (Hebrew, Persian, Mayan). Discrepancies flagged when sources disagree.
+Structural Consistency Checks: Internal mathematical consistency verified even when absolute epoch data unavailable (e.g., Balinese Pawukon Wuku-to-cycle-day mapping).
+RECOMMENDATIONS
+1. Immediately remediate all 7 FAIL items before production deployment.
+2. For the Hebrew calendar: implement proper lunisolar month tracking. The error (Shevat vs Adar) suggests a month-offset bug in the conversion logic.
+3. For the 13-Moon Harmonic: verify the epoch (Jul 26) and moon counting algorithm. Current output is off by 4 moons.
+4. For the Tibetan calendar: correct the Rabjung cycle number (18, not 17) and animal/element mapping. Earth Rabbit should be Fire Horse for 2026.
+5. For the Byzantine calendar: implement proper Julian date conversion (subtract 13 days from Gregorian) and use the +5508 offset for dates before September 1.
+6. For WARN items: document all epoch assumptions and calendar conventions used (0-indexed vs 1-indexed, Julian vs Gregorian base, Nowruz calculation method).
+7. For NOTE items: consider partnering with cultural calendar authorities to obtain proper epoch correlation data for Igbo, Akan, Yoruba, and Balinese Pawukon systems.
+8. Implement automated regression testing against known authoritative converter outputs for all supported calendars.
+Capomastro Holdings Ltd. — Applied Physics Division
+Audit conducted: February 24, 2026 | Auditor: Claude (Anthropic) | Classification: Internal Technical Review
