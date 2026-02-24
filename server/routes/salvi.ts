@@ -1085,7 +1085,7 @@ export function registerSalviRoutes(app: Express): void {
   });
 
   const BATCH_MAX_ITEMS = 50;
-  const BATCH_MAX_ITEM_SIZE = 100000;
+  const BATCH_MAX_ITEM_SIZE = 1000000;
   const BATCH_MAX_PAYLOAD = 5 * 1024 * 1024;
 
   const batchSplitItemSchema = z.object({
