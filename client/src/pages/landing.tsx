@@ -216,12 +216,11 @@ function HeroSection() {
         >
           <source src={heroVideo} type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-background/85 dark:bg-background/90" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/40 to-background" />
+        <div className="absolute inset-0 bg-background/50 dark:bg-background/55" />
       </div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-5">
-        <div className="max-w-4xl backdrop-blur-sm bg-background/60 dark:bg-background/70 rounded-2xl p-6 md:p-10 border border-border/30">
+        <div className="max-w-4xl backdrop-blur-md bg-background/90 dark:bg-background/92 rounded-2xl p-6 md:p-10 border border-border/40 shadow-lg">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
