@@ -27,6 +27,10 @@ import {
   serializeForExtension,
   CALENDAR_EXTENSION_OID,
 } from './tsa-calendar-enrichment';
+import {
+  buildCalendarExtension,
+  type CalendarCompressionResult,
+} from './tsa-calendar-compression';
 
 export const TSA_POLICIES = {
   DEFAULT: '1.3.6.1.4.1.0.100.1.0',
@@ -913,12 +917,25 @@ export class TsaService {
 
     if (fields.calendarContext) {
       const calendarJson = serializeForExtension(fields.calendarContext);
+      const tier = fields.calendarContext.policyTier || 'DEFAULT';
+      let extensionPayload: Uint8Array;
+      try {
+        const { buffer, compressed, metrics } = buildCalendarExtension(
+          JSON.parse(calendarJson),
+        );
+        extensionPayload = buffer;
+        if (compressed && metrics) {
+          console.log(`Calendar extension compressed: ${metrics.originalSize}B → ${buffer.length}B (${(metrics.effectiveRatio * 100).toFixed(1)}%) pipeline=${metrics.pipelineId} tier=${tier}`);
+        }
+      } catch {
+        extensionPayload = new TextEncoder().encode(calendarJson);
+      }
       const calendarExtension = new asn1js.Sequence({
         value: [
           oidToAsn1(CALENDAR_EXTENSION_OID),
           new asn1js.Boolean({ value: false }),
           new asn1js.OctetString({
-            valueHex: new TextEncoder().encode(calendarJson),
+            valueHex: extensionPayload,
           }),
         ],
       });

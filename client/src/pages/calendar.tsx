@@ -615,58 +615,87 @@ function LiveDemoSection() {
             )}
 
             {calendarData && calendarData.calendars && (
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {[
-                  { label: "Gregorian", value: calendarData.calendars.gregorian?.formatted },
-                  { label: "Julian Day", value: calendarData.calendars.julianDay?.formatted },
-                  { label: "Mayan Long Count", value: `${calendarData.calendars.mayanLongCount?.longCount} | ${calendarData.calendars.mayanLongCount?.calendarRound}` },
-                  { label: "Hebrew", value: calendarData.calendars.hebrew?.formatted },
-                  { label: "Chinese", value: calendarData.calendars.chineseSexagenary?.formatted },
-                  { label: "Vedic (Kali Yuga)", value: calendarData.calendars.vedic?.formatted },
-                  { label: "Egyptian Civil", value: calendarData.calendars.egyptian?.formatted },
-                  { label: "Islamic Hijri", value: calendarData.calendars.islamic?.formatted },
-                  { label: "Byzantine", value: calendarData.calendars.byzantine?.formatted },
-                  { label: "13-Moon", value: calendarData.calendars.thirteenMoon?.formatted },
-                  { label: "Persian / Solar Hijri", value: calendarData.calendars.persian?.formatted },
-                  { label: "Ethiopian / Ge'ez", value: calendarData.calendars.ethiopian?.formatted },
-                  { label: "Coptic", value: calendarData.calendars.coptic?.formatted },
-                  { label: "Japanese Imperial", value: calendarData.calendars.japaneseKoki?.formatted },
-                  { label: "Korean Dangun", value: calendarData.calendars.koreanDangun?.formatted },
-                  { label: "Thai Buddhist", value: calendarData.calendars.thaiBuddhist?.formatted },
-                  { label: "Indian Saka", value: calendarData.calendars.indianSaka?.formatted },
-                  { label: "Tibetan Rabjung", value: calendarData.calendars.tibetan?.formatted },
-                  { label: "Aztec Tonalpohualli", value: calendarData.calendars.aztecTonalpohualli?.formatted },
-                  { label: "Roman AUC", value: calendarData.calendars.romanAUC?.formatted },
-                  { label: "Bengali / Bangla", value: calendarData.calendars.bengali?.formatted },
-                  { label: "Amazigh / Berber", value: calendarData.calendars.berber?.formatted },
-                  { label: "Balinese Pawukon", value: calendarData.calendars.balinesePawukon?.formatted },
-                  { label: "Zoroastrian Fasli", value: calendarData.calendars.zoroastrianFasli?.formatted },
-                  { label: "Aboriginal Seasonal", value: calendarData.calendars.aboriginalSeasonal?.formatted },
-                  { label: "Assyrian", value: calendarData.calendars.assyrian?.formatted },
-                  { label: "Nisg\u0331a\u2019a Seasonal", value: calendarData.calendars.nisgaaSeasonal?.formatted },
-                  { label: "Yoruba", value: calendarData.calendars.yoruba?.formatted },
-                  { label: "Jain", value: calendarData.calendars.jain?.formatted },
-                  { label: "Tamil", value: calendarData.calendars.tamil?.formatted },
-                  { label: "Vietnamese", value: calendarData.calendars.vietnamese?.formatted },
-                  { label: "Vikram Samvat", value: calendarData.calendars.vikramSamvat?.formatted },
-                  { label: "Khmer", value: calendarData.calendars.khmer?.formatted },
-                  { label: "Burmese", value: calendarData.calendars.burmese?.formatted },
-                  { label: "Javanese", value: calendarData.calendars.javanese?.formatted },
-                  { label: "Malayalam (Kollam)", value: calendarData.calendars.malayalam?.formatted },
-                  { label: "Nepal Sambat", value: calendarData.calendars.nepalSambat?.formatted },
-                  { label: "Nanakshahi", value: calendarData.calendars.nanakshahi?.formatted },
-                  { label: "Bah\u00E1\u2019\u00ED", value: calendarData.calendars.bahai?.formatted },
-                  { label: "Minguo", value: calendarData.calendars.minguo?.formatted },
-                  { label: "Igbo", value: calendarData.calendars.igbo?.formatted },
-                  { label: "Akan", value: calendarData.calendars.akan?.formatted },
-                ].filter(item => item.value).map((item, index) => (
-                  <div
-                    key={item.label}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-foreground/5 last:border-b-0 gap-1"
-                    data-testid={`result-calendar-${index}`}
-                  >
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <span className="text-sm text-primary font-mono">{item.value}</span>
+                  { region: "Africa", count: 7, items: [
+                    { label: "Egyptian Civil", value: calendarData.calendars.egyptian?.formatted },
+                    { label: "Ethiopian / Ge\u2019ez", value: calendarData.calendars.ethiopian?.formatted },
+                    { label: "Coptic", value: calendarData.calendars.coptic?.formatted },
+                    { label: "Amazigh / Berber", value: calendarData.calendars.berber?.formatted },
+                    { label: "Igbo", value: calendarData.calendars.igbo?.formatted },
+                    { label: "Akan", value: calendarData.calendars.akan?.formatted },
+                    { label: "Yoruba", value: calendarData.calendars.yoruba?.formatted },
+                  ]},
+                  { region: "Americas", count: 3, items: [
+                    { label: "Mayan Long Count", value: `${calendarData.calendars.mayanLongCount?.longCount} | ${calendarData.calendars.mayanLongCount?.calendarRound}` },
+                    { label: "Aztec Tonalpohualli", value: calendarData.calendars.aztecTonalpohualli?.formatted },
+                    { label: "Nisg\u0331a\u2019a Seasonal", value: calendarData.calendars.nisgaaSeasonal?.formatted },
+                  ]},
+                  { region: "Central Asia", count: 1, items: [
+                    { label: "Tibetan Rabjung", value: calendarData.calendars.tibetan?.formatted },
+                  ]},
+                  { region: "East Asia", count: 4, items: [
+                    { label: "Chinese Sexagenary", value: calendarData.calendars.chineseSexagenary?.formatted },
+                    { label: "Korean Dangun", value: calendarData.calendars.koreanDangun?.formatted },
+                    { label: "Japanese Imperial", value: calendarData.calendars.japaneseKoki?.formatted },
+                    { label: "Minguo (ROC)", value: calendarData.calendars.minguo?.formatted },
+                  ]},
+                  { region: "Europe", count: 2, items: [
+                    { label: "Byzantine", value: calendarData.calendars.byzantine?.formatted },
+                    { label: "Roman AUC", value: calendarData.calendars.romanAUC?.formatted },
+                  ]},
+                  { region: "Global", count: 5, items: [
+                    { label: "Gregorian", value: calendarData.calendars.gregorian?.formatted },
+                    { label: "Julian Day", value: calendarData.calendars.julianDay?.formatted },
+                    { label: "Islamic Hijri", value: calendarData.calendars.islamic?.formatted },
+                    { label: "13-Moon Harmonic", value: calendarData.calendars.thirteenMoon?.formatted },
+                    { label: "Bah\u00E1\u2019\u00ED (Bad\u00ED\u2019)", value: calendarData.calendars.bahai?.formatted },
+                  ]},
+                  { region: "Oceania", count: 1, items: [
+                    { label: "Aboriginal Seasonal", value: calendarData.calendars.aboriginalSeasonal?.formatted },
+                  ]},
+                  { region: "South Asia", count: 9, items: [
+                    { label: "Vedic (Kali Yuga)", value: calendarData.calendars.vedic?.formatted },
+                    { label: "Vikram Samvat", value: calendarData.calendars.vikramSamvat?.formatted },
+                    { label: "Indian Saka", value: calendarData.calendars.indianSaka?.formatted },
+                    { label: "Bengali / Bangla", value: calendarData.calendars.bengali?.formatted },
+                    { label: "Tamil", value: calendarData.calendars.tamil?.formatted },
+                    { label: "Malayalam (Kollam)", value: calendarData.calendars.malayalam?.formatted },
+                    { label: "Nepal Sambat", value: calendarData.calendars.nepalSambat?.formatted },
+                    { label: "Jain", value: calendarData.calendars.jain?.formatted },
+                    { label: "Nanakshahi", value: calendarData.calendars.nanakshahi?.formatted },
+                  ]},
+                  { region: "Southeast Asia", count: 6, items: [
+                    { label: "Thai Buddhist", value: calendarData.calendars.thaiBuddhist?.formatted },
+                    { label: "Burmese", value: calendarData.calendars.burmese?.formatted },
+                    { label: "Khmer", value: calendarData.calendars.khmer?.formatted },
+                    { label: "Vietnamese", value: calendarData.calendars.vietnamese?.formatted },
+                    { label: "Javanese", value: calendarData.calendars.javanese?.formatted },
+                    { label: "Balinese Pawukon", value: calendarData.calendars.balinesePawukon?.formatted },
+                  ]},
+                  { region: "West Asia", count: 4, items: [
+                    { label: "Hebrew (Anno Mundi)", value: calendarData.calendars.hebrew?.formatted },
+                    { label: "Persian / Solar Hijri", value: calendarData.calendars.persian?.formatted },
+                    { label: "Assyrian", value: calendarData.calendars.assyrian?.formatted },
+                    { label: "Zoroastrian Fasli", value: calendarData.calendars.zoroastrianFasli?.formatted },
+                  ]},
+                ].map((group) => (
+                  <div key={group.region}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Globe className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-primary">{group.region}</span>
+                      <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary text-[10px] px-1.5 py-0">{group.count}</Badge>
+                    </div>
+                    {group.items.filter(item => item.value).map((item, index) => (
+                      <div
+                        key={item.label}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between py-2.5 border-b border-foreground/5 last:border-b-0 gap-1 pl-5"
+                        data-testid={`result-calendar-${group.region}-${index}`}
+                      >
+                        <span className="text-sm font-medium">{item.label}</span>
+                        <span className="text-sm text-primary font-mono">{item.value}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
 
