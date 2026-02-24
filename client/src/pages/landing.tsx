@@ -220,7 +220,7 @@ function HeroSection() {
       </div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-5">
-        <div className="max-w-4xl rounded-2xl p-6 md:p-10 border border-border/50 shadow-xl backdrop-blur-lg" style={{ backgroundColor: 'hsl(var(--background) / 0.95)' }}>
+        <div className="max-w-4xl rounded-2xl p-6 md:p-10 border border-border/50 shadow-xl bg-background">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
