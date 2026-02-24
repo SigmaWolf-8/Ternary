@@ -1,0 +1,941 @@
+# TSA CALENDAR CONTEXT EXTENSION
+# Per-Policy + Request-Level Multi-Calendar Enrichment for RFC 3161 Tokens
+
+**Date:** February 24, 2026
+**Repository:** SigmaWolf-8/Ternary
+**Modifies:** `server/services/tsa-service.ts`
+**Creates:** `server/services/tsa-calendar-enrichment.ts`
+**Depends on:** Calendar service at `/api/salvi/timing/epoch/calendars` (already built)
+**Standard:** Custom non-critical TSTInfo extension — fully RFC 3161 compliant
+
+---
+
+## WHAT THIS DOES
+
+Enriches RFC 3161 Time-Stamp Tokens with multi-calendar date representations.
+Calendar data is embedded as a **non-critical X.509v3 extension** in TSTInfo —
+standard verifiers (OpenSSL, Adobe, jarsigner) skip it without error;
+PlenumNET-aware tools extract it.
+
+Calendar enrichment comes from **two sources, merged at token time:**
+
+1. **Policy-tier defaults** — automatic, per-tier configuration. COMPLY gets
+   7 financial-jurisdiction calendars. FORENSICS gets all 24. Others get none.
+
+2. **Request-level supplement** — optional `calendars` parameter on any
+   timestamp request, including DEFAULT. A construction firm in Bangkok adds
+   `calendars: ['buddhist']` to their DEFAULT-tier requests and gets Buddhist
+   Era on every daily timestamp without upgrading their tier or taking on
+   FORENSICS-level payload.
+
+Request-level calendars are **additive** — they merge with (never replace)
+policy defaults. Duplicates are deduplicated. Invalid system names are
+silently skipped with a warning log.
+
+The JSON API also returns calendar context as a top-level field for consumers
+that don't parse ASN.1.
+
+---
+
+## WHY THIS MATTERS
+
+| Jurisdiction | Legal Calendar | Use Case |
+|-------------|---------------|----------|
+| Saudi Arabia, UAE, Bahrain, Qatar, Kuwait | Hijri (Islamic) | Shariah-compliant finance — contracts dated in Hijri |
+| Thailand | Buddhist Era (BE 2569 = 2026 CE) | Thai legal filings, court documents |
+| Japan | Imperial Era (Reiwa 8 = 2026 CE) | Japanese corporate filings, financial reports |
+| Israel | Hebrew | Israeli financial records, government documents |
+| Iran | Solar Hijri (Jalali) | Iranian legal and financial records |
+| India | Saka Era | Indian government gazette, legal notices |
+| China, Taiwan, Korea | Chinese lunisolar | Cultural/regulatory contexts in East Asia |
+| Ethiopia | Ge'ez | Ethiopian legal system (13 months, ~7 year offset) |
+
+**The problem with tier-only configuration:** A small Thai firm using DEFAULT
+tier for daily timestamping shouldn't need FORENSICS (24 calendars, ~3KB
+overhead per token) just to get Buddhist Era dates. A Dubai-based fund on
+COMPLY already gets Hijri from policy defaults, but an Israeli fintech on
+DEFAULT shouldn't need COMPLY just for Hebrew dates.
+
+**The solution:** Any tier can request any calendar system. Policy defaults
+handle the common cases automatically. The `calendars` parameter handles
+everything else — one field, zero tier changes, minimal payload.
+
+---
+
+## CALENDAR RESOLUTION MODEL
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Calendar Resolution                        │
+│                                                              │
+│   Policy Config          Request Param        Final Set      │
+│   (automatic)       +    (optional)      →    (deduplicated) │
+│                                                              │
+│   DEFAULT:  []      +    ['buddhist']    →    ['buddhist']   │
+│   COMPLY:   [7]     +    ['ethiopian']   →    [8 calendars]  │
+│   COMPLY:   [7]     +    ['hijri']       →    [7 — deduped]  │
+│   FORENSICS:['*']   +    ['buddhist']    →    [all 24]       │
+│   SENTINEL: []      +    []              →    [] — no ext    │
+│   DEFAULT:  []      +    []              →    [] — no ext    │
+│   DEFAULT:  []      +    ['*']           →    [all 24]       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Rules:**
+1. Policy config provides the floor (automatic, no request needed)
+2. Request `calendars` parameter is additive (merged, deduplicated)
+3. Either source can use `['*']` wildcard for all 24 systems
+4. Empty merged set = no calendar extension = clean token
+5. Invalid calendar names are silently dropped with a warning log
+
+---
+
+## PER-POLICY CALENDAR DEFAULTS
+
+| Tier | Default Calendars | Rationale |
+|------|------------------|-----------|
+| **DEFAULT** | `[]` — none | Operational timestamping. UTC only. Zero overhead unless requested. |
+| **COMPLY** | `['hijri', 'hebrew', 'japanese', 'buddhist', 'chinese', 'indian-saka', 'solar-hijri']` | Financial compliance across major non-Gregorian jurisdictions |
+| **FORENSICS** | `['*']` — all 24 | Maximum provenance. Court evidence may surface in any jurisdiction. |
+| **SENTINEL** | `[]` — none | Military/government timeline reconstruction. UTC is the only reference. |
+| **SECURE** | `[]` — none | Zero-trust access control. Calendar context irrelevant unless requested. |
+
+Any tier's defaults can be supplemented per-request via the `calendars` parameter.
+
+---
+
+## REAL-WORLD USAGE PATTERNS
+
+```typescript
+// Thai construction firm — DEFAULT tier + Buddhist Era on every stamp
+tsaService.processJsonRequest({
+  hash, algorithm: 'sha256',
+  calendars: ['buddhist'],              // ~100 bytes overhead per token
+}, 'maestro-erp');
+
+// Israeli fintech — DEFAULT tier + Hebrew calendar
+tsaService.processJsonRequest({
+  hash, algorithm: 'sha256',
+  calendars: ['hebrew'],
+}, 'trading-engine');
+
+// Dubai fund — COMPLY tier (Hijri already included by policy, no param needed)
+tsaService.processJsonRequest({
+  hash, algorithm: 'sha256',
+  policy: TSA_POLICIES.COMPLY,          // Hijri auto-included
+}, 'fund-admin');
+
+// Dubai fund expanding to Israel — COMPLY + Hebrew supplement
+tsaService.processJsonRequest({
+  hash, algorithm: 'sha256',
+  policy: TSA_POLICIES.COMPLY,
+  calendars: ['hebrew'],                // Added to existing 7 → 8 calendars
+}, 'fund-admin');
+
+// Cross-border M&A — FORENSICS tier (all 24 automatic, no param needed)
+tsaService.processJsonRequest({
+  hash, algorithm: 'sha256',
+  policy: TSA_POLICIES.FORENSICS,       // All 24 calendars auto-included
+}, 'legal-ops');
+
+// Plain operational stamp — no calendars, clean token
+tsaService.processJsonRequest({
+  hash, algorithm: 'sha256',
+}, 'health-check');
+```
+
+---
+
+## ARCHITECTURE
+
+```
+Token request arrives (with optional calendars: ['buddhist'])
+        │
+        ▼
+processTimestampRequest()
+        │
+        ├── hptpClient.getTimestamp()          ← trusted time (existing)
+        │
+        ├── resolveCalendarSystems()           ← NEW
+        │       │
+        │       ├── load policy defaults for tier
+        │       ├── merge with request-level calendars param
+        │       ├── deduplicate
+        │       ├── validate against known systems
+        │       └── return string[] (empty = skip enrichment)
+        │
+        ├── calendarEnrichment.enrich()        ← NEW (best-effort)
+        │       │
+        │       ├── call /api/salvi/timing/epoch/calendars
+        │       ├── filter to resolved systems
+        │       └── return CalendarContext object
+        │
+        ├── buildTSTInfo() with extension      ← MODIFIED
+        ├── signWithClassicalKey()             ← existing
+        ├── tldsaClient.sign()                 ← existing
+        └── buildCmsSignedData()               ← existing
+```
+
+---
+
+## CUSTOM EXTENSION OID
+
+```
+PlenumNET base:     1.3.6.1.4.1.0.100
+TSA extensions:     1.3.6.1.4.1.0.100.2
+Calendar context:   1.3.6.1.4.1.0.100.2.1
+
+id-plenumnet-tsa-calendarContext OBJECT IDENTIFIER ::= { 1 3 6 1 4 1 0 100 2 1 }
+```
+
+Extension properties:
+- **Critical:** `FALSE` — standard verifiers MUST skip unknown non-critical extensions
+- **Value:** DER-encoded UTF8String containing JSON payload
+
+---
+
+## FILE 1: `server/services/tsa-calendar-enrichment.ts` (NEW)
+
+```typescript
+/**
+ * TSA CALENDAR CONTEXT ENRICHMENT
+ *
+ * Repository: SigmaWolf-8/Ternary
+ * Location:   server/services/tsa-calendar-enrichment.ts
+ *
+ * Resolves which calendar systems to embed in a TSA token by merging
+ * policy-tier defaults with optional request-level supplements.
+ * Calls the PlenumNET calendar service and returns a CalendarContext
+ * for embedding as a non-critical TSTInfo extension.
+ *
+ * Best-effort: failure never blocks token issuance.
+ */
+
+import { TSA_POLICY_METADATA } from './tsa-service';
+
+// ── Extension OID ─────────────────────────────────────────────────────────
+export const CALENDAR_EXTENSION_OID = '1.3.6.1.4.1.0.100.2.1';
+
+// ── Calendar system identifiers ───────────────────────────────────────────
+// Keys MUST match the keys returned by /api/salvi/timing/epoch/calendars.
+// Used for validation of request-level calendar parameters.
+export const CALENDAR_SYSTEMS = {
+  GREGORIAN:     'gregorian',
+  HIJRI:         'hijri',           // Islamic (lunar)
+  SOLAR_HIJRI:   'solar-hijri',     // Iranian (Jalali)
+  HEBREW:        'hebrew',
+  JAPANESE:      'japanese',        // Imperial era (Reiwa)
+  BUDDHIST:      'buddhist',        // Thai Buddhist Era
+  CHINESE:       'chinese',         // Chinese lunisolar
+  INDIAN_SAKA:   'indian-saka',     // Indian national calendar
+  ETHIOPIAN:     'ethiopian',       // Ge'ez calendar
+  COPTIC:        'coptic',
+  MAYAN:         'mayan',           // Long Count
+  VEDIC:         'vedic',
+  THIRTEEN_MOON: '13-moon',         // Dreamspell / 13-Moon
+  PERSIAN:       'persian',         // alias for solar-hijri in some contexts
+  TIBETAN:       'tibetan',
+  BENGALI:       'bengali',
+  THAI_SOLAR:    'thai-solar',      // Thai solar (distinct from Buddhist Era)
+  MINGUO:        'minguo',          // Republic of China / Taiwan
+  JUCHE:         'juche',           // North Korean
+  BALINESE:      'balinese',        // Pawukon
+  BYZANTINE:     'byzantine',       // Anno Mundi variant
+  HOLOCENE:      'holocene',        // Human Era (HE)
+  IGBO:          'igbo',            // Igbo calendar
+  AKAN:          'akan',            // Akan calendar
+} as const;
+
+// Set of all known system names for validation
+export const KNOWN_CALENDAR_SYSTEMS = new Set(Object.values(CALENDAR_SYSTEMS));
+
+// ── Per-policy calendar defaults ──────────────────────────────────────────
+// These are AUTOMATIC — no request parameter needed.
+// Empty array = no default enrichment for this tier.
+// ['*'] = all available systems.
+// Request-level calendars are ADDITIVE to these defaults.
+export const POLICY_CALENDAR_CONFIG: Record<string, string[]> = {
+  'DEFAULT':    [],
+  'COMPLY':     [
+    CALENDAR_SYSTEMS.HIJRI,
+    CALENDAR_SYSTEMS.HEBREW,
+    CALENDAR_SYSTEMS.JAPANESE,
+    CALENDAR_SYSTEMS.BUDDHIST,
+    CALENDAR_SYSTEMS.CHINESE,
+    CALENDAR_SYSTEMS.INDIAN_SAKA,
+    CALENDAR_SYSTEMS.SOLAR_HIJRI,
+  ],
+  'FORENSICS':  ['*'],  // All — maximum provenance
+  'SENTINEL':   [],
+  'SECURE':     [],
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────
+
+export interface CalendarDate {
+  system: string;        // e.g. 'hijri', 'hebrew', 'japanese'
+  display: string;       // Human-readable: "7 Sha'ban 1447 AH"
+  year: number | string;
+  month: number | string;
+  day: number | string;
+  era?: string;          // e.g. 'Reiwa', 'BE', 'AH', 'AM'
+}
+
+export interface CalendarContext {
+  /** UTC ISO timestamp that was converted */
+  utcTimestamp: string;
+  /** Julian Day Number — universal bridge between all calendar systems */
+  julianDayNumber: number;
+  /** Salvi Epoch offset (days since April 1, 2025 UTC) */
+  salviEpochDay: number;
+  /** Calendar representations included in this token */
+  calendars: CalendarDate[];
+  /** Policy tier that provided the default calendar set */
+  policyTier: string;
+  /** Which calendars came from policy defaults vs request supplement */
+  source: {
+    policy: string[];     // e.g. ['hijri', 'hebrew', ...] — from tier config
+    requested: string[];  // e.g. ['ethiopian'] — from request param
+  };
+  /** Extension OID for ASN.1 embedding */
+  extensionOid: string;
+}
+
+// ── Calendar service client interface ─────────────────────────────────────
+
+export interface CalendarServiceClient {
+  /**
+   * Call /api/salvi/timing/epoch/calendars to convert a date.
+   * Returns all 24 calendar representations keyed by system name.
+   */
+  convertDate(utcTimestamp: string): Promise<{
+    julianDayNumber: number;
+    salviEpochDay: number;
+    calendars: Record<string, CalendarDate>;
+  }>;
+}
+
+// ── Calendar system resolution ────────────────────────────────────────────
+
+/**
+ * Resolve the final set of calendar systems to embed in a token.
+ *
+ * Merges policy-tier defaults with request-level supplements.
+ * Deduplicates. Validates against known systems. Returns empty
+ * array if no calendars should be embedded.
+ *
+ * @param policyTier       Tier name (DEFAULT, COMPLY, etc.)
+ * @param requestCalendars Optional array from request `calendars` param
+ * @returns Deduplicated array of validated calendar system names
+ */
+export function resolveCalendarSystems(
+  policyTier: string,
+  requestCalendars?: string[],
+): string[] {
+  const policyDefaults = POLICY_CALENDAR_CONFIG[policyTier] || [];
+  const requested = requestCalendars || [];
+
+  // Wildcard from either source → all systems
+  if (policyDefaults[0] === '*' || requested.includes('*')) {
+    return ['*'];
+  }
+
+  // Merge and deduplicate
+  const merged = new Set<string>([...policyDefaults, ...requested]);
+
+  // Validate — drop unknown systems with a warning
+  const validated: string[] = [];
+  for (const sys of merged) {
+    if (KNOWN_CALENDAR_SYSTEMS.has(sys)) {
+      validated.push(sys);
+    } else {
+      console.warn('Unknown calendar system requested (skipped)', {
+        system: sys,
+        policyTier,
+        hint: `Valid systems: ${[...KNOWN_CALENDAR_SYSTEMS].join(', ')}`,
+      });
+    }
+  }
+
+  return validated;
+}
+
+/**
+ * Determine which calendars came from policy vs request for audit trail.
+ */
+export function classifyCalendarSources(
+  policyTier: string,
+  requestCalendars?: string[],
+): { policy: string[]; requested: string[] } {
+  const policyDefaults = POLICY_CALENDAR_CONFIG[policyTier] || [];
+  const requested = requestCalendars || [];
+
+  if (policyDefaults[0] === '*') {
+    return { policy: ['*'], requested: [] };
+  }
+  if (requested.includes('*')) {
+    return { policy: policyDefaults, requested: ['*'] };
+  }
+
+  const policySet = new Set(policyDefaults);
+  const supplemented = requested.filter(
+    sys => !policySet.has(sys) && KNOWN_CALENDAR_SYSTEMS.has(sys),
+  );
+
+  return {
+    policy: policyDefaults,
+    requested: supplemented,
+  };
+}
+
+// ── Main enrichment function ──────────────────────────────────────────────
+
+/**
+ * Enrich a TSA token with multi-calendar context.
+ *
+ * Resolution order:
+ *   1. Policy tier defaults (automatic)
+ *   2. Request-level supplements (additive)
+ *   3. Merge, deduplicate, validate
+ *   4. Call calendar service for resolved systems
+ *   5. Return CalendarContext or null (if no calendars resolved)
+ *
+ * @param utcTimestamp     The genTime from HPTP (ISO 8601 UTC)
+ * @param policyTier       Tier name (DEFAULT, COMPLY, FORENSICS, etc.)
+ * @param calendarClient   Client for the calendar service
+ * @param requestCalendars Optional array from request `calendars` param
+ * @returns CalendarContext if any calendars resolved, null otherwise
+ */
+export async function enrichWithCalendars(
+  utcTimestamp: string,
+  policyTier: string,
+  calendarClient: CalendarServiceClient,
+  requestCalendars?: string[],
+): Promise<CalendarContext | null> {
+  // 1. Resolve which systems to include
+  const systems = resolveCalendarSystems(policyTier, requestCalendars);
+  if (systems.length === 0) {
+    return null;  // No calendars requested or configured — clean token
+  }
+
+  try {
+    // 2. Call the calendar service (one call returns all 24 systems)
+    const result = await calendarClient.convertDate(utcTimestamp);
+
+    // 3. Filter to resolved systems
+    let calendars: CalendarDate[];
+    if (systems[0] === '*') {
+      calendars = Object.values(result.calendars);
+    } else {
+      calendars = systems
+        .filter(sys => result.calendars[sys])
+        .map(sys => result.calendars[sys]);
+    }
+
+    if (calendars.length === 0) {
+      console.warn('Calendar service returned no matching systems', {
+        requested: systems,
+        available: Object.keys(result.calendars),
+      });
+      return null;
+    }
+
+    // 4. Classify sources for audit trail
+    const source = classifyCalendarSources(policyTier, requestCalendars);
+
+    // 5. Build context
+    return {
+      utcTimestamp,
+      julianDayNumber: result.julianDayNumber,
+      salviEpochDay: result.salviEpochDay,
+      calendars,
+      policyTier,
+      source,
+      extensionOid: CALENDAR_EXTENSION_OID,
+    };
+
+  } catch (error) {
+    // Calendar enrichment failure is non-fatal — same as TL-DSA pattern
+    console.warn('Calendar enrichment failed (non-fatal)', {
+      policyTier,
+      utcTimestamp,
+      requestedSystems: systems,
+      error: (error as Error).message,
+    });
+    return null;
+  }
+}
+
+/**
+ * Serialize CalendarContext to JSON for embedding in TSTInfo extension.
+ * DER-encoded as UTF8String OCTET STRING in the extension value.
+ */
+export function serializeForExtension(context: CalendarContext): string {
+  return JSON.stringify({
+    v: 1,                               // Schema version
+    oid: context.extensionOid,
+    utc: context.utcTimestamp,
+    jdn: context.julianDayNumber,
+    sed: context.salviEpochDay,
+    tier: context.policyTier,
+    src: context.source,                // { policy: [...], requested: [...] }
+    cal: context.calendars.map(c => ({
+      sys: c.system,
+      d: c.display,
+      y: c.year,
+      m: c.month,
+      day: c.day,
+      ...(c.era ? { era: c.era } : {}),
+    })),
+  });
+}
+```
+
+---
+
+## FILE 2: MODIFICATIONS TO `tsa-service.ts`
+
+### Add import
+
+```typescript
+import {
+  CalendarServiceClient,
+  CalendarContext,
+  enrichWithCalendars,
+  resolveCalendarSystems,
+  serializeForExtension,
+  CALENDAR_EXTENSION_OID,
+  KNOWN_CALENDAR_SYSTEMS,
+} from './tsa-calendar-enrichment';
+```
+
+### Add `calendars` to JsonTimestampRequest
+
+```typescript
+export interface JsonTimestampRequest {
+  hash: string;
+  algorithm: string;
+  policy?: string;
+  nonce?: string;
+  includeChain?: boolean;
+  calendars?: string[];     // ← ADD: optional calendar system supplement
+                            //   e.g. ['buddhist'] or ['hebrew', 'hijri']
+                            //   Additive to policy-tier defaults.
+                            //   Use ['*'] for all 24 systems.
+}
+```
+
+### Add `calendarContext` to JsonTimestampResponse
+
+```typescript
+export interface JsonTimestampResponse {
+  // ... all existing fields unchanged ...
+  calendarContext: CalendarContext | null;  // ← ADD
+}
+```
+
+### Add `calendarSystems` to TsaTokenRecord (audit log)
+
+```typescript
+export interface TsaTokenRecord {
+  // ... all existing fields unchanged ...
+  calendarSystems: string[];      // ← ADD: which systems were embedded
+  calendarSource: 'policy' | 'request' | 'merged' | 'none';  // ← ADD
+}
+```
+
+### Add calendarClient to constructor
+
+```typescript
+// Add to constructor parameters:
+private calendarClient: CalendarServiceClient | null;
+
+// In constructor:
+this.calendarClient = calendarClient ?? null;
+```
+
+### Modify processTimestampRequest — add calendar enrichment
+
+Insert after the HPTP timestamp is obtained, before buildTSTInfo:
+
+```typescript
+    // ── Calendar enrichment (best-effort, per-policy + per-request) ───────
+    // Policy defaults provide the floor. Request `calendars` param adds.
+    // Empty resolved set → no extension → clean token.
+    // Failure never blocks token issuance.
+    let calendarContext: CalendarContext | null = null;
+    if (this.calendarClient) {
+      const policyMeta = TSA_POLICY_METADATA[policyOid];
+      if (policyMeta) {
+        calendarContext = await enrichWithCalendars(
+          hptpResult.timestamp,
+          policyMeta.tier,
+          this.calendarClient,
+          input.calendars,          // ← pass through request-level supplement
+        );
+      }
+    }
+```
+
+### Modify processJsonRequest — pass calendars through and return context
+
+In the return block, add:
+
+```typescript
+return {
+  // ... all existing fields unchanged ...
+  calendarContext: calendarContext,
+};
+```
+
+In the audit log entry, add:
+
+```typescript
+calendarSystems: calendarContext
+  ? calendarContext.calendars.map(c => c.system)
+  : [],
+calendarSource: calendarContext
+  ? (calendarContext.source.requested.length > 0
+      ? (calendarContext.source.policy.length > 0 ? 'merged' : 'request')
+      : 'policy')
+  : 'none',
+```
+
+### Modify buildTSTInfo — accept optional calendar extension
+
+```typescript
+  private buildTSTInfo(fields: {
+    serialNumber: bigint; genTime: string; hashAlgorithmOid: string;
+    hashedMessage: Buffer; policyOid: string; nonce: bigint | null;
+    accuracy: { seconds: number; micros: number }; ordering: boolean;
+    calendarContext?: CalendarContext | null;  // ← ADD
+  }): Buffer {
+    // AGENT: When building the TSTInfo ASN.1 SEQUENCE, if calendarContext
+    // is present, add it to the extensions [1] IMPLICIT Extensions field:
+    //
+    // extensions [1] IMPLICIT Extensions OPTIONAL
+    //   Extension ::= SEQUENCE {
+    //     extnID      OBJECT IDENTIFIER,    -- '1.3.6.1.4.1.0.100.2.1'
+    //     critical    BOOLEAN DEFAULT FALSE, -- MUST be FALSE
+    //     extnValue   OCTET STRING           -- DER(UTF8String(JSON))
+    //   }
+    //
+    // Build the extension value:
+    //   const calendarJson = serializeForExtension(fields.calendarContext);
+    //   const extension = new asn1js.Sequence({
+    //     value: [
+    //       new asn1js.ObjectIdentifier({ value: CALENDAR_EXTENSION_OID }),
+    //       new asn1js.Boolean({ value: false }),
+    //       new asn1js.OctetString({
+    //         valueHex: new TextEncoder().encode(calendarJson),
+    //       }),
+    //     ],
+    //   });
+    //
+    // If calendarContext is null, omit the extensions field entirely
+    // (unless other extensions like TL-DSA dual-sig are present).
+  }
+```
+
+---
+
+## FILE 3: MODIFICATIONS TO `server/index.ts`
+
+### Create calendar client from existing service
+
+```typescript
+import { CalendarServiceClient } from './services/tsa-calendar-enrichment';
+
+// ── Calendar client — wraps the existing calendar service ─────────────────
+// The calendar service is already mounted at /api/salvi/timing/epoch/calendars.
+//
+// AGENT: If the calendar service is a class instance (e.g., salviTimingService),
+// call it directly. If it's only available via HTTP route, use localhost fetch.
+// Direct call is preferred — zero HTTP overhead.
+
+const calendarClient: CalendarServiceClient = {
+  async convertDate(utcTimestamp: string) {
+    // Option A: Direct function call (preferred)
+    // return salviTimingService.convertToAllCalendars(utcTimestamp);
+
+    // Option B: Internal HTTP (if service is only route-accessible)
+    const res = await fetch(
+      `http://localhost:3000/api/salvi/timing/epoch/calendars?date=${encodeURIComponent(utcTimestamp)}`,
+    );
+    if (!res.ok) throw new Error(`Calendar service error: ${res.status}`);
+    return res.json();
+  },
+};
+
+// ── Inject into TSA service ───────────────────────────────────────────────
+const tsaService = new TsaService(
+  tsaConfig,
+  hptpClientForNotify,
+  tldsaClientForNotify,
+  calendarClient,           // ← ADD
+);
+```
+
+---
+
+## FILE 4: NOTIFICATION SERVICE — CALENDAR PASSTHROUGH
+
+The notification service's `notification-tsa-policy.ts` can optionally include
+a per-channel calendar default so downstream consumers don't need to set
+the `calendars` parameter manually.
+
+This is **optional** — only add if specific channels consistently serve
+a single jurisdiction.
+
+```typescript
+// Add to notification-tsa-policy.ts (optional)
+
+// Channel-based calendar supplement — additive to TSA policy defaults.
+// Only set for channels that consistently serve a single jurisdiction.
+// Omit a channel to rely purely on TSA policy tier defaults.
+export const CHANNEL_CALENDAR_SUPPLEMENT: Record<string, string[]> = {
+  // Example: if all webhooks go to Thai partners
+  // webhook: ['buddhist'],
+  //
+  // Example: if all events are for Israeli internal system
+  // event: ['hebrew'],
+};
+
+// In resolveTsaPolicy or a companion function:
+export function resolveChannelCalendars(
+  channel: string,
+  contentType?: string,
+): string[] | undefined {
+  // Content-type level overrides could go here too
+  return CHANNEL_CALENDAR_SUPPLEMENT[channel];
+}
+```
+
+In `notification-service.ts` acquireTsaToken, pass the supplement:
+
+```typescript
+    const channelCalendars = resolveChannelCalendars(channel, contentType);
+
+    const response = await this.tsaService.processJsonRequest(
+      {
+        hash,
+        algorithm: 'sha256',
+        policy: policyOid,
+        nonce,
+        includeChain: false,
+        calendars: channelCalendars,  // ← undefined if no supplement → clean merge
+      },
+      'notification-service',
+    );
+```
+
+---
+
+## WHAT CHANGES IN THE TOKEN
+
+### DEFAULT token (no calendars requested) — NOTHING changes
+
+```
+TSTInfo {
+  version: 1
+  policy: 1.3.6.1.4.1.0.100.1.0
+  messageImprint: { sha256, <hash> }
+  serialNumber: 42
+  genTime: 20260224T153045.123Z
+  accuracy: { 1s }
+  ordering: false
+  // NO extensions — clean, minimal token
+}
+```
+
+### DEFAULT token + `calendars: ['buddhist']` — single calendar added
+
+```
+TSTInfo {
+  version: 1
+  policy: 1.3.6.1.4.1.0.100.1.0
+  messageImprint: { sha256, <hash> }
+  serialNumber: 43
+  genTime: 20260224T153045.123Z
+  accuracy: { 1s }
+  ordering: false
+  extensions: [
+    {
+      extnID: 1.3.6.1.4.1.0.100.2.1
+      critical: FALSE
+      extnValue: {
+        "v": 1,
+        "utc": "2026-02-24T15:30:45.123Z",
+        "jdn": 2461433,
+        "sed": 330,
+        "tier": "DEFAULT",
+        "src": { "policy": [], "requested": ["buddhist"] },
+        "cal": [
+          { "sys": "buddhist", "d": "24/02/2569 BE", "y": 2569, "m": 2, "day": 24, "era": "BE" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**Overhead: ~150–200 bytes.** One calendar, one extension. Minimal.
+
+### COMPLY token (policy defaults, no request supplement)
+
+```
+TSTInfo {
+  ...
+  extensions: [
+    {
+      extnID: 1.3.6.1.4.1.0.100.2.1
+      critical: FALSE
+      extnValue: {
+        "v": 1,
+        "tier": "COMPLY",
+        "src": { "policy": ["hijri","hebrew","japanese","buddhist","chinese","indian-saka","solar-hijri"], "requested": [] },
+        "cal": [ ...7 calendar entries... ]
+      }
+    }
+  ]
+}
+```
+
+### COMPLY token + `calendars: ['ethiopian']` — 8 calendars (merged)
+
+```
+"src": {
+  "policy": ["hijri","hebrew","japanese","buddhist","chinese","indian-saka","solar-hijri"],
+  "requested": ["ethiopian"]
+},
+"cal": [ ...8 calendar entries... ]
+```
+
+### FORENSICS token — all 24 (wildcard, request supplements ignored)
+
+```
+"src": { "policy": ["*"], "requested": [] },
+"cal": [ ...24 calendar entries... ]
+```
+
+---
+
+## JSON API RESPONSE EXAMPLES
+
+### DEFAULT + Buddhist (request-level supplement)
+
+```json
+{
+  "granted": true,
+  "serialNumber": "43",
+  "genTime": "20260224153045.123Z",
+  "policyTier": "DEFAULT",
+  "token": "<base64 TST with calendar extension>",
+  "calendarContext": {
+    "utcTimestamp": "2026-02-24T15:30:45.123Z",
+    "julianDayNumber": 2461433,
+    "salviEpochDay": 330,
+    "policyTier": "DEFAULT",
+    "source": {
+      "policy": [],
+      "requested": ["buddhist"]
+    },
+    "extensionOid": "1.3.6.1.4.1.0.100.2.1",
+    "calendars": [
+      { "system": "buddhist", "display": "24/02/2569 BE", "year": 2569, "month": 2, "day": 24, "era": "BE" }
+    ]
+  }
+}
+```
+
+### DEFAULT — no calendars (clean token)
+
+```json
+{
+  "granted": true,
+  "policyTier": "DEFAULT",
+  "token": "<base64 TST — no extension>",
+  "calendarContext": null
+}
+```
+
+---
+
+## SIZE IMPACT
+
+| Scenario | Calendar Systems | Extension Size | Token Overhead |
+|----------|-----------------|---------------|---------------|
+| DEFAULT (no calendars) | 0 | 0 bytes | None |
+| DEFAULT + 1 calendar | 1 | ~150–200 bytes | ~5% |
+| DEFAULT + 2 calendars | 2 | ~250–350 bytes | ~8% |
+| COMPLY (7 policy defaults) | 7 | ~600–800 bytes | ~15–20% |
+| COMPLY + 1 supplement | 8 | ~700–950 bytes | ~18–23% |
+| FORENSICS (all 24) | 24 | ~2–3 KB | ~50–70% |
+
+Single-calendar supplement on DEFAULT adds ~150–200 bytes. Negligible.
+
+---
+
+## TESTING CHECKLIST
+
+### Policy defaults (unchanged from previous)
+- [ ] DEFAULT token (no `calendars` param): no extension, `calendarContext: null`
+- [ ] COMPLY token: extension with exactly 7 calendars, `source.policy` has 7, `source.requested` empty
+- [ ] FORENSICS token: extension with all 24 calendars, `source.policy: ['*']`
+- [ ] SENTINEL token: no extension, `calendarContext: null`
+- [ ] SECURE token: no extension, `calendarContext: null`
+
+### Request-level supplement
+- [ ] DEFAULT + `calendars: ['buddhist']`: extension with 1 calendar, `source.requested: ['buddhist']`
+- [ ] DEFAULT + `calendars: ['buddhist', 'hebrew']`: extension with 2 calendars
+- [ ] DEFAULT + `calendars: ['*']`: extension with all 24 calendars
+- [ ] COMPLY + `calendars: ['ethiopian']`: extension with 8 calendars (7 policy + 1 request)
+- [ ] COMPLY + `calendars: ['hijri']`: extension with 7 calendars (hijri deduplicated, not doubled)
+- [ ] FORENSICS + `calendars: ['buddhist']`: extension with all 24 (wildcard absorbs supplement)
+- [ ] SENTINEL + `calendars: ['hebrew']`: extension with 1 calendar (request overrides empty default)
+
+### Validation
+- [ ] Invalid system name `calendars: ['klingon']`: skipped with warning, no crash
+- [ ] Mixed valid/invalid `calendars: ['buddhist', 'klingon']`: buddhist included, klingon skipped
+- [ ] Empty `calendars: []`: treated as no supplement (same as omitting param)
+- [ ] OpenSSL verify: `openssl ts -verify` returns OK on tokens with 1, 7, and 24 calendar extensions
+
+### Audit trail
+- [ ] Token audit log `calendarSystems` array matches embedded systems
+- [ ] Token audit log `calendarSource` is `'request'` for DEFAULT+supplement, `'policy'` for COMPLY default, `'merged'` for COMPLY+supplement, `'none'` for clean tokens
+- [ ] `source.policy` and `source.requested` in CalendarContext correctly classify origin
+
+### Integrity checks
+- [ ] Julian Day Number matches independent calculation
+- [ ] Salvi Epoch Day correct (days since April 1, 2025)
+- [ ] Buddhist Era year = Gregorian year + 543
+- [ ] Japanese era year = Gregorian year - 2018 (Reiwa)
+- [ ] Calendar service down: token issued without extension, warning logged
+
+---
+
+## NON-NEGOTIABLE RULES
+
+1. **Calendar enrichment NEVER blocks token issuance.** Best-effort, same as TL-DSA. Log failure; issue token without extension.
+
+2. **Extension is NON-CRITICAL.** `critical: FALSE` in ASN.1. Any verifier that doesn't understand it MUST skip it per X.509v3 rules.
+
+3. **Request-level calendars are ADDITIVE.** They merge with policy defaults, never replace them. COMPLY always includes its 7 financial calendars even if the request asks for only 1.
+
+4. **No calendars resolved = no extension.** DEFAULT with no `calendars` param produces a clean token. Zero overhead.
+
+5. **Calendar data is derived, not authoritative.** UTC genTime from HPTP is the legal timestamp. Calendar representations are informational enrichment.
+
+6. **Schema versioned.** JSON payload includes `"v": 1`. Bump on format changes.
+
+7. **Julian Day Number is the bridge.** Included in every CalendarContext for independent verification of calendar conversions.
+
+8. **Source attribution.** Every CalendarContext records which calendars came from policy defaults vs request supplement. Full audit trail.
+
+9. **Invalid system names are silently dropped.** Warning logged, token not blocked. Typos don't crash timestamps.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*PlenumNET TSA Calendar Context Extension*
+*"Every timestamp speaks every language."*

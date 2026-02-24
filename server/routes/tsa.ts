@@ -57,7 +57,7 @@ export function createTsaRoutes(service: TsaService): Router {
   router.post('/timestamp/json', requireAuth('app'),
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { hash, algorithm, policy, nonce, includeChain } = req.body;
+        const { hash, algorithm, policy, nonce, includeChain, calendars } = req.body;
         if (!hash || !algorithm) {
           return res.status(400).json({
             error: 'Missing required fields',
@@ -66,11 +66,12 @@ export function createTsaRoutes(service: TsaService): Router {
               policy: `OID. DEFAULT=${TSA_POLICIES.DEFAULT}, COMPLY=${TSA_POLICIES.COMPLY}, FORENSICS=${TSA_POLICIES.FORENSICS}, SENTINEL=${TSA_POLICIES.SENTINEL}, SECURE=${TSA_POLICIES.SECURE}`,
               nonce: 'hex-encoded nonce for replay protection',
               includeChain: 'boolean — include TSA certificate chain',
+              calendars: 'string[] — calendar systems to embed (e.g. ["buddhist","hebrew"]). Additive to policy defaults. Use ["*"] for all 24.',
             },
           });
         }
         const result = await service.processJsonRequest(
-          { hash, algorithm, policy, nonce, includeChain }, req.ip || 'unknown',
+          { hash, algorithm, policy, nonce, includeChain, calendars }, req.ip || 'unknown',
         );
         res.status(200).json({ success: true, ...result, callerApp: (req as AuthenticatedRequest).auth?.appId });
       } catch (error) { res.status(422).json({ success: false, error: (error as Error).message }); }

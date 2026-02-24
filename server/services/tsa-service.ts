@@ -20,6 +20,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as asn1js from 'asn1js';
+import {
+  type CalendarServiceClient,
+  type CalendarContext,
+  enrichWithCalendars,
+  serializeForExtension,
+  CALENDAR_EXTENSION_OID,
+} from './tsa-calendar-enrichment';
 
 export const TSA_POLICIES = {
   DEFAULT: '1.3.6.1.4.1.0.100.1.0',
@@ -166,6 +173,8 @@ export interface TsaTokenRecord {
   tldsaKeyId: string | null;
   merkleLeafHash: string;
   tokenSizeBytes: number;
+  calendarSystems: string[];
+  calendarSource: 'policy' | 'request' | 'merged' | 'none';
   createdAt: string;
 }
 
@@ -194,6 +203,7 @@ export interface JsonTimestampRequest {
   policy?: string;
   nonce?: string;
   includeChain?: boolean;
+  calendars?: string[];
 }
 
 export interface JsonTimestampResponse {
@@ -215,6 +225,7 @@ export interface JsonTimestampResponse {
   merkleRoot: string;
   verificationUrl: string;
   certificateUrl: string;
+  calendarContext: CalendarContext | null;
 }
 
 export interface VerificationResult {
@@ -314,12 +325,14 @@ export class TsaService {
   private tokenLog: TsaTokenRecord[] = [];
   private serialIndex: Map<string, TsaTokenRecord> = new Map();
   private merkleLog!: MerkleAuditLog;
+  private calendarClient: CalendarServiceClient | null;
   private startTime: number = Date.now();
 
-  constructor(config: TsaConfig, hptpClient: HptpClient, tldsaClient: TldsaClient) {
+  constructor(config: TsaConfig, hptpClient: HptpClient, tldsaClient: TldsaClient, calendarClient?: CalendarServiceClient) {
     this.config = config;
     this.hptpClient = hptpClient;
     this.tldsaClient = tldsaClient;
+    this.calendarClient = calendarClient ?? null;
   }
 
   async initialize(): Promise<{
@@ -368,7 +381,7 @@ export class TsaService {
     };
   }
 
-  async processTimestampRequest(derRequest: Buffer, requestIp: string): Promise<Buffer> {
+  async processTimestampRequest(derRequest: Buffer, requestIp: string, calendarContext?: CalendarContext | null): Promise<Buffer> {
     let parsed: {
       version: number;
       hashAlgorithmOid: string;
@@ -422,6 +435,7 @@ export class TsaService {
       nonce: parsed.nonce,
       accuracy: declaredAccuracy,
       ordering: policyMeta.orderingGuaranteed,
+      calendarContext: calendarContext || undefined,
     });
 
     const timeStampToken = this.buildCmsSignedData(tstInfo, parsed.certReq);
@@ -464,6 +478,14 @@ export class TsaService {
       tldsaKeyId: tldsaSig?.publicKeyId || null,
       merkleLeafHash: merkleLeaf,
       tokenSizeBytes: response.length,
+      calendarSystems: calendarContext
+        ? calendarContext.calendars.map(c => c.system)
+        : [],
+      calendarSource: calendarContext
+        ? (calendarContext.source.requested.length > 0
+            ? (calendarContext.source.policy.length > 0 ? 'merged' : 'request')
+            : 'policy')
+        : 'none',
       createdAt: new Date().toISOString(),
     });
 
@@ -497,7 +519,17 @@ export class TsaService {
       certReq: input.includeChain || false,
     });
 
-    const derResponse = await this.processTimestampRequest(syntheticReq, requestIp);
+    let calendarContext: CalendarContext | null = null;
+    if (this.calendarClient) {
+      calendarContext = await enrichWithCalendars(
+        new Date().toISOString(),
+        policyMeta.tier,
+        this.calendarClient,
+        input.calendars,
+      );
+    }
+
+    const derResponse = await this.processTimestampRequest(syntheticReq, requestIp, calendarContext);
     const lastToken = this.tokenLog[this.tokenLog.length - 1];
 
     return {
@@ -519,6 +551,7 @@ export class TsaService {
       merkleRoot: this.merkleLog.getRoot(),
       verificationUrl: '/api/tsa/verify',
       certificateUrl: '/api/tsa/certificate',
+      calendarContext,
     };
   }
 
@@ -795,6 +828,7 @@ export class TsaService {
     serialNumber: bigint; genTime: string; hashAlgorithmOid: string;
     hashedMessage: Buffer; policyOid: string; nonce: bigint | null;
     accuracy: { seconds: number; micros: number }; ordering: boolean;
+    calendarContext?: CalendarContext;
   }): Buffer {
     const seqValues: asn1js.BaseBlock[] = [];
 
@@ -876,6 +910,29 @@ export class TsaService {
       ],
     });
     seqValues.push(tsaName);
+
+    if (fields.calendarContext) {
+      const calendarJson = serializeForExtension(fields.calendarContext);
+      const calendarExtension = new asn1js.Sequence({
+        value: [
+          oidToAsn1(CALENDAR_EXTENSION_OID),
+          new asn1js.Boolean({ value: false }),
+          new asn1js.OctetString({
+            valueHex: new TextEncoder().encode(calendarJson),
+          }),
+        ],
+      });
+
+      const extensions = new asn1js.Constructed({
+        idBlock: { tagClass: 3, tagNumber: 1 },
+        value: [
+          new asn1js.Sequence({
+            value: [calendarExtension],
+          }),
+        ],
+      });
+      seqValues.push(extensions);
+    }
 
     const tstInfo = new asn1js.Sequence({ value: seqValues });
     return Buffer.from(tstInfo.toBER(false));

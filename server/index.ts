@@ -26,6 +26,8 @@ import { existsSync } from "fs";
 import * as path from "path";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
+import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
+import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 
 const app = express();
@@ -197,7 +199,25 @@ function startPqtiService(): ChildProcess | null {
     },
   };
 
-  const tsaService = new TsaService(tsaConfig, hptpClientForTsa, tldsaClientForTsa);
+  const calendarClient: CalendarServiceClient = {
+    async convertDate(utcTimestamp: string) {
+      const date = new Date(utcTimestamp);
+      const sync = getSalviEpochCalendarSync(date);
+      const epochDate = new Date('2025-04-01T00:00:00.000Z');
+      const salviEpochDay = Math.floor((date.getTime() - epochDate.getTime()) / 86_400_000);
+      const jdnMapping = sync.allMappings.find((m: any) =>
+        m.calendarSystem === 'Julian Day Number'
+      );
+      return {
+        julianDayNumber: jdnMapping?.daysSinceCalendarOrigin || 0,
+        salviEpochDay,
+        calendars: sync.calendars || {},
+        allMappings: sync.allMappings || [],
+      };
+    },
+  };
+
+  const tsaService = new TsaService(tsaConfig, hptpClientForTsa, tldsaClientForTsa, calendarClient);
   try {
     const tsaInit = await tsaService.initialize();
     log(`TSA initialized — serial: ${tsaInit.serialRestored}, cert: ${tsaInit.certSubject}, expires: ${tsaInit.certExpiry}`, 'tsa');
