@@ -57,6 +57,7 @@ const AgentArray = lazy(() => import("@/pages/agent-array"));
 const QuantumSim = lazy(() => import("@/pages/quantum-sim"));
 const ApiKeysPage = lazy(() => import("@/pages/api-keys"));
 const FPGABenchmarks = lazy(() => import("@/pages/fpga-benchmarks"));
+const TsaPage = lazy(() => import("@/pages/tsa"));
 
 function LoadingSpinner() {
   return (
@@ -106,6 +107,7 @@ function AppRouter() {
             {/* Reference and Documentation */}
             <Route path="/docs" component={Docs} />
             <Route path="/compliance" component={CompliancePage} />
+            <Route path="/tsa" component={TsaPage} />
             <Route path="/isa-security" component={ISASecurityPaper} />
             <Route path="/tribonacci-28ds" component={Tribonacci28DS} />
             <Route path="/fpga-benchmarks" component={FPGABenchmarks} />

@@ -89,6 +89,7 @@ const platformColumns: NavColumn[] = [
       { title: "Whitepaper", subtitle: "Technical deep-dive", href: "/whitepaper" },
       { title: "ISA Security Primitives", subtitle: "Instruction-level hardening", href: "/isa-security" },
       { title: "CNSA 2.0 Compliance", subtitle: "Post-quantum aligned", href: "/compliance" },
+      { title: "Time-Stamping Authority", subtitle: "RFC 3161 digital notary", href: "/tsa" },
       { title: "Tribonacci 28DS", subtitle: "28-dimension symmetry", href: "/tribonacci-28ds" },
       { title: "FPGA Benchmarks", subtitle: "Yosys / Vivado synthesis", href: "/fpga-benchmarks" },
     ],

@@ -42,6 +42,9 @@ const pageTitles: Record<string, string> = {
   "/vm-demo": "Ternary VM Demo — PlenumNET",
   "/agent-array": "28D Agent Array — PlenumNET",
   "/quantum-sim": "Quantum-Ternary Simulator — PlenumNET",
+  "/tsa": "Time-Stamping Authority — PlenumNET",
+  "/api-keys": "API Key Management — PlenumNET",
+  "/fpga-benchmarks": "FPGA Benchmarks — PlenumNET",
 };
 
 export function usePageTitle() {

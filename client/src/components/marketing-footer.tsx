@@ -18,6 +18,7 @@ const footerLinks = {
   Platform: [
     { label: "Whitepaper", href: "/whitepaper" },
     { label: "CNSA 2.0 Compliance", href: "/compliance" },
+    { label: "Time-Stamping Authority", href: "/tsa" },
     { label: "ISA Security", href: "/isa-security" },
     { label: "FPGA Benchmarks", href: "/fpga-benchmarks" },
   ],
