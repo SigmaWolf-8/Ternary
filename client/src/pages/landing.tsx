@@ -49,6 +49,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+const heroVideo = "/videos/hero-bg.mp4";
 
 
 
@@ -204,8 +205,19 @@ function HeroSection() {
 
   return (
     <section id="hero" className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
-      <div className="absolute inset-0 gradient-radial" />
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          data-testid="hero-video"
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/95 dark:from-background/85 dark:via-background/65 dark:to-background/95" />
+      </div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-5">
         <div className="max-w-4xl">
