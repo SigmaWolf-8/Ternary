@@ -1,0 +1,1530 @@
+# PLENUMNET RFC 3161 TIME-STAMPING AUTHORITY — Complete Implementation Package
+
+## For: AI Agent Building in SigmaWolf-8/Ternary (PlenumNET)
+
+**Date:** February 23, 2026
+**Repository:** SigmaWolf-8/Ternary
+**Platform:** PlenumNET.replit.app
+**Service Name:** plenumnet-tsa (Kong service #21)
+**Standards:** RFC 3161, RFC 5816, RFC 5652 (CMS), ETSI EN 319 421, ETSI EN 319 422
+**White Paper Reference:** "RFC 3161 and PlenumNET — Building a Trust Infrastructure Beyond Defense Grade"
+
+---
+
+## SUMMARY
+
+You are building a **standards-compliant RFC 3161 Time-Stamping Authority** — a "Digital Notary for the Digital Age" — inside PlenumNET. This is the 21st Kong service, sitting alongside timing (`/api/salvi/timing/*`), PQTI signing (`/api/pqti/*`), and the notification service (`/api/notify/*`).
+
+From the PlenumNET white paper:
+
+> *"A Time-Stamping Authority performs an analogous function [to a traditional notary] for digital data. Because even a single-bit change in the original data produces a completely different hash, the TST serves as irrefutable evidence of integrity and existence-at-time. The TSA never sees the original data — a privacy-by-design principle critical for law firms, banks, and government agencies handling sensitive information."*
+
+The service implements a four-step exchange:
+
+| Step | Action | Implementation |
+|------|--------|----------------|
+| 1. Hash | Client computes cryptographic hash of data | Client-side (we never see original data) |
+| 2. Submit | Client sends only the hash to TSA | `POST /api/tsa/timestamp` or `/api/tsa/timestamp/json` |
+| 3. Bind | TSA binds hash to trusted time + signs | HPTP engine + RSA-4096 + TL-DSA dual-sign |
+| 4. Return | TSA returns Time-Stamp Token (TST) | ASN.1 DER or JSON-wrapped base64 token |
+
+Four tiered policies encoded as distinct OIDs per white paper §8:
+- **COMPLY** — Financial compliance (FINRA Rule 613, Consolidated Audit Trail)
+- **FORENSICS** — Legal evidence, eDiscovery, Digital Evidence Vaults
+- **SENTINEL** — Government/military, ordering guaranteed, timeline reconstruction
+- **SECURE** — Enterprise Zero-Trust (ZTNA), Secure Collaboration Enclaves
+
+Multiple Capomastro applications (Maestro ERP, Sign Here, PPTPro) and external clients (OpenSSL, Adobe Acrobat, jarsigner, Authenticode) will call this service.
+
+**You build 2 new files and modify 2 existing files.** All code is provided below.
+
+---
+
+## WHAT YOU OWN vs. WHAT YOU DO NOT OWN
+
+**YOU OWN (build all of this):**
+- RFC 3161 binary endpoint (ASN.1 DER `application/timestamp-query` → `application/timestamp-reply`)
+- JSON wrapper endpoint for apps without ASN.1 support (the "simple API" from strategy)
+- Dedicated TSA key pair generation (RSA-4096, `id-kp-timeStamping` EKU marked critical)
+- Self-signed TSA certificate (upgradeable to CA-issued for public TSA)
+- TSTInfo construction per white paper §5 enhancement table
+- CMS SignedData wrapping per RFC 5652
+- Monotonic serial number counter with disk persistence
+- Tiered policy OIDs per white paper §8 (COMPLY, FORENSICS, SENTINEL)
+- Dual signing: classical RSA for interoperability + TL-DSA for post-quantum (best-effort)
+- Merkle tree audit log per white paper §9.3
+- Token verification endpoint (offline-capable per white paper §7)
+- Public certificate distribution endpoint
+- Policy information endpoint
+- Health check endpoint
+- Pre-built connector patterns (OpenSSL, Adobe, jarsigner, Authenticode, Git)
+- 8 API endpoints under `/api/tsa/*`
+
+**YOU DO NOT OWN (do not build any of this):**
+- Deciding WHAT to timestamp (Maestro, Sign Here, PPTPro decide this)
+- Document lifecycle logic (Maestro)
+- E-signature workflow (Sign Here)
+- Bio-signal processing (PPTPro)
+- External client integration code (they call your standard endpoint)
+
+---
+
+## HOW THIS SERVICE MEETS AND EXCEEDS RFC 3161
+
+From the white paper §6 — five core operational requirements (met and exceeded), plus one PlenumNET addition:
+
+| RFC 3161 Requirement | Standard Compliance | PlenumNET Exceeds |
+|----------------------|--------------------|--------------------|
+| Use a trustworthy time source | Single NTP or GPS reference | HPTP: distributed mesh of GPS/GNSS receivers + atomic clock backup, hardened against jamming/spoofing |
+| Include trustworthy time in every token | One-second accuracy typical | HPTP engine delivers sub-µs sync; `accuracy` field declares ≤100µs (RFC max 999µs); full native HPTP resolution (ns/fs) logged in JSON API + audit |
+| Assign unique integer to each token | Sequential counter | Integrated with Merkle tree audit log; each serial is part of tamper-proof chain |
+| Timestamp only a hash representation | Hash-only submission | Privacy-by-design: PlenumNET never receives, stores, or processes original data |
+| Sign with exclusive-use key | Software-managed key store | RSA-4096 dedicated key; EKU marked critical; future: FIPS 140-2 Level 3 HSM |
+| *(PlenumNET addition)* | *(Not in RFC 3161)* | Dual-signing: classical RSA + TL-DSA post-quantum on every token |
+
+---
+
+## THE TSTINFO ENHANCEMENT TABLE
+
+From the white paper §5 — every field is strategically enhanced:
+
+| TSTInfo Field | RFC 3161 Description | PlenumNET Enhancement |
+|---------------|---------------------|-----------------------|
+| version | Token version (v1) | Standard compliance |
+| policy | OID of issuing policy | Tiered: COMPLY, FORENSICS, SENTINEL with distinct accuracy/audit/retention |
+| messageImprint | Hash + algorithm from request | Cryptographic binding proving token belongs to specific data |
+| serialNumber | Unique integer per token | Linked to Merkle tree leaf; integrated with Immutable Audit Log |
+| genTime | UTC generation timestamp | Populated by HPTP; full native resolution (ns/fs) logged in JSON API and audit records |
+| accuracy | Declared time deviation | RFC Accuracy type: max 999µs. Declared ≤100µs per tier. Full HPTP native precision in extended metadata. |
+| ordering | Chronological issuance guarantee | Essential for forensic timeline reconstruction; SENTINEL tier |
+| nonce | Echo of request nonce | Replay attack prevention; clients verify freshness |
+| tsa | Name of TSA | PlenumNET distinguished name, reinforcing brand trust |
+
+---
+
+## FILE MAP — Exactly What Goes Where
+
+```
+server/
+├── services/
+│   ├── notification-service.ts       ← EXISTING (Phase 2: upgrade to use TSA tokens)
+│   └── tsa-service.ts                ← NEW FILE (create) — RFC 3161 TSA core
+├── routes/
+│   ├── salvi.ts                      ← EXISTING (do not modify)
+│   ├── pqti.ts                       ← EXISTING (do not modify)
+│   ├── notify.ts                     ← EXISTING (do not modify)
+│   └── tsa.ts                        ← NEW FILE (create) — TSA HTTP endpoints
+├── crypto/
+│   └── tsa-keys/                     ← AUTO-CREATED at first startup
+│       ├── tsa-private.pem           ← RSA-4096 private key (mode 0600)
+│       ├── tsa-cert.pem              ← Self-signed cert with timestamping EKU
+│       ├── tsa-chain.pem             ← Certificate chain (self-signed → root)
+│       ├── serial-counter.txt        ← Persisted monotonic counter
+│       ├── merkle-leaves.jsonl       ← Persisted Merkle tree leaves (append-only)
+│       └── token-audit.jsonl         ← Persisted token issuance log (append-only)
+├── index.ts (or app.ts)              ← MODIFY — Mount TSA routes + initialize
+kong/
+└── kong.yaml                         ← MODIFY — Add service #21
+```
+
+---
+
+## NPM DEPENDENCIES
+
+```bash
+npm install @xevolab/timestamp-token asn1js pvutils pkijs
+npm install -D @types/node
+```
+
+`crypto`, `fs`, `path` are Node.js built-ins. `zod` and `express` should already be available.
+
+---
+
+## FILE 1 OF 2: `server/services/tsa-service.ts`
+
+Create this file. This is the RFC 3161 TSA core — key management, TSTInfo construction, CMS signing, tiered policies, dual-signature, Merkle audit log.
+
+```typescript
+/**
+ * PLENUMNET RFC 3161 TIME-STAMPING AUTHORITY (TSA) SERVICE
+ * Repository: SigmaWolf-8/Ternary
+ * Location:   server/services/tsa-service.ts
+ *
+ * "A Digital Notary for the Digital Age."
+ *   — PlenumNET White Paper, §3
+ *
+ * A standards-compliant RFC 3161 Time-Stamp Protocol server that transforms
+ * PlenumNET from a timing platform into a Trust Infrastructure. The TSA
+ * never sees original data — clients send only a hash. The TSA binds that
+ * hash to a trusted time value from HPTP, signs the binding with a dedicated
+ * RSA-4096 key, and optionally dual-signs with TL-DSA for post-quantum
+ * readiness (white paper §9.1).
+ *
+ * Tiered policies per white paper §8:
+ *   COMPLY    — Financial compliance (FINRA Rule 613, CAT)
+ *   FORENSICS — Legal evidence, eDiscovery, Digital Evidence Vaults
+ *   SENTINEL  — Government/military, ordering guaranteed
+ *
+ * Every token's serial number is recorded as a leaf in a Merkle tree
+ * (white paper §9.3: "Events are recorded in a Merkle tree, with each
+ * leaf timestamped according to RFC 3161").
+ *
+ * Beyond defense grade across six dimensions (white paper §9):
+ *   9.1 Quantum-Safe Readiness (TL-DSA dual-sign)
+ *   9.2 Femtosecond-Class Precision (HPTP engine)
+ *   9.3 Deep Integration Across Trust Stack (notifications, events, audit)
+ *   9.4 Hardware Security and Anti-Tamper (HSM-ready key management)
+ *   9.5 Redundant, Spoof-Proof Time Sources (GPS/GNSS mesh + atomic clock)
+ *   9.6 Policy-Based Accountability (tiered OIDs in every token)
+ *
+ * Standards: RFC 3161, RFC 5816, RFC 5652 (CMS), ETSI EN 319 421/422
+ *
+ * "Where Time Becomes Truth. Beyond Compliance. Certainty."
+ */
+
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// ============================================================================
+// TIERED POLICY OIDs — White Paper §8
+//
+// Each policy encodes distinct accuracy, ordering, audit retention, and
+// liability guarantees. The policy field in every TST identifies which
+// tier's commitments apply.
+//
+// Format: 1.3.6.1.4.1.{IANA-PEN}.tsa.{tier}
+// Until IANA PEN assigned, use placeholder arc.
+// ============================================================================
+
+export const TSA_POLICIES = {
+  /** Default — general-purpose timestamping, 1-second declared accuracy */
+  DEFAULT: '1.3.6.1.4.1.0.100.1.0',
+
+  /**
+   * COMPLY — White Paper §8.1
+   * "Beachhead for financial institutions. Delivers RFC 3161-compliant
+   * timestamps satisfying FINRA Rule 613 and other regulatory mandates."
+   * Nanosecond accuracy. CAT report generation support.
+   */
+  COMPLY: '1.3.6.1.4.1.0.100.1.1',
+
+  /**
+   * FORENSICS — White Paper §8.2
+   * "Creates Digital Evidence Vaults where every document, email, and log
+   * entry is accompanied by a TST. The token serves as cryptographic proof
+   * of existence and integrity, making evidence admissible and tamper-evident
+   * in court proceedings."
+   * Offline verification. 25-year audit retention.
+   */
+  FORENSICS: '1.3.6.1.4.1.0.100.1.2',
+
+  /**
+   * SENTINEL — White Paper §8.3
+   * "Builds a Centralized Timeline Viewer that correlates events from
+   * disparate systems into a single, irrefutable chronological sequence.
+   * Attackers cannot manipulate logs without breaking the cryptographic chain."
+   * Ordering guaranteed. 50-year retention.
+   */
+  SENTINEL: '1.3.6.1.4.1.0.100.1.3',
+
+  /**
+   * SECURE — White Paper §8.4
+   * "Value-add services for enterprise Zero-Trust architectures. Integrates
+   * timestamping into Zero-Trust Network Access (ZTNA) decisions — for example,
+   * treating a login at 3:07 AM with elevated suspicion based on temporal anomaly
+   * detection. Also powers Secure Collaboration Enclaves where every access
+   * request carries a verifiable TST."
+   */
+  SECURE: '1.3.6.1.4.1.0.100.1.4',
+} as const;
+
+export type TsaPolicyTier = keyof typeof TSA_POLICIES;
+
+export const TSA_POLICY_METADATA: Record<string, {
+  name: string;
+  tier: TsaPolicyTier;
+  accuracySeconds: number;
+  accuracyMicros: number;
+  orderingGuaranteed: boolean;
+  auditRetentionYears: number;
+  description: string;
+  whitepaperSection: string;
+}> = {
+  [TSA_POLICIES.DEFAULT]: {
+    name: 'PlenumNET General BTSP',
+    tier: 'DEFAULT',
+    accuracySeconds: 1,
+    accuracyMicros: 0,
+    orderingGuaranteed: false,
+    auditRetentionYears: 7,
+    description: 'General-purpose timestamping with 1-second declared accuracy.',
+    whitepaperSection: 'N/A',
+  },
+  [TSA_POLICIES.COMPLY]: {
+    name: 'PlenumNET COMPLY',
+    tier: 'COMPLY',
+    accuracySeconds: 0,
+    accuracyMicros: 1,
+    orderingGuaranteed: true,
+    auditRetentionYears: 10,
+    description: 'Financial compliance. ±1µs declared accuracy (RFC max 999µs); HPTP native ns resolution logged for FINRA Rule 613 / CAT nanosecond truncation.',
+    whitepaperSection: '§8.1',
+  },
+  [TSA_POLICIES.FORENSICS]: {
+    name: 'PlenumNET FORENSICS',
+    tier: 'FORENSICS',
+    accuracySeconds: 0,
+    accuracyMicros: 100,
+    orderingGuaranteed: true,
+    auditRetentionYears: 25,
+    description: 'Legal evidence. Digital Evidence Vault timestamps. Court-admissible. Offline verification. eDiscovery integration.',
+    whitepaperSection: '§8.2',
+  },
+  [TSA_POLICIES.SENTINEL]: {
+    name: 'PlenumNET SENTINEL',
+    tier: 'SENTINEL',
+    accuracySeconds: 0,
+    accuracyMicros: 1,
+    orderingGuaranteed: true,
+    auditRetentionYears: 50,
+    description: 'Government/military. Ordering guaranteed for timeline reconstruction. Centralized Timeline Viewer support.',
+    whitepaperSection: '§8.3',
+  },
+  [TSA_POLICIES.SECURE]: {
+    name: 'PlenumNET SECURE',
+    tier: 'SECURE',
+    accuracySeconds: 0,
+    accuracyMicros: 10,
+    orderingGuaranteed: true,
+    auditRetentionYears: 10,
+    description: 'Enterprise Zero-Trust. ZTNA temporal anomaly detection. Secure Collaboration Enclaves with verifiable TSTs on every access request.',
+    whitepaperSection: '§8.4',
+  },
+};
+
+// ============================================================================
+// SUPPORTED HASH ALGORITHMS — White Paper §9.1 (quantum-safe readiness)
+//
+// SHA-256/384/512 for current interoperability.
+// SHA3-256/384/512 for post-quantum readiness.
+// "Our HSMs are upgradeable to post-quantum algorithms." (§9.1)
+// ============================================================================
+
+export const HASH_ALGORITHM_OIDS: Record<string, string> = {
+  '2.16.840.1.101.3.4.2.1': 'sha256',
+  '2.16.840.1.101.3.4.2.2': 'sha384',
+  '2.16.840.1.101.3.4.2.3': 'sha512',
+  '2.16.840.1.101.3.4.2.8': 'sha3-256',
+  '2.16.840.1.101.3.4.2.9': 'sha3-384',
+  '2.16.840.1.101.3.4.2.10': 'sha3-512',
+};
+
+export const HASH_NAME_TO_OID: Record<string, string> = Object.fromEntries(
+  Object.entries(HASH_ALGORITHM_OIDS).map(([oid, name]) => [name, oid]),
+);
+
+export const HASH_EXPECTED_LENGTHS: Record<string, number> = {
+  sha256: 32, sha384: 48, sha512: 64,
+  'sha3-256': 32, 'sha3-384': 48, 'sha3-512': 64,
+};
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/**
+ * HPTP client — internal PlenumNET call to the timing engine.
+ * White paper §9.2: "Hardened Precision Time Protocol engine, fed by
+ * redundant GPS/GNSS constellations and atomic clocks."
+ */
+export interface HptpClient {
+  getTimestamp(): Promise<{
+    timestamp: string;
+    precision: string;
+    source: string;
+    unixNano?: bigint;
+  }>;
+}
+
+/**
+ * TL-DSA client — internal call to PQTI service.
+ * White paper §9.1: "Post-quantum algorithms including our proprietary
+ * TL-DSA (Ternary Lattice Digital Signature Algorithm)."
+ */
+export interface TldsaClient {
+  sign(hash: string): Promise<{
+    signature: string;
+    publicKeyId: string;
+    securityLevel: string;
+    algorithm: string;
+  }>;
+}
+
+export interface TsaConfig {
+  privateKeyPath: string;
+  certificatePath: string;
+  chainPath: string;
+  keysDirectory: string;
+  defaultPolicy: string;
+  enableDualSign: boolean;
+  maxRequestSize: number;
+}
+
+export interface TsaTokenRecord {
+  serialNumber: string;
+  genTime: string;
+  genTimeHptp: string;
+  hptpPrecision: string;
+  hptpSource: string;
+  hashAlgorithm: string;
+  hashedMessage: string;
+  policyOid: string;
+  policyTier: string;
+  nonce: string | null;
+  accuracy: { seconds: number; micros: number };
+  ordering: boolean;
+  requestIp: string;
+  classicalSignatureAlgorithm: string;
+  tldsaSignature: string | null;
+  tldsaKeyId: string | null;
+  merkleLeafHash: string;
+  tokenSizeBytes: number;
+  createdAt: string;
+}
+
+export interface TsaHealth {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  hptpAvailable: boolean;
+  tldsaAvailable: boolean;
+  tsaKeyLoaded: boolean;
+  tsaCertValid: boolean;
+  tsaCertExpiry: string;
+  tsaCertSubject: string;
+  serialNumber: string;
+  tokensIssuedLast24h: number;
+  policies: Array<{ oid: string; name: string; tier: string }>;
+  supportedAlgorithms: string[];
+  dualSignEnabled: boolean;
+  merkleTreeDepth: number;
+  merkleRoot: string;
+  nativeHptpMaxPrecision: string;
+  uptime: number;
+}
+
+export interface JsonTimestampRequest {
+  hash: string;
+  algorithm: string;
+  policy?: string;
+  nonce?: string;
+  includeChain?: boolean;
+}
+
+export interface JsonTimestampResponse {
+  granted: boolean;
+  serialNumber: string;
+  genTime: string;
+  policy: string;
+  policyTier: string;
+  policyName: string;
+  token: string;
+  accuracy: { seconds: number; micros: number };
+  ordering: boolean;
+  hptpTimestamp: string;
+  hptpPrecision: string;
+  hptpSource: string;
+  tldsaSignature: string | null;
+  tldsaKeyId: string | null;
+  merkleLeafHash: string;
+  merkleRoot: string;
+  verificationUrl: string;
+  certificateUrl: string;
+}
+
+export interface VerificationResult {
+  valid: boolean;
+  serialNumber: string;
+  genTime: string;
+  hashAlgorithm: string;
+  policyOid: string;
+  policyTier: string;
+  policyName: string;
+  accuracy: { seconds: number; micros: number };
+  ordering: boolean;
+  signerSubject: string;
+  tldsaPresent: boolean;
+  verificationMethod: string;
+  reason?: string;
+}
+
+// ============================================================================
+// MERKLE TREE AUDIT LOG — White Paper §9.3
+//
+// "Events are recorded in a Merkle tree, with each leaf timestamped
+// according to RFC 3161."
+//
+// Every token's serial + hash + genTime forms a leaf. The tree provides
+// tamper-evident proof that the audit log hasn't been modified after the
+// fact. Attackers cannot remove or reorder entries without invalidating
+// the root hash.
+// ============================================================================
+
+class MerkleAuditLog {
+  private leaves: string[] = [];
+  private persistPath: string;
+
+  constructor(keysDirectory: string) {
+    this.persistPath = path.join(keysDirectory, 'merkle-leaves.jsonl');
+    this.loadFromDisk();
+  }
+
+  /** Restore leaves from JSONL file on startup (survives restarts) */
+  private loadFromDisk(): void {
+    if (fs.existsSync(this.persistPath)) {
+      const lines = fs.readFileSync(this.persistPath, 'utf8').split('\n').filter(Boolean);
+      this.leaves = lines.map(line => {
+        try { return JSON.parse(line).hash; }
+        catch { return ''; }
+      }).filter(Boolean);
+      console.log(`Merkle audit log restored: ${this.leaves.length} leaves from ${this.persistPath}`);
+    }
+  }
+
+  /** Add a leaf, persist to disk, return leaf hash */
+  addLeaf(serialNumber: string, hashedMessage: string, genTime: string): string {
+    const leafData = `${serialNumber}|${hashedMessage}|${genTime}`;
+    const leafHash = crypto.createHash('sha3-256').update(leafData).digest('hex');
+    this.leaves.push(leafHash);
+    // Append-only persistence — one JSON line per leaf
+    fs.appendFileSync(this.persistPath,
+      JSON.stringify({ serial: serialNumber, hash: leafHash, ts: genTime }) + '\n');
+    return leafHash;
+  }
+
+  getRoot(): string {
+    if (this.leaves.length === 0) {
+      return crypto.createHash('sha3-256').update('empty-tree').digest('hex');
+    }
+    let level = [...this.leaves];
+    while (level.length > 1) {
+      const next: string[] = [];
+      for (let i = 0; i < level.length; i += 2) {
+        const left = level[i];
+        const right = level[i + 1] || left;
+        next.push(crypto.createHash('sha3-256').update(left + right).digest('hex'));
+      }
+      level = next;
+    }
+    return level[0];
+  }
+
+  getDepth(): number {
+    if (this.leaves.length === 0) return 0;
+    return Math.ceil(Math.log2(this.leaves.length)) + 1;
+  }
+
+  getSize(): number { return this.leaves.length; }
+}
+
+// ============================================================================
+// TSA SERVICE CLASS
+// ============================================================================
+
+export class TsaService {
+  private config: TsaConfig;
+  private hptpClient: HptpClient;
+  private tldsaClient: TldsaClient;
+  private privateKey: crypto.KeyObject | null = null;
+  private certificate: Buffer | null = null;
+  private certificateParsed: crypto.X509Certificate | null = null;
+  private serialCounter: bigint = BigInt(0);
+  private tokenLog: TsaTokenRecord[] = [];
+  private merkleLog!: MerkleAuditLog; // initialized in initialize()
+  private startTime: number = Date.now();
+
+  constructor(config: TsaConfig, hptpClient: HptpClient, tldsaClient: TldsaClient) {
+    this.config = config;
+    this.hptpClient = hptpClient;
+    this.tldsaClient = tldsaClient;
+  }
+
+  // --------------------------------------------------------------------------
+  // INITIALIZATION — Load keys, verify cert, restore serial counter
+  //
+  // White paper §9.4: "All timestamping keys reside in FIPS 140-2 Level 3
+  // HSMs that are physically and logically protected."
+  // CURRENT: Software key store. PRODUCTION: Migrate to HSM.
+  // --------------------------------------------------------------------------
+
+  async initialize(): Promise<{
+    success: boolean;
+    keyLoaded: boolean;
+    certValid: boolean;
+    certExpiry: string;
+    certSubject: string;
+    serialRestored: string;
+  }> {
+    if (!fs.existsSync(this.config.keysDirectory)) {
+      fs.mkdirSync(this.config.keysDirectory, { recursive: true });
+    }
+
+    if (!fs.existsSync(this.config.privateKeyPath)) {
+      this.generateTsaKeyPair();
+    }
+
+    const keyPem = fs.readFileSync(this.config.privateKeyPath, 'utf8');
+    this.privateKey = crypto.createPrivateKey(keyPem);
+
+    const certPem = fs.readFileSync(this.config.certificatePath, 'utf8');
+    this.certificate = Buffer.from(
+      certPem.replace(/-----BEGIN CERTIFICATE-----/g, '')
+        .replace(/-----END CERTIFICATE-----/g, '')
+        .replace(/\s/g, ''),
+      'base64',
+    );
+    this.certificateParsed = new crypto.X509Certificate(certPem);
+
+    const counterPath = path.join(this.config.keysDirectory, 'serial-counter.txt');
+    if (fs.existsSync(counterPath)) {
+      this.serialCounter = BigInt(fs.readFileSync(counterPath, 'utf8').trim());
+    }
+
+    // Initialize Merkle audit log with disk persistence
+    this.merkleLog = new MerkleAuditLog(this.config.keysDirectory);
+
+    return {
+      success: true,
+      keyLoaded: this.privateKey !== null,
+      certValid: this.isCertificateValid(),
+      certExpiry: this.certificateParsed?.validTo || 'unknown',
+      certSubject: this.certificateParsed?.subject || 'unknown',
+      serialRestored: this.serialCounter.toString(),
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // CORE: RFC 3161 Binary Endpoint
+  //
+  // White paper §4: "RFC 3161 defines a two-message transaction between
+  // a client and a TSA. The messages are formally specified in ASN.1,
+  // ensuring interoperability across all compliant implementations worldwide."
+  //
+  // This is what OpenSSL, Adobe Acrobat, jarsigner, and Authenticode call.
+  // --------------------------------------------------------------------------
+
+  async processTimestampRequest(derRequest: Buffer, requestIp: string): Promise<Buffer> {
+    // Step 1: Parse TimeStampReq (white paper §4.1)
+    let parsed: {
+      version: number;
+      hashAlgorithmOid: string;
+      hashedMessage: Buffer;
+      reqPolicy: string | null;
+      nonce: bigint | null;
+      certReq: boolean;
+    };
+    try {
+      parsed = this.parseTimeStampReq(derRequest);
+    } catch (error) {
+      return this.buildErrorResponse(2, `Bad request: ${(error as Error).message}`);
+    }
+
+    // Step 2: Validate hash algorithm (§9.1 quantum-safe readiness)
+    const hashAlgName = HASH_ALGORITHM_OIDS[parsed.hashAlgorithmOid];
+    if (!hashAlgName) {
+      return this.buildErrorResponse(2, `Unsupported hash algorithm: ${parsed.hashAlgorithmOid}`);
+    }
+
+    // Step 3: Resolve policy tier (white paper §8)
+    const policyOid = parsed.reqPolicy || this.config.defaultPolicy;
+    const policyMeta = TSA_POLICY_METADATA[policyOid];
+    if (!policyMeta) {
+      return this.buildErrorResponse(2, `Unknown policy: ${policyOid}`);
+    }
+
+    // Step 4: Get trusted time from HPTP (white paper §9.2, §9.5)
+    // "Distributed mesh of GPS/GNSS receivers + atomic clock backup,
+    // hardened against jamming and spoofing."
+    let hptpResult: { timestamp: string; precision: string; source: string };
+    try {
+      hptpResult = await this.hptpClient.getTimestamp();
+    } catch {
+      // White paper §9.5: system clock only as absolute last resort
+      hptpResult = {
+        timestamp: new Date().toISOString(),
+        precision: 'millisecond-fallback',
+        source: 'system-clock',
+      };
+    }
+
+    // Step 5: Monotonic serial number (white paper §6 row 3: "Integrated
+    // with Immutable Audit Log API; each serial is part of tamper-proof Merkle tree")
+    const serialNumber = this.nextSerialNumber();
+
+    // Step 6: Build TSTInfo (white paper §5 enhancement table)
+    //
+    // ACCURACY CLAMPING — RFC 3161 Accuracy type constraint:
+    //   Accuracy ::= SEQUENCE { seconds INTEGER OPTIONAL,
+    //     millis [0] INTEGER (1..999) OPTIONAL,
+    //     micros [1] INTEGER (1..999) OPTIONAL }
+    // The micros field CANNOT exceed 999. Clamp to RFC max if policy
+    // declares higher. Full HPTP native precision is logged separately
+    // in extended metadata (JSON API, audit log, health) for internal/
+    // forensic use — this satisfies FINRA CAT nanosecond truncation
+    // needs while keeping the ASN.1 wire format strictly compliant.
+    const declaredAccuracy = {
+      seconds: policyMeta.accuracySeconds,
+      micros: Math.min(policyMeta.accuracyMicros, 999),
+    };
+    if (policyMeta.accuracyMicros > 999) {
+      console.warn(`TSA: Policy ${policyMeta.tier} accuracy ${policyMeta.accuracyMicros}µs exceeds RFC max; clamped to 999µs in token`);
+    }
+
+    const genTime = this.formatGeneralizedTime(hptpResult.timestamp);
+    const tstInfo = this.buildTSTInfo({
+      serialNumber,
+      genTime,
+      hashAlgorithmOid: parsed.hashAlgorithmOid,
+      hashedMessage: parsed.hashedMessage,
+      policyOid,
+      nonce: parsed.nonce,
+      accuracy: declaredAccuracy,
+      ordering: policyMeta.orderingGuaranteed,
+    });
+
+    // Step 7: Sign with classical RSA-4096 (white paper §6 row 5)
+    // "Sign with an exclusive-use key — EKU marked critical"
+    const signature = this.signWithClassicalKey(tstInfo);
+
+    // Step 8: CMS SignedData wrapper (RFC 5652)
+    const timeStampToken = this.buildCmsSignedData(tstInfo, signature, parsed.certReq);
+
+    // Step 9: TL-DSA dual-signature (white paper §9.1, best-effort)
+    // "Post-quantum algorithms including our proprietary TL-DSA.
+    // This future-proofs all timestamps: a token issued today can still
+    // be verified decades later, even against quantum adversaries."
+    let tldsaSig: { signature: string; publicKeyId: string } | null = null;
+    if (this.config.enableDualSign) {
+      try {
+        const tstHash = crypto.createHash('sha3-256').update(tstInfo).digest('hex');
+        const result = await this.tldsaClient.sign(tstHash);
+        tldsaSig = { signature: result.signature, publicKeyId: result.publicKeyId };
+      } catch {
+        // Classical RSA is sufficient; TL-DSA is best-effort
+      }
+    }
+
+    // Step 10: Build TimeStampResp (white paper §4.2)
+    const response = this.buildTimeStampResp(0, timeStampToken);
+
+    // Step 11: Merkle audit log (white paper §9.3)
+    const merkleLeaf = this.merkleLog.addLeaf(
+      serialNumber.toString(),
+      parsed.hashedMessage.toString('hex'),
+      genTime,
+    );
+
+    // Step 12: Log token issuance
+    this.logToken({
+      serialNumber: serialNumber.toString(),
+      genTime,
+      genTimeHptp: hptpResult.timestamp,
+      hptpPrecision: hptpResult.precision,
+      hptpSource: hptpResult.source,
+      hashAlgorithm: hashAlgName,
+      hashedMessage: parsed.hashedMessage.toString('hex'),
+      policyOid,
+      policyTier: policyMeta.tier,
+      nonce: parsed.nonce?.toString() || null,
+      accuracy: { seconds: policyMeta.accuracySeconds, micros: policyMeta.accuracyMicros },
+      ordering: policyMeta.orderingGuaranteed,
+      requestIp,
+      classicalSignatureAlgorithm: 'RSA-4096-SHA256',
+      tldsaSignature: tldsaSig?.signature || null,
+      tldsaKeyId: tldsaSig?.publicKeyId || null,
+      merkleLeafHash: merkleLeaf,
+      tokenSizeBytes: response.length,
+      createdAt: new Date().toISOString(),
+    });
+
+    return response;
+  }
+
+  // --------------------------------------------------------------------------
+  // JSON API — Simple endpoint for apps without ASN.1
+  //
+  // Strategy: "Offer a simple API and pre-built connectors for common
+  // platforms across industries."
+  //
+  // The response includes a base64-encoded TimeStampToken (CMS SignedData)
+  // that CAN be verified by standard RFC 3161 tools like OpenSSL.
+  // --------------------------------------------------------------------------
+
+  async processJsonRequest(
+    input: JsonTimestampRequest,
+    requestIp: string,
+  ): Promise<JsonTimestampResponse> {
+    const oid = HASH_NAME_TO_OID[input.algorithm];
+    if (!oid) {
+      throw new Error(`Unsupported algorithm: ${input.algorithm}. Supported: ${Object.keys(HASH_NAME_TO_OID).join(', ')}`);
+    }
+
+    const hashBuffer = Buffer.from(input.hash, 'hex');
+    const expected = HASH_EXPECTED_LENGTHS[input.algorithm];
+    if (hashBuffer.length !== expected) {
+      throw new Error(`Invalid hash length for ${input.algorithm}: expected ${expected} bytes, got ${hashBuffer.length}`);
+    }
+
+    const policyOid = input.policy || this.config.defaultPolicy;
+    const policyMeta = TSA_POLICY_METADATA[policyOid];
+    if (!policyMeta) throw new Error(`Unknown policy: ${policyOid}. Available: DEFAULT, COMPLY, FORENSICS, SENTINEL, SECURE`);
+
+    const syntheticReq = this.buildTimeStampReq({
+      hashAlgorithmOid: oid,
+      hashedMessage: hashBuffer,
+      reqPolicy: policyOid,
+      nonce: input.nonce ? BigInt(`0x${input.nonce}`) : null,
+      certReq: input.includeChain || false,
+    });
+
+    const derResponse = await this.processTimestampRequest(syntheticReq, requestIp);
+    const lastToken = this.tokenLog[this.tokenLog.length - 1];
+
+    return {
+      granted: true,
+      serialNumber: lastToken.serialNumber,
+      genTime: lastToken.genTime,
+      policy: lastToken.policyOid,
+      policyTier: lastToken.policyTier,
+      policyName: policyMeta.name,
+      token: derResponse.toString('base64'),
+      accuracy: lastToken.accuracy,
+      ordering: lastToken.ordering,
+      hptpTimestamp: lastToken.genTimeHptp,
+      hptpPrecision: lastToken.hptpPrecision,
+      hptpSource: lastToken.hptpSource,
+      tldsaSignature: lastToken.tldsaSignature,
+      tldsaKeyId: lastToken.tldsaKeyId,
+      merkleLeafHash: lastToken.merkleLeafHash,
+      merkleRoot: this.merkleLog.getRoot(),
+      verificationUrl: '/api/tsa/verify',
+      certificateUrl: '/api/tsa/certificate',
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // VERIFICATION — White Paper §7
+  //
+  // "Verification is an entirely offline process. Once a client possesses
+  // the original data and the TimeStampToken, they can verify authenticity
+  // without contacting PlenumNET or any online service."
+  //
+  // Four verification steps (§7):
+  //   1. Recompute hash of original data using same algorithm
+  //   2. Compare to messageImprint inside TSTInfo
+  //   3. Validate TSA's signature using public certificate chain
+  //   4. Check certificate revocation + policy
+  //
+  // We also offer this ONLINE endpoint for convenience.
+  // --------------------------------------------------------------------------
+
+  async verifyToken(tokenInput: Buffer): Promise<VerificationResult> {
+    try {
+      const parsed = this.parseTimeStampResp(tokenInput);
+      const signatureValid = this.verifyCmsSignature(parsed.signedData);
+      const tstInfo = this.parseTSTInfo(parsed.tstInfo);
+      const policyMeta = TSA_POLICY_METADATA[tstInfo.policyOid];
+
+      return {
+        valid: signatureValid,
+        serialNumber: tstInfo.serialNumber,
+        genTime: tstInfo.genTime,
+        hashAlgorithm: HASH_ALGORITHM_OIDS[tstInfo.hashAlgorithmOid] || tstInfo.hashAlgorithmOid,
+        policyOid: tstInfo.policyOid,
+        policyTier: policyMeta?.tier || 'UNKNOWN',
+        policyName: policyMeta?.name || 'Unknown',
+        accuracy: tstInfo.accuracy,
+        ordering: tstInfo.ordering,
+        signerSubject: this.certificateParsed?.subject || 'unknown',
+        tldsaPresent: false,
+        verificationMethod: 'online (offline verification also supported via OpenSSL ts -verify)',
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        serialNumber: 'unknown', genTime: 'unknown', hashAlgorithm: 'unknown',
+        policyOid: 'unknown', policyTier: 'unknown', policyName: 'unknown',
+        accuracy: { seconds: 0, micros: 0 }, ordering: false,
+        signerSubject: 'unknown', tldsaPresent: false,
+        verificationMethod: 'online',
+        reason: (error as Error).message,
+      };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // CERTIFICATE — Public distribution for independent verification
+  // --------------------------------------------------------------------------
+
+  getTsaCertificate(): {
+    certificate: string;
+    chain: string | null;
+    subject: string;
+    issuer: string;
+    validFrom: string;
+    validTo: string;
+    serialNumber: string;
+    fingerprint256: string;
+    extendedKeyUsage: string;
+    publicKeyAlgorithm: string;
+    publicKeySize: string;
+    offlineVerificationInstructions: string;
+  } {
+    if (!this.certificateParsed) throw new Error('TSA certificate not loaded');
+    const certPem = fs.readFileSync(this.config.certificatePath, 'utf8');
+    const chainPem = fs.existsSync(this.config.chainPath)
+      ? fs.readFileSync(this.config.chainPath, 'utf8') : null;
+
+    return {
+      certificate: certPem,
+      chain: chainPem,
+      subject: this.certificateParsed.subject,
+      issuer: this.certificateParsed.issuer,
+      validFrom: this.certificateParsed.validFrom,
+      validTo: this.certificateParsed.validTo,
+      serialNumber: this.certificateParsed.serialNumber,
+      fingerprint256: this.certificateParsed.fingerprint256,
+      extendedKeyUsage: 'critical, id-kp-timeStamping (1.3.6.1.5.5.7.3.8)',
+      publicKeyAlgorithm: this.privateKey?.asymmetricKeyType || 'rsa',
+      publicKeySize: '4096',
+      offlineVerificationInstructions:
+        'openssl ts -verify -data <original-file> -in <response.tsr> -CAfile plenumnet-tsa.pem',
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // POLICY — White Paper §8 + §9.6 (Policy-Based Accountability)
+  // --------------------------------------------------------------------------
+
+  getPolicyInfo(): {
+    defaultPolicy: string;
+    policies: Array<{
+      oid: string; name: string; tier: string; accuracyDeclared: string;
+      orderingGuaranteed: boolean; auditRetentionYears: number;
+      description: string; whitepaperSection: string;
+    }>;
+    conformsTo: string[];
+    operator: { name: string; division: string; country: string };
+    timeSource: { name: string; description: string };
+    signatureAlgorithms: { classical: string; postQuantum: string; dualSign: string };
+    supportedHashAlgorithms: Array<{ name: string; oid: string }>;
+    verificationMethods: { online: string; offline: string; tools: string[] };
+  } {
+    return {
+      defaultPolicy: this.config.defaultPolicy,
+      policies: Object.entries(TSA_POLICY_METADATA).map(([oid, m]) => ({
+        oid, name: m.name, tier: m.tier,
+        accuracyDeclared: m.accuracySeconds > 0 ? `${m.accuracySeconds}s` : `${m.accuracyMicros}µs`,
+        orderingGuaranteed: m.orderingGuaranteed,
+        auditRetentionYears: m.auditRetentionYears,
+        description: m.description, whitepaperSection: m.whitepaperSection,
+      })),
+      conformsTo: [
+        'RFC 3161 — Internet X.509 PKI Time-Stamp Protocol (TSP)',
+        'RFC 5816 — ESSCertIDv2 Update to RFC 3161',
+        'RFC 5652 — Cryptographic Message Syntax (CMS)',
+        'ETSI EN 319 421 — Policy and Security Requirements for TSPs issuing Time-Stamps',
+        'ETSI EN 319 422 — Time-stamping protocol and time-stamp token profiles',
+      ],
+      operator: {
+        name: 'Capomastro Holdings Ltd.',
+        division: 'Applied Physics Division — PlenumNET',
+        country: 'CA',
+      },
+      timeSource: {
+        name: 'PlenumNET HPTP — Hardened Precision Time Protocol',
+        description: 'Distributed mesh of GPS/GNSS receivers with atomic clock backup. Hardened against jamming and spoofing through cross-constellation validation and anomaly detection.',
+      },
+      signatureAlgorithms: {
+        classical: 'RSA-4096 with SHA-256 (interoperable with OpenSSL, Adobe, jarsigner, Authenticode)',
+        postQuantum: 'TL-DSA-44 (Ternary Lattice Digital Signature Algorithm)',
+        dualSign: 'Every token signed with classical RSA AND optionally TL-DSA for quantum-safe readiness',
+      },
+      supportedHashAlgorithms: Object.entries(HASH_ALGORITHM_OIDS)
+        .map(([oid, name]) => ({ name: name.toUpperCase(), oid })),
+      verificationMethods: {
+        online: 'POST /api/tsa/verify',
+        offline: 'openssl ts -verify -data <file> -in <response.tsr> -CAfile plenumnet-tsa.pem',
+        tools: ['OpenSSL', 'Adobe Acrobat', 'jarsigner', 'Authenticode', 'pdf-rfc3161', 'rfc3161ng'],
+      },
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // HEALTH CHECK
+  // --------------------------------------------------------------------------
+
+  async getHealth(): Promise<TsaHealth> {
+    const now = Date.now();
+    const last24h = new Date(now - 86400000).toISOString();
+    const recentTokens = this.tokenLog.filter(t => t.createdAt >= last24h);
+
+    let hptpAvailable = false;
+    try { await this.hptpClient.getTimestamp(); hptpAvailable = true; } catch { /* */ }
+
+    let tldsaAvailable = false;
+    try { await this.tldsaClient.sign('healthcheck'); tldsaAvailable = true; } catch { /* */ }
+
+    return {
+      status: hptpAvailable && this.privateKey ? 'healthy'
+        : this.privateKey ? 'degraded' : 'unhealthy',
+      hptpAvailable,
+      tldsaAvailable,
+      tsaKeyLoaded: this.privateKey !== null,
+      tsaCertValid: this.isCertificateValid(),
+      tsaCertExpiry: this.certificateParsed?.validTo || 'unknown',
+      tsaCertSubject: this.certificateParsed?.subject || 'unknown',
+      serialNumber: this.serialCounter.toString(),
+      tokensIssuedLast24h: recentTokens.length,
+      policies: Object.entries(TSA_POLICY_METADATA).map(([oid, m]) => ({
+        oid, name: m.name, tier: m.tier,
+      })),
+      supportedAlgorithms: Object.values(HASH_ALGORITHM_OIDS),
+      dualSignEnabled: this.config.enableDualSign,
+      merkleTreeDepth: this.merkleLog.getDepth(),
+      merkleRoot: this.merkleLog.getRoot(),
+      nativeHptpMaxPrecision: hptpAvailable ? 'femtosecond-class (HPTP native)' : 'unavailable',
+      uptime: now - this.startTime,
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // TOKEN AUDIT LOG — White Paper §9.3
+  // --------------------------------------------------------------------------
+
+  queryTokenLog(filters: {
+    since?: string; until?: string;
+    hashAlgorithm?: string; policyTier?: string;
+    limit?: number;
+  }): { total: number; merkleRoot: string; merkleDepth: number; merkleLeaves: number; tokens: TsaTokenRecord[] } {
+    let records = [...this.tokenLog];
+    if (filters.since) records = records.filter(r => r.createdAt >= filters.since!);
+    if (filters.until) records = records.filter(r => r.createdAt <= filters.until!);
+    if (filters.hashAlgorithm) records = records.filter(r => r.hashAlgorithm === filters.hashAlgorithm);
+    if (filters.policyTier) records = records.filter(r => r.policyTier === filters.policyTier);
+    records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return {
+      total: records.length,
+      merkleRoot: this.merkleLog.getRoot(),
+      merkleDepth: this.merkleLog.getDepth(),
+      merkleLeaves: this.merkleLog.getSize(),
+      tokens: records.slice(0, filters.limit || 100),
+    };
+  }
+
+  // --------------------------------------------------------------------------
+  // ASN.1 METHODS — Wire to @xevolab/timestamp-token
+  //
+  // Each method documents the exact data flow. The agent replaces the
+  // placeholder throws with actual library calls. See:
+  // https://github.com/Xevolab/timestamping-token
+  // --------------------------------------------------------------------------
+
+  private parseTimeStampReq(der: Buffer): {
+    version: number; hashAlgorithmOid: string; hashedMessage: Buffer;
+    reqPolicy: string | null; nonce: bigint | null; certReq: boolean;
+  } {
+    // AGENT: Wire to @xevolab/timestamp-token
+    // const { TimeStampReq } = require('@xevolab/timestamp-token');
+    // const tsq = new TimeStampReq().fromDER(der);
+    // return { version: tsq.version, hashAlgorithmOid: tsq.messageImprint.hashAlgorithm,
+    //   hashedMessage: Buffer.from(tsq.messageImprint.hashedMessage),
+    //   reqPolicy: tsq.policy || null, nonce: tsq.nonce != null ? BigInt(tsq.nonce) : null,
+    //   certReq: tsq.certReq || false };
+    throw new Error('AGENT: Wire to @xevolab/timestamp-token TimeStampReq.fromDER()');
+  }
+
+  private buildTimeStampReq(fields: {
+    hashAlgorithmOid: string; hashedMessage: Buffer;
+    reqPolicy: string | null; nonce: bigint | null; certReq: boolean;
+  }): Buffer {
+    // AGENT: Wire to @xevolab/timestamp-token TimeStampReq constructor + toDER()
+    throw new Error('AGENT: Wire to @xevolab/timestamp-token TimeStampReq.toDER()');
+  }
+
+  private buildTSTInfo(fields: {
+    serialNumber: bigint; genTime: string; hashAlgorithmOid: string;
+    hashedMessage: Buffer; policyOid: string; nonce: bigint | null;
+    accuracy: { seconds: number; micros: number }; ordering: boolean;
+  }): Buffer {
+    // AGENT: Build TSTInfo ASN.1 SEQUENCE per RFC 3161 §2.4.2
+    throw new Error('AGENT: Build TSTInfo using ASN.1 library');
+  }
+
+  private signWithClassicalKey(tstInfo: Buffer): Buffer {
+    if (!this.privateKey) throw new Error('TSA private key not loaded');
+    const signer = crypto.createSign('SHA256');
+    signer.update(tstInfo);
+    return signer.sign(this.privateKey);
+  }
+
+  private buildCmsSignedData(tstInfo: Buffer, signature: Buffer, includeCerts: boolean): Buffer {
+    // AGENT: Build CMS SignedData per RFC 5652 wrapping TSTInfo
+    // Include SigningCertificateV2 per RFC 5816
+    throw new Error('AGENT: Build CMS SignedData using pkijs or @xevolab/timestamp-token');
+  }
+
+  private buildTimeStampResp(status: number, token?: Buffer): Buffer {
+    // AGENT: Build TimeStampResp SEQUENCE { status, timeStampToken }
+    throw new Error('AGENT: Build TimeStampResp using ASN.1 library');
+  }
+
+  private buildErrorResponse(status: number, message: string): Buffer {
+    throw new Error('AGENT: Build error TimeStampResp');
+  }
+
+  private parseTimeStampResp(der: Buffer): { status: number; signedData: Buffer; tstInfo: Buffer } {
+    throw new Error('AGENT: Parse TimeStampResp');
+  }
+
+  private parseTSTInfo(der: Buffer): {
+    serialNumber: string; genTime: string; hashAlgorithmOid: string;
+    policyOid: string; accuracy: { seconds: number; micros: number }; ordering: boolean;
+  } {
+    throw new Error('AGENT: Parse TSTInfo');
+  }
+
+  private verifyCmsSignature(signedData: Buffer): boolean {
+    throw new Error('AGENT: Verify CMS signature using pkijs or crypto.verify');
+  }
+
+  // --------------------------------------------------------------------------
+  // KEY GENERATION — White Paper §9.4
+  //
+  // "All keys generated and stored in FIPS 140-2 Level 3 HSMs."
+  // CURRENT: Software key store for development.
+  // PRODUCTION: Replace with HSM-backed key generation.
+  // --------------------------------------------------------------------------
+
+  private generateTsaKeyPair(): void {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 4096,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    fs.writeFileSync(this.config.privateKeyPath, privateKey, { mode: 0o600 });
+
+    // Self-signed certificate with timestamping EKU (RFC 3161 §5: "critical")
+    const opensslConfig = [
+      '[req]', 'default_bits = 4096', 'prompt = no', 'default_md = sha256',
+      'distinguished_name = dn', 'x509_extensions = v3_tsa', '',
+      '[dn]',
+      'CN = PlenumNET Time-Stamping Authority',
+      'O = Capomastro Holdings Ltd.',
+      'OU = Applied Physics Division',
+      'L = Alberta', 'C = CA', '',
+      '[v3_tsa]',
+      'basicConstraints = CA:FALSE',
+      'keyUsage = critical, digitalSignature, nonRepudiation',
+      'extendedKeyUsage = critical, timeStamping',
+      'subjectKeyIdentifier = hash',
+      'authorityKeyIdentifier = keyid,issuer',
+    ].join('\n');
+
+    const configPath = path.join(this.config.keysDirectory, 'tsa-openssl.cnf');
+    fs.writeFileSync(configPath, opensslConfig);
+    const { execSync } = require('child_process');
+    execSync(
+      `openssl req -new -x509 -key "${this.config.privateKeyPath}" ` +
+      `-out "${this.config.certificatePath}" -days 1826 -config "${configPath}"`,
+      { stdio: 'pipe' },
+    );
+    fs.copyFileSync(this.config.certificatePath, this.config.chainPath);
+    fs.unlinkSync(configPath);
+    console.log('TSA key pair generated: RSA-4096, EKU=critical,timeStamping');
+    console.log('  PRODUCTION: Replace with CA-issued cert + HSM key storage');
+  }
+
+  // --------------------------------------------------------------------------
+  // UTILITIES
+  // --------------------------------------------------------------------------
+
+  private isCertificateValid(): boolean {
+    if (!this.certificateParsed) return false;
+    try { return new Date() < new Date(this.certificateParsed.validTo); }
+    catch { return false; }
+  }
+
+  private nextSerialNumber(): bigint {
+    this.serialCounter += BigInt(1);
+    const p = path.join(this.config.keysDirectory, 'serial-counter.txt');
+    fs.writeFileSync(p, this.serialCounter.toString());
+    return this.serialCounter;
+  }
+
+  private formatGeneralizedTime(isoTimestamp: string): string {
+    const d = new Date(isoTimestamp);
+    const pad = (n: number, w: number = 2) => n.toString().padStart(w, '0');
+    const base = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}` +
+      `${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`;
+    const ms = d.getUTCMilliseconds();
+    return ms > 0 ? `${base}.${pad(ms, 3)}Z` : `${base}Z`;
+  }
+
+  private logToken(record: TsaTokenRecord): void {
+    this.tokenLog.push(record);
+    if (this.tokenLog.length > 100000) this.tokenLog = this.tokenLog.slice(-50000);
+
+    // Append-only disk persistence for audit/compliance export
+    // Same pattern as Merkle leaves — survives restarts, court-defensible trail
+    const logPath = path.join(this.config.keysDirectory, 'token-audit.jsonl');
+    fs.appendFileSync(logPath, JSON.stringify(record) + '\n');
+  }
+}
+```
+
+---
+
+## FILE 2 OF 2: `server/routes/tsa.ts`
+
+Create this file. Express router with 8 endpoints.
+
+```typescript
+/**
+ * PLENUMNET RFC 3161 TSA API ROUTES
+ * Repository: SigmaWolf-8/Ternary
+ * Location:   server/routes/tsa.ts
+ *
+ * 8 endpoints under /api/tsa/*
+ * Kong service #21: plenumnet-tsa
+ *
+ * Two interfaces:
+ *   Binary:  POST /timestamp (application/timestamp-query → timestamp-reply)
+ *   JSON:    POST /timestamp/json ({ hash, algorithm, policy } → { token, ... })
+ *
+ * Public (unauthenticated): certificate, verify, policy, health
+ * Protected: timestamp, timestamp/json (app), tokens (admin)
+ */
+
+import { Router, Request, Response, NextFunction } from 'express';
+import { TsaService, TSA_POLICIES } from '../services/tsa-service';
+
+// ============================================================================
+// AUTH MIDDLEWARE (same pattern as notify-routes.ts)
+// ============================================================================
+
+interface AuthenticatedRequest extends Request {
+  auth?: { appId: string; role: 'admin' | 'app' | 'readonly' };
+}
+
+function requireAuth(minRole: 'readonly' | 'app' | 'admin') {
+  const hierarchy = { readonly: 0, app: 1, admin: 2 };
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+    try {
+      const token = authHeader.replace('Bearer ', '');
+      const payload = JSON.parse(Buffer.from(token.split('.')[1] || token, 'base64').toString());
+      const auth = { appId: payload.appId || 'unknown', role: (payload.role || 'readonly') as 'admin' | 'app' | 'readonly' };
+      if (hierarchy[auth.role] < hierarchy[minRole]) return res.status(403).json({ error: 'Insufficient permissions' });
+      req.auth = auth;
+      next();
+    } catch { return res.status(401).json({ error: 'Invalid authentication token' }); }
+  };
+}
+
+// ============================================================================
+// ROUTE FACTORY
+// ============================================================================
+
+export function createTsaRoutes(service: TsaService): Router {
+  const router = Router();
+
+  // POST /api/tsa/timestamp — RFC 3161 BINARY
+  router.post('/timestamp', requireAuth('app'),
+    async (req: AuthenticatedRequest, res: Response) => {
+      if (req.headers['content-type'] !== 'application/timestamp-query') {
+        return res.status(415).json({
+          error: 'Unsupported Media Type',
+          message: 'RFC 3161 requires Content-Type: application/timestamp-query',
+          hint: 'For JSON, use POST /api/tsa/timestamp/json',
+        });
+      }
+      try {
+        const derReq = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+        const derResp = await service.processTimestampRequest(derReq, req.ip || 'unknown');
+        res.status(200).contentType('application/timestamp-reply').send(derResp);
+      } catch (error) { res.status(500).json({ error: (error as Error).message }); }
+    },
+  );
+
+  // POST /api/tsa/timestamp/json — JSON WRAPPER
+  router.post('/timestamp/json', requireAuth('app'),
+    async (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const { hash, algorithm, policy, nonce, includeChain } = req.body;
+        if (!hash || !algorithm) {
+          return res.status(400).json({
+            error: 'Missing required fields',
+            required: { hash: 'hex-encoded hash', algorithm: 'sha256|sha384|sha512|sha3-256|sha3-384|sha3-512' },
+            optional: {
+              policy: `OID. DEFAULT=${TSA_POLICIES.DEFAULT}, COMPLY=${TSA_POLICIES.COMPLY}, FORENSICS=${TSA_POLICIES.FORENSICS}, SENTINEL=${TSA_POLICIES.SENTINEL}, SECURE=${TSA_POLICIES.SECURE}`,
+              nonce: 'hex-encoded nonce for replay protection',
+              includeChain: 'boolean — include TSA certificate chain',
+            },
+          });
+        }
+        const result = await service.processJsonRequest(
+          { hash, algorithm, policy, nonce, includeChain }, req.ip || 'unknown',
+        );
+        res.status(200).json({ success: true, ...result, callerApp: req.auth?.appId });
+      } catch (error) { res.status(422).json({ success: false, error: (error as Error).message }); }
+    },
+  );
+
+  // POST /api/tsa/verify — UNAUTHENTICATED (white paper §7)
+  router.post('/verify', async (req: Request, res: Response) => {
+    try {
+      let derToken: Buffer;
+      if (req.headers['content-type'] === 'application/timestamp-reply') {
+        derToken = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body);
+      } else if (req.body?.token) {
+        derToken = Buffer.from(req.body.token, 'base64');
+      } else {
+        return res.status(400).json({ error: 'Provide binary timestamp-reply or JSON { token: "base64" }' });
+      }
+      res.status(200).json(await service.verifyToken(derToken));
+    } catch (error) { res.status(422).json({ valid: false, error: (error as Error).message }); }
+  });
+
+  // GET /api/tsa/certificate — UNAUTHENTICATED
+  router.get('/certificate', (_req: Request, res: Response) => {
+    try { res.status(200).json(service.getTsaCertificate()); }
+    catch (error) { res.status(500).json({ error: (error as Error).message }); }
+  });
+
+  // GET /api/tsa/certificate/download — UNAUTHENTICATED
+  router.get('/certificate/download', (_req: Request, res: Response) => {
+    try {
+      const cert = service.getTsaCertificate();
+      res.status(200)
+        .set('Content-Type', 'application/x-pem-file')
+        .set('Content-Disposition', 'attachment; filename="plenumnet-tsa.pem"')
+        .send(cert.certificate);
+    } catch (error) { res.status(500).json({ error: (error as Error).message }); }
+  });
+
+  // GET /api/tsa/tokens — ADMIN ONLY (audit log)
+  router.get('/tokens', requireAuth('admin'),
+    (req: AuthenticatedRequest, res: Response) => {
+      res.status(200).json(service.queryTokenLog({
+        since: req.query.since as string, until: req.query.until as string,
+        hashAlgorithm: req.query.hashAlgorithm as string,
+        policyTier: req.query.policyTier as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+      }));
+    },
+  );
+
+  // GET /api/tsa/policy — UNAUTHENTICATED (white paper §9.6)
+  router.get('/policy', (_req: Request, res: Response) => {
+    res.status(200).json(service.getPolicyInfo());
+  });
+
+  // GET /api/tsa/health — UNAUTHENTICATED
+  router.get('/health', async (_req: Request, res: Response) => {
+    const health = await service.getHealth();
+    res.status(health.status === 'unhealthy' ? 503 : 200).json(health);
+  });
+
+  return router;
+}
+```
+
+---
+
+## MODIFICATIONS TO EXISTING FILES
+
+### `server/index.ts` — Mount TSA routes
+
+Add AFTER notification service initialization:
+
+```typescript
+// === ADD THESE IMPORTS ===
+import { TsaService, TsaConfig, TSA_POLICIES } from './services/tsa-service';
+import { createTsaRoutes } from './routes/tsa';
+
+// === ADD THIS AFTER NOTIFICATION SERVICE INITIALIZATION ===
+
+const tsaConfig: TsaConfig = {
+  privateKeyPath: path.join(__dirname, 'crypto/tsa-keys/tsa-private.pem'),
+  certificatePath: path.join(__dirname, 'crypto/tsa-keys/tsa-cert.pem'),
+  chainPath: path.join(__dirname, 'crypto/tsa-keys/tsa-chain.pem'),
+  keysDirectory: path.join(__dirname, 'crypto/tsa-keys'),
+  defaultPolicy: TSA_POLICIES.DEFAULT,
+  enableDualSign: true,
+  maxRequestSize: 65536,
+};
+
+// Reuse same HPTP + TL-DSA clients from notification service
+const tsaService = new TsaService(tsaConfig, hptpClientForNotify, tldsaClientForNotify);
+
+try {
+  const tsaInit = await tsaService.initialize();
+  console.log(`PlenumNET TSA initialized — serial: ${tsaInit.serialRestored}, cert: ${tsaInit.certSubject}, expires: ${tsaInit.certExpiry}`);
+} catch (error) {
+  console.error('TSA initialization failed:', (error as Error).message);
+}
+
+// Raw body parsing for RFC 3161 binary requests
+// MUST come BEFORE json parser for this path
+// 64KB cap — a valid TimeStampReq is typically <1KB; anything larger is malformed or malicious
+const TSA_MAX_BODY_BYTES = 65536;
+app.use('/api/tsa/timestamp', (req, _res, next) => {
+  if (req.headers['content-type'] === 'application/timestamp-query') {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    req.on('data', (chunk: Buffer) => {
+      totalBytes += chunk.length;
+      if (totalBytes > TSA_MAX_BODY_BYTES) {
+        req.destroy(new Error(`Request body exceeds ${TSA_MAX_BODY_BYTES} bytes`));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => { req.body = Buffer.concat(chunks); next(); });
+  } else { next(); }
+});
+
+app.use('/api/tsa', createTsaRoutes(tsaService));
+console.log('PlenumNET TSA — 8 endpoints at /api/tsa/* (Kong service #21)');
+```
+
+### `kong/kong.yaml` — Add service #21
+
+```yaml
+- name: plenumnet-tsa
+  url: http://localhost:3000/api/tsa
+  routes:
+    - name: tsa-routes
+      paths:
+        - /api/tsa
+      strip_path: false
+```
+
+---
+
+## PRE-BUILT CONNECTOR PATTERNS
+
+### OpenSSL (Universal)
+```bash
+openssl ts -query -data document.pdf -sha256 -cert -out request.tsq
+curl -H "Content-Type: application/timestamp-query" \
+     -H "Authorization: Bearer $TOKEN" \
+     --data-binary @request.tsq \
+     https://plenumnet.replit.app/api/tsa/timestamp -o response.tsr
+curl https://plenumnet.replit.app/api/tsa/certificate/download -o plenumnet-tsa.pem
+openssl ts -verify -data document.pdf -in response.tsr -CAfile plenumnet-tsa.pem
+```
+
+### Adobe Acrobat
+```
+Preferences → Signatures → Creation → TSA URL:
+https://plenumnet.replit.app/api/tsa/timestamp
+```
+
+### Microsoft Authenticode
+```powershell
+signtool sign /fd SHA256 /tr https://plenumnet.replit.app/api/tsa/timestamp /td SHA256 /f cert.pfx app.exe
+```
+
+### Java JAR
+```bash
+jarsigner -tsa https://plenumnet.replit.app/api/tsa/timestamp -tsadigestalg SHA-256 app.jar alias
+```
+
+### Git Commit
+```bash
+HASH=$(git rev-parse HEAD | sha256sum | cut -d' ' -f1)
+curl -X POST https://plenumnet.replit.app/api/tsa/timestamp/json \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"hash\":\"$HASH\",\"algorithm\":\"sha256\"}" | jq -r '.token' > commit.tst
+```
+
+### Policy Selection (JSON API — any tier)
+```bash
+# Timestamp a document with SENTINEL tier (ordering=TRUE, ±1µs, 50-year retention)
+curl -X POST https://plenumnet.replit.app/api/tsa/timestamp/json \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "hash": "'$(sha256sum document.pdf | cut -d' ' -f1)'",
+    "algorithm": "sha256",
+    "policy": "1.3.6.1.4.1.0.100.1.3"
+  }' | jq '.serialNumber, .policyTier, .ordering, .accuracy, .hptpPrecision'
+# Available policies:
+#   DEFAULT:   1.3.6.1.4.1.0.100.1.0
+#   COMPLY:    1.3.6.1.4.1.0.100.1.1
+#   FORENSICS: 1.3.6.1.4.1.0.100.1.2
+#   SENTINEL:  1.3.6.1.4.1.0.100.1.3
+#   SECURE:    1.3.6.1.4.1.0.100.1.4
+```
+
+---
+
+## NOTIFICATION SERVICE UPGRADE PATH
+
+| Phase | State | Headers |
+|-------|-------|---------|
+| Phase 1 (now) | TSA service #21 built independently | HPTP + Hash + TL-DSA (separate headers) |
+| Phase 2 | Notification service calls TSA internally | TSA token replaces individual headers |
+| Phase 3 | Single `X-PlenumNET-TSA-Token` header | Base64 RFC 3161 token, OpenSSL-verifiable |
+| Phase 4 | Legacy headers retained as fallback | TSA token is primary proof |
+
+---
+
+## TESTING CHECKLIST
+
+- [ ] `POST /api/tsa/timestamp` accepts `application/timestamp-query`, returns `application/timestamp-reply`
+- [ ] Response verifiable with `openssl ts -verify`
+- [ ] Serial numbers monotonically increasing, persist across restarts
+- [ ] genTime populated from HPTP, not system clock
+- [ ] Policy OID matches request or default
+- [ ] Nonce echoed when present
+- [ ] Certificate chain included when `certReq=true`
+- [ ] Unsupported hash algorithm → rejection status
+- [ ] JSON API: `POST /api/tsa/timestamp/json` returns base64 token
+- [ ] JSON API: policy selection works (COMPLY, FORENSICS, SENTINEL OIDs)
+- [ ] JSON API: invalid hash length → 422
+- [ ] `POST /api/tsa/verify` validates tokens (binary or JSON)
+- [ ] `GET /api/tsa/certificate` returns PEM + subject + EKU (unauthenticated)
+- [ ] `GET /api/tsa/certificate/download` returns `.pem` file
+- [ ] `GET /api/tsa/policy` returns all four policies with OIDs, white paper sections
+- [ ] `GET /api/tsa/tokens` returns audit log with Merkle root (admin only)
+- [ ] `GET /api/tsa/health` returns HPTP/TL-DSA status, Merkle depth, policies
+- [ ] Timestamp endpoints require `app` auth; 401 without token
+- [ ] Token log requires `admin` auth; 403 for `app` role
+- [ ] Public endpoints (certificate, verify, policy, health) unauthenticated
+- [ ] TSA private key file permissions 0600
+- [ ] TL-DSA dual-sign logged in token records when enabled
+- [ ] TL-DSA failure does NOT prevent token issuance
+- [ ] Merkle leaf hash recorded for every token
+- [ ] **Accuracy clamping**: `openssl ts -reply -in resp.tsr -text` shows accuracy ≤ 999µs regardless of policy
+- [ ] **Merkle persistence**: Restart server → Merkle leaves and serial counter survive (check `merkle-leaves.jsonl` + `serial-counter.txt`)
+- [ ] **Body size cap**: Binary request >64KB rejected (connection destroyed before processing)
+
+---
+
+## NON-NEGOTIABLE RULES
+
+1. **TSA private key is EXCLUSIVELY for timestamping.** RFC 3161 §5 + white paper §6 row 5. EKU marked critical. Never reuse.
+2. **Serial numbers never repeat, never go backwards.** Persist to disk after every increment.
+3. **HPTP is the time source.** System clock only as absolute last resort, and mark the token accordingly.
+4. **TL-DSA is best-effort.** Classical RSA signature is primary and sufficient.
+5. **Privacy-by-design.** The TSA never receives, stores, or processes original data. Only hashes. (White paper §3)
+6. **Certificate, verify, and policy endpoints are unauthenticated.** Verifiers need these without credentials.
+7. **All code stays in the Ternary repo.** Kong service #21.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*PlenumNET RFC 3161 TSA — "Where Time Becomes Truth. Beyond Defense Grade."*
