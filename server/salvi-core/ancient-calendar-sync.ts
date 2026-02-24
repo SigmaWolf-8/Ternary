@@ -781,12 +781,12 @@ function getLunarNewYear(year: number): Date {
  * four dehiyot (molad zaken, ADU, etc.) in one operation.
  *
  * Verified against timeanddate.com / hebcal.com for 5783–5786:
- *   1 Tishrei 5783 = Sep 25 2022 ✓
- *   1 Tishrei 5784 = Sep 15 2023 ✓
- *   1 Tishrei 5785 = Oct 2 2024  ✓
- *   1 Tishrei 5786 = Sep 22 2025 ✓
+ *   1 Tishrei 5783 = Sep 26 2022 ✓  (civil calendar convention)
+ *   1 Tishrei 5784 = Sep 16 2023 ✓
+ *   1 Tishrei 5785 = Oct 3 2024  ✓
+ *   1 Tishrei 5786 = Sep 23 2025 ✓
  */
-const HEBREW_EPOCH_JDN = 347997;
+const HEBREW_EPOCH_JDN = 347998;
 
 function hebrewElapsedDays(hYear: number): number {
   const monthsElapsed = Math.floor((235 * hYear - 234) / 19);
@@ -1079,6 +1079,27 @@ function gregorianToJDN(year: number, month: number, day: number): number {
   return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
 }
 
+function toRomanNumeral(n: number): string {
+  const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+  const syms = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+  let result = '';
+  for (let i = 0; i < vals.length; i++) {
+    while (n >= vals[i]) { result += syms[i]; n -= vals[i]; }
+  }
+  return result;
+}
+
+function jdnToJulian(jdn: number): { year: number; month: number; day: number } {
+  const b = jdn + 32082;
+  const d = Math.floor((4 * b + 3) / 1461);
+  const e = b - Math.floor(1461 * d / 4);
+  const m = Math.floor((5 * e + 2) / 153);
+  const day = e - Math.floor((153 * m + 2) / 5) + 1;
+  const month = m + 3 - 12 * Math.floor(m / 10);
+  const year = d - 4800 + Math.floor(m / 10);
+  return { year, month, day };
+}
+
 /**
  * Check if a Gregorian year is a leap year
  */
@@ -1352,30 +1373,38 @@ export function toIslamicHijri(date: Date): IslamicHijri {
 
 /**
  * Convert Gregorian date to Byzantine Anno Mundi
- * 
+ *
  * The Byzantine calendar reckoned from the creation of the world:
  * September 1, 5509 BCE. The new year begins September 1.
  * The Indiction cycle is a 15-year fiscal/administrative cycle
  * inherited from the Roman Empire.
+ *
+ * The Byzantine calendar uses the Julian calendar for month/day.
+ * Gregorian dates are converted to Julian first (13-day offset
+ * for the 20th-21st centuries).
+ *
+ * AM year: Julian year + 5508 (Jan-Aug) or + 5509 (Sep-Dec),
+ * because the Byzantine year begins September 1.
  */
 export function toByzantineAnnoMundi(date: Date): ByzantineAnnoMundi {
-  const year = date.getUTCFullYear();
-  const gMonth = date.getUTCMonth();
-  const gDay = date.getUTCDate();
+  const jdn = gregorianToJDN(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+  const julian = jdnToJulian(jdn);
+  const jMonth = julian.month;
+  const jDay = julian.day;
 
-  const byzantineYear = year + 5509 + (gMonth >= 8 ? 1 : 0);
+  const byzantineYear = julian.year + 5508 + (jMonth >= 9 ? 1 : 0);
   const indiction = ((byzantineYear - 1) % 15) + 1;
 
-  const byzMonthIndex = ((gMonth - 8) + 12) % 12;
+  const byzMonthIndex = ((jMonth - 1 - 8) + 12) % 12;
   const monthName = BYZANTINE_MONTHS[byzMonthIndex];
 
   return {
     year: byzantineYear,
     month: byzMonthIndex + 1,
     monthName,
-    day: gDay,
+    day: jDay,
     indiction,
-    formatted: `${gDay} ${monthName}, Anno Mundi ${byzantineYear.toLocaleString()}, Indiction ${indiction}`
+    formatted: `${jDay} ${monthName}, Anno Mundi ${byzantineYear.toLocaleString()}, Indiction ${indiction}`
   };
 }
 
@@ -1805,11 +1834,19 @@ export function toIndianSakaDate(date: Date): IndianSakaDate {
 
 /**
  * Convert Gregorian date to Tibetan calendar (Rabjung cycle)
- * 
+ *
  * The Tibetan calendar uses a 60-year cycle (Rabjung) starting from 1027 CE.
- * Each year is named by combining one of 5 elements with one of 12 animals.
- * Elements cycle: Iron, Water, Wood, Fire, Earth (each used for 2 consecutive years).
- * Animals: same as Chinese zodiac cycle.
+ * Each year is named by combining one of 5 elements with one of 12 animals,
+ * using the same sexagenary cycle as the Chinese calendar.
+ *
+ * Element/animal are computed directly from the Tibetan year via the
+ * sexagenary cycle (year − 4 mod 10/12), identical to the Chinese method.
+ * Tibetan element names: Wood (shing), Fire (me), Earth (sa),
+ * Iron (lcags), Water (chu) — same order as Chinese but with Tibetan labels.
+ *
+ * Rabjung numbering: Rabjung 1 starts 1027 CE per the Phugpa tradition
+ * (introduction of the Kalachakra Tantra to Tibet).  Some traditions use
+ * an additional offset; the Tsurphu tradition numbers one cycle higher.
  *
  * Losar (Tibetan New Year) is determined by lunisolar calculation and
  * published by the Men-Tsee-Khang (Tibetan Medical & Astrological
@@ -1830,11 +1867,11 @@ export function toTibetanDate(date: Date): TibetanDate {
   const rabjungCycle = Math.floor(yearsSinceStart / 60) + 1;
   const yearInCycle = ((yearsSinceStart % 60) + 60) % 60 + 1;
 
-  const elementIndex = Math.floor(((yearInCycle - 1) % 10) / 2);
-  const animalIndex = (yearInCycle - 1) % 12;
-
-  const element = TIBETAN_ELEMENTS[elementIndex];
-  const animal = ZODIAC_ANIMALS[animalIndex];
+  const TIBETAN_ELEM_FROM_STEM = ['Wood', 'Wood', 'Fire', 'Fire', 'Earth', 'Earth', 'Iron', 'Iron', 'Water', 'Water'];
+  const stemIndex = ((tibYear - 4) % 10 + 10) % 10;
+  const branchIndex = ((tibYear - 4) % 12 + 12) % 12;
+  const element = TIBETAN_ELEM_FROM_STEM[stemIndex];
+  const animal = ZODIAC_ANIMALS[branchIndex];
 
   const effectiveLosarMs = beforeLosar ? getLosar(gYear - 1).getTime() : losarMs;
   let daysSinceLosar = Math.floor((dateMs - effectiveLosarMs) / MS_PER_DAY);
@@ -1902,10 +1939,13 @@ export function toAztecTonalpohualliDate(date: Date): AztecTonalpohualliDate {
 
 /**
  * Convert Gregorian date to Roman Ab Urbe Condita (AUC)
- * 
+ *
  * Origin: April 21, 753 BCE (legendary founding of Rome by Romulus).
  * AUC year = Gregorian year + 753.
- * Includes determination of Kalends, Nones, and Ides markers.
+ *
+ * Roman date notation counts inclusively backward to the next
+ * reference point: Kalendae (1st), Nonae (5th/7th), Idus (13th/15th).
+ * After the Ides, Romans count forward to the Kalendae of the NEXT month.
  */
 export function toRomanAUCDate(date: Date): RomanAUCDate {
   const gYear = date.getUTCFullYear();
@@ -1913,6 +1953,13 @@ export function toRomanAUCDate(date: Date): RomanAUCDate {
   const gMonth = date.getUTCMonth();
 
   const aucYear = gYear + 753;
+
+  const ROMAN_MONTH_ACCUSATIVE = [
+    'Ianuarias', 'Februarias', 'Martias', 'Apriles', 'Maias', 'Iunias',
+    'Iulias', 'Augustas', 'Septembres', 'Octobres', 'Novembres', 'Decembres'
+  ];
+  const DAYS_PER_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (isLeapYear(gYear)) DAYS_PER_MONTH[1] = 29;
 
   const longMonths = [2, 4, 6, 9];
   const isLongMonth = longMonths.includes(gMonth);
@@ -1926,12 +1973,24 @@ export function toRomanAUCDate(date: Date): RomanAUCDate {
     calendarMarker = 'Nonae';
   } else if (gDay === idesDay) {
     calendarMarker = 'Idus';
+  } else if (gDay === nonesDay - 1) {
+    calendarMarker = 'pridie Nonas';
+  } else if (gDay === idesDay - 1) {
+    calendarMarker = 'pridie Idus';
   } else if (gDay < nonesDay) {
-    calendarMarker = `ante diem ${nonesDay - gDay + 1} Nonas`;
+    calendarMarker = `ante diem ${toRomanNumeral(nonesDay - gDay + 1)} Nonas`;
   } else if (gDay < idesDay) {
-    calendarMarker = `ante diem ${idesDay - gDay + 1} Idus`;
+    calendarMarker = `ante diem ${toRomanNumeral(idesDay - gDay + 1)} Idus`;
   } else {
-    calendarMarker = `ante diem ${gDay - idesDay} post Idus`;
+    const daysInMonth = DAYS_PER_MONTH[gMonth];
+    const daysBeforeKalends = daysInMonth - gDay + 2;
+    const nextMonthIndex = (gMonth + 1) % 12;
+    const nextMonthName = ROMAN_MONTH_ACCUSATIVE[nextMonthIndex];
+    if (daysBeforeKalends === 2) {
+      calendarMarker = `pridie Kalendas ${nextMonthName}`;
+    } else {
+      calendarMarker = `ante diem ${toRomanNumeral(daysBeforeKalends)} Kalendas ${nextMonthName}`;
+    }
   }
 
   return {
@@ -1990,21 +2049,22 @@ export function toBengaliDate(date: Date): BengaliDate {
 
 /**
  * Convert Gregorian date to Berber/Amazigh (Yennayer) calendar
- * 
+ *
  * Origin: ~950 BCE (traditional beginning of Amazigh calendar).
  * Year = Gregorian year + 950.
- * Yennayer (New Year) falls on January 12-14 depending on region.
+ * The Amazigh calendar follows the Julian calendar.
+ * Yennayer 1 = January 1 (Julian) = January 14 (Gregorian, 21st century).
  */
 export function toBerberDate(date: Date): BerberDate {
   const gMonth = date.getUTCMonth();
   const gDay = date.getUTCDate();
 
-  const afterYennayer = gMonth > 0 || (gMonth === 0 && gDay >= 13);
+  const afterYennayer = gMonth > 0 || (gMonth === 0 && gDay >= 14);
   const year = afterYennayer ? date.getUTCFullYear() + 950 : date.getUTCFullYear() + 949;
 
   const newYearMs = afterYennayer
-    ? Date.UTC(date.getUTCFullYear(), 0, 13)
-    : Date.UTC(date.getUTCFullYear() - 1, 0, 13);
+    ? Date.UTC(date.getUTCFullYear(), 0, 14)
+    : Date.UTC(date.getUTCFullYear() - 1, 0, 14);
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -2163,7 +2223,7 @@ const BAHAI_MONTHS = [
 
 const IGBO_DAYS = ['Eke', 'Orie', 'Afo', 'Nkwo'];
 
-const JAVANESE_PASARAN = ['Pon', 'Wage', 'Kliwon', 'Legi', 'Pahing'];
+const JAVANESE_PASARAN = ['Legi', 'Pahing', 'Pon', 'Wage', 'Kliwon'];
 const JAVANESE_WEEKDAYS = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
 const YORUBA_DAYS = ['Ojó-Aìkú', 'Ojó-Ajé', 'Ojó-Ìṣégun', 'Ojó-Rú'];
@@ -2293,14 +2353,14 @@ export function toVikramSamvatDate(date: Date): VikramSamvatDate {
   const gYear = date.getUTCFullYear();
   const gMonth = date.getUTCMonth();
   const gDay = date.getUTCDate();
-  const afterNewYear = gMonth > 3 || (gMonth === 3 && gDay >= 14);
+  const afterNewYear = gMonth > 2 || (gMonth === 2 && gDay >= 14);
   const vsYear = afterNewYear ? gYear + 57 : gYear + 56;
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 3, 14)
-    : Date.UTC(gYear - 1, 3, 14);
+    ? Date.UTC(gYear, 2, 14)
+    : Date.UTC(gYear - 1, 2, 14);
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 385));
-  const monthLengths = [30, 31, 31, 31, 31, 31, 30, 30, 30, 29, 30, 30];
+  const monthLengths = [30, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30];
   let vsMonth = 1;
   let vsDay = safeDays;
   for (let i = 0; i < 12; i++) {
@@ -2354,7 +2414,7 @@ export function toJavaneseDate(date: Date): JavaneseDate {
   const weekdayIndex = ((jdn + 1) % 7);
   const pasaranDay = JAVANESE_PASARAN[pasaranIndex];
   const weekday = JAVANESE_WEEKDAYS[weekdayIndex];
-  const cycleDay = (pasaranIndex * 7 + weekdayIndex) % 35 + 1;
+  const cycleDay = ((jdn + 5) % 35 + 35) % 35 + 1;
   return {
     pasaranDay,
     pasaranIndex,
