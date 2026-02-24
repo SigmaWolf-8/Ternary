@@ -225,6 +225,16 @@ export function registerSalviRoutes(app: Express): void {
           config: {
             path: "GET /api/salvi/phase/config/:mode",
             description: "Get phase configuration for encryption mode"
+          },
+          batchSplit: {
+            path: "POST /api/salvi/phase/batch/split",
+            description: "Batch phase-encrypt multiple items (max 50 per request)",
+            body: { items: "[{ id: string, data: string, mode?: string }]" }
+          },
+          batchRecombine: {
+            path: "POST /api/salvi/phase/batch/recombine",
+            description: "Batch phase-decrypt multiple items (max 50 per request)",
+            body: { items: "[{ id: string, encrypted: EncryptedPhaseData }]" }
           }
         }
       },
@@ -1071,6 +1081,272 @@ export function registerSalviRoutes(app: Express): void {
       });
     } catch (error: unknown) {
       res.status(500).json({ error: "Recommendation failed" });
+    }
+  });
+
+  const BATCH_MAX_ITEMS = 50;
+  const BATCH_MAX_ITEM_SIZE = 100000;
+  const BATCH_MAX_PAYLOAD = 5 * 1024 * 1024;
+
+  const batchSplitItemSchema = z.object({
+    id: z.string().min(1).max(256),
+    data: z.string().min(1).max(BATCH_MAX_ITEM_SIZE),
+    mode: z.enum(["high_security", "balanced", "performance", "adaptive"]).default("balanced"),
+  });
+
+  const batchSplitSchema = z.object({
+    items: z.array(batchSplitItemSchema).min(1).max(BATCH_MAX_ITEMS),
+  });
+
+  function serializePhaseTimestamps(encrypted: EncryptedPhaseData) {
+    return {
+      ...encrypted,
+      primaryPhase: {
+        ...encrypted.primaryPhase,
+        timestamp: {
+          ...encrypted.primaryPhase.timestamp,
+          femtoseconds: encrypted.primaryPhase.timestamp.femtoseconds.toString(),
+          salviEpochOffset: encrypted.primaryPhase.timestamp.salviEpochOffset.toString(),
+        },
+      },
+      secondaryPhase: {
+        ...encrypted.secondaryPhase,
+        timestamp: {
+          ...encrypted.secondaryPhase.timestamp,
+          femtoseconds: encrypted.secondaryPhase.timestamp.femtoseconds.toString(),
+          salviEpochOffset: encrypted.secondaryPhase.timestamp.salviEpochOffset.toString(),
+        },
+      },
+      guardianPhase: encrypted.guardianPhase
+        ? {
+            ...encrypted.guardianPhase,
+            timestamp: {
+              ...encrypted.guardianPhase.timestamp,
+              femtoseconds: encrypted.guardianPhase.timestamp.femtoseconds.toString(),
+              salviEpochOffset: encrypted.guardianPhase.timestamp.salviEpochOffset.toString(),
+            },
+          }
+        : undefined,
+    };
+  }
+
+  function hydratePhaseTimestamps(encrypted: any) {
+    encrypted.primaryPhase.timestamp.femtoseconds = BigInt(encrypted.primaryPhase.timestamp.femtoseconds);
+    encrypted.primaryPhase.timestamp.salviEpochOffset = BigInt(encrypted.primaryPhase.timestamp.salviEpochOffset);
+    encrypted.secondaryPhase.timestamp.femtoseconds = BigInt(encrypted.secondaryPhase.timestamp.femtoseconds);
+    encrypted.secondaryPhase.timestamp.salviEpochOffset = BigInt(encrypted.secondaryPhase.timestamp.salviEpochOffset);
+    if (encrypted.guardianPhase) {
+      encrypted.guardianPhase.timestamp.femtoseconds = BigInt(encrypted.guardianPhase.timestamp.femtoseconds);
+      encrypted.guardianPhase.timestamp.salviEpochOffset = BigInt(encrypted.guardianPhase.timestamp.salviEpochOffset);
+    }
+    return encrypted;
+  }
+
+  app.post("/api/salvi/phase/batch/split", computationLimiter, (req, res) => {
+    try {
+      const rawSize = JSON.stringify(req.body).length;
+      if (rawSize > BATCH_MAX_PAYLOAD) {
+        return res.status(413).json({
+          success: false,
+          error: "Payload too large",
+          maxBytes: BATCH_MAX_PAYLOAD,
+          receivedBytes: rawSize,
+        });
+      }
+
+      const parsed = batchSplitSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid request",
+          details: parsed.error.errors,
+        });
+      }
+
+      const { items } = parsed.data;
+      const seenIds = new Set<string>();
+      for (const item of items) {
+        if (seenIds.has(item.id)) {
+          return res.status(400).json({
+            success: false,
+            error: `Duplicate item id: ${item.id}`,
+          });
+        }
+        seenIds.add(item.id);
+      }
+
+      const results: Array<{
+        id: string;
+        success: boolean;
+        encrypted?: any;
+        error?: string;
+      }> = [];
+
+      let succeeded = 0;
+      let failed = 0;
+
+      for (const item of items) {
+        try {
+          const encrypted = phaseSplit(item.data, item.mode as EncryptionMode);
+          results.push({
+            id: item.id,
+            success: true,
+            encrypted: serializePhaseTimestamps(encrypted),
+          });
+          succeeded++;
+        } catch (err: any) {
+          results.push({
+            id: item.id,
+            success: false,
+            error: "Encryption failed",
+          });
+          failed++;
+        }
+      }
+
+      res.json({
+        success: true,
+        summary: {
+          total: items.length,
+          succeeded,
+          failed,
+        },
+        results,
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: "Batch split failed" });
+    }
+  });
+
+  const batchRecombineItemSchema = z.object({
+    id: z.string().min(1).max(256),
+    encrypted: z.object({
+      primaryPhase: z.object({
+        data: z.string(),
+        phase: z.number(),
+        timestamp: z.object({
+          femtoseconds: z.string(),
+          salviEpochOffset: z.string(),
+        }).passthrough(),
+      }).passthrough(),
+      secondaryPhase: z.object({
+        data: z.string(),
+        phase: z.number(),
+        timestamp: z.object({
+          femtoseconds: z.string(),
+          salviEpochOffset: z.string(),
+        }).passthrough(),
+      }).passthrough(),
+      guardianPhase: z.object({
+        hash: z.string(),
+        phase: z.number(),
+        timestamp: z.object({
+          femtoseconds: z.string(),
+          salviEpochOffset: z.string(),
+        }).passthrough(),
+      }).passthrough().optional(),
+      config: z.object({
+        mode: z.string(),
+        primaryPhase: z.number(),
+        secondaryOffset: z.number(),
+        guardianEnabled: z.boolean(),
+        guardianOffset: z.number(),
+      }),
+      splitRatio: z.number(),
+    }),
+  });
+
+  const batchRecombineSchema = z.object({
+    items: z.array(batchRecombineItemSchema).min(1).max(BATCH_MAX_ITEMS),
+  });
+
+  app.post("/api/salvi/phase/batch/recombine", computationLimiter, (req, res) => {
+    try {
+      const rawSize = JSON.stringify(req.body).length;
+      if (rawSize > BATCH_MAX_PAYLOAD) {
+        return res.status(413).json({
+          success: false,
+          error: "Payload too large",
+          maxBytes: BATCH_MAX_PAYLOAD,
+          receivedBytes: rawSize,
+        });
+      }
+
+      const parsed = batchRecombineSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid request",
+          details: parsed.error.errors,
+        });
+      }
+
+      const { items } = parsed.data;
+      const seenIds = new Set<string>();
+      for (const item of items) {
+        if (seenIds.has(item.id)) {
+          return res.status(400).json({
+            success: false,
+            error: `Duplicate item id: ${item.id}`,
+          });
+        }
+        seenIds.add(item.id);
+      }
+
+      const results: Array<{
+        id: string;
+        success: boolean;
+        data?: string;
+        phaseAlignment?: number;
+        error?: string;
+      }> = [];
+
+      let succeeded = 0;
+      let failed = 0;
+
+      for (const item of items) {
+        try {
+          const hydrated = hydratePhaseTimestamps(JSON.parse(JSON.stringify(item.encrypted)));
+          const result = phaseRecombine(hydrated);
+
+          if (result.success) {
+            results.push({
+              id: item.id,
+              success: true,
+              data: result.data,
+              phaseAlignment: result.phaseAlignment,
+            });
+            succeeded++;
+          } else {
+            results.push({
+              id: item.id,
+              success: false,
+              error: "Recombination failed",
+              phaseAlignment: result.phaseAlignment,
+            });
+            failed++;
+          }
+        } catch (err: any) {
+          results.push({
+            id: item.id,
+            success: false,
+            error: "Decryption failed",
+          });
+          failed++;
+        }
+      }
+
+      res.json({
+        success: true,
+        summary: {
+          total: items.length,
+          succeeded,
+          failed,
+        },
+        results,
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: "Batch recombine failed" });
     }
   });
 
