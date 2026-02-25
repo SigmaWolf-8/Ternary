@@ -54,6 +54,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { PLATFORM } from "@shared/constants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -560,7 +561,7 @@ function SyncSection({ selectedCP, setSelectedCP }: { selectedCP: string | null;
             Deploy Services to Kong
           </CardTitle>
           <CardDescription>
-            Sync all 17 PlenumNET services (175 endpoints) to your Kong control planes
+            Sync all {PLATFORM.API_SERVICES} PlenumNET services ({PLATFORM.API_ENDPOINTS} endpoints) to your Kong control planes
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -570,7 +571,7 @@ function SyncSection({ selectedCP, setSelectedCP }: { selectedCP: string | null;
               Sync All Control Planes
             </h4>
             <p className="text-sm text-muted-foreground mb-3">
-              Deploy all 17 services with routes and rate-limiting plugins to every control plane simultaneously.
+              Deploy all {PLATFORM.API_SERVICES} services with routes and rate-limiting plugins to every control plane simultaneously.
             </p>
             <Button 
               onClick={() => syncAllMutation.mutate()}
@@ -852,7 +853,7 @@ function HeroSection() {
             data-testid="text-hero-description"
           >
             Manage your Kong Konnect API gateway directly from PlenumNET. 
-            Deploy 17 services covering 175 endpoints across all control planes.
+            Deploy {PLATFORM.API_SERVICES} services covering {PLATFORM.API_ENDPOINTS} endpoints across all control planes.
           </motion.p>
 
           <motion.div
@@ -863,11 +864,11 @@ function HeroSection() {
           >
             <Badge variant="secondary" className="text-xs">
               <Activity className="w-3 h-3 mr-1" />
-              17 API Services
+              {PLATFORM.API_SERVICES} API Services
             </Badge>
             <Badge variant="secondary" className="text-xs">
               <Globe className="w-3 h-3 mr-1" />
-              175 Endpoints
+              {PLATFORM.API_ENDPOINTS} Endpoints
             </Badge>
             <Badge variant="secondary" className="text-xs">
               <Shield className="w-3 h-3 mr-1" />

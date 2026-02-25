@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { PLATFORM } from "@shared/constants";
 
 interface Module {
   id: string;
@@ -129,7 +130,7 @@ const MODULES: Module[] = [
     id: "plenumnet-client",
     name: "PlenumNET Client SDK",
     version: "v0.1.0",
-    desc: "Full TypeScript client library for PlenumNET integration. 175 API endpoint bindings, post-quantum key establishment (ML-KEM-1024), Borromean handshake protocol.",
+    desc: `Full TypeScript client library for PlenumNET integration. ${PLATFORM.API_ENDPOINTS} API endpoint bindings, post-quantum key establishment (ML-KEM-1024), Borromean handshake protocol.`,
     tiers: ["developer", "enterprise"],
     size: "320 KB",
     format: ".ts (npm package)",
