@@ -1,0 +1,664 @@
+# Capability-Based Security: A Foundational Model for PlenumNET's Trust Infrastructure
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Version 2.0 — February 2026**
+
+---
+
+## 1. PlenumNET Already Operates a Capability System
+
+Before defining capability-based security in the abstract, it is important to establish that PlenumNET is not proposing to build one. It already runs one.
+
+PlenumNET's RFC 3161 timestamp tokens satisfy every formal requirement of a capability:
+
+- **Unforgeable.** Cryptographically signed with TL-DSA.
+- **Self-contained.** No central database lookup is needed for verification. The token carries its own proof.
+- **Bearer-verified.** Anyone holding the token can present it to any verifier — a court, an auditor, a counterparty — and the verifier can confirm its authenticity independently.
+- **Authoritative.** The token carries the authority to prove that a specific hash existed at a specific time. That authority is exercised by presenting the token. No further permission is needed.
+
+These tokens are in production today. They are the foundation of PlenumNET's court-admissible evidence chain. The strategic extension described in this document takes the same model — unforgeable, self-contained, bearer-verified, authoritative — and applies it to the **authorization layer**. Every permission in PlenumNET becomes a capability with the same properties that already make our timestamps trustworthy.
+
+---
+
+## 2. What Is Capability-Based Security?
+
+Capability-based security is a design paradigm in which access to resources is granted not by identity (who you are) but by possession of an unforgeable token — a **capability** — that inherently conveys both **designation** (what resource) and **authority** (what operations are permitted). Possession of the capability **is** the authority.
+
+Capabilities are often compared to physical keys: possessing the key grants you the right to enter the room, regardless of your name. The key itself is unforgeable and can be passed to others (delegation) without the original issuer's involvement.
+
+**Authentication and authorization remain separate.** Capabilities replace identity as the *authorization* mechanism, not as the *authentication* mechanism. PlenumNET always knows who holds a capability — it simply doesn't use identity to decide what they can do with it. Regulated customers require both. Capability-based security strengthens the authorization layer while leaving the authentication layer intact.
+
+### Core Principles
+
+| Principle | Description |
+|-----------|-------------|
+| **Unforgeability** | Capabilities are impossible to counterfeit. PlenumNET achieves this through TL-DSA post-quantum signatures. |
+| **Possession as Authority** | If you hold a capability, you can use it. There is no central list to consult. |
+| **Delegation** | A capability can be passed from one entity to another, or attenuated (restricted) and then passed, transferring a narrower authority without issuer involvement. |
+| **Fine-Grained Authority** | A capability can be as narrow as "send one notification template to one recipient domain during one time window" or as broad as "administer the entire tenant." The principle of least privilege is enforced by design. |
+| **No Ambient Authority** | Without a capability, an entity cannot even name a resource. You cannot accidentally use a privilege you have; you must explicitly invoke a capability. This eliminates confused-deputy attacks. |
+
+### How It Differs from ACLs
+
+| Aspect | ACL-Based | Capability-Based |
+|--------|-----------|------------------|
+| **Authority check** | "Who are you?" → look up permissions | "What do you hold?" → verify the token |
+| **Delegation** | Requires an administrator to update the list | Holder attenuates and passes the token directly |
+| **Revocation** | Modify the central list | Token expires on HPTP schedule — no list to modify |
+| **Identity dependency** | Requires a global identity system for authorization | Identity used for authentication only |
+
+### Solving Confinement
+
+The security industry treats the confinement problem — preventing a capability holder from copying and sharing a token — as unsolvable. That conclusion is based on a specific assumption: that capabilities are static text tokens verified against manipulable clocks. PlenumNET operates in a different problem space. It has an authoritative clock, post-quantum signatures, and the ability to bind capabilities to hardware. Under those conditions, confinement is solvable.
+
+PlenumNET solves confinement through three mechanisms working together:
+
+**1. Hardware-Bound Capabilities.** The token is bound to a physical device — a TPM, a secure enclave, or a hardware security module. The capability contains a reference to a public key whose private half never leaves the hardware. Every time the token is used, the holder must prove possession of that private key through a live challenge-response signed with TL-DSA. Copy the token text all you want — without the physical device, it is cryptographic garbage.
+
+**2. HPTP Challenge-Response.** Instead of presenting a static token, each use requires a fresh HPTP-anchored nonce from PlenumNET's timing engine. The holder signs the nonce with their hardware-bound key. The nonce is valid for one HPTP window. You cannot replay it because the window is gone. You cannot forge it because you do not have the key. You cannot precompute it because you do not know the nonce until the moment of use.
+
+**3. Single-Use Capability Chains.** Each use of a capability generates the next valid token in a cryptographic chain. Use #1 produces the seed for Use #2. If someone copies a token after Use #1, their copy is only valid if they use it before the legitimate holder does — and when the legitimate holder uses it, the copy is permanently dead. First use wins, verified by HPTP timestamp.
+
+Combined, a PlenumNET capability is:
+
+- **Device-bound** — the key cannot be copied.
+- **Nonce-validated** — the token cannot be replayed.
+- **Consumed on use** — the token cannot be stockpiled.
+- **TL-DSA signed end-to-end** — the token cannot be forged, even with a quantum computer.
+- **HPTP-timestamped** — every use is recorded with nanosecond precision in a tamper-proof audit trail.
+
+The industry says confinement is unsolvable because they are working with static text tokens and system clocks. PlenumNET has neither limitation.
+
+### Relationship to Multi-Factor Authentication
+
+Capability-based security does not replace multi-factor authentication. It adds to it.
+
+Authentication answers "who are you?" Authorization answers "what are you allowed to do?" Traditional systems combine both into a single check — verify the user's identity, then look up their permissions on a central list. PlenumNET separates them cleanly. Authentication remains its own layer. Capabilities handle authorization independently.
+
+In practice, a PlenumNET-secured interaction works like this:
+
+1. **Factor 1 — something you know.** The user provides a password or PIN.
+2. **Factor 2 — something you have for identity.** The user confirms via an authenticator app, SMS code, or biometric.
+3. **The system authenticates the user.** Identity is confirmed.
+4. **The system presents the user's hardware-bound capability.** The capability token — bound to the user's TPM, secure enclave, or HSM — is invoked. The device signs an HPTP-anchored nonce with its private key, proving the capability is being exercised on the authorized hardware.
+
+The hardware-bound capability functions as a **third factor** — something you physically possess that cannot be separated from the device and cannot be duplicated. It is not a replacement for the first two factors; it is an additional layer that binds authorization to a specific physical device after identity has been confirmed.
+
+This gives PlenumNET customers a natural path to **3FA**:
+
+| Factor | What It Proves | How It Works |
+|--------|---------------|--------------|
+| **Something you know** | Identity (knowledge) | Password, PIN |
+| **Something you have** (identity) | Identity (possession) | Authenticator app, hardware token, biometric |
+| **Something you have** (authorization) | Authority + device binding | Hardware-bound capability with TL-DSA signed HPTP nonce |
+
+The first two factors prove the user is who they claim to be. The third factor proves the user holds a valid, non-transferable authorization on the correct physical device. All three must pass. Compromise any single factor and access is denied.
+
+For regulated customers — banks, government agencies, law firms — this separation is critical. Auditors can independently verify that the correct identity was authenticated (factors 1 and 2) **and** that the correct authorization was exercised on the correct device (factor 3), with both events HPTP-timestamped and Merkle-chained in the audit trail.
+
+---
+
+## 3. Historical Context: Why PlenumNET Succeeds Where Others Failed
+
+Capability-based systems have a long history in operating systems (KeyKOS, CapROS, IBM System/38) and programming languages (E, Caja). They failed to achieve mainstream adoption for two reasons:
+
+1. **Revocation.** How do you take back a key that's been handed out? Traditional capability systems had no good answer.
+2. **Confinement.** How do you prevent the holder from copying the key? The entire industry accepted this as unsolvable.
+
+PlenumNET resolves both:
+
+- **Revocation** is eliminated as a problem. Capabilities are HPTP-bound. They die on schedule. You don't take the key back — you issue keys that destroy themselves at the designated nanosecond, verified against an authoritative clock that no party can dispute.
+- **Confinement** is solved by binding capabilities to physical hardware, requiring live HPTP-anchored challenge-response for each use, and consuming the token on use through single-use cryptographic chains. A copied token without the hardware key is cryptographic garbage. A replayed token without a valid nonce is rejected. A reused token after the legitimate holder has advanced the chain is permanently dead. (See Section 2, "Solving Confinement" for full detail.)
+
+Modern interest in capabilities has surged with Zero Trust Architecture. ZTA's principle — "never trust, always verify" — aligns directly with capabilities: every request must carry its own proof of authority, independent of network location or user identity. PlenumNET provides the cryptographic mechanism to make Zero Trust operational, with a critical addition that no other zero-trust vendor offers: **verification of the time itself.**
+
+---
+
+## 4. From Role Tokens to Capability Tokens
+
+### 4.1. Current State
+
+PlenumNET clients authenticate using JWTs containing claims like `appId` and `role`. These tokens are proto-capabilities — cryptographically signed, passed as bearer tokens, supporting least privilege through different roles.
+
+The limitation is granularity. All `app`-role tokens can send any template. There is no way to issue a token that says "send only `maestro.review.assigned`, only to `@lawfirm.ca` recipients, only 10 times, only until 3 PM today."
+
+| Current RBAC Limitation | Capability-Based Solution |
+|-------------------------|---------------------------|
+| All `app` tokens can send any template | Capabilities minted for specific templates, recipients, and time windows |
+| Delegation requires sharing the full token or involving an administrator | Capabilities are attenuated and passed without exposing the parent token |
+| Revocation requires central coordination (token blacklists) | Capabilities are HPTP-bound — they expire exactly when intended |
+
+### 4.2. Capability Token Structure
+
+```typescript
+// shared/types/capability.ts
+
+import { CapabilityConstraint, CONSTRAINT_REGISTRY_VERSION } from "./capability-constraints";
+
+export interface Capability {
+  res: string;                          // "notification:send" | "evidence:read" | etc.
+  constraints: CapabilityConstraint[];  // typed, validated — see Section 4.3
+  exp: number;                          // nanoseconds, HPTP-anchored
+}
+
+export interface CapabilityToken {
+  sub: string;                          // "tenant:capomastro" | "user:uuid"
+  cap: Capability[];                    // array of capabilities
+  role?: string;                        // legacy fallback — honored only if cap[] is empty
+  iat_hptp: string;                     // ISO timestamp from HPTP service
+  iss: "plenumnet.tsa";                 // issuer
+  jti: string;                          // unique ID for audit and revocation
+  crv: string;                          // constraint registry version e.g. "1.0"
+}
+```
+
+### 4.3. Typed Constraint Registry
+
+Capability constraints are drawn from a typed, versioned registry. Every verifier in the system — Kong plugin, Rust service, TypeScript middleware — imports and enforces constraints identically. There are no freeform objects. Unknown constraint types fail closed.
+
+```typescript
+// shared/types/capability-constraints.ts
+
+export const CONSTRAINT_REGISTRY_VERSION = "1.0";
+
+/**
+ * Discriminated union of all valid constraint types.
+ *
+ * Derived from PlenumNET's operational use cases: notification templates,
+ * evidence vaults, Maestro documents, multi-tenant access, and
+ * geographic/network restrictions.
+ *
+ * Adding a new constraint type requires:
+ *   1. Adding it to this union
+ *   2. Adding validation logic to validateConstraint()
+ *   3. Updating the Kong plugin's semantic map
+ *   4. Mirroring the change in the Rust constraint registry
+ *   5. Incrementing the registry version
+ */
+export type CapabilityConstraint =
+  | { type: "recipient_domain"; value: string }       // "@lawfirm.ca" or "*.gov.ca"
+  | { type: "vault_id"; value: string }               // specific evidence vault
+  | { type: "template"; value: string }               // "maestro.review.assigned"
+  | { type: "max_uses"; value: number }               // usage count limit, audit-enforced
+  | { type: "ip_range"; value: string }               // CIDR notation "10.0.0.0/8"
+  | { type: "geo_country"; value: string[] }          // ISO 3166-1 alpha-2 codes
+  | { type: "document_id"; value: string }            // specific Maestro document
+  | { type: "project_id"; value: string };            // specific Maestro project scope
+
+export interface VerificationContext {
+  recipient?: string;
+  vault_id?: string;
+  template?: string;
+  usage_count?: number;
+  source_ip?: string;
+  source_country?: string;
+  document_id?: string;
+  project_id?: string;
+}
+
+/**
+ * Validates a single constraint against the request context.
+ *
+ * max_uses is enforced by the audit layer, not at validation time.
+ * The token's HPTP expiration is the hard enforcement boundary.
+ */
+export function validateConstraint(
+  constraint: CapabilityConstraint,
+  context: VerificationContext
+): boolean {
+  switch (constraint.type) {
+    case "recipient_domain": {
+      if (!context.recipient) return false;
+      const pattern = constraint.value;
+      if (pattern.startsWith("*.")) {
+        return context.recipient.endsWith(pattern.slice(1));
+      }
+      return context.recipient.endsWith(constraint.value);
+    }
+    case "vault_id":
+      return context.vault_id === constraint.value;
+    case "template":
+      return context.template === constraint.value;
+    case "max_uses":
+      // Audit-enforced. The audit service tracks usage and emits
+      // "capability.usage_exceeded" events. HPTP expiration is the hard boundary.
+      return true;
+    case "ip_range":
+      return context.source_ip ? isIpInCidr(context.source_ip, constraint.value) : false;
+    case "geo_country":
+      return context.source_country ? constraint.value.includes(context.source_country) : false;
+    case "document_id":
+      return context.document_id === constraint.value;
+    case "project_id":
+      return context.project_id === constraint.value;
+    default:
+      // Unknown constraint type = deny. Fail closed.
+      return false;
+  }
+}
+
+export function validateAllConstraints(
+  constraints: CapabilityConstraint[],
+  context: VerificationContext
+): { granted: boolean; failed: CapabilityConstraint[] } {
+  const failed = constraints.filter(c => !validateConstraint(c, context));
+  return { granted: failed.length === 0, failed };
+}
+
+function isIpInCidr(ip: string, cidr: string): boolean {
+  const [range, bits] = cidr.split("/");
+  const mask = ~(2 ** (32 - parseInt(bits)) - 1);
+  const ipNum = ip.split(".").reduce((acc, oct) => (acc << 8) + parseInt(oct), 0);
+  const rangeNum = range.split(".").reduce((acc, oct) => (acc << 8) + parseInt(oct), 0);
+  return (ipNum & mask) === (rangeNum & mask);
+}
+```
+
+Rust mirror for high-performance verification paths (PQTI, timing engine):
+
+```rust
+// libternary/src/capability/constraints.rs
+
+use serde::{Deserialize, Serialize};
+use std::net::Ipv4Addr;
+
+pub const CONSTRAINT_REGISTRY_VERSION: &str = "1.0";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
+pub enum CapabilityConstraint {
+    #[serde(rename = "recipient_domain")]
+    RecipientDomain(String),
+    #[serde(rename = "vault_id")]
+    VaultId(String),
+    #[serde(rename = "template")]
+    Template(String),
+    #[serde(rename = "max_uses")]
+    MaxUses(u32),
+    #[serde(rename = "ip_range")]
+    IpRange(String),
+    #[serde(rename = "geo_country")]
+    GeoCountry(Vec<String>),
+    #[serde(rename = "document_id")]
+    DocumentId(String),
+    #[serde(rename = "project_id")]
+    ProjectId(String),
+}
+
+#[derive(Debug, Default)]
+pub struct VerificationContext {
+    pub recipient: Option<String>,
+    pub vault_id: Option<String>,
+    pub template: Option<String>,
+    pub usage_count: Option<u32>,
+    pub source_ip: Option<Ipv4Addr>,
+    pub source_country: Option<String>,
+    pub document_id: Option<String>,
+    pub project_id: Option<String>,
+}
+
+pub struct ValidationResult {
+    pub granted: bool,
+    pub failed: Vec<CapabilityConstraint>,
+}
+
+pub fn validate_constraint(constraint: &CapabilityConstraint, ctx: &VerificationContext) -> bool {
+    match constraint {
+        CapabilityConstraint::RecipientDomain(pattern) => {
+            ctx.recipient.as_ref().map_or(false, |r| {
+                if pattern.starts_with("*.") { r.ends_with(&pattern[1..]) }
+                else { r.ends_with(pattern) }
+            })
+        }
+        CapabilityConstraint::VaultId(id) => ctx.vault_id.as_ref().map_or(false, |v| v == id),
+        CapabilityConstraint::Template(tpl) => ctx.template.as_ref().map_or(false, |t| t == tpl),
+        CapabilityConstraint::MaxUses(_) => true, // Audit-enforced. HPTP expiration is the hard boundary.
+        CapabilityConstraint::IpRange(cidr) => ctx.source_ip.map_or(false, |ip| ip_in_cidr(ip, cidr)),
+        CapabilityConstraint::GeoCountry(countries) => {
+            ctx.source_country.as_ref().map_or(false, |c| countries.contains(c))
+        }
+        CapabilityConstraint::DocumentId(id) => ctx.document_id.as_ref().map_or(false, |d| d == id),
+        CapabilityConstraint::ProjectId(id) => ctx.project_id.as_ref().map_or(false, |p| p == id),
+    }
+}
+
+pub fn validate_all(constraints: &[CapabilityConstraint], ctx: &VerificationContext) -> ValidationResult {
+    let failed: Vec<_> = constraints.iter().filter(|c| !validate_constraint(c, ctx)).cloned().collect();
+    ValidationResult { granted: failed.is_empty(), failed }
+}
+
+fn ip_in_cidr(ip: Ipv4Addr, cidr: &str) -> bool {
+    let parts: Vec<&str> = cidr.split('/').collect();
+    if parts.len() != 2 { return false; }
+    let Ok(range) = parts[0].parse::<Ipv4Addr>() else { return false };
+    let Ok(bits) = parts[1].parse::<u32>() else { return false };
+    if bits > 32 { return false; }
+    let mask = if bits == 0 { 0u32 } else { !0u32 << (32 - bits) };
+    (u32::from(ip) & mask) == (u32::from(range) & mask)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recipient_domain_exact() {
+        let c = CapabilityConstraint::RecipientDomain("@lawfirm.ca".into());
+        let ctx = VerificationContext { recipient: Some("partner@lawfirm.ca".into()), ..Default::default() };
+        assert!(validate_constraint(&c, &ctx));
+    }
+
+    #[test]
+    fn recipient_domain_wildcard() {
+        let c = CapabilityConstraint::RecipientDomain("*.gov.ca".into());
+        let ctx = VerificationContext { recipient: Some("agent@csis.gov.ca".into()), ..Default::default() };
+        assert!(validate_constraint(&c, &ctx));
+    }
+
+    #[test]
+    fn recipient_domain_mismatch() {
+        let c = CapabilityConstraint::RecipientDomain("@lawfirm.ca".into());
+        let ctx = VerificationContext { recipient: Some("hacker@evil.com".into()), ..Default::default() };
+        assert!(!validate_constraint(&c, &ctx));
+    }
+
+    #[test]
+    fn unknown_constraint_fails_closed() {
+        let json = r#"{"type": "future_constraint", "value": "something"}"#;
+        let result: Result<CapabilityConstraint, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn ip_range_match() {
+        let c = CapabilityConstraint::IpRange("10.0.0.0/8".into());
+        let ctx = VerificationContext { source_ip: Some("10.42.1.100".parse().unwrap()), ..Default::default() };
+        assert!(validate_constraint(&c, &ctx));
+    }
+
+    #[test]
+    fn ip_range_outside() {
+        let c = CapabilityConstraint::IpRange("10.0.0.0/8".into());
+        let ctx = VerificationContext { source_ip: Some("192.168.1.1".parse().unwrap()), ..Default::default() };
+        assert!(!validate_constraint(&c, &ctx));
+    }
+
+    #[test]
+    fn all_constraints_and_logic() {
+        let constraints = vec![
+            CapabilityConstraint::Template("maestro.review.assigned".into()),
+            CapabilityConstraint::RecipientDomain("@lawfirm.ca".into()),
+        ];
+        let ctx = VerificationContext {
+            template: Some("maestro.review.assigned".into()),
+            recipient: Some("partner@lawfirm.ca".into()),
+            ..Default::default()
+        };
+        let result = validate_all(&constraints, &ctx);
+        assert!(result.granted);
+    }
+
+    #[test]
+    fn partial_failure_denies() {
+        let constraints = vec![
+            CapabilityConstraint::Template("maestro.review.assigned".into()),
+            CapabilityConstraint::RecipientDomain("@lawfirm.ca".into()),
+        ];
+        let ctx = VerificationContext {
+            template: Some("maestro.review.assigned".into()),
+            recipient: Some("someone@evil.com".into()),
+            ..Default::default()
+        };
+        let result = validate_all(&constraints, &ctx);
+        assert!(!result.granted);
+        assert_eq!(result.failed.len(), 1);
+    }
+}
+```
+
+---
+
+## 5. HPTP-Bound Expiration: The Core Differentiator
+
+Every capability token carries an `exp` field measured in nanoseconds — anchored to PlenumNET's HPTP timing engine, not to the client's system clock. When a token expires at a designated nanosecond, the verifier checks against HPTP. No other time source is consulted.
+
+This eliminates:
+
+- **Clock-skew replay attacks.** A client cannot set their clock back to reuse an expired token. The verifier's time source is HPTP.
+- **Ambiguous expiration.** Two servers cannot disagree on whether a token is valid because both check the same authoritative clock.
+- **Forensic disputes.** Opposing parties cannot argue about whether an action occurred before or after an authorization expired. The HPTP timestamp is definitive.
+
+**On precision.** The HPTP mathematical framework resolves to **femtosecond** precision. Current hardware implementations deliver **nanosecond** accuracy — already far beyond any competing timing infrastructure. Femtosecond capability is inherent to the architecture and will be realized as commercially available timing hardware advances to match the mathematical model. The math is ready. The hardware will follow.
+
+---
+
+## 6. Signing: TL-DSA Across All Tiers
+
+All capability tokens are signed with **TL-DSA**. No exceptions. No tiers. No classical fallbacks.
+
+PlenumNET's post-quantum commitment is end-to-end. A system that advertises "beyond defense grade, quantum-safe" signs every token with post-quantum cryptography — ephemeral or archival, internal or external. The PQTI service already provides this infrastructure. Capability tokens use it uniformly.
+
+| Capability Type | Signing Algorithm |
+|----------------|-------------------|
+| Ephemeral internal (service-to-service) | TL-DSA |
+| Session capabilities (user actions) | TL-DSA |
+| Tenant root capabilities (long-lived) | TL-DSA |
+| RFC 3161 capability certificates (archival) | TL-DSA |
+| Delegation chain roots | TL-DSA |
+
+---
+
+## 7. Delegation: HMAC-Chained Attenuation
+
+A tenant holding a root capability can attenuate it — adding restrictions — and pass the restricted version to a partner, auditor, or contractor without contacting PlenumNET. The root token is signed with TL-DSA. Each attenuation appends a caveat sealed with HMAC. When the token expires, every caveat in the chain dies with it.
+
+```
+Root capability (signed by PlenumNET, TL-DSA)
+  └── Attenuated: restrict to template "maestro.review.assigned" (HMAC caveat)
+       └── Attenuated: restrict to recipient "@lawfirm.ca" (HMAC caveat)
+            └── Attenuated: restrict to 5 uses, expires 2026-03-01 (HMAC caveat)
+```
+
+Verification walks the chain: verify the root TL-DSA signature, then verify each HMAC caveat in order. If any link fails, the capability is rejected.
+
+Any holder can further restrict a capability. No holder can expand one. This is the principle of attenuation — authority can only diminish as it passes through the delegation chain, never grow.
+
+**Quantum safety of the delegation chain.** HMAC is a symmetric cryptographic construction — it uses a shared secret key and a hash function. It does not rely on the mathematical problems (integer factoring, discrete logarithms) that quantum computers threaten via Shor's algorithm. The best quantum attack against HMAC is Grover's algorithm, which halves the effective security level. HMAC-SHA256 with a 256-bit key retains 128 bits of security against a quantum adversary — fully secure by NIST post-quantum standards. The complete chain is quantum-safe at every layer: TL-DSA root signature (post-quantum), HMAC caveats (quantum-resistant by nature), HPTP expiration (not a cryptographic target).
+
+---
+
+## 8. Immutable Audit Trail: Capability Events
+
+Every capability lifecycle event is recorded in PlenumNET's Merkle-chained audit log. Each event includes an HPTP timestamp and a hash reference to the previous event, forming a cryptographic proof of causality.
+
+```typescript
+// services/audit-service/capability-events.ts
+
+import { CapabilityConstraint } from "../../shared/types/capability-constraints";
+
+export type CapabilityEventType =
+  | "capability.issued"
+  | "capability.validated"
+  | "capability.delegated"
+  | "capability.revoked"
+  | "capability.expired"
+  | "capability.usage_exceeded";
+
+export interface CapabilityAuditEvent {
+  event: CapabilityEventType;
+  jti: string;                            // token ID
+  capability_hash: string;                // SHA3-256 of the full CapabilityToken
+  parent_event_hash: string;              // Merkle chain link to previous event
+  timestamp_hptp_ns: number;              // authoritative nanoseconds
+  details: {
+    resource?: string;
+    result?: "granted" | "denied";
+    failed_constraints?: CapabilityConstraint[];
+    parent_jti?: string;                  // for delegation: parent token ID
+    attenuations_applied?: string[];      // for delegation: what was restricted
+  };
+}
+```
+
+The chain:
+
+- **Event A**: Tenant root capability issued (timestamped, TL-DSA signed, hash recorded).
+- **Event B**: Tenant delegates a restricted capability to a law firm auditor (timestamped, signed, includes hash of Event A).
+- **Event C**: Auditor uses the capability to access an evidence vault (timestamped, signed, includes hash of Event B).
+- **Event D**: Capability expires at the designated HPTP nanosecond (recorded automatically).
+
+Any investigator can verify the entire chain. Altering any single event visibly breaks the Merkle links. This is not reconstructed from scattered log files — it is a cryptographic proof chain that assembles itself as work happens.
+
+---
+
+## 9. Zero-Trust Implementation
+
+Every zero-trust vendor says "never trust, always verify." PlenumNET's distinction: **we also verify the time.**
+
+Capabilities embody zero trust — every request carries its own proof of authority, independent of network location, VPN status, or IP address. But most zero-trust implementations validate the token against the server's system clock for expiration. System clocks can be skewed, manipulated, or simply wrong.
+
+PlenumNET validates expiration against HPTP — an authoritative time source under our control. The capability isn't just verified; it's verified against a clock that no party can dispute. This closes the last gap in zero-trust token validation.
+
+---
+
+## 10. Multi-Tenant Delegation
+
+PlenumNET serves banks, law firms, government agencies, and construction firms. Capability-based security supports multi-tenancy naturally:
+
+- Each tenant receives a **root capability** signed with TL-DSA, granting authority to manage their own templates, users, and policies.
+- Tenants delegate sub-capabilities to their own users or external collaborators using the HMAC attenuation chain. No administrator involvement required.
+- All delegations are timestamped and recorded in the audit trail. The full chain of custody is traceable.
+
+**FORENSICS tier example:** A law firm issues a time-limited, vault-scoped capability to an expert witness. The expert accesses only the specified evidence, only during the authorized window. Every access is recorded. When opposing counsel asks "who had access to this evidence and when," the answer is a verifiable Merkle chain.
+
+**SENTINEL tier example:** A bank's trading desk receives capabilities scoped to specific instruments, counterparties, and time windows. Every authorization decision is HPTP-timestamped and Merkle-chained. Regulators receive a cryptographic proof of who had authority to execute which trades, at which nanosecond. No log reconstruction. No ambiguity.
+
+**Maestro ERP example:** Field workers receive capability tokens granting access to specific documents, drawings, or approvals for defined time windows. When a project is audited, the complete authorization history is available as an unbroken, verifiable chain.
+
+---
+
+## 11. Internal Service Communication
+
+Inside PlenumNET, microservices (notification, timing, PQTI) communicate using ephemeral capabilities rather than fixed API keys:
+
+- The notification service needs an HPTP timestamp. It presents a capability scoped to `getTimestamp`, for a specific `deliveryId`, valid for a short HPTP-bound window.
+- If the notification service is compromised, the attacker holds only the narrow, short-lived capabilities in-flight at the moment of breach. They cannot pivot to other services or escalate privilege.
+- All internal capability tokens are signed with TL-DSA. No internal traffic is exempt from post-quantum protection.
+
+---
+
+## 12. Capability Certificates via RFC 3161
+
+A capability can be embodied as a **signed, timestamped certificate** — extending PlenumNET's existing RFC 3161 TSA infrastructure into the authorization layer.
+
+The certificate contains:
+
+- The resource reference and allowed operations.
+- The constraint set (typed, from the registry).
+- The HPTP expiration.
+- A TL-DSA signature.
+- An RFC 3161 timestamp proving when the capability was issued.
+
+This produces a **verifiable, offline-proof token** — the same property that makes PlenumNET's timestamps court-admissible. A client can present the capability certificate to any PlenumNET service, or to a court, and the verifier can confirm the signature, the timestamp, and the constraints without contacting the issuer.
+
+Capabilities become court-admissible certificates of authority.
+
+---
+
+## 13. What This Delivers
+
+| For | Capability-Based Security Delivers |
+|-----|------------------------------------|
+| **Banks** | Nanosecond-accurate, TL-DSA-signed authorization trail for every trade. FINRA-grade compliance as a byproduct of normal operations, not a reconstruction effort. Hardware-bound capabilities ensure trading tokens cannot be copied between desks or systems. |
+| **Law firms** | Time-limited, scope-limited, delegatable access tokens for external experts. Court-admissible chain of custody for digital evidence. Hardware binding ensures an expert's access token cannot be shared with unauthorized parties — a copied token without the device is useless. |
+| **Government** | Zero-trust authorization with HPTP temporal verification. No VPN, no network perimeter, no implicit trust. Post-quantum end-to-end. Hardware-bound, nonce-validated capabilities eliminate the token-sharing threat that plagues government contractor access. |
+| **Construction (Maestro)** | Field-level access control with full audit trail. Document and drawing access scoped by project, role, and time window. Single-use capability chains ensure a field worker's token cannot be passed to an unauthorized subcontractor. |
+| **PlenumNET internally** | Blast radius containment. Compromised services hold only narrow, short-lived, hardware-bound capabilities. No lateral movement. No privilege escalation. No token exfiltration. |
+| **All customers** | PlenumNET solves the confinement problem that the entire security industry treats as unsolvable. Capabilities cannot be copied, replayed, or stockpiled. Hardware-bound capabilities provide a natural third authentication factor — 3FA out of the box. This is a unique competitive position. |
+
+---
+
+## 14. Roadmap
+
+| Phase | Description | Timeline |
+|-------|-------------|----------|
+| **Phase 1** | Typed constraint registry + capability token schema + audit event integration. All tokens signed with TL-DSA. Wire `capability.issued` and `capability.validated` events into the Merkle audit log. | **Immediate** |
+| **Phase 2** | HPTP-bound expiration. Wire the timing engine into the token validation path. Ship a public demo endpoint showing nanosecond-precise capability expiry. | **Near-term** |
+| **Phase 3** | HMAC-chained delegation. Root tokens signed with TL-DSA, caveats attenuated via HMAC, protected by HPTP expiration. Tenants create restricted sub-tokens without administrator involvement. Full delegation chain in audit log. | **Medium-term** |
+| **Phase 4** | Hardware-bound capabilities + HPTP challenge-response + single-use chains. Bind capabilities to TPM/HSM/secure enclave. Each use requires a live HPTP nonce signed by the hardware key. Token consumed on use and regenerated. Confinement solved. | **Medium-term** |
+| **Phase 5** | RFC 3161 capability certificates. Capabilities issued as timestamped, TL-DSA-signed certificates verifiable offline. Extends existing TSA infrastructure into authorization. | **Medium-term** |
+| **Phase 6** | Inter-service capability mesh. Replace internal API keys with ephemeral, scoped, TL-DSA-signed, hardware-bound capabilities. | **Long-term** |
+
+---
+
+## 15. Strategic Alignment
+
+| Strategic Pillar | Capability Contribution |
+|------------------|------------------------|
+| **Chronological Certainty** | Every delegation and use is HPTP-timestamped. Unbroken chain of authority. |
+| **Non-Repudiation** | Capabilities are TL-DSA-signed and HPTP-timestamped. A holder cannot deny having had authority at a particular nanosecond. |
+| **Confinement** | Hardware-bound keys, HPTP nonce validation, and single-use chains solve the problem the industry treats as unsolvable. Tokens cannot be copied, replayed, or stockpiled. |
+| **Multi-Factor** | Hardware-bound capabilities function as a third authentication factor. Identity (2FA) and authorization (capability) are independently verifiable, independently auditable, and both HPTP-timestamped. |
+| **Zero Trust** | Each request carries its own proof. HPTP validates the time. No implicit trust. |
+| **Compliance** | Regulators require proof of who accessed what and when. Capability audit trails, anchored by HPTP, provide exactly that — automatically. |
+| **Customer Confidence** | Clients delegate access by issuing scoped, time-limited, fully auditable sub-tokens. No administrator bottleneck. Hardware binding guarantees delegated access stays with the intended recipient. |
+| **Multi-Tenancy** | Root capabilities and delegation chains. All delegations traceable. |
+| **Post-Quantum** | TL-DSA signing across all capability tiers. No exceptions. The math resolves to femtoseconds; the hardware will follow. |
+
+---
+
+## 16. Anticipated Questions
+
+The following questions will arise from CISOs, cryptographers, regulators, legal counsel, and investors reviewing this architecture. They are addressed here so PlenumNET stays ahead of every conversation.
+
+### "What happens if the hardware device is lost, stolen, or destroyed?"
+
+The capability is bound to the device's private key. If the device is gone, the capability is gone — that is the point. No one can extract the key and use it elsewhere. Recovery follows a controlled reissuance path: the user authenticates through standard 2FA, their lost device's capabilities are revoked (all active tokens associated with that device's public key are marked revoked in the audit trail), and new capabilities are issued bound to a replacement device. The audit trail records the revocation event, the reissuance event, and the reason — producing a complete chain of custody even across device transitions. There is no "master bypass." A stolen device without the user's authentication factors is a brick holding expired, nonce-dependent tokens.
+
+### "What if PlenumNET's HPTP service goes offline?"
+
+Capabilities are self-contained and carry their own expiration timestamp. Verification does not require a live call to HPTP for every request — the verifier holds a synchronized HPTP clock that is regularly calibrated against PlenumNET's authoritative source. If the synchronization link is temporarily interrupted, the local clock continues operating within its calibrated drift tolerance. Capabilities issued before the interruption remain valid and verifiable. New capability issuance is paused until HPTP connectivity is restored, because PlenumNET will not issue a token it cannot timestamp authoritatively. This is a deliberate design choice — availability is temporarily reduced to preserve the integrity guarantee that every capability carries a trustworthy timestamp. A system that issues tokens with unreliable timestamps is worse than a system that pauses until it can do it correctly.
+
+### "What if we need to revoke a capability immediately, before it expires?"
+
+HPTP-bound expiration is the primary revocation mechanism, but emergency revocation is supported. A revocation event is published to a lightweight revocation list (signed with TL-DSA, HPTP-timestamped, Merkle-chained into the audit trail). Verifiers check this list as part of validation. The revocation list is short by design — it only contains tokens that were killed before their natural expiration. Once a token's HPTP expiration passes, it falls off the list automatically. This is not a return to centralized ACLs — the list is a narrow, time-bounded exception for emergency use, not the primary authorization mechanism. The audit trail records both the revocation event and the reason, maintaining the complete chain of custody.
+
+### "TL-DSA signatures are larger and slower than classical algorithms. What is the performance impact?"
+
+TL-DSA signatures are larger than ed25519 (approximately 2-4 KB versus 64 bytes) and signing/verification is computationally heavier. This is the cost of post-quantum security. PlenumNET accepts this cost deliberately because the alternative — using classical signatures and hoping quantum computers arrive later than expected — is an unacceptable risk for a Trust Infrastructure. The performance impact is managed through efficient implementation in Rust (libternary), hardware acceleration where available, and the fact that capability validation is not the bottleneck in any real-world workflow — network latency, database access, and business logic dominate request processing time. The PQTI service is already optimized for TL-DSA throughput. Capability signing uses the same path.
+
+### "The immutable audit trail records everything. How does that comply with GDPR's right to erasure?"
+
+The audit trail records capability events — token issuance, validation, delegation, expiration. It records *authorization decisions*, not personal data. The `sub` field in a capability token can reference a pseudonymous identifier rather than a natural person's name. The mapping between the pseudonymous identifier and the person's identity is stored separately, in a system that supports deletion. If a data subject exercises their right to erasure, the identity mapping is deleted. The audit trail retains a record that "subject X was issued capability Y at time Z" — but "subject X" is now a meaningless identifier that cannot be linked back to a person. The cryptographic integrity of the audit chain is preserved while the personal data linkage is severed. This approach aligns with GDPR's recognition that data rendered truly anonymous is no longer personal data. Legal counsel should validate this approach for each jurisdiction, but the architecture supports it by design.
+
+### "What if PlenumNET's root TL-DSA key is compromised?"
+
+Root key compromise is the most serious threat to any signing infrastructure. PlenumNET manages this through key hierarchy and rotation. The master root key is held in an HSM (hardware security module) and is used only to sign intermediate keys. Intermediate keys sign capability tokens. If an intermediate key is compromised, it is revoked (published to the revocation list, HPTP-timestamped, Merkle-chained), and a new intermediate key is issued from the root. All capabilities signed by the compromised intermediate are invalidated. The blast radius is limited to the tokens signed by that specific intermediate key during the window between compromise and detection. The audit trail records the entire incident — which key was compromised, when the revocation occurred, which tokens were affected. If the master root key itself is compromised — an event that requires physical breach of the HSM — the entire key hierarchy is rotated. This is a catastrophic scenario for any PKI, not unique to PlenumNET, and the standard mitigations (HSM physical security, multi-party key ceremonies, geographic distribution) apply.
+
+### "Can existing systems integrate with this, or does everything need to be replaced?"
+
+PlenumNET's capability tokens are JWTs. Any system that validates JWTs can validate a PlenumNET capability token — it just needs to understand the `cap[]` claim structure and import the constraint validation logic from the typed registry. The legacy `role` field is preserved in the token for backward compatibility. Systems that do not yet understand capabilities fall back to role-based validation. This means adoption is incremental — existing services continue working while new services adopt capability-based authorization. There is no flag day. There is no system-wide cutover. The constraint registry (TypeScript and Rust implementations) is a library that can be imported into any service without architectural changes.
+
+### "Single-use capability chains — what happens if two requests arrive simultaneously?"
+
+The single-use chain advances deterministically. Each use produces the seed for the next valid token. If two requests attempt to use the same chain position, the HPTP timestamp determines which arrived first. The first use advances the chain; the second use holds a token at a chain position that has already been consumed and is rejected. This is not a race condition — it is a deterministic ordering guaranteed by HPTP. The rejected request receives a clear error indicating the chain has advanced, and the client re-requests a fresh token at the current chain position. In high-throughput scenarios, the chain can be pre-advanced in batches — issuing a window of valid chain positions rather than a single position — trading strict single-use enforcement for throughput while maintaining the property that each position can only be consumed once.
+
+### "Does this work across international jurisdictions?"
+
+The capability model is jurisdiction-agnostic. The tokens are cryptographic objects — they carry their own proof and do not depend on any jurisdiction's legal framework to function. However, the *admissibility* of the audit trail as evidence varies by jurisdiction. PlenumNET's RFC 3161 timestamp tokens conform to an international standard (RFC 3161, IETF) and are recognized in jurisdictions that accept digital evidence standards including eIDAS (EU), ESIGN/UETA (US), and PIPEDA (Canada). The capability certificates described in Section 12 extend this same standard into the authorization layer. Legal counsel should validate admissibility requirements for each specific jurisdiction and use case, but the architecture is built on internationally recognized standards rather than proprietary formats.
+
+### "What prevents a malicious tenant from issuing capabilities that exceed their own authority?"
+
+Attenuation is enforced cryptographically. A tenant's root capability defines the maximum scope of their authority. Every delegation via HMAC caveat can only *add* restrictions — restrict to a narrower template set, a shorter time window, fewer uses, a specific vault. The HMAC chain is verified against the root capability's constraints. If a caveat attempts to *expand* authority beyond what the root grants (for example, accessing a vault not in the root's constraint set), the verification fails because the constraint falls outside the root's scope. You cannot give someone a key to a room you don't have access to yourself. This is enforced by the cryptographic structure of the chain, not by policy.
+
+---
+
+## 17. Conclusion
+
+PlenumNET already operates a capability system through its RFC 3161 timestamp tokens. This document extends that proven model into the authorization layer — replacing coarse-grained role tokens with fine-grained, HPTP-bound, TL-DSA-signed capabilities that carry their own proof of authority.
+
+The typed constraint registry ensures every verifier interprets tokens identically. TL-DSA signing ensures post-quantum integrity end-to-end. HMAC-chained delegation enables decentralized attenuation without issuer involvement, protected by HPTP expiration. Hardware-bound keys, HPTP nonce validation, and single-use capability chains solve the confinement problem that the security industry has treated as unsolvable for decades. The Merkle-chained audit trail records every capability event with nanosecond precision, producing a court-admissible chain of custody that assembles itself as work happens.
+
+This transforms PlenumNET from a provider of trusted time into a provider of **trusted authority** — a Trust Infrastructure that does what no one else can: prove who had authority to do what, at exactly what nanosecond, with tokens that cannot be forged, cannot be copied, and cannot be disputed.
+
+**PlenumNET: Where Time Becomes Truth, and Authority Itself Becomes Provable.**
