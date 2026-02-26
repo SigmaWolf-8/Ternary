@@ -16,6 +16,16 @@
 
 process.on("SIGHUP", () => {});
 
+const _originalProcessExit = process.exit.bind(process);
+let _serverListening = false;
+(process as any).exit = ((code?: number) => {
+  if (code === 1 && _serverListening) {
+    console.error("[recovery] Suppressed process.exit(1) — API server stays alive (Vite HMR may be degraded until restart)");
+    return undefined as never;
+  }
+  return _originalProcessExit(code);
+}) as typeof process.exit;
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -323,6 +333,7 @@ function startPqtiService(): ChildProcess | null {
       reusePort: true,
     },
     () => {
+      _serverListening = true;
       log(`serving on port ${port}`);
     },
   );
