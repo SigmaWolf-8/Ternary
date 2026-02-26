@@ -56,6 +56,9 @@ A comprehensive system at `/api-keys` handles API key generation, validation (co
 ### Security Middleware Stack
 Includes 4-tier rate limiting, CORS, Helmet.js security headers, AES-256-GCM token encryption, null-byte stripping, double URL-decode protection, and `execFile()`-only subprocess execution.
 
+### Capability-Based Security (Phase 1)
+Authorization via unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA. Phase 1 implements the typed constraint registry (`shared/types/capability-constraints.ts`), capability token schema (`shared/types/capability.ts`), and Merkle-chained audit events (`server/services/capability-audit-events.ts`). Constraint registry v1.0 supports 8 constraint types: recipient_domain, vault_id, template, max_uses, ip_range (IPv4 CIDR, `>>> 0` unsigned coercion), geo_country, document_id, project_id. Tokens use `exp: string` (BigInt nanoseconds) to avoid JS Number overflow, `iss: "plenumnet.cap"` (distinct from TSA's `"plenumnet.tsa"`). Audit log uses SHA3-256 hashing, persists to `server/crypto/tsa-keys/capability-audit.jsonl`. Phase 4 adds hardware binding + HPTP challenge-response + single-use chains for confinement.
+
 ### Security Infrastructure Services
 Admin-protected backend services under `/api/security/` include a Security Audit Service, HPTP Anomaly Detection, Threat Model Registry, Implementation Status Tracker, and a Security Dashboard.
 
