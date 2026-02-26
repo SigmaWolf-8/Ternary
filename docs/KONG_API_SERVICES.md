@@ -70,16 +70,16 @@ This is our ultra-precise clock service. While a normal computer clock measures 
 **Rate Limit**: 120/min, 1,200/hr
 
 ### What it does (in plain terms)
-This service converts today's date into 24 different calendar systems used around the world — past and present — spanning over 30,000 years of human timekeeping. From the Mayan Long Count to the Chinese Sexagenary Cycle to the Aboriginal Australian Seasonal calendar, every conversion is mathematically anchored to the Salvi Epoch (April 1, 2025 UTC) through Julian Day Number calculations. You can also convert any arbitrary date using the `?date=` parameter, making it a fully bidirectional converter.
+This service converts today's date into 42 different calendar systems used around the world — past and present — spanning over 30,000 years of human timekeeping. From the Mayan Long Count to the Chinese Sexagenary Cycle to the Aboriginal Australian Seasonal calendar, every conversion is mathematically anchored to the Salvi Epoch (April 1, 2025 UTC) through Julian Day Number calculations. You can also convert any arbitrary date using the `?date=` parameter, making it a fully bidirectional converter.
 
 ### Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/salvi/timing/epoch/anchors` | Returns the Salvi Epoch anchor points and reference data |
-| GET | `/api/salvi/timing/epoch/calendars` | Returns all 24 calendar conversions for the current date (or `?date=` parameter) |
+| GET | `/api/salvi/timing/epoch/calendars` | Returns all 42 calendar conversions for the current date (or `?date=` parameter) |
 
-### Individual Calendar Endpoints (24 total)
+### Individual Calendar Endpoints (42 total)
 Each supports `?date=YYYY-MM-DD` for arbitrary date conversion.
 
 | Path | Calendar System | Region |
@@ -501,7 +501,7 @@ Kong manages four API consumer tiers for programmatic access:
 | **Request Size Limiting** | 2 (compression: 10MB, payments: 1MB) |
 | **API Consumers** | 4 tiers |
 | **Upstreams** | 3 (timing, crypto, payments — with health checks) |
-| **Calendar Endpoints** | 24 individual + 2 aggregate |
+| **Calendar Endpoints** | 42 individual + 2 aggregate |
 | **Ternary Operations** | 8 endpoints |
 | **Crypto Algorithms** | 11/11 CNSA 2.0 |
 | **Kernel Modules** | 33 |

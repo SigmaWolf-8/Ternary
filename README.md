@@ -70,7 +70,7 @@ Constants are centralized in `shared/tribonacci-constants.ts` and mirrored in `s
 High-Precision Timing Protocol providing femtosecond-scale timestamps anchored to the Salvi Epoch (April 1, 2025 00:00:00 UTC). Includes:
 - Network latency correction
 - Self-test endpoint (1000-sample jitter analysis)
-- Synchronization across 24 global calendar systems spanning 30,000+ years
+- Synchronization across 42 global calendar systems spanning 30,000+ years
 
 ### CNSA 2.0 Cryptographic Suite
 11/11 required algorithms implemented in Rust:
@@ -131,7 +131,7 @@ The platform exposes 194 endpoints through Kong Konnect:
 |----------|-----------|-------------|
 | Ternary Ops | `/api/salvi/ternary/*` | Add, multiply, XOR, rotate, batch, density |
 | Timing | `/api/salvi/timing/*` | Timestamps, metrics, batch, epoch anchors |
-| Calendars | `/api/salvi/timing/epoch/calendars/*` | 24 calendar system conversions |
+| Calendars | `/api/salvi/timing/epoch/calendars/*` | 42 calendar system conversions |
 | Phase | `/api/salvi/phase/*` | Split, recombine, config, recommend |
 | Compression | `/api/demo/*` | PlenumDB live demo, stats, history |
 

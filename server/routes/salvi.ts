@@ -73,6 +73,24 @@ import {
   toBalinesePawukonDate,
   toZoroastrianFasliDate,
   toAboriginalSeasonalDate,
+  toAssyrianDate,
+  toNisgaaSeasonalDate,
+  toYorubaDate,
+  toJainDate,
+  toTamilDate,
+  toVietnameseDate,
+  toVikramSamvatDate,
+  toKhmerDate,
+  toBurmeseDate,
+  toJavaneseDate,
+  toMalayalamDate,
+  toNepalSambatDate,
+  toNanakshahiDate,
+  toBahaiDate,
+  toMinguoDate,
+  toIgboDate,
+  toAkanDate,
+  toGregorianDate,
 } from "../salvi-core/ancient-calendar-sync";
 import {
   startErrorBudgetMonitor,
@@ -177,11 +195,11 @@ export function registerSalviRoutes(app: Express): void {
           },
           epochAnchors: {
             path: "GET /api/salvi/timing/epoch/anchors",
-            description: "Get Salvi Epoch anchor points across 24 ancient calendar systems"
+            description: "Get Salvi Epoch anchor points across 42 ancient calendar systems"
           },
           epochCalendars: {
             path: "GET /api/salvi/timing/epoch/calendars",
-            description: "Full ancient calendar synchronization across 24 global calendar systems spanning 30,000+ years",
+            description: "Full ancient calendar synchronization across 42 global calendar systems spanning 30,000+ years",
             query: { date: "ISO 8601 date (optional, defaults to Salvi Epoch)" }
           },
           calendarEndpoints: {
@@ -208,7 +226,25 @@ export function registerSalviRoutes(app: Express): void {
             berber: "GET /api/salvi/timing/epoch/calendars/berber",
             balinese: "GET /api/salvi/timing/epoch/calendars/balinese",
             zoroastrian: "GET /api/salvi/timing/epoch/calendars/zoroastrian",
-            aboriginal: "GET /api/salvi/timing/epoch/calendars/aboriginal"
+            aboriginal: "GET /api/salvi/timing/epoch/calendars/aboriginal",
+            assyrian: "GET /api/salvi/timing/epoch/calendars/assyrian",
+            nisgaa: "GET /api/salvi/timing/epoch/calendars/nisgaa",
+            yoruba: "GET /api/salvi/timing/epoch/calendars/yoruba",
+            jain: "GET /api/salvi/timing/epoch/calendars/jain",
+            tamil: "GET /api/salvi/timing/epoch/calendars/tamil",
+            vietnamese: "GET /api/salvi/timing/epoch/calendars/vietnamese",
+            vikramSamvat: "GET /api/salvi/timing/epoch/calendars/vikram-samvat",
+            khmer: "GET /api/salvi/timing/epoch/calendars/khmer",
+            burmese: "GET /api/salvi/timing/epoch/calendars/burmese",
+            javanese: "GET /api/salvi/timing/epoch/calendars/javanese",
+            malayalam: "GET /api/salvi/timing/epoch/calendars/malayalam",
+            nepalSambat: "GET /api/salvi/timing/epoch/calendars/nepal-sambat",
+            nanakshahi: "GET /api/salvi/timing/epoch/calendars/nanakshahi",
+            bahai: "GET /api/salvi/timing/epoch/calendars/bahai",
+            minguo: "GET /api/salvi/timing/epoch/calendars/minguo",
+            igbo: "GET /api/salvi/timing/epoch/calendars/igbo",
+            akan: "GET /api/salvi/timing/epoch/calendars/akan",
+            gregorian: "GET /api/salvi/timing/epoch/calendars/gregorian"
           }
         },
         phase: {
@@ -927,6 +963,24 @@ export function registerSalviRoutes(app: Express): void {
   calendarRouteHelper(app, "balinese", "Balinese Pawukon", toBalinesePawukonDate);
   calendarRouteHelper(app, "zoroastrian", "Zoroastrian Fasli", toZoroastrianFasliDate);
   calendarRouteHelper(app, "aboriginal", "Aboriginal Australian Seasonal", toAboriginalSeasonalDate);
+  calendarRouteHelper(app, "assyrian", "Assyrian", toAssyrianDate);
+  calendarRouteHelper(app, "nisgaa", "Nisg\u0331a'a Seasonal", toNisgaaSeasonalDate);
+  calendarRouteHelper(app, "yoruba", "Yoruba", toYorubaDate);
+  calendarRouteHelper(app, "jain", "Jain (Vira Nirvana Samvat)", toJainDate);
+  calendarRouteHelper(app, "tamil", "Tamil", toTamilDate);
+  calendarRouteHelper(app, "vietnamese", "Vietnamese", toVietnameseDate);
+  calendarRouteHelper(app, "vikram-samvat", "Vikram Samvat", toVikramSamvatDate);
+  calendarRouteHelper(app, "khmer", "Khmer (Cambodian)", toKhmerDate);
+  calendarRouteHelper(app, "burmese", "Burmese", toBurmeseDate);
+  calendarRouteHelper(app, "javanese", "Javanese", toJavaneseDate);
+  calendarRouteHelper(app, "malayalam", "Malayalam (Kollam Era)", toMalayalamDate);
+  calendarRouteHelper(app, "nepal-sambat", "Nepal Sambat", toNepalSambatDate);
+  calendarRouteHelper(app, "nanakshahi", "Nanakshahi (Sikh)", toNanakshahiDate);
+  calendarRouteHelper(app, "bahai", "Bah\u00e1'\u00ed (Bad\u00ed')", toBahaiDate);
+  calendarRouteHelper(app, "minguo", "Minguo (Republic of China)", toMinguoDate);
+  calendarRouteHelper(app, "igbo", "Igbo", toIgboDate);
+  calendarRouteHelper(app, "akan", "Akan", toAkanDate);
+  calendarRouteHelper(app, "gregorian", "Gregorian", toGregorianDate);
 
   // =====================================================
   // SALVI CORE API - Phase Encryption

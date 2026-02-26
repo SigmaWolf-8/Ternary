@@ -31,7 +31,7 @@ The following technologies, methods, and systems described in this repository ar
 - Femtosecond-precision timing service architecture
 - Salvi Epoch timing system (epoch: 2025-04-01T00:00:00Z)
 - NTP-symmetric correction model for distributed timing
-- Ancient calendar synchronization across 24 global calendar systems
+- Ancient calendar synchronization across 42 global calendar systems
 - Timing-window enforced encryption operations
 
 ### 1.4 Torsion Network Architecture

@@ -52,7 +52,7 @@ This document is an internal planning tool. It does not change the current licen
 |-----------|------|----------|-------------|------|---------------|
 | HPTP Core Engine | `src/timing-api/`, `server/salvi-core/` | TypeScript/Rust | ~3,000 | **Tier 0** | Femtosecond timing protocol. Novel. Monetizable via FINRA/MiFID compliance use case. Potentially patentable. |
 | Salvi Epoch Definition | `shared/tribonacci-constants.ts`, kernel constants | TypeScript/Rust | ~100 | **Tier 0** | Epoch anchoring system. Integral to HPTP and calendar sync. |
-| 24-Calendar Synchronization | `server/routes.ts` (calendar endpoints) | TypeScript | ~2,000 | **Tier 1** | Impressive capability spanning 30,000+ years. Not directly monetizable but supports HPTP value proposition. |
+| 42-Calendar Synchronization | `server/routes.ts` (calendar endpoints) | TypeScript | ~3,200 | **Tier 1** | Impressive capability spanning 30,000+ years. Not directly monetizable but supports HPTP value proposition. |
 | Network Latency Correction | `server/salvi-core/` | TypeScript | ~500 | **Tier 1** | Essential for HPTP accuracy at customer endpoints. |
 | Self-Test Jitter Analysis | `server/salvi-core/` | TypeScript | ~300 | **Tier 2** | Diagnostic capability. Supports compliance audits. |
 

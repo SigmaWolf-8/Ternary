@@ -1068,7 +1068,7 @@ function CalendarPreviewSection() {
     {
       problem: "Calendar Fragmentation",
       description: "12+ epoch dates with incompatible rules. Hebrew lunisolar, Islamic lunar, and Mayan vigesimal need 144 conversion functions.",
-      solution: "Single JDN intermediary: O(n) instead of O(n\u00B2). 24 functions cover all 12 calendars.",
+      solution: "Single JDN intermediary: O(n) instead of O(n\u00B2). 84 functions cover all 42 calendars.",
       icon: Globe,
     },
     {

@@ -360,7 +360,7 @@ function EndpointReference() {
     { method: "GET", path: "/api/salvi/timing/metrics", desc: "Clock source & sync status" },
     { method: "GET", path: "/api/salvi/timing/batch/:count", desc: "Batch timestamp generation" },
     { method: "GET", path: "/api/salvi/timing/epoch/anchors", desc: "Salvi Epoch anchor points" },
-    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "All 24 calendars (add ?date=YYYY-MM-DD for any date)" },
+    { method: "GET", path: "/api/salvi/timing/epoch/calendars", desc: "All 42 calendars (add ?date=YYYY-MM-DD for any date)" },
     { method: "GET", path: "/api/salvi/timing/epoch/calendars/:system", desc: "Individual calendar (add ?date= for any date)" },
   ];
 
@@ -517,7 +517,7 @@ function UniversalDateConverter() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Query any Gregorian date and get its equivalent across all 24 calendrical systems. Leave blank for today's date.
+          Query any Gregorian date and get its equivalent across all 42 calendrical systems. Leave blank for today's date.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <input
@@ -778,7 +778,7 @@ export default function HPTPDemo() {
           <Badge variant="default" data-testid="badge-live">LIVE</Badge>
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl" data-testid="text-page-description">
-          High-Precision Timing Protocol delivering femtosecond-resolution timestamps synchronized across 24 global calendar systems spanning every inhabited continent. 
+          High-Precision Timing Protocol delivering femtosecond-resolution timestamps synchronized across 42 global calendar systems spanning every inhabited continent. 
           Production-grade API designed for FINRA CAT and MiFID II timing requirements in quantum-resistant financial infrastructure.
         </p>
       </div>

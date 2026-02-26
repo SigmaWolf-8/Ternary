@@ -508,13 +508,13 @@ Physical implementation designs:
 | GET | `/api/salvi/timing/metrics` | Timing metrics and synchronization status |
 | GET | `/api/salvi/timing/batch/:count` | Generate batch of N timestamps |
 
-### 4. Calendar Synchronization (26 endpoints)
+### 4. Calendar Synchronization (44 endpoints)
 
-**Source**: `server/routes/salvi.ts` — 24 ancient calendar system conversions
+**Source**: `server/routes/salvi.ts` — 42 ancient calendar system conversions
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/salvi/timing/epoch/anchors` | Get Salvi Epoch anchor points across all 24 calendar systems |
+| GET | `/api/salvi/timing/epoch/anchors` | Get Salvi Epoch anchor points across all 42 calendar systems |
 | GET | `/api/salvi/timing/epoch/calendars` | List all available calendar conversions |
 | GET | `/api/salvi/timing/epoch/calendars/mayan` | Mayan Long Count conversion |
 | GET | `/api/salvi/timing/epoch/calendars/hebrew` | Hebrew calendar conversion |
@@ -856,7 +856,7 @@ The PQTI (Post-Quantum Ternary Internet) layer exists as Rust kernel code and CI
 |---|---------|----------|-------------|
 | 1 | `plenumnet-ternary` | Core | GF(3) arithmetic engine |
 | 2 | `plenumnet-timing` | Core | HPTP femtosecond timing |
-| 3 | `plenumnet-calendars` | Core | 24 calendar system conversions |
+| 3 | `plenumnet-calendars` | Core | 42 calendar system conversions |
 | 4 | `plenumnet-phase` | Core | Phase encryption |
 | 5 | `plenumnet-vm` | Core | 176-opcode TVM ISA v2.1 |
 | 6 | `plenumnet-docs` | Reference | API documentation |

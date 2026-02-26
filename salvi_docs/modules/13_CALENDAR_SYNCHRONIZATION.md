@@ -194,7 +194,7 @@ class HunabKuProtocol {
 
 ### 3.2 Conversion Architecture: JDN Intermediary Pattern
 
-All 12 calendar conversions route through Julian Day Number as universal intermediary. This achieves O(n) efficiency: 24 functions (12 to-JDN + 12 from-JDN) instead of O(n²) = 144 direct conversion functions.
+All 42 calendar conversions route through Julian Day Number as universal intermediary. This achieves O(n) efficiency: 84 functions (42 to-JDN + 42 from-JDN) instead of O(n²) = 1,764 direct conversion functions.
 
 ```typescript
 class UniversalCalendarConverter {

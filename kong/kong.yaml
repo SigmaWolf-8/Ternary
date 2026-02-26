@@ -38,7 +38,7 @@ services:
           - plenumnet
           - timing
 
-  # 2. Ancient Calendar Synchronization Service (24 calendars)
+  # 2. Ancient Calendar Synchronization Service (42 calendars)
   - name: plenumnet-calendars
     url: https://plenumnet.replit.app/api/salvi/timing/epoch
     enabled: true
