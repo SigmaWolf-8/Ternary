@@ -14,6 +14,18 @@
  * See LICENSE in the repository root for full terms.
  */
 
+process.on("SIGHUP", () => {});
+
+const _originalProcessExit = process.exit.bind(process);
+let _serverListening = false;
+(process as any).exit = ((code?: number) => {
+  if (code === 1 && _serverListening) {
+    console.error("[recovery] Suppressed process.exit(1) — API server stays alive (Vite HMR may be degraded until restart)");
+    return undefined as never;
+  }
+  return _originalProcessExit(code);
+}) as typeof process.exit;
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -26,7 +38,9 @@ import { existsSync } from "fs";
 import * as path from "path";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
-import { NotificationService, tsaMetricsRegistry } from "./services/notification-service";
+import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
+import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
+import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 
 const app = express();
 const httpServer = createServer(app);
@@ -61,14 +75,14 @@ app.use('/api/tsa/timestamp', (req, _res, next) => {
 
 app.use(
   express.json({
-    limit: '10mb',
+    limit: '50mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -113,23 +127,31 @@ function startPqtiService(): ChildProcess | null {
     log("PQTI binary not found at target/release/pqti-service — skipping", "pqti");
     return null;
   }
-  const child = spawn(binaryPath, [], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env },
-  });
-  child.stdout?.on("data", (data: Buffer) => {
-    const msg = data.toString().trim();
-    if (msg) log(msg, "pqti");
-  });
-  child.stderr?.on("data", (data: Buffer) => {
-    const msg = data.toString().trim();
-    if (msg) log(`error: ${msg}`, "pqti");
-  });
-  child.on("exit", (code) => {
-    log(`PQTI service exited with code ${code}`, "pqti");
-  });
-  log("PQTI service started on port 3001", "pqti");
-  return child;
+  try {
+    const child = spawn(binaryPath, [], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env },
+    });
+    child.on("error", (err) => {
+      log(`PQTI spawn error (non-fatal): ${err.message}`, "pqti");
+    });
+    child.stdout?.on("data", (data: Buffer) => {
+      const msg = data.toString().trim();
+      if (msg) log(msg, "pqti");
+    });
+    child.stderr?.on("data", (data: Buffer) => {
+      const msg = data.toString().trim();
+      if (msg) log(`error: ${msg}`, "pqti");
+    });
+    child.on("exit", (code) => {
+      log(`PQTI service exited with code ${code}`, "pqti");
+    });
+    log("PQTI service started on port 3001", "pqti");
+    return child;
+  } catch (err) {
+    log(`PQTI failed to start (non-fatal): ${(err as Error).message}`, "pqti");
+    return null;
+  }
 }
 
 (async () => {
@@ -189,7 +211,25 @@ function startPqtiService(): ChildProcess | null {
     },
   };
 
-  const tsaService = new TsaService(tsaConfig, hptpClientForTsa, tldsaClientForTsa);
+  const calendarClient: CalendarServiceClient = {
+    async convertDate(utcTimestamp: string) {
+      const date = new Date(utcTimestamp);
+      const sync = getSalviEpochCalendarSync(date);
+      const epochDate = new Date('2025-04-01T00:00:00.000Z');
+      const salviEpochDay = Math.floor((date.getTime() - epochDate.getTime()) / 86_400_000);
+      const jdnMapping = sync.allMappings.find((m: any) =>
+        m.calendarSystem === 'Julian Day Number'
+      );
+      return {
+        julianDayNumber: jdnMapping?.daysSinceCalendarOrigin || 0,
+        salviEpochDay,
+        calendars: sync.calendars || {},
+        allMappings: sync.allMappings || [],
+      };
+    },
+  };
+
+  const tsaService = new TsaService(tsaConfig, hptpClientForTsa, tldsaClientForTsa, calendarClient);
   try {
     const tsaInit = await tsaService.initialize();
     log(`TSA initialized — serial: ${tsaInit.serialRestored}, cert: ${tsaInit.certSubject}, expires: ${tsaInit.certExpiry}`, 'tsa');
@@ -205,7 +245,13 @@ function startPqtiService(): ChildProcess | null {
     tldsaClient: tldsaClientForTsa,
     tsaService: tsaService,
   });
-  log(`Notification TSA integration active — Phase ${process.env.TSA_NOTIFICATION_PHASE || '2'}`, 'notify');
+  log(`Notification TSA integration active — Phase ${EFFECTIVE_PHASE}`, 'notify');
+  if (EFFECTIVE_PHASE === 3) {
+    console.warn(
+      'Notification TSA integration running Phase 3 (TSA-only). ' +
+      'Legacy headers disabled. Confirm all downstream consumers have migrated.',
+    );
+  }
 
   app.get('/metrics/notification-tsa', async (_req, res) => {
     res.set('Content-Type', tsaMetricsRegistry.contentType);
@@ -287,6 +333,7 @@ function startPqtiService(): ChildProcess | null {
       reusePort: true,
     },
     () => {
+      _serverListening = true;
       log(`serving on port ${port}`);
     },
   );
