@@ -35,7 +35,11 @@ import { registerCapabilityRoutes } from "./routes/capabilities";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
-import * as XLSX from "xlsx";
+let _xlsx: typeof import("xlsx") | null = null;
+async function getXLSX() {
+  if (!_xlsx) _xlsx = await import("xlsx");
+  return _xlsx;
+}
 import { 
   compressData,
   decompressData,
@@ -319,6 +323,7 @@ export async function registerRoutes(
           const parsed = JSON.parse(content);
           rawData = Array.isArray(parsed) ? parsed : [parsed];
         } else if (fileType === "xlsx") {
+          const XLSX = await getXLSX();
           const binaryData = Buffer.from(content, 'base64');
           const workbook = XLSX.read(binaryData, { type: 'buffer' });
           const firstSheetName = workbook.SheetNames[0];
