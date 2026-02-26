@@ -4,7 +4,7 @@
  * Applied Physics Division
  *
  * CAPABILITY TOKEN SCHEMA
- * @version 1.0.0
+ * @version 2.0.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   shared/types/capability.ts
@@ -12,6 +12,8 @@
  * Defines the structure of PlenumNET capability tokens — unforgeable,
  * self-contained, bearer-verified authorization tokens signed with TL-DSA.
  * Phase 1: typed constraints + HPTP-anchored expiration.
+ * Phase 2: HPTP-bound expiration — timing engine wired into validation.
+ * Phase 3: HMAC-chained delegation — macaroon-style attenuation.
  * Phase 4 adds hardware binding + single-use chains.
  */
 

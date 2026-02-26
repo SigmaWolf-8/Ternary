@@ -31,6 +31,7 @@ import { registerEphemerisRoutes } from "./routes/ephemeris";
 import { registerTonalFieldRoutes } from "./routes/tonal-field";
 import { registerPPTProIntegrationRoutes } from "./routes/pptpro-integration";
 import { registerPqtiRoutes } from "./routes/pqti";
+import { registerCapabilityRoutes } from "./routes/capabilities";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
@@ -997,6 +998,11 @@ export async function registerRoutes(
   // TONAL DIFFUSION API — tonal field, resonance, metrics
   // =====================================================
   registerTonalFieldRoutes(app);
+
+  // =====================================================
+  // CAPABILITY TOKEN API — Phase 2 (HPTP expiration) + Phase 3 (HMAC delegation)
+  // =====================================================
+  registerCapabilityRoutes(app);
 
   return httpServer;
 }
