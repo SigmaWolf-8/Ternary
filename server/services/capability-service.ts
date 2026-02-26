@@ -3,14 +3,18 @@
  * Patent(s) Pending — All Rights Reserved
  * Applied Physics Division
  *
- * CAPABILITY TOKEN SERVICE — Phases 2 + 3
- * @version 2.0.0
+ * CAPABILITY TOKEN SERVICE — Phases 1-3
+ * @version 4.0.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/services/capability-service.ts
  *
+ * Phase 1: Typed constraint registry + capability token schema + audit events.
  * Phase 2: HPTP-bound expiration — timing engine wired into token validation.
  * Phase 3: HMAC-chained delegation — macaroon-style attenuation with TL-DSA roots.
+ * Phase 4: Hardware binding — see capability-hardware-binding.ts
+ * Phase 5: RFC 3161 certificates — see capability-certificates.ts
+ * Phase 6: Inter-service mesh — see capability-mesh.ts
  */
 
 import crypto from 'crypto';
