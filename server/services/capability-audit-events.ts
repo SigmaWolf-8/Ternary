@@ -274,3 +274,12 @@ export class CapabilityAuditLog {
     };
   }
 }
+
+let _sharedAuditLog: CapabilityAuditLog | null = null;
+
+export function getSharedAuditLog(): CapabilityAuditLog {
+  if (!_sharedAuditLog) {
+    _sharedAuditLog = new CapabilityAuditLog('server/crypto/tsa-keys');
+  }
+  return _sharedAuditLog;
+}

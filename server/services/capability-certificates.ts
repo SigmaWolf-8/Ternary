@@ -24,12 +24,11 @@ import {
   SignedCapabilityToken,
   CapabilityToken,
 } from '../../shared/types/capability';
-import { CapabilityAuditLog } from './capability-audit-events';
+import { getSharedAuditLog } from './capability-audit-events';
 import {
   getFemtosecondTimestamp,
 } from '../salvi-core/femtosecond-timing';
 
-const KEYS_DIR = 'server/crypto/tsa-keys';
 const CAPABILITY_CERT_POLICY_OID = '1.3.6.1.4.1.0.100.3.1';
 
 function getHptpNanoseconds(): string {
@@ -40,11 +39,9 @@ function getHptpNanoseconds(): string {
 export class CapabilityCertificateService {
   private certificates: Map<string, CapabilityCertificate> = new Map();
   private evidenceChains: Map<string, EvidenceChainEntry[]> = new Map();
-  private auditLog: CapabilityAuditLog;
+  private auditLog = getSharedAuditLog();
 
-  constructor() {
-    this.auditLog = new CapabilityAuditLog(KEYS_DIR);
-  }
+  constructor() {}
 
   issueCapabilityCertificate(signedToken: SignedCapabilityToken): CapabilityCertificate {
     const hptpNs = getHptpNanoseconds();

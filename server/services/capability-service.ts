@@ -31,14 +31,12 @@ import {
   VerificationContext,
   validateAllConstraints,
 } from '../../shared/types/capability-constraints';
-import { CapabilityAuditLog } from './capability-audit-events';
+import { getSharedAuditLog } from './capability-audit-events';
 import {
   getFemtosecondTimestamp,
   FEMTOSECONDS_PER_MILLISECOND,
   FEMTOSECONDS_PER_SECOND,
 } from '../salvi-core/femtosecond-timing';
-
-const KEYS_DIR = 'server/crypto/tsa-keys';
 
 export interface HptpExpirationWindow {
   issued_hptp_ns: string;
@@ -100,12 +98,10 @@ function formatNsRemaining(ns: bigint): string {
 }
 
 export class CapabilityService {
-  private auditLog: CapabilityAuditLog;
+  private auditLog = getSharedAuditLog();
   private usageCounts: Map<string, number> = new Map();
 
-  constructor() {
-    this.auditLog = new CapabilityAuditLog(KEYS_DIR);
-  }
+  constructor() {}
 
   getHptpNow(): string {
     return getHptpNanoseconds();

@@ -32,12 +32,11 @@ import {
   createCapabilityToken,
 } from '../../shared/types/capability';
 import { CapabilityConstraint, VerificationContext } from '../../shared/types/capability-constraints';
-import { CapabilityAuditLog } from './capability-audit-events';
+import { getSharedAuditLog } from './capability-audit-events';
 import {
   getFemtosecondTimestamp,
 } from '../salvi-core/femtosecond-timing';
 
-const KEYS_DIR = 'server/crypto/tsa-keys';
 const DEFAULT_CHALLENGE_WINDOW_NS = 5_000_000_000n;
 
 interface DeviceRegistration {
@@ -56,11 +55,9 @@ export class HardwareBindingEngine {
   private challenges: Map<string, HptpChallenge> = new Map();
   private consumedNonces: Set<string> = new Set();
   private chains: Map<string, SingleUseChainState> = new Map();
-  private auditLog: CapabilityAuditLog;
+  private auditLog = getSharedAuditLog();
 
-  constructor() {
-    this.auditLog = new CapabilityAuditLog(KEYS_DIR);
-  }
+  constructor() {}
 
   registerDevice(deviceId: string, bindingType: HardwareBindingType): HardwareBinding {
     const hptpNs = getHptpNanoseconds();

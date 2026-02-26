@@ -28,12 +28,10 @@ import {
   createCapabilityToken,
 } from '../../shared/types/capability';
 import { CapabilityConstraint } from '../../shared/types/capability-constraints';
-import { CapabilityAuditLog } from './capability-audit-events';
+import { getSharedAuditLog } from './capability-audit-events';
 import {
   getFemtosecondTimestamp,
 } from '../salvi-core/femtosecond-timing';
-
-const KEYS_DIR = 'server/crypto/tsa-keys';
 
 function getHptpNanoseconds(): string {
   const ts = getFemtosecondTimestamp();
@@ -44,11 +42,9 @@ export class CapabilityMeshService {
   private services: Map<string, ServiceNode> = new Map();
   private meshCapabilities: Map<string, MeshCapability> = new Map();
   private serviceCapabilityEdges: Map<string, Set<string>> = new Map();
-  private auditLog: CapabilityAuditLog;
+  private auditLog = getSharedAuditLog();
 
-  constructor() {
-    this.auditLog = new CapabilityAuditLog(KEYS_DIR);
-  }
+  constructor() {}
 
   registerService(
     serviceId: string,
