@@ -240,6 +240,10 @@ function startPqtiService(): ChildProcess | null {
   app.use('/api/tsa', createTsaRoutes(tsaService));
   log('TSA — 8 endpoints at /api/tsa/* (Kong service #21)', 'tsa');
 
+  const { capabilityCertificateService } = await import('./services/capability-certificates');
+  capabilityCertificateService.setTsaService(tsaService);
+  log('Capability certificates wired to real TSA service — RFC 3161 integration active', 'capabilities');
+
   const notificationService = new NotificationService({
     hptpClient: hptpClientForTsa,
     tldsaClient: tldsaClientForTsa,

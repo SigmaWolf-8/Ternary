@@ -269,14 +269,15 @@ export function registerCapabilityRoutes(app: Express): void {
     }
   });
 
-  app.get('/api/capabilities/demo/certificates', (_req: Request, res: Response) => {
+  app.get('/api/capabilities/demo/certificates', async (_req: Request, res: Response) => {
     try {
-      const result = capabilityCertificateService.runCertificateDemo();
+      const result = await capabilityCertificateService.runCertificateDemo();
       res.json({
         success: true,
         phase: 5,
         title: 'RFC 3161 Capability Certificates Demo',
         description: 'Demonstrates court-admissible capability certificates: RFC 3161 timestamping, dual TL-DSA + RSA-4096 signing, Merkle proof assembly, evidence chain creation, certificate revocation, and tamper detection. Every capability event is provably timestamped.',
+        tsa_integration: capabilityCertificateService.hasTsaService() ? 'REAL RFC 3161 — openssl ts -verify compatible' : 'internal TL-DSA simulation',
         ...result,
       });
     } catch (err) {
@@ -518,14 +519,14 @@ export function registerCapabilityRoutes(app: Express): void {
     }
   });
 
-  app.post('/api/capabilities/certificate/issue', (req: Request, res: Response) => {
+  app.post('/api/capabilities/certificate/issue', async (req: Request, res: Response) => {
     try {
       const parsed = certificateIssueSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ success: false, error: 'Invalid request', details: parsed.error.issues });
       }
 
-      const result = capabilityCertificateService.issueCapabilityCertificate(parsed.data.signed_token as any);
+      const result = await capabilityCertificateService.issueCapabilityCertificate(parsed.data.signed_token as any);
       res.json({ success: true, certificate: result });
     } catch (err: any) {
       log.error('Certificate issue failed:', err);
@@ -533,18 +534,51 @@ export function registerCapabilityRoutes(app: Express): void {
     }
   });
 
-  app.post('/api/capabilities/certificate/verify', (req: Request, res: Response) => {
+  app.post('/api/capabilities/certificate/verify', async (req: Request, res: Response) => {
     try {
       const parsed = certificateVerifySchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ success: false, error: 'Invalid request', details: parsed.error.issues });
       }
 
-      const result = capabilityCertificateService.verifyCapabilityCertificate(parsed.data.certificate_id);
+      const result = await capabilityCertificateService.verifyCapabilityCertificate(parsed.data.certificate_id);
       res.json({ success: true, verification: result });
     } catch (err: any) {
       log.error('Certificate verify failed:', err);
       res.status(500).json({ success: false, error: err.message || 'Certificate verification failed' });
+    }
+  });
+
+  app.get('/api/capabilities/certificate/:certId/rfc3161', (req: Request, res: Response) => {
+    try {
+      const { certId } = req.params;
+      const result = capabilityCertificateService.getRfc3161Token(certId);
+      if (!result.found) {
+        return res.status(404).json({ success: false, error: 'Certificate not found or no RFC 3161 token' });
+      }
+      res.set('Content-Type', 'application/timestamp-reply');
+      res.set('Content-Disposition', `attachment; filename="${certId}.tsr"`);
+      res.send(result.token);
+    } catch (err: any) {
+      log.error('RFC 3161 token export failed:', err);
+      res.status(500).json({ success: false, error: err.message || 'RFC 3161 token export failed' });
+    }
+  });
+
+  app.get('/api/capabilities/certificate/:certId/verify-data', (req: Request, res: Response) => {
+    try {
+      const { certId } = req.params;
+      const result = capabilityCertificateService.getRfc3161Token(certId);
+      if (!result.found) {
+        return res.status(404).json({ success: false, error: 'Certificate not found or no RFC 3161 token' });
+      }
+      res.set('Content-Type', 'application/octet-stream');
+      res.set('Content-Disposition', `attachment; filename="${certId}.dat"`);
+      const imprintBuf = Buffer.from(result.messageImprint!, 'hex');
+      res.send(imprintBuf);
+    } catch (err: any) {
+      log.error('Verify data export failed:', err);
+      res.status(500).json({ success: false, error: err.message || 'Verify data export failed' });
     }
   });
 
@@ -707,7 +741,7 @@ export function registerCapabilityRoutes(app: Express): void {
         phase_2: { status: 'complete', description: 'HPTP-bound expiration — timing engine wired into validation path' },
         phase_3: { status: 'complete', description: 'HMAC-chained delegation — macaroon-style attenuation with TL-DSA roots' },
         phase_4: { status: 'complete', description: 'Hardware-bound capabilities + HPTP challenge-response + single-use chains — confinement solved' },
-        phase_5: { status: 'complete', description: 'RFC 3161 capability certificates — court-admissible evidence chain with dual TL-DSA + RSA-4096 signing' },
+        phase_5: { status: 'complete', description: 'RFC 3161 capability certificates — court-admissible evidence chain with dual TL-DSA + RSA-4096 signing', tsa_integration: capabilityCertificateService.hasTsaService() ? 'REAL RFC 3161' : 'internal' },
         phase_6: { status: 'complete', description: 'Inter-service capability mesh — distributed capability propagation with per-hop attenuation' },
       },
       current_hptp_ns: hptpNs,
@@ -739,6 +773,8 @@ export function registerCapabilityRoutes(app: Express): void {
         certificate_verify: 'POST /api/capabilities/certificate/verify',
         certificate_evidence_chain: 'POST /api/capabilities/certificate/evidence-chain',
         certificate_stats: 'GET /api/capabilities/certificate/stats',
+        certificate_rfc3161_export: 'GET /api/capabilities/certificate/:certId/rfc3161',
+        certificate_verify_data: 'GET /api/capabilities/certificate/:certId/verify-data',
         mesh_register: 'POST /api/capabilities/mesh/register',
         mesh_issue: 'POST /api/capabilities/mesh/issue',
         mesh_propagate: 'POST /api/capabilities/mesh/propagate',

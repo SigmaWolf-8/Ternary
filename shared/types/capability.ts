@@ -141,6 +141,11 @@ export interface CapabilityCertificate {
     tsa_signature: string;
     tsa_algorithm: 'TL-DSA + RSA-4096';
     nonce: string;
+    rfc3161_token?: string;
+    rfc3161_serial?: string;
+    rfc3161_gen_time?: string;
+    rfc3161_policy?: string;
+    rfc3161_merkle_root?: string;
   };
   issued_at_hptp_ns: string;
   subject: string;
