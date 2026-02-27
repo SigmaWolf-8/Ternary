@@ -36,6 +36,10 @@ import {
   Scale,
   Gavel,
   Building2,
+  CircleDot,
+  Radio,
+  BadgeCheck,
+  ListChecks,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -211,7 +215,7 @@ const SECURITY_FEATURES = [
   {
     icon: Clock,
     title: "HPTP Timing",
-    description: "Femtosecond-precision timestamps via the High-Precision Timing Protocol.",
+    description: "High-Precision Timing Protocol with nanosecond-resolution timestamps. Designed for traceable time source integration (GPS/GNSS, atomic clock, stratum-1 NTP).",
   },
   {
     icon: FileSignature,
@@ -280,16 +284,16 @@ function HeroSection() {
           className="text-lg text-muted-foreground max-w-3xl mx-auto mb-3"
           data-testid="text-tsa-subtitle"
         >
-          Cryptographic proof-of-existence timestamps with dual-signature security,
-          Merkle tamper-evident audit, and 42-calendar context enrichment.
+          Cryptographic proof-of-existence timestamps implementing RFC 3161, RFC 5652, and RFC 5816 with RSA-4096 and post-quantum TL-DSA dual signatures. Independently verifiable via OpenSSL.
         </motion.p>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
           className="text-sm text-muted-foreground max-w-2xl mx-auto mb-8"
+          data-testid="text-tsa-standards"
         >
-          ETSI EN 319 421/422 \u00B7 RFC 5816 \u00B7 RFC 5652 (CMS) \u00B7 HPTP Femtosecond Precision \u00B7 Post-Quantum TL-DSA
+          Designed for ETSI EN 319 421/422 conformance \u00B7 RFC 5816 \u00B7 RFC 5652 (CMS) \u00B7 HPTP Timing \u00B7 Post-Quantum TL-DSA
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -373,6 +377,162 @@ function SecurityFeaturesSection() {
             </motion.div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+const LIVE_CAPABILITIES = [
+  "RFC 3161 compliant timestamp tokens with real RSA-4096 signatures",
+  "Standards-compliant CMS SignedData wire format (RFC 5652)",
+  "Dual-signature: RSA-4096 classical + post-quantum TL-DSA",
+  "Merkle tamper-evident audit log with cryptographic hash tree",
+  "5 policy tiers with unique OIDs and purpose-built configurations",
+  "42 calendar system enrichment via Calendar Context Extension",
+  "Independent verification via openssl ts -verify (with supplied CA file)",
+  "6 supported hash algorithms (SHA-2 and SHA-3 families)",
+];
+
+const ROADMAP_ITEMS = [
+  {
+    title: "IANA Private Enterprise Number",
+    description: "Register a PEN under the Capomastro Holdings arc to make policy OIDs globally unique. Currently uses PEN 0 (unregistered). IANA registration is free and takes a few weeks.",
+    status: "pending" as const,
+    effort: "Administrative",
+  },
+  {
+    title: "CA-Chained Certificate",
+    description: "Replace the self-signed TSA certificate with one issued under a publicly trusted CA chain with the id-kp-timeStamping EKU. This enables openssl ts -verify to work against system trust stores without requiring -CAfile.",
+    status: "pending" as const,
+    effort: "Administrative",
+  },
+  {
+    title: "Traceable Time Source",
+    description: "Connect a traceable time source (GPS/GNSS receiver, atomic clock, or NTP from a stratum-1 server with documented uncertainty budget) to substantiate declared accuracy claims on COMPLY and SENTINEL tiers.",
+    status: "pending" as const,
+    effort: "Infrastructure",
+  },
+];
+
+function ComplianceStatusSection() {
+  return (
+    <section className="py-16 md:py-20" data-testid="section-tsa-compliance-status">
+      <div className="max-w-6xl mx-auto px-5">
+        <div className="text-center mb-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
+              Implementation Status
+            </Badge>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-2xl md:text-3xl font-bold mb-3"
+            data-testid="text-compliance-status-title"
+          >
+            What Is Live Today
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="text-muted-foreground max-w-3xl mx-auto"
+          >
+            PlenumNET operates a cryptographic Time-Stamping Authority. The code is real, the infrastructure is real. The gap to regulated-grade TSA status is administrative, not technical.
+          </motion.p>
+        </div>
+
+        <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card className="p-5 h-full border-emerald-500/20" data-testid="card-live-capabilities">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                  <ListChecks className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Live Capabilities</h3>
+                  <p className="text-[10px] text-muted-foreground">Operational and verifiable today</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {LIVE_CAPABILITIES.map((cap, index) => (
+                  <div key={index} className="flex items-start gap-2 text-xs" data-testid={`text-live-cap-${index}`}>
+                    <Check className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">{cap}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Card className="p-5 h-full border-amber-500/20" data-testid="card-roadmap">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <Radio className="w-4 h-4 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Path to Regulated-Grade TSA</h3>
+                  <p className="text-[10px] text-muted-foreground">Administrative steps remaining</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {ROADMAP_ITEMS.map((item, index) => (
+                  <div key={index} className="space-y-1" data-testid={`card-roadmap-item-${index}`}>
+                    <div className="flex items-center gap-2">
+                      <CircleDot className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-foreground">{item.title}</span>
+                      <Badge variant="outline" className="text-[9px] ml-auto">{item.effort}</Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground pl-5 leading-relaxed">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mt-6 max-w-5xl mx-auto"
+        >
+          <Card className="p-5 border-primary/20" data-testid="card-conformance-note">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <BadgeCheck className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm mb-1">Standards Conformance</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This system is designed for ETSI EN 319 421/422 conformance pending external audit and CA-chained certificate issuance.
+                  The certificate is currently self-signed. Courts, financial regulators, and eIDAS recognize timestamps from TSAs whose
+                  certificates chain to a trusted root CA. ETSI conformance claims require assessment by an accredited conformity assessment body.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
       </div>
     </section>
   );
@@ -910,6 +1070,7 @@ export default function TsaPage() {
     <div className="min-h-screen" data-testid="page-tsa">
       <HeroSection />
       <SecurityFeaturesSection />
+      <ComplianceStatusSection />
       <PolicyTiersSection />
       <CalendarContextSection />
       <HashAlgorithmsSection />
