@@ -1,0 +1,231 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * CAPABILITY CONSTRAINT REGISTRY
+ * Location: shared/types/capability-constraints.ts
+ *
+ * 8 typed constraints. Discriminated union. Fail-closed on unknown types.
+ * Identical validation semantics across all verifiers (Kong, Rust, TypeScript).
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// CONSTRAINT TYPES — Discriminated Union
+// ═══════════════════════════════════════════════════════════════
+
+export type CapabilityConstraint =
+  | { type: 'recipient_domain'; value: string }
+  | { type: 'vault_id'; value: string }
+  | { type: 'template'; value: string }
+  | { type: 'max_uses'; value: number }
+  | { type: 'ip_range'; value: string }       // CIDR notation, IPv4 only (IPv6 requires separate handling)
+  | { type: 'geo_country'; value: string[] }
+  | { type: 'document_id'; value: string }
+  | { type: 'project_id'; value: string };
+
+// ═══════════════════════════════════════════════════════════════
+// VERIFICATION CONTEXT
+// ═══════════════════════════════════════════════════════════════
+
+export interface VerificationContext {
+  recipient?: string;
+  vault_id?: string;
+  template?: string;
+  ip_address?: string;
+  geo_country?: string;
+  document_id?: string;
+  project_id?: string;
+  [key: string]: unknown;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IPv4 CIDR MATCHING
+// ═══════════════════════════════════════════════════════════════
+
+function ipToUint32(ip: string): number {
+  const parts = ip.split('.').map(Number);
+  // >>> 0 coerces to unsigned 32-bit — required for IPs above 127.x.x.x
+  // Without this, JS treats the result as signed and IPs like 192.168.x.x become negative
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function isIpInCidr(ip: string, cidr: string): boolean {
+  const [network, prefixStr] = cidr.split('/');
+  const prefix = parseInt(prefixStr, 10);
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+  // All-zero mask when prefix is 0 (match everything)
+  const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+  const ipNum = ipToUint32(ip);
+  const netNum = ipToUint32(network);
+
+  return (ipNum & mask) === (netNum & mask);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INDIVIDUAL CONSTRAINT VALIDATORS
+// ═══════════════════════════════════════════════════════════════
+
+function validateRecipientDomain(constraint: { type: 'recipient_domain'; value: string }, ctx: VerificationContext): boolean {
+  if (!ctx.recipient) return false;
+  return ctx.recipient.endsWith(constraint.value);
+}
+
+function validateVaultId(constraint: { type: 'vault_id'; value: string }, ctx: VerificationContext): boolean {
+  if (!ctx.vault_id) return false;
+  return ctx.vault_id === constraint.value;
+}
+
+function validateTemplate(constraint: { type: 'template'; value: string }, ctx: VerificationContext): boolean {
+  if (!ctx.template) return false;
+  return ctx.template === constraint.value;
+}
+
+function validateIpRange(constraint: { type: 'ip_range'; value: string }, ctx: VerificationContext): boolean {
+  if (!ctx.ip_address) return false;
+  return isIpInCidr(ctx.ip_address, constraint.value);
+}
+
+function validateGeoCountry(constraint: { type: 'geo_country'; value: string[] }, ctx: VerificationContext): boolean {
+  if (!ctx.geo_country) return false;
+  return constraint.value.includes(ctx.geo_country);
+}
+
+function validateDocumentId(constraint: { type: 'document_id'; value: string }, ctx: VerificationContext): boolean {
+  if (!ctx.document_id) return false;
+  return ctx.document_id === constraint.value;
+}
+
+function validateProjectId(constraint: { type: 'project_id'; value: string }, ctx: VerificationContext): boolean {
+  if (!ctx.project_id) return false;
+  return ctx.project_id === constraint.value;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGGREGATE VALIDATION — Fail-closed on unknown types
+// ═══════════════════════════════════════════════════════════════
+
+export function validateConstraint(constraint: CapabilityConstraint, ctx: VerificationContext): boolean {
+  switch (constraint.type) {
+    case 'recipient_domain': return validateRecipientDomain(constraint, ctx);
+    case 'vault_id':         return validateVaultId(constraint, ctx);
+    case 'template':         return validateTemplate(constraint, ctx);
+    case 'max_uses':         return true; // Handled by usage counter in service layer, not here
+    case 'ip_range':         return validateIpRange(constraint, ctx);
+    case 'geo_country':      return validateGeoCountry(constraint, ctx);
+    case 'document_id':      return validateDocumentId(constraint, ctx);
+    case 'project_id':       return validateProjectId(constraint, ctx);
+    default:
+      // Fail-closed: unknown constraint type always denies
+      return false;
+  }
+}
+
+export function validateAllConstraints(
+  constraints: CapabilityConstraint[],
+  ctx: VerificationContext,
+): { granted: boolean; failed: CapabilityConstraint[] } {
+  const failed: CapabilityConstraint[] = [];
+  for (const constraint of constraints) {
+    if (!validateConstraint(constraint, ctx)) {
+      failed.push(constraint);
+    }
+  }
+  return { granted: failed.length === 0, failed };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ATTENUATION ENFORCEMENT — Authority can only diminish
+// ═══════════════════════════════════════════════════════════════
+
+export function enforceAttenuation(
+  parentConstraints: CapabilityConstraint[],
+  newAttenuations: CapabilityConstraint[],
+): { valid: boolean; violation?: string } {
+  for (const attn of newAttenuations) {
+    const existing = parentConstraints.find(c => c.type === attn.type);
+    if (!existing) continue; // Adding a new constraint type always narrows — permitted
+
+    switch (attn.type) {
+      case 'max_uses': {
+        const parentVal = (existing as { type: 'max_uses'; value: number }).value;
+        const newVal = (attn as { type: 'max_uses'; value: number }).value;
+        if (newVal > parentVal) {
+          return { valid: false, violation: `max_uses cannot expand: ${newVal} > parent ${parentVal}` };
+        }
+        break;
+      }
+      case 'geo_country': {
+        const parentCountries = (existing as { type: 'geo_country'; value: string[] }).value;
+        const newCountries = (attn as { type: 'geo_country'; value: string[] }).value;
+        const expanded = newCountries.filter(c => !parentCountries.includes(c));
+        if (expanded.length > 0) {
+          return { valid: false, violation: `geo_country cannot expand: [${expanded.join(',')}] not in parent set` };
+        }
+        break;
+      }
+      case 'recipient_domain': {
+        const parentDomain = (existing as { type: 'recipient_domain'; value: string }).value;
+        const newDomain = (attn as { type: 'recipient_domain'; value: string }).value;
+        // New domain must end with parent domain (narrowing) or be identical
+        if (!newDomain.endsWith(parentDomain)) {
+          return { valid: false, violation: `recipient_domain cannot expand: '${newDomain}' is not a subdomain of '${parentDomain}'` };
+        }
+        break;
+      }
+      case 'vault_id': {
+        const parentVal = (existing as { type: 'vault_id'; value: string }).value;
+        const newVal = (attn as { type: 'vault_id'; value: string }).value;
+        if (newVal !== parentVal) {
+          return { valid: false, violation: `vault_id cannot change: '${newVal}' !== parent '${parentVal}'` };
+        }
+        break;
+      }
+      case 'template': {
+        const parentVal = (existing as { type: 'template'; value: string }).value;
+        const newVal = (attn as { type: 'template'; value: string }).value;
+        if (newVal !== parentVal) {
+          return { valid: false, violation: `template cannot change: '${newVal}' !== parent '${parentVal}'` };
+        }
+        break;
+      }
+      case 'document_id': {
+        const parentVal = (existing as { type: 'document_id'; value: string }).value;
+        const newVal = (attn as { type: 'document_id'; value: string }).value;
+        if (newVal !== parentVal) {
+          return { valid: false, violation: `document_id cannot change: '${newVal}' !== parent '${parentVal}'` };
+        }
+        break;
+      }
+      case 'project_id': {
+        const parentVal = (existing as { type: 'project_id'; value: string }).value;
+        const newVal = (attn as { type: 'project_id'; value: string }).value;
+        if (newVal !== parentVal) {
+          return { valid: false, violation: `project_id cannot change: '${newVal}' !== parent '${parentVal}'` };
+        }
+        break;
+      }
+      case 'ip_range': {
+        // New CIDR must be contained within parent CIDR (same or longer prefix)
+        const parentCidr = (existing as { type: 'ip_range'; value: string }).value;
+        const newCidr = (attn as { type: 'ip_range'; value: string }).value;
+        const parentPrefix = parseInt(parentCidr.split('/')[1], 10);
+        const newPrefix = parseInt(newCidr.split('/')[1], 10);
+        if (newPrefix < parentPrefix) {
+          return { valid: false, violation: `ip_range cannot expand: /${newPrefix} is wider than parent /${parentPrefix}` };
+        }
+        // Verify the new network falls within the parent network
+        const [newNet] = newCidr.split('/');
+        if (!isIpInCidr(newNet, parentCidr)) {
+          return { valid: false, violation: `ip_range '${newCidr}' not contained within parent '${parentCidr}'` };
+        }
+        break;
+      }
+      default:
+        // Fail-closed: unknown constraint type cannot be attenuated
+        return { valid: false, violation: `Unknown constraint type cannot be attenuated` };
+    }
+  }
+  return { valid: true };
+}

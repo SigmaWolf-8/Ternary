@@ -1,0 +1,147 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * KEY MANAGEMENT SERVICE
+ * Location: server/crypto/key-management.ts
+ *
+ * Single point of access for all cryptographic signing operations.
+ * No signing key appears in application code. Services call this module.
+ *
+ * Wraps:
+ *   - TL-DSA bridge (server/crypto/tl-dsa-bridge.ts)
+ *   - RSA-4096 signer (server/crypto/rsa4096-signing.ts)
+ *   - HMAC delegation key derivation (HKDF from real TL-DSA root signatures)
+ */
+
+import crypto from 'crypto';
+import { TlDsaBridge, getTlDsaBridge, TlDsaSignatureResult } from './tl-dsa-bridge';
+import { RSA4096Signer, getRSA4096Signer } from './rsa4096-signing';
+
+export class KeyManagementService {
+  private tlDsa: TlDsaBridge;
+  private rsa: RSA4096Signer;
+
+  constructor(keysDir: string = 'server/crypto/tsa-keys') {
+    this.tlDsa = getTlDsaBridge(keysDir);
+    this.rsa = getRSA4096Signer(keysDir);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TL-DSA OPERATIONS — Token signing & verification
+  // ═══════════════════════════════════════════════════════════
+
+  async signToken(tokenHash: string): Promise<TlDsaSignatureResult> {
+    return this.tlDsa.sign(tokenHash);
+  }
+
+  async verifyTokenSignature(tokenHash: string, signature: string): Promise<boolean> {
+    return this.tlDsa.verify(tokenHash, signature, this.tlDsa.getPublicKeyId());
+  }
+
+  getTlDsaKeyId(): string {
+    return this.tlDsa.getPublicKeyId();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RSA-4096 OPERATIONS — Certificate dual-signatures
+  // ═══════════════════════════════════════════════════════════
+
+  signCertificateRSA(dataHex: string): string {
+    return this.rsa.signHex(dataHex);
+  }
+
+  verifyCertificateRSA(dataHex: string, signatureHex: string): boolean {
+    return this.rsa.verifyHex(dataHex, signatureHex);
+  }
+
+  getRSAPublicKeyPem(): string {
+    return this.rsa.getPublicKeyPem();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HMAC DELEGATION — Derived keys, never stored
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Derive the HMAC root key for a delegation chain.
+   * Uses HKDF with the actual TL-DSA root signature as input keying material.
+   * Per architecture doc: HKDF(ikm=rootSignature, salt=tokenJti, info='cap-delegation')
+   */
+  deriveChainRootKey(rootSignature: string, tokenJti: string): string {
+    const ikm = Buffer.from(rootSignature, 'hex');
+    const salt = Buffer.from(tokenJti, 'utf8');
+    const info = Buffer.from('cap-delegation', 'utf8');
+
+    // HKDF-Extract
+    const prk = crypto.createHmac('sha256', salt).update(ikm).digest();
+    // HKDF-Expand (single block, 32 bytes)
+    const okm = crypto.createHmac('sha256', prk).update(Buffer.concat([info, Buffer.from([1])])).digest();
+
+    return okm.toString('hex');
+  }
+
+  /**
+   * Compute a caveat HMAC in the delegation chain.
+   * Each caveat's HMAC output becomes the key for the next caveat.
+   */
+  computeCaveatHmac(key: string, caveatData: string): string {
+    return crypto.createHmac('sha256', Buffer.from(key, 'hex')).update(caveatData).digest('hex');
+  }
+
+  /**
+   * Timing-safe comparison for HMAC values.
+   */
+  compareHmac(a: string, b: string): boolean {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
+    } catch {
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DEVICE KEY OPERATIONS — Hardware binding
+  // ═══════════════════════════════════════════════════════════
+
+  generateDeviceKey(deviceId: string): { publicKeyHash: string } {
+    const result = this.tlDsa.generateDeviceKeyPair(deviceId);
+    return { publicKeyHash: result.publicKeyHash };
+  }
+
+  signDeviceChallenge(deviceId: string, nonce: string): string {
+    return this.tlDsa.signWithDeviceKey(deviceId, nonce);
+  }
+
+  verifyDeviceChallenge(deviceId: string, nonce: string, signature: string): boolean {
+    return this.tlDsa.verifyDeviceSignature(deviceId, nonce, signature);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MESH SIGNING — Per-service mesh token signatures
+  // ═══════════════════════════════════════════════════════════
+
+  async signMeshToken(meshData: string): Promise<TlDsaSignatureResult> {
+    const hash = crypto.createHash('sha3-256').update(meshData).digest('hex');
+    return this.tlDsa.sign(hash);
+  }
+
+  async verifyMeshSignature(meshData: string, signature: string): Promise<boolean> {
+    const hash = crypto.createHash('sha3-256').update(meshData).digest('hex');
+    return this.tlDsa.verify(hash, signature, this.tlDsa.getPublicKeyId());
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SINGLETON
+// ═══════════════════════════════════════════════════════════════
+
+let _kms: KeyManagementService | null = null;
+
+export function getKeyManagementService(keysDir: string = 'server/crypto/tsa-keys'): KeyManagementService {
+  if (!_kms) {
+    _kms = new KeyManagementService(keysDir);
+  }
+  return _kms;
+}

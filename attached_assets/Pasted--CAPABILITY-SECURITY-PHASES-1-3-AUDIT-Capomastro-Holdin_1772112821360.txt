@@ -1,0 +1,400 @@
+# CAPABILITY SECURITY — PHASES 1–3 AUDIT
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Document Classification:** INTERNAL — ENGINEERING
+**Date:** February 26, 2026
+**Repository:** SigmaWolf-8/Ternary
+**File Under Audit:** `server/services/capability-service.ts` (790 lines)
+**Supporting File:** `server/services/capability-audit-events.ts` (286 lines)
+**Supporting File:** `server/salvi-core/femtosecond-timing.ts` (241 lines)
+
+---
+
+## EXECUTIVE SUMMARY
+
+The Phase 1–3 capability service contains five defects. Three are critical — they collectively eliminate all cryptographic integrity from the delegation system. An attacker with access to the source code can construct a delegated capability token granting any resource, any subject, any constraints, and the system will accept it as valid. The delegation chain verification is structurally present but cryptographically hollow.
+
+The signing defects documented in the Phase 4–6 fixes (HMAC simulation with hardcoded keys) also affect every signing operation in this file. Those are not re-documented here — they are tracked under FIX-04 and FIX-05 in the Phase 4–6 Required Fixes document. This audit covers defects specific to the Phase 1–3 logic.
+
+---
+
+## DEFECT SUMMARY
+
+| ID | SEVERITY | DEFECT | LINES |
+|---|---|---|---|
+| P1-01 | **CRITICAL** | Root signature verification is a regex format check | 456–458 |
+| P1-02 | **CRITICAL** | Re-delegation skips root signature verification | 309–324 |
+| P1-03 | **CRITICAL** | Synthetic re-signing makes delegation validation self-confirming | 481–488 |
+| P1-04 | **HIGH** | Attenuation enforcement covers 2 of 8 constraint types | 263–291 |
+| P1-05 | **MEDIUM** | usageCounts unbounded memory growth | 102 |
+
+Combined exploit path: P1-01 + P1-02 + P1-03 + FIX-05 (hardcoded keys) = complete delegation forgery with no detection.
+
+---
+
+## P1-01: ROOT SIGNATURE VERIFICATION IS A FORMAT CHECK
+
+**Severity:** CRITICAL
+**File:** `server/services/capability-service.ts`
+**Lines:** 456–458
+
+### Defective Code
+
+```typescript
+private verifyRootSignatureFromChain(delegatedToken: DelegatedCapabilityToken): boolean {
+    const sig = delegatedToken.root_signature;
+    return sig.length === 64 && /^[0-9a-f]+$/.test(sig);
+}
+```
+
+### What It Does
+
+Checks that `root_signature` is a 64-character lowercase hex string. Nothing else.
+
+### What It Should Do
+
+Cryptographically verify the root signature against the original root token that produced it. The function `verifyRootSignature` at line 250 does exactly this — it recomputes the signature over the parent token and compares. But that function is never called from this code path.
+
+### Why This Matters
+
+This function is the gatekeeper for the entire delegation chain. It is called from `verifyDelegationChain` (line 411), which is the entry point for all delegated token validation. Every delegated capability token's chain of trust flows through this single check. The check verifies nothing.
+
+### Proof of Exploit
+
+```typescript
+// Attacker constructs a forged delegated token:
+const forgedToken: DelegatedCapabilityToken = {
+    root_signature: 'a'.repeat(64),  // passes: 64 chars, all hex
+    root_algorithm: 'TL-DSA',
+    token: createCapabilityToken('attacker@evil.com', [
+        { res: 'vault:admin', constraints: [], exp: farFutureNs }
+    ], hptpNs, 'forged_jti'),
+    delegation_chain: [],  // empty chain = no HMAC verification needed
+    chain_depth: 0,
+    parent_jti: 'fake_parent',
+    parent_token_hash: 'b'.repeat(64),
+};
+
+// verifyRootSignatureFromChain returns true (format check passes)
+// verifyDelegationChain returns { valid: true } (empty chain, no caveats to check)
+// validateDelegatedCapability proceeds to grant access
+```
+
+### Required Fix
+
+Delete `verifyRootSignatureFromChain`. Replace the call at line 411 with a call to the real `verifyRootSignature` method, passing the root signature and the original root token. This requires the `DelegatedCapabilityToken` to carry either the original root token hash or enough information to reconstruct the verification.
+
+Once the TL-DSA bridge (FIX-12) is in place, this verification becomes: `bridge.verify(issuerPublicKey, originalTokenHash, rootSignature)`. The root signature is a TL-DSA signature over the original token hash, and verification requires the issuer's public key — which an attacker does not possess.
+
+---
+
+## P1-02: RE-DELEGATION SKIPS ROOT VERIFICATION
+
+**Severity:** CRITICAL
+**File:** `server/services/capability-service.ts`
+**Lines:** 309–324
+
+### Defective Code
+
+```typescript
+delegateCapability(
+    parentSigned: SignedCapabilityToken | DelegatedCapabilityToken,
+    newSubject: string,
+    attenuations: CapabilityConstraint[],
+    ttlSeconds?: number,
+    ipAddress?: string,
+): DelegationResult {
+    // ...
+    let rootTokenForVerification: CapabilityToken;
+
+    if ('delegation_chain' in parentSigned) {
+        // DELEGATED TOKEN PATH — no root verification
+        parentToken = parentSigned.token;
+        rootSignature = parentSigned.root_signature;
+        existingChain = [...parentSigned.delegation_chain];
+        parentJti = parentSigned.parent_jti;
+        rootTokenForVerification = parentSigned.token;  // ← WRONG: this is the delegated token, not the root
+    } else {
+        // SIGNED TOKEN PATH — root verification happens here
+        parentToken = parentSigned.token;
+        rootSignature = parentSigned.signature;
+        parentJti = parentToken.jti;
+        rootTokenForVerification = parentToken;
+
+        if (!this.verifyRootSignature(rootSignature, parentToken)) {
+            throw new Error('Root TL-DSA signature verification failed — delegation rejected');
+        }
+    }
+    // Continues to issue new delegated token...
+}
+```
+
+### What It Does
+
+When delegating from a `SignedCapabilityToken` (first delegation), the root signature is verified against the token content. When delegating from a `DelegatedCapabilityToken` (second delegation onward), no root verification occurs. The root signature is blindly carried forward.
+
+### What It Should Do
+
+Verify the root signature on every delegation, regardless of depth. The HMAC chain only proves that each caveat was added by someone who possessed the previous HMAC key. It does not prove that the root signature is valid. If the root is forged, the entire chain is forged — every caveat HMAC can be recomputed from the forged root because the HKDF key (`'hkdf-derived-root'`) is in the source code (FIX-05).
+
+### Additional Bug
+
+`rootTokenForVerification` is set to `parentSigned.token` in the delegated path — which is the *delegated* token, not the original root token. Even if verification were called, it would verify the root signature against the wrong token.
+
+### Required Fix
+
+Verify the root signature at every delegation depth. The `DelegatedCapabilityToken` must carry the root token hash (it already has `parent_token_hash`, but this is the immediate parent, not the root). Add `root_token_hash: string` to the interface. At each delegation, verify: `bridge.verify(issuerPublicKey, rootTokenHash, rootSignature)`.
+
+---
+
+## P1-03: SYNTHETIC RE-SIGNING MAKES VALIDATION CIRCULAR
+
+**Severity:** CRITICAL
+**File:** `server/services/capability-service.ts`
+**Lines:** 481–488
+
+### Defective Code
+
+```typescript
+validateDelegatedCapability(
+    delegatedToken: DelegatedCapabilityToken,
+    resource: string,
+    context: VerificationContext,
+    ipAddress?: string,
+): CapabilityValidationResult & { delegation_chain_valid: boolean; chain_depth: number } {
+    const chainResult = this.verifyDelegationChain(delegatedToken);
+    if (!chainResult.valid) { /* reject */ }
+
+    // Creates a FRESH SignedCapabilityToken by re-signing the delegated token's content
+    const syntheticSigned: SignedCapabilityToken = {
+        token: delegatedToken.token,
+        signature: crypto
+            .createHmac('sha3-256', 'tldsa-simulated-key')
+            .update(this.auditLog.hashToken(delegatedToken.token))
+            .digest('hex'),
+        algorithm: 'TL-DSA',
+    };
+
+    // Passes the freshly-signed token to validateCapability...
+    const result = this.validateCapability(syntheticSigned, resource, context, ipAddress);
+    // ...which recomputes the same HMAC and compares it to the signature it just created
+    return { ...result, delegation_chain_valid: true, chain_depth: chainResult.chain_depth };
+}
+```
+
+### What It Does
+
+1. Calls `verifyDelegationChain`, which calls `verifyRootSignatureFromChain` (the format check — P1-01). If the root_signature is 64 hex chars, this passes.
+2. Creates a brand-new `SignedCapabilityToken` by signing the delegated token's content with `'tldsa-simulated-key'`.
+3. Passes this freshly-signed token to `validateCapability`.
+4. `validateCapability` (line 171) recomputes `crypto.createHmac('sha3-256', 'tldsa-simulated-key').update(tokenHash).digest('hex')` and compares it to the signature.
+5. The comparison always succeeds because the signature was just computed with the same key over the same data.
+
+### What It Should Do
+
+Validate the delegated token's *existing* root signature and HMAC chain — not create a new signature. The point of validation is to verify that the token was issued by a trusted authority. Re-signing the token and then verifying the re-signature proves nothing.
+
+### The Combined Exploit
+
+P1-01 + P1-02 + P1-03 together:
+
+1. Attacker constructs a `DelegatedCapabilityToken` with arbitrary content.
+2. Sets `root_signature` to any 64-char hex string (passes P1-01 format check).
+3. Computes the HMAC chain using `'hkdf-derived-root'` from the source code (FIX-05). Since the key is hardcoded, anyone can compute valid caveats.
+4. Calls `validateDelegatedCapability`.
+5. `verifyDelegationChain` passes (format check + valid HMACs from known key).
+6. System re-signs the forged token content and validates against its own signature.
+7. Access granted.
+
+The delegation system provides zero cryptographic integrity. It is structurally present — the code looks correct at a glance — but every verification step is either a format check, skipped, or self-confirming.
+
+### Required Fix
+
+Remove the synthetic re-signing entirely. Delegated token validation must:
+
+1. Verify the root signature cryptographically: `bridge.verify(issuerPublicKey, rootTokenHash, rootSignature)`.
+2. Verify the HMAC chain from the root signature downward (this part already works correctly at lines 422–446, once the HKDF key is derived from the real root signature instead of a hardcoded string).
+3. Validate constraints against the context (this part works correctly at line 232).
+4. Check HPTP expiration (this part works correctly).
+
+The root signature verification is the anchor. Without it, the HMAC chain is provably correct but rooted in nothing.
+
+---
+
+## P1-04: ATTENUATION ENFORCEMENT COVERS 2 OF 8 CONSTRAINT TYPES
+
+**Severity:** HIGH
+**File:** `server/services/capability-service.ts`
+**Lines:** 263–291
+
+### Defective Code
+
+```typescript
+private enforceAttenuation(
+    parentConstraints: CapabilityConstraint[],
+    newAttenuations: CapabilityConstraint[],
+): { valid: boolean; violation?: string } {
+    for (const attn of newAttenuations) {
+        const existing = parentConstraints.find(c => c.type === attn.type);
+        if (existing) {
+            switch (attn.type) {
+                case 'max_uses': {
+                    const parentMax = (existing as { type: 'max_uses'; value: number }).value;
+                    if ((attn as { type: 'max_uses'; value: number }).value > parentMax) {
+                        return { valid: false, violation: `max_uses cannot expand: ...` };
+                    }
+                    break;
+                }
+                case 'geo_country': {
+                    const parentCountries = (existing as { type: 'geo_country'; value: string[] }).value;
+                    const newCountries = (attn as { type: 'geo_country'; value: string[] }).value;
+                    const expanded = newCountries.filter(c => !parentCountries.includes(c));
+                    if (expanded.length > 0) {
+                        return { valid: false, violation: `geo_country cannot expand: ...` };
+                    }
+                    break;
+                }
+                // NO CASES FOR:
+                // - recipient_domain
+                // - vault_id
+                // - template
+                // - ip_range
+                // - document_id
+                // - project_id
+            }
+        }
+    }
+    return { valid: true };
+}
+```
+
+### What It Does
+
+Checks attenuation expansion for `max_uses` (new value cannot exceed parent) and `geo_country` (new countries must be subset of parent). All other constraint types pass without checking whether the new value expands authority.
+
+### What It Should Do
+
+Enforce monotonic attenuation for all 8 constraint types. The architecture document states: "authority can only diminish through the chain — never grow." The enforcement rules per type:
+
+| Constraint Type | Attenuation Rule | Current Status |
+|---|---|---|
+| `max_uses` | New value ≤ parent value | ✓ Enforced |
+| `geo_country` | New set ⊆ parent set | ✓ Enforced |
+| `recipient_domain` | New domain must match or narrow parent domain | ✗ Not enforced |
+| `vault_id` | Cannot change to a different vault | ✗ Not enforced |
+| `template` | Cannot change to a different template | ✗ Not enforced |
+| `ip_range` | New CIDR must be subset of parent CIDR | ✗ Not enforced |
+| `document_id` | Cannot change to a different document | ✗ Not enforced |
+| `project_id` | Cannot change to a different project | ✗ Not enforced |
+
+### Exploit Example
+
+```typescript
+// Parent token has: vault_id = 'vault-forensics-001'
+// Delegator changes to: vault_id = 'vault-admin-master'
+// enforceAttenuation returns { valid: true } — no expansion check for vault_id
+```
+
+### Required Fix
+
+Add expansion checks for all 8 types. The rules:
+
+- **recipient_domain:** New domain must end with the parent domain (e.g., `@legal.lawfirm.ca` narrows `@lawfirm.ca`, but `@otherfirm.com` does not).
+- **vault_id, template, document_id, project_id:** If parent specifies a value, the child cannot change it. It can only keep the same value or not include the constraint (which is more restrictive, not less). Changing to a different value is expansion.
+- **ip_range:** New CIDR prefix length must be ≥ parent prefix length, and the new network must be contained within the parent network. `10.0.1.0/24` narrows `10.0.0.0/16`. `192.168.0.0/16` does not.
+
+The fail-closed default for unknown constraint types (from the architecture document's constraint registry) should apply here too: if a constraint type is not in the switch, attenuation fails.
+
+---
+
+## P1-05: UNBOUNDED USAGE COUNT ACCUMULATION
+
+**Severity:** MEDIUM
+**File:** `server/services/capability-service.ts`
+**Line:** 102
+
+### Defective Code
+
+```typescript
+export class CapabilityService {
+    private usageCounts: Map<string, number> = new Map();
+    // ...
+
+    // Line 216-229: Increments and checks, never cleans up
+    const currentCount = (this.usageCounts.get(token.jti) || 0) + 1;
+    if (currentCount > maxUsesConstraint.value) {
+        this.usageCounts.set(token.jti, currentCount);
+        // ...
+    }
+    this.usageCounts.set(token.jti, currentCount);
+}
+```
+
+### What It Does
+
+Every token with a `max_uses` constraint gets an entry in `usageCounts` keyed by JTI. Entries are never removed. Expired tokens, revoked tokens, tokens from deleted tenants — all persist in memory indefinitely.
+
+### What It Should Do
+
+Evict entries when the associated token expires. Since every capability has an `exp` field with an HPTP nanosecond timestamp, the cleanup is straightforward: store `{ count: number, expires_ns: string }` and periodically sweep entries where `BigInt(hptpNs) >= BigInt(expires_ns)`.
+
+### Impact
+
+Under sustained load with short-lived constrained tokens (e.g., 5-minute TTL, max_uses: 3, issued every request), the map grows without bound. This is the same class of memory leak as the `consumedNonces` set in hardware binding (FIX-09), following the same pattern of append-only state with no eviction.
+
+### Required Fix
+
+Replace `Map<string, number>` with `Map<string, { count: number; expires_ns: string }>`. Add the token's maximum expiry to the entry on first use. Run eviction on a timer or on each validation call (amortized).
+
+---
+
+## WHAT WORKS CORRECTLY
+
+For completeness, the following Phase 1–3 components pass audit:
+
+| Component | Lines | Assessment |
+|---|---|---|
+| Token schema (iss, sub, cap, iat_hptp, jti, crv) | 141 | Correct. Matches architecture document. |
+| HPTP expiration computation | 110–120 | Correct. BigInt arithmetic, nanosecond precision. |
+| Expiration checking during validation | 187–210 | Correct. Compares BigInt(hptpNs) against BigInt(cap.exp). |
+| Constraint validation dispatch (excluding max_uses) | 232 | Correct. Calls validateAllConstraints with fail-closed semantics. |
+| max_uses constraint enforcement during validation | 214–230 | Correct. Increment-then-check, rejects on exceeded count. |
+| HMAC chain construction (macaroon-style) | 334–351 | Correct structure. Each caveat's HMAC output becomes the next key. Matches macaroon specification. |
+| HMAC chain verification (traversal) | 422–446 | Correct structure. Recomputes each caveat HMAC and compares with timing-safe equality. |
+| Delegation expiry clamping | 354–369 | Correct. Child expiry is min(proposed, parent) — cannot extend TTL. |
+| Audit event recording | Throughout | Correct. Every issuance, validation, delegation, expiry, and usage_exceeded is recorded. |
+| Merkle-chained audit log | audit-events.ts | Correct. SHA3-256 hashing, parent_event_hash chaining, disk persistence. |
+| Femtosecond-to-nanosecond conversion | All getHptpNanoseconds() calls | Correct. `ts.femtoseconds / 1_000_000n` produces nanoseconds from femtoseconds. |
+
+The structural design is sound. The token schema, expiration model, constraint registry, HMAC chain construction, and audit trail all follow the architecture document. The defects are in the verification paths — the places where the system is supposed to check that a token is authentic before granting access. The construction is correct; the verification is hollow.
+
+---
+
+## EXECUTION DEPENDENCY
+
+The Phase 1–3 fixes depend on the Phase 4–6 infrastructure fixes:
+
+| Phase 1–3 Fix | Depends On |
+|---|---|
+| P1-01 (root signature verification) | FIX-12 (TL-DSA bridge) — real verification requires real signatures |
+| P1-02 (re-delegation root check) | FIX-12 + FIX-14 (key management) — need issuer public key for verification |
+| P1-03 (remove synthetic re-signing) | FIX-12 — delegated validation must verify root TL-DSA signature directly |
+| P1-04 (attenuation enforcement) | None — purely logic, can be fixed immediately |
+| P1-05 (usage count eviction) | None — purely operational, can be fixed immediately |
+
+P1-04 and P1-05 are independent and should be fixed first. P1-01 through P1-03 require the TL-DSA bridge before the fix has meaning — replacing a format check with another HMAC simulation accomplishes nothing.
+
+---
+
+## VERIFICATION CRITERIA
+
+All five fixes are considered resolved when:
+
+1. `verifyRootSignatureFromChain` no longer exists in the codebase. Root signature verification uses TL-DSA verify via the bridge.
+2. The `delegateCapability` method verifies the root signature on *every* call, regardless of whether the parent is a `SignedCapabilityToken` or `DelegatedCapabilityToken`.
+3. `validateDelegatedCapability` does not create a synthetic `SignedCapabilityToken`. It validates the existing root signature and HMAC chain, then checks constraints and expiration against the delegated token's content.
+4. `enforceAttenuation` has cases for all 8 constraint types, with an explicit fail-closed default for unknown types.
+5. `usageCounts` entries are evicted when their associated token expires.
+6. The following test passes: construct a `DelegatedCapabilityToken` with a fabricated `root_signature` (64 hex chars, not a valid signature). Call `validateDelegatedCapability`. It must return `granted: false`.
+
+— End of Document —

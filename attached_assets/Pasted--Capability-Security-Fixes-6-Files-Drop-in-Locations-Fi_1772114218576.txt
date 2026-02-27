@@ -1,0 +1,30 @@
+# Capability Security Fixes — 6 Files
+
+## Drop-in Locations
+
+| Fix | File | Repo Path |
+|-----|------|-----------|
+| FIX-01a | `shared/types/capability.ts` | `shared/types/capability.ts` (new) |
+| FIX-01b | `shared/types/capability-constraints.ts` | `shared/types/capability-constraints.ts` (new) |
+| FIX-02 | `server/routes/capabilities.ts` | `server/routes/capabilities.ts` (new) |
+| FIX-12 | `server/crypto/tl-dsa-bridge.ts` | `server/crypto/tl-dsa-bridge.ts` (new) |
+| FIX-13 | `server/crypto/rsa4096-signing.ts` | `server/crypto/rsa4096-signing.ts` (new) |
+| FIX-14 | `server/crypto/key-management.ts` | `server/crypto/key-management.ts` (new) |
+
+## What These Solve
+
+**Build-blocking (FIX-01a, FIX-01b, FIX-02):** Type definitions and routes that all five service files import but don't exist. Server won't compile or start without these.
+
+**Cryptographic infrastructure (FIX-12, FIX-13, FIX-14):** Real signing operations to replace the 10 HMAC simulation call sites and 6 hardcoded string keys. The TL-DSA bridge uses ed448 as interim (strongest available in Node.js) until the Rust WASM build pipeline connects. RSA-4096 is native Node.js — no interim needed.
+
+**capability-constraints.ts includes P1-04 fix:** `enforceAttenuation()` covers all 8 constraint types with fail-closed default. Replaces the 2-of-8 version in capability-service.ts.
+
+## What's NOT In These Files
+
+The 10 HMAC call sites in the existing service files still need to be rewired to use `getKeyManagementService()` instead of `createHmac('sha3-256', 'tldsa-simulated-key')`. That's a mechanical find-and-replace once these files are in place. Same for the ed25519 removal in capability-hardware-binding.ts (FIX-03, FIX-06) — the bridge provides `generateDeviceKeyPair()`, `signWithDeviceKey()`, and `verifyDeviceSignature()` to replace those calls.
+
+## Push Order
+
+1. `shared/types/` (both files) — unblocks compilation
+2. `server/crypto/` (all three) — unblocks signing rewire
+3. `server/routes/capabilities.ts` — unblocks server start

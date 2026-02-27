@@ -105,6 +105,7 @@ const delegateChainRequestSchema = z.object({
   delegated_token: z.object({
     root_signature: z.string(),
     root_algorithm: z.literal('TL-DSA'),
+    root_token_hash: z.string(),
     token: z.object({
       sub: z.string(),
       cap: z.array(z.object({

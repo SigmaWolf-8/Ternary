@@ -1,0 +1,389 @@
+CAPABILITY SECURITY
+PHASES 4–6 REQUIRED FIXES
+Capomastro Holdings Ltd. — Applied Physics Division
+Document Classification: INTERNAL — ENGINEERING
+Date: February 26, 2026
+Repository: SigmaWolf-8/Ternary
+OVERVIEW
+The Phase 4–6 commit (feat(security): Capability Phases 4-6 + SIGHUP crash fix) pushed seven files to the Ternary repository. Code review against the v3.0 architecture document identified fourteen defects: three build-blocking, five cryptographic integrity violations, three operational correctness issues, and three missing deliverables. This document specifies every required fix with exact file locations, line numbers, the defective code, and the corrected implementation.
+Governing principle: No simulations. The Rust kernel at src/kernel/src/crypto/tl_dsa.rs contains a verified TL-DSA implementation with keygen, sign, and verify. Every signing operation in the TypeScript service layer must call through to this implementation. HMAC stand-ins with hardcoded string keys are not acceptable in any code path.
+DEFECT SUMMARY
+ID	SEVERITY	DEFECT	FILE(S)
+FIX-01	BUILD-BLOCKING	Missing shared type definitions	shared/types/capability.ts, capability-constraints.ts
+FIX-02	BUILD-BLOCKING	Missing capability routes file	server/routes/capabilities.ts
+FIX-03	BUILD-BLOCKING	ed25519 keypair in hardware binding	capability-hardware-binding.ts:65
+FIX-04	CRYPTOGRAPHIC	HMAC simulated signing (10 call sites)	All 5 capability-*.ts files
+FIX-05	CRYPTOGRAPHIC	Hardcoded string signing keys (6 keys)	All 5 capability-*.ts files
+FIX-06	CRYPTOGRAPHIC	ed25519 challenge-response verification	capability-hardware-binding.ts:152–171
+FIX-07	CRYPTOGRAPHIC	RSA-4096 simulated with HMAC-SHA256	capability-certificates.ts:70–73
+FIX-08	CRYPTOGRAPHIC	Certificate Merkle proof incomplete	capability-certificates.ts:107
+FIX-09	OPERATIONAL	Unbounded nonce accumulation (memory leak)	capability-hardware-binding.ts:56
+FIX-10	OPERATIONAL	O(n) position hash recomputation	capability-hardware-binding.ts:342–350
+FIX-11	OPERATIONAL	Mesh tokenExpired uses .some() (greedy reject)	capability-mesh.ts:294–296
+FIX-12	MISSING	TypeScript TL-DSA bridge from Rust kernel	server/crypto/tl-dsa-bridge.ts (new)
+FIX-13	MISSING	TypeScript RSA-4096 real signing module	server/crypto/rsa4096-signing.ts (new)
+FIX-14	MISSING	Key management service (HSM/file-backed)	server/crypto/key-management.ts (new)
+
+ 
+FIX-01: MISSING SHARED TYPE DEFINITIONS
+Severity: BUILD-BLOCKING
+Impact: Nothing compiles. All five service files import from two paths that do not exist in the repository.
+
+Defective Imports (Present in All Five Files)
+import { HardwareBinding, HardwareBindingType, HardwareBoundCapabilityToken,
+  HptpChallenge, HptpChallengeResponse, SingleUseChainState, SingleUseCapabilityToken,
+  SignedCapabilityToken, CapabilityToken, createCapabilityToken,
+} from '../../shared/types/capability';
+
+import { CapabilityConstraint, VerificationContext,
+  validateAllConstraints } from '../../shared/types/capability-constraints';
+
+Required: shared/types/capability.ts
+Must export every type and function referenced across the five service files. The following interfaces and functions are imported but undefined:
+
+TYPE / FUNCTION	KIND	IMPORTED BY
+Capability	interface	service, mesh
+CapabilityToken	interface	all five files
+SignedCapabilityToken	interface	all five files
+HardwareBinding	interface	hardware-binding
+HardwareBindingType	type alias	hardware-binding
+HardwareBoundCapabilityToken	interface	hardware-binding
+HptpChallenge	interface	hardware-binding
+HptpChallengeResponse	interface	hardware-binding
+SingleUseChainState	interface	hardware-binding
+SingleUseCapabilityToken	interface	hardware-binding
+CapabilityCertificate	interface	certificates
+CertificateVerificationResult	interface	certificates
+EvidenceChainEntry	interface	certificates
+ServiceNode	interface	mesh
+MeshCapability	interface	mesh
+MeshTopology	interface	mesh
+PropagationPath	type alias	mesh
+createCapabilityToken()	function	service, hardware, mesh
+isCapabilityExpired()	function	service
+findMatchingCapability()	function	service
+
+Required: shared/types/capability-constraints.ts
+Must export CapabilityConstraint (discriminated union with 8 typed constraints: recipient_domain, vault_id, template, max_uses, ip_range, geo_country, document_id, project_id), VerificationContext, and validateAllConstraints(). These were defined in the architecture document with full TypeScript and Rust code blocks. The implementation must match the document exactly, including fail-closed behaviour on unknown constraint types.
+ 
+FIX-02: MISSING CAPABILITY ROUTES FILE
+Severity: BUILD-BLOCKING
+Impact: Server fails to start. The main router imports and calls a file that does not exist.
+
+Defective Reference
+// server/routes.ts, line 34:
+import { registerCapabilityRoutes } from "./routes/capabilities";
+
+// server/routes.ts, line 1010:
+registerCapabilityRoutes(app);
+
+File does not exist: server/routes/capabilities.ts is not present in the repository. The server/routes/ directory contains 14 route files but no capabilities.ts.
+
+Required: server/routes/capabilities.ts
+Must export registerCapabilityRoutes(app: Express) and wire all Phase 1–6 API endpoints. This includes:
+
+PHASE	ENDPOINT GROUP	SERVICE	METHODS
+1–3	/api/capabilities/tokens	capability-service	POST, GET, DELETE
+1–3	/api/capabilities/validate	capability-service	POST
+1–3	/api/capabilities/delegate	capability-service	POST
+4	/api/capabilities/hardware/register	hardware-binding	POST
+4	/api/capabilities/hardware/challenge	hardware-binding	POST
+4	/api/capabilities/hardware/verify	hardware-binding	POST
+4	/api/capabilities/hardware/bind-token	hardware-binding	POST
+4	/api/capabilities/chains	hardware-binding	POST, GET
+5	/api/capabilities/certificates	certificates	POST, GET
+5	/api/capabilities/certificates/verify	certificates	POST
+5	/api/capabilities/evidence-chains	certificates	POST, GET
+6	/api/capabilities/mesh/services	mesh	POST, GET
+6	/api/capabilities/mesh/issue	mesh	POST
+6	/api/capabilities/mesh/propagate	mesh	POST
+6	/api/capabilities/mesh/validate	mesh	POST
+6	/api/capabilities/mesh/topology	mesh	GET
+6	/api/capabilities/mesh/health	mesh	GET
+ 
+FIX-03: ED25519 KEYPAIR IN HARDWARE BINDING
+Severity: BUILD-BLOCKING
+Impact: The confinement mechanism — the component that makes the key uncopyable and quantum-safe — uses the exact algorithm the architecture document explicitly rejected. ed25519 is not post-quantum. This was the specific fight that produced the 'TL-DSA everywhere, no exceptions' rule.
+
+Defective Code
+File: server/services/capability-hardware-binding.ts
+
+// Line 65 — Device keypair generation:
+const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+
+// Lines 153–164 — Challenge-response verification uses ed25519:
+const pubKeyObj = crypto.createPublicKey({
+  key: Buffer.from(device.public_key, 'hex'),
+  type: 'spki', format: 'der',
+});
+const isValid = crypto.verify(
+  null, Buffer.from(response.nonce, 'hex'),
+  pubKeyObj, Buffer.from(response.signature, 'hex'),
+);
+
+// Lines 185–191 — Challenge signing uses ed25519:
+const privKeyObj = crypto.createPrivateKey({
+  key: Buffer.from(device.private_key, 'hex'),
+  type: 'pkcs8', format: 'der',
+});
+return crypto.sign(null, Buffer.from(nonce, 'hex'), privKeyObj).toString('hex');
+
+Required Fix
+Replace all ed25519 operations with calls to the TL-DSA bridge (FIX-12). Device registration must generate TL-DSA keypairs via the Rust kernel. Challenge-response must use TL-DSA sign and verify. The token field algorithm: 'TL-DSA' must reflect the actual algorithm used, not be a label pasted over ed25519.
+
+The DeviceRegistration interface must change from storing raw ed25519 DER bytes to storing serialized TL-DSA public and secret keys. The public_key_hash must be computed over the TL-DSA public key, not an ed25519 SPKI blob.
+ 
+FIX-04: HMAC SIMULATED SIGNING
+Severity: CRYPTOGRAPHIC
+Impact: Every token signature in the system is computed with crypto.createHmac('sha3-256', 'tldsa-simulated-key'). This is a symmetric MAC with a hardcoded key, not a digital signature. It provides zero authentication, zero non-repudiation, and zero quantum resistance. An attacker with the source code (or a single captured signature) can forge any token in the system.
+
+All 10 Affected Call Sites
+
+FILE	LINE	CONTEXT	KEY USED
+capability-service.ts	145	Token issuance	tldsa-simulated-key
+capability-service.ts	172	Token validation	tldsa-simulated-key
+capability-service.ts	253	Delegation root	tldsa-simulated-key
+capability-service.ts	484	Demo token	tldsa-simulated-key
+capability-hardware-binding.ts	215	HW-bound issue	tldsa-simulated-key
+capability-hardware-binding.ts	269	HW-bound validate	tldsa-simulated-key
+capability-certificates.ts	297	Cert demo token 1	tldsa-simulated-key
+capability-certificates.ts	353	Cert demo token 2	tldsa-simulated-key
+capability-mesh.ts	108	Mesh token issue	tldsa-simulated-key
+capability-mesh.ts	182	Mesh propagation	tldsa-simulated-key
+
+Required Fix
+Every call site must be replaced with a call to the TL-DSA bridge (FIX-12). The bridge calls into the Rust kernel's tl_dsa::sign() and tl_dsa::verify() functions. The signing key is loaded from the key management service (FIX-14), never hardcoded. Token issuance calls bridge.sign(secretKey, tokenHash). Token validation calls bridge.verify(publicKey, tokenHash, signature). No HMAC. No simulated key. No exceptions.
+ 
+FIX-05: HARDCODED STRING SIGNING KEYS
+Severity: CRYPTOGRAPHIC
+Impact: Six distinct plaintext string keys are embedded in the source code. These are not keys — they are string literals that any reader of the source can use to forge signatures for any component.
+
+All 6 Hardcoded Keys
+
+KEY STRING	USED FOR	FILES
+'tldsa-simulated-key'	All token signatures	All 5 files
+'tsa-tldsa-signing-key'	TSA timestamp signing	certificates.ts
+'tldsa-cert-signing-key'	Certificate TL-DSA sig	certificates.ts
+'rsa4096-cert-signing-key'	Certificate RSA-4096 sig	certificates.ts
+'mesh-signing-key'	Mesh capability signing	mesh.ts
+'hkdf-derived-root'	HMAC delegation chain	service.ts
+
+Required Fix
+All six keys must be replaced with real cryptographic keys loaded from the key management service (FIX-14). The key management service reads from HSM in production and from encrypted files on disk for development. No signing key appears in source code. The 'hkdf-derived-root' must be derived via actual HKDF from the root TL-DSA signature, per the HMAC delegation specification in the architecture document.
+ 
+FIX-06: ED25519 CHALLENGE-RESPONSE VERIFICATION
+Severity: CRYPTOGRAPHIC
+Impact: The HPTP challenge-response — the second of three confinement mechanisms — uses Node.js crypto.sign(null, ...) and crypto.verify(null, ...) which are the ed25519 API. The token claims TL-DSA but the verification is ed25519. This is the system lying about its cryptographic guarantees.
+
+Defective Code Path
+File: server/services/capability-hardware-binding.ts
+
+Lines 152–171 (verifyChallenge): Constructs an ed25519 public key from stored DER bytes, calls crypto.verify(null, nonceBuffer, pubKeyObj, signatureBuffer). The null first argument triggers ed25519 mode in Node.js.
+Lines 185–191 (signChallenge): Constructs an ed25519 private key from stored DER bytes, calls crypto.sign(null, nonceBuffer, privKeyObj). Same ed25519 path.
+
+Required Fix
+Both signChallenge and verifyChallenge must use TL-DSA via the bridge. signChallenge calls bridge.sign(deviceSecretKey, nonce). verifyChallenge calls bridge.verify(devicePublicKey, nonce, signature). The device keys are TL-DSA keys generated during registerDevice (FIX-03). This is non-negotiable: the confinement mechanism's challenge-response is the proof that the device holds the private key. If that proof is ed25519, the confinement is not post-quantum.
+FIX-07: RSA-4096 SIMULATED WITH HMAC-SHA256
+Severity: CRYPTOGRAPHIC
+Impact: The dual-signature on capability certificates is specified as TL-DSA + RSA-4096. The RSA-4096 signature provides backward-compatible verification for courts and systems that do not yet support post-quantum algorithms. Currently it is HMAC-SHA256 with a string key, which is neither RSA nor 4096-bit.
+
+Defective Code
+// capability-certificates.ts, lines 70-73:
+const rsa4096Signature = crypto
+  .createHmac('sha256', 'rsa4096-cert-signing-key')
+  .update(`${certId}|${tokenHash}|${hptpNs}`)
+  .digest('hex');
+
+Required Fix
+Generate a real RSA-4096 keypair via Node.js crypto.generateKeyPairSync('rsa', { modulusLength: 4096 }). Sign with crypto.sign('sha256', data, privateKey). Verify with crypto.verify('sha256', data, publicKey, signature). RSA-4096 is natively supported in Node.js. There is no reason to simulate it. The signing key is stored in the key management service (FIX-14), the public key is embedded in certificates for third-party verification.
+ 
+FIX-08: CERTIFICATE MERKLE PROOF INCOMPLETE
+Severity: CRYPTOGRAPHIC
+Impact: The Merkle proof field in capability certificates contains only the leaf hash. A valid Merkle inclusion proof requires sibling hashes at each level of the tree plus left/right direction flags. Without these, third-party verifiers cannot independently confirm the certificate is in the tree.
+
+Defective Code
+// capability-certificates.ts, lines 104-109:
+merkle_proof: {
+  leaf_hash: leafHash,
+  root_hash: rootHash,
+  proof_path: [leafHash],  // <-- Only the leaf, no sibling hashes
+  tree_size: this.certificates.size + 1,
+},
+
+Required Fix
+The Merkle proof must include the standard inclusion proof: an array of objects, each containing a sibling hash and a direction flag (left or right), from the leaf to the root. The proof_path must allow independent verification: starting from the leaf hash, a verifier combines it with each sibling according to the direction flag and hashes upward, arriving at root_hash. The capability-audit-events.ts already computes a proper Merkle tree in getRoot() — the certificate service should use the same tree and extract the inclusion proof during certificate issuance.
+FIX-09: UNBOUNDED NONCE ACCUMULATION
+Severity: OPERATIONAL
+Impact: The consumedNonces set at line 56 of capability-hardware-binding.ts grows without bound. Every challenge-response adds a 64-character hex string that is never removed. Under sustained load, this is a memory leak that will eventually crash the process.
+
+Defective Code
+// capability-hardware-binding.ts, line 56:
+private consumedNonces: Set<string> = new Set();
+
+// Line 173 — adds nonces but never removes them:
+this.consumedNonces.add(response.nonce);
+
+Required Fix
+Replace the Set with a Map<string, bigint> that stores each nonce with its HPTP expiry timestamp. Run a periodic sweep (every 60 seconds or on each verification call) that removes nonces whose challenge window has elapsed. A nonce is only relevant for replay prevention within its challenge window (default 5 seconds). After that window, the challenge itself is expired and the nonce can be safely evicted.
+ 
+FIX-10: O(N) POSITION HASH RECOMPUTATION
+Severity: OPERATIONAL
+Impact: getPositionHash() iterates from position 0 to the requested position on every call, computing n+1 SHA3-256 hashes. At position 500, that is 501 hash operations per single-use chain validation. This scales linearly with chain usage.
+
+Defective Code
+// capability-hardware-binding.ts, lines 342-350:
+getPositionHash(chainId: string, position: number): string {
+  const chain = this.chains.get(chainId);
+  if (!chain) throw new Error(`Chain not found: ${chainId}`);
+  let hash = chain.seed_hash;
+  for (let i = 0; i <= position; i++) {
+    hash = crypto.createHash('sha3-256').update(`${hash}|${i}`).digest('hex');
+  }
+  return hash;
+}
+
+Required Fix
+Add a hash cache to SingleUseChainState: computed_hashes: Map<number, string>. When computing a position hash, start from the highest cached position at or below the requested position. Cache each intermediate result. This makes first computation O(n) but subsequent lookups O(1). Since chains advance sequentially (position 1, 2, 3, ...), the typical case is O(1) after the first advance.
+FIX-11: MESH TOKEN EXPIRY GREEDY REJECT
+Severity: OPERATIONAL
+Impact: The mesh validation at line 294 uses .some() to check expiration. If any single capability in a multi-capability mesh token is expired, the entire token is rejected. This means a mesh token carrying both tsa:timestamp (1hr TTL, expired) and audit:read (24hr TTL, still valid) fails entirely.
+
+Defective Code
+// capability-mesh.ts, lines 294-296:
+const tokenExpired = meshCap.signed_token.token.cap.some(c =>
+  BigInt(hptpNs) >= BigInt(c.exp)
+);
+
+Decision Required
+This is fail-closed behaviour, which is consistent with the architecture document's security philosophy. However, it may cause operational issues where a multi-resource mesh token becomes entirely useless because one resource expired early. Two options:
+
+Option A (keep fail-closed): Document this as intentional. If any capability in a mesh token is expired, the entire mesh token is invalid. Services must issue separate mesh tokens per resource if they need independent expiry. This is the safer option.
+Option B (per-capability check): Change to validate only the specific capability matching the requested resource. The mesh token remains valid for unexpired capabilities. This requires adding a resource parameter to validateMeshCapability() and filtering cap before checking expiry.
+Recommendation: Option A. Document it. Single-resource mesh tokens per service pair aligns with least-privilege.
+ 
+FIX-12: TYPESCRIPT TL-DSA BRIDGE
+Severity: MISSING COMPONENT
+Impact: The Rust kernel at src/kernel/src/crypto/tl_dsa.rs contains a verified TL-DSA implementation (keygen, sign, verify) across three security levels (TL-DSA-44, TL-DSA-65, TL-DSA-87). The TypeScript services cannot call it. Without this bridge, every fix in this document that says 'use TL-DSA' has no implementation path.
+
+Required: server/crypto/tl-dsa-bridge.ts
+This module must expose the following functions to TypeScript, backed by the Rust kernel:
+
+export interface TlDsaKeyPair {
+  publicKey: Buffer;    // Serialized TlDsaPublicKey
+  secretKey: Buffer;    // Serialized TlDsaSecretKey
+  variant: 'TL-DSA-44' | 'TL-DSA-65' | 'TL-DSA-87';
+}
+
+export interface TlDsaSignature {
+  signature: Buffer;    // Serialized TlDsaSignature
+  variant: 'TL-DSA-44' | 'TL-DSA-65' | 'TL-DSA-87';
+}
+
+export function keygen(variant: TlDsaVariant, seed: Buffer): TlDsaKeyPair;
+export function sign(secretKey: Buffer, message: Buffer): TlDsaSignature;
+export function verify(publicKey: Buffer, message: Buffer, sig: Buffer): boolean;
+
+Implementation Path
+The Cargo.toml at libternary/Cargo.toml already declares cdylib crate-type and a wasm feature flag with wasm-bindgen. Two viable approaches:
+
+Approach 1 (WASM): Compile the Rust crypto module to WebAssembly via wasm-pack. Load the .wasm module in Node.js. This works today with the existing Cargo.toml configuration and requires no native compilation toolchain on the deployment target.
+Approach 2 (N-API): Use napi-rs to compile the Rust crypto as a native Node.js addon. This provides maximum performance but requires a Rust toolchain during the build step and produces platform-specific binaries.
+Either approach must produce deterministic results matching the Rust test suite: keygen is deterministic for a given seed, sign is deterministic for a given key and message, and verify accepts only correctly signed messages (all verified in src/kernel/src/crypto/tl_dsa.rs tests).
+FIX-13: RSA-4096 SIGNING MODULE
+Severity: MISSING COMPONENT
+Impact: Capability certificates require dual signatures (TL-DSA + RSA-4096) for backward-compatible court admissibility. Node.js natively supports RSA-4096 via the crypto module. No simulation required.
+
+Required: server/crypto/rsa4096-signing.ts
+import crypto from 'crypto';
+
+export function generateRSA4096KeyPair(): {
+  publicKey: crypto.KeyObject;
+  privateKey: crypto.KeyObject;
+} {
+  return crypto.generateKeyPairSync('rsa', {
+    modulusLength: 4096,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+}
+
+export function signRSA4096(
+  privateKey: crypto.KeyObject, data: Buffer
+): Buffer {
+  return crypto.sign('sha256', data, privateKey);
+}
+
+export function verifyRSA4096(
+  publicKey: crypto.KeyObject, data: Buffer, signature: Buffer
+): boolean {
+  return crypto.verify('sha256', data, publicKey, signature);
+}
+
+This is straightforward. Node.js crypto handles RSA-4096 natively. The only reason it was simulated is because the implementation treated all signing as HMAC simulation. With the key management service (FIX-14) providing persistent keypairs, this is a direct replacement.
+ 
+FIX-14: KEY MANAGEMENT SERVICE
+Severity: MISSING COMPONENT
+Impact: Every cryptographic operation in the capability system requires a key. Currently, keys are hardcoded strings in source code. A key management service must generate, store, rotate, and provide keys to the signing modules without exposing raw key material to application code.
+
+Required: server/crypto/key-management.ts
+Must provide at minimum:
+
+export interface KeyManagementService {
+  // TL-DSA keys (via bridge to Rust kernel)
+  getTlDsaSigningKey(): Promise<TlDsaKeyPair>;
+  getTlDsaVerificationKey(): Promise<Buffer>;
+
+  // RSA-4096 keys (native Node.js)
+  getRSA4096SigningKey(): Promise<crypto.KeyObject>;
+  getRSA4096VerificationKey(): Promise<crypto.KeyObject>;
+
+  // HMAC keys for delegation chains (derived, not hardcoded)
+  deriveHmacKey(rootSignature: Buffer): Buffer;
+
+  // Mesh signing keys
+  getMeshSigningKey(serviceId: string): Promise<TlDsaKeyPair>;
+
+  // TSA signing keys
+  getTsaSigningKey(): Promise<TlDsaKeyPair>;
+
+  // Key rotation
+  rotateKeys(keyType: KeyType): Promise<void>;
+}
+
+Development mode: Keys stored in encrypted files under server/crypto/keys/ (directory already exists as server/crypto/tsa-keys/). Production mode: Keys stored in HSM via PKCS#11 interface. The service must never expose raw private key bytes to application code — it provides sign() and verify() operations that operate on key references, not key material.
+The HMAC delegation chain key must be derived via HKDF from the actual TL-DSA root signature, per the architecture document specification. HKDF(ikm=rootSignature, salt=tokenJti, info='cap-delegation') produces the chain root key. This is the only HMAC key in the system, and it is derived, not stored.
+ 
+EXECUTION ORDER
+Fixes have dependency chains. The following order resolves all dependencies:
+
+STEP	FIX	DELIVERABLE	UNBLOCKS
+1	FIX-01	shared/types/capability.ts + capability-constraints.ts	Everything — all files import these
+2	FIX-12	server/crypto/tl-dsa-bridge.ts	FIX-03, FIX-04, FIX-06
+3	FIX-13	server/crypto/rsa4096-signing.ts	FIX-07
+4	FIX-14	server/crypto/key-management.ts	FIX-05
+5	FIX-03	Rewrite registerDevice with TL-DSA	FIX-06
+6	FIX-06	Rewrite challenge-response with TL-DSA	Phase 4 confinement
+7	FIX-04	Replace all 10 HMAC signing call sites	All token operations
+8	FIX-05	Remove all 6 hardcoded keys	Security audit pass
+9	FIX-07	Wire real RSA-4096 into certificates	Phase 5 dual-sig
+10	FIX-08	Implement proper Merkle inclusion proofs	Certificate verification
+11	FIX-09	Add TTL-based nonce eviction	Production stability
+12	FIX-10	Add position hash caching	Performance at scale
+13	FIX-11	Document or change mesh expiry policy	Operational clarity
+14	FIX-02	server/routes/capabilities.ts	API accessibility
+
+VERIFICATION CRITERIA
+All fourteen fixes are considered resolved when every condition below is satisfied:
+
+1. The string 'ed25519' does not appear anywhere in server/services/capability-*.ts.
+2. The string 'simulated' does not appear anywhere in server/services/capability-*.ts.
+3. No createHmac call in server/services/capability-*.ts uses a string literal as its key argument.
+4. The TypeScript compiler reports zero errors when building from the repository root.
+5. The server starts and all 17 route groups listed in server/routes.ts register without error.
+6. The TL-DSA bridge produces deterministic output matching the Rust test vectors in tl_dsa.rs.
+7. RSA-4096 certificate signatures verify using only the embedded public key (no shared secrets).
+8. Merkle inclusion proofs in capability certificates verify independently from leaf to root.
+9. The nonce set is bounded: after 10 minutes of no challenge activity, consumed nonces are zero.
+10. Position hash computation at position 100 takes less than 1ms on second access (cache hit).
+
+— End of Document —

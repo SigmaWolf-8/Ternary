@@ -37,6 +37,8 @@ import {
   FEMTOSECONDS_PER_MILLISECOND,
   FEMTOSECONDS_PER_SECOND,
 } from '../salvi-core/femtosecond-timing';
+import { signString as tlDsaSignString, verifyString as tlDsaVerifyString } from '../crypto/tl-dsa-bridge';
+import { getTlDsaSigningKeyPair, deriveHmacKey } from '../crypto/key-management';
 
 export interface HptpExpirationWindow {
   issued_hptp_ns: string;
@@ -70,6 +72,7 @@ export interface DelegationCaveat {
 export interface DelegatedCapabilityToken {
   root_signature: string;
   root_algorithm: 'TL-DSA';
+  root_token_hash: string;
   token: CapabilityToken;
   delegation_chain: DelegationCaveat[];
   chain_depth: number;
@@ -141,10 +144,8 @@ export class CapabilityService {
     const token = createCapabilityToken(subject, capabilities, hptpNs, jti);
 
     const tokenHash = this.auditLog.hashToken(token);
-    const signature = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
+    const signingKeys = getTlDsaSigningKeyPair();
+    const signature = tlDsaSignString(signingKeys.secretKey, tokenHash, signingKeys.variant);
 
     const signedToken: SignedCapabilityToken = {
       token,
@@ -168,12 +169,16 @@ export class CapabilityService {
     const { token } = signedToken;
 
     const tokenHash = this.auditLog.hashToken(token);
-    const expectedSig = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
+    const signingKeys = getTlDsaSigningKeyPair();
+    const sigValid = tlDsaVerifyString(
+      signingKeys.publicKey,
+      tokenHash,
+      signedToken.signature,
+      signingKeys.secretKey,
+      signingKeys.variant,
+    );
 
-    if (!crypto.timingSafeEqual(Buffer.from(signedToken.signature, 'hex'), Buffer.from(expectedSig, 'hex'))) {
+    if (!sigValid) {
       const auditHash = this.auditLog.recordValidated(token, resource, 'denied', hptpNs, [], ipAddress);
       return {
         granted: false,
@@ -249,15 +254,14 @@ export class CapabilityService {
 
   private verifyRootSignature(rootSignature: string, parentToken: CapabilityToken): boolean {
     const tokenHash = this.auditLog.hashToken(parentToken);
-    const expectedSig = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
-    try {
-      return crypto.timingSafeEqual(Buffer.from(rootSignature, 'hex'), Buffer.from(expectedSig, 'hex'));
-    } catch {
-      return false;
-    }
+    const signingKeys = getTlDsaSigningKeyPair();
+    return tlDsaVerifyString(
+      signingKeys.publicKey,
+      tokenHash,
+      rootSignature,
+      signingKeys.secretKey,
+      signingKeys.variant,
+    );
   }
 
   private enforceAttenuation(
@@ -302,21 +306,21 @@ export class CapabilityService {
 
     let parentToken: CapabilityToken;
     let rootSignature: string;
+    let rootTokenHash: string;
     let existingChain: DelegationCaveat[] = [];
     let parentJti: string;
-    let rootTokenForVerification: CapabilityToken;
 
     if ('delegation_chain' in parentSigned) {
       parentToken = parentSigned.token;
       rootSignature = parentSigned.root_signature;
+      rootTokenHash = parentSigned.root_token_hash;
       existingChain = [...parentSigned.delegation_chain];
       parentJti = parentSigned.parent_jti;
-      rootTokenForVerification = parentSigned.token;
     } else {
       parentToken = parentSigned.token;
       rootSignature = parentSigned.signature;
+      rootTokenHash = this.auditLog.hashToken(parentToken);
       parentJti = parentToken.jti;
-      rootTokenForVerification = parentToken;
 
       if (!this.verifyRootSignature(rootSignature, parentToken)) {
         throw new Error('Root TL-DSA signature verification failed — delegation rejected');
@@ -332,10 +336,8 @@ export class CapabilityService {
     const parentTokenHash = this.auditLog.hashToken(parentToken);
     let hmacKey: string;
     if (existingChain.length === 0) {
-      hmacKey = crypto
-        .createHmac('sha256', 'hkdf-derived-root')
-        .update(rootSignature)
-        .digest('hex');
+      const derivedKey = deriveHmacKey(Buffer.from(rootSignature, 'hex'), parentJti);
+      hmacKey = derivedKey.toString('hex');
     } else {
       hmacKey = existingChain[existingChain.length - 1].hmac;
     }
@@ -373,6 +375,7 @@ export class CapabilityService {
     const delegatedToken: DelegatedCapabilityToken = {
       root_signature: rootSignature,
       root_algorithm: 'TL-DSA',
+      root_token_hash: rootTokenHash,
       token: childToken,
       delegation_chain: [...existingChain, ...newCaveats],
       chain_depth: existingChain.length + newCaveats.length,
@@ -419,10 +422,8 @@ export class CapabilityService {
       };
     }
 
-    let hmacKey = crypto
-      .createHmac('sha256', 'hkdf-derived-root')
-      .update(delegatedToken.root_signature)
-      .digest('hex');
+    const derivedKeyBuf = deriveHmacKey(Buffer.from(delegatedToken.root_signature, 'hex'), delegatedToken.parent_jti);
+    let hmacKey = derivedKeyBuf.toString('hex');
 
     for (let i = 0; i < delegatedToken.delegation_chain.length; i++) {
       const caveat = delegatedToken.delegation_chain[i];
@@ -454,8 +455,14 @@ export class CapabilityService {
   }
 
   private verifyRootSignatureFromChain(delegatedToken: DelegatedCapabilityToken): boolean {
-    const sig = delegatedToken.root_signature;
-    return sig.length === 64 && /^[0-9a-f]+$/.test(sig);
+    const signingKeys = getTlDsaSigningKeyPair();
+    return tlDsaVerifyString(
+      signingKeys.publicKey,
+      delegatedToken.root_token_hash,
+      delegatedToken.root_signature,
+      signingKeys.secretKey,
+      signingKeys.variant,
+    );
   }
 
   validateDelegatedCapability(
@@ -478,12 +485,11 @@ export class CapabilityService {
       };
     }
 
+    const delegatedTokenHash = this.auditLog.hashToken(delegatedToken.token);
+    const syntheticKeys = getTlDsaSigningKeyPair();
     const syntheticSigned: SignedCapabilityToken = {
       token: delegatedToken.token,
-      signature: crypto
-        .createHmac('sha3-256', 'tldsa-simulated-key')
-        .update(this.auditLog.hashToken(delegatedToken.token))
-        .digest('hex'),
+      signature: tlDsaSignString(syntheticKeys.secretKey, delegatedTokenHash, syntheticKeys.variant),
       algorithm: 'TL-DSA',
     };
 

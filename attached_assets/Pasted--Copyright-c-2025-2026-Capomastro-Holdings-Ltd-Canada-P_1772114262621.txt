@@ -1,0 +1,205 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * TL-DSA BRIDGE — TypeScript → Rust Kernel
+ * Location: server/crypto/tl-dsa-bridge.ts
+ *
+ * Bridges the Rust TL-DSA implementation (src/kernel/src/crypto/tl_dsa.rs)
+ * to the TypeScript service layer. Implements the same TldsaClient interface
+ * used by the TSA service (server/services/tsa-service.ts).
+ *
+ * Integration path: Rust kernel → wasm-pack (cdylib already configured in
+ * libternary/Cargo.toml) → Node.js WASM loader → this bridge.
+ *
+ * Until the WASM build is wired, this module provides a native-crypto
+ * interim that uses real asymmetric keys (not HMAC simulation).
+ */
+
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+
+// ═══════════════════════════════════════════════════════════════
+// TL-DSA VARIANT DEFINITION
+// ═══════════════════════════════════════════════════════════════
+
+export type TlDsaVariant = 'TL-DSA-44' | 'TL-DSA-65' | 'TL-DSA-87';
+
+export interface TlDsaKeyPair {
+  publicKey: Buffer;
+  secretKey: Buffer;
+  variant: TlDsaVariant;
+  keyId: string;
+}
+
+export interface TlDsaSignatureResult {
+  signature: string;
+  publicKeyId: string;
+  securityLevel: string;
+  algorithm: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TldsaClient INTERFACE — identical to TSA service contract
+// ═══════════════════════════════════════════════════════════════
+
+export interface TldsaClient {
+  sign(hash: string): Promise<TlDsaSignatureResult>;
+  verify(hash: string, signature: string, publicKeyId: string): Promise<boolean>;
+  getPublicKeyId(): string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTERIM BRIDGE — Real asymmetric keys, ed448 (strongest available
+// in Node.js without external deps). Replaced by WASM kernel when built.
+//
+// Why ed448 not ed25519: ed448 provides 224-bit security vs ed25519's
+// 128-bit. Neither is post-quantum. This is an interim measure only —
+// the Rust TL-DSA kernel (which IS post-quantum) replaces this entirely.
+//
+// CRITICAL: This interim bridge must NEVER be used in production without
+// the WASM kernel. It exists solely to unblock development and testing
+// while the wasm-pack build pipeline is completed.
+// ═══════════════════════════════════════════════════════════════
+
+export class TlDsaBridge implements TldsaClient {
+  private privateKey: crypto.KeyObject;
+  private publicKey: crypto.KeyObject;
+  private keyId: string;
+  private variant: TlDsaVariant;
+  private keysDir: string;
+  private isWasmLoaded: boolean = false;
+
+  constructor(keysDir: string, variant: TlDsaVariant = 'TL-DSA-87') {
+    this.keysDir = keysDir;
+    this.variant = variant;
+
+    if (!fs.existsSync(keysDir)) {
+      fs.mkdirSync(keysDir, { recursive: true });
+    }
+
+    const privPath = path.join(keysDir, 'tldsa-signing.key');
+    const pubPath = path.join(keysDir, 'tldsa-signing.pub');
+
+    if (fs.existsSync(privPath) && fs.existsSync(pubPath)) {
+      this.privateKey = crypto.createPrivateKey(fs.readFileSync(privPath, 'utf8'));
+      this.publicKey = crypto.createPublicKey(fs.readFileSync(pubPath, 'utf8'));
+    } else {
+      // Generate real asymmetric keypair
+      const { publicKey, privateKey } = crypto.generateKeyPairSync('ed448');
+      this.privateKey = privateKey;
+      this.publicKey = publicKey;
+
+      // Persist to disk with restricted permissions
+      fs.writeFileSync(privPath, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
+      fs.writeFileSync(pubPath, publicKey.export({ type: 'spki', format: 'pem' }), { mode: 0o644 });
+      console.log(`[tl-dsa-bridge] Generated interim signing keypair: ${privPath}`);
+    }
+
+    // Key ID = SHA3-256 of public key DER
+    const pubDer = this.publicKey.export({ type: 'spki', format: 'der' });
+    this.keyId = crypto.createHash('sha3-256').update(pubDer).digest('hex').slice(0, 32);
+  }
+
+  async sign(hash: string): Promise<TlDsaSignatureResult> {
+    const data = Buffer.from(hash, 'hex');
+    const signature = crypto.sign(null, data, this.privateKey);
+
+    return {
+      signature: signature.toString('hex'),
+      publicKeyId: this.keyId,
+      securityLevel: this.variant,
+      algorithm: this.isWasmLoaded ? this.variant : `${this.variant} (interim:ed448)`,
+    };
+  }
+
+  async verify(hash: string, signature: string, _publicKeyId: string): Promise<boolean> {
+    try {
+      const data = Buffer.from(hash, 'hex');
+      const sigBuf = Buffer.from(signature, 'hex');
+      return crypto.verify(null, data, this.publicKey, sigBuf);
+    } catch {
+      return false;
+    }
+  }
+
+  getPublicKeyId(): string {
+    return this.keyId;
+  }
+
+  getVariant(): TlDsaVariant {
+    return this.variant;
+  }
+
+  /**
+   * Device key generation for hardware binding.
+   * Returns a keypair specific to a device registration.
+   */
+  generateDeviceKeyPair(deviceId: string): {
+    publicKey: crypto.KeyObject;
+    privateKey: crypto.KeyObject;
+    publicKeyHash: string;
+  } {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed448');
+    const pubDer = publicKey.export({ type: 'spki', format: 'der' });
+    const publicKeyHash = crypto.createHash('sha3-256').update(pubDer).digest('hex');
+
+    // Persist device key
+    const devKeyDir = path.join(this.keysDir, 'devices');
+    if (!fs.existsSync(devKeyDir)) fs.mkdirSync(devKeyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(devKeyDir, `${deviceId}.key`),
+      privateKey.export({ type: 'pkcs8', format: 'pem' }),
+      { mode: 0o600 },
+    );
+    fs.writeFileSync(
+      path.join(devKeyDir, `${deviceId}.pub`),
+      publicKey.export({ type: 'spki', format: 'pem' }),
+      { mode: 0o644 },
+    );
+
+    return { publicKey, privateKey, publicKeyHash };
+  }
+
+  /**
+   * Sign a challenge nonce with a device's private key.
+   */
+  signWithDeviceKey(deviceId: string, nonce: string): string {
+    const keyPath = path.join(this.keysDir, 'devices', `${deviceId}.key`);
+    if (!fs.existsSync(keyPath)) {
+      throw new Error(`Device key not found: ${deviceId}`);
+    }
+    const privateKey = crypto.createPrivateKey(fs.readFileSync(keyPath, 'utf8'));
+    const signature = crypto.sign(null, Buffer.from(nonce, 'hex'), privateKey);
+    return signature.toString('hex');
+  }
+
+  /**
+   * Verify a challenge response against a device's public key.
+   */
+  verifyDeviceSignature(deviceId: string, nonce: string, signature: string): boolean {
+    const keyPath = path.join(this.keysDir, 'devices', `${deviceId}.pub`);
+    if (!fs.existsSync(keyPath)) return false;
+    try {
+      const publicKey = crypto.createPublicKey(fs.readFileSync(keyPath, 'utf8'));
+      return crypto.verify(null, Buffer.from(nonce, 'hex'), publicKey, Buffer.from(signature, 'hex'));
+    } catch {
+      return false;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SINGLETON
+// ═══════════════════════════════════════════════════════════════
+
+let _bridge: TlDsaBridge | null = null;
+
+export function getTlDsaBridge(keysDir: string = 'server/crypto/tsa-keys'): TlDsaBridge {
+  if (!_bridge) {
+    _bridge = new TlDsaBridge(keysDir);
+  }
+  return _bridge;
+}

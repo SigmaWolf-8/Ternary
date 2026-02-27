@@ -4,7 +4,7 @@
  * Applied Physics Division
  *
  * CAPABILITY MESH SERVICE — Phase 6
- * @version 4.0.0
+ * @version 4.1.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/services/capability-mesh.ts
@@ -15,6 +15,13 @@
  * issue, propagate, and validate capabilities for service-to-service
  * communication. Capabilities attenuate at each hop — authority can
  * only diminish through the mesh, never grow.
+ *
+ * FIX-04/05: All signing uses TL-DSA bridge with managed keys.
+ * FIX-11: Mesh token expiry is FAIL-CLOSED by design. If ANY capability
+ *   in a mesh token is expired, the entire token is rejected. Services
+ *   must issue separate mesh tokens per resource if they need independent
+ *   expiry. Single-resource mesh tokens per service pair aligns with
+ *   least-privilege. This is intentional and documented.
  */
 
 import crypto from 'crypto';
@@ -32,6 +39,8 @@ import { getSharedAuditLog } from './capability-audit-events';
 import {
   getFemtosecondTimestamp,
 } from '../salvi-core/femtosecond-timing';
+import { signString as tlDsaSignString, verifyString as tlDsaVerifyString } from '../crypto/tl-dsa-bridge';
+import { getTlDsaSigningKeyPair, getMeshSigningKeyPair } from '../crypto/key-management';
 
 function getHptpNanoseconds(): string {
   const ts = getFemtosecondTimestamp();
@@ -104,15 +113,12 @@ export class CapabilityMeshService {
     );
 
     const tokenHash = this.auditLog.hashToken(token);
-    const signature = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
+    const signingKeys = getTlDsaSigningKeyPair();
+    const signature = tlDsaSignString(signingKeys.secretKey, tokenHash, signingKeys.variant);
 
-    const meshSignature = crypto
-      .createHmac('sha3-256', 'mesh-signing-key')
-      .update(`${meshTokenId}|${fromServiceId}|${toServiceId}|${tokenHash}`)
-      .digest('hex');
+    const meshKeys = getMeshSigningKeyPair();
+    const meshSigData = `${meshTokenId}|${fromServiceId}|${toServiceId}|${tokenHash}`;
+    const meshSignature = tlDsaSignString(meshKeys.secretKey, meshSigData, meshKeys.variant);
 
     const signedToken: SignedCapabilityToken = { token, signature, algorithm: 'TL-DSA' };
 
@@ -178,16 +184,13 @@ export class CapabilityMeshService {
     );
 
     const tokenHash = this.auditLog.hashToken(newToken);
-    const signature = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
+    const signingKeys = getTlDsaSigningKeyPair();
+    const signature = tlDsaSignString(signingKeys.secretKey, tokenHash, signingKeys.variant);
 
     const newPath = [...existing.propagation_path, nextServiceId];
-    const meshSignature = crypto
-      .createHmac('sha3-256', 'mesh-signing-key')
-      .update(`${newMeshTokenId}|${newPath.join('→')}|${tokenHash}`)
-      .digest('hex');
+    const meshKeys = getMeshSigningKeyPair();
+    const meshSigData = `${newMeshTokenId}|${newPath.join('→')}|${tokenHash}`;
+    const meshSignature = tlDsaSignString(meshKeys.secretKey, meshSigData, meshKeys.variant);
 
     const newAttenuations = { ...existing.attenuations_per_hop };
     newAttenuations[`hop_${existing.hop_count + 1}`] = attenuations;
@@ -257,22 +260,19 @@ export class CapabilityMeshService {
       };
     }
 
-    const expectedMeshSig = crypto
-      .createHmac('sha3-256', 'mesh-signing-key')
-      .update(meshCap.propagation_path.length === 2
-        ? `${meshCap.mesh_token_id}|${meshCap.from_service}|${meshCap.to_service}|${this.auditLog.hashToken(meshCap.signed_token.token)}`
-        : `${meshCap.mesh_token_id}|${meshCap.propagation_path.join('→')}|${this.auditLog.hashToken(meshCap.signed_token.token)}`)
-      .digest('hex');
+    const tokenHash = this.auditLog.hashToken(meshCap.signed_token.token);
+    const meshKeys = getMeshSigningKeyPair();
+    const expectedMeshSigData = meshCap.propagation_path.length === 2
+      ? `${meshCap.mesh_token_id}|${meshCap.from_service}|${meshCap.to_service}|${tokenHash}`
+      : `${meshCap.mesh_token_id}|${meshCap.propagation_path.join('→')}|${tokenHash}`;
 
-    let meshSigValid = false;
-    try {
-      meshSigValid = crypto.timingSafeEqual(
-        Buffer.from(meshCap.mesh_signature, 'hex'),
-        Buffer.from(expectedMeshSig, 'hex'),
-      );
-    } catch {
-      meshSigValid = false;
-    }
+    const meshSigValid = tlDsaVerifyString(
+      meshKeys.publicKey,
+      expectedMeshSigData,
+      meshCap.mesh_signature,
+      meshKeys.secretKey,
+      meshKeys.variant,
+    );
 
     if (!meshSigValid) {
       return {
@@ -301,7 +301,7 @@ export class CapabilityMeshService {
         mesh_token_valid: true,
         path_valid: pathValid,
         service_active: serviceActive || false,
-        error: 'Mesh capability expired per HPTP clock',
+        error: 'Mesh capability expired per HPTP clock (fail-closed: all capabilities in token must be valid)',
         validated_at_hptp_ns: hptpNs,
       };
     }
@@ -511,6 +511,7 @@ export class CapabilityMeshService {
         hop_count: meshCap.hop_count,
         max_hops: meshCap.max_hops,
         path: meshCap.propagation_path,
+        signing_algorithm: 'TL-DSA',
       },
     });
 
@@ -547,6 +548,7 @@ export class CapabilityMeshService {
         mesh_token_valid: validation.mesh_token_valid,
         path_valid: validation.path_valid,
         service_active: validation.service_active,
+        expiry_policy: 'fail-closed: all capabilities must be valid',
       },
     });
 
@@ -600,7 +602,7 @@ export class CapabilityMeshService {
       demo_id: demoId,
       scenario: 'Inter-Service Capability Mesh — Phase 6',
       steps,
-      summary: `Demonstrated ${steps.length} mesh lifecycle steps: registration of 4 services (TSA, Capability, Notification, Audit), service-to-service capability issuance with TL-DSA signing, capability propagation through the mesh with attenuation (max_uses=100 added at hop 2), mesh capability validation (signature + path + service status), service discovery by resource pattern (tsa:*), full mesh topology retrieval, service suspension, and mesh health monitoring. Capabilities attenuate at each hop — authority can only diminish through the mesh, never grow.`,
+      summary: `Demonstrated ${steps.length} mesh lifecycle steps: registration of 4 services (TSA, Capability, Notification, Audit), service-to-service capability issuance with TL-DSA signing (managed keys), capability propagation through the mesh with attenuation (max_uses=100 added at hop 2), mesh capability validation (TL-DSA signature + path + service status), service discovery by resource pattern (tsa:*), full mesh topology retrieval, service suspension, and mesh health monitoring. Capabilities attenuate at each hop — authority can only diminish through the mesh, never grow. Token expiry is fail-closed: if any capability expires, the entire mesh token is rejected (documented policy).`,
     };
   }
 }

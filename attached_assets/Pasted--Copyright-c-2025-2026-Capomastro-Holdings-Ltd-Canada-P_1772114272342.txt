@@ -1,0 +1,83 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * RSA-4096 SIGNING MODULE
+ * Location: server/crypto/rsa4096-signing.ts
+ *
+ * Native Node.js RSA-4096 for capability certificate dual-signatures.
+ * Provides backward-compatible verification for courts and systems
+ * that do not yet support post-quantum algorithms.
+ *
+ * Follows the same pattern as the TSA service (tsa-service.ts line 1163).
+ */
+
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+
+export class RSA4096Signer {
+  private privateKey: crypto.KeyObject;
+  private publicKey: crypto.KeyObject;
+  private publicKeyPem: string;
+
+  constructor(keysDir: string) {
+    if (!fs.existsSync(keysDir)) {
+      fs.mkdirSync(keysDir, { recursive: true });
+    }
+
+    const privPath = path.join(keysDir, 'rsa4096-cap-signing.key');
+    const pubPath = path.join(keysDir, 'rsa4096-cap-signing.pub');
+
+    if (fs.existsSync(privPath) && fs.existsSync(pubPath)) {
+      this.privateKey = crypto.createPrivateKey(fs.readFileSync(privPath, 'utf8'));
+      this.publicKeyPem = fs.readFileSync(pubPath, 'utf8');
+      this.publicKey = crypto.createPublicKey(this.publicKeyPem);
+    } else {
+      const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 4096,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+
+      fs.writeFileSync(privPath, privateKey as unknown as string, { mode: 0o600 });
+      fs.writeFileSync(pubPath, publicKey as unknown as string, { mode: 0o644 });
+
+      this.privateKey = crypto.createPrivateKey(privateKey as unknown as string);
+      this.publicKeyPem = publicKey as unknown as string;
+      this.publicKey = crypto.createPublicKey(this.publicKeyPem);
+
+      console.log(`[rsa4096] Generated capability certificate signing keypair: ${privPath}`);
+    }
+  }
+
+  sign(data: Buffer): Buffer {
+    return crypto.sign('sha256', data, this.privateKey);
+  }
+
+  signHex(dataHex: string): string {
+    return this.sign(Buffer.from(dataHex, 'hex')).toString('hex');
+  }
+
+  verify(data: Buffer, signature: Buffer): boolean {
+    return crypto.verify('sha256', data, this.publicKey, signature);
+  }
+
+  verifyHex(dataHex: string, signatureHex: string): boolean {
+    return this.verify(Buffer.from(dataHex, 'hex'), Buffer.from(signatureHex, 'hex'));
+  }
+
+  getPublicKeyPem(): string {
+    return this.publicKeyPem;
+  }
+}
+
+let _signer: RSA4096Signer | null = null;
+
+export function getRSA4096Signer(keysDir: string = 'server/crypto/tsa-keys'): RSA4096Signer {
+  if (!_signer) {
+    _signer = new RSA4096Signer(keysDir);
+  }
+  return _signer;
+}

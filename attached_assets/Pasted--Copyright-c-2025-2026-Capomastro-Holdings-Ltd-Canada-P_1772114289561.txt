@@ -1,0 +1,295 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
+ * CAPABILITY TOKEN API ROUTES — Phases 1-6
+ * Location: server/routes/capabilities.ts
+ *
+ * Phase 1-3: Token issuance, validation, HMAC-chained delegation
+ * Phase 4:   Hardware binding, HPTP challenge-response, single-use chains
+ * Phase 5:   RFC 3161 capability certificates, evidence chains
+ * Phase 6:   Inter-service capability mesh
+ */
+
+import { Express, Request, Response } from 'express';
+import { capabilityService } from '../services/capability-service';
+import { hardwareBindingEngine } from '../services/capability-hardware-binding';
+import { capabilityCertificateService } from '../services/capability-certificates';
+import { capabilityMeshService } from '../services/capability-mesh';
+
+export function registerCapabilityRoutes(app: Express): void {
+
+  // ═══════════════════════════════════════════════════════════
+  // PHASES 1-3: Token Lifecycle
+  // ═══════════════════════════════════════════════════════════
+
+  app.post('/api/capabilities/tokens', (req: Request, res: Response) => {
+    try {
+      const { subject, resources } = req.body;
+      if (!subject || !resources) {
+        return res.status(400).json({ error: 'Missing required fields: subject, resources' });
+      }
+      const result = capabilityService.issueCapabilityToken(subject, resources, req.ip || 'unknown');
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/validate', (req: Request, res: Response) => {
+    try {
+      const { signedToken, resource, context } = req.body;
+      if (!signedToken || !resource) {
+        return res.status(400).json({ error: 'Missing required fields: signedToken, resource' });
+      }
+      const result = capabilityService.validateCapability(signedToken, resource, context || {}, req.ip || 'unknown');
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/delegate', (req: Request, res: Response) => {
+    try {
+      const { parentToken, newSubject, attenuations, ttlSeconds } = req.body;
+      if (!parentToken || !newSubject) {
+        return res.status(400).json({ error: 'Missing required fields: parentToken, newSubject' });
+      }
+      const result = capabilityService.delegateCapability(
+        parentToken, newSubject, attenuations || [], ttlSeconds, req.ip || 'unknown',
+      );
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // PHASE 4: Hardware Binding & Confinement
+  // ═══════════════════════════════════════════════════════════
+
+  app.post('/api/capabilities/hardware/register', (req: Request, res: Response) => {
+    try {
+      const { deviceId, bindingType } = req.body;
+      if (!deviceId || !bindingType) {
+        return res.status(400).json({ error: 'Missing required fields: deviceId, bindingType' });
+      }
+      const binding = hardwareBindingEngine.registerDevice(deviceId, bindingType);
+      res.status(201).json(binding);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/hardware/challenge', (req: Request, res: Response) => {
+    try {
+      const { deviceId, windowNs } = req.body;
+      if (!deviceId) {
+        return res.status(400).json({ error: 'Missing required field: deviceId' });
+      }
+      const challenge = hardwareBindingEngine.issueChallenge(deviceId, windowNs ? BigInt(windowNs) : undefined);
+      res.status(200).json(challenge);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/hardware/verify', (req: Request, res: Response) => {
+    try {
+      const result = hardwareBindingEngine.verifyChallenge(req.body);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/hardware/bind-token', (req: Request, res: Response) => {
+    try {
+      const { subject, resources, deviceId } = req.body;
+      if (!subject || !resources || !deviceId) {
+        return res.status(400).json({ error: 'Missing required fields: subject, resources, deviceId' });
+      }
+      const hwToken = hardwareBindingEngine.issueHardwareBoundToken(subject, resources, deviceId);
+      res.status(201).json(hwToken);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/chains', (req: Request, res: Response) => {
+    try {
+      const { tokenJti, maxPositions } = req.body;
+      if (!tokenJti) {
+        return res.status(400).json({ error: 'Missing required field: tokenJti' });
+      }
+      const chain = hardwareBindingEngine.createSingleUseChain(tokenJti, maxPositions);
+      res.status(201).json({
+        chain_id: chain.chain_id,
+        token_jti: chain.token_jti,
+        current_position: chain.current_position,
+        seed_hash: chain.seed_hash,
+        max_positions: chain.max_positions,
+        created_at_hptp_ns: chain.created_at_hptp_ns,
+      });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/capabilities/chains/:chainId', (req: Request, res: Response) => {
+    const state = hardwareBindingEngine.getChainState(req.params.chainId);
+    if (!state) return res.status(404).json({ error: 'Chain not found' });
+    res.status(200).json(state);
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // PHASE 5: Capability Certificates
+  // ═══════════════════════════════════════════════════════════
+
+  app.post('/api/capabilities/certificates', (req: Request, res: Response) => {
+    try {
+      const { signedToken } = req.body;
+      if (!signedToken) {
+        return res.status(400).json({ error: 'Missing required field: signedToken' });
+      }
+      const cert = capabilityCertificateService.issueCapabilityCertificate(signedToken);
+      res.status(201).json(cert);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/capabilities/certificates/:certId', (req: Request, res: Response) => {
+    const info = capabilityCertificateService.getCapabilityCertificateInfo(req.params.certId);
+    if (!info.found) return res.status(404).json({ error: 'Certificate not found' });
+    res.status(200).json(info);
+  });
+
+  app.post('/api/capabilities/certificates/verify', (req: Request, res: Response) => {
+    try {
+      const { certificateId } = req.body;
+      if (!certificateId) {
+        return res.status(400).json({ error: 'Missing required field: certificateId' });
+      }
+      const result = capabilityCertificateService.verifyCapabilityCertificate(certificateId);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/evidence-chains', (req: Request, res: Response) => {
+    try {
+      const { certificateIds } = req.body;
+      if (!certificateIds || !Array.isArray(certificateIds)) {
+        return res.status(400).json({ error: 'Missing required field: certificateIds (array)' });
+      }
+      const chain = capabilityCertificateService.createEvidenceChain(certificateIds);
+      res.status(201).json(chain);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // PHASE 6: Capability Mesh
+  // ═══════════════════════════════════════════════════════════
+
+  app.post('/api/capabilities/mesh/services', (req: Request, res: Response) => {
+    try {
+      const { serviceId, serviceName, capabilities, endpoint, metadata } = req.body;
+      if (!serviceId || !serviceName || !capabilities || !endpoint) {
+        return res.status(400).json({ error: 'Missing required fields: serviceId, serviceName, capabilities, endpoint' });
+      }
+      const node = capabilityMeshService.registerService(serviceId, serviceName, capabilities, endpoint, metadata);
+      res.status(201).json(node);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/capabilities/mesh/services', (_req: Request, res: Response) => {
+    const topology = capabilityMeshService.getMeshTopology();
+    res.status(200).json({ services: topology.nodes });
+  });
+
+  app.post('/api/capabilities/mesh/issue', (req: Request, res: Response) => {
+    try {
+      const { fromServiceId, toServiceId, resources } = req.body;
+      if (!fromServiceId || !toServiceId || !resources) {
+        return res.status(400).json({ error: 'Missing required fields: fromServiceId, toServiceId, resources' });
+      }
+      const meshCap = capabilityMeshService.issueServiceCapability(fromServiceId, toServiceId, resources);
+      res.status(201).json(meshCap);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/mesh/propagate', (req: Request, res: Response) => {
+    try {
+      const { meshTokenId, nextServiceId, attenuations } = req.body;
+      if (!meshTokenId || !nextServiceId) {
+        return res.status(400).json({ error: 'Missing required fields: meshTokenId, nextServiceId' });
+      }
+      const result = capabilityMeshService.propagateCapability(meshTokenId, nextServiceId, attenuations || []);
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/capabilities/mesh/validate', (req: Request, res: Response) => {
+    try {
+      const { meshTokenId, requestingServiceId, targetServiceId } = req.body;
+      if (!meshTokenId || !requestingServiceId || !targetServiceId) {
+        return res.status(400).json({ error: 'Missing required fields: meshTokenId, requestingServiceId, targetServiceId' });
+      }
+      const result = capabilityMeshService.validateMeshCapability(meshTokenId, requestingServiceId, targetServiceId);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(422).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/capabilities/mesh/topology', (_req: Request, res: Response) => {
+    res.status(200).json(capabilityMeshService.getMeshTopology());
+  });
+
+  app.get('/api/capabilities/mesh/health', (_req: Request, res: Response) => {
+    res.status(200).json(capabilityMeshService.getMeshHealth());
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // CROSS-PHASE: Demos & Stats
+  // ═══════════════════════════════════════════════════════════
+
+  app.get('/api/capabilities/stats', (_req: Request, res: Response) => {
+    res.status(200).json({
+      audit: capabilityService.getAuditStats(),
+      certificates: capabilityCertificateService.getStats(),
+      mesh: capabilityMeshService.getMeshHealth(),
+    });
+  });
+
+  app.post('/api/capabilities/demo/expiration', (_req: Request, res: Response) => {
+    res.status(200).json(capabilityService.runExpirationDemo());
+  });
+
+  app.post('/api/capabilities/demo/delegation', (_req: Request, res: Response) => {
+    res.status(200).json(capabilityService.runDelegationDemo());
+  });
+
+  app.post('/api/capabilities/demo/confinement', (_req: Request, res: Response) => {
+    res.status(200).json(hardwareBindingEngine.runConfinementDemo());
+  });
+
+  app.post('/api/capabilities/demo/certificates', (_req: Request, res: Response) => {
+    res.status(200).json(capabilityCertificateService.runCertificateDemo());
+  });
+
+  app.post('/api/capabilities/demo/mesh', (_req: Request, res: Response) => {
+    res.status(200).json(capabilityMeshService.runMeshDemo());
+  });
+}
