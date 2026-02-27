@@ -489,10 +489,12 @@ export function MarketingTopNav() {
       setTimeout(() => {
         const el = document.getElementById(id);
         if (el) el.scrollIntoView({ behavior: "smooth" });
-      }, 150);
+      }, 250);
     } else {
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 80);
     }
   }, [location, setLocation]);
 
