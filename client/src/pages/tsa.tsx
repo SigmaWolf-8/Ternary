@@ -215,7 +215,7 @@ const SECURITY_FEATURES = [
   {
     icon: Clock,
     title: "HPTP Timing",
-    description: "High-Precision Timing Protocol with nanosecond-resolution timestamps. Designed for traceable time source integration (GPS/GNSS, atomic clock, stratum-1 NTP).",
+    description: "Femtosecond-precision timestamps via the High-Precision Timing Protocol. Algorithms resolve to femtosecond granularity; hardware resolution to nanoseconds without paired atomic clock or GPS/GNSS receiver.",
   },
   {
     icon: FileSignature,
@@ -293,7 +293,7 @@ function HeroSection() {
           className="text-sm text-muted-foreground max-w-2xl mx-auto mb-8"
           data-testid="text-tsa-standards"
         >
-          Designed for ETSI EN 319 421/422 conformance \u00B7 RFC 5816 \u00B7 RFC 5652 (CMS) \u00B7 HPTP Timing \u00B7 Post-Quantum TL-DSA
+          Designed for ETSI EN 319 421/422 conformance \u00B7 RFC 5816 \u00B7 RFC 5652 (CMS) \u00B7 HPTP Femtosecond Precision \u00B7 Post-Quantum TL-DSA
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -408,7 +408,7 @@ const ROADMAP_ITEMS = [
   },
   {
     title: "Traceable Time Source",
-    description: "Connect a traceable time source (GPS/GNSS receiver, atomic clock, or NTP from a stratum-1 server with documented uncertainty budget) to substantiate declared accuracy claims on COMPLY and SENTINEL tiers.",
+    description: "Pair with a traceable time source (GPS/GNSS disciplined oscillator, atomic clock, or stratum-1 NTP with documented uncertainty budget) to achieve full femtosecond hardware resolution. Without paired hardware, effective resolution is nanoseconds via process.hrtime().",
     status: "pending" as const,
     effort: "Infrastructure",
   },
