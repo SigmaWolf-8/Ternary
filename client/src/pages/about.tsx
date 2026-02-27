@@ -196,8 +196,10 @@ export default function AboutPage() {
                 <p className="text-sm text-muted-foreground mb-2">
                   {PLATFORM.VM_OPCODES}-opcode ISA with quantum-ternary simulation (opcodes 0xA0&ndash;0xAF), 27 ternary registers,
                   TAGC garbage collector, torsion network stack (TTP/T3P/TDNS), 5-tier HPTP femtosecond timing,
-                  phase encryption, and the 28-Dimension Agent Array. Full binary compatibility via
-                  Binary-Ternary Gateway.
+                  phase encryption, 28-Dimension Agent Array, RFC 3161 Time-Stamping Authority with dual-signature
+                  (RSA-4096 + TL-DSA), 6-phase capability-based security with hardware binding and inter-service mesh,
+                  42-calendar context enrichment, and the 13D Saturnian Tesseract Metatron Ternary Cube.
+                  Full binary compatibility via Binary-Ternary Gateway.
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-xs border-primary/20"><Cpu className="w-3 h-3 mr-1" />{PLATFORM.VM_OPCODES} Opcodes</Badge>
@@ -205,6 +207,9 @@ export default function AboutPage() {
                   <Badge variant="outline" className="text-xs border-primary/20">HPTP 5-Tier</Badge>
                   <Badge variant="outline" className="text-xs border-primary/20">Torsion Network</Badge>
                   <Badge variant="outline" className="text-xs border-primary/20">28D Agent Array</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">RFC 3161 TSA</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">6-Phase Capability Security</Badge>
+                  <Badge variant="outline" className="text-xs border-primary/20">13D Metatronic Cube</Badge>
                 </div>
               </div>
 
