@@ -43,9 +43,10 @@ import {
   Copy,
   Calendar
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
+const GeometricFoundations = lazy(() => import("@/components/geometric-foundations"));
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1630,6 +1631,9 @@ export default function Landing() {
       <HeroSection />
       <PlatformSection />
       <ArchitectureSection />
+      <Suspense fallback={<div className="py-20" />}>
+        <GeometricFoundations />
+      </Suspense>
       <ComponentsSection />
       <PerformanceSection />
       <TrustSignals />
