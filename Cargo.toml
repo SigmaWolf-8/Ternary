@@ -1,6 +1,8 @@
 [workspace]
 members = [
+    "ternary-math",
     "src/kernel",
     "services/pqti-service",
+    "services/inter-cube",
 ]
 resolver = "2"

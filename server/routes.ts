@@ -32,6 +32,7 @@ import { registerTonalFieldRoutes } from "./routes/tonal-field";
 import { registerPPTProIntegrationRoutes } from "./routes/pptpro-integration";
 import { registerPqtiRoutes } from "./routes/pqti";
 import { registerCapabilityRoutes } from "./routes/capabilities";
+import { registerInterCubeRoutes } from "./routes/inter-cube";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import * as path from "path";
@@ -1008,6 +1009,12 @@ export async function registerRoutes(
   // CAPABILITY TOKEN API — Phase 2 (HPTP expiration) + Phase 3 (HMAC delegation)
   // =====================================================
   registerCapabilityRoutes(app);
+
+  // =====================================================
+  // INTER-CUBE INFRASTRUCTURE SERVICES (GLB, CON, CRS, FTS)
+  // Pure geometric routing — no routing tables
+  // =====================================================
+  registerInterCubeRoutes(app);
 
   return httpServer;
 }
