@@ -1,0 +1,42 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved
+# Applied Physics Division
+#
+# Inter-Cube Infrastructure Services for PlenumNET
+# GLB · CON · CRS · FTS
+
+[package]
+name = "inter-cube"
+version = "0.1.0"
+edition = "2021"
+description = "PlenumNET Inter-Cube Infrastructure: Geometric Load Balancer, Cube Overlay Network, Registration Service, and Fault Tolerance Service"
+license = "LicenseRef-Proprietary"
+authors = ["Salvi — Capomastro Holdings Ltd."]
+repository = "https://github.com/SigmaWolf-8/Ternary"
+
+[dependencies]
+# Use the workspace ternary-math crate for GF(3) primitives
+ternary-math = { path = "../../ternary-math" }
+
+# Async runtime for CON tunnel management, CRS coordination, FTS heartbeats
+tokio = { version = "1", features = ["full"] }
+
+# Serialization for API payloads and CRS registry persistence
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Cryptographic hashing for GLB flow mapping + address derivation
+blake3 = "1"
+
+# Timestamp handling for FTS, CRS heartbeats
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+tracing = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[[bin]]
+name = "inter-cube-daemon"
+path = "src/main.rs"
