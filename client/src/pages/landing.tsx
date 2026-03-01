@@ -43,12 +43,14 @@ import {
   Copy,
   Calendar
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, useInView } from "framer-motion";
 import { Link } from "wouter";
+const GeometricFoundations = lazy(() => import("@/components/geometric-foundations"));
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+const heroVideo = "/videos/hero-bg.mp4";
 
 
 
@@ -204,11 +206,22 @@ function HeroSection() {
 
   return (
     <section id="hero" className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary/30 to-background" />
-      <div className="absolute inset-0 gradient-radial" />
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          data-testid="hero-video"
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
+        <div className="absolute inset-0" />
+      </div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-5">
-        <div className="max-w-4xl">
+        <div className="max-w-4xl rounded-2xl p-6 md:p-10 border border-border/50 shadow-xl bg-background">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -962,7 +975,7 @@ function TrustSignals() {
     { label: "1,252+", description: "Git Commits" },
     { label: "1,040", description: "Tests Passing" },
     { label: "227", description: "Source Files" },
-    { label: "175", description: "API Endpoints" },
+    { label: String(PLATFORM.API_ENDPOINTS), description: "API Endpoints" },
   ];
 
   return (
@@ -1020,7 +1033,7 @@ function CodeSnippet() {
             One API Call Away
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            175 live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.
+            {PLATFORM.API_ENDPOINTS} live endpoints. No SDK required. Start converting ternary operations with a single HTTP request.
           </p>
         </div>
         <Card className="p-0 overflow-hidden border-primary/10 bg-card/80">
@@ -1041,7 +1054,7 @@ function CodeSnippet() {
         <div className="flex justify-center mt-6">
           <Button variant="outline" asChild className="btn-raised" data-testid="button-explore-api">
             <Link href="/api-demo">
-              Explore All 175 Endpoints
+              Explore All {PLATFORM.API_ENDPOINTS} Endpoints
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </Button>
@@ -1056,7 +1069,7 @@ function CalendarPreviewSection() {
     {
       problem: "Calendar Fragmentation",
       description: "12+ epoch dates with incompatible rules. Hebrew lunisolar, Islamic lunar, and Mayan vigesimal need 144 conversion functions.",
-      solution: "Single JDN intermediary: O(n) instead of O(n\u00B2). 24 functions cover all 12 calendars.",
+      solution: "Single JDN intermediary: O(n) instead of O(n\u00B2). 84 functions cover all 42 calendars.",
       icon: Globe,
     },
     {
@@ -1618,6 +1631,9 @@ export default function Landing() {
       <HeroSection />
       <PlatformSection />
       <ArchitectureSection />
+      <Suspense fallback={<div className="py-20" />}>
+        <GeometricFoundations />
+      </Suspense>
       <ComponentsSection />
       <PerformanceSection />
       <TrustSignals />
