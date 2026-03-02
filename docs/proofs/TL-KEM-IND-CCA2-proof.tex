@@ -1,211 +1,189 @@
 \documentclass[11pt,a4paper]{article}
 
-% ─── Packages ────────────────────────────────────────────────────────
+% ===================================================================
+% PACKAGES
+% ===================================================================
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
+% lmodern not available in this environment
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{mathtools}
-\usepackage{enumitem}
+\usepackage{algorithm2e}
+\usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage[margin=1in]{geometry}
-\usepackage{xcolor}
-\usepackage{booktabs}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
-\usepackage{tcolorbox}
+\usepackage{enumitem}
 
-% ─── Theorem Environments ────────────────────────────────────────────
+% ===================================================================
+% THEOREM ENVIRONMENTS
+% ===================================================================
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{corollary}[theorem]{Corollary}
 \newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{remark}[theorem]{Remark}
 
-% ─── Notation ────────────────────────────────────────────────────────
-\newcommand{\GFthree}{\mathbb{F}_3}
-\newcommand{\Rq}{R_q}
-\newcommand{\Zthree}{\mathbb{Z}_3}
-\newcommand{\poly}[1]{\mathbf{#1}}
-\newcommand{\mat}[1]{\mathbf{#1}}
-\newcommand{\samp}{\xleftarrow{\$}}
-\newcommand{\negl}{\mathsf{negl}}
-\newcommand{\Adv}{\mathsf{Adv}}
-\newcommand{\MLWE}{\textsf{Module-LWE}}
+% ===================================================================
+% NOTATION SHORTCUTS
+% ===================================================================
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Zq}{\mathbb{Z}_q}
+\newcommand{\Rq}{R_3}
+\newcommand{\GF}{\mathrm{GF}(3)}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\linf}[1]{\left\lVert #1 \right\rVert_{\infty}}
+\newcommand{\Adv}{\mathbf{Adv}}
+\newcommand{\negl}{\mathrm{negl}}
+\newcommand{\poly}{\mathrm{poly}}
+\newcommand{\wt}{\mathrm{wt}}
+\newcommand{\Sample}{\mathrm{Sample}}
+\newcommand{\KeyGen}{\textsf{KeyGen}}
+\newcommand{\Enc}{\textsf{Enc}}
+\newcommand{\Dec}{\textsf{Dec}}
+\newcommand{\Encaps}{\textsf{Encaps}}
+\newcommand{\Decaps}{\textsf{Decaps}}
+\newcommand{\MLWE}{\textsf{MLWE}}
 \newcommand{\TLKEM}{\textsf{TL-KEM}}
 \newcommand{\INDCPA}{\textsf{IND-CPA}}
 \newcommand{\INDCCA}{\textsf{IND-CCA2}}
 \newcommand{\FO}{\textsf{FO}}
 \newcommand{\CPAPKE}{\textsf{TL-PKE}}
 \newcommand{\Hash}{\mathcal{H}}
-\newcommand{\Encaps}{\textsf{Encaps}}
-\newcommand{\Decaps}{\textsf{Decaps}}
-\newcommand{\KeyGen}{\textsf{KeyGen}}
-\newcommand{\Enc}{\textsf{Enc}}
-\newcommand{\Dec}{\textsf{Dec}}
 
-% ─── Title ───────────────────────────────────────────────────────────
+% ===================================================================
+% TITLE
+% ===================================================================
 \title{%
-  \textbf{IND-CCA2 Security of TL-KEM} \\[4pt]
-  \large A Formal Security Reduction to Module-LWE \\[4pt]
-  over the Ternary Polynomial Ring $\Zthree[X]/(X^n+1)$
+  \textbf{IND-CCA2 Security of TL-KEM:\\
+  A Formal Security Reduction to Module-LWE\\
+  over Ternary Polynomial Rings}%
 }
 
 \author{%
-  Applied Physics Division \\
-  Capomastro Holdings Ltd. \\
-  \texttt{security@plenumnet.io}
+  Applied Physics Division\\
+  Capomastro Holdings Ltd.\\
+  \texttt{research@capomastro.com}%
 }
 
-\date{March 2, 2026 \quad---\quad Version 1.0}
+\date{March 2026}
 
 \begin{document}
+
 \maketitle
 
-% ─────────────────────────────────────────────────────────────────────
+% ===================================================================
+% ABSTRACT
+% ===================================================================
 \begin{abstract}
-We present a formal security proof that TL-KEM, the Ternary Lattice Key
-Encapsulation Mechanism implemented in the PlenumNET Salvi Framework
-kernel, achieves IND-CCA2 security under the Module Learning With Errors
-(Module-LWE) hardness assumption in the ternary polynomial ring
-$\Rq = \Zthree[X]/(X^n+1)$. TL-KEM applies the Fujisaki--Okamoto (FO)
-transform to an underlying IND-CPA-secure ternary lattice public-key
-encryption scheme. We prove IND-CPA security of the base scheme via a
-tight reduction to decisional Module-LWE, then lift to IND-CCA2 via a
-standard FO analysis in the random oracle model. Concrete security bounds
-are given for all three parameter sets: TL-KEM-512 (NIST Level~1),
-TL-KEM-768 (NIST Level~3), and TL-KEM-1024 (NIST Level~5).
-
-\medskip\noindent
-\textbf{Keywords:} Key Encapsulation, Module-LWE, Ternary Lattices,
-IND-CCA2, Fujisaki--Okamoto Transform, Post-Quantum Cryptography,
-CNSA~2.0
+We present a formal security proof that TL-KEM (Ternary Lattice Key Encapsulation Mechanism), implemented in the PlenumNET Salvi Framework kernel, achieves IND-CCA2 security under the Module Learning With Errors (Module-LWE) hardness assumption in the ternary polynomial ring $\Rq = \Z_3[X]/(X^{256}+1)$ with balanced ternary coefficients $\{-1, 0, +1\}$. TL-KEM applies the Fujisaki--Okamoto (FO) transform with implicit rejection to an underlying IND-CPA-secure ternary lattice public-key encryption scheme. We prove IND-CPA security of the base scheme via a tight reduction to decisional Module-LWE, then lift to IND-CCA2 via a standard FO analysis in the random oracle model. Concrete security bounds are given for all three parameter sets: TL-KEM-512 (NIST Level~1), TL-KEM-768 (NIST Level~3), and TL-KEM-1024 (NIST Level~5).
 \end{abstract}
 
-\tableofcontents
-\newpage
+\medskip
+\noindent\textbf{Keywords:} Key encapsulation, Module-LWE, ternary lattices, IND-CCA2, Fujisaki--Okamoto transform, post-quantum cryptography, CNSA~2.0, balanced ternary.
 
-% ═════════════════════════════════════════════════════════════════════
+\tableofcontents
+
+% ===================================================================
+% SECTION 1: INTRODUCTION
+% ===================================================================
 \section{Introduction}
 \label{sec:intro}
 
-TL-KEM is a ternary-native key encapsulation mechanism designed as the
-post-quantum key exchange primitive for the PlenumNET platform. It
-operates over the polynomial ring $\Rq = \Zthree[X]/(X^n+1)$ with
-balanced ternary coefficients $\{-1,0,+1\}$, corresponding to PlenumNET
-Representation~A. The construction mirrors ML-KEM (FIPS~203) but replaces
-the binary-coefficient ring $\mathbb{Z}_q[X]/(X^n+1)$ with the
-ternary-coefficient ring $\Zthree[X]/(X^n+1)$.
+TL-KEM is a ternary-native key encapsulation mechanism designed as the post-quantum key exchange primitive for the PlenumNET platform. It operates over the polynomial ring $\Rq = \Z_3[X]/(X^{256}+1)$ with balanced ternary coefficients $\{-1,0,+1\}$, corresponding to PlenumNET Representation~A. The construction mirrors ML-KEM (FIPS~203) but replaces the binary-coefficient ring $\Z_q[X]/(X^n+1)$ with the ternary-coefficient ring $\Z_3[X]/(X^n+1)$.
 
-\paragraph{Contribution.}
-We provide a complete, self-contained IND-CCA2 security proof:
-\begin{enumerate}[label=(\roman*)]
-  \item Define the underlying IND-CPA-secure public-key encryption
-    scheme $\CPAPKE$ extracted from TL-KEM (Section~\ref{sec:cpapke}).
-  \item Prove $\CPAPKE$ is IND-CPA-secure under the decisional
-    Module-LWE assumption in $\Rq$ (Section~\ref{sec:cpa-proof}).
-  \item Apply the Fujisaki--Okamoto transform $\FO^{\bot}$ with
-    implicit rejection to lift IND-CPA to IND-CCA2 in the random
-    oracle model (Section~\ref{sec:fo-transform}).
-  \item Derive concrete security bounds for all three parameter sets
-    (Section~\ref{sec:concrete}).
+This paper provides four contributions:
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Formal specification} of the underlying IND-CPA-secure public-key encryption scheme $\CPAPKE$ extracted from TL-KEM (Section~\ref{sec:cpapke}), ensuring the analyzed scheme matches the deployed Rust implementation.
+
+\item \textbf{IND-CPA security proof} via a 3-game sequence reducing to decisional Module-LWE in $\Rq$ (Section~\ref{sec:cpa-proof}), with a tight factor-2 reduction.
+
+\item \textbf{IND-CCA2 security proof} applying the Fujisaki--Okamoto transform $\FO^{\bot}$ with implicit rejection in the random oracle model (Section~\ref{sec:fo-transform}).
+
+\item \textbf{Concrete security bounds} for all three parameter sets (Section~\ref{sec:concrete}).
 \end{enumerate}
 
-\paragraph{Notation.}
-Throughout this paper: $\Rq = \Zthree[X]/(X^n+1)$ with $n=256$;
-$\Rq^{k \times k}$ denotes $k \times k$ matrices over $\Rq$;
-$\Rq^k$ denotes vectors of $k$ ring elements;
-$\chi_\eta$ is the centered binomial distribution over $\GFthree$
-with parameter $\eta$; $\Hash$ denotes functions modeled as random
-oracles; $\samp$ denotes uniform random sampling; and $\negl(\lambda)$
-denotes a negligible function in the security parameter $\lambda$.
-
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 2: PRELIMINARIES
+% ===================================================================
 \section{Preliminaries}
 \label{sec:prelim}
 
+\subsection{Notation}
+
+Bold lowercase letters ($\mathbf{s}, \mathbf{r}, \mathbf{u}$) denote vectors over $\Rq$. Bold uppercase letters ($\mathbf{A}$) denote matrices over $\Rq$. Regular lowercase ($m, v, c$) denote individual ring elements or scalars. We write $\linf{\mathbf{v}}$ for the maximum absolute value of any coefficient across all polynomials in $\mathbf{v}$. $\xleftarrow{\$}$ denotes uniform random sampling. $\negl(\lambda)$ denotes a negligible function in the security parameter $\lambda$.
+
 \subsection{The Ternary Polynomial Ring}
 
-\begin{definition}[Ternary Ring $\Rq$]
-Let $\Rq = \Zthree[X]/(X^n+1)$ where $n = 256$. Elements are
-polynomials of degree $< n$ with coefficients in $\GFthree = \{-1,0,+1\}$
-(balanced representation). Ring addition is coefficient-wise modulo~3;
-ring multiplication is polynomial multiplication modulo $X^n+1$,
-with coefficient reduction modulo~3 (schoolbook convolution;
-\texttt{ring\_mul} in \texttt{ternary\_lattice.rs:185--215}).
+\begin{definition}[Ternary Polynomial Ring]
+\label{def:ring}
+Let $n = 256$. The ternary polynomial ring is
+\[
+  \Rq = \Z_3[X] / (X^n + 1),
+\]
+where $\Z_3 = \{-1, 0, +1\}$ denotes the integers modulo 3 in balanced representation. Ring addition is componentwise modulo~3. Ring multiplication is polynomial multiplication reduced modulo $X^n + 1$, with coefficient reduction modulo~3 via the map $r \mapsto ((r \bmod 3) + 3) \bmod 3$ followed by $\{0 \mapsto 0,\; 1 \mapsto 1,\; 2 \mapsto -1\}$.
 \end{definition}
 
-\begin{remark}
-Unlike ML-KEM which works over $\mathbb{Z}_q[X]/(X^n+1)$ with
-$q = 3329$, TL-KEM operates directly with $q = 3$. This eliminates
-the distinction between ``error terms'' and ``general elements'' ---
-all ring elements are already in $\{-1,0,+1\}$. The Module-LWE
-problem retains its hardness in this setting because the error
-distribution $\chi_\eta$ (centered binomial) still produces short
-vectors whose norm is bounded by $\eta$, and distinguishing
-$\mat{A}\poly{s} + \poly{e}$ from uniform in $\Rq^k$ remains
-computationally hard.
+\begin{remark}[Implementation correspondence]
+This ring is implemented in \texttt{ternary\_lattice.rs} (lines 58--214). The \texttt{mod3} function (line~67) performs the balanced reduction. Ring multiplication (\texttt{ring\_mul}, line~185) uses schoolbook convolution with the $X^n+1$ negacyclic reduction: for indices $i+j \geq n$, the product term is subtracted rather than added.
 \end{remark}
 
-\subsection{Module-LWE Problem}
+\begin{remark}[Contrast with ML-KEM]
+Unlike ML-KEM which works over $\Z_q[X]/(X^n+1)$ with $q = 3329$, TL-KEM operates directly with $q = 3$. This eliminates the distinction between ``error terms'' and ``general elements''---all ring elements are already in $\{-1,0,+1\}$. The Module-LWE problem retains its hardness in this setting because the error distribution $\chi_\eta$ (centered binomial) still produces short vectors whose norm is bounded by $\eta$, and distinguishing $\mathbf{A}\mathbf{s} + \mathbf{e}$ from uniform in $\Rq^k$ remains computationally hard.
+\end{remark}
+
+\subsection{Module-LWE over $\Rq$}
 
 \begin{definition}[Decisional Module-LWE over $\Rq$]
 \label{def:mlwe}
-For security parameter $\lambda$, module rank $k$, polynomial
-degree $n$, and error distribution $\chi_\eta$ over $\Rq$, the
-\emph{decisional Module-LWE problem} $\MLWE_{k,\eta}$ is: given
-\[
-  (\mat{A}, \poly{b}) \in \Rq^{k \times k} \times \Rq^k,
-\]
-distinguish between:
-\begin{itemize}
-  \item $\poly{b} = \mat{A}\poly{s} + \poly{e}$ where
-    $\poly{s}, \poly{e} \samp \chi_\eta^k$, and
-  \item $\poly{b} \samp \Rq^k$ (uniform).
-\end{itemize}
+For security parameter $\lambda$, module rank $k$, polynomial degree $n$, and error distribution $\chi_\eta$ over $\Rq$, the \emph{decisional Module-LWE problem} $\MLWE_{k,\eta}$ is: given $(\mathbf{A}, \mathbf{b})$ where $\mathbf{A} \xleftarrow{\$} \Rq^{k \times k}$ and either $\mathbf{b} = \mathbf{A} \cdot \mathbf{s} + \mathbf{e}$ for $\mathbf{s}, \mathbf{e} \leftarrow \chi_\eta^k$ or $\mathbf{b} \xleftarrow{\$} \Rq^k$, distinguish which case holds.
+
 The advantage of a distinguisher $\mathcal{D}$ is
 \[
   \Adv^{\MLWE}_{k,\eta}(\mathcal{D})
-  = \bigl|\Pr[\mathcal{D}(\mat{A}, \mat{A}\poly{s}+\poly{e})=1]
-    - \Pr[\mathcal{D}(\mat{A}, \poly{u})=1]\bigr|.
+  = \bigl|\Pr[\mathcal{D}(\mathbf{A}, \mathbf{A}\mathbf{s}+\mathbf{e})=1]
+    - \Pr[\mathcal{D}(\mathbf{A}, \mathbf{u})=1]\bigr|.
 \]
 \end{definition}
 
-\begin{definition}[Centered Binomial Distribution $\chi_\eta$]
+\subsection{Centered Binomial Distribution over $\Z_3$}
+
+\begin{definition}[CBD$_\eta$ over $\Z_3$]
 \label{def:cbd}
-For parameter $\eta \geq 1$, sample $2\eta$ independent uniform
-bits $a_1,\ldots,a_\eta, b_1,\ldots,b_\eta \samp \{0,1\}$ and output
-$\sum_{i=1}^{\eta} a_i - \sum_{i=1}^{\eta} b_i \bmod 3$.
-For TL-KEM, $\eta \in \{2\}$ across all security levels.
-The distribution is symmetric about~0 with support in $\{-1,0,+1\}$
-(after mod~3 reduction) and probabilities:
+For parameter $\eta \in \Z^+$, sample $a_1, \ldots, a_\eta, b_1, \ldots, b_\eta$ uniformly from $\{0, 1, 2\}$ (equivalently, from the output of the ternary sponge). Output $\left(\sum_{i=1}^\eta a_i - \sum_{i=1}^\eta b_i\right) \bmod 3$, interpreted in balanced form.
+
+For TL-KEM, $\eta = 2$ across all security levels. The distribution is symmetric about~0 with support in $\{-1,0,+1\}$ (after mod~3 reduction) and probabilities:
 \[
   \Pr[\chi_2 = 0] = \tfrac{6}{16}, \quad
   \Pr[\chi_2 = 1] = \Pr[\chi_2 = -1] = \tfrac{5}{16}.
 \]
-(Implementation: \texttt{sample\_cbd\_ternary} in
-\texttt{ternary\_lattice.rs:423--450}.)
 \end{definition}
+
+This is implemented in \texttt{sample\_cbd\_ternary} (line~423 of \texttt{ternary\_lattice.rs}) with $\eta = 2$ for all TL-KEM variants.
+
+\subsection{Ternary Sponge Hash Function}
+
+TL-KEM uses a custom ternary sponge construction $H: \{-1,0,+1\}^* \to \{-1,0,+1\}^m$ as its hash function, implemented in \texttt{sponge.rs}. The sponge has state size 729 trits ($= 3^6$), rate 243 trits ($= 3^5$), capacity 486 trits, and performs 27 rounds of a nonlinear permutation per absorption.
+
+In the security proof, we model $H$ as a random oracle $\Hash: \{-1,0,+1\}^* \to \{-1,0,+1\}^{243}$.
 
 \subsection{IND-CCA2 Security for KEMs}
 
 \begin{definition}[IND-CCA2 for KEMs]
 \label{def:ind-cca2}
-A KEM $\Pi = (\KeyGen, \Encaps, \Decaps)$ is IND-CCA2-secure if for
-all PPT adversaries $\mathcal{A}$:
+A KEM $\Pi = (\KeyGen, \Encaps, \Decaps)$ is IND-CCA2-secure if for all PPT adversaries $\mathcal{A}$:
 \[
   \Adv^{\INDCCA}_\Pi(\mathcal{A})
   = \bigl| \Pr[\mathsf{Game}_0^{\mathcal{A}} = 1]
     - \tfrac{1}{2} \bigr| \leq \negl(\lambda),
 \]
 where $\mathsf{Game}_0$ is:
-\begin{enumerate}[label=\arabic*.]
+\begin{enumerate}[leftmargin=2em]
   \item $(pk, sk) \leftarrow \KeyGen(1^\lambda)$.
-  \item $(c^*, K_0^*) \leftarrow \Encaps(pk)$; $K_1^* \samp \mathcal{K}$.
-  \item $b \samp \{0,1\}$.
-  \item $b' \leftarrow \mathcal{A}^{\Decaps(sk,\cdot)}(pk, c^*, K_b^*)$,
-    where $\mathcal{A}$ may query $\Decaps$ on any $c \neq c^*$.
+  \item $(c^*, K_0^*) \leftarrow \Encaps(pk)$; $K_1^* \xleftarrow{\$} \mathcal{K}$.
+  \item $b \xleftarrow{\$} \{0,1\}$.
+  \item $b' \leftarrow \mathcal{A}^{\Decaps(sk,\cdot)}(pk, c^*, K_b^*)$, where $\mathcal{A}$ may query $\Decaps$ on any $c \neq c^*$.
   \item Output $[b' = b]$.
 \end{enumerate}
 \end{definition}
@@ -214,122 +192,86 @@ where $\mathsf{Game}_0$ is:
 
 \begin{definition}[$\FO^{\bot}$ Transform with Implicit Rejection]
 \label{def:fo}
-Given an IND-CPA-secure PKE scheme $\Pi' = (\KeyGen', \Enc, \Dec)$,
-construct KEM $\Pi = (\KeyGen, \Encaps, \Decaps)$ as follows:
-\begin{itemize}
-  \item $\KeyGen$: $(pk, sk') \leftarrow \KeyGen'$. Set
-    $sk = (sk', pk, \Hash(pk), z)$ where $z \samp \{0,1\}^\lambda$ is
-    the implicit rejection seed.
-  \item $\Encaps(pk)$: Sample $m \samp \mathcal{M}$. Compute
-    $(K, r) = G(m, \Hash(pk))$. $c = \Enc(pk, m; r)$.
-    $K^* = H(K, c)$. Return $(c, K^*)$.
-  \item $\Decaps(sk, c)$: $m' = \Dec(sk', c)$. Compute
-    $(K', r') = G(m', \Hash(pk))$. $c' = \Enc(pk, m'; r')$.
-    If $c' = c$: return $K^* = H(K', c)$.
-    Else: return $K^* = H(z, c)$ (implicit rejection).
+Given an IND-CPA-secure PKE scheme $\Pi' = (\KeyGen', \Enc, \Dec)$, construct KEM $\Pi = (\KeyGen, \Encaps, \Decaps)$ as follows:
+\begin{itemize}[leftmargin=2em]
+  \item $\KeyGen$: $(pk, sk') \leftarrow \KeyGen'$. Set $sk = (sk', pk, \Hash(pk), z)$ where $z \xleftarrow{\$} \{0,1\}^\lambda$ is the implicit rejection seed.
+  \item $\Encaps(pk)$: Sample $m \xleftarrow{\$} \mathcal{M}$. Compute $(K, r) = G(m, \Hash(pk))$. $c = \Enc(pk, m; r)$. $K^* = H(K, c)$. Return $(c, K^*)$.
+  \item $\Decaps(sk, c)$: $m' = \Dec(sk', c)$. Compute $(K', r') = G(m', \Hash(pk))$. $c' = \Enc(pk, m'; r')$. If $c' = c$: return $K^* = H(K', c)$. Else: return $K^* = H(z, c)$ (implicit rejection).
 \end{itemize}
 where $G, H$ are hash functions modeled as random oracles.
 \end{definition}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 3: TL-KEM CONSTRUCTION
+% ===================================================================
 \section{TL-KEM Construction}
 \label{sec:construction}
 
-\subsection{Parameter Sets}
+\subsection{Parameters}
 \label{sec:params}
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
-\caption{TL-KEM parameter sets extracted from
-  \texttt{ternary\_lattice.rs:591--627} and \texttt{tl\_kem.rs:50--89}.}
+\caption{TL-KEM parameter sets, extracted from \texttt{ternary\_lattice.rs} lines 591--627 and \texttt{tl\_kem.rs} lines 50--89.}
 \label{tab:params}
 \begin{tabular}{@{}lcccccccc@{}}
 \toprule
-\textbf{Variant} & $n$ & $k$ & $\eta_1$ & $\eta_2$ & $d_u$ & $d_v$ &
-  \textbf{NIST Level} & \textbf{Security (bits)} \\
+Variant & $n$ & $k$ & $\eta_1$ & $\eta_2$ & $d_u$ & $d_v$ & Security (bits) & NIST Level \\
 \midrule
-TL-KEM-512  & 256 & 2 & 2 & 2 & 4 & 2 & 1 & 128 \\
-TL-KEM-768  & 256 & 3 & 2 & 2 & 4 & 2 & 3 & 192 \\
-TL-KEM-1024 & 256 & 4 & 2 & 2 & 5 & 3 & 5 & 256 \\
+TL-KEM-512  & 256 & 2 & 2 & 2 & 4 & 2 & 128 & 1 \\
+TL-KEM-768  & 256 & 3 & 2 & 2 & 4 & 2 & 192 & 3 \\
+TL-KEM-1024 & 256 & 4 & 2 & 2 & 5 & 3 & 256 & 5 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-All variants use the ring $\Rq = \Zthree[X]/(X^{256}+1)$ with
-balanced ternary coefficients. The sponge-based hash
-(\texttt{TernarySponge} with state 729~trits, rate 243~trits,
-27~rounds) instantiates all random oracles.
+\noindent All variants use the ring $\Rq = \Z_3[X]/(X^{256}+1)$ with balanced ternary coefficients. The sponge-based hash (\texttt{TernarySponge} with state 729~trits, rate 243~trits, 27~rounds) instantiates all random oracles.
 
 \subsection{The Underlying PKE Scheme $\CPAPKE$}
 \label{sec:cpapke}
 
-We extract the IND-CPA-secure PKE from TL-KEM following the standard
-FO decomposition. The scheme $\CPAPKE = (\KeyGen', \Enc, \Dec)$ is:
+We extract the IND-CPA-secure PKE from TL-KEM following the standard FO decomposition. The scheme $\CPAPKE = (\KeyGen', \Enc, \Dec)$ is:
 
 \begin{algorithm}[H]
-\caption{$\CPAPKE.\KeyGen'(\rho, \sigma)$
-  \quad [\texttt{tl\_kem.rs:133--163}]}
-\begin{algorithmic}[1]
-\Require Seeds $\rho, \sigma \in \{-1,0,+1\}^{243}$
-\Ensure Public key $pk = (\rho, \poly{t})$, secret key $sk = \poly{s}$
-\State $\mat{A} \leftarrow \textsf{SampleMatrix}(\rho, k, n)$
-  \Comment{$\mat{A} \in \Rq^{k \times k}$}
-\State $\poly{s} \leftarrow \textsf{SampleNoise}(\sigma, k, n, \eta_1)$
-  \Comment{$\poly{s} \in \chi_{\eta_1}^k$}
-\State $\poly{t} \leftarrow \mat{A} \cdot \poly{s}$
-  \Comment{No explicit error term --- see Remark~\ref{rem:noise}}
-\State \Return $(pk = (\rho, \poly{t}), \; sk = \poly{s})$
-\end{algorithmic}
+\caption{$\CPAPKE.\KeyGen'(\rho, \sigma)$ \quad [\texttt{tl\_kem.rs:133--163}]}
+\label{alg:cpapke-keygen}
+\DontPrintSemicolon
+\KwIn{Seeds $\rho, \sigma \in \{-1,0,+1\}^{243}$}
+\KwOut{Public key $pk = (\rho, \mathbf{t})$, secret key $sk = \mathbf{s}$}
+$\mathbf{A} \leftarrow \textsf{SampleMatrix}(\rho, k, n)$ \tcp*{$\mathbf{A} \in \Rq^{k \times k}$}
+$\mathbf{s} \leftarrow \textsf{SampleNoise}(\sigma, k, n, \eta_1)$ \tcp*{$\mathbf{s} \in \chi_{\eta_1}^k$}
+$\mathbf{t} \leftarrow \mathbf{A} \cdot \mathbf{s}$ \tcp*{no explicit error term --- see Remark~\ref{rem:noise}}
+\Return $\left(pk = (\rho, \mathbf{t}),\; sk = \mathbf{s}\right)$
 \end{algorithm}
 
 \begin{algorithm}[H]
-\caption{$\CPAPKE.\Enc(pk, m; \mathsf{coins})$
-  \quad [\texttt{tl\_kem.rs:255--286}]}
-\begin{algorithmic}[1]
-\Require $pk = (\rho, \poly{t})$, message $m \in \Rq$, randomness
-  $\mathsf{coins}$
-\Ensure Ciphertext $c = (\poly{u}, v)$
-\State $\mat{A} \leftarrow \textsf{SampleMatrix}(\rho, k, n)$
-\State $\poly{r} \leftarrow \textsf{SampleNoise}(\mathsf{coins}, k, n,
-  \eta_1)$
-  \Comment{$\poly{r} \in \chi_{\eta_1}^k$}
-\State $\poly{u} \leftarrow \mat{A}^T \cdot \poly{r}$
-  \Comment{$\poly{u} \in \Rq^k$}
-\State $v \leftarrow \langle \poly{t}, \poly{r} \rangle + m$
-  \Comment{$v \in \Rq$}
-\State $\hat{\poly{u}} \leftarrow
-  \textsf{Compress}(\poly{u}, d_u)$;
-  $\hat{v} \leftarrow \textsf{Compress}(v, d_v)$
-\State \Return $c = (\hat{\poly{u}}, \hat{v})$
-\end{algorithmic}
+\caption{$\CPAPKE.\Enc(pk, m; \mathsf{coins})$ \quad [\texttt{tl\_kem.rs:255--286}]}
+\label{alg:cpapke-enc}
+\DontPrintSemicolon
+\KwIn{$pk = (\rho, \mathbf{t})$, message $m \in \Rq$, randomness $\mathsf{coins}$}
+\KwOut{Ciphertext $c = (\hat{\mathbf{u}}, \hat{v})$}
+$\mathbf{A} \leftarrow \textsf{SampleMatrix}(\rho, k, n)$\;
+$\mathbf{r} \leftarrow \textsf{SampleNoise}(\mathsf{coins}, k, n, \eta_1)$ \tcp*{$\mathbf{r} \in \chi_{\eta_1}^k$}
+$\mathbf{u} \leftarrow \mathbf{A}^T \cdot \mathbf{r}$ \tcp*{$\mathbf{u} \in \Rq^k$}
+$v \leftarrow \langle \mathbf{t}, \mathbf{r} \rangle + m$ \tcp*{$v \in \Rq$}
+$\hat{\mathbf{u}} \leftarrow \textsf{Compress}(\mathbf{u}, d_u)$; $\hat{v} \leftarrow \textsf{Compress}(v, d_v)$\;
+\Return $c = (\hat{\mathbf{u}}, \hat{v})$
 \end{algorithm}
 
 \begin{algorithm}[H]
-\caption{$\CPAPKE.\Dec(sk, c)$
-  \quad [\texttt{tl\_kem.rs:210--253}]}
-\begin{algorithmic}[1]
-\Require $sk = \poly{s}$, ciphertext $c = (\hat{\poly{u}}, \hat{v})$
-\Ensure Message $m'$
-\State $\poly{u} \leftarrow \textsf{Decompress}(\hat{\poly{u}}, d_u)$;
-  $v \leftarrow \textsf{Decompress}(\hat{v}, d_v)$
-\State $m' \leftarrow v - \langle \poly{s}, \poly{u} \rangle$
-  \Comment{Recover message}
-\State \Return $m'$
-\end{algorithmic}
+\caption{$\CPAPKE.\Dec(sk, c)$ \quad [\texttt{tl\_kem.rs:210--253}]}
+\label{alg:cpapke-dec}
+\DontPrintSemicolon
+\KwIn{$sk = \mathbf{s}$, ciphertext $c = (\hat{\mathbf{u}}, \hat{v})$}
+\KwOut{Message $m'$}
+$\mathbf{u} \leftarrow \textsf{Decompress}(\hat{\mathbf{u}}, d_u)$; $v \leftarrow \textsf{Decompress}(\hat{v}, d_v)$\;
+$m' \leftarrow v - \langle \mathbf{s}, \mathbf{u} \rangle$ \tcp*{recover message}
+\Return $m'$
 \end{algorithm}
 
 \begin{remark}[Implicit Error Structure]
 \label{rem:noise}
-In standard Module-LWE, the public key is $\poly{t} = \mat{A}\poly{s}
-+ \poly{e}$ with explicit error $\poly{e}$. In TL-KEM over $\GFthree$,
-the secret $\poly{s}$ is sampled from $\chi_\eta$ (producing
-coefficients in $\{-1,0,+1\}$), and the matrix-vector product
-$\mat{A}\poly{s}$ is reduced mod~3. The ``error'' arises implicitly
-because $\poly{s}$ is short (bounded $\ell_\infty$ norm). The
-distinguishing problem remains: given $(\mat{A}, \poly{t})$,
-determine whether $\poly{t} = \mat{A}\poly{s}$ for short $\poly{s}$,
-or $\poly{t}$ is uniform. This is exactly the Module-LWE problem
-with the error ``absorbed'' into the secret.
+In standard Module-LWE, the public key is $\mathbf{t} = \mathbf{A}\mathbf{s} + \mathbf{e}$ with explicit error $\mathbf{e}$. In TL-KEM over $\GF$, the secret $\mathbf{s}$ is sampled from $\chi_\eta$ (producing coefficients in $\{-1,0,+1\}$), and the matrix-vector product $\mathbf{A}\mathbf{s}$ is reduced mod~3. The ``error'' arises implicitly because $\mathbf{s}$ is short (bounded $\ell_\infty$ norm). The distinguishing problem remains: given $(\mathbf{A}, \mathbf{t})$, determine whether $\mathbf{t} = \mathbf{A}\mathbf{s}$ for short $\mathbf{s}$, or $\mathbf{t}$ is uniform. This is exactly the Module-LWE problem with the error ``absorbed'' into the secret.
 \end{remark}
 
 \subsection{The Full TL-KEM (FO-Transformed)}
@@ -338,65 +280,51 @@ with the error ``absorbed'' into the secret.
 TL-KEM applies $\FO^{\bot}$ to $\CPAPKE$:
 
 \begin{algorithm}[H]
-\caption{$\TLKEM.\KeyGen(\mathsf{seed})$
-  \quad [\texttt{tl\_kem.rs:133--163}]}
-\begin{algorithmic}[1]
-\State $\rho \leftarrow \Hash(\mathsf{seed} \| 0)$;
-  $\sigma \leftarrow \Hash(\mathsf{seed} \| 1)$
-\State $(pk, \poly{s}) \leftarrow \CPAPKE.\KeyGen'(\rho, \sigma)$
-\State $h \leftarrow \Hash(\rho \| \poly{t})$
-  \Comment{Public key hash}
-\State $z \leftarrow \Hash(\mathsf{seed} \| [0,0,-1])$
-  \Comment{Implicit rejection seed}
-\State \Return $(pk, \; sk = (\poly{s}, pk, h, z))$
-\end{algorithmic}
+\caption{$\TLKEM.\KeyGen(\mathsf{seed})$ \quad [\texttt{tl\_kem.rs:133--163}]}
+\label{alg:kem-keygen}
+\DontPrintSemicolon
+$\rho \leftarrow \Hash(\mathsf{seed} \| 0)$; $\sigma \leftarrow \Hash(\mathsf{seed} \| 1)$\;
+$(pk, \mathbf{s}) \leftarrow \CPAPKE.\KeyGen'(\rho, \sigma)$\;
+$h \leftarrow \Hash(\rho \| \mathbf{t})$ \tcp*{public key hash}
+$z \leftarrow \Hash(\mathsf{seed} \| [0,0,-1])$ \tcp*{implicit rejection seed}
+\Return $\left(pk,\; sk = (\mathbf{s}, pk, h, z)\right)$
 \end{algorithm}
 
 \begin{algorithm}[H]
-\caption{$\TLKEM.\Encaps(pk, \mathsf{rand})$
-  \quad [\texttt{tl\_kem.rs:166--208}]}
-\begin{algorithmic}[1]
-\State $m \leftarrow \Hash(\mathsf{rand} \| [0,1,-1])$
-  \Comment{Random message, 243 trits}
-\State $h_{pk} \leftarrow \Hash(\rho \| \poly{t})$
-\State $(K_{\text{seed}} \| \mathsf{coins}) \leftarrow \Hash(m \| h_{pk})$
-  \Comment{486 trits split in half}
-\State $c \leftarrow \CPAPKE.\Enc(pk, m; \mathsf{coins})$
-\State $K \leftarrow \Hash(K_{\text{seed}} \| c)$
-  \Comment{Bind shared secret to ciphertext}
-\State \Return $(c, K)$
-\end{algorithmic}
+\caption{$\TLKEM.\Encaps(pk, \mathsf{rand})$ \quad [\texttt{tl\_kem.rs:166--208}]}
+\label{alg:kem-encaps}
+\DontPrintSemicolon
+$m \leftarrow \Hash(\mathsf{rand} \| [0,1,-1])$ \tcp*{random message, 243 trits}
+$h_{pk} \leftarrow \Hash(\rho \| \mathbf{t})$\;
+$(K_{\text{seed}} \| \mathsf{coins}) \leftarrow \Hash(m \| h_{pk})$ \tcp*{486 trits split in half}
+$c \leftarrow \CPAPKE.\Enc(pk, m; \mathsf{coins})$\;
+$K \leftarrow \Hash(K_{\text{seed}} \| c)$ \tcp*{bind shared secret to ciphertext}
+\Return $(c, K)$
 \end{algorithm}
 
 \begin{algorithm}[H]
-\caption{$\TLKEM.\Decaps(sk, c)$
-  \quad [\texttt{tl\_kem.rs:210--253}]}
-\begin{algorithmic}[1]
-\State $m' \leftarrow \CPAPKE.\Dec(\poly{s}, c)$
-\State $(K'_{\text{seed}} \| \mathsf{coins}') \leftarrow \Hash(m' \| h_{pk})$
-\State $c' \leftarrow \CPAPKE.\Enc(pk, m'; \mathsf{coins}')$
-  \Comment{Re-encrypt}
-\State $\mathsf{match} \leftarrow \textsf{ct\_eq}(c, c')$
-  \Comment{Constant-time comparison}
-\State $K_{\text{accept}} \leftarrow \Hash(K'_{\text{seed}} \| c)$
-\State $K_{\text{reject}} \leftarrow \Hash(z \| c)$
-  \Comment{Implicit rejection}
-\State $K \leftarrow \textsf{ct\_select}(\mathsf{match},
-  K_{\text{accept}}, K_{\text{reject}})$
-  \Comment{Constant-time select}
-\State \Return $K$
-\end{algorithmic}
+\caption{$\TLKEM.\Decaps(sk, c)$ \quad [\texttt{tl\_kem.rs:210--253}]}
+\label{alg:kem-decaps}
+\DontPrintSemicolon
+$m' \leftarrow \CPAPKE.\Dec(\mathbf{s}, c)$\;
+$(K'_{\text{seed}} \| \mathsf{coins}') \leftarrow \Hash(m' \| h_{pk})$\;
+$c' \leftarrow \CPAPKE.\Enc(pk, m'; \mathsf{coins}')$ \tcp*{re-encrypt}
+$\mathsf{match} \leftarrow \textsf{ct\_eq}(c, c')$ \tcp*{constant-time comparison}
+$K_{\text{accept}} \leftarrow \Hash(K'_{\text{seed}} \| c)$\;
+$K_{\text{reject}} \leftarrow \Hash(z \| c)$ \tcp*{implicit rejection}
+$K \leftarrow \textsf{ct\_select}(\mathsf{match}, K_{\text{accept}}, K_{\text{reject}})$ \tcp*{constant-time select}
+\Return $K$
 \end{algorithm}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 4: IND-CPA SECURITY OF TL-PKE
+% ===================================================================
 \section{IND-CPA Security of $\CPAPKE$}
 \label{sec:cpa-proof}
 
 \begin{theorem}[IND-CPA Security of $\CPAPKE$]
 \label{thm:cpa}
-For any PPT adversary $\mathcal{A}$ against the IND-CPA security of
-$\CPAPKE$ with parameters $(n, k, \eta)$, there exists a PPT
-distinguisher $\mathcal{B}$ against $\MLWE_{k,\eta}$ such that:
+For any PPT adversary $\mathcal{A}$ against the IND-CPA security of $\CPAPKE$ with parameters $(n, k, \eta)$, there exists a PPT distinguisher $\mathcal{B}$ against $\MLWE_{k,\eta}$ such that:
 \[
   \Adv^{\INDCPA}_{\CPAPKE}(\mathcal{A})
   \leq 2 \cdot \Adv^{\MLWE}_{k,\eta}(\mathcal{B}).
@@ -406,73 +334,55 @@ distinguisher $\mathcal{B}$ against $\MLWE_{k,\eta}$ such that:
 \begin{proof}
 We proceed via a sequence of games.
 
-\paragraph{Game 0 (Real IND-CPA game).}
-\begin{enumerate}[label=\arabic*.]
+\medskip
+\noindent\textbf{Game 0 (Real IND-CPA game).}
+\begin{enumerate}[leftmargin=2em]
   \item Challenger generates $(pk, sk) \leftarrow \CPAPKE.\KeyGen'$.
-  \item $\mathcal{A}$ receives $pk = (\rho, \poly{t})$ where
-    $\poly{t} = \mat{A}\poly{s}$ with $\mat{A} \samp \Rq^{k \times k}$,
-    $\poly{s} \samp \chi_\eta^k$.
+  \item $\mathcal{A}$ receives $pk = (\rho, \mathbf{t})$ where $\mathbf{t} = \mathbf{A} \cdot \mathbf{s}$ with $\mathbf{A} \xleftarrow{\$} \Rq^{k \times k}$, $\mathbf{s} \xleftarrow{\$} \chi_\eta^k$.
   \item $\mathcal{A}$ outputs $(m_0, m_1) \in \Rq \times \Rq$.
-  \item Challenger picks $b \samp \{0,1\}$, computes
-    $c = \Enc(pk, m_b; \mathsf{coins})$ with fresh
-    $\poly{r} \samp \chi_\eta^k$:
+  \item Challenger picks $b \xleftarrow{\$} \{0,1\}$, computes $c = \Enc(pk, m_b; \mathsf{coins})$ with fresh $\mathbf{r} \xleftarrow{\$} \chi_\eta^k$:
     \begin{align*}
-      \poly{u} &= \mat{A}^T \poly{r}, \\
-      v &= \langle \poly{t}, \poly{r} \rangle + m_b
-        = \langle \mat{A}\poly{s}, \poly{r} \rangle + m_b
-        = \poly{s}^T \mat{A}^T \poly{r} + m_b.
+      \mathbf{u} &= \mathbf{A}^T \mathbf{r}, \\
+      v &= \langle \mathbf{t}, \mathbf{r} \rangle + m_b
+        = \langle \mathbf{A}\mathbf{s}, \mathbf{r} \rangle + m_b
+        = \mathbf{s}^T \mathbf{A}^T \mathbf{r} + m_b.
     \end{align*}
-  \item $\mathcal{A}$ receives $(\hat{\poly{u}}, \hat{v}) =
-    (\textsf{Compress}(\poly{u}, d_u), \textsf{Compress}(v, d_v))$
-    and outputs guess $b'$.
+  \item $\mathcal{A}$ receives $(\hat{\mathbf{u}}, \hat{v}) = (\textsf{Compress}(\mathbf{u}, d_u), \textsf{Compress}(v, d_v))$ and outputs guess $b'$.
 \end{enumerate}
 $\Adv_0 = |\Pr[b' = b] - 1/2|$.
 
-\paragraph{Game 1 (Replace public key with uniform).}
-Replace $\poly{t} = \mat{A}\poly{s}$ with $\poly{t} \samp \Rq^k$
-(uniform random).
+\medskip
+\noindent\textbf{Game 1 (Replace public key with uniform).}
+Replace $\mathbf{t} = \mathbf{A} \cdot \mathbf{s}$ with $\mathbf{t} \xleftarrow{\$} \Rq^k$ (uniform random).
 
-\medskip\noindent
-\emph{Transition.} By the decisional $\MLWE_{k,\eta}$ assumption,
-$(\mat{A}, \mat{A}\poly{s})$ is computationally indistinguishable
-from $(\mat{A}, \poly{u})$ where $\poly{u} \samp \Rq^k$. Therefore:
+By the decisional $\MLWE_{k,\eta}$ assumption, $(\mathbf{A}, \mathbf{A}\mathbf{s})$ is computationally indistinguishable from $(\mathbf{A}, \mathbf{u})$ where $\mathbf{u} \xleftarrow{\$} \Rq^k$. Therefore:
 \[
   |\Adv_1 - \Adv_0| \leq \Adv^{\MLWE}_{k,\eta}(\mathcal{B}_1).
 \]
 
-\paragraph{Game 2 (Replace ciphertext with uniform).}
-In addition to $\poly{t} \samp \Rq^k$, replace the ciphertext
-components with uniform: $\poly{u} \samp \Rq^k$,
-$v \samp \Rq$.
+\medskip
+\noindent\textbf{Game 2 (Replace ciphertext with uniform).}
+In addition to $\mathbf{t} \xleftarrow{\$} \Rq^k$, replace the ciphertext components with uniform: $\mathbf{u} \xleftarrow{\$} \Rq^k$, $v \xleftarrow{\$} \Rq$.
 
-\medskip\noindent
-\emph{Transition.} In Game~1, the ciphertext is computed as
-$\poly{u} = \mat{A}^T \poly{r}$ and
-$v = \langle \poly{t}, \poly{r} \rangle + m_b$ where $\poly{t}$ is
-now uniform and $\poly{r} \samp \chi_\eta^k$. Consider the joint
-distribution
+In Game~1, the ciphertext is computed as $\mathbf{u} = \mathbf{A}^T \mathbf{r}$ and $v = \langle \mathbf{t}, \mathbf{r} \rangle + m_b$ where $\mathbf{t}$ is now uniform and $\mathbf{r} \xleftarrow{\$} \chi_\eta^k$. Consider the joint distribution
 \[
-  (\mat{A}^T, \poly{t}^T, \mat{A}^T \poly{r},
-   \langle \poly{t}, \poly{r} \rangle).
+  (\mathbf{A}^T, \mathbf{t}^T, \mathbf{A}^T \mathbf{r},
+   \langle \mathbf{t}, \mathbf{r} \rangle).
 \]
-Since $\poly{t}$ is uniform, the pair
-$(\mat{A}^T \poly{r}, \langle \poly{t}, \poly{r} \rangle)$ is
-computationally indistinguishable from uniform in $\Rq^k \times \Rq$
-by a second application of $\MLWE_{k,\eta}$ (viewing $\poly{r}$ as
-the secret and $[\mat{A}^T \mid \poly{t}^T]^T$ as the extended
-public matrix). Therefore:
+Since $\mathbf{t}$ is uniform, the pair $(\mathbf{A}^T \mathbf{r}, \langle \mathbf{t}, \mathbf{r} \rangle)$ is computationally indistinguishable from uniform in $\Rq^k \times \Rq$ by a second application of $\MLWE_{k,\eta}$ (viewing $\mathbf{r}$ as the secret and $[\mathbf{A}^T \mid \mathbf{t}^T]^T$ as the extended public matrix). Therefore:
 \[
   |\Adv_2 - \Adv_1| \leq \Adv^{\MLWE}_{k,\eta}(\mathcal{B}_2).
 \]
 
-\paragraph{Game 2 analysis.}
-In Game~2, the ciphertext $(\poly{u}, v)$ is uniform and independent
-of $b$, so (ignoring compression noise):
+\medskip
+\noindent\textbf{Game 2 analysis.}
+In Game~2, the ciphertext $(\mathbf{u}, v)$ is uniform and independent of $b$, so (ignoring compression noise):
 \[
   \Adv_2 = 0.
 \]
 
-\paragraph{Combining.}
+\medskip
+\noindent\textbf{Combining.}
 \[
   \Adv^{\INDCPA}_{\CPAPKE}(\mathcal{A})
   = \Adv_0
@@ -481,21 +391,18 @@ of $b$, so (ignoring compression noise):
     + \Adv^{\MLWE}_{k,\eta}(\mathcal{B}_2)
   \leq 2 \cdot \Adv^{\MLWE}_{k,\eta}(\mathcal{B}),
 \]
-where $\mathcal{B}$ is the more efficient of $\mathcal{B}_1$,
-$\mathcal{B}_2$, with runtime $t_{\mathcal{B}} \leq
-t_{\mathcal{A}} + O(k^2 n^2)$ (cost of one encryption).
+where $\mathcal{B}$ is the more efficient of $\mathcal{B}_1$, $\mathcal{B}_2$, with runtime $t_{\mathcal{B}} \leq t_{\mathcal{A}} + O(k^2 n^2)$ (cost of one encryption).
 \end{proof}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 5: IND-CCA2 SECURITY VIA FO TRANSFORM
+% ===================================================================
 \section{IND-CCA2 Security via Fujisaki--Okamoto Transform}
 \label{sec:fo-transform}
 
 \begin{theorem}[IND-CCA2 Security of TL-KEM]
 \label{thm:cca}
-In the random oracle model, for any PPT adversary $\mathcal{A}$
-making at most $q_H$ random oracle queries and $q_D$ decapsulation
-queries against TL-KEM, there exists a PPT adversary $\mathcal{B}$
-against $\INDCPA$ security of $\CPAPKE$ such that:
+In the random oracle model, for any PPT adversary $\mathcal{A}$ making at most $q_H$ random oracle queries and $q_D$ decapsulation queries against TL-KEM, there exists a PPT adversary $\mathcal{B}$ against $\INDCPA$ security of $\CPAPKE$ such that:
 \[
   \Adv^{\INDCCA}_{\TLKEM}(\mathcal{A})
   \leq \Adv^{\INDCPA}_{\CPAPKE}(\mathcal{B})
@@ -510,62 +417,55 @@ Combining with Theorem~\ref{thm:cpa}:
   \leq 2 \cdot \Adv^{\MLWE}_{k,\eta}(\mathcal{B}')
     + \frac{q_H + q_D}{3^{243}}.
 \]
+The running time of $\mathcal{B}'$ is that of $\mathcal{A}$ plus $O(q_H \cdot k^2 \cdot n^2)$ for polynomial arithmetic.
 \end{theorem}
 
 \begin{proof}
-We use the standard $\FO^{\bot}$ proof technique of
-Hofheinz--H\"ovelmanns--Kiltz \cite{HHK17}, adapted to the ternary
-setting. The proof proceeds through a series of games.
+We use the standard $\FO^{\bot}$ proof technique of Hofheinz--H\"ovelmanns--Kiltz \cite{HHK17}, adapted to the ternary setting. The proof proceeds through a series of games.
 
-\paragraph{Game 0 (Real IND-CCA2).}
+\medskip
+\noindent\textbf{Game 0 (Real IND-CCA2).}
 Standard IND-CCA2 game for TL-KEM (Definition~\ref{def:ind-cca2}).
 $\Adv_0 = \Adv^{\INDCCA}_{\TLKEM}(\mathcal{A})$.
 
-\paragraph{Game 1 (Simulate $\Hash$ with lazy sampling).}
-Replace $\Hash$ with a lazily-sampled random oracle table. This is
-a purely syntactic change:
-$\Adv_1 = \Adv_0$.
+\medskip
+\noindent\textbf{Game 1 (Simulate $\Hash$ with lazy sampling).}
+Replace $\Hash$ with a lazily-sampled random oracle table. This is a purely syntactic change:
+\[
+  \Adv_1 = \Adv_0.
+\]
 
-\paragraph{Game 2 (Embed challenge in random oracle).}
-In the challenge encapsulation, instead of sampling $m \samp \mathcal{M}$
-and computing $K^*$ via the random oracle, sample $K^*_0 \samp
-\mathcal{K}$ directly (independent of $m$). The adversary detects the
-change only if it queries $\Hash$ on the correct $m^*$:
+\medskip
+\noindent\textbf{Game 2 (Embed challenge in random oracle).}
+In the challenge encapsulation, instead of sampling $m \xleftarrow{\$} \mathcal{M}$ and computing $K^*$ via the random oracle, sample $K^*_0 \xleftarrow{\$} \mathcal{K}$ directly (independent of $m$). The adversary detects the change only if it queries $\Hash$ on the correct $m^*$:
 \[
   |\Adv_2 - \Adv_1| \leq \frac{q_H}{|\mathcal{M}|}
   = \frac{q_H}{3^{243}}.
 \]
 
-\paragraph{Game 3 (Answer decapsulation without $sk$).}
+\medskip
+\noindent\textbf{Game 3 (Answer decapsulation without $sk$).}
 For each decapsulation query $c \neq c^*$:
-\begin{itemize}
-  \item Search the random oracle table for an entry $(m, h_{pk})$
-    whose derived ciphertext $\Enc(pk, m; G(m, h_{pk}))$ equals $c$.
+\begin{itemize}[leftmargin=2em]
+  \item Search the random oracle table for an entry $(m, h_{pk})$ whose derived ciphertext $\Enc(pk, m; G(m, h_{pk}))$ equals $c$.
   \item If found: return $H(G_K(m, h_{pk}), c)$.
   \item If not found: return $H(z, c)$ (implicit rejection).
 \end{itemize}
-This simulation is perfect unless $\mathcal{A}$ produces a valid
-ciphertext without querying the random oracle on the underlying
-message. By the deterministic re-encryption check in $\Decaps$
-(line~3 of Algorithm~5), the probability of this event is bounded
-by $q_D / |\mathcal{M}|$:
+This simulation is perfect unless $\mathcal{A}$ produces a valid ciphertext without querying the random oracle on the underlying message. By the deterministic re-encryption check in $\Decaps$ (line~3 of Algorithm~\ref{alg:kem-decaps}), the probability of this event is bounded by $q_D / |\mathcal{M}|$:
 \[
   |\Adv_3 - \Adv_2| \leq \frac{q_D}{|\mathcal{M}|}
   = \frac{q_D}{3^{243}}.
 \]
 
-\paragraph{Game 3 analysis.}
-In Game~3, the challenge shared secret $K^*_0$ is uniform and
-independent of $b$, while $K^*_1$ is also uniform. The adversary's
-view is identical for $b=0$ and $b=1$, except through the ciphertext
-$c^*$. But $c^*$ is an encryption of a random message $m^*$ under
-$pk$, which by IND-CPA security of $\CPAPKE$ reveals negligible
-information about $m^*$:
+\medskip
+\noindent\textbf{Game 3 analysis.}
+In Game~3, the challenge shared secret $K^*_0$ is uniform and independent of $b$, while $K^*_1$ is also uniform. The adversary's view is identical for $b=0$ and $b=1$, except through the ciphertext $c^*$. But $c^*$ is an encryption of a random message $m^*$ under $pk$, which by IND-CPA security of $\CPAPKE$ reveals negligible information about $m^*$:
 \[
   \Adv_3 \leq \Adv^{\INDCPA}_{\CPAPKE}(\mathcal{B}).
 \]
 
-\paragraph{Combining.}
+\medskip
+\noindent\textbf{Combining.}
 \begin{align*}
   \Adv^{\INDCCA}_{\TLKEM}(\mathcal{A})
   &= \Adv_0 = \Adv_1 \\
@@ -587,179 +487,117 @@ Substituting Theorem~\ref{thm:cpa}:
 
 \begin{lemma}[Implicit Rejection Prevents Key-Mismatch Attacks]
 \label{lem:reject}
-The implicit rejection mechanism in $\TLKEM.\Decaps$
-(\texttt{tl\_kem.rs:238--250}) ensures that:
-\begin{enumerate}[label=(\alph*)]
-  \item Invalid ciphertexts produce pseudorandom shared secrets
-    (keyed by $z$), not error messages.
-  \item The adversary cannot distinguish rejection from acceptance
-    without solving Module-LWE.
-  \item All operations are constant-time (\texttt{ct\_eq\_slices},
-    \texttt{ct\_select\_vec}), preventing timing side-channels.
+The implicit rejection mechanism in $\TLKEM.\Decaps$ (\texttt{tl\_kem.rs:238--250}) ensures that:
+\begin{enumerate}[leftmargin=2em, label=(\alph*)]
+  \item Invalid ciphertexts produce pseudorandom shared secrets (keyed by $z$), not error messages.
+  \item The adversary cannot distinguish rejection from acceptance without solving Module-LWE.
+  \item All operations are constant-time (\texttt{ct\_eq\_slices}, \texttt{ct\_select\_vec}), preventing timing side-channels.
 \end{enumerate}
 \end{lemma}
 
 \begin{proof}
-(a) follows directly from the construction: on re-encryption mismatch,
-$K = \Hash(z \| c)$ is computed, which is pseudorandom under the
-random oracle model since $z$ is secret and independent of $c$.
+(a) follows directly from the construction: on re-encryption mismatch, $K = \Hash(z \| c)$ is computed, which is pseudorandom under the random oracle model since $z$ is secret and independent of $c$.
 
-(b) Distinguishing $\Hash(K'_{\text{seed}} \| c)$ from $\Hash(z \| c)$
-requires knowing which branch was taken, which requires either: (i)
-recovering $m'$ (which requires Module-LWE), or (ii) forging a
-ciphertext that passes re-encryption (which requires inverting the
-hash $G$).
+(b) Distinguishing $\Hash(K'_{\text{seed}} \| c)$ from $\Hash(z \| c)$ requires knowing which branch was taken, which requires either: (i) recovering $m'$ (which requires Module-LWE), or (ii) forging a ciphertext that passes re-encryption (which requires inverting the hash $G$).
 
-(c) The implementation uses \texttt{ct\_eq\_slices} (constant-time
-slice comparison, \texttt{ct\_utils.rs}) for the re-encryption check
-and \texttt{ct\_select\_vec} (constant-time conditional selection)
-for the output selection. These ensure identical execution time and
-memory access patterns regardless of match/mismatch.
+(c) The implementation uses \texttt{ct\_eq\_slices} (constant-time slice comparison, \texttt{ct\_utils.rs}) for the re-encryption check and \texttt{ct\_select\_vec} (constant-time conditional selection) for the output selection. These ensure identical execution time and memory access patterns regardless of match/mismatch.
 \end{proof}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 6: CONCRETE SECURITY BOUNDS
+% ===================================================================
 \section{Concrete Security Bounds}
 \label{sec:concrete}
 
 \subsection{Security Levels}
 
-Combining Theorems~\ref{thm:cpa} and~\ref{thm:cca}, the concrete
-security of each TL-KEM variant is:
+Combining Theorems~\ref{thm:cpa} and~\ref{thm:cca}, the concrete security of each TL-KEM variant is:
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
-\caption{Concrete security bounds. $\delta_{\MLWE}$ denotes the root
-  Hermite factor for the best known lattice attack.}
+\caption{Concrete security bounds. $\delta_{\MLWE}$ denotes the root Hermite factor for the best known lattice attack.}
 \label{tab:concrete}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Variant} & $k$ & $n$ &
-  \textbf{MLWE dimension} &
-  \textbf{Target (bits)} &
-  \textbf{FO overhead} \\
+Variant & $k$ & $n$ & MLWE dimension & Target (bits) & FO overhead \\
 \midrule
-TL-KEM-512  & 2 & 256 & $kn = 512$  & 128 &
-  $(q_H+q_D)/3^{243}$ \\
-TL-KEM-768  & 3 & 256 & $kn = 768$  & 192 &
-  $(q_H+q_D)/3^{243}$ \\
-TL-KEM-1024 & 4 & 256 & $kn = 1024$ & 256 &
-  $(q_H+q_D)/3^{243}$ \\
+TL-KEM-512  & 2 & 256 & $kn = 512$  & 128 & $(q_H+q_D)/3^{243}$ \\
+TL-KEM-768  & 3 & 256 & $kn = 768$  & 192 & $(q_H+q_D)/3^{243}$ \\
+TL-KEM-1024 & 4 & 256 & $kn = 1024$ & 256 & $(q_H+q_D)/3^{243}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Analysis of the FO Overhead Term}
 
-The message space is $\mathcal{M} = \{-1,0,+1\}^{243}$, so
-$|\mathcal{M}| = 3^{243} \approx 2^{385}$. For practical adversaries
-with $q_H + q_D \leq 2^{128}$:
+The message space is $\mathcal{M} = \{-1,0,+1\}^{243}$, so $|\mathcal{M}| = 3^{243} \approx 2^{385}$. For practical adversaries with $q_H + q_D \leq 2^{128}$:
 \[
   \frac{q_H + q_D}{3^{243}} \leq \frac{2^{128}}{2^{385}}
   = 2^{-257},
 \]
-which is overwhelmingly negligible. The FO transform introduces no
-meaningful security loss.
+which is overwhelmingly negligible. The FO transform introduces no meaningful security loss.
 
 \subsection{Module-LWE Hardness}
 
-The best known attacks against Module-LWE with parameters
-$(n, k, q=3, \eta=2)$ are lattice reduction algorithms (BKZ,
-progressive BKZ). The effective lattice dimension for the shortest
-vector problem is $d_{\text{eff}} = kn$:
+The best known attacks against Module-LWE with parameters $(n, k, q=3, \eta=2)$ are lattice reduction algorithms (BKZ, progressive BKZ). The effective lattice dimension for the shortest vector problem is $d_{\text{eff}} = kn$:
 
-\begin{itemize}
-  \item \textbf{TL-KEM-512}: $d_{\text{eff}} = 512$. The best known
-    classical attack requires $\geq 2^{128}$ operations under the
-    Core-SVP methodology.
-  \item \textbf{TL-KEM-768}: $d_{\text{eff}} = 768$. Classical
-    security $\geq 2^{192}$.
-  \item \textbf{TL-KEM-1024}: $d_{\text{eff}} = 1024$. Classical
-    security $\geq 2^{256}$.
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{TL-KEM-512}: $d_{\text{eff}} = 512$. The best known classical attack requires $\geq 2^{128}$ operations under the Core-SVP methodology.
+  \item \textbf{TL-KEM-768}: $d_{\text{eff}} = 768$. Classical security $\geq 2^{192}$.
+  \item \textbf{TL-KEM-1024}: $d_{\text{eff}} = 1024$. Classical security $\geq 2^{256}$.
 \end{itemize}
 
 \begin{remark}[Impact of $q=3$]
-Operating with modulus $q=3$ (versus $q=3329$ in ML-KEM) means the
-lattice has smaller norm ratios, which can either help or hinder
-attacks depending on the attack model. However, the Module-LWE
-problem with $q=3$ and ternary secrets/errors is well-studied in
-the lattice cryptography literature (e.g., NTRU-like systems with
-ternary keys). The small modulus forces the secret to have very
-high entropy relative to the modulus, maintaining hardness. A full
-cryptanalytic assessment specific to $q=3$ is provided in the
-companion Sponge Cryptanalysis Report (Task~2.5).
+Operating with modulus $q=3$ (versus $q=3329$ in ML-KEM) means the lattice has smaller norm ratios, which can either help or hinder attacks depending on the attack model. However, the Module-LWE problem with $q=3$ and ternary secrets/errors is well-studied in the lattice cryptography literature (e.g., NTRU-like systems with ternary keys). The small modulus forces the secret to have very high entropy relative to the modulus, maintaining hardness. A full cryptanalytic assessment specific to $q=3$ is provided in the companion Sponge Cryptanalysis Report (Task~2.5).
 \end{remark}
 
 \subsection{Compression Error Bound}
 
-The compression functions $\textsf{Compress}(\cdot, d)$ and
-$\textsf{Decompress}(\cdot, d)$ introduce rounding errors. For
-correctness of decapsulation, the accumulated error must not cause
-message recovery failure.
+The compression functions $\textsf{Compress}(\cdot, d)$ and $\textsf{Decompress}(\cdot, d)$ introduce rounding errors. For correctness of decapsulation, the accumulated error must not cause message recovery failure.
 
 \begin{lemma}[Decapsulation Correctness]
 \label{lem:correct}
-Let $\delta_u$ and $\delta_v$ denote the compression noise from
-$\textsf{Compress}(\cdot, d_u)$ and $\textsf{Compress}(\cdot, d_v)$
-respectively. Decapsulation is correct whenever
-$\|\poly{s}^T \delta_u + \delta_v\|_\infty < 3/2$ (i.e., the total
-noise does not cause a rounding error in $\GFthree$).
+Let $\delta_u$ and $\delta_v$ denote the compression noise from $\textsf{Compress}(\cdot, d_u)$ and $\textsf{Compress}(\cdot, d_v)$ respectively. Decapsulation is correct whenever $\|\mathbf{s}^T \delta_u + \delta_v\|_\infty < 3/2$ (i.e., the total noise does not cause a rounding error in $\GF$).
 \end{lemma}
 
 \begin{proof}
 After decompression, the decapsulator computes:
 \begin{align*}
-  m' &= \tilde{v} - \langle \poly{s}, \tilde{\poly{u}} \rangle \\
-     &= (v + \delta_v) - \langle \poly{s}, \poly{u} + \delta_u \rangle \\
-     &= (\langle \poly{t}, \poly{r} \rangle + m + \delta_v)
-       - (\langle \poly{s}, \mat{A}^T\poly{r} \rangle
-       + \langle \poly{s}, \delta_u \rangle) \\
-     &= m + \delta_v - \langle \poly{s}, \delta_u \rangle
-       + (\langle \mat{A}\poly{s}, \poly{r} \rangle
-       - \langle \poly{s}, \mat{A}^T\poly{r} \rangle).
+  m' &= \tilde{v} - \langle \mathbf{s}, \tilde{\mathbf{u}} \rangle \\
+     &= (v + \delta_v) - \langle \mathbf{s}, \mathbf{u} + \delta_u \rangle \\
+     &= (\langle \mathbf{t}, \mathbf{r} \rangle + m + \delta_v)
+       - (\langle \mathbf{s}, \mathbf{A}^T\mathbf{r} \rangle
+       + \langle \mathbf{s}, \delta_u \rangle) \\
+     &= m + \delta_v - \langle \mathbf{s}, \delta_u \rangle
+       + (\langle \mathbf{A}\mathbf{s}, \mathbf{r} \rangle
+       - \langle \mathbf{s}, \mathbf{A}^T\mathbf{r} \rangle).
 \end{align*}
-The last term vanishes by the identity
-$\langle \mat{A}\poly{s}, \poly{r} \rangle
-= \poly{s}^T \mat{A}^T \poly{r}
-= \langle \poly{s}, \mat{A}^T\poly{r} \rangle$.
-Hence $m' = m + \delta_v - \langle \poly{s}, \delta_u \rangle$,
-and decryption is correct when
-$\|\delta_v - \langle \poly{s}, \delta_u \rangle\|_\infty < 3/2$.
+The last term vanishes by the identity $\langle \mathbf{A}\mathbf{s}, \mathbf{r} \rangle = \mathbf{s}^T \mathbf{A}^T \mathbf{r} = \langle \mathbf{s}, \mathbf{A}^T\mathbf{r} \rangle$. Hence $m' = m + \delta_v - \langle \mathbf{s}, \delta_u \rangle$, and decryption is correct when $\|\delta_v - \langle \mathbf{s}, \delta_u \rangle\|_\infty < 3/2$.
 \end{proof}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 7: SUMMARY OF SECURITY PROPERTIES
+% ===================================================================
 \section{Summary of Security Properties}
 \label{sec:summary}
 
-\begin{tcolorbox}[colback=blue!5,colframe=blue!40,title=TL-KEM
-  Security Summary]
-\begin{enumerate}[label=\textbf{P\arabic*}.]
-  \item \textbf{IND-CCA2 under Module-LWE}: $\Adv^{\INDCCA}_{\TLKEM}
-    \leq 2 \cdot \Adv^{\MLWE}_{k,\eta} + (q_H+q_D)/3^{243}$
-    (Theorem~\ref{thm:cca}).
-  \item \textbf{Implicit rejection}: Invalid ciphertexts produce
-    pseudorandom shared secrets, preventing key-mismatch attacks
-    (Lemma~\ref{lem:reject}).
-  \item \textbf{Constant-time execution}: All branching in
-    $\Decaps$ uses \texttt{ct\_eq}, \texttt{ct\_select} from
-    \texttt{ct\_utils.rs} --- formally verified by 18 Kani proofs
-    (\texttt{crypto/kani\_proofs.rs}).
-  \item \textbf{Deterministic re-encryption}: The FO check
-    re-encrypts $m'$ and compares ciphertexts in constant time,
-    ensuring CCA2 security (not just CCA1).
-  \item \textbf{Post-quantum security}: The reduction target
-    (Module-LWE) is believed hard for quantum computers. NIST
-    Levels~1/3/5 are matched by TL-KEM-512/768/1024.
+\begin{enumerate}[leftmargin=2em, label=\textbf{P\arabic*.}]
+  \item \textbf{IND-CCA2 under Module-LWE}: $\Adv^{\INDCCA}_{\TLKEM} \leq 2 \cdot \Adv^{\MLWE}_{k,\eta} + (q_H+q_D)/3^{243}$ (Theorem~\ref{thm:cca}).
+  \item \textbf{Implicit rejection}: Invalid ciphertexts produce pseudorandom shared secrets, preventing key-mismatch attacks (Lemma~\ref{lem:reject}).
+  \item \textbf{Constant-time execution}: All branching in $\Decaps$ uses \texttt{ct\_eq}, \texttt{ct\_select} from \texttt{ct\_utils.rs}---formally verified by 18 Kani proofs (\texttt{crypto/kani\_proofs.rs}).
+  \item \textbf{Deterministic re-encryption}: The FO check re-encrypts $m'$ and compares ciphertexts in constant time, ensuring CCA2 security (not just CCA1).
+  \item \textbf{Post-quantum security}: The reduction target (Module-LWE) is believed hard for quantum computers. NIST Levels~1/3/5 are matched by TL-KEM-512/768/1024.
 \end{enumerate}
-\end{tcolorbox}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 8: IMPLEMENTATION--PROOF CORRESPONDENCE
+% ===================================================================
 \section{Implementation--Proof Correspondence}
 \label{sec:correspondence}
 
-The following table maps each proof element to the exact
-implementation artifact.
+The following table maps each proof element to the exact implementation artifact.
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \caption{Proof--code traceability.}
 \label{tab:trace}
@@ -767,9 +605,9 @@ implementation artifact.
 \toprule
 \textbf{Proof Element} & \textbf{Source File:Line} & \textbf{Verification} \\
 \midrule
-$\mat{A} \leftarrow \textsf{SampleMatrix}$ &
+$\mathbf{A} \leftarrow \textsf{SampleMatrix}$ &
   \texttt{ternary\_lattice.rs:452--461} & Sponge-based XOF \\
-$\poly{s} \samp \chi_\eta^k$ &
+$\mathbf{s} \xleftarrow{\$} \chi_\eta^k$ &
   \texttt{ternary\_lattice.rs:463--469} & CBD sampling \\
 $\textsf{ring\_mul}$ in $\Rq$ &
   \texttt{ternary\_lattice.rs:185--215} & Schoolbook + $X^n\!+\!1$ \\
@@ -778,7 +616,7 @@ $\textsf{Compress}/\textsf{Decompress}$ &
 $\textsf{ct\_eq\_slices}$ &
   \texttt{ct\_utils.rs} & Kani proof \#14--15 \\
 $\textsf{ct\_select\_vec}$ &
-  \texttt{ct\_utils.rs} & Kani proof \#6--7,\#10 \\
+  \texttt{ct\_utils.rs} & Kani proof \#6--7, \#10 \\
 FO implicit rejection &
   \texttt{tl\_kem.rs:245--250} & Constant-time branch \\
 Re-encryption check &
@@ -787,43 +625,32 @@ Re-encryption check &
 \end{tabular}
 \end{table}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% SECTION 9: LIMITATIONS AND FUTURE WORK
+% ===================================================================
 \section{Limitations and Future Work}
 \label{sec:limitations}
 
-\begin{enumerate}[label=\arabic*.]
-  \item \textbf{Random oracle model.} The FO transform proof relies on
-    the random oracle model. The ternary sponge is used as the concrete
-    hash --- its indifferentiability from a random oracle is analyzed
-    separately in the Sponge Cryptanalysis Report (Task~2.5).
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Random oracle model.} The FO transform proof relies on the random oracle model. The ternary sponge is used as the concrete hash---its indifferentiability from a random oracle is analyzed separately in the Sponge Cryptanalysis Report (Task~2.5).
 
-  \item \textbf{Compression noise analysis.} Lemma~\ref{lem:correct}
-    provides the correctness condition. A full failure probability
-    analysis bounding $\Pr[\|\delta_v - \langle \poly{s}, \delta_u
-    \rangle\|_\infty \geq 3/2]$ for each parameter set is deferred
-    to the benchmark report (Task~2.3), which will measure empirical
-    decapsulation failure rates.
+  \item \textbf{Compression noise analysis.} Lemma~\ref{lem:correct} provides the correctness condition. A full failure probability analysis bounding $\Pr[\|\delta_v - \langle \mathbf{s}, \delta_u \rangle\|_\infty \geq 3/2]$ for each parameter set is deferred to the benchmark report (Task~2.3), which will measure empirical decapsulation failure rates.
 
-  \item \textbf{Tight security.} The factor-2 loss in
-    Theorem~\ref{thm:cpa} arises from the two-game reduction (public
-    key, then ciphertext). Recent techniques
-    (Bos--Ducas--Kiltz--Lepoint--Lyubashevsky--Schanck--Schwabe--Stehl\'e)
-    for tight CPA-to-CCA reductions may reduce this to factor~1.
+  \item \textbf{Tight security.} The factor-2 loss in Theorem~\ref{thm:cpa} arises from the two-game reduction (public key, then ciphertext). Recent techniques (Bos--Ducas--Kiltz--Lepoint--Lyubashevsky--Schanck--Schwabe--Stehl\'e) for tight CPA-to-CCA reductions may reduce this to factor~1.
 
-  \item \textbf{Quantum random oracle model (QROM).} The FO bound
-    uses the classical ROM. A QROM analysis following
-    Jiang--Zhang--Ma (2023) would tighten the post-quantum bound
-    at the cost of a $q_H^2/|\mathcal{M}|$ term.
+  \item \textbf{Quantum random oracle model (QROM).} The FO bound uses the classical ROM. A QROM analysis following Jiang--Zhang--Ma (2023) would tighten the post-quantum bound at the cost of a $q_H^2/|\mathcal{M}|$ term.
 \end{enumerate}
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% ACKNOWLEDGMENTS
+% ===================================================================
 \section*{Acknowledgments}
 
-This proof was produced as part of the PlenumNET Tier~2 verification
-program. The TL-KEM implementation was authored by the Applied Physics
-Division of Capomastro Holdings Ltd.
+This proof was produced as part of the PlenumNET Tier~2 verification program. The TL-KEM implementation was authored by the Applied Physics Division of Capomastro Holdings Ltd.
 
-% ═════════════════════════════════════════════════════════════════════
+% ===================================================================
+% REFERENCES
+% ===================================================================
 \begin{thebibliography}{99}
 
 \bibitem{HHK17}
@@ -833,8 +660,7 @@ D.~Hofheinz, K.~H\"ovelmanns, and E.~Kiltz.
 
 \bibitem{FIPS203}
 NIST.
-\newblock Module-Lattice-Based Key-Encapsulation Mechanism Standard
-  (ML-KEM). FIPS~203, August 2024.
+\newblock Module-Lattice-Based Key-Encapsulation Mechanism Standard (ML-KEM). FIPS~203, August 2024.
 
 \bibitem{LPR10}
 V.~Lyubashevsky, C.~Peikert, and O.~Regev.
@@ -843,8 +669,7 @@ V.~Lyubashevsky, C.~Peikert, and O.~Regev.
 
 \bibitem{Regev05}
 O.~Regev.
-\newblock On lattices, learning with errors, random linear codes, and
-  cryptography.
+\newblock On lattices, learning with errors, random linear codes, and cryptography.
 \newblock In \emph{STOC 2005}, pp.~84--93. ACM, 2005.
 
 \bibitem{LS15}
@@ -853,15 +678,13 @@ A.~Langlois and D.~Stehl\'e.
 \newblock \emph{Designs, Codes and Cryptography}, 75(3):565--599, 2015.
 
 \bibitem{BDKLLS18}
-J.~Bos, L.~Ducas, E.~Kiltz, T.~Lepoint, V.~Lyubashevsky,
-J.~Schanck, P.~Schwabe, G.~Seiler, and D.~Stehl\'e.
+J.~Bos, L.~Ducas, E.~Kiltz, T.~Lepoint, V.~Lyubashevsky, J.~Schanck, P.~Schwabe, G.~Seiler, and D.~Stehl\'e.
 \newblock CRYSTALS--Kyber: A CCA-secure module-lattice-based KEM.
 \newblock In \emph{IEEE Euro S\&P 2018}, pp.~353--367, 2018.
 
 \bibitem{JZM23}
 H.~Jiang, Z.~Zhang, and Z.~Ma.
-\newblock Tighter security proofs for generic key encapsulation
-  mechanism in the quantum random oracle model.
+\newblock Tighter security proofs for generic key encapsulation mechanism in the quantum random oracle model.
 \newblock In \emph{PQCrypto 2023}, LNCS 14154, pp.~396--423, 2023.
 
 \end{thebibliography}
