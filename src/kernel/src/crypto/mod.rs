@@ -63,6 +63,13 @@ pub mod module_state;
 pub mod services;
 pub mod acvts;
 pub mod cavp_certs;
+pub mod ternary_cube_perm;
+pub mod metatronic_cube;
+pub mod keyed_sponge;
+pub mod address_sentinel;
+
+#[cfg(kani)]
+mod kani_proofs;
 
 use alloc::string::String;
 use alloc::vec::Vec;
