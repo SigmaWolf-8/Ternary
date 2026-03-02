@@ -50,6 +50,9 @@ Authorization via unforgeable, self-contained, bearer-verified capability tokens
 ### Security Infrastructure Services
 Admin-protected backend services under `/api/security/` include a Security Audit Service, HPTP Anomaly Detection, Threat Model Registry, Implementation Status Tracker, and a Security Dashboard.
 
+### Inter-Cube Infrastructure Services
+A 4-service system providing pure geometric routing with no routing tables across the 13D ternary cube network. Services: Geometric Load Balancer (GLB) — greedy geodesic forwarding with flow affinity; Cube Overlay Network (CON) — encrypted PQ-Native tunnels between 26 geometric neighbors; Cube Registration Service (CRS) — bitmap address allocation over 3¹³ = 1,594,323 Rep C address space; Fault Tolerance Service (FTS) — heartbeat monitoring with dead-set publication. Rust crate at `services/inter-cube/` with TypeScript API routes at `server/routes/inter-cube.ts` exposing 15 endpoints under `/api/salvi/inter-cube/*`.
+
 ### Ternary Ephemeris API
 A REST API for a separate Astrology App frontend provides endpoints for converting standard to ternary degrees with resonance scoring, calculating single planet ephemeris, batch processing for all planets, and retrieving API metadata. It supports various celestial bodies and uses a 364° circle, 13° ternary radian, and Z₂₈ lattice for its ternary system.
 
