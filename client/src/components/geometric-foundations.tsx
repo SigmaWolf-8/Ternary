@@ -765,7 +765,7 @@ export default function GeometricFoundations() {
           background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 48,
         }}>
           <Stat value={13} label="Named Axes" sub="Metatron's circles" delay={0} />
-          <Stat value={1594323} label="Vertices" sub="3¹³ network nodes" delay={100} />
+          <Stat value={2541865828329} label="Vertices" sub="3²⁶ · scales infinitely" delay={100} />
           <Stat value={715} label="Tesseract Families" sub="C(13,4) 4D sub-cubes" delay={200} />
           <Stat value={28} label="Angular Positions" sub="Z₂₈ ternary circle" delay={300} />
         </div>
