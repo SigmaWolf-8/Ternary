@@ -789,7 +789,9 @@ export default function GeometricFoundations() {
             </h3>
             <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto 8px" }}>
               When the network grows beyond a single cube, these four services handle connections
-              between cubes — and they do it without routing tables.
+              between cubes — and they do it without routing tables. Because routing is pure geometry,
+              the network scales infinitely: stack another 13 trits and the address space jumps from
+              1.6 million to 2.5 trillion nodes with no architectural change. This works today.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgMuted, maxWidth: 640, margin: "0 auto" }}>
               Greedy geodesic forwarding across the 13D ternary cube.
