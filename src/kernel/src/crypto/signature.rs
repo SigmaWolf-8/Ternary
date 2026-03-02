@@ -271,7 +271,7 @@ const HBS_N: usize = 32;
 
 fn hbs_hash(domain: u8, inputs: &[&[u8]]) -> [u8; HBS_N] {
     let mut sponge = TernarySponge::new();
-    sponge.absorb(&[domain as i8]);
+    sponge.absorb_bytes(&[domain]);
     for input in inputs {
         let len_bytes = (input.len() as u32).to_be_bytes();
         let len_td = TernaryDigest::from_bytes(&len_bytes, 20);

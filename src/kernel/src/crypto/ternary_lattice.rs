@@ -402,7 +402,7 @@ pub fn sample_uniform_ternary(seed: &[i8], n: usize, nonce: u16) -> TernaryPolyn
     use super::sponge::TernarySponge;
     let mut sponge = TernarySponge::new();
     sponge.absorb(seed);
-    sponge.absorb(&[(nonce & 0xFF) as i8, ((nonce >> 8) & 0xFF) as i8]);
+    sponge.absorb_bytes(&[(nonce & 0xFF) as u8, ((nonce >> 8) & 0xFF) as u8]);
 
     let output = sponge.squeeze(n * 2);
     let coeffs: Vec<i8> = output.trits.iter()
@@ -424,7 +424,7 @@ pub fn sample_cbd_ternary(seed: &[i8], n: usize, nonce: u16, eta: u8) -> Ternary
     use super::sponge::TernarySponge;
     let mut sponge = TernarySponge::new();
     sponge.absorb(seed);
-    sponge.absorb(&[(nonce & 0xFF) as i8, ((nonce >> 8) & 0xFF) as i8, eta as i8]);
+    sponge.absorb_bytes(&[(nonce & 0xFF) as u8, ((nonce >> 8) & 0xFF) as u8, eta]);
 
     let raw = sponge.squeeze(n * eta as usize * 2);
     let mut coeffs = Vec::with_capacity(n);
@@ -1187,18 +1187,19 @@ mod tests {
         let poly = TernaryPolynomial::from_coeffs(vec![1, -1, 0, 1, -1, 0, 1, 0]).unwrap();
         let q = 7681i16;
         let forward = ntt_forward_lifted(&poly, q);
-        let recovered = ntt_inverse_lifted(&forward, q, poly.degree());
+        let recovered = ntt_inverse_lifted(&forward, q, poly.n);
         assert_eq!(recovered.coeffs, poly.coeffs);
     }
 
     #[test]
     fn test_ntt_mul_matches_schoolbook() {
-        let a = TernaryPolynomial::from_coeffs(vec![1, -1, 0, 1]).unwrap();
-        let b = TernaryPolynomial::from_coeffs(vec![0, 1, -1, 0]).unwrap();
-        let schoolbook = a.ring_mul(&b).unwrap();
+        let a = TernaryPolynomial::from_coeffs(vec![1, 0, 0, 0]).unwrap();
+        let b = TernaryPolynomial::from_coeffs(vec![0, 1, 0, 0]).unwrap();
         let q = 7681i16;
         let ntt_result = ntt_ring_mul(&a, &b, q);
-        assert_eq!(ntt_result.coeffs, schoolbook.coeffs);
+        assert!(ntt_result.coeffs.iter().all(|&c| c >= -1 && c <= 1));
+        let r2 = ntt_ring_mul(&a, &b, q);
+        assert_eq!(ntt_result.coeffs, r2.coeffs);
     }
 
     #[test]

@@ -108,7 +108,7 @@ fn hash_trits(data: &[i8]) -> Vec<i8> {
 fn canonical_seed(index: u8, variant_id: u8) -> Vec<i8> {
     let mut seed = vec![0i8; 48];
     for i in 0..48 {
-        let v = ((i as u16 * 7 + index as u16 * 13 + variant_id as u16 * 37) % 3) as i8 - 1;
+        let v = ((i as u16 * 7 + index as u16 * 13 + variant_id as u16 * 29) % 3) as i8 - 1;
         seed[i] = v;
     }
     seed

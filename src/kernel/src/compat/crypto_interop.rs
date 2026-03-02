@@ -483,7 +483,7 @@ mod tests {
     #[test]
     fn test_shared_secret_conversion() {
         let mut bridge = CryptoInteropBridge::new();
-        let trits = vec![0i8, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1];
+        let trits = vec![1i8, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0];
         let bytes = bridge.shared_secret_to_binary(&trits, InteropAlgorithm::MlKem512).unwrap();
         assert_eq!(bytes.len(), 2);
     }

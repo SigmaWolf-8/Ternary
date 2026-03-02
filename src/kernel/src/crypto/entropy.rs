@@ -475,7 +475,7 @@ mod tests {
     fn test_stuck_source_detected() {
         let noise = TestNoise::stuck(42, 100);
         let mut source = EntropySource::new(noise);
-        let result = source.get_entropy(384);
+        let result = source.get_entropy(768);
         assert!(result.is_err());
         match result {
             Err(EntropyError::RepetitionCountFailed) => {}

@@ -113,7 +113,7 @@ pub struct HybridKeyExchange {
 #[inline(never)]
 fn kdf_derive(inputs: &[&[u8]], domain: u8) -> [u8; SESSION_KEY_SIZE] {
     let mut sponge = TernarySponge::new();
-    sponge.absorb(&[domain as i8]);
+    sponge.absorb_bytes(&[domain]);
     for input in inputs {
         if !input.is_empty() {
             let td = TernaryDigest::from_bytes(input, input.len() * 5);
