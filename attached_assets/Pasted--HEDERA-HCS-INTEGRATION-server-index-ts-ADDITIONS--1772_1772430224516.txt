@@ -1,0 +1,76 @@
+/**
+ * HEDERA HCS INTEGRATION — server/index.ts ADDITIONS
+ * ==================================================
+ *
+ * Three changes to server/index.ts:
+ *
+ * 1. Add imports (near line 40, alongside TSA imports)
+ * 2. Initialize service (after TSA init, near line 241)
+ * 3. Register routes (after TSA route registration)
+ *
+ * Environment variables required:
+ *   HEDERA_ACCOUNT_ID   — e.g., '0.0.12345'
+ *   HEDERA_PRIVATE_KEY  — Ed25519 DER hex string
+ *
+ * Optional:
+ *   HEDERA_NETWORK      — 'testnet' (default) | 'mainnet' | 'previewnet'
+ *   HEDERA_TOPIC_ID     — Existing topic ID (auto-creates if omitted)
+ *   HEDERA_TOPIC_MEMO   — Custom topic memo
+ *   HEDERA_MAX_FEE_HBAR — Max fee per transaction (default: 2)
+ *   HEDERA_AUDIT_DIR    — Audit log directory
+ *   HEDERA_MIRROR_URL   — Custom mirror node URL
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 1: Add these imports near line 40
+// (alongside the TSA imports)
+// ═══════════════════════════════════════════════════════════════
+
+// import { HederaWitnessingService, createHederaConfig } from "./services/hedera-witnessing-service";
+// import { createHederaRoutes } from "./routes/hedera";
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 2: Add this block after TSA route registration (line 241)
+// Place it BEFORE the NotificationService init so notifications
+// can reference the Hedera service if needed.
+// ═══════════════════════════════════════════════════════════════
+
+/*
+  // =====================================================
+  // HEDERA HCS WITNESSING — blockchain-based non-repudiation
+  // =====================================================
+  const hederaConfig = createHederaConfig();
+  let hederaService: HederaWitnessingService | null = null;
+
+  if (hederaConfig) {
+    hederaService = new HederaWitnessingService(hederaConfig);
+    try {
+      const hederaInit = await hederaService.initialize();
+      log(`Hedera HCS initialized — topic: ${hederaInit.topicId}, network: ${hederaInit.network}, created: ${hederaInit.topicCreated}`, 'hedera');
+
+      app.use('/api/hedera', createHederaRoutes(hederaService));
+      log('Hedera — 6 endpoints at /api/hedera/* (Kong service #22)', 'hedera');
+    } catch (error) {
+      log(`Hedera initialization failed: ${(error as Error).message}`, 'hedera');
+      log('Hedera witnessing disabled — set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY to enable', 'hedera');
+      hederaService = null;
+    }
+  } else {
+    log('Hedera witnessing disabled — HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY not set', 'hedera');
+  }
+*/
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 3 (OPTIONAL): Graceful shutdown handler
+// Add to existing process signal handlers if present,
+// or add new ones.
+// ═══════════════════════════════════════════════════════════════
+
+/*
+  process.on('SIGTERM', () => {
+    hederaService?.close();
+  });
+  process.on('SIGINT', () => {
+    hederaService?.close();
+  });
+*/

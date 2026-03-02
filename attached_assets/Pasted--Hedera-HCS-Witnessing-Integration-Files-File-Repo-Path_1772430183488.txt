@@ -1,0 +1,99 @@
+# Hedera HCS Witnessing Integration
+
+## Files
+
+| File | Repo Path | Purpose |
+|---|---|---|
+| `server/services/hedera-witnessing-service.ts` | `server/services/hedera-witnessing-service.ts` (new) | Implements `IHederaWitnessingService` from `blockchain-integrations.ts` |
+| `server/routes/hedera.ts` | `server/routes/hedera.ts` (new) | 6 API endpoints under `/api/hedera/*` |
+| `INDEX_TS_PATCH.ts` | N/A — apply manually to `server/index.ts` | Shows 3 additions: imports, init, route registration |
+
+## Setup
+
+### 1. Install SDK (already done)
+
+```bash
+npm install @hashgraph/sdk
+```
+
+### 2. Get Hedera testnet credentials
+
+Go to https://portal.hedera.com — create free testnet account. You get:
+- Account ID (e.g., `0.0.12345`)
+- DER-encoded private key (hex string starting with `302e0201...`)
+
+### 3. Set environment variables
+
+```bash
+export HEDERA_ACCOUNT_ID="0.0.12345"
+export HEDERA_PRIVATE_KEY="302e020100300506032b657004220420..."
+export HEDERA_NETWORK="testnet"       # optional, defaults to testnet
+```
+
+### 4. Apply index.ts changes
+
+See `INDEX_TS_PATCH.ts` for exact code. Three additions:
+1. Import lines (near line 40)
+2. Service init block (after line 241)
+3. Shutdown handler (optional)
+
+### 5. Add to Kong service catalog
+
+In `server/routes/kong.ts`, add to the catalog array:
+
+```typescript
+{ name: "plenumnet-hedera", label: "Hedera HCS Witnessing", routePath: "/api/hedera", endpointCount: 6, category: "core", endpoints: ["POST /v1/witness", "GET /v1/witness/:txId", "POST /v1/verify", "GET /v1/topic", "GET /v1/health", "GET /v1/stats"] },
+```
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/hedera/v1/witness` | Submit witness hash to HCS topic |
+| GET | `/api/hedera/v1/witness/:txId` | Get witness status by transaction ID |
+| POST | `/api/hedera/v1/verify` | Verify witness exists via mirror node |
+| GET | `/api/hedera/v1/topic` | Get topic info from network |
+| GET | `/api/hedera/v1/health` | Service health check |
+| GET | `/api/hedera/v1/stats` | Audit statistics |
+
+## Quick Test
+
+```bash
+# Submit a witness
+curl -X POST http://localhost:5000/api/hedera/v1/witness \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation_id": "test-001",
+    "witness_type": "SINGLE_HASH",
+    "payload": {
+      "hash": "a1b2c3d4e5f6...",
+      "hash_algorithm": "SHA256",
+      "encoding": "hex"
+    }
+  }'
+
+# Check health
+curl http://localhost:5000/api/hedera/v1/health
+
+# Verify via mirror node
+curl -X POST http://localhost:5000/api/hedera/v1/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic_id": "0.0.67890",
+    "sequence_number": 1
+  }'
+```
+
+## How It Works
+
+1. Service connects to Hedera testnet/mainnet using `@hashgraph/sdk`
+2. On first run without a topic ID, creates a new HCS topic and persists the ID to `hedera-topic-id.txt`
+3. `submitWitness()` serializes operation metadata + hash as compact JSON, submits to HCS via `TopicMessageSubmitTransaction`
+4. Hedera network assigns consensus timestamp and sequence number
+5. Response includes mirror node URLs for independent third-party verification
+6. All submissions logged to `hedera-witness-audit.jsonl` for local audit trail
+7. `verifyWitness()` queries the Hedera mirror node REST API to confirm message existence
+
+## Graceful Degradation
+
+If `HEDERA_ACCOUNT_ID` / `HEDERA_PRIVATE_KEY` are not set, the service logs a warning and does not mount routes. All other PlenumNET services continue normally. TSA + Merkle audit log continue to provide non-repudiation independently.

@@ -419,7 +419,7 @@ function HeroSection() {
             <div className="flex flex-wrap gap-6 md:gap-8">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value="1,040" label="Tests Passing" delay={0.38} />
-              <AnimatedStat value="80/80" label="Milestones Complete" delay={0.41} />
+              <AnimatedStat value="80/80" label="Milestones" delay={0.41} />
               <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.44} />
             </div>
           </div>
