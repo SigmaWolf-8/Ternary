@@ -290,22 +290,13 @@ function HeroSection() {
           className="mb-8"
         >
           <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl">
-            <div className="absolute top-0 left-0 right-0 h-8 bg-background/90 backdrop-blur-sm border-b border-border/30 flex items-center px-4 z-10">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
-                <div className="w-2.5 h-2.5 rounded-full bg-green-400/60" />
-              </div>
-              <span className="ml-3 text-[10px] font-mono text-muted-foreground/60 tracking-wider">SALVI FRAMEWORK</span>
-              <img src={plenumLogo} alt="PlenumNET" className="h-5 w-auto ml-auto opacity-70" data-testid="hero-logo" />
-            </div>
             <video
               ref={videoRef}
               autoPlay
               muted
               playsInline
-              
-              className="w-full pt-8"
+              loop
+              className="w-full"
               style={{ height: "390px", objectFit: "fill" }}
               data-testid="hero-video"
             >
