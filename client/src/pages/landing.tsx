@@ -206,201 +206,192 @@ function HeroSection() {
 
   return (
     <section id="hero" className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
-      <div className="absolute inset-0 w-full h-full overflow-hidden">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          data-testid="hero-video"
-        >
-          <source src={heroVideo} type="video/mp4" />
-        </video>
-        <div className="absolute inset-0" />
-      </div>
-      
       <div className="relative z-10 max-w-7xl mx-auto px-5">
-        <div className="max-w-4xl rounded-2xl p-6 md:p-10 border border-border/50 shadow-xl bg-background">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-wrap gap-2 mb-6"
-          >
-            <Badge 
-              variant="outline" 
-              className="border-green-500/30 bg-green-500/10 text-green-700 px-4 py-1.5"
-              data-testid="badge-status"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex flex-wrap gap-2 mb-6"
             >
-              <Check className="w-3 h-3 mr-1" />
-              Production Ready
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+              <Badge 
+                variant="outline" 
+                className="border-green-500/30 bg-green-500/10 text-green-700 px-4 py-1.5"
+                data-testid="badge-status"
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Production Ready
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+              >
+                1,040 Tests Passing
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+              >
+                Post-Quantum Secure
+              </Badge>
+            </motion.div>
+            
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.05 }}
+              className="text-4xl md:text-5xl lg:text-5xl font-bold leading-tight mb-6"
+              data-testid="text-hero-title"
+              id="hero-title"
             >
-              1,040 Tests Passing
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+              The World's First <span className="text-primary">Ternary Computing</span> Platform
+            </motion.h1>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="flex items-start gap-4 mb-8"
+              data-testid="text-hero-description"
             >
-              Post-Quantum Secure
-            </Badge>
-          </motion.div>
-          
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
-            data-testid="text-hero-title"
-            id="hero-title"
-            style={{
-              textShadow: `
-                0 1px 0 rgba(255,255,255,0.5),
-                0 -1px 0 rgba(0,0,0,0.2),
-                0 2px 0 rgba(0,0,0,0.20),
-                0 3px 0 rgba(0,0,0,0.18),
-                0 4px 0 rgba(0,0,0,0.16),
-                0 5px 0 rgba(0,0,0,0.14),
-                0 6px 0 rgba(0,0,0,0.12),
-                0 7px 0 rgba(0,0,0,0.10),
-                0 8px 0 rgba(0,0,0,0.08),
-                0 9px 0 rgba(0,0,0,0.06),
-                0 10px 0 rgba(0,0,0,0.04),
-                0 12px 8px rgba(0,0,0,0.14),
-                0 18px 16px rgba(0,0,0,0.10),
-                0 26px 30px rgba(0,0,0,0.06)
-              `,
-            }}
-          >
-            The World's First <span className="text-primary" style={{ textShadow: `
-                0 1px 0 rgba(0,85,210,0.50),
-                0 2px 0 rgba(0,80,200,0.45),
-                0 3px 0 rgba(0,75,190,0.40),
-                0 4px 0 rgba(0,70,180,0.35),
-                0 5px 0 rgba(0,65,170,0.30),
-                0 6px 0 rgba(0,60,160,0.26),
-                0 7px 0 rgba(0,55,150,0.22),
-                0 8px 0 rgba(0,50,140,0.18),
-                0 9px 0 rgba(0,45,130,0.14),
-                0 10px 0 rgba(0,40,120,0.10),
-                0 12px 8px rgba(0,30,100,0.18),
-                0 18px 16px rgba(0,30,100,0.12),
-                0 26px 30px rgba(0,30,100,0.07)
-              ` }}>Ternary Computing</span> Platform
-          </motion.h1>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="flex items-start gap-4 mb-8"
-            data-testid="text-hero-description"
-          >
-            <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
-              59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
-              A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
-            </p>
-            <img src={plenumLogo} alt="PlenumNET" className="h-24 md:h-32 w-auto flex-shrink-0 -mt-4 -ml-4" data-testid="hero-logo" />
-          </motion.div>
+              <p className="text-lg text-muted-foreground max-w-xl">
+                59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
+                A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
+              </p>
+              <img src={plenumLogo} alt="PlenumNET" className="h-20 w-auto flex-shrink-0 -mt-2" data-testid="hero-logo" />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="mb-8"
+            >
+              {showSuccess ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="max-w-lg"
+                  data-testid="hero-signup-success"
+                >
+                  <Card className="p-6 border-green-500/30 bg-green-500/5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Check className="w-5 h-5 text-green-500" />
+                      <span className="font-semibold text-foreground">You're on the list!</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      We'll send you SDK access details, documentation links, and priority updates. Check your inbox soon.
+                    </p>
+                  </Card>
+                </motion.div>
+              ) : (
+                <>
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (email) signupMutation.mutate({ email });
+                    }}
+                    className="flex flex-col sm:flex-row gap-3 max-w-lg"
+                    data-testid="form-hero-signup"
+                  >
+                    <label htmlFor="hero-email" className="sr-only">Email address</label>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email for early access"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="flex-1"
+                      required
+                      data-testid="input-hero-email"
+                      id="hero-email"
+                      aria-label="Email address for early access"
+                    />
+                    <Button 
+                      type="submit" 
+                      size="default"
+                      className="btn-raised"
+                      disabled={signupMutation.isPending}
+                      data-testid="button-hero-signup"
+                    >
+                      {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </form>
+                  <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
+                </>
+              )}
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="flex flex-wrap gap-3 mb-10"
+            >
+              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
+                <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
+                  <Github className="w-4 h-4 mr-2" />
+                  View Source
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-demo">
+                <a href="/ternarydb">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Live Demo
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-docs">
+                <a href="/whitepaper">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Whitepaper
+                </a>
+              </Button>
+            </motion.div>
+            
+            <div className="flex flex-wrap gap-8 md:gap-10">
+              <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
+              <AnimatedStat value="1,040" label="Tests Passing" delay={0.28} />
+              <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
+              <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.34} />
+            </div>
+          </div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-            className="mb-10"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="relative lg:sticky lg:top-24"
           >
-            {showSuccess ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="max-w-lg"
-                data-testid="hero-signup-success"
+            <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl bg-black/5 dark:bg-white/5">
+              <div className="absolute top-0 left-0 right-0 h-8 bg-background/80 backdrop-blur-sm border-b border-border/30 flex items-center px-4 z-10">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400/60" />
+                </div>
+                <span className="ml-3 text-[10px] font-mono text-muted-foreground/60 tracking-wider">SALVI FRAMEWORK</span>
+              </div>
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full aspect-[4/3] object-cover pt-8"
+                data-testid="hero-video"
               >
-                <Card className="p-6 border-green-500/30 bg-green-500/5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Check className="w-5 h-5 text-green-500" />
-                    <span className="font-semibold text-foreground">You're on the list!</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    We'll send you SDK access details, documentation links, and priority updates. Check your inbox soon.
-                  </p>
-                </Card>
-              </motion.div>
-            ) : (
-              <>
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (email) signupMutation.mutate({ email });
-                  }}
-                  className="flex flex-col sm:flex-row gap-3 max-w-lg"
-                  data-testid="form-hero-signup"
-                >
-                  <label htmlFor="hero-email" className="sr-only">Email address</label>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email for early access"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="flex-1"
-                    required
-                    data-testid="input-hero-email"
-                    id="hero-email"
-                    aria-label="Email address for early access"
-                  />
-                  <Button 
-                    type="submit" 
-                    size="default"
-                    className="btn-raised"
-                    disabled={signupMutation.isPending}
-                    data-testid="button-hero-signup"
-                  >
-                    {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </form>
-                <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
-              </>
-            )}
+                <source src={heroVideo} type="video/mp4" />
+              </video>
+              <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
+            </div>
+
+            <div className="mt-6">
+              <HeroVisual />
+            </div>
           </motion.div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex flex-wrap gap-4 mb-12"
-          >
-            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
-              <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
-                <Github className="w-4 h-4 mr-2" />
-                View Source
-              </a>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-demo">
-              <a href="/ternarydb">
-                <Zap className="w-4 h-4 mr-2" />
-                Live Demo
-              </a>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-docs">
-              <a href="/whitepaper">
-                <Shield className="w-4 h-4 mr-2" />
-                Whitepaper
-              </a>
-            </Button>
-          </motion.div>
-          
-          <div className="flex flex-wrap gap-8 md:gap-12">
-            <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
-            <AnimatedStat value="1,040" label="Tests Passing" delay={0.28} />
-            <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
-            <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.34} />
-          </div>
-          <HeroVisual />
+        </div>
+
+        <div className="mt-12">
           <HeroDemo />
         </div>
       </div>
