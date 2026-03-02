@@ -1,0 +1,52 @@
+/**
+ * SFK OPERATIONS — server/index.ts ADDITIONS
+ * ============================================
+ *
+ * Three changes, same pattern as Hedera integration.
+ * Place AFTER Hedera service initialization so the operations
+ * service can receive the live hederaService reference.
+ *
+ * If Hedera is not configured, pass null — operations will still
+ * process but Mode φ/φ+ witnessing will be skipped.
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 1: Add imports (alongside Hedera imports)
+// ═══════════════════════════════════════════════════════════════
+
+// import { SFKOperationsService } from "./services/sfk-operations-service";
+// import { createSFKOperationsRoutes } from "./routes/sfk-operations";
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 2: Initialize service AFTER Hedera init block
+// hederaService is either the live HederaWitnessingService or null
+// ═══════════════════════════════════════════════════════════════
+
+/*
+  // =====================================================
+  // SFK OPERATIONS — kernel operation lifecycle with witnessing
+  // =====================================================
+  const sfkOperationsService = new SFKOperationsService(hederaService);
+
+  app.use('/api/sfk', createSFKOperationsRoutes(sfkOperationsService));
+  log(`SFK Operations — 5 endpoints at /api/sfk/v1/* (witnessing: ${hederaService ? 'enabled' : 'disabled'})`, 'sfk');
+*/
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 3: Add to Kong service catalog (server/routes/kong.ts)
+// Add this entry to the catalog array:
+// ═══════════════════════════════════════════════════════════════
+
+/*
+  { name: "plenumnet-sfk-operations", label: "SFK Operations Pipeline", routePath: "/api/sfk", endpointCount: 5, category: "core", endpoints: ["POST /v1/operations", "GET /v1/operations/:id", "GET /v1/operations", "DELETE /v1/operations/:id", "GET /v1/stats"] },
+*/
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE 4 (OPTIONAL): Graceful shutdown
+// ═══════════════════════════════════════════════════════════════
+
+/*
+  process.on('SIGTERM', () => {
+    sfkOperationsService.close();
+  });
+*/
