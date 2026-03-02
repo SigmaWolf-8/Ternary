@@ -908,7 +908,6 @@ function PerformanceSection() {
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
     { label: "Regulatory Timing", current: "Custom build", ternary: "Targeting FINRA 613 & MiFID II thresholds", highlight: true },
     { label: "Runs on Existing Hardware", current: "Yes", ternary: "Yes — via Binary-Ternary Gateway", highlight: false },
-    { label: "Ecosystem Maturity", current: "40+ years", ternary: "Emerging (v1.0)", highlight: false },
   ];
 
   return (
