@@ -144,7 +144,7 @@ function Stat({ value, label, sub, delay = 0 }: { value: number; label: string; 
         opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(12px)",
         transition: "opacity 0.6s, transform 0.6s",
       }}>
-        {formatLargeNumber(disp)}
+        {disp.toLocaleString()}
       </div>
       <div style={{ fontSize: 13, fontWeight: 600, color: t.fg, marginTop: 5 }}>{label}</div>
       <div style={{ fontSize: 10, fontFamily: FONTS.mono, color: t.fgMuted, marginTop: 3 }}>{sub}</div>
@@ -807,7 +807,7 @@ export default function GeometricFoundations() {
               display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
               background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
             }}>
-              <Stat value={1594323} label="Address Space" sub="per cube · scales infinitely" delay={0} />
+              <Stat value={topology.vertices} label="Address Space" sub={`3^${topology.dimensions} Rep C vertices`} delay={0} />
               <Stat value={topology.neighborsPerCube} label="Neighbors" sub="per cube (2 × 13)" delay={100} />
               <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={200} />
               <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={300} />
