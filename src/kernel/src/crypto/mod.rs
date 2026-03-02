@@ -68,6 +68,9 @@ pub mod metatronic_cube;
 pub mod keyed_sponge;
 pub mod address_sentinel;
 
+#[cfg(kani)]
+mod kani_proofs;
+
 use alloc::string::String;
 use alloc::vec::Vec;
 

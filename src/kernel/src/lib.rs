@@ -48,6 +48,9 @@ pub mod vm;
 pub mod hptp;
 pub mod compat;
 
+#[cfg(kani)]
+mod kani_proofs;
+
 use alloc::string::String;
 
 /// Salvi Epoch: April 1, 2025 00:00:00.000 UTC

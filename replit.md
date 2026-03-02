@@ -17,6 +17,13 @@ The backend is built with Express.js and Node.js, using PostgreSQL and Drizzle O
 ### Rust Kernel Architecture
 A Rust-based kernel provides core functionalities such as Ternary Operations (GF(3) arithmetic), Femtosecond-precision Timing (HPTP), Phase Encryption, and a Modal Security System (domain management, capability-based access control). It includes Cryptographic Primitives (ternary hash, TL-KEM, TL-DSA, CNSA 2.0 compliance), a Torsion Network (N-dimensional torus topology, Ternary Transport/Transfer/DNS), and a Ternary Virtual Machine (176-opcode ISA, ternary addressing, three-ring privilege levels, quantum-ternary simulation, ternary-aware garbage collector). A Binary Compatibility Layer handles balanced ternary conversion and crypto interoperability. A bare-metal boot target (`src/kernel/bare-metal/`) validates kernel boot on raw x86_64 hardware via QEMU.
 
+### Rust Formal Verification (Kani + MIRI)
+Three Kani proof harness files provide 50 bounded model checking proofs across the kernel:
+- `src/kernel/src/kani_proofs.rs` — 30 proofs: ternary arithmetic (GF(3) closure, commutativity, identity, involution), bijection round-trips (A↔B↔C), pack/unpack, rotation cycles, boot sequence length, timing bounds, phase encryption invariants.
+- `src/kernel/src/crypto/kani_proofs.rs` — 18 proofs: constant-time utility correctness (ct_eq reflexive/symmetric/binary, ct_select, ct_is_zero, ct_lt, ct_zeroize completeness, ct_cmov_bytes).
+- `src/kernel/src/vm/kani_proofs.rs` — 2 proofs: GC heap bounded allocation, no double-free aliasing.
+GitHub Actions CI at `.github/workflows/formal-verification-rust.yml` runs Kani (bounded model checking), MIRI (undefined behavior detection), and dynamic verification (existing formal_verify.rs) as three parallel jobs.
+
 ### XPlenum RISC-V Hardware Extension
 A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations (masking, domain management, capability handling, cryptography). It includes NIST SP 800-90A CTR_DRBG and Rust kernel interfaces. Advanced features include full-system formal verification, PQC acceleration (10 new instructions for ML-KEM/ML-DSA), and FIPS 140-3/CNSA 2.0 compliance.
 
