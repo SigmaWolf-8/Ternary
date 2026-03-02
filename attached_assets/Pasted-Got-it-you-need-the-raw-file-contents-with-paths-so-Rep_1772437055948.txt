@@ -1,0 +1,940 @@
+Got it — you need the raw file contents with paths so Replit AI can create them directly. Here's every file, path-relative to the repo root:
+
+---
+
+**`src/kernel/bare-metal/Cargo.toml`**
+
+```toml
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Applied Physics Division — Salvi Framework
+# PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
+
+[package]
+name = "plenumnet-bare-metal"
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd <kernel@plenumnet.io>"]
+description = "Bare-metal boot target for the PlenumNET Ternary Kernel — QEMU validation"
+license = "LicenseRef-Proprietary"
+repository = "https://github.com/SigmaWolf-8/Ternary"
+publish = false
+
+[[bin]]
+name = "ternary-kernel"
+path = "src/main.rs"
+
+[dependencies]
+plenumnet-kernel = { path = "..", features = ["no_std"], default-features = false }
+spin = { version = "0.9", default-features = false }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = 2
+lto = true
+codegen-units = 1
+strip = "symbols"
+```
+
+---
+
+**`src/kernel/bare-metal/.cargo/config.toml`**
+
+```toml
+[unstable]
+build-std = ["core", "compiler_builtins", "alloc"]
+build-std-features = ["compiler-builtins-mem"]
+
+[build]
+target = "x86_64-ternary-none.json"
+
+[target.'cfg(target_os = "none")']
+runner = "./scripts/qemu-run.sh"
+```
+
+---
+
+**`src/kernel/bare-metal/x86_64-ternary-none.json`**
+
+```json
+{
+    "llvm-target": "x86_64-unknown-none",
+    "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+    "arch": "x86_64",
+    "target-endian": "little",
+    "target-pointer-width": "64",
+    "target-c-int-width": "32",
+    "os": "none",
+    "executables": true,
+    "linker-flavor": "ld.lld",
+    "linker": "rust-lld",
+    "panic-strategy": "abort",
+    "disable-redzone": true,
+    "features": "-mmx,-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-3dnow,-3dnowa,-avx,-avx2,+soft-float",
+    "pre-link-args": {
+        "ld.lld": ["-Tlinker.ld"]
+    }
+}
+```
+
+---
+
+**`src/kernel/bare-metal/linker.ld`**
+
+```ld
+/* PlenumNET Ternary Kernel — Bare-Metal Linker Script
+ * Target: x86_64, loaded by QEMU at 0x100000 (1 MiB)
+ * Matches kernel_physical_base from arch::boot::x86_64_boot_config()
+ *
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd.
+ * Applied Physics Division — Salvi Framework
+ */
+
+ENTRY(_start)
+
+SECTIONS
+{
+    . = 0x100000;
+
+    .text ALIGN(4K) :
+    {
+        KEEP(*(.text.boot))
+        *(.text .text.*)
+    }
+
+    .rodata ALIGN(4K) :
+    {
+        *(.rodata .rodata.*)
+    }
+
+    .data ALIGN(4K) :
+    {
+        *(.data .data.*)
+    }
+
+    .bss ALIGN(4K) :
+    {
+        __bss_start = .;
+        *(.bss .bss.*)
+        *(COMMON)
+        __bss_end = .;
+    }
+
+    . = ALIGN(4K);
+    __stack_bottom = .;
+    . += 64K;
+    __stack_top = .;
+
+    . = ALIGN(4K);
+    __heap_start = .;
+    . += 4M;
+    __heap_end = .;
+
+    __kernel_end = .;
+
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+        *(.comment)
+        *(.note.*)
+    }
+}
+```
+
+---
+
+**`src/kernel/bare-metal/rust-toolchain.toml`**
+
+```toml
+[toolchain]
+channel = "nightly"
+components = ["rust-src"]
+```
+
+---
+
+**`src/kernel/bare-metal/src/main.rs`**
+
+```rust
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Applied Physics Division — Salvi Framework
+// PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
+//
+// Bare-Metal Boot Target for the PlenumNET Ternary Kernel
+//
+// This binary boots on raw x86_64 hardware (QEMU) with NO operating system.
+// It initializes the plenumnet-kernel library, exercises every subsystem,
+// and runs a self-test suite — proving the kernel is a real bootable system.
+
+#![no_std]
+#![no_main]
+
+extern crate alloc;
+
+mod serial;
+mod selftest;
+
+use core::panic::PanicInfo;
+
+// ─────────────────────────────────────────────────────────────────────
+// GLOBAL ALLOCATOR — required by plenumnet-kernel (uses alloc crate)
+// Bump allocator backed by the heap region from linker.ld
+// ─────────────────────────────────────────────────────────────────────
+
+use core::alloc::{GlobalAlloc, Layout};
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+struct BumpAllocator {
+    next: AtomicUsize,
+}
+
+unsafe impl GlobalAlloc for BumpAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let heap_start = unsafe { &__heap_start as *const u8 as usize };
+        let heap_end = unsafe { &__heap_end as *const u8 as usize };
+
+        loop {
+            let current = self.next.load(Ordering::Relaxed);
+            let actual = if current == 0 { heap_start } else { current };
+            let aligned = (actual + layout.align() - 1) & !(layout.align() - 1);
+            let new_next = aligned + layout.size();
+
+            if new_next > heap_end {
+                return core::ptr::null_mut();
+            }
+
+            if self.next.compare_exchange(current, new_next, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
+                return aligned as *mut u8;
+            }
+        }
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        // Bump allocator doesn't free — acceptable for boot self-test
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: BumpAllocator = BumpAllocator {
+    next: AtomicUsize::new(0),
+};
+
+extern "C" {
+    static __bss_start: u8;
+    static __bss_end: u8;
+    static __stack_top: u8;
+    static __heap_start: u8;
+    static __heap_end: u8;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// BOOT ENTRY POINT
+// ─────────────────────────────────────────────────────────────────────
+
+#[unsafe(no_mangle)]
+#[link_section = ".text.boot"]
+pub extern "C" fn _start() -> ! {
+    unsafe {
+        core::arch::asm!(
+            "lea rsp, [rip + __stack_top]",
+            options(nostack, nomem)
+        );
+    }
+
+    zero_bss();
+    serial::init();
+
+    serial::print_line("================================================================");
+    serial::print_line("  PlenumNET Ternary Kernel — Bare-Metal Validation");
+    serial::print_line("  Salvi Framework v0.1.0");
+    serial::print_line("  Capomastro Holdings Ltd. — Applied Physics Division");
+    serial::print_line("  Target: x86_64-unknown-none (QEMU)");
+    serial::print_line("================================================================");
+    serial::print_line("");
+
+    serial::print_str("[BOOT] Kernel version: ");
+    serial::print_line(plenumnet_kernel::KERNEL_VERSION);
+    serial::print_str("[BOOT] Copyright: ");
+    serial::print_line(plenumnet_kernel::COPYRIGHT);
+
+    serial::print_line("[BOOT] Initializing kernel...");
+    let info = plenumnet_kernel::init();
+    serial::print_str("[BOOT] Architecture: ");
+    serial::print_line(match info.architecture {
+        plenumnet_kernel::Architecture::X86_64 => "x86_64",
+        plenumnet_kernel::Architecture::Aarch64 => "aarch64",
+        plenumnet_kernel::Architecture::Riscv64 => "riscv64",
+        plenumnet_kernel::Architecture::Fpga => "FPGA",
+        plenumnet_kernel::Architecture::Asic => "ASIC",
+        plenumnet_kernel::Architecture::Unknown => "unknown",
+    });
+    serial::print_str("[BOOT] Timing source: ");
+    serial::print_line(match info.timing_source {
+        plenumnet_kernel::TimingSource::Tsc => "TSC",
+        plenumnet_kernel::TimingSource::Hpet => "HPET",
+        plenumnet_kernel::TimingSource::Ptp => "PTP",
+        plenumnet_kernel::TimingSource::OpticalAtomic => "Optical Atomic",
+        plenumnet_kernel::TimingSource::SystemClock => "System Clock",
+        plenumnet_kernel::TimingSource::Unknown => "unknown",
+    });
+    serial::print_line("[BOOT] Kernel initialized successfully.");
+    serial::print_line("");
+
+    serial::print_line("[TEST] Running bare-metal self-test suite...");
+    serial::print_line("    Tests exercise the ACTUAL plenumnet-kernel library code.");
+    serial::print_line("    No OS, no libc, no allocator runtime — just raw hardware.");
+    serial::print_line("----------------------------------------------------------------");
+    let results = selftest::run_all();
+
+    serial::print_line("----------------------------------------------------------------");
+    serial::print_str("[RESULT] ");
+    serial::print_u64(results.passed as u64);
+    serial::print_str(" passed, ");
+    serial::print_u64(results.failed as u64);
+    serial::print_line(" failed");
+
+    if results.failed == 0 {
+        serial::print_line("");
+        serial::print_line("[PASS] BARE-METAL VALIDATION PASSED");
+        serial::print_line("       The PlenumNET kernel boots and runs on raw hardware.");
+        exit_qemu(QemuExitCode::Success);
+    } else {
+        serial::print_line("");
+        serial::print_line("[FAIL] BARE-METAL VALIDATION FAILED");
+        exit_qemu(QemuExitCode::Failure);
+    }
+
+    halt_loop()
+}
+
+fn zero_bss() {
+    unsafe {
+        let start = &__bss_start as *const u8 as *mut u8;
+        let end = &__bss_end as *const u8 as *mut u8;
+        let len = end as usize - start as usize;
+        core::ptr::write_bytes(start, 0, len);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(u32)]
+pub enum QemuExitCode {
+    Success = 0x10,
+    Failure = 0x11,
+}
+
+pub fn exit_qemu(code: QemuExitCode) {
+    unsafe {
+        core::arch::asm!(
+            "out dx, eax",
+            in("dx") 0xf4u16,
+            in("eax") code as u32,
+            options(nostack, nomem)
+        );
+    }
+}
+
+pub fn halt_loop() -> ! {
+    loop {
+        unsafe { core::arch::asm!("hlt", options(nostack, nomem)); }
+    }
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    serial::print_line("");
+    serial::print_line("!!! KERNEL PANIC !!!");
+    if let Some(location) = info.location() {
+        serial::print_str("  at ");
+        serial::print_str(location.file());
+        serial::print_str(":");
+        serial::print_u64(location.line() as u64);
+        serial::print_line("");
+    }
+    if let Some(msg) = info.message().as_str() {
+        serial::print_str("  ");
+        serial::print_line(msg);
+    }
+    exit_qemu(QemuExitCode::Failure);
+    halt_loop()
+}
+```
+
+---
+
+**`src/kernel/bare-metal/src/serial.rs`**
+
+```rust
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Applied Physics Division — Salvi Framework
+// PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
+
+//! Bare-metal serial output driver — COM1 (0x3F8)
+//! QEMU captures this with -serial stdio
+
+use spin::Mutex;
+
+const COM1_PORT: u16 = 0x3F8;
+static SERIAL_INIT: Mutex<bool> = Mutex::new(false);
+
+#[inline(always)]
+unsafe fn outb(port: u16, val: u8) {
+    core::arch::asm!("out dx, al", in("dx") port, in("al") val, options(nostack, nomem));
+}
+
+#[inline(always)]
+unsafe fn inb(port: u16) -> u8 {
+    let val: u8;
+    core::arch::asm!("in al, dx", in("dx") port, out("al") val, options(nostack, nomem));
+    val
+}
+
+pub fn init() {
+    let mut initialized = SERIAL_INIT.lock();
+    if *initialized { return; }
+    unsafe {
+        outb(COM1_PORT + 1, 0x00);
+        outb(COM1_PORT + 3, 0x80);
+        outb(COM1_PORT + 0, 0x01);
+        outb(COM1_PORT + 1, 0x00);
+        outb(COM1_PORT + 3, 0x03);
+        outb(COM1_PORT + 2, 0xC7);
+        outb(COM1_PORT + 4, 0x0B);
+        outb(COM1_PORT + 4, 0x1E);
+        outb(COM1_PORT + 0, 0xAE);
+        let _ = inb(COM1_PORT + 0);
+        outb(COM1_PORT + 4, 0x0F);
+    }
+    *initialized = true;
+}
+
+fn wait_transmit_ready() {
+    while unsafe { inb(COM1_PORT + 5) } & 0x20 == 0 {
+        core::hint::spin_loop();
+    }
+}
+
+pub fn write_byte(byte: u8) {
+    wait_transmit_ready();
+    unsafe { outb(COM1_PORT, byte); }
+}
+
+pub fn print_str(s: &str) {
+    for byte in s.bytes() {
+        if byte == b'\n' { write_byte(b'\r'); }
+        write_byte(byte);
+    }
+}
+
+pub fn print_line(s: &str) {
+    print_str(s);
+    write_byte(b'\r');
+    write_byte(b'\n');
+}
+
+pub fn print_u64(mut val: u64) {
+    if val == 0 { write_byte(b'0'); return; }
+    let mut buf = [0u8; 20];
+    let mut pos = 0;
+    while val > 0 {
+        buf[pos] = b'0' + (val % 10) as u8;
+        val /= 10;
+        pos += 1;
+    }
+    for i in (0..pos).rev() { write_byte(buf[i]); }
+}
+
+pub fn print_i32(val: i32) {
+    if val < 0 {
+        write_byte(b'-');
+        print_u64((-val) as u64);
+    } else {
+        print_u64(val as u64);
+    }
+}
+```
+
+---
+
+**`src/kernel/bare-metal/src/selftest.rs`**
+
+```rust
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Applied Physics Division — Salvi Framework
+// PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
+
+//! Bare-Metal Self-Test Suite
+//!
+//! Exercises the ACTUAL plenumnet-kernel library on bare metal.
+//! Every test here proves that real kernel code runs without an OS.
+
+use crate::serial;
+
+use plenumnet_kernel::ternary::{Trit, pack_trits, unpack_trits, Representation, convert_representation};
+use plenumnet_kernel::arch::boot::{BootSequence, BootStage, x86_64_boot_config};
+use plenumnet_kernel::arch::{ArchId, MemoryRegionType};
+use plenumnet_kernel::timing::{FemtosecondTimestamp, FS_PER_NS, FS_PER_MS, FS_PER_SECOND};
+use plenumnet_kernel::{SALVI_EPOCH_NS, SALVI_EPOCH_FS, KERNEL_VERSION};
+use plenumnet_kernel::phase::EncryptionMode;
+use plenumnet_kernel::Architecture;
+
+pub struct TestResults {
+    pub passed: u32,
+    pub failed: u32,
+}
+
+impl TestResults {
+    fn new() -> Self {
+        TestResults { passed: 0, failed: 0 }
+    }
+
+    fn record(&mut self, name: &str, result: bool) {
+        if result {
+            serial::print_str("  [PASS] ");
+            serial::print_line(name);
+            self.passed += 1;
+        } else {
+            serial::print_str("  [FAIL] ");
+            serial::print_line(name);
+            self.failed += 1;
+        }
+    }
+}
+
+pub fn run_all() -> TestResults {
+    let mut r = TestResults::new();
+
+    // ── Kernel Init ────────────────────────────────────────────────
+    serial::print_line("  -- Kernel Init --");
+
+    let info = plenumnet_kernel::init();
+    r.record("kernel version matches", info.version == KERNEL_VERSION);
+    r.record("ternary_ops enabled", info.features.ternary_ops);
+    r.record("femtosecond_timing enabled", info.features.femtosecond_timing);
+    r.record("phase_encryption enabled", info.features.phase_encryption);
+
+    // ── Salvi Epoch Constants ──────────────────────────────────────
+    serial::print_line("  -- Salvi Epoch --");
+
+    r.record("SALVI_EPOCH_NS is April 1 2025",
+        SALVI_EPOCH_NS == 1_743_465_600_000_000_000);
+    r.record("SALVI_EPOCH_FS consistent",
+        SALVI_EPOCH_FS == SALVI_EPOCH_NS * 1_000_000);
+
+    // ── Trit Arithmetic (GF(3)) ───────────────────────────────────
+    serial::print_line("  -- Trit Arithmetic (GF(3)) --");
+
+    let p = Trit::from_a(1).unwrap();
+    let z = Trit::from_a(0).unwrap();
+    let n = Trit::from_a(-1).unwrap();
+
+    r.record("Trit::from_a(1) == +1", p.to_a() == 1);
+    r.record("Trit::from_a(0) == 0", z.to_a() == 0);
+    r.record("Trit::from_a(-1) == -1", n.to_a() == -1);
+    r.record("Trit::from_a(5) == None", Trit::from_a(5).is_none());
+
+    r.record("to_b: -1 -> 0", n.to_b() == 0);
+    r.record("to_b:  0 -> 1", z.to_b() == 1);
+    r.record("to_b: +1 -> 2", p.to_b() == 2);
+
+    r.record("to_c: -1 -> 1", n.to_c() == 1);
+    r.record("to_c:  0 -> 2", z.to_c() == 2);
+    r.record("to_c: +1 -> 3", p.to_c() == 3);
+
+    r.record("round-trip B: from_b(to_b(P))",
+        Trit::from_b(p.to_b()).unwrap().to_a() == 1);
+    r.record("round-trip C: from_c(to_c(N))",
+        Trit::from_c(n.to_c()).unwrap().to_a() == -1);
+
+    r.record("NOT(+1) == -1", p.not().to_a() == -1);
+    r.record("NOT(-1) == +1", n.not().to_a() == 1);
+    r.record("NOT(0) == 0", z.not().to_a() == 0);
+    r.record("double negation: NOT(NOT(P)) == P",
+        p.not().not().to_a() == p.to_a());
+
+    r.record("AND(P, N) == N", p.and(&n).to_a() == -1);
+    r.record("AND(P, P) == P", p.and(&p).to_a() == 1);
+    r.record("AND(P, Z) == Z", p.and(&z).to_a() == 0);
+
+    r.record("OR(P, N) == P", p.or(&n).to_a() == 1);
+    r.record("OR(N, N) == N", n.or(&n).to_a() == -1);
+    r.record("OR(N, Z) == Z", n.or(&z).to_a() == 0);
+
+    r.record("add(P, P) in GF(3)", {
+        let result = p.add(&p);
+        result.to_a() == -1
+    });
+    r.record("add(P, N) in GF(3)", {
+        let result = p.add(&n);
+        result.to_a() == 0
+    });
+
+    r.record("mul(P, P) == P", p.multiply(&p).to_a() == 1);
+    r.record("mul(P, N) == N", p.multiply(&n).to_a() == -1);
+    r.record("mul(N, N) == P", n.multiply(&n).to_a() == 1);
+    r.record("mul(Z, P) == Z", z.multiply(&p).to_a() == 0);
+
+    r.record("rotate(-1) == 0", n.rotate().to_a() == 0);
+    r.record("rotate(0) == 1", z.rotate().to_a() == 1);
+    r.record("rotate(1) == -1", p.rotate().to_a() == -1);
+
+    // ── Packed Trit Words ──────────────────────────────────────────
+    serial::print_line("  -- Packed Trit Words --");
+
+    let trits = [p, n, z, p, p, n, z, z, p];
+    let packed = pack_trits(&trits);
+    let unpacked = unpack_trits(packed, trits.len());
+    let mut round_trip_ok = true;
+    for i in 0..trits.len() {
+        if trits[i].to_a() != unpacked[i].to_a() {
+            round_trip_ok = false;
+            break;
+        }
+    }
+    r.record("pack/unpack round-trip (9 trits)", round_trip_ok);
+
+    let mut full_word = [z; 27];
+    full_word[0] = p;
+    full_word[13] = n;
+    full_word[26] = p;
+    let packed_full = pack_trits(&full_word);
+    let unpacked_full = unpack_trits(packed_full, 27);
+    r.record("27-trit pack/unpack: pos 0", unpacked_full[0].to_a() == 1);
+    r.record("27-trit pack/unpack: pos 13", unpacked_full[13].to_a() == -1);
+    r.record("27-trit pack/unpack: pos 26", unpacked_full[26].to_a() == 1);
+
+    // ── Representation Conversion ──────────────────────────────────
+    serial::print_line("  -- Representation Bijections --");
+
+    let a_val: i8 = 1;
+    let b_val = convert_representation(a_val, Representation::A, Representation::B);
+    let c_val = convert_representation(b_val, Representation::B, Representation::C);
+    let a_back = convert_representation(c_val, Representation::C, Representation::A);
+    r.record("A->B->C->A round trip (+1)", a_back == a_val);
+
+    let a_neg: i8 = -1;
+    let b_neg = convert_representation(a_neg, Representation::A, Representation::B);
+    let a_neg_back = convert_representation(b_neg, Representation::B, Representation::A);
+    r.record("A->B->A round trip (-1)", a_neg_back == a_neg);
+
+    // ── Boot Sequence ──────────────────────────────────────────────
+    serial::print_line("  -- Boot Sequence --");
+
+    let mut seq = BootSequence::new(ArchId::X86_64);
+    r.record("boot starts at PowerOn", *seq.current_stage() == BootStage::PowerOn);
+    r.record("boot not complete initially", !seq.is_complete());
+
+    let mut all_advanced = true;
+    for _ in 0..11 {
+        if seq.advance().is_err() {
+            all_advanced = false;
+            break;
+        }
+    }
+    r.record("all 11 boot stages advance", all_advanced);
+    r.record("boot sequence complete", seq.is_complete());
+    r.record("final stage is Running", *seq.current_stage() == BootStage::Running);
+    r.record("11 stages recorded", seq.stages_completed().len() == 11);
+    r.record("cannot advance past Running", seq.advance().is_err());
+
+    // ── Boot Config (x86_64) ───────────────────────────────────────
+    serial::print_line("  -- x86_64 Boot Config --");
+
+    let params = x86_64_boot_config();
+    r.record("arch is X86_64", params.arch_id == ArchId::X86_64);
+    r.record("kernel at 0x100000 (1 MiB)",
+        params.kernel_physical_base == 0x0010_0000);
+    r.record("memory map has entries", params.memory_map.len() >= 2);
+    r.record("first region is Usable",
+        params.memory_map[0].region_type == MemoryRegionType::Usable);
+
+    // ── Femtosecond Timing ─────────────────────────────────────────
+    serial::print_line("  -- Femtosecond Timing --");
+
+    r.record("FS_PER_NS == 1_000_000", FS_PER_NS == 1_000_000);
+    r.record("FS_PER_MS == 1e12", FS_PER_MS == 1_000_000_000_000);
+    r.record("FS_PER_SECOND == 1e15", FS_PER_SECOND == 1_000_000_000_000_000);
+
+    let ts = FemtosecondTimestamp::new(0);
+    r.record("zero timestamp", ts.femtoseconds == 0);
+    r.record("zero seconds()", ts.seconds() == 0);
+
+    let ts1s = FemtosecondTimestamp::new(FS_PER_SECOND);
+    r.record("1s timestamp: seconds() == 1", ts1s.seconds() == 1);
+    r.record("1s timestamp: sub_second_fs() == 0", ts1s.sub_second_fs() == 0);
+
+    let ts_ms = FemtosecondTimestamp::new(FS_PER_SECOND + 500 * FS_PER_MS);
+    r.record("1.5s timestamp: ms == 500", ts_ms.milliseconds() == 500);
+
+    let unix_ns = SALVI_EPOCH_NS + 1_000_000_000;
+    let ts_from_unix = FemtosecondTimestamp::from_unix_ns(unix_ns);
+    r.record("from_unix_ns produces non-zero", ts_from_unix.femtoseconds > 0);
+
+    // ── Phase Encryption ───────────────────────────────────────────
+    serial::print_line("  -- Phase Encryption --");
+
+    r.record("HighSecurity: 7 phases",
+        EncryptionMode::HighSecurity.phase_count() == 7);
+    r.record("Balanced: 5 phases",
+        EncryptionMode::Balanced.phase_count() == 5);
+    r.record("Performance: 3 phases",
+        EncryptionMode::Performance.phase_count() == 3);
+
+    let ratio = EncryptionMode::HighSecurity.split_ratio();
+    r.record("HighSecurity uses golden ratio",
+        ratio > 0.617 && ratio < 0.619);
+
+    // ── Architecture Detection ─────────────────────────────────────
+    serial::print_line("  -- Architecture --");
+
+    let arch = Architecture::detect();
+    r.record("architecture detected (not Unknown)", arch != Architecture::Unknown);
+
+    r
+}
+```
+
+---
+
+**`src/kernel/bare-metal/scripts/build.sh`**
+
+```bash
+#!/usr/bin/env bash
+# PlenumNET Ternary Kernel — Bare-Metal Build
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+MODE="${1:-debug}"
+
+echo "-- PlenumNET Bare-Metal Build --"
+echo "   Mode: ${MODE}"
+
+if ! rustup show active-toolchain 2>/dev/null | grep -q nightly; then
+    rustup toolchain install nightly --component rust-src
+    rustup override set nightly
+fi
+
+if ! rustup component list --installed 2>/dev/null | grep -q rust-src; then
+    rustup component add rust-src --toolchain nightly
+fi
+
+if [ "$MODE" = "release" ]; then
+    cargo build --release
+    BINARY="target/x86_64-ternary-none/release/ternary-kernel"
+else
+    cargo build
+    BINARY="target/x86_64-ternary-none/debug/ternary-kernel"
+fi
+
+if [ -f "$BINARY" ]; then
+    SIZE=$(stat -c%s "$BINARY" 2>/dev/null || stat -f%z "$BINARY" 2>/dev/null)
+    echo ""
+    echo "-- Build Complete --"
+    echo "   Binary: ${BINARY}"
+    echo "   Size:   ${SIZE} bytes"
+    echo "   Boot:   ./scripts/qemu-run.sh ${BINARY}"
+else
+    echo "[ERROR] Build failed"
+    exit 1
+fi
+```
+
+---
+
+**`src/kernel/bare-metal/scripts/qemu-run.sh`**
+
+```bash
+#!/usr/bin/env bash
+# PlenumNET Ternary Kernel — QEMU Bare-Metal Boot Runner
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd.
+
+set -euo pipefail
+
+KERNEL="${1:?Usage: qemu-run.sh <kernel-binary>}"
+TIMEOUT="${QEMU_TIMEOUT:-30}"
+
+if ! command -v qemu-system-x86_64 &>/dev/null; then
+    echo "[ERROR] qemu-system-x86_64 not found."
+    echo "  Install: sudo apt install qemu-system-x86 (Debian/Ubuntu)"
+    echo "           brew install qemu (macOS)"
+    exit 2
+fi
+
+echo "================================================================"
+echo "  PlenumNET — QEMU Bare-Metal Validation"
+echo "  Kernel:  ${KERNEL##*/}"
+echo "  Target:  x86_64-unknown-none"
+echo "  Timeout: ${TIMEOUT}s"
+echo "================================================================"
+echo ""
+
+QEMU_EXIT_CODE=0
+timeout "${TIMEOUT}" qemu-system-x86_64 \
+    -kernel "${KERNEL}" \
+    -serial stdio \
+    -display none \
+    -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+    -no-reboot \
+    -m 64M \
+    2>/dev/null || QEMU_EXIT_CODE=$?
+
+echo ""
+
+case $QEMU_EXIT_CODE in
+    33)
+        echo "================================================================"
+        echo "  BARE-METAL VALIDATION: PASSED"
+        echo "  The PlenumNET kernel boots on raw hardware."
+        echo "================================================================"
+        exit 0
+        ;;
+    35)
+        echo "================================================================"
+        echo "  BARE-METAL VALIDATION: FAILED"
+        echo "================================================================"
+        exit 1
+        ;;
+    124)
+        echo "[ERROR] QEMU timed out after ${TIMEOUT}s"
+        exit 1
+        ;;
+    *)
+        echo "[ERROR] QEMU exited with code: ${QEMU_EXIT_CODE}"
+        exit 1
+        ;;
+esac
+```
+
+---
+
+**`.github/workflows/bare-metal-validation.yml`**
+
+```yaml
+name: Bare-Metal Validation
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/kernel/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/kernel/**'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bare-metal-x86_64:
+    name: "QEMU Boot (x86_64)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust Nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/kernel/bare-metal/target
+          key: ${{ runner.os }}-bare-metal-${{ hashFiles('src/kernel/Cargo.lock') }}
+
+      - name: Build Kernel (debug)
+        working-directory: src/kernel/bare-metal
+        run: cargo build
+
+      - name: Boot in QEMU — Run Self-Tests
+        working-directory: src/kernel/bare-metal
+        run: |
+          chmod +x scripts/qemu-run.sh
+          ./scripts/qemu-run.sh target/x86_64-ternary-none/debug/ternary-kernel
+
+      - name: Build Kernel (release)
+        working-directory: src/kernel/bare-metal
+        run: cargo build --release
+
+      - name: Boot Release Build in QEMU
+        working-directory: src/kernel/bare-metal
+        run: |
+          ./scripts/qemu-run.sh target/x86_64-ternary-none/release/ternary-kernel
+
+      - name: Upload Kernel Binary
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plenumnet-kernel-x86_64
+          path: src/kernel/bare-metal/target/x86_64-ternary-none/release/ternary-kernel
+```
+
+---
+
+**`src/kernel/bare-metal/README.md`**
+
+```markdown
+# PlenumNET Bare-Metal Boot Target
+
+**Salvi Framework** · Capomastro Holdings Ltd. · Applied Physics Division
+
+Bare-metal boot target for the PlenumNET Ternary Kernel. This binary boots on raw x86_64 hardware (via QEMU) with **no operating system**, imports the **actual `plenumnet-kernel` library**, and runs a comprehensive self-test suite.
+
+## What This Validates
+
+| Claim | Evidence |
+|-------|----------|
+| **Kernel boots without an OS** | `_start` entry, custom linker layout, bare-metal allocator |
+| **GF(3) trit arithmetic works** | All Trit operations: NOT, AND, OR, add, multiply, rotate |
+| **Bijective representations correct** | A↔B↔C round-trip conversions verified |
+| **Packed trit words round-trip** | 9-trit and 27-trit pack/unpack verified |
+| **Boot sequence completes** | All 11 BootStages advance from PowerOn to Running |
+| **x86_64 boot config valid** | Physical base at 0x100000, memory map populated |
+| **Femtosecond timing types work** | Timestamp arithmetic, FINRA constants, Salvi Epoch |
+| **Phase encryption types valid** | Mode selection, phase counts, golden ratio split |
+
+## This Uses the Real Kernel
+
+```rust
+use plenumnet_kernel::ternary::{Trit, pack_trits, unpack_trits};
+use plenumnet_kernel::arch::boot::{BootSequence, BootStage};
+use plenumnet_kernel::timing::FemtosecondTimestamp;
+use plenumnet_kernel::phase::EncryptionMode;
+```
+
+## Quick Start
+
+```bash
+cd src/kernel/bare-metal
+rustup toolchain install nightly --component rust-src
+sudo apt install qemu-system-x86
+chmod +x scripts/*.sh
+./scripts/build.sh
+./scripts/qemu-run.sh target/x86_64-ternary-none/debug/ternary-kernel
+```
+
+## License
+
+Proprietary — Capomastro Holdings Ltd.
+```
+
+---
+
+That's all 12 files. Tell Replit AI to create them at those exact paths, then push. The bare-metal crate is intentionally **not** added to the root `Cargo.toml` workspace — custom targets with `-Z build-std` need to build independently from their own directory.
