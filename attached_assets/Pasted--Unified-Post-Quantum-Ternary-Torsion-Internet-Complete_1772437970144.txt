@@ -1,0 +1,491 @@
+# Unified Post-Quantum Ternary-Torsion Internet: Complete Architecture & Implementation
+
+**Document Version:** 3.0 (Revised)
+**Last Updated:** 2026-03-02
+**Primary Authors:** Salvi Framework Architecture Team, Applied Physics Division
+**Organization:** Capomastro Holdings Ltd. (Canada)
+**Review Status:** Post-Audit Revision — Aligned to Deployed Codebase
+**Implementation Status:** Tier 1 Complete, Tier 2 Active
+**Repository:** https://github.com/SigmaWolf-8/Ternary
+**License:** Proprietary — All Rights Reserved. Patent(s) Pending.
+
+---
+
+## Executive Summary
+
+This document specifies the architecture and implementation of PlenumNET — a post-quantum computing platform combining bijective ternary logic, torsion-field network routing, and dual-phase cryptographic splitting into a unified system. The platform is implemented as the **Salvi Framework Kernel (SFK)** in Rust (50,407 lines, 115 files, 1,634 tests) and a production **PlenumNET** SaaS platform in TypeScript (25,340+ lines) with Hedera Consensus Service blockchain witnessing, RFC 3161 Time-Stamping Authority, and capability-based security.
+
+The original v3.0 blueprint (2024-01-15) described a five-phase hardware-first roadmap. Development pivoted to a software-first SaaS platform with production services deployed ahead of hardware validation. This revision aligns the architecture document to the actual codebase as audited and remediated through March 2026.
+
+**What is operational today:** Ternary computing engine, post-quantum cryptography (TL-DSA, TL-KEM), RFC 3161 TSA with 5 policy tiers, 6-phase capability-based security, Hedera HCS blockchain witnessing, SFK operations pipeline, 42-calendar enrichment, Kong API gateway with 23+ services, Binary-Ternary Gateway, and RISC-V Xplenum ISA specification.
+
+**What remains theoretical or unvalidated:** FPGA bitstream synthesis (RTL generated, not synthesized), bare-metal kernel boot (code exists, not demonstrated), performance benchmarks (not measured), ETSI conformity assessment (designed to conform, not audited).
+
+---
+
+## I. Core Architecture: The Ternary-Torsion Foundation
+
+### A. Unified Ternary Logic System
+
+The system implements three bijective representations of ternary logic, each optimized for a different operational context.
+
+**Representation A (Computational):** {-1, 0, +1} — Used for arithmetic in the Rust kernel. The balanced ternary representation where -1 = False, 0 = Neutral, +1 = True.
+
+**Representation B (Network):** {0, 1, 2} — Used for network transmission and GF(3) field operations. Maps to standard Galois Field arithmetic.
+
+**Representation C (Human):** {1, 2, 3} — Used for human-readable display, API responses, and documentation.
+
+All representations maintain the ordering False < Neutral < True with linear bijections: A→B: f(a) = a + 1, A→C: f(a) = a + 2, B→C: f(b) = b + 1. These bijections are implemented in `src/kernel/src/ternary.rs` with the `Trit` struct providing `from_a()`, `from_b()`, `from_c()` constructors and verified by unit tests.
+
+**Implementation:** The `ternary.rs` module implements GF(3) arithmetic using the correct ring isomorphism: -1 ↔ 2, 0 ↔ 0, 1 ↔ 1 (standard modular equivalence via `((a % 3) + 3) % 3`). An earlier version used f(a) = a + 1 which broke multiplication; this was corrected and documented in `salvi-core/ternary-operations.ts`.
+
+**Galois Ternary Field Extension:** For cryptographic operations, the system extends to GF(3ⁿ) with polynomial ring arithmetic implemented in `ternary_lattice.rs` (1,216 lines). This provides the mathematical foundation for TL-DSA and TL-KEM post-quantum signature and key encapsulation schemes. Operations include ternary polynomial addition, multiplication, and modular reduction over configurable ring dimensions.
+
+**Exposed via API:** The ternary computing engine is accessible through 8 REST endpoints at `/api/salvi/ternary/*`: convert, add, multiply, rotate, not, xor, batch, and density analysis.
+
+### B. Torsion-Field Network Routing
+
+The blueprint's 13-dimensional torsion-field network architecture is implemented as a software routing model. It is not a physical network fabric — it is a routing algorithm that computes optimal paths through a multi-dimensional torus topology and can run over any underlying transport.
+
+**Dimension Mapping:** The architecture defines 13 dimensions organized as spatial coordinates (1-3), temporal layers (4-6), logic manifolds (7-9), phase planes (10-12), and a bijective transformation hub (13). The implementation in `torus.rs` (710 lines) uses a `TorusCoordinate` struct with configurable dimensionality — it supports 13D but is not hardcoded to it.
+
+**Routing:** `routing.rs` (358 lines) implements torsion-aware path computation where each dimension has a torsion coefficient influencing route selection. The torus topology provides 2×dimension neighbors per node (26 in 13D) and supports geodesic shortcuts via torsion coefficients for latency optimization.
+
+**Supporting Protocols:** T3P (Ternary Transport Protocol, `t3p.rs`, 461 lines) implements a ternary-native transport with GET/PUT/POST/DELETE methods. TDNS (Ternary Domain Name Service, `tdns.rs`, 531 lines) provides ternary-addressed name resolution. TTP (Ternary Tunneling Protocol, `ttp.rs`, 775 lines) handles encapsulation for mixed binary-ternary networks.
+
+**Current State:** The routing model works correctly in software simulation. It has not been demonstrated over physical network links between separate machines. The 3¹³ = 1,594,323 addressable node capacity is a property of the model, not a deployed network. Adaptive dimensionality (5D edge, 13D core, 26D HPC) is architecturally supported but no deployed tier separation exists.
+
+### C. Dual-Phase Cryptographic Splitting
+
+The system implements a phase-split cryptographic scheme that divides data into multiple components requiring correct phase relationship for recombination.
+
+**Architecture:** Data is split into a primary phase (reference) and secondary phase (offset), each encrypted independently with different keys and routable over different network paths. Recombination requires possession of both components and the correct phase relationship.
+
+**Implementation:** `phase.rs` in the Rust kernel implements `split_data()` and `recombine_data()` with four security levels (balanced, high_security, performance, adaptive). The TypeScript layer exposes this via 6 endpoints at `/api/salvi/phase/*`: config, split, recombine, recommend, batch split, and batch recombine. All split/recombine round-trip tests pass.
+
+**Honest Assessment:** This is a deterministic software splitting scheme providing defense-in-depth (two halves, two keys, two paths). It is not a quantum system and does not require quantum hardware. The term "quantum" in the original blueprint referred to the mathematical model's use of phase relationships and complex exponentials, not to physical quantum mechanical operations.
+
+---
+
+## II. The Salvi Framework Kernel (SFK): Rust Implementation
+
+### A. Architecture Overview
+
+The kernel is implemented as a Rust library crate (`plenumnet-kernel`, 50,407 lines across 115 files) supporting both `std` and `no_std` compilation targets. It is organized into 14 modules.
+
+**Module Inventory:**
+
+| Module | Files | Purpose |
+|---|---|---|
+| `arch/` | 6 | Architecture support: x86_64, aarch64, riscv64, Xplenum custom ISA, boot sequences |
+| `compat/` | 4 | Binary-ternary interoperability: gateway, adapter, crypto interop |
+| `crypto/` | 33 | Cryptographic primitives: TL-DSA, TL-KEM, SHA-2/3, HMAC, KDF, DRBG, AES, FPGA HDL generation, formal verification, CAVP/ACVTS certification stubs, CNSA 2.0 profiles |
+| `device/` | — | Device abstraction: bus, DMA, interrupt, chardev, block |
+| `drivers/` | — | Driver framework |
+| `fs/` | — | Filesystem: inode, directory, file, mount, VFS |
+| `hptp/` | 5 | High-Precision Timing Protocol: certification, jitter correction, optical timing, protocol |
+| `io/` | — | I/O subsystem: buffer, poll |
+| `memory/` | — | Memory management: frame allocator, page tables, heap, garbage collector, cache |
+| `network/` | 7 | Network stack: torus routing, T3P, TDNS, TTP, CNSA profiles |
+| `process/` | — | Process management: scheduler, context, IPC |
+| `security/` | 7 | Security enforcement: capability system, audit, domain isolation, policy engine, Xplenum HAL |
+| `sync/` | — | Synchronization: mutex, semaphore, spinlock, phase-aware mutex |
+| `vm/` | 12 | Ternary Virtual Machine: 160+ opcode engine, ISA v1+v2, compiler, assembler, debugger, quantum error correction, Noether invariant checks |
+
+### B. Ternary Virtual Machine (TVM)
+
+The TVM executes ternary bytecode with 160+ opcodes organized across two ISA versions.
+
+**ISA v1** (`instruction.rs`, 819 lines): Core ternary operations including TADD (ternary addition), TMUL (ternary multiplication), TROT (ternary rotation), TBJ (ternary bijective jump), TSEC (enter security context), plus arithmetic, logic, memory, flow control, and I/O operations.
+
+**ISA v2** (`instruction_v2.rs`, 1,159 lines): Extended instruction set adding cryptographic operations, quantum error correction opcodes (0xA0–0xAF: QCorrect, QSyndrome, QNormalize using the [[3,1,2]]₃ stabilizer code), torsion field operations, and advanced flow control.
+
+**Execution Engine:** `engine.rs` (2,111 lines) implements the bytecode interpreter with phase-aware scheduling and modal security context enforcement.
+
+**Compiler:** `compiler.rs` (246 lines) provides bytecode compilation from ternary assembly.
+
+### C. Post-Quantum Cryptography
+
+The kernel implements two novel post-quantum cryptographic primitives built on ternary lattice mathematics.
+
+**TL-DSA (Ternary Lattice Digital Signature Algorithm):** `tl_dsa.rs` (523 lines) implements a Module-LWE based signature scheme with three security levels. Provides keygen, sign, and verify operations. All tests pass. The TypeScript layer bridges this via ed448 interim (strongest curve in Node.js) until the Rust WASM compilation pipeline is established, at which point the actual TL-DSA implementation will execute in the browser/server.
+
+**TL-KEM (Ternary Lattice Key Encapsulation Mechanism):** `tl_kem.rs` (532 lines) implements Module-LWE key encapsulation with encapsulate/decapsulate operations. All tests pass.
+
+**Ternary Lattice Foundation:** `ternary_lattice.rs` (1,216 lines) provides the polynomial ring arithmetic over GF(3) coefficients that both TL-DSA and TL-KEM depend on.
+
+**Ternary Sponge Construction:** `sponge.rs` (290 lines) implements a ternary sponge permutation for hashing.
+
+**Standard Algorithms:** The crypto module also implements SHA-2 (`sha2.rs`), SHA-3 (`sha3.rs`), HMAC (`hmac.rs`), KDF (`kdf.rs`), DRBG (`drbg.rs`), AES cipher (`cipher.rs`), and RSA/Ed25519/Ed448 signature operations (`signature.rs`). Side-channel resistance utilities are in `ct_utils.rs` and `side_channel.rs`.
+
+**CNSA 2.0 Compliance:** `cnsa2.rs`, `phase_cnsa.rs`, and `cnsa_profiles.rs` implement NSA CNSA 2.0 algorithm profiles for government-grade cryptographic operations.
+
+**Exposed via API:** 9 endpoints at `/api/pqti/*` provide TL-DSA keygen/sign/verify, TL-KEM keygen/encapsulate/decapsulate, algorithm listing, and interoperability capabilities.
+
+### D. RISC-V Xplenum Custom Extension
+
+`xplenum.rs` (497 lines) defines a custom RISC-V ISA extension with 21 instructions and 12 CSR (Control and Status Register) accessors, encoded in the custom-0 opcode space (0x0B).
+
+**CSR Addresses (0x7C0–0x7CB):** XPSTATUS, XPDOMID, XPCAPBASE, XPCAPBOUND, XPMASK_SEED, XPMASK_STATE, XPTRIT_MODE, XPSIG_CFG, XPEXC_CAUSE, XPEXC_ADDR, XPPERF_CNT.
+
+**Instructions:** Include ternary ALU operations, capability bound checking, domain isolation, mask-based side-channel protection, and cryptographic acceleration primitives.
+
+**Current State:** The ISA is specified with inline assembly wrappers for each instruction. `xplenum_stub.rs` (140 lines) provides a software fallback for environments without Xplenum hardware. The ISA has not been simulated in a RISC-V ISA simulator (Spike/QEMU).
+
+### E. FPGA RTL Generation
+
+`fpga_hdl.rs` (1,252 lines) generates synthesizable SystemVerilog (IEEE 1800-2017) for four hardware accelerator modules: GF(3) ALU, 729-trit sponge permutation engine (27-round pipeline), AES-256 S-box (bitsliced constant-time), and polynomial MAC for lattice operations. `fpga_synth.rs` (756 lines) provides synthesis configuration with parameterized data widths, clock/reset infrastructure, and AXI-Stream compatible interfaces.
+
+**Current State:** The Verilog generator produces synthesizable RTL. It has not been run through Xilinx Vivado or Intel Quartus to produce a bitstream. No FPGA hardware has been programmed. Performance claims derived from FPGA execution (1.2M Mode φ ops/sec) are predictions, not measurements.
+
+### F. Modal Security System
+
+Three security modes govern operation behavior throughout the kernel and platform.
+
+**Mode φ (Highest Security):** Pure ternary operations with blockchain witnessing. Each Mode φ operation submits a SHA-256 hash to Hedera Consensus Service, receiving a consensus timestamp and transaction ID. Policy enforcement via `security/policy.rs` (502 lines) restricts Mode φ to bijective ternary operations only.
+
+**Mode 1 (Standard Security):** Mixed ternary-binary operations. Phase-aware but not phase-dependent. Periodic checkpoint capability.
+
+**Mode 0 (Compatibility):** Binary operations only. AES-256 encryption. No ternary or phase requirements. Standard key management.
+
+Mode transitions are enforced by the security policy engine which prevents information leakage across mode boundaries. The capability system (see Section III) enforces mode-specific access controls.
+
+### G. Binary-Ternary Gateway (BTG)
+
+`compat/gateway.rs` implements `BinaryTernaryGateway` with three operating modes (Balanced, NetworkOptimized, HumanReadable) providing bidirectional conversion between binary and ternary representations. Roundtrip conversion is verified by tests. Statistics tracking (conversions count, bytes processed) is built in.
+
+### H. Memory Safety Guarantees
+
+The kernel achieves compile-time memory safety through Rust's ownership system: no buffer overflows, no use-after-free, no data races, no null pointer dereferences. The `no_std` compilation target eliminates runtime garbage collection at the kernel level. A reference-counted garbage collector (`memory/gc.rs`) exists for VM-managed objects, not for kernel memory.
+
+Formal verification is supported through `crypto/formal_verify.rs` with Kani Rust Verifier and MIRI integration points. A CI-integrated proof pipeline has not yet been established.
+
+---
+
+## III. PlenumNET Production Platform
+
+The following components exist in the deployed TypeScript platform and were not specified in the original blueprint. They represent the project's pivot from hardware-first to software-first development.
+
+### A. RFC 3161 Time-Stamping Authority
+
+**Location:** `server/services/tsa-service.ts` (1,273 lines)
+
+The TSA issues RFC 3161, RFC 5652 (CMS SignedData), and RFC 5816 compliant timestamp tokens with real RSA-4096 signatures. Timestamps are independently verifiable via `openssl ts -verify` (with the supplied CA file).
+
+**Five Policy Tiers:**
+
+| Policy | OID | Use Case |
+|---|---|---|
+| DEFAULT | 1.3.6.1.4.1.{PEN}.100.1.0 | General purpose |
+| COMPLY | 1.3.6.1.4.1.{PEN}.100.1.1 | Financial compliance (FINRA Rule 613, CAT) |
+| FORENSICS | 1.3.6.1.4.1.{PEN}.100.1.2 | Legal evidence, eDiscovery |
+| SENTINEL | 1.3.6.1.4.1.{PEN}.100.1.3 | Government/military, ordering guaranteed |
+| SECURE | 1.3.6.1.4.1.{PEN}.100.1.4 | Enterprise Zero-Trust (ZTNA) |
+
+**Cryptographic Details:** RSA-4096 signing with SHA-256 message imprint. CMS SignedData envelope with embedded TSA certificate. Merkle audit log for batch integrity. Serial number management with restart resilience.
+
+**Dual-Signature Architecture:** Each timestamp carries both an RSA-4096 signature (RFC 3161 standard, universally verifiable) and a TL-DSA post-quantum signature (future-proof against quantum attack). The RSA-4096 signature is the legally operative one; the TL-DSA signature provides quantum resistance hedge.
+
+**Qualification Status:** The TSA is designed for ETSI EN 319 421/422 conformance. It has not been audited by a conformity assessment body. The self-signed certificate works with `openssl ts -verify -CAfile`; court-admissible use requires a CA-chained certificate with `id-kp-timeStamping` EKU. The OID arc uses a placeholder PEN — IANA PEN registration is pending.
+
+**API:** 8 endpoints at `/api/tsa/*` including RFC 3161 binary protocol, JSON interface, verification, certificate retrieval, audit export, and Merkle proof endpoints.
+
+### B. 42-Calendar Enrichment System
+
+**Location:** `server/services/tsa-calendar-enrichment.ts`
+
+Each timestamp is enriched with date representations across 42 calendar systems as a non-critical ASN.1 extension in the TSA token. Calendars include Gregorian, Julian, Hebrew, Islamic (multiple variants), Chinese, Persian, Japanese, Thai, Indian Saka, Korean, Ethiopian, Coptic, Tibetan, Mayan, Aztec, Roman, Bengali, Berber, Balinese, Zoroastrian, Aboriginal, and others.
+
+The enrichment data is CBOR-compressed per the TSA Calendar Context Compression Specification to minimize token size. All 42 calendar conversions achieved defensible results in validation testing.
+
+### C. Capability-Based Security (6 Phases)
+
+**Location:** `server/services/capability-*.ts` (~3,000+ lines across 6 service files)
+
+A complete capability-based security system implementing token delegation with cryptographic chain verification, hardware binding, RFC 3161 certificate issuance, and service mesh propagation.
+
+**Phase 1 — Core Delegation:** TL-DSA signed root capability tokens. HMAC-chained delegation with attenuation enforcement across all 8 constraint types (max_uses, time_window, vault_id, ip_range, document_id, project_id, template, recipient_domain). Authority diminishes through the chain — never grows.
+
+**Phase 2 — Revocation:** Certificate Revocation List (CRL) with OCSP-style status checking.
+
+**Phase 3 — Validation:** Full chain verification from delegated token back to root, with signature verification at each hop.
+
+**Phase 4 — Hardware Binding:** TPM-based device registration. Hardware-bound tokens using challenge-response protocol (HPTP). Single-use chains with first-use-wins semantics. Replay rejection.
+
+**Phase 5 — RFC 3161 Certificates:** Capability certificates carry real TSA timestamps (verifiable via OpenSSL) and Hedera HCS blockchain witnesses. Each certificate includes `tsa_timestamp_valid`, `capability_signature_valid`, `merkle_proof_valid`, and `hedera_witness_valid` verification fields.
+
+**Phase 6 — Service Mesh:** Multi-service capability propagation with per-hop attenuation. Service discovery, topology mapping, and health monitoring across a mesh of 4+ registered services.
+
+**Current State:** All 37 demo steps pass across all 6 phases. 29 API endpoints registered.
+
+### D. Hedera Consensus Service Witnessing
+
+**Location:** `server/services/hedera-witnessing-service.ts`
+
+The system uses Hedera Consensus Service (HCS) for immutable, ordered, timestamped blockchain witnessing of cryptographic operations. This replaces the XRPL witnessing specified in the original blueprint — HCS is purpose-built for ordered consensus messages, which is the correct tool for witnessing.
+
+**How It Works:** The `HederaWitnessingService` implements `IHederaWitnessingService` against the `@hashgraph/sdk`. On initialization, it connects to a Hedera network (testnet or mainnet) and either creates a new HCS topic or connects to an existing one. Witness messages contain a compact JSON payload: schema version, operation ID, witness type, hash, algorithm, security mode, kernel operation ID, batch reference, and timestamp.
+
+**Integration Points:**
+
+| Integration | Trigger | Data Witnessed |
+|---|---|---|
+| SFK Operations Pipeline | Mode φ/φ+ operation completion | SHA-256 hash of operation result |
+| Capability Certificate Issuance | Certificate issued (Phase 5) | SHA-256 hash of certificate content |
+
+**Verification:** Each witness submission returns a Hedera transaction ID and consensus timestamp. Mirror node URLs are provided for independent third-party verification. The `verifyWitness()` method queries the Hedera mirror node REST API to confirm message existence and format.
+
+**Confirmed Working:** Capability certificates witnessed on Hedera testnet with real transaction IDs (e.g., `0.0.7609151@1772436286.516354478`). Certificate verification confirms `hedera_witness_valid: true` with deterministic hash recomputation.
+
+**API:** 6 endpoints at `/api/hedera/v1/*`: submit witness, get witness status, verify via mirror node, topic info, health check, and statistics.
+
+### E. SFK Operations Pipeline
+
+**Location:** `server/services/sfk-operations-service.ts`
+
+Manages the Salvi Framework Kernel operation lifecycle: initialization → ternary processing → witnessing → finalization. The service receives a live `HederaWitnessingService` reference and automatically witnesses Mode φ and φ+ operations after ternary processing completes.
+
+**Pipeline Phases:**
+
+1. **Initialization** — Validate parameters, allocate operation state
+2. **Ternary Processing** — Compute result (SHA-256 of operation parameters; will invoke Rust WASM kernel when bridge is established)
+3. **Witnessing** — Mode φ/φ+: submit result hash to Hedera HCS. Mode 1/0: skip.
+4. **Finalization** — Record completion, update metrics
+
+**Abort-Aware:** Pipeline checks `isAborted()` at every phase boundary. Graceful shutdown sets `shutdownRequested = true` to prevent post-shutdown Hedera submissions.
+
+**API:** 5 endpoints at `/api/sfk/v1/*`: submit operation, get status, list operations, cancel operation, and statistics.
+
+### F. Kong API Gateway
+
+The platform runs behind Kong Gateway (Konnect) with 23+ registered services. The full service catalog is available at `/api/kong/service-catalog`.
+
+**Service Categories:**
+
+| Category | Services |
+|---|---|
+| Core | HPTP Timing, Calendar Synchronization (26 endpoints), Ternary Computing, Phase Encryption, TVM, Post-Quantum Signing (PQTI), Hedera HCS Witnessing, SFK Operations Pipeline |
+| Tools | Compression Demo, Compression Storage |
+| Reference | API Documentation, Whitepaper Management, Legal Documents |
+| Platform | Authentication, User Management, Developer Waitlist, Health |
+| Admin | Kong Gateway Management, GitHub Integration, Admin Dashboard |
+
+### G. PPTPro (Plenum Pulse Tonal Professor)
+
+Live at https://PPTPro.Replit.App — a bio-signal processing tonal intelligence engine paired with PlenumNET as conductor. Provides real-time coherence monitoring and tonal analysis.
+
+---
+
+## IV. Implementation Roadmap (Revised)
+
+The original five-phase linear roadmap has been superseded by the actual development trajectory. This section documents both the original plan and actual outcome.
+
+### Phases 1 & 3: Simulation + Core Platform — COMPLETE
+
+**Delivered:**
+
+- Simulated Ternary ALU with bijective operations — full GF(3) ALU with tests
+- 13D network routing algorithm models — torus, routing, TDNS, T3P, TTP
+- Rust kernel with 50,407 lines, 1,634 tests, `no_std` capable
+- Binary-Ternary Gateway with verified roundtrip conversion
+- TL-DSA and TL-KEM post-quantum cryptographic primitives
+- 160+ opcode Ternary Virtual Machine with compiler and debugger
+- RISC-V Xplenum custom extension specification (21 instructions, 12 CSRs)
+- Modal security enforcement (Mode φ/1/0)
+
+### Phase 2: FPGA Hardware — PARTIAL
+
+**Delivered:**
+
+- SystemVerilog RTL generator for 4 accelerator modules (`fpga_hdl.rs`, 1,252 lines)
+- Synthesis configuration (`fpga_synth.rs`, 756 lines)
+- Software fallback stubs for all FPGA-accelerated operations
+
+**Not Delivered:**
+
+- FPGA bitstream (RTL not run through Vivado/Quartus)
+- Hardware benchmarks
+- Physical FPGA testing
+
+### Phase 4: Network Prototyping — PIVOTED
+
+The original Phase 4 specified a 3-5 node Raspberry Pi testbed. Development pivoted to a production SaaS platform instead.
+
+**What Was Built Instead:**
+
+- Production PlenumNET platform with Express.js + Kong Gateway
+- RFC 3161 TSA with 5 policy tiers and OpenSSL-verifiable timestamps
+- 6-phase capability-based security system (37/37 demo steps passing)
+- Hedera HCS blockchain witnessing (live on testnet with confirmed transactions)
+- SFK operations pipeline with abort-aware lifecycle management
+- 42-calendar enrichment system
+- 23+ Kong-registered API services
+
+**What Was Not Built:**
+
+- Physical multi-node testbed
+- Network protocol demonstration over real links
+- Measured efficiency gains vs binary baseline
+
+### Phase 5: Integration & Scaling — ACTIVE
+
+**In Progress:**
+
+- Security audit remediation (Tier 1 complete, 37/37 passing)
+- IANA PEN registration (pending)
+- CA-chained TSA certificate procurement (pending)
+- IP protection filing (pending)
+- Blueprint document revision (this document)
+
+---
+
+## V. Security Architecture
+
+### A. Cryptographic Foundations
+
+**Post-Quantum:** TL-DSA (lattice-based signatures) and TL-KEM (lattice-based key encapsulation) provide quantum resistance based on the Module-LWE hardness assumption. A formal security reduction to Module-LWE has not been published.
+
+**Classical:** RSA-4096 for TSA signatures (RFC 3161 compliance), Ed448 as interim bridge for capability token signing, AES-256 for Mode 0 symmetric encryption, SHA-256/384/512 and SHA3-256/384/512 for hashing.
+
+**CNSA 2.0:** Algorithm profiles per NSA CNSA 2.0 requirements implemented in dedicated modules.
+
+### B. Non-Repudiation Architecture
+
+The platform provides three layers of non-repudiation:
+
+1. **RFC 3161 Timestamps** — Cryptographic proof of existence at a specific time, verifiable via OpenSSL
+2. **Hedera HCS Witnesses** — Immutable blockchain-anchored proof with consensus timestamp, verifiable via public mirror node
+3. **Merkle Audit Log** — Internal hash chain linking all operations with inclusion proofs
+
+For Mode φ operations, all three layers are engaged. Mode 1 uses TSA + Merkle. Mode 0 uses Merkle only.
+
+### C. Capability-Based Access Control
+
+The capability system implements the principle of least authority: tokens carry specific permissions that can only be attenuated (narrowed), never expanded, through delegation chains. Each delegation is cryptographically signed and independently verifiable. Hardware binding via TPM ensures tokens are bound to specific devices.
+
+---
+
+## VI. Validation & Performance
+
+### A. Verified Results
+
+| Metric | Result | Method |
+|---|---|---|
+| Capability demo steps | 37/37 pass | Automated end-to-end test across all 6 phases |
+| TSA timestamp verification | Pass | `openssl ts -verify` with supplied CA file |
+| Hedera witness verification | Pass | Mirror node query confirms message existence |
+| Calendar conversions | 42/42 defensible | Cross-reference validation |
+| Binary-ternary roundtrip | Pass | Automated conversion + inverse tests |
+| Ternary field operations | Pass | GF(3) arithmetic unit tests |
+| TL-DSA keygen/sign/verify | Pass | Rust unit tests |
+| TL-KEM encapsulate/decapsulate | Pass | Rust unit tests |
+
+### B. Unverified Predictions
+
+These figures appeared in the original blueprint and have not been measured against actual hardware or software.
+
+| Claim | Blueprint Value | Current Status |
+|---|---|---|
+| Phase-aligned efficiency gain | +12.71% | Not measured |
+| Mode φ throughput (FPGA) | 1.2M ops/sec | Not measured — no FPGA bitstream |
+| Information density vs binary | +59% | Not measured |
+| COMPLY tier timing accuracy | ±1µs | Simulated via `process.hrtime()`, not traceable to reference source |
+
+These claims should not be used in marketing or partnership materials until independently measured.
+
+---
+
+## VII. Deployment & Integration
+
+### A. Current Deployment
+
+The platform deploys as a Node.js/Express application behind Kong Gateway on Replit, with the Rust kernel available as a library crate for native integration or WASM compilation.
+
+### B. Environment Configuration
+
+| Variable | Purpose | Required |
+|---|---|---|
+| HEDERA_ACCOUNT_ID | Hedera operator account | For blockchain witnessing |
+| HEDERA_PRIVATE_KEY | Ed25519 key (DER hex or raw) | For blockchain witnessing |
+| HEDERA_NETWORK | testnet / mainnet / previewnet | Optional (default: testnet) |
+| HEDERA_TOPIC_ID | Existing HCS topic | Optional (auto-creates if omitted) |
+| KONG_KONNECT_TOKEN | Kong Gateway management | For API gateway features |
+
+### C. Migration Path from Binary Systems
+
+The Binary-Ternary Gateway (`compat/gateway.rs`) provides transparent conversion for legacy binary systems. Three operating modes (Balanced, NetworkOptimized, HumanReadable) optimize for different integration patterns. Mode 0 (Compatibility) allows pure binary operation with standard AES-256 encryption, requiring no ternary awareness from client systems.
+
+---
+
+## VIII. Future Work
+
+### Near-Term (Tier 2 — 30-90 days)
+
+- IANA Private Enterprise Number registration for legitimate OID arc
+- CA-chained TSA certificate for court-admissible timestamps
+- Traceable time source (GPS/GNSS or stratum-1 NTP) for timing accuracy claims
+- IP protection filing (5 patents, 11 trademarks identified)
+- ETSI EN 319 421/422 gap assessment
+- Formal security proof for TL-DSA (reduction to Module-LWE)
+
+### Medium-Term (Tier 3 — 90-180 days)
+
+- FPGA bitstream synthesis via Xilinx Vivado
+- Performance benchmarks (CPU and FPGA)
+- Bare-metal kernel boot demonstration (QEMU, then physical hardware)
+- Formal verification CI pipeline (Kani + MIRI)
+- Xplenum RISC-V ISA simulation
+- Multi-node network testbed
+
+### Long-Term (Tier 4 — 180+ days)
+
+- TL-DSA WASM kernel bridge (replaces ed448 interim with actual post-quantum signatures)
+- Hedera mainnet migration
+- ASIC tape-out specification (pending FPGA validation)
+- Ternary-native container runtime (pending hardware availability)
+
+---
+
+## Appendices
+
+### A. Repository Structure
+
+```
+Ternary/
+├── src/kernel/src/          # Rust kernel (50,407 lines, 115 files)
+│   ├── arch/                # x86_64, aarch64, riscv64, Xplenum
+│   ├── compat/              # Binary-Ternary Gateway
+│   ├── crypto/              # TL-DSA, TL-KEM, SHA, AES, FPGA HDL, CNSA 2.0
+│   ├── hptp/                # High-Precision Timing Protocol
+│   ├── memory/              # Allocators, page tables, GC
+│   ├── network/             # Torus routing, T3P, TDNS, TTP
+│   ├── security/            # Capabilities, policy, audit, domains
+│   ├── sync/                # Mutex, semaphore, spinlock, phase-mutex
+│   └── vm/                  # 160+ opcode TVM, compiler, quantum ops
+├── server/                  # TypeScript platform (25,340+ lines)
+│   ├── services/            # TSA, capabilities, Hedera, SFK operations
+│   ├── routes/              # API endpoints
+│   ├── salvi-core/          # Type definitions, ternary operations
+│   └── middleware/          # Rate limiting, security headers, CORS
+└── kong/                    # Kong Gateway configuration
+```
+
+### B. API Endpoint Summary
+
+23+ services, 100+ endpoints. Full catalog at `/api/kong/service-catalog`.
+
+### C. Standards Compliance
+
+| Standard | Status |
+|---|---|
+| RFC 3161 (Timestamping) | Implemented and verifiable |
+| RFC 5652 (CMS SignedData) | Implemented |
+| RFC 5816 (CMS/TSA Extensions) | Implemented |
+| ETSI EN 319 421 (TSA Policy) | Designed to conform, not audited |
+| ETSI EN 319 422 (TSA Practice) | Designed to conform, not audited |
+| CNSA 2.0 (NSA) | Algorithm profiles implemented |
+| NIST FIPS 140-3 | CAVP/ACVTS stubs present, not submitted |
+
+---
+
+*This document represents the complete technical specification for the Salvi Framework and PlenumNET platform as implemented and verified through March 2026.*
