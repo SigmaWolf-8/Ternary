@@ -187,6 +187,8 @@ function HeroDemo() {
 function HeroSection() {
   const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
   const signupMutation = useMutation({
@@ -231,9 +233,9 @@ function HeroSection() {
         </div>
 
         <motion.h1 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
+          initial={{ opacity: 0, y: -30 }}
+          animate={videoEnded ? { opacity: 1, y: 0 } : { opacity: 0, y: -30 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
           data-testid="text-hero-title"
           id="hero-title"
@@ -290,10 +292,11 @@ function HeroSection() {
               <img src={plenumLogo} alt="PlenumNET" className="h-5 w-auto ml-auto opacity-70" data-testid="hero-logo" />
             </div>
             <video
+              ref={videoRef}
               autoPlay
               muted
-              loop
               playsInline
+              onEnded={() => setVideoEnded(true)}
               className="w-full pt-8"
               style={{ height: "390px", objectFit: "fill" }}
               data-testid="hero-video"
