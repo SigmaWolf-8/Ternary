@@ -234,11 +234,43 @@ function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
-          className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
+          className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-center"
           data-testid="text-hero-title"
           id="hero-title"
+          style={{
+            textShadow: `
+              0 1px 0 rgba(255,255,255,0.5),
+              0 -1px 0 rgba(0,0,0,0.2),
+              0 2px 0 rgba(0,0,0,0.20),
+              0 3px 0 rgba(0,0,0,0.18),
+              0 4px 0 rgba(0,0,0,0.16),
+              0 5px 0 rgba(0,0,0,0.14),
+              0 6px 0 rgba(0,0,0,0.12),
+              0 7px 0 rgba(0,0,0,0.10),
+              0 8px 0 rgba(0,0,0,0.08),
+              0 9px 0 rgba(0,0,0,0.06),
+              0 10px 0 rgba(0,0,0,0.04),
+              0 12px 8px rgba(0,0,0,0.14),
+              0 18px 16px rgba(0,0,0,0.10),
+              0 26px 30px rgba(0,0,0,0.06)
+            `,
+          }}
         >
-          The World's First <span className="text-primary">Ternary Computing</span> Platform
+          The World's First <span className="text-primary" style={{ textShadow: `
+              0 1px 0 rgba(0,85,210,0.50),
+              0 2px 0 rgba(0,80,200,0.45),
+              0 3px 0 rgba(0,75,190,0.40),
+              0 4px 0 rgba(0,70,180,0.35),
+              0 5px 0 rgba(0,65,170,0.30),
+              0 6px 0 rgba(0,60,160,0.26),
+              0 7px 0 rgba(0,55,150,0.22),
+              0 8px 0 rgba(0,50,140,0.18),
+              0 9px 0 rgba(0,45,130,0.14),
+              0 10px 0 rgba(0,40,120,0.10),
+              0 12px 8px rgba(0,30,100,0.18),
+              0 18px 16px rgba(0,30,100,0.12),
+              0 26px 30px rgba(0,30,100,0.07)
+            ` }}>Ternary Computing</span> Platform
         </motion.h1>
 
         <motion.div
@@ -262,8 +294,7 @@ function HeroSection() {
               muted
               loop
               playsInline
-              className="w-full object-cover pt-8"
-              style={{ height: "380px" }}
+              className="w-full object-contain pt-8 bg-black/5 dark:bg-black/20"
               data-testid="hero-video"
             >
               <source src={heroVideo} type="video/mp4" />
