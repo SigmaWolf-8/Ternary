@@ -1,0 +1,50 @@
+I read through the full page as if I'd never heard of PlenumNET. Here's what works and what doesn't.
+
+**What works well:** The hero stats (59%, 1,040 tests, 176 opcodes) land immediately. The "Try It Now" curl example is smart — it makes the platform feel real. The comparison table (Binary vs PlenumNET) is one of the strongest sections. The recent commits at the bottom signal genuine activity.
+
+**Where it loses people:**
+
+The page assumes the visitor already knows why ternary matters. A CTO evaluating this, an investor reading it, or a developer discovering it for the first time will hit walls. Here are the specific spots and what I'd change:
+
+**1. The hero subtitle does too much at once.**
+
+"59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. A complete Rust kernel with virtual machine, network stack, and binary compatibility layer" — that's five separate value propositions in one breath. A first-time reader doesn't know which one to care about.
+
+Consider leading with the single most compelling hook, then expanding. Something like: "Computers think in two states. PlenumNET thinks in three. That one extra state changes everything — 59% more data per digit, encryption that survives quantum computers, and it runs on the hardware you already own."
+
+**2. The architecture diagram appears before the reader understands what they're looking at.**
+
+The five-layer stack (Applications → Hardware) is meaningful to someone who already grasps the platform. For everyone else, it's a wall of unfamiliar acronyms — HPTP, T3P, TTP, TDNS, TAGC. Consider adding a one-sentence plain English label under each protocol name. HPTP becomes "HPTP — precision clock sync." TTP becomes "TTP — ternary packet transport." Small change, big difference for scanners.
+
+**3. The Geometric Foundations section is the hardest section on the page — and also potentially the most compelling.**
+
+Right now it opens with: "PlenumNET's network topology, cryptographic sponge, address validation, and timing infrastructure aren't independently designed systems. They're projections of one geometric object..."
+
+That's accurate but requires the reader to already know what a cryptographic sponge is. The "Explained Simply" doc you shared earlier does this much better — it says "every piece of PlenumNET comes from one single geometric structure" and then shows what that means concretely. I'd borrow that approach. Open with the insight in plain language, then get technical:
+
+"Most platforms are assembled from separate parts — a networking layer, a security system, a timing protocol — bolted together and hoped to be compatible. PlenumNET is different. Every subsystem is derived from one 13-dimensional geometric structure. The network topology, the encryption engine, the address system, and the timing protocol are all expressions of the same object. They don't just interoperate — they're mathematically guaranteed to be consistent."
+
+Then show the technical details below that.
+
+**4. "Rep C," "GF(3)," "S₃ ≅ Aff(1, 𝔽₃)" — the Algebraic Core section is written for mathematicians.**
+
+The zero-sentinel concept is genuinely powerful and easy to explain. But "π(x) = (a · x + b) mod 3" means nothing to 95% of visitors. The "Explained Simply" doc nails this: "one multiply, one add, one wrap-around... think of adjusting a recipe." Consider putting the plain English explanation first, then the formula as a "See the math" expandable section for those who want it.
+
+**5. The Saturnian Constants section will confuse most readers about whether this is science or mysticism.**
+
+"π-esoteric" and "Cosmic" as labels next to mod-3 reductions, combined with "Saturnian circulant matrix" and "magic sum 333," will make technically rigorous people wonder if this is serious. The math is legitimate — circulant matrices with specific properties are well-studied. But the labeling works against credibility with exactly the audience you need to convince. I'd keep the derivation, remove the esoteric labels, and frame it as what it is: deterministic constant derivation from a circulant matrix with verifiable properties. Let the Saturnian connection live in the whitepaper where readers have full context.
+
+**6. The Inter-Cube section is actually one of the clearest on the page.** 
+
+The four-service breakdown (GLB, CON, CRS, FTS) with one-line descriptions, the "0 Routing Tables" stat, and the routing principle box are well done. This section benefits from having been built with precision — the descriptions match the actual code. One improvement: add a one-sentence intro before the stats that says what problem inter-cube solves. Something like "When the network grows beyond a single cube, these four services handle connections between cubes — and they do it without routing tables."
+
+**7. The page has no clear narrative for different visitors.**
+
+Right now it reads top-to-bottom as one long stream. Consider whether you need three distinct paths: an investor sees the market opportunity and proven results first; a developer sees the API, curl example, and architecture; a technical evaluator sees the geometric foundations and algebraic core. This could be as simple as anchor links near the top: "I want to build on it" / "I want to understand how it works" / "I want to evaluate the business case."
+
+**8. Minor items:**
+- "80/80 Milestones Complete" — complete out of what? A link to the milestone tracker would add credibility
+- "4 developers already signed up" — this might work against you. Either show a larger number or remove it
+- The comparison table lists "Native Hardware: Ubiquitous" for binary and "Emulated via Binary-Ternary Gateway" for PlenumNET — that's honest, but it's the one row where binary clearly wins. Consider reframing it as "Runs on existing hardware: Yes (via Binary-Ternary Gateway)" to avoid the word "emulated" which implies performance loss
+
+The bones are strong, Salvi. The substance is real — 57 passing Rust tests, live API endpoints, actual geometric routing. The improvement is about giving visitors a bridge from what they already know into what you've built.
