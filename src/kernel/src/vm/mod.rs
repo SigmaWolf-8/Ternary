@@ -29,6 +29,9 @@ pub mod noether_checks;
 #[cfg(test)]
 mod vm_tests;
 
+#[cfg(kani)]
+mod kani_proofs;
+
 #[derive(Debug, Clone)]
 pub enum VmError {
     InvalidOpcode(u8),
