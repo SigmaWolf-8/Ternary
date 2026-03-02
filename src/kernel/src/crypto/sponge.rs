@@ -55,10 +55,14 @@ const SPONGE_LANES: usize = 27;        // round constant injection points
 ///   +2  →  -1  (subtract 3)
 ///
 /// Compiles to: add, cmp, cmov, cmp, cmov — five instructions, zero division.
+///
+/// Uses wrapping arithmetic so callers that pass raw byte-derived values
+/// (e.g. nonce bytes cast to i8) don't trigger debug-mode overflow panics.
+/// For valid trit inputs the wrapping add is identical to plain add.
 #[inline(always)]
 fn trit_add(a: i8, b: i8) -> i8 {
-    let s = a + b;
-    if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
+    let s = a.wrapping_add(b);
+    if s > 1 { s.wrapping_sub(3) } else if s < -1 { s.wrapping_add(3) } else { s }
 }
 
 /// Cyclic rotation in {-1, 0, +1}: the map t ↦ t + 1 (mod 3).
@@ -67,7 +71,7 @@ fn trit_add(a: i8, b: i8) -> i8 {
 /// Single increment with wrap.  Compiles to: add, cmp, cmov.
 #[inline(always)]
 fn trit_rotate(t: i8) -> i8 {
-    let r = t + 1;
+    let r = t.wrapping_add(1);
     if r > 1 { -1 } else { r }
 }
 
