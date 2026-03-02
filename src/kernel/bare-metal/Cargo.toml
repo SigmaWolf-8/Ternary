@@ -1,0 +1,31 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Applied Physics Division — Salvi Framework
+# PROPRIETARY AND CONFIDENTIAL — All Rights Reserved
+
+[package]
+name = "plenumnet-bare-metal"
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd <kernel@plenumnet.io>"]
+description = "Bare-metal boot target for the PlenumNET Ternary Kernel — QEMU validation"
+license = "LicenseRef-Proprietary"
+repository = "https://github.com/SigmaWolf-8/Ternary"
+publish = false
+
+[[bin]]
+name = "ternary-kernel"
+path = "src/main.rs"
+
+[dependencies]
+plenumnet-kernel = { path = "..", features = ["no_std"], default-features = false }
+spin = { version = "0.9", default-features = false }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = 2
+lto = true
+codegen-units = 1
+strip = "symbols"
