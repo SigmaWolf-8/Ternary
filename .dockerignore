@@ -1,0 +1,40 @@
+# Skip these when building the container.
+# This makes the build faster and the container smaller.
+
+# Build artifacts (we compile fresh inside the container)
+target/
+node_modules/
+
+# Git history (not needed for compilation)
+.git/
+.github/
+
+# Frontend (not needed for the Rust daemon)
+client/
+attached_assets/
+
+# TypeScript server (the container runs the Rust binary, not Node.js)
+server/
+shared/
+*.ts
+*.tsx
+*.js
+*.json
+!Cargo.toml
+!ternary-math/**
+!services/inter-cube/**
+
+# Documentation and config files
+*.md
+*.txt
+*.yml
+!docker-compose.yml
+.replit
+replit.nix
+replit.md
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo

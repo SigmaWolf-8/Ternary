@@ -1,0 +1,182 @@
+# PlenumNET Inter-Cube Deployment — Step 1
+
+## What These Files Do
+
+These files package the inter-cube daemon (the software that runs all four
+services — GLB, CON, CRS, FTS) into a container that any computer can run.
+
+| File                 | Purpose                                                  |
+|----------------------|----------------------------------------------------------|
+| `Dockerfile`         | Recipe to compile the code and package it                |
+| `.dockerignore`      | Tells Docker which files to skip (keeps build fast)      |
+| `docker-compose.yml` | Runs 1 registration desk + 3 cubes on your machine       |
+
+## Prerequisites
+
+You need Docker installed on your computer.
+
+- **Mac**: Download Docker Desktop from https://www.docker.com/products/docker-desktop/
+- **Windows**: Same link, choose Windows version
+- **Linux**: `sudo apt-get install docker.io docker-compose-v2`
+
+To check if Docker is installed, open a terminal and type:
+```
+docker --version
+```
+You should see something like `Docker version 24.0.7`.
+
+## How to Deploy
+
+### 1. Copy these files into the repository
+
+Place these three files at the **root** of your Ternary repository
+(the same folder that has `Cargo.toml`, `ternary-math/`, and `services/`):
+
+```
+Ternary/
+├── Cargo.toml              (already exists)
+├── Dockerfile              ← put here
+├── .dockerignore           ← put here
+├── docker-compose.yml      ← put here
+├── ternary-math/           (already exists)
+└── services/
+    └── inter-cube/         (already exists)
+```
+
+### 2. Make sure the workspace Cargo.toml includes inter-cube
+
+The `Cargo.toml` at the root of the repo must list both `ternary-math`
+and `services/inter-cube` as members:
+
+```toml
+[workspace]
+members = [
+    "ternary-math",
+    "src/kernel",
+    "services/pqti-service",
+    "services/inter-cube",
+]
+resolver = "2"
+```
+
+### 3. Make sure blake3 is pinned
+
+In `services/inter-cube/Cargo.toml`, the blake3 line must read:
+
+```toml
+blake3 = "=1.5.4"
+```
+
+Not `blake3 = "1"`. The unpinned version pulls a newer release that
+requires Rust edition 2024, which Rust 1.77 can't compile.
+
+### 4. Build the container
+
+Open a terminal in the Ternary folder and run:
+
+```bash
+docker build -t plenumnet/inter-cube .
+```
+
+What this does:
+- Downloads Rust 1.77 inside the container
+- Compiles ternary-math (the GF(3) math engine)
+- Compiles inter-cube (all four services)
+- Runs all 57 tests — if any fail, the build stops
+- Packages just the compiled binary into a small runtime image
+
+The first build takes 5–10 minutes (downloading dependencies).
+Subsequent builds are much faster (Docker caches the downloads).
+
+### 5. Test with one container
+
+Run a single container to verify it starts:
+
+```bash
+docker run --rm -p 8080:8080 plenumnet/inter-cube
+```
+
+Then in another terminal:
+
+```bash
+# Check if the CRS is responding
+curl http://localhost:8080/api/salvi/inter-cube/crs/stats
+
+# Register a test cube
+curl -X POST http://localhost:8080/api/salvi/inter-cube/crs/register \
+  -H "Content-Type: application/json" \
+  -d '{"endpoint":"10.0.0.1:51820","publicKey":"testkey123"}'
+
+# Validate a Rep C address (zero detection)
+curl -X POST http://localhost:8080/api/salvi/inter-cube/address/validate \
+  -H "Content-Type: application/json" \
+  -d '{"address":[1,2,3,1,2,3,1,2,3,1,2,3,1]}'
+```
+
+Press Ctrl+C to stop the container.
+
+### 6. Test with three cubes (local mesh)
+
+This runs 4 containers: 1 CRS + 3 cubes, all talking to each other:
+
+```bash
+docker compose up --build
+```
+
+What happens:
+1. The CRS starts and waits for cubes to register
+2. Cube-1 contacts the CRS, gets address [1,1,1,...], discovers neighbors
+3. Cube-2 contacts the CRS, gets address [1,1,2,...], discovers neighbors
+4. Cube-3 contacts the CRS, gets address [1,2,1,...], discovers neighbors
+5. Each cube checks which neighbors are online and connects to them
+6. FTS begins heartbeat monitoring
+7. GLB is ready to route packets
+
+To watch what's happening:
+
+```bash
+# See all logs
+docker compose logs -f
+
+# See just cube-1
+docker compose logs -f cube-1
+
+# Check how many cubes are registered
+curl http://localhost:8080/api/salvi/inter-cube/crs/stats
+
+# Check network topology
+curl http://localhost:8080/api/salvi/inter-cube/topology
+```
+
+To stop everything:
+
+```bash
+docker compose down
+```
+
+## What's Next
+
+After Step 1 (this), the remaining steps are:
+
+- **Step 3** (Real tunnels): Replace the tunnel state placeholder in CON
+  with actual network connections. This is the only new code needed.
+- **Step 5** (Internet deploy): Push the container to Railway or Fly.io
+  so cubes run on real servers with public internet addresses.
+- **Step 6** (Live visualization): Add a page showing the mesh in real time.
+
+## Troubleshooting
+
+**"cargo build fails with edition 2024 error"**
+→ Make sure `blake3 = "=1.5.4"` (with the equals sign) in
+  `services/inter-cube/Cargo.toml`
+
+**"workspace member not found"**
+→ Make sure the root `Cargo.toml` lists all four members including
+  `"ternary-math"` and `"services/inter-cube"`
+
+**"docker: command not found"**
+→ Install Docker Desktop from https://www.docker.com/products/docker-desktop/
+
+**"port 8080 already in use"**
+→ Change the port mapping: `docker run -p 9090:8080 plenumnet/inter-cube`
+  then use http://localhost:9090 instead
