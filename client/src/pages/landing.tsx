@@ -234,7 +234,7 @@ function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
-          className="text-6xl md:text-7xl lg:text-[4.5rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
+          className="text-7xl md:text-8xl lg:text-[5.6rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
           data-testid="text-hero-title"
           id="hero-title"
           style={{
