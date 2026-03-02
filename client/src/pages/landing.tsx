@@ -294,8 +294,8 @@ function HeroSection() {
               muted
               loop
               playsInline
-              className="w-full object-cover pt-8"
-              style={{ height: "350px" }}
+              className="w-full pt-8"
+              style={{ height: "390px", objectFit: "fill" }}
               data-testid="hero-video"
             >
               <source src={heroVideo} type="video/mp4" />
