@@ -541,7 +541,7 @@ mod tests {
         // Rep C values are {1, 2, 3}. No valid input produces 0.
         for trit in [-1i8, 0, 1] {
             let c = rep_a_to_c(trit);
-            assert!(c >= 1 && c <= 3, "Rep C value {} is outside {1,2,3}", c);
+            assert!(c >= 1 && c <= 3, "Rep C value {} is outside {{1,2,3}}", c);
             assert_ne!(c, 0, "Rep C must never produce 0");
         }
     }

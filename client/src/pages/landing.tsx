@@ -221,7 +221,7 @@ function HeroSection() {
             variant="outline" 
             className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
           >
-            1,040 Tests Passing
+            1,715 Tests Passing
           </Badge>
           <Badge 
             variant="outline" 
@@ -409,7 +409,7 @@ function HeroSection() {
             
             <div className="flex flex-wrap gap-6 md:gap-8">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
-              <AnimatedStat value="1,040" label="Tests Passing" delay={0.38} />
+              <AnimatedStat value="1,715" label="Tests Passing" delay={0.38} />
               <AnimatedStat value="80/80" label="Milestones" delay={0.41} />
               <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.44} />
             </div>
@@ -532,7 +532,7 @@ function PlatformSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,040 passing tests.
+            From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,715 passing tests.
           </motion.p>
         </div>
 
@@ -764,7 +764,7 @@ function ComponentCard({
 function ComponentsSection() {
   const components = [
     {
-      badge: "Core - 1,040 Tests",
+      badge: "Core - 1,715 Tests",
       icon: Cpu,
       title: "Ternary Kernel",
       description: "Production-ready Rust kernel with GF(3) arithmetic, memory management, process scheduling, filesystem, and multi-architecture support.",
@@ -995,7 +995,7 @@ function PerformanceSection() {
 function TrustSignals() {
   const signals = [
     { label: "1,252+", description: "Git Commits" },
-    { label: "1,040", description: "Tests Passing" },
+    { label: "1,715", description: "Tests Passing" },
     { label: "227", description: "Source Files" },
     { label: String(PLATFORM.API_ENDPOINTS), description: "API Endpoints" },
   ];
