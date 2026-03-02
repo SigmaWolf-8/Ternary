@@ -105,11 +105,26 @@ function formatNsRemaining(ns: bigint): string {
   return `${(Number(ns) / 1_000_000_000).toFixed(3)}s`;
 }
 
+const USAGE_EVICTION_INTERVAL_MS = 300_000;
+
 export class CapabilityService {
   private auditLog = getSharedAuditLog();
-  private usageCounts: Map<string, number> = new Map();
+  private usageCounts: Map<string, { count: number; expires_ns: string }> = new Map();
+  private evictionTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor() {}
+  constructor() {
+    this.evictionTimer = setInterval(() => this.evictExpiredUsage(), USAGE_EVICTION_INTERVAL_MS);
+    if (this.evictionTimer?.unref) this.evictionTimer.unref();
+  }
+
+  private evictExpiredUsage(): void {
+    const nowNs = BigInt(getHptpNanoseconds());
+    for (const [jti, entry] of this.usageCounts) {
+      if (nowNs >= BigInt(entry.expires_ns)) {
+        this.usageCounts.delete(jti);
+      }
+    }
+  }
 
   getHptpNow(): string {
     return getHptpNanoseconds();
@@ -221,11 +236,14 @@ export class CapabilityService {
 
     const remainNs = BigInt(cap.exp) - BigInt(hptpNs);
 
+    const maxExpNs = token.cap.reduce((mx, c) => { const e = BigInt(c.exp); return e > mx ? e : mx; }, 0n).toString();
+
     const maxUsesConstraint = cap.constraints.find(c => c.type === 'max_uses') as { type: 'max_uses'; value: number } | undefined;
     if (maxUsesConstraint) {
-      const currentCount = (this.usageCounts.get(token.jti) || 0) + 1;
+      const entry = this.usageCounts.get(token.jti);
+      const currentCount = (entry?.count || 0) + 1;
       if (currentCount > maxUsesConstraint.value) {
-        this.usageCounts.set(token.jti, currentCount);
+        this.usageCounts.set(token.jti, { count: currentCount, expires_ns: maxExpNs });
         this.auditLog.recordUsageExceeded(token, hptpNs, currentCount);
         const auditHash = this.auditLog.recordValidated(token, resource, 'denied', hptpNs, [maxUsesConstraint], ipAddress);
         return {
@@ -236,7 +254,7 @@ export class CapabilityService {
           audit_event_hash: auditHash,
         };
       }
-      this.usageCounts.set(token.jti, currentCount);
+      this.usageCounts.set(token.jti, { count: currentCount, expires_ns: maxExpNs });
     }
 
     const { granted, failed } = validateAllConstraints(cap.constraints.filter(c => c.type !== 'max_uses'), context);
@@ -585,11 +603,14 @@ export class CapabilityService {
 
     const remainNs = BigInt(cap.exp) - BigInt(hptpNs2);
 
+    const maxExpNs2 = token.cap.reduce((mx, c) => { const e = BigInt(c.exp); return e > mx ? e : mx; }, 0n).toString();
+
     const maxUsesConstraint = cap.constraints.find(c => c.type === 'max_uses') as { type: 'max_uses'; value: number } | undefined;
     if (maxUsesConstraint) {
-      const currentCount = (this.usageCounts.get(token.jti) || 0) + 1;
+      const entry = this.usageCounts.get(token.jti);
+      const currentCount = (entry?.count || 0) + 1;
       if (currentCount > maxUsesConstraint.value) {
-        this.usageCounts.set(token.jti, currentCount);
+        this.usageCounts.set(token.jti, { count: currentCount, expires_ns: maxExpNs2 });
         this.auditLog.recordUsageExceeded(token, hptpNs2, currentCount);
         const auditHash = this.auditLog.recordValidated(token, resource, 'denied', hptpNs2, [maxUsesConstraint], ipAddress);
         return {
@@ -602,7 +623,7 @@ export class CapabilityService {
           chain_depth: chainResult.chain_depth,
         };
       }
-      this.usageCounts.set(token.jti, currentCount);
+      this.usageCounts.set(token.jti, { count: currentCount, expires_ns: maxExpNs2 });
     }
 
     const { granted, failed } = validateAllConstraints(cap.constraints.filter(c => c.type !== 'max_uses'), context);
