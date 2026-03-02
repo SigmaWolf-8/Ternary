@@ -187,7 +187,6 @@ function HeroDemo() {
 function HeroSection() {
   const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
-  const [videoEnded, setVideoEnded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
@@ -232,10 +231,7 @@ function HeroSection() {
           </Badge>
         </div>
 
-        <motion.h1 
-          initial={{ opacity: 1, y: -20 }}
-          animate={videoEnded ? { opacity: 1, y: 0 } : { opacity: 1, y: -20 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        <h1 
           className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
           data-testid="text-hero-title"
           id="hero-title"
@@ -273,7 +269,7 @@ function HeroSection() {
               0 18px 16px rgba(0,30,100,0.12),
               0 26px 30px rgba(0,30,100,0.07)
             ` }}>Ternary Computing</span> Platform
-        </motion.h1>
+        </h1>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -296,7 +292,7 @@ function HeroSection() {
               autoPlay
               muted
               playsInline
-              onEnded={() => setVideoEnded(true)}
+              
               className="w-full pt-8"
               style={{ height: "390px", objectFit: "fill" }}
               data-testid="hero-video"
