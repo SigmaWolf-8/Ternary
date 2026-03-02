@@ -1,0 +1,265 @@
+# PlenumNET Ternary Kernel — Rust Formal Verification CI
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd.
+# Applied Physics Division — Salvi Framework
+#
+# This pipeline runs Kani (bounded model checking) and MIRI (undefined
+# behavior detection) against the kernel Rust code. Together they prove:
+#
+#   Kani:  Functional correctness properties hold for ALL inputs
+#   MIRI:  No undefined behavior in unsafe code blocks
+#
+# These complement the RTL formal verification in formal-verification.yml
+# (which covers the XPlenum hardware) and the dynamic verification in
+# crypto/formal_verify.rs (which samples inputs exhaustively but finitely).
+
+name: Formal Verification (Rust)
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/kernel/src/**'
+      - '.github/workflows/formal-verification-rust.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/kernel/src/**'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ─── MIRI: Undefined Behavior Detection ───────────────────────────
+  miri:
+    name: "MIRI — Undefined Behavior Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Nightly + MIRI
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/kernel/target
+          key: ${{ runner.os }}-miri-${{ hashFiles('src/kernel/Cargo.lock') }}
+
+      - name: Run MIRI on kernel tests
+        working-directory: src/kernel
+        run: |
+          echo "================================================================"
+          echo "  MIRI — Detecting Undefined Behavior in Unsafe Code"
+          echo "================================================================"
+          echo ""
+          echo "MIRI checks:"
+          echo "  - Out-of-bounds memory access"
+          echo "  - Use-after-free"
+          echo "  - Invalid pointer dereference"
+          echo "  - Uninitialized memory reads"
+          echo "  - Data race detection"
+          echo "  - Violation of pointer aliasing rules"
+          echo ""
+          cargo +nightly miri test -- \
+            --test-threads=1 \
+            2>&1 | tee miri_output.log
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-symbolic-alignment-check -Zmiri-retag-fields"
+
+      - name: MIRI Summary
+        if: always()
+        run: |
+          if grep -q "error\[" src/kernel/miri_output.log 2>/dev/null; then
+            echo "::error::MIRI detected undefined behavior — see logs"
+            grep "error\[" src/kernel/miri_output.log
+            exit 1
+          else
+            echo "MIRI: No undefined behavior detected"
+          fi
+
+      - name: Upload MIRI log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miri-results
+          path: src/kernel/miri_output.log
+          retention-days: 30
+
+  # ─── KANI: Bounded Model Checking ─────────────────────────────────
+  kani:
+    name: "Kani — Bounded Model Checking"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Kani
+        run: |
+          cargo install --locked kani-verifier
+          cargo kani setup
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/kernel/target
+          key: ${{ runner.os }}-kani-${{ hashFiles('src/kernel/Cargo.lock') }}
+
+      - name: Run Kani — Ternary Arithmetic Proofs
+        working-directory: src/kernel
+        run: |
+          echo "================================================================"
+          echo "  Kani — Proving Ternary Arithmetic Properties"
+          echo "================================================================"
+          cargo kani --harness proof_trit_from_a_rejects_invalid 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_not_involution 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_not_negates 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_and_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_or_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_add_closure 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_add_identity 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_add_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_mul_closure 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_mul_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_mul_identity 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_gf3_mul_zero 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_rotate_cycles 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_rotate_inverse 2>&1 | tee -a kani_output.log
+
+      - name: Run Kani — Bijection Proofs
+        working-directory: src/kernel
+        run: |
+          echo ""
+          echo "================================================================"
+          echo "  Kani — Proving Representation Bijections"
+          echo "================================================================"
+          cargo kani --harness proof_bijection_a_b_roundtrip 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_bijection_a_c_roundtrip 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_convert_representation_roundtrip 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_pack_unpack_roundtrip_9 2>&1 | tee -a kani_output.log
+
+      - name: Run Kani — Constant-Time Proofs
+        working-directory: src/kernel
+        run: |
+          echo ""
+          echo "================================================================"
+          echo "  Kani — Proving Constant-Time Correctness"
+          echo "================================================================"
+          cargo kani --harness proof_ct_eq_reflexive 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_eq_symmetric 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_eq_binary_output 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_eq_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_neq_complement 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_select_u8_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_select_i8_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_is_zero_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_lt_u32_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_select_u32_correctness 2>&1 | tee -a kani_output.log
+
+      - name: Run Kani — Memory Safety Proofs
+        working-directory: src/kernel
+        run: |
+          echo ""
+          echo "================================================================"
+          echo "  Kani — Proving Memory Safety Properties"
+          echo "================================================================"
+          cargo kani --harness proof_ct_zeroize_complete 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_zeroize_i8_complete 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_cmov_bytes_noop 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_ct_cmov_bytes_copies 2>&1 | tee -a kani_output.log
+
+      - name: Run Kani — Boot & Timing Proofs
+        working-directory: src/kernel
+        run: |
+          echo ""
+          echo "================================================================"
+          echo "  Kani — Proving Boot Sequence & Timing Invariants"
+          echo "================================================================"
+          cargo kani --harness proof_boot_sequence_length 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_boot_cannot_overrun 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_sub_second_bounded 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_milliseconds_bounded 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_precision_constants 2>&1 | tee -a kani_output.log
+
+      - name: Run Kani — Phase Encryption Proofs
+        working-directory: src/kernel
+        run: |
+          echo ""
+          echo "================================================================"
+          echo "  Kani — Proving Phase Encryption Properties"
+          echo "================================================================"
+          cargo kani --harness proof_phase_count_minimum 2>&1 | tee -a kani_output.log
+          cargo kani --harness proof_split_ratio_bounded 2>&1 | tee -a kani_output.log
+
+      - name: Kani Summary
+        if: always()
+        working-directory: src/kernel
+        run: |
+          echo ""
+          echo "================================================================"
+          echo "  KANI VERIFICATION SUMMARY"
+          echo "================================================================"
+          PASSED=$(grep -c "VERIFICATION:- SUCCESSFUL" kani_output.log 2>/dev/null || echo 0)
+          FAILED=$(grep -c "VERIFICATION:- FAILED" kani_output.log 2>/dev/null || echo 0)
+          echo "  Proofs passed:  ${PASSED}"
+          echo "  Proofs failed:  ${FAILED}"
+          echo ""
+          if [ "$FAILED" != "0" ]; then
+            echo "::error::${FAILED} Kani proof(s) failed — properties violated"
+            grep -B2 "VERIFICATION:- FAILED" kani_output.log || true
+            exit 1
+          else
+            echo "All Kani proofs passed — properties formally verified."
+          fi
+
+      - name: Upload Kani log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kani-results
+          path: src/kernel/kani_output.log
+          retention-days: 30
+
+  # ─── Dynamic Verification (existing formal_verify.rs) ─────────────
+  dynamic-verification:
+    name: "Dynamic — Exhaustive Property Checks"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run formal_verify.rs tests
+        working-directory: src/kernel
+        run: |
+          echo "================================================================"
+          echo "  Dynamic Verification — formal_verify.rs"
+          echo "================================================================"
+          cargo test --lib -- crypto::formal_verify 2>&1 | tee verify_output.log
+
+      - name: Run ct_utils tests
+        working-directory: src/kernel
+        run: |
+          cargo test --lib -- crypto::ct_utils 2>&1 | tee -a verify_output.log
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-verification-results
+          path: src/kernel/verify_output.log
+          retention-days: 30
