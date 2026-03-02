@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const LIGHT = {
   bg: "hsl(0, 0%, 100%)",
@@ -86,6 +86,20 @@ function useDarkMode() {
 function useTheme() {
   const dark = useDarkMode();
   return dark ? DARK : LIGHT;
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(query).matches;
+  });
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
 }
 
 function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement | null>, boolean] {
@@ -344,6 +358,202 @@ function MagicSquare() {
   );
 }
 
+function useInterCubeTopology() {
+  const [data, setData] = useState<{ vertices: number; dimensions: number; neighborsPerCube: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/salvi/inter-cube/topology")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setData(d))
+      .catch(() => {});
+  }, []);
+  return data;
+}
+
+function ServiceCard({ icon, tag, name, stat, statLabel, desc, delay = 0 }: {
+  icon: string; tag: string; name: string; stat: string; statLabel: string; desc: string; delay?: number;
+}) {
+  const t = useTheme();
+  const [ref, vis] = useInView(0.1);
+  const [h, setH] = useState(false);
+  return (
+    <div ref={ref}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      data-testid={`card-service-${tag.toLowerCase()}`}
+      style={{
+        background: t.card, border: `1px solid ${h ? t.primaryBorder : t.cardBorder}`,
+        borderRadius: RADIUS.lg, padding: "28px 24px",
+        boxShadow: h ? t.shadow : "none",
+        opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(16px)",
+        transition: `opacity 0.5s ${delay}ms, transform 0.5s ${delay}ms, border-color 0.3s, box-shadow 0.3s`,
+      }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 20, opacity: 0.75 }}>{icon}</span>
+          <span style={{
+            fontSize: 8.5, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary,
+            textTransform: "uppercase" as const, background: t.primaryDim,
+            padding: "3px 8px", borderRadius: RADIUS.sm, fontWeight: 600,
+          }}>{tag}</span>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONTS.mono, color: t.primary, lineHeight: 1 }}>{stat}</div>
+          <div style={{ fontSize: 8.5, fontFamily: FONTS.mono, color: t.fgMuted, marginTop: 2 }}>{statLabel}</div>
+        </div>
+      </div>
+      <h4 style={{ fontSize: 16, fontWeight: 600, color: t.fg, margin: "0 0 8px" }}>{name}</h4>
+      <p style={{ fontSize: 13, lineHeight: 1.7, color: t.fgSoft, margin: 0 }}>{desc}</p>
+    </div>
+  );
+}
+
+function RoutingDemo() {
+  const t = useTheme();
+  const dark = useDarkMode();
+  const [ref, vis] = useInView(0.1);
+  const [result, setResult] = useState<{
+    nextHop: number[]; dimensionFixed: number; totalDistance: number;
+    availablePaths: number; shortestPathCount: number; isDetour: boolean;
+  } | null>(null);
+  const [source, setSource] = useState([1,1,1,1,1,1,1,1,1,1,1,1,1]);
+  const [dest, setDest] = useState([3,2,1,1,2,3,1,2,3,1,2,3,1]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
+
+  const ensureRegistered = useCallback(async () => {
+    if (registered) return true;
+    try {
+      const resp = await fetch("/api/salvi/inter-cube/crs/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: "demo:51820", publicKey: "demo-key", desiredAddress: source }),
+      });
+      if (resp.ok) { setRegistered(true); return true; }
+    } catch {}
+    return false;
+  }, [registered, source]);
+
+  const computeRoute = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const ok = await ensureRegistered();
+      if (!ok) { setError("Failed to register cube — service unavailable"); setLoading(false); return; }
+      const resp = await fetch("/api/salvi/inter-cube/glb/forward", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination: dest, flowId: Math.floor(Math.random() * 10000) }),
+      });
+      if (resp.ok) { setResult(await resp.json()); }
+      else { setError("Forwarding computation failed"); }
+    } catch { setError("Network error — try again"); }
+    setLoading(false);
+  }, [dest, ensureRegistered]);
+
+  const randomDest = useCallback(() => {
+    const d = Array.from({ length: 13 }, () => Math.floor(Math.random() * 3) + 1);
+    setDest(d);
+    setResult(null);
+  }, []);
+
+  return (
+    <div ref={ref} style={{
+      opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(20px)",
+      transition: "opacity 0.7s 200ms, transform 0.7s 200ms",
+    }}>
+      <div style={{
+        background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.lg,
+        padding: "28px 28px 24px", boxShadow: t.shadow,
+      }} data-testid="routing-demo">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <span style={{ fontSize: 16 }}>⬡</span>
+          <span style={{
+            fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 2, color: t.primary,
+            textTransform: "uppercase" as const, fontWeight: 600,
+          }}>Live Geometric Routing</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center", marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 9, fontFamily: FONTS.mono, color: t.fgMuted, letterSpacing: 1, marginBottom: 6 }}>SOURCE</div>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 11, color: t.fgSoft, padding: "8px 12px",
+              background: t.muted, border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.md,
+              wordBreak: "break-all" as const,
+            }}>{source.join(",")}</div>
+          </div>
+          <div style={{ fontSize: 20, color: t.fgFaint, marginTop: 14 }}>→</div>
+          <div>
+            <div style={{ fontSize: 9, fontFamily: FONTS.mono, color: t.fgMuted, letterSpacing: 1, marginBottom: 6 }}>DESTINATION</div>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 11, color: t.esoteric, padding: "8px 12px",
+              background: t.muted, border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.md,
+              wordBreak: "break-all" as const,
+            }}>{dest.join(",")}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+          <button onClick={computeRoute} disabled={loading} data-testid="button-compute-route"
+            style={{
+              flex: 1, padding: "10px 20px", fontSize: 12, fontWeight: 600, fontFamily: FONTS.mono,
+              background: t.primary, color: "#fff", border: "none", borderRadius: RADIUS.md,
+              cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1,
+              transition: "opacity 0.2s", letterSpacing: 0.5,
+            }}>{loading ? "Computing…" : "Compute Next Hop"}</button>
+          <button onClick={randomDest} data-testid="button-random-dest"
+            style={{
+              padding: "10px 16px", fontSize: 12, fontWeight: 600, fontFamily: FONTS.mono,
+              background: "transparent", color: t.primary, border: `1px solid ${t.primaryBorder}`,
+              borderRadius: RADIUS.md, cursor: "pointer", letterSpacing: 0.5,
+            }}>Randomize</button>
+        </div>
+
+        {result && (
+          <div style={{
+            padding: "16px 18px", background: dark ? "hsla(145, 50%, 50%, 0.06)" : "hsla(145, 55%, 42%, 0.04)",
+            border: `1px solid ${dark ? "hsla(145, 50%, 50%, 0.12)" : "hsla(145, 55%, 42%, 0.1)"}`,
+            borderRadius: RADIUS.md, fontFamily: FONTS.mono, fontSize: 11,
+          }} data-testid="routing-result">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <span style={{ color: t.fgMuted, fontSize: 9, letterSpacing: 1 }}>NEXT HOP</span>
+                <div style={{ color: t.green, fontWeight: 600, marginTop: 3, fontSize: 12 }}>{result.nextHop.join(",")}</div>
+              </div>
+              <div>
+                <span style={{ color: t.fgMuted, fontSize: 9, letterSpacing: 1 }}>DIMENSION FIXED</span>
+                <div style={{ color: t.primary, fontWeight: 600, marginTop: 3, fontSize: 12 }}>Axis {result.dimensionFixed}</div>
+              </div>
+              <div>
+                <span style={{ color: t.fgMuted, fontSize: 9, letterSpacing: 1 }}>HAMMING DISTANCE</span>
+                <div style={{ color: t.fg, fontWeight: 600, marginTop: 3, fontSize: 12 }}>{result.totalDistance} hops</div>
+              </div>
+              <div>
+                <span style={{ color: t.fgMuted, fontSize: 9, letterSpacing: 1 }}>SHORTEST PATHS</span>
+                <div style={{ color: t.esoteric, fontWeight: 600, marginTop: 3, fontSize: 12 }}>{result.shortestPathCount.toLocaleString()}</div>
+              </div>
+            </div>
+            {result.isDetour && (
+              <div style={{ marginTop: 10, fontSize: 10, color: t.cosmic, fontWeight: 600 }}>
+                DETOUR — all direct paths blocked by dead neighbors
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <div style={{
+            padding: "12px 16px", marginTop: result ? 0 : 0,
+            background: dark ? "hsla(0, 50%, 50%, 0.06)" : "hsla(0, 55%, 50%, 0.04)",
+            border: `1px solid ${dark ? "hsla(0, 50%, 50%, 0.15)" : "hsla(0, 55%, 50%, 0.1)"}`,
+            borderRadius: RADIUS.md, fontFamily: FONTS.mono, fontSize: 11, color: t.cosmic,
+          }} data-testid="routing-error">{error}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SubCard({ icon, tag, title, axis, desc, delay = 0 }: { icon: string; tag: string; title: string; axis: string; desc: string; delay?: number }) {
   const t = useTheme();
   const [ref, vis] = useInView(0.1);
@@ -422,6 +632,8 @@ export default function GeometricFoundations() {
   const t = useTheme();
   const dark = useDarkMode();
 
+  const topology = useInterCubeTopology();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const dividerColor = dark ? "hsla(210, 30%, 50%, 0.1)" : "hsla(220, 13%, 85%, 0.6)";
   const gridOpacity = dark ? 0.02 : 0.03;
   const gridColor = dark ? "hsla(210, 30%, 50%, 0.3)" : "hsla(220, 20%, 70%, 0.25)";
@@ -503,6 +715,77 @@ export default function GeometricFoundations() {
             desc="Inner, Void, Outer — three shells partition vertices into security domains. Cross-shell transitions require explicit authorization." />
           <SubCard delay={400} icon="≡" tag="Diffusion" title="Round Constants" axis="Magic Square [111, 14, 208] mod 3"
             desc="Sponge constants derived at compile time from the Saturnian circulant matrix. Auditable derivation, magic sum 333." />
+        </div>
+      </section>
+
+      <section style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 28px", borderTop: `1px solid ${dividerColor}`, position: "relative", zIndex: 1 }} data-testid="section-inter-cube">
+        <FadeIn>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <SectionLabel text="Inter-Cube Infrastructure" />
+            <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
+              Four Services. Pure Geometry.{" "}
+              <span style={{ color: t.primary }}>Zero Routing Tables.</span>
+            </h3>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
+              Inter-cube communication uses greedy geodesic forwarding across the 13D ternary cube.
+              Hamming distance IS hop count. Adjacency IS the routing table. Four services orchestrate
+              the control plane — the geometry does the rest.
+            </p>
+          </div>
+        </FadeIn>
+
+        {topology && (
+          <FadeIn delay={100}>
+            <div style={{
+              display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
+              background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
+            }}>
+              <Stat value={topology.vertices} label="Address Space" sub={`3^${topology.dimensions} Rep C vertices`} delay={0} />
+              <Stat value={topology.neighborsPerCube} label="Neighbors" sub="per cube (2 × 13)" delay={100} />
+              <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={200} />
+              <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={300} />
+            </div>
+          </FadeIn>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14, marginBottom: 32 }}>
+          <ServiceCard delay={0} icon="◎" tag="GLB" name="Geometric Load Balancer"
+            stat="O(d)" statLabel="forwarding"
+            desc="Greedy geodesic forwarding with flow affinity. FNV-1a hashes the flow ID to select a consistent dimension, ensuring packets in the same flow traverse identical paths. Dead neighbors trigger detour computation." />
+          <ServiceCard delay={80} icon="⬡" tag="CON" name="Cube Overlay Network"
+            stat="26" statLabel="tunnel peers"
+            desc="Encrypted post-quantum tunnels between geometric neighbors. Symmetric key derivation via SHA-256 canonical ordering. Full tunnel state machine: Init → Handshake → Active → Rekeying." />
+          <ServiceCard delay={160} icon="◇" tag="CRS" name="Cube Registration Service"
+            stat="3¹³" statLabel="address space"
+            desc="Bitmap allocator over 1,594,323 Rep C addresses with flatIndex/fromFlatIndex bijection. Sequential scan with nextHint for deterministic allocation. Heartbeat-based endpoint updates." />
+          <ServiceCard delay={240} icon="△" tag="FTS" name="Fault Tolerance Service"
+            stat="4" statLabel="health states"
+            desc="Four-state health machine: Up → Suspect → Down → Recovering. Configurable miss thresholds and grace periods. Dead-set publication feeds GLB for real-time path avoidance." />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
+          <FadeIn delay={300}>
+            <div style={{
+              padding: "22px 24px", background: t.card, border: `1px solid ${t.cardBorder}`,
+              borderRadius: RADIUS.lg, boxShadow: t.shadow,
+            }} data-testid="card-routing-principle">
+              <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary, marginBottom: 12, fontWeight: 600 }}>ROUTING PRINCIPLE</div>
+              <div style={{
+                fontFamily: FONTS.mono, fontSize: 13, lineHeight: 2.2, color: t.fgSoft,
+                padding: "14px 18px", background: t.primaryDim,
+                border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.md,
+              }}>
+                <div><span style={{ color: t.fgMuted, fontSize: 10 }}>distance</span>(<span style={{ color: t.primary }}>src</span>, <span style={{ color: t.esoteric }}>dst</span>) = <span style={{ color: t.fg, fontWeight: 600 }}>Hamming(src, dst)</span></div>
+                <div><span style={{ color: t.fgMuted, fontSize: 10 }}>next_hop</span> = fix <span style={{ color: t.primary }}>one trit</span> where src[i] ≠ dst[i]</div>
+                <div><span style={{ color: t.fgMuted, fontSize: 10 }}>paths</span> = <span style={{ color: t.esoteric, fontWeight: 600 }}>d!</span> <span style={{ color: t.fgMuted }}>(d = Hamming distance)</span></div>
+              </div>
+              <div style={{ fontSize: 11, color: t.fgMuted, marginTop: 10, fontFamily: FONTS.mono }}>
+                Every path is shortest. Flow affinity selects deterministically.
+              </div>
+            </div>
+          </FadeIn>
+
+          <RoutingDemo />
         </div>
       </section>
 
