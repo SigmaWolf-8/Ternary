@@ -807,7 +807,7 @@ export default function GeometricFoundations() {
               display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
               background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
             }}>
-              <Stat value={topology.vertices} label="Address Space" sub={`3^${topology.dimensions} Rep C vertices`} delay={0} />
+              <Stat value={2541865828329} label="Address Space" sub="3²⁶ Rep C vertices · scales infinitely" delay={0} />
               <Stat value={topology.neighborsPerCube} label="Neighbors" sub="per cube (2 × 13)" delay={100} />
               <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={200} />
               <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={300} />
