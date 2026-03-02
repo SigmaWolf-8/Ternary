@@ -50,7 +50,7 @@ const GeometricFoundations = lazy(() => import("@/components/geometric-foundatio
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-const heroVideo = "/videos/hero-bg.mp4";
+import heroVideo from "@assets/grok-video-42a70a49-cc17-4505-82a8-3cada706da9f_1772412318111.mp4";
 
 
 
