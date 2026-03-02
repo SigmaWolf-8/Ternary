@@ -205,7 +205,7 @@ function HeroSection() {
   });
 
   return (
-    <section id="hero" className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
+    <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="relative z-10 max-w-7xl mx-auto px-5">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           <div>
@@ -252,7 +252,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex items-start gap-4 mb-8"
+              className="flex items-start gap-4 mb-6"
               data-testid="text-hero-description"
             >
               <p className="text-lg text-muted-foreground max-w-xl">
@@ -266,7 +266,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.15 }}
-              className="mb-8"
+              className="mb-6"
             >
               {showSuccess ? (
                 <motion.div
@@ -327,7 +327,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex flex-wrap gap-3 mb-10"
+              className="flex flex-wrap gap-3 mb-6"
             >
               <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
                 <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
@@ -349,19 +349,21 @@ function HeroSection() {
               </Button>
             </motion.div>
             
-            <div className="flex flex-wrap gap-8 md:gap-10">
+            <div className="flex flex-wrap gap-6 md:gap-8 mb-6">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
               <AnimatedStat value="1,040" label="Tests Passing" delay={0.28} />
               <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
               <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.34} />
             </div>
+
+            <HeroDemo />
           </div>
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="relative lg:sticky lg:top-24"
+            className="relative"
           >
             <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl bg-black/5 dark:bg-white/5">
               <div className="absolute top-0 left-0 right-0 h-8 bg-background/80 backdrop-blur-sm border-b border-border/30 flex items-center px-4 z-10">
@@ -377,7 +379,7 @@ function HeroSection() {
                 muted
                 loop
                 playsInline
-                className="w-full aspect-[4/3] object-cover pt-8"
+                className="w-full aspect-video object-cover pt-8"
                 data-testid="hero-video"
               >
                 <source src={heroVideo} type="video/mp4" />
@@ -385,14 +387,10 @@ function HeroSection() {
               <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
             </div>
 
-            <div className="mt-6">
+            <div className="mt-4">
               <HeroVisual />
             </div>
           </motion.div>
-        </div>
-
-        <div className="mt-12">
-          <HeroDemo />
         </div>
       </div>
     </section>
