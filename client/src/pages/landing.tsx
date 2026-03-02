@@ -234,7 +234,7 @@ function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
-          className="text-8xl md:text-9xl lg:text-[7.5rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
+          className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
           data-testid="text-hero-title"
           id="hero-title"
           style={{
@@ -295,7 +295,7 @@ function HeroSection() {
               loop
               playsInline
               className="w-full object-cover pt-8 bg-black/5 dark:bg-black/20"
-              style={{ maxHeight: "320px" }}
+              style={{ maxHeight: "430px" }}
               data-testid="hero-video"
             >
               <source src={heroVideo} type="video/mp4" />
