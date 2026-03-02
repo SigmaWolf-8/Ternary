@@ -54,12 +54,7 @@ function generateFreshKeys(): StoredKeyBundle {
   const certKeys = tlDsaKeygen('TL-DSA-65');
   const meshKeys = tlDsaKeygen('TL-DSA-65');
 
-  let rsaKeys: RSA4096KeyPair;
-  try {
-    rsaKeys = generateRSA4096KeyPair();
-  } catch {
-    rsaKeys = { publicKey: '', privateKey: '' };
-  }
+  const rsaKeys = generateRSA4096KeyPair();
 
   return {
     tldsa_signing: {

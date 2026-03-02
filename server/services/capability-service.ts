@@ -4,7 +4,7 @@
  * Applied Physics Division
  *
  * CAPABILITY TOKEN SERVICE — Phases 1-3
- * @version 4.0.0
+ * @version 4.2.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/services/capability-service.ts
@@ -15,6 +15,11 @@
  * Phase 4: Hardware binding — see capability-hardware-binding.ts
  * Phase 5: RFC 3161 certificates — see capability-certificates.ts
  * Phase 6: Inter-service mesh — see capability-mesh.ts
+ *
+ * FIX-04/05: All TL-DSA signing uses bridge with managed keys.
+ * P1-02: Re-delegation now verifies root_signature against real TL-DSA key.
+ * P1-03: validateDelegatedCapability no longer re-signs — validates directly.
+ * P1-04: enforceAttenuation covers all 8 constraint types (fail-closed).
  */
 
 import crypto from 'crypto';
@@ -270,25 +275,84 @@ export class CapabilityService {
   ): { valid: boolean; violation?: string } {
     for (const attn of newAttenuations) {
       const existing = parentConstraints.find(c => c.type === attn.type);
-      if (existing) {
-        switch (attn.type) {
-          case 'max_uses': {
-            const parentMax = (existing as { type: 'max_uses'; value: number }).value;
-            if ((attn as { type: 'max_uses'; value: number }).value > parentMax) {
-              return { valid: false, violation: `max_uses cannot expand: ${(attn as any).value} > parent ${parentMax}` };
-            }
-            break;
+      if (!existing) continue;
+
+      switch (attn.type) {
+        case 'max_uses': {
+          const parentMax = (existing as { type: 'max_uses'; value: number }).value;
+          const childMax = (attn as { type: 'max_uses'; value: number }).value;
+          if (childMax > parentMax) {
+            return { valid: false, violation: `max_uses cannot expand: ${childMax} > parent ${parentMax}` };
           }
-          case 'geo_country': {
-            const parentCountries = (existing as { type: 'geo_country'; value: string[] }).value;
-            const newCountries = (attn as { type: 'geo_country'; value: string[] }).value;
-            const expanded = newCountries.filter(c => !parentCountries.includes(c));
-            if (expanded.length > 0) {
-              return { valid: false, violation: `geo_country cannot expand: [${expanded.join(',')}] not in parent` };
-            }
-            break;
-          }
+          break;
         }
+        case 'geo_country': {
+          const parentCountries = (existing as { type: 'geo_country'; value: string[] }).value;
+          const childCountries = (attn as { type: 'geo_country'; value: string[] }).value;
+          const expanded = childCountries.filter(c => !parentCountries.includes(c));
+          if (expanded.length > 0) {
+            return { valid: false, violation: `geo_country cannot expand: [${expanded.join(',')}] not in parent` };
+          }
+          break;
+        }
+        case 'vault_id': {
+          if ((attn as { type: 'vault_id'; value: string }).value !== (existing as { type: 'vault_id'; value: string }).value) {
+            return { valid: false, violation: `vault_id cannot change: "${(attn as any).value}" ≠ parent "${(existing as any).value}"` };
+          }
+          break;
+        }
+        case 'document_id': {
+          if ((attn as { type: 'document_id'; value: string }).value !== (existing as { type: 'document_id'; value: string }).value) {
+            return { valid: false, violation: `document_id cannot change: "${(attn as any).value}" ≠ parent "${(existing as any).value}"` };
+          }
+          break;
+        }
+        case 'project_id': {
+          if ((attn as { type: 'project_id'; value: string }).value !== (existing as { type: 'project_id'; value: string }).value) {
+            return { valid: false, violation: `project_id cannot change: "${(attn as any).value}" ≠ parent "${(existing as any).value}"` };
+          }
+          break;
+        }
+        case 'template': {
+          if ((attn as { type: 'template'; value: string }).value !== (existing as { type: 'template'; value: string }).value) {
+            return { valid: false, violation: `template cannot change: "${(attn as any).value}" ≠ parent "${(existing as any).value}"` };
+          }
+          break;
+        }
+        case 'recipient_domain': {
+          const parentDomain = (existing as { type: 'recipient_domain'; value: string }).value;
+          const childDomain = (attn as { type: 'recipient_domain'; value: string }).value;
+          if (childDomain !== parentDomain) {
+            const parentSuffix = parentDomain.startsWith('*.') ? parentDomain.slice(1) : parentDomain;
+            const childSuffix = childDomain.startsWith('*.') ? childDomain.slice(1) : childDomain;
+            if (!childSuffix.endsWith(parentSuffix)) {
+              return { valid: false, violation: `recipient_domain cannot expand: "${childDomain}" is not a subdomain of "${parentDomain}"` };
+            }
+          }
+          break;
+        }
+        case 'ip_range': {
+          const parentCidr = (existing as { type: 'ip_range'; value: string }).value;
+          const childCidr = (attn as { type: 'ip_range'; value: string }).value;
+          if (childCidr !== parentCidr) {
+            const parentBits = parseInt(parentCidr.split('/')[1] || '32');
+            const childBits = parseInt(childCidr.split('/')[1] || '32');
+            if (childBits < parentBits) {
+              return { valid: false, violation: `ip_range cannot expand: /${childBits} is wider than parent /${parentBits}` };
+            }
+            const parentNet = parentCidr.split('/')[0];
+            const childNet = childCidr.split('/')[0];
+            const mask = (~(2 ** (32 - parentBits) - 1)) >>> 0;
+            const pNum = (parentNet.split('.').reduce((a: number, o: string) => (a << 8) + parseInt(o), 0)) >>> 0;
+            const cNum = (childNet.split('.').reduce((a: number, o: string) => (a << 8) + parseInt(o), 0)) >>> 0;
+            if ((cNum & mask) !== (pNum & mask)) {
+              return { valid: false, violation: `ip_range cannot expand: ${childCidr} is not a subnet of ${parentCidr}` };
+            }
+          }
+          break;
+        }
+        default:
+          return { valid: false, violation: `Unknown constraint type "${(attn as any).type}" — fail closed` };
       }
     }
     return { valid: true };
@@ -316,6 +380,10 @@ export class CapabilityService {
       rootTokenHash = parentSigned.root_token_hash;
       existingChain = [...parentSigned.delegation_chain];
       parentJti = parentSigned.parent_jti;
+
+      if (!this.verifyRootSignatureFromChain(parentSigned as DelegatedCapabilityToken)) {
+        throw new Error('Root TL-DSA signature verification failed on re-delegation — forged root_signature rejected');
+      }
     } else {
       parentToken = parentSigned.token;
       rootSignature = parentSigned.signature;
@@ -485,17 +553,73 @@ export class CapabilityService {
       };
     }
 
-    const delegatedTokenHash = this.auditLog.hashToken(delegatedToken.token);
-    const syntheticKeys = getTlDsaSigningKeyPair();
-    const syntheticSigned: SignedCapabilityToken = {
-      token: delegatedToken.token,
-      signature: tlDsaSignString(syntheticKeys.secretKey, delegatedTokenHash, syntheticKeys.variant),
-      algorithm: 'TL-DSA',
-    };
+    const hptpNs2 = getHptpNanoseconds();
+    const { token } = delegatedToken;
 
-    const result = this.validateCapability(syntheticSigned, resource, context, ipAddress);
+    const cap = findMatchingCapability(token, resource, hptpNs2);
+    if (!cap) {
+      const anyMatch = token.cap.find(c => c.res === resource);
+      const expired = anyMatch ? isCapabilityExpired(anyMatch, hptpNs2) : false;
+      const remainNs = anyMatch ? BigInt(anyMatch.exp) - BigInt(hptpNs2) : 0n;
+
+      if (expired && anyMatch) {
+        this.auditLog.recordExpired(token.jti, this.auditLog.hashToken(token), hptpNs2);
+      }
+
+      const auditHash = this.auditLog.recordValidated(token, resource, 'denied', hptpNs2, [], ipAddress);
+      return {
+        granted: false,
+        capability: anyMatch || null,
+        expiration: {
+          expired,
+          remaining_ns: remainNs.toString(),
+          remaining_human: expired ? 'expired' : 'no matching capability',
+          checked_at_hptp_ns: hptpNs2,
+        },
+        constraints: { all_satisfied: false, failed: [] },
+        audit_event_hash: auditHash,
+        delegation_chain_valid: true,
+        chain_depth: chainResult.chain_depth,
+      };
+    }
+
+    const remainNs = BigInt(cap.exp) - BigInt(hptpNs2);
+
+    const maxUsesConstraint = cap.constraints.find(c => c.type === 'max_uses') as { type: 'max_uses'; value: number } | undefined;
+    if (maxUsesConstraint) {
+      const currentCount = (this.usageCounts.get(token.jti) || 0) + 1;
+      if (currentCount > maxUsesConstraint.value) {
+        this.usageCounts.set(token.jti, currentCount);
+        this.auditLog.recordUsageExceeded(token, hptpNs2, currentCount);
+        const auditHash = this.auditLog.recordValidated(token, resource, 'denied', hptpNs2, [maxUsesConstraint], ipAddress);
+        return {
+          granted: false,
+          capability: cap,
+          expiration: { expired: false, remaining_ns: remainNs.toString(), remaining_human: formatNsRemaining(remainNs), checked_at_hptp_ns: hptpNs2 },
+          constraints: { all_satisfied: false, failed: [maxUsesConstraint] },
+          audit_event_hash: auditHash,
+          delegation_chain_valid: true,
+          chain_depth: chainResult.chain_depth,
+        };
+      }
+      this.usageCounts.set(token.jti, currentCount);
+    }
+
+    const { granted, failed } = validateAllConstraints(cap.constraints.filter(c => c.type !== 'max_uses'), context);
+    const resultStr = granted ? 'granted' : 'denied';
+    const auditHash = this.auditLog.recordValidated(token, resource, resultStr as 'granted' | 'denied', hptpNs2, failed, ipAddress);
+
     return {
-      ...result,
+      granted,
+      capability: cap,
+      expiration: {
+        expired: false,
+        remaining_ns: remainNs.toString(),
+        remaining_human: formatNsRemaining(remainNs),
+        checked_at_hptp_ns: hptpNs2,
+      },
+      constraints: { all_satisfied: granted, failed },
+      audit_event_hash: auditHash,
       delegation_chain_valid: true,
       chain_depth: chainResult.chain_depth,
     };

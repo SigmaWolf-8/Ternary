@@ -16,7 +16,7 @@
  * proving when a capability was granted, exercised, or revoked.
  *
  * FIX-04/05: All TL-DSA signing uses bridge with managed keys.
- * FIX-07: RSA-4096 uses real Node.js crypto RSA signing.
+ * FIX-07: RSA-4096 uses real Node.js crypto RSA signing — no hash-based fallbacks.
  * FIX-08: Merkle proof includes full inclusion path with sibling hashes and direction flags.
  */
 
@@ -222,22 +222,12 @@ export class CapabilityCertificateService {
     const certSignData = `${certId}|${tokenHash}|${hptpNs}`;
     const tldsaSignature = tlDsaSignString(certKeys.secretKey, certSignData, certKeys.variant);
 
-    let rsa4096Signature: string;
     const rsaKeys = getRSA4096KeyPair();
-    if (rsaKeys.privateKey) {
-      try {
-        const rsaSig = signRSA4096(rsaKeys.privateKey, Buffer.from(certSignData, 'utf8'));
-        rsa4096Signature = rsaSig.toString('hex');
-      } catch {
-        rsa4096Signature = crypto.createHash('sha256')
-          .update(`rsa4096-fallback|${certSignData}`)
-          .digest('hex');
-      }
-    } else {
-      rsa4096Signature = crypto.createHash('sha256')
-        .update(`rsa4096-fallback|${certSignData}`)
-        .digest('hex');
+    if (!rsaKeys.privateKey) {
+      throw new Error('RSA-4096 private key unavailable — cannot issue dual-signed certificate');
     }
+    const rsaSig = signRSA4096(rsaKeys.privateKey, Buffer.from(certSignData, 'utf8'));
+    const rsa4096Signature = rsaSig.toString('hex');
 
     const leafHash = crypto.createHash('sha3-256')
       .update(`${certId}|${tokenHash}|${tsaSignature}`)
@@ -357,20 +347,18 @@ export class CapabilityCertificateService {
 
     let rsaSigValid = false;
     const rsaKeys = getRSA4096KeyPair();
-    if (rsaKeys.publicKey) {
+    if (!rsaKeys.publicKey) {
+      errors.push('RSA-4096 public key unavailable — cannot verify dual signature');
+    } else {
       try {
         rsaSigValid = verifyRSA4096(
           rsaKeys.publicKey,
           Buffer.from(certSignData, 'utf8'),
           Buffer.from(cert.dual_signature.rsa4096_signature, 'hex'),
         );
-      } catch {
-        rsaSigValid = cert.dual_signature.rsa4096_signature ===
-          crypto.createHash('sha256').update(`rsa4096-fallback|${certSignData}`).digest('hex');
+      } catch (e) {
+        errors.push(`RSA-4096 verification error: ${(e as Error).message}`);
       }
-    } else {
-      rsaSigValid = cert.dual_signature.rsa4096_signature ===
-        crypto.createHash('sha256').update(`rsa4096-fallback|${certSignData}`).digest('hex');
     }
     if (!rsaSigValid) errors.push('RSA-4096 capability signature verification failed');
 
