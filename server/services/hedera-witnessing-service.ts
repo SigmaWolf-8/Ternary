@@ -99,7 +99,7 @@ export class HederaWitnessingService implements IHederaWitnessingService {
   constructor(config: HederaWitnessingConfig) {
     this.config = config;
     this.operatorId = AccountId.fromString(config.accountId);
-    this.operatorKey = PrivateKey.fromString(config.privateKey);
+    this.operatorKey = HederaWitnessingService.parsePrivateKey(config.privateKey);
 
     switch (config.network) {
       case 'mainnet':
@@ -497,6 +497,26 @@ export class HederaWitnessingService implements IHederaWitnessingService {
       const firstKey = this.witnessCache.keys().next().value;
       if (firstKey) this.witnessCache.delete(firstKey);
     }
+  }
+
+  private static parsePrivateKey(keyStr: string): PrivateKey {
+    const strategies: Array<[string, () => PrivateKey]> = [
+      ['ECDSA', () => PrivateKey.fromStringECDSA(keyStr)],
+      ['ED25519', () => PrivateKey.fromStringED25519(keyStr)],
+      ['DER', () => PrivateKey.fromStringDer(keyStr)],
+    ];
+
+    for (const [label, parse] of strategies) {
+      try {
+        const key = parse();
+        console.log(`[hedera] Private key parsed as ${label}`);
+        return key;
+      } catch {
+        continue;
+      }
+    }
+
+    return PrivateKey.fromString(keyStr);
   }
 
   close(): void {
