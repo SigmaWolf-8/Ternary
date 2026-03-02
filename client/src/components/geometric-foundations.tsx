@@ -118,13 +118,6 @@ function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement | null>, b
   return [ref, vis];
 }
 
-function formatLargeNumber(n: number): string {
-  if (n >= 1e12) return `${(n / 1e12).toFixed(1)}T+`;
-  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B+`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M+`;
-  return n.toLocaleString();
-}
-
 function Stat({ value, label, sub, delay = 0 }: { value: number; label: string; sub: string; delay?: number }) {
   const t = useTheme();
   const [ref, vis] = useInView(0.3);
@@ -765,7 +758,7 @@ export default function GeometricFoundations() {
           background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 48,
         }}>
           <Stat value={13} label="Named Axes" sub="Metatron's circles" delay={0} />
-          <Stat value={2541865828329} label="Vertices" sub="3²⁶ · scales infinitely" delay={100} />
+          <Stat value={1594323} label="Vertices" sub="3¹³ per cube · scales infinitely" delay={100} />
           <Stat value={715} label="Tesseract Families" sub="C(13,4) 4D sub-cubes" delay={200} />
           <Stat value={28} label="Angular Positions" sub="Z₂₈ ternary circle" delay={300} />
         </div>
@@ -814,7 +807,7 @@ export default function GeometricFoundations() {
               display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
               background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
             }}>
-              <Stat value={2541865828329} label="Address Space" sub="3²⁶ vertices · scales infinitely" delay={0} />
+              <Stat value={1594323} label="Address Space" sub="per cube · scales infinitely" delay={0} />
               <Stat value={topology.neighborsPerCube} label="Neighbors" sub="per cube (2 × 13)" delay={100} />
               <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={200} />
               <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={300} />
