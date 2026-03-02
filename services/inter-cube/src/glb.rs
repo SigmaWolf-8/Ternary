@@ -66,7 +66,7 @@ pub struct FlowEntry {
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Result of a GLB forwarding decision.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ForwardResult {
     /// The computed next-hop cube address.
     pub next_hop: CubeAddr,
