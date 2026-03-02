@@ -207,65 +207,90 @@ function HeroSection() {
   return (
     <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="relative z-10 max-w-7xl mx-auto px-5">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <Badge 
+            variant="outline" 
+            className="border-green-500/30 bg-green-500/10 text-green-700 px-4 py-1.5"
+            data-testid="badge-status"
+          >
+            <Check className="w-3 h-3 mr-1" />
+            Production Ready
+          </Badge>
+          <Badge 
+            variant="outline" 
+            className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+          >
+            1,040 Tests Passing
+          </Badge>
+          <Badge 
+            variant="outline" 
+            className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
+          >
+            Post-Quantum Secure
+          </Badge>
+        </div>
+
+        <motion.h1 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
+          data-testid="text-hero-title"
+          id="hero-title"
+        >
+          The World's First <span className="text-primary">Ternary Computing</span> Platform
+        </motion.h1>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="mb-8"
+        >
+          <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl">
+            <div className="absolute top-0 left-0 right-0 h-8 bg-background/90 backdrop-blur-sm border-b border-border/30 flex items-center px-4 z-10">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-400/60" />
+              </div>
+              <span className="ml-3 text-[10px] font-mono text-muted-foreground/60 tracking-wider">SALVI FRAMEWORK</span>
+              <img src={plenumLogo} alt="PlenumNET" className="h-5 w-auto ml-auto opacity-70" data-testid="hero-logo" />
+            </div>
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full object-cover pt-8"
+              style={{ height: "380px" }}
+              data-testid="hero-video"
+            >
+              <source src={heroVideo} type="video/mp4" />
+            </video>
+            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
+          </div>
+        </motion.div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           <div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="flex flex-wrap gap-2 mb-6"
-            >
-              <Badge 
-                variant="outline" 
-                className="border-green-500/30 bg-green-500/10 text-green-700 px-4 py-1.5"
-                data-testid="badge-status"
-              >
-                <Check className="w-3 h-3 mr-1" />
-                Production Ready
-              </Badge>
-              <Badge 
-                variant="outline" 
-                className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
-              >
-                1,040 Tests Passing
-              </Badge>
-              <Badge 
-                variant="outline" 
-                className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
-              >
-                Post-Quantum Secure
-              </Badge>
-            </motion.div>
-            
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.05 }}
-              className="text-4xl md:text-5xl lg:text-5xl font-bold leading-tight mb-6"
-              data-testid="text-hero-title"
-              id="hero-title"
-            >
-              The World's First <span className="text-primary">Ternary Computing</span> Platform
-            </motion.h1>
-            
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
               className="flex items-start gap-4 mb-6"
               data-testid="text-hero-description"
             >
-              <p className="text-lg text-muted-foreground max-w-xl">
+              <p className="text-lg text-muted-foreground">
                 59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
                 A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
               </p>
-              <img src={plenumLogo} alt="PlenumNET" className="h-20 w-auto flex-shrink-0 -mt-2" data-testid="hero-logo" />
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
               className="mb-6"
             >
               {showSuccess ? (
@@ -326,7 +351,7 @@ function HeroSection() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
               className="flex flex-wrap gap-3 mb-6"
             >
               <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
@@ -349,46 +374,22 @@ function HeroSection() {
               </Button>
             </motion.div>
             
-            <div className="flex flex-wrap gap-6 md:gap-8 mb-6">
-              <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.25} />
-              <AnimatedStat value="1,040" label="Tests Passing" delay={0.28} />
-              <AnimatedStat value="80/80" label="Milestones Complete" delay={0.31} />
-              <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.34} />
+            <div className="flex flex-wrap gap-6 md:gap-8">
+              <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
+              <AnimatedStat value="1,040" label="Tests Passing" delay={0.38} />
+              <AnimatedStat value="80/80" label="Milestones Complete" delay={0.41} />
+              <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.44} />
             </div>
-
-            <HeroDemo />
           </div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="relative"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <div className="relative rounded-2xl overflow-hidden border border-border/40 shadow-2xl bg-black/5 dark:bg-white/5">
-              <div className="absolute top-0 left-0 right-0 h-8 bg-background/80 backdrop-blur-sm border-b border-border/30 flex items-center px-4 z-10">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/60" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-400/60" />
-                </div>
-                <span className="ml-3 text-[10px] font-mono text-muted-foreground/60 tracking-wider">SALVI FRAMEWORK</span>
-              </div>
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full aspect-video object-cover pt-8"
-                data-testid="hero-video"
-              >
-                <source src={heroVideo} type="video/mp4" />
-              </video>
-              <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
-            </div>
-
-            <div className="mt-4">
-              <HeroVisual />
+            <HeroVisual />
+            <div className="mt-6">
+              <HeroDemo />
             </div>
           </motion.div>
         </div>
