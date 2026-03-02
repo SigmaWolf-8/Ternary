@@ -463,7 +463,7 @@ function RoutingDemo() {
     }}>
       <div style={{
         background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.lg,
-        padding: "28px 28px 24px", boxShadow: t.shadow,
+        padding: "22px 24px", boxShadow: t.shadow,
       }} data-testid="routing-demo">
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           <span style={{ fontSize: 16 }}>⬡</span>
@@ -748,7 +748,7 @@ export default function GeometricFoundations() {
           </FadeIn>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14, marginBottom: 32 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 16, marginBottom: 16 }}>
           <ServiceCard delay={0} icon="◎" tag="GLB" name="Geometric Load Balancer"
             stat="O(d)" statLabel="forwarding"
             desc="Greedy geodesic forwarding with flow affinity. FNV-1a hashes the flow ID to select a consistent dimension, ensuring packets in the same flow traverse identical paths. Dead neighbors trigger detour computation." />
@@ -763,7 +763,7 @@ export default function GeometricFoundations() {
             desc="Four-state health machine: Up → Suspect → Down → Recovering. Configurable miss thresholds and grace periods. Dead-set publication feeds GLB for real-time path avoidance." />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
           <FadeIn delay={300}>
             <div style={{
               padding: "22px 24px", background: t.card, border: `1px solid ${t.cardBorder}`,
