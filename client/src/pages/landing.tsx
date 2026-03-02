@@ -78,8 +78,8 @@ function AnimatedStat({ value, label, suffix, delay }: { value: string; label: s
 function HeroVisual() {
   const layers = [
     { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
-    { label: "Protocols", items: ["HPTP", "T3P", "TTP", "TDNS"], delay: 0.6 },
-    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC", "GF(3)"], delay: 0.7 },
+    { label: "Protocols", items: ["HPTP — Clock Sync", "T3P — App Protocol", "TTP — Transport", "TDNS — Name Resolution"], delay: 0.6 },
+    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — GC", "GF(3) Arithmetic"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
   ];
@@ -231,6 +231,18 @@ function HeroSection() {
           </Badge>
         </div>
 
+        <div className="flex flex-wrap items-center gap-3 mb-6" data-testid="visitor-path-anchors">
+          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
+            I want to build on it
+          </a>
+          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
+            I want to understand how it works
+          </a>
+          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
+            I want to evaluate the business case
+          </a>
+        </div>
+
         <h1 
           className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
           data-testid="text-hero-title"
@@ -313,8 +325,7 @@ function HeroSection() {
               data-testid="text-hero-description"
             >
               <p className="text-lg text-muted-foreground">
-                59% more information per digit. Femtosecond-precision timing. Post-quantum encryption. 
-                A complete Rust kernel with virtual machine, network stack, and binary compatibility layer -- all shipping today.
+                Computers think in two states. PlenumNET thinks in three. That one extra state changes everything — 59% more data per digit, encryption that survives quantum computers, and it runs on the hardware you already own.
               </p>
             </motion.div>
 
@@ -896,7 +907,7 @@ function PerformanceSection() {
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
     { label: "Regulatory Timing", current: "Custom build", ternary: "Targeting FINRA 613 & MiFID II thresholds", highlight: true },
-    { label: "Native Hardware", current: "Ubiquitous", ternary: "Emulated via Binary-Ternary Gateway", highlight: false },
+    { label: "Runs on Existing Hardware", current: "Yes", ternary: "Yes — via Binary-Ternary Gateway", highlight: false },
     { label: "Ecosystem Maturity", current: "40+ years", ternary: "Emerging (v1.0)", highlight: false },
   ];
 
@@ -1364,7 +1375,7 @@ function DeveloperCTASection() {
                 Get early access to the PlenumNET SDK, developer documentation, and direct support from the core team. 
                 Be among the first to build applications on ternary infrastructure.
               </p>
-              {countData && countData.count > 0 && (
+              {countData && countData.count >= 10 && (
                 <p className="text-sm opacity-70" data-testid="text-signup-count">
                   {countData.count} developer{countData.count !== 1 ? "s" : ""} already signed up
                 </p>

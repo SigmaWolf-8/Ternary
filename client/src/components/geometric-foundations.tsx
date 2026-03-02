@@ -318,7 +318,7 @@ function MagicSquare() {
   const [hovR, setHovR] = useState<number | null>(null);
   const v = [[111, 14, 208], [208, 111, 14], [14, 208, 111]];
   const tr = [[0, -1, 1], [1, 0, -1], [-1, 1, 0]];
-  const lb = [["Balance", "π-esoteric", "Cosmic"], ["Cosmic", "Balance", "π-esoteric"], ["π-esoteric", "Cosmic", "Balance"]];
+  const lb = [["identity", "shift-2", "shift-1"], ["shift-1", "identity", "shift-2"], ["shift-2", "shift-1", "identity"]];
   const colorMap: Record<number, { bg: string; border: string; text: string }> = {
     111: { bg: t.balanceBg, border: t.primaryBorder, text: t.balance },
     14:  { bg: t.esotericBg, border: `hsla(270, 50%, 55%, 0.15)`, text: t.esoteric },
@@ -618,6 +618,67 @@ function RepCard({ name, subtitle, digits, desc, color, bg, border, highlight }:
   );
 }
 
+function AlgebraicDetails() {
+  const t = useTheme();
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        data-testid="button-toggle-math"
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "10px 16px", fontSize: 13, fontWeight: 600,
+          fontFamily: FONTS.mono, color: t.primary,
+          background: t.primaryDim, border: `1px solid ${t.primaryBorder}`,
+          borderRadius: RADIUS.md, cursor: "pointer",
+          width: "100%", textAlign: "left" as const,
+        }}
+      >
+        <span style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", fontSize: 10 }}>&#9654;</span>
+        {expanded ? "Hide the math" : "See the math"}
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{
+            fontFamily: FONTS.mono, fontSize: 15, background: t.primaryDim,
+            border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.lg,
+            padding: "20px 26px", lineHeight: 2.2,
+          }}>
+            <div style={{ fontSize: 10, color: t.fgMuted, letterSpacing: 1, marginBottom: 6 }}>S&#x2083; &#x2245; Aff(1, &#x1D53D;&#x2083;)</div>
+            <div style={{ color: t.fgSoft }}>
+              <span style={{ color: t.primary, fontWeight: 600 }}>&pi;</span>(x) = (<span style={{ color: t.esoteric }}>a</span> &middot; x + <span style={{ color: t.cosmic }}>b</span>)
+              <span style={{ color: t.fgMuted }}> mod 3</span>
+            </div>
+            <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 4 }}>
+              a &isin; {"{1, 2}"}  &middot;  b &isin; {"{0, 1, 2}"}  &rarr;  6 permutations, zero tables
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+            {[
+              { op: "Compose", f: "(a\u2081a\u2082, a\u2081b\u2082+b\u2081) mod 3" },
+              { op: "Inverse", f: "(a, 3\u2212a\u00B7b) mod 3" },
+              { op: "Sign", f: "a=1 \u2192 even \u00B7 a=2 \u2192 odd" },
+              { op: "Order", f: "1 (id) \u00B7 2 (swap) \u00B7 3 (cycle)" },
+            ].map((x, i) => (
+              <div key={i} style={{
+                padding: "10px 14px", background: t.muted,
+                border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.md,
+              }}>
+                <div style={{ fontSize: 9.5, color: t.fgMuted, fontFamily: FONTS.mono, marginBottom: 3 }}>{x.op}</div>
+                <div style={{ fontSize: 11.5, color: t.fgSoft, fontFamily: FONTS.mono }}>{x.f}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionLabel({ text }: { text: string }) {
   const t = useTheme();
   return (
@@ -660,16 +721,16 @@ export default function GeometricFoundations() {
               Architecture Derived{" "}
               <span style={{ color: t.primary }}>From Geometry</span>
             </h2>
-            <p style={{ fontSize: 16, lineHeight: 1.75, color: t.fgSoft, maxWidth: 460, margin: 0 }}>
-              PlenumNET's network topology, cryptographic sponge, address validation, and timing
-              infrastructure aren't independently designed systems. They're projections of one
-              geometric object — the{" "}
-              <strong style={{ color: t.primary }}>13-dimensional ternary Metatronic Cube</strong>,
-              where every axis maps to a circle of Metatron's geometry, every shell encodes a
-              security domain, and every permutation preserves Hamming distance by necessity.
+            <p style={{ fontSize: 16, lineHeight: 1.75, color: t.fgSoft, maxWidth: 460, margin: "0 0 16px" }}>
+              Most platforms are assembled from separate parts — a networking layer, a security system,
+              a timing protocol — bolted together and hoped to be compatible. PlenumNET is different.
+              Every subsystem is derived from one{" "}
+              <strong style={{ color: t.primary }}>13-dimensional geometric structure</strong>.
             </p>
-            <p style={{ fontSize: 13, color: t.fgMuted, marginTop: 14, maxWidth: 400, fontStyle: "italic" }}>
-              Not metaphor. Not branding. The geometry IS the architecture.
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 460, margin: 0 }}>
+              The network topology, the encryption engine, the address system, and the timing protocol
+              are all expressions of the same object. They don't just interoperate — they're
+              mathematically guaranteed to be consistent.
             </p>
           </FadeIn>
           <FadeIn delay={200}>
@@ -726,8 +787,12 @@ export default function GeometricFoundations() {
               Four Services. Pure Geometry.{" "}
               <span style={{ color: t.primary }}>Zero Routing Tables.</span>
             </h3>
-            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
-              Inter-cube communication uses greedy geodesic forwarding across the 13D ternary cube.
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto 8px" }}>
+              When the network grows beyond a single cube, these four services handle connections
+              between cubes — and they do it without routing tables.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgMuted, maxWidth: 640, margin: "0 auto" }}>
+              Greedy geodesic forwarding across the 13D ternary cube.
               Hamming distance IS hop count. Adjacency IS the routing table. Four services orchestrate
               the control plane — the geometry does the rest.
             </p>
@@ -796,53 +861,27 @@ export default function GeometricFoundations() {
             <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
               No Lookup Tables. Pure Arithmetic.
             </h3>
-            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 440, margin: "0 0 24px" }}>
-              Every value permutation is computed by the affine group over 𝔽₃.
-              One multiply, one add, one mod. No data-dependent memory access,
-              no timing side-channels.
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 440, margin: "0 0 16px" }}>
+              Every value in the system can be transformed using just two operations: multiply and add,
+              then wrap around at 3. Think of adjusting a recipe — you can scale ingredients and shift
+              amounts, but the proportions always stay in the ternary world.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgMuted, maxWidth: 440, margin: "0 0 24px" }}>
+              This means no lookup tables, no data-dependent memory access,
+              and no timing side-channels — all six possible permutations are computed in constant time.
             </p>
 
-            <div style={{
-              fontFamily: FONTS.mono, fontSize: 15, background: t.primaryDim,
-              border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.lg,
-              padding: "20px 26px", lineHeight: 2.2,
-            }}>
-              <div style={{ fontSize: 10, color: t.fgMuted, letterSpacing: 1, marginBottom: 6 }}>S₃ ≅ Aff(1, 𝔽₃)</div>
-              <div style={{ color: t.fgSoft }}>
-                <span style={{ color: t.primary, fontWeight: 600 }}>π</span>(x) = (<span style={{ color: t.esoteric }}>a</span> · x + <span style={{ color: t.cosmic }}>b</span>)
-                <span style={{ color: t.fgMuted }}> mod 3</span>
-              </div>
-              <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 4 }}>
-                a ∈ {"{1, 2}"}  ·  b ∈ {"{0, 1, 2}"}  →  6 permutations, zero tables
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
-              {[
-                { op: "Compose", f: "(a₁a₂, a₁b₂+b₁) mod 3" },
-                { op: "Inverse", f: "(a, 3−a·b) mod 3" },
-                { op: "Sign", f: "a=1 → even · a=2 → odd" },
-                { op: "Order", f: "1 (id) · 2 (swap) · 3 (cycle)" },
-              ].map((x, i) => (
-                <div key={i} style={{
-                  padding: "10px 14px", background: t.muted,
-                  border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.md,
-                }}>
-                  <div style={{ fontSize: 9.5, color: t.fgMuted, fontFamily: FONTS.mono, marginBottom: 3 }}>{x.op}</div>
-                  <div style={{ fontSize: 11.5, color: t.fgSoft, fontFamily: FONTS.mono }}>{x.f}</div>
-                </div>
-              ))}
-            </div>
+            <AlgebraicDetails />
           </FadeIn>
 
           <FadeIn delay={150}>
-            <SectionLabel text="Saturnian Constants" />
+            <SectionLabel text="Deterministic Constants" />
             <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
               Constants From Geometry, Not Choice.
             </h3>
             <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 440, margin: "0 0 24px" }}>
-              The Magic Square [111, 14, 208] is a circulant matrix with sum 333.
-              Reduced mod 3, it produces sponge round constants. Derived at compile time.
+              The circulant matrix [111, 14, 208] has row/column/diagonal sum 333.
+              Reduced mod 3, it produces deterministic sponge round constants — no arbitrary choices, fully auditable.
             </p>
 
             <div style={{ display: "flex", justifyContent: "center", margin: "0 0 24px" }}>
@@ -855,9 +894,9 @@ export default function GeometricFoundations() {
               fontFamily: FONTS.mono, fontSize: 12, lineHeight: 2.2,
             }}>
               <div style={{ fontSize: 9.5, color: t.fgMuted, letterSpacing: 1, marginBottom: 4 }}>COMPILE-TIME DERIVATION</div>
-              <div><span style={{ color: t.balance, fontWeight: 600 }}>111</span><span style={{ color: t.fgMuted }}> mod 3 = 0 →</span><span style={{ color: t.fgSoft }}> 0 </span><span style={{ color: t.fgFaint }}>(balance)</span></div>
-              <div><span style={{ color: t.esoteric, fontWeight: 600 }}>&nbsp;14</span><span style={{ color: t.fgMuted }}> mod 3 = 2 →</span><span style={{ color: t.fgSoft }}> −1</span><span style={{ color: t.fgFaint }}> (π-esoteric)</span></div>
-              <div><span style={{ color: t.cosmic, fontWeight: 600 }}>208</span><span style={{ color: t.fgMuted }}> mod 3 = 1 →</span><span style={{ color: t.fgSoft }}> +1</span><span style={{ color: t.fgFaint }}> (cosmic)</span></div>
+              <div><span style={{ color: t.balance, fontWeight: 600 }}>111</span><span style={{ color: t.fgMuted }}> mod 3 = 0 →</span><span style={{ color: t.fgSoft }}> 0 </span><span style={{ color: t.fgFaint }}>(identity)</span></div>
+              <div><span style={{ color: t.esoteric, fontWeight: 600 }}>&nbsp;14</span><span style={{ color: t.fgMuted }}> mod 3 = 2 →</span><span style={{ color: t.fgSoft }}> −1</span><span style={{ color: t.fgFaint }}> (shift-2)</span></div>
+              <div><span style={{ color: t.cosmic, fontWeight: 600 }}>208</span><span style={{ color: t.fgMuted }}> mod 3 = 1 →</span><span style={{ color: t.fgSoft }}> +1</span><span style={{ color: t.fgFaint }}> (shift-1)</span></div>
               <div style={{ marginTop: 8, fontSize: 10, color: t.fgMuted }}>Period 9 = 3² · tiles 81× into 729-trit sponge state</div>
             </div>
           </FadeIn>
