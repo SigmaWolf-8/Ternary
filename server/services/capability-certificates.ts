@@ -37,6 +37,7 @@ import { signRSA4096, verifyRSA4096 } from '../crypto/rsa4096-signing';
 import { getTlDsaCertKeyPair, getTlDsaTsaKeyPair, getRSA4096KeyPair } from '../crypto/key-management';
 import type { TsaService, JsonTimestampResponse } from './tsa-service';
 import { TSA_POLICIES } from './tsa-service';
+import type { HederaWitnessingService } from './hedera-witnessing-service';
 
 const CAPABILITY_CERT_POLICY_OID = '1.3.6.1.4.1.0.100.3.1';
 
@@ -57,6 +58,7 @@ export class CapabilityCertificateService {
   private auditLog = getSharedAuditLog();
   private merkleLeaves: string[] = [];
   private tsaService: TsaService | null = null;
+  private hederaService: HederaWitnessingService | null = null;
   private lastTsaResponse: Map<string, JsonTimestampResponse> = new Map();
   private rfc3161Imprints: Map<string, string> = new Map();
 
@@ -66,8 +68,16 @@ export class CapabilityCertificateService {
     this.tsaService = tsa;
   }
 
+  setHederaService(hedera: HederaWitnessingService | null): void {
+    this.hederaService = hedera;
+  }
+
   hasTsaService(): boolean {
     return this.tsaService !== null;
+  }
+
+  hasHederaService(): boolean {
+    return this.hederaService !== null && this.hederaService.isInitialized();
   }
 
   getRfc3161Token(certId: string): { found: boolean; token?: Buffer; messageImprint?: string } {
@@ -277,6 +287,70 @@ export class CapabilityCertificateService {
       status: 'valid',
     };
 
+    if (this.hederaService && this.hederaService.isInitialized()) {
+      try {
+        const certHash = crypto.createHash('sha256')
+          .update(`${certId}|${tokenHash}|${leafHash}|${hptpNs}`)
+          .digest('hex');
+
+        const witnessResponse = await this.hederaService.submitWitness({
+          operation_id: certId,
+          witness_type: 'SINGLE_HASH',
+          payload: {
+            hash: certHash,
+            hash_algorithm: 'SHA256',
+            encoding: 'hex',
+          },
+          metadata: {
+            salvi_batch_ref: `cert_${certId}`,
+            kernel_op_id: certId,
+            ternary_context: {
+              security_mode: 'phi_plus',
+              phase_offset: 4,
+              torsion_dimensions: 13,
+              batch_size: 1,
+              operation_count: 1,
+            },
+            payment_context: {
+              gateway: 'internal',
+              payment_id: certId,
+              amount: 0,
+              currency: 'USD',
+            },
+            timing: {
+              batch_start_ts: new Date().toISOString(),
+              batch_end_ts: new Date().toISOString(),
+              duration_ns: 0,
+              femtosecond_sync_accuracy: 0,
+            },
+          },
+          topic: {
+            id: this.hederaService.getTopicId() || '',
+            memo: `Capability certificate ${certId}`,
+          },
+          submission: {
+            max_fee_hbar: 2,
+            submit_key: '',
+            require_consensus: true,
+          },
+        });
+
+        if (witnessResponse.success) {
+          const topicId = this.hederaService.getTopicId() || '';
+          certificate.hedera_witness = {
+            hedera_tx_id: witnessResponse.transaction.id,
+            consensus_timestamp: witnessResponse.transaction.consensus_timestamp,
+            topic_id: topicId,
+            mirror_node_url: `https://testnet.mirrornode.hedera.com/api/v1/topics/${topicId}/messages?sequencenumber=${witnessResponse.transaction.sequence_number}`,
+            certificate_hash: certHash,
+          };
+          console.log(`[capability-certs] Certificate ${certId} witnessed on Hedera: ${witnessResponse.transaction.id}`);
+        }
+      } catch (error) {
+        console.warn(`[capability-certs] Hedera witnessing failed for ${certId}: ${(error as Error).message}`);
+      }
+    }
+
     this.certificates.set(certId, certificate);
     return certificate;
   }
@@ -371,18 +445,40 @@ export class CapabilityCertificateService {
     const merkleValid = expectedLeaf === cert.merkle_proof.leaf_hash;
     if (!merkleValid) errors.push('Merkle proof leaf hash mismatch');
 
-    const valid = tsaValid && dualSigValid && merkleValid && cert.status === 'valid';
+    let hederaWitnessValid: boolean | undefined;
+    if (cert.hedera_witness) {
+      const recomputedHash = crypto.createHash('sha256')
+        .update(`${cert.certificate_id}|${cert.capability_token_hash}|${cert.merkle_proof.leaf_hash}|${cert.issued_at_hptp_ns}`)
+        .digest('hex');
+      hederaWitnessValid = recomputedHash === cert.hedera_witness.certificate_hash;
+      if (!hederaWitnessValid) {
+        errors.push('Hedera witness certificate hash mismatch — recomputed hash does not match witnessed hash');
+      }
+    }
 
-    return {
+    const valid = tsaValid && dualSigValid && merkleValid &&
+      (hederaWitnessValid !== false) && cert.status === 'valid';
+
+    const result: CertificateVerificationResult = {
       valid,
       certificate_id: certId,
       tsa_timestamp_valid: tsaValid,
       capability_signature_valid: dualSigValid,
       merkle_proof_valid: merkleValid,
+      hedera_witness_valid: hederaWitnessValid,
       certificate_status: cert.status,
       verified_at_hptp_ns: hptpNs,
       errors,
     };
+
+    if (cert.hedera_witness) {
+      result.hedera_verification = {
+        hedera_tx_id: cert.hedera_witness.hedera_tx_id,
+        mirror_node_url: cert.hedera_witness.mirror_node_url,
+      };
+    }
+
+    return result;
   }
 
   createEvidenceChain(certIds: string[]): {

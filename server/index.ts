@@ -43,6 +43,8 @@ import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 import { HederaWitnessingService, createHederaConfig } from "./services/hedera-witnessing-service";
 import { createHederaRoutes } from "./routes/hedera";
+import { SFKOperationsService } from "./services/sfk-operations-service";
+import { createSFKOperationsRoutes } from "./routes/sfk-operations";
 
 const app = express();
 const httpServer = createServer(app);
@@ -160,8 +162,9 @@ function startPqtiService(): ChildProcess | null {
   const pqtiProcess = startPqtiService();
   let hederaService: HederaWitnessingService | null = null;
 
-  process.on("SIGTERM", () => { hederaService?.close(); pqtiProcess?.kill(); process.exit(0); });
-  process.on("SIGINT", () => { hederaService?.close(); pqtiProcess?.kill(); process.exit(0); });
+  let sfkOpsService: SFKOperationsService | null = null;
+  process.on("SIGTERM", () => { sfkOpsService?.close(); hederaService?.close(); pqtiProcess?.kill(); process.exit(0); });
+  process.on("SIGINT", () => { sfkOpsService?.close(); hederaService?.close(); pqtiProcess?.kill(); process.exit(0); });
 
   // === RFC 3161 TIME-STAMPING AUTHORITY (Kong service #21) ===
   const tsaKeysDir = path.join(process.cwd(), 'server/crypto/tsa-keys');
@@ -265,9 +268,15 @@ function startPqtiService(): ChildProcess | null {
     log('Hedera witnessing disabled — HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY not set', 'hedera');
   }
 
+  const sfkOperationsService = new SFKOperationsService(hederaService);
+  sfkOpsService = sfkOperationsService;
+  app.use('/api/sfk', createSFKOperationsRoutes(sfkOperationsService));
+  log(`SFK Operations — 5 endpoints at /api/sfk/v1/* (witnessing: ${hederaService ? 'enabled' : 'disabled'})`, 'sfk');
+
   const { capabilityCertificateService } = await import('./services/capability-certificates');
   capabilityCertificateService.setTsaService(tsaService);
-  log('Capability certificates wired to real TSA service — RFC 3161 integration active', 'capabilities');
+  capabilityCertificateService.setHederaService(hederaService);
+  log('Capability certificates wired to real TSA + Hedera — RFC 3161 + HCS integration active', 'capabilities');
 
   const notificationService = new NotificationService({
     hptpClient: hptpClientForTsa,

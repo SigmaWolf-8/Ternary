@@ -139,7 +139,7 @@ export interface CapabilityCertificate {
     gen_time_hptp_ns: string;
     policy_oid: string;
     tsa_signature: string;
-    tsa_algorithm: 'TL-DSA + RSA-4096';
+    tsa_algorithm: string;
     nonce: string;
     rfc3161_token?: string;
     rfc3161_serial?: string;
@@ -160,6 +160,13 @@ export interface CapabilityCertificate {
     proof_path: string[];
     tree_size: number;
   };
+  hedera_witness?: {
+    hedera_tx_id: string;
+    consensus_timestamp: string;
+    topic_id: string;
+    mirror_node_url: string;
+    certificate_hash: string;
+  };
   status: 'valid' | 'revoked' | 'expired';
 }
 
@@ -169,9 +176,14 @@ export interface CertificateVerificationResult {
   tsa_timestamp_valid: boolean;
   capability_signature_valid: boolean;
   merkle_proof_valid: boolean;
+  hedera_witness_valid?: boolean;
   certificate_status: 'valid' | 'revoked' | 'expired';
   verified_at_hptp_ns: string;
   errors: string[];
+  hedera_verification?: {
+    hedera_tx_id: string;
+    mirror_node_url: string;
+  };
 }
 
 export interface EvidenceChainEntry {
