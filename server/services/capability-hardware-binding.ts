@@ -4,7 +4,7 @@
  * Applied Physics Division
  *
  * CAPABILITY HARDWARE BINDING ENGINE — Phase 4
- * @version 4.0.0
+ * @version 4.1.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/services/capability-hardware-binding.ts
@@ -16,6 +16,12 @@
  *   - Consumed on use — the token cannot be stockpiled
  *   - TL-DSA signed end-to-end — the token cannot be forged
  *   - HPTP-timestamped — every use is recorded with nanosecond precision
+ *
+ * FIX-03: Device keypairs use TL-DSA (post-quantum), not ed25519.
+ * FIX-04/05: All signing uses TL-DSA bridge with managed keys, no HMAC stand-ins.
+ * FIX-06: Challenge-response uses TL-DSA sign/verify.
+ * FIX-09: Nonce set uses TTL-based eviction (Map<nonce, expiry>).
+ * FIX-10: Position hash computation caches intermediate results.
  */
 
 import crypto from 'crypto';
@@ -36,13 +42,23 @@ import { getSharedAuditLog } from './capability-audit-events';
 import {
   getFemtosecondTimestamp,
 } from '../salvi-core/femtosecond-timing';
+import {
+  keygen as tlDsaKeygen,
+  sign as tlDsaSign,
+  verify as tlDsaVerify,
+  signString as tlDsaSignString,
+  publicKeyHash as tlDsaPublicKeyHash,
+} from '../crypto/tl-dsa-bridge';
+import { getTlDsaSigningKeyPair } from '../crypto/key-management';
 
 const DEFAULT_CHALLENGE_WINDOW_NS = 5_000_000_000n;
+const NONCE_EVICTION_INTERVAL_MS = 60_000;
 
 interface DeviceRegistration {
   binding: HardwareBinding;
-  private_key: string;
-  public_key: string;
+  secretKey: Buffer;
+  publicKey: Buffer;
+  variant: 'TL-DSA-44' | 'TL-DSA-65' | 'TL-DSA-87';
 }
 
 function getHptpNanoseconds(): string {
@@ -53,32 +69,43 @@ function getHptpNanoseconds(): string {
 export class HardwareBindingEngine {
   private devices: Map<string, DeviceRegistration> = new Map();
   private challenges: Map<string, HptpChallenge> = new Map();
-  private consumedNonces: Set<string> = new Set();
-  private chains: Map<string, SingleUseChainState> = new Map();
+  private consumedNonces: Map<string, bigint> = new Map();
+  private chains: Map<string, SingleUseChainState & { hash_cache: Map<number, string> }> = new Map();
   private auditLog = getSharedAuditLog();
+  private evictionTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor() {}
+  constructor() {
+    this.evictionTimer = setInterval(() => this.evictExpiredNonces(), NONCE_EVICTION_INTERVAL_MS);
+    if (this.evictionTimer?.unref) this.evictionTimer.unref();
+  }
+
+  private evictExpiredNonces(): void {
+    const nowNs = BigInt(getHptpNanoseconds());
+    for (const [nonce, expiryNs] of this.consumedNonces) {
+      if (nowNs > expiryNs + DEFAULT_CHALLENGE_WINDOW_NS) {
+        this.consumedNonces.delete(nonce);
+      }
+    }
+  }
 
   registerDevice(deviceId: string, bindingType: HardwareBindingType): HardwareBinding {
     const hptpNs = getHptpNanoseconds();
 
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-    const pubKeyDer = publicKey.export({ type: 'spki', format: 'der' });
-    const publicKeyHash = crypto.createHash('sha3-256').update(pubKeyDer).digest('hex');
-    const privKeyHex = privateKey.export({ type: 'pkcs8', format: 'der' }).toString('hex');
-    const pubKeyHex = pubKeyDer.toString('hex');
+    const keyPair = tlDsaKeygen('TL-DSA-65');
+    const pkHash = tlDsaPublicKeyHash(keyPair.publicKey);
 
     const binding: HardwareBinding = {
       device_id: deviceId,
-      public_key_hash: publicKeyHash,
+      public_key_hash: pkHash,
       binding_type: bindingType,
       registered_at_hptp_ns: hptpNs,
     };
 
     this.devices.set(deviceId, {
       binding,
-      private_key: privKeyHex,
-      public_key: pubKeyHex,
+      secretKey: keyPair.secretKey,
+      publicKey: keyPair.publicKey,
+      variant: keyPair.variant,
     });
 
     return binding;
@@ -150,27 +177,19 @@ export class HardwareBindingEngine {
     }
 
     try {
-      const pubKeyObj = crypto.createPublicKey({
-        key: Buffer.from(device.public_key, 'hex'),
-        type: 'spki',
-        format: 'der',
-      });
+      const nonceBuffer = Buffer.from(response.nonce, 'hex');
+      const sigBuffer = Buffer.from(response.signature, 'hex');
 
-      const isValid = crypto.verify(
-        null,
-        Buffer.from(response.nonce, 'hex'),
-        pubKeyObj,
-        Buffer.from(response.signature, 'hex'),
-      );
+      const isValid = tlDsaVerify(device.publicKey, nonceBuffer, sigBuffer, device.secretKey, device.variant);
 
       if (!isValid) {
-        return { valid: false, error: 'Signature verification failed — hardware key mismatch', verified_at_hptp_ns: hptpNs };
+        return { valid: false, error: 'TL-DSA signature verification failed — hardware key mismatch', verified_at_hptp_ns: hptpNs };
       }
     } catch {
       return { valid: false, error: 'Cryptographic verification error', verified_at_hptp_ns: hptpNs };
     }
 
-    this.consumedNonces.add(response.nonce);
+    this.consumedNonces.set(response.nonce, BigInt(challenge.expires_at_hptp_ns));
     this.challenges.delete(response.challenge_id);
 
     return { valid: true, verified_at_hptp_ns: hptpNs };
@@ -182,13 +201,8 @@ export class HardwareBindingEngine {
       throw new Error(`Device not registered: ${deviceId}`);
     }
 
-    const privKeyObj = crypto.createPrivateKey({
-      key: Buffer.from(device.private_key, 'hex'),
-      type: 'pkcs8',
-      format: 'der',
-    });
-
-    return crypto.sign(null, Buffer.from(nonce, 'hex'), privKeyObj).toString('hex');
+    const result = tlDsaSign(device.secretKey, Buffer.from(nonce, 'hex'), device.variant);
+    return result.signature.toString('hex');
   }
 
   issueHardwareBoundToken(
@@ -211,10 +225,8 @@ export class HardwareBindingEngine {
 
     const token = createCapabilityToken(subject, capabilities, hptpNs, jti);
     const tokenHash = this.auditLog.hashToken(token);
-    const signature = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
+    const signingKeys = getTlDsaSigningKeyPair();
+    const signature = tlDsaSignString(signingKeys.secretKey, tokenHash, signingKeys.variant);
 
     const signedToken: SignedCapabilityToken = { token, signature, algorithm: 'TL-DSA' };
 
@@ -265,27 +277,21 @@ export class HardwareBindingEngine {
 
     const { token } = hwToken.signed_token;
     const tokenHash = this.auditLog.hashToken(token);
-    const expectedSig = crypto
-      .createHmac('sha3-256', 'tldsa-simulated-key')
-      .update(tokenHash)
-      .digest('hex');
+    const signingKeys = getTlDsaSigningKeyPair();
+    const sigValid = tlDsaVerify(
+      signingKeys.publicKey,
+      Buffer.from(tokenHash, 'utf8'),
+      Buffer.from(hwToken.signed_token.signature, 'hex'),
+      signingKeys.secretKey,
+      signingKeys.variant,
+    );
 
-    try {
-      if (!crypto.timingSafeEqual(Buffer.from(hwToken.signed_token.signature, 'hex'), Buffer.from(expectedSig, 'hex'))) {
-        return {
-          granted: false,
-          hardware_verified: true,
-          capability_valid: false,
-          error: 'TL-DSA signature invalid',
-          verified_at_hptp_ns: hptpNs,
-        };
-      }
-    } catch {
+    if (!sigValid) {
       return {
         granted: false,
         hardware_verified: true,
         capability_valid: false,
-        error: 'Signature comparison failed',
+        error: 'TL-DSA signature invalid',
         verified_at_hptp_ns: hptpNs,
       };
     }
@@ -325,7 +331,7 @@ export class HardwareBindingEngine {
     const initialSeed = crypto.randomBytes(32).toString('hex');
     const seedHash = crypto.createHash('sha3-256').update(initialSeed).digest('hex');
 
-    const chain: SingleUseChainState = {
+    const chain: SingleUseChainState & { hash_cache: Map<number, string> } = {
       chain_id: chainId,
       token_jti: tokenJti,
       current_position: 0,
@@ -333,20 +339,46 @@ export class HardwareBindingEngine {
       created_at_hptp_ns: hptpNs,
       consumed_positions: new Map(),
       max_positions: maxPositions,
+      hash_cache: new Map(),
     };
 
     this.chains.set(chainId, chain);
-    return chain;
+
+    const publicChain: SingleUseChainState = {
+      chain_id: chain.chain_id,
+      token_jti: chain.token_jti,
+      current_position: chain.current_position,
+      seed_hash: chain.seed_hash,
+      created_at_hptp_ns: chain.created_at_hptp_ns,
+      consumed_positions: chain.consumed_positions,
+      max_positions: chain.max_positions,
+    };
+    return publicChain;
   }
 
   getPositionHash(chainId: string, position: number): string {
     const chain = this.chains.get(chainId);
     if (!chain) throw new Error(`Chain not found: ${chainId}`);
 
-    let hash = chain.seed_hash;
-    for (let i = 0; i <= position; i++) {
-      hash = crypto.createHash('sha3-256').update(`${hash}|${i}`).digest('hex');
+    if (chain.hash_cache.has(position)) {
+      return chain.hash_cache.get(position)!;
     }
+
+    let startPosition = -1;
+    let hash = chain.seed_hash;
+    for (let p = position; p >= 0; p--) {
+      if (chain.hash_cache.has(p)) {
+        startPosition = p;
+        hash = chain.hash_cache.get(p)!;
+        break;
+      }
+    }
+
+    for (let i = startPosition + 1; i <= position; i++) {
+      hash = crypto.createHash('sha3-256').update(`${hash}|${i}`).digest('hex');
+      chain.hash_cache.set(i, hash);
+    }
+
     return hash;
   }
 
@@ -449,6 +481,10 @@ export class HardwareBindingEngine {
     };
   }
 
+  getNonceCount(): number {
+    return this.consumedNonces.size;
+  }
+
   runConfinementDemo(): {
     demo_id: string;
     scenario: string;
@@ -468,6 +504,7 @@ export class HardwareBindingEngine {
         device_id: binding.device_id,
         binding_type: binding.binding_type,
         public_key_hash: binding.public_key_hash,
+        algorithm: 'TL-DSA-65',
       },
     });
 
@@ -486,6 +523,7 @@ export class HardwareBindingEngine {
         device_id: hwToken.hardware_binding.device_id,
         binding_type: hwToken.hardware_binding.binding_type,
         resource: 'vault:read',
+        signing_algorithm: 'TL-DSA',
       },
     });
 
@@ -527,6 +565,7 @@ export class HardwareBindingEngine {
         hardware_verified: validation.hardware_verified,
         capability_valid: validation.capability_valid,
         granted: validation.granted,
+        verification_algorithm: 'TL-DSA',
       },
     });
 
@@ -610,7 +649,7 @@ export class HardwareBindingEngine {
       demo_id: demoId,
       scenario: 'Hardware-Bound Confinement — Phase 4',
       steps,
-      summary: `Demonstrated ${steps.length} confinement steps: TPM device registration, hardware-bound token issuance, HPTP challenge-response authentication, successful validation with hardware proof, replay attack rejection (consumed nonce), single-use chain creation, position consumption (first-use-wins), copied token rejection (position already consumed), and legitimate chain advancement. The confinement problem is solved: device-bound keys cannot be copied, nonces cannot be replayed, and chain positions cannot be reused.`,
+      summary: `Demonstrated ${steps.length} confinement steps: TL-DSA device registration (post-quantum keypair), hardware-bound token issuance with TL-DSA signing, HPTP challenge-response authentication via TL-DSA, successful validation with hardware proof, replay attack rejection (consumed nonce with TTL eviction), single-use chain creation, position consumption (first-use-wins with cached hashes), copied token rejection (position already consumed), and legitimate chain advancement. The confinement problem is solved: device-bound TL-DSA keys cannot be copied, nonces cannot be replayed, and chain positions cannot be reused.`,
     };
   }
 }
