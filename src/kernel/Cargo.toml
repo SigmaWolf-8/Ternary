@@ -45,6 +45,10 @@ rand = "0.8"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bin]]
+name = "salvi-bench"
+path = "benchmarks/salvi_benchmarks.rs"
+
+[[bin]]
 name = "qutrit-ft-bench"
 path = "benchmarks/qutrit_ft_benchmark.rs"
 required-features = ["bench-tools"]
