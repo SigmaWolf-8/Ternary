@@ -1,0 +1,110 @@
+# PlenumNET Security Tier Consolidation
+
+**Date:** March 2, 2026  
+**Change:** 4-mode security system → 3-tier system + TSA policy integration
+
+---
+
+## The New Model
+
+### Security Tiers (3)
+
+| Tier | Access Level | Crypto Stack | Witnessing | Phase-Split |
+|------|-------------|--------------|------------|-------------|
+| **fortified** | 3 (highest) | TL-DSA, TL-KEM, ternary-native | Hedera + TSA + Merkle | Feature flag |
+| **verified** | 2 | Mixed ternary-binary | TSA + Merkle | n/a |
+| **basic** | 1 | Classical (AES-256, Ed448) | Merkle only | n/a |
+
+Phase-split encryption is a boolean flag within the `fortified` tier, not a separate tier.
+
+### TSA Policies (4, attached per-request)
+
+| Policy | OID | Use Case | Accuracy | Retention |
+|--------|-----|----------|----------|-----------|
+| **COMPLY** | 1.3.6.1.4.1.0.100.1.1 | Financial (FINRA, CAT) | ±1µs | 10 years |
+| **FORENSICS** | 1.3.6.1.4.1.0.100.1.2 | Legal evidence, eDiscovery | ±100µs | 25 years |
+| **SENTINEL** | 1.3.6.1.4.1.0.100.1.3 | Government/military | ±1µs | 50 years |
+| **SECURE** | 1.3.6.1.4.1.0.100.1.4 | Enterprise Zero-Trust | ±10µs | 10 years |
+
+TSA policies are available for `fortified` and `verified` tiers. `basic` tier does not use TSA.
+
+Default mapping (via `defaultTsaPolicy()` in `tsa-service.ts`):
+- `fortified` → SENTINEL
+- `verified` → COMPLY
+- `basic` → null
+
+The DEFAULT policy (OID ...100.1.0) has been removed.
+
+---
+
+## What Changed
+
+### Removed
+- `Sovereign` security mode (merged into `Fortified` — phase-split is now a flag)
+- `DEFAULT` TSA policy tier (no-policy case = `basic` tier which doesn't use TSA)
+
+### Renamed
+
+| Old Name | New Name | Context |
+|----------|----------|---------|
+| `SecurityMode` | `SecurityTier` | Type name (Rust enum, TypeScript type) |
+| `Sovereign` / `Witnessed` | `Fortified` | Highest tier (merged) |
+| `Standard` | `Verified` | Middle tier |
+| `Compatible` | `Basic` | Lowest tier |
+| `security_mode` | `security_tier` | All struct fields, function params |
+| `minimum_mode()` | `minimum_tier()` | Capability kind → tier mapping |
+| `processes_by_security_mode()` | `processes_by_tier()` | Process table query |
+| `with_security_mode()` | `with_security_tier()` | Mutex constructor |
+| `lock_with_mode()` | `lock_with_tier()` | Mutex access |
+| `rules_for_mode()` | `rules_for_tier()` | Policy engine query |
+| `process_mode()` | `process_tier()` | Domain manager query |
+| `SecurityModeChange` | `SecurityTierChange` | Audit event type |
+
+### Files Modified
+
+**Rust (17 files):**
+- `src/kernel/src/memory/mod.rs` — Enum definition, access_level, tests
+- `src/kernel/src/memory/page.rs` — Page table security checks
+- `src/kernel/src/process/ipc.rs` — IPC channel security
+- `src/kernel/src/process/mod.rs` — Process security tier field
+- `src/kernel/src/process/scheduler.rs` — Process creation
+- `src/kernel/src/process/table.rs` — Process table queries
+- `src/kernel/src/security/mod.rs` — CapabilityKind minimum_tier mapping
+- `src/kernel/src/security/audit.rs` — Audit event types
+- `src/kernel/src/security/capability.rs` — Capability token fields
+- `src/kernel/src/security/domain.rs` — Security domain fields
+- `src/kernel/src/security/policy.rs` — Policy engine
+- `src/kernel/src/sync/mutex.rs` — Mutex security tier
+- `src/kernel/src/hptp/certification.rs` — (no SecurityMode refs, clean)
+- `src/kernel/src/compat/crypto_interop.rs` — (no SecurityMode refs, clean)
+- `src/kernel/src/crypto/cnsa2.rs` — (no SecurityMode refs, clean)
+- `src/kernel/src/crypto/cross_impl.rs` — (no SecurityMode refs, clean)
+- `src/thdl/src/synthesizer.rs` — (no SecurityMode refs, clean)
+
+**TypeScript (9 files):**
+- `server/salvi-core/unified-metadata-schema.ts` — Canonical type definition
+- `server/salvi-core/ternary-operations.ts` — SecurityTier type + function params
+- `server/salvi-core/sfk-operations-api.ts` — TIMING_GUARANTEES (merged 4→3)
+- `server/salvi-core/payment-listener-api.ts` — Default tier reference
+- `server/salvi-core/blockchain-integrations.ts` — Import rename
+- `server/salvi-core/index.ts` — Re-export rename
+- `server/routes/salvi.ts` — Zod validation schema
+- `server/services/tsa-service.ts` — Added `defaultTsaPolicy()`, removed DEFAULT
+- `server/services/tsa-calendar-enrichment.ts` — Removed DEFAULT from calendar config
+- `server/services/notification-tsa-policy.ts` — DEFAULT→COMPLY fallback
+- `server/index.ts` — DEFAULT→COMPLY config
+
+---
+
+## Verification Results
+
+| Check | Result |
+|-------|--------|
+| Old type `SecurityMode` in Rust | 0 occurrences |
+| Old type `SecurityMode` in TypeScript | 0 occurrences |
+| Old variants (Sovereign/Witnessed/Standard/Compatible) | 0 occurrences |
+| Old field name `security_mode` | 0 occurrences |
+| Old TSA DEFAULT policy | 0 occurrences |
+| New `SecurityTier` in Rust | 262 occurrences |
+| New `SecurityTier` in TypeScript | 17 occurrences |
+| `defaultTsaPolicy()` bridging tiers ↔ TSA | Present |
