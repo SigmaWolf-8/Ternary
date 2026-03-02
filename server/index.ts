@@ -41,6 +41,8 @@ import { createTsaRoutes } from "./routes/tsa";
 import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
 import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
+import { HederaWitnessingService, createHederaConfig } from "./services/hedera-witnessing-service";
+import { createHederaRoutes } from "./routes/hedera";
 
 const app = express();
 const httpServer = createServer(app);
@@ -156,9 +158,10 @@ function startPqtiService(): ChildProcess | null {
 
 (async () => {
   const pqtiProcess = startPqtiService();
+  let hederaService: HederaWitnessingService | null = null;
 
-  process.on("SIGTERM", () => { pqtiProcess?.kill(); process.exit(0); });
-  process.on("SIGINT", () => { pqtiProcess?.kill(); process.exit(0); });
+  process.on("SIGTERM", () => { hederaService?.close(); pqtiProcess?.kill(); process.exit(0); });
+  process.on("SIGINT", () => { hederaService?.close(); pqtiProcess?.kill(); process.exit(0); });
 
   // === RFC 3161 TIME-STAMPING AUTHORITY (Kong service #21) ===
   const tsaKeysDir = path.join(process.cwd(), 'server/crypto/tsa-keys');
@@ -239,6 +242,28 @@ function startPqtiService(): ChildProcess | null {
 
   app.use('/api/tsa', createTsaRoutes(tsaService));
   log('TSA — 8 endpoints at /api/tsa/* (Kong service #21)', 'tsa');
+
+  // =====================================================
+  // HEDERA HCS WITNESSING — blockchain-based non-repudiation
+  // =====================================================
+  const hederaConfig = createHederaConfig();
+
+  if (hederaConfig) {
+    hederaService = new HederaWitnessingService(hederaConfig);
+    try {
+      const hederaInit = await hederaService.initialize();
+      log(`Hedera HCS initialized — topic: ${hederaInit.topicId}, network: ${hederaInit.network}, created: ${hederaInit.topicCreated}`, 'hedera');
+
+      app.use('/api/hedera', createHederaRoutes(hederaService));
+      log('Hedera — 6 endpoints at /api/hedera/* (Kong service #22)', 'hedera');
+    } catch (error) {
+      log(`Hedera initialization failed: ${(error as Error).message}`, 'hedera');
+      log('Hedera witnessing disabled — set HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY to enable', 'hedera');
+      hederaService = null;
+    }
+  } else {
+    log('Hedera witnessing disabled — HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY not set', 'hedera');
+  }
 
   const { capabilityCertificateService } = await import('./services/capability-certificates');
   capabilityCertificateService.setTsaService(tsaService);
