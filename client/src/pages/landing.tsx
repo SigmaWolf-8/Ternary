@@ -84,7 +84,7 @@ function HeroVisual() {
     { label: "Services", items: ["Document Notary", "PlenumDB", "Payment", "API Gateway"], delay: 0.5 },
     { label: "Security", items: ["Capability-Based Access", "Phase Encryption", "RFC 3161 TSA", "Hedera Witnessing"], delay: 0.55 },
     { label: "Protocols", items: ["HPTP — Clock Sync", "T3P — App Protocol", "TTP — Transport", "TDNS — Resolution"], delay: 0.6 },
-    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — Garbage Collector", "GF(3) Arithmetic"], delay: 0.65 },
+    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, `${PLATFORM.VM_REGISTERS} Registers`, "TAGC — Garbage Collector", "GF(3) Arithmetic"], delay: 0.65 },
     { label: "Cryptography", items: ["TL-DSA-87", "TL-KEM", "CNSA 2.0", "Ternary Compression"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.75 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "XPlenum CSRs"], delay: 0.8 },
@@ -441,7 +441,7 @@ function PlatformSection() {
       icon: Terminal,
       title: `${PLATFORM.VM_OPCODES}-Opcode Virtual Machine`,
       description: "Register-based VM with ternary-native instructions, quantum-ternary simulation, garbage collection, and full execution engine.",
-      stats: "27 registers",
+      stats: `${PLATFORM.VM_REGISTERS} registers`,
     },
     {
       icon: Clock,
@@ -501,7 +501,7 @@ function PlatformSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,753 passing tests.
+            From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with {PLATFORM.TESTS_PASSING} passing tests.
           </motion.p>
         </div>
 
@@ -529,7 +529,7 @@ function ArchitectureSection() {
     },
     {
       label: "Virtual Machine",
-      items: [`${PLATFORM.VM_OPCODES}-Opcode ISA ${PLATFORM.VM_ISA_VERSION}`, "27 Ternary Registers", "TAGC Garbage Collector", "Quantum-Ternary Sim"],
+      items: [`${PLATFORM.VM_OPCODES}-Opcode ISA ${PLATFORM.VM_ISA_VERSION}`, `${PLATFORM.VM_REGISTERS} Ternary Registers`, "TAGC Garbage Collector", "Quantum-Ternary Sim"],
       color: "bg-primary/20 border-primary/50",
     },
     {
@@ -733,7 +733,7 @@ function ComponentCard({
 function ComponentsSection() {
   const components = [
     {
-      badge: "Core - 1,753 Tests",
+      badge: `Core - ${PLATFORM.TESTS_PASSING} Tests`,
       icon: Cpu,
       title: "Ternary Kernel",
       description: "Production-ready Rust kernel with GF(3) arithmetic, memory management, process scheduling, filesystem, and multi-architecture support.",
@@ -753,7 +753,7 @@ function ComponentsSection() {
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
         "GF(3) ops: TAdd, TMul, TNeg, TRot, TXor",
-        "27 ternary registers with flags",
+        `${PLATFORM.VM_REGISTERS} ternary registers with flags`,
         "TAGC mark-sweep garbage collector",
         "Generational GC with young/old/permanent",
       ],
