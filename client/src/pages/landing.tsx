@@ -296,7 +296,7 @@ function HeroSection() {
           </a>
         </motion.div>
 
-        <div className="space-y-8">
+        <div className="space-y-14">
           <div className="text-center">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -366,35 +366,8 @@ function HeroSection() {
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </form>
-                  <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
                 </div>
               )}
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-wrap justify-center gap-3 mb-5"
-            >
-              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
-                <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
-                  <Github className="w-4 h-4 mr-2" />
-                  View Source
-                </a>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-demo">
-                <a href="/ternarydb">
-                  <Zap className="w-4 h-4 mr-2" />
-                  Live Demo
-                </a>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-docs">
-                <a href="/whitepaper">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Whitepaper
-                </a>
-              </Button>
             </motion.div>
             
             <div className="flex justify-between px-4 sm:px-8 md:px-16">
@@ -409,10 +382,9 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8"
+            className="flex justify-center"
           >
             <HeroVisual />
-            <HeroDemo />
           </motion.div>
         </div>
       </div>
