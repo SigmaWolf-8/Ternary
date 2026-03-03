@@ -370,7 +370,7 @@ function HeroSection() {
               )}
             </motion.div>
             
-            <div className="flex justify-between px-4 sm:px-8 md:px-16">
+            <div className="flex justify-between px-4 sm:px-8 md:px-16 pt-8">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
               <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
