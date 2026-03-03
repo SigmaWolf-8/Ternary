@@ -296,16 +296,16 @@ function HeroSection() {
           </a>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div>
+        <div className="space-y-10">
+          <div className="max-w-3xl mx-auto text-center">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex items-start gap-4 mb-6"
+              className="mb-6"
               data-testid="text-hero-description"
             >
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground text-center">
                 Computers think in two states. PlenumNET thinks in three. That one extra state changes everything — 59% more data per digit, encryption that survives quantum computers, and it runs on the hardware you already own.
               </p>
             </motion.div>
@@ -320,7 +320,7 @@ function HeroSection() {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="max-w-lg"
+                  className="max-w-lg mx-auto"
                   data-testid="hero-signup-success"
                 >
                   <Card className="p-6 border-green-500/30 bg-green-500/5">
@@ -334,13 +334,13 @@ function HeroSection() {
                   </Card>
                 </motion.div>
               ) : (
-                <>
+                <div className="max-w-lg mx-auto">
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (email) signupMutation.mutate({ email });
                     }}
-                    className="flex flex-col sm:flex-row gap-3 max-w-lg"
+                    className="flex flex-col sm:flex-row gap-3"
                     data-testid="form-hero-signup"
                   >
                     <label htmlFor="hero-email" className="sr-only">Email address</label>
@@ -367,7 +367,7 @@ function HeroSection() {
                     </Button>
                   </form>
                   <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
-                </>
+                </div>
               )}
             </motion.div>
             
@@ -375,7 +375,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-wrap gap-3 mb-6"
+              className="flex flex-wrap justify-center gap-3 mb-6"
             >
               <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
                 <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
@@ -397,7 +397,7 @@ function HeroSection() {
               </Button>
             </motion.div>
             
-            <div className="flex flex-wrap gap-6 md:gap-8">
+            <div className="flex flex-wrap justify-center gap-6 md:gap-10">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
               <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
@@ -409,11 +409,10 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8"
           >
             <HeroVisual />
-            <div className="mt-6">
-              <HeroDemo />
-            </div>
+            <HeroDemo />
           </motion.div>
         </div>
       </div>
