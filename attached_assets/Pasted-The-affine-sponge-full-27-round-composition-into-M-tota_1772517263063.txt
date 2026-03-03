@@ -1,0 +1,151 @@
+The affine sponge (full 27-round composition into M_total and v_total) not matching the iterative version is a very common outcome when first implementing this kind of precomputation — usually from one (or a combination) of these exact issues:
+
+### Most Likely Causes (in order of probability)
+
+1. **Sign / Representation Mismatch in GF(3) lift**  
+   Your runtime state uses balanced ternary {-1, 0, +1}, but the matrix M_total was built assuming coefficients in {0,1,2} or vice-versa without proper bidirectional mapping.  
+   → When you apply M · state + v and then reduce mod 3 → balanced, the output drifts because the linear map was computed assuming a different representative.
+
+2. **The +1 from rotate(b) is not correctly accumulated into v_total**  
+   In the substitution layer you have `buf[i] = state[i] + state[left] + state[right] + 1`, so every round adds +1 to **every** position. Over 27 rounds that's +27 everywhere — but because of the diffusion permutations in between, the effective constant vector is not simply 27 everywhere; it's permuted 26 times after each addition.
+
+3. **Basis vector simulation only did positive 1, not -1**  
+   In the build.rs you only simulated e_col = +1 at position col (and zero vector for v).  
+   But since the map is linear over GF(3), you need to verify behavior on -1 as well (or better: prove the map is the same regardless of representatives, or adjust the reduction step).
+
+4. **Off-by-one in round order or composition direction**  
+   Composition must be right-to-left if applying rounds from 0 to 26 (first round applied first). If you did left-to-fold you get the inverse permutation.
+
+5. **Round constants not correctly lifted / signed**  
+   Your rc calculation uses `balanced_mod3` → {-1,0,1}, but when building M/v you may have mapped to unsigned {0,1,2} inconsistently.
+
+6. **No reduction / overflow in acc during mat-vec**  
+   In the runtime `acc += m_ij * s_j` loop, with 729 terms and values up to 2×1=2, acc can reach ~1458 in magnitude before %3 — but i32 is fine, the issue is usually forgetting to apply the balanced reduction correctly after sum.
+
+### Quick Diagnostic & Fix Steps (do these in order)
+
+**Step 1: Add debug comparison harness (in Rust test or main)**
+
+```rust
+#[test]
+fn test_affine_vs_iterative() {
+    use rand::Rng;
+
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..100 {
+        let mut state_iter = [0i8; 729];
+        let mut state_affine = [0i8; 729];
+
+        // random balanced trits
+        for s in state_iter.iter_mut() {
+            *s = rng.gen_range(-1..=1);
+        }
+        state_affine.copy_from_slice(&state_iter);
+
+        // Run original iterative version
+        sponge_permutation_iterative(&mut state_iter);  // rename your original fn
+
+        // Run affine version
+        apply_full_affine(&mut state_affine);
+
+        // Compare
+        assert_eq!(state_iter, state_affine, "Mismatch after full permutation");
+    }
+}
+```
+
+Run with `cargo test --release`. This will show you **exactly** where/when it diverges (or if it's consistent but wrong).
+
+**Step 2: Fix the constant vector v_total (most common bug)**
+
+The +1 per position per round is diffused by P after each addition, so v_total must accumulate the propagated constants correctly. Your current build.rs only captures v from the zero-input run, which **does** include all +1 and rc additions (good!), but only if:
+
+- The zero-input run starts from all-zero state
+- Every substitution adds exactly +1 to every buf[i]
+- Diffusion and rc are applied identically
+
+**Quick patch to build.rs** — make sure zero run is isolated:
+
+```rust
+// Inside the col loop, add special handling for v_total
+if col == N {  // use a dummy col > N-1 for zero vector, or separate run
+    let mut state = [0i8; N];
+    // run the full 27-round loop exactly as in substitution/diffusion/rc
+    // ... same code ...
+    for i in 0..N {
+        v[i] = state[i];
+    }
+}
+```
+
+Better: run the zero-input simulation **separately before the basis loop**, since v_total is independent of input.
+
+**Step 3: Standardize GF(3) representatives everywhere**
+
+Define helpers and use consistently:
+
+```rust
+#[inline(always)]
+fn to_gf3_balanced(x: i8) -> i8 { x }  // already {-1,0,1}
+
+#[inline(always)]
+fn to_gf3_unsigned(x: i8) -> u8 {
+    match x {
+        -1 => 2,
+        0  => 0,
+        1  => 1,
+        _  => unreachable!(),
+    }
+}
+
+#[inline(always)]
+fn from_gf3_unsigned(u: u8) -> i8 {
+    match u {
+        0 => 0,
+        1 => 1,
+        2 => -1,
+        _ => unreachable!(),
+    }
+}
+
+#[inline(always)]
+fn reduce_sum(acc: i32) -> i8 {
+    let mut c = acc % 3;
+    if c < 0 { c += 3; }
+    if c == 2 { -1 } else { c as i8 }
+}
+```
+
+In build.rs: store M_flat as u8 {0,1,2} using `to_gf3_unsigned(state[row])`
+
+In runtime apply_full_affine: use `reduce_sum(acc)` and start with `acc = from_gf3_unsigned(AFFINE_V[i]) as i32;` no — v should also be stored as i8 {-1,0,1} or u8.
+
+**Recommendation**: store both M_flat and v as u8 {0,1,2}, then in runtime:
+
+```rust
+let mut acc: i32 = AFFINE_V[i] as i32;  // 0,1,2
+for j in 0..729 {
+    let m = AFFINE_M[row + j] as i32;
+    let s = match state[j] {
+        -1 => 2,
+        0  => 0,
+        1  => 1,
+        _  => unreachable!(),
+    };
+    acc += m * s;
+}
+new_state[i] = reduce_sum(acc);
+```
+
+This avoids signed multiplication surprises.
+
+**Step 4: If still failing — simplify test**
+
+Temporarily reduce rounds to 1 or 2 in both iterative and build.rs, verify match, then scale up. This isolates whether the composition logic or the per-round modeling is wrong.
+
+Once you paste the **actual test failure output** (e.g. first mismatched positions, difference values, or panic message), I can give the exact 2–3 line fix — it's almost always a lift/reduce or composition-direction error.
+
+We're very close — this kind of precompute almost always needs one tiny representative-alignment tweak before it snaps into perfect equivalence.
+
+Paste the mismatch details when you have them!

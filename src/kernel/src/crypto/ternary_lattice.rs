@@ -106,6 +106,16 @@ fn unsigned_to_balanced(u: u8) -> i8 {
     }
 }
 
+fn bit_reverse(k: usize, log_n: usize) -> usize {
+    let mut rev = 0;
+    let mut i = k;
+    for _ in 0..log_n {
+        rev = (rev << 1) | (i & 1);
+        i >>= 1;
+    }
+    rev
+}
+
 fn schoolbook_raw(a: &[i8], b: &[i8]) -> Vec<i8> {
     let n = a.len();
     let m = b.len();
@@ -462,6 +472,10 @@ impl TernaryPolyMatrix {
             result.polys[i] = sum;
         }
         Ok(result)
+    }
+
+    pub fn mul_vec_geometric(&self, vec: &TernaryPolyVec) -> CryptoResult<TernaryPolyVec> {
+        self.mul_vec_karatsuba(vec)
     }
 
     pub fn transpose(&self) -> Self {
@@ -839,15 +853,6 @@ fn small_prime_factors(mut n: i32) -> Vec<i32> {
     }
     if n > 1 { factors.push(n); }
     factors
-}
-
-fn bit_reverse(mut x: usize, log_n: usize) -> usize {
-    let mut result = 0;
-    for _ in 0..log_n {
-        result = (result << 1) | (x & 1);
-        x >>= 1;
-    }
-    result
 }
 
 pub fn ntt_forward_lifted(poly: &TernaryPolynomial, q: i16) -> Vec<i16> {

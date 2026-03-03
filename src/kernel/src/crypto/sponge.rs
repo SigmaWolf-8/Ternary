@@ -106,8 +106,6 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
 
     for round in 0..SPONGE_ROUNDS {
-        // ── Substitution: circulant convolution [1,1,1] + uniform +1 ──
-        // sbox(a, b, c) = a + rotate(b) + c = a + (b+1) + c = a + b + c + 1
         {
             let s0 = state[0];
             let sl = state[SPONGE_STATE_SIZE - 1];
@@ -126,12 +124,10 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
             buf[last] = trit_add(sum, 1);
         }
 
-        // ── Diffusion: precomputed multiplicative torsion permutation ──
         for i in 0..SPONGE_STATE_SIZE {
             state[PERM[i] as usize] = buf[i];
         }
 
-        // ── Round constants: precomputed Tribonacci-style injection ──
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
@@ -490,7 +486,6 @@ mod tests {
 
     #[test]
     fn test_capacity_untouched_before_permutation() {
-        // Absorb XORs only into rate [0..243], never capacity [243..729]
         let mut state = [0i8; SPONGE_STATE_SIZE];
         let input = [1i8; SPONGE_RATE];
         for i in 0..SPONGE_RATE {
@@ -500,4 +495,5 @@ mod tests {
             assert_eq!(state[i], 0, "Capacity trit {} modified during absorb", i);
         }
     }
+
 }

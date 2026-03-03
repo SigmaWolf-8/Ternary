@@ -141,7 +141,7 @@ pub fn keygen(variant: TlKemVariant, seed: &[i8]) -> CryptoResult<(TlKemPublicKe
     let matrix_a = sample_matrix(&rho, k, n);
     let secret_s = sample_noise_vec(&sigma, k, n, 0, params.eta1);
 
-    let public_t = matrix_a.mul_vec_karatsuba(&secret_s)?;
+    let public_t = matrix_a.mul_vec_geometric(&secret_s)?;
 
     let hash_pk = kem_hash(&[&rho, &poly_vec_to_trits(&public_t)], 243);
     let reject_seed = kem_hash(&[seed, &[0i8, 0, -1]], 243);
@@ -179,7 +179,7 @@ pub fn encapsulate(pk: &TlKemPublicKey, randomness: &[i8]) -> CryptoResult<(TlKe
     let r = sample_noise_vec(encaps_coins, k, n, 0, params.eta1);
 
     let a_t = matrix_a.transpose();
-    let u = a_t.mul_vec_karatsuba(&r)?;
+    let u = a_t.mul_vec_geometric(&r)?;
 
     let t_dot_r = pk.public_vec_t.inner_product(&r)?;
     let msg_poly = message_to_polynomial(&message, n);
@@ -265,7 +265,7 @@ fn encapsulate_inner(
     let r = sample_noise_vec(coins, k, n, 0, params.eta1);
 
     let a_t = matrix_a.transpose();
-    let u = a_t.mul_vec_karatsuba(&r)?;
+    let u = a_t.mul_vec_geometric(&r)?;
 
     let t_dot_r = pk.public_vec_t.inner_product(&r)?;
     let msg_poly = message_to_polynomial(message, n);
