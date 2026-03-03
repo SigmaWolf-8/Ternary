@@ -35,10 +35,11 @@
 //!   and uniform sampling for key generation
 //! - **Compression/Decompression**: Lossy encoding for ciphertext compactness
 //!
-//! Note: GF(3) lacks primitive roots of unity for n=256, so standard
-//! NTT-based fast multiplication is not available. Ring multiplication
-//! uses schoolbook convolution with X^n+1 reduction. Future work may
-//! explore lifting to a larger modulus q with NTT support.
+//! Ring multiplication uses Karatsuba (O(n^1.585)) via `ring_mul_karatsuba`
+//! for individual polynomial products, and an integer NTT (q=12289, n=256)
+//! for pre-NTT'd matrix-vector multiplies via `NttMatrix::mul_vec`. The NTT
+//! lifts ternary coefficients to Z_q, uses ψ-twist negacyclic convolution,
+//! and reduces results back to balanced ternary mod 3.
 //!
 //! # CNSA 2.0 Relevance
 //!
@@ -1598,6 +1599,80 @@ mod tests {
         assert_eq!(c.len(), n);
         for i in 0..n {
             assert_eq!(c[i], (a[i] as i32 * b[i] as i32 % q as i32) as i16);
+        }
+    }
+
+    #[test]
+    fn test_ncntt_constants() {
+        assert_eq!(NCNTT_Q, 12289);
+        assert_eq!(NCNTT_PSI, 3400);
+        let psi_256 = ncntt_mod_pow(NCNTT_PSI as u64, 256, NCNTT_Q as u64) as u32;
+        assert_eq!(psi_256, NCNTT_Q - 1, "psi^256 should equal -1 mod q");
+        let psi_512 = ncntt_mod_pow(NCNTT_PSI as u64, 512, NCNTT_Q as u64) as u32;
+        assert_eq!(psi_512, 1, "psi^512 should equal 1 mod q");
+        let omega_256 = ncntt_mod_pow(NCNTT_OMEGA as u64, 256, NCNTT_Q as u64) as u32;
+        assert_eq!(omega_256, 1, "omega^256 should equal 1 mod q");
+        let psi_psi_inv = ncntt_modmul(NCNTT_PSI, NCNTT_PSI_INV);
+        assert_eq!(psi_psi_inv, 1, "psi * psi_inv should equal 1");
+        let n_inv_n = ncntt_modmul(NCNTT_INV_N, NCNTT_N as u32);
+        assert_eq!(n_inv_n, 1, "inv_n * n should equal 1");
+    }
+
+    #[test]
+    fn test_ncntt_roundtrip() {
+        let coeffs: Vec<i8> = (0..256).map(|i| [0, 1, -1][i % 3]).collect();
+        let ntt = ternary_to_ntt(&coeffs);
+        let back = ntt_to_ternary(&ntt);
+        assert_eq!(coeffs, back, "NTT roundtrip should be identity");
+    }
+
+    #[test]
+    fn test_ncntt_mul_matches_karatsuba() {
+        let a_coeffs: Vec<i8> = (0..256).map(|i| match i % 7 { 0 => 1, 1 => -1, _ => 0 }).collect();
+        let b_coeffs: Vec<i8> = (0..256).map(|i| match i % 5 { 0 => -1, 2 => 1, _ => 0 }).collect();
+        let a = TernaryPolynomial::from_coeffs_unchecked(a_coeffs.clone());
+        let b = TernaryPolynomial::from_coeffs_unchecked(b_coeffs.clone());
+        let karatsuba = a.ring_mul_karatsuba(&b).unwrap();
+
+        let a_ntt = ternary_to_ntt(&a_coeffs);
+        let b_ntt = ternary_to_ntt(&b_coeffs);
+        let mut c_ntt = [0u32; NCNTT_N];
+        for i in 0..NCNTT_N {
+            c_ntt[i] = ncntt_modmul(a_ntt[i], b_ntt[i]);
+        }
+        let ntt_result = ntt_to_ternary(&c_ntt);
+
+        assert_eq!(karatsuba.coeffs, ntt_result, "NTT mul must match Karatsuba");
+    }
+
+    #[test]
+    fn test_ntt_matrix_mul_vec_matches_geometric() {
+        let rows = 4;
+        let cols = 3;
+        let n = 256;
+        let mut mat = TernaryPolyMatrix::new(rows, cols, n);
+        for i in 0..rows {
+            for j in 0..cols {
+                let coeffs: Vec<i8> = (0..n).map(|k| match (i + j + k) % 5 { 0 => 1, 1 => -1, _ => 0 }).collect();
+                mat.entries[i][j] = TernaryPolynomial::from_coeffs_unchecked(coeffs);
+            }
+        }
+        let mut vec_polys = Vec::with_capacity(cols);
+        for j in 0..cols {
+            let coeffs: Vec<i8> = (0..n).map(|k| match (j * 3 + k) % 7 { 0 => 1, 2 => -1, _ => 0 }).collect();
+            vec_polys.push(TernaryPolynomial::from_coeffs_unchecked(coeffs));
+        }
+        let v = TernaryPolyVec { polys: vec_polys, n };
+
+        let geometric = mat.mul_vec_geometric(&v).unwrap();
+        let ntt_mat = mat.to_ntt();
+        let ntt_result = ntt_mat.mul_vec(&v).unwrap();
+
+        for i in 0..rows {
+            assert_eq!(
+                geometric.polys[i].coeffs, ntt_result.polys[i].coeffs,
+                "NTT matrix mul must match geometric for row {}", i
+            );
         }
     }
 }

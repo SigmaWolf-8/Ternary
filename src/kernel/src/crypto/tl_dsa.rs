@@ -91,6 +91,7 @@ use alloc::vec;
 use super::{CryptoError, CryptoResult};
 use super::ternary_lattice::{
     TernaryPolynomial, TernaryPolyMatrix, TernaryPolyVec,
+    NttMatrix,
     sample_noise_vec,
 };
 use super::sponge::TernarySponge;
@@ -165,6 +166,7 @@ pub struct TlDsaPublicKey {
     pub matrix_a_seed: Vec<i8>,
     pub public_t: TernaryPolyVec,
     pub matrix_a: TernaryPolyMatrix,
+    pub matrix_a_ntt: NttMatrix,
 }
 
 #[derive(Debug, Clone)]
@@ -172,6 +174,7 @@ pub struct TlDsaSecretKey {
     pub variant: TlDsaVariant,
     pub matrix_a_seed: Vec<i8>,
     pub matrix_a: TernaryPolyMatrix,
+    pub matrix_a_ntt: NttMatrix,
     pub secret_s1: TernaryPolyVec,
     pub secret_s2: TernaryPolyVec,
     pub public_t: TernaryPolyVec,
@@ -322,23 +325,26 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
     let signing_seed = dsa_hash(DOMAIN_SIGNING_SEED, &[seed, &[0i8, 1, -1]], 243);
 
     let matrix_a = expand_matrix_a(&rho, k, l, n);
+    let matrix_a_ntt = matrix_a.to_ntt();
 
     let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
     let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
 
-    let public_t = matrix_a.mul_vec_geometric(&secret_s1)?;
+    let public_t = matrix_a_ntt.mul_vec(&secret_s1)?;
 
     let pk = TlDsaPublicKey {
         variant,
         matrix_a_seed: rho.clone(),
         public_t: public_t.clone(),
         matrix_a: matrix_a.clone(),
+        matrix_a_ntt: matrix_a_ntt.clone(),
     };
 
     let sk = TlDsaSecretKey {
         variant,
         matrix_a_seed: rho,
         matrix_a,
+        matrix_a_ntt,
         secret_s1,
         secret_s2,
         public_t,
@@ -367,7 +373,7 @@ pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature>
 
         let y = sample_masking_vec(&y_seed, l, n, 0);
 
-        let w = sk.matrix_a.mul_vec_geometric(&y)?;
+        let w = sk.matrix_a_ntt.mul_vec(&y)?;
         let w_trits = poly_vec_to_trits(&w);
 
         let challenge_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu, &w_trits], 243);
@@ -430,7 +436,7 @@ pub fn verify(pk: &TlDsaPublicKey, message: &[i8], sig: &TlDsaSignature) -> Cryp
 
     let c = sample_challenge(&sig.challenge_hash, n, params.tau);
 
-    let az = pk.matrix_a.mul_vec_geometric(&sig.z)?;
+    let az = pk.matrix_a_ntt.mul_vec(&sig.z)?;
 
     let mut ct_polys = Vec::with_capacity(k);
     for i in 0..k {
@@ -485,24 +491,30 @@ pub fn sign_verify_timing_breakdown(
     timings.push(("expand_A (keygen)", t0.elapsed()));
 
     let t0 = Instant::now();
+    let matrix_a_ntt = matrix_a.to_ntt();
+    timings.push(("to_ntt(A) (keygen)", t0.elapsed()));
+
+    let t0 = Instant::now();
     let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
     let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
     timings.push(("sample_s1_s2", t0.elapsed()));
 
     let t0 = Instant::now();
-    let public_t = matrix_a.mul_vec_geometric(&secret_s1)?;
-    timings.push(("A·s₁ geometric (kg)", t0.elapsed()));
+    let public_t = matrix_a_ntt.mul_vec(&secret_s1)?;
+    timings.push(("A·s₁ NTT (kg)", t0.elapsed()));
 
     let pk = TlDsaPublicKey {
         variant,
         matrix_a_seed: rho.clone(),
         public_t: public_t.clone(),
         matrix_a: matrix_a.clone(),
+        matrix_a_ntt: matrix_a_ntt.clone(),
     };
     let sk = TlDsaSecretKey {
         variant,
         matrix_a_seed: rho,
         matrix_a,
+        matrix_a_ntt,
         secret_s1,
         secret_s2,
         public_t,
@@ -527,8 +539,8 @@ pub fn sign_verify_timing_breakdown(
     timings.push(("y_sampling", t0.elapsed()));
 
     let t0 = Instant::now();
-    let w = sk.matrix_a.mul_vec_geometric(&y)?;
-    timings.push(("A·y geometric (sign)", t0.elapsed()));
+    let w = sk.matrix_a_ntt.mul_vec(&y)?;
+    timings.push(("A·y NTT (sign)", t0.elapsed()));
 
     let w_trits = poly_vec_to_trits(&w);
     let t0 = Instant::now();
@@ -562,8 +574,8 @@ pub fn sign_verify_timing_breakdown(
     timings.push(("c_sampling (verify)", t0.elapsed()));
 
     let t0 = Instant::now();
-    let az = pk.matrix_a.mul_vec_geometric(&sig.z)?;
-    timings.push(("A·z geometric (verify)", t0.elapsed()));
+    let az = pk.matrix_a_ntt.mul_vec(&sig.z)?;
+    timings.push(("A·z NTT (verify)", t0.elapsed()));
 
     let t0 = Instant::now();
     let mut ct_polys = Vec::with_capacity(k);
