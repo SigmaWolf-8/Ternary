@@ -47,103 +47,95 @@ const SPONGE_LANES: usize = 27;        // round constant injection points
 // No lookup tables.  No integer division.  Conditional moves only.
 // ---------------------------------------------------------------------------
 
-/// Balanced ternary addition: (a + b) mod 3, mapped to {-1, 0, +1}.
-///
-/// Direct arithmetic: the raw sum `a + b` lies in [-2, +2].
-/// Values in {-1, 0, +1} are already valid.  The two overflow cases:
-///   -2  →  +1  (add 3)
-///   +2  →  -1  (subtract 3)
-///
-/// Compiles to: add, cmp, cmov, cmp, cmov — five instructions, zero division.
 #[inline(always)]
 fn trit_add(a: i8, b: i8) -> i8 {
     let s = a + b;
     if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
 }
 
-/// Cyclic rotation in {-1, 0, +1}: the map t ↦ t + 1 (mod 3).
-///   -1 → 0,  0 → +1,  +1 → -1
-///
-/// Single increment with wrap.  Compiles to: add, cmp, cmov.
 #[inline(always)]
 fn trit_rotate(t: i8) -> i8 {
     let r = t + 1;
     if r > 1 { -1 } else { r }
 }
 
-/// Three-input substitution box.
-/// sbox(a, b, c) = a ⊕ rotate(b) ⊕ c
-///
-/// Provides nonlinearity via the rotation on the middle input.
 #[inline(always)]
 fn sbox(a: i8, b: i8, c: i8) -> i8 {
     trit_add(trit_add(a, trit_rotate(b)), c)
 }
 
-/// Balanced reduction of a non-negative integer to {-1, 0, +1}.
-/// Used only for round constant generation (27 calls per round,
-/// outside the 729-iteration hot loops).
-///
-/// The compiler replaces `% 3` on a compile-time-known divisor with
-/// a multiply-shift sequence — no actual integer division emitted.
 #[inline(always)]
 fn balanced_mod3(n: usize) -> i8 {
     (n % 3) as i8 - 1
 }
 
 // ---------------------------------------------------------------------------
+// Compile-time precomputed tables
+// ---------------------------------------------------------------------------
+
+const PERM: [u16; SPONGE_STATE_SIZE] = {
+    let mut p = [0u16; SPONGE_STATE_SIZE];
+    let mut i = 0usize;
+    while i < SPONGE_STATE_SIZE {
+        p[i] = ((i * 376 + 1) % SPONGE_STATE_SIZE) as u16;
+        i += 1;
+    }
+    p
+};
+
+const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
+    let mut rc = [[0i8; SPONGE_LANES]; SPONGE_ROUNDS];
+    let mut r = 0usize;
+    while r < SPONGE_ROUNDS {
+        let mut lane = 0usize;
+        while lane < SPONGE_LANES {
+            let val = (r * 7 + lane * 13 + 3) % 3;
+            rc[r][lane] = val as i8 - 1;
+            lane += 1;
+        }
+        r += 1;
+    }
+    rc
+};
+
+// ---------------------------------------------------------------------------
 // Permutation
 // ---------------------------------------------------------------------------
 
-/// Core sponge permutation: 27 rounds of substitution + diffusion + constants.
-///
-/// Uses a single auxiliary buffer (stack-allocated, 729 bytes).
-/// The sbox layer reads `state` → writes `buf`.
-/// The diffusion layer reads `buf` → writes `state`.
-/// Round constants are injected into `state` in-place.
-/// Zero full-state copies. Zero heap allocation.
 fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
 
     for round in 0..SPONGE_ROUNDS {
-        // ── Substitution layer ──────────────────────────────────────
-        // Each trit: sbox(self, left_neighbor, right_neighbor)
-        // Reads from `state`, writes to `buf`.
+        // ── Substitution: circulant convolution [1,1,1] + uniform +1 ──
+        // sbox(a, b, c) = a + rotate(b) + c = a + (b+1) + c = a + b + c + 1
+        {
+            let s0 = state[0];
+            let sl = state[SPONGE_STATE_SIZE - 1];
+            let s1 = state[1];
+            buf[0] = trit_add(trit_add(trit_add(s0, sl), s1), 1);
+        }
 
-        // First element: left neighbor wraps to end
-        buf[0] = sbox(state[0], state[SPONGE_STATE_SIZE - 1], state[1]);
-
-        // Interior: no wrapping, no bounds overhead
         for i in 1..(SPONGE_STATE_SIZE - 1) {
-            buf[i] = sbox(state[i], state[i - 1], state[i + 1]);
+            let sum = trit_add(trit_add(state[i], state[i - 1]), state[i + 1]);
+            buf[i] = trit_add(sum, 1);
         }
 
-        // Last element: right neighbor wraps to start
-        buf[SPONGE_STATE_SIZE - 1] = sbox(
-            state[SPONGE_STATE_SIZE - 1],
-            state[SPONGE_STATE_SIZE - 2],
-            state[0],
-        );
+        {
+            let last = SPONGE_STATE_SIZE - 1;
+            let sum = trit_add(trit_add(state[last], state[last - 1]), state[0]);
+            buf[last] = trit_add(sum, 1);
+        }
 
-        // ── Diffusion layer ─────────────────────────────────────────
-        // Fixed permutation π(i) = (376·i + 1) mod 729.
-        // gcd(376, 729) = 1, so π is a full-period permutation.
-        // Reads from `buf`, writes to `state`.
-        //
-        // The `% 729` on a compile-time constant is optimized by LLVM
-        // into a multiply-shift — no runtime integer division.
+        // ── Diffusion: precomputed multiplicative torsion permutation ──
         for i in 0..SPONGE_STATE_SIZE {
-            let dest = (i * 376 + 1) % SPONGE_STATE_SIZE;
-            state[dest] = buf[i];
+            state[PERM[i] as usize] = buf[i];
         }
 
-        // ── Round constant injection ────────────────────────────────
-        // 27 constants per round at lane positions (every 27th trit).
-        // rc(round, lane) = ((7·round + 13·lane + 3) mod 3) - 1
+        // ── Round constants: precomputed Tribonacci-style injection ──
+        let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
-            let rc = balanced_mod3(round * 7 + lane * 13 + 3);
-            state[idx] = trit_add(state[idx], rc);
+            state[idx] = trit_add(state[idx], rc[lane]);
         }
     }
 }
