@@ -138,7 +138,7 @@ async fn crs_register(
         for (i, &t) in trits.iter().take(13).enumerate() {
             arr[i] = t;
         }
-        CubeAddr::try_from_bytes(arr).ok()
+        CubeAddr::try_from_bytes(&arr)
     } else {
         None
     };
@@ -186,7 +186,7 @@ async fn crs_heartbeat(
     for (i, &t) in req.address.iter().take(13).enumerate() {
         arr[i] = t;
     }
-    let addr = CubeAddr::try_from_bytes(arr).map_err(|_| {
+    let addr = CubeAddr::try_from_bytes(&arr).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "Invalid Rep C address (zero detected)"})),
@@ -224,7 +224,7 @@ async fn glb_forward(
     for (i, &t) in req.destination.iter().take(13).enumerate() {
         arr[i] = t;
     }
-    let dest = CubeAddr::try_from_bytes(arr).map_err(|_| {
+    let dest = CubeAddr::try_from_bytes(&arr).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "Invalid Rep C address (zero detected)"})),
@@ -329,13 +329,13 @@ async fn address_validate(Json(req): Json<ValidateRequest>) -> Json<ValidateResp
         arr[i] = t;
     }
 
-    match CubeAddr::try_from_bytes(arr) {
-        Ok(_) => Json(ValidateResponse {
+    match CubeAddr::try_from_bytes(&arr) {
+        Some(_) => Json(ValidateResponse {
             valid: true,
             reason: None,
             address: req.address,
         }),
-        Err(_) => Json(ValidateResponse {
+        None => Json(ValidateResponse {
             valid: false,
             reason: Some("Zero detected in Rep C address -- proof of forgery".to_string()),
             address: req.address,
