@@ -296,13 +296,13 @@ function HeroSection() {
           </a>
         </motion.div>
 
-        <div className="space-y-10">
-          <div className="max-w-3xl mx-auto text-center">
+        <div className="space-y-8">
+          <div className="text-center">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mb-6"
+              className="mb-5"
               data-testid="text-hero-description"
             >
               <p className="text-lg text-muted-foreground text-center">
@@ -314,7 +314,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
-              className="mb-6"
+              className="mb-5"
             >
               {showSuccess ? (
                 <motion.div
@@ -334,7 +334,7 @@ function HeroSection() {
                   </Card>
                 </motion.div>
               ) : (
-                <div className="max-w-lg mx-auto">
+                <div className="max-w-xl mx-auto">
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -375,7 +375,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-wrap justify-center gap-3 mb-6"
+              className="flex flex-wrap justify-center gap-3 mb-5"
             >
               <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
                 <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
@@ -397,7 +397,7 @@ function HeroSection() {
               </Button>
             </motion.div>
             
-            <div className="flex flex-wrap justify-center gap-6 md:gap-10">
+            <div className="flex justify-between px-4 sm:px-8 md:px-16">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
               <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
