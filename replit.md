@@ -43,10 +43,10 @@ Five modules provide classical simulation of quantum ternary (qutrit/qudit) oper
 This system orchestrates 28 specialist AI agents for parallel query analysis, featuring an Etymology Audit, Veritas Fact-Check, unified Situation Report generation, and Lexical Protocol enforcement.
 
 ### RFC 3161 Time-Stamping Authority (Kong #21)
-A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161. Features 4 TSA policies (COMPLY, FORENSICS, SENTINEL, SECURE) mapped from SecurityTier via `defaultTsaPolicy()` (Fortified→SENTINEL, Verified→COMPLY, Basic→null). Includes a Merkle tamper-evident audit log, dual-signature (RSA-4096 + post-quantum TL-DSA), HPTP timing integration, and ASN.1 wire protocol. It supports 9 endpoints for timestamping, verification, and auditing.
+A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161. Features 4 TSA policies (COMPLY, FORENSICS, SENTINEL, SECURE) mapped from SecurityTier via `defaultTsaPolicy()` (Fortified→SENTINEL, Verified→COMPLY, Basic→null). Includes a Merkle tamper-evident audit log with cached root (invalidate-on-write, O(1) reads), dual-signature (RSA-4096 + post-quantum TL-DSA), HPTP timing integration, and ASN.1 wire protocol. It supports 9 endpoints for timestamping, verification, and auditing. Ternary Notary Stamp benchmark: TSA ~75ms, Hedera HCS ~1,800ms, verification ~105ms (TSA offline ~55ms + Hedera cached ~50ms).
 
 ### Hedera HCS Witnessing (Kong #22)
-Blockchain-based non-repudiation via Hedera Consensus Service. Submits cryptographic witness hashes to an HCS topic for immutable, ordered, timestamped proof of PlenumNET operations. Includes 6 endpoints for submission, status lookup, and verification.
+Blockchain-based non-repudiation via Hedera Consensus Service. Submits cryptographic witness hashes to an HCS topic for immutable, ordered, timestamped proof of PlenumNET operations. Includes 6 endpoints for submission, status lookup, and verification. Mirror node proof verification includes a 5-minute TTL in-memory cache (5,000 entries max, FIFO eviction) for hot-path lookups.
 
 ### SFK Operations Pipeline (Kong #23)
 Manages Salvi Framework Kernel operation lifecycle: initialization → ternary_processing → witnessing → finalization. Fortified-tier operations submit SHA-256 result hashes to Hedera HCS. It provides 5 endpoints for operation submission, status, listing, cancellation, and stats.

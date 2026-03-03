@@ -266,6 +266,7 @@ function bigintToAsn1Integer(value: bigint): asn1js.Integer {
 class MerkleAuditLog {
   private leaves: string[] = [];
   private persistPath: string;
+  private cachedRoot: string | null = null;
 
   constructor(keysDirectory: string) {
     this.persistPath = path.join(keysDirectory, 'merkle-leaves.jsonl');
@@ -279,6 +280,7 @@ class MerkleAuditLog {
         try { return JSON.parse(line).hash; }
         catch { return ''; }
       }).filter(Boolean);
+      this.cachedRoot = null;
       console.log(`Merkle audit log restored: ${this.leaves.length} leaves from ${this.persistPath}`);
     }
   }
@@ -287,14 +289,17 @@ class MerkleAuditLog {
     const leafData = `${serialNumber}|${hashedMessage}|${genTime}`;
     const leafHash = crypto.createHash('sha3-256').update(leafData).digest('hex');
     this.leaves.push(leafHash);
+    this.cachedRoot = null;
     fs.appendFileSync(this.persistPath,
       JSON.stringify({ serial: serialNumber, hash: leafHash, ts: genTime }) + '\n');
     return leafHash;
   }
 
   getRoot(): string {
+    if (this.cachedRoot !== null) return this.cachedRoot;
     if (this.leaves.length === 0) {
-      return crypto.createHash('sha3-256').update('empty-tree').digest('hex');
+      this.cachedRoot = crypto.createHash('sha3-256').update('empty-tree').digest('hex');
+      return this.cachedRoot;
     }
     let level = [...this.leaves];
     while (level.length > 1) {
@@ -306,7 +311,8 @@ class MerkleAuditLog {
       }
       level = next;
     }
-    return level[0];
+    this.cachedRoot = level[0];
+    return this.cachedRoot;
   }
 
   getDepth(): number {
