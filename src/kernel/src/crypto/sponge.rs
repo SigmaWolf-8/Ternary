@@ -109,6 +109,10 @@ const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
 // The integer sum a+b+c+1 lies in [-2, 4].  Balanced mod-3 wrapping is a
 // single conditional: subtract 3 if ≥ 2, add 3 if ≤ -2.  No division,
 // no tables — purely first-principles modular arithmetic.
+//
+// On x86_64 with AVX2, the substitution processes 32 trits per cycle via
+// _mm256_add_epi8 + compare/blend — the same first-principles conditional
+// wrap, executed in parallel hardware lanes.
 // ---------------------------------------------------------------------------
 
 #[inline(always)]
@@ -116,7 +120,67 @@ fn balanced_wrap(s: i8) -> i8 {
     if s >= 2 { s - 3 } else if s <= -2 { s + 3 } else { s }
 }
 
-fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    use core::arch::x86_64::*;
+
+    let mut ext = [0i8; SPONGE_STATE_SIZE + 2];
+    let mut buf = [0i8; SPONGE_STATE_SIZE];
+    let last = SPONGE_STATE_SIZE - 1;
+
+    let v_one   = _mm256_set1_epi8(1);
+    let v_hi    = _mm256_set1_epi8(1);
+    let v_lo    = _mm256_set1_epi8(-1);
+    let v_three = _mm256_set1_epi8(3);
+
+    for round in 0..SPONGE_ROUNDS {
+        ext[0] = state[last];
+        ext[1..SPONGE_STATE_SIZE + 1].copy_from_slice(state);
+        ext[SPONGE_STATE_SIZE + 1] = state[0];
+
+        let mut i = 0;
+        while i + 32 <= SPONGE_STATE_SIZE {
+            let left   = _mm256_loadu_si256(ext.as_ptr().add(i)     as *const __m256i);
+            let center = _mm256_loadu_si256(ext.as_ptr().add(i + 1) as *const __m256i);
+            let right  = _mm256_loadu_si256(ext.as_ptr().add(i + 2) as *const __m256i);
+
+            let sum = _mm256_add_epi8(
+                _mm256_add_epi8(_mm256_add_epi8(left, center), right),
+                v_one,
+            );
+
+            let gt1    = _mm256_cmpgt_epi8(sum, v_hi);
+            let lt_neg = _mm256_cmpgt_epi8(v_lo, sum);
+            let sub3   = _mm256_sub_epi8(sum, v_three);
+            let add3   = _mm256_add_epi8(sum, v_three);
+
+            let result = _mm256_blendv_epi8(sum, sub3, gt1);
+            let result = _mm256_blendv_epi8(result, add3, lt_neg);
+
+            _mm256_storeu_si256(buf.as_mut_ptr().add(i) as *mut __m256i, result);
+            i += 32;
+        }
+
+        while i < SPONGE_STATE_SIZE {
+            let raw = ext[i] + ext[i + 1] + ext[i + 2] + 1;
+            buf[i] = balanced_wrap(raw);
+            i += 1;
+        }
+
+        for i in 0..SPONGE_STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+
+        let rc = &RC_TABLE[round];
+        for lane in 0..SPONGE_LANES {
+            let idx = lane * SPONGE_LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
+fn sponge_permutation_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
     let last = SPONGE_STATE_SIZE - 1;
 
@@ -139,6 +203,17 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
             state[idx] = balanced_wrap(state[idx] + rc[lane]);
         }
     }
+}
+
+fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    #[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { sponge_permutation_avx2(state); }
+            return;
+        }
+    }
+    sponge_permutation_scalar(state);
 }
 
 // ---------------------------------------------------------------------------
