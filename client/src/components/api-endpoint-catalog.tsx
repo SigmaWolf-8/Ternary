@@ -30,6 +30,14 @@ interface EndpointCategory {
   icon: React.ReactNode;
   color: string;
   endpoints: Endpoint[];
+  deprecated?: boolean;
+}
+
+interface DomainGroup {
+  id: string;
+  name: string;
+  description: string;
+  categoryIds: string[];
 }
 
 const METHOD_COLORS: Record<HttpMethod, string> = {
@@ -477,6 +485,7 @@ const CATEGORIES: EndpointCategory[] = [
     description: "Versioned entrainment advisory and coherence logging",
     icon: <TrendingUp className="w-4 h-4" />,
     color: "text-fuchsia-600",
+    deprecated: true,
     endpoints: [
       { method: "GET", path: "/api/v1/status", desc: "V1 API status", tryIt: true },
       { method: "GET", path: "/api/v1/ternary/state", desc: "Ternary system state", tryIt: true },
@@ -527,6 +536,53 @@ const CATEGORIES: EndpointCategory[] = [
     ],
   },
 ];
+
+const DOMAIN_GROUPS: DomainGroup[] = [
+  {
+    id: "compute",
+    name: "Core Ternary Computing",
+    description: "Foundational compute primitives: GF(3) arithmetic, ternary VM, and compression engine",
+    categoryIds: ["ternary", "vm", "compression"],
+  },
+  {
+    id: "timing",
+    name: "Timing & Calendars",
+    description: "Femtosecond-precision HPTP timestamps and 42-calendar epoch synchronization",
+    categoryIds: ["timing", "calendar"],
+  },
+  {
+    id: "trust",
+    name: "Cryptography & Trust",
+    description: "Proof-of-existence pipeline: phase encryption, notary timestamping, blockchain witnessing",
+    categoryIds: ["phase", "tsa", "hedera"],
+  },
+  {
+    id: "security",
+    name: "Security & Access Control",
+    description: "Capability tokens, security audit infrastructure, HPTP anomaly detection, and API key management",
+    categoryIds: ["capabilities", "security", "api-keys"],
+  },
+  {
+    id: "network",
+    name: "Network & Infrastructure",
+    description: "Geometric routing, operations pipeline, and API gateway management",
+    categoryIds: ["inter-cube", "sfk", "kong"],
+  },
+  {
+    id: "signals",
+    name: "Signals & Applied Physics",
+    description: "Tonal diffusion, resonance detection, ternary ephemeris, agent array, and entrainment",
+    categoryIds: ["tonal", "ephemeris", "tribonacci", "v1"],
+  },
+  {
+    id: "platform",
+    name: "Platform Operations",
+    description: "Developer tooling, documentation, compliance, and system health",
+    categoryIds: ["github", "whitepapers", "gdpr", "system", "admin"],
+  },
+];
+
+const CATEGORY_MAP = new Map(CATEGORIES.map(c => [c.id, c]));
 
 function TryItPanel({ endpoint }: { endpoint: Endpoint }) {
   const [result, setResult] = useState<any>(null);
@@ -650,7 +706,7 @@ function CategoryCard({ category, defaultOpen }: { category: EndpointCategory; d
   const publicCount = getCount - adminCount;
 
   return (
-    <Card data-testid={`category-${category.id}`}>
+    <Card data-testid={`category-${category.id}`} className={category.deprecated ? "opacity-75" : ""}>
       <CardHeader
         className="pb-2 cursor-pointer select-none"
         onClick={() => setIsOpen(!isOpen)}
@@ -660,6 +716,11 @@ function CategoryCard({ category, defaultOpen }: { category: EndpointCategory; d
           <CardTitle className={`text-base flex items-center gap-2 ${category.color}`}>
             {category.icon}
             {category.name}
+            {category.deprecated && (
+              <Badge variant="outline" className="text-[10px] h-4 px-1 border-orange-300 text-orange-500 font-normal">
+                legacy
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
@@ -683,14 +744,53 @@ function CategoryCard({ category, defaultOpen }: { category: EndpointCategory; d
   );
 }
 
+function DomainGroupSection({ group, categories, activeFilter, search }: {
+  group: DomainGroup;
+  categories: EndpointCategory[];
+  activeFilter: string | null;
+  search: string;
+}) {
+  const totalInGroup = categories.reduce((s, c) => s + c.endpoints.length, 0);
+  if (categories.length === 0) return null;
+
+  return (
+    <div className="space-y-3" data-testid={`domain-${group.id}`}>
+      <div className="flex items-center gap-3 pt-2">
+        <h3 className="text-lg font-semibold tracking-tight" data-testid={`domain-title-${group.id}`}>
+          {group.name}
+        </h3>
+        <Badge variant="outline" className="text-xs font-mono">
+          {totalInGroup}
+        </Badge>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+      <p className="text-xs text-muted-foreground -mt-1 mb-2">{group.description}</p>
+      <div className="space-y-3">
+        {categories.map(cat => (
+          <CategoryCard
+            key={cat.id}
+            category={cat}
+            defaultOpen={activeFilter === cat.id || categories.length === 1}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function APIEndpointCatalog() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [activeDomain, setActiveDomain] = useState<string | null>(null);
 
   const totalEndpoints = CATEGORIES.reduce((sum, cat) => sum + cat.endpoints.length, 0);
 
-  const filteredCategories = CATEGORIES.map(cat => {
+  const filterCategory = (cat: EndpointCategory): EndpointCategory | null => {
     if (activeFilter && cat.id !== activeFilter) return null;
+    if (activeDomain) {
+      const group = DOMAIN_GROUPS.find(g => g.id === activeDomain);
+      if (group && !group.categoryIds.includes(cat.id)) return null;
+    }
     if (!search) return cat;
     const lower = search.toLowerCase();
     const filteredEndpoints = cat.endpoints.filter(
@@ -698,9 +798,34 @@ export default function APIEndpointCatalog() {
     );
     if (filteredEndpoints.length === 0 && !cat.name.toLowerCase().includes(lower)) return null;
     return { ...cat, endpoints: filteredEndpoints.length > 0 ? filteredEndpoints : cat.endpoints };
-  }).filter(Boolean) as EndpointCategory[];
+  };
 
-  const filteredCount = filteredCategories.reduce((sum, cat) => sum + cat.endpoints.length, 0);
+  const filteredCategoryMap = new Map<string, EndpointCategory>();
+  CATEGORIES.forEach(cat => {
+    const filtered = filterCategory(cat);
+    if (filtered) filteredCategoryMap.set(cat.id, filtered);
+  });
+
+  const filteredCount = Array.from(filteredCategoryMap.values()).reduce((sum, cat) => sum + cat.endpoints.length, 0);
+  const hasResults = filteredCategoryMap.size > 0;
+
+  const handleDomainClick = (domainId: string) => {
+    if (activeDomain === domainId) {
+      setActiveDomain(null);
+    } else {
+      setActiveDomain(domainId);
+      setActiveFilter(null);
+    }
+  };
+
+  const handleServiceClick = (catId: string) => {
+    if (activeFilter === catId) {
+      setActiveFilter(null);
+    } else {
+      setActiveFilter(catId);
+      setActiveDomain(null);
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="api-endpoint-catalog">
@@ -709,9 +834,9 @@ export default function APIEndpointCatalog() {
           <h2 className="text-2xl font-bold" data-testid="text-catalog-title">
             Complete API Reference
           </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            {totalEndpoints} endpoints across {CATEGORIES.length} services.
-            {search || activeFilter ? ` Showing ${filteredCount} endpoints.` : ""}
+          <p className="text-muted-foreground text-sm mt-1" data-testid="text-catalog-subtitle">
+            {totalEndpoints} endpoints across {CATEGORIES.length} services in {DOMAIN_GROUPS.length} domains.
+            {search || activeFilter || activeDomain ? ` Showing ${filteredCount} endpoints.` : ""}
             {" "}Hover any endpoint to copy its path or try GET endpoints live.
           </p>
         </div>
@@ -727,39 +852,87 @@ export default function APIEndpointCatalog() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant={activeFilter === null ? "default" : "outline"}
-          onClick={() => setActiveFilter(null)}
-          className="h-7 text-xs"
-          data-testid="filter-all"
-        >
-          All ({totalEndpoints})
-        </Button>
-        {CATEGORIES.map(cat => (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
           <Button
-            key={cat.id}
             size="sm"
-            variant={activeFilter === cat.id ? "default" : "outline"}
-            onClick={() => setActiveFilter(activeFilter === cat.id ? null : cat.id)}
+            variant={!activeFilter && !activeDomain ? "default" : "outline"}
+            onClick={() => { setActiveFilter(null); setActiveDomain(null); }}
             className="h-7 text-xs"
-            data-testid={`filter-${cat.id}`}
+            data-testid="filter-all"
           >
-            {cat.name} ({cat.endpoints.length})
+            All ({totalEndpoints})
           </Button>
-        ))}
+          {DOMAIN_GROUPS.map(group => {
+            const groupCount = group.categoryIds.reduce((s, id) => {
+              const cat = CATEGORY_MAP.get(id);
+              return s + (cat ? cat.endpoints.length : 0);
+            }, 0);
+            return (
+              <Button
+                key={group.id}
+                size="sm"
+                variant={activeDomain === group.id ? "default" : "outline"}
+                onClick={() => handleDomainClick(group.id)}
+                className="h-7 text-xs"
+                data-testid={`filter-domain-${group.id}`}
+              >
+                {group.name} ({groupCount})
+              </Button>
+            );
+          })}
+        </div>
+        {(activeDomain || activeFilter) && (
+          <div className="flex flex-wrap gap-1.5 pl-1">
+            {(activeDomain ? DOMAIN_GROUPS.find(g => g.id === activeDomain)?.categoryIds || [] : CATEGORIES.map(c => c.id)).map(catId => {
+              const cat = CATEGORY_MAP.get(catId);
+              if (!cat) return null;
+              return (
+                <Button
+                  key={cat.id}
+                  size="sm"
+                  variant={activeFilter === cat.id ? "secondary" : "ghost"}
+                  onClick={() => handleServiceClick(cat.id)}
+                  className="h-6 text-[11px] px-2"
+                  data-testid={`filter-${cat.id}`}
+                >
+                  {cat.name} ({cat.endpoints.length})
+                </Button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <div className="space-y-4">
-        {filteredCategories.map(cat => (
-          <CategoryCard
-            key={cat.id}
-            category={cat}
-            defaultOpen={activeFilter === cat.id || filteredCategories.length <= 3}
-          />
-        ))}
-        {filteredCategories.length === 0 && (
+      <div className="space-y-8">
+        {activeFilter ? (
+          <div className="space-y-3">
+            {Array.from(filteredCategoryMap.values()).map(cat => (
+              <CategoryCard
+                key={cat.id}
+                category={cat}
+                defaultOpen={true}
+              />
+            ))}
+          </div>
+        ) : (
+          DOMAIN_GROUPS.map(group => {
+            const groupCategories = group.categoryIds
+              .map(id => filteredCategoryMap.get(id))
+              .filter(Boolean) as EndpointCategory[];
+            if (groupCategories.length === 0) return null;
+            return (
+              <DomainGroupSection
+                key={group.id}
+                group={group}
+                categories={groupCategories}
+                activeFilter={activeFilter}
+                search={search}
+              />
+            );
+          })
+        )}
+        {!hasResults && (
           <div className="text-center py-12 text-muted-foreground" data-testid="text-no-results">
             No endpoints match your search.
           </div>
