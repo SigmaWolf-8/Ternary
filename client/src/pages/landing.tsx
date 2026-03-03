@@ -212,40 +212,8 @@ function HeroSection() {
   return (
     <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="relative z-10 max-w-7xl mx-auto px-5">
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <Badge 
-            variant="outline" 
-            className="border-green-500/30 bg-green-500/10 text-green-700 px-4 py-1.5"
-            data-testid="badge-status"
-          >
-            <Check className="w-3 h-3 mr-1" />
-            Production Ready
-          </Badge>
-          <Badge 
-            variant="outline" 
-            className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
-          >
-            1,753 Tests Passing
-          </Badge>
-          <Badge 
-            variant="outline" 
-            className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
-          >
-            Post-Quantum Secure
-          </Badge>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6" data-testid="visitor-path-anchors">
-          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
-            I want to build on it
-          </a>
-          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
-            I want to understand how it works
-          </a>
-          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
-            I want to evaluate the business case
-          </a>
-        </div>
+
 
         <h1 
           className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
@@ -308,6 +276,24 @@ function HeroSection() {
             </video>
             <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex flex-wrap items-center justify-center gap-3 mb-8"
+          data-testid="visitor-path-anchors"
+        >
+          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
+            I want to build on it
+          </a>
+          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
+            I want to understand how it works
+          </a>
+          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
+            I want to evaluate the business case
+          </a>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">

@@ -51,6 +51,8 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 
@@ -577,6 +579,26 @@ export function MarketingTopNav() {
               <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
               <span className="text-base">PlenumNET</span>
             </Link>
+
+            {!isMobile && (
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-2 py-0.5 text-[10px]"
+                  data-testid="badge-status"
+                >
+                  <Check className="w-2.5 h-2.5 mr-0.5" />
+                  Production Ready
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-primary/30 bg-primary/10 text-primary px-2 py-0.5 text-[10px]"
+                  data-testid="badge-pq"
+                >
+                  Post-Quantum Secure
+                </Badge>
+              </div>
+            )}
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
