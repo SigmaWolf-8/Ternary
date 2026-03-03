@@ -81,20 +81,25 @@ function AnimatedStat({ value, label, suffix, delay }: { value: string; label: s
 
 function HeroVisual() {
   const layers = [
-    { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
-    { label: "Protocols", items: ["HPTP — Precision Clock Sync", "T3P — App Protocol", "TTP — Ternary Transport", "TDNS — Name Resolution"], delay: 0.6 },
-    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — Garbage Collector", "GF(3) Arithmetic"], delay: 0.7 },
-    { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
-    { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
+    { label: "Services", items: ["Document Notary", "PlenumDB", "Payment", "API Gateway"], delay: 0.5 },
+    { label: "Security", items: ["Capability-Based Access", "Phase Encryption", "RFC 3161 TSA", "Hedera Witnessing"], delay: 0.55 },
+    { label: "Protocols", items: ["HPTP — Clock Sync", "T3P — App Protocol", "TTP — Transport", "TDNS — Resolution"], delay: 0.6 },
+    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — Garbage Collector", "GF(3) Arithmetic"], delay: 0.65 },
+    { label: "Cryptography", items: ["TL-DSA-87", "TL-KEM", "CNSA 2.0", "Ternary Compression"], delay: 0.7 },
+    { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.75 },
+    { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "XPlenum CSRs"], delay: 0.8 },
   ];
+
+  const borderOpacity = [15, 20, 25, 30, 35, 40, 45];
+  const bgOpacity = [5, 6, 7, 8, 9, 10, 11];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.5 }}
-      className="mt-12 max-w-2xl"
-      aria-label="PlenumNET 5-layer architecture diagram"
+      className="mt-12 w-full max-w-4xl"
+      aria-label="PlenumNET 7-layer architecture diagram"
       role="img"
       data-testid="hero-architecture-visual"
     >
@@ -107,10 +112,13 @@ function HeroVisual() {
             transition={{ duration: 0.4, delay: layer.delay }}
             className="flex items-center gap-3"
           >
-            <span className="text-xs font-medium text-muted-foreground w-20 text-right flex-shrink-0">{layer.label}</span>
-            <div className={`flex-1 flex gap-1.5 p-2 rounded-md border border-primary/${15 + i * 8} bg-primary/${5 + i * 3}`}>
+            <span className="text-xs font-medium text-muted-foreground w-24 text-right flex-shrink-0">{layer.label}</span>
+            <div
+              className="flex-1 flex gap-1.5 p-2 rounded-md border bg-primary/5"
+              style={{ borderColor: `hsl(var(--primary) / ${borderOpacity[i]}%)`, backgroundColor: `hsl(var(--primary) / ${bgOpacity[i]}%)` }}
+            >
               {layer.items.map((item) => (
-                <span key={item} className="text-xs text-foreground/80 bg-background/60 rounded px-2 py-0.5 flex-1 text-center">{item}</span>
+                <span key={item} className="text-xs text-foreground/80 bg-background/60 rounded px-2 py-1 flex-1 text-center">{item}</span>
               ))}
             </div>
           </motion.div>
