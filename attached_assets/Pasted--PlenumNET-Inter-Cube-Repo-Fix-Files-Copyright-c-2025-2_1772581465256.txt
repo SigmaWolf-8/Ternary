@@ -1,0 +1,46 @@
+# PlenumNET Inter-Cube — Repo Fix Files
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Applied Physics Division
+#
+# Place each file at the indicated path in the Ternary repo:
+#
+# FILE IN THIS BUNDLE          → REPO PATH
+# ─────────────────────────────────────────────────────────────
+# workspace-Cargo.toml         → Cargo.toml  (repo root)
+# Dockerfile                   → Dockerfile  (repo root)
+# docker-compose.yml           → docker-compose.yml  (repo root)
+# .dockerignore                → .dockerignore  (repo root)
+# inter-cube-Cargo.toml        → services/inter-cube/Cargo.toml
+# main.rs                      → services/inter-cube/src/main.rs
+#
+# WHAT WAS FIXED:
+#
+# 1. main.rs — CubeAddr::try_from_bytes() type errors (9 errors):
+#    - Changed try_from_bytes(arr) → try_from_bytes(&arr) [4 sites]
+#    - Changed .ok() → removed (already returns Option)  [line 141]
+#    - Changed .map_err(|_| ...) → .ok_or_else(|| ...)   [lines 189, 227]
+#    - Changed Ok(_)/Err(_) → Some(_)/None               [lines 333, 338]
+#
+# 2. main.rs — Added axum HTTP server loop (was missing, CRS exited):
+#    - 11 REST endpoints on port 8080
+#    - Health check, stats, topology, register, lookup, heartbeat,
+#      forward, validate, neighbors, deregister
+#
+# 3. inter-cube-Cargo.toml — Added axum = "0.7" dependency
+#    - Pinned blake3 = "=1.5.4" for deterministic builds
+#
+# 4. workspace-Cargo.toml — Added services/inter-cube to workspace members
+#
+# 5. docker-compose.yml — Removed cube port mappings (51821-51823)
+#    - Windows Hyper-V/WinNAT blocks these ports randomly
+#    - Cubes communicate with CRS over internal Docker network
+#    - Only CRS exposes port 8080 externally
+#
+# 6. Dockerfile — Two-stage build (builder + runtime ~80MB)
+#    - Compiles in release mode, runs 57 tests, strips to slim image
+#
+# VERIFIED STATE:
+#   - 57/57 tests pass
+#   - 4/4 Docker images build successfully
+#   - CRS starts, prints banner, binds port 8080, passes healthcheck
+#   - "Ready for cube registrations" confirmed

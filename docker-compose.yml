@@ -1,40 +1,4 @@
-# ═══════════════════════════════════════════════════════════════════
-# PlenumNET — Local 3-Cube Mesh Test
-# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-# Applied Physics Division
-#
-# WHAT THIS FILE DOES:
-#   Runs 4 containers on your machine:
-#     1 CRS  = The registration desk (central coordinator)
-#     3 Cubes = Three cubes that register, connect, and route
-#
-# HOW TO USE:
-#   docker compose up --build
-#
-#   This will:
-#     1. Build the container image (compiles the Rust code)
-#     2. Start the CRS (registration desk)
-#     3. Start 3 cubes, each registering with the CRS
-#     4. Each cube discovers its neighbors and opens tunnels
-#     5. FTS begins monitoring health via heartbeats
-#     6. GLB is ready to route packets between cubes
-#
-# HOW TO STOP:
-#   docker compose down
-#
-# HOW TO WATCH LOGS:
-#   docker compose logs -f          (all containers)
-#   docker compose logs -f cube-1   (just cube-1)
-#
-# HOW TO TEST:
-#   See the curl commands in the README below.
-# ═══════════════════════════════════════════════════════════════════
-
 services:
-
-  # ── The Registration Desk ──────────────────────────────────────
-  # This is the CRS — the first thing that starts.
-  # Every cube contacts this to get an address and find neighbors.
   crs:
     build: .
     environment:
@@ -42,8 +6,6 @@ services:
       CUBE_LOG_LEVEL: info
       RUST_LOG: info
     ports:
-      # Expose on port 8080 so you can query it from your browser:
-      #   http://localhost:8080/api/salvi/inter-cube/crs/stats
       - "8080:8080"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
@@ -51,13 +13,6 @@ services:
       timeout: 3s
       retries: 3
 
-  # ── Cube 1 ─────────────────────────────────────────────────────
-  # A normal cube. On startup it:
-  #   1. Contacts the CRS to register and get an address
-  #   2. Discovers which of its 26 neighbors are online
-  #   3. Opens encrypted tunnels to online neighbors
-  #   4. Starts monitoring neighbor health (FTS heartbeats)
-  #   5. GLB is ready to forward packets
   cube-1:
     build: .
     environment:
@@ -66,13 +21,10 @@ services:
       CUBE_ENDPOINT: cube-1:51820
       CUBE_LOG_LEVEL: info
       RUST_LOG: info
-    ports:
-      - "51821:51820"
     depends_on:
       crs:
         condition: service_healthy
 
-  # ── Cube 2 ─────────────────────────────────────────────────────
   cube-2:
     build: .
     environment:
@@ -81,13 +33,10 @@ services:
       CUBE_ENDPOINT: cube-2:51820
       CUBE_LOG_LEVEL: info
       RUST_LOG: info
-    ports:
-      - "51822:51820"
     depends_on:
       crs:
         condition: service_healthy
 
-  # ── Cube 3 ─────────────────────────────────────────────────────
   cube-3:
     build: .
     environment:
@@ -96,8 +45,6 @@ services:
       CUBE_ENDPOINT: cube-3:51820
       CUBE_LOG_LEVEL: info
       RUST_LOG: info
-    ports:
-      - "51823:51820"
     depends_on:
       crs:
         condition: service_healthy
