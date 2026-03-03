@@ -49,6 +49,11 @@ name = "salvi-bench"
 path = "benchmarks/salvi_benchmarks.rs"
 
 [[bin]]
+name = "timing-breakdown"
+path = "benchmarks/timing_breakdown.rs"
+required-features = ["bench-tools"]
+
+[[bin]]
 name = "qutrit-ft-bench"
 path = "benchmarks/qutrit_ft_benchmark.rs"
 required-features = ["bench-tools"]

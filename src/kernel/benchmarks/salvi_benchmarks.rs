@@ -385,6 +385,27 @@ fn main() {
         println!();
     }
 
+    println!("  2.6 — TL-DSA timing breakdown (single-shot, per phase)");
+    println!("  ────────────────────────────────────────────────────────────────");
+
+    for &(variant, label) in &[
+        (TlDsaVariant::TlDsa44, "TL-DSA-44"),
+        (TlDsaVariant::TlDsa87, "TL-DSA-87"),
+    ] {
+        println!();
+        println!("  {} breakdown:", label);
+        let timings = tl_dsa::sign_verify_timing_breakdown(variant, &seed, &msg).unwrap();
+        let total: std::time::Duration = timings.iter().map(|(_, d)| *d).sum();
+        let total_us = total.as_micros() as f64;
+        for (name, dur) in &timings {
+            let us = dur.as_micros() as f64;
+            let pct = if total_us > 0.0 { us / total_us * 100.0 } else { 0.0 };
+            println!("    {:.<30} {:>10.0} µs  ({:>5.1}%)", name, us, pct);
+        }
+        println!("    {:.<30} {:>10.0} µs  (100.0%)", "TOTAL", total_us);
+    }
+    println!();
+
     // ═══════════════════════════════════════════════════════════════════
     // GROUP 3: INFORMATION DENSITY
     // ═══════════════════════════════════════════════════════════════════

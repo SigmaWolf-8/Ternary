@@ -459,6 +459,143 @@ impl TernaryPolyVec {
     }
 }
 
+#[cfg(feature = "bench-tools")]
+pub fn sign_verify_timing_breakdown(
+    variant: TlDsaVariant,
+    seed: &[i8],
+    message: &[i8],
+) -> CryptoResult<Vec<(&'static str, core::time::Duration)>> {
+    use std::time::Instant;
+
+    let params = variant.params();
+    let n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    let mut timings: Vec<(&'static str, core::time::Duration)> = Vec::new();
+
+    let t0 = Instant::now();
+    let rho = dsa_hash(DOMAIN_MATRIX_EXPAND, &[seed, &[0i8]], 243);
+    let sigma = dsa_hash(DOMAIN_SECRET_SAMPLE, &[seed, &[1i8]], 243);
+    let signing_seed = dsa_hash(DOMAIN_SIGNING_SEED, &[seed, &[0i8, 1, -1]], 243);
+    timings.push(("seed_derivation", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let matrix_a = expand_matrix_a(&rho, k, l, n);
+    timings.push(("expand_A (keygen)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
+    let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
+    timings.push(("sample_s1_s2", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let public_t = matrix_a.mul_vec(&secret_s1)?;
+    timings.push(("A·s₁ (keygen)", t0.elapsed()));
+
+    let pk = TlDsaPublicKey {
+        variant,
+        matrix_a_seed: rho.clone(),
+        public_t: public_t.clone(),
+    };
+    let sk = TlDsaSecretKey {
+        variant,
+        matrix_a_seed: rho,
+        secret_s1,
+        secret_s2,
+        public_t,
+        signing_seed,
+    };
+
+    let t0 = Instant::now();
+    let matrix_a_sign = expand_matrix_a(&sk.matrix_a_seed, k, l, n);
+    timings.push(("expand_A (sign)", t0.elapsed()));
+
+    let pk_trits = poly_vec_to_trits(&sk.public_t);
+    let t0 = Instant::now();
+    let mu = dsa_hash(DOMAIN_MESSAGE_HASH, &[&pk_trits, message], 243);
+    timings.push(("message_hash", t0.elapsed()));
+
+    let attempt_trits = super::ternary_lattice::u16_to_trits(0u16);
+    let t0 = Instant::now();
+    let y_seed = dsa_hash(
+        DOMAIN_MASKING,
+        &[&sk.signing_seed, &mu, &attempt_trits],
+        243,
+    );
+    let y = sample_masking_vec(&y_seed, l, n, 0);
+    timings.push(("y_sampling", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let w = matrix_a_sign.mul_vec(&y)?;
+    timings.push(("A·y (commitment)", t0.elapsed()));
+
+    let w_trits = poly_vec_to_trits(&w);
+    let t0 = Instant::now();
+    let challenge_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu, &w_trits], 243);
+    timings.push(("commitment_sponge", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let c = sample_challenge(&challenge_hash, n, params.tau);
+    timings.push(("c_sampling", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let mut z_polys = Vec::with_capacity(l);
+    for i in 0..l {
+        let cs1_i = c.ring_mul(&sk.secret_s1.polys[i])?;
+        let z_i = y.polys[i].add(&cs1_i)?;
+        z_polys.push(z_i);
+    }
+    let z = TernaryPolyVec { polys: z_polys, n };
+    timings.push(("z = y + c·s₁", t0.elapsed()));
+
+    let sig = TlDsaSignature {
+        variant: sk.variant,
+        z,
+        challenge_hash,
+    };
+
+    let t0 = Instant::now();
+    let matrix_a_ver = expand_matrix_a(&pk.matrix_a_seed, k, l, n);
+    timings.push(("expand_A (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let c_ver = sample_challenge(&sig.challenge_hash, n, params.tau);
+    timings.push(("c_sampling (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let az = matrix_a_ver.mul_vec(&sig.z)?;
+    timings.push(("A·z (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let mut ct_polys = Vec::with_capacity(k);
+    for i in 0..k {
+        let cti = c_ver.ring_mul(&pk.public_t.polys[i])?;
+        ct_polys.push(cti);
+    }
+    let ct = TernaryPolyVec { polys: ct_polys, n };
+    timings.push(("c·t (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let w_prime = az.add(&ct.negate()?)?;
+    timings.push(("A·z - c·t subtract", t0.elapsed()));
+
+    let t0 = Instant::now();
+    for poly in &sig.z.polys {
+        let _ = poly.l_infinity_norm();
+    }
+    timings.push(("norm_check", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let pk_trits_v = poly_vec_to_trits(&pk.public_t);
+    let mu_v = dsa_hash(DOMAIN_MESSAGE_HASH, &[&pk_trits_v, message], 243);
+    let w_trits_v = poly_vec_to_trits(&w_prime);
+    let _expected_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu_v, &w_trits_v], 243);
+    timings.push(("verify_hash_compare", t0.elapsed()));
+
+    Ok(timings)
+}
+
 pub fn public_key_size(variant: TlDsaVariant) -> usize {
     let params = variant.params();
     243 + params.k * params.n
