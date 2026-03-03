@@ -1,0 +1,138 @@
+name: 'PlenumNET Timestamp Stamp'
+description: 'Sign build artifacts with PlenumNET RFC 3161 TSA timestamps for cryptographic proof-of-existence'
+author: 'Capomastro Holdings Ltd.'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  files:
+    description: 'Glob pattern of files to sign (e.g., dist/*.tar.gz)'
+    required: true
+  api-endpoint:
+    description: 'PlenumNET TSA endpoint URL'
+    required: false
+    default: 'https://plenumnet.replit.app'
+  api-token:
+    description: 'API authentication token (use GitHub secrets)'
+    required: false
+  algorithm:
+    description: 'Hash algorithm (sha256, sha384, sha512, sha3-256)'
+    required: false
+    default: 'sha256'
+  policy:
+    description: 'TSA policy OID'
+    required: false
+  upload-artifacts:
+    description: 'Upload .tsp files as build artifacts'
+    required: false
+    default: 'true'
+  artifact-name:
+    description: 'Name for the uploaded artifact bundle'
+    required: false
+    default: 'plenum-timestamps'
+  attach-to-release:
+    description: 'Attach .tsp files to GitHub release (only on release events)'
+    required: false
+    default: 'false'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+
+outputs:
+  stamped-files:
+    description: 'JSON array of stamped file paths'
+    value: ${{ steps.stamp.outputs.stamped_files }}
+  stamp-count:
+    description: 'Number of files stamped'
+    value: ${{ steps.stamp.outputs.stamp_count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Stamp files
+      id: stamp
+      shell: bash
+      env:
+        PLENUM_ENDPOINT: ${{ inputs.api-endpoint }}
+        PLENUM_API_TOKEN: ${{ inputs.api-token }}
+        STAMP_FILES: ${{ inputs.files }}
+        STAMP_ALGORITHM: ${{ inputs.algorithm }}
+        STAMP_POLICY: ${{ inputs.policy }}
+      run: |
+        CLI_PATH="${{ github.action_path }}/../../../cli/plenum-stamp/index.mjs"
+
+        if [ ! -f "$CLI_PATH" ]; then
+          echo "::error::plenum-stamp CLI not found at $CLI_PATH"
+          exit 1
+        fi
+
+        STAMPED=()
+        COUNT=0
+
+        for FILE in $STAMP_FILES; do
+          if [ ! -f "$FILE" ]; then
+            echo "::warning::File not found: $FILE"
+            continue
+          fi
+
+          echo "::group::Stamping $FILE"
+
+          ARGS="sign $FILE --format json"
+          if [ -n "$STAMP_ALGORITHM" ]; then
+            ARGS="$ARGS --algorithm $STAMP_ALGORITHM"
+          fi
+          if [ -n "$STAMP_POLICY" ]; then
+            ARGS="$ARGS --policy $STAMP_POLICY"
+          fi
+
+          node "$CLI_PATH" $ARGS
+
+          if [ $? -eq 0 ]; then
+            STAMPED+=("${FILE}.tsp")
+            COUNT=$((COUNT + 1))
+            echo "Stamped: ${FILE}.tsp"
+          else
+            echo "::error::Failed to stamp $FILE"
+          fi
+
+          echo "::endgroup::"
+        done
+
+        STAMPED_JSON=$(printf '%s\n' "${STAMPED[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+        echo "stamped_files=$STAMPED_JSON" >> "$GITHUB_OUTPUT"
+        echo "stamp_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+        echo ""
+        echo "Stamped $COUNT file(s)"
+
+    - name: Upload timestamp artifacts
+      if: inputs.upload-artifacts == 'true' && steps.stamp.outputs.stamp_count != '0'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          **/*.tsp
+          **/*.tsp.json
+        if-no-files-found: warn
+
+    - name: Attach to release
+      if: inputs.attach-to-release == 'true' && github.event_name == 'release' && steps.stamp.outputs.stamp_count != '0'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG="${{ github.event.release.tag_name }}"
+        echo "Attaching timestamp tokens to release $TAG"
+
+        for TSP in $(find . -name "*.tsp" -not -name "*.tsp.json"); do
+          echo "Uploading $(basename $TSP)"
+          gh release upload "$TAG" "$TSP" --clobber || echo "::warning::Failed to upload $TSP"
+        done
