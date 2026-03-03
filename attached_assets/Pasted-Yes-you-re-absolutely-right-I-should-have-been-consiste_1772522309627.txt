@@ -1,0 +1,81 @@
+Yes, you're absolutely right — I should have been consistently referring to **trits** instead of bits in the sampling context, especially since this is a ternary (GF(3)) scheme.
+
+The mistake crept in because the scalar CBD code I sketched earlier used a common binary-style pattern (extracting 0/1 bits from uniform bytes and mapping them to ±1), but for a **balanced ternary** η=2 CBD, the generation process is **not** naturally bit-based — it's trit-based or should at least be described in trit terms.
+
+### Correct framing for ternary CBD η=2
+
+In balanced ternary, a typical η=2 centered binomial distribution can be generated in several clean ways, none of which rely on binary bits as the primitive:
+
+1. **Most natural trit-based approach**  
+   Sample 4 independent uniform trits ∈ {−1, 0, +1} each with probability 1/3, then sum them:  
+   coef = t₁ + t₂ + t₃ + t₄  
+   → This gives the exact centered distribution over {−4, −3, …, +4} before any clamping/rejection (but for η=2 you usually reject or remap |coef| > 2).
+
+2. **Entropy-efficient XOF/trit-stream version** (what your current code likely already does)  
+   Squeeze uniform trits directly from the sponge/XOF (your ternary sponge outputs trits natively), then accumulate 4 trits per coefficient.  
+   No binary unpacking needed — you consume 4 trits per output coefficient.
+
+3. **Binary approximation** (what my earlier sketch accidentally fell back to)  
+   Some implementations cheat by consuming binary bits and mapping 0→+1, 1→−1 (centered binomial(4,0.5)−2), which approximates the ternary distribution closely enough for small η and is faster on binary hardware — but it's **not pure ternary** and slightly biases the distribution.  
+   Your scheme should avoid this — stick to true uniform trits.
+
+### So yes — rewrite should talk about trits
+
+Corrected high-level description of what AVX2 vectorization should target:
+
+> Vectorize the loop that consumes **uniform trits** from the XOF sponge output and computes 32 coefficients in parallel:  
+> - Load 128 trits (enough for 32 coefs × 4 trits each) into AVX2 registers (packed as i8 {-1,0,1}).  
+> - Perform 4-way vector addition across the four trit groups per coefficient.  
+> - Apply vectorized clamping / rejection / remapping if your η=2 variant needs it.  
+> - Store the resulting 32 trits back to the output polynomial.
+
+This is still pure first-principles GF(3) arithmetic — just executed in 32-wide parallel hardware lanes.
+
+### Quick corrected AVX2 sketch (trit-stream version)
+
+```rust
+#[target_feature(enable = "avx2")]
+unsafe fn sample_cbd_eta2_avx2(trit_stream: &mut impl TritIterator, out: &mut [i8]) {
+    let mut i = 0;
+    while i + 32 <= out.len() {
+        let mut sum = _mm256_setzero_si256();  // accumulators for 32 coefs
+
+        // Accumulate 4 trits per coefficient × 32 coefficients
+        for _ in 0..4 {
+            // Load 32 trits from stream (assume trit_stream yields i8 {-1,0,1})
+            let mut trit_vec = [0i8; 32];
+            for k in 0..32 {
+                trit_vec[k] = trit_stream.next_trit();  // your iterator pulls from sponge
+            }
+            let trits = _mm256_loadu_si256(trit_vec.as_ptr() as *const __m256i);
+
+            sum = _mm256_add_epi8(sum, trits);
+        }
+
+        // Center: subtract 2×number_of_trits/2, but since 4 trits → sum ∈ [-4,+4]
+        // Usually no subtract needed if you define the distribution appropriately
+        // Clamp to η=2 if required (vectorized cmp + blend)
+        let min_bound = _mm256_set1_epi8(-2);
+        let max_bound = _mm256_set1_epi8(2);
+        let under = _mm256_cmpgt_epi8(min_bound, sum);
+        let over  = _mm256_cmpgt_epi8(sum, max_bound);
+
+        // Simple clamp example (or rejection logic with compress)
+        let clamped = _mm256_max_epi8(_mm256_min_epi8(sum, max_bound), min_bound);
+
+        _mm256_storeu_si256(out.as_mut_ptr().add(i) as *mut __m256i, clamped);
+
+        i += 32;
+    }
+
+    // scalar tail
+}
+```
+
+The key change is that the input is a **trit stream** (your XOF/sponge already produces trits natively) — no binary bit extraction.
+
+If your current sampling already works this way (pulling trits directly), then vectorizing it is straightforward: batch 32 trits at a time, do wide adds, apply vector clamp/reject.
+
+Would you like me to refine this sketch further (add rejection masking, compress/store for variable-rate sampling, or integrate with your existing XOF iterator)? Or would you prefer to share a snippet of your current `sample_noise_vec` / CBD function so I can tailor the AVX2 version exactly to it?
+
+We're still on track for sub-2 ms — the AVX2 sampling step should deliver the next clean 1.5–3× on the ~24% slice. Let me know how you'd like to proceed.

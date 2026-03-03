@@ -587,6 +587,107 @@ pub fn sample_uniform_ternary(seed: &[i8], n: usize, nonce: u16) -> TernaryPolyn
     TernaryPolynomial { coeffs, n }
 }
 
+// ---------------------------------------------------------------------------
+// CBD η=2 vectorized coefficient extraction
+//
+// For η=2, each coefficient consumes 4 trits: sum_a = (t0+1)+(t1+1),
+// sum_b = (t2+1)+(t3+1), result = mod3(sum_a - sum_b).
+//
+// The +1 offsets cancel: diff = t0 + t1 - t2 - t3  ∈ [-4, +4].
+// balanced_wrap(diff) ≡ mod3(diff) for this range — same conditional
+// arithmetic as the sponge substitution, same AVX2 pattern:
+// _mm256_add_epi8 + _mm256_cmpgt_epi8 + _mm256_blendv_epi8.
+// ---------------------------------------------------------------------------
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    use core::arch::x86_64::*;
+
+    let v_hi    = _mm256_set1_epi8(1);
+    let v_lo    = _mm256_set1_epi8(-1);
+    let v_three = _mm256_set1_epi8(3);
+
+    let mut i = 0;
+    while i + 32 <= n {
+        let base = i * 4;
+        let mut t0 = [0i8; 32];
+        let mut t1 = [0i8; 32];
+        let mut t2 = [0i8; 32];
+        let mut t3 = [0i8; 32];
+        for k in 0..32 {
+            let off = base + k * 4;
+            t0[k] = raw[off];
+            t1[k] = raw[off + 1];
+            t2[k] = raw[off + 2];
+            t3[k] = raw[off + 3];
+        }
+
+        let v_t0 = _mm256_loadu_si256(t0.as_ptr() as *const __m256i);
+        let v_t1 = _mm256_loadu_si256(t1.as_ptr() as *const __m256i);
+        let v_t2 = _mm256_loadu_si256(t2.as_ptr() as *const __m256i);
+        let v_t3 = _mm256_loadu_si256(t3.as_ptr() as *const __m256i);
+
+        let sum = _mm256_sub_epi8(
+            _mm256_add_epi8(v_t0, v_t1),
+            _mm256_add_epi8(v_t2, v_t3),
+        );
+
+        let gt1    = _mm256_cmpgt_epi8(sum, v_hi);
+        let lt_neg = _mm256_cmpgt_epi8(v_lo, sum);
+        let sub3   = _mm256_sub_epi8(sum, v_three);
+        let add3   = _mm256_add_epi8(sum, v_three);
+
+        let result = _mm256_blendv_epi8(sum, sub3, gt1);
+        let result = _mm256_blendv_epi8(result, add3, lt_neg);
+
+        let mut out = [0i8; 32];
+        _mm256_storeu_si256(out.as_mut_ptr() as *mut __m256i, result);
+        coeffs.extend_from_slice(&out);
+
+        i += 32;
+    }
+
+    while i < n {
+        let base = i * 4;
+        let diff = raw[base] as i16 + raw[base + 1] as i16
+                 - raw[base + 2] as i16 - raw[base + 3] as i16;
+        coeffs.push(mod3(diff));
+        i += 1;
+    }
+}
+
+fn cbd_eta2_scalar(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    for i in 0..n {
+        let base = i * 4;
+        let mut sum_a: i16 = 0;
+        let mut sum_b: i16 = 0;
+        for j in 0..2usize {
+            let idx_a = base + j;
+            let idx_b = base + 2 + j;
+            if idx_a < raw.len() {
+                sum_a += (raw[idx_a] + 1) as i16;
+            }
+            if idx_b < raw.len() {
+                sum_b += (raw[idx_b] + 1) as i16;
+            }
+        }
+        coeffs.push(mod3(sum_a - sum_b));
+    }
+}
+
+#[inline]
+fn cbd_eta2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    #[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { cbd_eta2_avx2(raw, coeffs, n); }
+            return;
+        }
+    }
+    cbd_eta2_scalar(raw, coeffs, n);
+}
+
 pub fn sample_cbd_ternary(seed: &[i8], n: usize, nonce: u16, eta: u8) -> TernaryPolynomial {
     use super::sponge::TernarySponge;
     let mut sponge = TernarySponge::new();
@@ -599,21 +700,25 @@ pub fn sample_cbd_ternary(seed: &[i8], n: usize, nonce: u16, eta: u8) -> Ternary
     let raw = sponge.squeeze(n * eta as usize * 2);
     let mut coeffs = Vec::with_capacity(n);
 
-    for i in 0..n {
-        let base = i * eta as usize * 2;
-        let mut sum_a: i16 = 0;
-        let mut sum_b: i16 = 0;
-        for j in 0..eta as usize {
-            let idx_a = base + j;
-            let idx_b = base + eta as usize + j;
-            if idx_a < raw.trits.len() {
-                sum_a += (raw.trits[idx_a] + 1) as i16;
+    if eta == 2 {
+        cbd_eta2(&raw.trits, &mut coeffs, n);
+    } else {
+        for i in 0..n {
+            let base = i * eta as usize * 2;
+            let mut sum_a: i16 = 0;
+            let mut sum_b: i16 = 0;
+            for j in 0..eta as usize {
+                let idx_a = base + j;
+                let idx_b = base + eta as usize + j;
+                if idx_a < raw.trits.len() {
+                    sum_a += (raw.trits[idx_a] + 1) as i16;
+                }
+                if idx_b < raw.trits.len() {
+                    sum_b += (raw.trits[idx_b] + 1) as i16;
+                }
             }
-            if idx_b < raw.trits.len() {
-                sum_b += (raw.trits[idx_b] + 1) as i16;
-            }
+            coeffs.push(mod3(sum_a - sum_b));
         }
-        coeffs.push(mod3(sum_a - sum_b));
     }
 
     TernaryPolynomial { coeffs, n }
@@ -648,22 +753,28 @@ pub fn sample_noise_vec(seed: &[i8], k: usize, n: usize, nonce_offset: u16, eta:
         let raw_offset = poly_idx * trits_per_poly;
         let raw = &all_raw[raw_offset..raw_offset + trits_per_poly];
         let mut coeffs = Vec::with_capacity(n);
-        for i in 0..n {
-            let base = i * eta as usize * 2;
-            let mut sum_a: i16 = 0;
-            let mut sum_b: i16 = 0;
-            for j in 0..eta as usize {
-                let idx_a = base + j;
-                let idx_b = base + eta as usize + j;
-                if idx_a < raw.len() {
-                    sum_a += (raw[idx_a] + 1) as i16;
+
+        if eta == 2 {
+            cbd_eta2(raw, &mut coeffs, n);
+        } else {
+            for i in 0..n {
+                let base = i * eta as usize * 2;
+                let mut sum_a: i16 = 0;
+                let mut sum_b: i16 = 0;
+                for j in 0..eta as usize {
+                    let idx_a = base + j;
+                    let idx_b = base + eta as usize + j;
+                    if idx_a < raw.len() {
+                        sum_a += (raw[idx_a] + 1) as i16;
+                    }
+                    if idx_b < raw.len() {
+                        sum_b += (raw[idx_b] + 1) as i16;
+                    }
                 }
-                if idx_b < raw.len() {
-                    sum_b += (raw[idx_b] + 1) as i16;
-                }
+                coeffs.push(mod3(sum_a - sum_b));
             }
-            coeffs.push(mod3(sum_a - sum_b));
         }
+
         polys.push(TernaryPolynomial { coeffs, n });
     }
     TernaryPolyVec { polys, n }
