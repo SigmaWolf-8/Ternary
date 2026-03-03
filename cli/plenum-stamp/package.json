@@ -1,0 +1,32 @@
+{
+  "name": "plenum-stamp",
+  "version": "1.0.0",
+  "description": "PlenumNET RFC 3161 TSA — sign and verify files with cryptographic timestamps",
+  "license": "UNLICENSED",
+  "author": "Capomastro Holdings Ltd. <RSalvi@Salvigroup.com>",
+  "homepage": "https://plenumnet.replit.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SigmaWolf-8/Ternary"
+  },
+  "type": "module",
+  "bin": {
+    "plenum-stamp": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "timestamp",
+    "rfc3161",
+    "tsa",
+    "code-signing",
+    "post-quantum",
+    "plenumnet",
+    "ternary"
+  ]
+}

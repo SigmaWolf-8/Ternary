@@ -1,0 +1,42 @@
+name: Code Signing with PlenumNET TSA
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      files:
+        description: 'Glob pattern of files to stamp'
+        required: false
+        default: 'dist/*'
+
+jobs:
+  stamp-release:
+    name: Timestamp Release Artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release artifacts
+        run: |
+          mkdir -p dist
+          echo "Example release artifact" > dist/example-v1.0.0.tar.gz
+
+      - name: Sign artifacts with PlenumNET TSA
+        uses: ./.github/actions/plenum-stamp
+        with:
+          files: ${{ github.event.inputs.files || 'dist/*' }}
+          api-token: ${{ secrets.PLENUM_API_TOKEN }}
+          upload-artifacts: 'true'
+          attach-to-release: ${{ github.event_name == 'release' && 'true' || 'false' }}
+
+      - name: Verify timestamps
+        run: |
+          for TSP in dist/*.tsp; do
+            if [ -f "$TSP" ]; then
+              echo "Verifying $TSP..."
+              node cli/plenum-stamp/index.mjs verify "$TSP" --format json
+            fi
+          done
