@@ -39,6 +39,8 @@ import * as path from "path";
 import { TsaService, type TsaConfig, TSA_POLICIES, type HptpClient, type TldsaClient } from "./services/tsa-service";
 import { createTsaRoutes } from "./routes/tsa";
 import { type CalendarServiceClient } from "./services/tsa-calendar-enrichment";
+import { keygen, signHex, verifyHex, publicKeyHash, type TlDsaKeyPair } from "./crypto/tl-dsa-bridge";
+import * as fs from "fs";
 import { getSalviEpochCalendarSync } from "./salvi-core/ancient-calendar-sync";
 import { NotificationService, tsaMetricsRegistry, EFFECTIVE_PHASE } from "./services/notification-service";
 import { HederaWitnessingService, createHederaConfig } from "./services/hedera-witnessing-service";
@@ -199,21 +201,52 @@ function startPqtiService(): ChildProcess | null {
     },
   };
 
+  const tldsaKeyPath = path.join(tsaKeysDir, 'tldsa-keypair.json');
+  let tldsaKeypair: TlDsaKeyPair;
+  if (existsSync(tldsaKeyPath)) {
+    try {
+      const stored = JSON.parse(fs.readFileSync(tldsaKeyPath, 'utf8'));
+      tldsaKeypair = {
+        publicKey: Buffer.from(stored.publicKey, 'hex'),
+        secretKey: Buffer.from(stored.secretKey, 'hex'),
+        variant: stored.variant || 'TL-DSA-87',
+      };
+      log(`TL-DSA keypair loaded from disk — variant: ${tldsaKeypair.variant}, keyId: ${publicKeyHash(tldsaKeypair.publicKey).substring(0, 16)}…`, 'tldsa');
+    } catch (e) {
+      log(`TL-DSA keypair file corrupted, generating fresh — ${(e as Error).message}`, 'tldsa');
+      tldsaKeypair = keygen('TL-DSA-87');
+    }
+  } else {
+    tldsaKeypair = keygen('TL-DSA-87');
+    log(`TL-DSA keypair generated — variant: TL-DSA-87 (NIST Level 5), keyId: ${publicKeyHash(tldsaKeypair.publicKey).substring(0, 16)}…`, 'tldsa');
+  }
+  try {
+    if (!existsSync(tsaKeysDir)) {
+      fs.mkdirSync(tsaKeysDir, { recursive: true });
+    }
+    fs.writeFileSync(tldsaKeyPath, JSON.stringify({
+      publicKey: tldsaKeypair.publicKey.toString('hex'),
+      secretKey: tldsaKeypair.secretKey.toString('hex'),
+      variant: tldsaKeypair.variant,
+      createdAt: new Date().toISOString(),
+    }, null, 2), { mode: 0o600 });
+  } catch (e) {
+    log(`TL-DSA keypair persist failed: ${(e as Error).message}`, 'tldsa');
+  }
+  const tldsaKeyId = publicKeyHash(tldsaKeypair.publicKey);
+
   const tldsaClientForTsa: TldsaClient = {
     async sign(hash: string) {
-      const resp = await fetch('http://localhost:5000/api/pqti/tldsa/sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: hash }),
-      });
-      if (!resp.ok) throw new Error(`TL-DSA ${resp.status}`);
-      const data = await resp.json() as any;
+      const signature = signHex(tldsaKeypair.secretKey, hash, 'TL-DSA-87');
       return {
-        signature: data.signature || '',
-        publicKeyId: data.public_key_id || data.publicKeyId || 'tldsa-primary',
-        securityLevel: data.security_level || 'CNSA-2.0',
-        algorithm: data.algorithm || 'TL-DSA-44',
+        signature,
+        publicKeyId: tldsaKeyId,
+        securityLevel: 'CNSA-2.0',
+        algorithm: 'TL-DSA-87',
       };
+    },
+    async verify(hash: string, signature: string) {
+      return verifyHex(tldsaKeypair.publicKey, hash, signature, tldsaKeypair.secretKey, 'TL-DSA-87');
     },
   };
 
