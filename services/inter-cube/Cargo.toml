@@ -31,6 +31,9 @@ blake3 = "=1.5.4"
 # Timestamp handling for FTS, CRS heartbeats
 chrono = { version = "0.4", features = ["serde"] }
 
+# HTTP server for daemon API endpoints
+axum = "0.7"
+
 # Logging
 tracing = "0.1"
 
