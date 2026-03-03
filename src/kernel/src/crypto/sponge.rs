@@ -100,29 +100,34 @@ const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
 
 // ---------------------------------------------------------------------------
 // Permutation
+//
+// Substitution uses GF(3) associativity to collapse four serial trit_add
+// calls into a single parallel integer sum followed by one balanced wrap.
+//
+//   (a + b + c + 1) mod 3  in balanced form {-1, 0, +1}
+//
+// The integer sum a+b+c+1 lies in [-2, 4].  Balanced mod-3 wrapping is a
+// single conditional: subtract 3 if ≥ 2, add 3 if ≤ -2.  No division,
+// no tables — purely first-principles modular arithmetic.
 // ---------------------------------------------------------------------------
+
+#[inline(always)]
+fn balanced_wrap(s: i8) -> i8 {
+    if s >= 2 { s - 3 } else if s <= -2 { s + 3 } else { s }
+}
 
 fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
+    let last = SPONGE_STATE_SIZE - 1;
 
     for round in 0..SPONGE_ROUNDS {
-        {
-            let s0 = state[0];
-            let sl = state[SPONGE_STATE_SIZE - 1];
-            let s1 = state[1];
-            buf[0] = trit_add(trit_add(trit_add(s0, sl), s1), 1);
+        buf[0] = balanced_wrap(state[last] + state[0] + state[1] + 1);
+
+        for i in 1..last {
+            buf[i] = balanced_wrap(state[i - 1] + state[i] + state[i + 1] + 1);
         }
 
-        for i in 1..(SPONGE_STATE_SIZE - 1) {
-            let sum = trit_add(trit_add(state[i], state[i - 1]), state[i + 1]);
-            buf[i] = trit_add(sum, 1);
-        }
-
-        {
-            let last = SPONGE_STATE_SIZE - 1;
-            let sum = trit_add(trit_add(state[last], state[last - 1]), state[0]);
-            buf[last] = trit_add(sum, 1);
-        }
+        buf[last] = balanced_wrap(state[last - 1] + state[last] + state[0] + 1);
 
         for i in 0..SPONGE_STATE_SIZE {
             state[PERM[i] as usize] = buf[i];
@@ -131,7 +136,7 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
-            state[idx] = trit_add(state[idx], rc[lane]);
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
         }
     }
 }
