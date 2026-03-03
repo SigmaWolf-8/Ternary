@@ -631,9 +631,40 @@ pub fn sample_matrix(seed: &[i8], k: usize, n: usize) -> TernaryPolyMatrix {
 }
 
 pub fn sample_noise_vec(seed: &[i8], k: usize, n: usize, nonce_offset: u16, eta: u8) -> TernaryPolyVec {
+    use super::sponge::TernarySponge;
+    let trits_per_poly = n * eta as usize * 2;
+    let total_trits = k * trits_per_poly;
+
+    let mut sponge = TernarySponge::new();
+    sponge.absorb(seed);
+    let nonce_trits = u16_to_trits(nonce_offset);
+    sponge.absorb(&nonce_trits);
+    let eta_trits = u8_to_trits(eta);
+    sponge.absorb(&eta_trits);
+    let all_raw = sponge.squeeze(total_trits).trits;
+
     let mut polys = Vec::with_capacity(k);
-    for i in 0..k {
-        polys.push(sample_cbd_ternary(seed, n, nonce_offset + i as u16, eta));
+    for poly_idx in 0..k {
+        let raw_offset = poly_idx * trits_per_poly;
+        let raw = &all_raw[raw_offset..raw_offset + trits_per_poly];
+        let mut coeffs = Vec::with_capacity(n);
+        for i in 0..n {
+            let base = i * eta as usize * 2;
+            let mut sum_a: i16 = 0;
+            let mut sum_b: i16 = 0;
+            for j in 0..eta as usize {
+                let idx_a = base + j;
+                let idx_b = base + eta as usize + j;
+                if idx_a < raw.len() {
+                    sum_a += (raw[idx_a] + 1) as i16;
+                }
+                if idx_b < raw.len() {
+                    sum_b += (raw[idx_b] + 1) as i16;
+                }
+            }
+            coeffs.push(mod3(sum_a - sum_b));
+        }
+        polys.push(TernaryPolynomial { coeffs, n });
     }
     TernaryPolyVec { polys, n }
 }

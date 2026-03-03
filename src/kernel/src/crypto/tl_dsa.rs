@@ -280,35 +280,34 @@ fn sample_uniform_index(hash: &[i8], pos: &mut usize, bound: usize) -> usize {
 }
 
 fn expand_matrix_a(seed: &[i8], k: usize, l: usize, n: usize) -> TernaryPolyMatrix {
-    use super::ternary_lattice::u16_to_trits;
+    let total_trits = k * l * n;
+    let mut sponge = TernarySponge::new();
+    sponge.absorb(&[DOMAIN_MATRIX_EXPAND]);
+    sponge.absorb(seed);
+    let all_trits = sponge.squeeze(total_trits).trits;
+
     let mut matrix = TernaryPolyMatrix::new(k, l, n);
+    let mut offset = 0;
     for i in 0..k {
         for j in 0..l {
-            let nonce = (i * l + j) as u16;
-            let nonce_trits = u16_to_trits(nonce);
-            let combined_seed = dsa_hash(
-                DOMAIN_MATRIX_EXPAND,
-                &[seed, &nonce_trits],
-                n,
-            );
-            matrix.entries[i][j] = TernaryPolynomial::from_coeffs_unchecked(combined_seed);
+            let coeffs = all_trits[offset..offset + n].to_vec();
+            matrix.entries[i][j] = TernaryPolynomial::from_coeffs_unchecked(coeffs);
+            offset += n;
         }
     }
     matrix
 }
 
-fn sample_masking_vec(seed: &[i8], l: usize, n: usize, nonce: u16) -> TernaryPolyVec {
-    use super::ternary_lattice::u16_to_trits;
+fn sample_masking_vec(seed: &[i8], l: usize, n: usize, _nonce: u16) -> TernaryPolyVec {
+    let total_trits = l * n;
+    let mut sponge = TernarySponge::new();
+    sponge.absorb(&[DOMAIN_MASKING]);
+    sponge.absorb(seed);
+    let all_trits = sponge.squeeze(total_trits).trits;
+
     let mut polys = Vec::with_capacity(l);
     for i in 0..l {
-        let poly_nonce = nonce.wrapping_add(i as u16);
-        let nonce_trits = u16_to_trits(poly_nonce);
-        let poly_seed = dsa_hash(
-            DOMAIN_MASKING,
-            &[seed, &nonce_trits],
-            n,
-        );
-        let coeffs: Vec<i8> = poly_seed.iter().take(n).copied().collect();
+        let coeffs = all_trits[i * n..(i + 1) * n].to_vec();
         polys.push(TernaryPolynomial::from_coeffs_unchecked(coeffs));
     }
     TernaryPolyVec { polys, n }
