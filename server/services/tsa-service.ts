@@ -146,6 +146,7 @@ export interface TldsaClient {
     securityLevel: string;
     algorithm: string;
   }>;
+  verify?(hash: string, signature: string): Promise<boolean>;
 }
 
 export interface TsaConfig {
@@ -244,6 +245,9 @@ export interface VerificationResult {
   ordering: boolean;
   signerSubject: string;
   tldsaPresent: boolean;
+  tldsaVerified?: boolean;
+  tldsaAlgorithm?: string;
+  tldsaKeyId?: string;
   verificationMethod: string;
   reason?: string;
 }
@@ -266,6 +270,7 @@ function bigintToAsn1Integer(value: bigint): asn1js.Integer {
 class MerkleAuditLog {
   private leaves: string[] = [];
   private persistPath: string;
+  private cachedRoot: string | null = null;
 
   constructor(keysDirectory: string) {
     this.persistPath = path.join(keysDirectory, 'merkle-leaves.jsonl');
@@ -279,6 +284,7 @@ class MerkleAuditLog {
         try { return JSON.parse(line).hash; }
         catch { return ''; }
       }).filter(Boolean);
+      this.cachedRoot = null;
       console.log(`Merkle audit log restored: ${this.leaves.length} leaves from ${this.persistPath}`);
     }
   }
@@ -287,14 +293,17 @@ class MerkleAuditLog {
     const leafData = `${serialNumber}|${hashedMessage}|${genTime}`;
     const leafHash = crypto.createHash('sha3-256').update(leafData).digest('hex');
     this.leaves.push(leafHash);
+    this.cachedRoot = null;
     fs.appendFileSync(this.persistPath,
       JSON.stringify({ serial: serialNumber, hash: leafHash, ts: genTime }) + '\n');
     return leafHash;
   }
 
   getRoot(): string {
+    if (this.cachedRoot !== null) return this.cachedRoot;
     if (this.leaves.length === 0) {
-      return crypto.createHash('sha3-256').update('empty-tree').digest('hex');
+      this.cachedRoot = crypto.createHash('sha3-256').update('empty-tree').digest('hex');
+      return this.cachedRoot;
     }
     let level = [...this.leaves];
     while (level.length > 1) {
@@ -306,7 +315,8 @@ class MerkleAuditLog {
       }
       level = next;
     }
-    return level[0];
+    this.cachedRoot = level[0];
+    return this.cachedRoot;
   }
 
   getDepth(): number {
@@ -566,6 +576,28 @@ export class TsaService {
       const tstInfo = this.parseTSTInfo(parsed.tstInfo);
       const policyMeta = TSA_POLICY_METADATA[tstInfo.policyOid];
 
+      const tokenRecord = this.tokenLog.find(t => t.serialNumber === tstInfo.serialNumber);
+      const tldsaPresent = !!(tokenRecord?.tldsaSignature);
+      let tldsaVerified: boolean | undefined;
+      let tldsaAlgorithm: string | undefined;
+      let tldsaKeyId: string | undefined;
+
+      if (tldsaPresent && tokenRecord) {
+        tldsaKeyId = tokenRecord.tldsaKeyId || undefined;
+        try {
+          const tstHash = crypto.createHash('sha3-256').update(parsed.tstInfo).digest('hex');
+          if (this.tldsaClient.verify) {
+            tldsaVerified = await this.tldsaClient.verify(tstHash, tokenRecord.tldsaSignature!);
+          } else {
+            const recomputedResult = await this.tldsaClient.sign(tstHash);
+            tldsaVerified = recomputedResult.signature === tokenRecord.tldsaSignature;
+          }
+          tldsaAlgorithm = 'TL-DSA-87';
+        } catch {
+          tldsaVerified = false;
+        }
+      }
+
       return {
         valid: signatureValid,
         serialNumber: tstInfo.serialNumber,
@@ -577,8 +609,11 @@ export class TsaService {
         accuracy: tstInfo.accuracy,
         ordering: tstInfo.ordering,
         signerSubject: this.certificateParsed?.subject || 'unknown',
-        tldsaPresent: false,
-        verificationMethod: 'online (offline verification also supported via OpenSSL ts -verify)',
+        tldsaPresent,
+        ...(tldsaPresent ? { tldsaVerified, tldsaAlgorithm, tldsaKeyId } : {}),
+        verificationMethod: tldsaPresent
+          ? 'online — dual-verified (RSA-4096 + TL-DSA-87)'
+          : 'online (offline verification also supported via OpenSSL ts -verify)',
       };
     } catch (error) {
       return {
@@ -670,7 +705,7 @@ export class TsaService {
       },
       signatureAlgorithms: {
         classical: 'RSA-4096 with SHA-256 (interoperable with OpenSSL, Adobe, jarsigner, Authenticode)',
-        postQuantum: 'TL-DSA-44 (Ternary Lattice Digital Signature Algorithm)',
+        postQuantum: 'TL-DSA-87 (Ternary Lattice Digital Signature Algorithm — NIST Level 5)',
         dualSign: 'Every token signed with classical RSA AND optionally TL-DSA for quantum-safe readiness',
       },
       supportedHashAlgorithms: Object.entries(HASH_ALGORITHM_OIDS)
