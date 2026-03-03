@@ -956,6 +956,232 @@ pub fn ntt_ring_mul(a: &TernaryPolynomial, b: &TernaryPolynomial, q: i16) -> Ter
     ntt_inverse_lifted(&c_ntt, q, n)
 }
 
+// ===========================================================================
+// Integer NTT for negacyclic ring multiplication in Z_q[X]/(X^256 + 1)
+// ===========================================================================
+//
+// Uses q = 12289 (the Kyber/NewHope prime, q ≡ 1 mod 512) with a 256-point
+// NTT. Negacyclic convolution is achieved by twisting inputs by powers of ψ
+// (a primitive 512th root of unity mod q) before the forward NTT, and
+// untwisting after the inverse NTT.
+//
+// The pre-NTT matrix A optimization reduces matrix-vector multiplies from
+// O(k·l·3) NTT calls to O(l + k) NTT calls:
+//   - Old: each of k·l polynomial multiplications needs 2 forward + 1 inverse
+//   - New: l forward NTTs for the input vector + k inverse NTTs for output rows
+//
+// For TL-DSA-87 (k=8, l=7): 15 NTTs instead of 168.
+// ===========================================================================
+
+const NCNTT_Q: u32 = 12289;
+const NCNTT_N: usize = 256;
+const NCNTT_LOG_N: usize = 8;
+
+const fn ncntt_mod_pow(mut base: u64, mut exp: u64, m: u64) -> u64 {
+    let mut r = 1u64;
+    base %= m;
+    while exp > 0 {
+        if exp & 1 == 1 { r = r * base % m; }
+        exp >>= 1;
+        base = base * base % m;
+    }
+    r
+}
+
+const NCNTT_PSI: u32 = ncntt_mod_pow(11, 24, NCNTT_Q as u64) as u32;
+const NCNTT_PSI_INV: u32 = ncntt_mod_pow(NCNTT_PSI as u64, NCNTT_Q as u64 - 2, NCNTT_Q as u64) as u32;
+const NCNTT_OMEGA: u32 = ((NCNTT_PSI as u64 * NCNTT_PSI as u64) % NCNTT_Q as u64) as u32;
+const NCNTT_OMEGA_INV: u32 = ncntt_mod_pow(NCNTT_OMEGA as u64, NCNTT_Q as u64 - 2, NCNTT_Q as u64) as u32;
+const NCNTT_INV_N: u32 = ncntt_mod_pow(NCNTT_N as u64, NCNTT_Q as u64 - 2, NCNTT_Q as u64) as u32;
+
+const NCNTT_PSI_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_PSI as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+const NCNTT_PSI_INV_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_PSI_INV as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+const NCNTT_OMEGA_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_OMEGA as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+const NCNTT_OMEGA_INV_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_OMEGA_INV as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+#[inline(always)]
+fn ncntt_modmul(a: u32, b: u32) -> u32 {
+    ((a as u64 * b as u64) % NCNTT_Q as u64) as u32
+}
+
+#[inline(always)]
+fn ncntt_modadd(a: u32, b: u32) -> u32 {
+    let s = a + b;
+    if s >= NCNTT_Q { s - NCNTT_Q } else { s }
+}
+
+#[inline(always)]
+fn ncntt_modsub(a: u32, b: u32) -> u32 {
+    if a >= b { a - b } else { a + NCNTT_Q - b }
+}
+
+fn ncntt_forward(a: &mut [u32; NCNTT_N]) {
+    for i in 0..NCNTT_N {
+        let j = bit_reverse(i, NCNTT_LOG_N);
+        if i < j { a.swap(i, j); }
+    }
+    let mut len = 2;
+    while len <= NCNTT_N {
+        let half = len / 2;
+        let step = NCNTT_N / len;
+        let mut start = 0;
+        while start < NCNTT_N {
+            for j in 0..half {
+                let w = NCNTT_OMEGA_TABLE[j * step];
+                let u = a[start + j];
+                let v = ncntt_modmul(a[start + j + half], w);
+                a[start + j] = ncntt_modadd(u, v);
+                a[start + j + half] = ncntt_modsub(u, v);
+            }
+            start += len;
+        }
+        len *= 2;
+    }
+}
+
+fn ncntt_inverse(a: &mut [u32; NCNTT_N]) {
+    for i in 0..NCNTT_N {
+        let j = bit_reverse(i, NCNTT_LOG_N);
+        if i < j { a.swap(i, j); }
+    }
+    let mut len = 2;
+    while len <= NCNTT_N {
+        let half = len / 2;
+        let step = NCNTT_N / len;
+        let mut start = 0;
+        while start < NCNTT_N {
+            for j in 0..half {
+                let w = NCNTT_OMEGA_INV_TABLE[j * step];
+                let u = a[start + j];
+                let v = ncntt_modmul(a[start + j + half], w);
+                a[start + j] = ncntt_modadd(u, v);
+                a[start + j + half] = ncntt_modsub(u, v);
+            }
+            start += len;
+        }
+        len *= 2;
+    }
+    for x in a.iter_mut() {
+        *x = ncntt_modmul(*x, NCNTT_INV_N);
+    }
+}
+
+fn ternary_to_ntt(coeffs: &[i8]) -> [u32; NCNTT_N] {
+    let mut a = [0u32; NCNTT_N];
+    let len = NCNTT_N.min(coeffs.len());
+    for i in 0..len {
+        let v = if coeffs[i] < 0 { NCNTT_Q - ((-coeffs[i]) as u32) } else { coeffs[i] as u32 };
+        a[i] = ncntt_modmul(v, NCNTT_PSI_TABLE[i]);
+    }
+    ncntt_forward(&mut a);
+    a
+}
+
+fn ntt_to_ternary(ntt_data: &[u32; NCNTT_N]) -> Vec<i8> {
+    let mut a = *ntt_data;
+    ncntt_inverse(&mut a);
+    let mut result = vec![0i8; NCNTT_N];
+    for i in 0..NCNTT_N {
+        let val = ncntt_modmul(a[i], NCNTT_PSI_INV_TABLE[i]);
+        let centered = if val > NCNTT_Q / 2 { val as i32 - NCNTT_Q as i32 } else { val as i32 };
+        let m = ((centered % 3) + 3) % 3;
+        result[i] = if m == 2 { -1 } else { m as i8 };
+    }
+    result
+}
+
+pub type NttPoly = [u32; NCNTT_N];
+
+#[derive(Debug, Clone)]
+pub struct NttMatrix {
+    pub rows: usize,
+    pub cols: usize,
+    pub entries: Vec<Vec<NttPoly>>,
+}
+
+impl TernaryPolyMatrix {
+    pub fn to_ntt(&self) -> NttMatrix {
+        let mut entries = Vec::with_capacity(self.rows);
+        for i in 0..self.rows {
+            let mut row = Vec::with_capacity(self.cols);
+            for j in 0..self.cols {
+                row.push(ternary_to_ntt(&self.entries[i][j].coeffs));
+            }
+            entries.push(row);
+        }
+        NttMatrix { rows: self.rows, cols: self.cols, entries }
+    }
+}
+
+impl NttMatrix {
+    pub fn mul_vec(&self, vec: &TernaryPolyVec) -> CryptoResult<TernaryPolyVec> {
+        if self.cols != vec.len() {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.cols,
+                actual: vec.len(),
+            });
+        }
+
+        let v_ntt: Vec<NttPoly> = vec.polys.iter()
+            .map(|p| ternary_to_ntt(&p.coeffs))
+            .collect();
+
+        let mut result_polys = Vec::with_capacity(self.rows);
+        for i in 0..self.rows {
+            let mut acc = [0u32; NCNTT_N];
+            for j in 0..self.cols {
+                for m in 0..NCNTT_N {
+                    let prod = ncntt_modmul(self.entries[i][j][m], v_ntt[j][m]);
+                    acc[m] = ncntt_modadd(acc[m], prod);
+                }
+            }
+            let coeffs = ntt_to_ternary(&acc);
+            result_polys.push(TernaryPolynomial { coeffs, n: NCNTT_N });
+        }
+
+        Ok(TernaryPolyVec { polys: result_polys, n: NCNTT_N })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
