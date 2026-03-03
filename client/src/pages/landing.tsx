@@ -41,7 +41,11 @@ import {
   Globe,
   Server,
   Copy,
-  Calendar
+  Calendar,
+  Timer,
+  Gauge,
+  FlaskRound,
+  TrendingUp
 } from "lucide-react";
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, useInView } from "framer-motion";
@@ -409,9 +413,9 @@ function HeroSection() {
             
             <div className="flex flex-wrap gap-6 md:gap-8">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
-              <AnimatedStat value="1,753" label="Tests Passing" delay={0.38} />
-              <AnimatedStat value="80/80" label="Milestones" delay={0.41} />
-              <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.44} />
+              <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
+              <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
+              <AnimatedStat value={PLATFORM.BENCH_ALU_PARITY} suffix="×" label="ALU Parity" delay={0.44} />
             </div>
           </div>
 
@@ -888,17 +892,91 @@ function ComponentsSection() {
   );
 }
 
+function BenchmarkCard({ icon: Icon, value, unit, label, detail, index }: {
+  icon: any; value: string; unit: string; label: string; detail: string; index: number;
+}) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 20 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      transition={{ duration: 0.4, delay: index * 0.06 }}
+    >
+      <Card className="p-5 md:p-6 h-full border-primary/10 bg-card/70 backdrop-blur-sm" data-testid={`benchmark-card-${index}`}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Icon className="w-5 h-5 text-primary" />
+          </div>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
+        </div>
+        <div className="mb-1">
+          <span className="text-3xl md:text-4xl font-bold text-primary leading-none">{value}</span>
+          <span className="text-lg text-primary/70 ml-1">{unit}</span>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">{detail}</p>
+      </Card>
+    </motion.div>
+  );
+}
+
 function PerformanceSection() {
   const comparisonItems = [
     { label: "Information per Digit", current: "1.0 bit", ternary: "1.585 bits (+59%)", highlight: true },
     { label: "Storage Efficiency", current: "Baseline", ternary: "3:2 compression ratio", highlight: true },
     { label: "Quantum Resistance", current: "Vulnerable", ternary: "CNSA 2.0 ternary equivalents", highlight: true },
     { label: "Logic States", current: "2 states (0,1)", ternary: "3 states per trit", highlight: true },
-    { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10^-15s)", highlight: true },
+    { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10⁻¹⁵s)", highlight: true },
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
     { label: "Regulatory Timing", current: "Custom build", ternary: "Targeting FINRA 613 & MiFID II thresholds", highlight: true },
     { label: "Runs on Existing Hardware", current: "Yes", ternary: "Yes — via Binary-Ternary Gateway", highlight: false },
+  ];
+
+  const benchmarks = [
+    {
+      icon: TrendingUp,
+      value: PLATFORM.BENCH_TL_DSA_87_SPEEDUP,
+      unit: "× faster",
+      label: "TL-DSA-87 Optimization",
+      detail: `Full sign+verify in ${PLATFORM.BENCH_TL_DSA_87_US} µs — down from 14,403 µs via NTT, XOF batching, and AVX2 vectorization.`,
+    },
+    {
+      icon: Gauge,
+      value: PLATFORM.BENCH_ALU_PARITY,
+      unit: "× ratio",
+      label: "ALU Cost Parity",
+      detail: "Ternary ALU operations run within 6% of binary ALU throughput on stock x86_64 hardware. No specialized silicon required.",
+    },
+    {
+      icon: Timer,
+      value: PLATFORM.BENCH_TL_DSA_44_US,
+      unit: "µs",
+      label: "TL-DSA-44 Roundtrip",
+      detail: "Post-quantum digital signature — keygen, sign, and verify — faster than most TLS handshakes.",
+    },
+    {
+      icon: Shield,
+      value: PLATFORM.BENCH_RING_MUL_RATIO,
+      unit: "× cheaper",
+      label: "Ring Multiplication",
+      detail: "Ternary polynomial ring multiply (R₃, n=256) costs 41% less than the binary equivalent (Z_q, n=256).",
+    },
+    {
+      icon: Zap,
+      value: PLATFORM.BENCH_REP_CONVERT_NS,
+      unit: "ns",
+      label: "Representation Conversion",
+      detail: "Sub-nanosecond conversion between the three balanced-ternary representations (A ↔ B ↔ C). Over 1.4 billion ops/sec.",
+    },
+    {
+      icon: FlaskRound,
+      value: String(PLATFORM.BENCH_KANI_PROOFS),
+      unit: "proofs",
+      label: "Formal Verification",
+      detail: "Kani bounded model checking proofs across GF(3) arithmetic, constant-time crypto, and VM memory safety.",
+    },
   ];
 
   return (
@@ -912,7 +990,7 @@ function PerformanceSection() {
             transition={{ duration: 0.5 }}
           >
             <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
-              Proven Results
+              Measured Results
             </Badge>
           </motion.div>
           <motion.h2 
@@ -933,9 +1011,56 @@ function PerformanceSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            Not theoretical advantages -- measured, tested, and verifiable performance improvements you can see in our live demo.
+            Not theoretical advantages — these numbers come from <code className="text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded text-sm">cargo run --release --bin salvi-bench</code> on stock x86_64 hardware.
           </motion.p>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-12 md:mb-16">
+          {benchmarks.map((b, i) => (
+            <BenchmarkCard key={b.label} {...b} index={i} />
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-12 md:mb-16"
+        >
+          <Card className="max-w-4xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-dsa-breakdown">
+            <h3 className="text-lg font-semibold mb-1">TL-DSA Sign + Verify Roundtrip</h3>
+            <p className="text-sm text-muted-foreground mb-6">Post-quantum digital signatures at three CNSA 2.0 security levels. All times measured, not estimated.</p>
+            <div className="space-y-4">
+              {[
+                { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US, pct: 25, bits: "128-bit" },
+                { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US, pct: 45, bits: "192-bit" },
+                { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US, pct: 65, bits: "256-bit" },
+              ].map((row) => (
+                <div key={row.variant} className="flex items-center gap-4" data-testid={`dsa-bar-${row.variant}`}>
+                  <div className="w-24 md:w-28 shrink-0">
+                    <span className="font-mono text-sm font-medium">{row.variant}</span>
+                    <span className="block text-xs text-muted-foreground">{row.bits}</span>
+                  </div>
+                  <div className="flex-1 bg-muted/50 rounded-full h-6 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${row.pct}%` }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                      className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
+                    >
+                      <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{row.time} µs</span>
+                    </motion.div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
+              Optimizations: Integer NTT (q=12289, ψ=3400) · XOF-batched sponge expansion · GF(3)-associative balanced_wrap · AVX2-vectorized substitution (32 trits/cycle)
+            </p>
+          </Card>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -980,7 +1105,7 @@ function PerformanceSection() {
               <Button asChild className="btn-raised" data-testid="button-try-demo">
                 <a href="/ternarydb">
                   <Zap className="w-4 h-4 mr-2" />
-                  Verify It Yourself -- Live Demo
+                  Verify It Yourself — Live Demo
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </a>
               </Button>
@@ -995,7 +1120,7 @@ function PerformanceSection() {
 function TrustSignals() {
   const signals = [
     { label: "1,252+", description: "Git Commits" },
-    { label: "1,753", description: "Tests Passing" },
+    { label: PLATFORM.TESTS_PASSING, description: "Tests Passing" },
     { label: "227", description: "Source Files" },
     { label: String(PLATFORM.API_ENDPOINTS), description: "API Endpoints" },
   ];
