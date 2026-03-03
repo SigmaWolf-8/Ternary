@@ -398,11 +398,32 @@ impl TernaryPolyVec {
     }
 }
 
+pub fn u16_to_trits(val: u16) -> [i8; 11] {
+    let mut trits = [0i8; 11];
+    let mut v = val;
+    for trit in trits.iter_mut() {
+        *trit = (v % 3) as i8 - 1;
+        v /= 3;
+    }
+    trits
+}
+
+pub fn u8_to_trits(val: u8) -> [i8; 6] {
+    let mut trits = [0i8; 6];
+    let mut v = val;
+    for trit in trits.iter_mut() {
+        *trit = (v % 3) as i8 - 1;
+        v /= 3;
+    }
+    trits
+}
+
 pub fn sample_uniform_ternary(seed: &[i8], n: usize, nonce: u16) -> TernaryPolynomial {
     use super::sponge::TernarySponge;
     let mut sponge = TernarySponge::new();
     sponge.absorb(seed);
-    sponge.absorb_bytes(&[(nonce & 0xFF) as u8, ((nonce >> 8) & 0xFF) as u8]);
+    let nonce_trits = u16_to_trits(nonce);
+    sponge.absorb(&nonce_trits);
 
     let output = sponge.squeeze(n * 2);
     let coeffs: Vec<i8> = output.trits.iter()
@@ -424,7 +445,10 @@ pub fn sample_cbd_ternary(seed: &[i8], n: usize, nonce: u16, eta: u8) -> Ternary
     use super::sponge::TernarySponge;
     let mut sponge = TernarySponge::new();
     sponge.absorb(seed);
-    sponge.absorb_bytes(&[(nonce & 0xFF) as u8, ((nonce >> 8) & 0xFF) as u8, eta]);
+    let nonce_trits = u16_to_trits(nonce);
+    sponge.absorb(&nonce_trits);
+    let eta_trits = u8_to_trits(eta);
+    sponge.absorb(&eta_trits);
 
     let raw = sponge.squeeze(n * eta as usize * 2);
     let mut coeffs = Vec::with_capacity(n);
