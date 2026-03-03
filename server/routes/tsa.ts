@@ -13,6 +13,34 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { TsaService, TSA_POLICIES } from '../services/tsa-service';
+import cbor from 'cbor';
+
+interface CompactCalendarContext {
+  ts: string;
+  jdn: number;
+  sed: number;
+  tier: string;
+  src: { p: string[]; r: string[] };
+  oid: string;
+  cal: Array<[string, string, number | string, number | string, number | string] | [string, string, number | string, number | string, number | string, string]>;
+}
+
+function compactCalendars(ctx: any): CompactCalendarContext | null {
+  if (!ctx || !ctx.calendars) return null;
+  return {
+    ts: ctx.utcTimestamp,
+    jdn: ctx.julianDayNumber,
+    sed: ctx.salviEpochDay,
+    tier: ctx.policyTier,
+    src: { p: ctx.source.policy, r: ctx.source.requested },
+    oid: ctx.extensionOid,
+    cal: ctx.calendars.map((c: any) => {
+      const tuple: any[] = [c.system, c.display, c.year, c.month, c.day];
+      if (c.era) tuple.push(c.era);
+      return tuple;
+    }),
+  };
+}
 
 interface AuthenticatedRequest extends Request {
   auth?: { appId: string; role: 'admin' | 'app' | 'readonly' };
@@ -57,7 +85,7 @@ export function createTsaRoutes(service: TsaService): Router {
   router.post('/timestamp/json', requireAuth('app'),
     async (req: AuthenticatedRequest, res: Response) => {
       try {
-        const { hash, algorithm, policy, nonce, includeChain, calendars } = req.body;
+        const { hash, algorithm, policy, nonce, includeChain, calendars, compact } = req.body;
         if (!hash || !algorithm) {
           return res.status(400).json({
             error: 'Missing required fields',
@@ -67,13 +95,34 @@ export function createTsaRoutes(service: TsaService): Router {
               nonce: 'hex-encoded nonce for replay protection',
               includeChain: 'boolean — include TSA certificate chain',
               calendars: 'string[] — calendar systems to embed (e.g. ["buddhist","hebrew"]). Additive to policy defaults. Use ["*"] for all 42.',
+              compact: 'boolean — use compact calendar tuples instead of full objects (saves ~60% on calendar payload)',
             },
           });
         }
         const result = await service.processJsonRequest(
           { hash, algorithm, policy, nonce, includeChain, calendars }, req.ip || 'unknown',
         );
-        res.status(200).json({ success: true, ...result, callerApp: (req as AuthenticatedRequest).auth?.appId });
+
+        const callerApp = (req as AuthenticatedRequest).auth?.appId;
+        const useCompact = compact === true || compact === 'true';
+        const responseBody = {
+          success: true as const,
+          ...result,
+          ...(useCompact && result.calendarContext ? { calendarContext: compactCalendars(result.calendarContext) } : {}),
+          callerApp,
+        };
+
+        const accept = req.headers.accept || '';
+        if (accept.includes('application/cbor')) {
+          const encoded = cbor.encode(responseBody);
+          res.writeHead(200, {
+            'Content-Type': 'application/cbor',
+            'Content-Length': encoded.length,
+          });
+          res.end(encoded);
+        } else {
+          res.status(200).json(responseBody);
+        }
       } catch (error) { res.status(422).json({ success: false, error: (error as Error).message }); }
     },
   );
