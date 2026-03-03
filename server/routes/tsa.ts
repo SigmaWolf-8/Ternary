@@ -13,7 +13,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { TsaService, TSA_POLICIES } from '../services/tsa-service';
-import cbor from 'cbor';
+import { compressData, decompressData } from '../ternary';
 
 interface CompactCalendarContext {
   ts: string;
@@ -113,13 +113,18 @@ export function createTsaRoutes(service: TsaService): Router {
         };
 
         const accept = req.headers.accept || '';
-        if (accept.includes('application/cbor')) {
-          const encoded = cbor.encode(responseBody);
+        if (accept.includes('application/x-tern')) {
+          const jsonStr = JSON.stringify(responseBody);
+          const compressed = compressData(jsonStr);
+          const buf = Buffer.from(compressed.compressedData, 'base64');
           res.writeHead(200, {
-            'Content-Type': 'application/cbor',
-            'Content-Length': encoded.length,
+            'Content-Type': 'application/x-tern',
+            'Content-Length': buf.length,
+            'X-Tern-Original-Size': String(compressed.originalSize),
+            'X-Tern-Compressed-Size': String(compressed.compressedSize),
+            'X-Tern-Ratio': compressed.compressionRatio.toFixed(1),
           });
-          res.end(encoded);
+          res.end(buf);
         } else {
           res.status(200).json(responseBody);
         }
