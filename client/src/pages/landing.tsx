@@ -82,8 +82,8 @@ function AnimatedStat({ value, label, suffix, delay }: { value: string; label: s
 function HeroVisual() {
   const layers = [
     { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
-    { label: "Protocols", items: ["HPTP — Clock Sync", "T3P — App Protocol", "TTP — Transport", "TDNS — Name Resolution"], delay: 0.6 },
-    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — GC", "GF(3) Arithmetic"], delay: 0.7 },
+    { label: "Protocols", items: ["HPTP — Precision Clock Sync", "T3P — App Protocol", "TTP — Ternary Transport", "TDNS — Name Resolution"], delay: 0.6 },
+    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — Garbage Collector", "GF(3) Arithmetic"], delay: 0.7 },
     { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
     { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
   ];
