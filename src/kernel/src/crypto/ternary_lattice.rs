@@ -64,6 +64,20 @@ pub const MODULE_RANK_2: usize = 2;
 pub const MODULE_RANK_3: usize = 3;
 pub const MODULE_RANK_4: usize = 4;
 
+#[inline(always)]
+pub fn t_add(a: i8, b: i8) -> i8 {
+    let s = a + b;
+    if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
+}
+
+#[inline(always)]
+pub fn t_mul(a: i8, b: i8) -> i8 {
+    if a == 0 || b == 0 { 0 } else { a * b }
+}
+
+#[inline(always)]
+pub fn t_neg(a: i8) -> i8 { -a }
+
 fn mod3(x: i16) -> i8 {
     let r = ((x % 3) + 3) % 3;
     match r {
@@ -90,6 +104,55 @@ fn unsigned_to_balanced(u: u8) -> i8 {
         2 => -1,
         _ => unreachable!(),
     }
+}
+
+fn schoolbook_raw(a: &[i8], b: &[i8]) -> Vec<i8> {
+    let n = a.len();
+    let m = b.len();
+    let mut result = vec![0i8; n + m - 1];
+    for i in 0..n {
+        if a[i] == 0 { continue; }
+        for j in 0..m {
+            if b[j] == 0 { continue; }
+            result[i + j] = t_add(result[i + j], t_mul(a[i], b[j]));
+        }
+    }
+    result
+}
+
+fn karatsuba_raw(a: &[i8], b: &[i8]) -> Vec<i8> {
+    let n = a.len();
+    if n <= 32 {
+        return schoolbook_raw(a, b);
+    }
+    let m = n / 2;
+    let (a0, a1) = a.split_at(m);
+    let (b0, b1) = b.split_at(m);
+
+    let z0 = karatsuba_raw(a0, b0);
+    let z2 = karatsuba_raw(a1, b1);
+
+    let a01: Vec<i8> = a0.iter().zip(a1.iter()).map(|(&x, &y)| t_add(x, y)).collect();
+    let b01: Vec<i8> = b0.iter().zip(b1.iter()).map(|(&x, &y)| t_add(x, y)).collect();
+    let z1_full = karatsuba_raw(&a01, &b01);
+
+    let len = 2 * n - 1;
+    let mut result = vec![0i8; len];
+
+    for i in 0..z0.len() {
+        result[i] = t_add(result[i], z0[i]);
+    }
+    for i in 0..z2.len() {
+        result[i + 2 * m] = t_add(result[i + 2 * m], z2[i]);
+    }
+    for i in 0..z1_full.len() {
+        let mut v = z1_full[i];
+        if i < z0.len() { v = t_add(v, t_neg(z0[i])); }
+        if i < z2.len() { v = t_add(v, t_neg(z2[i])); }
+        result[i + m] = t_add(result[i + m], v);
+    }
+
+    result
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -214,6 +277,54 @@ impl TernaryPolynomial {
         Ok(TernaryPolynomial { coeffs, n })
     }
 
+    pub fn ring_mul_sparse(&self, other: &TernaryPolynomial) -> CryptoResult<TernaryPolynomial> {
+        if self.n != other.n {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.n,
+                actual: other.n,
+            });
+        }
+        let n = self.n;
+        let mut result = vec![0i8; n];
+
+        for i in 0..n {
+            let ci = self.coeffs[i];
+            if ci == 0 { continue; }
+            for j in 0..n {
+                let sj = other.coeffs[j];
+                if sj == 0 { continue; }
+                let pos = i + j;
+                if pos < n {
+                    result[pos] = t_add(result[pos], t_mul(ci, sj));
+                } else {
+                    result[pos - n] = t_add(result[pos - n], t_neg(t_mul(ci, sj)));
+                }
+            }
+        }
+
+        Ok(TernaryPolynomial { coeffs: result, n })
+    }
+
+    pub fn ring_mul_karatsuba(&self, other: &TernaryPolynomial) -> CryptoResult<TernaryPolynomial> {
+        if self.n != other.n {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.n,
+                actual: other.n,
+            });
+        }
+        let n = self.n;
+        let raw = karatsuba_raw(&self.coeffs, &other.coeffs);
+        let mut result = vec![0i8; n];
+        for i in 0..raw.len() {
+            if i < n {
+                result[i] = t_add(result[i], raw[i]);
+            } else {
+                result[i - n] = t_add(result[i - n], t_neg(raw[i]));
+            }
+        }
+        Ok(TernaryPolynomial { coeffs: result, n })
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity((self.n * 2 + 7) / 8);
         let mut current_byte: u8 = 0;
@@ -326,6 +437,26 @@ impl TernaryPolyMatrix {
             let mut sum = TernaryPolynomial::new(self.n);
             for j in 0..self.cols {
                 let product = self.entries[i][j].ring_mul(&vec.polys[j])?;
+                sum = sum.add(&product)?;
+            }
+            result.polys[i] = sum;
+        }
+        Ok(result)
+    }
+
+    pub fn mul_vec_karatsuba(&self, vec: &TernaryPolyVec) -> CryptoResult<TernaryPolyVec> {
+        if self.cols != vec.len() {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.cols,
+                actual: vec.len(),
+            });
+        }
+
+        let mut result = TernaryPolyVec::new(self.rows, self.n);
+        for i in 0..self.rows {
+            let mut sum = TernaryPolynomial::new(self.n);
+            for j in 0..self.cols {
+                let product = self.entries[i][j].ring_mul_karatsuba(&vec.polys[j])?;
                 sum = sum.add(&product)?;
             }
             result.polys[i] = sum;

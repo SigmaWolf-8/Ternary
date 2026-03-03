@@ -170,6 +170,7 @@ pub struct TlDsaPublicKey {
 pub struct TlDsaSecretKey {
     pub variant: TlDsaVariant,
     pub matrix_a_seed: Vec<i8>,
+    pub matrix_a: TernaryPolyMatrix,
     pub secret_s1: TernaryPolyVec,
     pub secret_s2: TernaryPolyVec,
     pub public_t: TernaryPolyVec,
@@ -324,7 +325,7 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
     let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
     let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
 
-    let public_t = matrix_a.mul_vec(&secret_s1)?;
+    let public_t = matrix_a.mul_vec_karatsuba(&secret_s1)?;
 
     let pk = TlDsaPublicKey {
         variant,
@@ -335,6 +336,7 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
     let sk = TlDsaSecretKey {
         variant,
         matrix_a_seed: rho,
+        matrix_a,
         secret_s1,
         secret_s2,
         public_t,
@@ -347,10 +349,8 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
 pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature> {
     let params = sk.variant.params();
     let n = params.n;
-    let k = params.k;
+    let _k = params.k;
     let l = params.l;
-
-    let matrix_a = expand_matrix_a(&sk.matrix_a_seed, k, l, n);
 
     let pk_trits = poly_vec_to_trits(&sk.public_t);
     let mu = dsa_hash(DOMAIN_MESSAGE_HASH, &[&pk_trits, message], 243);
@@ -365,7 +365,7 @@ pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature>
 
         let y = sample_masking_vec(&y_seed, l, n, 0);
 
-        let w = matrix_a.mul_vec(&y)?;
+        let w = sk.matrix_a.mul_vec_karatsuba(&y)?;
         let w_trits = poly_vec_to_trits(&w);
 
         let challenge_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu, &w_trits], 243);
@@ -376,7 +376,7 @@ pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature>
         let mut reject = false;
 
         for i in 0..l {
-            let cs1_i = c.ring_mul(&sk.secret_s1.polys[i])?;
+            let cs1_i = c.ring_mul_sparse(&sk.secret_s1.polys[i])?;
             let z_i = y.polys[i].add(&cs1_i)?;
 
             debug_assert!(
@@ -430,11 +430,11 @@ pub fn verify(pk: &TlDsaPublicKey, message: &[i8], sig: &TlDsaSignature) -> Cryp
 
     let c = sample_challenge(&sig.challenge_hash, n, params.tau);
 
-    let az = matrix_a.mul_vec(&sig.z)?;
+    let az = matrix_a.mul_vec_karatsuba(&sig.z)?;
 
     let mut ct_polys = Vec::with_capacity(k);
     for i in 0..k {
-        let cti = c.ring_mul(&pk.public_t.polys[i])?;
+        let cti = c.ring_mul_sparse(&pk.public_t.polys[i])?;
         ct_polys.push(cti);
     }
     let ct = TernaryPolyVec { polys: ct_polys, n };
@@ -490,8 +490,8 @@ pub fn sign_verify_timing_breakdown(
     timings.push(("sample_s1_s2", t0.elapsed()));
 
     let t0 = Instant::now();
-    let public_t = matrix_a.mul_vec(&secret_s1)?;
-    timings.push(("A·s₁ (keygen)", t0.elapsed()));
+    let public_t = matrix_a.mul_vec_karatsuba(&secret_s1)?;
+    timings.push(("A·s₁ karatsuba (kg)", t0.elapsed()));
 
     let pk = TlDsaPublicKey {
         variant,
@@ -501,15 +501,14 @@ pub fn sign_verify_timing_breakdown(
     let sk = TlDsaSecretKey {
         variant,
         matrix_a_seed: rho,
+        matrix_a,
         secret_s1,
         secret_s2,
         public_t,
         signing_seed,
     };
 
-    let t0 = Instant::now();
-    let matrix_a_sign = expand_matrix_a(&sk.matrix_a_seed, k, l, n);
-    timings.push(("expand_A (sign)", t0.elapsed()));
+    timings.push(("expand_A (sign)", core::time::Duration::ZERO));
 
     let pk_trits = poly_vec_to_trits(&sk.public_t);
     let t0 = Instant::now();
@@ -527,8 +526,8 @@ pub fn sign_verify_timing_breakdown(
     timings.push(("y_sampling", t0.elapsed()));
 
     let t0 = Instant::now();
-    let w = matrix_a_sign.mul_vec(&y)?;
-    timings.push(("A·y (commitment)", t0.elapsed()));
+    let w = sk.matrix_a.mul_vec_karatsuba(&y)?;
+    timings.push(("A·y karatsuba (sign)", t0.elapsed()));
 
     let w_trits = poly_vec_to_trits(&w);
     let t0 = Instant::now();
@@ -542,12 +541,12 @@ pub fn sign_verify_timing_breakdown(
     let t0 = Instant::now();
     let mut z_polys = Vec::with_capacity(l);
     for i in 0..l {
-        let cs1_i = c.ring_mul(&sk.secret_s1.polys[i])?;
+        let cs1_i = c.ring_mul_sparse(&sk.secret_s1.polys[i])?;
         let z_i = y.polys[i].add(&cs1_i)?;
         z_polys.push(z_i);
     }
     let z = TernaryPolyVec { polys: z_polys, n };
-    timings.push(("z = y + c·s₁", t0.elapsed()));
+    timings.push(("z = y + c·s₁ (sparse)", t0.elapsed()));
 
     let sig = TlDsaSignature {
         variant: sk.variant,
@@ -564,17 +563,17 @@ pub fn sign_verify_timing_breakdown(
     timings.push(("c_sampling (verify)", t0.elapsed()));
 
     let t0 = Instant::now();
-    let az = matrix_a_ver.mul_vec(&sig.z)?;
-    timings.push(("A·z (verify)", t0.elapsed()));
+    let az = matrix_a_ver.mul_vec_karatsuba(&sig.z)?;
+    timings.push(("A·z karatsuba (verify)", t0.elapsed()));
 
     let t0 = Instant::now();
     let mut ct_polys = Vec::with_capacity(k);
     for i in 0..k {
-        let cti = c_ver.ring_mul(&pk.public_t.polys[i])?;
+        let cti = c_ver.ring_mul_sparse(&pk.public_t.polys[i])?;
         ct_polys.push(cti);
     }
     let ct = TernaryPolyVec { polys: ct_polys, n };
-    timings.push(("c·t (verify)", t0.elapsed()));
+    timings.push(("c·t sparse (verify)", t0.elapsed()));
 
     let t0 = Instant::now();
     let w_prime = az.add(&ct.negate()?)?;
