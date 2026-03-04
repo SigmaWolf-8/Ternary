@@ -560,11 +560,11 @@ Blog:    WO:1312 WA:1111 WR:3111 WN:2311 WY:1111 HO:1111 PE:211
 
 | Pair | Differing Trits | Distance |
 |------|----------------|----------|
-| Google ↔ PPTPro | 15 of 27 | 15 hops |
+| Google ↔ PPTPro | 19 of 27 | 19 hops |
 | Google ↔ Blog | 16 of 27 | 16 hops |
-| PPTPro ↔ Blog | 21 of 27 | 21 hops |
+| PPTPro ↔ Blog | 22 of 27 | 22 hops |
 
-PPTPro and the blog differ on 21 of 27 dimensions — nearly as different as two things on the internet can be. The topology reflects this.
+PPTPro and the blog differ on 22 of 27 dimensions — nearly as different as two things on the internet can be. The topology reflects this.
 
 ---
 

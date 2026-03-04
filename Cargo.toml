@@ -4,5 +4,6 @@ members = [
     "src/kernel",
     "services/pqti-service",
     "services/inter-cube",
+    "services/tdns-v2",
 ]
 resolver = "2"

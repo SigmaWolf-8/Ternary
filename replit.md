@@ -27,6 +27,9 @@ GitHub Actions CI at `.github/workflows/formal-verification-rust.yml` runs Kani 
 ### XPlenum RISC-V Hardware Extension
 A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations (masking, domain management, capability handling, cryptography). It includes NIST SP 800-90A CTR_DRBG and Rust kernel interfaces. Advanced features include full-system formal verification, PQC acceleration (10 new instructions for ML-KEM/ML-DSA), and FIPS 140-3/CNSA 2.0 compliance.
 
+### TDNS v2.3 — Ternary Domain Name System
+A standalone Rust crate at `services/tdns-v2/` implementing the 27-dimensional ontological addressing protocol (spec at `salvi_docs/specs/TDNS-v2.3-SPECIFICATION.md`). Address space: 3^27 = 7.6 trillion. Replaces DNS (naming), BGP (routing), PKI (identity), IGMP/PIM (multicast), and PTP (timing) within the managed fabric. Seven modules: `trit` (atomic {1,2,3} digit, wire encoding, GF(3) projection), `addr` (27-trit CubeAddr, 7-byte wire packing, category/canonical display, Hamming distance, HPTP-mandatory detection), `subcube` (wildcard multicast, base+mask, 11-byte wire, GLB membership test), `schema` (27 dimensions in 7 categories WHO/WHAT/WHERE/WHEN/WHY/HOW/PEACE with human labels, scan methods, `describe()`), `scan` (BLAKE3 ScanHash, ScanResult, Confidence, DerivationRule trait), `trn` (TRN records per §7, time-locked resolution, HPTP sync tracking), `routing` (54-entry NeighborMap, greedy forwarding with sparse fallback, compute_path). 51 tests, all green. Dependencies: blake3 =1.5.4, serde, thiserror.
+
 ### Tonal Diffusion System
 This system enables network-wide time synchronization using FM timing packets, a toroidal topology, and gradient-driven diffusion consensus. It comprises a Rust FM Timing Engine, a shared topology definition, a Tonal Field Service, and a Resonance Detector, with an API for field data, packet handling, and metrics.
 
