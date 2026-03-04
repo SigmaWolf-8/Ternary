@@ -21,7 +21,7 @@ A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) ari
 A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations, PQC acceleration, and compliance.
 
 ### TDNS v2.3 — Ternary Domain Name System
-A standalone Rust crate implementing a 27-dimensional ontological addressing protocol (spec at `salvi_docs/specs/TDNS-v2.3-SPECIFICATION.md`). It replaces DNS, BGP, PKI, IGMP/PIM, and PTP within the managed fabric, featuring modules for trit arithmetic, address management, subcube multicasting, schema definition, scan operations, TRN records, routing, derivation rules, and a CrsRegistry service for registration and verification.
+A standalone Rust crate implementing a 27-dimensional ontological addressing protocol (spec at `salvi_docs/specs/TDNS-v2.3-SPECIFICATION.md`). It replaces DNS, BGP, PKI, IGMP/PIM, and PTP within the managed fabric, featuring 10 modules: trit arithmetic, address management, subcube multicasting, schema definition, scan operations, TRN records, routing, derivation rules, CrsRegistry service, and a live network scanner (URL → 27 probe measurements → CubeAddr via ureq HTTP/DNS/TLS inspection).
 
 ### Tonal Diffusion System
 This system enables network-wide time synchronization using FM timing packets, a toroidal topology, and gradient-driven diffusion consensus. It includes a Rust FM Timing Engine, a shared topology definition, a Tonal Field Service, and a Resonance Detector with an API.
