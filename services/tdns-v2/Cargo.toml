@@ -11,3 +11,7 @@ blake3 = "1"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 ureq = "2"
+
+[[bin]]
+name = "tdns-scan"
+path = "src/bin/tdns_scan.rs"

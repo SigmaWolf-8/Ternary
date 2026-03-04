@@ -16,6 +16,7 @@
 //   derive   — The 27 Derivation Rules
 //   crs      — CRS Registry Service
 //   scanner  — Live network scanning (URL → 27 observations → CubeAddr)
+//   glb      — Geometric Load Balancer (data-plane forwarding engine)
 
 pub mod trit;
 pub mod addr;
@@ -27,6 +28,7 @@ pub mod routing;
 pub mod derive;
 pub mod crs;
 pub mod scanner;
+pub mod glb;
 
 pub use addr::CubeAddr;
 pub use trit::Trit;
@@ -37,3 +39,4 @@ pub use routing::{NeighborMap, forward, compute_path, ForwardResult};
 pub use schema::{Category, Dimension, SCHEMA, describe};
 pub use crs::{CrsRegistry, CrsConfig, RegistrationResult, VerificationResult};
 pub use scanner::{scan, FullScanResult, ScanTarget, ScanContext, format_scan_report};
+pub use glb::{Glb, GlbDecision, HptpPolicy, NodeStatus};
