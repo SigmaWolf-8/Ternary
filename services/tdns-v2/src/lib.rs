@@ -13,6 +13,8 @@
 //   scan     — CRS scan results and BLAKE3 scan hash
 //   trn      — Ternary Resource Name records
 //   routing  — Neighbor maps and greedy forwarding
+//   derive   — The 27 Derivation Rules
+//   crs      — CRS Registry Service
 
 pub mod trit;
 pub mod addr;
@@ -21,6 +23,8 @@ pub mod schema;
 pub mod scan;
 pub mod trn;
 pub mod routing;
+pub mod derive;
+pub mod crs;
 
 pub use addr::CubeAddr;
 pub use trit::Trit;
@@ -29,3 +33,4 @@ pub use trn::Trn;
 pub use scan::{ScanHash, ScanResult};
 pub use routing::{NeighborMap, forward, compute_path, ForwardResult};
 pub use schema::{Category, Dimension, SCHEMA, describe};
+pub use crs::{CrsRegistry, CrsConfig, RegistrationResult, VerificationResult};
