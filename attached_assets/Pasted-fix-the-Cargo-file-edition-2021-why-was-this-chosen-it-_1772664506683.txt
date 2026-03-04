@@ -1,0 +1,47 @@
+fix the Cargo file> edition - '2021'  why was this chosen?  it's 2026.
+
+3:46 PM
+
+Investigated Rust edition compatibility constraints with current environment
+Investigated Rust edition compatibility constraints with current environment
+Good question. Let me check what we're working with.
+
+
+Weighed production standards against sandbox constraints pragmatically
+Weighed production standards against sandbox constraints pragmatically
+That's the constraint — this sandbox is pinned to Rust 1.75 (December 2023), which only supports up to edition 2021. Edition 2024 landed in Rust 1.85 (February 2025). In production you'd obviously be on latest stable.
+
+I'll set the crate to edition 2024 for the output files. It won't compile in this sandbox, but the sandbox isn't production — your repo is.
+
+
+Reconsidered dependency versions for newer Rust edition compatibility
+Reconsidered dependency versions for newer Rust edition compatibility
+Also — the dependency pins were sandbox workarounds too. blake3 was pinned to 1.5.4 because latest required edition 2024, and thiserror was pinned to v1 for the same reason. Production should use latest.
+
+
+Audited codebase compatibility with 2024 edition standards
+Audited codebase compatibility with 2024 edition standards
+Let me also add the MSRV so anyone pulling the crate knows the floor:
+
+
+Identified and purged obsolete dependency from configuration
+Identified and purged obsolete dependency from configuration
+One more — serde_json is still in dev-dependencies but we removed it from the code. Clean it out:
+
+
+Verified dependency cleanliness and prepared configuration display
+Verified dependency cleanliness and prepared configuration display
+Clean. Zero references.
+
+
+Verified sandbox compatibility with current edition settings
+Verified sandbox compatibility with current edition settings
+Three things fixed:
+
+Edition 2024 — Rust edition 2024 shipped with Rust 1.85 (February 2025). The sandbox here is stuck on 1.75, which forced the 2021 fallback. Production crate now targets the correct edition with rust-version = "1.85" as the MSRV floor.
+
+Dependencies unpinned — blake3 = "=1.5.4" and thiserror = "1" were sandbox workarounds (latest blake3 required edition 2024 features, thiserror v2 needed newer rustc). Both constraints are gone — semver ranges as intended.
+
+Dead dependency removed — serde_json was in dev-dependencies from an early version of scan.rs. We replaced that with direct byte serialization. Gone now.
+
+The sandbox working copy stays at edition 2021 so I can keep building and testing in this session. The output crate is the production target.
