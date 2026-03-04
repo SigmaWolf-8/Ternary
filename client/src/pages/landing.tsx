@@ -464,8 +464,8 @@ function PlatformSection() {
     {
       icon: Network,
       title: "Inter-Cube Mesh Network",
-      description: `${PLATFORM.HYPERCUBE_DIMENSIONS}-dimensional ternary hypercube with ${PLATFORM.HYPERCUBE_VERTICES} address space. Zero routing tables — GF(3) arithmetic computes every hop. Post-quantum tunnel keys derived from topology.`,
-      stats: `${PLATFORM.HYPERCUBE_VERTICES} vertices`,
+      description: `${PLATFORM.TDNS_TRITS}-trit ontological addressing with ${PLATFORM.TDNS_ADDRESS_SPACE} address space (3²⁷). Zero routing tables — GF(3) arithmetic computes every hop. Post-quantum tunnel keys derived from topology.`,
+      stats: `${PLATFORM.TDNS_ADDRESS_SPACE} addresses`,
     },
     {
       icon: Lock,
