@@ -15,6 +15,7 @@
 //   routing  — Neighbor maps and greedy forwarding
 //   derive   — The 27 Derivation Rules
 //   crs      — CRS Registry Service
+//   scanner  — Live network scanning (URL → 27 observations → CubeAddr)
 
 pub mod trit;
 pub mod addr;
@@ -25,6 +26,7 @@ pub mod trn;
 pub mod routing;
 pub mod derive;
 pub mod crs;
+pub mod scanner;
 
 pub use addr::CubeAddr;
 pub use trit::Trit;
@@ -34,3 +36,4 @@ pub use scan::{ScanHash, ScanResult};
 pub use routing::{NeighborMap, forward, compute_path, ForwardResult};
 pub use schema::{Category, Dimension, SCHEMA, describe};
 pub use crs::{CrsRegistry, CrsConfig, RegistrationResult, VerificationResult};
+pub use scanner::{scan, FullScanResult, ScanTarget, ScanContext, format_scan_report};

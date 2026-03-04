@@ -10,3 +10,4 @@ authors = ["Capomastro Holdings Ltd."]
 blake3 = "1"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
+ureq = "2"
