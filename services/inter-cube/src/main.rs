@@ -507,6 +507,24 @@ async fn run_cube_mode() {
         .map(|b| format!("{:02x}", b))
         .collect();
 
+    // -- Resolve hostname to IP for SocketAddr compatibility ------
+    let resolved_endpoint = match tokio::net::lookup_host(&cube_endpoint).await {
+        Ok(mut addrs) => match addrs.next() {
+            Some(sa) => {
+                println!("[CUBE] Resolved {} -> {}", cube_endpoint, sa);
+                sa.to_string()
+            }
+            None => {
+                println!("[CUBE] WARNING: DNS returned no results for {}, using 0.0.0.0:51820", cube_endpoint);
+                "0.0.0.0:51820".to_string()
+            }
+        },
+        Err(e) => {
+            println!("[CUBE] WARNING: DNS lookup failed for {}: {}, using 0.0.0.0:51820", cube_endpoint, e);
+            "0.0.0.0:51820".to_string()
+        }
+    };
+
     // -- Register with CRS (retry up to 10 times) ----------------
     let client = reqwest::Client::new();
     let register_url = format!("{}/api/salvi/inter-cube/crs/register", crs_url);
@@ -518,7 +536,7 @@ async fn run_cube_mode() {
         let result = client
             .post(&register_url)
             .json(&serde_json::json!({
-                "endpoint": cube_endpoint,
+                "endpoint": resolved_endpoint,
                 "publicKey": key_hex,
             }))
             .send()
