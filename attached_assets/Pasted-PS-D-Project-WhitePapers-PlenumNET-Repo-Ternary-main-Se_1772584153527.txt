@@ -1,0 +1,1188 @@
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-main> Set-Content -Path ".\services\inter-cube\Cargo.toml" -Encoding UTF8 -Value @"
+>> [package]
+>> name = "inter-cube"
+>> version = "0.2.0"
+>> edition = "2021"
+>> description = "PlenumNET Inter-Cube Infrastructure"
+>> license = "LicenseRef-Proprietary"
+>> authors = ["Salvi - Capomastro Holdings Ltd."]
+>> repository = "https://github.com/SigmaWolf-8/Ternary"
+>>
+>> [dependencies]
+>> ternary-math = { path = "../../ternary-math" }
+>> tokio = { version = "1", features = ["full"] }
+>> serde = { version = "1", features = ["derive"] }
+>> serde_json = "1"
+>> blake3 = "=1.5.4"
+>> chrono = { version = "0.4", features = ["serde"] }
+>> axum = "0.7"
+>> reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+>> tracing = "0.1"
+>>
+>> [dev-dependencies]
+>> tokio-test = "0.4"
+>>
+>> [[bin]]
+>> name = "inter-cube-daemon"
+>> path = "src/main.rs"
+>> "@
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-main> docker compose build --no-cache
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.12kB done
+#1 DONE 0.0s
+
+#2 [cube-2 internal] load build definition from Dockerfile
+#2 transferring dockerfile: 5.08kB 0.0s done
+#2 DONE 0.0s
+
+#3 [cube-3 internal] load metadata for docker.io/library/rust:1.77-bookworm
+#3 DONE 0.4s
+
+#4 [cube-1 internal] load metadata for docker.io/library/debian:bookworm-slim
+#4 DONE 0.4s
+
+#5 [cube-2 internal] load .dockerignore
+#5 transferring context: 177B done
+#5 DONE 0.0s
+
+#6 [cube-2 stage-1 1/3] FROM docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+#6 resolve docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421 0.0s done
+#6 CACHED
+
+#7 [cube-1 builder 1/8] FROM docker.io/library/rust:1.77-bookworm@sha256:83101f6985c93e1e6501b3375de188ee3d2cbb89968bcc91611591f9f447bd42
+#7 resolve docker.io/library/rust:1.77-bookworm@sha256:83101f6985c93e1e6501b3375de188ee3d2cbb89968bcc91611591f9f447bd42 0.0s done
+#7 DONE 0.0s
+
+#8 [cube-1 builder 2/8] WORKDIR /app
+#8 CACHED
+
+#9 [cube-1 internal] load build context
+#9 transferring context: 2.22kB done
+#9 DONE 0.0s
+
+#10 [cube-1 builder 3/8] COPY Cargo.toml ./
+#10 DONE 0.0s
+
+#11 [cube-1 builder 4/8] COPY ternary-math/ ternary-math/
+#11 DONE 0.0s
+
+#12 [crs builder 5/8] COPY services/inter-cube/ services/inter-cube/
+#12 DONE 0.0s
+
+#13 [cube-1 builder 6/8] RUN mkdir -p src/kernel/src &&     echo '[package]\nname = "ternary-kernel"\nversion = "0.1.0"\nedition = "2021"' > src/kernel/Cargo.toml &&     echo "" > src/kernel/src/lib.rs &&     mkdir -p services/pqti-service/src &&     echo '[package]\nname = "pqti-service"\nversion = "0.1.0"\nedition = "2021"' > services/pqti-service/Cargo.toml &&     echo "" > services/pqti-service/src/lib.rs
+#13 DONE 0.3s
+
+#14 [crs builder 7/8] RUN cargo build -p inter-cube --release
+#14 0.490     Updating crates.io index
+#14 ...
+
+#15 [cube-2 stage-1 2/3] RUN apt-get update &&     apt-get install -y --no-install-recommends ca-certificates curl &&     rm -rf /var/lib/apt/lists/*
+#15 0.421 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#15 0.581 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#15 0.650 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+#15 0.706 Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8691 kB]
+#15 4.126 Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [6936 B]
+#15 4.159 Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [289 kB]
+#15 4.775 Fetched 9241 kB in 5s (2044 kB/s)
+#15 4.775 Reading package lists...
+#15 5.119 Reading package lists...
+#15 5.449 Building dependency tree...
+#15 5.550 Reading state information...
+#15 5.660 The following additional packages will be installed:
+#15 5.660   libbrotli1 libcurl4 libgssapi-krb5-2 libk5crypto3 libkeyutils1 libkrb5-3
+#15 5.660   libkrb5support0 libldap-2.5-0 libnghttp2-14 libpsl5 librtmp1 libsasl2-2
+#15 5.661   libsasl2-modules-db libssh2-1 libssl3 openssl
+#15 5.663 Suggested packages:
+#15 5.663   krb5-doc krb5-user
+#15 5.663 Recommended packages:
+#15 5.663   krb5-locales libldap-common publicsuffix libsasl2-modules
+#15 5.745 The following NEW packages will be installed:
+#15 5.745   ca-certificates curl libbrotli1 libcurl4 libgssapi-krb5-2 libk5crypto3
+#15 5.745   libkeyutils1 libkrb5-3 libkrb5support0 libldap-2.5-0 libnghttp2-14 libpsl5
+#15 5.745   librtmp1 libsasl2-2 libsasl2-modules-db libssh2-1 libssl3 openssl
+#15 5.841 0 upgraded, 18 newly installed, 0 to remove and 0 not upgraded.
+#15 5.841 Need to get 5485 kB of archives.
+#15 5.841 After this operation, 15.1 MB of additional disk space will be used.
+#15 5.841 Get:1 http://deb.debian.org/debian-security bookworm-security/main arm64 libssl3 arm64 3.0.18-1~deb12u2 [1818 kB]
+#15 6.968 Get:2 http://deb.debian.org/debian-security bookworm-security/main arm64 openssl arm64 3.0.18-1~deb12u2 [1399 kB]
+#15 ...
+
+#14 [crs builder 7/8] RUN cargo build -p inter-cube --release
+#14 6.741  Downloading crates ...
+#14 6.990   Downloaded http-body v1.0.1
+#14 6.999   Downloaded cfg-if v1.0.4
+#14 7.011   Downloaded async-trait v0.1.89
+#14 7.056   Downloaded cfg_aliases v0.2.1
+#14 7.064   Downloaded arrayref v0.3.9
+#14 7.080   Downloaded scopeguard v1.2.0
+#14 7.088   Downloaded idna_adapter v1.2.1
+#14 7.093   Downloaded potential_utf v0.1.4
+#14 7.097   Downloaded lru-slab v0.1.2
+#14 7.099   Downloaded httpdate v1.0.3
+#14 7.104   Downloaded form_urlencoded v1.2.2
+#14 7.109   Downloaded mime v0.3.17
+#14 7.116   Downloaded subtle v2.6.1
+#14 7.122   Downloaded pin-utils v0.1.0
+#14 7.126   Downloaded atomic-waker v1.1.2
+#14 7.133   Downloaded rustc-hash v2.1.1
+#14 7.136   Downloaded futures-core v0.3.32
+#14 7.140   Downloaded itoa v1.0.17
+#14 7.146   Downloaded errno v0.3.14
+#14 7.159   Downloaded futures-task v0.3.32
+#14 7.164   Downloaded stable_deref_trait v1.2.1
+#14 7.169   Downloaded sync_wrapper v1.0.2
+#14 7.173   Downloaded rand_chacha v0.9.0
+#14 7.176   Downloaded rustversion v1.0.22
+#14 7.183   Downloaded percent-encoding v2.3.2
+#14 7.186   Downloaded synstructure v0.13.2
+#14 7.188   Downloaded constant_time_eq v0.3.1
+#14 7.192   Downloaded thiserror v2.0.18
+#14 7.209   Downloaded signal-hook-registry v1.4.8
+#14 7.214   Downloaded pin-project-lite v0.2.17
+#14 7.230   Downloaded want v0.3.1
+#14 7.235   Downloaded quinn-udp v0.5.14
+#14 7.240   Downloaded litemap v0.8.1
+#14 7.245   Downloaded getrandom v0.2.17
+#14 7.252   Downloaded utf8_iter v1.0.4
+#14 7.255   Downloaded quote v1.0.45
+#14 7.261   Downloaded serde_path_to_error v0.1.20
+#14 7.265   Downloaded tokio-rustls v0.26.4
+#14 7.270   Downloaded zerofrom v0.1.6
+#14 7.272   Downloaded tracing-attributes v0.1.31
+#14 7.279   Downloaded serde_core v1.0.228
+#14 7.287   Downloaded untrusted v0.9.0
+#14 7.291   Downloaded rustls-pki-types v1.14.0
+#14 7.295   Downloaded base64 v0.22.1
+#14 7.307   Downloaded tinyvec v1.10.0
+#14 7.313   Downloaded ryu v1.0.23
+#14 7.323   Downloaded try-lock v0.2.5
+#14 7.326   Downloaded cc v1.2.56
+#14 7.332   Downloaded rand v0.9.2
+#14 7.341   Downloaded hyper-util v0.1.20
+#14 7.355   Downloaded mio v1.1.1
+#14 7.368   Downloaded axum v0.7.9
+#14 7.384   Downloaded serde_json v1.0.149
+#14 7.402   Downloaded quinn-proto v0.11.13
+#14 7.418   Downloaded syn v2.0.117
+#14 7.444   Downloaded libc v0.2.182
+#14 7.537   Downloaded tower-service v0.3.3
+#14 7.539   Downloaded tokio-macros v2.6.1
+#14 7.543   Downloaded yoke v0.8.1
+#14 7.551   Downloaded tinyvec_macros v0.1.1
+#14 7.553   Downloaded zerofrom-derive v0.1.6
+#14 7.555   Downloaded yoke-derive v0.8.1
+#14 7.557   Downloaded ring v0.17.14
+#14 7.636   Downloaded zmij v1.0.21
+#14 7.640   Downloaded zerovec-derive v0.11.2
+#14 7.644   Downloaded zeroize v1.8.2
+#14 7.648   Downloaded tinystr v0.8.2
+#14 7.654   Downloaded writeable v0.6.2
+#14 7.658   Downloaded rustls v0.23.37
+#14 7.691   Downloaded chrono v0.4.44
+#14 7.703   Downloaded reqwest v0.12.28
+#14 7.713   Downloaded iri-string v0.7.10
+#14 7.730   Downloaded idna v1.1.0
+#14 7.740   Downloaded icu_properties_data v2.1.2
+#14 7.761   Downloaded unicode-ident v1.0.24
+#14 7.769   Downloaded tracing-core v0.1.36
+#14 7.776   Downloaded hyper v1.8.1
+#14 7.792   Downloaded futures-util v0.3.32
+#14 7.816   Downloaded blake3 v1.5.4
+#14 7.831   Downloaded http v1.4.0
+#14 7.839   Downloaded tower-layer v0.3.3
+#14 7.841   Downloaded serde_derive v1.0.228
+#14 7.847   Downloaded serde v1.0.228
+#14 7.855   Downloaded rustls-webpki v0.103.9
+#14 7.861   Downloaded quinn v0.11.9
+#14 7.868   Downloaded memchr v2.8.0
+#14 7.885   Downloaded icu_collections v2.1.1
+#14 7.899   Downloaded zerotrie v0.2.3
+#14 7.910   Downloaded proc-macro2 v1.0.106
+#14 7.917   Downloaded num-traits v0.2.19
+#14 7.921   Downloaded icu_normalizer_data v2.1.1
+#14 7.925   Downloaded icu_normalizer v2.1.1
+#14 7.932   Downloaded url v2.5.8
+#14 7.936   Downloaded icu_locale_core v2.1.1
+#14 7.950   Downloaded bytes v1.11.1
+#14 7.958   Downloaded parking_lot v0.12.5
+#14 7.963   Downloaded icu_properties v2.1.2
+#14 7.967   Downloaded log v0.4.29
+#14 7.973   Downloaded icu_provider v2.1.1
+#14 7.982   Downloaded getrandom v0.3.4
+#14 7.988   Downloaded socket2 v0.6.2
+#14 7.995   Downloaded smallvec v1.15.1
+#14 8.003   Downloaded parking_lot_core v0.9.12
+#14 8.011   Downloaded hyper-rustls v0.27.7
+#14 8.017   Downloaded iana-time-zone v0.1.65
+#14 8.022   Downloaded http-body-util v0.1.3
+#14 8.027   Downloaded futures-channel v0.3.32
+#14 8.032   Downloaded bitflags v2.11.0
+#14 8.041   Downloaded arrayvec v0.7.6
+#14 8.047   Downloaded httparse v1.10.1
+#14 8.054   Downloaded thiserror-impl v2.0.18
+#14 8.056   Downloaded shlex v1.3.0
+#14 8.059   Downloaded tower v0.5.3
+#14 8.089   Downloaded serde_urlencoded v0.7.1
+#14 8.094   Downloaded rand_core v0.9.5
+#14 8.098   Downloaded ppv-lite86 v0.2.21
+#14 8.101   Downloaded once_cell v1.21.3
+#14 8.109   Downloaded find-msvc-tools v0.1.9
+#14 8.114   Downloaded slab v0.4.12
+#14 8.117   Downloaded lock_api v0.4.14
+#14 8.120   Downloaded matchit v0.7.3
+#14 8.126   Downloaded ipnet v2.12.0
+#14 8.132   Downloaded displaydoc v0.2.5
+#14 8.138   Downloaded axum-core v0.4.5
+#14 8.144   Downloaded autocfg v1.5.0
+#14 8.177   Downloaded zerovec v0.11.5
+#14 8.202   Downloaded tower-http v0.6.8
+#14 8.359   Downloaded webpki-roots v1.0.6
+#14 8.391   Downloaded zerocopy v0.8.40
+#14 8.484   Downloaded tracing v0.1.44
+#14 8.715   Downloaded tokio v1.50.0
+#14 8.833 error: package `icu_normalizer_data v2.1.1` cannot be built because it requires rustc 1.83 or newer, while the currently active rustc version is 1.77.2
+#14 8.833 Either upgrade to rustc 1.83 or newer, or use
+#14 8.833 cargo update icu_normalizer_data@2.1.1 --precise ver
+#14 8.833 where `ver` is the latest version of `icu_normalizer_data` supporting rustc 1.77.2
+#14 ERROR: process "/bin/sh -c cargo build -p inter-cube --release" did not complete successfully: exit code: 101
+
+#15 [cube-3 stage-1 2/3] RUN apt-get update &&     apt-get install -y --no-install-recommends ca-certificates curl &&     rm -rf /var/lib/apt/lists/*
+#15 7.428 Get:3 http://deb.debian.org/debian bookworm/main arm64 ca-certificates all 20230311+deb12u1 [155 kB]
+#15 7.467 Get:4 http://deb.debian.org/debian bookworm/main arm64 libbrotli1 arm64 1.0.9-2+b6 [269 kB]
+#15 7.530 Get:5 http://deb.debian.org/debian bookworm/main arm64 libkrb5support0 arm64 1.20.1-2+deb12u4 [32.5 kB]
+#15 7.545 Get:6 http://deb.debian.org/debian bookworm/main arm64 libk5crypto3 arm64 1.20.1-2+deb12u4 [80.2 kB]
+#15 7.570 Get:7 http://deb.debian.org/debian bookworm/main arm64 libkeyutils1 arm64 1.6.3-2 [8844 B]
+#15 7.570 Get:8 http://deb.debian.org/debian bookworm/main arm64 libkrb5-3 arm64 1.20.1-2+deb12u4 [314 kB]
+#15 7.644 Get:9 http://deb.debian.org/debian bookworm/main arm64 libgssapi-krb5-2 arm64 1.20.1-2+deb12u4 [124 kB]
+#15 7.664 Get:10 http://deb.debian.org/debian bookworm/main arm64 libsasl2-modules-db arm64 2.1.28+dfsg-10 [20.8 kB]
+#15 7.668 Get:11 http://deb.debian.org/debian bookworm/main arm64 libsasl2-2 arm64 2.1.28+dfsg-10 [58.0 kB]
+#15 7.679 Get:12 http://deb.debian.org/debian bookworm/main arm64 libldap-2.5-0 arm64 2.5.13+dfsg-5 [171 kB]
+#15 7.709 Get:13 http://deb.debian.org/debian bookworm/main arm64 libnghttp2-14 arm64 1.52.0-1+deb12u2 [68.6 kB]
+#15 7.719 Get:14 http://deb.debian.org/debian bookworm/main arm64 libpsl5 arm64 0.21.2-1 [58.6 kB]
+#15 7.726 Get:15 http://deb.debian.org/debian bookworm/main arm64 librtmp1 arm64 2.4+20151223.gitfa8646d.1-2+b2 [59.4 kB]
+#15 7.738 Get:16 http://deb.debian.org/debian bookworm/main arm64 libssh2-1 arm64 1.10.0-3+b1 [172 kB]
+#15 7.764 Get:17 http://deb.debian.org/debian bookworm/main arm64 libcurl4 arm64 7.88.1-10+deb12u14 [367 kB]
+#15 7.855 Get:18 http://deb.debian.org/debian bookworm/main arm64 curl arm64 7.88.1-10+deb12u14 [309 kB]
+#15 8.033 debconf: delaying package configuration, since apt-utils is not installed
+#15 8.060 Fetched 5485 kB in 2s (2561 kB/s)
+#15 8.091 Selecting previously unselected package libssl3:arm64.
+(Reading database ... 6090 files and directories currently installed.)
+#15 8.125 Preparing to unpack .../00-libssl3_3.0.18-1~deb12u2_arm64.deb ...
+#15 8.130 Unpacking libssl3:arm64 (3.0.18-1~deb12u2) ...
+#15 8.252 Selecting previously unselected package openssl.
+#15 8.254 Preparing to unpack .../01-openssl_3.0.18-1~deb12u2_arm64.deb ...
+#15 8.257 Unpacking openssl (3.0.18-1~deb12u2) ...
+#15 8.350 Selecting previously unselected package ca-certificates.
+#15 8.351 Preparing to unpack .../02-ca-certificates_20230311+deb12u1_all.deb ...
+#15 8.353 Unpacking ca-certificates (20230311+deb12u1) ...
+#15 8.415 Selecting previously unselected package libbrotli1:arm64.
+#15 8.416 Preparing to unpack .../03-libbrotli1_1.0.9-2+b6_arm64.deb ...
+#15 8.420 Unpacking libbrotli1:arm64 (1.0.9-2+b6) ...
+#15 8.461 Selecting previously unselected package libkrb5support0:arm64.
+#15 8.461 Preparing to unpack .../04-libkrb5support0_1.20.1-2+deb12u4_arm64.deb ...
+#15 8.464 Unpacking libkrb5support0:arm64 (1.20.1-2+deb12u4) ...
+#15 8.492 Selecting previously unselected package libk5crypto3:arm64.
+#15 8.493 Preparing to unpack .../05-libk5crypto3_1.20.1-2+deb12u4_arm64.deb ...
+#15 8.496 Unpacking libk5crypto3:arm64 (1.20.1-2+deb12u4) ...
+#15 8.531 Selecting previously unselected package libkeyutils1:arm64.
+#15 8.532 Preparing to unpack .../06-libkeyutils1_1.6.3-2_arm64.deb ...
+#15 8.536 Unpacking libkeyutils1:arm64 (1.6.3-2) ...
+#15 8.560 Selecting previously unselected package libkrb5-3:arm64.
+#15 8.561 Preparing to unpack .../07-libkrb5-3_1.20.1-2+deb12u4_arm64.deb ...
+#15 8.564 Unpacking libkrb5-3:arm64 (1.20.1-2+deb12u4) ...
+#15 8.606 Selecting previously unselected package libgssapi-krb5-2:arm64.
+#15 8.607 Preparing to unpack .../08-libgssapi-krb5-2_1.20.1-2+deb12u4_arm64.deb ...
+#15 8.609 Unpacking libgssapi-krb5-2:arm64 (1.20.1-2+deb12u4) ...
+#15 8.636 Selecting previously unselected package libsasl2-modules-db:arm64.
+#15 8.637 Preparing to unpack .../09-libsasl2-modules-db_2.1.28+dfsg-10_arm64.deb ...
+#15 8.640 Unpacking libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#15 8.665 Selecting previously unselected package libsasl2-2:arm64.
+#15 8.666 Preparing to unpack .../10-libsasl2-2_2.1.28+dfsg-10_arm64.deb ...
+#15 8.668 Unpacking libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#15 8.694 Selecting previously unselected package libldap-2.5-0:arm64.
+#15 8.696 Preparing to unpack .../11-libldap-2.5-0_2.5.13+dfsg-5_arm64.deb ...
+#15 8.698 Unpacking libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#15 8.730 Selecting previously unselected package libnghttp2-14:arm64.
+#15 8.731 Preparing to unpack .../12-libnghttp2-14_1.52.0-1+deb12u2_arm64.deb ...
+#15 8.733 Unpacking libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#15 8.759 Selecting previously unselected package libpsl5:arm64.
+#15 8.760 Preparing to unpack .../13-libpsl5_0.21.2-1_arm64.deb ...
+#15 8.763 Unpacking libpsl5:arm64 (0.21.2-1) ...
+#15 8.788 Selecting previously unselected package librtmp1:arm64.
+#15 8.789 Preparing to unpack .../14-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_arm64.deb ...
+#15 8.792 Unpacking librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#15 8.815 Selecting previously unselected package libssh2-1:arm64.
+#15 8.816 Preparing to unpack .../15-libssh2-1_1.10.0-3+b1_arm64.deb ...
+#15 8.818 Unpacking libssh2-1:arm64 (1.10.0-3+b1) ...
+#15 8.850 Selecting previously unselected package libcurl4:arm64.
+#15 8.850 Preparing to unpack .../16-libcurl4_7.88.1-10+deb12u14_arm64.deb ...
+#15 8.852 Unpacking libcurl4:arm64 (7.88.1-10+deb12u14) ...
+#15 8.888 Selecting previously unselected package curl.
+#15 8.890 Preparing to unpack .../17-curl_7.88.1-10+deb12u14_arm64.deb ...
+#15 8.893 Unpacking curl (7.88.1-10+deb12u14) ...
+#15 8.930 Setting up libkeyutils1:arm64 (1.6.3-2) ...
+#15 8.936 Setting up libpsl5:arm64 (0.21.2-1) ...
+#15 8.943 Setting up libbrotli1:arm64 (1.0.9-2+b6) ...
+#15 8.949 Setting up libssl3:arm64 (3.0.18-1~deb12u2) ...
+#15 8.955 Setting up libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#15 8.961 Setting up libkrb5support0:arm64 (1.20.1-2+deb12u4) ...
+#15 8.966 Setting up libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#15 8.971 Setting up librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#15 8.977 Setting up libk5crypto3:arm64 (1.20.1-2+deb12u4) ...
+#15 8.985 Setting up libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#15 8.990 Setting up libssh2-1:arm64 (1.10.0-3+b1) ...
+#15 8.996 Setting up libkrb5-3:arm64 (1.20.1-2+deb12u4) ...
+#15 9.003 Setting up openssl (3.0.18-1~deb12u2) ...
+#15 9.013 Setting up libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#15 9.019 Setting up ca-certificates (20230311+deb12u1) ...
+#15 9.077 debconf: unable to initialize frontend: Dialog
+#15 9.077 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#15 9.077 debconf: falling back to frontend: Readline
+#15 9.078 debconf: unable to initialize frontend: Readline
+#15 9.078 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/aarch64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+#15 9.078 debconf: falling back to frontend: Teletype
+#15 CANCELED
+------
+ > [cube-1 builder 7/8] RUN cargo build -p inter-cube --release:
+8.177   Downloaded zerovec v0.11.5
+8.202   Downloaded tower-http v0.6.8
+8.359   Downloaded webpki-roots v1.0.6
+8.391   Downloaded zerocopy v0.8.40
+8.484   Downloaded tracing v0.1.44
+8.715   Downloaded tokio v1.50.0
+8.833 error: package `icu_normalizer_data v2.1.1` cannot be built because it requires rustc 1.83 or newer, while the currently active rustc version is 1.77.2
+8.833 Either upgrade to rustc 1.83 or newer, or use
+8.833 cargo update icu_normalizer_data@2.1.1 --precise ver
+8.833 where `ver` is the latest version of `icu_normalizer_data` supporting rustc 1.77.2
+------
+[+] build 0/4
+ - Image ternary-main-crs    Building                                                                               9.9s
+ - Image ternary-main-cube-1 Building                                                                               9.9s
+ - Image ternary-main-cube-2 Building                                                                               9.9s
+ - Image ternary-main-cube-3 Building                                                                               9.9s
+Dockerfile:62
+
+--------------------
+
+  60 |     # This downloads dependencies, compiles everything, and produces
+
+  61 |     # a single binary: target/release/inter-cube-daemon
+
+  62 | >>> RUN cargo build -p inter-cube --release
+
+  63 |
+
+  64 |     # Run all 57 tests. If any test fails, the build stops here.
+
+--------------------
+
+target cube-1: failed to solve: process "/bin/sh -c cargo build -p inter-cube --release" did not complete successfully: exit code: 101
+
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-main> (Get-Content ".\Dockerfile").Replace('rust:1.77-bookworm','rust:1.83-bookworm') | Set-Content -Encoding UTF8 ".\Dockerfile"
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-main> Select-String -Path ".\Dockerfile" -Pattern "rust:"
+
+Dockerfile:26:FROM rust:1.83-bookworm AS builder
+
+
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-main> docker compose build --no-cache
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.12kB done
+#1 DONE 0.0s
+
+#2 [crs internal] load build definition from Dockerfile
+#2 transferring dockerfile: 6.16kB 0.0s done
+#2 DONE 0.0s
+
+#3 [cube-2 internal] load metadata for docker.io/library/debian:bookworm-slim
+#3 DONE 0.4s
+
+#4 [cube-2 internal] load metadata for docker.io/library/rust:1.83-bookworm
+#4 DONE 1.1s
+
+#5 [cube-3 internal] load .dockerignore
+#5 transferring context: 177B done
+#5 DONE 0.0s
+
+#6 [cube-1 stage-1 1/3] FROM docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+#6 resolve docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421 0.0s done
+#6 CACHED
+
+#7 [cube-3 internal] load build context
+#7 transferring context: 1.49kB done
+#7 DONE 0.0s
+
+#8 [cube-2 builder 1/8] FROM docker.io/library/rust:1.83-bookworm@sha256:a45bf1f5d9af0a23b26703b3500d70af1abff7f984a7abef5a104b42c02a292b
+#8 resolve docker.io/library/rust:1.83-bookworm@sha256:a45bf1f5d9af0a23b26703b3500d70af1abff7f984a7abef5a104b42c02a292b 0.0s done
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 0B / 251.80MB 0.2s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 0B / 64.35MB 0.2s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 0B / 202.69MB 0.2s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 0B / 23.41MB 0.2s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 14.68MB / 251.80MB 1.4s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 4.19MB / 23.41MB 1.2s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 6.29MB / 23.41MB 1.4s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 8.39MB / 23.41MB 1.5s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 10.49MB / 23.41MB 1.7s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 12.58MB / 23.41MB 1.8s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 14.68MB / 23.41MB 2.0s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 28.31MB / 251.80MB 2.3s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 16.78MB / 23.41MB 2.1s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 18.87MB / 23.41MB 2.3s
+#8 sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 23.41MB / 23.41MB 2.5s done
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 0B / 48.33MB 0.2s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 4.19MB / 64.35MB 2.9s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 42.99MB / 251.80MB 3.2s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 5.24MB / 48.33MB 0.6s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 9.44MB / 48.33MB 0.9s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 13.63MB / 48.33MB 1.2s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 8.39MB / 64.35MB 3.8s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 56.62MB / 251.80MB 4.1s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 18.87MB / 48.33MB 1.5s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 10.49MB / 202.69MB 4.2s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 23.07MB / 48.33MB 1.8s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 12.58MB / 64.35MB 4.5s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 27.26MB / 48.33MB 2.1s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 71.30MB / 251.80MB 5.0s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 32.51MB / 48.33MB 2.4s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 16.78MB / 64.35MB 5.0s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 36.70MB / 48.33MB 2.7s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 39.85MB / 48.33MB 2.9s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 20.97MB / 202.69MB 5.4s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 20.97MB / 64.35MB 5.6s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 44.04MB / 48.33MB 3.2s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 85.98MB / 251.80MB 5.9s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 47.19MB / 48.33MB 3.3s
+#8 sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 48.33MB / 48.33MB 3.4s done
+#8 extracting sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 25.17MB / 64.35MB 6.0s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 31.46MB / 202.69MB 6.3s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 99.61MB / 251.80MB 6.6s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 30.41MB / 64.35MB 6.5s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 34.60MB / 64.35MB 6.8s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 38.80MB / 64.35MB 7.1s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 41.94MB / 202.69MB 7.1s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 114.29MB / 251.80MB 7.5s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 44.04MB / 64.35MB 7.4s
+#8 extracting sha256:ba1dd0e85e0bf7e5cb632a24bbc3ec0060700bc5be9273b05d7e059950225037 1.6s done
+#8 extracting sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 49.28MB / 64.35MB 7.7s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 53.48MB / 202.69MB 7.7s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 54.53MB / 64.35MB 8.0s
+#8 extracting sha256:92b12b0dccf212c795e61e16dcc85f0caa01c231281e3287400bd334ffedb5ff 0.5s done
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 128.97MB / 251.80MB 8.3s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 59.77MB / 64.35MB 8.3s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 65.01MB / 202.69MB 8.3s
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 64.35MB / 64.35MB 8.5s done
+#8 sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 64.35MB / 64.35MB 8.5s done
+#8 extracting sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 77.59MB / 202.69MB 8.9s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 144.70MB / 251.80MB 9.0s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 158.33MB / 251.80MB 9.6s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 90.18MB / 202.69MB 9.5s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 102.76MB / 202.69MB 10.1s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 173.02MB / 251.80MB 10.4s
+#8 ...
+
+#9 [crs stage-1 2/3] RUN apt-get update &&     apt-get install -y --no-install-recommends ca-certificates curl &&     rm -rf /var/lib/apt/lists/*
+#9 0.445 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#9 0.693 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#9 0.932 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+#9 1.037 Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8691 kB]
+#9 6.064 Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [6936 B]
+#9 6.173 Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [289 kB]
+#9 6.833 Fetched 9241 kB in 7s (1409 kB/s)
+#9 6.833 Reading package lists...
+#9 7.307 Reading package lists...
+#9 7.849 Building dependency tree...
+#9 8.004 Reading state information...
+#9 8.222 The following additional packages will be installed:
+#9 8.222   libbrotli1 libcurl4 libgssapi-krb5-2 libk5crypto3 libkeyutils1 libkrb5-3
+#9 8.223   libkrb5support0 libldap-2.5-0 libnghttp2-14 libpsl5 librtmp1 libsasl2-2
+#9 8.223   libsasl2-modules-db libssh2-1 libssl3 openssl
+#9 8.224 Suggested packages:
+#9 8.224   krb5-doc krb5-user
+#9 8.224 Recommended packages:
+#9 8.224   krb5-locales libldap-common publicsuffix libsasl2-modules
+#9 8.337 The following NEW packages will be installed:
+#9 8.337   ca-certificates curl libbrotli1 libcurl4 libgssapi-krb5-2 libk5crypto3
+#9 8.337   libkeyutils1 libkrb5-3 libkrb5support0 libldap-2.5-0 libnghttp2-14 libpsl5
+#9 8.338   librtmp1 libsasl2-2 libsasl2-modules-db libssh2-1 libssl3 openssl
+#9 8.560 0 upgraded, 18 newly installed, 0 to remove and 0 not upgraded.
+#9 8.560 Need to get 5485 kB of archives.
+#9 8.560 After this operation, 15.1 MB of additional disk space will be used.
+#9 8.560 Get:1 http://deb.debian.org/debian-security bookworm-security/main arm64 libssl3 arm64 3.0.18-1~deb12u2 [1818 kB]
+#9 8.919 Get:2 http://deb.debian.org/debian-security bookworm-security/main arm64 openssl arm64 3.0.18-1~deb12u2 [1399 kB]
+#9 9.044 Get:3 http://deb.debian.org/debian bookworm/main arm64 ca-certificates all 20230311+deb12u1 [155 kB]
+#9 9.054 Get:4 http://deb.debian.org/debian bookworm/main arm64 libbrotli1 arm64 1.0.9-2+b6 [269 kB]
+#9 9.072 Get:5 http://deb.debian.org/debian bookworm/main arm64 libkrb5support0 arm64 1.20.1-2+deb12u4 [32.5 kB]
+#9 9.074 Get:6 http://deb.debian.org/debian bookworm/main arm64 libk5crypto3 arm64 1.20.1-2+deb12u4 [80.2 kB]
+#9 9.079 Get:7 http://deb.debian.org/debian bookworm/main arm64 libkeyutils1 arm64 1.6.3-2 [8844 B]
+#9 9.081 Get:8 http://deb.debian.org/debian bookworm/main arm64 libkrb5-3 arm64 1.20.1-2+deb12u4 [314 kB]
+#9 9.105 Get:9 http://deb.debian.org/debian bookworm/main arm64 libgssapi-krb5-2 arm64 1.20.1-2+deb12u4 [124 kB]
+#9 9.112 Get:10 http://deb.debian.org/debian bookworm/main arm64 libsasl2-modules-db arm64 2.1.28+dfsg-10 [20.8 kB]
+#9 9.113 Get:11 http://deb.debian.org/debian bookworm/main arm64 libsasl2-2 arm64 2.1.28+dfsg-10 [58.0 kB]
+#9 9.117 Get:12 http://deb.debian.org/debian bookworm/main arm64 libldap-2.5-0 arm64 2.5.13+dfsg-5 [171 kB]
+#9 9.123 Get:13 http://deb.debian.org/debian bookworm/main arm64 libnghttp2-14 arm64 1.52.0-1+deb12u2 [68.6 kB]
+#9 9.125 Get:14 http://deb.debian.org/debian bookworm/main arm64 libpsl5 arm64 0.21.2-1 [58.6 kB]
+#9 9.126 Get:15 http://deb.debian.org/debian bookworm/main arm64 librtmp1 arm64 2.4+20151223.gitfa8646d.1-2+b2 [59.4 kB]
+#9 9.130 Get:16 http://deb.debian.org/debian bookworm/main arm64 libssh2-1 arm64 1.10.0-3+b1 [172 kB]
+#9 9.138 Get:17 http://deb.debian.org/debian bookworm/main arm64 libcurl4 arm64 7.88.1-10+deb12u14 [367 kB]
+#9 9.185 Get:18 http://deb.debian.org/debian bookworm/main arm64 curl arm64 7.88.1-10+deb12u14 [309 kB]
+#9 9.379 debconf: delaying package configuration, since apt-utils is not installed
+#9 9.415 Fetched 5485 kB in 1s (6448 kB/s)
+#9 9.448 Selecting previously unselected package libssl3:arm64.
+(Reading database ... 6090 files and directories currently installed.)
+#9 9.476 Preparing to unpack .../00-libssl3_3.0.18-1~deb12u2_arm64.deb ...
+#9 9.483 Unpacking libssl3:arm64 (3.0.18-1~deb12u2) ...
+#9 9.619 Selecting previously unselected package openssl.
+#9 9.620 Preparing to unpack .../01-openssl_3.0.18-1~deb12u2_arm64.deb ...
+#9 9.627 Unpacking openssl (3.0.18-1~deb12u2) ...
+#9 9.736 Selecting previously unselected package ca-certificates.
+#9 9.738 Preparing to unpack .../02-ca-certificates_20230311+deb12u1_all.deb ...
+#9 9.741 Unpacking ca-certificates (20230311+deb12u1) ...
+#9 9.803 Selecting previously unselected package libbrotli1:arm64.
+#9 9.803 Preparing to unpack .../03-libbrotli1_1.0.9-2+b6_arm64.deb ...
+#9 9.805 Unpacking libbrotli1:arm64 (1.0.9-2+b6) ...
+#9 9.853 Selecting previously unselected package libkrb5support0:arm64.
+#9 9.855 Preparing to unpack .../04-libkrb5support0_1.20.1-2+deb12u4_arm64.deb ...
+#9 9.857 Unpacking libkrb5support0:arm64 (1.20.1-2+deb12u4) ...
+#9 9.887 Selecting previously unselected package libk5crypto3:arm64.
+#9 9.889 Preparing to unpack .../05-libk5crypto3_1.20.1-2+deb12u4_arm64.deb ...
+#9 9.891 Unpacking libk5crypto3:arm64 (1.20.1-2+deb12u4) ...
+#9 9.924 Selecting previously unselected package libkeyutils1:arm64.
+#9 9.925 Preparing to unpack .../06-libkeyutils1_1.6.3-2_arm64.deb ...
+#9 9.929 Unpacking libkeyutils1:arm64 (1.6.3-2) ...
+#9 9.961 Selecting previously unselected package libkrb5-3:arm64.
+#9 9.963 Preparing to unpack .../07-libkrb5-3_1.20.1-2+deb12u4_arm64.deb ...
+#9 9.966 Unpacking libkrb5-3:arm64 (1.20.1-2+deb12u4) ...
+#9 10.02 Selecting previously unselected package libgssapi-krb5-2:arm64.
+#9 10.02 Preparing to unpack .../08-libgssapi-krb5-2_1.20.1-2+deb12u4_arm64.deb ...
+#9 10.02 Unpacking libgssapi-krb5-2:arm64 (1.20.1-2+deb12u4) ...
+#9 10.06 Selecting previously unselected package libsasl2-modules-db:arm64.
+#9 10.06 Preparing to unpack .../09-libsasl2-modules-db_2.1.28+dfsg-10_arm64.deb ...
+#9 10.06 Unpacking libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#9 10.10 Selecting previously unselected package libsasl2-2:arm64.
+#9 10.10 Preparing to unpack .../10-libsasl2-2_2.1.28+dfsg-10_arm64.deb ...
+#9 10.11 Unpacking libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#9 10.15 Selecting previously unselected package libldap-2.5-0:arm64.
+#9 10.15 Preparing to unpack .../11-libldap-2.5-0_2.5.13+dfsg-5_arm64.deb ...
+#9 10.15 Unpacking libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#9 10.20 Selecting previously unselected package libnghttp2-14:arm64.
+#9 10.20 Preparing to unpack .../12-libnghttp2-14_1.52.0-1+deb12u2_arm64.deb ...
+#9 10.20 Unpacking libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#9 10.24 Selecting previously unselected package libpsl5:arm64.
+#9 10.24 Preparing to unpack .../13-libpsl5_0.21.2-1_arm64.deb ...
+#9 10.25 Unpacking libpsl5:arm64 (0.21.2-1) ...
+#9 10.28 Selecting previously unselected package librtmp1:arm64.
+#9 10.28 Preparing to unpack .../14-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_arm64.deb ...
+#9 10.29 Unpacking librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#9 10.32 Selecting previously unselected package libssh2-1:arm64.
+#9 10.32 Preparing to unpack .../15-libssh2-1_1.10.0-3+b1_arm64.deb ...
+#9 10.33 Unpacking libssh2-1:arm64 (1.10.0-3+b1) ...
+#9 10.38 Selecting previously unselected package libcurl4:arm64.
+#9 10.39 Preparing to unpack .../16-libcurl4_7.88.1-10+deb12u14_arm64.deb ...
+#9 10.39 Unpacking libcurl4:arm64 (7.88.1-10+deb12u14) ...
+#9 10.46 Selecting previously unselected package curl.
+#9 10.46 Preparing to unpack .../17-curl_7.88.1-10+deb12u14_arm64.deb ...
+#9 10.47 Unpacking curl (7.88.1-10+deb12u14) ...
+#9 ...
+
+#8 [crs builder 1/8] FROM docker.io/library/rust:1.83-bookworm@sha256:a45bf1f5d9af0a23b26703b3500d70af1abff7f984a7abef5a104b42c02a292b
+#8 extracting sha256:fd63102cac360c09802a29bab13f15de711e8bd1a730d419c66110513700983c 1.9s done
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 115.34MB / 202.69MB 10.7s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 186.65MB / 251.80MB 11.0s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 126.88MB / 202.69MB 11.1s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 200.28MB / 251.80MB 11.6s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 139.46MB / 202.69MB 11.7s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 214.96MB / 251.80MB 12.2s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 150.99MB / 202.69MB 12.2s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 228.59MB / 251.80MB 12.8s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 161.48MB / 202.69MB 12.6s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 171.97MB / 202.69MB 13.1s
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 242.22MB / 251.80MB 13.4s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 184.55MB / 202.69MB 13.7s
+#8 ...
+
+#9 [cube-1 stage-1 2/3] RUN apt-get update &&     apt-get install -y --no-install-recommends ca-certificates curl &&     rm -rf /var/lib/apt/lists/*
+#9 10.53 Setting up libkeyutils1:arm64 (1.6.3-2) ...
+#9 10.54 Setting up libpsl5:arm64 (0.21.2-1) ...
+#9 10.56 Setting up libbrotli1:arm64 (1.0.9-2+b6) ...
+#9 10.56 Setting up libssl3:arm64 (3.0.18-1~deb12u2) ...
+#9 10.57 Setting up libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#9 10.58 Setting up libkrb5support0:arm64 (1.20.1-2+deb12u4) ...
+#9 10.60 Setting up libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#9 10.61 Setting up librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#9 10.61 Setting up libk5crypto3:arm64 (1.20.1-2+deb12u4) ...
+#9 10.62 Setting up libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#9 10.63 Setting up libssh2-1:arm64 (1.10.0-3+b1) ...
+#9 10.64 Setting up libkrb5-3:arm64 (1.20.1-2+deb12u4) ...
+#9 10.65 Setting up openssl (3.0.18-1~deb12u2) ...
+#9 10.66 Setting up libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#9 10.67 Setting up ca-certificates (20230311+deb12u1) ...
+#9 10.77 debconf: unable to initialize frontend: Dialog
+#9 10.77 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#9 10.77 debconf: falling back to frontend: Readline
+#9 10.77 debconf: unable to initialize frontend: Readline
+#9 10.77 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/aarch64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+#9 10.77 debconf: falling back to frontend: Teletype
+#9 11.46 Updating certificates in /etc/ssl/certs...
+#9 12.48 142 added, 0 removed; done.
+#9 12.52 Setting up libgssapi-krb5-2:arm64 (1.20.1-2+deb12u4) ...
+#9 12.53 Setting up libcurl4:arm64 (7.88.1-10+deb12u14) ...
+#9 12.54 Setting up curl (7.88.1-10+deb12u14) ...
+#9 12.55 Processing triggers for libc-bin (2.36-9+deb12u13) ...
+#9 12.60 Processing triggers for ca-certificates (20230311+deb12u1) ...
+#9 12.61 Updating certificates in /etc/ssl/certs...
+#9 13.36 0 added, 0 removed; done.
+#9 13.36 Running hooks in /etc/ca-certificates/update.d...
+#9 13.36 done.
+#9 DONE 13.9s
+
+#8 [crs builder 1/8] FROM docker.io/library/rust:1.83-bookworm@sha256:a45bf1f5d9af0a23b26703b3500d70af1abff7f984a7abef5a104b42c02a292b
+#8 sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 251.80MB / 251.80MB 13.8s done
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 197.13MB / 202.69MB 14.1s
+#8 sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 202.69MB / 202.69MB 14.3s done
+#8 extracting sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3
+#8 extracting sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 4.7s done
+#8 extracting sha256:8e5e0e9e68b5c9172e85869f2decfc76c39919ba6ae80d8e2b597d25e854f0d3 4.7s done
+#8 extracting sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b
+#8 extracting sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 2.5s done
+#8 extracting sha256:69af2cc19a1a3a540720584da9a3badcd9993871e375bb3b8bb662d71a06698b 2.5s done
+#8 DONE 21.7s
+
+#10 [cube-3 builder 2/8] WORKDIR /app
+#10 DONE 0.1s
+
+#11 [cube-2 builder 3/8] COPY Cargo.toml ./
+#11 DONE 0.0s
+
+#12 [cube-3 builder 4/8] COPY ternary-math/ ternary-math/
+#12 DONE 0.0s
+
+#13 [cube-1 builder 5/8] COPY services/inter-cube/ services/inter-cube/
+#13 DONE 0.0s
+
+#14 [cube-2 builder 6/8] RUN mkdir -p src/kernel/src &&     echo '[package]\nname = "ternary-kernel"\nversion = "0.1.0"\nedition = "2021"' > src/kernel/Cargo.toml &&     echo "" > src/kernel/src/lib.rs &&     mkdir -p services/pqti-service/src &&     echo '[package]\nname = "pqti-service"\nversion = "0.1.0"\nedition = "2021"' > services/pqti-service/Cargo.toml &&     echo "" > services/pqti-service/src/lib.rs
+#14 DONE 0.2s
+
+#15 [crs builder 7/8] RUN cargo build -p inter-cube --release
+#15 0.288     Updating crates.io index
+#15 6.304      Locking 178 packages to latest compatible versions
+#15 6.305       Adding axum v0.7.9 (available: v0.8.8)
+#15 6.306       Adding blake3 v1.5.4 (available: v1.8.3)
+#15 6.315       Adding reqwest v0.12.28 (available: v0.13.2)
+#15 6.326       Adding wasip2 v1.0.2+wasi-0.2.9 (requires Rust 1.87.0)
+#15 6.327       Adding wit-bindgen v0.51.0 (requires Rust 1.87.0)
+#15 6.334  Downloading crates ...
+#15 6.659   Downloaded arrayref v0.3.9
+#15 6.670   Downloaded tokio-macros v2.6.1
+#15 6.680   Downloaded mime v0.3.17
+#15 6.690   Downloaded itoa v1.0.17
+#15 6.693   Downloaded httpdate v1.0.3
+#15 6.695   Downloaded tokio-rustls v0.26.4
+#15 6.715   Downloaded autocfg v1.5.0
+#15 6.720   Downloaded tinyvec v1.10.0
+#15 6.727   Downloaded zerofrom-derive v0.1.6
+#15 6.730   Downloaded try-lock v0.2.5
+#15 6.734   Downloaded untrusted v0.9.0
+#15 6.738   Downloaded zerofrom v0.1.6
+#15 6.740   Downloaded lru-slab v0.1.2
+#15 6.742   Downloaded idna_adapter v1.2.1
+#15 6.745   Downloaded tower-layer v0.3.3
+#15 6.747   Downloaded sync_wrapper v1.0.2
+#15 6.748   Downloaded rustc-hash v2.1.1
+#15 6.751   Downloaded pin-utils v0.1.0
+#15 6.754   Downloaded futures-core v0.3.32
+#15 6.756   Downloaded serde_urlencoded v0.7.1
+#15 6.762   Downloaded yoke-derive v0.8.1
+#15 6.766   Downloaded want v0.3.1
+#15 6.769   Downloaded constant_time_eq v0.3.1
+#15 6.772   Downloaded rustversion v1.0.22
+#15 6.782   Downloaded utf8_iter v1.0.4
+#15 6.785   Downloaded slab v0.4.12
+#15 6.788   Downloaded zmij v1.0.21
+#15 6.791   Downloaded subtle v2.6.1
+#15 6.793   Downloaded rand_chacha v0.9.0
+#15 6.795   Downloaded shlex v1.3.0
+#15 6.799   Downloaded quote v1.0.45
+#15 6.805   Downloaded yoke v0.8.1
+#15 6.807   Downloaded zeroize v1.8.2
+#15 6.809   Downloaded zerovec-derive v0.11.2
+#15 6.812   Downloaded writeable v0.6.2
+#15 6.815   Downloaded tracing-attributes v0.1.31
+#15 6.820   Downloaded once_cell v1.21.3
+#15 6.825   Downloaded tracing-core v0.1.36
+#15 6.830   Downloaded thiserror-impl v2.0.18
+#15 6.832   Downloaded smallvec v1.15.1
+#15 6.836   Downloaded synstructure v0.13.2
+#15 6.837   Downloaded rustls-pki-types v1.14.0
+#15 6.841   Downloaded serde_derive v1.0.228
+#15 6.845   Downloaded getrandom v0.3.4
+#15 6.849   Downloaded icu_properties v2.1.2
+#15 6.853   Downloaded httparse v1.10.1
+#15 6.857   Downloaded unicode-ident v1.0.24
+#15 6.863   Downloaded socket2 v0.6.2
+#15 6.866   Downloaded zerotrie v0.2.3
+#15 6.873   Downloaded url v2.5.8
+#15 6.877   Downloaded ryu v1.0.23
+#15 6.884   Downloaded tower v0.5.3
+#15 6.903   Downloaded zerovec v0.11.5
+#15 6.911   Downloaded quinn v0.11.9
+#15 6.917   Downloaded tower-http v0.6.8
+#15 6.929   Downloaded memchr v2.8.0
+#15 6.939   Downloaded http v1.4.0
+#15 6.946   Downloaded iri-string v0.7.10
+#15 6.958   Downloaded serde_json v1.0.149
+#15 6.969   Downloaded zerocopy v0.8.40
+#15 6.983   Downloaded blake3 v1.5.4
+#15 6.994   Downloaded webpki-roots v1.0.6
+#15 6.999   Downloaded futures-util v0.3.32
+#15 7.016   Downloaded quinn-proto v0.11.13
+#15 7.029   Downloaded chrono v0.4.44
+#15 7.042   Downloaded syn v2.0.117
+#15 7.057   Downloaded axum v0.7.9
+#15 7.069   Downloaded reqwest v0.12.28
+#15 7.077   Downloaded idna v1.1.0
+#15 7.083   Downloaded tracing v0.1.44
+#15 7.108   Downloaded rustls v0.23.37
+#15 7.127   Downloaded icu_properties_data v2.1.2
+#15 7.139   Downloaded hyper v1.8.1
+#15 7.148   Downloaded hyper-util v0.1.20
+#15 7.160   Downloaded rand v0.9.2
+#15 7.167   Downloaded mio v1.1.1
+#15 7.176   Downloaded icu_normalizer v2.1.1
+#15 7.181   Downloaded icu_collections v2.1.1
+#15 7.188   Downloaded cc v1.2.56
+#15 7.193   Downloaded serde v1.0.228
+#15 7.199   Downloaded rustls-webpki v0.103.9
+#15 7.203   Downloaded proc-macro2 v1.0.106
+#15 7.208   Downloaded icu_locale_core v2.1.1
+#15 7.221   Downloaded icu_provider v2.1.1
+#15 7.226   Downloaded icu_normalizer_data v2.1.1
+#15 7.232   Downloaded bytes v1.11.1
+#15 7.237   Downloaded base64 v0.22.1
+#15 7.245   Downloaded log v0.4.29
+#15 7.251   Downloaded serde_core v1.0.228
+#15 7.255   Downloaded num-traits v0.2.19
+#15 7.258   Downloaded hyper-rustls v0.27.7
+#15 7.262   Downloaded quinn-udp v0.5.14
+#15 7.266   Downloaded tokio v1.50.0
+#15 7.320   Downloaded libc v0.2.182
+#15 7.393   Downloaded parking_lot v0.12.5
+#15 7.397   Downloaded parking_lot_core v0.9.12
+#15 7.404   Downloaded pin-project-lite v0.2.17
+#15 7.412   Downloaded tinystr v0.8.2
+#15 7.414   Downloaded litemap v0.8.1
+#15 7.419   Downloaded getrandom v0.2.17
+#15 7.424   Downloaded iana-time-zone v0.1.65
+#15 7.429   Downloaded rand_core v0.9.5
+#15 7.431   Downloaded http-body-util v0.1.3
+#15 7.433   Downloaded displaydoc v0.2.5
+#15 7.439   Downloaded ppv-lite86 v0.2.21
+#15 7.441   Downloaded matchit v0.7.3
+#15 7.444   Downloaded find-msvc-tools v0.1.9
+#15 7.447   Downloaded signal-hook-registry v1.4.8
+#15 7.449   Downloaded serde_path_to_error v0.1.20
+#15 7.452   Downloaded bitflags v2.11.0
+#15 7.458   Downloaded arrayvec v0.7.6
+#15 7.461   Downloaded tower-service v0.3.3
+#15 7.462   Downloaded thiserror v2.0.18
+#15 7.471   Downloaded lock_api v0.4.14
+#15 7.473   Downloaded ipnet v2.12.0
+#15 7.475   Downloaded futures-channel v0.3.32
+#15 7.478   Downloaded atomic-waker v1.1.2
+#15 7.480   Downloaded async-trait v0.1.89
+#15 7.486   Downloaded futures-task v0.3.32
+#15 7.489   Downloaded cfg_aliases v0.2.1
+#15 7.491   Downloaded cfg-if v1.0.4
+#15 7.493   Downloaded form_urlencoded v1.2.2
+#15 7.494   Downloaded tinyvec_macros v0.1.1
+#15 7.495   Downloaded stable_deref_trait v1.2.1
+#15 7.496   Downloaded scopeguard v1.2.0
+#15 7.499   Downloaded potential_utf v0.1.4
+#15 7.501   Downloaded percent-encoding v2.3.2
+#15 7.504   Downloaded http-body v1.0.1
+#15 7.508   Downloaded errno v0.3.14
+#15 7.511   Downloaded axum-core v0.4.5
+#15 7.513   Downloaded ring v0.17.14
+#15 7.647    Compiling proc-macro2 v1.0.106
+#15 7.647    Compiling unicode-ident v1.0.24
+#15 7.648    Compiling quote v1.0.45
+#15 7.648    Compiling libc v0.2.182
+#15 7.648    Compiling cfg-if v1.0.4
+#15 7.648    Compiling smallvec v1.15.1
+#15 7.648    Compiling stable_deref_trait v1.2.1
+#15 7.649    Compiling shlex v1.3.0
+#15 7.651    Compiling find-msvc-tools v0.1.9
+#15 7.651    Compiling itoa v1.0.17
+#15 7.656    Compiling pin-project-lite v0.2.17
+#15 7.664    Compiling bytes v1.11.1
+#15 7.708    Compiling futures-core v0.3.32
+#15 7.719    Compiling parking_lot_core v0.9.12
+#15 7.728    Compiling scopeguard v1.2.0
+#15 7.737    Compiling once_cell v1.21.3
+#15 7.801    Compiling cc v1.2.56
+#15 7.836    Compiling lock_api v0.4.14
+#15 7.870    Compiling serde_core v1.0.228
+#15 7.901    Compiling litemap v0.8.1
+#15 7.909    Compiling slab v0.4.12
+#15 7.921    Compiling writeable v0.6.2
+#15 7.929    Compiling tracing-core v0.1.36
+#15 7.949    Compiling futures-task v0.3.32
+#15 7.999    Compiling log v0.4.29
+#15 8.043    Compiling futures-util v0.3.32
+#15 8.060    Compiling zeroize v1.8.2
+#15 8.074    Compiling tower-service v0.3.3
+#15 8.112    Compiling percent-encoding v2.3.2
+#15 8.145    Compiling httparse v1.10.1
+#15 8.150    Compiling icu_normalizer_data v2.1.1
+#15 8.229    Compiling http v1.4.0
+#15 8.238    Compiling icu_properties_data v2.1.2
+#15 8.414    Compiling rustls-pki-types v1.14.0
+#15 8.428    Compiling try-lock v0.2.5
+#15 8.533    Compiling serde v1.0.228
+#15 8.635    Compiling untrusted v0.9.0
+#15 8.742    Compiling syn v2.0.117
+#15 8.818    Compiling want v0.3.1
+#15 8.966    Compiling sync_wrapper v1.0.2
+#15 8.983    Compiling futures-channel v0.3.32
+#15 8.990    Compiling rustls v0.23.37
+#15 9.039    Compiling zmij v1.0.21
+#15 9.271    Compiling atomic-waker v1.1.2
+#15 9.398    Compiling errno v0.3.14
+#15 9.458    Compiling socket2 v0.6.2
+#15 9.458    Compiling mio v1.1.1
+#15 9.468    Compiling getrandom v0.2.17
+#15 9.474    Compiling tower-layer v0.3.3
+#15 9.602    Compiling signal-hook-registry v1.4.8
+#15 9.685    Compiling parking_lot v0.12.5
+#15 9.691    Compiling http-body v1.0.1
+#15 9.718    Compiling httpdate v1.0.3
+#15 9.852    Compiling pin-utils v0.1.0
+#15 9.911    Compiling form_urlencoded v1.2.2
+#15 9.937    Compiling base64 v0.22.1
+#15 9.942    Compiling ring v0.17.14
+#15 10.22    Compiling serde_json v1.0.149
+#15 10.24    Compiling subtle v2.6.1
+#15 10.27    Compiling autocfg v1.5.0
+#15 10.36    Compiling ipnet v2.12.0
+#15 10.37    Compiling rustversion v1.0.22
+#15 10.64    Compiling http-body-util v0.1.3
+#15 10.70    Compiling utf8_iter v1.0.4
+#15 10.75    Compiling num-traits v0.2.19
+#15 10.77    Compiling ryu v1.0.23
+#15 10.82    Compiling memchr v2.8.0
+#15 10.90    Compiling blake3 v1.5.4
+#15 10.98    Compiling webpki-roots v1.0.6
+#15 11.13    Compiling mime v0.3.17
+#15 11.14    Compiling bitflags v2.11.0
+#15 11.17    Compiling iri-string v0.7.10
+#15 11.38    Compiling arrayref v0.3.9
+#15 11.43    Compiling constant_time_eq v0.3.1
+#15 11.48    Compiling iana-time-zone v0.1.65
+#15 11.51    Compiling arrayvec v0.7.6
+#15 11.74    Compiling serde_path_to_error v0.1.20
+#15 11.76    Compiling matchit v0.7.3
+#15 11.87    Compiling ternary-math v0.1.0 (/app/ternary-math)
+#15 13.74    Compiling synstructure v0.13.2
+#15 14.34    Compiling zerofrom-derive v0.1.6
+#15 14.34    Compiling yoke-derive v0.8.1
+#15 14.34    Compiling zerovec-derive v0.11.2
+#15 14.34    Compiling displaydoc v0.2.5
+#15 14.34    Compiling tokio-macros v2.6.1
+#15 14.34    Compiling tracing-attributes v0.1.31
+#15 14.34    Compiling serde_derive v1.0.228
+#15 14.34    Compiling async-trait v0.1.89
+#15 15.28    Compiling tokio v1.50.0
+#15 15.62    Compiling zerofrom v0.1.6
+#15 15.69    Compiling yoke v0.8.1
+#15 15.75    Compiling tracing v0.1.44
+#15 15.84    Compiling zerovec v0.11.5
+#15 15.84    Compiling zerotrie v0.2.3
+#15 15.94    Compiling axum-core v0.4.5
+#15 16.80    Compiling tinystr v0.8.2
+#15 16.80    Compiling potential_utf v0.1.4
+#15 16.89    Compiling icu_collections v2.1.1
+#15 17.01    Compiling icu_locale_core v2.1.1
+#15 18.20    Compiling icu_provider v2.1.1
+#15 18.69    Compiling icu_normalizer v2.1.1
+#15 18.69    Compiling icu_properties v2.1.2
+#15 18.70    Compiling serde_urlencoded v0.7.1
+#15 18.71    Compiling chrono v0.4.44
+#15 19.10    Compiling rustls-webpki v0.103.9
+#15 20.19    Compiling idna_adapter v1.2.1
+#15 20.30    Compiling idna v1.1.0
+#15 20.82    Compiling url v2.5.8
+#15 22.27    Compiling hyper v1.8.1
+#15 22.27    Compiling tower v0.5.3
+#15 22.84    Compiling tower-http v0.6.8
+#15 23.90    Compiling hyper-util v0.1.20
+#15 25.13    Compiling tokio-rustls v0.26.4
+#15 25.51    Compiling hyper-rustls v0.27.7
+#15 25.51    Compiling axum v0.7.9
+#15 25.97    Compiling reqwest v0.12.28
+#15 29.53    Compiling inter-cube v0.2.0 (/app/services/inter-cube)
+#15 29.58 warning: unused import: `RepCTrit`
+#15 29.58   --> services/inter-cube/src/crs.rs:40:34
+#15 29.58    |
+#15 29.58 40 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+#15 29.58    |                                  ^^^^^^^^
+#15 29.58    |
+#15 29.58    = note: `#[warn(unused_imports)]` on by default
+#15 29.58
+#15 29.72 warning: unused variable: `destination`
+#15 29.72    --> services/inter-cube/src/glb.rs:272:9
+#15 29.72     |
+#15 29.72 272 |         destination: &CubeAddr,
+#15 29.72     |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+#15 29.72     |
+#15 29.72     = note: `#[warn(unused_variables)]` on by default
+#15 29.72
+#15 29.79 warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+#15 29.79    --> services/inter-cube/src/con.rs:214:5
+#15 29.79     |
+#15 29.79 204 | pub struct CubeOverlayNetwork {
+#15 29.79     |            ------------------ fields in this struct
+#15 29.79 ...
+#15 29.79 214 |     heartbeat_interval: Duration,
+#15 29.79     |     ^^^^^^^^^^^^^^^^^^
+#15 29.79 215 |     /// Key rotation interval.
+#15 29.79 216 |     key_rotation_interval: Duration,
+#15 29.79     |     ^^^^^^^^^^^^^^^^^^^^^
+#15 29.79     |
+#15 29.79     = note: `#[warn(dead_code)]` on by default
+#15 29.79
+#15 29.79 warning: method `count` is never used
+#15 29.79    --> services/inter-cube/src/crs.rs:235:8
+#15 29.79     |
+#15 29.79 170 | impl AddressAllocator {
+#15 29.79     | --------------------- method in this implementation
+#15 29.79 ...
+#15 29.79 235 |     fn count(&self) -> u64 {
+#15 29.79     |        ^^^^^
+#15 29.79
+#15 29.79 warning: field `heartbeat_interval` is never read
+#15 29.79    --> services/inter-cube/src/crs.rs:259:5
+#15 29.79     |
+#15 29.79 253 | pub struct CubeRegistrationService {
+#15 29.79     |            ----------------------- field in this struct
+#15 29.79 ...
+#15 29.79 259 |     heartbeat_interval: Duration,
+#15 29.79     |     ^^^^^^^^^^^^^^^^^^
+#15 29.79
+#15 30.42 warning: `inter-cube` (lib) generated 5 warnings (run `cargo fix --lib -p inter-cube` to apply 1 suggestion)
+#15 33.87     Finished `release` profile [optimized] target(s) in 34.63s
+#15 DONE 34.1s
+
+#16 [cube-3 builder 8/8] RUN cargo test -p inter-cube --release
+#16 0.640  Downloading crates ...
+#16 0.878   Downloaded tokio-stream v0.1.18
+#16 0.897   Downloaded tokio-test v0.4.5
+#16 0.961    Compiling tokio v1.50.0
+#16 4.822    Compiling hyper v1.8.1
+#16 4.822    Compiling tower v0.5.3
+#16 4.823    Compiling tokio-rustls v0.26.4
+#16 4.823    Compiling tokio-stream v0.1.18
+#16 5.078    Compiling tokio-test v0.4.5
+#16 5.162    Compiling tower-http v0.6.8
+#16 5.898    Compiling hyper-util v0.1.20
+#16 6.875    Compiling hyper-rustls v0.27.7
+#16 6.877    Compiling axum v0.7.9
+#16 6.989    Compiling reqwest v0.12.28
+#16 10.55    Compiling inter-cube v0.2.0 (/app/services/inter-cube)
+#16 10.65 warning: unused import: `RepCTrit`
+#16 10.65   --> services/inter-cube/src/crs.rs:40:34
+#16 10.65    |
+#16 10.65 40 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+#16 10.65    |                                  ^^^^^^^^
+#16 10.65    |
+#16 10.65    = note: `#[warn(unused_imports)]` on by default
+#16 10.65
+#16 11.15 warning: unused variable: `destination`
+#16 11.15    --> services/inter-cube/src/glb.rs:272:9
+#16 11.15     |
+#16 11.15 272 |         destination: &CubeAddr,
+#16 11.15     |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+#16 11.15     |
+#16 11.15     = note: `#[warn(unused_variables)]` on by default
+#16 11.15
+#16 11.43 warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+#16 11.43    --> services/inter-cube/src/con.rs:214:5
+#16 11.43     |
+#16 11.43 204 | pub struct CubeOverlayNetwork {
+#16 11.43     |            ------------------ fields in this struct
+#16 11.43 ...
+#16 11.43 214 |     heartbeat_interval: Duration,
+#16 11.43     |     ^^^^^^^^^^^^^^^^^^
+#16 11.43 215 |     /// Key rotation interval.
+#16 11.43 216 |     key_rotation_interval: Duration,
+#16 11.43     |     ^^^^^^^^^^^^^^^^^^^^^
+#16 11.43     |
+#16 11.43     = note: `#[warn(dead_code)]` on by default
+#16 11.43
+#16 11.43 warning: method `count` is never used
+#16 11.43    --> services/inter-cube/src/crs.rs:235:8
+#16 11.43     |
+#16 11.43 170 | impl AddressAllocator {
+#16 11.43     | --------------------- method in this implementation
+#16 11.43 ...
+#16 11.43 235 |     fn count(&self) -> u64 {
+#16 11.43     |        ^^^^^
+#16 11.43
+#16 11.43 warning: field `heartbeat_interval` is never read
+#16 11.43    --> services/inter-cube/src/crs.rs:259:5
+#16 11.43     |
+#16 11.43 253 | pub struct CubeRegistrationService {
+#16 11.43     |            ----------------------- field in this struct
+#16 11.43 ...
+#16 11.43 259 |     heartbeat_interval: Duration,
+#16 11.43     |     ^^^^^^^^^^^^^^^^^^
+#16 11.43
+#16 12.92 warning: unused variable: `trits`
+#16 12.92    --> services/inter-cube/src/crs.rs:633:17
+#16 12.92     |
+#16 12.92 633 |             let trits = [((i % 3) + 1); 13];
+#16 12.92     |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_trits`
+#16 12.92
+#16 12.97 warning: `inter-cube` (lib) generated 5 warnings (run `cargo fix --lib -p inter-cube` to apply 1 suggestion)
+#16 14.74 warning: `inter-cube` (lib test) generated 6 warnings (5 duplicates)
+#16 14.74     Finished `release` profile [optimized] target(s) in 14.22s
+#16 14.77      Running unittests src/lib.rs (target/release/deps/inter_cube-1dcb1625581732ab)
+#16 14.78
+#16 14.78 running 57 tests
+#16 14.78 test con::tests::test_iface_naming ... ok
+#16 14.78 test con::tests::test_all_neighbors_differ_by_one_trit ... ok
+#16 14.78 test con::tests::test_neighbor_computation ... ok
+#16 14.78 test con::tests::test_neighbor_lookup ... ok
+#16 14.78 test con::tests::test_no_duplicate_neighbors ... ok
+#16 14.78 test con::tests::test_pq_key_derivation_symmetric ... ok
+#16 14.78 test con::tests::test_pq_key_derivation_unique ... ok
+#16 14.78 test con::tests::test_stats ... ok
+#16 14.78 test con::tests::test_tunnel_lifecycle ... ok
+#16 14.78 test crs::tests::test_deregister ... ok
+#16 14.78 test crs::tests::test_lookup ... ok
+#16 14.78 test crs::tests::test_address_never_contains_zero ... ok
+#16 14.78 test crs::tests::test_multiple_registrations ... ok
+#16 14.78 test crs::tests::test_recursive_levels ... ok
+#16 14.78 test crs::tests::test_neighbor_info_includes_registered ... ok
+#16 14.78 test crs::tests::test_register_auto_address ... ok
+#16 14.78 test crs::tests::test_heartbeat ... ok
+#16 14.78 test crs::tests::test_register_duplicate_rejected ... ok
+#16 14.78 test crs::tests::test_register_specific_address ... ok
+#16 14.78 test cube_addr::tests::test_alternatives ... ok
+#16 14.79 test cube_addr::tests::test_flat_index_inner_corner ... ok
+#16 14.79 test cube_addr::tests::test_flat_index_roundtrip ... ok
+#16 14.79 test cube_addr::tests::test_gf3_vec_roundtrip ... ok
+#16 14.79 test cube_addr::tests::test_cube_addr_new ... ok
+#16 14.79 test cube_addr::tests::test_hamming_distance_max ... ok
+#16 14.79 test cube_addr::tests::test_hamming_distance_one ... ok
+#16 14.79 test cube_addr::tests::test_hamming_distance_self ... ok
+#16 14.79 test cube_addr::tests::test_multi_level_routing ... ok
+#16 14.79 test cube_addr::tests::test_neighbor_count ... ok
+#16 14.79 test cube_addr::tests::test_repc_gf3_roundtrip ... ok
+#16 14.79 test cube_addr::tests::test_repc_trit_four_rejected ... ok
+#16 14.79 test cube_addr::tests::test_repc_trit_valid ... ok
+#16 14.79 test cube_addr::tests::test_repc_trit_zero_rejected ... ok
+#16 14.79 test cube_addr::tests::test_shortest_path_count ... ok
+#16 14.79 test cube_addr::tests::test_step_toward ... ok
+#16 14.79 test cube_addr::tests::test_zero_in_address_detected ... ok
+#16 14.79 test fts::tests::test_events_emitted ... ok
+#16 14.79 test fts::tests::test_initial_state ... ok
+#16 14.79 test fts::tests::test_integration_fts_to_glb ... ok
+#16 14.79 test fts::tests::test_miss_during_recovery ... ok
+#16 14.79 test fts::tests::test_miss_threshold_to_suspect ... ok
+#16 14.79 test fts::tests::test_pong_updates_srtt ... ok
+#16 14.79 test fts::tests::test_recovery_from_down ... ok
+#16 14.80 test fts::tests::test_suspect_to_down_after_grace ... ok
+#16 14.80 test glb::tests::test_dead_neighbor_avoidance ... ok
+#16 14.80 test glb::tests::test_detour_when_all_direct_blocked ... ok
+#16 14.80 test glb::tests::test_different_flows_may_differ ... ok
+#16 14.80 test glb::tests::test_enumerate_paths ... ok
+#16 14.80 test glb::tests::test_flow_consistency ... ok
+#16 14.80 test glb::tests::test_forward_multi_hop ... ok
+#16 14.80 test glb::tests::test_forward_one_hop ... ok
+#16 14.80 test glb::tests::test_forward_same_destination ... ok
+#16 14.80 test glb::tests::test_path_count_factorial ... ok
+#16 14.80 test integration_tests::test_con_key_derivation_all_unique ... ok
+#16 14.80 test integration_tests::test_full_bootstrap_sequence ... ok
+#16 14.80 test integration_tests::test_failure_and_recovery_flow ... ok
+#16 14.80 test integration_tests::test_multi_cube_registration ... ok
+#16 14.80
+#16 14.80 test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+#16 14.80
+#16 14.80      Running unittests src/main.rs (target/release/deps/inter_cube_daemon-03dbf36aa7e6b2c4)
+#16 14.80
+#16 14.80 running 0 tests
+#16 14.80
+#16 14.80 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+#16 14.80
+#16 14.80    Doc-tests inter_cube
+#16 14.88
+#16 14.88 running 0 tests
+#16 14.88
+#16 14.88 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+#16 14.88
+#16 DONE 15.0s
+
+#17 [crs stage-1 3/3] COPY --from=builder /app/target/release/inter-cube-daemon /usr/local/bin/
+#17 DONE 0.1s
+
+#18 [cube-2] exporting to image
+#18 exporting layers
+#18 exporting layers 0.8s done
+#18 exporting manifest sha256:a98111e74a3e0e5d42f8017074ee1717d134f68e1921a3c05f604f9316ca1f3a 0.0s done
+#18 exporting config sha256:46821ac02a4d20b954a8f0e8979fe47cd48baf111899363fb254848c86d44ff1 0.0s done
+#18 exporting attestation manifest sha256:6450d07320b89622611b390abfac1c8c7439c44538734f8012b216dc1ee68bbd
+#18 exporting attestation manifest sha256:6450d07320b89622611b390abfac1c8c7439c44538734f8012b216dc1ee68bbd 0.1s done
+#18 exporting manifest list sha256:49691c837916ae4b69a29ecce3c0a5a5f7ab1156b73ae8a01ae133169e6d9caa 0.0s done
+#18 naming to docker.io/library/ternary-main-cube-2:latest done
+#18 unpacking to docker.io/library/ternary-main-cube-2:latest
+#18 unpacking to docker.io/library/ternary-main-cube-2:latest 0.2s done
+#18 DONE 1.3s
+
+#19 [cube-3] exporting to image
+#19 exporting layers 0.8s done
+#19 exporting manifest sha256:8be04f2f030d5b87fafb70738b81ec0859fb1f95662080f870e60fe47d27e15d 0.0s done
+#19 exporting config sha256:dbdd390a831182d6ddfa35ed3e3d82586dcc255874bff777cb50e3129491620d 0.0s done
+#19 exporting attestation manifest sha256:90f3a3bd8856293262491dba490a317e94c304bf84f38e20caaead9ca0c467f4 0.1s done
+#19 exporting manifest list sha256:ef9c115afcb8b6922090a9785c6159f12e1f730185595993696bfc2f2ae410a6 0.0s done
+#19 naming to docker.io/library/ternary-main-cube-3:latest done
+#19 unpacking to docker.io/library/ternary-main-cube-3:latest 0.3s done
+#19 DONE 1.3s
+
+#20 [cube-1] exporting to image
+#20 exporting layers 0.8s done
+#20 exporting manifest sha256:3e76ba5069bcb82c283e13e464c39305d8fe889643bb6397b095a2ff04e736f1 0.0s done
+#20 exporting config sha256:0ad188f58eb5a3c4702d82153b29b775adcc26af5767af78941d25731bd5d832 0.0s done
+#20 exporting attestation manifest sha256:4d1d23f0df7f11956a9312640327c0038e0b06e6ce2c72c4a28b8eea69577c7c 0.1s done
+#20 exporting manifest list sha256:5deb6e6e1a92f472c9ea4faa8ad9a707461e1b8352aa65292abb6ddd772a3d6e 0.0s done
+#20 naming to docker.io/library/ternary-main-cube-1:latest 0.0s done
+#20 unpacking to docker.io/library/ternary-main-cube-1:latest 0.3s done
+#20 DONE 1.3s
+
+#21 [crs] exporting to image
+#21 exporting layers 0.8s done
+#21 exporting manifest sha256:7729d297dbf684f28af70d849124da81c85fbbaa2fa0747e01fc44406f0ca8b9 0.0s done
+#21 exporting config sha256:02dd5b2f8c6d296b290ff0d94e173415f1a9851bdcb208bf9d9a479ced0d51d8 0.0s done
+#21 exporting attestation manifest sha256:233acd1ce3834849ab6b811a98e570baaaa990e1f290008eed58bf7f6c940829 0.1s done
+#21 exporting manifest list sha256:8a3289b4be717e766236bfb7e9d87fe3701b71b83559066397bd4d24f1771eba 0.0s done
+#21 naming to docker.io/library/ternary-main-crs:latest done
+#21 unpacking to docker.io/library/ternary-main-crs:latest 0.3s done
+#21 DONE 1.3s
+
+#22 [cube-2] resolving provenance for metadata file
+#22 DONE 0.1s
+
+#23 [cube-3] resolving provenance for metadata file
+#23 DONE 0.1s
+
+#24 [crs] resolving provenance for metadata file
+#24 DONE 0.1s
+
+#25 [cube-1] resolving provenance for metadata file
+#25 DONE 0.0s
+[+] build 4/4
+ ✔ Image ternary-main-cube-3 Built                                                                                 73.9s
+ ✔ Image ternary-main-crs    Built                                                                                 73.9s
+ ✔ Image ternary-main-cube-1 Built                                                                                 73.9s
+ ✔ Image ternary-main-cube-2 Built                                                                                 73.9s
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-main>
