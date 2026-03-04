@@ -7,7 +7,7 @@
 
 [package]
 name = "inter-cube"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "PlenumNET Inter-Cube Infrastructure: Geometric Load Balancer, Cube Overlay Network, Registration Service, and Fault Tolerance Service"
 license = "LicenseRef-Proprietary"
@@ -33,6 +33,10 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP server for daemon API endpoints
 axum = "0.7"
+
+# HTTP client for cube→CRS registration and heartbeats
+# Uses rustls (pure Rust) to avoid OpenSSL dev headers in Docker build
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # Logging
 tracing = "0.1"
