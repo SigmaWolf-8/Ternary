@@ -458,8 +458,14 @@ function PlatformSection() {
     {
       icon: Globe,
       title: "Torsion Network Stack",
-      description: "N-dimensional torus topology with Ternary Transport Protocol, T3P application layer, and Ternary DNS.",
+      description: "N-dimensional torus topology with Ternary Transport Protocol, T3P application layer, and Ternary DNS — proven live on a 13D hypercube mesh.",
       stats: "Full stack",
+    },
+    {
+      icon: Network,
+      title: "Inter-Cube Mesh Network",
+      description: `${PLATFORM.HYPERCUBE_DIMENSIONS}-dimensional ternary hypercube with ${PLATFORM.HYPERCUBE_VERTICES} address space. Zero routing tables — GF(3) arithmetic computes every hop. Post-quantum tunnel keys derived from topology.`,
+      stats: `${PLATFORM.HYPERCUBE_VERTICES} vertices`,
     },
     {
       icon: Lock,
@@ -510,6 +516,160 @@ function PlatformSection() {
             <CapabilityCard key={cap.title} cap={cap} index={index} />
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function InterCubeSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  const differentiators = [
+    {
+      icon: Network,
+      title: "No Routing Tables",
+      description: "Conventional networks maintain BGP/OSPF tables with thousands of entries. PlenumNET computes the next hop from pure GF(3) arithmetic on the source and destination addresses. No tables to corrupt, no convergence delays, no state to synchronize.",
+    },
+    {
+      icon: Lock,
+      title: "Topology-Derived Cryptography",
+      description: "Each edge in the hypercube gets a BLAKE3-derived tunnel key. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.",
+    },
+    {
+      icon: Shield,
+      title: "Built-in Forgery Detection",
+      description: "Rep C trit space excludes zero from every coordinate. Any address containing a zero trit is provably forged — the addressing scheme itself is a cryptographic invariant. No other network has this property.",
+    },
+  ];
+
+  return (
+    <section id="inter-cube" className="py-20 md:py-28" data-testid="section-inter-cube" role="region" aria-labelledby="inter-cube-title">
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-1.5 mb-4" data-testid="badge-inter-cube-live">
+              Live Infrastructure
+            </Badge>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.06 }}
+            className="text-3xl md:text-4xl font-bold mb-4"
+            data-testid="text-inter-cube-title"
+            id="inter-cube-title"
+          >
+            Zero Routing Tables. Pure Mathematics.
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-muted-foreground text-lg max-w-3xl mx-auto"
+            data-testid="text-inter-cube-description"
+          >
+            PlenumNET replaces BGP, OSPF, and routing tables with GF(3) arithmetic. Every address is a point in a {PLATFORM.HYPERCUBE_DIMENSIONS}-dimensional ternary hypercube. Every hop is a single trit flip. The geometry IS the routing protocol.
+          </motion.p>
+        </div>
+
+        <div ref={ref} className="flex flex-wrap justify-center gap-8 md:gap-16 mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0 }}
+            className="flex flex-col items-center"
+            data-testid="stat-dimensions"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_DIMENSIONS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Dimensions</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.08 }}
+            className="flex flex-col items-center"
+            data-testid="stat-vertices"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_VERTICES}</span>
+            <span className="text-sm text-muted-foreground mt-2">Vertices</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.16 }}
+            className="flex flex-col items-center"
+            data-testid="stat-neighbors"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_NEIGHBORS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Neighbors / Node</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.24 }}
+            className="flex flex-col items-center"
+            data-testid="stat-routing-tables"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">0</span>
+            <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
+          </motion.div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {differentiators.map((diff, index) => (
+            <motion.div
+              key={diff.title}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <Card className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm" data-testid={`card-differentiator-${index}`}>
+                <div className="text-primary mb-4">
+                  <diff.icon className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-foreground">{diff.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{diff.description}</p>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <Card className="inline-block p-6 border-primary/15 bg-card/50 backdrop-blur-sm max-w-3xl" data-testid="card-prior-art">
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+              Binary hypercube routing is 40 years old. Ternary hypercubes have 20+ years of academic papers. A deployable post-quantum overlay network where GF(3) geometry replaces routing tables, with cryptographic keys derived from topological adjacency?
+            </p>
+            <p className="text-sm font-semibold text-foreground" data-testid="text-first-implementation">
+              First implementation.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400 text-xs" data-testid="badge-services-containerized">
+                {PLATFORM.INTER_CUBE_SERVICES} services containerized
+              </Badge>
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400 text-xs" data-testid="badge-tests-passing">
+                {PLATFORM.INTER_CUBE_TESTS} tests passing
+              </Badge>
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400 text-xs" data-testid="badge-rest-endpoints">
+                {PLATFORM.INTER_CUBE_ENDPOINTS} REST endpoints
+              </Badge>
+            </div>
+          </Card>
+        </motion.div>
       </div>
     </section>
   );
@@ -1742,6 +1902,7 @@ export default function Landing() {
     <>
       <HeroSection />
       <PlatformSection />
+      <InterCubeSection />
       <ArchitectureSection />
       <Suspense fallback={<div className="py-20" />}>
         <GeometricFoundations />

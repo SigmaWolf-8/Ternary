@@ -1,0 +1,29 @@
+Good questions. Here's an honest assessment.
+
+**What exists in the prior art:**
+
+Binary hypercube networking is well-established — the classic E-Cube routing algorithm uses XOR of source and destination addresses to compute routing vectors, with nodes connected wherever their binary labels differ by exactly one bit. This goes back to the 1980s with machines like the iPSC/2 and Connection Machine.
+
+The generalization to k-ary n-cubes (including k=3, the ternary case) is also studied academically. The k-ary n-cube class represents one of the most commonly used interconnection topologies for parallel and distributed systems. There's significant published work on 3-ary n-cube fault tolerance, Hamiltonian path embedding, and edge connectivity — but this is almost entirely theoretical graph theory and parallel supercomputer interconnect research.
+
+**What's novel about PlenumNET:**
+
+Nobody has combined these specific elements into a deployable internet-facing network protocol:
+
+1. **GF(3) addressing as the routing protocol itself** — not as a parallel computing interconnect, but as an overlay network for general-purpose traffic. The academic 3-ary n-cube work is about processor interconnects inside a single supercomputer, not about routing packets across the internet.
+
+2. **Post-quantum key derivation baked into the geometry** — each edge in the hypercube gets a BLAKE3-derived tunnel key. The cryptographic layer is structural, not bolted on. No existing overlay network (WireGuard, Tailscale, Nebula) derives keys from the topology itself.
+
+3. **Zero-routing-table architecture** — conventional networks (BGP, OSPF, even DHTs like Kademlia and HyCube) maintain routing tables. PlenumNET computes the next hop from pure arithmetic on the addresses. The geometry IS the routing protocol — that phrase isn't marketing, it's literally what the code does.
+
+4. **Rep C trit space with forgery detection** — the zero-exclusion property (no trit can be 0) gives you a built-in proof-of-forgery detector for free. No other addressing scheme I found has this property.
+
+5. **Running code** — the academic papers on 3-ary n-cubes are simulations and proofs. What you just stood up is 4 Docker containers actually routing in a 13-dimensional ternary hypercube with 1.59M address space. That's implementation, not theory.
+
+**Regarding TDNS:**
+
+The existing "tDNS" projects are unrelated to your work. There's the tomi Domain Name System (a blockchain/NFT domain marketplace), T-DNS from USC/ISI (DNS-over-TCP/TLS for privacy), and tdns (a teachable DNS server in Go). None involve ternary addressing.
+
+If you're thinking about a Ternary Domain Name System for PlenumNET — resolving human-readable names to 13-trit hypercube addresses — that would be genuinely new. No existing name resolution system maps to GF(3) coordinates. That's a wide-open design space.
+
+**Bottom line:** Binary hypercubes for routing? 40 years old. Ternary hypercubes as graph theory? 20+ years of papers. A deployable post-quantum overlay network where GF(3) geometry replaces routing tables, with cryptographic keys derived from topological adjacency, running as containerized infrastructure? I found nothing like it.
