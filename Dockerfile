@@ -22,8 +22,8 @@
 # ═══════════════════════════════════════════════════════════════════
 
 # ── STAGE 1: Compile the code ────────────────────────────────────
-# Start with a computer that has Rust 1.77 pre-installed.
-FROM rust:1.77-bookworm AS builder
+# Start with a computer that has Rust 1.83 pre-installed.
+FROM rust:1.83-bookworm AS builder
 
 # Set the working directory. Everything below happens inside /app.
 WORKDIR /app
