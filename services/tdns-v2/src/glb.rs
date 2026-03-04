@@ -1,0 +1,788 @@
+// TDNS v2.3 — GLB (Geometric Load Balancer)
+// Capomastro Holdings Ltd. — Applied Physics Division
+//
+// The data-plane forwarding engine. Handles:
+//   - Point routing (greedy geometric forwarding)
+//   - Sub-cube multicast (wildcard destination → spanning tree)
+//   - HPTP enforcement (degraded node detection + rerouting)
+//   - Drift redirects (old address → new address during grace period)
+//   - Anycast tiebreaking (lowest canonical address)
+//
+// GLB operates per-node. Each node runs a GLB instance that makes
+// local forwarding decisions using its neighbor map and the CRS-provided
+// state (dead set, redirects, HPTP status).
+//
+// §12.4, §10.4, §11.1–11.4 normative.
+
+use std::collections::HashSet;
+
+use crate::addr::{CubeAddr, DIMENSIONS};
+use crate::routing::{ForwardResult, NeighborMap, forward};
+use crate::subcube::SubCube;
+use crate::trit::Trit;
+
+// ─── HPTP Policy ─────────────────────────────────────────────────────────────
+
+/// HPTP enforcement policy thresholds (§10.4).
+#[derive(Debug, Clone)]
+pub struct HptpPolicy {
+    /// Maximum offset for real-time entities (nanoseconds). Default: 1μs.
+    pub realtime_tolerance_ns: u64,
+    /// Maximum offset for near-time entities (nanoseconds). Default: 100μs.
+    pub neartime_tolerance_ns: u64,
+    /// Hold-down period before resuming routing to recovered nodes (ns). Default: 5s.
+    pub holddown_ns: u64,
+}
+
+impl Default for HptpPolicy {
+    fn default() -> Self {
+        Self {
+            realtime_tolerance_ns: 1_000,
+            neartime_tolerance_ns: 100_000,
+            holddown_ns: 5_000_000_000,
+        }
+    }
+}
+
+// ─── Node Status ─────────────────────────────────────────────────────────────
+
+/// Status of a node in the GLB's view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NodeStatus {
+    /// Healthy — route normally.
+    Healthy,
+    /// FTS reports node as dead — do not route.
+    Dead,
+    /// HPTP-degraded: sync offset exceeds tolerance — do not route HPTP traffic.
+    HptpDegraded {
+        offset_ns: i64,
+        degraded_since_ns: u64,
+    },
+    /// Recovering from degradation — in hold-down period.
+    HptpHolddown {
+        holddown_until_ns: u64,
+    },
+}
+
+// ─── Forwarding Decision ─────────────────────────────────────────────────────
+
+/// The result of a GLB forwarding decision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GlbDecision {
+    /// Deliver locally — this node is the destination.
+    DeliverLocal,
+
+    /// Forward to a single next hop (point routing).
+    Forward {
+        next_hop: CubeAddr,
+        /// Dimension being corrected.
+        correcting_dim: usize,
+        /// Remaining hops to destination.
+        remaining_hops: u8,
+    },
+
+    /// Redirect — destination has drifted, forward to new address.
+    Redirect {
+        old_addr: CubeAddr,
+        new_addr: CubeAddr,
+    },
+
+    /// Multicast — forward to multiple neighbors (sub-cube delivery).
+    Multicast {
+        /// Set of next hops to forward to.
+        next_hops: Vec<CubeAddr>,
+    },
+
+    /// Anycast — deliver to the closest matching node.
+    Anycast {
+        /// The selected target (closest by Hamming, tiebreak by canonical order).
+        target: CubeAddr,
+        next_hop: CubeAddr,
+    },
+
+    /// Routing failed — no viable path.
+    NoRoute {
+        reason: String,
+    },
+
+    /// Dropped — HPTP enforcement prevented delivery.
+    HptpDropped {
+        target: CubeAddr,
+        reason: String,
+    },
+}
+
+// ─── GLB Engine ──────────────────────────────────────────────────────────────
+
+/// The Geometric Load Balancer — per-node forwarding engine.
+pub struct Glb {
+    /// This node's address.
+    local_addr: CubeAddr,
+
+    /// This node's neighbor map (maintained by CRS).
+    neighbor_map: NeighborMap,
+
+    /// Nodes reported dead by FTS.
+    dead_set: HashSet<CubeAddr>,
+
+    /// HPTP-degraded nodes (address → status).
+    hptp_status: std::collections::HashMap<CubeAddr, NodeStatus>,
+
+    /// Drift redirects: old_addr → (new_addr, expires_ns).
+    redirects: std::collections::HashMap<CubeAddr, (CubeAddr, u64)>,
+
+    /// HPTP enforcement policy.
+    hptp_policy: HptpPolicy,
+}
+
+impl Glb {
+    /// Create a new GLB for a node.
+    pub fn new(local_addr: CubeAddr, neighbor_map: NeighborMap) -> Self {
+        Self {
+            local_addr,
+            neighbor_map,
+            dead_set: HashSet::new(),
+            hptp_status: std::collections::HashMap::new(),
+            redirects: std::collections::HashMap::new(),
+            hptp_policy: HptpPolicy::default(),
+        }
+    }
+
+    /// Create with custom HPTP policy.
+    pub fn with_hptp_policy(mut self, policy: HptpPolicy) -> Self {
+        self.hptp_policy = policy;
+        self
+    }
+
+    /// This node's address.
+    pub fn local_addr(&self) -> &CubeAddr {
+        &self.local_addr
+    }
+
+    // ── State Updates (from CRS/FTS) ────────────────────────────────
+
+    /// Update neighbor map (CRS push).
+    pub fn update_neighbor_map(&mut self, map: NeighborMap) {
+        self.neighbor_map = map;
+    }
+
+    /// Mark a node as dead (FTS heartbeat failure).
+    pub fn mark_dead(&mut self, addr: CubeAddr) {
+        self.dead_set.insert(addr);
+    }
+
+    /// Mark a node as alive (FTS heartbeat resumed).
+    pub fn mark_alive(&mut self, addr: CubeAddr) {
+        self.dead_set.remove(&addr);
+    }
+
+    /// Report HPTP offset for a node (FTS heartbeat data).
+    pub fn report_hptp_offset(&mut self, addr: CubeAddr, offset_ns: i64, now_ns: u64) {
+        let is_mandatory = addr.is_hptp_mandatory();
+        if !is_mandatory {
+            return;
+        }
+
+        let tolerance = if addr.trit(15) == Trit::V3 {
+            self.hptp_policy.realtime_tolerance_ns
+        } else {
+            self.hptp_policy.neartime_tolerance_ns
+        };
+
+        if offset_ns.unsigned_abs() > tolerance {
+            self.hptp_status.insert(
+                addr,
+                NodeStatus::HptpDegraded {
+                    offset_ns,
+                    degraded_since_ns: now_ns,
+                },
+            );
+        } else {
+            if let Some(NodeStatus::HptpDegraded { .. }) = self.hptp_status.get(&addr) {
+                self.hptp_status.insert(
+                    addr,
+                    NodeStatus::HptpHolddown {
+                        holddown_until_ns: now_ns + self.hptp_policy.holddown_ns,
+                    },
+                );
+            } else if let Some(NodeStatus::HptpHolddown { holddown_until_ns }) =
+                self.hptp_status.get(&addr)
+            {
+                if now_ns >= *holddown_until_ns {
+                    self.hptp_status.remove(&addr);
+                }
+            }
+        }
+    }
+
+    /// Set a drift redirect (CRS re-derivation).
+    pub fn set_redirect(&mut self, old_addr: CubeAddr, new_addr: CubeAddr, expires_ns: u64) {
+        self.redirects.insert(old_addr, (new_addr, expires_ns));
+    }
+
+    /// Purge expired redirects.
+    pub fn purge_redirects(&mut self, now_ns: u64) {
+        self.redirects.retain(|_, (_, expires)| *expires > now_ns);
+    }
+
+    // ── Node Health Checks ──────────────────────────────────────────
+
+    /// Is a node routable (not dead, not HPTP-degraded)?
+    fn is_routable(&self, addr: &CubeAddr, now_ns: u64) -> bool {
+        if self.dead_set.contains(addr) {
+            return false;
+        }
+        match self.hptp_status.get(addr) {
+            Some(NodeStatus::HptpDegraded { .. }) => false,
+            Some(NodeStatus::HptpHolddown { holddown_until_ns }) => now_ns >= *holddown_until_ns,
+            _ => true,
+        }
+    }
+
+    /// Get node status.
+    pub fn node_status(&self, addr: &CubeAddr, now_ns: u64) -> NodeStatus {
+        if self.dead_set.contains(addr) {
+            return NodeStatus::Dead;
+        }
+        match self.hptp_status.get(addr) {
+            Some(status @ NodeStatus::HptpDegraded { .. }) => status.clone(),
+            Some(NodeStatus::HptpHolddown { holddown_until_ns }) => {
+                if now_ns >= *holddown_until_ns {
+                    NodeStatus::Healthy
+                } else {
+                    NodeStatus::HptpHolddown {
+                        holddown_until_ns: *holddown_until_ns,
+                    }
+                }
+            }
+            _ => NodeStatus::Healthy,
+        }
+    }
+
+    // ── Point Forwarding (§11.1) ────────────────────────────────────
+
+    /// Make a forwarding decision for a point destination.
+    ///
+    /// Handles: local delivery, greedy forwarding, dead-node avoidance,
+    /// HPTP enforcement, drift redirects.
+    pub fn forward_point(&self, destination: &CubeAddr, now_ns: u64) -> GlbDecision {
+        if let Some(&(new_addr, expires)) = self.redirects.get(destination) {
+            if now_ns <= expires {
+                return GlbDecision::Redirect {
+                    old_addr: *destination,
+                    new_addr,
+                };
+            }
+        }
+
+        if *destination == self.local_addr {
+            return GlbDecision::DeliverLocal;
+        }
+
+        let diffs = self.local_addr.differing_dims(destination);
+
+        for &dim in &diffs {
+            let target_value = destination.trit(dim);
+            if let Some(entry) = self.neighbor_map.get(dim, target_value) {
+                if !self.is_routable(&entry.addr, now_ns) {
+                    continue;
+                }
+
+                if destination.is_hptp_mandatory() {
+                    if let Some(NodeStatus::HptpDegraded { .. }) = self.hptp_status.get(&entry.addr) {
+                        continue;
+                    }
+                }
+
+                let remaining = entry.addr.distance(destination);
+                return GlbDecision::Forward {
+                    next_hop: entry.addr,
+                    correcting_dim: dim,
+                    remaining_hops: remaining,
+                };
+            }
+        }
+
+        GlbDecision::NoRoute {
+            reason: format!(
+                "no routable neighbor in {} differing dimensions",
+                diffs.len()
+            ),
+        }
+    }
+
+    // ── Sub-cube Multicast (§11.3–11.4) ─────────────────────────────
+
+    /// Make a forwarding decision for a sub-cube (multicast) destination.
+    ///
+    /// If this node matches the sub-cube, it delivers locally.
+    /// Then forwards to qualifying neighbors along unconstrained dimensions.
+    pub fn forward_subcube(
+        &self,
+        subcube: &SubCube,
+        arrival_dim: Option<usize>,
+        now_ns: u64,
+    ) -> GlbDecision {
+        let mut next_hops: Vec<CubeAddr> = Vec::new();
+
+        let local_match = subcube.contains(&self.local_addr);
+
+        let start_dim = arrival_dim.map(|d| d + 1).unwrap_or(0);
+
+        for dim in start_dim..DIMENSIONS {
+            if subcube.is_constrained(dim) {
+                continue;
+            }
+
+            let local_val = self.local_addr.trit(dim);
+            for target_val in Trit::ALL {
+                if target_val == local_val {
+                    continue;
+                }
+                if let Some(entry) = self.neighbor_map.get(dim, target_val) {
+                    if self.is_routable(&entry.addr, now_ns)
+                        && !next_hops.contains(&entry.addr)
+                    {
+                        next_hops.push(entry.addr);
+                    }
+                }
+            }
+        }
+
+        if local_match && next_hops.is_empty() {
+            return GlbDecision::DeliverLocal;
+        }
+
+        if next_hops.is_empty() {
+            return GlbDecision::NoRoute {
+                reason: "no qualifying neighbors for sub-cube".into(),
+            };
+        }
+
+        GlbDecision::Multicast { next_hops }
+    }
+
+    // ── Anycast (§11.5) ─────────────────────────────────────────────
+
+    /// Anycast: route to the closest matching node.
+    ///
+    /// When trit 21 = 3 ("whoever's closest"), GLB routes to the
+    /// nearest match by Hamming distance. Tiebreaker: lowest canonical
+    /// wire-format address, lexicographic, trit 1 most significant.
+    pub fn forward_anycast(
+        &self,
+        candidates: &[CubeAddr],
+        now_ns: u64,
+    ) -> GlbDecision {
+        if candidates.is_empty() {
+            return GlbDecision::NoRoute {
+                reason: "no anycast candidates".into(),
+            };
+        }
+
+        let routable: Vec<&CubeAddr> = candidates
+            .iter()
+            .filter(|addr| self.is_routable(addr, now_ns))
+            .collect();
+
+        if routable.is_empty() {
+            return GlbDecision::NoRoute {
+                reason: "all anycast candidates are unreachable".into(),
+            };
+        }
+
+        let mut best = routable[0];
+        let mut best_dist = self.local_addr.distance(best);
+
+        for &candidate in &routable[1..] {
+            let dist = self.local_addr.distance(candidate);
+            if dist < best_dist || (dist == best_dist && candidate < best) {
+                best = candidate;
+                best_dist = dist;
+            }
+        }
+
+        if *best == self.local_addr {
+            return GlbDecision::DeliverLocal;
+        }
+
+        match forward(&self.local_addr, best, &self.neighbor_map) {
+            ForwardResult::Arrived => GlbDecision::DeliverLocal,
+            ForwardResult::NextHop { next, .. } => GlbDecision::Anycast {
+                target: *best,
+                next_hop: next,
+            },
+            ForwardResult::NoRoute { .. } => GlbDecision::NoRoute {
+                reason: format!("no route to anycast target {}", best),
+            },
+        }
+    }
+
+    // ── HPTP Enforcement (§10.4) ────────────────────────────────────
+
+    /// Check if a packet to an HPTP-mandatory destination should be dropped.
+    ///
+    /// If the destination is HPTP-mandatory and has been marked degraded,
+    /// the packet is dropped rather than delivered with stale timing.
+    pub fn check_hptp(&self, destination: &CubeAddr, now_ns: u64) -> Option<GlbDecision> {
+        if !destination.is_hptp_mandatory() {
+            return None;
+        }
+
+        match self.node_status(destination, now_ns) {
+            NodeStatus::HptpDegraded { offset_ns, .. } => Some(GlbDecision::HptpDropped {
+                target: *destination,
+                reason: format!(
+                    "HPTP-degraded: offset {}ns exceeds tolerance",
+                    offset_ns
+                ),
+            }),
+            NodeStatus::HptpHolddown { holddown_until_ns } => Some(GlbDecision::HptpDropped {
+                target: *destination,
+                reason: format!(
+                    "HPTP hold-down until {}ns ({}ns remaining)",
+                    holddown_until_ns,
+                    holddown_until_ns.saturating_sub(now_ns)
+                ),
+            }),
+            NodeStatus::Dead => Some(GlbDecision::HptpDropped {
+                target: *destination,
+                reason: "node is dead".into(),
+            }),
+            NodeStatus::Healthy => None,
+        }
+    }
+
+    // ── Unified Forwarding ──────────────────────────────────────────
+
+    /// Top-level forwarding decision. Routes point, sub-cube, or anycast
+    /// based on destination type.
+    pub fn route(
+        &self,
+        destination: &CubeAddr,
+        now_ns: u64,
+    ) -> GlbDecision {
+        if let Some(drop) = self.check_hptp(destination, now_ns) {
+            return drop;
+        }
+
+        if let Some(&(new_addr, expires)) = self.redirects.get(destination) {
+            if now_ns <= expires {
+                return GlbDecision::Redirect {
+                    old_addr: *destination,
+                    new_addr,
+                };
+            }
+        }
+
+        self.forward_point(destination, now_ns)
+    }
+
+    // ── Metrics ─────────────────────────────────────────────────────
+
+    /// Number of dead nodes in the dead set.
+    pub fn dead_count(&self) -> usize {
+        self.dead_set.len()
+    }
+
+    /// Number of HPTP-degraded nodes.
+    pub fn degraded_count(&self) -> usize {
+        self.hptp_status
+            .values()
+            .filter(|s| matches!(s, NodeStatus::HptpDegraded { .. }))
+            .count()
+    }
+
+    /// Number of active redirects.
+    pub fn redirect_count(&self) -> usize {
+        self.redirects.len()
+    }
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::routing::NeighborMap;
+
+    fn google() -> CubeAddr {
+        CubeAddr::from_category_string("WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313")
+            .unwrap()
+    }
+
+    fn pptpro() -> CubeAddr {
+        CubeAddr::from_category_string("WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332")
+            .unwrap()
+    }
+
+    fn blog() -> CubeAddr {
+        CubeAddr::from_category_string("WO:1312 WA:1111 WR:3111 WN:2311 WY:1111 HO:1111 PE:211")
+            .unwrap()
+    }
+
+    fn make_glb(local: CubeAddr, neighbors: &[(usize, Trit, CubeAddr)]) -> Glb {
+        let mut map = NeighborMap::new(local);
+        for &(dim, val, addr) in neighbors {
+            map.set(dim, val, addr);
+        }
+        Glb::new(local, map)
+    }
+
+    #[test]
+    fn deliver_local() {
+        let g = google();
+        let glb = make_glb(g, &[]);
+        let decision = glb.forward_point(&g, 0);
+        assert_eq!(decision, GlbDecision::DeliverLocal);
+    }
+
+    #[test]
+    fn forward_to_neighbor() {
+        let g = google();
+        let p = pptpro();
+        let diffs = g.differing_dims(&p);
+
+        let neighbors: Vec<(usize, Trit, CubeAddr)> = diffs
+            .iter()
+            .map(|&dim| (dim, p.trit(dim), p))
+            .collect();
+        let glb = make_glb(g, &neighbors);
+
+        match glb.forward_point(&p, 0) {
+            GlbDecision::Forward {
+                next_hop,
+                correcting_dim,
+                ..
+            } => {
+                assert_eq!(next_hop, p);
+                assert_eq!(correcting_dim, diffs[0]);
+            }
+            other => panic!("expected Forward, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn skip_dead_neighbor() {
+        let g = google();
+        let p = pptpro();
+        let b = blog();
+        let diffs_gp = g.differing_dims(&p);
+        let diffs_gb = g.differing_dims(&b);
+
+        let first_dim = diffs_gp[0];
+        let second_dim = diffs_gp.iter().find(|d| diffs_gb.contains(d)).copied().unwrap_or(diffs_gp[1]);
+
+        let mut glb = make_glb(g, &[
+            (first_dim, p.trit(first_dim), p),
+            (second_dim, p.trit(second_dim), b),
+        ]);
+
+        glb.mark_dead(p);
+
+        match glb.forward_point(&p, 0) {
+            GlbDecision::Forward { next_hop, .. } => {
+                assert_ne!(next_hop, p, "should skip dead node");
+            }
+            GlbDecision::NoRoute { .. } => {
+            }
+            other => panic!("expected Forward or NoRoute, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn drift_redirect() {
+        let g = google();
+        let p = pptpro();
+        let b = blog();
+
+        let mut glb = make_glb(g, &[]);
+
+        glb.set_redirect(p, b, 1_000_000);
+
+        let decision = glb.forward_point(&p, 500_000);
+        match decision {
+            GlbDecision::Redirect { old_addr, new_addr } => {
+                assert_eq!(old_addr, p);
+                assert_eq!(new_addr, b);
+            }
+            other => panic!("expected Redirect, got {:?}", other),
+        }
+
+        let decision = glb.forward_point(&p, 2_000_000);
+        assert!(
+            !matches!(decision, GlbDecision::Redirect { .. }),
+            "redirect should have expired"
+        );
+    }
+
+    #[test]
+    fn hptp_enforcement_drops_degraded() {
+        let p = pptpro();
+        assert!(p.is_hptp_mandatory());
+
+        let mut glb = make_glb(p, &[]);
+
+        glb.report_hptp_offset(p, 5_000, 100);
+
+        let decision = glb.check_hptp(&p, 200);
+        match decision {
+            Some(GlbDecision::HptpDropped { target, .. }) => {
+                assert_eq!(target, p);
+            }
+            other => panic!("expected HptpDropped, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn hptp_holddown_after_recovery() {
+        let p = pptpro();
+        let mut glb = make_glb(p, &[]);
+
+        glb.report_hptp_offset(p, 5_000, 100);
+        assert_eq!(glb.degraded_count(), 1);
+
+        glb.report_hptp_offset(p, 500, 1_000);
+
+        match glb.node_status(&p, 1_001) {
+            NodeStatus::HptpHolddown { .. } => {}
+            other => panic!("expected HptpHolddown, got {:?}", other),
+        }
+
+        let after_holddown = 1_000 + glb.hptp_policy.holddown_ns + 1;
+        glb.report_hptp_offset(p, 200, after_holddown);
+        match glb.node_status(&p, after_holddown) {
+            NodeStatus::Healthy => {}
+            other => panic!("expected Healthy after holddown, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn non_hptp_not_tracked() {
+        let g = google();
+        assert!(!g.is_hptp_mandatory());
+
+        let mut glb = make_glb(g, &[]);
+        glb.report_hptp_offset(g, 999_999, 100);
+
+        assert_eq!(glb.degraded_count(), 0);
+        assert!(glb.check_hptp(&g, 200).is_none());
+    }
+
+    #[test]
+    fn anycast_closest_with_tiebreak() {
+        let g = google();
+
+        let c1 = g.with_trit(0, Trit::V1);
+        let c2 = g.with_trit(1, Trit::V1);
+
+        let glb = make_glb(g, &[
+            (0, Trit::V1, c1),
+            (1, Trit::V1, c2),
+        ]);
+
+        let candidates = vec![c1, c2];
+        match glb.forward_anycast(&candidates, 0) {
+            GlbDecision::Anycast { target, .. } => {
+                let expected = if c1 < c2 { c1 } else { c2 };
+                assert_eq!(target, expected);
+            }
+            other => panic!("expected Anycast, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn anycast_skips_dead() {
+        let g = google();
+        let c1 = g.with_trit(0, Trit::V1);
+        let c2 = g.with_trit(0, Trit::V1).with_trit(1, Trit::V1);
+
+        let mut glb = make_glb(g, &[
+            (0, Trit::V1, c1),
+            (1, Trit::V1, c2),
+        ]);
+        glb.mark_dead(c1);
+
+        let candidates = vec![c1, c2];
+        match glb.forward_anycast(&candidates, 0) {
+            GlbDecision::Anycast { target, .. } => {
+                assert_eq!(target, c2, "should skip dead c1 and use c2");
+            }
+            other => panic!("expected Anycast, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn subcube_multicast_fans_out() {
+        let g = google();
+        let n1 = g.with_trit(0, Trit::V1);
+        let n2 = g.with_trit(0, Trit::V3);
+        let n3 = g.with_trit(1, Trit::V1);
+
+        let glb = make_glb(g, &[
+            (0, Trit::V1, n1),
+            (0, Trit::V3, n2),
+            (1, Trit::V1, n3),
+        ]);
+
+        let sc = SubCube::wildcard();
+        match glb.forward_subcube(&sc, None, 0) {
+            GlbDecision::Multicast { next_hops } => {
+                assert!(!next_hops.is_empty());
+                assert!(next_hops.len() <= 3);
+            }
+            other => panic!("expected Multicast, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn route_unified() {
+        let g = google();
+        let p = pptpro();
+        let diffs = g.differing_dims(&p);
+
+        let neighbors: Vec<(usize, Trit, CubeAddr)> = diffs
+            .iter()
+            .map(|&dim| (dim, p.trit(dim), p))
+            .collect();
+        let glb = make_glb(g, &neighbors);
+
+        match glb.route(&p, 0) {
+            GlbDecision::Forward { next_hop, .. } => {
+                assert_eq!(next_hop, p);
+            }
+            other => panic!("expected Forward, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn redirect_purge() {
+        let g = google();
+        let p = pptpro();
+        let b = blog();
+
+        let mut glb = make_glb(g, &[]);
+        glb.set_redirect(p, b, 1000);
+        assert_eq!(glb.redirect_count(), 1);
+
+        glb.purge_redirects(2000);
+        assert_eq!(glb.redirect_count(), 0);
+    }
+
+    #[test]
+    fn metrics() {
+        let g = google();
+        let p = pptpro();
+
+        let mut glb = make_glb(g, &[]);
+        assert_eq!(glb.dead_count(), 0);
+        assert_eq!(glb.degraded_count(), 0);
+        assert_eq!(glb.redirect_count(), 0);
+
+        glb.mark_dead(p);
+        assert_eq!(glb.dead_count(), 1);
+
+        glb.mark_alive(p);
+        assert_eq!(glb.dead_count(), 0);
+    }
+}
