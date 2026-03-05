@@ -24,7 +24,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::addr::CubeAddr;
-use crate::con::ConNode;
+use crate::overlay::ConNode;
 use crate::crs::{CrsRegistry, RegistrationResult, VerificationResult};
 use crate::fts::Fts;
 use crate::glb::Glb;
