@@ -1,6 +1,6 @@
 <# 
-  PlenumNET TDNS — Browser Extension Installer
-  Capomastro Holdings Ltd. — Applied Physics Division
+  PlenumNET TDNS - Browser Extension Installer
+  Capomastro Holdings Ltd. - Applied Physics Division
   
   Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
 #>
@@ -10,7 +10,7 @@ $GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/t
 $INSTALL_DIR = "$env:LOCALAPPDATA\PlenumNET\extension"
 
 Write-Host ""
-Write-Host "  PlenumNET TDNS — Installing..." -ForegroundColor Yellow
+Write-Host "  PlenumNET TDNS - Installing..." -ForegroundColor Yellow
 Write-Host ""
 
 # Download extension files individually
@@ -21,12 +21,13 @@ $files = @("manifest.json", "background.js", "popup.html", "icon16.png", "icon48
 foreach ($f in $files) {
     Invoke-WebRequest -Uri "$GH_RAW/$f" -OutFile "$INSTALL_DIR\$f" -UseBasicParsing
 }
-Write-Host "  [OK] Downloaded extension v2.3.2 ($($files.Count) files)" -ForegroundColor Green
+$fileCount = $files.Count
+Write-Host "  [OK] Downloaded extension v2.3.2 ($fileCount files)" -ForegroundColor Green
 
 # Detect and install
 $count = 0
 
-# Chromium browsers — preferences-based external extension install
+# Chromium browsers - preferences-based external extension install
 $chromiumBrowsers = @(
     @{ Name="Chrome";  Data="$env:LOCALAPPDATA\Google\Chrome\User Data" },
     @{ Name="Edge";    Data="$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
@@ -41,10 +42,12 @@ foreach ($b in $chromiumBrowsers) {
             $extJsonDir = "$($b.Data)\Default\External Extensions"
             if (-not (Test-Path $extJsonDir)) { New-Item -ItemType Directory -Path $extJsonDir -Force | Out-Null }
             @{ external_crx = $INSTALL_DIR; external_version = "2.3.2" } | ConvertTo-Json | Set-Content "$extJsonDir\plenumnet-tdns.json"
-            Write-Host "  [OK] $($b.Name)" -ForegroundColor Green
+            $bName = $b.Name
+            Write-Host "  [OK] $bName" -ForegroundColor Green
             $count++
         } catch {
-            Write-Host "  [--] $($b.Name) skipped" -ForegroundColor DarkGray
+            $bName = $b.Name
+            Write-Host "  [--] $bName skipped" -ForegroundColor DarkGray
         }
     }
 }
@@ -67,7 +70,7 @@ if (Test-Path $ffProfiles) {
 
 Write-Host ""
 if ($count -gt 0) {
-    Write-Host "  Done — installed in $count browser(s)." -ForegroundColor Green
+    Write-Host "  Done - installed in $count browser(s)." -ForegroundColor Green
     Write-Host "  Restart your browser(s), then type: plm google" -ForegroundColor Cyan
 } else {
     Write-Host "  No supported browsers found." -ForegroundColor Yellow
