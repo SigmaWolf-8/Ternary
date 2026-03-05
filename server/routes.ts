@@ -102,12 +102,6 @@ export async function registerRoutes(
     "ip-notice": { file: "IP-NOTICE.md", title: "Intellectual Property Notice" },
   };
 
-  app.get("/install.ps1", (_req, res) => {
-    const file = path.resolve("services/tdns-v2/install.ps1");
-    if (existsSync(file)) { res.type("text/plain").sendFile(file); }
-    else { res.status(404).send("Not found"); }
-  });
-
   app.get("/api/health", async (_req, res) => {
     let dbStatus = "error";
     try {

@@ -90,6 +90,17 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+app.get("/install.ps1", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.ps1");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).setHeader("Content-Type", "text/plain");
+    res.send("# install.ps1 not found");
+  }
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
