@@ -172,9 +172,9 @@ const modules = [
   {
     id: "13b",
     title: "Calendar Synchronization",
-    description: "13-month x 28-day Salvi calendar, 364-degree circle, epoch alignment, and leap-day rules.",
+    description: "42 global calendar systems synchronized through Julian Day Number intermediary. 13-month x 28-day Salvi calendar, 364-degree circle, epoch alignment, and leap-day rules.",
     priority: "P2",
-    tests: "~40",
+    tests: "~42",
     icon: Calendar,
     file: "modules/13_CALENDAR_SYNCHRONIZATION.md",
   },

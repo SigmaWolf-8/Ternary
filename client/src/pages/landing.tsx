@@ -1399,7 +1399,7 @@ function CalendarPreviewSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-3xl mx-auto"
           >
-            Convert any date across 12 major calendar systems -- from Mayan Long Count to Islamic Hijri -- with femtosecond precision.
+            Convert any date across 42 global calendar systems -- from Mayan Long Count to Islamic Hijri -- with femtosecond precision.
             The 13-Moon Harmonic Calendar places the Day Out of Time at the golden ratio point (364/\u03C6 = Day 225, November 11),
             creating an 8/5 Fibonacci moon split that embeds organic growth mathematics into temporal architecture.
           </motion.p>
