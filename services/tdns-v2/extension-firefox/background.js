@@ -1,0 +1,130 @@
+// PlenumNET TDNS Resolver — Firefox Background Script
+// Capomastro Holdings Ltd. — Applied Physics Division
+
+const TDNS_API = 'http://localhost:3927';
+
+// ─── Omnibox: type "plm google" to resolve google.plm ─────────────────────
+
+browser.omnibox.onInputStarted.addListener(() => {
+  browser.omnibox.setDefaultSuggestion({
+    description: 'Resolve a .plm name via TDNS — type the name'
+  });
+});
+
+browser.omnibox.onInputChanged.addListener(async (text, suggest) => {
+  const name = text.trim();
+  if (!name) return;
+
+  const plmName = name.endsWith('.plm') ? name : name + '.plm';
+
+  try {
+    const resp = await fetch(`${TDNS_API}/api/v1/resolve/${plmName}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      suggest([{
+        content: plmName,
+        description: `✓ ${plmName} → ${data.address || 'resolved'} CRD:${data.crd || '?'}`
+      }]);
+    } else {
+      suggest([{
+        content: plmName,
+        description: `⊘ ${plmName} — not registered. Press Enter to scan.`
+      }]);
+    }
+  } catch (e) {
+    suggest([{
+      content: plmName,
+      description: `⚠ TDNS API unavailable — is the server running on port 3927?`
+    }]);
+  }
+});
+
+browser.omnibox.onInputEntered.addListener((text, disposition) => {
+  const name = text.trim();
+  const plmName = name.endsWith('.plm') ? name : name + '.plm';
+  const resolveUrl = browser.runtime.getURL(`resolve.html?name=${encodeURIComponent(plmName)}`);
+
+  switch (disposition) {
+    case 'currentTab':
+      browser.tabs.update({ url: resolveUrl });
+      break;
+    case 'newForegroundTab':
+      browser.tabs.create({ url: resolveUrl });
+      break;
+    case 'newBackgroundTab':
+      browser.tabs.create({ url: resolveUrl, active: false });
+      break;
+  }
+});
+
+// ─── Navigation Interception ───────────────────────────────────────────────
+
+browser.webNavigation.onErrorOccurred.addListener((details) => {
+  if (details.frameId !== 0) return;
+  try {
+    const url = new URL(details.url);
+    if (url.hostname.endsWith('.plm')) {
+      const plmName = url.hostname;
+      const resolveUrl = browser.runtime.getURL(
+        `resolve.html?name=${encodeURIComponent(plmName)}`
+      );
+      browser.tabs.update(details.tabId, { url: resolveUrl });
+    }
+  } catch (e) {}
+});
+
+browser.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (details.frameId !== 0) return;
+  try {
+    const url = new URL(details.url);
+    if (url.hostname.endsWith('.plm')) {
+      const plmName = url.hostname;
+      const resolveUrl = browser.runtime.getURL(
+        `resolve.html?name=${encodeURIComponent(plmName)}`
+      );
+      browser.tabs.update(details.tabId, { url: resolveUrl });
+    }
+  } catch (e) {}
+});
+
+// ─── Message Handler ───────────────────────────────────────────────────────
+
+browser.runtime.onMessage.addListener((msg, sender) => {
+  if (msg.type === 'resolve') {
+    return fetch(`${TDNS_API}/api/v1/resolve/${msg.name}`)
+      .then(r => r.json())
+      .then(data => ({ ok: true, data }))
+      .catch(err => ({ ok: false, error: err.message }));
+  }
+
+  if (msg.type === 'scan') {
+    return fetch(`${TDNS_API}/api/v1/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: msg.url })
+    })
+      .then(r => r.json())
+      .then(data => ({ ok: true, data }))
+      .catch(err => ({ ok: false, error: err.message }));
+  }
+
+  if (msg.type === 'register') {
+    return fetch(`${TDNS_API}/api/v1/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(msg.payload)
+    })
+      .then(r => r.json())
+      .then(data => ({ ok: true, data }))
+      .catch(err => ({ ok: false, error: err.message }));
+  }
+
+  if (msg.type === 'health') {
+    return fetch(`${TDNS_API}/api/v1/health`)
+      .then(r => r.json())
+      .then(data => ({ ok: true, data }))
+      .catch(err => ({ ok: false, error: err.message }));
+  }
+});
+
+console.log('PlenumNET TDNS Resolver loaded — .plm bridge active');
