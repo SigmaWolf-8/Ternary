@@ -8,6 +8,7 @@
 
   "permissions": [
     "activeTab",
+    "alarms",
     "declarativeNetRequest",
     "storage",
     "webNavigation"
@@ -18,7 +19,8 @@
   },
 
   "host_permissions": [
-    "http://localhost:3927/*"
+    "http://localhost:3927/*",
+    "https://raw.githubusercontent.com/*"
   ],
 
   "background": {
