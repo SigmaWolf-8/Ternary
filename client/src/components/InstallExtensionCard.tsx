@@ -59,9 +59,6 @@ export default function InstallExtensionDialog() {
                 <li>Click <strong className="text-foreground">Load unpacked</strong></li>
                 <li>Paste the folder path (already on your clipboard)</li>
               </ol>
-              <p className="text-sm text-muted-foreground pt-1">
-                Then type <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-primary font-mono">google.plm</code> in the address bar.
-              </p>
             </div>
           )}
 
