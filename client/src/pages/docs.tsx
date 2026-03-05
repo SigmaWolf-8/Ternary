@@ -207,8 +207,8 @@ const modules = [
   },
   {
     id: "TDNS",
-    title: "TDNS v2.3 Specification",
-    description: "27-dimensional ternary domain name system. Ontological addressing, geometric load balancing, sub-cube multicast, CRS registry, and the Metatronic Bridge.",
+    title: "TDNS v2.3.3 Specification",
+    description: "27-dimensional ontological addressing with 28th Collision Resolution Digit. First-principle derivation engine, confidence vectors, CryptoHash abstraction, SQLite persistence, browser extension, and strategic roadmap.",
     priority: "P1",
     tests: "~178",
     icon: MapPin,
