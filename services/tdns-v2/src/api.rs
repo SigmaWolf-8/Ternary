@@ -539,7 +539,7 @@ impl ApiRouter {
         let fts_m = self.fts.metrics();
         HealthResponse {
             status: "ok".into(),
-            version: "2.3.2".into(),
+            version: "2.3.3".into(),
             entities: self.crs.entity_count(),
             fts_alive: fts_m.alive,
             fts_dead: fts_m.dead,
@@ -580,7 +580,7 @@ mod tests {
         let router = ApiRouter::new();
         let resp = router.handle_health();
         assert_eq!(resp.status, "ok");
-        assert_eq!(resp.version, "2.3.2");
+        assert_eq!(resp.version, "2.3.3");
         assert_eq!(resp.entities, 0);
     }
 
