@@ -26,7 +26,6 @@ chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
         description: `✓ ${plmName} → ${data.address || 'resolved'} CRD:${data.crd || '?'}`
       }]);
     } else {
-      // Try scanning instead
       suggest([{
         content: plmName,
         description: `⊘ ${plmName} — not registered. Press Enter to scan.`
@@ -60,9 +59,8 @@ chrome.omnibox.onInputEntered.addListener((text, disposition) => {
 
 // ─── Navigation Interception ───────────────────────────────────────────────
 
-// Catch direct navigation to .plm domains (e.g., http://google.plm)
 chrome.webNavigation.onErrorOccurred.addListener((details) => {
-  if (details.frameId !== 0) return; // Only main frame
+  if (details.frameId !== 0) return;
 
   try {
     const url = new URL(details.url);
@@ -78,7 +76,6 @@ chrome.webNavigation.onErrorOccurred.addListener((details) => {
   }
 });
 
-// Also catch successful navigation attempts to .plm (in case OS resolves it somehow)
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   if (details.frameId !== 0) return;
 
@@ -104,7 +101,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then(r => r.json())
       .then(data => sendResponse({ ok: true, data }))
       .catch(err => sendResponse({ ok: false, error: err.message }));
-    return true; // async
+    return true;
   }
 
   if (msg.type === 'scan') {
@@ -138,6 +135,56 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch(err => sendResponse({ ok: false, error: err.message }));
     return true;
   }
+
+  if (msg.type === 'update_check') {
+    const MANIFEST_URL =
+      'https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/' +
+      'services/tdns-v2/extension-chromium/manifest.json';
+    const current = chrome.runtime.getManifest().version;
+    fetch(MANIFEST_URL, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(remote => {
+        const latest = remote.version || current;
+        const update_available = latest !== current;
+        chrome.storage.local.set({ update_available, latest, current, checked: Date.now() });
+        sendResponse({ update_available, latest, current });
+      })
+      .catch(err => {
+        chrome.storage.local.get(['update_available', 'latest', 'current'], (cached) => {
+          if (cached.latest) {
+            sendResponse({ update_available: cached.update_available, latest: cached.latest, current: cached.current });
+          } else {
+            sendResponse({ ok: false, error: err.message });
+          }
+        });
+      });
+    return true;
+  }
+});
+
+// ─── Periodic Update Check (every 6 hours) ────────────────────────────────
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create('plenumnet_update_check', { periodInMinutes: 360 });
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== 'plenumnet_update_check') return;
+  const MANIFEST_URL =
+    'https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/' +
+    'services/tdns-v2/extension-chromium/manifest.json';
+  const current = chrome.runtime.getManifest().version;
+  fetch(MANIFEST_URL, { cache: 'no-store' })
+    .then(r => r.json())
+    .then(remote => {
+      const latest = remote.version || current;
+      chrome.storage.local.set({
+        update_available: latest !== current,
+        latest,
+        current,
+        checked: Date.now()
+      });
+    })
+    .catch(() => {});
 });
 
 console.log('PlenumNET TDNS Resolver loaded — .plm bridge active');
