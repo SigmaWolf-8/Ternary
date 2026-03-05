@@ -6,21 +6,22 @@
 #>
 
 $ErrorActionPreference = "Stop"
-$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2"
+$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension/chromium"
 $INSTALL_DIR = "$env:LOCALAPPDATA\PlenumNET\extension"
 
 Write-Host ""
 Write-Host "  PlenumNET TDNS — Installing..." -ForegroundColor Yellow
 Write-Host ""
 
-# Download
+# Download extension files individually
 if (Test-Path $INSTALL_DIR) { Remove-Item $INSTALL_DIR -Recurse -Force }
 New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
-$zip = "$env:TEMP\plenumnet-ext.zip"
-Invoke-WebRequest -Uri "$GH_RAW/chromium-extension.zip" -OutFile $zip -UseBasicParsing
-Expand-Archive -Path $zip -DestinationPath $INSTALL_DIR -Force
-Remove-Item $zip -Force
-Write-Host "  [OK] Downloaded extension v2.3.2" -ForegroundColor Green
+
+$files = @("manifest.json", "background.js", "popup.html", "icon16.png", "icon48.png", "icon128.png")
+foreach ($f in $files) {
+    Invoke-WebRequest -Uri "$GH_RAW/$f" -OutFile "$INSTALL_DIR\$f" -UseBasicParsing
+}
+Write-Host "  [OK] Downloaded extension v2.3.2 ($($files.Count) files)" -ForegroundColor Green
 
 # Detect and install
 $count = 0
@@ -39,7 +40,7 @@ foreach ($b in $chromiumBrowsers) {
         try {
             $extJsonDir = "$($b.Data)\Default\External Extensions"
             if (-not (Test-Path $extJsonDir)) { New-Item -ItemType Directory -Path $extJsonDir -Force | Out-Null }
-            @{ external_crx = "$INSTALL_DIR\manifest.json" ; external_version = "2.3.2" } | ConvertTo-Json | Set-Content "$extJsonDir\plenumnet-tdns.json"
+            @{ external_crx = $INSTALL_DIR; external_version = "2.3.2" } | ConvertTo-Json | Set-Content "$extJsonDir\plenumnet-tdns.json"
             Write-Host "  [OK] $($b.Name)" -ForegroundColor Green
             $count++
         } catch {
@@ -52,14 +53,11 @@ foreach ($b in $chromiumBrowsers) {
 $ffProfiles = "$env:APPDATA\Mozilla\Firefox\Profiles"
 if (Test-Path $ffProfiles) {
     try {
-        $xpi = "$env:TEMP\plenumnet-tdns.xpi"
-        Invoke-WebRequest -Uri "$GH_RAW/chromium-extension.zip" -OutFile $xpi -UseBasicParsing
         Get-ChildItem $ffProfiles -Directory | ForEach-Object {
             $extDir = "$($_.FullName)\extensions"
             if (-not (Test-Path $extDir)) { New-Item -ItemType Directory -Path $extDir -Force | Out-Null }
-            Copy-Item $xpi "$extDir\tdns-resolver@capomastro.com.xpi" -Force
+            Copy-Item "$INSTALL_DIR\manifest.json" "$extDir\tdns-resolver@capomastro.com.json" -Force
         }
-        Remove-Item $xpi -Force
         Write-Host "  [OK] Firefox" -ForegroundColor Green
         $count++
     } catch {
