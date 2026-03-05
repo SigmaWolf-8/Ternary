@@ -7,8 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Terminal, Copy, Check } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Terminal, Download, FolderOpen, ToggleRight, Puzzle } from "lucide-react";
 
 let openInstallDialog: (() => void) | null = null;
 
@@ -18,83 +17,68 @@ export function triggerInstallDialog() {
 
 export default function InstallExtensionDialog() {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const { toast } = useToast();
+  const [downloaded, setDownloaded] = useState(false);
 
-  openInstallDialog = () => { setOpen(true); setCopied(false); };
+  openInstallDialog = () => { setOpen(true); setDownloaded(false); };
 
-  const cmd = "irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex";
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(cmd);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = cmd;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-    setCopied(true);
-    toast({ title: "Copied to clipboard", description: "Paste into Windows PowerShell and press Enter." });
-    setTimeout(() => setCopied(false), 3000);
+  const handleDownload = () => {
+    window.location.href = "/api/extension-zip";
+    setDownloaded(true);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-lg" data-testid="dialog-install-extension">
+      <DialogContent className="sm:max-w-md" data-testid="dialog-install-extension">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2" data-testid="text-dialog-title">
             <Terminal className="w-5 h-5 text-primary" />
-            Install TDNS Browser Extension
+            Install TDNS Extension
           </DialogTitle>
           <DialogDescription>
-            Resolve .plm ternary addresses directly in Edge, Chrome, Brave, and Arc.
+            Resolve .plm ternary addresses in Edge, Chrome, Brave, and Arc.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <p className="text-sm font-medium text-foreground">Paste into Windows PowerShell:</p>
-            <div className="rounded-md bg-muted border border-border px-4 py-3 flex items-start justify-between gap-3">
-              <code className="text-xs text-primary font-mono break-all leading-relaxed select-all" data-testid="text-install-command">
-                {cmd}
-              </code>
-              <Button
-                onClick={handleCopy}
-                variant="ghost"
-                size="sm"
-                className="shrink-0 mt-[-2px]"
-                data-testid="button-copy-command"
-              >
-                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-              </Button>
-            </div>
-          </div>
+          <Button
+            onClick={handleDownload}
+            className="w-full"
+            variant={downloaded ? "outline" : "default"}
+            data-testid="button-download-extension"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {downloaded ? "Downloaded - now follow the steps below" : "Download Extension (.zip)"}
+          </Button>
 
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p>The installer downloads 9 extension files, detects your browsers, and opens the extensions page automatically. Then:</p>
-            <ol className="list-decimal list-inside space-y-1 text-sm">
-              <li>Enable <strong className="text-foreground">Developer mode</strong> (top-right toggle)</li>
-              <li>Click <strong className="text-foreground">Load unpacked</strong></li>
-              <li>Paste the folder path (already on your clipboard from the installer)</li>
-            </ol>
-          </div>
+          <ol className="space-y-3">
+            <li className="flex items-start gap-3" data-testid="step-install-1">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-semibold">1</span>
+              <div>
+                <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /> Unzip the download</p>
+                <p className="text-xs text-muted-foreground">Right-click the zip and Extract All</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3" data-testid="step-install-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-semibold">2</span>
+              <div>
+                <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" /> Open extensions page</p>
+                <p className="text-xs text-muted-foreground">Go to <code className="bg-muted px-1 rounded">edge://extensions</code> and turn on Developer mode</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3" data-testid="step-install-3">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-semibold">3</span>
+              <div>
+                <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" /> Load unpacked</p>
+                <p className="text-xs text-muted-foreground">Click "Load unpacked" and select the extracted folder</p>
+              </div>
+            </li>
+          </ol>
 
-          <div className="rounded-md bg-muted/50 border border-border px-4 py-3 space-y-1">
-            <p className="text-sm font-medium text-foreground">Show the icon in Edge</p>
-            <p className="text-xs text-muted-foreground">
-              Click the puzzle piece icon next to the address bar, find PlenumNET TDNS, and click the pin icon to keep it visible.
+          <div className="rounded-md bg-muted/50 border border-border px-4 py-3">
+            <p className="text-sm text-muted-foreground">
+              Then type <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-primary font-mono">google.plm</code> in the address bar.
             </p>
           </div>
-
-          <Button onClick={handleCopy} className="w-full" data-testid="button-run-install">
-            {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-            {copied ? "Copied!" : "Copy Install Command"}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -80,28 +80,36 @@ app.get("/api/install.ps1", (_req, res) => {
   }
 });
 
-app.get("/api/extension/chromium", (_req, res) => {
-  const filePath = path.resolve("services/tdns-v2/chromium-extension.zip");
-  if (existsSync(filePath)) {
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", "attachment; filename=plenumnet-tdns-extension.zip");
-    res.setHeader("Cache-Control", "no-store");
-    res.sendFile(filePath);
-  } else {
-    res.status(404).type("text/plain").send("Extension package not found");
+import archiver from "archiver";
+
+function sendExtensionZip(res: any, filename: string, contentType: string) {
+  const extDir = path.resolve("services/tdns-v2/extension/chromium");
+  if (!existsSync(extDir)) {
+    res.status(500).type("text/plain").send("Extension source not found");
+    return;
   }
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+  res.setHeader("Cache-Control", "no-store");
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.pipe(res);
+  const files = fs.readdirSync(extDir);
+  for (const f of files) {
+    archive.file(path.join(extDir, f), { name: f });
+  }
+  archive.finalize();
+}
+
+app.get("/api/extension-zip", (_req, res) => {
+  sendExtensionZip(res, "plenumnet-tdns-extension.zip", "application/zip");
+});
+
+app.get("/api/extension/chromium", (_req, res) => {
+  sendExtensionZip(res, "plenumnet-tdns-extension.zip", "application/zip");
 });
 
 app.get("/api/extension/firefox", (_req, res) => {
-  const filePath = path.resolve("services/tdns-v2/chromium-extension.zip");
-  if (existsSync(filePath)) {
-    res.setHeader("Content-Type", "application/x-xpinstall");
-    res.setHeader("Content-Disposition", "attachment; filename=plenumnet-tdns.xpi");
-    res.setHeader("Cache-Control", "no-store");
-    res.sendFile(filePath);
-  } else {
-    res.status(404).type("text/plain").send("Extension package not found");
-  }
+  sendExtensionZip(res, "plenumnet-tdns.xpi", "application/x-xpinstall");
 });
 
 app.get("/api/install-script", (_req, res) => {
