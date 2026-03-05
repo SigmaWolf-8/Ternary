@@ -11,7 +11,7 @@
 use tdns_v2::addr::{CubeAddr, DIMENSIONS};
 use tdns_v2::api::ApiRouter;
 use tdns_v2::bridge::{Bridge, Resolution, is_plm_name};
-use tdns_v2::con::{ConNode, derive_link_keys};
+use tdns_v2::overlay::{ConNode, derive_link_keys};
 use tdns_v2::crs::{CrsRegistry, RegistrationResult, VerificationResult};
 use tdns_v2::fts::{Fts, FtsConfig, FtsEvent, Heartbeat, HealthState};
 use tdns_v2::glb::{Glb, GlbDecision};
