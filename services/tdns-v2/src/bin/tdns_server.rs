@@ -1,4 +1,4 @@
-// TDNS v2.3 — HTTP Server
+// TDNS v2.3.2 — HTTP Server
 // Capomastro Holdings Ltd. — Applied Physics Division
 //
 // Zero-dependency HTTP server binding for the 11 TDNS API endpoints.
@@ -10,7 +10,8 @@
 //   tdns-server --port 8080         # Custom port
 //   tdns-server --host 127.0.0.1    # Custom bind address
 //
-// Port 3927: 3 (ternary) + 927 (arbitrary). It's the TDNS port.
+// Port 3927: 3^9 + 2^7 = 19683 + 128 → too large. 3×9+2×7 = 27+14 = nah.
+// Port 3927 = 3 (ternary) + 927 (arbitrary). It's the TDNS port.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -25,7 +26,9 @@ use tdns_v2::api::{
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let mut host = "0.0.0.0".to_string();
-    let mut port = 3927u16;
+    let mut port = std::env::var("PORT").unwrap_or_else(|_| "3927".into())
+        .parse::<u16>().unwrap_or(3927);
+    let mut data_path = "tdns.db".to_string(); // SQLite by default — always persistent
 
     let mut i = 1;
     while i < args.len() {
@@ -40,6 +43,12 @@ fn main() {
                 i += 1;
                 if i < args.len() {
                     host = args[i].clone();
+                }
+            }
+            "--data" | "-d" => {
+                i += 1;
+                if i < args.len() {
+                    data_path = args[i].clone();
                 }
             }
             "--help" => {
@@ -61,15 +70,27 @@ fn main() {
         std::process::exit(1);
     });
 
-    let router = Arc::new(Mutex::new(ApiRouter::new()));
+    let router = {
+        let r = ApiRouter::with_db(&data_path).unwrap_or_else(|e| {
+            eprintln!("ERROR: cannot open database at {}: {}", data_path, e);
+            std::process::exit(1);
+        });
+        Arc::new(Mutex::new(r))
+    };
+
+    let storage_info = {
+        let r = router.lock().unwrap();
+        format!("{} ({})", r.storage_info(), data_path)
+    };
 
     println!("═══════════════════════════════════════════════");
-    println!("  TDNS v2.3 — Ternary Domain Name System");
+    println!("  TDNS v2.3.2 — Ternary Domain Name System");
     println!("  Capomastro Holdings Ltd.");
     println!("  Applied Physics Division");
     println!("═══════════════════════════════════════════════");
     println!();
     println!("  Listening on http://{}", bind_addr);
+    println!("  Storage:   {}", storage_info);
     println!();
     println!("  Endpoints:");
     println!("    POST   /api/v1/register");
@@ -92,6 +113,7 @@ fn main() {
         match stream {
             Ok(stream) => {
                 let router = Arc::clone(&router);
+                // Single-threaded for simplicity. Production: spawn threads or use async.
                 handle_connection(stream, &router);
             }
             Err(e) => {
@@ -101,9 +123,12 @@ fn main() {
     }
 }
 
+// ─── HTTP Handling ───────────────────────────────────────────────────────────
+
 fn handle_connection(mut stream: TcpStream, router: &Arc<Mutex<ApiRouter>>) {
     let mut reader = BufReader::new(stream.try_clone().unwrap());
 
+    // Parse request line
     let mut request_line = String::new();
     if reader.read_line(&mut request_line).is_err() {
         return;
@@ -115,6 +140,7 @@ fn handle_connection(mut stream: TcpStream, router: &Arc<Mutex<ApiRouter>>) {
     let method = parts[0];
     let path = parts[1];
 
+    // Parse headers
     let mut headers = HashMap::new();
     let mut content_length: usize = 0;
     loop {
@@ -132,6 +158,7 @@ fn handle_connection(mut stream: TcpStream, router: &Arc<Mutex<ApiRouter>>) {
         }
     }
 
+    // Read body
     let mut body = vec![0u8; content_length];
     if content_length > 0 {
         let _ = reader.read_exact(&mut body);
@@ -140,8 +167,10 @@ fn handle_connection(mut stream: TcpStream, router: &Arc<Mutex<ApiRouter>>) {
 
     let now_ns = now_hptp();
 
+    // Route request
     let (status, response_body) = dispatch(method, path, &body_str, router, now_ns);
 
+    // Send response
     let response = format!(
         "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
         status,
@@ -161,21 +190,25 @@ fn dispatch(
     now_ns: u64,
 ) -> (u16, String) {
     match (method, path) {
+        // GET /api/v1/health
         ("GET", "/api/v1/health") => {
             let r = router.lock().unwrap();
             json_ok(&r.handle_health())
         }
 
+        // GET /api/v1/fts/status
         ("GET", "/api/v1/fts/status") => {
             let r = router.lock().unwrap();
             json_ok(&r.handle_fts_status())
         }
 
+        // GET /api/v1/con/metrics
         ("GET", "/api/v1/con/metrics") => {
             let r = router.lock().unwrap();
             json_ok(&r.handle_con_metrics())
         }
 
+        // POST /api/v1/scan
         ("POST", "/api/v1/scan") => {
             let req: ScanRequest = match serde_json::from_str(body) {
                 Ok(r) => r,
@@ -188,6 +221,7 @@ fn dispatch(
             }
         }
 
+        // POST /api/v1/register
         ("POST", "/api/v1/register") => {
             let req: RegisterRequest = match serde_json::from_str(body) {
                 Ok(r) => r,
@@ -203,6 +237,7 @@ fn dispatch(
             }
         }
 
+        // POST /api/v1/route
         ("POST", "/api/v1/route") => {
             let req: RouteRequest = match serde_json::from_str(body) {
                 Ok(r) => r,
@@ -215,6 +250,7 @@ fn dispatch(
             }
         }
 
+        // Dynamic GET/POST/DELETE routes
         _ => dispatch_dynamic(method, path, body, router, now_ns),
     }
 }
@@ -226,6 +262,7 @@ fn dispatch_dynamic(
     router: &Arc<Mutex<ApiRouter>>,
     now_ns: u64,
 ) -> (u16, String) {
+    // GET /api/v1/resolve/:name
     if method == "GET" && path.starts_with("/api/v1/resolve/") {
         let name = &path["/api/v1/resolve/".len()..];
         let name = percent_decode(name);
@@ -236,6 +273,7 @@ fn dispatch_dynamic(
         };
     }
 
+    // GET /api/v1/address/:addr
     if method == "GET" && path.starts_with("/api/v1/address/") {
         let addr = &path["/api/v1/address/".len()..];
         let addr = percent_decode(addr);
@@ -246,6 +284,7 @@ fn dispatch_dynamic(
         };
     }
 
+    // GET /api/v1/describe/:addr
     if method == "GET" && path.starts_with("/api/v1/describe/") {
         let addr = &path["/api/v1/describe/".len()..];
         let addr = percent_decode(addr);
@@ -256,9 +295,11 @@ fn dispatch_dynamic(
         };
     }
 
+    // POST /api/v1/verify/:name
     if method == "POST" && path.starts_with("/api/v1/verify/") {
         let name = &path["/api/v1/verify/".len()..];
         let name = percent_decode(name);
+        // Body should contain {"url": "..."}
         let url: String = serde_json::from_str::<HashMap<String, String>>(body)
             .ok()
             .and_then(|m| m.get("url").cloned())
@@ -273,6 +314,7 @@ fn dispatch_dynamic(
         };
     }
 
+    // DELETE /api/v1/deregister/:name
     if method == "DELETE" && path.starts_with("/api/v1/deregister/") {
         let name = &path["/api/v1/deregister/".len()..];
         let name = percent_decode(name);
@@ -283,8 +325,11 @@ fn dispatch_dynamic(
         };
     }
 
+    // 404
     json_err(404, &format!("{} {} not found", method, path))
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 fn json_ok<T: serde::Serialize>(data: &T) -> (u16, String) {
     (200, serde_json::to_string_pretty(data).unwrap_or_else(|_| "{}".into()))
@@ -335,7 +380,7 @@ fn now_hptp() -> u64 {
 }
 
 fn print_usage() {
-    println!("TDNS v2.3 — HTTP Server");
+    println!("TDNS v2.3.2 — HTTP Server");
     println!("Capomastro Holdings Ltd. — Applied Physics Division");
     println!();
     println!("USAGE:");
