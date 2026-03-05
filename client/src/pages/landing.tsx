@@ -596,33 +596,30 @@ function InterCubeSection() {
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0 }}
             className="flex flex-col items-center"
-            data-testid="stat-address-space"
+            data-testid="stat-dimensions"
           >
-            <span className="text-3xl md:text-4xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_ADDRESS_SPACE}</span>
-            <span className="text-sm text-muted-foreground mt-2">Address Space</span>
-            <span className="text-xs text-muted-foreground">3&#178;&#8310; Rep C vertices</span>
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_DIMENSIONS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Dimensions</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.08 }}
             className="flex flex-col items-center"
-            data-testid="stat-neighbors"
+            data-testid="stat-vertices"
           >
-            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_NEIGHBORS}</span>
-            <span className="text-sm text-muted-foreground mt-2">Neighbors</span>
-            <span className="text-xs text-muted-foreground">per cube (2 x {PLATFORM.HYPERCUBE_DIMENSIONS})</span>
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_VERTICES}</span>
+            <span className="text-sm text-muted-foreground mt-2">Vertices</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.16 }}
             className="flex flex-col items-center"
-            data-testid="stat-services"
+            data-testid="stat-neighbors"
           >
-            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_SERVICES}</span>
-            <span className="text-sm text-muted-foreground mt-2">Services</span>
-            <span className="text-xs text-muted-foreground">GLB &middot; CON &middot; CRS &middot; FTS</span>
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_NEIGHBORS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Neighbors / Node</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -633,7 +630,6 @@ function InterCubeSection() {
           >
             <span className="text-4xl md:text-5xl font-bold text-primary leading-none">0</span>
             <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
-            <span className="text-xs text-muted-foreground">pure geometric forwarding</span>
           </motion.div>
         </div>
 
