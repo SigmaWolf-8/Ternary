@@ -27,14 +27,14 @@
 
 ## Executive Summary: Temporal Unification Achieved
 
-The Salvi Epoch System represents the complete unification of temporal mathematics, ancient cosmology, and computational precision. Anchored to April 1, 2025 00:00:00 UTC (JD 2,460,767.5), this architecture resolves 12 major calendar systems through a femtosecond-precision timing layer, introduces the 13-Moon Harmonic Calendar with 8/5 Fibonacci split around φ, and routes all calendar API traffic through Kong Konnect with deterministic caching for historical conversions.
+The Salvi Epoch System represents the complete unification of temporal mathematics, ancient cosmology, and computational precision. Anchored to April 1, 2025 00:00:00 UTC (JD 2,460,767.5), this architecture resolves 42 global calendar systems through a femtosecond-precision timing layer, introduces the 13-Moon Harmonic Calendar with 8/5 Fibonacci split around φ, and routes all calendar API traffic through Kong Konnect with deterministic caching for historical conversions.
 
 ### Core Breakthroughs
 
 - **φ-Based Temporal Architecture:** Day Out of Time at 364/φ = Day 225 (November 11)
 - **Fibonacci Resonance:** 8 Moons (pre-φ) : 5 Moons (post-φ) ≈ φ (1.6 vs 1.618, error 1.1%)
 - **Computational Invariance:** 128-bit femtosecond timestamps eliminate all temporal drift
-- **Universal Synchronization:** JDN intermediary pattern synchronizes 12 calendars with O(n) efficiency
+- **Universal Synchronization:** JDN intermediary pattern synchronizes 42 calendars with O(n) efficiency
 - **Kong Konnect Gateway:** Deterministic caching (∞ TTL for historical dates), rate limiting, JWT auth across all calendar endpoints
 - **Quantum-Ready Framework:** HPTP protocol with torsion correction for 13D torus topology
 
@@ -413,7 +413,7 @@ The test suite validates epoch alignment, DOT detection, Hunab Ku insertion, Fib
 
 ```typescript
 describe('Salvi Epoch Calendar System', () => {
-  test('Epoch Zero alignment across all 12 calendars', () => {
+  test('Epoch Zero alignment across all 42 calendars', () => {
     const epochZero = new Date('2025-04-01T00:00:00.000Z');
     const all = AncientCalendarSync.gregorianToAll(epochZero);
     expect(all.thirteenMoon.moon).toBe(1);
