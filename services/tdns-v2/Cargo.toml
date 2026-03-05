@@ -1,6 +1,6 @@
 [package]
 name = "tdns-v2"
-version = "2.3.2"
+version = "2.3.3"
 edition = "2021"
 description = "Ternary Domain Name System v2.3 — 27-Dimensional Ontological Addressing"
 authors = ["Capomastro Holdings Ltd."]

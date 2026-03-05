@@ -1,4 +1,4 @@
-// TDNS v2.3.2 — HTTP Server
+// TDNS v2.3.3 — HTTP Server
 // Capomastro Holdings Ltd. — Applied Physics Division
 //
 // Zero-dependency HTTP server binding for the 11 TDNS API endpoints.
@@ -84,7 +84,7 @@ fn main() {
     };
 
     println!("═══════════════════════════════════════════════");
-    println!("  TDNS v2.3.2 — Ternary Domain Name System");
+    println!("  TDNS v2.3.3 — Ternary Domain Name System");
     println!("  Capomastro Holdings Ltd.");
     println!("  Applied Physics Division");
     println!("═══════════════════════════════════════════════");
@@ -380,7 +380,7 @@ fn now_hptp() -> u64 {
 }
 
 fn print_usage() {
-    println!("TDNS v2.3.2 — HTTP Server");
+    println!("TDNS v2.3.3 — HTTP Server");
     println!("Capomastro Holdings Ltd. — Applied Physics Division");
     println!();
     println!("USAGE:");

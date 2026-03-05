@@ -41,7 +41,7 @@ foreach ($f in $files) {
     $dest = [System.IO.Path]::Combine($INSTALL_DIR, $f)
     try {
         $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.2")
+        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.3")
         $wc.DownloadFile($url, $dest)
         if (Test-Path $dest) {
             $size = (Get-Item $dest).Length

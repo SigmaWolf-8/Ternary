@@ -43,6 +43,4 @@ echo     1. Enable "Developer mode" (top-right toggle)
 echo     2. Click "Load unpacked"
 echo     3. Paste the folder path (Ctrl+V) and press Enter
 echo.
-echo   Then type google.plm in the address bar to test.
-echo.
 pause
