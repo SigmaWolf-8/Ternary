@@ -23,8 +23,10 @@ function tryResolve(name, callback) {
   attempt(0);
 }
 
+var TDNS_SERVER = "http://localhost:3927";
+
 chrome.runtime.onInstalled.addListener(function() {
-  chrome.storage.local.set({ version: "2.3.4" });
+  chrome.storage.local.set({ version: "2.3.3" });
   chrome.action.setBadgeText({ text: "T" });
   chrome.action.setBadgeBackgroundColor({ color: "#d4a017" });
 });
@@ -88,6 +90,31 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     DEV_API = msg.url;
     PLM_API = msg.url;
     sendResponse({ ok: true });
+    return true;
+  }
+  if (msg.type === "health") {
+    fetch(TDNS_SERVER + "/api/v1/health")
+      .then(function(r) { return r.json(); })
+      .then(function(data) { sendResponse({ ok: true, data: data }); })
+      .catch(function() { sendResponse({ ok: false }); });
+    return true;
+  }
+  if (msg.type === "resolve") {
+    fetch(TDNS_SERVER + "/api/v1/resolve/" + encodeURIComponent(msg.name))
+      .then(function(r) { return r.json(); })
+      .then(function(data) { sendResponse({ ok: true, data: data }); })
+      .catch(function() { sendResponse({ ok: false }); });
+    return true;
+  }
+  if (msg.type === "scan") {
+    fetch(TDNS_SERVER + "/api/v1/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: msg.url })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) { sendResponse({ ok: true, data: data }); })
+      .catch(function() { sendResponse({ ok: false }); });
     return true;
   }
 });
