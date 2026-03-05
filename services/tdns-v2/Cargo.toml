@@ -6,12 +6,21 @@ rust-version = "1.85"
 description = "Ternary Domain Name System v2.3 — 27-Dimensional Ontological Addressing"
 authors = ["Capomastro Holdings Ltd."]
 
+[features]
+default = []
+network-tests = []  # Gate tests that make real DNS/HTTP calls
+
 [dependencies]
 blake3 = "1"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 thiserror = "2"
 ureq = "2"
 
 [[bin]]
 name = "tdns-scan"
 path = "src/bin/tdns_scan.rs"
+
+[[bin]]
+name = "tdns-server"
+path = "src/bin/tdns_server.rs"

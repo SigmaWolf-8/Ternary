@@ -1370,6 +1370,7 @@ mod tests {
     // ── Live Integration Test ────────────────────────────────────────
 
     #[test]
+    #[cfg(feature = "network-tests")]
     fn live_scan_github() {
         let result = match scan("https://github.com") {
             Ok(r) => r,
