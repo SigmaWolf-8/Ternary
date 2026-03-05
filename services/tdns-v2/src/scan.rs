@@ -108,19 +108,48 @@ impl ScanResult {
     ) -> Self {
         let derived_address = CubeAddr::new(trit_values);
 
-        // Compute scan hash from measurements.
-        // Canonical serialization: dim (1 byte) + confidence (1 byte) per measurement.
-        // In production, this would include the full raw value.
-        let mut measurement_bytes = Vec::with_capacity(measurements.len() * 2);
+        // Compute scan hash from FULL measurement data.
+        // Includes: target URL, timestamp, and every raw value + confidence.
+        // This ensures two different entities with different raw observations
+        // always produce different hashes, even if their trit vectors match.
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(target.as_bytes());
+        hasher.update(&scanned_at.to_be_bytes());
         for m in &measurements {
-            measurement_bytes.push(m.dim as u8);
-            measurement_bytes.push(match m.confidence {
+            hasher.update(&[m.dim as u8]);
+            hasher.update(&[match m.confidence {
                 Confidence::High => 3,
                 Confidence::Medium => 2,
                 Confidence::Low => 1,
-            });
+            }]);
+            // Serialize raw value into hash
+            match &m.raw {
+                RawValue::Text(s) => {
+                    hasher.update(&[0x01]); // type tag
+                    hasher.update(s.as_bytes());
+                }
+                RawValue::Numeric(n) => {
+                    hasher.update(&[0x02]);
+                    hasher.update(&n.to_be_bytes());
+                }
+                RawValue::Boolean(b) => {
+                    hasher.update(&[0x03]);
+                    hasher.update(&[*b as u8]);
+                }
+                RawValue::Pattern(s) => {
+                    hasher.update(&[0x04]);
+                    hasher.update(s.as_bytes());
+                }
+            }
         }
-        let scan_hash = ScanHash::compute(&measurement_bytes);
+        // Also include the derived trit vector for completeness
+        for t in &trit_values {
+            hasher.update(&[t.value()]);
+        }
+        let hash_output = hasher.finalize();
+        let mut hash_bytes = [0u8; 32];
+        hash_bytes.copy_from_slice(hash_output.as_bytes());
+        let scan_hash = ScanHash(hash_bytes);
 
         Self {
             target,

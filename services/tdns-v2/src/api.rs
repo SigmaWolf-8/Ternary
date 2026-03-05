@@ -52,6 +52,10 @@ pub struct RegisterResponse {
     pub address_canonical: String,
     pub hptp_mandatory: bool,
     pub scan_hash: String,
+    /// True if the entity was displaced from its natural address.
+    pub displaced: bool,
+    /// The address derived from measurements before displacement.
+    pub natural_address: String,
 }
 
 /// POST /api/v1/scan
@@ -225,16 +229,19 @@ impl ApiRouter {
 
     /// POST /api/v1/register — Scan a URL, derive address, register entity.
     pub fn handle_register(&mut self, req: RegisterRequest, now_ns: u64) -> Result<RegisterResponse, ErrorResponse> {
+        // Scan the target
         let scan_result = scanner::scan(&req.url).map_err(|e| ErrorResponse {
             status: "error".into(),
             error: format!("scan failed: {}", e),
         })?;
 
+        // Decode public key
         let public_key = hex_decode(&req.public_key_hex).map_err(|e| ErrorResponse {
             status: "error".into(),
             error: format!("invalid public key hex: {}", e),
         })?;
 
+        // Register with CRS
         let result = self.crs.register(
             req.name.clone(),
             req.zone,
@@ -245,13 +252,15 @@ impl ApiRouter {
         );
 
         match result {
-            RegistrationResult::Ok { trn, address } => Ok(RegisterResponse {
+            RegistrationResult::Ok { trn, address, displaced, natural_address } => Ok(RegisterResponse {
                 status: "ok".into(),
                 name: trn.name,
                 address: address.to_category_string(),
                 address_canonical: address.to_canonical_string(),
                 hptp_mandatory: address.is_hptp_mandatory(),
                 scan_hash: trn.scan_hash.to_hex(),
+                displaced,
+                natural_address: natural_address.to_category_string(),
             }),
             RegistrationResult::HptpSyncRequired {
                 address,
@@ -419,6 +428,7 @@ impl ApiRouter {
             error: format!("name '{}' not registered", name),
         })?;
 
+        // Remove from FTS monitoring
         self.fts.remove_node(&trn.address);
 
         Ok(ResolveResponse {

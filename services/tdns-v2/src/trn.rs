@@ -87,6 +87,20 @@ pub struct Trn {
 
     /// HPTP timestamp of most recent CRS re-scan.
     pub last_rescan: Option<u64>,
+
+    // ── Displacement fields (§7.3) ───────────────────────────────────
+
+    /// The address derived purely from scan measurements, before
+    /// collision displacement. If no collision, equals `address`.
+    pub natural_address: Option<CubeAddr>,
+
+    /// True if this entity was displaced from its natural address
+    /// due to an address collision with an existing entity.
+    pub displaced: bool,
+
+    /// The dimension that was flipped during displacement (0-based).
+    /// None if not displaced.
+    pub displaced_dim: Option<usize>,
 }
 
 impl Trn {
@@ -114,6 +128,9 @@ impl Trn {
             hptp_offset_ns: None,
             attributes: None,
             last_rescan: None,
+            natural_address: None,
+            displaced: false,
+            displaced_dim: None,
         }
     }
 
@@ -173,6 +190,24 @@ impl Trn {
         self.hptp_sync_status = Some(status);
         self.hptp_offset_ns = Some(offset_ns);
         self
+    }
+
+    /// Mark this TRN as displaced from its natural address.
+    pub fn with_displacement(mut self, natural_address: CubeAddr, displaced_dim: usize) -> Self {
+        self.natural_address = Some(natural_address);
+        self.displaced = true;
+        self.displaced_dim = Some(displaced_dim);
+        self
+    }
+
+    /// Is this entity displaced from its natural address?
+    pub fn is_displaced(&self) -> bool {
+        self.displaced
+    }
+
+    /// The natural (scan-derived) address, or the assigned address if not displaced.
+    pub fn natural_or_assigned(&self) -> CubeAddr {
+        self.natural_address.unwrap_or(self.address)
     }
 }
 

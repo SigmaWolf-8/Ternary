@@ -225,10 +225,11 @@ pub fn collect(target: &ScanTarget, timeout: Duration) -> Result<ScanContext, St
     // ── TLS detection ────────────────────────────────────────────────
     let tls_available = target.is_https() && http_status > 0;
     let tls_version = if tls_available {
+        // ureq doesn't expose TLS version directly; infer from headers
         if headers.values().any(|v| v.contains("h3") || v.contains("quic")) {
             "TLSv1.3".to_string()
         } else {
-            "TLSv1.2+".to_string()
+            "TLSv1.2+".to_string() // HTTPS succeeded, at least 1.2
         }
     } else {
         "none".to_string()
@@ -247,7 +248,7 @@ pub fn collect(target: &ScanTarget, timeout: Duration) -> Result<ScanContext, St
         || quick_exists(&agent, &format!("{}/about-us", base));
 
     // ── Port probes ──────────────────────────────────────────────────
-    let probe_ports = [80, 443, 8080, 8443, 1883, 5683];
+    let probe_ports = [80, 443, 8080, 8443, 1883, 5683]; // HTTP, HTTPS, Alt-HTTP, Alt-HTTPS, MQTT, CoAP
     let open_ports = probe_ports
         .iter()
         .filter(|&&port| tcp_probe(&target.domain, port, Duration::from_secs(2)))
@@ -302,6 +303,7 @@ fn quick_exists(agent: &ureq::Agent, url: &str) -> bool {
     match agent.head(url).call() {
         Ok(resp) => (200..300).contains(&resp.status()),
         Err(_) => {
+            // Some servers reject HEAD, fall back to GET
             match agent.get(url).call() {
                 Ok(resp) => (200..300).contains(&resp.status()),
                 _ => false,
@@ -376,16 +378,23 @@ pub fn extract_measurements(ctx: &ScanContext) -> Vec<RawValue> {
 fn probe_entity_kind(ctx: &ScanContext) -> RawValue {
     let domain = &ctx.target.domain;
 
+    // TLD-based classification
     if domain.ends_with(".gov") || domain.ends_with(".mil") || domain.ends_with(".gc.ca") {
         return RawValue::Pattern("governance".into());
     }
     if domain.ends_with(".edu") || domain.ends_with(".ac.uk") {
         return RawValue::Pattern("governance".into());
     }
+    // Prefix/infix patterns: gov.uk, www.gov.uk, service.gov.uk
+    if domain.starts_with("gov.") || domain.contains(".gov.") {
+        return RawValue::Pattern("governance".into());
+    }
 
+    // Content-based signals for personal sites
     let personal_signals = ["personal", "my blog", "my site", "portfolio", "about me"];
     let personal_score: usize = personal_signals.iter().filter(|s| ctx.body_contains(s)).count();
 
+    // Corporate signals
     let corp_signals = [
         "inc.", "corp.", "ltd.", "llc", "gmbh", "company", "enterprise",
         "careers", "investor", "press release", "annual report",
@@ -401,21 +410,25 @@ fn probe_entity_kind(ctx: &ScanContext) -> RawValue {
 
 /// Trit 2: Who's it for? — Audience from robots.txt, access patterns.
 fn probe_audience(ctx: &ScanContext) -> RawValue {
+    // 401/403 with no public content → private/group
     if ctx.http_status == 401 || ctx.http_status == 403 {
+        // Check if there's any public-facing content
         if ctx.body.len() < 100 {
             return RawValue::Pattern("private".into());
         }
         return RawValue::Pattern("group".into());
     }
 
+    // robots.txt analysis
     if let Some(robots) = &ctx.robots_txt {
         let disallow_count = robots.matches("Disallow:").count();
         let allow_count = robots.matches("Allow:").count();
         if disallow_count > 10 && allow_count < 3 {
-            return RawValue::Pattern("group".into());
+            return RawValue::Pattern("group".into()); // Heavy restrictions
         }
     }
 
+    // Default: if it responded with 200, it's public
     if ctx.http_status == 200 {
         return RawValue::Pattern("public".into());
     }
@@ -425,42 +438,41 @@ fn probe_audience(ctx: &ScanContext) -> RawValue {
 
 /// Trit 3: Who runs it? — Operator transparency score.
 fn probe_operator_transparency(ctx: &ScanContext) -> RawValue {
-    let mut score: f64 = 0.0;
-    let mut checks: f64 = 0.0;
+    // Count discrete binary signals. Each is yes/no, no scoring.
+    let mut signals: u32 = 0;
 
-    checks += 1.0;
+    // Signal 1: About page exists
     if ctx.has_about_page {
-        score += 1.0;
+        signals += 1;
     }
 
-    checks += 1.0;
+    // Signal 2: Contact information present
     let contact_signals = ["contact@", "mailto:", "contact us", "phone:", "tel:"];
     if contact_signals.iter().any(|s| ctx.body_contains(s)) {
-        score += 1.0;
+        signals += 1;
     }
 
-    checks += 1.0;
+    // Signal 3: Legal entity name present
     let legal_signals = ["inc.", "corp.", "ltd.", "llc", "gmbh", "registered"];
     if legal_signals.iter().any(|s| ctx.body_contains(s)) {
-        score += 1.0;
+        signals += 1;
     }
 
-    checks += 1.0;
+    // Signal 4: Physical address present
     let address_patterns = [" street", " avenue", " road", " blvd", " drive"];
     if address_patterns.iter().any(|s| ctx.body_contains(s)) {
-        score += 1.0;
+        signals += 1;
     }
 
-    checks += 1.0;
-    if !ctx.target.domain.contains("privacy") && !ctx.target.domain.contains("proxy") {
-        score += 0.5;
+    // Signal 5: Government/education domains are always transparent
+    let domain = &ctx.target.domain;
+    if domain.ends_with(".gov") || domain.ends_with(".edu")
+        || domain.starts_with("gov.") || domain.contains(".gov.")
+    {
+        signals = 5; // Full transparency for government entities
     }
 
-    if ctx.target.domain.ends_with(".gov") || ctx.target.domain.ends_with(".edu") {
-        score = checks;
-    }
-
-    RawValue::Numeric(score / checks)
+    RawValue::Numeric(signals as f64)
 }
 
 /// Trit 4: Who hosts it? — Hosting model from headers, ASN patterns.
@@ -473,6 +485,7 @@ fn probe_hosting_model(ctx: &ScanContext) -> RawValue {
         .join(" ")
         .to_lowercase();
 
+    // Cloud provider fingerprints
     let cloud_signals = [
         "cloudflare", "amazonaws", "azure", "google", "gcp", "akamai",
         "fastly", "vercel", "netlify", "heroku", "fly.io", "railway",
@@ -482,6 +495,7 @@ fn probe_hosting_model(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("cloud".into());
     }
 
+    // Hosting provider signals
     let provider_signals = [
         "nginx", "apache", "litespeed", "cpanel", "plesk",
         "x-powered-by", "digitalocean", "linode", "vultr", "ovh",
@@ -490,11 +504,12 @@ fn probe_hosting_model(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("provider".into());
     }
 
+    // Single IP, no cloud headers → likely self-hosted or small provider
     if ctx.dns_record_count <= 1 {
         return RawValue::Pattern("self".into());
     }
 
-    RawValue::Pattern("provider".into())
+    RawValue::Pattern("provider".into()) // Default
 }
 
 // ── WHAT Probes ──────────────────────────────────────────────────────────────
@@ -503,10 +518,12 @@ fn probe_hosting_model(ctx: &ScanContext) -> RawValue {
 fn probe_form_factor(ctx: &ScanContext) -> RawValue {
     let ct = ctx.content_type.to_lowercase();
 
+    // IoT/device protocols
     if ctx.open_ports.iter().any(|&p| p == 1883 || p == 5683) {
         return RawValue::Pattern("device".into());
     }
 
+    // API-only (JSON/XML, no HTML)
     if (ct.contains("application/json") || ct.contains("application/xml"))
         && !ct.contains("html")
         && !ctx.body_contains("<html")
@@ -514,14 +531,17 @@ fn probe_form_factor(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("app".into());
     }
 
+    // SPA detection (minimal HTML shell + heavy JS)
     if ctx.body_contains("<html") {
         let script_count = ctx.body_count("<script");
         let body_text_len = ctx.body.len();
+        // SPA: lots of scripts, minimal body text relative to scripts
         if script_count > 5 && body_text_len < 50000 {
             return RawValue::Pattern("app".into());
         }
     }
 
+    // Default: if it serves HTML, it's a website
     if ct.contains("html") || ctx.body_contains("<html") {
         return RawValue::Pattern("website".into());
     }
@@ -533,6 +553,7 @@ fn probe_form_factor(ctx: &ScanContext) -> RawValue {
 fn probe_content_type(ctx: &ScanContext) -> RawValue {
     let ct = ctx.content_type.to_lowercase();
 
+    // Live/streaming indicators
     let live_signals = [
         "text/event-stream", "application/x-ndjson", "multipart/x-mixed-replace",
     ];
@@ -543,6 +564,7 @@ fn probe_content_type(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("live".into());
     }
 
+    // Media indicators
     let media_signals = [
         "image/", "video/", "audio/", "application/octet-stream",
     ];
@@ -550,6 +572,7 @@ fn probe_content_type(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("media".into());
     }
 
+    // Check body for embedded media density
     let media_tags = ctx.body_count("<video")
         + ctx.body_count("<audio")
         + ctx.body_count("<img")
@@ -569,7 +592,7 @@ fn probe_consumer_type(ctx: &ScanContext) -> RawValue {
     let has_api = ctx.body_contains("\"api\"")
         || ctx.body_contains("/api/")
         || ctx.content_type.contains("json")
-        || ctx.has_header("x-ratelimit-limit");
+        || ctx.has_header("x-ratelimit-limit"); // API rate limiting
 
     let has_css = ctx.body_contains("<link") && ctx.body_contains("stylesheet");
     let has_ui = has_html && (has_css || ctx.body_contains("<button") || ctx.body_contains("<form"));
@@ -590,41 +613,44 @@ fn probe_consumer_type(ctx: &ScanContext) -> RawValue {
 
 /// Trit 8: Does it think? — ML/AI capability detection.
 fn probe_intelligence(ctx: &ScanContext) -> RawValue {
-    let mut ml_score: f64 = 0.0;
+    // Count discrete binary ML signals. Each category is yes/no.
+    let mut signals: u32 = 0;
 
+    // Signal 1: ML-specific API endpoints present
     let ml_endpoints = [
         "/predict", "/inference", "/v1/models", "/v1/completions",
         "/classify", "/embed", "/generate", "/ai/", "/ml/",
     ];
-    for endpoint in ml_endpoints {
-        if ctx.body_contains(endpoint) {
-            ml_score += 0.3;
-        }
+    if ml_endpoints.iter().any(|ep| ctx.body_contains(ep)) {
+        signals += 1;
     }
 
+    // Signal 2: ML framework or service references
     let ml_frameworks = [
         "tensorflow", "pytorch", "openai", "anthropic", "hugging",
-        "model", "neural", "machine learning", "artificial intelligence",
-        "deep learning", "nlp", "copilot", "gpt", "llm",
+        "copilot", "gpt", "llm",
     ];
-    for fw in ml_frameworks {
-        if ctx.body_contains(fw) {
-            ml_score += 0.1;
-        }
+    if ml_frameworks.iter().any(|fw| ctx.body_contains(fw)) {
+        signals += 1;
     }
 
-    let personalization = ["recommended for you", "you might like", "suggested", "personalized"];
-    for sig in personalization {
-        if ctx.body_contains(sig) {
-            ml_score += 0.15;
-        }
+    // Signal 3: Personalization/recommendation indicators
+    let personalization = ["recommended for you", "you might like", "personalized"];
+    if personalization.iter().any(|sig| ctx.body_contains(sig)) {
+        signals += 1;
     }
 
+    // Signal 4: Search with ranking (implies ML-driven relevance)
     if ctx.body_contains("search") && ctx.body_contains("results") {
-        ml_score += 0.1;
+        signals += 1;
     }
 
-    RawValue::Numeric(ml_score.min(1.0))
+    // Signal 5: ML-specific headers
+    if ctx.has_header("x-model-version") || ctx.has_header("x-inference-time") {
+        signals += 1;
+    }
+
+    RawValue::Numeric(signals as f64)
 }
 
 // ── WHERE Probes ─────────────────────────────────────────────────────────────
@@ -636,6 +662,7 @@ fn probe_visibility(ctx: &ScanContext) -> RawValue {
 
 /// Trit 10: Do I need to log in? — Auth model detection.
 fn probe_auth_model(ctx: &ScanContext) -> RawValue {
+    // WWW-Authenticate header = explicit auth challenge
     if ctx.has_header("www-authenticate") {
         let auth_val = ctx.header("www-authenticate").unwrap_or("").to_lowercase();
         if auth_val.contains("bearer") || auth_val.contains("negotiate") {
@@ -644,17 +671,29 @@ fn probe_auth_model(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("password".into());
     }
 
+    // Login form detection
     let has_login_form = ctx.body_contains("type=\"password\"")
         || ctx.body_contains("type='password'")
         || ctx.body_contains("login")
             && (ctx.body_contains("<form") || ctx.body_contains("sign in"));
 
-    let mfa_signals = [
-        "two-factor", "2fa", "multi-factor", "mfa", "authenticator",
-        "security key", "biometric", "client certificate",
-    ];
-    if mfa_signals.iter().any(|s| ctx.body_contains(s)) {
-        return RawValue::Pattern("mfa".into());
+    // MFA/certificate indicators — ONLY check in auth context.
+    // Wikipedia, blogs, and docs mention "two-factor", "security key", etc.
+    // in article text. These are not auth challenges.
+    let in_auth_context = has_login_form
+        || ctx.has_header("www-authenticate")
+        || ctx.body_contains("id=\"login\"")
+        || ctx.body_contains("action=\"/login")
+        || ctx.body_contains("action=\"/signin");
+
+    if in_auth_context {
+        let mfa_signals = [
+            "two-factor", "2fa", "multi-factor", "mfa", "authenticator",
+            "security key", "biometric", "client certificate",
+        ];
+        if mfa_signals.iter().any(|s| ctx.body_contains(s)) {
+            return RawValue::Pattern("mfa".into());
+        }
     }
 
     if has_login_form {
@@ -666,14 +705,22 @@ fn probe_auth_model(ctx: &ScanContext) -> RawValue {
 
 /// Trit 11: How many servers? — DNS record count.
 fn probe_infra_scale(ctx: &ScanContext) -> RawValue {
-    let cdn_detected = ctx.has_header("cf-ray")
-        || ctx.has_header("x-cdn")
-        || ctx.has_header("x-cache")
-        || ctx.has_header("x-amz-cf-id")
-        || ctx.has_header("x-served-by")
-        || ctx.has_header("x-vercel-id");
+    // CDN/large-infra detection from headers
+    let cdn_detected = ctx.has_header("cf-ray")              // Cloudflare
+        || ctx.has_header("x-cdn")                           // Generic CDN
+        || ctx.has_header("x-cache")                         // Cache/CDN
+        || ctx.has_header("x-cache-hits")                    // CDN cache hits
+        || ctx.has_header("x-amz-cf-id")                     // CloudFront
+        || ctx.has_header("x-served-by")                     // Fastly
+        || ctx.has_header("x-vercel-id")                     // Vercel
+        || ctx.has_header("x-github-request-id")             // GitHub
+        || ctx.has_header("x-fastly-request-id")             // Fastly backend
+        || ctx.has_header("x-timer")                         // Fastly timing
+        || ctx.has_header("x-netlify-request-id")            // Netlify
+        || ctx.has_header("via");                             // Proxy/CDN chain
 
     let effective_count = if cdn_detected {
+        // CDN implies many edge nodes regardless of DNS record count
         ctx.dns_record_count.max(10)
     } else {
         ctx.dns_record_count
@@ -684,14 +731,17 @@ fn probe_infra_scale(ctx: &ScanContext) -> RawValue {
 
 /// Trit 12: What connection? — Protocol from port scan + headers.
 fn probe_connection_protocol(ctx: &ScanContext) -> RawValue {
+    // WebSocket detection
     if ctx.has_header("upgrade") || ctx.body_contains("websocket") || ctx.body_contains("wss://") {
         return RawValue::Pattern("websocket".into());
     }
 
+    // gRPC detection
     if ctx.content_type.contains("grpc") || ctx.has_header("grpc-status") {
-        return RawValue::Pattern("websocket".into());
+        return RawValue::Pattern("websocket".into()); // gRPC uses HTTP/2, same trit as WebSocket
     }
 
+    // Raw TCP (IoT protocols on non-HTTP ports)
     let non_http_ports: Vec<u16> = ctx
         .open_ports
         .iter()
@@ -717,6 +767,7 @@ fn probe_era(ctx: &ScanContext) -> RawValue {
         .join(" ")
         .to_lowercase();
 
+    // Modern (2020s+) signals
     let modern_signals = [
         "h3", "alt-svc", "quic", "nel", "report-to",
         "permissions-policy", "cross-origin-embedder-policy",
@@ -724,15 +775,18 @@ fn probe_era(ctx: &ScanContext) -> RawValue {
     ];
     let modern_score: usize = modern_signals.iter().filter(|s| headers_str.contains(*s)).count();
 
+    // 2010s signals
     let mid_signals = [
         "x-frame-options", "x-xss-protection", "x-content-type-options",
         "content-security-policy",
     ];
     let mid_score: usize = mid_signals.iter().filter(|s| headers_str.contains(*s)).count();
 
+    // Legacy signals
     let legacy_signals = ["x-powered-by: php/4", "x-powered-by: php/5", "x-aspnet-version"];
     let legacy_score: usize = legacy_signals.iter().filter(|s| headers_str.contains(*s)).count();
 
+    // Also check HTML meta tags for modern frameworks
     let modern_body_signals = [
         "next.js", "nuxt", "svelte", "remix", "astro", "vite",
         "__NEXT_DATA__", "__NUXT__", "react", "vue",
@@ -743,18 +797,22 @@ fn probe_era(ctx: &ScanContext) -> RawValue {
         .count();
 
     if modern_score >= 2 || modern_body >= 2 {
-        RawValue::Numeric(2024.0)
+        RawValue::Numeric(2024.0) // 2020s+
     } else if mid_score >= 2 || legacy_score == 0 {
-        RawValue::Numeric(2015.0)
+        RawValue::Numeric(2015.0) // 2010s
     } else {
-        RawValue::Numeric(2005.0)
+        RawValue::Numeric(2005.0) // Pre-2010
     }
 }
 
 /// Trit 14: When is it available? — Availability (single-probe approximation).
 fn probe_availability(ctx: &ScanContext) -> RawValue {
+    // A live scan can only check "is it up right now?"
+    // For real classification, CRS would monitor over time.
+    // Single probe: if it responds, assume 24/7 unless there are
+    // signals otherwise (e.g., "business hours" in content).
     if ctx.http_status == 0 {
-        return RawValue::Numeric(0.0);
+        return RawValue::Numeric(0.0); // Down
     }
 
     let business_hours_signals = [
@@ -762,18 +820,20 @@ fn probe_availability(ctx: &ScanContext) -> RawValue {
         "9am-5pm", "9:00-17:00", "working hours",
     ];
     if business_hours_signals.iter().any(|s| ctx.body_contains(s)) {
-        return RawValue::Numeric(40.0);
+        return RawValue::Numeric(40.0); // ~40% uptime = business hours
     }
 
+    // Maintenance page detection
     if ctx.http_status == 503 || ctx.body_contains("maintenance") {
-        return RawValue::Numeric(75.0);
+        return RawValue::Numeric(75.0); // Extended but not 24/7
     }
 
-    RawValue::Numeric(99.9)
+    RawValue::Numeric(99.9) // Responding = assume high availability
 }
 
 /// Trit 15: What kind of data? — Data freshness from headers and content.
 fn probe_data_freshness(ctx: &ScanContext) -> RawValue {
+    // Streaming/live indicators
     if ctx.content_type.contains("event-stream")
         || ctx.body_contains("websocket")
         || ctx.body_contains("real-time")
@@ -783,25 +843,60 @@ fn probe_data_freshness(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("live".into());
     }
 
+    // Check Last-Modified / Date headers for freshness
     if let Some(cache_control) = ctx.header("cache-control") {
         if cache_control.contains("no-cache") || cache_control.contains("no-store") {
-            return RawValue::Pattern("current".into());
+            return RawValue::Pattern("current".into()); // Dynamic, always fresh
         }
         if cache_control.contains("max-age=31536000") || cache_control.contains("immutable") {
-            return RawValue::Pattern("historical".into());
+            return RawValue::Pattern("historical".into()); // Immutable = archive
         }
     }
 
+    // Dynamic content signals
     if ctx.body_contains("datetime") || ctx.body_contains("timestamp") || ctx.body_contains("ago") {
         return RawValue::Pattern("current".into());
     }
 
-    RawValue::Pattern("current".into())
+    RawValue::Pattern("current".into()) // Default: most sites serve current content
 }
 
 /// Trit 16: Is it real-time? — Latency measurement (actual TTFB).
 fn probe_latency_profile(ctx: &ScanContext) -> RawValue {
-    RawValue::Numeric(ctx.ttfb_ms)
+    // Count discrete protocol signals for real-time and batch.
+    // No TTFB measurement — protocol presence is binary and deterministic.
+    let mut realtime_signals: u32 = 0;
+    let mut batch_signals: u32 = 0;
+
+    // Real-time signals: streaming/push protocols detected
+    if ctx.has_header("upgrade") || ctx.body_contains("websocket") || ctx.body_contains("wss://") {
+        realtime_signals += 1; // WebSocket
+    }
+    if ctx.content_type.contains("event-stream") || ctx.body_contains("eventsource") {
+        realtime_signals += 1; // Server-Sent Events
+    }
+    if ctx.content_type.contains("grpc") || ctx.has_header("grpc-status") {
+        realtime_signals += 1; // gRPC
+    }
+    if ctx.body_contains("real-time") || ctx.body_contains("realtime") || ctx.body_contains("live feed") {
+        realtime_signals += 1; // Self-declared real-time
+    }
+
+    // Batch signals: static/archival indicators
+    if let Some(cc) = ctx.header("cache-control") {
+        let cc_lower = cc.to_lowercase();
+        if cc_lower.contains("immutable") || cc_lower.contains("max-age=31536000") {
+            batch_signals += 1; // Immutable content
+        }
+    }
+    if !ctx.body_contains("datetime") && !ctx.body_contains("timestamp")
+        && !ctx.body_contains(" ago") && !ctx.body_contains("updated")
+    {
+        batch_signals += 1; // No freshness indicators at all
+    }
+
+    // Encode: realtime * 10 + batch (derivation rule decodes)
+    RawValue::Numeric((realtime_signals * 10 + batch_signals) as f64)
 }
 
 // ── WHY Probes ───────────────────────────────────────────────────────────────
@@ -834,13 +929,16 @@ fn probe_payment_model(ctx: &ScanContext) -> RawValue {
 fn probe_data_appetite(ctx: &ScanContext) -> RawValue {
     let mut score: f64 = 0.0;
 
+    // Count input fields
     let input_count = ctx.body_count("<input");
     score += input_count as f64 * 0.5;
 
+    // Registration/signup forms
     if ctx.body_contains("sign up") || ctx.body_contains("register") || ctx.body_contains("create account") {
         score += 3.0;
     }
 
+    // Data-sharing script indicators
     let tracking_scripts = [
         "google-analytics", "gtag", "fbevents", "facebook.net",
         "segment.com", "mixpanel", "amplitude", "hotjar",
@@ -852,6 +950,7 @@ fn probe_data_appetite(ctx: &ScanContext) -> RawValue {
         }
     }
 
+    // Cookie consent complexity (more options = more data collection)
     if ctx.body_contains("cookie consent") || ctx.body_contains("cookie preference") {
         score += 2.0;
     }
@@ -866,6 +965,7 @@ fn probe_policy_presence(ctx: &ScanContext) -> RawValue {
     if ctx.has_privacy_page { count += 1.0; }
     if ctx.has_terms_page { count += 1.0; }
 
+    // Check for policy links in the body
     let policy_signals = [
         "privacy policy", "terms of service", "terms of use",
         "cookie policy", "data processing", "gdpr",
@@ -899,6 +999,7 @@ fn probe_cost_model(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("payperuse".into());
     }
 
+    // Paywall detection
     if ctx.body_contains("paywall") || ctx.body_contains("premium content") {
         return RawValue::Pattern("subscription".into());
     }
@@ -910,15 +1011,22 @@ fn probe_cost_model(ctx: &ScanContext) -> RawValue {
 
 /// Trit 21: Who gets it? — Delivery model from DNS/CDN analysis.
 fn probe_delivery_model(ctx: &ScanContext) -> RawValue {
-    let cdn_headers = ["cf-ray", "x-cdn", "x-cache", "x-amz-cf-id", "x-served-by", "x-vercel-id"];
+    // CDN / anycast detection
+    let cdn_headers = [
+        "cf-ray", "x-cdn", "x-cache", "x-cache-hits", "x-amz-cf-id",
+        "x-served-by", "x-vercel-id", "x-github-request-id",
+        "x-fastly-request-id", "x-timer", "x-netlify-request-id", "via",
+    ];
     if cdn_headers.iter().any(|h| ctx.has_header(h)) {
         return RawValue::Pattern("anycast".into());
     }
 
+    // Multiple DNS records suggest anycast or load balancing
     if ctx.dns_record_count > 4 {
         return RawValue::Pattern("anycast".into());
     }
 
+    // Multicast indicators
     if ctx.body_contains("multicast") || ctx.body_contains("broadcast") {
         return RawValue::Pattern("multicast".into());
     }
@@ -928,11 +1036,13 @@ fn probe_delivery_model(ctx: &ScanContext) -> RawValue {
 
 /// Trit 22: Which way does data go? — Data flow direction.
 fn probe_data_flow(ctx: &ScanContext) -> RawValue {
+    // Check for ingest/collection patterns
     let ingest_signals = [
         "upload", "submit", "send data", "log collector",
         "ingest", "webhook", "data pipeline",
     ];
     if ingest_signals.iter().any(|s| ctx.body_contains(s)) {
+        // Could still also serve data
         let serve_signals = ["download", "export", "api", "feed"];
         if serve_signals.iter().any(|s| ctx.body_contains(s)) {
             return RawValue::Pattern("through".into());
@@ -940,15 +1050,17 @@ fn probe_data_flow(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("in".into());
     }
 
+    // Proxy/CDN = through
     if ctx.has_header("via") || ctx.has_header("x-forwarded-for") {
         return RawValue::Pattern("through".into());
     }
 
-    RawValue::Pattern("out".into())
+    RawValue::Pattern("out".into()) // Default: most sites serve content out
 }
 
 /// Trit 23: How do I get updates? — Update mechanism detection.
 fn probe_update_model(ctx: &ScanContext) -> RawValue {
+    // Push indicators (highest priority)
     if ctx.body_contains("websocket")
         || ctx.body_contains("wss://")
         || ctx.body_contains("server-sent events")
@@ -959,6 +1071,7 @@ fn probe_update_model(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("push".into());
     }
 
+    // Subscribe indicators
     let subscribe_signals = [
         "rss", "atom", "feed", "/feed", "/rss", "application/rss",
         "application/atom", "newsletter", "subscribe", "email updates",
@@ -967,13 +1080,14 @@ fn probe_update_model(ctx: &ScanContext) -> RawValue {
         return RawValue::Pattern("subscribe".into());
     }
 
+    // Check for link rel="alternate" (RSS/Atom)
     if ctx.body_contains("type=\"application/rss+xml\"")
         || ctx.body_contains("type=\"application/atom+xml\"")
     {
         return RawValue::Pattern("subscribe".into());
     }
 
-    RawValue::Pattern("poll".into())
+    RawValue::Pattern("poll".into()) // Default: request/response
 }
 
 /// Trit 24: Does it remember me? — State persistence from cookies.
@@ -981,7 +1095,9 @@ fn probe_state_persistence(ctx: &ScanContext) -> RawValue {
     if let Some(cookie) = ctx.header("set-cookie") {
         let cookie_lower = cookie.to_lowercase();
 
+        // Check for max-age or expires
         if cookie_lower.contains("max-age=") {
+            // Extract max-age value
             if let Some(start) = cookie_lower.find("max-age=") {
                 let rest = &cookie_lower[start + 8..];
                 let value_str: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
@@ -991,14 +1107,16 @@ fn probe_state_persistence(ctx: &ScanContext) -> RawValue {
             }
         }
 
+        // Session cookie (no explicit expiry) → temporary
         if !cookie_lower.contains("expires=") && !cookie_lower.contains("max-age=") {
-            return RawValue::Numeric(3600.0);
+            return RawValue::Numeric(3600.0); // Session: "for a bit"
         }
 
-        return RawValue::Numeric(2592000.0);
+        // Has cookies but couldn't parse duration → assume persistent
+        return RawValue::Numeric(2592000.0); // 30 days default
     }
 
-    RawValue::Numeric(0.0)
+    RawValue::Numeric(0.0) // No cookies at all
 }
 
 // ── PEACE Probes ─────────────────────────────────────────────────────────────
@@ -1006,37 +1124,41 @@ fn probe_state_persistence(ctx: &ScanContext) -> RawValue {
 /// Trit 25: Is it encrypted? — Entity-level encryption posture.
 /// NOTE: This measures what the ENTITY offers, not CON fabric transport (§2.6).
 fn probe_encryption(ctx: &ScanContext) -> RawValue {
+    // Count discrete binary security signals. No scoring.
+    // NOTE: This measures the ENTITY's encryption posture, not CON fabric (§2.6).
+
     if !ctx.tls_available {
-        return RawValue::Numeric(0.0);
+        return RawValue::Numeric(0.0); // No TLS at all → 0 signals
     }
 
-    let mut score: f64 = 0.4;
+    let mut signals: u32 = 1; // Signal 1: TLS itself is present
 
+    // Signal 2: HSTS header
     if ctx.has_header("strict-transport-security") {
-        score += 0.15;
+        signals += 1;
     }
 
+    // Signal 3: Content Security Policy
     if ctx.has_header("content-security-policy") {
-        score += 0.15;
+        signals += 1;
     }
 
+    // Signal 4: security.txt exists
     if ctx.has_security_txt {
-        score += 0.1;
+        signals += 1;
     }
 
-    if ctx.tls_version.contains("1.3") {
-        score += 0.1;
-    }
-
+    // Signal 5: X-Content-Type-Options
     if ctx.has_header("x-content-type-options") {
-        score += 0.05;
+        signals += 1;
     }
 
+    // Signal 6: X-Frame-Options
     if ctx.has_header("x-frame-options") {
-        score += 0.05;
+        signals += 1;
     }
 
-    RawValue::Numeric(score.min(1.0))
+    RawValue::Numeric(signals as f64)
 }
 
 /// Trit 26: How many trackers? — Third-party tracker count from HTML analysis.
@@ -1130,10 +1252,16 @@ pub fn scan(url: &str) -> Result<FullScanResult, String> {
 
 /// Scan with configurable timeout.
 pub fn scan_with_timeout(url: &str, timeout: Duration) -> Result<FullScanResult, String> {
+    // 1. Parse target
     let target = ScanTarget::from_url(url)?;
+
+    // 2. Collect raw network data
     let context = collect(&target, timeout)?;
+
+    // 3. Extract 27 measurements
     let measurements = extract_measurements(&context);
 
+    // 4. Derive trits
     let rules = all_rules();
     let mut trits = [Trit::V1; DIMENSIONS];
     let mut derivations = Vec::with_capacity(DIMENSIONS);
@@ -1154,9 +1282,10 @@ pub fn scan_with_timeout(url: &str, timeout: Duration) -> Result<FullScanResult,
 
     let address = CubeAddr::new(trits);
 
+    // 5. Compute scan hash
     let scan_result = ScanResult::new(
         target.url.clone(),
-        0,
+        0, // Timestamp filled by CRS at registration
         scan_measurements,
         trits,
     );
@@ -1244,6 +1373,7 @@ mod tests {
 
     #[test]
     fn extract_measurements_count() {
+        // Build a minimal ScanContext to test extraction
         let ctx = ScanContext {
             target: ScanTarget::from_url("https://example.com").unwrap(),
             http_status: 200,
@@ -1347,7 +1477,7 @@ mod tests {
             content_type: "text/html".into(),
             ttfb_ms: 50.0,
             total_ms: 80.0,
-            dns_record_count: 2,
+            dns_record_count: 2, // Only 2 DNS records but CDN detected
             tls_available: true,
             tls_version: "TLSv1.2+".into(),
             robots_txt: None,
@@ -1372,6 +1502,8 @@ mod tests {
     #[test]
     #[cfg(feature = "network-tests")]
     fn live_scan_github() {
+        // This test makes real network calls to github.com.
+        // It will fail if the network is unavailable.
         let result = match scan("https://github.com") {
             Ok(r) => r,
             Err(e) => {
@@ -1380,14 +1512,20 @@ mod tests {
             }
         };
 
+        // Basic sanity checks on a live scan
         assert_eq!(result.derivations.len(), 27);
         assert_eq!(result.measurements.len(), 27);
 
+        // GitHub should be:
+        // - Corporate (trit 1 = 2)
         assert_eq!(result.address.dim(1), Trit::V2, "GitHub should be corporate");
+        // - Everyone can see it (trit 9 = 3)
         assert_eq!(result.address.dim(9), Trit::V3, "GitHub should be visible to everyone");
+        // - HTTPS (trit 25 should score high)
         let encryption_trit = result.address.dim(25);
         assert!(encryption_trit.value() >= 2, "GitHub should have at least basic TLS");
 
+        // Print the full report
         let report = format_scan_report(&result);
         eprintln!("{}", report);
     }
