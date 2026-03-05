@@ -18,7 +18,7 @@ CONFIDENTIAL — PROPRIETARY
 
 ## 1. Executive Summary
 
-TDNS v2.3.2 is the Ternary Domain Name System for PlenumNET — a 27-dimensional ontological addressing protocol that unifies name resolution, geometric routing, cryptographic identity, multicast distribution, and precision timing into a single mathematical structure.
+TDNS v2.3.4 is the Ternary Domain Name System for PlenumNET — a 27-dimensional ontological addressing protocol that unifies name resolution, geometric routing, cryptographic identity, multicast distribution, and precision timing into a single mathematical structure.
 
 Every addressable entity on the network receives a 27-trit coordinate in a ternary hypercube. Each trit is derived from a single universal formula applied to binary signal counts. Alongside each trit, a confidence digit (1–9) quantifies how far the measured proportion lies from the quantization boundaries. When two entities land on the same 27-trit coordinate, a 28th Collision Resolution Digit (CRD, 1–9) distinguishes them, allowing up to nine entities per cube before the address is considered full.
 
@@ -49,7 +49,7 @@ TDNS replaces five conventional protocol systems within a managed fabric: DNS (n
 | v2.2.6 | March 2026 | All open items resolved: era-stable WHEN; data-collection WHY; self-cert re-verification; HPTP 2-trit trigger |
 | v2.3 | March 2026 | Frozen release. Encryption model clarified (fabric + entity-level). Scaling analysis formalized. Production-ready. |
 | v2.3.1 | March 2026 | Confidence derivation per dimension (SS4.0-4.2). Collision Resolution Digit for global uniqueness (SS4.3-4.7). Geometric resonance with 28 and 364 (SS2.8). |
-| **v2.3.2** | **March 2026** | **First-principle derivation engine: all 12 quantitative dimensions use binary signal counting with defined N values. CryptoHash abstraction (BLAKE3 -> TL-Sponge migration path). Scanner hardened: gov.uk governance, MFA auth-context gating, expanded CDN detection. scan_hash includes full raw values with type tags. All arbitrary thresholds eliminated.** |
+| **v2.3.4** | **March 2026** | **First-principle derivation engine: all 12 quantitative dimensions use binary signal counting with defined N values. CryptoHash abstraction (BLAKE3 -> TL-Sponge migration path). Scanner hardened: gov.uk governance, MFA auth-context gating, expanded CDN detection. scan_hash includes full raw values with type tags. All arbitrary thresholds eliminated.** |
 
 ---
 
@@ -79,7 +79,7 @@ When two entities genuinely share the same 27-trit coordinate, they genuinely oc
 
 Every dimension in the schema is machine-deterministic. CRS derives the address by scanning the entity — no human input, no subjective judgment, no opinion. Each trit value corresponds to an observable, testable signal: a protocol handshake, a DNS lookup, a header inspection, a port scan.
 
-**v2.3.2 Principle:** Every input signal is binary (present or absent). Every quantitative derivation counts binary signals and applies the universal formula. There are no continuous scores, no floating-point boundaries, no tuning parameters. If a machine cannot determine the value from a scan, the dimension does not belong in the address.
+**v2.3.4 Principle:** Every input signal is binary (present or absent). Every quantitative derivation counts binary signals and applies the universal formula. There are no continuous scores, no floating-point boundaries, no tuning parameters. If a machine cannot determine the value from a scan, the dimension does not belong in the address.
 
 ### 2.6 Everything Is Encrypted
 
@@ -87,7 +87,7 @@ PlenumNET operates on a zero-cleartext principle. All traffic between cubes trav
 
 Trit 25 ("Is it encrypted?") does not measure whether the fabric encrypts the entity's traffic — the fabric always does. Trit 25 measures what encryption the entity itself offers to its end users: does the entity serve plain HTTP (no), basic TLS (basic TLS), or TLS 1.3 with full hardening headers (full TLS)? This is a property of the entity's design, not of the network transport.
 
-### 2.7 CryptoHash Abstraction (v2.3.2)
+### 2.7 CryptoHash Abstraction (v2.3.4)
 
 All cryptographic hashing in TDNS is accessed through the `CryptoHash` trait:
 
@@ -617,7 +617,7 @@ WO:**** WA:**** WR:**** WN:***3 WY:**** HO:**** PE:***
 | `attributes` | map | The 27 measured values |
 | `last_rescan` | u64 | HPTP timestamp of most recent re-scan |
 
-### 8.3 Scan Hash Computation (Normative, v2.3.2)
+### 8.3 Scan Hash Computation (Normative, v2.3.4)
 
 The scan hash MUST include the full raw measurement data, not just derived trit values:
 
@@ -804,7 +804,7 @@ Trusted execution, append-only audit trail, BFT consensus for ordering, HSM key 
 
 ## 18. Implementation Status
 
-### 18.1 Completed — TDNS v2.3.2 (Rust Crate)
+### 18.1 Completed — TDNS v2.3.4 (Rust Crate)
 
 16 modules, 2 binaries, 180 tests, zero warnings.
 
@@ -835,7 +835,7 @@ Trusted execution, append-only audit trail, BFT consensus for ordering, HSM key 
 
 ## 19. Version Comparison
 
-| Aspect | v2.3 | v2.3.1 | **v2.3.2** |
+| Aspect | v2.3 | v2.3.1 | **v2.3.4** |
 |--------|------|--------|------------|
 | Categories | WHO->PEACE (frozen) | Same | Same |
 | Human input | Zero | Zero | Zero |
@@ -848,7 +848,7 @@ Trusted execution, append-only audit trail, BFT consensus for ordering, HSM key 
 | Scanner | Mix of scores/counts | Signal counts (4 dims) | **Signal counts (all 12 quantitative dims)** |
 | Correctness | — | — | **gov.uk, MFA auth-context, CDN expansion** |
 | Encryption | Dual-layer | Same | Same |
-| Status | Frozen | v2.3.1 | **v2.3.2** |
+| Status | Frozen | v2.3.1 | **v2.3.4** |
 
 ---
 
