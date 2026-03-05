@@ -30,7 +30,7 @@ echo   [OK] Downloaded %count% files to:
 echo   %INSTALL_DIR%
 echo.
 
-echo %INSTALL_DIR%| clip
+echo|set /p="%INSTALL_DIR%"| clip
 
 echo   Folder path copied to clipboard.
 echo.
