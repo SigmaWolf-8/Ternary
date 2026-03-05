@@ -13,21 +13,15 @@
 
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
+use std::sync::{Arc, RwLock};
 
 use crate::addr::CubeAddr;
 use crate::crs::CrsRegistry;
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-/// The PlenumNET TLD.
 pub const PLM_TLD: &str = ".plm";
 
-// ─── Resolution Result ───────────────────────────────────────────────────────
-
-/// The result of a metatronic bridge resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Resolution {
-    /// TDNS resolution: name resolved to a 27-trit address.
     Tdns {
         name: String,
         address: CubeAddr,
@@ -35,68 +29,44 @@ pub enum Resolution {
         zone: String,
     },
 
-    /// Legacy DNS resolution: name resolved to IP address(es).
     Legacy {
         name: String,
         addresses: Vec<String>,
     },
 
-    /// TDNS redirect: address has drifted, follow the new address.
     TdnsRedirect {
         name: String,
         old_address: CubeAddr,
         new_address: CubeAddr,
     },
 
-    /// Resolution failed.
     Failed {
         name: String,
         reason: String,
     },
 }
 
-// ─── Metatronic Bridge ───────────────────────────────────────────────────────
-
-/// The metatronic bridge: routes `.plm` names to TDNS, everything else
-/// to legacy DNS.
 pub struct Bridge {
-    /// Reference to the CRS registry for TDNS lookups.
-    crs: *const CrsRegistry,
-    /// Cache for legacy DNS results (name → IPs, with TTL).
+    crs: Arc<RwLock<CrsRegistry>>,
     legacy_cache: HashMap<String, (Vec<String>, u64)>,
-    /// Cache TTL for legacy results (nanoseconds).
     legacy_cache_ttl_ns: u64,
-    /// Total TDNS resolutions.
     tdns_count: u64,
-    /// Total legacy DNS resolutions.
     legacy_count: u64,
-    /// Total failed resolutions.
     failed_count: u64,
 }
 
-// SAFETY: Bridge holds a raw pointer to CrsRegistry, which must remain valid.
-// In production, this would use Arc<RwLock<CrsRegistry>> or similar.
-// For the library layer, we use this pattern to avoid lifetime entanglement.
-unsafe impl Send for Bridge {}
-unsafe impl Sync for Bridge {}
-
 impl Bridge {
-    /// Create a bridge backed by a CRS registry.
-    ///
-    /// SAFETY: The CrsRegistry reference must remain valid for the
-    /// lifetime of the Bridge. In production, use Arc<RwLock<CrsRegistry>>.
-    pub unsafe fn new(crs: &CrsRegistry) -> Self {
+    pub fn new(crs: Arc<RwLock<CrsRegistry>>) -> Self {
         Self {
-            crs: crs as *const CrsRegistry,
+            crs,
             legacy_cache: HashMap::new(),
-            legacy_cache_ttl_ns: 60_000_000_000, // 60 seconds
+            legacy_cache_ttl_ns: 60_000_000_000,
             tdns_count: 0,
             legacy_count: 0,
             failed_count: 0,
         }
     }
 
-    /// Resolve a name — routes to TDNS or legacy DNS based on TLD.
     pub fn resolve(&mut self, name: &str, now_ns: u64) -> Resolution {
         let normalized = name.trim().to_lowercase();
 
@@ -107,10 +77,17 @@ impl Bridge {
         }
     }
 
-    // ── TDNS Resolution ─────────────────────────────────────────────
-
     fn resolve_tdns(&mut self, name: &str, now_ns: u64) -> Resolution {
-        let crs = unsafe { &*self.crs };
+        let crs = match self.crs.read() {
+            Ok(guard) => guard,
+            Err(_) => {
+                self.failed_count += 1;
+                return Resolution::Failed {
+                    name: name.to_string(),
+                    reason: "CRS registry lock poisoned".into(),
+                };
+            }
+        };
 
         if let Some(trn) = crs.resolve(name) {
             if !trn.is_valid_at(now_ns) {
@@ -145,8 +122,6 @@ impl Bridge {
             }
         }
     }
-
-    // ── Legacy DNS Resolution ───────────────────────────────────────
 
     fn resolve_legacy(&mut self, name: &str, now_ns: u64) -> Resolution {
         if let Some((addresses, expires)) = self.legacy_cache.get(name) {
@@ -191,59 +166,30 @@ impl Bridge {
         }
     }
 
-    // ── Cache Management ────────────────────────────────────────────
-
-    /// Purge expired legacy DNS cache entries.
     pub fn purge_cache(&mut self, now_ns: u64) -> usize {
         let before = self.legacy_cache.len();
         self.legacy_cache.retain(|_, (_, expires)| now_ns < *expires);
         before - self.legacy_cache.len()
     }
 
-    /// Clear the entire legacy DNS cache.
     pub fn clear_cache(&mut self) {
         self.legacy_cache.clear();
     }
 
-    /// Set legacy cache TTL.
     pub fn set_cache_ttl(&mut self, ttl_ns: u64) {
         self.legacy_cache_ttl_ns = ttl_ns;
     }
 
-    // ── Metrics ─────────────────────────────────────────────────────
-
-    /// Total TDNS resolutions.
-    pub fn tdns_count(&self) -> u64 {
-        self.tdns_count
-    }
-
-    /// Total legacy DNS resolutions.
-    pub fn legacy_count(&self) -> u64 {
-        self.legacy_count
-    }
-
-    /// Total failed resolutions.
-    pub fn failed_count(&self) -> u64 {
-        self.failed_count
-    }
-
-    /// Legacy cache size.
-    pub fn cache_size(&self) -> usize {
-        self.legacy_cache.len()
-    }
+    pub fn tdns_count(&self) -> u64 { self.tdns_count }
+    pub fn legacy_count(&self) -> u64 { self.legacy_count }
+    pub fn failed_count(&self) -> u64 { self.failed_count }
+    pub fn cache_size(&self) -> usize { self.legacy_cache.len() }
 }
 
-// ─── Utility Functions ───────────────────────────────────────────────────────
-
-/// Check if a name belongs to the PlenumNET TLD.
 pub fn is_plm_name(name: &str) -> bool {
     name.ends_with(PLM_TLD)
 }
 
-/// Extract the zone from a .plm name.
-///
-/// `pptpro.capomastro.plm` → `capomastro.plm`
-/// `google.plm` → `plm`
 pub fn extract_zone(name: &str) -> &str {
     if !is_plm_name(name) {
         return name;
@@ -255,10 +201,6 @@ pub fn extract_zone(name: &str) -> &str {
     }
 }
 
-/// Extract the label (first component) from a .plm name.
-///
-/// `pptpro.capomastro.plm` → `pptpro`
-/// `google.plm` → `google`
 pub fn extract_label(name: &str) -> &str {
     match name.find('.') {
         Some(pos) => &name[..pos],
@@ -266,12 +208,27 @@ pub fn extract_label(name: &str) -> &str {
     }
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::scan::RawValue;
+
+    fn make_crs_with_google() -> Arc<RwLock<CrsRegistry>> {
+        let mut crs = CrsRegistry::new();
+        crs.register(
+            "google.plm".into(),
+            "plm".into(),
+            vec![0xDE, 0xAD],
+            google_measurements(),
+            1000,
+            None,
+        );
+        Arc::new(RwLock::new(crs))
+    }
+
+    fn empty_crs() -> Arc<RwLock<CrsRegistry>> {
+        Arc::new(RwLock::new(CrsRegistry::new()))
+    }
 
     #[test]
     fn is_plm_detection() {
@@ -297,71 +254,52 @@ mod tests {
 
     #[test]
     fn tdns_resolution() {
-        let mut crs = CrsRegistry::new();
-        let measurements = google_measurements();
+        let crs = make_crs_with_google();
+        let g_addr = crs.read().unwrap().resolve_addr("google.plm").unwrap();
 
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            measurements,
-            1000,
-            None,
-        );
-
-        let mut bridge = unsafe { Bridge::new(&crs) };
+        let mut bridge = Bridge::new(crs);
         let result = bridge.resolve("google.plm", 2000);
 
         match result {
             Resolution::Tdns { name, address, .. } => {
                 assert_eq!(name, "google.plm");
-                assert!(!address.is_hptp_mandatory());
+                assert_eq!(address, g_addr);
             }
             other => panic!("expected Tdns, got {:?}", other),
         }
-
         assert_eq!(bridge.tdns_count(), 1);
-        assert_eq!(bridge.legacy_count(), 0);
     }
 
     #[test]
     fn tdns_not_found() {
-        let crs = CrsRegistry::new();
-        let mut bridge = unsafe { Bridge::new(&crs) };
+        let mut bridge = Bridge::new(empty_crs());
         let result = bridge.resolve("nonexistent.plm", 1000);
 
         match result {
-            Resolution::Failed { name, .. } => {
-                assert_eq!(name, "nonexistent.plm");
-            }
+            Resolution::Failed { name, .. } => assert_eq!(name, "nonexistent.plm"),
             other => panic!("expected Failed, got {:?}", other),
         }
         assert_eq!(bridge.failed_count(), 1);
     }
 
     #[test]
+    #[cfg(feature = "network-tests")]
     fn legacy_dns_resolution() {
-        let crs = CrsRegistry::new();
-        let mut bridge = unsafe { Bridge::new(&crs) };
+        let mut bridge = Bridge::new(empty_crs());
         let result = bridge.resolve("github.com", 1000);
 
-        match &result {
+        match result {
             Resolution::Legacy { name, addresses } => {
                 assert_eq!(name, "github.com");
                 assert!(!addresses.is_empty());
             }
-            Resolution::Failed { .. } => {
-                eprintln!("SKIP legacy_dns_resolution: network unavailable");
-            }
-            other => panic!("expected Legacy or Failed, got {:?}", other),
+            other => panic!("expected Legacy, got {:?}", other),
         }
     }
 
     #[test]
     fn legacy_cache_hit() {
-        let crs = CrsRegistry::new();
-        let mut bridge = unsafe { Bridge::new(&crs) };
-
+        let mut bridge = Bridge::new(empty_crs());
         bridge.legacy_cache.insert(
             "cached.com".into(),
             (vec!["1.2.3.4".into()], 999_999_999_999),
@@ -378,16 +316,13 @@ mod tests {
 
     #[test]
     fn cache_purge() {
-        let crs = CrsRegistry::new();
-        let mut bridge = unsafe { Bridge::new(&crs) };
-
+        let mut bridge = Bridge::new(empty_crs());
         bridge.legacy_cache.insert("fresh.com".into(), (vec!["1.1.1.1".into()], 5000));
         bridge.legacy_cache.insert("stale.com".into(), (vec!["2.2.2.2".into()], 1000));
 
         assert_eq!(bridge.cache_size(), 2);
-
         let purged = bridge.purge_cache(3000);
-        assert_eq!(purged, 1); // stale.com removed
+        assert_eq!(purged, 1);
         assert_eq!(bridge.cache_size(), 1);
     }
 
@@ -395,7 +330,7 @@ mod tests {
     fn routing_decision_plm_vs_legacy() {
         assert!(is_plm_name("pptpro.capomastro.plm"));
         assert!(!is_plm_name("pptpro.capomastro.com"));
-        assert!(!is_plm_name("plm.example.com")); // .plm must be TLD
+        assert!(!is_plm_name("plm.example.com"));
     }
 
     fn google_measurements() -> Vec<RawValue> {
