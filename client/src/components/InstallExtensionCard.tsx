@@ -7,7 +7,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Terminal } from "lucide-react";
+import { Copy, Terminal } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 let openInstallDialog: (() => void) | null = null;
 
@@ -17,7 +18,7 @@ export function triggerInstallDialog() {
 
 export default function InstallExtensionDialog() {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   openInstallDialog = () => setOpen(true);
 
@@ -25,6 +26,7 @@ export default function InstallExtensionDialog() {
   const cmd = isWindows
     ? `irm ${window.location.origin}/install.ps1 | iex`
     : `curl -sL ${window.location.origin}/install.ps1 | bash`;
+  const shellName = isWindows ? "Windows PowerShell" : "Terminal";
 
   const handleCopy = async () => {
     try {
@@ -39,8 +41,11 @@ export default function InstallExtensionDialog() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    setOpen(false);
+    toast({
+      title: "Command copied",
+      description: `Open ${shellName}, paste the command, and press Enter.`,
+    });
   };
 
   return (
@@ -58,7 +63,7 @@ export default function InstallExtensionDialog() {
 
         <div className="space-y-4 pt-2">
           <p className="text-sm text-muted-foreground">
-            Copy the command below and paste it into {isWindows ? "Windows PowerShell" : "your terminal"}:
+            Click the button below. The install command will be copied to your clipboard — paste it into {shellName} and press Enter.
           </p>
 
           <div className="rounded-md bg-muted border border-border px-4 py-3">
@@ -70,24 +75,14 @@ export default function InstallExtensionDialog() {
           <Button
             onClick={handleCopy}
             className="w-full"
-            variant={copied ? "outline" : "default"}
             data-testid="button-copy-command"
           >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4 mr-2" />
-                Copied — paste in {isWindows ? "PowerShell" : "Terminal"}
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4 mr-2" />
-                Copy Install Command
-              </>
-            )}
+            <Copy className="w-4 h-4 mr-2" />
+            Copy &amp; Close
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
-            Auto-detects all installed browsers. Requires {isWindows ? "PowerShell" : "Terminal"}.
+            Auto-detects all installed browsers. Requires {shellName}.
           </p>
         </div>
       </DialogContent>
