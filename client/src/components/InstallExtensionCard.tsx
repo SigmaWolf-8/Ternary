@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Play, Copy, Terminal } from "lucide-react";
+import { Copy, Terminal, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 let openInstallDialog: (() => void) | null = null;
@@ -18,16 +18,13 @@ export function triggerInstallDialog() {
 
 export default function InstallExtensionDialog() {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  openInstallDialog = () => setOpen(true);
+  openInstallDialog = () => { setOpen(true); setCopied(false); };
 
-  const isWindows = typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
   const scriptUrl = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1";
-  const cmd = isWindows
-    ? `irm ${scriptUrl} | iex`
-    : `curl -sL ${scriptUrl} | bash`;
-  const shellName = isWindows ? "Windows PowerShell" : "Terminal";
+  const cmd = `irm ${scriptUrl} | iex`;
 
   const copyToClipboard = async () => {
     try {
@@ -42,85 +39,74 @@ export default function InstallExtensionDialog() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-  };
-
-  const handleRunAndInstall = async () => {
-    await copyToClipboard();
-    setOpen(false);
-
-    if (isWindows) {
-      const psCmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${cmd}"`;
-      const uri = `ms-powershell:command?command=${encodeURIComponent(cmd)}`;
-
-      const opened = window.open(uri, "_blank");
-      if (!opened) {
-        try {
-          window.location.href = uri;
-        } catch {}
-      }
-
-      toast({
-        title: "Launching PowerShell",
-        description: "If PowerShell didn't open, press Win+X → PowerShell and paste the copied command.",
-      });
-    } else {
-      toast({
-        title: "Command copied",
-        description: "Open your terminal and paste the command to install.",
-      });
-    }
-  };
-
-  const handleCopyOnly = async () => {
-    await copyToClipboard();
-    setOpen(false);
+    setCopied(true);
     toast({
       title: "Command copied",
-      description: `Open ${shellName}, paste the command, and press Enter.`,
+      description: "Open Windows PowerShell, paste the command, and press Enter.",
     });
+    setTimeout(() => setCopied(false), 3000);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md" data-testid="dialog-install-extension">
+      <DialogContent className="sm:max-w-lg" data-testid="dialog-install-extension">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2" data-testid="text-dialog-title">
             <Terminal className="w-5 h-5 text-primary" />
             Install TDNS Browser Extension
           </DialogTitle>
           <DialogDescription>
-            Resolves .plm addresses in Chrome, Edge, Brave, Firefox, Opera &amp; Vivaldi.
+            Resolves .plm ternary addresses directly in Edge, Chrome, and Brave.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          <div className="rounded-md bg-muted border border-border px-4 py-3">
-            <code className="text-sm text-primary font-mono break-all" data-testid="text-install-command">
-              {cmd}
-            </code>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Step 1: Copy and run in PowerShell</p>
+            <div className="rounded-md bg-muted border border-border px-4 py-3 flex items-center justify-between gap-3">
+              <code className="text-sm text-primary font-mono break-all select-all" data-testid="text-install-command">
+                {cmd}
+              </code>
+              <Button
+                onClick={copyToClipboard}
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                data-testid="button-copy-command"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Step 2: Load the extension</p>
+            <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+              <li>Open <code className="text-xs bg-muted px-1 rounded">edge://extensions</code> in your browser</li>
+              <li>Enable <strong>Developer mode</strong> (top-right toggle)</li>
+              <li>Click <strong>Load unpacked</strong></li>
+              <li>Paste the folder path (already copied by the installer)</li>
+            </ol>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Step 3: Try it</p>
+            <p className="text-sm text-muted-foreground">
+              Type <code className="text-xs bg-muted px-1 rounded text-primary">google.plm</code> in the address bar and press Enter.
+            </p>
           </div>
 
           <Button
-            onClick={handleRunAndInstall}
+            onClick={copyToClipboard}
             className="w-full"
             data-testid="button-run-install"
           >
-            <Play className="w-4 h-4 mr-2" />
-            {isWindows ? "Open PowerShell & Install" : "Copy & Install"}
-          </Button>
-
-          <Button
-            onClick={handleCopyOnly}
-            className="w-full"
-            variant="outline"
-            data-testid="button-copy-command"
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Copy Command Only
+            {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+            {copied ? "Copied!" : "Copy Install Command"}
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
-            Auto-detects all installed browsers. Requires {shellName}.
+            Requires Windows PowerShell. Downloads 9 files to %LocalAppData%\PlenumNET.
           </p>
         </div>
       </DialogContent>

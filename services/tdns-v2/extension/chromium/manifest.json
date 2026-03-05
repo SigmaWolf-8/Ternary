@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "PlenumNET TDNS Resolver",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "Resolve .plm addresses via the PlenumNET Ternary Domain Name System",
   "author": "Capomastro Holdings Ltd.",
-  "permissions": ["declarativeNetRequest", "storage"],
-  "host_permissions": ["*://*.plm/*", "https://plenumnet.replit.app/*"],
+  "permissions": ["declarativeNetRequest", "webNavigation", "storage"],
+  "host_permissions": ["*://*.plm/*", "https://plenumnet.replit.app/*", "*://*.bing.com/*", "*://*.google.com/*", "*://*.duckduckgo.com/*", "*://*.yahoo.com/*"],
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
