@@ -73,14 +73,14 @@
 
 pub mod cube_addr;
 pub mod glb;
-pub mod con;
+pub mod overlay;
 pub mod crs;
 pub mod fts;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
 pub use glb::{GeometricLoadBalancer, ForwardResult, ForwardError, GlbStats};
-pub use con::{CubeOverlayNetwork, Neighbor, TunnelState, TunnelProtocol, ConStats};
+pub use overlay::{CubeOverlayNetwork, Neighbor, TunnelState, TunnelProtocol, ConStats};
 pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo};
 pub use fts::{FaultToleranceService, NeighborHealth, NeighborState, StateChangeEvent, FtsConfig};
 
