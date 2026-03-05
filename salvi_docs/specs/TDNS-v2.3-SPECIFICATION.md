@@ -1,8 +1,8 @@
 # PLENUMNET — TERNARY DOMAIN NAME SYSTEM
 
-## Version 2.3 Specification — The Automatable Ontology
+## Version 2.3.2 Specification — First-Principle Derivation Engine
 
-**27-Dimensional Ontological Addressing**
+**27-Dimensional Ontological Addressing + 28th Collision Resolution Digit**
 
 *The Address IS the Description. The Description IS the Route. The Description IS a Measurement.*
 
@@ -18,16 +18,19 @@ CONFIDENTIAL — PROPRIETARY
 
 ## 1. Executive Summary
 
-TDNS v2.3 is the Ternary Domain Name System for PlenumNET — a 27-dimensional ontological addressing protocol that unifies name resolution, geometric routing, cryptographic identity, multicast distribution, and precision timing into a single mathematical structure.
+TDNS v2.3.2 is the Ternary Domain Name System for PlenumNET — a 27-dimensional ontological addressing protocol that unifies name resolution, geometric routing, cryptographic identity, multicast distribution, and precision timing into a single mathematical structure.
 
-Every addressable entity on the network receives a 27-trit coordinate in a ternary hypercube. Each trit is derived from a measurable, machine-deterministic property of the entity. No human judgment. No subjective classification. The Cube Registration Service points a scanner at the entity and the address derives itself.
+Every addressable entity on the network receives a 27-trit coordinate in a ternary hypercube. Each trit is derived from a single universal formula applied to binary signal counts. Alongside each trit, a confidence digit (1–9) quantifies how far the measured proportion lies from the quantization boundaries. When two entities land on the same 27-trit coordinate, a 28th Collision Resolution Digit (CRD, 1–9) distinguishes them, allowing up to nine entities per cube before the address is considered full.
 
-- **Address space:** 3²⁷ = 7,625,597,484,987 (7.6 trillion)
+- **Address space (27-trit):** 3^27 = 7,625,597,484,987 (7.6 trillion)
+- **Unique identifiers (with CRD):** 3^27 x 9 = 68,630,377,364,883 (68.6 trillion)
 - **Neighbors per node:** 54 (2 per dimension)
 - **Maximum diameter:** 27 hops
 - **Routing tables:** Zero
 - **Human input required for classification:** Zero
-- **Fabric encryption:** All inter-cube traffic encrypted via CON tunnels (PQ-native, BLAKE3 key derivation)
+- **Derivation formulas:** Three (quantization + confidence + CRD assignment)
+- **Arbitrary thresholds:** Zero
+- **Fabric encryption:** All inter-cube traffic encrypted via CON tunnels (PQ-native, CryptoHash key derivation)
 
 TDNS replaces five conventional protocol systems within a managed fabric: DNS (naming), BGP (routing), PKI (identity), IGMP/PIM (multicast), and PTP (timing). The geometry enforces all five.
 
@@ -35,7 +38,7 @@ TDNS replaces five conventional protocol systems within a managed fabric: DNS (n
 
 | Version | Date | Key Changes |
 |---------|------|-------------|
-| v2.0 | March 2026 | Initial 27-dimension schema (What/Where/How, 3×3×3 structure) |
+| v2.0 | March 2026 | Initial 27-dimension schema (What/Where/How, 3x3x3 structure) |
 | v2.1 | March 2026 | 7-category ontological structure; removed language/geography |
 | v2.2 | March 2026 | Plain-language dimensions; Entity Type restored; Regulatory added; `.plm` TLD |
 | v2.2.1 | March 2026 | Category-grouped display notation; HPTP Live Enforcement Rule (normative) |
@@ -44,7 +47,9 @@ TDNS replaces five conventional protocol systems within a managed fabric: DNS (n
 | v2.2.4 | March 2026 | Address derivation principle restored; CRS trust anchor; sparse routing eventual consistency |
 | v2.2.5 | March 2026 | Complete schema redesign: fully automatable ontology (WHO/WHAT/WHERE/WHEN/WHY/HOW/PEACE) |
 | v2.2.6 | March 2026 | All open items resolved: era-stable WHEN; data-collection WHY; self-cert re-verification; HPTP 2-trit trigger |
-| **v2.3** | **March 2026** | **Frozen release. Encryption model clarified (fabric + entity-level). Scaling analysis formalized. Production-ready.** |
+| v2.3 | March 2026 | Frozen release. Encryption model clarified (fabric + entity-level). Scaling analysis formalized. Production-ready. |
+| v2.3.1 | March 2026 | Confidence derivation per dimension (SS4.0-4.2). Collision Resolution Digit for global uniqueness (SS4.3-4.7). Geometric resonance with 28 and 364 (SS2.8). |
+| **v2.3.2** | **March 2026** | **First-principle derivation engine: all 12 quantitative dimensions use binary signal counting with defined N values. CryptoHash abstraction (BLAKE3 -> TL-Sponge migration path). Scanner hardened: gov.uk governance, MFA auth-context gating, expanded CDN detection. scan_hash includes full raw values with type tags. All arbitrary thresholds eliminated.** |
 
 ---
 
@@ -56,7 +61,7 @@ Ternary (base-3) is the natural encoding for classification. Human reasoning def
 
 ### 2.2 Why 27 Dimensions
 
-Twenty-seven dimensions arise from seven questions every person asks about anything on a network: Who is behind it? What is it? Where can I find it? When does it operate? Why does it exist? How does it work? Can I trust it? Each question decomposes into 3–4 measurable properties, yielding 27 total.
+Twenty-seven dimensions arise from seven questions every person asks about anything on a network: Who is behind it? What is it? Where can I find it? When does it operate? Why does it exist? How does it work? Can I trust it? Each question decomposes into 3-4 measurable properties, yielding 27 total.
 
 ### 2.3 The Address IS the Route
 
@@ -68,23 +73,64 @@ Every trit in the address is a deterministic derivation from the entity's measur
 
 If an entity's properties change, its address changes. The coordinate is the derivation, not an approximation of it.
 
+When two entities genuinely share the same 27-trit coordinate, they genuinely occupy the same point in ontological space. They are not displaced — they are distinguished by their CRD while sharing their natural position.
+
 ### 2.5 The Description IS a Measurement
 
 Every dimension in the schema is machine-deterministic. CRS derives the address by scanning the entity — no human input, no subjective judgment, no opinion. Each trit value corresponds to an observable, testable signal: a protocol handshake, a DNS lookup, a header inspection, a port scan.
 
-If a machine cannot determine the value from a scan, the dimension does not belong in the address.
+**v2.3.2 Principle:** Every input signal is binary (present or absent). Every quantitative derivation counts binary signals and applies the universal formula. There are no continuous scores, no floating-point boundaries, no tuning parameters. If a machine cannot determine the value from a scan, the dimension does not belong in the address.
 
 ### 2.6 Everything Is Encrypted
 
-PlenumNET operates on a zero-cleartext principle. All traffic between cubes travels through CON tunnels — PQ-native encrypted channels with BLAKE3 key derivation. There is no unencrypted path through the fabric.
+PlenumNET operates on a zero-cleartext principle. All traffic between cubes travels through CON tunnels — PQ-native encrypted channels with CryptoHash key derivation. There is no unencrypted path through the fabric.
 
 Trit 25 ("Is it encrypted?") does not measure whether the fabric encrypts the entity's traffic — the fabric always does. Trit 25 measures what encryption the entity itself offers to its end users: does the entity serve plain HTTP (no), basic TLS (basic TLS), or TLS 1.3 with full hardening headers (full TLS)? This is a property of the entity's design, not of the network transport.
 
-The distinction: CON encrypts the pipe. Trit 25 measures what the entity puts into the pipe.
+### 2.7 CryptoHash Abstraction (v2.3.2)
 
-### 2.7 Design Philosophy
+All cryptographic hashing in TDNS is accessed through the `CryptoHash` trait:
 
-Each dimension answers a question a 12-year-old could understand. The three values are obvious and require no training. The questions are the seven that every person asks about anything: **WHO · WHAT · WHERE · WHEN · WHY · HOW · PEACE.**
+```
+trait CryptoHash {
+    fn hash(bytes: &[u8]) -> [u8; 32];
+    fn keyed_hash(key: &[u8], bytes: &[u8]) -> [u8; 32];
+}
+```
+
+**Current implementation:** BLAKE3 (256-bit, quantum-resistant via Grover bound at ~128-bit post-quantum security). Used for: scan hashes, CON tunnel key derivation, integrity fields in wire protocol.
+
+**Target implementation:** TL-Sponge from the Salvi Framework's TL-DSA cryptographic module. The ternary sponge construction is the PQ-native primitive purpose-built for this system. The interface is identical — only the backend changes. Migration is a single line swap at the crate level.
+
+**Design principle:** Using a general-purpose encryption API for hashing would be both slower and conceptually wrong. The CryptoHash primitive is specifically optimized for fast hashing, key derivation, and message authentication. The TL-Sponge provides exceeding military-grade post-quantum security within the native ternary mathematical framework.
+
+### 2.8 Design Philosophy
+
+Each dimension answers a question a 12-year-old could understand. The three values are obvious and require no training. The questions are the seven that every person asks about anything: **WHO - WHAT - WHERE - WHEN - WHY - HOW - PEACE.**
+
+### 2.9 Geometric Resonance: 27, 28, and the Circle
+
+Beyond the first-principles derivations, a remarkable numeric harmony emerges from the chosen dimensions — one that resonates with ancient geometric puzzles and suggests a deeper completeness.
+
+Consider a 13-dimensional hypercube as a conceptual subset of our 27-dimensional space. Thirteen is not arbitrary; it is half of 26, and 26 appears in the relationship between the circle and its square when pi is taken as 14 — the only value that permits the exact squaring of the circle at 364 degrees.
+
+- A full circle measured in 364 degrees: the quarter-circle becomes 91 degrees.
+- The circumference C of a circle of diameter d is C = pi * d. Setting pi = 14 gives C = 14d.
+- For a circle whose circumference is 364, the diameter is 364 / 14 = 26.
+- Now observe: 13 x 28 = 364. Here 13 is half the diameter (26/2 = 13), and 28 is the total number of digits in our full identifier (27 trits + 1 CRD).
+
+Thus, the 13-dimensional subcube, when extended by the 28th digit, completes a full circle of 364. The Collision Resolution Digit is not merely a tie-breaker — it is the final degree that brings the geometry full circle.
+
+| Concept | Value |
+|---------|-------|
+| Circle measure (degrees) | 364 |
+| pi (for squaring the circle) | 14 |
+| Diameter | 26 |
+| Half-diameter | 13 |
+| CRD-augmented digits | 28 |
+| 13 x 28 | 364 |
+
+This is not a coincidence to be dismissed, but a resonance to be appreciated. The universe of discourse, like the circle, returns to itself — and the CRD is the key that closes the loop.
 
 ---
 
@@ -96,203 +142,421 @@ Dimensions progress from identity (who) through function (what), location (where
 
 | Position | Category | Rationale |
 |----------|----------|-----------|
-| 1st | WHO (1–4) | Entity identity and operator rarely change. A personal blog doesn't become a government portal. |
-| 2nd | WHAT (5–8) | Form factor and content type are structural. A website doesn't become a device. |
-| 3rd | WHERE (9–12) | Visibility and access are infrastructure decisions, relatively stable. |
-| 4th | WHEN (13–16) | Temporal characteristics fixed at design time: era of origin, operating schedule, data freshness, latency profile. |
-| 5th | WHY (17–20) | Purpose and business model can shift over an entity's lifetime. |
-| 6th | HOW (21–24) | Delivery patterns and protocols may change with architecture updates. |
-| 7th | PEACE (25–27) | Security posture is most dynamic. Entity-level encryption, trackers, and audits change with every update. |
+| 1st | WHO (1-4) | Entity identity and operator rarely change. |
+| 2nd | WHAT (5-8) | Form factor and content type are structural. |
+| 3rd | WHERE (9-12) | Visibility and access are infrastructure decisions. |
+| 4th | WHEN (13-16) | Temporal characteristics fixed at design time. |
+| 5th | WHY (17-20) | Purpose and business model can shift. |
+| 6th | HOW (21-24) | Delivery patterns may change with architecture. |
+| 7th | PEACE (25-27) | Security posture is most dynamic. |
 
-Greedy forwarding resolves the most fundamental difference first. Two services from the same operator differing only in tracker count are routed through nearly identical paths.
-
-**Note:** The ordering rationale holds in the fault-free case. Under fault-tolerant rerouting (§11.3), GLB may flip a lower-priority trit to detour around a failed neighbor. Fault tolerance takes precedence over ordering aesthetics.
+Greedy forwarding resolves the most fundamental difference first.
 
 ### 3.1 Category Overview
 
 | Category | Trits | Width | Root Question |
 |----------|-------|-------|---------------|
-| WHO | 1–4 | 4 | Who is behind it? |
-| WHAT | 5–8 | 4 | What is it? |
-| WHERE | 9–12 | 4 | Where can I find it? |
-| WHEN | 13–16 | 4 | When does it operate? |
-| WHY | 17–20 | 4 | Why does it exist? |
-| HOW | 21–24 | 4 | How does it work? |
-| PEACE | 25–27 | 3 | Can I sleep at night? |
+| WHO | 1-4 | 4 | Who is behind it? |
+| WHAT | 5-8 | 4 | What is it? |
+| WHERE | 9-12 | 4 | Where can I find it? |
+| WHEN | 13-16 | 4 | When does it operate? |
+| WHY | 17-20 | 4 | Why does it exist? |
+| HOW | 21-24 | 4 | How does it work? |
+| PEACE | 25-27 | 3 | Can I sleep at night? |
 
 **Total: 27 dimensions = 7.6 trillion addresses**
 
----
+### 3.2 WHO — Who Is Behind It? (Trits 1-4)
 
-### 3.2 WHO — Who Is Behind It? (Trits 1–4)
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 1 | **What kind?** | Personal | Corporate | Governance | CATEGORICAL | — |
+| 2 | **Who's it for?** | Just me | My group | Everyone | CATEGORICAL | — |
+| 3 | **Who runs it?** | Anonymous | Known | Transparent | QUANTITATIVE | 5 |
+| 4 | **Who hosts it?** | Me | A provider | The cloud | CATEGORICAL | — |
 
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 1 | **What kind?** | Personal | Corporate | Governance | WHOIS + legal entity DB |
-| 2 | **Who's it for?** | Just me | My group | Everyone | Access patterns, robots.txt |
-| 3 | **Who runs it?** | Anonymous | Known | Transparent | About page, WHOIS privacy, business registry |
-| 4 | **Who hosts it?** | Me | A provider | The cloud | ASN lookup, IP range, cloud provider fingerprint |
+**Trit 3 signals (N=5):** about_page, contact_info, legal_entity, physical_address, gov_domain.
 
-**What kind?** Is this a person's thing, a company's thing, or a government thing? WHOIS and registry data answer immediately.
+### 3.3 WHAT — What Is It? (Trits 5-8)
 
-**Who's it for?** Intended audience. A private journal (just me), a Slack workspace (my group), or Wikipedia (everyone). Observable from access controls and scope declarations.
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 5 | **What is it?** | Website | App | Device | CATEGORICAL | — |
+| 6 | **What's on it?** | Text | Media | Live | CATEGORICAL | — |
+| 7 | **Who uses it?** | People | Software | Both | CATEGORICAL | — |
+| 8 | **Does it think?** | No | Partly | Yes | QUANTITATIVE | 5 |
 
-**Who runs it?** Operator transparency. A random forum with no about page (anonymous). Most company sites list contact info (known). A government portal with full legal disclosure, named officials, physical address, ownership chain (transparent).
+**Trit 8 signals (N=5):** ml_endpoints, ml_frameworks, personalization, search_ranking, ml_headers.
 
-**Who hosts it?** Infrastructure model. Self-hosted on a home server (me). A hosting provider like DigitalOcean (a provider). AWS/Azure/GCP (the cloud). ASN and IP range fingerprint this instantly.
+### 3.4 WHERE — Where Can I Find It? (Trits 9-12)
 
----
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 9 | **Who can see it?** | Just me | My group | Everyone | QUANTITATIVE | 3 |
+| 10 | **Do I need to log in?** | No | Password | ID Check | CATEGORICAL | — |
+| 11 | **How many servers?** | One | Several | Many | QUANTITATIVE | 6 |
+| 12 | **What connection?** | HTTP | WebSocket | Raw TCP | CATEGORICAL | — |
 
-### 3.3 WHAT — What Is It? (Trits 5–8)
+**Trit 9 signals (N=3):** site_responds, no_auth_challenge, serves_public_content.
 
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 5 | **What is it?** | Website | App | Device | HTTP headers, content-type, TCP fingerprint |
-| 6 | **What's on it?** | Text | Media | Live | MIME types served |
-| 7 | **Who uses it?** | People | Software | Both | UI presence vs API-only patterns |
-| 8 | **Does it think?** | No | Partly | Yes | ML endpoint detection, inference headers |
+**Trit 11 signals (N=6):** dns_resolves, dns_multiple_records, dns_many_records, cdn_provider_header, cdn_cache_header, proxy_via_header.
 
-**What is it?** A website serves HTML. An app has API endpoints and state. A device responds on non-HTTP ports with IoT/MQTT/custom protocols.
+### 3.5 WHEN — When Does It Operate? (Trits 13-16)
 
-**What's on it?** A blog serves text. YouTube serves media. A stock ticker serves live data. MIME type analysis determines this in milliseconds.
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 13 | **What era?** | Pre-2010 | 2010s | 2020s+ | QUANTITATIVE | 6 |
+| 14 | **When is it available?** | Business hours | Extended | 24/7 | QUANTITATIVE | 3 |
+| 15 | **What kind of data?** | Historical | Current | Live | CATEGORICAL | — |
+| 16 | **Is it real-time?** | Batch | Near-time | Real-time | QUANTITATIVE | 6 |
 
-**Who uses it?** Does it have a user interface (people), only API endpoints (software), or both? HTML/CSS presence versus JSON/gRPC-only responses.
+**Trit 13 signals (N=6):** alt_svc, permissions_policy, nel_or_report_to, cross_origin_policy, csp, modern_js_framework.
 
-**Does it think?** Static file server (no). Recommendation engine, search ranking (partly). Full ML inference, autonomous decisions (yes). Detectable via model-serving headers, inference endpoints, response pattern analysis.
+**Trit 14 signals (N=3):** responds, not_maintenance, no_business_hours_language.
 
----
+**Trit 16 signals (N=6):** dynamic_cache, freshness_indicators, websocket, sse_eventsource, grpc, streaming_content_type.
 
-### 3.4 WHERE — Where Can I Find It? (Trits 9–12)
+### 3.6 WHY — Why Does It Exist? (Trits 17-20)
 
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 9 | **Who can see it?** | Just me | My group | Everyone | Unauthenticated GET: 200 / 401 / timeout |
-| 10 | **Do I need to log in?** | No | Password | ID Check | Challenge detection: none / form / MFA+cert |
-| 11 | **How many servers?** | One | Several | Many | DNS A/AAAA record count, CDN detection |
-| 12 | **What connection?** | HTTP | WebSocket | Raw TCP | Port scan, protocol handshake |
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 17 | **Does it handle money?** | No | Accepts | Processes | CATEGORICAL | — |
+| 18 | **Does it want my data?** | No | Some | Lots | QUANTITATIVE | 5 |
+| 19 | **Does it have policies?** | No | Basic | Detailed | QUANTITATIVE | 5 |
+| 20 | **Does it cost money?** | Free | Pay-per-use | Subscription | CATEGORICAL | — |
 
-**Who can see it?** Actual visibility, not intended audience (that's trit 2). Hit the front door with no credentials. 200 = everyone. 401 = my group. Connection refused = just me.
+**Trit 18 signals (N=5):** input_fields, signup_form, analytics_scripts, cookie_consent, crm_scripts.
 
-**Do I need to log in?** No challenge (no). Username/password form (password). Multi-factor, client certificate, biometric (ID check).
+**Trit 19 signals (N=5):** privacy_page, terms_page, cookie_policy, gdpr_reference, accessibility_statement.
 
-**How many servers?** One A record (one). A handful of A records or a small CDN (several). Hundreds of edge nodes, global CDN (many).
+### 3.7 HOW — How Does It Work? (Trits 21-24)
 
-**What connection?** Standard HTTP/HTTPS (HTTP). Persistent bidirectional (WebSocket). Raw TCP/UDP, MQTT, custom protocols (Raw TCP).
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 21 | **Who gets it?** | One person | A group | Whoever's closest | CATEGORICAL | — |
+| 22 | **Which way does data go?** | Out | Through | In | CATEGORICAL | — |
+| 23 | **How do I get updates?** | I ask | I subscribe | It tells me | CATEGORICAL | — |
+| 24 | **Does it remember me?** | No | For a bit | Always | QUANTITATIVE | 3 |
 
----
+**Trit 24 signals (N=3):** has_any_cookie, has_persistent_cookie, has_long_lived_cookie.
 
-### 3.5 WHEN — When Does It Operate? (Trits 13–16)
+### 3.8 PEACE — Can I Sleep at Night? (Trits 25-27)
 
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 13 | **What era?** | Pre-2010 | 2010s | 2020s+ | Domain registration date, first cert issuance, protocol fingerprint |
-| 14 | **When is it available?** | Business hours | Extended | 24/7 | Uptime monitoring over sample window |
-| 15 | **What kind of data?** | Historical | Current | Live | Content timestamps, streaming protocol detection |
-| 16 | **Is it real-time?** | Batch | Near-time | Real-time | Latency measurement, WebSocket/gRPC/SSE |
+| Trit | Question | Value 1 | Value 2 | Value 3 | Type | N |
+|------|----------|---------|---------|---------|------|---|
+| 25 | **Is it encrypted?** | No | Basic TLS | Full TLS | QUANTITATIVE | 6 |
+| 26 | **How many trackers?** | Many | Few | None | QUANTITATIVE | 5 |
+| 27 | **Has it been audited?** | No | Self-certified | Audited | CATEGORICAL | — |
 
-**What era?** The technological epoch in which the entity was born. Pre-2010 legacy foundations (HTTP/1.0, no TLS, early web). 2010s cloud/mobile era (REST APIs, TLS 1.2, responsive design). 2020s+ AI-native, edge-first, post-quantum era (TLS 1.3, gRPC, ML endpoints). Derived from domain registration date, first certificate issuance, and protocol stack fingerprint. Fixed at registration — an entity's era never changes.
+**Trit 25 signals (N=6):** tls_present, hsts_header, csp_header, security_txt, x_content_type_options, x_frame_options. NOTE: Measures entity-level encryption, not CON fabric transport (SS2.6).
 
-**When is it available?** Operational schedule. Down nights/weekends (business hours). Extended but not full coverage (extended). Always responding (24/7). Determined by uptime monitoring over a sample window.
-
-**What kind of data?** A historical archive (historical). A news site that updates periodically (current). A sensor or ticker that updates continuously (live). Detectable from content timestamps and streaming protocol presence.
-
-**Is it real-time?** Batch-processed reports (batch). API responses in seconds (near-time). Sub-second streaming (real-time). Measurable via latency probes and protocol detection.
-
-This is the HPTP layer encoded in the address. See Section 10.4 for the Live Enforcement Rule.
-
----
-
-### 3.6 WHY — Why Does It Exist? (Trits 17–20)
-
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 17 | **Does it handle money?** | No | Accepts | Processes | Payment endpoint detection, merchant headers |
-| 18 | **Does it want my data?** | No | Some | Lots | Input field count, registration forms, data-sharing scripts |
-| 19 | **Does it have policies?** | No | Basic | Detailed | Scan for /privacy, /terms, cookie consent |
-| 20 | **Does it cost money?** | Free | Pay-per-use | Subscription | Paywall detection, pricing page |
-
-**Does it handle money?** A blog handles no money (no). A shop accepts payments via Stripe (accepts). A bank or exchange processes transactions as its core function (processes). Detectable via payment endpoint scanning, merchant headers, PCI-DSS indicators.
-
-**Does it want my data?** How much data does the entity collect from users? No input fields, no registration, no forms (no). Basic registration, a few input fields, some cookie consent (some). Extensive data collection — multi-step registration, data-sharing scripts, behavioral tracking endpoints, third-party data-broker integrations (lots). Scannable from input field count, registration flow analysis, and data-sharing script detection.
-
-**Does it have policies?** No privacy policy, no terms (no). A basic privacy page and cookie banner (basic). Comprehensive privacy policy, terms of service, GDPR notices, accessibility statement (detailed). Fully automatable via page scan.
-
-**Does it cost money?** Completely free (free). Charges per use or metered billing (pay-per-use). Recurring payment model (subscription). Detectable via paywall behavior, pricing page presence, payment form analysis.
+**Trit 26 CLEAN signals (N=5, INVERTED):** no_analytics, no_social_trackers, no_ad_trackers, no_session_replay, no_crm_trackers. Each signal fires when a tracker category is ABSENT. More clean signals = fewer trackers = higher trit (better trust).
 
 ---
 
-### 3.7 HOW — How Does It Work? (Trits 21–24)
+## 4. First-Principle Derivation Mathematics
 
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 21 | **Who gets it?** | One person | A group | Whoever's closest | Multicast headers, anycast DNS, CDN fanout |
-| 22 | **Which way does data go?** | Out | Through | In | GET vs POST ratio, data flow analysis |
-| 23 | **How do I get updates?** | I ask | I subscribe | It tells me | RSS/Atom, WebSocket/SSE, polling detection |
-| 24 | **Does it remember me?** | No | For a bit | Always | Cookie/session/localStorage analysis |
+### 4.0 Justification of Ternary Quantization
 
-**Who gets it?** A direct API call returns to one person. A multicast stream delivers to a group. Anycast DNS routes to whoever's closest. Observable from DNS configuration and protocol behavior.
+The ternary thresholds at exactly 1/3 and 2/3 are not arbitrary but emerge naturally from multiple fundamental mathematical principles. Each of the following independent derivations leads to the same quantization rule.
 
-**Which way does data go?** A sensor or blog sends data out. A CDN or proxy passes data through. A logging service takes data in. Determinable from HTTP method ratios and endpoint analysis.
+**4.0.1 Base-3 Representation.** Treat the proportion p = k/N as a number in [0,1]. Its first digit in base 3 (the most significant ternary digit) is floor(3p), which yields values 0, 1, 2. This is a canonical mathematical operation: extracting the first ternary digit is the most natural way to quantize a continuous value into three levels without any external parameters.
 
-**How do I get updates?** Polling/request-response only (I ask). RSS/Atom feeds, email subscriptions (I subscribe). WebSocket push, SSE, push notifications (it tells me).
+**4.0.2 Maximum-Entropy Quantization.** If we assume a uniform prior distribution of p over [0,1] (the natural uninformative prior), then to maximize the entropy of the quantized output — i.e., to preserve as much information as possible — the three bins must be equally probable. This forces the cut points to be at 1/3 and 2/3.
 
-**Does it remember me?** No cookies, no sessions (no). Session cookies that expire (for a bit). Persistent login, user profiles, long-lived state (always).
+**4.0.3 Minimum Mean-Square Error Quantization.** For a uniform source on [0,1], the optimal scalar quantizer (minimising mean squared error) with three reconstruction levels has decision boundaries at 1/3 and 2/3 and reconstruction levels at the centroids 1/6, 1/2, 5/6. Although we only need the bin indices, the boundaries themselves arise from this optimisation.
+
+**4.0.4 Symmetry and Simplicity.** Requiring the mapping to be symmetric under p -> 1-p (so that "low" and "high" are mirror images) forces the thresholds to be at a and 1-a for some a. Adding the principle of equal spacing — the simplest symmetric partition — gives a = 1/3. This aligns with the intuitive idea of dividing the unit interval into three equal parts as the most natural unbiased choice.
+
+All four approaches converge to the same clean result, confirming that the ternary quantization is deeply rooted in mathematics, not in arbitrary engineering decisions.
+
+### 4.1 The Universal Derivation Formula
+
+Every quantitative trit is derived from one formula:
+
+```
+T = min(floor(3k / N), 2) + 1    in {1, 2, 3}
+```
+
+Where:
+- k = number of binary signals fired (integer, 0 <= k <= N)
+- N = total possible signals for this dimension (compile-time constant)
+- T = trit value, lifted from GF(3) {0,1,2} to {1,2,3}
+
+The boundaries between trit values fall at exactly N/3 and 2N/3. These are not parameters. They are the definition of dividing a count space into three equal parts. The math determines them.
+
+### 4.2 The Derivation Type Taxonomy
+
+**CATEGORICAL (15 dimensions).** Scanner produces a pattern string from discrete signal detection. Derivation rule maps it to a trit via pattern match. No quantization needed. Confidence is always 9 (maximum — the signal is unambiguous).
+
+**QUANTITATIVE (12 dimensions).** Scanner counts binary signals (k out of N). Derivation rule applies project_to_gf3(k, N). Every input signal is binary (present/absent). Confidence is computed from the boundary-distance formula (SS4.3).
+
+### 4.3 Confidence Derivation per Dimension
+
+Each trit carries a confidence digit measuring how far p = k/N lies from the nearest quantization boundary.
+
+Define the distance to the nearest boundary:
+
+```
+delta = min(|p - 1/3|, |p - 2/3|)
+```
+
+Because p is in [0,1], delta ranges from 0 (on a boundary) to 1/3 (exactly midway between boundaries). Map delta linearly to a confidence digit C in {1, ..., 9}:
+
+```
+C = min(floor(27 * delta) + 1, 9)
+```
+
+- When delta = 0, C = 1 (lowest confidence — on boundary).
+- When delta approaches 1/3, C = 9 (highest confidence — mid-bin).
+- 27 is the number of dimensions — the system's own structure determines the scaling.
+
+**Examples:**
+- p = 0.5: delta = 0.167, C = min(floor(4.5) + 1, 9) = 5.
+- p = 0.34: delta = 0.007, C = min(floor(0.189) + 1, 9) = 1 (very low — near boundary).
+- p = 0.9: delta = 0.233, C = min(floor(6.291) + 1, 9) = 7.
+- p = 0.0: delta = 0.333, C = min(floor(9) + 1, 9) = 9 (mid-bin for V1).
+- p = 1/3 exactly: delta = 0, C = 1 (on boundary).
+
+For categorical dimensions, confidence is always 9 — the signal is discrete and unambiguous.
+
+### 4.4 The Confidence Vector
+
+For the full 27-dimensional scan, we obtain a confidence vector:
+
+```
+C = (C_1, C_2, ..., C_27)    with each C_i in {1, ..., 9}
+```
+
+This vector is stored in the TRN record (optional) and may be used for analytics, debugging, re-scan prioritization, or as input to higher-layer policies. Entities with low confidence in one or more dimensions are closer to a boundary and thus more likely to drift on a future re-scan.
+
+### 4.5 The Collision Resolution Digit (CRD)
+
+- **Range:** 1-9 (decimal)
+- **Assignment:** First-come-first-serve. CRS assigns the smallest integer d in {1,...,9} not already occupied at that address.
+- **Uniqueness:** For a given 27-trit address A, every registered entity has a distinct CRD. The pair (A, CRD) is globally unique.
+
+**Assignment algorithm:**
+
+Let S be the set of CRD values already in use for address A. When a new entity with address A registers:
+
+1. If |S| = 9, registration is rejected (no free slot).
+2. Otherwise, the entity is assigned the smallest d in {1,...,9} not in S.
+3. The TRN record stores A, d, and optionally the confidence vector C.
+
+This assignment is permanent for the lifetime of the registration. When an entity deregisters or drifts to a new address, its CRD slot is freed for a later arrival.
+
+### 4.6 Capacity with CRD
+
+```
+3^27 x 9 = 7,625,597,484,987 x 9 = 68,630,377,364,883 ~ 6.86 x 10^13
+```
+
+### 4.7 Full Address Format
+
+The full identifier of an entity is the concatenation of its 27-trit address and its CRD.
+
+- **Wire format:** Two fields packed sequentially:
+  - `base_addr`: 27 trits, encoded as 7 bytes (56 bits) using two bits per trit (1->01, 2->10, 3->11; 00 reserved).
+  - `crd`: 4-bit unsigned integer (value 1-9).
+  Total: 7 bytes + 4 bits = 7.5 bytes. Implementations MAY pack into 8 bytes.
+
+### 4.8 Resolution and Routing
+
+- **Geometric routing** uses only the 27-trit address. The CRD is NOT used for forwarding.
+- When a packet arrives at the destination cube, the CRD selects the correct process/container/entity.
+- This keeps the routing layer pure and unchanged while adding a thin multiplexing layer at the destination.
+
+### 4.9 Ontological Stability and Slot Management
+
+The confidence vector measures how "solid" each classification is. CRS MAY schedule more frequent re-scans for entities with low confidence (any C_i = 1). If a re-scan yields a different address, the entity moves, freeing its CRD slot.
+
+### 4.10 Summary of Mathematical Relationships
+
+For each dimension i:
+
+```
+p_i = k_i / N_i
+T_i = min(floor(3 * p_i), 2) + 1    in {1, 2, 3}
+delta_i = min(|p_i - 1/3|, |p_i - 2/3|)
+C_i = min(floor(27 * delta_i) + 1, 9)    in {1, ..., 9}
+```
+
+The full identifier is (T_1 T_2 ... T_27) plus a CRD d in {1,...,9}. Total namespace:
+
+```
+3^27 x 9 = 68,630,377,364,883
+```
+
+### 4.11 The Circle Completed
+
+Recall from SS2.9: 13 x 28 = 364. The CRD, as the 28th digit, is the final degree that brings the geometry full circle. The universe of discourse, like the circle, returns to itself — and the CRD is the key that closes the loop.
 
 ---
 
-### 3.8 PEACE — Can I Sleep at Night? (Trits 25–27)
+## 5. Complete Schema Reference
 
-| Trit | Question | Value 1 | Value 2 | Value 3 | CRS Scans... |
-|------|----------|---------|---------|---------|-------------|
-| 25 | **Is it encrypted?** | No | Basic TLS | Full TLS | TLS version, HSTS, CSP, security.txt |
-| 26 | **How many trackers?** | Many | Few | None | Third-party request count on page load |
-| 27 | **Has it been audited?** | No | Self-certified | Audited | SOC2/ISO badge scan, audit certificates |
+| Trit | Cat | Question | V1 | V2 | V3 | Type | N |
+|------|-----|----------|----|----|----|----|---|
+| 1 | WHO | What kind? | Personal | Corporate | Governance | CAT | — |
+| 2 | WHO | Who's it for? | Just me | My group | Everyone | CAT | — |
+| 3 | WHO | Who runs it? | Anonymous | Known | Transparent | QNT | 5 |
+| 4 | WHO | Who hosts it? | Me | A provider | The cloud | CAT | — |
+| 5 | WHAT | What is it? | Website | App | Device | CAT | — |
+| 6 | WHAT | What's on it? | Text | Media | Live | CAT | — |
+| 7 | WHAT | Who uses it? | People | Software | Both | CAT | — |
+| 8 | WHAT | Does it think? | No | Partly | Yes | QNT | 5 |
+| 9 | WHERE | Who can see it? | Just me | My group | Everyone | QNT | 3 |
+| 10 | WHERE | Do I need to log in? | No | Password | ID Check | CAT | — |
+| 11 | WHERE | How many servers? | One | Several | Many | QNT | 6 |
+| 12 | WHERE | What connection? | HTTP | WebSocket | Raw TCP | CAT | — |
+| 13 | WHEN | What era? | Pre-2010 | 2010s | 2020s+ | QNT | 6 |
+| 14 | WHEN | When is it available? | Business hours | Extended | 24/7 | QNT | 3 |
+| 15 | WHEN | What kind of data? | Historical | Current | Live | CAT | — |
+| 16 | WHEN | Is it real-time? | Batch | Near-time | Real-time | QNT | 6 |
+| 17 | WHY | Does it handle money? | No | Accepts | Processes | CAT | — |
+| 18 | WHY | Does it want my data? | No | Some | Lots | QNT | 5 |
+| 19 | WHY | Does it have policies? | No | Basic | Detailed | QNT | 5 |
+| 20 | WHY | Does it cost money? | Free | Pay-per-use | Subscription | CAT | — |
+| 21 | HOW | Who gets it? | One person | A group | Whoever's closest | CAT | — |
+| 22 | HOW | Which way does data go? | Out | Through | In | CAT | — |
+| 23 | HOW | How do I get updates? | I ask | I subscribe | It tells me | CAT | — |
+| 24 | HOW | Does it remember me? | No | For a bit | Always | QNT | 3 |
+| 25 | PEACE | Is it encrypted? | No | Basic TLS | Full TLS | QNT | 6 |
+| 26 | PEACE | How many trackers? | Many | Few | None | QNT | 5 |
+| 27 | PEACE | Has it been audited? | No | Self-certified | Audited | CAT | — |
 
-**Is it encrypted?** This measures the entity's own encryption posture to its end users — not the fabric transport, which is always encrypted via CON (§2.6). Plain HTTP, no encryption (no). Standard TLS but missing hardening headers (basic TLS). TLS 1.3 + HSTS + CSP + security.txt (full TLS).
-
-**How many trackers?** Load the page, count third-party requests to known tracking domains. Many (10+), few (1–9), none (0). No judgment — just counting.
-
-**Has it been audited?** No audit certifications found (no). Self-declared compliance badges without third-party verification (self-certified). SOC 2, ISO 27001, or equivalent third-party audit certificates present (audited).
-
----
-
-## 4. Complete Schema Reference
-
-| Trit | Category | Question | Value 1 | Value 2 | Value 3 |
-|------|----------|----------|---------|---------|---------|
-| 1 | WHO | What kind? | Personal | Corporate | Governance |
-| 2 | WHO | Who's it for? | Just me | My group | Everyone |
-| 3 | WHO | Who runs it? | Anonymous | Known | Transparent |
-| 4 | WHO | Who hosts it? | Me | A provider | The cloud |
-| 5 | WHAT | What is it? | Website | App | Device |
-| 6 | WHAT | What's on it? | Text | Media | Live |
-| 7 | WHAT | Who uses it? | People | Software | Both |
-| 8 | WHAT | Does it think? | No | Partly | Yes |
-| 9 | WHERE | Who can see it? | Just me | My group | Everyone |
-| 10 | WHERE | Do I need to log in? | No | Password | ID Check |
-| 11 | WHERE | How many servers? | One | Several | Many |
-| 12 | WHERE | What connection? | HTTP | WebSocket | Raw TCP |
-| 13 | WHEN | What era? | Pre-2010 | 2010s | 2020s+ |
-| 14 | WHEN | When is it available? | Business hours | Extended | 24/7 |
-| 15 | WHEN | What kind of data? | Historical | Current | Live |
-| 16 | WHEN | Is it real-time? | Batch | Near-time | Real-time |
-| 17 | WHY | Does it handle money? | No | Accepts | Processes |
-| 18 | WHY | Does it want my data? | No | Some | Lots |
-| 19 | WHY | Does it have policies? | No | Basic | Detailed |
-| 20 | WHY | Does it cost money? | Free | Pay-per-use | Subscription |
-| 21 | HOW | Who gets it? | One person | A group | Whoever's closest |
-| 22 | HOW | Which way does data go? | Out | Through | In |
-| 23 | HOW | How do I get updates? | I ask | I subscribe | It tells me |
-| 24 | HOW | Does it remember me? | No | For a bit | Always |
-| 25 | PEACE | Is it encrypted? | No | Basic TLS | Full TLS |
-| 26 | PEACE | How many trackers? | Many | Few | None |
-| 27 | PEACE | Has it been audited? | No | Self-certified | Audited |
+**Total: 15 CATEGORICAL + 12 QUANTITATIVE = 27 dimensions**
 
 ---
 
-## 5. Address Notation
+## 6. Quantitative Dimension Signal Definitions (Normative)
 
-### 5.1 Human Name
+Each quantitative dimension defines exactly N binary signals. Each signal is present (1) or absent (0). The sum k is fed to `project_to_gf3(k, N)`. Boundaries are at N/3 and 2N/3. No exceptions.
+
+### 6.1 Trit 3 — Who runs it? (N=5)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. about_page | /about or /about-us returns 200 |
+| 2. contact_info | Body contains contact@, mailto:, tel:, phone: |
+| 3. legal_entity | Body contains inc., corp., ltd., llc, gmbh, registered |
+| 4. physical_address | Body contains street/avenue/road/blvd/drive |
+| 5. gov_domain | Domain ends with .gov, .edu, starts with gov., or contains .gov. |
+
+### 6.2 Trit 8 — Does it think? (N=5)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. ml_endpoints | Body contains /predict, /inference, /v1/models, /v1/completions, /classify, /embed, /generate, /ai/, /ml/ |
+| 2. ml_frameworks | Body contains tensorflow, pytorch, openai, anthropic, hugging, copilot, gpt, llm |
+| 3. personalization | Body contains "recommended for you", "you might like", "personalized" |
+| 4. search_ranking | Body contains both "search" and "results" |
+| 5. ml_headers | Response contains x-model-version or x-inference-time headers |
+
+### 6.3 Trit 9 — Who can see it? (N=3)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. site_responds | HTTP status > 0 |
+| 2. no_auth_challenge | HTTP status is not 401 or 403 |
+| 3. serves_public_content | HTTP status is 200-299 |
+
+### 6.4 Trit 11 — How many servers? (N=6)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. dns_resolves | DNS A/AAAA record count > 0 |
+| 2. dns_multiple | DNS record count > 1 |
+| 3. dns_many | DNS record count > 4 |
+| 4. cdn_provider | Response contains cf-ray, x-cdn, x-amz-cf-id, x-served-by, x-vercel-id, x-github-request-id, x-fastly-request-id, x-timer, x-netlify-request-id |
+| 5. cdn_cache | Response contains x-cache or x-cache-hits |
+| 6. proxy_via | Response contains Via header |
+
+### 6.5 Trit 13 — What era? (N=6)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. alt_svc | Response contains alt-svc header (HTTP/3) |
+| 2. permissions_policy | Response contains permissions-policy header |
+| 3. nel_report | Response contains nel or report-to header |
+| 4. cross_origin | Response contains cross-origin-embedder-policy or cross-origin-opener-policy |
+| 5. csp | Response contains content-security-policy header |
+| 6. modern_framework | Body contains __NEXT_DATA__, __NUXT__, svelte, remix, astro, vite |
+
+### 6.6 Trit 14 — When is it available? (N=3)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. responds | HTTP status > 0 |
+| 2. not_maintenance | HTTP status is not 503 AND body does not contain "maintenance" |
+| 3. no_business_hours | Body does not contain "business hours", "office hours", "mon-fri", etc. |
+
+### 6.7 Trit 16 — Is it real-time? (N=6)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. dynamic_cache | Cache-Control contains no-cache or no-store |
+| 2. freshness_indicators | Body contains datetime, timestamp, " ago", or "updated" |
+| 3. websocket | Upgrade header present OR body contains "websocket" or "wss://" |
+| 4. sse | Content-Type contains event-stream OR body contains "eventsource" |
+| 5. grpc | Content-Type contains grpc OR grpc-status header present |
+| 6. streaming | Body contains "real-time", "realtime", "live feed" OR streaming content type |
+
+### 6.8 Trit 18 — Does it want my data? (N=5)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. input_fields | Body contains any `<input>` tags |
+| 2. signup_form | Body contains "sign up", "register", or "create account" |
+| 3. analytics_scripts | Body contains google-analytics, gtag, fbevents, facebook.net, hotjar, fullstory, clarity.ms |
+| 4. cookie_consent | Body contains "cookie consent" or "cookie preference" |
+| 5. crm_scripts | Body contains segment.com, mixpanel, amplitude, intercom, hubspot, drift |
+
+### 6.9 Trit 19 — Does it have policies? (N=5)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. privacy_page | /privacy or /privacy-policy returns 200 |
+| 2. terms_page | /terms or /terms-of-service returns 200 |
+| 3. cookie_policy | Body contains "cookie policy" |
+| 4. gdpr_reference | Body contains "gdpr" or "data processing" |
+| 5. accessibility | Body contains "accessibility" |
+
+### 6.10 Trit 24 — Does it remember me? (N=3)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. has_any_cookie | Set-Cookie header present |
+| 2. has_persistent | Cookie contains expires= or max-age= |
+| 3. has_long_lived | Cookie max-age > 86400 (1 day) |
+
+### 6.11 Trit 25 — Is it encrypted? (N=6)
+
+| Signal | What it checks |
+|--------|---------------|
+| 1. tls_present | HTTPS connection succeeded |
+| 2. hsts | strict-transport-security header present |
+| 3. csp | content-security-policy header present |
+| 4. security_txt | /.well-known/security.txt or /security.txt returns 200 |
+| 5. xcto | x-content-type-options header present |
+| 6. xfo | x-frame-options header present |
+
+### 6.12 Trit 26 — How many trackers? (N=5, INVERTED)
+
+| Signal | What it checks (ABSENCE = signal fires) |
+|--------|----------------------------------------|
+| 1. no_analytics | Body does NOT contain google-analytics, googletagmanager, gtag/js, ga.js, analytics.js |
+| 2. no_social | Body does NOT contain facebook.net, fbevents, ads-twitter.com, linkedin.com/px, analytics.tiktok |
+| 3. no_ads | Body does NOT contain doubleclick.net, googlesyndication, googleadservices |
+| 4. no_replay | Body does NOT contain hotjar.com, fullstory.com, clarity.ms, mouseflow.com, crazyegg.com |
+| 5. no_crm | Body does NOT contain hubspot.com, intercom.io, drift.com, segment.com, mixpanel.com |
+
+---
+
+## 7. Address Notation
+
+### 7.1 Human Name
 
 ```
 google.plm
@@ -300,630 +564,298 @@ pptpro.capomastro.plm
 nonnas-cucina.plm
 ```
 
-The `.plm` TLD signals the metatronic bridge to route through TDNS rather than legacy DNS.
-
-### 5.2 Canonical Wire Format
+### 7.2 Canonical Wire Format (27-trit address only)
 
 ```
-232.311.331.332.121.312.121.331.313
+232.311.331.132.233.112.121.232.313
 ```
 
-Nine groups of three trits. Each trit in {1, 2, 3} — never 0.
-
-### 5.3 Category-Grouped Debug Format
-
-Trits grouped by category with two-letter prefixes:
+### 7.3 Category-Grouped Debug Format
 
 ```
 WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313
 ```
 
-| Prefix | Category | Trits | Width |
-|--------|----------|-------|-------|
-| `WO:` | WHO | 1–4 | 4 trits |
-| `WA:` | WHAT | 5–8 | 4 trits |
-| `WR:` | WHERE | 9–12 | 4 trits |
-| `WN:` | WHEN | 13–16 | 4 trits |
-| `WY:` | WHY | 17–20 | 4 trits |
-| `HO:` | HOW | 21–24 | 4 trits |
-| `PE:` | PEACE | 25–27 | 3 trits |
-
-### 5.4 Wildcard Mask Format
-
-Human-readable `*` for wildcarded trits:
+### 7.4 Full Identifier
 
 ```
-Category:   WO:**** WA:**** WR:**** WN:***3 WY:**** HO:**** PE:***
+WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313 CRD:1
 ```
 
-This constrains only Is it real-time?=Real-time (trit 16=3). Sub-cube of 3²⁶ = 2.54 trillion addresses.
-
-### 5.5 Wildcard Wire Encoding (Normative)
-
-On the wire, a sub-cube destination is two 27-trit fields:
-
-| Field | Size | Description |
-|-------|------|-------------|
-| `base` | 27 trits | Constrained trit values. Wildcarded positions set to 1 (neutral convention). |
-| `mask` | 27 trits | 0 = wildcarded (ignore base). 1 = constrained (match base). |
-
-GLB membership test: `(local_addr[i] == base[i]) OR (mask[i] == 0)` for all i. Implementations MUST ignore `base[i]` when `mask[i] == 0`.
-
-Mask trits use values {0, 1} only — a 27-bit binary vector. Implementations MAY pack as a 27-bit integer (4 bytes).
-
-A point address (single entity) has mask = all 1s.
-
-### 5.6 Conversion
-
-All three formats are lossless and interconvertible:
+### 7.5 Wildcard Mask Format
 
 ```
-google.plm
-  → TRN lookup → canonical wire format
-  → category split → WO:xxxx WA:xxxx WR:xxxx WN:xxxx WY:xxxx HO:xxxx PE:xxx
+WO:**** WA:**** WR:**** WN:***3 WY:**** HO:**** PE:***
 ```
 
 ---
 
-## 6. Human Naming Layer
+## 8. TRN Record Format (Normative)
 
-### 6.1 Name Structure
-
-```
-google.plm
-pptpro.capomastro.plm
-nonnas-cucina.plm
-crs.infra.capomastro.plm
-```
-
-### 6.2 Registration
-
-When an entity registers with TDNS, CRS scans the entity and derives the 27-trit address from measured properties. No human input required. The name and address are stored as a TRN record.
-
-### 6.3 Resolution
-
-A lookup for `pptpro.capomastro.plm` returns the full 27-trit address. The routing path is immediately computable.
-
-### 6.4 Dimensional Queries (Machine Interface)
-
-```
-tdns query --kind=corporate --encrypted=full-tls --real-time=yes
-tdns query --audience=everyone --data=live --audited=yes
-tdns query --era=2020s --connection=websocket --trackers=none
-```
-
-Each parameter constrains trits. Unconstrained dimensions are wildcarded. The result is a sub-cube.
-
----
-
-## 7. TRN Record Format (Normative)
-
-### 7.1 Required Fields
+### 8.1 Required Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | UTF-8 string | Human-readable name (e.g., `pptpro.capomastro.plm`) |
-| `address` | 27 trits | Canonical 27-trit address, derived from scan measurements |
-| `public_key` | bytes | Entity's public key (for ownership proof) |
+| `name` | UTF-8 string | Human-readable name |
+| `address` | 27 trits | Canonical 27-trit address |
+| `crd` | u8 | Collision Resolution Digit (1-9) |
+| `public_key` | bytes | Entity's public key |
 | `ttl` | u32 | Cache time-to-live in seconds |
-| `registered_at` | u64 | HPTP nanosecond timestamp of registration |
-| `zone` | UTF-8 string | Authoritative zone (e.g., `capomastro.plm`) |
-| `scan_hash` | 32 bytes | BLAKE3 hash of the scan results that produced this address |
+| `registered_at` | u64 | HPTP nanosecond timestamp |
+| `zone` | UTF-8 string | Authoritative zone |
+| `scan_hash` | 32 bytes | CryptoHash of full scan results |
 
-### 7.2 Optional Fields
+### 8.2 Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `valid_from` | u64 | HPTP nanosecond timestamp — resolves only after |
-| `valid_until` | u64 | HPTP nanosecond timestamp — resolves only before |
-| `hptp_sync_status` | enum | `synced`, `degraded`, or `unknown`. Required for HPTP-mandatory entities. |
-| `hptp_offset_ns` | i64 | Last reported HPTP offset in nanoseconds |
-| `attributes` | map | The 27 measured values as scanned |
+| `confidence` | 27 bytes | Confidence vector (each 1-9) |
+| `valid_from` | u64 | HPTP nanosecond timestamp |
+| `valid_until` | u64 | HPTP nanosecond timestamp |
+| `hptp_sync_status` | enum | synced, degraded, unknown |
+| `hptp_offset_ns` | i64 | Last reported HPTP offset |
+| `attributes` | map | The 27 measured values |
 | `last_rescan` | u64 | HPTP timestamp of most recent re-scan |
 
-### 7.3 Wire Encoding
+### 8.3 Scan Hash Computation (Normative, v2.3.2)
 
-Serialized as length-prefixed binary, network byte order. The 27-trit address packed as 27 two-bit values in 7 bytes (54 bits, padded to 56). Trit encoding: 1 = `01`, 2 = `10`, 3 = `11`. Value `00` reserved, MUST NOT appear. Attributes as (dimension_id: u8, value: u8) pairs. Typically under 512 bytes.
-
----
-
-## 8. Example Addresses
-
-### 8.1 Google
-
-**Human name:** `google.plm`
-
-| Trit | Question | Answer | Value |
-|------|----------|--------|-------|
-| 1 | What kind? | Corporate | 2 |
-| 2 | Who's it for? | Everyone | 3 |
-| 3 | Who runs it? | Known | 2 |
-| 4 | Who hosts it? | The cloud | 3 |
-| 5 | What is it? | Website | 1 |
-| 6 | What's on it? | Text | 1 |
-| 7 | Who uses it? | Both | 3 |
-| 8 | Does it think? | Yes | 3 |
-| 9 | Who can see it? | Everyone | 3 |
-| 10 | Do I need to log in? | No | 1 |
-| 11 | How many servers? | Many | 3 |
-| 12 | What connection? | HTTP | 1 |
-| 13 | What era? | Pre-2010 | 1 |
-| 14 | When is it available? | 24/7 | 3 |
-| 15 | What kind of data? | Current | 2 |
-| 16 | Is it real-time? | Near-time | 2 |
-| 17 | Does it handle money? | Accepts | 2 |
-| 18 | Does it want my data? | Lots | 3 |
-| 19 | Does it have policies? | Detailed | 3 |
-| 20 | Does it cost money? | Free | 1 |
-| 21 | Who gets it? | One person | 1 |
-| 22 | Which way does data go? | Through | 2 |
-| 23 | How do I get updates? | I ask | 1 |
-| 24 | Does it remember me? | For a bit | 2 |
-| 25 | Is it encrypted? | Full TLS | 3 |
-| 26 | How many trackers? | Many | 1 |
-| 27 | Has it been audited? | Audited | 3 |
-
-**Canonical:** `232.311.331.132.233.112.121.232.313`
-**Category:** `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313`
-
----
-
-### 8.2 PPTPro (Plenum Pulse Tonal Professor)
-
-**Human name:** `pptpro.capomastro.plm`
-
-| Trit | Question | Answer | Value |
-|------|----------|--------|-------|
-| 1 | What kind? | Corporate | 2 |
-| 2 | Who's it for? | Everyone | 3 |
-| 3 | Who runs it? | Transparent | 3 |
-| 4 | Who hosts it? | The cloud | 3 |
-| 5 | What is it? | App | 2 |
-| 6 | What's on it? | Live | 3 |
-| 7 | Who uses it? | Both | 3 |
-| 8 | Does it think? | Yes | 3 |
-| 9 | Who can see it? | My group | 2 |
-| 10 | Do I need to log in? | Password | 2 |
-| 11 | How many servers? | Several | 2 |
-| 12 | What connection? | WebSocket | 2 |
-| 13 | What era? | 2020s+ | 3 |
-| 14 | When is it available? | 24/7 | 3 |
-| 15 | What kind of data? | Live | 3 |
-| 16 | Is it real-time? | Real-time | 3 |
-| 17 | Does it handle money? | No | 1 |
-| 18 | Does it want my data? | Some | 2 |
-| 19 | Does it have policies? | Basic | 2 |
-| 20 | Does it cost money? | Free | 1 |
-| 21 | Who gets it? | A group | 2 |
-| 22 | Which way does data go? | Out | 1 |
-| 23 | How do I get updates? | It tells me | 3 |
-| 24 | Does it remember me? | Always | 3 |
-| 25 | Is it encrypted? | Full TLS | 3 |
-| 26 | How many trackers? | None | 3 |
-| 27 | Has it been audited? | Self-certified | 2 |
-
-**Canonical:** `233.323.322.222.333.312.121.331.332`
-**Category:** `WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332`
-
-**HPTP-mandatory:** Trits 15=3 AND 16=3 (Live data + Real-time). See Section 10.4.
-
----
-
-### 8.3 Nonna's Food Blog
-
-**Human name:** `nonnas-cucina.plm`
-
-| Trit | Question | Answer | Value |
-|------|----------|--------|-------|
-| 1 | What kind? | Personal | 1 |
-| 2 | Who's it for? | Everyone | 3 |
-| 3 | Who runs it? | Anonymous | 1 |
-| 4 | Who hosts it? | A provider | 2 |
-| 5 | What is it? | Website | 1 |
-| 6 | What's on it? | Text | 1 |
-| 7 | Who uses it? | People | 1 |
-| 8 | Does it think? | No | 1 |
-| 9 | Who can see it? | Everyone | 3 |
-| 10 | Do I need to log in? | No | 1 |
-| 11 | How many servers? | One | 1 |
-| 12 | What connection? | HTTP | 1 |
-| 13 | What era? | 2010s | 2 |
-| 14 | When is it available? | 24/7 | 3 |
-| 15 | What kind of data? | Historical | 1 |
-| 16 | Is it real-time? | Batch | 1 |
-| 17 | Does it handle money? | No | 1 |
-| 18 | Does it want my data? | No | 1 |
-| 19 | Does it have policies? | No | 1 |
-| 20 | Does it cost money? | Free | 1 |
-| 21 | Who gets it? | One person | 1 |
-| 22 | Which way does data go? | Out | 1 |
-| 23 | How do I get updates? | I ask | 1 |
-| 24 | Does it remember me? | No | 1 |
-| 25 | Is it encrypted? | Basic TLS | 2 |
-| 26 | How many trackers? | Many | 1 |
-| 27 | Has it been audited? | No | 1 |
-
-**Canonical:** `131.211.131.111.231.111.111.111.211`
-**Category:** `WO:1312 WA:1111 WR:3111 WN:2311 WY:1111 HO:1111 PE:211`
-
----
-
-### 8.4 Side-by-Side
+The scan hash MUST include the full raw measurement data, not just derived trit values:
 
 ```
-Google:  WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313
-PPTPro:  WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332
-Blog:    WO:1312 WA:1111 WR:3111 WN:2311 WY:1111 HO:1111 PE:211
+hasher = CryptoHash::new()
+hasher.update(target_url_bytes)
+hasher.update(timestamp_be_bytes)
+for each measurement:
+    hasher.update(dim_index_byte)
+    hasher.update(confidence_byte)
+    hasher.update(type_tag_byte)    // 0x01=Text, 0x02=Numeric, 0x03=Boolean, 0x04=Pattern
+    hasher.update(value_bytes)
+for each trit:
+    hasher.update(trit_value_byte)
+scan_hash = hasher.finalize()
 ```
 
-### 8.5 Ontological Distance
+Type tags prevent collision between semantically different values (e.g., Numeric(0.5) vs Pattern("0.5")). Two different entities with different raw observations MUST produce different scan hashes, even if their trit vectors are identical.
+
+---
+
+## 9. Example Addresses
+
+### 9.1 Google
+
+**Address:** `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313 CRD:1`
+
+### 9.2 PPTPro
+
+**Address:** `WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332 CRD:1`
+
+**HPTP-mandatory:** Trits 15=3 AND 16=3.
+
+### 9.3 Nonna's Food Blog
+
+**Address:** `WO:1312 WA:1111 WR:3111 WN:2311 WY:1111 HO:1111 PE:211 CRD:1`
+
+### 9.4 Ontological Distance
 
 | Pair | Differing Trits | Distance |
 |------|----------------|----------|
-| Google ↔ PPTPro | 19 of 27 | 19 hops |
-| Google ↔ Blog | 16 of 27 | 16 hops |
-| PPTPro ↔ Blog | 22 of 27 | 22 hops |
-
-PPTPro and the blog differ on 22 of 27 dimensions — nearly as different as two things on the internet can be. The topology reflects this.
+| Google <-> PPTPro | 19 of 27 | 19 hops |
+| Google <-> Blog | 16 of 27 | 16 hops |
+| PPTPro <-> Blog | 22 of 27 | 22 hops |
 
 ---
 
-## 9. Self-Certifying Names
+## 10. Self-Certifying Names
 
-### 9.1 Design for Automatable Schema
+### 10.1 Design
 
-All 27 trits are scan-derived measurements. No trits are reserved for identity. The public key lives in the TRN record and provides ownership proof via challenge-response, separate from the address derivation.
+All 27 trits are scan-derived. No trits are reserved for identity. Public key lives in TRN. Ownership proof via challenge-response.
 
-### 9.2 Ownership Proof
+### 10.2 Scan Hash Binding
 
-To prove ownership of a name, the entity signs a challenge (the current HPTP timestamp) with its private key. The verifier checks the signature against the `public_key` in the TRN record. No certificate authority required.
+CRS signs the scan hash. Entity proves ownership of name via public_key signature. CRS proves address derivation via scan_hash + CRS signature.
 
-### 9.3 Scan Hash Binding
+### 10.3 Re-Verification Protocol (Normative)
 
-The TRN record includes a `scan_hash` field: `BLAKE3(scan_results)`. CRS signs the scan hash with its own key:
-
-```
-entity proves ownership of name → via public_key signature
-CRS proves address derivation → via scan_hash + CRS signature
-```
-
-Every trit is a measurement. Ownership is proved externally, not embedded in the coordinate.
-
-### 9.4 Re-Verification Protocol (Normative)
-
-```
-1. Entity claims: "I am pptpro.capomastro.plm"
-2. Verifier fetches TRN record from CRS
-3. Entity signs HPTP timestamp with private key
-4. Verifier checks signature against TRN public_key    → proves ownership
-5. Verifier checks scan_hash against CRS signature     → proves address integrity
-6. Verifier re-scans entity, compares to TRN attributes → proves address still accurate
-```
-
-Step 6 is an open protocol: any party MAY request CRS to re-scan a name and return updated attributes with a new scan_hash. If the re-scan produces a different address than the current TRN, CRS flags the record as **drifted** and initiates re-derivation per Section 13.
+Any party MAY request CRS to re-scan a name. If re-scan produces a different address, CRS flags as drifted and initiates re-derivation per SS14.
 
 ---
 
-## 10. Time-Aware Resolution (HPTP)
+## 11. Time-Aware Resolution (HPTP)
 
-### 10.1 Deterministic Failover
+### 11.1 HPTP Live Enforcement Rule (Normative)
 
-Records carry `valid_from` and `valid_until` with nanosecond precision. All caches see the same HPTP time. No split-brain.
+When trits 15=3 (Live) AND 16=3 (Real-time), the entity is HPTP-mandatory.
 
-### 10.2 Time-Locked Names
-
-`auction-2026Q1.exchange.capomastro.plm` resolves only during the auction window. Time IS access control.
-
-### 10.3 Temporal Multicast
-
-Sub-cube addressing + time-windowed resolution. MiFID II compliance where timing IS the regulatory requirement.
-
-### 10.4 HPTP Live Enforcement Rule (Normative)
-
-When an entity's address declares both of the following trit values, the entity is classified as **HPTP-mandatory**:
-
-| Trit | Question | Required Value |
-|------|----------|---------------|
-| 15 | What kind of data? | Live (3) |
-| 16 | Is it real-time? | Real-time (3) |
-
-An entity serving live data with real-time delivery is making a timing guarantee the network must enforce.
-
-**At registration:** CRS MUST verify HPTP synchronization within tolerance. Registration MUST be rejected if sync cannot be confirmed.
-
-**At runtime:** GLB MUST monitor HPTP sync status via FTS heartbeats. If an HPTP-mandatory node's offset exceeds tolerance, GLB MUST:
-
-1. Mark the node as **HPTP-degraded** in the FTS dead set.
-2. Stop forwarding packets to the degraded node.
-3. Route around via alternate trit flip.
-4. Resume when sync is restored (hold-down: default 5 seconds).
-
-**At resolution:** TRN records for HPTP-mandatory entities MUST include `hptp_sync_status`.
-
-**Sync tolerance thresholds (CRS policy):**
-
-| Timing Value | Default Tolerance |
-|-------------|-------------------|
-| Real-time (trit 16=3) | ≤1μs offset |
-| Near-time (trit 16=2) | ≤100μs offset |
-
-**Rationale:** An address is a derivation from measurements. If the measurements include "live data" and "real-time delivery," the network must verify those measurements continuously or the derivation loses integrity.
+- **Registration:** CRS MUST verify sync within tolerance.
+- **Runtime:** GLB MUST monitor via FTS. Degraded nodes dropped, routed around.
+- **Tolerance:** Real-time: <=1us. Near-time: <=100us.
 
 ---
 
-## 11. Geometric Operations
+## 12. Geometric Operations
 
-### 11.1 Routing
+### 12.1 Routing
 
-1. Compare S and D trit-by-trit.
-2. Find the first dimension i where S[i] ≠ D[i].
-3. Flip S[i] to D[i], forward to that neighbor.
-4. Repeat.
+Compare trit-by-trit. Flip first difference. Forward. Path length = Hamming distance. Maximum: 27 hops.
 
-Path length = Hamming distance. Worst: 27 hops. Average: ~18. Loop-free in a fault-free hypercube. First flip resolves the most fundamental difference (WHO before WHAT before WHERE...).
+### 12.2 Sparse Routing
 
-### 11.2 Sparse Hypercube Routing (Normative)
+54-entry neighbor map per node. Eventual consistency. Zero convergence time.
 
-Each node maintains a **neighbor map** — 54 entries max (27 dims × 2 directions × 1 address):
+### 12.3 Multicast
 
-```
-neighbor_map[i][target_v] = closest_populated_addr with trit i == target_v
-```
+Wildcard address defines sub-cube. Natural spanning tree. Zero additional state.
 
-CRS selects geometrically closest candidate per direction. Per-node state is constant regardless of network size.
+### 12.4 Anycast
 
-**Consistency model:** Eventual consistency bounded by HPTP staleness. A stale map causes suboptimal paths but cannot cause routing loops — the forwarding algorithm is strictly dimension-correcting. Stale entries pointing to deregistered nodes are caught by FTS heartbeat failure; GLB falls back to the next differing dimension.
-
-If no populated node exists in a required direction, forwarding falls back to the next differing dimension. Deployments MUST monitor population density per dimension via CRS metrics.
-
-### 11.3 Geometric Multicast
-
-A wildcard address (base + mask per §5.5) defines a sub-cube. Packets reach all matching entities. No IGMP. No PIM. The geometry IS the distribution tree.
-
-### 11.4 Sub-cube Forwarding
-
-1. Test membership per §5.5. Deliver if inside.
-2. Forward to qualifying neighbors, excluding arrival node.
-3. Forward only along unconstrained dimensions in ascending order.
-
-Natural spanning tree. Zero additional state.
-
-### 11.5 Anycast
-
-When trit 21 (Who gets it?) = Whoever's closest, GLB routes to the nearest match by Hamming distance.
-
-**Deterministic tiebreaker:** Lowest canonical wire-format address, lexicographic, trit 1 most significant.
+Trit 21 = Whoever's closest. Route to nearest match by Hamming distance. Tiebreaker: lowest canonical address.
 
 ---
 
-## 12. Integration with Inter-Cube Services
+## 13. Integration with Inter-Cube Services
 
-### 12.1 CRS (Cube Registration Service)
+### 13.1 CRS
 
-Scans entities and derives 27-trit addresses from measurements. Stores TRN records with scan hashes. Maintains neighbor maps with eventual consistency. For HPTP-mandatory entities, verifies sync at registration. Performs periodic re-scans to detect property drift. Supports open re-verification protocol (§9.4). Critical trust anchor (§15.6).
+Scans entities, derives addresses, computes confidence vectors, assigns CRDs, stores TRN records, maintains neighbor maps, performs re-scans, prioritizes low-confidence entities for more frequent scanning.
 
-### 12.2 CON (Cube Overlay Network)
+### 13.2 CON
 
-PQ-encrypted tunnels (BLAKE3 key derivation) between all geometric neighbors. Every inter-cube link is encrypted. There is no unencrypted path through the fabric. Each of the 54 neighbor links has its own derived tunnel key: `BLAKE3(local_addr || neighbor_addr || shared_secret)`.
+PQ-encrypted tunnels (CryptoHash key derivation) between all geometric neighbors. Zero-cleartext fabric.
 
-### 12.3 FTS (Fault Tolerance Service)
+### 13.3 FTS
 
-Heartbeats carry HPTP offset data. Marks failed and HPTP-degraded nodes in dead set.
+Heartbeats carry HPTP offset. Marks failed/degraded nodes. Sequence anomaly detection.
 
-### 12.4 GLB (Geometric Load Balancer)
+### 13.4 GLB
 
-Dimension-agnostic next-hop. Point, sub-cube, and sparse routing. HPTP enforcement. Anycast tiebreaker. Drift-redirect during re-derivation grace periods.
+Greedy forwarding, sub-cube multicast, HPTP enforcement, anycast tiebreaker, drift-redirect.
 
-### 12.5 Metatronic Bridge
+### 13.5 Metatronic Bridge
 
-`.plm` → TDNS. All else → legacy DNS. Two worlds, one resolver.
-
----
-
-## 13. CRS Re-Scan and Re-Derivation (Normative)
-
-Because the address is derived from measurements, and measurements can change, CRS MUST periodically re-scan registered entities.
-
-### 13.1 Re-scan Policy
-
-CRS re-scans on a deployment-configurable schedule (default: weekly). If re-scan produces a different 27-trit address, the entity has undergone **property drift**.
-
-### 13.2 Property Drift Handling
-
-1. CRS computes the new address from the new scan.
-2. CRS logs the drift event (old address, new address, changed trits) to the audit trail.
-3. CRS updates the TRN record to the new address.
-4. GLB redirects packets from old address to new address for a configurable grace period (default: 24 hours).
-5. After grace period, the old address is released.
-
-This is not a "mutability model." There are no immutable or mutable classes. Every trit is derived from measurement. If the measurement changes, the address changes. The math does not approximate.
-
-### 13.3 Forced Re-derivation Triggers
-
-Beyond scheduled re-scans, CRS MUST re-derive when:
-
-- The entity requests re-registration.
-- FTS detects the entity has been offline beyond a configurable threshold.
-- An external re-verification (§9.4 step 6) reports measurement mismatch.
+`.plm` -> TDNS. All else -> legacy DNS.
 
 ---
 
-## 14. Scaling Properties
+## 14. CRS Re-Scan and Re-Derivation (Normative)
 
-### 14.1 Address Space
+### 14.1 Re-scan Policy
 
-The ternary hypercube at 27 dimensions provides 3²⁷ = 7,625,597,484,987 addresses — 7.6 trillion. For context:
+Default: weekly. Entities with any C_i = 1: daily.
 
-| System | Address Space | Ratio to TDNS |
-|--------|-------------|---------------|
-| IPv4 | 4.3 billion | TDNS is 1,770× larger |
-| MAC-48 | 281 trillion | TDNS is 3.7% of MAC space |
-| IPv6 | 3.4 × 10³⁸ | IPv6 is astronomically larger |
-| TDNS-27 | 7.6 trillion | Current specification |
+### 14.2 Property Drift
 
-7.6 trillion addresses is sufficient for every device, service, website, and entity currently on the internet — by several orders of magnitude. The approximately 30 billion connected devices worldwide today would occupy 0.0004% of the address space.
+If re-scan produces a different address: log drift event, assign new CRD at new address (if slot available), redirect old->new for grace period (default 24h), free old CRD slot.
 
-### 14.2 Routing Efficiency
+### 14.3 Forced Re-derivation Triggers
 
-Greedy geometric forwarding has properties that no conventional routing protocol can match:
-
-**Constant per-node state.** Each node stores 54 neighbor map entries regardless of network size. A 1,000-node fabric and a 1,000,000-node fabric have identical per-node memory requirements. Compare to BGP, where the global routing table exceeds 1 million entries and grows with every new prefix.
-
-**Guaranteed worst-case path length.** The maximum distance between any two nodes is 27 hops. This is a mathematical invariant of the geometry, not a function of network size. Adding a billion nodes does not increase the diameter by one hop. Compare to internet BGP, where typical AS path lengths are 4–5 hops but worst-case paths can exceed 10, and the diameter grows with the network.
-
-**Zero convergence time.** There is no convergence event after a topology change. When a node registers or deregisters, CRS pushes neighbor map updates to affected nodes. There is no distributed routing protocol negotiating paths. Compare to BGP convergence, which can take minutes during prefix storms.
-
-**Predictable latency.** Every hop in the hypercube corresponds to exactly one trit correction. The path from S to D is deterministic — given the same source and destination, the path is the same every time. No load-based rerouting, no ECMP, no jitter from route oscillation.
-
-### 14.3 Sparse Cube Behavior
-
-At realistic deployment sizes, the cube is overwhelmingly sparse:
-
-| Nodes | Occupancy | Avg Neighbor Distance |
-|-------|-----------|----------------------|
-| 10,000 | 1 in 762 billion | ~13 trits apart |
-| 1 million | 1 in 7.6 million | ~10 trits apart |
-| 1 billion | 1 in 7,626 | ~6 trits apart |
-| 1 trillion | 1 in 7.6 | ~2 trits apart |
-
-As density increases, the neighbor map degenerates toward direct geometric neighbors and the sparse routing algorithm reduces to standard greedy forwarding. The system gets faster as it gets bigger — the opposite of conventional routing.
-
-The critical threshold is per-dimension coverage: for efficient routing, every populated node should have at least one neighbor map entry per dimension per direction. With 27 dimensions × 2 directions = 54 entries needed, this requires roughly 54 nodes minimum. Below that, some dimensions may have no populated neighbor, forcing multi-hop fallbacks.
-
-### 14.4 Extensibility
-
-The forwarding algorithm, multicast, and self-certifying mechanism are all dimension-agnostic. Scaling beyond 27 dimensions requires only widening the address:
-
-| Dimensions | Address Space | Neighbors | Max Hops |
-|------------|--------------|-----------|----------|
-| 13 | 1.59 million | 26 | 13 |
-| 27 | 7.63 trillion | 54 | 27 |
-| 39 | 4.05 × 10¹⁸ | 78 | 39 |
-| 54 | 5.81 × 10²⁵ | 108 | 54 |
-| 81 | 4.43 × 10³⁸ | 162 | 81 |
-
-New dimensions append at trits 28+. Existing 27-trit resolvers ignore unknown high trits; forwarding remains compatible on known differing dimensions. No flag day. No hard fork. No architectural rewrite.
-
-At 81 dimensions, the address space (4.43 × 10³⁸) is comparable to IPv6. But unlike IPv6, every bit of the address carries semantic meaning. There are no wasted prefix hierarchies, no private ranges consuming public space, no NAT.
-
-### 14.5 What Does NOT Scale
-
-**CRS re-scan load.** At 1 billion entities with weekly re-scans, CRS must process ~1.65 million scans per second continuously. This is the dominant scaling constraint. Mitigation: distribute scanning across CRS replicas by zone, use differential scanning (only re-check trits that have historically drifted for each entity), and increase re-scan intervals for stable entities.
-
-**Neighbor map push storms.** When a high-traffic node registers or deregisters, CRS must push updates to all nodes that had it in their neighbor maps — potentially thousands. Mitigation: eventual consistency (§11.2) absorbs the latency. Stale entries cause suboptimal paths, not failures.
-
-**Multicast fan-out.** A sub-cube with few constraints (e.g., one trit constrained = 3²⁶ addresses) could theoretically fan out to trillions of nodes. In practice, only populated addresses receive packets. In a sparse cube, the fan-out is bounded by actual population. Deployments MUST set maximum fan-out limits per sub-cube query.
+Entity requests re-registration. FTS detects prolonged offline. External re-verification reports mismatch. Any confidence digit = 1.
 
 ---
 
-## 15. Security Considerations
+## 15. Scaling Properties
 
-### 15.1 Encryption Model
+### 15.1 Address Space
 
-PlenumNET operates on a dual-layer encryption model:
+| System | Address Space |
+|--------|-------------|
+| IPv4 | 4.3 billion |
+| TDNS-27 | 7.6 trillion |
+| TDNS-27+CRD | 68.6 trillion |
+| IPv6 | 3.4 x 10^38 |
 
-**Fabric layer (always on).** All inter-cube traffic is encrypted via CON tunnels. BLAKE3 key derivation. PQ-native. There is no unencrypted path between any two cubes. This is not optional — the fabric does not support cleartext forwarding.
+### 15.2 Routing Efficiency
 
-**Entity layer (trit 25).** Trit 25 measures the encryption the entity offers to its end users — the content inside the tunnel. An entity serving plain HTTP over a CON tunnel is still encrypted at the fabric level, but its content is unencrypted to the end user. An entity serving TLS 1.3 provides end-to-end encryption from user to entity, with CON providing an additional encryption layer underneath.
+Constant per-node state (54 entries). Guaranteed worst-case 27 hops. Zero convergence time. Predictable latency.
 
-The practical consequence: every packet on PlenumNET is encrypted at least once (CON). HPTP-mandatory entities operating under strict regulatory regimes (MiFID II, FINRA 613) get double encryption — CON for the pipe, TLS for the payload.
+### 15.3 Extensibility
 
-### 15.2 Address Spoofing
-
-Address is derived from measurements, not declared. CRS scans the entity directly. Spoofing requires making the entity appear different to CRS's scanner — a harder problem than forging a registration form.
-
-### 15.3 Address Squatting
-
-Crafted entities near high-value targets. Mitigated by: CRS scans actual properties (not self-reported), rate-limiting registrations per zone, neighbor map monitoring for unexpected registrations.
-
-### 15.4 Routing Attacks
-
-No routing tables to poison. Neighbor maps maintained exclusively by CRS. FTS heartbeats authenticated via CON tunnel keys.
-
-### 15.5 Timing Manipulation
-
-CON encryption prevents HPTP forgery. Live Enforcement Rule prevents false real-time claims. Ownership proof replay prevented by HPTP timestamp challenges.
-
-### 15.6 Scan Manipulation
-
-An adversary could present different properties to CRS's scanner than to actual users. Mitigated by: random re-scan scheduling, scan hash binding in TRN records, and open re-verification (§9.4 step 6 — anyone can re-scan and compare).
-
-### 15.7 CRS as Critical Trust Anchor
-
-CRS is the single source of truth for address derivation, TRN storage, and neighbor map maintenance.
-
-- **Trusted execution:** CRS SHOULD run on hardware-attested environments.
-- **Audit logging:** All CRS operations MUST be logged to an append-only audit trail. Deployments SHOULD witness to Hedera HCS.
-- **Replication:** Production deployments MUST use BFT consensus (minimum 3f+1 replicas). Consensus required only for ordering registrations, not for the derivation itself.
-- **Key management:** CRS signing keys in HSMs, rotated per deployment schedule.
-
-A compromised CRS cannot silently alter the derivation algorithm (any party can independently re-scan and verify via §9.4), but it can inject false TRN records. The audit trail and BFT replication are the primary defenses.
+Dimension-agnostic algorithms. 81 dimensions = 4.43 x 10^38 (comparable to IPv6). No flag day.
 
 ---
 
-## 16. What TDNS Replaces
+## 16. Security Considerations
+
+### 16.1 Encryption Model
+
+Dual-layer: CON fabric (always on, PQ-native via CryptoHash) + entity-level (trit 25).
+
+### 16.2 CryptoHash Migration Path
+
+Current: BLAKE3. Target: TL-Sponge from Salvi Framework TL-DSA. Interface identical. Single-line swap at crate level. PQ-native ternary sponge construction exceeding military-grade requirements.
+
+### 16.3 CRS as Critical Trust Anchor
+
+Trusted execution, append-only audit trail, BFT consensus for ordering, HSM key management.
+
+---
+
+## 17. What TDNS Replaces
 
 | Protocol | Conventional Role | TDNS Equivalent |
 |----------|-------------------|-----------------|
-| DNS | Name → IP | Name → 27-trit coordinate via TRN |
+| DNS | Name -> IP | Name -> 27-trit coordinate + CRD via TRN |
 | BGP/OSPF | Routing tables | Greedy forwarding; neighbor maps only |
-| PKI/CA | Certificate authorities | Ownership via challenge-response + scan hash binding |
+| PKI/CA | Certificate authorities | Challenge-response + scan hash binding |
 | IGMP/PIM | Multicast groups | Sub-cube via dimensional wildcards |
 | PTP/NTP | Time synchronization | HPTP nanosecond timestamps |
 
-Five protocol systems collapsed into the geometry of a 27-dimensional ternary hypercube.
+---
+
+## 18. Implementation Status
+
+### 18.1 Completed — TDNS v2.3.2 (Rust Crate)
+
+16 modules, 2 binaries, 180 tests, zero warnings.
+
+| Module | Lines | Role |
+|--------|-------|------|
+| trit.rs | 213 | Atomic ternary digit |
+| addr.rs | 465 | 27-trit CubeAddr + wire encoding |
+| subcube.rs | 291 | Wildcard multicast |
+| schema.rs | 389 | 27 ontological dimensions |
+| scan.rs | 258 | Scan types + CryptoHash binding |
+| trn.rs | 292 | TRN records + CRD + confidence |
+| routing.rs | 389 | Neighbor maps + greedy forwarding |
+| derive.rs | 833 | project_to_gf3 + confidence_digit + 27 rules |
+| crs.rs | 1,088 | CRS registry + CRD assignment |
+| scanner.rs | 1,565 | 27 live probes (12 signal-counting + 15 categorical) |
+| glb.rs | 833 | Geometric Load Balancer |
+| fts.rs | 576 | Fault Tolerance Service |
+| overlay.rs | 539 | Cube Overlay Network |
+| api.rs | 643 | HTTP API (11 endpoints) |
+| bridge.rs | 419 | Metatronic Bridge |
+| wire.rs | 641 | Binary packet framing |
+| tdns_scan | 210 | CLI binary |
+| tdns_server | 370 | HTTP server binary |
+
+**Docker deployment:** Dockerfile + docker-compose (4-node mesh). Tested live against github.com, google.com, wikipedia.org, stripe.com, gov.uk, nytimes.com.
 
 ---
 
-## 17. Implementation Status
+## 19. Version Comparison
 
-### 17.1 Completed — TDNS v1 (Kernel Module)
-
-`tdns.rs`: 530 lines Rust, 8 record types, BTreeMap cache, 19 tests.
-
-### 17.2 Completed — Inter-Cube Services (Docker)
-
-CRS/CON/FTS/GLB: 3,553 lines Rust, 57 tests, 4-node Docker, 11 HTTP endpoints.
-
-### 17.3 Next — TDNS v2.3
-
-1. `CubeAddr` 13-trit → 27-trit.
-2. CRS scanner framework: protocol fingerprinting, header analysis, WHOIS lookup, MIME detection, latency probing, tracker counting, TLS inspection, audit badge scanning, data-collection analysis.
-3. Scan-to-trit derivation engine for all 27 dimensions.
-4. `scan_hash` field: BLAKE3 of scan results, CRS-signed.
-5. TRN record wire format per §7.
-6. `SubCube { base, mask }` with wire encoding per §5.5.
-7. Ownership proof via challenge-response against TRN `public_key`.
-8. Open re-verification protocol (§9.4 step 6).
-9. HPTP `valid_from` / `valid_until` + `hptp_sync_status` on TRN.
-10. Configurable HPTP tolerance thresholds in CRS policy.
-11. Sparse neighbor map with eventual-consistency push.
-12. FTS heartbeats carry HPTP offset.
-13. GLB: sub-cube multicast + HPTP enforcement + anycast tiebreaker + drift-redirect.
-14. CRS periodic re-scan and re-derivation engine with differential scanning.
-15. `SCHEMA` record type for publishing dimensional mappings.
-16. Category-grouped display formatter (`WO:xxxx WA:xxxx WR:xxxx WN:xxxx WY:xxxx HO:xxxx PE:xxx`).
+| Aspect | v2.3 | v2.3.1 | **v2.3.2** |
+|--------|------|--------|------------|
+| Categories | WHO->PEACE (frozen) | Same | Same |
+| Human input | Zero | Zero | Zero |
+| Automation | 27/27 stable | 27/27 stable | 27/27 stable |
+| Derivation | Score-based (arbitrary boundaries) | project_to_gf3 (first principles) | **Signal-count + project_to_gf3 (all quantitative dims)** |
+| Confidence | enum {High,Medium,Low} | Digit 1-9 (SS4.1) | **Digit 1-9 + categorical always 9** |
+| Collision | Displacement (changes address) | CRD 1-9 (preserves address) | **CRD 1-9 (confirmed)** |
+| scan_hash | dim + confidence only | Same | **Full raw values with type tags** |
+| CryptoHash | BLAKE3 hardcoded | BLAKE3 hardcoded | **CryptoHash trait (BLAKE3 -> TL-Sponge path)** |
+| Scanner | Mix of scores/counts | Signal counts (4 dims) | **Signal counts (all 12 quantitative dims)** |
+| Correctness | — | — | **gov.uk, MFA auth-context, CDN expansion** |
+| Encryption | Dual-layer | Same | Same |
+| Status | Frozen | v2.3.1 | **v2.3.2** |
 
 ---
 
-## 18. Version Comparison
-
-| Aspect | v2.0 | v2.1 | v2.2 | v2.2.1–2 | v2.2.3–4 | v2.2.5 | v2.2.6 | v2.3 |
-|--------|------|------|------|----------|----------|--------|--------|------|
-| Categories | 3×3×3 | 7 ontol. | 7 plain | Same | Same | WHO→PEACE | Same | Same (frozen) |
-| Human input | Required | Required | Required | Required | Required | Zero | Zero | Zero |
-| Automation | — | — | — | — | — | 27/27 | 27/27 stable | 27/27 stable |
-| Encryption | — | — | — | — | — | — | — | Dual-layer (§2.6, §15.1) |
-| HPTP | — | — | — | Live Rule | + Thresh | 2-trit | Confirmed | Confirmed |
-| Self-cert | — | — | — | — | GF3→addr | TRN+scan | + Re-verify | Same |
-| Scaling | Table only | Same | Same | Same | Same | Same | Same | Full analysis (§14) |
-| Security | — | — | — | — | Threats | + Scan manip. | Same | + Encryption model |
-| Status | — | — | — | — | — | — | — | **Frozen** |
-
----
-
-© 2026 Capomastro Holdings Ltd. All rights reserved.
+(c) 2026 Capomastro Holdings Ltd. All rights reserved.
 
 *The Salvi Framework — Applied Physics Division*
 
-*Simple. Measurable. Automatable. Enforced. Deterministic. Derived.*
+*Simple. Measurable. Automatable. Enforced. Deterministic. Derived. Confident. Unique.*
+
+*Three formulas. Zero thresholds. One geometry.*
