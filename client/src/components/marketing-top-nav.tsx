@@ -123,6 +123,7 @@ const developersColumns: NavColumn[] = [
     items: [
       { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
       { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
+      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "/install-extension" },
       { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
     ],
   },
