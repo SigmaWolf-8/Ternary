@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PlenumNET — TDNS Resolver",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Resolve .plm addresses via the Ternary Domain Name System. 27-dimensional ontological addressing for PlenumNET.",
   "author": "Capomastro Holdings Ltd. — Applied Physics Division",
 
