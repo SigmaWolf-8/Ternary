@@ -124,7 +124,7 @@ const developersColumns: NavColumn[] = [
     items: [
       { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
       { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
-      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "#install-extension" },
+      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "#install-extension-download" },
       { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
     ],
   },
@@ -155,7 +155,7 @@ function NavItemLink({
   const isAnchor = item.href.startsWith("/#");
   const anchorId = isAnchor ? item.href.slice(2) : "";
 
-  if (item.href === "#install-extension") {
+  if (item.href === "#install-extension-download") {
     return (
       <a
         href="#"
@@ -164,6 +164,10 @@ function NavItemLink({
         onClick={(e) => {
           e.preventDefault();
           onNavigate?.();
+          const link = document.createElement("a");
+          link.href = "/api/extension-zip";
+          link.download = "plenumnet-tdns-extension.zip";
+          link.click();
           triggerInstallDialog();
         }}
       >
@@ -220,7 +224,7 @@ function NavItemLink({
 function MegaDropdownItem({ item }: { item: NavLinkItem }) {
   const scrollToAnchor = useContext(AnchorScrollContext);
   const isAnchor = item.href.startsWith("/#");
-  const isDialogTrigger = item.href === "#install-extension";
+  const isDialogTrigger = item.href === "#install-extension-download";
   const anchorId = isAnchor ? item.href.slice(2) : "";
   const baseClass =
     "block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover-elevate";
@@ -249,6 +253,10 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
             data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
             onClick={(e) => {
               e.preventDefault();
+              const link = document.createElement("a");
+              link.href = "/api/extension-zip";
+              link.download = "plenumnet-tdns-extension.zip";
+              link.click();
               triggerInstallDialog();
             }}
           >
