@@ -104,6 +104,18 @@ app.get("/api/extension-zip", (_req, res) => {
   sendExtensionZip(res, "plenumnet-tdns-extension.zip", "application/zip");
 });
 
+app.get("/api/install-extension", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.bat");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", "attachment; filename=install-tdns-extension.bat");
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).type("text/plain").send("Installer not found");
+  }
+});
+
 app.get("/api/extension/chromium", (_req, res) => {
   sendExtensionZip(res, "plenumnet-tdns-extension.zip", "application/zip");
 });

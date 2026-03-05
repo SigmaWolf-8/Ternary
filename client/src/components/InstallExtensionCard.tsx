@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Terminal, Download, FolderOpen, ToggleRight, Puzzle } from "lucide-react";
+import { Terminal, Download } from "lucide-react";
 
 let openInstallDialog: (() => void) | null = null;
 
@@ -22,7 +22,7 @@ export default function InstallExtensionDialog() {
   openInstallDialog = () => { setOpen(true); setDownloaded(false); };
 
   const handleDownload = () => {
-    window.location.href = "/api/extension-zip";
+    window.location.href = "/api/install-extension";
     setDownloaded(true);
   };
 
@@ -47,38 +47,29 @@ export default function InstallExtensionDialog() {
             data-testid="button-download-extension"
           >
             <Download className="w-4 h-4 mr-2" />
-            {downloaded ? "Downloaded - now follow the steps below" : "Download Extension (.zip)"}
+            {downloaded ? "Downloaded - run the file to install" : "Download Installer"}
           </Button>
 
-          <ol className="space-y-3">
-            <li className="flex items-start gap-3" data-testid="step-install-1">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-semibold">1</span>
-              <div>
-                <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /> Unzip the download</p>
-                <p className="text-xs text-muted-foreground">Right-click the zip and Extract All</p>
-              </div>
-            </li>
-            <li className="flex items-start gap-3" data-testid="step-install-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-semibold">2</span>
-              <div>
-                <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><ToggleRight className="w-3.5 h-3.5" /> Open extensions page</p>
-                <p className="text-xs text-muted-foreground">Go to <code className="bg-muted px-1 rounded">edge://extensions</code> and turn on Developer mode</p>
-              </div>
-            </li>
-            <li className="flex items-start gap-3" data-testid="step-install-3">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-semibold">3</span>
-              <div>
-                <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Puzzle className="w-3.5 h-3.5" /> Load unpacked</p>
-                <p className="text-xs text-muted-foreground">Click "Load unpacked" and select the extracted folder</p>
-              </div>
-            </li>
-          </ol>
+          {downloaded && (
+            <div className="rounded-md bg-muted/50 border border-border px-4 py-3 space-y-2">
+              <p className="text-sm font-medium text-foreground">After running the installer:</p>
+              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                <li>It downloads 9 files and opens your extensions page</li>
+                <li>Enable <strong className="text-foreground">Developer mode</strong> (top-right toggle)</li>
+                <li>Click <strong className="text-foreground">Load unpacked</strong></li>
+                <li>Paste the folder path (already on your clipboard)</li>
+              </ol>
+              <p className="text-sm text-muted-foreground pt-1">
+                Then type <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-primary font-mono">google.plm</code> in the address bar.
+              </p>
+            </div>
+          )}
 
-          <div className="rounded-md bg-muted/50 border border-border px-4 py-3">
-            <p className="text-sm text-muted-foreground">
-              Then type <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-primary font-mono">google.plm</code> in the address bar.
+          {!downloaded && (
+            <p className="text-xs text-muted-foreground text-center">
+              One-click installer for Windows. Creates the extension folder and downloads all files automatically.
             </p>
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
