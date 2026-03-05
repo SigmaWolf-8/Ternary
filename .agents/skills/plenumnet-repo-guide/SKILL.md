@@ -194,7 +194,7 @@ Every entity gets a **27-trit address** that IS its description. The address IS 
 
 **Why 27 dimensions**: 3³ = 27. Three cubed. The ternary system's own cube count.
 **Why 7 categories**: 7 root questions cover the complete ontological space of any networked entity.
-**Address space**: 3²⁷ = 7,625,597,484,987 (7.63 trillion) unique addresses.
+**Address space**: 3²⁷ × 9 = 68,630,377,364,883 (68.63 trillion) unique addresses (27 trits × 9 confidence levels).
 
 ### 2.2 The 27-Dimensional Ontological Schema
 
@@ -747,7 +747,7 @@ Push to `SigmaWolf-8/Ternary@main` using GitHub Contents API via `GITHUB_TOKEN` 
 ## 15. Key Mathematical Identities (Quick Reference)
 
 ```
-3²⁷ = 7,625,597,484,987          (TDNS address space — 7.63 trillion)
+3²⁷ × 9 = 68,630,377,364,883     (TDNS address space — 68.63 trillion)
 3¹³ = 1,594,323                   (13D hypercube vertices)
 (3⁶ − 1) / 2 = 364               (full ternary circle, base-3 repunit)
 364 / 28 = 13                     (1 radian = T₇)
