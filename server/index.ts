@@ -65,6 +65,20 @@ app.get("/install.ps1", (_req, res) => {
   }
 });
 
+app.get("/api/install.ps1", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.ps1");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).setHeader("Content-Type", "text/plain");
+    res.send("# install.ps1 not found");
+  }
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
