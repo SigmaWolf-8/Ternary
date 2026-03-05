@@ -164,10 +164,6 @@ function NavItemLink({
         onClick={(e) => {
           e.preventDefault();
           onNavigate?.();
-          const link = document.createElement("a");
-          link.href = "/api/extension-zip";
-          link.download = "plenumnet-tdns-extension.zip";
-          link.click();
           triggerInstallDialog();
         }}
       >
@@ -253,10 +249,6 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
             data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
             onClick={(e) => {
               e.preventDefault();
-              const link = document.createElement("a");
-              link.href = "/api/extension-zip";
-              link.download = "plenumnet-tdns-extension.zip";
-              link.click();
               triggerInstallDialog();
             }}
           >
