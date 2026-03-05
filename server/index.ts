@@ -93,10 +93,7 @@ function sendExtensionZip(res: any, filename: string, contentType: string) {
   res.setHeader("Cache-Control", "no-store");
   const archive = archiver("zip", { zlib: { level: 9 } });
   archive.pipe(res);
-  const files = fs.readdirSync(extDir);
-  for (const f of files) {
-    archive.file(path.join(extDir, f), { name: f });
-  }
+  archive.directory(extDir, false);
   archive.finalize();
 }
 
