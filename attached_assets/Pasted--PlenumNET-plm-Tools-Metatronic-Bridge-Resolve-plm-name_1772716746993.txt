@@ -1,0 +1,185 @@
+# PlenumNET .plm Tools — Metatronic Bridge
+
+**Resolve `.plm` names via the Ternary Domain Name System.**
+
+Two tools that bridge your browser/OS to the TDNS server running in Docker:
+
+1. **Browser Extension** — Type `plm google` in the address bar, see the 27-dimensional address.
+2. **DNS Proxy** — System-level `.plm` resolution for all applications.
+
+---
+
+## Prerequisites
+
+- TDNS Docker container running on port 3927:
+  ```powershell
+  cd services\tdns-v2
+  docker build -t tdns-v2 .
+  docker run -p 3927:3927 tdns-v2
+  ```
+- Verify: `curl http://localhost:3927/api/v1/health`
+
+---
+
+## Browser Extension
+
+### Chrome / Edge / Brave / Opera / Vivaldi / Arc
+
+All Chromium-based browsers use the same extension.
+
+1. Open your browser and go to the extensions page:
+   - **Chrome:** `chrome://extensions`
+   - **Edge:** `edge://extensions`
+   - **Brave:** `brave://extensions`
+   - **Opera:** `opera://extensions`
+   - **Vivaldi:** `vivaldi://extensions`
+   - **Arc:** Settings → Extensions
+
+2. Enable **Developer mode** (toggle in top-right corner).
+
+3. Click **"Load unpacked"**.
+
+4. Select the `extension-chromium` folder.
+
+5. The PlenumNET icon appears in your toolbar.
+
+**How to use:**
+
+- **Omnibox:** Type `plm ` (with a space) in the address bar, then type a name:
+  ```
+  plm google
+  plm github
+  plm pptpro.capomastro
+  ```
+  Press Enter to see the full 27-dimensional resolution.
+
+- **Popup:** Click the PlenumNET icon in the toolbar to quick-resolve any `.plm` name.
+
+- **Direct navigation:** Type `http://google.plm` in the address bar — the extension intercepts the failed DNS lookup and resolves it via TDNS.
+
+- **Links:** Any `<a href="http://anything.plm">` link on any page is intercepted and resolved via TDNS.
+
+### Firefox
+
+1. Open `about:debugging#/runtime/this-firefox`
+
+2. Click **"Load Temporary Add-on..."**
+
+3. Select `extension-firefox/manifest.json`
+
+4. Same usage as Chromium: `plm google` in address bar, toolbar popup, link interception.
+
+**For permanent Firefox installation:**
+```bash
+cd extension-firefox
+zip -r ../plenumnet-tdns-firefox.xpi *
+```
+Then install via `about:addons` → gear icon → "Install Add-on From File..."
+
+### Safari
+
+Safari requires Xcode and a native macOS app wrapper. For now, use the DNS proxy approach on macOS, or use Chrome/Firefox.
+
+---
+
+## DNS Proxy (System-Level)
+
+Resolves `.plm` names at the OS level — works with ALL applications, not just browsers.
+
+### Windows (run as Administrator)
+
+```powershell
+cd dns-proxy
+python plm_dns_proxy.py
+```
+
+Then set your DNS to `127.0.0.1`:
+1. Open **Settings → Network & Internet → Change adapter options**
+2. Right-click your active connection → **Properties**
+3. Select **Internet Protocol Version 4 (TCP/IPv4)** → **Properties**
+4. Select **Use the following DNS server addresses:**
+   - Preferred: `127.0.0.1`
+   - Alternate: `8.8.8.8`
+5. Click OK.
+
+**To revert:** Change DNS back to "Obtain DNS server address automatically."
+
+### How it works
+
+```
+Browser requests "google.plm"
+  → OS DNS resolver sends query to 127.0.0.1:53
+    → DNS Proxy intercepts .plm query
+      → Calls TDNS API: GET /api/v1/resolve/google.plm
+      → Returns 127.0.0.77 (sentinel IP)
+    → Non-.plm queries forwarded to upstream (8.8.8.8)
+```
+
+The sentinel IP (127.0.0.77) signals that the name was resolved via TDNS.
+In the full PlenumNET fabric, this IP would be replaced by the actual
+destination routed through the ternary hypercube.
+
+### Options
+
+```
+python plm_dns_proxy.py --port 5353          # Non-standard port (no admin needed)
+python plm_dns_proxy.py --upstream 1.1.1.1   # Use Cloudflare instead of Google
+python plm_dns_proxy.py --tdns http://192.168.1.100:3927  # Remote TDNS server
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Your Browser                    │
+│                                                  │
+│  "plm google" ──→ Extension ──→ resolve.html     │
+│                       │                          │
+│  "google.plm" ──→ Extension intercepts ──→ API   │
+│                                                  │
+│  Normal URLs ──→ Pass through (unchanged)        │
+└─────────────────────┬───────────────────────────┘
+                      │ HTTP
+                      ▼
+┌─────────────────────────────────────────────────┐
+│           TDNS Server (Docker :3927)             │
+│                                                  │
+│  /api/v1/scan     → Probe entity → derive addr  │
+│  /api/v1/register → Scan + store TRN            │
+│  /api/v1/resolve  → Name → address lookup        │
+│  /api/v1/describe → Address → plain English      │
+│  /api/v1/route    → Compute path between addrs  │
+│                                                  │
+│  27 dimensions × 3^27 = 7.6T addresses           │
+│  + CRD (1-9) = 68.6T unique identifiers          │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│           DNS Proxy (optional :53)               │
+│                                                  │
+│  .plm queries ──→ TDNS API ──→ 127.0.0.77       │
+│  Other queries ──→ Upstream DNS (8.8.8.8)        │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## Browser Compatibility Matrix
+
+| Browser  | Engine   | Extension Folder       | Install Method                    |
+|----------|----------|------------------------|-----------------------------------|
+| Chrome   | Chromium | `extension-chromium/`  | Load unpacked (developer mode)    |
+| Edge     | Chromium | `extension-chromium/`  | Load unpacked (developer mode)    |
+| Brave    | Chromium | `extension-chromium/`  | Load unpacked (developer mode)    |
+| Opera    | Chromium | `extension-chromium/`  | Load unpacked (developer mode)    |
+| Vivaldi  | Chromium | `extension-chromium/`  | Load unpacked (developer mode)    |
+| Arc      | Chromium | `extension-chromium/`  | Load unpacked via settings        |
+| Firefox  | Gecko    | `extension-firefox/`   | Load temporary or .xpi install    |
+| Safari   | WebKit   | (use DNS proxy)        | Requires Xcode native wrapper     |
+| Tor      | Gecko    | `extension-firefox/`   | Load temporary add-on             |
+
+---
+
+© 2026 Capomastro Holdings Ltd. — Applied Physics Division
