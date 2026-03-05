@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, Terminal } from "lucide-react";
+import { Play, Copy, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 let openInstallDialog: (() => void) | null = null;
@@ -28,7 +28,7 @@ export default function InstallExtensionDialog() {
     : `curl -sL ${window.location.origin}/install.ps1 | bash`;
   const shellName = isWindows ? "Windows PowerShell" : "Terminal";
 
-  const handleCopy = async () => {
+  const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(cmd);
     } catch {
@@ -41,6 +41,37 @@ export default function InstallExtensionDialog() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
+  };
+
+  const handleRunAndInstall = async () => {
+    await copyToClipboard();
+    setOpen(false);
+
+    if (isWindows) {
+      const psCmd = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${cmd}"`;
+      const uri = `ms-powershell:command?command=${encodeURIComponent(cmd)}`;
+
+      const opened = window.open(uri, "_blank");
+      if (!opened) {
+        try {
+          window.location.href = uri;
+        } catch {}
+      }
+
+      toast({
+        title: "Launching PowerShell",
+        description: "If PowerShell didn't open, press Win+X → PowerShell and paste the copied command.",
+      });
+    } else {
+      toast({
+        title: "Command copied",
+        description: "Open your terminal and paste the command to install.",
+      });
+    }
+  };
+
+  const handleCopyOnly = async () => {
+    await copyToClipboard();
     setOpen(false);
     toast({
       title: "Command copied",
@@ -62,10 +93,6 @@ export default function InstallExtensionDialog() {
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          <p className="text-sm text-muted-foreground">
-            Click the button below. The install command will be copied to your clipboard — paste it into {shellName} and press Enter.
-          </p>
-
           <div className="rounded-md bg-muted border border-border px-4 py-3">
             <code className="text-sm text-primary font-mono break-all" data-testid="text-install-command">
               {cmd}
@@ -73,12 +100,22 @@ export default function InstallExtensionDialog() {
           </div>
 
           <Button
-            onClick={handleCopy}
+            onClick={handleRunAndInstall}
             className="w-full"
+            data-testid="button-run-install"
+          >
+            <Play className="w-4 h-4 mr-2" />
+            {isWindows ? "Open PowerShell & Install" : "Copy & Install"}
+          </Button>
+
+          <Button
+            onClick={handleCopyOnly}
+            className="w-full"
+            variant="outline"
             data-testid="button-copy-command"
           >
             <Copy className="w-4 h-4 mr-2" />
-            Copy &amp; Close
+            Copy Command Only
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
