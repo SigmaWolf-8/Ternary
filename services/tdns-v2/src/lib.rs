@@ -13,14 +13,6 @@
 //   scan     — CRS scan results and BLAKE3 scan hash
 //   trn      — Ternary Resource Name records
 //   routing  — Neighbor maps and greedy forwarding
-//   derive   — The 27 Derivation Rules
-//   crs      — CRS Registry Service
-//   scanner  — Live network scanning (URL → 27 observations → CubeAddr)
-//   glb      — Geometric Load Balancer (data-plane forwarding engine)
-//   fts      — Fault Tolerance Service (heartbeat-based failure detection)
-//   con      — Cube Overlay Network (PQ-native encrypted tunnels)
-//   api      — HTTP API Layer (11 endpoints)
-//   bridge   — Metatronic Bridge (.plm → TDNS, everything else → DNS)
 
 pub mod trit;
 pub mod addr;
@@ -37,6 +29,7 @@ pub mod fts;
 pub mod con;
 pub mod api;
 pub mod bridge;
+pub mod wire;
 
 pub use addr::CubeAddr;
 pub use trit::Trit;
@@ -52,3 +45,4 @@ pub use fts::{Fts, FtsConfig, FtsEvent, Heartbeat, HealthState};
 pub use con::{ConNode, TunnelKey, TunnelLink, LinkState, derive_tunnel_key, derive_link_keys};
 pub use api::ApiRouter;
 pub use bridge::{Bridge, Resolution, is_plm_name};
+pub use wire::{Packet, PacketType, WireError};
