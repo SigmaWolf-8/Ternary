@@ -601,7 +601,7 @@ fn e2e_api_router_cycle() {
 
     // ── Health check ─────────────────────────────────────────────
     let health = router.handle_health();
-    assert_eq!(health.version, "2.3.0");
+    assert_eq!(health.version, "2.3.2");
     assert_eq!(health.entities, 0);
 
     // ── Describe a known address (no registration needed) ────────
