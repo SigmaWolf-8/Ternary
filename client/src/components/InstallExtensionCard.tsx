@@ -58,7 +58,7 @@ export default function InstallExtensionDialog() {
 
         <div className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <p className="text-sm font-medium text-foreground">Run in Windows PowerShell:</p>
+            <p className="text-sm font-medium text-foreground">Paste into Windows PowerShell:</p>
             <div className="rounded-md bg-muted border border-border px-4 py-3 flex items-start justify-between gap-3">
               <code className="text-xs text-primary font-mono break-all leading-relaxed select-all" data-testid="text-install-command">
                 {cmd}
@@ -76,18 +76,18 @@ export default function InstallExtensionDialog() {
           </div>
 
           <div className="text-sm text-muted-foreground space-y-2">
-            <p>The installer downloads 9 files, detects your browsers, and opens the extensions page. Then:</p>
+            <p>The installer downloads 9 extension files, detects your browsers, and opens the extensions page automatically. Then:</p>
             <ol className="list-decimal list-inside space-y-1 text-sm">
               <li>Enable <strong className="text-foreground">Developer mode</strong> (top-right toggle)</li>
               <li>Click <strong className="text-foreground">Load unpacked</strong></li>
-              <li>Paste the folder path (already on your clipboard)</li>
+              <li>Paste the folder path (already on your clipboard from the installer)</li>
             </ol>
           </div>
 
           <div className="rounded-md bg-muted/50 border border-border px-4 py-3 space-y-1">
-            <p className="text-sm font-medium text-foreground">Pin the icon (Edge)</p>
+            <p className="text-sm font-medium text-foreground">Show the icon in Edge</p>
             <p className="text-xs text-muted-foreground">
-              Click the puzzle piece icon next to the address bar, find PlenumNET TDNS, and click the pin/eye icon to show it in your toolbar.
+              Click the puzzle piece icon next to the address bar, find PlenumNET TDNS, and click the pin icon to keep it visible.
             </p>
           </div>
 
