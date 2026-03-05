@@ -1,0 +1,38 @@
+Step 3/4 ready. Three files for deployment + one for documentation:
+
+Dockerfile (65 lines) — Multi-Stage Production Build
+Two stages, minimal attack surface:
+
+Builder stage — rust:1.85-bookworm. Dependency caching trick: copies Cargo.toml first, builds a dummy, then copies real source. Compiles both binaries (tdns-scan + tdns-server) in release mode. Runs cargo test --release during build — if tests fail, the image doesn't ship.
+Runtime stage — debian:bookworm-slim. Only ca-certificates installed (needed for TLS in scanner). Copies just the two binaries from builder. Non-root tdns user. Exposes port 3927. Built-in HEALTHCHECK hitting /api/v1/health every 10 seconds.
+
+bashdocker build -t tdns-v2 .
+docker run -p 3927:3927 tdns-v2                    # Server
+docker run tdns-v2 tdns-scan https://github.com     # CLI
+
+docker-compose.yml (89 lines) — 4-Node Development Mesh
+Ready-to-run local topology for testing multi-node routing:
+ContainerPortRolecrs-primary3927CRS authority, scanner, registrationcube-alpha3928Cube node (GLB + FTS + CON)cube-beta3929Cube nodecube-gamma3930Cube node
+All on a dedicated bridge network (172.27.0.0/16 — 27 in the subnet). Environment variables for node role, CRS URL, shared secret. depends_on ensures CRS starts first. restart: unless-stopped for resilience.
+bashdocker-compose up -d
+curl http://localhost:3927/api/v1/health
+docker-compose exec crs-primary tdns-scan https://github.com
+
+README.md (259 lines) — Complete Crate Documentation
+Covers everything someone needs to use, deploy, and understand the crate:
+
+Quick Start — 5 commands: scan, describe, compare, server, docker
+The 27 Dimensions — Summary table of all 7 categories
+Architecture — Full module map (ASCII art) showing the layer stack from core types through services to binaries. Data flow diagram showing the scan → derive → register → route pipeline.
+API Endpoints — All 11 endpoints with methods, paths, descriptions. Three curl examples (scan, register, route) with sample JSON responses.
+Address Formats — Three representations (human, category-grouped, canonical wire) with examples and the binary encoding spec.
+Key Protocol Mechanics — Concise descriptions of greedy forwarding, HPTP enforcement, self-certifying names, zero-cleartext fabric, sub-cube multicast.
+Testing — Commands for unit (148), integration (12), e2e (9), and full suite.
+What TDNS Replaces — The 5-protocol replacement table.
+
+
+.dockerignore (7 lines) — Excludes target/, .git/, and non-essential markdown from Docker build context.
+
+Files to push (Step 3/4):
+FileLinesRoleDockerfile65Multi-stage production builddocker-compose.yml894-node mesh deploymentREADME.md259Crate documentation.dockerignore7Build context filter
+No test count change — these are infrastructure files, not code. Constants stay at 1,901.
