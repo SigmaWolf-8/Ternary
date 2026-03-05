@@ -17,6 +17,10 @@
 //   crs      — CRS Registry Service
 //   scanner  — Live network scanning (URL → 27 observations → CubeAddr)
 //   glb      — Geometric Load Balancer (data-plane forwarding engine)
+//   fts      — Fault Tolerance Service (heartbeat-based failure detection)
+//   con      — Cube Overlay Network (PQ-native encrypted tunnels)
+//   api      — HTTP API Layer (11 endpoints)
+//   bridge   — Metatronic Bridge (.plm → TDNS, everything else → DNS)
 
 pub mod trit;
 pub mod addr;
@@ -29,6 +33,10 @@ pub mod derive;
 pub mod crs;
 pub mod scanner;
 pub mod glb;
+pub mod fts;
+pub mod con;
+pub mod api;
+pub mod bridge;
 
 pub use addr::CubeAddr;
 pub use trit::Trit;
@@ -40,3 +48,7 @@ pub use schema::{Category, Dimension, SCHEMA, describe};
 pub use crs::{CrsRegistry, CrsConfig, RegistrationResult, VerificationResult};
 pub use scanner::{scan, FullScanResult, ScanTarget, ScanContext, format_scan_report};
 pub use glb::{Glb, GlbDecision, HptpPolicy, NodeStatus};
+pub use fts::{Fts, FtsConfig, FtsEvent, Heartbeat, HealthState};
+pub use con::{ConNode, TunnelKey, TunnelLink, LinkState, derive_tunnel_key, derive_link_keys};
+pub use api::ApiRouter;
+pub use bridge::{Bridge, Resolution, is_plm_name};
