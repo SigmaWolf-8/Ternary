@@ -1,0 +1,20 @@
+178 tests. Zero warnings. Zero Medium. Zero Low. One formula.
+
+The Architecture
+Every derivation in the system now follows exactly one of two paths:
+Path A — Categorical (15 dimensions): Scanner produces a pattern string from discrete signal detection. Derivation rule maps it to a trit via match. No math needed — the observation IS the classification.
+Path B — Quantitative (12 dimensions): Scanner counts binary signals (k out of N). Derivation rule applies the universal formula:
+gf3 = min(floor(3k / N), 2)
+trit = gf3 + 1
+The boundaries between trit values fall at exactly N/3 and 2N/3. These aren't parameters. They aren't thresholds. They're the definition of dividing a count space into three equal parts. The math determines them.
+The 12 Quantitative Dimensions
+TritQuestionNSignals3Who runs it?5about_page, contact_info, legal_entity, physical_address, gov_domain8Does it think?5ml_endpoints, ml_frameworks, personalization, search_ranking, ml_headers9Who can see it?3site_responds, no_auth_challenge, serves_public_content11How many servers?6dns_resolves, dns_multiple, dns_many, cdn_provider, cdn_cache, proxy_via13What era?6alt_svc, permissions_policy, nel_report, cross_origin, csp, modern_framework14When available?3responds, not_maintenance, no_business_hours16Is it real-time?6dynamic_cache, freshness_indicators, websocket, sse, grpc, streaming_type18Wants my data?5input_fields, signup_form, analytics_scripts, cookie_consent, crm_scripts19Has policies?5privacy_page, terms_page, cookie_policy, gdpr_text, accessibility24Remembers me?3has_cookie, has_persistent, has_long_lived25Is it encrypted?6tls, hsts, csp, security_txt, xcto, xfo26How many trackers?5no_analytics, no_social, no_ads, no_replay, no_crm (inverted)
+Every signal is binary. Every derivation uses project_to_gf3. Confidence is always High. There is nothing to tune.
+Also in This Push
+scan_hash collision fix — BLAKE3 now hashes full raw values with type tags, not just dim+confidence bytes.
+Address collision displacement — BLAKE3(name) deterministic single-trit displacement with 5 new tests.
+3 scanner correctness fixes — Gov.uk governance detection, Wikipedia MFA context gating, expanded CDN header list.
+
+Files to push:
+FileLinesWhat Changedsrc/derive.rs772Complete rewrite. 1 formula. 15 categorical + 12 quantitative. 16 tests.src/scanner.rs1,56512 probes rewritten as signal counters. 3 correctness fixes.src/scan.rs252scan_hash includes full raw valuessrc/trn.rs295Displacement fieldssrc/crs.rs1,138Displacement algorithm + 5 collision testssrc/api.rs642Displacement in API responsesrc/bridge.rs419Updated measurement fixturestests/e2e.rs673Updated measurement fixturestests/integration.rs746Updated measurement fixtures
+Test delta: 178 total (was 167, +11 new). After pushing, rebuild Docker and re-scan the six sites. Every confidence cell should read High.
