@@ -1,6 +1,6 @@
 # PLENUMNET — TERNARY DOMAIN NAME SYSTEM
 
-## Version 2.3.2 Specification — First-Principle Derivation Engine
+## Version 2.3.4 Specification — First-Principle Derivation Engine
 
 **27-Dimensional Ontological Addressing + 28th Collision Resolution Digit**
 
