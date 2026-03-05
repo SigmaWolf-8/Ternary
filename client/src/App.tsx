@@ -58,7 +58,7 @@ const QuantumSim = lazy(() => import("@/pages/quantum-sim"));
 const ApiKeysPage = lazy(() => import("@/pages/api-keys"));
 const FPGABenchmarks = lazy(() => import("@/pages/fpga-benchmarks"));
 const TsaPage = lazy(() => import("@/pages/tsa"));
-const InstallExtension = lazy(() => import("@/pages/install-extension"));
+import InstallExtensionDialog from "@/components/InstallExtensionCard";
 
 function LoadingSpinner() {
   return (
@@ -76,6 +76,7 @@ function AppRouter() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <MarketingTopNav />
+      <InstallExtensionDialog />
       <main id="main-content" className="flex-1">
         <Suspense fallback={<LoadingSpinner />}>
           <Switch>
@@ -106,7 +107,6 @@ function AppRouter() {
             <Route path="/13-moon" component={ThirteenMoonPage} />
 
             {/* Reference and Documentation */}
-            <Route path="/install-extension" component={InstallExtension} />
             <Route path="/docs" component={Docs} />
             <Route path="/compliance" component={CompliancePage} />
             <Route path="/tsa" component={TsaPage} />

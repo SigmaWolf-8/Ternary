@@ -26,8 +26,19 @@ export default function InstallExtensionDialog() {
     ? `irm ${window.location.origin}/install.ps1 | iex`
     : `curl -sL ${window.location.origin}/install.ps1 | bash`;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(cmd);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = cmd;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   };

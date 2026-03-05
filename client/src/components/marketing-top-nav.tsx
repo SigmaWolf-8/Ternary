@@ -155,6 +155,23 @@ function NavItemLink({
   const isAnchor = item.href.startsWith("/#");
   const anchorId = isAnchor ? item.href.slice(2) : "";
 
+  if (item.href === "#install-extension") {
+    return (
+      <a
+        href="#"
+        className={className}
+        data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+        onClick={(e) => {
+          e.preventDefault();
+          onNavigate?.();
+          triggerInstallDialog();
+        }}
+      >
+        {item.title}
+      </a>
+    );
+  }
+
   if (item.external) {
     return (
       <a
