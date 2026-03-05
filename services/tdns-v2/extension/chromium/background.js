@@ -1,7 +1,30 @@
-var PLM_API = "https://plenumnet.replit.app";
+var PROD_API = "https://plenumnet.replit.app";
+var DEV_API = "";
+var PLM_API = PROD_API;
+
+function tryResolve(name, callback) {
+  var urls = [PROD_API];
+  if (DEV_API) urls.unshift(DEV_API);
+
+  function attempt(i) {
+    if (i >= urls.length) { callback(null); return; }
+    fetch(urls[i] + "/api/tdns/resolve?name=" + encodeURIComponent(name))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.resolved) {
+          PLM_API = urls[i];
+          callback(data);
+        } else {
+          callback(data);
+        }
+      })
+      .catch(function() { attempt(i + 1); });
+  }
+  attempt(0);
+}
 
 chrome.runtime.onInstalled.addListener(function() {
-  chrome.storage.local.set({ plm_api: PLM_API, version: "2.3.4" });
+  chrome.storage.local.set({ version: "2.3.4" });
 });
 
 chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
@@ -36,9 +59,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
 
 chrome.omnibox.onInputEntered.addListener(function(text) {
   var name = text.trim();
-  if (!name.endsWith(".plm")) {
-    name = name + ".plm";
-  }
+  if (!name.endsWith(".plm")) name = name + ".plm";
   chrome.tabs.update({
     url: PLM_API + "/api/tdns/resolve?name=" + encodeURIComponent(name) + "&redirect=1"
   });
@@ -46,28 +67,25 @@ chrome.omnibox.onInputEntered.addListener(function(text) {
 
 chrome.omnibox.onInputChanged.addListener(function(text, suggest) {
   var name = text.trim();
-  if (!name.endsWith(".plm")) {
-    name = name + ".plm";
-  }
-  fetch(PLM_API + "/api/tdns/resolve?name=" + encodeURIComponent(name))
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.resolved) {
-        suggest([{
-          content: name,
-          description: name + " -> " + data.target
-        }]);
-      }
-    })
-    .catch(function() {});
+  if (!name.endsWith(".plm")) name = name + ".plm";
+  tryResolve(name, function(data) {
+    if (data && data.resolved) {
+      suggest([{ content: name, description: name + " -> " + data.target }]);
+    }
+  });
 });
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if (msg.type === "resolve_plm") {
-    fetch(PLM_API + "/api/tdns/resolve?name=" + encodeURIComponent(msg.name))
-      .then(function(r) { return r.json(); })
-      .then(function(data) { sendResponse(data); })
-      .catch(function(err) { sendResponse({ error: err.message }); });
+    tryResolve(msg.name, function(data) {
+      sendResponse(data || { error: "Resolution failed" });
+    });
+    return true;
+  }
+  if (msg.type === "set_dev_api") {
+    DEV_API = msg.url;
+    PLM_API = msg.url;
+    sendResponse({ ok: true });
     return true;
   }
 });
