@@ -22,6 +22,9 @@
       "128": "icon128.png"
     }
   },
+  "omnibox": {
+    "keyword": "plm"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
