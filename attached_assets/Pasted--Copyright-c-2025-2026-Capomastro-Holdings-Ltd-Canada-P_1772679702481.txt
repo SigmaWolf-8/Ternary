@@ -1,0 +1,625 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// All Rights Reserved.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+
+//! # Service 3: Cube Registration Service (CRS)
+//!
+//! Allows new cubes to join the network, assigns them a unique Rep C
+//! address, and provides the physical endpoint information needed to
+//! establish overlay tunnels to geometric neighbors.
+//!
+//! ## Design Principle
+//!
+//! The CRS is a thin coordination layer. It does NOT compute routing,
+//! maintain topology, or make forwarding decisions. Its only job is to
+//! map cube addresses (derived from geometry) to physical endpoints
+//! (IP:port). Neighbor relationships are derived from the address itself.
+//!
+//! ## Recursive Design
+//!
+//! - Level 1 addresses: 13 trits assigned by the root CRS
+//! - Level 2 addresses: inner CRS of each cube assigns the next 13 trits
+//! - Same API, same algorithm at every level
+
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
+use alloc::string::String;
+
+use super::cube_addr::{CubeAddr, TritC, CUBE_DIMENSIONS, CUBE_VERTICES};
+use super::overlay::PhysicalEndpoint;
+
+// ══════════════════════════════════════════════════════════════════════
+// CUBE STATUS
+// ══════════════════════════════════════════════════════════════════════
+
+/// Operational status of a registered cube.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CubeStatus {
+    /// Active and sending heartbeats. Tunnels expected.
+    Active,
+    /// Shutting down gracefully — stop sending new traffic.
+    Draining,
+    /// Missed heartbeats — neighbors notified.
+    Offline,
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CUBE RECORD — The only stored state in the system
+// ══════════════════════════════════════════════════════════════════════
+
+/// Registry record for a single cube.
+///
+/// This is the only truly stored state in the entire inter-cube
+/// infrastructure. Everything else is computed from geometry.
+#[derive(Debug, Clone)]
+pub struct CubeRecord {
+    /// Primary key — Rep C address, no zeros.
+    pub addr: CubeAddr,
+    /// Physical IP:port of the cube's gateway nodes.
+    pub endpoints: Vec<PhysicalEndpoint>,
+    /// Identity public key for tunnel authentication (32 bytes).
+    pub public_key: [u8; 32],
+    /// Current operational status.
+    pub status: CubeStatus,
+    /// Tick of last heartbeat received.
+    pub last_heartbeat_tick: u64,
+    /// Tick when this cube was registered.
+    pub registered_at_tick: u64,
+    /// Optional metadata (version, capabilities, etc.).
+    pub metadata: Option<String>,
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// NEIGHBOR RESOLUTION RESULT
+// ══════════════════════════════════════════════════════════════════════
+
+/// Information about a geometric neighbor, resolved from the registry.
+#[derive(Debug, Clone)]
+pub struct ResolvedNeighbor {
+    /// The neighbor's cube address (computed from geometry).
+    pub addr: CubeAddr,
+    /// Dimension that differs from the queried cube.
+    pub dimension: usize,
+    /// The trit value in the differing dimension.
+    pub alt_value: TritC,
+    /// Physical endpoint, if the neighbor is registered.
+    pub endpoint: Option<PhysicalEndpoint>,
+    /// Public key, if the neighbor is registered.
+    pub public_key: Option<[u8; 32]>,
+    /// Status, if the neighbor is registered.
+    pub status: Option<CubeStatus>,
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// REGISTRATION RESULT
+// ══════════════════════════════════════════════════════════════════════
+
+/// Result of a successful registration.
+#[derive(Debug, Clone)]
+pub struct RegistrationResult {
+    /// The assigned cube address.
+    pub address: CubeAddr,
+    /// All 26 geometric neighbors with their resolved endpoints.
+    pub neighbors: Vec<ResolvedNeighbor>,
+    /// Recommended heartbeat interval in ticks.
+    pub heartbeat_interval: u64,
+}
+
+/// CRS error conditions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CrsError {
+    /// No free addresses available in the allocation space.
+    AddressSpaceExhausted,
+    /// The requested address is already in use.
+    AddressAlreadyRegistered,
+    /// The requested address is in its deregistration grace period.
+    AddressInGracePeriod,
+    /// The address is not registered.
+    NotRegistered,
+    /// Invalid address (contains zeros or wrong length).
+    InvalidAddress,
+    /// Signature verification failed.
+    AuthenticationFailed,
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CUBE REGISTRATION SERVICE
+// ══════════════════════════════════════════════════════════════════════
+
+/// The Cube Registration Service.
+///
+/// Manages address allocation and the physical endpoint registry.
+/// This is the only component with genuinely stored state (the
+/// address-to-endpoint mapping). Everything else is geometry.
+pub struct CubeRegistrationService {
+    /// The registry: address → record.
+    registry: BTreeMap<u64, CubeRecord>,
+    /// Free address indices (available for allocation).
+    free_list: Vec<u64>,
+    /// Addresses in their deregistration grace period.
+    /// Maps address index → tick when grace period expires.
+    grace_period_addrs: BTreeMap<u64, u64>,
+    /// Grace period duration in ticks (default: 86400 = 24h at 1 tick/sec).
+    grace_period_ticks: u64,
+    /// Default heartbeat interval for registered cubes.
+    heartbeat_interval: u64,
+    /// Ticks after which a cube is marked offline if no heartbeat.
+    offline_threshold_ticks: u64,
+    /// Current tick counter.
+    current_tick: u64,
+    /// This CRS's hierarchy level (0 = root).
+    level: usize,
+    /// Statistics.
+    stats: CrsStats,
+}
+
+/// CRS statistics.
+#[derive(Debug, Clone, Default)]
+pub struct CrsStats {
+    /// Total registrations performed.
+    pub total_registrations: u64,
+    /// Total deregistrations performed.
+    pub total_deregistrations: u64,
+    /// Total heartbeats received.
+    pub total_heartbeats: u64,
+    /// Total lookups performed.
+    pub total_lookups: u64,
+    /// Total neighbor computations.
+    pub total_neighbor_computations: u64,
+    /// Current number of active cubes.
+    pub active_cubes: u64,
+    /// Current number of offline cubes.
+    pub offline_cubes: u64,
+}
+
+impl CubeRegistrationService {
+    /// Create a new CRS at the specified hierarchy level.
+    ///
+    /// `level` = 0 for root CRS, 1 for inner CRS of a cube, etc.
+    /// The free list is initialized with all 3^13 possible addresses.
+    pub fn new(level: usize) -> Self {
+        // Initialize free list with all possible address indices.
+        // For a production system, this would use a bitmap or
+        // range-based allocator. Here we use a simple vector.
+        let free_list: Vec<u64> = (0..CUBE_VERTICES).collect();
+
+        CubeRegistrationService {
+            registry: BTreeMap::new(),
+            free_list,
+            grace_period_addrs: BTreeMap::new(),
+            grace_period_ticks: 86400,
+            heartbeat_interval: 30,
+            offline_threshold_ticks: 90, // 3x heartbeat interval
+            current_tick: 0,
+            level,
+            stats: CrsStats::default(),
+        }
+    }
+
+    /// Create with custom timing parameters.
+    pub fn with_timing(
+        mut self,
+        heartbeat_interval: u64,
+        offline_threshold: u64,
+        grace_period: u64,
+    ) -> Self {
+        self.heartbeat_interval = heartbeat_interval;
+        self.offline_threshold_ticks = offline_threshold;
+        self.grace_period_ticks = grace_period;
+        self
+    }
+
+    /// Number of registered cubes.
+    pub fn registered_count(&self) -> usize {
+        self.registry.len()
+    }
+
+    /// Number of available addresses.
+    pub fn available_addresses(&self) -> usize {
+        self.free_list.len()
+    }
+
+    /// Get current statistics.
+    pub fn stats(&self) -> &CrsStats {
+        &self.stats
+    }
+
+    // ── Registration ─────────────────────────────────────────────
+
+    /// Register a new cube.
+    ///
+    /// # Bootstrap Process
+    /// 1. Allocate an address from the free list
+    /// 2. Compute 26 geometric neighbors (trit flips)
+    /// 3. Look up endpoints for each neighbor in the registry
+    /// 4. Return the address and resolved neighbor list
+    pub fn register(
+        &mut self,
+        endpoint: PhysicalEndpoint,
+        public_key: [u8; 32],
+        desired_address: Option<&CubeAddr>,
+    ) -> Result<RegistrationResult, CrsError> {
+        // Allocate address
+        let addr = match desired_address {
+            Some(desired) => {
+                let idx = desired.to_index();
+                // Check if available
+                if self.registry.contains_key(&idx) {
+                    return Err(CrsError::AddressAlreadyRegistered);
+                }
+                if self.grace_period_addrs.contains_key(&idx) {
+                    return Err(CrsError::AddressInGracePeriod);
+                }
+                // Remove from free list
+                if let Some(pos) = self.free_list.iter().position(|&x| x == idx) {
+                    self.free_list.swap_remove(pos);
+                    desired.clone()
+                } else {
+                    return Err(CrsError::AddressAlreadyRegistered);
+                }
+            }
+            None => {
+                // Allocate next available
+                if self.free_list.is_empty() {
+                    return Err(CrsError::AddressSpaceExhausted);
+                }
+                let idx = self.free_list.pop().unwrap();
+                CubeAddr::from_index(idx).ok_or(CrsError::InvalidAddress)?
+            }
+        };
+
+        // Validate Rep C invariant
+        if !addr.is_valid() {
+            return Err(CrsError::InvalidAddress);
+        }
+
+        // Create registry record
+        let record = CubeRecord {
+            addr: addr.clone(),
+            endpoints: alloc::vec![endpoint],
+            public_key,
+            status: CubeStatus::Active,
+            last_heartbeat_tick: self.current_tick,
+            registered_at_tick: self.current_tick,
+            metadata: None,
+        };
+
+        let idx = addr.to_index();
+        self.registry.insert(idx, record);
+        self.stats.total_registrations += 1;
+        self.stats.active_cubes += 1;
+
+        // Compute neighbors and resolve their endpoints
+        let neighbors = self.compute_and_resolve_neighbors(&addr);
+
+        Ok(RegistrationResult {
+            address: addr,
+            neighbors,
+            heartbeat_interval: self.heartbeat_interval,
+        })
+    }
+
+    /// Compute 26 geometric neighbors and resolve their physical endpoints.
+    ///
+    /// **Neighbors are computed, not stored.** Flip each of 13 trits to
+    /// its 2 alternative values. For each result, look up the registry.
+    fn compute_and_resolve_neighbors(&mut self, addr: &CubeAddr) -> Vec<ResolvedNeighbor> {
+        self.stats.total_neighbor_computations += 1;
+
+        addr.neighbors()
+            .into_iter()
+            .map(|(nbr_addr, dim, alt)| {
+                let idx = nbr_addr.to_index();
+                let record = self.registry.get(&idx);
+
+                ResolvedNeighbor {
+                    addr: nbr_addr,
+                    dimension: dim,
+                    alt_value: alt,
+                    endpoint: record.and_then(|r| r.endpoints.first().cloned()),
+                    public_key: record.map(|r| r.public_key),
+                    status: record.map(|r| r.status),
+                }
+            })
+            .collect()
+    }
+
+    // ── Lookup ───────────────────────────────────────────────────
+
+    /// Look up a cube by address.
+    pub fn lookup(&mut self, addr: &CubeAddr) -> Option<&CubeRecord> {
+        self.stats.total_lookups += 1;
+        self.registry.get(&addr.to_index())
+    }
+
+    /// Look up neighbors of a cube (computed on the fly, not stored).
+    pub fn neighbors_of(&mut self, addr: &CubeAddr) -> Vec<ResolvedNeighbor> {
+        self.compute_and_resolve_neighbors(addr)
+    }
+
+    // ── Heartbeat ────────────────────────────────────────────────
+
+    /// Process a heartbeat from a registered cube.
+    pub fn heartbeat(
+        &mut self,
+        addr: &CubeAddr,
+        endpoint: Option<PhysicalEndpoint>,
+    ) -> Result<u64, CrsError> {
+        let idx = addr.to_index();
+        let record = self.registry.get_mut(&idx).ok_or(CrsError::NotRegistered)?;
+
+        record.last_heartbeat_tick = self.current_tick;
+        record.status = CubeStatus::Active;
+
+        // Update endpoint if provided (cube may have changed IP)
+        if let Some(ep) = endpoint {
+            if record.endpoints.is_empty() {
+                record.endpoints.push(ep);
+            } else {
+                record.endpoints[0] = ep;
+            }
+        }
+
+        self.stats.total_heartbeats += 1;
+
+        // Return next heartbeat interval
+        Ok(self.heartbeat_interval)
+    }
+
+    // ── Deregistration ───────────────────────────────────────────
+
+    /// Deregister a cube. The address enters a grace period during
+    /// which it cannot be reallocated.
+    pub fn deregister(&mut self, addr: &CubeAddr) -> Result<u64, CrsError> {
+        let idx = addr.to_index();
+        if self.registry.remove(&idx).is_none() {
+            return Err(CrsError::NotRegistered);
+        }
+
+        // Enter grace period
+        let expires = self.current_tick + self.grace_period_ticks;
+        self.grace_period_addrs.insert(idx, expires);
+
+        self.stats.total_deregistrations += 1;
+        self.stats.active_cubes = self.stats.active_cubes.saturating_sub(1);
+
+        Ok(self.grace_period_ticks)
+    }
+
+    // ── Tick & Maintenance ───────────────────────────────────────
+
+    /// Advance tick counter. Marks stale cubes offline and expires
+    /// grace period addresses.
+    pub fn tick(&mut self) {
+        self.current_tick += 1;
+
+        // Mark cubes offline if they've missed heartbeats
+        let threshold = self.offline_threshold_ticks;
+        let tick = self.current_tick;
+        let mut offline_count = 0u64;
+        let mut active_count = 0u64;
+
+        for record in self.registry.values_mut() {
+            if tick.saturating_sub(record.last_heartbeat_tick) > threshold {
+                if record.status == CubeStatus::Active {
+                    record.status = CubeStatus::Offline;
+                }
+            }
+            match record.status {
+                CubeStatus::Offline => offline_count += 1,
+                CubeStatus::Active => active_count += 1,
+                CubeStatus::Draining => {}
+            }
+        }
+
+        self.stats.active_cubes = active_count;
+        self.stats.offline_cubes = offline_count;
+
+        // Expire grace period addresses (return them to the free list)
+        let mut expired = Vec::new();
+        for (&idx, &expires) in &self.grace_period_addrs {
+            if tick >= expires {
+                expired.push(idx);
+            }
+        }
+        for idx in expired {
+            self.grace_period_addrs.remove(&idx);
+            self.free_list.push(idx);
+        }
+    }
+
+    // ── Diagnostic APIs ──────────────────────────────────────────
+
+    /// List all active cubes.
+    pub fn active_cubes(&self) -> Vec<&CubeRecord> {
+        self.registry.values().filter(|r| r.status == CubeStatus::Active).collect()
+    }
+
+    /// List all offline cubes.
+    pub fn offline_cubes(&self) -> Vec<&CubeRecord> {
+        self.registry.values().filter(|r| r.status == CubeStatus::Offline).collect()
+    }
+
+    /// Check if an address is currently registered.
+    pub fn is_registered(&self, addr: &CubeAddr) -> bool {
+        self.registry.contains_key(&addr.to_index())
+    }
+
+    /// Check if an address is in its grace period.
+    pub fn is_in_grace_period(&self, addr: &CubeAddr) -> bool {
+        self.grace_period_addrs.contains_key(&addr.to_index())
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TESTS
+// ══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_endpoint() -> PhysicalEndpoint {
+        PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820)
+    }
+
+    fn test_key() -> [u8; 32] {
+        [42u8; 32]
+    }
+
+    #[test]
+    fn test_register_and_lookup() {
+        let mut crs = CubeRegistrationService::new(0);
+        let result = crs.register(test_endpoint(), test_key(), None).unwrap();
+
+        assert!(result.address.is_valid());
+        assert_eq!(result.neighbors.len(), 26);
+
+        let record = crs.lookup(&result.address).unwrap();
+        assert_eq!(record.status, CubeStatus::Active);
+    }
+
+    #[test]
+    fn test_register_desired_address() {
+        let mut crs = CubeRegistrationService::new(0);
+        let desired = CubeAddr::from_raw(&[1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]).unwrap();
+        let result = crs.register(test_endpoint(), test_key(), Some(&desired)).unwrap();
+        assert_eq!(result.address, desired);
+    }
+
+    #[test]
+    fn test_register_duplicate_rejected() {
+        let mut crs = CubeRegistrationService::new(0);
+        let desired = CubeAddr::from_raw(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap();
+
+        crs.register(test_endpoint(), test_key(), Some(&desired)).unwrap();
+        let result = crs.register(test_endpoint(), test_key(), Some(&desired));
+        assert_eq!(result.unwrap_err(), CrsError::AddressAlreadyRegistered);
+    }
+
+    #[test]
+    fn test_neighbors_computed_not_stored() {
+        let mut crs = CubeRegistrationService::new(0);
+
+        // Register two cubes that are geometric neighbors
+        let a = CubeAddr::from_raw(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap();
+        let b = CubeAddr::from_raw(&[2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap();
+
+        let ep_a = PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820);
+        let ep_b = PhysicalEndpoint::ipv4(10, 0, 0, 2, 51820);
+
+        crs.register(ep_a.clone(), [1u8; 32], Some(&a)).unwrap();
+        crs.register(ep_b.clone(), [2u8; 32], Some(&b)).unwrap();
+
+        // Look up neighbors of A — B should appear with its endpoint
+        let neighbors = crs.neighbors_of(&a);
+        let b_neighbor = neighbors.iter().find(|n| n.addr == b);
+        assert!(b_neighbor.is_some());
+        assert!(b_neighbor.unwrap().endpoint.is_some());
+    }
+
+    #[test]
+    fn test_heartbeat() {
+        let mut crs = CubeRegistrationService::new(0);
+        let result = crs.register(test_endpoint(), test_key(), None).unwrap();
+        let addr = result.address;
+
+        let interval = crs.heartbeat(&addr, None).unwrap();
+        assert_eq!(interval, 30); // default heartbeat interval
+    }
+
+    #[test]
+    fn test_offline_detection() {
+        let mut crs = CubeRegistrationService::new(0)
+            .with_timing(30, 90, 86400);
+
+        let result = crs.register(test_endpoint(), test_key(), None).unwrap();
+        let addr = result.address;
+
+        // Advance past offline threshold
+        for _ in 0..100 {
+            crs.tick();
+        }
+
+        let record = crs.lookup(&addr).unwrap();
+        assert_eq!(record.status, CubeStatus::Offline);
+    }
+
+    #[test]
+    fn test_deregister_and_grace_period() {
+        let mut crs = CubeRegistrationService::new(0)
+            .with_timing(30, 90, 10); // Short grace period for testing
+
+        let desired = CubeAddr::from_raw(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap();
+        crs.register(test_endpoint(), test_key(), Some(&desired)).unwrap();
+
+        // Deregister
+        let grace = crs.deregister(&desired).unwrap();
+        assert_eq!(grace, 10);
+
+        // Address should be in grace period
+        assert!(crs.is_in_grace_period(&desired));
+        assert!(!crs.is_registered(&desired));
+
+        // Can't re-register during grace period
+        let result = crs.register(test_endpoint(), test_key(), Some(&desired));
+        assert_eq!(result.unwrap_err(), CrsError::AddressInGracePeriod);
+
+        // Advance past grace period
+        for _ in 0..15 {
+            crs.tick();
+        }
+
+        // Now the address should be available
+        assert!(!crs.is_in_grace_period(&desired));
+        crs.register(test_endpoint(), test_key(), Some(&desired)).unwrap();
+    }
+
+    #[test]
+    fn test_address_space_capacity() {
+        let crs = CubeRegistrationService::new(0);
+        assert_eq!(crs.available_addresses() as u64, CUBE_VERTICES);
+    }
+
+    #[test]
+    fn test_rep_c_guarantees_no_zeros() {
+        let mut crs = CubeRegistrationService::new(0);
+
+        // Register 100 cubes and verify every address is valid Rep C
+        for _ in 0..100 {
+            let result = crs.register(test_endpoint(), test_key(), None).unwrap();
+            assert!(result.address.is_valid());
+
+            // Explicit: no zeros in any trit
+            for i in 0..CUBE_DIMENSIONS {
+                assert!(result.address.get(i).value() >= 1);
+                assert!(result.address.get(i).value() <= 3);
+            }
+        }
+    }
+
+    #[test]
+    fn test_endpoint_update_on_heartbeat() {
+        let mut crs = CubeRegistrationService::new(0);
+        let result = crs.register(test_endpoint(), test_key(), None).unwrap();
+        let addr = result.address;
+
+        // Update endpoint via heartbeat
+        let new_ep = PhysicalEndpoint::ipv4(192, 168, 1, 100, 51820);
+        crs.heartbeat(&addr, Some(new_ep.clone())).unwrap();
+
+        let record = crs.lookup(&addr).unwrap();
+        assert_eq!(record.endpoints[0].port, 51820);
+        assert_eq!(record.endpoints[0].addr_bytes, alloc::vec![192, 168, 1, 100]);
+    }
+}

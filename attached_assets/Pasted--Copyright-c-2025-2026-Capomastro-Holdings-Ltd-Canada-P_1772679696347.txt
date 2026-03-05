@@ -1,0 +1,393 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// All Rights Reserved.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+
+//! # PlenumNET Inter-Cube Infrastructure Services
+//!
+//! Four lightweight software services that handle connections between
+//! cubes in the Metatronic geometry. No special hardware, no protocol
+//! changes, no routing tables — all four are computed directly from
+//! the 13-trit Rep C addresses.
+//!
+//! ## Service Architecture
+//!
+//! ```text
+//!                     ┌─────┐
+//!                     │ CRS │  ← Coordination (address + endpoint registry)
+//!                     └──┬──┘
+//!                        │ neighbor endpoints
+//!                        ▼
+//!                     ┌─────┐
+//!                     │ CON │  ← Connectivity (encrypted tunnels)
+//!                     └──┬──┘
+//!                        │ tunnel health
+//!                        ▼
+//!                     ┌─────┐
+//!                     │ FTS │  ← Monitoring (dead neighbor set)
+//!                     └──┬──┘
+//!                        │ dead set
+//!                        ▼
+//!                     ┌─────┐
+//!                     │ GLB │  ← Forwarding (pure math + flow affinity)
+//!                     └─────┘
+//! ```
+//!
+//! ## Startup Sequence
+//!
+//! 1. **CRS** → Register, get address + neighbor endpoints
+//! 2. **CON** → Build tunnels to all 26 neighbors
+//! 3. **FTS** → Begin heartbeats on all tunnels
+//! 4. **GLB** → Ready to forward. Dead set empty. All 26 paths available.
+//!
+//! ## Failure Handling
+//!
+//! - FTS detects via missed heartbeats → adds to dead set
+//! - GLB skips dead neighbor in path computation → traffic reroutes
+//! - CON tears down dead tunnel
+//! - CRS marks cube as offline after extended absence
+//!
+//! ## Recovery
+//!
+//! - FTS detects via resumed heartbeats → probation → removes from dead set
+//! - GLB naturally includes the recovered neighbor in path computation
+//! - CON re-establishes tunnel
+//!
+//! ## No Stored Routing State
+//!
+//! The CRS stores address-to-endpoint mappings (the physical directory).
+//! The FTS stores neighbor health (26 entries). The GLB stores active
+//! flow affinity (transient). Everything else is computed from the trit
+//! coordinates on every packet.
+
+pub mod cube_addr;
+pub mod glb;
+pub mod overlay;
+pub mod crs;
+pub mod fts;
+
+// Re-exports for convenience
+pub use cube_addr::{CubeAddr, TritC, MultiLevelAddr, CUBE_DIMENSIONS, CUBE_VERTICES, MAX_NEIGHBORS};
+pub use glb::{GeometricLoadBalancer, ForwardResult, GlbError};
+pub use overlay::{CubeOverlayNetwork, TunnelState, TunnelProtocol, PhysicalEndpoint, Neighbor};
+pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, CrsError};
+pub use fts::{FaultToleranceService, NeighborState, NeighborHealth, FtsEvent};
+
+// ══════════════════════════════════════════════════════════════════════
+// INTEGRATED CUBE NODE — All four services in one handle
+// ══════════════════════════════════════════════════════════════════════
+
+/// An integrated inter-cube node that orchestrates all four services.
+///
+/// This is the primary entry point for a cube joining the network.
+/// It manages the full lifecycle: registration → tunnel setup →
+/// monitoring → forwarding.
+pub struct InterCubeNode {
+    /// This node's cube address (assigned during registration).
+    pub address: CubeAddr,
+    /// Service 1: Geometric Load Balancer.
+    pub glb: GeometricLoadBalancer,
+    /// Service 2: Cube Overlay Network.
+    pub con: CubeOverlayNetwork,
+    /// Service 4: Fault Tolerance Service.
+    pub fts: FaultToleranceService,
+}
+
+impl InterCubeNode {
+    /// Bootstrap a new inter-cube node.
+    ///
+    /// # Arguments
+    /// - `address`: The cube address (from CRS registration).
+    /// - `protocol`: The tunnel encryption protocol to use.
+    ///
+    /// This performs steps 2-4 of the startup sequence:
+    /// 1. CRS registration is done externally (returns the address)
+    /// 2. CON is initialized with the address (computes 26 neighbors)
+    /// 3. FTS is initialized (begins monitoring)
+    /// 4. GLB is initialized (ready to forward)
+    pub fn bootstrap(address: CubeAddr, protocol: TunnelProtocol) -> Self {
+        let glb = GeometricLoadBalancer::new(address.clone());
+        let con = CubeOverlayNetwork::new(address.clone(), protocol);
+        let fts = FaultToleranceService::new(&address);
+
+        InterCubeNode {
+            address,
+            glb,
+            con,
+            fts,
+        }
+    }
+
+    /// Process one tick of the system.
+    ///
+    /// This is the main event loop. Each tick:
+    /// 1. FTS sends heartbeats and processes timeouts
+    /// 2. FTS events update CON tunnel states
+    /// 3. FTS dead set is published to GLB
+    /// 4. GLB expires stale flow entries
+    /// 5. CON checks for maintenance tasks
+    pub fn tick(&mut self) {
+        // Step 1: FTS tick — detect failures, produce events
+        let fts_events = self.fts.tick();
+
+        // Step 2: Process FTS events
+        for event in &fts_events {
+            match event {
+                FtsEvent::NeighborDown { addr, .. } => {
+                    self.con.tunnel_down(addr);
+                }
+                FtsEvent::NeighborUp { addr, .. } => {
+                    // Trigger tunnel re-establishment
+                    self.con.reconnect_neighbor(addr);
+                }
+                FtsEvent::NeighborRecovering { .. } => {
+                    // Wait for full recovery before reconnecting
+                }
+                FtsEvent::NeighborSuspect { .. } => {
+                    // No action yet — wait for confirmation
+                }
+                FtsEvent::DeadSetChanged { .. } => {
+                    // Step 3: Publish dead set to GLB
+                    self.glb.update_dead_set(self.fts.dead_set().to_vec());
+                }
+            }
+        }
+
+        // Step 4: GLB maintenance
+        self.glb.tick();
+
+        // Step 5: CON maintenance
+        self.con.tick();
+    }
+
+    /// Forward a packet through the inter-cube network.
+    pub fn forward(
+        &mut self,
+        destination: &CubeAddr,
+        flow_id: u64,
+    ) -> Result<ForwardResult, GlbError> {
+        self.glb.forward(destination, flow_id)
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// INTEGRATION TESTS — Full startup & routing scenarios
+// ══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use alloc::vec;
+
+    fn addr(raw: &[u8; 13]) -> CubeAddr {
+        CubeAddr::from_raw(raw).unwrap()
+    }
+
+    /// Test the complete bootstrap sequence for a new cube.
+    #[test]
+    fn test_full_bootstrap_sequence() {
+        // Step 1: CRS registration
+        let mut crs = CubeRegistrationService::new(0);
+        let ep = con::PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820);
+        let reg = crs.register(ep.clone(), [42u8; 32], None).unwrap();
+
+        // Verify: address is valid Rep C
+        assert!(reg.address.is_valid());
+        // Verify: 26 neighbors computed
+        assert_eq!(reg.neighbors.len(), 26);
+
+        // Steps 2-4: Bootstrap the node
+        let node = InterCubeNode::bootstrap(
+            reg.address.clone(),
+            TunnelProtocol::PqNative,
+        );
+
+        // Verify: CON has 26 neighbors
+        assert_eq!(node.con.neighbors().len(), 26);
+        // Verify: FTS is monitoring 26 neighbors
+        assert_eq!(node.fts.neighbors().len(), 26);
+        // Verify: GLB is ready with no dead neighbors
+        assert!(node.glb.dead_set().is_empty());
+    }
+
+    /// Test routing between two registered cubes.
+    #[test]
+    fn test_inter_cube_routing() {
+        let src = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let dst = addr(&[2, 1, 3, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+        let mut node = InterCubeNode::bootstrap(src.clone(), TunnelProtocol::PqNative);
+
+        let result = node.forward(&dst, 42).unwrap();
+        // Hamming distance = 3 (dims 0, 2, 4)
+        assert_eq!(result.remaining_hops, 2); // one hop taken
+        assert!(result.dimension_fixed == 0 || result.dimension_fixed == 2 || result.dimension_fixed == 4);
+        assert!(!result.is_detour);
+    }
+
+    /// Test that routing works after a neighbor failure.
+    #[test]
+    fn test_routing_through_failure() {
+        let src = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let dst = addr(&[2, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+        let mut node = InterCubeNode::bootstrap(src.clone(), TunnelProtocol::PqNative);
+
+        // Kill the neighbor at dimension 0 → [2,1,1,1,1,1,1,1,1,1,1,1,1]
+        let dead_nbr = addr(&[2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        node.fts.force_mark_down(&dead_nbr);
+        node.glb.update_dead_set(node.fts.dead_set().to_vec());
+
+        let result = node.forward(&dst, 42).unwrap();
+        // Must route through dim 2 since dim 0 is blocked
+        assert_eq!(result.dimension_fixed, 2);
+        assert_eq!(result.live_paths, 1);
+    }
+
+    /// Test recovery: dead neighbor comes back.
+    #[test]
+    fn test_failure_and_recovery() {
+        let src = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut node = InterCubeNode::bootstrap(src, TunnelProtocol::PqNative);
+
+        let nbr = node.fts.neighbors()[0].addr.clone();
+
+        // Fail
+        node.fts.force_mark_down(&nbr);
+        node.glb.update_dead_set(node.fts.dead_set().to_vec());
+        assert_eq!(node.glb.dead_set().len(), 1);
+
+        // Recover
+        node.fts.force_mark_up(&nbr);
+        node.glb.update_dead_set(node.fts.dead_set().to_vec());
+        assert!(node.glb.dead_set().is_empty());
+    }
+
+    /// Test the tick loop integrates FTS→GLB correctly.
+    #[test]
+    fn test_tick_integration() {
+        let src = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut node = InterCubeNode::bootstrap(src, TunnelProtocol::PqNative);
+
+        // Run several ticks — should not crash
+        for _ in 0..100 {
+            node.tick();
+        }
+
+        // All neighbors should still be monitored
+        assert_eq!(node.fts.neighbors().len(), 26);
+    }
+
+    /// Test CRS + CON integration: resolved neighbors get tunnels.
+    #[test]
+    fn test_crs_con_integration() {
+        let mut crs = CubeRegistrationService::new(0);
+
+        // Register two neighboring cubes
+        let addr_a = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let addr_b = addr(&[2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+        let ep_a = con::PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820);
+        let ep_b = con::PhysicalEndpoint::ipv4(10, 0, 0, 2, 51820);
+
+        crs.register(ep_a.clone(), [1u8; 32], Some(&addr_a)).unwrap();
+        crs.register(ep_b.clone(), [2u8; 32], Some(&addr_b)).unwrap();
+
+        // Create CON for cube A
+        let mut con_a = CubeOverlayNetwork::new(addr_a.clone(), TunnelProtocol::PqNative);
+
+        // Resolve neighbor B from CRS
+        let neighbors = crs.neighbors_of(&addr_a);
+        let b_info = neighbors.iter().find(|n| n.addr == addr_b).unwrap();
+        assert!(b_info.endpoint.is_some());
+
+        // Feed resolution to CON
+        con_a.resolve_neighbor(
+            &addr_b,
+            b_info.endpoint.clone().unwrap(),
+            b_info.public_key.unwrap(),
+        );
+        con_a.tunnel_established(&addr_b);
+
+        assert_eq!(con_a.get_neighbor_by_addr(&addr_b).unwrap().state, TunnelState::Up);
+    }
+
+    /// Test multi-level addressing and routing level determination.
+    #[test]
+    fn test_multi_level_addressing() {
+        let outer_a = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let inner_a = addr(&[2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2]);
+
+        let outer_b = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]); // Same outer
+        let inner_b = addr(&[3, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2]); // Different inner
+
+        let ml_a = MultiLevelAddr::new(vec![outer_a, inner_a]);
+        let ml_b = MultiLevelAddr::new(vec![outer_b, inner_b]);
+
+        // Same outer level → route at level 1 (intra-cube)
+        assert_eq!(ml_a.routing_level(&ml_b), Some(1));
+        assert_eq!(ml_a.total_trits(), 26);
+
+        let outer_c = addr(&[2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]); // Different outer
+        let inner_c = addr(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let ml_c = MultiLevelAddr::new(vec![outer_c, inner_c]);
+
+        // Different outer level → route at level 0 (inter-cube)
+        assert_eq!(ml_a.routing_level(&ml_c), Some(0));
+    }
+
+    /// Verify that the entire system uses only Rep C (no zeros).
+    #[test]
+    fn test_zero_never_appears() {
+        let mut crs = CubeRegistrationService::new(0);
+
+        for _ in 0..50 {
+            let ep = con::PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820);
+            let reg = crs.register(ep, [0u8; 32], None).unwrap();
+
+            // Main address: no zeros
+            for i in 0..CUBE_DIMENSIONS {
+                assert!(reg.address.get(i).value() >= 1, "Zero found in registered address");
+            }
+
+            // All neighbor addresses: no zeros
+            for nbr in &reg.neighbors {
+                for i in 0..CUBE_DIMENSIONS {
+                    assert!(nbr.addr.get(i).value() >= 1, "Zero found in neighbor address");
+                }
+            }
+        }
+    }
+
+    /// Verify geometric properties are preserved.
+    #[test]
+    fn test_geometric_invariants() {
+        let src = addr(&[1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]);
+        let dst = addr(&[3, 2, 1, 1, 2, 3, 3, 2, 1, 1, 2, 3, 1]);
+
+        let distance = src.hamming_distance(&dst);
+        let delta = src.delta(&dst);
+        let path_count = src.shortest_path_count(&dst);
+
+        // distance = |delta|
+        assert_eq!(distance, delta.len());
+
+        // path_count = delta!
+        assert_eq!(path_count, super::cube_addr::factorial(distance as u64));
+
+        // Every neighbor of src differs by exactly 1 trit
+        for (nbr, _, _) in src.neighbors() {
+            assert_eq!(src.hamming_distance(&nbr), 1);
+            assert!(nbr.is_valid()); // Rep C preserved
+        }
+    }
+}

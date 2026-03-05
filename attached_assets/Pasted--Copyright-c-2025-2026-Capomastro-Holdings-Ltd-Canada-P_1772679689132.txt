@@ -1,0 +1,635 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// All Rights Reserved.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+
+//! # Service 2: Cube Overlay Network (CON)
+//!
+//! Decouples logical cube adjacency (neighbors that differ by one trit)
+//! from the physical network. Creates encrypted tunnels between geometric
+//! neighbors regardless of physical location — same rack, different
+//! continent, or across the public internet.
+//!
+//! ## Design Principle
+//!
+//! The geometry tells each cube exactly who its neighbors are. The overlay
+//! builds tunnels to them. No discovery protocol, no neighbor negotiation —
+//! the math produces the neighbor list, the overlay connects them.
+//!
+//! ## Properties
+//!
+//! - **Deterministic neighbor list**: computed from address, never discovered.
+//! - **Exactly 26 neighbors**: bounded, predictable resource usage.
+//! - **Shell model preserved**: outer-shell handles inter-cube, inner never
+//!   leaves the cube.
+//! - **Physical topology invisible**: routing sees only the geometry.
+
+use alloc::string::String;
+use alloc::vec::Vec;
+use alloc::format;
+
+use super::cube_addr::{CubeAddr, TritC, CUBE_DIMENSIONS, MAX_NEIGHBORS};
+
+// ══════════════════════════════════════════════════════════════════════
+// TUNNEL STATE MACHINE
+// ══════════════════════════════════════════════════════════════════════
+
+/// State of a tunnel to a geometric neighbor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TunnelState {
+    /// Neighbor computed but not yet resolved (no endpoint info).
+    Unknown,
+    /// Querying the CRS for endpoint and public key.
+    Resolving,
+    /// Tunnel handshake in progress.
+    Connecting,
+    /// Encrypted tunnel is active and passing traffic.
+    Up,
+    /// Heartbeat lost — reported to FTS.
+    Down,
+    /// Was down, now reconnecting after endpoint re-resolution.
+    Reconnecting,
+}
+
+impl TunnelState {
+    /// Whether the tunnel can carry traffic.
+    pub fn is_live(&self) -> bool {
+        matches!(self, TunnelState::Up)
+    }
+
+    /// Whether the tunnel is in a transitional state.
+    pub fn is_transitional(&self) -> bool {
+        matches!(
+            self,
+            TunnelState::Resolving | TunnelState::Connecting | TunnelState::Reconnecting
+        )
+    }
+}
+
+/// Tunnel protocol selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TunnelProtocol {
+    /// Standard WireGuard (Noise protocol, pre-exchanged keys).
+    WireGuard,
+    /// IPsec with IKEv2.
+    IPsec,
+    /// PlenumNET-native: keys derived from cryptographic sponge
+    /// using both cubes' Rep C addresses. Post-quantum by construction.
+    PqNative,
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PHYSICAL ENDPOINT
+// ══════════════════════════════════════════════════════════════════════
+
+/// Physical endpoint of a remote cube (IP:port).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhysicalEndpoint {
+    /// IPv4 or IPv6 address as bytes.
+    /// IPv4: 4 bytes. IPv6: 16 bytes.
+    pub addr_bytes: Vec<u8>,
+    /// Port number.
+    pub port: u16,
+    /// Whether this is IPv6.
+    pub is_ipv6: bool,
+}
+
+impl PhysicalEndpoint {
+    /// Create an IPv4 endpoint.
+    pub fn ipv4(a: u8, b: u8, c: u8, d: u8, port: u16) -> Self {
+        PhysicalEndpoint {
+            addr_bytes: alloc::vec![a, b, c, d],
+            port,
+            is_ipv6: false,
+        }
+    }
+
+    /// Format as string.
+    pub fn to_string_repr(&self) -> String {
+        if self.is_ipv6 {
+            format!("[{:?}]:{}", self.addr_bytes, self.port)
+        } else if self.addr_bytes.len() == 4 {
+            format!(
+                "{}.{}.{}.{}:{}",
+                self.addr_bytes[0], self.addr_bytes[1],
+                self.addr_bytes[2], self.addr_bytes[3],
+                self.port
+            )
+        } else {
+            format!("{:?}:{}", self.addr_bytes, self.port)
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// NEIGHBOR RECORD
+// ══════════════════════════════════════════════════════════════════════
+
+/// Complete record for one geometric neighbor.
+///
+/// Computed at boot from the local address. Physical endpoint and
+/// public key are resolved via the CRS (Service 3).
+#[derive(Debug, Clone)]
+pub struct Neighbor {
+    /// The neighbor's cube address (computed from geometry).
+    pub cube_addr: CubeAddr,
+    /// Which dimension differs from our local address.
+    pub dimension: usize,
+    /// What value the neighbor holds in the differing dimension.
+    pub alt_value: TritC,
+    /// Physical endpoint (from CRS resolution).
+    pub endpoint: Option<PhysicalEndpoint>,
+    /// Identity public key for tunnel authentication (32 bytes).
+    pub public_key: Option<[u8; 32]>,
+    /// Virtual interface name for this tunnel (e.g. "cubetun0").
+    pub tunnel_iface: Option<String>,
+    /// Current tunnel state.
+    pub state: TunnelState,
+    /// Tick of last successful heartbeat.
+    pub last_heartbeat_tick: Option<u64>,
+    /// Bytes received through this tunnel.
+    pub bytes_in: u64,
+    /// Bytes sent through this tunnel.
+    pub bytes_out: u64,
+    /// Smoothed round-trip time in microseconds.
+    pub srtt_us: Option<u64>,
+}
+
+impl Neighbor {
+    /// Create a new neighbor record from geometric computation.
+    fn from_geometry(cube_addr: CubeAddr, dimension: usize, alt_value: TritC) -> Self {
+        Neighbor {
+            cube_addr,
+            dimension,
+            alt_value,
+            endpoint: None,
+            public_key: None,
+            tunnel_iface: None,
+            state: TunnelState::Unknown,
+            last_heartbeat_tick: None,
+            bytes_in: 0,
+            bytes_out: 0,
+            srtt_us: None,
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CUBE OVERLAY NETWORK
+// ══════════════════════════════════════════════════════════════════════
+
+/// The Cube Overlay Network daemon.
+///
+/// Manages encrypted tunnels to all 26 geometric neighbors.
+/// The neighbor list is computed once from the local address — pure math,
+/// no discovery protocol.
+pub struct CubeOverlayNetwork {
+    /// This cube's address.
+    local_addr: CubeAddr,
+    /// All 26 geometric neighbors. Fixed at boot.
+    neighbors: Vec<Neighbor>,
+    /// Selected tunnel protocol.
+    tunnel_protocol: TunnelProtocol,
+    /// Heartbeat interval in ticks.
+    heartbeat_interval: u64,
+    /// Key rotation interval in ticks (default: 86400 = 24h at 1 tick/sec).
+    key_rotation_interval: u64,
+    /// Current tick.
+    current_tick: u64,
+    /// Statistics.
+    stats: ConStats,
+}
+
+/// CON statistics.
+#[derive(Debug, Clone, Default)]
+pub struct ConStats {
+    /// Number of tunnels currently up.
+    pub tunnels_up: usize,
+    /// Number of tunnels currently down.
+    pub tunnels_down: usize,
+    /// Number of tunnels in transitional states.
+    pub tunnels_transitional: usize,
+    /// Total bytes through all tunnels.
+    pub total_bytes_in: u64,
+    /// Total bytes through all tunnels.
+    pub total_bytes_out: u64,
+    /// Number of tunnel reconnections performed.
+    pub reconnections: u64,
+    /// Number of key rotations performed.
+    pub key_rotations: u64,
+}
+
+/// Events emitted by the CON for other services to consume.
+#[derive(Debug, Clone)]
+pub enum ConEvent {
+    /// Tunnel to a neighbor came up.
+    TunnelUp { neighbor: CubeAddr, dimension: usize },
+    /// Tunnel to a neighbor went down.
+    TunnelDown { neighbor: CubeAddr, dimension: usize },
+    /// Endpoint re-resolution needed for a neighbor.
+    NeedsResolution { neighbor: CubeAddr },
+    /// Key rotation completed for a tunnel.
+    KeyRotated { neighbor: CubeAddr },
+}
+
+impl CubeOverlayNetwork {
+    /// Create the CON daemon for the given local address.
+    ///
+    /// Immediately computes all 26 geometric neighbors.
+    pub fn new(local_addr: CubeAddr, protocol: TunnelProtocol) -> Self {
+        let neighbor_data = local_addr.neighbors();
+        let neighbors: Vec<Neighbor> = neighbor_data
+            .into_iter()
+            .map(|(addr, dim, alt)| Neighbor::from_geometry(addr, dim, alt))
+            .collect();
+
+        CubeOverlayNetwork {
+            local_addr,
+            neighbors,
+            tunnel_protocol: protocol,
+            heartbeat_interval: 1,
+            key_rotation_interval: 86400,
+            current_tick: 0,
+            stats: ConStats::default(),
+        }
+    }
+
+    /// Get the local cube address.
+    pub fn local_addr(&self) -> &CubeAddr {
+        &self.local_addr
+    }
+
+    /// Get all neighbors.
+    pub fn neighbors(&self) -> &[Neighbor] {
+        &self.neighbors
+    }
+
+    /// Get the neighbor at a specific dimension and alternative value.
+    pub fn get_neighbor(&self, dimension: usize, alt_value: TritC) -> Option<&Neighbor> {
+        self.neighbors.iter().find(|n| {
+            n.dimension == dimension && n.alt_value == alt_value
+        })
+    }
+
+    /// Get the neighbor matching a specific cube address.
+    pub fn get_neighbor_by_addr(&self, addr: &CubeAddr) -> Option<&Neighbor> {
+        self.neighbors.iter().find(|n| n.cube_addr == *addr)
+    }
+
+    /// Get mutable reference to a neighbor by address.
+    fn get_neighbor_by_addr_mut(&mut self, addr: &CubeAddr) -> Option<&mut Neighbor> {
+        self.neighbors.iter_mut().find(|n| n.cube_addr == *addr)
+    }
+
+    /// Get the tunnel interface name for a next-hop address.
+    /// Used by GLB to determine which virtual interface to send through.
+    pub fn tunnel_for_next_hop(&self, next_hop: &CubeAddr) -> Option<&str> {
+        self.get_neighbor_by_addr(next_hop)
+            .and_then(|n| n.tunnel_iface.as_deref())
+    }
+
+    // ── Neighbor Resolution (from CRS) ───────────────────────────
+
+    /// Resolve a neighbor's physical endpoint (called after CRS lookup).
+    pub fn resolve_neighbor(
+        &mut self,
+        addr: &CubeAddr,
+        endpoint: PhysicalEndpoint,
+        public_key: [u8; 32],
+    ) -> Option<ConEvent> {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.endpoint = Some(endpoint);
+            neighbor.public_key = Some(public_key);
+            neighbor.state = TunnelState::Connecting;
+            // Assign virtual interface name
+            let iface_idx = neighbor.dimension * 2
+                + if neighbor.alt_value.value() == self.local_addr.get(neighbor.dimension).alternatives()[0].value() { 0 } else { 1 };
+            neighbor.tunnel_iface = Some(format!("cubetun{}", iface_idx));
+            Some(ConEvent::TunnelUp {
+                neighbor: addr.clone(),
+                dimension: neighbor.dimension,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Mark a tunnel as successfully established.
+    pub fn tunnel_established(&mut self, addr: &CubeAddr) -> bool {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.state = TunnelState::Up;
+            self.update_stats();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Mark a tunnel as down (called by FTS on heartbeat failure).
+    pub fn tunnel_down(&mut self, addr: &CubeAddr) -> Option<ConEvent> {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.state = TunnelState::Down;
+            self.update_stats();
+            Some(ConEvent::TunnelDown {
+                neighbor: addr.clone(),
+                dimension: neighbor.dimension,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Trigger re-resolution and reconnection for a neighbor.
+    pub fn reconnect_neighbor(&mut self, addr: &CubeAddr) -> Option<ConEvent> {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.state = TunnelState::Reconnecting;
+            self.stats.reconnections += 1;
+            Some(ConEvent::NeedsResolution {
+                neighbor: addr.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    // ── Traffic Accounting ────────────────────────────────────────
+
+    /// Record bytes sent through a neighbor's tunnel.
+    pub fn record_bytes_sent(&mut self, addr: &CubeAddr, bytes: u64) {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.bytes_out += bytes;
+            self.stats.total_bytes_out += bytes;
+        }
+    }
+
+    /// Record bytes received through a neighbor's tunnel.
+    pub fn record_bytes_received(&mut self, addr: &CubeAddr, bytes: u64) {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.bytes_in += bytes;
+            self.stats.total_bytes_in += bytes;
+        }
+    }
+
+    /// Record a heartbeat RTT measurement for a neighbor.
+    pub fn record_heartbeat(&mut self, addr: &CubeAddr, rtt_us: u64) {
+        if let Some(neighbor) = self.get_neighbor_by_addr_mut(addr) {
+            neighbor.last_heartbeat_tick = Some(self.current_tick);
+            // Exponential moving average: SRTT = 7/8 * SRTT + 1/8 * new
+            neighbor.srtt_us = Some(match neighbor.srtt_us {
+                Some(old) => (old * 7 + rtt_us) / 8,
+                None => rtt_us,
+            });
+        }
+    }
+
+    // ── Tick & Maintenance ───────────────────────────────────────
+
+    /// Advance the tick counter. Returns events that need processing.
+    pub fn tick(&mut self) -> Vec<ConEvent> {
+        self.current_tick += 1;
+        let mut events = Vec::new();
+
+        // Check for key rotation
+        if self.current_tick % self.key_rotation_interval == 0 {
+            for neighbor in &mut self.neighbors {
+                if neighbor.state == TunnelState::Up {
+                    // In a real implementation, trigger re-key here.
+                    self.stats.key_rotations += 1;
+                    events.push(ConEvent::KeyRotated {
+                        neighbor: neighbor.cube_addr.clone(),
+                    });
+                }
+            }
+        }
+
+        // Check for stale connections needing re-resolution
+        for neighbor in &self.neighbors {
+            if neighbor.state == TunnelState::Unknown && neighbor.endpoint.is_none() {
+                events.push(ConEvent::NeedsResolution {
+                    neighbor: neighbor.cube_addr.clone(),
+                });
+            }
+        }
+
+        self.update_stats();
+        events
+    }
+
+    /// Trigger full re-resolution of all neighbor endpoints from CRS.
+    pub fn refresh_all(&mut self) -> Vec<ConEvent> {
+        self.neighbors
+            .iter()
+            .map(|n| ConEvent::NeedsResolution {
+                neighbor: n.cube_addr.clone(),
+            })
+            .collect()
+    }
+
+    // ── Statistics ────────────────────────────────────────────────
+
+    fn update_stats(&mut self) {
+        self.stats.tunnels_up = self.neighbors.iter().filter(|n| n.state.is_live()).count();
+        self.stats.tunnels_down = self.neighbors.iter().filter(|n| n.state == TunnelState::Down).count();
+        self.stats.tunnels_transitional = self.neighbors.iter().filter(|n| n.state.is_transitional()).count();
+    }
+
+    /// Get current statistics.
+    pub fn stats(&self) -> &ConStats {
+        &self.stats
+    }
+
+    // ── PQ-Native Key Derivation ─────────────────────────────────
+
+    /// Derive a shared key for the PQ-native tunnel protocol.
+    ///
+    /// Uses both cubes' Rep C addresses as input to a cryptographic
+    /// sponge. The key is deterministic given the two addresses,
+    /// meaning both sides derive the same key independently.
+    ///
+    /// This is a simplified placeholder — the real implementation
+    /// uses the kernel's cryptographic sponge (729-trit state).
+    pub fn derive_pq_native_key(local: &CubeAddr, remote: &CubeAddr) -> [u8; 32] {
+        let mut key = [0u8; 32];
+        // Deterministic: always put the lexicographically smaller addr first
+        let (first, second) = if local.to_index() <= remote.to_index() {
+            (local, remote)
+        } else {
+            (remote, local)
+        };
+
+        // FNV-1a based key derivation from both addresses' trits
+        let mut hash: u64 = 0xcbf29ce484222325;
+        for t in first.as_trits() {
+            hash ^= t.value() as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        for t in second.as_trits() {
+            hash ^= t.value() as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+
+        // Expand to 32 bytes via repeated mixing
+        for i in 0..4 {
+            let h = hash.wrapping_add(i as u64).wrapping_mul(0x100000001b3);
+            let bytes = h.to_le_bytes();
+            key[i * 8..(i + 1) * 8].copy_from_slice(&bytes);
+        }
+
+        key
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TESTS
+// ══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn local() -> CubeAddr {
+        CubeAddr::from_raw(&[1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]).unwrap()
+    }
+
+    #[test]
+    fn test_exactly_26_neighbors() {
+        let con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+        assert_eq!(con.neighbors().len(), MAX_NEIGHBORS);
+    }
+
+    #[test]
+    fn test_all_neighbors_differ_by_one_trit() {
+        let con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+        for neighbor in con.neighbors() {
+            assert_eq!(local().hamming_distance(&neighbor.cube_addr), 1);
+        }
+    }
+
+    #[test]
+    fn test_all_neighbors_unique() {
+        let con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+        let addrs: Vec<&CubeAddr> = con.neighbors().iter().map(|n| &n.cube_addr).collect();
+        for i in 0..addrs.len() {
+            for j in (i + 1)..addrs.len() {
+                assert_ne!(addrs[i], addrs[j]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_initial_state_is_unknown() {
+        let con = CubeOverlayNetwork::new(local(), TunnelProtocol::WireGuard);
+        for neighbor in con.neighbors() {
+            assert_eq!(neighbor.state, TunnelState::Unknown);
+            assert!(neighbor.endpoint.is_none());
+        }
+    }
+
+    #[test]
+    fn test_resolve_and_establish() {
+        let mut con = CubeOverlayNetwork::new(local(), TunnelProtocol::WireGuard);
+        let nbr_addr = con.neighbors()[0].cube_addr.clone();
+
+        let endpoint = PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820);
+        let key = [42u8; 32];
+
+        con.resolve_neighbor(&nbr_addr, endpoint.clone(), key);
+        assert_eq!(con.get_neighbor_by_addr(&nbr_addr).unwrap().state, TunnelState::Connecting);
+
+        con.tunnel_established(&nbr_addr);
+        assert_eq!(con.get_neighbor_by_addr(&nbr_addr).unwrap().state, TunnelState::Up);
+        assert_eq!(con.stats().tunnels_up, 1);
+    }
+
+    #[test]
+    fn test_tunnel_down_and_reconnect() {
+        let mut con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+        let nbr_addr = con.neighbors()[0].cube_addr.clone();
+
+        // Bring up
+        let endpoint = PhysicalEndpoint::ipv4(10, 0, 0, 1, 51820);
+        con.resolve_neighbor(&nbr_addr, endpoint, [0u8; 32]);
+        con.tunnel_established(&nbr_addr);
+
+        // Take down
+        con.tunnel_down(&nbr_addr);
+        assert_eq!(con.get_neighbor_by_addr(&nbr_addr).unwrap().state, TunnelState::Down);
+
+        // Reconnect
+        con.reconnect_neighbor(&nbr_addr);
+        assert_eq!(con.get_neighbor_by_addr(&nbr_addr).unwrap().state, TunnelState::Reconnecting);
+        assert_eq!(con.stats().reconnections, 1);
+    }
+
+    #[test]
+    fn test_traffic_accounting() {
+        let mut con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+        let nbr_addr = con.neighbors()[0].cube_addr.clone();
+
+        con.record_bytes_sent(&nbr_addr, 1024);
+        con.record_bytes_received(&nbr_addr, 2048);
+
+        let nbr = con.get_neighbor_by_addr(&nbr_addr).unwrap();
+        assert_eq!(nbr.bytes_out, 1024);
+        assert_eq!(nbr.bytes_in, 2048);
+        assert_eq!(con.stats().total_bytes_out, 1024);
+        assert_eq!(con.stats().total_bytes_in, 2048);
+    }
+
+    #[test]
+    fn test_pq_native_key_derivation_symmetric() {
+        let a = local();
+        let b = CubeAddr::from_raw(&[2, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]).unwrap();
+
+        // Both directions should produce the same key
+        let key_ab = CubeOverlayNetwork::derive_pq_native_key(&a, &b);
+        let key_ba = CubeOverlayNetwork::derive_pq_native_key(&b, &a);
+        assert_eq!(key_ab, key_ba);
+    }
+
+    #[test]
+    fn test_pq_native_key_unique_per_pair() {
+        let a = local();
+        let b = CubeAddr::from_raw(&[2, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]).unwrap();
+        let c = CubeAddr::from_raw(&[3, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]).unwrap();
+
+        let key_ab = CubeOverlayNetwork::derive_pq_native_key(&a, &b);
+        let key_ac = CubeOverlayNetwork::derive_pq_native_key(&a, &c);
+        assert_ne!(key_ab, key_ac);
+    }
+
+    #[test]
+    fn test_get_neighbor_by_dimension() {
+        let con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+
+        // Dimension 0, local value is 1, alternatives are 2 and 3
+        let nbr2 = con.get_neighbor(0, TritC::TWO);
+        assert!(nbr2.is_some());
+        assert_eq!(nbr2.unwrap().dimension, 0);
+
+        let nbr3 = con.get_neighbor(0, TritC::THREE);
+        assert!(nbr3.is_some());
+    }
+
+    #[test]
+    fn test_heartbeat_srtt() {
+        let mut con = CubeOverlayNetwork::new(local(), TunnelProtocol::PqNative);
+        let nbr_addr = con.neighbors()[0].cube_addr.clone();
+
+        con.record_heartbeat(&nbr_addr, 1000); // 1ms
+        assert_eq!(con.get_neighbor_by_addr(&nbr_addr).unwrap().srtt_us, Some(1000));
+
+        con.record_heartbeat(&nbr_addr, 2000); // 2ms
+        // EWMA: (1000 * 7 + 2000) / 8 = 1125
+        assert_eq!(con.get_neighbor_by_addr(&nbr_addr).unwrap().srtt_us, Some(1125));
+    }
+}
