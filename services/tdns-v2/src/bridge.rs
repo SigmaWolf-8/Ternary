@@ -18,10 +18,17 @@ use std::sync::{Arc, RwLock};
 use crate::addr::CubeAddr;
 use crate::crs::CrsRegistry;
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/// The PlenumNET TLD.
 pub const PLM_TLD: &str = ".plm";
 
+// ─── Resolution Result ───────────────────────────────────────────────────────
+
+/// The result of a metatronic bridge resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Resolution {
+    /// TDNS resolution: name resolved to a 27-trit address.
     Tdns {
         name: String,
         address: CubeAddr,
@@ -29,44 +36,63 @@ pub enum Resolution {
         zone: String,
     },
 
+    /// Legacy DNS resolution: name resolved to IP address(es).
     Legacy {
         name: String,
         addresses: Vec<String>,
     },
 
+    /// TDNS redirect: address has drifted, follow the new address.
     TdnsRedirect {
         name: String,
         old_address: CubeAddr,
         new_address: CubeAddr,
     },
 
+    /// Resolution failed.
     Failed {
         name: String,
         reason: String,
     },
 }
 
+// ─── Metatronic Bridge ───────────────────────────────────────────────────────
+
+/// The metatronic bridge: routes `.plm` names to TDNS, everything else
+/// to legacy DNS.
+///
+/// Thread-safe via `Arc<RwLock<CrsRegistry>>`. Multiple bridge instances
+/// (or multiple threads) can share the same CRS registry. Multi-node
+/// deployments each hold their own registry synced via CRS API.
 pub struct Bridge {
+    /// Shared reference to the CRS registry for TDNS lookups.
     crs: Arc<RwLock<CrsRegistry>>,
+    /// Cache for legacy DNS results (name → IPs, with TTL).
     legacy_cache: HashMap<String, (Vec<String>, u64)>,
+    /// Cache TTL for legacy results (nanoseconds).
     legacy_cache_ttl_ns: u64,
+    /// Total TDNS resolutions.
     tdns_count: u64,
+    /// Total legacy DNS resolutions.
     legacy_count: u64,
+    /// Total failed resolutions.
     failed_count: u64,
 }
 
 impl Bridge {
+    /// Create a bridge backed by a shared CRS registry.
     pub fn new(crs: Arc<RwLock<CrsRegistry>>) -> Self {
         Self {
             crs,
             legacy_cache: HashMap::new(),
-            legacy_cache_ttl_ns: 60_000_000_000,
+            legacy_cache_ttl_ns: 60_000_000_000, // 60 seconds
             tdns_count: 0,
             legacy_count: 0,
             failed_count: 0,
         }
     }
 
+    /// Resolve a name — routes to TDNS or legacy DNS based on TLD.
     pub fn resolve(&mut self, name: &str, now_ns: u64) -> Resolution {
         let normalized = name.trim().to_lowercase();
 
@@ -76,6 +102,8 @@ impl Bridge {
             self.resolve_legacy(&normalized, now_ns)
         }
     }
+
+    // ── TDNS Resolution ─────────────────────────────────────────────
 
     fn resolve_tdns(&mut self, name: &str, now_ns: u64) -> Resolution {
         let crs = match self.crs.read() {
@@ -89,7 +117,9 @@ impl Bridge {
             }
         };
 
+        // Look up TRN record
         if let Some(trn) = crs.resolve(name) {
+            // Check time-lock validity
             if !trn.is_valid_at(now_ns) {
                 self.failed_count += 1;
                 return Resolution::Failed {
@@ -98,6 +128,7 @@ impl Bridge {
                 };
             }
 
+            // Check for drift redirect
             if let Some(new_addr) = crs.check_redirect(&trn.address, now_ns) {
                 self.tdns_count += 1;
                 return Resolution::TdnsRedirect {
@@ -123,7 +154,10 @@ impl Bridge {
         }
     }
 
+    // ── Legacy DNS Resolution ───────────────────────────────────────
+
     fn resolve_legacy(&mut self, name: &str, now_ns: u64) -> Resolution {
+        // Check cache first
         if let Some((addresses, expires)) = self.legacy_cache.get(name) {
             if now_ns < *expires {
                 self.legacy_count += 1;
@@ -134,6 +168,7 @@ impl Bridge {
             }
         }
 
+        // Resolve via system DNS
         let addr_str = format!("{}:443", name);
         match addr_str.to_socket_addrs() {
             Ok(addrs) => {
@@ -146,6 +181,7 @@ impl Bridge {
                     };
                 }
 
+                // Cache the result
                 let expires = now_ns + self.legacy_cache_ttl_ns;
                 self.legacy_cache
                     .insert(name.to_string(), (addresses.clone(), expires));
@@ -166,19 +202,26 @@ impl Bridge {
         }
     }
 
+    // ── Cache Management ────────────────────────────────────────────
+
+    /// Purge expired legacy DNS cache entries.
     pub fn purge_cache(&mut self, now_ns: u64) -> usize {
         let before = self.legacy_cache.len();
         self.legacy_cache.retain(|_, (_, expires)| now_ns < *expires);
         before - self.legacy_cache.len()
     }
 
+    /// Clear the entire legacy DNS cache.
     pub fn clear_cache(&mut self) {
         self.legacy_cache.clear();
     }
 
+    /// Set legacy cache TTL.
     pub fn set_cache_ttl(&mut self, ttl_ns: u64) {
         self.legacy_cache_ttl_ns = ttl_ns;
     }
+
+    // ── Metrics ─────────────────────────────────────────────────────
 
     pub fn tdns_count(&self) -> u64 { self.tdns_count }
     pub fn legacy_count(&self) -> u64 { self.legacy_count }
@@ -186,10 +229,14 @@ impl Bridge {
     pub fn cache_size(&self) -> usize { self.legacy_cache.len() }
 }
 
+// ─── Utility Functions ───────────────────────────────────────────────────────
+
+/// Check if a name belongs to the PlenumNET TLD.
 pub fn is_plm_name(name: &str) -> bool {
     name.ends_with(PLM_TLD)
 }
 
+/// Extract the zone from a .plm name.
 pub fn extract_zone(name: &str) -> &str {
     if !is_plm_name(name) {
         return name;
@@ -201,12 +248,15 @@ pub fn extract_zone(name: &str) -> &str {
     }
 }
 
+/// Extract the label (first component) from a .plm name.
 pub fn extract_label(name: &str) -> &str {
     match name.find('.') {
         Some(pos) => &name[..pos],
         None => name,
     }
 }
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -282,6 +332,8 @@ mod tests {
         assert_eq!(bridge.failed_count(), 1);
     }
 
+    /// This test makes a real DNS call — gated behind `network-tests` feature
+    /// so it doesn't flake in Docker builds or sandboxed CI.
     #[test]
     #[cfg(feature = "network-tests")]
     fn legacy_dns_resolution() {
@@ -337,12 +389,12 @@ mod tests {
         vec![
             RawValue::Pattern("corporate".into()),
             RawValue::Pattern("public".into()),
-            RawValue::Numeric(0.5),
+            RawValue::Numeric(2.0),  // trit 3: 2 signals
             RawValue::Pattern("cloud".into()),
             RawValue::Pattern("website".into()),
             RawValue::Pattern("text".into()),
             RawValue::Pattern("both".into()),
-            RawValue::Numeric(0.9),
+            RawValue::Numeric(4.0),  // trit 8: 4 ML signals
             RawValue::Numeric(200.0),
             RawValue::Pattern("none".into()),
             RawValue::Numeric(100.0),
@@ -350,7 +402,7 @@ mod tests {
             RawValue::Numeric(1998.0),
             RawValue::Numeric(99.99),
             RawValue::Pattern("current".into()),
-            RawValue::Numeric(200.0),
+            RawValue::Numeric(0.0),  // trit 16: 0 rt, 0 batch
             RawValue::Pattern("accepts".into()),
             RawValue::Numeric(20.0),
             RawValue::Numeric(4.0),
@@ -359,7 +411,7 @@ mod tests {
             RawValue::Pattern("through".into()),
             RawValue::Pattern("poll".into()),
             RawValue::Numeric(3600.0),
-            RawValue::Numeric(0.95),
+            RawValue::Numeric(3.0),  // trit 25: 3 signals
             RawValue::Numeric(30.0),
             RawValue::Pattern("soc2".into()),
         ]
