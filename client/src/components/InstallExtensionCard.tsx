@@ -1,7 +1,25 @@
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Copy, Check, Terminal } from "lucide-react";
 
-export default function InstallExtensionCard() {
+let openInstallDialog: (() => void) | null = null;
+
+export function triggerInstallDialog() {
+  openInstallDialog?.();
+}
+
+export default function InstallExtensionDialog() {
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  openInstallDialog = () => setOpen(true);
 
   const isWindows = typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
   const cmd = isWindows
@@ -15,35 +33,53 @@ export default function InstallExtensionCard() {
   };
 
   return (
-    <div className="rounded-lg border border-[#2A2520] bg-[#1A1816] p-5 max-w-md" data-testid="card-install-extension">
-      <h3 className="text-sm font-semibold text-[#D4A017] tracking-wide uppercase mb-1">
-        Install TDNS Extension
-      </h3>
-      <p className="text-xs text-[#8A8578] mb-4">
-        Resolves .plm addresses in Chrome, Edge, Brave, Firefox, Opera &amp; Vivaldi.
-      </p>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-md" data-testid="dialog-install-extension">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2" data-testid="text-dialog-title">
+            <Terminal className="w-5 h-5 text-primary" />
+            Install TDNS Browser Extension
+          </DialogTitle>
+          <DialogDescription>
+            Resolves .plm addresses in Chrome, Edge, Brave, Firefox, Opera &amp; Vivaldi.
+          </DialogDescription>
+        </DialogHeader>
 
-      <button
-        onClick={handleCopy}
-        data-testid="button-install-extension"
-        className={`w-full py-2.5 px-4 rounded-md text-sm font-semibold transition-colors ${
-          copied
-            ? "bg-[#059669] text-white"
-            : "bg-[#D4A017] text-[#090807] hover:bg-[#E8B42E]"
-        }`}
-      >
-        {copied ? "✓ Copied — paste in PowerShell" : "Install Extension"}
-      </button>
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-muted-foreground">
+            Copy the command below and paste it into {isWindows ? "Windows PowerShell" : "your terminal"}:
+          </p>
 
-      {copied && (
-        <div className="mt-3 rounded-md bg-[#0F0E0D] border border-[#2A2520] px-3 py-2">
-          <code className="text-xs text-[#D4A017] font-mono break-all" data-testid="text-install-command">{cmd}</code>
+          <div className="rounded-md bg-muted border border-border px-4 py-3">
+            <code className="text-sm text-primary font-mono break-all" data-testid="text-install-command">
+              {cmd}
+            </code>
+          </div>
+
+          <Button
+            onClick={handleCopy}
+            className="w-full"
+            variant={copied ? "outline" : "default"}
+            data-testid="button-copy-command"
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Copied — paste in {isWindows ? "PowerShell" : "Terminal"}
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Install Command
+              </>
+            )}
+          </Button>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Auto-detects all installed browsers. Requires {isWindows ? "PowerShell" : "Terminal"}.
+          </p>
         </div>
-      )}
-
-      <p className="text-[10px] text-[#5A5548] mt-3">
-        Auto-detects all installed browsers. Requires {isWindows ? "PowerShell" : "Terminal"}.
-      </p>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

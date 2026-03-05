@@ -55,6 +55,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
+import { triggerInstallDialog } from "@/components/InstallExtensionCard";
 
 type AnchorScrollFn = (id: string) => void;
 const AnchorScrollContext = createContext<AnchorScrollFn>(() => {});
@@ -123,7 +124,7 @@ const developersColumns: NavColumn[] = [
     items: [
       { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
       { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
-      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "/install-extension" },
+      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "#install-extension" },
       { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
     ],
   },
@@ -202,6 +203,7 @@ function NavItemLink({
 function MegaDropdownItem({ item }: { item: NavLinkItem }) {
   const scrollToAnchor = useContext(AnchorScrollContext);
   const isAnchor = item.href.startsWith("/#");
+  const isDialogTrigger = item.href === "#install-extension";
   const anchorId = isAnchor ? item.href.slice(2) : "";
   const baseClass =
     "block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover-elevate";
@@ -219,6 +221,26 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
       )}
     </>
   );
+
+  if (isDialogTrigger) {
+    return (
+      <li>
+        <NavigationMenuLink asChild>
+          <a
+            href="#"
+            className={baseClass}
+            data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+            onClick={(e) => {
+              e.preventDefault();
+              triggerInstallDialog();
+            }}
+          >
+            {content}
+          </a>
+        </NavigationMenuLink>
+      </li>
+    );
+  }
 
   if (isAnchor) {
     return (
