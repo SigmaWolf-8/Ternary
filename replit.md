@@ -76,3 +76,7 @@ A REST API provides endpoints for converting standard to ternary degrees with re
 -   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.
 -   **Containerization**: Docker.
 -   **Cloud Deployment**: Render, Railway.
+
+## Skills
+
+-   **plenumnet-repo-guide** (`.agents/skills/plenumnet-repo-guide/SKILL.md`): Complete A-Z structural guide covering ternary mathematics, first-position derivation rules, TDNS ontological addressing, Rep A/B/C encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure, quantum ternary modules, XPlenum RISC-V extension, and all codebase conventions.
