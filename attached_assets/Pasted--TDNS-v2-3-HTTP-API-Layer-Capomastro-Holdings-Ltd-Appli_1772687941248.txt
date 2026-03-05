@@ -1,0 +1,642 @@
+// TDNS v2.3 — HTTP API Layer
+// Capomastro Holdings Ltd. — Applied Physics Division
+//
+// 11 HTTP endpoints exposing the full TDNS service surface.
+// Designed for the Docker deployment (§17.2).
+//
+// Endpoints:
+//   POST   /api/v1/register         Register an entity (CRS scan + derive)
+//   GET    /api/v1/resolve/:name    Resolve name → TRN
+//   GET    /api/v1/address/:addr    Reverse lookup address → name
+//   POST   /api/v1/scan             Scan a live URL → address
+//   POST   /api/v1/verify/:name     Re-verify an entity (§9.4)
+//   DELETE /api/v1/deregister/:name Deregister an entity
+//   GET    /api/v1/describe/:addr   Describe an address in plain English
+//   POST   /api/v1/route            Compute route between two addresses
+//   GET    /api/v1/fts/status       FTS health summary
+//   GET    /api/v1/con/metrics      CON tunnel metrics
+//   GET    /api/v1/health           Service health check
+//
+// This module defines request/response types and a router that
+// dispatches to the appropriate service method. The actual HTTP
+// server binding (e.g., via hyper or axum) is left to the binary.
+
+use serde::{Deserialize, Serialize};
+
+use crate::addr::CubeAddr;
+use crate::overlay::ConNode;
+use crate::crs::{CrsRegistry, RegistrationResult, VerificationResult};
+use crate::fts::Fts;
+use crate::glb::Glb;
+use crate::routing::NeighborMap;
+use crate::scanner;
+use crate::schema::SCHEMA;
+
+// ─── Request/Response Types ──────────────────────────────────────────────────
+
+/// POST /api/v1/register
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterRequest {
+    pub name: String,
+    pub zone: String,
+    pub public_key_hex: String,
+    pub url: String,
+    pub hptp_offset_ns: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterResponse {
+    pub status: String,
+    pub name: String,
+    pub address: String,
+    pub address_canonical: String,
+    pub hptp_mandatory: bool,
+    pub scan_hash: String,
+    /// True if the entity was displaced from its natural address.
+    pub displaced: bool,
+    /// The address derived from measurements before displacement.
+    pub natural_address: String,
+}
+
+/// POST /api/v1/scan
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanRequest {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanResponse {
+    pub status: String,
+    pub url: String,
+    pub address: String,
+    pub address_canonical: String,
+    pub hptp_mandatory: bool,
+    pub scan_hash: String,
+    pub dimensions: Vec<DimensionResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DimensionResult {
+    pub number: usize,
+    pub category: String,
+    pub question: String,
+    pub value: u8,
+    pub label: String,
+    pub confidence: String,
+}
+
+/// GET /api/v1/resolve/:name
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResolveResponse {
+    pub status: String,
+    pub name: String,
+    pub address: String,
+    pub address_canonical: String,
+    pub hptp_mandatory: bool,
+    pub ttl: u32,
+    pub zone: String,
+    pub scan_hash: String,
+}
+
+/// GET /api/v1/address/:addr (reverse lookup)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReverseLookupResponse {
+    pub status: String,
+    pub address: String,
+    pub name: String,
+}
+
+/// GET /api/v1/describe/:addr
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DescribeResponse {
+    pub status: String,
+    pub address: String,
+    pub hptp_mandatory: bool,
+    pub dimensions: Vec<DimensionDescription>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DimensionDescription {
+    pub number: usize,
+    pub category: String,
+    pub question: String,
+    pub value: u8,
+    pub label: String,
+}
+
+/// POST /api/v1/route
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteRequest {
+    pub source: String,
+    pub destination: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteResponse {
+    pub status: String,
+    pub source: String,
+    pub destination: String,
+    pub distance: u8,
+    pub differing_dims: Vec<usize>,
+    pub decision: String,
+}
+
+/// POST /api/v1/verify/:name
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyResponse {
+    pub status: String,
+    pub name: String,
+    pub result: String,
+    pub address: String,
+    pub changed_dims: Option<Vec<usize>>,
+    pub old_address: Option<String>,
+}
+
+/// GET /api/v1/fts/status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FtsStatusResponse {
+    pub status: String,
+    pub alive: u32,
+    pub suspect: u32,
+    pub dead: u32,
+    pub hptp_mandatory: u32,
+    pub total_heartbeats: u64,
+    pub total_anomalies: u64,
+}
+
+/// GET /api/v1/con/metrics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConMetricsResponse {
+    pub status: String,
+    pub active_tunnels: usize,
+    pub total_tunnels: usize,
+    pub key_epoch: u64,
+    pub bytes_sent: u64,
+    pub bytes_received: u64,
+}
+
+/// GET /api/v1/health
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthResponse {
+    pub status: String,
+    pub version: String,
+    pub entities: usize,
+    pub fts_alive: u32,
+    pub fts_dead: u32,
+    pub con_active: usize,
+}
+
+/// Generic error response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    pub status: String,
+    pub error: String,
+}
+
+// ─── API Router ──────────────────────────────────────────────────────────────
+
+/// The API router: holds references to all services and dispatches requests.
+pub struct ApiRouter {
+    pub crs: CrsRegistry,
+    pub fts: Fts,
+    pub glb: Option<Glb>,
+    pub con: Option<ConNode>,
+}
+
+impl ApiRouter {
+    /// Create a new API router with default services.
+    pub fn new() -> Self {
+        Self {
+            crs: CrsRegistry::new(),
+            fts: Fts::new(),
+            glb: None,
+            con: None,
+        }
+    }
+
+    /// Initialize GLB for a local node.
+    pub fn init_glb(&mut self, local: CubeAddr) {
+        let map = NeighborMap::new(local);
+        self.glb = Some(Glb::new(local, map));
+    }
+
+    /// Initialize CON for a local node.
+    pub fn init_con(&mut self, local: CubeAddr, secret: Vec<u8>) {
+        self.con = Some(ConNode::new(local, secret));
+    }
+
+    // ── Endpoint Handlers ───────────────────────────────────────────
+
+    /// POST /api/v1/register — Scan a URL, derive address, register entity.
+    pub fn handle_register(&mut self, req: RegisterRequest, now_ns: u64) -> Result<RegisterResponse, ErrorResponse> {
+        // Scan the target
+        let scan_result = scanner::scan(&req.url).map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("scan failed: {}", e),
+        })?;
+
+        // Decode public key
+        let public_key = hex_decode(&req.public_key_hex).map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("invalid public key hex: {}", e),
+        })?;
+
+        // Register with CRS
+        let result = self.crs.register(
+            req.name.clone(),
+            req.zone,
+            public_key,
+            scan_result.measurements,
+            now_ns,
+            req.hptp_offset_ns,
+        );
+
+        match result {
+            RegistrationResult::Ok { trn, address, displaced, natural_address } => Ok(RegisterResponse {
+                status: "ok".into(),
+                name: trn.name,
+                address: address.to_category_string(),
+                address_canonical: address.to_canonical_string(),
+                hptp_mandatory: address.is_hptp_mandatory(),
+                scan_hash: trn.scan_hash.to_hex(),
+                displaced,
+                natural_address: natural_address.to_category_string(),
+            }),
+            RegistrationResult::HptpSyncRequired {
+                address,
+                measured_offset_ns,
+                tolerance_ns,
+            } => Err(ErrorResponse {
+                status: "hptp_sync_required".into(),
+                error: format!(
+                    "HPTP sync required for {}: offset {}ns exceeds {}ns tolerance",
+                    address, measured_offset_ns, tolerance_ns
+                ),
+            }),
+            RegistrationResult::ScanFailed { reason } => Err(ErrorResponse {
+                status: "error".into(),
+                error: format!("scan failed: {}", reason),
+            }),
+        }
+    }
+
+    /// POST /api/v1/scan — Scan a live URL and return its address (no registration).
+    pub fn handle_scan(&self, req: ScanRequest) -> Result<ScanResponse, ErrorResponse> {
+        let result = scanner::scan(&req.url).map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("scan failed: {}", e),
+        })?;
+
+        let dimensions: Vec<DimensionResult> = result
+            .derivations
+            .iter()
+            .enumerate()
+            .map(|(i, (trit, confidence))| {
+                let dim = &SCHEMA[i];
+                DimensionResult {
+                    number: dim.number,
+                    category: dim.category.prefix().to_string(),
+                    question: dim.question.to_string(),
+                    value: trit.value(),
+                    label: dim.label(*trit).to_string(),
+                    confidence: format!("{:?}", confidence),
+                }
+            })
+            .collect();
+
+        Ok(ScanResponse {
+            status: "ok".into(),
+            url: result.target.url,
+            address: result.address.to_category_string(),
+            address_canonical: result.address.to_canonical_string(),
+            hptp_mandatory: result.address.is_hptp_mandatory(),
+            scan_hash: result.scan_hash.to_hex(),
+            dimensions,
+        })
+    }
+
+    /// GET /api/v1/resolve/:name — Resolve a name to its TRN.
+    pub fn handle_resolve(&self, name: &str) -> Result<ResolveResponse, ErrorResponse> {
+        let trn = self.crs.resolve(name).ok_or_else(|| ErrorResponse {
+            status: "not_found".into(),
+            error: format!("name '{}' not registered", name),
+        })?;
+
+        Ok(ResolveResponse {
+            status: "ok".into(),
+            name: trn.name.clone(),
+            address: trn.address.to_category_string(),
+            address_canonical: trn.address.to_canonical_string(),
+            hptp_mandatory: trn.address.is_hptp_mandatory(),
+            ttl: trn.ttl,
+            zone: trn.zone.clone(),
+            scan_hash: trn.scan_hash.to_hex(),
+        })
+    }
+
+    /// GET /api/v1/address/:addr — Reverse lookup address to name.
+    pub fn handle_reverse_lookup(&self, addr_str: &str) -> Result<ReverseLookupResponse, ErrorResponse> {
+        let addr = addr_str.parse::<CubeAddr>().map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("invalid address: {}", e),
+        })?;
+
+        let name = self.crs.reverse_lookup(&addr).ok_or_else(|| ErrorResponse {
+            status: "not_found".into(),
+            error: format!("no entity at address {}", addr),
+        })?;
+
+        Ok(ReverseLookupResponse {
+            status: "ok".into(),
+            address: addr.to_category_string(),
+            name: name.to_string(),
+        })
+    }
+
+    /// GET /api/v1/describe/:addr — Describe an address in plain English.
+    pub fn handle_describe(&self, addr_str: &str) -> Result<DescribeResponse, ErrorResponse> {
+        let addr = addr_str.parse::<CubeAddr>().map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("invalid address: {}", e),
+        })?;
+
+        let dimensions: Vec<DimensionDescription> = SCHEMA
+            .iter()
+            .enumerate()
+            .map(|(i, dim)| {
+                let trit = addr.trit(i);
+                DimensionDescription {
+                    number: dim.number,
+                    category: dim.category.prefix().to_string(),
+                    question: dim.question.to_string(),
+                    value: trit.value(),
+                    label: dim.label(trit).to_string(),
+                }
+            })
+            .collect();
+
+        Ok(DescribeResponse {
+            status: "ok".into(),
+            address: addr.to_category_string(),
+            hptp_mandatory: addr.is_hptp_mandatory(),
+            dimensions,
+        })
+    }
+
+    /// POST /api/v1/verify/:name — Re-verify an entity (§9.4 protocol).
+    pub fn handle_verify(&mut self, name: &str, url: &str, now_ns: u64) -> Result<VerifyResponse, ErrorResponse> {
+        let scan_result = scanner::scan(url).map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("scan failed: {}", e),
+        })?;
+
+        let result = self.crs.verify(name, scan_result.measurements, now_ns);
+
+        match result {
+            VerificationResult::Verified { name, address } => Ok(VerifyResponse {
+                status: "ok".into(),
+                name,
+                result: "verified".into(),
+                address: address.to_category_string(),
+                changed_dims: None,
+                old_address: None,
+            }),
+            VerificationResult::Drifted {
+                name,
+                old_address,
+                new_address,
+                changed_dims,
+            } => Ok(VerifyResponse {
+                status: "ok".into(),
+                name,
+                result: "drifted".into(),
+                address: new_address.to_category_string(),
+                changed_dims: Some(changed_dims.iter().map(|d| d + 1).collect()), // 1-based for API
+                old_address: Some(old_address.to_category_string()),
+            }),
+            VerificationResult::NotFound { name } => Err(ErrorResponse {
+                status: "not_found".into(),
+                error: format!("name '{}' not registered", name),
+            }),
+        }
+    }
+
+    /// DELETE /api/v1/deregister/:name — Remove an entity.
+    pub fn handle_deregister(&mut self, name: &str) -> Result<ResolveResponse, ErrorResponse> {
+        let trn = self.crs.deregister(name).ok_or_else(|| ErrorResponse {
+            status: "not_found".into(),
+            error: format!("name '{}' not registered", name),
+        })?;
+
+        // Remove from FTS monitoring
+        self.fts.remove_node(&trn.address);
+
+        Ok(ResolveResponse {
+            status: "ok".into(),
+            name: trn.name,
+            address: trn.address.to_category_string(),
+            address_canonical: trn.address.to_canonical_string(),
+            hptp_mandatory: trn.address.is_hptp_mandatory(),
+            ttl: trn.ttl,
+            zone: trn.zone,
+            scan_hash: trn.scan_hash.to_hex(),
+        })
+    }
+
+    /// POST /api/v1/route — Compute route between two addresses.
+    pub fn handle_route(&self, req: RouteRequest, now_ns: u64) -> Result<RouteResponse, ErrorResponse> {
+        let src = req.source.parse::<CubeAddr>().map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("invalid source address: {}", e),
+        })?;
+        let dst = req.destination.parse::<CubeAddr>().map_err(|e| ErrorResponse {
+            status: "error".into(),
+            error: format!("invalid destination address: {}", e),
+        })?;
+
+        let distance = src.distance(&dst);
+        let differing_dims: Vec<usize> = src.differing_dims(&dst).iter().map(|d| d + 1).collect();
+
+        let decision = if let Some(glb) = &self.glb {
+            format!("{:?}", glb.route(&dst, now_ns))
+        } else {
+            "glb_not_initialized".into()
+        };
+
+        Ok(RouteResponse {
+            status: "ok".into(),
+            source: src.to_category_string(),
+            destination: dst.to_category_string(),
+            distance,
+            differing_dims,
+            decision,
+        })
+    }
+
+    /// GET /api/v1/fts/status — FTS health summary.
+    pub fn handle_fts_status(&self) -> FtsStatusResponse {
+        let m = self.fts.metrics();
+        FtsStatusResponse {
+            status: "ok".into(),
+            alive: m.alive,
+            suspect: m.suspect,
+            dead: m.dead,
+            hptp_mandatory: m.hptp_mandatory,
+            total_heartbeats: m.total_heartbeats,
+            total_anomalies: m.total_anomalies,
+        }
+    }
+
+    /// GET /api/v1/con/metrics — CON tunnel metrics.
+    pub fn handle_con_metrics(&self) -> ConMetricsResponse {
+        if let Some(con) = &self.con {
+            let (sent, recv) = con.total_bytes();
+            ConMetricsResponse {
+                status: "ok".into(),
+                active_tunnels: con.active_count(),
+                total_tunnels: con.total_count(),
+                key_epoch: con.key_epoch(),
+                bytes_sent: sent,
+                bytes_received: recv,
+            }
+        } else {
+            ConMetricsResponse {
+                status: "ok".into(),
+                active_tunnels: 0,
+                total_tunnels: 0,
+                key_epoch: 0,
+                bytes_sent: 0,
+                bytes_received: 0,
+            }
+        }
+    }
+
+    /// GET /api/v1/health — Service health check.
+    pub fn handle_health(&self) -> HealthResponse {
+        let fts_m = self.fts.metrics();
+        HealthResponse {
+            status: "ok".into(),
+            version: "2.3.0".into(),
+            entities: self.crs.entity_count(),
+            fts_alive: fts_m.alive,
+            fts_dead: fts_m.dead,
+            con_active: self.con.as_ref().map(|c| c.active_count()).unwrap_or(0),
+        }
+    }
+}
+
+impl Default for ApiRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+fn hex_decode(hex: &str) -> Result<Vec<u8>, String> {
+    if hex.len() % 2 != 0 {
+        return Err("odd-length hex string".into());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| {
+            u8::from_str_radix(&hex[i..i + 2], 16)
+                .map_err(|e| format!("invalid hex at position {}: {}", i, e))
+        })
+        .collect()
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn health_endpoint() {
+        let router = ApiRouter::new();
+        let resp = router.handle_health();
+        assert_eq!(resp.status, "ok");
+        assert_eq!(resp.version, "2.3.0");
+        assert_eq!(resp.entities, 0);
+    }
+
+    #[test]
+    fn fts_status_endpoint() {
+        let router = ApiRouter::new();
+        let resp = router.handle_fts_status();
+        assert_eq!(resp.status, "ok");
+        assert_eq!(resp.alive, 0);
+    }
+
+    #[test]
+    fn con_metrics_no_node() {
+        let router = ApiRouter::new();
+        let resp = router.handle_con_metrics();
+        assert_eq!(resp.status, "ok");
+        assert_eq!(resp.active_tunnels, 0);
+    }
+
+    #[test]
+    fn describe_endpoint() {
+        let router = ApiRouter::new();
+        let resp = router.handle_describe("WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332").unwrap();
+
+        assert_eq!(resp.status, "ok");
+        assert!(resp.hptp_mandatory);
+        assert_eq!(resp.dimensions.len(), 27);
+        assert_eq!(resp.dimensions[0].label, "Corporate");
+        assert_eq!(resp.dimensions[0].value, 2);
+    }
+
+    #[test]
+    fn describe_invalid_address() {
+        let router = ApiRouter::new();
+        let result = router.handle_describe("invalid");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn resolve_not_found() {
+        let router = ApiRouter::new();
+        let result = router.handle_resolve("nonexistent.plm");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().status, "not_found");
+    }
+
+    #[test]
+    fn deregister_not_found() {
+        let mut router = ApiRouter::new();
+        let result = router.handle_deregister("nonexistent.plm");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn route_computation() {
+        let mut router = ApiRouter::new();
+        let local = CubeAddr::from_category_string("WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313").unwrap();
+        router.init_glb(local);
+
+        let req = RouteRequest {
+            source: "WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313".into(),
+            destination: "WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332".into(),
+        };
+
+        let resp = router.handle_route(req, 0).unwrap();
+        assert_eq!(resp.status, "ok");
+        assert!(resp.distance > 0);
+        assert!(!resp.differing_dims.is_empty());
+    }
+
+    #[test]
+    fn hex_decode_valid() {
+        let bytes = hex_decode("deadbeef").unwrap();
+        assert_eq!(bytes, vec![0xDE, 0xAD, 0xBE, 0xEF]);
+    }
+
+    #[test]
+    fn hex_decode_invalid() {
+        assert!(hex_decode("xyz").is_err());
+        assert!(hex_decode("dead0").is_err()); // odd length
+    }
+}

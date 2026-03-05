@@ -1,0 +1,19 @@
+The Root Problem (What You Caught)
+Four dimensions (3, 8, 16, 25) were using continuous scores — float values between 0.0 and 1.0, or raw TTFB in milliseconds. Then trying to bucket them into 3 trit values with confidence based on "how far from the boundary." This is inherently ambiguous. Widening the bands just hides the ambiguity — it doesn't eliminate it. Worse, wider bands make more different things look the same, increasing collisions.
+The Fix: Discrete Binary Signal Counting
+The other 23 dimensions already work because they check discrete, binary signals — a header is present or it isn't, a page exists or it doesn't, a TLD is .gov or it isn't. There's no "0.47 governance." It's governance or it's not.
+The four broken dimensions now work the same way:
+Trit 3 — Who runs it? Probe counts 5 binary signals: about page exists, contact info present, legal entity named, physical address found, government domain. Count 0 = Anonymous, 1–2 = Known, 3+ = Transparent. Each signal is unambiguous. Always High confidence.
+Trit 8 — Does it think? Probe counts 5 binary signals: ML API endpoints, ML framework references, personalization keywords, search+results combo, ML-specific headers. Count 0 = No, 1–2 = Partly, 3+ = Yes. Always High.
+Trit 16 — Is it real-time? Probe counts protocol presence signals: WebSocket/SSE/gRPC/streaming (real-time), or immutable cache / no freshness indicators (batch). If any real-time protocol exists → Real-time. If batch indicators present → Batch. Neither → Near-time. No TTFB measurement at all. Protocol presence is binary. Always High.
+Trit 25 — Is it encrypted? Probe counts 6 binary signals: TLS present, HSTS header, CSP header, security.txt, X-Content-Type-Options, X-Frame-Options. Count 0 = No, 1–2 = Basic TLS, 3+ = Full TLS. Always High.
+Also Fixed: scan_hash Collision (Data Integrity)
+scan.rs — The BLAKE3 hash now includes: target URL + timestamp + every raw value (type-tagged: 0x01 for Text, 0x02 for Numeric, 0x03 for Boolean, 0x04 for Pattern) + the trit vector. Two different sites will never produce the same hash, even if their trit vectors match. The Stripe == NYT collision is gone.
+Also Fixed: 3 Scanner Correctness Issues
+scanner.rs — Gov.uk governance detection (prefix/infix matching), Wikipedia MFA false positive (auth-context gating), GitHub server count (expanded CDN header list).
+Also Fixed: Address Collision Displacement
+trn.rs + crs.rs + api.rs — From the previous round. BLAKE3(name) deterministic displacement, first-come-first-serve, TRN records the natural address.
+
+Files to push:
+FileLinesWhat Changedsrc/scan.rs252scan_hash includes full raw values (collision fix)src/derive.rs8984 rules rewritten: score→signal count, always High confidencesrc/scanner.rs1,5324 probes rewritten + 3 correctness fixessrc/trn.rs295Displacement fieldssrc/crs.rs1,138Displacement algorithm + 5 collision testssrc/api.rs642Displacement in API responsesrc/bridge.rs419Updated measurement fixturestests/e2e.rs673Updated measurement fixturestests/integration.rs746Updated measurement fixtures
+After pushing, rebuild Docker and re-scan the six sites. Every confidence value should be High. The addresses will change (signal counts produce different raw values than scores) but the ontological classifications should remain correct.
