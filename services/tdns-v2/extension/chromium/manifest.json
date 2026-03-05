@@ -1,35 +1,58 @@
 {
   "manifest_version": 3,
-  "name": "PlenumNET TDNS Resolver",
-  "version": "2.3.4",
-  "description": "Resolve .plm addresses via the PlenumNET Ternary Domain Name System",
-  "author": "Capomastro Holdings Ltd.",
-  "permissions": ["declarativeNetRequest", "webNavigation", "storage"],
-  "host_permissions": ["*://*.plm/*", "https://plenumnet.replit.app/*", "*://*.bing.com/*", "*://*.google.com/*", "*://*.duckduckgo.com/*", "*://*.yahoo.com/*"],
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
-  },
-  "background": {
-    "service_worker": "background.js"
-  },
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
-    }
-  },
+  "name": "PlenumNET — TDNS Resolver",
+  "version": "2.3.2",
+  "description": "Resolve .plm addresses via the Ternary Domain Name System. 27-dimensional ontological addressing for PlenumNET.",
+  "author": "Capomastro Holdings Ltd. — Applied Physics Division",
+
+  "permissions": [
+    "activeTab",
+    "declarativeNetRequest",
+    "storage",
+    "webNavigation"
+  ],
+
   "omnibox": {
     "keyword": "plm"
   },
-  "declarative_net_request": {
-    "rule_resources": [{
-      "id": "plm_redirect",
-      "enabled": true,
-      "path": "rules.json"
-    }]
-  }
+
+  "host_permissions": [
+    "http://localhost:3927/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/plm-16.png",
+      "32": "icons/plm-32.png",
+      "48": "icons/plm-48.png",
+      "128": "icons/plm-128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/plm-16.png",
+    "32": "icons/plm-32.png",
+    "48": "icons/plm-48.png",
+    "128": "icons/plm-128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["resolve.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
