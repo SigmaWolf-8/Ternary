@@ -22,6 +22,7 @@ pub mod scan;
 pub mod trn;
 pub mod routing;
 pub mod derive;
+pub mod storage;
 pub mod crs;
 pub mod scanner;
 pub mod glb;
@@ -31,6 +32,7 @@ pub mod api;
 pub mod bridge;
 pub mod wire;
 
+// Re-exports for convenience
 pub use addr::CubeAddr;
 pub use trit::Trit;
 pub use subcube::SubCube;
@@ -39,6 +41,7 @@ pub use scan::{ScanHash, ScanResult};
 pub use routing::{NeighborMap, forward, compute_path, ForwardResult};
 pub use schema::{Category, Dimension, SCHEMA, describe};
 pub use crs::{CrsRegistry, CrsConfig, RegistrationResult, VerificationResult};
+pub use storage::Db;
 pub use scanner::{scan, FullScanResult, ScanTarget, ScanContext, format_scan_report};
 pub use glb::{Glb, GlbDecision, HptpPolicy, NodeStatus};
 pub use fts::{Fts, FtsConfig, FtsEvent, Heartbeat, HealthState};
