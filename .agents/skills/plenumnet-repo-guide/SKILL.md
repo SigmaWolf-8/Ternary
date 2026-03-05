@@ -316,7 +316,8 @@ In a 13D ternary hypercube:
 | Property | Value | Why |
 |----------|-------|-----|
 | Dimensions | 13 | 13 = T₇ = 1 ternary radian |
-| Vertices | 3¹³ = 1,594,323 | Complete address space |
+| Vertices | 3¹³ = 1,594,323 | Single-cube address space |
+| Inter-Cube Space | 3²⁶ Rep C = 2,541,865,828,329 | Scales infinitely by stacking 13 more trits |
 | Neighbors/node | 2 × 13 = 26 | 2 non-self values per dimension × 13 dims |
 | Max diameter | 13 hops | Worst case: all 13 trits differ |
 | Routing tables | **0** | Geometry IS the routing protocol |

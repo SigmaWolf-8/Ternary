@@ -464,7 +464,7 @@ function PlatformSection() {
     {
       icon: Network,
       title: "Inter-Cube Mesh Network",
-      description: `${PLATFORM.TDNS_TRITS}-trit ontological addressing with ${PLATFORM.TDNS_ADDRESS_SPACE} address space (3²⁷). Zero routing tables — GF(3) arithmetic computes every hop. Post-quantum tunnel keys derived from topology.`,
+      description: `${PLATFORM.TDNS_TRITS}-trit ontological addressing with ${PLATFORM.TDNS_ADDRESS_SPACE} address space (3²⁷ × 9). Zero routing tables — GF(3) arithmetic computes every hop. Post-quantum tunnel keys derived from topology.`,
       stats: `${PLATFORM.TDNS_ADDRESS_SPACE} addresses`,
     },
     {
@@ -554,7 +554,7 @@ function InterCubeSection() {
             transition={{ duration: 0.5 }}
           >
             <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-1.5 mb-4" data-testid="badge-inter-cube-live">
-              Live Infrastructure
+              Inter-Cube Infrastructure
             </Badge>
           </motion.div>
           <motion.h2
@@ -566,17 +566,27 @@ function InterCubeSection() {
             data-testid="text-inter-cube-title"
             id="inter-cube-title"
           >
-            Zero Routing Tables. Pure Mathematics.
+            Four Services. Pure Geometry. Zero Routing Tables.
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-muted-foreground text-lg max-w-3xl mx-auto"
+            className="text-muted-foreground text-lg max-w-3xl mx-auto mb-4"
             data-testid="text-inter-cube-description"
           >
-            PlenumNET replaces BGP, OSPF, and routing tables with GF(3) arithmetic. Every address is a point in a {PLATFORM.HYPERCUBE_DIMENSIONS}-dimensional ternary hypercube. Every hop is a single trit flip. The geometry IS the routing protocol.
+            When the network grows beyond a single cube, these four services handle connections between cubes — and they do it without routing tables. Because routing is pure geometry, the network scales infinitely: stack another 13 trits and the address space jumps from 1.6 million to 2.5 trillion nodes with no architectural change. This works today.
+          </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.14 }}
+            className="text-muted-foreground text-base max-w-3xl mx-auto"
+            data-testid="text-inter-cube-detail"
+          >
+            Greedy geodesic forwarding across the {PLATFORM.HYPERCUBE_DIMENSIONS}D ternary cube. Hamming distance IS hop count. Adjacency IS the routing table. Four services orchestrate the control plane — the geometry does the rest.
           </motion.p>
         </div>
 
@@ -586,30 +596,33 @@ function InterCubeSection() {
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0 }}
             className="flex flex-col items-center"
-            data-testid="stat-dimensions"
+            data-testid="stat-address-space"
           >
-            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_DIMENSIONS}</span>
-            <span className="text-sm text-muted-foreground mt-2">Dimensions</span>
+            <span className="text-3xl md:text-4xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_ADDRESS_SPACE}</span>
+            <span className="text-sm text-muted-foreground mt-2">Address Space</span>
+            <span className="text-xs text-muted-foreground">3&#178;&#8310; Rep C vertices</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.08 }}
             className="flex flex-col items-center"
-            data-testid="stat-vertices"
+            data-testid="stat-neighbors"
           >
-            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_VERTICES}</span>
-            <span className="text-sm text-muted-foreground mt-2">Vertices</span>
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_NEIGHBORS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Neighbors</span>
+            <span className="text-xs text-muted-foreground">per cube (2 x {PLATFORM.HYPERCUBE_DIMENSIONS})</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.16 }}
             className="flex flex-col items-center"
-            data-testid="stat-neighbors"
+            data-testid="stat-services"
           >
-            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_NEIGHBORS}</span>
-            <span className="text-sm text-muted-foreground mt-2">Neighbors / Node</span>
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_SERVICES}</span>
+            <span className="text-sm text-muted-foreground mt-2">Services</span>
+            <span className="text-xs text-muted-foreground">GLB &middot; CON &middot; CRS &middot; FTS</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -620,6 +633,7 @@ function InterCubeSection() {
           >
             <span className="text-4xl md:text-5xl font-bold text-primary leading-none">0</span>
             <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
+            <span className="text-xs text-muted-foreground">pure geometric forwarding</span>
           </motion.div>
         </div>
 
