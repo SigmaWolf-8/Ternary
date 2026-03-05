@@ -1,0 +1,102 @@
+# TDNS v2.3 — Ternary Domain Name System
+
+**27-Dimensional Ontological Addressing for PlenumNET**
+
+*The Address IS the Description. The Description IS the Route. The Description IS a Measurement.*
+
+Capomastro Holdings Ltd. — Applied Physics Division
+
+## What Is This
+
+TDNS replaces five conventional internet protocols — DNS, BGP, PKI, IGMP/PIM, and PTP — with a single mathematical structure: a 27-dimensional ternary hypercube. Every entity receives a 27-trit coordinate derived from machine-measurable properties. No human judgment.
+
+- Address space: 3²⁷ = 7,625,597,484,987
+- Neighbors per node: 54
+- Maximum diameter: 27 hops
+- Routing tables: zero
+- Human input required: zero
+
+## Quick Start
+
+```bash
+# Scan a live target
+cargo run --bin tdns-scan -- https://github.com
+
+# Describe a known address
+cargo run --bin tdns-scan -- --describe "WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332"
+
+# Compare two entities
+cargo run --bin tdns-scan -- --compare github.com google.com
+
+# Run the HTTP server
+cargo run --bin tdns-server
+# → http://0.0.0.0:3927
+
+# Docker
+docker build -t tdns-v2 .
+docker run -p 3927:3927 tdns-v2
+
+# 4-node mesh
+docker-compose up -d
+```
+
+## The 27 Dimensions
+
+| Category | Trits | Root Question |
+|----------|-------|---------------|
+| **WHO** | 1–4 | Who is behind it? |
+| **WHAT** | 5–8 | What is it? |
+| **WHERE** | 9–12 | Where can I find it? |
+| **WHEN** | 13–16 | When does it operate? |
+| **WHY** | 17–20 | Why does it exist? |
+| **HOW** | 21–24 | How does it work? |
+| **PEACE** | 25–27 | Can I sleep at night? |
+
+Every trit is machine-derived from live scans.
+
+## API Endpoints (11)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /api/v1/register | Scan + derive + register TRN |
+| POST | /api/v1/scan | Scan → address (no registration) |
+| GET | /api/v1/resolve/:name | Name → TRN |
+| GET | /api/v1/address/:addr | Reverse lookup |
+| GET | /api/v1/describe/:addr | Plain-English narration |
+| POST | /api/v1/verify/:name | Re-verification (§9.4) |
+| DELETE | /api/v1/deregister/:name | Remove entity |
+| POST | /api/v1/route | Route computation |
+| GET | /api/v1/fts/status | FTS health |
+| GET | /api/v1/con/metrics | CON tunnels |
+| GET | /api/v1/health | Service health |
+
+## Module Architecture
+
+```
+Binaries:     tdns-scan (CLI), tdns-server (HTTP, port 3927)
+Service:      api.rs (11 endpoints), bridge.rs (.plm → TDNS)
+Inter-Cube:   crs.rs (registration), glb.rs (routing),
+              fts.rs (heartbeats), con.rs (encrypted tunnels)
+Scanner:      scanner.rs (27 live probes), derive.rs (27 rules)
+Core:         trit, addr, subcube, trn, schema, scan, routing, wire
+```
+
+## Testing
+
+```bash
+cargo test                              # All 167 tests
+cargo test --lib                        # 146 unit tests
+cargo test --test integration           # 12 end-to-end scenarios
+cargo test --test e2e                   # 9 service-level tests
+cargo test --features network-tests     # Include live DNS/HTTP tests
+```
+
+## What TDNS Replaces
+
+DNS → 27-trit coordinate via TRN. BGP → greedy forwarding.
+PKI → challenge-response + scan hash. IGMP/PIM → sub-cube wildcards.
+PTP → HPTP nanosecond timestamps.
+
+## License
+
+Proprietary — Capomastro Holdings Ltd. All rights reserved.

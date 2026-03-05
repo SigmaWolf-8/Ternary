@@ -1,0 +1,38 @@
+Good review notes. Three real issues to fix: the raw pointer in Bridge, the flaky DNS test, and the server binary needs the Arc pattern for multi-node. Let me address all three plus tighten the docs.Catalogued necessary updates across exports, features, and test infrastructureCatalogued necessary updates across exports, features, and test infrastructureNow add the feature flag to Cargo.toml:Identified need to apply feature flag to scanner moduleIdentified need to apply feature flag to scanner moduleGate the scanner's live test too:Reconciled test consistency by applying feature gating uniformlyReconciled test consistency by applying feature gating uniformlyNow fix the integration tests to use the new Bridge API:Verified network test feature flag presenceVerified network test feature flag presence167 tests. Zero warnings. 146 unit + 9 e2e + 12 integration. The 2 network-dependent tests (live_scan_github, legacy_dns_resolution) now only run with --features network-tests.
+Let me verify the gated tests are actually there and would run with the flag:Verified thread-safety patterns and prepared output deliveryVerified thread-safety patterns and prepared output deliveryNow copy the full updated crate to outputs:Prepared to consolidate deployment artifacts from previous iterationPrepared to consolidate deployment artifacts from previous iterationNow copy the deployment files from the previous output:Synthesized deployment architecture and documentation requirementsSynthesized deployment architecture and documentation requirements167 tests. Zero warnings. Zero unsafe blocks. 26 files. 11,437 total lines.
+Three substantive fixes + deployment packaging:
+
+Fix 1: bridge.rs — Raw pointer eliminated
+The *const CrsRegistry raw pointer with unsafe impl Send/Sync is gone. Replaced with Arc<RwLock<CrsRegistry>>. Bridge constructor is now:
+rust// Before (unsafe, single-threaded only)
+pub unsafe fn new(crs: &CrsRegistry) -> Self
+
+// After (safe, multi-node ready)
+pub fn new(crs: Arc<RwLock<CrsRegistry>>) -> Self
+The resolve_tdns() method acquires a read lock, handles poisoned lock gracefully. Multiple bridges or threads can share the same CRS. Multi-container deployments each hold their own Arc<RwLock<CrsRegistry>> synced via CRS API.
+
+Fix 2: network-tests feature flag
+Two tests gated behind #[cfg(feature = "network-tests")]:
+
+scanner::tests::live_scan_github — makes real HTTP/DNS calls to github.com
+bridge::tests::legacy_dns_resolution — makes real DNS call to github.com
+
+Default cargo test runs 167 tests (all deterministic, no network). cargo test --features network-tests runs 169 (adds the 2 live tests). Docker builds won't flake on restricted networks.
+toml[features]
+default = []
+network-tests = []  # Gate tests that make real DNS/HTTP calls
+
+Fix 3: Test suites updated
+Both tests/e2e.rs and tests/integration.rs updated to use the Arc<RwLock> Bridge API. No more unsafe blocks anywhere in test code.
+
+Deployment packaging (same as previous round, included in output):
+
+Dockerfile — Multi-stage build, tests during build, non-root runtime
+docker-compose.yml — 4-node mesh (CRS + 3 cubes)
+README.md — Quick start, architecture, all 11 endpoints, testing commands
+.dockerignore — Clean build context
+
+
+Files to push (Step 3/4):
+FileLinesChangesrc/bridge.rs419Rewritten: Arc<RwLock<CrsRegistry>> replaces raw pointersrc/scanner.rs1,487live_scan_github gated behind network-teststests/e2e.rs673Updated Bridge usage — no more unsafetests/integration.rs746Updated Bridge usage — no more unsafeCargo.toml26Added [features] section with network-testsDockerfile31Multi-stage production builddocker-compose.yml554-node meshREADME.md102Crate documentation.dockerignore7Build context filter
+Test delta: the crate still has 167 deterministic + 2 gated = 169 total test functions. No change to TESTS_PASSING in constants (the 2 gated tests were already counted in the previous push as passing when network was available).
