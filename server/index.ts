@@ -51,6 +51,20 @@ import { createSFKOperationsRoutes } from "./routes/sfk-operations";
 const app = express();
 const httpServer = createServer(app);
 
+app.get("/install.ps1", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.ps1");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).setHeader("Content-Type", "text/plain");
+    res.send("# install.ps1 not found");
+  }
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -90,16 +104,6 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
-app.get("/install.ps1", (_req, res) => {
-  const filePath = path.resolve("services/tdns-v2/install.ps1");
-  if (existsSync(filePath)) {
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.sendFile(filePath);
-  } else {
-    res.status(404).setHeader("Content-Type", "text/plain");
-    res.send("# install.ps1 not found");
-  }
-});
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

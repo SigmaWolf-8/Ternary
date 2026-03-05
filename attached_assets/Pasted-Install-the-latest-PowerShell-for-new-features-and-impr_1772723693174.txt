@@ -1,0 +1,99 @@
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-git\services\tdns-v2> irm https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/install.ps1 | iex
+iex : At line:5 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:5 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:14 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:14 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:23 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:23 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:32 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:32 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:41 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:41 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+At line:1 char:98
++ ... 84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/install.ps1 | iex
++                                                                       ~~~
+    + CategoryInfo          : ParserError: (:) [Invoke-Expression], ParseException
+    + FullyQualifiedErrorId : UnexpectedToken,Microsoft.PowerShell.Commands.InvokeExpressionCommand
+
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-git\services\tdns-v2> irm https://f4db13cb-d3ea-46aa-84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/install.ps1 | iex
+iex : At line:5 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:5 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:14 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:14 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:23 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:23 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:32 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:32 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+At line:41 char:10
++     @font-face {
++          ~~~~~
+Unexpected token '-face' in expression or statement.
+At line:41 char:16
++     @font-face {
++                ~
+Unexpected token '{' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+At line:1 char:98
++ ... 84d6-6760abe923d5-00-xxd9pb9n5txn.picard.replit.dev/install.ps1 | iex
++                                                                       ~~~
+    + CategoryInfo          : ParserError: (:) [Invoke-Expression], ParseException
+    + FullyQualifiedErrorId : UnexpectedToken,Microsoft.PowerShell.Commands.InvokeExpressionCommand
+
+PS D:\~Project WhitePapers\PlenumNET\Repo\Ternary-git\services\tdns-v2>
