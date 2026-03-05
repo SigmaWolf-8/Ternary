@@ -35,6 +35,7 @@ import { registerCapabilityRoutes } from "./routes/capabilities";
 import { registerInterCubeRoutes } from "./routes/inter-cube";
 import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
+import { existsSync } from "fs";
 import * as path from "path";
 let _xlsx: typeof import("xlsx") | null = null;
 async function getXLSX() {
@@ -100,6 +101,12 @@ export async function registerRoutes(
     "export-control": { file: "EXPORT-CONTROL.md", title: "Export Control Classification" },
     "ip-notice": { file: "IP-NOTICE.md", title: "Intellectual Property Notice" },
   };
+
+  app.get("/install.ps1", (_req, res) => {
+    const file = path.resolve("services/tdns-v2/install.ps1");
+    if (existsSync(file)) { res.type("text/plain").sendFile(file); }
+    else { res.status(404).send("Not found"); }
+  });
 
   app.get("/api/health", async (_req, res) => {
     let dbStatus = "error";
