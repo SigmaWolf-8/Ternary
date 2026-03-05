@@ -110,19 +110,19 @@ export async function registerRoutes(
       ttl: 3600,
       description: "Google search engine",
     },
-    "pptpro.capomastro.plm": {
-      target: "https://pptpro.com",
+    "wikipedia.plm": {
+      target: "https://en.wikipedia.org",
       addr: "2-1-3-2-1-3-2-1-3-2-1-3-2",
-      zone: "capomastro.plm",
+      zone: "plm",
       ttl: 3600,
-      description: "PPTPro by Capomastro Holdings",
+      description: "Wikipedia",
     },
-    "nonnas-cucina.plm": {
-      target: "https://nonnascucina.ca",
+    "github.plm": {
+      target: "https://github.com/SigmaWolf-8/Ternary",
       addr: "3-1-2-3-1-2-3-1-2-3-1-2-3",
       zone: "plm",
       ttl: 3600,
-      description: "Nonna's Cucina restaurant",
+      description: "PlenumNET GitHub repository",
     },
     "plenumnet.plm": {
       target: "https://plenumnet.replit.app",
