@@ -17,7 +17,7 @@ Write-Host ""
 if (Test-Path $INSTALL_DIR) { Remove-Item $INSTALL_DIR -Recurse -Force }
 New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
 
-$files = @("manifest.json", "background.js", "popup.html", "icon16.png", "icon48.png", "icon128.png")
+$files = @("manifest.json", "background.js", "content.js", "popup.html", "popup.js", "icon16.png", "icon48.png", "icon128.png")
 foreach ($f in $files) {
     Invoke-WebRequest -Uri "$GH_RAW/$f" -OutFile "$INSTALL_DIR\$f" -UseBasicParsing
 }
