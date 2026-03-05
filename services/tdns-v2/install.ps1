@@ -2,11 +2,11 @@
   PlenumNET TDNS — Browser Extension Installer
   Capomastro Holdings Ltd. — Applied Physics Division
   
-  Run: irm https://plenumnet.replit.app/install.ps1 | iex
+  Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Stop"
-$PLM_API = "https://plenumnet.replit.app"
+$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2"
 $INSTALL_DIR = "$env:LOCALAPPDATA\PlenumNET\extension"
 
 Write-Host ""
@@ -17,30 +17,29 @@ Write-Host ""
 if (Test-Path $INSTALL_DIR) { Remove-Item $INSTALL_DIR -Recurse -Force }
 New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
 $zip = "$env:TEMP\plenumnet-ext.zip"
-Invoke-WebRequest -Uri "$PLM_API/api/extension/chromium" -OutFile $zip -UseBasicParsing
+Invoke-WebRequest -Uri "$GH_RAW/chromium-extension.zip" -OutFile $zip -UseBasicParsing
 Expand-Archive -Path $zip -DestinationPath $INSTALL_DIR -Force
 Remove-Item $zip -Force
-Write-Host "  [OK] Downloaded" -ForegroundColor Green
+Write-Host "  [OK] Downloaded extension v2.3.2" -ForegroundColor Green
 
 # Detect and install
 $count = 0
 
-# Chromium browsers — registry-based external extension install
+# Chromium browsers — preferences-based external extension install
 $chromiumBrowsers = @(
-    @{ Name="Chrome";  Data="$env:LOCALAPPDATA\Google\Chrome\User Data";           Reg="HKLM:\SOFTWARE\Google\Chrome\Extensions" },
-    @{ Name="Edge";    Data="$env:LOCALAPPDATA\Microsoft\Edge\User Data";           Reg="HKLM:\SOFTWARE\Microsoft\Edge\Extensions" },
-    @{ Name="Brave";   Data="$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"; Reg="HKLM:\SOFTWARE\BraveSoftware\Brave-Browser\Extensions" },
-    @{ Name="Vivaldi"; Data="$env:LOCALAPPDATA\Vivaldi\User Data";                 Reg="HKLM:\SOFTWARE\Vivaldi\Extensions" },
-    @{ Name="Opera";   Data="$env:APPDATA\Opera Software\Opera Stable";            Reg="HKLM:\SOFTWARE\Opera Software\Opera Stable\Extensions" }
+    @{ Name="Chrome";  Data="$env:LOCALAPPDATA\Google\Chrome\User Data" },
+    @{ Name="Edge";    Data="$env:LOCALAPPDATA\Microsoft\Edge\User Data" },
+    @{ Name="Brave";   Data="$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data" },
+    @{ Name="Vivaldi"; Data="$env:LOCALAPPDATA\Vivaldi\User Data" },
+    @{ Name="Opera";   Data="$env:APPDATA\Opera Software\Opera Stable" }
 )
 
 foreach ($b in $chromiumBrowsers) {
     if (Test-Path $b.Data) {
         try {
-            # Preferences-based install: write to External Extensions
             $extJsonDir = "$($b.Data)\Default\External Extensions"
             if (-not (Test-Path $extJsonDir)) { New-Item -ItemType Directory -Path $extJsonDir -Force | Out-Null }
-            @{ external_crx = $INSTALL_DIR; external_version = "2.3.2" } | ConvertTo-Json | Set-Content "$extJsonDir\plenumnet-tdns.json"
+            @{ external_crx = "$INSTALL_DIR\manifest.json" ; external_version = "2.3.2" } | ConvertTo-Json | Set-Content "$extJsonDir\plenumnet-tdns.json"
             Write-Host "  [OK] $($b.Name)" -ForegroundColor Green
             $count++
         } catch {
@@ -54,7 +53,7 @@ $ffProfiles = "$env:APPDATA\Mozilla\Firefox\Profiles"
 if (Test-Path $ffProfiles) {
     try {
         $xpi = "$env:TEMP\plenumnet-tdns.xpi"
-        Invoke-WebRequest -Uri "$PLM_API/api/extension/firefox" -OutFile $xpi -UseBasicParsing
+        Invoke-WebRequest -Uri "$GH_RAW/chromium-extension.zip" -OutFile $xpi -UseBasicParsing
         Get-ChildItem $ffProfiles -Directory | ForEach-Object {
             $extDir = "$($_.FullName)\extensions"
             if (-not (Test-Path $extDir)) { New-Item -ItemType Directory -Path $extDir -Force | Out-Null }
@@ -70,7 +69,8 @@ if (Test-Path $ffProfiles) {
 
 Write-Host ""
 if ($count -gt 0) {
-    Write-Host "  Done — installed in $count browser(s). Restart browsers, then type: plm google" -ForegroundColor Green
+    Write-Host "  Done — installed in $count browser(s)." -ForegroundColor Green
+    Write-Host "  Restart your browser(s), then type: plm google" -ForegroundColor Cyan
 } else {
     Write-Host "  No supported browsers found." -ForegroundColor Yellow
 }

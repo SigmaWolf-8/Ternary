@@ -80,6 +80,30 @@ app.get("/api/install.ps1", (_req, res) => {
   }
 });
 
+app.get("/api/extension/chromium", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/chromium-extension.zip");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=plenumnet-tdns-extension.zip");
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).type("text/plain").send("Extension package not found");
+  }
+});
+
+app.get("/api/extension/firefox", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/chromium-extension.zip");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "application/x-xpinstall");
+    res.setHeader("Content-Disposition", "attachment; filename=plenumnet-tdns.xpi");
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).type("text/plain").send("Extension package not found");
+  }
+});
+
 app.get("/api/install-script", (_req, res) => {
   const filePath = path.resolve("services/tdns-v2/install.ps1");
   if (existsSync(filePath)) {
