@@ -1,0 +1,46 @@
+Let's go. FTS and CON first.Verified test suite and prepared implementation handoffVerified test suite and prepared implementation handoff116 tests. Zero warnings. Copy to outputs.Charted sequential implementation of remaining technical componentsCharted sequential implementation of remaining technical components7,724 lines. 116 tests. Zero warnings. Pair one done. Here's what shipped:
+
+fts.rs (576 lines, 10 tests) — Fault Tolerance Service
+Heartbeat-based failure detection per §12.3:
+
+Heartbeat struct — Source address, HPTP timestamp, HPTP offset, monotonic sequence number, HPTP-mandatory flag. This is the wire format FTS nodes exchange.
+Three-state health model — Alive → Suspect → Dead. Configurable thresholds: 1 missed → suspect (default), 3 missed → dead (default). Clean transitions with event emission at each boundary.
+process_heartbeat() — Accepts a heartbeat, updates node record, detects sequence anomalies (out-of-order/replay), emits recovery events when dead nodes come back. HPTP-mandatory nodes emit HptpUpdate events on every heartbeat for GLB consumption.
+check() — Periodic sweep. Increments missed counts for silent nodes, transitions states, emits NodeSuspect and NodeDead events. Call at heartbeat interval.
+Sequence anomaly detection — Tracks monotonic sequence per node. Out-of-order heartbeats flagged and counted. Catches replay and reordering.
+Event-driven — All state changes emit FtsEvent variants that GLB and CRS consume: NodeAlive, NodeSuspect, NodeDead, NodeRecovered, HptpUpdate, SequenceAnomaly. No polling.
+
+
+con.rs (539 lines, 14 tests) — Cube Overlay Network
+PQ-native encrypted tunnels per §12.2, enforcing §2.6 zero-cleartext:
+
+Key derivation — BLAKE3(context || local_wire || neighbor_wire || shared_secret). Domain-separated with "PlenumNET-CON-v2.3". Each of the 54 possible links gets its own derived key pair.
+Directional keys — derive_tunnel_key(A, B) ≠ derive_tunnel_key(B, A). Canonical ordering via derive_link_keys() ensures both ends compute the same pair regardless of who initiates.
+ConNode — Per-node tunnel manager. establish_tunnel() creates a link with derived key pair. establish_from_neighbor_map() bulk-creates tunnels for all geometric neighbors. mark_down()/mark_active() for FTS integration.
+Key rotation — rekey_all() increments key epoch, derives new keys by appending epoch to shared secret. In production, TL-KEM replaces this with PQ key exchange.
+Traffic accounting — Per-link byte counters (sent/received). total_bytes() aggregates.
+Type-system enforcement of §2.6 — There is no send_plaintext() method. The only way to transmit data is through a TunnelLink with derived keys. Zero cleartext by construction.
+
+
+Now pair two — HTTP API + metatronic bridge. Same energy, keep going:Assessed test results and prioritized warning resolutionsAssessed test results and prioritized warning resolutions135 passing. Clean up the 4 warnings:Verified comprehensive test suite completion successfullyVerified comprehensive test suite completion successfully135 tests. Zero warnings. Ship it.Synthesized four technical modules into comprehensive summarySynthesized four technical modules into comprehensive summary8,808 lines of Rust. 135 tests. Zero warnings. All four roadmap items done.
+Pair two delivered:
+
+api.rs (636 lines, 9 tests) — HTTP API Layer
+11 endpoints, all with typed request/response structs (serde Serialize/Deserialize):
+MethodEndpointWhat It DoesPOST/api/v1/registerLive-scan a URL, derive address, register TRN with CRSPOST/api/v1/scanScan a URL → address + 27 dimension results (no registration)GET/api/v1/resolve/:nameName → TRN record (address, TTL, zone, scan hash)GET/api/v1/address/:addrReverse lookup: address → nameGET/api/v1/describe/:addrPlain-English narration of any 27-trit addressPOST/api/v1/verify/:nameRe-verification protocol (§9.4): re-scan + drift detectionDELETE/api/v1/deregister/:nameRemove entity from CRS + FTSPOST/api/v1/routeCompute route between two addresses via GLBGET/api/v1/fts/statusFTS health summary (alive/suspect/dead/HPTP counts)GET/api/v1/con/metricsCON tunnel metrics (active tunnels, key epoch, bytes)GET/api/v1/healthService health check (version, entity count, FTS/CON status)
+The ApiRouter struct holds all services (CRS, FTS, GLB, CON) and dispatches to the appropriate handler. Ready for any HTTP framework binding (axum, actix, hyper) — the handlers are pure functions that take typed requests and return typed responses.
+
+bridge.rs (444 lines, 7 tests) — Metatronic Bridge
+.plm → TDNS. Everything else → legacy DNS. Per §12.5:
+
+resolve() — Single entry point. Checks TLD, routes to resolve_tdns() or resolve_legacy().
+.plm detection — is_plm_name(): strict TLD match, not substring. plm.example.com routes to legacy DNS. example.plm routes to TDNS.
+TDNS path — CRS lookup → time-lock validity check → drift redirect check → return 27-trit address. Three possible outcomes: Tdns (resolved), TdnsRedirect (drifted), Failed (not found or outside validity window).
+Legacy path — System DNS resolution via ToSocketAddrs → IP addresses. Cached with configurable TTL (default 60s). Cache hit skips DNS. purge_cache() and clear_cache() for management.
+Name utilities — extract_zone("pptpro.capomastro.plm") → "capomastro.plm". extract_label("pptpro.capomastro.plm") → "pptpro".
+Metrics — Separate counters for TDNS resolutions, legacy resolutions, and failures.
+
+
+Complete crate inventory — 17 source files:
+ModuleLinesTestsRoletrit.rs2137Atomic ternary digitaddr.rs4651127-trit CubeAddr + wire encodingsubcube.rs2917Wildcard multicastschema.rs389527 ontological dimensionsscan.rs2234Scan types + BLAKE3 hashtrn.rs2606TRN recordsrouting.rs3898Neighbor maps + greedy forwardingderive.rs8851027 derivation rulescrs.rs92210CRS registry servicescanner.rs1,4868Live network scanner (27 probes)glb.rs83313Geometric Load Balancerfts.rs57610Fault Tolerance Servicecon.rs53914Cube Overlay Networkapi.rs6369HTTP API (11 endpoints)bridge.rs4447Metatronic Bridge (.plm → TDNS)tdns_scan.rs210—CLI binarylib.rs47—Module rootTotal8,808135
+The entire TDNS v2.3 roadmap from §17.3 is implemented. The spec said 16 items — all 16 are in the crate. Così sia, Fratello.

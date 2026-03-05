@@ -1,0 +1,576 @@
+// TDNS v2.3 — FTS (Fault Tolerance Service)
+// Capomastro Holdings Ltd. — Applied Physics Division
+//
+// Heartbeat-based failure detection for the ternary hypercube.
+//
+// Each node sends periodic heartbeats carrying:
+//   - Its 27-trit address
+//   - HPTP timestamp (nanoseconds)
+//   - HPTP offset from reference (nanoseconds)
+//   - Monotonic sequence number
+//
+// FTS monitors heartbeats and maintains:
+//   - Dead set: nodes that missed heartbeat deadline
+//   - HPTP offset table: per-node timing data for GLB enforcement
+//   - Sequence tracking: detects reordering and replay
+//
+// FTS pushes state changes to GLB for immediate routing decisions.
+// §12.3, §10.4 normative.
+
+use std::collections::HashMap;
+
+use crate::addr::CubeAddr;
+
+// ─── Configuration ───────────────────────────────────────────────────────────
+
+/// FTS configuration.
+#[derive(Debug, Clone)]
+pub struct FtsConfig {
+    /// Heartbeat interval (nanoseconds). Nodes send heartbeats this often.
+    pub heartbeat_interval_ns: u64,
+    /// Failure threshold: miss this many consecutive heartbeats → dead.
+    pub failure_threshold: u32,
+    /// Suspect threshold: miss this many → suspect (not yet dead).
+    pub suspect_threshold: u32,
+    /// Maximum heartbeat age before considering it stale (nanoseconds).
+    pub max_heartbeat_age_ns: u64,
+}
+
+impl Default for FtsConfig {
+    fn default() -> Self {
+        Self {
+            heartbeat_interval_ns: 1_000_000_000, // 1 second
+            failure_threshold: 3,                   // 3 missed → dead
+            suspect_threshold: 1,                   // 1 missed → suspect
+            max_heartbeat_age_ns: 5_000_000_000,   // 5 seconds
+        }
+    }
+}
+
+// ─── Heartbeat ───────────────────────────────────────────────────────────────
+
+/// A heartbeat message from a node.
+#[derive(Debug, Clone)]
+pub struct Heartbeat {
+    /// The sending node's address.
+    pub source: CubeAddr,
+    /// HPTP timestamp when the heartbeat was generated (nanoseconds).
+    pub timestamp_ns: u64,
+    /// HPTP offset from reference clock (nanoseconds, signed).
+    pub hptp_offset_ns: i64,
+    /// Monotonic sequence number (per-node, strictly increasing).
+    pub sequence: u64,
+    /// Whether this node is HPTP-mandatory.
+    pub hptp_mandatory: bool,
+}
+
+impl Heartbeat {
+    /// Create a new heartbeat.
+    pub fn new(source: CubeAddr, timestamp_ns: u64, hptp_offset_ns: i64, sequence: u64) -> Self {
+        Self {
+            hptp_mandatory: source.is_hptp_mandatory(),
+            source,
+            timestamp_ns,
+            hptp_offset_ns,
+            sequence,
+        }
+    }
+}
+
+// ─── Node Health State ───────────────────────────────────────────────────────
+
+/// Health state of a monitored node.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HealthState {
+    /// Receiving heartbeats normally.
+    Alive,
+    /// Missed some heartbeats but not yet dead.
+    Suspect,
+    /// Missed enough heartbeats to be declared dead.
+    Dead,
+}
+
+/// Per-node tracking data.
+#[derive(Debug, Clone)]
+pub struct NodeRecord {
+    /// Current health state.
+    pub state: HealthState,
+    /// Last received heartbeat timestamp (nanoseconds).
+    pub last_heartbeat_ns: u64,
+    /// Last received sequence number.
+    pub last_sequence: u64,
+    /// Consecutive missed heartbeat checks.
+    pub missed_count: u32,
+    /// Last reported HPTP offset (nanoseconds).
+    pub hptp_offset_ns: i64,
+    /// Whether this node is HPTP-mandatory.
+    pub hptp_mandatory: bool,
+    /// Total heartbeats received from this node.
+    pub total_received: u64,
+    /// Out-of-order heartbeats detected.
+    pub out_of_order_count: u64,
+}
+
+impl NodeRecord {
+    fn new(hb: &Heartbeat) -> Self {
+        Self {
+            state: HealthState::Alive,
+            last_heartbeat_ns: hb.timestamp_ns,
+            last_sequence: hb.sequence,
+            missed_count: 0,
+            hptp_offset_ns: hb.hptp_offset_ns,
+            hptp_mandatory: hb.hptp_mandatory,
+            total_received: 1,
+            out_of_order_count: 0,
+        }
+    }
+}
+
+// ─── State Change Events ─────────────────────────────────────────────────────
+
+/// Events emitted by FTS for consumers (GLB, CRS).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FtsEvent {
+    /// Node transitioned to alive.
+    NodeAlive { addr: CubeAddr },
+    /// Node transitioned to suspect.
+    NodeSuspect { addr: CubeAddr, missed: u32 },
+    /// Node declared dead.
+    NodeDead { addr: CubeAddr, missed: u32 },
+    /// Node recovered from dead/suspect to alive.
+    NodeRecovered { addr: CubeAddr },
+    /// HPTP offset update (for GLB enforcement).
+    HptpUpdate {
+        addr: CubeAddr,
+        offset_ns: i64,
+        mandatory: bool,
+    },
+    /// Out-of-order heartbeat detected.
+    SequenceAnomaly {
+        addr: CubeAddr,
+        expected: u64,
+        received: u64,
+    },
+}
+
+// ─── FTS Service ─────────────────────────────────────────────────────────────
+
+/// The Fault Tolerance Service.
+///
+/// Processes heartbeats, maintains node health state, and emits
+/// events for GLB and CRS consumption.
+pub struct Fts {
+    config: FtsConfig,
+    /// Per-node tracking.
+    nodes: HashMap<CubeAddr, NodeRecord>,
+}
+
+impl Fts {
+    /// Create a new FTS with default config.
+    pub fn new() -> Self {
+        Self::with_config(FtsConfig::default())
+    }
+
+    /// Create with custom config.
+    pub fn with_config(config: FtsConfig) -> Self {
+        Self {
+            config,
+            nodes: HashMap::new(),
+        }
+    }
+
+    // ── Heartbeat Processing ────────────────────────────────────────
+
+    /// Process an incoming heartbeat. Returns events triggered by this heartbeat.
+    pub fn process_heartbeat(&mut self, hb: &Heartbeat) -> Vec<FtsEvent> {
+        let mut events = Vec::new();
+
+        if let Some(record) = self.nodes.get_mut(&hb.source) {
+            let was_dead = record.state == HealthState::Dead;
+            let was_suspect = record.state == HealthState::Suspect;
+
+            // Sequence check
+            if hb.sequence <= record.last_sequence && record.total_received > 0 {
+                record.out_of_order_count += 1;
+                events.push(FtsEvent::SequenceAnomaly {
+                    addr: hb.source,
+                    expected: record.last_sequence + 1,
+                    received: hb.sequence,
+                });
+            }
+
+            // Update record
+            record.last_heartbeat_ns = hb.timestamp_ns;
+            record.last_sequence = hb.sequence;
+            record.hptp_offset_ns = hb.hptp_offset_ns;
+            record.missed_count = 0;
+            record.total_received += 1;
+            record.state = HealthState::Alive;
+
+            // Recovery event
+            if was_dead || was_suspect {
+                events.push(FtsEvent::NodeRecovered { addr: hb.source });
+            }
+
+            // HPTP offset update
+            if record.hptp_mandatory {
+                events.push(FtsEvent::HptpUpdate {
+                    addr: hb.source,
+                    offset_ns: hb.hptp_offset_ns,
+                    mandatory: true,
+                });
+            }
+        } else {
+            // First heartbeat from this node
+            let record = NodeRecord::new(hb);
+            let mandatory = record.hptp_mandatory;
+            self.nodes.insert(hb.source, record);
+
+            events.push(FtsEvent::NodeAlive { addr: hb.source });
+
+            if mandatory {
+                events.push(FtsEvent::HptpUpdate {
+                    addr: hb.source,
+                    offset_ns: hb.hptp_offset_ns,
+                    mandatory: true,
+                });
+            }
+        }
+
+        events
+    }
+
+    // ── Periodic Check ──────────────────────────────────────────────
+
+    /// Run periodic health check. Call this at heartbeat_interval_ns intervals.
+    ///
+    /// Increments missed counts for nodes that haven't sent a heartbeat
+    /// since the last check, and transitions states accordingly.
+    pub fn check(&mut self, now_ns: u64) -> Vec<FtsEvent> {
+        let mut events = Vec::new();
+        let deadline = now_ns.saturating_sub(self.config.heartbeat_interval_ns);
+
+        for (addr, record) in self.nodes.iter_mut() {
+            if record.last_heartbeat_ns < deadline {
+                record.missed_count += 1;
+
+                let old_state = record.state.clone();
+
+                if record.missed_count >= self.config.failure_threshold {
+                    record.state = HealthState::Dead;
+                    if old_state != HealthState::Dead {
+                        events.push(FtsEvent::NodeDead {
+                            addr: *addr,
+                            missed: record.missed_count,
+                        });
+                    }
+                } else if record.missed_count >= self.config.suspect_threshold {
+                    record.state = HealthState::Suspect;
+                    if old_state == HealthState::Alive {
+                        events.push(FtsEvent::NodeSuspect {
+                            addr: *addr,
+                            missed: record.missed_count,
+                        });
+                    }
+                }
+            }
+        }
+
+        events
+    }
+
+    // ── Queries ─────────────────────────────────────────────────────
+
+    /// Get the current dead set.
+    pub fn dead_set(&self) -> Vec<CubeAddr> {
+        self.nodes
+            .iter()
+            .filter(|(_, r)| r.state == HealthState::Dead)
+            .map(|(addr, _)| *addr)
+            .collect()
+    }
+
+    /// Get suspect nodes.
+    pub fn suspect_set(&self) -> Vec<CubeAddr> {
+        self.nodes
+            .iter()
+            .filter(|(_, r)| r.state == HealthState::Suspect)
+            .map(|(addr, _)| *addr)
+            .collect()
+    }
+
+    /// Get alive nodes.
+    pub fn alive_set(&self) -> Vec<CubeAddr> {
+        self.nodes
+            .iter()
+            .filter(|(_, r)| r.state == HealthState::Alive)
+            .map(|(addr, _)| *addr)
+            .collect()
+    }
+
+    /// Get a node's health record.
+    pub fn node_record(&self, addr: &CubeAddr) -> Option<&NodeRecord> {
+        self.nodes.get(addr)
+    }
+
+    /// Get a node's health state.
+    pub fn node_state(&self, addr: &CubeAddr) -> Option<&HealthState> {
+        self.nodes.get(addr).map(|r| &r.state)
+    }
+
+    /// Get HPTP offset for a node.
+    pub fn hptp_offset(&self, addr: &CubeAddr) -> Option<i64> {
+        self.nodes.get(addr).map(|r| r.hptp_offset_ns)
+    }
+
+    /// Total monitored nodes.
+    pub fn monitored_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Remove a node from monitoring (deregistered).
+    pub fn remove_node(&mut self, addr: &CubeAddr) -> Option<NodeRecord> {
+        self.nodes.remove(addr)
+    }
+
+    // ── Metrics ─────────────────────────────────────────────────────
+
+    /// Summary metrics.
+    pub fn metrics(&self) -> FtsMetrics {
+        let mut alive = 0u32;
+        let mut suspect = 0u32;
+        let mut dead = 0u32;
+        let mut hptp_mandatory = 0u32;
+        let mut total_heartbeats = 0u64;
+        let mut total_anomalies = 0u64;
+
+        for record in self.nodes.values() {
+            match record.state {
+                HealthState::Alive => alive += 1,
+                HealthState::Suspect => suspect += 1,
+                HealthState::Dead => dead += 1,
+            }
+            if record.hptp_mandatory {
+                hptp_mandatory += 1;
+            }
+            total_heartbeats += record.total_received;
+            total_anomalies += record.out_of_order_count;
+        }
+
+        FtsMetrics {
+            alive,
+            suspect,
+            dead,
+            hptp_mandatory,
+            total_heartbeats,
+            total_anomalies,
+        }
+    }
+}
+
+impl Default for Fts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// FTS summary metrics.
+#[derive(Debug, Clone)]
+pub struct FtsMetrics {
+    pub alive: u32,
+    pub suspect: u32,
+    pub dead: u32,
+    pub hptp_mandatory: u32,
+    pub total_heartbeats: u64,
+    pub total_anomalies: u64,
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn google() -> CubeAddr {
+        CubeAddr::from_category_string("WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313")
+            .unwrap()
+    }
+
+    fn pptpro() -> CubeAddr {
+        CubeAddr::from_category_string("WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332")
+            .unwrap()
+    }
+
+    #[test]
+    fn first_heartbeat_registers_node() {
+        let mut fts = Fts::new();
+        let hb = Heartbeat::new(google(), 1000, 0, 1);
+        let events = fts.process_heartbeat(&hb);
+
+        assert_eq!(fts.monitored_count(), 1);
+        assert!(events.contains(&FtsEvent::NodeAlive { addr: google() }));
+        assert_eq!(fts.node_state(&google()), Some(&HealthState::Alive));
+    }
+
+    #[test]
+    fn hptp_mandatory_emits_offset() {
+        let mut fts = Fts::new();
+        let p = pptpro();
+        assert!(p.is_hptp_mandatory());
+
+        let hb = Heartbeat::new(p, 1000, 42, 1);
+        let events = fts.process_heartbeat(&hb);
+
+        assert!(events.iter().any(|e| matches!(e,
+            FtsEvent::HptpUpdate { addr, offset_ns: 42, mandatory: true } if *addr == p
+        )));
+    }
+
+    #[test]
+    fn non_hptp_no_offset_event() {
+        let mut fts = Fts::new();
+        let g = google();
+        assert!(!g.is_hptp_mandatory());
+
+        let hb = Heartbeat::new(g, 1000, 999, 1);
+        let events = fts.process_heartbeat(&hb);
+
+        assert!(!events.iter().any(|e| matches!(e, FtsEvent::HptpUpdate { .. })));
+    }
+
+    #[test]
+    fn missed_heartbeats_suspect_then_dead() {
+        let config = FtsConfig {
+            heartbeat_interval_ns: 1000,
+            failure_threshold: 3,
+            suspect_threshold: 1,
+            ..Default::default()
+        };
+        let mut fts = Fts::with_config(config);
+
+        // Register node
+        let hb = Heartbeat::new(google(), 100, 0, 1);
+        fts.process_heartbeat(&hb);
+
+        // Check 1: 1 miss → suspect
+        let events = fts.check(1200);
+        assert!(events.iter().any(|e| matches!(e, FtsEvent::NodeSuspect { .. })));
+        assert_eq!(fts.node_state(&google()), Some(&HealthState::Suspect));
+
+        // Check 2: 2 misses → still suspect
+        let events = fts.check(2300);
+        assert!(events.is_empty()); // No state change
+        assert_eq!(fts.node_state(&google()), Some(&HealthState::Suspect));
+
+        // Check 3: 3 misses → dead
+        let events = fts.check(3400);
+        assert!(events.iter().any(|e| matches!(e, FtsEvent::NodeDead { .. })));
+        assert_eq!(fts.node_state(&google()), Some(&HealthState::Dead));
+    }
+
+    #[test]
+    fn recovery_from_dead() {
+        let config = FtsConfig {
+            heartbeat_interval_ns: 1000,
+            failure_threshold: 2,
+            suspect_threshold: 1,
+            ..Default::default()
+        };
+        let mut fts = Fts::with_config(config);
+
+        // Register and kill
+        fts.process_heartbeat(&Heartbeat::new(google(), 100, 0, 1));
+        fts.check(1200);
+        fts.check(2300); // Dead
+
+        assert_eq!(fts.node_state(&google()), Some(&HealthState::Dead));
+        assert_eq!(fts.dead_set().len(), 1);
+
+        // Node comes back
+        let events = fts.process_heartbeat(&Heartbeat::new(google(), 3000, 0, 2));
+        assert!(events.contains(&FtsEvent::NodeRecovered { addr: google() }));
+        assert_eq!(fts.node_state(&google()), Some(&HealthState::Alive));
+        assert!(fts.dead_set().is_empty());
+    }
+
+    #[test]
+    fn sequence_anomaly_detection() {
+        let mut fts = Fts::new();
+
+        // Normal sequence
+        fts.process_heartbeat(&Heartbeat::new(google(), 1000, 0, 1));
+        fts.process_heartbeat(&Heartbeat::new(google(), 2000, 0, 2));
+
+        // Out-of-order (seq 1 again)
+        let events = fts.process_heartbeat(&Heartbeat::new(google(), 3000, 0, 1));
+        assert!(events.iter().any(|e| matches!(e, FtsEvent::SequenceAnomaly { .. })));
+
+        let record = fts.node_record(&google()).unwrap();
+        assert_eq!(record.out_of_order_count, 1);
+    }
+
+    #[test]
+    fn dead_set_and_alive_set() {
+        let config = FtsConfig {
+            heartbeat_interval_ns: 1000,
+            failure_threshold: 1,
+            suspect_threshold: 1,
+            ..Default::default()
+        };
+        let mut fts = Fts::with_config(config);
+
+        fts.process_heartbeat(&Heartbeat::new(google(), 100, 0, 1));
+        fts.process_heartbeat(&Heartbeat::new(pptpro(), 100, 0, 1));
+
+        assert_eq!(fts.alive_set().len(), 2);
+        assert!(fts.dead_set().is_empty());
+
+        // Kill google only (pptpro gets a fresh heartbeat)
+        fts.process_heartbeat(&Heartbeat::new(pptpro(), 1200, 0, 2));
+        fts.check(1200);
+
+        assert_eq!(fts.dead_set().len(), 1);
+        assert_eq!(fts.alive_set().len(), 1);
+        assert!(fts.dead_set().contains(&google()));
+    }
+
+    #[test]
+    fn remove_node() {
+        let mut fts = Fts::new();
+        fts.process_heartbeat(&Heartbeat::new(google(), 1000, 0, 1));
+        assert_eq!(fts.monitored_count(), 1);
+
+        fts.remove_node(&google());
+        assert_eq!(fts.monitored_count(), 0);
+    }
+
+    #[test]
+    fn metrics() {
+        let config = FtsConfig {
+            heartbeat_interval_ns: 1000,
+            failure_threshold: 1,
+            suspect_threshold: 1,
+            ..Default::default()
+        };
+        let mut fts = Fts::with_config(config);
+
+        fts.process_heartbeat(&Heartbeat::new(google(), 100, 0, 1));
+        fts.process_heartbeat(&Heartbeat::new(google(), 200, 0, 2));
+        fts.process_heartbeat(&Heartbeat::new(pptpro(), 100, 50, 1));
+
+        let m = fts.metrics();
+        assert_eq!(m.alive, 2);
+        assert_eq!(m.dead, 0);
+        assert_eq!(m.hptp_mandatory, 1);
+        assert_eq!(m.total_heartbeats, 3);
+    }
+
+    #[test]
+    fn hptp_offset_query() {
+        let mut fts = Fts::new();
+        fts.process_heartbeat(&Heartbeat::new(pptpro(), 1000, -500, 1));
+
+        assert_eq!(fts.hptp_offset(&pptpro()), Some(-500));
+        assert_eq!(fts.hptp_offset(&google()), None);
+    }
+}
