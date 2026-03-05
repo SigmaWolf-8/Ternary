@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PlenumNET — TDNS Resolution</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: #090807;
+    color: #E4DFD5;
+    min-height: 100vh;
+  }
+
+  .top-bar {
+    background: linear-gradient(135deg, #0D0C0B 0%, #1A1816 100%);
+    padding: 20px 40px;
+    border-bottom: 1px solid #2A2520;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .top-bar h1 {
+    font-size: 18px;
+    color: #D4A017;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .top-bar .version {
+    font-size: 12px;
+    color: #5A5548;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+
+  .name-display {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 28px;
+    color: #D4A017;
+    margin-bottom: 8px;
+  }
+
+  .address-display {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 16px;
+    color: #E4DFD5;
+    background: #1A1816;
+    border: 1px solid #2A2520;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .crd-badge {
+    background: #059669;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 12px;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .meta-card {
+    background: #1A1816;
+    border: 1px solid #2A2520;
+    border-radius: 6px;
+    padding: 12px 16px;
+  }
+  .meta-card .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #5A5548;
+    margin-bottom: 4px;
+  }
+  .meta-card .value {
+    font-size: 14px;
+    color: #E4DFD5;
+    font-family: 'Consolas', monospace;
+  }
+
+  h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #D4A017;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2A2520;
+  }
+
+  .category-group {
+    margin-bottom: 24px;
+  }
+  .category-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8A8578;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .dim-row {
+    display: grid;
+    grid-template-columns: 30px 1fr 140px 60px 50px;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    background: #0F0E0D;
+    margin-bottom: 2px;
+    font-size: 13px;
+  }
+  .dim-row:hover {
+    background: #1A1816;
+  }
+  .dim-num {
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    color: #5A5548;
+    text-align: right;
+  }
+  .dim-question {
+    color: #C0BAB0;
+  }
+  .dim-label {
+    font-weight: 600;
+    color: #E4DFD5;
+  }
+  .dim-trit {
+    font-family: 'Consolas', monospace;
+    font-weight: 700;
+    text-align: center;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    border-radius: 4px;
+  }
+  .trit-1 { background: #1E3A2F; color: #34D399; }
+  .trit-2 { background: #3A351E; color: #D4A017; }
+  .trit-3 { background: #3A1E1E; color: #F87171; }
+
+  .conf-bar {
+    display: flex;
+    gap: 1px;
+    align-items: center;
+  }
+  .conf-pip {
+    width: 4px;
+    height: 14px;
+    border-radius: 1px;
+    background: #2A2520;
+  }
+  .conf-pip.active { background: #059669; }
+  .conf-pip.active.mid { background: #D4A017; }
+  .conf-pip.active.low { background: #DC2626; }
+
+  .loading {
+    text-align: center;
+    padding: 80px 0;
+    color: #5A5548;
+    font-size: 16px;
+  }
+  .error-state {
+    text-align: center;
+    padding: 80px 0;
+  }
+  .error-state h3 {
+    color: #DC2626;
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  .error-state p {
+    color: #8A8578;
+    font-size: 14px;
+  }
+
+  .scan-btn {
+    display: inline-block;
+    background: #D4A017;
+    color: #090807;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+    margin-top: 16px;
+  }
+  .scan-btn:hover { background: #E8B42E; }
+
+  .footer {
+    text-align: center;
+    padding: 32px 0;
+    font-size: 11px;
+    color: #3A3530;
+    border-top: 1px solid #1A1816;
+    margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+  <div class="top-bar">
+    <h1>PlenumNET — TDNS Resolution</h1>
+    <span class="version">v2.3.2 — Applied Physics Division</span>
+  </div>
+
+  <div class="container">
+    <div id="loading" class="loading">Resolving...</div>
+    <div id="errorState" class="error-state" style="display:none;"></div>
+    <div id="content" style="display:none;">
+      <div class="name-display" id="nameDisplay"></div>
+      <div class="address-display">
+        <span id="addressDisplay"></span>
+        <span class="crd-badge" id="crdBadge"></span>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-card">
+          <div class="label">Scan Hash</div>
+          <div class="value" id="metaHash" style="font-size:11px;word-break:break-all;"></div>
+        </div>
+        <div class="meta-card">
+          <div class="label">HPTP Mandatory</div>
+          <div class="value" id="metaHptp"></div>
+        </div>
+        <div class="meta-card">
+          <div class="label">Canonical Wire</div>
+          <div class="value" id="metaCanonical" style="font-size:12px;"></div>
+        </div>
+      </div>
+
+      <h2>27-Dimensional Address Breakdown</h2>
+      <div id="dimensions"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Capomastro Holdings Ltd. — Applied Physics Division<br>
+    Three formulas. Zero thresholds. One geometry.
+  </div>
+
+<script>
+  const TDNS_API = 'http://localhost:3927';
+  const CATEGORIES = {
+    'WO': 'WHO — Who Is Behind It?',
+    'WA': 'WHAT — What Is It?',
+    'WR': 'WHERE — Where Can I Find It?',
+    'WN': 'WHEN — When Does It Operate?',
+    'WY': 'WHY — Why Does It Exist?',
+    'HO': 'HOW — How Does It Work?',
+    'PE': 'PEACE — Can I Sleep at Night?'
+  };
+
+  function buildConfBar(conf) {
+    const c = typeof conf === 'number' ? conf : parseInt(conf) || 5;
+    let html = '<div class="conf-bar" title="Confidence: ' + c + '/9">';
+    for (let i = 1; i <= 9; i++) {
+      let cls = 'conf-pip';
+      if (i <= c) {
+        cls += ' active';
+        if (c <= 3) cls += ' low';
+        else if (c <= 6) cls += ' mid';
+      }
+      html += `<div class="${cls}"></div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderDimensions(dims) {
+    const container = document.getElementById('dimensions');
+    let currentCat = '';
+    let html = '';
+
+    for (const dim of dims) {
+      const cat = dim.category;
+      if (cat !== currentCat) {
+        if (currentCat) html += '</div>';
+        html += `<div class="category-group">`;
+        html += `<div class="category-label">${CATEGORIES[cat] || cat}</div>`;
+        currentCat = cat;
+      }
+
+      const conf = typeof dim.confidence === 'number'
+        ? dim.confidence
+        : parseInt(String(dim.confidence).replace(/\D/g, '')) || 9;
+
+      html += `
+        <div class="dim-row">
+          <div class="dim-num">${dim.number}</div>
+          <div class="dim-question">${dim.question}</div>
+          <div class="dim-label">${dim.label}</div>
+          <div class="dim-trit trit-${dim.value}">${dim.value}</div>
+          ${buildConfBar(conf)}
+        </div>
+      `;
+    }
+    if (currentCat) html += '</div>';
+    container.innerHTML = html;
+  }
+
+  async function resolveName(name) {
+    // First try resolve (registered names)
+    try {
+      const resp = await fetch(`${TDNS_API}/api/v1/resolve/${name}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.status === 'ok') return { type: 'resolved', data };
+      }
+    } catch (e) {}
+
+    // Fall back to scan (derive address without registration)
+    // Extract likely URL from .plm name
+    const baseName = name.replace(/\.plm$/, '');
+    const scanUrl = `https://${baseName.replace(/\./g, '.')}.com`;
+
+    try {
+      const resp = await fetch(`${TDNS_API}/api/v1/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: scanUrl })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.status === 'ok') return { type: 'scanned', data };
+      }
+    } catch (e) {}
+
+    return null;
+  }
+
+  async function init() {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name');
+
+    if (!name) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerHTML = `
+        <h3>No name specified</h3>
+        <p>Use the omnibox: type <strong>plm</strong> then a name.</p>
+      `;
+      return;
+    }
+
+    document.title = `${name} — PlenumNET TDNS`;
+
+    const result = await resolveName(name);
+
+    document.getElementById('loading').style.display = 'none';
+
+    if (!result) {
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerHTML = `
+        <h3>${name}</h3>
+        <p>Could not resolve or scan this name.</p>
+        <p style="color:#5A5548;margin-top:8px;">
+          Make sure the TDNS server is running on port 3927.
+        </p>
+      `;
+      return;
+    }
+
+    const data = result.data;
+    const isRegistered = result.type === 'resolved';
+
+    document.getElementById('content').style.display = 'block';
+    document.getElementById('nameDisplay').textContent =
+      name + (isRegistered ? '' : '  (scanned — not registered)');
+    document.getElementById('addressDisplay').textContent = data.address;
+    document.getElementById('crdBadge').textContent =
+      'CRD:' + (data.crd || '—');
+    document.getElementById('metaHash').textContent = data.scan_hash || '—';
+    document.getElementById('metaHptp').textContent =
+      data.hptp_mandatory ? 'Yes — HPTP sync required' : 'No';
+    document.getElementById('metaCanonical').textContent =
+      data.address_canonical || '—';
+
+    if (data.dimensions) {
+      renderDimensions(data.dimensions);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
