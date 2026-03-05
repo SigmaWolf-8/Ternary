@@ -572,7 +572,7 @@ fn api_router_lifecycle() {
 
     let health = router.handle_health();
     assert_eq!(health.status, "ok");
-    assert_eq!(health.version, "2.3.2");
+    assert_eq!(health.version, "2.3.3");
     assert_eq!(health.entities, 0);
 
     let desc = router.handle_describe("WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332").unwrap();
