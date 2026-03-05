@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "regexSubstitution": "https://plenumnet.replit.app/api/tdns/resolve?name=\\1&redirect=1"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https?://([^/]+\\.plm)(/.*)?$",
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]

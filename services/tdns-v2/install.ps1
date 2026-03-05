@@ -33,7 +33,7 @@ try {
 }
 
 # Download each file
-$files = @("manifest.json", "background.js", "content.js", "popup.html", "popup.js", "icon16.png", "icon48.png", "icon128.png")
+$files = @("manifest.json", "background.js", "content.js", "popup.html", "popup.js", "rules.json", "icon16.png", "icon48.png", "icon128.png")
 $downloaded = 0
 
 foreach ($f in $files) {
