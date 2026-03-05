@@ -88,19 +88,17 @@ pub struct Trn {
     /// HPTP timestamp of most recent CRS re-scan.
     pub last_rescan: Option<u64>,
 
-    // ── Displacement fields (§7.3) ───────────────────────────────────
+    // ── Collision Resolution (§4.3–4.7) ──────────────────────────────
 
-    /// The address derived purely from scan measurements, before
-    /// collision displacement. If no collision, equals `address`.
-    pub natural_address: Option<CubeAddr>,
+    /// Collision Resolution Digit (1–9). Distinguishes up to 9 entities
+    /// sharing the same 27-trit address. First-come-first-serve.
+    pub crd: u8,
 
-    /// True if this entity was displaced from its natural address
-    /// due to an address collision with an existing entity.
-    pub displaced: bool,
-
-    /// The dimension that was flipped during displacement (0-based).
-    /// None if not displaced.
-    pub displaced_dim: Option<usize>,
+    /// Confidence vector: one digit (1–9) per dimension, measuring
+    /// distance from nearest quantization boundary.
+    /// C_i = min(floor(27 * δ_i) + 1, 9) where δ_i = min(|p_i - 1/3|, |p_i - 2/3|).
+    /// Stored as metadata, not used for routing.
+    pub confidence: Option<Vec<u8>>,
 }
 
 impl Trn {
@@ -128,9 +126,8 @@ impl Trn {
             hptp_offset_ns: None,
             attributes: None,
             last_rescan: None,
-            natural_address: None,
-            displaced: false,
-            displaced_dim: None,
+            crd: 1,
+            confidence: None,
         }
     }
 
@@ -192,22 +189,22 @@ impl Trn {
         self
     }
 
-    /// Mark this TRN as displaced from its natural address.
-    pub fn with_displacement(mut self, natural_address: CubeAddr, displaced_dim: usize) -> Self {
-        self.natural_address = Some(natural_address);
-        self.displaced = true;
-        self.displaced_dim = Some(displaced_dim);
+    /// Set the Collision Resolution Digit (1–9).
+    pub fn with_crd(mut self, crd: u8) -> Self {
+        assert!(crd >= 1 && crd <= 9, "CRD must be 1–9");
+        self.crd = crd;
         self
     }
 
-    /// Is this entity displaced from its natural address?
-    pub fn is_displaced(&self) -> bool {
-        self.displaced
+    /// Set the confidence vector.
+    pub fn with_confidence(mut self, confidence: Vec<u8>) -> Self {
+        self.confidence = Some(confidence);
+        self
     }
 
-    /// The natural (scan-derived) address, or the assigned address if not displaced.
-    pub fn natural_or_assigned(&self) -> CubeAddr {
-        self.natural_address.unwrap_or(self.address)
+    /// Full identifier: (address, CRD) pair. Globally unique.
+    pub fn full_id(&self) -> (CubeAddr, u8) {
+        (self.address, self.crd)
     }
 }
 

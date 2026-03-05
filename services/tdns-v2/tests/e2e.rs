@@ -30,30 +30,30 @@ fn google_measurements() -> Vec<RawValue> {
     vec![
         RawValue::Pattern("corporate".into()),     // 1: Corporate
         RawValue::Pattern("public".into()),         // 2: Everyone
-        RawValue::Numeric(2.0),                     // 3: Known (2 transparency signals)
+        RawValue::Numeric(2.0),
         RawValue::Pattern("cloud".into()),          // 4: Cloud
         RawValue::Pattern("website".into()),        // 5: Website
         RawValue::Pattern("text".into()),           // 6: Text
         RawValue::Pattern("both".into()),           // 7: Both
-        RawValue::Numeric(4.0),                     // 8: Yes (4 ML signals)
-        RawValue::Numeric(200.0),                   // 9: Everyone (200 OK)
+        RawValue::Numeric(4.0),
+        RawValue::Numeric(3.0),
         RawValue::Pattern("none".into()),           // 10: No login
-        RawValue::Numeric(100.0),                   // 11: Many servers
+        RawValue::Numeric(4.0),
         RawValue::Pattern("http".into()),           // 12: HTTP
-        RawValue::Numeric(1998.0),                  // 13: Pre-2010
-        RawValue::Numeric(99.99),                   // 14: 24/7
+        RawValue::Numeric(1.0),
+        RawValue::Numeric(3.0),
         RawValue::Pattern("current".into()),        // 15: Current data
-        RawValue::Numeric(0.0),                   // 16: Near-time (0 realtime, 0 batch)
+        RawValue::Numeric(2.0),
         RawValue::Pattern("accepts".into()),        // 17: Accepts payments
-        RawValue::Numeric(20.0),                    // 18: Lots of data
-        RawValue::Numeric(4.0),                     // 19: Detailed policies
+        RawValue::Numeric(4.0),
+        RawValue::Numeric(4.0),
         RawValue::Pattern("free".into()),           // 20: Free
         RawValue::Pattern("unicast".into()),        // 21: One person
         RawValue::Pattern("through".into()),        // 22: Data through
         RawValue::Pattern("poll".into()),           // 23: I ask
-        RawValue::Numeric(3600.0),                  // 24: For a bit
-        RawValue::Numeric(3.0),                    // 25: Full TLS (3 security signals)
-        RawValue::Numeric(30.0),                    // 26: Many trackers
+        RawValue::Numeric(1.0),
+        RawValue::Numeric(5.0),
+        RawValue::Numeric(0.0),
         RawValue::Pattern("soc2".into()),           // 27: Audited
     ]
 }
@@ -62,30 +62,30 @@ fn pptpro_measurements() -> Vec<RawValue> {
     vec![
         RawValue::Pattern("corporate".into()),
         RawValue::Pattern("public".into()),
-        RawValue::Numeric(4.0),                     // Transparent
+        RawValue::Numeric(4.0),
         RawValue::Pattern("cloud".into()),
         RawValue::Pattern("app".into()),
         RawValue::Pattern("live".into()),
         RawValue::Pattern("both".into()),
         RawValue::Numeric(4.0),
-        RawValue::Numeric(401.0),                   // Group (401)
+        RawValue::Numeric(1.0),
         RawValue::Pattern("password".into()),
-        RawValue::Numeric(3.0),                     // Several
-        RawValue::Pattern("websocket".into()),
-        RawValue::Numeric(2024.0),                  // 2020s+
-        RawValue::Numeric(99.99),
-        RawValue::Pattern("live".into()),           // Live data
-        RawValue::Numeric(10.0),                     // Real-time (<100ms)
-        RawValue::Pattern("no".into()),
         RawValue::Numeric(3.0),
+        RawValue::Pattern("websocket".into()),
+        RawValue::Numeric(5.0),
+        RawValue::Numeric(3.0),
+        RawValue::Pattern("live".into()),           // Live data
+        RawValue::Numeric(5.0),
+        RawValue::Pattern("no".into()),
+        RawValue::Numeric(2.0),
         RawValue::Numeric(2.0),
         RawValue::Pattern("free".into()),
         RawValue::Pattern("multicast".into()),
         RawValue::Pattern("out".into()),
         RawValue::Pattern("push".into()),
-        RawValue::Numeric(999999.0),
         RawValue::Numeric(3.0),
-        RawValue::Numeric(0.0),                     // Zero trackers
+        RawValue::Numeric(5.0),
+        RawValue::Numeric(4.0),
         RawValue::Pattern("self-certified".into()),
     ]
 }
@@ -94,20 +94,20 @@ fn blog_measurements() -> Vec<RawValue> {
     vec![
         RawValue::Pattern("personal".into()),
         RawValue::Pattern("public".into()),
-        RawValue::Numeric(0.0),                     // Anonymous
+        RawValue::Numeric(0.0),
         RawValue::Pattern("provider".into()),
         RawValue::Pattern("website".into()),
         RawValue::Pattern("text".into()),
         RawValue::Pattern("people".into()),
-        RawValue::Numeric(0.0),                     // No ML
-        RawValue::Numeric(200.0),
+        RawValue::Numeric(0.0),
+        RawValue::Numeric(3.0),
         RawValue::Pattern("none".into()),
-        RawValue::Numeric(1.0),                     // One server
+        RawValue::Numeric(1.0),
         RawValue::Pattern("http".into()),
-        RawValue::Numeric(2015.0),                  // 2010s
-        RawValue::Numeric(99.0),
+        RawValue::Numeric(3.0),
+        RawValue::Numeric(3.0),
         RawValue::Pattern("historical".into()),
-        RawValue::Numeric(0.0),                     // trit 16: 0 realtime, 0 batch → Near-time
+        RawValue::Numeric(0.0),
         RawValue::Pattern("no".into()),
         RawValue::Numeric(0.0),
         RawValue::Numeric(0.0),
@@ -115,9 +115,9 @@ fn blog_measurements() -> Vec<RawValue> {
         RawValue::Pattern("unicast".into()),
         RawValue::Pattern("out".into()),
         RawValue::Pattern("poll".into()),
-        RawValue::Numeric(0.0),                     // No cookies
-        RawValue::Numeric(1.0),                     // trit 25: 1 signal (TLS only) → Basic TLS
-        RawValue::Numeric(5.0),                     // Few trackers
+        RawValue::Numeric(0.0),
+        RawValue::Numeric(2.0),
+        RawValue::Numeric(1.0),
         RawValue::Pattern("no".into()),
     ]
 }
@@ -181,7 +181,6 @@ fn e2e_register_resolve_route() {
     let decision = glb.route(&p_addr, now);
     match decision {
         GlbDecision::Forward { remaining_hops, .. } => {
-            // Distance should match
             let expected_dist = g_addr.distance(&p_addr);
             assert!(remaining_hops <= expected_dist);
         }
@@ -382,7 +381,6 @@ fn e2e_bridge_resolution() {
     }
 
     // ── Non-.plm names route to legacy DNS ───────────────────────
-    // (Will fail in sandbox — just verify routing decision)
     assert!(is_plm_name("google.plm"));
     assert!(!is_plm_name("google.com"));
 

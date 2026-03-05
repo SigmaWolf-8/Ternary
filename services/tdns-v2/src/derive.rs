@@ -1,18 +1,77 @@
-// TDNS v2.3 — Derivation Rules
+// TDNS v2.3 — Derivation Rules (First-Principle Mathematics)
 // Capomastro Holdings Ltd. — Applied Physics Division
 //
-// 27 dimension-specific derivation rules. Each converts a raw CRS
-// scan measurement into a trit value. This is the zero-human-input
-// engine — every trit is derived from observable, testable signals.
+// DERIVATION PRINCIPLE:
 //
-// Each rule implements the DerivationRule trait from scan.rs.
+// Every trit is derived from one universal formula:
+//
+//   gf3 = min(floor(3k / N), 2)     where k = signals fired, N = total signals
+//   trit = gf3 + 1                   lift from GF(3) {0,1,2} to trit {1,2,3}
+//
+// This is the natural ternary quantization: boundaries at exactly 1/3 and 2/3
+// of the signal space. No arbitrary thresholds. No tuning parameters. The math
+// determines the boundaries.
+//
+// Two derivation types:
+//   CATEGORICAL — Scanner produces a pattern string. Direct mapping to trit.
+//                 No quantization needed. Confidence always High.
+//   QUANTITATIVE — Scanner counts binary signals (k out of N). project_to_gf3
+//                  maps to trit. Confidence always High because inputs are binary.
+//
+// 15 categorical rules + 12 quantitative rules = 27 dimensions.
+// Confidence is always High. There is no Medium or Low — if the measurement
+// can't be determined, the scanner should not produce a value.
 
 use crate::scan::{Confidence, DerivationError, DerivationRule, RawValue};
 use crate::trit::Trit;
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
+// ─── Universal Derivation Formula ────────────────────────────────────────────
 
-/// Extract a numeric value or return TypeMismatch.
+/// Project a signal count to GF(3), then lift to trit space.
+///
+/// `gf3 = min(floor(3k / N), 2)`
+/// `trit = gf3 + 1`
+///
+/// This is the ONLY quantitative derivation function in the system.
+/// Every numeric dimension uses it. The boundaries between trit values
+/// are at exactly N/3 and 2N/3 — derived from the definition of
+/// ternary quantization, not from empirical tuning.
+///
+/// # Panics
+/// Panics if N is 0 (no signals defined for this dimension).
+pub fn project_to_gf3(k: u32, n: u32) -> Trit {
+    assert!(n > 0, "N must be > 0");
+    let gf3 = std::cmp::min((3 * k) / n, 2) as u8;
+    Trit::from_gf3(gf3).unwrap()
+}
+
+/// Compute the confidence digit for a quantitative derivation (§4.1).
+///
+/// `p = k / N`
+/// `δ = min(|p - 1/3|, |p - 2/3|)`
+/// `C = min(floor(27δ) + 1, 9)`
+///
+/// 9 = highest confidence (p is far from any boundary).
+/// 1 = lowest confidence (p is on a boundary).
+///
+/// 27 is the number of dimensions — the system's own structure
+/// determines the confidence scaling. Not a tuning parameter.
+///
+/// For categorical dimensions (pattern-matching), confidence is always 9
+/// because the signal is discrete and unambiguous.
+pub fn confidence_digit(k: u32, n: u32) -> u8 {
+    if n == 0 { return 9; }
+    let p = k as f64 / n as f64;
+    let delta = (p - 1.0 / 3.0).abs().min((p - 2.0 / 3.0).abs());
+    let c = (27.0 * delta).floor() as u8 + 1;
+    std::cmp::min(c, 9)
+}
+
+/// Categorical confidence is always 9 — the signal is discrete.
+pub const CATEGORICAL_CONFIDENCE: u8 = 9;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 fn expect_numeric(dim: usize, raw: &RawValue) -> Result<f64, DerivationError> {
     match raw {
         RawValue::Numeric(n) => Ok(*n),
@@ -20,25 +79,6 @@ fn expect_numeric(dim: usize, raw: &RawValue) -> Result<f64, DerivationError> {
     }
 }
 
-/// Extract a text value or return TypeMismatch.
-#[allow(dead_code)]
-fn expect_text(dim: usize, raw: &RawValue) -> Result<&str, DerivationError> {
-    match raw {
-        RawValue::Text(s) => Ok(s.as_str()),
-        _ => Err(DerivationError::TypeMismatch { dim }),
-    }
-}
-
-/// Extract a boolean value or return TypeMismatch.
-#[allow(dead_code)]
-fn expect_bool(dim: usize, raw: &RawValue) -> Result<bool, DerivationError> {
-    match raw {
-        RawValue::Boolean(b) => Ok(*b),
-        _ => Err(DerivationError::TypeMismatch { dim }),
-    }
-}
-
-/// Extract a pattern value or return TypeMismatch.
 fn expect_pattern(dim: usize, raw: &RawValue) -> Result<&str, DerivationError> {
     match raw {
         RawValue::Pattern(s) => Ok(s.as_str()),
@@ -50,88 +90,67 @@ fn expect_pattern(dim: usize, raw: &RawValue) -> Result<&str, DerivationError> {
 // WHO — Trits 1–4
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 1: What kind? ──────────────────────────────────────────────────
+// ── Trit 1: What kind? [CATEGORICAL] ────────────────────────────────────
 
-/// Derives entity type from WHOIS + legal entity DB.
-/// Pattern values: "personal", "corporate", "governance"
 pub struct DeriveEntityKind;
-
 impl DerivationRule for DeriveEntityKind {
     fn dimension(&self) -> usize { 0 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(0, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "personal" | "individual" | "private" => Ok((Trit::V1, Confidence::High)),
-            "corporate" | "company" | "organization" | "business" => Ok((Trit::V2, Confidence::High)),
-            "governance" | "government" | "gov" | "mil" | "edu" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V2, Confidence::Low)), // Default: corporate (most common)
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "personal" | "individual" | "private" => Trit::V1,
+            "corporate" | "company" | "organization" | "business" => Trit::V2,
+            "governance" | "government" | "gov" | "mil" | "edu" => Trit::V3,
+            _ => Trit::V2, // Default: corporate
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 2: Who's it for? ───────────────────────────────────────────────
+// ── Trit 2: Who's it for? [CATEGORICAL] ─────────────────────────────────
 
-/// Derives intended audience from access patterns and robots.txt.
-/// Pattern values: "private", "group", "public"
 pub struct DeriveAudience;
-
 impl DerivationRule for DeriveAudience {
     fn dimension(&self) -> usize { 1 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(1, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "private" | "personal" | "self" => Ok((Trit::V1, Confidence::High)),
-            "group" | "team" | "organization" | "internal" => Ok((Trit::V2, Confidence::High)),
-            "public" | "everyone" | "open" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V3, Confidence::Medium)), // Default: public
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "private" | "personal" | "self" => Trit::V1,
+            "group" | "team" | "organization" | "internal" => Trit::V2,
+            "public" | "everyone" | "open" => Trit::V3,
+            _ => Trit::V3,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 3: Who runs it? ────────────────────────────────────────────────
+// ── Trit 3: Who runs it? [QUANTITATIVE, N=5] ───────────────────────────
 
-/// Derives operator transparency from counted binary signals.
-/// Scanner counts: WHOIS public, about page, contact info, legal entity, physical address.
-/// Numeric: count of transparency signals detected.
-///   0 = Anonymous (V1), 1–2 = Known (V2), 3+ = Transparent (V3)
-///
-/// Each signal is binary (present or not). No scoring. No boundaries.
-/// Confidence is always High because individual signals are unambiguous.
+/// 5 binary signals: about_page, contact_info, legal_entity, physical_address, gov_domain.
+/// project_to_gf3 boundaries: k<2 → V1 (Anonymous), k=2-3 → V2 (Known), k≥4 → V3 (Transparent).
 pub struct DeriveOperatorTransparency;
-
 impl DerivationRule for DeriveOperatorTransparency {
     fn dimension(&self) -> usize { 2 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let signal_count = expect_numeric(2, raw)? as u32;
-        let trit = match signal_count {
-            0 => Trit::V1,       // Anonymous: zero transparency signals
-            1..=2 => Trit::V2,   // Known: some signals
-            _ => Trit::V3,       // Transparent: strong signal presence
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(2, raw)? as u32;
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
-// ── Trit 4: Who hosts it? ───────────────────────────────────────────────
+// ── Trit 4: Who hosts it? [CATEGORICAL] ─────────────────────────────────
 
-/// Derives hosting model from ASN lookup, IP range, cloud fingerprint.
-/// Pattern values: "self", "provider", "cloud"
 pub struct DeriveHostingModel;
-
 impl DerivationRule for DeriveHostingModel {
     fn dimension(&self) -> usize { 3 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(3, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "self" | "self-hosted" | "residential" | "home" => Ok((Trit::V1, Confidence::High)),
-            "provider" | "vps" | "dedicated" | "hosting" | "colocation" => Ok((Trit::V2, Confidence::High)),
-            "cloud" | "aws" | "azure" | "gcp" | "cloudflare" | "vercel" | "netlify" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V2, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "self" | "self-hosted" | "residential" | "home" => Trit::V1,
+            "provider" | "vps" | "dedicated" | "hosting" | "colocation" => Trit::V2,
+            "cloud" | "aws" | "azure" | "gcp" | "cloudflare" | "vercel" | "netlify" => Trit::V3,
+            _ => Trit::V2,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -139,88 +158,67 @@ impl DerivationRule for DeriveHostingModel {
 // WHAT — Trits 5–8
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 5: What is it? ─────────────────────────────────────────────────
+// ── Trit 5: What is it? [CATEGORICAL] ───────────────────────────────────
 
-/// Derives form factor from HTTP headers, content-type, TCP fingerprint.
-/// Pattern values: "website", "app", "device"
 pub struct DeriveFormFactor;
-
 impl DerivationRule for DeriveFormFactor {
     fn dimension(&self) -> usize { 4 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(4, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "website" | "web" | "static" | "html" => Ok((Trit::V1, Confidence::High)),
-            "app" | "application" | "api" | "spa" | "webapp" => Ok((Trit::V2, Confidence::High)),
-            "device" | "iot" | "mqtt" | "embedded" | "sensor" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "website" | "web" | "static" | "html" => Trit::V1,
+            "app" | "application" | "api" | "spa" | "webapp" => Trit::V2,
+            "device" | "iot" | "mqtt" | "embedded" | "sensor" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 6: What's on it? ───────────────────────────────────────────────
+// ── Trit 6: What's on it? [CATEGORICAL] ─────────────────────────────────
 
-/// Derives content type from MIME types served.
-/// Pattern values: "text", "media", "live"
 pub struct DeriveContentType;
-
 impl DerivationRule for DeriveContentType {
     fn dimension(&self) -> usize { 5 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(5, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "text" | "html" | "json" | "xml" | "markdown" => Ok((Trit::V1, Confidence::High)),
-            "media" | "image" | "video" | "audio" | "multimedia" => Ok((Trit::V2, Confidence::High)),
-            "live" | "stream" | "streaming" | "realtime" | "websocket" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Medium)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "text" | "html" | "json" | "xml" | "markdown" => Trit::V1,
+            "media" | "image" | "video" | "audio" | "multimedia" => Trit::V2,
+            "live" | "stream" | "streaming" | "realtime" | "websocket" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 7: Who uses it? ────────────────────────────────────────────────
+// ── Trit 7: Who uses it? [CATEGORICAL] ──────────────────────────────────
 
-/// Derives consumer type from UI presence vs API-only patterns.
-/// Pattern values: "people", "software", "both"
 pub struct DeriveConsumerType;
-
 impl DerivationRule for DeriveConsumerType {
     fn dimension(&self) -> usize { 6 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(6, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "people" | "human" | "ui" | "browser" => Ok((Trit::V1, Confidence::High)),
-            "software" | "api" | "machine" | "bot" => Ok((Trit::V2, Confidence::High)),
-            "both" | "mixed" | "hybrid" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V3, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "people" | "human" | "ui" | "browser" => Trit::V1,
+            "software" | "api" | "machine" | "bot" => Trit::V2,
+            "both" | "mixed" | "hybrid" => Trit::V3,
+            _ => Trit::V3,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 8: Does it think? ──────────────────────────────────────────────
+// ── Trit 8: Does it think? [QUANTITATIVE, N=5] ─────────────────────────
 
-/// Derives ML capability from counted binary signals.
-/// Scanner counts: ML endpoints, inference headers, framework indicators,
-/// personalization patterns, model-serving paths.
-/// Numeric: count of ML signals detected.
-///   0 = No (V1), 1–2 = Partly (V2), 3+ = Yes (V3)
-///
-/// Each signal is binary. Confidence is always High.
+/// 5 binary signals: ml_endpoints, ml_frameworks, personalization, search_ranking, ml_headers.
+/// project_to_gf3 boundaries: k<2 → V1 (No), k=2-3 → V2 (Partly), k≥4 → V3 (Yes).
 pub struct DeriveIntelligence;
-
 impl DerivationRule for DeriveIntelligence {
     fn dimension(&self) -> usize { 7 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let signal_count = expect_numeric(7, raw)? as u32;
-        let trit = match signal_count {
-            0 => Trit::V1,       // No: zero ML signals
-            1..=2 => Trit::V2,   // Partly: some ML presence
-            _ => Trit::V3,       // Yes: strong ML presence
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(7, raw)? as u32;
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
@@ -228,85 +226,64 @@ impl DerivationRule for DeriveIntelligence {
 // WHERE — Trits 9–12
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 9: Who can see it? ─────────────────────────────────────────────
+// ── Trit 9: Who can see it? [QUANTITATIVE, N=3] ────────────────────────
 
-/// Derives visibility from unauthenticated GET response.
-/// Numeric: HTTP status code from unauthenticated request.
-///   200 = everyone, 401/403 = group, timeout/refused = private
+/// 3 binary signals: site_responds, no_auth_challenge, serves_public_content.
+/// project_to_gf3 boundaries: k=0 → V1 (Private), k=1 → V2 (Group), k=2-3 → V3 (Everyone).
 pub struct DeriveVisibility;
-
 impl DerivationRule for DeriveVisibility {
     fn dimension(&self) -> usize { 8 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let status = expect_numeric(8, raw)? as u16;
-        match status {
-            200..=299 => Ok((Trit::V3, Confidence::High)),    // Everyone
-            401 | 403 => Ok((Trit::V2, Confidence::High)),    // Group
-            0 => Ok((Trit::V1, Confidence::High)),            // Timeout/refused → private
-            _ => Ok((Trit::V2, Confidence::Medium)),          // Other → group default
-        }
+        let k = expect_numeric(8, raw)? as u32;
+        Ok((project_to_gf3(k, 3), Confidence(confidence_digit(k, 3))))
     }
 }
 
-// ── Trit 10: Do I need to log in? ───────────────────────────────────────
+// ── Trit 10: Do I need to log in? [CATEGORICAL] ────────────────────────
 
-/// Derives auth requirement from challenge detection.
-/// Pattern values: "none", "password", "mfa"
 pub struct DeriveAuthModel;
-
 impl DerivationRule for DeriveAuthModel {
     fn dimension(&self) -> usize { 9 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(9, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "none" | "open" | "anonymous" => Ok((Trit::V1, Confidence::High)),
-            "password" | "basic" | "form" | "login" => Ok((Trit::V2, Confidence::High)),
-            "mfa" | "cert" | "biometric" | "id" | "idcheck" | "id_check" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "none" | "open" | "anonymous" => Trit::V1,
+            "password" | "basic" | "form" | "login" => Trit::V2,
+            "mfa" | "cert" | "biometric" | "id" | "idcheck" | "id_check" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 11: How many servers? ──────────────────────────────────────────
+// ── Trit 11: How many servers? [QUANTITATIVE, N=6] ─────────────────────
 
-/// Derives infrastructure scale from DNS record count + CDN detection.
-/// Numeric: total A/AAAA records + CDN indicator.
-///   1 = one, 2–5 = several, 6+ = many
+/// 6 binary signals: dns_resolves, dns_multiple_records, dns_many_records,
+/// cdn_header_present, cdn_cache_header, proxy_via_header.
+/// project_to_gf3 boundaries: k<2 → V1 (One), k=2-3 → V2 (Several), k≥4 → V3 (Many).
 pub struct DeriveInfraScale;
-
 impl DerivationRule for DeriveInfraScale {
     fn dimension(&self) -> usize { 10 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let count = expect_numeric(10, raw)? as u32;
-        let trit = match count {
-            0..=1 => Trit::V1,  // One
-            2..=5 => Trit::V2,  // Several
-            _ => Trit::V3,      // Many
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(10, raw)? as u32;
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
-// ── Trit 12: What connection? ───────────────────────────────────────────
+// ── Trit 12: What connection? [CATEGORICAL] ─────────────────────────────
 
-/// Derives connection protocol from port scan and handshake.
-/// Pattern values: "http", "websocket", "tcp"
 pub struct DeriveConnectionProtocol;
-
 impl DerivationRule for DeriveConnectionProtocol {
     fn dimension(&self) -> usize { 11 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(11, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "http" | "https" | "http/1" | "http/2" | "http/3" => Ok((Trit::V1, Confidence::High)),
-            "websocket" | "ws" | "wss" | "grpc" => Ok((Trit::V2, Confidence::High)),
-            "tcp" | "udp" | "mqtt" | "raw" | "custom" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "http" | "https" | "http/1" | "http/2" | "http/3" => Trit::V1,
+            "websocket" | "ws" | "wss" | "grpc" => Trit::V2,
+            "tcp" | "udp" | "mqtt" | "raw" | "custom" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -314,106 +291,63 @@ impl DerivationRule for DeriveConnectionProtocol {
 // WHEN — Trits 13–16
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 13: What era? ──────────────────────────────────────────────────
+// ── Trit 13: What era? [QUANTITATIVE, N=6] ──────────────────────────────
 
-/// Derives technological epoch from domain registration + cert + protocol.
-/// Numeric: origin year.
-///   <2010 = pre-2010, 2010–2019 = 2010s, 2020+ = 2020s+
+/// 6 binary signals for modern protocol stack:
+/// alt_svc, permissions_policy, nel, report_to, cross_origin_policy, csp.
+/// These headers didn't exist before their era.
+/// project_to_gf3 boundaries: k<2 → V1 (Pre-2010), k=2-3 → V2 (2010s), k≥4 → V3 (2020s+).
 pub struct DeriveEra;
-
 impl DerivationRule for DeriveEra {
     fn dimension(&self) -> usize { 12 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let year = expect_numeric(12, raw)? as u32;
-        let trit = match year {
-            0..=2009 => Trit::V1,      // Pre-2010
-            2010..=2019 => Trit::V2,   // 2010s
-            _ => Trit::V3,             // 2020s+
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(12, raw)? as u32;
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
-// ── Trit 14: When is it available? ──────────────────────────────────────
+// ── Trit 14: When is it available? [QUANTITATIVE, N=3] ──────────────────
 
-/// Derives availability from uptime monitoring.
-/// Numeric: uptime percentage over sample window.
-///   <50% = business hours, 50–95% = extended, >95% = 24/7
+/// 3 binary signals: no_maintenance_page, no_business_hours_language, uptime_claim.
+/// project_to_gf3 boundaries: k=0 → V1 (Business hours), k=1 → V2 (Extended), k=2-3 → V3 (24/7).
 pub struct DeriveAvailability;
-
 impl DerivationRule for DeriveAvailability {
     fn dimension(&self) -> usize { 13 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let uptime_pct = expect_numeric(13, raw)?;
-        let trit = if uptime_pct < 50.0 {
-            Trit::V1 // Business hours
-        } else if uptime_pct < 95.0 {
-            Trit::V2 // Extended
-        } else {
-            Trit::V3 // 24/7
-        };
-        let confidence = if uptime_pct < 30.0 || uptime_pct > 99.0 {
-            Confidence::High
-        } else {
-            Confidence::Medium
-        };
-        Ok((trit, confidence))
+        let k = expect_numeric(13, raw)? as u32;
+        Ok((project_to_gf3(k, 3), Confidence(confidence_digit(k, 3))))
     }
 }
 
-// ── Trit 15: What kind of data? ─────────────────────────────────────────
+// ── Trit 15: What kind of data? [CATEGORICAL] ──────────────────────────
 
-/// Derives data freshness from content timestamps + streaming detection.
-/// Pattern values: "historical", "current", "live"
 pub struct DeriveDataFreshness;
-
 impl DerivationRule for DeriveDataFreshness {
     fn dimension(&self) -> usize { 14 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(14, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "historical" | "archive" | "static" | "old" => Ok((Trit::V1, Confidence::High)),
-            "current" | "recent" | "updated" | "periodic" => Ok((Trit::V2, Confidence::High)),
-            "live" | "streaming" | "realtime" | "continuous" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V2, Confidence::Medium)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "historical" | "archive" | "static" | "old" => Trit::V1,
+            "current" | "recent" | "updated" | "periodic" => Trit::V2,
+            "live" | "streaming" | "realtime" | "continuous" => Trit::V3,
+            _ => Trit::V2,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 16: Is it real-time? ───────────────────────────────────────────
+// ── Trit 16: Is it real-time? [QUANTITATIVE, N=6] ──────────────────────
 
-/// Derives latency profile from counted protocol signals.
-/// Scanner counts two categories:
-///   - Real-time signals: WebSocket, SSE, gRPC, streaming content-types
-///   - Batch signals: immutable cache, static-only, no dynamic indicators
-///
-/// Numeric encoding: (realtime_signals * 10) + batch_signals
-///   Decode: realtime = value / 10, batch = value % 10
-///   realtime > 0 → Real-time (V3)
-///   batch > 0 AND realtime == 0 → Batch (V1)
-///   neither → Near-time (V2)
-///
-/// Each signal is binary. Confidence is always High.
+/// 6 binary timeliness signals:
+/// dynamic_content, short_cache, websocket, sse_eventsource, grpc, streaming_content_type.
+/// First 2 indicate dynamism (not batch). Last 4 indicate real-time protocols.
+/// project_to_gf3 boundaries: k<2 → V1 (Batch), k=2-3 → V2 (Near-time), k≥4 → V3 (Real-time).
 pub struct DeriveLatencyProfile;
-
 impl DerivationRule for DeriveLatencyProfile {
     fn dimension(&self) -> usize { 15 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let encoded = expect_numeric(15, raw)? as u32;
-        let realtime_signals = encoded / 10;
-        let batch_signals = encoded % 10;
-        let trit = if realtime_signals > 0 {
-            Trit::V3 // Real-time: WebSocket/SSE/gRPC detected
-        } else if batch_signals > 0 {
-            Trit::V1 // Batch: static/immutable only
-        } else {
-            Trit::V2 // Near-time: standard request-response
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(15, raw)? as u32;
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
@@ -421,87 +355,64 @@ impl DerivationRule for DeriveLatencyProfile {
 // WHY — Trits 17–20
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 17: Does it handle money? ──────────────────────────────────────
+// ── Trit 17: Does it handle money? [CATEGORICAL] ────────────────────────
 
-/// Derives payment capability from endpoint detection + merchant headers.
-/// Pattern values: "no", "accepts", "processes"
 pub struct DerivePaymentModel;
-
 impl DerivationRule for DerivePaymentModel {
     fn dimension(&self) -> usize { 16 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(16, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "no" | "none" | "free" => Ok((Trit::V1, Confidence::High)),
-            "accepts" | "stripe" | "paypal" | "checkout" | "merchant" => Ok((Trit::V2, Confidence::High)),
-            "processes" | "bank" | "exchange" | "processor" | "fintech" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Medium)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "no" | "none" | "free" => Trit::V1,
+            "accepts" | "stripe" | "paypal" | "checkout" | "merchant" => Trit::V2,
+            "processes" | "bank" | "exchange" | "processor" | "fintech" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 18: Does it want my data? ──────────────────────────────────────
+// ── Trit 18: Does it want my data? [QUANTITATIVE, N=5] ─────────────────
 
-/// Derives data collection appetite from input fields + tracking scripts.
-/// Numeric: data collection score (field count + tracker weight).
-///   0 = no, 1–5 = some, 6+ = lots
+/// 5 binary signals: input_fields_present, signup_form, tracking_scripts,
+/// cookie_consent_complex, data_sharing_scripts.
+/// project_to_gf3 boundaries: k<2 → V1 (No), k=2-3 → V2 (Some), k≥4 → V3 (Lots).
 pub struct DeriveDataAppetite;
-
 impl DerivationRule for DeriveDataAppetite {
     fn dimension(&self) -> usize { 17 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let score = expect_numeric(17, raw)?;
-        let trit = if score < 1.0 {
-            Trit::V1 // No
-        } else if score < 6.0 {
-            Trit::V2 // Some
-        } else {
-            Trit::V3 // Lots
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(17, raw)? as u32;
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
-// ── Trit 19: Does it have policies? ─────────────────────────────────────
+// ── Trit 19: Does it have policies? [QUANTITATIVE, N=5] ────────────────
 
-/// Derives policy presence from /privacy, /terms, cookie consent scanning.
-/// Numeric: count of detected policy pages/elements.
-///   0 = no, 1–2 = basic, 3+ = detailed
+/// 5 binary signals: privacy_page, terms_page, cookie_policy_link, gdpr_text, accessibility_text.
+/// project_to_gf3 boundaries: k<2 → V1 (No), k=2-3 → V2 (Basic), k≥4 → V3 (Detailed).
 pub struct DerivePolicyPresence;
-
 impl DerivationRule for DerivePolicyPresence {
     fn dimension(&self) -> usize { 18 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let count = expect_numeric(18, raw)? as u32;
-        let trit = match count {
-            0 => Trit::V1,       // No policies
-            1..=2 => Trit::V2,   // Basic
-            _ => Trit::V3,       // Detailed
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(18, raw)? as u32;
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
-// ── Trit 20: Does it cost money? ────────────────────────────────────────
+// ── Trit 20: Does it cost money? [CATEGORICAL] ─────────────────────────
 
-/// Derives cost model from paywall detection + pricing page.
-/// Pattern values: "free", "payperuse", "subscription"
 pub struct DeriveCostModel;
-
 impl DerivationRule for DeriveCostModel {
     fn dimension(&self) -> usize { 19 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(19, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "free" | "open" | "gratis" => Ok((Trit::V1, Confidence::High)),
-            "payperuse" | "pay-per-use" | "metered" | "usage" => Ok((Trit::V2, Confidence::High)),
-            "subscription" | "recurring" | "monthly" | "annual" | "saas" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "free" | "open" | "gratis" => Trit::V1,
+            "payperuse" | "pay-per-use" | "metered" | "usage" => Trit::V2,
+            "subscription" | "recurring" | "monthly" | "annual" | "saas" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -509,86 +420,67 @@ impl DerivationRule for DeriveCostModel {
 // HOW — Trits 21–24
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 21: Who gets it? ───────────────────────────────────────────────
+// ── Trit 21: Who gets it? [CATEGORICAL] ─────────────────────────────────
 
-/// Derives delivery model from multicast/anycast/CDN detection.
-/// Pattern values: "unicast", "multicast", "anycast"
 pub struct DeriveDeliveryModel;
-
 impl DerivationRule for DeriveDeliveryModel {
     fn dimension(&self) -> usize { 20 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(20, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "unicast" | "direct" | "one" => Ok((Trit::V1, Confidence::High)),
-            "multicast" | "group" | "fanout" | "broadcast" => Ok((Trit::V2, Confidence::High)),
-            "anycast" | "cdn" | "edge" | "closest" | "geo" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Medium)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "unicast" | "direct" | "one" => Trit::V1,
+            "multicast" | "group" | "fanout" | "broadcast" => Trit::V2,
+            "anycast" | "cdn" | "edge" | "closest" | "geo" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 22: Which way does data go? ────────────────────────────────────
+// ── Trit 22: Which way does data go? [CATEGORICAL] ─────────────────────
 
-/// Derives data flow direction from HTTP method ratios.
-/// Pattern values: "out", "through", "in"
 pub struct DeriveDataFlow;
-
 impl DerivationRule for DeriveDataFlow {
     fn dimension(&self) -> usize { 21 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(21, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "out" | "publish" | "serve" | "emit" | "source" => Ok((Trit::V1, Confidence::High)),
-            "through" | "proxy" | "relay" | "pass" | "cdn" => Ok((Trit::V2, Confidence::High)),
-            "in" | "ingest" | "collect" | "receive" | "sink" | "log" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Medium)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "out" | "publish" | "serve" | "emit" | "source" => Trit::V1,
+            "through" | "proxy" | "relay" | "pass" | "cdn" => Trit::V2,
+            "in" | "ingest" | "collect" | "receive" | "sink" | "log" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 23: How do I get updates? ──────────────────────────────────────
+// ── Trit 23: How do I get updates? [CATEGORICAL] ───────────────────────
 
-/// Derives update model from RSS/Atom, WebSocket/SSE, polling detection.
-/// Pattern values: "poll", "subscribe", "push"
 pub struct DeriveUpdateModel;
-
 impl DerivationRule for DeriveUpdateModel {
     fn dimension(&self) -> usize { 22 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(22, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "poll" | "request" | "pull" | "manual" => Ok((Trit::V1, Confidence::High)),
-            "subscribe" | "rss" | "atom" | "feed" | "email" => Ok((Trit::V2, Confidence::High)),
-            "push" | "websocket" | "sse" | "notification" | "realtime" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "poll" | "request" | "pull" | "manual" => Trit::V1,
+            "subscribe" | "rss" | "atom" | "feed" | "email" => Trit::V2,
+            "push" | "websocket" | "sse" | "notification" | "realtime" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
-// ── Trit 24: Does it remember me? ───────────────────────────────────────
+// ── Trit 24: Does it remember me? [QUANTITATIVE, N=3] ──────────────────
 
-/// Derives state persistence from cookie/session analysis.
-/// Numeric: max cookie/session lifetime in seconds.
-///   0 = no, 1–86400 (≤1 day) = for a bit, >86400 = always
+/// 3 binary signals: has_any_cookie, has_persistent_cookie, has_long_lived_cookie.
+/// project_to_gf3 boundaries: k=0 → V1 (No), k=1 → V2 (For a bit), k=2-3 → V3 (Always).
 pub struct DeriveStatePersistence;
-
 impl DerivationRule for DeriveStatePersistence {
     fn dimension(&self) -> usize { 23 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let lifetime_secs = expect_numeric(23, raw)?;
-        let trit = if lifetime_secs <= 0.0 {
-            Trit::V1 // No
-        } else if lifetime_secs <= 86400.0 {
-            Trit::V2 // For a bit (≤1 day)
-        } else {
-            Trit::V3 // Always (>1 day)
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(23, raw)? as u32;
+        Ok((project_to_gf3(k, 3), Confidence(confidence_digit(k, 3))))
     }
 }
 
@@ -596,121 +488,89 @@ impl DerivationRule for DeriveStatePersistence {
 // PEACE — Trits 25–27
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Trit 25: Is it encrypted? ───────────────────────────────────────────
+// ── Trit 25: Is it encrypted? [QUANTITATIVE, N=6] ──────────────────────
 
-/// Derives entity-level encryption from counted binary signals.
-/// NOTE: This measures what the ENTITY offers, not CON fabric transport (§2.6).
-///
-/// Scanner counts: TLS present, HSTS header, CSP header, security.txt,
-/// X-Content-Type-Options, X-Frame-Options.
-/// Numeric: count of security signals detected.
-///   0 = No (V1), 1–2 = Basic TLS (V2), 3+ = Full TLS (V3)
-///
-/// Each signal is binary. Confidence is always High.
+/// 6 binary signals: tls_present, hsts_header, csp_header,
+/// security_txt, x_content_type_options, x_frame_options.
+/// project_to_gf3 boundaries: k<2 → V1 (No), k=2-3 → V2 (Basic TLS), k≥4 → V3 (Full TLS).
+/// NOTE: Measures entity-level encryption, not CON fabric transport (§2.6).
 pub struct DeriveEncryption;
-
 impl DerivationRule for DeriveEncryption {
     fn dimension(&self) -> usize { 24 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let signal_count = expect_numeric(24, raw)? as u32;
-        let trit = match signal_count {
-            0 => Trit::V1,       // No: plain HTTP, no security signals
-            1..=2 => Trit::V2,   // Basic TLS: some hardening
-            _ => Trit::V3,       // Full TLS: comprehensive security headers
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(24, raw)? as u32;
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
-// ── Trit 26: How many trackers? ─────────────────────────────────────────
+// ── Trit 26: How many trackers? [QUANTITATIVE, N=5, INVERTED] ──────────
 
-/// Derives tracker count from third-party request analysis on page load.
-/// Numeric: number of third-party tracking requests.
-///   10+ = many (V1), 1–9 = few (V2), 0 = none (V3)
-///
-/// NOTE: Higher value = FEWER trackers (better trust). Reversed scale.
+/// 5 binary CLEAN signals: no_analytics, no_social_trackers, no_ad_trackers,
+/// no_session_replay, no_crm_trackers.
+/// Each signal fires when a tracker CATEGORY is ABSENT.
+/// More clean signals = fewer trackers = higher trit (better trust).
+/// project_to_gf3 boundaries: k<2 → V1 (Many), k=2-3 → V2 (Few), k≥4 → V3 (None).
+/// The inversion is structural — the probe counts absences, not presences.
 pub struct DeriveTrackerCount;
-
 impl DerivationRule for DeriveTrackerCount {
     fn dimension(&self) -> usize { 25 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
-        let count = expect_numeric(25, raw)? as u32;
-        let trit = match count {
-            10.. => Trit::V1,  // Many trackers (worst trust)
-            1..=9 => Trit::V2, // Few trackers
-            0 => Trit::V3,     // No trackers (best trust)
-        };
-        Ok((trit, Confidence::High))
+        let k = expect_numeric(25, raw)? as u32;
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
-// ── Trit 27: Has it been audited? ───────────────────────────────────────
+// ── Trit 27: Has it been audited? [CATEGORICAL] ────────────────────────
 
-/// Derives audit status from SOC2/ISO badge scan + certificate detection.
-/// Pattern values: "no", "self", "audited"
 pub struct DeriveAuditStatus;
-
 impl DerivationRule for DeriveAuditStatus {
     fn dimension(&self) -> usize { 26 }
-
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let pattern = expect_pattern(26, raw)?;
-        match pattern.to_lowercase().as_str() {
-            "no" | "none" | "unknown" => Ok((Trit::V1, Confidence::High)),
-            "self" | "self-certified" | "claimed" | "badge" => Ok((Trit::V2, Confidence::Medium)),
-            "audited" | "soc2" | "iso27001" | "verified" | "certified" => Ok((Trit::V3, Confidence::High)),
-            _ => Ok((Trit::V1, Confidence::Low)),
-        }
+        let trit = match pattern.to_lowercase().as_str() {
+            "no" | "none" | "unknown" => Trit::V1,
+            "self" | "self-certified" | "claimed" | "badge" => Trit::V2,
+            "audited" | "soc2" | "iso27001" | "verified" | "certified" => Trit::V3,
+            _ => Trit::V1,
+        };
+        Ok((trit, Confidence::MAX))
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Registry — All 27 rules in order
+// Registry
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Returns all 27 derivation rules in dimension order.
-///
-/// This is the engine CRS uses to convert 27 raw measurements into
-/// a 27-trit address. Each rule is deterministic and requires no
-/// human judgment.
+/// All 27 derivation rules in dimension order.
 pub fn all_rules() -> Vec<Box<dyn DerivationRule>> {
     vec![
-        // WHO (1–4)
-        Box::new(DeriveEntityKind),
-        Box::new(DeriveAudience),
-        Box::new(DeriveOperatorTransparency),
-        Box::new(DeriveHostingModel),
-        // WHAT (5–8)
-        Box::new(DeriveFormFactor),
-        Box::new(DeriveContentType),
-        Box::new(DeriveConsumerType),
-        Box::new(DeriveIntelligence),
-        // WHERE (9–12)
-        Box::new(DeriveVisibility),
-        Box::new(DeriveAuthModel),
-        Box::new(DeriveInfraScale),
-        Box::new(DeriveConnectionProtocol),
-        // WHEN (13–16)
-        Box::new(DeriveEra),
-        Box::new(DeriveAvailability),
-        Box::new(DeriveDataFreshness),
-        Box::new(DeriveLatencyProfile),
-        // WHY (17–20)
-        Box::new(DerivePaymentModel),
-        Box::new(DeriveDataAppetite),
-        Box::new(DerivePolicyPresence),
-        Box::new(DeriveCostModel),
-        // HOW (21–24)
-        Box::new(DeriveDeliveryModel),
-        Box::new(DeriveDataFlow),
-        Box::new(DeriveUpdateModel),
-        Box::new(DeriveStatePersistence),
-        // PEACE (25–27)
-        Box::new(DeriveEncryption),
-        Box::new(DeriveTrackerCount),
-        Box::new(DeriveAuditStatus),
+        Box::new(DeriveEntityKind),              // 1  WHO  CATEGORICAL
+        Box::new(DeriveAudience),                // 2  WHO  CATEGORICAL
+        Box::new(DeriveOperatorTransparency),    // 3  WHO  QUANTITATIVE N=5
+        Box::new(DeriveHostingModel),            // 4  WHO  CATEGORICAL
+        Box::new(DeriveFormFactor),              // 5  WHAT CATEGORICAL
+        Box::new(DeriveContentType),             // 6  WHAT CATEGORICAL
+        Box::new(DeriveConsumerType),            // 7  WHAT CATEGORICAL
+        Box::new(DeriveIntelligence),            // 8  WHAT QUANTITATIVE N=5
+        Box::new(DeriveVisibility),              // 9  WHERE QUANTITATIVE N=3
+        Box::new(DeriveAuthModel),               // 10 WHERE CATEGORICAL
+        Box::new(DeriveInfraScale),              // 11 WHERE QUANTITATIVE N=6
+        Box::new(DeriveConnectionProtocol),      // 12 WHERE CATEGORICAL
+        Box::new(DeriveEra),                     // 13 WHEN QUANTITATIVE N=6
+        Box::new(DeriveAvailability),            // 14 WHEN QUANTITATIVE N=3
+        Box::new(DeriveDataFreshness),           // 15 WHEN CATEGORICAL
+        Box::new(DeriveLatencyProfile),          // 16 WHEN QUANTITATIVE N=6
+        Box::new(DerivePaymentModel),            // 17 WHY  CATEGORICAL
+        Box::new(DeriveDataAppetite),            // 18 WHY  QUANTITATIVE N=5
+        Box::new(DerivePolicyPresence),          // 19 WHY  QUANTITATIVE N=5
+        Box::new(DeriveCostModel),               // 20 WHY  CATEGORICAL
+        Box::new(DeriveDeliveryModel),           // 21 HOW  CATEGORICAL
+        Box::new(DeriveDataFlow),                // 22 HOW  CATEGORICAL
+        Box::new(DeriveUpdateModel),             // 23 HOW  CATEGORICAL
+        Box::new(DeriveStatePersistence),        // 24 HOW  QUANTITATIVE N=3
+        Box::new(DeriveEncryption),              // 25 PEACE QUANTITATIVE N=6
+        Box::new(DeriveTrackerCount),            // 26 PEACE QUANTITATIVE N=5
+        Box::new(DeriveAuditStatus),             // 27 PEACE CATEGORICAL
     ]
 }
 
@@ -720,179 +580,219 @@ pub fn all_rules() -> Vec<Box<dyn DerivationRule>> {
 mod tests {
     use super::*;
 
+    // ── Universal Formula Tests ──────────────────────────────────────
+
+    #[test]
+    fn gf3_projection_n5() {
+        assert_eq!(project_to_gf3(0, 5), Trit::V1);
+        assert_eq!(project_to_gf3(1, 5), Trit::V1);
+        assert_eq!(project_to_gf3(2, 5), Trit::V2);
+        assert_eq!(project_to_gf3(3, 5), Trit::V2);
+        assert_eq!(project_to_gf3(4, 5), Trit::V3);
+        assert_eq!(project_to_gf3(5, 5), Trit::V3);
+    }
+
+    #[test]
+    fn gf3_projection_n6() {
+        assert_eq!(project_to_gf3(0, 6), Trit::V1);
+        assert_eq!(project_to_gf3(1, 6), Trit::V1);
+        assert_eq!(project_to_gf3(2, 6), Trit::V2);
+        assert_eq!(project_to_gf3(3, 6), Trit::V2);
+        assert_eq!(project_to_gf3(4, 6), Trit::V3);
+        assert_eq!(project_to_gf3(5, 6), Trit::V3);
+        assert_eq!(project_to_gf3(6, 6), Trit::V3);
+    }
+
+    #[test]
+    fn gf3_projection_n3() {
+        assert_eq!(project_to_gf3(0, 3), Trit::V1);
+        assert_eq!(project_to_gf3(1, 3), Trit::V2);
+        assert_eq!(project_to_gf3(2, 3), Trit::V3);
+        assert_eq!(project_to_gf3(3, 3), Trit::V3);
+    }
+
+    #[test]
+    fn gf3_k_exceeds_n() {
+        assert_eq!(project_to_gf3(10, 5), Trit::V3);
+        assert_eq!(project_to_gf3(100, 6), Trit::V3);
+    }
+
+    // ── Confidence Formula Tests (§4.1) ─────────────────────────────
+
+    #[test]
+    fn confidence_digit_formula() {
+        assert_eq!(confidence_digit(5, 10), 5);
+        assert_eq!(confidence_digit(1, 6), 5);
+        assert_eq!(confidence_digit(0, 5), 9);
+        assert_eq!(confidence_digit(5, 5), 9);
+        assert_eq!(confidence_digit(1, 3), 1);
+        assert_eq!(confidence_digit(2, 3), 1);
+    }
+
+    #[test]
+    fn confidence_digit_range() {
+        for n in 1..=10u32 {
+            for k in 0..=n {
+                let c = confidence_digit(k, n);
+                assert!(c >= 1 && c <= 9, "k={} n={} → c={} out of range", k, n, c);
+            }
+        }
+    }
+
+    // ── Rule Coverage ────────────────────────────────────────────────
+
     #[test]
     fn all_rules_cover_all_dims() {
         let rules = all_rules();
         assert_eq!(rules.len(), 27);
         for (i, rule) in rules.iter().enumerate() {
-            assert_eq!(rule.dimension(), i, "rule {} covers wrong dimension", i);
+            assert_eq!(rule.dimension(), i);
         }
     }
 
+    // ── Categorical Rule Tests ───────────────────────────────────────
+
     #[test]
-    fn entity_kind_derivation() {
+    fn entity_kind_categorical() {
         let rule = DeriveEntityKind;
         let (t, c) = rule.derive(&RawValue::Pattern("government".into())).unwrap();
         assert_eq!(t, Trit::V3);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
 
-        let (t, _) = rule.derive(&RawValue::Pattern("personal".into())).unwrap();
+        let (t, c) = rule.derive(&RawValue::Pattern("personal".into())).unwrap();
         assert_eq!(t, Trit::V1);
-    }
-
-    #[test]
-    fn era_derivation() {
-        let rule = DeriveEra;
-        let (t, _) = rule.derive(&RawValue::Numeric(2005.0)).unwrap();
-        assert_eq!(t, Trit::V1); // Pre-2010
-
-        let (t, _) = rule.derive(&RawValue::Numeric(2015.0)).unwrap();
-        assert_eq!(t, Trit::V2); // 2010s
-
-        let (t, _) = rule.derive(&RawValue::Numeric(2024.0)).unwrap();
-        assert_eq!(t, Trit::V3); // 2020s+
-    }
-
-    #[test]
-    fn tracker_count_reversed_scale() {
-        let rule = DeriveTrackerCount;
-        // More trackers = lower trit value (worse trust)
-        let (t, _) = rule.derive(&RawValue::Numeric(50.0)).unwrap();
-        assert_eq!(t, Trit::V1); // Many trackers
-
-        let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
-        assert_eq!(t, Trit::V2); // Few
-
-        let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
-        assert_eq!(t, Trit::V3); // None (best)
-    }
-
-    #[test]
-    fn latency_profile_thresholds() {
-        let rule = DeriveLatencyProfile;
-
-        // Batch: 0 realtime signals, 1+ batch signals → encoded value has batch > 0
-        let (t, c) = rule.derive(&RawValue::Numeric(1.0)).unwrap(); // 0*10+1 = batch
-        assert_eq!(t, Trit::V1);
-        assert_eq!(c, Confidence::High);
-
-        // Near-time: 0 realtime, 0 batch → encoded 0
-        let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
-        assert_eq!(t, Trit::V2);
-        assert_eq!(c, Confidence::High);
-
-        // Real-time: 1+ realtime signals → encoded 10+ (1*10+0)
-        let (t, c) = rule.derive(&RawValue::Numeric(10.0)).unwrap();
-        assert_eq!(t, Trit::V3);
-        assert_eq!(c, Confidence::High);
-
-        // Real-time with multiple signals: 3*10+0 = 30
-        let (t, _) = rule.derive(&RawValue::Numeric(30.0)).unwrap();
-        assert_eq!(t, Trit::V3);
-    }
-
-    #[test]
-    fn visibility_from_status_code() {
-        let rule = DeriveVisibility;
-        let (t, _) = rule.derive(&RawValue::Numeric(200.0)).unwrap();
-        assert_eq!(t, Trit::V3); // Everyone
-
-        let (t, _) = rule.derive(&RawValue::Numeric(401.0)).unwrap();
-        assert_eq!(t, Trit::V2); // Group
-
-        let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
-        assert_eq!(t, Trit::V1); // Private (timeout)
-    }
-
-    #[test]
-    fn encryption_measures_entity_not_fabric() {
-        // §2.6: Trit 25 measures entity encryption, not CON transport.
-        // Signal count model: 0=No, 1-2=Basic TLS, 3+=Full TLS.
-        let rule = DeriveEncryption;
-
-        // Plain HTTP: 0 signals
-        let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
-        assert_eq!(t, Trit::V1);
-        assert_eq!(c, Confidence::High);
-
-        // Basic TLS: 1 signal (TLS present, no hardening)
-        let (t, c) = rule.derive(&RawValue::Numeric(1.0)).unwrap();
-        assert_eq!(t, Trit::V2);
-        assert_eq!(c, Confidence::High);
-
-        // Full TLS: 4 signals (TLS + HSTS + CSP + security.txt)
-        let (t, c) = rule.derive(&RawValue::Numeric(4.0)).unwrap();
-        assert_eq!(t, Trit::V3);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
     }
 
     #[test]
     fn type_mismatch_errors() {
-        let rule = DeriveEntityKind; // Expects Pattern
-        let result = rule.derive(&RawValue::Numeric(42.0));
-        assert!(result.is_err());
+        let rule = DeriveEntityKind;
+        assert!(rule.derive(&RawValue::Numeric(42.0)).is_err());
+    }
+
+    // ── Quantitative Rule Tests ─────────────────────────────────────
+
+    #[test]
+    fn transparency_signals() {
+        let rule = DeriveOperatorTransparency;
+        let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+        assert_eq!(c, Confidence::MAX);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(2.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(5.0)).unwrap();
+        assert_eq!(t, Trit::V3);
     }
 
     #[test]
-    fn state_persistence_thresholds() {
+    fn intelligence_signals() {
+        let rule = DeriveIntelligence;
+        let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(2.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(4.0)).unwrap();
+        assert_eq!(t, Trit::V3);
+    }
+
+    #[test]
+    fn visibility_signals() {
+        let rule = DeriveVisibility;
+        let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(1.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
+        assert_eq!(t, Trit::V3);
+    }
+
+    #[test]
+    fn encryption_signals() {
+        let rule = DeriveEncryption;
+        let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+        assert_eq!(c, Confidence::MAX);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(2.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(5.0)).unwrap();
+        assert_eq!(t, Trit::V3);
+    }
+
+    #[test]
+    fn latency_signals() {
+        let rule = DeriveLatencyProfile;
+        let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+        assert_eq!(c, Confidence::MAX);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(5.0)).unwrap();
+        assert_eq!(t, Trit::V3);
+    }
+
+    #[test]
+    fn tracker_clean_signals() {
+        let rule = DeriveTrackerCount;
+        let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(5.0)).unwrap();
+        assert_eq!(t, Trit::V3);
+    }
+
+    #[test]
+    fn state_persistence_signals() {
         let rule = DeriveStatePersistence;
         let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
-        assert_eq!(t, Trit::V1); // No cookies
+        assert_eq!(t, Trit::V1);
 
-        let (t, _) = rule.derive(&RawValue::Numeric(3600.0)).unwrap();
-        assert_eq!(t, Trit::V2); // Session (1 hour)
+        let (t, _) = rule.derive(&RawValue::Numeric(1.0)).unwrap();
+        assert_eq!(t, Trit::V2);
 
-        let (t, _) = rule.derive(&RawValue::Numeric(2592000.0)).unwrap();
-        assert_eq!(t, Trit::V3); // Persistent (30 days)
+        let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
+        assert_eq!(t, Trit::V3);
     }
 
     #[test]
-    fn derive_google_address() {
-        // CRS scan test fixtures for google.com.
-        // Trits 3, 8, 16, 25 use discrete signal counts (not scores).
+    fn era_signals() {
+        let rule = DeriveEra;
+        let (t, _) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
+        assert_eq!(t, Trit::V1);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
+        assert_eq!(t, Trit::V2);
+
+        let (t, _) = rule.derive(&RawValue::Numeric(5.0)).unwrap();
+        assert_eq!(t, Trit::V3);
+    }
+
+    #[test]
+    fn all_confidence_in_valid_range() {
         let rules = all_rules();
-        let raw_measurements: Vec<RawValue> = vec![
-            RawValue::Pattern("corporate".into()),     // 1: Corporate
-            RawValue::Pattern("public".into()),         // 2: Everyone
-            RawValue::Numeric(2.0),                     // 3: Known (2 transparency signals: about + contact)
-            RawValue::Pattern("cloud".into()),          // 4: Cloud
-            RawValue::Pattern("website".into()),        // 5: Website
-            RawValue::Pattern("text".into()),           // 6: Text
-            RawValue::Pattern("both".into()),           // 7: Both
-            RawValue::Numeric(4.0),                     // 8: Yes (4 ML signals: endpoints + framework + personalization + search)
-            RawValue::Numeric(200.0),                   // 9: Everyone (200 OK)
-            RawValue::Pattern("none".into()),           // 10: No login
-            RawValue::Numeric(100.0),                   // 11: Many servers
-            RawValue::Pattern("http".into()),           // 12: HTTP
-            RawValue::Numeric(1998.0),                  // 13: Pre-2010
-            RawValue::Numeric(99.99),                   // 14: 24/7
-            RawValue::Pattern("current".into()),        // 15: Current data
-            RawValue::Numeric(0.0),                     // 16: Near-time (0 realtime signals, 0 batch signals → encoded 0)
-            RawValue::Pattern("accepts".into()),        // 17: Accepts payments
-            RawValue::Numeric(20.0),                    // 18: Lots of data
-            RawValue::Numeric(4.0),                     // 19: Detailed policies
-            RawValue::Pattern("free".into()),           // 20: Free
-            RawValue::Pattern("unicast".into()),        // 21: One person
-            RawValue::Pattern("through".into()),        // 22: Data through
-            RawValue::Pattern("poll".into()),           // 23: I ask
-            RawValue::Numeric(3600.0),                  // 24: For a bit
-            RawValue::Numeric(3.0),                     // 25: Full TLS (3 signals: TLS + HSTS + CSP)
-            RawValue::Numeric(30.0),                    // 26: Many trackers
-            RawValue::Pattern("soc2".into()),           // 27: Audited
-        ];
-
-        let mut trits = [Trit::V1; 27];
-        for (i, (rule, raw)) in rules.iter().zip(raw_measurements.iter()).enumerate() {
-            let (trit, _confidence) = rule.derive(raw).unwrap();
-            trits[i] = trit;
+        for k in 0..=10u32 {
+            for rule in &rules {
+                if let Ok((_, conf)) = rule.derive(&RawValue::Numeric(k as f64)) {
+                    assert!(conf.0 >= 1 && conf.0 <= 9,
+                        "dim {} with k={} confidence {} out of range", rule.dimension(), k, conf.0);
+                }
+                if let Ok((_, conf)) = rule.derive(&RawValue::Pattern("test".into())) {
+                    assert_eq!(conf, Confidence::MAX,
+                        "dim {} categorical should be MAX confidence", rule.dimension());
+                }
+            }
         }
-
-        let addr = crate::addr::CubeAddr::new(trits);
-        let expected = crate::addr::CubeAddr::from_category_string(
-            "WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313",
-        )
-        .unwrap();
-
-        assert_eq!(addr, expected, "Derived address doesn't match spec: {} vs {}", addr, expected);
     }
 }

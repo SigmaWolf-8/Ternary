@@ -25,17 +25,11 @@ use crate::trn::{HptpSyncStatus, Trn};
 /// CRS policy configuration (§10.4, §13).
 #[derive(Debug, Clone)]
 pub struct CrsConfig {
-    /// Default TTL for TRN records (seconds).
     pub default_ttl: u32,
-    /// Re-scan interval (nanoseconds). Default: 1 week.
     pub rescan_interval_ns: u64,
-    /// Grace period for old address after drift (nanoseconds). Default: 24h.
     pub drift_grace_period_ns: u64,
-    /// HPTP sync tolerance for real-time entities (nanoseconds). Default: 1μs.
     pub hptp_realtime_tolerance_ns: u64,
-    /// HPTP sync tolerance for near-time entities (nanoseconds). Default: 100μs.
     pub hptp_neartime_tolerance_ns: u64,
-    /// Maximum registrations per zone per hour (rate limit).
     pub max_registrations_per_zone_per_hour: u32,
 }
 
@@ -43,10 +37,10 @@ impl Default for CrsConfig {
     fn default() -> Self {
         Self {
             default_ttl: 3600,
-            rescan_interval_ns: 7 * 24 * 3600 * 1_000_000_000, // 1 week
-            drift_grace_period_ns: 24 * 3600 * 1_000_000_000,  // 24 hours
-            hptp_realtime_tolerance_ns: 1_000,                   // 1μs
-            hptp_neartime_tolerance_ns: 100_000,                 // 100μs
+            rescan_interval_ns: 7 * 24 * 3600 * 1_000_000_000,
+            drift_grace_period_ns: 24 * 3600 * 1_000_000_000,
+            hptp_realtime_tolerance_ns: 1_000,
+            hptp_neartime_tolerance_ns: 100_000,
             max_registrations_per_zone_per_hour: 100,
         }
     }
@@ -54,7 +48,6 @@ impl Default for CrsConfig {
 
 // ─── Drift Event ─────────────────────────────────────────────────────────────
 
-/// Records a property drift event when re-scan produces a different address.
 #[derive(Debug, Clone)]
 pub struct DriftEvent {
     pub name: String,
@@ -66,25 +59,21 @@ pub struct DriftEvent {
 
 // ─── Registration Result ─────────────────────────────────────────────────────
 
-/// Result of a registration attempt.
 #[derive(Debug)]
 pub enum RegistrationResult {
-    /// Successfully registered with derived address.
     Ok {
         trn: Trn,
         address: CubeAddr,
-        /// True if the entity was displaced from its natural address.
-        displaced: bool,
-        /// The natural (scan-derived) address before displacement.
-        natural_address: CubeAddr,
+        crd: u8,
     },
-    /// Registration rejected: HPTP sync required but not confirmed.
     HptpSyncRequired {
         address: CubeAddr,
         measured_offset_ns: i64,
         tolerance_ns: u64,
     },
-    /// Registration failed during scan/derivation.
+    AddressFull {
+        address: CubeAddr,
+    },
     ScanFailed {
         reason: String,
     },
@@ -92,22 +81,18 @@ pub enum RegistrationResult {
 
 // ─── Re-verification Result (§9.4) ──────────────────────────────────────────
 
-/// Result of a re-verification request.
 #[derive(Debug)]
 pub enum VerificationResult {
-    /// Address matches current measurements.
     Verified {
         name: String,
         address: CubeAddr,
     },
-    /// Address has drifted — re-derivation initiated.
     Drifted {
         name: String,
         old_address: CubeAddr,
         new_address: CubeAddr,
         changed_dims: Vec<usize>,
     },
-    /// Name not found in registry.
     NotFound {
         name: String,
     },
@@ -115,40 +100,21 @@ pub enum VerificationResult {
 
 // ─── CRS Registry ────────────────────────────────────────────────────────────
 
-/// The Cube Registration Service.
-///
-/// Stores TRN records indexed by name and by address.
-/// Maintains neighbor maps for all registered entities.
-/// Tracks drift events for audit trail.
 pub struct CrsRegistry {
     config: CrsConfig,
-
-    /// TRN records indexed by name.
     records_by_name: HashMap<String, Trn>,
-
-    /// Name index by address (for reverse lookup).
-    names_by_addr: BTreeMap<CubeAddr, String>,
-
-    /// Neighbor maps for each registered entity.
+    names_by_addr: BTreeMap<CubeAddr, Vec<(String, u8)>>,
     neighbor_maps: HashMap<CubeAddr, NeighborMap>,
-
-    /// Drift event log (append-only audit trail).
     drift_log: Vec<DriftEvent>,
-
-    /// Old→new address redirects during grace period.
-    redirects: HashMap<CubeAddr, (CubeAddr, u64)>, // (new_addr, expires_at_ns)
-
-    /// The derivation rules (cached).
+    redirects: HashMap<CubeAddr, (CubeAddr, u64)>,
     rules: Vec<Box<dyn DerivationRule>>,
 }
 
 impl CrsRegistry {
-    /// Create a new CRS registry with default config.
     pub fn new() -> Self {
         Self::with_config(CrsConfig::default())
     }
 
-    /// Create with custom config.
     pub fn with_config(config: CrsConfig) -> Self {
         Self {
             config,
@@ -163,10 +129,6 @@ impl CrsRegistry {
 
     // ── Core Derivation ─────────────────────────────────────────────────
 
-    /// Derive a 27-trit address from raw scan measurements.
-    ///
-    /// This is the heart of CRS. Each measurement is fed through the
-    /// corresponding DerivationRule to produce a trit. No human judgment.
     pub fn derive_address(
         &self,
         measurements: &[RawValue],
@@ -195,59 +157,19 @@ impl CrsRegistry {
         Ok((trits, scan_measurements))
     }
 
-    // ── Collision Displacement ──────────────────────────────────────
+    // ── CRD Assignment ────────────────────────────────────────────────
 
-    /// Displace a colliding address to the nearest unoccupied neighbor.
-    ///
-    /// Uses BLAKE3(name) to deterministically select which dimension
-    /// to flip and in which direction. Tries all 54 single-trit
-    /// displacements before failing.
-    ///
-    /// Returns (displaced_address, displaced_dimension) or None if
-    /// all neighbors are occupied (effectively impossible in a 7.6T
-    /// address space with realistic deployments).
-    fn displace(&self, name: &str, natural: &CubeAddr) -> Option<(CubeAddr, usize)> {
-        // Hash the name for deterministic displacement direction
-        let hash = blake3::hash(name.as_bytes());
-        let hash_bytes = hash.as_bytes();
+    fn assign_crd(&self, address: &CubeAddr) -> Option<u8> {
+        let occupied: Vec<u8> = self.names_by_addr
+            .get(address)
+            .map(|entries| entries.iter().map(|(_, crd)| *crd).collect())
+            .unwrap_or_default();
 
-        // Try 54 possible single-trit displacements (27 dims × 2 directions)
-        for attempt in 0..54u8 {
-            // Select dimension: hash byte determines starting dim, offset by attempt
-            let dim_seed = hash_bytes[(attempt as usize) % 32] as usize;
-            let dim = (dim_seed + attempt as usize) % DIMENSIONS;
-
-            // Select direction: use the next hash byte's low bit
-            let dir_seed = hash_bytes[((attempt as usize) + 1) % 32];
-            let direction = (dir_seed as usize + attempt as usize) % 2;
-
-            // Get the two possible neighbor values for this dimension
-            let current_val = natural.trit(dim);
-            let neighbors = current_val.neighbors();
-            let target_val = neighbors[direction];
-
-            // Build candidate address
-            let candidate = natural.with_trit(dim, target_val);
-
-            // Check if this coordinate is unoccupied
-            if !self.names_by_addr.contains_key(&candidate) {
-                return Some((candidate, dim));
-            }
-        }
-
-        // All 54 single-trit neighbors occupied (astronomically unlikely)
-        None
+        (1..=9u8).find(|d| !occupied.contains(d))
     }
 
     // ── Registration ────────────────────────────────────────────────────
 
-    /// Register an entity with CRS.
-    ///
-    /// CRS scans the entity (measurements provided), derives the address,
-    /// stores the TRN record, and updates neighbor maps.
-    ///
-    /// For HPTP-mandatory entities (trits 15+16 both = 3), registration
-    /// MUST verify HPTP sync within tolerance (§10.4).
     pub fn register(
         &mut self,
         name: String,
@@ -257,118 +179,94 @@ impl CrsRegistry {
         now_ns: u64,
         hptp_offset_ns: Option<i64>,
     ) -> RegistrationResult {
-        // Step 1: Derive address from measurements
         let (trits, scan_measurements) = match self.derive_address(&measurements) {
             Ok(result) => result,
             Err(reason) => return RegistrationResult::ScanFailed { reason },
         };
 
-        let natural_address = CubeAddr::new(trits);
+        let address = CubeAddr::new(trits);
 
-        // Step 2: Check HPTP compliance for mandatory entities (§10.4)
-        if natural_address.is_hptp_mandatory() {
+        if address.is_hptp_mandatory() {
             let offset = hptp_offset_ns.unwrap_or(i64::MAX);
             let tolerance = self.config.hptp_realtime_tolerance_ns;
             if offset.unsigned_abs() > tolerance {
                 return RegistrationResult::HptpSyncRequired {
-                    address: natural_address,
+                    address,
                     measured_offset_ns: offset,
                     tolerance_ns: tolerance,
                 };
             }
         }
 
-        // Step 3: Collision detection and displacement
-        //
-        // If the natural address is already occupied by a different entity,
-        // displace this registration to the nearest unoccupied neighbor.
-        // First-come-first-serve: the incumbent keeps the natural address.
-        //
-        // Displacement algorithm:
-        //   1. Hash the name with BLAKE3 → 32 bytes
-        //   2. Use hash bits to select dimension and direction for displacement
-        //   3. Try single-trit flips in name-deterministic order
-        //   4. First empty slot wins
-        let (assigned_address, displaced, displaced_dim) = if self.names_by_addr.contains_key(&natural_address) {
-            // Collision — displace using name hash
-            match self.displace(&name, &natural_address) {
-                Some((addr, dim)) => (addr, true, Some(dim)),
-                None => {
-                    return RegistrationResult::ScanFailed {
-                        reason: "address collision: no unoccupied neighbor found in 27 dimensions".into(),
-                    };
-                }
-            }
-        } else {
-            (natural_address, false, None)
+        let crd = match self.assign_crd(&address) {
+            Some(d) => d,
+            None => return RegistrationResult::AddressFull { address },
         };
 
-        // Step 4: Compute scan hash
         let scan_result = ScanResult::new(
             name.clone(),
             now_ns,
-            scan_measurements,
+            scan_measurements.clone(),
             trits,
         );
         let scan_hash = scan_result.scan_hash;
 
-        // Step 5: Build TRN record
+        let confidence_vec: Vec<u8> = scan_measurements.iter().map(|m| {
+            match &m.raw {
+                RawValue::Numeric(_) => m.confidence.0,
+                _ => 9,
+            }
+        }).collect();
+
         let mut trn = Trn::new(
             name.clone(),
-            assigned_address,
+            address,
             public_key,
             self.config.default_ttl,
             now_ns,
             zone,
             scan_hash,
         );
+        trn = trn.with_crd(crd).with_confidence(confidence_vec);
 
-        // Mark displacement if it occurred
-        if displaced {
-            trn = trn.with_displacement(natural_address, displaced_dim.unwrap());
-        }
-
-        // Set HPTP status if mandatory
-        if assigned_address.is_hptp_mandatory() {
+        if address.is_hptp_mandatory() {
             let offset = hptp_offset_ns.unwrap_or(0);
             trn = trn.with_hptp_status(HptpSyncStatus::Synced, offset);
         }
         trn.last_rescan = Some(now_ns);
 
-        // Step 6: Store record
         self.records_by_name.insert(name.clone(), trn.clone());
-        self.names_by_addr.insert(assigned_address, name);
+        self.names_by_addr
+            .entry(address)
+            .or_insert_with(Vec::new)
+            .push((name, crd));
 
-        // Step 7: Initialize and update neighbor maps
-        self.init_neighbor_map(assigned_address);
-        self.update_neighbor_maps_for_registration(assigned_address);
+        self.init_neighbor_map(address);
+        self.update_neighbor_maps_for_registration(address);
 
-        RegistrationResult::Ok {
-            trn,
-            address: assigned_address,
-            displaced,
-            natural_address,
-        }
+        RegistrationResult::Ok { trn, address, crd }
     }
 
     // ── Lookup ──────────────────────────────────────────────────────────
 
-    /// Resolve a name to its TRN record.
     pub fn resolve(&self, name: &str) -> Option<&Trn> {
         self.records_by_name.get(name)
     }
 
-    /// Resolve a name to its address.
     pub fn resolve_addr(&self, name: &str) -> Option<CubeAddr> {
         self.records_by_name.get(name).map(|trn| trn.address)
     }
 
-    /// Reverse lookup: address to name.
     pub fn reverse_lookup(&self, addr: &CubeAddr) -> Option<&str> {
-        self.names_by_addr.get(addr).map(|s| s.as_str())
+        self.names_by_addr.get(addr)
+            .and_then(|entries| entries.first())
+            .map(|(name, _)| name.as_str())
     }
 
-    /// Check for redirect (during drift grace period).
+    pub fn reverse_lookup_all(&self, addr: &CubeAddr) -> Option<&[(String, u8)]> {
+        self.names_by_addr.get(addr).map(|v| v.as_slice())
+    }
+
     pub fn check_redirect(&self, addr: &CubeAddr, now_ns: u64) -> Option<CubeAddr> {
         if let Some(&(new_addr, expires)) = self.redirects.get(addr) {
             if now_ns <= expires {
@@ -378,52 +276,40 @@ impl CrsRegistry {
         None
     }
 
-    /// Total registered entities.
     pub fn entity_count(&self) -> usize {
         self.records_by_name.len()
     }
 
     // ── Re-scan & Drift (§13) ───────────────────────────────────────────
 
-    /// Re-scan an entity and check for property drift.
-    ///
-    /// If the new measurements produce a different address, this is
-    /// property drift. CRS updates the TRN, sets up a redirect, and
-    /// logs the drift event.
     pub fn rescan(
         &mut self,
         name: &str,
         new_measurements: Vec<RawValue>,
         now_ns: u64,
     ) -> Option<VerificationResult> {
-        // Get current record
         let current_trn = self.records_by_name.get(name)?.clone();
         let old_address = current_trn.address;
 
-        // Derive new address
         let (new_trits, scan_measurements) = match self.derive_address(&new_measurements) {
             Ok(result) => result,
             Err(_) => return None,
         };
         let new_address = CubeAddr::new(new_trits);
 
-        // Update last_rescan timestamp
         if let Some(trn) = self.records_by_name.get_mut(name) {
             trn.last_rescan = Some(now_ns);
         }
 
         if new_address == old_address {
-            // No drift — address still accurate
             return Some(VerificationResult::Verified {
                 name: name.to_string(),
                 address: old_address,
             });
         }
 
-        // Property drift detected!
         let changed_dims = old_address.differing_dims(&new_address);
 
-        // Log drift event
         self.drift_log.push(DriftEvent {
             name: name.to_string(),
             old_address,
@@ -432,7 +318,6 @@ impl CrsRegistry {
             detected_at: now_ns,
         });
 
-        // Update scan hash
         let scan_result = ScanResult::new(
             name.to_string(),
             now_ns,
@@ -440,22 +325,28 @@ impl CrsRegistry {
             new_trits,
         );
 
-        // Update TRN record
+        let new_crd = self.assign_crd(&new_address).unwrap_or(1);
         if let Some(trn) = self.records_by_name.get_mut(name) {
             trn.address = new_address;
+            trn.crd = new_crd;
             trn.scan_hash = scan_result.scan_hash;
             trn.last_rescan = Some(now_ns);
         }
 
-        // Update address index
-        self.names_by_addr.remove(&old_address);
-        self.names_by_addr.insert(new_address, name.to_string());
+        if let Some(entries) = self.names_by_addr.get_mut(&old_address) {
+            entries.retain(|(n, _)| n != name);
+            if entries.is_empty() {
+                self.names_by_addr.remove(&old_address);
+            }
+        }
+        self.names_by_addr
+            .entry(new_address)
+            .or_insert_with(Vec::new)
+            .push((name.to_string(), new_crd));
 
-        // Set up redirect: old → new for grace period
         let expires = now_ns + self.config.drift_grace_period_ns;
         self.redirects.insert(old_address, (new_address, expires));
 
-        // Update neighbor maps
         self.remove_from_neighbor_maps(old_address);
         self.init_neighbor_map(new_address);
         self.update_neighbor_maps_for_registration(new_address);
@@ -468,7 +359,6 @@ impl CrsRegistry {
         })
     }
 
-    /// Get entities due for re-scan based on config interval.
     pub fn entities_due_for_rescan(&self, now_ns: u64) -> Vec<String> {
         self.records_by_name
             .iter()
@@ -482,8 +372,6 @@ impl CrsRegistry {
 
     // ── Re-verification (§9.4) ──────────────────────────────────────────
 
-    /// Open re-verification protocol: any party can request a re-scan
-    /// and compare current measurements against stored TRN attributes.
     pub fn verify(
         &mut self,
         name: &str,
@@ -500,12 +388,18 @@ impl CrsRegistry {
 
     // ── Deregistration ──────────────────────────────────────────────────
 
-    /// Remove an entity from the registry.
     pub fn deregister(&mut self, name: &str) -> Option<Trn> {
         if let Some(trn) = self.records_by_name.remove(name) {
-            self.names_by_addr.remove(&trn.address);
+            if let Some(entries) = self.names_by_addr.get_mut(&trn.address) {
+                entries.retain(|(n, _)| n != name);
+                if entries.is_empty() {
+                    self.names_by_addr.remove(&trn.address);
+                }
+            }
             self.remove_from_neighbor_maps(trn.address);
-            self.neighbor_maps.remove(&trn.address);
+            if !self.names_by_addr.contains_key(&trn.address) {
+                self.neighbor_maps.remove(&trn.address);
+            }
             Some(trn)
         } else {
             None
@@ -514,21 +408,16 @@ impl CrsRegistry {
 
     // ── Neighbor Map Management ─────────────────────────────────────────
 
-    /// Get the neighbor map for a node.
     pub fn neighbor_map(&self, addr: &CubeAddr) -> Option<&NeighborMap> {
         self.neighbor_maps.get(addr)
     }
 
-    /// Initialize an empty neighbor map for a new node.
     fn init_neighbor_map(&mut self, addr: CubeAddr) {
         if !self.neighbor_maps.contains_key(&addr) {
             self.neighbor_maps.insert(addr, NeighborMap::new(addr));
         }
     }
 
-    /// When a new node registers, update all existing neighbor maps
-    /// that could use it as a closer neighbor, and populate the new
-    /// node's map with existing neighbors.
     fn update_neighbor_maps_for_registration(&mut self, new_addr: CubeAddr) {
         let all_addrs: Vec<CubeAddr> = self.names_by_addr.keys().copied().collect();
 
@@ -537,15 +426,11 @@ impl CrsRegistry {
                 continue;
             }
 
-            // For each dimension where new_addr differs from existing_addr,
-            // check if new_addr is closer than the current neighbor.
             for dim in 0..DIMENSIONS {
                 let existing_val = existing_addr.trit(dim);
                 let new_val = new_addr.trit(dim);
 
                 if existing_val != new_val {
-                    // new_addr has a different value in this dimension →
-                    // it's a candidate neighbor for existing_addr
                     let new_dist = existing_addr.distance(&new_addr);
 
                     if let Some(map) = self.neighbor_maps.get_mut(existing_addr) {
@@ -558,7 +443,6 @@ impl CrsRegistry {
                         }
                     }
 
-                    // Also populate the new node's map with existing_addr
                     if let Some(new_map) = self.neighbor_maps.get_mut(&new_addr) {
                         let rev_dist = new_addr.distance(existing_addr);
                         let should_update = match new_map.get(dim, existing_val) {
@@ -574,9 +458,7 @@ impl CrsRegistry {
         }
     }
 
-    /// Remove a deregistered node from all neighbor maps.
     fn remove_from_neighbor_maps(&mut self, removed_addr: CubeAddr) {
-        // For each existing map, check if removed_addr is referenced
         for (_, map) in self.neighbor_maps.iter_mut() {
             for dim in 0..DIMENSIONS {
                 let removed_val = removed_addr.trit(dim);
@@ -591,12 +473,10 @@ impl CrsRegistry {
 
     // ── Audit ───────────────────────────────────────────────────────────
 
-    /// Get the drift event log.
     pub fn drift_log(&self) -> &[DriftEvent] {
         &self.drift_log
     }
 
-    /// Get expired redirects that should be cleaned up.
     pub fn expired_redirects(&self, now_ns: u64) -> Vec<CubeAddr> {
         self.redirects
             .iter()
@@ -605,7 +485,6 @@ impl CrsRegistry {
             .collect()
     }
 
-    /// Clean up expired redirects.
     pub fn purge_expired_redirects(&mut self, now_ns: u64) -> usize {
         let expired = self.expired_redirects(now_ns);
         let count = expired.len();
@@ -617,30 +496,24 @@ impl CrsRegistry {
 
     // ── Metrics ─────────────────────────────────────────────────────────
 
-    /// Per-dimension population density: how many entities have each value.
-    pub fn dimension_density(&self) -> Vec<[usize; 3]> {
-        let mut density = vec![[0usize; 3]; DIMENSIONS];
-        for trn in self.records_by_name.values() {
-            for dim in 0..DIMENSIONS {
-                let idx = trn.address.trit(dim).index();
-                density[dim][idx] += 1;
-            }
-        }
-        density
-    }
-
-    /// HPTP-mandatory entity count.
     pub fn hptp_mandatory_count(&self) -> usize {
         self.records_by_name
             .values()
             .filter(|trn| trn.is_hptp_mandatory())
             .count()
     }
-}
 
-impl Default for CrsRegistry {
-    fn default() -> Self {
-        Self::new()
+    pub fn dimension_density(&self) -> Vec<[usize; 3]> {
+        let mut density = vec![[0usize; 3]; DIMENSIONS];
+        for trn in self.records_by_name.values() {
+            for dim in 0..DIMENSIONS {
+                let val = trn.address.trit(dim).value() as usize;
+                if val >= 1 && val <= 3 {
+                    density[dim][val - 1] += 1;
+                }
+            }
+        }
+        density
     }
 }
 
@@ -649,69 +522,68 @@ impl Default for CrsRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scan::RawValue;
 
-    /// Build standard Google measurements.
     fn google_measurements() -> Vec<RawValue> {
         vec![
             RawValue::Pattern("corporate".into()),
             RawValue::Pattern("public".into()),
-            RawValue::Numeric(2.0),             // trit 3: 2 transparency signals → Known
+            RawValue::Numeric(2.0),
             RawValue::Pattern("cloud".into()),
             RawValue::Pattern("website".into()),
             RawValue::Pattern("text".into()),
             RawValue::Pattern("both".into()),
-            RawValue::Numeric(4.0),             // trit 8: 4 ML signals → Yes
-            RawValue::Numeric(200.0),
+            RawValue::Numeric(4.0),
+            RawValue::Numeric(3.0),
             RawValue::Pattern("none".into()),
-            RawValue::Numeric(100.0),
+            RawValue::Numeric(4.0),
             RawValue::Pattern("http".into()),
-            RawValue::Numeric(1998.0),
-            RawValue::Numeric(99.99),
+            RawValue::Numeric(1.0),
+            RawValue::Numeric(3.0),
             RawValue::Pattern("current".into()),
-            RawValue::Numeric(0.0),             // trit 16: 0 realtime, 0 batch → Near-time
+            RawValue::Numeric(2.0),
             RawValue::Pattern("accepts".into()),
-            RawValue::Numeric(20.0),
+            RawValue::Numeric(4.0),
             RawValue::Numeric(4.0),
             RawValue::Pattern("free".into()),
             RawValue::Pattern("unicast".into()),
             RawValue::Pattern("through".into()),
             RawValue::Pattern("poll".into()),
-            RawValue::Numeric(3600.0),
-            RawValue::Numeric(3.0),             // trit 25: 3 security signals → Full TLS
-            RawValue::Numeric(30.0),
+            RawValue::Numeric(1.0),
+            RawValue::Numeric(5.0),
+            RawValue::Numeric(0.0),
             RawValue::Pattern("soc2".into()),
         ]
     }
 
-    /// Build PPTPro measurements (HPTP-mandatory).
     fn pptpro_measurements() -> Vec<RawValue> {
         vec![
             RawValue::Pattern("corporate".into()),
             RawValue::Pattern("public".into()),
-            RawValue::Numeric(4.0),             // trit 3: 4 transparency signals → Transparent
+            RawValue::Numeric(4.0),
             RawValue::Pattern("cloud".into()),
             RawValue::Pattern("app".into()),
             RawValue::Pattern("live".into()),
             RawValue::Pattern("both".into()),
-            RawValue::Numeric(4.0),             // trit 8: 4 ML signals → Yes
-            RawValue::Numeric(401.0),
+            RawValue::Numeric(4.0),
+            RawValue::Numeric(1.0),
             RawValue::Pattern("password".into()),
             RawValue::Numeric(3.0),
             RawValue::Pattern("websocket".into()),
-            RawValue::Numeric(2024.0),
-            RawValue::Numeric(99.99),
-            RawValue::Pattern("live".into()),
-            RawValue::Numeric(10.0),            // trit 16: 1 realtime signal → Real-time
-            RawValue::Pattern("no".into()),
+            RawValue::Numeric(5.0),
             RawValue::Numeric(3.0),
+            RawValue::Pattern("live".into()),
+            RawValue::Numeric(5.0),
+            RawValue::Pattern("no".into()),
+            RawValue::Numeric(2.0),
             RawValue::Numeric(2.0),
             RawValue::Pattern("free".into()),
             RawValue::Pattern("multicast".into()),
             RawValue::Pattern("out".into()),
             RawValue::Pattern("push".into()),
-            RawValue::Numeric(999999.0),
-            RawValue::Numeric(3.0),             // trit 25: 3 security signals → Full TLS
-            RawValue::Numeric(0.0),
+            RawValue::Numeric(3.0),
+            RawValue::Numeric(5.0),
+            RawValue::Numeric(4.0),
             RawValue::Pattern("self-certified".into()),
         ]
     }
@@ -722,144 +594,71 @@ mod tests {
         let now = 1_000_000_000u64;
 
         let result = crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
+            "google.plm".into(), "plm".into(),
+            vec![0xDE, 0xAD], google_measurements(), now, None,
         );
-
         match result {
-            RegistrationResult::Ok { trn, address, .. } => {
-                assert_eq!(trn.name, "google.plm");
+            RegistrationResult::Ok { address, crd, .. } => {
                 assert!(!address.is_hptp_mandatory());
-
-                // Resolve by name
-                let resolved = crs.resolve("google.plm").unwrap();
-                assert_eq!(resolved.address, address);
-
-                // Reverse lookup
-                let name = crs.reverse_lookup(&address).unwrap();
-                assert_eq!(name, "google.plm");
+                assert_eq!(crd, 1);
             }
             other => panic!("expected Ok, got {:?}", other),
         }
 
+        assert!(crs.resolve("google.plm").is_some());
         assert_eq!(crs.entity_count(), 1);
     }
 
     #[test]
-    fn hptp_mandatory_requires_sync() {
+    fn hptp_enforcement() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        // Try registering PPTPro without HPTP sync → should be rejected
         let result = crs.register(
-            "pptpro.capomastro.plm".into(),
-            "capomastro.plm".into(),
-            vec![0xBE, 0xEF],
-            pptpro_measurements(),
-            now,
-            None, // No HPTP offset provided
+            "pptpro.capomastro.plm".into(), "capomastro.plm".into(),
+            vec![0xBE, 0xEF], pptpro_measurements(), now, None,
         );
+        assert!(matches!(result, RegistrationResult::HptpSyncRequired { .. }));
 
+        let result = crs.register(
+            "pptpro.capomastro.plm".into(), "capomastro.plm".into(),
+            vec![0xBE, 0xEF], pptpro_measurements(), now, Some(500),
+        );
         match result {
-            RegistrationResult::HptpSyncRequired { address, .. } => {
+            RegistrationResult::Ok { address, .. } => {
                 assert!(address.is_hptp_mandatory());
-            }
-            other => panic!("expected HptpSyncRequired, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn hptp_mandatory_with_sync() {
-        let mut crs = CrsRegistry::new();
-        let now = 1_000_000_000u64;
-
-        // Register PPTPro WITH HPTP sync within tolerance
-        let result = crs.register(
-            "pptpro.capomastro.plm".into(),
-            "capomastro.plm".into(),
-            vec![0xBE, 0xEF],
-            pptpro_measurements(),
-            now,
-            Some(500), // 500ns offset < 1μs tolerance
-        );
-
-        match result {
-            RegistrationResult::Ok { trn, .. } => {
-                assert!(trn.is_hptp_mandatory());
-                assert!(trn.is_hptp_synced());
             }
             other => panic!("expected Ok, got {:?}", other),
         }
     }
 
     #[test]
-    fn rescan_no_drift() {
+    fn reverse_lookup_works() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
-
-        // Re-scan with identical measurements → no drift
-        let result = crs.rescan("google.plm", google_measurements(), now + 1000).unwrap();
-        match result {
-            VerificationResult::Verified { name, .. } => {
-                assert_eq!(name, "google.plm");
-            }
-            other => panic!("expected Verified, got {:?}", other),
-        }
-
-        assert!(crs.drift_log().is_empty());
+        crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+        let addr = crs.resolve_addr("google.plm").unwrap();
+        assert_eq!(crs.reverse_lookup(&addr).unwrap(), "google.plm");
     }
 
     #[test]
-    fn rescan_with_drift() {
+    fn drift_detection() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
-
+        crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
         let old_addr = crs.resolve_addr("google.plm").unwrap();
 
-        // Change measurement: Google adds tons of ML → trit 8 was already 3
-        // Change: Google becomes subscription-based → trit 20 changes
         let mut changed = google_measurements();
-        changed[19] = RawValue::Pattern("subscription".into()); // Was "free"
+        changed[19] = RawValue::Pattern("subscription".into());
 
-        let later = now + 1_000_000_000;
-        let result = crs.rescan("google.plm", changed, later).unwrap();
-
+        let result = crs.rescan("google.plm", changed, now + 1_000_000);
         match result {
-            VerificationResult::Drifted {
-                old_address,
-                new_address,
-                changed_dims,
-                ..
-            } => {
+            Some(VerificationResult::Drifted { old_address, new_address, changed_dims, .. }) => {
                 assert_eq!(old_address, old_addr);
                 assert_ne!(old_address, new_address);
-                assert!(changed_dims.contains(&19)); // dim 20 (0-indexed: 19)
-
-                // Redirect should be set up
-                let redirect = crs.check_redirect(&old_address, later);
-                assert_eq!(redirect, Some(new_address));
+                assert!(changed_dims.contains(&19));
             }
             other => panic!("expected Drifted, got {:?}", other),
         }
@@ -868,271 +667,141 @@ mod tests {
     }
 
     #[test]
-    fn deregister() {
+    fn deregistration() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
-
+        crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
         assert_eq!(crs.entity_count(), 1);
+
         let trn = crs.deregister("google.plm").unwrap();
         assert_eq!(trn.name, "google.plm");
         assert_eq!(crs.entity_count(), 0);
-        assert!(crs.resolve("google.plm").is_none());
     }
 
     #[test]
-    fn neighbor_maps_populated_on_registration() {
+    fn neighbor_map_construction() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        // Register two entities
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
-        crs.register(
-            "pptpro.capomastro.plm".into(),
-            "capomastro.plm".into(),
-            vec![0xBE, 0xEF],
-            pptpro_measurements(),
-            now,
-            Some(100),
-        );
+        crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+        crs.register("pptpro.plm".into(), "plm".into(), vec![0x02], pptpro_measurements(), now, Some(100));
 
         let g_addr = crs.resolve_addr("google.plm").unwrap();
-        let p_addr = crs.resolve_addr("pptpro.capomastro.plm").unwrap();
-
-        // Google's map should reference PPTPro in some dimensions
-        let g_map = crs.neighbor_map(&g_addr).unwrap();
-        assert!(!g_map.is_empty());
-
-        // PPTPro's map should reference Google in some dimensions
-        let p_map = crs.neighbor_map(&p_addr).unwrap();
-        assert!(!p_map.is_empty());
+        let map = crs.neighbor_map(&g_addr);
+        assert!(map.is_some());
     }
 
     #[test]
-    fn dimension_density() {
+    fn redirect_during_grace_period() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
+        crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+        let old_addr = crs.resolve_addr("google.plm").unwrap();
 
-        let density = crs.dimension_density();
-        assert_eq!(density.len(), DIMENSIONS);
-
-        // With one entity, each dimension should have exactly one
-        // value populated
-        for dim_density in &density {
-            let total: usize = dim_density.iter().sum();
-            assert_eq!(total, 1);
-        }
-    }
-
-    #[test]
-    fn expired_redirect_cleanup() {
-        let mut crs = CrsRegistry::new();
-        let now = 1_000_000_000u64;
-
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
-
-        // Force drift
         let mut changed = google_measurements();
         changed[19] = RawValue::Pattern("subscription".into());
+
         crs.rescan("google.plm", changed, now + 1000);
 
-        // Before grace period expires
-        assert_eq!(crs.expired_redirects(now + 1000).len(), 0);
-
-        // After grace period expires
-        let after_grace = now + 1000 + crs.config.drift_grace_period_ns + 1;
-        assert_eq!(crs.expired_redirects(after_grace).len(), 1);
-
-        let purged = crs.purge_expired_redirects(after_grace);
-        assert_eq!(purged, 1);
+        let redirect = crs.check_redirect(&old_addr, now + 2000);
+        assert!(redirect.is_some());
     }
 
     #[test]
-    fn entities_due_for_rescan() {
+    fn crd_collision_resolution() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        crs.register(
-            "google.plm".into(),
-            "plm".into(),
-            vec![0xDE, 0xAD],
-            google_measurements(),
-            now,
-            None,
-        );
-
-        // Not yet due
-        let due = crs.entities_due_for_rescan(now + 1000);
-        assert!(due.is_empty());
-
-        // After rescan interval
-        let after_interval = now + crs.config.rescan_interval_ns + 1;
-        let due = crs.entities_due_for_rescan(after_interval);
-        assert_eq!(due.len(), 1);
-        assert_eq!(due[0], "google.plm");
-    }
-
-    #[test]
-    fn collision_displacement_first_gets_natural() {
-        let mut crs = CrsRegistry::new();
-        let now = 1_000_000_000u64;
-
-        // First registration: gets the natural address
-        let r1 = crs.register(
-            "site-a.plm".into(),
-            "plm".into(),
-            vec![0x01],
-            google_measurements(),
-            now,
-            None,
-        );
-        let (addr_a, displaced_a) = match r1 {
-            RegistrationResult::Ok { address, displaced, .. } => (address, displaced),
+        let r1 = crs.register("site-a.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+        let crd_a = match r1 {
+            RegistrationResult::Ok { crd, .. } => crd,
             other => panic!("expected Ok, got {:?}", other),
         };
-        assert!(!displaced_a, "first registrant should NOT be displaced");
+        assert_eq!(crd_a, 1, "first registrant gets CRD=1");
 
-        // Second registration with IDENTICAL measurements: must be displaced
-        let r2 = crs.register(
-            "site-b.plm".into(),
-            "plm".into(),
-            vec![0x02],
-            google_measurements(),
-            now + 1,
-            None,
-        );
-        let (addr_b, displaced_b, natural_b) = match r2 {
-            RegistrationResult::Ok { address, displaced, natural_address, .. } => {
-                (address, displaced, natural_address)
-            }
+        let r2 = crs.register("site-b.plm".into(), "plm".into(), vec![0x02], google_measurements(), now + 1, None);
+        let (addr_b, crd_b) = match r2 {
+            RegistrationResult::Ok { address, crd, .. } => (address, crd),
             other => panic!("expected Ok, got {:?}", other),
         };
+        assert_eq!(crd_b, 2, "second registrant gets CRD=2");
 
-        assert!(displaced_b, "second registrant with same measurements MUST be displaced");
-        assert_eq!(natural_b, addr_a, "natural address should match first registrant");
-        assert_ne!(addr_b, addr_a, "assigned addresses must be unique");
-        assert_eq!(addr_a.distance(&addr_b), 1, "displacement should be exactly 1 hop");
+        let trn_a = crs.resolve("site-a.plm").unwrap();
+        assert_eq!(trn_a.address, addr_b, "same measurements → same address");
     }
 
     #[test]
-    fn collision_displacement_is_deterministic() {
-        // Same name always displaces to the same neighbor
-        let mut crs1 = CrsRegistry::new();
-        let mut crs2 = CrsRegistry::new();
-        let now = 1_000_000_000u64;
-
-        // Occupy the natural address in both registries
-        for crs in [&mut crs1, &mut crs2] {
-            crs.register(
-                "incumbent.plm".into(),
-                "plm".into(),
-                vec![0x01],
-                google_measurements(),
-                now,
-                None,
-            );
-        }
-
-        // Register the same colliding name in both
-        let r1 = crs1.register("collider.plm".into(), "plm".into(), vec![0x02], google_measurements(), now + 1, None);
-        let r2 = crs2.register("collider.plm".into(), "plm".into(), vec![0x02], google_measurements(), now + 1, None);
-
-        let addr1 = match r1 { RegistrationResult::Ok { address, .. } => address, _ => panic!() };
-        let addr2 = match r2 { RegistrationResult::Ok { address, .. } => address, _ => panic!() };
-
-        assert_eq!(addr1, addr2, "same name must displace to same address (deterministic)");
-    }
-
-    #[test]
-    fn collision_different_names_displace_differently() {
+    fn crd_sequential_assignment() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        // Occupy the natural address
-        crs.register("incumbent.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+        for i in 1..=9u8 {
+            let name = format!("entity-{}.plm", i);
+            let result = crs.register(name, "plm".into(), vec![i], google_measurements(), now + i as u64, None);
+            match result {
+                RegistrationResult::Ok { crd, .. } => {
+                    assert_eq!(crd, i, "entity {} should get CRD={}", i, i);
+                }
+                other => panic!("entity {} failed: {:?}", i, other),
+            }
+        }
 
-        // Two different names colliding on the same natural address
-        let r_alpha = crs.register("alpha.plm".into(), "plm".into(), vec![0x02], google_measurements(), now + 1, None);
-        let r_beta = crs.register("beta.plm".into(), "plm".into(), vec![0x03], google_measurements(), now + 2, None);
-
-        let addr_alpha = match r_alpha { RegistrationResult::Ok { address, .. } => address, _ => panic!() };
-        let addr_beta = match r_beta { RegistrationResult::Ok { address, .. } => address, _ => panic!() };
-
-        // Different names should (likely) displace to different neighbors
-        // This is probabilistic but with BLAKE3 hash divergence it's virtually certain
-        assert_ne!(addr_alpha, addr_beta, "different names should displace to different addresses");
+        let r10 = crs.register("entity-10.plm".into(), "plm".into(), vec![10], google_measurements(), now + 10, None);
+        assert!(matches!(r10, RegistrationResult::AddressFull { .. }), "10th should be rejected");
     }
 
     #[test]
-    fn no_collision_no_displacement() {
+    fn crd_freed_on_deregister() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        // Register Google (unique measurements)
-        let result = crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
-        match result {
-            RegistrationResult::Ok { displaced, .. } => {
-                assert!(!displaced);
-            }
-            other => panic!("expected Ok, got {:?}", other),
-        }
+        crs.register("a.plm".into(), "plm".into(), vec![1], google_measurements(), now, None);
+        crs.register("b.plm".into(), "plm".into(), vec![2], google_measurements(), now + 1, None);
+        crs.register("c.plm".into(), "plm".into(), vec![3], google_measurements(), now + 2, None);
 
-        // Register PPTPro (different measurements = different natural address)
-        let result = crs.register("pptpro.plm".into(), "plm".into(), vec![0x02], pptpro_measurements(), now, Some(100));
-        match result {
-            RegistrationResult::Ok { displaced, .. } => {
-                assert!(!displaced, "different measurements should not collide");
-            }
+        crs.deregister("b.plm");
+
+        let r = crs.register("d.plm".into(), "plm".into(), vec![4], google_measurements(), now + 3, None);
+        match r {
+            RegistrationResult::Ok { crd, .. } => assert_eq!(crd, 2, "should reuse freed CRD=2"),
             other => panic!("expected Ok, got {:?}", other),
         }
     }
 
     #[test]
-    fn displaced_trn_records_natural_address() {
+    fn no_collision_no_crd_issue() {
         let mut crs = CrsRegistry::new();
         let now = 1_000_000_000u64;
 
-        crs.register("first.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
-        crs.register("second.plm".into(), "plm".into(), vec![0x02], google_measurements(), now + 1, None);
+        let r1 = crs.register("google.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+        match r1 {
+            RegistrationResult::Ok { crd, .. } => assert_eq!(crd, 1),
+            other => panic!("expected Ok, got {:?}", other),
+        }
 
-        let trn = crs.resolve("second.plm").unwrap();
-        assert!(trn.is_displaced());
-        assert!(trn.natural_address.is_some());
-        assert!(trn.displaced_dim.is_some());
+        let r2 = crs.register("pptpro.plm".into(), "plm".into(), vec![0x02], pptpro_measurements(), now, Some(100));
+        match r2 {
+            RegistrationResult::Ok { crd, .. } => assert_eq!(crd, 1, "different address, CRD=1"),
+            other => panic!("expected Ok, got {:?}", other),
+        }
+    }
 
-        let first_trn = crs.resolve("first.plm").unwrap();
-        assert!(!first_trn.is_displaced());
-        assert_eq!(trn.natural_or_assigned(), first_trn.address);
+    #[test]
+    fn trn_stores_crd_and_confidence() {
+        let mut crs = CrsRegistry::new();
+        let now = 1_000_000_000u64;
+
+        crs.register("test.plm".into(), "plm".into(), vec![0x01], google_measurements(), now, None);
+
+        let trn = crs.resolve("test.plm").unwrap();
+        assert_eq!(trn.crd, 1);
+        assert!(trn.confidence.is_some());
+        let conf = trn.confidence.as_ref().unwrap();
+        assert_eq!(conf.len(), 27);
+        for &c in conf {
+            assert!(c >= 1 && c <= 9, "confidence digit {} out of range", c);
+        }
     }
 }

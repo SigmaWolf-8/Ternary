@@ -389,30 +389,30 @@ mod tests {
         vec![
             RawValue::Pattern("corporate".into()),
             RawValue::Pattern("public".into()),
-            RawValue::Numeric(2.0),  // trit 3: 2 signals
+            RawValue::Numeric(2.0),
             RawValue::Pattern("cloud".into()),
             RawValue::Pattern("website".into()),
             RawValue::Pattern("text".into()),
             RawValue::Pattern("both".into()),
-            RawValue::Numeric(4.0),  // trit 8: 4 ML signals
-            RawValue::Numeric(200.0),
+            RawValue::Numeric(4.0),
+            RawValue::Numeric(3.0),
             RawValue::Pattern("none".into()),
-            RawValue::Numeric(100.0),
+            RawValue::Numeric(4.0),
             RawValue::Pattern("http".into()),
-            RawValue::Numeric(1998.0),
-            RawValue::Numeric(99.99),
+            RawValue::Numeric(1.0),
+            RawValue::Numeric(3.0),
             RawValue::Pattern("current".into()),
-            RawValue::Numeric(0.0),  // trit 16: 0 rt, 0 batch
+            RawValue::Numeric(2.0),
             RawValue::Pattern("accepts".into()),
-            RawValue::Numeric(20.0),
+            RawValue::Numeric(4.0),
             RawValue::Numeric(4.0),
             RawValue::Pattern("free".into()),
             RawValue::Pattern("unicast".into()),
             RawValue::Pattern("through".into()),
             RawValue::Pattern("poll".into()),
-            RawValue::Numeric(3600.0),
-            RawValue::Numeric(3.0),  // trit 25: 3 signals
-            RawValue::Numeric(30.0),
+            RawValue::Numeric(1.0),
+            RawValue::Numeric(5.0),
+            RawValue::Numeric(0.0),
             RawValue::Pattern("soc2".into()),
         ]
     }

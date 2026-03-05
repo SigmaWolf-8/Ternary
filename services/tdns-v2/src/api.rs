@@ -34,7 +34,6 @@ use crate::schema::SCHEMA;
 
 // ─── Request/Response Types ──────────────────────────────────────────────────
 
-/// POST /api/v1/register
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisterRequest {
     pub name: String,
@@ -52,13 +51,9 @@ pub struct RegisterResponse {
     pub address_canonical: String,
     pub hptp_mandatory: bool,
     pub scan_hash: String,
-    /// True if the entity was displaced from its natural address.
-    pub displaced: bool,
-    /// The address derived from measurements before displacement.
-    pub natural_address: String,
+    pub crd: u8,
 }
 
-/// POST /api/v1/scan
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanRequest {
     pub url: String,
@@ -85,7 +80,6 @@ pub struct DimensionResult {
     pub confidence: String,
 }
 
-/// GET /api/v1/resolve/:name
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolveResponse {
     pub status: String,
@@ -98,7 +92,6 @@ pub struct ResolveResponse {
     pub scan_hash: String,
 }
 
-/// GET /api/v1/address/:addr (reverse lookup)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReverseLookupResponse {
     pub status: String,
@@ -106,7 +99,6 @@ pub struct ReverseLookupResponse {
     pub name: String,
 }
 
-/// GET /api/v1/describe/:addr
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DescribeResponse {
     pub status: String,
@@ -124,7 +116,6 @@ pub struct DimensionDescription {
     pub label: String,
 }
 
-/// POST /api/v1/route
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteRequest {
     pub source: String,
@@ -141,7 +132,6 @@ pub struct RouteResponse {
     pub decision: String,
 }
 
-/// POST /api/v1/verify/:name
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifyResponse {
     pub status: String,
@@ -152,7 +142,6 @@ pub struct VerifyResponse {
     pub old_address: Option<String>,
 }
 
-/// GET /api/v1/fts/status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FtsStatusResponse {
     pub status: String,
@@ -164,7 +153,6 @@ pub struct FtsStatusResponse {
     pub total_anomalies: u64,
 }
 
-/// GET /api/v1/con/metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConMetricsResponse {
     pub status: String,
@@ -175,7 +163,6 @@ pub struct ConMetricsResponse {
     pub bytes_received: u64,
 }
 
-/// GET /api/v1/health
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthResponse {
     pub status: String,
@@ -186,7 +173,6 @@ pub struct HealthResponse {
     pub con_active: usize,
 }
 
-/// Generic error response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorResponse {
     pub status: String,
@@ -195,7 +181,6 @@ pub struct ErrorResponse {
 
 // ─── API Router ──────────────────────────────────────────────────────────────
 
-/// The API router: holds references to all services and dispatches requests.
 pub struct ApiRouter {
     pub crs: CrsRegistry,
     pub fts: Fts,
@@ -204,7 +189,6 @@ pub struct ApiRouter {
 }
 
 impl ApiRouter {
-    /// Create a new API router with default services.
     pub fn new() -> Self {
         Self {
             crs: CrsRegistry::new(),
@@ -214,34 +198,28 @@ impl ApiRouter {
         }
     }
 
-    /// Initialize GLB for a local node.
     pub fn init_glb(&mut self, local: CubeAddr) {
         let map = NeighborMap::new(local);
         self.glb = Some(Glb::new(local, map));
     }
 
-    /// Initialize CON for a local node.
     pub fn init_con(&mut self, local: CubeAddr, secret: Vec<u8>) {
         self.con = Some(ConNode::new(local, secret));
     }
 
     // ── Endpoint Handlers ───────────────────────────────────────────
 
-    /// POST /api/v1/register — Scan a URL, derive address, register entity.
     pub fn handle_register(&mut self, req: RegisterRequest, now_ns: u64) -> Result<RegisterResponse, ErrorResponse> {
-        // Scan the target
         let scan_result = scanner::scan(&req.url).map_err(|e| ErrorResponse {
             status: "error".into(),
             error: format!("scan failed: {}", e),
         })?;
 
-        // Decode public key
         let public_key = hex_decode(&req.public_key_hex).map_err(|e| ErrorResponse {
             status: "error".into(),
             error: format!("invalid public key hex: {}", e),
         })?;
 
-        // Register with CRS
         let result = self.crs.register(
             req.name.clone(),
             req.zone,
@@ -252,15 +230,14 @@ impl ApiRouter {
         );
 
         match result {
-            RegistrationResult::Ok { trn, address, displaced, natural_address } => Ok(RegisterResponse {
+            RegistrationResult::Ok { trn, address, crd } => Ok(RegisterResponse {
                 status: "ok".into(),
                 name: trn.name,
                 address: address.to_category_string(),
                 address_canonical: address.to_canonical_string(),
                 hptp_mandatory: address.is_hptp_mandatory(),
                 scan_hash: trn.scan_hash.to_hex(),
-                displaced,
-                natural_address: natural_address.to_category_string(),
+                crd,
             }),
             RegistrationResult::HptpSyncRequired {
                 address,
@@ -277,10 +254,13 @@ impl ApiRouter {
                 status: "error".into(),
                 error: format!("scan failed: {}", reason),
             }),
+            RegistrationResult::AddressFull { address } => Err(ErrorResponse {
+                status: "address_full".into(),
+                error: format!("all 9 CRD slots occupied at address {}", address),
+            }),
         }
     }
 
-    /// POST /api/v1/scan — Scan a live URL and return its address (no registration).
     pub fn handle_scan(&self, req: ScanRequest) -> Result<ScanResponse, ErrorResponse> {
         let result = scanner::scan(&req.url).map_err(|e| ErrorResponse {
             status: "error".into(),
@@ -315,7 +295,6 @@ impl ApiRouter {
         })
     }
 
-    /// GET /api/v1/resolve/:name — Resolve a name to its TRN.
     pub fn handle_resolve(&self, name: &str) -> Result<ResolveResponse, ErrorResponse> {
         let trn = self.crs.resolve(name).ok_or_else(|| ErrorResponse {
             status: "not_found".into(),
@@ -334,7 +313,6 @@ impl ApiRouter {
         })
     }
 
-    /// GET /api/v1/address/:addr — Reverse lookup address to name.
     pub fn handle_reverse_lookup(&self, addr_str: &str) -> Result<ReverseLookupResponse, ErrorResponse> {
         let addr = addr_str.parse::<CubeAddr>().map_err(|e| ErrorResponse {
             status: "error".into(),
@@ -353,7 +331,6 @@ impl ApiRouter {
         })
     }
 
-    /// GET /api/v1/describe/:addr — Describe an address in plain English.
     pub fn handle_describe(&self, addr_str: &str) -> Result<DescribeResponse, ErrorResponse> {
         let addr = addr_str.parse::<CubeAddr>().map_err(|e| ErrorResponse {
             status: "error".into(),
@@ -383,7 +360,6 @@ impl ApiRouter {
         })
     }
 
-    /// POST /api/v1/verify/:name — Re-verify an entity (§9.4 protocol).
     pub fn handle_verify(&mut self, name: &str, url: &str, now_ns: u64) -> Result<VerifyResponse, ErrorResponse> {
         let scan_result = scanner::scan(url).map_err(|e| ErrorResponse {
             status: "error".into(),
@@ -411,7 +387,7 @@ impl ApiRouter {
                 name,
                 result: "drifted".into(),
                 address: new_address.to_category_string(),
-                changed_dims: Some(changed_dims.iter().map(|d| d + 1).collect()), // 1-based for API
+                changed_dims: Some(changed_dims.iter().map(|d| d + 1).collect()),
                 old_address: Some(old_address.to_category_string()),
             }),
             VerificationResult::NotFound { name } => Err(ErrorResponse {
@@ -421,14 +397,12 @@ impl ApiRouter {
         }
     }
 
-    /// DELETE /api/v1/deregister/:name — Remove an entity.
     pub fn handle_deregister(&mut self, name: &str) -> Result<ResolveResponse, ErrorResponse> {
         let trn = self.crs.deregister(name).ok_or_else(|| ErrorResponse {
             status: "not_found".into(),
             error: format!("name '{}' not registered", name),
         })?;
 
-        // Remove from FTS monitoring
         self.fts.remove_node(&trn.address);
 
         Ok(ResolveResponse {
@@ -443,7 +417,6 @@ impl ApiRouter {
         })
     }
 
-    /// POST /api/v1/route — Compute route between two addresses.
     pub fn handle_route(&self, req: RouteRequest, now_ns: u64) -> Result<RouteResponse, ErrorResponse> {
         let src = req.source.parse::<CubeAddr>().map_err(|e| ErrorResponse {
             status: "error".into(),
@@ -473,7 +446,6 @@ impl ApiRouter {
         })
     }
 
-    /// GET /api/v1/fts/status — FTS health summary.
     pub fn handle_fts_status(&self) -> FtsStatusResponse {
         let m = self.fts.metrics();
         FtsStatusResponse {
@@ -487,7 +459,6 @@ impl ApiRouter {
         }
     }
 
-    /// GET /api/v1/con/metrics — CON tunnel metrics.
     pub fn handle_con_metrics(&self) -> ConMetricsResponse {
         if let Some(con) = &self.con {
             let (sent, recv) = con.total_bytes();
@@ -511,7 +482,6 @@ impl ApiRouter {
         }
     }
 
-    /// GET /api/v1/health — Service health check.
     pub fn handle_health(&self) -> HealthResponse {
         let fts_m = self.fts.metrics();
         HealthResponse {
@@ -637,6 +607,6 @@ mod tests {
     #[test]
     fn hex_decode_invalid() {
         assert!(hex_decode("xyz").is_err());
-        assert!(hex_decode("dead0").is_err()); // odd length
+        assert!(hex_decode("dead0").is_err());
     }
 }

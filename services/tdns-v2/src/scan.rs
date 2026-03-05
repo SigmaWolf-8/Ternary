@@ -66,15 +66,25 @@ pub enum RawValue {
     Pattern(String),
 }
 
-/// CRS scan confidence.
+/// CRS scan confidence digit (§4.1).
+///
+/// C = min(floor(27δ) + 1, 9) where δ = min(|p - 1/3|, |p - 2/3|).
+/// Range: 1 (on boundary, lowest confidence) to 9 (mid-bin, highest confidence).
+/// Categorical dimensions always return 9 (discrete signal, no ambiguity).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Confidence {
-    /// Definitive measurement — no ambiguity.
-    High,
-    /// Reasonable inference from partial signals.
-    Medium,
-    /// Best guess from weak signals.
-    Low,
+pub struct Confidence(pub u8);
+
+impl Confidence {
+    /// Highest confidence (categorical or far from boundary).
+    pub const MAX: Self = Self(9);
+    /// Digit value (1–9).
+    pub fn digit(&self) -> u8 { self.0 }
+}
+
+impl std::fmt::Display for Confidence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 // ─── Complete Scan Result ────────────────────────────────────────────────────
@@ -117,11 +127,7 @@ impl ScanResult {
         hasher.update(&scanned_at.to_be_bytes());
         for m in &measurements {
             hasher.update(&[m.dim as u8]);
-            hasher.update(&[match m.confidence {
-                Confidence::High => 3,
-                Confidence::Medium => 2,
-                Confidence::Low => 1,
-            }]);
+            hasher.update(&[m.confidence.0]);
             // Serialize raw value into hash
             match &m.raw {
                 RawValue::Text(s) => {
@@ -164,7 +170,7 @@ impl ScanResult {
     pub fn high_confidence_count(&self) -> usize {
         self.measurements
             .iter()
-            .filter(|m| m.confidence == Confidence::High)
+            .filter(|m| m.confidence.0 >= 7)
             .count()
     }
 
@@ -172,7 +178,7 @@ impl ScanResult {
     pub fn low_confidence_dims(&self) -> Vec<usize> {
         self.measurements
             .iter()
-            .filter(|m| m.confidence == Confidence::Low)
+            .filter(|m| m.confidence.0 <= 2)
             .map(|m| m.dim)
             .collect()
     }
