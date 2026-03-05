@@ -2,18 +2,35 @@
 <html>
 <head>
 <style>
-  body { width: 280px; padding: 16px; font-family: system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; margin: 0; }
-  h1 { font-size: 14px; margin: 0 0 4px; color: #fff; }
-  .sub { font-size: 11px; color: #888; margin-bottom: 12px; }
-  .status { padding: 8px 10px; border-radius: 6px; font-size: 12px; background: #1a2e1a; color: #4ade80; border: 1px solid #166534; }
-  .info { margin-top: 10px; font-size: 11px; color: #666; }
-  a { color: #d4a017; text-decoration: none; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 300px; padding: 16px; font-family: -apple-system, system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .header img { width: 32px; height: 32px; }
+  .header h1 { font-size: 15px; font-weight: 600; color: #fff; }
+  .version { font-size: 11px; color: #666; margin-bottom: 14px; }
+  .status { padding: 8px 12px; border-radius: 6px; font-size: 12px; background: #0d1f0d; color: #4ade80; border: 1px solid #166534; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; }
+  .search { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #333; background: #151515; color: #e5e5e5; font-size: 13px; outline: none; margin-bottom: 10px; }
+  .search:focus { border-color: #d4a017; }
+  .result { padding: 8px 10px; border-radius: 6px; background: #151515; border: 1px solid #222; font-size: 12px; min-height: 32px; display: none; }
+  .result.show { display: block; }
+  .result .name { color: #d4a017; font-weight: 500; }
+  .result .target { color: #888; margin-top: 4px; word-break: break-all; }
+  .result .error { color: #ef4444; }
+  .footer { margin-top: 12px; font-size: 11px; color: #555; text-align: center; }
+  .footer a { color: #d4a017; text-decoration: none; }
 </style>
 </head>
 <body>
-  <h1>PlenumNET TDNS</h1>
-  <div class="sub">Ternary Domain Name System v2.3.2</div>
-  <div class="status">Resolver active</div>
-  <div class="info">Type <strong>plm [name]</strong> in the address bar or visit any <strong>.plm</strong> domain.<br><br><a href="https://plenumnet.replit.app/docs" target="_blank">Documentation</a></div>
+  <div class="header">
+    <img src="icon48.png" alt="TDNS">
+    <h1>PlenumNET TDNS</h1>
+  </div>
+  <div class="version">Ternary Domain Name System v2.3.2</div>
+  <div class="status"><span class="dot"></span> Resolver active</div>
+  <input class="search" id="search" type="text" placeholder="Resolve a .plm name..." autocomplete="off">
+  <div class="result" id="result"></div>
+  <div class="footer"><a href="https://plenumnet.replit.app/docs" target="_blank">Documentation</a></div>
+  <script src="popup.js"></script>
 </body>
 </html>

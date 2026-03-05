@@ -102,6 +102,93 @@ export async function registerRoutes(
     "ip-notice": { file: "IP-NOTICE.md", title: "Intellectual Property Notice" },
   };
 
+  const plmRecords: Record<string, { target: string; addr: string; zone: string; ttl: number; description: string }> = {
+    "google.plm": {
+      target: "https://google.com",
+      addr: "1-2-3-1-2-3-1-2-3-1-2-3-1",
+      zone: "plm",
+      ttl: 3600,
+      description: "Google search engine",
+    },
+    "pptpro.capomastro.plm": {
+      target: "https://pptpro.com",
+      addr: "2-1-3-2-1-3-2-1-3-2-1-3-2",
+      zone: "capomastro.plm",
+      ttl: 3600,
+      description: "PPTPro by Capomastro Holdings",
+    },
+    "nonnas-cucina.plm": {
+      target: "https://nonnascucina.ca",
+      addr: "3-1-2-3-1-2-3-1-2-3-1-2-3",
+      zone: "plm",
+      ttl: 3600,
+      description: "Nonna's Cucina restaurant",
+    },
+    "plenumnet.plm": {
+      target: "https://plenumnet.replit.app",
+      addr: "1-1-1-1-1-1-1-1-1-1-1-1-1",
+      zone: "plm",
+      ttl: 3600,
+      description: "PlenumNET platform",
+    },
+    "docs.plenumnet.plm": {
+      target: "https://plenumnet.replit.app/docs",
+      addr: "1-1-1-1-1-1-1-1-1-1-1-1-2",
+      zone: "plenumnet.plm",
+      ttl: 3600,
+      description: "PlenumNET documentation",
+    },
+    "auction.plm": {
+      target: "https://plenumnet.replit.app/ternarydb",
+      addr: "2-2-1-3-1-2-3-1-2-3-1-2-1",
+      zone: "plm",
+      ttl: 3600,
+      description: "TDNS name auction",
+    },
+  };
+
+  app.get("/api/tdns/resolve", (req, res) => {
+    const name = (req.query.name as string || "").toLowerCase().trim();
+    const redirect = req.query.redirect === "1";
+
+    if (!name) {
+      return res.status(400).json({ error: "Missing ?name= parameter" });
+    }
+
+    const record = plmRecords[name];
+    if (record) {
+      if (redirect) {
+        return res.redirect(302, record.target);
+      }
+      return res.json({
+        name,
+        target: record.target,
+        addr: record.addr,
+        zone: record.zone,
+        ttl: record.ttl,
+        description: record.description,
+        resolved: true,
+      });
+    }
+
+    if (redirect) {
+      return res.redirect(302, `https://plenumnet.replit.app/?plm_not_found=${encodeURIComponent(name)}`);
+    }
+    return res.status(404).json({ name, resolved: false, error: "Name not found in TDNS" });
+  });
+
+  app.get("/api/tdns/records", (_req, res) => {
+    const records = Object.entries(plmRecords).map(([name, r]) => ({
+      name,
+      target: r.target,
+      addr: r.addr,
+      zone: r.zone,
+      ttl: r.ttl,
+      description: r.description,
+    }));
+    res.json({ count: records.length, records });
+  });
+
   app.get("/api/health", async (_req, res) => {
     let dbStatus = "error";
     try {

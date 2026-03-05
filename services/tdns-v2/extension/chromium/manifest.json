@@ -4,8 +4,8 @@
   "version": "2.3.2",
   "description": "Resolve .plm addresses via the PlenumNET Ternary Domain Name System",
   "author": "Capomastro Holdings Ltd.",
-  "permissions": ["declarativeNetRequest", "storage"],
-  "host_permissions": ["*://*.plm/*"],
+  "permissions": ["storage"],
+  "host_permissions": [],
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
@@ -18,7 +18,15 @@
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.png",
-      "48": "icon48.png"
+      "48": "icon48.png",
+      "128": "icon128.png"
     }
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
 }
