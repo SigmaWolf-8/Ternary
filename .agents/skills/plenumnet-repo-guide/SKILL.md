@@ -11,77 +11,144 @@ Author: RSalvi@Salvigroup.com | OWNER: SigmaWolf-8 | REPO: Ternary
 
 ---
 
+## ⚠ ARCHITECTURAL INVARIANTS — DO NOT VIOLATE
+
+These rules are load-bearing. Violating any of them breaks the mathematical consistency of the entire framework. They are not suggestions. They are structural axioms.
+
+### INVARIANT 1: The Geometry IS the System
+
+Every component in PlenumNET derives from ternary geometry. The geometry is not a metaphor, not a visualization aid, not decoration. It IS the routing protocol, the addressing scheme, the key derivation, the forgery detection, the calendar, and the timing system. If you remove the geometry, you remove the system.
+
+- **Routing** = Hamming distance in a 13D ternary hypercube (trit flips)
+- **Addressing** = 27-trit coordinates in a 27D ontological space
+- **Key derivation** = BLAKE3 hash of topological adjacency (edge position in cube)
+- **Forgery detection** = Rep C zero-exclusion property (structural, not bolted on)
+- **Calendar** = 13 × 28 = 364 = 111111₃ (base-3 repunit)
+- **Timing** = Femtosecond precision bound to HPTP-mandatory addresses
+- **Agent scheduling** = (position × 13) mod 28 coprime walk on Z₂₈
+
+**DO NOT** replace geometric routing with routing tables.
+**DO NOT** replace Rep C {1,2,3} with {0,1,2} in TDNS addresses.
+**DO NOT** replace 364° with 360°, π=14 with π≈3.14159, or 13 radians with 57.3°.
+**DO NOT** decouple cryptographic keys from topological adjacency.
+**DO NOT** replace the first-position derivation formula with arbitrary thresholds.
+
+### INVARIANT 2: First-Position Derivation — No Tuning Parameters
+
+The universal derivation formula is mathematical, not empirical:
+
+```
+gf3 = min(floor(3k / N), 2)     where k = signals fired, N = total signals
+trit = gf3 + 1                   lift from GF(3) {0,1,2} to Rep C {1,2,3}
+```
+
+Boundaries between trit values fall at exactly N/3 and 2N/3. These are derived from the definition of ternary quantization. There are NO tuning parameters, NO arbitrary thresholds, NO machine-learned weights. The math determines the boundaries.
+
+**DO NOT** add configurable thresholds to derivation rules.
+**DO NOT** replace `project_to_gf3` with any other quantization function.
+**DO NOT** add "confidence weighting" that changes derivation boundaries.
+
+### INVARIANT 3: Rep C (Bijective Ternary) — Zero Is Excluded
+
+TDNS addresses, wire formats, and cryptographic operations use Rep C: {1, 2, 3}.
+Zero is NEVER a valid trit value. Zero is a sentinel — its presence proves forgery.
+
+| Repr | Digits | Domain |
+|------|--------|--------|
+| **A** (Balanced) | {-1, 0, +1} | Signed arithmetic, negation |
+| **B** (Standard) | {0, 1, 2} | Recurrence, analysis (internal only) |
+| **C** (Bijective) | {1, 2, 3} | Wire format, TDNS, crypto — THE external representation |
+
+**DO NOT** allow trit value 0 in CubeAddr, wire encoding, or any external-facing format.
+**DO NOT** confuse Rep B (internal) with Rep C (external).
+
+### INVARIANT 4: Constants Are Bound, Not Chosen
+
+The ternary circle constants are not independent design choices. They are bound by a single equation:
+
+```
+C = πd = 14d  →  C/r = 28  →  Full circle = 28 radians = 364°
+```
+
+| Constant | Value | Why |
+|----------|-------|-----|
+| Full circle | 364° | = 111111₃ = (3⁶ − 1)/2 — the six-digit base-3 repunit |
+| π | 14 | = T₇ + T₃ = 13 + 1 — exact integer |
+| 2π | 28 | = full circle in radians — Z₂₈ cyclic order |
+| 1 radian | 13° | = 111₃ = T₇ (7th Tribonacci number) — exact integer |
+| τ | 1.8392867552... | Tribonacci constant: τ³ = τ² + τ + 1 |
+| Calendar | 13 × 28 = 364 | 13 moons of 28 days |
+
+If you change any one of these, you break all of them.
+
+### INVARIANT 5: HPTP-Mandatory Is Structural
+
+If trits 15 AND 16 are both 3 (dim 15 = Live, dim 16 = Real-time), the address is HPTP-mandatory. Femtosecond timing verification is REQUIRED for all packets to/from that entity. This is not optional, not configurable, not a policy decision. The address itself dictates timing requirements.
+
+### INVARIANT 6: The Salvi Epoch
+
+April 1, 2025 (2025-04-01T00:00:00Z) = Day Zero. All femtosecond timestamps are 128-bit integers measuring femtoseconds since this epoch. The epoch is a constant. Do not change it.
+
+---
+
 ## 1. Foundation Mathematics
 
 ### 1.1 Ternary Base-3 System
 
-PlenumNET operates entirely in base-3 (ternary). Three equivalent digit encodings exist:
+PlenumNET operates entirely in base-3. Key facts:
 
-| Repr | Digits | Domain | Translation from B |
-|------|--------|--------|--------------------|
-| **A** (Balanced) | `{-1, 0, +1}` | Signed arithmetic, negation | Subtract 1 (with carry) |
-| **B** (Standard) | `{0, 1, 2}` | Recurrence, analysis | Identity (internal) |
-| **C** (Bijective) | `{1, 2, 3}` | Wire format, crypto, TDNS | Add 1 (with carry) |
+- `log₂(3) ≈ 1.585` — ternary has a **59% information density advantage** over binary
+- Three equivalent digit encodings: Rep A, Rep B, Rep C (see INVARIANT 3)
+- Internal computation uses Rep B. External/wire uses Rep C.
+- Conversion at module boundaries: `to_repr_a()`, `to_repr_c()`, etc.
 
-**CRITICAL RULE**: TDNS addresses use **Rep C** exclusively. Trit values are `{1, 2, 3}` — **zero is excluded**. Any address containing a zero trit is provably forged. This zero-exclusion property is the structural basis for forgery detection.
+Source: `libternary/src/lib.rs`
 
-Internal computation uses Rep B. Conversion happens at module boundaries via `to_repr_a()`, `to_repr_c()`, etc. (See `libternary/src/lib.rs`.)
+### 1.2 The Ternary Circle (364°)
 
-### 1.2 The Ternary Circle (364 Degrees)
-
-A full circle is **364 degrees**, not 360. This is not arbitrary — it is derived:
+See INVARIANT 4. The full derivation chain:
 
 ```
-364 = 111111₃  (base-3 repunit of six 1's)
-364 = (3⁶ - 1) / 2
+111111₃ = 1 + 3 + 9 + 27 + 81 + 243 = 364  (six-digit base-3 repunit)
+364 / 28 = 13 = 111₃ = T₇               (one radian = 13 degrees)
+28 = 2 × 14 = 2π                         (full circle = 28 radians)
+13 × 28 = 364                            (ternary calendar identity)
+gcd(13, 28) = 1                          (coprime — enables complete Z₂₈ walk)
 ```
 
-**Core constants** (all exact integers, no floating point):
-
-| Symbol | Value | Derivation |
-|--------|-------|------------|
-| Full circle | **364°** | `111111₃ = (3⁶ − 1)/2` |
-| π | **14** | Circumference / diameter (exact) |
-| 2π | **28** | Full circle in radians |
-| 1 radian | **13°** | `364/28 = 13 = 111₃` = T₇ (7th Tribonacci number) |
-
-**Binding equation**: `C = πd = 14d`, so `C/r = 28`. Full circle = 28 radians = 364°.
-
-Source files:
-- `shared/ternary-circle.ts` — TypeScript constants, Z₂₈ cyclic group, conversion functions
-- `shared/tribonacci-constants.ts` — `TERNARY_CIRCLE` object with verification
-- `libternary/src/ternary_circle.rs` — Rust implementation
+Source: `shared/ternary-circle.ts` — FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG, Z28 class
 
 ### 1.3 The 13-Moon Calendar (13 × 28 = 364)
 
-The calendar divides the year into **13 moons of 28 days each** = 364 days, plus one intercalary **Day Out of Time (DOT)** on November 11.
+The year divides into 13 moons of 28 days + 1 intercalary Day Out of Time (DOT):
 
-| Phase | Moons | Period |
-|-------|-------|--------|
-| Pre-DOT (waxing) | Moons 1–8 | Apr 1 → Nov 10 (8 × 28 = 224 days) |
-| **DOT** | Day Out of Time | Nov 11 (1 day, Fibonacci split point) |
-| Post-DOT (waning) | Moons 9–13 | Nov 12 → Mar 31 (5 × 28 = 140 days) |
+| Phase | Moons | Period | Days |
+|-------|-------|--------|------|
+| Pre-DOT (waxing) | 1–8 (Magnetic → Galactic) | Apr 1 → Nov 10 | 224 |
+| **DOT** | Day Out of Time | **Nov 11** | 1 |
+| Post-DOT (waning) | 9–13 (Solar → Cosmic) | Nov 12 → Mar 31 | 140 |
+| **Total** | | | **365** |
 
-**Total**: 224 + 1 + 140 = **365 days** (366 in leap years via extra intercalary day).
+The DOT splits the year at the **Fibonacci point**: 8 moons before, 5 after (8 and 5 are consecutive Fibonacci numbers). This is not arbitrary — it is the golden-ratio partition of 13.
 
-The DOT splits the year at the **Fibonacci point**: 8 moons before, 5 after (8 and 5 are consecutive Fibonacci numbers). Nov 11 is the pivot.
+Moon names: Magnetic, Lunar, Electric, Self-Existing, Overtone, Rhythmic, Resonant, Galactic, [DOT], Solar, Planetary, Spectral, Crystal, Cosmic.
 
 Source: `client/src/pages/thirteen-moon.tsx`
 
 ### 1.4 Tribonacci Constant (τ)
 
-The Tribonacci constant τ replaces the golden ratio φ throughout the framework:
-
 ```
-τ ≈ 1.83928675521416
+τ ≈ 1.83928675521416113255185256465328660042417874609759
 τ³ = τ² + τ + 1  (defining polynomial)
 ```
 
-Key Tribonacci sequence values: `0, 0, 1, 1, 2, 4, 7, 13, 24, 44, 81, 149, 274, 504, 927, ...`
+50-digit precision above. JS/TS uses 17 significant digits (IEEE 754 double). Rust f128 / arbitrary precision uses full value.
 
-**Critical alignment**: T₇ = **13** (the 7th Tribonacci number) = 1 ternary radian = `111₃`.
+Tribonacci sequence: `0, 0, 1, 1, 2, 4, 7, 13, 24, 44, 81, 149, 274, 504, 927, 1705, ...`
 
-Source: `shared/tribonacci-constants.ts` — `TAU`, `TAU_POWERS`, `TRIBONACCI_SEQUENCE`
+**Critical alignment**: T₇ = **13** = 1 ternary radian = `111₃` = Cosmic Radius.
+
+Source: `shared/tribonacci-constants.ts` — TAU, TAU_POWERS, TRIBONACCI_SEQUENCE, VM_CONSTANTS
 
 ### 1.5 Saturnian Magic Square
 
@@ -93,485 +160,606 @@ The 3×3 circulant magic square:
 |  14 | 208 | 111 |
 ```
 
-Every row, column, and diagonal sums to **333** (magic constant). Exact integer alignments:
+Magic constant = 333. Every row, column, diagonal sums to 333. Exact integer alignments:
 
 - RADIUS_COSMIC = 208/16 = **13** = T₇
 - PI_ESOTERIC = **14** = T₇ + T₃ = 13 + 1
 - LUNAR_SOLAR_HARMONIC = 2 × 14 = **28** = Z₂₈ cyclic order
 - COSMIC_CIRCUMFERENCE = 28 × 13 = **364** = full ternary circle
+- PHASE_DISSONANCE = 360 − 333 = **27** = TDNS dimensions
+- DISSONANCE_CLOSURE = 27 + 1 = **28** = 2π
 
 Source: `shared/saturnian-blueprint.ts`
 
 ### 1.6 GF(3) — Galois Field of Order 3
 
-GF(3) is the finite field with elements {0, 1, 2} under modular arithmetic:
-- Addition: `(a + b) mod 3`
-- Multiplication: `(a × b) mod 3`
-- Negation: `(3 - a) mod 3`
+Elements {0, 1, 2} under modular arithmetic. This is the algebraic foundation for:
 
-In Rep C (wire/TDNS), the lift is: `trit = gf3 + 1`, mapping GF(3) {0,1,2} → Rep C {1,2,3}.
+- Address derivation: `project_to_gf3(k, N)` maps signal counts to trit values
+- Hypercube routing: next-hop = single trit flip in GF(3)
+- Metatronic Cube operations: axis arithmetic uses `gf3Add`, `gf3Neg`
+- Phase encryption: phase angles computed in GF(3)
 
-GF(3) arithmetic is the foundation of:
-- Address derivation (quantitative rules)
-- Hypercube routing (next-hop = single trit flip)
-- Metatronic Cube geometry
-- Phase encryption
+The lift from GF(3) to Rep C: `trit = gf3 + 1` (mapping {0,1,2} → {1,2,3}).
 
 ---
 
 ## 2. TDNS v2.3 — Ternary Domain Name System
 
-### 2.1 Overview
+### 2.1 What It Does and Why
 
-TDNS replaces DNS, BGP, PKI, IGMP/PIM, and PTP within the managed fabric. Every entity on PlenumNET occupies exactly one point in a **27-dimensional ternary hypercube** with 3²⁷ = 7,625,597,484,987 (7.63 trillion) possible addresses.
+TDNS replaces **DNS, BGP, PKI, IGMP/PIM, and PTP** within the managed PlenumNET fabric. It answers: "What IS this entity, ontologically?" — not just "Where is it?"
 
-Current version: **2.3.2**
-Spec: `salvi_docs/specs/TDNS-v2.3-SPECIFICATION.md`
+Every entity gets a **27-trit address** that IS its description. The address IS the route. Hamming distance between addresses equals hop count. No routing tables needed — the geometry is the protocol.
+
+**Why 27 dimensions**: 3³ = 27. Three cubed. The ternary system's own cube count.
+**Why 7 categories**: 7 root questions cover the complete ontological space of any networked entity.
+**Address space**: 3²⁷ = 7,625,597,484,987 (7.63 trillion) unique addresses.
 
 ### 2.2 The 27-Dimensional Ontological Schema
 
-27 dimensions organized into 7 categories (WHO · WHAT · WHERE · WHEN · WHY · HOW · PEACE):
+| # | Category | Prefix | Dim | Question | Values (1/2/3) |
+|---|----------|--------|-----|----------|----------------|
+| 1 | WHO | WO | 1 | What kind? | Personal / Corporate / Governance |
+| 2 | WHO | WO | 2 | Who's it for? | Just me / My group / Everyone |
+| 3 | WHO | WO | 3 | Who runs it? | Anonymous / Known / Transparent |
+| 4 | WHO | WO | 4 | Who hosts it? | Me / A provider / The cloud |
+| 5 | WHAT | WA | 5 | What is it? | Website / App / Device |
+| 6 | WHAT | WA | 6 | What's on it? | Text / Media / Live |
+| 7 | WHAT | WA | 7 | Who uses it? | People / Software / Both |
+| 8 | WHAT | WA | 8 | Does it think? | No / Partly / Yes |
+| 9 | WHERE | WR | 9 | Who can see it? | Just me / My group / Everyone |
+| 10 | WHERE | WR | 10 | Need to log in? | No / Password / ID Check |
+| 11 | WHERE | WR | 11 | How many servers? | One / Several / Many |
+| 12 | WHERE | WR | 12 | What connection? | HTTP / WebSocket / Raw TCP |
+| 13 | WHEN | WN | 13 | What era? | Pre-2010 / 2010s / 2020s+ |
+| 14 | WHEN | WN | 14 | Availability? | Business hrs / Extended / 24/7 |
+| 15 | WHEN | WN | 15 | Data freshness? | Historical / Current / **Live** |
+| 16 | WHEN | WN | 16 | Real-time? | Batch / Near-time / **Real-time** |
+| 17 | WHY | WY | 17 | Handles money? | No / Accepts / Processes |
+| 18 | WHY | WY | 18 | Wants my data? | No / Some / Lots |
+| 19 | WHY | WY | 19 | Has policies? | No / Basic / Detailed |
+| 20 | WHY | WY | 20 | Costs money? | Free / Pay-per-use / Subscription |
+| 21 | HOW | HO | 21 | Who gets it? | One person / A group / Closest |
+| 22 | HOW | HO | 22 | Data direction? | Out / Through / In |
+| 23 | HOW | HO | 23 | Get updates? | I ask / I subscribe / It tells me |
+| 24 | HOW | HO | 24 | Remembers me? | No / For a bit / Always |
+| 25 | PEACE | PE | 25 | Encrypted? | No / Basic TLS / Full TLS |
+| 26 | PEACE | PE | 26 | Trackers? | Many / Few / **None** |
+| 27 | PEACE | PE | 27 | Audited? | No / Self-certified / Audited |
 
-| Category | Prefix | Trits | Dims | Root Question |
-|----------|--------|-------|------|---------------|
-| WHO | WO | 1–4 | 4 | Who is behind it? |
-| WHAT | WA | 5–8 | 4 | What is it? |
-| WHERE | WR | 9–12 | 4 | Where can I find it? |
-| WHEN | WN | 13–16 | 4 | When does it operate? |
-| WHY | WY | 17–20 | 4 | Why does it exist? |
-| HOW | HO | 21–24 | 4 | How does it work? |
-| PEACE | PE | 25–27 | 3 | Can I sleep at night? |
+When dims 15 AND 16 are both 3 (Live + Real-time), the address is HPTP-mandatory.
 
-Each dimension has 3 possible values (Rep C: 1, 2, 3) with human-readable labels. Example for dim 1 (WHO: What kind?): 1=Personal, 2=Corporate, 3=Governance.
-
-Full schema: `services/tdns-v2/src/schema.rs` — `SCHEMA` array (27 entries)
+Source: `services/tdns-v2/src/schema.rs` — SCHEMA[27]
 
 ### 2.3 Address Formats
 
-**Category format** (human-readable): `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313`
-**Canonical format**: 9 dot-separated groups
-**Wire format**: 27 trits × 2 bits = 54 bits, packed into 7 bytes (56 bits, 2 padding bits MSB)
+| Format | Example | Use |
+|--------|---------|-----|
+| Category | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | Human display |
+| Canonical | 9 dot-separated groups | DNS-like |
+| Wire | 7 bytes (27 trits × 2 bits = 54 bits + 2 padding) | Network |
 
 Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 
-### 2.4 First-Position Derivation Rules
+### 2.4 Scanner → Derive → Register Pipeline
 
-**THE UNIVERSAL FORMULA** (the only quantitative derivation function):
+1. **Scanner** (`scanner.rs`) makes live HTTP/DNS/TLS probes → produces 27 `RawValue` measurements
+2. **Derivation** (`derive.rs`) applies 27 rules (15 categorical + 12 quantitative) → 27 trits + confidences
+3. **CRS** (`crs.rs`) registers the entity with name, zone, scan_hash, measurements, hptp_offset → TRN record
+4. **FTS** (`fts.rs`) monitors entity health via heartbeats
+5. **GLB** (`glb.rs`) routes packets using geometric forwarding
+6. **CON** (`overlay.rs`) encrypts inter-node tunnels with BLAKE3-derived keys
 
-```
-gf3 = min(floor(3k / N), 2)     where k = signals fired, N = total signals
-trit = gf3 + 1                   lift from GF(3) {0,1,2} to Rep C {1,2,3}
-```
+### 2.5 Scan Hash Type Tags
 
-Boundaries between trit values fall at exactly N/3 and 2N/3 — derived from the definition of ternary quantization, not from empirical tuning. No arbitrary thresholds. No tuning parameters.
-
-**Confidence digit** (§4.1):
-```
-p = k / N
-δ = min(|p - 1/3|, |p - 2/3|)
-C = min(floor(27δ) + 1, 9)
-```
-Range 1–9. The number **27** (number of dimensions) determines confidence scaling — the system's own structure defines it.
-
-**Two derivation types**:
-- **CATEGORICAL** (15 rules): Scanner produces a pattern string → direct mapping to trit. Confidence always 9.
-- **QUANTITATIVE** (12 rules): Scanner counts binary signals (k out of N) → `project_to_gf3` maps to trit.
-
-15 + 12 = 27 rules = 27 dimensions. Source: `services/tdns-v2/src/derive.rs`
-
-### 2.5 HPTP Mandatory Rule
-
-If trits 15 AND 16 are both **3** (Live data AND Real-time), the address is **HPTP-mandatory**: femtosecond timing verification is required for all packets to/from this entity.
-
-### 2.6 Scan Hash Type Tags
-
-| Tag | Meaning |
-|-----|---------|
+| Tag | Algorithm |
+|-----|-----------|
 | `0x01` | SHA-256 |
 | `0x02` | BLAKE3 |
 | `0x03` | TL-DSA signature |
 | `0x04` | Composite (multi-hash) |
 
+### 2.6 Reference Fixture Addresses
+
+| Entity | Address | HPTP | Notes |
+|--------|---------|------|-------|
+| Google | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | No | Trit 26 (dim 26, 0-idx 25): Numeric(0.0) = no trackers → trit 3 (None) |
+| PPTPro (Capomastro) | `WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332` | **Yes** | Trits 15+16 = 3,3 → HPTP-mandatory |
+| Nonna's Cucina (blog) | Derived from blog_measurements() | No | Simple blog fixture |
+
 ### 2.7 TDNS Module Map
 
-All modules live under `services/tdns-v2/src/`:
+`services/tdns-v2/src/`:
 
 | File | Purpose |
 |------|---------|
 | `trit.rs` | Trit type {1,2,3}, wire encoding, GF(3) ops |
-| `addr.rs` | CubeAddr (27-trit address), Hamming distance, wire pack/unpack |
-| `schema.rs` | 27 dimension definitions, category layout, describe() |
-| `derive.rs` | 27 derivation rules, project_to_gf3, confidence_digit |
-| `scan.rs` | ScanMeasurement, RawValue, Confidence (serde transparent) |
-| `scanner.rs` | Live HTTP/DNS/TLS scanner (27 probe measurements via ureq) |
-| `crs.rs` | CRS Registry Service — register, resolve, verify, rescan, drift log |
+| `addr.rs` | CubeAddr (27-trit), Hamming distance, wire pack/unpack, DIMENSIONS=27 |
+| `schema.rs` | 27 dimension definitions, Category enum, describe() |
+| `derive.rs` | 27 derivation rules, project_to_gf3(), confidence_digit() |
+| `scan.rs` | ScanMeasurement, RawValue, Confidence (#[serde(transparent)]) |
+| `scanner.rs` | Live HTTP/DNS/TLS scanner (27 probes via ureq) |
+| `crs.rs` | CRS Registry — register, resolve, verify, rescan, drift log, neighbor maps |
 | `trn.rs` | TRN (Ternary Resource Name) records |
-| `fts.rs` | FTS (Fault Tolerance Service) — heartbeat, suspect/dead detection |
-| `glb.rs` | GLB (Geometric Load Balancer) — forwarding, redirect, dead set |
-| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, BLAKE3 keys |
-| `subcube.rs` | SubCube multicast addressing |
+| `fts.rs` | FTS (Fault Tolerance Service) — heartbeat, suspect/dead/recovered |
+| `glb.rs` | GLB (Geometric Load Balancer) — point/multicast forwarding, redirect, dead set |
+| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, BLAKE3 keys, rekey |
+| `subcube.rs` | SubCube multicast addressing, wildcard |
 | `routing.rs` | NeighborMap, greedy geometric routing |
 | `bridge.rs` | Metatronic Bridge — .plm→TDNS / legacy DNS resolution |
-| `wire.rs` | Packet wire protocol (version 0x23), integrity checks |
-| `api.rs` | 11 HTTP API endpoints, ApiRouter |
+| `wire.rs` | Packet wire protocol (version 0x23), BLAKE3 integrity, heartbeat encoding |
+| `api.rs` | 11 HTTP API endpoints, ApiRouter, version "2.3.2" |
 | `lib.rs` | Crate root, module re-exports |
 
 Binaries:
-- `src/bin/tdns_scan.rs` — CLI: scan, compare, describe commands
+- `src/bin/tdns_scan.rs` — CLI: scan, compare, describe
 - `src/bin/tdns_server.rs` — HTTP server (port 3927 default)
 
-Tests:
-- `tests/e2e.rs` — 9 end-to-end tests (full pipeline)
-- `tests/integration.rs` — 12 scenario integration tests
+Tests: `tests/e2e.rs` (9 tests), `tests/integration.rs` (12 scenarios)
 
 ---
 
 ## 3. The 13-Dimensional Hypercube (Inter-Cube Network)
 
-### 3.1 Geometry
+### 3.1 Why Geometry Replaces Routing Tables
 
-The Inter-Cube mesh network uses a **13-dimensional ternary hypercube**:
+In conventional networks, routing tables map destination addresses to next-hop interfaces. These tables must be computed (BGP convergence), distributed (flooding), stored (memory), and protected (route poisoning). All of this is eliminated when the address space IS a geometric object.
 
-| Property | Value |
-|----------|-------|
-| Dimensions | 13 |
-| Vertices | 3¹³ = 1,594,323 |
-| Neighbors per node | 2 × 13 = 26 |
-| Max diameter (hops) | 13 |
-| Routing tables | **0** (geometry = protocol) |
+In a 13D ternary hypercube:
+- Every node knows its own 13-trit address
+- The destination is a 13-trit address
+- The next hop = flip the trit in the dimension with the greatest distance reduction
+- No table lookups, no state synchronization, no convergence delays
+- The routing decision is a single GF(3) arithmetic operation
 
-Next-hop computation: a single trit flip in the dimension with the greatest distance reduction. No BGP, no OSPF, no routing tables — pure GF(3) arithmetic.
+| Property | Value | Why |
+|----------|-------|-----|
+| Dimensions | 13 | 13 = T₇ = 1 ternary radian |
+| Vertices | 3¹³ = 1,594,323 | Complete address space |
+| Neighbors/node | 2 × 13 = 26 | 2 non-self values per dimension × 13 dims |
+| Max diameter | 13 hops | Worst case: all 13 trits differ |
+| Routing tables | **0** | Geometry IS the routing protocol |
 
-### 3.2 Inter-Cube Services (4)
+### 3.2 Inter-Cube Infrastructure Services (4)
 
-1. **GLB** (Geometric Load Balancer) — point forwarding, sub-cube multicast fan-out, dead-node avoidance, redirects
-2. **CON** (Cube Overlay Network) — PQ-encrypted tunnels with BLAKE3-derived keys, key rotation, traffic accounting
-3. **CRS** (Cube Registration Service) — entity registration, neighbor maps, dimension density
-4. **FTS** (Fault Tolerance Service) — heartbeat-based failure detection, suspect/dead/recovered states
+**GLB — Geometric Load Balancer** (`glb.rs`)
+- Point forwarding: greedy geometric routing via NeighborMap
+- SubCube multicast: fan-out to all neighbors matching sub-cube mask
+- Dead-node avoidance: skip dead nodes, find alternates
+- Redirect: old_addr → new_addr mappings with TTL
 
-Source: `services/inter-cube/` (Rust crate) and `services/tdns-v2/` (integrated)
+**CON — Cube Overlay Network** (`overlay.rs`)
+- PQ-encrypted tunnels between adjacent nodes
+- **Keys derived from topology**: BLAKE3 hash of (min_addr, max_addr, shared_secret)
+- Key rotation: `rekey_all()` increments epoch, re-derives all link keys
+- Traffic accounting: bytes sent/received per link
+- Link state: Active / Down / Rekeying
+
+**WHY topology-derived crypto matters**: Every edge in the hypercube gets a unique key pair derived from the geometric relationship between the two endpoints. The cryptographic layer is structural — baked into the geometry. You cannot spoof a key without occupying the correct geometric position.
+
+**CRS — Cube Registration Service** (`crs.rs`)
+- Entity registration with scan measurements
+- TRN record management (name → address lookup)
+- Neighbor map computation from registered entities
+- Dimension density tracking
+- Drift detection and redirect management
+- Verification and re-scan protocols
+
+**FTS — Fault Tolerance Service** (`fts.rs`)
+- Heartbeat-based failure detection
+- Three-state model: Alive → Suspect → Dead
+- Configurable thresholds: heartbeat_interval_ns, suspect_threshold, failure_threshold
+- Recovery detection: Dead → Alive via NodeRecovered event
+- HPTP anomaly tracking
 
 ### 3.3 Metatronic Cube
 
-The 13D cube viewed through Saturnian geometry. Three shells of 3¹² = 531,441 vertices each, with depth axis at position 13 (= T₇ = 1 radian).
+The 13D cube viewed through Saturnian geometry:
+- Three shells of 3¹² = 531,441 vertices each
+- Depth axis at position 13 (= T₇ = 1 radian)
+- Rep C axis numbering (1-based bijective, zero = sentinel)
+- Named axes, correspondence edges, embedded polytopes
+- Automorphism group for symmetry operations
 
-Source: `shared/metatronic-cube.ts` — `METATRONIC_DIM`, `METATRONIC_VERTICES`, `SHELL_VERTICES`
-
----
-
-## 4. Repository Structure
-
-### 4.1 Top-Level Layout
-
-```
-/                           Root (Express.js + Vite full-stack app)
-├── client/                 React frontend (TypeScript, Tailwind, shadcn/ui, Wouter)
-│   └── src/
-│       ├── pages/          26 pages (landing, about, contact, docs, admin, ...)
-│       └── components/     Shared components (sidebar, footer, nav, ...)
-├── server/                 Express.js backend (TypeScript)
-│   ├── routes.ts           API routes
-│   ├── storage.ts          IStorage interface + DatabaseStorage
-│   ├── db.ts               Drizzle ORM connection
-│   └── ...                 Config, crypto, compression, ephemeris, etc.
-├── shared/                 Shared TypeScript modules (constants, schema, math)
-│   ├── constants.ts        PLATFORM object (single source of truth)
-│   ├── schema.ts           Drizzle DB schema + Zod insert schemas
-│   ├── ternary-circle.ts   364° circle, Z₂₈, conversion functions
-│   ├── tribonacci-constants.ts  τ, Tribonacci sequence, VM constants
-│   ├── saturnian-blueprint.ts   Saturnian magic square, exact alignments
-│   ├── metatronic-cube.ts  13D ternary cube geometry
-│   ├── agent-array.ts      28-dimension AI agent orchestration
-│   ├── qutrit-basics.ts    Qutrit (3-level quantum) operations
-│   ├── qudit-basics.ts     Generalized qudit (d-level) operations
-│   ├── complex-utils.ts    Complex number arithmetic for quantum sim
-│   ├── lagrangian-*.ts     Lagrangian qutrit/ternary evolution
-│   ├── hamiltonian-constraints.ts  Hamiltonian constraint system
-│   ├── noether-symmetries-utils.ts Noether symmetry analysis
-│   ├── qutrit-fault-tolerance.ts   Qutrit error correction
-│   ├── saturnian-matrix-utils.ts   Matrix operations on Saturnian square
-│   └── tribonacci-variational.ts   Variational Tribonacci calculus
-├── services/               Microservices (Rust + TypeScript)
-│   ├── tdns-v2/            TDNS v2.3.2 (Rust crate, 17 modules + 2 binaries)
-│   ├── inter-cube/         Inter-Cube Infrastructure (Rust crate)
-│   ├── blockchain/         Blockchain services
-│   │   ├── hedera-service/ Hedera HCS witnessing
-│   │   ├── xrpl-service/   XRP Ledger integration
-│   │   └── algorand-service/ Algorand integration
-│   ├── payment-listener/   Payment processing (Stripe, Interac, crypto)
-│   ├── sfk-core-api/       SFK Operations Pipeline
-│   ├── pqti-service/       Post-Quantum TLS Inspection
-│   ├── timing/             Timing services
-│   │   ├── femtosecond-service/  HPTP timing
-│   │   └── certification-service/ RFC 3161 TSA
-│   └── tonal-field/        Tonal Diffusion System (FM timing)
-├── libternary/             Core ternary library (Rust crate)
-│   └── src/
-│       ├── lib.rs          Rep A/B/C conversions, ternary numeration
-│       ├── tribonacci.rs   Tribonacci sequence generation
-│       ├── ternary_circle.rs  364° circle (Rust)
-│       └── borromean.rs    Borromean topology primitives
-├── ternary-math/           Additional ternary math modules
-├── XPlenum/                RISC-V hardware extension
-│   ├── rtl/                Verilog RTL (AES, PQC, trit unit, cap unit, ...)
-│   ├── tb/                 Testbenches
-│   ├── sim/                Simulation
-│   ├── synth/              Synthesis
-│   └── docs/               Hardware documentation
-├── cli/                    CLI tools
-│   └── plenum-stamp/       RFC 3161 stamp CLI
-├── contracts/              Smart contracts (Algorand, oracle bridge)
-├── kong/                   Kong Konnect API gateway config
-├── salvi_docs/             Documentation
-│   ├── specs/              Specifications (TDNS v2.3, etc.)
-│   ├── modules/            Module documentation
-│   └── tutorials/          Tutorials
-├── docs/                   Architecture docs, ADRs, security, legal
-├── deployments/            Deployment configs (DO NOT MODIFY)
-└── keys/                   Key material
-```
-
-### 4.2 Frontend Pages
-
-| Page | Route | Purpose |
-|------|-------|---------|
-| `landing.tsx` | `/` | Main marketing landing page |
-| `about.tsx` | `/about` | About PlenumNET |
-| `contact.tsx` | `/contact` | Contact form |
-| `docs.tsx` | `/docs` | Documentation hub |
-| `ternarydb.tsx` | `/ternarydb` | PlenumDB product page |
-| `compression.tsx` | `/compression` | Compression demo |
-| `whitepaper.tsx` | `/whitepaper` | Whitepaper viewer |
-| `hptp-demo.tsx` | `/hptp-demo` | HPTP Timing API demo |
-| `api-demo.tsx` | `/api-demo` | API demo page |
-| `api-keys.tsx` | `/api-keys` | API key management |
-| `vm-demo.tsx` | `/vm-demo` | Ternary VM terminal |
-| `quantum-sim.tsx` | `/quantum-sim` | Quantum ternary simulator |
-| `compliance.tsx` | `/compliance` | CNSA 2.0 compliance |
-| `tsa.tsx` | `/tsa` | TSA Time-Stamping Authority |
-| `thirteen-moon.tsx` | `/thirteen-moon` | 13-Moon Calendar |
-| `tribonacci-28ds.tsx` | `/tribonacci-28ds` | Tribonacci 28D system |
-| `calendar.tsx` | `/calendar` | Calendar view |
-| `github-manager.tsx` | `/github-manager` | GitHub repository manager |
-| `kong-konnect.tsx` | `/kong-konnect` | Kong Konnect integration |
-| `admin.tsx` | `/admin` | Admin dashboard |
-| `agent-array.tsx` | `/agent-array` | 28-Agent Array UI |
-| `distribution.tsx` | `/distribution` | Distribution page |
-| `fpga-benchmarks.tsx` | `/fpga-benchmarks` | FPGA benchmark results |
-| `isa-security-paper.tsx` | `/isa-security-paper` | ISA security paper |
-| `legal.tsx` | `/legal` | Legal pages (terms, privacy, security) |
-| `not-found.tsx` | `*` | 404 page |
+Source: `shared/metatronic-cube.ts` — METATRONIC_DIM=13, METATRONIC_VERTICES=1,594,323, SHELL_VERTICES=531,441
 
 ---
 
-## 5. PLATFORM Constants (Single Source of Truth)
+## 4. HPTP — High-Precision Timing Protocol
 
-All numeric constants live in `shared/constants.ts` → `PLATFORM` object. **Never hardcode numbers in pages or components** — always import from `PLATFORM`.
+### 4.1 What It Does and Why
 
-```typescript
-export const PLATFORM = {
-  VM_OPCODES: 176,
-  VM_ISA_VERSION: "v2.1",
-  VM_REGISTERS: 27,
-  API_ENDPOINTS: 279,
-  API_SERVICES: 23,
-  KERNEL_LOC: "47,000+",
-  KERNEL_SUBSYSTEMS: 14,
-  TESTS_PASSING: "1,901",
-  DENSITY_ADVANTAGE: 59,
-  PLATFORM_VERSION: "2.3.2",
+HPTP provides **femtosecond-precision time synchronization** (10⁻¹⁵ seconds). This is not just an engineering convenience — it is structurally required by HPTP-mandatory addresses (trits 15+16 = 3,3).
 
-  // Benchmarks
-  BENCH_TL_DSA_44_US: "1,220",
-  BENCH_TL_DSA_65_US: "1,700",
-  BENCH_TL_DSA_87_US: "2,470",
-  BENCH_TL_DSA_87_SPEEDUP: "5.9",
-  BENCH_KANI_PROOFS: 50,
+**Why femtosecond matters**:
+- FINRA 613: ≤50ms drift from NIST atomic clock
+- MiFID II (HFT): ≤1ms divergence from UTC
+- MiFID II (general): ≤100μs for gateways
+- PlenumNET's timing exceeds all regulatory requirements by orders of magnitude
 
-  // Inter-Cube
-  HYPERCUBE_DIMENSIONS: 13,
-  HYPERCUBE_VERTICES: "1,594,323",
-  TDNS_ADDRESS_SPACE: "7.63 trillion",
-  TDNS_TRITS: 27,
-  HYPERCUBE_NEIGHBORS: 26,
-  INTER_CUBE_TESTS: 97,
-  INTER_CUBE_ENDPOINTS: 11,
-  INTER_CUBE_SERVICES: 4,
-} as const;
-```
+### 4.2 Femtosecond Timestamps
+
+- 128-bit integer measuring femtoseconds since Salvi Epoch (2025-04-01T00:00:00Z)
+- `FEMTOSECONDS_PER_MILLISECOND = 1,000,000,000,000n` (bigint)
+- `FEMTOSECONDS_PER_SECOND = 1,000,000,000,000,000n`
+
+Source: `server/salvi-core/femtosecond-timing.ts`
+
+### 4.3 HPTP Service Architecture
+
+- **Femtosecond Service** (`services/timing/femtosecond-service/`): Fastify server, port 3006
+  - ClockDriver: hardware clock abstraction (GPS/PTP/atomic in production)
+  - HPTPClient: multi-peer consensus timing, drift compensation, jitter filtering
+  - Timing API: `/api/timing/v1/*`
+  
+- **Certification Service** (`services/timing/certification-service/`): 
+  - Timing Certificate Authority for FINRA 613 / MiFID II compliance
+  - Cryptographically signed timing certificates
+  - TimingVerifier for compliance checks
+
+### 4.4 HPTP in TDNS Wire Protocol
+
+Wire packets include femtosecond timestamps. HPTP-mandatory packets (destination has trits 15+16=3,3) MUST have valid HPTP timing — the wire protocol enforces this via the HPTP_MANDATORY flag.
+
+Heartbeat packets carry `(hptp_offset_ns, sequence_number)` for continuous clock synchronization.
 
 ---
 
-## 6. Quantum Ternary Modules
+## 5. Document Notary — RFC 3161 Time-Stamping Authority (TSA)
+
+### 5.1 What It Does and Why
+
+The TSA provides **cryptographic proof-of-existence timestamps** per RFC 3161. It is a digital notary — it proves a document existed at a specific point in time, with cryptographic non-repudiation.
+
+**Why it matters**:
+- Legal admissibility: RFC 3161 timestamps are recognized in most jurisdictions
+- Regulatory compliance: SOX, GDPR, eIDAS, FINRA require timestamped audit trails
+- Tamper evidence: Merkle tree audit log makes retroactive changes detectable
+
+### 5.2 TSA Features
+
+| Feature | Details |
+|---------|---------|
+| TSA Policies | 4 distinct policies for different compliance levels |
+| Audit Log | Merkle tamper-evident tree — every timestamp is a leaf |
+| Dual Signature | RSA-4096 + TL-DSA-87 (post-quantum + classical) |
+| HPTP Integration | Femtosecond timestamp bound to HPTP-synchronized clock |
+| Wire Protocol | ASN.1 DER encoding per RFC 3161 |
+
+### 5.3 TSA Services
+
+- **TSA Service** (`server/services/tsa-service.ts`): Core timestamp generation, policy enforcement
+- **TSA Calendar Compression** (`server/services/tsa-calendar-compression.ts`): Merkle tree management
+- **TSA Calendar Enrichment** (`server/services/tsa-calendar-enrichment.ts`): Metadata attachment
+- **TSA Policy** (`server/services/notification-tsa-policy.ts`): Policy-based notification rules
+- **TSA Routes** (`server/routes/tsa.ts`): HTTP API endpoints
+- **TSA Page** (`client/src/pages/tsa.tsx`): Frontend interface
+
+### 5.4 plenum-stamp CLI
+
+Zero-dependency Node.js CLI for offline TSA operations:
+
+```
+plenum-stamp sign <file>       Hash and timestamp a file
+plenum-stamp verify <file>     Verify a file's timestamp  
+plenum-stamp info <file.tsp>   Display token metadata
+plenum-stamp cert              Download TSA certificate
+```
+
+Source: `cli/plenum-stamp/index.mjs`
+
+---
+
+## 6. Encryption & Cryptographic Architecture
+
+### 6.1 Phase Encryption
+
+Adaptive Dual-Phase Quantum Encryption from the whitepaper:
+
+| Phase | Angle | Purpose |
+|-------|-------|---------|
+| Primary | 360°/0° reference (fixed) | Main encryption carrier |
+| Secondary | Δθ(t) = 1°–10° (tunable) | Adaptive security parameter |
+| Guardian | 358° offset | Tamper detection (Tribonacci-weighted checksum) |
+
+Modes: `high_security`, `balanced`, `performance`, `adaptive`
+
+The guardian phase uses τ-derived constants for mixing (not djb2). This directly connects tamper detection to the framework's mathematics.
+
+Source: `server/salvi-core/phase-encryption.ts`
+
+### 6.2 Token Encryption (AES-256-GCM)
+
+All API tokens and session data encrypted at rest:
+- Algorithm: AES-256-GCM
+- IV: 12 bytes random
+- Tag: 16 bytes
+- Key: SHA-256 of SESSION_SECRET
+- Format: `{iv_hex}:{tag_hex}:{ciphertext_hex}`
+
+Source: `server/crypto-utils.ts`
+
+### 6.3 Post-Quantum Cryptography Stack
+
+| Algorithm | Purpose | Security Levels |
+|-----------|---------|-----------------|
+| **TL-DSA** (Ternary Lattice DSA) | Digital signatures | 44 / 65 / 87 |
+| **TL-KEM** | Key encapsulation | — |
+| **Phase Encryption** | Data encryption | 4 modes |
+| **BLAKE3** | Hashing, key derivation, integrity | — |
+| **RSA-4096** | Classical signatures (dual-sig with TL-DSA) | — |
+
+TL-DSA uses **integer NTT** for efficient polynomial multiplication and **AVX2 vectorization** for performance. Benchmarks in `shared/constants.ts`:
+- TL-DSA-44: 1,220 μs
+- TL-DSA-65: 1,700 μs  
+- TL-DSA-87: 2,470 μs (5.9× speedup over reference)
+
+### 6.4 Topology-Derived Cryptography (CON)
+
+Each edge in the hypercube gets a unique BLAKE3-derived tunnel key:
+
+```rust
+let (out_key, in_key) = derive_link_keys(&addr_a, &addr_b, &shared_secret);
+```
+
+The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
+
+### 6.5 6-Phase Capability-Based Security
+
+Authorization uses unforgeable, self-contained, bearer-verified capability tokens:
+
+| Phase | Feature |
+|-------|---------|
+| 1 | Typed constraint registry |
+| 2 | HPTP-bound expiration (femtosecond-precise) |
+| 3 | HMAC-chained delegation |
+| 4 | Hardware-bound capabilities |
+| 5 | RFC 3161 capability certificates |
+| 6 | Inter-service capability mesh |
+
+Source: `server/services/capability-service.ts`, `capability-certificates.ts`, `capability-hardware-binding.ts`, `capability-mesh.ts`, `capability-audit-events.ts`
+
+### 6.6 CNSA 2.0 Compliance
+
+Full CNSA 2.0 algorithm coverage for post-quantum readiness. Compliance page: `client/src/pages/compliance.tsx`
+
+---
+
+## 7. Blockchain Witnessing & SFK Operations
+
+### 7.1 Hedera HCS Witnessing
+
+Submits cryptographic witness hashes to a Hedera Consensus Service topic:
+- Immutable, ordered, timestamped proof of PlenumNET operations
+- Witness types: MERKLE_ROOT_BATCH, SINGLE_HASH, AGGREGATE_PROOF
+- Hash algorithms: SHA256, SHA384, SHA512, KECCAK256
+- Ternary context (security_mode, phase_offset, torsion_dimensions) attached to each witness
+
+Source: `server/salvi-core/blockchain-integrations.ts`, `server/services/hedera-witnessing-service.ts`
+
+### 7.2 SFK Operations Pipeline
+
+Manages Salvi Framework Kernel operation lifecycle:
+
+```
+initialization → ternary_processing → witnessing → settlement → finalization
+```
+
+Operation types: TERNARY_BATCH_PROCESSING, PHASE_ENCRYPTION, TORSION_ROUTING, WITNESS_SUBMISSION, SETTLEMENT_EXECUTION
+
+Fortified-tier operations submit SHA-256 result hashes to Hedera HCS for non-repudiation.
+
+Source: `server/salvi-core/sfk-operations-api.ts`, `server/services/sfk-operations-service.ts`
+
+### 7.3 Additional Blockchain Integrations
+
+- **XRPL** (XRP Ledger): `services/blockchain/xrpl-service/`
+- **Algorand**: `services/blockchain/algorand-service/`, `contracts/algorand/`
+
+---
+
+## 8. Tonal Diffusion System
+
+Network-wide time synchronization using FM timing packets:
+- Toroidal topology
+- Gradient-driven diffusion consensus
+- FM Timing Engine (Rust-backed)
+- Tonal Field Service with resonance detection
+
+Source: `services/tonal-field/` — TonalField, DiffusionSolver, PlenumMetrics
+
+---
+
+## 9. Security Middleware & API Infrastructure
+
+### 9.1 Security Middleware Stack
+
+| Layer | What | Why |
+|-------|------|-----|
+| 4-tier rate limiting | Tiered by endpoint sensitivity | Prevents abuse without blocking legitimate use |
+| CORS | Origin-restricted | Prevents cross-site attacks |
+| Helmet.js | Security headers (CSP, HSTS, etc.) | Browser security hardening |
+| AES-256-GCM | Token encryption at rest | Secrets never stored plaintext |
+| Null-byte stripping | Input sanitization | Prevents null-byte injection |
+| Double URL-decode | Path sanitization | Prevents encoding-based traversal |
+| execFile() only | No shell spawning | Eliminates shell injection entirely |
+
+### 9.2 API Key Management
+
+- Generation, validation, rotation
+- Per-key rate limiting
+- Audit trails with anomaly detection
+- WBS (Work Breakdown Structure) tagging system
+
+Source: `server/services/api-key.service.ts`, `server/routes/api-keys.ts`
+
+### 9.3 Security Infrastructure Services
+
+Admin-protected backend services:
+- Security Audit Service (`server/services/security-audit.service.ts`)
+- HPTP Anomaly Detection (`server/services/hptp-anomaly.service.ts`)
+- Threat Model Registry (`server/services/threat-model.service.ts`)
+- Implementation Status Tracker (`server/services/implementation-status.service.ts`)
+
+---
+
+## 10. Quantum Ternary Modules
 
 Five shared modules provide classical simulation of quantum ternary operations:
 
-| Module | Purpose |
-|--------|---------|
-| `qutrit-basics.ts` | Qutrit (d=3) states, Gell-Mann generators, SU(3) unitaries, SUFT-coupled phase gates |
-| `qudit-basics.ts` | Generalized qudit (d≥2) states, shift/clock operators, error simulation |
-| `lagrangian-qutrit-utils.ts` | Lagrangian evolution for qutrit systems |
-| `lagrangian-ternary-utils.ts` | Ternary-specific Lagrangian mechanics |
-| `qutrit-fault-tolerance.ts` | Qutrit error correction codes |
+| Module | What | Why |
+|--------|------|-----|
+| `qutrit-basics.ts` | Qutrit (d=3) states, Gell-Mann generators, SU(3) unitaries | Core quantum ternary simulation |
+| `qudit-basics.ts` | Generalized qudit (d≥2), shift/clock operators | Higher-dimensional extension |
+| `lagrangian-qutrit-utils.ts` | Lagrangian evolution for qutrits | Time evolution simulation |
+| `lagrangian-ternary-utils.ts` | Ternary-specific Lagrangian mechanics | Framework-coupled evolution |
+| `qutrit-fault-tolerance.ts` | Qutrit error correction codes | Fault-tolerant operations |
 
-Supporting: `complex-utils.ts` (complex arithmetic), `hamiltonian-constraints.ts`, `noether-symmetries-utils.ts`
+Supporting: `complex-utils.ts` (complex arithmetic), `hamiltonian-constraints.ts`, `noether-symmetries-utils.ts`, `tribonacci-variational.ts`
 
 ---
 
-## 7. 28-Dimension Agent Array
+## 11. 28-Dimension Agent Array
 
 Maps Z₂₈ cyclic positions to 28 parallel AI agents:
 
-- **Scheduling**: `(position × 13) mod 28` visits all 28 positions exactly once (gcd(13,28) = 1)
-- **Walk**: 0 → 13 → 26 → 11 → 24 → 9 → 22 → 7 → 20 → 5 → 18 → 3 → 16 → 1 → ...
-- **Result**: 13 × 28 = 364 = `111111₃` (ternary palindrome)
-- **Convolution kernel**: `[13, 24, 44]` (three consecutive Tribonacci numbers: T₇, T₈, T₉)
+- **Scheduling**: `(position × 13) mod 28` visits all 28 positions exactly once
+- **Why coprime walk**: gcd(13, 28) = 1 guarantees complete coverage, bias-free
+- **Walk sequence**: 0 → 13 → 26 → 11 → 24 → 9 → 22 → 7 → 20 → 5 → 18 → 3 → 16 → 1 → ...
+- **Convolution kernel**: [13, 24, 44] = [T₇, T₈, T₉] (three consecutive Tribonacci numbers)
+- **Identity**: 13 × 28 = 364 = `111111₃`
 
-Source: `shared/agent-array.ts`
+Features: Etymology Audit, Veritas Fact-Check, unified Situation Report, Lexical Protocol enforcement.
 
----
-
-## 8. XPlenum RISC-V Hardware Extension
-
-Custom RISC-V extension integrated with CVA6 for hardware-accelerated ternary operations:
-- 21 custom instructions
-- 12 custom CSRs
-- Ternary security operations, PQC acceleration, compliance
-
-Verilog RTL modules in `XPlenum/rtl/`:
-- `xplenum_top.v` / `xplenum_top_v2.v` — Top-level integration
-- `xplenum_trit_unit.v` — Ternary arithmetic unit
-- `xplenum_aes256_core.v` — AES-256 core
-- `xplenum_pqc_unit.v` — Post-quantum crypto accelerator
-- `xplenum_cap_unit.v` — Capability-based security unit
-- `xplenum_ctr_drbg.v` — NIST CTR_DRBG random number generator
-- `xplenum_mask_unit.v` — Masking countermeasures
-- `xplenum_tamper_response.v` — Tamper detection/response
-- `xplenum_domain_unit.v` — Domain isolation
-- `xplenum_dom_gadgets.v` — Domain gadget library
+Source: `shared/agent-array.ts`, `client/src/pages/agent-array.tsx`
 
 ---
 
-## 9. Security Architecture
+## 12. XPlenum RISC-V Hardware Extension
 
-### 9.1 6-Phase Capability-Based Security
+Custom RISC-V extension integrated with CVA6:
+- 21 custom instructions for ternary security operations
+- 12 custom CSRs (Control/Status Registers)
+- PQC acceleration, compliance enforcement
 
-Authorization uses unforgeable, self-contained, bearer-verified capability tokens signed with TL-DSA:
-1. Typed constraint registry
-2. HPTP-bound expiration
-3. HMAC-chained delegation
-4. Hardware-bound capabilities
-5. RFC 3161 capability certificates
-6. Inter-service capability mesh
+Verilog RTL modules (`XPlenum/rtl/`):
 
-### 9.2 Security Middleware Stack
+| Module | Purpose |
+|--------|---------|
+| `xplenum_top.v` / `xplenum_top_v2.v` | Top-level integration |
+| `xplenum_trit_unit.v` | Ternary arithmetic unit |
+| `xplenum_aes256_core.v` | AES-256 hardware core |
+| `xplenum_pqc_unit.v` | Post-quantum crypto accelerator |
+| `xplenum_cap_unit.v` | Capability-based security unit |
+| `xplenum_ctr_drbg.v` | NIST CTR_DRBG PRNG |
+| `xplenum_mask_unit.v` | Side-channel masking countermeasures |
+| `xplenum_tamper_response.v` | Tamper detection and response |
+| `xplenum_domain_unit.v` | Domain isolation enforcement |
 
-- 4-tier rate limiting
-- CORS + Helmet.js security headers
-- AES-256-GCM token encryption
-- Null-byte stripping + double URL-decode protection
-- `execFile()`-only subprocess execution (no shell injection)
-
-### 9.3 Post-Quantum Cryptography
-
-- **TL-DSA** (Ternary Lattice DSA): Security levels 44/65/87
-  - Uses integer NTT for polynomial multiplication
-  - AVX2 vectorization for performance
-- **TL-KEM**: Ternary lattice key encapsulation
-- **CNSA 2.0 compliance**: Full algorithm coverage
-- **Phase encryption**: Ternary-native encryption scheme
+Formal verification: `rtl/formal/`, `rtl/formal_local/`
 
 ---
 
-## 10. RFC 3161 Time-Stamping Authority (TSA)
+## 13. Repository Structure
 
-Digital notary service providing cryptographic proof-of-existence timestamps:
-- 4 TSA policies
-- Merkle tamper-evident audit log
-- Dual-signature: RSA-4096 + TL-DSA-87
-- HPTP timing integration
-- ASN.1 wire protocol
+### 13.1 Top-Level Layout
 
-CLI: `cli/plenum-stamp/` — `plenum-stamp sign` and `plenum-stamp verify`
+```
+/                           Root (Express.js + Vite full-stack app)
+├── client/src/pages/       26 React pages (landing, about, docs, admin, ...)
+├── client/src/components/  Shared components (sidebar, footer, nav, VM terminal, ...)
+├── server/                 Express.js backend
+│   ├── routes.ts           Main API routes
+│   ├── routes/             Sub-route modules (tsa, security, kong, hedera, ...)
+│   ├── services/           Backend services (TSA, capability, security audit, ...)
+│   ├── salvi-core/         Core framework (ternary ops, phase encryption, timing, blockchain)
+│   ├── storage.ts          IStorage interface + DatabaseStorage
+│   └── crypto-utils.ts     AES-256-GCM token encryption
+├── shared/                 Shared TypeScript modules
+│   ├── constants.ts        PLATFORM object (SINGLE SOURCE OF TRUTH)
+│   ├── schema.ts           Drizzle DB schema + Zod insert schemas
+│   ├── topology/           Toroidal addressing, GF(3) operations
+│   └── [math modules]      Circle, Tribonacci, Saturnian, quantum, agents
+├── services/               Microservices
+│   ├── tdns-v2/            TDNS v2.3.2 (Rust, 17 modules + 2 binaries)
+│   ├── inter-cube/         Inter-Cube Infrastructure (Rust)
+│   ├── blockchain/         Hedera, XRPL, Algorand services
+│   ├── payment-listener/   Payment processing
+│   ├── sfk-core-api/       SFK Operations Pipeline
+│   ├── pqti-service/       Post-Quantum TLS Inspection (Rust)
+│   ├── timing/             Femtosecond + Certification services
+│   └── tonal-field/        Tonal Diffusion System
+├── libternary/             Core ternary library (Rust)
+├── XPlenum/                RISC-V hardware extension (Verilog)
+├── cli/plenum-stamp/       RFC 3161 CLI tool
+├── contracts/              Smart contracts
+├── salvi_docs/specs/       Specifications
+├── docs/                   Architecture, security, legal docs
+└── deployments/            Deployment configs (DO NOT MODIFY)
+```
+
+### 13.2 PLATFORM Constants (Single Source of Truth)
+
+ALL numeric values used in the frontend and docs MUST come from `shared/constants.ts` → `PLATFORM` object. Never hardcode numbers. If you need a new constant, add it to PLATFORM.
 
 ---
 
-## 11. Blockchain Witnessing
+## 14. Development Rules & Conventions
 
-### Hedera HCS
-Submits cryptographic witness hashes to an HCS topic for immutable, ordered, timestamped proof of PlenumNET operations.
-
-### SFK Operations Pipeline
-Manages operation lifecycle: initialization → ternary_processing → witnessing → finalization.
-Fortified-tier operations submit SHA-256 result hashes to Hedera HCS.
-
----
-
-## 12. Key Rules and Conventions
-
-### 12.1 Development Rules
+### 14.1 Absolute Rules
 
 1. **NEVER modify `deployments/` folder** — user-enforced constraint
-2. **NEVER hardcode numbers** — use `PLATFORM` constants from `shared/constants.ts`
-3. **All source files include copyright headers** (Capomastro Holdings Ltd.)
-4. **Rep C everywhere in TDNS** — trit values {1,2,3}, never 0
-5. **First-position derivation** — universal formula `gf3 = min(floor(3k/N), 2)`, no tuning parameters
-6. **HPTP mandatory** = trits 15 AND 16 both equal 3
+2. **NEVER hardcode numbers** — use PLATFORM constants
+3. **NEVER use 0 as a trit value** in TDNS (Rep C only)
+4. **NEVER replace geometric routing** with routing tables
+5. **NEVER change the 364°/π=14 circle** to 360°/π≈3.14
+6. **NEVER change the derivation formula** — no tuning parameters
+7. **All source files include copyright headers** (Capomastro Holdings Ltd.)
 
-### 12.2 Frontend Conventions
+### 14.2 Frontend Conventions
 
 - React + TypeScript + Tailwind CSS + shadcn/ui + Wouter + Framer Motion
-- Light/dark mode support
-- `data-testid` attributes on all interactive and meaningful elements
-- All data from `PLATFORM` constants — no magic numbers in JSX
-- TanStack Query v5 (object form only) for data fetching
+- Light/dark mode support (class-based)
+- `data-testid` on all interactive and meaningful elements
+- TanStack Query v5 (object form only)
 - `@assets/` import prefix for attached assets
 
-### 12.3 Backend Conventions
+### 14.3 Backend Conventions
 
 - Express.js + Drizzle ORM + PostgreSQL
 - IStorage interface pattern for all CRUD
-- Zod validation on all request bodies
-- API versioning, tiered rate limiting
+- Zod validation on request bodies
+- Tiered rate limiting, CORS, Helmet.js
 
-### 12.4 Rust Conventions
+### 14.4 Rust Conventions
 
-- `edition = "2021"` for TDNS v2.3.2
-- Pinned deps where stability matters (`blake3 = "=1.5.4"`, `ureq = "=2.7.1"`)
-- `thiserror` for error types
-- `serde` with `derive` feature for serialization
+- TDNS: `edition = "2021"`, pinned deps (`blake3 = "=1.5.4"`, `ureq = "=2.7.1"`)
+- `thiserror` for error types, `serde` with derive for serialization
 - All modules re-exported from `lib.rs`
 
-### 12.5 GitHub Push Convention
+### 14.5 GitHub Push Convention
 
-Files are pushed to `SigmaWolf-8/Ternary@main` using the GitHub Contents API via `GITHUB_TOKEN` environment secret. Push via bash + curl, NOT the code_execution sandbox.
-
----
-
-## 13. Reference Addresses (Spec Fixtures)
-
-| Entity | Address (Category) | HPTP |
-|--------|-------------------|------|
-| Google | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | No |
-| PPTPro (Capomastro) | `WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332` | **Yes** |
-| Nonna's Cucina (blog) | Derived from blog_measurements() | No |
-
-Google trit 26 (dim 26, 0-indexed 25): `Numeric(0.0)` = no trackers → trit 3 (None/Clean).
+Push to `SigmaWolf-8/Ternary@main` using GitHub Contents API via `GITHUB_TOKEN` env secret. Use bash + curl, NOT the code_execution sandbox.
 
 ---
 
-## 14. Key Mathematical Identities (Quick Reference)
+## 15. Key Mathematical Identities (Quick Reference)
 
 ```
-3²⁷ = 7,625,597,484,987          (TDNS address space)
+3²⁷ = 7,625,597,484,987          (TDNS address space — 7.63 trillion)
 3¹³ = 1,594,323                   (13D hypercube vertices)
-(3⁶ - 1) / 2 = 364               (full ternary circle, base-3 repunit)
+(3⁶ − 1) / 2 = 364               (full ternary circle, base-3 repunit)
 364 / 28 = 13                     (1 radian = T₇)
-13 × 28 = 364                     (13 moons × 28 days)
-gcd(13, 28) = 1                   (coprime — enables complete Z₂₈ walk)
-τ³ = τ² + τ + 1                   (Tribonacci defining polynomial)
-T₇ = 13                          (7th Tribonacci number)
-111₃ = 13                        (base-3 repunit)
-111111₃ = 364                    (six-digit base-3 repunit)
-log₂(3) ≈ 1.585                  (59% density advantage of ternary over binary)
+13 × 28 = 364                     (13 moons × 28 days = ternary year)
+gcd(13, 28) = 1                   (coprime — complete Z₂₈ walk)
+τ³ = τ² + τ + 1                   (Tribonacci constant defining polynomial)
+T₇ = 13                          (7th Tribonacci number = 1 radian = 111₃)
+111₃ = 13                        (three-digit base-3 repunit)
+111111₃ = 364                    (six-digit base-3 repunit = full circle)
+log₂(3) ≈ 1.585                  (59% density advantage of ternary)
+333 = 3 × 111                    (Saturnian magic constant)
+360 − 333 = 27                   (phase dissonance = TDNS dimensions)
+27 + 1 = 28 = 2π                 (dissonance closure = cyclic order)
+208 / 16 = 13                    (Saturnian cosmic radius = T₇)
 ```
