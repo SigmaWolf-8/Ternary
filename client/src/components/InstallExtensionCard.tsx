@@ -24,8 +24,8 @@ export default function InstallExtensionDialog() {
 
   const isWindows = typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
   const cmd = isWindows
-    ? `irm ${window.location.origin}/api/install.ps1 | iex`
-    : `curl -sL ${window.location.origin}/api/install.ps1 | bash`;
+    ? `irm ${window.location.origin}/api/install-script | iex`
+    : `curl -sL ${window.location.origin}/api/install-script | bash`;
   const shellName = isWindows ? "Windows PowerShell" : "Terminal";
 
   const copyToClipboard = async () => {
