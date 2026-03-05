@@ -628,7 +628,7 @@ function InterCubeSection() {
             className="flex flex-col items-center"
             data-testid="stat-routing-tables"
           >
-            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">0</span>
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_ROUTING_TABLES}</span>
             <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
           </motion.div>
         </div>

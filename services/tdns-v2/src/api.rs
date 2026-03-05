@@ -186,6 +186,7 @@ pub struct ApiRouter {
     pub fts: Fts,
     pub glb: Option<Glb>,
     pub con: Option<ConNode>,
+    pub db: Option<crate::storage::Db>,
 }
 
 impl ApiRouter {
@@ -195,6 +196,7 @@ impl ApiRouter {
             fts: Fts::new(),
             glb: None,
             con: None,
+            db: None,
         }
     }
 

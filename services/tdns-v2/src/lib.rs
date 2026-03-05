@@ -22,6 +22,7 @@ pub mod scan;
 pub mod trn;
 pub mod routing;
 pub mod derive;
+pub mod storage;
 pub mod crs;
 pub mod scanner;
 pub mod glb;
