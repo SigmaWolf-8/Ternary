@@ -12,7 +12,7 @@
 use tdns_v2::addr::{CubeAddr, DIMENSIONS};
 use tdns_v2::api::ApiRouter;
 use tdns_v2::bridge::{Bridge, Resolution};
-use tdns_v2::con::{ConNode, LinkState, derive_link_keys};
+use tdns_v2::overlay::{ConNode, LinkState, derive_link_keys};
 use tdns_v2::crs::{CrsRegistry, RegistrationResult, VerificationResult};
 use tdns_v2::derive::all_rules;
 use tdns_v2::fts::{Fts, FtsConfig, FtsEvent, Heartbeat};
