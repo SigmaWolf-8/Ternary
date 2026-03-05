@@ -71,7 +71,13 @@ if (Test-Path $ffProfiles) {
 Write-Host ""
 if ($count -gt 0) {
     Write-Host "  Done - installed in $count browser(s)." -ForegroundColor Green
-    Write-Host "  Restart your browser(s), then type: plm google" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Next steps:" -ForegroundColor Cyan
+    Write-Host "    1. Restart your browser(s)"
+    Write-Host "    2. Look for the gold TDNS icon in your toolbar"
+    Write-Host "    3. Visit any .plm address to test the resolver"
+    Write-Host ""
+    Write-Host "  Extension location: $INSTALL_DIR" -ForegroundColor DarkGray
 } else {
     Write-Host "  No supported browsers found." -ForegroundColor Yellow
 }
