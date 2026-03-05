@@ -45,6 +45,31 @@ pub fn project_to_gf3(k: u32, n: u32) -> Trit {
     Trit::from_gf3(gf3).unwrap()
 }
 
+/// Compute the confidence digit for a quantitative derivation (§4.1).
+///
+/// `p = k / N`
+/// `δ = min(|p - 1/3|, |p - 2/3|)`
+/// `C = min(floor(27δ) + 1, 9)`
+///
+/// 9 = highest confidence (p is far from any boundary).
+/// 1 = lowest confidence (p is on a boundary).
+///
+/// 27 is the number of dimensions — the system's own structure
+/// determines the confidence scaling. Not a tuning parameter.
+///
+/// For categorical dimensions (pattern-matching), confidence is always 9
+/// because the signal is discrete and unambiguous.
+pub fn confidence_digit(k: u32, n: u32) -> u8 {
+    if n == 0 { return 9; }
+    let p = k as f64 / n as f64;
+    let delta = (p - 1.0 / 3.0).abs().min((p - 2.0 / 3.0).abs());
+    let c = (27.0 * delta).floor() as u8 + 1;
+    std::cmp::min(c, 9)
+}
+
+/// Categorical confidence is always 9 — the signal is discrete.
+pub const CATEGORICAL_CONFIDENCE: u8 = 9;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 fn expect_numeric(dim: usize, raw: &RawValue) -> Result<f64, DerivationError> {
@@ -76,9 +101,9 @@ impl DerivationRule for DeriveEntityKind {
             "personal" | "individual" | "private" => Trit::V1,
             "corporate" | "company" | "organization" | "business" => Trit::V2,
             "governance" | "government" | "gov" | "mil" | "edu" => Trit::V3,
-            _ => Trit::V2,
+            _ => Trit::V2, // Default: corporate
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -95,7 +120,7 @@ impl DerivationRule for DeriveAudience {
             "public" | "everyone" | "open" => Trit::V3,
             _ => Trit::V3,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -108,7 +133,7 @@ impl DerivationRule for DeriveOperatorTransparency {
     fn dimension(&self) -> usize { 2 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(2, raw)? as u32;
-        Ok((project_to_gf3(k, 5), Confidence::High))
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
@@ -125,7 +150,7 @@ impl DerivationRule for DeriveHostingModel {
             "cloud" | "aws" | "azure" | "gcp" | "cloudflare" | "vercel" | "netlify" => Trit::V3,
             _ => Trit::V2,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -146,7 +171,7 @@ impl DerivationRule for DeriveFormFactor {
             "device" | "iot" | "mqtt" | "embedded" | "sensor" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -163,7 +188,7 @@ impl DerivationRule for DeriveContentType {
             "live" | "stream" | "streaming" | "realtime" | "websocket" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -180,7 +205,7 @@ impl DerivationRule for DeriveConsumerType {
             "both" | "mixed" | "hybrid" => Trit::V3,
             _ => Trit::V3,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -193,7 +218,7 @@ impl DerivationRule for DeriveIntelligence {
     fn dimension(&self) -> usize { 7 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(7, raw)? as u32;
-        Ok((project_to_gf3(k, 5), Confidence::High))
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
@@ -210,7 +235,7 @@ impl DerivationRule for DeriveVisibility {
     fn dimension(&self) -> usize { 8 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(8, raw)? as u32;
-        Ok((project_to_gf3(k, 3), Confidence::High))
+        Ok((project_to_gf3(k, 3), Confidence(confidence_digit(k, 3))))
     }
 }
 
@@ -227,7 +252,7 @@ impl DerivationRule for DeriveAuthModel {
             "mfa" | "cert" | "biometric" | "id" | "idcheck" | "id_check" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -241,7 +266,7 @@ impl DerivationRule for DeriveInfraScale {
     fn dimension(&self) -> usize { 10 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(10, raw)? as u32;
-        Ok((project_to_gf3(k, 6), Confidence::High))
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
@@ -258,7 +283,7 @@ impl DerivationRule for DeriveConnectionProtocol {
             "tcp" | "udp" | "mqtt" | "raw" | "custom" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -277,7 +302,7 @@ impl DerivationRule for DeriveEra {
     fn dimension(&self) -> usize { 12 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(12, raw)? as u32;
-        Ok((project_to_gf3(k, 6), Confidence::High))
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
@@ -290,7 +315,7 @@ impl DerivationRule for DeriveAvailability {
     fn dimension(&self) -> usize { 13 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(13, raw)? as u32;
-        Ok((project_to_gf3(k, 3), Confidence::High))
+        Ok((project_to_gf3(k, 3), Confidence(confidence_digit(k, 3))))
     }
 }
 
@@ -307,7 +332,7 @@ impl DerivationRule for DeriveDataFreshness {
             "live" | "streaming" | "realtime" | "continuous" => Trit::V3,
             _ => Trit::V2,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -322,7 +347,7 @@ impl DerivationRule for DeriveLatencyProfile {
     fn dimension(&self) -> usize { 15 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(15, raw)? as u32;
-        Ok((project_to_gf3(k, 6), Confidence::High))
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
@@ -343,7 +368,7 @@ impl DerivationRule for DerivePaymentModel {
             "processes" | "bank" | "exchange" | "processor" | "fintech" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -357,7 +382,7 @@ impl DerivationRule for DeriveDataAppetite {
     fn dimension(&self) -> usize { 17 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(17, raw)? as u32;
-        Ok((project_to_gf3(k, 5), Confidence::High))
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
@@ -370,7 +395,7 @@ impl DerivationRule for DerivePolicyPresence {
     fn dimension(&self) -> usize { 18 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(18, raw)? as u32;
-        Ok((project_to_gf3(k, 5), Confidence::High))
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
@@ -387,7 +412,7 @@ impl DerivationRule for DeriveCostModel {
             "subscription" | "recurring" | "monthly" | "annual" | "saas" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -408,7 +433,7 @@ impl DerivationRule for DeriveDeliveryModel {
             "anycast" | "cdn" | "edge" | "closest" | "geo" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -425,7 +450,7 @@ impl DerivationRule for DeriveDataFlow {
             "in" | "ingest" | "collect" | "receive" | "sink" | "log" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -442,7 +467,7 @@ impl DerivationRule for DeriveUpdateModel {
             "push" | "websocket" | "sse" | "notification" | "realtime" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -455,7 +480,7 @@ impl DerivationRule for DeriveStatePersistence {
     fn dimension(&self) -> usize { 23 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(23, raw)? as u32;
-        Ok((project_to_gf3(k, 3), Confidence::High))
+        Ok((project_to_gf3(k, 3), Confidence(confidence_digit(k, 3))))
     }
 }
 
@@ -474,7 +499,7 @@ impl DerivationRule for DeriveEncryption {
     fn dimension(&self) -> usize { 24 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(24, raw)? as u32;
-        Ok((project_to_gf3(k, 6), Confidence::High))
+        Ok((project_to_gf3(k, 6), Confidence(confidence_digit(k, 6))))
     }
 }
 
@@ -491,7 +516,7 @@ impl DerivationRule for DeriveTrackerCount {
     fn dimension(&self) -> usize { 25 }
     fn derive(&self, raw: &RawValue) -> Result<(Trit, Confidence), DerivationError> {
         let k = expect_numeric(25, raw)? as u32;
-        Ok((project_to_gf3(k, 5), Confidence::High))
+        Ok((project_to_gf3(k, 5), Confidence(confidence_digit(k, 5))))
     }
 }
 
@@ -508,7 +533,7 @@ impl DerivationRule for DeriveAuditStatus {
             "audited" | "soc2" | "iso27001" | "verified" | "certified" => Trit::V3,
             _ => Trit::V1,
         };
-        Ok((trit, Confidence::High))
+        Ok((trit, Confidence::MAX))
     }
 }
 
@@ -592,6 +617,28 @@ mod tests {
         assert_eq!(project_to_gf3(100, 6), Trit::V3);
     }
 
+    // ── Confidence Formula Tests (§4.1) ─────────────────────────────
+
+    #[test]
+    fn confidence_digit_formula() {
+        assert_eq!(confidence_digit(5, 10), 5);
+        assert_eq!(confidence_digit(1, 6), 5);
+        assert_eq!(confidence_digit(0, 5), 9);
+        assert_eq!(confidence_digit(5, 5), 9);
+        assert_eq!(confidence_digit(1, 3), 1);
+        assert_eq!(confidence_digit(2, 3), 1);
+    }
+
+    #[test]
+    fn confidence_digit_range() {
+        for n in 1..=10u32 {
+            for k in 0..=n {
+                let c = confidence_digit(k, n);
+                assert!(c >= 1 && c <= 9, "k={} n={} → c={} out of range", k, n, c);
+            }
+        }
+    }
+
     // ── Rule Coverage ────────────────────────────────────────────────
 
     #[test]
@@ -610,11 +657,11 @@ mod tests {
         let rule = DeriveEntityKind;
         let (t, c) = rule.derive(&RawValue::Pattern("government".into())).unwrap();
         assert_eq!(t, Trit::V3);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
 
         let (t, c) = rule.derive(&RawValue::Pattern("personal".into())).unwrap();
         assert_eq!(t, Trit::V1);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
     }
 
     #[test]
@@ -630,7 +677,7 @@ mod tests {
         let rule = DeriveOperatorTransparency;
         let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
         assert_eq!(t, Trit::V1);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
 
         let (t, _) = rule.derive(&RawValue::Numeric(2.0)).unwrap();
         assert_eq!(t, Trit::V2);
@@ -670,7 +717,7 @@ mod tests {
         let rule = DeriveEncryption;
         let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
         assert_eq!(t, Trit::V1);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
 
         let (t, _) = rule.derive(&RawValue::Numeric(2.0)).unwrap();
         assert_eq!(t, Trit::V2);
@@ -684,7 +731,7 @@ mod tests {
         let rule = DeriveLatencyProfile;
         let (t, c) = rule.derive(&RawValue::Numeric(0.0)).unwrap();
         assert_eq!(t, Trit::V1);
-        assert_eq!(c, Confidence::High);
+        assert_eq!(c, Confidence::MAX);
 
         let (t, _) = rule.derive(&RawValue::Numeric(3.0)).unwrap();
         assert_eq!(t, Trit::V2);
@@ -733,17 +780,17 @@ mod tests {
     }
 
     #[test]
-    fn all_quantitative_always_high_confidence() {
+    fn all_confidence_in_valid_range() {
         let rules = all_rules();
         for k in 0..=10u32 {
             for rule in &rules {
                 if let Ok((_, conf)) = rule.derive(&RawValue::Numeric(k as f64)) {
-                    assert_eq!(conf, Confidence::High,
-                        "dim {} with k={} should be High confidence", rule.dimension(), k);
+                    assert!(conf.0 >= 1 && conf.0 <= 9,
+                        "dim {} with k={} confidence {} out of range", rule.dimension(), k, conf.0);
                 }
                 if let Ok((_, conf)) = rule.derive(&RawValue::Pattern("test".into())) {
-                    assert_eq!(conf, Confidence::High,
-                        "dim {} with pattern should be High confidence", rule.dimension());
+                    assert_eq!(conf, Confidence::MAX,
+                        "dim {} categorical should be MAX confidence", rule.dimension());
                 }
             }
         }
