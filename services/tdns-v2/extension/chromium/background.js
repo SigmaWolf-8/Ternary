@@ -25,6 +25,8 @@ function tryResolve(name, callback) {
 
 chrome.runtime.onInstalled.addListener(function() {
   chrome.storage.local.set({ version: "2.3.4" });
+  chrome.action.setBadgeText({ text: "T" });
+  chrome.action.setBadgeBackgroundColor({ color: "#d4a017" });
 });
 
 chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
