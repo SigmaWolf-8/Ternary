@@ -72,6 +72,7 @@ pub enum RawValue {
 /// Range: 1 (on boundary, lowest confidence) to 9 (mid-bin, highest confidence).
 /// Categorical dimensions always return 9 (discrete signal, no ambiguity).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Confidence(pub u8);
 
 impl Confidence {
