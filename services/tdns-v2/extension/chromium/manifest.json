@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "PlenumNET TDNS Resolver",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Resolve .plm addresses via the PlenumNET Ternary Domain Name System",
   "author": "Capomastro Holdings Ltd.",
-  "permissions": ["storage"],
-  "host_permissions": [],
+  "permissions": ["declarativeNetRequest", "storage"],
+  "host_permissions": ["*://*.plm/*", "https://plenumnet.replit.app/*"],
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
@@ -25,11 +25,11 @@
   "omnibox": {
     "keyword": "plm"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_start"
-    }
-  ]
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "plm_redirect",
+      "enabled": true,
+      "path": "rules.json"
+    }]
+  }
 }
