@@ -1,11 +1,11 @@
 @echo off
-title PlenumNET TDNS Extension Installer
+title PlenumNET TDNS Extension Installer v2.3.2
 echo.
 echo   PlenumNET TDNS - Browser Extension Installer
 echo.
 
 set "INSTALL_DIR=%LOCALAPPDATA%\PlenumNET\tdns-extension"
-set "GH_RAW=https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension/chromium"
+set "GH_RAW=https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium"
 
 if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 mkdir "%INSTALL_DIR%" 2>nul
@@ -17,7 +17,8 @@ powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('
 powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/content.js', '%INSTALL_DIR%\content.js')"
 powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.html', '%INSTALL_DIR%\popup.html')"
 powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.js', '%INSTALL_DIR%\popup.js')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/rules.json', '%INSTALL_DIR%\rules.json')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/resolve.html', '%INSTALL_DIR%\resolve.html')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.js', '%INSTALL_DIR%\report.js')"
 powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icon16.png', '%INSTALL_DIR%\icon16.png')"
 powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icon48.png', '%INSTALL_DIR%\icon48.png')"
 powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icon128.png', '%INSTALL_DIR%\icon128.png')"
@@ -34,8 +35,8 @@ echo|set /p="%INSTALL_DIR%"| clip
 
 echo   Folder path copied to clipboard.
 echo.
-echo   Opening Edge extensions page...
-start edge://extensions
+echo   Opening Chrome extensions page...
+start chrome://extensions
 
 echo.
 echo   TO FINISH:
