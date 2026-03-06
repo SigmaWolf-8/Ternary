@@ -1,7 +1,34 @@
 // PlenumNET TDNS Resolver — Background Service Worker
 // Capomastro Holdings Ltd. — Applied Physics Division
 
-const TDNS_API = 'http://localhost:3927';
+const TDNS_LOCAL   = 'http://localhost:3927';
+const TDNS_REMOTE  = 'https://plenumnet.replit.app/api/tdns';
+
+// ─── Endpoint Resolution ───────────────────────────────────────────────────
+// Try local Docker first; fall back to live PlenumNET instance.
+// Result cached in storage for 60 seconds to avoid per-request probing.
+
+async function getTdnsBase() {
+  const cached = await chrome.storage.local.get(['tdns_base', 'tdns_base_ts']);
+  const age    = Date.now() - (cached.tdns_base_ts || 0);
+  if (cached.tdns_base && age < 60_000) return cached.tdns_base;
+
+  try {
+    const r = await fetch(`${TDNS_LOCAL}/api/v1/health`, { signal: AbortSignal.timeout(1500) });
+    if (r.ok) {
+      await chrome.storage.local.set({ tdns_base: TDNS_LOCAL, tdns_base_ts: Date.now() });
+      return TDNS_LOCAL;
+    }
+  } catch (_) {}
+
+  await chrome.storage.local.set({ tdns_base: TDNS_REMOTE, tdns_base_ts: Date.now() });
+  return TDNS_REMOTE;
+}
+
+// Build a full URL: local uses /api/v1/PATH, remote uses /PATH (proxy strips prefix)
+function buildUrl(base, path) {
+  return base === TDNS_LOCAL ? `${base}/api/v1${path}` : `${base}${path}`;
+}
 
 // ─── Omnibox: type "plm google" to resolve google.plm ─────────────────────
 
@@ -18,7 +45,8 @@ chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
   const plmName = name.endsWith('.plm') ? name : name + '.plm';
 
   try {
-    const resp = await fetch(`${TDNS_API}/api/v1/resolve/${plmName}`);
+    const base = await getTdnsBase();
+    const resp = await fetch(buildUrl(base, `/resolve/${plmName}`));
     if (resp.ok) {
       const data = await resp.json();
       suggest([{
@@ -97,42 +125,50 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'resolve') {
-    fetch(`${TDNS_API}/api/v1/resolve/${msg.name}`)
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
+    getTdnsBase().then(base => {
+      fetch(buildUrl(base, `/resolve/${msg.name}`))
+        .then(r => r.json())
+        .then(data => sendResponse({ ok: true, data, endpoint: base }))
+        .catch(err => sendResponse({ ok: false, error: err.message }));
+    });
     return true;
   }
 
   if (msg.type === 'scan') {
-    fetch(`${TDNS_API}/api/v1/scan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: msg.url })
-    })
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
+    getTdnsBase().then(base => {
+      fetch(buildUrl(base, '/scan'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: msg.url })
+      })
+        .then(r => r.json())
+        .then(data => sendResponse({ ok: true, data, endpoint: base }))
+        .catch(err => sendResponse({ ok: false, error: err.message }));
+    });
     return true;
   }
 
   if (msg.type === 'register') {
-    fetch(`${TDNS_API}/api/v1/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(msg.payload)
-    })
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
+    getTdnsBase().then(base => {
+      fetch(buildUrl(base, '/register'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(msg.payload)
+      })
+        .then(r => r.json())
+        .then(data => sendResponse({ ok: true, data }))
+        .catch(err => sendResponse({ ok: false, error: err.message }));
+    });
     return true;
   }
 
   if (msg.type === 'health') {
-    fetch(`${TDNS_API}/api/v1/health`)
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
+    getTdnsBase().then(base => {
+      fetch(buildUrl(base, '/health'))
+        .then(r => r.json())
+        .then(data => sendResponse({ ok: true, data, endpoint: base }))
+        .catch(err => sendResponse({ ok: false, error: err.message }));
+    });
     return true;
   }
 
