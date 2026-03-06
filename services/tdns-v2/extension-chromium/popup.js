@@ -185,15 +185,15 @@ $('scanBtn').addEventListener('click', () => {
       $('scanProgress').classList.remove('show');
       $('scanBtn').disabled = false;
 
-      if (!resp?.ok) {
-        $('scanError').textContent = `Error: ${resp?.error||'unknown'}`;
+      if (!resp?.ok || !resp?.data?.address) {
+        $('scanError').textContent = `Error: ${resp?.data?.error || resp?.error || 'Scan failed — server may need redeployment'}`;
         $('scanError').classList.add('show');
         return;
       }
 
       const d = resp.data;
       $('scanAddressBox').textContent = d.address;
-      $('scanResultHash').textContent = d.scan_hash.substring(0,16)+'\u2026';
+      $('scanResultHash').textContent = (d.scan_hash || '').substring(0,16)+'\u2026';
       const hEl = $('scanHptpStatus');
       hEl.textContent = d.hptp_mandatory ? '\u26A0 Yes (femtosecond required)' : '\u2713 No';
       hEl.style.color = d.hptp_mandatory ? '#F87171' : '#059669';
