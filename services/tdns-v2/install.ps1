@@ -1,12 +1,12 @@
 <# 
-  PlenumNET TDNS - Browser Extension Installer
+  PlenumNET TDNS - Browser Extension Installer v2.3.2
   Capomastro Holdings Ltd. - Applied Physics Division
   
   Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Continue"
-$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension/chromium"
+$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium"
 $INSTALL_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extension")
 
 Write-Host ""
@@ -33,7 +33,7 @@ try {
 }
 
 # Download each file
-$files = @("manifest.json", "background.js", "content.js", "popup.html", "popup.js", "rules.json", "icon16.png", "icon48.png", "icon128.png")
+$files = @("manifest.json", "background.js", "content.js", "popup.html", "popup.js", "resolve.html", "report.js", "icon16.png", "icon48.png", "icon128.png")
 $downloaded = 0
 
 foreach ($f in $files) {
@@ -41,7 +41,7 @@ foreach ($f in $files) {
     $dest = [System.IO.Path]::Combine($INSTALL_DIR, $f)
     try {
         $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.3")
+        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.2")
         $wc.DownloadFile($url, $dest)
         if (Test-Path $dest) {
             $size = (Get-Item $dest).Length
@@ -80,25 +80,19 @@ Write-Host ""
 # Detect browsers
 $found = @()
 $browsers = @(
-    @{ Name="Edge";    Url="edge://extensions" },
-    @{ Name="Chrome";  Url="chrome://extensions" },
-    @{ Name="Brave";   Url="brave://extensions" },
-    @{ Name="Vivaldi"; Url="vivaldi://extensions" },
-    @{ Name="Opera";   Url="opera://extensions" }
+    @{ Name="Chrome"; Url="chrome://extensions" },
+    @{ Name="Edge";   Url="edge://extensions" },
+    @{ Name="Brave";  Url="brave://extensions" },
+    @{ Name="Vivaldi";Url="vivaldi://extensions" },
+    @{ Name="Opera";  Url="opera://extensions" }
 )
 
-$edgeData = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Edge", "User Data")
-$chromeData = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Google", "Chrome", "User Data")
-$braveData = [System.IO.Path]::Combine($env:LOCALAPPDATA, "BraveSoftware", "Brave-Browser", "User Data")
-$vivaldiData = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Vivaldi", "User Data")
-$operaData = [System.IO.Path]::Combine($env:APPDATA, "Opera Software", "Opera Stable")
-
 $browserPaths = @{
-    "Edge" = $edgeData
-    "Chrome" = $chromeData
-    "Brave" = $braveData
-    "Vivaldi" = $vivaldiData
-    "Opera" = $operaData
+    "Chrome"  = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Google", "Chrome", "User Data")
+    "Edge"    = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Edge", "User Data")
+    "Brave"   = [System.IO.Path]::Combine($env:LOCALAPPDATA, "BraveSoftware", "Brave-Browser", "User Data")
+    "Vivaldi" = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Vivaldi", "User Data")
+    "Opera"   = [System.IO.Path]::Combine($env:APPDATA, "Opera Software", "Opera Stable")
 }
 
 foreach ($b in $browsers) {
