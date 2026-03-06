@@ -1,0 +1,325 @@
+// PlenumNET TDNS — Diagnostic Report Script
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
+// Reads scan data from chrome.storage.session (stored by background.js after every scan).
+
+const CAT_META = {
+  WHO:   { color:'#D4A017', label:'WHO \u2014 Entity Identity' },
+  WHAT:  { color:'#059669', label:'WHAT \u2014 Content & Purpose' },
+  WHERE: { color:'#818CF8', label:'WHERE \u2014 Location & Access' },
+  WHEN:  { color:'#F87171', label:'WHEN \u2014 Time & Availability' },
+  WHY:   { color:'#C084FC', label:'WHY \u2014 Intent & Business Model' },
+  HOW:   { color:'#38BDF8', label:'HOW \u2014 Delivery & Mechanism' },
+  PEACE: { color:'#4ADE80', label:'PEACE \u2014 Security & Trust' },
+};
+
+// Contextual meaning per trit value — production-grade insight text
+const DIM_MEANINGS = [
+  // D1 WHO kind
+  ['Private individual or personal site','Corporate or business entity','Government or educational institution'],
+  // D2 WHO audience
+  ['Internal / self-only access','Limited group or organisation','Open to the general public'],
+  // D3 WHO operator
+  ['No operator identity signals found','Operator presence partially confirmed','Transparent operator: about, contact, legal all present'],
+  // D4 WHO hosting
+  ['Self-hosted or residential infrastructure','Managed hosting or dedicated server','Major cloud provider (AWS/GCP/Azure/Cloudflare/Vercel)'],
+  // D5 WHAT form
+  ['Traditional website serving HTML content','Application or API endpoint','IoT device or embedded system'],
+  // D6 WHAT content
+  ['Text and HTML document delivery','Rich media (images, video, audio)','Live or streaming content'],
+  // D7 WHAT consumer
+  ['Primarily human-facing user interface','Machine-to-machine API consumption','Dual interface: human UI and API'],
+  // D8 WHAT AI
+  ['No ML or AI signals detected','Partial AI integration (personalisation, ranking)','Active ML/AI inference infrastructure'],
+  // D9 WHERE visibility
+  ['Access restricted or server unreachable','Partially accessible \u2014 auth or soft-block detected','Publicly accessible with no access barrier'],
+  // D10 WHERE auth
+  ['No authentication required','Standard password or session-based login','Strong auth: MFA, certificates, or ID verification'],
+  // D11 WHERE scale
+  ['Single-origin server deployment','Multiple servers or basic load balancing','CDN or globally distributed edge network'],
+  // D12 WHERE transport
+  ['Standard HTTP/HTTPS transport','WebSocket persistent connection detected','Raw TCP or non-HTTP custom protocol'],
+  // D13 WHEN era
+  ['Pre-2010 technology stack \u2014 no modern security headers','2010s stack \u2014 partial modern header adoption','2020s stack \u2014 full modern header suite deployed'],
+  // D14 WHEN availability
+  ['Business-hours or scheduled availability','Extended availability window','Continuous 24/7 availability'],
+  // D15 WHEN freshness
+  ['Historical or archival content','Regularly updated current content','Live data or real-time feed'],
+  // D16 WHEN realtime
+  ['Batch processing \u2014 content updated infrequently','Near-real-time with moderate latency','Real-time: WebSocket, SSE, or streaming protocol active'],
+  // D17 WHY money
+  ['No financial transaction capability','Accepts payment via third-party processor','Processes or routes financial transactions directly'],
+  // D18 WHY data
+  ['Minimal data collection detected','Moderate forms, tracking, or analytics present','Heavy data collection: tracking scripts, consent walls, CRM'],
+  // D19 WHY policy
+  ['No privacy or legal policy pages found','Basic privacy and terms pages present','Comprehensive legal framework: GDPR, cookies, accessibility'],
+  // D20 WHY cost
+  ['Free to access \u2014 no paywall detected','Pay-per-use or metered pricing signals','Subscription or recurring revenue model'],
+  // D21 HOW delivery
+  ['Direct unicast delivery from origin','Relay or proxy in the delivery path','Anycast or edge CDN \u2014 closest node serves content'],
+  // D22 HOW direction
+  ['Primarily outbound \u2014 content publisher','Data relaying or proxying traffic','Primarily inbound \u2014 data collector or aggregator'],
+  // D23 HOW updates
+  ['Pull-based \u2014 client must request updates','Subscribe-based \u2014 RSS, Atom, or email','Push-based \u2014 server initiates delivery in real time'],
+  // D24 HOW memory
+  ['Stateless \u2014 no session cookies set','Short-lived session cookies','Long-lived persistent cookies (>30 days)'],
+  // D25 PEACE encryption
+  ['No HTTPS or security headers \u2014 severe risk','Basic HTTPS only \u2014 TLS present but headers missing','Hardened TLS: HSTS, CSP, XCTO, X-Frame-Options all set'],
+  // D26 PEACE trackers
+  ['Heavy tracker presence \u2014 analytics, ads, social, CRM','Moderate tracker presence \u2014 some categories absent','Clean \u2014 no known tracker categories detected'],
+  // D27 PEACE audit
+  ['No security audit or certification evidence','Self-assessed \u2014 penetration testing or bug bounty mentioned','Third-party certified: ISO 27001, SOC 2, PCI DSS, or equivalent'],
+];
+
+function scoreColor(n) {
+  return n >= 75 ? 's-green' : n >= 50 ? 's-gold' : 's-red';
+}
+
+function confPips(c) {
+  let h = '<div class="conf-bar">';
+  for (let i=1; i<=9; i++) {
+    let cls = 'pip';
+    if (i<=c) { cls += ' on'; if (c<=3) cls+=' low'; else if (c<=6) cls+=' mid'; }
+    h += `<div class="${cls}"></div>`;
+  }
+  return h+'</div>';
+}
+
+function renderAddress(address) {
+  const segs = address.split(' ');
+  return segs.map(seg => {
+    const [label, trits] = seg.split(':');
+    return `<div class="seg"><span class="seg-label">${label}</span><span class="seg-trits">${trits}</span></div>`;
+  }).join('');
+}
+
+function scoreLabel(n) {
+  return n>=85?'Excellent':n>=70?'Good':n>=50?'Fair':n>=30?'Poor':'Critical';
+}
+
+function buildInfra(meta) {
+  if (!meta) return '<div class="infra-card"><div class="i-label">Metadata</div><div class="i-value">Not available</div></div>';
+
+  const checks = [
+    { label:'Protocol',        value: meta.isHttps ? 'HTTPS' : 'HTTP \u26A0',   cls: meta.isHttps ? 'good':'bad' },
+    { label:'HTTP Status',     value: meta.statusCode || '\u2014',               cls: meta.statusCode===200?'good':meta.statusCode>=400?'bad':'warn' },
+    { label:'Server',          value: meta.server || '\u2014',                   cls: '' },
+    { label:'Content Type',    value: meta.ct || '\u2014',                       cls: '' },
+    { label:'CDN / Edge',      value: meta.cfRay?'Cloudflare':meta.xCache?'CDN detected':'Not detected', cls: '' },
+    { label:'Cache-Control',   value: meta.cacheCtrl || 'Not set',              cls: !meta.cacheCtrl?'warn':'' },
+    { label:'CORS',            value: meta.cors||'Not set',                     cls: meta.cors==='*'?'warn':meta.cors?'':'bad' },
+    { label:'Alt-Svc (HTTP/3)',value: meta.altSvc||'Not advertised',            cls: meta.altSvc?'good':'' },
+    { label:'Via / Proxy',     value: meta.via||'Direct',                       cls: '' },
+    { label:'Body Read',       value: meta.bodySize ? `${(meta.bodySize/1024).toFixed(1)} KB scanned` : '\u2014', cls:'' },
+    { label:'WebSocket',       value: meta.isWs?'Detected':'No',               cls: meta.isWs?'good':'' },
+    { label:'Server-Sent Events',value:meta.isSse?'Detected':'No',             cls: meta.isSse?'good':'' },
+  ];
+  return checks.map(c =>
+    `<div class="infra-card">
+      <div class="i-label">${c.label}</div>
+      <div class="i-value ${c.cls}">${c.value}</div>
+    </div>`
+  ).join('');
+}
+
+function buildHeaderAudit(meta) {
+  const H = [
+    { name:'Strict-Transport-Security', key:'hsts',          good:true,  note:'Forces HTTPS on all future visits' },
+    { name:'Content-Security-Policy',   key:'csp',           good:true,  note:'Controls which resources may load' },
+    { name:'X-Content-Type-Options',    key:'xcto',          good:true,  note:'Prevents MIME sniffing attacks' },
+    { name:'X-Frame-Options',           key:'xfo',           good:true,  note:'Prevents clickjacking in iframes' },
+    { name:'Permissions-Policy',        key:'permsPolicy',   good:true,  note:'Limits browser feature access' },
+    { name:'Cross-Origin-Opener-Policy',key:'coop',          good:true,  note:'Isolates browsing context' },
+    { name:'Cross-Origin-Embedder-Policy',key:'coep',        good:true,  note:'Enables cross-origin isolation' },
+    { name:'NEL (Network Error Logging)',key:'nel',          good:true,  note:'Reports network failures' },
+    { name:'Report-To / Reporting-Endpoints',key:'reportTo', good:true,  note:'CSP and deprecation reporting' },
+    { name:'Alt-Svc (HTTP/3)',           key:'altSvc',       good:true,  note:'Advertises HTTP/3 support' },
+  ];
+  if (!meta) return '<div style="color:#5A5548;font-size:12px">Header data not available \u2014 rescan to populate</div>';
+  return H.map(h => {
+    const val = meta[h.key];
+    const present = !!val;
+    return `<div class="header-check">
+      <div class="check-icon ${present?'check-present':'check-missing'}">${present?'\u2713':'\u25CF'}</div>
+      <div class="check-name">${h.name} <span style="color:#3A3530;font-size:10px">\u2014 ${h.note}</span></div>
+      <div class="check-value">${present && val.length>3 ? val.substring(0,80)+(val.length>80?'\u2026':'') : present?'present':'missing'}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildFindings(dims, meta, secScore, privScore) {
+  const findings = [];
+  const trits = dims.map(d=>d.value);
+
+  // Security
+  if (!meta?.isHttps)
+    findings.push({sev:'critical',icon:'\u26A0',title:'No HTTPS',desc:'All traffic is transmitted in plaintext. This is a critical security vulnerability. Obtain a TLS certificate immediately.'});
+  if (!meta?.hsts && meta?.isHttps)
+    findings.push({sev:'warn',icon:'\uD83D\uDD12',title:'HSTS Not Set',desc:'Strict-Transport-Security is missing. Users can be downgraded to HTTP by an attacker. Add: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload'});
+  if (!meta?.csp)
+    findings.push({sev:'warn',icon:'\uD83D\uDD12',title:'No Content Security Policy',desc:'Without CSP, injected scripts can execute freely. Implement a policy to restrict resource origins.'});
+  if (!meta?.xcto)
+    findings.push({sev:'warn',icon:'\uD83D\uDD12',title:'X-Content-Type-Options Missing',desc:'Add X-Content-Type-Options: nosniff to prevent MIME-type confusion attacks.'});
+  if (!meta?.xfo)
+    findings.push({sev:'warn',icon:'\uD83D\uDD12',title:'Clickjacking Protection Absent',desc:'X-Frame-Options or CSP frame-ancestors not detected. Your pages can be embedded in malicious iframes.'});
+
+  // Privacy
+  if (trits[25]===1)
+    findings.push({sev:'critical',icon:'\uD83D\uDC41',title:'Heavy Tracker Presence',desc:'Multiple categories of third-party trackers detected (analytics, advertising, social, session replay, CRM). Users have no visibility into this data collection.'});
+  else if (trits[25]===2)
+    findings.push({sev:'warn',icon:'\uD83D\uDC41',title:'Moderate Tracker Presence',desc:'Some tracker categories detected. Consider auditing and reducing third-party script dependencies.'});
+  if (trits[17]===3)
+    findings.push({sev:'warn',icon:'\uD83D\uDCC4',title:'Heavy Data Collection',desc:'Signup forms, tracking scripts, cookie consent walls, and data-sharing signals detected. Ensure GDPR/PIPEDA compliance is in place.'});
+  if (trits[18]===1)
+    findings.push({sev:'warn',icon:'\uD83D\uDCC4',title:'No Legal Policies Found',desc:'No privacy policy or terms of service pages detected. This may create legal liability in most jurisdictions.'});
+
+  // Infrastructure
+  if (trits[12]===1)
+    findings.push({sev:'warn',icon:'\u2699',title:'Legacy Technology Stack',desc:'No modern HTTP security headers present. This suggests a pre-2015 server configuration. Upgrade the web server and deploy current security headers.'});
+  if (trits[10]===1)
+    findings.push({sev:'info',icon:'\u2139',title:'Single-Server Infrastructure',desc:'No CDN or load balancer detected. A single origin point creates a potential availability risk. Consider CloudFlare or similar for DDoS protection.'});
+
+  // Positive findings
+  if (secScore >= 75)
+    findings.push({sev:'info',icon:'\u2713',title:'Strong Security Posture',desc:`Security score of ${secScore}/100. TLS, HSTS, CSP, and additional headers are properly configured.`});
+  if (trits[25]===3)
+    findings.push({sev:'info',icon:'\u2713',title:'Clean Tracker Profile',desc:'No known tracker categories detected. This site respects user privacy at the network level.'});
+  if (trits[26]===3)
+    findings.push({sev:'info',icon:'\u2713',title:'Third-Party Security Certified',desc:'ISO 27001, SOC 2, PCI DSS, or equivalent certification evidence found. Strong compliance posture.'});
+
+  if (findings.length===0)
+    findings.push({sev:'info',icon:'\u2713',title:'No Critical Issues Found',desc:'Scan did not identify major security or privacy issues in the observed signals.'});
+
+  return findings.map(f => `
+    <div class="finding finding-${f.sev==='critical'?'critical':f.sev==='warn'?'warn':'info'}">
+      <div class="finding-icon">${f.icon}</div>
+      <div class="finding-body">
+        <div class="f-title">${f.title}</div>
+        <div class="f-desc">${f.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+function buildDimensions(dimensions) {
+  const cats = {};
+  dimensions.forEach(d => { (cats[d.category]=cats[d.category]||[]).push(d); });
+  return Object.entries(cats).map(([cat, dims]) => {
+    const cm = CAT_META[cat]||{color:'#8A8578',label:cat};
+    const rows = dims.map(d => {
+      const meaning = DIM_MEANINGS[d.number-1]?.[d.value-1]||d.label;
+      return `<div class="dim-row" style="border-left-color:${cm.color}40">
+        <div class="dim-num">${d.number}</div>
+        <div class="dim-trit t${d.value}">${d.value}</div>
+        <div class="dim-q">${d.question}</div>
+        <div class="dim-label" style="color:${cm.color}">${d.label}</div>
+        <div class="dim-meaning">${meaning}</div>
+        ${confPips(d.confidence)}
+      </div>`;
+    }).join('');
+    const tritStr = dims.map(d=>d.value).join('');
+    return `<div class="cat-group">
+      <div class="cat-header" style="background:${cm.color}12;color:${cm.color};border-left:3px solid ${cm.color}">
+        <span>${cm.label}</span>
+        <span style="font-family:monospace;letter-spacing:.15em;font-size:12px">${tritStr}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function buildWire(address, scan_hash, scannedAt, meta) {
+  return `
+    <b>Address</b> &nbsp;<span>${address}</span><br>
+    <b>SHA-256 </b> &nbsp;<span>${scan_hash}</span><br>
+    <b>Scanned</b> &nbsp;<span>${scannedAt||'\u2014'}</span><br>
+    <b>Origin &nbsp;</b> &nbsp;<span>${meta?.url||'\u2014'}</span><br>
+    <b>Status &nbsp;</b> &nbsp;<span>HTTP ${meta?.statusCode||'\u2014'} &nbsp;|&nbsp; ${meta?.isHttps?'TLS secured':'Plain HTTP'} &nbsp;|&nbsp; ${meta?.bodySize?(meta.bodySize/1024).toFixed(1)+' KB scanned':'body unavailable'}</span>`;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const params   = new URLSearchParams(window.location.search);
+  const hostname = params.get('name') || params.get('hostname');
+
+  if (!hostname) {
+    document.getElementById('stateLoading').style.display = 'none';
+    document.getElementById('stateError').style.display   = 'block';
+    document.getElementById('errorDetail').textContent = 'No hostname parameter in URL.';
+    return;
+  }
+
+  // Try session storage first (fastest — scan just ran)
+  const key = 'scan_' + hostname.replace(/\./g,'_').replace(/\.plm$/,'');
+
+  let data = null;
+
+  // Request from background (it holds session storage)
+  const fromBg = await new Promise(resolve => {
+    chrome.runtime.sendMessage({ type:'get_scan', hostname }, resp => resolve(resp));
+  });
+  if (fromBg?.ok && fromBg.data) data = fromBg.data;
+
+  if (!data) {
+    // Not in session yet — trigger a fresh scan
+    const tabUrl = hostname.endsWith('.plm')
+      ? `https://${hostname.replace(/\.plm$/,'').replace(/-/g,'.')}`
+      : `https://${hostname}`;
+    const scanResp = await new Promise(resolve => {
+      chrome.runtime.sendMessage({ type:'scan', url:tabUrl }, resp => resolve(resp));
+    });
+    if (scanResp?.ok && scanResp.data) data = scanResp.data;
+  }
+
+  document.getElementById('stateLoading').style.display = 'none';
+
+  if (!data) {
+    document.getElementById('stateError').style.display = 'block';
+    document.getElementById('errorDetail').textContent =
+      `Could not scan ${hostname}. Check network connectivity.`;
+    return;
+  }
+
+  // ── Populate report ────────────────────────────────────────────────────────
+  const meta = data.meta || {};
+  document.title = `${hostname} \u2014 PlenumNET TDNS Report`;
+
+  document.getElementById('topHostname').textContent = hostname;
+  document.getElementById('topScannedAt').textContent = data.scannedAt
+    ? new Date(data.scannedAt).toLocaleString() : '';
+
+  document.getElementById('heroHost').textContent = hostname;
+  document.getElementById('heroUrl').textContent  = meta.url || '';
+
+  document.getElementById('addressSegs').innerHTML = renderAddress(data.address);
+
+  const badges = document.getElementById('heroBadges');
+  badges.innerHTML = `<span class="badge badge-scanned">SCANNED</span>`;
+  if (data.hptp_mandatory)
+    badges.innerHTML += ` <span class="badge badge-hptp">HPTP REQUIRED</span>`;
+
+  // Scores
+  const sec   = data.securityScore   ?? Math.round(((data.dimensions[24].value + data.dimensions[25].value + data.dimensions[26].value)/9)*100);
+  const priv  = data.privacyScore    ?? Math.round(((data.dimensions[25].value + data.dimensions[18].value)/6)*100);
+  const tech  = Math.round((data.dimensions[12].value / 3) * 100);
+  const trust = Math.round((sec*0.4 + priv*0.3 + tech*0.3));
+
+  const setScore = (id, val) => {
+    const el = document.getElementById(id);
+    el.textContent = val;
+    el.className   = 's-value ' + scoreColor(val);
+    el.title       = scoreLabel(val);
+  };
+  setScore('scoreSecId',   sec);
+  setScore('scorePrivId',  priv);
+  setScore('scoreTechId',  tech);
+  setScore('scoreTrustId', trust);
+
+  document.getElementById('infraGrid').innerHTML    = buildInfra(meta);
+  document.getElementById('headerAudit').innerHTML  = buildHeaderAudit(meta);
+  document.getElementById('findingsBody').innerHTML = buildFindings(data.dimensions, meta, sec, priv);
+  document.getElementById('dimensionsBody').innerHTML = buildDimensions(data.dimensions);
+  document.getElementById('wireBlock').innerHTML    = buildWire(data.address, data.scan_hash, data.scannedAt, meta);
+
+  document.getElementById('stateReport').style.display = 'block';
+}
+
+init();
