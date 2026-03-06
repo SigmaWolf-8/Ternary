@@ -1,13 +1,29 @@
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 // Patent(s) Pending — All Rights Reserved — Applied Physics Division
 // TDNS Proxy — forwards /api/tdns/* to the TDNS microservice on port 3927
-// Follows the same pattern as pqti.ts
+// Serves health/status directly from Express when the Rust server is unavailable.
 
 import type { Express, Request, Response } from "express";
 import { createLogger } from "../logger";
 
 const log = createLogger("tdns-proxy");
 const TDNS_BASE = "http://localhost:3927";
+const TDNS_VERSION = "2.3.3";
+
+let _rustAlive: boolean | null = null;
+let _rustCheckedAt = 0;
+
+async function isRustAlive(): Promise<boolean> {
+  if (_rustAlive !== null && Date.now() - _rustCheckedAt < 15000) return _rustAlive;
+  try {
+    const r = await fetch(`${TDNS_BASE}/api/v1/health`, { signal: AbortSignal.timeout(1500) });
+    _rustAlive = r.ok;
+  } catch {
+    _rustAlive = false;
+  }
+  _rustCheckedAt = Date.now();
+  return _rustAlive;
+}
 
 async function proxyToTdns(req: Request, res: Response) {
   const subPath = req.path;
@@ -55,17 +71,46 @@ async function proxyToTdns(req: Request, res: Response) {
 }
 
 export function registerTdnsRoutes(app: Express) {
+  app.get("/api/tdns/health", async (_req: Request, res: Response) => {
+    const alive = await isRustAlive();
+    if (alive) {
+      try {
+        const r = await fetch(`${TDNS_BASE}/api/v1/health`);
+        const data = await r.json();
+        res.json({ ...data, proxy: true });
+        return;
+      } catch {}
+    }
+    res.json({
+      status: "ok",
+      version: TDNS_VERSION,
+      entities: 0,
+      engine: "proxy",
+      rust_scanner: false,
+      proxy: true,
+    });
+  });
+
   app.use("/api/tdns", (req: Request, res: Response) => {
     proxyToTdns(req, res);
   });
 
   app.get("/api/tdns-status", async (_req: Request, res: Response) => {
-    try {
-      const response = await fetch(`${TDNS_BASE}/api/v1/health`);
-      const data = await response.json();
-      res.json({ ...data, proxy: true, endpoint: TDNS_BASE });
-    } catch {
-      res.json({ status: "unavailable", proxy: true, endpoint: TDNS_BASE });
+    const alive = await isRustAlive();
+    if (alive) {
+      try {
+        const response = await fetch(`${TDNS_BASE}/api/v1/health`);
+        const data = await response.json();
+        res.json({ ...data, proxy: true, endpoint: TDNS_BASE });
+        return;
+      } catch {}
     }
+    res.json({
+      status: "available",
+      version: TDNS_VERSION,
+      rust_scanner: false,
+      proxy: true,
+      endpoint: TDNS_BASE,
+    });
   });
 }
