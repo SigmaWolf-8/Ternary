@@ -1,59 +1,57 @@
 {
   "manifest_version": 3,
-  "name": "PlenumNET \u2014 TDNS Resolver",
-  "version": "2.3.3",
-  "description": "Resolve .plm addresses via the Ternary Domain Name System. 27-dimensional ontological addressing for PlenumNET.",
-  "author": "Capomastro Holdings Ltd. \u2014 Applied Physics Division",
-  "permissions": [
-    "activeTab",
-    "alarms",
-    "storage",
-    "webNavigation"
-  ],
-  "omnibox": {
-    "keyword": "plm"
+  "name": "PlenumNET TDNS Scanner",
+  "version": "1.0.1",
+  "description": "27-dimensional ontological network intelligence. Cryptographic address, five GF(3) scores, security audit, and tracker detection for any URL — in under 10 seconds.",
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
-  "host_permissions": [
-    "https://plenumnet.replit.app/*",
-    "https://raw.githubusercontent.com/*",
-    "http://localhost:3927/*"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
+
   "action": {
-    "default_popup": "popup.html",
+    "default_popup":  "popup.html",
+    "default_title":  "PlenumNET TDNS Scanner",
     "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
     }
   },
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   },
+
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "run_at": "document_start"
+      "matches":    ["<all_urls>"],
+      "js":         ["content.js"],
+      "run_at":     "document_idle",
+      "all_frames": false
     }
   ],
+
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://plenumnet.replit.app/*"
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+
   "web_accessible_resources": [
     {
-      "resources": [
-        "resolve.html",
-        "report.js"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["dimensions.json", "report.html", "report.js"],
+      "matches":   ["<all_urls>"]
     }
   ]
 }
