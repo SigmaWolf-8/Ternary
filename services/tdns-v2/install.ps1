@@ -1,12 +1,12 @@
 <# 
-  PlenumNET TDNS - Browser Extension Installer v2.3.2
+  PlenumNET TDNS - Browser Extension Installer v2.3.3
   Capomastro Holdings Ltd. - Applied Physics Division
   
   Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Continue"
-$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium"
+$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/extension-chromium"
 $INSTALL_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extension")
 
 Write-Host ""
@@ -21,6 +21,7 @@ try {
         Write-Host "  Cleaned old install" -ForegroundColor DarkGray
     }
     [System.IO.Directory]::CreateDirectory($INSTALL_DIR) | Out-Null
+    [System.IO.Directory]::CreateDirectory([System.IO.Path]::Combine($INSTALL_DIR, "icons")) | Out-Null
     if (-not (Test-Path $INSTALL_DIR)) {
         Write-Host "  ERROR: Failed to create directory: $INSTALL_DIR" -ForegroundColor Red
         Write-Host "  Try running PowerShell as Administrator" -ForegroundColor Yellow
@@ -33,28 +34,38 @@ try {
 }
 
 # Download each file
-$files = @("manifest.json", "background.js", "content.js", "popup.html", "popup.js", "resolve.html", "report.js", "icon16.png", "icon48.png", "icon128.png")
+$files = @(
+    @{ Name="manifest.json"; Dest="manifest.json" },
+    @{ Name="background.js"; Dest="background.js" },
+    @{ Name="content.js"; Dest="content.js" },
+    @{ Name="popup.html"; Dest="popup.html" },
+    @{ Name="popup.js"; Dest="popup.js" },
+    @{ Name="dimensions.json"; Dest="dimensions.json" },
+    @{ Name="icons/icon16.png"; Dest="icons\icon16.png" },
+    @{ Name="icons/icon48.png"; Dest="icons\icon48.png" },
+    @{ Name="icons/icon128.png"; Dest="icons\icon128.png" }
+)
 $downloaded = 0
 
 foreach ($f in $files) {
-    $url = "$GH_RAW/$f"
-    $dest = [System.IO.Path]::Combine($INSTALL_DIR, $f)
+    $url = "$GH_RAW/$($f.Name)"
+    $dest = [System.IO.Path]::Combine($INSTALL_DIR, $f.Dest)
     try {
         $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.2")
+        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.3")
         $wc.DownloadFile($url, $dest)
         if (Test-Path $dest) {
             $size = (Get-Item $dest).Length
             if ($size -gt 0) {
                 $downloaded++
             } else {
-                Write-Host "  [FAIL] $f - empty file" -ForegroundColor Red
+                Write-Host "  [FAIL] $($f.Name) - empty file" -ForegroundColor Red
             }
         } else {
-            Write-Host "  [FAIL] $f - file not saved" -ForegroundColor Red
+            Write-Host "  [FAIL] $($f.Name) - file not saved" -ForegroundColor Red
         }
     } catch {
-        Write-Host "  [FAIL] $f - $_" -ForegroundColor Red
+        Write-Host "  [FAIL] $($f.Name) - $_" -ForegroundColor Red
     }
 }
 
@@ -62,7 +73,7 @@ Write-Host "  [OK] Downloaded $downloaded of $($files.Count) files" -ForegroundC
 Write-Host ""
 
 # Verify folder exists and has files
-$actualFiles = Get-ChildItem $INSTALL_DIR -ErrorAction SilentlyContinue
+$actualFiles = Get-ChildItem $INSTALL_DIR -Recurse -File -ErrorAction SilentlyContinue
 if ($actualFiles.Count -eq 0) {
     Write-Host "  ERROR: No files in $INSTALL_DIR" -ForegroundColor Red
     Write-Host "  Downloads may have failed. Check your internet connection." -ForegroundColor Yellow
@@ -71,7 +82,7 @@ if ($actualFiles.Count -eq 0) {
 
 Write-Host "  Installed files:" -ForegroundColor DarkGray
 foreach ($af in $actualFiles) {
-    $afName = $af.Name
+    $afName = $af.FullName.Replace($INSTALL_DIR + "\", "")
     $afSize = $af.Length
     Write-Host "    $afName ($afSize bytes)" -ForegroundColor DarkGray
 }
