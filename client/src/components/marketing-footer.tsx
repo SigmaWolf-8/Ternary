@@ -111,7 +111,8 @@ export function MarketingFooter() {
           ))}
         </div>
 
-        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground">
+        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground space-y-1">
+          <p>Capomastro Holdings Ltd. — Applied Physics Division, Alberta, Canada</p>
           <p>All Rights Reserved and Preserved | &copy; Capomastro Holdings Ltd 2026</p>
         </div>
       </div>

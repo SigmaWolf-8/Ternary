@@ -1110,7 +1110,7 @@ function PerformanceSection() {
       value: String(PLATFORM.BENCH_KANI_PROOFS),
       unit: "proofs",
       label: "Formal Verification",
-      detail: "Kani bounded model checking proofs across GF(3) arithmetic, constant-time crypto, and VM memory safety.",
+      detail: "Kani bounded model checking proofs across GF(3) arithmetic, constant-time crypto, and VM memory safety. Continuous penetration test hardening via MIRI undefined-behaviour detection.",
     },
   ];
 
@@ -1900,8 +1900,16 @@ function Footer() {
           ))}
         </div>
 
-        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground">
+        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground space-y-1">
+          <p>Capomastro Holdings Ltd. — Applied Physics Division, Alberta, Canada</p>
           <p>All Rights Reserved and Preserved | &copy; Capomastro Holdings Ltd 2026</p>
+          <p className="text-xs opacity-60">
+            <a href="/privacy" className="hover:text-primary">Privacy Policy</a>
+            {" · "}
+            <a href="/terms" className="hover:text-primary">Terms of Service</a>
+            {" · "}
+            <a href="/security" className="hover:text-primary">Security Policy</a>
+          </p>
         </div>
       </div>
     </footer>

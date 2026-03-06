@@ -30,7 +30,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { securityHeaders } from "./middleware/security-headers";
+import { securityHeaders, additionalSecurityHeaders } from "./middleware/security-headers";
 import { corsMiddleware } from "./middleware/cors-config";
 import { globalLimiter } from "./middleware/rate-limiter";
 import { spawn, type ChildProcess } from "child_process";
@@ -143,6 +143,7 @@ declare module "http" {
 }
 
 app.use(securityHeaders);
+app.use(additionalSecurityHeaders);
 app.use(corsMiddleware);
 app.use("/api/", globalLimiter);
 

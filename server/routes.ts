@@ -98,6 +98,22 @@ export async function registerRoutes(
     next();
   });
 
+  app.get("/.well-known/security.txt", (_req, res) => {
+    res.type("text/plain").send(
+      `Contact: mailto:security@capomastroholdings.com\n` +
+      `Contact: mailto:RSalvi@Salvigroup.com\n` +
+      `Expires: 2027-01-01T00:00:00.000Z\n` +
+      `Preferred-Languages: en\n` +
+      `Canonical: https://plenumnet.replit.app/.well-known/security.txt\n` +
+      `Policy: https://plenumnet.replit.app/security\n` +
+      `Encryption: https://plenumnet.replit.app/api/tdns/health\n`
+    );
+  });
+
+  app.post("/api/csp-reports", (req, res) => {
+    res.status(204).end();
+  });
+
   const legalDocMap: Record<string, { file: string; title: string }> = {
     terms: { file: "TERMS-OF-SERVICE.md", title: "Terms of Service" },
     privacy: { file: "PRIVACY-POLICY.md", title: "Privacy Policy" },

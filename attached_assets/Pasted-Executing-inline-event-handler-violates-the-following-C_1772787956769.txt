@@ -1,0 +1,906 @@
+Executing inline event handler violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-...'), or a nonce ('nonce-...') is required to enable inline execution. Note that hashes do not apply to event handlers, style attributes and javascript: navigations unless the 'unsafe-hashes' keyword is present. The action has been blocked.
+
+
+
+Context
+
+extension://lafjkkfblkonikgdpakiahjpolhgjfhh/report.html
+
+Stack Trace
+
+report.html:342 (anonymous function)
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290
+291
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+336
+337
+338
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361
+362
+363
+364
+365
+366
+367
+368
+369
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400
+401
+402
+403
+404
+405
+406
+407
+408
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419
+420
+421
+422
+423
+424
+425
+426
+427
+428
+429
+430
+431
+432
+433
+434
+435
+436
+437
+438
+439
+440
+441
+442
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PlenumNET TDNS — Scan Report</title>
+  <style>
+    /* ── Screen styles ──────────────────────────────────────────────────── */
+    :root {
+      --bg:     #090807;
+      --card:   #111010;
+      --border: #2a2826;
+      --gold:   #D4A017;
+      --fg:     #E4DFD5;
+      --muted:  #7a7570;
+      --dim:    #4a4542;
+      --green:  #059669;
+      --red:    #EF4444;
+      --amber:  #F59E0B;
+      --blue:   #3B82F6;
+      --mono:   'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size:   13px;
+      line-height: 1.6;
+      background:  var(--bg);
+      color:       var(--fg);
+      padding:     32px 40px;
+      max-width:   820px;
+      margin:      0 auto;
+    }
+
+    /* ── Print toolbar (screen only) ────────────────────────────────────── */
+    .print-toolbar {
+      position:      fixed;
+      top:           16px;
+      right:         16px;
+      display:       flex;
+      gap:           8px;
+      z-index:       100;
+    }
+    .btn-print {
+      background:  var(--gold);
+      color:       var(--bg);
+      border:      none;
+      border-radius: 6px;
+      padding:     8px 18px;
+      font-size:   13px;
+      font-weight: 700;
+      cursor:      pointer;
+      letter-spacing: .04em;
+    }
+    .btn-print:hover { opacity: .88; }
+    .btn-close {
+      background:  var(--card);
+      color:       var(--muted);
+      border:      1px solid var(--border);
+      border-radius: 6px;
+      padding:     8px 14px;
+      font-size:   13px;
+      cursor:      pointer;
+    }
+    .btn-close:hover { color: var(--fg); }
+
+    /* ── Report header ──────────────────────────────────────────────────── */
+    .report-header {
+      display:       flex;
+      align-items:   flex-start;
+      justify-content: space-between;
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--gold);
+      margin-bottom: 24px;
+    }
+    .brand {
+      display:     flex;
+      align-items: center;
+      gap:         10px;
+    }
+    .brand svg { width: 32px; height: 32px; }
+    .brand-text h1 {
+      font-size:   18px;
+      font-weight: 700;
+      color:       var(--gold);
+      letter-spacing: .05em;
+    }
+    .brand-text p { font-size: 11px; color: var(--muted); }
+    .report-meta { text-align: right; }
+    .report-meta .scan-url {
+      font-family: var(--mono);
+      font-size:   12px;
+      color:       var(--gold);
+      margin-bottom: 4px;
+    }
+    .report-meta .meta-line { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+
+    /* ── Section layout ─────────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 28px;
+    }
+    .section-title {
+      font-size:      11px;
+      font-weight:    700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color:          var(--muted);
+      border-bottom:  1px solid var(--border);
+      padding-bottom: 6px;
+      margin-bottom:  14px;
+    }
+
+    /* ── Address block ──────────────────────────────────────────────────── */
+    .address-block {
+      background:    var(--card);
+      border:        1px solid var(--border);
+      border-radius: 8px;
+      padding:       16px 20px;
+      margin-bottom: 20px;
+    }
+    .address-string {
+      font-family:   var(--mono);
+      font-size:     16px;
+      font-weight:   700;
+      color:         var(--gold);
+      letter-spacing: .05em;
+      margin-bottom: 8px;
+    }
+    .hptp-badge {
+      display:       inline-block;
+      background:    var(--gold);
+      color:         var(--bg);
+      font-size:     9px;
+      font-weight:   700;
+      padding:       2px 7px;
+      border-radius: 3px;
+      letter-spacing: .07em;
+      margin-left:   10px;
+      vertical-align: middle;
+    }
+    .addr-meta {
+      display:  flex;
+      gap:      24px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color:    var(--muted);
+      margin-top: 6px;
+    }
+    .addr-meta span { font-family: var(--mono); font-size: 10px; }
+
+    /* ── Score cards ────────────────────────────────────────────────────── */
+    .scores-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:     8px;
+      margin-bottom: 24px;
+    }
+    .score-card {
+      background:    var(--card);
+      border:        1px solid var(--border);
+      border-radius: 8px;
+      padding:       14px 10px;
+      text-align:    center;
+    }
+    .score-val  { font-size: 28px; font-weight: 700; line-height: 1; }
+    .score-lbl  { font-size: 9px; text-transform: uppercase; letter-spacing: .07em; margin: 4px 0 2px; }
+    .score-name { font-size: 9px; color: var(--muted); }
+
+    /* ── Findings ───────────────────────────────────────────────────────── */
+    .finding {
+      display:       flex;
+      gap:           10px;
+      padding:       10px 12px;
+      border-radius: 6px;
+      border:        1px solid transparent;
+      margin-bottom: 6px;
+    }
+    .finding-critical { background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.3); }
+    .finding-warning  { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.3); }
+    .finding-info     { background: rgba(59,130,246,.06); border-color: rgba(59,130,246,.2); }
+    .f-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:6px; }
+    .f-critical { background: var(--red); }
+    .f-warning  { background: var(--amber); }
+    .f-info     { background: var(--blue); }
+    .f-title  { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+    .f-msg    { font-size: 11px; color: var(--muted); }
+    .f-dim    { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 3px; }
+    .finding-critical .f-title { color: var(--red); }
+    .finding-warning  .f-title { color: var(--amber); }
+    .finding-info     .f-title { color: var(--blue); }
+
+    /* ── Dimension table ────────────────────────────────────────────────── */
+    .dim-table { width: 100%; border-collapse: collapse; }
+    .dim-table th {
+      text-align:     left;
+      font-size:      9px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color:          var(--muted);
+      padding:        4px 8px 4px 0;
+      border-bottom:  1px solid var(--border);
+    }
+    .dim-table td {
+      padding:        6px 8px 6px 0;
+      border-bottom:  1px solid var(--border);
+      font-size:      11px;
+      vertical-align: top;
+    }
+    .dim-table tr:last-child td { border-bottom: none; }
+    .trit-num {
+      display:       inline-flex;
+      align-items:   center;
+      justify-content: center;
+      width:  20px; height: 20px;
+      border-radius: 4px;
+      font-size:     13px;
+      font-weight:   700;
+      border:        1px solid;
+    }
+    .dim-num-cell  { font-family: var(--mono); font-size: 9px; color: var(--dim); width: 34px; }
+    .dim-axis-cell { font-size: 9px; font-weight: 700; width: 46px; }
+    .dim-q-cell    { color: var(--muted); font-size: 10px; }
+    .dim-lbl-cell  { font-weight: 600; font-size: 11px; }
+    .dim-mean-cell { color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .conf-row      { display: flex; gap: 1.5px; }
+    .pip           { width: 4px; height: 4px; border-radius: 1px; background: var(--border); }
+    .pip.on        { background: var(--green); }
+
+    /* ── Headers table ──────────────────────────────────────────────────── */
+    .hdr-table { width: 100%; border-collapse: collapse; }
+    .hdr-table th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
+    .hdr-table td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border); font-size: 11px; vertical-align: top; }
+    .hdr-table tr:last-child td { border-bottom: none; }
+    .hdr-name { font-family: var(--mono); font-size: 10px; }
+    .hdr-val  { font-family: var(--mono); font-size: 9px; color: var(--muted); word-break: break-all; max-width: 160px; }
+    .hdr-purpose { font-size: 10px; color: var(--muted); }
+
+    /* ── Tracker rows ───────────────────────────────────────────────────── */
+    .tracker-row-full {
+      padding:       10px 14px;
+      border-radius: 6px;
+      border:        1px solid var(--border);
+      margin-bottom: 6px;
+      background:    var(--card);
+    }
+    .tracker-row-full.det-critical { border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.06); }
+    .tracker-row-full.det-high     { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.05); }
+    .tracker-row-full.det-medium   { border-color: rgba(59,130,246,.2); background: rgba(59,130,246,.04); }
+    .tr-header  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .tr-name    { font-size: 12px; font-weight: 600; }
+    .tr-sens    { font-size: 9px; padding: 1px 6px; border-radius: 3px; font-weight: 700; text-transform: uppercase; }
+    .sens-c     { background: rgba(239,68,68,.2);  color: var(--red); }
+    .sens-h     { background: rgba(245,158,11,.2); color: var(--amber); }
+    .sens-m     { background: rgba(59,130,246,.15);color: var(--blue); }
+    .tr-domains { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-bottom: 3px; }
+    .tr-law     { font-size: 10px; color: var(--muted); }
+    .tr-clean   { font-size: 10px; color: var(--green); }
+
+    /* ── Attestation footer ─────────────────────────────────────────────── */
+    .attestation {
+      margin-top:   32px;
+      padding:      16px 20px;
+      background:   var(--card);
+      border:       1px solid var(--border);
+      border-radius: 8px;
+      font-size:    10px;
+      color:        var(--muted);
+      display:      grid;
+      grid-template-columns: 1fr auto;
+      gap:          12px;
+      align-items:  center;
+    }
+    .attestation .hash-block {
+      font-family: var(--mono);
+      font-size:   9px;
+      color:       var(--dim);
+      word-break:  break-all;
+    }
+    .attestation .plm-logo { color: var(--gold); font-weight: 700; font-size: 11px; }
+
+    /* ── No data ────────────────────────────────────────────────────────── */
+    #no-data {
+      text-align: center;
+      padding:    80px 40px;
+      color:      var(--muted);
+    }
+    #no-data h2 { color: var(--fg); margin-bottom: 12px; }
+
+    /* ── PRINT STYLES ───────────────────────────────────────────────────── */
+    @media print {
+      @page {
+        size:   A4;
+        margin: 18mm 16mm 18mm 16mm;
+      }
+
+      body {
+        background: #fff !important;
+        color:      #111 !important;
+        font-size:  10.5pt;
+        padding:    0;
+        max-width:  none;
+      }
+
+      :root {
+        --bg:     #fff;
+        --card:   #f8f8f8;
+        --border: #ddd;
+        --gold:   #B8860B;
+        --fg:     #111;
+        --muted:  #555;
+        --dim:    #999;
+        --green:  #0a7840;
+        --red:    #c0392b;
+        --amber:  #d4860b;
+        --blue:   #2563eb;
+      }
+
+      .print-toolbar { display: none !important; }
+
+      .section { page-break-inside: avoid; }
+      .dim-table tr { page-break-inside: avoid; }
+      .finding  { page-break-inside: avoid; }
+
+      .address-block, .score-card, .finding,
+      .tracker-row-full, .attestation {
+        border: 1pt solid #ccc !important;
+      }
+
+      .finding-critical { background: #fff5f5 !important; }
+      .finding-warning  { background: #fffbf0 !important; }
+      .finding-info     { background: #f0f5ff !important; }
+
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Print toolbar (screen only) -->
+  <div class="print-toolbar">
+    <button class="btn-print" id="btn-do-print">⎙ Print / Save PDF</button>
+    <button class="btn-close" id="btn-do-close">✕ Close</button>
+  </div>
+
+  <!-- No data fallback -->
+  <div id="no-data">
+    <h2>No scan data available</h2>
+    <p>Run a scan from the PlenumNET TDNS extension popup first.</p>
+  </div>
+
+  <!-- Report root -->
+  <div id="report-root" style="display:none">
+
+    <!-- Header -->
+    <div class="report-header">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="16,2 30,9 30,23 16,30 2,23 2,9" fill="none" stroke="#D4A017" stroke-width="2"/>
+          <polygon points="16,8 24,12.5 24,21 16,25.5 8,21 8,12.5" fill="rgba(212,160,23,0.12)" stroke="#D4A017" stroke-width="1.2"/>
+          <circle cx="16" cy="16" r="2.5" fill="#D4A017"/>
+        </svg>
+        <div class="brand-text">
+          <h1>PlenumNET TDNS</h1>
+          <p>27-Dimensional Ontological Network Intelligence Report</p>
+        </div>
+      </div>
+      <div class="report-meta">
+        <div class="scan-url" id="r-url">—</div>
+        <div class="meta-line" id="r-timestamp">—</div>
+        <div class="meta-line" id="r-tier">—</div>
+      </div>
+    </div>
+
+    <!-- Address -->
+    <div class="address-block">
+      <div class="address-string" id="r-address">—
+        <span class="hptp-badge" id="r-hptp" style="display:none">HPTP-MANDATORY</span>
+      </div>
+      <div class="addr-meta">
+        <div>CRD <span id="r-crd">—</span></div>
+        <div id="r-hash-algo">HASH</div>: <span id="r-hash" style="font-family:var(--mono);font-size:10px;color:var(--dim)">—</span>
+      </div>
+    </div>
+
+    <!-- Scores -->
+    <div class="scores-row" id="r-scores"></div>
+
+    <!-- Findings -->
+    <div class="section">
+      <div class="section-title">Security Findings <span id="r-findings-count"></span></div>
+      <div id="r-findings"></div>
+    </div>
+
+    <!-- 27 Dimensions -->
+    <div class="section">
+      <div class="section-title">27-Dimensional Breakdown</div>
+      <table class="dim-table">
+        <thead>
+          <tr>
+            <th>Dim</th><th>Axis</th><th>T</th><th>Question</th><th>Label</th><th>Meaning</th><th>Conf</th>
+          </tr>
+        </thead>
+        <tbody id="r-dims"></tbody>
+      </table>
+    </div>
+
+    <!-- Security Headers -->
+    <div class="section">
+      <div class="section-title">Security Header Audit</div>
+      <table class="hdr-table">
+        <thead>
+          <tr><th></th><th>Header</th><th>Value</th><th>Purpose</th><th>Dim</th></tr>
+        </thead>
+        <tbody id="r-headers"></tbody>
+      </table>
+    </div>
+
+    <!-- Tracker Intelligence -->
+    <div class="section">
+      <div class="section-title">Tracker & Privacy Intelligence</div>
+      <div id="r-trackers"></div>
+    </div>
+
+    <!-- Attestation -->
+    <div class="attestation">
+      <div>
+        <div style="margin-bottom:6px"><span class="plm-logo">PlenumNET</span> — Capomastro Holdings Ltd., Applied Physics Division, Alberta, Canada</div>
+        <div class="hash-block">Scan Hash (<span id="r-algo-name">—</span>): <span id="r-full-hash">—</span></div>
+        <div style="margin-top:4px;font-size:9px">This report is a point-in-time snapshot. For legal or compliance use, request a TSA-attested scan (Phase 4). Patent(s) Pending — All Rights Reserved.</div>
+      </div>
+      <div style="text-align:right;font-size:9px;color:var(--dim)">
+        TDNS v2.3.3<br>Extension v1.0.1<br>GF(3) · Rep C · BLAKE3
+      </div>
+    </div>
+
+  </div>
+
+  <script src="report.js"></script>
+</body>
+</html>
+ 
+
+Executing inline event handler violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' http://localhost:* http://127.0.0.1:*'. Either the 'unsafe-inline' keyword, a hash ('sha256-...'), or a nonce ('nonce-...') is required to enable inline execution. Note that hashes do not apply to event handlers, style attributes and javascript: navigations unless the 'unsafe-hashes' keyword is present. The action has been blocked.
+
+
+
+Executing inline event handler violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-...'), or a nonce ('nonce-...') is required to enable inline execution. Note that hashes do not apply to event handlers, style attributes and javascript: navigations unless the 'unsafe-hashes' keyword is present. The action has been blocked.
+
+
+
+Executing inline event handler violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' http://localhost:* http://127.0.0.1:*'. Either the 'unsafe-inline' keyword, a hash ('sha256-...'), or a nonce ('nonce-...') is required to enable inline execution. Note that hashes do not apply to event handlers, style attributes and javascript: navigations unless the 'unsafe-hashes' keyword is present. The action has been blocked.
