@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PlenumNET TDNS Scanner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "27-dimensional ontological network intelligence. Cryptographic address, five GF(3) scores, security audit, and tracker detection for any URL — in under 10 seconds.",
 
   "icons": {
@@ -50,7 +50,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["dimensions.json"],
+      "resources": ["dimensions.json", "report.html"],
       "matches":   ["<all_urls>"]
     }
   ]
