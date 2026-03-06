@@ -26,16 +26,17 @@ const statusDot  = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const openFull   = document.getElementById('openFull');
 
-// Server health check
+// Server health check — shows local vs live endpoint in status bar
 chrome.runtime.sendMessage({ type: 'health' }, (resp) => {
   if (resp && resp.ok) {
     statusDot.classList.remove('offline');
-    const v = resp.data.version || '?';
-    const n = resp.data.entities || 0;
-    statusText.textContent = `Connected — v${v} — ${n} entities`;
+    const v   = resp.data.version || '?';
+    const n   = resp.data.entities || 0;
+    const src = resp.endpoint && resp.endpoint.includes('localhost') ? 'local' : 'live';
+    statusText.textContent = `Connected (${src}) — v${v} — ${n} entities`;
   } else {
     statusDot.classList.add('offline');
-    statusText.textContent = 'TDNS server offline — start Docker container';
+    statusText.textContent = 'TDNS offline — Docker or plenumnet.replit.app unreachable';
   }
 });
 
@@ -203,7 +204,7 @@ document.getElementById('scanBtn').addEventListener('click', () => {
 
       if (!resp || !resp.ok || !resp.data) {
         document.getElementById('scanError').textContent =
-          'Scan failed — check TDNS server is running on port 3927.';
+          'Scan failed — both localhost:3927 and plenumnet.replit.app are unreachable.';
         document.getElementById('scanError').classList.add('show');
         return;
       }
