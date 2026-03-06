@@ -42,6 +42,7 @@ $files = @(
     @{ Name="popup.js"; Dest="popup.js" },
     @{ Name="dimensions.json"; Dest="dimensions.json" },
     @{ Name="report.html"; Dest="report.html" },
+    @{ Name="report.js"; Dest="report.js" },
     @{ Name="icons/icon16.png"; Dest="icons\icon16.png" },
     @{ Name="icons/icon48.png"; Dest="icons\icon48.png" },
     @{ Name="icons/icon128.png"; Dest="icons\icon128.png" }
