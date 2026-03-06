@@ -1,133 +1,77 @@
 // PlenumNET TDNS — Background Service Worker
-// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
-//
-// Architecture: Extension → plenumnet.replit.app/api/tdns/*
-// The server runs the 27-dimension scan engine. No Docker. No localhost.
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
+// Phase 1 — v1.0.0
 
-const API = 'https://plenumnet.replit.app/api/tdns';
+const API_BASE = "https://plenumnet.replit.app";
 
-// ── Omnibox ───────────────────────────────────────────────────────────────────
-chrome.omnibox.onInputStarted.addListener(() =>
-  chrome.omnibox.setDefaultSuggestion({ description: 'Resolve a .plm name — type the name' }));
+// Cache last scan result per tab for rescan comparison
+const scanCache = new Map();
 
-chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
-  const plm = text.trim().endsWith('.plm') ? text.trim() : text.trim() + '.plm';
-  try {
-    const r = await fetch(`${API}/resolve/${plm}`);
-    if (r.ok) {
-      const d = await r.json();
-      suggest([{ content: plm, description: `\u2713 ${plm} \u2192 ${d.address || 'resolved'}` }]);
-    } else {
-      suggest([{ content: plm, description: `\u2298 ${plm} \u2014 not registered` }]);
+// On install: set defaults
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({
+    tier:        "free",
+    scanCount:   0,
+    rescanCount: {},   // { [date]: { [hostname]: count } }
+    apiBase:     API_BASE,
+  });
+  console.log("[PlenumNET] Extension installed — TDNS Scanner v1.0.0");
+});
+
+// Message handler — popup and content script communicate via here
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "GET_TAB_URL") {
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      const tab = tabs[0];
+      sendResponse({ url: tab?.url || "", tabId: tab?.id });
+    });
+    return true; // keep channel open for async
+  }
+
+  if (msg.type === "CACHE_SCAN") {
+    scanCache.set(msg.tabId, msg.result);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === "GET_CACHED_SCAN") {
+    sendResponse({ result: scanCache.get(msg.tabId) || null });
+    return true;
+  }
+
+  if (msg.type === "CLEAR_CACHE") {
+    scanCache.delete(msg.tabId);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  // Phase 2: dynamic tracker flags from content script
+  if (msg.type === "DYNAMIC_TRACKER_FLAGS") {
+    // { tabId, hostname, flags: { analytics, social, advertising, session_replay, crm } }
+    // Merge into cached scan result if present
+    const cached = scanCache.get(msg.tabId);
+    if (cached && cached.meta?.hostname === msg.hostname) {
+      // Update tracker categories with dynamic detection
+      if (cached.trackers) {
+        Object.entries(msg.flags).forEach(([id, detected]) => {
+          const cat = cached.trackers.find(t => t.id === id);
+          if (cat && detected) cat.detected_dynamic = true;
+        });
+      }
+      scanCache.set(msg.tabId, cached);
     }
-  } catch(_) {
-    suggest([{ content: plm, description: `\u26A0 ${plm} \u2014 server unavailable` }]);
-  }
-});
-
-chrome.omnibox.onInputEntered.addListener((text, disposition) => {
-  const plm = text.trim().endsWith('.plm') ? text.trim() : text.trim() + '.plm';
-  const u   = chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(plm)}`);
-  if (disposition === 'currentTab') chrome.tabs.update({ url: u });
-  else chrome.tabs.create({ url: u, active: disposition === 'newForegroundTab' });
-});
-
-// ── .plm navigation interception ─────────────────────────────────────────────
-function interceptPlm(details) {
-  if (details.frameId !== 0) return;
-  try {
-    const u = new URL(details.url);
-    if (u.hostname.endsWith('.plm'))
-      chrome.tabs.update(details.tabId, {
-        url: chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(u.hostname)}`)
-      });
-  } catch(_) {}
-}
-chrome.webNavigation.onErrorOccurred.addListener(interceptPlm);
-chrome.webNavigation.onBeforeNavigate.addListener(interceptPlm);
-
-// ── Message handler ───────────────────────────────────────────────────────────
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-
-  if (msg.type === 'health') {
-    fetch(`${API}/health`)
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(() => sendResponse({ ok: false }));
-    return true;
-  }
-
-  if (msg.type === 'resolve') {
-    fetch(`${API}/resolve/${msg.name}`)
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
-    return true;
-  }
-
-  if (msg.type === 'scan') {
-    fetch(`${API}/scan`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ url: msg.url })
-    })
-      .then(r => r.json())
-      .then(data => {
-        const key = 'scan_' + new URL(msg.url).hostname.replace(/\./g, '_');
-        chrome.storage.session.set({ [key]: data });
-        sendResponse({ ok: true, data });
-      })
-      .catch(err => sendResponse({ ok: false, error: err.message }));
-    return true;
-  }
-
-  if (msg.type === 'register') {
-    fetch(`${API}/register`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        name: msg.name || new URL(msg.url).hostname.replace(/\./g, '-') + '.plm',
-        zone: 'public',
-        url:  msg.url,
-      })
-    })
-      .then(r => r.json())
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
-    return true;
-  }
-
-  if (msg.type === 'get_scan') {
-    const key = 'scan_' + msg.hostname.replace(/\./g, '_');
-    chrome.storage.session.get(key, items =>
-      sendResponse({ ok: true, data: items[key] || null })
-    );
-    return true;
-  }
-
-  if (msg.type === 'update_check') {
-    const RAW     = 'https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium/manifest.json';
-    const current = chrome.runtime.getManifest().version;
-    fetch(RAW, { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => sendResponse({ update_available: d.version !== current, latest: d.version, current }))
-      .catch(() => sendResponse({ update_available: false }));
+    sendResponse({ ok: true });
     return true;
   }
 });
 
-// ── Periodic update check ─────────────────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() =>
-  chrome.alarms.create('plenumnet_update', { periodInMinutes: 360 }));
-
-chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name !== 'plenumnet_update') return;
-  const RAW     = 'https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium/manifest.json';
-  const current = chrome.runtime.getManifest().version;
-  fetch(RAW, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(d => chrome.storage.local.set({ update_available: d.version !== current, latest: d.version }))
-    .catch(() => {});
+// Track tab updates to invalidate stale cache
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === "loading") {
+    scanCache.delete(tabId);
+  }
 });
 
-console.log('PlenumNET TDNS \u2014 background loaded');
+chrome.tabs.onRemoved.addListener(tabId => {
+  scanCache.delete(tabId);
+});
