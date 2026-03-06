@@ -31,6 +31,7 @@ import { registerEphemerisRoutes } from "./routes/ephemeris";
 import { registerTonalFieldRoutes } from "./routes/tonal-field";
 import { registerPPTProIntegrationRoutes } from "./routes/pptpro-integration";
 import { registerPqtiRoutes } from "./routes/pqti";
+import { registerTdnsRoutes } from "./routes/tdns";
 import { registerCapabilityRoutes } from "./routes/capabilities";
 import { registerInterCubeRoutes } from "./routes/inter-cube";
 import { apiKeyService } from "./services/api-key.service";
@@ -85,6 +86,10 @@ export async function registerRoutes(
   // PQTI Service Proxy — forwards to Rust microservice on port 3001
   // =====================================================
   registerPqtiRoutes(app);
+
+  // TDNS Proxy — forwards to TDNS microservice on port 3927
+  // =====================================================
+  registerTdnsRoutes(app);
 
   app.use((req, _res, next) => {
     if (req.path.startsWith("/api/v1/")) {
