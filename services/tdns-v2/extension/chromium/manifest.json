@@ -1,11 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "PlenumNET — TDNS Resolver",
-  "version": "2.3.3",
+  "name": "PlenumNET \u2014 TDNS Resolver",
+  "version": "2.3.2",
   "description": "Resolve .plm addresses via the Ternary Domain Name System. 27-dimensional ontological addressing for PlenumNET.",
-  "author": { "email": "RSalvi@Salvigroup.com" },
-  "homepage_url": "https://plenumnet.replit.app",
-
+  "author": "Capomastro Holdings Ltd. \u2014 Applied Physics Division",
   "permissions": [
     "activeTab",
     "alarms",
@@ -13,47 +11,52 @@
     "storage",
     "webNavigation"
   ],
-
   "omnibox": {
     "keyword": "plm"
   },
-
   "host_permissions": [
-    "http://localhost:3927/*",
-    "https://raw.githubusercontent.com/*"
+    "https://plenumnet.replit.app/*",
+    "https://raw.githubusercontent.com/*",
+    "http://localhost:3927/*"
   ],
-
   "background": {
     "service_worker": "background.js"
   },
-
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
+      "16": "icons/plm-16.png",
+      "32": "icons/plm-32.png",
+      "48": "icons/plm-48.png",
+      "128": "icons/plm-128.png"
     }
   },
-
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "icons/plm-16.png",
+    "32": "icons/plm-32.png",
+    "48": "icons/plm-48.png",
+    "128": "icons/plm-128.png"
   },
-
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ],
-
   "web_accessible_resources": [
     {
-      "resources": ["resolve.html"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "resolve.html",
+        "report.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

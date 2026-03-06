@@ -1,249 +1,234 @@
-// PlenumNET TDNS — Popup Script
-// Capomastro Holdings Ltd. — Applied Physics Division
-// All JS extracted from popup.html to comply with MV3 CSP (no inline scripts/handlers).
+// PlenumNET TDNS — Popup UI
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
 
-// ── Tab switching ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.getElementById('panelResolve').classList.toggle('active', tab === 'resolve');
-  document.getElementById('panelScanner').classList.toggle('active', tab === 'scanner');
-  document.getElementById('tabResolveBtn').classList.toggle('active', tab === 'resolve');
-  document.getElementById('tabScannerBtn').classList.toggle('active', tab === 'scanner');
+  ['Resolve','Scanner'].forEach(t => {
+    const on = (tab === t.toLowerCase());
+    $('panel'+t).classList.toggle('active', on);
+    $('tab'+t+'Btn').classList.toggle('active', on);
+  });
   if (tab === 'scanner') detectCurrentUrl();
 }
+$('tabResolveBtn').addEventListener('click', () => switchTab('resolve'));
+$('tabScannerBtn').addEventListener('click', () => switchTab('scanner'));
 
-document.getElementById('tabResolveBtn').addEventListener('click', () => switchTab('resolve'));
-document.getElementById('tabScannerBtn').addEventListener('click', () => switchTab('scanner'));
-
-// ── Resolve tab ──────────────────────────────────────────────────────────────
-const nameInput  = document.getElementById('nameInput');
-const resolveBtn = document.getElementById('resolveBtn');
-const result     = document.getElementById('result');
-const addressBox = document.getElementById('addressBox');
-const scanHash   = document.getElementById('scanHash');
-const hptpStatus = document.getElementById('hptpStatus');
-const errorMsg   = document.getElementById('errorMsg');
-const statusDot  = document.getElementById('statusDot');
-const statusText = document.getElementById('statusText');
-const openFull   = document.getElementById('openFull');
-
-// Server health check — shows local vs live endpoint in status bar
-chrome.runtime.sendMessage({ type: 'health' }, (resp) => {
-  if (resp && resp.ok) {
-    statusDot.classList.remove('offline');
-    const v   = resp.data.version || '?';
-    const n   = resp.data.entities || 0;
-    const src = resp.endpoint && resp.endpoint.includes('localhost') ? 'local' : 'live';
-    statusText.textContent = `Connected (${src}) — v${v} — ${n} entities`;
+// ── Health check ──────────────────────────────────────────────────────────────
+chrome.runtime.sendMessage({ type:'health' }, resp => {
+  if (resp?.ok) {
+    $('statusDot').classList.remove('offline');
+    $('statusText').textContent = `Connected \u2014 v${resp.data?.version||'?'} \u2014 ${resp.data?.entities||0} entities`;
   } else {
-    statusDot.classList.add('offline');
-    statusText.textContent = 'TDNS offline — Docker or plenumnet.replit.app unreachable';
+    $('statusDot').classList.add('offline');
+    $('statusText').textContent = 'Registry offline \u2014 scanner still works';
   }
 });
 
-function doResolve() {
-  let name = nameInput.value.trim();
-  if (!name) return;
-  if (!name.endsWith('.plm')) name += '.plm';
+// ── Register tab ──────────────────────────────────────────────────────────────
+// "Register" scans the current page AND posts to PlenumNET to create a .plm entry.
+// The .plm name is auto-derived from the hostname.
 
-  resolveBtn.disabled = true;
-  errorMsg.classList.remove('show');
-  result.classList.remove('show');
+let registerUrl = null;
 
-  chrome.runtime.sendMessage({ type: 'resolve', name }, (resp) => {
-    resolveBtn.disabled = false;
-    if (resp && resp.ok && resp.data.status === 'ok') {
-      const d = resp.data;
-      const crd = d.crd || 1;
-      addressBox.innerHTML = `${d.address} <span class="crd-badge">CRD:${crd}</span>`;
-      scanHash.textContent = (d.scan_hash || '').substring(0, 16) + '...';
-      hptpStatus.textContent = d.hptp_mandatory ? 'Yes' : 'No';
-      openFull.onclick = () => {
-        chrome.tabs.create({
-          url: chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(name)}`)
-        });
-      };
-      result.classList.add('show');
-    } else {
-      errorMsg.textContent = `${name} not registered. Use the API to register it first.`;
-      errorMsg.classList.add('show');
+function doRegister() {
+  if (!registerUrl) {
+    // If no current page stored, use the manual input
+    let name = $('nameInput').value.trim();
+    if (!name) { showError('Enter a hostname or switch to the Scanner tab first.'); return; }
+    if (!name.endsWith('.plm')) name += '.plm';
+    const baseHost = name.replace(/\.plm$/, '');
+    registerUrl = `https://${baseHost}`;
+  }
+
+  $('resolveBtn').disabled = true;
+  $('errorMsg').classList.remove('show');
+  $('result').classList.remove('show');
+  $('resolveBtn').textContent = 'Scanning\u2026';
+
+  chrome.runtime.sendMessage({ type:'register', url:registerUrl }, resp => {
+    $('resolveBtn').disabled = false;
+    $('resolveBtn').textContent = 'Register';
+
+    if (!resp?.ok) {
+      showError(resp?.error || 'Registration failed.');
+      return;
     }
+
+    const scan = resp.scan;
+    const reg  = resp.registration;
+    const hostname = new URL(registerUrl).hostname;
+
+    $('addressBox').innerHTML = scan.address + (reg?.crd ? ` <span class="crd-badge">CRD:${reg.crd}</span>` : '');
+    $('scanHash').textContent   = scan.scan_hash.substring(0,16) + '\u2026';
+    $('hptpStatus').textContent = scan.hptp_mandatory ? 'Yes' : 'No';
+    $('openFull').onclick = () => chrome.tabs.create({
+      url: chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(hostname)}`)
+    });
+    $('result').classList.add('show');
+
+    if (reg?.name)
+      $('addressBox').innerHTML += `<div style="font-size:10px;color:#059669;margin-top:4px">Registered as ${reg.name}</div>`;
   });
 }
 
-resolveBtn.addEventListener('click', doResolve);
-nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doResolve(); });
-nameInput.focus();
+function showError(msg) {
+  $('errorMsg').textContent = msg;
+  $('errorMsg').classList.add('show');
+}
 
-// ── Auto-update check ────────────────────────────────────────────────────────
-chrome.runtime.sendMessage({ type: 'update_check' }, (resp) => {
-  if (!resp) return;
-  const banner   = document.getElementById('updateBanner');
-  const bannerTxt = document.getElementById('updateBannerText');
-  if (resp.update_available) {
-    bannerTxt.textContent =
-      `Update available: v${resp.current} → v${resp.latest} — reload extension to apply`;
-    banner.classList.add('show');
-  } else if (resp.error) {
-    // Silently ignore — offline or GitHub unreachable
-  }
+$('resolveBtn').addEventListener('click', doRegister);
+$('nameInput').addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
+$('nameInput').focus();
+
+// ── Update banner ─────────────────────────────────────────────────────────────
+chrome.runtime.sendMessage({ type:'update_check' }, resp => {
+  if (!resp?.update_available) return;
+  $('updateBannerText').textContent = `Update available: v${resp.current} \u2192 v${resp.latest}`;
+  $('updateBanner').classList.add('show');
 });
+$('updateDismiss').addEventListener('click', () => $('updateBanner').classList.remove('show'));
 
-document.getElementById('updateDismiss').addEventListener('click', () => {
-  document.getElementById('updateBanner').classList.remove('show');
-});
-
-// ── Scanner tab ──────────────────────────────────────────────────────────────
+// ── Scanner tab ───────────────────────────────────────────────────────────────
 const CAT_COLORS = {
-  WHO:   { border: '#D4A017', text: '#D4A017', bg: '#D4A01715' },
-  WHAT:  { border: '#059669', text: '#059669', bg: '#05966915' },
-  WHERE: { border: '#818CF8', text: '#818CF8', bg: '#818CF815' },
-  WHEN:  { border: '#F87171', text: '#F87171', bg: '#F8717115' },
-  WHY:   { border: '#C084FC', text: '#C084FC', bg: '#C084FC15' },
-  HOW:   { border: '#38BDF8', text: '#38BDF8', bg: '#38BDF815' },
-  PEACE: { border: '#4ADE80', text: '#4ADE80', bg: '#4ADE8015' },
+  WHO:'#D4A017', WHAT:'#059669', WHERE:'#818CF8',
+  WHEN:'#F87171', WHY:'#C084FC', HOW:'#38BDF8', PEACE:'#4ADE80',
 };
 
-let currentTabUrl       = null;
-let scanProgressInterval = null;
+let currentTabUrl = null;
 
 function detectCurrentUrl() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs && tabs[0] && tabs[0].url) {
-      currentTabUrl = tabs[0].url;
-      document.getElementById('currentUrl').textContent = currentTabUrl;
-    } else {
-      document.getElementById('currentUrl').textContent = 'Could not detect page URL';
+  chrome.tabs.query({ active:true, currentWindow:true }, tabs => {
+    currentTabUrl = tabs?.[0]?.url || null;
+    $('currentUrl').textContent = currentTabUrl || 'Could not detect URL';
+    // Pre-fill register input too
+    if (currentTabUrl) {
+      try {
+        registerUrl = currentTabUrl;
+        $('nameInput').placeholder = new URL(currentTabUrl).hostname + '.plm';
+      } catch(_) {}
     }
   });
 }
 
-function startScanProgress() {
-  const fill = document.getElementById('progressFill');
-  const pct  = document.getElementById('progressPct');
-  const dim  = document.getElementById('progressDim');
-  const probes = [
-    'WHO: entity type','WHO: audience','WHO: operator','WHO: hosting',
-    'WHAT: form','WHAT: content','WHAT: consumers','WHAT: intelligence',
-    'WHERE: visibility','WHERE: auth','WHERE: scale','WHERE: transport',
-    'WHEN: era','WHEN: availability','WHEN: freshness','WHEN: real-time',
-    'WHY: commerce','WHY: data','WHY: policies','WHY: cost',
-    'HOW: delivery','HOW: direction','HOW: updates','HOW: memory',
-    'PEACE: encryption','PEACE: trackers','PEACE: audit'
-  ];
-  let step = 0;
-  scanProgressInterval = setInterval(() => {
-    if (step >= 27) { clearInterval(scanProgressInterval); return; }
-    const p = Math.round((step + 1) / 27 * 90);
-    fill.style.width  = p + '%';
-    pct.textContent   = p + '%';
-    dim.textContent   = 'PROBING ' + probes[step];
-    step++;
-  }, 111);
-}
-
-function stopScanProgress(success) {
-  clearInterval(scanProgressInterval);
-  document.getElementById('progressFill').style.width = '100%';
-  document.getElementById('progressPct').textContent  = success ? '100%' : 'ERR';
-}
+// Detect current URL immediately on load too
+chrome.tabs.query({ active:true, currentWindow:true }, tabs => {
+  if (tabs?.[0]?.url) {
+    currentTabUrl = tabs[0].url;
+    registerUrl   = currentTabUrl;
+    try { $('nameInput').placeholder = new URL(currentTabUrl).hostname + '.plm'; } catch(_) {}
+  }
+});
 
 function buildDimsHtml(dimensions) {
-  const byCategory = {};
-  dimensions.forEach(d => {
-    if (!byCategory[d.category]) byCategory[d.category] = [];
-    byCategory[d.category].push(d);
-  });
-
-  let html = '';
-  Object.entries(byCategory).forEach(([cat, dims]) => {
-    const cc    = CAT_COLORS[cat] || { border: '#5A5548', text: '#8A8578', bg: '#1A181615' };
-    const trits = dims.map(d => d.value).join('');
-    html += `<div class="cat-block">
-      <div class="cat-label" style="background:${cc.bg};color:${cc.text};border-left:2px solid ${cc.border}">
-        <span>${cat}</span>
-        <span style="font-family:monospace;letter-spacing:0.08em;font-size:10px;">${trits}</span>
-      </div>`;
-    dims.forEach(d => {
-      const isHptp  = (d.number === 15 || d.number === 16) && d.value === 3;
-      const confNum = parseFloat(d.confidence);
-      const confPct = isNaN(confNum) ? d.confidence : Math.round(confNum * 100) + '%';
-      const hptpTag = isHptp ? `<span class="hptp-tag">HPTP</span>` : '';
-      html += `<div class="dim-row" style="border-left-color:${cc.border}40;">
-        <span class="dim-trit" style="color:${cc.text}">${d.value}</span>
+  const cats = {};
+  dimensions.forEach(d => { (cats[d.category]=cats[d.category]||[]).push(d); });
+  return Object.entries(cats).map(([cat, dims]) => {
+    const col   = CAT_COLORS[cat]||'#8A8578';
+    const trits = dims.map(d=>d.value).join('');
+    const rows  = dims.map(d => {
+      const isHptp = (d.number===15||d.number===16) && d.value===3;
+      const pct    = Math.round(d.confidence/9*100)+'%';
+      return `<div class="dim-row" style="border-left-color:${col}40">
+        <span class="dim-trit" style="color:${col}">${d.value}</span>
         <div class="dim-info">
-          <div class="dim-q">${d.question}${hptpTag}</div>
-          <div class="dim-label" style="color:${cc.text}">→ ${d.label}</div>
+          <div class="dim-q">${d.question}${isHptp?'<span class="hptp-tag">HPTP</span>':''}</div>
+          <div class="dim-label" style="color:${col}">\u2192 ${d.label}</div>
         </div>
-        <span class="dim-conf">${confPct}</span>
+        <span class="dim-conf">${pct}</span>
       </div>`;
-    });
-    html += '</div>';
-  });
-  return html;
+    }).join('');
+    return `<div class="cat-block">
+      <div class="cat-label" style="background:${col}15;color:${col};border-left:2px solid ${col}">
+        <span>${cat}</span>
+        <span style="font-family:monospace;font-size:10px;letter-spacing:.08em">${trits}</span>
+      </div>${rows}</div>`;
+  }).join('');
 }
 
-document.getElementById('scanBtn').addEventListener('click', () => {
+$('scanBtn').addEventListener('click', () => {
   if (!currentTabUrl) {
-    document.getElementById('scanError').textContent = 'No page URL detected.';
-    document.getElementById('scanError').classList.add('show');
+    $('scanError').textContent = 'No URL \u2014 switch to a tab first.';
+    $('scanError').classList.add('show');
     return;
   }
+  $('scanError').classList.remove('show');
+  $('scanResult').classList.remove('show');
+  $('scanProgress').classList.add('show');
+  $('scanBtn').disabled = true;
 
-  document.getElementById('scanError').classList.remove('show');
-  document.getElementById('scanResult').classList.remove('show');
-  document.getElementById('scanProgress').classList.add('show');
-  document.getElementById('scanBtn').disabled = true;
-  startScanProgress();
+  const probes = [
+    'WHO: entity type','WHO: audience','WHO: operator','WHO: hosting',
+    'WHAT: form factor','WHAT: content type','WHAT: consumers','WHAT: AI/ML',
+    'WHERE: visibility','WHERE: auth model','WHERE: scale','WHERE: transport',
+    'WHEN: tech era','WHEN: availability','WHEN: freshness','WHEN: real-time',
+    'WHY: payments','WHY: data appetite','WHY: policies','WHY: cost model',
+    'HOW: delivery','HOW: data flow','HOW: updates','HOW: sessions',
+    'PEACE: encryption','PEACE: trackers','PEACE: audit',
+  ];
+  let step = 0;
+  const ticker = setInterval(() => {
+    if (step >= 27) { clearInterval(ticker); return; }
+    const p = Math.round((step+1)/27*85);
+    $('progressFill').style.width = p+'%';
+    $('progressPct').textContent  = p+'%';
+    $('progressDim').textContent  = 'DERIVING '+probes[step++];
+  }, 100);
 
-  chrome.runtime.sendMessage({ type: 'scan', url: currentTabUrl }, (resp) => {
-    stopScanProgress(resp && resp.ok);
-    document.getElementById('scanBtn').disabled = false;
+  chrome.runtime.sendMessage({ type:'scan', url:currentTabUrl }, resp => {
+    clearInterval(ticker);
+    $('progressFill').style.width = '100%';
+    $('progressPct').textContent  = '100%';
 
     setTimeout(() => {
-      document.getElementById('scanProgress').classList.remove('show');
+      $('scanProgress').classList.remove('show');
+      $('scanBtn').disabled = false;
 
-      if (!resp || !resp.ok || !resp.data) {
-        document.getElementById('scanError').textContent =
-          'Scan failed — both localhost:3927 and plenumnet.replit.app are unreachable.';
-        document.getElementById('scanError').classList.add('show');
+      if (!resp?.ok) {
+        $('scanError').textContent = `Error: ${resp?.error||'unknown'}`;
+        $('scanError').classList.add('show');
         return;
       }
 
       const d = resp.data;
-      document.getElementById('scanAddressBox').textContent =
-        d.address_canonical || d.address;
-      document.getElementById('scanResultHash').textContent =
-        (d.scan_hash || '').substring(0, 16) + '...';
-      document.getElementById('scanHptpStatus').textContent =
-        d.hptp_mandatory ? '⚠ Yes (femtosecond sync required)' : '✓ No';
-      document.getElementById('scanHptpStatus').style.color =
-        d.hptp_mandatory ? '#F87171' : '#059669';
+      $('scanAddressBox').textContent = d.address;
+      $('scanResultHash').textContent = d.scan_hash.substring(0,16)+'\u2026';
+      const hEl = $('scanHptpStatus');
+      hEl.textContent = d.hptp_mandatory ? '\u26A0 Yes (femtosecond required)' : '\u2713 No';
+      hEl.style.color = d.hptp_mandatory ? '#F87171' : '#059669';
 
-      if (d.dimensions && d.dimensions.length) {
-        document.getElementById('dimsBody').innerHTML = buildDimsHtml(d.dimensions);
-      }
+      // Scores inline
+      const sec  = d.securityScore  ?? Math.round(((d.dimensions[24].value+d.dimensions[25].value+d.dimensions[26].value)/9)*100);
+      const priv = d.privacyScore   ?? Math.round(((d.dimensions[25].value+d.dimensions[18].value)/6)*100);
+      const scoreHtml = `
+        <div style="display:flex;gap:8px;padding:8px 0;border-top:1px solid #1A1816;margin-top:6px">
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;color:#5A5548;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Security</div>
+            <div style="font-size:20px;font-weight:700;color:${sec>=75?'#34D399':sec>=50?'#D4A017':'#F87171'}">${sec}</div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;color:#5A5548;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Privacy</div>
+            <div style="font-size:20px;font-weight:700;color:${priv>=75?'#34D399':priv>=50?'#D4A017':'#F87171'}">${priv}</div>
+          </div>
+        </div>`;
+      $('scanAddressBox').insertAdjacentHTML('afterend', scoreHtml);
 
-      // Open Full Diagnostic Report → resolve.html for this hostname
+      $('dimsBody').innerHTML = buildDimsHtml(d.dimensions);
+
       try {
-        const plmName = new URL(currentTabUrl).hostname;
-        document.getElementById('openReport').addEventListener('click', () => {
-          chrome.tabs.create({
-            url: chrome.runtime.getURL(
-              `resolve.html?name=${encodeURIComponent(plmName)}`
-            )
-          });
-        }, { once: true });
-      } catch (_) {}
+        const hostname = new URL(currentTabUrl).hostname;
+        $('openReport').addEventListener('click', () => {
+          chrome.tabs.create({ url: chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(hostname)}`) });
+        }, { once:true });
+      } catch(_) {}
 
-      document.getElementById('scanResult').classList.add('show');
-    }, 300);
+      $('scanResult').classList.add('show');
+    }, 150);
   });
 });
 
-// Dims accordion toggle
-document.getElementById('dimsToggle').addEventListener('click', () => {
-  const body    = document.getElementById('dimsBody');
-  const chevron = document.getElementById('dimsChevron');
-  const open    = body.classList.toggle('open');
-  chevron.textContent = open ? '▴' : '▾';
+$('dimsToggle').addEventListener('click', () => {
+  const open = $('dimsBody').classList.toggle('open');
+  $('dimsChevron').textContent = open ? '\u25B4' : '\u25BE';
 });

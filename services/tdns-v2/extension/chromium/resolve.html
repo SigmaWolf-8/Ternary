@@ -2,198 +2,264 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>TDNS Full Resolution</title>
+<title>PlenumNET &#8212; TDNS Diagnostic Report</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', -apple-system, sans-serif;
-    background: #090807;
-    color: #E4DFD5;
-    font-size: 14px;
-    padding: 40px;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-  .header {
-    border-bottom: 1px solid #2A2520;
-    padding-bottom: 16px;
-    margin-bottom: 24px;
-  }
-  .header h1 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #D4A017;
-    letter-spacing: 0.5px;
-  }
-  .header .subtitle {
-    font-size: 12px;
-    color: #8A8578;
-    margin-top: 4px;
-  }
-  .loading {
-    color: #8A8578;
-    font-size: 13px;
-    padding: 20px 0;
-  }
-  .error {
-    color: #DC2626;
-    font-size: 13px;
-    padding: 20px 0;
-  }
-  .section {
-    margin-bottom: 24px;
-  }
-  .section-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: #5A5548;
-    letter-spacing: 0.1em;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-  }
-  .address-box {
-    background: #1A1816;
-    border: 1px solid #2A2520;
-    border-radius: 6px;
-    padding: 16px;
-    font-family: 'Consolas', 'Menlo', monospace;
-    font-size: 14px;
-    color: #D4A017;
-    word-break: break-all;
-    line-height: 1.8;
-  }
-  .crd-badge {
-    display: inline-block;
-    background: #059669;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 10px;
-    border-radius: 10px;
-    margin-left: 6px;
-  }
-  .meta-grid {
-    display: grid;
-    grid-template-columns: 160px 1fr;
-    gap: 6px 16px;
-    font-size: 13px;
-  }
-  .meta-label { color: #5A5548; }
-  .meta-value { color: #E4DFD5; font-family: 'Consolas', monospace; font-size: 12px; }
-  .dim-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .dim-table th {
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    color: #5A5548;
-    letter-spacing: 0.06em;
-    padding: 6px 8px;
-    border-bottom: 1px solid #2A2520;
-  }
-  .dim-table td {
-    padding: 5px 8px;
-    font-size: 12px;
-    border-bottom: 1px solid #1A1816;
-  }
-  .dim-trit {
-    font-family: 'Consolas', monospace;
-    font-weight: bold;
-    font-size: 14px;
-    text-align: center;
-    width: 30px;
-  }
-  .cat-who { color: #D4A017; }
-  .cat-what { color: #059669; }
-  .cat-where { color: #818CF8; }
-  .cat-when { color: #F87171; }
-  .cat-why { color: #C084FC; }
-  .cat-how { color: #38BDF8; }
-  .cat-peace { color: #4ADE80; }
-  .footer {
-    margin-top: 40px;
-    padding-top: 16px;
-    border-top: 1px solid #1A1816;
-    font-size: 11px;
-    color: #5A5548;
-    text-align: center;
-  }
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',-apple-system,sans-serif;
+  background:#090807; color:#E4DFD5; min-height:100vh; font-size:13px;
+}
+a { color:#D4A017; text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+/* ── Top bar ── */
+.top-bar {
+  background:linear-gradient(135deg,#0D0C0B 0%,#1A1816 100%);
+  padding:18px 40px; border-bottom:1px solid #2A2520;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.top-bar h1 { font-size:17px; color:#D4A017; font-weight:600; letter-spacing:.5px; }
+.top-bar .meta { font-size:11px; color:#5A5548; text-align:right; line-height:1.6; }
+.top-bar .meta span { color:#8A8578; }
+
+/* ── Layout ── */
+.container { max-width:1040px; margin:0 auto; padding:28px 40px 60px; }
+
+/* ── Hero ── */
+.hero { margin-bottom:28px; }
+.hero-host {
+  font-family:'Consolas','Menlo',monospace; font-size:26px;
+  color:#D4A017; margin-bottom:4px; word-break:break-all;
+}
+.hero-url  { font-size:12px; color:#5A5548; margin-bottom:16px; }
+.address-block {
+  background:#0F0E0D; border:1px solid #2A2520; border-radius:8px;
+  padding:14px 18px; font-family:'Consolas','Menlo',monospace;
+  font-size:13px; color:#E4DFD5; display:flex; align-items:center;
+  gap:10px; flex-wrap:wrap; margin-bottom:8px;
+}
+.address-segments { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+.seg {
+  display:inline-flex; align-items:center; gap:4px;
+  background:#1A1816; border:1px solid #2A2520; border-radius:4px;
+  padding:4px 8px; font-size:12px;
+}
+.seg-label { color:#5A5548; font-size:10px; letter-spacing:.06em; }
+.seg-trits { color:#D4A017; font-weight:700; letter-spacing:.15em; }
+.badges { display:flex; gap:6px; }
+.badge {
+  font-size:10px; font-weight:700; padding:3px 10px;
+  border-radius:10px; letter-spacing:.04em;
+}
+.badge-registered { background:#059669; color:#fff; }
+.badge-scanned    { background:#2A2520; color:#8A8578; border:1px solid #3A3530; }
+.badge-hptp       { background:#7C2D12; color:#FCA5A5; }
+
+/* ── Score cards ── */
+.scores {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px;
+}
+.score-card {
+  background:#0F0E0D; border:1px solid #2A2520; border-radius:8px;
+  padding:16px; text-align:center;
+}
+.score-card .s-label { font-size:10px; color:#5A5548; letter-spacing:.08em; margin-bottom:8px; text-transform:uppercase; }
+.score-card .s-value { font-size:32px; font-weight:700; line-height:1; margin-bottom:4px; }
+.score-card .s-sub   { font-size:10px; color:#5A5548; }
+.s-green  { color:#34D399; }
+.s-gold   { color:#D4A017; }
+.s-red    { color:#F87171; }
+.s-blue   { color:#818CF8; }
+
+/* ── Section headers ── */
+.section { margin-bottom:32px; }
+.section-title {
+  font-size:11px; font-weight:700; color:#D4A017; text-transform:uppercase;
+  letter-spacing:1.5px; padding-bottom:8px; border-bottom:1px solid #1A1816;
+  margin-bottom:14px;
+}
+
+/* ── Infra grid ── */
+.infra-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.infra-card {
+  background:#0F0E0D; border:1px solid #2A2520; border-radius:6px; padding:12px 14px;
+}
+.infra-card .i-label { font-size:10px; color:#5A5548; margin-bottom:4px; text-transform:uppercase; letter-spacing:.06em; }
+.infra-card .i-value { font-size:13px; color:#E4DFD5; font-family:'Consolas',monospace; word-break:break-all; }
+.infra-card .i-value.good { color:#34D399; }
+.infra-card .i-value.warn { color:#D4A017; }
+.infra-card .i-value.bad  { color:#F87171; }
+
+/* ── Security headers ── */
+.header-check { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #0F0E0D; font-size:12px; }
+.check-icon { width:16px; text-align:center; flex-shrink:0; }
+.check-present { color:#34D399; }
+.check-missing  { color:#5A5548; }
+.check-name { flex:1; }
+.check-value { font-family:'Consolas',monospace; font-size:10px; color:#5A5548; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── Dimension table ── */
+.cat-group { margin-bottom:20px; }
+.cat-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 10px; border-radius:4px; margin-bottom:2px;
+  font-size:10px; font-weight:700; letter-spacing:.12em;
+}
+.dim-row {
+  display:grid; grid-template-columns:28px 24px 1fr 140px 100px 80px;
+  gap:10px; align-items:center;
+  padding:6px 10px; background:#0F0E0D; margin-bottom:1px;
+  border-radius:3px; font-size:12px; border-left:2px solid transparent;
+}
+.dim-row:hover { background:#111010; }
+.dim-num  { font-family:'Consolas',monospace; font-size:10px; color:#3A3530; text-align:right; }
+.dim-trit {
+  font-family:'Consolas',monospace; font-size:13px; font-weight:700;
+  text-align:center; width:24px; height:24px; line-height:24px; border-radius:3px;
+}
+.t1 { background:#1E3A2F; color:#34D399; }
+.t2 { background:#3A351E; color:#D4A017; }
+.t3 { background:#3A1E1E; color:#F87171; }
+.dim-q     { color:#8A8578; }
+.dim-label { font-weight:600; }
+.dim-meaning { font-size:11px; color:#5A5548; font-style:italic; }
+.conf-bar  { display:flex; gap:1px; }
+.pip { width:5px; height:12px; border-radius:1px; background:#1A1816; }
+.pip.on { background:#059669; }
+.pip.on.mid { background:#D4A017; }
+.pip.on.low { background:#DC2626; }
+
+/* ── Findings / recommendations ── */
+.finding {
+  display:flex; gap:12px; padding:10px 14px; border-radius:6px;
+  margin-bottom:6px; font-size:12px; line-height:1.5;
+}
+.finding-critical { background:#1A0A0A; border-left:3px solid #DC2626; }
+.finding-warn     { background:#1A1300; border-left:3px solid #D4A017; }
+.finding-info     { background:#0A1A10; border-left:3px solid #059669; }
+.finding-icon { font-size:14px; flex-shrink:0; line-height:1.5; }
+.finding-body .f-title { font-weight:600; color:#E4DFD5; margin-bottom:2px; }
+.finding-body .f-desc  { color:#8A8578; }
+
+/* ── Hash / wire ── */
+.hash-block {
+  background:#0F0E0D; border:1px solid #1A1816; border-radius:6px;
+  padding:10px 14px; font-family:'Consolas',monospace; font-size:11px;
+  color:#5A5548; word-break:break-all; line-height:1.8;
+}
+.hash-block span { color:#8A8578; }
+.hash-block b    { color:#D4A017; }
+
+/* ── Footer ── */
+.footer {
+  text-align:center; padding:28px 0; font-size:10px; color:#3A3530;
+  border-top:1px solid #1A1816; margin-top:32px;
+}
+
+/* ── States ── */
+.loading { text-align:center; padding:100px 0; color:#5A5548; font-size:15px; }
+.loading .dot { display:inline-block; animation:pulse 1.2s infinite; margin:0 2px; }
+.loading .dot:nth-child(2) { animation-delay:.2s; }
+.loading .dot:nth-child(3) { animation-delay:.4s; }
+@keyframes pulse { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+.error { text-align:center; padding:80px 0; }
+.error h3 { color:#DC2626; font-size:18px; margin-bottom:10px; }
+.error p   { color:#5A5548; margin-bottom:6px; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <h1>PlenumNET TDNS — Full Resolution</h1>
-    <div class="subtitle" id="queryName">Loading...</div>
+
+<div class="top-bar">
+  <h1>PlenumNET &#8212; TDNS Diagnostic Report</h1>
+  <div class="meta">
+    <span id="topHostname">&#8212;</span><br>
+    <span id="topScannedAt"></span> &nbsp;&#183;&nbsp; v2.3.3 &#8212; Applied Physics Division
   </div>
-  <div id="content">
-    <div class="loading" id="loadingMsg">Resolving...</div>
-    <div class="error" id="errorMsg" style="display:none;"></div>
+</div>
+
+<div class="container">
+  <div id="stateLoading" class="loading">Retrieving scan<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  <div id="stateError" class="error" style="display:none">
+    <h3>No scan data found</h3>
+    <p>Open the extension and run &#9654; SCAN THIS PAGE first.</p>
+    <p id="errorDetail" style="font-size:11px"></p>
   </div>
-  <div class="footer">
-    Capomastro Holdings Ltd. — Applied Physics Division
-  </div>
-<script>
-  const params = new URLSearchParams(window.location.search);
-  const name = params.get('name') || '';
-  document.getElementById('queryName').textContent = name ? 'Query: ' + name : 'No query specified';
 
-  const CAT_CLASSES = {
-    WHO: 'cat-who', WHAT: 'cat-what', WHERE: 'cat-where',
-    WHEN: 'cat-when', WHY: 'cat-why', HOW: 'cat-how', PEACE: 'cat-peace'
-  };
+  <div id="stateReport" style="display:none">
 
-  if (name) {
-    chrome.runtime.sendMessage({ type: 'resolve', name: name }, function(resp) {
-      document.getElementById('loadingMsg').style.display = 'none';
+    <!-- ── Hero ── -->
+    <div class="hero">
+      <div class="hero-host" id="heroHost"></div>
+      <div class="hero-url"  id="heroUrl"></div>
+      <div class="address-block">
+        <div class="address-segments" id="addressSegs"></div>
+        <div class="badges" id="heroBadges"></div>
+      </div>
+    </div>
 
-      if (!resp || !resp.ok || !resp.data || resp.data.status !== 'ok') {
-        document.getElementById('errorMsg').style.display = 'block';
-        document.getElementById('errorMsg').textContent = name + ' could not be resolved. It may not be registered.';
-        return;
-      }
+    <!-- ── Score cards ── -->
+    <div class="scores">
+      <div class="score-card">
+        <div class="s-label">Security Score</div>
+        <div class="s-value" id="scoreSecId">&#8212;</div>
+        <div class="s-sub">out of 100</div>
+      </div>
+      <div class="score-card">
+        <div class="s-label">Privacy Score</div>
+        <div class="s-value" id="scorePrivId">&#8212;</div>
+        <div class="s-sub">out of 100</div>
+      </div>
+      <div class="score-card">
+        <div class="s-label">Tech Maturity</div>
+        <div class="s-value" id="scoreTechId">&#8212;</div>
+        <div class="s-sub">out of 100</div>
+      </div>
+      <div class="score-card">
+        <div class="s-label">Trust Index</div>
+        <div class="s-value" id="scoreTrustId">&#8212;</div>
+        <div class="s-sub">out of 100</div>
+      </div>
+    </div>
 
-      var d = resp.data;
-      var html = '';
+    <!-- ── Infrastructure summary ── -->
+    <div class="section">
+      <div class="section-title">Infrastructure</div>
+      <div class="infra-grid" id="infraGrid"></div>
+    </div>
 
-      html += '<div class="section">';
-      html += '<div class="section-title">Address</div>';
-      html += '<div class="address-box">' + d.address;
-      if (d.crd) html += ' <span class="crd-badge">CRD:' + d.crd + '</span>';
-      html += '</div></div>';
+    <!-- ── Security headers audit ── -->
+    <div class="section">
+      <div class="section-title">Security Header Audit</div>
+      <div id="headerAudit"></div>
+    </div>
 
-      html += '<div class="section"><div class="section-title">Metadata</div>';
-      html += '<div class="meta-grid">';
-      html += '<span class="meta-label">Name</span><span class="meta-value">' + (d.name || name) + '</span>';
-      html += '<span class="meta-label">Scan Hash</span><span class="meta-value">' + (d.scan_hash || 'N/A') + '</span>';
-      html += '<span class="meta-label">HPTP Mandatory</span><span class="meta-value">' + (d.hptp_mandatory ? 'Yes' : 'No') + '</span>';
-      if (d.zone) html += '<span class="meta-label">Zone</span><span class="meta-value">' + d.zone + '</span>';
-      html += '</div></div>';
+    <!-- ── Findings ── -->
+    <div class="section" id="findingsSection">
+      <div class="section-title">Findings &amp; Recommendations</div>
+      <div id="findingsBody"></div>
+    </div>
 
-      if (d.dimensions && d.dimensions.length) {
-        html += '<div class="section"><div class="section-title">27 Ontological Dimensions</div>';
-        html += '<table class="dim-table"><tr><th>#</th><th>Cat</th><th>Trit</th><th>Question</th><th>Value</th></tr>';
-        d.dimensions.forEach(function(dim) {
-          var cc = CAT_CLASSES[dim.category] || '';
-          html += '<tr>';
-          html += '<td style="color:#5A5548;">' + dim.number + '</td>';
-          html += '<td class="' + cc + '">' + dim.category + '</td>';
-          html += '<td class="dim-trit ' + cc + '">' + dim.value + '</td>';
-          html += '<td>' + (dim.question || '') + '</td>';
-          html += '<td class="' + cc + '">' + (dim.label || '') + '</td>';
-          html += '</tr>';
-        });
-        html += '</table></div>';
-      }
+    <!-- ── 27 dimensions ── -->
+    <div class="section">
+      <div class="section-title">27-Dimensional Ontological Address</div>
+      <div id="dimensionsBody"></div>
+    </div>
 
-      document.getElementById('content').innerHTML = html;
-    });
-  } else {
-    document.getElementById('loadingMsg').style.display = 'none';
-    document.getElementById('errorMsg').style.display = 'block';
-    document.getElementById('errorMsg').textContent = 'No name specified in URL.';
-  }
-</script>
+    <!-- ── Wire encoding ── -->
+    <div class="section">
+      <div class="section-title">Wire Encoding</div>
+      <div class="hash-block" id="wireBlock"></div>
+    </div>
+
+  </div><!-- /stateReport -->
+</div>
+
+<div class="footer">
+  Capomastro Holdings Ltd. &nbsp;&#183;&nbsp; Applied Physics Division<br>
+  Three formulas. Zero thresholds. One geometry. &nbsp;&#183;&nbsp;
+  <a href="https://plenumnet.replit.app/docs" target="_blank">Documentation</a>
+</div>
+
+<script src="report.js"></script>
 </body>
 </html>

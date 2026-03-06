@@ -1,17 +1,41 @@
-document.addEventListener("click", function(e) {
-  var link = e.target.closest("a");
-  if (!link) return;
-  var href = link.getAttribute("href") || "";
-  var match = href.match(/^https?:\/\/([^/]+\.plm)(\/.*)?$/);
-  if (!match) return;
-  e.preventDefault();
-  var name = match[1];
-  var path = match[2] || "";
-  chrome.runtime.sendMessage({ type: "resolve_plm", name: name }, function(resp) {
-    if (resp && resp.target) {
-      window.location.href = resp.target + path;
-    } else {
-      window.location.href = "https://plenumnet.replit.app/api/tdns/resolve?name=" + encodeURIComponent(name) + "&redirect=1";
+// PlenumNET TDNS Resolver — Content Script
+// Detects .plm links and intercepts failed .plm navigations
+
+(function() {
+  'use strict';
+
+  // Intercept clicks on .plm links
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+
+    try {
+      const url = new URL(link.href, window.location.href);
+      if (url.hostname.endsWith('.plm')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const plmName = url.hostname;
+        const resolveUrl = chrome.runtime.getURL(
+          `resolve.html?name=${encodeURIComponent(plmName)}`
+        );
+        window.location.href = resolveUrl;
+      }
+    } catch (ex) {
+      // Not a valid URL
     }
-  });
-}, true);
+  }, true);
+
+  // If we're on a DNS error page for a .plm domain, redirect to resolver
+  if (document.title.includes('DNS') || document.title.includes('not found') ||
+      document.title.includes("can't be reached") || document.title.includes('ERR_NAME')) {
+    try {
+      const hostname = window.location.hostname;
+      if (hostname.endsWith('.plm')) {
+        const resolveUrl = chrome.runtime.getURL(
+          `resolve.html?name=${encodeURIComponent(hostname)}`
+        );
+        window.location.replace(resolveUrl);
+      }
+    } catch (ex) {}
+  }
+})();
