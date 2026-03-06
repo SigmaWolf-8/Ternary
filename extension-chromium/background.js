@@ -47,9 +47,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Phase 2: dynamic tracker flags from content script
   if (msg.type === "DYNAMIC_TRACKER_FLAGS") {
-    // { tabId, hostname, flags: { analytics, social, advertising, session_replay, crm } }
+    // { hostname, flags: { analytics, social, advertising, session_replay, crm } }
     // Merge into cached scan result if present
-    const cached = scanCache.get(msg.tabId);
+    const tabId = msg.tabId || sender?.tab?.id;
+    const cached = scanCache.get(tabId);
     if (cached && cached.meta?.hostname === msg.hostname) {
       // Update tracker categories with dynamic detection
       if (cached.trackers) {
@@ -58,7 +59,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           if (cat && detected) cat.detected_dynamic = true;
         });
       }
-      scanCache.set(msg.tabId, cached);
+      scanCache.set(tabId, cached);
     }
     sendResponse({ ok: true });
     return true;
