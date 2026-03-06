@@ -50,7 +50,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["dimensions.json", "report.html"],
+      "resources": ["dimensions.json", "report.html", "report.js"],
       "matches":   ["<all_urls>"]
     }
   ]
