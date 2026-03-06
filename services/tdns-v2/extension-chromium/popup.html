@@ -350,6 +350,29 @@
       font-size:12px; color:var(--amber); line-height:1.45; display:none;
     }
     .dup-warning strong{color:var(--fg)}
+
+    /* ── SEO ─────────────────────────────────────────────────────────────── */
+    .seo-list{padding:6px 16px 12px}
+    .seo-row{
+      display:grid;grid-template-columns:16px 1fr;gap:10px;
+      padding:9px 11px;margin-bottom:5px;border-radius:var(--radius);
+      border:1px solid transparent;
+    }
+    .seo-pass{background:rgba(5,150,105,.06);border-color:rgba(5,150,105,.2)}
+    .seo-warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.22)}
+    .seo-fail{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.22)}
+    .seo-icon{font-size:13px;margin-top:1px}
+    .seo-category{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-dim);margin-bottom:2px}
+    .seo-signal{font-size:13px;font-weight:700;margin-bottom:3px}
+    .seo-pass  .seo-signal{color:var(--green)}
+    .seo-warn  .seo-signal{color:var(--amber)}
+    .seo-fail  .seo-signal{color:var(--red)}
+    .seo-detail{font-size:12px;color:var(--fg-muted);line-height:1.5;margin-bottom:4px}
+    .seo-rec{font-size:11px;color:var(--fg-dim);line-height:1.45;font-style:italic}
+    .seo-pass .seo-rec{display:none}
+    .seo-row.expanded .seo-rec{display:block!important}
+    .seo-row{cursor:pointer}
+    .seo-row:hover{filter:brightness(1.06)}
   </style>
 </head>
 <body>
@@ -397,7 +420,7 @@
 
     <div class="section">
       <div class="section-header" data-section="findings">
-        <div class="section-title">Findings <span class="section-badge" id="findings-badge">—</span></div>
+        <div class="section-title">Security Alerts <span class="section-badge" id="findings-badge">—</span></div>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body" id="body-findings"><div class="findings-list" id="findings-list"></div></div>
@@ -428,6 +451,15 @@
         <div class="tracker-list" id="trackers-content"></div>
         <div id="block-recs-container"></div>
       </div>
+    </div>
+
+
+    <div class="section">
+      <div class="section-header" data-section="seo">
+        <div class="section-title">SEO Analysis <span class="section-badge" id="seo-badge">—</span></div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-seo"><div class="seo-list" id="seo-content"></div></div>
     </div>
 
     <div class="actions-bar">
@@ -475,7 +507,7 @@
       <hr class="modal-divider">
       <div class="modal-section-label">What's Hidden on Free</div>
       <div class="info-box">
-        <p><strong>Free</strong> gives you: all 27 dimensions, all 5 scores, all security findings, all header audits, and Analytics / Social / Advertising tracker rows.</p>
+        <p><strong>Free</strong> gives you: all 27 dimensions, all 5 scores, all security alerts, all header audits, and Analytics / Social / Advertising tracker rows.</p>
         <p style="margin-top:7px"><strong>Pro unlocks:</strong></p>
         <ul>
           <li><strong>Session Replay detection</strong> — identifies keystroke/form-capture tools (Hotjar, FullStory, LogRocket, Clarity). Always a Critical finding when detected.</li>

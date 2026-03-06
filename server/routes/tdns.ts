@@ -58,6 +58,18 @@ interface Finding {
   dimension?: string;
 }
 
+// SEO signal categories and statuses
+type SeoStatus = "pass" | "warn" | "fail";
+
+interface SeoSignal {
+  id:             string;
+  category:       "Discoverability" | "Metadata" | "Social" | "Technical";
+  status:         SeoStatus;
+  signal:         string;
+  detail:         string;
+  recommendation: string;
+}
+
 interface Scores {
   trustIndex:          number; trustLabel:          string;
   privacyScore:        number; privacyLabel:        string;
@@ -78,6 +90,7 @@ interface ScanResult {
   trackers:        TrackerCategory[];
   security_headers: HeaderAudit[];
   findings:        Finding[];
+  seo_signals:     SeoSignal[];
   topology_svg:    string | null;  // Phase 2 — null until services/tdns-v2/src/topology.rs
   meta:            Record<string, any>;
   scannedAt:       string;
@@ -577,6 +590,212 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     finding("Info", "X-Content-Type-Options Missing", "nosniff directive absent — MIME-type sniffing enabled in older browsers.", "D25");
   }
 
+
+  // ── SEO Analysis ──────────────────────────────────────────────────────────
+  // All signals derived from the already-fetched body (lowercased, ≤32 KB).
+  // Regex helpers operate on raw (case-preserving) body slice for length checks.
+  const bodyRaw    = body;   // already lowercase from fetch
+  const seoSignals: SeoSignal[] = [];
+  let   seoId      = 0;
+  const seo = (
+    category: SeoSignal["category"],
+    status:   SeoStatus,
+    signal:   string,
+    detail:   string,
+    recommendation: string,
+  ) => seoSignals.push({ id: `SEO${++seoId}`, category, status, signal, detail, recommendation });
+
+  // Helper: extract first regex match value from body
+  const rex = (pattern: RegExp): string => { const m = bodyRaw.match(pattern); return m ? m[1] || "" : ""; };
+
+  // ── Discoverability ───────────────────────────────────────────────────────
+
+  // Robots meta noindex / nofollow
+  const robotsMeta = rex(/meta[^>]+name=["']robots["'][^>]+content=["']([^"']+)["']/i)
+                  || rex(/meta[^>]+content=["']([^"']+)["'][^>]+name=["']robots["']/i);
+  const isNoindex  = /noindex/.test(robotsMeta);
+  const isNofollow = /nofollow/.test(robotsMeta);
+  if (isNoindex) {
+    seo("Discoverability","fail","Robots Meta — noindex",
+      `<meta name="robots" content="${robotsMeta}"> prevents search engines from indexing this page.`,
+      "Remove the noindex directive unless this page is intentionally excluded from search results.");
+  } else {
+    seo("Discoverability","pass","Robots Meta — indexable",
+      robotsMeta ? `Robots meta present: "${robotsMeta}".` : "No robots meta found — defaults to indexable.",
+      "No action needed.");
+  }
+  if (isNofollow) {
+    seo("Discoverability","warn","Robots Meta — nofollow",
+      "nofollow prevents PageRank flowing to linked pages.",
+      "Use nofollow sparingly; omit on pages whose outbound links should pass authority.");
+  }
+
+  // Canonical URL
+  const canonicalUrl = rex(/rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)
+                    || rex(/href=["']([^"']+)["'][^>]*rel=["']canonical["']/i);
+  if (!canonicalUrl) {
+    seo("Discoverability","warn","Canonical URL",
+      `No <link rel="canonical"> found.`,
+      "Add a canonical tag pointing to the preferred URL to prevent duplicate content issues.");
+  } else {
+    const canonOk = canonicalUrl.includes(hostname);
+    seo("Discoverability", canonOk ? "pass" : "warn", "Canonical URL",
+      canonOk
+        ? `Canonical tag present and points to same domain.`
+        : `Canonical points to a different domain: ${canonicalUrl.substring(0,80)}.`,
+      canonOk ? "No action needed." : "Verify the cross-domain canonical is intentional.");
+  }
+
+  // Sitemap reference in body
+  const hasSitemapRef = b("sitemap") || b("sitemap.xml");
+  seo("Discoverability", hasSitemapRef ? "pass" : "warn", "Sitemap Reference",
+    hasSitemapRef ? "Sitemap reference detected in page source." : "No sitemap reference found in page source.",
+    hasSitemapRef ? "Ensure sitemap.xml is submitted to Google Search Console." : "Add a link to your sitemap.xml in robots.txt and submit it to Search Console.");
+
+  // ── Metadata ──────────────────────────────────────────────────────────────
+
+  // Page Title
+  const titleText = rex(/<title[^>]*>([^<]{1,200})<\/title>/i).trim();
+  const titleLen  = titleText.length;
+  if (!titleText) {
+    seo("Metadata","fail","Page Title",
+      "No <title> tag found.",
+      "Add a descriptive title of 50–60 characters. It appears in search results and browser tabs.");
+  } else if (titleLen < 30) {
+    seo("Metadata","warn","Page Title",
+      `Title found but very short (${titleLen} chars): "${titleText.substring(0,60)}".`,
+      "Expand the title to 50–60 characters to give search engines more context.");
+  } else if (titleLen > 60) {
+    seo("Metadata","warn","Page Title",
+      `Title is ${titleLen} characters — search engines truncate around 60: "${titleText.substring(0,70)}…".`,
+      "Shorten the title to 50–60 characters so it displays in full in SERPs.");
+  } else {
+    seo("Metadata","pass","Page Title",
+      `Title is ${titleLen} chars (optimal 50–60): "${titleText.substring(0,60)}".`,
+      "No action needed.");
+  }
+
+  // Meta Description
+  const descText = rex(/meta[^>]+name=["']description["'][^>]+content=["']([^"']{0,500})["']/i)
+                || rex(/meta[^>]+content=["']([^"']{0,500})["'][^>]+name=["']description["']/i);
+  const descLen  = descText.length;
+  if (!descText) {
+    seo("Metadata","fail","Meta Description",
+      "No meta description found.",
+      "Add a meta description of 120–160 characters summarising the page. It often appears as the SERP snippet.");
+  } else if (descLen < 70) {
+    seo("Metadata","warn","Meta Description",
+      `Description is very short (${descLen} chars): "${descText.substring(0,80)}".`,
+      "Expand to 120–160 characters for better SERP click-through rates.");
+  } else if (descLen > 160) {
+    seo("Metadata","warn","Meta Description",
+      `Description is ${descLen} characters — search engines truncate around 160.`,
+      "Trim to 120–160 characters.");
+  } else {
+    seo("Metadata","pass","Meta Description",
+      `Description is ${descLen} chars (optimal 120–160): "${descText.substring(0,80)}…".`,
+      "No action needed.");
+  }
+
+  // H1 tags
+  const h1Matches = Array.from(bodyRaw.matchAll(/<h1[^>]*>([^<]{1,200})<\/h1>/gi));
+  const h1Count   = h1Matches.length;
+  if (h1Count === 0) {
+    seo("Metadata","fail","H1 Heading",
+      "No <h1> tag found on this page.",
+      "Add exactly one H1 that clearly describes the page topic. It is a primary on-page SEO signal.");
+  } else if (h1Count === 1) {
+    const h1Text = (h1Matches[0][1] || "").trim().substring(0, 80);
+    seo("Metadata","pass","H1 Heading",
+      `One H1 found: "${h1Text}".`,
+      "No action needed.");
+  } else {
+    seo("Metadata","warn","H1 Heading",
+      `${h1Count} H1 tags found — pages should have exactly one primary heading.`,
+      "Reduce to a single H1. Use H2–H6 for subheadings.");
+  }
+
+  // ── Social (Open Graph + Twitter Card) ────────────────────────────────────
+
+  const ogTitle    = b("og:title");
+  const ogDesc     = b("og:description");
+  const ogImage    = b("og:image");
+  const twitterCard= b("twitter:card") || b('name="twitter:');
+  const hasOg      = ogTitle && ogDesc && ogImage;
+
+  if (!ogTitle && !ogDesc && !ogImage) {
+    seo("Social","fail","Open Graph Tags",
+      "No Open Graph meta tags found (og:title, og:description, og:image).",
+      "Add OG tags so shared links render rich previews on Facebook, LinkedIn, and Slack.");
+  } else if (!hasOg) {
+    const missing = [!ogTitle && "og:title", !ogDesc && "og:description", !ogImage && "og:image"].filter(Boolean);
+    seo("Social","warn","Open Graph Tags",
+      `Partial OG implementation — missing: ${missing.join(", ")}.`,
+      "Complete the OG tag set for consistent rich previews across platforms.");
+  } else {
+    seo("Social","pass","Open Graph Tags",
+      "og:title, og:description, and og:image are all present.",
+      "No action needed.");
+  }
+
+  if (!twitterCard) {
+    seo("Social","warn","Twitter / X Card",
+      "No twitter:card meta tag found.",
+      `Add <meta name="twitter:card" content="summary_large_image"> for rich previews on X/Twitter.`);
+  } else {
+    seo("Social","pass","Twitter / X Card",
+      "twitter:card meta tag present.",
+      "No action needed.");
+  }
+
+  // ── Technical SEO ─────────────────────────────────────────────────────────
+
+  // Viewport (mobile-friendliness)
+  const hasViewport = b('name="viewport"') || b("name='viewport'");
+  seo("Technical", hasViewport ? "pass" : "fail", "Viewport Meta Tag",
+    hasViewport ? "Viewport meta tag present — page signals mobile-responsiveness." : "No viewport meta tag found.",
+    hasViewport ? "No action needed." : `Add <meta name="viewport" content="width=device-width, initial-scale=1"> for mobile-friendliness. Google uses mobile-first indexing.`);
+
+  // Structured data
+  const hasJsonLd   = b("application/ld+json");
+  const hasMicrodata= b("itemscope") || b("itemtype=");
+  const hasSchema   = hasJsonLd || hasMicrodata;
+  seo("Technical", hasSchema ? "pass" : "warn", "Structured Data",
+    hasSchema
+      ? (hasJsonLd ? "JSON-LD structured data detected." : "Microdata structured data detected.")
+      : "No structured data (JSON-LD or Microdata) found.",
+    hasSchema ? "No action needed. Validate at schema.org/validator." : "Add JSON-LD structured data (e.g. Organization, WebPage, BreadcrumbList) to improve rich results eligibility.");
+
+  // Content compression
+  const encoding   = h("content-encoding");
+  const compressed = encoding.includes("gzip") || encoding.includes("br") || encoding.includes("zstd");
+  seo("Technical", compressed ? "pass" : "warn", "Content Compression",
+    compressed ? `Response is compressed (${encoding}).` : "No content-encoding header — response may be uncompressed.",
+    compressed ? "No action needed." : "Enable gzip or Brotli compression on your server to reduce page load time — a Core Web Vitals ranking factor.");
+
+  // HTTPS (already in security findings — cross-reference here)
+  seo("Technical", isHttps ? "pass" : "fail", "HTTPS",
+    isHttps ? "Site is served over HTTPS — required for modern SEO ranking." : "Site is served over HTTP.",
+    isHttps ? "No action needed." : "Migrate to HTTPS. Google has used HTTPS as a ranking signal since 2014.");
+
+  // Image alt text (sampling — check whether any img lacks alt entirely)
+  const imgCount    = (bodyRaw.match(/<img/gi) || []).length;
+  const imgWithAlt  = (bodyRaw.match(/<img[^>]+alt=["'][^"']{1,}/gi) || []).length;
+  const imgNoAlt    = imgCount - imgWithAlt;
+  if (imgCount === 0) {
+    seo("Technical","pass","Image Alt Text",
+      "No images detected in page source.",
+      "No action needed.");
+  } else if (imgNoAlt > 0) {
+    seo("Technical","warn","Image Alt Text",
+      `${imgNoAlt} of ${imgCount} image(s) appear to be missing or have empty alt attributes.`,
+      "Add descriptive alt text to all images. Alt text is used by search engines to understand image content and is required for accessibility (WCAG 2.1).");
+  } else {
+    seo("Technical","pass","Image Alt Text",
+      `All ${imgCount} detected image(s) have alt attributes.`,
+      "No action needed.");
+  }
+
   // ── HPTP mandatory ────────────────────────────────────────────────────────
   const hptp_mandatory = trits[14] === 3 && trits[15] === 3;
 
@@ -596,6 +815,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     trackers,
     security_headers,
     findings,
+    seo_signals:      seoSignals,
     topology_svg:     null,         // Phase 2: services/tdns-v2/src/topology.rs
     meta,
     scannedAt:        new Date().toISOString(),

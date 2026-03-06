@@ -221,8 +221,8 @@ function renderScores(r) {
   }).join("");
 }
 
-// ── Findings ──────────────────────────────────────────────────────────────────
-function renderFindings(r) {
+// ── Security Alerts ─────────────────────────────────────────────────────────────
+function renderSecurityAlerts(r) {
   const list = r.findings || [];
   const crit = list.filter(f => f.severity === "Critical").length;
   const warn = list.filter(f => f.severity === "Warning").length;
@@ -232,7 +232,7 @@ function renderFindings(r) {
   else           { badge.textContent = list.length ? `${list.length} Info` : "Clean"; badge.className = `section-badge ${list.length ? "badge-info" : "badge-clean"}`; }
 
   el("findings-list").innerHTML = list.length === 0
-    ? `<p style="font-size:12px;color:var(--green);padding:6px 0">✓ No findings. Clean scan.</p>`
+    ? `<p style="font-size:12px;color:var(--green);padding:6px 0">✓ No security alerts. Clean scan.</p>`
     : list.map(f => `
         <div class="finding finding-${f.severity.toLowerCase()}">
           <div class="finding-dot dot-${f.severity.toLowerCase()}"></div>
@@ -243,7 +243,7 @@ function renderFindings(r) {
           </div>
         </div>`).join("");
 
-  openSection("findings");
+  openSection("findings"); // always open
 }
 
 // ── Dimensions ────────────────────────────────────────────────────────────────
@@ -646,17 +646,72 @@ async function runScan(url) {
     currentResult = result;
     renderAddress(result);
     renderScores(result);
-    renderFindings(result);
+    renderSecurityAlerts(result);
     renderDimensions(result);
     renderHeaders(result);
     renderTrackers(result);
     renderBlockRecs(result);
+    renderSEO(result);
     showReport();
 
     chrome?.runtime?.sendMessage({ type:"CACHE_SCAN", tabId:currentTabId, result });
   } catch (err) {
     showError(err.message || "Scan failed. Check your connection or try a different URL.");
   }
+}
+
+
+// ── SEO Analysis ──────────────────────────────────────────────────────────────
+function renderSEO(r) {
+  const signals = r.seo_signals || [];
+  const fails   = signals.filter(s => s.status === "fail").length;
+  const warns   = signals.filter(s => s.status === "warn").length;
+  const passes  = signals.filter(s => s.status === "pass").length;
+
+  const badge = el("seo-badge");
+  if (badge) {
+    if (fails)       { badge.textContent = `${fails} Issue${fails>1?"s":""}`; badge.className = "section-badge badge-critical"; }
+    else if (warns)  { badge.textContent = `${warns} Warning${warns>1?"s":""}`; badge.className = "section-badge badge-warning"; }
+    else if (passes) { badge.textContent = `${passes} Passed`; badge.className = "section-badge badge-clean"; }
+    else             { badge.textContent = "—"; badge.className = "section-badge"; }
+  }
+
+  const catOrder = ["Discoverability","Metadata","Social","Technical"];
+  const byCat = {};
+  catOrder.forEach(c => { byCat[c] = []; });
+  signals.forEach(s => { if (byCat[s.category]) byCat[s.category].push(s); });
+
+  const icons = { pass:"✓", warn:"⚠", fail:"✗" };
+  let html = "";
+
+  catOrder.forEach(cat => {
+    const group = byCat[cat];
+    if (!group.length) return;
+    html += `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+      color:var(--fg-dim);padding:8px 2px 4px;border-bottom:1px solid var(--border);margin-bottom:5px">${cat}</div>`;
+    group.forEach(s => {
+      html += `
+        <div class="seo-row seo-${s.status}" data-seo="${esc(s.id)}">
+          <div class="seo-icon">${icons[s.status]}</div>
+          <div>
+            <div class="seo-signal">${esc(s.signal)}</div>
+            <div class="seo-detail">${esc(s.detail)}</div>
+            <div class="seo-rec">💡 ${esc(s.recommendation)}</div>
+          </div>
+        </div>`;
+    });
+  });
+
+  if (!html) html = '<p style="font-size:12px;color:var(--fg-muted);padding:6px 0">No SEO data available for this page.</p>';
+  el("seo-content").innerHTML = html;
+
+  // Click to expand recommendation (pass rows hidden by default)
+  el("seo-content").querySelectorAll(".seo-row").forEach(row =>
+    row.addEventListener("click", () => row.classList.toggle("expanded"))
+  );
+
+  // Auto-open if there are failures
+  if (fails > 0) openSection("seo");
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────

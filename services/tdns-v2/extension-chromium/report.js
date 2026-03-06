@@ -1,41 +1,36 @@
 "use strict";
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const el  = id => document.getElementById(id);
 
-const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-const el  = id => document.getElementById(id);
+  const AXIS_COLORS = {
+    WHO:"#D4A017", WHAT:"#059669", WHERE:"#818CF8",
+    WHEN:"#F87171", WHY:"#C084FC", HOW:"#38BDF8", PEACE:"#4ADE80"
+  };
 
-const AXIS_COLORS = {
-  WHO:"#D4A017", WHAT:"#059669", WHERE:"#818CF8",
-  WHEN:"#F87171", WHY:"#C084FC", HOW:"#38BDF8", PEACE:"#4ADE80"
-};
+  function scoreColor(v) {
+    if (v >= 75) return "#4ADE80";
+    if (v >= 60) return "#D4A017";
+    if (v >= 40) return "#F59E0B";
+    return "#EF4444";
+  }
 
-function scoreColor(v) {
-  if (v >= 75) return "#4ADE80";
-  if (v >= 60) return "#D4A017";
-  if (v >= 40) return "#F59E0B";
-  return "#EF4444";
-}
+  function pips(conf) {
+    let h = '<div class="conf-row">';
+    for (let i = 1; i <= 9; i++) h += `<div class="pip${i <= conf ? " on" : ""}"></div>`;
+    return h + '</div>';
+  }
 
-function pips(conf) {
-  let h = '<div class="conf-row">';
-  for (let i = 1; i <= 9; i++) h += `<div class="pip${i <= conf ? " on" : ""}"></div>`;
-  return h + '</div>';
-}
-
-function render(result, tier) {
-  try {
+  function render(result, tier) {
     el("no-data").style.display = "none";
     el("report-root").style.display = "block";
 
+    // Header meta
     el("r-url").textContent       = result.meta?.url || "—";
     el("r-timestamp").textContent = "Scanned: " + new Date(result.scannedAt).toLocaleString();
     el("r-tier").textContent      = `Tier: ${tier.toUpperCase()} — ${result.scan_hash_algo || "sha256-js"}`;
 
-    const addrEl = el("r-address");
-    if (addrEl.childNodes.length > 0) {
-      addrEl.childNodes[0].textContent = result.address + " ";
-    } else {
-      addrEl.insertBefore(document.createTextNode(result.address + " "), addrEl.firstChild);
-    }
+    // Address
+    el("r-address").childNodes[0].textContent = result.address + " ";
     el("r-hptp").style.display = result.hptp_mandatory ? "inline-block" : "none";
     el("r-crd").textContent     = result.crd;
     el("r-hash-algo").textContent = result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
@@ -43,6 +38,7 @@ function render(result, tier) {
     el("r-full-hash").textContent= result.scan_hash || "—";
     el("r-algo-name").textContent= result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256 (JS path)";
 
+    // Scores
     const scoreDefs = [
       { key:"trustIndex",          name:"Trust Index",    lk:"trustLabel"          },
       { key:"privacyFocusedIndex", name:"PFI",            lk:"pfiLabel"            },
@@ -60,10 +56,11 @@ function render(result, tier) {
       </div>`;
     }).join("");
 
+    // Findings
     const findings = result.findings || [];
     const crit = findings.filter(f=>f.severity==="Critical").length;
     const warn = findings.filter(f=>f.severity==="Warning").length;
-    el("r-findings-count").textContent = crit ? `— ${crit} Critical` : warn ? `— ${warn} Warning` : "— Clean";
+    el("r-findings-count").textContent = crit ? `— ${crit} Critical` : warn ? `— ${warn} Warning` : "— Clean"; // Security Alerts
     el("r-findings").innerHTML = findings.length
       ? findings.map(f => `
           <div class="finding finding-${f.severity.toLowerCase()}">
@@ -76,6 +73,7 @@ function render(result, tier) {
           </div>`).join("")
       : `<div style="color:#059669;font-size:12px">✓ No findings. Clean scan.</div>`;
 
+    // Dimensions
     el("r-dims").innerHTML = (result.dimensions || []).map(d => {
       const c = AXIS_COLORS[d.category] || "#888";
       return `<tr>
@@ -89,6 +87,7 @@ function render(result, tier) {
       </tr>`;
     }).join("");
 
+    // Headers
     el("r-headers").innerHTML = (result.security_headers || []).map(h => {
       const isRisk = h.header === "x-powered-by";
       const icon   = isRisk
@@ -106,6 +105,7 @@ function render(result, tier) {
       </tr>`;
     }).join("");
 
+    // Trackers
     const isPro = tier !== "free";
     const premiumIds = ["session_replay","crm"];
     el("r-trackers").innerHTML = (result.trackers || []).map(t => {
@@ -137,58 +137,58 @@ function render(result, tier) {
         <div class="tr-law">${esc(t.privacy_law)}</div>
       </div>`;
     }).join("");
-  } catch (err) {
-    console.error("TDNS report render error:", err);
-    el("no-data").style.display = "block";
-    el("no-data").innerHTML = `<h2>Render Error</h2><p>${esc(err.message)}</p><p style="font-size:11px;margin-top:8px">Check the browser console (F12) for details.</p>`;
-  }
-}
+    // SEO Analysis
+    const seoSignals = result.seo_signals || [];
+    const catOrder   = ["Discoverability","Metadata","Social","Technical"];
+    const byCat      = {};
+    catOrder.forEach(c => { byCat[c] = []; });
+    seoSignals.forEach(s => { if (byCat[s.category]) byCat[s.category].push(s); });
 
-function loadAndRender() {
-  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-    let attempts = 0;
-    const maxAttempts = 10;
-    const pollInterval = 200;
+    const seoIcons = { pass:"✓", warn:"⚠", fail:"✗" };
+    let seoHtml = "";
 
-    function tryLoad() {
-      attempts++;
-      chrome.storage.local.get(["tdns_print_result", "tdns_print_tier"], data => {
-        if (data && data.tdns_print_result) {
-          render(data.tdns_print_result, data.tdns_print_tier || "free");
-        } else if (attempts < maxAttempts) {
-          setTimeout(tryLoad, pollInterval);
-        } else {
-          el("no-data").style.display = "block";
-        }
+    catOrder.forEach(cat => {
+      const group = byCat[cat];
+      if (!group.length) return;
+      seoHtml += `<tr class="seo-cat-header"><td colspan="5">${esc(cat)}</td></tr>`;
+      group.forEach(s => {
+        seoHtml += `<tr class="seo-${s.status}">
+          <td class="seo-status">${seoIcons[s.status]}</td>
+          <td class="seo-signal-cell">${esc(s.signal)}</td>
+          <td style="font-size:10px;color:var(--dim)">${esc(s.category)}</td>
+          <td class="seo-detail-cell">${esc(s.detail)}</td>
+          <td class="seo-rec-cell">${s.status !== "pass" ? esc(s.recommendation) : "—"}</td>
+        </tr>`;
       });
-    }
+    });
 
-    tryLoad();
-  } else {
-    const hash = location.hash.slice(1);
-    if (hash) {
-      try {
-        const { result, tier } = JSON.parse(decodeURIComponent(hash));
-        render(result, tier || "free");
-      } catch {
+    if (!seoHtml) seoHtml = '<tr><td colspan="5" style="color:var(--muted)">No SEO data available.</td></tr>';
+    if (el("r-seo")) el("r-seo").innerHTML = seoHtml;
+
+  }
+
+  // Load from chrome.storage.local
+  function loadAndRender() {
+    if (typeof chrome !== "undefined" && chrome.storage) {
+      chrome.storage.local.get(["tdns_print_result","tdns_print_tier"], data => {
+        if (!data.tdns_print_result) {
+          el("no-data").style.display = "block";
+          return;
+        }
+        render(data.tdns_print_result, data.tdns_print_tier || "free");
+      });
+    } else {
+      // Dev fallback — try URL hash
+      const hash = location.hash.slice(1);
+      if (hash) {
+        try {
+          const { result, tier } = JSON.parse(decodeURIComponent(hash));
+          render(result, tier || "free");
+        } catch { el("no-data").style.display = "block"; }
+      } else {
         el("no-data").style.display = "block";
       }
-    } else {
-      el("no-data").style.display = "block";
     }
   }
-}
 
-function init() {
-  const btnPrint = document.getElementById("btn-do-print");
-  const btnClose = document.getElementById("btn-do-close");
-  if (btnPrint) btnPrint.addEventListener("click", () => window.print());
-  if (btnClose) btnClose.addEventListener("click", () => window.close());
   loadAndRender();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
