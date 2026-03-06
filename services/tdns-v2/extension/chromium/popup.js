@@ -56,20 +56,20 @@ function doRegister() {
       return;
     }
 
-    const scan = resp.scan;
-    const reg  = resp.registration;
+    const d = resp.data;
+    const scan = d.scan || d;
     const hostname = new URL(registerUrl).hostname;
 
-    $('addressBox').innerHTML = scan.address + (reg?.crd ? ` <span class="crd-badge">CRD:${reg.crd}</span>` : '');
-    $('scanHash').textContent   = scan.scan_hash.substring(0,16) + '\u2026';
-    $('hptpStatus').textContent = scan.hptp_mandatory ? 'Yes' : 'No';
+    $('addressBox').innerHTML = (scan.address || d.address) + (d.crd ? ` <span class="crd-badge">CRD:${d.crd}</span>` : '');
+    $('scanHash').textContent   = (scan.scan_hash || d.scan_hash || '').substring(0,16) + '\u2026';
+    $('hptpStatus').textContent = (scan.hptp_mandatory || d.hptp_mandatory) ? 'Yes' : 'No';
     $('openFull').onclick = () => chrome.tabs.create({
       url: chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(hostname)}`)
     });
     $('result').classList.add('show');
 
-    if (reg?.name)
-      $('addressBox').innerHTML += `<div style="font-size:10px;color:#059669;margin-top:4px">Registered as ${reg.name}</div>`;
+    if (d.name)
+      $('addressBox').innerHTML += `<div style="font-size:10px;color:#059669;margin-top:4px">Registered as ${d.name}</div>`;
   });
 }
 
