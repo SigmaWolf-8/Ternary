@@ -1,32 +1,10 @@
 // PlenumNET TDNS — Background Service Worker
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
 //
-// Scan architecture: POST to Rust TDNS server (localhost:3927 when Docker running,
-// plenumnet.replit.app/api/tdns as fallback). The Rust server is the authoritative
-// scanner — do NOT approximate it in JS.
+// Architecture: Extension → plenumnet.replit.app/api/tdns/*
+// The server runs the 27-dimension scan engine. No Docker. No localhost.
 
-const LOCAL  = 'http://localhost:3927';
-const REMOTE = 'https://plenumnet.replit.app/api/tdns';
-
-// Cache which endpoint is live for 30 seconds
-let _endpointCache = null;
-let _endpointTs    = 0;
-
-async function getEndpoint() {
-  if (_endpointCache && (Date.now() - _endpointTs) < 30000) return _endpointCache;
-  try {
-    const r = await fetch(`${LOCAL}/api/v1/health`, { signal: AbortSignal.timeout(1500) });
-    if (r.ok) { _endpointCache = LOCAL; _endpointTs = Date.now(); return LOCAL; }
-  } catch(_) {}
-  _endpointCache = REMOTE;
-  _endpointTs    = Date.now();
-  return REMOTE;
-}
-
-// Build URL: local uses /api/v1/PATH, remote proxy uses /PATH
-function url(base, path) {
-  return base === LOCAL ? `${base}/api/v1${path}` : `${base}${path}`;
-}
+const API = 'https://plenumnet.replit.app/api/tdns';
 
 // ── Omnibox ───────────────────────────────────────────────────────────────────
 chrome.omnibox.onInputStarted.addListener(() =>
@@ -35,16 +13,15 @@ chrome.omnibox.onInputStarted.addListener(() =>
 chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
   const plm = text.trim().endsWith('.plm') ? text.trim() : text.trim() + '.plm';
   try {
-    const base = await getEndpoint();
-    const r    = await fetch(url(base, `/resolve/${plm}`));
+    const r = await fetch(`${API}/resolve/${plm}`);
     if (r.ok) {
       const d = await r.json();
-      suggest([{ content: plm, description: `✓ ${plm} → ${d.address || 'resolved'}` }]);
+      suggest([{ content: plm, description: `\u2713 ${plm} \u2192 ${d.address || 'resolved'}` }]);
     } else {
-      suggest([{ content: plm, description: `⊘ ${plm} — not registered` }]);
+      suggest([{ content: plm, description: `\u2298 ${plm} \u2014 not registered` }]);
     }
   } catch(_) {
-    suggest([{ content: plm, description: `⚠ ${plm} — server unavailable` }]);
+    suggest([{ content: plm, description: `\u26A0 ${plm} \u2014 server unavailable` }]);
   }
 });
 
@@ -73,64 +50,50 @@ chrome.webNavigation.onBeforeNavigate.addListener(interceptPlm);
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   if (msg.type === 'health') {
-    getEndpoint().then(base =>
-      fetch(url(base, '/health'))
-        .then(r => r.json())
-        .then(data => sendResponse({ ok: true, data, endpoint: base }))
-        .catch(() => sendResponse({ ok: false }))
-    );
+    fetch(`${API}/health`)
+      .then(r => r.json())
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
 
   if (msg.type === 'resolve') {
-    getEndpoint().then(base =>
-      fetch(url(base, `/resolve/${msg.name}`))
-        .then(r => r.json())
-        .then(data => sendResponse({ ok: true, data }))
-        .catch(err => sendResponse({ ok: false, error: err.message }))
-    );
+    fetch(`${API}/resolve/${msg.name}`)
+      .then(r => r.json())
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(err => sendResponse({ ok: false, error: err.message }));
     return true;
   }
 
   if (msg.type === 'scan') {
-    getEndpoint().then(base =>
-      fetch(url(base, '/scan'), {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ url: msg.url })
+    fetch(`${API}/scan`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ url: msg.url })
+    })
+      .then(r => r.json())
+      .then(data => {
+        const key = 'scan_' + new URL(msg.url).hostname.replace(/\./g, '_');
+        chrome.storage.session.set({ [key]: data });
+        sendResponse({ ok: true, data });
       })
-        .then(r => r.json())
-        .then(data => {
-          // Enrich with metadata the Rust server doesn't return
-          data.scannedAt = new Date().toISOString();
-          data.meta      = { url: msg.url, hostname: new URL(msg.url).hostname };
-          // Store for report page
-          const key = 'scan_' + new URL(msg.url).hostname.replace(/\./g, '_');
-          chrome.storage.session.set({ [key]: data });
-          sendResponse({ ok: true, data });
-        })
-        .catch(err => sendResponse({ ok: false, error: err.message }))
-    );
+      .catch(err => sendResponse({ ok: false, error: err.message }));
     return true;
   }
 
   if (msg.type === 'register') {
-    getEndpoint().then(base =>
-      fetch(url(base, '/register'), {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          name:           msg.name || new URL(msg.url).hostname.replace(/\./g, '-') + '.plm',
-          zone:           'public',
-          public_key_hex: '00',
-          url:            msg.url,
-          hptp_offset_ns: null,
-        })
+    fetch(`${API}/register`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        name: msg.name || new URL(msg.url).hostname.replace(/\./g, '-') + '.plm',
+        zone: 'public',
+        url:  msg.url,
       })
-        .then(r => r.json())
-        .then(data => sendResponse({ ok: true, data }))
-        .catch(err => sendResponse({ ok: false, error: err.message }))
-    );
+    })
+      .then(r => r.json())
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(err => sendResponse({ ok: false, error: err.message }));
     return true;
   }
 
@@ -167,4 +130,4 @@ chrome.alarms.onAlarm.addListener(alarm => {
     .catch(() => {});
 });
 
-console.log('PlenumNET TDNS — background loaded');
+console.log('PlenumNET TDNS \u2014 background loaded');
