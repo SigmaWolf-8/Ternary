@@ -35,10 +35,10 @@ export const securityHeaders = helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginOpenerPolicy: isDev ? false : { policy: "same-origin" },
   crossOriginResourcePolicy: { policy: "cross-origin" },
   xContentTypeOptions: true,
-  xFrameOptions: { action: "deny" },
+  xFrameOptions: isDev ? false : { action: "sameorigin" },
   xXssProtection: true,
   hsts: isDev ? false : {
     maxAge: 31536000,
