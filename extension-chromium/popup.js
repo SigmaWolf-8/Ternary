@@ -476,11 +476,25 @@ function setupUpgrade() {
 function setupPDF() {
   el("btn-pdf").onclick = async () => {
     if (!currentResult) return;
-    await storageSet({ tdns_print_result: currentResult, tdns_print_tier: tier });
-    const url = typeof chrome?.runtime?.getURL === "function"
+
+    // Write data to storage FIRST, fully awaited, then open the tab.
+    // chrome.tabs.create is more reliable than window.open from an extension popup.
+    await storageSet({
+      tdns_print_result: currentResult,
+      tdns_print_tier:   tier,
+      tdns_print_ts:     Date.now(),     // timestamp so report.html can detect stale data
+    });
+
+    const reportUrl = typeof chrome?.runtime?.getURL === "function"
       ? chrome.runtime.getURL("report.html")
       : "report.html";
-    window.open(url, "_blank");
+
+    if (typeof chrome?.tabs?.create === "function") {
+      chrome.tabs.create({ url: reportUrl });
+    } else {
+      // Fallback for dev/non-Chrome environments
+      window.open(reportUrl, "_blank");
+    }
   };
 }
 
