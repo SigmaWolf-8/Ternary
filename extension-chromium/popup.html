@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=400, initial-scale=1.0">
+  <title>PlenumNET TDNS</title>
+  <style>
+    /* ── Design tokens — PlenumNET SignHere system ──────────────────────── */
+    :root {
+      --bg:        #090807;
+      --bg-card:   #111010;
+      --bg-muted:  #1a1918;
+      --border:    #2a2826;
+      --gold:      #D4A017;
+      --gold-dim:  #A87820;
+      --fg:        #E4DFD5;
+      --fg-muted:  #7a7570;
+      --fg-dim:    #4a4542;
+      --green:     #059669;
+      --red:       #EF4444;
+      --amber:     #F59E0B;
+      --blue:      #3B82F6;
+      --indigo:    #818CF8;
+      --rose:      #F87171;
+      --purple:    #C084FC;
+      --sky:       #38BDF8;
+      --lime:      #4ADE80;
+
+      /* axis colors */
+      --who:       #D4A017;
+      --what:      #059669;
+      --where:     #818CF8;
+      --when:      #F87171;
+      --why:       #C084FC;
+      --how:       #38BDF8;
+      --peace:     #4ADE80;
+
+      --radius:    6px;
+      --font:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --mono:      'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family:      var(--font);
+      font-size:        13px;
+      line-height:      1.5;
+      background-color: var(--bg);
+      color:            var(--fg);
+      width:            400px;
+      min-height:       200px;
+      max-height:       640px;
+      overflow-y:       auto;
+      overflow-x:       hidden;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Navbar ─────────────────────────────────────────────────────────── */
+    .navbar {
+      display:         flex;
+      align-items:     center;
+      justify-content: space-between;
+      padding:         10px 14px;
+      background:      var(--bg);
+      border-bottom:   1px solid var(--border);
+      position:        sticky;
+      top:             0;
+      z-index:         10;
+    }
+    .navbar-brand {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+      font-size:   11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color:       var(--gold);
+    }
+    .navbar-brand svg { width: 18px; height: 18px; }
+    .navbar-url {
+      font-family: var(--mono);
+      font-size:   10px;
+      color:       var(--fg-muted);
+      max-width:   220px;
+      overflow:    hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .navbar-actions { display: flex; gap: 6px; }
+    .btn-icon {
+      background:  transparent;
+      border:      1px solid var(--border);
+      color:       var(--fg-muted);
+      border-radius: var(--radius);
+      padding:     4px 6px;
+      cursor:      pointer;
+      font-size:   11px;
+      transition:  all 0.15s;
+    }
+    .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Loading ────────────────────────────────────────────────────────── */
+    #loading {
+      display:         flex;
+      flex-direction:  column;
+      align-items:     center;
+      justify-content: center;
+      padding:         48px 24px;
+      gap:             16px;
+      color:           var(--fg-muted);
+      font-size:       12px;
+    }
+    .spinner {
+      width:  28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ──────────────────────────────────────────────────────────── */
+    #error-panel {
+      display:  none;
+      padding:  20px 14px;
+    }
+    .error-card {
+      background:    var(--bg-card);
+      border:        1px solid var(--red);
+      border-radius: var(--radius);
+      padding:       14px;
+    }
+    .error-card h3 { color: var(--red); font-size: 13px; margin-bottom: 6px; }
+    .error-card p  { color: var(--fg-muted); font-size: 12px; }
+
+    /* ── Report ─────────────────────────────────────────────────────────── */
+    #report { display: none; }
+
+    /* ── Address Block ──────────────────────────────────────────────────── */
+    .address-block {
+      padding:    12px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .address-row {
+      display:      flex;
+      align-items:  center;
+      gap:          8px;
+      margin-bottom: 6px;
+    }
+    .address-string {
+      font-family:  var(--mono);
+      font-size:    12px;
+      color:        var(--gold);
+      font-weight:  600;
+      letter-spacing: 0.04em;
+      flex:         1;
+      cursor:       pointer;
+      transition:   opacity 0.15s;
+    }
+    .address-string:hover { opacity: 0.8; }
+    .hptp-badge {
+      background:  var(--gold);
+      color:       var(--bg);
+      font-size:   9px;
+      font-weight: 700;
+      padding:     2px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    .crd-badge {
+      background:  var(--bg-muted);
+      color:       var(--fg-muted);
+      font-family: var(--mono);
+      font-size:   10px;
+      padding:     2px 5px;
+      border-radius: 3px;
+      border:      1px solid var(--border);
+    }
+    .address-meta {
+      display:     flex;
+      align-items: center;
+      gap:         12px;
+      font-size:   10px;
+      color:       var(--fg-muted);
+      font-family: var(--mono);
+    }
+    .hash-preview { color: var(--fg-dim); }
+    .hash-preview span { color: var(--fg-muted); }
+    .scan-time { color: var(--fg-dim); }
+
+    /* ── Scores ─────────────────────────────────────────────────────────── */
+    .scores-grid {
+      display:    grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:        1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .score-card {
+      background:  var(--bg-card);
+      padding:     10px 8px;
+      text-align:  center;
+    }
+    .score-value {
+      font-size:   20px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+    .score-label {
+      font-size:   8.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color:       var(--fg-muted);
+      margin-bottom: 2px;
+    }
+    .score-name {
+      font-size:   8px;
+      color:       var(--fg-dim);
+      white-space: nowrap;
+      overflow:    hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Section headers ────────────────────────────────────────────────── */
+    .section {
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header {
+      display:      flex;
+      align-items:  center;
+      justify-content: space-between;
+      padding:      8px 14px;
+      cursor:       pointer;
+      user-select:  none;
+      transition:   background 0.1s;
+    }
+    .section-header:hover { background: var(--bg-muted); }
+    .section-title {
+      font-size:    11px;
+      font-weight:  600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color:        var(--fg-muted);
+      display:      flex;
+      align-items:  center;
+      gap:          6px;
+    }
+    .section-badge {
+      font-size:    9px;
+      padding:      1px 5px;
+      border-radius: 10px;
+      font-weight:  600;
+    }
+    .badge-critical { background: rgba(239,68,68,0.15);  color: var(--red); }
+    .badge-warning  { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .badge-info     { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .badge-clean    { background: rgba(5,150,105,0.15);  color: var(--green); }
+    .badge-neutral  { background: var(--bg-muted); color: var(--fg-muted); }
+    .chevron {
+      font-size: 10px;
+      color: var(--fg-dim);
+      transition: transform 0.2s;
+    }
+    .section-header.open .chevron { transform: rotate(180deg); }
+    .section-body { display: none; }
+    .section-body.open { display: block; }
+
+    /* ── Findings ───────────────────────────────────────────────────────── */
+    .findings-list { padding: 6px 14px 10px; }
+    .finding {
+      display:       flex;
+      gap:           10px;
+      padding:       8px 10px;
+      margin-bottom: 4px;
+      border-radius: var(--radius);
+      border:        1px solid transparent;
+    }
+    .finding-critical { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.25); }
+    .finding-warning  { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); }
+    .finding-info     { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.2); }
+    .finding-dot {
+      width:       8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top:  5px;
+    }
+    .dot-critical { background: var(--red); }
+    .dot-warning  { background: var(--amber); }
+    .dot-info     { background: var(--blue); }
+    .finding-body {}
+    .finding-title {
+      font-size:   12px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .finding-critical .finding-title { color: var(--red); }
+    .finding-warning  .finding-title { color: var(--amber); }
+    .finding-info     .finding-title { color: var(--blue); }
+    .finding-message { font-size: 11px; color: var(--fg-muted); line-height: 1.45; }
+    .finding-dim {
+      font-family: var(--mono);
+      font-size:   9px;
+      color:       var(--fg-dim);
+      margin-top:  3px;
+    }
+
+    /* ── Dimension breakdown ─────────────────────────────────────────────── */
+    .axis-group { padding: 0 14px 10px; }
+    .axis-label {
+      font-size:   9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding:     6px 0 4px;
+      display:     flex;
+      align-items: center;
+      gap:         6px;
+    }
+    .axis-divider {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .dim-row {
+      display:      grid;
+      grid-template-columns: 28px 20px 1fr auto;
+      align-items:  center;
+      gap:          6px;
+      padding:      4px 0;
+    }
+    .dim-num {
+      font-family: var(--mono);
+      font-size:   9px;
+      color:       var(--fg-dim);
+      text-align:  right;
+    }
+    .trit-badge {
+      width:  20px; height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--bg-muted);
+    }
+    .dim-content { min-width: 0; }
+    .dim-question { font-size: 10px; color: var(--fg-muted); }
+    .dim-label    { font-size: 11px; font-weight: 600; }
+    .dim-meaning  { font-size: 10px; color: var(--fg-muted); margin-top: 1px; display: none; }
+    .dim-row.expanded .dim-meaning { display: block; }
+    .dim-row { cursor: pointer; }
+    .dim-row:hover { background: var(--bg-muted); border-radius: var(--radius); }
+    .conf-bar {
+      display:  flex;
+      gap:      1.5px;
+      align-items: center;
+    }
+    .conf-pip {
+      width: 4px; height: 4px;
+      border-radius: 1px;
+      background: var(--border);
+    }
+    .conf-pip.filled { background: var(--green); }
+    .conf-pip.amber  { background: var(--amber); }
+    .conf-pip.red    { background: var(--red); }
+
+    /* ── Security headers ────────────────────────────────────────────────── */
+    .headers-table { padding: 4px 14px 10px; }
+    .header-row {
+      display:      grid;
+      grid-template-columns: 14px 1fr 70px;
+      gap:          8px;
+      align-items:  start;
+      padding:      5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size:    11px;
+    }
+    .header-row:last-child { border-bottom: none; }
+    .header-status { font-size: 12px; margin-top: 1px; }
+    .header-name { font-family: var(--mono); font-size: 10px; color: var(--fg); margin-bottom: 2px; }
+    .header-purpose { font-size: 10px; color: var(--fg-muted); }
+    .header-value {
+      font-family: var(--mono);
+      font-size:   9px;
+      color:       var(--fg-dim);
+      word-break:  break-all;
+      text-align:  right;
+    }
+
+    /* ── Tracker panel ───────────────────────────────────────────────────── */
+    .tracker-list { padding: 4px 14px 10px; }
+    .tracker-row {
+      padding:       7px 10px;
+      margin-bottom: 3px;
+      border-radius: var(--radius);
+      border:        1px solid var(--border);
+      background:    var(--bg-card);
+    }
+    .tracker-row.detected-critical { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.06); }
+    .tracker-row.detected-high     { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
+    .tracker-row.detected-medium   { border-color: rgba(59,130,246,0.2); background: rgba(59,130,246,0.04); }
+    .tracker-header {
+      display:      flex;
+      align-items:  center;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    .tracker-name { font-size: 12px; font-weight: 600; }
+    .tracker-sensitivity {
+      font-size:   9px;
+      padding:     1px 5px;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sens-critical { background: rgba(239,68,68,0.2);  color: var(--red); }
+    .sens-high     { background: rgba(245,158,11,0.2); color: var(--amber); }
+    .sens-medium   { background: rgba(59,130,246,0.15);color: var(--blue); }
+    .tracker-domains { font-family: var(--mono); font-size: 9px; color: var(--fg-dim); margin-bottom: 2px; }
+    .tracker-law { font-size: 10px; color: var(--fg-muted); }
+    .tracker-none { font-size: 10px; color: var(--green); }
+
+    /* ── Freemium blur overlay ───────────────────────────────────────────── */
+    .premium-gate {
+      position:   relative;
+      overflow:   hidden;
+    }
+    .premium-gate .blurred-content {
+      filter:     blur(3px);
+      pointer-events: none;
+      user-select: none;
+      opacity:    0.6;
+    }
+    .premium-overlay {
+      position:   absolute;
+      inset:      0;
+      display:    flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(9,8,7,0.7);
+      gap:        6px;
+      padding:    12px;
+    }
+    .premium-overlay p {
+      font-size: 11px;
+      color:     var(--fg-muted);
+      text-align: center;
+    }
+    .btn-upgrade {
+      background:  var(--gold);
+      color:       var(--bg);
+      border:      none;
+      border-radius: var(--radius);
+      padding:     5px 14px;
+      font-size:   11px;
+      font-weight: 700;
+      cursor:      pointer;
+      letter-spacing: 0.04em;
+    }
+    .btn-upgrade:hover { opacity: 0.9; }
+
+    /* ── Actions bar ─────────────────────────────────────────────────────── */
+    .actions-bar {
+      padding:    10px 14px;
+      display:    flex;
+      gap:        6px;
+      flex-wrap:  wrap;
+    }
+    .btn-action {
+      flex:        1;
+      background:  var(--bg-card);
+      border:      1px solid var(--border);
+      color:       var(--fg-muted);
+      border-radius: var(--radius);
+      padding:     6px 10px;
+      font-size:   11px;
+      cursor:      pointer;
+      text-align:  center;
+      transition:  all 0.15s;
+    }
+    .btn-action:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-action.primary { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Modals ──────────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      display:     none;
+      position:    fixed;
+      inset:       0;
+      background:  rgba(9,8,7,0.85);
+      z-index:     100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background:    var(--bg-card);
+      border:        1px solid var(--border);
+      border-radius: 8px;
+      padding:       18px;
+      width:         360px;
+      max-height:    520px;
+      overflow-y:    auto;
+    }
+    .modal h3 {
+      font-size:   13px;
+      font-weight: 700;
+      color:       var(--gold);
+      margin-bottom: 12px;
+      display:     flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--fg-muted);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .modal-close:hover { color: var(--fg); }
+    .modal-field { margin-bottom: 10px; }
+    .modal-field label { font-size: 10px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.07em; display: block; margin-bottom: 4px; }
+    .modal-value {
+      font-family: var(--mono);
+      font-size:   11px;
+      color:       var(--fg);
+      background:  var(--bg-muted);
+      border:      1px solid var(--border);
+      border-radius: var(--radius);
+      padding:     6px 8px;
+      word-break:  break-all;
+    }
+    .modal-result {
+      font-size:   12px;
+      padding:     8px;
+      border-radius: var(--radius);
+      margin-top:  10px;
+    }
+    .modal-result.match   { background: rgba(5,150,105,0.15); color: var(--green); border: 1px solid rgba(5,150,105,0.3); }
+    .modal-result.no-match{ background: rgba(239,68,68,0.1);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+
+    /* ── Registered .plm tag ─────────────────────────────────────────────── */
+    .plm-tag {
+      font-family:  var(--mono);
+      font-size:    9px;
+      color:        var(--gold-dim);
+      background:   rgba(212,160,23,0.08);
+      border:       1px solid rgba(212,160,23,0.2);
+      border-radius: 3px;
+      padding:      1px 5px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    .footer {
+      padding:    8px 14px;
+      text-align: center;
+      font-size:  9px;
+      color:      var(--fg-dim);
+      border-top: 1px solid var(--border);
+    }
+    .footer a { color: var(--fg-dim); text-decoration: none; }
+    .footer a:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="navbar-brand">
+      <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="9,1 17,5.5 17,12.5 9,17 1,12.5 1,5.5" fill="none" stroke="#D4A017" stroke-width="1.5"/>
+        <polygon points="9,4.5 13.5,7 13.5,12 9,14.5 4.5,12 4.5,7" fill="rgba(212,160,23,0.15)" stroke="#D4A017" stroke-width="1"/>
+        <circle cx="9" cy="9" r="1.5" fill="#D4A017"/>
+      </svg>
+      PlenumNET
+    </div>
+    <div class="navbar-url" id="nav-url">—</div>
+    <div class="navbar-actions">
+      <button class="btn-icon" id="btn-rescan" title="Re-scan this page">↺</button>
+      <button class="btn-icon" id="btn-settings" title="Settings">⚙</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <span id="loading-text">Scanning…</span>
+  </div>
+
+  <!-- Error -->
+  <div id="error-panel">
+    <div class="error-card">
+      <h3>⚠ Scan Failed</h3>
+      <p id="error-message"></p>
+    </div>
+  </div>
+
+  <!-- Report -->
+  <div id="report">
+
+    <!-- Address Block -->
+    <div class="address-block">
+      <div class="address-row">
+        <div class="address-string" id="address" title="Click to copy">—</div>
+        <div class="hptp-badge" id="hptp-badge" style="display:none">HPTP-MANDATORY</div>
+        <div class="crd-badge" id="crd-badge" title="Collision Resolution Digit">CRD —</div>
+      </div>
+      <div class="address-meta">
+        <span class="hash-preview" id="hash-preview">BLAKE3: <span>—</span></span>
+        <span class="scan-time" id="scan-time">—</span>
+      </div>
+    </div>
+
+    <!-- Score Cards -->
+    <div class="scores-grid" id="scores-grid">
+      <!-- rendered by JS -->
+    </div>
+
+    <!-- Findings -->
+    <div class="section" id="section-findings">
+      <div class="section-header" data-section="findings">
+        <div class="section-title">
+          Findings
+          <span class="section-badge" id="findings-badge">—</span>
+        </div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-findings">
+        <div class="findings-list" id="findings-list"></div>
+      </div>
+    </div>
+
+    <!-- 27-Dimension Breakdown -->
+    <div class="section" id="section-dimensions">
+      <div class="section-header" data-section="dimensions">
+        <div class="section-title">27-Dimensional Breakdown</div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-dimensions">
+        <div id="dimensions-content"></div>
+      </div>
+    </div>
+
+    <!-- Security Header Audit -->
+    <div class="section" id="section-headers">
+      <div class="section-header" data-section="headers">
+        <div class="section-title">
+          Security Headers
+          <span class="section-badge" id="headers-badge">—</span>
+        </div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-headers">
+        <div class="headers-table" id="headers-content"></div>
+      </div>
+    </div>
+
+    <!-- Tracker Intelligence -->
+    <div class="section" id="section-trackers">
+      <div class="section-header" data-section="trackers">
+        <div class="section-title">
+          Tracker Intelligence
+          <span class="section-badge" id="trackers-badge">—</span>
+        </div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-trackers">
+        <div class="tracker-list" id="trackers-content"></div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar">
+      <button class="btn-action primary" id="btn-verify">Verify Hash</button>
+      <button class="btn-action" id="btn-decode">Decode Address</button>
+      <button class="btn-action" id="btn-register">.plm Register</button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      PlenumNET TDNS v1.0 — <a href="https://plenumnet.replit.app" target="_blank">plenumnet.replit.app</a>
+      &nbsp;·&nbsp; <a href="https://plenumnet.replit.app/privacy" target="_blank">Privacy</a>
+    </div>
+
+  </div>
+
+  <!-- Verify Hash Modal -->
+  <div class="modal-backdrop" id="modal-verify">
+    <div class="modal">
+      <h3>Verify Hash <button class="modal-close" data-modal="verify">✕</button></h3>
+      <div class="modal-field">
+        <label>Trit Vector Hash (SHA-256 of trit array)</label>
+        <div class="modal-value" id="verify-hash-val">—</div>
+      </div>
+      <div class="modal-field">
+        <label>27-Trit Address String</label>
+        <div class="modal-value" id="verify-addr-val">—</div>
+      </div>
+      <div class="modal-field">
+        <label>Paste Hash to Verify</label>
+        <input id="verify-input" type="text" placeholder="Paste hash here…"
+          style="width:100%;background:var(--bg-muted);border:1px solid var(--border);color:var(--fg);border-radius:var(--radius);padding:6px 8px;font-family:var(--mono);font-size:11px;outline:none;">
+      </div>
+      <button class="btn-action primary" id="btn-verify-run" style="width:100%;margin-top:4px;">Check</button>
+      <div id="verify-result"></div>
+    </div>
+  </div>
+
+  <!-- Decode Address Modal -->
+  <div class="modal-backdrop" id="modal-decode">
+    <div class="modal">
+      <h3>Decode Address <button class="modal-close" data-modal="decode">✕</button></h3>
+      <div class="modal-field">
+        <label>Address</label>
+        <div class="modal-value" id="decode-addr-val">—</div>
+      </div>
+      <div id="decode-breakdown"></div>
+    </div>
+  </div>
+
+  <!-- .plm Register Modal -->
+  <div class="modal-backdrop" id="modal-register">
+    <div class="modal">
+      <h3>.plm Registration <button class="modal-close" data-modal="register">✕</button></h3>
+      <div class="modal-field">
+        <label>Name (no .plm suffix needed)</label>
+        <input id="register-name" type="text" placeholder="e.g. mysite"
+          style="width:100%;background:var(--bg-muted);border:1px solid var(--border);color:var(--fg);border-radius:var(--radius);padding:6px 8px;font-size:12px;outline:none;">
+      </div>
+      <div class="modal-field">
+        <label>URL to Register</label>
+        <div class="modal-value" id="register-url-val">—</div>
+      </div>
+      <button class="btn-action primary" id="btn-register-run" style="width:100%;margin-top:4px;">Register</button>
+      <div id="register-result" style="margin-top:8px;font-size:11px;"></div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
