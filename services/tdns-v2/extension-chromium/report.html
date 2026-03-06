@@ -339,12 +339,12 @@
 
   <!-- Print toolbar (screen only) -->
   <div class="print-toolbar">
-    <button class="btn-print" onclick="window.print()">⎙ Print / Save PDF</button>
-    <button class="btn-close" onclick="window.close()">✕ Close</button>
+    <button class="btn-print" id="btn-do-print">⎙ Print / Save PDF</button>
+    <button class="btn-close" id="btn-do-close">✕ Close</button>
   </div>
 
   <!-- No data fallback -->
-  <div id="no-data" style="display:none">
+  <div id="no-data">
     <h2>No scan data available</h2>
     <p>Run a scan from the PlenumNET TDNS extension popup first.</p>
   </div>
