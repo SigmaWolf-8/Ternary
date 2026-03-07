@@ -27,6 +27,7 @@ let _serverListening = false;
 }) as typeof process.exit;
 
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -142,6 +143,7 @@ declare module "http" {
   }
 }
 
+app.use(compression({ threshold: 1024 }));
 app.use(securityHeaders);
 app.use(additionalSecurityHeaders);
 app.use(corsMiddleware);
