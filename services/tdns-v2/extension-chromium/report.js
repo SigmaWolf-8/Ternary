@@ -56,7 +56,7 @@
     // Scores
     const scoreDefs = [
       { key:"trustIndex",          name:"Trust Index",    lk:"trustLabel"          },
-      { key:"privacyFocusedIndex", name:"PFI",            lk:"pfiLabel"            },
+      { key:"privacyFocusedIndex", name:"Data Trust",      lk:"pfiLabel"            },
       { key:"privacyScore",        name:"Privacy",        lk:"privacyLabel"        },
       { key:"maturityScore",       name:"Maturity",       lk:"maturityLabel"       },
       { key:"complexityScore",     name:"Complexity",     lk:"complexityLabel"     },
