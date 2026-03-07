@@ -28,6 +28,9 @@ if exist "%LOCALAPPDATA%\Vivaldi\User Data" (
 if exist "%APPDATA%\Opera Software\Opera Stable" (
     call :install_for "Opera" "%BASE_DIR%\opera" "opera://extensions"
 )
+if exist "%LOCALAPPDATA%\Arc\User Data" (
+    call :install_for "Arc" "%BASE_DIR%\arc" "arc://extensions"
+)
 
 echo.
 if %installed% EQU 0 (
