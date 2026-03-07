@@ -222,7 +222,7 @@ export function resolveCalendarSystems(
 
   const validated: string[] = [];
   for (const sys of merged) {
-    if (KNOWN_CALENDAR_SYSTEMS.has(sys)) {
+    if (KNOWN_CALENDAR_SYSTEMS.has(sys as any)) {
       validated.push(sys);
     } else {
       console.warn('Unknown calendar system requested (skipped)', {
@@ -252,7 +252,7 @@ export function classifyCalendarSources(
 
   const policySet = new Set(policyDefaults);
   const supplemented = requested.filter(
-    sys => !policySet.has(sys) && KNOWN_CALENDAR_SYSTEMS.has(sys),
+    sys => !policySet.has(sys) && KNOWN_CALENDAR_SYSTEMS.has(sys as any),
   );
 
   return {
