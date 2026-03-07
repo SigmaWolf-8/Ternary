@@ -288,17 +288,32 @@
     #no-data h2 { color: var(--fg); margin-bottom: 12px; }
 
     /* ── PRINT STYLES ───────────────────────────────────────────────────── */
+
+    /* ── SEO Report ────────────────────────────────────────────────────────── */
+    .seo-table { width:100%; border-collapse:collapse; }
+    .seo-table th { text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); padding:4px 8px 4px 0; border-bottom:1px solid var(--border); }
+    .seo-table td { padding:7px 8px 7px 0; border-bottom:1px solid var(--border); font-size:11px; vertical-align:top; }
+    .seo-table tr:last-child td { border-bottom:none; }
+    .seo-status { font-size:12px; width:16px; }
+    .seo-signal-cell { font-weight:700; font-size:12px; }
+    .seo-detail-cell { color:var(--muted); font-size:11px; line-height:1.45; }
+    .seo-rec-cell    { font-size:10px; color:var(--dim); font-style:italic; line-height:1.4; }
+    .seo-pass .seo-signal-cell { color:var(--green); }
+    .seo-warn .seo-signal-cell { color:var(--amber); }
+    .seo-fail .seo-signal-cell { color:var(--red); }
+    .seo-cat-header td { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--dim); padding:10px 0 4px; border-bottom:1px solid var(--border); background:transparent; }
+
     @media print {
       @page {
         size:   A4;
-        margin: 0;
+        margin: 18mm 16mm 18mm 16mm;
       }
 
       body {
         background: #fff !important;
         color:      #111 !important;
         font-size:  10.5pt;
-        padding:    18mm 16mm;
+        padding:    0;
         max-width:  none;
       }
 
@@ -339,12 +354,12 @@
 
   <!-- Print toolbar (screen only) -->
   <div class="print-toolbar">
-    <button class="btn-print" id="btn-do-print">⎙ Print / Save PDF</button>
-    <button class="btn-close" id="btn-do-close">✕ Close</button>
+    <button class="btn-print" onclick="window.print()">⎙ Print / Save PDF</button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
   </div>
 
   <!-- No data fallback -->
-  <div id="no-data">
+  <div id="no-data" style="display:none">
     <h2>No scan data available</h2>
     <p>Run a scan from the PlenumNET TDNS extension popup first.</p>
   </div>
@@ -388,7 +403,7 @@
 
     <!-- Findings -->
     <div class="section">
-      <div class="section-title">Security Findings <span id="r-findings-count"></span></div>
+      <div class="section-title">Security Alerts <span id="r-findings-count"></span></div>
       <div id="r-findings"></div>
     </div>
 
@@ -422,6 +437,18 @@
       <div id="r-trackers"></div>
     </div>
 
+
+    <!-- SEO Analysis -->
+    <div class="section">
+      <div class="section-title">SEO Analysis</div>
+      <table class="seo-table">
+        <thead>
+          <tr><th></th><th>Signal</th><th>Category</th><th>Detail</th><th>Recommendation</th></tr>
+        </thead>
+        <tbody id="r-seo"></tbody>
+      </table>
+    </div>
+
     <!-- Attestation -->
     <div class="attestation">
       <div>
@@ -430,7 +457,7 @@
         <div style="margin-top:4px;font-size:9px">This report is a point-in-time snapshot. For legal or compliance use, request a TSA-attested scan (Phase 4). Patent(s) Pending — All Rights Reserved.</div>
       </div>
       <div style="text-align:right;font-size:9px;color:var(--dim)">
-        TDNS v2.3.3<br>Extension v1.0.1<br>GF(3) · Rep C · BLAKE3
+        TDNS v2.3.3<br>Extension v1.0.4<br>GF(3) · Rep C · BLAKE3
       </div>
     </div>
 
