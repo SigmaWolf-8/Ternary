@@ -1152,7 +1152,7 @@ export function registerSalviRoutes(app: Express): void {
     items: z.array(batchSplitItemSchema).min(1).max(BATCH_MAX_ITEMS),
   });
 
-  function serializePhaseTimestamps(encrypted: EncryptedPhaseData) {
+  function serializePhaseTimestamps(encrypted: any) {
     return {
       ...encrypted,
       primaryPhase: {
