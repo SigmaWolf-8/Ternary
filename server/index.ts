@@ -83,7 +83,7 @@ app.get("/api/install.ps1", (_req, res) => {
 import archiver from "archiver";
 
 function sendExtensionZip(res: any, filename: string, contentType: string) {
-  const extDir = path.resolve("services/tdns-v2/extension/chromium");
+  const extDir = path.resolve("services/tdns-v2/extension-chromium");
   if (!existsSync(extDir)) {
     res.status(500).type("text/plain").send("Extension source not found");
     return;
