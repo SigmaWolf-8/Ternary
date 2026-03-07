@@ -1,4 +1,4 @@
-// PlenumNET TDNS — Popup Script v1.0.5
+// PlenumNET TDNS — Popup Script v1.0.7
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
 // Patent(s) Pending — All Rights Reserved
 //
