@@ -117,7 +117,7 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement | null>, boolean] {
+function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement>, boolean] {
   const ref = useRef<HTMLDivElement | null>(null);
   const [vis, setVis] = useState(false);
   useEffect(() => {
