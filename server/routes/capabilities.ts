@@ -552,7 +552,7 @@ export function registerCapabilityRoutes(app: Express): void {
   app.get('/api/capabilities/certificate/:certId/rfc3161', (req: Request, res: Response) => {
     try {
       const { certId } = req.params;
-      const result = capabilityCertificateService.getRfc3161Token(certId);
+      const result = capabilityCertificateService.getRfc3161Token(String(certId));
       if (!result.found) {
         return res.status(404).json({ success: false, error: 'Certificate not found or no RFC 3161 token' });
       }
@@ -568,7 +568,7 @@ export function registerCapabilityRoutes(app: Express): void {
   app.get('/api/capabilities/certificate/:certId/verify-data', (req: Request, res: Response) => {
     try {
       const { certId } = req.params;
-      const result = capabilityCertificateService.getRfc3161Token(certId);
+      const result = capabilityCertificateService.getRfc3161Token(String(certId));
       if (!result.found) {
         return res.status(404).json({ success: false, error: 'Certificate not found or no RFC 3161 token' });
       }
