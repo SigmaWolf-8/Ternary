@@ -34,15 +34,31 @@ export const securityHeaders = helmet({
       upgradeInsecureRequests: [],
     },
   },
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: isDev ? false : { policy: "credentialless" as any },
+  crossOriginOpenerPolicy: isDev ? false : { policy: "same-origin" },
   crossOriginResourcePolicy: { policy: "cross-origin" },
   xContentTypeOptions: true,
-  xFrameOptions: false,
+  xFrameOptions: isDev ? false : { action: "sameorigin" },
   xXssProtection: true,
   hsts: isDev ? false : {
     maxAge: 31536000,
     includeSubDomains: true,
+    preload: true,
   },
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 });
+
+export function additionalSecurityHeaders(_req: any, res: any, next: any) {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
+  res.setHeader("NEL", JSON.stringify({
+    report_to: "default",
+    max_age: 86400,
+    include_subdomains: true,
+  }));
+  res.setHeader("Report-To", JSON.stringify({
+    group: "default",
+    max_age: 86400,
+    endpoints: [{ url: "/api/csp-reports" }],
+  }));
+  next();
+}
