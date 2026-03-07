@@ -23,9 +23,9 @@ interface FallbackChainEntry {
   temperature_c?: number;
 }
 
-interface FallbackChainData {
+type FallbackChainData = {
   [key in FallbackTier]?: FallbackChainEntry;
-}
+};
 
 const FALLBACK_TIER_METADATA = {
   ptp: { description: "IEEE 1588 PTP redundant stratum", switchoverTime: "<1ms", precision: "±100ns" },
