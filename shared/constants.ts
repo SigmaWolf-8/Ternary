@@ -44,6 +44,7 @@ export const PLATFORM = {
   INTER_CUBE_ENDPOINTS: 11,
   INTER_CUBE_SERVICES: 4,
   INTER_CUBE_ROUTING_TABLES: 0,
+  MILESTONES: 42,
 } as const;
 
 export type Platform = typeof PLATFORM;

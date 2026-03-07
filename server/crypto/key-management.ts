@@ -148,7 +148,7 @@ export function getMeshSigningKeyPair(): TlDsaKeyPair {
 
 export function deriveHmacKey(rootSignature: Buffer, tokenJti: string): Buffer {
   return crypto.createHmac('sha256',
-    crypto.hkdfSync('sha256', rootSignature, Buffer.from(tokenJti), Buffer.from('cap-delegation'), 32)
+    Buffer.from(crypto.hkdfSync('sha256', rootSignature, Buffer.from(tokenJti), Buffer.from('cap-delegation'), 32))
   ).update(rootSignature).digest();
 }
 

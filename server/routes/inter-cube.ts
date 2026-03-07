@@ -574,7 +574,7 @@ export function registerInterCubeRoutes(app: Router) {
 
   router.get('/crs/lookup/:address', (req: Request, res: Response) => {
     try {
-      const addr = addrFromString(req.params.address);
+      const addr = addrFromString(String(req.params.address));
       const record = crs.lookup(addr);
       if (!record) return res.status(404).json({ error: 'not_found' });
       res.json({
@@ -590,7 +590,7 @@ export function registerInterCubeRoutes(app: Router) {
 
   router.get('/crs/neighbors/:address', (req: Request, res: Response) => {
     try {
-      const addr = addrFromString(req.params.address);
+      const addr = addrFromString(String(req.params.address));
       const neighbors = crs.computeNeighborInfo(addr);
       res.json({
         address: addr.trits,

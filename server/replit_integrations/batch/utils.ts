@@ -1,3 +1,18 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Applied Physics Division
+ *
+ * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+ * Patent(s) Pending.
+ *
+ * This file is part of the Salvi Framework / PlenumNET platform.
+ * Unauthorized copying, modification, distribution, or use of this file,
+ * via any medium, is strictly prohibited without the prior written
+ * permission of Capomastro Holdings Ltd.
+ *
+ * See LICENSE in the repository root for full terms.
+ */
+
 import pLimit from "p-limit";
 import pRetry from "p-retry";
 
@@ -107,7 +122,7 @@ export async function batchProcess<T, R>(
               throw error; // Rethrow to trigger p-retry
             }
             // For non-rate-limit errors, abort immediately
-            throw new pRetry.AbortError(
+            throw new (pRetry as any).AbortError(
               error instanceof Error ? error : new Error(String(error))
             );
           }
@@ -156,7 +171,7 @@ export async function batchProcessWithSSE<T, R>(
           factor: 2,
           onFailedAttempt: (error) => {
             if (!isRateLimitError(error)) {
-              throw new pRetry.AbortError(
+              throw new (pRetry as any).AbortError(
                 error instanceof Error ? error : new Error(String(error))
               );
             }

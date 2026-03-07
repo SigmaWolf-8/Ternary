@@ -1,3 +1,18 @@
+/**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Applied Physics Division
+ *
+ * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
+ * Patent(s) Pending.
+ *
+ * This file is part of the Salvi Framework / PlenumNET platform.
+ * Unauthorized copying, modification, distribution, or use of this file,
+ * via any medium, is strictly prohibited without the prior written
+ * permission of Capomastro Holdings Ltd.
+ *
+ * See LICENSE in the repository root for full terms.
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const LIGHT = {
@@ -102,7 +117,7 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement | null>, boolean] {
+function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement>, boolean] {
   const ref = useRef<HTMLDivElement | null>(null);
   const [vis, setVis] = useState(false);
   useEffect(() => {
