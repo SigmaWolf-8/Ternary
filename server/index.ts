@@ -27,10 +27,11 @@ let _serverListening = false;
 }) as typeof process.exit;
 
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { securityHeaders } from "./middleware/security-headers";
+import { securityHeaders, additionalSecurityHeaders } from "./middleware/security-headers";
 import { corsMiddleware } from "./middleware/cors-config";
 import { globalLimiter } from "./middleware/rate-limiter";
 import { spawn, type ChildProcess } from "child_process";
@@ -51,13 +52,100 @@ import { createSFKOperationsRoutes } from "./routes/sfk-operations";
 const app = express();
 const httpServer = createServer(app);
 
+app.get("/install.ps1", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.ps1");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).setHeader("Content-Type", "text/plain");
+    res.send("# install.ps1 not found");
+  }
+});
+
+app.get("/api/install.ps1", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.ps1");
+  if (existsSync(filePath)) {
+    const content = fs.readFileSync(filePath, "utf-8");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(content);
+  } else {
+    res.status(404).setHeader("Content-Type", "text/plain");
+    res.send("# install.ps1 not found");
+  }
+});
+
+import archiver from "archiver";
+
+function sendExtensionZip(res: any, filename: string, contentType: string) {
+  const extDir = path.resolve("services/tdns-v2/extension-chromium");
+  if (!existsSync(extDir)) {
+    res.status(500).type("text/plain").send("Extension source not found");
+    return;
+  }
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
+  res.setHeader("Cache-Control", "no-store");
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.pipe(res);
+  archive.directory(extDir, false);
+  archive.finalize();
+}
+
+app.get("/api/extension-zip", (_req, res) => {
+  sendExtensionZip(res, "plenumnet-tdns-extension.zip", "application/zip");
+});
+
+app.get("/api/install-extension", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.bat");
+  if (existsSync(filePath)) {
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", "attachment; filename=install-tdns-extension.bat");
+    res.setHeader("Cache-Control", "no-store");
+    res.sendFile(filePath);
+  } else {
+    res.status(404).type("text/plain").send("Installer not found");
+  }
+});
+
+app.get("/api/extension/chromium", (_req, res) => {
+  sendExtensionZip(res, "plenumnet-tdns-extension.zip", "application/zip");
+});
+
+app.get("/api/extension/firefox", (_req, res) => {
+  sendExtensionZip(res, "plenumnet-tdns.xpi", "application/x-xpinstall");
+});
+
+app.get("/api/install-script", (_req, res) => {
+  const filePath = path.resolve("services/tdns-v2/install.ps1");
+  if (existsSync(filePath)) {
+    const content = fs.readFileSync(filePath, "utf-8");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(content);
+  } else {
+    res.status(404).setHeader("Content-Type", "text/plain");
+    res.send("# install.ps1 not found");
+  }
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
 }
 
+app.use(compression({ threshold: 1024 }));
 app.use(securityHeaders);
+app.use(additionalSecurityHeaders);
 app.use(corsMiddleware);
 app.use("/api/", globalLimiter);
 
@@ -89,6 +177,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
