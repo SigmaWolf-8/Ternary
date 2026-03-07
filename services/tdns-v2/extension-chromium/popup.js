@@ -461,12 +461,15 @@ function setupPDF() {
   el("btn-pdf").onclick = async () => {
     if (!currentResult) return;
 
-    // Write data to storage FIRST, fully awaited, then open the tab.
-    // chrome.tabs.create is more reliable than window.open from an extension popup.
+    if (tier !== "pro") {
+      openModal("upgrade-pdf");
+      return;
+    }
+
     await storageSet({
       tdns_print_result: currentResult,
       tdns_print_tier:   tier,
-      tdns_print_ts:     Date.now(),     // timestamp so report.html can detect stale data
+      tdns_print_ts:     Date.now(),
     });
 
     const reportUrl = typeof chrome?.runtime?.getURL === "function"
@@ -476,7 +479,6 @@ function setupPDF() {
     if (typeof chrome?.tabs?.create === "function") {
       chrome.tabs.create({ url: reportUrl });
     } else {
-      // Fallback for dev/non-Chrome environments
       window.open(reportUrl, "_blank");
     }
   };
@@ -810,6 +812,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupSettings();
   setupUpgrade();
   setupPDF();
+  el("btn-upgrade-from-pdf").addEventListener("click", () => { closeModal("upgrade-pdf"); openModal("upgrade"); });
   setupVerify();
   setupDecode();
   setupRegister();
