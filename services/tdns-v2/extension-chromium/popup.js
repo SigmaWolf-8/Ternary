@@ -1,4 +1,4 @@
-// PlenumNET TDNS — Popup Script v1.0.4
+// PlenumNET TDNS — Popup Script v1.0.5
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
 // Patent(s) Pending — All Rights Reserved
 //
@@ -20,7 +20,7 @@ const AXIS_COLORS = {
 };
 const SCORE_DEFS = [
   { key:"trustIndex",          name:"Trust",      lk:"trustLabel"      },
-  { key:"privacyFocusedIndex", name:"PFI",        lk:"pfiLabel"        },
+  { key:"privacyFocusedIndex", name:"Data Trust",  lk:"pfiLabel"        },
   { key:"privacyScore",        name:"Privacy",    lk:"privacyLabel"    },
   { key:"maturityScore",       name:"Maturity",   lk:"maturityLabel"   },
   { key:"complexityScore",     name:"Complexity", lk:"complexityLabel" },
@@ -196,7 +196,7 @@ function showReport() {
 function renderAddress(r) {
   el("address").textContent      = r.address;
   el("hptp-badge").style.display = r.hptp_mandatory ? "inline-flex" : "none";
-  el("crd-badge").textContent    = `CRD ${r.crd}`;
+  el("crd-badge").textContent    = `Check Digit ${r.crd}`;
   const algo = r.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
   el("hash-preview").textContent = `${algo}: ${(r.scan_hash || "").substring(0, 14)}…`;
   el("scan-time").textContent    = formatTime(r.scannedAt);
