@@ -2,126 +2,149 @@
   PlenumNET TDNS - Browser Extension Installer v1.0.4
   Capomastro Holdings Ltd. - Applied Physics Division
   
-  Run: irm https://plenumnet.replit.app/api/install-script | iex
+  Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Continue"
-$ZIP_URL = "https://plenumnet.replit.app/api/extension-zip"
-$INSTALL_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extension")
-$ZIP_FILE = [System.IO.Path]::Combine($env:TEMP, "plenumnet-tdns-extension.zip")
+$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium"
+$BASE_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extensions")
+
+$extensionFiles = @(
+    @{ Name="manifest.json"; Dest="manifest.json" },
+    @{ Name="background.js"; Dest="background.js" },
+    @{ Name="content.js"; Dest="content.js" },
+    @{ Name="popup.html"; Dest="popup.html" },
+    @{ Name="popup.js"; Dest="popup.js" },
+    @{ Name="dimensions.json"; Dest="dimensions.json" },
+    @{ Name="report.html"; Dest="report.html" },
+    @{ Name="report.js"; Dest="report.js" },
+    @{ Name="icons/icon16.png"; Dest="icons\icon16.png" },
+    @{ Name="icons/icon48.png"; Dest="icons\icon48.png" },
+    @{ Name="icons/icon128.png"; Dest="icons\icon128.png" }
+)
+
+$browsers = @(
+    @{ Name="Chrome";  Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "Google", "Chrome", "User Data");                    Dir="chrome";  Url="chrome://extensions" },
+    @{ Name="Edge";    Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Edge", "User Data");                    Dir="edge";    Url="edge://extensions" },
+    @{ Name="Brave";   Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "BraveSoftware", "Brave-Browser", "User Data");       Dir="brave";   Url="brave://extensions" },
+    @{ Name="Vivaldi"; Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "Vivaldi", "User Data");                              Dir="vivaldi"; Url="vivaldi://extensions" },
+    @{ Name="Opera";   Path=[System.IO.Path]::Combine($env:APPDATA, "Opera Software", "Opera Stable");                         Dir="opera";   Url="opera://extensions" }
+)
 
 Write-Host ""
 Write-Host "  PlenumNET TDNS - Browser Extension Installer v1.0.4" -ForegroundColor Yellow
-Write-Host "  Target: $INSTALL_DIR" -ForegroundColor DarkGray
+Write-Host "  Capomastro Holdings Ltd. - Applied Physics Division" -ForegroundColor DarkGray
 Write-Host ""
 
-try {
-    if (Test-Path $INSTALL_DIR) { 
-        Remove-Item $INSTALL_DIR -Recurse -Force 
-        Write-Host "  Cleaned old install" -ForegroundColor DarkGray
+function Install-ForBrowser {
+    param (
+        [string]$BrowserName,
+        [string]$InstallDir,
+        [string]$ExtUrl
+    )
+    
+    Write-Host "  [$BrowserName] Installing to $InstallDir" -ForegroundColor Cyan
+    
+    try {
+        if (Test-Path $InstallDir) { 
+            Remove-Item $InstallDir -Recurse -Force 
+        }
+        [System.IO.Directory]::CreateDirectory($InstallDir) | Out-Null
+        [System.IO.Directory]::CreateDirectory([System.IO.Path]::Combine($InstallDir, "icons")) | Out-Null
+        if (-not (Test-Path $InstallDir)) {
+            Write-Host "  [$BrowserName] ERROR: Failed to create directory" -ForegroundColor Red
+            return $false
+        }
+    } catch {
+        Write-Host "  [$BrowserName] ERROR creating directory: $_" -ForegroundColor Red
+        return $false
     }
-    [System.IO.Directory]::CreateDirectory($INSTALL_DIR) | Out-Null
-    if (-not (Test-Path $INSTALL_DIR)) {
-        Write-Host "  ERROR: Failed to create directory: $INSTALL_DIR" -ForegroundColor Red
-        Write-Host "  Try running PowerShell as Administrator" -ForegroundColor Yellow
-        return
+
+    $downloaded = 0
+    foreach ($f in $extensionFiles) {
+        $url = "$GH_RAW/$($f.Name)"
+        $dest = [System.IO.Path]::Combine($InstallDir, $f.Dest)
+        try {
+            $wc = New-Object System.Net.WebClient
+            $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.4")
+            $wc.DownloadFile($url, $dest)
+            if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) {
+                $downloaded++
+            } else {
+                Write-Host "  [$BrowserName] WARN: $($f.Name) - empty or missing" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "  [$BrowserName] FAIL: $($f.Name) - $_" -ForegroundColor Red
+        }
     }
-    Write-Host "  [OK] Directory created" -ForegroundColor Green
-} catch {
-    Write-Host "  ERROR creating directory: $_" -ForegroundColor Red
-    return
+
+    Write-Host "  [$BrowserName] Downloaded $downloaded of $($extensionFiles.Count) files" -ForegroundColor Green
+    Write-Host "  [$BrowserName] Path: $InstallDir" -ForegroundColor DarkGray
+    Write-Host "  [$BrowserName] Extensions page: $ExtUrl" -ForegroundColor DarkGray
+    Write-Host ""
+    return $true
 }
 
-Write-Host "  Downloading extension package..." -ForegroundColor DarkGray
-try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $wc = New-Object System.Net.WebClient
-    $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.4")
-    $wc.DownloadFile($ZIP_URL, $ZIP_FILE)
-    Write-Host "  [OK] Downloaded" -ForegroundColor Green
-} catch {
-    Write-Host "  [FAIL] Download error: $_" -ForegroundColor Red
-    return
-}
-
-Write-Host "  Extracting..." -ForegroundColor DarkGray
-try {
-    Expand-Archive -Path $ZIP_FILE -DestinationPath $INSTALL_DIR -Force
-    Remove-Item $ZIP_FILE -Force -ErrorAction SilentlyContinue
-    Write-Host "  [OK] Extracted" -ForegroundColor Green
-} catch {
-    Write-Host "  [FAIL] Extract error: $_" -ForegroundColor Red
-    return
-}
-
-$actualFiles = Get-ChildItem $INSTALL_DIR -Recurse -File -ErrorAction SilentlyContinue
-if ($actualFiles.Count -eq 0) {
-    Write-Host "  ERROR: No files in $INSTALL_DIR" -ForegroundColor Red
-    return
-}
-
-Write-Host ""
-Write-Host "  Installed files:" -ForegroundColor DarkGray
-foreach ($af in $actualFiles) {
-    $afName = $af.FullName.Replace($INSTALL_DIR + "\", "")
-    $afSize = $af.Length
-    Write-Host "    $afName ($afSize bytes)" -ForegroundColor DarkGray
-}
+Write-Host "  Detecting browsers..." -ForegroundColor DarkGray
 Write-Host ""
 
-$found = @()
-$browsers = @(
-    @{ Name="Chrome"; Url="chrome://extensions" },
-    @{ Name="Edge";   Url="edge://extensions" },
-    @{ Name="Brave";  Url="brave://extensions" },
-    @{ Name="Vivaldi";Url="vivaldi://extensions" },
-    @{ Name="Opera";  Url="opera://extensions" }
-)
-
-$browserPaths = @{
-    "Chrome"  = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Google", "Chrome", "User Data")
-    "Edge"    = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Edge", "User Data")
-    "Brave"   = [System.IO.Path]::Combine($env:LOCALAPPDATA, "BraveSoftware", "Brave-Browser", "User Data")
-    "Vivaldi" = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Vivaldi", "User Data")
-    "Opera"   = [System.IO.Path]::Combine($env:APPDATA, "Opera Software", "Opera Stable")
-}
+$installedBrowsers = @()
 
 foreach ($b in $browsers) {
-    $bName = $b.Name
-    $bPath = $browserPaths[$bName]
-    if (Test-Path $bPath) {
-        $found += $b
+    if (Test-Path $b.Path) {
+        $installDir = [System.IO.Path]::Combine($BASE_DIR, $b.Dir)
+        $result = Install-ForBrowser -BrowserName $b.Name -InstallDir $installDir -ExtUrl $b.Url
+        if ($result) {
+            $installedBrowsers += $b
+        }
     }
 }
 
-if ($found.Count -gt 0) {
-    Write-Host "  Detected browsers:" -ForegroundColor Cyan
-    foreach ($b in $found) {
-        $bName = $b.Name
-        Write-Host "    - $bName" -ForegroundColor Green
-    }
+if ($installedBrowsers.Count -eq 0) {
+    Write-Host "  No supported Chromium browsers detected." -ForegroundColor Yellow
+    Write-Host "  Installing to default location..." -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  TO FINISH INSTALLATION:" -ForegroundColor Yellow
-    Write-Host ""
-    $extUrl = $found[0].Url
-    Write-Host "    1. Open your browser to: $extUrl" -ForegroundColor White
-    Write-Host "    2. Turn ON 'Developer mode' (top-right toggle)" -ForegroundColor White
-    Write-Host "    3. Click 'Load unpacked'" -ForegroundColor White
-    Write-Host "    4. Paste this path and press Enter:" -ForegroundColor White
-    Write-Host "       $INSTALL_DIR" -ForegroundColor Cyan
-    Write-Host ""
+    $defaultDir = [System.IO.Path]::Combine($BASE_DIR, "chromium")
+    Install-ForBrowser -BrowserName "Default" -InstallDir $defaultDir -ExtUrl "chrome://extensions"
+    $installedBrowsers += @{ Name="Default"; Dir="chromium"; Url="chrome://extensions" }
+}
 
+Write-Host "  ======================================================" -ForegroundColor Yellow
+Write-Host "  TO FINISH INSTALLATION:" -ForegroundColor Yellow
+Write-Host "  ======================================================" -ForegroundColor Yellow
+Write-Host ""
+
+foreach ($b in $installedBrowsers) {
+    $bDir = [System.IO.Path]::Combine($BASE_DIR, $b.Dir)
+    Write-Host "  $($b.Name):" -ForegroundColor Cyan
+    Write-Host "    1. Open: $($b.Url)" -ForegroundColor White
+    Write-Host "    2. Enable 'Developer mode' (top-right toggle)" -ForegroundColor White
+    Write-Host "    3. Click 'Load unpacked'" -ForegroundColor White
+    Write-Host "    4. Paste: $bDir" -ForegroundColor Green
+    Write-Host ""
+}
+
+if ($installedBrowsers.Count -gt 0) {
+    $primaryUrl = $installedBrowsers[0].Url
+    $primaryDir = [System.IO.Path]::Combine($BASE_DIR, $installedBrowsers[0].Dir)
+    
     try {
-        Set-Clipboard -Value $INSTALL_DIR
-        Write-Host "  (Path copied to clipboard)" -ForegroundColor DarkGray
+        Set-Clipboard -Value $primaryDir
+        Write-Host "  ($($installedBrowsers[0].Name) path copied to clipboard)" -ForegroundColor DarkGray
     } catch {}
 
-    $openIt = Read-Host "  Open extensions page now? (Y/n)"
+    $openIt = Read-Host "  Open $($installedBrowsers[0].Name) extensions page now? (Y/n)"
     if ($openIt -ne "n") {
-        Start-Process $extUrl
+        Start-Process $primaryUrl
     }
-} else {
-    Write-Host "  No Chromium browsers detected." -ForegroundColor Yellow
+    
+    if ($installedBrowsers.Count -gt 1) {
+        Write-Host ""
+        Write-Host "  Remember to repeat steps for:" -ForegroundColor Yellow
+        for ($i = 1; $i -lt $installedBrowsers.Count; $i++) {
+            Write-Host "    - $($installedBrowsers[$i].Name) ($($installedBrowsers[$i].Url))" -ForegroundColor White
+        }
+    }
 }
 
 Write-Host ""
