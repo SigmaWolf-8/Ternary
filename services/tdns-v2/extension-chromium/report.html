@@ -354,8 +354,8 @@
 
   <!-- Print toolbar (screen only) -->
   <div class="print-toolbar">
-    <button class="btn-print" id="btn-print">⎙ Print / Save PDF</button>
-    <button class="btn-close" id="btn-close">✕ Close</button>
+    <button class="btn-print" onclick="window.print()">⎙ Print / Save PDF</button>
+    <button class="btn-close" onclick="window.close()">✕ Close</button>
   </div>
 
   <!-- No data fallback -->
@@ -393,7 +393,7 @@
         <span class="hptp-badge" id="r-hptp" style="display:none">HPTP-MANDATORY</span>
       </div>
       <div class="addr-meta">
-        <div>Check Digit <span id="r-crd">—</span></div>
+        <div title="Check Digit — derived from scan hash; changes if infrastructure shifts">Check Digit: <span id="r-crd">—</span></div>
         <div id="r-hash-algo">HASH</div>: <span id="r-hash" style="font-family:var(--mono);font-size:10px;color:var(--dim)">—</span>
       </div>
     </div>
@@ -438,6 +438,29 @@
     </div>
 
 
+
+    <!-- Cookie Security -->
+    <div class="section">
+      <div class="section-title">Cookie Security</div>
+      <table class="seo-table">
+        <thead>
+          <tr><th></th><th>Cookie Name</th><th>Secure</th><th>HttpOnly</th><th>SameSite</th><th>Issues</th></tr>
+        </thead>
+        <tbody id="r-cookies"></tbody>
+      </table>
+    </div>
+
+    <!-- Technology Fingerprint -->
+    <div class="section">
+      <div class="section-title">Technology Fingerprint</div>
+      <table class="seo-table">
+        <thead>
+          <tr><th></th><th>Header</th><th>Value</th><th>Finding</th><th>Recommendation</th></tr>
+        </thead>
+        <tbody id="r-tech"></tbody>
+      </table>
+    </div>
+
     <!-- SEO Analysis -->
     <div class="section">
       <div class="section-title">SEO Analysis</div>
@@ -454,10 +477,10 @@
       <div>
         <div style="margin-bottom:6px"><span class="plm-logo">PlenumNET</span> — Capomastro Holdings Ltd., Applied Physics Division, Alberta, Canada</div>
         <div class="hash-block">Scan Hash (<span id="r-algo-name">—</span>): <span id="r-full-hash">—</span></div>
-        <div style="margin-top:4px;font-size:9px">This report is a point-in-time snapshot. Patent(s) Pending — All Rights Reserved.</div>
+        <div style="margin-top:4px;font-size:9px">Patent(s) Pending — All Rights Reserved.</div>
       </div>
       <div style="text-align:right;font-size:9px;color:var(--dim)">
-        TDNS v2.3.3<br>Extension v1.0.7<br>GF(3) · Rep C · BLAKE3
+        TDNS v2.3.3<br>Extension v1.0.8<br>GF(3) · Rep C · BLAKE3
       </div>
     </div>
 
