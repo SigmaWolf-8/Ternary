@@ -336,13 +336,14 @@ function renderTrackers(r) {
       </div>`;
       return;
     }
-    const sc  = t.sensitivity === "Critical" ? "sens-c" : t.sensitivity === "High" ? "sens-h" : "sens-m";
+    const sc  = t.detected ? (t.sensitivity === "Critical" ? "sens-c" : t.sensitivity === "High" ? "sens-h" : "sens-m") : "sens-clean";
     const rc  = t.detected ? (t.sensitivity === "Critical" ? "detected-critical" : t.sensitivity === "High" ? "detected-high" : "detected-medium") : "";
     const nc  = t.detected ? (t.sensitivity === "Critical" ? "var(--red)" : t.sensitivity === "High" ? "var(--amber)" : "var(--blue)") : "var(--green)";
+    const sensLabel = t.detected ? esc(t.sensitivity) : "Clean";
     html += `<div class="tracker-row ${rc}">
       <div class="tracker-header">
         <div class="tracker-name" style="color:${nc}">${t.detected ? "" : "✓ "}${esc(t.name)}</div>
-        <span class="tracker-sens ${sc}">${esc(t.sensitivity)}</span>
+        <span class="tracker-sens ${sc}">${sensLabel}</span>
       </div>
       ${t.detected
         ? (t.domains.length
