@@ -121,13 +121,14 @@
       }
       const rowClass = t.detected
         ? (t.sensitivity === "Critical" ? "det-critical" : t.sensitivity === "High" ? "det-high" : "det-medium") : "";
-      const sensClass = t.sensitivity === "Critical" ? "sens-c" : t.sensitivity === "High" ? "sens-h" : "sens-m";
+      const sensClass = t.detected ? (t.sensitivity === "Critical" ? "sens-c" : t.sensitivity === "High" ? "sens-h" : "sens-m") : "sens-clean";
+      const sensLabel = t.detected ? esc(t.sensitivity) : "Clean";
       return `<div class="tracker-row-full ${rowClass}">
         <div class="tr-header">
           <div class="tr-name" style="color:${t.detected?(t.sensitivity==="Critical"?"#EF4444":t.sensitivity==="High"?"#F59E0B":"#3B82F6"):"#059669"}">
             ${t.detected ? "" : "✓ "}${esc(t.name)}
           </div>
-          <span class="tr-sens ${sensClass}">${esc(t.sensitivity)}</span>
+          <span class="tr-sens ${sensClass}">${sensLabel}</span>
         </div>
         ${t.detected
           ? (t.domains.length > 0

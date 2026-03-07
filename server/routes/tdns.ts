@@ -539,7 +539,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     let finding_severity: "Critical" | "Warning" | null = null;
     if (isRisk && present)      finding_severity = "Warning";
     else if (!present && def.critical_if_missing) finding_severity = "Critical";
-    else if (!present && !def.critical_if_missing && def.name !== "nel" && def.name !== "report-to")
+    else if (!present && !isRisk && !def.critical_if_missing && def.name !== "nel" && def.name !== "report-to")
                                 finding_severity = "Warning";
     return { header: def.name, present, value: present ? value : "—", purpose: def.purpose, dimension: def.dim, finding_severity };
   });
