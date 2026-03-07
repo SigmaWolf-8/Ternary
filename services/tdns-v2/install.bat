@@ -1,35 +1,36 @@
 @echo off
-title PlenumNET TDNS Extension Installer v2.3.3
+title PlenumNET TDNS Extension Installer v1.0.4
 echo.
-echo   PlenumNET TDNS - Browser Extension Installer
+echo   PlenumNET TDNS - Browser Extension Installer v1.0.4
 echo.
 
 set "INSTALL_DIR=%LOCALAPPDATA%\PlenumNET\tdns-extension"
-set "GH_RAW=https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/extension-chromium"
+set "ZIP_URL=https://plenumnet.replit.app/api/extension-zip"
+set "ZIP_FILE=%TEMP%\plenumnet-tdns-extension.zip"
 
 if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 mkdir "%INSTALL_DIR%" 2>nul
-mkdir "%INSTALL_DIR%\icons" 2>nul
 
-echo   Downloading extension files...
+echo   Downloading extension package...
 
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/manifest.json', '%INSTALL_DIR%\manifest.json')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/background.js', '%INSTALL_DIR%\background.js')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/content.js', '%INSTALL_DIR%\content.js')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.html', '%INSTALL_DIR%\popup.html')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.js', '%INSTALL_DIR%\popup.js')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/dimensions.json', '%INSTALL_DIR%\dimensions.json')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.html', '%INSTALL_DIR%\report.html')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.js', '%INSTALL_DIR%\report.js')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon16.png', '%INSTALL_DIR%\icons\icon16.png')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon48.png', '%INSTALL_DIR%\icons\icon48.png')"
-powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon128.png', '%INSTALL_DIR%\icons\icon128.png')"
+powershell -NoProfile -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%ZIP_URL%', '%ZIP_FILE%'); Write-Host '  [OK] Downloaded'; } catch { Write-Host '  [FAIL] Download error:' $_.Exception.Message; exit 1 }"
+
+if not exist "%ZIP_FILE%" (
+    echo   ERROR: Download failed. Check your internet connection.
+    pause
+    exit /b 1
+)
+
+echo   Extracting...
+powershell -NoProfile -Command "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%INSTALL_DIR%' -Force"
+
+del "%ZIP_FILE%" 2>nul
 
 set /a count=0
 for /r "%INSTALL_DIR%" %%f in (*) do set /a count+=1
 
 echo.
-echo   [OK] Downloaded %count% files to:
+echo   [OK] Installed %count% files to:
 echo   %INSTALL_DIR%
 echo.
 
