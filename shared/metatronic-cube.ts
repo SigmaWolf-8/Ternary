@@ -374,19 +374,19 @@ export class MetatronicVertex {
   /** Saturnian-weighted norm: Σ |xᵢ| × weight(axis_i). */
   saturnianNorm(): number {
     return this.coords.reduce((sum, c, i) =>
-      sum + Math.abs(c) * SATURNIAN_WEIGHTS[i], 0);
+      sum + Math.abs(c) * SATURNIAN_WEIGHTS[i], 0 as number);
   }
 
   /** Hamming distance (number of differing coordinates). */
   hammingDistance(other: MetatronicVertex): number {
     return this.coords.reduce((count, c, i) =>
-      count + (c !== other.coords[i] ? 1 : 0), 0);
+      count + (c !== other.coords[i] ? 1 : 0), 0 as number);
   }
 
   /** Saturnian-weighted distance. */
   saturnianDistance(other: MetatronicVertex): number {
     return this.coords.reduce((dist, c, i) =>
-      dist + (c !== other.coords[i] ? SATURNIAN_WEIGHTS[i] : 0), 0);
+      dist + (c !== other.coords[i] ? SATURNIAN_WEIGHTS[i] : 0), 0 as number);
   }
 
   /** Mirror vertex (opposite shell, same intra-shell coords). */
@@ -460,7 +460,7 @@ export function axisAngleRc(aRc: number, bRc: number): Z28 | null {
  */
 export function vertexAngularSignature(v: MetatronicVertex): Z28 {
   const total = v.coords.reduce((sum, c, i) =>
-    sum + (c !== 0 ? SATURNIAN_WEIGHTS[i] : 0), 0);
+    sum + (c !== 0 ? SATURNIAN_WEIGHTS[i] : 0), 0 as number);
   return Z28.from(total % CYCLIC_ORDER);
 }
 
@@ -678,7 +678,7 @@ export const METATRONIC_IDENTITIES = {
   /** Weight sum */
   weightSum: TOTAL_SATURNIAN_WEIGHT === 1568,
   /** Trit constants sum to zero (balanced) */
-  tritBalance: SATURNIAN_TRIT_CONSTANTS.reduce((a, b) => a + b, 0) === 0,
+  tritBalance: SATURNIAN_TRIT_CONSTANTS.reduce((a: number, b: number) => a + b, 0) === 0,
   /** Tesseract count */
   tesseractCount: TESSERACT_FAMILIES * 19_683 === TESSERACT_TOTAL,
   /** Year days from Saturnian constants */
