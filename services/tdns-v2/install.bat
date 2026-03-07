@@ -2,49 +2,82 @@
 title PlenumNET TDNS Extension Installer v1.0.4
 echo.
 echo   PlenumNET TDNS - Browser Extension Installer v1.0.4
+echo   Capomastro Holdings Ltd. - Applied Physics Division
 echo.
 
-set "INSTALL_DIR=%LOCALAPPDATA%\PlenumNET\tdns-extension"
-set "ZIP_URL=https://plenumnet.replit.app/api/extension-zip"
-set "ZIP_FILE=%TEMP%\plenumnet-tdns-extension.zip"
+set "GH_RAW=https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium"
+set "BASE_DIR=%LOCALAPPDATA%\PlenumNET\tdns-extensions"
+
+set /a installed=0
+
+echo   Detecting browsers...
+echo.
+
+if exist "%LOCALAPPDATA%\Google\Chrome\User Data" (
+    call :install_for "Chrome" "%BASE_DIR%\chrome" "chrome://extensions"
+)
+if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data" (
+    call :install_for "Edge" "%BASE_DIR%\edge" "edge://extensions"
+)
+if exist "%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data" (
+    call :install_for "Brave" "%BASE_DIR%\brave" "brave://extensions"
+)
+if exist "%LOCALAPPDATA%\Vivaldi\User Data" (
+    call :install_for "Vivaldi" "%BASE_DIR%\vivaldi" "vivaldi://extensions"
+)
+if exist "%APPDATA%\Opera Software\Opera Stable" (
+    call :install_for "Opera" "%BASE_DIR%\opera" "opera://extensions"
+)
+
+echo.
+if %installed% EQU 0 (
+    echo   No supported Chromium browsers detected.
+    echo   Installing to default location...
+    call :install_for "Default" "%BASE_DIR%\chromium" "chrome://extensions"
+)
+
+echo.
+echo   ======================================================
+echo   TO FINISH for each browser listed above:
+echo     1. Open the extensions page (URL shown above)
+echo     2. Enable "Developer mode" (top-right toggle)
+echo     3. Click "Load unpacked"
+echo     4. Browse to the folder path shown for that browser
+echo   ======================================================
+echo.
+pause
+goto :eof
+
+:install_for
+set "BROWSER_NAME=%~1"
+set "INSTALL_DIR=%~2"
+set "EXT_URL=%~3"
+
+echo   [%BROWSER_NAME%] Installing to %INSTALL_DIR%
 
 if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 mkdir "%INSTALL_DIR%" 2>nul
+mkdir "%INSTALL_DIR%\icons" 2>nul
 
-echo   Downloading extension package...
-
-powershell -NoProfile -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%ZIP_URL%', '%ZIP_FILE%'); Write-Host '  [OK] Downloaded'; } catch { Write-Host '  [FAIL] Download error:' $_.Exception.Message; exit 1 }"
-
-if not exist "%ZIP_FILE%" (
-    echo   ERROR: Download failed. Check your internet connection.
-    pause
-    exit /b 1
-)
-
-echo   Extracting...
-powershell -NoProfile -Command "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%INSTALL_DIR%' -Force"
-
-del "%ZIP_FILE%" 2>nul
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/manifest.json', '%INSTALL_DIR%\manifest.json')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/background.js', '%INSTALL_DIR%\background.js')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/content.js', '%INSTALL_DIR%\content.js')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.html', '%INSTALL_DIR%\popup.html')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.js', '%INSTALL_DIR%\popup.js')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/dimensions.json', '%INSTALL_DIR%\dimensions.json')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.html', '%INSTALL_DIR%\report.html')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.js', '%INSTALL_DIR%\report.js')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon16.png', '%INSTALL_DIR%\icons\icon16.png')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon48.png', '%INSTALL_DIR%\icons\icon48.png')"
+powershell -NoProfile -Command "(New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon128.png', '%INSTALL_DIR%\icons\icon128.png')"
 
 set /a count=0
 for /r "%INSTALL_DIR%" %%f in (*) do set /a count+=1
 
-echo.
-echo   [OK] Installed %count% files to:
-echo   %INSTALL_DIR%
+echo   [%BROWSER_NAME%] Downloaded %count% files
+echo   [%BROWSER_NAME%] Path: %INSTALL_DIR%
+echo   [%BROWSER_NAME%] Extensions page: %EXT_URL%
 echo.
 
-echo|set /p="%INSTALL_DIR%"| clip
-
-echo   Folder path copied to clipboard.
-echo.
-echo   Opening Chrome extensions page...
-start chrome://extensions
-
-echo.
-echo   TO FINISH:
-echo     1. Enable "Developer mode" (top-right toggle)
-echo     2. Click "Load unpacked"
-echo     3. Paste the folder path (Ctrl+V) and press Enter
-echo.
-pause
+set /a installed+=1
+goto :eof
