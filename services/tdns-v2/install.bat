@@ -1,7 +1,7 @@
 @echo off
-title PlenumNET TDNS Extension Installer v1.0.4
+title PlenumNET TDNS Extension Installer v1.0.5
 echo.
-echo   PlenumNET TDNS - Browser Extension Installer v1.0.4
+echo   PlenumNET TDNS - Browser Extension Installer v1.0.5
 echo   Capomastro Holdings Ltd. - Applied Physics Division
 echo.
 
@@ -96,7 +96,7 @@ set /a count=0
 for /r "%INSTALL_DIR%" %%f in (*) do set /a count+=1
 
 rem Verify version
-powershell -NoProfile -Command "$m = Get-Content '%INSTALL_DIR%\manifest.json' -Raw | ConvertFrom-Json; Write-Host ('  [%BROWSER_NAME%] Version: ' + $m.version); if ($m.version -ne '1.0.4') { Write-Host '  [%BROWSER_NAME%] WARNING: Expected v1.0.4 but got' $m.version -ForegroundColor Red }"
+powershell -NoProfile -Command "$m = Get-Content '%INSTALL_DIR%\manifest.json' -Raw | ConvertFrom-Json; Write-Host ('  [%BROWSER_NAME%] Version: ' + $m.version); if ($m.version -ne '1.0.5') { Write-Host '  [%BROWSER_NAME%] WARNING: Expected v1.0.5 but got' $m.version -ForegroundColor Red }"
 
 echo   [%BROWSER_NAME%] Downloaded %count% files
 echo   [%BROWSER_NAME%] Path: %INSTALL_DIR%
