@@ -207,3 +207,17 @@
   }
 
   loadAndRender();
+
+  document.getElementById("btn-print").addEventListener("click", function () {
+    window.print();
+  });
+
+  document.getElementById("btn-close").addEventListener("click", function () {
+    if (typeof chrome !== "undefined" && chrome.tabs) {
+      chrome.tabs.getCurrent(function (tab) {
+        if (tab) chrome.tabs.remove(tab.id);
+      });
+    } else {
+      window.close();
+    }
+  });
