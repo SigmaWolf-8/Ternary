@@ -134,7 +134,7 @@ export function createHederaRoutes(service: HederaWitnessingService): Router {
 
   router.get('/v1/witness/:txId', async (req: Request, res: Response) => {
     try {
-      const result = await service.getWitnessStatus(req.params.txId);
+      const result = await service.getWitnessStatus(String(req.params.txId));
       if (!result) {
         return res.status(404).json({
           error: 'Witness not found',
