@@ -28,7 +28,8 @@ $browsers = @(
     @{ Name="Edge";    Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Edge", "User Data");                    Dir="edge";    Url="edge://extensions" },
     @{ Name="Brave";   Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "BraveSoftware", "Brave-Browser", "User Data");       Dir="brave";   Url="brave://extensions" },
     @{ Name="Vivaldi"; Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "Vivaldi", "User Data");                              Dir="vivaldi"; Url="vivaldi://extensions" },
-    @{ Name="Opera";   Path=[System.IO.Path]::Combine($env:APPDATA, "Opera Software", "Opera Stable");                         Dir="opera";   Url="opera://extensions" }
+    @{ Name="Opera";   Path=[System.IO.Path]::Combine($env:APPDATA, "Opera Software", "Opera Stable");                         Dir="opera";   Url="opera://extensions" },
+    @{ Name="Arc";     Path=[System.IO.Path]::Combine($env:LOCALAPPDATA, "Arc", "User Data");                                  Dir="arc";     Url="arc://extensions" }
 )
 
 Write-Host ""
