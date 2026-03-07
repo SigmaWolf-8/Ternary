@@ -76,13 +76,15 @@ function Install-ForBrowser {
         return $false
     }
 
+    $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     $downloaded = 0
     foreach ($f in $extensionFiles) {
-        $url = "$GH_RAW/$($f.Name)"
+        $url = "$GH_RAW/$($f.Name)?cb=$cacheBust"
         $dest = [System.IO.Path]::Combine($InstallDir, $f.Dest)
         try {
             $wc = New-Object System.Net.WebClient
             $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.5")
+            $wc.Headers.Add("Cache-Control", "no-cache")
             $wc.DownloadFile($url, $dest)
             if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) {
                 $downloaded++
