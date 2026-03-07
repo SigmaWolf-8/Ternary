@@ -129,7 +129,7 @@ export function createSFKOperationsRoutes(service: SFKOperationsService): Router
   });
 
   router.get('/v1/operations/:id', (req: Request, res: Response) => {
-    const result = service.getOperationStatus(req.params.id);
+    const result = service.getOperationStatus(String(req.params.id));
     if (!result) {
       return res.status(404).json({
         error: 'Operation not found',
@@ -148,7 +148,7 @@ export function createSFKOperationsRoutes(service: SFKOperationsService): Router
   });
 
   router.delete('/v1/operations/:id', (req: Request, res: Response) => {
-    const cancelled = service.cancelOperation(req.params.id);
+    const cancelled = service.cancelOperation(String(req.params.id));
     if (!cancelled) {
       return res.status(404).json({
         error: 'Operation not found or already terminal',
