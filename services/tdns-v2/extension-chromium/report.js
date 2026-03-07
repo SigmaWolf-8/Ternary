@@ -232,4 +232,13 @@
     }
   }
 
+  document.getElementById("btn-print").addEventListener("click", () => window.print());
+  document.getElementById("btn-close").addEventListener("click", () => {
+    if (typeof chrome !== "undefined" && chrome.tabs) {
+      chrome.tabs.getCurrent(tab => { if (tab) chrome.tabs.remove(tab.id); });
+    } else {
+      window.close();
+    }
+  });
+
   loadAndRender();
