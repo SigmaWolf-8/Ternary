@@ -1,27 +1,26 @@
 <# 
-  PlenumNET TDNS - Browser Extension Installer v2.3.3
+  PlenumNET TDNS - Browser Extension Installer v1.0.4
   Capomastro Holdings Ltd. - Applied Physics Division
   
-  Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
+  Run: irm https://plenumnet.replit.app/api/install-script | iex
 #>
 
 $ErrorActionPreference = "Continue"
-$GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/extension-chromium"
+$ZIP_URL = "https://plenumnet.replit.app/api/extension-zip"
 $INSTALL_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extension")
+$ZIP_FILE = [System.IO.Path]::Combine($env:TEMP, "plenumnet-tdns-extension.zip")
 
 Write-Host ""
-Write-Host "  PlenumNET TDNS - Browser Extension Installer" -ForegroundColor Yellow
+Write-Host "  PlenumNET TDNS - Browser Extension Installer v1.0.4" -ForegroundColor Yellow
 Write-Host "  Target: $INSTALL_DIR" -ForegroundColor DarkGray
 Write-Host ""
 
-# Create directory
 try {
     if (Test-Path $INSTALL_DIR) { 
         Remove-Item $INSTALL_DIR -Recurse -Force 
         Write-Host "  Cleaned old install" -ForegroundColor DarkGray
     }
     [System.IO.Directory]::CreateDirectory($INSTALL_DIR) | Out-Null
-    [System.IO.Directory]::CreateDirectory([System.IO.Path]::Combine($INSTALL_DIR, "icons")) | Out-Null
     if (-not (Test-Path $INSTALL_DIR)) {
         Write-Host "  ERROR: Failed to create directory: $INSTALL_DIR" -ForegroundColor Red
         Write-Host "  Try running PowerShell as Administrator" -ForegroundColor Yellow
@@ -33,55 +32,35 @@ try {
     return
 }
 
-# Download each file
-$files = @(
-    @{ Name="manifest.json"; Dest="manifest.json" },
-    @{ Name="background.js"; Dest="background.js" },
-    @{ Name="content.js"; Dest="content.js" },
-    @{ Name="popup.html"; Dest="popup.html" },
-    @{ Name="popup.js"; Dest="popup.js" },
-    @{ Name="dimensions.json"; Dest="dimensions.json" },
-    @{ Name="report.html"; Dest="report.html" },
-    @{ Name="report.js"; Dest="report.js" },
-    @{ Name="icons/icon16.png"; Dest="icons\icon16.png" },
-    @{ Name="icons/icon48.png"; Dest="icons\icon48.png" },
-    @{ Name="icons/icon128.png"; Dest="icons\icon128.png" }
-)
-$downloaded = 0
-
-foreach ($f in $files) {
-    $url = "$GH_RAW/$($f.Name)"
-    $dest = [System.IO.Path]::Combine($INSTALL_DIR, $f.Dest)
-    try {
-        $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "PlenumNET-Installer/2.3.3")
-        $wc.DownloadFile($url, $dest)
-        if (Test-Path $dest) {
-            $size = (Get-Item $dest).Length
-            if ($size -gt 0) {
-                $downloaded++
-            } else {
-                Write-Host "  [FAIL] $($f.Name) - empty file" -ForegroundColor Red
-            }
-        } else {
-            Write-Host "  [FAIL] $($f.Name) - file not saved" -ForegroundColor Red
-        }
-    } catch {
-        Write-Host "  [FAIL] $($f.Name) - $_" -ForegroundColor Red
-    }
-}
-
-Write-Host "  [OK] Downloaded $downloaded of $($files.Count) files" -ForegroundColor Green
-Write-Host ""
-
-# Verify folder exists and has files
-$actualFiles = Get-ChildItem $INSTALL_DIR -Recurse -File -ErrorAction SilentlyContinue
-if ($actualFiles.Count -eq 0) {
-    Write-Host "  ERROR: No files in $INSTALL_DIR" -ForegroundColor Red
-    Write-Host "  Downloads may have failed. Check your internet connection." -ForegroundColor Yellow
+Write-Host "  Downloading extension package..." -ForegroundColor DarkGray
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $wc = New-Object System.Net.WebClient
+    $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.4")
+    $wc.DownloadFile($ZIP_URL, $ZIP_FILE)
+    Write-Host "  [OK] Downloaded" -ForegroundColor Green
+} catch {
+    Write-Host "  [FAIL] Download error: $_" -ForegroundColor Red
     return
 }
 
+Write-Host "  Extracting..." -ForegroundColor DarkGray
+try {
+    Expand-Archive -Path $ZIP_FILE -DestinationPath $INSTALL_DIR -Force
+    Remove-Item $ZIP_FILE -Force -ErrorAction SilentlyContinue
+    Write-Host "  [OK] Extracted" -ForegroundColor Green
+} catch {
+    Write-Host "  [FAIL] Extract error: $_" -ForegroundColor Red
+    return
+}
+
+$actualFiles = Get-ChildItem $INSTALL_DIR -Recurse -File -ErrorAction SilentlyContinue
+if ($actualFiles.Count -eq 0) {
+    Write-Host "  ERROR: No files in $INSTALL_DIR" -ForegroundColor Red
+    return
+}
+
+Write-Host ""
 Write-Host "  Installed files:" -ForegroundColor DarkGray
 foreach ($af in $actualFiles) {
     $afName = $af.FullName.Replace($INSTALL_DIR + "\", "")
@@ -90,7 +69,6 @@ foreach ($af in $actualFiles) {
 }
 Write-Host ""
 
-# Detect browsers
 $found = @()
 $browsers = @(
     @{ Name="Chrome"; Url="chrome://extensions" },
@@ -133,7 +111,6 @@ if ($found.Count -gt 0) {
     Write-Host "       $INSTALL_DIR" -ForegroundColor Cyan
     Write-Host ""
 
-    # Copy path to clipboard
     try {
         Set-Clipboard -Value $INSTALL_DIR
         Write-Host "  (Path copied to clipboard)" -ForegroundColor DarkGray
