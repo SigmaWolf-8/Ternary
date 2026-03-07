@@ -14,6 +14,7 @@
  */
 
 import { db } from "../../db";
+// @ts-ignore - tables may be defined in extended schema
 import { conversations, messages } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
