@@ -1,13 +1,16 @@
 <# 
-  PlenumNET TDNS - Browser Extension Installer v1.0.4
+  PlenumNET TDNS - Browser Extension Installer v1.0.5
   Capomastro Holdings Ltd. - Applied Physics Division
   
   Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Continue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 $GH_RAW = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium"
 $BASE_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extensions")
+$OLD_DIR = [System.IO.Path]::Combine($env:LOCALAPPDATA, "PlenumNET", "tdns-extension")
 
 $extensionFiles = @(
     @{ Name="manifest.json"; Dest="manifest.json" },
@@ -33,9 +36,21 @@ $browsers = @(
 )
 
 Write-Host ""
-Write-Host "  PlenumNET TDNS - Browser Extension Installer v1.0.4" -ForegroundColor Yellow
+Write-Host "  PlenumNET TDNS - Browser Extension Installer v1.0.5" -ForegroundColor Yellow
 Write-Host "  Capomastro Holdings Ltd. - Applied Physics Division" -ForegroundColor DarkGray
 Write-Host ""
+
+if (Test-Path $OLD_DIR) {
+    Write-Host "  Removing old install at $OLD_DIR..." -ForegroundColor DarkGray
+    Remove-Item $OLD_DIR -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "  [OK] Old install removed" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  IMPORTANT: If you previously loaded the extension from:" -ForegroundColor Red
+    Write-Host "    $OLD_DIR" -ForegroundColor Yellow
+    Write-Host "  Go to your browser extensions page and REMOVE that entry first," -ForegroundColor Red
+    Write-Host "  then load the new path shown below." -ForegroundColor Red
+    Write-Host ""
+}
 
 function Install-ForBrowser {
     param (
@@ -67,7 +82,7 @@ function Install-ForBrowser {
         $dest = [System.IO.Path]::Combine($InstallDir, $f.Dest)
         try {
             $wc = New-Object System.Net.WebClient
-            $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.4")
+            $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.5")
             $wc.DownloadFile($url, $dest)
             if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) {
                 $downloaded++
@@ -76,6 +91,16 @@ function Install-ForBrowser {
             }
         } catch {
             Write-Host "  [$BrowserName] FAIL: $($f.Name) - $_" -ForegroundColor Red
+        }
+    }
+
+    $manifestPath = [System.IO.Path]::Combine($InstallDir, "manifest.json")
+    if (Test-Path $manifestPath) {
+        $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        $version = $manifest.version
+        Write-Host "  [$BrowserName] Version: $version" -ForegroundColor Green
+        if ($version -ne "1.0.5") {
+            Write-Host "  [$BrowserName] WARNING: Expected v1.0.5 but got v$version" -ForegroundColor Red
         }
     }
 
@@ -111,6 +136,9 @@ if ($installedBrowsers.Count -eq 0) {
 }
 
 Write-Host "  ======================================================" -ForegroundColor Yellow
+Write-Host "  IMPORTANT: Remove any old PlenumNET TDNS extension" -ForegroundColor Red
+Write-Host "  from your browser FIRST, then load the new path." -ForegroundColor Red
+Write-Host "" 
 Write-Host "  TO FINISH INSTALLATION:" -ForegroundColor Yellow
 Write-Host "  ======================================================" -ForegroundColor Yellow
 Write-Host ""
@@ -119,9 +147,10 @@ foreach ($b in $installedBrowsers) {
     $bDir = [System.IO.Path]::Combine($BASE_DIR, $b.Dir)
     Write-Host "  $($b.Name):" -ForegroundColor Cyan
     Write-Host "    1. Open: $($b.Url)" -ForegroundColor White
-    Write-Host "    2. Enable 'Developer mode' (top-right toggle)" -ForegroundColor White
-    Write-Host "    3. Click 'Load unpacked'" -ForegroundColor White
-    Write-Host "    4. Paste: $bDir" -ForegroundColor Green
+    Write-Host "    2. Remove any existing PlenumNET TDNS extension" -ForegroundColor White
+    Write-Host "    3. Enable 'Developer mode' (top-right toggle)" -ForegroundColor White
+    Write-Host "    4. Click 'Load unpacked'" -ForegroundColor White
+    Write-Host "    5. Paste: $bDir" -ForegroundColor Green
     Write-Host ""
 }
 
