@@ -442,7 +442,8 @@ export function serializeForExtensionCompressed(
     return { payload: Buffer.from(context.calendarJson, 'utf-8'), compressed: false, metrics: null };
   }
   parsed.tier = context.tier;
-  return buildCalendarExtension(parsed);
+  const result = buildCalendarExtension(parsed);
+  return { payload: result.buffer, compressed: result.compressed, metrics: result.metrics };
 }
 
 export { PIPELINE, ENVELOPE_VERSION, ENVELOPE_HEADER_SIZE, TERN_MAGIC };
