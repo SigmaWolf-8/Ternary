@@ -1,5 +1,5 @@
 <# 
-  PlenumNET TDNS - Browser Extension Installer v1.0.7
+  PlenumNET TDNS - Browser Extension Installer v1.0.8
   Capomastro Holdings Ltd. - Applied Physics Division
   
   Run: irm https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/install.ps1 | iex
@@ -36,7 +36,7 @@ $browsers = @(
 )
 
 Write-Host ""
-Write-Host "  PlenumNET TDNS - Browser Extension Installer v1.0.7" -ForegroundColor Yellow
+Write-Host "  PlenumNET TDNS - Browser Extension Installer v1.0.8" -ForegroundColor Yellow
 Write-Host "  Capomastro Holdings Ltd. - Applied Physics Division" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -83,7 +83,7 @@ function Install-ForBrowser {
         $dest = [System.IO.Path]::Combine($InstallDir, $f.Dest)
         try {
             $wc = New-Object System.Net.WebClient
-            $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.7")
+            $wc.Headers.Add("User-Agent", "PlenumNET-Installer/1.0.8")
             $wc.Headers.Add("Cache-Control", "no-cache")
             $wc.DownloadFile($url, $dest)
             if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) {
@@ -101,8 +101,8 @@ function Install-ForBrowser {
         $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
         $version = $manifest.version
         Write-Host "  [$BrowserName] Version: $version" -ForegroundColor Green
-        if ($version -ne "1.0.7") {
-            Write-Host "  [$BrowserName] WARNING: Expected v1.0.7 but got v$version" -ForegroundColor Red
+        if ($version -ne "1.0.8") {
+            Write-Host "  [$BrowserName] WARNING: Expected v1.0.8 but got v$version" -ForegroundColor Red
         }
     }
 

@@ -1,4 +1,4 @@
-// PlenumNET TDNS — Popup Script v1.0.7
+// PlenumNET TDNS — Popup Script v1.0.8
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
 // Patent(s) Pending — All Rights Reserved
 //
@@ -19,13 +19,16 @@ const AXIS_COLORS = {
   WHEN:"#F87171", WHY:"#C084FC", HOW:"#38BDF8", PEACE:"#4ADE80",
 };
 const SCORE_DEFS = [
-  { key:"trustIndex",          name:"Trust",      lk:"trustLabel"      },
-  { key:"privacyFocusedIndex", name:"Data Trust",  lk:"pfiLabel"        },
-  { key:"privacyScore",        name:"Privacy",    lk:"privacyLabel"    },
-  { key:"maturityScore",       name:"Maturity",   lk:"maturityLabel"   },
-  { key:"complexityScore",     name:"Complexity", lk:"complexityLabel" },
+  { key:"trustIndex",          name:"Trust Index",  lk:"trustLabel",      tip:"Overall trustworthiness of this site — entity type, transparency, security posture, and peace-of-mind signals. Higher = more trustworthy." },
+  { key:"privacyFocusedIndex", name:"Data Trust",   lk:"pfiLabel",        tip:"Trust Index adjusted for how aggressively this site collects personal data (D8). A site with high trust but heavy data appetite scores lower here." },
+  { key:"privacyScore",        name:"Privacy",      lk:"privacyLabel",    tip:"How well this site protects your personal data — based on data appetite, consent signals, tracking posture, and cookie behaviour." },
+  { key:"maturityScore",       name:"Maturity",     lk:"maturityLabel",   tip:"Operational maturity — how established, stable, and well-maintained this site appears based on infrastructure and security signals." },
+  { key:"complexityScore",     name:"Complexity",   lk:"complexityLabel", tip:"Technical complexity of the infrastructure — CDN layers, API exposure, data flow direction, and delivery topology. Not inherently good or bad." },
 ];
 const PRO_IDS     = ["session_replay", "crm"];
+// Sections completely hidden (blurred) on free tier
+// Free tier: scores + 27D breakdown only
+const GATED_SECTIONS = ["findings", "headers", "seo", "trackers", "cookies", "tech"];
 const PIHOLE_CATS = {
   analytics:      "oisd.nl/big (analytics category)",
   social:         "dbl.oisd.nl (social trackers)",
@@ -155,7 +158,8 @@ async function setTier(t) {
   tier = t;
   await storageSet({ tdns_tier: t });
   updateTierUI();
-  if (currentResult) { renderTrackers(currentResult); renderBlockRecs(currentResult); }
+  if (currentResult) { renderTrackers(currentResult); renderBlockRecs(currentResult); renderSEO(currentResult); renderCookies(currentResult); renderTech(currentResult); }
+  gateFreeSections();
 }
 function updateTierUI() {
   const isPro = tier === "pro";
@@ -196,7 +200,8 @@ function showReport() {
 function renderAddress(r) {
   el("address").textContent      = r.address;
   el("hptp-badge").style.display = r.hptp_mandatory ? "inline-flex" : "none";
-  el("crd-badge").textContent    = `Check Digit ${r.crd}`;
+  el("crd-badge").textContent    = `Check Digit: ${r.crd}`;
+  el("crd-badge").title          = "Check Digit — a single digit (1–9) derived from the scan hash. If it changes on rescan, the site infrastructure shifted.";
   const algo = r.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
   el("hash-preview").textContent = `${algo}: ${(r.scan_hash || "").substring(0, 14)}…`;
   el("scan-time").textContent    = formatTime(r.scannedAt);
@@ -213,7 +218,7 @@ function renderScores(r) {
   el("scores-grid").innerHTML = SCORE_DEFS.map(d => {
     const v = r.scores?.[d.key] ?? 0;
     const c = scoreColor(v);
-    return `<div class="score-card">
+    return `<div class="score-card" title="${esc(d.tip)}" style="cursor:help">
       <div class="score-value" style="color:${c}">${v}</div>
       <div class="score-label" style="color:${c}">${esc(r.scores?.[d.lk] || "")}</div>
       <div class="score-name">${esc(d.name)}</div>
@@ -243,7 +248,6 @@ function renderSecurityAlerts(r) {
           </div>
         </div>`).join("");
 
-  openSection("findings"); // always open
 }
 
 // ── Dimensions ────────────────────────────────────────────────────────────────
@@ -350,7 +354,6 @@ function renderTrackers(r) {
   });
 
   el("trackers-content").innerHTML = html;
-  if (hasSession && isPro) openSection("trackers");
 }
 
 // ── Block Recommendations (Pro) ───────────────────────────────────────────────
@@ -416,33 +419,14 @@ window.openUpgradeModal = () => { closeModal("settings"); openModal("upgrade"); 
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function setupSettings() {
-  el("btn-settings").onclick = () => {
-    el("s-api-display").textContent = apiBase;
-    el("s-api-input").value = apiBase;
-    openModal("settings");
-  };
-  el("tier-pill").onclick = () => { el("s-api-display").textContent = apiBase; openModal("settings"); };
+  el("btn-settings").onclick = () => { openModal("settings"); };
+  el("tier-pill").onclick = () => { openModal("settings"); };
   el("s-upgrade-btn").onclick = window.openUpgradeModal;
   el("s-downgrade-btn").onclick = async () => {
     await setTier("free");
     showFeedback("s-feedback", "Reverted to Free tier.", "ok");
   };
-  el("s-edit-api-btn").onclick = () => {
-    const row = el("s-api-edit");
-    const vis = row.style.display !== "none";
-    row.style.display = vis ? "none" : "block";
-    el("s-edit-api-btn").textContent = vis ? "Edit" : "Cancel";
-  };
-  el("s-save-api-btn").onclick = async () => {
-    const val = el("s-api-input").value.trim().replace(/\/$/, "");
-    if (!val.startsWith("http")) { showFeedback("s-feedback", "URL must start with http/https", "err"); return; }
-    apiBase = val;
-    await storageSet({ tdns_api_base: apiBase });
-    el("s-api-display").textContent = apiBase;
-    el("s-api-edit").style.display = "none";
-    el("s-edit-api-btn").textContent = "Edit";
-    showFeedback("s-feedback", "Endpoint saved.", "ok");
-  };
+  // API endpoint is fixed — not user-configurable
   el("s-clear-cache-btn").onclick = () => {
     chrome?.runtime?.sendMessage({ type:"CLEAR_CACHE", tabId:currentTabId });
     showFeedback("s-feedback", "Session cache cleared.", "ok");
@@ -652,7 +636,10 @@ async function runScan(url) {
     renderTrackers(result);
     renderBlockRecs(result);
     renderSEO(result);
+    renderCookies(result);
+    renderTech(result);
     showReport();
+    gateFreeSections();
 
     chrome?.runtime?.sendMessage({ type:"CACHE_SCAN", tabId:currentTabId, result });
   } catch (err) {
@@ -711,7 +698,109 @@ function renderSEO(r) {
   );
 
   // Auto-open if there are failures
-  if (fails > 0) openSection("seo");
+}
+
+
+// ── Section gating (free tier blur) ──────────────────────────────────────────
+function gateFreeSections() {
+  const isPro = tier === "pro";
+  GATED_SECTIONS.forEach(name => {
+    const body   = el(`body-${name}`);
+    const header = document.querySelector(`[data-section="${name}"]`);
+    if (!body || !header) return;
+
+    // Remove any existing gate overlay
+    body.querySelectorAll(".section-gate-overlay").forEach(e => e.remove());
+    body.style.filter   = "";
+    body.style.pointerEvents = "";
+    header.style.opacity = "";
+
+    if (!isPro) {
+      // Blur body content
+      body.style.filter        = "blur(4px)";
+      body.style.pointerEvents = "none";
+      header.style.opacity     = "0.45";
+
+      // Overlay — only visible when section is open
+      const overlay = document.createElement("div");
+      overlay.className = "section-gate-overlay";
+      overlay.innerHTML = `
+        <div class="gate-overlay-inner">
+          <div class="gate-overlay-icon">🔒</div>
+          <div class="gate-overlay-title">Pro Feature</div>
+          <div class="gate-overlay-sub">Upgrade to see full details</div>
+          <button class="btn-unlock" onclick="openUpgradeModal()">Upgrade to Pro</button>
+        </div>`;
+      body.style.position = "relative";
+      body.appendChild(overlay);
+    }
+  });
+}
+
+
+// ── Cookie Security ───────────────────────────────────────────────────────────
+function renderCookies(r) {
+  const cookies = r.cookie_audit || [];
+  const badge = el("cookies-badge");
+  const issues = cookies.flatMap(c => c.issues);
+  if (badge) {
+    if (!cookies.length)       { badge.textContent = "No cookies"; badge.className = "section-badge badge-clean"; }
+    else if (issues.length)    { badge.textContent = `${issues.length} Issue${issues.length>1?"s":""}`; badge.className = "section-badge badge-warning"; }
+    else                       { badge.textContent = `${cookies.length} OK`; badge.className = "section-badge badge-clean"; }
+  }
+  if (!cookies.length) {
+    el("cookies-content").innerHTML = '<p style="font-size:12px;color:var(--fg-muted);padding:6px 0">No Set-Cookie headers detected in this response.</p>';
+    return;
+  }
+  el("cookies-content").innerHTML = cookies.map(c => {
+    const hasIssue = c.issues.length > 0;
+    const sc = hasIssue ? "seo-warn" : "seo-pass";
+    const icon = hasIssue ? "⚠" : "✓";
+    const flags = [
+      c.secure   ? '<span style="color:var(--green);font-size:10px">Secure</span>'   : '<span style="color:var(--red);font-size:10px">No Secure</span>',
+      c.httponly ? '<span style="color:var(--green);font-size:10px">HttpOnly</span>' : '<span style="color:var(--red);font-size:10px">No HttpOnly</span>',
+      `<span style="font-size:10px;color:${c.samesite==='missing'?'var(--amber)':'var(--green)'}">SameSite=${c.samesite}</span>`,
+    ].join(' · ');
+    return `<div class="seo-row ${sc}">
+      <div class="seo-icon">${icon}</div>
+      <div>
+        <div class="seo-signal" style="font-family:var(--mono)">${esc(c.name)}</div>
+        <div class="seo-detail">${flags}</div>
+        ${c.issues.map(i => `<div class="seo-rec">⚠ ${esc(i)}</div>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Technology Fingerprint ────────────────────────────────────────────────────
+function renderTech(r) {
+  const signals = r.tech_fingerprint || [];
+  const badge = el("tech-badge");
+  const crits  = signals.filter(s => s.risk === "critical").length;
+  const warns  = signals.filter(s => s.risk === "warn").length;
+  if (badge) {
+    if (crits)       { badge.textContent = `${crits} Critical`; badge.className = "section-badge badge-critical"; }
+    else if (warns)  { badge.textContent = `${warns} Warning`;  badge.className = "section-badge badge-warning"; }
+    else if (signals.length) { badge.textContent = "Info only"; badge.className = "section-badge badge-info"; }
+    else             { badge.textContent = "No disclosure"; badge.className = "section-badge badge-clean"; }
+  }
+  if (!signals.length) {
+    el("tech-content").innerHTML = '<p style="font-size:12px;color:var(--fg-muted);padding:6px 2px">No technology disclosure detected in response headers.</p>';
+    return;
+  }
+  el("tech-content").innerHTML = signals.map(s => {
+    const ic = s.risk === "critical" ? "var(--red)" : s.risk === "warn" ? "var(--amber)" : "var(--blue)";
+    const icon = s.risk === "critical" ? "✗" : s.risk === "warn" ? "⚠" : "ℹ";
+    return `<div class="header-row">
+      <div class="header-status" style="color:${ic}">${icon}</div>
+      <div>
+        <div class="header-name">${esc(s.header)}</div>
+        <div class="header-purpose">${esc(s.finding)}</div>
+        ${s.risk !== "info" ? `<div style="font-size:11px;color:var(--fg-dim);margin-top:3px;font-style:italic">💡 ${esc(s.recommendation)}</div>` : ""}
+      </div>
+      <div class="header-value">${esc(s.value)}</div>
+    </div>`;
+  }).join("");
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────

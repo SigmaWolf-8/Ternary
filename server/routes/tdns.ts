@@ -70,12 +70,28 @@ interface SeoSignal {
   recommendation: string;
 }
 
+interface CookieFlag {
+  name:     string;   // Cookie name (truncated, no value)
+  secure:   boolean;
+  httponly: boolean;
+  samesite: string;   // "Strict" | "Lax" | "None" | "missing"
+  issues:   string[]; // List of specific problems
+}
+
+interface TechSignal {
+  header:     string;
+  value:      string;
+  risk:       "info" | "warn" | "critical";
+  finding:    string;   // What this reveals
+  recommendation: string;
+}
+
 interface Scores {
   trustIndex:          number; trustLabel:          string;
   privacyScore:        number; privacyLabel:        string;
   complexityScore:     number; complexityLabel:     string;
   maturityScore:       number; maturityLabel:       string;
-  privacyFocusedIndex: number; pfiLabel:            string;
+  privacyFocusedIndex: number; pfiLabel:            string;  // "Data Trust" in UI
 }
 
 interface ScanResult {
@@ -84,13 +100,15 @@ interface ScanResult {
   scan_hash:       string;         // SHA-256 (JS path); BLAKE3 in Rust production path
   scan_hash_algo:  string;         // "sha256-js" | "blake3-rs"
   hptp_mandatory:  boolean;
-  crd:             number;
+  crd:             number;           // "Check Digit" in UI — (parseInt(scan_hash[0],16) % 9) + 1
   dimensions:      Dimension[];
   scores:          Scores;
   trackers:        TrackerCategory[];
   security_headers: HeaderAudit[];
   findings:        Finding[];
   seo_signals:     SeoSignal[];
+  cookie_audit:    CookieFlag[];
+  tech_fingerprint: TechSignal[];
   topology_svg:    string | null;  // Phase 2 — null until services/tdns-v2/src/topology.rs
   meta:            Record<string, any>;
   scannedAt:       string;
@@ -590,6 +608,112 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     finding("Info", "X-Content-Type-Options Missing", "nosniff directive absent — MIME-type sniffing enabled in older browsers.", "D25");
   }
 
+  // ── Cookie Security Audit ────────────────────────────────────────────────────
+  // Parse all Set-Cookie headers (may be multi-value or comma-separated)
+  const rawCookies = h("set-cookie") || "";
+  const cookieLines: string[] = rawCookies
+    .split(/,(?=[^;]+=[^;]*)/)   // naive split — good enough for flag audit
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+
+  const cookieAudit: CookieFlag[] = cookieLines.slice(0, 8).map((line: string) => {
+    const parts  = line.split(";").map((p: string) => p.trim());
+    const nameVal= parts[0] || "";
+    const name   = nameVal.split("=")[0] || "(unnamed)";
+    const flags  = parts.slice(1).map((p: string) => p.toLowerCase());
+
+    const secure   = flags.some((f: string) => f === "secure");
+    const httponly = flags.some((f: string) => f === "httponly");
+    const ssFlag   = flags.find((f: string) => f.startsWith("samesite="));
+    const samesite = ssFlag ? ssFlag.split("=")[1] || "missing" : "missing";
+
+    const issues: string[] = [];
+    if (!secure)                    issues.push("Missing Secure flag — cookie sent over HTTP");
+    if (!httponly)                  issues.push("Missing HttpOnly flag — accessible via JavaScript");
+    if (samesite === "missing")     issues.push("Missing SameSite — CSRF risk");
+    if (samesite === "none" && !secure) issues.push("SameSite=None without Secure is rejected by modern browsers");
+
+    return { name: name.substring(0, 32), secure, httponly, samesite, issues };
+  });
+
+  // ── Technology Fingerprint ────────────────────────────────────────────────────
+  // Surface version/stack disclosure from response headers
+  const techSignals: TechSignal[] = [];
+
+  const fingerHeaders: Array<{ key: string; label: string }> = [
+    { key: "server",          label: "Server"          },
+    { key: "x-powered-by",   label: "X-Powered-By"    },
+    { key: "x-generator",    label: "X-Generator"      },
+    { key: "x-aspnet-version", label: "X-AspNet-Version" },
+    { key: "x-aspnetmvc-version", label: "X-AspNetMvc-Version" },
+    { key: "x-drupal-cache", label: "X-Drupal-Cache"  },
+    { key: "x-wordpress-cache", label: "X-WordPress-Cache" },
+    { key: "x-shopify-stage", label: "X-Shopify-Stage" },
+  ];
+
+  for (const fh of fingerHeaders) {
+    const val = h(fh.key);
+    if (!val) continue;
+
+    // Detect version disclosure
+    const hasVersion = /[0-9]+\.[0-9]/.test(val);
+    const isPhp      = /php/i.test(val);
+    const isAsp      = /asp\.net|aspnet/i.test(val);
+    const isExpress  = /express/i.test(val);
+    const isNginx    = /nginx/i.test(val);
+    const isApache   = /apache/i.test(val);
+
+    let risk: "info" | "warn" | "critical" = "info";
+    let finding = `${fh.label}: ${val.substring(0, 60)}`;
+    let recommendation = "No immediate action required.";
+
+    if (hasVersion) {
+      risk = "warn";
+      finding = `${fh.label} discloses version: ${val.substring(0, 60)}`;
+      recommendation = `Remove or mask the ${fh.label} header to prevent version enumeration. Attackers use version strings to target known CVEs.`;
+    }
+    if (isPhp && hasVersion) {
+      risk = "critical";
+      finding = `PHP version disclosed: ${val.substring(0, 60)}`;
+      recommendation = "Remove X-Powered-By entirely via php.ini (expose_php = Off). PHP version exposure enables targeted exploits.";
+    }
+    if (isAsp && hasVersion) {
+      risk = "critical";
+      finding = `ASP.NET version disclosed: ${val.substring(0, 60)}`;
+      recommendation = 'Remove ASP.NET version headers in web.config: <httpRuntime enableVersionHeader="false"> and <customHeaders><remove name="X-Powered-By"/></customHeaders>.';
+    }
+    if ((isNginx || isApache) && hasVersion) {
+      risk = "warn";
+      finding = `Web server version disclosed (${isNginx ? "nginx" : "Apache"}): ${val.substring(0, 60)}`;
+      recommendation = isNginx
+        ? "Set server_tokens off; in nginx.conf to suppress version."
+        : "Set ServerTokens Prod and ServerSignature Off in Apache config.";
+    }
+
+    techSignals.push({ header: fh.key, value: val.substring(0, 80), risk, finding, recommendation });
+  }
+
+  // CDN detection from common headers
+  const cdnHeaders: Array<[string, string]> = [
+    ["cf-ray",      "Cloudflare"],
+    ["x-amz-cf-id", "AWS CloudFront"],
+    ["x-azure-ref", "Azure CDN"],
+    ["x-fastly-request-id", "Fastly"],
+    ["x-cache",     "Generic CDN/cache"],
+  ];
+  for (const [hkey, cdn] of cdnHeaders) {
+    if (h(hkey)) {
+      techSignals.push({
+        header: hkey, value: h(hkey).substring(0, 40), risk: "info",
+        finding: `CDN detected: ${cdn}`,
+        recommendation: "No action needed. CDN presence is noted for infrastructure context.",
+      });
+      break; // report first match only
+    }
+  }
+
+  // ── HPTP mandatory ────────────────────────────────────────────────────────
+  const hptp_mandatory = trits[14] === 3 && trits[15] === 3;
 
   // ── SEO Analysis ──────────────────────────────────────────────────────────
   // All signals derived from the already-fetched body (lowercased, ≤32 KB).
@@ -635,7 +759,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
                     || rex(/href=["']([^"']+)["'][^>]*rel=["']canonical["']/i);
   if (!canonicalUrl) {
     seo("Discoverability","warn","Canonical URL",
-      `No <link rel="canonical"> found.`,
+      'No <link rel="canonical"> found.',
       "Add a canonical tag pointing to the preferred URL to prevent duplicate content issues.");
   } else {
     const canonOk = canonicalUrl.includes(hostname);
@@ -741,7 +865,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   if (!twitterCard) {
     seo("Social","warn","Twitter / X Card",
       "No twitter:card meta tag found.",
-      `Add <meta name="twitter:card" content="summary_large_image"> for rich previews on X/Twitter.`);
+      'Add <meta name="twitter:card" content="summary_large_image"> for rich previews on X/Twitter.');
   } else {
     seo("Social","pass","Twitter / X Card",
       "twitter:card meta tag present.",
@@ -754,7 +878,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   const hasViewport = b('name="viewport"') || b("name='viewport'");
   seo("Technical", hasViewport ? "pass" : "fail", "Viewport Meta Tag",
     hasViewport ? "Viewport meta tag present — page signals mobile-responsiveness." : "No viewport meta tag found.",
-    hasViewport ? "No action needed." : `Add <meta name="viewport" content="width=device-width, initial-scale=1"> for mobile-friendliness. Google uses mobile-first indexing.`);
+    hasViewport ? "No action needed." : 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> for mobile-friendliness. Google uses mobile-first indexing.');
 
   // Structured data
   const hasJsonLd   = b("application/ld+json");
@@ -796,9 +920,6 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
       "No action needed.");
   }
 
-  // ── HPTP mandatory ────────────────────────────────────────────────────────
-  const hptp_mandatory = trits[14] === 3 && trits[15] === 3;
-
   // Sort: Critical first, then Warning, then Info
   const sev = { "Critical": 0, "Warning": 1, "Info": 2 };
   findings.sort((a, b) => sev[a.severity] - sev[b.severity]);
@@ -816,6 +937,8 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     security_headers,
     findings,
     seo_signals:      seoSignals,
+    cookie_audit:     cookieAudit,
+    tech_fingerprint: techSignals,
     topology_svg:     null,         // Phase 2: services/tdns-v2/src/topology.rs
     meta,
     scannedAt:        new Date().toISOString(),
@@ -913,8 +1036,7 @@ export function registerTdnsRoutes(app: Express) {
 
   // GET /api/tdns/resolve/:name
   app.get("/api/tdns/resolve/:name", (req: Request, res: Response) => {
-    const rawName = String(req.params.name);
-    const name  = rawName.endsWith(".plm") ? rawName : rawName + ".plm";
+    const name  = req.params.name.endsWith(".plm") ? req.params.name : req.params.name + ".plm";
     const entry = registry.get(name);
     if (!entry) { res.status(404).json({ status: "not_found", name }); return; }
     res.json({ status: "ok", name: entry.name, address: entry.address,

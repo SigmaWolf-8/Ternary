@@ -110,7 +110,8 @@
       display:grid; grid-template-columns:repeat(5,1fr);
       gap:1px; background:var(--border); border-bottom:1px solid var(--border);
     }
-    .score-card{background:var(--bg-card);padding:12px 9px;text-align:center}
+    .score-card{background:var(--bg-card);padding:12px 9px;text-align:center;cursor:help;transition:background .1s}
+    .score-card:hover{background:var(--bg-muted)}
     .score-value{font-size:22px;font-weight:800;line-height:1;margin-bottom:4px}
     .score-label{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--fg-muted);margin-bottom:3px}
     .score-name{font-size:9px;color:var(--fg-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -334,6 +335,23 @@
     .info-box li strong{color:var(--fg)}
     .info-box strong{color:var(--gold)}
 
+
+    /* ── Section gate overlay (free tier) ───────────────────────────────────── */
+    .section-gate-overlay {
+      position:absolute; inset:0; z-index:5;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(9,8,7,.35);
+      pointer-events:all;
+    }
+    .gate-overlay-inner {
+      text-align:center; padding:20px 24px;
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:10px; max-width:220px;
+    }
+    .gate-overlay-icon { font-size:22px; margin-bottom:7px; }
+    .gate-overlay-title { font-size:14px; font-weight:700; color:var(--gold); margin-bottom:4px; }
+    .gate-overlay-sub { font-size:12px; color:var(--fg-muted); margin-bottom:12px; line-height:1.45; }
+
     /* ── .plm explanation box ────────────────────────────────────────────── */
     .plm-explainer{
       background:rgba(75,142,240,.06); border:1px solid rgba(75,142,240,.2);
@@ -408,7 +426,7 @@
       <div class="address-row">
         <div class="address-string" id="address" title="Click to copy">—</div>
         <div class="hptp-badge" id="hptp-badge" style="display:none">HPTP-MANDATORY</div>
-        <div class="crd-badge" id="crd-badge">Check Digit —</div>
+        <div class="crd-badge" id="crd-badge" title="Check Digit — derived from scan hash; changes if infrastructure shifts">Check Digit: —</div>
       </div>
       <div class="address-meta">
         <span id="hash-preview">HASH: —</span>
@@ -462,6 +480,23 @@
       <div class="section-body" id="body-seo"><div class="seo-list" id="seo-content"></div></div>
     </div>
 
+
+    <div class="section">
+      <div class="section-header" data-section="cookies">
+        <div class="section-title">Cookie Security <span class="section-badge" id="cookies-badge">—</span></div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-cookies"><div class="seo-list" id="cookies-content"></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" data-section="tech">
+        <div class="section-title">Technology Fingerprint <span class="section-badge" id="tech-badge">—</span></div>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" id="body-tech"><div class="headers-table" id="tech-content"></div></div>
+    </div>
+
     <div class="actions-bar">
       <button class="btn-action gold"    id="btn-pdf">⎙ PDF Report</button>
       <button class="btn-action primary" id="btn-verify">Verify Hash</button>
@@ -470,7 +505,7 @@
     </div>
 
     <div class="footer">
-      PlenumNET TDNS v1.0.7 ·
+      PlenumNET TDNS v1.0.8 ·
       <a href="https://plenumnet.replit.app" target="_blank">plenumnet.replit.app</a> ·
       <a href="https://plenumnet.replit.app/privacy" target="_blank">Privacy</a>
     </div>
@@ -507,27 +542,16 @@
       <hr class="modal-divider">
       <div class="modal-section-label">What's Hidden on Free</div>
       <div class="info-box">
-        <p><strong>Free</strong> gives you: all 27 dimensions, all 5 scores, all security alerts, all header audits, and Analytics / Social / Advertising tracker rows.</p>
-        <p style="margin-top:7px"><strong>Pro unlocks:</strong></p>
+        <p><strong>Free</strong> gives you: the 5 score cards and the full 27-dimensional breakdown.</p>
+        <p style="margin-top:7px"><strong>Pro unlocks everything else:</strong></p>
         <ul>
-          <li><strong>Session Replay detection</strong> — identifies keystroke/form-capture tools (Hotjar, FullStory, LogRocket, Clarity). Always a Critical finding when detected.</li>
-          <li><strong>CRM / Marketing detection</strong> — HubSpot, Marketo, Intercom, Pardot identity graph tools.</li>
-          <li><strong>Block Recommendations</strong> — uBlock Origin rules, hosts file entries, Pi-hole IDs per detected domain.</li>
+          <li><strong>Security Alerts</strong> — critical and warning findings from the full infrastructure scan.</li>
+          <li><strong>Security Headers</strong> — audit of all 12 HTTP security headers with findings.</li>
+          <li><strong>SEO Analysis</strong> — 12-signal SEO report across Discoverability, Metadata, Social, and Technical categories.</li>
+          <li><strong>Tracker Intelligence</strong> — all 5 tracker categories including Session Replay and CRM detection, plus Block Recommendations.</li>
+          <li><strong>Cookie Security</strong> — Set-Cookie flag audit (Secure, HttpOnly, SameSite).</li>
+          <li><strong>Technology Fingerprint</strong> — stack/version disclosure detection.</li>
         </ul>
-      </div>
-
-      <hr class="modal-divider">
-      <div class="modal-section-label">API Endpoint</div>
-      <div class="s-row">
-        <div>
-          <div class="s-row-label">PlenumNET server</div>
-          <div class="s-row-sub" id="s-api-display">https://plenumnet.replit.app</div>
-        </div>
-        <button class="s-btn" id="s-edit-api-btn">Edit</button>
-      </div>
-      <div id="s-api-edit" style="display:none;margin-top:9px">
-        <input class="modal-input" id="s-api-input" type="text" placeholder="https://plenumnet.replit.app">
-        <button class="btn-action primary" style="width:100%;margin-top:7px" id="s-save-api-btn">Save</button>
       </div>
 
       <hr class="modal-divider">
