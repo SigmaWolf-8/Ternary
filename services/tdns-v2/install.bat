@@ -80,17 +80,7 @@ if exist "%INSTALL_DIR%" rmdir /s /q "%INSTALL_DIR%"
 mkdir "%INSTALL_DIR%" 2>nul
 mkdir "%INSTALL_DIR%\icons" 2>nul
 
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/manifest.json', '%INSTALL_DIR%\manifest.json')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/background.js', '%INSTALL_DIR%\background.js')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/content.js', '%INSTALL_DIR%\content.js')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.html', '%INSTALL_DIR%\popup.html')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/popup.js', '%INSTALL_DIR%\popup.js')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/dimensions.json', '%INSTALL_DIR%\dimensions.json')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.html', '%INSTALL_DIR%\report.html')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/report.js', '%INSTALL_DIR%\report.js')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon16.png', '%INSTALL_DIR%\icons\icon16.png')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon48.png', '%INSTALL_DIR%\icons\icon48.png')"
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%GH_RAW%/icons/icon128.png', '%INSTALL_DIR%\icons\icon128.png')"
+powershell -NoProfile -Command "$cb=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $wc=New-Object System.Net.WebClient; $wc.Headers.Add('Cache-Control','no-cache'); $wc.Headers.Add('User-Agent','PlenumNET-Installer/1.0.5'); foreach($f in @('manifest.json','background.js','content.js','popup.html','popup.js','dimensions.json','report.html','report.js')){ $wc.DownloadFile('%GH_RAW%/'+$f+'?cb='+$cb, '%INSTALL_DIR%\'+$f) }; foreach($i in @('icon16.png','icon48.png','icon128.png')){ $wc.DownloadFile('%GH_RAW%/icons/'+$i+'?cb='+$cb, '%INSTALL_DIR%\icons\'+$i) }"
 
 set /a count=0
 for /r "%INSTALL_DIR%" %%f in (*) do set /a count+=1
