@@ -6,4 +6,7 @@ members = [
     "services/inter-cube",
     "services/tdns-v2",
 ]
+exclude = [
+    "libternary",
+]
 resolver = "2"
