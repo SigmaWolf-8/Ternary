@@ -913,7 +913,8 @@ export function registerTdnsRoutes(app: Express) {
 
   // GET /api/tdns/resolve/:name
   app.get("/api/tdns/resolve/:name", (req: Request, res: Response) => {
-    const name  = req.params.name.endsWith(".plm") ? req.params.name : req.params.name + ".plm";
+    const rawName = String(req.params.name);
+    const name  = rawName.endsWith(".plm") ? rawName : rawName + ".plm";
     const entry = registry.get(name);
     if (!entry) { res.status(404).json({ status: "not_found", name }); return; }
     res.json({ status: "ok", name: entry.name, address: entry.address,
