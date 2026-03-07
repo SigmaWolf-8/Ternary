@@ -1,18 +1,3 @@
-/**
- * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
- * Applied Physics Division
- *
- * PROPRIETARY AND CONFIDENTIAL — All Rights Reserved.
- * Patent(s) Pending.
- *
- * This file is part of the Salvi Framework / PlenumNET platform.
- * Unauthorized copying, modification, distribution, or use of this file,
- * via any medium, is strictly prohibited without the prior written
- * permission of Capomastro Holdings Ltd.
- *
- * See LICENSE in the repository root for full terms.
- */
-
 "use strict";
   const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const el  = id => document.getElementById(id);
@@ -47,7 +32,7 @@
     // Address
     el("r-address").childNodes[0].textContent = result.address + " ";
     el("r-hptp").style.display = result.hptp_mandatory ? "inline-block" : "none";
-    el("r-crd").textContent     = result.crd;
+    el("r-crd").textContent     = result.crd; // Check Digit
     el("r-hash-algo").textContent = result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
     el("r-hash").textContent    = (result.scan_hash || "").substring(0, 32) + "…";
     el("r-full-hash").textContent= result.scan_hash || "—";
@@ -55,16 +40,16 @@
 
     // Scores
     const scoreDefs = [
-      { key:"trustIndex",          name:"Trust Index",    lk:"trustLabel"          },
-      { key:"privacyFocusedIndex", name:"Data Trust",      lk:"pfiLabel"            },
-      { key:"privacyScore",        name:"Privacy",        lk:"privacyLabel"        },
-      { key:"maturityScore",       name:"Maturity",       lk:"maturityLabel"       },
-      { key:"complexityScore",     name:"Complexity",     lk:"complexityLabel"     },
+      { key:"trustIndex",          name:"Trust Index",    lk:"trustLabel",          tip:"Overall trustworthiness — entity type, transparency, security posture, peace-of-mind signals." },
+      { key:"privacyFocusedIndex", name:"Data Trust",     lk:"pfiLabel",            tip:"Trust Index adjusted for personal data collection appetite (D8)." },
+      { key:"privacyScore",        name:"Privacy Score",  lk:"privacyLabel",        tip:"How well this site protects your personal data." },
+      { key:"maturityScore",       name:"Maturity",       lk:"maturityLabel",       tip:"Operational maturity — how established and stable the infrastructure appears." },
+      { key:"complexityScore",     name:"Complexity",     lk:"complexityLabel",     tip:"Technical infrastructure complexity — CDN layers, API exposure, data flow topology." },
     ];
     el("r-scores").innerHTML = scoreDefs.map(d => {
       const v = result.scores?.[d.key] ?? 0;
       const c = scoreColor(v);
-      return `<div class="score-card">
+      return `<div class="score-card" title="${esc(d.tip || d.name)}">
         <div class="score-val" style="color:${c}">${v}</div>
         <div class="score-lbl" style="color:${c}">${esc(result.scores?.[d.lk] || "")}</div>
         <div class="score-name">${esc(d.name)}</div>
@@ -180,6 +165,47 @@
     if (!seoHtml) seoHtml = '<tr><td colspan="5" style="color:var(--muted)">No SEO data available.</td></tr>';
     if (el("r-seo")) el("r-seo").innerHTML = seoHtml;
 
+    // Cookie Security
+    const cookies = result.cookie_audit || [];
+    let cookieHtml = "";
+    if (!cookies.length) {
+      cookieHtml = '<tr><td colspan="6" style="color:var(--muted)">No Set-Cookie headers detected.</td></tr>';
+    } else {
+      cookies.forEach(c => {
+        const icon = c.issues.length ? "⚠" : "✓";
+        const ic   = c.issues.length ? "var(--amber)" : "var(--green)";
+        cookieHtml += `<tr>
+          <td style="color:${ic}">${icon}</td>
+          <td style="font-family:var(--mono);font-size:11px">${esc(c.name)}</td>
+          <td style="color:${c.secure?"var(--green)":"var(--red)"};font-size:11px">${c.secure?"✓":"✗"}</td>
+          <td style="color:${c.httponly?"var(--green)":"var(--red)"};font-size:11px">${c.httponly?"✓":"✗"}</td>
+          <td style="font-size:11px;color:${c.samesite==="missing"?"var(--amber)":"var(--green)"}">${esc(c.samesite)}</td>
+          <td style="font-size:10px;color:var(--muted)">${c.issues.join(" · ") || "—"}</td>
+        </tr>`;
+      });
+    }
+    if (el("r-cookies")) el("r-cookies").innerHTML = cookieHtml;
+
+    // Technology Fingerprint
+    const techSigs = result.tech_fingerprint || [];
+    let techHtml = "";
+    if (!techSigs.length) {
+      techHtml = '<tr><td colspan="5" style="color:var(--muted)">No technology disclosure detected.</td></tr>';
+    } else {
+      techSigs.forEach(s => {
+        const ic = s.risk==="critical"?"var(--red)":s.risk==="warn"?"var(--amber)":"var(--dim)";
+        const icon = s.risk==="critical"?"✗":s.risk==="warn"?"⚠":"ℹ";
+        techHtml += `<tr>
+          <td style="color:${ic}">${icon}</td>
+          <td style="font-family:var(--mono);font-size:11px">${esc(s.header)}</td>
+          <td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${esc(s.value.substring(0,50))}</td>
+          <td style="font-size:11px">${esc(s.finding)}</td>
+          <td style="font-size:10px;color:var(--dim);font-style:italic">${s.risk!=="info"?esc(s.recommendation):"—"}</td>
+        </tr>`;
+      });
+    }
+    if (el("r-tech")) el("r-tech").innerHTML = techHtml;
+
   }
 
   // Load from chrome.storage.local
@@ -207,17 +233,3 @@
   }
 
   loadAndRender();
-
-  document.getElementById("btn-print").addEventListener("click", function () {
-    window.print();
-  });
-
-  document.getElementById("btn-close").addEventListener("click", function () {
-    if (typeof chrome !== "undefined" && chrome.tabs) {
-      chrome.tabs.getCurrent(function (tab) {
-        if (tab) chrome.tabs.remove(tab.id);
-      });
-    } else {
-      window.close();
-    }
-  });
