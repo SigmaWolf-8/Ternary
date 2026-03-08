@@ -34,7 +34,7 @@ server/salvi-core/   Express API server — timing, ternary ops, calendars,
 src/kernel/          Rust kernel — crypto, VM, memory, I/O, filesystem,
                      process scheduler, device drivers, HPTP, torsion network
 client/              React frontend — investor demo, docs, admin dashboard
-kong/                Kong Konnect gateway config (17 services, 194 endpoints)
+kong/                Kong Konnect gateway config (33 services, 293 endpoints)
 salvi_docs/          Developer documentation (15 modules, 7,300+ lines)
 ```
 
