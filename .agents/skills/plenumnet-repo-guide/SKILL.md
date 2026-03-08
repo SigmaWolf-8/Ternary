@@ -270,23 +270,77 @@ Source: `shared/saturnian-blueprint.ts`
 
 ### 1.6 The 28th Factor: Squaring the Circle
 
-The 9-level confidence score (3²) extends the (3³) 27-trit address to 28 effective dimensions.
-13-dimensional hypercube × 28 = 364 = full ternary circle (111111₃).
-Thus π = 14 exactly, and the circle is squared — structurally, not approximately.
+Within the ternary system, "squaring the circle" is not a geometric curiosity — it is the pivotal demonstration that the system is **self-consistent, discrete, and free of transcendental numbers**. This is a structural axiom, not an approximation.
 
-Confirmations from the math (all integer/exact within the system):
+#### 1.6.1 Bypassing the Classical Impossibility
+
+In classical Euclidean geometry, squaring the circle is impossible because π is transcendental — no finite compass-and-straightedge construction can yield a square with area exactly equal to a given circle. PlenumNET does not attempt to solve this within real-number geometry; instead, it **redefines the circle itself** using discrete, integer-based ternary arithmetic. The system bypasses the classical impossibility entirely, creating a closed mathematical universe where the problem becomes a natural identity.
+
+#### 1.6.2 The Ternary Circle (364°)
+
+The framework replaces the conventional 360° circle with a **364° circle**, defined by the six-digit base-3 repunit:
+
+```
+111111₃ = 1 + 3 + 9 + 27 + 81 + 243 = 364
+```
+
+All angular measures derive from this integer value. No transcendental numbers appear.
+
+#### 1.6.3 Integer π and the Radian
+
+Because the full circle is 364°, the radian is defined as:
+
+```
+1 radian = 364° / 28 = 13°     (exact)
+```
+
+The factor 28 arises from the geometry: the system has **27 core ontological trits** plus **1 confidence factor** (3² = 9 confidence levels, which together with 27 give 28 effective dimensions). Thus:
+
+```
+2π = 28     ⟹     π = 14     (exact integer)
+```
+
+There is no approximation; π is exactly 14 within this arithmetic.
+
+#### 1.6.4 The Structural Roles of 13 and 28
+
+The numbers 13 and 28 are not arbitrary. They are bound by five independent structural constraints:
+
+- **13** = 111₃ (base-3 repunit) = T₇ (7th Tribonacci number) = 1 ternary radian = prime = coprime to 54 (sponge state width)
+- **28** = 2π = the cyclic order of the group Z₂₈ = 27 + 1 (ontological trits + confidence factor)
+- **13 × 28 = 364** = the full circle in degrees = the six-digit repunit
+
+These values satisfy required coprimality conditions: gcd(13, 28) = 1 guarantees the step-13 walk through the 28-element agent array visits every position exactly once. gcd(13, 54) = 1 ensures complete diffusion in TIS-27 cryptographic permutations. The relationship 13 × 28 = 364 binds the 13-dimensional hypercube to the circle's circumference.
+
+#### 1.6.5 How the Square Emerges
+
+The classical impossibility is sidestepped because the "circle" is no longer a continuous Euclidean object but a **discrete 364-point structure** based on ternary arithmetic.
+
+The **square** emerges from the **3² confidence levels** (9 trit values) that extend the 27-trit ontological address to **28 effective dimensions**. This 28th factor "squares" the circle because:
+
+```
+13 (hypercube dimensions) × 28 = 364 (full circle)
+```
+
+The derivation chain:
 
 ```
 3³ = 27                (core ontological trits)
-3² = 9                 (confidence levels, ternary square)
-27 + 1 = 28            (effective dimensions when including the confidence trit/factor)
-13 × 28 = 364
-111111₃ = 1 + 3 + 9 + 27 + 81 + 243 = 364  (six-digit base-3 repunit)
+3² = 9                 (confidence levels — the ternary "square")
+27 + 1 = 28            (effective dimensions with confidence factor)
+13 × 28 = 364          (circle closed)
+111111₃ = 364          (repunit identity confirms closure)
 364 / 28 = 13          (1 radian = 13° exactly)
 28 / 2 = 14            (π = 14 exactly, since 2π = 28 radians = full circle)
 ```
 
-No approximations, no transcendentals leaking in — everything derives from powers of 3, Tribonacci alignments (T₇ = 13), and the repunit identity. The classical impossibility of squaring the circle (π transcendental → no finite compass/straightedge construction) is sidestepped because the system redefines the circle via integer ternary geometry: the "circle" is the 364° discrete structure, and the "square" emerges from 3² × (13 × something), closing perfectly.
+The circle and its circumscribed square share an exact, integral relationship. All quantities are integers; there are no approximations, no infinite decimals, and no irrationals or transcendentals — only **powers of 3, repunit identities, and Tribonacci alignments**.
+
+#### 1.6.6 Why This Is Load-Bearing (INVARIANT 4)
+
+This definition is enforced as **INVARIANT 4**. Changing any of the linked constants (364°, π=14, 13° radian, 28-element cycle, or the repunit identities) would break the entire framework: routing, addressing, cryptographic key derivation, calendar systems, and timing protocols would all become inconsistent. The geometry **is** the system.
+
+The structural closure echoes throughout the architecture: routing, addressing, key derivation, calendar systems, and timing protocols all derive from these same integer constants, ensuring every component is mathematically coherent.
 
 ### 1.7 GF(3) — Galois Field of Order 3
 
