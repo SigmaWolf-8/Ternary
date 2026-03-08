@@ -201,7 +201,14 @@ function renderAddress(r) {
   const addrEl = el("address");
   const parts  = (r.address || "").split(" · ");
   if (parts.length === 2) {
-    addrEl.innerHTML = `<span class="addr-class">${esc(parts[0])}</span> <span class="addr-sep">·</span> <span class="addr-id" title="Identity Anchor — derived from TernarySponge(URL). Uniquely identifies this specific site.">${esc(parts[1])}</span>`;
+    const cguidHtml = r.cguid && r.cguid > 1
+      ? ` <span class="crd-badge" title="Collision GUID — slot ${r.cguid} of 9">CGUID:${r.cguid}</span>`
+      : "";
+    addrEl.innerHTML =
+      `<span class="addr-class">${esc(parts[0])}</span>` +
+      ` <span class="addr-sep">·</span>` +
+      ` <span class="addr-id" title="Identity Anchor — derived from IdentitySponge(URL). Uniquely identifies this specific site.">${esc(parts[1])}</span>` +
+      cguidHtml;
   } else {
     addrEl.textContent = r.address;
   }
@@ -209,7 +216,7 @@ function renderAddress(r) {
   el("crd-badge").textContent    = `CRD: ${r.crd}`;
   el("crd-badge").title          = "Check Digit — a value 1–9 derived from the first two output trits of the scan sponge. Changes if the site's classification trits shift between scans.";
   const algo = r.scan_hash_algo === "tis-27" ? "TIS-27" : r.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
-  el("hash-preview").textContent = `${algo}: ${(r.scan_hash || "").substring(0, 14)}…`;
+  el("hash-preview").textContent = `${algo}: ${(r.scan_hash || "").substring(0, 18)}…`;
   el("scan-time").textContent    = formatTime(r.scannedAt);
   addrEl.onclick = () => {
     navigator.clipboard.writeText(r.address).catch(() => {});

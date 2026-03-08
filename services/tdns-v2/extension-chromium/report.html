@@ -126,6 +126,27 @@
       color:         var(--gold);
       letter-spacing: .05em;
       margin-bottom: 8px;
+      display:       flex;
+      flex-wrap:     wrap;
+      gap:           4px 8px;
+      align-items:   baseline;
+    }
+    .addr-seg {
+      display: inline-flex;
+      gap: 2px;
+      align-items: baseline;
+    }
+    .seg-label {
+      font-size: 10px;
+      color: var(--dim);
+      font-weight: 600;
+      letter-spacing: .06em;
+    }
+    .seg-trits {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: .05em;
     }
     .hptp-badge {
       display:       inline-block;
@@ -394,7 +415,7 @@
       </div>
       <div class="addr-meta">
         <div title="Check Digit — derived from scan hash; changes if infrastructure shifts">Check Digit: <span id="r-crd">—</span></div>
-        <div id="r-hash-algo">HASH</div>: <span id="r-hash" style="font-family:var(--mono);font-size:10px;color:var(--dim)">—</span>
+        <div id="r-hash-algo" title="IdentitySponge(classification trits) — pure ternary scan fingerprint">TIS-27</div>: <span id="r-hash" style="font-family:var(--mono);font-size:10px;color:var(--dim)">—</span>
       </div>
     </div>
 
