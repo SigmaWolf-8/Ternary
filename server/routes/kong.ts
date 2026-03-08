@@ -438,8 +438,8 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           stripPath: false,
           rateLimit: { minute: 100, hour: 1000 },
           methods: ["GET", "POST"],
-          endpointCount: 4,
-          endpoints: ["GET /config/:mode", "POST /split", "POST /recombine", "GET /recommend"]
+          endpointCount: 6,
+          endpoints: ["GET /config/:mode", "POST /split", "POST /recombine", "GET /recommend", "POST /batch/split", "POST /batch/recombine"]
         },
         {
           name: "plenumnet-vm",
@@ -594,6 +594,171 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           methods: ["GET", "POST"],
           endpointCount: 9,
           endpoints: ["GET /algorithms", "GET /interop/capabilities", "POST /tldsa/keygen", "POST /tldsa/sign", "POST /tldsa/verify", "POST /tlkem/keygen", "POST /tlkem/encapsulate", "POST /tlkem/decapsulate", "GET /pqti-status"]
+        },
+        {
+          name: "plenumnet-tsa",
+          url: `${baseUrl}/api/tsa`,
+          tags: ["plenumnet", "tsa", "rfc3161", "timestamping", "notary"],
+          routePath: "/api/tsa",
+          stripPath: false,
+          rateLimit: { minute: 60, hour: 600 },
+          methods: ["GET", "POST"],
+          endpointCount: 9,
+          endpoints: ["POST /timestamp", "POST /timestamp/json", "POST /verify", "GET /certificate", "GET /certificate/download", "GET /tokens", "GET /policy", "GET /health", "GET /audit/query"]
+        },
+        {
+          name: "plenumnet-hedera",
+          url: `${baseUrl}/api/hedera`,
+          tags: ["plenumnet", "hedera", "hcs", "blockchain", "witnessing"],
+          routePath: "/api/hedera",
+          stripPath: false,
+          rateLimit: { minute: 30, hour: 300 },
+          methods: ["GET", "POST"],
+          endpointCount: 6,
+          endpoints: ["POST /v1/witness", "GET /v1/witness/:txId", "POST /v1/verify", "GET /v1/topic", "GET /v1/health", "GET /v1/stats"]
+        },
+        {
+          name: "plenumnet-sfk-operations",
+          url: `${baseUrl}/api/sfk`,
+          tags: ["plenumnet", "sfk", "operations", "pipeline", "ternary"],
+          routePath: "/api/sfk",
+          stripPath: false,
+          rateLimit: { minute: 60, hour: 600 },
+          methods: ["GET", "POST", "DELETE"],
+          endpointCount: 5,
+          endpoints: ["POST /v1/operations", "GET /v1/operations/:id", "GET /v1/operations", "DELETE /v1/operations/:id", "GET /v1/stats"]
+        },
+        {
+          name: "plenumnet-capabilities",
+          url: `${baseUrl}/api/capabilities`,
+          tags: ["plenumnet", "capabilities", "security", "authorization", "tl-dsa"],
+          routePath: "/api/capabilities",
+          stripPath: false,
+          rateLimit: { minute: 60, hour: 600 },
+          methods: ["GET", "POST"],
+          endpointCount: 29,
+          endpoints: ["GET /demo/expiration", "GET /demo/delegation", "GET /demo/confinement", "GET /demo/certificates", "GET /demo/mesh", "POST /issue", "POST /validate", "POST /delegate", "POST /delegate/chain", "POST /verify-chain", "GET /audit", "POST /hardware/register", "POST /hardware/challenge", "POST /hardware/verify", "POST /hardware/issue", "POST /certificate/issue", "POST /certificate/verify", "GET /certificate/:certId/rfc3161", "GET /certificate/:certId/verify-data", "POST /certificate/evidence-chain", "POST /mesh/connect", "POST /mesh/authenticate", "POST /mesh/propagate", "GET /mesh/status", "GET /mesh/topology", "POST /mesh/key-rotate", "POST /mesh/revoke", "GET /mesh/cross-service/:serviceId", "GET /mesh/audit"]
+        },
+        {
+          name: "plenumnet-inter-cube",
+          url: `${baseUrl}/api/inter-cube`,
+          tags: ["plenumnet", "inter-cube", "13d", "geometric-routing", "glb", "con", "crs", "fts"],
+          routePath: "/api/inter-cube",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 18,
+          endpoints: ["POST /crs/register", "GET /crs/lookup/:address", "GET /crs/neighbors/:address", "POST /crs/heartbeat", "POST /crs/deregister", "GET /crs/stats", "POST /glb/forward", "GET /glb/stats", "GET /glb/health", "GET /con/neighbors", "GET /con/stats", "POST /con/tunnel/refresh", "GET /fts/status", "GET /fts/dead", "POST /fts/config", "POST /routing/compute", "POST /address/validate", "GET /topology"]
+        },
+        {
+          name: "plenumnet-tdns",
+          url: `${baseUrl}/api/tdns`,
+          tags: ["plenumnet", "tdns", "addressing", "ontological", "27d", "tis-27"],
+          routePath: "/api/tdns",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 11,
+          endpoints: ["POST /scan", "POST /register", "GET /resolve/:name", "GET /resolve", "POST /org/create", "POST /org/add-url", "GET /org/:name", "GET /orgs", "GET /list", "GET /records", "GET /health"]
+        },
+        {
+          name: "plenumnet-security",
+          url: `${baseUrl}/api/security`,
+          tags: ["plenumnet", "security", "audit", "threats", "hptp", "dashboard"],
+          routePath: "/api/security",
+          stripPath: false,
+          rateLimit: { minute: 60, hour: 600 },
+          methods: ["GET", "POST", "PATCH", "DELETE"],
+          endpointCount: 38,
+          endpoints: ["GET /audit", "POST /audit", "GET /audit/:id", "PATCH /audit/:id/resolve", "GET /audit/stats", "GET /audit/summary", "GET /audit/unresolved", "GET /dashboard", "GET /hptp/anomalies", "POST /hptp/anomalies", "GET /hptp/fallback-analysis", "GET /hptp/fallback-modes", "GET /hptp/redundancy", "GET /hptp/stats", "GET /hptp/status", "GET /hptp/thresholds", "GET /implementation", "POST /implementation", "GET /implementation/:id", "PATCH /implementation/:id", "DELETE /implementation/:id", "GET /implementation/meta", "GET /implementation/metrics", "GET /implementation/milestones", "POST /implementation/seed", "GET /implementation/summary", "GET /kri", "GET /metadata/categories", "GET /metadata/types", "GET /threats", "POST /threats", "GET /threats/:id", "PATCH /threats/:id", "DELETE /threats/:id", "GET /threats/meta", "GET /threats/risk-matrix", "POST /threats/seed", "GET /threats/stats"]
+        },
+        {
+          name: "plenumnet-api-keys",
+          url: `${baseUrl}/api/keys`,
+          tags: ["plenumnet", "api-keys", "management", "rate-limiting"],
+          routePath: "/api/keys",
+          stripPath: false,
+          rateLimit: { minute: 60, hour: 600 },
+          methods: ["GET", "POST", "PATCH"],
+          endpointCount: 16,
+          endpoints: ["POST /generate", "GET /", "GET /stats", "GET /scopes", "GET /entity-types", "GET /rate-limit-tiers", "GET /expiring", "GET /anomalies", "GET /audit", "GET /validate-external", "POST /revoke/:id", "POST /rotate/:id", "PATCH /:id/metadata", "PATCH /:id/rate-limit", "GET /:id/audit", "GET /:id/logs"]
+        },
+        {
+          name: "plenumnet-tribonacci",
+          url: `${baseUrl}/api/tribonacci`,
+          tags: ["plenumnet", "tribonacci", "agent-array", "28d"],
+          routePath: "/api/tribonacci",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 15,
+          endpoints: ["GET /sequence", "GET /hash", "GET /hash-distribution", "GET /permutation", "GET /coverage", "GET /hook", "GET /skip-lookup", "GET /next-worker", "POST /generate-id", "POST /agent-array", "GET /agent-array/positions", "GET /agent-array/reports", "GET /agent-array/reports/:id", "POST /agent-array/save", "GET /agent-array/stream/:sessionId"]
+        },
+        {
+          name: "plenumnet-ephemeris",
+          url: `${baseUrl}/api/ephemeris`,
+          tags: ["plenumnet", "ephemeris", "ternary-degrees", "astronomy"],
+          routePath: "/api/ephemeris",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 4,
+          endpoints: ["POST /convert", "POST /position", "POST /batch", "GET /info"]
+        },
+        {
+          name: "plenumnet-gdpr",
+          url: `${baseUrl}/api/gdpr`,
+          tags: ["plenumnet", "gdpr", "privacy", "compliance"],
+          routePath: "/api/gdpr",
+          stripPath: false,
+          rateLimit: { minute: 30, hour: 300 },
+          methods: ["GET", "DELETE"],
+          endpointCount: 4,
+          endpoints: ["GET /policy", "GET /data-export", "DELETE /delete-account", "GET /requests"]
+        },
+        {
+          name: "plenumnet-tonal",
+          url: `${baseUrl}/api/tonal`,
+          tags: ["plenumnet", "tonal", "diffusion", "fm-timing", "synchronization"],
+          routePath: "/api/tonal",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 3,
+          endpoints: ["GET /field", "GET /neighbors", "POST /packet"]
+        },
+        {
+          name: "plenumnet-resonance",
+          url: `${baseUrl}/api/resonance`,
+          tags: ["plenumnet", "resonance", "detector", "rtt"],
+          routePath: "/api/resonance",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 3,
+          endpoints: ["GET /status", "POST /sweep", "POST /rtt"]
+        },
+        {
+          name: "plenumnet-entrainment",
+          url: `${baseUrl}/api/v1`,
+          tags: ["plenumnet", "entrainment", "ternary-state", "safety"],
+          routePath: "/api/v1",
+          stripPath: false,
+          rateLimit: { minute: 100, hour: 1000 },
+          methods: ["GET", "POST"],
+          endpointCount: 5,
+          endpoints: ["GET /status", "GET /ternary/state", "GET /safety/limits", "POST /entrain/advise", "POST /logs/coherence"]
+        },
+        {
+          name: "plenumnet-metrics",
+          url: `${baseUrl}/api/metrics`,
+          tags: ["plenumnet", "metrics", "observability", "plenum"],
+          routePath: "/api/metrics",
+          stripPath: false,
+          rateLimit: { minute: 200, hour: 2000 },
+          methods: ["GET"],
+          endpointCount: 1,
+          endpoints: ["GET /plenum"]
         }
       ]};
   }
@@ -783,7 +948,20 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
       { name: "plenumnet-health", label: "Health & Observability", routePath: "/api/health", endpointCount: 1, category: "platform", endpoints: ["GET /"] },
       { name: "plenumnet-signing", label: "Post-Quantum Signing (PQTI)", routePath: "/api/pqti", endpointCount: 9, category: "core", endpoints: ["GET /algorithms", "GET /interop/capabilities", "POST /tldsa/keygen", "POST /tldsa/sign", "POST /tldsa/verify", "POST /tlkem/keygen", "POST /tlkem/encapsulate", "POST /tlkem/decapsulate", "GET /pqti-status"] },
       { name: "plenumnet-hedera", label: "Hedera HCS Witnessing", routePath: "/api/hedera", endpointCount: 6, category: "core", endpoints: ["POST /v1/witness", "GET /v1/witness/:txId", "POST /v1/verify", "GET /v1/topic", "GET /v1/health", "GET /v1/stats"] },
-      { name: "plenumnet-sfk-operations", label: "SFK Operations Pipeline", routePath: "/api/sfk", endpointCount: 5, category: "core", endpoints: ["POST /v1/operations", "GET /v1/operations/:id", "GET /v1/operations", "DELETE /v1/operations/:id", "GET /v1/stats"] }
+      { name: "plenumnet-sfk-operations", label: "SFK Operations Pipeline", routePath: "/api/sfk", endpointCount: 5, category: "core", endpoints: ["POST /v1/operations", "GET /v1/operations/:id", "GET /v1/operations", "DELETE /v1/operations/:id", "GET /v1/stats"] },
+      { name: "plenumnet-tsa", label: "RFC 3161 Time-Stamping Authority", routePath: "/api/tsa", endpointCount: 9, category: "core", endpoints: ["POST /timestamp", "POST /timestamp/json", "POST /verify", "GET /certificate", "GET /certificate/download", "GET /tokens", "GET /policy", "GET /health", "GET /audit/query"] },
+      { name: "plenumnet-capabilities", label: "Capability-Based Security", routePath: "/api/capabilities", endpointCount: 29, category: "security", endpoints: ["GET /demo/expiration", "GET /demo/delegation", "GET /demo/confinement", "GET /demo/certificates", "GET /demo/mesh", "POST /issue", "POST /validate", "POST /delegate", "POST /delegate/chain", "POST /verify-chain", "GET /audit", "POST /hardware/register", "POST /hardware/challenge", "POST /hardware/verify", "POST /hardware/issue", "POST /certificate/issue", "POST /certificate/verify", "GET /certificate/:certId/rfc3161", "GET /certificate/:certId/verify-data", "POST /certificate/evidence-chain", "POST /mesh/connect", "POST /mesh/authenticate", "POST /mesh/propagate", "GET /mesh/status", "GET /mesh/topology", "POST /mesh/key-rotate", "POST /mesh/revoke", "GET /mesh/cross-service/:serviceId", "GET /mesh/audit"] },
+      { name: "plenumnet-inter-cube", label: "Inter-Cube Infrastructure", routePath: "/api/inter-cube", endpointCount: 18, category: "core", endpoints: ["POST /crs/register", "GET /crs/lookup/:address", "GET /crs/neighbors/:address", "POST /crs/heartbeat", "POST /crs/deregister", "GET /crs/stats", "POST /glb/forward", "GET /glb/stats", "GET /glb/health", "GET /con/neighbors", "GET /con/stats", "POST /con/tunnel/refresh", "GET /fts/status", "GET /fts/dead", "POST /fts/config", "POST /routing/compute", "POST /address/validate", "GET /topology"] },
+      { name: "plenumnet-tdns", label: "TDNS v2.5 Ontological Addressing", routePath: "/api/tdns", endpointCount: 11, category: "core", endpoints: ["POST /scan", "POST /register", "GET /resolve/:name", "GET /resolve", "POST /org/create", "POST /org/add-url", "GET /org/:name", "GET /orgs", "GET /list", "GET /records", "GET /health"] },
+      { name: "plenumnet-security", label: "Security Infrastructure", routePath: "/api/security", endpointCount: 38, category: "security", endpoints: ["GET /audit", "POST /audit", "GET /audit/:id", "PATCH /audit/:id/resolve", "GET /audit/stats", "GET /audit/summary", "GET /audit/unresolved", "GET /dashboard", "GET /hptp/anomalies", "POST /hptp/anomalies", "GET /hptp/fallback-analysis", "GET /hptp/fallback-modes", "GET /hptp/redundancy", "GET /hptp/stats", "GET /hptp/status", "GET /hptp/thresholds", "GET /implementation", "POST /implementation", "GET /implementation/:id", "PATCH /implementation/:id", "DELETE /implementation/:id", "GET /implementation/meta", "GET /implementation/metrics", "GET /implementation/milestones", "POST /implementation/seed", "GET /implementation/summary", "GET /kri", "GET /metadata/categories", "GET /metadata/types", "GET /threats", "POST /threats", "GET /threats/:id", "PATCH /threats/:id", "DELETE /threats/:id", "GET /threats/meta", "GET /threats/risk-matrix", "POST /threats/seed", "GET /threats/stats"] },
+      { name: "plenumnet-api-keys", label: "API Key Management", routePath: "/api/keys", endpointCount: 16, category: "security", endpoints: ["POST /generate", "GET /", "GET /stats", "GET /scopes", "GET /entity-types", "GET /rate-limit-tiers", "GET /expiring", "GET /anomalies", "GET /audit", "GET /validate-external", "POST /revoke/:id", "POST /rotate/:id", "PATCH /:id/metadata", "PATCH /:id/rate-limit", "GET /:id/audit", "GET /:id/logs"] },
+      { name: "plenumnet-tribonacci", label: "Tribonacci Engine & Agent Array", routePath: "/api/tribonacci", endpointCount: 15, category: "core", endpoints: ["GET /sequence", "GET /hash", "GET /hash-distribution", "GET /permutation", "GET /coverage", "GET /hook", "GET /skip-lookup", "GET /next-worker", "POST /generate-id", "POST /agent-array", "GET /agent-array/positions", "GET /agent-array/reports", "GET /agent-array/reports/:id", "POST /agent-array/save", "GET /agent-array/stream/:sessionId"] },
+      { name: "plenumnet-ephemeris", label: "Ternary Ephemeris API", routePath: "/api/ephemeris", endpointCount: 4, category: "core", endpoints: ["POST /convert", "POST /position", "POST /batch", "GET /info"] },
+      { name: "plenumnet-gdpr", label: "GDPR Compliance", routePath: "/api/gdpr", endpointCount: 4, category: "platform", endpoints: ["GET /policy", "GET /data-export", "DELETE /delete-account", "GET /requests"] },
+      { name: "plenumnet-tonal", label: "Tonal Diffusion System", routePath: "/api/tonal", endpointCount: 3, category: "core", endpoints: ["GET /field", "GET /neighbors", "POST /packet"] },
+      { name: "plenumnet-resonance", label: "Resonance Detector", routePath: "/api/resonance", endpointCount: 3, category: "core", endpoints: ["GET /status", "POST /sweep", "POST /rtt"] },
+      { name: "plenumnet-entrainment", label: "Entrainment Service", routePath: "/api/v1", endpointCount: 5, category: "core", endpoints: ["GET /status", "GET /ternary/state", "GET /safety/limits", "POST /entrain/advise", "POST /logs/coherence"] },
+      { name: "plenumnet-metrics", label: "Metrics & Observability", routePath: "/api/metrics", endpointCount: 1, category: "platform", endpoints: ["GET /plenum"] }
     ];
 
     const totalEndpoints = catalog.reduce((sum, s) => sum + s.endpointCount, 0);
@@ -793,6 +971,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
       baseUrl,
       categories: {
         core: catalog.filter(s => s.category === "core"),
+        security: catalog.filter(s => s.category === "security"),
         tools: catalog.filter(s => s.category === "tools"),
         reference: catalog.filter(s => s.category === "reference"),
         platform: catalog.filter(s => s.category === "platform"),
