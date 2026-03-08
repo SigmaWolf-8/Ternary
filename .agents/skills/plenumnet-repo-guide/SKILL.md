@@ -110,6 +110,32 @@ The cryptographic stack uses TL-DSA for ALL digital signatures. Ed25519 was expl
 
 🚫 **NEVER modify the `deployments/` folder.** Zero exceptions.
 
+### INVARIANT 10: Sponge Stride Must Be Coprime to State Width
+
+The TIS-27 `tisPi` permutation uses stride **s** on a state of width **W**: `t[(i × s) mod W] = s[i]`. For the permutation to visit every position exactly once (a complete cycle of length W), `gcd(s, W) = 1` is **required**. If the stride shares a factor with the state width, the permutation fragments into disjoint sub-cycles, positions are revisited before all are touched, and diffusion is incomplete — a cryptographic weakness.
+
+**Why stride = 13 specifically:**
+
+```
+W = 54 (TIS-27 state width)
+Coprimes of 54: {5, 7, 11, 13, 17, 19, 23, 25, 29, 31, 35, 37, 41, 43, 47, 49, 53}
+```
+
+Among the 17 valid coprimes, 13 is **uniquely canonical** in the Salvi Framework:
+
+- 13 = T₇ (7th Tribonacci number)
+- 13 = 111₃ (three-digit base-3 repunit)
+- 13 = 1 ternary radian = 364° / 28
+- 13 = number of moons in the Salvi calendar
+- 13 = dimension count of the Saturnian Tesseract Metatron Ternary Cube
+
+The stride is not an arbitrary coprime — it is the geometric constant that recurs across the entire framework. The same coprime property (`gcd(13, 28) = 1`) enables the complete Z₂₈ agent scheduling walk.
+
+**General design rule for future sponge variants:** Any sponge construction over a state of width W must choose a stride s such that `gcd(s, W) = 1`. The preferred stride should be the geometrically canonical constant for that context — default to 13 unless the state width is a multiple of 13.
+
+🚫 **DO NOT** choose a stride that shares a factor with the state width.
+🚫 **DO NOT** replace stride=13 with an arbitrary coprime — 13 is structurally bound (see INVARIANT 4).
+
 ---
 
 ## 1. Foundation Mathematics
@@ -312,7 +338,7 @@ The sponge parameters are derived from TDNS architecture — not chosen arbitrar
 | Rate | 27 trits | Identity anchor width = classification width |
 | Capacity | 27 trits | Classification layer width |
 | Rounds | 27 | One per output trit |
-| Stride | 13 | gcd(13,54)=1 — complete permutation cycle |
+| Stride | 13 | gcd(13,54)=1 — complete permutation cycle; 13=T₇=111₃=1 rad (see INVARIANT 10) |
 | Round constants | 27 GF(3) values | [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0] |
 
 Operations: `tisTheta` (neighbor diffusion), `tisPi` (stride-13 permutation), round constant addition. All arithmetic in GF(3) = {0,1,2}. Output lifted to Rep C {1,2,3}. No SHA-256. No BLAKE3. No binary hash primitives.
