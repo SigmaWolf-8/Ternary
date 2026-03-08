@@ -222,7 +222,11 @@ impl Z28 {
 
     /// Negate (additive inverse) in Z₂₈.
     pub fn neg(self) -> Z28 {
-        if self.0 == 0 { Z28(0) } else { Z28(28 - self.0) }
+        if self.0 == 0 {
+            Z28(0)
+        } else {
+            Z28(28 - self.0)
+        }
     }
 
     /// The ternary degree value of this position.
@@ -435,7 +439,10 @@ mod tests {
     #[test]
     fn test_ternary_to_std_deg_full_circle() {
         let std = ternary_deg_to_std_deg(FULL_CIRCLE_DEG);
-        assert!((std - 360.0).abs() < 1e-10, "364 ternary degrees should map to 360 standard degrees");
+        assert!(
+            (std - 360.0).abs() < 1e-10,
+            "364 ternary degrees should map to 360 standard degrees"
+        );
     }
 
     #[test]
@@ -447,7 +454,10 @@ mod tests {
     #[test]
     fn test_ternary_rad_to_std_rad_full_circle() {
         let std = ternary_rad_to_std_rad(TWO_PI_TERNARY);
-        assert!((std - 2.0 * STD_PI).abs() < 1e-10, "28 ternary radians should map to 2π standard radians");
+        assert!(
+            (std - 2.0 * STD_PI).abs() < 1e-10,
+            "28 ternary radians should map to 2π standard radians"
+        );
     }
 
     #[test]
@@ -480,8 +490,13 @@ mod tests {
     fn test_z28_inverse() {
         for a in 0..28u8 {
             let inv = Z28(a).neg();
-            assert_eq!(Z28(a).add(inv), Z28::zero(),
-                "Z₂₈({}) + Z₂₈({}) should be identity", a, inv.0);
+            assert_eq!(
+                Z28(a).add(inv),
+                Z28::zero(),
+                "Z₂₈({}) + Z₂₈({}) should be identity",
+                a,
+                inv.0
+            );
         }
     }
 
@@ -493,11 +508,19 @@ mod tests {
         for i in 1..=28 {
             current = current.add(gen);
             if i < 28 {
-                assert_ne!(current, Z28::zero(),
-                    "Generator should not return to identity after {} steps", i);
+                assert_ne!(
+                    current,
+                    Z28::zero(),
+                    "Generator should not return to identity after {} steps",
+                    i
+                );
             }
         }
-        assert_eq!(current, Z28::zero(), "Generator should complete the cycle in 28 steps");
+        assert_eq!(
+            current,
+            Z28::zero(),
+            "Generator should complete the cycle in 28 steps"
+        );
     }
 
     #[test]
@@ -548,8 +571,12 @@ mod tests {
         let mut dir = Z28::zero();
         for (i, &trit) in trits.iter().enumerate() {
             dir = dir.step(trit);
-            assert_eq!(points[i + 1].position, dir,
-                "Direction mismatch at step {}", i + 1);
+            assert_eq!(
+                points[i + 1].position,
+                dir,
+                "Direction mismatch at step {}",
+                i + 1
+            );
         }
     }
 
@@ -575,7 +602,8 @@ mod tests {
                 assert!(
                     (ratio - TAU_TRIBONACCI).abs() < 0.01,
                     "Step length ratio at k={} should be τ ≈ 1.839, got {:.4}",
-                    k, ratio
+                    k,
+                    ratio
                 );
             }
         }
@@ -594,7 +622,8 @@ mod tests {
             let remainder = deg % RADIAN_DEG;
             assert!(
                 remainder.abs() < 1e-10 || (RADIAN_DEG - remainder).abs() < 1e-10,
-                "Walk angle {} is not a multiple of 13°", deg
+                "Walk angle {} is not a multiple of 13°",
+                deg
             );
         }
     }
