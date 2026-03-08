@@ -26,6 +26,7 @@
 //! - **ternary_circle**: Canonical ternary circle geometry (364°, π=14, 1 rad=13°, Z₂₈)
 //! - **tribonacci**: Native base-3 Tribonacci generator with A/B/C representation interchange
 //! - **borromean**: Borromean ternary XOR invariant for three-party cryptographic protocols
+//! - **sponge**: TIS-27 ternary identity sponge — single cryptographic primitive for PlenumNET
 
 pub mod constants;
 pub mod gf3;
@@ -35,3 +36,4 @@ pub mod torus;
 pub mod ternary_circle;
 pub mod tribonacci;
 pub mod borromean;
+pub mod sponge;

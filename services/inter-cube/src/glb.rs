@@ -393,15 +393,14 @@ impl GeometricLoadBalancer {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// FLOW HASHING — Cryptographic, using BLAKE3
+// FLOW HASHING — TIS-27 sponge for uniform distribution
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Hash a flow ID using BLAKE3 for uniform distribution.
+/// Hash a flow ID using TIS-27 for uniform distribution.
 /// The hash determines which path ordering a flow uses.
 #[inline]
 fn hash_flow_id(flow_id: u64) -> u64 {
-    let hash = blake3::hash(&flow_id.to_le_bytes());
-    let bytes = hash.as_bytes();
+    let bytes = ternary_math::sponge::hash(&flow_id.to_le_bytes(), 8);
     u64::from_le_bytes([
         bytes[0], bytes[1], bytes[2], bytes[3],
         bytes[4], bytes[5], bytes[6], bytes[7],

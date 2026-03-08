@@ -10,7 +10,7 @@ default = []
 network-tests = []  # Gate tests that make real DNS/HTTP calls
 
 [dependencies]
-blake3 = "=1.5.4"
+ternary-math = { path = "../../ternary-math" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
