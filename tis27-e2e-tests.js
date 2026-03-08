@@ -264,6 +264,7 @@ section("10. Register → Resolve Round-Trip");
   const { status: regStatus, body: regBody } = await post("/api/tdns/register", {
     name: testName,
     url:  testUrl,
+    overwrite: true,
   });
   assert("register returns 200 or 409",
     regStatus === 200 || regStatus === 409,
