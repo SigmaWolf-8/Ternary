@@ -439,7 +439,7 @@ In a 13D ternary hypercube:
 
 ### 3.2 Inter-Cube Infrastructure Services (4)
 
-Combined: 3,553 lines Rust, 57 tests, 4-node Docker deployment, 11 HTTP endpoints.
+Combined: 4,187 lines Rust, 57 tests, 4-node Docker deployment, 11 HTTP endpoints.
 
 **GLB — Geometric Load Balancer** (`glb.rs`)
 - Point forwarding: greedy geometric routing via NeighborMap
@@ -516,7 +516,7 @@ Source: `server/salvi-core/femtosecond-timing.ts`
   - Cryptographically signed timing certificates
   - TimingVerifier for compliance checks
 
-- **Kernel HPTP** (`src/kernel/src/hptp/`): 1,352 LOC, supports 7 clock sources (Local, GPSDO, Atomic Rubidium, Atomic Cesium, Optical Lattice, Chip-Scale, Network Peer), 5 precision levels (Millisecond → Femtosecond)
+- **Kernel HPTP** (`src/kernel/src/hptp/`): 1,687 LOC across 5 files (certification, jitter_correction, mod, optical, protocol), supports 7 clock sources (Local, GPSDO, Atomic Rubidium, Atomic Cesium, Optical Lattice, Chip-Scale, Network Peer), 5 precision levels (Millisecond → Femtosecond)
 
 ### 4.4 HPTP in TDNS Wire Protocol
 
@@ -654,16 +654,16 @@ Groth16-structured proofs (pi_a, pi_b, pi_c) with commitments and nullifiers fro
 
 | Subsystem | ~LOC | Key Content |
 |-----------|------|-------------|
-| **crypto/** | 6,000+ | TL-DSA, TL-KEM, AES-256, SHA-2/3, sponge, CAVP, side-channel, formal_verify |
-| **vm/** | 3,000+ | **176-opcode ISA v2.1**, 27 regs, 64-bit, quantum-ternary opcodes (0xA0–0xAF), HptpProvider trait |
-| **network/** | 3,400 | torus (710), routing, T3P (461), TDNS (531), TTP (775), cnsa_profiles, metatronic_bridge |
-| **arch/** | 2,600 | x86_64, aarch64, RISC-V 64 boot sequences |
-| **security/** | 2,000 | Audit logging, capabilities, security domains, MAC policy |
-| **process/** | 1,900 | Context switching, IPC, scheduler, process table |
-| **compat/** | 1,700 | Binary↔ternary adapter, CryptoInteropBridge, gateway |
-| **drivers/** | 1,600 | Femtoclock driver, TPU driver |
-| **hptp/** | 1,350 | Certification, optical timing (311), protocol (592) — 7 clock sources, 5 precision levels |
-| **device/io/memory/fs/sync** | ~6,400 | Bus/DMA/interrupts, block/char I/O, page/heap, inodes, mutex/**phase_mutex** |
+| **crypto/** | 24,231 | 39 files — TL-DSA, TL-KEM, AES-256, SHA-2/3, sponge, CAVP, side-channel, formal_verify, metatronic_cube (2,324), ternary_lattice (1,820) |
+| **vm/** | 7,314 | 14 files — **176-opcode ISA v2.1**, 27 regs, 64-bit, quantum-ternary opcodes (0xA0–0xAF), engine (2,111), instruction_v2 (1,159), HptpProvider trait |
+| **network/** | 3,920 | 8 files — torus (710), routing, T3P (461), TDNS (531), TTP (775), cnsa_profiles, metatronic_bridge |
+| **arch/** | 3,273 | x86_64, aarch64, RISC-V 64 boot sequences |
+| **security/** | 2,747 | Audit logging, capabilities, security domains, MAC policy |
+| **process/** | 1,943 | Context switching, IPC, scheduler, process table |
+| **compat/** | 1,711 | Binary↔ternary adapter, CryptoInteropBridge, gateway |
+| **drivers/** | 1,578 | Femtoclock driver, TPU driver |
+| **hptp/** | 1,687 | 5 files — certification, jitter_correction, optical (311), protocol (592) — 7 clock sources, 5 precision levels |
+| **device/io/memory/fs/sync** | ~6,376 | device (1,420), io (1,393), memory (1,378), fs (1,209), sync (976) — phase_mutex |
 
 Top-level kernel files: `ternary.rs` (974), `timing.rs` (433), `phase.rs` (362), `error.rs` (218), `lib.rs` (156).
 
@@ -824,25 +824,32 @@ Source: `shared/agent-array.ts`, `client/src/pages/agent-array.tsx`
 
 ## 16. XPlenum RISC-V Hardware Extension
 
-Custom RISC-V extension (custom-0 opcode space, 0x0B) integrated with CVA6:
-- 6 functional groups: ternary masking, domain isolation, CHERI capabilities, crypto primitives, trit encode/decode, signal processing
+Custom RISC-V extension integrated with CVA6, using two opcode spaces:
+- **custom-0** (0x0B / `7'b0001011`): Core ternary operations
+- **custom-1** (0x2B / `7'b0101011`): Phase 8 PQC acceleration
+- 6 functional groups (funct3): F3_TMASK (ternary masking), F3_TDOM (domain isolation), F3_TCAP (capability ops), F3_TROT (ternary rotation/crypto), F3_TENC (trit encode/decode), F3_TSIG (signal processing)
 - 22/22 tests passing. Yosys synthesis: 19,173-cell gate-level netlist
 
-Verilog RTL modules (`XPlenum/rtl/`):
+Verilog RTL modules (`XPlenum/rtl/` — 18 files):
 
 | Module | Purpose |
 |--------|---------|
-| `xplenum_top.v` / `xplenum_top_v2.v` | Top-level integration |
-| `xplenum_trit_unit.v` | Ternary arithmetic unit |
+| `xplenum_top.v` | Base top-level module (32-bit) |
+| `xplenum_top_v2.v` | Phase 8 top-level integration (64-bit) |
+| `xplenum_pkg.vh` | Opcode/group definitions header |
+| `xplenum_trit_unit.v` | Ternary rotation and encoding unit |
 | `xplenum_aes256_core.v` | AES-256 hardware core |
-| `xplenum_pqc_unit.v` | Post-quantum crypto accelerator |
+| `xplenum_pqc_unit.v` | Post-quantum crypto accelerator (Phase 8) |
 | `xplenum_cap_unit.v` | Capability-based security unit |
-| `xplenum_ctr_drbg.v` | NIST CTR_DRBG PRNG |
+| `xplenum_ctr_drbg.v` | NIST SP 800-90A CTR_DRBG PRNG |
 | `xplenum_mask_unit.v` | Side-channel masking countermeasures |
-| `xplenum_tamper_response.v` | Tamper detection and response |
+| `xplenum_dom_gadgets.v` | Domain-oriented masking (DOM) gadgets for higher-order security |
+| `xplenum_tamper_response.v` | Security lockdown and zeroization logic |
 | `xplenum_domain_unit.v` | Domain isolation enforcement |
 
-Formal verification: `rtl/formal/`, `rtl/formal_local/`
+Integration (`rtl/integration/`): `xplenum_cva6_top.v`, `xplenum_cva6_wrapper.v`, `xplenum_cva6_wrapper_v2.v`, `xplenum_stall_controller.v`
+
+Formal verification (`rtl/formal/`): `xplenum_formal_props.v`, `xplenum_induction_helpers.v`, `xplenum_integration_formal_props.v`
 
 ---
 
@@ -850,17 +857,17 @@ Formal verification: `rtl/formal/`, `rtl/formal_local/`
 
 **libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
 **libternary-improvements/** — Enhancement staging area.
-**ternary-math/** — 4,488 LOC standalone crate (gf3, tribonacci, borromean, clifford, torus, ternary_circle + 5 modules).
+**ternary-math/** — 4,822 LOC standalone crate, 9 modules: gf3, tribonacci, borromean, clifford, torus, ternary_circle, sponge (TIS-27), radix, constants. Plus integration tests (210 LOC).
 **wasm/** — 412 LOC browser deployment target.
 **Ternary Ephemeris** — `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`
 
 Testing infrastructure: Criterion benchmarks (395 LOC), fuzz targets (330 LOC: `fuzz_gateway`, `fuzz_trit_ops`, `fuzz_tryte_ops`), PropTest VM verification (348 LOC).
 
-Test totals: **1,306+** (1,011 Rust + 295 TypeScript across 10 vitest suites).
+Test totals: **2,508+** (2,251 Rust #[test] + 257 TypeScript across 13 vitest suites).
 
 ---
 
-## 18. Repository Structure (74 top-level items, verified)
+## 18. Repository Structure (82 top-level items, verified)
 
 ```
 /                              Root (Express.js + Vite full-stack app)
@@ -889,7 +896,7 @@ Test totals: **1,306+** (1,011 Rust + 295 TypeScript across 10 vitest suites).
 │   └── crypto-utils.ts        AES-256-GCM token encryption
 ├── services/                  8 microservices
 │   ├── tdns-v2/               TDNS v2.5 (Rust, 19 modules + 2 binaries)
-│   ├── inter-cube/            Inter-Cube Infrastructure (Rust, 57 tests)
+│   ├── inter-cube/            Inter-Cube Infrastructure (Rust, 4,187 LOC, 57 tests)
 │   ├── blockchain/            Hedera, XRPL, Algorand services
 │   ├── payment-listener/      Payment processing
 │   ├── sfk-core-api/          SFK Operations Pipeline
@@ -902,11 +909,11 @@ Test totals: **1,306+** (1,011 Rust + 295 TypeScript across 10 vitest suites).
 │   ├── topology/              Toroidal addressing, GF(3) operations
 │   └── [math modules]         Circle, Tribonacci, Saturnian, quantum, agents
 ├── sign-here/                 SalviSign e-signature platform
-├── src/kernel/                Rust kernel (~25,000+ LOC)
+├── src/kernel/                Rust kernel (123 files, ~54,780 LOC)
 │   ├── src/                   Main kernel (crypto, vm, network, arch, security, process, ...)
 │   ├── bare-metal/            Bare-metal validation (45+ tests, Kani/MIRI, 38 proofs)
 │   └── ISA_REFERENCE.md       176-opcode ISA v2.1 reference
-├── ternary-math/              Standalone math crate (4,488 LOC)
+├── ternary-math/              Standalone math crate (4,822 LOC, 9 modules + TIS-27 sponge)
 ├── tests/                     TypeScript test suites (295 tests, 10 suites)
 ├── wasm/                      Browser deployment target (412 LOC)
 └── [config files]             Cargo.toml, package.json, Dockerfile, docker-compose.yml, etc.
