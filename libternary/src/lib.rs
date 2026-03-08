@@ -100,6 +100,7 @@
     dead_code,
     unused_variables
 )]
+#![allow(rustdoc::broken_intra_doc_links)]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
