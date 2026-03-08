@@ -77,10 +77,10 @@
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub mod tribonacci;
 pub mod borromean;
-pub mod ternary_circle;
 pub mod fm_timing;
+pub mod ternary_circle;
+pub mod tribonacci;
 
 // ══════════════════════════════════════════════════════════════
 // CORE TYPE — Balanced Ternary Trit
@@ -91,11 +91,11 @@ pub mod fm_timing;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TernaryTrit {
     /// Behind / decreasing / -1
-    Neg  = -1,
+    Neg = -1,
     /// Synchronized / flat / 0
-    Zero =  0,
+    Zero = 0,
     /// Ahead / increasing / +1
-    Pos  =  1,
+    Pos = 1,
 }
 
 impl TernaryTrit {
@@ -108,9 +108,9 @@ impl TernaryTrit {
     pub fn from_i8(v: i8) -> Option<Self> {
         match v {
             -1 => Some(Self::Neg),
-             0 => Some(Self::Zero),
-             1 => Some(Self::Pos),
-             _ => None,
+            0 => Some(Self::Zero),
+            1 => Some(Self::Pos),
+            _ => None,
         }
     }
 }
@@ -119,20 +119,17 @@ impl TernaryTrit {
 // RE-EXPORTS — the most commonly used types at crate root
 // ══════════════════════════════════════════════════════════════
 
-pub use tribonacci::{TritVec, TribonacciBase3, TernaryRepr, TribonacciTerm};
 pub use borromean::{TernaryWord, WordRepr};
-pub use ternary_circle::{
-    Z28,
-    FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
-    CYCLIC_ORDER, TAU_TRIBONACCI,
-    ternary_deg_to_std_deg, ternary_rad_to_std_rad,
-    trit_to_std_rad, walk_tribonacci_radian_spiral,
-    is_base3_repunit, base3_repunit_order,
-};
+pub use fm_timing::gf3_gradient::{TernaryGradient, ToroidalAxis};
+pub use fm_timing::hrv::{EntropyHealth, HrvEntropy};
 pub use fm_timing::oscillator::TonalOscillator;
 pub use fm_timing::packet::{FmTimingPacket, FrequencyState, PacketError};
-pub use fm_timing::hrv::{HrvEntropy, EntropyHealth};
-pub use fm_timing::gf3_gradient::{TernaryGradient, ToroidalAxis};
+pub use ternary_circle::{
+    base3_repunit_order, is_base3_repunit, ternary_deg_to_std_deg, ternary_rad_to_std_rad,
+    trit_to_std_rad, walk_tribonacci_radian_spiral, CYCLIC_ORDER, FULL_CIRCLE_DEG, PI_TERNARY,
+    RADIAN_DEG, TAU_TRIBONACCI, TWO_PI_TERNARY, Z28,
+};
+pub use tribonacci::{TernaryRepr, TribonacciBase3, TribonacciTerm, TritVec};
 
 // ══════════════════════════════════════════════════════════════
 // CRATE-LEVEL CONSTANTS

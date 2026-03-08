@@ -1216,7 +1216,7 @@ export function registerTdnsRoutes(app: Express) {
   });
 
   app.get("/api/tdns/org/:name", (req: Request, res: Response) => {
-    const handle = sanitiseOrgHandle(req.params.name);
+    const handle = sanitiseOrgHandle(String(req.params.name));
     const org    = orgRegistry.get(handle);
     if (!org) { res.status(404).json({ status: "not_found", org_name: handle }); return; }
     res.json({
@@ -1239,7 +1239,8 @@ export function registerTdnsRoutes(app: Express) {
   });
 
   app.get("/api/tdns/resolve/:name", (req: Request, res: Response) => {
-    const name  = req.params.name.endsWith(".plm") ? req.params.name : req.params.name + ".plm";
+    const raw   = String(req.params.name);
+    const name  = raw.endsWith(".plm") ? raw : raw + ".plm";
     const entry = registry.get(name);
     if (!entry) { res.status(404).json({ status: "not_found", name }); return; }
     const orgHandle = entry.org_name;

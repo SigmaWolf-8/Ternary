@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cargo", "clippy", "freetype", "jq", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "rsync", "rustc", "tcl", "tk", "unzip", "verilog", "zlib"]
+packages = ["cargo", "clippy", "freetype", "jq", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "rsync", "rustc", "tcl", "tk", "unzip", "verilog", "zlib", "rustfmt"]
 
 [[ports]]
 localPort = 3001

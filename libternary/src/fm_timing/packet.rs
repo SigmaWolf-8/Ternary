@@ -194,7 +194,17 @@ mod tests {
 
     #[test]
     fn timestamp_roundtrip() {
-        let test_values: &[i64] = &[0, 1, -1, 42, -42, 1_000_000, -1_000_000, 3_652_500_000, -3_652_500_000];
+        let test_values: &[i64] = &[
+            0,
+            1,
+            -1,
+            42,
+            -42,
+            1_000_000,
+            -1_000_000,
+            3_652_500_000,
+            -3_652_500_000,
+        ];
         for &val in test_values {
             let trits = FmTimingPacket::encode_timestamp(val);
             let decoded = FmTimingPacket::decode_timestamp(&trits);
@@ -205,7 +215,11 @@ mod tests {
     #[test]
     fn timestamp_range_covers_hptp_needs() {
         let max = (3i64.pow(27) - 1) / 2;
-        assert!(max > 3_600_000_000_000i64, "Range {} must exceed 1hr in nanos", max);
+        assert!(
+            max > 3_600_000_000_000i64,
+            "Range {} must exceed 1hr in nanos",
+            max
+        );
     }
 
     #[test]
@@ -238,7 +252,10 @@ mod tests {
 
     #[test]
     fn packet_rejects_too_short() {
-        assert!(matches!(FmTimingPacket::from_bytes(&[0u8; 10]), Err(PacketError::TooShort)));
+        assert!(matches!(
+            FmTimingPacket::from_bytes(&[0u8; 10]),
+            Err(PacketError::TooShort)
+        ));
     }
 
     #[test]
@@ -257,7 +274,10 @@ mod tests {
         let mut bytes = packet.to_bytes();
         let bad_coherence = 2.0f64.to_le_bytes();
         bytes[47..55].copy_from_slice(&bad_coherence);
-        assert!(matches!(FmTimingPacket::from_bytes(&bytes), Err(PacketError::InvalidCoherence)));
+        assert!(matches!(
+            FmTimingPacket::from_bytes(&bytes),
+            Err(PacketError::InvalidCoherence)
+        ));
     }
 
     #[test]
@@ -269,7 +289,11 @@ mod tests {
 
         let packet = FmTimingPacket {
             timestamp_trits: trits,
-            frequency_state: FrequencyState { f_inst: 0.0, sidebands: [0.0; 4], coherence: 0.0 },
+            frequency_state: FrequencyState {
+                f_inst: 0.0,
+                sidebands: [0.0; 4],
+                coherence: 0.0,
+            },
             modulation_index: 0,
             network_health: TernaryTrit::Zero,
             entropy_nonce: [0u8; 8],

@@ -293,7 +293,11 @@ impl TritVec {
         let mut value: i64 = 0;
         let mut power: i64 = 1;
         for &d in balanced.iter().rev() {
-            assert!(d >= -1 && d <= 1, "Balanced trit must be -1, 0, or +1; got {}", d);
+            assert!(
+                d >= -1 && d <= 1,
+                "Balanced trit must be -1, 0, or +1; got {}",
+                d
+            );
             value += d as i64 * power;
             power *= 3;
         }
@@ -313,7 +317,11 @@ impl TritVec {
         let mut value: u64 = 0;
         let mut power: u64 = 1;
         for &d in bijective.iter().rev() {
-            assert!(d >= 1 && d <= 3, "Bijective trit must be 1, 2, or 3; got {}", d);
+            assert!(
+                d >= 1 && d <= 3,
+                "Bijective trit must be 1, 2, or 3; got {}",
+                d
+            );
             value += d as u64 * power;
             power *= 3;
         }
@@ -449,7 +457,9 @@ impl TritVec {
         }
 
         TernaryAddResult {
-            sum: TritVec { trits: result_trits },
+            sum: TritVec {
+                trits: result_trits,
+            },
             carry_count,
             max_carry_chain,
         }
@@ -462,11 +472,7 @@ impl TritVec {
 
     /// Three-way addition: a + b + c, as needed by Tribonacci recurrence.
     /// Returns the result with aggregate carry metadata.
-    pub fn add3_with_carry_tracking(
-        a: &TritVec,
-        b: &TritVec,
-        c: &TritVec,
-    ) -> TernaryAddResult {
+    pub fn add3_with_carry_tracking(a: &TritVec, b: &TritVec, c: &TritVec) -> TernaryAddResult {
         let first = Self::add_with_carry_tracking(a, b);
         let second = Self::add_with_carry_tracking(&first.sum, c);
         TernaryAddResult {
@@ -504,9 +510,9 @@ impl TribonacciBase3 {
     pub fn new() -> Self {
         TribonacciBase3 {
             window: [
-                TritVec::zero(),        // T(0) = 0
-                TritVec::zero(),        // T(1) = 0
-                TritVec::from_trit(1),  // T(2) = 1
+                TritVec::zero(),       // T(0) = 0
+                TritVec::zero(),       // T(1) = 0
+                TritVec::from_trit(1), // T(2) = 1
             ],
             index: 0,
         }
@@ -679,11 +685,11 @@ mod tests {
 
     #[test]
     fn test_power_of_3_detection() {
-        assert!(TritVec::from_decimal(1).is_power_of_3());   // 3⁰
-        assert!(TritVec::from_decimal(3).is_power_of_3());   // 3¹
-        assert!(TritVec::from_decimal(9).is_power_of_3());   // 3²
-        assert!(TritVec::from_decimal(27).is_power_of_3());  // 3³
-        assert!(TritVec::from_decimal(81).is_power_of_3());  // 3⁴
+        assert!(TritVec::from_decimal(1).is_power_of_3()); // 3⁰
+        assert!(TritVec::from_decimal(3).is_power_of_3()); // 3¹
+        assert!(TritVec::from_decimal(9).is_power_of_3()); // 3²
+        assert!(TritVec::from_decimal(27).is_power_of_3()); // 3³
+        assert!(TritVec::from_decimal(81).is_power_of_3()); // 3⁴
         assert!(!TritVec::from_decimal(0).is_power_of_3());
         assert!(!TritVec::from_decimal(2).is_power_of_3());
         assert!(!TritVec::from_decimal(4).is_power_of_3());
@@ -700,16 +706,16 @@ mod tests {
 
     #[test]
     fn test_addition() {
-        let a = TritVec::from_decimal(4);  // 11₃
-        let b = TritVec::from_decimal(7);  // 21₃
+        let a = TritVec::from_decimal(4); // 11₃
+        let b = TritVec::from_decimal(7); // 21₃
         let sum = TritVec::add(&a, &b);
         assert_eq!(sum.to_decimal(), 11);
     }
 
     #[test]
     fn test_carry_tracking() {
-        let a = TritVec::from_decimal(2);  // 2₃
-        let b = TritVec::from_decimal(1);  // 1₃
+        let a = TritVec::from_decimal(2); // 2₃
+        let b = TritVec::from_decimal(1); // 1₃
         let result = TritVec::add_with_carry_tracking(&a, &b);
         assert_eq!(result.sum.to_decimal(), 3);
         assert!(result.carry_count > 0, "2₃ + 1₃ = 10₃ must produce a carry");
@@ -718,8 +724,8 @@ mod tests {
     #[test]
     fn test_tribonacci_first_21_terms() {
         let expected_decimal: Vec<u64> = vec![
-            0, 0, 1, 1, 2, 4, 7, 13, 24, 44, 81,
-            149, 274, 504, 927, 1705, 3136, 5768, 10609, 19513, 35890,
+            0, 0, 1, 1, 2, 4, 7, 13, 24, 44, 81, 149, 274, 504, 927, 1705, 3136, 5768, 10609,
+            19513, 35890,
         ];
 
         let terms = TribonacciBase3::generate(21);
@@ -740,7 +746,10 @@ mod tests {
         let terms = TribonacciBase3::generate(11);
         let t10 = &terms[10];
         assert_eq!(t10.decimal, 81);
-        assert!(t10.is_ternary_power, "T(10) = 81 = 3⁴ must be detected as ternary power");
+        assert!(
+            t10.is_ternary_power,
+            "T(10) = 81 = 3⁴ must be detected as ternary power"
+        );
         assert_eq!(t10.ternary_exponent, Some(4));
     }
 
@@ -804,8 +813,11 @@ mod tests {
             let bij = tv.to_repr_c();
             let back = TritVec::from_repr_c(&bij);
             assert_eq!(
-                back.to_decimal(), n,
-                "Bijective roundtrip failed for {} (bijective digits: {:?})", n, bij
+                back.to_decimal(),
+                n,
+                "Bijective roundtrip failed for {} (bijective digits: {:?})",
+                n,
+                bij
             );
         }
     }
@@ -814,7 +826,10 @@ mod tests {
     fn test_repr_c_zero_is_empty() {
         let zero = TritVec::zero();
         let bij = zero.to_repr_c();
-        assert!(bij.is_empty(), "Zero must be the empty word in bijective ternary");
+        assert!(
+            bij.is_empty(),
+            "Zero must be the empty word in bijective ternary"
+        );
     }
 
     #[test]
@@ -827,7 +842,9 @@ mod tests {
                 assert!(
                     d >= 1 && d <= 3,
                     "Bijective digit at position {} for value {} is {} (must be 1,2,3)",
-                    i, n, d
+                    i,
+                    n,
+                    d
                 );
             }
         }
@@ -853,8 +870,11 @@ mod tests {
             let bal = tv.to_repr_a();
             let back = TritVec::from_repr_a(&bal);
             assert_eq!(
-                back.to_decimal(), n,
-                "Balanced roundtrip failed for {} (balanced digits: {:?})", n, bal
+                back.to_decimal(),
+                n,
+                "Balanced roundtrip failed for {} (balanced digits: {:?})",
+                n,
+                bal
             );
         }
     }
@@ -879,7 +899,9 @@ mod tests {
                 assert!(
                     d >= -1 && d <= 1,
                     "Balanced digit at position {} for value {} is {} (must be -1,0,+1)",
-                    i, n, d
+                    i,
+                    n,
+                    d
                 );
             }
         }
@@ -908,8 +930,11 @@ mod tests {
         assert_eq!(tv.format_repr(TernaryRepr::Bijective), "21₃ᵇ");
         // Balanced: 7 = 9 - 3 + 1 = 1*9 + (-1)*3 + 1*1 → [1, T, 1]
         let bal_str = tv.format_repr(TernaryRepr::Balanced);
-        assert!(bal_str.contains('T') || bal_str.contains('1'),
-            "Balanced format of 7 should contain balanced digits: {}", bal_str);
+        assert!(
+            bal_str.contains('T') || bal_str.contains('1'),
+            "Balanced format of 7 should contain balanced digits: {}",
+            bal_str
+        );
     }
 
     #[test]
@@ -925,10 +950,16 @@ mod tests {
             let from_a = TritVec::from_repr_a(&a).to_decimal();
             let from_c = TritVec::from_repr_c(&c).to_decimal();
 
-            assert_eq!(from_a, term.decimal,
-                "T({}) Rep A roundtrip: expected {}, got {}", term.index, term.decimal, from_a);
-            assert_eq!(from_c, term.decimal,
-                "T({}) Rep C roundtrip: expected {}, got {}", term.index, term.decimal, from_c);
+            assert_eq!(
+                from_a, term.decimal,
+                "T({}) Rep A roundtrip: expected {}, got {}",
+                term.index, term.decimal, from_a
+            );
+            assert_eq!(
+                from_c, term.decimal,
+                "T({}) Rep C roundtrip: expected {}, got {}",
+                term.index, term.decimal, from_c
+            );
         }
     }
 }

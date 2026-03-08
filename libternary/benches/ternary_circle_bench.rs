@@ -12,7 +12,7 @@
 // See LICENSE in the repository root for full terms.
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use libternary::ternary_circle::{Z28, walk_tribonacci_radian_spiral};
+use libternary::ternary_circle::{walk_tribonacci_radian_spiral, Z28};
 
 fn bench_z28_operations(c: &mut Criterion) {
     c.bench_function("z28_add_sub", |b| {

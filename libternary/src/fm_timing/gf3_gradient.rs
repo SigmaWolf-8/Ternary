@@ -35,13 +35,17 @@ pub struct TernaryGradient {
 
 impl TernaryGradient {
     pub fn zero() -> Self {
-        Self { eta: TernaryTrit::Zero, theta: TernaryTrit::Zero, psi: TernaryTrit::Zero }
+        Self {
+            eta: TernaryTrit::Zero,
+            theta: TernaryTrit::Zero,
+            psi: TernaryTrit::Zero,
+        }
     }
 
     pub fn magnitude(&self) -> u8 {
         (self.eta != TernaryTrit::Zero) as u8
-        + (self.theta != TernaryTrit::Zero) as u8
-        + (self.psi != TernaryTrit::Zero) as u8
+            + (self.theta != TernaryTrit::Zero) as u8
+            + (self.psi != TernaryTrit::Zero) as u8
     }
 }
 
@@ -120,25 +124,70 @@ mod tests {
 
     #[test]
     fn gf3_sub_complete_table() {
-        assert_eq!(gf3_sub(TernaryTrit::Zero, TernaryTrit::Zero), TernaryTrit::Zero);
-        assert_eq!(gf3_sub(TernaryTrit::Pos, TernaryTrit::Zero), TernaryTrit::Pos);
-        assert_eq!(gf3_sub(TernaryTrit::Neg, TernaryTrit::Zero), TernaryTrit::Neg);
-        assert_eq!(gf3_sub(TernaryTrit::Zero, TernaryTrit::Pos), TernaryTrit::Neg);
-        assert_eq!(gf3_sub(TernaryTrit::Zero, TernaryTrit::Neg), TernaryTrit::Pos);
-        assert_eq!(gf3_sub(TernaryTrit::Pos, TernaryTrit::Pos), TernaryTrit::Zero);
-        assert_eq!(gf3_sub(TernaryTrit::Neg, TernaryTrit::Neg), TernaryTrit::Zero);
-        assert_eq!(gf3_sub(TernaryTrit::Pos, TernaryTrit::Neg), TernaryTrit::Neg);
-        assert_eq!(gf3_sub(TernaryTrit::Neg, TernaryTrit::Pos), TernaryTrit::Pos);
+        assert_eq!(
+            gf3_sub(TernaryTrit::Zero, TernaryTrit::Zero),
+            TernaryTrit::Zero
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Pos, TernaryTrit::Zero),
+            TernaryTrit::Pos
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Neg, TernaryTrit::Zero),
+            TernaryTrit::Neg
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Zero, TernaryTrit::Pos),
+            TernaryTrit::Neg
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Zero, TernaryTrit::Neg),
+            TernaryTrit::Pos
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Pos, TernaryTrit::Pos),
+            TernaryTrit::Zero
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Neg, TernaryTrit::Neg),
+            TernaryTrit::Zero
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Pos, TernaryTrit::Neg),
+            TernaryTrit::Neg
+        );
+        assert_eq!(
+            gf3_sub(TernaryTrit::Neg, TernaryTrit::Pos),
+            TernaryTrit::Pos
+        );
     }
 
     #[test]
     fn gf3_add_complete_table() {
-        assert_eq!(gf3_add(TernaryTrit::Zero, TernaryTrit::Zero), TernaryTrit::Zero);
-        assert_eq!(gf3_add(TernaryTrit::Pos, TernaryTrit::Zero), TernaryTrit::Pos);
-        assert_eq!(gf3_add(TernaryTrit::Neg, TernaryTrit::Zero), TernaryTrit::Neg);
-        assert_eq!(gf3_add(TernaryTrit::Pos, TernaryTrit::Pos), TernaryTrit::Neg);
-        assert_eq!(gf3_add(TernaryTrit::Neg, TernaryTrit::Neg), TernaryTrit::Pos);
-        assert_eq!(gf3_add(TernaryTrit::Pos, TernaryTrit::Neg), TernaryTrit::Zero);
+        assert_eq!(
+            gf3_add(TernaryTrit::Zero, TernaryTrit::Zero),
+            TernaryTrit::Zero
+        );
+        assert_eq!(
+            gf3_add(TernaryTrit::Pos, TernaryTrit::Zero),
+            TernaryTrit::Pos
+        );
+        assert_eq!(
+            gf3_add(TernaryTrit::Neg, TernaryTrit::Zero),
+            TernaryTrit::Neg
+        );
+        assert_eq!(
+            gf3_add(TernaryTrit::Pos, TernaryTrit::Pos),
+            TernaryTrit::Neg
+        );
+        assert_eq!(
+            gf3_add(TernaryTrit::Neg, TernaryTrit::Neg),
+            TernaryTrit::Pos
+        );
+        assert_eq!(
+            gf3_add(TernaryTrit::Pos, TernaryTrit::Neg),
+            TernaryTrit::Zero
+        );
     }
 
     #[test]
@@ -153,8 +202,15 @@ mod tests {
         let vals = [TernaryTrit::Neg, TernaryTrit::Zero, TernaryTrit::Pos];
         for &a in &vals {
             for &b in &vals {
-                assert_eq!(gf3_sub(a, b), gf3_add(a, gf3_neg(b)),
-                    "sub({:?},{:?}) != add({:?},neg({:?}))", a, b, a, b);
+                assert_eq!(
+                    gf3_sub(a, b),
+                    gf3_add(a, gf3_neg(b)),
+                    "sub({:?},{:?}) != add({:?},neg({:?}))",
+                    a,
+                    b,
+                    a,
+                    b
+                );
             }
         }
     }
@@ -162,9 +218,21 @@ mod tests {
     #[test]
     fn gradient_uniform_field_is_zero() {
         let neighbors = vec![
-            GradientNeighbor { id: 1, field_value: TernaryTrit::Zero, dominant_axis: ToroidalAxis::Eta },
-            GradientNeighbor { id: 2, field_value: TernaryTrit::Zero, dominant_axis: ToroidalAxis::Theta },
-            GradientNeighbor { id: 3, field_value: TernaryTrit::Zero, dominant_axis: ToroidalAxis::Psi },
+            GradientNeighbor {
+                id: 1,
+                field_value: TernaryTrit::Zero,
+                dominant_axis: ToroidalAxis::Eta,
+            },
+            GradientNeighbor {
+                id: 2,
+                field_value: TernaryTrit::Zero,
+                dominant_axis: ToroidalAxis::Theta,
+            },
+            GradientNeighbor {
+                id: 3,
+                field_value: TernaryTrit::Zero,
+                dominant_axis: ToroidalAxis::Psi,
+            },
         ];
         let grad = ternary_gradient(TernaryTrit::Zero, &neighbors);
         assert_eq!(grad, TernaryGradient::zero());
@@ -173,9 +241,21 @@ mod tests {
     #[test]
     fn gradient_detects_rising_field_along_eta() {
         let neighbors = vec![
-            GradientNeighbor { id: 1, field_value: TernaryTrit::Pos, dominant_axis: ToroidalAxis::Eta },
-            GradientNeighbor { id: 2, field_value: TernaryTrit::Pos, dominant_axis: ToroidalAxis::Eta },
-            GradientNeighbor { id: 3, field_value: TernaryTrit::Zero, dominant_axis: ToroidalAxis::Theta },
+            GradientNeighbor {
+                id: 1,
+                field_value: TernaryTrit::Pos,
+                dominant_axis: ToroidalAxis::Eta,
+            },
+            GradientNeighbor {
+                id: 2,
+                field_value: TernaryTrit::Pos,
+                dominant_axis: ToroidalAxis::Eta,
+            },
+            GradientNeighbor {
+                id: 3,
+                field_value: TernaryTrit::Zero,
+                dominant_axis: ToroidalAxis::Theta,
+            },
         ];
         let grad = ternary_gradient(TernaryTrit::Zero, &neighbors);
         assert_eq!(grad.eta, TernaryTrit::Neg);
@@ -183,9 +263,11 @@ mod tests {
 
     #[test]
     fn gradient_no_neighbors_on_axis_gives_zero() {
-        let neighbors = vec![
-            GradientNeighbor { id: 1, field_value: TernaryTrit::Pos, dominant_axis: ToroidalAxis::Eta },
-        ];
+        let neighbors = vec![GradientNeighbor {
+            id: 1,
+            field_value: TernaryTrit::Pos,
+            dominant_axis: ToroidalAxis::Eta,
+        }];
         let grad = ternary_gradient(TernaryTrit::Zero, &neighbors);
         assert_eq!(grad.theta, TernaryTrit::Zero);
         assert_eq!(grad.psi, TernaryTrit::Zero);
@@ -193,21 +275,40 @@ mod tests {
 
     #[test]
     fn majority_vote_clear_winner() {
-        assert_eq!(majority_vote(&[TernaryTrit::Pos, TernaryTrit::Pos, TernaryTrit::Neg]), TernaryTrit::Pos);
-        assert_eq!(majority_vote(&[TernaryTrit::Neg, TernaryTrit::Neg, TernaryTrit::Zero]), TernaryTrit::Neg);
-        assert_eq!(majority_vote(&[TernaryTrit::Zero, TernaryTrit::Zero, TernaryTrit::Pos]), TernaryTrit::Pos);
+        assert_eq!(
+            majority_vote(&[TernaryTrit::Pos, TernaryTrit::Pos, TernaryTrit::Neg]),
+            TernaryTrit::Pos
+        );
+        assert_eq!(
+            majority_vote(&[TernaryTrit::Neg, TernaryTrit::Neg, TernaryTrit::Zero]),
+            TernaryTrit::Neg
+        );
+        assert_eq!(
+            majority_vote(&[TernaryTrit::Zero, TernaryTrit::Zero, TernaryTrit::Pos]),
+            TernaryTrit::Pos
+        );
     }
 
     #[test]
     fn majority_vote_tie_returns_zero() {
-        assert_eq!(majority_vote(&[TernaryTrit::Pos, TernaryTrit::Neg]), TernaryTrit::Zero);
-        assert_eq!(majority_vote(&[TernaryTrit::Pos, TernaryTrit::Neg, TernaryTrit::Zero]), TernaryTrit::Zero);
+        assert_eq!(
+            majority_vote(&[TernaryTrit::Pos, TernaryTrit::Neg]),
+            TernaryTrit::Zero
+        );
+        assert_eq!(
+            majority_vote(&[TernaryTrit::Pos, TernaryTrit::Neg, TernaryTrit::Zero]),
+            TernaryTrit::Zero
+        );
         assert_eq!(majority_vote(&[]), TernaryTrit::Zero);
     }
 
     #[test]
     fn gradient_magnitude() {
-        let g = TernaryGradient { eta: TernaryTrit::Pos, theta: TernaryTrit::Zero, psi: TernaryTrit::Neg };
+        let g = TernaryGradient {
+            eta: TernaryTrit::Pos,
+            theta: TernaryTrit::Zero,
+            psi: TernaryTrit::Neg,
+        };
         assert_eq!(g.magnitude(), 2);
         assert_eq!(TernaryGradient::zero().magnitude(), 0);
     }
