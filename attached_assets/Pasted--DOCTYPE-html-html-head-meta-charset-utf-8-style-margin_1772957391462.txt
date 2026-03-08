@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 380px;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: #090807;
+    color: #E4DFD5;
+    font-size: 13px;
+  }
+  .header {
+    background: linear-gradient(135deg, #0D0C0B 0%, #1A1816 100%);
+    padding: 16px 20px;
+    border-bottom: 1px solid #2A2520;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; color: #D4A017; letter-spacing: 0.5px; }
+  .header .subtitle { font-size: 11px; color: #8A8578; margin-top: 2px; }
+  .status-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 20px; background: #0F0E0D;
+    border-bottom: 1px solid #1A1816; font-size: 11px;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #059669; }
+  .status-dot.offline { background: #DC2626; }
+  .status-text { color: #8A8578; }
+  .update-banner {
+    display: none; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 7px 14px; background: #1a1200;
+    border-bottom: 1px solid #D4A01760; font-size: 10px; color: #D4A017;
+  }
+  .update-banner.show { display: flex; }
+  .update-dismiss {
+    background: transparent; border: none; color: #D4A01780;
+    font-size: 13px; cursor: pointer; line-height: 1; padding: 0 2px; flex-shrink: 0;
+  }
+  .update-dismiss:hover { color: #D4A017; }
+  .tab-nav { display: flex; border-bottom: 1px solid #1A1816; background: #0F0E0D; }
+  .tab-btn {
+    flex: 1; padding: 9px 0; background: transparent; border: none;
+    border-bottom: 2px solid transparent; color: #5A5548;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-btn.active { color: #D4A017; border-bottom-color: #D4A017; }
+  .tab-btn:hover:not(.active) { color: #8A8578; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .search-area { padding: 16px 20px; }
+  .search-row { display: flex; gap: 8px; }
+  .search-input {
+    flex: 1; background: #1A1816; border: 1px solid #2A2520; color: #E4DFD5;
+    padding: 10px 14px; border-radius: 6px; font-size: 14px; outline: none;
+    font-family: 'Consolas', 'Menlo', monospace;
+  }
+  .search-input:focus { border-color: #D4A017; }
+  .search-input::placeholder { color: #5A5548; }
+  .btn {
+    background: #D4A017; color: #090807; border: none;
+    padding: 10px 16px; border-radius: 6px; font-weight: 600;
+    font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { background: #E8B42E; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .result { padding: 0 20px 16px; display: none; }
+  .result.show { display: block; }
+  .address-box {
+    background: #1A1816; border: 1px solid #2A2520; border-radius: 6px;
+    padding: 12px 14px; font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 12px; color: #D4A017; word-break: break-all; margin-bottom: 8px;
+  }
+  .crd-badge {
+    display: inline-block; background: #059669; color: #fff;
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; margin-left: 4px;
+  }
+  .meta-row { display: flex; justify-content: space-between; font-size: 11px; color: #8A8578; padding: 4px 0; }
+  .error-msg { color: #DC2626; font-size: 12px; padding: 8px 0; display: none; }
+  .error-msg.show { display: block; }
+  .open-full {
+    display: block; text-align: center; color: #D4A017; font-size: 11px;
+    padding: 10px 0; border-top: 1px solid #1A1816; text-decoration: none; cursor: pointer;
+  }
+  .open-full:hover { color: #E8B42E; }
+  .scanner-area { padding: 14px 20px 0; }
+  .url-display {
+    font-family: 'Consolas', 'Menlo', monospace; font-size: 11px; color: #8A8578;
+    background: #1A1816; border: 1px solid #2A2520; border-radius: 4px;
+    padding: 7px 10px; margin-bottom: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .url-label { color: #5A5548; font-size: 9px; display: block; margin-bottom: 2px; }
+  .scan-btn {
+    width: 100%; background: transparent; border: 1px solid #D4A017; color: #D4A017;
+    padding: 9px 0; font-family: 'Segoe UI', -apple-system, sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    cursor: pointer; border-radius: 4px; transition: background 0.15s;
+  }
+  .scan-btn:hover { background: #D4A01715; }
+  .scan-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .scan-progress { display: none; padding: 10px 0; }
+  .scan-progress.show { display: block; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 10px; color: #5A5548; margin-bottom: 5px; }
+  .progress-label .pct { color: #D4A017; }
+  .progress-track { height: 3px; background: #1A1816; border-radius: 2px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #D4A017, #F0C040);
+    border-radius: 2px; transition: width 0.08s linear;
+  }
+  .scan-result { display: none; padding-bottom: 4px; }
+  .scan-result.show { display: block; }
+  .scan-address-box {
+    background: #1A1816; border: 1px solid #2A2520; border-radius: 6px;
+    padding: 10px 12px; font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 11px; color: #D4A017; word-break: break-all;
+    margin: 10px 0 6px; line-height: 1.7;
+  }
+  .scan-meta-row { display: flex; justify-content: space-between; font-size: 10px; color: #8A8578; padding: 3px 0; }
+  .dims-section { margin-top: 8px; }
+  .dims-header {
+    font-size: 10px; color: #5A5548; letter-spacing: 0.06em;
+    padding: 6px 0 4px; border-top: 1px solid #1A1816;
+    cursor: pointer; display: flex; justify-content: space-between;
+    align-items: center; user-select: none;
+  }
+  .dims-header:hover { color: #8A8578; }
+  .dims-body { display: none; }
+  .dims-body.open { display: block; }
+  .cat-block { margin-bottom: 4px; }
+  .cat-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    padding: 3px 6px; margin-bottom: 1px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .dim-row {
+    display: grid; grid-template-columns: 18px 1fr 32px;
+    align-items: center; gap: 5px; padding: 3px 6px;
+    border-left: 2px solid transparent; font-size: 10px;
+  }
+  .dim-trit { font-family: 'Consolas', monospace; font-size: 12px; font-weight: bold; text-align: center; }
+  .dim-info { line-height: 1.4; }
+  .dim-q { color: #8A8578; font-size: 9px; }
+  .dim-label { font-size: 10px; }
+  .dim-conf { font-size: 9px; color: #5A5548; text-align: right; }
+  .hptp-tag {
+    font-size: 8px; color: #F87171; border: 1px solid #F8717150;
+    padding: 0 3px; margin-left: 4px; border-radius: 2px;
+  }
+  .scan-error { color: #DC2626; font-size: 12px; padding: 8px 0; display: none; }
+  .scan-error.show { display: block; }
+  .open-report {
+    display: block; text-align: center; color: #D4A017; font-size: 11px;
+    padding: 10px 0; border-top: 1px solid #1A1816; cursor: pointer; margin-top: 6px;
+  }
+  .open-report:hover { color: #E8B42E; }
+  .footer { padding: 10px 20px; border-top: 1px solid #1A1816; font-size: 10px; color: #5A5548; text-align: center; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>PlenumNET TDNS</h1>
+    <div class="subtitle">Ternary Domain Name System v2.5.0</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">Checking...</span>
+  </div>
+
+  <div class="update-banner" id="updateBanner">
+    <span id="updateBannerText"></span>
+    <button class="update-dismiss" id="updateDismiss" title="Dismiss">✕</button>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" id="tabResolveBtn">RESOLVE</button>
+    <button class="tab-btn" id="tabScannerBtn">SCANNER</button>
+  </div>
+
+  <div class="tab-panel active" id="panelResolve">
+    <div class="search-area">
+      <div class="search-row">
+        <input type="text" class="search-input" id="nameInput"
+               placeholder="google.plm" autocomplete="off" spellcheck="false">
+        <button class="btn" id="resolveBtn">Register</button>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+    <div class="result" id="result">
+      <div class="address-box" id="addressBox"></div>
+      <div class="meta-row">
+        <span title="IdentitySponge(classification trits) — pure ternary scan fingerprint">TIS-27</span>
+        <span id="scanHash" style="font-family:monospace;font-size:10px;"></span>
+      </div>
+      <div class="meta-row">
+        <span>HPTP mandatory</span>
+        <span id="hptpStatus"></span>
+      </div>
+      <a class="open-full" id="openFull">Open Full Resolution &#8594;</a>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panelScanner">
+    <div class="scanner-area">
+      <div class="url-display" id="urlDisplay">
+        <span class="url-label">CURRENT PAGE</span>
+        <span id="currentUrl">detecting...</span>
+      </div>
+      <button class="scan-btn" id="scanBtn">&#9654; SCAN THIS PAGE</button>
+      <div class="scan-error" id="scanError"></div>
+      <div class="scan-progress" id="scanProgress">
+        <div class="progress-label">
+          <span id="progressDim">PROBING...</span>
+          <span class="pct" id="progressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+    <div class="scan-result" id="scanResult">
+      <div style="padding: 0 20px;">
+        <div class="scan-address-box" id="scanAddressBox"></div>
+        <div class="scan-meta-row">
+          <span title="IdentitySponge(classification trits) — pure ternary scan fingerprint">TIS-27</span>
+          <span id="scanResultHash" style="font-family:monospace;font-size:10px;"></span>
+        </div>
+        <div class="scan-meta-row">
+          <span>HPTP mandatory</span>
+          <span id="scanHptpStatus"></span>
+        </div>
+        <div class="dims-section">
+          <div class="dims-header" id="dimsToggle">
+            <span>27 ONTOLOGICAL DIMENSIONS</span>
+            <span id="dimsChevron">▾</span>
+          </div>
+          <div class="dims-body open" id="dimsBody"></div>
+        </div>
+        <a class="open-report" id="openReport">Open Full Diagnostic Report &#8594;</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Capomastro Holdings Ltd. &#8212; Applied Physics Division &nbsp;&#183;&nbsp;
+    <a href="https://plenumnet.replit.app/docs" target="_blank"
+       style="color:#D4A017;text-decoration:none;">Documentation</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

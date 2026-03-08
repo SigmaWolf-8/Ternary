@@ -1,0 +1,845 @@
+# TDNS v2.5.0 — Dual-Layer 54-Trit Addressing and Identity Anchor Protocol
+
+**Capomastro Holdings Ltd. — Applied Physics Division — Alberta, Canada**  
+**Specification Document — v2.5.0 FINAL**  
+**Author:** R. Salvalaggio — RSalvi@Salvigroup.com  
+**Date:** 2026-03-07  
+**Status:** Final — approved for implementation
+
+> Patent(s) Pending — All Rights Reserved
+
+---
+
+## Table of Contents
+
+- [0. Executive Summary](#0-executive-summary)
+- [1. Problem Statement](#1-problem-statement)
+- [2. Mathematical Foundation](#2-mathematical-foundation)
+- [3. Address Architecture](#3-address-architecture)
+- [4. Wire Format](#4-wire-format)
+- [5. Registry Protocol](#5-registry-protocol)
+- [6. Display Format and UI Specification](#6-display-format-and-ui-specification)
+- [7. Implementation Guide](#7-implementation-guide)
+- [8. Test Vectors](#8-test-vectors)
+- [9. Migration from v2.3.x](#9-migration-from-v23x)
+- [10. Open Questions and Future Extensions](#10-open-questions-and-future-extensions)
+- [Appendix A — Mathematical Consistency Check](#appendix-a--mathematical-consistency-check)
+- [Appendix B — Invariant Compliance](#appendix-b--invariant-compliance)
+
+---
+
+## 0. Executive Summary
+
+TDNS v2.3.x uses a 27-trit address derived entirely from the observable behavioral properties of a network entity. This address is an **ontological classification**: it encodes *what* an entity is. It does not encode *which* entity it is.
+
+Two distinct websites with identical observable properties — both large commercial HTTPS deployments with CDN, analytics, subscription pricing, and full security headers — will derive identical 27-trit addresses. This is mathematically correct behavior for a classification system. It is a critical failure for a naming registry that must resolve `google.plm` to exactly one entity.
+
+TDNS v2.5.0 resolves this with a **54-trit address** structured as two symmetric layers:
+
+| Layer | Trits | Input | Role |
+|---|---|---|---|
+| Classification | D1–D27 | Observable HTTP/DNS/TLS signals | Ontological identity — *what* the entity is |
+| Identity Anchor | I1–I27 | IdentitySponge(canonical URL) | Cryptographic identity — *which specific instance* |
+| **Combined** | **54 trits** | — | Unique, routable, ontologically meaningful address |
+
+The Identity Anchor uses the **Ternary Sponge** (`ternary_lattice.rs` / `libternary`) — PlenumNET's own native ternary hash primitive — applied to the canonical URL. This produces 27 trits directly in Rep C {1, 2, 3}. No domain crossing. No binary-to-ternary projection step. Zero remains a forgery sentinel. The wire format is **14 bytes** (27 + 27 + 2 CGUID = 56 trit slots = 112 bits — complete by design). No derivation invariants are violated. No external cryptographic dependencies are added.
+
+
+---
+
+## 1. Problem Statement
+
+### 1.1 The Nature of the 27-Trit Address
+
+The 27 TDNS dimensions measure behavioral and structural properties of a network entity: entity type, data appetite, authentication model, geographic distribution, protocol stack, security posture, and so on. Each dimension produces a trit value in {1, 2, 3} via the universal GF(3) projection formula:
+
+```
+gf3(k, N) = min(floor(3k / N), 2)   — k = signals fired, N = total signals
+trit      = gf3 + 1                  — lift GF(3){0,1,2} to Rep C{1,2,3}
+```
+
+The result is an address that encodes *what* an entity is. Two entities with identical observable properties produce identical addresses. This is a feature — it enables ontological clustering, nearest-neighbor routing, and class-based inference. It is also the source of the collision problem in a naming registry.
+
+### 1.2 Collision Probability in v2.3.x
+
+The 27-trit address space contains 3²⁷ ≈ 7.6 trillion unique addresses. However, the effective space is far smaller because not all address combinations are reachable from real-world HTTP/TLS/DNS observations. Common commercial website profiles cluster heavily in a small region of the space.
+
+Consider two sites with identical infrastructure profiles: both large commercial HTTPS deployments, both with CDN, both with analytics, both with subscription pricing, both with full security headers. They derive the same 27-trit address. When a resolver receives `google.plm`, it cannot distinguish Google from any other site with the same ontological profile.
+
+> **INVARIANT OBSERVATION:** The 27-trit address is a classification coordinate. A classification coordinate is not a unique identifier. A naming registry requires unique identifiers. Therefore: the 27-trit address alone is structurally insufficient for a naming registry.
+
+### 1.3 Requirements for the Solution
+
+1. Must not alter the 27-trit classification layer or its derivation formula.
+2. Must use the same mathematical primitives already in the codebase (GF(3), Rep C, native ternary crypto).
+3. Must produce a globally unique identifier for any canonical URL.
+4. Must integrate cleanly with the existing 13D inter-cube routing infrastructure.
+5. Must maintain the zero-as-forgery-sentinel property across both layers.
+6. Must produce a clean wire format — 56 trit slots, complete by formula.
+7. Must be deterministic — the same URL always produces the same identity anchor.
+8. Must not require external cryptographic dependencies — the solution must use PlenumNET's own primitives.
+9. Must remain entirely in trit space — no binary domain crossings in the identity derivation pipeline.
+
+---
+
+## 2. Mathematical Foundation
+
+### 2.1 Why 27+27=54 Is the Correct Address Structure
+
+The number 13 appears with structural necessity throughout PlenumNET. It is not chosen for the identity layer — it is derived:
+
+| Identity | Value | Source |
+|---|---|---|
+| 7th Tribonacci number T₇ | 13 | Sequence: 0, 0, 1, 1, 2, 4, 7, **13**, ... |
+| One ternary radian | 13° | 364° ÷ 28 radians = 13° per radian |
+| Base-3 repunit 111₃ | 13 | 1 + 3 + 9 = 13 in decimal |
+| 13D routing hypercube | 3¹³ = 1,594,323 | Existing inter-cube infrastructure (v2.4.0 and earlier) |
+| 27D identity space   | 3²⁷ ≈ 7.6 trillion | v2.5.0 — identity trits are routing coordinates; Hamming distance computed on full 54-trit address |
+| Lunar calendar | 13 × 28 | = 364 = 111111₃ — full ternary circle |
+| Saturnian cosmic radius | 208 ÷ 16 | = 13 = T₇ |
+| Symmetric address | 27 + 27 = 54 | Classification width equals identity width — structurally balanced |
+
+The final row is the key structural insight: 27 dimensions of classification plus 27 dimensions of identity equals **54 trits** — a perfectly symmetric address where both layers are equal width. This is not an aesthetic choice: both layers operate in the same 3²⁷ space, which means the identity anchor has collision resistance commensurate with the classification address space.
+
+### 2.2 The Ternary Sponge as Identity Hash
+
+The PlenumNET codebase contains a **ternary sponge construction** in `ternary_lattice.rs` and `libternary/src/lib.rs`. This is the correct hash function for identity derivation for the following reasons:
+
+| Property | Ternary Sponge | BLAKE3 (rejected) |
+|---|---|---|
+| Output domain | Trits {1,2,3} natively — 27 per squeeze | Bytes — requires GF(3) projection |
+| Domain crossing | None | Binary → ternary conversion required |
+| Dependency | Capomastro proprietary (libternary) | Third-party external crate |
+| IP position | Strengthens patent scope | Third-party primitive load-bearing in protocol |
+| Distribution | Uniform in trit space by design | Fractional at N=256 boundaries (85.33..., 170.66...) |
+| Current role | TL-DSA signature scheme | CON key derivation (overlay.rs) — keep separate |
+| Alignment with INVARIANT 1 | ✓ Geometry IS the System | ✗ Binary primitive inside ternary protocol |
+
+The ternary sponge takes UTF-8 input and produces output directly as a sequence of trits in Rep C {1, 2, 3}. The entire identity derivation pipeline remains in trit space:
+
+```
+URL (text) → IdentitySponge → [I₁, I₂, ..., I₂₇] in Rep C
+```
+
+Compare with the rejected BLAKE3 pipeline:
+```
+URL (text) → BLAKE3 (binary) → bytes[0..12] → GF(3) projection → trits   ← REJECTED
+```
+
+> **Note — March 2026:** The ternary sponge in `ternary_lattice.rs` underwent significant bug fixes in early March 2026, including a broken `sample_challenge` function and missing `u16_to_trits()`/`u8_to_trits()` decomposition. Those fixes are resolved. The **TDNS Identity Sponge** (`identity.rs`) is a separate, dedicated module with architecture-derived parameters — it does not depend on TL-DSA internals and does not inherit those bugs. Identity derivation runs through `identity.rs` in Rust and its exact TypeScript mirror in `tdns.ts`. No binary hash primitives are used anywhere in the identity pipeline.
+
+### 2.3 Canonical URL Normalisation
+
+The identity anchor must be deterministic across equivalent URL representations. The canonical form is computed before hashing:
+
+```
+1. Lowercase the scheme and hostname
+2. Remove default ports (80 for http, 443 for https)
+3. Remove trailing slash from root path only ("/" → "")
+4. Remove fragment identifiers (#section)
+5. Strip all query parameters (reserved for sub-path registration in v2.5.0)
+6. Result: scheme + "://" + hostname + path
+
+Examples:
+  https://Google.com/          →  https://google.com
+  HTTP://GOOGLE.COM:80/        →  http://google.com
+  https://plenumnet.replit.app/  →  https://plenumnet.replit.app
+  https://plenumnet.replit.app/#section  →  https://plenumnet.replit.app
+```
+
+### 2.4 Identity Trit Derivation Formula
+
+```
+Input:    canonical_url  (UTF-8 string, normalised per §2.3)
+Hash:     T = IdentitySponge(canonical_url)  — output in Rep C {1,2,3}
+Result:   I = [T₀, T₁, ..., T₂₆]            — 27 output trits
+
+Each Iᵢ ∈ {1, 2, 3}  — Rep C encoding, zero NEVER produced.
+```
+
+No GF(3) projection step required. The sponge output is already in trit space.
+
+---
+
+## 3. Address Architecture
+
+### 3.1 54-Trit Structure
+
+```
+┌──────────────────────────────────┬───────────────────────────┐
+│    CLASSIFICATION LAYER (D1–D27) │  IDENTITY ANCHOR (I1–I27) │
+│         27 trits                 │       27 trits             │
+│   GF(3) of observed signals      │  IdentitySponge(URL)      │
+│     Rep C {1,2,3}               │     Rep C {1,2,3}          │
+│   What the entity IS             │  Which instance it IS      │
+└──────────────────────────────────┴───────────────────────────┘
+             54 trits total — both layers equal width
+    14 bytes wire format (54 functional + 2 reserved = 56 trit slots)
+```
+
+### 3.2 Classification Layer (D1–D27) — Unchanged
+
+The 27-trit classification layer is identical to TDNS v2.3.x. All 27 derivation rules, all GF(3) projections, all confidence scores, and all meaning sentences are preserved without modification.
+
+> **Confidence scope:** The confidence vector applies only to the classification layer (D1–D27). The identity anchor (I1–I27) is a cryptographic fingerprint derived deterministically from the URL — it carries no per-trit confidence. Confidence is an ontological property; identity is a mathematical one.
+
+| Axis | Dims | Prefix | Measures |
+|---|---|---|---|
+| WHO | D1–D4 | `WO` | Entity type, audience, operator transparency, hosting model |
+| WHAT | D5–D8 | `WA` | Content type, data appetite, AI involvement, user mix |
+| WHERE | D9–D12 | `WR` | Visibility, authentication, distribution, protocol |
+| WHEN | D13–D16 | `WN` | Era, availability, data freshness, real-time capability |
+| WHY | D17–D20 | `WY` | Financial handling, data collection, policies, cost model |
+| HOW | D21–D24 | `HO` | Delivery, data direction, update model, memory |
+| PEACE | D25–D27 | `PE` | Encryption depth, tracker presence, audit status |
+
+### 3.3 Identity Anchor (I1–I27) — Updated in v2.5.0
+
+The 27-trit identity anchor is derived from the IdentitySponge applied to the canonical URL. Individual trits carry no semantic meaning — the anchor is meaningful only as a whole: a ternary fingerprint of the URL with 3²⁷ ≈ 7.6 trillion distinct values.
+
+**Properties of the identity anchor:**
+- **Deterministic:** same URL → same 27 trits, always
+- **Collision probability:** 3⁻²⁷ ≈ 1.3 × 10⁻¹³ per URL pair
+- **Forgery detection preserved:** any trit value of 0 indicates forgery, identical to classification layer
+- **Full-address routing:** Hamming distance is computed on the complete 54-trit address. Classification trits (D1–D27) route to the correct ontological neighbourhood — the right kind of entity. Identity trits (I1–I27) route to the correct specific instance within that neighbourhood. CGUID is the only purely endpoint concern — final slot resolution once the correct 54-trit destination is reached.
+- **Ontologically silent:** the identity layer carries no behavioral meaning; it cannot be inferred from observing the site
+- **No domain crossing:** entire derivation pipeline stays in trit space
+- **Collision resolution:** if two distinct URLs derive the same 27-trit anchor, each is assigned a unique Collision GUID (1–9) — 9 slots per identity anchor, zero chance of exhaustion at any realistic registry scale
+- **CGUID=1 is the default:** CGUID 1 (CG1=1, CG2=1) means first registrant — no special "no-CGUID" value exists. Zero is forbidden in CG1 and CG2, identical to every other trit position in the address. Every registered entity carries a CGUID beginning at 1. (*Note: CRD is the scan check digit — a separate value derived from the scan sponge output. CGUID is the collision identifier. Both use the formula `(T1−1)×3 + T2` but apply to different inputs.*)
+
+### 3.4 The 54-Trit Full Address
+
+```
+Full address (display):   D1..D27 · I1..I27
+
+Example — google.com:
+  Classification:  WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313
+  Identity:        ID:211321312213221132131221323
+  Combined:        WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313 · ID:211321312213221132131221323
+
+Example — plenumnet.replit.app (HPTP-mandatory):
+  Classification:  WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332
+  Identity:        ID:321113221321132211321132211
+  Combined:        WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332 · ID:321113221321132211321132211
+```
+
+---
+
+## 4. Wire Format
+
+### 4.1 Prior Wire Formats (Reference)
+
+```
+v2.3.x:  27 trits × 2 bits =  54 bits →  7 bytes (+ 2 padding bits)
+v2.4.0:  40 trits × 2 bits =  80 bits → 10 bytes (no padding, 13 identity trits)
+v2.5.0:  56 trit slots × 2 bits = 112 bits → 14 bytes (54 address + 2 CGUID)
+```
+
+### 4.2 v2.5.0 Wire Format — 14 Bytes
+
+The address is **56 trit slots × 2 bits = 112 bits = 14 bytes exactly**. The slot count is complete by design: 27 classification trits + 27 identity trits + 2 Collision GUID trits (CG1, CG2). The CGUID is the 28th dimension — a registry-layer coordinate that disambiguates entries sharing the same identity anchor. The 14-byte boundary is a consequence of the full formula, not a rounding fix.
+
+```
+Byte  0:   D1[1:0]   D2[1:0]   D3[1:0]   D4[1:0]
+Byte  1:   D5[1:0]   D6[1:0]   D7[1:0]   D8[1:0]
+Byte  2:   D9[1:0]  D10[1:0]  D11[1:0]  D12[1:0]
+Byte  3:  D13[1:0]  D14[1:0]  D15[1:0]  D16[1:0]
+Byte  4:  D17[1:0]  D18[1:0]  D19[1:0]  D20[1:0]
+Byte  5:  D21[1:0]  D22[1:0]  D23[1:0]  D24[1:0]
+Byte  6:  D25[1:0]  D26[1:0]  D27[1:0]   I1[1:0]   ← classification/identity boundary
+Byte  7:   I2[1:0]   I3[1:0]   I4[1:0]   I5[1:0]
+Byte  8:   I6[1:0]   I7[1:0]   I8[1:0]   I9[1:0]
+Byte  9:  I10[1:0]  I11[1:0]  I12[1:0]  I13[1:0]
+Byte 10:  I14[1:0]  I15[1:0]  I16[1:0]  I17[1:0]
+Byte 11:  I18[1:0]  I19[1:0]  I20[1:0]  I21[1:0]
+Byte 12:  I22[1:0]  I23[1:0]  I24[1:0]  I25[1:0]
+Byte 13:  I26[1:0]  I27[1:0]  CG1[1:0]  CG2[1:0]   ← Collision GUID (1–9)
+```
+
+The layer boundary falls mid-byte 6, identical to v2.4.0. CG1 and CG2 are standard Rep C trit values {1,2,3}. Their combined value encodes CGUID 1–9: `CGUID = (CG1−1)×3 + CG2`. A zero in either slot is a forgery sentinel, identical to all other trit positions.
+
+### 4.3 Version Tag
+
+Wire format version tag: `0x25`. Sequence: `0x23` (27-trit) → `0x24` (40-trit) → `0x25` (54-trit).
+
+Routers encountering `0x24` or `0x23` packets must refuse routing. The 27-trit identity layer is a breaking change — the identity anchor in `0x24` is not a prefix of `0x25`.
+
+### 4.4 Forgery Detection
+
+The zero-exclusion property extends naturally across both layers:
+
+- Any trit value of 0 in D1–D27 indicates forgery of the classification layer.
+- Any trit value of 0 in I1–I27 indicates forgery of the identity layer.
+- A packet with **any** zero trit in **any** position MUST be dropped by compliant routers.
+
+This property is structural. The Ternary Sponge, like the GF(3) projection, never produces a zero in its Rep C output. A zero trit can only appear through deliberate manipulation of the wire-format packet.
+
+---
+
+## 5. Registry Protocol
+
+### 5.1 Registration Flow
+
+```
+Client sends:   POST /api/tdns/register  { name, url }
+
+Server pipeline:
+  1. Normalise URL → canonical_url                              (§2.3)
+  2. Scan URL → 27 classification trits (unchanged)             (derive.rs)
+  3. Derive identity → IdentitySponge(canonical_url) → 27 trits (§2.4)
+  4. Concatenate → 54-trit full address
+  5. Check name uniqueness in registry                          (by .plm name)
+  6. Check URL uniqueness in registry                           (by canonical_url)
+  7. If name collision → 409 CONFLICT
+  8. If URL already registered under different name → 409 CONFLICT + existing_name
+     (Pass `overwrite: true` to force re-registration — replaces existing record and re-scans)
+  9. Check if identity_anchor already exists in registry (collision)
+     a. If no collision: assign CGUID = 1
+     b. If collision: assign lowest available CGUID in 1–9
+     c. If all 9 slots occupied: reject with 409 CGUID_EXHAUSTED (operationally impossible)
+ 10. If org_name supplied: create or join OrgEntity, attach this entry as a member
+ 11. Store: name → full_address + canonical_url + cguid + org_name? + timestamp
+ 12. Return: { status, name, address, cguid, scan_hash, identity_trits, hptp_mandatory, crd, org? }
+```
+
+### 5.2 Resolution Flow
+
+```
+Client sends:   GET /api/tdns/resolve?name=google.plm
+Server returns: {
+                  name: "google.plm",
+                  address: "WO:2323 WA:1133 ... PE:313 · ID:2113213122132",
+                  classification_trits: [2,3,2,3, 1,1,3,3, ...],  // D1–D27
+                  identity_trits:       [2,1,1,3,2,1,3,1,2,2,1,3,2,2,1,1,3,2,1,3,1,2,2,1,3,2,3],  // I1–I27
+                  cguid: 1,
+                  hptp_mandatory: false,
+                  crd: 5,
+                  org: {                              // present only if entry belongs to an org
+                    org_name: "example-co",
+                    member_count: 3,
+                    members: [
+                      { plm_name: "app-example.plm", url: "https://example.com/app",  address: "... · ID:..." },
+                      { plm_name: "blog-example.plm", url: "https://example.com/blog", address: "... · ID:..." }
+                    ]
+                  }
+                }
+```
+
+### 5.3 Uniqueness Guarantees
+
+| Level | Key | Enforcement |
+|---|---|---|
+| Name uniqueness | `.plm` name | Primary registry key. `google.plm` maps to exactly one record. |
+| URL uniqueness | `canonical_url` | Secondary index. One URL may only appear once unless `overwrite=true`. |
+| Address uniqueness | 54-trit address + CGUID | Two URLs may share classification trits (expected) and even identity trits (3⁻²⁷ probability). Collision GUID 1–9 resolves the latter. The full key is (identity_anchor, cguid). |
+| CGUID overflow | 10th collision on same anchor | P ≈ 3.5 × 10⁻¹⁸ at 32 billion registry entries. Operationally impossible. |
+
+> **Collision probability:** 3⁻²⁷ ≈ 1.3 × 10⁻¹³ per URL pair. For a registry of 10,000,000 entries, the birthday-bound probability of any collision is approximately 0.000007%. Operationally negligible at any realistic registry scale.
+
+---
+
+## 6. Display Format and UI Specification
+
+### 6.1 Address String Format
+
+```
+WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313  ·  ID:211321312213221132131221323
+ └──────────────── Classification (27 trits, #D4A017 gold) ───┘    └──────── Identity (27 trits, #38BDF8 sky) ────────┘
+```
+
+**Colour treatment:**
+- **Classification trits (D1–D27):** `#D4A017` gold — behavioral meaning, human-interpretable
+- **Identity anchor (I1–I27):** `#38BDF8` sky blue — cryptographic fingerprint, not human-interpretable
+- **Delimiter `·`:** neutral foreground colour — separates but does not compete
+
+### 6.2 Extension Popup Layout
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313      │
+│  · ID:211321312213221132131221323  [HPTP-MANDATORY?]  [CRD: 5] │
+│  ──────────────────────────────────────────────────────────    │
+│  TIS: 211321312213221132131221323    Scanned: 14:32:07        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Clicking the address copies the full 54-trit string to clipboard. Hovering the identity segment shows: *"Identity Anchor — derived from IdentitySponge(URL). Uniquely identifies this specific site."*
+
+### 6.3 Tooltip Text
+
+| Element | Tooltip |
+|---|---|
+| Classification trits | 27-dimensional ontological address — describes what this site is. Derived from live HTTP/DNS/TLS signals. |
+| Identity anchor | 27-trit identity anchor — derived from IdentitySponge(URL). Uniquely identifies this specific site. Not human-interpretable. |
+| Full address (click) | Click to copy full 54-trit address to clipboard. |
+| Check Digit | Single digit (1–9) derived as `(T1−1)×3 + T2` from the scan sponge output — identical formula to CGUID. Changes if the site's classification trits shift between scans. |
+
+---
+
+## 7. Implementation Guide
+
+### 7.1 Rust — addr.rs
+
+```rust
+// addr.rs
+pub const DIMENSIONS:    usize = 54;
+pub const CLASS_DIMS:    usize = 27;
+pub const IDENTITY_DIMS: usize = 27;
+pub const WIRE_SLOTS:    usize = 56;  // 54 functional + 2 reserved
+
+pub struct CubeAddr {
+    trits: [Trit; 54],   // Rep C {1,2,3} — zero is invalid
+    pub cguid: u8,       // Collision GUID 1–9; 1 = first (default), 2–9 = collision slots
+}
+
+impl CubeAddr {
+    pub fn classification(&self) -> &[Trit] {
+        &self.trits[..27]
+    }
+    pub fn identity(&self) -> &[Trit] {
+        &self.trits[27..]
+    }
+    pub fn from_parts(class: [Trit; 27], id: [Trit; 27]) -> Self {
+        let mut trits = [Trit::ONE; 54];
+        trits[..27].copy_from_slice(&class);
+        trits[27..].copy_from_slice(&id);
+        Self { trits }
+    }
+}
+```
+
+### 7.2 Rust — identity.rs (new module) and derive.rs
+
+The identity anchor lives in a dedicated `identity.rs` module with its own sponge construction and canonical URL normalisation. `derive.rs` delegates to it.
+
+```rust
+// identity.rs — TDNS Identity Sponge (TIS)
+// Parameters — all derived from TDNS architecture, none chosen:
+//   State:    54 trits  (27 classification + 27 identity = full address width)
+//   Rate:     27 trits  (identity anchor width = classification layer width)
+//   Capacity: 27 trits  (symmetric)
+//   Rounds:   27        (one per identity trit)
+//   Stride:   13        (gcd(13,54)=1 → complete permutation cycle)
+// All arithmetic GF(3). No binary hash primitives.
+
+use crate::trit::Trit;
+
+const STATE_SIZE: usize = 54;
+const RATE:       usize = 27;
+const ROUNDS:     usize = 27;
+// Tribonacci sequence mod 3, indices 0–26
+const ROUND_CONSTS: [u8; 27] = [
+    0, 0, 1, 1, 2, 1, 1, 1, 0, 2, 0, 2, 1, 0, 0, 1, 1, 2, 1, 1, 1, 0, 2, 0, 2, 1, 0,
+];
+
+pub fn derive_identity(canonical_url: &str) -> [Trit; 27] {
+    let mut sponge = IdentitySponge::new();
+    sponge.absorb(canonical_url.as_bytes());
+    sponge.squeeze()  // returns 27 trits in Rep C {1,2,3}
+}
+
+pub fn canonicalise_url(raw: &str) -> String {
+    // lowercase scheme+host, strip default ports (80/443),
+    // strip trailing root slash, strip fragment, strip query params
+    // See identity.rs §canonicalise_url for full implementation.
+}
+```
+
+### 7.3 Rust — wire.rs
+
+```rust
+// wire.rs
+pub const WIRE_VERSION: u8    = 0x25;   // 0x23=27-trit, 0x24=40-trit, 0x25=54-trit
+pub const WIRE_SLOTS:   usize = 56;     // 54 functional + 2 reserved
+pub const ADDR_BYTES:   usize = 14;
+
+pub fn pack(addr: &CubeAddr) -> [u8; 14] {
+    let mut out = [0u8; 14];
+    for i in 0..54 {
+        let trit_bits = addr.trits[i].to_repr_c() as u8;
+        let byte_idx  = i / 4;
+        let bit_shift = (3 - (i % 4)) * 2;
+        out[byte_idx] |= trit_bits << bit_shift;
+    }
+    // CG1 and CG2: encode CGUID 1–9 as two Rep C trit slots
+    // Default (no collision) = CGUID 1 → CG1=1 (0b01), CG2=1 (0b01)
+    // Caller is responsible for setting cguid field before pack().
+    out
+}
+
+pub fn unpack(bytes: &[u8; 14]) -> Result<CubeAddr, WireError> {
+    let mut trits = [Trit::ONE; 54];
+    for i in 0..54 {
+        let byte_idx  = i / 4;
+        let bit_shift = (3 - (i % 4)) * 2;
+        let raw       = (bytes[byte_idx] >> bit_shift) & 0b11;
+        if raw == 0 { return Err(WireError::ForgeryDetected { trit_index: i }); }
+        trits[i] = Trit::from_repr_c(raw).unwrap();
+    }
+    // Decode Collision GUID from CG1, CG2
+    let cg1 = (bytes[13] >> 2) & 0b11;
+    let cg2 =  bytes[13]       & 0b11;
+    if cg1 == 0 || cg2 == 0 { return Err(WireError::ForgeryDetected { trit_index: 54 }); }
+    let cguid = (cg1 - 1) * 3 + cg2;  // 1–9
+    Ok(CubeAddr { trits })
+}
+```
+
+### 7.4 TypeScript — tdns.ts
+
+The TypeScript server path implements the TDNS Identity Sponge identically to the Rust module. No SHA-256. No BLAKE3. No stand-ins. The scan hash uses the same IdentitySponge absorbing the classification trit vector; CRD is `(T1−1)×3 + T2` from the first two output trits. The `deriveIdentityTrits()` and `canonicaliseUrl()` functions in `tdns.ts` are the exact TypeScript mirror of `identity.rs`.
+
+```typescript
+// tdns.ts — TDNS Identity Sponge (mirrors identity.rs exactly)
+// Parameters: state=54, rate=27, capacity=27, rounds=27, stride=13
+// All arithmetic in GF(3). No binary hash primitives.
+
+const TIS_STATE  = 54;   // 27 classification + 27 identity
+const TIS_RATE   = 27;   // identity anchor width = classification width
+const TIS_ROUNDS = 27;   // one per identity trit
+// Tribonacci sequence mod 3, indices 0–26
+const TIS_RC = [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0];
+
+function gf3Add(a: number, b: number): number { return (a + b) % 3; }
+
+function tisByteToTrits(b: number): number[] {
+  const out: number[] = [];
+  let v = b;
+  for (let i = 0; i < 6; i++) { out.push(v % 3); v = Math.floor(v / 3); }
+  return out;
+}
+
+function tisPermute(s: Uint8Array): void {
+  for (let r = 0; r < TIS_ROUNDS; r++) {
+    // Theta: mix each trit with circular neighbours
+    const t = new Uint8Array(TIS_STATE);
+    for (let i = 0; i < TIS_STATE; i++) {
+      t[i] = gf3Add(s[i], gf3Add(s[(i+TIS_STATE-1)%TIS_STATE], s[(i+1)%TIS_STATE]));
+    }
+    s.set(t);
+    // Pi: stride-13 permutation (complete cycle, gcd(13,40)=1)
+    const u = new Uint8Array(TIS_STATE);
+    for (let i = 0; i < TIS_STATE; i++) { u[(i*13)%TIS_STATE] = s[i]; }
+    s.set(u);
+    // Iota: inject Tribonacci round constant
+    s[0] = gf3Add(s[0], TIS_RC[r]);
+  }
+}
+
+function deriveIdentityTrits(canonicalUrl: string): number[] {
+  const state = new Uint8Array(TIS_STATE);
+  const bytes = new TextEncoder().encode(canonicalUrl);
+  const trits: number[] = [];
+  for (const b of bytes) { trits.push(...tisByteToTrits(b)); }
+  // Padding: [1, 0*, 2]
+  trits.push(1);
+  while (trits.length % TIS_RATE !== TIS_RATE - 1) { trits.push(0); }
+  trits.push(2);
+  // Absorb in TIS_RATE-trit blocks
+  for (let off = 0; off < trits.length; off += TIS_RATE) {
+    for (let i = 0; i < TIS_RATE; i++) {
+      state[i] = gf3Add(state[i], trits[off + i] ?? 0);
+    }
+    tisPermute(state);
+  }
+  // Squeeze: lift GF(3) {0,1,2} → Rep C {1,2,3}
+  return Array.from(state.slice(0, TIS_RATE)).map(v => v + 1);
+}
+
+function canonicaliseUrl(raw: string): string {
+  const noFrag  = raw.split("#")[0];
+  const noQuery = noFrag.split("?")[0];
+  try {
+    const u    = new URL(noQuery);
+    const host = u.hostname.toLowerCase();
+    const isDefaultPort =
+      (u.protocol === "https:" && (u.port === "443" || u.port === "")) ||
+      (u.protocol === "http:"  && (u.port === "80"  || u.port === ""));
+    const port = isDefaultPort ? "" : (u.port ? `:${u.port}` : "");
+    const path = u.pathname === "/" ? "" : u.pathname;
+    return `${u.protocol}//${host}${port}${path}`;
+  } catch { return noQuery.toLowerCase(); }
+}
+```
+
+### 7.5 Extension — popup.js / report.js
+
+The address string returned by the server already contains the identity segment. The popup renders it in two colours using a split on ` · `:
+
+```javascript
+// popup.js — renderAddress()
+const parts     = r.address.split(" · ");
+const classAddr = parts[0] || r.address;
+const identAddr = parts[1] || "";
+
+el("address").innerHTML =
+  `<span style="color:var(--gold)">${esc(classAddr)}</span>` +
+  (identAddr
+    ? ` <span style="color:var(--fg-dim)">·</span>` +
+      ` <span style="color:var(--sky)"
+         title="Identity Anchor — derived from TernarySponge(URL). Uniquely identifies this specific site."
+        >${esc(identAddr)}</span>`
+    : "");
+```
+
+---
+
+## 8. Test Vectors
+
+### 8.1 Canonical URL Normalisation
+
+The following URL pairs must produce **identical** canonical forms and therefore **identical** identity trits:
+
+| Input URL | Canonical Form |
+|---|---|
+| `https://google.com` | `https://google.com` |
+| `https://google.com/` | `https://google.com` |
+| `HTTPS://GOOGLE.COM` | `https://google.com` |
+| `https://google.com:443` | `https://google.com` |
+| `https://google.com/#results` | `https://google.com` |
+
+The following URL pairs must produce **different** canonical forms and therefore **different** identity trits:
+
+| URL A | URL B | Reason |
+|---|---|---|
+| `https://google.com` | `http://google.com` | Scheme differs |
+| `https://google.com` | `https://www.google.com` | Subdomain differs |
+| `https://google.com` | `https://bing.com` | Host differs |
+| `https://example.com/app` | `https://example.com/blog` | Path differs |
+
+### 8.2 Wire Format Verification
+
+```
+54-trit address (all 1s): [1,1,...,1] × 54, CGUID=1 (CG1=1, CG2=1)
+Wire:  0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55
+       (13 bytes of 0x55 = four trits of value 1, + byte 13 = 0x55 for CG1=1, CG2=1, plus D/I trits)
+
+54-trit address (all 3s): [3,3,...,3] × 54, CGUID=9 (CG1=3, CG2=3)
+Wire:  0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
+       (14 bytes of 0xFF = four trits of value 3 per byte)
+
+Forgery detection: any byte containing 0b00 in any 2-bit slot must trigger rejection.
+Example: 0x40 = 0100 0000 → trit slot 0 = 0b01 (valid), trit slot 1 = 0b00 → FORGERY
+```
+
+### 8.3 Collision Verification
+
+The following URL pairs should produce **different** identity trits despite potentially identical classification trits:
+
+```
+google.com    vs   bing.com      — same classification profile, different identity
+facebook.com  vs   instagram.com — same classification profile, different identity
+```
+
+### 8.4 CGUID Assignment — Collision Case
+
+Demonstrates that two URLs producing the same canonical form share one identity anchor and are assigned sequential CGUIDs:
+
+```
+URL A:  https://example.com
+URL B:  https://example.com/    ← trailing slash stripped by canonicaliseUrl()
+
+canonicaliseUrl("https://example.com")  → "https://example.com"
+canonicaliseUrl("https://example.com/") → "https://example.com"
+
+Both derive identical identity anchor: IdentitySponge("https://example.com")
+
+Registry behaviour:
+  Register URL A → identity_anchor = [2,1,1,...], CGUID = 1  (first registrant)
+  Register URL B → same identity_anchor             CGUID = 2  (collision slot)
+
+Wire encoding byte 13 (bits 3:0):
+  URL A:  CG1=1 (0b01), CG2=1 (0b01)  → 0b00000101
+  URL B:  CG1=1 (0b01), CG2=2 (0b10)  → 0b00000110
+
+Full addresses differ only in byte 13:
+  URL A:  WO:... · ID:<anchor> [CGUID:1]
+  URL B:  WO:... · ID:<anchor> [CGUID:2]
+```
+
+Zero is never a valid CG1 or CG2 value. There is no "no-CGUID" state — every entry begins at CGUID=1. The CGUID is the only component of the address that is purely endpoint-local; D1–D27 and I1–I27 are both full routing coordinates.
+
+---
+
+## 9. Migration from v2.3.x
+
+### 9.1 Breaking Changes
+
+| Component | v2.3.x | v2.5.0 |
+|---|---|---|
+| CubeAddr size | 27 trits | 54 trits |
+| Wire format | 7 bytes + 2-bit pad | 14 bytes (2 reserved slots) |
+| Wire version tag | `0x23` | `0x25` |
+| Address display | `WO:2323 ... PE:313` | `WO:2323 ... PE:313 · ID:<27 trits>` |
+| Scan response | `address`: classification only | `address`: full 54-trit with `·` delimiter |
+| Routing address   | 27-trit classification only | Full 54-trit address — Hamming distance on all 54 trits |
+| Identity hash | n/a | IdentitySponge — state=54, rate=27, rounds=27 |
+
+### 9.2 Preserved Behaviours (Non-Breaking)
+
+- All 27 derivation rules — **unchanged**
+- GF(3) projection formula — **unchanged**
+- Rep C {1,2,3} encoding — unchanged and extended to identity layer
+- Zero-as-forgery-sentinel — unchanged and extended to identity layer
+- HPTP-mandatory rule (trits 15+16 = 3,3) — **unchanged**
+- Scan hash — now **IdentitySponge(classification trits)**, same primitive as identity derivation. No binary hashes anywhere in the pipeline.
+- Check Digit (CRD) formula — **unchanged**
+- All five scores (Trust Index, Data Trust, Privacy, Maturity, Complexity) — **unchanged**
+- All 27 dimension meanings and confidence scores — **unchanged**
+
+### 9.3 Existing Registry Record Migration
+
+1. Export all v2.3.x records: name, url, address, registered_at.
+2. For each record: apply `canonicalise_url()` to the stored URL (v2.3.x may have stored raw URLs), then derive identity trits from the canonical form.
+3. Append identity trits to stored classification address.
+4. Assign CGUID=1 to all migrated records (first registrant by definition — no collision possible on initial migration).
+5. Update TRN record with full 54-trit address, `identity_trits`, and `cguid` fields.
+6. Increment wire version on all stored packets to `0x25`.
+7. Mark migration complete with timestamp.
+
+> **Backward compatibility note:** v2.3.x nodes understand only 27-trit addresses. v2.5.0 packets (version tag `0x25`, 14 bytes) must be refused by v2.3.x nodes — the version tag exists precisely for this. v2.3.x and v2.5.0 nodes are not interoperable for routing. Migration is a hard cutover, not a rolling upgrade.
+
+---
+
+## 10. Open Questions and Future Extensions
+
+### 10.1 TDNS Identity Sponge Test Suite
+
+The `identity.rs` module includes a self-contained test suite covering: determinism, Rep C output range, zero-exclusion, distinct-URL collision, scheme/subdomain sensitivity, canonical collapse, output length, empty input, byte-to-trit coverage for all 256 values, Pi permutation cycle completeness, and Tribonacci round-constant correctness. These tests reside in `services/tdns-v2/src/identity.rs` under `#[cfg(test)]` and must pass in CI before deployment. The TDNS Identity Sponge does not depend on `ternary_lattice.rs` internals and is not affected by the March 2026 TL-DSA bug fixes.
+
+### 10.2 Multi-URL Org Entities
+
+Any entity operating across multiple URLs — whether cross-domain (`google.com`, `google.co.uk`, `google.de`) or sub-path (`example.com/app`, `example.com/blog`) — can be grouped under a single **Org Entity** in the registry. The two cases are structurally identical: each URL independently derives its own 27-trit identity anchor and is registered as a standalone `.plm` entry. The org is a registry-layer grouping with no effect on cryptographic derivation.
+
+**Data structure:**
+
+```
+OrgEntity {
+  org_name:               string          // e.g. "google" → resolved as "google.org.plm"
+  display_name?:          string          // optional human-readable label
+  classification_address: string          // from primary member scan
+  members: [
+    {
+      plm_name:       string              // individual .plm name
+      url:            string              // original URL
+      canonical_url:  string              // normalised form
+      address:        string              // full 54-trit address
+      identity_trits: number[]            // I1–I27
+      cguid:          number              // 1–9
+      added_at:       string
+    }
+  ]
+}
+```
+
+**API:**
+
+| Method | Endpoint | Body / Params | Action |
+|--------|----------|---------------|--------|
+| `POST` | `/api/tdns/register` | `{ name, url, org_name? }` | Register URL; create or join org if `org_name` supplied |
+| `POST` | `/api/tdns/org/create` | `{ org_name, display_name? }` | Create empty org before adding members |
+| `POST` | `/api/tdns/org/add-url` | `{ org_name, plm_name }` | Link an already-registered `.plm` to an org |
+| `GET`  | `/api/tdns/org/:name` | — | Resolve org — returns all members with addresses |
+| `GET`  | `/api/tdns/orgs` | — | List all org entities |
+
+**Resolution behaviour:** `GET /api/tdns/resolve/google-uk.plm` returns the individual entry as normal, with an additional `org` block listing all sibling members. A client resolving any member of an org gets the full picture in one call.
+
+**Sub-path example:**
+
+```
+Register:  example.com/app   → app-example.plm   [org: example-co]
+Register:  example.com/blog  → blog-example.plm  [org: example-co]
+Register:  example.com/shop  → shop-example.plm  [org: example-co]
+
+Resolve:   GET /api/tdns/org/example-co
+→ {
+    org_name: "example-co",
+    classification_address: "WO:2323 ... PE:313",
+    members: [
+      { plm_name: "app-example.plm",  url: "https://example.com/app",  address: "... · ID:<anchor-A>" },
+      { plm_name: "blog-example.plm", url: "https://example.com/blog", address: "... · ID:<anchor-B>" },
+      { plm_name: "shop-example.plm", url: "https://example.com/shop", address: "... · ID:<anchor-C>" },
+    ]
+  }
+```
+
+Each sub-path derives a unique identity anchor — the sponge sees different inputs and produces different output. The org record is what connects them semantically.
+
+### 10.3 Extension to I1–I54 (v3.0 candidate)
+
+The IdentitySponge can produce arbitrarily many output trits via multi-block squeezing. A future version could extend the identity layer to 54 trits, producing a full **81-trit address** (27 classification + 54 identity) with collision probability 3⁻⁵⁴ ≈ 1.7 × 10⁻²⁶. Reserved for v3.0 if registry scale ever demands it.
+
+
+---
+
+## Glossary
+
+| Term | Definition |
+|------|------------|
+| **TDNS** | Ternary Domain Name System — PlenumNET's ontological naming protocol |
+| **TIS** | TDNS Identity Sponge — the dedicated ternary sponge in `identity.rs` used to derive identity anchors and scan hashes |
+| **GF(3)** | Galois Field of order 3 — arithmetic modulo 3, producing values {0, 1, 2} |
+| **Rep C** | Representation C — the canonical trit encoding {1, 2, 3} used throughout TDNS; zero is the forgery sentinel and never appears in legitimate output |
+| **HPTP** | Hyperplane Transfer Protocol — PlenumNET's femtosecond-resolution timing protocol; mandatory when D15+D16 = 3,3 |
+| **CRD** | Check Digit — a value 1–9 derived as `(T1−1)×3 + T2` from the first two output trits of the scan sponge. Changes if the site's classification trits shift between scans. Displayed as "CRD: N" in the extension popup. |
+| **CGUID** | Collision GUID — a value 1–9 that disambiguates registry entries sharing the same 27-trit identity anchor. Encoded in the two trailing trit slots (CG1, CG2) of the wire format. CGUID=1 is the default for the first registrant. |
+| **TL-DSA** | Ternary Lattice Digital Signature Algorithm — PlenumNET's post-quantum signature scheme in `ternary_lattice.rs`. Separate from TIS. |
+| **CON** | Cube Overlay Network — inter-cube routing infrastructure |
+| **CRS** | Cube Registration Service — registry for inter-cube topology |
+| **.plm** | PlenumNET name suffix — the top-level name zone for TDNS registry entries (e.g., `google.plm`) |
+| **Org Entity** | A registry-layer grouping of multiple `.plm` entries under one handle, used for multi-domain or sub-path deployments |
+
+---
+
+## Appendix A — Mathematical Consistency Check
+
+```
+ADDRESS SPACE
+  3⁵⁴ = 58,149,737,003,040,059,690,390,169 unique addresses
+  3²⁷ × 3²⁷ = 3⁵⁴  — classification space × identity space (symmetric)
+
+WIRE FORMAT
+  56 trit slots × 2 bits = 112 bits = 14 bytes — 54 functional + 2 reserved
+
+TERNARY GEOMETRY
+  54 = 27 + 27 = CLASSIFICATION_WIDTH + IDENTITY_WIDTH
+  54 = 2 × 27 = symmetric dual-layer — both layers equal width, equal collision space
+
+ROUTING HYPERCUBE
+  3²⁷ = 7,625,597,484,987 = maximum distinct positions in the 27D routing space
+  Identity layer maps directly to routing coordinates
+  Max routing diameter = 27 hops
+
+COLLISION BOUND
+  3⁻²⁷ ≈ 1.31 × 10⁻¹³  — collision probability per URL pair (same base identity anchor)
+  CGUID resolves up to 9 simultaneous collisions on the same anchor
+  P(CGUID overflow at 32B entries) ≈ 3.5 × 10⁻¹⁸ — operationally impossible
+  Effective unique registry slots: 3²⁷ × 9 = 68,630,377,364,883 ≈ 68.6 trillion
+
+FORGERY SENTINEL
+  A legitimate address derived from GF(3)+1 or TernarySponge is NEVER zero by construction
+  Zero = structurally impossible in legitimate addresses = forgery proof
+```
+
+---
+
+## Appendix B — Invariant Compliance
+
+| Invariant | Status | Notes |
+|---|---|---|
+| INVARIANT 1: Geometry IS the System | ✓ COMPLIANT | Identity trits are coordinates in the 27D routing space. IdentitySponge keeps derivation entirely in trit space. |
+| INVARIANT 2: First-position derivation — no tuning parameters | ✓ COMPLIANT | Classification derivation unchanged. Identity uses Ternary Sponge with no parameters. |
+| INVARIANT 3: Rep C {1,2,3} — zero excluded | ✓ COMPLIANT | Identity trits use identical encoding. Sponge never produces 0 in Rep C output. |
+| INVARIANT 4: Constants bound, not chosen | ✓ COMPLIANT | 13 = T₇ = one ternary radian. Derived, not chosen. |
+| INVARIANT 5: HPTP-mandatory is structural | ✓ COMPLIANT | HPTP rule applies to D15+D16 in classification layer. Unchanged. |
+| INVARIANT 6: Salvi Epoch | ✓ COMPLIANT | No timing changes. |
+| NEVER use 0 as a trit value | ✓ COMPLIANT | Both layers enforce Rep C. Wire decoder rejects any 0b00 trit. |
+| NEVER replace geometric routing | ✓ COMPLIANT | Identity trits enhance geometric routing — they ARE the routing coordinates. |
+| NEVER change derivation formula | ✓ COMPLIANT | Classification derivation is unchanged. Identity uses Ternary Sponge — a separate, appropriate primitive. |
+
+
+---
+
+*TDNS v2.5.0 — Dual-Layer 54-Trit Addressing and Identity Anchor Protocol*  
+*Capomastro Holdings Ltd. — Applied Physics Division — Alberta, Canada*  
+*Patent(s) Pending — All Rights Reserved*

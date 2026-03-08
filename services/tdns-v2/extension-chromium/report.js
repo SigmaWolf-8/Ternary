@@ -27,16 +27,17 @@
     // Header meta
     el("r-url").textContent       = result.meta?.url || "—";
     el("r-timestamp").textContent = "Scanned: " + new Date(result.scannedAt).toLocaleString();
-    el("r-tier").textContent      = `Tier: ${tier.toUpperCase()} — ${result.scan_hash_algo || "sha256-js"}`;
+    const algoLabel = result.scan_hash_algo === "tis-27" ? "TIS-27" : result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
+    el("r-tier").textContent      = `Tier: ${tier.toUpperCase()} — ${algoLabel}`;
 
     // Address
     el("r-address").childNodes[0].textContent = result.address + " ";
     el("r-hptp").style.display = result.hptp_mandatory ? "inline-block" : "none";
-    el("r-crd").textContent     = result.crd; // Check Digit
-    el("r-hash-algo").textContent = result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
-    el("r-hash").textContent    = (result.scan_hash || "").substring(0, 32) + "…";
+    el("r-crd").textContent     = result.crd;
+    el("r-hash-algo").textContent = algoLabel;
+    el("r-hash").textContent    = (result.scan_hash || "").substring(0, 27) + (result.scan_hash && result.scan_hash.length > 27 ? "…" : "");
     el("r-full-hash").textContent= result.scan_hash || "—";
-    el("r-algo-name").textContent= result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256 (JS path)";
+    el("r-algo-name").textContent= algoLabel;
 
     // Scores
     const scoreDefs = [
