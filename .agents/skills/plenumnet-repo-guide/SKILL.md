@@ -201,6 +201,12 @@ Key properties:
 
 **Critical structural fact**: 13 does NOT generate Z₃₆₄ because 364 = 13 × 28. For the full circle modulus, a different coprime generator is needed (e.g., step 11, since gcd(11, 364) = 1). See INVARIANT 10.
 
+**The (13, 1093) prime repunit bracket**: R₃ = 13 and R₇ = 1093 are the only prime repunits in the operational hierarchy (R₃–R₉). This is not accidental — it is forced by repunit structure and deliberately retained because every composite repunit introduces algebraic factors that fragment required cyclic groups. Their primality has specific consequences:
+
+- **R₃ = 13 (intra-cube)**: Governs 13 dimensions, 13 moons, 13° per radian, stride-13 sponge permutation. Primality guarantees coprimality with all state widths not divisible by 13 (see INVARIANT 10).
+- **R₇ = 1093 (inter-cube / multi-year)**: Governs the 3-year harmonic (3 × 364 + 1). Because 1093 is prime, any non-zero residue modulo 1093 generates the full multiplicative group Z*₁₀₉₃, simplifying proofs about complete cycles in extended diffusion layers.
+- **Combined guarantee**: The pair brackets the operational range — 13 for geometry, 1093 for extended arithmetic. Their primality ensures no unexpected factorization can break cyclic properties assumed by routing, scheduling, and cryptographic subsystems.
+
 Source: `shared/repunit-circles.ts` (211 lines), `ternary-math/src/repunit_circles.rs` (132 lines)
 
 #### 1.2.2 Repunit Checksum
