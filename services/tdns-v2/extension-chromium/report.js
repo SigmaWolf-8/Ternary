@@ -223,6 +223,11 @@
     }
     if (el("r-tech")) el("r-tech").innerHTML = techHtml;
 
+    if (tier !== "pro") {
+      el("report-root").classList.add("report-blur");
+      el("upgrade-overlay").classList.add("active");
+    }
+
   }
 
   // Load from chrome.storage.local
