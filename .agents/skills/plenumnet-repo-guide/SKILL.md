@@ -1,6 +1,6 @@
 ---
 name: plenumnet-repo-guide
-description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository. Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS ontological addressing, Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure, quantum ternary modules, XPlenum RISC-V extension, and all codebase conventions. Use when working on any PlenumNET feature, reviewing architecture, or onboarding.
+description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 1,252+ commits, 80/80 milestones). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure, quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, TIS-27 sponge key derivation, 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
 ---
 
 # PlenumNET Repository — Complete A-Z Guide
@@ -8,10 +8,11 @@ description: Complete A-Z structural guide to the PlenumNET / Salvi Framework re
 Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 Patent(s) Pending — All Rights Reserved — Applied Physics Division
 Author: RSalvi@Salvigroup.com | OWNER: SigmaWolf-8 | REPO: Ternary
+Verified against live repo: March 2026 | Commits: 1,252+ | Milestones: 80/80
 
 ---
 
-## ⚠ ARCHITECTURAL INVARIANTS — DO NOT VIOLATE
+## ⚠ ARCHITECTURAL INVARIANTS — ABSOLUTE RULES THAT CANNOT BE BROKEN
 
 These rules are load-bearing. Violating any of them breaks the mathematical consistency of the entire framework. They are not suggestions. They are structural axioms.
 
@@ -21,17 +22,17 @@ Every component in PlenumNET derives from ternary geometry. The geometry is not 
 
 - **Routing** = Hamming distance in a 13D ternary hypercube (trit flips)
 - **Addressing** = 27-trit coordinates in a 27D ontological space
-- **Key derivation** = BLAKE3 hash of topological adjacency (edge position in cube)
+- **Key derivation** = TIS-27 sponge hash of topological adjacency (54-trit GF(3), rate=27, rounds=27, stride=13)
 - **Forgery detection** = Rep C zero-exclusion property (structural, not bolted on)
 - **Calendar** = 13 × 28 = 364 = 111111₃ (base-3 repunit)
 - **Timing** = Femtosecond precision bound to HPTP-mandatory addresses
 - **Agent scheduling** = (position × 13) mod 28 coprime walk on Z₂₈
 
-**DO NOT** replace geometric routing with routing tables.
-**DO NOT** replace Rep C {1,2,3} with {0,1,2} in TDNS addresses.
-**DO NOT** replace 364° with 360°, π=14 with π≈3.14159, or 13 radians with 57.3°.
-**DO NOT** decouple cryptographic keys from topological adjacency.
-**DO NOT** replace the first-position derivation formula with arbitrary thresholds.
+🚫 **DO NOT** replace geometric routing with routing tables.
+🚫 **DO NOT** replace Rep C {1,2,3} with {0,1,2} in TDNS addresses.
+🚫 **DO NOT** replace 364° with 360°, π=14 with π≈3.14159, or 13 radians with 57.3°.
+🚫 **DO NOT** decouple cryptographic keys from topological adjacency.
+🚫 **DO NOT** replace the first-position derivation formula with arbitrary thresholds.
 
 ### INVARIANT 2: First-Position Derivation — No Tuning Parameters
 
@@ -44,9 +45,9 @@ trit = gf3 + 1                   lift from GF(3) {0,1,2} to Rep C {1,2,3}
 
 Boundaries between trit values fall at exactly N/3 and 2N/3. These are derived from the definition of ternary quantization. There are NO tuning parameters, NO arbitrary thresholds, NO machine-learned weights. The math determines the boundaries.
 
-**DO NOT** add configurable thresholds to derivation rules.
-**DO NOT** replace `project_to_gf3` with any other quantization function.
-**DO NOT** add "confidence weighting" that changes derivation boundaries.
+🚫 **DO NOT** add configurable thresholds to derivation rules.
+🚫 **DO NOT** replace `project_to_gf3` with any other quantization function.
+🚫 **DO NOT** add "confidence weighting" that changes derivation boundaries.
 
 ### INVARIANT 3: Rep C (Bijective Ternary) — Zero Is Excluded
 
@@ -59,8 +60,8 @@ Zero is NEVER a valid trit value. Zero is a sentinel — its presence proves for
 | **B** (Standard) | {0, 1, 2} | Recurrence, analysis (internal only) |
 | **C** (Bijective) | {1, 2, 3} | Wire format, TDNS, crypto — THE external representation |
 
-**DO NOT** allow trit value 0 in CubeAddr, wire encoding, or any external-facing format.
-**DO NOT** confuse Rep B (internal) with Rep C (external).
+🚫 **DO NOT** allow trit value 0 in CubeAddr, wire encoding, or any external-facing format.
+🚫 **DO NOT** confuse Rep B (internal) with Rep C (external).
 
 ### INVARIANT 4: Constants Are Bound, Not Chosen
 
@@ -79,7 +80,7 @@ C = πd = 14d  →  C/r = 28  →  Full circle = 28 radians = 364°
 | τ | 1.8392867552... | Tribonacci constant: τ³ = τ² + τ + 1 |
 | Calendar | 13 × 28 = 364 | 13 moons of 28 days |
 
-If you change any one of these, you break all of them.
+🚫 If you change any one of these, you break all of them.
 
 ### INVARIANT 5: HPTP-Mandatory Is Structural
 
@@ -88,6 +89,26 @@ If trits 15 AND 16 are both 3 (dim 15 = Live, dim 16 = Real-time), the address i
 ### INVARIANT 6: The Salvi Epoch
 
 April 1, 2025 (2025-04-01T00:00:00Z) = Day Zero. All femtosecond timestamps are 128-bit integers measuring femtoseconds since this epoch. The epoch is a constant. Do not change it.
+
+### INVARIANT 7: TL-DSA Everywhere — No Ed25519, No Simulations
+
+The cryptographic stack uses TL-DSA for ALL digital signatures. Ed25519 was explicitly rejected — not post-quantum safe.
+
+🚫 **DO NOT** use `crypto.generateKeyPairSync('ed25519')` anywhere in the stack.
+🚫 **DO NOT** use HMAC-based "simulations" of TL-DSA — call the real Rust implementation.
+🚫 **DO NOT** use `crypto.sign(null, ...)` / `crypto.verify(null, ...)` — this is ed25519's API.
+🚫 If TypeScript needs TL-DSA, it MUST call through the Rust bridge or WASM path, never a Node.js simulation.
+
+### INVARIANT 8: Raw Binary Integers Must Be Decomposed Before Ternary Operations
+
+**CRITICAL LESSON (March 2026 TL-DSA bug fix):** Never feed raw binary integers directly into ternary sponge operations. All integer values MUST be decomposed into trit representations using `u16_to_trits()` / `u8_to_trits()` before entering any ternary hash, sponge, or derivation function. This was a systemic bug across `tl_dsa.rs` and `ternary_lattice.rs` that invalidated all previously generated keys.
+
+🚫 **DO NOT** pass raw binary integers to ternary sponge absorb functions.
+🚫 **DO NOT** skip trit decomposition when bridging binary↔ternary boundaries.
+
+### INVARIANT 9: The deployments/ Folder Is Sacred
+
+🚫 **NEVER modify the `deployments/` folder.** Zero exceptions.
 
 ---
 
@@ -100,7 +121,7 @@ PlenumNET operates entirely in base-3. Key facts:
 - `log₂(3) ≈ 1.585` — ternary has a **59% information density advantage** over binary
 - Three equivalent digit encodings: Rep A, Rep B, Rep C (see INVARIANT 3)
 - Internal computation uses Rep B. External/wire uses Rep C.
-- Conversion at module boundaries: `to_repr_a()`, `to_repr_c()`, etc.
+- Conversion at module boundaries: `to_repr_a()`, `to_repr_c()`, `from_repr_a()`, `from_repr_c()`, etc.
 
 Source: `libternary/src/lib.rs`
 
@@ -177,8 +198,6 @@ The 9-level confidence score (3²) extends the (3³) 27-trit address to 28 effec
 13-dimensional hypercube × 28 = 364 = full ternary circle (111111₃).
 Thus π = 14 exactly, and the circle is squared — structurally, not approximately.
 
-This is a perfect, self-contained summary that ties the practical collision-resolution mechanism (confidence 1–9 as the "28th factor") directly back to the foundational invariants and the ternary circle's closure.
-
 Confirmations from the math (all integer/exact within the system):
 
 ```
@@ -191,7 +210,7 @@ Confirmations from the math (all integer/exact within the system):
 28 / 2 = 14            (π = 14 exactly, since 2π = 28 radians = full circle)
 ```
 
-No approximations, no transcendentals leaking in — everything derives from powers of 3, Tribonacci alignments (T₇ = 13), and the repunit identity. The classical impossibility of squaring the circle (π transcendental → no finite compass/straightedge construction for equal-area square) is sidestepped because the system redefines the circle via integer ternary geometry: the "circle" is the 364° discrete structure, and the "square" emerges from 3² × (13 × something), closing perfectly.
+No approximations, no transcendentals leaking in — everything derives from powers of 3, Tribonacci alignments (T₇ = 13), and the repunit identity. The classical impossibility of squaring the circle (π transcendental → no finite compass/straightedge construction) is sidestepped because the system redefines the circle via integer ternary geometry: the "circle" is the 364° discrete structure, and the "square" emerges from 3² × (13 × something), closing perfectly.
 
 ### 1.7 GF(3) — Galois Field of Order 3
 
@@ -206,7 +225,7 @@ The lift from GF(3) to Rep C: `trit = gf3 + 1` (mapping {0,1,2} → {1,2,3}).
 
 ---
 
-## 2. TDNS v2.3 — Ternary Domain Name System
+## 2. TDNS v2.5 — Ternary Domain Name System
 
 ### 2.1 What It Does and Why
 
@@ -271,14 +290,14 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 3. **CRS** (`crs.rs`) registers the entity with name, zone, scan_hash, measurements, hptp_offset → TRN record
 4. **FTS** (`fts.rs`) monitors entity health via heartbeats
 5. **GLB** (`glb.rs`) routes packets using geometric forwarding
-6. **CON** (`overlay.rs`) encrypts inter-node tunnels with BLAKE3-derived keys
+6. **CON** (`overlay.rs`) encrypts inter-node tunnels with TIS-27 sponge-derived keys (context: `PlenumNET-CON-v2.5`)
 
 ### 2.5 Scan Hash Type Tags
 
 | Tag | Algorithm |
 |-----|-----------|
 | `0x01` | SHA-256 |
-| `0x02` | BLAKE3 |
+| `0x02` | TIS-27 sponge |
 | `0x03` | TL-DSA signature |
 | `0x04` | Composite (multi-hash) |
 
@@ -292,7 +311,7 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 
 ### 2.7 TDNS Module Map
 
-`services/tdns-v2/src/`:
+`services/tdns-v2/src/` — 19 source modules + bin/:
 
 | File | Purpose |
 |------|---------|
@@ -306,19 +325,19 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 | `trn.rs` | TRN (Ternary Resource Name) records |
 | `fts.rs` | FTS (Fault Tolerance Service) — heartbeat, suspect/dead/recovered |
 | `glb.rs` | GLB (Geometric Load Balancer) — point/multicast forwarding, redirect, dead set |
-| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, BLAKE3 keys, rekey |
+| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, TIS-27 sponge keys, rekey |
 | `subcube.rs` | SubCube multicast addressing, wildcard |
 | `routing.rs` | NeighborMap, greedy geometric routing |
 | `bridge.rs` | Metatronic Bridge — .plm→TDNS / legacy DNS resolution |
-| `wire.rs` | Packet wire protocol (version 0x23), BLAKE3 integrity, heartbeat encoding |
-| `api.rs` | 11 HTTP API endpoints, ApiRouter, version "2.3.2" |
+| `wire.rs` | Packet wire protocol (version 0x25), TIS-27 integrity, heartbeat encoding |
+| `identity.rs` | Identity management and ownership proofs |
+| `storage.rs` | Persistent storage layer for TRN records |
+| `api.rs` | HTTP API endpoints, ApiRouter |
 | `lib.rs` | Crate root, module re-exports |
 
 Binaries:
 - `src/bin/tdns_scan.rs` — CLI: scan, compare, describe
 - `src/bin/tdns_server.rs` — HTTP server (port 3927 default)
-
-Tests: `tests/e2e.rs` (9 tests), `tests/integration.rs` (12 scenarios)
 
 ---
 
@@ -346,6 +365,8 @@ In a 13D ternary hypercube:
 
 ### 3.2 Inter-Cube Infrastructure Services (4)
 
+Combined: 3,553 lines Rust, 57 tests, 4-node Docker deployment, 11 HTTP endpoints.
+
 **GLB — Geometric Load Balancer** (`glb.rs`)
 - Point forwarding: greedy geometric routing via NeighborMap
 - SubCube multicast: fan-out to all neighbors matching sub-cube mask
@@ -354,12 +375,12 @@ In a 13D ternary hypercube:
 
 **CON — Cube Overlay Network** (`overlay.rs`)
 - PQ-encrypted tunnels between adjacent nodes
-- **Keys derived from topology**: BLAKE3 hash of (min_addr, max_addr, shared_secret)
+- **Keys derived from topology**: TIS-27 sponge of (min_addr, max_addr, shared_secret) with context `PlenumNET-CON-v2.5`
 - Key rotation: `rekey_all()` increments epoch, re-derives all link keys
 - Traffic accounting: bytes sent/received per link
 - Link state: Active / Down / Rekeying
 
-**WHY topology-derived crypto matters**: Every edge in the hypercube gets a unique key pair derived from the geometric relationship between the two endpoints. The cryptographic layer is structural — baked into the geometry. You cannot spoof a key without occupying the correct geometric position.
+**WHY topology-derived crypto matters**: Every edge in the hypercube gets a unique key pair derived from the geometric relationship between the two endpoints. The cryptographic layer is structural — baked into the geometry. You cannot spoof a key without occupying the correct geometric position. All arithmetic stays in GF(3) — no binary hash primitives, no domain crossings.
 
 **CRS — Cube Registration Service** (`crs.rs`)
 - Entity registration with scan measurements
@@ -393,7 +414,7 @@ Source: `shared/metatronic-cube.ts` — METATRONIC_DIM=13, METATRONIC_VERTICES=1
 
 ### 4.1 What It Does and Why
 
-HPTP provides **femtosecond-precision time synchronization** (10⁻¹⁵ seconds). This is not just an engineering convenience — it is structurally required by HPTP-mandatory addresses (trits 15+16 = 3,3).
+HPTP provides **femtosecond-precision time synchronization** (10⁻¹⁵ seconds). This is structurally required by HPTP-mandatory addresses (trits 15+16 = 3,3).
 
 **Why femtosecond matters**:
 - FINRA 613: ≤50ms drift from NIST atomic clock
@@ -421,11 +442,13 @@ Source: `server/salvi-core/femtosecond-timing.ts`
   - Cryptographically signed timing certificates
   - TimingVerifier for compliance checks
 
+- **Kernel HPTP** (`src/kernel/src/hptp/`): 1,352 LOC, supports 7 clock sources (Local, GPSDO, Atomic Rubidium, Atomic Cesium, Optical Lattice, Chip-Scale, Network Peer), 5 precision levels (Millisecond → Femtosecond)
+
 ### 4.4 HPTP in TDNS Wire Protocol
 
 Wire packets include femtosecond timestamps. HPTP-mandatory packets (destination has trits 15+16=3,3) MUST have valid HPTP timing — the wire protocol enforces this via the HPTP_MANDATORY flag.
 
-Heartbeat packets carry `(hptp_offset_ns, sequence_number)` for continuous clock synchronization.
+Heartbeat packets carry `(hptp_offset_ns, sequence_number)` for continuous clock synchronization. 42 global calendar system conversions synchronized.
 
 ---
 
@@ -434,11 +457,6 @@ Heartbeat packets carry `(hptp_offset_ns, sequence_number)` for continuous clock
 ### 5.1 What It Does and Why
 
 The TSA provides **cryptographic proof-of-existence timestamps** per RFC 3161. It is a digital notary — it proves a document existed at a specific point in time, with cryptographic non-repudiation.
-
-**Why it matters**:
-- Legal admissibility: RFC 3161 timestamps are recognized in most jurisdictions
-- Regulatory compliance: SOX, GDPR, eIDAS, FINRA require timestamped audit trails
-- Tamper evidence: Merkle tree audit log makes retroactive changes detectable
 
 ### 5.2 TSA Features
 
@@ -508,27 +526,32 @@ Source: `server/crypto-utils.ts`
 | Algorithm | Purpose | Security Levels |
 |-----------|---------|-----------------|
 | **TL-DSA** (Ternary Lattice DSA) | Digital signatures | 44 / 65 / 87 |
-| **TL-KEM** | Key encapsulation | — |
+| **TL-KEM** | Key encapsulation | 512 / 768 / 1024 |
 | **Phase Encryption** | Data encryption | 4 modes |
-| **BLAKE3** | Hashing, key derivation, integrity | — |
+| **TIS-27 sponge** | Hashing, key derivation, integrity (replaced BLAKE3) | — |
 | **RSA-4096** | Classical signatures (dual-sig with TL-DSA) | — |
+| **AES-256-GCM** | Token encryption at rest | — |
 
-TL-DSA uses **integer NTT** for efficient polynomial multiplication and **AVX2 vectorization** for performance. Benchmarks in `shared/constants.ts`:
+TL-DSA uses **integer NTT** for efficient polynomial multiplication and **AVX2 vectorization** for performance. Benchmarks:
 - TL-DSA-44: 1,220 μs
 - TL-DSA-65: 1,700 μs  
 - TL-DSA-87: 2,470 μs (5.9× speedup over reference)
 
-### 6.4 Topology-Derived Cryptography (CON)
+### 6.4 TL-DSA Bug Fix History (March 2026 — CAUTIONARY)
 
-Each edge in the hypercube gets a unique BLAKE3-derived tunnel key:
+Eight bugs fixed in `tl_dsa.rs` and `ternary_lattice.rs`: broken `sample_challenge`, wrong matrix dims, zero-init secret keys, raw binary integers fed into ternary sponge (see INVARIANT 8). Added `u16_to_trits()` / `u8_to_trits()`. **All previously generated keys incompatible.**
 
-```rust
-let (out_key, in_key) = derive_link_keys(&addr_a, &addr_b, &shared_secret);
+### 6.5 Topology-Derived Cryptography (CON)
+
+Each edge in the hypercube gets a unique TIS-27 sponge-derived tunnel key:
+
+```
+derive_key(context="PlenumNET-CON-v2.5", material=[addr_a ++ addr_b ++ shared_secret]) → 32 bytes
 ```
 
-The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
+The TIS-27 sponge (54-trit state, rate=27, rounds=27, stride=13) operates entirely in GF(3) — no binary hash primitives. The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
 
-### 6.5 6-Phase Capability-Based Security
+### 6.6 6-Phase Capability-Based Security
 
 Authorization uses unforgeable, self-contained, bearer-verified capability tokens:
 
@@ -543,15 +566,46 @@ Authorization uses unforgeable, self-contained, bearer-verified capability token
 
 Source: `server/services/capability-service.ts`, `capability-certificates.ts`, `capability-hardware-binding.ts`, `capability-mesh.ts`, `capability-audit-events.ts`
 
-### 6.6 CNSA 2.0 Compliance
+### 6.7 CNSA 2.0 Compliance
 
-Full CNSA 2.0 algorithm coverage for post-quantum readiness. Compliance page: `client/src/pages/compliance.tsx`
+11/11 algorithms implemented. AES-256, SHA-384/512, ML-KEM ×3 (via TL-KEM), ML-DSA ×3 (via TL-DSA), LMS (Ternary Lamport OTS), XMSS (partial — Merkle tree planned 2029). CMVP target: FIPS 140-3 Level 1. Compliance page: `client/src/pages/compliance.tsx`
+
+### 6.8 ZK Proof Layer (SignHere)
+
+Groth16-structured proofs (pi_a, pi_b, pi_c) with commitments and nullifiers from document hashes, tenant IDs, signer counts, HPTP timestamps. Source: `sign-here/server/services/zk.ts`
 
 ---
 
-## 7. Blockchain Witnessing & SFK Operations
+## 7. Rust Kernel Subsystems (`src/kernel/`)
 
-### 7.1 Hedera HCS Witnessing
+| Subsystem | ~LOC | Key Content |
+|-----------|------|-------------|
+| **crypto/** | 6,000+ | TL-DSA, TL-KEM, AES-256, SHA-2/3, sponge, CAVP, side-channel, formal_verify |
+| **vm/** | 3,000+ | **176-opcode ISA v2.1**, 27 regs, 64-bit, quantum-ternary opcodes (0xA0–0xAF), HptpProvider trait |
+| **network/** | 3,400 | torus (710), routing, T3P (461), TDNS (531), TTP (775), cnsa_profiles, metatronic_bridge |
+| **arch/** | 2,600 | x86_64, aarch64, RISC-V 64 boot sequences |
+| **security/** | 2,000 | Audit logging, capabilities, security domains, MAC policy |
+| **process/** | 1,900 | Context switching, IPC, scheduler, process table |
+| **compat/** | 1,700 | Binary↔ternary adapter, CryptoInteropBridge, gateway |
+| **drivers/** | 1,600 | Femtoclock driver, TPU driver |
+| **hptp/** | 1,350 | Certification, optical timing (311), protocol (592) — 7 clock sources, 5 precision levels |
+| **device/io/memory/fs/sync** | ~6,400 | Bus/DMA/interrupts, block/char I/O, page/heap, inodes, mutex/**phase_mutex** |
+
+Top-level kernel files: `ternary.rs` (974), `timing.rs` (433), `phase.rs` (362), `error.rs` (218), `lib.rs` (156).
+
+### 7.1 VM ISA v2.1 (176 opcodes)
+
+Backward-compatible: v1.0 (62) → v2.0 (160) → v2.1 (176). Added quantum-ternary simulation (0xA0–0xAF), atomics, SIMD, lattice crypto accel (ML-KEM/ML-DSA), FINRA audit logging, capability control. Mark-sweep GC, τ-derived constants. `HptpProvider` trait with `SimulatedHptp` and `LiveHptp`, 8-selector `ReadTime`.
+
+### 7.2 Bare-Metal Kernel Validation
+
+`src/kernel/bare-metal/`: 45+ self-tests exercising real kernel code (GF(3) arithmetic, boot sequences, femtosecond timing, phase encryption, VM components). Kani Rust Verifier + MIRI formal verification pipeline with 38 proof harnesses. GitHub Actions CI.
+
+---
+
+## 8. Blockchain Witnessing & SFK Operations
+
+### 8.1 Hedera HCS Witnessing
 
 Submits cryptographic witness hashes to a Hedera Consensus Service topic:
 - Immutable, ordered, timestamped proof of PlenumNET operations
@@ -561,7 +615,7 @@ Submits cryptographic witness hashes to a Hedera Consensus Service topic:
 
 Source: `server/salvi-core/blockchain-integrations.ts`, `server/services/hedera-witnessing-service.ts`
 
-### 7.2 SFK Operations Pipeline
+### 8.2 SFK Operations Pipeline
 
 Manages Salvi Framework Kernel operation lifecycle:
 
@@ -575,14 +629,14 @@ Fortified-tier operations submit SHA-256 result hashes to Hedera HCS for non-rep
 
 Source: `server/salvi-core/sfk-operations-api.ts`, `server/services/sfk-operations-service.ts`
 
-### 7.3 Additional Blockchain Integrations
+### 8.3 Additional Blockchain Integrations
 
 - **XRPL** (XRP Ledger): `services/blockchain/xrpl-service/`
 - **Algorand**: `services/blockchain/algorand-service/`, `contracts/algorand/`
 
 ---
 
-## 8. Tonal Diffusion System
+## 9. Tonal Diffusion System
 
 Network-wide time synchronization using FM timing packets:
 - Toroidal topology
@@ -594,9 +648,27 @@ Source: `services/tonal-field/` — TonalField, DiffusionSolver, PlenumMetrics
 
 ---
 
-## 9. Security Middleware & API Infrastructure
+## 10. Kong Konnect Gateway (33 services, 293 endpoints)
 
-### 9.1 Security Middleware Stack
+Config: `kong/`. Frontend: `client/src/pages/kong-konnect.tsx`. Both `getPlenumnetServices()` and `/api/kong/service-catalog` are synchronized.
+
+| Category | Services | Endpoints |
+|----------|----------|-----------|
+| Core | 16 | 153 |
+| Security | 3 | 83 |
+| Tools | 2 | 13 |
+| Reference | 3 | 9 |
+| Platform | 6 | 12 |
+| Admin | 3 | 23 |
+| **Total** | **33** | **293** |
+
+Key services: TSA (9), Hedera (6), SFK Operations (5), Capabilities (29), Inter-Cube (18), TDNS (11), Security Infrastructure (38), API Keys (16), Tribonacci (15), Ephemeris (4), GDPR (4), Tonal Diffusion (3), Resonance Detector (3), Entrainment (5), Metrics (1). Phase Encryption: 6 endpoints (batch split/recombine).
+
+---
+
+## 11. Security Middleware & API Infrastructure
+
+### 11.1 Security Middleware Stack
 
 | Layer | What | Why |
 |-------|------|-----|
@@ -608,7 +680,7 @@ Source: `services/tonal-field/` — TonalField, DiffusionSolver, PlenumMetrics
 | Double URL-decode | Path sanitization | Prevents encoding-based traversal |
 | execFile() only | No shell spawning | Eliminates shell injection entirely |
 
-### 9.2 API Key Management
+### 11.2 API Key Management
 
 - Generation, validation, rotation
 - Per-key rate limiting
@@ -617,7 +689,7 @@ Source: `services/tonal-field/` — TonalField, DiffusionSolver, PlenumMetrics
 
 Source: `server/services/api-key.service.ts`, `server/routes/api-keys.ts`
 
-### 9.3 Security Infrastructure Services
+### 11.3 Security Infrastructure Services
 
 Admin-protected backend services:
 - Security Audit Service (`server/services/security-audit.service.ts`)
@@ -627,7 +699,24 @@ Admin-protected backend services:
 
 ---
 
-## 10. Quantum Ternary Modules
+## 12. PlenumDB
+
+Ternary-encoded data storage demonstrating the 58.5% information density advantage. Live compression demo with benchmark validation endpoint.
+
+Source: `client/src/pages/ternarydb.tsx`, `compression.tsx`
+
+---
+
+## 13. SignHere / SalviSign
+
+Live at `SignHere.replit.app`. Full PlenumNET crypto pipeline (`sign-here/server/services/plenum.ts`): `secureDoc()` → phase-encrypt, `witnessSign()` → XRPL attestation, `getHPTP()` → femtosecond timestamp, `mlDsaSign()` → TL-DSA signature, `cnsa2SecureDocument()` → full CNSA 2.0 pipeline.
+
+Design system: `#090807` bg, `#D4A017` gold, `#E4DFD5` fg, Inter 13px, shadcn-style flat components, `#059669` emerald success.
+Live TSA fields: `stampResult.hptpTimestamp`, `.calendarContext.calendars`, `.merkleLeafHash`, `.accuracy`.
+
+---
+
+## 14. Quantum Ternary Modules
 
 Five shared modules provide classical simulation of quantum ternary operations:
 
@@ -643,7 +732,7 @@ Supporting: `complex-utils.ts` (complex arithmetic), `hamiltonian-constraints.ts
 
 ---
 
-## 11. 28-Dimension Agent Array
+## 15. 28-Dimension Agent Array
 
 Maps Z₂₈ cyclic positions to 28 parallel AI agents:
 
@@ -659,12 +748,11 @@ Source: `shared/agent-array.ts`, `client/src/pages/agent-array.tsx`
 
 ---
 
-## 12. XPlenum RISC-V Hardware Extension
+## 16. XPlenum RISC-V Hardware Extension
 
-Custom RISC-V extension integrated with CVA6:
-- 21 custom instructions for ternary security operations
-- 12 custom CSRs (Control/Status Registers)
-- PQC acceleration, compliance enforcement
+Custom RISC-V extension (custom-0 opcode space, 0x0B) integrated with CVA6:
+- 6 functional groups: ternary masking, domain isolation, CHERI capabilities, crypto primitives, trit encode/decode, signal processing
+- 22/22 tests passing. Yosys synthesis: 19,173-cell gate-level netlist
 
 Verilog RTL modules (`XPlenum/rtl/`):
 
@@ -684,63 +772,98 @@ Formal verification: `rtl/formal/`, `rtl/formal_local/`
 
 ---
 
-## 13. Repository Structure
+## 17. Standalone Crates & Libraries
 
-### 13.1 Top-Level Layout
+**libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
+**libternary-improvements/** — Enhancement staging area.
+**ternary-math/** — 4,488 LOC standalone crate (gf3, tribonacci, borromean, clifford, torus, ternary_circle + 5 modules).
+**wasm/** — 412 LOC browser deployment target.
+**Ternary Ephemeris** — `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`
+
+Testing infrastructure: Criterion benchmarks (395 LOC), fuzz targets (330 LOC: `fuzz_gateway`, `fuzz_trit_ops`, `fuzz_tryte_ops`), PropTest VM verification (348 LOC).
+
+Test totals: **1,306+** (1,011 Rust + 295 TypeScript across 10 vitest suites).
+
+---
+
+## 18. Repository Structure (74 top-level items, verified)
 
 ```
-/                           Root (Express.js + Vite full-stack app)
-├── client/src/pages/       26 React pages (landing, about, docs, admin, ...)
-├── client/src/components/  Shared components (sidebar, footer, nav, VM terminal, ...)
-├── server/                 Express.js backend
-│   ├── routes.ts           Main API routes
-│   ├── routes/             Sub-route modules (tsa, security, kong, hedera, ...)
-│   ├── services/           Backend services (TSA, capability, security audit, ...)
-│   ├── salvi-core/         Core framework (ternary ops, phase encryption, timing, blockchain)
-│   ├── storage.ts          IStorage interface + DatabaseStorage
-│   └── crypto-utils.ts     AES-256-GCM token encryption
-├── shared/                 Shared TypeScript modules
-│   ├── constants.ts        PLATFORM object (SINGLE SOURCE OF TRUTH)
-│   ├── schema.ts           Drizzle DB schema + Zod insert schemas
-│   ├── topology/           Toroidal addressing, GF(3) operations
-│   └── [math modules]      Circle, Tribonacci, Saturnian, quantum, agents
-├── services/               Microservices
-│   ├── tdns-v2/            TDNS v2.3.2 (Rust, 17 modules + 2 binaries)
-│   ├── inter-cube/         Inter-Cube Infrastructure (Rust)
-│   ├── blockchain/         Hedera, XRPL, Algorand services
-│   ├── payment-listener/   Payment processing
-│   ├── sfk-core-api/       SFK Operations Pipeline
-│   ├── pqti-service/       Post-Quantum TLS Inspection (Rust)
-│   ├── timing/             Femtosecond + Certification services
-│   └── tonal-field/        Tonal Diffusion System
-├── libternary/             Core ternary library (Rust)
-├── XPlenum/                RISC-V hardware extension (Verilog)
-├── cli/plenum-stamp/       RFC 3161 CLI tool
-├── contracts/              Smart contracts
-├── salvi_docs/specs/       Specifications
-├── docs/                   Architecture, security, legal docs
-└── deployments/            Deployment configs (DO NOT MODIFY)
+/                              Root (Express.js + Vite full-stack app)
+├── .github/                   CI workflows (ci, security-scan, license-check, owasp, codeql)
+├── XPlenum/                   RISC-V hardware extension (Verilog, 19K-cell netlist)
+├── attached_assets/           Static assets
+├── cli/plenum-stamp/          RFC 3161 CLI tool
+├── client/src/pages/          26 React pages (landing→whitepaper)
+├── client/src/components/     Shared components (sidebar, footer, nav, VM terminal, ...)
+├── contracts/                 Smart contracts (Algorand)
+├── deployments/               🚫 DO NOT MODIFY 🚫
+├── docs/                      Architecture, security, legal docs (docs/legal/INDEX.md)
+├── github-push/               Push automation scripts
+├── keys/                      Key material
+├── kong/                      Kong Konnect gateway (33 services, 293 endpoints)
+├── libternary/                Core ternary library (Rust, cdylib + WASM)
+├── libternary-improvements/   Enhancement staging
+├── salvi_docs/specs/          Specifications (15 modules, 7,300+ lines)
+├── script/ + scripts/         Build/utility scripts
+├── server/                    Express.js backend
+│   ├── routes.ts + routes/    API routes (tsa, security, kong, hedera, capabilities, ...)
+│   ├── services/              Backend services (TSA, capability, security audit, ...)
+│   ├── salvi-core/            Core framework (ternary ops, phase encryption, timing, blockchain)
+│   ├── crypto/                TL-DSA bridge
+│   ├── storage.ts             IStorage interface + DatabaseStorage
+│   └── crypto-utils.ts        AES-256-GCM token encryption
+├── services/                  8 microservices
+│   ├── tdns-v2/               TDNS v2.5 (Rust, 19 modules + 2 binaries)
+│   ├── inter-cube/            Inter-Cube Infrastructure (Rust, 57 tests)
+│   ├── blockchain/            Hedera, XRPL, Algorand services
+│   ├── payment-listener/      Payment processing
+│   ├── sfk-core-api/          SFK Operations Pipeline
+│   ├── pqti-service/          Post-Quantum TLS Inspection (Rust)
+│   ├── timing/                Femtosecond + Certification services
+│   └── tonal-field/           Tonal Diffusion System
+├── shared/                    Shared TypeScript modules
+│   ├── constants.ts           PLATFORM object (SINGLE SOURCE OF TRUTH)
+│   ├── schema.ts              Drizzle DB schema + Zod insert schemas
+│   ├── topology/              Toroidal addressing, GF(3) operations
+│   └── [math modules]         Circle, Tribonacci, Saturnian, quantum, agents
+├── sign-here/                 SalviSign e-signature platform
+├── src/kernel/                Rust kernel (~25,000+ LOC)
+│   ├── src/                   Main kernel (crypto, vm, network, arch, security, process, ...)
+│   ├── bare-metal/            Bare-metal validation (45+ tests, Kani/MIRI, 38 proofs)
+│   └── ISA_REFERENCE.md       176-opcode ISA v2.1 reference
+├── ternary-math/              Standalone math crate (4,488 LOC)
+├── tests/                     TypeScript test suites (295 tests, 10 suites)
+├── wasm/                      Browser deployment target (412 LOC)
+└── [config files]             Cargo.toml, package.json, Dockerfile, docker-compose.yml, etc.
 ```
 
-### 13.2 PLATFORM Constants (Single Source of Truth)
+**26 Client Pages** (verified): about, admin, agent-array, api-demo, api-keys, calendar, compliance, compression, contact, distribution, docs, fpga-benchmarks, github-manager, hptp-demo, isa-security-paper, kong-konnect, landing, legal, not-found, quantum-sim, ternarydb, thirteen-moon, tribonacci-28ds, tsa, vm-demo, whitepaper.
+
+### 18.1 PLATFORM Constants (Single Source of Truth)
 
 ALL numeric values used in the frontend and docs MUST come from `shared/constants.ts` → `PLATFORM` object. Never hardcode numbers. If you need a new constant, add it to PLATFORM.
 
 ---
 
-## 14. Development Rules & Conventions
+## 19. Development Rules & Conventions
 
-### 14.1 Absolute Rules
+### 19.1 Absolute Rules (CANNOT BE BROKEN)
 
-1. **NEVER modify `deployments/` folder** — user-enforced constraint
-2. **NEVER hardcode numbers** — use PLATFORM constants
-3. **NEVER use 0 as a trit value** in TDNS (Rep C only)
-4. **NEVER replace geometric routing** with routing tables
-5. **NEVER change the 364°/π=14 circle** to 360°/π≈3.14
-6. **NEVER change the derivation formula** — no tuning parameters
-7. **All source files include copyright headers** (Capomastro Holdings Ltd.)
+1. 🚫 **NEVER modify `deployments/` folder** — user-enforced constraint
+2. 🚫 **NEVER hardcode numbers** — use PLATFORM constants
+3. 🚫 **NEVER use 0 as a trit value** in TDNS (Rep C only)
+4. 🚫 **NEVER replace geometric routing** with routing tables
+5. 🚫 **NEVER change the 364°/π=14 circle** to 360°/π≈3.14
+6. 🚫 **NEVER change the derivation formula** — no tuning parameters
+7. 🚫 **NEVER use ed25519** — TL-DSA everywhere, no exceptions
+8. 🚫 **NEVER feed raw binary into ternary sponge** — decompose via `u16_to_trits()`/`u8_to_trits()` first
+9. 🚫 **NEVER simulate TL-DSA** — call the real Rust implementation
+10. 🚫 **NEVER change the Salvi Epoch** (2025-04-01T00:00:00Z)
+11. **All source files include copyright headers** (Capomastro Holdings Ltd.)
+12. **All constants** MUST come from PLATFORM — no inline magic numbers
 
-### 14.2 Frontend Conventions
+### 19.2 Frontend Conventions
 
 - React + TypeScript + Tailwind CSS + shadcn/ui + Wouter + Framer Motion
 - Light/dark mode support (class-based)
@@ -748,26 +871,31 @@ ALL numeric values used in the frontend and docs MUST come from `shared/constant
 - TanStack Query v5 (object form only)
 - `@assets/` import prefix for attached assets
 
-### 14.3 Backend Conventions
+### 19.3 Backend Conventions
 
 - Express.js + Drizzle ORM + PostgreSQL
 - IStorage interface pattern for all CRUD
 - Zod validation on request bodies
 - Tiered rate limiting, CORS, Helmet.js
 
-### 14.4 Rust Conventions
+### 19.4 Rust Conventions
 
-- TDNS: `edition = "2021"`, pinned deps (`blake3 = "=1.5.4"`, `ureq = "=2.7.1"`)
+- TDNS: `edition = "2021"`, pinned deps
 - `thiserror` for error types, `serde` with derive for serialization
+- Constant-time GF(3) operations in crypto modules
 - All modules re-exported from `lib.rs`
 
-### 14.5 GitHub Push Convention
+### 19.5 GitHub Push Convention
 
 Push to `SigmaWolf-8/Ternary@main` using GitHub Contents API via `GITHUB_TOKEN` env secret. Use bash + curl, NOT the code_execution sandbox.
 
+### 19.6 CI Pipeline
+
+5-stage gated (theory-validation.yml): GF(3) axioms + bijective check + clippy → verifyTau() + GF(3^k) → 13D state vectors + HPTP + determinism → Lamport + NTT + Merkle → full-stack build + integration. Plus: security-scan, license-check, OWASP, CodeQL.
+
 ---
 
-## 15. Key Mathematical Identities (Quick Reference)
+## 20. Key Mathematical Identities (Quick Reference)
 
 ```
 3²⁷ × 9 = 68,630,377,364,883     (TDNS address space — 68.63 trillion)
