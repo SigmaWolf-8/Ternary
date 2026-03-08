@@ -225,17 +225,18 @@ The lift from GF(3) to Rep C: `trit = gf3 + 1` (mapping {0,1,2} → {1,2,3}).
 
 ---
 
-## 2. TDNS v2.5 — Ternary Domain Name System
+## 2. TDNS v2.5.0 — Ternary Domain Name System
 
 ### 2.1 What It Does and Why
 
 TDNS replaces **DNS, BGP, PKI, IGMP/PIM, and PTP** within the managed PlenumNET fabric. It answers: "What IS this entity, ontologically?" — not just "Where is it?"
 
-Every entity gets a **27-trit address** that IS its description. The address IS the route. Hamming distance between addresses equals hop count. No routing tables needed — the geometry is the protocol.
+Every entity gets a **54-trit dual-layer address**: 27 classification trits (ontological description) + 27 identity anchor trits (unique identity derived from canonical URL via TIS-27 sponge). The classification layer IS the route. Hamming distance between classification addresses equals hop count. No routing tables needed — the geometry is the protocol.
 
 **Why 27 dimensions**: 3³ = 27. Three cubed. The ternary system's own cube count.
 **Why 7 categories**: 7 root questions cover the complete ontological space of any networked entity.
-**Address space**: 3²⁷ × 9 = 68,630,377,364,883 (68.63 trillion) unique addresses (27 trits × 9 confidence levels).
+**Why 54 trits**: 27 classification + 27 identity = state width of the TIS-27 sponge (54 trits).
+**Address space**: 3²⁷ × 9 = 68,630,377,364,883 (68.63 trillion) classification addresses (27 trits × 9 confidence levels). Identity anchors are unique per canonical URL.
 
 ### 2.2 The 27-Dimensional Ontological Schema
 
@@ -273,26 +274,97 @@ When dims 15 AND 16 are both 3 (Live + Real-time), the address is HPTP-mandatory
 
 Source: `services/tdns-v2/src/schema.rs` — SCHEMA[27]
 
-### 2.3 Address Formats
+### 2.3 54-Trit Dual-Layer Address Format
+
+The v2.5.0 address has two layers separated by ` · ` (space-dot-space):
+
+```
+WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313 · ID:123312231312213312123321231
+├── 27 classification trits (ontological)              ├── 27 identity anchor trits (URL-derived)
+```
+
+| Layer | Trits | Source | Purpose |
+|-------|-------|--------|---------|
+| Classification | 27 (7 category groups) | Live HTTP/DNS/TLS scan + derivation rules | Routing, ontological description |
+| Identity Anchor | 27 | TIS-27 sponge of canonical URL | Unique entity fingerprint |
+
+**Identity derivation** (`deriveIdentityTrits()`): Canonical URL → UTF-8 bytes → trit decomposition → TIS-27 sponge absorb/squeeze → 27 Rep C trits. Same sponge primitive as scan hash, different input domain. Mirrors `services/tdns-v2/src/identity.rs`.
+
+**Scan hash**: TIS-27 sponge of classification trits (GF(3) values), output as 27-trit Rep C string. Algorithm tag: `scan_hash_algo: "tis-27"`.
+
+**CGUID** (Cube Globally Unique Identifier): Derived from scan hash trits — `(trit[0] - 1) * 3 + trit[1]`. Range 0–8.
 
 | Format | Example | Use |
 |--------|---------|-----|
-| Category | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | Human display |
-| Canonical | 9 dot-separated groups | DNS-like |
+| Full dual-layer | `WO:2323 WA:1133 ... PE:313 · ID:123312231312213312123321231` | Display, extension |
+| Classification only | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | Routing, Rust crate |
 | Wire | 7 bytes (27 trits × 2 bits = 54 bits + 2 padding) | Network |
 
 Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 
-### 2.4 Scanner → Derive → Register Pipeline
+### 2.4 TIS-27 Identity Sponge (server-side)
 
-1. **Scanner** (`scanner.rs`) makes live HTTP/DNS/TLS probes → produces 27 `RawValue` measurements
-2. **Derivation** (`derive.rs`) applies 27 rules (15 categorical + 12 quantitative) → 27 trits + confidences
-3. **CRS** (`crs.rs`) registers the entity with name, zone, scan_hash, measurements, hptp_offset → TRN record
-4. **FTS** (`fts.rs`) monitors entity health via heartbeats
-5. **GLB** (`glb.rs`) routes packets using geometric forwarding
-6. **CON** (`overlay.rs`) encrypts inter-node tunnels with TIS-27 sponge-derived keys (context: `PlenumNET-CON-v2.5`)
+The sponge parameters are derived from TDNS architecture — not chosen arbitrarily:
 
-### 2.5 Scan Hash Type Tags
+| Parameter | Value | Why |
+|-----------|-------|-----|
+| State | 54 trits | Full TDNS address width (27 classification + 27 identity) |
+| Rate | 27 trits | Identity anchor width = classification width |
+| Capacity | 27 trits | Classification layer width |
+| Rounds | 27 | One per output trit |
+| Stride | 13 | gcd(13,54)=1 — complete permutation cycle |
+| Round constants | 27 GF(3) values | [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0] |
+
+Operations: `tisTheta` (neighbor diffusion), `tisPi` (stride-13 permutation), round constant addition. All arithmetic in GF(3) = {0,1,2}. Output lifted to Rep C {1,2,3}. No SHA-256. No BLAKE3. No binary hash primitives.
+
+Source: `server/routes/tdns.ts` (lines 39–97), mirrors `services/tdns-v2/src/identity.rs`
+
+### 2.5 5 GF(3) Composite Scores
+
+Each scan produces 5 normalized scores (0–100):
+
+| Score | Dimensions | Weight |
+|-------|------------|--------|
+| Trust Index | 0.35×WHO + 0.30×PEACE + 0.20×WHY + 0.10×WHEN + 0.05×complexity | Primary |
+| Privacy Score | inv(D18) + D19 + inv(D24) + D26 + inv(D8) | Privacy-focused |
+| Complexity Score | D9+D10+D11+D12+D21+D22 avg | Infrastructure |
+| Maturity Score | D13+D14+D25+D27+D5 avg | Age/readiness |
+| Privacy-Focused Index (PFI) | Tracker analysis, data collection, cookie audit | "Data Trust" in UI |
+
+### 2.6 Scanner → Derive → Register Pipeline
+
+1. **Scanner** (`server/routes/tdns.ts` or `scanner.rs`) makes live HTTP/DNS/TLS probes → produces 27 `RawValue` measurements + 12-header security audit + 5-category tracker analysis + cookie audit + tech fingerprint + SEO signals
+2. **Derivation** applies 27 rules (15 categorical + 12 quantitative) → 27 classification trits + confidences
+3. **Identity** (`deriveIdentityTrits()`) derives 27 identity anchor trits from canonical URL via TIS-27 sponge
+4. **Scan Hash** computed via TIS-27 sponge of classification trits (not URL)
+5. **Findings Engine** generates Critical/Warning/Info findings from scan data
+6. **Registration** (`/api/tdns/register`) stores entity with .plm name, optional `org_name` for multi-URL grouping
+
+### 2.7 Org Entities (Multi-URL Grouping)
+
+Org entities allow grouping multiple .plm registrations under a single organizational handle:
+
+- **Create**: `POST /api/tdns/org/create` with `org_name`, optional `display_name`
+- **Add URL**: `POST /api/tdns/org/add-url` with `org_name`, `plm_name`
+- **Auto-attach**: Pass `org_name` during `/api/tdns/register` to auto-create and attach
+- **Query**: `GET /api/tdns/org/:name` returns all members with addresses, identity trits, CGUIDs
+- **List all**: `GET /api/tdns/orgs` returns all org entities
+
+### 2.8 API Routes (server/routes/tdns.ts)
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| POST | `/api/tdns/scan` | Scan a URL → full 54-trit address, scores, findings, trackers, headers |
+| POST | `/api/tdns/register` | Register .plm name with scan result, optional org_name |
+| GET | `/api/tdns/resolve/:name` | Resolve .plm name → full entry with identity trits, CGUID |
+| POST | `/api/tdns/org/create` | Create an org entity |
+| POST | `/api/tdns/org/add-url` | Add a .plm registration to an org |
+| GET | `/api/tdns/org/:name` | Get org details with all members |
+| GET | `/api/tdns/orgs` | List all org entities |
+| GET | `/api/tdns/list` | List all registered .plm entries |
+| GET | `/api/tdns/health` | Health check (version, entity count, engine) |
+
+### 2.9 Scan Hash Type Tags
 
 | Tag | Algorithm |
 |-----|-----------|
@@ -301,17 +373,17 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 | `0x03` | TL-DSA signature |
 | `0x04` | Composite (multi-hash) |
 
-### 2.6 Reference Fixture Addresses
+### 2.10 Reference Fixture Addresses
 
-| Entity | Address | HPTP | Notes |
-|--------|---------|------|-------|
+| Entity | Classification Address | HPTP | Notes |
+|--------|----------------------|------|-------|
 | Google | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | No | Trit 26 (dim 26, 0-idx 25): Numeric(0.0) = no trackers → trit 3 (None) |
 | PPTPro (Capomastro) | `WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332` | **Yes** | Trits 15+16 = 3,3 → HPTP-mandatory |
 | Nonna's Cucina (blog) | Derived from blog_measurements() | No | Simple blog fixture |
 
-### 2.7 TDNS Module Map
+### 2.11 TDNS Module Map
 
-`services/tdns-v2/src/` — 19 source modules + bin/:
+**Rust crate** — `services/tdns-v2/src/` — 19 source modules + bin/:
 
 | File | Purpose |
 |------|---------|
@@ -330,12 +402,14 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 | `routing.rs` | NeighborMap, greedy geometric routing |
 | `bridge.rs` | Metatronic Bridge — .plm→TDNS / legacy DNS resolution |
 | `wire.rs` | Packet wire protocol (version 0x25), TIS-27 integrity, heartbeat encoding |
-| `identity.rs` | Identity management and ownership proofs |
+| `identity.rs` | Identity derivation — TIS-27 sponge of canonical URL → 27 anchor trits |
 | `storage.rs` | Persistent storage layer for TRN records |
 | `api.rs` | HTTP API endpoints, ApiRouter |
 | `lib.rs` | Crate root, module re-exports |
 
-Binaries:
+**Server-side scanner** — `server/routes/tdns.ts` (1,326 LOC): Full TypeScript implementation of TIS-27 sponge, 27 derivation rules, identity anchor derivation, 5 GF(3) scores, findings engine, tracker analysis, header audit, cookie audit, tech fingerprint, SEO signals, org entity management, 9 API routes. Version: v2.5.0.
+
+Binaries (Rust):
 - `src/bin/tdns_scan.rs` — CLI: scan, compare, describe
 - `src/bin/tdns_server.rs` — HTTP server (port 3927 default)
 
