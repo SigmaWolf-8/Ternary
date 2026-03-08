@@ -18,24 +18,31 @@ Post-quantum ternary computing platform implementing the Unified 13D Torsion Ple
 | Commits | 1,252+ |
 | Crypto modules | 34 |
 | CNSA 2.0 coverage | 11/11 algorithms (100%) |
-| Test count | 1,306+ (1,011 Rust + 295 TypeScript) |
+| Test count | 2,508+ (2,251 Rust + 257 TypeScript / 13 suites) |
+| Kernel | 123 files, ~54,780 LOC |
 | CMVP target | FIPS 140-3 Level 1 |
 | VM opcodes | 176 (ISA v2.1) |
 | Quantum modules | 5 (qutrit/qudit simulation) |
+| Kong gateway | 33 services, 293 endpoints |
 
 ## Architecture
 
 ```
-libternary/          TypeScript library — GF(3) arithmetic, phase encryption,
-                     femtosecond timing, Tribonacci constants
-shared/              Centralized constants (single source of truth for TAU)
+libternary/          Rust core — GF(3) arithmetic, cdylib + WASM (wasm-bindgen)
+ternary-math/        Standalone math crate (5,154 LOC, 11 modules + TIS-27 sponge)
+shared/              Centralized constants, repunit circles, agent generators,
+                     CRT fast path, checksum (single source of truth)
 server/salvi-core/   Express API server — timing, ternary ops, calendars,
                      payment/witnessing, blockchain integrations
-src/kernel/          Rust kernel — crypto, VM, memory, I/O, filesystem,
-                     process scheduler, device drivers, HPTP, torsion network
-client/              React frontend — investor demo, docs, admin dashboard
-kong/                Kong Konnect gateway config (17 services, 194 endpoints)
-salvi_docs/          Developer documentation (15 modules, 7,300+ lines)
+server/routes/       TDNS v2.5, Kong catalog, TSA, Hedera, capabilities,
+                     security infrastructure, SFK operations
+src/kernel/          Rust kernel (123 files, ~54,780 LOC) — crypto, VM, memory,
+                     I/O, filesystem, process scheduler, device drivers, HPTP,
+                     torsion network, inter-cube, bare-metal validation
+client/              React frontend — 26 pages, investor demo, docs, admin
+kong/                Kong Konnect gateway config (33 services, 293 endpoints)
+services/tdns-v2/    TDNS v2.5 Rust crate (19 modules) + Chrome extension v1.0.9
+salvi_docs/          Developer documentation
 ```
 
 ## Applied Physics vs. Theoretical Validation
@@ -50,11 +57,14 @@ This project distinguishes between two kinds of claims:
 
 ### GF(3) Ternary Arithmetic
 Balanced ternary operations in GF(3) with three bijective representations:
-- **A (Computational):** {-1, 0, +1}
-- **B (Network):** {0, 1, 2}
-- **C (Human):** {1, 2, 3}
+- **A (Balanced):** {-1, 0, +1} — signed arithmetic, negation
+- **B (Standard):** {0, 1, 2} — recurrence, analysis (internal only)
+- **C (Bijective):** {1, 2, 3} — wire format, TDNS, crypto (THE external representation)
 
-All operations use a correct ring isomorphism via modular arithmetic. Full 9-case addition and multiplication tables are tested.
+All operations use a correct ring isomorphism via modular arithmetic. Full 9-case addition and multiplication tables are tested. Zero in Rep C is the forgery sentinel.
+
+### TDNS v2.5.0 — Ternary Domain Name System
+54-trit dual-layer ontological addressing (27 classification + 27 identity anchor). Identity derivation uses the TIS-27 sponge (state=54, rate=27, rounds=27, stride=13). Scan hashing also uses TIS-27 (32-byte hex output). Supports Org Entities for multi-URL grouping. 9 API routes. Chrome extension (v1.0.9) renders dual-color addresses: classification in gold, identity anchor in sky blue.
 
 ### Tribonacci Constants
 The constant tau = 1.8392867552141612 and its derived values appear throughout the system:
@@ -66,10 +76,14 @@ The constant tau = 1.8392867552141612 and its derived values appear throughout t
 
 Constants are centralized in `shared/tribonacci-constants.ts` and mirrored in `src/kernel/src/vm/constants.rs` for the Rust kernel.
 
+### Ternary Circle (364°)
+The ternary circle is defined by 111111₃ = 364 = full circle in degrees. Constants are structurally bound: π = 14 (exact integer), 1 radian = 13° = T₇ = 111₃, 2π = 28 radians. The product 13 × 28 = 364 is the calendar identity (13 moons of 28 days). Base-3 repunits R(n) = (3ⁿ − 1) / 2 define the geometric cycle hierarchy (R₃–R₉).
+
 ### HPTP Femtosecond Timing
-High-Precision Timing Protocol providing femtosecond-scale timestamps anchored to the Salvi Epoch (April 1, 2025 00:00:00 UTC). Includes:
-- Network latency correction
-- Self-test endpoint (1000-sample jitter analysis)
+High-Precision Timing Protocol providing femtosecond-scale timestamps anchored to the Salvi Epoch (April 1, 2025 00:00:00 UTC). 7 files, 2,369 LOC in the kernel. Includes:
+- 7 clock sources (Local, GPSDO, Atomic Rb/Cs, Optical Lattice, Chip-Scale, Network Peer)
+- Coprime clock rotation (generator theorem for failover)
+- CRT fast path (Z₃₆₄ ≅ Z₂₈ × Z₁₃ decomposition for O(1) calendar indexing)
 - Synchronization across 42 global calendar systems spanning 30,000+ years
 
 ### CNSA 2.0 Cryptographic Suite
@@ -78,6 +92,7 @@ High-Precision Timing Protocol providing femtosecond-scale timestamps anchored t
 - ML-DSA (FIPS 204) at 3 security levels
 - AES-256-GCM, SHA-384/SHA-512, HMAC-SHA-384
 - XMSS and LMS stateful hash-based signatures (SP 800-208)
+- TL-DSA/TL-KEM (ternary lattice post-quantum crypto)
 - Constant-time primitives throughout
 
 ### Phase Encryption
@@ -88,6 +103,22 @@ Adaptive dual-phase quantum encryption with guardian phase tamper detection usin
 
 ### PlenumDB
 Ternary-encoded data storage demonstrating the 58.5% information density advantage. Live compression demo with benchmark validation endpoint.
+
+### Inter-Cube Infrastructure
+4-service system for geometric routing across the 13D ternary cube network:
+- Geometric Load Balancer (GLB) — d! shortest paths via dimension ordering
+- Cube Overlay Network (CON) — 26 TIS-27-derived encrypted tunnels to geometric neighbors
+- Cube Registration Service (CRS) — address allocation + endpoint registry
+- Fault Tolerance Service (FTS) — heartbeat monitoring + dead neighbor set
+
+### 28-Dimension Agent Array
+Maps Z₂₈ cyclic positions to 28 parallel AI agents via (position × 13) mod 28 coprime walk. All 12 generators of Z₂₈ supported for fault-tolerant parallel scheduling. Features: Etymology Audit, Veritas Fact-Check, unified Situation Report, Lexical Protocol enforcement.
+
+### RFC 3161 Time-Stamping Authority (TSA)
+Digital notary providing cryptographic proof-of-existence timestamps per RFC 3161. Four TSA policies, Merkle tamper-evident audit log, dual-signature (RSA-4096 + TL-DSA-87), HPTP timing integration, ASN.1 wire protocol. CLI: `plenum-stamp`.
+
+### Hedera HCS Witnessing
+Blockchain-based non-repudiation via Hedera Consensus Service. Submits cryptographic witness hashes to an HCS topic for immutable, ordered, timestamped proof of PlenumNET operations.
 
 ## Self-Test Endpoints
 
@@ -114,18 +145,21 @@ Classical simulation of quantum ternary (qutrit/qudit) operations:
 ## Running Tests
 
 ```bash
-# Rust tests
-cargo test --release --all-features           # Kernel (1,011+ tests)
+# Rust tests (2,251+ tests)
+cargo test --release --all-features
 
-# TypeScript tests (295 tests across 10 suites)
-npx vitest run                                # All TypeScript tests
+# TypeScript tests (257 tests across 13 suites)
+npx vitest run
 npx vitest run tests/qutrit-basics.test.ts    # Qutrit module (28 tests)
-npx vitest run tests/qudit-basics.test.ts     # Qudit module (35 tests)
+npx vitest run tests/qudit-basics.test.ts      # Qudit module (35 tests)
+
+# TDNS E2E tests (84 assertions)
+node tis27-e2e-tests.js
 ```
 
 ## API Surface
 
-The platform exposes 194 endpoints through Kong Konnect:
+The platform exposes 293 endpoints through 33 Kong Konnect services:
 
 | Category | Endpoints | Description |
 |----------|-----------|-------------|
@@ -134,6 +168,12 @@ The platform exposes 194 endpoints through Kong Konnect:
 | Calendars | `/api/salvi/timing/epoch/calendars/*` | 42 calendar system conversions |
 | Phase | `/api/salvi/phase/*` | Split, recombine, config, recommend |
 | Compression | `/api/demo/*` | PlenumDB live demo, stats, history |
+| TDNS | `/api/tdns/*` | Scan, register, resolve, org entities, health |
+| TSA | `/api/tsa/*` | RFC 3161 timestamps, verify, audit, policies |
+| Hedera | `/api/hedera/*` | HCS witnessing, topic info, message history |
+| Capabilities | `/api/capabilities/*` | 6-phase capability token lifecycle |
+| Security | `/api/security/*` | Audit, anomaly detection, threat model |
+| Inter-Cube | `/api/salvi/inter-cube/*` | GLB, CON, CRS, FTS topology services |
 
 ## Development
 
