@@ -202,19 +202,29 @@ fn borromean_invariant_across_representations() {
     let word_from_b = TernaryWord::new(digits_b.clone());
 
     // Rep A: map through balanced representation
+    // Inverse of from_balanced ((d+3)%3): 0→0, 1→+1, 2→-1
     let repr_a: Vec<i8> = digits_b
         .iter()
         .map(|&d| match d {
-            0 => -1_i8,
-            1 => 0,
-            2 => 1,
+            0 => 0_i8,
+            1 => 1,
+            2 => -1,
             _ => unreachable!(),
         })
         .collect();
     let word_from_a = TernaryWord::from_balanced(&repr_a);
 
     // Rep C: map through bijective representation
-    let repr_c: Vec<u8> = digits_b.iter().map(|&d| d + 1).collect();
+    // Inverse of from_bijective (d%3): 0→3, 1→1, 2→2
+    let repr_c: Vec<u8> = digits_b
+        .iter()
+        .map(|&d| match d {
+            0 => 3_u8,
+            1 => 1,
+            2 => 2,
+            _ => unreachable!(),
+        })
+        .collect();
     let word_from_c = TernaryWord::from_bijective(&repr_c);
 
     // All three should produce identical XOR behavior
