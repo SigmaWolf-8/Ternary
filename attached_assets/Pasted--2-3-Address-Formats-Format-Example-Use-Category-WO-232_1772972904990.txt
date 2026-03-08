@@ -1,0 +1,65 @@
+### 2.3 Address Formats
+
+| Format | Example | Use |
+|--------|---------|-----|
+| Category | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | Human display |
+| Canonical | 9 dot-separated groups | DNS-like |
+| Wire | 7 bytes (27 trits × 2 bits = 54 bits + 2 padding) | Network |
+
+Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
+
+### 2.4 Scanner → Derive → Register Pipeline
+
+1. **Scanner** (`scanner.rs`) makes live HTTP/DNS/TLS probes → produces 27 `RawValue` measurements
+2. **Derivation** (`derive.rs`) applies 27 rules (15 categorical + 12 quantitative) → 27 trits + confidences
+3. **CRS** (`crs.rs`) registers the entity with name, zone, scan_hash, measurements, hptp_offset → TRN record
+4. **FTS** (`fts.rs`) monitors entity health via heartbeats
+5. **GLB** (`glb.rs`) routes packets using geometric forwarding
+6. **CON** (`overlay.rs`) encrypts inter-node tunnels with TIS-27 sponge-derived keys (context: `PlenumNET-CON-v2.5`)
+
+### 2.5 Scan Hash Type Tags
+
+| Tag | Algorithm |
+|-----|-----------|
+| `0x01` | SHA-256 |
+| `0x02` | TIS-27 sponge |
+| `0x03` | TL-DSA signature |
+| `0x04` | Composite (multi-hash) |
+
+### 2.6 Reference Fixture Addresses
+
+| Entity | Address | HPTP | Notes |
+|--------|---------|------|-------|
+| Google | `WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313` | No | Trit 26 (dim 26, 0-idx 25): Numeric(0.0) = no trackers → trit 3 (None) |
+| PPTPro (Capomastro) | `WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332` | **Yes** | Trits 15+16 = 3,3 → HPTP-mandatory |
+| Nonna's Cucina (blog) | Derived from blog_measurements() | No | Simple blog fixture |
+
+### 2.7 TDNS Module Map
+
+`services/tdns-v2/src/` — 19 source modules + bin/:
+
+| File | Purpose |
+|------|---------|
+| `trit.rs` | Trit type {1,2,3}, wire encoding, GF(3) ops |
+| `addr.rs` | CubeAddr (27-trit), Hamming distance, wire pack/unpack, DIMENSIONS=27 |
+| `schema.rs` | 27 dimension definitions, Category enum, describe() |
+| `derive.rs` | 27 derivation rules, project_to_gf3(), confidence_digit() |
+| `scan.rs` | ScanMeasurement, RawValue, Confidence (#[serde(transparent)]) |
+| `scanner.rs` | Live HTTP/DNS/TLS scanner (27 probes via ureq) |
+| `crs.rs` | CRS Registry — register, resolve, verify, rescan, drift log, neighbor maps |
+| `trn.rs` | TRN (Ternary Resource Name) records |
+| `fts.rs` | FTS (Fault Tolerance Service) — heartbeat, suspect/dead/recovered |
+| `glb.rs` | GLB (Geometric Load Balancer) — point/multicast forwarding, redirect, dead set |
+| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, TIS-27 sponge keys, rekey |
+| `subcube.rs` | SubCube multicast addressing, wildcard |
+| `routing.rs` | NeighborMap, greedy geometric routing |
+| `bridge.rs` | Metatronic Bridge — .plm→TDNS / legacy DNS resolution |
+| `wire.rs` | Packet wire protocol (version 0x25), TIS-27 integrity, heartbeat encoding |
+| `identity.rs` | Identity management and ownership proofs |
+| `storage.rs` | Persistent storage layer for TRN records |
+| `api.rs` | HTTP API endpoints, ApiRouter |
+| `lib.rs` | Crate root, module re-exports |
+
+Binaries:
+- `src/bin/tdns_scan.rs` — CLI: scan, compare, describe
+- `src/bin/tdns_server.rs` — HTTP server (port 3927 default)
