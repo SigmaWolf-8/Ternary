@@ -1004,7 +1004,7 @@ Benchmarks (`benchmarks/`): `crt_bench.c` (261 LOC — raw throughput), `crt_ben
 
 **libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
 **libternary-improvements/** — Enhancement staging area.
-**ternary-math/** — 5,154 LOC standalone crate, 11 modules: gf3, tribonacci, borromean, clifford, torus, ternary_circle, sponge (TIS-27), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC).
+**ternary-math/** — 6,195 LOC standalone crate, 12 modules: gf3, gf3_algebra (718 LOC — closed-form GF(3) operations), tribonacci, borromean, clifford, torus, ternary_circle, sponge (TIS-27), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC). The gf3_algebra module replaces trit-by-trit loops with algebraic formulas: Hamming distance via Σ(aᵢ−bᵢ)² mod 3, forgery check via Π trits mod 3, sponge permute via index remapping, sponge diffuse via neighbor sum, Horner checksum mod 364, and centralized derivation rules. All operations use integer arrays (Rep B internally, Rep C externally) with GF(3) arithmetic — no binary packing or bit tricks. TypeScript mirror: `shared/gf3-algebra.ts` (323 LOC).
 **wasm/** — 412 LOC browser deployment target.
 **Ternary Ephemeris** — `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`
 
