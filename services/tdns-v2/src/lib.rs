@@ -1,4 +1,4 @@
-// TDNS v2.3 — Ternary Domain Name System
+// TDNS v2.5 — Ternary Domain Name System
 // Capomastro Holdings Ltd. — Applied Physics Division
 //
 // 27-dimensional ontological addressing for PlenumNET.
@@ -10,7 +10,8 @@
 //   addr     — 27-trit CubeAddr with wire encoding
 //   subcube  — Wildcard addressing for multicast
 //   schema   — The 27 ontological dimensions (WHO→PEACE)
-//   scan     — CRS scan results and BLAKE3 scan hash
+//   identity — TIS-27 identity derivation, URL canonicalization, CGUID
+//   scan     — CRS scan results and TIS-27 scan hash
 //   trn      — Ternary Resource Name records
 //   routing  — Neighbor maps and greedy forwarding
 
@@ -18,6 +19,7 @@ pub mod trit;
 pub mod addr;
 pub mod subcube;
 pub mod schema;
+pub mod identity;
 pub mod scan;
 pub mod trn;
 pub mod routing;
