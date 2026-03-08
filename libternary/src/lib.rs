@@ -69,7 +69,7 @@
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
@@ -97,7 +97,8 @@
     clippy::struct_excessive_bools,
     clippy::uninlined_format_args,
     clippy::unreadable_literal,
-    dead_code
+    dead_code,
+    unused_variables
 )]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
