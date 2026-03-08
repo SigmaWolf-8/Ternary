@@ -1,0 +1,25 @@
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
+# SymbiYosys configuration for CRT Fast Path formal verification
+
+[tasks]
+bmc    # Bounded model checking (20 cycles)
+prove  # Full induction proof
+
+[options]
+bmc: mode bmc
+bmc: depth 20
+
+prove: mode prove
+prove: depth 25
+
+[engines]
+smtbmc z3
+
+[script]
+read -formal xplenum_crt_unit.v
+read -formal xplenum_crt_formal_props.v
+prep -top xplenum_crt_unit
+
+[files]
+../xplenum_crt_unit.v
+xplenum_crt_formal_props.v
