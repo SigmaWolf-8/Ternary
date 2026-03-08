@@ -431,7 +431,7 @@ const TRACKER_CATEGORIES = [
 
 // ── Scanner ───────────────────────────────────────────────────────────────────
 async function scanUrl(rawUrl: string): Promise<ScanResult> {
-  if (!rawUrl.startsWith("http")) rawUrl = "https://" + rawUrl;
+  if (!/^https?:\/\//i.test(rawUrl)) rawUrl = "https://" + rawUrl;
   const parsed   = new URL(rawUrl);
   const hostname = parsed.hostname.toLowerCase();
   const isHttps  = parsed.protocol === "https:";
@@ -603,7 +603,20 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     tisPermute(scanSpongeState);
   }
   const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanSpongeState[i] + 1);
-  const scan_hash    = scanTritsOut.map((t: number) => t.toString()).join("");
+  function squeezeScanBytes(state: Uint8Array, n: number): number[] {
+    const out: number[] = [];
+    const s = new Uint8Array(state);
+    while (out.length < n) {
+      for (let i = 0; i + 4 < TIS_STATE; i += 5) {
+        if (out.length >= n) break;
+        out.push(s[i] * 81 + s[i+1] * 27 + s[i+2] * 9 + s[i+3] * 3 + s[i+4]);
+      }
+      tisPermute(s);
+    }
+    return out.slice(0, n);
+  }
+  const scanHashBytes = squeezeScanBytes(scanSpongeState, 32);
+  const scan_hash = scanHashBytes.map((b: number) => b.toString(16).padStart(2, "0")).join("");
   const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
 
   // ── 5 Scores ───────────────────────────────────────────────────────────────
@@ -1068,7 +1081,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     status:           "ok",
     address,
     identity_trits,
-    cguid:            1,
+    cguid:            (scanTritsOut[0] - 1) * 3 + scanTritsOut[1],
     scan_hash,
     scan_hash_algo:   "tis-27",
     hptp_mandatory,
