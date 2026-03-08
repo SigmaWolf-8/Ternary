@@ -866,14 +866,19 @@ export default function GeometricFoundations() {
               padding: "22px 24px", background: t.card, border: `1px solid ${t.cardBorder}`,
               borderRadius: RADIUS.lg, boxShadow: t.shadow, height: "100%",
             }} data-testid="card-ternary-resolution">
-              <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary, marginBottom: 12, fontWeight: 600 }}>TERNARY RESOLUTION</div>
+              <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary, marginBottom: 12, fontWeight: 600 }}>TERNARY RESOLUTION — THE CLOSED GEOMETRIC LOOP</div>
               <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, margin: "0 0 10px" }}>
-                PlenumNET redefines the circle as a discrete 364-point structure. The "square" emerges
-                from 3² = 9 confidence levels extending 27 ontological trits to 28 effective dimensions.
-                The product 13 × 28 = 364 closes the circle exactly.
+                PlenumNET discretizes the circle as exactly 364 points.
+                27 ontological trits + 1 Collision Resolution Digit = 28 effective dimensions.
+                13 × 28 = 364 — a perfect closure where 13 (routing dimension, Tribonacci T₇,
+                ternary radian) completes the loop. This is no coincidence: the geometry returns to itself.
               </p>
-              <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, margin: 0 }}>
-                No irrationals, no transcendentals — only powers of 3, repunit identities, and Tribonacci alignments.
+              <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgSoft, margin: "0 0 8px" }}>
+                Fixed 27-hop routing diameter, ontological clustering preserved,
+                per-instance uniqueness without displacement, zero waste in 14-byte wire format.
+              </p>
+              <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, margin: 0, fontStyle: "italic" }}>
+                The universe of discourse closes — elegantly, inevitably.
               </p>
             </div>
           </FadeIn>
