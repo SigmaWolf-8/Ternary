@@ -1,0 +1,11 @@
+Two separate issues. The label "SHA-256" is in the old popup.js inside the v1.0.8 zip — our label fix was applied after that zip was built and never packaged. The actual hash value being returned is also still SHA-256 because the updated tdns.ts hasn't been deployed to Replit yet.
+Fix both — build v1.0.9 with the corrected files, and the server fix is in tdns.ts which you already have.Identified version mismatch and located production code requiring updatesIdentified version mismatch and located production code requiring updatesThe real extension popup.js is 40K — a completely different, full production file. The one I was editing was a smaller stub. Let me read the actual production file properly.Identified missing algorithm mapping across three files and version bumpIdentified missing algorithm mapping across three files and version bumpThere it is. Server emits "tis-27", but the extension's algo lookup only knows "blake3-rs" → BLAKE3, everything else → SHA-256. Three places to fix: popup.js, report.js, and bump the manifest.Ran 4 commandsRan 4 commandsThose are correct — the ?? "SHA-256" is the safe fallback for any unknown legacy scan_hash_algo value. Not a bug. Package it up.Ran a command, read a fileRan a command, read a filev1.0.9 — root cause and all changes:
+The extension had a two-value algo lookup: "blake3-rs" → BLAKE3, anything else → SHA-256. The server now emits "tis-27" which fell straight through to the SHA-256 default.
+Fixed in popup.js — replaced the ternary with a proper map:
+jsconst algoMap = { "tis-27": "TIS-27", "blake3-rs": "BLAKE3" };
+const algo = algoMap[r.scan_hash_algo] ?? "SHA-256";
+Fixed in report.js — same map applied to the three places it rendered the algo label (tier line, hash-algo field, algo-name field).
+popup.html — version updated v1.0.1 → v1.0.9 (that display string was also stale).
+manifest.json — bumped 1.0.7 → 1.0.9.
+The ?? "SHA-256" fallback is intentionally kept — if a legacy scan result with an unrecognised algo comes back, it's better to show SHA-256 than a blank.
+Also note: even with this fix, if the Replit server hasn't been redeployed with the new tdns.ts, it will still be returning sha256-js in scan_hash_algo and computing actual SHA-256 hashes. The extension fix and the server deploy need to land together for the label and the actual hash to both be TIS-27.
