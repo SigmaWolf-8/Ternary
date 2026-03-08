@@ -54,9 +54,9 @@
 //!
 //! // View T(10) = 81 = 10000₃ in all three representations
 //! let t10 = &terms[10];
-//! println!("Rep B: {}", t10.format_repr(TernaryRepr::Standard));
-//! println!("Rep A: {}", t10.format_repr(TernaryRepr::Balanced));
-//! println!("Rep C: {}", t10.format_repr(TernaryRepr::Bijective));
+//! println!("Rep B: {}", t10.value.format_repr(TernaryRepr::Standard));
+//! println!("Rep A: {}", t10.value.format_repr(TernaryRepr::Balanced));
+//! println!("Rep C: {}", t10.value.format_repr(TernaryRepr::Bijective));
 //!
 //! // Walk the ternary radian spiral on Z₂₈
 //! let trits = vec![1, 2, 0, 1, 0, 2, 2, 0, 1, 1];
