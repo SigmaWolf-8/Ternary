@@ -93,7 +93,6 @@
     clippy::unreadable_literal,
     dead_code
 )]
-
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
 #![warn(missing_docs)]
 #![warn(clippy::all)]
