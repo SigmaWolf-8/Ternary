@@ -500,10 +500,9 @@ async fn run_cube_mode() {
     println!("[CUBE] Endpoint: {}", cube_endpoint);
     println!();
 
-    // -- Derive a unique public key from endpoint using BLAKE3 ---
-    let key_hash = blake3::hash(cube_endpoint.as_bytes());
-    let key_hex: String = key_hash.as_bytes().iter()
-        .take(32)
+    // -- Derive a unique public key from endpoint using TIS-27 ---
+    let key_bytes = ternary_math::sponge::derive_key(b"PlenumNET-endpoint-key-v1", cube_endpoint.as_bytes(), 32);
+    let key_hex: String = key_bytes.iter()
         .map(|b| format!("{:02x}", b))
         .collect();
 
