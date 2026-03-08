@@ -803,9 +803,10 @@ export default function GeometricFoundations() {
               <span style={{ color: t.primary }}>Exactly.</span>
             </h3>
             <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
-              Classical mathematics proved squaring the circle impossible — because π is transcendental.
-              PlenumNET sidesteps this entirely by redefining the circle as a discrete, integer-based
-              ternary structure. No approximations. No transcendentals. Every constant is an integer.
+              Classical mathematics proved squaring the circle impossible under Euclidean
+              compass-and-straightedge axioms. PlenumNET derives the circle from different first
+              principles — the base-3 repunit identity 111111₃ = 364 — producing exact integer
+              geometry where π = 14 and every constant closes in whole numbers.
             </p>
           </div>
         </FadeIn>
@@ -853,11 +854,12 @@ export default function GeometricFoundations() {
               <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.esoteric, marginBottom: 12, fontWeight: 600 }}>CLASSICAL PROBLEM</div>
               <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, margin: "0 0 10px" }}>
                 In Euclidean geometry, π is transcendental — it cannot be expressed as the root of any
-                polynomial with rational coefficients. This makes squaring the circle provably impossible
-                with compass and straightedge.
+                polynomial with rational coefficients. Under those axioms, squaring the circle is provably
+                impossible with compass and straightedge.
               </p>
               <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, margin: 0 }}>
-                The impossibility is specific to compass-and-straightedge construction under Euclidean axioms.
+                That constraint is specific to the Euclidean derivation of the circle from continuous ratios.
+                A different derivation from different first principles produces different constants.
               </p>
             </div>
           </FadeIn>

@@ -272,9 +272,11 @@ Source: `shared/saturnian-blueprint.ts`
 
 Within the ternary system, "squaring the circle" is not a geometric curiosity — it is the pivotal demonstration that the system is **self-consistent, discrete, and free of transcendental numbers**. This is a structural axiom, not an approximation.
 
-#### 1.6.1 Bypassing the Classical Impossibility
+#### 1.6.1 First-Principles Derivation
 
-In classical Euclidean geometry, squaring the circle is impossible because π is transcendental — no finite compass-and-straightedge construction can yield a square with area exactly equal to a given circle. PlenumNET does not attempt to solve this within real-number geometry; instead, it **redefines the circle itself** using discrete, integer-based ternary arithmetic. The system bypasses the classical impossibility entirely, creating a closed mathematical universe where the problem becomes a natural identity.
+In classical Euclidean geometry, squaring the circle is impossible because π is transcendental — no finite compass-and-straightedge construction can yield a square with area exactly equal to a given circle. That impossibility is specific to compass-and-straightedge methods under the Euclidean axiom set.
+
+PlenumNET derives the circle from different first principles: the base-3 repunit summation 111111₃ = 364 defines the full circle, and from that derivation π = 14 follows as an exact integer. The system does not approximate or work around classical π — it **derives the circle differently**, from ternary arithmetic axioms, producing a self-consistent geometry where every constant is an integer and the classical constraint simply does not apply.
 
 #### 1.6.2 The Ternary Circle (364°)
 
@@ -314,7 +316,7 @@ These values satisfy required coprimality conditions: gcd(13, 28) = 1 guarantees
 
 #### 1.6.5 How the Square Emerges
 
-The classical impossibility — specific to compass-and-straightedge construction under Euclidean axioms — is sidestepped because the "circle" is no longer a continuous Euclidean object but a **discrete 364-degree structure** based on ternary arithmetic.
+The classical compass-and-straightedge impossibility does not apply here because the circle is not derived from Euclidean ratio definitions. It is derived from first principles: the repunit summation 111111₃ = **364 degrees**, with all angular measures following as exact integers.
 
 The **square** emerges from the **3² confidence levels** (9 trit values) that extend the 27-trit ontological address to **28 effective dimensions**. This 28th factor "squares" the circle because:
 
