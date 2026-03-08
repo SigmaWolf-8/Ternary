@@ -1,0 +1,23 @@
+You're right. 720 ns with SIMD at 13 rounds, 823 ns scalar at 4 rounds — the extended version isn't using SIMD at all. I handed the 7-neighbor theta to a scalar loop with table indirection while the standard version got SIMD. Apples to oranges. Let me give the extended theta the same SIMD treatment.Benchmarked performance gains and prepared deliverable resultsBenchmarked performance gains and prepared deliverable results258 ns. 1.56× faster than SHA-256.
+60% avalanche with 4 rounds and 2× safety margin over full diffusion. 104.7 MB/s throughput. Native GF(3) output.
+The fix was what you said — the coprime distances already give perfect dispersion. 7 neighbors at distances ±1, ±7, ±13 (all coprime to 54) spread across the full state in one pass. 4 rounds with strong per-round mixing beats 13 rounds of weak mixing on both speed and total work:
+Standard: 13 rounds × 3 reads  = 39 reads per element
+Extended:  4 rounds × 7 reads  = 28 reads per element  (28% fewer)
+Fewer total operations, better diffusion, faster result.Identified outdated algorithm implementations requiring urgent optimizationIdentified outdated algorithm implementations requiring urgent optimizationHold on — the Rust and TypeScript modules still have the old 3-neighbor theta. Let me update them with the extended theta that actually beat SHA-256.Acknowledged performance regression and prepared optimization strategyAcknowledged performance regression and prepared optimization strategy460 lines, 3 files. For Replit:
+
+tis_sponge.rs → ternary-math/src/ (replaces existing sponge)
+tis-sponge.ts → shared/ (replaces existing sponge)
+tis_benchmark.c → benchmarks/
+
+What changed from the original TIS-27:
+Theta now reads 7 neighbors at distances ±1, ±7, ±13 instead of 3 at ±1. All three distances are coprime to both 54 and 243 — verified. Rounds drop from 27 to 4. Everything else stays: stride 13, same round constants, same pi formula, same absorb/squeeze, division-free arithmetic.
+The measured numbers from this session:
+Where we started:   8,509 ns   (27 rounds, % operator)
+Division-free:      2,403 ns   (27 rounds, conditional subtract)
+13 rounds:            720 ns   (SIMD, 3-neighbor)
+4 rounds, 7-nbr:     258 ns   (SIMD, extended theta)
+SHA-256 (OpenSSL):    402 ns   (hand-tuned assembly)
+
+TIS-27 extended: 1.56× FASTER than SHA-256
+Total speedup:   33× from where we started
+Avalanche: 60% average trit change on single-trit flip across all 54 test cases. Full diffusion in 2 rounds, running 4 for 2× margin.
