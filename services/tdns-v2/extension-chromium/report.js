@@ -27,16 +27,30 @@
     // Header meta
     el("r-url").textContent       = result.meta?.url || "—";
     el("r-timestamp").textContent = "Scanned: " + new Date(result.scannedAt).toLocaleString();
-    el("r-tier").textContent      = `Tier: ${tier.toUpperCase()} — ${result.scan_hash_algo || "sha256-js"}`;
+    const algoLabel = result.scan_hash_algo === "tis-27" ? "TIS-27" : result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
+    el("r-tier").textContent      = `Tier: ${tier.toUpperCase()} — ${algoLabel}`;
 
-    // Address
-    el("r-address").childNodes[0].textContent = result.address + " ";
+    // Address — split on · for dual-color: classification gold, identity sky blue
+    const addrParts = (result.address || "").split(" · ");
+    const addrEl    = el("r-address");
+    if (addrParts.length === 2) {
+      const classSegs = addrParts[0].split(" ").map(seg => {
+        const [label, trits] = seg.split(":");
+        if (!label || !trits) return "";
+        return `<div class="addr-seg"><span class="seg-label">${esc(label)}</span><span class="seg-trits">${esc(trits)}</span></div>`;
+      }).join("");
+      const identPart = addrParts[1].replace("ID:", "");
+      const identSeg  = `<div class="addr-seg"><span class="seg-label" style="color:#38BDF8">ID</span><span class="seg-trits" style="color:#38BDF8;letter-spacing:.08em" title="Identity Anchor — derived from IdentitySponge(URL). 27 trits uniquely identifying this site.">${esc(identPart)}</span></div>`;
+      addrEl.innerHTML = classSegs + identSeg + " ";
+    } else {
+      addrEl.childNodes[0].textContent = result.address + " ";
+    }
     el("r-hptp").style.display = result.hptp_mandatory ? "inline-block" : "none";
-    el("r-crd").textContent     = result.crd; // Check Digit
-    el("r-hash-algo").textContent = result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
-    el("r-hash").textContent    = (result.scan_hash || "").substring(0, 32) + "…";
+    el("r-crd").textContent     = result.crd;
+    el("r-hash-algo").textContent = algoLabel;
+    el("r-hash").textContent    = (result.scan_hash || "").substring(0, 18) + "…";
     el("r-full-hash").textContent= result.scan_hash || "—";
-    el("r-algo-name").textContent= result.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256 (JS path)";
+    el("r-algo-name").textContent= algoLabel;
 
     // Scores
     const scoreDefs = [
