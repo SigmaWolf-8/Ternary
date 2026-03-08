@@ -165,6 +165,36 @@ gcd(13, 28) = 1                          (coprime — enables complete Z₂₈ w
 
 Source: `shared/ternary-circle.ts` — FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG, Z28 class
 
+#### 1.2.1 Repunit Circle Hierarchy
+
+Base-3 repunits R(n) = (3ⁿ − 1) / 2 define the natural geometric cycle hierarchy. These are **circle-days** (pure geometry), NOT calendar days. Calendar conversion requires DOT insertion: `calendarDays = circleDays + floor(circleDays / 364)`.
+
+| Circle | R(n) | Value | Label | Prime? | Calendar Equiv |
+|--------|------|-------|-------|--------|----------------|
+| R₃ | 13 | 111₃ | Radian | ✓ | 13 days |
+| R₄ | 40 | 1111₃ | Minor Circle | ✗ | 40 days |
+| R₅ | 121 | 11111₃ | Quarter Circle | ✗ (11²) | 121 days |
+| R₆ | 364 | 111111₃ | Full Circle | ✗ (2²×7×13) | 365 days (1 DOT) |
+| R₇ | 1093 | 1111111₃ | Triple Circle | ✓ | 1096 days (3 DOTs) |
+| R₈ | 3280 | 11111111₃ | Ennead Circle | ✗ | 3289 days (9 DOTs) |
+| R₉ | 9841 | 111111111₃ | Grand Circle | ✗ | 9868 days (27 DOTs) |
+
+Key properties:
+- **Factorization**: R(2n) = R(n) × (3ⁿ + 1)
+- **Period**: 3⁶ ≡ 1 (mod 364), so checksum space has period 6 in the exponent
+- **Calendar scaling**: R₆→1yr, R₇→3yr, R₈→9yr, R₉→27yr (powers of 3)
+- **Bug fix (verified)**: R₇ DOT count = floor(1093/364) = **3** (not 2), giving 1096 calendar days
+
+**Critical structural fact**: 13 does NOT generate Z₃₆₄ because 364 = 13 × 28. For the full circle modulus, a different coprime generator is needed (e.g., step 11, since gcd(11, 364) = 1). See INVARIANT 10.
+
+Source: `shared/repunit-circles.ts` (211 lines), `ternary-math/src/repunit_circles.rs` (132 lines)
+
+#### 1.2.2 Repunit Checksum
+
+A lightweight 6-trit integrity check for 27-trit classification addresses using mod R₆ = 364. Algorithm: interpret Rep C trits as Rep B (subtract 1), evaluate as base-3 number via Horner's method with incremental mod-364 reduction, decompose result into 6 Rep B trits, lift back to Rep C. All arithmetic in GF(3) — no domain crossing. Complements TIS-27 sponge integrity with fast constant-time branchless verification.
+
+Source: `shared/repunit-checksum.ts` (83 lines), `ternary-math/src/repunit_checksum.rs` (200 lines)
+
 ### 1.3 The 13-Moon Calendar (13 × 28 = 364)
 
 The year divides into 13 moons of 28 days + 1 intercalary Day Out of Time (DOT):
@@ -542,7 +572,7 @@ Source: `server/salvi-core/femtosecond-timing.ts`
   - Cryptographically signed timing certificates
   - TimingVerifier for compliance checks
 
-- **Kernel HPTP** (`src/kernel/src/hptp/`): 1,687 LOC across 5 files (certification, jitter_correction, mod, optical, protocol), supports 7 clock sources (Local, GPSDO, Atomic Rubidium, Atomic Cesium, Optical Lattice, Chip-Scale, Network Peer), 5 precision levels (Millisecond → Femtosecond)
+- **Kernel HPTP** (`src/kernel/src/hptp/`): 1,911 LOC across 6 files (certification, coprime_clock_rotation, jitter_correction, mod, optical, protocol), supports 7 clock sources (Local, GPSDO, Atomic Rubidium, Atomic Cesium, Optical Lattice, Chip-Scale, Network Peer), 5 precision levels (Millisecond → Femtosecond). The `coprime_clock_rotation.rs` module (224 lines) formalizes the generator theorem for clock failover: rotation step must be coprime to source count N. For N=7 (prime), all steps 1–6 are valid (maximally robust). Optimal step selection prefers T₇ mod N (for N=7: step 6).
 
 ### 4.4 HPTP in TDNS Wire Protocol
 
@@ -699,7 +729,7 @@ Backward-compatible: v1.0 (62) → v2.0 (160) → v2.1 (176). Added quantum-tern
 
 ### 7.2 Bare-Metal Kernel Validation
 
-`src/kernel/bare-metal/`: 45+ self-tests exercising real kernel code (GF(3) arithmetic, boot sequences, femtosecond timing, phase encryption, VM components). Kani Rust Verifier + MIRI formal verification pipeline with 38 proof harnesses. GitHub Actions CI.
+`src/kernel/bare-metal/`: 45+ self-tests exercising real kernel code (GF(3) arithmetic, boot sequences, femtosecond timing, phase encryption, VM components). Kani Rust Verifier + MIRI formal verification pipeline with 38 proof harnesses. GitHub Actions CI. Includes `generator_theorem_harness.rs` (288 lines) — exhaustive formal verification that step `a` generates Z_m iff gcd(a, m) = 1 for all framework moduli {13, 27, 28, 54, 364}, with CRT product group verification, repunit circle generator checks, and Euler totient validation. Confirms 13 does NOT generate Z₃₆₄ (since 364 = 13 × 28) and documents step 11 as a valid Z₃₆₄ generator.
 
 ---
 
@@ -842,9 +872,17 @@ Maps Z₂₈ cyclic positions to 28 parallel AI agents:
 - **Convolution kernel**: [13, 24, 44] = [T₇, T₈, T₉] (three consecutive Tribonacci numbers)
 - **Identity**: 13 × 28 = 364 = `111111₃`
 
+### 15.1 Multi-Generator Scheduling
+
+All 12 generators (units) of Z₂₈: {1, 3, 5, 9, 11, 13, 15, 17, 19, 23, 25, 27}. φ(28) = φ(4) × φ(7) = 2 × 6 = 12.
+
+Self-inverse generators (g = g⁻¹): {1, 13, 15, 27}. Inverse pairs: 3↔19, 5↔17, 9↔25, 11↔23.
+
+The multi-generator module supports parallel schedule assignments for fault-tolerant monitoring: different generators produce different walk orders visiting the same 28 agents, enabling redundant heartbeat coverage. The reverse walk uses the multiplicative inverse generator.
+
 Features: Etymology Audit, Veritas Fact-Check, unified Situation Report, Lexical Protocol enforcement.
 
-Source: `shared/agent-array.ts`, `client/src/pages/agent-array.tsx`
+Source: `shared/agent-array.ts`, `shared/agent-generators.ts` (184 lines), `client/src/pages/agent-array.tsx`
 
 ---
 
@@ -883,7 +921,7 @@ Formal verification (`rtl/formal/`): `xplenum_formal_props.v`, `xplenum_inductio
 
 **libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
 **libternary-improvements/** — Enhancement staging area.
-**ternary-math/** — 4,822 LOC standalone crate, 9 modules: gf3, tribonacci, borromean, clifford, torus, ternary_circle, sponge (TIS-27), radix, constants. Plus integration tests (210 LOC).
+**ternary-math/** — 5,154 LOC standalone crate, 11 modules: gf3, tribonacci, borromean, clifford, torus, ternary_circle, sponge (TIS-27), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC).
 **wasm/** — 412 LOC browser deployment target.
 **Ternary Ephemeris** — `TERNARY_EPHEMERIS_INTEGRATION_GUIDE.md`
 
@@ -939,7 +977,7 @@ Test totals: **2,508+** (2,251 Rust #[test] + 257 TypeScript across 13 vitest su
 │   ├── src/                   Main kernel (crypto, vm, network, arch, security, process, ...)
 │   ├── bare-metal/            Bare-metal validation (45+ tests, Kani/MIRI, 38 proofs)
 │   └── ISA_REFERENCE.md       176-opcode ISA v2.1 reference
-├── ternary-math/              Standalone math crate (4,822 LOC, 9 modules + TIS-27 sponge)
+├── ternary-math/              Standalone math crate (5,154 LOC, 11 modules + TIS-27 sponge)
 ├── tests/                     TypeScript test suites (295 tests, 10 suites)
 ├── wasm/                      Browser deployment target (412 LOC)
 └── [config files]             Cargo.toml, package.json, Dockerfile, docker-compose.yml, etc.
