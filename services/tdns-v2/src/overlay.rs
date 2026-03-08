@@ -5,7 +5,7 @@
 // Every inter-cube link is encrypted. There is no unencrypted path
 // through the fabric.
 //
-// Key derivation: BLAKE3 keyed hash of (local_addr || neighbor_addr || shared_secret).
+// Key derivation: TIS-27 sponge (ternary_math::sponge) — same primitive used everywhere.
 // Each of the 54 possible neighbor links has its own derived tunnel key.
 //
 // §12.2: CON tunnel architecture.
@@ -21,7 +21,7 @@ use crate::trit::Trit;
 pub const TUNNEL_KEY_SIZE: usize = 32;
 
 /// Key derivation context string (domain separation).
-const KD_CONTEXT: &str = "PlenumNET-CON-v2.3";
+const KD_CONTEXT: &[u8] = b"PlenumNET-CON-v2.5";
 
 /// Maximum tunnel links per node (27 dims × 2 directions).
 pub const MAX_TUNNELS: usize = 54;
@@ -72,21 +72,17 @@ pub fn derive_tunnel_key(
     neighbor: &CubeAddr,
     shared_secret: &[u8],
 ) -> TunnelKey {
-    let local_wire = local.to_wire();
+    let local_wire    = local.to_wire();
     let neighbor_wire = neighbor.to_wire();
 
-    let mut material = Vec::with_capacity(
-        KD_CONTEXT.len() + WIRE_SIZE + WIRE_SIZE + shared_secret.len(),
-    );
-    material.extend_from_slice(KD_CONTEXT.as_bytes());
+    let mut material = Vec::with_capacity(WIRE_SIZE + WIRE_SIZE + shared_secret.len());
     material.extend_from_slice(&local_wire);
     material.extend_from_slice(&neighbor_wire);
     material.extend_from_slice(shared_secret);
 
-    let hash = blake3::hash(&material);
+    let key_bytes = crate::identity::derive_key(KD_CONTEXT, &material, TUNNEL_KEY_SIZE);
     let mut bytes = [0u8; TUNNEL_KEY_SIZE];
-    bytes.copy_from_slice(hash.as_bytes());
-
+    bytes.copy_from_slice(&key_bytes);
     TunnelKey { bytes }
 }
 
