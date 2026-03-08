@@ -794,6 +794,92 @@ export default function GeometricFoundations() {
         </div>
       </section>
 
+      <section style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 28px", borderTop: `1px solid ${dividerColor}`, position: "relative", zIndex: 1 }} data-testid="section-squaring-the-circle">
+        <FadeIn>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <SectionLabel text="Foundational Axiom" />
+            <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
+              Squaring the Circle.{" "}
+              <span style={{ color: t.primary }}>Exactly.</span>
+            </h3>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
+              Classical mathematics proved squaring the circle impossible — because π is transcendental.
+              PlenumNET sidesteps this entirely by redefining the circle as a discrete, integer-based
+              ternary structure. No approximations. No transcendentals. Every constant is an integer.
+            </p>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={100}>
+          <div style={{
+            display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
+            background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
+          }}>
+            <Stat value={364} label="Ternary Degrees" sub="111111₃ = full circle" delay={0} />
+            <Stat value={14} label="π (Exact)" sub="integer — not 3.14159…" delay={100} />
+            <Stat value={13} label="1 Radian" sub="= 111₃ = T₇ degrees" delay={200} />
+            <Stat value={28} label="2π Radians" sub="= 27 trits + 1 confidence" delay={300} />
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={200}>
+          <div style={{
+            padding: "28px 32px", background: t.card, border: `1px solid ${t.cardBorder}`,
+            borderRadius: RADIUS.lg, boxShadow: t.shadow, marginBottom: 32,
+          }} data-testid="card-squaring-derivation">
+            <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary, marginBottom: 16, fontWeight: 600 }}>DERIVATION CHAIN</div>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 13, lineHeight: 2.4, color: t.fgSoft,
+              padding: "18px 22px", background: t.primaryDim,
+              border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.md,
+            }}>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>ontology</span> 3³ = <span style={{ color: t.fg, fontWeight: 600 }}>27</span> <span style={{ color: t.fgMuted }}> core trits</span></div>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>square</span> 3² = <span style={{ color: t.fg, fontWeight: 600 }}>9</span> <span style={{ color: t.fgMuted }}> confidence levels</span></div>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>dimensions</span> 27 + 1 = <span style={{ color: t.fg, fontWeight: 600 }}>28</span> <span style={{ color: t.fgMuted }}> effective dimensions</span></div>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>closure</span> 13 × 28 = <span style={{ color: t.primary, fontWeight: 600 }}>364</span> <span style={{ color: t.fgMuted }}> circle closed</span></div>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>repunit</span> 111111₃ = <span style={{ color: t.primary, fontWeight: 600 }}>364</span> <span style={{ color: t.fgMuted }}> identity confirmed</span></div>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>radian</span> 364 / 28 = <span style={{ color: t.fg, fontWeight: 600 }}>13°</span> <span style={{ color: t.fgMuted }}> exact</span></div>
+              <div><span style={{ color: t.fgMuted, fontSize: 10, display: "inline-block", width: 90 }}>π</span> 28 / 2 = <span style={{ color: t.primary, fontWeight: 700 }}>14</span> <span style={{ color: t.fgMuted }}> exact integer</span></div>
+            </div>
+          </div>
+        </FadeIn>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
+          <FadeIn delay={300}>
+            <div style={{
+              padding: "22px 24px", background: t.card, border: `1px solid ${t.cardBorder}`,
+              borderRadius: RADIUS.lg, boxShadow: t.shadow, height: "100%",
+            }} data-testid="card-classical-impossibility">
+              <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.esoteric, marginBottom: 12, fontWeight: 600 }}>CLASSICAL PROBLEM</div>
+              <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, margin: "0 0 10px" }}>
+                In Euclidean geometry, π is transcendental — it cannot be expressed as the root of any
+                polynomial with rational coefficients. This makes squaring the circle provably impossible
+                with compass and straightedge.
+              </p>
+              <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, margin: 0 }}>
+                The impossibility is fundamental to any system built on continuous real-number geometry.
+              </p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={380}>
+            <div style={{
+              padding: "22px 24px", background: t.card, border: `1px solid ${t.cardBorder}`,
+              borderRadius: RADIUS.lg, boxShadow: t.shadow, height: "100%",
+            }} data-testid="card-ternary-resolution">
+              <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary, marginBottom: 12, fontWeight: 600 }}>TERNARY RESOLUTION</div>
+              <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, margin: "0 0 10px" }}>
+                PlenumNET redefines the circle as a discrete 364-point structure. The "square" emerges
+                from 3² = 9 confidence levels extending 27 ontological trits to 28 effective dimensions.
+                The product 13 × 28 = 364 closes the circle exactly.
+              </p>
+              <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, margin: 0 }}>
+                No irrationals, no transcendentals — only powers of 3, repunit identities, and Tribonacci alignments.
+              </p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       <section style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 28px", borderTop: `1px solid ${dividerColor}`, position: "relative", zIndex: 1 }} data-testid="section-inter-cube">
         <FadeIn>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
