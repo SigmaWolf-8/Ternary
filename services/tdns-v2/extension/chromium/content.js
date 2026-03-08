@@ -1,3 +1,4 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
 // PlenumNET TDNS Resolver — Content Script
 // Detects .plm links and intercepts failed .plm navigations
 
