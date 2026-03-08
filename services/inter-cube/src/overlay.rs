@@ -368,9 +368,9 @@ impl CubeOverlayNetwork {
 
     /// Derive a shared tunnel key from both cubes' Rep C addresses.
     ///
-    /// Uses BLAKE3 keyed hash with the concatenation of both addresses
-    /// (sorted lexicographically to ensure both sides derive the same key).
-    /// Post-quantum by construction — no elliptic curve operations.
+    /// Uses TIS-27 ternary identity sponge with both addresses sorted
+    /// lexicographically — both sides compute the same key independently.
+    /// Post-quantum by construction — no binary hash, no elliptic curve operations.
     pub fn derive_pq_tunnel_key(
         addr_a: &CubeAddr,
         addr_b: &CubeAddr,
@@ -378,21 +378,21 @@ impl CubeOverlayNetwork {
         let bytes_a = addr_a.to_bytes();
         let bytes_b = addr_b.to_bytes();
 
-        // Canonical ordering: smaller address first
-        let (first, second) = if bytes_a <= bytes_b {
+        // Canonical ordering: smaller address first — both sides compute the same key
+        let (lo, hi) = if bytes_a <= bytes_b {
             (&bytes_a, &bytes_b)
         } else {
             (&bytes_b, &bytes_a)
         };
 
-        // Derive key material
-        let mut input = Vec::with_capacity(26 + 16); // 2×13 trits + domain separator
-        input.extend_from_slice(first);
-        input.extend_from_slice(second);
-        input.extend_from_slice(b"PlenumNET-CON-v1");
+        let mut material = Vec::with_capacity(lo.len() + hi.len());
+        material.extend_from_slice(lo);
+        material.extend_from_slice(hi);
 
-        let hash = blake3::hash(&input);
-        *hash.as_bytes()
+        let key_bytes = ternary_math::sponge::derive_key(b"PlenumNET-CON-v2.5", &material, 32);
+        let mut out = [0u8; 32];
+        out.copy_from_slice(&key_bytes);
+        out
     }
 
     /// Derive all tunnel keys for this cube's neighbors.
