@@ -1240,33 +1240,46 @@ function PerformanceSection() {
                   <div>{PLATFORM.BENCH_SHA256_MBPS} MB/s throughput</div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-foreground/5 text-xs text-muted-foreground">
-                  hash (816 ns) + binary→ternary (34 ns) + lift (34 ns)
+                  hash + binary→ternary conversion + lift to Rep C
                 </div>
               </div>
             </div>
 
             <div className="mb-6">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                <span>TIS-27</span>
-                <span>SHA-256</span>
-              </div>
-              <div className="relative h-8 bg-muted/30 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${(PLATFORM.BENCH_TIS27_NS / PLATFORM.BENCH_SHA256_NS) * 100}%` }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                  className="absolute left-0 top-0 h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
-                >
-                  <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{PLATFORM.BENCH_TIS27_NS} ns</span>
-                </motion.div>
-                <div className="absolute right-3 top-0 h-full flex items-center">
-                  <span className="text-xs font-mono text-muted-foreground">{PLATFORM.BENCH_SHA256_NS} ns</span>
+              <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Time to Routable Address (lower is better)</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono w-16 shrink-0 text-right font-medium text-primary">TIS-27</span>
+                  <div className="flex-1 bg-muted/20 rounded-full h-7 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${(PLATFORM.BENCH_TIS27_NS / PLATFORM.BENCH_SHA256_NS) * 100}%` }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1, delay: 0.3 }}
+                      className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
+                    >
+                      <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{PLATFORM.BENCH_TIS27_NS} ns</span>
+                    </motion.div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono w-16 shrink-0 text-right font-medium text-muted-foreground">SHA-256</span>
+                  <div className="flex-1 bg-muted/20 rounded-full h-7 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: "100%" }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.2, delay: 0.5 }}
+                      className="h-full bg-muted-foreground/30 rounded-full flex items-center justify-end pr-3"
+                    >
+                      <span className="text-xs font-mono font-bold text-muted-foreground whitespace-nowrap">{PLATFORM.BENCH_SHA256_NS} ns</span>
+                    </motion.div>
+                  </div>
                 </div>
               </div>
-              <div className="text-center mt-3">
+              <div className="text-center mt-4">
                 <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary font-mono" data-testid="badge-tis27-speedup">
-                  {PLATFORM.BENCH_TIS27_SPEEDUP}× faster
+                  TIS-27 is {PLATFORM.BENCH_TIS27_SPEEDUP}× faster
                 </Badge>
               </div>
             </div>
