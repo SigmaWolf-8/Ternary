@@ -159,8 +159,11 @@ mod tests {
             hrv.sample();
         }
         assert!(hrv.health().healthy, "Should be healthy after 2048 samples");
-        assert!(hrv.health().min_entropy_estimate > 1.0,
-            "Min entropy {} should be > 1.0", hrv.health().min_entropy_estimate);
+        assert!(
+            hrv.health().min_entropy_estimate > 1.0,
+            "Min entropy {} should be > 1.0",
+            hrv.health().min_entropy_estimate
+        );
     }
 
     #[test]
@@ -197,8 +200,16 @@ mod tests {
             h1.sample();
             h2.sample();
         }
-        let diff: usize = h1.pool.iter().zip(h2.pool.iter())
-            .filter(|(a, b)| a != b).count();
-        assert!(diff > 200, "Pools should diverge chaotically, diff={}", diff);
+        let diff: usize = h1
+            .pool
+            .iter()
+            .zip(h2.pool.iter())
+            .filter(|(a, b)| a != b)
+            .count();
+        assert!(
+            diff > 200,
+            "Pools should diverge chaotically, diff={}",
+            diff
+        );
     }
 }
