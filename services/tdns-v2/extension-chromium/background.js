@@ -1,6 +1,6 @@
 // PlenumNET TDNS — Background Service Worker
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
-// Phase 1 — v1.0.0
+// Phase 1 — v1.0.9
 
 const API_BASE = "https://plenumnet.replit.app";
 
@@ -15,7 +15,7 @@ chrome.runtime.onInstalled.addListener(() => {
     rescanCount: {},   // { [date]: { [hostname]: count } }
     apiBase:     API_BASE,
   });
-  console.log("[PlenumNET] Extension installed — TDNS Scanner v1.0.0");
+  console.log("[PlenumNET] Extension installed — TDNS Scanner v1.0.9");
 });
 
 // Message handler — popup and content script communicate via here
