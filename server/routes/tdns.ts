@@ -603,19 +603,20 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     tisPermute(scanSpongeState);
   }
   const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanSpongeState[i] + 1);
-  const scanHexBytes: string[] = [];
-  for (let i = 0; i + 4 < TIS_STATE; i += 5) {
-    const val = scanSpongeState[i]*81 + scanSpongeState[i+1]*27 + scanSpongeState[i+2]*9 + scanSpongeState[i+3]*3 + scanSpongeState[i+4];
-    scanHexBytes.push(val.toString(16).padStart(2, "0"));
-  }
-  while (scanHexBytes.length < 32) {
-    tisPermute(scanSpongeState);
-    for (let i = 0; i + 4 < TIS_STATE && scanHexBytes.length < 32; i += 5) {
-      const val = scanSpongeState[i]*81 + scanSpongeState[i+1]*27 + scanSpongeState[i+2]*9 + scanSpongeState[i+3]*3 + scanSpongeState[i+4];
-      scanHexBytes.push(val.toString(16).padStart(2, "0"));
+  function squeezeScanBytes(state: Uint8Array, n: number): number[] {
+    const out: number[] = [];
+    const s = new Uint8Array(state);
+    while (out.length < n) {
+      for (let i = 0; i + 4 < TIS_STATE; i += 5) {
+        if (out.length >= n) break;
+        out.push(s[i] * 81 + s[i+1] * 27 + s[i+2] * 9 + s[i+3] * 3 + s[i+4]);
+      }
+      tisPermute(s);
     }
+    return out.slice(0, n);
   }
-  const scan_hash = scanHexBytes.slice(0, 32).join("");
+  const scanHashBytes = squeezeScanBytes(scanSpongeState, 32);
+  const scan_hash = scanHashBytes.map((b: number) => b.toString(16).padStart(2, "0")).join("");
   const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
 
   // ── 5 Scores ───────────────────────────────────────────────────────────────
