@@ -12,15 +12,18 @@ use crate::trit::Trit;
 
 // ─── Scan Hash ───────────────────────────────────────────────────────────────
 
-/// BLAKE3 hash of the complete scan results.
+/// TIS-27 digest of the complete scan results.
 /// Stored in TRN records. CRS-signed. Binds address to measurements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ScanHash(pub [u8; 32]);
 
 impl ScanHash {
-    /// Compute BLAKE3 hash of serialized scan results.
+    /// Compute TIS-27 hash of serialized scan results.
     pub fn compute(scan_data: &[u8]) -> Self {
-        Self(*blake3::hash(scan_data).as_bytes())
+        let bytes = ternary_math::sponge::hash(scan_data, 32);
+        let mut out = [0u8; 32];
+        out.copy_from_slice(&bytes);
+        Self(out)
     }
 
     /// The raw 32-byte hash.
@@ -123,40 +126,24 @@ impl ScanResult {
         // Includes: target URL, timestamp, and every raw value + confidence.
         // This ensures two different entities with different raw observations
         // always produce different hashes, even if their trit vectors match.
-        let mut hasher = blake3::Hasher::new();
-        hasher.update(target.as_bytes());
-        hasher.update(&scanned_at.to_be_bytes());
+        // Build scan preimage: target + timestamp + measurements + trit vector
+        let mut preimage: Vec<u8> = Vec::new();
+        preimage.extend_from_slice(target.as_bytes());
+        preimage.extend_from_slice(&scanned_at.to_be_bytes());
         for m in &measurements {
-            hasher.update(&[m.dim as u8]);
-            hasher.update(&[m.confidence.0]);
-            // Serialize raw value into hash
+            preimage.push(m.dim as u8);
+            preimage.push(m.confidence.0);
             match &m.raw {
-                RawValue::Text(s) => {
-                    hasher.update(&[0x01]); // type tag
-                    hasher.update(s.as_bytes());
-                }
-                RawValue::Numeric(n) => {
-                    hasher.update(&[0x02]);
-                    hasher.update(&n.to_be_bytes());
-                }
-                RawValue::Boolean(b) => {
-                    hasher.update(&[0x03]);
-                    hasher.update(&[*b as u8]);
-                }
-                RawValue::Pattern(s) => {
-                    hasher.update(&[0x04]);
-                    hasher.update(s.as_bytes());
-                }
+                RawValue::Text(s)    => { preimage.push(0x01); preimage.extend_from_slice(s.as_bytes()); }
+                RawValue::Numeric(n) => { preimage.push(0x02); preimage.extend_from_slice(&n.to_be_bytes()); }
+                RawValue::Boolean(b) => { preimage.push(0x03); preimage.push(*b as u8); }
+                RawValue::Pattern(s) => { preimage.push(0x04); preimage.extend_from_slice(s.as_bytes()); }
             }
         }
-        // Also include the derived trit vector for completeness
         for t in &trit_values {
-            hasher.update(&[t.value()]);
+            preimage.push(t.value());
         }
-        let hash_output = hasher.finalize();
-        let mut hash_bytes = [0u8; 32];
-        hash_bytes.copy_from_slice(hash_output.as_bytes());
-        let scan_hash = ScanHash(hash_bytes);
+        let scan_hash = ScanHash::compute(&preimage);
 
         Self {
             target,
