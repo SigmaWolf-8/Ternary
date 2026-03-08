@@ -45,6 +45,18 @@ export const PLATFORM = {
   INTER_CUBE_SERVICES: 4,
   INTER_CUBE_ROUTING_TABLES: 0,
   MILESTONES: 42,
+
+  CRT: {
+    FULL_CIRCLE: 364,
+    MOD_MOON: 13,
+    MOD_DAY: 28,
+    INV_13_MOD_28: 13,
+    INV_28_MOD_13: 7,
+    COEFF_FINE: 196,
+    COEFF_FAST: 169,
+    CLOCK_SOURCES: 7,
+    DAYS_PER_SOURCE: 52,
+  },
 } as const;
 
 export type Platform = typeof PLATFORM;
