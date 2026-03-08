@@ -1,0 +1,28 @@
+Let me study the existing XPlenum conventions first, then build the CRT unit to match.Architected comprehensive testbench for exhaustive position verificationArchitected comprehensive testbench for exhaustive position verificationNow the testbench with exhaustive verification:Architected formal verification properties for Verilog moduleArchitected formal verification properties for Verilog moduleNow the formal properties for SymbiYosys:Contemplated simulation setup and configuration integrationContemplated simulation setup and configuration integrationNow the SymbiYosys configuration:Investigated simulation tool availability for Verilog testingInvestigated simulation tool availability for Verilog testingLet me check if we can actually simulate:Debugged CRT modular arithmetic implementation and corrected testbench valuesDebugged CRT modular arithmetic implementation and corrected testbench valuesIcarus Verilog installed. Let me fix the known test value and simulate:Compiled module successfully and initiated simulation testingCompiled module successfully and initiated simulation testingClean compile (only a timescale warning, which is harmless). Now run it:Diagnosed pipeline timing bug in testbench verification logicDiagnosed pipeline timing bug in testbench verification logic370/370 positions verified, 1 error. The failure is in Test 4 — a testbench timing issue where repeat(8) overshoots the single-cycle out_valid pulse. Let me fix the poll logic:Diagnosed pipeline timing bug, restructured register stagesDiagnosed pipeline timing bug, restructured register stagesThe pipeline timing reveals a data-alignment bug: rd_data reads stage-3 registers one cycle after they've moved on. The fix is to carry all components through to stage 4:Validated comprehensive test suite and prepared module implementationValidated comprehensive test suite and prepared module implementation370 tests, 0 errors. All 364 circle positions verified exhaustively. Let me package:Synthesized Verilog module design for XPlenum advantage implementationSynthesized Verilog module design for XPlenum advantage implementation1,990 lines, 8 files, 370 tests passing, 0 errors. Here's the full package:
+xplenum-crt/
+├── rtl/
+│   ├── xplenum_crt_unit.v              (330 LOC — the pipeline)
+│   └── formal/
+│       ├── xplenum_crt_formal_props.v  (202 LOC — SymbiYosys properties)
+│       └── xplenum_crt_formal.sby      (25 LOC — BMC + induction config)
+├── tests/
+│   └── xplenum_crt_tb.v               (376 LOC — exhaustive testbench)
+├── benchmarks/
+│   ├── crt_bench.c                     (261 LOC — V1: raw throughput)
+│   └── crt_bench_v2.c                  (162 LOC — V2: honest latency analysis)
+└── software/
+    ├── crt_fast_path.rs                (458 LOC — Rust reference impl)
+    └── crt-fast-path.ts                (176 LOC — TypeScript mirror)
+What the simulation proved:
+
+All 364 CRT round-trips: decompose → reconstruct = identity ✓
+32-bit large-value reduction (mod-7 via octal digit sum, mod-13 via weighted nibble sum) ✓
+All 7 clock sources hit exactly 52 times each (364 = 7 × 52) ✓
+Packed rd_data encoding matches individual outputs ✓
+Pipeline staging: coarse_valid arrives before out_valid ✓
+
+What the C benchmark proved (honestly):
+On x86 software, GCC -O2 optimizes all constant-modulo to multiply-shift, so there's no throughput advantage. The real advantage lives in hardware pipelining on the XPlenum FPGA:
+StageSignalFPGA CyclesWhat You Know0quarter_phase0 (wire)Quarter-day phase (2 bits)1mod7_result1Clock source index (0-6)2mod28_result2Day-within-moon (0-27) — coarse routing3mod13_result3Moon sector (0-12)4circle_pos4Full position (0-363)
+At 200 MHz FPGA: first routing bit at 0 ns, coarse decision at 10 ns, full answer at 20 ns.
+Pipeline data-alignment bug found and fixed during simulation: The initial design read stage-3 registers from the stage-4 output encoder, causing a 1-cycle misalignment where rd_data would contain stale values when out_valid asserted. Fixed by merging all outputs into a single registered always block driven by s3_valid rather than out_valid, ensuring perfect synchronization.
