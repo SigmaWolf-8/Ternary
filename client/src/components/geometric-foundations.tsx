@@ -857,7 +857,7 @@ export default function GeometricFoundations() {
                 with compass and straightedge.
               </p>
               <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, margin: 0 }}>
-                The impossibility is fundamental to any system built on continuous real-number geometry.
+                The impossibility is specific to compass-and-straightedge construction under Euclidean axioms.
               </p>
             </div>
           </FadeIn>
@@ -868,7 +868,7 @@ export default function GeometricFoundations() {
             }} data-testid="card-ternary-resolution">
               <div style={{ fontSize: 9, fontFamily: FONTS.mono, letterSpacing: 1.5, color: t.primary, marginBottom: 12, fontWeight: 600 }}>TERNARY RESOLUTION — THE CLOSED GEOMETRIC LOOP</div>
               <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, margin: "0 0 10px" }}>
-                PlenumNET discretizes the circle as exactly 364 points.
+                PlenumNET discretizes the circle as exactly 364 degrees.
                 27 ontological trits + 1 Collision Resolution Digit = 28 effective dimensions.
                 13 × 28 = 364 — a perfect closure where 13 (routing dimension, Tribonacci T₇,
                 ternary radian) completes the loop. This is no coincidence: the geometry returns to itself.
