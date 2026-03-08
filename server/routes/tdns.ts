@@ -1,21 +1,118 @@
-// PlenumNET TDNS — Server-Side Scanner & Registry v2.3.3
+// PlenumNET TDNS — Server-Side Scanner & Registry v2.5.0
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
 // Patent(s) Pending — All Rights Reserved
 //
 // TDNS Browser Extension API — full report payload
-// All 27 dimensions derived server-side from live HTTP fetch.
+// All 27 classification trits derived server-side from live HTTP fetch.
 // Derivation rules ported exactly from services/tdns-v2/src/derive.rs.
 //
-// Scan hash: SHA-256 of trit vector (JS path).
-// Production path: BLAKE3 via services/tdns-v2/src/scan.rs (blake3 = "=1.5.4").
+// TDNS v2.5.0: 54-trit address = 27 classification + 27 identity anchor.
+// Identity derivation: IdentitySponge — ternary sponge, parameters derived from
+//   TDNS architecture (state=54, rate=27, capacity=27, rounds=27). No binary
+//   hash primitives in identity derivation. No domain crossing. Mirrors
+//   services/tdns-v2/src/identity.rs exactly.
+//
+// Scan hash: IdentitySponge of trit vector — same primitive as identity derivation.
+//   Two input domains: canonical URL → identity anchor; classification trits → scan hash.
 // Timestamps: ISO 8601 display (JS path).
 // Production path: getFemtosecondTimestamp() via server/salvi-core/femtosecond-timing.ts.
 
 import type { Express, Request, Response } from "express";
 import { createLogger } from "../logger";
-import * as crypto from "crypto";
 
 const log = createLogger("tdns");
+
+// ── TDNS Identity Sponge ──────────────────────────────────────────────────────
+//
+// Ternary sponge for URL identity hashing.
+// Parameters derived from TDNS architecture — not chosen arbitrarily:
+//   State:    54 trits  ← full TDNS address width (27 classification + 27 identity)
+//   Rate:     27 trits  ← identity anchor width = classification width
+//   Capacity: 27 trits  ← classification layer width
+//   Rounds:   27        ← one per output trit
+//   Stride:   13        ← gcd(13,54)=1, complete permutation cycle
+//
+// Mirrors services/tdns-v2/src/identity.rs exactly.
+// No SHA-256. No BLAKE3. All arithmetic in GF(3) = {0,1,2}.
+// Output is in Rep C {1,2,3} — zero structurally impossible in legitimate output.
+
+const TIS_STATE  = 54;
+const TIS_RATE   = 27;
+const TIS_ROUNDS = 27;
+const TIS_RC: readonly number[] = [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0];
+
+function gf3Add(a: number, b: number): number { return (a + b) % 3; }
+
+function tisByteToTrits(b: number): number[] {
+  const out: number[] = [];
+  let v = b;
+  for (let i = 0; i < 6; i++) { out.push(v % 3); v = Math.floor(v / 3); }
+  return out;
+}
+
+function tisTheta(s: Uint8Array): void {
+  const t = new Uint8Array(TIS_STATE);
+  for (let i = 0; i < TIS_STATE; i++) {
+    const p = (i + TIS_STATE - 1) % TIS_STATE;
+    const n = (i + 1) % TIS_STATE;
+    t[i] = gf3Add(s[i], gf3Add(s[p], s[n]));
+  }
+  s.set(t);
+}
+
+function tisPi(s: Uint8Array): void {
+  const t = new Uint8Array(TIS_STATE);
+  for (let i = 0; i < TIS_STATE; i++) { t[(i * 13) % TIS_STATE] = s[i]; }
+  s.set(t);
+}
+
+function tisPermute(s: Uint8Array): void {
+  for (let r = 0; r < TIS_ROUNDS; r++) {
+    tisTheta(s);
+    tisPi(s);
+    s[0] = gf3Add(s[0], TIS_RC[r]);
+  }
+}
+
+function deriveIdentityTrits(canonicalUrl: string): number[] {
+  const state = new Uint8Array(TIS_STATE);
+
+  const bytes = new TextEncoder().encode(canonicalUrl);
+  const trits: number[] = [];
+  for (const b of bytes) { trits.push(...tisByteToTrits(b)); }
+
+  trits.push(1);
+  while (trits.length % TIS_RATE !== TIS_RATE - 1) { trits.push(0); }
+  trits.push(2);
+
+  for (let off = 0; off < trits.length; off += TIS_RATE) {
+    for (let i = 0; i < TIS_RATE; i++) {
+      state[i] = gf3Add(state[i], trits[off + i] ?? 0);
+    }
+    tisPermute(state);
+  }
+
+  const out: number[] = [];
+  for (let i = 0; i < TIS_RATE; i++) { out.push(state[i] + 1); }
+  return out;
+}
+
+function canonicaliseUrl(raw: string): string {
+  const noFrag  = raw.split("#")[0];
+  const noQuery = noFrag.split("?")[0];
+  try {
+    const u    = new URL(noQuery);
+    const host = u.hostname.toLowerCase();
+    const isDefaultPort =
+      (u.protocol === "https:" && (u.port === "443" || u.port === "")) ||
+      (u.protocol === "http:"  && (u.port === "80"  || u.port === ""));
+    const port = isDefaultPort ? "" : (u.port ? `:${u.port}` : "");
+    const path = u.pathname === "/" ? "" : u.pathname;
+    return `${u.protocol}//${host}${port}${path}`;
+  } catch {
+    return noQuery.toLowerCase();
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -97,10 +194,12 @@ interface Scores {
 interface ScanResult {
   status:          string;
   address:         string;
-  scan_hash:       string;         // SHA-256 (JS path); BLAKE3 in Rust production path
-  scan_hash_algo:  string;         // "sha256-js" | "blake3-rs"
+  identity_trits:  number[];
+  cguid:           number;
+  scan_hash:       string;
+  scan_hash_algo:  string;
   hptp_mandatory:  boolean;
-  crd:             number;           // "Check Digit" in UI — (parseInt(scan_hash[0],16) % 9) + 1
+  crd:             number;
   dimensions:      Dimension[];
   scores:          Scores;
   trackers:        TrackerCategory[];
@@ -118,7 +217,30 @@ interface RegistryEntry extends ScanResult {
   name:          string;
   zone:          string;
   url:           string;
+  canonical_url: string;
+  org_name?:     string;
   registered_at: string;
+}
+
+// ── Multi-URL Org Entity ───────────────────────────────────────────────────────
+
+interface OrgMember {
+  url:             string;
+  canonical_url:   string;
+  plm_name:        string;
+  address:         string;
+  identity_trits:  number[];
+  cguid:           number;
+  added_at:        string;
+}
+
+interface OrgEntity {
+  org_name:        string;
+  display_name?:   string;
+  classification_address: string;
+  members:         OrgMember[];
+  created_at:      string;
+  updated_at:      string;
 }
 
 // ── In-memory registry ────────────────────────────────────────────────────────
@@ -126,6 +248,10 @@ interface RegistryEntry extends ScanResult {
 const registry    = new Map<string, RegistryEntry>();
 // Secondary index: normalised URL → .plm name (dedup)
 const urlIndex    = new Map<string, string>();
+// Org registry: org handle → OrgEntity (multi-URL grouping)
+const orgRegistry = new Map<string, OrgEntity>();
+// Reverse index: .plm name → org handle
+const orgIndex    = new Map<string, string>();
 
 /** Normalise URL for dedup: strip trailing slash, lowercase host, ignore query/fragment. */
 function normaliseRegistryUrl(raw: string): string {
@@ -454,17 +580,31 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
                   9,c18,c19,9,9,9,9,c24,c25,c26,9];
 
   // ── Address ────────────────────────────────────────────────────────────────
-  const address = [
+  const classAddr = [
     `WO:${trits.slice(0,4).join("")}`, `WA:${trits.slice(4,8).join("")}`,
     `WR:${trits.slice(8,12).join("")}`, `WN:${trits.slice(12,16).join("")}`,
     `WY:${trits.slice(16,20).join("")}`, `HO:${trits.slice(20,24).join("")}`,
     `PE:${trits.slice(24,27).join("")}`,
   ].join(" ");
 
-  // Scan hash: SHA-256 of trit vector (JS path)
-  // Production: BLAKE3(serialised_scan_measurements) via services/tdns-v2/src/scan.rs
-  const scan_hash = crypto.createHash("sha256").update(Buffer.from(trits)).digest("hex");
-  const crd = (parseInt(scan_hash[0], 16) % 9) + 1;
+  const canonical      = canonicaliseUrl(rawUrl);
+  const identity_trits = deriveIdentityTrits(canonical);
+  const address        = `${classAddr} · ID:${identity_trits.join("")}`;
+
+  const scanSpongeState = new Uint8Array(TIS_STATE);
+  const scanTritsGf3    = trits.map((t: number) => t - 1);
+  const scanPadded: number[] = [...scanTritsGf3, 1];
+  while (scanPadded.length % TIS_RATE !== TIS_RATE - 1) { scanPadded.push(0); }
+  scanPadded.push(2);
+  for (let off = 0; off < scanPadded.length; off += TIS_RATE) {
+    for (let i = 0; i < TIS_RATE; i++) {
+      scanSpongeState[i] = gf3Add(scanSpongeState[i], scanPadded[off + i] ?? 0);
+    }
+    tisPermute(scanSpongeState);
+  }
+  const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanSpongeState[i] + 1);
+  const scan_hash    = scanTritsOut.map((t: number) => t.toString()).join("");
+  const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
 
   // ── 5 Scores ───────────────────────────────────────────────────────────────
   const whoAvg  = (norm(d1)+norm(d2)+norm(d3)+norm(d4)) / 4;
@@ -927,8 +1067,10 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   return {
     status:           "ok",
     address,
+    identity_trits,
+    cguid:            1,
     scan_hash,
-    scan_hash_algo:   "sha256-js",  // "blake3-rs" in production Rust path
+    scan_hash_algo:   "tis-27",
     hptp_mandatory,
     crd,
     dimensions,
@@ -949,10 +1091,9 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
 export function registerTdnsRoutes(app: Express) {
 
   app.get("/api/tdns/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", version: "2.3.3", entities: registry.size, engine: "server-js-v141" });
+    res.json({ status: "ok", version: "2.5.0", entities: registry.size, engine: "server-js-v141" });
   });
 
-  // POST /api/tdns/scan — full report payload for extension
   app.post("/api/tdns/scan", async (req: Request, res: Response) => {
     const { url } = req.body;
     if (!url) { res.status(400).json({ error: "url required" }); return; }
@@ -965,93 +1106,221 @@ export function registerTdnsRoutes(app: Express) {
     }
   });
 
-  // POST /api/tdns/register
-  // Body: { name: string, url: string, zone?: string, overwrite?: boolean }
-  //
-  // Dedup behaviour (v1.0.2+):
-  //   - If this URL is already registered under a DIFFERENT .plm name → 409 + existing_name
-  //   - If this URL is already registered under the SAME name → 409 + existing_name (no re-scan)
-  //   - Caller may pass { overwrite: true } to force re-registration (replaces existing record)
-  //
-  // Name sanitisation:
-  //   - Caller should strip TLDs before sending (popup.js suggestPlmName handles this).
-  //   - Server strips leading/trailing hyphens and collapses consecutive hyphens.
-  //   - ".plm" suffix is appended if not present.
   app.post("/api/tdns/register", async (req: Request, res: Response) => {
-    const { name, zone, url, overwrite } = req.body;
+    const { name, zone, url, overwrite, org_name } = req.body;
     if (!name || !url) { res.status(400).json({ error: "name and url required" }); return; }
 
-    // Sanitise name server-side as well (defence in depth)
     const cleanName = name
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-{2,}/g, "-")
-      .replace(/^-|-$/g, "");
+      .toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
     if (!cleanName) { res.status(400).json({ error: "name contains no valid characters" }); return; }
 
-    const plmName  = cleanName.endsWith(".plm") ? cleanName : cleanName + ".plm";
-    const normUrl  = normaliseRegistryUrl(url);
+    const plmName    = cleanName.endsWith(".plm") ? cleanName : cleanName + ".plm";
+    const normUrl    = normaliseRegistryUrl(url);
+    const canonical  = canonicaliseUrl(url);
 
-    // ── Dedup check ───────────────────────────────────────────────────────────
     if (!overwrite) {
       const existingName = urlIndex.get(normUrl);
       if (existingName) {
         log.warn(`Register blocked: ${normUrl} already registered as ${existingName}`);
         res.status(409).json({
-          status:        "duplicate",
-          error:         `URL already registered as ${existingName}`,
-          existing_name: existingName,
-          url:           normUrl,
-          hint:          "Pass overwrite=true in the request body to replace the existing record.",
+          status: "duplicate", error: `URL already registered as ${existingName}`,
+          existing_name: existingName, url: normUrl,
+          hint: "Pass overwrite=true to replace, or use POST /api/tdns/org/add-url to add to an org.",
         });
         return;
       }
     } else {
-      // Overwrite: remove the old URL→name mapping if the name is changing
       const oldName = urlIndex.get(normUrl);
       if (oldName && oldName !== plmName) {
-        registry.delete(oldName);
-        urlIndex.delete(normUrl);
+        registry.delete(oldName); urlIndex.delete(normUrl);
         log.info(`Overwrite: removed old record ${oldName} for ${normUrl}`);
       }
     }
 
     try {
-      const scan = await scanUrl(url);
+      const scan  = await scanUrl(url);
       const entry: RegistryEntry = {
-        ...scan, name: plmName, zone: zone || "public", url,
+        ...scan, name: plmName, zone: zone || "public", url, canonical_url: canonical,
+        org_name: org_name ? sanitiseOrgHandle(org_name) : undefined,
         registered_at: new Date().toISOString(),
       };
       registry.set(plmName, entry);
       urlIndex.set(normUrl, plmName);
-      log.info(`Registered ${plmName} → ${scan.address} (url: ${normUrl})`);
+
+      let org: OrgEntity | undefined;
+      if (org_name) {
+        const handle = sanitiseOrgHandle(org_name);
+        org = attachToOrg(handle, entry, scan);
+      }
+
+      log.info(`Registered ${plmName} → ${scan.address} (url: ${normUrl})${org ? ` [org: ${org.org_name}]` : ""}`);
       res.json({
         status: "ok", name: plmName, address: scan.address,
+        identity_trits: scan.identity_trits, cguid: scan.cguid,
         scan_hash: scan.scan_hash, hptp_mandatory: scan.hptp_mandatory, crd: scan.crd,
+        org: org ? { org_name: org.org_name, member_count: org.members.length } : undefined,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // GET /api/tdns/resolve/:name
+  app.post("/api/tdns/org/create", (req: Request, res: Response) => {
+    const { org_name, display_name } = req.body;
+    if (!org_name) { res.status(400).json({ error: "org_name required" }); return; }
+    const handle = sanitiseOrgHandle(org_name);
+    if (orgRegistry.has(handle)) {
+      res.status(409).json({ status: "duplicate", error: `Org '${handle}' already exists` });
+      return;
+    }
+    const now = new Date().toISOString();
+    const org: OrgEntity = {
+      org_name: handle, display_name: display_name || undefined,
+      classification_address: "", members: [], created_at: now, updated_at: now,
+    };
+    orgRegistry.set(handle, org);
+    log.info(`Org created: ${handle}`);
+    res.json({ status: "ok", org_name: handle });
+  });
+
+  app.post("/api/tdns/org/add-url", (req: Request, res: Response) => {
+    const { org_name, plm_name } = req.body;
+    if (!org_name || !plm_name) { res.status(400).json({ error: "org_name and plm_name required" }); return; }
+    const handle = sanitiseOrgHandle(org_name);
+    const name   = plm_name.endsWith(".plm") ? plm_name : plm_name + ".plm";
+    const entry  = registry.get(name);
+    if (!entry) { res.status(404).json({ error: `${name} not found in registry` }); return; }
+    if (orgIndex.has(name)) {
+      const existingOrg = orgIndex.get(name);
+      res.status(409).json({ error: `${name} already belongs to org '${existingOrg}'` });
+      return;
+    }
+    let org = orgRegistry.get(handle);
+    if (!org) {
+      const now = new Date().toISOString();
+      org = { org_name: handle, classification_address: entry.address, members: [], created_at: now, updated_at: now };
+      orgRegistry.set(handle, org);
+    }
+    const member: OrgMember = {
+      url: entry.url, canonical_url: entry.canonical_url, plm_name: name,
+      address: entry.address, identity_trits: entry.identity_trits,
+      cguid: entry.cguid, added_at: new Date().toISOString(),
+    };
+    org.members.push(member);
+    org.updated_at = new Date().toISOString();
+    if (!org.classification_address) org.classification_address = entry.address;
+    orgIndex.set(name, handle);
+    entry.org_name = handle;
+    log.info(`Org ${handle}: added ${name} (${entry.canonical_url})`);
+    res.json({ status: "ok", org_name: handle, member_count: org.members.length });
+  });
+
+  app.get("/api/tdns/org/:name", (req: Request, res: Response) => {
+    const handle = sanitiseOrgHandle(String(req.params.name));
+    const org    = orgRegistry.get(handle);
+    if (!org) { res.status(404).json({ status: "not_found", org_name: handle }); return; }
+    res.json({
+      status: "ok",
+      org_name:               org.org_name,
+      display_name:           org.display_name,
+      classification_address: org.classification_address,
+      member_count:           org.members.length,
+      members:                org.members.map(m => ({
+        plm_name:        m.plm_name,
+        url:             m.url,
+        canonical_url:   m.canonical_url,
+        address:         m.address,
+        cguid:           m.cguid,
+        added_at:        m.added_at,
+      })),
+      created_at:  org.created_at,
+      updated_at:  org.updated_at,
+    });
+  });
+
   app.get("/api/tdns/resolve/:name", (req: Request, res: Response) => {
-    const name  = req.params.name.endsWith(".plm") ? req.params.name : req.params.name + ".plm";
+    const raw   = String(req.params.name);
+    const name  = raw.endsWith(".plm") ? raw : raw + ".plm";
     const entry = registry.get(name);
     if (!entry) { res.status(404).json({ status: "not_found", name }); return; }
-    res.json({ status: "ok", name: entry.name, address: entry.address,
-               scan_hash: entry.scan_hash, hptp_mandatory: entry.hptp_mandatory,
-               crd: entry.crd, registered_at: entry.registered_at });
+    const orgHandle = entry.org_name;
+    const org       = orgHandle ? orgRegistry.get(orgHandle) : undefined;
+    res.json({
+      status:          "ok",
+      name:            entry.name,
+      address:         entry.address,
+      identity_trits:  entry.identity_trits,
+      cguid:           entry.cguid,
+      canonical_url:   entry.canonical_url,
+      scan_hash:       entry.scan_hash,
+      hptp_mandatory:  entry.hptp_mandatory,
+      crd:             entry.crd,
+      registered_at:   entry.registered_at,
+      org: org ? {
+        org_name:     org.org_name,
+        display_name: org.display_name,
+        member_count: org.members.length,
+        members:      org.members.map(m => ({ plm_name: m.plm_name, url: m.url, address: m.address })),
+      } : undefined,
+    });
   });
 
   app.get("/api/tdns/list", (_req: Request, res: Response) => {
     res.json({
-      status: "ok", count: registry.size,
-      unique_urls: urlIndex.size,
-      entries: Array.from(registry.values()).map(e =>
-        ({ name: e.name, address: e.address, url: e.url, registered_at: e.registered_at })),
+      status: "ok", count: registry.size, unique_urls: urlIndex.size,
+      org_count: orgRegistry.size,
+      entries: Array.from(registry.values()).map(e => ({
+        name: e.name, address: e.address, url: e.url,
+        org_name: e.org_name, registered_at: e.registered_at,
+      })),
     });
   });
 
-  log.info("TDNS routes registered v2.3.3 — full report payload active");
+  app.get("/api/tdns/orgs", (_req: Request, res: Response) => {
+    res.json({
+      status: "ok", count: orgRegistry.size,
+      orgs: Array.from(orgRegistry.values()).map(o => ({
+        org_name: o.org_name, display_name: o.display_name,
+        member_count: o.members.length,
+        members: o.members.map(m => m.plm_name),
+        created_at: o.created_at,
+      })),
+    });
+  });
+
+  log.info("TDNS routes registered v2.5.0 — multi-URL org entities active");
+}
+
+// ── Org helpers ───────────────────────────────────────────────────────────────
+
+function sanitiseOrgHandle(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
+}
+
+function attachToOrg(handle: string, entry: RegistryEntry, scan: ScanResult): OrgEntity {
+  const now = new Date().toISOString();
+  let org   = orgRegistry.get(handle);
+  if (!org) {
+    org = {
+      org_name:               handle,
+      classification_address: scan.address,
+      members:                [],
+      created_at:             now,
+      updated_at:             now,
+    };
+    orgRegistry.set(handle, org);
+  }
+  const member: OrgMember = {
+    url:            entry.url,
+    canonical_url:  entry.canonical_url,
+    plm_name:       entry.name,
+    address:        entry.address,
+    identity_trits: entry.identity_trits,
+    cguid:          entry.cguid,
+    added_at:       now,
+  };
+  org.members.push(member);
+  org.updated_at = now;
+  orgIndex.set(entry.name, handle);
+  return org;
 }
