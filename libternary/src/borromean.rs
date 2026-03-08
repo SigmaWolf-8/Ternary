@@ -115,7 +115,12 @@ impl TernaryWord {
     /// Panics if any element is greater than 2.
     pub fn new(trits: Vec<u8>) -> Self {
         for (i, &t) in trits.iter().enumerate() {
-            assert!(t <= 2, "Trit at position {} must be 0, 1, or 2; got {}", i, t);
+            assert!(
+                t <= 2,
+                "Trit at position {} must be 0, 1, or 2; got {}",
+                i,
+                t
+            );
         }
         TernaryWord { trits }
     }
@@ -129,7 +134,11 @@ impl TernaryWord {
         let trits: Vec<u8> = balanced
             .iter()
             .map(|&d| {
-                assert!(d >= -1 && d <= 1, "Balanced trit must be -1, 0, or +1; got {}", d);
+                assert!(
+                    d >= -1 && d <= 1,
+                    "Balanced trit must be -1, 0, or +1; got {}",
+                    d
+                );
                 ((d + 3) % 3) as u8 // -1→2, 0→0, +1→1
             })
             .collect();
@@ -143,7 +152,11 @@ impl TernaryWord {
         let trits: Vec<u8> = bijective
             .iter()
             .map(|&d| {
-                assert!(d >= 1 && d <= 3, "Bijective trit must be 1, 2, or 3; got {}", d);
+                assert!(
+                    d >= 1 && d <= 3,
+                    "Bijective trit must be 1, 2, or 3; got {}",
+                    d
+                );
                 d % 3 // 1→1, 2→2, 3→0
             })
             .collect();
@@ -156,21 +169,27 @@ impl TernaryWord {
             WordRepr::Standard => self.trits.iter().map(|&t| t as i8).collect(),
             WordRepr::Balanced => {
                 // B→A: 0→0, 1→+1, 2→-1
-                self.trits.iter().map(|&t| match t {
-                    0 => 0i8,
-                    1 => 1,
-                    2 => -1,
-                    _ => unreachable!(),
-                }).collect()
+                self.trits
+                    .iter()
+                    .map(|&t| match t {
+                        0 => 0i8,
+                        1 => 1,
+                        2 => -1,
+                        _ => unreachable!(),
+                    })
+                    .collect()
             }
             WordRepr::Bijective => {
                 // B→C: 0→3, 1→1, 2→2
-                self.trits.iter().map(|&t| match t {
-                    0 => 3i8,
-                    1 => 1,
-                    2 => 2,
-                    _ => unreachable!(),
-                }).collect()
+                self.trits
+                    .iter()
+                    .map(|&t| match t {
+                        0 => 3i8,
+                        1 => 1,
+                        2 => 2,
+                        _ => unreachable!(),
+                    })
+                    .collect()
             }
         }
     }
@@ -358,7 +377,10 @@ pub fn validate_borromean_triple(
 ///
 /// This guarantees the Borromean condition. For pairwise separability,
 /// we introduce controlled variation.
-pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, TernaryWord, TernaryWord) {
+pub fn generate_borromean_triple(
+    length: usize,
+    seed: u64,
+) -> (TernaryWord, TernaryWord, TernaryWord) {
     let a = TernaryWord::pseudo_random(length, seed);
 
     // Construct B and C such that triple XOR is never zero,
@@ -385,7 +407,7 @@ pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, Tern
             // So B+C = 0 means A ≠ 0. If A might be 0, adjust.
             let b_val = 1u8;
             let c_val = 2u8; // 1+2 = 3 ≡ 0 mod 3.
-            // Check: A+B+C = ai+1+2 = ai+3 ≡ ai mod 3. Need ai ≠ 0.
+                             // Check: A+B+C = ai+1+2 = ai+3 ≡ ai mod 3. Need ai ≠ 0.
             if ai != 0 {
                 b_trits.push(b_val);
                 c_trits.push(c_val);
@@ -393,8 +415,8 @@ pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, Tern
                 // ai = 0, so use a different construction.
                 b_trits.push(1);
                 c_trits.push(1); // B+C = 2, A+B+C = 2 ≠ 0. But B+C ≠ 0 here.
-                // We'll fix BC separability at a later position if possible.
-                // For now, this is a best-effort construction.
+                                 // We'll fix BC separability at a later position if possible.
+                                 // For now, this is a best-effort construction.
             }
         } else {
             // Default: ensure triple XOR ≠ 0.
@@ -405,11 +427,7 @@ pub fn generate_borromean_triple(length: usize, seed: u64) -> (TernaryWord, Tern
         }
     }
 
-    (
-        a,
-        TernaryWord::new(b_trits),
-        TernaryWord::new(c_trits),
-    )
+    (a, TernaryWord::new(b_trits), TernaryWord::new(c_trits))
 }
 
 #[cfg(test)]
@@ -434,7 +452,10 @@ mod tests {
         let c = TernaryWord::from_str("012");
 
         let result = check_borromean_invariant(&a, &b, &c);
-        assert!(!result.is_borromean, "Three identical words cannot be Borromean");
+        assert!(
+            !result.is_borromean,
+            "Three identical words cannot be Borromean"
+        );
     }
 
     #[test]
@@ -460,7 +481,10 @@ mod tests {
         let c = TernaryWord::from_str("120");
 
         let result = check_borromean_invariant(&a, &b, &c);
-        assert!(result.is_borromean, "This triple should satisfy the Borromean condition");
+        assert!(
+            result.is_borromean,
+            "This triple should satisfy the Borromean condition"
+        );
         assert!(result.zero_positions.is_empty());
         assert_eq!(result.strength, 1.0);
     }
@@ -600,14 +624,22 @@ mod tests {
         let result_c = check_borromean_invariant(&a_from_c, &b_from_c, &c_from_c);
 
         // All three must agree — the invariant is representation-independent.
-        assert_eq!(result_b.is_borromean, result_a.is_borromean,
-            "Borromean result must be identical whether constructed from B or A");
-        assert_eq!(result_b.is_borromean, result_c.is_borromean,
-            "Borromean result must be identical whether constructed from B or C");
-        assert_eq!(result_b.ternary_xor, result_a.ternary_xor,
-            "XOR vectors must match across representations");
-        assert_eq!(result_b.ternary_xor, result_c.ternary_xor,
-            "XOR vectors must match across representations");
+        assert_eq!(
+            result_b.is_borromean, result_a.is_borromean,
+            "Borromean result must be identical whether constructed from B or A"
+        );
+        assert_eq!(
+            result_b.is_borromean, result_c.is_borromean,
+            "Borromean result must be identical whether constructed from B or C"
+        );
+        assert_eq!(
+            result_b.ternary_xor, result_a.ternary_xor,
+            "XOR vectors must match across representations"
+        );
+        assert_eq!(
+            result_b.ternary_xor, result_c.ternary_xor,
+            "XOR vectors must match across representations"
+        );
     }
 
     #[test]
@@ -630,10 +662,16 @@ mod tests {
             let from_c: Vec<u8> = as_c.iter().map(|&d| d as u8).collect();
             let roundtrip_c = TernaryWord::from_bijective(&from_c);
 
-            assert_eq!(word.trits, roundtrip_a.trits,
-                "A-roundtrip failed for seed {}", seed);
-            assert_eq!(word.trits, roundtrip_c.trits,
-                "C-roundtrip failed for seed {}", seed);
+            assert_eq!(
+                word.trits, roundtrip_a.trits,
+                "A-roundtrip failed for seed {}",
+                seed
+            );
+            assert_eq!(
+                word.trits, roundtrip_c.trits,
+                "C-roundtrip failed for seed {}",
+                seed
+            );
         }
     }
 }
