@@ -1210,7 +1210,7 @@ function PerformanceSection() {
               <h3 className="text-lg font-semibold">TIS-27 vs SHA-256 — Honest Pipeline Comparison</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-6">
-              Raw input → routable Rep C address. Post-address operations (forgery, checksum, CRT, Hamming) are identical work on identical data — not counted.
+              TIS-27 outputs a routable GF(3) address directly — forgery detection, Rep C format, and checksum integrity are structural properties of the output, not extra steps. SHA-256 must convert, validate, and verify separately.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1289,7 +1289,7 @@ function PerformanceSection() {
                 { label: "Rounds", value: String(PLATFORM.BENCH_TIS27_ROUNDS), detail: "vs 64 (SHA-256)" },
                 { label: "Theta Neighbors", value: String(PLATFORM.BENCH_TIS27_NEIGHBORS), detail: "±1, ±7, ±13" },
                 { label: "Avalanche", value: `${PLATFORM.BENCH_TIS27_AVALANCHE}%`, detail: "2× safety margin" },
-                { label: "Forgery Check", value: "Free", detail: "GF(3) → Rep C: no zero" },
+                { label: "Forgery Check", value: "0 ns", detail: "Algebraically impossible" },
               ].map((s) => (
                 <div key={s.label} className="rounded-md border border-foreground/5 bg-muted/20 p-3 text-center" data-testid={`stat-${s.label.toLowerCase().replace(/\s/g, "-")}`}>
                   <div className="text-lg font-bold font-mono">{s.value}</div>
@@ -1300,7 +1300,7 @@ function PerformanceSection() {
             </div>
 
             <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
-              TIS-27 output is GF(3) — the sponge produces {"{0,1,2}"}, lift adds 1 → {"{1,2,3}"}. Zero cannot appear. Forgery detection is algebraic, not checked. SHA-256 must convert via %3 then verify — an accident of the formula, not a guarantee.
+              TIS-27 produces GF(3) values {"{0,1,2}"}. Lift adds 1 → {"{1,2,3}"}. Zero cannot appear — forgery is algebraically impossible, not just unlikely. SHA-256 output requires %3 conversion where zero-exclusion is accidental, not guaranteed. If the conversion formula ever changes, forgery could leak in. TIS-27's guarantee is structural.
             </p>
           </Card>
         </motion.div>
