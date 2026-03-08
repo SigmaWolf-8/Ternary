@@ -1,4 +1,4 @@
-// PlenumNET TDNS — Popup Script v1.0.8
+// PlenumNET TDNS — Popup Script v1.0.9
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. — Applied Physics Division
 // Patent(s) Pending — All Rights Reserved
 //
@@ -198,18 +198,30 @@ function showReport() {
 
 // ── Address ───────────────────────────────────────────────────────────────────
 function renderAddress(r) {
-  el("address").textContent      = r.address;
+  const addrEl = el("address");
+  const parts  = (r.address || "").split(" · ");
+  if (parts.length === 2) {
+    const cguidHtml = r.cguid && r.cguid > 1
+      ? ` <span class="crd-badge" title="Collision GUID — slot ${r.cguid} of 9">CGUID:${r.cguid}</span>`
+      : "";
+    addrEl.innerHTML =
+      `<span class="addr-class">${esc(parts[0])}</span>` +
+      ` <span class="addr-sep">·</span>` +
+      ` <span class="addr-id" title="Identity Anchor — derived from IdentitySponge(URL). Uniquely identifies this specific site.">${esc(parts[1])}</span>` +
+      cguidHtml;
+  } else {
+    addrEl.textContent = r.address;
+  }
   el("hptp-badge").style.display = r.hptp_mandatory ? "inline-flex" : "none";
-  el("crd-badge").textContent    = `Check Digit: ${r.crd}`;
-  el("crd-badge").title          = "Check Digit — a single digit (1–9) derived from the scan hash. If it changes on rescan, the site infrastructure shifted.";
-  const algo = r.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
-  el("hash-preview").textContent = `${algo}: ${(r.scan_hash || "").substring(0, 14)}…`;
+  el("crd-badge").textContent    = `CRD: ${r.crd}`;
+  el("crd-badge").title          = "Check Digit — a value 1–9 derived from the first two output trits of the scan sponge. Changes if the site's classification trits shift between scans.";
+  const algo = r.scan_hash_algo === "tis-27" ? "TIS-27" : r.scan_hash_algo === "blake3-rs" ? "BLAKE3" : "SHA-256";
+  el("hash-preview").textContent = `${algo}: ${(r.scan_hash || "").substring(0, 18)}…`;
   el("scan-time").textContent    = formatTime(r.scannedAt);
-  el("address").onclick = () => {
+  addrEl.onclick = () => {
     navigator.clipboard.writeText(r.address).catch(() => {});
-    const orig = el("address").style.color;
-    el("address").style.color = "#4ADE80";
-    setTimeout(() => { el("address").style.color = orig; }, 800);
+    addrEl.querySelectorAll("span").forEach(s => s.style.color = "#4ADE80");
+    setTimeout(() => { addrEl.querySelectorAll("span").forEach(s => s.style.color = ""); }, 800);
   };
 }
 
