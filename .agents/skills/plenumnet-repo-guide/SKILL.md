@@ -914,7 +914,7 @@ Custom RISC-V extension integrated with CVA6, using two opcode spaces:
 - 6 functional groups (funct3): F3_TMASK (ternary masking), F3_TDOM (domain isolation), F3_TCAP (capability ops), F3_TROT (ternary rotation/crypto), F3_TENC (trit encode/decode), F3_TSIG (signal processing)
 - 22/22 tests passing. Yosys synthesis: 19,173-cell gate-level netlist
 
-Verilog RTL modules (`XPlenum/rtl/` — 18 files):
+Verilog RTL modules (`XPlenum/rtl/` — 19 files):
 
 | Module | Purpose |
 |--------|---------|
@@ -930,10 +930,17 @@ Verilog RTL modules (`XPlenum/rtl/` — 18 files):
 | `xplenum_dom_gadgets.v` | Domain-oriented masking (DOM) gadgets for higher-order security |
 | `xplenum_tamper_response.v` | Security lockdown and zeroization logic |
 | `xplenum_domain_unit.v` | Domain isolation enforcement |
+| `xplenum_crt_unit.v` | CRT decomposition pipeline (330 LOC, 5-stage: Z₃₆₄ → Z₂₈ × Z₁₃) |
+
+The CRT unit implements hardware-pipelined calendar-position decomposition at 200 MHz FPGA clock: quarter-phase at 0 ns (wire), clock source index at 5 ns (stage 1), day-within-moon at 10 ns (stage 2), moon sector at 15 ns (stage 3), full position at 20 ns (stage 4). Pipeline data-alignment bug found and fixed during simulation: initial design read stage-3 registers from stage-4 output encoder, causing 1-cycle misalignment. Fixed by merging all outputs into a single registered block driven by s3_valid. Structural alignment: 364 = 7 × 52, so all 7 clock sources are hit exactly 52 times each — perfectly uniform, zero bias.
 
 Integration (`rtl/integration/`): `xplenum_cva6_top.v`, `xplenum_cva6_wrapper.v`, `xplenum_cva6_wrapper_v2.v`, `xplenum_stall_controller.v`
 
-Formal verification (`rtl/formal/`): `xplenum_formal_props.v`, `xplenum_induction_helpers.v`, `xplenum_integration_formal_props.v`
+Formal verification (`rtl/formal/`): `xplenum_formal_props.v`, `xplenum_induction_helpers.v`, `xplenum_integration_formal_props.v`, `xplenum_crt_formal_props.v` (202 LOC — SymbiYosys BMC + induction), `xplenum_crt_formal.sby` (25 LOC)
+
+Testbenches (`tb/`): `xplenum_tb.v`, `xplenum_drbg_tb.v`, `xplenum_cva6_integration_tb.v`, `xplenum_fault_inject_tb.v`, `xplenum_crt_tb.v` (376 LOC — exhaustive 364-point round-trip verification)
+
+Benchmarks (`benchmarks/`): `crt_bench.c` (261 LOC — raw throughput), `crt_bench_v2.c` (162 LOC — honest latency analysis). On x86 software, GCC -O2 optimizes constant-modulo to multiply-shift (no throughput advantage). The real advantage is in FPGA hardware pipelining where coarse routing decisions arrive before full computation completes.
 
 ---
 
