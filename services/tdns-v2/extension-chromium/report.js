@@ -1,3 +1,5 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
+// PlenumNET TDNS — Diagnostic Report Script v2.5.0
 "use strict";
   const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const el  = id => document.getElementById(id);
