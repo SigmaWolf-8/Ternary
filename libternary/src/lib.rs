@@ -68,6 +68,12 @@
 //! }
 //! ```
 
+#![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
+#![warn(missing_docs)]
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::must_use_candidate)]
 // ── Clippy policy: pedantic lints are advisory in this crate ────────────────
 #![allow(
     clippy::cast_lossless,
@@ -93,12 +99,6 @@
     clippy::unreadable_literal,
     dead_code
 )]
-#![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
-#![warn(missing_docs)]
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::must_use_candidate)]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
