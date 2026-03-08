@@ -18,7 +18,7 @@
 //   │ Payload length:  u16    (0–65535 bytes)                  │
 //   │ Payload:         [u8]   (variable length)                │
 //   ├─────────────────────────────────────────────────────────┤
-//   │ Integrity:       32 bytes (BLAKE3 hash of header+payload)│
+//   │ Integrity:       32 bytes (TIS-27 MAC of header+payload) │
 //   └─────────────────────────────────────────────────────────┘
 //
 // Total overhead: 32 (header) + 2 (length) + 32 (integrity) = 66 bytes.
@@ -321,11 +321,11 @@ impl Packet {
         data.extend_from_slice(&self.timestamp_ns.to_be_bytes());
         data.push(0x00);
         data.push(0x00);
-
         data.extend_from_slice(&self.payload);
 
-        let hash = blake3::hash(&data);
-        self.integrity.copy_from_slice(hash.as_bytes());
+        // TIS-27 keyed MAC — domain separator acts as the key
+        let tag = ternary_math::sponge::mac(b"tis27-wire-integrity-v1", &data);
+        self.integrity.copy_from_slice(&tag);
     }
 
     pub fn verify_integrity(&self) -> bool {
@@ -342,8 +342,7 @@ impl Packet {
         data.push(0x00);
         data.extend_from_slice(&self.payload);
 
-        let hash = blake3::hash(&data);
-        hash.as_bytes() == &self.integrity
+        ternary_math::sponge::verify_mac(b"tis27-wire-integrity-v1", &data, &self.integrity)
     }
 }
 
