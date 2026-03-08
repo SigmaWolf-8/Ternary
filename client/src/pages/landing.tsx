@@ -41,7 +41,11 @@ import {
   Globe,
   Server,
   Copy,
-  Calendar
+  Calendar,
+  Timer,
+  Gauge,
+  FlaskRound,
+  TrendingUp
 } from "lucide-react";
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, useInView } from "framer-motion";
@@ -77,20 +81,25 @@ function AnimatedStat({ value, label, suffix, delay }: { value: string; label: s
 
 function HeroVisual() {
   const layers = [
-    { label: "Applications", items: ["PlenumDB", "Payment", "API", "Certs"], delay: 0.5 },
-    { label: "Protocols", items: ["HPTP — Clock Sync", "T3P — App Protocol", "TTP — Transport", "TDNS — Name Resolution"], delay: 0.6 },
-    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, "27 Registers", "TAGC — GC", "GF(3) Arithmetic"], delay: 0.7 },
-    { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.8 },
-    { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "Gateway"], delay: 0.9 },
+    { label: "Services", items: ["Document Notary", "PlenumDB", "Payment", "API Gateway"], delay: 0.5 },
+    { label: "Security", items: ["Capability-Based Access", "Phase Encryption", "RFC 3161 TSA", "Hedera Witnessing"], delay: 0.55 },
+    { label: "Protocols", items: ["HPTP — Clock Sync", "T3P — App Protocol", "TTP — Transport", "TDNS — Resolution"], delay: 0.6 },
+    { label: "Virtual Machine", items: [`${PLATFORM.VM_OPCODES} Opcodes`, `${PLATFORM.VM_REGISTERS} Registers`, "TAGC — Garbage Collector", "GF(3) Arithmetic"], delay: 0.65 },
+    { label: "Cryptography", items: ["TL-DSA-87", "TL-KEM", "CNSA 2.0", "Ternary Compression"], delay: 0.7 },
+    { label: "Kernel", items: ["Scheduler", "Memory", "FS", "I/O"], delay: 0.75 },
+    { label: "Hardware", items: ["x86_64", "AArch64", "RISC-V", "XPlenum CSRs"], delay: 0.8 },
   ];
+
+  const borderOpacity = [15, 20, 25, 30, 35, 40, 45];
+  const bgOpacity = [5, 6, 7, 8, 9, 10, 11];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.5 }}
-      className="mt-12 max-w-2xl"
-      aria-label="PlenumNET 5-layer architecture diagram"
+      className="mt-12 w-full max-w-4xl"
+      aria-label="PlenumNET 7-layer architecture diagram"
       role="img"
       data-testid="hero-architecture-visual"
     >
@@ -103,10 +112,13 @@ function HeroVisual() {
             transition={{ duration: 0.4, delay: layer.delay }}
             className="flex items-center gap-3"
           >
-            <span className="text-xs font-medium text-muted-foreground w-20 text-right flex-shrink-0">{layer.label}</span>
-            <div className={`flex-1 flex gap-1.5 p-2 rounded-md border border-primary/${15 + i * 8} bg-primary/${5 + i * 3}`}>
+            <span className="text-xs font-medium text-muted-foreground w-24 text-right flex-shrink-0">{layer.label}</span>
+            <div
+              className="flex-1 flex gap-1.5 p-2 rounded-md border bg-primary/5"
+              style={{ borderColor: `hsl(var(--primary) / ${borderOpacity[i]}%)`, backgroundColor: `hsl(var(--primary) / ${bgOpacity[i]}%)` }}
+            >
               {layer.items.map((item) => (
-                <span key={item} className="text-xs text-foreground/80 bg-background/60 rounded px-2 py-0.5 flex-1 text-center">{item}</span>
+                <span key={item} className="text-xs text-foreground/80 bg-background/60 rounded px-2 py-1 flex-1 text-center">{item}</span>
               ))}
             </div>
           </motion.div>
@@ -208,40 +220,8 @@ function HeroSection() {
   return (
     <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
       <div className="relative z-10 max-w-7xl mx-auto px-5">
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <Badge 
-            variant="outline" 
-            className="border-green-500/30 bg-green-500/10 text-green-700 px-4 py-1.5"
-            data-testid="badge-status"
-          >
-            <Check className="w-3 h-3 mr-1" />
-            Production Ready
-          </Badge>
-          <Badge 
-            variant="outline" 
-            className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
-          >
-            1,753 Tests Passing
-          </Badge>
-          <Badge 
-            variant="outline" 
-            className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5"
-          >
-            Post-Quantum Secure
-          </Badge>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6" data-testid="visitor-path-anchors">
-          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
-            I want to build on it
-          </a>
-          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
-            I want to understand how it works
-          </a>
-          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
-            I want to evaluate the business case
-          </a>
-        </div>
+
 
         <h1 
           className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
@@ -306,16 +286,34 @@ function HeroSection() {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex flex-wrap items-center justify-center gap-3 mb-8"
+          data-testid="visitor-path-anchors"
+        >
+          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
+            I want to build on it
+          </a>
+          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
+            I want to understand how it works
+          </a>
+          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
+            I want to evaluate the business case
+          </a>
+        </motion.div>
+
+        <div className="space-y-14">
+          <div className="text-center">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex items-start gap-4 mb-6"
+              className="mb-5"
               data-testid="text-hero-description"
             >
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground text-center">
                 Computers think in two states. PlenumNET thinks in three. That one extra state changes everything — 59% more data per digit, encryption that survives quantum computers, and it runs on the hardware you already own.
               </p>
             </motion.div>
@@ -324,13 +322,13 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
-              className="mb-6"
+              className="mb-5"
             >
               {showSuccess ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="max-w-lg"
+                  className="max-w-lg mx-auto"
                   data-testid="hero-signup-success"
                 >
                   <Card className="p-6 border-green-500/30 bg-green-500/5">
@@ -344,13 +342,13 @@ function HeroSection() {
                   </Card>
                 </motion.div>
               ) : (
-                <>
+                <div className="max-w-xl mx-auto">
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (email) signupMutation.mutate({ email });
                     }}
-                    className="flex flex-col sm:flex-row gap-3 max-w-lg"
+                    className="flex flex-col sm:flex-row gap-3"
                     data-testid="form-hero-signup"
                   >
                     <label htmlFor="hero-email" className="sr-only">Email address</label>
@@ -376,42 +374,15 @@ function HeroSection() {
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </form>
-                  <p className="text-xs text-muted-foreground mt-2">No spam. Unsubscribe anytime.</p>
-                </>
+                </div>
               )}
             </motion.div>
             
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-wrap gap-3 mb-6"
-            >
-              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-github">
-                <a href="https://github.com/SigmaWolf-8/Ternary" target="_blank" rel="noopener noreferrer">
-                  <Github className="w-4 h-4 mr-2" />
-                  View Source
-                </a>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-demo">
-                <a href="/ternarydb">
-                  <Zap className="w-4 h-4 mr-2" />
-                  Live Demo
-                </a>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="border-primary/50 text-primary btn-raised" data-testid="button-view-docs">
-                <a href="/whitepaper">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Whitepaper
-                </a>
-              </Button>
-            </motion.div>
-            
-            <div className="flex flex-wrap gap-6 md:gap-8">
+            <div className="flex justify-between px-4 sm:px-8 md:px-16 pt-8">
               <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
-              <AnimatedStat value="1,753" label="Tests Passing" delay={0.38} />
-              <AnimatedStat value="80/80" label="Milestones" delay={0.41} />
-              <AnimatedStat value={String(PLATFORM.VM_OPCODES)} label="VM Opcodes" delay={0.44} />
+              <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
+              <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
+              <AnimatedStat value={PLATFORM.BENCH_ALU_PARITY} suffix="×" label="ALU Parity" delay={0.44} />
             </div>
           </div>
 
@@ -419,11 +390,9 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex justify-center"
           >
             <HeroVisual />
-            <div className="mt-6">
-              <HeroDemo />
-            </div>
           </motion.div>
         </div>
       </div>
@@ -472,7 +441,7 @@ function PlatformSection() {
       icon: Terminal,
       title: `${PLATFORM.VM_OPCODES}-Opcode Virtual Machine`,
       description: "Register-based VM with ternary-native instructions, quantum-ternary simulation, garbage collection, and full execution engine.",
-      stats: "27 registers",
+      stats: `${PLATFORM.VM_REGISTERS} registers`,
     },
     {
       icon: Clock,
@@ -489,8 +458,14 @@ function PlatformSection() {
     {
       icon: Globe,
       title: "Torsion Network Stack",
-      description: "N-dimensional torus topology with Ternary Transport Protocol, T3P application layer, and Ternary DNS.",
+      description: "N-dimensional torus topology with Ternary Transport Protocol, T3P application layer, and Ternary DNS — proven live on a 13D hypercube mesh.",
       stats: "Full stack",
+    },
+    {
+      icon: Network,
+      title: "Inter-Cube Mesh Network",
+      description: `${PLATFORM.TDNS_TRITS}-trit ontological addressing with ${PLATFORM.TDNS_ADDRESS_SPACE} address space (3²⁷ × 9). Zero routing tables — GF(3) arithmetic computes every hop. Post-quantum tunnel keys derived from topology.`,
+      stats: `${PLATFORM.TDNS_ADDRESS_SPACE} addresses`,
     },
     {
       icon: Lock,
@@ -532,7 +507,7 @@ function PlatformSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with 1,753 passing tests.
+            From kernel primitives to application-layer protocols -- a fully integrated ternary computing stack, production-tested with {PLATFORM.TESTS_PASSING} passing tests.
           </motion.p>
         </div>
 
@@ -541,6 +516,170 @@ function PlatformSection() {
             <CapabilityCard key={cap.title} cap={cap} index={index} />
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function InterCubeSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  const differentiators = [
+    {
+      icon: Network,
+      title: "No Routing Tables",
+      description: "Conventional networks maintain BGP/OSPF tables with thousands of entries. PlenumNET computes the next hop from pure GF(3) arithmetic on the source and destination addresses. No tables to corrupt, no convergence delays, no state to synchronize.",
+    },
+    {
+      icon: Lock,
+      title: "Topology-Derived Cryptography",
+      description: "Each edge in the hypercube gets a TIS-27 sponge-derived tunnel key. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.",
+    },
+    {
+      icon: Shield,
+      title: "Built-in Forgery Detection",
+      description: "Rep C trit space excludes zero from every coordinate. Any address containing a zero trit is provably forged — the addressing scheme itself is a cryptographic invariant. No other network has this property.",
+    },
+  ];
+
+  return (
+    <section id="inter-cube" className="py-20 md:py-28" data-testid="section-inter-cube" role="region" aria-labelledby="inter-cube-title">
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-1.5 mb-4" data-testid="badge-inter-cube-live">
+              Inter-Cube Infrastructure
+            </Badge>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.06 }}
+            className="text-3xl md:text-4xl font-bold mb-4"
+            data-testid="text-inter-cube-title"
+            id="inter-cube-title"
+          >
+            Four Services. Pure Geometry. Zero Routing Tables.
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-muted-foreground text-lg max-w-3xl mx-auto mb-4"
+            data-testid="text-inter-cube-description"
+          >
+            When the network grows beyond a single cube, these four services handle connections between cubes — and they do it without routing tables. Because routing is pure geometry, the network scales infinitely: stack another 13 trits and the address space jumps from 1.6 million to 2.5 trillion nodes with no architectural change. This works today.
+          </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.14 }}
+            className="text-muted-foreground text-base max-w-3xl mx-auto"
+            data-testid="text-inter-cube-detail"
+          >
+            Greedy geodesic forwarding across the {PLATFORM.HYPERCUBE_DIMENSIONS}D ternary cube. Hamming distance IS hop count. Adjacency IS the routing table. Four services orchestrate the control plane — the geometry does the rest.
+          </motion.p>
+        </div>
+
+        <div ref={ref} className="flex flex-wrap justify-center gap-8 md:gap-16 mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0 }}
+            className="flex flex-col items-center"
+            data-testid="stat-dimensions"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_DIMENSIONS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Dimensions</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.08 }}
+            className="flex flex-col items-center"
+            data-testid="stat-vertices"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_VERTICES}</span>
+            <span className="text-sm text-muted-foreground mt-2">Vertices</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.16 }}
+            className="flex flex-col items-center"
+            data-testid="stat-neighbors"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.HYPERCUBE_NEIGHBORS}</span>
+            <span className="text-sm text-muted-foreground mt-2">Neighbors / Node</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.24 }}
+            className="flex flex-col items-center"
+            data-testid="stat-routing-tables"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_ROUTING_TABLES}</span>
+            <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
+          </motion.div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {differentiators.map((diff, index) => (
+            <motion.div
+              key={diff.title}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <Card className="p-6 md:p-8 h-full border-primary/10 bg-card/70 backdrop-blur-sm" data-testid={`card-differentiator-${index}`}>
+                <div className="text-primary mb-4">
+                  <diff.icon className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2 text-foreground">{diff.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{diff.description}</p>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <Card className="inline-block p-6 border-primary/15 bg-card/50 backdrop-blur-sm max-w-3xl" data-testid="card-prior-art">
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+              Binary hypercube routing is 40 years old. Ternary hypercubes have 20+ years of academic papers. A deployable post-quantum overlay network where GF(3) geometry replaces routing tables, with cryptographic keys derived from topological adjacency?
+            </p>
+            <p className="text-sm font-semibold text-foreground" data-testid="text-first-implementation">
+              First implementation.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400 text-xs" data-testid="badge-services-containerized">
+                {PLATFORM.INTER_CUBE_SERVICES} services containerized
+              </Badge>
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400 text-xs" data-testid="badge-tests-passing">
+                {PLATFORM.INTER_CUBE_TESTS} tests passing
+              </Badge>
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400 text-xs" data-testid="badge-rest-endpoints">
+                {PLATFORM.INTER_CUBE_ENDPOINTS} REST endpoints
+              </Badge>
+            </div>
+          </Card>
+        </motion.div>
       </div>
     </section>
   );
@@ -560,7 +699,7 @@ function ArchitectureSection() {
     },
     {
       label: "Virtual Machine",
-      items: [`${PLATFORM.VM_OPCODES}-Opcode ISA ${PLATFORM.VM_ISA_VERSION}`, "27 Ternary Registers", "TAGC Garbage Collector", "Quantum-Ternary Sim"],
+      items: [`${PLATFORM.VM_OPCODES}-Opcode ISA ${PLATFORM.VM_ISA_VERSION}`, `${PLATFORM.VM_REGISTERS} Ternary Registers`, "TAGC Garbage Collector", "Quantum-Ternary Sim"],
       color: "bg-primary/20 border-primary/50",
     },
     {
@@ -764,7 +903,7 @@ function ComponentCard({
 function ComponentsSection() {
   const components = [
     {
-      badge: "Core - 1,753 Tests",
+      badge: `Core - ${PLATFORM.TESTS_PASSING} Tests`,
       icon: Cpu,
       title: "Ternary Kernel",
       description: "Production-ready Rust kernel with GF(3) arithmetic, memory management, process scheduling, filesystem, and multi-architecture support.",
@@ -784,7 +923,7 @@ function ComponentsSection() {
       link: "https://github.com/SigmaWolf-8/Ternary",
       features: [
         "GF(3) ops: TAdd, TMul, TNeg, TRot, TXor",
-        "27 ternary registers with flags",
+        `${PLATFORM.VM_REGISTERS} ternary registers with flags`,
         "TAGC mark-sweep garbage collector",
         "Generational GC with young/old/permanent",
       ],
@@ -888,17 +1027,91 @@ function ComponentsSection() {
   );
 }
 
+function BenchmarkCard({ icon: Icon, value, unit, label, detail, index }: {
+  icon: any; value: string; unit: string; label: string; detail: string; index: number;
+}) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 20 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      transition={{ duration: 0.4, delay: index * 0.06 }}
+    >
+      <Card className="p-5 md:p-6 h-full border-primary/10 bg-card/70 backdrop-blur-sm" data-testid={`benchmark-card-${index}`}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Icon className="w-5 h-5 text-primary" />
+          </div>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
+        </div>
+        <div className="mb-1">
+          <span className="text-3xl md:text-4xl font-bold text-primary leading-none">{value}</span>
+          <span className="text-lg text-primary/70 ml-1">{unit}</span>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">{detail}</p>
+      </Card>
+    </motion.div>
+  );
+}
+
 function PerformanceSection() {
   const comparisonItems = [
     { label: "Information per Digit", current: "1.0 bit", ternary: "1.585 bits (+59%)", highlight: true },
     { label: "Storage Efficiency", current: "Baseline", ternary: "3:2 compression ratio", highlight: true },
     { label: "Quantum Resistance", current: "Vulnerable", ternary: "CNSA 2.0 ternary equivalents", highlight: true },
     { label: "Logic States", current: "2 states (0,1)", ternary: "3 states per trit", highlight: true },
-    { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10^-15s)", highlight: true },
+    { label: "Timing Precision", current: "Milliseconds", ternary: "Femtosecond (10⁻¹⁵s)", highlight: true },
     { label: "Representation Types", current: "Single (0,1)", ternary: "Three bijective (A, B, C)", highlight: true },
     { label: "Arithmetic Base", current: "Modulo 2", ternary: "GF(3) Galois field", highlight: true },
     { label: "Regulatory Timing", current: "Custom build", ternary: "Targeting FINRA 613 & MiFID II thresholds", highlight: true },
     { label: "Runs on Existing Hardware", current: "Yes", ternary: "Yes — via Binary-Ternary Gateway", highlight: false },
+  ];
+
+  const benchmarks = [
+    {
+      icon: TrendingUp,
+      value: PLATFORM.BENCH_TL_DSA_87_SPEEDUP,
+      unit: "× faster",
+      label: "TL-DSA-87 Optimization",
+      detail: `Full sign+verify in ${PLATFORM.BENCH_TL_DSA_87_US} µs — down from 14,403 µs via NTT, XOF batching, and AVX2 vectorization.`,
+    },
+    {
+      icon: Gauge,
+      value: PLATFORM.BENCH_ALU_PARITY,
+      unit: "× ratio",
+      label: "ALU Cost Parity",
+      detail: "Ternary ALU operations run within 6% of binary ALU throughput on stock x86_64 hardware. No specialized silicon required.",
+    },
+    {
+      icon: Timer,
+      value: PLATFORM.BENCH_TL_DSA_44_US,
+      unit: "µs",
+      label: "TL-DSA-44 Roundtrip",
+      detail: "Post-quantum digital signature — keygen, sign, and verify — faster than most TLS handshakes.",
+    },
+    {
+      icon: Shield,
+      value: PLATFORM.BENCH_RING_MUL_RATIO,
+      unit: "× cheaper",
+      label: "Ring Multiplication",
+      detail: "Ternary polynomial ring multiply (R₃, n=256) costs 41% less than the binary equivalent (Z_q, n=256).",
+    },
+    {
+      icon: Zap,
+      value: PLATFORM.BENCH_REP_CONVERT_NS,
+      unit: "ns",
+      label: "Representation Conversion",
+      detail: "Sub-nanosecond conversion between the three balanced-ternary representations (A ↔ B ↔ C). Over 1.4 billion ops/sec.",
+    },
+    {
+      icon: FlaskRound,
+      value: String(PLATFORM.BENCH_KANI_PROOFS),
+      unit: "proofs",
+      label: "Formal Verification",
+      detail: "Kani bounded model checking proofs across GF(3) arithmetic, constant-time crypto, and VM memory safety. Continuous penetration test hardening via MIRI undefined-behaviour detection.",
+    },
   ];
 
   return (
@@ -912,7 +1125,7 @@ function PerformanceSection() {
             transition={{ duration: 0.5 }}
           >
             <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary px-4 py-1.5 mb-4">
-              Proven Results
+              Measured Results
             </Badge>
           </motion.div>
           <motion.h2 
@@ -933,9 +1146,56 @@ function PerformanceSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-2xl mx-auto"
           >
-            Not theoretical advantages -- measured, tested, and verifiable performance improvements you can see in our live demo.
+            Not theoretical advantages — these numbers come from <code className="text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded text-sm">cargo run --release --bin salvi-bench</code> on stock x86_64 hardware.
           </motion.p>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-12 md:mb-16">
+          {benchmarks.map((b, i) => (
+            <BenchmarkCard key={b.label} {...b} index={i} />
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-12 md:mb-16"
+        >
+          <Card className="max-w-4xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-dsa-breakdown">
+            <h3 className="text-lg font-semibold mb-1">TL-DSA Sign + Verify Roundtrip</h3>
+            <p className="text-sm text-muted-foreground mb-6">Post-quantum digital signatures at three CNSA 2.0 security levels. All times measured, not estimated.</p>
+            <div className="space-y-4">
+              {[
+                { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US, pct: 25, bits: "128-bit" },
+                { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US, pct: 45, bits: "192-bit" },
+                { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US, pct: 65, bits: "256-bit" },
+              ].map((row) => (
+                <div key={row.variant} className="flex items-center gap-4" data-testid={`dsa-bar-${row.variant}`}>
+                  <div className="w-24 md:w-28 shrink-0">
+                    <span className="font-mono text-sm font-medium">{row.variant}</span>
+                    <span className="block text-xs text-muted-foreground">{row.bits}</span>
+                  </div>
+                  <div className="flex-1 bg-muted/50 rounded-full h-6 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${row.pct}%` }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                      className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
+                    >
+                      <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{row.time} µs</span>
+                    </motion.div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
+              Optimizations: Integer NTT (q=12289, ψ=3400) · XOF-batched sponge expansion · GF(3)-associative balanced_wrap · AVX2-vectorized substitution (32 trits/cycle)
+            </p>
+          </Card>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -980,7 +1240,7 @@ function PerformanceSection() {
               <Button asChild className="btn-raised" data-testid="button-try-demo">
                 <a href="/ternarydb">
                   <Zap className="w-4 h-4 mr-2" />
-                  Verify It Yourself -- Live Demo
+                  Verify It Yourself — Live Demo
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </a>
               </Button>
@@ -995,7 +1255,7 @@ function PerformanceSection() {
 function TrustSignals() {
   const signals = [
     { label: "1,252+", description: "Git Commits" },
-    { label: "1,753", description: "Tests Passing" },
+    { label: PLATFORM.TESTS_PASSING, description: "Tests Passing" },
     { label: "227", description: "Source Files" },
     { label: String(PLATFORM.API_ENDPOINTS), description: "API Endpoints" },
   ];
@@ -1139,7 +1399,7 @@ function CalendarPreviewSection() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-3xl mx-auto"
           >
-            Convert any date across 12 major calendar systems -- from Mayan Long Count to Islamic Hijri -- with femtosecond precision.
+            Convert any date across 42 global calendar systems -- from Mayan Long Count to Islamic Hijri -- with femtosecond precision.
             The 13-Moon Harmonic Calendar places the Day Out of Time at the golden ratio point (364/\u03C6 = Day 225, November 11),
             creating an 8/5 Fibonacci moon split that embeds organic growth mathematics into temporal architecture.
           </motion.p>
@@ -1461,6 +1721,7 @@ function DeveloperCTASection() {
               </>
             )}
           </Card>
+
         </motion.div>
       </div>
     </section>
@@ -1639,8 +1900,16 @@ function Footer() {
           ))}
         </div>
 
-        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground">
+        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground space-y-1">
+          <p>Capomastro Holdings Ltd. — Applied Physics Division, Alberta, Canada</p>
           <p>All Rights Reserved and Preserved | &copy; Capomastro Holdings Ltd 2026</p>
+          <p className="text-xs opacity-60">
+            <a href="/privacy" className="hover:text-primary">Privacy Policy</a>
+            {" · "}
+            <a href="/terms" className="hover:text-primary">Terms of Service</a>
+            {" · "}
+            <a href="/security" className="hover:text-primary">Security Policy</a>
+          </p>
         </div>
       </div>
     </footer>
@@ -1652,6 +1921,7 @@ export default function Landing() {
     <>
       <HeroSection />
       <PlatformSection />
+      <InterCubeSection />
       <ArchitectureSection />
       <Suspense fallback={<div className="py-20" />}>
         <GeometricFoundations />
