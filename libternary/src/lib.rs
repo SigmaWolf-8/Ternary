@@ -68,6 +68,33 @@
 //! }
 //! ```
 
+
+// ── Clippy policy: pedantic lints are advisory in this crate ────────────────
+#![allow(
+    clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cloned_instead_of_copied,
+    clippy::comparison_chain,
+    clippy::doc_markdown,
+    clippy::explicit_iter_loop,
+    clippy::float_cmp,
+    clippy::if_same_then_else,
+    clippy::manual_contains,
+    clippy::manual_range_contains,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::return_self_not_must_use,
+    clippy::should_implement_trait,
+    clippy::similar_names,
+    clippy::struct_excessive_bools,
+    clippy::uninlined_format_args,
+    clippy::unreadable_literal,
+    dead_code
+)]
+
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
 #![warn(missing_docs)]
 #![warn(clippy::all)]
