@@ -30,6 +30,7 @@
 
 pub mod constants;
 pub mod gf3;
+pub mod gf3_algebra;
 pub mod clifford;
 pub mod radix;
 pub mod torus;
@@ -37,3 +38,5 @@ pub mod ternary_circle;
 pub mod tribonacci;
 pub mod borromean;
 pub mod sponge;
+pub mod repunit_checksum;
+pub mod repunit_circles;
