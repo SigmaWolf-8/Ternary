@@ -38,10 +38,10 @@ import { apiKeyService } from "./services/api-key.service";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import * as path from "path";
-let _xlsx: typeof import("xlsx") | null = null;
-async function getXLSX() {
-  if (!_xlsx) _xlsx = await import("xlsx");
-  return _xlsx;
+let _exceljs: typeof import("exceljs") | null = null;
+async function getExcelJS() {
+  if (!_exceljs) _exceljs = await import("exceljs");
+  return _exceljs;
 }
 import { 
   compressData,
@@ -433,15 +433,32 @@ export async function registerRoutes(
           const parsed = JSON.parse(content);
           rawData = Array.isArray(parsed) ? parsed : [parsed];
         } else if (fileType === "xlsx") {
-          const XLSX = await getXLSX();
+          const ExcelJS = await getExcelJS();
           const binaryData = Buffer.from(content, 'base64');
-          const workbook = XLSX.read(binaryData, { type: 'buffer' });
-          const firstSheetName = workbook.SheetNames[0];
-          if (!firstSheetName) {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(binaryData);
+          const worksheet = workbook.worksheets[0];
+          if (!worksheet) {
             return res.status(400).json({ error: "Excel file has no sheets" });
           }
-          const worksheet = workbook.Sheets[firstSheetName];
-          rawData = XLSX.utils.sheet_to_json(worksheet);
+          const headers: string[] = [];
+          const firstRow = worksheet.getRow(1);
+          firstRow.eachCell((cell, colNumber) => {
+            headers[colNumber - 1] = String(cell.value ?? '');
+          });
+          if (headers.length === 0) {
+            return res.status(400).json({ error: "Excel sheet is empty or has no data rows" });
+          }
+          rawData = [];
+          worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            const rowObj: Record<string, unknown> = {};
+            row.eachCell((cell, colNumber) => {
+              const header = headers[colNumber - 1];
+              if (header) rowObj[header] = cell.value;
+            });
+            rawData.push(rowObj);
+          });
           if (rawData.length === 0) {
             return res.status(400).json({ error: "Excel sheet is empty or has no data rows" });
           }
