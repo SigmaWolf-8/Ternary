@@ -534,7 +534,7 @@ function InterCubeSection() {
     {
       icon: Lock,
       title: "Topology-Derived Cryptography",
-      description: "Each edge in the hypercube gets a BLAKE3-derived tunnel key. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.",
+      description: "Each edge in the hypercube gets a TIS-27 sponge-derived tunnel key. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.",
     },
     {
       icon: Shield,
