@@ -82,6 +82,20 @@ C = πd = 14d  →  C/r = 28  →  Full circle = 28 radians = 364°
 
 🚫 If you change any one of these, you break all of them.
 
+#### Why 13 Is the Radian and 28 Is the Circle Order (Not Interchangeable)
+
+The product 13 × 28 = 364 is symmetric, but the roles are not interchangeable because 13 has properties 28 does not:
+
+| Property | 13 | 28 |
+|----------|----|----|
+| Base-3 repunit | ✓ (111₃) | ✗ |
+| Tribonacci number | ✓ (T₇) | ✗ |
+| Prime | ✓ | ✗ (2² × 7) |
+| Coprime to TIS-27 state width 54 | ✓ (gcd=1) | ✗ (gcd=2) |
+| Produces integer π | ✓ (π = 364/(2×13) = 14) | ✗ (π = 364/(2×28) = 6.5) |
+
+13 is the only factor of 364 that simultaneously satisfies all five constraints. The assignment is not a design choice — it is forced by the intersection of repunit structure, Tribonacci alignment, primality, sponge coprimality, and the integer-π requirement.
+
 ### INVARIANT 5: HPTP-Mandatory Is Structural
 
 If trits 15 AND 16 are both 3 (dim 15 = Live, dim 16 = Real-time), the address is HPTP-mandatory. Femtosecond timing verification is REQUIRED for all packets to/from that entity. This is not optional, not configurable, not a policy decision. The address itself dictates timing requirements.
