@@ -474,11 +474,6 @@ function setupPDF() {
   el("btn-pdf").onclick = async () => {
     if (!currentResult) return;
 
-    if (tier !== "pro") {
-      openModal("upgrade-pdf");
-      return;
-    }
-
     await storageSet({
       tdns_print_result: currentResult,
       tdns_print_tier:   tier,
