@@ -314,7 +314,7 @@ These values satisfy required coprimality conditions: gcd(13, 28) = 1 guarantees
 
 #### 1.6.5 How the Square Emerges
 
-The classical impossibility is sidestepped because the "circle" is no longer a continuous Euclidean object but a **discrete 364-point structure** based on ternary arithmetic.
+The classical impossibility — specific to compass-and-straightedge construction under Euclidean axioms — is sidestepped because the "circle" is no longer a continuous Euclidean object but a **discrete 364-degree structure** based on ternary arithmetic.
 
 The **square** emerges from the **3² confidence levels** (9 trit values) that extend the 27-trit ontological address to **28 effective dimensions**. This 28th factor "squares" the circle because:
 
