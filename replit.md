@@ -70,7 +70,7 @@ A REST API provides endpoints for converting standard to ternary degrees with re
 -   **Authentication**: Replit Auth (GitHub, Google, Apple, X, email/password).
 -   **Database**: PostgreSQL.
 -   **ORM**: Drizzle ORM.
--   **API Gateway**: Kong Konnect.
+-   **API Gateway**: Kong Konnect (33 services, 293 endpoints).
 -   **Payment Gateways**: Stripe, Interac, various cryptocurrency platforms.
 -   **Message Queue**: BullMQ.
 -   **Blockchain Platforms**: Hedera Hashgraph Consensus Service (HCS), XRP Ledger (XRPL), Algorand.
