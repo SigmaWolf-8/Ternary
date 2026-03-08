@@ -65,6 +65,53 @@
     }
     .btn-close:hover { color: var(--fg); }
 
+    /* ── Free-tier blur overlay ──────────────────────────────────────── */
+    .report-blur { filter: blur(5px); pointer-events: none; user-select: none; }
+    .upgrade-overlay {
+      display:        none;
+      position:       fixed;
+      top:            0; left: 0; right: 0; bottom: 0;
+      z-index:        200;
+      background:     rgba(9,8,7,0.7);
+      backdrop-filter: blur(2px);
+      justify-content: center;
+      align-items:    center;
+    }
+    .upgrade-overlay.active { display: flex; }
+    .upgrade-box {
+      background:    var(--card);
+      border:        2px solid var(--gold);
+      border-radius: 12px;
+      padding:       40px 48px;
+      text-align:    center;
+      max-width:     420px;
+    }
+    .upgrade-box h2 {
+      font-size:   20px;
+      font-weight: 700;
+      color:       var(--gold);
+      margin-bottom: 12px;
+    }
+    .upgrade-box p {
+      font-size:   13px;
+      line-height: 1.7;
+      color:       var(--muted);
+      margin-bottom: 20px;
+    }
+    .upgrade-box .btn-upgrade {
+      background:    var(--gold);
+      color:         var(--bg);
+      border:        none;
+      border-radius: 6px;
+      padding:       10px 28px;
+      font-size:     13px;
+      font-weight:   700;
+      cursor:        pointer;
+      letter-spacing: .04em;
+    }
+    .upgrade-box .btn-upgrade:hover { opacity: .88; }
+    @media print { .upgrade-overlay { display: none !important; } }
+
     /* ── Report header ──────────────────────────────────────────────────── */
     .report-header {
       display:       flex;
@@ -505,6 +552,14 @@
       </div>
     </div>
 
+  </div>
+
+  <div id="upgrade-overlay" class="upgrade-overlay">
+    <div class="upgrade-box">
+      <h2>Pro Report</h2>
+      <p>The full PDF report is a Pro feature.<br>Upgrade to unlock unblurred reports, extended tracker analysis, and block recommendations.</p>
+      <button class="btn-upgrade" onclick="window.close()">Close</button>
+    </div>
   </div>
 
   <script src="report.js"></script>
