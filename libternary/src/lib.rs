@@ -68,7 +68,6 @@
 //! }
 //! ```
 
-
 // ── Clippy policy: pedantic lints are advisory in this crate ────────────────
 #![allow(
     clippy::cast_lossless,
