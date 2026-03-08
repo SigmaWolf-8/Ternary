@@ -11,8 +11,8 @@
 //
 // See LICENSE in the repository root for full terms.
 
-use crate::TernaryTrit;
 use super::hrv::HrvEntropy;
+use crate::TernaryTrit;
 
 const THRESHOLD: f64 = 0.1;
 
@@ -26,7 +26,7 @@ const THRESHOLD: f64 = 0.1;
 pub struct TonalOscillator {
     omega_0: f64,
     mu: f64,
-    state: [f64; 2],  // [V, dV/dt]
+    state: [f64; 2], // [V, dV/dt]
     time: f64,
     reference_phase: f64,
     noise_source: HrvEntropy,
@@ -80,10 +80,7 @@ impl TonalOscillator {
         ];
 
         let k3 = self.derivatives(s2, f_ext, xi);
-        let s3 = [
-            self.state[0] + dt * k3[0],
-            self.state[1] + dt * k3[1],
-        ];
+        let s3 = [self.state[0] + dt * k3[0], self.state[1] + dt * k3[1]];
 
         let k4 = self.derivatives(s3, f_ext, xi);
 
@@ -98,10 +95,7 @@ impl TonalOscillator {
     fn derivatives(&self, s: [f64; 2], f_ext: f64, xi: f64) -> [f64; 2] {
         let v = s[0];
         let dv = s[1];
-        let ddv = self.mu * (1.0 - v * v) * dv
-                - self.omega_0.powi(2) * v
-                + f_ext
-                + xi;
+        let ddv = self.mu * (1.0 - v * v) * dv - self.omega_0.powi(2) * v + f_ext + xi;
         [dv, ddv]
     }
 
@@ -158,10 +152,7 @@ mod tests {
 
     #[test]
     fn oscillator_produces_stable_limit_cycle() {
-        let mut osc = TonalOscillator::new(
-            1.0, 1.0, 0.0, 0.0,
-            HrvEntropy::new_deterministic(0.0),
-        );
+        let mut osc = TonalOscillator::new(1.0, 1.0, 0.0, 0.0, HrvEntropy::new_deterministic(0.0));
         for _ in 0..50_000 {
             osc.step(0.001);
         }
@@ -174,19 +165,25 @@ mod tests {
             }
         }
         let mean = amplitudes.iter().sum::<f64>() / amplitudes.len() as f64;
-        assert!(mean > 0.5, "Oscillator should have nonzero amplitude, got {}", mean);
+        assert!(
+            mean > 0.5,
+            "Oscillator should have nonzero amplitude, got {}",
+            mean
+        );
         let max = amplitudes.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         let min = amplitudes.iter().cloned().fold(f64::INFINITY, f64::min);
         assert!(max > 0.1, "Max amplitude should be nonzero");
-        assert!(max / min.max(0.001) < 50.0, "Amplitude range too extreme: {}/{}", max, min);
+        assert!(
+            max / min.max(0.001) < 50.0,
+            "Amplitude range too extreme: {}/{}",
+            max,
+            min
+        );
     }
 
     #[test]
     fn oscillator_produces_all_three_trit_states() {
-        let mut osc = TonalOscillator::new(
-            1.0, 1.0, 0.0, 0.0,
-            HrvEntropy::new_deterministic(0.0),
-        );
+        let mut osc = TonalOscillator::new(1.0, 1.0, 0.0, 0.0, HrvEntropy::new_deterministic(0.0));
         let mut seen_neg = false;
         let mut seen_zero = false;
         let mut seen_pos = false;
@@ -204,12 +201,7 @@ mod tests {
 
     #[test]
     fn fm_modulation_varies_frequency() {
-        let mut osc = TonalOscillator::new(
-            1.0, 1.0,
-            0.3,
-            0.25,
-            HrvEntropy::new_deterministic(0.0),
-        );
+        let mut osc = TonalOscillator::new(1.0, 1.0, 0.3, 0.25, HrvEntropy::new_deterministic(0.0));
         let mut freqs = Vec::new();
         for i in 0..10_000 {
             osc.step(0.001);
@@ -219,15 +211,16 @@ mod tests {
         }
         let f_min = freqs.iter().cloned().fold(f64::INFINITY, f64::min);
         let f_max = freqs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        assert!(f_max - f_min > 0.01, "FM should produce frequency deviation, got range {}", f_max - f_min);
+        assert!(
+            f_max - f_min > 0.01,
+            "FM should produce frequency deviation, got range {}",
+            f_max - f_min
+        );
     }
 
     #[test]
     fn modulation_index_computed_correctly() {
-        let osc = TonalOscillator::new(
-            1.0, 1.0, 0.3, 0.25,
-            HrvEntropy::new_deterministic(0.0),
-        );
+        let osc = TonalOscillator::new(1.0, 1.0, 0.3, 0.25, HrvEntropy::new_deterministic(0.0));
         let beta = osc.modulation_index();
         let expected = 0.3 / (2.0 * std::f64::consts::PI * 0.25);
         assert!((beta - expected).abs() < 1e-10);
