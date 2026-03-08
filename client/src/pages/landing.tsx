@@ -1198,6 +1198,101 @@ function PerformanceSection() {
         </motion.div>
 
         <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-12 md:mb-16"
+        >
+          <Card className="max-w-4xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-tis27-pipeline">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">TIS-27 vs SHA-256 — Honest Pipeline Comparison</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Raw input → routable Rep C address. Post-address operations (forgery, checksum, CRT, Hamming) are identical work on identical data — not counted.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4" data-testid="card-tis27-stat">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-primary">TIS-27 (GF(3) Native)</span>
+                </div>
+                <div className="text-3xl font-bold font-mono text-primary mb-1" data-testid="text-tis27-ns">{PLATFORM.BENCH_TIS27_NS} ns</div>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <div>{PLATFORM.BENCH_TIS27_ADDR_SEC}K addresses/sec</div>
+                  <div>{PLATFORM.BENCH_TIS27_MBPS} MB/s throughput</div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-primary/10 text-xs text-muted-foreground">
+                  hash ({PLATFORM.BENCH_TIS27_NS - 18} ns) + lift to Rep C (18 ns)
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-foreground/10 bg-muted/30 p-4" data-testid="card-sha256-stat">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-muted-foreground">SHA-256 (Binary)</span>
+                </div>
+                <div className="text-3xl font-bold font-mono text-muted-foreground mb-1" data-testid="text-sha256-ns">{PLATFORM.BENCH_SHA256_NS} ns</div>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <div>{PLATFORM.BENCH_SHA256_ADDR_SEC}K addresses/sec</div>
+                  <div>{PLATFORM.BENCH_SHA256_MBPS} MB/s throughput</div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-foreground/5 text-xs text-muted-foreground">
+                  hash (816 ns) + binary→ternary (34 ns) + lift (34 ns)
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                <span>TIS-27</span>
+                <span>SHA-256</span>
+              </div>
+              <div className="relative h-8 bg-muted/30 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  whileInView={{ width: `${(PLATFORM.BENCH_TIS27_NS / PLATFORM.BENCH_SHA256_NS) * 100}%` }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1, delay: 0.3 }}
+                  className="absolute left-0 top-0 h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
+                >
+                  <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{PLATFORM.BENCH_TIS27_NS} ns</span>
+                </motion.div>
+                <div className="absolute right-3 top-0 h-full flex items-center">
+                  <span className="text-xs font-mono text-muted-foreground">{PLATFORM.BENCH_SHA256_NS} ns</span>
+                </div>
+              </div>
+              <div className="text-center mt-3">
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary font-mono" data-testid="badge-tis27-speedup">
+                  {PLATFORM.BENCH_TIS27_SPEEDUP}× faster
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Rounds", value: String(PLATFORM.BENCH_TIS27_ROUNDS), detail: "vs 64 (SHA-256)" },
+                { label: "Theta Neighbors", value: String(PLATFORM.BENCH_TIS27_NEIGHBORS), detail: "±1, ±7, ±13" },
+                { label: "Avalanche", value: `${PLATFORM.BENCH_TIS27_AVALANCHE}%`, detail: "2× safety margin" },
+                { label: "Forgery Check", value: "Free", detail: "GF(3) → Rep C: no zero" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-md border border-foreground/5 bg-muted/20 p-3 text-center" data-testid={`stat-${s.label.toLowerCase().replace(/\s/g, "-")}`}>
+                  <div className="text-lg font-bold font-mono">{s.value}</div>
+                  <div className="text-xs font-medium">{s.label}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{s.detail}</div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
+              TIS-27 output is GF(3) — the sponge produces {"{0,1,2}"}, lift adds 1 → {"{1,2,3}"}. Zero cannot appear. Forgery detection is algebraic, not checked. SHA-256 must convert via %3 then verify — an accident of the formula, not a guarantee.
+            </p>
+          </Card>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
