@@ -19,16 +19,13 @@
 //!
 //! Run: `cargo test --test integration_properties --release`
 
-use libternary::tribonacci::{TribonacciBase3, TernaryRepr, TritVec, TribonacciTerm};
 use libternary::borromean::{TernaryWord, WordRepr};
 use libternary::ternary_circle::{
-    Z28, FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG,
-    CYCLIC_ORDER, TAU_TRIBONACCI,
-    ternary_deg_to_std_deg, std_deg_to_ternary_deg,
-    ternary_rad_to_std_rad, std_rad_to_ternary_rad,
-    trit_to_std_rad, walk_tribonacci_radian_spiral,
-    is_base3_repunit, base3_repunit_order,
+    base3_repunit_order, is_base3_repunit, std_deg_to_ternary_deg, std_rad_to_ternary_rad,
+    ternary_deg_to_std_deg, ternary_rad_to_std_rad, trit_to_std_rad, walk_tribonacci_radian_spiral,
+    CYCLIC_ORDER, FULL_CIRCLE_DEG, PI_TERNARY, RADIAN_DEG, TAU_TRIBONACCI, TWO_PI_TERNARY, Z28,
 };
+use libternary::tribonacci::{TernaryRepr, TribonacciBase3, TribonacciTerm, TritVec};
 
 // ══════════════════════════════════════════════════════════════
 // AXIOM VERIFICATION — The foundational identities
@@ -97,27 +94,43 @@ fn repr_abc_roundtrip_first_30_tribonacci() {
         // B → A → B
         let repr_a = term.value.to_repr_a();
         let back_from_a = TritVec::from_repr_a(&repr_a);
-        assert_eq!(back_from_a.to_decimal(), decimal,
-            "A-roundtrip failed at T({})", i);
+        assert_eq!(
+            back_from_a.to_decimal(),
+            decimal,
+            "A-roundtrip failed at T({})",
+            i
+        );
 
         // B → C → B (skip zero — bijective has no zero representation)
         if decimal > 0 {
             let repr_c = term.value.to_repr_c();
             let back_from_c = TritVec::from_repr_c(&repr_c);
-            assert_eq!(back_from_c.to_decimal(), decimal,
-                "C-roundtrip failed at T({})", i);
+            assert_eq!(
+                back_from_c.to_decimal(),
+                decimal,
+                "C-roundtrip failed at T({})",
+                i
+            );
 
             // Verify bijective has no zeros
             for &digit in &repr_c {
-                assert!(digit >= 1 && digit <= 3,
-                    "Bijective digit {} out of range at T({})", digit, i);
+                assert!(
+                    digit >= 1 && digit <= 3,
+                    "Bijective digit {} out of range at T({})",
+                    digit,
+                    i
+                );
             }
         }
 
         // Verify balanced has only valid digits
         for &digit in &repr_a {
-            assert!(digit >= -1 && digit <= 1,
-                "Balanced digit {} out of range at T({})", digit, i);
+            assert!(
+                digit >= -1 && digit <= 1,
+                "Balanced digit {} out of range at T({})",
+                digit,
+                i
+            );
         }
     }
 }
@@ -131,7 +144,11 @@ fn repr_abc_display_format() {
     // T(10) = 81 = 10000₃
     let t10 = &terms[10];
     let fmt_b = t10.value.format_repr(TernaryRepr::Standard);
-    assert!(fmt_b.contains("10000"), "T(10) in Rep B should be 10000₃, got {}", fmt_b);
+    assert!(
+        fmt_b.contains("10000"),
+        "T(10) in Rep B should be 10000₃, got {}",
+        fmt_b
+    );
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -156,7 +173,9 @@ fn borromean_triples_from_consecutive_tribonacci() {
         let pad = |v: &[u8], len: usize| -> Vec<u8> {
             let mut p = vec![0u8; len];
             for (i, &d) in v.iter().enumerate() {
-                if i < len { p[i] = d; }
+                if i < len {
+                    p[i] = d;
+                }
             }
             p
         };
@@ -183,9 +202,15 @@ fn borromean_invariant_across_representations() {
     let word_from_b = TernaryWord::new(digits_b.clone());
 
     // Rep A: map through balanced representation
-    let repr_a: Vec<i8> = digits_b.iter().map(|&d| match d {
-        0 => -1_i8, 1 => 0, 2 => 1, _ => unreachable!()
-    }).collect();
+    let repr_a: Vec<i8> = digits_b
+        .iter()
+        .map(|&d| match d {
+            0 => -1_i8,
+            1 => 0,
+            2 => 1,
+            _ => unreachable!(),
+        })
+        .collect();
     let word_from_a = TernaryWord::from_balanced(&repr_a);
 
     // Rep C: map through bijective representation
@@ -199,10 +224,16 @@ fn borromean_invariant_across_representations() {
     let xor_a = word_from_a.xor_mod3(&partner);
     let xor_c = word_from_c.xor_mod3(&partner);
 
-    assert_eq!(xor_b.digits(), xor_a.digits(),
-        "Borromean XOR must be representation-independent (A vs B)");
-    assert_eq!(xor_b.digits(), xor_c.digits(),
-        "Borromean XOR must be representation-independent (B vs C)");
+    assert_eq!(
+        xor_b.digits(),
+        xor_a.digits(),
+        "Borromean XOR must be representation-independent (A vs B)"
+    );
+    assert_eq!(
+        xor_b.digits(),
+        xor_c.digits(),
+        "Borromean XOR must be representation-independent (B vs C)"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -228,23 +259,29 @@ fn spiral_walk_directions_are_lattice_points() {
     // Every direction in the spiral walk must be an exact
     // integer multiple of 13° — the walk lives on 28 rays.
     let trits: Vec<u8> = vec![
-        1, 2, 0, 1, 0, 0, 2, 2, 0, 1,
-        1, 1, 2, 0, 2, 1, 0, 0, 1, 2,
-        2, 0, 1, 1, 0, 2, 1, 0, 2, 0,
+        1, 2, 0, 1, 0, 0, 2, 2, 0, 1, 1, 1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 0, 1, 1, 0, 2, 1, 0, 2, 0,
     ];
 
     let points = walk_tribonacci_radian_spiral(&trits);
 
     for p in &points[1..] {
         // Z28 position must be in [0, 28)
-        assert!(p.position.0 < CYCLIC_ORDER as u8,
-            "Z₂₈ position {} out of range at step {}", p.position.0, p.step);
+        assert!(
+            p.position.0 < CYCLIC_ORDER as u8,
+            "Z₂₈ position {} out of range at step {}",
+            p.position.0,
+            p.step
+        );
 
         // The ternary degree must be an exact multiple of 13
         let deg = p.position.to_ternary_deg();
         let remainder = deg % RADIAN_DEG;
-        assert!(remainder.abs() < 1e-10 || (RADIAN_DEG - remainder).abs() < 1e-10,
-            "Walk angle {}° is not a lattice point at step {}", deg, p.step);
+        assert!(
+            remainder.abs() < 1e-10 || (RADIAN_DEG - remainder).abs() < 1e-10,
+            "Walk angle {}° is not a lattice point at step {}",
+            deg,
+            p.step
+        );
     }
 }
 
@@ -268,7 +305,9 @@ fn spiral_scaling_is_tau() {
             assert!(
                 (ratio - TAU_TRIBONACCI).abs() < 0.01,
                 "Step ratio at k={} should be τ ≈ {:.6}, got {:.6}",
-                k, TAU_TRIBONACCI, ratio
+                k,
+                TAU_TRIBONACCI,
+                ratio
             );
         }
     }
@@ -297,9 +336,15 @@ fn z28_group_inverse_property() {
         let a = Z28(i);
         let neg_a = a.neg();
         let sum = a.add(neg_a);
-        assert_eq!(sum, Z28(0),
+        assert_eq!(
+            sum,
+            Z28(0),
             "Z₂₈({}): {} + {} should be identity, got {}",
-            i, a, neg_a, sum);
+            i,
+            a,
+            neg_a,
+            sum
+        );
     }
 }
 
@@ -315,9 +360,14 @@ fn conversion_roundtrip_ternary_to_std_degrees() {
         let ternary = i as f64;
         let standard = ternary_deg_to_std_deg(ternary);
         let back = std_deg_to_ternary_deg(standard);
-        assert!((back - ternary).abs() < 1e-10,
+        assert!(
+            (back - ternary).abs() < 1e-10,
             "Degree roundtrip failed at {}°: {} → {} → {}",
-            i, ternary, standard, back);
+            i,
+            ternary,
+            standard,
+            back
+        );
     }
 }
 
@@ -328,9 +378,14 @@ fn conversion_roundtrip_ternary_to_std_radians() {
         let ternary = i as f64;
         let standard = ternary_rad_to_std_rad(ternary);
         let back = std_rad_to_ternary_rad(standard);
-        assert!((back - ternary).abs() < 1e-10,
+        assert!(
+            (back - ternary).abs() < 1e-10,
             "Radian roundtrip failed at {} trad: {} → {} → {}",
-            i, ternary, standard, back);
+            i,
+            ternary,
+            standard,
+            back
+        );
     }
 }
 
@@ -341,9 +396,14 @@ fn trit_to_std_rad_is_consistent_with_z28() {
     for trit in 0..=2u8 {
         let from_fn = trit_to_std_rad(trit);
         let from_z28 = Z28::new(0).step(trit).to_std_rad();
-        assert!((from_fn - from_z28).abs() < 1e-10,
+        assert!(
+            (from_fn - from_z28).abs() < 1e-10,
             "trit_to_std_rad({}) = {} but Z28.step({}).to_std_rad() = {}",
-            trit, from_fn, trit, from_z28);
+            trit,
+            from_fn,
+            trit,
+            from_z28
+        );
     }
 }
 
@@ -362,8 +422,12 @@ fn repunit_chain_connects_radian_to_circle() {
     //   111111₃ = 364  ← full circle
     let expected = [1u64, 4, 13, 40, 121, 364];
     for (i, &val) in expected.iter().enumerate() {
-        assert!(is_base3_repunit(val),
-            "Expected {} to be a base-3 repunit (order {})", val, i + 1);
+        assert!(
+            is_base3_repunit(val),
+            "Expected {} to be a base-3 repunit (order {})",
+            val,
+            i + 1
+        );
         assert_eq!(base3_repunit_order(val), Some((i + 1) as u32));
     }
 
@@ -381,8 +445,11 @@ fn bijective_zero_is_empty() {
     // In bijective ternary (Rep C), zero has no representation.
     let zero = TritVec::from_decimal(0);
     let repr_c = zero.to_repr_c();
-    assert!(repr_c.is_empty(),
-        "Bijective representation of 0 should be empty, got {:?}", repr_c);
+    assert!(
+        repr_c.is_empty(),
+        "Bijective representation of 0 should be empty, got {:?}",
+        repr_c
+    );
 }
 
 #[test]
@@ -391,6 +458,9 @@ fn balanced_zero_is_zero() {
     let zero = TritVec::from_decimal(0);
     let repr_a = zero.to_repr_a();
     // All digits should be 0
-    assert!(repr_a.iter().all(|&d| d == 0),
-        "Balanced representation of 0 should be all zeros, got {:?}", repr_a);
+    assert!(
+        repr_a.iter().all(|&d| d == 0),
+        "Balanced representation of 0 should be all zeros, got {:?}",
+        repr_a
+    );
 }
