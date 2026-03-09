@@ -495,23 +495,28 @@ function InstallSuiteCard() {
       )}
 
       <div className="flex flex-wrap gap-3 mt-5">
-        <Button asChild data-testid="button-download-installer">
-          <a href={config.installerUrl} target="_blank" rel="noopener noreferrer" download={config.installerName}>
-            <Download className="w-4 h-4 mr-2" />
-            Download Installer ({config.label})
-          </a>
+        <Button
+          data-testid="button-download-installer"
+          onClick={(e) => { e.preventDefault(); window.open(config.installerUrl, "_blank"); }}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Download Installer ({config.label})
         </Button>
-        <Button variant="outline" asChild data-testid="button-download-archive">
-          <a href={GITHUB_DOWNLOAD} target="_blank" rel="noopener noreferrer">
-            <Package className="w-4 h-4 mr-2" />
-            Source Archive (.zip)
-          </a>
+        <Button
+          variant="outline"
+          data-testid="button-download-archive"
+          onClick={(e) => { e.preventDefault(); window.open(GITHUB_DOWNLOAD, "_blank"); }}
+        >
+          <Package className="w-4 h-4 mr-2" />
+          Source Archive (.zip)
         </Button>
-        <Button variant="outline" asChild data-testid="button-github-releases">
-          <a href={GITHUB_RELEASE} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            GitHub Releases
-          </a>
+        <Button
+          variant="outline"
+          data-testid="button-github-releases"
+          onClick={(e) => { e.preventDefault(); window.open(GITHUB_RELEASE, "_blank"); }}
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          GitHub Releases
         </Button>
       </div>
 
