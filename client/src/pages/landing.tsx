@@ -1288,7 +1288,7 @@ function PerformanceSection() {
               {[
                 { label: "Rounds", value: String(PLATFORM.BENCH_TIS27_ROUNDS), detail: "vs 64 (SHA-256)" },
                 { label: "Theta Neighbors", value: String(PLATFORM.BENCH_TIS27_NEIGHBORS), detail: "±1, ±7, ±13" },
-                { label: "Avalanche", value: `${PLATFORM.BENCH_TIS27_AVALANCHE}%`, detail: "2× safety margin" },
+                { label: "Avalanche", value: `${PLATFORM.BENCH_TIS27_AVALANCHE}%`, detail: "3× safety margin" },
                 { label: "Forgery Check", value: "0 ns", detail: "Algebraically impossible" },
               ].map((s) => (
                 <div key={s.label} className="rounded-md border border-foreground/5 bg-muted/20 p-3 text-center" data-testid={`stat-${s.label.toLowerCase().replace(/\s/g, "-")}`}>
@@ -1335,7 +1335,7 @@ function PerformanceSection() {
                 </thead>
                 <tbody>
                   {[
-                    { op: "Hash (27B)", plm: "TIS-27: 308", ind: "SHA-256: 672", speedup: "2.2×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
+                    { op: "Hash (27B)", plm: "TIS-27: 191", ind: "SHA-256: 672", speedup: "3.5×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
                     { op: "Hash (81B, PQ)", plm: "TIS-81: 863", ind: "SHA3-256: 928", speedup: "1.1×", includes: "257-bit post-quantum capacity, native GF(3) output", requires: "128-bit classical only (Grover halves), binary output" },
                     { op: "Address derivation", plm: "342", ind: "SHA-256 path: 824", speedup: "2.4×", includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee", requires: "Hash + binary→ternary + separate validation" },
                     { op: "Encryption (27B)", plm: "Phase GF(3): 24", ind: "XSalsa20: 402", speedup: "17×", includes: "GF(3) native, Tribonacci tamper detection, adaptive phase modes", requires: "Binary cipher, separate auth tag, no ternary awareness" },
@@ -1371,7 +1371,7 @@ function PerformanceSection() {
 
             <div className="md:hidden space-y-4">
               {[
-                { op: "Hash (27B)", plm: "TIS-27: 308", ind: "SHA-256: 672", speedup: "2.2×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
+                { op: "Hash (27B)", plm: "TIS-27: 191", ind: "SHA-256: 672", speedup: "3.5×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
                 { op: "Hash (81B, PQ)", plm: "TIS-81: 863", ind: "SHA3-256: 928", speedup: "1.1×", includes: "257-bit post-quantum capacity, native GF(3) output", requires: "128-bit classical only (Grover halves), binary output" },
                 { op: "Address derivation", plm: "342", ind: "SHA-256 path: 824", speedup: "2.4×", includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee", requires: "Hash + binary→ternary + separate validation" },
                 { op: "Encryption (27B)", plm: "Phase GF(3): 24", ind: "XSalsa20: 402", speedup: "17×", includes: "GF(3) native, Tribonacci tamper detection, adaptive phase modes", requires: "Binary cipher, separate auth tag, no ternary awareness" },
