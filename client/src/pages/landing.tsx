@@ -1188,28 +1188,32 @@ function PerformanceSection() {
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono w-20 shrink-0 font-medium text-primary">{row.tl.variant}</span>
-                        <div className="flex-1 bg-muted/50 rounded-full h-5 relative">
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden relative">
                           <motion.div
                             initial={{ width: 0 }}
                             whileInView={{ width: `${tlPct}%` }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8, delay: 0.2 }}
-                            className="h-full bg-primary/80 rounded-full"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.tl.time} µs</span>
+                            className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-2"
+                          >
+                            {tlPct >= 20 && <span className="text-[10px] font-mono font-bold text-primary-foreground whitespace-nowrap">{row.tl.time} µs</span>}
+                          </motion.div>
+                          {tlPct < 20 && <span className="absolute top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-foreground/70 whitespace-nowrap" style={{ left: `calc(${tlPct}% + 8px)` }}>{row.tl.time} µs</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono w-20 shrink-0 text-muted-foreground">{row.ml.variant}</span>
-                        <div className="flex-1 bg-muted/50 rounded-full h-5 relative">
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden relative">
                           <motion.div
                             initial={{ width: 0 }}
                             whileInView={{ width: `${mlPct}%` }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8, delay: 0.3 }}
-                            className="h-full bg-muted-foreground/30 rounded-full"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>
+                            className="h-full bg-muted-foreground/30 rounded-full flex items-center justify-end pr-2"
+                          >
+                            {mlPct >= 20 && <span className="text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>}
+                          </motion.div>
+                          {mlPct < 20 && <span className="absolute top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-foreground/70 whitespace-nowrap" style={{ left: `calc(${mlPct}% + 8px)` }}>{row.ml.time} µs</span>}
                         </div>
                       </div>
                     </div>
