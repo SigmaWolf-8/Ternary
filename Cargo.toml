@@ -11,3 +11,8 @@ exclude = [
     "src/kernel/bare-metal",
 ]
 resolver = "2"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
