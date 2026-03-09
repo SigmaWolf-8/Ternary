@@ -10,15 +10,8 @@ repository = "https://github.com/SigmaWolf-8/Ternary"
 [dependencies]
 
 [dev-dependencies]
-# Tests use exhaustive enumeration (no sampling framework needed for GF(3)).
-# Uncomment for benchmarks when using Rust 1.80+:
-# proptest = "1.4"
-# criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports"] }
 
-# [[bench]]
-# name = "radix_economy"
-# harness = false
-# 
-# [[bench]]
-# name = "clifford_compose"
-# harness = false
+[[bench]]
+name = "tis27_bench"
+harness = false

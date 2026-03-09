@@ -73,6 +73,10 @@ panic = "abort"
 name = "salvi_benchmarks"
 harness = false
 
+[[bench]]
+name = "sponge_bench"
+harness = false
+
 [profile.bench]
 opt-level = 3
 debug = false

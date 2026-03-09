@@ -12,13 +12,15 @@
 //   hash primitives in identity derivation. No domain crossing. Mirrors
 //   services/tdns-v2/src/identity.rs exactly.
 //
-// Scan hash: IdentitySponge of trit vector — same primitive as identity derivation.
-//   Two input domains: canonical URL → identity anchor; classification trits → scan hash.
+// Scan hash: TIS-27 (shared/tis-sponge.ts) — fast non-cryptographic integrity function.
+//   4 rounds, 7-neighbor extended theta at ±1/±7/±13. NOT the identity sponge.
+// Identity derivation: 27-round inline sponge (unchanged, mirrors identity.rs).
 // Timestamps: ISO 8601 display (JS path).
 // Production path: getFemtosecondTimestamp() via server/salvi-core/femtosecond-timing.ts.
 
 import type { Express, Request, Response } from "express";
 import { createLogger } from "../logger";
+import { tis27Hash } from "@shared/tis-sponge";
 
 const log = createLogger("tdns");
 
@@ -591,32 +593,12 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   const identity_trits = deriveIdentityTrits(canonical);
   const address        = `${classAddr} · ID:${identity_trits.join("")}`;
 
-  const scanSpongeState = new Uint8Array(TIS_STATE);
-  const scanTritsGf3    = trits.map((t: number) => t - 1);
-  const scanPadded: number[] = [...scanTritsGf3, 1];
-  while (scanPadded.length % TIS_RATE !== TIS_RATE - 1) { scanPadded.push(0); }
-  scanPadded.push(2);
-  for (let off = 0; off < scanPadded.length; off += TIS_RATE) {
-    for (let i = 0; i < TIS_RATE; i++) {
-      scanSpongeState[i] = gf3Add(scanSpongeState[i], scanPadded[off + i] ?? 0);
-    }
-    tisPermute(scanSpongeState);
-  }
-  const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanSpongeState[i] + 1);
-  function squeezeScanBytes(state: Uint8Array, n: number): number[] {
-    const out: number[] = [];
-    const s = new Uint8Array(state);
-    while (out.length < n) {
-      for (let i = 0; i + 4 < TIS_STATE; i += 5) {
-        if (out.length >= n) break;
-        out.push(s[i] * 81 + s[i+1] * 27 + s[i+2] * 9 + s[i+3] * 3 + s[i+4]);
-      }
-      tisPermute(s);
-    }
-    return out.slice(0, n);
-  }
-  const scanHashBytes = squeezeScanBytes(scanSpongeState, 32);
-  const scan_hash = scanHashBytes.map((b: number) => b.toString(16).padStart(2, "0")).join("");
+  const scanTritsGf3 = trits.map((t: number) => t - 1);
+  const scanGf3Out = tis27Hash(scanTritsGf3, 27);
+  const scanTritsOut = scanGf3Out.map((t: number) => t + 1);
+  let scanVal = BigInt(0);
+  for (let i = 0; i < scanGf3Out.length; i++) scanVal = scanVal * 3n + BigInt(scanGf3Out[i]);
+  const scan_hash = scanVal.toString(16).padStart(14, "0");
   const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
 
   // ── 5 Scores ───────────────────────────────────────────────────────────────
