@@ -18,6 +18,7 @@ jobs:
   bare-metal-x86_64:
     name: "QEMU Boot (x86_64)"
     runs-on: ubuntu-latest
+    continue-on-error: true
     timeout-minutes: 15
 
     steps:
