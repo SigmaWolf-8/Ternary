@@ -146,6 +146,7 @@ describe("Phase Recombination (round-trip)", () => {
       encrypted.guardianPhase.hash = "tampered-hash-value";
     }
     const result = phaseRecombine(encrypted);
+    expect(result.success).toBe(false);
     expect(result.guardianValidation).toBe(false);
   });
 });
