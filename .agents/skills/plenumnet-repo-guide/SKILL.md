@@ -1004,7 +1004,7 @@ Benchmarks (`benchmarks/`): `crt_bench.c` (261 LOC — raw throughput), `crt_ben
 
 **libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
 **libternary-improvements/** — Enhancement staging area.
-**ternary-math/** — standalone crate, 12 modules: gf3, gf3_algebra (143 LOC — division-free GF(3) closed-form algebra), tribonacci, borromean, clifford, torus, ternary_circle, tis_sponge (290 LOC — SIMD GF(3) sponge, 7-neighbor extended theta at ±1/±7/±13, 4 rounds, 308 ns/hash), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC). TypeScript mirrors: `shared/gf3-algebra.ts` (141 LOC), `shared/tis-sponge.ts` (77 LOC).
+**ternary-math/** — standalone crate, 12 modules: gf3, gf3_algebra (94 LOC — division-free GF(3) closed-form algebra, zero sponge code), tribonacci, borromean, clifford, torus, ternary_circle, tis_sponge (290 LOC — SIMD GF(3) sponge, 7-neighbor extended theta at ±1/±7/±13, 4 rounds, 308 ns/hash), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC). TypeScript mirrors: `shared/gf3-algebra.ts` (77 LOC), `shared/tis-sponge.ts` (77 LOC).
 
 **benchmarks/** — comprehensive benchmark suite:
 - `c-bench/pipeline_v2.c` (192 LOC): TIS-27 vs SHA-256 honest pipeline — raw input → routable address
