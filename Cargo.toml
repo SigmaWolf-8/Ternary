@@ -8,5 +8,6 @@ members = [
 ]
 exclude = [
     "libternary",
+    "src/kernel/bare-metal",
 ]
 resolver = "2"

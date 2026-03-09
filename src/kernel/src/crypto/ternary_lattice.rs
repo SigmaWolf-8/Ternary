@@ -1000,7 +1000,7 @@ fn small_prime_factors(mut n: i32) -> Vec<i32> {
 
 pub fn ntt_forward_lifted(poly: &TernaryPolynomial, q: i16) -> Vec<i16> {
     let n = poly.n;
-    let log_n = (n as f64).log2() as usize;
+    let log_n = libm::log2(n as f64) as usize;
     let q32 = q as i32;
     let g = find_primitive_root(q);
     let omega = mod_pow(g as i32, (q32 - 1) / n as i32, q32) as i16;
@@ -1039,7 +1039,7 @@ pub fn ntt_forward_lifted(poly: &TernaryPolynomial, q: i16) -> Vec<i16> {
 }
 
 pub fn ntt_inverse_lifted(ntt_vals: &[i16], q: i16, n: usize) -> TernaryPolynomial {
-    let log_n = (n as f64).log2() as usize;
+    let log_n = libm::log2(n as f64) as usize;
     let q32 = q as i32;
     let g = find_primitive_root(q);
     let omega = mod_pow(g as i32, (q32 - 1) / n as i32, q32) as i16;

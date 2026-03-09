@@ -138,9 +138,9 @@ pub fn test_kem_size_compliance() -> Vec<CrossImplTestResult> {
         let tl_ct_size = tl_kem::ciphertext_size(*variant);
         let tl_ss_trits = tl_kem::shared_secret_size(*variant);
 
-        let tl_pk_bytes = (tl_pk_trits as f64 / 1.585).ceil() as usize;
-        let _tl_sk_bytes = (tl_sk_trits as f64 / 1.585).ceil() as usize;
-        let tl_ss_bytes = (tl_ss_trits as f64 / 1.585).ceil() as usize;
+        let tl_pk_bytes = libm::ceil(tl_pk_trits as f64 / 1.585) as usize;
+        let _tl_sk_bytes = libm::ceil(tl_sk_trits as f64 / 1.585) as usize;
+        let tl_ss_bytes = libm::ceil(tl_ss_trits as f64 / 1.585) as usize;
 
         let pk_within_4x = tl_pk_bytes <= ref_sz.pk_bytes * 4;
         results.push(CrossImplTestResult {
@@ -213,9 +213,9 @@ pub fn test_dsa_size_compliance() -> Vec<CrossImplTestResult> {
         let tl_sk_trits = tl_dsa::secret_key_size(*variant);
         let tl_sig_trits = tl_dsa::signature_size(*variant);
 
-        let tl_pk_bytes = (tl_pk_trits as f64 / 1.585).ceil() as usize;
-        let _tl_sk_bytes = (tl_sk_trits as f64 / 1.585).ceil() as usize;
-        let tl_sig_bytes = (tl_sig_trits as f64 / 1.585).ceil() as usize;
+        let tl_pk_bytes = libm::ceil(tl_pk_trits as f64 / 1.585) as usize;
+        let _tl_sk_bytes = libm::ceil(tl_sk_trits as f64 / 1.585) as usize;
+        let tl_sig_bytes = libm::ceil(tl_sig_trits as f64 / 1.585) as usize;
 
         let pk_within_4x = tl_pk_bytes <= ref_sz.pk_bytes * 4;
         results.push(CrossImplTestResult {

@@ -195,7 +195,7 @@ impl BinaryTernaryGateway {
         let integer_part = value as i64;
         let mut trits = binary_to_balanced_ternary(integer_part);
 
-        let mut frac = (value - integer_part as f64).abs();
+        let mut frac = libm::fabs(value - integer_part as f64);
         if frac > 0.0 {
             self.precision_losses += 1;
         }
