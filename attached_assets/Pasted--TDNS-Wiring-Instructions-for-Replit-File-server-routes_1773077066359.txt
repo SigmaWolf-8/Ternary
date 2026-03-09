@@ -1,0 +1,227 @@
+# TDNS Wiring — Instructions for Replit
+# File: server/routes/tdns.ts
+# Single file change. No new files.
+
+## What's wrong
+
+The scan hash computation in `scanUrl()` uses `tisPermute()` — the 27-round
+identity sponge. Scan hashing is an integrity operation, not identity binding.
+It should use TIS-27 (4 rounds, 7-neighbor theta, gather pi, direct copy).
+
+The `scan_hash_algo` tag already says `"tis-27"` but the code runs the
+identity sponge. After this change, the tag is accurate.
+
+Identity derivation (`deriveIdentityTrits()`) is NOT touched.
+
+## Changes (all in server/routes/tdns.ts)
+
+### Change 1: Add TIS-27 permutation function
+
+Add this block AFTER the existing `tisPermute()` function (around line 97),
+BEFORE the `deriveIdentityTrits()` function:
+
+```typescript
+// ── TIS-27 Integrity Hash ─────────────────────────────────────────────────────
+//
+// Fast ternary integrity function. Mirrors ternary-math/src/tis_sponge.rs.
+// NOT the identity sponge — different theta, different pi, different rounds.
+//
+//   Identity sponge (above):  27 rounds, 3-neighbor theta, scatter pi, XOR absorb
+//   TIS-27 (below):           4 rounds,  7-neighbor theta, gather pi,  direct copy
+//
+// TIS-27 is for scan hashing and wire integrity. NOT for identity binding.
+
+const TIS27_ROUNDS = 4;
+
+// Pi gather table: PI27[i] = (i * 13) % 54
+const TIS27_PI: number[] = (() => {
+  const t: number[] = new Array(TIS_STATE);
+  for (let i = 0; i < TIS_STATE; i++) t[i] = (i * 13) % TIS_STATE;
+  return t;
+})();
+
+// Round constants: RC_BASE rotated by round index
+const TIS27_RC_BASE = [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0];
+const TIS27_RC: number[][] = (() => {
+  const rcs: number[][] = [];
+  for (let r = 0; r < TIS27_ROUNDS; r++) {
+    const row: number[] = new Array(27).fill(0);
+    for (let i = 0; i < 27; i++) {
+      row[i] = TIS27_RC_BASE[(i + r) % 27];
+    }
+    rcs.push(row);
+  }
+  return rcs;
+})();
+
+function gf3Add3(a: number, b: number, c: number): number {
+  let s = a + b + c;
+  if (s >= 6) return s - 6;
+  if (s >= 3) return s - 3;
+  return s;
+}
+
+function tis27Theta(s: Uint8Array): Uint8Array {
+  const t = new Uint8Array(TIS_STATE);
+  const W = TIS_STATE;
+  for (let i = 0; i < W; i++) {
+    const left = gf3Add3(
+      s[(i + W - 13) % W],
+      s[(i + W - 7) % W],
+      s[(i + W - 1) % W],
+    );
+    const right = gf3Add3(
+      s[(i + 1) % W],
+      s[(i + 7) % W],
+      s[(i + 13) % W],
+    );
+    t[i] = gf3Add3(left, s[i], right);
+  }
+  return t;
+}
+
+function tis27Pi(theta: Uint8Array): Uint8Array {
+  const p = new Uint8Array(TIS_STATE);
+  for (let i = 0; i < TIS_STATE; i++) {
+    p[i] = theta[TIS27_PI[i]];  // GATHER — matches Rust tis_sponge.rs
+  }
+  return p;
+}
+
+function tis27Permute(state: Uint8Array): void {
+  for (let r = 0; r < TIS27_ROUNDS; r++) {
+    const t = tis27Theta(state);
+    const p = tis27Pi(t);
+    const rc = TIS27_RC[r];
+    for (let i = 0; i < 27; i++) {
+      p[i] = gf3Add(p[i], rc[i]);
+    }
+    state.set(p);
+  }
+}
+```
+
+### Change 2: Replace scan hash block in scanUrl()
+
+Find this block (after `const trits = [d1,d2,...,d27]`):
+
+```typescript
+  const scanSpongeState = new Uint8Array(TIS_STATE);
+  const scanTritsGf3    = trits.map((t: number) => t - 1);
+  const scanPadded: number[] = [...scanTritsGf3, 1];
+  while (scanPadded.length % TIS_RATE !== TIS_RATE - 1) { scanPadded.push(0); }
+  scanPadded.push(2);
+  for (let off = 0; off < scanPadded.length; off += TIS_RATE) {
+    for (let i = 0; i < TIS_RATE; i++) {
+      scanSpongeState[i] = gf3Add(scanSpongeState[i], scanPadded[off + i] ?? 0);
+    }
+    tisPermute(scanSpongeState);
+  }
+  const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanSpongeState[i] + 1);
+  function squeezeScanBytes(state: Uint8Array, n: number): number[] {
+    const out: number[] = [];
+    const s = new Uint8Array(state);
+    while (out.length < n) {
+      for (let i = 0; i + 4 < TIS_STATE; i += 5) {
+        if (out.length >= n) break;
+        out.push(s[i] * 81 + s[i+1] * 27 + s[i+2] * 9 + s[i+3] * 3 + s[i+4]);
+      }
+      tisPermute(s);
+    }
+    return out.slice(0, n);
+  }
+  const scanHashBytes = squeezeScanBytes(scanSpongeState, 32);
+  const scan_hash = scanHashBytes.map((b: number) => b.toString(16).padStart(2, "0")).join("");
+  const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
+```
+
+Replace that ENTIRE block with:
+
+```typescript
+  // ── Scan hash via TIS-27 (4-round, 7-neighbor, gather pi) ──────────────
+  // Direct copy absorption — matches ternary-math/src/tis_sponge.rs exactly.
+  // Identity derivation (above) stays on the 27-round identity sponge.
+  const scanTritsGf3 = trits.map((t: number) => t - 1);
+
+  // Direct copy into state (NOT XOR sponge mode — this is how TIS-27 works)
+  const scanState = new Uint8Array(TIS_STATE);
+  const scanBlock = Math.min(TIS_RATE, scanTritsGf3.length);
+  for (let i = 0; i < scanBlock; i++) {
+    scanState[i] = scanTritsGf3[i];
+  }
+
+  // Run TIS-27: 4 rounds
+  tis27Permute(scanState);
+
+  // Scan trit output in Rep C {1,2,3}
+  const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanState[i] + 1);
+
+  // Squeeze 32 bytes via base-243 packing (5 GF(3) trits → 1 byte)
+  const scanBytes: number[] = [];
+  const scanSqueeze = new Uint8Array(scanState);
+  while (scanBytes.length < 32) {
+    for (let i = 0; i + 4 < TIS_STATE; i += 5) {
+      if (scanBytes.length >= 32) break;
+      scanBytes.push(
+        scanSqueeze[i] * 81 + scanSqueeze[i+1] * 27 +
+        scanSqueeze[i+2] * 9 + scanSqueeze[i+3] * 3 + scanSqueeze[i+4]
+      );
+    }
+    if (scanBytes.length < 32) tis27Permute(scanSqueeze);
+  }
+  const scan_hash = scanBytes.slice(0, 32)
+    .map((b: number) => b.toString(16).padStart(2, "0")).join("");
+
+  // CRD and CGUID from scan output trits
+  const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
+```
+
+### Change 3: Update CGUID in the return object
+
+Find:
+```typescript
+    cguid:            (scanTritsOut[0] - 1) * 3 + scanTritsOut[1],
+```
+
+No change needed — this formula is the same and `scanTritsOut` is still defined.
+
+### What is NOT changed
+
+- `tisTheta()` — kept for identity derivation
+- `tisPi()` — kept for identity derivation
+- `tisPermute()` — kept for identity derivation
+- `deriveIdentityTrits()` — completely untouched
+- `TIS_STATE`, `TIS_RATE`, `TIS_ROUNDS`, `TIS_RC` — kept for identity sponge
+- `scan_hash_algo: "tis-27"` — stays the same (now accurate)
+- All 27 derivation rules — untouched
+- All score computation — untouched
+- All API routes — untouched
+- `gf3Add()` — already exists, reused by both sponges
+
+### What changes
+
+- Scan hashes will differ (different algorithm — 4 rounds vs 27)
+- CRD/CGUID values may differ (derived from scan output)
+- Identity anchors preserved (deriveIdentityTrits unchanged)
+
+### Verification
+
+After deploy:
+```bash
+node tis27-e2e-tests.js
+```
+
+- scan_hash_algo should read "tis-27" (was already "tis-27", now accurate)
+- Identity trits: IDENTICAL to previous runs
+- Scan hash values: WILL DIFFER (expected — correct algorithm now)
+- All structural checks pass unchanged
+
+### Summary of differences between the two sponges
+
+| Property | Identity sponge (tisPermute) | TIS-27 (tis27Permute) |
+|----------|----------------------------|----------------------|
+| Theta | 3-neighbor (±1) | 7-neighbor (±1, ±7, ±13) |
+| Pi | Scatter: t[π(i)] = s[i] | Gather: p[i] = t[π(i)] |
+| Rounds | 27 | 4 |
+| Absorption | XOR + 10*1 padding | Direct copy, no padding |
+| Used for | Identity anchor derivation | Scan hash, wire integrity |
