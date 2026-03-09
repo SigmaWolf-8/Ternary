@@ -12,44 +12,41 @@
 //
 // See LICENSE in the repository root for full terms.
 
-//! Ternary Sponge Construction (Optimized)
+//! Ternary Sponge Construction — 7-Neighbor Extended Theta
 //!
 //! Keccak-inspired sponge operating in balanced ternary {-1, 0, +1}.
 //! All arithmetic is first-principles — no lookup tables, no integer
 //! division in the hot path. The permutation uses:
 //!
-//!   - **Substitution**: three-neighbor sbox with cyclic trit rotation
+//!   - **Theta**: 7-neighbor extended substitution at distances ±1, ±7, ±13
+//!     (all coprime to 729 = 3⁶)
 //!   - **Diffusion**: fixed permutation π(i) = (376·i + 1) mod 729
 //!   - **Asymmetry**: round constants derived from (7·round + 13·lane + 3) mod 3
 //!
 //! State size 729 = 3⁶ trits, rate 243 = 3⁵ trits, capacity 486 trits.
 //! Security target: 243-trit preimage resistance (≈ 385 bits).
+//! 9 rounds = 3² (3× safety margin over diffusion diameter).
 //!
 //! # Performance
 //!
 //! Hot-path operations use conditional arithmetic (compiles to cmov on x86)
-//! instead of integer modulo. Single auxiliary buffer, zero heap allocation
-//! during permutation. Sbox + diffusion read from one buffer and write to
-//! another — no full-state copies.
+//! instead of integer modulo. On x86_64 with AVX2, theta processes 32 trits
+//! per cycle using rotation buffers and SIMD balanced-wrap. Single auxiliary
+//! buffer, zero heap allocation during permutation.
 
 use alloc::vec::Vec;
 use super::{TernaryDigest, TERNARY_HASH_TRITS};
 
 const SPONGE_STATE_SIZE: usize = 729;  // 3⁶
 const SPONGE_RATE: usize = 243;        // 3⁵
-const SPONGE_ROUNDS: usize = 27;       // 3³
-const SPONGE_LANES: usize = 27;        // round constant injection points
+const SPONGE_ROUNDS: usize = 9;        // 3² = 3× safety margin
+const SPONGE_LANES: usize = 27;
 
 // ---------------------------------------------------------------------------
 // First-principles balanced ternary arithmetic
 //
 // Domain: {-1, 0, +1}.  All operations wrap modulo 3 in balanced form.
 // No lookup tables.  No integer division.  Conditional moves only.
-//
-// NOTE: trit_rotate and sbox are retained as first-principles building
-// blocks.  The hot path uses the algebraically collapsed form
-// (balanced_wrap) but these functions serve as the specification that
-// the collapsed form was derived from, and are exercised in tests.
 // ---------------------------------------------------------------------------
 
 #[inline(always)]
@@ -58,22 +55,15 @@ fn trit_add(a: i8, b: i8) -> i8 {
     if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
 }
 
-/// Cyclic trit rotation: -1 → 0, 0 → +1, +1 → -1.
-/// Three applications return to identity.
 #[inline(always)]
-#[cfg(test)]
-fn trit_rotate(t: i8) -> i8 {
-    let r = t + 1;
-    if r > 1 { -1 } else { r }
+fn balanced_wrap(s: i8) -> i8 {
+    if s >= 2 { s - 3 } else if s <= -2 { s + 3 } else { s }
 }
 
-/// Three-neighbor substitution box: sbox(a, b, c) = a ⊕₃ rotate(b) ⊕₃ c.
-/// Algebraically equivalent to balanced_wrap(a + b + c + 1) — see
-/// permutation comments for the derivation.
 #[inline(always)]
-#[cfg(test)]
-fn sbox(a: i8, b: i8, c: i8) -> i8 {
-    trit_add(trit_add(a, trit_rotate(b)), c)
+fn wrap_idx(i: usize, offset: usize) -> usize {
+    let idx = i + offset;
+    if idx >= SPONGE_STATE_SIZE { idx - SPONGE_STATE_SIZE } else { idx }
 }
 
 // ---------------------------------------------------------------------------
@@ -106,27 +96,27 @@ const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
 };
 
 // ---------------------------------------------------------------------------
-// Permutation
+// Permutation — 7-neighbor extended theta
 //
-// Substitution uses GF(3) associativity to collapse four serial trit_add
-// calls into a single parallel integer sum followed by one balanced wrap.
+// For each trit position i:
+//   left  = balanced_wrap(state[i−13] + state[i−7] + state[i−1])
+//   right = balanced_wrap(state[i+1]  + state[i+7] + state[i+13])
+//   theta[i] = balanced_wrap(left + state[i] + right)
 //
-//   sbox(a, b, c)  =  a ⊕₃ rotate(b) ⊕₃ c
-//                   =  a ⊕₃ (b ⊕₃ 1) ⊕₃ c
-//                   =  (a + b + c + 1) mod 3   [balanced form]
+// Each intermediate sum of 3 balanced trits lies in [−3, +3].
+// balanced_wrap maps this to [−1, +1] with a single conditional:
+// subtract 3 if ≥ 2, add 3 if ≤ −2.  No division, no tables.
 //
-// The integer sum a+b+c+1 lies in [-2, 4].  Balanced mod-3 wrapping is a
-// single conditional: subtract 3 if ≥ 2, add 3 if ≤ -2.  No division,
-// no tables — purely first-principles modular arithmetic.
-//
-// On x86_64 with AVX2, the substitution processes 32 trits per cycle via
-// _mm256_add_epi8 + compare/blend — the same first-principles conditional
-// wrap, executed in parallel hardware lanes.
+// All neighbor distances (1, 7, 13) are coprime to 729 = 3⁶,
+// ensuring full state-space coverage in the diffusion step.
 // ---------------------------------------------------------------------------
 
 #[inline(always)]
-fn balanced_wrap(s: i8) -> i8 {
-    if s >= 2 { s - 3 } else if s <= -2 { s + 3 } else { s }
+fn rot(src: &[i8; SPONGE_STATE_SIZE], dst: &mut [i8], dist: usize) {
+    dst[..SPONGE_STATE_SIZE - dist]
+        .copy_from_slice(&src[dist..SPONGE_STATE_SIZE]);
+    dst[SPONGE_STATE_SIZE - dist..SPONGE_STATE_SIZE]
+        .copy_from_slice(&src[..dist]);
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -134,60 +124,80 @@ fn balanced_wrap(s: i8) -> i8 {
 unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
 
-    let mut ext = [0i8; SPONGE_STATE_SIZE + 2];
-    let mut buf = [0i8; SPONGE_STATE_SIZE];
-    let last = SPONGE_STATE_SIZE - 1;
+    const PAD: usize = 736;
+    let mut l13 = [0i8; PAD];
+    let mut l7  = [0i8; PAD];
+    let mut l1  = [0i8; PAD];
+    let mut r1  = [0i8; PAD];
+    let mut r7  = [0i8; PAD];
+    let mut r13 = [0i8; PAD];
+    let mut theta = [0i8; PAD];
+    let mut s_pad = [0i8; PAD];
 
     let v_one   = _mm256_set1_epi8(1);
-    let v_hi    = _mm256_set1_epi8(1);
-    let v_lo    = _mm256_set1_epi8(-1);
+    let v_neg   = _mm256_set1_epi8(-1);
     let v_three = _mm256_set1_epi8(3);
 
     for round in 0..SPONGE_ROUNDS {
-        // Wrap-around boundary: ext[0] = state[last], ext[N+1] = state[0]
-        ext[0] = state[last];
-        ext[1..SPONGE_STATE_SIZE + 1].copy_from_slice(state);
-        ext[SPONGE_STATE_SIZE + 1] = state[0];
+        s_pad[..SPONGE_STATE_SIZE].copy_from_slice(state);
 
-        // SIMD substitution: 32 trits per iteration
+        rot(state, &mut l13, 13);
+        rot(state, &mut l7, 7);
+        rot(state, &mut l1, 1);
+        rot(state, &mut r1, SPONGE_STATE_SIZE - 1);
+        rot(state, &mut r7, SPONGE_STATE_SIZE - 7);
+        rot(state, &mut r13, SPONGE_STATE_SIZE - 13);
+
         let mut i = 0;
-        while i + 32 <= SPONGE_STATE_SIZE {
-            let left   = _mm256_loadu_si256(ext.as_ptr().add(i)     as *const __m256i);
-            let center = _mm256_loadu_si256(ext.as_ptr().add(i + 1) as *const __m256i);
-            let right  = _mm256_loadu_si256(ext.as_ptr().add(i + 2) as *const __m256i);
-
-            // (left + center + right + 1) — collapsed sbox
-            let sum = _mm256_add_epi8(
-                _mm256_add_epi8(_mm256_add_epi8(left, center), right),
-                v_one,
+        while i + 32 <= PAD {
+            let lg_raw = _mm256_add_epi8(
+                _mm256_add_epi8(
+                    _mm256_loadu_si256(r13[i..].as_ptr() as *const __m256i),
+                    _mm256_loadu_si256(r7[i..].as_ptr() as *const __m256i),
+                ),
+                _mm256_loadu_si256(r1[i..].as_ptr() as *const __m256i),
+            );
+            let gt1_l  = _mm256_cmpgt_epi8(lg_raw, v_one);
+            let lt_n_l = _mm256_cmpgt_epi8(v_neg, lg_raw);
+            let lg = _mm256_blendv_epi8(
+                _mm256_blendv_epi8(lg_raw, _mm256_sub_epi8(lg_raw, v_three), gt1_l),
+                _mm256_add_epi8(lg_raw, v_three),
+                lt_n_l,
             );
 
-            // Balanced wrap: subtract 3 if > 1, add 3 if < -1
-            let gt1    = _mm256_cmpgt_epi8(sum, v_hi);
-            let lt_neg = _mm256_cmpgt_epi8(v_lo, sum);
-            let sub3   = _mm256_sub_epi8(sum, v_three);
-            let add3   = _mm256_add_epi8(sum, v_three);
+            let rg_raw = _mm256_add_epi8(
+                _mm256_add_epi8(
+                    _mm256_loadu_si256(l1[i..].as_ptr() as *const __m256i),
+                    _mm256_loadu_si256(l7[i..].as_ptr() as *const __m256i),
+                ),
+                _mm256_loadu_si256(l13[i..].as_ptr() as *const __m256i),
+            );
+            let gt1_r  = _mm256_cmpgt_epi8(rg_raw, v_one);
+            let lt_n_r = _mm256_cmpgt_epi8(v_neg, rg_raw);
+            let rg = _mm256_blendv_epi8(
+                _mm256_blendv_epi8(rg_raw, _mm256_sub_epi8(rg_raw, v_three), gt1_r),
+                _mm256_add_epi8(rg_raw, v_three),
+                lt_n_r,
+            );
 
-            let result = _mm256_blendv_epi8(sum, sub3, gt1);
-            let result = _mm256_blendv_epi8(result, add3, lt_neg);
+            let center = _mm256_loadu_si256(s_pad[i..].as_ptr() as *const __m256i);
+            let sum = _mm256_add_epi8(_mm256_add_epi8(lg, center), rg);
+            let gt1_s  = _mm256_cmpgt_epi8(sum, v_one);
+            let lt_n_s = _mm256_cmpgt_epi8(v_neg, sum);
+            let result = _mm256_blendv_epi8(
+                _mm256_blendv_epi8(sum, _mm256_sub_epi8(sum, v_three), gt1_s),
+                _mm256_add_epi8(sum, v_three),
+                lt_n_s,
+            );
 
-            _mm256_storeu_si256(buf.as_mut_ptr().add(i) as *mut __m256i, result);
+            _mm256_storeu_si256(theta[i..].as_mut_ptr() as *mut __m256i, result);
             i += 32;
         }
 
-        // Scalar tail for remaining trits (729 % 32 = 25)
-        while i < SPONGE_STATE_SIZE {
-            let raw = ext[i] + ext[i + 1] + ext[i + 2] + 1;
-            buf[i] = balanced_wrap(raw);
-            i += 1;
-        }
-
-        // Diffusion: fixed permutation π(i) = (376·i + 1) mod 729
         for i in 0..SPONGE_STATE_SIZE {
-            state[PERM[i] as usize] = buf[i];
+            state[PERM[i] as usize] = theta[i];
         }
 
-        // Round constant injection
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
@@ -198,24 +208,26 @@ unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
 fn sponge_permutation_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
-    let last = SPONGE_STATE_SIZE - 1;
 
     for round in 0..SPONGE_ROUNDS {
-        // Substitution with wrap-around boundary handling
-        buf[0] = balanced_wrap(state[last] + state[0] + state[1] + 1);
-
-        for i in 1..last {
-            buf[i] = balanced_wrap(state[i - 1] + state[i] + state[i + 1] + 1);
+        for i in 0..SPONGE_STATE_SIZE {
+            let left = balanced_wrap(
+                state[wrap_idx(i, SPONGE_STATE_SIZE - 13)]
+                + state[wrap_idx(i, SPONGE_STATE_SIZE - 7)]
+                + state[wrap_idx(i, SPONGE_STATE_SIZE - 1)]
+            );
+            let right = balanced_wrap(
+                state[wrap_idx(i, 1)]
+                + state[wrap_idx(i, 7)]
+                + state[wrap_idx(i, 13)]
+            );
+            buf[i] = balanced_wrap(left + state[i] + right);
         }
 
-        buf[last] = balanced_wrap(state[last - 1] + state[last] + state[0] + 1);
-
-        // Diffusion
         for i in 0..SPONGE_STATE_SIZE {
             state[PERM[i] as usize] = buf[i];
         }
 
-        // Round constant injection
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
@@ -258,11 +270,6 @@ impl TernarySponge {
         }
     }
 
-    /// Absorb trit data into the sponge.
-    ///
-    /// Buffered until a full rate block (243 trits) accumulates, then
-    /// XOR'd into the rate portion of the state and permuted.
-    /// No heap allocation in the absorb path.
     pub fn absorb(&mut self, input: &[i8]) {
         self.absorbed = true;
         self.squeezed = false;
@@ -270,7 +277,6 @@ impl TernarySponge {
         let mut offset = 0;
         let input_len = input.len();
 
-        // Fill partial buffer from previous call
         if self.buf_len > 0 {
             let space = SPONGE_RATE - self.buf_len;
             let fill = if input_len < space { input_len } else { space };
@@ -288,7 +294,6 @@ impl TernarySponge {
             }
         }
 
-        // Process full blocks directly from input slice — zero copy
         while offset + SPONGE_RATE <= input_len {
             let block = &input[offset..offset + SPONGE_RATE];
             for i in 0..SPONGE_RATE {
@@ -298,7 +303,6 @@ impl TernarySponge {
             offset += SPONGE_RATE;
         }
 
-        // Buffer any remaining trits (< one block)
         let remaining = input_len - offset;
         if remaining > 0 {
             self.buf[self.buf_len..self.buf_len + remaining]
@@ -307,9 +311,7 @@ impl TernarySponge {
         }
     }
 
-    /// Absorb raw bytes by converting to balanced ternary (5 trits per byte).
     pub fn absorb_bytes(&mut self, input: &[u8]) {
-        // Stack buffer: 51 bytes × 5 trits = 255 ≈ one rate block
         let mut trit_buf = [0i8; 255];
         let mut trit_len = 0;
 
@@ -330,17 +332,11 @@ impl TernarySponge {
         }
     }
 
-    /// Finalize and squeeze output trits.
-    ///
-    /// Pads buffered data (single +1 trit after last data trit), permutes,
-    /// then extracts rate-sized blocks until the requested length is reached.
     pub fn squeeze(&mut self, output_trits: usize) -> TernaryDigest {
-        // Finalize: absorb remaining buffer with padding
         if self.buf_len > 0 || !self.absorbed {
             for i in 0..self.buf_len {
                 self.state[i] = trit_add(self.state[i], self.buf[i]);
             }
-            // Pad: inject +1 after last data trit
             if self.buf_len < SPONGE_RATE {
                 self.state[self.buf_len] = trit_add(self.state[self.buf_len], 1);
             }
@@ -348,7 +344,6 @@ impl TernarySponge {
             sponge_permutation(&mut self.state);
         }
 
-        // Squeeze: extract from rate portion
         let mut output = Vec::with_capacity(output_trits);
 
         while output.len() < output_trits {
@@ -406,8 +401,7 @@ mod tests {
 
     #[test]
     fn test_trit_add_exhaustive() {
-        // All 9 input pairs — verified against modular arithmetic
-        assert_eq!(trit_add(-1, -1), 1);   // -2 wraps to +1
+        assert_eq!(trit_add(-1, -1), 1);
         assert_eq!(trit_add(-1,  0), -1);
         assert_eq!(trit_add(-1,  1), 0);
         assert_eq!(trit_add( 0, -1), -1);
@@ -415,7 +409,7 @@ mod tests {
         assert_eq!(trit_add( 0,  1), 1);
         assert_eq!(trit_add( 1, -1), 0);
         assert_eq!(trit_add( 1,  0), 1);
-        assert_eq!(trit_add( 1,  1), -1);  // +2 wraps to -1
+        assert_eq!(trit_add( 1,  1), -1);
     }
 
     #[test]
@@ -442,48 +436,63 @@ mod tests {
     }
 
     #[test]
-    fn test_trit_rotate_cycle() {
-        // Three applications return to identity
-        for &t in &[-1i8, 0, 1] {
-            assert_eq!(trit_rotate(trit_rotate(trit_rotate(t))), t);
+    fn test_balanced_wrap_all_inputs() {
+        assert_eq!(balanced_wrap(-3), 0);
+        assert_eq!(balanced_wrap(-2), 1);
+        assert_eq!(balanced_wrap(-1), -1);
+        assert_eq!(balanced_wrap( 0), 0);
+        assert_eq!(balanced_wrap( 1), 1);
+        assert_eq!(balanced_wrap( 2), -1);
+        assert_eq!(balanced_wrap( 3), 0);
+    }
+
+    #[test]
+    fn test_theta_coprime() {
+        fn gcd(mut a: usize, mut b: usize) -> usize {
+            while b != 0 { let t = b; b = a % b; a = t; }
+            a
         }
+        assert_eq!(gcd(1, SPONGE_STATE_SIZE), 1);
+        assert_eq!(gcd(7, SPONGE_STATE_SIZE), 1);
+        assert_eq!(gcd(13, SPONGE_STATE_SIZE), 1);
     }
 
     #[test]
-    fn test_trit_rotate_values() {
-        assert_eq!(trit_rotate(-1), 0);
-        assert_eq!(trit_rotate(0), 1);
-        assert_eq!(trit_rotate(1), -1);
-    }
-
-    #[test]
-    fn test_sbox_nonlinearity() {
-        // sbox(a, b, c) = a ⊕ rotate(b) ⊕ c
-        assert_eq!(sbox(0, 0, 0), 1);   // 0 + rotate(0) + 0 = 0 + 1 + 0 = 1
-        assert_eq!(sbox(0, 1, 0), -1);  // 0 + rotate(1) + 0 = 0 + (-1) + 0 = -1
-        assert_eq!(sbox(1, -1, -1), 0); // 1 + rotate(-1) + (-1) = 1 + 0 + (-1) = 0
-    }
-
-    #[test]
-    fn test_sbox_equals_collapsed_form() {
-        // Verify that sbox(a,b,c) == balanced_wrap(a + b + c + 1)
-        // This proves the hot-path optimization is algebraically equivalent
+    fn test_theta_produces_valid_trits() {
         for &a in &[-1i8, 0, 1] {
             for &b in &[-1i8, 0, 1] {
                 for &c in &[-1i8, 0, 1] {
-                    assert_eq!(
-                        sbox(a, b, c),
-                        balanced_wrap(a + b + c + 1),
-                        "Mismatch at sbox({}, {}, {})", a, b, c
-                    );
+                    let sum = balanced_wrap(a + b + c);
+                    assert!(sum >= -1 && sum <= 1,
+                        "balanced_wrap({}) = {}", a + b + c, sum);
+                }
+            }
+        }
+        for &lg in &[-1i8, 0, 1] {
+            for &center in &[-1i8, 0, 1] {
+                for &rg in &[-1i8, 0, 1] {
+                    let theta = balanced_wrap(lg + center + rg);
+                    assert!(theta >= -1 && theta <= 1);
                 }
             }
         }
     }
 
     #[test]
+    fn test_wrap_idx_boundaries() {
+        assert_eq!(wrap_idx(0, SPONGE_STATE_SIZE - 1), 728);
+        assert_eq!(wrap_idx(0, SPONGE_STATE_SIZE - 7), 722);
+        assert_eq!(wrap_idx(0, SPONGE_STATE_SIZE - 13), 716);
+        assert_eq!(wrap_idx(728, 1), 0);
+        assert_eq!(wrap_idx(722, 7), 0);
+        assert_eq!(wrap_idx(716, 13), 0);
+        assert_eq!(wrap_idx(100, 1), 101);
+        assert_eq!(wrap_idx(100, 7), 107);
+        assert_eq!(wrap_idx(100, 13), 113);
+    }
+
+    #[test]
     fn test_diffusion_full_period() {
-        // π(i) = (376·i + 1) mod 729 must be a bijection
         let mut seen = [false; SPONGE_STATE_SIZE];
         for i in 0..SPONGE_STATE_SIZE {
             let dest = (i * 376 + 1) % SPONGE_STATE_SIZE;
@@ -608,5 +617,17 @@ mod tests {
         for i in SPONGE_RATE..SPONGE_STATE_SIZE {
             assert_eq!(state[i], 0, "Capacity trit {} modified during absorb", i);
         }
+    }
+
+    #[test]
+    fn test_sponge_avalanche() {
+        let a = alloc::vec![0i8; 50];
+        let mut b = a.clone();
+        b[0] = 1;
+        let ha = sponge_hash(&a);
+        let hb = sponge_hash(&b);
+        let diff: usize = ha.trits.iter().zip(hb.trits.iter())
+            .filter(|(&x, &y)| x != y).count();
+        assert!(diff >= 50, "Avalanche too low: {}/{}", diff, TERNARY_HASH_TRITS);
     }
 }

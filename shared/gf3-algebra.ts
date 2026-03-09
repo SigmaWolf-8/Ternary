@@ -6,7 +6,8 @@
 // Mirrors: ternary-math/src/gf3_algebra.rs
 //
 // Division-free: conditional subtract instead of % operator.
-// Sponge code lives in tis-sponge.ts — not here.
+// Pure GF(3) algebra — no sponge code here.
+// Kernel sponge: src/kernel/src/crypto/sponge.rs
 
 // ── Division-free reduction ─────────────────────────────────────────
 
