@@ -1,152 +1,94 @@
 @echo off
-setlocal EnableDelayedExpansion
-title PlenumNET Installer v2.3.2
+title PlenumNET Installer
 color 0B
-
-set "VERSION=2.3.2"
-set "REPO=https://github.com/SigmaWolf-8/Ternary"
-set "INSTALLDIR=C:\PlenumNET"
 
 echo.
 echo   ========================================================
-echo     PlenumNET Installer v%VERSION%
+echo     PlenumNET Installer v2.3.2
 echo     Salvi Framework - Post-Quantum Internet Infrastructure
 echo     Capomastro Holdings Ltd.
 echo   ========================================================
 echo.
-echo   Install location: %INSTALLDIR%
+echo   This will install PlenumNET to C:\PlenumNET
 echo.
+pause
 
-:: ---- Step 1: Check Git ----
-echo   Step 1 of 4: Checking prerequisites
-echo   -----------------------------------
+echo.
+echo   Checking for Git...
 where git >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
+if errorlevel 1 (
     echo.
-    echo   [ERROR] Git is not installed.
+    echo   Git is not installed. You need Git to continue.
+    echo   Opening download page: https://git-scm.com/download/win
     echo.
-    echo   Please install Git for Windows first:
-    echo   https://git-scm.com/download/win
-    echo.
-    set /p OPENGIT="  Open Git download page now? (Y/N): "
-    if /i "!OPENGIT!"=="Y" start https://git-scm.com/download/win
-    echo.
-    echo   After installing Git, run this installer again.
+    start https://git-scm.com/download/win
+    echo   Install Git, then run this installer again.
     echo.
     pause
-    exit /b 1
+    exit /b
 )
-for /f "tokens=*" %%i in ('git --version 2^>^&1') do set "GITVER=%%i"
-echo     [OK] Git: %GITVER%
+echo   Git found.
 
-where cargo >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    echo     [--] Rust/Cargo: not installed
-    echo          Get it from: https://rustup.rs
-    set "HASCARGO=0"
-) else (
-    for /f "tokens=*" %%i in ('cargo --version 2^>^&1') do set "CARGOVER=%%i"
-    echo     [OK] Rust: !CARGOVER!
-    set "HASCARGO=1"
-)
+echo.
+echo   Downloading PlenumNET to C:\PlenumNET ...
+echo   (This may take a minute)
 echo.
 
-:: ---- Step 2: Download ----
-echo   Step 2 of 4: Downloading PlenumNET
-echo   -----------------------------------
-if exist "%INSTALLDIR%\.git" (
-    echo     Found existing installation. Updating...
-    pushd "%INSTALLDIR%"
+if exist "C:\PlenumNET\.git" (
+    echo   Found existing install. Updating...
+    pushd "C:\PlenumNET"
     git pull origin main
     popd
 ) else (
-    if exist "%INSTALLDIR%" (
-        echo     Directory exists but is not a git repo. Removing...
-        rmdir /s /q "%INSTALLDIR%"
-    )
-    echo     Cloning PlenumNET repository...
-    git clone %REPO% "%INSTALLDIR%"
-    if %ERRORLEVEL% NEQ 0 (
-        echo.
-        echo   [ERROR] Download failed. Check your internet connection.
-        echo.
-        pause
-        exit /b 1
-    )
+    if exist "C:\PlenumNET" rmdir /s /q "C:\PlenumNET"
+    git clone https://github.com/SigmaWolf-8/Ternary.git "C:\PlenumNET"
 )
-echo     Download complete.
-echo.
 
-:: ---- Step 3: Build ----
-echo   Step 3 of 4: Building framework
-echo   -----------------------------------
-if "%HASCARGO%"=="1" (
-    echo     Building all modules (this may take several minutes)...
+if errorlevel 1 (
     echo.
-    pushd "%INSTALLDIR%"
-    cargo build --release
-    if !ERRORLEVEL! EQU 0 (
-        echo.
-        echo     Build successful!
-    ) else (
-        echo.
-        echo     Build had errors. Source code is still available at %INSTALLDIR%.
-        echo     You can retry later: cd %INSTALLDIR% ^& cargo build --release
-    )
-    popd
-) else (
-    echo     Skipping build (Rust not installed).
-    echo.
-    echo     To build later:
-    echo       1. Install Rust from https://rustup.rs
-    echo       2. Open a new Command Prompt
-    echo       3. Run:  cd %INSTALLDIR% ^& cargo build --release
+    echo   Download failed. Check your internet connection.
+    pause
+    exit /b
 )
+
+echo.
+echo   Download complete.
 echo.
 
-:: ---- Step 4: Desktop shortcut ----
-echo   Step 4 of 4: Creating desktop shortcut
-echo   -----------------------------------
-set "SHORTCUT=%USERPROFILE%\Desktop\PlenumNET.lnk"
-(
-    echo Set oWS = WScript.CreateObject("WScript.Shell"^)
-    echo Set oLink = oWS.CreateShortcut("%SHORTCUT%"^)
-    echo oLink.TargetPath = "%INSTALLDIR%"
-    echo oLink.Description = "PlenumNET / Salvi Framework v%VERSION%"
-    echo oLink.Save
-) > "%TEMP%\create_shortcut.vbs"
-cscript //nologo "%TEMP%\create_shortcut.vbs" >nul 2>nul
-if exist "%SHORTCUT%" (
-    echo     Desktop shortcut created: PlenumNET.lnk
-) else (
-    echo     Could not create desktop shortcut (non-critical).
+echo   Checking for Rust...
+where cargo >nul 2>nul
+if errorlevel 1 (
+    echo   Rust is not installed. Skipping build.
+    echo   To build later, install Rust from https://rustup.rs
+    echo   Then open Command Prompt and run:
+    echo     cd C:\PlenumNET
+    echo     cargo build --release
+    goto :DONE
 )
-del "%TEMP%\create_shortcut.vbs" >nul 2>nul
+
+echo   Rust found. Building framework...
+echo   (This may take several minutes)
+echo.
+pushd "C:\PlenumNET"
+cargo build --release
+popd
 echo.
 
-:: ---- Done ----
+:DONE
+echo.
 echo   ========================================================
-echo     PlenumNET Installation Complete
+echo     Installation Complete
 echo   ========================================================
 echo.
-echo   Installed to:  %INSTALLDIR%
-echo   Version:       v%VERSION%
-echo   Documentation: https://plenumnet.replit.app/docs
-echo   GitHub:        %REPO%
+echo   PlenumNET is installed at: C:\PlenumNET
 echo.
-echo   What's inside:
-echo     %INSTALLDIR%\src\kernel\       Ternary kernel + crypto (Rust)
-echo     %INSTALLDIR%\ternary-math\     Math library
-echo     %INSTALLDIR%\shared\           TypeScript shared modules
-echo     %INSTALLDIR%\services\         TDNS, Inter-Cube services
+echo   Folder contents:
+echo     src\kernel\       Ternary kernel and crypto (Rust)
+echo     ternary-math\     Math library
+echo     shared\           TypeScript shared modules
+echo     services\         TDNS, Inter-Cube services
 echo.
-echo   Next steps:
-echo     cd %INSTALLDIR%
-echo     cargo test          (Run 2,276 tests)
-echo     cargo bench         (Run benchmarks)
-echo.
-set /p OPENFOLDER="  Open PlenumNET folder in File Explorer? (Y/N): "
-if /i "%OPENFOLDER%"=="Y" start explorer.exe "%INSTALLDIR%"
-
+echo   Opening C:\PlenumNET in File Explorer...
+start explorer.exe "C:\PlenumNET"
 echo.
 pause
