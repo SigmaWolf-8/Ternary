@@ -41,10 +41,10 @@ import { useToast } from "@/hooks/use-toast";
 import { PLATFORM } from "@shared/constants";
 
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
-const GITHUB_DOWNLOAD = `${GITHUB_REPO}/releases/download/v3.0.0/salvi-framework-v3.0.0.tar.gz`;
-const GITHUB_RELEASE = `${GITHUB_REPO}/releases/tag/v3.0.0`;
-const INSTALLER_WIN = `${GITHUB_REPO}/releases/download/v3.0.0/install-windows.ps1`;
-const INSTALLER_UNIX = `${GITHUB_REPO}/releases/download/v3.0.0/install.sh`;
+const GITHUB_DOWNLOAD = `${GITHUB_REPO}/archive/refs/heads/main.zip`;
+const GITHUB_RELEASE = `${GITHUB_REPO}/releases`;
+const INSTALLER_WIN = "/install/install-windows.ps1";
+const INSTALLER_UNIX = "/install/install.sh";
 
 type Platform = "windows" | "mac" | "linux";
 
@@ -407,38 +407,44 @@ function ModuleRow({ mod }: { mod: Module }) {
 function InstallSuiteCard() {
   const [platform, setPlatform] = useState<Platform>(detectPlatform);
 
+  const siteOrigin = typeof window !== "undefined" ? window.location.origin : "https://plenumnet.replit.app";
+
   const platformConfig = {
     windows: {
       label: "Windows",
       installerUrl: INSTALLER_WIN,
       installerName: "install-windows.ps1",
-      oneLineInstall: `powershell -ExecutionPolicy Bypass -Command "& { iwr '${INSTALLER_WIN}' -OutFile install.ps1; .\\install.ps1 }"`,
+      oneLineInstall: `powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\Downloads\\install-windows.ps1"`,
+      installPath: "C:\\PlenumNET",
       instructions: [
-        "Download the installer below",
-        "Right-click the .ps1 file and select 'Run with PowerShell'",
-        "The installer will clone, build, and set up everything automatically",
+        'Click "Download Installer" below to save install-windows.ps1',
+        "Find the downloaded file (usually in your Downloads folder)",
+        'Right-click the file and select "Run with PowerShell"',
+        "The installer downloads everything to C:\\PlenumNET and builds it automatically",
       ],
     },
     mac: {
       label: "macOS",
       installerUrl: INSTALLER_UNIX,
       installerName: "install.sh",
-      oneLineInstall: `curl -fsSL ${INSTALLER_UNIX} | bash`,
+      oneLineInstall: `curl -fsSL ${siteOrigin}/install/install.sh | bash`,
+      installPath: "~/PlenumNET",
       instructions: [
-        "Open Terminal",
+        "Open Terminal (Applications > Utilities > Terminal)",
         "Paste the command below and press Enter",
-        "The installer handles cloning, building, and setup automatically",
+        "The installer downloads everything to ~/PlenumNET and builds it automatically",
       ],
     },
     linux: {
       label: "Linux",
       installerUrl: INSTALLER_UNIX,
       installerName: "install.sh",
-      oneLineInstall: `curl -fsSL ${INSTALLER_UNIX} | bash`,
+      oneLineInstall: `curl -fsSL ${siteOrigin}/install/install.sh | bash`,
+      installPath: "~/PlenumNET",
       instructions: [
         "Open a terminal",
         "Paste the command below and press Enter",
-        "The installer handles cloning, building, and setup automatically",
+        "The installer downloads everything to ~/PlenumNET and builds it automatically",
       ],
     },
   };
@@ -497,21 +503,22 @@ function InstallSuiteCard() {
         <Button variant="outline" asChild data-testid="button-download-archive">
           <a href={GITHUB_DOWNLOAD} download>
             <Package className="w-4 h-4 mr-2" />
-            Source Archive (.tar.gz)
+            Source Archive (.zip)
           </a>
         </Button>
         <Button variant="outline" asChild data-testid="button-github-releases">
           <a href={GITHUB_RELEASE} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="w-4 h-4 mr-2" />
-            v3.0.0 Release Notes
+            GitHub Releases
           </a>
         </Button>
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 mt-5 text-xs text-muted-foreground">
+        <span>Installs to: <strong className="text-foreground font-medium">{config.installPath}</strong></span>
+        <span>v{PLATFORM.PLATFORM_VERSION}</span>
         <span>{PLATFORM.TESTS_PASSING} tests passing</span>
         <span>{PLATFORM.KERNEL_LOC} lines of Rust</span>
-        <span>{PLATFORM.VM_OPCODES}-opcode ISA {PLATFORM.VM_ISA_VERSION}</span>
         <span>CNSA 2.0 Phase 2</span>
       </div>
     </Card>
