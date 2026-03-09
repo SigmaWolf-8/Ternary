@@ -27,6 +27,7 @@ import {
   serializeForExtension,
   CALENDAR_EXTENSION_OID,
 } from './tsa-calendar-enrichment';
+import { spongeHash } from '../crypto/sponge-hash';
 import {
   buildCalendarExtension,
   type CalendarCompressionResult,
@@ -111,6 +112,7 @@ export const HASH_ALGORITHM_OIDS: Record<string, string> = {
   '2.16.840.1.101.3.4.2.8': 'sha3-256',
   '2.16.840.1.101.3.4.2.9': 'sha3-384',
   '2.16.840.1.101.3.4.2.10': 'sha3-512',
+  '1.3.6.1.4.1.0.100.3.1': 'sponge-385',
 };
 
 export const HASH_NAME_TO_OID: Record<string, string> = Object.fromEntries(
@@ -120,6 +122,7 @@ export const HASH_NAME_TO_OID: Record<string, string> = Object.fromEntries(
 export const HASH_EXPECTED_LENGTHS: Record<string, number> = {
   sha256: 32, sha384: 48, sha512: 64,
   'sha3-256': 32, 'sha3-384': 48, 'sha3-512': 64,
+  'sponge-385': 49,
 };
 
 const RSA_SHA256_OID = '1.2.840.113549.1.1.11';
@@ -291,7 +294,7 @@ class MerkleAuditLog {
 
   addLeaf(serialNumber: string, hashedMessage: string, genTime: string): string {
     const leafData = `${serialNumber}|${hashedMessage}|${genTime}`;
-    const leafHash = crypto.createHash('sha3-256').update(leafData).digest('hex');
+    const leafHash = spongeHash(Buffer.from(leafData, 'utf8'));
     this.leaves.push(leafHash);
     this.cachedRoot = null;
     fs.appendFileSync(this.persistPath,
@@ -302,7 +305,7 @@ class MerkleAuditLog {
   getRoot(): string {
     if (this.cachedRoot !== null) return this.cachedRoot;
     if (this.leaves.length === 0) {
-      this.cachedRoot = crypto.createHash('sha3-256').update('empty-tree').digest('hex');
+      this.cachedRoot = spongeHash(Buffer.from('empty-tree', 'utf8'));
       return this.cachedRoot;
     }
     let level = [...this.leaves];
@@ -311,7 +314,7 @@ class MerkleAuditLog {
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = level[i + 1] || left;
-        next.push(crypto.createHash('sha3-256').update(left + right).digest('hex'));
+        next.push(spongeHash(Buffer.from(left + right, 'utf8')));
       }
       level = next;
     }

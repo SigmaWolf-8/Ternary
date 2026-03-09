@@ -6,6 +6,7 @@
 
 import type { Express } from "express";
 import { z } from "zod";
+import { spongeHash, SPONGE_HASH_BYTES, SPONGE_HASH_TRITS, SPONGE_SECURITY_BITS, SPONGE_OID, SPONGE_ALGORITHM_NAME } from '../crypto/sponge-hash';
 import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
@@ -985,6 +986,57 @@ export function registerSalviRoutes(app: Express): void {
   // =====================================================
   // SALVI CORE API - Phase Encryption
   // =====================================================
+
+  app.post("/api/salvi/crypto/hash", computationLimiter, (req, res) => {
+    try {
+
+      let inputBuffer: Buffer;
+
+      if (Buffer.isBuffer(req.body)) {
+        inputBuffer = req.body;
+      } else if (req.body?.data) {
+        inputBuffer = Buffer.from(req.body.data, 'base64');
+      } else if (typeof req.body === 'string') {
+        inputBuffer = Buffer.from(req.body, 'utf8');
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: "Provide file bytes (raw body), JSON { data: 'base64-encoded' }, or a text string",
+          endpoints: {
+            hash: "POST /api/salvi/crypto/hash",
+            timestamp: "POST /api/tsa/timestamp/json — pass the returned hash + algorithm: 'sponge-385'",
+          },
+        });
+      }
+
+      if (inputBuffer.length > 10 * 1024 * 1024) {
+        return res.status(413).json({
+          success: false,
+          error: "Input too large (max 10 MB)",
+        });
+      }
+
+      const hash = spongeHash(inputBuffer);
+
+      res.json({
+        success: true,
+        algorithm: SPONGE_ALGORITHM_NAME,
+        oid: SPONGE_OID,
+        hash,
+        bytes: SPONGE_HASH_BYTES,
+        trits: SPONGE_HASH_TRITS,
+        security: `${SPONGE_SECURITY_BITS}-bit post-quantum`,
+        inputSize: inputBuffer.length,
+        construction: "729-trit sponge (3⁶ state, 243-trit rate, 9 rounds, 7-neighbor theta)",
+        usage: {
+          timestamp: "POST /api/tsa/timestamp/json with { hash: '<this hash>', algorithm: 'sponge-385' }",
+          verify: "POST /api/tsa/verify with the returned token",
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: toErrorMessage(error) });
+    }
+  });
 
   // Get phase configuration
   app.get("/api/salvi/phase/config/:mode", computationLimiter, (req, res) => {
