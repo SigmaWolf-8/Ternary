@@ -43,6 +43,17 @@ import { PLATFORM } from "@shared/constants";
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
 const GITHUB_DOWNLOAD = `${GITHUB_REPO}/releases/download/v3.0.0/salvi-framework-v3.0.0.tar.gz`;
 const GITHUB_RELEASE = `${GITHUB_REPO}/releases/tag/v3.0.0`;
+const INSTALLER_WIN = `${GITHUB_REPO}/releases/download/v3.0.0/install-windows.ps1`;
+const INSTALLER_UNIX = `${GITHUB_REPO}/releases/download/v3.0.0/install.sh`;
+
+type Platform = "windows" | "mac" | "linux";
+
+function detectPlatform(): Platform {
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("win")) return "windows";
+  if (ua.includes("mac")) return "mac";
+  return "linux";
+}
 
 interface Module {
   id: string;
@@ -393,6 +404,120 @@ function ModuleRow({ mod }: { mod: Module }) {
   );
 }
 
+function InstallSuiteCard() {
+  const [platform, setPlatform] = useState<Platform>(detectPlatform);
+
+  const platformConfig = {
+    windows: {
+      label: "Windows",
+      installerUrl: INSTALLER_WIN,
+      installerName: "install-windows.ps1",
+      oneLineInstall: `powershell -ExecutionPolicy Bypass -Command "& { iwr '${INSTALLER_WIN}' -OutFile install.ps1; .\\install.ps1 }"`,
+      instructions: [
+        "Download the installer below",
+        "Right-click the .ps1 file and select 'Run with PowerShell'",
+        "The installer will clone, build, and set up everything automatically",
+      ],
+    },
+    mac: {
+      label: "macOS",
+      installerUrl: INSTALLER_UNIX,
+      installerName: "install.sh",
+      oneLineInstall: `curl -fsSL ${INSTALLER_UNIX} | bash`,
+      instructions: [
+        "Open Terminal",
+        "Paste the command below and press Enter",
+        "The installer handles cloning, building, and setup automatically",
+      ],
+    },
+    linux: {
+      label: "Linux",
+      installerUrl: INSTALLER_UNIX,
+      installerName: "install.sh",
+      oneLineInstall: `curl -fsSL ${INSTALLER_UNIX} | bash`,
+      instructions: [
+        "Open a terminal",
+        "Paste the command below and press Enter",
+        "The installer handles cloning, building, and setup automatically",
+      ],
+    },
+  };
+
+  const config = platformConfig[platform];
+
+  return (
+    <Card className="p-6 mb-8 border-2" data-testid="card-install-suite">
+      <div className="flex items-start gap-4 mb-5">
+        <div className="w-10 h-10 rounded-lg bg-foreground/5 flex items-center justify-center shrink-0">
+          <Zap className="w-5 h-5" />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold mb-1" data-testid="text-install-title">
+            Install Complete Suite
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            One-click installer for the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
+            CNSA 2.0 compliant. Downloads, extracts, and builds everything automatically.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-1.5 mb-4" data-testid="platform-selector">
+        {(["windows", "mac", "linux"] as Platform[]).map((p) => (
+          <Button
+            key={p}
+            variant={platform === p ? "default" : "outline"}
+            size="sm"
+            onClick={() => setPlatform(p)}
+            className="text-xs capitalize"
+            data-testid={`button-platform-${p}`}
+          >
+            {platformConfig[p].label}
+          </Button>
+        ))}
+      </div>
+
+      <div className="bg-muted/50 rounded-lg p-4 mb-4" data-testid="install-instructions">
+        <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+          {config.instructions.map((step, i) => (
+            <li key={i}>{step}</li>
+          ))}
+        </ol>
+      </div>
+
+      <CopyCommand command={config.oneLineInstall} />
+
+      <div className="flex flex-wrap gap-3 mt-5">
+        <Button asChild data-testid="button-download-installer">
+          <a href={config.installerUrl} download={config.installerName}>
+            <Download className="w-4 h-4 mr-2" />
+            Download Installer ({config.label})
+          </a>
+        </Button>
+        <Button variant="outline" asChild data-testid="button-download-archive">
+          <a href={GITHUB_DOWNLOAD} download>
+            <Package className="w-4 h-4 mr-2" />
+            Source Archive (.tar.gz)
+          </a>
+        </Button>
+        <Button variant="outline" asChild data-testid="button-github-releases">
+          <a href={GITHUB_RELEASE} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            v3.0.0 Release Notes
+          </a>
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-5 text-xs text-muted-foreground">
+        <span>{PLATFORM.TESTS_PASSING} tests passing</span>
+        <span>{PLATFORM.KERNEL_LOC} lines of Rust</span>
+        <span>{PLATFORM.VM_OPCODES}-opcode ISA {PLATFORM.VM_ISA_VERSION}</span>
+        <span>CNSA 2.0 Phase 2</span>
+      </div>
+    </Card>
+  );
+}
+
 export default function DistributionPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -454,52 +579,7 @@ export default function DistributionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <Card className="p-6 mb-8 border-2" data-testid="card-install-suite">
-            <div className="flex items-start gap-4 mb-5">
-              <div className="w-10 h-10 rounded-lg bg-foreground/5 flex items-center justify-center shrink-0">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold mb-1" data-testid="text-install-title">
-                  Install Complete Suite
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  One command gets the entire framework: {MODULES.length} modules, {PLATFORM.TESTS_PASSING} passing tests,
-                  CNSA 2.0 compliant. Includes kernel, crypto, TDNS, Inter-Cube, and all tools.
-                </p>
-              </div>
-            </div>
-
-            <CopyCommand command="git clone https://github.com/SigmaWolf-8/Ternary.git && cd Ternary && cargo build --release" />
-
-            <div className="flex flex-wrap gap-3 mt-5">
-              <Button asChild data-testid="button-download-archive">
-                <a href={GITHUB_DOWNLOAD} download>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download v3.0.0 (.tar.gz)
-                </a>
-              </Button>
-              <Button variant="outline" asChild data-testid="button-github-releases">
-                <a href={GITHUB_RELEASE} target="_blank" rel="noopener noreferrer">
-                  <Package className="w-4 h-4 mr-2" />
-                  GitHub Releases
-                </a>
-              </Button>
-              <Button variant="outline" asChild data-testid="button-github-repo">
-                <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View Repository
-                </a>
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-5 text-xs text-muted-foreground">
-              <span>{PLATFORM.TESTS_PASSING} tests passing</span>
-              <span>{PLATFORM.KERNEL_LOC} lines of Rust</span>
-              <span>{PLATFORM.VM_OPCODES}-opcode ISA {PLATFORM.VM_ISA_VERSION}</span>
-              <span>CNSA 2.0 Phase 2</span>
-            </div>
-          </Card>
+          <InstallSuiteCard />
         </motion.div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
