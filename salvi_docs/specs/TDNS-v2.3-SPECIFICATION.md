@@ -101,7 +101,7 @@ trait CryptoHash {
 
 **Current implementation:** BLAKE3 (256‑bit, quantum‑resistant via Grover bound at ~128‑bit post‑quantum security). Used for: scan hashes, CON tunnel key derivation, integrity fields in wire protocol.
 
-**Target implementation:** TL‑Sponge from the Salvi Framework's TL‑DSA cryptographic module. The ternary sponge construction is the PQ‑native primitive purpose‑built for this system. The interface is identical — only the backend changes. Migration is a single line swap at the crate level.
+**Target implementation:** TL‑Sponge from the Salvi Framework cryptographic module. TL‑Sponge is the PQ‑native primitive purpose‑built for this system. The interface is identical — only the backend changes. Migration is a single line swap at the crate level.
 
 **Design principle:** Using a general‑purpose encryption API for hashing would be both slower and conceptually wrong. The CryptoHash primitive is specifically optimized for fast hashing, key derivation, and message authentication. The TL‑Sponge provides exceeding military‑grade post‑quantum security within the native ternary mathematical framework.
 
@@ -825,7 +825,7 @@ Dual‑layer: CON fabric (always on, PQ‑native via CryptoHash) + entity‑leve
 
 ### 16.2 CryptoHash Migration Path
 
-Current: BLAKE3. Target: TL‑Sponge from Salvi Framework TL‑DSA. Interface identical. Single‑line swap at crate level. PQ‑native ternary sponge construction exceeding military‑grade requirements.
+Current: BLAKE3. Target: TL‑Sponge from Salvi Framework. Interface identical. Single‑line swap at crate level. PQ‑native construction exceeding military‑grade requirements.
 
 ### 16.3 CRS as Critical Trust Anchor
 

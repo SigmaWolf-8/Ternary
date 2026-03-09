@@ -154,8 +154,8 @@ Workflow files ready in `.github/workflows/`. Push via GitHub Manager > P0 Actio
 | Algorithm | Standard | PlenumNET Equivalent | Status |
 |-----------|----------|---------------------|--------|
 | AES-256 | FIPS 197 | AES-256-GCM with ternary key mapping | Equivalent |
-| SHA-384 | FIPS 180-4 | Ternary Sponge Hash (243-trit) | Equivalent |
-| SHA-512 | FIPS 180-4 | Ternary Sponge Hash (486-trit) | Equivalent |
+| SHA-384 | FIPS 180-4 | TL-Sponge (243-trit) | Equivalent |
+| SHA-512 | FIPS 180-4 | TL-Sponge (486-trit) | Equivalent |
 | ML-KEM-512 | FIPS 203 | TL-KEM-512 | Equivalent |
 | ML-KEM-768 | FIPS 203 | TL-KEM-768 | Equivalent |
 | ML-KEM-1024 | FIPS 203 | TL-KEM-1024 | Equivalent |

@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
 // Patent(s) Pending — All Rights Reserved — Applied Physics Division
 //
-// Kernel Sponge Benchmark
+// TL-Sponge Benchmark
 // Location: src/kernel/benches/sponge_bench.rs
 //
 // Run:  cd src/kernel && cargo bench --bench sponge_bench

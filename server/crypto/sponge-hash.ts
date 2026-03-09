@@ -3,7 +3,7 @@
  * Patent(s) Pending — All Rights Reserved
  * Applied Physics Division
  *
- * TL-SPONGE — TypeScript port of the kernel cryptographic sponge.
+ * TL-SPONGE — TypeScript port of TL-Sponge (Rust: TernarySponge).
  * @version 1.0.0
  *
  * Repository: SigmaWolf-8/Ternary

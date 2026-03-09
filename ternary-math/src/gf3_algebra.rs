@@ -8,7 +8,7 @@
 // not % operator (20-40 cycles). Values bounded to {0,1,2}.
 //
 // Pure GF(3) algebra — no sponge code here.
-// Kernel sponge: src/kernel/src/crypto/sponge.rs
+// TL-Sponge: src/kernel/src/crypto/sponge.rs
 
 #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
 #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }

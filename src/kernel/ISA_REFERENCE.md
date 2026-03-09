@@ -223,7 +223,7 @@ The opcode byte value is converted to base-3 digits stored as 2-bit pairs across
 |-----|----------|-------|----------|-------------|
 | 0x60 | TPOLYMUL | — | dst, src1, src2, #imm | GF(3) polynomial multiplication mod x^d (d = imm or 13) |
 | 0x61 | TNTT | — | dst, src1, #imm | Number-Theoretic Transform (imm=0 forward, imm≠0 inverse) |
-| 0x62 | THASH | — | dst, src1 | Ternary sponge-based hash of packed trit word |
+| 0x62 | THASH | — | dst, src1 | TL-Sponge hash of packed trit word |
 | 0x63 | TENTROPY | — | dst, src1, src2 | Generate pseudorandom packed trit word from two seeds + cycle counter |
 | 0x64 | TPOLYADD | — | dst, src1, src2 | Coefficient-wise GF(3) polynomial addition |
 | 0x65 | TPOLYSAMPLE | TPSAMP | dst, src1 | Sample random GF(3) polynomial from seed |

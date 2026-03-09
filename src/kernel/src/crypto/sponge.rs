@@ -12,7 +12,7 @@
 //
 // See LICENSE in the repository root for full terms.
 
-//! Ternary Sponge Construction (Optimized v2)
+//! TL-Sponge Construction (Optimized v2)
 //!
 //! Keccak-inspired sponge operating in balanced ternary {-1, 0, +1}.
 //! All arithmetic is first-principles — no lookup tables, no integer

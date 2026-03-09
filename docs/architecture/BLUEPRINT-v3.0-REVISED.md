@@ -114,7 +114,7 @@ The kernel implements two novel post-quantum cryptographic primitives built on t
 
 **Ternary Lattice Foundation:** `ternary_lattice.rs` (1,216 lines) provides the polynomial ring arithmetic over GF(3) coefficients that both TL-DSA and TL-KEM depend on.
 
-**Ternary Sponge Construction:** `sponge.rs` (290 lines) implements a ternary sponge permutation for hashing.
+**TL-Sponge:** `sponge.rs` (290 lines) implements TL-Sponge, the ternary sponge permutation for hashing.
 
 **Standard Algorithms:** The crypto module also implements SHA-2 (`sha2.rs`), SHA-3 (`sha3.rs`), HMAC (`hmac.rs`), KDF (`kdf.rs`), DRBG (`drbg.rs`), AES cipher (`cipher.rs`), and RSA/Ed25519/Ed448 signature operations (`signature.rs`). Side-channel resistance utilities are in `ct_utils.rs` and `side_channel.rs`.
 

@@ -10,7 +10,7 @@
 // │                                                                 │
 // │  TIS-27 provides fast corruption detection for wire packets.    │
 // │  27-trit capacity = 43 bits — insufficient for cryptographic    │
-// │  security. For cryptographic operations, use the kernel sponge. │
+// │  security. For cryptographic operations, use TL-Sponge.         │
 // └─────────────────────────────────────────────────────────────────┘
 //
 // Use: wire integrity, scan hashing on authenticated channels
@@ -50,7 +50,7 @@ function spongeRound(state: number[], round: number): void {
 
 /**
  * TIS-27 fast integrity hash. NOT cryptographic.
- * For cryptographic hashing, use the kernel sponge via API.
+ * For cryptographic hashing, use TL-Sponge via API.
  */
 export function tis27Hash(input: number[], outputLen: number): number[] {
   const state = new Array(54).fill(0);

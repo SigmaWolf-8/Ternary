@@ -7,7 +7,7 @@
 
 This document provides actionable instructions for the SignHere team to integrate
 PlenumNET's TL-Sponge cryptographic hash into the e-signature workflow, replacing
-ML-DSA/SHA-based document hashing with the kernel sponge construction.
+ML-DSA/SHA-based document hashing with TL-Sponge.
 
 ---
 
@@ -15,7 +15,7 @@ ML-DSA/SHA-based document hashing with the kernel sponge construction.
 
 | Component | Value |
 |---|---|
-| Algorithm | TL-Sponge (729-trit kernel sponge) |
+| Algorithm | TL-Sponge |
 | Security variant | TL-Sponge-385 |
 | OID | `1.3.6.1.4.1.0.100.3.1` |
 | State | 729 trits (3⁶) |

@@ -356,7 +356,7 @@ fn bench_sponge_vs_sha256(c: &mut Criterion) {
         let byte_input: Vec<u8> = (0..input_len).map(|i| (i % 256) as u8).collect();
 
         group.bench_with_input(
-            BenchmarkId::new("ternary_sponge", input_len),
+            BenchmarkId::new("tl_sponge", input_len),
             &input_len,
             |b, _| {
                 b.iter(|| {

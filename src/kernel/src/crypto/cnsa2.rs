@@ -213,7 +213,7 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::Sha384,
             status: ComplianceStatus::TernaryEquivalent,
-            plenum_equivalent: String::from("Ternary Sponge Hash (243-trit output)"),
+            plenum_equivalent: String::from("TL-Sponge (243-trit output)"),
             plenum_module: String::from("salvi_kernel::crypto::hash"),
             security_notes: String::from(
                 "Keccak-inspired sponge construction over GF(3). 729-trit state width \
@@ -224,7 +224,7 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
         Cnsa2Mapping {
             algorithm: Cnsa2Algorithm::Sha512,
             status: ComplianceStatus::TernaryEquivalent,
-            plenum_equivalent: String::from("Ternary Sponge Hash (extended 486-trit output)"),
+            plenum_equivalent: String::from("TL-Sponge (extended 486-trit output)"),
             plenum_module: String::from("salvi_kernel::crypto::sponge"),
             security_notes: String::from(
                 "Extended squeeze operation on the same sponge construction. \
@@ -310,7 +310,7 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
                  signatures and Merkle tree construction. Supports tree heights \
                  H=5,10,15,20,25 and Winternitz parameters W=1,2,4,8. Stateful \
                  index management with monotonic advancement prevents signature \
-                 reuse. Ternary sponge hash as underlying hash function. \
+                 reuse. TL-Sponge as underlying hash function. \
                  SP 800-208 compliant (single-tree LMS; HSS prohibited)."
             ),
         },
@@ -324,7 +324,7 @@ pub fn get_cnsa2_matrix() -> Vec<Cnsa2Mapping> {
                  one-time signatures, L-tree compression, and Merkle tree \
                  construction. Supports tree heights H=10,16,20. Stateful \
                  index management with monotonic advancement prevents signature \
-                 reuse. Ternary sponge hash as underlying hash function. \
+                 reuse. TL-Sponge as underlying hash function. \
                  SP 800-208 compliant (single-tree XMSS; XMSS^MT prohibited)."
             ),
         },
@@ -362,7 +362,7 @@ pub fn get_transition_timeline() -> Vec<TransitionMilestone> {
             year: 2025,
             title: String::from("Foundation Complete"),
             description: String::from(
-                "Ternary sponge hash, HMAC, KDF, Lamport OTS, full XMSS with \
+                "TL-Sponge, HMAC, KDF, Lamport OTS, full XMSS with \
                  WOTS+ Merkle tree, and full LMS with LM-OTS Merkle tree provide \
                  GF(3)-native equivalents for SHA-384/512 and SP 800-208. \
                  Phase encryption provides current symmetric encryption capability."
@@ -424,7 +424,7 @@ pub fn get_transition_timeline() -> Vec<TransitionMilestone> {
             year: 2029,
             title: String::from("XMSS Merkle Tree Extension"),
             description: String::from(
-                "Stateful hash-based signature trees using ternary sponge hash. \
+                "Stateful hash-based signature trees using TL-Sponge. \
                  Full XMSS-equivalent with ternary Merkle tree construction."
             ),
             algorithms: vec![
