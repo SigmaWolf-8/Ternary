@@ -1164,35 +1164,62 @@ function PerformanceSection() {
           className="mb-12 md:mb-16"
         >
           <Card className="max-w-4xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-dsa-breakdown">
-            <h3 className="text-lg font-semibold mb-1">TL-DSA Sign + Verify Roundtrip</h3>
-            <p className="text-sm text-muted-foreground mb-6">Post-quantum digital signatures at three CNSA 2.0 security levels. All times measured, not estimated.</p>
-            <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-1">TL-DSA vs ML-DSA — Full Roundtrip</h3>
+            <p className="text-sm text-muted-foreground mb-6">Post-quantum digital signatures (keygen + sign + verify) at three CNSA 2.0 security levels. TL-DSA measured on x86; ML-DSA (FIPS 204) reference from NIST benchmarks on comparable hardware.</p>
+            <div className="space-y-5">
               {[
-                { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US, pct: 25, bits: "128-bit" },
-                { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US, pct: 45, bits: "192-bit" },
-                { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US, pct: 65, bits: "256-bit" },
-              ].map((row) => (
-                <div key={row.variant} className="flex items-center gap-4" data-testid={`dsa-bar-${row.variant}`}>
-                  <div className="w-24 md:w-28 shrink-0">
-                    <span className="font-mono text-sm font-medium">{row.variant}</span>
-                    <span className="block text-xs text-muted-foreground">{row.bits}</span>
+                { bits: "128-bit", tl: { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US }, ml: { variant: "ML-DSA-44", time: PLATFORM.BENCH_ML_DSA_44_US } },
+                { bits: "192-bit", tl: { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US }, ml: { variant: "ML-DSA-65", time: PLATFORM.BENCH_ML_DSA_65_US } },
+                { bits: "256-bit", tl: { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US }, ml: { variant: "ML-DSA-87", time: PLATFORM.BENCH_ML_DSA_87_US } },
+              ].map((row) => {
+                const tlNum = parseInt(row.tl.time.replace(/,/g, ""));
+                const mlNum = parseInt(row.ml.time.replace(/,/g, ""));
+                const maxVal = mlNum;
+                const tlPct = Math.round((tlNum / maxVal) * 85);
+                const mlPct = 85;
+                const speedup = (mlNum / tlNum).toFixed(1);
+                return (
+                  <div key={row.bits} data-testid={`dsa-pair-${row.bits}`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-muted-foreground">{row.bits}</span>
+                      <span className="text-xs font-mono font-bold text-primary">{speedup}× faster</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono w-20 shrink-0 font-medium text-primary">{row.tl.variant}</span>
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${tlPct}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, delay: 0.2 }}
+                            className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-2"
+                          >
+                            <span className="text-[10px] font-mono font-bold text-primary-foreground whitespace-nowrap">{row.tl.time} µs</span>
+                          </motion.div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono w-20 shrink-0 text-muted-foreground">{row.ml.variant}</span>
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${mlPct}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, delay: 0.3 }}
+                            className="h-full bg-muted-foreground/30 rounded-full flex items-center justify-end pr-2"
+                          >
+                            <span className="text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>
+                          </motion.div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 bg-muted/50 rounded-full h-6 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${row.pct}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.2 }}
-                      className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
-                    >
-                      <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{row.time} µs</span>
-                    </motion.div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
-              Optimizations: Integer NTT (q=12289, ψ=3400) · XOF-batched sponge expansion · GF(3)-associative balanced_wrap · AVX2-vectorized substitution (32 trits/cycle)
+              TL-DSA: Integer NTT (q=12289, ψ=3400) · 7-neighbor sponge (9 rounds) · AVX2 vectorization (32 trits/cycle). ML-DSA (FIPS 204): NIST standard reference implementation benchmarks.
             </p>
           </Card>
         </motion.div>
