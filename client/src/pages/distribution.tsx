@@ -43,7 +43,7 @@ import { PLATFORM } from "@shared/constants";
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
 const GITHUB_DOWNLOAD = `${GITHUB_REPO}/archive/refs/heads/main.zip`;
 const GITHUB_RELEASE = `${GITHUB_REPO}/releases`;
-const INSTALLER_WIN = "/install/install-windows.ps1";
+const INSTALLER_WIN = "/install/Install-PlenumNET.bat";
 const INSTALLER_UNIX = "/install/install.sh";
 
 type Platform = "windows" | "mac" | "linux";
@@ -413,14 +413,13 @@ function InstallSuiteCard() {
     windows: {
       label: "Windows",
       installerUrl: INSTALLER_WIN,
-      installerName: "install-windows.ps1",
-      oneLineInstall: `powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\Downloads\\install-windows.ps1"`,
+      installerName: "Install-PlenumNET.bat",
       installPath: "C:\\PlenumNET",
       instructions: [
-        'Click "Download Installer" below to save install-windows.ps1',
-        "Find the downloaded file (usually in your Downloads folder)",
-        'Right-click the file and select "Run with PowerShell"',
-        "The installer downloads everything to C:\\PlenumNET and builds it automatically",
+        'Click "Download Installer" below to save Install-PlenumNET.bat',
+        "Find the file in your Downloads folder and double-click it to run",
+        "If Windows SmartScreen appears, click 'More info' then 'Run anyway'",
+        "The installer downloads everything to C:\\PlenumNET automatically",
       ],
     },
     mac: {
@@ -491,7 +490,9 @@ function InstallSuiteCard() {
         </ol>
       </div>
 
-      <CopyCommand command={config.oneLineInstall} />
+      {"oneLineInstall" in config && config.oneLineInstall && (
+        <CopyCommand command={config.oneLineInstall} />
+      )}
 
       <div className="flex flex-wrap gap-3 mt-5">
         <Button asChild data-testid="button-download-installer">
