@@ -496,13 +496,13 @@ function InstallSuiteCard() {
 
       <div className="flex flex-wrap gap-3 mt-5">
         <Button asChild data-testid="button-download-installer">
-          <a href={config.installerUrl} download={config.installerName}>
+          <a href={config.installerUrl} target="_blank" rel="noopener noreferrer" download={config.installerName}>
             <Download className="w-4 h-4 mr-2" />
             Download Installer ({config.label})
           </a>
         </Button>
         <Button variant="outline" asChild data-testid="button-download-archive">
-          <a href={GITHUB_DOWNLOAD} download>
+          <a href={GITHUB_DOWNLOAD} target="_blank" rel="noopener noreferrer">
             <Package className="w-4 h-4 mr-2" />
             Source Archive (.zip)
           </a>
