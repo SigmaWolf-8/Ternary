@@ -13,26 +13,24 @@ echo.
 echo   Press any key to begin...
 pause >nul
 echo.
-echo   Checking for Git...
-git --version >nul 2>nul
-if errorlevel 1 goto NOGIT
-echo   Git found.
-echo.
-echo   Downloading PlenumNET to C:\PlenumNET ...
+echo   Downloading PlenumNET...
 echo   (This may take a minute)
 echo.
-if exist "C:\PlenumNET\.git" goto UPDATE
-if exist "C:\PlenumNET" rmdir /s /q "C:\PlenumNET"
-git clone https://github.com/SigmaWolf-8/Ternary.git "C:\PlenumNET"
-if errorlevel 1 goto FAILCLONE
-goto CLONED
-:UPDATE
-pushd "C:\PlenumNET"
-git pull origin main
-popd
-:CLONED
+if exist "C:\PlenumNET" (
+    echo   Removing previous installation...
+    rmdir /s /q "C:\PlenumNET" >nul 2>nul
+)
+mkdir "C:\PlenumNET" >nul 2>nul
+curl -L -o "%TEMP%\PlenumNET.zip" "https://github.com/SigmaWolf-8/Ternary/archive/refs/heads/main.zip" >nul 2>nul
+if errorlevel 1 goto FAILDOWNLOAD
+echo   Download complete. Extracting...
 echo.
-echo   Download complete.
+powershell -Command "Expand-Archive -Path '%TEMP%\PlenumNET.zip' -DestinationPath '%TEMP%\PlenumNET-extract' -Force" >nul 2>nul
+if errorlevel 1 goto FAILEXTRACT
+xcopy "%TEMP%\PlenumNET-extract\Ternary-main\*" "C:\PlenumNET\" /s /e /q /y >nul 2>nul
+rmdir /s /q "%TEMP%\PlenumNET-extract" >nul 2>nul
+del "%TEMP%\PlenumNET.zip" >nul 2>nul
+echo   Files extracted to C:\PlenumNET
 echo.
 echo   Checking for Rust compiler...
 cargo --version >nul 2>nul
@@ -52,19 +50,18 @@ echo   Then run: cd C:\PlenumNET
 echo             cargo build --release
 echo.
 goto DONE
-:NOGIT
-echo.
-echo   ERROR: Git is not installed.
-echo   Opening download page...
-start https://git-scm.com/download/win
-echo   Install Git then run this installer again.
-echo.
-goto END
-:FAILCLONE
+:FAILDOWNLOAD
 echo.
 echo   ERROR: Download failed.
 echo   Check your internet connection and try again.
 echo.
+goto END
+:FAILEXTRACT
+echo.
+echo   ERROR: Could not extract files.
+echo   Try running as Administrator.
+echo.
+del "%TEMP%\PlenumNET.zip" >nul 2>nul
 goto END
 :DONE
 echo   ========================================================
