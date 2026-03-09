@@ -109,6 +109,7 @@
 
 extern crate alloc;
 use alloc::vec::Vec;
+use alloc::vec;
 
 // ══════════════════════════════════════════════════════════════
 // CONSTANTS — Saturnian & Metatronic

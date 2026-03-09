@@ -35,10 +35,11 @@
 //!   and uniform sampling for key generation
 //! - **Compression/Decompression**: Lossy encoding for ciphertext compactness
 //!
-//! Note: GF(3) lacks primitive roots of unity for n=256, so standard
-//! NTT-based fast multiplication is not available. Ring multiplication
-//! uses schoolbook convolution with X^n+1 reduction. Future work may
-//! explore lifting to a larger modulus q with NTT support.
+//! Ring multiplication uses Karatsuba (O(n^1.585)) via `ring_mul_karatsuba`
+//! for individual polynomial products, and an integer NTT (q=12289, n=256)
+//! for pre-NTT'd matrix-vector multiplies via `NttMatrix::mul_vec`. The NTT
+//! lifts ternary coefficients to Z_q, uses ψ-twist negacyclic convolution,
+//! and reduces results back to balanced ternary mod 3.
 //!
 //! # CNSA 2.0 Relevance
 //!
@@ -63,6 +64,20 @@ pub const TERNARY_MODULUS: i16 = 3;
 pub const MODULE_RANK_2: usize = 2;
 pub const MODULE_RANK_3: usize = 3;
 pub const MODULE_RANK_4: usize = 4;
+
+#[inline(always)]
+pub fn t_add(a: i8, b: i8) -> i8 {
+    let s = a + b;
+    if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
+}
+
+#[inline(always)]
+pub fn t_mul(a: i8, b: i8) -> i8 {
+    if a == 0 || b == 0 { 0 } else { a * b }
+}
+
+#[inline(always)]
+pub fn t_neg(a: i8) -> i8 { -a }
 
 fn mod3(x: i16) -> i8 {
     let r = ((x % 3) + 3) % 3;
@@ -90,6 +105,65 @@ fn unsigned_to_balanced(u: u8) -> i8 {
         2 => -1,
         _ => unreachable!(),
     }
+}
+
+fn bit_reverse(k: usize, log_n: usize) -> usize {
+    let mut rev = 0;
+    let mut i = k;
+    for _ in 0..log_n {
+        rev = (rev << 1) | (i & 1);
+        i >>= 1;
+    }
+    rev
+}
+
+fn schoolbook_raw(a: &[i8], b: &[i8]) -> Vec<i8> {
+    let n = a.len();
+    let m = b.len();
+    let mut result = vec![0i8; n + m - 1];
+    for i in 0..n {
+        if a[i] == 0 { continue; }
+        for j in 0..m {
+            if b[j] == 0 { continue; }
+            result[i + j] = t_add(result[i + j], t_mul(a[i], b[j]));
+        }
+    }
+    result
+}
+
+fn karatsuba_raw(a: &[i8], b: &[i8]) -> Vec<i8> {
+    let n = a.len();
+    if n <= 32 {
+        return schoolbook_raw(a, b);
+    }
+    let m = n / 2;
+    let (a0, a1) = a.split_at(m);
+    let (b0, b1) = b.split_at(m);
+
+    let z0 = karatsuba_raw(a0, b0);
+    let z2 = karatsuba_raw(a1, b1);
+
+    let a01: Vec<i8> = a0.iter().zip(a1.iter()).map(|(&x, &y)| t_add(x, y)).collect();
+    let b01: Vec<i8> = b0.iter().zip(b1.iter()).map(|(&x, &y)| t_add(x, y)).collect();
+    let z1_full = karatsuba_raw(&a01, &b01);
+
+    let len = 2 * n - 1;
+    let mut result = vec![0i8; len];
+
+    for i in 0..z0.len() {
+        result[i] = t_add(result[i], z0[i]);
+    }
+    for i in 0..z2.len() {
+        result[i + 2 * m] = t_add(result[i + 2 * m], z2[i]);
+    }
+    for i in 0..z1_full.len() {
+        let mut v = z1_full[i];
+        if i < z0.len() { v = t_add(v, t_neg(z0[i])); }
+        if i < z2.len() { v = t_add(v, t_neg(z2[i])); }
+        result[i + m] = t_add(result[i + m], v);
+    }
+
+    result
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -214,6 +288,54 @@ impl TernaryPolynomial {
         Ok(TernaryPolynomial { coeffs, n })
     }
 
+    pub fn ring_mul_sparse(&self, other: &TernaryPolynomial) -> CryptoResult<TernaryPolynomial> {
+        if self.n != other.n {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.n,
+                actual: other.n,
+            });
+        }
+        let n = self.n;
+        let mut result = vec![0i8; n];
+
+        for i in 0..n {
+            let ci = self.coeffs[i];
+            if ci == 0 { continue; }
+            for j in 0..n {
+                let sj = other.coeffs[j];
+                if sj == 0 { continue; }
+                let pos = i + j;
+                if pos < n {
+                    result[pos] = t_add(result[pos], t_mul(ci, sj));
+                } else {
+                    result[pos - n] = t_add(result[pos - n], t_neg(t_mul(ci, sj)));
+                }
+            }
+        }
+
+        Ok(TernaryPolynomial { coeffs: result, n })
+    }
+
+    pub fn ring_mul_karatsuba(&self, other: &TernaryPolynomial) -> CryptoResult<TernaryPolynomial> {
+        if self.n != other.n {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.n,
+                actual: other.n,
+            });
+        }
+        let n = self.n;
+        let raw = karatsuba_raw(&self.coeffs, &other.coeffs);
+        let mut result = vec![0i8; n];
+        for i in 0..raw.len() {
+            if i < n {
+                result[i] = t_add(result[i], raw[i]);
+            } else {
+                result[i - n] = t_add(result[i - n], t_neg(raw[i]));
+            }
+        }
+        Ok(TernaryPolynomial { coeffs: result, n })
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity((self.n * 2 + 7) / 8);
         let mut current_byte: u8 = 0;
@@ -333,6 +455,30 @@ impl TernaryPolyMatrix {
         Ok(result)
     }
 
+    pub fn mul_vec_karatsuba(&self, vec: &TernaryPolyVec) -> CryptoResult<TernaryPolyVec> {
+        if self.cols != vec.len() {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.cols,
+                actual: vec.len(),
+            });
+        }
+
+        let mut result = TernaryPolyVec::new(self.rows, self.n);
+        for i in 0..self.rows {
+            let mut sum = TernaryPolynomial::new(self.n);
+            for j in 0..self.cols {
+                let product = self.entries[i][j].ring_mul_karatsuba(&vec.polys[j])?;
+                sum = sum.add(&product)?;
+            }
+            result.polys[i] = sum;
+        }
+        Ok(result)
+    }
+
+    pub fn mul_vec_geometric(&self, vec: &TernaryPolyVec) -> CryptoResult<TernaryPolyVec> {
+        self.mul_vec_karatsuba(vec)
+    }
+
     pub fn transpose(&self) -> Self {
         let mut result = TernaryPolyMatrix::new(self.cols, self.rows, self.n);
         for i in 0..self.rows {
@@ -441,6 +587,107 @@ pub fn sample_uniform_ternary(seed: &[i8], n: usize, nonce: u16) -> TernaryPolyn
     TernaryPolynomial { coeffs, n }
 }
 
+// ---------------------------------------------------------------------------
+// CBD η=2 vectorized coefficient extraction
+//
+// For η=2, each coefficient consumes 4 trits: sum_a = (t0+1)+(t1+1),
+// sum_b = (t2+1)+(t3+1), result = mod3(sum_a - sum_b).
+//
+// The +1 offsets cancel: diff = t0 + t1 - t2 - t3  ∈ [-4, +4].
+// balanced_wrap(diff) ≡ mod3(diff) for this range — same conditional
+// arithmetic as the sponge substitution, same AVX2 pattern:
+// _mm256_add_epi8 + _mm256_cmpgt_epi8 + _mm256_blendv_epi8.
+// ---------------------------------------------------------------------------
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn cbd_eta2_avx2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    use core::arch::x86_64::*;
+
+    let v_hi    = _mm256_set1_epi8(1);
+    let v_lo    = _mm256_set1_epi8(-1);
+    let v_three = _mm256_set1_epi8(3);
+
+    let mut i = 0;
+    while i + 32 <= n {
+        let base = i * 4;
+        let mut t0 = [0i8; 32];
+        let mut t1 = [0i8; 32];
+        let mut t2 = [0i8; 32];
+        let mut t3 = [0i8; 32];
+        for k in 0..32 {
+            let off = base + k * 4;
+            t0[k] = raw[off];
+            t1[k] = raw[off + 1];
+            t2[k] = raw[off + 2];
+            t3[k] = raw[off + 3];
+        }
+
+        let v_t0 = _mm256_loadu_si256(t0.as_ptr() as *const __m256i);
+        let v_t1 = _mm256_loadu_si256(t1.as_ptr() as *const __m256i);
+        let v_t2 = _mm256_loadu_si256(t2.as_ptr() as *const __m256i);
+        let v_t3 = _mm256_loadu_si256(t3.as_ptr() as *const __m256i);
+
+        let sum = _mm256_sub_epi8(
+            _mm256_add_epi8(v_t0, v_t1),
+            _mm256_add_epi8(v_t2, v_t3),
+        );
+
+        let gt1    = _mm256_cmpgt_epi8(sum, v_hi);
+        let lt_neg = _mm256_cmpgt_epi8(v_lo, sum);
+        let sub3   = _mm256_sub_epi8(sum, v_three);
+        let add3   = _mm256_add_epi8(sum, v_three);
+
+        let result = _mm256_blendv_epi8(sum, sub3, gt1);
+        let result = _mm256_blendv_epi8(result, add3, lt_neg);
+
+        let mut out = [0i8; 32];
+        _mm256_storeu_si256(out.as_mut_ptr() as *mut __m256i, result);
+        coeffs.extend_from_slice(&out);
+
+        i += 32;
+    }
+
+    while i < n {
+        let base = i * 4;
+        let diff = raw[base] as i16 + raw[base + 1] as i16
+                 - raw[base + 2] as i16 - raw[base + 3] as i16;
+        coeffs.push(mod3(diff));
+        i += 1;
+    }
+}
+
+fn cbd_eta2_scalar(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    for i in 0..n {
+        let base = i * 4;
+        let mut sum_a: i16 = 0;
+        let mut sum_b: i16 = 0;
+        for j in 0..2usize {
+            let idx_a = base + j;
+            let idx_b = base + 2 + j;
+            if idx_a < raw.len() {
+                sum_a += (raw[idx_a] + 1) as i16;
+            }
+            if idx_b < raw.len() {
+                sum_b += (raw[idx_b] + 1) as i16;
+            }
+        }
+        coeffs.push(mod3(sum_a - sum_b));
+    }
+}
+
+#[inline]
+fn cbd_eta2(raw: &[i8], coeffs: &mut Vec<i8>, n: usize) {
+    #[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { cbd_eta2_avx2(raw, coeffs, n); }
+            return;
+        }
+    }
+    cbd_eta2_scalar(raw, coeffs, n);
+}
+
 pub fn sample_cbd_ternary(seed: &[i8], n: usize, nonce: u16, eta: u8) -> TernaryPolynomial {
     use super::sponge::TernarySponge;
     let mut sponge = TernarySponge::new();
@@ -453,21 +700,25 @@ pub fn sample_cbd_ternary(seed: &[i8], n: usize, nonce: u16, eta: u8) -> Ternary
     let raw = sponge.squeeze(n * eta as usize * 2);
     let mut coeffs = Vec::with_capacity(n);
 
-    for i in 0..n {
-        let base = i * eta as usize * 2;
-        let mut sum_a: i16 = 0;
-        let mut sum_b: i16 = 0;
-        for j in 0..eta as usize {
-            let idx_a = base + j;
-            let idx_b = base + eta as usize + j;
-            if idx_a < raw.trits.len() {
-                sum_a += (raw.trits[idx_a] + 1) as i16;
+    if eta == 2 {
+        cbd_eta2(&raw.trits, &mut coeffs, n);
+    } else {
+        for i in 0..n {
+            let base = i * eta as usize * 2;
+            let mut sum_a: i16 = 0;
+            let mut sum_b: i16 = 0;
+            for j in 0..eta as usize {
+                let idx_a = base + j;
+                let idx_b = base + eta as usize + j;
+                if idx_a < raw.trits.len() {
+                    sum_a += (raw.trits[idx_a] + 1) as i16;
+                }
+                if idx_b < raw.trits.len() {
+                    sum_b += (raw.trits[idx_b] + 1) as i16;
+                }
             }
-            if idx_b < raw.trits.len() {
-                sum_b += (raw.trits[idx_b] + 1) as i16;
-            }
+            coeffs.push(mod3(sum_a - sum_b));
         }
-        coeffs.push(mod3(sum_a - sum_b));
     }
 
     TernaryPolynomial { coeffs, n }
@@ -485,9 +736,46 @@ pub fn sample_matrix(seed: &[i8], k: usize, n: usize) -> TernaryPolyMatrix {
 }
 
 pub fn sample_noise_vec(seed: &[i8], k: usize, n: usize, nonce_offset: u16, eta: u8) -> TernaryPolyVec {
+    use super::sponge::TernarySponge;
+    let trits_per_poly = n * eta as usize * 2;
+    let total_trits = k * trits_per_poly;
+
+    let mut sponge = TernarySponge::new();
+    sponge.absorb(seed);
+    let nonce_trits = u16_to_trits(nonce_offset);
+    sponge.absorb(&nonce_trits);
+    let eta_trits = u8_to_trits(eta);
+    sponge.absorb(&eta_trits);
+    let all_raw = sponge.squeeze(total_trits).trits;
+
     let mut polys = Vec::with_capacity(k);
-    for i in 0..k {
-        polys.push(sample_cbd_ternary(seed, n, nonce_offset + i as u16, eta));
+    for poly_idx in 0..k {
+        let raw_offset = poly_idx * trits_per_poly;
+        let raw = &all_raw[raw_offset..raw_offset + trits_per_poly];
+        let mut coeffs = Vec::with_capacity(n);
+
+        if eta == 2 {
+            cbd_eta2(raw, &mut coeffs, n);
+        } else {
+            for i in 0..n {
+                let base = i * eta as usize * 2;
+                let mut sum_a: i16 = 0;
+                let mut sum_b: i16 = 0;
+                for j in 0..eta as usize {
+                    let idx_a = base + j;
+                    let idx_b = base + eta as usize + j;
+                    if idx_a < raw.len() {
+                        sum_a += (raw[idx_a] + 1) as i16;
+                    }
+                    if idx_b < raw.len() {
+                        sum_b += (raw[idx_b] + 1) as i16;
+                    }
+                }
+                coeffs.push(mod3(sum_a - sum_b));
+            }
+        }
+
+        polys.push(TernaryPolynomial { coeffs, n });
     }
     TernaryPolyVec { polys, n }
 }
@@ -710,18 +998,9 @@ fn small_prime_factors(mut n: i32) -> Vec<i32> {
     factors
 }
 
-fn bit_reverse(mut x: usize, log_n: usize) -> usize {
-    let mut result = 0;
-    for _ in 0..log_n {
-        result = (result << 1) | (x & 1);
-        x >>= 1;
-    }
-    result
-}
-
 pub fn ntt_forward_lifted(poly: &TernaryPolynomial, q: i16) -> Vec<i16> {
     let n = poly.n;
-    let log_n = (n as f64).log2() as usize;
+    let log_n = libm::log2(n as f64) as usize;
     let q32 = q as i32;
     let g = find_primitive_root(q);
     let omega = mod_pow(g as i32, (q32 - 1) / n as i32, q32) as i16;
@@ -760,7 +1039,7 @@ pub fn ntt_forward_lifted(poly: &TernaryPolynomial, q: i16) -> Vec<i16> {
 }
 
 pub fn ntt_inverse_lifted(ntt_vals: &[i16], q: i16, n: usize) -> TernaryPolynomial {
-    let log_n = (n as f64).log2() as usize;
+    let log_n = libm::log2(n as f64) as usize;
     let q32 = q as i32;
     let g = find_primitive_root(q);
     let omega = mod_pow(g as i32, (q32 - 1) / n as i32, q32) as i16;
@@ -818,6 +1097,232 @@ pub fn ntt_ring_mul(a: &TernaryPolynomial, b: &TernaryPolynomial, q: i16) -> Ter
     let b_ntt = ntt_forward_lifted(b, q);
     let c_ntt = ntt_pointwise_mul(&a_ntt, &b_ntt, q);
     ntt_inverse_lifted(&c_ntt, q, n)
+}
+
+// ===========================================================================
+// Integer NTT for negacyclic ring multiplication in Z_q[X]/(X^256 + 1)
+// ===========================================================================
+//
+// Uses q = 12289 (the Kyber/NewHope prime, q ≡ 1 mod 512) with a 256-point
+// NTT. Negacyclic convolution is achieved by twisting inputs by powers of ψ
+// (a primitive 512th root of unity mod q) before the forward NTT, and
+// untwisting after the inverse NTT.
+//
+// The pre-NTT matrix A optimization reduces matrix-vector multiplies from
+// O(k·l·3) NTT calls to O(l + k) NTT calls:
+//   - Old: each of k·l polynomial multiplications needs 2 forward + 1 inverse
+//   - New: l forward NTTs for the input vector + k inverse NTTs for output rows
+//
+// For TL-DSA-87 (k=8, l=7): 15 NTTs instead of 168.
+// ===========================================================================
+
+const NCNTT_Q: u32 = 12289;
+const NCNTT_N: usize = 256;
+const NCNTT_LOG_N: usize = 8;
+
+const fn ncntt_mod_pow(mut base: u64, mut exp: u64, m: u64) -> u64 {
+    let mut r = 1u64;
+    base %= m;
+    while exp > 0 {
+        if exp & 1 == 1 { r = r * base % m; }
+        exp >>= 1;
+        base = base * base % m;
+    }
+    r
+}
+
+const NCNTT_PSI: u32 = ncntt_mod_pow(11, 24, NCNTT_Q as u64) as u32;
+const NCNTT_PSI_INV: u32 = ncntt_mod_pow(NCNTT_PSI as u64, NCNTT_Q as u64 - 2, NCNTT_Q as u64) as u32;
+const NCNTT_OMEGA: u32 = ((NCNTT_PSI as u64 * NCNTT_PSI as u64) % NCNTT_Q as u64) as u32;
+const NCNTT_OMEGA_INV: u32 = ncntt_mod_pow(NCNTT_OMEGA as u64, NCNTT_Q as u64 - 2, NCNTT_Q as u64) as u32;
+const NCNTT_INV_N: u32 = ncntt_mod_pow(NCNTT_N as u64, NCNTT_Q as u64 - 2, NCNTT_Q as u64) as u32;
+
+const NCNTT_PSI_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_PSI as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+const NCNTT_PSI_INV_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_PSI_INV as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+const NCNTT_OMEGA_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_OMEGA as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+const NCNTT_OMEGA_INV_TABLE: [u32; NCNTT_N] = {
+    let mut t = [0u32; NCNTT_N];
+    t[0] = 1;
+    let mut i = 1;
+    while i < NCNTT_N {
+        t[i] = ((t[i - 1] as u64 * NCNTT_OMEGA_INV as u64) % NCNTT_Q as u64) as u32;
+        i += 1;
+    }
+    t
+};
+
+#[inline(always)]
+fn ncntt_modmul(a: u32, b: u32) -> u32 {
+    ((a as u64 * b as u64) % NCNTT_Q as u64) as u32
+}
+
+#[inline(always)]
+fn ncntt_modadd(a: u32, b: u32) -> u32 {
+    let s = a + b;
+    if s >= NCNTT_Q { s - NCNTT_Q } else { s }
+}
+
+#[inline(always)]
+fn ncntt_modsub(a: u32, b: u32) -> u32 {
+    if a >= b { a - b } else { a + NCNTT_Q - b }
+}
+
+fn ncntt_forward(a: &mut [u32; NCNTT_N]) {
+    for i in 0..NCNTT_N {
+        let j = bit_reverse(i, NCNTT_LOG_N);
+        if i < j { a.swap(i, j); }
+    }
+    let mut len = 2;
+    while len <= NCNTT_N {
+        let half = len / 2;
+        let step = NCNTT_N / len;
+        let mut start = 0;
+        while start < NCNTT_N {
+            for j in 0..half {
+                let w = NCNTT_OMEGA_TABLE[j * step];
+                let u = a[start + j];
+                let v = ncntt_modmul(a[start + j + half], w);
+                a[start + j] = ncntt_modadd(u, v);
+                a[start + j + half] = ncntt_modsub(u, v);
+            }
+            start += len;
+        }
+        len *= 2;
+    }
+}
+
+fn ncntt_inverse(a: &mut [u32; NCNTT_N]) {
+    for i in 0..NCNTT_N {
+        let j = bit_reverse(i, NCNTT_LOG_N);
+        if i < j { a.swap(i, j); }
+    }
+    let mut len = 2;
+    while len <= NCNTT_N {
+        let half = len / 2;
+        let step = NCNTT_N / len;
+        let mut start = 0;
+        while start < NCNTT_N {
+            for j in 0..half {
+                let w = NCNTT_OMEGA_INV_TABLE[j * step];
+                let u = a[start + j];
+                let v = ncntt_modmul(a[start + j + half], w);
+                a[start + j] = ncntt_modadd(u, v);
+                a[start + j + half] = ncntt_modsub(u, v);
+            }
+            start += len;
+        }
+        len *= 2;
+    }
+    for x in a.iter_mut() {
+        *x = ncntt_modmul(*x, NCNTT_INV_N);
+    }
+}
+
+fn ternary_to_ntt(coeffs: &[i8]) -> [u32; NCNTT_N] {
+    let mut a = [0u32; NCNTT_N];
+    let len = NCNTT_N.min(coeffs.len());
+    for i in 0..len {
+        let v = if coeffs[i] < 0 { NCNTT_Q - ((-coeffs[i]) as u32) } else { coeffs[i] as u32 };
+        a[i] = ncntt_modmul(v, NCNTT_PSI_TABLE[i]);
+    }
+    ncntt_forward(&mut a);
+    a
+}
+
+fn ntt_to_ternary(ntt_data: &[u32; NCNTT_N]) -> Vec<i8> {
+    let mut a = *ntt_data;
+    ncntt_inverse(&mut a);
+    let mut result = vec![0i8; NCNTT_N];
+    for i in 0..NCNTT_N {
+        let val = ncntt_modmul(a[i], NCNTT_PSI_INV_TABLE[i]);
+        let centered = if val > NCNTT_Q / 2 { val as i32 - NCNTT_Q as i32 } else { val as i32 };
+        let m = ((centered % 3) + 3) % 3;
+        result[i] = if m == 2 { -1 } else { m as i8 };
+    }
+    result
+}
+
+pub type NttPoly = [u32; NCNTT_N];
+
+#[derive(Debug, Clone)]
+pub struct NttMatrix {
+    pub rows: usize,
+    pub cols: usize,
+    pub entries: Vec<Vec<NttPoly>>,
+}
+
+impl TernaryPolyMatrix {
+    pub fn to_ntt(&self) -> NttMatrix {
+        let mut entries = Vec::with_capacity(self.rows);
+        for i in 0..self.rows {
+            let mut row = Vec::with_capacity(self.cols);
+            for j in 0..self.cols {
+                row.push(ternary_to_ntt(&self.entries[i][j].coeffs));
+            }
+            entries.push(row);
+        }
+        NttMatrix { rows: self.rows, cols: self.cols, entries }
+    }
+}
+
+impl NttMatrix {
+    pub fn mul_vec(&self, vec: &TernaryPolyVec) -> CryptoResult<TernaryPolyVec> {
+        if self.cols != vec.len() {
+            return Err(CryptoError::InvalidInputLength {
+                expected: self.cols,
+                actual: vec.len(),
+            });
+        }
+
+        let v_ntt: Vec<NttPoly> = vec.polys.iter()
+            .map(|p| ternary_to_ntt(&p.coeffs))
+            .collect();
+
+        let mut result_polys = Vec::with_capacity(self.rows);
+        for i in 0..self.rows {
+            let mut acc = [0u32; NCNTT_N];
+            for j in 0..self.cols {
+                for m in 0..NCNTT_N {
+                    let prod = ncntt_modmul(self.entries[i][j][m], v_ntt[j][m]);
+                    acc[m] = ncntt_modadd(acc[m], prod);
+                }
+            }
+            let coeffs = ntt_to_ternary(&acc);
+            result_polys.push(TernaryPolynomial { coeffs, n: NCNTT_N });
+        }
+
+        Ok(TernaryPolyVec { polys: result_polys, n: NCNTT_N })
+    }
 }
 
 #[cfg(test)]
@@ -1236,6 +1741,80 @@ mod tests {
         assert_eq!(c.len(), n);
         for i in 0..n {
             assert_eq!(c[i], (a[i] as i32 * b[i] as i32 % q as i32) as i16);
+        }
+    }
+
+    #[test]
+    fn test_ncntt_constants() {
+        assert_eq!(NCNTT_Q, 12289);
+        assert_eq!(NCNTT_PSI, 3400);
+        let psi_256 = ncntt_mod_pow(NCNTT_PSI as u64, 256, NCNTT_Q as u64) as u32;
+        assert_eq!(psi_256, NCNTT_Q - 1, "psi^256 should equal -1 mod q");
+        let psi_512 = ncntt_mod_pow(NCNTT_PSI as u64, 512, NCNTT_Q as u64) as u32;
+        assert_eq!(psi_512, 1, "psi^512 should equal 1 mod q");
+        let omega_256 = ncntt_mod_pow(NCNTT_OMEGA as u64, 256, NCNTT_Q as u64) as u32;
+        assert_eq!(omega_256, 1, "omega^256 should equal 1 mod q");
+        let psi_psi_inv = ncntt_modmul(NCNTT_PSI, NCNTT_PSI_INV);
+        assert_eq!(psi_psi_inv, 1, "psi * psi_inv should equal 1");
+        let n_inv_n = ncntt_modmul(NCNTT_INV_N, NCNTT_N as u32);
+        assert_eq!(n_inv_n, 1, "inv_n * n should equal 1");
+    }
+
+    #[test]
+    fn test_ncntt_roundtrip() {
+        let coeffs: Vec<i8> = (0..256).map(|i| [0, 1, -1][i % 3]).collect();
+        let ntt = ternary_to_ntt(&coeffs);
+        let back = ntt_to_ternary(&ntt);
+        assert_eq!(coeffs, back, "NTT roundtrip should be identity");
+    }
+
+    #[test]
+    fn test_ncntt_mul_matches_karatsuba() {
+        let a_coeffs: Vec<i8> = (0..256).map(|i| match i % 7 { 0 => 1, 1 => -1, _ => 0 }).collect();
+        let b_coeffs: Vec<i8> = (0..256).map(|i| match i % 5 { 0 => -1, 2 => 1, _ => 0 }).collect();
+        let a = TernaryPolynomial::from_coeffs_unchecked(a_coeffs.clone());
+        let b = TernaryPolynomial::from_coeffs_unchecked(b_coeffs.clone());
+        let karatsuba = a.ring_mul_karatsuba(&b).unwrap();
+
+        let a_ntt = ternary_to_ntt(&a_coeffs);
+        let b_ntt = ternary_to_ntt(&b_coeffs);
+        let mut c_ntt = [0u32; NCNTT_N];
+        for i in 0..NCNTT_N {
+            c_ntt[i] = ncntt_modmul(a_ntt[i], b_ntt[i]);
+        }
+        let ntt_result = ntt_to_ternary(&c_ntt);
+
+        assert_eq!(karatsuba.coeffs, ntt_result, "NTT mul must match Karatsuba");
+    }
+
+    #[test]
+    fn test_ntt_matrix_mul_vec_matches_geometric() {
+        let rows = 4;
+        let cols = 3;
+        let n = 256;
+        let mut mat = TernaryPolyMatrix::new(rows, cols, n);
+        for i in 0..rows {
+            for j in 0..cols {
+                let coeffs: Vec<i8> = (0..n).map(|k| match (i + j + k) % 5 { 0 => 1, 1 => -1, _ => 0 }).collect();
+                mat.entries[i][j] = TernaryPolynomial::from_coeffs_unchecked(coeffs);
+            }
+        }
+        let mut vec_polys = Vec::with_capacity(cols);
+        for j in 0..cols {
+            let coeffs: Vec<i8> = (0..n).map(|k| match (j * 3 + k) % 7 { 0 => 1, 2 => -1, _ => 0 }).collect();
+            vec_polys.push(TernaryPolynomial::from_coeffs_unchecked(coeffs));
+        }
+        let v = TernaryPolyVec { polys: vec_polys, n };
+
+        let geometric = mat.mul_vec_geometric(&v).unwrap();
+        let ntt_mat = mat.to_ntt();
+        let ntt_result = ntt_mat.mul_vec(&v).unwrap();
+
+        for i in 0..rows {
+            assert_eq!(
+                geometric.polys[i].coeffs, ntt_result.polys[i].coeffs,
+                "NTT matrix mul must match geometric for row {}", i
+            );
         }
     }
 }

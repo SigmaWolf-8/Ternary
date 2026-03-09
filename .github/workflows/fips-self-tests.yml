@@ -14,7 +14,6 @@ jobs:
   power-on-self-tests:
     name: Power-On Self-Tests (POST)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -35,7 +34,6 @@ jobs:
   conditional-self-tests:
     name: Conditional Self-Tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -58,7 +56,6 @@ jobs:
   entropy-health:
     name: Entropy Source Health Tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -81,7 +78,6 @@ jobs:
   module-state:
     name: Module State Machine Validation
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -104,7 +100,6 @@ jobs:
   acvts-export:
     name: ACVTS Vector Export
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
