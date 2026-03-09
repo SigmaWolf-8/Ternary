@@ -435,9 +435,9 @@ WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313 · ID:1233122313122133121
 
 Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 
-### 2.4 TIS-27 Identity Sponge (server-side)
+### 2.4 TIS-27 Integrity Sponge (server-side)
 
-TIS-27 is a fast **non-cryptographic** integrity function for wire packet integrity and scan hashing on already-authenticated channels. It is NOT a cryptographic hash — security-critical operations (key derivation, signing, TDNS registration identity binding) use the kernel cryptographic sponge (Section 6.7).
+TIS-27 is a fast **non-cryptographic** integrity function for wire packet integrity and scan hashing on already-authenticated channels. It is NOT a cryptographic hash — NOT for signing, key derivation, identity binding, or registration. All security-critical operations use the kernel cryptographic sponge (Section 6.7).
 
 The sponge parameters are derived from TDNS architecture — not chosen arbitrarily:
 
@@ -799,7 +799,7 @@ right = balanced_wrap(s[i+1] + s[i+7] + s[i+13])
 out[i] = balanced_wrap(left + s[i] + right + 1)
 ```
 
-The extended theta was previously 3-neighbor (±1 only). The v2 upgrade to 7 neighbors at ±1/±7/±13 enables full diffusion in 3 rounds (verified), allowing the round count reduction from 27 to 9 while maintaining a 3× safety margin.
+The extended theta was previously 3-neighbor (±1 only), requiring 6 rounds for full diffusion. The v2 upgrade to 7 neighbors at ±1/±7/±13 halved the diffusion threshold to 3 rounds (verified), allowing the round count reduction from 27 to 9 (3²) while maintaining a 3× safety margin.
 
 Source: `src/kernel/src/crypto/sponge.rs`
 
@@ -1075,7 +1075,7 @@ Benchmarks (`benchmarks/`): `crt_bench.c` (261 LOC — raw throughput), `crt_ben
 
 Testing infrastructure: Criterion benchmarks (395 LOC), fuzz targets (330 LOC: `fuzz_gateway`, `fuzz_trit_ops`, `fuzz_tryte_ops`), PropTest VM verification (348 LOC).
 
-Test totals: **2,508+** (2,251 Rust #[test] + 257 TypeScript across 13 vitest suites).
+Test totals: **2,276** (1,783 Rust #[test] + 493 TypeScript). Single source of truth: `shared/constants.ts` TESTS_PASSING.
 
 ---
 
@@ -1177,6 +1177,7 @@ ALL numeric values used in the frontend and docs MUST come from `shared/constant
 - `thiserror` for error types, `serde` with derive for serialization
 - Constant-time GF(3) operations in crypto modules
 - All modules re-exported from `lib.rs`
+- `no_std` math: Use `libm::log2()`, `libm::ceil()`, `libm::fabs()` — NOT f64 methods. Fixed in `metatronic_cube.rs`, `ternary_lattice.rs`, `cross_impl.rs`, `gateway.rs`
 
 ### 19.5 GitHub Push Convention
 
