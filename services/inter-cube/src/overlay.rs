@@ -368,7 +368,7 @@ impl CubeOverlayNetwork {
 
     /// Derive a shared tunnel key from both cubes' Rep C addresses.
     ///
-    /// Uses TIS-27 ternary identity sponge with both addresses sorted
+    /// Uses TIS-27 sponge with both addresses sorted
     /// lexicographically — both sides compute the same key independently.
     /// Post-quantum by construction — no binary hash, no elliptic curve operations.
     pub fn derive_pq_tunnel_key(

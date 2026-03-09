@@ -14,7 +14,7 @@
 
 //! Ternary HMAC (Hash-based Message Authentication Code)
 //!
-//! Implements HMAC using TL-Sponge for keyed message
+//! Implements HMAC using TL-Sponge-385 for keyed message
 //! authentication. Follows the standard HMAC construction:
 //!   HMAC(K, M) = H((K ^ opad) || H((K ^ ipad) || M))
 

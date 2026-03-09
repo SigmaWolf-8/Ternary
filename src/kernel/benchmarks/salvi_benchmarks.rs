@@ -303,14 +303,14 @@ fn main() {
     println!("  ► R₃ / Z_q ring_mul cost ratio: {:.2}x", r3_ns / zq_ns);
     println!();
 
-    println!("  2.3 — Hash comparison: TL-Sponge vs SHA-384");
+    println!("  2.3 — Hash comparison: TL-Sponge-385 vs SHA-384");
     println!("  ────────────────────────────────────────────────────────────────");
 
     for &input_len in &[16usize, 64, 243, 729] {
         let trit_input: Vec<i8> = (0..input_len).map(|i| ((i % 3) as i8 - 1)).collect();
         let byte_input: Vec<u8> = (0..input_len).map(|i| (i % 256) as u8).collect();
 
-        let (sponge_ns, _) = bench(&format!("TL-Sponge (input={} trits)", input_len), || {
+        let (sponge_ns, _) = bench(&format!("TL-Sponge-385 (input={} trits)", input_len), || {
             let mut sponge = TernarySponge::new();
             sponge.absorb(&trit_input);
             black_box(sponge.squeeze(243));

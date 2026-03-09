@@ -7,14 +7,15 @@
 // Derivation rules ported exactly from services/tdns-v2/src/derive.rs.
 //
 // TDNS v2.5.0: 54-trit address = 27 classification + 27 identity anchor.
-// Identity derivation: IdentitySponge — ternary sponge, parameters derived from
-//   TDNS architecture (state=54, rate=27, capacity=27, rounds=27). No binary
+// Identity derivation: TL-Sponge-43 — TDNS identity sponge, parameters derived from
+//   TDNS architecture (state=54, rate=27, capacity=27, rounds=9). No binary
 //   hash primitives in identity derivation. No domain crossing. Mirrors
 //   services/tdns-v2/src/identity.rs exactly.
+//   43-bit preimage resistance (3^27 ≈ 2^43).
 //
 // Scan hash: TIS-27 (shared/tis-sponge.ts) — fast non-cryptographic integrity function.
-//   4 rounds, 7-neighbor extended theta at ±1/±7/±13. NOT the identity sponge.
-// Identity derivation: 27-round inline sponge (unchanged, mirrors identity.rs).
+//   4 rounds, 7-neighbor extended theta at ±1/±7/±13. NOT TL-Sponge-43.
+// TL-Sponge-43 identity derivation: 9-round inline sponge (mirrors identity.rs).
 // Timestamps: ISO 8601 display (JS path).
 // Production path: getFemtosecondTimestamp() via server/salvi-core/femtosecond-timing.ts.
 
@@ -23,14 +24,15 @@ import { createLogger } from "../logger";
 
 const log = createLogger("tdns");
 
-// ── TDNS Identity Sponge ──────────────────────────────────────────────────────
+// ── TL-Sponge-43 (TDNS Identity Sponge) ─────────────────────────────────────
 //
-// Ternary sponge for URL identity hashing.
+// TL-Sponge-43: ternary sponge for URL identity hashing.
+// 43-bit preimage resistance (capacity=27 trits → 3^27 ≈ 2^43).
 // Parameters derived from TDNS architecture — not chosen arbitrarily:
 //   State:    54 trits  ← full TDNS address width (27 classification + 27 identity)
 //   Rate:     27 trits  ← identity anchor width = classification width
 //   Capacity: 27 trits  ← classification layer width
-//   Rounds:   27        ← one per output trit
+//   Rounds:   9         ← 3² — 3× safety margin over 3-round full diffusion
 //   Stride:   13        ← gcd(13,54)=1, complete permutation cycle
 //
 // Mirrors services/tdns-v2/src/identity.rs exactly.
@@ -106,10 +108,10 @@ function deriveIdentityTrits(canonicalUrl: string): number[] {
 // ── TIS-27 Integrity Hash ─────────────────────────────────────────────────────
 //
 // Fast ternary integrity function. Mirrors ternary-math/src/tis_sponge.rs.
-// NOT the identity sponge — different theta, different pi, different rounds.
+// NOT TL-Sponge-43 — different theta, different pi, different rounds.
 //
-//   Identity sponge (above):  27 rounds, 3-neighbor theta, scatter pi, XOR absorb
-//   TIS-27 (below):           4 rounds,  7-neighbor theta, gather pi,  direct copy
+//   TL-Sponge-43 (above): 9 rounds,  3-neighbor theta, scatter pi, XOR absorb
+//   TIS-27 (below):        4 rounds,  7-neighbor theta, gather pi,  direct copy
 //
 // TIS-27 is for scan hashing and wire integrity. NOT for identity binding.
 
@@ -676,7 +678,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
 
   // ── Scan hash via TIS-27 (4-round, 7-neighbor, gather pi) ──────────────
   // Direct copy absorption — matches ternary-math/src/tis_sponge.rs exactly.
-  // Identity derivation (above) stays on the 27-round identity sponge.
+  // Identity derivation (above) stays on TL-Sponge-43 (9-round, 3-neighbor).
   const scanTritsGf3 = trits.map((t: number) => t - 1);
 
   const scanState = new Uint8Array(TIS_STATE);

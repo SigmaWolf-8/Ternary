@@ -54,8 +54,8 @@ validated module.
 │                                                                           │
 │  ┌─ NON-APPROVED (available in Non-Approved Mode only) ─────────────────┐ │
 │  │                                                                      │ │
-│  │  hash.rs          TL-Sponge hash (non-standard)                      │ │
-│  │  sponge.rs        TL-Sponge construction                             │ │
+│  │  hash.rs          TL-Sponge-385 hash (non-standard)                  │ │
+│  │  sponge.rs        TL-Sponge-385 construction                         │ │
 │  │  ternary_lattice.rs  GF(3) polynomial ring + NTT                    │ │
 │  │  phase_cnsa.rs    Phase-encryption with ML-KEM keys                  │ │
 │  │  fpga_hdl.rs      FPGA Verilog generation                            │ │

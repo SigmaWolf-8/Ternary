@@ -44,7 +44,7 @@ The Ternary Bijective Cipher is fully designed for GF(3) with bijective S-box su
 
 **Design Specification:** 27-tryte key with 1.585 bits/trit entropy. The total key space of 3^81 ≈ 2^128.4 provides strong symmetric security. GF(3) S-box construction is designed to resist differential and linear cryptanalysis attacks optimized for binary fields.
 
-### Hashing: SHA-384/512 → TL-Sponge
+### Hashing: SHA-384/512 → TL-Sponge-385
 
 **Status:** Ternary Equivalent
 
@@ -140,7 +140,7 @@ let sig = sign(&mut sk, &message)?;
 assert!(verify(&vk, &message, &sig)?);
 ```
 
-**Security Analysis:** The Lamport OTS construction security depends solely on the preimage resistance of the underlying hash function (TL-Sponge). With 243-trit digests, the scheme provides 385.4-bit equivalent security against preimage attacks. The LamportKeyChain provides indexed multi-message signing equivalent to LMS tree-based approaches.
+**Security Analysis:** The Lamport OTS construction security depends solely on the preimage resistance of the underlying hash function (TL-Sponge-385). With 243-trit digests, the scheme provides 385.4-bit equivalent security against preimage attacks. The LamportKeyChain provides indexed multi-message signing equivalent to LMS tree-based approaches.
 
 ---
 
@@ -148,7 +148,7 @@ assert!(verify(&vk, &message, &sig)?);
 
 | Year | Milestone | Status |
 |------|-----------|--------|
-| 2025 | Foundation Complete: TL-Sponge, HMAC, KDF, Lamport OTS, phase encryption | Complete |
+| 2025 | Foundation Complete: TL-Sponge-385, HMAC, KDF, Lamport OTS, phase encryption | Complete |
 | 2026 | Lattice Foundations: GF(3) polynomial ring arithmetic, Module-LWE/SIS, AES-256-GCM, SHA-2, SHA-3 | Complete |
 | 2027 | TL-KEM Implementation: All three ML-KEM security levels | Planned |
 | 2028 | TL-DSA Implementation: All three ML-DSA security levels | Planned |
@@ -211,7 +211,7 @@ CNSA 2.0 compliance intersects with PlenumNET's existing regulatory framework:
 
 - **MiFID II Article 50:** EU high-frequency trading requires 100μs synchronization. HPTP with optical clock sync provides sub-picosecond precision. All timing certificates are cryptographically signed.
 
-- **NIST SP 800-208:** Hash-based signature standard. PlenumNET's Lamport OTS with TL-Sponge aligns with the stateful signature approach defined in this standard.
+- **NIST SP 800-208:** Hash-based signature standard. PlenumNET's Lamport OTS with TL-Sponge-385 aligns with the stateful signature approach defined in this standard.
 
 ---
 

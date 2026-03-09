@@ -166,7 +166,7 @@ endmodule
 
 pub fn generate_sponge_permutation() -> VerilogModule {
     let hdl = "\
-// TL-Sponge Permutation Engine
+// TL-Sponge-385 Permutation Engine
 // 729-trit state (27x27 trit matrix), 27 rounds
 // Keccak-inspired design adapted for GF(3)
 module sponge_permutation #(

@@ -1,4 +1,4 @@
-# SignHere Integration Guide — TL-Sponge Document Hashing
+# SignHere Integration Guide — TL-Sponge-385 Document Hashing
 
 **Version**: 1.0.0  
 **Date**: 2026-03-09  
@@ -6,8 +6,8 @@
 **Repository**: SigmaWolf-8/Ternary  
 
 This document provides actionable instructions for the SignHere team to integrate
-PlenumNET's TL-Sponge cryptographic hash into the e-signature workflow, replacing
-ML-DSA/SHA-based document hashing with TL-Sponge.
+PlenumNET's TL-Sponge-385 cryptographic hash into the e-signature workflow, replacing
+ML-DSA/SHA-based document hashing with TL-Sponge-385.
 
 ---
 
@@ -15,7 +15,7 @@ ML-DSA/SHA-based document hashing with TL-Sponge.
 
 | Component | Value |
 |---|---|
-| Algorithm | TL-Sponge |
+| Algorithm | TL-Sponge-385 |
 | Security variant | TL-Sponge-385 |
 | OID | `1.3.6.1.4.1.0.100.3.1` |
 | State | 729 trits (3⁶) |
@@ -68,7 +68,7 @@ Body: <raw file bytes>
 
 **Limits**: 10 MB max input size. Rate limited.
 
-### 2.2 TSA Timestamping (with TL-Sponge)
+### 2.2 TSA Timestamping (with TL-Sponge-385)
 
 ```
 POST /api/tsa/timestamp/json
@@ -82,7 +82,7 @@ POST /api/tsa/timestamp/json
 }
 ```
 
-**Response**: RFC 3161 timestamp token with the TL-Sponge hash embedded.
+**Response**: RFC 3161 timestamp token with the TL-Sponge-385 hash embedded.
 
 ### 2.3 Timestamp Verification
 
@@ -179,14 +179,14 @@ identity binding.
 
 | Aspect | Before | After |
 |---|---|---|
-| Hash algorithm | SHA-256 or SHA3-256 | TL-Sponge |
+| Hash algorithm | SHA-256 or SHA3-256 | TL-Sponge-385 |
 | Hash length | 32 bytes (64 hex) | 49 bytes (98 hex) |
 | OID | `2.16.840.1.101.3.4.2.1` | `1.3.6.1.4.1.0.100.3.1` |
 | Security level | 128-bit classical | 385-bit post-quantum |
 | Signing endpoint | `/api/salvi/crypto/ml-dsa` (removed) | `/api/pqti/tldsa/sign` |
 | Witness endpoint | `/api/salvi/witness/sign` (removed) | `/api/hedera/v1/witness` |
 | TSA algorithm param | `"sha256"` or `"sha3-256"` | `"tl-sponge"` |
-| Merkle audit log | SHA3-256 internally | TL-Sponge internally |
+| Merkle audit log | SHA3-256 internally | TL-Sponge-385 internally |
 
 ---
 

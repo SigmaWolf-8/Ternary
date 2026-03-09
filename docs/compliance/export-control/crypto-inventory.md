@@ -13,7 +13,7 @@
 | TL-KEM (Ternary Lattice KEM) | Key Encapsulation | Proprietary | 5D002 | Classification pending | `src/kernel/src/crypto/tl_kem.rs` |
 | TL-DSA (Ternary Lattice DSA) | Digital Signature | Proprietary | 5D002 | Classification pending | `src/kernel/src/crypto/tl_dsa.rs` |
 | Phase Encryption | Timing-Gated Symmetric | Proprietary | 5D002 | Classification pending | `server/salvi-core/phase-encryption.ts` |
-| TL-Sponge | Hash Construction | N/A | Review needed | Classification pending | `src/kernel/src/crypto/sponge.rs` |
+| TL-Sponge-385 | Hash Construction | N/A | Review needed | Classification pending | `src/kernel/src/crypto/sponge.rs` |
 | Ternary Lamport Signatures | One-Time Signature | Proprietary | 5D002 | Classification pending | `src/kernel/src/crypto/cipher.rs` |
 
 ## 2. CNSA 2.0 Classical Algorithms

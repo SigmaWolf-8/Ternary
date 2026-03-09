@@ -11,7 +11,7 @@
 //
 // See LICENSE in the repository root for full terms.
 
-//! Keyed TL-Sponge Construction
+//! Keyed TL-Sponge-385 Construction
 //!
 //! Extends the existing `TernarySponge` with a key-dependent permutation layer
 //! derived from the automorphism group of the ternary 6-cube (S_3 ≀ S_6).
@@ -208,7 +208,7 @@ fn keyed_sponge_permutation(
     }
 }
 
-/// A keyed TL-Sponge with geometry-derived permutations.
+/// A keyed TL-Sponge-385 with geometry-derived permutations.
 ///
 /// The key parameterizes the internal diffusion layer using the automorphism
 /// group of the ternary 6-cube (S_3 ≀ S_6), producing a structurally unique

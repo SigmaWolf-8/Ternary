@@ -64,7 +64,7 @@ Balanced ternary operations in GF(3) with three bijective representations:
 All operations use a correct ring isomorphism via modular arithmetic. Full 9-case addition and multiplication tables are tested. Zero in Rep C is the forgery sentinel.
 
 ### TDNS v2.5.0 — Ternary Domain Name System
-54-trit dual-layer ontological addressing (27 classification + 27 identity anchor). Identity derivation uses the TIS-27 sponge (state=54, rate=27, rounds=27, stride=13). Scan hashing also uses TIS-27 (32-byte hex output). Supports Org Entities for multi-URL grouping. 9 API routes. Chrome extension (v1.0.9) renders dual-color addresses: classification in gold, identity anchor in sky blue.
+54-trit dual-layer ontological addressing (27 classification + 27 identity anchor). Identity derivation uses TL-Sponge-43 (state=54, rate=27, capacity=27, rounds=9, stride=13, 43-bit preimage). Scan hashing uses TIS-27 (32-byte hex output). Supports Org Entities for multi-URL grouping. 9 API routes. Chrome extension (v1.0.9) renders dual-color addresses: classification in gold, identity anchor in sky blue.
 
 ### Tribonacci Constants
 The constant tau = 1.8392867552141612 and its derived values appear throughout the system:

@@ -185,7 +185,7 @@ internal operations use balanced ternary GF(3) arithmetic.
 ### 5.2 Non-Standard Algorithms
 
 The following algorithms are implemented but are NOT submitted for FIPS validation:
-- TL-Sponge (proprietary)
+- TL-Sponge-385 (proprietary)
 - Ternary Lamport Signatures (being deprecated per 16_MIGRATION_GUIDE.md)
 - Phase Encryption (ternary-native, non-standard)
 

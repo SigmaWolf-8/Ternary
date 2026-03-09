@@ -135,7 +135,7 @@ const OPCODE_TABLE: Record<string, { hex: string; cat: string; desc: string }> =
   "TBITREV": { hex: "0x1D", cat: "Extended", desc: "Trit-reverse of word" },
   "TLERP": { hex: "0x1E", cat: "Extended", desc: "Ternary linear interpolation" },
   "TMINMAX": { hex: "0x1F", cat: "Extended", desc: "Simultaneous min/max extraction" },
-  "THASH": { hex: "0x60", cat: "Crypto", desc: "TL-Sponge hash" },
+  "THASH": { hex: "0x60", cat: "Crypto", desc: "TL-Sponge-385 hash" },
   "THMAC": { hex: "0x61", cat: "Crypto", desc: "Ternary HMAC" },
   "TKDF": { hex: "0x62", cat: "Crypto", desc: "Ternary key derivation function" },
   "TLAMPORT": { hex: "0x63", cat: "Crypto", desc: "Lamport one-time signature" },

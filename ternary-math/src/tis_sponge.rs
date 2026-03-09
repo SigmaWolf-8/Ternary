@@ -13,7 +13,7 @@
 // │  security against a deliberate adversary.                       │
 // │                                                                 │
 // │  For cryptographic operations (signing, key derivation,         │
-// │  identity binding, TDNS registration), use TL-Sponge:           │
+// │  identity binding, TDNS registration), use TL-Sponge-43/385:    │
 // │  src/kernel/src/crypto/sponge.rs (385-bit post-quantum).        │
 // └─────────────────────────────────────────────────────────────────┘
 //
@@ -24,9 +24,9 @@
 //   - Internal consistency verification
 //
 // NOT for:
-//   - TDNS registration or identity binding (use TL-Sponge)
-//   - Document signing or notarization (use TL-Sponge)
-//   - Key derivation (use TL-Sponge)
+//   - TDNS registration or identity binding (use TL-Sponge-43 or TL-Sponge-385)
+//   - Document signing or notarization (use TL-Sponge-385)
+//   - Key derivation (use TL-Sponge-385)
 //   - Any operation requiring collision resistance against an adversary
 //
 // Architecture:

@@ -29,7 +29,7 @@ The Cryptographic Primitives module provides a full post-quantum cryptographic s
 
 ### Key Features
 
-- **TL-Sponge** — Keccak-inspired sponge construction over GF(3) (243-trit state)
+- **TL-Sponge-385** — Keccak-inspired sponge construction over GF(3) (729-trit state)
 - **HMAC** — Ternary HMAC for message authentication with domain separation
 - **Key Derivation (KDF)** — Multi-key derivation from master secrets
 - **AES-256-GCM** — Constant-time Fermat S-box (no lookup tables, zero side-channel risk)
@@ -71,7 +71,7 @@ The Cryptographic Primitives module provides a full post-quantum cryptographic s
 
 ---
 
-## TL-Sponge
+## TL-Sponge-385
 
 A cryptographic hash function using sponge construction over GF(3):
 
@@ -446,7 +446,7 @@ pub enum CryptoError {
 | File | Purpose |
 |------|---------|
 | `mod.rs` | Module exports, CryptoError, TernaryDigest |
-| `sponge.rs` | TL-Sponge (SHA-384/512/SHA3 equivalent) |
+| `sponge.rs` | TL-Sponge-385 (SHA-384/512/SHA3 equivalent) |
 | `cipher.rs` | AES-256-GCM with Fermat S-box |
 | `tl_kem.rs` | TL-KEM key encapsulation (FIPS 203) |
 | `tl_dsa.rs` | TL-DSA digital signatures (FIPS 204) |
