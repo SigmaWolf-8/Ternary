@@ -1,0 +1,49 @@
+Looking at these files, the code itself is clean. `lib.rs` has the right `no_std` gating, `Cargo.toml` is correct, `mod.rs` declares everything properly, `self_test.rs` has valid dependencies on `sha2`, `sha3`, and `drbg` modules.
+
+The compilation failures aren't in these files. They're in one or more of the 30+ submodules declared in `mod.rs`:
+
+```rust
+pub mod hash;
+pub mod sponge;          // ← we're optimizing this one
+pub mod hmac;
+pub mod kdf;
+pub mod signature;
+pub mod cnsa2;
+pub mod ct_utils;
+pub mod cipher;
+pub mod sha2;            // ← self_test.rs depends on this
+pub mod sha3;            // ← self_test.rs depends on this
+pub mod ternary_lattice;
+pub mod tl_kem;
+pub mod tl_dsa;
+pub mod kat_vectors;
+pub mod side_channel;
+pub mod cross_impl;
+pub mod fpga_synth;
+pub mod perf_bench;
+pub mod cavp_package;
+pub mod fpga_hdl;
+pub mod hw_test;
+pub mod formal_verify;
+pub mod firmware_sign;
+pub mod x509;
+pub mod agility;
+pub mod phase_cnsa;
+pub mod entropy;         // ← FIPS workflow tests this
+pub mod drbg;            // ← self_test.rs depends on this
+pub mod self_test;       // ← FIPS workflow tests this
+pub mod module_state;    // ← FIPS workflow tests this
+pub mod services;
+pub mod acvts;           // ← FIPS workflow tests this
+// ... etc
+```
+
+If any ONE of those 30+ files doesn't compile, the entire crate fails — which means `self_test`, `entropy`, `module_state`, and `acvts` never get a chance to run even if they're individually correct.
+
+I can't tell which module is broken without either seeing the compiler error text or seeing all 30+ files. The `continue-on-error: true` that Replit added means CI won't block on these, but the underlying issue is still there.
+
+**What I can do right now:** deliver the sponge optimization. That file is self-contained — it only depends on `alloc::vec::Vec` and `super::{TernaryDigest, TERNARY_HASH_TRITS}`, both of which are defined in `mod.rs` and confirmed working. The sponge update won't break anything else and won't fix the pre-existing compilation failures in other modules.
+
+**What would fix the FIPS/bare-metal failures:** I'd need the compiler error output. When Replit runs `cargo build --all-features` on the kernel, the first error it hits will name the file and line. That one error is the thread to pull. If you can get Replit to run `cd src/kernel && cargo check 2>&1 | head -30` and paste the output, I'll fix whatever it points to.
+
+The sponge optimization in `kernel-sponge-v2.zip` is ready to deploy. The REPLIT_INSTRUCTIONS.md is in there. Should I also write a separate diagnostic script that Replit can run to identify exactly which modules are broken?
