@@ -1,6 +1,6 @@
 ---
 name: plenumnet-repo-guide
-description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 1,252+ commits, 80/80 milestones). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure, quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, TIS-27 sponge key derivation, 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
+description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 1,252+ commits, 80/80 milestones). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure, quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, kernel sponge (729-trit, 9 rounds, 385-bit PQ security) for key derivation and signing, TIS-27 wire integrity sponge (54-trit, 4 rounds, 43-bit), TIS-81 benchmark variant (243-trit, 4 rounds, 257-bit), 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
 ---
 
 # PlenumNET Repository — Complete A-Z Guide
@@ -22,7 +22,8 @@ Every component in PlenumNET derives from ternary geometry. The geometry is not 
 
 - **Routing** = Hamming distance in a 13D ternary hypercube (trit flips)
 - **Addressing** = 27-trit coordinates in a 27D ontological space
-- **Key derivation** = TIS-27 sponge hash of topological adjacency (54-trit GF(3), rate=27, rounds=4, stride=13, 7-neighbor extended theta at ±1/±7/±13)
+- **Key derivation** = Kernel cryptographic sponge (729-trit balanced ternary, rate=243, capacity=486, 9 rounds, 7-neighbor extended theta at ±1/±7/±13, 385-bit PQ security)
+- **Wire integrity** = TIS-27 non-cryptographic sponge (54-trit GF(3), rate=27, 4 rounds, stride=13, 7-neighbor extended theta at ±1/±7/±13, 43-bit integrity)
 - **Forgery detection** = Rep C zero-exclusion property (structural, not bolted on)
 - **Calendar** = 13 × 28 = 364 = 111111₃ (base-3 repunit)
 - **Timing** = Femtosecond precision bound to HPTP-mandatory addresses
@@ -436,20 +437,23 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 
 ### 2.4 TIS-27 Identity Sponge (server-side)
 
+TIS-27 is a fast **non-cryptographic** integrity function for wire packet integrity and scan hashing on already-authenticated channels. It is NOT a cryptographic hash — security-critical operations (key derivation, signing, TDNS registration identity binding) use the kernel cryptographic sponge (Section 6.7).
+
 The sponge parameters are derived from TDNS architecture — not chosen arbitrarily:
 
 | Parameter | Value | Why |
 |-----------|-------|-----|
 | State | 54 trits | Full TDNS address width (27 classification + 27 identity) |
 | Rate | 27 trits | Identity anchor width = classification width |
-| Capacity | 27 trits | Classification layer width |
-| Rounds | 27 | One per output trit |
+| Capacity | 27 trits (~43 bits) | Classification layer width |
+| Rounds | 4 | Sufficient for non-cryptographic integrity; full diffusion in 2 rounds |
 | Stride | 13 | gcd(13,54)=1 — complete permutation cycle; 13=T₇=111₃=1 rad (see INVARIANT 10) |
-| Round constants | 27 GF(3) values | [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0] |
+| Theta | 7-neighbor extended | Offsets ±1/±7/±13 — all coprime to 54; balanced_wrap for GF(3) nonlinearity |
+| Speed | ~303 ns/hash | 1.56× faster than SHA-256 |
 
-Operations: `tisTheta` (neighbor diffusion), `tisPi` (stride-13 permutation), round constant addition. All arithmetic in GF(3) = {0,1,2}. Output lifted to Rep C {1,2,3}. No SHA-256. No BLAKE3. No binary hash primitives.
+Operations: `tisTheta` (7-neighbor diffusion at ±1/±7/±13), `tisPi` (stride-13 permutation), round constant addition. All arithmetic in GF(3) = {0,1,2}. Output lifted to Rep C {1,2,3}. No SHA-256. No BLAKE3. No binary hash primitives.
 
-Source: `server/routes/tdns.ts` (lines 39–97), mirrors `services/tdns-v2/src/identity.rs`
+Source: `ternary-math/src/tis_sponge.rs` (290 LOC), `shared/tis-sponge.ts` (77 LOC), `server/routes/tdns.ts` (lines 39–97)
 
 ### 2.5 5 GF(3) Composite Scores
 
@@ -529,7 +533,7 @@ Org entities allow grouping multiple .plm registrations under a single organizat
 | `trn.rs` | TRN (Ternary Resource Name) records |
 | `fts.rs` | FTS (Fault Tolerance Service) — heartbeat, suspect/dead/recovered |
 | `glb.rs` | GLB (Geometric Load Balancer) — point/multicast forwarding, redirect, dead set |
-| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, TIS-27 sponge keys, rekey |
+| `overlay.rs` | CON (Cube Overlay Network) — PQ-encrypted tunnels, kernel-sponge-derived keys, rekey |
 | `subcube.rs` | SubCube multicast addressing, wildcard |
 | `routing.rs` | NeighborMap, greedy geometric routing |
 | `bridge.rs` | Metatronic Bridge — .plm→TDNS / legacy DNS resolution |
@@ -581,7 +585,7 @@ Combined: 4,187 lines Rust, 57 tests, 4-node Docker deployment, 11 HTTP endpoint
 
 **CON — Cube Overlay Network** (`overlay.rs`)
 - PQ-encrypted tunnels between adjacent nodes
-- **Keys derived from topology**: TIS-27 sponge of (min_addr, max_addr, shared_secret) with context `PlenumNET-CON-v2.5`
+- **Keys derived from topology**: Kernel sponge of (min_addr, max_addr, shared_secret) with context `PlenumNET-CON-v2.5`
 - Key rotation: `rekey_all()` increments epoch, re-derives all link keys
 - Traffic accounting: bytes sent/received per link
 - Link state: Active / Down / Rekeying
@@ -734,7 +738,8 @@ Source: `server/crypto-utils.ts`
 | **TL-DSA** (Ternary Lattice DSA) | Digital signatures | 44 / 65 / 87 |
 | **TL-KEM** | Key encapsulation | 512 / 768 / 1024 |
 | **Phase Encryption** | Data encryption | 4 modes |
-| **TIS-27 sponge** | Hashing, key derivation, integrity (replaced BLAKE3) | — |
+| **Kernel sponge** | Key derivation, signing, identity binding (729-trit, 9 rounds) | 385-bit PQ (243-trit capacity) |
+| **TIS-27 sponge** | Wire integrity, scan hashing — NOT cryptographic (54-trit, 4 rounds) | 43-bit integrity only |
 | **RSA-4096** | Classical signatures (dual-sig with TL-DSA) | — |
 | **AES-256-GCM** | Token encryption at rest | — |
 
@@ -749,13 +754,13 @@ Eight bugs fixed in `tl_dsa.rs` and `ternary_lattice.rs`: broken `sample_challen
 
 ### 6.5 Topology-Derived Cryptography (CON)
 
-Each edge in the hypercube gets a unique TIS-27 sponge-derived tunnel key:
+Each edge in the hypercube gets a unique kernel-sponge-derived tunnel key:
 
 ```
 derive_key(context="PlenumNET-CON-v2.5", material=[addr_a ++ addr_b ++ shared_secret]) → 32 bytes
 ```
 
-The TIS-27 sponge (54-trit state, rate=27, rounds=4, stride=13, 7-neighbor extended theta at ±1/±7/±13) operates entirely in GF(3) — no binary hash primitives. 258 ns per hash (1.56× faster than SHA-256), 60% avalanche, 104.7 MB/s. The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
+Security-critical tunnel key derivation uses the **kernel cryptographic sponge** (729-trit, 9 rounds, 385-bit PQ security — see Section 6.7). TIS-27 is used only for wire packet integrity on already-authenticated channels. The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
 
 ### 6.6 6-Phase Capability-Based Security
 
@@ -772,11 +777,64 @@ Authorization uses unforgeable, self-contained, bearer-verified capability token
 
 Source: `server/services/capability-service.ts`, `capability-certificates.ts`, `capability-hardware-binding.ts`, `capability-mesh.ts`, `capability-audit-events.ts`
 
-### 6.7 CNSA 2.0 Compliance
+### 6.7 Kernel Cryptographic Sponge (Post-Quantum)
+
+The kernel sponge is the primary cryptographic primitive for signing, key derivation, identity binding, TDNS registration, and FIPS validation. It operates in balanced ternary {-1, 0, +1} (Rep A), distinct from TIS-27's unsigned GF(3) {0, 1, 2}.
+
+| Parameter | Value | Derivation |
+|-----------|-------|------------|
+| State | 729 trits (3⁶) | Ternary cube dimension alignment |
+| Rate | 243 trits (3⁵) | Absorption width |
+| Capacity | 486 trits (~770 bits) | 729 − 243; determines security level |
+| Rounds | 9 (3²) | 3× safety margin over 3-round full diffusion threshold |
+| Permutation (π) | π(i) = (376·i + 1) mod 729 | Affine permutation — full-cycle guaranteed |
+| Theta | 7-neighbor extended | Offsets ±1/±7/±13; all coprime to 729 |
+| Theta nonlinearity | `balanced_wrap(left + s[i] + right + 1)` | The `+1` constant ensures algebraic nonlinearity (trit rotation) |
+| Security | 243-trit preimage = 385.4 bits | 243 × log₂(3) ≈ 385.4 — exceeds SHA-384's 192 bits |
+
+The 7-neighbor theta computes:
+```
+left  = balanced_wrap(s[i-13] + s[i-7] + s[i-1])
+right = balanced_wrap(s[i+1] + s[i+7] + s[i+13])
+out[i] = balanced_wrap(left + s[i] + right + 1)
+```
+
+The extended theta was previously 3-neighbor (±1 only). The v2 upgrade to 7 neighbors at ±1/±7/±13 enables full diffusion in 3 rounds (verified), allowing the round count reduction from 27 to 9 while maintaining a 3× safety margin.
+
+Source: `src/kernel/src/crypto/sponge.rs`
+
+### 6.8 TIS-81 — High-Security Integrity Variant (Benchmark Only)
+
+TIS-81 is a higher-capacity variant of the TIS sponge family, positioned between TIS-27 (fast integrity) and the kernel sponge (full PQ crypto). It exists in benchmarks only — NOT deployed as a separate runtime module.
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| State | 243 trits (3⁵) | 4.5× TIS-27 |
+| Rate | 81 trits (3⁴) | 3× TIS-27 |
+| Capacity | 162 trits (~257 bits) | Post-quantum secure (exceeds 128-bit PQ threshold) |
+| Rounds | 4 | Same as TIS-27 |
+| Stride | 13 | gcd(13,243)=1 — complete cycle |
+| Theta | 7-neighbor extended | Same ±1/±7/±13 offsets as kernel and TIS-27 |
+
+Decision: TIS-81 was evaluated but deliberately NOT deployed as a separate runtime path. The kernel sponge (385-bit) covers all security-critical operations, and TIS-27 (43-bit) covers all wire integrity needs. TIS-81 exists for benchmark comparisons against SHA3-256.
+
+Source: `benchmarks/rust-bench/src/tis_sponge.rs`, `benchmarks/c-bench/tis81_simd.c`
+
+### 6.9 Sponge Family Summary
+
+| Variant | State | Rate | Capacity | Rounds | Security | Role |
+|---------|-------|------|----------|--------|----------|------|
+| **TIS-27** | 54 | 27 | 27 (~43 bit) | 4 | Integrity only | Wire packets, scan hashing |
+| **TIS-81** | 243 | 81 | 162 (~257 bit) | 4 | PQ-secure | Benchmark only (not deployed) |
+| **Kernel** | 729 | 243 | 486 (~385 bit) | 9 | Full PQ | Signing, key derivation, identity |
+
+All three share the same 7-neighbor extended theta at ±1/±7/±13 and stride=13 permutation (adapted to state width). The theta function is the unifying design element across the family.
+
+### 6.10 CNSA 2.0 Compliance
 
 11/11 algorithms implemented. AES-256, SHA-384/512, ML-KEM ×3 (via TL-KEM), ML-DSA ×3 (via TL-DSA), LMS (Ternary Lamport OTS), XMSS (partial — Merkle tree planned 2029). CMVP target: FIPS 140-3 Level 1. Compliance page: `client/src/pages/compliance.tsx`
 
-### 6.8 ZK Proof Layer (SignHere)
+### 6.11 ZK Proof Layer (SignHere)
 
 Groth16-structured proofs (pi_a, pi_b, pi_c) with commitments and nullifiers from document hashes, tenant IDs, signer counts, HPTP timestamps. Source: `sign-here/server/services/zk.ts`
 
@@ -1004,7 +1062,7 @@ Benchmarks (`benchmarks/`): `crt_bench.c` (261 LOC — raw throughput), `crt_ben
 
 **libternary/** — Core ternary Rust lib, `cdylib` + WASM (`wasm-bindgen`). TritVec with Rep A/B/C conversions.
 **libternary-improvements/** — Enhancement staging area.
-**ternary-math/** — standalone crate, 12 modules: gf3, gf3_algebra (94 LOC — division-free GF(3) closed-form algebra, zero sponge code), tribonacci, borromean, clifford, torus, ternary_circle, tis_sponge (290 LOC — SIMD GF(3) sponge, 7-neighbor extended theta at ±1/±7/±13, 4 rounds, 308 ns/hash), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC). TypeScript mirrors: `shared/gf3-algebra.ts` (77 LOC), `shared/tis-sponge.ts` (77 LOC).
+**ternary-math/** — standalone crate, 12 modules: gf3, gf3_algebra (94 LOC — division-free GF(3) closed-form algebra, zero sponge code), tribonacci, borromean, clifford, torus, ternary_circle, tis_sponge (290 LOC — TIS-27: 54-trit, 4 rounds, 7-neighbor extended theta at ±1/±7/±13, ~303 ns/hash; also defines TIS-81 parameters: 243-trit, 4 rounds, benchmark only), radix, constants, repunit_checksum (200 LOC), repunit_circles (132 LOC). Plus integration tests (210 LOC). TypeScript mirrors: `shared/gf3-algebra.ts` (77 LOC), `shared/tis-sponge.ts` (77 LOC).
 
 **benchmarks/** — comprehensive benchmark suite:
 - `c-bench/pipeline_v2.c` (192 LOC): TIS-27 vs SHA-256 honest pipeline — raw input → routable address
