@@ -34,6 +34,11 @@ import {
   Clock,
   Settings,
   KeyRound,
+  ShieldCheck,
+  Fingerprint,
+  ArrowRightLeft,
+  Calendar,
+  MapPin,
 } from "lucide-react";
 
 const tutorials = [
@@ -164,6 +169,51 @@ const modules = [
     icon: Binary,
     file: "modules/13_BTG.md",
   },
+  {
+    id: "13b",
+    title: "Calendar Synchronization",
+    description: "42 global calendar systems synchronized through Julian Day Number intermediary. 13-month x 28-day Salvi calendar, 364-degree circle, epoch alignment, and leap-day rules.",
+    priority: "P2",
+    tests: "~42",
+    icon: Calendar,
+    file: "modules/13_CALENDAR_SYNCHRONIZATION.md",
+  },
+  {
+    id: "14",
+    title: "CNSA 2.0 Compliance",
+    description: "NSA CNSA 2.0 algorithm suite mapping, quantum-resistant key sizes, compliance verification, and audit reporting.",
+    priority: "P1",
+    tests: "~50",
+    icon: ShieldCheck,
+    file: "modules/14_CNSA2_COMPLIANCE.md",
+  },
+  {
+    id: "15",
+    title: "FIPS 140-3 Boundary",
+    description: "Cryptographic module boundary definition, approved algorithms, self-tests, key management, and entropy requirements.",
+    priority: "P1",
+    tests: "~45",
+    icon: Fingerprint,
+    file: "modules/15_FIPS_BOUNDARY.md",
+  },
+  {
+    id: "16",
+    title: "Migration Guide",
+    description: "Step-by-step migration from binary systems to ternary, compatibility layers, data conversion, and rollback procedures.",
+    priority: "P2",
+    tests: "~30",
+    icon: ArrowRightLeft,
+    file: "modules/16_MIGRATION_GUIDE.md",
+  },
+  {
+    id: "TDNS",
+    title: "TDNS v2.3.3 Specification",
+    description: "27-dimensional ontological addressing with 28th Collision Resolution Digit. First-principle derivation engine, confidence vectors, CryptoHash abstraction, SQLite persistence, browser extension, and strategic roadmap.",
+    priority: "P1",
+    tests: "~178",
+    icon: MapPin,
+    file: "specs/TDNS-v2.3-SPECIFICATION.md",
+  },
 ];
 
 function PriorityBadge({ priority }: { priority: string }) {
@@ -179,12 +229,12 @@ export default function Docs() {
           <h2 className="text-2xl font-bold mb-2" data-testid="text-overview-title">Documentation</h2>
           <p className="text-muted-foreground max-w-2xl">
             Comprehensive guides covering every module of the Salvi Framework. 
-            7,316 lines across 15 files — from getting started with your first ternary program to advanced kernel internals, network topology, and regulatory compliance.
+            From getting started with your first ternary program to advanced kernel internals, network topology, TDNS addressing, and regulatory compliance.
           </p>
           <div className="flex flex-wrap gap-4 mt-4">
-            <Badge variant="outline">1,040 Tests Passing</Badge>
+            <Badge variant="outline">2,276 Tests Passing</Badge>
             <Badge variant="outline">80/80 Roadmap Complete</Badge>
-            <Badge variant="outline">13 Module Guides</Badge>
+            <Badge variant="outline">18 Module Guides</Badge>
             <Badge variant="outline">1 Tutorial</Badge>
           </div>
         </div>
