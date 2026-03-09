@@ -77,6 +77,10 @@ harness = false
 name = "sponge_bench"
 harness = false
 
+[[bench]]
+name = "tldsa_bench"
+harness = false
+
 [profile.bench]
 opt-level = 3
 debug = false
