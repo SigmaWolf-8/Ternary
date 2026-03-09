@@ -162,7 +162,7 @@ const MODULES: Module[] = [
   },
   {
     id: "sponge",
-    name: "Kernel Sponge (385-bit PQ)",
+    name: "TL-Sponge (385-bit PQ)",
     version: "v2.0",
     desc: "Keccak-inspired sponge in balanced ternary. 729 state, 9 rounds, 7-neighbor extended theta. 385-bit post-quantum preimage security.",
     category: "crypto",

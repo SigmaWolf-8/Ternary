@@ -6,7 +6,7 @@
 
 import type { Express } from "express";
 import { z } from "zod";
-import { spongeHash, SPONGE_HASH_BYTES, SPONGE_HASH_TRITS, SPONGE_SECURITY_BITS, SPONGE_OID, SPONGE_ALGORITHM_NAME } from '../crypto/sponge-hash';
+import { spongeHash, TL_SPONGE_HASH_BYTES, TL_SPONGE_HASH_TRITS, TL_SPONGE_SECURITY_BITS, TL_SPONGE_OID, TL_SPONGE_ALGORITHM_NAME } from '../crypto/sponge-hash';
 import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
@@ -1004,7 +1004,7 @@ export function registerSalviRoutes(app: Express): void {
           error: "Provide file bytes (raw body), JSON { data: 'base64-encoded' }, or a text string",
           endpoints: {
             hash: "POST /api/salvi/crypto/hash",
-            timestamp: "POST /api/tsa/timestamp/json — pass the returned hash + algorithm: 'sponge-385'",
+            timestamp: "POST /api/tsa/timestamp/json — pass the returned hash + algorithm: 'tl-sponge'",
           },
         });
       }
@@ -1020,16 +1020,16 @@ export function registerSalviRoutes(app: Express): void {
 
       res.json({
         success: true,
-        algorithm: SPONGE_ALGORITHM_NAME,
-        oid: SPONGE_OID,
+        algorithm: TL_SPONGE_ALGORITHM_NAME,
+        oid: TL_SPONGE_OID,
         hash,
-        bytes: SPONGE_HASH_BYTES,
-        trits: SPONGE_HASH_TRITS,
-        security: `${SPONGE_SECURITY_BITS}-bit post-quantum`,
+        bytes: TL_SPONGE_HASH_BYTES,
+        trits: TL_SPONGE_HASH_TRITS,
+        security: `${TL_SPONGE_SECURITY_BITS}-bit post-quantum`,
         inputSize: inputBuffer.length,
-        construction: "729-trit sponge (3⁶ state, 243-trit rate, 9 rounds, 7-neighbor theta)",
+        construction: "TL-Sponge-385 (729-trit state, 243-trit rate, 9 rounds, 7-neighbor theta)",
         usage: {
-          timestamp: "POST /api/tsa/timestamp/json with { hash: '<this hash>', algorithm: 'sponge-385' }",
+          timestamp: "POST /api/tsa/timestamp/json with { hash: '<this hash>', algorithm: 'tl-sponge' }",
           verify: "POST /api/tsa/verify with the returned token",
         },
       });

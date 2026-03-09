@@ -42,10 +42,10 @@ Five modules provide classical simulation of quantum ternary (qutrit/qudit) oper
 This system orchestrates 28 specialist AI agents for parallel query analysis, featuring an Etymology Audit, Veritas Fact-Check, unified Situation Report generation, and Lexical Protocol enforcement.
 
 ### RFC 3161 Time-Stamping Authority (TSA)
-A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161. It features four TSA policies, a Merkle tamper-evident audit log (Sponge-385 hashed), dual-signature (RSA-4096 + TL-DSA-87), HPTP timing integration, and ASN.1 wire protocol. The `plenum-stamp` CLI tool allows signing and verifying files. Sponge-385 (OID `1.3.6.1.4.1.0.100.3.1`) is registered as a native hash algorithm for TSA timestamp requests.
+A digital notary service providing cryptographic proof-of-existence timestamps per RFC 3161. It features four TSA policies, a Merkle tamper-evident audit log (TL-Sponge hashed), dual-signature (RSA-4096 + TL-DSA-87), HPTP timing integration, and ASN.1 wire protocol. The `plenum-stamp` CLI tool allows signing and verifying files. TL-Sponge (OID `1.3.6.1.4.1.0.100.3.1`) is registered as a native hash algorithm for TSA timestamp requests.
 
-### Sponge-385 Document Hashing
-TypeScript port of the 729-trit kernel cryptographic sponge (`server/crypto/sponge-hash.ts`). Parameters: STATE=729, RATE=243, CAPACITY=486, ROUNDS=9, 7-neighbor theta, scatter pi. Output: 49 bytes (98 hex chars, 243 trits), 385-bit PQ security. Exposed via `POST /api/salvi/crypto/hash` (accepts JSON base64 or raw binary). Integration instructions in `SIGNHERE-INTEGRATION.md`.
+### TL-Sponge Document Hashing
+TypeScript port of the 729-trit kernel cryptographic sponge (`server/crypto/sponge-hash.ts`). Parameters: STATE=729, RATE=243, CAPACITY=486, ROUNDS=9, 7-neighbor theta, scatter pi. Output: 49 bytes (98 hex chars, 243 trits), 385-bit PQ security (TL-Sponge-385). Exposed via `POST /api/salvi/crypto/hash` (accepts JSON base64 or raw binary). Integration instructions in `SIGNHERE-INTEGRATION.md`.
 
 ### Hedera HCS Witnessing
 Blockchain-based non-repudiation via Hedera Consensus Service. It submits cryptographic witness hashes to an HCS topic for immutable, ordered, timestamped proof of PlenumNET operations.

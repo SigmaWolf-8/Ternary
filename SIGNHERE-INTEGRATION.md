@@ -1,4 +1,4 @@
-# SignHere Integration Guide — Sponge-385 Document Hashing
+# SignHere Integration Guide — TL-Sponge Document Hashing
 
 **Version**: 1.0.0  
 **Date**: 2026-03-09  
@@ -6,7 +6,7 @@
 **Repository**: SigmaWolf-8/Ternary  
 
 This document provides actionable instructions for the SignHere team to integrate
-PlenumNET's Sponge-385 cryptographic hash into the e-signature workflow, replacing
+PlenumNET's TL-Sponge cryptographic hash into the e-signature workflow, replacing
 ML-DSA/SHA-based document hashing with the kernel sponge construction.
 
 ---
@@ -15,7 +15,8 @@ ML-DSA/SHA-based document hashing with the kernel sponge construction.
 
 | Component | Value |
 |---|---|
-| Algorithm | Sponge-385 (729-trit kernel sponge) |
+| Algorithm | TL-Sponge (729-trit kernel sponge) |
+| Security variant | TL-Sponge-385 |
 | OID | `1.3.6.1.4.1.0.100.3.1` |
 | State | 729 trits (3⁶) |
 | Rate | 243 trits (3⁵) |
@@ -54,20 +55,20 @@ Body: <raw file bytes>
 ```json
 {
   "success": true,
-  "algorithm": "sponge-385",
+  "algorithm": "tl-sponge",
   "oid": "1.3.6.1.4.1.0.100.3.1",
   "hash": "<98-character hex digest>",
   "bytes": 49,
   "trits": 243,
   "security": "385-bit post-quantum",
   "inputSize": 1234,
-  "construction": "729-trit sponge (3⁶ state, 243-trit rate, 9 rounds, 7-neighbor theta)"
+  "construction": "TL-Sponge-385 (729-trit state, 243-trit rate, 9 rounds, 7-neighbor theta)"
 }
 ```
 
 **Limits**: 10 MB max input size. Rate limited.
 
-### 2.2 TSA Timestamping (with Sponge-385)
+### 2.2 TSA Timestamping (with TL-Sponge)
 
 ```
 POST /api/tsa/timestamp/json
@@ -77,11 +78,11 @@ POST /api/tsa/timestamp/json
 ```json
 {
   "hash": "<98-char hex digest from /api/salvi/crypto/hash>",
-  "algorithm": "sponge-385"
+  "algorithm": "tl-sponge"
 }
 ```
 
-**Response**: RFC 3161 timestamp token with the sponge-385 hash embedded.
+**Response**: RFC 3161 timestamp token with the TL-Sponge hash embedded.
 
 ### 2.3 Timestamp Verification
 
@@ -134,7 +135,7 @@ Store the returned `hash` value (98 hex characters).
 ```bash
 curl -X POST https://plenumnet.replit.app/api/tsa/timestamp/json \
   -H "Content-Type: application/json" \
-  -d '{"hash":"<hash-from-step-1>","algorithm":"sponge-385"}'
+  -d '{"hash":"<hash-from-step-1>","algorithm":"tl-sponge"}'
 ```
 
 Store the returned timestamp token for audit and verification.
@@ -157,25 +158,42 @@ curl -X POST https://plenumnet.replit.app/api/hedera/v1/witness \
 
 ---
 
-## 4. Key Differences from Previous Integration
+## 4. Salvi Framework Crypto Naming Convention
+
+All ternary-native cryptographic primitives use the `TL-` prefix (Ternary Lattice):
+
+| Algorithm | Type | Role | Security variant |
+|---|---|---|---|
+| **TL-DSA** | Signature | Post-quantum digital signatures | TL-DSA-44 / -65 / -87 |
+| **TL-KEM** | Key encapsulation | Post-quantum key exchange | TL-KEM-512 / -768 / -1024 |
+| **TL-Sponge** | Cryptographic hash | Document hashing, identity binding, Merkle trees | TL-Sponge-385 |
+| **TIS-27** | Integrity (non-crypto) | Wire packet checksums only | N/A |
+
+**TIS-27 is NOT a cryptographic hash.** It is a fast integrity function for
+authenticated channels. Never use TIS-27 for document hashing, signing, or
+identity binding.
+
+---
+
+## 5. Key Differences from Previous Integration
 
 | Aspect | Before | After |
 |---|---|---|
-| Hash algorithm | SHA-256 or SHA3-256 | Sponge-385 |
+| Hash algorithm | SHA-256 or SHA3-256 | TL-Sponge |
 | Hash length | 32 bytes (64 hex) | 49 bytes (98 hex) |
 | OID | `2.16.840.1.101.3.4.2.1` | `1.3.6.1.4.1.0.100.3.1` |
 | Security level | 128-bit classical | 385-bit post-quantum |
 | Signing endpoint | `/api/salvi/crypto/ml-dsa` (removed) | `/api/pqti/tldsa/sign` |
 | Witness endpoint | `/api/salvi/witness/sign` (removed) | `/api/hedera/v1/witness` |
-| TSA algorithm param | `"sha256"` or `"sha3-256"` | `"sponge-385"` |
-| Merkle audit log | SHA3-256 internally | Sponge-385 internally |
+| TSA algorithm param | `"sha256"` or `"sha3-256"` | `"tl-sponge"` |
+| Merkle audit log | SHA3-256 internally | TL-Sponge internally |
 
 ---
 
-## 5. Verification Checklist
+## 6. Verification Checklist
 
 - [ ] Document hash returns exactly 98 hex characters
-- [ ] TSA accepts `algorithm: "sponge-385"` without error
+- [ ] TSA accepts `algorithm: "tl-sponge"` without error
 - [ ] Same document always produces the same hash (deterministic)
 - [ ] Timestamp tokens verify successfully via `/api/tsa/verify`
 - [ ] TL-DSA signatures are produced at `/api/pqti/tldsa/sign`
@@ -184,7 +202,7 @@ curl -X POST https://plenumnet.replit.app/api/hedera/v1/witness \
 
 ---
 
-## 6. Error Handling
+## 7. Error Handling
 
 | HTTP Status | Meaning |
 |---|---|
@@ -197,6 +215,6 @@ All error responses include `{ "success": false, "error": "<message>" }`.
 
 ---
 
-## 7. Contact
+## 8. Contact
 
 For integration support, reach out to RSalvi@Salvigroup.com.

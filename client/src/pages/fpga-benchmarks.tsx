@@ -287,7 +287,7 @@ const moduleBreakdown: ModuleBreakdown[] = [
   { module: "tl_kem", luts: 2688, ffs: 2048, bram: 6, dsp: 4, description: "TL-KEM (ternary lattice KEM) — GF(3) polynomial NTT, encapsulation" },
   { module: "tl_dsa", luts: 1536, ffs: 1024, bram: 2, dsp: 2, description: "TL-DSA (ternary lattice DSA) — sign/verify with Fiat-Shamir" },
   { module: "lamport_sig", luts: 896, ffs: 512, bram: 2, dsp: 0, description: "Lamport one-time signature — sponge hash chains, key generation" },
-  { module: "sponge_hash", luts: 768, ffs: 512, bram: 0, dsp: 0, description: "Ternary sponge hash — 729-trit state, Keccak-f permutation analog" },
+  { module: "sponge_hash", luts: 768, ffs: 512, bram: 0, dsp: 0, description: "TL-Sponge — 729-trit state, Keccak-f permutation analog" },
   { module: "hptp_timer", luts: 384, ffs: 256, bram: 0, dsp: 2, description: "HPTP femtosecond timer — free-running counter, jitter correction" },
   { module: "scheduler", luts: 512, ffs: 384, bram: 0, dsp: 0, description: "Process scheduler — ticket spinlocks, priority encoder, context FSM" },
   { module: "cap_security", luts: 448, ffs: 320, bram: 1, dsp: 0, description: "Capability-based access control — domain manager, audit logger" },
@@ -469,7 +469,7 @@ function SynthesisCard({ target }: { target: SynthesisTarget }) {
    ├── tl_kem            (ternary lattice KEM)
    ├── tl_dsa            (ternary lattice DSA)
    ├── lamport_sig       (Lamport signatures)
-   ├── sponge_hash       (ternary sponge hash)
+   ├── sponge_hash       (TL-Sponge)
    ├── hptp_timer        (femtosecond timer)
    ├── scheduler         (process scheduler)
    ├── cap_security      (capability security)

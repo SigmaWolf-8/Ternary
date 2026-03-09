@@ -3,7 +3,7 @@
  * Patent(s) Pending — All Rights Reserved
  * Applied Physics Division
  *
- * SPONGE-385 — TypeScript port of the kernel cryptographic sponge.
+ * TL-SPONGE — TypeScript port of the kernel cryptographic sponge.
  * @version 1.0.0
  *
  * Repository: SigmaWolf-8/Ternary
@@ -164,9 +164,9 @@ export function spongeHashTrits(input: Buffer | Uint8Array): Int8Array {
   return spongeAbsorbAndSqueeze(inputTrits, 243);
 }
 
-export const SPONGE_HASH_BYTES = 49;
-export const SPONGE_HASH_HEX_LEN = 98;
-export const SPONGE_HASH_TRITS = 243;
-export const SPONGE_SECURITY_BITS = 385;
-export const SPONGE_OID = '1.3.6.1.4.1.0.100.3.1';
-export const SPONGE_ALGORITHM_NAME = 'sponge-385';
+export const TL_SPONGE_HASH_BYTES = 49;
+export const TL_SPONGE_HASH_HEX_LEN = 98;
+export const TL_SPONGE_HASH_TRITS = 243;
+export const TL_SPONGE_SECURITY_BITS = 385;
+export const TL_SPONGE_OID = '1.3.6.1.4.1.0.100.3.1';
+export const TL_SPONGE_ALGORITHM_NAME = 'tl-sponge';
