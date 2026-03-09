@@ -39,7 +39,7 @@ const log = createLogger("tdns");
 
 const TIS_STATE  = 54;
 const TIS_RATE   = 27;
-const TIS_ROUNDS = 27;
+const TIS_ROUNDS = 9;  // 3² — 3× safety margin over 3-round full diffusion (7-neighbor theta)
 const TIS_RC: readonly number[] = [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0];
 
 function gf3Add(a: number, b: number): number { return (a + b) % 3; }
@@ -53,10 +53,15 @@ function tisByteToTrits(b: number): number[] {
 
 function tisTheta(s: Uint8Array): void {
   const t = new Uint8Array(TIS_STATE);
-  for (let i = 0; i < TIS_STATE; i++) {
-    const p = (i + TIS_STATE - 1) % TIS_STATE;
-    const n = (i + 1) % TIS_STATE;
-    t[i] = gf3Add(s[i], gf3Add(s[p], s[n]));
+  const W = TIS_STATE;
+  for (let i = 0; i < W; i++) {
+    let left = s[(i + W - 13) % W] + s[(i + W - 7) % W] + s[(i + W - 1) % W];
+    if (left >= 6) left -= 6; else if (left >= 3) left -= 3;
+    let right = s[(i + 1) % W] + s[(i + 7) % W] + s[(i + 13) % W];
+    if (right >= 6) right -= 6; else if (right >= 3) right -= 3;
+    let sum = left + s[i] + right;
+    if (sum >= 6) sum -= 6; else if (sum >= 3) sum -= 3;
+    t[i] = sum;
   }
   s.set(t);
 }
