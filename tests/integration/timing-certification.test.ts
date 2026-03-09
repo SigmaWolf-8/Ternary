@@ -1,10 +1,16 @@
 /**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
  * Timing Certification Integration Tests
- * 
+ *
  * Tests for femtosecond timing service and FINRA 613 compliance certification.
+ *
+ * FIX: Replaced @jest/globals with vitest — CI uses vitest, not Jest.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 
 const FEMTOSECOND_SERVICE_URL = process.env.FEMTOSECOND_SERVICE_URL || 'http://localhost:3006';
 const CERTIFICATION_SERVICE_URL = process.env.CERTIFICATION_SERVICE_URL || 'http://localhost:3007';

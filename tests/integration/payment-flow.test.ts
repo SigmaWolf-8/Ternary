@@ -1,11 +1,18 @@
 /**
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved
+ * Applied Physics Division
+ *
  * Payment Flow Integration Tests
- * 
+ *
  * End-to-end tests for the complete payment witnessing flow:
  * Webhook → SFK Core API → Hedera HCS → XRPL Settlement → Algorand Recording
+ *
+ * FIX: Replaced @jest/globals with vitest — CI uses vitest, not Jest.
+ *      beforeAll/afterAll removed (unused).
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 
 const PAYMENT_LISTENER_URL = process.env.PAYMENT_LISTENER_URL || 'http://localhost:3001';
 const SFK_CORE_API_URL = process.env.SFK_CORE_API_URL || 'http://localhost:3002';

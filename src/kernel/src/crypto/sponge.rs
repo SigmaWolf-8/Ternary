@@ -45,107 +45,194 @@ const SPONGE_LANES: usize = 27;        // round constant injection points
 //
 // Domain: {-1, 0, +1}.  All operations wrap modulo 3 in balanced form.
 // No lookup tables.  No integer division.  Conditional moves only.
+//
+// NOTE: trit_rotate and sbox are retained as first-principles building
+// blocks.  The hot path uses the algebraically collapsed form
+// (balanced_wrap) but these functions serve as the specification that
+// the collapsed form was derived from, and are exercised in tests.
 // ---------------------------------------------------------------------------
 
-/// Balanced ternary addition: (a + b) mod 3, mapped to {-1, 0, +1}.
-///
-/// Direct arithmetic: the raw sum `a + b` lies in [-2, +2].
-/// Values in {-1, 0, +1} are already valid.  The two overflow cases:
-///   -2  →  +1  (add 3)
-///   +2  →  -1  (subtract 3)
-///
-/// Compiles to: add, cmp, cmov, cmp, cmov — five instructions, zero division.
 #[inline(always)]
 fn trit_add(a: i8, b: i8) -> i8 {
     let s = a + b;
     if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
 }
 
-/// Cyclic rotation in {-1, 0, +1}: the map t ↦ t + 1 (mod 3).
-///   -1 → 0,  0 → +1,  +1 → -1
-///
-/// Single increment with wrap.  Compiles to: add, cmp, cmov.
+/// Cyclic trit rotation: -1 → 0, 0 → +1, +1 → -1.
+/// Three applications return to identity.
 #[inline(always)]
+#[cfg(test)]
 fn trit_rotate(t: i8) -> i8 {
     let r = t + 1;
     if r > 1 { -1 } else { r }
 }
 
-/// Three-input substitution box.
-/// sbox(a, b, c) = a ⊕ rotate(b) ⊕ c
-///
-/// Provides nonlinearity via the rotation on the middle input.
+/// Three-neighbor substitution box: sbox(a, b, c) = a ⊕₃ rotate(b) ⊕₃ c.
+/// Algebraically equivalent to balanced_wrap(a + b + c + 1) — see
+/// permutation comments for the derivation.
 #[inline(always)]
+#[cfg(test)]
 fn sbox(a: i8, b: i8, c: i8) -> i8 {
     trit_add(trit_add(a, trit_rotate(b)), c)
 }
 
-/// Balanced reduction of a non-negative integer to {-1, 0, +1}.
-/// Used only for round constant generation (27 calls per round,
-/// outside the 729-iteration hot loops).
-///
-/// The compiler replaces `% 3` on a compile-time-known divisor with
-/// a multiply-shift sequence — no actual integer division emitted.
-#[inline(always)]
-fn balanced_mod3(n: usize) -> i8 {
-    (n % 3) as i8 - 1
-}
+// ---------------------------------------------------------------------------
+// Compile-time precomputed tables
+// ---------------------------------------------------------------------------
+
+const PERM: [u16; SPONGE_STATE_SIZE] = {
+    let mut p = [0u16; SPONGE_STATE_SIZE];
+    let mut i = 0usize;
+    while i < SPONGE_STATE_SIZE {
+        p[i] = ((i * 376 + 1) % SPONGE_STATE_SIZE) as u16;
+        i += 1;
+    }
+    p
+};
+
+const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
+    let mut rc = [[0i8; SPONGE_LANES]; SPONGE_ROUNDS];
+    let mut r = 0usize;
+    while r < SPONGE_ROUNDS {
+        let mut lane = 0usize;
+        while lane < SPONGE_LANES {
+            let val = (r * 7 + lane * 13 + 3) % 3;
+            rc[r][lane] = val as i8 - 1;
+            lane += 1;
+        }
+        r += 1;
+    }
+    rc
+};
 
 // ---------------------------------------------------------------------------
 // Permutation
+//
+// Substitution uses GF(3) associativity to collapse four serial trit_add
+// calls into a single parallel integer sum followed by one balanced wrap.
+//
+//   sbox(a, b, c)  =  a ⊕₃ rotate(b) ⊕₃ c
+//                   =  a ⊕₃ (b ⊕₃ 1) ⊕₃ c
+//                   =  (a + b + c + 1) mod 3   [balanced form]
+//
+// The integer sum a+b+c+1 lies in [-2, 4].  Balanced mod-3 wrapping is a
+// single conditional: subtract 3 if ≥ 2, add 3 if ≤ -2.  No division,
+// no tables — purely first-principles modular arithmetic.
+//
+// On x86_64 with AVX2, the substitution processes 32 trits per cycle via
+// _mm256_add_epi8 + compare/blend — the same first-principles conditional
+// wrap, executed in parallel hardware lanes.
 // ---------------------------------------------------------------------------
 
-/// Core sponge permutation: 27 rounds of substitution + diffusion + constants.
-///
-/// Uses a single auxiliary buffer (stack-allocated, 729 bytes).
-/// The sbox layer reads `state` → writes `buf`.
-/// The diffusion layer reads `buf` → writes `state`.
-/// Round constants are injected into `state` in-place.
-/// Zero full-state copies. Zero heap allocation.
-fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
+#[inline(always)]
+fn balanced_wrap(s: i8) -> i8 {
+    if s >= 2 { s - 3 } else if s <= -2 { s + 3 } else { s }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    use core::arch::x86_64::*;
+
+    let mut ext = [0i8; SPONGE_STATE_SIZE + 2];
     let mut buf = [0i8; SPONGE_STATE_SIZE];
+    let last = SPONGE_STATE_SIZE - 1;
+
+    let v_one   = _mm256_set1_epi8(1);
+    let v_hi    = _mm256_set1_epi8(1);
+    let v_lo    = _mm256_set1_epi8(-1);
+    let v_three = _mm256_set1_epi8(3);
 
     for round in 0..SPONGE_ROUNDS {
-        // ── Substitution layer ──────────────────────────────────────
-        // Each trit: sbox(self, left_neighbor, right_neighbor)
-        // Reads from `state`, writes to `buf`.
+        // Wrap-around boundary: ext[0] = state[last], ext[N+1] = state[0]
+        ext[0] = state[last];
+        ext[1..SPONGE_STATE_SIZE + 1].copy_from_slice(state);
+        ext[SPONGE_STATE_SIZE + 1] = state[0];
 
-        // First element: left neighbor wraps to end
-        buf[0] = sbox(state[0], state[SPONGE_STATE_SIZE - 1], state[1]);
+        // SIMD substitution: 32 trits per iteration
+        let mut i = 0;
+        while i + 32 <= SPONGE_STATE_SIZE {
+            let left   = _mm256_loadu_si256(ext.as_ptr().add(i)     as *const __m256i);
+            let center = _mm256_loadu_si256(ext.as_ptr().add(i + 1) as *const __m256i);
+            let right  = _mm256_loadu_si256(ext.as_ptr().add(i + 2) as *const __m256i);
 
-        // Interior: no wrapping, no bounds overhead
-        for i in 1..(SPONGE_STATE_SIZE - 1) {
-            buf[i] = sbox(state[i], state[i - 1], state[i + 1]);
+            // (left + center + right + 1) — collapsed sbox
+            let sum = _mm256_add_epi8(
+                _mm256_add_epi8(_mm256_add_epi8(left, center), right),
+                v_one,
+            );
+
+            // Balanced wrap: subtract 3 if > 1, add 3 if < -1
+            let gt1    = _mm256_cmpgt_epi8(sum, v_hi);
+            let lt_neg = _mm256_cmpgt_epi8(v_lo, sum);
+            let sub3   = _mm256_sub_epi8(sum, v_three);
+            let add3   = _mm256_add_epi8(sum, v_three);
+
+            let result = _mm256_blendv_epi8(sum, sub3, gt1);
+            let result = _mm256_blendv_epi8(result, add3, lt_neg);
+
+            _mm256_storeu_si256(buf.as_mut_ptr().add(i) as *mut __m256i, result);
+            i += 32;
         }
 
-        // Last element: right neighbor wraps to start
-        buf[SPONGE_STATE_SIZE - 1] = sbox(
-            state[SPONGE_STATE_SIZE - 1],
-            state[SPONGE_STATE_SIZE - 2],
-            state[0],
-        );
+        // Scalar tail for remaining trits (729 % 32 = 25)
+        while i < SPONGE_STATE_SIZE {
+            let raw = ext[i] + ext[i + 1] + ext[i + 2] + 1;
+            buf[i] = balanced_wrap(raw);
+            i += 1;
+        }
 
-        // ── Diffusion layer ─────────────────────────────────────────
-        // Fixed permutation π(i) = (376·i + 1) mod 729.
-        // gcd(376, 729) = 1, so π is a full-period permutation.
-        // Reads from `buf`, writes to `state`.
-        //
-        // The `% 729` on a compile-time constant is optimized by LLVM
-        // into a multiply-shift — no runtime integer division.
+        // Diffusion: fixed permutation π(i) = (376·i + 1) mod 729
         for i in 0..SPONGE_STATE_SIZE {
-            let dest = (i * 376 + 1) % SPONGE_STATE_SIZE;
-            state[dest] = buf[i];
+            state[PERM[i] as usize] = buf[i];
         }
 
-        // ── Round constant injection ────────────────────────────────
-        // 27 constants per round at lane positions (every 27th trit).
-        // rc(round, lane) = ((7·round + 13·lane + 3) mod 3) - 1
+        // Round constant injection
+        let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
-            let rc = balanced_mod3(round * 7 + lane * 13 + 3);
-            state[idx] = trit_add(state[idx], rc);
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
         }
     }
+}
+
+fn sponge_permutation_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    let mut buf = [0i8; SPONGE_STATE_SIZE];
+    let last = SPONGE_STATE_SIZE - 1;
+
+    for round in 0..SPONGE_ROUNDS {
+        // Substitution with wrap-around boundary handling
+        buf[0] = balanced_wrap(state[last] + state[0] + state[1] + 1);
+
+        for i in 1..last {
+            buf[i] = balanced_wrap(state[i - 1] + state[i] + state[i + 1] + 1);
+        }
+
+        buf[last] = balanced_wrap(state[last - 1] + state[last] + state[0] + 1);
+
+        // Diffusion
+        for i in 0..SPONGE_STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+
+        // Round constant injection
+        let rc = &RC_TABLE[round];
+        for lane in 0..SPONGE_LANES {
+            let idx = lane * SPONGE_LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
+fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    #[cfg(all(target_arch = "x86_64", not(feature = "no_std")))]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { sponge_permutation_avx2(state); }
+            return;
+        }
+    }
+    sponge_permutation_scalar(state);
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +280,6 @@ impl TernarySponge {
             offset = fill;
 
             if self.buf_len == SPONGE_RATE {
-                // Buffer full — absorb it
                 for i in 0..SPONGE_RATE {
                     self.state[i] = trit_add(self.state[i], self.buf[i]);
                 }
@@ -350,7 +436,6 @@ mod tests {
 
     #[test]
     fn test_trit_add_inverse() {
-        // Every trit has an additive inverse
         for &t in &[-1i8, 0, 1] {
             assert_eq!(trit_add(t, -t), 0);
         }
@@ -377,6 +462,23 @@ mod tests {
         assert_eq!(sbox(0, 0, 0), 1);   // 0 + rotate(0) + 0 = 0 + 1 + 0 = 1
         assert_eq!(sbox(0, 1, 0), -1);  // 0 + rotate(1) + 0 = 0 + (-1) + 0 = -1
         assert_eq!(sbox(1, -1, -1), 0); // 1 + rotate(-1) + (-1) = 1 + 0 + (-1) = 0
+    }
+
+    #[test]
+    fn test_sbox_equals_collapsed_form() {
+        // Verify that sbox(a,b,c) == balanced_wrap(a + b + c + 1)
+        // This proves the hot-path optimization is algebraically equivalent
+        for &a in &[-1i8, 0, 1] {
+            for &b in &[-1i8, 0, 1] {
+                for &c in &[-1i8, 0, 1] {
+                    assert_eq!(
+                        sbox(a, b, c),
+                        balanced_wrap(a + b + c + 1),
+                        "Mismatch at sbox({}, {}, {})", a, b, c
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -498,7 +600,6 @@ mod tests {
 
     #[test]
     fn test_capacity_untouched_before_permutation() {
-        // Absorb XORs only into rate [0..243], never capacity [243..729]
         let mut state = [0i8; SPONGE_STATE_SIZE];
         let input = [1i8; SPONGE_RATE];
         for i in 0..SPONGE_RATE {
