@@ -41,8 +41,8 @@ import { useToast } from "@/hooks/use-toast";
 import { PLATFORM } from "@shared/constants";
 
 const GITHUB_REPO = "https://github.com/SigmaWolf-8/Ternary";
-const GITHUB_ARCHIVE = `${GITHUB_REPO}/archive/refs/heads/main.zip`;
-const GITHUB_RELEASE = `${GITHUB_REPO}/releases/latest`;
+const GITHUB_DOWNLOAD = `${GITHUB_REPO}/releases/download/v3.0.0/salvi-framework-v3.0.0.tar.gz`;
+const GITHUB_RELEASE = `${GITHUB_REPO}/releases/tag/v3.0.0`;
 
 interface Module {
   id: string;
@@ -474,9 +474,9 @@ export default function DistributionPage() {
 
             <div className="flex flex-wrap gap-3 mt-5">
               <Button asChild data-testid="button-download-archive">
-                <a href={GITHUB_ARCHIVE} download>
+                <a href={GITHUB_DOWNLOAD} download>
                   <Download className="w-4 h-4 mr-2" />
-                  Download .zip
+                  Download v3.0.0 (.tar.gz)
                 </a>
               </Button>
               <Button variant="outline" asChild data-testid="button-github-releases">
