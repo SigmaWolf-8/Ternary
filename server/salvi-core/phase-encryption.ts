@@ -222,7 +222,7 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
           success: false,
           phaseAlignment,
           timestampValidation,
-          guardianValidation: undefined,
+          guardianValidation: false,
           error: GENERIC_ERROR
         };
       }

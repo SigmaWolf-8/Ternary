@@ -4,6 +4,13 @@
  * Applied Physics Division
  *
  * Phase Encryption Round-Trip Tests
+ *
+ * FIXES:
+ *   1. Added high_security to ROUNDTRIP_MODES — synchronous test
+ *      environment has no real femtosecond timing constraints.
+ *   2. Guardian validation tests now assert result.success first,
+ *      ensuring guardianValidation is meaningful.
+ *   3. High-security timing test checks success + guardianValidation.
  */
 
 import { describe, it, expect } from "vitest";
@@ -73,22 +80,24 @@ describe("Phase Split", () => {
 describe("Phase Recombination (round-trip)", () => {
   const testData = "Round-trip test: Salvi Framework phase encryption";
 
-  const ROUNDTRIP_MODES: EncryptionMode[] = ["balanced", "performance", "adaptive"];
-
-  it.each(ROUNDTRIP_MODES)("round-trips correctly in '%s' mode", (mode) => {
+  it.each(MODES)("round-trips correctly in '%s' mode", (mode) => {
     const encrypted = phaseSplit(testData, mode);
     const result = phaseRecombine(encrypted);
     expect(result.success).toBe(true);
     expect(result.data).toBe(testData);
     expect(result.phaseAlignment).toBeGreaterThanOrEqual(0.99);
-    expect(result.timestampValidation).toBe(true);
+    if (mode !== "high_security") {
+      expect(result.timestampValidation).toBe(true);
+    }
   });
 
   it("high_security mode enforces 100fs timing tolerance", () => {
     const encrypted = phaseSplit(testData, "high_security");
     const result = phaseRecombine(encrypted);
+    expect(result.success).toBe(true);
     expect(result.phaseAlignment).toBeGreaterThanOrEqual(0.99);
     expect(typeof result.timestampValidation).toBe("boolean");
+    expect(result.guardianValidation).toBe(true);
   });
 
   it("preserves empty string", () => {
@@ -126,15 +135,18 @@ describe("Phase Recombination (round-trip)", () => {
     const encrypted = phaseSplit(testData, "high_security");
     expect(encrypted.guardianPhase).toBeDefined();
     const result = phaseRecombine(encrypted);
+    expect(result.success).toBe(true);
     expect(result.guardianValidation).toBe(true);
   });
 
   it("detects guardian tampering", () => {
     const encrypted = phaseSplit(testData, "high_security");
+    expect(encrypted.guardianPhase).toBeDefined();
     if (encrypted.guardianPhase) {
       encrypted.guardianPhase.hash = "tampered-hash-value";
     }
     const result = phaseRecombine(encrypted);
+    expect(result.success).toBe(false);
     expect(result.guardianValidation).toBe(false);
   });
 });

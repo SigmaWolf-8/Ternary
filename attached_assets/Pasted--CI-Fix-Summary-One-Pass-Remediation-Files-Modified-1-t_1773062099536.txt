@@ -1,0 +1,68 @@
+# CI Fix Summary — One-Pass Remediation
+
+## Files Modified
+
+### 1. `tests/integration/payment-flow.test.ts`
+**Problem:** Imports `@jest/globals` but CI runs vitest.
+**Fix:** Changed import to `import { describe, it, expect } from 'vitest'`.
+Removed unused `beforeAll`/`afterAll` imports (they were imported but never called).
+
+**Drop-in path:** `tests/integration/payment-flow.test.ts`
+
+---
+
+### 2. `tests/phase-encryption.test.ts`
+**Problem:** `guardianValidation` assertions fail; high_security excluded from round-trip coverage.
+**Fixes:**
+- Added `high_security` to round-trip mode list (synchronous test environment has no real femtosecond timing constraints — round-trip must pass).
+- Added `expect(result.success).toBe(true)` **before** `guardianValidation` checks in both the timing tolerance test and the guardian integrity test. Without this, a failed round-trip produces undefined `guardianValidation` which falsely reports as an assertion failure on the wrong field.
+- Added `expect(encrypted.guardianPhase).toBeDefined()` guard in the tampering test.
+- Added `test_sbox_equals_collapsed_form` — exhaustive 27-case proof that `sbox(a,b,c) == balanced_wrap(a+b+c+1)`.
+
+**Drop-in path:** `tests/phase-encryption.test.ts`
+
+---
+
+### 3. `src/kernel/src/crypto/sponge.rs`
+**Problem:** Dead code warnings (`sbox`, `trit_rotate`, `balanced_mod3`) fail CI if `#![deny(warnings)]` is set.
+**Fixes:**
+- Gated `trit_rotate` and `sbox` behind `#[cfg(test)]` — they're specification-grade reference functions used only in tests. The hot path uses the algebraically collapsed `balanced_wrap(a+b+c+1)`.
+- Removed `balanced_mod3` entirely — it was never called (RC_TABLE computes the same thing inline at const-eval time).
+- Added `test_sbox_equals_collapsed_form` — exhaustive 27-case proof that the collapsed substitution is algebraically identical to the sbox specification.
+
+**Drop-in path:** `src/kernel/src/crypto/sponge.rs`
+
+---
+
+### 4. `src/kernel/src/crypto/mod.rs`
+**No changes required.** Module declarations and `TernaryDigest` implementation are clean. `alloc::` paths resolve correctly for both std and no_std builds (assuming `lib.rs` has `extern crate alloc;`).
+
+---
+
+### 5. `src/kernel/Cargo.toml`
+**No changes required.** Feature configuration, dependencies, and profile settings are correct.
+
+---
+
+## Not Provided / Outstanding
+
+**`timing-certification.test.ts`** — mentioned as a CI failure in the previous conversation but not included in this batch. If it also imports `@jest/globals`, apply the same vitest fix.
+
+**`lib.rs` verification** — confirm the crate root has:
+```rust
+#![cfg_attr(not(feature = "std"), no_std)]
+extern crate alloc;
+```
+This is required for `alloc::vec::Vec` / `alloc::string::String` paths throughout the crypto module.
+
+## Verification
+
+After dropping in:
+```bash
+# Rust kernel
+cd src/kernel && cargo test --all-features 2>&1 | tail -20
+
+# TypeScript tests
+npx vitest run tests/phase-encryption.test.ts
+npx vitest run tests/integration/payment-flow.test.ts
+```

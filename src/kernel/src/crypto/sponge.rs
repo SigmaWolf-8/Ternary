@@ -45,6 +45,11 @@ const SPONGE_LANES: usize = 27;        // round constant injection points
 //
 // Domain: {-1, 0, +1}.  All operations wrap modulo 3 in balanced form.
 // No lookup tables.  No integer division.  Conditional moves only.
+//
+// NOTE: trit_rotate and sbox are retained as first-principles building
+// blocks.  The hot path uses the algebraically collapsed form
+// (balanced_wrap) but these functions serve as the specification that
+// the collapsed form was derived from, and are exercised in tests.
 // ---------------------------------------------------------------------------
 
 #[inline(always)]
@@ -53,20 +58,22 @@ fn trit_add(a: i8, b: i8) -> i8 {
     if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
 }
 
+/// Cyclic trit rotation: -1 → 0, 0 → +1, +1 → -1.
+/// Three applications return to identity.
 #[inline(always)]
+#[cfg(test)]
 fn trit_rotate(t: i8) -> i8 {
     let r = t + 1;
     if r > 1 { -1 } else { r }
 }
 
+/// Three-neighbor substitution box: sbox(a, b, c) = a ⊕₃ rotate(b) ⊕₃ c.
+/// Algebraically equivalent to balanced_wrap(a + b + c + 1) — see
+/// permutation comments for the derivation.
 #[inline(always)]
+#[cfg(test)]
 fn sbox(a: i8, b: i8, c: i8) -> i8 {
     trit_add(trit_add(a, trit_rotate(b)), c)
-}
-
-#[inline(always)]
-fn balanced_mod3(n: usize) -> i8 {
-    (n % 3) as i8 - 1
 }
 
 // ---------------------------------------------------------------------------
@@ -104,7 +111,9 @@ const RC_TABLE: [[i8; SPONGE_LANES]; SPONGE_ROUNDS] = {
 // Substitution uses GF(3) associativity to collapse four serial trit_add
 // calls into a single parallel integer sum followed by one balanced wrap.
 //
-//   (a + b + c + 1) mod 3  in balanced form {-1, 0, +1}
+//   sbox(a, b, c)  =  a ⊕₃ rotate(b) ⊕₃ c
+//                   =  a ⊕₃ (b ⊕₃ 1) ⊕₃ c
+//                   =  (a + b + c + 1) mod 3   [balanced form]
 //
 // The integer sum a+b+c+1 lies in [-2, 4].  Balanced mod-3 wrapping is a
 // single conditional: subtract 3 if ≥ 2, add 3 if ≤ -2.  No division,
@@ -135,21 +144,25 @@ unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let v_three = _mm256_set1_epi8(3);
 
     for round in 0..SPONGE_ROUNDS {
+        // Wrap-around boundary: ext[0] = state[last], ext[N+1] = state[0]
         ext[0] = state[last];
         ext[1..SPONGE_STATE_SIZE + 1].copy_from_slice(state);
         ext[SPONGE_STATE_SIZE + 1] = state[0];
 
+        // SIMD substitution: 32 trits per iteration
         let mut i = 0;
         while i + 32 <= SPONGE_STATE_SIZE {
             let left   = _mm256_loadu_si256(ext.as_ptr().add(i)     as *const __m256i);
             let center = _mm256_loadu_si256(ext.as_ptr().add(i + 1) as *const __m256i);
             let right  = _mm256_loadu_si256(ext.as_ptr().add(i + 2) as *const __m256i);
 
+            // (left + center + right + 1) — collapsed sbox
             let sum = _mm256_add_epi8(
                 _mm256_add_epi8(_mm256_add_epi8(left, center), right),
                 v_one,
             );
 
+            // Balanced wrap: subtract 3 if > 1, add 3 if < -1
             let gt1    = _mm256_cmpgt_epi8(sum, v_hi);
             let lt_neg = _mm256_cmpgt_epi8(v_lo, sum);
             let sub3   = _mm256_sub_epi8(sum, v_three);
@@ -162,16 +175,19 @@ unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
             i += 32;
         }
 
+        // Scalar tail for remaining trits (729 % 32 = 25)
         while i < SPONGE_STATE_SIZE {
             let raw = ext[i] + ext[i + 1] + ext[i + 2] + 1;
             buf[i] = balanced_wrap(raw);
             i += 1;
         }
 
+        // Diffusion: fixed permutation π(i) = (376·i + 1) mod 729
         for i in 0..SPONGE_STATE_SIZE {
             state[PERM[i] as usize] = buf[i];
         }
 
+        // Round constant injection
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
@@ -185,6 +201,7 @@ fn sponge_permutation_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let last = SPONGE_STATE_SIZE - 1;
 
     for round in 0..SPONGE_ROUNDS {
+        // Substitution with wrap-around boundary handling
         buf[0] = balanced_wrap(state[last] + state[0] + state[1] + 1);
 
         for i in 1..last {
@@ -193,10 +210,12 @@ fn sponge_permutation_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
         buf[last] = balanced_wrap(state[last - 1] + state[last] + state[0] + 1);
 
+        // Diffusion
         for i in 0..SPONGE_STATE_SIZE {
             state[PERM[i] as usize] = buf[i];
         }
 
+        // Round constant injection
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
@@ -261,7 +280,6 @@ impl TernarySponge {
             offset = fill;
 
             if self.buf_len == SPONGE_RATE {
-                // Buffer full — absorb it
                 for i in 0..SPONGE_RATE {
                     self.state[i] = trit_add(self.state[i], self.buf[i]);
                 }
@@ -418,7 +436,6 @@ mod tests {
 
     #[test]
     fn test_trit_add_inverse() {
-        // Every trit has an additive inverse
         for &t in &[-1i8, 0, 1] {
             assert_eq!(trit_add(t, -t), 0);
         }
@@ -445,6 +462,23 @@ mod tests {
         assert_eq!(sbox(0, 0, 0), 1);   // 0 + rotate(0) + 0 = 0 + 1 + 0 = 1
         assert_eq!(sbox(0, 1, 0), -1);  // 0 + rotate(1) + 0 = 0 + (-1) + 0 = -1
         assert_eq!(sbox(1, -1, -1), 0); // 1 + rotate(-1) + (-1) = 1 + 0 + (-1) = 0
+    }
+
+    #[test]
+    fn test_sbox_equals_collapsed_form() {
+        // Verify that sbox(a,b,c) == balanced_wrap(a + b + c + 1)
+        // This proves the hot-path optimization is algebraically equivalent
+        for &a in &[-1i8, 0, 1] {
+            for &b in &[-1i8, 0, 1] {
+                for &c in &[-1i8, 0, 1] {
+                    assert_eq!(
+                        sbox(a, b, c),
+                        balanced_wrap(a + b + c + 1),
+                        "Mismatch at sbox({}, {}, {})", a, b, c
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -575,5 +609,4 @@ mod tests {
             assert_eq!(state[i], 0, "Capacity trit {} modified during absorb", i);
         }
     }
-
 }
