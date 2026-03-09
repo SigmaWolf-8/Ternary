@@ -1075,7 +1075,7 @@ function PerformanceSection() {
       value: PLATFORM.BENCH_TL_DSA_87_SPEEDUP,
       unit: "× faster",
       label: "TL-DSA-87 Optimization",
-      detail: `Full sign+verify in ${PLATFORM.BENCH_TL_DSA_87_US} µs — down from 14,403 µs via NTT, XOF batching, and AVX2 vectorization.`,
+      detail: `Full sign+verify in ${PLATFORM.BENCH_TL_DSA_87_US} µs — down from 14,403 µs via integer NTT (q=12289), XOF batching, and AVX2 vectorization.`,
     },
     {
       icon: Gauge,
@@ -1165,7 +1165,7 @@ function PerformanceSection() {
         >
           <Card className="max-w-4xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-dsa-breakdown">
             <h3 className="text-lg font-semibold mb-1">TL-DSA vs ML-DSA — Full Roundtrip</h3>
-            <p className="text-sm text-foreground/90 font-medium mb-2">TL-DSA achieves 2.5–2.9× faster signing & verification than ML-DSA at the same NIST security levels — using pure ternary arithmetic and first-principles optimizations.</p>
+            <p className="text-sm text-foreground/90 font-medium mb-2">TL-DSA achieves 2.6–3.4× faster signing & verification than ML-DSA at the same NIST security levels — using integer NTT (q=12289), ternary arithmetic, and first-principles optimizations.</p>
             <p className="text-sm text-muted-foreground mb-6">Keygen + sign + verify at three CNSA 2.0 security levels. TL-DSA measured on x86; ML-DSA (FIPS 204) reference from NIST benchmarks on comparable hardware.</p>
             <div className="space-y-5">
               {[
