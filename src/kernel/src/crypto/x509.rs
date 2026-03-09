@@ -290,10 +290,9 @@ fn trim_leading_zeros(data: &[u8]) -> &[u8] {
 
 fn cert_hash(data: &[u8]) -> [u8; 32] {
     let mut sponge = TernarySponge::new();
-    sponge.absorb(&[42i8]);
+    sponge.absorb_bytes(&[42u8]);
     if !data.is_empty() {
-        let td = TernaryDigest::from_bytes(data, data.len() * 5);
-        sponge.absorb(&td.trits);
+        sponge.absorb_bytes(data);
     }
     let out = sponge.squeeze(TERNARY_HASH_TRITS);
     let bytes = out.to_bytes();

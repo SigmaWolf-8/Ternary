@@ -150,12 +150,13 @@ impl TernaryDigest {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
         for chunk in self.trits.chunks(5) {
-            let mut val: u8 = 0;
-            for (i, &t) in chunk.iter().enumerate() {
-                let b_val = (t + 1) as u8;
-                val += b_val * 3u8.pow(i as u32);
+            let mut val: u16 = 0;
+            for (j, &t) in chunk.iter().enumerate() {
+                debug_assert!(t >= -1 && t <= 1, "invalid trit value: {} at pos {}", t, j);
+                let b_val = (t as i16 + 1) as u16;
+                val += b_val * 3u16.pow(j as u32);
             }
-            bytes.push(val);
+            bytes.push(val as u8);
         }
         bytes
     }

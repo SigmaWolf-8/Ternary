@@ -1,0 +1,13 @@
+TDNS addresses are identity anchors. If someone forges an address, they impersonate a node. That needs cryptographic strength. But let me break down where speed actually matters vs where security matters:
+Registration/classification — happens once per entity. Even the unoptimized kernel sponge at 16,658 ns is fine. 5,500 ns optimized is trivial. Security matters here, speed doesn't. Use kernel sponge.
+Document signing, key derivation, certificates — obviously cryptographic. Kernel sponge.
+Wire packet integrity — millions of packets per second on an already-authenticated connection. The connection is already secured by TL-DSA. You just need fast corruption detection. This is where TIS-27 earns its place — a ternary CRC equivalent, not pretending to be crypto.
+Routing distance — pure Hamming math at 8 ns. No hash involved.
+Repunit checksum — 67 ns integrity check, already deployed.
+So TIS-27 belongs as a fast wire-level integrity function. Not as a substitute for the kernel sponge on anything identity or security related.Assessed security-speed tradeoff and implementation strategyAssessed security-speed tradeoff and implementation strategy4 files, 1,017 lines.
+What Replit does:
+ActionFileDestinationReplacesponge.rssrc/kernel/src/crypto/sponge.rsCreatetis_sponge.rsternary-math/src/tis_sponge.rsCreatetis-sponge.tsshared/tis-sponge.tsAdd linepub mod tis_sponge;ternary-math/src/lib.rs
+Nothing else changes. REPLIT_INSTRUCTIONS.md is in the zip.
+What each file does:
+sponge.rs — kernel cryptographic sponge, optimized from 27 rounds to 9 with 7-neighbor extended theta. 385-bit post-quantum security. Same API, drop-in replacement. Used for signing, key derivation, identity binding, TDNS registration, FIPS validation.
+tis_sponge.rs + tis-sponge.ts — TIS-27 fast integrity function, restored. 303 ns, non-cryptographic, clearly labeled. Used for wire packet integrity on authenticated channels. Both files have a prominent warning box at the top saying it's not a cryptographic hash and pointing to the kernel sponge for crypto.
