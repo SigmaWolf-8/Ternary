@@ -1,0 +1,201 @@
+# TL-DSA NTT Optimization — Instructions for Replit
+# File: src/kernel/src/crypto/tl_dsa.rs
+# Single file. No changes to ternary_lattice.rs.
+
+## Problem
+
+All polynomial multiplication in TL-DSA uses `ring_mul` (schoolbook, O(n²)).
+The NTT path (`NttMatrix::to_ntt()`, `NttMatrix::mul_vec()`, `ntt_ring_mul`)
+already exists in `ternary_lattice.rs` and is tested, but TL-DSA doesn't call it.
+
+For DSA-87 (n=256, k=8, l=7), each roundtrip does 183 polynomial multiplies at
+O(n²) = 65,536 ops each. Switching to NTT reduces each to O(n log n) = 2,048 ops.
+
+Expected speedup: 30-50% on the full roundtrip (not the full 32× theoretical
+because sponge hashing and sampling are also significant costs).
+
+## Overview of Changes
+
+Three functions change: `keygen`, `sign`, `verify`.
+Two new helper functions added.
+One new import added.
+
+The pattern is the same in all three:
+1. Build matrix A from seed (unchanged)
+2. Convert to NTT form: `let ntt_a = matrix_a.to_ntt();` (NEW)
+3. Use `ntt_a.mul_vec()` instead of `matrix_a.mul_vec()` (CHANGED)
+4. Use `ntt_ring_mul` for individual challenge × polynomial multiplies (CHANGED)
+
+## Change 1: Add imports at the top of tl_dsa.rs
+
+Find the existing imports from ternary_lattice (near the top). Add `ntt_ring_mul`
+and `NttMatrix` to the imports. The exact import depends on current import style.
+Look for a line like:
+
+```rust
+use super::ternary_lattice::{TernaryPolynomial, TernaryPolyVec, TernaryPolyMatrix, ...};
+```
+
+Add `ntt_ring_mul` to that import list. `NttMatrix` is returned by
+`TernaryPolyMatrix::to_ntt()` so it may need importing too.
+
+If the imports are structured differently, add:
+```rust
+use super::ternary_lattice::ntt_ring_mul;
+```
+
+## Change 2: Modify `keygen`
+
+Find the line:
+```rust
+    let public_t = matrix_a.mul_vec(&secret_s1)?;
+```
+
+Replace with:
+```rust
+    let ntt_a = matrix_a.to_ntt();
+    let public_t = ntt_a.mul_vec(&secret_s1)?;
+```
+
+## Change 3: Modify `sign`
+
+### 3a: Matrix-vector multiply
+
+Find:
+```rust
+    let matrix_a = expand_matrix_a(&sk.matrix_a_seed, k, l, n);
+```
+
+After that line, add:
+```rust
+    let ntt_a = matrix_a.to_ntt();
+```
+
+Then find:
+```rust
+        let w = matrix_a.mul_vec(&y)?;
+```
+
+Replace with:
+```rust
+        let w = ntt_a.mul_vec(&y)?;
+```
+
+### 3b: Challenge × secret polynomial multiplies
+
+Find the loop that computes z:
+```rust
+        for i in 0..l {
+            let cs1_i = c.ring_mul(&sk.secret_s1.polys[i])?;
+```
+
+Replace `c.ring_mul(...)` with `ntt_ring_mul`:
+```rust
+        for i in 0..l {
+            let cs1_i = ntt_ring_mul(&c, &sk.secret_s1.polys[i], NCNTT_Q);
+```
+
+Where `NCNTT_Q` is 12289 (the NTT prime). Check if this constant is already
+exported from `ternary_lattice.rs`. If not, define it locally:
+```rust
+    const NTT_Q: i16 = 12289;
+```
+
+Note: `ntt_ring_mul` returns a `TernaryPolynomial` directly, not a
+`CryptoResult`. So the `?` may need to be removed. Check the return type
+at line 1094 of ternary_lattice.rs.
+
+## Change 4: Modify `verify`
+
+### 4a: Matrix-vector multiply
+
+Find:
+```rust
+    let matrix_a = expand_matrix_a(&pk.matrix_a_seed, k, l, n);
+```
+
+After that line, add:
+```rust
+    let ntt_a = matrix_a.to_ntt();
+```
+
+Find:
+```rust
+    let az = matrix_a.mul_vec(&sig.z)?;
+```
+
+Replace with:
+```rust
+    let az = ntt_a.mul_vec(&sig.z)?;
+```
+
+### 4b: Challenge × public key polynomial multiplies
+
+Find:
+```rust
+    let mut ct_polys = Vec::with_capacity(k);
+    for i in 0..k {
+        let cti = c.ring_mul(&pk.public_t.polys[i])?;
+        ct_polys.push(cti);
+    }
+```
+
+Replace:
+```rust
+    let mut ct_polys = Vec::with_capacity(k);
+    for i in 0..k {
+        let cti = ntt_ring_mul(&c, &pk.public_t.polys[i], NTT_Q);
+        ct_polys.push(cti);
+    }
+```
+
+(Same NTT_Q constant as in sign.)
+
+## What is NOT changed
+
+- `expand_matrix_a` — still builds matrix from seed the same way
+- `sample_challenge`, `sample_masking_vec` — unchanged
+- `dsa_hash` — unchanged
+- All parameter sets (n, k, l, eta, tau) — unchanged
+- `ternary_lattice.rs` — NOTHING changes here
+- All tests should still pass — the NTT path produces identical results
+  (verified by existing test `test_ncntt_mul_matches_karatsuba` at line 1772
+  and `test_ntt_mul_matches_schoolbook` at line 1724)
+
+## Expected Results
+
+| Variant | Before | Expected After | Speedup |
+|---------|--------|----------------|---------|
+| TL-DSA-44 (k=4, l=4) | 653 µs | ~400-450 µs | 1.4-1.6× |
+| TL-DSA-65 (k=6, l=5) | 963 µs | ~550-650 µs | 1.5-1.7× |
+| TL-DSA-87 (k=8, l=7) | 1,441 µs | ~800-950 µs | 1.5-1.8× |
+
+The speedup won't be the full 32× from O(n²)→O(n log n) because:
+- Sponge hashing (expand_matrix_a, dsa_hash) is a fixed cost unaffected by NTT
+- NTT has overhead (forward transform, inverse transform, mod reduction)
+- Sampling and other operations remain the same
+
+But 30-50% improvement on the full roundtrip is realistic. If DSA-87 drops
+below 1,000 µs, the comparison against ML-DSA becomes even more dramatic.
+
+## Verification
+
+After deploying, run the existing TL-DSA tests:
+```bash
+cargo test --lib -- crypto::tl_dsa
+```
+
+All tests should pass with identical results. Then re-benchmark:
+```bash
+cargo bench --bench tl_dsa_bench
+```
+
+(Or whatever the existing TL-DSA benchmark is called.)
+
+## Advanced: Pre-NTT Matrix A in Keys (Future)
+
+Currently, `expand_matrix_a` is called in keygen, sign, AND verify — rebuilding
+the same matrix three times. A further optimization is to store the NTT form of
+matrix A directly in the public/secret key structs. This eliminates the
+expand + NTT transform on every sign and verify call. But it changes the key
+serialization format, so it should be done as a separate step.

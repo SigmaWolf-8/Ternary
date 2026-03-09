@@ -93,6 +93,7 @@ use super::ternary_lattice::{
     TernaryPolynomial, TernaryPolyMatrix, TernaryPolyVec,
     NttMatrix,
     sample_noise_vec,
+    ncntt_ring_mul,
 };
 use super::sponge::TernarySponge;
 
@@ -383,7 +384,7 @@ pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature>
         let mut reject = false;
 
         for i in 0..l {
-            let cs1_i = c.ring_mul_sparse(&sk.secret_s1.polys[i])?;
+            let cs1_i = ncntt_ring_mul(&c, &sk.secret_s1.polys[i]);
             let z_i = y.polys[i].add(&cs1_i)?;
 
             debug_assert!(
@@ -439,7 +440,7 @@ pub fn verify(pk: &TlDsaPublicKey, message: &[i8], sig: &TlDsaSignature) -> Cryp
 
     let mut ct_polys = Vec::with_capacity(k);
     for i in 0..k {
-        let cti = c.ring_mul_sparse(&pk.public_t.polys[i])?;
+        let cti = ncntt_ring_mul(&c, &pk.public_t.polys[i]);
         ct_polys.push(cti);
     }
     let ct = TernaryPolyVec { polys: ct_polys, n };
@@ -553,12 +554,12 @@ pub fn sign_verify_timing_breakdown(
     let t0 = Instant::now();
     let mut z_polys = Vec::with_capacity(l);
     for i in 0..l {
-        let cs1_i = c.ring_mul_sparse(&sk.secret_s1.polys[i])?;
+        let cs1_i = ncntt_ring_mul(&c, &sk.secret_s1.polys[i]);
         let z_i = y.polys[i].add(&cs1_i)?;
         z_polys.push(z_i);
     }
     let z = TernaryPolyVec { polys: z_polys, n };
-    timings.push(("z = y + c·s₁ (sparse)", t0.elapsed()));
+    timings.push(("z = y + c·s₁ (NTT)", t0.elapsed()));
 
     let sig = TlDsaSignature {
         variant: sk.variant,
@@ -579,11 +580,11 @@ pub fn sign_verify_timing_breakdown(
     let t0 = Instant::now();
     let mut ct_polys = Vec::with_capacity(k);
     for i in 0..k {
-        let cti = c_ver.ring_mul_sparse(&pk.public_t.polys[i])?;
+        let cti = ncntt_ring_mul(&c_ver, &pk.public_t.polys[i]);
         ct_polys.push(cti);
     }
     let ct = TernaryPolyVec { polys: ct_polys, n };
-    timings.push(("c·t sparse (verify)", t0.elapsed()));
+    timings.push(("c·t NTT (verify)", t0.elapsed()));
 
     let t0 = Instant::now();
     let w_prime = az.add(&ct.negate()?)?;
