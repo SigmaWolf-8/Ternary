@@ -232,6 +232,84 @@ unsafe fn sponge_permutation_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     }
 }
 
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn sponge_permutation_neon(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    use core::arch::aarch64::*;
+
+    let mut ext = [0i8; SPONGE_STATE_SIZE + 26];
+    let mut buf = [0i8; SPONGE_STATE_SIZE];
+
+    let v_one   = vdupq_n_s8(1);
+    let v_hi    = vdupq_n_s8(1);
+    let v_lo    = vdupq_n_s8(-1);
+    let v_three = vdupq_n_s8(3);
+    let v_neg3  = vdupq_n_s8(-3);
+
+    for round in 0..SPONGE_ROUNDS {
+        ext[..13].copy_from_slice(&state[SPONGE_STATE_SIZE - 13..]);
+        ext[13..13 + SPONGE_STATE_SIZE].copy_from_slice(state);
+        ext[13 + SPONGE_STATE_SIZE..].copy_from_slice(&state[..13]);
+
+        let mut i = 0;
+        while i + 16 <= SPONGE_STATE_SIZE {
+            let ei = i + 13;
+
+            let l13 = vld1q_s8(ext.as_ptr().add(ei - 13));
+            let l7  = vld1q_s8(ext.as_ptr().add(ei - 7));
+            let l1  = vld1q_s8(ext.as_ptr().add(ei - 1));
+            let lsum = vaddq_s8(vaddq_s8(l13, l7), l1);
+
+            let lgt = vcgtq_s8(lsum, v_hi);
+            let llt = vcltq_s8(lsum, v_lo);
+            let lwrap = vbslq_s8(lgt, vaddq_s8(lsum, v_neg3), lsum);
+            let lwrap = vbslq_s8(llt, vaddq_s8(lsum, v_three), lwrap);
+
+            let r1  = vld1q_s8(ext.as_ptr().add(ei + 1));
+            let r7  = vld1q_s8(ext.as_ptr().add(ei + 7));
+            let r13 = vld1q_s8(ext.as_ptr().add(ei + 13));
+            let rsum = vaddq_s8(vaddq_s8(r1, r7), r13);
+
+            let rgt = vcgtq_s8(rsum, v_hi);
+            let rlt = vcltq_s8(rsum, v_lo);
+            let rwrap = vbslq_s8(rgt, vaddq_s8(rsum, v_neg3), rsum);
+            let rwrap = vbslq_s8(rlt, vaddq_s8(rsum, v_three), rwrap);
+
+            let center = vld1q_s8(ext.as_ptr().add(ei));
+            let total = vaddq_s8(
+                vaddq_s8(vaddq_s8(lwrap, center), rwrap),
+                v_one,
+            );
+
+            let fgt = vcgtq_s8(total, v_hi);
+            let flt = vcltq_s8(total, v_lo);
+            let result = vbslq_s8(fgt, vaddq_s8(total, v_neg3), total);
+            let result = vbslq_s8(flt, vaddq_s8(total, v_three), result);
+
+            vst1q_s8(buf.as_mut_ptr().add(i), result);
+            i += 16;
+        }
+
+        while i < SPONGE_STATE_SIZE {
+            let ei = i + 13;
+            let left  = balanced_wrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);
+            let right = balanced_wrap(ext[ei+1]  + ext[ei+7] + ext[ei+13]);
+            buf[i] = balanced_wrap(left + ext[ei] + right + 1);
+            i += 1;
+        }
+
+        for i in 0..SPONGE_STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+
+        let rc = &RC_TABLE[round];
+        for lane in 0..SPONGE_LANES {
+            let idx = lane * SPONGE_LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
 fn sponge_permutation_scalar(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut buf = [0i8; SPONGE_STATE_SIZE];
     let w = SPONGE_STATE_SIZE;
@@ -273,6 +351,11 @@ fn sponge_permutation(state: &mut [i8; SPONGE_STATE_SIZE]) {
             unsafe { sponge_permutation_avx2(state); }
             return;
         }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        unsafe { sponge_permutation_neon(state); }
+        return;
     }
     sponge_permutation_scalar(state);
 }
