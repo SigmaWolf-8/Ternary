@@ -1196,9 +1196,8 @@ function PerformanceSection() {
                             transition={{ duration: 0.8, delay: 0.2 }}
                             className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-2"
                           >
-                            {tlPct >= 20 && <span className="text-[10px] font-mono font-bold text-primary-foreground whitespace-nowrap">{row.tl.time} µs</span>}
+                            <span className="text-[10px] font-mono font-bold text-primary-foreground whitespace-nowrap">{row.tl.time} µs</span>
                           </motion.div>
-                          {tlPct < 20 && <span className="absolute top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-foreground/70 whitespace-nowrap" style={{ left: `calc(${tlPct}% + 8px)` }}>{row.tl.time} µs</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -1211,9 +1210,8 @@ function PerformanceSection() {
                             transition={{ duration: 0.8, delay: 0.3 }}
                             className="h-full bg-muted-foreground/30 rounded-full flex items-center justify-end pr-2"
                           >
-                            {mlPct >= 20 && <span className="text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>}
+                            <span className="text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>
                           </motion.div>
-                          {mlPct < 20 && <span className="absolute top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-foreground/70 whitespace-nowrap" style={{ left: `calc(${mlPct}% + 8px)` }}>{row.ml.time} µs</span>}
                         </div>
                       </div>
                     </div>
