@@ -1172,12 +1172,12 @@ function PerformanceSection() {
                 { bits: "128-bit", tl: { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US }, ml: { variant: "ML-DSA-44", time: PLATFORM.BENCH_ML_DSA_44_US } },
                 { bits: "192-bit", tl: { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US }, ml: { variant: "ML-DSA-65", time: PLATFORM.BENCH_ML_DSA_65_US } },
                 { bits: "256-bit", tl: { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US }, ml: { variant: "ML-DSA-87", time: PLATFORM.BENCH_ML_DSA_87_US } },
-              ].map((row) => {
+              ].map((row, _idx, arr) => {
                 const tlNum = parseInt(row.tl.time.replace(/,/g, ""));
                 const mlNum = parseInt(row.ml.time.replace(/,/g, ""));
-                const maxVal = mlNum;
-                const tlPct = Math.round((tlNum / maxVal) * 85);
-                const mlPct = 85;
+                const globalMax = Math.max(...arr.map(r => parseInt(r.ml.time.replace(/,/g, ""))));
+                const tlPct = Math.max(8, Math.round((tlNum / globalMax) * 90));
+                const mlPct = Math.max(8, Math.round((mlNum / globalMax) * 90));
                 const speedup = (mlNum / tlNum).toFixed(1);
                 return (
                   <div key={row.bits} data-testid={`dsa-pair-${row.bits}`}>
@@ -1188,30 +1188,28 @@ function PerformanceSection() {
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono w-20 shrink-0 font-medium text-primary">{row.tl.variant}</span>
-                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden">
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 relative">
                           <motion.div
                             initial={{ width: 0 }}
                             whileInView={{ width: `${tlPct}%` }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8, delay: 0.2 }}
-                            className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-2"
-                          >
-                            <span className="text-[10px] font-mono font-bold text-primary-foreground whitespace-nowrap">{row.tl.time} µs</span>
-                          </motion.div>
+                            className="h-full bg-primary/80 rounded-full"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.tl.time} µs</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono w-20 shrink-0 text-muted-foreground">{row.ml.variant}</span>
-                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden">
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 relative">
                           <motion.div
                             initial={{ width: 0 }}
                             whileInView={{ width: `${mlPct}%` }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8, delay: 0.3 }}
-                            className="h-full bg-muted-foreground/30 rounded-full flex items-center justify-end pr-2"
-                          >
-                            <span className="text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>
-                          </motion.div>
+                            className="h-full bg-muted-foreground/30 rounded-full"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>
                         </div>
                       </div>
                     </div>
