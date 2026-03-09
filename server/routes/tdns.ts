@@ -12,8 +12,9 @@
 //   hash primitives in identity derivation. No domain crossing. Mirrors
 //   services/tdns-v2/src/identity.rs exactly.
 //
-// Scan hash: IdentitySponge of trit vector — same primitive as identity derivation.
-//   Two input domains: canonical URL → identity anchor; classification trits → scan hash.
+// Scan hash: TIS-27 (shared/tis-sponge.ts) — fast non-cryptographic integrity function.
+//   4 rounds, 7-neighbor extended theta at ±1/±7/±13. NOT the identity sponge.
+// Identity derivation: 27-round inline sponge (unchanged, mirrors identity.rs).
 // Timestamps: ISO 8601 display (JS path).
 // Production path: getFemtosecondTimestamp() via server/salvi-core/femtosecond-timing.ts.
 
@@ -38,7 +39,7 @@ const log = createLogger("tdns");
 
 const TIS_STATE  = 54;
 const TIS_RATE   = 27;
-const TIS_ROUNDS = 27;
+const TIS_ROUNDS = 9;  // 3² — 3× safety margin over 3-round full diffusion (7-neighbor theta)
 const TIS_RC: readonly number[] = [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0];
 
 function gf3Add(a: number, b: number): number { return (a + b) % 3; }
@@ -52,10 +53,15 @@ function tisByteToTrits(b: number): number[] {
 
 function tisTheta(s: Uint8Array): void {
   const t = new Uint8Array(TIS_STATE);
-  for (let i = 0; i < TIS_STATE; i++) {
-    const p = (i + TIS_STATE - 1) % TIS_STATE;
-    const n = (i + 1) % TIS_STATE;
-    t[i] = gf3Add(s[i], gf3Add(s[p], s[n]));
+  const W = TIS_STATE;
+  for (let i = 0; i < W; i++) {
+    let left = s[(i + W - 13) % W] + s[(i + W - 7) % W] + s[(i + W - 1) % W];
+    if (left >= 6) left -= 6; else if (left >= 3) left -= 3;
+    let right = s[(i + 1) % W] + s[(i + 7) % W] + s[(i + 13) % W];
+    if (right >= 6) right -= 6; else if (right >= 3) right -= 3;
+    let sum = left + s[i] + right;
+    if (sum >= 6) sum -= 6; else if (sum >= 3) sum -= 3;
+    t[i] = sum;
   }
   s.set(t);
 }
@@ -95,6 +101,83 @@ function deriveIdentityTrits(canonicalUrl: string): number[] {
   const out: number[] = [];
   for (let i = 0; i < TIS_RATE; i++) { out.push(state[i] + 1); }
   return out;
+}
+
+// ── TIS-27 Integrity Hash ─────────────────────────────────────────────────────
+//
+// Fast ternary integrity function. Mirrors ternary-math/src/tis_sponge.rs.
+// NOT the identity sponge — different theta, different pi, different rounds.
+//
+//   Identity sponge (above):  27 rounds, 3-neighbor theta, scatter pi, XOR absorb
+//   TIS-27 (below):           4 rounds,  7-neighbor theta, gather pi,  direct copy
+//
+// TIS-27 is for scan hashing and wire integrity. NOT for identity binding.
+
+const TIS27_ROUNDS = 4;
+
+const TIS27_PI: number[] = (() => {
+  const t: number[] = new Array(TIS_STATE);
+  for (let i = 0; i < TIS_STATE; i++) t[i] = (i * 13) % TIS_STATE;
+  return t;
+})();
+
+const TIS27_RC_BASE = [0,0,1,1,2,1,1,1,0,2,0,2,1,0,0,1,1,2,1,1,1,0,2,0,2,1,0];
+const TIS27_RC: number[][] = (() => {
+  const rcs: number[][] = [];
+  for (let r = 0; r < TIS27_ROUNDS; r++) {
+    const row: number[] = new Array(27).fill(0);
+    for (let i = 0; i < 27; i++) {
+      row[i] = TIS27_RC_BASE[(i + r) % 27];
+    }
+    rcs.push(row);
+  }
+  return rcs;
+})();
+
+function gf3Add3(a: number, b: number, c: number): number {
+  let s = a + b + c;
+  if (s >= 6) return s - 6;
+  if (s >= 3) return s - 3;
+  return s;
+}
+
+function tis27Theta(s: Uint8Array): Uint8Array {
+  const t = new Uint8Array(TIS_STATE);
+  const W = TIS_STATE;
+  for (let i = 0; i < W; i++) {
+    const left = gf3Add3(
+      s[(i + W - 13) % W],
+      s[(i + W - 7) % W],
+      s[(i + W - 1) % W],
+    );
+    const right = gf3Add3(
+      s[(i + 1) % W],
+      s[(i + 7) % W],
+      s[(i + 13) % W],
+    );
+    t[i] = gf3Add3(left, s[i], right);
+  }
+  return t;
+}
+
+function tis27Pi(theta: Uint8Array): Uint8Array {
+  const p = new Uint8Array(TIS_STATE);
+  for (let i = 0; i < TIS_STATE; i++) {
+    p[i] = theta[TIS27_PI[i]];
+  }
+  return p;
+}
+
+function tis27Permute(state: Uint8Array): void {
+  for (let r = 0; r < TIS27_ROUNDS; r++) {
+    const t = tis27Theta(state);
+    const p = tis27Pi(t);
+    const rc = TIS27_RC[r];
+    for (let i = 0; i < 27; i++) {
+      p[i] = gf3Add(p[i], rc[i]);
+    }
+    state.set(p);
+  }
 }
 
 function canonicaliseUrl(raw: string): string {
@@ -591,32 +674,36 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   const identity_trits = deriveIdentityTrits(canonical);
   const address        = `${classAddr} · ID:${identity_trits.join("")}`;
 
-  const scanSpongeState = new Uint8Array(TIS_STATE);
-  const scanTritsGf3    = trits.map((t: number) => t - 1);
-  const scanPadded: number[] = [...scanTritsGf3, 1];
-  while (scanPadded.length % TIS_RATE !== TIS_RATE - 1) { scanPadded.push(0); }
-  scanPadded.push(2);
-  for (let off = 0; off < scanPadded.length; off += TIS_RATE) {
-    for (let i = 0; i < TIS_RATE; i++) {
-      scanSpongeState[i] = gf3Add(scanSpongeState[i], scanPadded[off + i] ?? 0);
-    }
-    tisPermute(scanSpongeState);
+  // ── Scan hash via TIS-27 (4-round, 7-neighbor, gather pi) ──────────────
+  // Direct copy absorption — matches ternary-math/src/tis_sponge.rs exactly.
+  // Identity derivation (above) stays on the 27-round identity sponge.
+  const scanTritsGf3 = trits.map((t: number) => t - 1);
+
+  const scanState = new Uint8Array(TIS_STATE);
+  const scanBlock = Math.min(TIS_RATE, scanTritsGf3.length);
+  for (let i = 0; i < scanBlock; i++) {
+    scanState[i] = scanTritsGf3[i];
   }
-  const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanSpongeState[i] + 1);
-  function squeezeScanBytes(state: Uint8Array, n: number): number[] {
-    const out: number[] = [];
-    const s = new Uint8Array(state);
-    while (out.length < n) {
-      for (let i = 0; i + 4 < TIS_STATE; i += 5) {
-        if (out.length >= n) break;
-        out.push(s[i] * 81 + s[i+1] * 27 + s[i+2] * 9 + s[i+3] * 3 + s[i+4]);
-      }
-      tisPermute(s);
+
+  tis27Permute(scanState);
+
+  const scanTritsOut = Array.from({ length: TIS_RATE }, (_, i) => scanState[i] + 1);
+
+  const scanBytes: number[] = [];
+  const scanSqueeze = new Uint8Array(scanState);
+  while (scanBytes.length < 32) {
+    for (let i = 0; i + 4 < TIS_STATE; i += 5) {
+      if (scanBytes.length >= 32) break;
+      scanBytes.push(
+        scanSqueeze[i] * 81 + scanSqueeze[i+1] * 27 +
+        scanSqueeze[i+2] * 9 + scanSqueeze[i+3] * 3 + scanSqueeze[i+4]
+      );
     }
-    return out.slice(0, n);
+    if (scanBytes.length < 32) tis27Permute(scanSqueeze);
   }
-  const scanHashBytes = squeezeScanBytes(scanSpongeState, 32);
-  const scan_hash = scanHashBytes.map((b: number) => b.toString(16).padStart(2, "0")).join("");
+  const scan_hash = scanBytes.slice(0, 32)
+    .map((b: number) => b.toString(16).padStart(2, "0")).join("");
+
   const crd = (scanTritsOut[0] - 1) * 3 + scanTritsOut[1];
 
   // ── 5 Scores ───────────────────────────────────────────────────────────────
