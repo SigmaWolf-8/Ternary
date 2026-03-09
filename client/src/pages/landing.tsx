@@ -1312,81 +1312,73 @@ function PerformanceSection() {
           transition={{ duration: 0.5 }}
           className="mb-12 md:mb-16"
         >
-          <Card className="max-w-5xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-full-benchmarks">
+          <Card className="max-w-5xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm overflow-hidden" data-testid="card-full-benchmarks">
             <div className="flex items-center gap-2 mb-1">
               <Gauge className="w-5 h-5 text-primary" />
               <h3 className="text-lg font-semibold">PlenumNET Performance — March 2026</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-6">
-              Every operation measured on stock x86_64 hardware. PlenumNET operations include what the industry charges separately.
+              Every operation measured on stock x86_64 hardware. PlenumNET times include capabilities the industry charges for separately.
             </p>
 
-            <div className="space-y-3">
+            <div className="hidden md:block overflow-x-auto -mx-5 md:-mx-8 px-5 md:px-8">
+              <table className="w-full text-sm" data-testid="table-benchmarks">
+                <thead>
+                  <tr className="border-b-2 border-primary/20">
+                    <th className="text-left py-3 pr-4 font-semibold text-xs uppercase tracking-wide text-muted-foreground">Operation</th>
+                    <th className="text-right py-3 px-3 font-semibold text-xs uppercase tracking-wide text-primary">PlenumNET (ns)</th>
+                    <th className="text-right py-3 px-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">Industry (ns)</th>
+                    <th className="text-center py-3 px-3 font-semibold text-xs uppercase tracking-wide text-primary">Speedup</th>
+                    <th className="text-left py-3 px-3 font-semibold text-xs uppercase tracking-wide text-primary">PlenumNET Includes</th>
+                    <th className="text-left py-3 pl-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">Industry Requires Separately</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { op: "Hash (27B)", plm: "TIS-27: 308", ind: "SHA-256: 672", speedup: "2.2×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
+                    { op: "Hash (81B, PQ)", plm: "TIS-81: 863", ind: "SHA3-256: 928", speedup: "1.1×", includes: "257-bit post-quantum capacity, native GF(3) output", requires: "128-bit classical only (Grover halves), binary output" },
+                    { op: "Address derivation", plm: "342", ind: "SHA-256 path: 824", speedup: "2.4×", includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee", requires: "Hash + binary→ternary + separate validation" },
+                    { op: "Encryption (27B)", plm: "Phase GF(3): 24", ind: "XSalsa20: 402", speedup: "17×", includes: "GF(3) native, Tribonacci tamper detection, adaptive phase modes", requires: "Binary cipher, separate auth tag, no ternary awareness" },
+                    { op: "Key derivation", plm: "TIS-27 KDF: 758", ind: "HKDF-SHA256: 5,642", speedup: "7.4×", includes: "Topology-derived keys (geometry IS the key agreement)", requires: "Binary key material, separate key exchange protocol" },
+                    { op: "Capability tokens", plm: "323", ind: "HMAC-SHA256 JWT: 2,683", speedup: "8.3×", includes: "HPTP femtosecond expiration, ternary permission encoding", requires: "Millisecond timestamps, binary permission bits, clock sync" },
+                    { op: "Integrity checksum", plm: "Repunit 364: 84", ind: "CRC-32: 296", speedup: "3.5×", includes: "Ternary-circle-aligned (3⁶≡1 mod 364), 6-trit Rep C", requires: "Binary polynomial, no ternary alignment" },
+                    { op: "Full TDNS pipeline", plm: "337", ind: "SHA-256 path: 791", speedup: "2.3×", includes: "Hash → address → routable in one native pipeline", requires: "Hash → convert → validate → encode → then routable" },
+                  ].map((row, i) => (
+                    <motion.tr
+                      key={row.op}
+                      initial={{ opacity: 0 }}
+                      whileInView={{ opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.3, delay: i * 0.04 }}
+                      className={`border-b border-foreground/5 ${i % 2 === 0 ? "bg-muted/5" : ""}`}
+                      data-testid={`bench-row-${i}`}
+                    >
+                      <td className="py-3 pr-4 font-medium whitespace-nowrap">{row.op}</td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-primary whitespace-nowrap">{row.plm}</td>
+                      <td className="py-3 px-3 text-right font-mono text-muted-foreground whitespace-nowrap">{row.ind}</td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary font-mono text-xs">
+                          {row.speedup}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-3 text-xs text-muted-foreground max-w-[220px]">{row.includes}</td>
+                      <td className="py-3 pl-3 text-xs text-muted-foreground/60 max-w-[220px]">{row.requires}</td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden space-y-4">
               {[
-                {
-                  op: "Hash (27B)",
-                  plm: "TIS-27: 308",
-                  ind: "SHA-256: 672",
-                  speedup: "2.2×",
-                  includes: "Native GF(3) output, structural forgery detection, routable address ready",
-                  requires: "Binary output, needs ternary conversion (+34 ns), forgery check separate",
-                },
-                {
-                  op: "Hash (81B, post-quantum)",
-                  plm: "TIS-81: 863",
-                  ind: "SHA3-256: 928",
-                  speedup: "1.1×",
-                  includes: "257-bit post-quantum capacity, native GF(3) output",
-                  requires: "128-bit classical security only (Grover halves to 128), binary output",
-                },
-                {
-                  op: "Address derivation",
-                  plm: "342",
-                  ind: "SHA-256 path: 824",
-                  speedup: "2.4×",
-                  includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee",
-                  requires: "Hash + binary→ternary conversion + separate validation",
-                },
-                {
-                  op: "Encryption (27B)",
-                  plm: "Phase GF(3): 24",
-                  ind: "XSalsa20-Poly1305: 402",
-                  speedup: "17×",
-                  includes: "GF(3) native, Tribonacci-weighted tamper detection, adaptive phase modes",
-                  requires: "Binary cipher, separate authentication tag, no ternary awareness",
-                },
-                {
-                  op: "Key derivation",
-                  plm: "TIS-27 KDF: 758",
-                  ind: "HKDF-SHA256: 5,642",
-                  speedup: "7.4×",
-                  includes: "Topology-derived keys (geometry IS the key agreement), GF(3) output",
-                  requires: "Binary key material, needs separate key exchange protocol",
-                },
-                {
-                  op: "Capability tokens",
-                  plm: "323",
-                  ind: "HMAC-SHA256 JWT: 2,683",
-                  speedup: "8.3×",
-                  includes: "HPTP femtosecond-bound expiration, ternary permission encoding",
-                  requires: "Millisecond timestamps, binary permission bits, separate clock sync",
-                },
-                {
-                  op: "Integrity checksum",
-                  plm: "Repunit mod 364: 84",
-                  ind: "CRC-32: 296",
-                  speedup: "3.5×",
-                  includes: "Ternary-circle-aligned (3⁶≡1 mod 364), 6-trit Rep C output",
-                  requires: "Binary polynomial, no ternary alignment, separate domain",
-                },
-                {
-                  op: "Full TDNS pipeline",
-                  plm: "337",
-                  ind: "SHA-256 path: 791",
-                  speedup: "2.3×",
-                  includes: "Hash → address → routable in one native pipeline",
-                  requires: "Hash → convert → validate → encode → then routable",
-                },
+                { op: "Hash (27B)", plm: "TIS-27: 308", ind: "SHA-256: 672", speedup: "2.2×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
+                { op: "Hash (81B, PQ)", plm: "TIS-81: 863", ind: "SHA3-256: 928", speedup: "1.1×", includes: "257-bit post-quantum capacity, native GF(3) output", requires: "128-bit classical only (Grover halves), binary output" },
+                { op: "Address derivation", plm: "342", ind: "SHA-256 path: 824", speedup: "2.4×", includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee", requires: "Hash + binary→ternary + separate validation" },
+                { op: "Encryption (27B)", plm: "Phase GF(3): 24", ind: "XSalsa20: 402", speedup: "17×", includes: "GF(3) native, Tribonacci tamper detection, adaptive phase modes", requires: "Binary cipher, separate auth tag, no ternary awareness" },
+                { op: "Key derivation", plm: "TIS-27 KDF: 758", ind: "HKDF-SHA256: 5,642", speedup: "7.4×", includes: "Topology-derived keys (geometry IS the key agreement)", requires: "Binary key material, separate key exchange protocol" },
+                { op: "Capability tokens", plm: "323", ind: "HMAC-SHA256 JWT: 2,683", speedup: "8.3×", includes: "HPTP femtosecond expiration, ternary permission encoding", requires: "Millisecond timestamps, binary permission bits, clock sync" },
+                { op: "Integrity checksum", plm: "Repunit 364: 84", ind: "CRC-32: 296", speedup: "3.5×", includes: "Ternary-circle-aligned (3⁶≡1 mod 364), 6-trit Rep C", requires: "Binary polynomial, no ternary alignment" },
+                { op: "Full TDNS pipeline", plm: "337", ind: "SHA-256 path: 791", speedup: "2.3×", includes: "Hash → address → routable in one native pipeline", requires: "Hash → convert → validate → encode → then routable" },
               ].map((row, i) => (
                 <motion.div
                   key={row.op}
@@ -1395,42 +1387,40 @@ function PerformanceSection() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: i * 0.04 }}
                   className="rounded-lg border border-foreground/5 bg-muted/10 p-4"
-                  data-testid={`bench-row-${i}`}
+                  data-testid={`bench-card-${i}`}
                 >
-                  <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
-                    <div className="flex-1">
-                      <span className="text-sm font-semibold">{row.op}</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold">{row.op}</span>
+                    <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary font-mono text-xs shrink-0">
+                      {row.speedup} faster
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-foreground/5">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-primary/70 font-semibold mb-0.5">PlenumNET</div>
+                      <div className="text-sm font-mono font-bold text-primary">{row.plm} ns</div>
                     </div>
-                    <div className="flex items-center gap-4 md:gap-6">
-                      <div className="text-right">
-                        <div className="text-xs text-muted-foreground">PlenumNET</div>
-                        <div className="text-sm font-mono font-bold text-primary">{row.plm} ns</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-muted-foreground">Industry</div>
-                        <div className="text-sm font-mono text-muted-foreground">{row.ind} ns</div>
-                      </div>
-                      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary font-mono text-xs shrink-0">
-                        {row.speedup} faster
-                      </Badge>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-semibold mb-0.5">Industry</div>
+                      <div className="text-sm font-mono text-muted-foreground">{row.ind} ns</div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="flex items-start gap-2">
-                      <Check className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                      <span className="text-xs text-muted-foreground">{row.includes}</span>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-primary/70 font-semibold mb-0.5">Included Free</div>
+                      <div className="text-xs text-muted-foreground">{row.includes}</div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <Binary className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 shrink-0" />
-                      <span className="text-xs text-muted-foreground/70">{row.requires}</span>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground/50 font-semibold mb-0.5">Industry Requires Separately</div>
+                      <div className="text-xs text-muted-foreground/60">{row.requires}</div>
                     </div>
                   </div>
                 </motion.div>
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
-              All times in nanoseconds, measured end-to-end on stock x86_64, GCC -O2 -march=native. "PlenumNET includes" lists what comes free with the operation. "Industry requires separately" lists what must be added on top of the base measurement to reach equivalent functionality.
+            <p className="text-xs text-muted-foreground mt-5 pt-4 border-t border-foreground/5">
+              All times in nanoseconds. Measured end-to-end on stock x86_64, GCC -O2 -march=native. PlenumNET times include all listed capabilities. Industry times require the listed extras on top.
             </p>
           </Card>
         </motion.div>
