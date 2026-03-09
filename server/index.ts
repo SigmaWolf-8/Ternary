@@ -471,6 +471,21 @@ function startPqtiService(): ChildProcess | null {
     return res.status(status).json({ message });
   });
 
+  app.get("/install/:filename", (req, res) => {
+    const allowed = new Set(["Install-PlenumNET.bat", "install-windows.ps1", "install.sh"]);
+    const { filename } = req.params;
+    if (!allowed.has(filename)) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    const filePath = path.resolve(process.cwd(), "client", "public", "install", filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.sendFile(filePath);
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
