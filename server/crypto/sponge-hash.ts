@@ -176,13 +176,13 @@ export class SpongeDuplex {
   private state: Int8Array;
   private buf: Int8Array;
   private bufLen: number;
-  private absorbed: boolean;
+  private needsFinalize: boolean;
 
   constructor() {
     this.state = new Int8Array(STATE_SIZE);
     this.buf = new Int8Array(RATE);
     this.bufLen = 0;
-    this.absorbed = false;
+    this.needsFinalize = true;
   }
 
   absorbTrits(trits: Int8Array): void {
@@ -195,8 +195,7 @@ export class SpongeDuplex {
   }
 
   private _absorbRaw(inputTrits: Int8Array): void {
-
-    this.absorbed = true;
+    this.needsFinalize = true;
     let offset = 0;
     const inputLen = inputTrits.length;
 
@@ -232,7 +231,7 @@ export class SpongeDuplex {
   }
 
   squeeze(tritCount: number): Int8Array {
-    if (this.bufLen > 0 || !this.absorbed) {
+    if (this.needsFinalize) {
       for (let i = 0; i < this.bufLen; i++) {
         this.state[i] = tritAdd(this.state[i], this.buf[i]);
       }
@@ -240,7 +239,7 @@ export class SpongeDuplex {
         this.state[this.bufLen] = tritAdd(this.state[this.bufLen], 1);
       }
       this.bufLen = 0;
-      this.absorbed = false;
+      this.needsFinalize = false;
       spongePermutation(this.state);
     }
 
@@ -261,7 +260,7 @@ export class SpongeDuplex {
     this.state.fill(0);
     this.buf.fill(0);
     this.bufLen = 0;
-    this.absorbed = false;
+    this.needsFinalize = true;
   }
 }
 
