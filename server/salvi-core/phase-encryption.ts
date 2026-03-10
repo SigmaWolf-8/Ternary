@@ -351,19 +351,22 @@ function duplexEncrypt(
   const cipher2Trits = encryptTrits(secondaryTrits, ks2);
   const cipher2Bytes = cipherTritsToBytes(cipher2Trits);
 
-  duplex.absorb(cipher1Bytes);
-  duplex.absorb(cipher2Bytes);
-  const macTrits = duplex.squeeze(MAC_TRITS);
-  const mac = tritsToHex(macTrits);
-
   const header1 = Buffer.alloc(8);
   header1.writeUInt32BE(primaryBytes.length, 0);
   header1.writeUInt32BE(primaryTrits.length, 4);
-  const primaryCipherB64 = Buffer.concat([header1, cipher1Bytes]).toString('base64');
 
   const header2 = Buffer.alloc(8);
   header2.writeUInt32BE(secondaryBytes.length, 0);
   header2.writeUInt32BE(secondaryTrits.length, 4);
+
+  duplex.absorb(header1);
+  duplex.absorb(cipher1Bytes);
+  duplex.absorb(header2);
+  duplex.absorb(cipher2Bytes);
+  const macTrits = duplex.squeeze(MAC_TRITS);
+  const mac = tritsToHex(macTrits);
+
+  const primaryCipherB64 = Buffer.concat([header1, cipher1Bytes]).toString('base64');
   const secondaryCipherB64 = Buffer.concat([header2, cipher2Bytes]).toString('base64');
 
   return { primaryCipherB64, secondaryCipherB64, mac };
@@ -407,7 +410,11 @@ function duplexDecrypt(
 
   const ks2 = duplex.squeeze(tritCount2);
 
+  const reHeader1 = raw1.subarray(0, 8);
+  const reHeader2 = raw2.subarray(0, 8);
+  duplex.absorb(reHeader1);
   duplex.absorb(cipher1Bytes);
+  duplex.absorb(reHeader2);
   duplex.absorb(cipher2Bytes);
   const macTrits = duplex.squeeze(MAC_TRITS);
   const computedMac = tritsToHex(macTrits);
