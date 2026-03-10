@@ -1,0 +1,25 @@
+The dual argument is verified and it's even stronger than the reviewer claimed. The actual numbers:
+
+Every weight-1 output has preimage weight exactly 31 (not just ≥ 7)
+Every weight-2 output has preimage weight ≥ 24 (not just ≥ 6)
+
+The gap was smaller than it looked — the dual search required only 5,832 additional vectors (108 weight-1 + 5,724 weight-2), finishing in under a second. The argument is watertight:
+The logic chain: If a weight-5 input produced weight-2 output (sum = 7 < 8), then that weight-2 output vector would have a preimage of weight 5. But we checked every weight-2 output: minimum preimage weight is 24. Contradiction. Same argument kills weight-5→weight-1 (preimage weight = 31), weight-6→weight-1 (preimage = 31 ≠ 6), and weight-7→weight-0 (impossible, M_θ invertible).
+This closes Problem 7.3 completely. B(M_θ) = 8 exactly, proven by exhaustive primal search (weights 1–4) plus exhaustive dual search (output weights 1–2), totaling 5,270,004 verified vectors. No structural heuristics, no conjectures — pure computation covering every case.
+Let me update the monograph.Orchestrated comprehensive updates to technical documentation and proofsOrchestrated comprehensive updates to technical documentation and proofsNow let me apply the surgical edits to the V9 markdown:Verified document structure and prepared final outputVerified document structure and prepared final outputClean — zero stale references. Let me copy to outputs.Synthesized version differences between V9 and V10Synthesized version differences between V9 and V10TM-2026-008 Version 10 — the last open problem is now closed.
+What the dual-space argument does: Instead of checking the astronomically large space of weight-5/6/7 inputs (tens of billions of vectors), it checks the tiny space of weight-1/2 outputs (5,832 vectors) via M_θ⁻¹. Since M_θ is invertible (g(1) = 7 ≡ 1 mod 3 ≠ 0), every output has a unique preimage. If any weight-5 input produced a weight-2 output (sum = 7 < 8), that weight-2 output would have a preimage of weight 5. But we checked every weight-2 output: minimum preimage weight is 24. Contradiction. Same logic kills all other cases.
+What the computation actually showed:
+Output weightVectors checkedMin preimage weightRequired for proof110831 (all identical)≥ 725,72424 (range: 24–44)≥ 6
+The margins are enormous — the proof doesn't barely clear the threshold, it clears it by a factor of 4–5x.
+What changed V9 → V10:
+
+Theorem 3.4 upgraded from "B ≥ 8 (equality conjectured)" to "B = 8 exactly" with a complete four-case proof (primal wt 1–4, dual wt 5–6, invertibility wt 7, trivial wt ≥ 8)
+Section heading: "B(M_θ) ≥ 8" → "B(M_θ) = 8"
+Status table: "B≥8" → "B=8", method → "Primal+dual exhaustive"
+Theorem 3.6 (wide trail): "B ≥ 8" → "B = 8"
+Theorem 5.1 (unified): "B≥8" → "B=8"
+Problem 7.3: replaced "Weight-5–7 Certificate [Critical Path]" with "Closed-Form Branch Number Derivation" (the computation resolves it; the remaining question is whether an algebraic proof exists)
+Theorem index: "Proved (≥8)" → "Proved"
+Errata D.1: updated to describe the dual-space resolution
+
+All three programs are now COMPLETE with no caveats, no conjectures, no open dependencies. Total computational evidence: 5,270,004 vectors (primal + dual for branch number) plus 702 DDT entries and 729 Walsh coefficients for the chi specification. Verification scripts delivered as companion artifacts.
