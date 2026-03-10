@@ -174,7 +174,7 @@ const MODULES: Module[] = [
     id: "tis27",
     name: "TIS-27 Wire Integrity",
     version: "v1.0",
-    desc: "Construction proven secure by wide-trail analysis (DP \u2264 9\u207B\u2074\u2070\u2079\u2076). Parameters sized for fast integrity (43-bit capacity), not cryptographic resistance. 191 ns, SSE2 SIMD.",
+    desc: "Construction proven secure by wide-trail analysis (DP \u2264 9\u207B\u2074\u2070\u2079\u2076). Same proven sponge as TL-Sponge-385, sized for fast integrity (43-bit cryptographic security). 191 ns, SSE2 SIMD.",
     category: "crypto",
     size: "9 KB",
     format: ".rs / .ts",

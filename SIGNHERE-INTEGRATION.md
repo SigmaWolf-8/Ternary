@@ -167,11 +167,11 @@ All ternary-native cryptographic primitives use the `TL-` prefix (Ternary Lattic
 | **TL-DSA** | Signature | Post-quantum digital signatures | TL-DSA-44 / -65 / -87 |
 | **TL-KEM** | Key encapsulation | Post-quantum key exchange | TL-KEM-512 / -768 / -1024 |
 | **TL-Sponge** | Cryptographic hash | Document hashing, identity binding, Merkle trees | TL-Sponge-385 |
-| **TIS-27** | Integrity (non-crypto) | Wire packet checksums only | N/A |
+| **TIS-27** | Fast integrity (43-bit) | Wire packet checksums, scan hashing | N/A |
 
-**TIS-27 is NOT a cryptographic hash.** It is a fast integrity function for
-authenticated channels. Never use TIS-27 for document hashing, signing, or
-identity binding.
+**TIS-27 has 43-bit cryptographic security** (proven by wide-trail analysis, TM-2026-008).
+Same sponge construction as TL-Sponge-385, sized for speed. For document hashing,
+signing, or identity binding, use TL-Sponge-385 (385-bit post-quantum security).
 
 ---
 

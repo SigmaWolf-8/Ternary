@@ -13,7 +13,7 @@
 //   services/tdns-v2/src/identity.rs exactly.
 //   43-bit preimage resistance (3^27 ≈ 2^43).
 //
-// Scan hash: TIS-27 (shared/tis-sponge.ts) — fast non-cryptographic integrity function.
+// Scan hash: TIS-27 (shared/tis-sponge.ts) — fast 43-bit cryptographic integrity (TM-2026-008).
 //   4 rounds, 7-neighbor extended theta at ±1/±7/±13. NOT TL-Sponge-43.
 // TL-Sponge-43 identity derivation: 9-round inline sponge (mirrors identity.rs).
 // Timestamps: ISO 8601 display (JS path).

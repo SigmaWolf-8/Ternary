@@ -23,7 +23,7 @@ Every component in PlenumNET derives from ternary geometry. The geometry is not 
 - **Routing** = Hamming distance in a 13D ternary hypercube (trit flips)
 - **Addressing** = 27-trit coordinates in a 27D ontological space
 - **Key derivation** = Kernel cryptographic sponge (729-trit balanced ternary, rate=243, capacity=486, 9 rounds, 7-neighbor extended theta at ±1/±7/±13, 385-bit PQ security)
-- **Wire integrity** = TIS-27 non-cryptographic sponge (54-trit GF(3), rate=27, 4 rounds, stride=13, 7-neighbor extended theta at ±1/±7/±13, 43-bit integrity)
+- **Wire integrity** = TIS-27 sponge (54-trit GF(3), rate=27, 4 rounds, stride=13, 7-neighbor extended theta at ±1/±7/±13, 43-bit cryptographic security — proven by wide-trail analysis, DP ≤ 9⁻⁴⁰⁹⁶, TM-2026-008)
 - **Forgery detection** = Rep C zero-exclusion property (structural, not bolted on)
 - **Calendar** = 13 × 28 = 364 = 111111₃ (base-3 repunit)
 - **Timing** = Femtosecond precision bound to HPTP-mandatory addresses
@@ -437,7 +437,7 @@ Wire encoding per trit: `1=0b01, 2=0b10, 3=0b11, 0b00=reserved/invalid`
 
 ### 2.4 TIS-27 Integrity Sponge (server-side)
 
-TIS-27 is a fast **non-cryptographic** integrity function for wire packet integrity and scan hashing on already-authenticated channels. It is NOT a cryptographic hash — NOT for signing, key derivation, identity binding, or registration. All security-critical operations use the kernel cryptographic sponge (Section 6.7).
+TIS-27 is a fast sponge with 43-bit cryptographic security, proven by wide-trail analysis (χ(x)=x¹⁷ over GF(27), DP_max=1/9, B(M_θ)=8, trail probability < 10⁻³⁹⁰⁸ — see TM-2026-008). Same construction as the kernel sponge (TL-Sponge-385), sized for fast integrity rather than post-quantum resistance. Used for wire packet integrity and scan hashing. For operations requiring post-quantum security (signing, key derivation, identity binding), use TL-Sponge-385 (Section 6.7).
 
 The sponge parameters are derived from TDNS architecture — not chosen arbitrarily:
 
@@ -446,10 +446,10 @@ The sponge parameters are derived from TDNS architecture — not chosen arbitrar
 | State | 54 trits | Full TDNS address width (27 classification + 27 identity) |
 | Rate | 27 trits | Identity anchor width = classification width |
 | Capacity | 27 trits (~43 bits) | Classification layer width |
-| Rounds | 4 | Sufficient for non-cryptographic integrity; full diffusion in 2 rounds |
+| Rounds | 4 | Full diffusion in 2 rounds; 4 rounds yield trail probability < 10⁻³⁹⁰⁸ (TM-2026-008) |
 | Stride | 13 | gcd(13,54)=1 — complete permutation cycle; 13=T₇=111₃=1 rad (see INVARIANT 10) |
 | Theta | 7-neighbor extended | Offsets ±1/±7/±13 — all coprime to 54; balanced_wrap for GF(3) nonlinearity |
-| Speed | ~303 ns/hash | 1.56× faster than SHA-256 |
+| Speed | ~191 ns/hash | 3.5× faster than SHA-256 |
 
 Operations: `tisTheta` (7-neighbor diffusion at ±1/±7/±13), `tisPi` (stride-13 permutation), round constant addition. All arithmetic in GF(3) = {0,1,2}. Output lifted to Rep C {1,2,3}. No SHA-256. No BLAKE3. No binary hash primitives.
 
@@ -739,7 +739,7 @@ Source: `server/crypto-utils.ts`
 | **TL-KEM** | Key encapsulation | 512 / 768 / 1024 |
 | **Phase Encryption** | Data encryption | 4 modes |
 | **Kernel sponge** | Key derivation, signing, identity binding (729-trit, 9 rounds) | 385-bit PQ (243-trit capacity) |
-| **TIS-27 sponge** | Wire integrity, scan hashing — NOT cryptographic (54-trit, 4 rounds) | 43-bit integrity only |
+| **TIS-27 sponge** | Wire integrity, scan hashing (54-trit, 4 rounds, proven secure — TM-2026-008) | 43-bit cryptographic security |
 | **RSA-4096** | Classical signatures (dual-sig with TL-DSA) | — |
 | **AES-256-GCM** | Token encryption at rest | — |
 
