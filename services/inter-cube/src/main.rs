@@ -421,8 +421,8 @@ async fn run_crs_mode() {
     }
     let con_st = con.stats();
     println!("[CON] Overlay: {} up, {} unknown", con_st.tunnels_up, con_st.tunnels_unknown);
-    let keys = con.derive_all_keys();
-    println!("[CON] {} PQ-native tunnel keys derived (BLAKE3)", keys.len());
+    let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
+    println!("[CON] {} PQ-native tunnel keys derived (TL-Sponge-385)", keys.len());
 
     // -- Step 3: FTS - Heartbeat monitoring ----------------------
     let fts = FaultToleranceService::new(registration.address.clone());
@@ -606,8 +606,8 @@ async fn run_cube_mode() {
     let con_st = con.stats();
     println!("[CON] Overlay: {} up, {} resolving, {} unknown",
         con_st.tunnels_up, con_st.tunnels_resolving, con_st.tunnels_unknown);
-    let keys = con.derive_all_keys();
-    println!("[CON] {} PQ-native tunnel keys derived (BLAKE3)", keys.len());
+    let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
+    println!("[CON] {} PQ-native tunnel keys derived (TL-Sponge-385)", keys.len());
 
     let fts = FaultToleranceService::new(local_address.clone());
     let (up, suspect, down, recovering) = fts.state_counts();
