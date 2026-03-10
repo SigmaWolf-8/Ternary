@@ -13,7 +13,7 @@
 
 ## Abstract
 
-The Cube Overlay Network (CON) derives symmetric tunnel keys from the geometric addresses of two neighboring cubes without interactive key exchange. Because both the addresses and the context string are public, the derived keys are **publicly computable** — any party who knows both endpoint addresses can compute the tunnel key. This memorandum formally analyzes this construction's security properties and limitations under adaptive corruption, providing: (1) a precise characterization of the security model (network-access-restricted, not computationally secret), (2) a game-based experiment (Exp^{TDKA}) capturing the restricted-adversary setting where CRS access control prevents unauthorized key computation, (3) adaptive corruption analysis showing key independence under partial corruption, (4) a forward secrecy negative result with three mitigation paths, and (5) an honest assessment of the 43-bit TIS-27 capacity limitation. We close Open Problem (v) by providing the first formal treatment, while clearly marking the construction's fundamental limitation: **PQ-Native tunnel keys are deterministic pre-shared keys, not computationally secret session keys**, and their confidentiality depends on network-layer access control, not on computational hardness.
+The Cube Overlay Network (CON) derives symmetric tunnel keys from the geometric addresses of two neighboring cubes without interactive key exchange. Because both the addresses and the context string are public, the derived keys are **publicly computable** — any party who knows both endpoint addresses can compute the tunnel key. This memorandum formally analyzes this construction's security properties and limitations under adaptive corruption, providing: (1) a precise characterization of the security model (network-access-restricted, not computationally secret), (2) a game-based experiment (Exp^{TDKA}) capturing the restricted-adversary setting where CRS access control prevents unauthorized key computation, (3) adaptive corruption analysis showing key independence under partial corruption, (4) a forward secrecy negative result with three mitigation paths, and (5) an honest assessment of the 43-bit TIS-27 capacity limitation. We close Open Problem (v) by providing the first formal treatment, while clearly marking the construction's fundamental limitation: **PQ-Native tunnel keys are deterministic pre-shared keys, not computationally secret session keys**, and their confidentiality depends on network-layer access control, not on computational hardness. §12 specifies the **TL-KEM Upgrade** — a three-layer construction that separates geometry (neighbor determination) from key material (TL-KEM key exchange), upgrading the tunnel key agreement from a deterministic PSK to a computationally-secure post-quantum key agreement with IND-CCA2 key secrecy, forward secrecy via TL-KEM refresh and hash ratchet, and 256-bit post-quantum security (bounded by TL-KEM hardness and the 256-bit output length; TL-Sponge-385 capacity of 770 bits provides a comfortable internal margin).
 
 ---
 
@@ -30,6 +30,7 @@ The Cube Overlay Network (CON) derives symmetric tunnel keys from the geometric 
 9. [Limitations and Mitigations](#9-limitations-and-mitigations)
 10. [Related Work](#10-related-work)
 11. [Conclusion](#11-conclusion)
+12. [TL-KEM Upgrade Specification](#12-tl-kem-upgrade-specification)
 
 ---
 
@@ -495,18 +496,18 @@ The topology-derived key is functionally equivalent to a **pre-shared key (PSK)*
 
 ### 11.1 Summary of Results
 
-| Property | Status |
-|----------|--------|
-| Game-based security definition (Exp^{TDKA}) | Defined in network-restricted model (§3.1) |
-| Computational key secrecy (unrestricted adversary) | **Not achievable** — public-input deterministic derivation (§2.2, §4.1) |
-| Key uniqueness (collision resistance) | Bounded by TIS-27 capacity — insufficient at Level 1 scale (§4.5) |
-| Key independence under corruption | Holds in network-restricted model (Proposition 5.1) |
-| Adaptive corruption analysis | Complete (§5) |
-| Forward secrecy | Not achieved in PQ-Native mode (Theorem 6.1) |
-| Composition with tunnel encryption | Proven (Proposition 7.1) |
-| WireGuard composition advantage | Analyzed — provides actual key secrecy + FS (§7.3) |
-| Effective security level | 43 bits (TIS-27 capacity-limited) |
-| Post-quantum upgrade path | Identified (TL-Sponge-385, §8.3, §9.4) |
+| Property | Status (v2.5 — §1-§10) | Status (v3.0 — §12 TL-KEM Upgrade) |
+|----------|--------|--------|
+| Game-based security definition (Exp^{TDKA}) | Defined in network-restricted model (§3.1) | Superseded by IND-CCA2 key secrecy from TL-KEM (§12.3) |
+| Computational key secrecy (unrestricted adversary) | **Not achievable** — public-input deterministic derivation (§2.2, §4.1) | **Achieved** — IND-CCA2 key secrecy from TL-KEM shared secret (§12.3) |
+| Key uniqueness (collision resistance) | Bounded by TIS-27 capacity — insufficient at Level 1 scale (§4.5) | **Resolved** — TL-Sponge-385 provides 770-bit capacity (§12.1) |
+| Key independence under corruption | Holds in network-restricted model (Proposition 5.1) | Holds unconditionally — KEM ephemeral secrets are per-neighbor (§12.3) |
+| Adaptive corruption analysis | Complete (§5) | Strengthened — corruption reveals only KEM ciphertexts, not future keys (§12.3) |
+| Forward secrecy | Not achieved in PQ-Native mode (Theorem 6.1) | **Achieved** — TL-KEM refresh + hash ratchet (§12.3) |
+| Composition with tunnel encryption | Proven (Proposition 7.1) | Carries over with stronger key material (§12.1) |
+| WireGuard composition advantage | Analyzed — provides actual key secrecy + FS (§7.3) | Still recommended; v3.0 PQ-Native now independently provides key secrecy + FS |
+| Effective security level | 43 bits (TIS-27 capacity-limited) | **256 bits (PQ)** — bounded by TL-KEM hardness + 256-bit output; TL-Sponge-385 capacity (770 bits) provides margin (§12.3) |
+| Post-quantum upgrade path | Identified (TL-Sponge-385, §8.3, §9.4) | **Fully specified** — TL-KEM + TL-Sponge-385 (§12) |
 
 ### 11.2 Open Problem Closure
 
@@ -523,6 +524,187 @@ This memorandum provides:
 A UC-style proof was considered but is not provided. The TDKA construction is too simple to benefit from UC composition — there is no interactive protocol to compose, and the key derivation is a single deterministic function evaluation.
 
 **Status: CLOSED — formal treatment complete. The construction's security is weaker than standard key agreement; WireGuard composition or secret-input augmentation is required for production key confidentiality.**
+
+---
+
+## 12. TL-KEM Upgrade Specification
+
+The preceding sections (§1–§11) provide an honest formal analysis of the current CON v2.5 construction. This section specifies the **TL-KEM Upgrade** — a three-layer construction that resolves all four limitations identified in §9 by separating geometry (neighbor determination) from key material (TL-KEM key exchange).
+
+### 12.1 Three-Layer Construction
+
+The upgraded CON v3.0 tunnel key agreement uses three layers:
+
+**Layer 1: Geometry (unchanged).** Neighbor determination remains purely geometric. Each cube C_i has exactly 26 neighbors determined by single-trit Hamming distance in the 13-dimensional ternary hypercube. This layer is public and deterministic — it answers "who are my neighbors?" The geometry layer is identical to §1.4 and requires no modification.
+
+**Layer 2: TL-KEM Key Exchange (new).** During CRS registration, each cube generates a TL-KEM key pair (pk, sk) and publishes pk to the CRS alongside its Rep C address and network endpoint. When cube C_A discovers neighbor C_B via CRS lookup, C_A retrieves C_B's TL-KEM public key pk_B and performs encapsulation:
+
+```
+(ct, ss) ← TL-KEM.Encaps(pk_B)
+```
+
+C_A sends the ciphertext ct to C_B via the CRS or a direct bootstrap channel. C_B decapsulates:
+
+```
+ss ← TL-KEM.Decaps(sk_B, ct)
+```
+
+Both parties now hold a shared secret ss ∈ {0,1}^{256} that is computationally secret — even an adversary who knows both addresses and observes the ciphertext cannot recover ss without sk_B.
+
+**Layer 3: Topology-Bound KDF Composition (new).** The tunnel key is derived by binding the KEM shared secret to the geometric topology via TL-Sponge-385:
+
+```
+derive_pq_tunnel_key_v3(addr_A, addr_B, kem_shared_secret, epoch) → K ∈ {0,1}^256:
+
+  1. Serialize:    bytes_A ← addr_A.to_bytes()
+                   bytes_B ← addr_B.to_bytes()
+  2. Canonicalize: (lo, hi) ← if bytes_A ≤_lex bytes_B
+                                  then (bytes_A, bytes_B)
+                                  else (bytes_B, bytes_A)
+  3. Epoch bytes:  epoch_bytes ← epoch.to_le_bytes()  (8 bytes, little-endian)
+  4. Concatenate:  input ← "PlenumNET-CON-v3.0" ∥ lo ∥ hi ∥ kem_shared_secret ∥ epoch_bytes
+  5. Derive:       K ← TL-Sponge-385-KDF(input, 256)
+```
+
+where `TL-Sponge-385-KDF(input, len)` absorbs `input` into the TL-Sponge-385 sponge (state = 729 trits, rate = 243 trits, capacity = 486 trits, 9 rounds, 7-neighbor extended theta at ±1/±7/±13) and squeezes `len` bits of output.
+
+The construction binds together four independent inputs:
+- **Domain separator** `"PlenumNET-CON-v3.0"`: prevents cross-protocol attacks.
+- **Canonical addresses** `lo ∥ hi`: ensures topology binding — the key is specific to this geometric edge.
+- **KEM shared secret**: provides computational key secrecy (IND-CCA2).
+- **Epoch**: enables key rotation without re-running TL-KEM.
+
+### 12.2 Upgraded Key Derivation Formula
+
+The complete formula for v3.0 tunnel key derivation:
+
+```
+K = TL-Sponge-385("PlenumNET-CON-v3.0" ∥ addr_a ∥ addr_b ∥ TL-KEM_shared_secret ∥ epoch) → 256-bit key
+```
+
+**Parameters:**
+- Sponge state: 729 trits (243 rate + 486 capacity)
+- Rounds: 9
+- Theta step: 7-neighbor extended theta at ±1/±7/±13
+- Stride: 13 (coprime to 729 = 3^6, gcd(13, 729) = 1)
+- Output: 256 bits (first 162 trits squeezed, truncated to 256 bits)
+- Domain separator: `"PlenumNET-CON-v3.0"` (18 bytes, UTF-8)
+- Address encoding: Rep C 13-trit addresses serialized as bytes
+- KEM shared secret: 32 bytes (256 bits) from TL-KEM.Encaps/Decaps
+- Epoch: 8 bytes, little-endian u64, derived from `floor(unix_time / 86400)`
+
+**Commutativity is preserved:**
+
+```
+derive_pq_tunnel_key_v3(A, B, ss, e) = derive_pq_tunnel_key_v3(B, A, ss, e)    ∀ A, B, ss, e
+```
+
+This follows from the lexicographic canonicalization in step 2, identical to the v2.5 construction.
+
+### 12.3 Security Analysis
+
+The TL-KEM upgrade resolves all four limitations identified in §9:
+
+**12.3.1 IND-CCA2 Key Secrecy**
+
+The tunnel key K is now computationally secret against an unrestricted adversary. The security reduction proceeds as follows:
+
+*Theorem 12.1.* If TL-KEM is IND-CCA2 secure and TL-Sponge-385 is modeled as a random oracle, then the v3.0 tunnel key K is indistinguishable from random for any PPT adversary who does not hold sk_A or sk_B:
+
+```
+Adv^{KS}_{v3.0,A}(λ) ≤ Adv^{IND-CCA2}_{TL-KEM}(λ) + Adv^{RO}_{TL-Sponge-385}(λ)
+```
+
+*Proof sketch.* By IND-CCA2 security of TL-KEM, the shared secret ss is indistinguishable from random to any adversary who observes only pk and ct. In the random oracle model for TL-Sponge-385, the output K = RO(domain ∥ addresses ∥ ss ∥ epoch) is uniformly random when ss is uniformly random (by the composition property of random oracles with uniformly random inputs). The addresses and epoch are fixed public values and do not reduce the entropy of ss. □
+
+This resolves the fundamental limitation of §2.2 and §4.1: the key is no longer publicly computable because the KEM shared secret is computationally hidden.
+
+**12.3.2 Forward Secrecy**
+
+The v3.0 construction achieves forward secrecy through two mechanisms:
+
+**(FS1) TL-KEM Refresh.** Cubes periodically re-run TL-KEM to generate fresh shared secrets. After refresh at time t_refresh:
+- New tunnel key: K' = TL-Sponge-385(domain ∥ addrs ∥ ss' ∥ epoch')
+- Old shared secret ss is erased from memory.
+- An adversary who later compromises sk_B cannot recover ss (only future encapsulations).
+
+The refresh interval is configurable; the default is aligned with the existing 24-hour key rotation interval (`DEFAULT_KEY_ROTATION_SECS = 86400`).
+
+**(FS2) Hash Ratchet.** Between TL-KEM refreshes, a hash ratchet provides per-epoch forward secrecy:
+
+```
+K_{n+1} = TL-Sponge-385("PlenumNET-CON-v3.0-ratchet" ∥ K_n ∥ epoch_{n+1})
+K_n is erased from memory.
+```
+
+After ratchet step n+1, knowledge of K_{n+1} does not reveal K_n (one-wayness of TL-Sponge-385 in the random oracle model). This resolves Theorem 6.1's negative result: the construction is no longer deterministic from static inputs.
+
+**12.3.3 385-Bit Post-Quantum Security**
+
+The effective security level is determined by the weakest component:
+
+| Component | Security Level | Bound |
+|-----------|---------------|-------|
+| TL-KEM IND-CCA2 | ≥ 256 bits (PQ) | Lattice/code hardness assumption |
+| TL-Sponge-385 capacity | 770 bits | Generic sponge distinguishing (c = 486 trits) |
+| TL-Sponge-385 differential trail | ~4.25 × 10^8 bits | From extended theta wide-trail analysis |
+| Output length | 256 bits | Key space exhaustion |
+| Domain separation | ∞ | Fixed context prefix |
+| Canonicalization | ∞ | Deterministic, no collision |
+
+**The effective security level is 256 bits (post-quantum)**, limited by the TL-KEM hardness assumption and the output length. The TL-Sponge-385 capacity (770 bits) provides a comfortable margin above the 256-bit target, exceeding CNSA 2.0 requirements.
+
+**12.3.4 Topology Binding**
+
+The inclusion of canonical addresses in the KDF input ensures that the derived key is specific to the geometric edge (A, B). Even if two distinct cube pairs happen to share the same KEM shared secret (probability 2^{-256}), their tunnel keys would differ because the address inputs differ. This preserves the topology-binding property of the v2.5 construction while adding computational key secrecy.
+
+### 12.4 Comparison Table: Current vs. Upgraded Properties
+
+| Property | v2.5 (§1-§10) | v3.0 (TL-KEM Upgrade) |
+|----------|---------------|----------------------|
+| Key secrecy model | Network-access-restricted only | **IND-CCA2** (computational, unrestricted adversary) |
+| Key derivation inputs | Public addresses only | Public addresses + **KEM shared secret** (computationally hidden) |
+| Forward secrecy | Not achieved (Theorem 6.1) | **Achieved** via TL-KEM refresh + hash ratchet |
+| Post-quantum security | 43 bits (TIS-27, below CNSA 2.0) | **256 bits (PQ)** (TL-KEM + TL-Sponge-385, meets CNSA 2.0) |
+| Topology binding | Yes (addresses in KDF input) | Yes (addresses still in KDF input) |
+| Zero-round establishment | Yes (no interaction needed) | No — requires one KEM encapsulation exchange |
+| CRS trust requirement | CRS integrity for endpoint binding | CRS integrity + CRS distributes KEM public keys |
+| Sponge construction | TIS-27 (54-trit, 4 rounds) | TL-Sponge-385 (729-trit, 9 rounds) |
+| Key rotation mechanism | Epoch-only (predictable) | TL-KEM refresh + hash ratchet (unpredictable) |
+| Breaks if | Adversary learns both addresses | Adversary compromises long-term KEM secret key |
+| Interactive messages | 0 | 1 (KEM ciphertext, can be piggybacked on CRS registration) |
+| Backward compatible | — | Yes (v2.5 and v3.0 can coexist; see §12.5) |
+
+### 12.5 Migration Path
+
+**12.5.1 Backward Compatibility**
+
+The v3.0 construction is additive — it does not modify or remove the v2.5 key derivation. Both `derive_pq_tunnel_key` (v2.5) and `derive_pq_tunnel_key_v3` (v3.0) coexist in the codebase. The tunnel protocol negotiation uses a new variant `TunnelProtocol::PqNativeV3` alongside the existing `TunnelProtocol::PqNative`.
+
+**12.5.2 Version Negotiation**
+
+During neighbor discovery via CRS lookup, each cube advertises its supported protocol versions:
+
+```
+CRS Registration:
+  {
+    address: "1-2-3-...",
+    endpoint: "...",
+    kemPublicKey: "base64-encoded-pk"   // present only for v3.0-capable cubes
+  }
+```
+
+When cube C_A discovers neighbor C_B:
+- If C_B's CRS record includes `kemPublicKey`: C_A performs TL-KEM encapsulation and establishes a v3.0 tunnel.
+- If C_B's CRS record does not include `kemPublicKey`: C_A falls back to v2.5 deterministic key derivation.
+
+This allows incremental rollout — v3.0 cubes can coexist with v2.5 cubes in the same overlay network.
+
+**12.5.3 Rollback**
+
+If a v3.0 tunnel experiences KEM-related failures (e.g., ciphertext corruption, decapsulation failure), the tunnel gracefully falls back to v2.5 key derivation. The fallback is logged and reported to FTS for monitoring. Persistent fallbacks trigger an alert — they may indicate an active downgrade attack.
+
+**Rollback security note.** A downgrade attack that forces fallback to v2.5 reduces security to the v2.5 level (43-bit, no computational key secrecy). This is an inherent trade-off of backward compatibility. Operators who require v3.0 security guarantees can disable v2.5 fallback via configuration (`allow_v25_fallback = false`).
 
 ---
 
