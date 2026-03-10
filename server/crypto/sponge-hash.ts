@@ -172,6 +172,104 @@ export function spongeHashTrits(input: Buffer | Uint8Array): Int8Array {
   return spongeAbsorbAndSqueeze(inputTrits, 243);
 }
 
+export class SpongeDuplex {
+  private state: Int8Array;
+  private buf: Int8Array;
+  private bufLen: number;
+  private needsFinalize: boolean;
+
+  constructor() {
+    this.state = new Int8Array(STATE_SIZE);
+    this.buf = new Int8Array(RATE);
+    this.bufLen = 0;
+    this.needsFinalize = true;
+  }
+
+  absorbTrits(trits: Int8Array): void {
+    this._absorbRaw(trits);
+  }
+
+  absorb(input: Buffer | Uint8Array): void {
+    const inputTrits = bytesToBalancedTrits(input);
+    this._absorbRaw(inputTrits);
+  }
+
+  private _absorbRaw(inputTrits: Int8Array): void {
+    this.needsFinalize = true;
+    let offset = 0;
+    const inputLen = inputTrits.length;
+
+    if (this.bufLen > 0) {
+      const space = RATE - this.bufLen;
+      const fill = Math.min(inputLen, space);
+      this.buf.set(inputTrits.subarray(0, fill), this.bufLen);
+      this.bufLen += fill;
+      offset = fill;
+
+      if (this.bufLen === RATE) {
+        for (let i = 0; i < RATE; i++) {
+          this.state[i] = tritAdd(this.state[i], this.buf[i]);
+        }
+        spongePermutation(this.state);
+        this.bufLen = 0;
+      }
+    }
+
+    while (offset + RATE <= inputLen) {
+      for (let i = 0; i < RATE; i++) {
+        this.state[i] = tritAdd(this.state[i], inputTrits[offset + i]);
+      }
+      spongePermutation(this.state);
+      offset += RATE;
+    }
+
+    const remaining = inputLen - offset;
+    if (remaining > 0) {
+      this.buf.set(inputTrits.subarray(offset, offset + remaining), this.bufLen);
+      this.bufLen += remaining;
+    }
+  }
+
+  squeeze(tritCount: number): Int8Array {
+    if (this.needsFinalize) {
+      for (let i = 0; i < this.bufLen; i++) {
+        this.state[i] = tritAdd(this.state[i], this.buf[i]);
+      }
+      if (this.bufLen < RATE) {
+        this.state[this.bufLen] = tritAdd(this.state[this.bufLen], 1);
+      }
+      this.bufLen = 0;
+      this.needsFinalize = false;
+      spongePermutation(this.state);
+    }
+
+    const output = new Int8Array(tritCount);
+    let written = 0;
+    while (written < tritCount) {
+      const take = Math.min(RATE, tritCount - written);
+      output.set(this.state.subarray(0, take), written);
+      written += take;
+      if (written < tritCount) {
+        spongePermutation(this.state);
+      }
+    }
+    return output;
+  }
+
+  reset(): void {
+    this.state.fill(0);
+    this.buf.fill(0);
+    this.bufLen = 0;
+    this.needsFinalize = true;
+  }
+}
+
+export function tritsToHex(trits: Int8Array): string {
+  const byteLen = Math.ceil(trits.length / 5);
+  const bytes = tritsToBytes(trits, byteLen);
+  return bytes.toString('hex');
+}
+
 export const TL_SPONGE_HASH_BYTES = 49;
 export const TL_SPONGE_HASH_HEX_LEN = 98;
 export const TL_SPONGE_HASH_TRITS = 243;

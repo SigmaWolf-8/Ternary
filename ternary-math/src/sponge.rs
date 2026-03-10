@@ -88,6 +88,10 @@ fn sponge_permutation(state: &mut [i8; STATE_SIZE]) {
     }
 }
 
+pub fn bytes_to_trits_pub(bytes: &[u8]) -> Vec<i8> {
+    bytes_to_trits(bytes)
+}
+
 fn bytes_to_trits(bytes: &[u8]) -> Vec<i8> {
     let mut trits = Vec::with_capacity(bytes.len() * 5);
     for &byte in bytes {
@@ -117,6 +121,88 @@ fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
         i += 5;
     }
     bytes
+}
+
+pub struct Sponge385Pub {
+    state: [i8; STATE_SIZE],
+    buf: [i8; RATE],
+    buf_len: usize,
+    absorbed: bool,
+}
+
+impl Sponge385Pub {
+    pub fn new() -> Self {
+        Self {
+            state: [0i8; STATE_SIZE],
+            buf: [0i8; RATE],
+            buf_len: 0,
+            absorbed: false,
+        }
+    }
+
+    pub fn absorb(&mut self, input: &[i8]) {
+        self.absorbed = true;
+        let mut offset = 0;
+        let input_len = input.len();
+
+        if self.buf_len > 0 {
+            let space = RATE - self.buf_len;
+            let fill = if input_len < space { input_len } else { space };
+            self.buf[self.buf_len..self.buf_len + fill]
+                .copy_from_slice(&input[..fill]);
+            self.buf_len += fill;
+            offset = fill;
+
+            if self.buf_len == RATE {
+                for i in 0..RATE {
+                    self.state[i] = trit_add(self.state[i], self.buf[i]);
+                }
+                sponge_permutation(&mut self.state);
+                self.buf_len = 0;
+            }
+        }
+
+        while offset + RATE <= input_len {
+            let block = &input[offset..offset + RATE];
+            for i in 0..RATE {
+                self.state[i] = trit_add(self.state[i], block[i]);
+            }
+            sponge_permutation(&mut self.state);
+            offset += RATE;
+        }
+
+        let remaining = input_len - offset;
+        if remaining > 0 {
+            self.buf[self.buf_len..self.buf_len + remaining]
+                .copy_from_slice(&input[offset..]);
+            self.buf_len += remaining;
+        }
+    }
+
+    pub fn squeeze(&mut self, output_trits: usize) -> Vec<i8> {
+        if self.buf_len > 0 || !self.absorbed {
+            for i in 0..self.buf_len {
+                self.state[i] = trit_add(self.state[i], self.buf[i]);
+            }
+            if self.buf_len < RATE {
+                self.state[self.buf_len] = trit_add(self.state[self.buf_len], 1);
+            }
+            self.buf_len = 0;
+            sponge_permutation(&mut self.state);
+        }
+
+        let mut output = Vec::with_capacity(output_trits);
+        while output.len() < output_trits {
+            let remaining = output_trits - output.len();
+            let take = if remaining < RATE { remaining } else { RATE };
+            output.extend_from_slice(&self.state[..take]);
+            if output.len() < output_trits {
+                sponge_permutation(&mut self.state);
+            }
+        }
+        output.truncate(output_trits);
+        output
+    }
 }
 
 struct Sponge385 {

@@ -15,32 +15,28 @@
  */
 
 /**
- * Salvi Framework — Phase Encryption
+ * Salvi Framework — Phase Encryption v3 (Duplex Mode)
  *
- * Post-quantum phase-domain encryption using PlenumNET native primitives:
+ * Performance overhaul: single duplex sponge per encrypt/decrypt,
+ * precomputed LUTs, pre-allocated buffers, unified MAC.
  *
  *   Key:        Server-side secret (SESSION_SECRET) — never exposed in output
- *   Keystream:  TL-Sponge-385 keyed by (secret ‖ nonce ‖ phase_angle ‖ context)
+ *   Keystream:  TL-Sponge-385 duplex mode (absorb domain, squeeze keystream)
  *   Cipher:     GF(3) trit-wise addition (balanced ternary stream cipher)
  *   Geometry:   364° ternary circle phase angles as sponge domain separators
- *   Integrity:  TL-Sponge-385 MAC on all payloads (all modes, not just guardian)
+ *   Integrity:  Single duplex MAC covering both phase halves (stronger binding)
  *
- * Architecture:
+ * Architecture (v3 duplex — 1 sponge init per encrypt, down from 4):
  *   1. Derive 32-byte key material from SESSION_SECRET via TL-Sponge-385
  *   2. Generate 32-byte random nonce per operation
  *   3. Build domain: key_material ‖ nonce ‖ phase_angle_364 ‖ context_tag
- *   4. Derive keystream: TL-Sponge-385 absorb domain, squeeze N trits
+ *   4. Duplex: absorb domain → squeeze primary keystream → absorb phase switch →
+ *      squeeze secondary keystream → absorb both ciphertexts → squeeze MAC
  *   5. Encrypt: ciphertext[i] = tritAdd(plaintext[i], keystream[i])  — GF(3)
- *   6. Decrypt: plaintext[i] = tritSub(ciphertext[i], keystream[i])  — GF(3)
- *   7. MAC: TL-Sponge-385 hash of (key_material ‖ nonce ‖ ciphertext) per phase
+ *   6. Decrypt: reverse with tritSub
  *
- * Security: IND-CPA via fresh random nonce + secret key. The nonce is public
- * but the keystream is not derivable without the server secret. Post-quantum
- * security from TL-Sponge-385 capacity (486 trits = 385 bits). Mandatory
- * MAC verification on decryption prevents tampering in all modes.
- *
- * Byte encoding: 6 trits per byte (capacity 3^6 = 729 > 256), fully bijective.
- * Every byte value 0-255 maps uniquely to 6 balanced trits and back.
+ * Backward compatible: detects v2 format (separate primary/secondary MACs)
+ * and falls back to legacy per-phase sponge decryption.
  */
 
 import { randomBytes, timingSafeEqual } from 'crypto';
@@ -48,6 +44,8 @@ import { getFemtosecondTimestamp, FemtosecondTimestamp } from './femtosecond-tim
 import {
   spongeKeystream,
   spongeHash,
+  SpongeDuplex,
+  tritsToHex,
 } from '../crypto/sponge-hash';
 
 const PHASE_CONTEXT_TAG = Buffer.from('PlenumNET-Phase-v2');
@@ -56,6 +54,7 @@ const NONCE_BYTES = 32;
 const TERNARY_FULL_CIRCLE = 364;
 const STD_FULL_CIRCLE = 360;
 const TRITS_PER_BYTE = 6;
+const MAC_TRITS = 243;
 
 let _cachedKeyMaterial: Buffer | null = null;
 
@@ -102,7 +101,8 @@ export interface EncryptedPhaseData {
   config: PhaseConfig;
   splitRatio: number;
   nonce?: string;
-  mac?: { primary: string; secondary: string };
+  mac?: { primary: string; secondary: string } | string;
+  version?: number;
 }
 
 export interface RecombinationResult {
@@ -156,27 +156,57 @@ function stdDegToTernaryDeg(stdDeg: number): number {
   return Math.round(stdDeg * TERNARY_FULL_CIRCLE / STD_FULL_CIRCLE);
 }
 
-function buildDomainInput(key: Buffer, nonce: Buffer, phaseAngleTernary: number): Buffer {
-  const angleBuf = Buffer.alloc(2);
-  angleBuf.writeUInt16BE(phaseAngleTernary & 0xFFFF, 0);
-  return Buffer.concat([key, nonce, angleBuf, PHASE_CONTEXT_TAG]);
+// === Improvement 5: Pre-allocated domain buffer ===
+const DOMAIN_BUF_LEN = 32 + 32 + 2 + PHASE_CONTEXT_TAG.length;
+const _domainBuf = Buffer.alloc(DOMAIN_BUF_LEN);
+PHASE_CONTEXT_TAG.copy(_domainBuf, 66);
+
+function buildDomainInput(key: Buffer, nonce: Buffer, ternaryAngle: number): Buffer {
+  key.copy(_domainBuf, 0);
+  nonce.copy(_domainBuf, 32);
+  _domainBuf.writeUInt16BE(ternaryAngle & 0xFFFF, 64);
+  return Buffer.from(_domainBuf);
 }
 
-function computeMac(key: Buffer, nonce: Buffer, cipherB64: string): string {
-  const cipherBuf = Buffer.from(cipherB64, 'base64');
-  const input = Buffer.concat([key, nonce, cipherBuf, MAC_CONTEXT_TAG]);
-  return spongeHash(input);
+// === Improvement 4: Precomputed byte-to-trit lookup tables ===
+const BYTE_TO_TRITS_6: Int8Array[] = new Array(256);
+for (let b = 0; b < 256; b++) {
+  const t = new Int8Array(6);
+  let v = b;
+  for (let j = 0; j < 6; j++) { t[j] = (v % 3) - 1; v = Math.floor(v / 3); }
+  BYTE_TO_TRITS_6[b] = t;
+}
+
+const BYTE_TO_TRITS_5: Int8Array[] = new Array(243);
+for (let b = 0; b < 243; b++) {
+  const t = new Int8Array(5);
+  let v = b;
+  for (let j = 0; j < 5; j++) { t[j] = (v % 3) - 1; v = Math.floor(v / 3); }
+  BYTE_TO_TRITS_5[b] = t;
+}
+
+const TRITS6_TO_BYTE = new Uint8Array(729);
+for (let b = 0; b < 256; b++) {
+  const t = BYTE_TO_TRITS_6[b];
+  let idx = 0, mul = 1;
+  for (let j = 0; j < 6; j++) { idx += (t[j] + 1) * mul; mul *= 3; }
+  TRITS6_TO_BYTE[idx] = b;
+}
+
+const TRITS5_TO_BYTE = new Uint8Array(243);
+for (let b = 0; b < 243; b++) {
+  const t = BYTE_TO_TRITS_5[b];
+  let idx = 0, mul = 1;
+  for (let j = 0; j < 5; j++) { idx += (t[j] + 1) * mul; mul *= 3; }
+  TRITS5_TO_BYTE[idx] = b;
 }
 
 function bytesToBalancedTrits6(input: Buffer): Int8Array {
   const trits = new Int8Array(input.length * TRITS_PER_BYTE);
   let idx = 0;
-  for (const byte of input) {
-    let val = byte;
-    for (let j = 0; j < TRITS_PER_BYTE; j++) {
-      trits[idx++] = (val % 3) - 1;
-      val = Math.floor(val / 3);
-    }
+  for (let i = 0; i < input.length; i++) {
+    trits.set(BYTE_TO_TRITS_6[input[i]], idx);
+    idx += 6;
   }
   return trits;
 }
@@ -185,14 +215,13 @@ function balancedTrits6ToBytes(trits: Int8Array, byteLen: number): Buffer {
   const out = Buffer.alloc(byteLen);
   let tritIdx = 0;
   for (let b = 0; b < byteLen; b++) {
-    let val = 0;
-    let mul = 1;
+    let idx = 0, mul = 1;
     for (let j = 0; j < TRITS_PER_BYTE && tritIdx < trits.length; j++) {
-      val += (trits[tritIdx] + 1) * mul;
+      idx += (trits[tritIdx] + 1) * mul;
       mul *= 3;
       tritIdx++;
     }
-    out[b] = val & 0xFF;
+    out[b] = TRITS6_TO_BYTE[idx];
   }
   return out;
 }
@@ -230,33 +259,38 @@ function cipherTritsToBytes(trits: Int8Array): Buffer {
   const out = Buffer.alloc(byteLen);
   let tritIdx = 0;
   for (let b = 0; b < byteLen; b++) {
-    let val = 0;
-    let mul = 1;
+    let idx = 0, mul = 1;
     for (let j = 0; j < PACK && tritIdx < trits.length; j++) {
-      val += (trits[tritIdx] + 1) * mul;
+      idx += (trits[tritIdx] + 1) * mul;
       mul *= 3;
       tritIdx++;
     }
-    out[b] = val & 0xFF;
+    out[b] = TRITS5_TO_BYTE[idx] & 0xFF;
   }
   return out;
 }
 
 function cipherBytesToTrits(input: Buffer, tritCount: number): Int8Array {
-  const PACK = 5;
   const trits = new Int8Array(tritCount);
   let idx = 0;
-  for (const byte of input) {
-    let val = byte;
-    for (let j = 0; j < PACK && idx < tritCount; j++) {
-      trits[idx++] = (val % 3) - 1;
-      val = Math.floor(val / 3);
+  for (let i = 0; i < input.length && idx < tritCount; i++) {
+    const lut = BYTE_TO_TRITS_5[input[i] < 243 ? input[i] : 0];
+    for (let j = 0; j < 5 && idx < tritCount; j++) {
+      trits[idx++] = lut[j];
     }
   }
   return trits;
 }
 
-function encryptPhaseBytes(plainBytes: Buffer, key: Buffer, nonce: Buffer, phaseAngle: number): string {
+// === Legacy per-phase encrypt/decrypt (v2 backward compat) ===
+
+function legacyComputeMac(key: Buffer, nonce: Buffer, cipherB64: string): string {
+  const cipherBuf = Buffer.from(cipherB64, 'base64');
+  const input = Buffer.concat([key, nonce, cipherBuf, MAC_CONTEXT_TAG]);
+  return spongeHash(input);
+}
+
+function legacyEncryptPhaseBytes(plainBytes: Buffer, key: Buffer, nonce: Buffer, phaseAngle: number): string {
   const plainTrits = bytesToBalancedTrits6(plainBytes);
   const ternaryAngle = stdDegToTernaryDeg(phaseAngle);
   const domainInput = buildDomainInput(key, nonce, ternaryAngle);
@@ -269,7 +303,7 @@ function encryptPhaseBytes(plainBytes: Buffer, key: Buffer, nonce: Buffer, phase
   return Buffer.concat([header, cipherBytes]).toString('base64');
 }
 
-function decryptPhaseBytes(cipherB64: string, key: Buffer, nonce: Buffer, phaseAngle: number): Buffer {
+function legacyDecryptPhaseBytes(cipherB64: string, key: Buffer, nonce: Buffer, phaseAngle: number): Buffer {
   const raw = Buffer.from(cipherB64, 'base64');
   const originalByteLen = raw.readUInt32BE(0);
   const tritCount = raw.readUInt32BE(4);
@@ -283,6 +317,128 @@ function decryptPhaseBytes(cipherB64: string, key: Buffer, nonce: Buffer, phaseA
   return plainBytes.subarray(0, originalByteLen);
 }
 
+// === Improvements 1+2: Duplex-mode encrypt (1 sponge init total) ===
+
+function duplexEncrypt(
+  primaryBytes: Buffer,
+  secondaryBytes: Buffer,
+  key: Buffer,
+  nonce: Buffer,
+  primaryAngle: number,
+  secondaryAngle: number
+): { primaryCipherB64: string; secondaryCipherB64: string; mac: string } {
+  const primaryTrits = bytesToBalancedTrits6(primaryBytes);
+  const secondaryTrits = bytesToBalancedTrits6(secondaryBytes);
+
+  const primaryTernaryAngle = stdDegToTernaryDeg(primaryAngle);
+  const secondaryTernaryAngle = stdDegToTernaryDeg(secondaryAngle);
+
+  const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
+
+  const duplex = new SpongeDuplex();
+  duplex.absorb(domainInput);
+
+  const ks1 = duplex.squeeze(primaryTrits.length);
+  const cipher1Trits = encryptTrits(primaryTrits, ks1);
+  const cipher1Bytes = cipherTritsToBytes(cipher1Trits);
+
+  const switchMarker = Buffer.alloc(4);
+  switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
+  switchMarker.writeUInt16BE(0xFFFF, 2);
+  duplex.absorb(switchMarker);
+
+  const ks2 = duplex.squeeze(secondaryTrits.length);
+  const cipher2Trits = encryptTrits(secondaryTrits, ks2);
+  const cipher2Bytes = cipherTritsToBytes(cipher2Trits);
+
+  const header1 = Buffer.alloc(8);
+  header1.writeUInt32BE(primaryBytes.length, 0);
+  header1.writeUInt32BE(primaryTrits.length, 4);
+
+  const header2 = Buffer.alloc(8);
+  header2.writeUInt32BE(secondaryBytes.length, 0);
+  header2.writeUInt32BE(secondaryTrits.length, 4);
+
+  duplex.absorb(header1);
+  duplex.absorb(cipher1Bytes);
+  duplex.absorb(header2);
+  duplex.absorb(cipher2Bytes);
+  const macTrits = duplex.squeeze(MAC_TRITS);
+  const mac = tritsToHex(macTrits);
+
+  const primaryCipherB64 = Buffer.concat([header1, cipher1Bytes]).toString('base64');
+  const secondaryCipherB64 = Buffer.concat([header2, cipher2Bytes]).toString('base64');
+
+  return { primaryCipherB64, secondaryCipherB64, mac };
+}
+
+function duplexDecrypt(
+  primaryCipherB64: string,
+  secondaryCipherB64: string,
+  macHex: string,
+  key: Buffer,
+  nonce: Buffer,
+  primaryAngle: number,
+  secondaryAngle: number
+): { primaryBuf: Buffer; secondaryBuf: Buffer } | null {
+  const raw1 = Buffer.from(primaryCipherB64, 'base64');
+  const originalByteLen1 = raw1.readUInt32BE(0);
+  const tritCount1 = raw1.readUInt32BE(4);
+  const cipher1Bytes = raw1.subarray(8);
+  const cipher1Trits = cipherBytesToTrits(cipher1Bytes, tritCount1);
+
+  const raw2 = Buffer.from(secondaryCipherB64, 'base64');
+  const originalByteLen2 = raw2.readUInt32BE(0);
+  const tritCount2 = raw2.readUInt32BE(4);
+  const cipher2Bytes = raw2.subarray(8);
+  const cipher2Trits = cipherBytesToTrits(cipher2Bytes, tritCount2);
+
+  const primaryTernaryAngle = stdDegToTernaryDeg(primaryAngle);
+  const secondaryTernaryAngle = stdDegToTernaryDeg(secondaryAngle);
+
+  const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
+
+  const duplex = new SpongeDuplex();
+  duplex.absorb(domainInput);
+
+  const ks1 = duplex.squeeze(tritCount1);
+
+  const switchMarker = Buffer.alloc(4);
+  switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
+  switchMarker.writeUInt16BE(0xFFFF, 2);
+  duplex.absorb(switchMarker);
+
+  const ks2 = duplex.squeeze(tritCount2);
+
+  const reHeader1 = raw1.subarray(0, 8);
+  const reHeader2 = raw2.subarray(0, 8);
+  duplex.absorb(reHeader1);
+  duplex.absorb(cipher1Bytes);
+  duplex.absorb(reHeader2);
+  duplex.absorb(cipher2Bytes);
+  const macTrits = duplex.squeeze(MAC_TRITS);
+  const computedMac = tritsToHex(macTrits);
+
+  let macValid: boolean;
+  try {
+    macValid = timingSafeEqual(
+      Buffer.from(computedMac, 'hex'),
+      Buffer.from(macHex, 'hex')
+    );
+  } catch {
+    return null;
+  }
+  if (!macValid) return null;
+
+  const plain1Trits = decryptTrits(cipher1Trits, ks1);
+  const plain2Trits = decryptTrits(cipher2Trits, ks2);
+
+  const primaryBuf = balancedTrits6ToBytes(plain1Trits, originalByteLen1).subarray(0, originalByteLen1);
+  const secondaryBuf = balancedTrits6ToBytes(plain2Trits, originalByteLen2).subarray(0, originalByteLen2);
+
+  return { primaryBuf, secondaryBuf };
+}
+
 export function phaseSplit(
   data: string,
   mode: EncryptionMode = 'balanced'
@@ -292,6 +448,7 @@ export function phaseSplit(
   const key = getKeyMaterial();
   const nonce = randomBytes(NONCE_BYTES);
 
+  // Improvement 6: single UTF-8 conversion, reuse buffer
   const dataBytes = Buffer.from(data, 'utf-8');
   const midpoint = Math.ceil(dataBytes.length * splitRatio);
   const primaryBytes = dataBytes.subarray(0, midpoint);
@@ -303,32 +460,32 @@ export function phaseSplit(
   const primaryTimestamp = getFemtosecondTimestamp();
   const secondaryTimestamp = getFemtosecondTimestamp();
 
-  const primaryCipher = encryptPhaseBytes(primaryBytes, key, nonce, primaryAngle);
-  const secondaryCipher = encryptPhaseBytes(secondaryBytes, key, nonce, secondaryAngle);
+  const { primaryCipherB64, secondaryCipherB64, mac } = duplexEncrypt(
+    primaryBytes, secondaryBytes, key, nonce, primaryAngle, secondaryAngle
+  );
 
   const result: EncryptedPhaseData = {
     primaryPhase: {
-      data: primaryCipher,
+      data: primaryCipherB64,
       phase: primaryAngle,
       timestamp: primaryTimestamp
     },
     secondaryPhase: {
-      data: secondaryCipher,
+      data: secondaryCipherB64,
       phase: secondaryAngle,
       timestamp: secondaryTimestamp
     },
     config,
     splitRatio,
     nonce: nonce.toString('hex'),
-    mac: {
-      primary: computeMac(key, nonce, primaryCipher),
-      secondary: computeMac(key, nonce, secondaryCipher)
-    }
+    mac,
+    version: 3,
   };
 
   if (config.guardianEnabled) {
     const guardianTimestamp = getFemtosecondTimestamp();
-    const hash = spongeHash(Buffer.from(data, 'utf-8'));
+    // Improvement 6: reuse dataBytes instead of re-encoding
+    const hash = spongeHash(dataBytes);
     result.guardianPhase = {
       hash,
       phase: config.guardianOffset,
@@ -382,6 +539,10 @@ function legacyTribonacciHash(data: string): string {
   return h0.toString(16).padStart(8, '0') + h1.toString(16).padStart(8, '0');
 }
 
+function isLegacyMac(mac: unknown): mac is { primary: string; secondary: string } {
+  return typeof mac === 'object' && mac !== null && 'primary' in mac && 'secondary' in mac;
+}
+
 export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResult {
   const GENERIC_ERROR = 'Recombination failed';
 
@@ -412,58 +573,75 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
       const key = getKeyMaterial();
       const nonce = Buffer.from(encrypted.nonce, 'hex');
 
-      if (!encrypted.mac || !encrypted.mac.primary || !encrypted.mac.secondary) {
-        return {
-          success: false,
-          phaseAlignment,
-          timestampValidation,
-          error: GENERIC_ERROR
-        };
-      }
-
-      const expectedPrimaryMac = computeMac(key, nonce, encrypted.primaryPhase.data);
-      const expectedSecondaryMac = computeMac(key, nonce, encrypted.secondaryPhase.data);
-      let primaryMatch: boolean;
-      let secondaryMatch: boolean;
-      try {
-        primaryMatch = timingSafeEqual(
-          Buffer.from(expectedPrimaryMac, 'hex'),
-          Buffer.from(encrypted.mac.primary, 'hex')
+      if (encrypted.version === 3 && typeof encrypted.mac === 'string') {
+        // v3 duplex path
+        const result = duplexDecrypt(
+          encrypted.primaryPhase.data,
+          encrypted.secondaryPhase.data,
+          encrypted.mac,
+          key,
+          nonce,
+          encrypted.primaryPhase.phase,
+          encrypted.secondaryPhase.phase
         );
-        secondaryMatch = timingSafeEqual(
-          Buffer.from(expectedSecondaryMac, 'hex'),
-          Buffer.from(encrypted.mac.secondary, 'hex')
-        );
-      } catch {
-        return {
-          success: false,
-          phaseAlignment,
-          timestampValidation,
-          error: GENERIC_ERROR
-        };
-      }
-      if (!primaryMatch || !secondaryMatch) {
-        return {
-          success: false,
-          phaseAlignment,
-          timestampValidation,
-          error: GENERIC_ERROR
-        };
-      }
 
-      const primaryBuf = decryptPhaseBytes(
-        encrypted.primaryPhase.data,
-        key,
-        nonce,
-        encrypted.primaryPhase.phase
-      );
-      const secondaryBuf = decryptPhaseBytes(
-        encrypted.secondaryPhase.data,
-        key,
-        nonce,
-        encrypted.secondaryPhase.phase
-      );
-      recombinedData = Buffer.concat([primaryBuf, secondaryBuf]).toString('utf-8');
+        if (!result) {
+          return {
+            success: false,
+            phaseAlignment,
+            timestampValidation,
+            error: GENERIC_ERROR
+          };
+        }
+
+        recombinedData = Buffer.concat([result.primaryBuf, result.secondaryBuf]).toString('utf-8');
+      } else if (isLegacyMac(encrypted.mac)) {
+        // v2 legacy path (separate per-phase MACs)
+        const expectedPrimaryMac = legacyComputeMac(key, nonce, encrypted.primaryPhase.data);
+        const expectedSecondaryMac = legacyComputeMac(key, nonce, encrypted.secondaryPhase.data);
+        let primaryMatch: boolean;
+        let secondaryMatch: boolean;
+        try {
+          primaryMatch = timingSafeEqual(
+            Buffer.from(expectedPrimaryMac, 'hex'),
+            Buffer.from(encrypted.mac.primary, 'hex')
+          );
+          secondaryMatch = timingSafeEqual(
+            Buffer.from(expectedSecondaryMac, 'hex'),
+            Buffer.from(encrypted.mac.secondary, 'hex')
+          );
+        } catch {
+          return {
+            success: false,
+            phaseAlignment,
+            timestampValidation,
+            error: GENERIC_ERROR
+          };
+        }
+        if (!primaryMatch || !secondaryMatch) {
+          return {
+            success: false,
+            phaseAlignment,
+            timestampValidation,
+            error: GENERIC_ERROR
+          };
+        }
+
+        const primaryBuf = legacyDecryptPhaseBytes(
+          encrypted.primaryPhase.data, key, nonce, encrypted.primaryPhase.phase
+        );
+        const secondaryBuf = legacyDecryptPhaseBytes(
+          encrypted.secondaryPhase.data, key, nonce, encrypted.secondaryPhase.phase
+        );
+        recombinedData = Buffer.concat([primaryBuf, secondaryBuf]).toString('utf-8');
+      } else {
+        return {
+          success: false,
+          phaseAlignment,
+          timestampValidation,
+          error: GENERIC_ERROR
+        };
+      }
     } else {
       const primaryData = Buffer.from(encrypted.primaryPhase.data, 'base64').toString();
       const secondaryData = Buffer.from(encrypted.secondaryPhase.data, 'base64').toString();
@@ -615,8 +793,8 @@ export function runPhaseBenchmark(iterations: number = 100): PhaseBenchmarkSuite
   return {
     timestamp: new Date().toISOString(),
     environment: `Node.js ${process.version} / V8`,
-    algorithm: 'Phase Encryption v2 — TL-Sponge-385 + GF(3) stream cipher',
-    arithmeticModel: 'Constant-time LUT-based GF(3) (Int8Array)',
+    algorithm: 'Phase Encryption v3 — Duplex TL-Sponge-385 + GF(3) stream cipher',
+    arithmeticModel: 'Constant-time LUT-based GF(3) (Int8Array) + precomputed byte-trit tables',
     iterations,
     results,
     summary: {
