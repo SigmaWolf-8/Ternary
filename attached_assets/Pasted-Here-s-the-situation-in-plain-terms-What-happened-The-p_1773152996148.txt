@@ -1,0 +1,50 @@
+Here's the situation in plain terms:
+
+What happened: The paper claims the sponge is astronomically secure against differential attacks — the number 10⁻³⁹⁰⁸ (a 1 followed by 3,908 zeros in the denominator). That number is wrong. It's like saying a room has 4,096 chairs when the room can only fit 72. The math that produced it misapplied a formula. A reviewer caught it and it's the reason they said "Reject."
+
+What's NOT broken: The sponge itself. The S-box is good (proven). The diffusion is good (proven). The branch number B = 8 is correct (proven with 5.27 million vectors). The architecture is sound. The number we wrote down for how secure it is — that's what's wrong.
+
+What needs to happen, in order:
+
+
+
+
+
+Compute the real number. This is a straightforward computation — same technique you already used for the branch number, but counting 3-trit blocks instead of individual trits. Replit can run this. It produces one number (B_block), and from that number everything else updates mechanically.
+
+
+
+I update the paper with the correct number. Every place that says 10⁻³⁹⁰⁸ gets replaced with the real bound.
+
+
+
+Update TM-2026-008 (the monograph) the same way.
+
+My recommendation: Send this to Replit as a task. Here's exactly what to tell them:
+
+Compute the block-level branch number for TIS-27. The state is 54 trits, partitioned into 18 blocks of 3 trits each (GF(27) elements). For every nonzero input x ∈ GF(3)⁵⁴, compute the number of active 3-trit blocks in x plus the number of active 3-trit blocks in M_θ(x), where M_θ is the existing theta circulant (7-neighbour at offsets ±1, ±7, ±13). Find the minimum over all nonzero inputs. Use the same primal-dual technique from the branch number proof: primal search over block-weights 1–4, dual search via M_θ⁻¹ over output block-weights 1–2.
+
+That gives you the exact number. Then I fix the paper. The rest of the reviewer's comments (scope, self-containment, benchmarks) are editorial — they don't require new computation.
+
+Do you want me to write the full Replit task spec?
+
+
+
+
+
+
+
+Compute the real number. This is a straightforward computation — same technique you already used for the branch number, but counting 3-trit blocks instead of individual trits. Replit can run this. It produces one number (B_block), and from that number everything else updates mechanically.
+
+
+
+I update the paper with the correct number. Every place that says 10⁻³⁹⁰⁸ gets replaced with the real bound.
+
+
+
+Update TM-2026-008 (the monograph) the same way.
+
+
+
+And then write the full Replit task spec
+
