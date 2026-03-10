@@ -44,6 +44,7 @@ import {
   phaseRecombine,
   getPhaseConfig,
   getRecommendedMode,
+  runPhaseBenchmark,
   type EncryptionMode
 } from "../salvi-core/phase-encryption";
 import {
@@ -511,6 +512,24 @@ export function registerSalviRoutes(app: Express): void {
       });
     } catch (error: unknown) {
       res.status(500).json({ error: "Density benchmark failed" });
+    }
+  });
+
+  app.get("/api/salvi/crypto/phase-benchmark", computationLimiter, (req, res) => {
+    try {
+      const iterParam = parseInt(req.query.iterations as string) || 50;
+      const iterations = Math.min(Math.max(iterParam, 10), 200);
+
+      const suite = runPhaseBenchmark(iterations);
+
+      res.json({
+        success: true,
+        benchmark: "Phase Encryption v2 — LUT-based GF(3) Stream Cipher",
+        ...suite,
+      });
+    } catch (error: unknown) {
+      log.error("Phase benchmark failed:", toErrorMessage(error));
+      res.status(500).json({ error: "Phase encryption benchmark failed" });
     }
   });
 
@@ -1004,6 +1023,7 @@ export function registerSalviRoutes(app: Express): void {
           error: "Provide file bytes (raw body), JSON { data: 'base64-encoded' }, or a text string",
           endpoints: {
             hash: "POST /api/salvi/crypto/hash",
+            phaseBenchmark: "GET /api/salvi/crypto/phase-benchmark",
             timestamp: "POST /api/tsa/timestamp/json — pass the returned hash + algorithm: 'tl-sponge'",
           },
         });
