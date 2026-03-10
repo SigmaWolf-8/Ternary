@@ -43,7 +43,7 @@
  * Every byte value 0-255 maps uniquely to 6 balanced trits and back.
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import { getFemtosecondTimestamp, FemtosecondTimestamp } from './femtosecond-timing';
 import {
   spongeKeystream,
@@ -415,18 +415,43 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
       const key = getKeyMaterial();
       const nonce = Buffer.from(encrypted.nonce, 'hex');
 
-      if (encrypted.mac) {
-        const expectedPrimaryMac = computeMac(key, nonce, encrypted.primaryPhase.data);
-        const expectedSecondaryMac = computeMac(key, nonce, encrypted.secondaryPhase.data);
-        if (expectedPrimaryMac !== encrypted.mac.primary ||
-            expectedSecondaryMac !== encrypted.mac.secondary) {
-          return {
-            success: false,
-            phaseAlignment,
-            timestampValidation,
-            error: GENERIC_ERROR
-          };
-        }
+      if (!encrypted.mac || !encrypted.mac.primary || !encrypted.mac.secondary) {
+        return {
+          success: false,
+          phaseAlignment,
+          timestampValidation,
+          error: GENERIC_ERROR
+        };
+      }
+
+      const expectedPrimaryMac = computeMac(key, nonce, encrypted.primaryPhase.data);
+      const expectedSecondaryMac = computeMac(key, nonce, encrypted.secondaryPhase.data);
+      let primaryMatch: boolean;
+      let secondaryMatch: boolean;
+      try {
+        primaryMatch = timingSafeEqual(
+          Buffer.from(expectedPrimaryMac, 'hex'),
+          Buffer.from(encrypted.mac.primary, 'hex')
+        );
+        secondaryMatch = timingSafeEqual(
+          Buffer.from(expectedSecondaryMac, 'hex'),
+          Buffer.from(encrypted.mac.secondary, 'hex')
+        );
+      } catch {
+        return {
+          success: false,
+          phaseAlignment,
+          timestampValidation,
+          error: GENERIC_ERROR
+        };
+      }
+      if (!primaryMatch || !secondaryMatch) {
+        return {
+          success: false,
+          phaseAlignment,
+          timestampValidation,
+          error: GENERIC_ERROR
+        };
       }
 
       const primaryBuf = decryptPhaseBytes(
