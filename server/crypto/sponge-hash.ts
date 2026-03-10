@@ -152,6 +152,11 @@ function tritsToBytes(trits: Int8Array, byteLen: number): Buffer {
   return out;
 }
 
+export function spongeKeystream(domainInput: Buffer | Uint8Array, outputTritCount: number): Int8Array {
+  const inputTrits = bytesToBalancedTrits(domainInput);
+  return spongeAbsorbAndSqueeze(inputTrits, outputTritCount);
+}
+
 export function spongeHash(input: Buffer | Uint8Array): string {
   const inputTrits = bytesToBalancedTrits(input);
   const outputTrits = spongeAbsorbAndSqueeze(inputTrits, 243);
