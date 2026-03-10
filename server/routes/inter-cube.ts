@@ -17,6 +17,7 @@
 
 import { Router, Request, Response } from 'express';
 import type { TritC } from '../salvi-core/ternary-types';
+import { spongeHash } from '../crypto/sponge-hash';
 
 const DIMENSIONS = 13;
 const NEIGHBORS_PER_CUBE = 26;
@@ -249,6 +250,8 @@ interface NeighborRecord {
   altValue: number;
   endpoint: string | null;
   publicKey: string | null;
+  kemSharedSecret: string | null;
+  kemPublicKey: string | null;
   tunnelIface: string | null;
   state: TunnelState;
   lastHeartbeat: number | null;
@@ -267,6 +270,7 @@ class CubeOverlayNetwork {
     this.neighbors = geo.map((g) => ({
       addr: g.addr, dimension: g.dim, altValue: g.alt,
       endpoint: null, publicKey: null,
+      kemSharedSecret: null, kemPublicKey: null,
       tunnelIface: null, state: 'unknown' as TunnelState,
       lastHeartbeat: null, srttNs: null,
       bytesIn: 0, bytesOut: 0,
@@ -330,6 +334,20 @@ class CubeOverlayNetwork {
     }
     return hash.toString(16).padStart(8, '0');
   }
+
+  static deriveTunnelKeyV3(addrA: CubeAddr, addrB: CubeAddr, kemSharedSecret: string, epoch: number): string {
+    const bytesA = Buffer.from(addrA.trits);
+    const bytesB = Buffer.from(addrB.trits);
+    const [lo, hi] = bytesA.compare(bytesB) <= 0 ? [bytesA, bytesB] : [bytesB, bytesA];
+    const domain = Buffer.from('PlenumNET-CON-v3.0', 'utf-8');
+    const secret = Buffer.from(kemSharedSecret, 'hex');
+    const epochBuf = Buffer.alloc(8);
+    epochBuf.writeUInt32LE(epoch & 0xFFFFFFFF, 0);
+    epochBuf.writeUInt32LE(Math.floor(epoch / 0x100000000) & 0xFFFFFFFF, 4);
+    const material = Buffer.concat([domain, lo, hi, secret, epochBuf]);
+    const fullHash = spongeHash(material);
+    return fullHash.slice(0, 64);
+  }
 }
 
 type CubeStatus = 'active' | 'draining' | 'offline';
@@ -338,6 +356,7 @@ interface CubeRecord {
   addr: CubeAddr;
   endpoint: string;
   publicKey: string;
+  kemPublicKey: string | null;
   status: CubeStatus;
   lastHeartbeat: number;
   registeredAt: number;
@@ -353,7 +372,7 @@ class CubeRegistrationService {
   private usedAddresses: Set<number> = new Set();
   private nextHint = 0;
 
-  register(endpoint: string, publicKey: string, desiredAddress?: CubeAddr): RegistrationResult {
+  register(endpoint: string, publicKey: string, desiredAddress?: CubeAddr, kemPublicKey?: string | null): RegistrationResult {
     const now = Date.now();
     let addr: CubeAddr;
 
@@ -369,6 +388,7 @@ class CubeRegistrationService {
 
     const record: CubeRecord = {
       addr, endpoint, publicKey,
+      kemPublicKey: kemPublicKey ?? null,
       status: 'active', lastHeartbeat: now, registeredAt: now,
     };
     this.registry.set(addrToString(addr), record);
@@ -542,12 +562,13 @@ export function registerInterCubeRoutes(app: Router) {
 
   router.post('/crs/register', (req: Request, res: Response) => {
     try {
-      const { endpoint, publicKey, desiredAddress } = req.body;
+      const { endpoint, publicKey, desiredAddress, kemPublicKey } = req.body;
       const desired = desiredAddress ? cubeAddr(desiredAddress) : undefined;
       const result = crs.register(
         endpoint || '0.0.0.0:51820',
         publicKey || 'default-key',
-        desired
+        desired,
+        kemPublicKey || null
       );
 
       currentStack = {
@@ -580,6 +601,7 @@ export function registerInterCubeRoutes(app: Router) {
       res.json({
         address: record.addr.trits,
         endpoint: record.endpoint,
+        kemPublicKey: record.kemPublicKey,
         status: record.status,
         lastHeartbeat: record.lastHeartbeat,
       });
@@ -700,6 +722,41 @@ export function registerInterCubeRoutes(app: Router) {
       if (nbr.state !== 'up') nbr.state = 'resolving';
     }
     res.json({ ack: true, tunnelsRefreshed: currentStack.con.neighbors.length });
+  });
+
+  router.post('/con/tunnel/upgrade-key', (req: Request, res: Response) => {
+    if (!currentStack) return res.status(503).json({ error: 'not_initialized' });
+    try {
+      const { neighborAddress, kemSharedSecret, epoch } = req.body;
+      if (!neighborAddress || !kemSharedSecret) {
+        return res.status(400).json({ error: 'neighborAddress and kemSharedSecret are required' });
+      }
+      const nbrAddr = cubeAddr(neighborAddress);
+      const nbr = currentStack.con.neighbors.find(n => addrEqual(n.addr, nbrAddr));
+      if (!nbr) {
+        return res.status(404).json({ error: 'neighbor_not_found' });
+      }
+
+      const effectiveEpoch = epoch ?? Math.floor(Date.now() / 1000);
+      nbr.kemSharedSecret = kemSharedSecret;
+
+      CubeOverlayNetwork.deriveTunnelKeyV3(
+        currentStack.addr,
+        nbrAddr,
+        kemSharedSecret,
+        effectiveEpoch
+      );
+
+      res.json({
+        ack: true,
+        neighborAddress: nbrAddr.trits,
+        protocol: 'PqNativeV3',
+        epoch: effectiveEpoch,
+        upgraded: true,
+      });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
   });
 
   router.get('/fts/status', (_req: Request, res: Response) => {

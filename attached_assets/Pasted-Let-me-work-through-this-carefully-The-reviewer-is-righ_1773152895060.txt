@@ -1,0 +1,121 @@
+Let me work through this carefully. The reviewer is right about the error, and getting the correction right matters.
+
+## The Error
+
+The claim N(r) ≥ 8ʳ treats the branch number like an exponential base. It's not. The wide-trail strategy (Daemen–Rijmen) gives **pairwise constraints** on consecutive rounds, not an exponential multiplier.
+
+TIS-27: 54 trits = **18 GF(27) S-boxes per round**. Over 4 rounds, the maximum possible active S-boxes is 4 × 18 = 72. The claim of 4,096 is physically impossible.
+
+## The Correct Framework
+
+### Step 1: What B = 8 Actually Means
+
+The proven result (5.27M-vector primal-dual search) is at the **trit level**:
+
+> For any nonzero x ∈ GF(3)⁵⁴: wt_trit(x) + wt_trit(M_θ(x)) ≥ 8
+
+This counts individual nonzero trits, not active S-box blocks. But the S-box χ(x) = x¹⁷ operates on **GF(27) blocks** (groups of 3 trits). The differential probability DP_max = 1/9 is per block. So what we need for the trail probability is the number of **active blocks**, not active trits.
+
+### Step 2: Block-Level Branch Number (B_block)
+
+Define B_block as:
+
+> B_block = min over all nonzero x ∈ GF(3)⁵⁴ of {#active_blocks(x) + #active_blocks(M_θ ∘ π(x))}
+
+where #active_blocks counts 3-trit groups containing at least one nonzero trit.
+
+**Conservative lower bound from B_trit = 8:**
+
+If an input has k active blocks, it has at most 3k active trits. The output has at least 8 − 3k active trits (from B_trit). Those trits occupy at least ⌈(8 − 3k)/3⌉ blocks.
+
+| Input blocks (k) | Max input trits | Min output trits | Min output blocks | k + output blocks |
+|---|---|---|---|---|
+| 1 | 3 | 5 | 2 | **3** |
+| 2 | 6 | 2 | 1 | **3** |
+| ≥ 3 | ≥ 9 | ≥ 1 | ≥ 1 | **≥ 4** |
+
+**Conservative: B_block ≥ 3.** This is the worst case assuming maximum clustering of active trits into blocks.
+
+### Step 3: Structural Analysis for a Tighter Estimate
+
+The theta offsets are ±1, ±7, ±13. A single active trit at position i affects positions i ± {1, 7, 13} mod 54. Let me trace the block spreading for each position in block 0:
+
+**Position 0** (block 0): Output positions 41, 47, 53, 1, 7, 13 → blocks {0, 2, 4, 13, 15, 17} → **6 active blocks**
+
+**Position 1** (block 0): Output positions 42, 48, 0, 2, 8, 14 → blocks {0, 2, 4, 14, 16} → **5 active blocks**
+
+**Position 2** (block 0): Output positions 43, 49, 1, 3, 9, 15 → blocks {0, 1, 3, 5, 14, 16} → **6 active blocks**
+
+The minimum for single-trit inputs from block 0 is 5. Similar analysis for other blocks gives comparable results. So for single-block inputs, B_block is likely **5–7**.
+
+For multi-block inputs, destructive interference in GF(3) (cancellation when two offsets hit the same output position) can reduce the output weight. The exact minimum requires exhaustive computation — the same primal-dual technique used for B_trit, but at the block level.
+
+**Structural estimate: B_block ≈ 5** (conservative based on minimum single-block spreading; exact value requires computation).
+
+### Step 4: The Multi-Round Bound
+
+For r rounds with pairwise constraints a_i + a_{i+1} ≥ B_block and a_i ≥ 1, the minimum total active S-boxes is achieved by the alternating pattern (1, B−1, 1, B−1, ...):
+
+| Rounds (r) | Formula | B_block = 3 | B_block = 5 | B_block = 8 |
+|---|---|---|---|---|
+| 2 | B | 3 | 5 | 8 |
+| 4 | 2B | 6 | 10 | 16 |
+| 9 | 4B + 1 | 13 | 21 | 33 |
+
+**This is LINEAR in r, not exponential.** The AES designers achieved the quadratic bound B² = 25 for 4 rounds through their independent columnar structure (4 independent MixColumns, cross-column ShiftRows). TIS-27's full-state circulant diffusion doesn't have this columnar independence, so the linear bound is correct for this architecture.
+
+### Step 5: Trail Probabilities
+
+With DP_max = 1/9 ≈ 2⁻³·¹⁷ per active S-box:
+
+**TIS-27 (4 rounds, 18 S-boxes/round):**
+
+| B_block | Active S-boxes | Trail probability | Log₂ |
+|---|---|---|---|
+| 3 (conservative) | ≥ 6 | ≤ (1/9)⁶ ≈ 1.9 × 10⁻⁶ | ≈ 2⁻¹⁹ |
+| 5 (structural est.) | ≥ 10 | ≤ (1/9)¹⁰ ≈ 2.9 × 10⁻¹⁰ | ≈ 2⁻³² |
+| 8 (if block = trit) | ≥ 16 | ≤ (1/9)¹⁶ ≈ 5.1 × 10⁻¹⁶ | ≈ 2⁻⁵¹ |
+
+TIS-27 capacity bound: 27 trits ≈ 43 bits (2⁻⁴³). The differential bound should ideally exceed this. With B_block = 5, the trail bound (2⁻³²) is **below** the capacity — meaning differential analysis could be the bottleneck. With B_block = 8, the trail bound (2⁻⁵¹) exceeds the capacity.
+
+**TLSponge-385 (9 rounds, 243 S-boxes/round):**
+
+| B_block | Active S-boxes | Trail probability | Log₂ |
+|---|---|---|---|
+| 3 | ≥ 13 | ≤ (1/9)¹³ ≈ 3.5 × 10⁻¹³ | ≈ 2⁻⁴¹ |
+| 5 | ≥ 21 | ≤ (1/9)²¹ ≈ 8.0 × 10⁻²¹ | ≈ 2⁻⁶⁷ |
+| 8 | ≥ 33 | ≤ (1/9)³³ ≈ 2.7 × 10⁻³² | ≈ 2⁻¹⁰⁵ |
+
+TLSponge-385 capacity bound: 486 trits ≈ 385 bits. Even with B_block = 8, the trail bound (2⁻¹⁰⁵) is **far below** the capacity. This is actually normal — in Keccak, the differential trail bound for reduced rounds is also below the capacity, and the sponge generic security model (2^(c/2) queries for collision/preimage) provides the primary security guarantee. The trail bound shows resistance to differential cryptanalysis specifically; the capacity provides the overall security level.
+
+### Step 6: What This Means
+
+**The sponge is not broken.** The wide-trail bound is a lower bound on the best single-trail probability. The actual best differential distinguisher may be much weaker. And the sponge capacity bound (generic security requiring 2^(c/2) queries) is independent of the trail analysis.
+
+But the paper must:
+1. **Correct the bound** — replace N(r) ≥ 8ʳ with the correct linear formula
+2. **Compute B_block exactly** — use the primal-dual technique at the block level (feasible: 27¹⁸ is large, but the primal search over low-weight block inputs + dual search is tractable)
+3. **Note that B_trit = 8 was computed for TIS-27's 54-trit state** — TLSponge-385's 729-trit theta needs a separate branch number computation
+4. **State both security arguments** — the trail bound provides differential resistance; the capacity bound provides generic security
+
+### Step 7: Comparison with AES
+
+| Property | AES-128 | TIS-27 (B_block = 5 est.) | TLSponge-385 (B_block = 5 est.) |
+|---|---|---|---|
+| S-box domain | GF(2⁸) | GF(27) | GF(27) |
+| DP_max per S-box | 2⁻⁶ | 2⁻³·¹⁷ | 2⁻³·¹⁷ |
+| S-boxes per round | 16 | 18 | 243 |
+| Branch number | 5 (columnar) | ~5 (full-state) | TBD |
+| 4-round min active | 25 (B²) | ~10 (2B) | ~10 (2B) |
+| 4-round trail DP | ≤ 2⁻¹⁵⁰ | ≤ 2⁻³² | ≤ 2⁻³² |
+| Capacity security | N/A (block cipher) | 2⁻⁴³ | 2⁻³⁸⁵ |
+
+AES achieves much stronger trail bounds per round because it has smaller DP_max (2⁻⁶ vs 2⁻³·¹⁷) and the columnar structure gives B² instead of 2B for 4 rounds. The GF(27) S-box domain is inherently larger than GF(2⁸) per S-box, which limits how many active S-boxes fit in the state.
+
+### Concrete Recommendation
+
+The B_block computation is the critical next step. It's tractable — the primal search over all block-weight-1 and block-weight-2 inputs (18 × 26 + C(18,2) × 26² configurations) is manageable, and the dual search closes the higher weights. Once B_block is known exactly, all trail bounds update mechanically.
+
+If B_block turns out to be low (≤ 4), you may need to consider either increasing the round count or restructuring the diffusion to create a columnar-style interaction that enables B² bounds. If B_block ≥ 6, the trail bounds comfortably exceed TIS-27's capacity and provide meaningful (though not capacity-matching) security for TLSponge-385.
+
+Want me to update the paper with the corrected framework, or do you want to compute B_block first?

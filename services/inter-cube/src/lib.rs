@@ -268,7 +268,7 @@ mod integration_tests {
     fn test_con_key_derivation_all_unique() {
         let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let con = CubeOverlayNetwork::new(local);
-        let keys = con.derive_all_keys();
+        let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
 
         assert_eq!(keys.len(), NEIGHBORS_PER_CUBE);
 
