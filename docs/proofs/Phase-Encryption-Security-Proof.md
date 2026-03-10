@@ -857,6 +857,12 @@ Additionally resolved from prior work:
 | MAC enforcement | **CLOSED** | Mandatory MAC + `timingSafeEqual` + missing-MAC rejection |
 | Constant-time MAC | **CLOSED** | `crypto.timingSafeEqual` via OpenSSL `CRYPTO_memcmp` |
 
+Resolved in companion documents:
+
+| Problem | Status | Resolution |
+|---------|--------|------------|
+| Topology-derived key agreement under adaptive corruption | **CLOSED** (limitations identified) | TM-2026-013 — formal analysis in network-access-restricted model; game-based Exp^{TDKA} experiment; adaptive corruption with key independence under partial corruption; forward secrecy negative result (Theorem 6.1) with three mitigations (WireGuard composition, ephemeral salt, ratcheting); 43-bit TIS-27 capacity limitation with TL-Sponge-385 upgrade path. **Key finding:** PQ-Native tunnel keys are deterministic PSKs from public inputs — not computationally secret; confidentiality requires network-layer access control or WireGuard composition |
+
 ### 12.2 Future Work
 
 These items are not security gaps but areas for further strengthening:
@@ -887,12 +893,16 @@ These items are not security gaps but areas for further strengthening:
 3. Daemen, J., Rijmen, V. "The Design of Rijndael." Springer, 2002.
 4. NIST SP 800-185. "SHA-3 Derived Functions." 2016.
 5. TM-2026-008. "Representation Universality — Definitive Unified Monograph." Capomastro Holdings Ltd., 2026.
-6. TL-KEM IND-CCA2 Proof. "IND-CCA2 Security of TL-KEM." Capomastro Holdings Ltd., 2026.
-7. TL-DSA EUF-CMA Proof. "On the EUF-CMA Security of TL-DSA." Capomastro Holdings Ltd., 2026.
-8. Keccak Reference. Bertoni et al. "The Keccak Reference." 2011.
-9. Grover, L. "A Fast Quantum Mechanical Algorithm for Database Search." STOC 1996.
-10. Rogaway, P. "Nonce-Based Symmetric Encryption." FSE 2004.
-11. Gaži, P., Pietrzak, K., Tessaro, S. "The Exact PRF Security of Truncation: Tight Bounds for Keyed Sponges and Truncated CBC." EUROCRYPT 2015.
+6. Gaži, P., Pietrzak, K., Rybar, S. "The Exact PRF-Security of NMAC and HMAC." CRYPTO 2014 / Journal of Cryptology 2015.
+7. TL-KEM IND-CCA2 Proof. "IND-CCA2 Security of TL-KEM." Capomastro Holdings Ltd., 2026.
+8. TL-DSA EUF-CMA Proof. "On the EUF-CMA Security of TL-DSA." Capomastro Holdings Ltd., 2026.
+9. Keccak Reference. Bertoni et al. "The Keccak Reference." 2011.
+10. Grover, L. "A Fast Quantum Mechanical Algorithm for Database Search." STOC 1996.
+11. Rogaway, P. "Nonce-Based Symmetric Encryption." FSE 2004.
+12. Gaži, P., Pietrzak, K., Tessaro, S. "The Exact PRF Security of Truncation: Tight Bounds for Keyed Sponges and Truncated CBC." EUROCRYPT 2015.
+13. TM-2026-012. "TDNS Scaling Analysis — Formal Bounds for Multi-Level Ontological Addressing." Capomastro Holdings Ltd., 2026.
+14. TM-2026-013. "Topology-Derived Key Agreement — Formal Security Analysis." Capomastro Holdings Ltd., 2026.
+15. Sakai, R., Ohgishi, K., Kasahara, M. "Cryptosystems Based on Pairing." SCIS 2000.
 
 ---
 

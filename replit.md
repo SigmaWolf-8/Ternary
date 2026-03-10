@@ -66,7 +66,7 @@ Authorization uses unforgeable, self-contained, bearer-verified capability token
 Admin-protected backend services include a Security Audit Service, HPTP Anomaly Detection, Threat Model Registry, Implementation Status Tracker, and a Security Dashboard.
 
 ### Inter-Cube Infrastructure Services
-A 4-service system provides geometric routing across the 13D ternary cube network: Geometric Load Balancer (GLB), Cube Overlay Network (CON), Cube Registration Service (CRS), and Fault Tolerance Service (FTS). It is implemented as a Rust crate with TypeScript API routes.
+A 4-service system provides geometric routing across the 13D ternary cube network: Geometric Load Balancer (GLB), Cube Overlay Network (CON), Cube Registration Service (CRS), and Fault Tolerance Service (FTS). It is implemented as a Rust crate with TypeScript API routes. CON PQ-Native tunnel key derivation uses TIS-27 sponge KDF with canonical address ordering and domain separator `"PlenumNET-CON-v2.5"`. Formal security analysis in TM-2026-013 (`docs/proofs/TM-2026-013-Topology-Key-Agreement.md`): game-based Exp^{TDKA} security experiment, PRF reduction, adaptive corruption analysis (key independence under partial corruption), forward secrecy negative result with three mitigation paths (WireGuard composition, ephemeral salt injection, hash ratcheting), 43-bit TIS-27 capacity limitation identified with TL-Sponge-385 upgrade path for CNSA 2.0 compliance. Key finding: PQ-Native tunnel keys are deterministic PSKs from public inputs — confidentiality requires network-layer access control or WireGuard composition.
 
 ### Ternary Ephemeris API
 A REST API provides endpoints for converting standard to ternary degrees with resonance scoring, calculating planet ephemeris, and retrieving API metadata.
