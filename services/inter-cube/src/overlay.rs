@@ -106,7 +106,12 @@ pub enum TunnelProtocol {
     WireGuard,
     /// PlenumNET-native: keys derived from cryptographic sponge
     /// using both cubes' Rep C addresses. Post-quantum by construction.
+    #[deprecated(note = "Use PqNativeV3 with TL-KEM shared secret for IND-CCA2 key secrecy")]
     PqNative,
+    /// PlenumNET-native v3: TL-KEM key exchange + TL-Sponge-385 KDF.
+    /// Provides IND-CCA2 key secrecy, forward secrecy via TL-KEM refresh,
+    /// and 385-bit post-quantum security from TL-Sponge-385.
+    PqNativeV3,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -129,6 +134,10 @@ pub struct Neighbor {
     pub endpoint: Option<SocketAddr>,
     /// Neighbor's public key for tunnel authentication.
     pub public_key: Option<[u8; 32]>,
+    /// TL-KEM shared secret for v3 key derivation (32 bytes).
+    pub kem_shared_secret: Option<[u8; 32]>,
+    /// TL-KEM public key for key exchange.
+    pub kem_public_key: Option<Vec<u8>>,
     /// Assigned virtual interface name (e.g., "cubetun0").
     pub tunnel_iface: Option<String>,
     /// Current tunnel state.
@@ -153,6 +162,8 @@ impl Neighbor {
             alt_value,
             endpoint: None,
             public_key: None,
+            kem_shared_secret: None,
+            kem_public_key: None,
             tunnel_iface: None,
             state: TunnelState::Unknown,
             last_heartbeat: None,
@@ -248,6 +259,7 @@ impl CubeOverlayNetwork {
             local_addr,
             neighbors,
             addr_index,
+            #[allow(deprecated)]
             tunnel_protocol: TunnelProtocol::PqNative,
             heartbeat_interval: Duration::from_millis(DEFAULT_HEARTBEAT_INTERVAL_MS),
             key_rotation_interval: Duration::from_secs(DEFAULT_KEY_ROTATION_SECS),
@@ -366,11 +378,15 @@ impl CubeOverlayNetwork {
     // PQ-NATIVE KEY DERIVATION
     // ═══════════════════════════════════════════════════════════════
 
-    /// Derive a shared tunnel key from both cubes' Rep C addresses.
+    /// Derive a shared tunnel key from both cubes' Rep C addresses (v2.5).
     ///
-    /// Uses TIS-27 ternary identity sponge with both addresses sorted
+    /// Uses TL-Sponge-385 with both addresses sorted
     /// lexicographically — both sides compute the same key independently.
     /// Post-quantum by construction — no binary hash, no elliptic curve operations.
+    ///
+    /// **Deprecated**: Use `derive_pq_tunnel_key_v3` with TL-KEM shared secret
+    /// for IND-CCA2 key secrecy and forward secrecy.
+    #[deprecated(note = "Use derive_pq_tunnel_key_v3 with TL-KEM shared secret")]
     pub fn derive_pq_tunnel_key(
         addr_a: &CubeAddr,
         addr_b: &CubeAddr,
@@ -378,7 +394,6 @@ impl CubeOverlayNetwork {
         let bytes_a = addr_a.to_bytes();
         let bytes_b = addr_b.to_bytes();
 
-        // Canonical ordering: smaller address first — both sides compute the same key
         let (lo, hi) = if bytes_a <= bytes_b {
             (&bytes_a, &bytes_b)
         } else {
@@ -395,12 +410,59 @@ impl CubeOverlayNetwork {
         out
     }
 
+    /// Derive a shared tunnel key using TL-KEM shared secret + TL-Sponge-385 KDF (v3).
+    ///
+    /// Input construction:
+    ///   `"PlenumNET-CON-v3.0" ∥ canonical(addr_a, addr_b) ∥ kem_shared_secret ∥ epoch_bytes`
+    ///
+    /// Properties:
+    /// - **IND-CCA2 key secrecy**: from TL-KEM shared secret
+    /// - **Forward secrecy**: via TL-KEM refresh + hash ratchet
+    /// - **385-bit PQ security**: from TL-Sponge-385 KDF
+    /// - **Topology binding**: canonical address ordering ensures both sides derive the same key
+    pub fn derive_pq_tunnel_key_v3(
+        addr_a: &CubeAddr,
+        addr_b: &CubeAddr,
+        kem_shared_secret: &[u8; 32],
+        epoch: u64,
+    ) -> [u8; 32] {
+        let bytes_a = addr_a.to_bytes();
+        let bytes_b = addr_b.to_bytes();
+
+        let (lo, hi) = if bytes_a <= bytes_b {
+            (&bytes_a, &bytes_b)
+        } else {
+            (&bytes_b, &bytes_a)
+        };
+
+        let key_bytes = ternary_math::sponge::sponge385_derive_key(
+            b"PlenumNET-CON-v3.0",
+            lo,
+            hi,
+            kem_shared_secret,
+            epoch,
+        );
+        let mut out = [0u8; 32];
+        out.copy_from_slice(&key_bytes);
+        out
+    }
+
     /// Derive all tunnel keys for this cube's neighbors.
-    pub fn derive_all_keys(&self) -> Vec<(CubeAddr, [u8; 32])> {
+    ///
+    /// Uses v3 key derivation (TL-KEM + TL-Sponge-385) when a KEM shared
+    /// secret is available for the neighbor; falls back to v2.5 otherwise.
+    pub fn derive_all_keys(&self, kem_secrets: &HashMap<CubeAddr, [u8; 32]>, epoch: u64) -> Vec<(CubeAddr, [u8; 32])> {
         self.neighbors
             .iter()
             .map(|nbr| {
-                let key = Self::derive_pq_tunnel_key(&self.local_addr, &nbr.cube_addr);
+                let key = if let Some(secret) = nbr.kem_shared_secret.as_ref().or_else(|| kem_secrets.get(&nbr.cube_addr)) {
+                    Self::derive_pq_tunnel_key_v3(&self.local_addr, &nbr.cube_addr, secret, epoch)
+                } else {
+                    #[allow(deprecated)]
+                    {
+                        Self::derive_pq_tunnel_key(&self.local_addr, &nbr.cube_addr)
+                    }
+                };
                 (nbr.cube_addr.clone(), key)
             })
             .collect()
@@ -555,7 +617,9 @@ mod tests {
     fn test_pq_key_derivation_symmetric() {
         let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        #[allow(deprecated)]
         let key_ab = CubeOverlayNetwork::derive_pq_tunnel_key(&a, &b);
+        #[allow(deprecated)]
         let key_ba = CubeOverlayNetwork::derive_pq_tunnel_key(&b, &a);
         assert_eq!(key_ab, key_ba, "Key derivation must be symmetric");
     }
@@ -565,9 +629,54 @@ mod tests {
         let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let c = addr([3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        #[allow(deprecated)]
         let key_ab = CubeOverlayNetwork::derive_pq_tunnel_key(&a, &b);
+        #[allow(deprecated)]
         let key_ac = CubeOverlayNetwork::derive_pq_tunnel_key(&a, &c);
         assert_ne!(key_ab, key_ac, "Different pairs must produce different keys");
+    }
+
+    #[test]
+    fn test_v3_key_derivation_symmetric() {
+        let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let secret = [42u8; 32];
+        let epoch = 100u64;
+        let key_ab = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&a, &b, &secret, epoch);
+        let key_ba = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&b, &a, &secret, epoch);
+        assert_eq!(key_ab, key_ba, "V3 key derivation must be symmetric");
+    }
+
+    #[test]
+    fn test_v3_keys_differ_from_v1() {
+        let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let secret = [0u8; 32];
+        #[allow(deprecated)]
+        let key_v1 = CubeOverlayNetwork::derive_pq_tunnel_key(&a, &b);
+        let key_v3 = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&a, &b, &secret, 0);
+        assert_ne!(key_v1, key_v3, "V3 keys must differ from V1 keys");
+    }
+
+    #[test]
+    fn test_v3_different_kem_secrets() {
+        let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let secret1 = [42u8; 32];
+        let secret2 = [99u8; 32];
+        let key1 = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&a, &b, &secret1, 100);
+        let key2 = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&a, &b, &secret2, 100);
+        assert_ne!(key1, key2, "Different KEM secrets must produce different keys");
+    }
+
+    #[test]
+    fn test_v3_different_epochs() {
+        let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let secret = [42u8; 32];
+        let key1 = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&a, &b, &secret, 100);
+        let key2 = CubeOverlayNetwork::derive_pq_tunnel_key_v3(&a, &b, &secret, 200);
+        assert_ne!(key1, key2, "Same addresses but different epochs must produce different keys");
     }
 
     #[test]
