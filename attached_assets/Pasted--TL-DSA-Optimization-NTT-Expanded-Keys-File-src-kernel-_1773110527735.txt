@@ -1,0 +1,385 @@
+# TL-DSA Optimization — NTT + Expanded Keys
+# File: src/kernel/src/crypto/tl_dsa.rs
+# Single file. No changes to ternary_lattice.rs.
+# Two optimizations in one pass.
+
+## Current State
+
+TL-DSA-87 roundtrip: **1,441 µs** (keygen 723, sign 383, verify 357).
+
+Two bottlenecks:
+1. All polynomial multiplies use schoolbook O(n²) — NTT O(n log n) exists but isn't called
+2. Matrix A is re-expanded from seed in keygen, sign, AND verify (56 sponge hashes each time)
+
+## Target
+
+Sub-800 µs roundtrip for DSA-87. Two changes:
+- **Schoolbook → NTT** for all polynomial multiplication (~30-50% speedup)
+- **Pre-NTT expanded keys** — compute NTT(A) once in keygen, store in keys, never re-expand
+
+## Parameters (for reference)
+
+| Variant | n | k | l | k×l poly muls per A×v |
+|---------|---|---|---|-----------------------|
+| TL-DSA-44 | 256 | 4 | 4 | 16 |
+| TL-DSA-65 | 256 | 6 | 5 | 30 |
+| TL-DSA-87 | 256 | 8 | 7 | 56 |
+
+---
+
+## Change 1: Add imports
+
+Find the existing imports from `ternary_lattice` near the top of `tl_dsa.rs`. Add
+`ntt_ring_mul` and `NttMatrix` to the import list.
+
+If imports look like:
+```rust
+use super::ternary_lattice::{TernaryPolynomial, TernaryPolyVec, TernaryPolyMatrix, ...};
+```
+
+Add `ntt_ring_mul` and `NttMatrix`:
+```rust
+use super::ternary_lattice::{TernaryPolynomial, TernaryPolyVec, TernaryPolyMatrix, NttMatrix, ntt_ring_mul, ...};
+```
+
+If `NttMatrix` isn't directly importable (it might be returned by `to_ntt()` without
+being pub), check line 1285 of `ternary_lattice.rs`. If the struct is `pub`, import it.
+If not, make it `pub`.
+
+Also add a constant for the NTT prime. Check if `NCNTT_Q` is already exported from
+`ternary_lattice.rs`. If not, define locally in `tl_dsa.rs`:
+
+```rust
+const NTT_Q: i16 = 12289;
+```
+
+---
+
+## Change 2: Add `ntt_a` field to key structs
+
+Find `TlDsaPublicKey` struct. It currently looks like:
+```rust
+pub struct TlDsaPublicKey {
+    pub variant: TlDsaVariant,
+    pub matrix_a_seed: Vec<i8>,
+    pub public_t: TernaryPolyVec,
+}
+```
+
+Add the NTT field:
+```rust
+pub struct TlDsaPublicKey {
+    pub variant: TlDsaVariant,
+    pub matrix_a_seed: Vec<i8>,  // kept for third-party verification / recomputation
+    pub ntt_a: NttMatrix,        // pre-computed NTT form — eliminates expand on verify
+    pub public_t: TernaryPolyVec,
+}
+```
+
+Find `TlDsaSecretKey` struct. Add the same field:
+```rust
+pub struct TlDsaSecretKey {
+    pub variant: TlDsaVariant,
+    pub matrix_a_seed: Vec<i8>,  // kept for seed-based recomputation
+    pub ntt_a: NttMatrix,        // pre-computed NTT form — eliminates expand on sign
+    pub secret_s1: TernaryPolyVec,
+    pub secret_s2: TernaryPolyVec,
+    pub public_t: TernaryPolyVec,
+    pub signing_seed: Vec<i8>,
+}
+```
+
+---
+
+## Change 3: Modify `keygen`
+
+Replace the entire `keygen` function body. Current code expands matrix A, multiplies
+with schoolbook, and stores seed only. New code expands A, converts to NTT, multiplies
+with NTT, and stores the NTT form in both keys.
+
+Find:
+```rust
+pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKey, TlDsaSecretKey)> {
+    let params = variant.params();
+    let n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    let rho = dsa_hash(DOMAIN_MATRIX_EXPAND, &[seed, &[0i8]], 243);
+    let sigma = dsa_hash(DOMAIN_SECRET_SAMPLE, &[seed, &[1i8]], 243);
+    let signing_seed = dsa_hash(DOMAIN_SIGNING_SEED, &[seed, &[0i8, 1, -1]], 243);
+
+    let matrix_a = expand_matrix_a(&rho, k, l, n);
+
+    let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
+    let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
+
+    let public_t = matrix_a.mul_vec(&secret_s1)?;
+
+    let pk = TlDsaPublicKey {
+        variant,
+        matrix_a_seed: rho.clone(),
+        public_t: public_t.clone(),
+    };
+
+    let sk = TlDsaSecretKey {
+        variant,
+        matrix_a_seed: rho,
+        secret_s1,
+        secret_s2,
+        public_t,
+        signing_seed,
+    };
+
+    Ok((pk, sk))
+}
+```
+
+Replace with:
+```rust
+pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKey, TlDsaSecretKey)> {
+    let params = variant.params();
+    let n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    let rho = dsa_hash(DOMAIN_MATRIX_EXPAND, &[seed, &[0i8]], 243);
+    let sigma = dsa_hash(DOMAIN_SECRET_SAMPLE, &[seed, &[1i8]], 243);
+    let signing_seed = dsa_hash(DOMAIN_SIGNING_SEED, &[seed, &[0i8, 1, -1]], 243);
+
+    // Expand matrix A from seed, then convert to NTT form ONCE.
+    // NTT form is stored in keys — sign and verify never re-expand.
+    let matrix_a = expand_matrix_a(&rho, k, l, n);
+    let ntt_a = matrix_a.to_ntt();
+
+    let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
+    let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
+
+    // Use NTT matrix-vector multiply instead of schoolbook
+    let public_t = ntt_a.mul_vec(&secret_s1)?;
+
+    let pk = TlDsaPublicKey {
+        variant,
+        matrix_a_seed: rho.clone(),
+        ntt_a: ntt_a.clone(),  // NOTE: NttMatrix must derive Clone, or clone manually
+        public_t: public_t.clone(),
+    };
+
+    let sk = TlDsaSecretKey {
+        variant,
+        matrix_a_seed: rho,
+        ntt_a,
+        secret_s1,
+        secret_s2,
+        public_t,
+        signing_seed,
+    };
+
+    Ok((pk, sk))
+}
+```
+
+**NOTE on Clone:** `NttMatrix` must implement `Clone`. Check if it already derives
+Clone in `ternary_lattice.rs`. If not, add `#[derive(Clone)]` to the `NttMatrix`
+struct definition. This is the ONE change needed in `ternary_lattice.rs`.
+
+---
+
+## Change 4: Modify `sign`
+
+The sign function currently re-expands matrix A from seed. Remove that entirely
+and use the pre-stored NTT form. Also switch ring_mul to ntt_ring_mul.
+
+Find:
+```rust
+pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature> {
+    let params = sk.variant.params();
+    let n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    let matrix_a = expand_matrix_a(&sk.matrix_a_seed, k, l, n);
+```
+
+Replace with:
+```rust
+pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature> {
+    let params = sk.variant.params();
+    let n = params.n;
+    let _k = params.k;
+    let l = params.l;
+
+    // Matrix A is pre-computed in NTT form — no expansion needed
+```
+
+Then find:
+```rust
+        let w = matrix_a.mul_vec(&y)?;
+```
+
+Replace with:
+```rust
+        let w = sk.ntt_a.mul_vec(&y)?;
+```
+
+Then find the challenge × secret loop:
+```rust
+        for i in 0..l {
+            let cs1_i = c.ring_mul(&sk.secret_s1.polys[i])?;
+            let z_i = y.polys[i].add(&cs1_i)?;
+```
+
+Replace with:
+```rust
+        for i in 0..l {
+            let cs1_i = ntt_ring_mul(&c, &sk.secret_s1.polys[i], NTT_Q);
+            let z_i = y.polys[i].add(&cs1_i)?;
+```
+
+**NOTE:** Check the return type of `ntt_ring_mul` at line 1094 of `ternary_lattice.rs`.
+If it returns `TernaryPolynomial` directly (not `CryptoResult<TernaryPolynomial>`),
+remove the `?` from the old `ring_mul` call — it's no longer needed.
+
+---
+
+## Change 5: Modify `verify`
+
+Same pattern — remove matrix expansion, use pre-stored NTT form from public key.
+
+Find:
+```rust
+pub fn verify(pk: &TlDsaPublicKey, message: &[i8], sig: &TlDsaSignature) -> CryptoResult<bool> {
+    let params = pk.variant.params();
+    let n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    if sig.z.polys.len() != l {
+        return Ok(false);
+    }
+
+    for poly in &sig.z.polys {
+        if poly.l_infinity_norm() > 1 {
+            return Ok(false);
+        }
+    }
+
+    let matrix_a = expand_matrix_a(&pk.matrix_a_seed, k, l, n);
+
+    let c = sample_challenge(&sig.challenge_hash, n, params.tau);
+
+    let az = matrix_a.mul_vec(&sig.z)?;
+
+    let mut ct_polys = Vec::with_capacity(k);
+    for i in 0..k {
+        let cti = c.ring_mul(&pk.public_t.polys[i])?;
+        ct_polys.push(cti);
+    }
+```
+
+Replace with:
+```rust
+pub fn verify(pk: &TlDsaPublicKey, message: &[i8], sig: &TlDsaSignature) -> CryptoResult<bool> {
+    let params = pk.variant.params();
+    let _n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    if sig.z.polys.len() != l {
+        return Ok(false);
+    }
+
+    for poly in &sig.z.polys {
+        if poly.l_infinity_norm() > 1 {
+            return Ok(false);
+        }
+    }
+
+    // Matrix A is pre-computed in NTT form — no expansion needed
+    let c = sample_challenge(&sig.challenge_hash, params.n, params.tau);
+
+    let az = pk.ntt_a.mul_vec(&sig.z)?;
+
+    let mut ct_polys = Vec::with_capacity(k);
+    for i in 0..k {
+        let cti = ntt_ring_mul(&c, &pk.public_t.polys[i], NTT_Q);
+        ct_polys.push(cti);
+    }
+```
+
+The rest of the verify function (w_prime, mu, expected_hash comparison) stays unchanged.
+
+---
+
+## Change 6 (ternary_lattice.rs — ONE change only): Add Clone to NttMatrix
+
+If `NttMatrix` doesn't already derive `Clone`, find its struct definition
+(around line 1280 of `ternary_lattice.rs`) and add the derive:
+
+```rust
+#[derive(Clone)]
+pub struct NttMatrix {
+    // ... existing fields
+}
+```
+
+This is the ONLY change to `ternary_lattice.rs`.
+
+---
+
+## What is NOT changed
+
+- `expand_matrix_a` function — kept as-is (still called by keygen for initial expansion)
+- `sample_challenge`, `sample_masking_vec`, `dsa_hash` — unchanged
+- All parameter sets (n, k, l, eta, tau) — unchanged
+- `ternary_lattice.rs` — only `Clone` derive added to `NttMatrix`, nothing else
+- All polynomial arithmetic functions — unchanged (NTT path already existed and was tested)
+
+## What breaks
+
+- Key struct layout changes — any serialized keys are incompatible
+- This is acceptable: the registry is empty and no keys are stored externally
+
+## Verification
+
+All existing tests must pass:
+```bash
+cargo test --lib -- crypto::tl_dsa
+cargo test --lib -- crypto::ternary_lattice
+```
+
+The key tests to watch:
+- `test_sign_verify_44`, `test_sign_verify_65`, `test_sign_verify_87` — must still pass
+  (NTT produces identical results to schoolbook, verified by existing test
+  `test_ncntt_mul_matches_karatsuba` and `test_ntt_mul_matches_schoolbook`)
+- `test_keygen_deterministic` — must still pass (same seed → same keys, NTT is deterministic)
+- `test_sign_deterministic` — must still pass
+
+Then re-benchmark. Expected results:
+
+| Variant | Before | After (NTT + expanded keys) | Speedup |
+|---------|--------|----------------------------|---------|
+| TL-DSA-44 | 653 µs | ~350-400 µs | 1.6-1.9× |
+| TL-DSA-65 | 963 µs | ~450-550 µs | 1.7-2.1× |
+| TL-DSA-87 | 1,441 µs | ~650-800 µs | 1.8-2.2× |
+
+Savings breakdown for DSA-87:
+- Schoolbook → NTT: ~30-40% of poly mul time saved
+- Eliminate expand_matrix_a from sign: ~180 µs saved (56 sponge hashes × 3.2 µs)
+- Eliminate expand_matrix_a from verify: ~180 µs saved
+
+If DSA-87 lands under 800 µs, the ML-DSA comparison becomes:
+- ML-DSA-87: ~4,200 µs
+- TL-DSA-87: ~750 µs
+- **TL-DSA advantage: ~5.6× faster**
+
+## Summary: What Replit Does
+
+| Step | File | What |
+|------|------|------|
+| 1 | `tl_dsa.rs` | Add `ntt_ring_mul`, `NttMatrix` imports + NTT_Q constant |
+| 2 | `tl_dsa.rs` | Add `ntt_a: NttMatrix` field to both key structs |
+| 3 | `tl_dsa.rs` | Rewrite `keygen` — expand A → NTT once, store in keys, NTT mul_vec |
+| 4 | `tl_dsa.rs` | Rewrite `sign` — remove expand_matrix_a, use sk.ntt_a, ntt_ring_mul |
+| 5 | `tl_dsa.rs` | Rewrite `verify` — remove expand_matrix_a, use pk.ntt_a, ntt_ring_mul |
+| 6 | `ternary_lattice.rs` | Add `#[derive(Clone)]` to NttMatrix (if not present) |
