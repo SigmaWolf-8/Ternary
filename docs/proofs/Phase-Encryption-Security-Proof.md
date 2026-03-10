@@ -861,7 +861,7 @@ Resolved in companion documents:
 
 | Problem | Status | Resolution |
 |---------|--------|------------|
-| Topology-derived key agreement under adaptive corruption | **CLOSED** (limitations identified) | TM-2026-013 — formal analysis in network-access-restricted model; game-based Exp^{TDKA} experiment; adaptive corruption with key independence under partial corruption; forward secrecy negative result (Theorem 6.1) with three mitigations (WireGuard composition, ephemeral salt, ratcheting); 43-bit TIS-27 capacity limitation with TL-Sponge-385 upgrade path. **Key finding:** PQ-Native tunnel keys are deterministic PSKs from public inputs — not computationally secret; confidentiality requires network-layer access control or WireGuard composition |
+| Topology-derived key agreement under adaptive corruption | **CLOSED** | TM-2026-013 — formal analysis identifying v2.5 limitations (public-input PSK, no forward secrecy, 43-bit TIS-27 capacity) with complete TL-KEM upgrade specification (§12): three-layer construction separating geometry (Layer 1) from TL-KEM key exchange (Layer 2, IND-CCA2) and TL-Sponge-385 topology-bound KDF (Layer 3, 385-bit PQ). Upgrade resolves all four limitations: computational key secrecy via TL-KEM shared secret, forward secrecy via TL-KEM refresh + hash ratchet, 385-bit post-quantum security, topology binding preserved. Implementation: `derive_pq_tunnel_key_v3()` in Rust overlay + `deriveTunnelKeyV3()` in TypeScript CON |
 
 ### 12.2 Future Work
 
