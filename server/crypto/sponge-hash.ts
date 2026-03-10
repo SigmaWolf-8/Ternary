@@ -48,17 +48,20 @@ const RC_TABLE: Int8Array[] = (() => {
   return rcs;
 })();
 
+const WRAP_TABLE = new Int8Array([
+  -1, 0, 1, -1, 0, 1, -1, 0, 1
+]);
+
 function balancedWrap(s: number): number {
-  if (s >= 2) return s - 3;
-  if (s <= -2) return s + 3;
-  return s;
+  return WRAP_TABLE[s + 4];
 }
 
+const TRIT_ADD_TABLE = new Int8Array([
+  1, -1, 0, 1, -1
+]);
+
 function tritAdd(a: number, b: number): number {
-  const s = a + b;
-  if (s > 1) return s - 3;
-  if (s < -1) return s + 3;
-  return s;
+  return TRIT_ADD_TABLE[a + b + 2];
 }
 
 function spongePermutation(state: Int8Array): void {

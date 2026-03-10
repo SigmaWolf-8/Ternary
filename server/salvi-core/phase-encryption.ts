@@ -197,18 +197,15 @@ function balancedTrits6ToBytes(trits: Int8Array, byteLen: number): Buffer {
   return out;
 }
 
+const TRIT_ADD_LUT = new Int8Array([1, -1, 0, 1, -1]);
+const TRIT_SUB_LUT = new Int8Array([1, -1, 0, 1, -1]);
+
 function tritSub(a: number, b: number): number {
-  const s = a - b;
-  if (s > 1) return s - 3;
-  if (s < -1) return s + 3;
-  return s;
+  return TRIT_SUB_LUT[a - b + 2];
 }
 
 function tritAdd(a: number, b: number): number {
-  const s = a + b;
-  if (s > 1) return s - 3;
-  if (s < -1) return s + 3;
-  return s;
+  return TRIT_ADD_LUT[a + b + 2];
 }
 
 function encryptTrits(plainTrits: Int8Array, keystream: Int8Array): Int8Array {
