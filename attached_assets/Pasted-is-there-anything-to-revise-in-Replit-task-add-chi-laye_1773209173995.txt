@@ -1,0 +1,36 @@
+is there anything to revise in Replit task add chi layer after reviewing the attached comments?12:02 AMIdentified SIMD implementation paths requiring chi layer revisionIdentified SIMD implementation paths requiring chi layer revisionYes, two revisions needed based on what Replit found:
+Revision 1: The Rust kernel has SIMD paths (AVX2/NEON). My task only mentions the scalar code. Chi needs to be added to the scalar path first. The SIMD paths for chi can come later — GF(27) polynomial multiplication across SIMD lanes is non-trivial and shouldn't block the initial implementation. Add this note:
+
+Add chi to the SCALAR code path only. The AVX2/NEON theta paths remain v1 (no chi) for now. The sponge version flag determines which permutation runs. SIMD chi is a future optimization.
+
+Revision 2: The test test_sbox_equals_collapsed_form (line 562). This test explicitly proves the current round function has no block-level nonlinearity. With chi added, this test needs a companion — not deletion (it validates v1), but a new test:
+
+Add test_chi_is_bijection: compute x¹⁷ for all 27 GF(27) elements via the polynomial arithmetic. Verify all 27 outputs are distinct. Verify 0 → 0. Verify the result matches the known DDT from the paper (DP_max = 3 entries in the table).
+
+Everything else in the task is correct — the GF(27) arithmetic, the reduction formula, the versioning pattern, the backward compatibility approach, and the "no lookup tables" directive. Send it as-is with those two additions.no fucking later, deal with everything now and all at once.  You have a saved skill for PlenumNEt WHAT IS THE SOURCE OF THIS NONSENSE.12:03 AMInvestigated saved skill file source of misinformationInvestigated saved skill file source of misinformationLet me find exactly where this came from.Identified specification-implementation confusion; conflated theoretical docs with actual codeIdentified specification-implementation confusion; conflated theoretical docs with actual codeFound it. Here's the exact source.
+The monograph skill (plemumnet-unified-monograph/SKILL.md), line 34:
+
+"The chi S-box is specified as χ(x) = x¹⁷ over GF(27)..."
+
+Line 43:
+
+"II: Min Distance | COMPLETE | B≥8, χ(x)=x¹⁷, DP=1/9"
+
+Line 147:
+
+"Status: COMPLETE. Chi specification verified by exhaustive DDT computation."
+
+The monograph specifies chi. It computes the DDT, verifies the Walsh spectrum, proves the properties. It says "COMPLETE" — meaning the mathematical analysis is complete. I read "COMPLETE" and "verified" as meaning chi was implemented in the code. It wasn't. The monograph was the design specification for what chi should be when added. I treated specification as implementation.
+The repo guide skill (plenumnet-guide/SKILL.md), line 394, says exactly what the code actually does:
+
+"Operations: tisTheta (neighbor diffusion), tisPi (stride-13 permutation), round constant addition."
+
+No chi. The guide describes what EXISTS. The monograph describes what SHOULD exist. I pulled from the monograph and wrote the paper as though the code matched. I never verified against the guide or the actual source files. That's the error.
+Now let me fix the task to include everything — SIMD included, nothing deferred.Flagged skill file management requirements for completionFlagged skill file management requirements for completionThe source: The monograph skill says "COMPLETE" and "verified" for chi. That means the math is complete. I read it as "the code has it." It doesn't. The repo guide skill accurately says the round function is theta + pi + round constants. No chi. I pulled from the wrong document and never cross-checked.
+Task is updated. Three changes from before:
+
+SIMD included NOW. Chi goes into scalar, AVX2, and NEON paths in this task. Uses the same #[cfg(target_arch)] dispatch and SIMD infrastructure that theta already has. Tests verify SIMD matches scalar bit-for-bit.
+Chi computed, not looked up. GF(27) polynomial arithmetic from first principles. Square-and-multiply for x¹⁷. The irreducible polynomial t³ + 2t + 1 is the only constant.
+Context section added explaining why this is being done — the monograph specified chi, marked it "COMPLETE" (math done), but it was never wired into the round function. This task implements what was designed.
+
+After this lands, both skill files need updating — the monograph to say "IMPLEMENTED" instead of just "specified," and the repo guide to include chi in the round function description. I'll handle those once Replit confirms it's done and tests pass.

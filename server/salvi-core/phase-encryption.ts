@@ -43,9 +43,12 @@ import { randomBytes, timingSafeEqual } from 'crypto';
 import { getFemtosecondTimestamp, FemtosecondTimestamp } from './femtosecond-timing';
 import {
   spongeKeystream,
+  spongeKeystreamV1,
   spongeHash,
+  spongeHashV1,
   SpongeDuplex,
   tritsToHex,
+  SPONGE_VERSION,
 } from '../crypto/sponge-hash';
 
 const PHASE_CONTEXT_TAG = Buffer.from('PlenumNET-Phase-v2');
@@ -56,10 +59,11 @@ const STD_FULL_CIRCLE = 360;
 const TRITS_PER_BYTE = 6;
 const MAC_TRITS = 243;
 
-let _cachedKeyMaterial: Buffer | null = null;
+let _cachedKeyMaterialV2: Buffer | null = null;
+let _cachedKeyMaterialV1: Buffer | null = null;
 
 function getKeyMaterial(): Buffer {
-  if (_cachedKeyMaterial) return _cachedKeyMaterial;
+  if (_cachedKeyMaterialV2) return _cachedKeyMaterialV2;
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
     throw new Error('SESSION_SECRET required for phase encryption');
@@ -68,8 +72,22 @@ function getKeyMaterial(): Buffer {
   const tag = Buffer.from('PlenumNET-Phase-KeyDerive');
   const input = Buffer.concat([secretBuf, tag]);
   const hashHex = spongeHash(input);
-  _cachedKeyMaterial = Buffer.from(hashHex.substring(0, 64), 'hex');
-  return _cachedKeyMaterial;
+  _cachedKeyMaterialV2 = Buffer.from(hashHex.substring(0, 64), 'hex');
+  return _cachedKeyMaterialV2;
+}
+
+function getKeyMaterialV1(): Buffer {
+  if (_cachedKeyMaterialV1) return _cachedKeyMaterialV1;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error('SESSION_SECRET required for phase encryption');
+  }
+  const secretBuf = Buffer.from(secret, 'utf-8');
+  const tag = Buffer.from('PlenumNET-Phase-KeyDerive');
+  const input = Buffer.concat([secretBuf, tag]);
+  const hashHex = spongeHashV1(input);
+  _cachedKeyMaterialV1 = Buffer.from(hashHex.substring(0, 64), 'hex');
+  return _cachedKeyMaterialV1;
 }
 
 export type EncryptionMode = 'high_security' | 'balanced' | 'performance' | 'adaptive';
@@ -103,6 +121,7 @@ export interface EncryptedPhaseData {
   nonce?: string;
   mac?: { primary: string; secondary: string } | string;
   version?: number;
+  spongeVersion?: number;
 }
 
 export interface RecombinationResult {
@@ -287,14 +306,14 @@ function cipherBytesToTrits(input: Buffer, tritCount: number): Int8Array {
 function legacyComputeMac(key: Buffer, nonce: Buffer, cipherB64: string): string {
   const cipherBuf = Buffer.from(cipherB64, 'base64');
   const input = Buffer.concat([key, nonce, cipherBuf, MAC_CONTEXT_TAG]);
-  return spongeHash(input);
+  return spongeHashV1(input);
 }
 
 function legacyEncryptPhaseBytes(plainBytes: Buffer, key: Buffer, nonce: Buffer, phaseAngle: number): string {
   const plainTrits = bytesToBalancedTrits6(plainBytes);
   const ternaryAngle = stdDegToTernaryDeg(phaseAngle);
   const domainInput = buildDomainInput(key, nonce, ternaryAngle);
-  const keystream = spongeKeystream(domainInput, plainTrits.length);
+  const keystream = spongeKeystreamV1(domainInput, plainTrits.length);
   const cipherTrits = encryptTrits(plainTrits, keystream);
   const cipherBytes = cipherTritsToBytes(cipherTrits);
   const header = Buffer.alloc(8);
@@ -311,7 +330,7 @@ function legacyDecryptPhaseBytes(cipherB64: string, key: Buffer, nonce: Buffer, 
   const cipherTrits = cipherBytesToTrits(cipherBytes, tritCount);
   const ternaryAngle = stdDegToTernaryDeg(phaseAngle);
   const domainInput = buildDomainInput(key, nonce, ternaryAngle);
-  const keystream = spongeKeystream(domainInput, tritCount);
+  const keystream = spongeKeystreamV1(domainInput, tritCount);
   const plainTrits = decryptTrits(cipherTrits, keystream);
   const plainBytes = balancedTrits6ToBytes(plainTrits, originalByteLen);
   return plainBytes.subarray(0, originalByteLen);
@@ -325,7 +344,8 @@ function duplexEncrypt(
   key: Buffer,
   nonce: Buffer,
   primaryAngle: number,
-  secondaryAngle: number
+  secondaryAngle: number,
+  spongeVer: number = 2
 ): { primaryCipherB64: string; secondaryCipherB64: string; mac: string } {
   const primaryTrits = bytesToBalancedTrits6(primaryBytes);
   const secondaryTrits = bytesToBalancedTrits6(secondaryBytes);
@@ -335,7 +355,7 @@ function duplexEncrypt(
 
   const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
 
-  const duplex = new SpongeDuplex();
+  const duplex = new SpongeDuplex(spongeVer);
   duplex.absorb(domainInput);
 
   const ks1 = duplex.squeeze(primaryTrits.length);
@@ -379,7 +399,8 @@ function duplexDecrypt(
   key: Buffer,
   nonce: Buffer,
   primaryAngle: number,
-  secondaryAngle: number
+  secondaryAngle: number,
+  spongeVer: number = 2
 ): { primaryBuf: Buffer; secondaryBuf: Buffer } | null {
   const raw1 = Buffer.from(primaryCipherB64, 'base64');
   const originalByteLen1 = raw1.readUInt32BE(0);
@@ -398,7 +419,7 @@ function duplexDecrypt(
 
   const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
 
-  const duplex = new SpongeDuplex();
+  const duplex = new SpongeDuplex(spongeVer);
   duplex.absorb(domainInput);
 
   const ks1 = duplex.squeeze(tritCount1);
@@ -480,6 +501,7 @@ export function phaseSplit(
     nonce: nonce.toString('hex'),
     mac,
     version: 3,
+    spongeVersion: SPONGE_VERSION,
   };
 
   if (config.guardianEnabled) {
@@ -570,11 +592,11 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
     let recombinedData: string;
 
     if (encrypted.nonce) {
-      const key = getKeyMaterial();
+      const useV2Sponge = encrypted.spongeVersion !== undefined && encrypted.spongeVersion >= 2;
+      const key = useV2Sponge ? getKeyMaterial() : getKeyMaterialV1();
       const nonce = Buffer.from(encrypted.nonce, 'hex');
 
       if (encrypted.version === 3 && typeof encrypted.mac === 'string') {
-        // v3 duplex path
         const result = duplexDecrypt(
           encrypted.primaryPhase.data,
           encrypted.secondaryPhase.data,
@@ -582,7 +604,8 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
           key,
           nonce,
           encrypted.primaryPhase.phase,
-          encrypted.secondaryPhase.phase
+          encrypted.secondaryPhase.phase,
+          useV2Sponge ? 2 : 1
         );
 
         if (!result) {
@@ -651,7 +674,8 @@ export function phaseRecombine(encrypted: EncryptedPhaseData): RecombinationResu
     let guardianValidation: boolean | undefined;
     if (encrypted.guardianPhase) {
       if (encrypted.nonce) {
-        const currentHash = spongeHash(Buffer.from(recombinedData, 'utf-8'));
+        const guardianHashFn = (encrypted.spongeVersion !== undefined && encrypted.spongeVersion >= 2) ? spongeHash : spongeHashV1;
+        const currentHash = guardianHashFn(Buffer.from(recombinedData, 'utf-8'));
         guardianValidation = currentHash === encrypted.guardianPhase.hash;
       } else {
         const currentHash = legacyTribonacciHash(recombinedData);

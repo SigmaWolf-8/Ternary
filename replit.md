@@ -21,7 +21,7 @@ A Rust-based kernel provides core functionalities: Ternary Operations (GF(3) ari
 A custom RISC-V extension integrated with CVA6 provides 21 custom instructions and 12 custom CSRs for ternary security operations, PQC acceleration, and compliance.
 
 ### Sponge Architecture
-TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing. TL-Sponge-43 is used for TDNS identity derivation. TIS-27 is used for fast integrity checks, wire packet integrity, and scan hashing.
+TL-Sponge-385 provides 385-bit post-quantum security for signing, key derivation, FIPS validation, and document hashing. The sponge permutation includes a χ(x) = x¹⁷ chi layer over GF(27) = GF(3)[t]/(t³+2t+1), applied to 243 three-trit blocks per round before theta. Sponge is versioned: v1 (no chi, for backward compat) and v2 (with chi, default). Implementations: TypeScript (`server/crypto/sponge-hash.ts`), Rust kernel (scalar + AVX2 + NEON SIMD), Rust ternary-math (scalar). Phase encryption uses `spongeVersion` field for backward-compatible decryption. TL-Sponge-43 is used for TDNS identity derivation. TIS-27 is used for fast integrity checks, wire packet integrity, and scan hashing.
 
 ### TDNS v2.5.0 — Ternary Domain Name System
 A standalone Rust crate implementing a 27-dimensional ontological addressing protocol with 54-trit dual-layer addressing. It uses TL-Sponge-43 for identity derivation and TIS-27 for wire packet integrity. The system supports Org Entities and formally analyzed scaling. API routes are provided for scan, registration, resolution, and organization management.

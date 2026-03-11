@@ -4,7 +4,7 @@
  * Applied Physics Division
  *
  * TL-SPONGE — TypeScript port of TL-Sponge-385 (Rust: TernarySponge).
- * @version 1.0.0
+ * @version 2.0.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/crypto/sponge-hash.ts
@@ -16,17 +16,25 @@
  *   Rate:     243 trits  (3⁵)
  *   Capacity: 486 trits  → 385-bit post-quantum security
  *   Rounds:   9          (3² — 3× safety margin over 3-round full diffusion)
+ *   Chi:      χ(x) = x¹⁷ over GF(27) = GF(3)[t]/(t³ + 2t + 1)  [v2]
  *   Theta:    7-neighbor substitution at distances ±1, ±7, ±13
  *   Pi:       stride 376, offset +1: π(i) = (376·i + 1) mod 729
  *
  * Arithmetic: balanced ternary {-1, 0, +1}. All operations wrap mod 3.
  * Output: 243 trits squeezed → packed to 49 bytes (5 trits/byte, lossless) hex.
+ *
+ * Versioning:
+ *   v1 = theta → pi → round constants (no chi — backward compat)
+ *   v2 = chi → theta → pi → round constants (current default)
  */
+
+export const SPONGE_VERSION = 2;
 
 const STATE_SIZE = 729;
 const RATE = 243;
 const ROUNDS = 9;
 const LANES = 27;
+const CHI_BLOCKS = 243;
 
 const PERM: number[] = (() => {
   const p = new Array<number>(STATE_SIZE);
@@ -73,28 +81,112 @@ function tritAdd(a: number, b: number): number {
 const _ext = new Int8Array(STATE_SIZE + 26);
 const _buf = new Int8Array(STATE_SIZE);
 
-function spongePermutation(state: Int8Array): void {
+const GF3_MUL: Uint8Array = (() => {
+  const t = new Uint8Array(9);
+  for (let a = 0; a < 3; a++)
+    for (let b = 0; b < 3; b++)
+      t[a * 3 + b] = (a * b) % 3;
+  return t;
+})();
+
+const GF3_ADD: Uint8Array = (() => {
+  const t = new Uint8Array(9);
+  for (let a = 0; a < 3; a++)
+    for (let b = 0; b < 3; b++)
+      t[a * 3 + b] = (a + b) % 3;
+  return t;
+})();
+
+function gf27Mul(a0: number, a1: number, a2: number,
+                 b0: number, b1: number, b2: number): [number, number, number] {
+  const c0 = GF3_MUL[a0 * 3 + b0];
+  const c1 = GF3_ADD[GF3_MUL[a0 * 3 + b1] * 3 + GF3_MUL[a1 * 3 + b0]];
+  const c2 = GF3_ADD[GF3_ADD[GF3_MUL[a0 * 3 + b2] * 3 + GF3_MUL[a1 * 3 + b1]] * 3 + GF3_MUL[a2 * 3 + b0]];
+  const c3 = GF3_ADD[GF3_MUL[a1 * 3 + b2] * 3 + GF3_MUL[a2 * 3 + b1]];
+  const c4 = GF3_MUL[a2 * 3 + b2];
+
+  const r0 = GF3_ADD[c0 * 3 + GF3_MUL[2 * 3 + c3]];
+  const r1 = GF3_ADD[GF3_ADD[c1 * 3 + c3] * 3 + GF3_MUL[2 * 3 + c4]];
+  const r2 = GF3_ADD[c2 * 3 + c4];
+
+  return [r0, r1, r2];
+}
+
+function gf27Pow17(a0: number, a1: number, a2: number): [number, number, number] {
+  let [s0, s1, s2] = gf27Mul(a0, a1, a2, a0, a1, a2);
+  let [q0, q1, q2] = gf27Mul(s0, s1, s2, s0, s1, s2);
+  let [e0, e1, e2] = gf27Mul(q0, q1, q2, q0, q1, q2);
+  let [x0, x1, x2] = gf27Mul(e0, e1, e2, e0, e1, e2);
+  return gf27Mul(x0, x1, x2, a0, a1, a2);
+}
+
+function chiLayer(state: Int8Array): void {
+  for (let b = 0; b < CHI_BLOCKS; b++) {
+    const base = b * 3;
+    const g0 = state[base] + 1;
+    const g1 = state[base + 1] + 1;
+    const g2 = state[base + 2] + 1;
+
+    if (g0 === 0 && g1 === 0 && g2 === 0) continue;
+
+    const [r0, r1, r2] = gf27Pow17(g0, g1, g2);
+    state[base] = r0 - 1;
+    state[base + 1] = r1 - 1;
+    state[base + 2] = r2 - 1;
+  }
+}
+
+function thetaPiRc(state: Int8Array): void {
+  _ext.set(state.subarray(STATE_SIZE - 13), 0);
+  _ext.set(state, 13);
+  _ext.set(state.subarray(0, 13), STATE_SIZE + 13);
+
+  for (let i = 0; i < STATE_SIZE; i++) {
+    const ei = i + 13;
+    const left  = BW[_ext[ei - 13] + _ext[ei - 7] + _ext[ei - 1] + 4];
+    const right = BW[_ext[ei + 1]  + _ext[ei + 7]  + _ext[ei + 13] + 4];
+    _buf[i] = BW[left + _ext[ei] + right + 5];
+  }
+
+  for (let i = 0; i < STATE_SIZE; i++) {
+    state[i] = _buf[INV_PERM[i]];
+  }
+}
+
+function spongePermutationV1(state: Int8Array): void {
   for (let round = 0; round < ROUNDS; round++) {
-    _ext.set(state.subarray(STATE_SIZE - 13), 0);
-    _ext.set(state, 13);
-    _ext.set(state.subarray(0, 13), STATE_SIZE + 13);
-
-    for (let i = 0; i < STATE_SIZE; i++) {
-      const ei = i + 13;
-      const left  = BW[_ext[ei - 13] + _ext[ei - 7] + _ext[ei - 1] + 4];
-      const right = BW[_ext[ei + 1]  + _ext[ei + 7]  + _ext[ei + 13] + 4];
-      _buf[i] = BW[left + _ext[ei] + right + 5];
-    }
-
-    for (let i = 0; i < STATE_SIZE; i++) {
-      state[i] = _buf[INV_PERM[i]];
-    }
+    thetaPiRc(state);
 
     const rc = RC_TABLE[round];
     for (let lane = 0; lane < LANES; lane++) {
       const idx = RC_INDICES[lane];
       state[idx] = BW[state[idx] + rc[lane] + 4];
     }
+  }
+}
+
+function spongePermutationV2(state: Int8Array): void {
+  for (let round = 0; round < ROUNDS; round++) {
+    chiLayer(state);
+    thetaPiRc(state);
+
+    const rc = RC_TABLE[round];
+    for (let lane = 0; lane < LANES; lane++) {
+      const idx = RC_INDICES[lane];
+      state[idx] = BW[state[idx] + rc[lane] + 4];
+    }
+  }
+}
+
+function spongePermutation(state: Int8Array): void {
+  spongePermutationV2(state);
+}
+
+function spongePermutationVersioned(state: Int8Array, version: number): void {
+  if (version >= 2) {
+    spongePermutationV2(state);
+  } else {
+    spongePermutationV1(state);
   }
 }
 
@@ -110,15 +202,16 @@ function bytesToBalancedTrits(input: Buffer | Uint8Array): Int8Array {
   return new Int8Array(trits);
 }
 
-function spongeAbsorbAndSqueeze(inputTrits: Int8Array, outputTrits: number): Int8Array {
+function spongeAbsorbAndSqueezeVersioned(inputTrits: Int8Array, outputTrits: number, version: number): Int8Array {
   const state = new Int8Array(STATE_SIZE);
+  const permFn = version >= 2 ? spongePermutationV2 : spongePermutationV1;
 
   let offset = 0;
   while (offset + RATE <= inputTrits.length) {
     for (let i = 0; i < RATE; i++) {
       state[i] = TA[state[i] + inputTrits[offset + i] + 2];
     }
-    spongePermutation(state);
+    permFn(state);
     offset += RATE;
   }
 
@@ -129,7 +222,7 @@ function spongeAbsorbAndSqueeze(inputTrits: Int8Array, outputTrits: number): Int
   if (remaining < RATE) {
     state[remaining] = TA[state[remaining] + 1 + 2];
   }
-  spongePermutation(state);
+  permFn(state);
 
   const output = new Int8Array(outputTrits);
   let written = 0;
@@ -138,7 +231,7 @@ function spongeAbsorbAndSqueeze(inputTrits: Int8Array, outputTrits: number): Int
     output.set(state.subarray(0, take), written);
     written += take;
     if (written < outputTrits) {
-      spongePermutation(state);
+      permFn(state);
     }
   }
 
@@ -163,19 +256,31 @@ function tritsToBytes(trits: Int8Array, byteLen: number): Buffer {
 
 export function spongeKeystream(domainInput: Buffer | Uint8Array, outputTritCount: number): Int8Array {
   const inputTrits = bytesToBalancedTrits(domainInput);
-  return spongeAbsorbAndSqueeze(inputTrits, outputTritCount);
+  return spongeAbsorbAndSqueezeVersioned(inputTrits, outputTritCount, 2);
+}
+
+export function spongeKeystreamV1(domainInput: Buffer | Uint8Array, outputTritCount: number): Int8Array {
+  const inputTrits = bytesToBalancedTrits(domainInput);
+  return spongeAbsorbAndSqueezeVersioned(inputTrits, outputTritCount, 1);
 }
 
 export function spongeHash(input: Buffer | Uint8Array): string {
   const inputTrits = bytesToBalancedTrits(input);
-  const outputTrits = spongeAbsorbAndSqueeze(inputTrits, 243);
+  const outputTrits = spongeAbsorbAndSqueezeVersioned(inputTrits, 243, 2);
+  const bytes = tritsToBytes(outputTrits, 49);
+  return bytes.toString('hex');
+}
+
+export function spongeHashV1(input: Buffer | Uint8Array): string {
+  const inputTrits = bytesToBalancedTrits(input);
+  const outputTrits = spongeAbsorbAndSqueezeVersioned(inputTrits, 243, 1);
   const bytes = tritsToBytes(outputTrits, 49);
   return bytes.toString('hex');
 }
 
 export function spongeHashTrits(input: Buffer | Uint8Array): Int8Array {
   const inputTrits = bytesToBalancedTrits(input);
-  return spongeAbsorbAndSqueeze(inputTrits, 243);
+  return spongeAbsorbAndSqueezeVersioned(inputTrits, 243, 2);
 }
 
 export class SpongeDuplex {
@@ -183,12 +288,14 @@ export class SpongeDuplex {
   private buf: Int8Array;
   private bufLen: number;
   private needsFinalize: boolean;
+  private permFn: (state: Int8Array) => void;
 
-  constructor() {
+  constructor(version: number = 2) {
     this.state = new Int8Array(STATE_SIZE);
     this.buf = new Int8Array(RATE);
     this.bufLen = 0;
     this.needsFinalize = true;
+    this.permFn = version >= 2 ? spongePermutationV2 : spongePermutationV1;
   }
 
   absorbTrits(trits: Int8Array): void {
@@ -216,7 +323,7 @@ export class SpongeDuplex {
         for (let i = 0; i < RATE; i++) {
           this.state[i] = TA[this.state[i] + this.buf[i] + 2];
         }
-        spongePermutation(this.state);
+        this.permFn(this.state);
         this.bufLen = 0;
       }
     }
@@ -225,7 +332,7 @@ export class SpongeDuplex {
       for (let i = 0; i < RATE; i++) {
         this.state[i] = TA[this.state[i] + inputTrits[offset + i] + 2];
       }
-      spongePermutation(this.state);
+      this.permFn(this.state);
       offset += RATE;
     }
 
@@ -246,7 +353,7 @@ export class SpongeDuplex {
       }
       this.bufLen = 0;
       this.needsFinalize = false;
-      spongePermutation(this.state);
+      this.permFn(this.state);
     }
 
     const output = new Int8Array(tritCount);
@@ -256,7 +363,7 @@ export class SpongeDuplex {
       output.set(this.state.subarray(0, take), written);
       written += take;
       if (written < tritCount) {
-        spongePermutation(this.state);
+        this.permFn(this.state);
       }
     }
     return output;
