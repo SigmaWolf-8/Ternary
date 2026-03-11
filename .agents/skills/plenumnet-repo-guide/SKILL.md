@@ -1,6 +1,6 @@
 ---
 name: plenumnet-repo-guide
-description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 1,252+ commits, 80/80 milestones). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure, quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, kernel sponge (729-trit, 9 rounds, 385-bit PQ security) for key derivation and signing, TIS-27 wire integrity sponge (54-trit, 4 rounds, 43-bit), TIS-81 benchmark variant (243-trit, 4 rounds, 257-bit), 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
+description: Complete A-Z structural guide to the PlenumNET / Salvi Framework repository (SigmaWolf-8/Ternary, 1,252+ commits, 80/80 milestones). Covers ternary mathematics (base-3, pi=14, 364-degree circle, 13x28 calendar), first-position derivation rules, TDNS v2.5 ontological addressing (19 Rust modules), Rep A/B/C trit encodings, Tribonacci constants, Saturnian geometry, Inter-Cube infrastructure (8-constraint system, 20.7M PQ tunnels, d! structural resilience, Cubes-of-Cubes scaling, Sybil resistance, topology-derived TLSponge-385 keys), quantum ternary modules, XPlenum RISC-V extension, Rust kernel subsystems (176-opcode ISA v2.1), bare-metal validation (Kani/MIRI), TL-DSA/TL-KEM post-quantum crypto (34 crypto modules), Kong Konnect gateway (33 services, 293 endpoints), PlenumDB, SignHere e-signature integration, SFK Operations Pipeline, kernel sponge (729-trit, 9 rounds, 385-bit PQ security) for key derivation and signing, T-AE-MAC dual-phase authenticated encryption (bulk rate 486, trit-native MAC, IND-CPA + INT-CTXT, auto-gated rayon parallelism, v1/v2/v3 version dispatch), TIS-27 wire integrity sponge (54-trit, 4 rounds, 43-bit), TIS-81 benchmark variant (243-trit, 4 rounds, 257-bit), 42 calendar systems, and all codebase conventions. Use this skill when working on ANY PlenumNET feature, reviewing architecture, onboarding, writing code that touches the Salvi Framework, modifying the Ternary repo, debugging crypto or TDNS issues, building frontend pages, or discussing any Capomastro Holdings technical product. Always consult this skill before making changes — the invariants are load-bearing and violations break mathematical consistency across the entire framework.
 ---
 
 # PlenumNET Repository — Complete A-Z Guide
@@ -577,35 +577,104 @@ In a 13D ternary hypercube:
 
 Combined: 4,187 lines Rust, 57 tests, 4-node Docker deployment, 11 HTTP endpoints.
 
+#### 3.2.1 The Eight-Constraint System (d = 13 Unique Solution)
+
+The dimension count 13 is not a design choice — it is forced by eight simultaneous constraints:
+
+1. d = T₇ (7th Tribonacci number)
+2. d = 111₃ (base-3 repunit)
+3. d is prime
+4. gcd(d, 3) = 1 (coprime to trit alphabet)
+5. gcd(d, 28) = 1 (full-period walk on Z₂₈)
+6. gcd(d, 54) = 1 (full-period sponge stride on 54-trit state)
+7. d × 28 = 364 = 111111₃ (calendar = ternary circle)
+8. 364 / (2d) ∈ ℤ (ternary π is integer)
+
+**d = 13 is the unique solution.** Changing 13 severs the connections between routing, calendar, circle, radian, sponge, Tribonacci, and the repunit hierarchy. Full proof: `docs/TM-2026-014-Inter-Cube-Infrastructure.md`.
+
+#### 3.2.2 Derived Quantities
+
+| Quantity | Formula | Value |
+|----------|---------|-------|
+| Vertices per cube | 3¹³ | 1,594,323 |
+| Neighbors per node | 2 × 13 | 26 |
+| Total unique tunnels (full cube) | 26 × 3¹³ / 2 | **20,726,199** |
+| Max diameter | 13 | 13 hops |
+| Shortest paths (d hops) | d! | Up to 13! = 6,227,020,800 |
+
+Tunnel count derivation: each node has 26 neighbors, each tunnel has 2 endpoints, so 1,594,323 × 26 / 2 = 20,726,199 unique PQ-encrypted tunnels per fully populated cube.
+
+#### 3.2.3 Structural Resilience
+
+| Trits differing (d) | Shortest paths (d!) | What it takes to block ALL |
+|---------------------|---------------------|----------------------------|
+| 1 | 1 | 1 specific node |
+| 3 | 6 | 6 specific nodes |
+| 7 | 5,040 | 5,040 specific nodes |
+| 10 | 3,628,800 | 3.6 million specific nodes |
+| 13 (max) | 6,227,020,800 | **Impossible** — cube has only 1.59M nodes |
+
+At maximum distance (d=13), the shortest path count (6.2 billion) exceeds total nodes (1.59 million) by ~4,000×. Blocking all shortest paths is mathematically impossible. Detour paths provide further redundancy beyond d!.
+
+**Structural Sybil resistance**: Each identity requires 26 authenticated tunnels with unique PQ keypairs — the hypercube's 26-neighbor requirement turns topology into a per-identity cost function. Large-scale Sybil attacks are computationally prohibitive.
+
+#### 3.2.4 Four Services
+
 **GLB — Geometric Load Balancer** (`glb.rs`)
 - Point forwarding: greedy geometric routing via NeighborMap
+- Flow affinity: `hashFlowId(flowId) % liveDelta.length` selects differing dimension — different flows take different paths through the cube automatically
 - SubCube multicast: fan-out to all neighbors matching sub-cube mask
-- Dead-node avoidance: skip dead nodes, find alternates
+- Dead-node avoidance: skip dead nodes, find alternates via detour (flip a non-differing dimension, adding 2 hops)
 - Redirect: old_addr → new_addr mappings with TTL
 
 **CON — Cube Overlay Network** (`overlay.rs`)
-- PQ-encrypted tunnels between adjacent nodes
-- **Keys derived from topology**: Kernel sponge of (min_addr, max_addr, shared_secret) with context `PlenumNET-CON-v2.5`
+- 20.7M unique PQ-encrypted tunnels per populated cube, 26 per node
+- Virtual interfaces: `cubetun0` through `cubetun25`, one per geometric neighbor
+- **v3 tunnel key derivation**: `TLSponge-385("PlenumNET-CON-v3.0" ‖ canonical(addr_a, addr_b) ‖ kem_shared_secret ‖ epoch) → 32-byte key`
+- TL-KEM shared secret provides IND-CCA2 key secrecy and forward secrecy
+- Canonical ordering: lexicographic sort of both addresses ensures both sides compute the same key independently
 - Key rotation: `rekey_all()` increments epoch, re-derives all link keys
 - Traffic accounting: bytes sent/received per link
 - Link state: Active / Down / Rekeying
 
-**WHY topology-derived crypto matters**: Every edge in the hypercube gets a unique key pair derived from the geometric relationship between the two endpoints. The cryptographic layer is structural — baked into the geometry. You cannot spoof a key without occupying the correct geometric position. All arithmetic stays in GF(3) — no binary hash primitives, no domain crossings.
+**WHY topology-derived crypto matters**: The key is derived from the geometric positions of the two endpoints. A node at position X cannot derive the key for the tunnel between Y and Z — it doesn't occupy either position. The geometry IS the key hierarchy. No key exchange protocol, no certificate authority, no central point of failure. No existing overlay network derives keys from its own topology.
 
 **CRS — Cube Registration Service** (`crs.rs`)
 - Entity registration with scan measurements
 - TRN record management (name → address lookup)
 - Neighbor map computation from registered entities
+- Multi-homing: a single physical machine can register multiple ternary addresses, each with its own CON tunnel set
 - Dimension density tracking
 - Drift detection and redirect management
 - Verification and re-scan protocols
 
 **FTS — Fault Tolerance Service** (`fts.rs`)
 - Heartbeat-based failure detection
-- Three-state model: Alive → Suspect → Dead
+- Four-state health model: Up → Suspect → Down → Recovering
 - Configurable thresholds: heartbeat_interval_ns, suspect_threshold, failure_threshold
-- Recovery detection: Dead → Alive via NodeRecovered event
+- Recovery detection: Down → Recovering → Up via NodeRecovered event
 - HPTP anomaly tracking
+- Dead-set publication feeds GLB for real-time path avoidance
+
+#### 3.2.5 Cubes-of-Cubes Scaling
+
+| Level | Address format | Nodes | Scale |
+|-------|---------------|-------|-------|
+| 1 | [13 trits] | 3¹³ = 1,594,323 | Campus network |
+| 2 | [13 trits : 13 trits] | 3²⁶ = 2.54 trillion | Every device on Earth × 300 |
+| 3 | [13 trits : 13 trits : 13 trits] | 3³⁹ = 4.05 quintillion | More than grains of sand |
+
+Same geometry, same routing math, same four services. No architectural change. Max hops per level: 13 (each level adds at most 13 hops — geometric routing applied recursively). Gateway nodes at cube boundaries maintain tunnels to geometric neighbors in the outer address space.
+
+#### 3.2.6 Comparison to Existing Systems
+
+| System | How it routes | How it secures | What it stores |
+|--------|--------------|----------------|----------------|
+| **IP/BGP** | Routing tables (thousands of entries, minutes to converge) | TLS certs from CAs | Full routing tables |
+| **Tor** | Onion routing through directory-selected relays | Layered encryption, fixed directory servers | Circuit state, relay lists |
+| **Chord/Kademlia** | Distributed hash table lookups | Key-based identity | Finger tables, successor lists |
+| **WireGuard** | Kernel routing table + allowed IPs | Pre-exchanged public keys | Config files per peer |
+| **PlenumNET CON** | Hamming distance on coordinates — d! paths, zero tables | Topology-derived keys from geometric position | Nothing — 26 neighbors computed from address |
 
 ### 3.3 Metatronic Cube
 
@@ -754,13 +823,15 @@ Eight bugs fixed in `tl_dsa.rs` and `ternary_lattice.rs`: broken `sample_challen
 
 ### 6.5 Topology-Derived Cryptography (CON)
 
-Each edge in the hypercube gets a unique kernel-sponge-derived tunnel key:
+Each of the 20,726,199 tunnels in a fully populated cube gets a unique key derived from the geometric relationship between its two endpoints:
 
 ```
-derive_key(context="PlenumNET-CON-v2.5", material=[addr_a ++ addr_b ++ shared_secret]) → 32 bytes
+TLSponge-385("PlenumNET-CON-v3.0" ‖ canonical(addr_a, addr_b) ‖ kem_shared_secret ‖ epoch) → 32-byte key
 ```
 
-Security-critical tunnel key derivation uses the **kernel cryptographic sponge** (729-trit, 9 rounds, 385-bit PQ security — see Section 6.7). TIS-27 is used only for wire packet integrity on already-authenticated channels. The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
+Canonical ordering: lexicographic sort ensures both endpoints compute the same key independently. TL-KEM shared secret provides IND-CCA2 key secrecy and forward secrecy. Epoch counter enables key rotation.
+
+Security-critical tunnel key derivation uses **TLSponge-385** (729-trit, 9 rounds, 385-bit PQ security — see Section 6.7). TIS-27 is used only for wire packet integrity on already-authenticated channels. The key derivation is **deterministic from topology** — both endpoints independently compute the same key pair from their geometric positions. No key exchange protocol needed. The geometry IS the key agreement.
 
 ### 6.6 6-Phase Capability-Based Security
 
@@ -830,11 +901,67 @@ Source: `benchmarks/rust-bench/src/tis_sponge.rs`, `benchmarks/c-bench/tis81_sim
 
 All three share the same 7-neighbor extended theta at ±1/±7/±13 and stride=13 permutation (adapted to state width). The theta function is the unifying design element across the family.
 
-### 6.10 CNSA 2.0 Compliance
+### 6.10 T-AE-MAC — Ternary Authenticated Encryption MAC (TM-2026-011)
+
+T-AE-MAC is the dual-phase authenticated encryption construction used by PlenumNET's phase encryption system. It separates confidentiality (forked bulk-rate keystream) and integrity (clean base MAC on undisturbed state) from a shared cryptographic root, operating entirely in native GF(3) arithmetic.
+
+**Construction:**
+
+```
+base = absorb(key_material ‖ nonce ‖ phase_angle_364 ‖ context_tag)   ← domain commitment
+clone(base) → absorb(tag+counter) → squeeze_bulk(keystream)            ← keystream path (clones only)
+cipher_trit[i] = plain_trit[i] + keystream_trit[i]  (mod 3, balanced)  ← GF(3) OTP
+base.absorb(header_trits ‖ cipher_trits)                               ← MAC path (base never squeezed)
+base.squeeze(mac_trit_count)                                            ← tag from pristine base
+```
+
+**Critical architectural distinction**: The base sponge that produces the MAC tag has **never had keystream extracted from it**. Keystream generation was performed on independent clones. The MAC state is pristine — no rate bits were ever revealed. This is unlike classical sponge AE modes where the same state alternates between squeezing keystream and absorbing ciphertext.
+
+**Sponge Version Dispatch:**
+
+| Version | Chi | Keystream Rate | MAC Path | Parallelism |
+|---------|-----|----------------|----------|-------------|
+| v1 | None | 243 (standard) | Sequential, bytes | Sequential |
+| v2 | χ(x¹⁷) | 243 (standard) | Sequential, bytes | Sequential |
+| v3 (T-AE-MAC) | χ(x¹⁷) | 486 (bulk) | Dual-phase, trits native | Auto-gated rayon |
+
+v1 and v2 preserved for backward compatibility. All new encryptions use v3. `spongeVersion` field in encrypted format for dispatch.
+
+**Trit-native MAC path (v3 fix)**: Cipher trits absorbed directly via `absorb(&cipher_trits)` — the sponge never leaves GF(3) for the MAC path. Prior versions packed cipher trits to bytes then unpacked back, wasting CPU on redundant encoding/decoding. The cryptographic pipeline is ternary throughout.
+
+**Permutation counts (4 KB payload):**
+
+| Mode | Domain | Keystream | MAC absorb | MAC squeeze | Total |
+|------|--------|-----------|------------|-------------|-------|
+| v2 (standard) | 1 | 101 | ~83 | 1 | ~186 |
+| v3 T-AE-MAC | 1 | 51 | ~83 | 1 | ~136 |
+| v3 bulk (mac=0) | 1 | 51 | 0 | 0 | ~52 |
+
+v3 T-AE-MAC: **1.37× fewer** permutations than v2. v3 bulk: **3.6× fewer**.
+
+**Auto-gated parallelism**: rayon multi-core gated on two conditions: (1) `rayon::current_num_threads() > 1`, AND (2) payload ≥ PARALLEL_THRESHOLD (1,944 trits = 8 rate blocks ≈ 324 bytes). Primary/secondary phases run in parallel via `rayon::join`. Keystream segments squeezed in parallel across cores. GF(3) cipher applied in `par_chunks_mut` (1024-trit blocks). When single-threaded or below threshold: same v3 construction, zero thread pool overhead.
+
+**Security bounds (TM-2026-011):**
+
+| Claim | Bound | Condition |
+|-------|-------|-----------|
+| IND-CPA (authenticated) | q²/2²⁵⁶ + (σ+q)²/2³⁸⁵ + q·ε_perm | mac_trit_count > 0, fresh nonce |
+| IND-CPA (bulk) | q²/2²⁵⁶ + (σ+q)²/2¹⁹² + q·ε_perm | mac_trit_count = 0, fresh nonce |
+| INT-CTXT (243-trit tag) | q_f/3²⁴³ + (σ+q+q_f)²/2³⁸⁵ | Full 486-trit capacity preserved |
+| Post-quantum (MAC) | ≥ 2¹⁹²·⁵ (Grover) | All modes with mac > 0 |
+| Post-quantum (keystream) | ≥ 2⁹⁶ (Grover on bulk capacity) | Bulk-rate keystream |
+| Nonce-misuse | Tag still commits to ciphertext | Reused nonce leaks Δplaintext |
+| Committing | (domain, ciphertext, tag) commits to plaintext | Capacity prevents collisions |
+
+⚠️ **WARNING**: When `mac_trit_count = 0`, T-AE-MAC provides encryption only — no authentication tag. Ciphertext integrity MUST be provided by an outer mechanism (TL-DSA signature). Callers MUST NOT assume ciphertext integrity when `mac_trit_count = 0`.
+
+Source: `server/crypto/sponge-hash.ts`, `ternary-math/napi/src/lib.rs`, `docs/TM-2026-011.md`
+
+### 6.11 CNSA 2.0 Compliance
 
 11/11 algorithms implemented. AES-256, SHA-384/512, ML-KEM ×3 (via TL-KEM), ML-DSA ×3 (via TL-DSA), LMS (Ternary Lamport OTS), XMSS (partial — Merkle tree planned 2029). CMVP target: FIPS 140-3 Level 1. Compliance page: `client/src/pages/compliance.tsx`
 
-### 6.11 ZK Proof Layer (SignHere)
+### 6.12 ZK Proof Layer (SignHere)
 
 Groth16-structured proofs (pi_a, pi_b, pi_c) with commitments and nullifiers from document hashes, tenant IDs, signer counts, HPTP timestamps. Source: `sign-here/server/services/zk.ts`
 
@@ -1194,6 +1321,8 @@ Push to `SigmaWolf-8/Ternary@main` using GitHub Contents API via `GITHUB_TOKEN` 
 ```
 3²⁷ × 9 = 68,630,377,364,883     (TDNS address space — 68.63 trillion)
 3¹³ = 1,594,323                   (13D hypercube vertices)
+26 × 3¹³ / 2 = 20,726,199        (unique PQ-encrypted tunnels per populated cube)
+13! = 6,227,020,800               (max shortest paths at Hamming distance 13)
 (3⁶ − 1) / 2 = 364               (full ternary circle, base-3 repunit)
 364 / 28 = 13                     (1 radian = T₇)
 13 × 28 = 364                     (13 moons × 28 days = ternary year)
