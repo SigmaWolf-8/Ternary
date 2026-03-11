@@ -70,6 +70,10 @@ export function isNativeAvailable(): boolean {
   return _useNative;
 }
 
+export function getNativeModule(): any {
+  return _native;
+}
+
 export const SPONGE_VERSION = 2;
 
 const STATE_SIZE = 729;
