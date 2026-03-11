@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "ternary-math",
+    "ternary-math/napi",
     "src/kernel",
     "services/pqti-service",
     "services/inter-cube",

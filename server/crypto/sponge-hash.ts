@@ -4,7 +4,7 @@
  * Applied Physics Division
  *
  * TL-SPONGE — TypeScript port of TL-Sponge-385 (Rust: TernarySponge).
- * @version 2.0.0
+ * @version 2.1.0
  *
  * Repository: SigmaWolf-8/Ternary
  * Location:   server/crypto/sponge-hash.ts
@@ -26,7 +26,49 @@
  * Versioning:
  *   v1 = theta → pi → round constants (no chi — backward compat)
  *   v2 = chi → theta → pi → round constants (current default)
+ *
+ * Native acceleration: when sponge-native.node (Rust N-API addon) is
+ * available, hash and keystream functions dispatch to compiled native
+ * code automatically. TypeScript implementation is the fallback.
  */
+
+import { createRequire as _createRequire } from 'module';
+import { fileURLToPath as _fileURLToPath } from 'url';
+import { dirname as _dirname, resolve as _resolve } from 'path';
+
+let _native: any = null;
+let _useNative = false;
+try {
+  let _nativePath: string;
+  if (typeof __filename !== 'undefined') {
+    _nativePath = _resolve(_dirname(__filename), 'sponge-native.node');
+  } else if (typeof import.meta?.url !== 'undefined') {
+    const _f = _fileURLToPath(import.meta.url);
+    _nativePath = _resolve(_dirname(_f), 'sponge-native.node');
+  } else {
+    _nativePath = _resolve(process.cwd(), 'server/crypto/sponge-native.node');
+  }
+
+  let _req: NodeRequire;
+  if (typeof require !== 'undefined') {
+    _req = require;
+  } else {
+    _req = _createRequire(import.meta.url);
+  }
+
+  _native = _req(_nativePath);
+  _useNative = true;
+  console.log('[sponge] Native Rust N-API backend loaded — TL-Sponge-385');
+} catch (e: any) {
+  console.log('[sponge] Using TypeScript sponge backend');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[sponge] Native load error:', e?.message?.substring(0, 200));
+  }
+}
+
+export function isNativeAvailable(): boolean {
+  return _useNative;
+}
 
 export const SPONGE_VERSION = 2;
 
@@ -209,9 +251,26 @@ function bytesToBalancedTrits(input: Buffer | Uint8Array): Int8Array {
   return new Int8Array(trits);
 }
 
+function _nativePermV2(state: Int8Array): void {
+  const buf = Buffer.from(state.buffer, state.byteOffset, state.byteLength);
+  const result: Buffer = _native.spongePermuteV2(buf);
+  state.set(new Int8Array(result.buffer, result.byteOffset, result.byteLength));
+}
+
+function _nativePermV1(state: Int8Array): void {
+  const buf = Buffer.from(state.buffer, state.byteOffset, state.byteLength);
+  const result: Buffer = _native.spongePermuteV1(buf);
+  state.set(new Int8Array(result.buffer, result.byteOffset, result.byteLength));
+}
+
 function spongeAbsorbAndSqueezeVersioned(inputTrits: Int8Array, outputTrits: number, version: number): Int8Array {
   const state = new Int8Array(STATE_SIZE);
-  const permFn = version >= 2 ? spongePermutationV2 : spongePermutationV1;
+  let permFn: (state: Int8Array) => void;
+  if (_useNative) {
+    permFn = version >= 2 ? _nativePermV2 : _nativePermV1;
+  } else {
+    permFn = version >= 2 ? spongePermutationV2 : spongePermutationV1;
+  }
 
   let offset = 0;
   while (offset + RATE <= inputTrits.length) {
@@ -261,17 +320,35 @@ function tritsToBytes(trits: Int8Array, byteLen: number): Buffer {
   return out;
 }
 
+function _nativeBufferToTrits(buf: Buffer): Int8Array {
+  const trits = new Int8Array(buf.length);
+  for (let i = 0; i < buf.length; i++) trits[i] = buf[i] - 1;
+  return trits;
+}
+
 export function spongeKeystream(domainInput: Buffer | Uint8Array, outputTritCount: number): Int8Array {
+  if (_useNative) {
+    const buf = Buffer.isBuffer(domainInput) ? domainInput : Buffer.from(domainInput);
+    return _nativeBufferToTrits(_native.spongeKeystream(buf, outputTritCount));
+  }
   const inputTrits = bytesToBalancedTrits(domainInput);
   return spongeAbsorbAndSqueezeVersioned(inputTrits, outputTritCount, 2);
 }
 
 export function spongeKeystreamV1(domainInput: Buffer | Uint8Array, outputTritCount: number): Int8Array {
+  if (_useNative) {
+    const buf = Buffer.isBuffer(domainInput) ? domainInput : Buffer.from(domainInput);
+    return _nativeBufferToTrits(_native.spongeKeystreamV1(buf, outputTritCount));
+  }
   const inputTrits = bytesToBalancedTrits(domainInput);
   return spongeAbsorbAndSqueezeVersioned(inputTrits, outputTritCount, 1);
 }
 
 export function spongeHash(input: Buffer | Uint8Array): string {
+  if (_useNative) {
+    const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+    return _native.spongeHash(buf);
+  }
   const inputTrits = bytesToBalancedTrits(input);
   const outputTrits = spongeAbsorbAndSqueezeVersioned(inputTrits, 243, 2);
   const bytes = tritsToBytes(outputTrits, 49);
@@ -279,6 +356,10 @@ export function spongeHash(input: Buffer | Uint8Array): string {
 }
 
 export function spongeHashV1(input: Buffer | Uint8Array): string {
+  if (_useNative) {
+    const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+    return _native.spongeHashV1(buf);
+  }
   const inputTrits = bytesToBalancedTrits(input);
   const outputTrits = spongeAbsorbAndSqueezeVersioned(inputTrits, 243, 1);
   const bytes = tritsToBytes(outputTrits, 49);
@@ -302,7 +383,11 @@ export class SpongeDuplex {
     this.buf = new Int8Array(RATE);
     this.bufLen = 0;
     this.needsFinalize = true;
-    this.permFn = version >= 2 ? spongePermutationV2 : spongePermutationV1;
+    if (_useNative) {
+      this.permFn = version >= 2 ? _nativePermV2 : _nativePermV1;
+    } else {
+      this.permFn = version >= 2 ? spongePermutationV2 : spongePermutationV1;
+    }
   }
 
   absorbTrits(trits: Int8Array): void {
