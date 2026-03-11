@@ -1,0 +1,173 @@
+# REPLIT TASK: Add χ(x) = x¹⁷ Chi Layer to TLSponge-385
+
+## Priority: P0-CRITICAL
+
+---
+
+## What
+
+Add the chi nonlinear layer to the sponge round function. Chi computes χ(x) = x¹⁷ over GF(27) = GF(3)[t]/(t³ + 2t + 1) on each 3-trit block of the state. This is polynomial exponentiation — NOT a lookup table. Compute it from the field arithmetic.
+
+Version the sponge. Keep v1 (current, no chi) for reading old data. v2 (with chi) for all new operations. Same backward compatibility pattern as phase encryption (nonce field detection).
+
+---
+
+## The Math
+
+GF(27) = GF(3)[t]/(t³ + 2t + 1). Each element is a polynomial a₀ + a₁t + a₂t² with coefficients in GF(3) = {0, 1, 2}.
+
+A 3-trit block [t₀, t₁, t₂] in balanced ternary {-1, 0, +1} maps to GF(3) coefficients {0, 1, 2} by adding 1: aᵢ = tᵢ + 1.
+
+Multiplication in GF(27): multiply the polynomials, reduce modulo t³ + 2t + 1 with coefficients modulo 3.
+
+χ(x) = x¹⁷. Compute via repeated squaring (square-and-multiply) in GF(27):
+- x² = x · x
+- x⁴ = x² · x²
+- x⁸ = x⁴ · x⁴
+- x¹⁶ = x⁸ · x⁸
+- x¹⁷ = x¹⁶ · x
+
+Five multiplications. Each multiplication is polynomial multiply mod (t³ + 2t + 1) mod 3.
+
+Implement the GF(27) field arithmetic from first principles. No lookup tables. The irreducible polynomial t³ + 2t + 1 and the exponent 17 are the only constants.
+
+---
+
+## Where Chi Goes in the Round Function
+
+Current round function (both Rust and TypeScript):
+1. Theta (7-neighbor mixing with +1 constant)
+2. Pi (stride-376 permutation)
+3. Round constants
+
+New round function:
+1. **Chi (NEW)** — apply χ(x) = x¹⁷ to each consecutive 3-trit block
+2. Theta (unchanged)
+3. Pi (unchanged)
+4. Round constants (unchanged)
+
+Chi operates on the 729-trit state as 243 blocks of 3 trits each. For each block, convert balanced trits to GF(27) element, compute x¹⁷ via square-and-multiply, convert back to balanced trits.
+
+---
+
+## Files to Modify
+
+### Rust: `src/kernel/src/crypto/sponge.rs`
+- Add `gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3]` — polynomial multiplication mod (t³ + 2t + 1) mod 3
+- Add `gf27_pow17(x: [u8; 3]) -> [u8; 3]` — square-and-multiply: x² → x⁴ → x⁸ → x¹⁶ → x¹⁷
+- Add `chi_layer(state: &mut [i8; 729])` — apply gf27_pow17 to each 3-trit block (scalar path)
+- Add `chi_layer_avx2(state: &mut [i8; 729])` — AVX2 vectorized chi. Pack 8 GF(27) elements into YMM registers, perform parallel polynomial multiply using vpshufb for coefficient-level GF(3) reduction. Process 8 blocks per SIMD iteration (24 trits), 243/8 ≈ 31 iterations for the full state. Use the existing AVX2 infrastructure that theta already has.
+- Add `chi_layer_neon(state: &mut [i8; 729])` — NEON vectorized chi. Same logic, 4 blocks per iteration using 128-bit NEON registers with vtbl for GF(3) reduction. Use the existing NEON infrastructure that theta already has.
+- Runtime dispatch: same `#[cfg(target_arch)]` pattern the theta AVX2/NEON paths already use
+- Insert chi at START of round loop, BEFORE theta, in ALL paths (scalar, AVX2, NEON)
+- Version flag: `pub const SPONGE_VERSION: u8 = 2;`
+- Keep old `sponge_permutation_v1()` (current code, renamed) for backward compatibility
+- New `sponge_permutation_v2()` includes chi in all code paths
+- Add test `test_chi_is_bijection`: compute x¹⁷ for all 27 GF(27) elements via polynomial arithmetic. Verify all 27 outputs are distinct. Verify 0 → 0.
+- Add test `test_chi_avx2_matches_scalar`: run chi_layer and chi_layer_avx2 on same input state, verify identical output
+- Add test `test_chi_neon_matches_scalar`: same for NEON
+- Update existing test `test_sbox_equals_collapsed_form` to be explicitly labelled as v1 validation
+
+### Rust: `ternary-math/src/sponge.rs` (standalone crate)
+- Same changes as kernel sponge
+
+### TypeScript: `server/crypto/sponge-hash.ts`
+- Add `gf27Mul(a: [number,number,number], b: [number,number,number]): [number,number,number]`
+- Add `gf27Pow17(x: [number,number,number]): [number,number,number]`
+- Add `chiLayer(state: Int8Array): void`
+- Insert in `spongePermutation()` before theta
+- Version: export `SPONGE_VERSION = 2`
+- Keep `spongePermutationV1()` (current) and add `spongePermutationV2()` (with chi)
+- `spongeHash()` and `spongeKeystream()` use v2
+- Add `spongeHashV1()` and `spongeKeystreamV1()` that use v1 — for decrypting old data
+
+### TypeScript: `server/salvi-core/phase-encryption.ts`
+- New encryptions use v2 sponge (with chi)
+- Decryption: detect version. If `nonce` present AND `spongeVersion === 2` → v2. Otherwise → v1 legacy path
+- Same pattern already exists for the nonce/no-nonce detection
+
+---
+
+## GF(27) Multiplication — Reference Implementation
+
+```
+Multiply polynomials a = a₀ + a₁t + a₂t² and b = b₀ + b₁t + b₂t² in GF(3)[t]:
+
+Product (before reduction):
+  c₀ = a₀·b₀
+  c₁ = a₀·b₁ + a₁·b₀
+  c₂ = a₀·b₂ + a₁·b₁ + a₂·b₀
+  c₃ = a₁·b₂ + a₂·b₁
+  c₄ = a₂·b₂
+
+All coefficients mod 3.
+
+Reduce mod t³ + 2t + 1 (i.e., t³ ≡ -2t - 1 ≡ t + 2 mod 3):
+  t³ → t + 2
+  t⁴ → t·(t + 2) = t² + 2t
+
+So:
+  r₀ = (c₀ + 2·c₃) mod 3           // c₃ contributes via t³ → t+2, the constant term is 2
+  r₁ = (c₁ + c₃ + 2·c₄) mod 3      // c₃ contributes t, c₄ contributes via t⁴ → t²+2t
+  r₂ = (c₂ + c₄) mod 3              // c₄ contributes t²
+
+Result: r₀ + r₁t + r₂t²
+```
+
+---
+
+## Backward Compatibility
+
+Add a `spongeVersion` field to `EncryptedPhaseData`:
+
+```typescript
+export interface EncryptedPhaseData {
+  // ... existing fields ...
+  spongeVersion?: number;  // undefined or 1 = v1 (no chi), 2 = v2 (with chi)
+}
+```
+
+In `phaseSplit()`: set `spongeVersion: 2` on all new encryptions.
+
+In `phaseRecombine()`:
+```typescript
+const useV2 = encrypted.spongeVersion === 2;
+const hashFn = useV2 ? spongeHash : spongeHashV1;
+const keystreamFn = useV2 ? spongeKeystream : spongeKeystreamV1;
+```
+
+Old data without `spongeVersion` field → v1 path. New data → v2 path. Clean.
+
+Same pattern for TDNS identity derivation, scan hashing, tunnel keys, guardian hashes — anything that calls the sponge. Version the call site, not the sponge internals.
+
+---
+
+## Testing
+
+1. v1 backward compatibility: hash "PlenumNET" with v1, compare to current output. Must be identical.
+2. v2 produces DIFFERENT output: hash "PlenumNET" with v2. Must NOT equal v1 output (chi changes everything).
+3. v2 round-trip: encrypt with v2, decrypt with v2 — exact match for all payload sizes.
+4. v1 round-trip: encrypt with v1 (old data), decrypt with v1 — still works.
+5. Cross-version: encrypt with v1, attempt decrypt with v2 — must fail gracefully (MAC mismatch), not crash.
+6. GF(27) field verification: compute x¹⁷ for all 27 elements via polynomial arithmetic. All 27 outputs must be distinct (bijection). 0 maps to 0.
+7. SIMD correctness (Rust only): run chi_layer_avx2 and chi_layer_scalar on identical input states. Output must match bit-for-bit. Same for chi_layer_neon.
+8. Label existing `test_sbox_equals_collapsed_form` as v1 validation — do NOT delete it, it validates backward compatibility.
+9. Run full benchmark after chi is added: `GET /api/salvi/crypto/phase-benchmark?iterations=50`. Report before/after throughput table.
+
+---
+
+## Do NOT
+
+- Do NOT use lookup tables. Compute GF(27) arithmetic from the polynomial operations.
+- Do NOT remove v1 code. It stays for backward compatibility.
+- Do NOT change any existing stored data, hashes, or keys.
+- Do NOT modify the phase encryption API contract — same endpoints, same response shape.
+- Do NOT defer the SIMD paths. Chi goes into scalar, AVX2, and NEON in this task. All three.
+
+---
+
+## Context: Why This Is Being Done
+
+The monograph (TM-2026-008) specified χ(x) = x¹⁷ as the chi layer and marked it "COMPLETE" — meaning the mathematical analysis was complete. The chi layer was never implemented in code. The Rust kernel sponge, the ternary-math crate sponge, and the TypeScript sponge all run theta + pi + round constants with no chi. The paper was written as though chi existed in the code because the monograph said "COMPLETE." It didn't distinguish between "math is done" and "code has it."
+
+This task implements what was specified. After this task, the code matches the paper and the monograph. The v1 sponge (no chi) stays for backward compatibility with all existing data.

@@ -1,0 +1,1035 @@
+import { useState, useCallback, useRef, useEffect } from "react";
+
+// SignHere Document Notary Page
+// Matches SignHere design system: dark zinc/charcoal + warm gold, Inter font, shadcn-style flat components
+
+const COLORS = {
+  primary: "#D4A017",
+  primaryForeground: "#090807",
+  background: "#090807",
+  foreground: "#E4DFD5",
+  card: "#0E0D0C",
+  cardBorder: "#1B1918",
+  muted: "#151413",
+  mutedForeground: "#807A74",
+  accent: "#191714",
+  input: "#2A2826",
+  destructive: "#AF1D1D",
+  ring: "#D4A017",
+  emerald: "#059669",
+  amber: "#D97706",
+};
+
+const STATUS = {
+  IDLE: "idle",
+  HASHING: "hashing",
+  STAMPING: "stamping",
+  WITNESSING: "witnessing",
+  COMPLETE: "complete",
+  ERROR: "error",
+};
+
+// --- Utility: SHA-256 hash via Web Crypto API ---
+async function hashFile(file) {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// --- Utility: Format file size ---
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
+// --- Utility: Format timestamp ---
+function formatTimestamp(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("en-CA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+// --- Badge Component (shadcn-style) ---
+function Badge({ children, variant = "default", color }) {
+  const baseStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "2px 10px",
+    borderRadius: "3px",
+    fontSize: "10px",
+    fontWeight: 500,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+    lineHeight: "1.8",
+    border: "1px solid transparent",
+  };
+
+  const variants = {
+    default: {
+      backgroundColor: `${COLORS.primary}18`,
+      color: COLORS.primary,
+      borderColor: `${COLORS.primary}30`,
+    },
+    success: {
+      backgroundColor: `${COLORS.emerald}18`,
+      color: COLORS.emerald,
+      borderColor: `${COLORS.emerald}30`,
+    },
+    warning: {
+      backgroundColor: `${COLORS.amber}18`,
+      color: COLORS.amber,
+      borderColor: `${COLORS.amber}30`,
+    },
+    destructive: {
+      backgroundColor: `${COLORS.destructive}18`,
+      color: "#EF4444",
+      borderColor: `${COLORS.destructive}30`,
+    },
+    muted: {
+      backgroundColor: COLORS.muted,
+      color: COLORS.mutedForeground,
+      borderColor: COLORS.cardBorder,
+    },
+  };
+
+  return <span style={{ ...baseStyle, ...variants[variant] }}>{children}</span>;
+}
+
+// --- Button Component (shadcn-style) ---
+function Button({
+  children,
+  onClick,
+  variant = "default",
+  disabled = false,
+  style: extraStyle = {},
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  const baseStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "8px 16px",
+    borderRadius: "6px",
+    fontSize: "13px",
+    fontWeight: 500,
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    letterSpacing: "0.01em",
+    cursor: disabled ? "not-allowed" : "pointer",
+    border: "1px solid transparent",
+    transition: "all 0.15s ease",
+    opacity: disabled ? 0.5 : 1,
+  };
+
+  const variants = {
+    default: {
+      backgroundColor: hovered && !disabled ? "#C4920F" : COLORS.primary,
+      color: COLORS.primaryForeground,
+      borderColor: "transparent",
+    },
+    outline: {
+      backgroundColor: hovered && !disabled ? `${COLORS.primary}10` : "transparent",
+      color: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+    ghost: {
+      backgroundColor: hovered && !disabled ? COLORS.accent : "transparent",
+      color: COLORS.foreground,
+      borderColor: "transparent",
+    },
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...baseStyle, ...variants[variant], ...extraStyle }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  );
+}
+
+// --- Card Component ---
+function Card({ children, style: extraStyle = {} }) {
+  return (
+    <div
+      style={{
+        backgroundColor: COLORS.card,
+        border: `1px solid ${COLORS.cardBorder}`,
+        borderRadius: "9px",
+        padding: "24px",
+        ...extraStyle,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// --- Lucide-style SVG Icons ---
+function IconUpload({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function IconFile({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+}
+
+function IconShield({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <polyline points="9 12 11 14 15 10" />
+    </svg>
+  );
+}
+
+function IconDownload({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function IconClock({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function IconHash({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="9" x2="20" y2="9" />
+      <line x1="4" y1="15" x2="20" y2="15" />
+      <line x1="10" y1="3" x2="8" y2="21" />
+      <line x1="16" y1="3" x2="14" y2="21" />
+    </svg>
+  );
+}
+
+function IconLink({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+function IconCalendar({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function IconX({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function IconRefresh({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  );
+}
+
+function Spinner({ size = 16 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      style={{ animation: "spin 1s linear infinite" }}
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+
+// --- Progress Steps ---
+function ProgressSteps({ currentStatus }) {
+  const steps = [
+    { key: STATUS.HASHING, label: "Hashing", icon: IconHash },
+    { key: STATUS.STAMPING, label: "Stamping", icon: IconShield },
+    { key: STATUS.WITNESSING, label: "Witnessing", icon: IconLink },
+    { key: STATUS.COMPLETE, label: "Verified", icon: IconShield },
+  ];
+
+  const statusOrder = [STATUS.HASHING, STATUS.STAMPING, STATUS.WITNESSING, STATUS.COMPLETE];
+  const currentIndex = statusOrder.indexOf(currentStatus);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0", width: "100%" }}>
+      {steps.map((step, i) => {
+        const isActive = i === currentIndex;
+        const isComplete = i < currentIndex;
+        const Icon = step.icon;
+        const color = isComplete
+          ? COLORS.emerald
+          : isActive
+            ? COLORS.primary
+            : COLORS.mutedForeground;
+
+        return (
+          <div key={step.key} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+              <div
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isComplete ? `${COLORS.emerald}20` : isActive ? `${COLORS.primary}20` : COLORS.muted,
+                  border: `1px solid ${isComplete ? `${COLORS.emerald}40` : isActive ? `${COLORS.primary}40` : COLORS.cardBorder}`,
+                  color: color,
+                  transition: "all 0.3s ease",
+                }}
+              >
+                {isActive && currentStatus !== STATUS.COMPLETE ? (
+                  <Spinner size={14} />
+                ) : (
+                  <Icon size={14} />
+                )}
+              </div>
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 500,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  color: color,
+                  transition: "color 0.3s ease",
+                }}
+              >
+                {step.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                style={{
+                  flex: 1,
+                  height: "1px",
+                  backgroundColor: isComplete ? `${COLORS.emerald}40` : COLORS.cardBorder,
+                  margin: "0 12px",
+                  marginBottom: "22px",
+                  transition: "background-color 0.3s ease",
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Main Notary Page Component ---
+export default function DocumentNotary() {
+  const [file, setFile] = useState(null);
+  const [fileHash, setFileHash] = useState(null);
+  const [status, setStatus] = useState(STATUS.IDLE);
+  const [stampResult, setStampResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [showCalendars, setShowCalendars] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // --- Drag and Drop handlers ---
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      setFile(droppedFile);
+      setStampResult(null);
+      setError(null);
+      setStatus(STATUS.IDLE);
+    }
+  }, []);
+
+  const handleFileSelect = useCallback((e) => {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      setFile(selected);
+      setStampResult(null);
+      setError(null);
+      setStatus(STATUS.IDLE);
+    }
+  }, []);
+
+  const removeFile = useCallback(() => {
+    setFile(null);
+    setFileHash(null);
+    setStampResult(null);
+    setError(null);
+    setStatus(STATUS.IDLE);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  // --- Notarize Flow ---
+  // In production, replace TSA_BASE with your actual PlenumNET endpoint
+  const TSA_BASE = "https://plenumnet.replit.app";
+
+  const notarize = useCallback(async () => {
+    if (!file) return;
+    setError(null);
+    setStampResult(null);
+
+    try {
+      // Step 1: Hash
+      setStatus(STATUS.HASHING);
+      const hash = await hashFile(file);
+      setFileHash(hash);
+
+      // Step 2: Stamp via TSA
+      setStatus(STATUS.STAMPING);
+      const tsaResponse = await fetch(`${TSA_BASE}/api/tsa/timestamp/json`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hash: hash,
+          algorithm: "SHA-256",
+          filename: file.name,
+          fileSize: file.size,
+        }),
+      });
+
+      if (!tsaResponse.ok) {
+        throw new Error(`TSA returned ${tsaResponse.status}: ${tsaResponse.statusText}`);
+      }
+
+      const stampData = await tsaResponse.json();
+
+      // Step 3: Hedera Witnessing (if stamp includes witness data, it's already done server-side)
+      setStatus(STATUS.WITNESSING);
+      // Brief pause to show the witnessing step — the TSA endpoint handles Hedera internally
+      await new Promise((r) => setTimeout(r, 800));
+
+      // Step 4: Complete
+      setStatus(STATUS.COMPLETE);
+      setStampResult(stampData);
+    } catch (err) {
+      setStatus(STATUS.ERROR);
+      setError(err.message || "Notarization failed. Please try again.");
+    }
+  }, [file]);
+
+  // --- Download proof as JSON ---
+  const downloadProof = useCallback(() => {
+    if (!stampResult) return;
+    const proof = {
+      document: {
+        filename: file?.name,
+        size: file?.size,
+        sha256: fileHash,
+      },
+      stamp: stampResult,
+      verified: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(proof, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${file?.name || "document"}.notary-proof.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [stampResult, file, fileHash]);
+
+  // --- Reset ---
+  const reset = useCallback(() => {
+    setFile(null);
+    setFileHash(null);
+    setStampResult(null);
+    setError(null);
+    setStatus(STATUS.IDLE);
+    setShowCalendars(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  // Determine if we have calendar data in the result
+  const calendars = stampResult?.calendars || stampResult?.calendarProofs || null;
+  const hederaReceipt = stampResult?.hedera || stampResult?.hederaReceipt || stampResult?.witness || null;
+  const tokenData = stampResult?.token || stampResult?.stamp || stampResult;
+
+  return (
+    <div
+      style={{
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        fontSize: "13px",
+        lineHeight: 1.5,
+        letterSpacing: "0.01em",
+        color: COLORS.foreground,
+        backgroundColor: COLORS.background,
+        minHeight: "100vh",
+        padding: "40px 32px",
+      }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: ${COLORS.muted}; }
+        ::-webkit-scrollbar-thumb { background: ${COLORS.input}; border-radius: 3px; }
+      `}</style>
+
+      <div style={{ maxWidth: "720px", margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ marginBottom: "32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "9px",
+                backgroundColor: `${COLORS.primary}15`,
+                border: `1px solid ${COLORS.primary}30`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: COLORS.primary,
+              }}
+            >
+              <IconShield size={18} />
+            </div>
+            <div>
+              <h1
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  color: COLORS.foreground,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Document Notary
+              </h1>
+              <p style={{ fontSize: "11px", color: COLORS.mutedForeground, marginTop: "1px" }}>
+                Post-quantum timestamping with blockchain witness
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Upload Area */}
+        {!file && (
+          <Card>
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: `1.5px dashed ${dragOver ? COLORS.primary : COLORS.input}`,
+                borderRadius: "6px",
+                padding: "48px 24px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "12px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                backgroundColor: dragOver ? `${COLORS.primary}08` : "transparent",
+              }}
+            >
+              <div
+                style={{
+                  color: dragOver ? COLORS.primary : COLORS.mutedForeground,
+                  transition: "color 0.15s ease",
+                }}
+              >
+                <IconUpload size={32} />
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ color: COLORS.foreground, fontWeight: 500 }}>
+                  Drop a document here or click to browse
+                </p>
+                <p
+                  style={{
+                    color: COLORS.mutedForeground,
+                    fontSize: "11px",
+                    marginTop: "4px",
+                  }}
+                >
+                  PDF, DOCX, images, code, or any file — hashed locally, never uploaded
+                </p>
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+          </Card>
+        )}
+
+        {/* File Selected */}
+        {file && status === STATUS.IDLE && (
+          <Card style={{ animation: "fadeIn 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "6px",
+                    backgroundColor: COLORS.muted,
+                    border: `1px solid ${COLORS.cardBorder}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: COLORS.mutedForeground,
+                  }}
+                >
+                  <IconFile size={18} />
+                </div>
+                <div>
+                  <p style={{ fontWeight: 500, color: COLORS.foreground }}>{file.name}</p>
+                  <p style={{ fontSize: "11px", color: COLORS.mutedForeground }}>{formatSize(file.size)}</p>
+                </div>
+              </div>
+              <button
+                onClick={removeFile}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: COLORS.mutedForeground,
+                  cursor: "pointer",
+                  padding: "4px",
+                }}
+              >
+                <IconX size={16} />
+              </button>
+            </div>
+            <div style={{ marginTop: "20px", display: "flex", gap: "8px" }}>
+              <Button onClick={notarize}>
+                <IconShield size={14} />
+                Notarize Document
+              </Button>
+              <Button variant="ghost" onClick={removeFile}>
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Processing */}
+        {(status === STATUS.HASHING ||
+          status === STATUS.STAMPING ||
+          status === STATUS.WITNESSING) && (
+          <Card style={{ animation: "fadeIn 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "6px",
+                  backgroundColor: COLORS.muted,
+                  border: `1px solid ${COLORS.cardBorder}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: COLORS.mutedForeground,
+                }}
+              >
+                <IconFile size={18} />
+              </div>
+              <div>
+                <p style={{ fontWeight: 500, color: COLORS.foreground }}>{file?.name}</p>
+                <p style={{ fontSize: "11px", color: COLORS.mutedForeground }}>
+                  {formatSize(file?.size || 0)}
+                  {fileHash && (
+                    <span style={{ marginLeft: "8px", color: COLORS.emerald }}>
+                      SHA-256: {fileHash.substring(0, 16)}…
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <ProgressSteps currentStatus={status} />
+          </Card>
+        )}
+
+        {/* Error */}
+        {status === STATUS.ERROR && (
+          <Card style={{ animation: "fadeIn 0.2s ease" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "12px",
+                padding: "16px",
+                backgroundColor: `${COLORS.destructive}10`,
+                border: `1px solid ${COLORS.destructive}25`,
+                borderRadius: "6px",
+              }}
+            >
+              <div style={{ color: "#EF4444", flexShrink: 0, marginTop: "1px" }}>
+                <IconX size={16} />
+              </div>
+              <div>
+                <p style={{ fontWeight: 500, color: "#EF4444", marginBottom: "4px" }}>
+                  Notarization Failed
+                </p>
+                <p style={{ fontSize: "12px", color: COLORS.mutedForeground }}>{error}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: "16px", display: "flex", gap: "8px" }}>
+              <Button onClick={notarize}>
+                <IconRefresh size={14} />
+                Retry
+              </Button>
+              <Button variant="ghost" onClick={reset}>
+                Start Over
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Complete — Stamp Result */}
+        {status === STATUS.COMPLETE && stampResult && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", animation: "fadeIn 0.3s ease" }}>
+            {/* Success Header */}
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      backgroundColor: `${COLORS.emerald}15`,
+                      border: `1px solid ${COLORS.emerald}30`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: COLORS.emerald,
+                    }}
+                  >
+                    <IconShield size={18} />
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: 600, color: COLORS.foreground }}>Document Notarized</p>
+                    <p style={{ fontSize: "11px", color: COLORS.mutedForeground }}>
+                      Post-quantum stamp with blockchain witness
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="success">Verified</Badge>
+              </div>
+
+              {/* Document Details */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "12px",
+                  padding: "16px",
+                  backgroundColor: COLORS.muted,
+                  borderRadius: "6px",
+                  border: `1px solid ${COLORS.cardBorder}`,
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: "10px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.mutedForeground }}>
+                    Document
+                  </span>
+                  <p style={{ marginTop: "2px", fontWeight: 500, wordBreak: "break-all" }}>{file?.name}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: "10px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.mutedForeground }}>
+                    Size
+                  </span>
+                  <p style={{ marginTop: "2px", fontWeight: 500 }}>{formatSize(file?.size || 0)}</p>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.mutedForeground }}>
+                    SHA-256
+                  </span>
+                  <p
+                    style={{
+                      marginTop: "2px",
+                      fontFamily: "monospace",
+                      fontSize: "11px",
+                      color: COLORS.primary,
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {fileHash}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Stamp Details */}
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                <IconClock size={14} style={{ color: COLORS.primary }} />
+                <span style={{ fontSize: "10px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.mutedForeground }}>
+                  Timestamp Proof
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {tokenData?.timestamp && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: COLORS.mutedForeground }}>Time</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "12px" }}>
+                      {formatTimestamp(tokenData.timestamp)}
+                    </span>
+                  </div>
+                )}
+                {tokenData?.serialNumber && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: COLORS.mutedForeground }}>Serial</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "12px" }}>
+                      {tokenData.serialNumber}
+                    </span>
+                  </div>
+                )}
+                {tokenData?.policy && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: COLORS.mutedForeground }}>Policy</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "12px" }}>
+                      {tokenData.policy}
+                    </span>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: COLORS.mutedForeground }}>Signatures</span>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <Badge variant="default">RSA-4096</Badge>
+                    <Badge variant="default">TL-DSA</Badge>
+                  </div>
+                </div>
+                {tokenData?.accuracy && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: COLORS.mutedForeground }}>Accuracy</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "12px" }}>±1s</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Hedera Witness */}
+            {hederaReceipt && (
+              <Card>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <IconLink size={14} style={{ color: COLORS.primary }} />
+                  <span style={{ fontSize: "10px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.mutedForeground }}>
+                    Blockchain Witness
+                  </span>
+                  <Badge variant="success">Anchored</Badge>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {hederaReceipt.topicId && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: COLORS.mutedForeground }}>Topic</span>
+                      <span style={{ fontFamily: "monospace", fontSize: "12px" }}>{hederaReceipt.topicId}</span>
+                    </div>
+                  )}
+                  {hederaReceipt.sequenceNumber && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: COLORS.mutedForeground }}>Sequence</span>
+                      <span style={{ fontFamily: "monospace", fontSize: "12px" }}>#{hederaReceipt.sequenceNumber}</span>
+                    </div>
+                  )}
+                  {hederaReceipt.runningHash && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: COLORS.mutedForeground }}>Running Hash</span>
+                      <span style={{ fontFamily: "monospace", fontSize: "11px", color: COLORS.primary, maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {hederaReceipt.runningHash.substring(0, 24)}…
+                      </span>
+                    </div>
+                  )}
+                  {hederaReceipt.transactionId && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: COLORS.mutedForeground }}>Transaction</span>
+                      <span style={{ fontFamily: "monospace", fontSize: "11px", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {hederaReceipt.transactionId}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Calendar Proofs (collapsible) */}
+            {calendars && (
+              <Card>
+                <div
+                  onClick={() => setShowCalendars(!showCalendars)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <IconCalendar size={14} style={{ color: COLORS.primary }} />
+                    <span style={{ fontSize: "10px", fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: COLORS.mutedForeground }}>
+                      Calendar Proofs
+                    </span>
+                    <Badge variant="muted">
+                      {Array.isArray(calendars) ? calendars.length : Object.keys(calendars).length}
+                    </Badge>
+                  </div>
+                  <span
+                    style={{
+                      color: COLORS.mutedForeground,
+                      fontSize: "11px",
+                      transform: showCalendars ? "rotate(180deg)" : "rotate(0)",
+                      transition: "transform 0.2s ease",
+                      display: "inline-block",
+                    }}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {showCalendars && (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "6px 16px",
+                      maxHeight: "300px",
+                      overflowY: "auto",
+                      paddingRight: "8px",
+                    }}
+                  >
+                    {(Array.isArray(calendars) ? calendars : Object.entries(calendars).map(([k, v]) => ({ name: k, value: v }))).map(
+                      (cal, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "6px 8px",
+                            backgroundColor: i % 2 === 0 ? "transparent" : `${COLORS.muted}80`,
+                            borderRadius: "3px",
+                            fontSize: "11px",
+                          }}
+                        >
+                          <span style={{ color: COLORS.mutedForeground }}>
+                            {cal.name || cal.calendar || cal.system}
+                          </span>
+                          <span style={{ fontFamily: "monospace", fontSize: "10px" }}>
+                            {cal.value || cal.date || cal.year || "—"}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <Button variant="ghost" onClick={reset}>
+                <IconRefresh size={14} />
+                Notarize Another
+              </Button>
+              <Button onClick={downloadProof}>
+                <IconDownload size={14} />
+                Download Proof
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: "48px",
+            paddingTop: "16px",
+            borderTop: `1px solid ${COLORS.cardBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: "10px",
+            color: COLORS.mutedForeground,
+            letterSpacing: "0.03em",
+          }}
+        >
+          <span>
+            © {new Date().getFullYear()} Capomastro Holdings Ltd. — Applied Physics Division
+          </span>
+          <div style={{ display: "flex", gap: "16px" }}>
+            <span>RFC 3161 Compliant</span>
+            <span>•</span>
+            <span>Post-Quantum TL-DSA</span>
+            <span>•</span>
+            <span>Hedera HCS Witness</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

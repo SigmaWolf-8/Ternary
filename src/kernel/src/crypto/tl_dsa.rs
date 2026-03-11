@@ -91,7 +91,9 @@ use alloc::vec;
 use super::{CryptoError, CryptoResult};
 use super::ternary_lattice::{
     TernaryPolynomial, TernaryPolyMatrix, TernaryPolyVec,
+    NttMatrix,
     sample_noise_vec,
+    ncntt_ring_mul,
 };
 use super::sponge::TernarySponge;
 
@@ -164,12 +166,16 @@ pub struct TlDsaPublicKey {
     pub variant: TlDsaVariant,
     pub matrix_a_seed: Vec<i8>,
     pub public_t: TernaryPolyVec,
+    pub matrix_a: TernaryPolyMatrix,
+    pub matrix_a_ntt: NttMatrix,
 }
 
 #[derive(Debug, Clone)]
 pub struct TlDsaSecretKey {
     pub variant: TlDsaVariant,
     pub matrix_a_seed: Vec<i8>,
+    pub matrix_a: TernaryPolyMatrix,
+    pub matrix_a_ntt: NttMatrix,
     pub secret_s1: TernaryPolyVec,
     pub secret_s2: TernaryPolyVec,
     pub public_t: TernaryPolyVec,
@@ -275,35 +281,34 @@ fn sample_uniform_index(hash: &[i8], pos: &mut usize, bound: usize) -> usize {
 }
 
 fn expand_matrix_a(seed: &[i8], k: usize, l: usize, n: usize) -> TernaryPolyMatrix {
-    use super::ternary_lattice::u16_to_trits;
+    let total_trits = k * l * n;
+    let mut sponge = TernarySponge::new();
+    sponge.absorb(&[DOMAIN_MATRIX_EXPAND]);
+    sponge.absorb(seed);
+    let all_trits = sponge.squeeze(total_trits).trits;
+
     let mut matrix = TernaryPolyMatrix::new(k, l, n);
+    let mut offset = 0;
     for i in 0..k {
         for j in 0..l {
-            let nonce = (i * l + j) as u16;
-            let nonce_trits = u16_to_trits(nonce);
-            let combined_seed = dsa_hash(
-                DOMAIN_MATRIX_EXPAND,
-                &[seed, &nonce_trits],
-                n,
-            );
-            matrix.entries[i][j] = TernaryPolynomial::from_coeffs_unchecked(combined_seed);
+            let coeffs = all_trits[offset..offset + n].to_vec();
+            matrix.entries[i][j] = TernaryPolynomial::from_coeffs_unchecked(coeffs);
+            offset += n;
         }
     }
     matrix
 }
 
-fn sample_masking_vec(seed: &[i8], l: usize, n: usize, nonce: u16) -> TernaryPolyVec {
-    use super::ternary_lattice::u16_to_trits;
+fn sample_masking_vec(seed: &[i8], l: usize, n: usize, _nonce: u16) -> TernaryPolyVec {
+    let total_trits = l * n;
+    let mut sponge = TernarySponge::new();
+    sponge.absorb(&[DOMAIN_MASKING]);
+    sponge.absorb(seed);
+    let all_trits = sponge.squeeze(total_trits).trits;
+
     let mut polys = Vec::with_capacity(l);
     for i in 0..l {
-        let poly_nonce = nonce.wrapping_add(i as u16);
-        let nonce_trits = u16_to_trits(poly_nonce);
-        let poly_seed = dsa_hash(
-            DOMAIN_MASKING,
-            &[seed, &nonce_trits],
-            n,
-        );
-        let coeffs: Vec<i8> = poly_seed.iter().take(n).copied().collect();
+        let coeffs = all_trits[i * n..(i + 1) * n].to_vec();
         polys.push(TernaryPolynomial::from_coeffs_unchecked(coeffs));
     }
     TernaryPolyVec { polys, n }
@@ -320,21 +325,26 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
     let signing_seed = dsa_hash(DOMAIN_SIGNING_SEED, &[seed, &[0i8, 1, -1]], 243);
 
     let matrix_a = expand_matrix_a(&rho, k, l, n);
+    let matrix_a_ntt = matrix_a.to_ntt();
 
     let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
     let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
 
-    let public_t = matrix_a.mul_vec(&secret_s1)?;
+    let public_t = matrix_a_ntt.mul_vec(&secret_s1)?;
 
     let pk = TlDsaPublicKey {
         variant,
         matrix_a_seed: rho.clone(),
         public_t: public_t.clone(),
+        matrix_a: matrix_a.clone(),
+        matrix_a_ntt: matrix_a_ntt.clone(),
     };
 
     let sk = TlDsaSecretKey {
         variant,
         matrix_a_seed: rho,
+        matrix_a,
+        matrix_a_ntt,
         secret_s1,
         secret_s2,
         public_t,
@@ -347,10 +357,8 @@ pub fn keygen(variant: TlDsaVariant, seed: &[i8]) -> CryptoResult<(TlDsaPublicKe
 pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature> {
     let params = sk.variant.params();
     let n = params.n;
-    let k = params.k;
+    let _k = params.k;
     let l = params.l;
-
-    let matrix_a = expand_matrix_a(&sk.matrix_a_seed, k, l, n);
 
     let pk_trits = poly_vec_to_trits(&sk.public_t);
     let mu = dsa_hash(DOMAIN_MESSAGE_HASH, &[&pk_trits, message], 243);
@@ -365,7 +373,7 @@ pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature>
 
         let y = sample_masking_vec(&y_seed, l, n, 0);
 
-        let w = matrix_a.mul_vec(&y)?;
+        let w = sk.matrix_a_ntt.mul_vec(&y)?;
         let w_trits = poly_vec_to_trits(&w);
 
         let challenge_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu, &w_trits], 243);
@@ -376,7 +384,7 @@ pub fn sign(sk: &TlDsaSecretKey, message: &[i8]) -> CryptoResult<TlDsaSignature>
         let mut reject = false;
 
         for i in 0..l {
-            let cs1_i = c.ring_mul(&sk.secret_s1.polys[i])?;
+            let cs1_i = ncntt_ring_mul(&c, &sk.secret_s1.polys[i]);
             let z_i = y.polys[i].add(&cs1_i)?;
 
             debug_assert!(
@@ -426,15 +434,13 @@ pub fn verify(pk: &TlDsaPublicKey, message: &[i8], sig: &TlDsaSignature) -> Cryp
         }
     }
 
-    let matrix_a = expand_matrix_a(&pk.matrix_a_seed, k, l, n);
-
     let c = sample_challenge(&sig.challenge_hash, n, params.tau);
 
-    let az = matrix_a.mul_vec(&sig.z)?;
+    let az = pk.matrix_a_ntt.mul_vec(&sig.z)?;
 
     let mut ct_polys = Vec::with_capacity(k);
     for i in 0..k {
-        let cti = c.ring_mul(&pk.public_t.polys[i])?;
+        let cti = ncntt_ring_mul(&c, &pk.public_t.polys[i]);
         ct_polys.push(cti);
     }
     let ct = TernaryPolyVec { polys: ct_polys, n };
@@ -457,6 +463,147 @@ impl TernaryPolyVec {
             .collect();
         Ok(TernaryPolyVec { polys, n: self.n })
     }
+}
+
+#[cfg(feature = "bench-tools")]
+pub fn sign_verify_timing_breakdown(
+    variant: TlDsaVariant,
+    seed: &[i8],
+    message: &[i8],
+) -> CryptoResult<Vec<(&'static str, core::time::Duration)>> {
+    use std::time::Instant;
+
+    let params = variant.params();
+    let n = params.n;
+    let k = params.k;
+    let l = params.l;
+
+    let mut timings: Vec<(&'static str, core::time::Duration)> = Vec::new();
+
+    let t0 = Instant::now();
+    let rho = dsa_hash(DOMAIN_MATRIX_EXPAND, &[seed, &[0i8]], 243);
+    let sigma = dsa_hash(DOMAIN_SECRET_SAMPLE, &[seed, &[1i8]], 243);
+    let signing_seed = dsa_hash(DOMAIN_SIGNING_SEED, &[seed, &[0i8, 1, -1]], 243);
+    timings.push(("seed_derivation", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let matrix_a = expand_matrix_a(&rho, k, l, n);
+    timings.push(("expand_A (keygen)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let matrix_a_ntt = matrix_a.to_ntt();
+    timings.push(("to_ntt(A) (keygen)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let secret_s1 = sample_noise_vec(&sigma, l, n, 0, params.eta);
+    let secret_s2 = sample_noise_vec(&sigma, k, n, l as u16, params.eta);
+    timings.push(("sample_s1_s2", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let public_t = matrix_a_ntt.mul_vec(&secret_s1)?;
+    timings.push(("A·s₁ NTT (kg)", t0.elapsed()));
+
+    let pk = TlDsaPublicKey {
+        variant,
+        matrix_a_seed: rho.clone(),
+        public_t: public_t.clone(),
+        matrix_a: matrix_a.clone(),
+        matrix_a_ntt: matrix_a_ntt.clone(),
+    };
+    let sk = TlDsaSecretKey {
+        variant,
+        matrix_a_seed: rho,
+        matrix_a,
+        matrix_a_ntt,
+        secret_s1,
+        secret_s2,
+        public_t,
+        signing_seed,
+    };
+
+    timings.push(("expand_A (sign)", core::time::Duration::ZERO));
+
+    let pk_trits = poly_vec_to_trits(&sk.public_t);
+    let t0 = Instant::now();
+    let mu = dsa_hash(DOMAIN_MESSAGE_HASH, &[&pk_trits, message], 243);
+    timings.push(("message_hash", t0.elapsed()));
+
+    let attempt_trits = super::ternary_lattice::u16_to_trits(0u16);
+    let t0 = Instant::now();
+    let y_seed = dsa_hash(
+        DOMAIN_MASKING,
+        &[&sk.signing_seed, &mu, &attempt_trits],
+        243,
+    );
+    let y = sample_masking_vec(&y_seed, l, n, 0);
+    timings.push(("y_sampling", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let w = sk.matrix_a_ntt.mul_vec(&y)?;
+    timings.push(("A·y NTT (sign)", t0.elapsed()));
+
+    let w_trits = poly_vec_to_trits(&w);
+    let t0 = Instant::now();
+    let challenge_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu, &w_trits], 243);
+    timings.push(("commitment_sponge", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let c = sample_challenge(&challenge_hash, n, params.tau);
+    timings.push(("c_sampling", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let mut z_polys = Vec::with_capacity(l);
+    for i in 0..l {
+        let cs1_i = ncntt_ring_mul(&c, &sk.secret_s1.polys[i]);
+        let z_i = y.polys[i].add(&cs1_i)?;
+        z_polys.push(z_i);
+    }
+    let z = TernaryPolyVec { polys: z_polys, n };
+    timings.push(("z = y + c·s₁ (NTT)", t0.elapsed()));
+
+    let sig = TlDsaSignature {
+        variant: sk.variant,
+        z,
+        challenge_hash,
+    };
+
+    timings.push(("expand_A (verify)", core::time::Duration::ZERO));
+
+    let t0 = Instant::now();
+    let c_ver = sample_challenge(&sig.challenge_hash, n, params.tau);
+    timings.push(("c_sampling (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let az = pk.matrix_a_ntt.mul_vec(&sig.z)?;
+    timings.push(("A·z NTT (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let mut ct_polys = Vec::with_capacity(k);
+    for i in 0..k {
+        let cti = ncntt_ring_mul(&c_ver, &pk.public_t.polys[i]);
+        ct_polys.push(cti);
+    }
+    let ct = TernaryPolyVec { polys: ct_polys, n };
+    timings.push(("c·t NTT (verify)", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let w_prime = az.add(&ct.negate()?)?;
+    timings.push(("A·z - c·t subtract", t0.elapsed()));
+
+    let t0 = Instant::now();
+    for poly in &sig.z.polys {
+        let _ = poly.l_infinity_norm();
+    }
+    timings.push(("norm_check", t0.elapsed()));
+
+    let t0 = Instant::now();
+    let pk_trits_v = poly_vec_to_trits(&pk.public_t);
+    let mu_v = dsa_hash(DOMAIN_MESSAGE_HASH, &[&pk_trits_v, message], 243);
+    let w_trits_v = poly_vec_to_trits(&w_prime);
+    let _expected_hash = dsa_hash(DOMAIN_CHALLENGE, &[&mu_v, &w_trits_v], 243);
+    timings.push(("verify_hash_compare", t0.elapsed()));
+
+    Ok(timings)
 }
 
 pub fn public_key_size(variant: TlDsaVariant) -> usize {

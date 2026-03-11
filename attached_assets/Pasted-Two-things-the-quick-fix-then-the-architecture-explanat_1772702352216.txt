@@ -1,0 +1,29 @@
+Two things — the quick fix, then the architecture explanation.
+Serialization fix first:Verified test success and prepared deployment updatesVerified test success and prepared deployment updates180 tests pass. Now with #[serde(transparent)], the JSON output will be "confidence": 9 instead of "confidence": "Confidence(9)". Let me also bump the version string:Verified tests and prepared to elucidate name resolution architectureVerified tests and prepared to elucidate name resolution architecture180 tests, all green. Copy to outputs:Prepared to elucidate name-to-address mapping architecturePrepared to elucidate name-to-address mapping architecture6 files — serialization fix (#[serde(transparent)]) + version bump to 2.3.2. After pushing and rebuilding Docker, confidence will show as "confidence": 9 instead of "confidence": "Confidence(9)".
+
+Now the important question: How does google.plm become an address?
+Right now, you're using the /api/v1/scan endpoint which scans a URL and returns the derived address but doesn't store it. It's read-only — scan and forget.
+The full lifecycle uses /api/v1/register, which does three things:
+1. SCAN:     google.com → 27 probes → 27 raw measurements
+2. DERIVE:   27 measurements → project_to_gf3 → 27 trits → CubeAddr
+3. STORE:    "google.plm" → TRN record (address + CRD + scan_hash + public_key)
+After registration, the name is resolvable:
+GET /api/v1/resolve/google.plm
+→ { address: "WO:2323 WA:2111 ...", crd: 1, scan_hash: "ee3fff...", ... }
+What's working today (Docker container):
+POST /api/v1/register  ← Scan + derive + store TRN
+POST /api/v1/scan      ← Scan + derive only (no storage)
+GET  /api/v1/resolve   ← Name → address lookup
+GET  /api/v1/describe  ← Address → plain English
+POST /api/v1/route     ← Compute path between two addresses
+You can test registration right now:
+powershellSet-Content -Path register-google.json -Value '{"name":"google.plm","zone":"plm","public_key_hex":"deadbeef","url":"https://google.com"}'
+curl.exe -X POST http://localhost:3927/api/v1/register -H "Content-Type: application/json" --data-binary "@register-google.json"
+Then resolve it:
+powershellcurl.exe http://localhost:3927/api/v1/resolve/google.plm
+What's NOT working yet — the last mile:
+Right now, typing google.plm in a browser does nothing because there's no .plm TLD in the global DNS system. The Metatronic Bridge (bridge.rs) is built to intercept .plm lookups, but it needs to be wired into your machine's actual DNS resolution. Three paths to get there:
+Path 1 — Local DNS proxy (simplest for testing). Run a tiny DNS server on 127.0.0.1:53 that intercepts .plm queries, calls the TDNS API, and returns the result. Everything else passes through to normal DNS. You'd set your machine's DNS to 127.0.0.1 and .plm names just work. This is ~100 lines of code on top of what we have.
+Path 2 — Browser extension. A Chrome/Firefox extension intercepts .plm URLs in the address bar, calls the TDNS API, and redirects to the resolved entity's actual URL. No system-level DNS changes needed.
+Path 3 — PlenumNET fabric (production). In the full deployment, the CON tunnel mesh handles .plm resolution natively. Packets addressed to a .plm name enter the bridge, get resolved to a 27-trit coordinate, and route through the hypercube to the destination. The bridge is the on-ramp from legacy internet to the ternary fabric.
+The architecture in the container right now is everything except the on-ramp. The entire scan → derive → register → resolve → route pipeline works. The gap is connecting a browser's address bar to the TDNS API.

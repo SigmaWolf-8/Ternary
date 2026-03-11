@@ -1,0 +1,48 @@
+I overcomplicated this. Let me cut through the confusion.
+The situation: Replit can't compile WASM. That option is off the table. The TypeScript sponge is what you have and what you're stuck with. So the question is: (1) is it correct, and (2) can the TypeScript permutation itself be made faster.
+Let me answer both right now.
+Correctness check first:Identified missing cryptographic layer and pinpointed TypeScript performance bottlenecksIdentified missing cryptographic layer and pinpointed TypeScript performance bottlenecksHere's the honest assessment, no runaround.
+Correctness Issue First — This Is More Important Than Speed
+The TypeScript sponge has no chi layer. The round function is:
+
+Theta (7-neighbor mixing with balancedWrap)
+Pi (stride-376 permutation)
+Round constants
+
+That's it. There is no χ(x) = x¹⁷ over GF(27). The paper's Theorems 1–3 (the DDT analysis, the Walsh spectrum, the DP_max = 1/9, the entire S-box security argument) describe a chi step that does not exist in this code.
+The guide confirms TIS-27 has the same structure: "Operations: tisTheta (neighbor diffusion), tisPi (stride-13 permutation), round constant addition." No chi.
+This means either:
+
+(A) The Rust kernel sponge also doesn't have chi, and the paper's S-box security proofs describe a theoretical construction that isn't implemented — making the security bounds inapplicable to the actual code
+(B) The Rust kernel has chi but both the TypeScript port and the guide left it out — making the TypeScript sponge cryptographically weaker than the Rust version
+
+You need to check the Rust source (src/kernel/src/crypto/sponge.rs). Search for x17, chi, GF(27), power_map, or any block-level nonlinear step that operates on groups of 3 trits. If it's not there, the paper needs correction. If it is there, the TypeScript port needs it added.
+This question must be answered before benchmarking matters.
+
+Now the Performance — Why Improvements 1–6 Didn't Help
+The permutation function runs 102 times per 4 KB encrypt (one per 243-trit rate block). Each run executes this inner loop:
+typescriptfor (let i = 0; i < STATE_SIZE; i++) {       // 729 iterations
+  const ei = i + 13;
+  const left = balancedWrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);   // function call
+  const right = balancedWrap(ext[ei+1] + ext[ei+7] + ext[ei+13]);  // function call
+  buf[i] = balancedWrap(left + ext[ei] + right + 1);               // function call
+}
+That's 3 function calls × 729 trits × 9 rounds × 102 squeezes = ~2 million function calls for a 4 KB encrypt. In V8, each function call has overhead — argument boxing, stack frame, return. The balancedWrap LUT itself is fast (one array access), but the call boundary kills it.
+Plus: the ext array is reallocated and copied every round (line ext.set(state.subarray(STATE_SIZE - 13), 0) etc.) — that's 9 × 102 = 918 typed array copies per encrypt.
+Improvements 1–6 cut overhead AROUND the permutation (fewer sponge inits, fewer MACs, fewer allocations). But the permutation itself — which is 95% of the cost — was never touched.
+
+The Fix: Rewrite the Permutation Inner Loop
+Here's what Replit needs to do, in this exact file (server/crypto/sponge-hash.ts):Prepared to clarify WASM compilation and benchmarking issuesPrepared to clarify WASM compilation and benchmarking issuesHere's what's going on, plainly:
+The previous task optimized everything AROUND the sponge (fewer calls, less allocation). But the sponge permutation itself — which is 95% of the cost — was never touched. That's why the numbers barely moved.
+This task has three parts:
+Part 1 (CRITICAL — do first): Check if the Rust kernel sponge (src/kernel/src/crypto/sponge.rs) has a chi layer (χ(x) = x¹⁷ over GF(27)). The TypeScript sponge doesn't have one. The paper says it should. If the Rust version also doesn't have it, the paper's S-box security proofs (Theorems 1–3, the DDT analysis, DP_max = 1/9 — everything we've been correcting for weeks) describe something that isn't in the code. That's bigger than performance. If Rust has it and TypeScript doesn't, the TypeScript port needs it added.
+Part 2 (Performance): Rewrite the permutation inner loop:
+
+Inline balancedWrap() — eliminate ~2 million function calls per 4 KB encrypt
+Reuse the ext and buf arrays instead of allocating new ones every round — eliminate 918 allocations per encrypt
+Swap scatter-write Pi for gather-read Pi — cache-friendlier
+Inline tritAdd() in absorb loops — same function-call issue
+
+Part 3: Run the benchmark and report real numbers.
+Forget WASM — Replit can't build it, and these TypeScript fixes should give 2–5× on the permutation alone. Combined with the duplex changes already done, that's potentially 4–10× total improvement over the original 128 KB/s baseline.
+Send the task. Tell them Part 1 comes first — if chi is missing, that changes everything.

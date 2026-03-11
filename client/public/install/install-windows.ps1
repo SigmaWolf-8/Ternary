@@ -1,0 +1,172 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+    PlenumNET / Salvi Framework Installer for Windows
+.DESCRIPTION
+    Downloads and installs PlenumNET v2.3.2 to C:\PlenumNET.
+    Right-click this file and select "Run with PowerShell".
+.NOTES
+    Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+    Patent(s) Pending - All Rights Reserved
+#>
+
+$ErrorActionPreference = "Stop"
+$Version = "2.3.2"
+$RepoUrl = "https://github.com/SigmaWolf-8/Ternary"
+$InstallDir = "C:\PlenumNET"
+
+function Write-Banner {
+    Write-Host ""
+    Write-Host "  ========================================================" -ForegroundColor Cyan
+    Write-Host "    PlenumNET Installer v$Version"                           -ForegroundColor Cyan
+    Write-Host "    Salvi Framework - Post-Quantum Internet Infrastructure"  -ForegroundColor DarkCyan
+    Write-Host "    Capomastro Holdings Ltd."                                -ForegroundColor DarkGray
+    Write-Host "  ========================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Install location: $InstallDir" -ForegroundColor White
+    Write-Host ""
+}
+
+function Test-Prerequisite {
+    param([string]$Command, [string]$Name, [string]$InstallUrl)
+    $found = Get-Command $Command -ErrorAction SilentlyContinue
+    if ($found) {
+        $ver = & $Command --version 2>&1 | Select-Object -First 1
+        Write-Host "    [OK] $Name : $ver" -ForegroundColor Green
+        return $true
+    } else {
+        Write-Host "    [--] $Name : not installed" -ForegroundColor Yellow
+        Write-Host "         Get it from: $InstallUrl" -ForegroundColor DarkYellow
+        return $false
+    }
+}
+
+function Install-PlenumNET {
+    Write-Banner
+
+    Write-Host "  Step 1 of 4: Checking prerequisites" -ForegroundColor White
+    Write-Host "  -----------------------------------" -ForegroundColor DarkGray
+    $hasGit = Test-Prerequisite "git" "Git" "https://git-scm.com/download/win"
+    $hasCargo = Test-Prerequisite "cargo" "Rust/Cargo" "https://rustup.rs"
+    Write-Host ""
+
+    if (-not $hasGit) {
+        Write-Host "  ERROR: Git is required but not installed." -ForegroundColor Red
+        Write-Host ""
+        Write-Host "  Please install Git for Windows first:" -ForegroundColor White
+        Write-Host "  https://git-scm.com/download/win" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  After installing Git, run this installer again." -ForegroundColor White
+        Write-Host ""
+        $response = Read-Host "  Open Git download page now? (Y/N)"
+        if ($response -match "^[Yy]") {
+            Start-Process "https://git-scm.com/download/win"
+        }
+        Read-Host "  Press Enter to close"
+        return
+    }
+
+    Write-Host "  Step 2 of 4: Downloading PlenumNET" -ForegroundColor White
+    Write-Host "  -----------------------------------" -ForegroundColor DarkGray
+
+    if (Test-Path $InstallDir) {
+        Write-Host "    Found existing installation at $InstallDir" -ForegroundColor Yellow
+        Write-Host "    Updating to latest version..." -ForegroundColor White
+        Push-Location $InstallDir
+        try {
+            & git pull origin main 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        } catch {
+            Write-Host "    Update failed: $_" -ForegroundColor Red
+        }
+        Pop-Location
+    } else {
+        Write-Host "    Cloning PlenumNET repository to $InstallDir ..." -ForegroundColor White
+        & git clone $RepoUrl $InstallDir 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "  ERROR: Download failed." -ForegroundColor Red
+            Write-Host "  Check your internet connection and try again." -ForegroundColor White
+            Read-Host "  Press Enter to close"
+            return
+        }
+    }
+
+    Write-Host ""
+    Write-Host "  Step 3 of 4: Building framework" -ForegroundColor White
+    Write-Host "  -----------------------------------" -ForegroundColor DarkGray
+
+    if ($hasCargo) {
+        Write-Host "    Building all modules (this takes a few minutes)..." -ForegroundColor White
+        Write-Host ""
+        Push-Location $InstallDir
+        & cargo build --release 2>&1 | ForEach-Object {
+            if ($_ -match "Compiling|Finished|Downloaded|error\[") {
+                Write-Host "    $_" -ForegroundColor DarkGray
+            }
+        }
+        $buildResult = $LASTEXITCODE
+        Pop-Location
+
+        if ($buildResult -eq 0) {
+            Write-Host ""
+            Write-Host "    Build successful!" -ForegroundColor Green
+        } else {
+            Write-Host ""
+            Write-Host "    Build had errors (source code is still available)." -ForegroundColor Yellow
+            Write-Host "    You can retry: cd $InstallDir; cargo build --release" -ForegroundColor DarkGray
+        }
+    } else {
+        Write-Host "    Skipping build (Rust not installed)." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "    To build later:" -ForegroundColor White
+        Write-Host "      1. Install Rust from https://rustup.rs" -ForegroundColor DarkGray
+        Write-Host "      2. Open a new PowerShell window" -ForegroundColor DarkGray
+        Write-Host "      3. Run:  cd C:\PlenumNET; cargo build --release" -ForegroundColor DarkGray
+    }
+
+    Write-Host ""
+    Write-Host "  Step 4 of 4: Creating desktop shortcut" -ForegroundColor White
+    Write-Host "  -----------------------------------" -ForegroundColor DarkGray
+
+    try {
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $shortcutPath = Join-Path $desktopPath "PlenumNET.lnk"
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = $InstallDir
+        $shortcut.Description = "PlenumNET / Salvi Framework v$Version"
+        $shortcut.Save()
+        Write-Host "    Desktop shortcut created: PlenumNET.lnk" -ForegroundColor Green
+    } catch {
+        Write-Host "    Could not create desktop shortcut (non-critical)." -ForegroundColor DarkGray
+    }
+
+    Write-Host ""
+    Write-Host "  ========================================================" -ForegroundColor Cyan
+    Write-Host "    PlenumNET Installation Complete" -ForegroundColor Green
+    Write-Host "  ========================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Installed to:  $InstallDir" -ForegroundColor White
+    Write-Host "  Version:       v$Version" -ForegroundColor White
+    Write-Host "  Documentation: https://plenumnet.replit.app/docs" -ForegroundColor White
+    Write-Host "  GitHub:        $RepoUrl" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  What's inside:" -ForegroundColor White
+    Write-Host "    C:\PlenumNET\src\kernel\     - Ternary kernel + crypto (Rust)" -ForegroundColor DarkGray
+    Write-Host "    C:\PlenumNET\ternary-math\   - Math library" -ForegroundColor DarkGray
+    Write-Host "    C:\PlenumNET\shared\          - TypeScript shared modules" -ForegroundColor DarkGray
+    Write-Host "    C:\PlenumNET\services\        - TDNS, Inter-Cube services" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Next steps:" -ForegroundColor White
+    Write-Host "    cd C:\PlenumNET" -ForegroundColor DarkGray
+    Write-Host "    cargo test          # Run 2,276 tests" -ForegroundColor DarkGray
+    Write-Host "    cargo bench         # Run benchmarks" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Open the PlenumNET folder now in File Explorer?" -ForegroundColor White
+    $response = Read-Host "  (Y/N)"
+    if ($response -match "^[Yy]") {
+        Start-Process explorer.exe $InstallDir
+    }
+}
+
+Install-PlenumNET

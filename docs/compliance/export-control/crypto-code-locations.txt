@@ -6,7 +6,7 @@
 src/kernel/src/crypto/cipher.rs        - AES-256-GCM, Lamport signatures, ternary encryption
 src/kernel/src/crypto/tl_kem.rs        - TL-KEM (Ternary Lattice Key Encapsulation Mechanism)
 src/kernel/src/crypto/tl_dsa.rs        - TL-DSA (Ternary Lattice Digital Signature Algorithm)
-src/kernel/src/crypto/sponge.rs        - Ternary sponge construction, SHA-3 variant
+src/kernel/src/crypto/sponge.rs        - TL-Sponge-385 construction, SHA-3 variant
 src/kernel/src/crypto/sha2.rs          - SHA-2 family (SHA-256, SHA-384, SHA-512)
 src/kernel/src/crypto/hmac.rs          - HMAC construction
 src/kernel/src/crypto/kdf.rs           - Key derivation functions (HMAC-based KDF)

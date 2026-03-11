@@ -1,0 +1,277 @@
+# REPLIT TASK: Sponge Permutation Optimization + Chi Verification
+
+## Priority: P0-CRITICAL (correctness check) + P1-HIGH (performance)
+
+---
+
+## PART 1: CORRECTNESS — Check for Missing Chi Layer (DO THIS FIRST)
+
+The TypeScript sponge (`server/crypto/sponge-hash.ts`) has NO chi (χ) S-box layer.
+The round function is: theta → pi → round constants. That's all.
+
+The paper claims the round function includes: chi (χ(x) = x¹⁷ over GF(27)) → theta → pi → round constants.
+
+**Task:** Check the Rust kernel sponge at `src/kernel/src/crypto/sponge.rs`.
+
+Search for ANY of these:
+- `chi` (function name or comment)
+- `x17` or `pow_17` or `power_map`
+- `GF(27)` or `gf27`
+- Any loop that operates on 3-trit blocks (groups of 3 consecutive trits processed as one unit)
+- Any exponentiation or lookup table with 27 entries
+
+**If chi EXISTS in the Rust code:**
+Port it to the TypeScript sponge. The chi step applies χ(x) = x¹⁷ to each
+consecutive 3-trit GF(27) block in the state. For a 729-trit state, that's
+243 blocks. The simplest implementation is a 27-entry lookup table:
+
+```typescript
+// GF(27) elements: each is a 3-trit block [t0, t1, t2]
+// χ(x) = x¹⁷ is a fixed permutation of {0, 1, ..., 26}
+// Precompute: for each element e ∈ GF(27), compute e^17 mod (irreducible poly)
+// Store as CHI_LUT[27] where CHI_LUT[e] = e^17
+
+// Apply to state:
+function chiLayer(state: Int8Array): void {
+  for (let block = 0; block < STATE_SIZE; block += 3) {
+    // Convert 3 balanced trits to GF(27) index (0-26)
+    const idx = (state[block] + 1) * 9 + (state[block+1] + 1) * 3 + (state[block+2] + 1);
+    const result = CHI_LUT[idx];
+    // Convert back to 3 balanced trits
+    state[block]   = ELEMENT_TO_TRITS[result][0];
+    state[block+1] = ELEMENT_TO_TRITS[result][1];
+    state[block+2] = ELEMENT_TO_TRITS[result][2];
+  }
+}
+```
+
+Insert this BEFORE the theta step in `spongePermutation()`.
+
+**If chi does NOT exist in the Rust code:**
+Report this finding. It means the paper's security proofs about χ(x) = x¹⁷
+do not apply to the actual implementation. The nonlinearity comes solely
+from balanced_wrap modular reduction in the theta step, which is a different
+(and weaker) security model than what the paper claims.
+
+---
+
+## PART 2: PERFORMANCE — Optimize spongePermutation()
+
+File: `server/crypto/sponge-hash.ts`, function `spongePermutation()`
+
+### Problem 1: Function call overhead — balancedWrap called ~2M times per 4KB encrypt
+
+Current:
+```typescript
+function balancedWrap(s: number): number {
+  return WRAP_TABLE[s + 4];
+}
+
+// Called 3x per trit per round:
+const left = balancedWrap(ext[ei - 13] + ext[ei - 7] + ext[ei - 1]);
+const right = balancedWrap(ext[ei + 1] + ext[ei + 7] + ext[ei + 13]);
+buf[i] = balancedWrap(left + ext[ei] + right + 1);
+```
+
+Fix: Inline the LUT access. Remove the function call entirely:
+```typescript
+// At top of file, rename for clarity:
+const BW = WRAP_TABLE;  // alias
+
+// In the inner loop — NO function call:
+const left  = BW[ext[ei - 13] + ext[ei - 7] + ext[ei - 1] + 4];
+const right = BW[ext[ei + 1]  + ext[ei + 7]  + ext[ei + 13] + 4];
+buf[i] = BW[left + ext[ei] + right + 5];  // +4 for wrap offset, +1 for theta constant
+```
+
+Note: `left + ext[ei] + right + 1` with the +4 wrap offset = +5 total.
+Verify: left ∈ {-1,0,1}, ext[ei] ∈ {-1,0,1}, right ∈ {-1,0,1}, constant=1.
+Range: -1+(-1)+(-1)+1 = -2 to 1+1+1+1 = 4. With +4: 2 to 8. Within WRAP_TABLE[0..8]. ✓
+
+### Problem 2: ext array copied every round — 918 copies per 4KB encrypt
+
+Current:
+```typescript
+for (let round = 0; round < ROUNDS; round++) {
+  ext.set(state.subarray(STATE_SIZE - 13), 0);         // copy 13 trits
+  ext.set(state, 13);                                   // copy 729 trits
+  ext.set(state.subarray(0, 13), 13 + STATE_SIZE);     // copy 13 trits
+  // ...
+}
+```
+
+Fix: Allocate ext ONCE outside the function. Use a module-level buffer:
+```typescript
+const _ext = new Int8Array(STATE_SIZE + 26);
+const _buf = new Int8Array(STATE_SIZE);
+
+function spongePermutation(state: Int8Array): void {
+  for (let round = 0; round < ROUNDS; round++) {
+    // Still need to copy state into ext each round (state changes per round)
+    // But reuse the same buffer — no allocation
+    _ext.set(state.subarray(STATE_SIZE - 13), 0);
+    _ext.set(state, 13);
+    _ext.set(state.subarray(0, 13), 13 + STATE_SIZE);
+    // ...
+  }
+}
+```
+
+This eliminates 918 `new Int8Array()` allocations per encrypt.
+
+### Problem 3: Pi permutation uses indirect lookup
+
+Current:
+```typescript
+for (let i = 0; i < STATE_SIZE; i++) {
+  state[PERM[i]] = buf[i];
+}
+```
+
+This is a scatter write (write to random positions). CPUs prefer gather reads.
+
+Fix: Pre-compute the INVERSE permutation and use gather reads:
+```typescript
+const INV_PERM: number[] = (() => {
+  const p = new Array<number>(STATE_SIZE);
+  for (let i = 0; i < STATE_SIZE; i++) {
+    p[PERM[i]] = i;  // INV_PERM[j] = the i such that PERM[i] = j
+  }
+  return p;
+})();
+
+// In the loop — gather read instead of scatter write:
+for (let i = 0; i < STATE_SIZE; i++) {
+  state[i] = buf[INV_PERM[i]];
+}
+```
+
+This is cache-friendlier because `state` is written sequentially.
+
+### Problem 4: Round constant application uses multiply for index
+
+Current:
+```typescript
+const rc = RC_TABLE[round];
+for (let lane = 0; lane < LANES; lane++) {
+  const idx = lane * LANES;  // multiply every iteration
+  state[idx] = balancedWrap(state[idx] + rc[lane]);
+}
+```
+
+Fix: Pre-compute the indices and inline the wrap:
+```typescript
+const RC_INDICES = (() => {
+  const indices = new Int32Array(LANES);
+  for (let lane = 0; lane < LANES; lane++) indices[lane] = lane * LANES;
+  return indices;
+})();
+
+// In the loop:
+const rc = RC_TABLE[round];
+for (let lane = 0; lane < LANES; lane++) {
+  const idx = RC_INDICES[lane];
+  state[idx] = BW[state[idx] + rc[lane] + 4];
+}
+```
+
+### Complete optimized spongePermutation:
+
+```typescript
+const BW = new Int8Array([-1, 0, 1, -1, 0, 1, -1, 0, 1]);
+const _ext = new Int8Array(STATE_SIZE + 26);
+const _buf = new Int8Array(STATE_SIZE);
+
+const INV_PERM: Int32Array = (() => {
+  const p = new Int32Array(STATE_SIZE);
+  for (let i = 0; i < STATE_SIZE; i++) {
+    p[(i * 376 + 1) % STATE_SIZE] = i;
+  }
+  return p;
+})();
+
+const RC_INDICES: Int32Array = (() => {
+  const idx = new Int32Array(LANES);
+  for (let i = 0; i < LANES; i++) idx[i] = i * LANES;
+  return idx;
+})();
+
+function spongePermutation(state: Int8Array): void {
+  for (let round = 0; round < ROUNDS; round++) {
+    // Theta: copy state into extended buffer for wraparound
+    _ext.set(state.subarray(STATE_SIZE - 13), 0);
+    _ext.set(state, 13);
+    _ext.set(state.subarray(0, 13), STATE_SIZE + 13);
+
+    // Theta: 7-neighbor mixing — ALL INLINED, ZERO FUNCTION CALLS
+    for (let i = 0; i < STATE_SIZE; i++) {
+      const ei = i + 13;
+      const left  = BW[_ext[ei - 13] + _ext[ei - 7] + _ext[ei - 1] + 4];
+      const right = BW[_ext[ei + 1]  + _ext[ei + 7]  + _ext[ei + 13] + 4];
+      _buf[i] = BW[left + _ext[ei] + right + 5];
+    }
+
+    // Pi: gather-read (cache-friendly sequential write)
+    for (let i = 0; i < STATE_SIZE; i++) {
+      state[i] = _buf[INV_PERM[i]];
+    }
+
+    // Round constants — inlined wrap
+    const rc = RC_TABLE[round];
+    for (let lane = 0; lane < LANES; lane++) {
+      const idx = RC_INDICES[lane];
+      state[idx] = BW[state[idx] + rc[lane] + 4];
+    }
+  }
+}
+```
+
+### Also inline tritAdd in absorb loops:
+
+Current:
+```typescript
+for (let i = 0; i < RATE; i++) {
+  this.state[i] = tritAdd(this.state[i], inputTrits[offset + i]);
+}
+```
+
+Fix:
+```typescript
+const TA = new Int8Array([1, -1, 0, 1, -1]);  // tritAdd LUT
+
+for (let i = 0; i < RATE; i++) {
+  this.state[i] = TA[this.state[i] + inputTrits[offset + i] + 2];
+}
+```
+
+---
+
+## PART 3: BENCHMARK
+
+After making the changes, run:
+```
+GET /api/salvi/crypto/phase-benchmark?iterations=100
+```
+
+Report the before/after table for all 4 sizes and all 4 modes.
+
+Expected improvement: 2-5× on the permutation inner loop from eliminating
+function call overhead and allocation. Combined with the duplex architecture
+from the previous task: total 4-10× improvement over the original baseline.
+
+The remaining bottleneck will be V8 itself — the inner loop is fundamentally
+~2M array accesses per 4KB encrypt, and there's a floor on how fast
+JavaScript can do that. The WASM path would eliminate this floor but requires
+a Rust toolchain that Replit doesn't have.
+
+---
+
+## Testing
+
+1. Hash the string "PlenumNET" with the old and new spongePermutation.
+   Output must be IDENTICAL hex. If it differs, the optimization broke something.
+2. Run all existing phase encryption tests.
+3. Run the benchmark endpoint.
+4. If Part 1 found a missing chi layer and you added it, ALL hashes will
+   change. This is expected. Update all test vectors. But verify that
+   encrypt → decrypt still round-trips correctly.

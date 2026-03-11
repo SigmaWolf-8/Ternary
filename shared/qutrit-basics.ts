@@ -51,7 +51,7 @@ import {
 
 import {
   SUFT_RADIUS,
-} from './saturnian-blueprint';
+} from './plenum-square';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 

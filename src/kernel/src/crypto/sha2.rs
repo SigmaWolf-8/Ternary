@@ -18,7 +18,7 @@
 //! HMAC-SHA-384 and HMAC-SHA-512 for TLS/IPsec key derivation.
 //!
 //! This module provides interoperability with external systems requiring
-//! byte-identical SHA-2 output, complementing the ternary sponge hash
+//! byte-identical SHA-2 output, complementing TL-Sponge-385
 //! used internally by the Salvi Framework.
 //!
 //! # CNSA 2.0 Requirement

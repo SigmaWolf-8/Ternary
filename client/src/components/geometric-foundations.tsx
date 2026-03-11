@@ -785,12 +785,12 @@ export default function GeometricFoundations() {
             desc="The sponge state is a 6D sub-cube. Permutations from S₃ ≀ S₆ — every element is a Hamming-preserving bijection. No precomputed tables." />
           <SubCard delay={160} icon="◇" tag="Security" title="Address Sentinel" axis="Rep C {1,2,3} → zero is impossible"
             desc="Bijective ternary makes zero structurally impossible. A zero in any address digit is mathematical proof of forgery — constant-time, opaque errors." />
-          <SubCard delay={240} icon="△" tag="HPTP" title="Timing Tokens" axis="Z₂₈ · 13° = 364° = Saturnian year"
+          <SubCard delay={240} icon="△" tag="HPTP" title="Timing Tokens" axis="Z₂₈ · 13° = 364° = Plenum natural year"
             desc="28 angular positions encode calendar conversions, timestamp tokens, and regulatory compliance. All timing math inherits from one cyclic group." />
           <SubCard delay={320} icon="☐" tag="Isolation" title="Shell Security Domains" axis="Depth axis (axis 12) → 3 shells"
             desc="Inner, Void, Outer — three shells partition vertices into security domains. Cross-shell transitions require explicit authorization." />
           <SubCard delay={400} icon="≡" tag="Diffusion" title="Round Constants" axis="Magic Square [111, 14, 208] mod 3"
-            desc="Sponge constants derived at compile time from the Saturnian circulant matrix. Auditable derivation, magic sum 333." />
+            desc="Sponge constants derived at compile time from the Plenum circulant matrix. Auditable derivation, magic sum 333." />
         </div>
       </section>
 
@@ -912,13 +912,14 @@ export default function GeometricFoundations() {
         {topology && (
           <FadeIn delay={100}>
             <div style={{
-              display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
+              display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 1,
               background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
             }}>
               <Stat value={2541865828329} label="Address Space" sub="3²⁶ Rep C vertices · scales infinitely" delay={0} />
               <Stat value={topology.neighborsPerCube} label="Neighbors" sub="per cube (2 × 13)" delay={100} />
-              <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={200} />
-              <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={300} />
+              <Stat value={20726199} label="Encrypted Tunnels" sub="unique PQ tunnels per populated cube" delay={200} />
+              <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={300} />
+              <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={400} />
             </div>
           </FadeIn>
         )}
@@ -929,7 +930,7 @@ export default function GeometricFoundations() {
             desc="Greedy geodesic forwarding with flow affinity. FNV-1a hashes the flow ID to select a consistent dimension, ensuring packets in the same flow traverse identical paths. Dead neighbors trigger detour computation." />
           <ServiceCard delay={80} icon="⬡" tag="CON" name="Cube Overlay Network"
             stat="26" statLabel="tunnel peers"
-            desc="Encrypted post-quantum tunnels between geometric neighbors. Symmetric key derivation via SHA-256 canonical ordering. Full tunnel state machine: Init → Handshake → Active → Rekeying." />
+            desc="20.7M unique post-quantum encrypted tunnels per populated cube — each key derived from the geometric positions of the two endpoints via TLSponge-385. Full tunnel state machine: Init → Handshake → Active → Rekeying." />
           <ServiceCard delay={160} icon="◇" tag="CRS" name="Cube Registration Service"
             stat="3¹³" statLabel="address space"
             desc="Bitmap allocator over 1,594,323 Rep C addresses with flatIndex/fromFlatIndex bijection. Sequential scan with nextHint for deterministic allocation. Heartbeat-based endpoint updates." />

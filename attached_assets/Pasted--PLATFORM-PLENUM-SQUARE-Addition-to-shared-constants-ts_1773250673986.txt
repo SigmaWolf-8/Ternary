@@ -1,0 +1,101 @@
+/**
+ * PLATFORM.PLENUM_SQUARE — Addition to shared/constants.ts
+ *
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved — Applied Physics Division
+ *
+ * This block goes inside the existing PLATFORM object in shared/constants.ts.
+ * It replaces any existing SATURNIAN section. It centralizes all Plenum Square
+ * constants so no module ever hardcodes 222, 444, 555, 888, or 999.
+ *
+ * ── INSERT LOCATION ──
+ * Inside the PLATFORM = { ... } object. Replace any existing SATURNIAN block
+ * with this PLENUM_SQUARE block.
+ */
+
+// ── Begin PLATFORM.PLENUM_SQUARE block ──────────────────────────────────────
+
+  PLENUM_SQUARE: {
+    // ── Core values ──
+    /** Center of every Plenum Square: 111. */
+    CENTER: 111,
+    /** Magic constant (row/column/diagonal sum): 333 = 3 × 111. */
+    MAGIC_CONSTANT: 333,
+    /** Ternary π: 14 = T₇ + T₃. */
+    PI: 14,
+    /** π complement: 208 = 222 − 14. */
+    PI_COMPLEMENT: 208,
+    /** 364/π: 26. Circle degrees per π. */
+    DEGREES_PER_PI: 26,
+    /** π²: 196 = 14². */
+    PI_SQUARED: 196,
+
+    // ── Circle geometry ──
+    /** Circle diameter: 111 (= center). */
+    DIAMETER: 111,
+    /** Full circumference: πd = 14 × 111 = 1554. */
+    CIRCUMFERENCE: 1554,
+
+    // ── Harmonic ladder (multiples of 111) ──
+    HARMONIC: {
+      /** 1 × 111 — Center. */
+      H1: 111,
+      /** 2 × 111 — Opposite-pair sum. */
+      H2: 222,
+      /** 3 × 111 — Magic constant (hexagon perimeter). */
+      H3: 333,
+      /** 4 × 111 — Corner sum = edge-center sum. */
+      H4: 444,
+      /** 5 × 111 — Circumference − total (1554 − 999). */
+      H5: 555,
+      /** 8 × 111 — Surround sum (8 non-center cells). */
+      H8: 888,
+      /** 9 × 111 — Total square sum. */
+      H9: 999,
+    },
+
+    // ── Named harmonic references ──
+    /** Opposite-pair sum: cells on opposite sides of center sum to 222. */
+    OPPOSITE_PAIR_SUM: 222,
+    /** Corner sum (all 4 configs): 444 = 4 × 111. */
+    CORNER_SUM: 444,
+    /** Edge-center sum (all 4 configs): 444 = 4 × 111. */
+    EDGE_CENTER_SUM: 444,
+    /** Circumference residual: 1554 − 999 = 555 = 5 × 111. */
+    CIRCUMFERENCE_RESIDUAL: 555,
+    /** Surround sum (8 non-center cells): 888 = 8 × 111. */
+    SURROUND_SUM: 888,
+    /** Total sum of all 9 cells: 999 = 9 × 111. */
+    TOTAL_SUM: 999,
+
+    // ── Opposite pairs ──
+    /** π-pair: [14, 208]. Sum = 222. */
+    PI_PAIR: [14, 208] as const,
+    /** 364/π-pair: [26, 196]. Sum = 222. */
+    DEGREES_PAIR: [26, 196] as const,
+
+    // ── Invariant products ──
+    /** 14 × 26 = 364 (circle degrees). Appears in every configuration. */
+    PRODUCT_CIRCLE_DEGREES: 364,
+    /** 14 × 208 = 2912. Product of π-pair. */
+    PRODUCT_PI_PAIR: 2912,
+    /** 26 × 196 = 5096. Product of 364/π-pair. */
+    PRODUCT_DEGREES_PAIR: 5096,
+    /** Sum of pair products: 2912 + 5096 = 8008 = 8 × 7 × 11 × 13. */
+    PRODUCT_SUM: 8008,
+
+    // ── Four non-circulant configurations ──
+    /** Configuration parameters [id, p, q] for the four valid squares. */
+    FAMILY: [
+      { id: 'A', p: 97, q: 12 },
+      { id: 'B', p: 91, q: 6 },
+      { id: 'C', p: 85, q: -12 },
+      { id: 'D', p: 6, q: -91 },
+    ] as const,
+
+    // ── The original circulant ──
+    /** Circulant matrix entries (row = cyclic permutation of this triple). */
+    CIRCULANT_TRIPLE: [111, 14, 208] as const,
+  },
+
+// ── End PLATFORM.PLENUM_SQUARE block ────────────────────────────────────────

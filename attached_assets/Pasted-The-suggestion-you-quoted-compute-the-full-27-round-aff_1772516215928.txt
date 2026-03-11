@@ -1,0 +1,94 @@
+The suggestion you quoted ("compute the full 27-round affine matrix M²⁷ offline ... and do single matrix-vector per sponge") is an **extreme optimization technique** for making your custom ternary sponge permutation dramatically faster in the long run — especially now that the build is in release mode and the previous precomputed-tables version should already be showing good gains.
+
+It comes from noticing something very specific about your sponge design:
+
+### Key observation from your permutation
+Your sponge round consists of three layers:
+
+1. **Substitution layer**  
+   `buf[i] = (state[i] + state[i-1] + state[i+1] + 1) mod 3` (in balanced {-1,0,1} representation)  
+   → This is a **linear** operation over GF(3) plus a constant vector (the +1 everywhere).
+
+2. **Diffusion layer**  
+   `state[dest] = buf[i]` where `dest = (i * 376 + 1) % 729`  
+   → This is just a fixed **permutation** of the coordinates (a linear bijection over GF(3)⁷²⁹, since multiplication by 376 mod 729 is invertible — gcd(376,729)=1).
+
+3. **Round-constant addition**  
+   Adding a fixed vector (different per round) at specific positions.
+
+→ **Every single round is an affine transformation over GF(3)⁷²⁹**:
+
+state_after_round = M_round · state_before + v_round
+
+where  
+- M_round is a 729 × 729 matrix over GF(3) (very sparse — mostly permutation + local additions),  
+- v_round is a fixed 729-element vector (the accumulated +1 shifts + round constants).
+
+Because composition of affine maps is again affine, the **entire 27-round permutation** is equivalent to **one single affine map**:
+
+final_state = M_total · initial_state + v_total
+
+where  
+M_total = M_round27 · M_round26 · … · M_round1  
+v_total = M_round27 · … · M_round2 · v_round1  +  M_round27 · … · M_round3 · v_round2  + … + v_round27
+
+### What "compute M²⁷ offline" actually means here
+M²⁷ is just shorthand / loose notation for "the matrix of the full 27-round transformation" (not literally matrix-power 27 — it's the 27-fold composition).
+
+You do **one-time precomputation** (ideally at build time, or at program startup if dynamic):
+
+1. Represent each round's transformation as a 729×729 matrix over GF(3) + a vector addition.  
+   (But you **don't store** 27 full matrices — you compute the composed one.)
+
+2. Start with M = identity (729×729), v = zero vector.  
+   Then iteratively apply each round's affine map from right to left:  
+   M ← M_round · M  
+   v ← M_round · v + v_round
+
+   (Matrix-vector and matrix-matrix multiplies over GF(3) — addition and multiplication mod 3)
+
+3. After processing all 27 rounds → you have the single M_total (729×729) and v_total (729×1).
+
+4. In production code, **every sponge permutation call** becomes:
+
+   ```rust
+   // state is &mut [i8; 729] in {-1,0,1}
+   let mut new_state = [0i8; 729];
+   for i in 0..729 {
+       let mut sum: i32 = v_total[i] as i32;  // start with constant
+       for j in 0..729 {
+           sum += (M_total[i * 729 + j] as i32) * (state[j] as i32);
+       }
+       new_state[i] = balanced_mod3(sum);
+   }
+   *state = new_state;
+   ```
+
+   Or (much better): represent M_total in a sparse/compressed form if possible, or use matrix-vector libraries (though in WASM you might hand-roll it).
+
+### Pros & huge speed win potential
+- One call to sponge_permutation → drops from **27 × (729×3 additions + permutes)** → **one 729×729 matrix-vector multiply** over GF(3).
+- Theoretical arithmetic ops: ~729² = ~531k mod-3 operations instead of ~27 × ~6k–8k → potentially 5–15× faster **once vectorized or cache-optimized**.
+- In practice for your use-case (expand_A dominates, 112+ heavy sponge calls per TL-DSA-87 roundtrip): could shave **50–150 ms** off the current total if the matrix-vector is implemented efficiently.
+
+### Real-world trade-offs & why it's "extreme"
+| Aspect                  | Value / Cost                                                                 |
+|-------------------------|-------------------------------------------------------------------------------|
+| Precomputation time     | ~0.1–2 seconds (once at startup or build-time) — acceptable for server/Replit |
+| Memory                  | 729 × 729 × ~1 byte (packed trit) ≈ 500–532 kB — fine                     |
+| Runtime per sponge      | Much faster if you SIMD or use good loop ordering; otherwise similar/worse |
+| Code complexity         | High — need GF(3) matrix composition code, packing, careful mod-3         |
+| Correctness risk        | Must exactly match original round-by-round (test on many random states)   |
+
+### Recommendation right now
+- **First** — confirm the **release build** already recovered your 440 ms baseline (or better) with the previous precomputed PERM[] + RC_PRECOMP[] version. If expand_A(keygen) + expand_A(verify) are back under ~100 ms combined → great, stop here for now.
+- **If still hungry for speed** and you want the "ultimate geometric closed-form" version of your sponge (true to the torsion-plenum philosophy): implement the full affine composition as a one-time precompute step.
+  - I can help write the Rust code skeleton for composing the affine maps if you share how you currently represent trit values internally (i8 {-1,0,1} or 0,1,2) and whether you want packed representation.
+
+In short: it's about turning your **iterative 27-round permutation into one giant precomputed linear (affine) transformation** over GF(3)⁷²⁹, so each sponge call becomes "multiply big matrix by input vector + add constant vector" — the purest "first-derivation geometric" shortcut possible for this component.
+
+If you want to pursue it, paste:
+- Your current trit representation details
+- Whether startup precompute (few seconds) or compile-time is preferred
+
+and we can derive the exact code for it. Otherwise, stick with the optimized iterative version in release mode — you're already in a very good place.

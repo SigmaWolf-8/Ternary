@@ -1,0 +1,370 @@
+// TDNS v2.3.2 — HTTP Server
+// Capomastro Holdings Ltd. — Applied Physics Division
+//
+// Zero-dependency HTTP server binding for the 11 TDNS API endpoints.
+// Built from std::net::TcpListener. Production deployments swap this
+// for axum, actix-web, or hyper.
+//
+// Usage:
+//   tdns-server                     # Default: 0.0.0.0:3927
+//   tdns-server --port 8080         # Custom port
+//   tdns-server --host 127.0.0.1    # Custom bind address
+//
+// Port 3927: 3^9 + 2^7 = 19683 + 128 → too large. 3×9+2×7 = 27+14 = nah.
+// Port 3927 = 3 (ternary) + 927 (arbitrary). It's the TDNS port.
+
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use tdns_v2::api::{
+    ApiRouter, ErrorResponse, RegisterRequest, RouteRequest, ScanRequest,
+};
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let mut host = "0.0.0.0".to_string();
+    let mut port = 3927u16;
+
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--port" | "-p" => {
+                i += 1;
+                if i < args.len() {
+                    port = args[i].parse().expect("invalid port number");
+                }
+            }
+            "--host" | "-h" => {
+                i += 1;
+                if i < args.len() {
+                    host = args[i].clone();
+                }
+            }
+            "--help" => {
+                print_usage();
+                return;
+            }
+            _ => {
+                eprintln!("unknown argument: {}", args[i]);
+                print_usage();
+                std::process::exit(1);
+            }
+        }
+        i += 1;
+    }
+
+    let bind_addr = format!("{}:{}", host, port);
+    let listener = TcpListener::bind(&bind_addr).unwrap_or_else(|e| {
+        eprintln!("ERROR: cannot bind to {}: {}", bind_addr, e);
+        std::process::exit(1);
+    });
+
+    let router = Arc::new(Mutex::new(ApiRouter::new()));
+
+    println!("═══════════════════════════════════════════════");
+    println!("  TDNS v2.3.2 — Ternary Domain Name System");
+    println!("  Capomastro Holdings Ltd.");
+    println!("  Applied Physics Division");
+    println!("═══════════════════════════════════════════════");
+    println!();
+    println!("  Listening on http://{}", bind_addr);
+    println!();
+    println!("  Endpoints:");
+    println!("    POST   /api/v1/register");
+    println!("    POST   /api/v1/scan");
+    println!("    GET    /api/v1/resolve/:name");
+    println!("    GET    /api/v1/address/:addr");
+    println!("    GET    /api/v1/describe/:addr");
+    println!("    POST   /api/v1/verify/:name");
+    println!("    DELETE /api/v1/deregister/:name");
+    println!("    POST   /api/v1/route");
+    println!("    GET    /api/v1/fts/status");
+    println!("    GET    /api/v1/con/metrics");
+    println!("    GET    /api/v1/health");
+    println!();
+    println!("  3^27 = 7,625,597,484,987 addresses.");
+    println!("  Zero routing tables. Zero human judgment.");
+    println!("═══════════════════════════════════════════════");
+
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                let router = Arc::clone(&router);
+                // Single-threaded for simplicity. Production: spawn threads or use async.
+                handle_connection(stream, &router);
+            }
+            Err(e) => {
+                eprintln!("connection error: {}", e);
+            }
+        }
+    }
+}
+
+// ─── HTTP Handling ───────────────────────────────────────────────────────────
+
+fn handle_connection(mut stream: TcpStream, router: &Arc<Mutex<ApiRouter>>) {
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
+
+    // Parse request line
+    let mut request_line = String::new();
+    if reader.read_line(&mut request_line).is_err() {
+        return;
+    }
+    let parts: Vec<&str> = request_line.trim().split_whitespace().collect();
+    if parts.len() < 2 {
+        return;
+    }
+    let method = parts[0];
+    let path = parts[1];
+
+    // Parse headers
+    let mut headers = HashMap::new();
+    let mut content_length: usize = 0;
+    loop {
+        let mut line = String::new();
+        if reader.read_line(&mut line).is_err() || line.trim().is_empty() {
+            break;
+        }
+        if let Some(pos) = line.find(':') {
+            let key = line[..pos].trim().to_lowercase();
+            let val = line[pos + 1..].trim().to_string();
+            if key == "content-length" {
+                content_length = val.parse().unwrap_or(0);
+            }
+            headers.insert(key, val);
+        }
+    }
+
+    // Read body
+    let mut body = vec![0u8; content_length];
+    if content_length > 0 {
+        let _ = reader.read_exact(&mut body);
+    }
+    let body_str = String::from_utf8_lossy(&body).to_string();
+
+    let now_ns = now_hptp();
+
+    // Route request
+    let (status, response_body) = dispatch(method, path, &body_str, router, now_ns);
+
+    // Send response
+    let response = format!(
+        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+        status,
+        status_text(status),
+        response_body.len(),
+        response_body,
+    );
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
+}
+
+fn dispatch(
+    method: &str,
+    path: &str,
+    body: &str,
+    router: &Arc<Mutex<ApiRouter>>,
+    now_ns: u64,
+) -> (u16, String) {
+    match (method, path) {
+        // GET /api/v1/health
+        ("GET", "/api/v1/health") => {
+            let r = router.lock().unwrap();
+            json_ok(&r.handle_health())
+        }
+
+        // GET /api/v1/fts/status
+        ("GET", "/api/v1/fts/status") => {
+            let r = router.lock().unwrap();
+            json_ok(&r.handle_fts_status())
+        }
+
+        // GET /api/v1/con/metrics
+        ("GET", "/api/v1/con/metrics") => {
+            let r = router.lock().unwrap();
+            json_ok(&r.handle_con_metrics())
+        }
+
+        // POST /api/v1/scan
+        ("POST", "/api/v1/scan") => {
+            let req: ScanRequest = match serde_json::from_str(body) {
+                Ok(r) => r,
+                Err(e) => return json_err(400, &format!("invalid JSON: {}", e)),
+            };
+            let r = router.lock().unwrap();
+            match r.handle_scan(req) {
+                Ok(resp) => json_ok(&resp),
+                Err(e) => json_err(500, &e.error),
+            }
+        }
+
+        // POST /api/v1/register
+        ("POST", "/api/v1/register") => {
+            let req: RegisterRequest = match serde_json::from_str(body) {
+                Ok(r) => r,
+                Err(e) => return json_err(400, &format!("invalid JSON: {}", e)),
+            };
+            let mut r = router.lock().unwrap();
+            match r.handle_register(req, now_ns) {
+                Ok(resp) => json_ok(&resp),
+                Err(e) => {
+                    let code = if e.status == "hptp_sync_required" { 409 } else { 500 };
+                    json_err(code, &e.error)
+                }
+            }
+        }
+
+        // POST /api/v1/route
+        ("POST", "/api/v1/route") => {
+            let req: RouteRequest = match serde_json::from_str(body) {
+                Ok(r) => r,
+                Err(e) => return json_err(400, &format!("invalid JSON: {}", e)),
+            };
+            let r = router.lock().unwrap();
+            match r.handle_route(req, now_ns) {
+                Ok(resp) => json_ok(&resp),
+                Err(e) => json_err(500, &e.error),
+            }
+        }
+
+        // Dynamic GET/POST/DELETE routes
+        _ => dispatch_dynamic(method, path, body, router, now_ns),
+    }
+}
+
+fn dispatch_dynamic(
+    method: &str,
+    path: &str,
+    body: &str,
+    router: &Arc<Mutex<ApiRouter>>,
+    now_ns: u64,
+) -> (u16, String) {
+    // GET /api/v1/resolve/:name
+    if method == "GET" && path.starts_with("/api/v1/resolve/") {
+        let name = &path["/api/v1/resolve/".len()..];
+        let name = percent_decode(name);
+        let r = router.lock().unwrap();
+        return match r.handle_resolve(&name) {
+            Ok(resp) => json_ok(&resp),
+            Err(e) => json_err(404, &e.error),
+        };
+    }
+
+    // GET /api/v1/address/:addr
+    if method == "GET" && path.starts_with("/api/v1/address/") {
+        let addr = &path["/api/v1/address/".len()..];
+        let addr = percent_decode(addr);
+        let r = router.lock().unwrap();
+        return match r.handle_reverse_lookup(&addr) {
+            Ok(resp) => json_ok(&resp),
+            Err(e) => json_err(404, &e.error),
+        };
+    }
+
+    // GET /api/v1/describe/:addr
+    if method == "GET" && path.starts_with("/api/v1/describe/") {
+        let addr = &path["/api/v1/describe/".len()..];
+        let addr = percent_decode(addr);
+        let r = router.lock().unwrap();
+        return match r.handle_describe(&addr) {
+            Ok(resp) => json_ok(&resp),
+            Err(e) => json_err(400, &e.error),
+        };
+    }
+
+    // POST /api/v1/verify/:name
+    if method == "POST" && path.starts_with("/api/v1/verify/") {
+        let name = &path["/api/v1/verify/".len()..];
+        let name = percent_decode(name);
+        // Body should contain {"url": "..."}
+        let url: String = serde_json::from_str::<HashMap<String, String>>(body)
+            .ok()
+            .and_then(|m| m.get("url").cloned())
+            .unwrap_or_default();
+        if url.is_empty() {
+            return json_err(400, "body must contain {\"url\": \"...\"}");
+        }
+        let mut r = router.lock().unwrap();
+        return match r.handle_verify(&name, &url, now_ns) {
+            Ok(resp) => json_ok(&resp),
+            Err(e) => json_err(404, &e.error),
+        };
+    }
+
+    // DELETE /api/v1/deregister/:name
+    if method == "DELETE" && path.starts_with("/api/v1/deregister/") {
+        let name = &path["/api/v1/deregister/".len()..];
+        let name = percent_decode(name);
+        let mut r = router.lock().unwrap();
+        return match r.handle_deregister(&name) {
+            Ok(resp) => json_ok(&resp),
+            Err(e) => json_err(404, &e.error),
+        };
+    }
+
+    // 404
+    json_err(404, &format!("{} {} not found", method, path))
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+fn json_ok<T: serde::Serialize>(data: &T) -> (u16, String) {
+    (200, serde_json::to_string_pretty(data).unwrap_or_else(|_| "{}".into()))
+}
+
+fn json_err(code: u16, message: &str) -> (u16, String) {
+    let err = ErrorResponse {
+        status: "error".into(),
+        error: message.into(),
+    };
+    (code, serde_json::to_string_pretty(&err).unwrap_or_else(|_| "{}".into()))
+}
+
+fn status_text(code: u16) -> &'static str {
+    match code {
+        200 => "OK",
+        400 => "Bad Request",
+        404 => "Not Found",
+        409 => "Conflict",
+        500 => "Internal Server Error",
+        _ => "Unknown",
+    }
+}
+
+fn percent_decode(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '%' {
+            let hex: String = chars.by_ref().take(2).collect();
+            if let Ok(byte) = u8::from_str_radix(&hex, 16) {
+                result.push(byte as char);
+            }
+        } else if c == '+' {
+            result.push(' ');
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+fn now_hptp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64
+}
+
+fn print_usage() {
+    println!("TDNS v2.3.2 — HTTP Server");
+    println!("Capomastro Holdings Ltd. — Applied Physics Division");
+    println!();
+    println!("USAGE:");
+    println!("  tdns-server                      Start on 0.0.0.0:3927");
+    println!("  tdns-server --port 8080           Custom port");
+    println!("  tdns-server --host 127.0.0.1      Custom bind address");
+}

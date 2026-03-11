@@ -91,7 +91,7 @@ const modules = [
   {
     id: "05",
     title: "Cryptography",
-    description: "Ternary sponge hash, HMAC, KDF, Lamport one-time signatures, and bijective cipher.",
+    description: "TL-Sponge-385 hash, HMAC, KDF, Lamport one-time signatures, and bijective cipher.",
     priority: "P1",
     tests: "~85",
     icon: KeyRound,

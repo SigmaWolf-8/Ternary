@@ -16,7 +16,7 @@
  * cube viewed through the Metatronic geometry and Saturnian Black Cube
  * tradition. Connects to the existing modules:
  *
- * - `saturnian-blueprint.ts` → Magic Square, Tribonacci alignment
+ * - `plenum-square.ts` → Plenum Square, Tribonacci alignment
  * - `ternary-circle.ts` → Z₂₈, 364°, π = 14, radian = 13° = T₇
  * - `topology/index.ts` → Toroidal addressing, GF(3) operations
  *
@@ -26,13 +26,13 @@
  */
 
 import {
-  SATURNIAN_MATRIX,
+  PLENUM_SQUARE_MATRIX,
   MAGIC_CONSTANT,
   TERNARY_BALANCE_CENTER,
   PI_ESOTERIC,
   RADIUS_COSMIC,
-  SATURNIAN_NATURAL_YEAR_DAYS,
-} from './saturnian-blueprint';
+  PLENUM_NATURAL_YEAR_DAYS,
+} from './plenum-square';
 
 import {
   FULL_CIRCLE_DEG,
@@ -674,7 +674,7 @@ export const METATRONIC_IDENTITIES = {
   /** π in ternary circle */
   piTernary: PI_TERNARY === PI_ESOTERIC,
   /** Saturnian magic sum */
-  magicSum: SATURNIAN_MATRIX[0].reduce((a, b) => a + b, 0) === MAGIC_CONSTANT,
+  magicSum: PLENUM_SQUARE_MATRIX[0].reduce((a, b) => a + b, 0) === MAGIC_CONSTANT,
   /** Weight sum */
   weightSum: TOTAL_SATURNIAN_WEIGHT === 1568,
   /** Trit constants sum to zero (balanced) */
@@ -682,7 +682,7 @@ export const METATRONIC_IDENTITIES = {
   /** Tesseract count */
   tesseractCount: TESSERACT_FAMILIES * 19_683 === TESSERACT_TOTAL,
   /** Year days from Saturnian constants */
-  yearDays: SATURNIAN_NATURAL_YEAR_DAYS === FULL_CIRCLE_DEG,
+  yearDays: PLENUM_NATURAL_YEAR_DAYS === FULL_CIRCLE_DEG,
   /** Depth axis RC = T₇ = one ternary radian = 13 */
   depthAxisRcIsRadian: DEPTH_AXIS_RC === RADIAN_DEG,
   /** All circle axisRc fields are 1-based and match axis + 1 */

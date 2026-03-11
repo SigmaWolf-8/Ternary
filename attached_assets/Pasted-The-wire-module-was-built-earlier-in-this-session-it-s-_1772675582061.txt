@@ -1,0 +1,22 @@
+The wire module was built earlier in this session — it's in my working copy but got missed in the push batch. Let me verify and ship it.Verified wire module existence and readied deploymentVerified wire module existence and readied deploymentPresent in working copy, declared in lib.rs, 641 lines. Let me verify the test suite is green with it:Verified test imports and identified missing wire module dependencyVerified test imports and identified missing wire module dependency167 tests. Zero warnings. Let me verify the exact imports the test files expect:Verified all exports present; ready to finalize wire moduleVerified all exports present; ready to finalize wire moduleAll imports satisfied: Packet, PacketType, parse_heartbeat_payload, flags — all public in wire.rs. Now ship the two missing files:Ran 2 commandsRan 2 commandsAll 16 modules declared, all re-exports present.Inventoried files and identified missing wire module dependencyInventoried files and identified missing wire module dependencyTwo files to unblock compilation:
+src/wire.rs (641 lines, 13 tests) — Binary packet framing for the TDNS data plane
+Every packet through the hypercube has this structure:
+Header (32 bytes):  version(u8) | type(u8) | flags(u16) | source(7) | dest(7) | mask(4) | timestamp(u64)
+Payload:            length(u16) | data(variable)
+Integrity:          BLAKE3 hash(32 bytes)
+66 bytes overhead. Contents:
+
+PacketType enum — Data (0x01), Multicast (0x02), Heartbeat (0x03), TrnQuery (0x04), TrnResponse (0x05)
+pub mod flags — Bitfield constants: HPTP_MANDATORY, HPTP_VERIFY, ENCRYPTED, FORWARDED, PRIORITY
+Packet struct — Version, type, flags, source/dest CubeAddr, subcube mask, HPTP timestamp, payload, BLAKE3 integrity hash
+Constructors — Packet::data() for point-to-point, Packet::multicast() for sub-cube, Packet::heartbeat() for FTS
+Wire encoding — to_wire() serializes header + payload + BLAKE3 integrity. from_wire() deserializes with integrity verification. Rejects corrupted packets.
+parse_heartbeat_payload() — Extracts (hptp_offset_ns, sequence) from heartbeat payloads for FTS consumption
+Helper methods — is_point(), is_multicast(), requires_hptp(), is_encrypted(), mark_forwarded(), verify_integrity()
+
+src/lib.rs (49 lines) — Updated module root
+16 pub mod declarations (trit through wire) + full re-exports. This is the same file already in the working copy — it declares pub mod wire; and pub use wire::{Packet, PacketType, WireError};.
+
+Files to push:
+FileLinesTestsStatussrc/wire.rs64113New — was built but missed the push batchsrc/lib.rs49—Updated — already has pub mod wire + re-exports
+These are the same files that were compiling and testing green in my working copy — 146 unit tests (including wire's 13) + 9 e2e + 12 integration = 167 total. Once these land, the Dockerfile builds, both test suites compile, and the crate is complete. No test count change needed.

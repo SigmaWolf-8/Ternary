@@ -27,7 +27,7 @@
 //! # CNSA 2.0 Compliance
 //! - XMSS: SP 800-208, Section 5 (XMSS only; XMSS^MT prohibited)
 //! - LMS: SP 800-208, Section 4 (LMS only; HSS prohibited)
-//! - Both use ternary sponge hash as the underlying hash function
+//! - Both use TL-Sponge-385 as the underlying hash function
 //!
 //! # Security Warning
 //! XMSS and LMS are **stateful** schemes. Each keypair tracks a monotonic
@@ -264,7 +264,7 @@ pub fn secret_key_size(scheme: SignatureScheme) -> usize {
 
 // ============================================================
 // Hash-Based Signature Utilities (SP 800-208)
-// Shared by XMSS and LMS — uses ternary sponge as hash function
+// Shared by XMSS and LMS — uses TL-Sponge-385 as hash function
 // ============================================================
 
 const HBS_N: usize = 32;

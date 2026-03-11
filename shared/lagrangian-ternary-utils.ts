@@ -58,7 +58,7 @@ import {
   MASS_SHELL_RATIO,
   TEMPORAL_CROSS_DENOM,
   ENERGY_CROSS_DENOM,
-} from './saturnian-blueprint';
+} from './plenum-square';
 
 export type Trit = -1 | 0 | 1;
 

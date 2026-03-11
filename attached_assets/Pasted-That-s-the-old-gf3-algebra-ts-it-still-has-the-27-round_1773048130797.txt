@@ -1,0 +1,14 @@
+That's the old gf3-algebra.ts — it still has the 27-round sponge with a lookup table and 3-neighbor theta. The updated tis-sponge.ts has the correct code but the old file wasn't cleaned out. Let me check both.Identified misplaced sponge code requiring refactoring and reorganizationIdentified misplaced sponge code requiring refactoring and reorganizationgf3-algebra.ts has 50 lines of wrong sponge code that should have been removed — PI_TABLE, 27 rounds, 3-neighbor theta. The sponge lives in tis-sponge.ts now. Let me strip it and also check the Rust gf3_algebra.rs for the same problem.Identified duplicate stale code requiring consolidation into dedicated moduleIdentified duplicate stale code requiring consolidation into dedicated moduleSame problem in both. PI_TABLE, 27 rounds, 3-neighbor theta sitting in GF(3) algebra files that shouldn't have sponge code at all. Let me strip both clean.Assembled cryptographic implementation and reorganized componentsAssembled cryptographic implementation and reorganized componentsClean build. Now repackage with the corrected files.Acknowledged the cryptographic implementation's lookup table dependenciesAcknowledged the cryptographic implementation's lookup table dependencies12 files, 2,309 lines. Audit passed:
+
+Zero PI_TABLE in production
+Zero 27-round sponge anywhere
+Zero % 3 in GF(3) hot paths
+Zero sponge code in GF(3) algebra files
+Zero heap allocation in sponge hot path
+
+Production modules — 4 files:
+FileRepo PathLinesWhat It Doestis_sponge.rsternary-math/src/290SIMD sponge, extended 7-neighbor theta, 4 rounds, stack-allocatedgf3_algebra.rsternary-math/src/94Division-free GF(3) ops, Hamming, forgery, checksum, derivationtis-sponge.tsshared/77TypeScript sponge, formula-driven pi (i × 13) % width, 4 roundsgf3-algebra.tsshared/77TypeScript GF(3) ops, no sponge code, no tables
+Wiring: pub mod tis_sponge; and pub mod gf3_algebra; in ternary-math/src/lib.rs.
+Benchmarks — 8 files in benchmarks/:
+Rust: cd benchmarks/rust-bench && RUSTFLAGS="-C target-cpu=native" cargo run --release
+C: gcc -O2 -march=native -msse2 -o bench plenum_full.c -lcrypto -lsodium && ./bench

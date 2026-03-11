@@ -1272,6 +1272,17 @@ fn ntt_to_ternary(ntt_data: &[u32; NCNTT_N]) -> Vec<i8> {
     result
 }
 
+pub fn ncntt_ring_mul(a: &TernaryPolynomial, b: &TernaryPolynomial) -> TernaryPolynomial {
+    let a_ntt = ternary_to_ntt(&a.coeffs);
+    let b_ntt = ternary_to_ntt(&b.coeffs);
+    let mut c_ntt = [0u32; NCNTT_N];
+    for i in 0..NCNTT_N {
+        c_ntt[i] = ncntt_modmul(a_ntt[i], b_ntt[i]);
+    }
+    let coeffs = ntt_to_ternary(&c_ntt);
+    TernaryPolynomial { coeffs, n: a.n }
+}
+
 pub type NttPoly = [u32; NCNTT_N];
 
 #[derive(Debug, Clone)]

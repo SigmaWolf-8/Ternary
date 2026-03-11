@@ -1,0 +1,89 @@
+# TDNS v2.3 — Docker Compose (4-Node Development Mesh)
+# Capomastro Holdings Ltd. — Applied Physics Division
+#
+# Topology:
+#   crs-primary   (port 3927) — CRS authority, scanner, registration
+#   cube-alpha    (port 3928) — First cube node (GLB + FTS + CON)
+#   cube-beta     (port 3929) — Second cube node
+#   cube-gamma    (port 3930) — Third cube node
+#
+# Usage:
+#   docker-compose up -d
+#   curl http://localhost:3927/api/v1/health
+#   docker-compose exec crs-primary tdns-scan https://github.com
+#   docker-compose down
+
+version: "3.8"
+
+services:
+  crs-primary:
+    build: .
+    container_name: tdns-crs-primary
+    ports:
+      - "3927:3927"
+    environment:
+      - TDNS_NODE_ROLE=crs
+      - TDNS_NODE_NAME=crs-primary
+      - TDNS_SHARED_SECRET=plenum-dev-secret-replace-in-production
+      - TDNS_PORT=3927
+    networks:
+      - tdns-mesh
+    restart: unless-stopped
+
+  cube-alpha:
+    build: .
+    container_name: tdns-cube-alpha
+    ports:
+      - "3928:3927"
+    environment:
+      - TDNS_NODE_ROLE=cube
+      - TDNS_NODE_NAME=cube-alpha
+      - TDNS_CRS_URL=http://crs-primary:3927
+      - TDNS_SHARED_SECRET=plenum-dev-secret-replace-in-production
+      - TDNS_PORT=3927
+    depends_on:
+      - crs-primary
+    networks:
+      - tdns-mesh
+    restart: unless-stopped
+
+  cube-beta:
+    build: .
+    container_name: tdns-cube-beta
+    ports:
+      - "3929:3927"
+    environment:
+      - TDNS_NODE_ROLE=cube
+      - TDNS_NODE_NAME=cube-beta
+      - TDNS_CRS_URL=http://crs-primary:3927
+      - TDNS_SHARED_SECRET=plenum-dev-secret-replace-in-production
+      - TDNS_PORT=3927
+    depends_on:
+      - crs-primary
+    networks:
+      - tdns-mesh
+    restart: unless-stopped
+
+  cube-gamma:
+    build: .
+    container_name: tdns-cube-gamma
+    ports:
+      - "3930:3927"
+    environment:
+      - TDNS_NODE_ROLE=cube
+      - TDNS_NODE_NAME=cube-gamma
+      - TDNS_CRS_URL=http://crs-primary:3927
+      - TDNS_SHARED_SECRET=plenum-dev-secret-replace-in-production
+      - TDNS_PORT=3927
+    depends_on:
+      - crs-primary
+    networks:
+      - tdns-mesh
+    restart: unless-stopped
+
+networks:
+  tdns-mesh:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.27.0.0/16

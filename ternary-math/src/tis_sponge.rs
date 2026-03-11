@@ -5,33 +5,25 @@
 // Location: ternary-math/src/tis_sponge.rs
 //
 // ┌─────────────────────────────────────────────────────────────────┐
-// │  THIS IS NOT A CRYPTOGRAPHIC HASH.                              │
+// │  TIS-27 — 43-bit cryptographic security (TM-2026-008).          │
 // │                                                                 │
-// │  TIS-27 provides fast corruption detection for wire packets     │
-// │  and data integrity checks on already-authenticated channels.   │
-// │  27-trit capacity = 43 bits — insufficient for cryptographic    │
-// │  security against a deliberate adversary.                       │
-// │                                                                 │
-// │  For cryptographic operations (signing, key derivation,         │
-// │  identity binding, TDNS registration), use the kernel sponge:   │
-// │  src/kernel/src/crypto/sponge.rs (385-bit post-quantum).        │
+// │  Same proven sponge construction as TL-Sponge-385, sized for    │
+// │  fast integrity. χ(x)=x¹⁷, DP≤9⁻⁴⁰⁹⁶, B(M_θ)=8 exact.       │
+// │  For post-quantum security (385-bit), use TL-Sponge-385.       │
 // └─────────────────────────────────────────────────────────────────┘
 //
 // Use cases:
-//   - Wire packet integrity (fast corruption detection, 303 ns)
+//   - Wire packet integrity (fast corruption detection, 191 ns)
 //   - Scan hashing on authenticated connections
 //   - Data integrity checks where the channel is already secured
 //   - Internal consistency verification
 //
-// NOT for:
-//   - TDNS registration or identity binding (use kernel sponge)
-//   - Document signing or notarization (use kernel sponge)
-//   - Key derivation (use kernel sponge)
-//   - Any operation requiring collision resistance against an adversary
+// For PQ operations (signing, key derivation, identity binding):
+//   use TL-Sponge-385 (src/kernel/src/crypto/sponge.rs)
 //
 // Architecture:
 //   State: 54 trits (GF(3), unsigned {0,1,2})
-//   Rate: 27 trits | Capacity: 27 trits (43 bits — non-cryptographic)
+//   Rate: 27 trits | Capacity: 27 trits (43-bit cryptographic security)
 //   Rounds: 4 | Theta: 7-neighbor (±1, ±7, ±13) | Pi: stride-13
 //   SIMD: SSE2 on x86_64 | Division-free GF(3) arithmetic
 
@@ -176,8 +168,8 @@ fn tis27_hash_scalar(input: &[u8], output_len: usize) -> Vec<u8> {
 
 /// Hash input trits (GF(3), values {0,1,2}) into output trits.
 ///
-/// This is a FAST INTEGRITY FUNCTION, not a cryptographic hash.
-/// For cryptographic hashing, use `crypto::sponge::sponge_hash`.
+/// TIS-27 fast integrity hash (43-bit cryptographic security).
+/// For post-quantum hashing (385-bit), use `crypto::sponge::sponge_hash`.
 pub fn tis27_hash(input: &[u8], output_len: usize) -> Vec<u8> {
     #[cfg(target_arch = "x86_64")]
     {
@@ -190,7 +182,7 @@ pub fn tis27_hash(input: &[u8], output_len: usize) -> Vec<u8> {
 
 /// Derive a key using TIS-27. For wire integrity context only.
 ///
-/// NOT for cryptographic key derivation — use kernel KDF for that.
+/// For post-quantum key derivation, use kernel KDF (TL-Sponge-385).
 pub fn tis27_derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
     let mut input = Vec::with_capacity(context.len() + material.len());
     input.extend_from_slice(context);

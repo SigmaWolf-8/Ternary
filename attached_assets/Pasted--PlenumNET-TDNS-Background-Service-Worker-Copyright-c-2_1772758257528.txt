@@ -1,0 +1,315 @@
+// PlenumNET TDNS — Background Service Worker
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada) — Applied Physics Division
+
+const PLENUMNET = 'https://plenumnet.replit.app';
+
+// ── GF(3) — exact formula from services/tdns-v2/src/derive.rs ────────────────
+// trit = min(floor(3k/N), 2) + 1  →  Rep C {1,2,3}, zero excluded (Invariant 3)
+function gf3(k, n) { return Math.min(Math.floor(3 * k / n), 2) + 1; }
+function conf(k, n) {
+  const p = k / n, d = Math.min(Math.abs(p-1/3), Math.abs(p-2/3));
+  return Math.min(Math.floor(27*d)+1, 9);
+}
+
+// ── Self-contained scanner ────────────────────────────────────────────────────
+// fetch() from a MV3 service worker is fully cross-origin. No server needed.
+async function deriveAddress(url) {
+  const parsed   = new URL(url);
+  const hostname = parsed.hostname.toLowerCase();
+  const isHttps  = parsed.protocol === 'https:';
+
+  let hdrs = {}, status = 0, body = '', ok = false;
+  try {
+    const resp = await fetch(url, { method:'GET', redirect:'follow', signal:AbortSignal.timeout(9000) });
+    ok     = resp.ok;
+    status = resp.status;
+    resp.headers.forEach((v,k) => { hdrs[k.toLowerCase()] = v.toLowerCase(); });
+    const buf = await resp.arrayBuffer();
+    body = new TextDecoder().decode(buf.slice(0,12288)).toLowerCase();
+  } catch(_) {}
+
+  const h   = k => hdrs[k] || '';
+  const has = k => !!hdrs[k];
+  const b   = p => body.includes(p);
+
+  // Enriched metadata (used in report)
+  const meta = {
+    url,
+    hostname,
+    isHttps,
+    statusCode: status,
+    server:   h('server') || h('x-powered-by') || '—',
+    ct:       h('content-type'),
+    cacheCtrl:h('cache-control'),
+    hsts:     h('strict-transport-security'),
+    csp:      h('content-security-policy'),
+    cors:     h('access-control-allow-origin'),
+    xfo:      h('x-frame-options'),
+    xcto:     h('x-content-type-options'),
+    via:      h('via'),
+    cfRay:    has('cf-ray'),
+    xCache:   has('x-cache') || has('x-amz-cf-id') || has('x-served-by'),
+    altSvc:   h('alt-svc'),
+    permsPolicy: h('permissions-policy'),
+    nel:      has('nel'),
+    reportTo: has('report-to') || has('reporting-endpoints'),
+    coep:     has('cross-origin-embedder-policy'),
+    coop:     has('cross-origin-opener-policy'),
+    hpkp:     has('public-key-pins'),
+    setCookie:h('set-cookie'),
+    bodySize: body.length,
+    hasHtml:  b('<!doctype') || h('content-type').includes('html'),
+    hasJson:  h('content-type').includes('json'),
+    isApi:    parsed.pathname.includes('/api/'),
+    isWs:     h('upgrade') === 'websocket',
+    isSse:    h('content-type').includes('event-stream'),
+  };
+
+  const isGov   = /\.(gov|mil|gc\.ca|gov\.uk)$/.test(hostname);
+  const isEdu   = /\.(edu|ac\.uk|edu\.au)$/.test(hostname);
+  const isCloud = ['amazonaws','cloudflare','vercel','netlify','replit',
+                   'fastly','azurewebsites','googleusercontent','github.io',
+                   'pages.dev','fly.dev','render.com'].some(s => hostname.includes(s));
+  const isLargeCorp = ['google.com','youtube.com','facebook.com','x.com',
+                       'twitter.com','linkedin.com','microsoft.com','apple.com',
+                       'amazon.com','netflix.com','github.com'].some(s => hostname===s||hostname.endsWith('.'+s));
+  const maxAgeMatch = meta.cacheCtrl.match(/max-age=(\d+)/);
+  const maxAge      = maxAgeMatch ? parseInt(maxAgeMatch[1]) : 3600;
+  const cookieVal   = meta.setCookie;
+
+  // ── 27 derivations ──────────────────────────────────────────────────────────
+  const d1 = isGov||isEdu ? 3 : isLargeCorp ? 2 : 2;
+  const d2 = 3;
+  const k3 = +(b('/about')||b('about us')||b('about-us'))
+           + +(b('contact')||b('contact us')||b('get in touch'))
+           + +(b('inc.')||b(' ltd')||b('llc')||b('corp.')||b('co.,'))
+           + +(b('address:')||b('street')||b('avenue')||b('suite')||b('postal'))
+           + +(isGov||isLargeCorp);
+  const d3 = gf3(k3,5), c3 = conf(k3,5);
+  const d4 = isCloud ? 3 : 2;
+  const d5 = meta.isApi && !meta.hasHtml ? 2 : 1;
+  const d6 = meta.isWs||meta.isSse ? 3 : meta.ct.includes('video')||meta.ct.includes('audio')||meta.ct.includes('image') ? 2 : 1;
+  const d7 = meta.hasHtml && (meta.hasJson||meta.isApi) ? 3 : meta.hasJson||meta.isApi ? 2 : 1;
+  const k8 = +(b('/predict')||b('/inference')||b('/model')||b('/embed')||b('/generate'))
+           + +(b('tensorflow')||b('pytorch')||b('hugging face')||b('openai')||b('llm'))
+           + +(b('recommendation')||b('personali')||b('suggested for you'))
+           + +(b('ranking')||b('relevance score')||b('similarity'))
+           + +(has('x-ai')||has('x-model')||has('x-inference'));
+  const d8 = gf3(k8,5), c8 = conf(k8,5);
+  const k9 = +(ok||status>0) + +(status!==401&&status!==403&&!has('www-authenticate')) + +(ok&&(meta.hasHtml||meta.hasJson));
+  const d9 = gf3(k9,3), c9 = conf(k9,3);
+  const d10 = has('www-authenticate') ? 2 : b('sign in')||b('log in')||b('login') ? 2 : 1;
+  const parts = hostname.split('.');
+  const k11 = +(ok||status>0) + +(parts.length>=3) + +(parts.length>=4) + +(meta.cfRay||has('x-cdn')) + +(meta.xCache||has('age')) + +(meta.via!=='');
+  const d11 = gf3(k11,6), c11 = conf(k11,6);
+  const d12 = meta.isWs ? 2 : 1;
+  const k13 = +(has('alt-svc')) + +(has('permissions-policy')) + +(has('nel'))
+            + +(has('report-to')||has('reporting-endpoints'))
+            + +(has('cross-origin-opener-policy')||has('cross-origin-embedder-policy'))
+            + +(has('content-security-policy'));
+  const d13 = gf3(k13,6), c13 = conf(k13,6);
+  const k14 = +(!b('maintenance')&&!b('down for')) + +(!b('business hours')&&!b('office hours')) + +(b('99.')||b('uptime')||ok);
+  const d14 = gf3(k14,3), c14 = conf(k14,3);
+  const d15 = meta.isWs||meta.isSse ? 3 : meta.cacheCtrl.includes('no-store')||meta.cacheCtrl.includes('no-cache') ? 2 : 2;
+  const k16 = +(!meta.cacheCtrl.includes('immutable')&&maxAge<3600) + +(maxAge<60) + +meta.isWs + +meta.isSse + +(meta.ct.includes('grpc')) + 0;
+  const d16 = gf3(k16,6), c16 = conf(k16,6);
+  const d17 = b('swift')||b('wire transfer')||b('ach transfer') ? 3 : b('stripe')||b('paypal')||b('checkout')||b('braintree')||b('buy now') ? 2 : 1;
+  const k18 = +(b('<input')||b('input type=')) + +(b('sign up')||b('register')||b('create account')) + +(b('gtag(')||b('analytics.js')||b('fbq(')||b('_paq.push')) + +(b('cookie consent')||b('gdpr')||b('we use cookies')) + +(b('third party')||b('data partner'));
+  const d18 = gf3(k18,5), c18 = conf(k18,5);
+  const k19 = +(b('privacy policy')||b('/privacy')) + +(b('terms of service')||b('terms of use')||b('/terms')) + +(b('cookie policy')||b('cookie notice')) + +(b('gdpr')||b('data protection')) + +(b('accessibility')||b('wcag'));
+  const d19 = gf3(k19,5), c19 = conf(k19,5);
+  const d20 = b('subscribe')||b('per month')||b('/month')||b('annual plan') ? 3 : b('pay per')||b('per use')||b('credits') ? 2 : 1;
+  const d21 = meta.cfRay||meta.xCache ? 3 : meta.via!=='' ? 2 : 1;
+  const d22 = meta.hasJson&&(b('"data"')||b('"result"')||b('"id"')) ? 3 : meta.via!==''||meta.cfRay ? 2 : 1;
+  const d23 = meta.isWs||meta.isSse ? 3 : b('rss')||b('atom')||b('</feed') ? 2 : 1;
+  const hasCookie = cookieVal!=='';
+  const hasExp    = cookieVal.includes('expires=')||cookieVal.includes('max-age=');
+  const longLived = parseInt((cookieVal.match(/max-age=(\d+)/i)||[,0])[1])>86400*30 || (cookieVal.includes('expires=')&&!cookieVal.includes('session'));
+  const k24 = +hasCookie + +hasExp + +longLived;
+  const d24 = gf3(k24,3), c24 = conf(k24,3);
+  const k25 = +isHttps + +(has('strict-transport-security')) + +(has('content-security-policy')) + +(b('security.txt')||b('/.well-known/security')) + +(has('x-content-type-options')) + +(has('x-frame-options'));
+  const d25 = gf3(k25,6), c25 = conf(k25,6);
+  const k26 = +(!b('google-analytics')&&!b('gtag(')&&!b('mixpanel')&&!b('amplitude'))
+            + +(!b('facebook.net')&&!b('platform.twitter')&&!b('snap.licdn'))
+            + +(!b('doubleclick')&&!b('googlesyndication')&&!b('adsystem'))
+            + +(!b('fullstory')&&!b('hotjar')&&!b('logrocket')&&!b('clarity.ms'))
+            + +(!b('hubspot')&&!b('marketo')&&!b('intercom')&&!b('pardot'));
+  const d26 = gf3(k26,5), c26 = conf(k26,5);
+  const d27 = b('iso 27001')||b('soc 2')||b('pci dss')||b('soc2') ? 3 : b('penetration test')||b('bug bounty')||b('self-certified') ? 2 : 1;
+
+  const trits = [d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19,d20,d21,d22,d23,d24,d25,d26,d27];
+  const confs  = [9,9,c3,9,9,9,9,c8,c9,9,c11,9,c13,c14,9,c16,9,c18,c19,9,9,9,9,c24,c25,c26,9];
+
+  const address = [
+    `WO:${trits.slice(0,4).join('')}`, `WA:${trits.slice(4,8).join('')}`,
+    `WR:${trits.slice(8,12).join('')}`, `WN:${trits.slice(12,16).join('')}`,
+    `WY:${trits.slice(16,20).join('')}`, `HO:${trits.slice(20,24).join('')}`,
+    `PE:${trits.slice(24,27).join('')}`,
+  ].join(' ');
+
+  // SHA-256 scan hash via SubtleCrypto (available in MV3 service workers)
+  const hashBuf  = await crypto.subtle.digest('SHA-256', new Uint8Array(trits));
+  const scan_hash = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+
+  const SCHEMA = [
+    {cat:'WHO',  q:'What kind of entity?',      vals:['Personal','Corporate','Governance']},
+    {cat:'WHO',  q:"Who's the audience?",        vals:['Just me','My group','Everyone']},
+    {cat:'WHO',  q:'Who operates it?',           vals:['Anonymous','Known','Transparent']},
+    {cat:'WHO',  q:'Hosting model?',             vals:['Self-hosted','Provider','Cloud']},
+    {cat:'WHAT', q:'What form factor?',          vals:['Website','App / API','Device']},
+    {cat:'WHAT', q:'Content type?',              vals:['Text / HTML','Media','Live stream']},
+    {cat:'WHAT', q:'Primary consumer?',          vals:['Humans','Machines','Both']},
+    {cat:'WHAT', q:'AI / ML present?',           vals:['No','Partially','Yes']},
+    {cat:'WHERE',q:'Visibility?',                vals:['Private','Group','Public']},
+    {cat:'WHERE',q:'Authentication required?',   vals:['None','Password','Strong ID']},
+    {cat:'WHERE',q:'Infrastructure scale?',      vals:['Single server','Several','CDN / Many']},
+    {cat:'WHERE',q:'Transport protocol?',        vals:['HTTP','WebSocket','Raw TCP']},
+    {cat:'WHEN', q:'Technology era?',            vals:['Pre-2010','2010s','2020s+']},
+    {cat:'WHEN', q:'Availability window?',       vals:['Business hours','Extended','24/7']},
+    {cat:'WHEN', q:'Data freshness?',            vals:['Historical','Current','Live']},
+    {cat:'WHEN', q:'Real-time capability?',      vals:['Batch','Near-real-time','Real-time']},
+    {cat:'WHY',  q:'Financial transactions?',    vals:['None','Accepts payment','Processes']},
+    {cat:'WHY',  q:'Data collection appetite?',  vals:['Minimal','Moderate','Heavy']},
+    {cat:'WHY',  q:'Legal / policy presence?',   vals:['None','Basic','Comprehensive']},
+    {cat:'WHY',  q:'Revenue model?',             vals:['Free','Pay-per-use','Subscription']},
+    {cat:'HOW',  q:'Delivery topology?',         vals:['Unicast','Multicast','Anycast']},
+    {cat:'HOW',  q:'Data flow direction?',       vals:['Outbound','Relay / Proxy','Inbound']},
+    {cat:'HOW',  q:'Update mechanism?',          vals:['Pull / Poll','Subscribe','Push']},
+    {cat:'HOW',  q:'Session persistence?',       vals:['Stateless','Short session','Long-lived']},
+    {cat:'PEACE',q:'Encryption posture?',        vals:['Weak / None','Basic TLS','Hardened TLS']},
+    {cat:'PEACE',q:'Tracker density?',           vals:['Heavy','Moderate','Clean']},
+    {cat:'PEACE',q:'Security audit status?',     vals:['None','Self-assessed','Third-party']},
+  ];
+
+  const dimensions = SCHEMA.map((s,i) => ({
+    number:i+1, category:s.cat, question:s.q,
+    value:trits[i], label:s.vals[trits[i]-1], confidence:confs[i],
+  }));
+
+  const hptp_mandatory = trits[14]===3 && trits[15]===3;
+
+  // Security score: PEACE trits 25-27 (max 9)
+  const securityScore = Math.round(((trits[24]+trits[25]+trits[26])/9)*100);
+  // Privacy score: inverse of tracker + policy presence
+  const privacyScore  = Math.round(((trits[25]+trits[18])/6)*100);
+
+  return { address, hptp_mandatory, scan_hash, dimensions, meta, securityScore, privacyScore,
+           scannedAt: new Date().toISOString() };
+}
+
+// ── Omnibox ───────────────────────────────────────────────────────────────────
+chrome.omnibox.onInputStarted.addListener(() =>
+  chrome.omnibox.setDefaultSuggestion({ description:'Resolve a .plm name — type the name' }));
+
+chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
+  const plmName = text.trim().endsWith('.plm') ? text.trim() : text.trim()+'.plm';
+  try {
+    const r = await fetch(`${PLENUMNET}/api/tdns/resolve/${plmName}`);
+    if (r.ok) {
+      const d = await r.json();
+      suggest([{ content:plmName, description:`✓ ${plmName} → ${d.address||'resolved'}` }]);
+    } else suggest([{ content:plmName, description:`⊘ ${plmName} — not yet registered` }]);
+  } catch(_) { suggest([{ content:plmName, description:`⚠ ${plmName} — offline` }]); }
+});
+
+chrome.omnibox.onInputEntered.addListener((text, disposition) => {
+  const plmName = text.trim().endsWith('.plm') ? text.trim() : text.trim()+'.plm';
+  const url = chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(plmName)}`);
+  if (disposition==='currentTab') chrome.tabs.update({ url }); else chrome.tabs.create({ url, active:disposition==='newForegroundTab' });
+});
+
+// ── .plm navigation interception ─────────────────────────────────────────────
+function interceptPlm(details) {
+  if (details.frameId !== 0) return;
+  try {
+    const u = new URL(details.url);
+    if (u.hostname.endsWith('.plm'))
+      chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL(`resolve.html?name=${encodeURIComponent(u.hostname)}`) });
+  } catch(_) {}
+}
+chrome.webNavigation.onErrorOccurred.addListener(interceptPlm);
+chrome.webNavigation.onBeforeNavigate.addListener(interceptPlm);
+
+// ── Message handler ───────────────────────────────────────────────────────────
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+
+  if (msg.type === 'resolve') {
+    fetch(`${PLENUMNET}/api/tdns/resolve/${msg.name}`)
+      .then(r=>r.json()).then(data=>sendResponse({ok:true,data}))
+      .catch(err=>sendResponse({ok:false,error:err.message}));
+    return true;
+  }
+
+  if (msg.type === 'scan') {
+    deriveAddress(msg.url)
+      .then(data => {
+        // Store result for report page to read
+        const key = 'scan_' + new URL(msg.url).hostname.replace(/\./g,'_');
+        chrome.storage.session.set({ [key]: data });
+        sendResponse({ ok:true, data });
+      })
+      .catch(err => sendResponse({ ok:false, error:err.message }));
+    return true;
+  }
+
+  if (msg.type === 'register') {
+    // 1. Derive address locally, 2. POST to PlenumNET to create .plm entry
+    deriveAddress(msg.url)
+      .then(async scanData => {
+        const key = 'scan_' + new URL(msg.url).hostname.replace(/\./g,'_');
+        await chrome.storage.session.set({ [key]: scanData });
+        // POST to registry
+        const regResp = await fetch(`${PLENUMNET}/api/tdns/register`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            name:            msg.name || new URL(msg.url).hostname.replace(/\./g,'-') + '.plm',
+            zone:            'public',
+            public_key_hex:  '00',   // placeholder until TL-DSA key gen added
+            url:             msg.url,
+            hptp_offset_ns:  null,
+          })
+        });
+        const regData = regResp.ok ? await regResp.json() : null;
+        sendResponse({ ok:true, scan:scanData, registration:regData });
+      })
+      .catch(err => sendResponse({ ok:false, error:err.message }));
+    return true;
+  }
+
+  if (msg.type === 'get_scan') {
+    const key = 'scan_' + msg.hostname.replace(/\./g,'_');
+    chrome.storage.session.get(key, items => sendResponse({ ok:true, data:items[key]||null }));
+    return true;
+  }
+
+  if (msg.type === 'health') {
+    fetch(`${PLENUMNET}/api/health`)
+      .then(r=>r.json()).then(data=>sendResponse({ok:true,data}))
+      .catch(()=>sendResponse({ok:false}));
+    return true;
+  }
+
+  if (msg.type === 'update_check') {
+    const RAW = 'https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium/manifest.json';
+    const current = chrome.runtime.getManifest().version;
+    fetch(RAW, {cache:'no-store'})
+      .then(r=>r.json())
+      .then(remote=>sendResponse({update_available:remote.version!==current,latest:remote.version,current}))
+      .catch(()=>sendResponse({update_available:false}));
+    return true;
+  }
+});
+
+// ── Periodic update alarm ─────────────────────────────────────────────────────
+chrome.runtime.onInstalled.addListener(() =>
+  chrome.alarms.create('plenumnet_update', {periodInMinutes:360}));
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name!=='plenumnet_update') return;
+  const RAW = 'https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/services/tdns-v2/extension-chromium/manifest.json';
+  fetch(RAW,{cache:'no-store'}).then(r=>r.json())
+    .then(d=>chrome.storage.local.set({update_available:d.version!==chrome.runtime.getManifest().version,latest:d.version}))
+    .catch(()=>{});
+});
+
+console.log('PlenumNET TDNS — background loaded');

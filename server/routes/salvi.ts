@@ -6,6 +6,7 @@
 
 import type { Express } from "express";
 import { z } from "zod";
+import { spongeHash, TL_SPONGE_HASH_BYTES, TL_SPONGE_HASH_TRITS, TL_SPONGE_SECURITY_BITS, TL_SPONGE_OID, TL_SPONGE_ALGORITHM_NAME } from '../crypto/sponge-hash';
 import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
@@ -43,6 +44,7 @@ import {
   phaseRecombine,
   getPhaseConfig,
   getRecommendedMode,
+  runPhaseBenchmark,
   type EncryptionMode
 } from "../salvi-core/phase-encryption";
 import {
@@ -510,6 +512,24 @@ export function registerSalviRoutes(app: Express): void {
       });
     } catch (error: unknown) {
       res.status(500).json({ error: "Density benchmark failed" });
+    }
+  });
+
+  app.get("/api/salvi/crypto/phase-benchmark", computationLimiter, (req, res) => {
+    try {
+      const iterParam = parseInt(req.query.iterations as string) || 50;
+      const iterations = Math.min(Math.max(iterParam, 10), 200);
+
+      const suite = runPhaseBenchmark(iterations);
+
+      res.json({
+        success: true,
+        benchmark: "Phase Encryption v2 — LUT-based GF(3) Stream Cipher",
+        ...suite,
+      });
+    } catch (error: unknown) {
+      log.error("Phase benchmark failed:", toErrorMessage(error));
+      res.status(500).json({ error: "Phase encryption benchmark failed" });
     }
   });
 
@@ -985,6 +1005,58 @@ export function registerSalviRoutes(app: Express): void {
   // =====================================================
   // SALVI CORE API - Phase Encryption
   // =====================================================
+
+  app.post("/api/salvi/crypto/hash", computationLimiter, (req, res) => {
+    try {
+
+      let inputBuffer: Buffer;
+
+      if (Buffer.isBuffer(req.body)) {
+        inputBuffer = req.body;
+      } else if (req.body?.data) {
+        inputBuffer = Buffer.from(req.body.data, 'base64');
+      } else if (typeof req.body === 'string') {
+        inputBuffer = Buffer.from(req.body, 'utf8');
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: "Provide file bytes (raw body), JSON { data: 'base64-encoded' }, or a text string",
+          endpoints: {
+            hash: "POST /api/salvi/crypto/hash",
+            phaseBenchmark: "GET /api/salvi/crypto/phase-benchmark",
+            timestamp: "POST /api/tsa/timestamp/json — pass the returned hash + algorithm: 'tl-sponge'",
+          },
+        });
+      }
+
+      if (inputBuffer.length > 10 * 1024 * 1024) {
+        return res.status(413).json({
+          success: false,
+          error: "Input too large (max 10 MB)",
+        });
+      }
+
+      const hash = spongeHash(inputBuffer);
+
+      res.json({
+        success: true,
+        algorithm: TL_SPONGE_ALGORITHM_NAME,
+        oid: TL_SPONGE_OID,
+        hash,
+        bytes: TL_SPONGE_HASH_BYTES,
+        trits: TL_SPONGE_HASH_TRITS,
+        security: `${TL_SPONGE_SECURITY_BITS}-bit post-quantum`,
+        inputSize: inputBuffer.length,
+        construction: "TL-Sponge-385 (729-trit state, 243-trit rate, 9 rounds, 7-neighbor theta)",
+        usage: {
+          timestamp: "POST /api/tsa/timestamp/json with { hash: '<this hash>', algorithm: 'tl-sponge' }",
+          verify: "POST /api/tsa/verify with the returned token",
+        },
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: toErrorMessage(error) });
+    }
+  });
 
   // Get phase configuration
   app.get("/api/salvi/phase/config/:mode", computationLimiter, (req, res) => {

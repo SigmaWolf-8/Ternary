@@ -356,7 +356,7 @@ fn bench_sponge_vs_sha256(c: &mut Criterion) {
         let byte_input: Vec<u8> = (0..input_len).map(|i| (i % 256) as u8).collect();
 
         group.bench_with_input(
-            BenchmarkId::new("ternary_sponge", input_len),
+            BenchmarkId::new("tl_sponge", input_len),
             &input_len,
             |b, _| {
                 b.iter(|| {
@@ -540,11 +540,11 @@ fn bench_information_density(c: &mut Criterion) {
         });
     });
 
-    let rep_a: Vec<i8> = (0..PACKED_TRITS).map(|i| (i % 3) as i8 - 1).collect();
+    let rep_a_val: i8 = 1;
     group.bench_function("repr_a_to_b", |b| {
         b.iter(|| {
             for _ in 0..n {
-                let result = convert_representation(&rep_a, Representation::A, Representation::B);
+                let result = convert_representation(rep_a_val, Representation::A, Representation::B);
                 black_box(result);
             }
         });
@@ -553,17 +553,17 @@ fn bench_information_density(c: &mut Criterion) {
     group.bench_function("repr_a_to_c", |b| {
         b.iter(|| {
             for _ in 0..n {
-                let result = convert_representation(&rep_a, Representation::A, Representation::C);
+                let result = convert_representation(rep_a_val, Representation::A, Representation::C);
                 black_box(result);
             }
         });
     });
 
-    let rep_b = convert_representation(&rep_a, Representation::A, Representation::B);
+    let rep_b_val = convert_representation(rep_a_val, Representation::A, Representation::B);
     group.bench_function("repr_b_to_a", |b| {
         b.iter(|| {
             for _ in 0..n {
-                let result = convert_representation(&rep_b, Representation::B, Representation::A);
+                let result = convert_representation(rep_b_val, Representation::B, Representation::A);
                 black_box(result);
             }
         });
@@ -580,7 +580,7 @@ fn bench_polynomial_storage(c: &mut Criterion) {
 
     group.bench_function("gf3_poly_create_n256", |b| {
         b.iter(|| {
-            black_box(TernaryPolynomial::new(coeffs_gf3.clone(), POLY_DEGREE).unwrap())
+            black_box(TernaryPolynomial::new(POLY_DEGREE))
         });
     });
 

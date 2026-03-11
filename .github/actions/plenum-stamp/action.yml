@@ -75,7 +75,9 @@ runs:
         fi
 
         STAMPED=()
+        FAILED=0
         COUNT=0
+        TOTAL=0
 
         for FILE in $STAMP_FILES; do
           if [ ! -f "$FILE" ]; then
@@ -83,6 +85,7 @@ runs:
             continue
           fi
 
+          TOTAL=$((TOTAL + 1))
           echo "::group::Stamping $FILE"
 
           ARGS="sign $FILE --format json"
@@ -93,14 +96,13 @@ runs:
             ARGS="$ARGS --policy $STAMP_POLICY"
           fi
 
-          node "$CLI_PATH" $ARGS
-
-          if [ $? -eq 0 ]; then
+          if node "$CLI_PATH" $ARGS; then
             STAMPED+=("${FILE}.tsp")
             COUNT=$((COUNT + 1))
             echo "Stamped: ${FILE}.tsp"
           else
             echo "::error::Failed to stamp $FILE"
+            FAILED=$((FAILED + 1))
           fi
 
           echo "::endgroup::"
@@ -111,7 +113,16 @@ runs:
         echo "stamp_count=$COUNT" >> "$GITHUB_OUTPUT"
 
         echo ""
-        echo "Stamped $COUNT file(s)"
+        echo "Stamped $COUNT/$TOTAL file(s)"
+
+        if [ "$FAILED" -gt 0 ]; then
+          echo "::error::$FAILED file(s) failed to stamp"
+          exit 1
+        fi
+        if [ "$TOTAL" -eq 0 ]; then
+          echo "::error::No files matched the glob pattern"
+          exit 1
+        fi
 
     - name: Upload timestamp artifacts
       if: inputs.upload-artifacts == 'true' && steps.stamp.outputs.stamp_count != '0'

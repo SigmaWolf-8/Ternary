@@ -1,0 +1,1090 @@
+Complete API Reference
+240 endpoints across 19 services. Hover any endpoint to copy its path or try GET endpoints live.
+
+Search endpoints...
+All (240)
+Timing API (5)
+Calendar / Epoch API (44)
+Ternary Operations (10)
+Phase Encryption (6)
+Capability-Based Security (29)
+Security Infrastructure (38)
+API Key Management (16)
+Tribonacci / Agent Array (15)
+Compression (14)
+Virtual Machine (3)
+Kong Konnect Gateway (17)
+GitHub Integration (10)
+Tonal Diffusion / Resonance (6)
+Ternary Ephemeris (4)
+Whitepapers & Docs (4)
+V1 Entrainment API (5)
+GDPR / Privacy (4)
+System / Health (8)
+Admin (2)
+GET
+/api/salvi/timing/epoch/anchors
+All epoch anchor points
+
+
+GET
+/api/salvi/timing/epoch/calendars
+All 42 calendar conversions
+
+
+GET
+/api/salvi/timing/epoch/calendars/gregorian
+Gregorian (civil standard)
+
+
+GET
+/api/salvi/timing/epoch/calendars/hebrew
+Hebrew Anno Mundi (3761 BCE)
+
+
+GET
+/api/salvi/timing/epoch/calendars/islamic
+Islamic Hijri (lunar)
+
+
+GET
+/api/salvi/timing/epoch/calendars/chinese
+Chinese Sexagenary (60-year)
+
+
+GET
+/api/salvi/timing/epoch/calendars/mayan
+Mayan Long Count (3114 BCE)
+
+
+GET
+/api/salvi/timing/epoch/calendars/egyptian
+Egyptian Civil (Sothic cycle)
+
+
+GET
+/api/salvi/timing/epoch/calendars/byzantine
+Byzantine (5509 BCE)
+
+
+GET
+/api/salvi/timing/epoch/calendars/julian-day
+Julian Day Number (4713 BCE)
+
+
+GET
+/api/salvi/timing/epoch/calendars/vedic
+Vedic Kali Yuga (3102 BCE)
+
+
+GET
+/api/salvi/timing/epoch/calendars/thirteen-moon
+13-Moon Harmonic (~30,000 yr)
+
+
+GET
+/api/salvi/timing/epoch/calendars/buddhist
+Thai Buddhist Era (543 BCE)
+
+GET
+/api/salvi/timing/epoch/calendars/ethiopian
+Ethiopian / Ge'ez (13 mo)
+
+GET
+/api/salvi/timing/epoch/calendars/coptic
+Coptic Era of Martyrs
+
+GET
+/api/salvi/timing/epoch/calendars/japanese
+Japanese Imperial Koki
+
+GET
+/api/salvi/timing/epoch/calendars/korean
+Korean Dangun Era (2333 BCE)
+
+GET
+/api/salvi/timing/epoch/calendars/vietnamese
+Vietnamese (lunisolar)
+
+GET
+/api/salvi/timing/epoch/calendars/tamil
+Tamil (sidereal Sankranti)
+
+GET
+/api/salvi/timing/epoch/calendars/bengali
+Bengali / Bangla
+
+GET
+/api/salvi/timing/epoch/calendars/indian-saka
+Indian National / Saka
+
+GET
+/api/salvi/timing/epoch/calendars/vikram-samvat
+Vikram Samvat (57 BCE)
+
+GET
+/api/salvi/timing/epoch/calendars/solar-hijri
+Persian / Solar Hijri
+
+GET
+/api/salvi/timing/epoch/calendars/jain
+Jain Vira Nirvana Samvat
+
+GET
+/api/salvi/timing/epoch/calendars/zoroastrian
+Zoroastrian Fasli
+
+GET
+/api/salvi/timing/epoch/calendars/roman-auc
+Roman Ab Urbe Condita
+
+GET
+/api/salvi/timing/epoch/calendars/amazigh
+Amazigh / Berber (Yennayer)
+
+GET
+/api/salvi/timing/epoch/calendars/igbo
+Igbo (4-day week + 13 months)
+
+GET
+/api/salvi/timing/epoch/calendars/yoruba
+Yoruba (4-day Ojo week)
+
+GET
+/api/salvi/timing/epoch/calendars/akan
+Akan (42-day Adae cycle)
+
+GET
+/api/salvi/timing/epoch/calendars/khmer
+Khmer (lunisolar)
+
+GET
+/api/salvi/timing/epoch/calendars/burmese
+Burmese (638 CE)
+
+GET
+/api/salvi/timing/epoch/calendars/javanese
+Javanese (5+7 dual cycle)
+
+GET
+/api/salvi/timing/epoch/calendars/malayalam
+Malayalam / Kollam (825 CE)
+
+GET
+/api/salvi/timing/epoch/calendars/nepal-sambat
+Nepal Sambat (879 CE)
+
+GET
+/api/salvi/timing/epoch/calendars/balinese
+Balinese Pawukon (210-day)
+
+GET
+/api/salvi/timing/epoch/calendars/tibetan
+Tibetan Rabjung (60-year)
+
+GET
+/api/salvi/timing/epoch/calendars/nanakshahi
+Nanakshahi / Sikh (1469 CE)
+
+GET
+/api/salvi/timing/epoch/calendars/bahai
+Baha'i Badi' (19x19)
+
+GET
+/api/salvi/timing/epoch/calendars/minguo
+Minguo / ROC (1912 CE)
+
+GET
+/api/salvi/timing/epoch/calendars/aboriginal
+Aboriginal Seasonal (~65,000 yr)
+
+GET
+/api/salvi/timing/epoch/calendars/assyrian
+Assyrian (4750 BCE)
+
+GET
+/api/salvi/timing/epoch/calendars/aztec
+Aztec Tonalpohualli (260-day)
+
+GET
+/api/salvi/timing/epoch/calendars/nisgaa
+Nisga'a Seasonal (oral)
+
+POST
+/api/salvi/ternary/add
+GF(3) addition
+
+POST
+/api/salvi/ternary/multiply
+GF(3) multiplication
+
+POST
+/api/salvi/ternary/not
+Ternary negation
+
+POST
+/api/salvi/ternary/xor
+Ternary XOR (field addition)
+
+POST
+/api/salvi/ternary/rotate
+Ternary rotation
+
+POST
+/api/salvi/ternary/convert
+Convert between representations A/B/C
+
+POST
+/api/salvi/ternary/batch
+Batch ternary operations
+
+POST
+/api/salvi/ternary/noether-verify
+Noether symmetry verification
+
+GET
+/api/salvi/ternary/density/:tritCount
+Information density for N trits
+
+GET
+/api/salvi/ternary/density-benchmark
+Density benchmark suite
+
+
+POST
+/api/salvi/phase/split
+Split data into phase components
+
+POST
+/api/salvi/phase/recombine
+Recombine phase components
+
+POST
+/api/salvi/phase/batch/split
+Batch phase split
+
+POST
+/api/salvi/phase/batch/recombine
+Batch phase recombine
+
+GET
+/api/salvi/phase/config/:mode
+Encryption mode configuration
+
+GET
+/api/salvi/phase/recommend
+Recommended mode for use case
+
+
+GET
+/api/capabilities/status
+Capability system status and phase info
+
+
+GET
+/api/capabilities/audit
+Merkle-chained audit event log
+
+
+GET
+/api/capabilities/demo/expiration
+Demo: HPTP-bound token expiration
+
+
+GET
+/api/capabilities/demo/delegation
+Demo: HMAC-chained delegation (macaroon-style)
+
+
+GET
+/api/capabilities/demo/confinement
+Demo: Hardware-bound confinement problem
+
+
+GET
+/api/capabilities/demo/certificates
+Demo: RFC 3161 capability certificates
+
+
+GET
+/api/capabilities/demo/mesh
+Demo: Inter-service capability mesh
+
+
+GET
+/api/capabilities/certificate/stats
+Certificate issuance statistics
+
+
+GET
+/api/capabilities/certificate/:certId/verify-data
+Verify certificate data integrity
+
+GET
+/api/capabilities/certificate/:certId/rfc3161
+RFC 3161 timestamp for certificate
+
+GET
+/api/capabilities/mesh/topology
+Service mesh topology graph
+
+
+GET
+/api/capabilities/mesh/discover
+Service discovery by resource pattern
+
+
+GET
+/api/capabilities/mesh/health
+Mesh health monitoring
+
+
+POST
+/api/capabilities/issue
+Issue capability token
+
+POST
+/api/capabilities/validate
+Validate capability token
+
+POST
+/api/capabilities/verify-chain
+Verify delegation chain
+
+POST
+/api/capabilities/delegate
+Delegate capability with attenuation
+
+POST
+/api/capabilities/delegate/chain
+Multi-hop delegation chain
+
+POST
+/api/capabilities/hardware/register
+Register hardware device
+
+POST
+/api/capabilities/hardware/challenge
+Hardware challenge-response auth
+
+POST
+/api/capabilities/hardware/verify
+Verify hardware binding
+
+POST
+/api/capabilities/hardware/issue
+Issue hardware-bound capability
+
+POST
+/api/capabilities/certificate/issue
+Issue RFC 3161 capability certificate
+
+POST
+/api/capabilities/certificate/verify
+Verify certificate chain
+
+POST
+/api/capabilities/certificate/evidence-chain
+Assemble evidence chain
+
+POST
+/api/capabilities/mesh/register
+Register service in mesh
+
+POST
+/api/capabilities/mesh/issue
+Issue service-to-service capability
+
+POST
+/api/capabilities/mesh/propagate
+Propagate capability with hop attenuation
+
+POST
+/api/capabilities/mesh/validate
+Validate mesh capability
+
+GET
+/api/security/dashboard
+Security dashboard overview
+
+
+GET
+/api/security/kri
+Key Risk Indicators
+
+
+GET
+/api/security/metadata/categories
+Security categories metadata
+
+
+GET
+/api/security/metadata/types
+Security types metadata
+
+
+GET
+/api/security/audit
+Security audit entries
+
+
+GET
+/api/security/audit/stats
+Audit statistics
+
+
+GET
+/api/security/audit/summary
+Audit summary
+
+
+GET
+/api/security/audit/unresolved
+Unresolved audit findings
+
+
+GET
+/api/security/audit/:id
+Audit entry by ID
+
+PATCH
+/api/security/audit/:id/resolve
+admin
+Resolve audit finding
+
+POST
+/api/security/audit
+admin
+Create audit entry
+
+GET
+/api/security/threats
+Threat model registry
+
+
+GET
+/api/security/threats/stats
+Threat statistics
+
+
+GET
+/api/security/threats/risk-matrix
+Risk matrix visualization
+
+
+GET
+/api/security/threats/meta
+Threat metadata
+
+
+GET
+/api/security/threats/:id
+Threat by ID
+
+POST
+/api/security/threats
+admin
+Register threat
+
+POST
+/api/security/threats/seed
+admin
+Seed threat database
+
+DELETE
+/api/security/threats/:id
+admin
+Delete threat
+
+GET
+/api/security/implementation
+Implementation status tracker
+
+
+GET
+/api/security/implementation/summary
+Implementation summary
+
+
+GET
+/api/security/implementation/metrics
+Implementation metrics
+
+
+GET
+/api/security/implementation/milestones
+Implementation milestones
+
+
+GET
+/api/security/implementation/meta
+Implementation metadata
+
+
+GET
+/api/security/implementation/:id
+Implementation item by ID
+
+POST
+/api/security/implementation
+admin
+Create implementation item
+
+POST
+/api/security/implementation/seed
+admin
+Seed implementation data
+
+DELETE
+/api/security/implementation/:id
+admin
+Delete implementation item
+
+PATCH
+/api/security/implementation/:id
+admin
+Update implementation item
+
+GET
+/api/security/hptp/status
+HPTP timing security status
+
+
+GET
+/api/security/hptp/stats
+HPTP anomaly statistics
+
+
+GET
+/api/security/hptp/anomalies
+Detected timing anomalies
+
+
+GET
+/api/security/hptp/thresholds
+Anomaly detection thresholds
+
+
+GET
+/api/security/hptp/redundancy
+Clock redundancy status
+
+
+GET
+/api/security/hptp/fallback-modes
+Timing fallback modes
+
+
+GET
+/api/security/hptp/fallback-analysis
+Fallback mode analysis
+
+
+POST
+/api/security/hptp/anomalies
+admin
+Report timing anomaly
+
+PATCH
+/api/security/threats/:id
+admin
+Update threat
+
+GET
+/api/keys
+List all API keys
+
+
+GET
+/api/keys/stats
+API key statistics
+
+
+GET
+/api/keys/scopes
+Available key scopes
+
+
+GET
+/api/keys/rate-limit-tiers
+Rate limit tier definitions
+
+
+GET
+/api/keys/entity-types
+WBS entity type definitions
+
+
+GET
+/api/keys/expiring
+Keys approaching expiration
+
+
+GET
+/api/keys/anomalies
+Anomaly detection alerts
+
+
+GET
+/api/keys/audit
+Key audit trail
+
+
+GET
+/api/keys/validate-external
+Validate external API key
+
+GET
+/api/keys/:id/audit
+Audit trail for specific key
+
+GET
+/api/keys/:id/logs
+Usage logs for specific key
+
+POST
+/api/keys/generate
+Generate new API key
+
+POST
+/api/keys/rotate/:id
+Rotate API key
+
+POST
+/api/keys/revoke/:id
+Revoke API key
+
+PATCH
+/api/keys/:id/metadata
+Update key metadata
+
+PATCH
+/api/keys/:id/rate-limit
+Update key rate limit
+
+GET
+/api/tribonacci/agent-array/positions
+28 agent positions in cube space
+
+
+GET
+/api/tribonacci/agent-array/reports
+All situation reports
+
+
+GET
+/api/tribonacci/agent-array/reports/:id
+Situation report by ID
+
+GET
+/api/tribonacci/agent-array/stream/:sessionId
+Stream agent analysis progress
+
+GET
+/api/tribonacci/coverage
+Tribonacci coverage analysis
+
+
+GET
+/api/tribonacci/hash
+Tribonacci hash computation
+
+
+GET
+/api/tribonacci/hash-distribution
+Hash distribution analysis
+
+
+GET
+/api/tribonacci/hook
+Tribonacci hook endpoint
+
+
+GET
+/api/tribonacci/next-worker
+Next worker assignment
+
+
+GET
+/api/tribonacci/permutation
+Tribonacci permutation
+
+
+GET
+/api/tribonacci/sequence
+Tribonacci sequence generation
+
+
+GET
+/api/tribonacci/skip-lookup
+Skip-ahead lookup table
+
+
+POST
+/api/tribonacci/agent-array
+Execute parallel agent query
+
+POST
+/api/tribonacci/agent-array/save
+Save agent report
+
+POST
+/api/tribonacci/generate-id
+Generate tribonacci ID
+
+POST
+/api/demo/run
+Run compression on dataset
+
+POST
+/api/demo/upload
+Upload custom data for compression
+
+GET
+/api/demo/stats
+Aggregated compression statistics
+
+
+GET
+/api/demo/session/:sessionId
+Session details
+
+GET
+/api/demo/data/:sessionId
+Session data export
+
+GET
+/api/demo/history
+Compression run history
+
+
+GET
+/api/demo/files
+Available demo files
+
+
+POST
+/api/compression/file
+Compress/decompress file
+
+POST
+/api/compression/decompress
+Decompress data
+
+POST
+/api/compression/db/store
+Store compressed data
+
+GET
+/api/compression/db/retrieve/:id
+Retrieve compressed document
+
+GET
+/api/compression/db/documents
+List compressed documents
+
+
+GET
+/api/compression/db/raw/:id
+Raw stored data
+
+DELETE
+/api/compression/db/documents/:id
+Delete compressed document
+
+GET
+/api/salvi/vm/spec
+TVM 176-opcode ISA v2.1 specification
+
+
+GET
+/api/salvi/vm/conformance
+TVM conformance test suite
+
+
+GET
+/api/salvi/docs
+Documentation index
+
+
+GET
+/api/kong/status
+Gateway connection status
+
+
+GET
+/api/kong/organization
+Organization details
+
+
+GET
+/api/kong/config
+Gateway configuration
+
+
+GET
+/api/kong/service-catalog
+Service catalog
+
+
+GET
+/api/kong/control-planes
+List control planes
+
+
+GET
+/api/kong/control-planes/:cpId/services
+Services in control plane
+
+GET
+/api/kong/control-planes/:cpId/routes
+Routes in control plane
+
+GET
+/api/kong/control-planes/:cpId/plugins
+Plugins in control plane
+
+GET
+/api/kong/control-planes/:cpId/deploy-instructions
+Deployment instructions
+
+POST
+/api/kong/control-planes/:cpId/services
+admin
+Create service
+
+POST
+/api/kong/control-planes/:cpId/services/:serviceId/routes
+admin
+Create route
+
+POST
+/api/kong/control-planes/:cpId/services/:serviceId/plugins
+admin
+Add plugin
+
+POST
+/api/kong/control-planes/:cpId/sync-plenumnet
+admin
+Sync PlenumNET config
+
+POST
+/api/kong/control-planes/:cpId/generate-deployment
+admin
+Generate deployment
+
+POST
+/api/kong/control-planes/:cpId/deploy-to-cloud
+admin
+Deploy to cloud
+
+POST
+/api/kong/save-to-github
+admin
+Save config to GitHub
+
+POST
+/api/kong/sync-all-control-planes
+admin
+Sync all control planes
+
+GET
+/api/github/status
+GitHub connection status
+
+
+GET
+/api/github/repos/:owner/:repo/branches
+admin
+Repository branches
+
+GET
+/api/github/repos/:owner/:repo/contents
+admin
+Repository contents
+
+GET
+/api/github/file/:owner/:repo
+admin
+Read file from repo
+
+PUT
+/api/github/file/:owner/:repo
+admin
+Write file to repo
+
+DELETE
+/api/github/file/:owner/:repo
+admin
+Delete file from repo
+
+POST
+/api/github/token
+admin
+Configure GitHub token
+
+POST
+/api/github/push-workflows/:owner/:repo
+admin
+Push workflow files
+
+POST
+/api/github/push-batch/:owner/:repo
+admin
+Batch push files
+
+POST
+/api/github/push-env/:owner/:repo
+admin
+Push environment config
+
+GET
+/api/tonal/field
+Current tonal field data
+
+
+GET
+/api/tonal/neighbors
+Tonal neighbor information
+
+
+POST
+/api/tonal/packet
+Send FM timing packet
+
+GET
+/api/resonance/status
+Resonance detector status
+
+
+POST
+/api/resonance/sweep
+Run resonance sweep
+
+POST
+/api/resonance/rtt
+Round-trip time measurement
+
+GET
+/api/ephemeris/info
+Ephemeris API metadata
+
+
+POST
+/api/ephemeris/convert
+Standard to ternary degree conversion
+
+POST
+/api/ephemeris/position
+Single planet ephemeris calculation
+
+POST
+/api/ephemeris/batch
+Batch planetary ephemeris
+
+GET
+/api/whitepapers
+List all whitepapers
+
+
+GET
+/api/whitepapers/active
+Active whitepapers only
+
+
+GET
+/api/whitepapers/:id
+Whitepaper by ID
+
+POST
+/api/whitepapers
+admin
+Create whitepaper
+
+GET
+/api/v1/status
+V1 API status
+
+
+GET
+/api/v1/ternary/state
+Ternary system state
+
+
+GET
+/api/v1/safety/limits
+Safety limits configuration
+
+
+POST
+/api/v1/entrain/advise
+Request entrainment advisory
+
+POST
+/api/v1/logs/coherence
+Log coherence data
+
+GET
+/api/gdpr/policy
+Privacy policy details
+
+
+GET
+/api/gdpr/data-export
+Export user data
+
+GET
+/api/gdpr/requests
+GDPR request status
+
+DELETE
+/api/gdpr/delete-account
+Request account deletion
+
+GET
+/api/health
+System health check
+
+
+GET
+/api/metrics/plenum
+Platform metrics
+
+
+GET
+/api/pqti-status
+Post-quantum transition readiness
+
+
+GET
+/api/verify
+Verification endpoint
+
+
+GET
+/api/user/admin-status
+Check admin status
+
+
+GET
+/api/legal/:type
+Legal documents (terms, privacy, security, aup)
+
+POST
+/api/developer-signup
+Developer waitlist signup
+
+GET
+/api/developer-signup/count
+Waitlist count
+
+
+GET
+/api/admin/developer-signups
+admin
+All developer signups
+
+DELETE
+/api/admin/developer-signups/:id
+admin
+Remove signup

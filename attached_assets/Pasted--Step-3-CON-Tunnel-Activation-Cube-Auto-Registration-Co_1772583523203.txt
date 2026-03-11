@@ -1,0 +1,55 @@
+# Step 3: CON Tunnel Activation — Cube Auto-Registration
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Applied Physics Division
+#
+# FILES TO UPDATE IN REPO:
+#
+# inter-cube-Cargo.toml  → services/inter-cube/Cargo.toml
+# main.rs                → services/inter-cube/src/main.rs
+#
+# NO CHANGES NEEDED TO:
+#   docker-compose.yml, Dockerfile, .dockerignore, workspace Cargo.toml
+#
+# WHAT CHANGED:
+#
+# 1. Cargo.toml — Added reqwest 0.12 with rustls-tls for HTTP client
+#    Cubes need an HTTP client to register with the CRS on boot.
+#    Uses rustls (pure Rust) to avoid OpenSSL dev header issues.
+#
+# 2. main.rs — Dual-mode daemon (447 → 709 lines):
+#
+#    CRS MODE (CUBE_MODE=crs):
+#    - Same as before: allocates self, serves full 11-route API
+#    - NEW: Logs each cube registration with address and endpoint
+#
+#    CUBE MODE (CUBE_MODE=cube):
+#    - On boot, derives unique BLAKE3 public key from endpoint
+#    - POSTs to CRS /register endpoint (retries up to 10x)
+#    - Gets unique address assigned by CRS
+#    - Resolves registered neighbors from CRS response
+#    - Initializes local CON → FTS → GLB pipeline
+#    - Spawns background heartbeat task (every 30s to CRS)
+#    - Runs local HTTP server with 8 status routes
+#
+# EXPECTED DOCKER OUTPUT:
+#
+#   crs-1    | [CRS] Registered with address: 1111111111111
+#   crs-1    | === HTTP Server (CRS) ===
+#   crs-1    | Container Healthy
+#   cube-1-1 | [CUBE] Registration attempt 1/10 -> http://crs:8080/...
+#   cube-1-1 | [CUBE] Registered! Address: 2111111111111
+#   cube-2-1 | [CUBE] Registered! Address: 3111111111111
+#   cube-3-1 | [CUBE] Registered! Address: 1211111111111
+#   crs-1    | [CRS] New cube registered: 2111111111111 at cube-1:51820
+#   crs-1    | [CRS] New cube registered: 3111111111111 at cube-2:51820
+#   crs-1    | [CRS] New cube registered: 1211111111111 at cube-3:51820
+#
+# VERIFY:
+#
+#   curl.exe http://localhost:8080/api/salvi/inter-cube/crs/stats
+#   → registeredCount: 4  (CRS + 3 cubes)
+#
+# REBUILD REQUIRED: Yes (new dependency reqwest, new main.rs)
+#
+#   docker compose build --no-cache
+#   docker compose up

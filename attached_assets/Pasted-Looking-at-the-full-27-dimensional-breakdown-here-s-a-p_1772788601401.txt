@@ -1,0 +1,146 @@
+Looking at the full 27-dimensional breakdown, here's a precise remediation plan grouped by effort and impact.
+
+---
+
+## PlenumNET TDNS Score Remediation Plan
+
+### Current State
+| Metric | Score | Grade |
+|---|---|---|
+| Trust Index | 51 | FAIR |
+| PFI | 62 | GOOD |
+| Privacy | 60 | GOOD |
+| Maturity | 50 | FAIR |
+| Complexity | 42 | FAIR |
+
+---
+
+### 🔴 Priority 1 — Quick Wins (Same Session)
+
+**1. Fix the Long-Lived Session Cookie (D24 → Security Finding)**
+
+In your Express/server config, set cookie `maxAge` to ≤30 days:
+```js
+// server/index.ts or wherever sessions are configured
+cookie: {
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days exactly
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict'
+}
+```
+This clears the only active Security Finding and improves D24 from `Long-lived` (T3) to `Session` (T1).
+
+---
+
+**2. Add Missing Security Headers (D25, D13 — 6 missing headers)**
+
+In Replit, add a `_headers` file at the project root (Replit serves this statically) **or** inject them via your Express middleware:
+
+```js
+// server/middleware/securityHeaders.ts
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.setHeader('NEL', JSON.stringify({
+    report_to: "default",
+    max_age: 86400,
+    include_subdomains: true
+  }));
+  res.setHeader('Report-To', JSON.stringify({
+    group: "default",
+    max_age: 86400,
+    endpoints: [{ url: "/api/csp-reports" }]
+  }));
+  next();
+});
+```
+
+This directly lifts D25 (Encryption posture already Hardened TLS — these complete the suite) and D13 signals.
+
+---
+
+### 🟡 Priority 2 — Legal & Identity Pages (D3, D19 — Major Trust Index drivers)
+
+**3. Add Legal Pages (D19: None → Present)**
+
+D19 is currently `None` — no privacy policy or terms detected. This is a direct hit on Trust Index. Add these routes:
+
+- `/privacy` — Privacy Policy page
+- `/terms` — Terms of Service page
+- `/legal` — Legal hub (links both)
+
+These pages must be crawlable (server-rendered or linked from `<footer>`). The TDNS scanner reads the initial HTTP response, so link them in the HTML `<head>` or footer nav.
+
+**4. Operator Identity / accountability signal (D3: Anonymous → Identified)**
+
+D3 flags the operator as `Anonymous` — no verifiable accountability. Add a `security.txt` at `/.well-known/security.txt`:
+
+```
+Contact: security@capomastroholdings.com
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://plenumnet.replit.app/.well-known/security.txt
+Policy: https://plenumnet.replit.app/security-policy
+```
+
+Also add a footer byline: **"Capomastro Holdings Ltd. — Applied Physics Division, Alberta, Canada"** — this text is visible in your current report footer, but needs to appear in the HTML of the landing page itself so the scanner picks it up.
+
+---
+
+### 🟢 Priority 3 — Maturity & Complexity Signals (D5, D8, D27)
+
+**5. Expose API Surface (D5: Website → API, D8: AI/ML → Yes)**
+
+The scanner sees PlenumNET as a static website because the API endpoints aren't surfaced on the landing page. Add an OpenAPI/Swagger endpoint and link it:
+
+```
+/api/docs        → Swagger UI
+/api/openapi.json → machine-readable spec
+```
+
+A visible `<link rel="api-docs">` or a `<meta name="api-endpoint">` tag in `<head>` will shift D5 from `Website` (T1) toward `API` and D8 from `No` to `Yes` once the ternary/HPTP endpoints are visible.
+
+**6. Add Security Audit Evidence (D27: None → Present)**
+
+D27 flags zero security audit evidence. Two lightweight options:
+
+- Add a `/security` page referencing the TL-DSA post-quantum cryptographic audit, the Kani/MIRI formal verification CI, and the 38 proof harnesses — this is real audit evidence you already have.
+- Add a `<meta name="security-audit" content="formal-verification">` tag.
+
+This moves D27 from T1 to T2 and lifts Maturity score meaningfully.
+
+---
+
+### Score Impact Projection
+
+| Dimension | Before | After | Points Gained |
+|---|---|---|---|
+| D3 Operator identity | Anonymous | Identified | Trust Index +5 |
+| D19 Legal pages | None | Present | Trust Index +8, Privacy +6 |
+| D24 Session cookie | Long-lived | Session | Security clean |
+| D25+ Missing headers | 6 missing | Complete | Maturity +10 |
+| D27 Security audit | None | Present | Maturity +8 |
+| D5/D8 API surface | Website/No | API/Yes | Complexity +10, PFI +5 |
+
+**Projected scores after full remediation:**
+- Trust Index: ~68 (GOOD)
+- Maturity: ~70 (GOOD)
+- Complexity: ~55 (FAIR→GOOD)
+- Privacy: ~70 (GOOD)
+
+---
+
+### Implementation Order for Replit
+
+1. `server/middleware/securityHeaders.ts` → wire into `server/index.ts`
+2. Reduce session cookie maxAge
+3. Add `/privacy`, `/terms`, `/.well-known/security.txt` routes
+4. Footer HTML: add Capomastro byline to landing page markup
+5. Add `/api/docs` Swagger UI + link from landing page
+6. Add `/security` page referencing formal verification work
+7. Re-scan at `https://plenumnet.replit.app/` to confirm lifts
+
+The cookie fix and headers are a single file change — those alone should clear the security finding and push Maturity out of FAIR immediately.

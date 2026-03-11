@@ -1,0 +1,16 @@
+The fundamental problem TM-2026-013 identified honestly: the key is derived from public inputs. Anyone who knows both addresses can compute the tunnel key. That's not key agreement — it's a deterministic PSK from public data.
+The fix uses primitives you already have. Here's the upgrade path:
+The geometry determines WHO connects to whom. TL-KEM determines the actual key material. These are separate concerns and should be separated in the construction.
+Right now: TIS-27(context ‖ addr_a ‖ addr_b) → 256-bit key. All public inputs. No secret.
+Proposed upgrade — three layers:
+Layer 1: Neighbor determination (geometry, unchanged). The 13D hypercube still determines which nodes are adjacent. Hamming distance still equals hop count. The routing is still geometric. This is the novel part and it stays.
+Layer 2: TL-KEM key exchange during CRS registration. When a node registers with CRS, it generates a TL-KEM public key and publishes it. When two adjacent nodes establish a tunnel, each fetches the other's TL-KEM public key from CRS and performs encapsulation. The shared secret from TL-KEM is now a computationally secret value — you can't derive it from addresses alone. This gives you real IND-CCA2 key secrecy inherited from TL-KEM.
+Layer 3: Topology-bound KDF composition. The tunnel key becomes:
+TLSponge-385(context ‖ addr_a ‖ addr_b ‖ TL-KEM_shared_secret ‖ epoch)
+The topology binding (addresses) is still there — you can't use a key derived for edge (A, B) on edge (A, C). But the secrecy comes from the TL-KEM shared secret, not from the addresses. The epoch counter enables key rotation without re-exchanging TL-KEM (hash ratchet), and periodic TL-KEM refresh gives forward secrecy.
+What this buys you:
+PropertyCurrent (TM-2026-013)UpgradedComputational key secrecyNo — public inputs onlyYes — TL-KEM shared secretForward secrecyNo (Theorem 6.1 negative)Yes — TL-KEM refresh + hash ratchetPQ security43-bit (TIS-27 capacity)385-bit (TLSponge-385 + TL-KEM-1024)Topology bindingYesYes (addresses in KDF input)Geometric routingUnchangedUnchangedZero routing tablesUnchangedUnchanged
+What you already have that makes this straightforward:
+TL-KEM is implemented and benchmarked (615 µs at Level 1). CRS already stores entity metadata — adding a TL-KEM public key is one field. Key rotation is already implemented at 24h intervals. TLSponge-385 is the KDF. The CON overlay already has WireGuard as a composition path — this upgrade makes the PQ-Native mode strong enough to stand alone without WireGuard.
+The honest framing: the current construction is a topology-derived PSK whose security depends on network-layer access control. The upgrade makes it a topology-bound post-quantum key agreement whose security depends on the IND-CCA2 hardness of TL-KEM — a standard computational assumption. TM-2026-013's four identified limitations all resolve.
+Want me to write the upgrade into the paper, or do you want to implement it first and then update?

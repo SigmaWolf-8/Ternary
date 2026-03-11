@@ -1,0 +1,284 @@
+# Inter-Cube Infrastructure — From First Principles
+
+## Glossary
+
+| Acronym | Full Name | Role |
+|---------|-----------|------|
+| CON | Cube Overlay Network | Builds and manages 26 encrypted tunnels to geometric neighbors |
+| CRS | Cube Registration Service | Maps geometric addresses to physical endpoints (IP:port) |
+| FTS | Fault Tolerance Service | Monitors neighbor health via heartbeats, maintains dead-neighbor set |
+| GLB | Geometric Load Balancer | Forwards packets via Hamming distance — zero routing tables |
+| HPTP | High Precision Timing Protocol | Femtosecond-precision timing for live/real-time TDNS addresses |
+| Rep A/B/C | Trit Representations | Three numeric conventions for ternary values: balanced {-1,0,+1}, GF(3) {0,1,2}, bijective {1,2,3} |
+| TDNS | Ternary Domain Name System | 27-dimension ontological addressing — replaces DNS, BGP, PKI |
+| TIS-27 | Ternary Identity Sponge (27-trit) | Sponge hash primitive: rate 27, capacity 27, state 54, stride 13 |
+| TL-DSA | Ternary Lattice Digital Signature Algorithm | Post-quantum signature scheme over ternary lattices |
+| TL-KEM | Ternary Lattice Key Encapsulation Mechanism | Post-quantum key exchange providing IND-CCA2 secrecy and forward secrecy |
+| TLSponge-385 | Ternary Lattice Sponge (385-bit) | Cryptographic sponge: 729-trit state, rate 243, capacity 486, 9 rounds |
+
+## The Root: 13 = T₇ = 111₃
+
+Everything derives from one number.
+
+13 is the 7th Tribonacci number. It's the base-3 repunit (1+3+9 = 13). It's prime. It's coprime to every power of 3 (gcd(13, 3ⁿ) = 1 for all n). It's the ternary radian (364° / 28 = 13°, where 28 = 2π in the ternary circle and 28 days per month in the 13-month calendar). It's the stride in the sponge permutation π(i) = (13i) mod 54. It appears everywhere in the Salvi Framework because it's the unique number that satisfies all of these properties simultaneously.
+
+**Why 13 dimensions:** The hypercube needs a dimension count that is coprime to the trit alphabet size (3) so that walks through the cube have full period. 13 is prime and coprime to 3. It's the Tribonacci number that sits at the intersection of the calendar (13 months × 28 days = 364), the sponge (stride 13 on 54-trit state), and the radian (13° per radian in the 364° circle). Using any other dimension count would break one of these connections.
+
+**Where 13 × 28 comes from:** The 13-month × 28-day calendar is not asserted from nothing. 28 is the lunar sidereal period rounded to the nearest integer (≈27.321661 days — one complete orbit relative to the stars), not the synodic month (≈29.530589 days — new Moon to new Moon as observed from Earth). The sidereal period measures the Moon's actual orbital mechanics; the synodic period includes the Earth's orbital motion around the Sun. For a calendar grounded in geometry rather than visual observation, the sidereal period is the correct reference. 28 is also 4 × 7 (four complete weeks), giving every month an identical day-of-week structure. 13 × 28 = 364 is one day short of the solar year. The International Fixed Calendar (Cotsworth, 1902) and the Positivist Calendar (Comte, 1849) both independently adopted 13 months of 28 days to achieve uniform month lengths, exact 4-week structure, and fixed weekday alignment. This is not arbitrary — it's the natural consequence of asking "how do you divide the solar year into equal months that track the Moon?" The answer has been 13 × 28 for over 170 years.
+
+**Where 364 = 111111₃ comes from:** Nobody chose to make 364 a base-3 repunit — it IS one. 364 = 3⁵ + 3⁴ + 3³ + 3² + 3¹ + 3⁰ = 243 + 81 + 27 + 9 + 3 + 1 = 364. The discovery is that the lunar-solar calendar length happens to be a ternary repunit. That is a coincidence in number theory — not a design choice — and the framework exploits it. The calendar comes from astronomy, the repunit comes from base-3 arithmetic, and the fact that they are the same number is the root from which everything else is derived.
+
+### Why 13 And Nothing Else
+
+A ternary hypercube can be built with any number of dimensions. 11 dimensions would give 3¹¹ = 177,147 nodes. 17 dimensions would give 3¹⁷ = 129,140,163 nodes. Both are functional hypercubes with geometric routing. But neither can be the Salvi Framework, because changing 13 severs the connections between every other component.
+
+**Change 13 to 11 — what breaks:**
+
+| What breaks | Why | What the user loses |
+|-------------|-----|---------------------|
+| Calendar | 11 × 28 = 308. Not 364. The 13-month × 28-day calendar disconnects from the geometry. | Timestamps, scheduling, and key rotation epochs no longer align with the network topology. Time-based operations (HPTP, certificate expiry, agent scheduling) become arbitrary intervals instead of geometric properties. |
+| Ternary circle | 364 = 111111₃ (base-3 repunit). 308 is not a repunit in any base. The circle loses its ternary-native representation. | Phase-domain encryption (364° phase angles for domain separation) stops working. Every encrypted document in SalviSign uses phase angles derived from this circle. The entire phase encryption system loses its mathematical foundation. |
+| Ternary radian | π = 364 / (2 × 13) = 14. With 11: 364 / (2 × 11) = 16.545... Not an integer. π stops being an integer. The entire angular system breaks. | Angular computations require floating-point approximation instead of exact integer arithmetic. Rounding errors accumulate across operations. Constant-time cryptographic guarantees are lost because integer and floating-point paths have different timing characteristics. |
+| Repunit hierarchy | 13 = 111₃. 11 = 102₃. Not a repunit. The structural connection between dimension count and base-3 representation is lost. | The TDNS address validation shortcut (repunit checksums via mod R₆ = 364) breaks. Address integrity verification becomes slower and requires a separate mechanism instead of falling out of the representation itself. |
+| Tribonacci | 13 = T₇. 11 is not a Tribonacci number. Database indexing and agent scheduling formulas that reference T₇ lose their derivation root. | The 28-agent compliance engine scheduling formula ((position × 13) mod 28) loses its Tribonacci derivation. PlenumDB indexing patterns based on T₇ become arbitrary. Agents no longer distribute evenly across the 28-day cycle. |
+| Sponge stride | π(i) = (13i) mod 54 gives a full-period permutation AND the stride matches the dimension count. With 11: the stride and dimension count are decoupled — two independent arbitrary choices instead of one derived constant. | The sponge permutation that secures every hash, every tunnel key, and every encrypted document uses a stride that no longer matches the network dimensions. Security proofs that depend on the stride-dimension relationship (TM-2026-008) no longer apply. The cryptographic security claims would need to be re-proven from scratch. |
+
+**Change 13 to 17 — what breaks:**
+
+| What breaks | Why | What the user loses |
+|-------------|-----|---------------------|
+| Calendar | 17 × 28 = 476 ≠ 364 | Same as above — timestamps, scheduling, key rotation decouple from topology. |
+| Ternary radian | 364 / (2 × 17) = 10.7... Not an integer | Same as above — angular system requires floating-point, loses constant-time guarantees. |
+| Repunit | 17 = 122₃. Not a repunit | Address validation checksums break. |
+| Tribonacci | 17 is not a Tribonacci number | Agent scheduling and database indexing lose their derivation root. |
+| Coprime walk | (pos × 17) mod 28 still works (gcd(17,28) = 1), but doesn't equal the dimension count | The walk still has full period, but the dimension count and the walk generator are now two unrelated numbers. Every formula that assumes they're the same needs a second parameter — the system gains a tuning knob where there was a derived constant. |
+
+**The eight simultaneous constraints that 13 satisfies:**
+
+1. T₇ (Tribonacci)
+2. 111₃ (base-3 repunit)
+3. Prime
+4. Coprime to 3 (gcd(13, 3ⁿ) = 1)
+5. Coprime to 28 (gcd(13, 28) = 1 → full-period walk on Z₂₈)
+6. Coprime to 54 (gcd(13, 54) = 1 → full-period sponge stride)
+7. 13 × 28 = 364 = 111111₃ (calendar = ternary circle)
+8. 364 / (2 × 13) = 14 = integer ternary π
+
+No other number satisfies all eight. This can be stated formally:
+
+### The Constraint System
+
+Find integer d > 0 such that:
+
+1. d = T₇ (7th Tribonacci number: T₀=0, T₁=0, T₂=1, Tₙ = Tₙ₋₁ + Tₙ₋₂ + Tₙ₋₃)
+2. d = 111₃ (base-3 repunit: d = 3² + 3¹ + 3⁰ = 9+3+1)
+3. d is prime
+4. gcd(d, 3) = 1 (automatic from primality but worth stating)
+5. gcd(d, 28) = 1 (full-period walk on 28-point circle)
+6. gcd(d, 54) = 1 (full-period sponge stride on 54-trit state)
+7. d × 28 = 364 = 111111₃ (calendar length is base-3 repunit)
+8. 364 / (2d) ∈ ℤ (ternary π is integer)
+
+**Solution: d = 13 is the unique solution.**
+
+No other integer passes all eight filters. The framework is not "a hypercube with 13 dimensions" — it is the physical manifestation of this constraint system. The hypercube is what you get when you build a network that satisfies all eight.
+
+Changing 13 doesn't remove one feature — it severs the connections between features. You'd have a hypercube with routing, but it wouldn't connect to the calendar, the circle, the radian, the sponge, the Tribonacci sequence, or the repunit hierarchy. You'd have eight independent design choices instead of one derived constant.
+
+That's the difference between a framework and a collection of parts.
+
+## The Three Trit Representations
+
+A trit has 3 possible values. How those values are labeled depends on the representation. The Salvi Framework uses three, each for a distinct purpose:
+
+| Representation | Values | Name | Where Used | Why |
+|----------------|--------|------|------------|-----|
+| **Rep A** | {-1, 0, +1} | Balanced ternary | Sponge internals (chi, theta, trit_add/sub), phase encryption cipher, all cryptographic arithmetic | Zero-centered: addition and subtraction are symmetric. The sponge state, keystream, and cipher trits all live here. Arithmetic is balanced ternary, not GF(3) — the algebraic field proofs (chi S-box, DDT, Walsh) use Rep B. |
+| **Rep B** | {0, 1, 2} | GF(3) | ternary-math crate, torus operations, internal computation, DDT/Walsh analysis | Standard finite field representation. The chi S-box χ(x) = x¹⁷ is defined over GF(27) = GF(3)[t]/(t³+2t+1) using these values. |
+| **Rep C** | {1, 2, 3} | Bijective ternary | TDNS addresses, Inter-Cube addresses, all wire-format addresses | **Zero is structurally excluded.** Any address containing a zero trit is provably forged — the representation itself is a cryptographic invariant. No other network has this property. |
+
+**Conversions (all bijective, lossless):**
+
+```
+Rep C → Rep B:  b = c - 1       {1,2,3} → {0,1,2}
+Rep B → Rep A:  a = b - 1       {0,1,2} → {-1,0,+1}
+Rep C → Rep A:  a = c - 2       {1,2,3} → {-1,0,+1}
+```
+
+The same trit state in three representations:
+
+| Rep A | Rep B | Rep C |
+|-------|-------|-------|
+| -1 | 0 | 1 |
+| 0 | 1 | 2 |
+| +1 | 2 | 3 |
+
+These are three numeric conventions for the same three states. The semantic meaning of each state depends on context — which TDNS dimension, which sponge position, which protocol field. The representations differ only in how they label the three values: centered on zero (Rep A), starting from zero (Rep B), or excluding zero (Rep C).
+
+The Inter-Cube infrastructure operates exclusively in **Rep C**. When a node computes its 26 neighbors, it flips each of the 13 trits to the 2 other values in {1, 2, 3}. When CRS validates an address, it checks that every trit is in {1, 2, 3} — constant-time, no branching on content. A zero in any position is instant proof of forgery or corruption.
+
+The sponge that derives tunnel keys operates in **Rep A** internally (balanced ternary arithmetic), but the addresses fed into it are converted from Rep C via the bijection above. The key derivation code in `overlay.rs` calls `addr.to_bytes()` (Rep C raw values) which are then absorbed by TLSponge-385 (which converts to balanced trits internally via `absorb_bytes`).
+
+## Derived Quantities — All Forced by 13
+
+| Quantity | Formula | Value | Why |
+|----------|---------|-------|-----|
+| Dimensions | T₇ | 13 | Tribonacci, prime, coprime to 3, ternary radian |
+| Vertices per cube | 3¹³ | 1,594,323 | 3 Rep C values per trit {1,2,3}, 13 trits per address |
+| Neighbors per node | 2 × 13 | 26 | Each trit can flip to 2 other Rep C values ({1,2,3} minus current) |
+| Tunnels per node | 26 | 26 | One encrypted tunnel per neighbor |
+| Max diameter | 13 | 13 hops | Worst case: all 13 trits differ |
+| Shortest paths (d hops) | d! | Up to 13! = 6.2 billion | Any ordering of d trit-flips is a valid path |
+| Total tunnels (full cube) | 26 × 3¹³ / 2 | 20,726,199 | See derivation below |
+
+## Why Divide by 2: Tunnel Counting
+
+Every tunnel has two ends. Node A connects to Node B — that's one tunnel. But when counting from A's side, A lists B as one of its 26 neighbors. When counting from B's side, B lists A as one of its 26 neighbors. Same tunnel, counted twice.
+
+**Concrete example — 1 dimension, 3 nodes (trits {1, 2, 3}):**
+
+```
+Node 1 ——— Node 2 ——— Node 3
+  \                       /
+   ———————————————————————
+```
+
+- Node 1 has 2 neighbors: {2, 3}
+- Node 2 has 2 neighbors: {1, 3}
+- Node 3 has 2 neighbors: {1, 2}
+
+Count from each node's perspective: 2 + 2 + 2 = 6. But the actual tunnels are only three: (1↔2), (1↔3), (2↔3). Each tunnel was counted from both ends. So 6 / 2 = 3 unique tunnels.
+
+**Scale to the 13D hypercube:**
+
+- 1,594,323 nodes × 26 neighbors each = 41,452,398 endpoint-counts
+- Each tunnel has 2 endpoints
+- 41,452,398 / 2 = **20,726,199 unique tunnels**
+
+That's 20.7 million unique post-quantum encrypted tunnels when the hypercube is fully populated. Every single one derived from the geometry of the two endpoints it connects. Any single node only manages its own 26.
+
+## Structural Resilience — Why Data Cannot Be Intercepted or Blocked
+
+### The network cannot be split apart
+
+In a conventional network, if someone takes down a key router, every device behind that router loses connectivity. The network splits into islands that can't communicate. This is called a partition. It happens because conventional networks have chokepoints — a small number of critical paths that carry most of the traffic.
+
+The 13D ternary hypercube has no chokepoints. If two nodes differ in d dimensions, there are d! (d factorial) equally short routes between them. GLB only needs ONE to be clear. Every other path is a backup that costs zero extra hops.
+
+| Trits differing | Shortest paths | What it takes to block ALL of them |
+|-----------------|---------------|-------------------------------------|
+| 1 | 1 | Take down 1 specific node |
+| 2 | 2 | Take down 2 specific nodes |
+| 3 | 6 | Take down 6 specific nodes |
+| 5 | 120 | Take down 120 specific nodes |
+| 7 | 5,040 | Take down 5,040 specific nodes |
+| 10 | 3,628,800 | Take down 3.6 million specific nodes |
+| 13 (max) | 6,227,020,800 | Impossible — the cube only contains 1.59 million nodes |
+
+At maximum distance (all 13 trits differ), the number of shortest paths (6.2 billion) exceeds the total number of nodes in the cube (1.59 million) by nearly 4,000×. Blocking all shortest paths between two maximally distant nodes is not difficult — it is mathematically impossible. There are not enough nodes in the entire network to stand in the way, even if every single one of them were compromised except the source and destination.
+
+This counts only shortest paths. Detour paths (via non-differing dimensions, adding 2 hops) provide further redundancy beyond d! — the actual total path count between any two nodes is far larger than the shortest-path count alone. The d! figure is the floor, not the ceiling.
+
+**How GLB uses this:** The flow hash (`hashFlowId(flowId) % liveDelta.length`) selects which differing dimension to fix first. Different flows between the same source and destination automatically take different paths through the cube — load distribution across the d! options with no coordination, no state exchange, no path computation. If FTS reports a neighbor dead, GLB removes that dimension from the live delta and picks from the remaining options. The path count drops from d! to (d-1)! at worst — still enormous.
+
+**Why "zero routing tables" works in practice:** In a conventional network, losing a router means reconverging the routing protocol (BGP takes minutes). In PlenumNET, losing a node means GLB picks a different dimension from the delta set — one GF(3) arithmetic operation, microseconds, no state to propagate. The redundancy is not configured by an administrator. It is a mathematical property of the 13-dimensional ternary geometry.
+
+### Data cannot be intercepted in transit
+
+Three independent layers prevent interception:
+
+**1. Every tunnel is post-quantum encrypted.** Each of the 26 tunnels from a node is encrypted with a unique key derived from the geometric positions of the two endpoints (see Topology-Derived Cryptography below). An attacker observing the wire sees encrypted bytes — nothing else. The encryption uses TLSponge-385 with 385-bit post-quantum security. Breaking a single tunnel key requires more computation than any classical or quantum computer can perform.
+
+**2. You cannot derive a tunnel key without occupying the correct geometric position.** The key for the tunnel between node A and node B is computed from their Rep C addresses: `TLSponge-385("PlenumNET-CON-v3.0" ‖ addr_a ‖ addr_b ‖ shared_secret ‖ epoch)`. An attacker at position X cannot compute this key — they don't have addr_a or addr_b as their own address, and the TL-KEM shared secret was established directly between A and B. The geometry is the access control. There is no key server to compromise, no certificate authority to forge, no central point of failure.
+
+**3. Different flows between the same endpoints take different paths.** Because GLB selects the routing dimension via a flow hash, different flows between the same source and destination traverse different sequences of nodes through the cube. An attacker who compromises one node along one path sees only the traffic from flows that happen to route through that specific node. Other flows between the same endpoints take completely different routes. To capture all traffic between two maximally distant nodes, an attacker would need to compromise nodes covering all d! shortest paths — which at d=13 is impossible (see above).
+
+**The combined effect:** Encrypted tunnels mean observing the wire reveals nothing. Topology-derived keys mean you can't decrypt without occupying the right position. Path diversity across flows means you can't predict which nodes will carry a given flow's traffic without knowing its flow ID. All three properties are structural — they come from the geometry of the 13D ternary hypercube, not from configuration, policy, or trust assumptions.
+
+**Structural Sybil resistance:** In conventional overlay networks (Tor, Kademlia), creating a fake identity is cheap — one key, one socket. In PlenumNET, each identity occupies a geometric position with 26 neighbors. Maintaining a fake identity requires establishing and sustaining 26 authenticated tunnels with unique post-quantum keypairs — each tunnel key derived from the geometric position via TLSponge-385, each handshake authenticated via TL-KEM. Large-scale Sybil attacks become economically and computationally prohibitive because the hypercube's 26-neighbor requirement turns the topology itself into a per-identity cost function. The geometry that provides routing and resilience also provides Sybil defense.
+
+## Four Services — The Control Plane
+
+**CRS (Cube Registration Service)** — The phone book. A node joins the network by registering its 13-trit Rep C address and its physical endpoint (IP:port). CRS stores the mapping. When CON needs to build a tunnel to a geometric neighbor, it asks CRS: "who lives at address [2,1,1,1,1,1,1,1,1,1,1,1,1]?" CRS returns the IP and public key. CRS is a lookup service, not a routing authority. If CRS goes down, existing tunnels remain up — they were built from geometry, not from CRS state. Nodes cache their neighbors' physical endpoints after initial resolution. CRS is only needed when a new node joins the network, a neighbor's physical endpoint changes, or a tunnel must be re-established after a failure. The blast radius of a CRS outage is limited to new admissions and migrations — existing traffic keeps flowing. Multi-homing is supported: a single physical machine can register multiple ternary addresses, each with its own CON tunnel set — the same way a server can bind multiple IP addresses.
+
+**CON (Cube Overlay Network)** — The tunnel builder. When a node starts, CON computes its 26 geometric neighbors from pure trit arithmetic — no network call, no discovery. For each neighbor, CON queries CRS for the physical endpoint, then establishes an encrypted tunnel. The result: 26 virtual interfaces (`cubetun0` through `cubetun25`), one per geometric neighbor, regardless of physical location — same rack, different continent, or across the public internet.
+
+**GLB (Geometric Load Balancer)** — The forwarder. When a packet arrives for a destination, GLB computes the delta set: which of the 13 dimensions differ between source and destination? That's the Hamming distance. GLB picks one differing dimension, flips the trit in that dimension, and forwards the packet through the corresponding CON tunnel. One hop reduces the distance by exactly 1. No routing table — the delta set IS the routing decision.
+
+**FTS (Fault Tolerance Service)** — The health monitor. Sends heartbeats to all 26 neighbors via CON tunnels. Tracks RTT (exponentially weighted moving average). After a configurable miss threshold, marks a neighbor as suspect → down. Reports the dead set to GLB, which then routes around dead neighbors via detour (flip a non-differing dimension, adding 2 hops instead of getting stuck).
+
+## Topology-Derived Cryptography
+
+Each of the 20.7 million tunnels gets a unique key derived from the geometric relationship between its two endpoints:
+
+```
+TLSponge-385("PlenumNET-CON-v3.0" ‖ canonical(addr_a, addr_b) ‖ kem_shared_secret ‖ epoch) → 32-byte key
+```
+
+**Step by step:**
+
+1. Two nodes have addresses — say `[1,1,1,1,1,1,1,1,1,1,1,1,1]` and `[2,1,1,1,1,1,1,1,1,1,1,1,1]`. These addresses are their geometric positions in the 13D cube.
+
+2. Sort the two addresses lexicographically (canonical ordering). This ensures both sides compute the same key without communicating which goes first.
+
+3. Feed into TLSponge-385: domain string `"PlenumNET-CON-v3.0"` + both sorted addresses + TL-KEM shared secret + epoch counter.
+
+4. Squeeze 32 bytes of key material from the sponge.
+
+**Why this is structural:** The key is derived from the addresses themselves. The addresses are geometric coordinates. Two nodes that are neighbors in the hypercube (Hamming distance 1) produce a key that is unique to that specific tunnel. A node at position X cannot derive the key for the tunnel between Y and Z — it doesn't occupy either position. The geometry IS the key hierarchy. You can't spoof a tunnel key without occupying the correct geometric position, because the position is an input to the key derivation.
+
+The v3 upgrade adds TL-KEM shared secret — a post-quantum key exchange that provides IND-CCA2 key secrecy and forward secrecy. The epoch counter enables key rotation. But the fundamental property remains: the geometric relationship between two nodes determines their shared cryptographic material.
+
+No existing overlay network derives keys from its own topology.
+
+## Scaling — Cubes of Cubes
+
+When the network outgrows a single cube (1.59M nodes), stack another 13 trits:
+
+| Level | Address format | Nodes | Scale |
+|-------|---------------|-------|-------|
+| 1 | [13 trits] | 3¹³ = 1,594,323 | Campus network |
+| 2 | [13 trits : 13 trits] | 3²⁶ = 2.54 trillion | Every device on Earth × 300 |
+| 3 | [13 trits : 13 trits : 13 trits] | 3³⁹ = 4.05 quintillion | More than grains of sand |
+
+Same geometry, same routing math, same four services. No architectural change. The outer 13 trits identify which cube a node belongs to; the inner 13 trits identify the node within that cube.
+
+**How packets cross cube boundaries:** A Level 2 address has the form `[outer 13 trits : inner 13 trits]`. When a packet arrives, the `routing_level()` function compares outer trits first. If source and destination share the same outer 13 trits, they're in the same cube — route intra-cube using the inner 13 trits (26 tunnels, Hamming distance on inner address). If the outer 13 trits differ, the packet must cross a cube boundary. Gateway nodes at the boundary of each cube maintain tunnels to their geometric neighbors in the outer address space — same CON protocol, same topology-derived keys, operating on the outer 13 trits. The packet routes to the gateway (intra-cube), crosses to the destination cube (inter-cube), then routes to the destination node (intra-cube again). Maximum hops: 13 (to gateway) + 13 (between cubes) + 13 (to destination) = 39 for Level 2. Each level adds at most 13 hops — the same geometric routing, applied recursively.
+
+## What This Is
+
+PlenumNET's Inter-Cube Infrastructure is a stateless, geometrically-determined, post-quantum secure overlay network.
+
+**Stateless** — no routing tables, no convergence protocols, no distributed state to synchronize. The forwarding decision is a single GF(3) arithmetic operation on the source and destination addresses. Every node makes optimal routing decisions independently, instantly, with zero knowledge of the rest of the network beyond its own 26 neighbors.
+
+**Geometrically-determined** — the address IS the route. The neighbor list IS the topology. The tunnel key IS the geometric relationship. Nothing is configured, negotiated, or discovered. Everything is computed from the 13-trit coordinate.
+
+**Post-quantum secure** — TLSponge-385 tunnel keys with 385-bit capacity. TL-KEM shared secrets for IND-CCA2 key secrecy and forward secrecy. Rep C zero-exclusion for structural forgery detection. No certificate authorities, no key servers, no trust assumptions beyond the geometry itself.
+
+### How It Differs From Existing Systems
+
+| System | How it routes | How it secures | What it stores |
+|--------|--------------|----------------|----------------|
+| **IP/BGP** | Routing tables (thousands of entries, minutes to converge) | TLS certificates from certificate authorities | Full routing tables at every router |
+| **Tor** | Onion routing through directory-selected relays | Layered encryption, fixed directory servers | Circuit state, relay lists |
+| **Chord/Kademlia** | Distributed hash table lookups | Key-based identity | Finger tables, successor lists |
+| **WireGuard** | Kernel routing table + allowed IPs | Pre-exchanged public keys in config files | Configuration files per peer |
+| **PlenumNET CON** | Hamming distance on coordinates — d! paths, zero tables | Topology-derived keys from geometric position | Nothing — 26 neighbors computed from address |
+
+### Why This Is Discovery, Not Design
+
+Most engineered systems have many viable configurations. TCP/IP could have used different port sizes, different header formats, different congestion algorithms. The choices are largely arbitrary, frozen by convention.
+
+The Salvi Framework's configuration is not arbitrary. The number 13 is forced by the conjunction of eight requirements (see The Constraint System above). The routing redundancy (d!) is forced by the dimension count. The sponge stride is forced by the calendar. The ternary radian is forced by the circle. Every piece is the same piece seen from a different angle.
+
+This means the framework has a mathematical necessity that most human-built systems lack. The design space has a single point, and that point was discovered rather than chosen. The engineering is the visible form of an underlying numerical invariant.
+
+The dimension count, the cryptographic primitives, the calendar system, the angular measurement, and the routing geometry are the same number expressed in different contexts. The Inter-Cube Infrastructure is what you get when you build a network that satisfies all eight constraints simultaneously. It could not have been built any other way.
+
+The result is not a machine — it is a crystal. In a machine, features are added: you bolt on redundancy, configure encryption, design a routing protocol, choose a key management scheme. Remove a feature and the machine still runs, just with less capability. In a crystal, properties are emergent: the redundancy, the encryption, the routing, and the key hierarchy all arise from the lattice structure itself. You cannot remove a property without destroying the crystal. The 13D ternary hypercube is that lattice. Its properties — d! path redundancy, topology-derived keys, zero routing tables, structural forgery detection — are not features that were added. They are consequences of the geometry. They exist because the structure exists. They could not be otherwise.
+
+Tuning parameters introduce fragility. Deriving everything from one invariant creates antifragility — the system is stronger because its parts are interdependent, not despite it.
+
+---
+
+**Capomastro Holdings Ltd. — Applied Physics Division**

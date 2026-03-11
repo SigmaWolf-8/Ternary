@@ -1,0 +1,54 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> D:
+PS D:\> cd "\~Project WhitePapers\PlenumNET\Repo\Ternary-main"curl.exe http://localhost:8080/health
+Set-Location : A positional parameter cannot be found that accepts argument 'curl.exe'.
+At line:1 char:1
++ cd "\~Project WhitePapers\PlenumNET\Repo\Ternary-main"curl.exe http:/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Set-Location], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/topology
+{"dimensions":13,"totalVertices":1594323,"neighborsPerCube":26,"registeredCubes":1,"localAddress":"1111111111111"}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/stats
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/stats
+PS D:\> curl.exe http://localhost:8080/health
+{"status":"ok","service":"PlenumNET Inter-Cube Infrastructure","version":"0.1.0"}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/neighbors
+PS D:\> curl.exe http://localhost:8080/health
+{"status":"ok","service":"PlenumNET Inter-Cube Infrastructure","version":"0.1.0"}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/topology
+{"dimensions":13,"totalVertices":1594323,"neighborsPerCube":26,"registeredCubes":1,"localAddress":"1111111111111"}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/crs/stats
+{"dimensions":13,"neighborsPerCube":26,"registeredCount":1,"totalVertices":1594323,"utilizationPercent":0.0000627225474386307}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/glb/stats
+{"activeFlows":0,"detoursComputed":0,"flowsExpired":0,"liveNeighbors":26,"totalForwards":0}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/con/stats
+{"avgRttMs":null,"totalBytesIn":0,"totalBytesOut":0,"tunnelsConnecting":0,"tunnelsDown":0,"tunnelsResolving":0,"tunnelsUnknown":26,"tunnelsUp":0}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/fts/status
+{"down":0,"recovering":0,"suspect":0,"total":26,"up":26}
+PS D:\> curl.exe http://localhost:8080/api/salvi/inter-cube/fts/dead
+{"addresses":[],"deadCount":0}
+PS D:\> # Register a new cube
+PS D:\> curl.exe -X POST -H "Content-Type: application/json" -d "{\"endpoint\":\"192.168.1.100:51820\",\"publicKey\":\"abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\"}" http://localhost:8080/api/salvi/inter-cube/crs/register
+curl: (3) URL rejected: Port number was not a decimal number between 0 and 65535
+Failed to parse the request body as JSON: key must be a string at line 1 column 2
+PS D:\>
+PS D:\> # Validate an address
+PS D:\> curl.exe -X POST -H "Content-Type: application/json" -d "{\"address\":[1,1,1,2,2,2,1,1,1,2,2,2,1]}" http://localhost:8080/api/salvi/inter-cube/address/validate
+curl: (3) bad range in URL position 12:
+address\:[1,1,1,2,2,2,1,1,1,2,2,2,1]}
+           ^
+PS D:\>
+PS D:\> # Forward a packet (GLB geometric routing)
+PS D:\> curl.exe -X POST -H "Content-Type: application/json" -d "{\"destination\":[1,2,1,2,1,2,1,2,1,2,1,2,1],\"flowId\":42}" http://localhost:8080/api/salvi/inter-cube/glb/forward
+curl: (3) bad range in URL position 16:
+destination\:[1,2,1,2,1,2,1,2,1,2,1,2,1],\flowId\:42}
+               ^
+PS D:\>
+PS D:\> # Heartbeat
+PS D:\> curl.exe -X POST -H "Content-Type: application/json" -d "{\"address\":[1,1,1,1,1,1,1,1,1,1,1,1,1],\"endpoint\":\"0.0.0.0:51820\"}" http://localhost:8080/api/salvi/inter-cube/crs/heartbeat

@@ -96,6 +96,10 @@ export class HederaWitnessingService implements IHederaWitnessingService {
   private witnessCache: Map<string, WitnessRecord> = new Map();
   private static readonly MAX_CACHE_SIZE = 10_000;
 
+  private verifyCache: Map<string, { result: boolean; cachedAt: number }> = new Map();
+  private static readonly VERIFY_CACHE_TTL_MS = 300_000;
+  private static readonly MAX_VERIFY_CACHE_SIZE = 5_000;
+
   constructor(config: HederaWitnessingConfig) {
     this.config = config;
     this.operatorId = AccountId.fromString(config.accountId);
@@ -363,11 +367,20 @@ export class HederaWitnessingService implements IHederaWitnessingService {
   }
 
   async verifyWitness(topicId: string, sequenceNumber: number): Promise<boolean> {
+    const cacheKey = `${topicId}:${sequenceNumber}`;
+    const cached = this.verifyCache.get(cacheKey);
+    if (cached && (Date.now() - cached.cachedAt) < HederaWitnessingService.VERIFY_CACHE_TTL_MS) {
+      return cached.result;
+    }
+
     const url = `${this.mirrorBaseUrl}/api/v1/topics/${topicId}/messages/${sequenceNumber}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) return false;
+      if (!response.ok) {
+        this.cacheVerifyResult(cacheKey, false);
+        return false;
+      }
 
       const data = await response.json() as {
         consensus_timestamp?: string;
@@ -376,18 +389,32 @@ export class HederaWitnessingService implements IHederaWitnessingService {
         message?: string;
       };
 
-      if (!data.consensus_timestamp || !data.message) return false;
+      if (!data.consensus_timestamp || !data.message) {
+        this.cacheVerifyResult(cacheKey, false);
+        return false;
+      }
 
       const decoded = Buffer.from(data.message, 'base64').toString('utf8');
       try {
         const parsed = JSON.parse(decoded);
-        return parsed.v === 1 && typeof parsed.h === 'string' && typeof parsed.op === 'string';
+        const result = parsed.v === 1 && typeof parsed.h === 'string' && typeof parsed.op === 'string';
+        this.cacheVerifyResult(cacheKey, result);
+        return result;
       } catch {
+        this.cacheVerifyResult(cacheKey, false);
         return false;
       }
     } catch {
       return false;
     }
+  }
+
+  private cacheVerifyResult(key: string, result: boolean): void {
+    if (this.verifyCache.size >= HederaWitnessingService.MAX_VERIFY_CACHE_SIZE) {
+      const oldest = this.verifyCache.keys().next().value;
+      if (oldest !== undefined) this.verifyCache.delete(oldest);
+    }
+    this.verifyCache.set(key, { result, cachedAt: Date.now() });
   }
 
   async getHealth(): Promise<{

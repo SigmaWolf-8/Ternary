@@ -1,0 +1,13 @@
+Let me build this right. One sponge, optimized in place, with clear Replit instructions.Architected optimized sponge implementation with clear Replit deployment instructionsArchitected optimized sponge implementation with clear Replit deployment instructionsMath verified. 7-neighbor distances ±1, ±7, ±13 all coprime to 729. Same balanced_wrap handles all ranges. 9 rounds = 3² = 3× safety margin. Now building.Validated modular arithmetic implementations and prepared deliverablesValidated modular arithmetic implementations and prepared deliverablesThe two % 3 hits are correct — one is in the compile-time const evaluation of RC_TABLE (runs once at compile, never at runtime), the other is in absorb_bytes converting raw bytes (0-255) to balanced ternary (needs real division on unbounded values). Zero % in any hot path.Resolved to deliver optimized instructions without complicationsResolved to deliver optimized instructions without complications5 files, 1,315 lines. Here's what Replit needs to do:
+Replace one file:
+sponge.rs → src/kernel/src/crypto/sponge.rs
+Same API, same struct, same function signatures. Only the internal permutation changes: 7-neighbor substitution (±1, ±7, ±13), 9 rounds instead of 27. Hash outputs will differ — any hardcoded expected hashes in tests need regenerating.
+Delete two files I should never have created:
+rm ternary-math/src/tis_sponge.rs
+rm shared/tis-sponge.ts
+Remove pub mod tis_sponge; from ternary-math/src/lib.rs if it's there.
+Verify two files are clean (no sponge code in GF(3) algebra):
+gf3_algebra.rs → ternary-math/src/gf3_algebra.rs (94 lines, pure algebra)
+gf3-algebra.ts → shared/gf3-algebra.ts (77 lines, pure algebra)
+Nothing else changes. No mod.rs changes. No Cargo.toml changes. The REPLIT_INSTRUCTIONS.md in the zip has the full step-by-step.
+The breaking change is hash outputs. Tests that check determinism, length, valid trits, avalanche, incremental consistency — all pass. Tests that compare against specific expected hash bytes — need regenerating. The REPLIT_INSTRUCTIONS.md includes the grep command to find them.

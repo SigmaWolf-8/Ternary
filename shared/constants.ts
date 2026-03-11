@@ -47,6 +47,8 @@ export const PLATFORM = {
   INTER_CUBE_ENDPOINTS: 11,
   INTER_CUBE_SERVICES: 4,
   INTER_CUBE_ROUTING_TABLES: 0,
+  INTER_CUBE_TUNNELS: "20,726,199",
+  INTER_CUBE_TUNNELS_SHORT: "20.7M",
   MILESTONES: 42,
 
   BENCH_TIS27_NS: 191,
@@ -83,6 +85,52 @@ export const PLATFORM = {
     COEFF_FAST: 169,
     CLOCK_SOURCES: 7,
     DAYS_PER_SOURCE: 52,
+  },
+
+  PLENUM_SQUARE: {
+    CENTER: 111,
+    MAGIC_CONSTANT: 333,
+    PI: 14,
+    PI_COMPLEMENT: 208,
+    DEGREES_PER_PI: 26,
+    PI_SQUARED: 196,
+
+    DIAMETER: 111,
+    CIRCUMFERENCE: 1554,
+
+    HARMONIC: {
+      H1: 111,
+      H2: 222,
+      H3: 333,
+      H4: 444,
+      H5: 555,
+      H8: 888,
+      H9: 999,
+    },
+
+    OPPOSITE_PAIR_SUM: 222,
+    CORNER_SUM: 444,
+    EDGE_CENTER_SUM: 444,
+    CIRCUMFERENCE_RESIDUAL: 555,
+    SURROUND_SUM: 888,
+    TOTAL_SUM: 999,
+
+    PI_PAIR: [14, 208] as const,
+    DEGREES_PAIR: [26, 196] as const,
+
+    PRODUCT_CIRCLE_DEGREES: 364,
+    PRODUCT_PI_PAIR: 2912,
+    PRODUCT_DEGREES_PAIR: 5096,
+    PRODUCT_SUM: 8008,
+
+    FAMILY: [
+      { id: 'A', p: 97, q: 12 },
+      { id: 'B', p: 91, q: 6 },
+      { id: 'C', p: 85, q: -12 },
+      { id: 'D', p: 6, q: -91 },
+    ] as const,
+
+    CIRCULANT_TRIPLE: [111, 14, 208] as const,
   },
 } as const;
 

@@ -51,8 +51,11 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
+import { triggerInstallDialog } from "@/components/InstallExtensionCard";
 
 type AnchorScrollFn = (id: string) => void;
 const AnchorScrollContext = createContext<AnchorScrollFn>(() => {});
@@ -121,6 +124,7 @@ const developersColumns: NavColumn[] = [
     items: [
       { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
       { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
+      { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "#install-extension-download" },
       { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
     ],
   },
@@ -150,6 +154,23 @@ function NavItemLink({
   const scrollToAnchor = useContext(AnchorScrollContext);
   const isAnchor = item.href.startsWith("/#");
   const anchorId = isAnchor ? item.href.slice(2) : "";
+
+  if (item.href === "#install-extension-download") {
+    return (
+      <a
+        href="#"
+        className={className}
+        data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+        onClick={(e) => {
+          e.preventDefault();
+          onNavigate?.();
+          triggerInstallDialog();
+        }}
+      >
+        {item.title}
+      </a>
+    );
+  }
 
   if (item.external) {
     return (
@@ -199,6 +220,7 @@ function NavItemLink({
 function MegaDropdownItem({ item }: { item: NavLinkItem }) {
   const scrollToAnchor = useContext(AnchorScrollContext);
   const isAnchor = item.href.startsWith("/#");
+  const isDialogTrigger = item.href === "#install-extension-download";
   const anchorId = isAnchor ? item.href.slice(2) : "";
   const baseClass =
     "block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover-elevate";
@@ -216,6 +238,26 @@ function MegaDropdownItem({ item }: { item: NavLinkItem }) {
       )}
     </>
   );
+
+  if (isDialogTrigger) {
+    return (
+      <li>
+        <NavigationMenuLink asChild>
+          <a
+            href="#"
+            className={baseClass}
+            data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+            onClick={(e) => {
+              e.preventDefault();
+              triggerInstallDialog();
+            }}
+          >
+            {content}
+          </a>
+        </NavigationMenuLink>
+      </li>
+    );
+  }
 
   if (isAnchor) {
     return (
@@ -577,6 +619,26 @@ export function MarketingTopNav() {
               <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
               <span className="text-base">PlenumNET</span>
             </Link>
+
+            {!isMobile && (
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-2 py-0.5 text-[10px]"
+                  data-testid="badge-status"
+                >
+                  <Check className="w-2.5 h-2.5 mr-0.5" />
+                  Production Ready
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-primary/30 bg-primary/10 text-primary px-2 py-0.5 text-[10px]"
+                  data-testid="badge-pq"
+                >
+                  Post-Quantum Secure
+                </Badge>
+              </div>
+            )}
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 

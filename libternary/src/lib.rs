@@ -54,9 +54,9 @@
 //!
 //! // View T(10) = 81 = 10000₃ in all three representations
 //! let t10 = &terms[10];
-//! println!("Rep B: {}", t10.value.format_repr(TernaryRepr::Standard));
-//! println!("Rep A: {}", t10.value.format_repr(TernaryRepr::Balanced));
-//! println!("Rep C: {}", t10.value.format_repr(TernaryRepr::Bijective));
+//! println!("Rep B: {}", t10.format_repr(TernaryRepr::Standard));
+//! println!("Rep A: {}", t10.format_repr(TernaryRepr::Balanced));
+//! println!("Rep C: {}", t10.format_repr(TernaryRepr::Bijective));
 //!
 //! // Walk the ternary radian spiral on Z₂₈
 //! let trits = vec![1, 2, 0, 1, 0, 2, 2, 0, 1, 1];
@@ -69,38 +69,11 @@
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
-#![allow(missing_docs)]
+#![warn(missing_docs)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::must_use_candidate)]
-// ── Clippy policy: pedantic lints are advisory in this crate ────────────────
-#![allow(
-    clippy::cast_lossless,
-    clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cloned_instead_of_copied,
-    clippy::comparison_chain,
-    clippy::doc_markdown,
-    clippy::explicit_iter_loop,
-    clippy::float_cmp,
-    clippy::if_same_then_else,
-    clippy::manual_contains,
-    clippy::manual_range_contains,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::return_self_not_must_use,
-    clippy::should_implement_trait,
-    clippy::similar_names,
-    clippy::struct_excessive_bools,
-    clippy::uninlined_format_args,
-    clippy::unreadable_literal,
-    dead_code,
-    unused_variables
-)]
-#![allow(rustdoc::broken_intra_doc_links)]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 

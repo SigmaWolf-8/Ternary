@@ -140,7 +140,7 @@ fn phase_keygen(seed: &[u8; 32]) -> (PrimaryKey, GuardianKey) {
 | Quantum (Grover)     | Guardian phase survives due to τ-irrational diffusion |
 | Oracle               | All failures return generic error; guardian validation never exposed |
 
-**Novelty**: The dual-phase + ternary + physical timing binding has no direct analogue; formal reduction to ideal cipher model pending.
+**Novelty**: The dual-phase + ternary + physical timing binding has no direct analogue. Formal security analysis is provided in **TM-2026-011** (`docs/proofs/Phase-Encryption-Security-Proof.md`), which proves IND-CPA security via sponge indifferentiability reduction, provides INT-CTXT bounds, and formalizes the orthogonal security model.
 
 ### 5.2 Known Limitations (Transparency)
 

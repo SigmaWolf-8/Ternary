@@ -507,7 +507,7 @@ export default function APIDemo() {
 
   const phaseRecombineMutation = useMutation({
     mutationFn: async (encrypted: any) => {
-      const res = await apiRequest("POST", "/api/salvi/phase/recombine", encrypted);
+      const res = await apiRequest("POST", "/api/salvi/phase/recombine", { encrypted });
       return res.json();
     },
   });
@@ -1308,27 +1308,27 @@ export default function APIDemo() {
 
                       {phaseRecombineMutation.data && (
                         <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm space-y-2" data-testid="text-recombine-results">
-                          {(phaseRecombineMutation.data as any).decrypted && (
+                          {(phaseRecombineMutation.data as any).result?.data && (
                             <div className="flex justify-between items-center">
                               <span className="text-muted-foreground">Decrypted:</span>
-                              <span className="text-foreground" data-testid="text-recombine-decrypted">{(phaseRecombineMutation.data as any).decrypted}</span>
+                              <span className="text-foreground" data-testid="text-recombine-decrypted">{(phaseRecombineMutation.data as any).result.data}</span>
                             </div>
                           )}
-                          {(phaseRecombineMutation.data as any).phaseAlignment !== undefined && (
+                          {(phaseRecombineMutation.data as any).result?.phaseAlignment !== undefined && (
                             <div className="flex justify-between items-center">
                               <span className="text-muted-foreground">Phase Alignment:</span>
-                              <Badge variant="default" data-testid="badge-phase-alignment">{String((phaseRecombineMutation.data as any).phaseAlignment)}</Badge>
+                              <Badge variant="default" data-testid="badge-phase-alignment">{String((phaseRecombineMutation.data as any).result.phaseAlignment)}</Badge>
                             </div>
                           )}
-                          {(phaseRecombineMutation.data as any).timestampValid !== undefined && (
+                          {(phaseRecombineMutation.data as any).result?.timestampValidation !== undefined && (
                             <div className="flex justify-between items-center">
                               <span className="text-muted-foreground">Timestamp Valid:</span>
-                              <Badge variant={(phaseRecombineMutation.data as any).timestampValid ? 'default' : 'destructive'} data-testid="badge-timestamp-valid">
-                                {String((phaseRecombineMutation.data as any).timestampValid)}
+                              <Badge variant={(phaseRecombineMutation.data as any).result.timestampValidation ? 'default' : 'destructive'} data-testid="badge-timestamp-valid">
+                                {String((phaseRecombineMutation.data as any).result.timestampValidation)}
                               </Badge>
                             </div>
                           )}
-                          {!(phaseRecombineMutation.data as any).decrypted && (
+                          {!(phaseRecombineMutation.data as any).result?.data && (
                             <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(phaseRecombineMutation.data, null, 2)}</pre>
                           )}
                         </div>

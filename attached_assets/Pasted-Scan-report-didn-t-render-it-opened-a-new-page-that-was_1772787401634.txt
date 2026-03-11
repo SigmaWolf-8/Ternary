@@ -1,0 +1,35 @@
+Scan report didn't render. it opened a new page that was all black with no information
+
+1:44 AM
+
+Diagnosed race condition between storage write and page load
+Diagnosed race condition between storage write and page load
+Found it. Two race condition bugs working together:
+
+window.open() in the popup fires and the new tab's loadAndRender() executes before chrome.storage.local.set has flushed — the tab opens, reads nothing, shows nothing, black screen.
+window.open from an extension popup is unreliable anyway — Chrome prefers chrome.tabs.create.
+Fix: use chrome.tabs.create (already permitted in manifest) + add a retry loop in report.html so it polls until data arrives.
+
+
+Diagnosed CSP blocking inline scripts, prescribed external file solution
+Diagnosed CSP blocking inline scripts, prescribed external file solution
+That's the root cause. The manifest enforces script-src 'self' — inline <script> blocks are silently killed on all extension pages. report.html has one giant inline script, so the page loads but nothing ever executes. Black screen.
+
+Fix: extract the script to report.js and reference it externally.
+
+
+Ran 3 commands
+Ran 3 commands
+Now add report.js to web_accessible_resources in the manifest:
+
+
+Ran 2 commands, edited a file, read a file
+Ran 2 commands, edited a file, read a file
+Root cause was Chrome's Content Security Policy, not the storage timing. The manifest enforces script-src 'self' on all extension pages — this silently blocks every inline <script> block. report.html had ~7,400 characters of logic inside an inline tag, so the page loaded its HTML and CSS, rendered a black shell, and the rendering script never executed at all.
+
+What changed in v1.0.3:
+
+Extracted report.html's inline script into a new report.js file — <script> → <script src="report.js">
+Added report.js to web_accessible_resources in the manifest
+popup.js PDF button already uses chrome.tabs.create (from the previous fix) — that part was correct
+The report page will now fully render. Reload the extension at chrome://extensions (Developer mode → the reload ↺ button on the PlenumNET card), then try PDF Report again.

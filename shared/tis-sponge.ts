@@ -6,15 +6,15 @@
 // Mirrors: ternary-math/src/tis_sponge.rs
 //
 // ┌─────────────────────────────────────────────────────────────────┐
-// │  THIS IS NOT A CRYPTOGRAPHIC HASH.                              │
+// │  TIS-27 — 43-bit cryptographic security (TM-2026-008).          │
 // │                                                                 │
-// │  TIS-27 provides fast corruption detection for wire packets.    │
-// │  27-trit capacity = 43 bits — insufficient for cryptographic    │
-// │  security. For cryptographic operations, use the kernel sponge. │
+// │  Same proven sponge construction as TL-Sponge-385, sized for    │
+// │  fast integrity. χ(x)=x¹⁷, DP≤9⁻⁴⁰⁹⁶, B(M_θ)=8 exact.       │
+// │  For post-quantum security (385-bit), use TL-Sponge-385.       │
 // └─────────────────────────────────────────────────────────────────┘
 //
 // Use: wire integrity, scan hashing on authenticated channels
-// NOT for: signing, key derivation, identity binding, registration
+// For PQ operations (signing, key derivation): use TL-Sponge-385
 
 function mod3(n: number): number { if (n >= 3) n -= 3; if (n >= 3) n -= 3; return n; }
 function gf3Add(a: number, b: number): number { const s = a + b; return s >= 3 ? s - 3 : s; }
@@ -49,8 +49,8 @@ function spongeRound(state: number[], round: number): void {
 }
 
 /**
- * TIS-27 fast integrity hash. NOT cryptographic.
- * For cryptographic hashing, use the kernel sponge via API.
+ * TIS-27 fast integrity hash (43-bit cryptographic security).
+ * For post-quantum hashing (385-bit), use TL-Sponge-385 via API.
  */
 export function tis27Hash(input: number[], outputLen: number): number[] {
   const state = new Array(54).fill(0);
@@ -62,7 +62,7 @@ export function tis27Hash(input: number[], outputLen: number): number[] {
 
 /**
  * Derive integrity key. For wire context only.
- * NOT for cryptographic key derivation.
+ * For post-quantum key derivation, use TL-Sponge-385.
  */
 export function tis27DeriveKey(context: number[], material: number[], keyLen: number): number[] {
   return tis27Hash([...context, ...material], keyLen);

@@ -1,0 +1,298 @@
+// TDNS v2.5.0 — Identity Sponge
+// Capomastro Holdings Ltd. — Applied Physics Division
+//
+// PARAMETERS (derived, not chosen):
+//   State:    54 trits  ←  27 classification + 27 identity = full address width
+//   Rate:     27 trits  ←  identity anchor width = classification layer width (symmetric)
+//   Capacity: 27 trits  ←  classification layer width
+//   Rounds:   27        ←  one per identity trit, one per classification dimension
+//   Stride:   13        ←  gcd(13, 54) = 1 → complete permutation cycle of all 54 positions
+//
+// 27-trit identity space: 3²⁷ = 7,625,597,484,987 unique identities
+// 50% birthday collision at ~3,251,357 entries (vs 1,486 at 13-trit)
+//
+// All arithmetic in GF(3) = {0,1,2}. No binary hash primitives. No domain crossings.
+// Output lifted from GF(3) to Rep C {1,2,3} at squeeze time.
+// Zero structurally impossible in legitimate output.
+//
+// Wire: 54 functional trits + 2 reserved = 56 trit slots = 112 bits = 14 bytes exactly.
+// Version tag: 0x25
+
+use crate::trit::Trit;
+
+// ─── Parameters ──────────────────────────────────────────────────────────────
+
+const STATE_SIZE: usize = 54;
+const RATE:       usize = 27;
+const ROUNDS:     usize = 27;
+
+// Tribonacci sequence mod 3, indices 0–26
+const ROUND_CONSTS: [u8; 27] = [
+    0, 0, 1, 1, 2, 1, 1, 1, 0, 2, 0, 2, 1, 0, 0, 1, 1, 2, 1, 1, 1, 0, 2, 0, 2, 1, 0,
+];
+
+// ─── Sponge ──────────────────────────────────────────────────────────────────
+
+pub struct IdentitySponge {
+    state: [u8; STATE_SIZE],
+}
+
+impl IdentitySponge {
+    pub fn new() -> Self { Self { state: [0u8; STATE_SIZE] } }
+
+    pub fn absorb(&mut self, input: &[u8]) {
+        let mut trits: Vec<u8> = Vec::with_capacity(input.len() * 6);
+        for &b in input { byte_to_trits(b, &mut trits); }
+        trits.push(1);
+        while trits.len() % RATE != RATE - 1 { trits.push(0); }
+        trits.push(2);
+        for block in trits.chunks(RATE) {
+            for (i, &t) in block.iter().enumerate() {
+                self.state[i] = gf3_add(self.state[i], t);
+            }
+            permute(&mut self.state);
+        }
+    }
+
+    /// Squeeze 27 trits in Rep C {1,2,3}.
+    pub fn squeeze(&self) -> [Trit; 27] {
+        let mut out = [Trit::V1; 27];
+        for i in 0..RATE {
+            out[i] = Trit::from_gf3(self.state[i]).unwrap();
+        }
+        out
+    }
+}
+
+impl Default for IdentitySponge {
+    fn default() -> Self { Self::new() }
+}
+
+// ─── P54 Permutation ─────────────────────────────────────────────────────────
+
+fn permute(s: &mut [u8; STATE_SIZE]) {
+    for round in 0..ROUNDS {
+        theta(s);
+        pi(s);
+        iota(s, round);
+    }
+}
+
+fn theta(s: &mut [u8; STATE_SIZE]) {
+    let mut t = [0u8; STATE_SIZE];
+    for i in 0..STATE_SIZE {
+        let p = (i + STATE_SIZE - 1) % STATE_SIZE;
+        let n = (i + 1) % STATE_SIZE;
+        t[i] = gf3_add(s[i], gf3_add(s[p], s[n]));
+    }
+    *s = t;
+}
+
+fn pi(s: &mut [u8; STATE_SIZE]) {
+    let mut t = [0u8; STATE_SIZE];
+    for i in 0..STATE_SIZE { t[(i * 13) % STATE_SIZE] = s[i]; }
+    *s = t;
+}
+
+fn iota(s: &mut [u8; STATE_SIZE], round: usize) {
+    s[0] = gf3_add(s[0], ROUND_CONSTS[round]);
+}
+
+#[inline(always)]
+fn gf3_add(a: u8, b: u8) -> u8 { (a + b) % 3 }
+
+fn byte_to_trits(b: u8, out: &mut Vec<u8>) {
+    let mut v = b as u32;
+    for _ in 0..6 { out.push((v % 3) as u8); v /= 3; }
+}
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+pub fn derive_identity(canonical_url: &str) -> [Trit; 27] {
+    let mut sponge = IdentitySponge::new();
+    sponge.absorb(canonical_url.as_bytes());
+    sponge.squeeze()
+}
+
+pub fn canonicalise_url(raw: &str) -> String {
+    let no_fragment = raw.split('#').next().unwrap_or(raw);
+    let no_query    = no_fragment.split('?').next().unwrap_or(no_fragment);
+    if let Some(scheme_end) = no_query.find("://") {
+        let scheme = no_query[..scheme_end].to_lowercase();
+        let rest   = &no_query[scheme_end + 3..];
+        let (authority, path) = if let Some(slash) = rest.find('/') {
+            (&rest[..slash], &rest[slash..])
+        } else {
+            (rest, "/")
+        };
+        let (host, port) = if let Some(colon) = authority.rfind(':') {
+            let (h, p) = (&authority[..colon], &authority[colon + 1..]);
+            if p.chars().all(|c| c.is_ascii_digit()) { (h, p) } else { (authority, "") }
+        } else {
+            (authority, "")
+        };
+        let is_default = (scheme == "https" && (port == "443" || port.is_empty()))
+                      || (scheme == "http"  && (port == "80"  || port.is_empty()));
+        let port_str = if is_default || port.is_empty() { String::new() } else { format!(":{port}") };
+        let path_str = if path == "/" { "" } else { path };
+        return format!("{}://{}{}{}", scheme, host.to_lowercase(), port_str, path_str);
+    }
+    no_query.to_lowercase()
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test] fn canonical_trailing_slash()   { assert_eq!(canonicalise_url("https://google.com/"), "https://google.com"); }
+    #[test] fn canonical_uppercase()        { assert_eq!(canonicalise_url("HTTPS://GOOGLE.COM"), "https://google.com"); }
+    #[test] fn canonical_port_443()         { assert_eq!(canonicalise_url("https://google.com:443"), "https://google.com"); }
+    #[test] fn canonical_port_80()          { assert_eq!(canonicalise_url("http://example.com:80/"), "http://example.com"); }
+    #[test] fn canonical_nondefault_port()  { assert_eq!(canonicalise_url("https://example.com:8443/api"), "https://example.com:8443/api"); }
+    #[test] fn canonical_fragment()         { assert_eq!(canonicalise_url("https://google.com/#r"), "https://google.com"); }
+    #[test] fn canonical_query()            { assert_eq!(canonicalise_url("https://google.com/s?q=x"), "https://google.com/s"); }
+
+    #[test] fn identity_length()      { assert_eq!(derive_identity("https://google.com").len(), 27); }
+    #[test] fn identity_deterministic() {
+        assert_eq!(derive_identity("https://google.com"), derive_identity("https://google.com"));
+    }
+    #[test] fn identity_rep_c_only() {
+        for t in derive_identity("https://google.com") {
+            let v = t.to_repr_c();
+            assert!(v >= 1 && v <= 3, "trit out of Rep C: {v}");
+        }
+    }
+    #[test] fn identity_zero_never() {
+        for url in &["https://google.com", "https://plenumnet.replit.app", "http://example.com"] {
+            for (i, t) in derive_identity(url).iter().enumerate() {
+                assert_ne!(t.to_repr_c(), 0, "zero at {i} for {url}");
+            }
+        }
+    }
+    #[test] fn identity_distinct()        { assert_ne!(derive_identity("https://google.com"), derive_identity("https://bing.com")); }
+    #[test] fn identity_scheme_matters()  { assert_ne!(derive_identity("https://example.com"), derive_identity("http://example.com")); }
+    #[test] fn identity_subdomain_matters() { assert_ne!(derive_identity("https://example.com"), derive_identity("https://www.example.com")); }
+    #[test] fn identity_canonical_collapse() {
+        let base = derive_identity(&canonicalise_url("https://google.com"));
+        for v in &["https://google.com/", "HTTPS://GOOGLE.COM", "https://google.com:443", "https://google.com/#x"] {
+            assert_eq!(derive_identity(&canonicalise_url(v)), base, "variant '{v}'");
+        }
+    }
+    #[test] fn identity_empty_no_panic() {
+        let mut s = IdentitySponge::new(); s.absorb(b""); let out = s.squeeze();
+        for t in &out { assert!(t.to_repr_c() >= 1 && t.to_repr_c() <= 3); }
+    }
+    #[test] fn byte_trits_all_256() {
+        for b in 0u8..=255 {
+            let mut out = Vec::new(); byte_to_trits(b, &mut out);
+            assert_eq!(out.len(), 6);
+            for t in &out { assert!(*t < 3); }
+        }
+    }
+    #[test] fn pi_complete_cycle_54() {
+        let mut visited = [false; 54];
+        let mut pos = 0usize;
+        for _ in 0..54 { visited[pos] = true; pos = (pos + 13) % 54; }
+        assert!(visited.iter().all(|&v| v));
+    }
+    #[test] fn round_consts_tribonacci_mod3() {
+        let mut t = vec![0u64, 0, 1];
+        while t.len() < 27 { let n = t.len(); t.push(t[n-1]+t[n-2]+t[n-3]); }
+        let expected: Vec<u8> = t.iter().map(|v| (v % 3) as u8).collect();
+        assert_eq!(&ROUND_CONSTS[..], expected.as_slice());
+    }
+    #[test] fn collision_space_3_27() {
+        let space: u64 = (0..27).fold(1u64, |acc, _| acc.saturating_mul(3));
+        assert_eq!(space, 7_625_597_484_987);
+    }
+}
+
+// ─── Collision GUID ───────────────────────────────────────────────────────────
+//
+// The two trailing trit slots in the wire format (byte 13, bits 3:0) encode
+// a Collision GUID (1–9) that disambiguates registry entries sharing the same
+// 27-trit identity anchor.
+//
+// Encoding: CGUID = (CG1 − 1) × 3 + CG2   where CG1, CG2 ∈ {1,2,3}
+//
+//   CGUID 1 → CG1=1 CG2=1   (0b01 0b01)  ← default, first registration
+//   CGUID 2 → CG1=1 CG2=2
+//   CGUID 3 → CG1=1 CG2=3
+//   CGUID 4 → CG1=2 CG2=1
+//   CGUID 5 → CG1=2 CG2=2
+//   CGUID 6 → CG1=2 CG2=3
+//   CGUID 7 → CG1=3 CG2=1
+//   CGUID 8 → CG1=3 CG2=2
+//   CGUID 9 → CG1=3 CG2=3   (0b11 0b11)
+//
+// Collision probability: P(overflow at 32B entries) ≈ 3.5 × 10⁻¹⁸.
+// Effective registry capacity: 3²⁷ × 9 = 68,630,377,364,883 ≈ 68.6 trillion.
+
+/// Encode a Collision GUID (1–9) into two Rep C trit bytes for wire packing.
+///
+/// Returns `(cg1, cg2)` where each value is in {1,2,3}.
+/// Panics if `cguid` is outside 1–9.
+pub fn encode_cguid(cguid: u8) -> (u8, u8) {
+    assert!(cguid >= 1 && cguid <= 9, "CGUID must be 1–9, got {cguid}");
+    let z  = cguid - 1;
+    let cg1 = z / 3 + 1;
+    let cg2 = z % 3 + 1;
+    (cg1, cg2)
+}
+
+/// Decode two Rep C trit values into a Collision GUID (1–9).
+///
+/// Returns `Err` if either value is 0 (forgery sentinel) or > 3 (invalid).
+pub fn decode_cguid(cg1: u8, cg2: u8) -> Result<u8, &'static str> {
+    if cg1 == 0 || cg2 == 0 { return Err("CGUID trit is zero — forgery sentinel"); }
+    if cg1 > 3  || cg2 > 3  { return Err("CGUID trit out of Rep C range"); }
+    Ok((cg1 - 1) * 3 + cg2)
+}
+
+#[cfg(test)]
+mod cguid_tests {
+    use super::*;
+
+    #[test]
+    fn encode_decode_roundtrip() {
+        for cguid in 1u8..=9 {
+            let (cg1, cg2) = encode_cguid(cguid);
+            assert_eq!(decode_cguid(cg1, cg2).unwrap(), cguid);
+            assert!(cg1 >= 1 && cg1 <= 3);
+            assert!(cg2 >= 1 && cg2 <= 3);
+        }
+    }
+
+    #[test]
+    fn default_is_1_1() {
+        assert_eq!(encode_cguid(1), (1, 1));  // wire: 0b01 0b01
+    }
+
+    #[test]
+    fn max_is_3_3() {
+        assert_eq!(encode_cguid(9), (3, 3));  // wire: 0b11 0b11
+    }
+
+    #[test]
+    fn zero_trit_is_forgery() {
+        assert!(decode_cguid(0, 1).is_err());
+        assert!(decode_cguid(1, 0).is_err());
+        assert!(decode_cguid(0, 0).is_err());
+    }
+
+    #[test]
+    fn all_9_values_unique() {
+        let encoded: Vec<(u8,u8)> = (1..=9).map(encode_cguid).collect();
+        let unique: std::collections::HashSet<_> = encoded.iter().collect();
+        assert_eq!(unique.len(), 9);
+    }
+
+    #[test]
+    fn effective_space() {
+        // 3^27 × 9 = 68,630,377,364,883
+        let base: u64 = (0..27).fold(1u64, |a, _| a.saturating_mul(3));
+        assert_eq!(base * 9, 68_630_377_364_883);
+    }
+}

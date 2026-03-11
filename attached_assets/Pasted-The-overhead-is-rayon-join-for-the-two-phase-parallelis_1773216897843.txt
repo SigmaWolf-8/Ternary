@@ -1,0 +1,11 @@
+The overhead is rayon::join for the two-phase parallelism. Even on a single core, rayon still sets up its thread pool, does work-stealing coordination, and synchronizes. For small payloads that's slower than just running phase 1 then phase 2 sequentially.
+The fix: check core count before touching rayon. If 1 core, never enter rayon at all — run the same v3 logic (independent MAC sponge, tree squeeze structure) but sequentially. No thread pool initialization, no coordination, no overhead. Same output, same security, zero parallelism cost.
+Two places in lib.rs need it:Identified core count check to eliminate single-core latency overheadIdentified core count check to eliminate single-core latency overheadTwo rayon::join calls — one in encrypt, one in decrypt. Both need the same gate:Verified parallel implementation handles single-core sequentially correctlyVerified parallel implementation handles single-core sequentially correctlyBoth gates in place. rayon::join is only called when num_threads > 1. Single core runs both phases sequentially with parallel: false, which means encrypt_one_phase/decrypt_one_phase use sequential squeeze and sequential trit cipher. Zero thread pool overhead. Same output.Orchestrated single-core optimization while preserving multi-core parallelismOrchestrated single-core optimization while preserving multi-core parallelismAll four files updated. The single-core behavior:
+
+rayon::current_num_threads() > 1 → false → skips rayon::join entirely
+Calls encrypt_one_phase / decrypt_one_phase with parallel: false
+Which means tree_parallel_squeeze hits its own gate (num_threads <= 1) and runs sequential
+And parallel_trit_cipher runs its sequential loop
+Zero rayon involvement. Pure sequential Rust with AVX2 permutations. No thread pool initialization, no work-stealing coordination, no synchronization.
+
+Same ciphertext output on 1 core as 64 cores — the construction is identical (independent MAC sponge, domain-separated keystreams), only the execution strategy differs.

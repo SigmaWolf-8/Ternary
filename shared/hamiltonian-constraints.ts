@@ -36,13 +36,13 @@
  *
  * - Register grouping: 27 = 3³ (ternary cubic)
  * - Constraint modulus: T(7) × T(8) = 13 × 24 = 312
- * - Mass-shell ratio: 13/28 (SUFT coefficient from Saturnian blueprint)
+ * - Mass-shell ratio: 13/28 (SUFT coefficient from Plenum Square)
  *
  * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
  */
 
 import { TRIBONACCI_SEQUENCE } from './tribonacci-constants';
-import { SUFT_RADIUS, SUFT_LUNAR_HARMONIC, MASS_SHELL_RATIO } from './saturnian-blueprint';
+import { SUFT_RADIUS, SUFT_LUNAR_HARMONIC, MASS_SHELL_RATIO } from './plenum-square';
 
 const T7 = TRIBONACCI_SEQUENCE[7];  // 13
 const T8 = TRIBONACCI_SEQUENCE[8];  // 24

@@ -1,0 +1,483 @@
+# REPLIT TASK: Phase Encryption Performance Overhaul
+
+## Priority: P1-HIGH — Fixes reviewer-flagged performance gap and triples throughput
+
+---
+
+## Current State
+
+Phase encryption at 4 KB payload (balanced mode):
+- Encrypt: ~15.7 ms
+- Decrypt: ~15.7 ms
+- Throughput: ~128 KB/s
+- Bottleneck: 4 sponge calls per encrypt, 4–5 per decrypt (8–10 total roundtrip)
+- The sponge keystream generation dominates — ~99 µs per 27-byte block
+
+Target after improvements: throughput in the MB/s range.
+
+---
+
+## Files to Modify
+
+- `server/salvi-core/phase-encryption.ts` — improvements 1–6
+- `server/crypto/sponge-hash.ts` — add duplex mode export, WASM bridge
+- `ternary-math/src/sponge.rs` — existing Rust sponge (compile target for WASM)
+- New: `ternary-math/pkg/` or `server/crypto/sponge.wasm` — compiled WASM module
+- New: `server/crypto/sponge-wasm-bridge.ts` — WASM loader and TypeScript bindings
+
+---
+
+## Improvement 1: Duplex-Mode Keystream + MAC (BIGGEST WIN)
+
+### Current (4 sponge calls per encrypt):
+```
+spongeKeystream(domain_primary, len)     → keystream for primary half
+spongeKeystream(domain_secondary, len)   → keystream for secondary half
+spongeHash(key ‖ nonce ‖ ciphertext_1)   → MAC for primary
+spongeHash(key ‖ nonce ‖ ciphertext_2)   → MAC for secondary
+```
+
+### Target (1 sponge call per phase — 2 total per encrypt):
+```
+sponge.init(domain_primary)
+sponge.squeeze(len)                      → keystream for primary
+sponge.absorb(ciphertext_primary)        → feed ciphertext into same state
+sponge.squeeze(MAC_BYTES)                → MAC for primary (same sponge)
+
+sponge.init(domain_secondary)
+sponge.squeeze(len)                      → keystream for secondary
+sponge.absorb(ciphertext_secondary)
+sponge.squeeze(MAC_BYTES)                → MAC for secondary
+```
+
+### What to implement:
+
+Add a `SpongeDuplex` class (or equivalent stateful API) to `sponge-hash.ts`:
+
+```typescript
+export class SpongeDuplex {
+  private state: Int8Array;  // 729 trits for TLSponge-385
+
+  constructor() {
+    this.state = new Int8Array(729);
+  }
+
+  /** Absorb input into sponge state. */
+  absorb(input: Buffer | Int8Array): void {
+    // Convert input to trits, XOR into rate portion, permute when rate full
+  }
+
+  /** Squeeze n trits of output from sponge state. */
+  squeeze(tritCount: number): Int8Array {
+    // Squeeze rate trits, permute, repeat until tritCount satisfied
+  }
+
+  /** Reset to zero state. */
+  reset(): void {
+    this.state.fill(0);
+  }
+}
+```
+
+Then in `phase-encryption.ts`, the encrypt path becomes:
+
+```typescript
+function encryptPhaseDuplex(
+  plainBytes: Buffer, key: Buffer, nonce: Buffer, phaseAngle: number
+): { cipherB64: string; mac: string } {
+  const plainTrits = bytesToBalancedTrits6(plainBytes);
+  const domain = buildDomainInput(key, nonce, stdDegToTernaryDeg(phaseAngle));
+
+  const duplex = new SpongeDuplex();
+  duplex.absorb(domain);
+
+  // Squeeze keystream
+  const keystream = duplex.squeeze(plainTrits.length);
+
+  // Encrypt
+  const cipherTrits = encryptTrits(plainTrits, keystream);
+  const cipherBytes = cipherTritsToBytes(cipherTrits);
+
+  // Continue same sponge for MAC — absorb ciphertext, squeeze tag
+  duplex.absorb(cipherBytes);
+  const macTrits = duplex.squeeze(243);  // 243 trits ≈ 385 bits
+  const mac = tritsToHex(macTrits);
+
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(plainBytes.length, 0);
+  header.writeUInt32BE(plainTrits.length, 4);
+  const cipherB64 = Buffer.concat([header, cipherBytes]).toString('base64');
+
+  return { cipherB64, mac };
+}
+```
+
+**Security note:** This is standard duplex encrypt-then-MAC. The MAC covers the ciphertext because we absorb ciphertext AFTER squeezing keystream. The sponge capacity (486 trits) is unchanged. Same security as separate sponge calls — just fewer calls.
+
+**Backward compatibility:** Keep `computeMac()` and the old `spongeKeystream()` path available. Add a version flag to the encrypted output. New encryptions use duplex mode; old ciphertexts (with `mac.primary`/`mac.secondary` as separate hex strings) decrypt via the legacy path.
+
+---
+
+## Improvement 2: Single Keystream, Split Post-Squeeze
+
+### Current:
+```
+encryptPhaseBytes(primaryBytes,   key, nonce, primaryAngle)    → sponge init #1
+encryptPhaseBytes(secondaryBytes, key, nonce, secondaryAngle)  → sponge init #2
+```
+
+### Target:
+One sponge, one continuous squeeze. Absorb a phase-switch marker between halves to preserve geometric domain separation:
+
+```typescript
+const duplex = new SpongeDuplex();
+duplex.absorb(buildDomainInput(key, nonce, primaryTernaryAngle));
+
+// Squeeze keystream for primary half
+const ks1 = duplex.squeeze(primaryTrits.length);
+const cipher1 = encryptTrits(primaryTrits, ks1);
+
+// Domain switch — absorb secondary phase angle into live state
+const switchMarker = Buffer.alloc(4);
+switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
+switchMarker.writeUInt16BE(0xFFFF, 2);  // separator sentinel
+duplex.absorb(switchMarker);
+
+// Squeeze keystream for secondary half (new domain, same sponge lineage)
+const ks2 = duplex.squeeze(secondaryTrits.length);
+const cipher2 = encryptTrits(secondaryTrits, ks2);
+
+// MAC over both halves
+duplex.absorb(cipherBytes1);
+duplex.absorb(cipherBytes2);
+const macTrits = duplex.squeeze(243);
+```
+
+**This reduces the entire encrypt to 1 sponge initialisation.** Combined with Improvement 1, the full encrypt path is:
+- 1 sponge init
+- 1 continuous squeeze (keystream for both halves)
+- 1 absorb (both ciphertexts)
+- 1 squeeze (single MAC)
+
+Down from 4 separate sponge calls.
+
+**MAC format change:** Single MAC covering both phases (not two separate MACs). Store as `mac: string` instead of `mac: { primary: string; secondary: string }`. The single MAC is stronger (it binds both halves together) and cheaper.
+
+---
+
+## Improvement 3: Eliminate Base64 Round-Trip in MAC
+
+### Current flow:
+```
+encryptPhaseBytes() → cipherTritsToBytes() → Buffer.concat([header, cipher]).toString('base64')
+computeMac() → Buffer.from(cipherB64, 'base64') → hash
+```
+
+Base64 encode then immediately decode — pointless allocation.
+
+### Fix:
+With Improvements 1+2 (duplex mode), the MAC comes from the same sponge state and never touches base64 at all. The ciphertext bytes flow directly into `duplex.absorb()` before being base64-encoded for transport.
+
+If keeping the legacy path: have `encryptPhaseBytes` return `{ cipherB64: string; rawCipher: Buffer }` and pass `rawCipher` to `computeMac` instead of decoding the base64.
+
+---
+
+## Improvement 4: Byte-to-Trit Lookup Tables
+
+### Current:
+```typescript
+function bytesToBalancedTrits6(input: Buffer): Int8Array {
+  for (const byte of input) {
+    let val = byte;
+    for (let j = 0; j < 6; j++) {
+      trits[idx++] = (val % 3) - 1;
+      val = Math.floor(val / 3);
+    }
+  }
+}
+```
+
+6 modulos + 6 divisions per byte. At 4 KB: 24,576 divisions.
+
+### Fix — precompute 256-entry table at module load:
+
+```typescript
+// Plaintext encoding: 6 trits per byte (capacity 3^6 = 729 > 256)
+const BYTE_TO_TRITS_6 = new Array<Int8Array>(256);
+for (let b = 0; b < 256; b++) {
+  const t = new Int8Array(6);
+  let v = b;
+  for (let j = 0; j < 6; j++) { t[j] = (v % 3) - 1; v = Math.floor(v / 3); }
+  BYTE_TO_TRITS_6[b] = t;
+}
+
+// Ciphertext packing: 5 trits per byte (capacity 3^5 = 243)
+const BYTE_TO_TRITS_5 = new Array<Int8Array>(243);
+for (let b = 0; b < 243; b++) {
+  const t = new Int8Array(5);
+  let v = b;
+  for (let j = 0; j < 5; j++) { t[j] = (v % 3) - 1; v = Math.floor(v / 3); }
+  BYTE_TO_TRITS_5[b] = t;
+}
+
+// Reverse LUT for trits-to-byte (6-trit → byte)
+const TRITS6_TO_BYTE = new Uint8Array(729);  // 3^6 = 729 entries
+for (let b = 0; b < 256; b++) {
+  const t = BYTE_TO_TRITS_6[b];
+  let idx = 0, mul = 1;
+  for (let j = 0; j < 6; j++) { idx += (t[j] + 1) * mul; mul *= 3; }
+  TRITS6_TO_BYTE[idx] = b;
+}
+```
+
+Then the hot loop is:
+
+```typescript
+function bytesToBalancedTrits6(input: Buffer): Int8Array {
+  const trits = new Int8Array(input.length * 6);
+  let idx = 0;
+  for (let i = 0; i < input.length; i++) {
+    trits.set(BYTE_TO_TRITS_6[input[i]], idx);
+    idx += 6;
+  }
+  return trits;
+}
+```
+
+`Int8Array.set()` is a bulk copy — much faster than 6 individual writes per byte.
+
+Same for `cipherBytesToTrits` (use `BYTE_TO_TRITS_5`) and `balancedTrits6ToBytes` (use `TRITS6_TO_BYTE`).
+
+---
+
+## Improvement 5: Pre-Allocate Domain Input Buffer
+
+### Current:
+```typescript
+function buildDomainInput(key: Buffer, nonce: Buffer, phaseAngleTernary: number): Buffer {
+  const angleBuf = Buffer.alloc(2);
+  angleBuf.writeUInt16BE(phaseAngleTernary & 0xFFFF, 0);
+  return Buffer.concat([key, nonce, angleBuf, PHASE_CONTEXT_TAG]);
+}
+```
+
+Allocates a new Buffer every call (84 bytes). Called 2–4 times per operation.
+
+### Fix:
+
+```typescript
+const _domainBuf = Buffer.alloc(32 + 32 + 2 + PHASE_CONTEXT_TAG.length);
+PHASE_CONTEXT_TAG.copy(_domainBuf, 66);
+
+function buildDomainInput(key: Buffer, nonce: Buffer, ternaryAngle: number): Buffer {
+  key.copy(_domainBuf, 0);
+  nonce.copy(_domainBuf, 32);
+  _domainBuf.writeUInt16BE(ternaryAngle & 0xFFFF, 64);
+  return _domainBuf;
+}
+```
+
+**Warning:** This is a shared mutable buffer. If `sponge.absorb()` copies the input (which it should), this is safe. If it holds a reference, add `.slice()` at the call site. Check the sponge implementation.
+
+---
+
+## Improvement 6: Avoid Redundant UTF-8 Conversion
+
+### Current in `phaseSplit`:
+```typescript
+const dataBytes = Buffer.from(data, 'utf-8');               // line ~250
+// ... later in guardian ...
+const hash = spongeHash(Buffer.from(data, 'utf-8'));         // line ~270 — DUPLICATE
+```
+
+### Fix:
+```typescript
+const dataBytes = Buffer.from(data, 'utf-8');
+// ...
+if (config.guardianEnabled) {
+  const hash = spongeHash(dataBytes);  // reuse existing buffer
+}
+```
+
+Same for `phaseRecombine` — the recombined string is converted to Buffer for guardian hash. If you already have the recombined Buffer (from `Buffer.concat([primaryBuf, secondaryBuf])`), hash that directly instead of converting to string and back.
+
+---
+
+## Improvement 7: WASM Sponge (NUCLEAR OPTION — Biggest Absolute Gain)
+
+### What:
+Compile the existing Rust TLSponge-385 implementation to WASM. Use it from TypeScript via a thin bridge. The Rust sponge permutation is 100–500× faster than the TypeScript version.
+
+### Step 1: Add WASM target to ternary-math
+
+In `ternary-math/Cargo.toml`, ensure `crate-type` includes `cdylib`:
+
+```toml
+[lib]
+crate-type = ["lib", "cdylib"]
+```
+
+### Step 2: Add wasm-bindgen exports
+
+Create `ternary-math/src/wasm_exports.rs`:
+
+```rust
+use wasm_bindgen::prelude::*;
+use crate::sponge::{hash, derive_key, TlSponge385};
+
+#[wasm_bindgen]
+pub fn sponge_hash(input: &[u8]) -> String {
+    hash(input)
+}
+
+#[wasm_bindgen]
+pub fn sponge_keystream(domain: &[u8], trit_count: usize) -> Vec<i8> {
+    let mut sponge = TlSponge385::new();
+    sponge.absorb(domain);
+    sponge.squeeze(trit_count)
+}
+
+/// Duplex mode: returns (keystream_trits, mac_hex)
+#[wasm_bindgen]
+pub fn sponge_duplex_encrypt(
+    domain: &[u8],
+    keystream_len: usize,
+    ciphertext: &[u8],
+    mac_trits: usize,
+) -> JsValue {
+    let mut sponge = TlSponge385::new();
+    sponge.absorb(domain);
+    let keystream = sponge.squeeze(keystream_len);
+    sponge.absorb(ciphertext);
+    let mac = sponge.squeeze(mac_trits);
+    // Return as JS object
+    serde_wasm_bindgen::to_value(&(keystream, mac)).unwrap()
+}
+```
+
+**Note:** If the existing `sponge.rs` doesn't have a stateful `TlSponge385` struct with `absorb`/`squeeze` methods, you'll need to refactor it. The existing code likely has `hash()` and `derive_key()` as standalone functions. The internal permutation function needs to be exposed as a stateful object.
+
+### Step 3: Build WASM
+
+```bash
+cd ternary-math
+cargo install wasm-pack  # if not already installed
+wasm-pack build --target nodejs --out-dir pkg
+```
+
+This produces:
+- `pkg/ternary_math_bg.wasm` — the compiled module
+- `pkg/ternary_math.js` — JS bindings
+- `pkg/ternary_math.d.ts` — TypeScript types
+
+### Step 4: TypeScript bridge
+
+Create `server/crypto/sponge-wasm-bridge.ts`:
+
+```typescript
+import * as wasm from '../../ternary-math/pkg/ternary_math';
+
+let initialized = false;
+
+export async function initWasmSponge(): Promise<void> {
+  if (!initialized) {
+    // wasm-pack --target nodejs auto-initializes, but just in case:
+    initialized = true;
+  }
+}
+
+export function wasmSpongeHash(input: Buffer): string {
+  return wasm.sponge_hash(new Uint8Array(input));
+}
+
+export function wasmSpongeKeystream(domain: Buffer, tritCount: number): Int8Array {
+  const result = wasm.sponge_keystream(new Uint8Array(domain), tritCount);
+  return new Int8Array(result);
+}
+
+export function wasmSpongeDuplexEncrypt(
+  domain: Buffer, keystreamLen: number, ciphertext: Buffer, macTrits: number
+): { keystream: Int8Array; mac: Int8Array } {
+  const result = wasm.sponge_duplex_encrypt(
+    new Uint8Array(domain), keystreamLen, new Uint8Array(ciphertext), macTrits
+  );
+  return result;
+}
+```
+
+### Step 5: Swap in phase-encryption.ts
+
+```typescript
+import { wasmSpongeHash, wasmSpongeKeystream } from '../crypto/sponge-wasm-bridge';
+
+// Replace:
+//   spongeHash(input)           → wasmSpongeHash(input)
+//   spongeKeystream(domain, n)  → wasmSpongeKeystream(domain, n)
+```
+
+Or better: use the duplex WASM export directly if you implemented Improvements 1+2 in Rust.
+
+### Step 6: Fallback
+
+Keep the pure TypeScript sponge as a fallback in case WASM fails to load (e.g., restricted environments). Feature-detect at startup:
+
+```typescript
+let useWasm = false;
+try {
+  await initWasmSponge();
+  useWasm = true;
+  console.log('[sponge] WASM backend loaded');
+} catch {
+  console.log('[sponge] Falling back to TypeScript backend');
+}
+
+export function spongeHash(input: Buffer): string {
+  return useWasm ? wasmSpongeHash(input) : tsSpongeHash(input);
+}
+```
+
+---
+
+## Expected Results After All 7 Improvements
+
+| Metric | Current | After 1–6 (TS only) | After 1–7 (WASM) |
+|--------|---------|---------------------|-------------------|
+| Sponge calls per encrypt | 4 | 1 | 1 |
+| Sponge calls per decrypt | 4–5 | 1 | 1 |
+| Per-block sponge cost | ~99 µs | ~99 µs | ~1–5 µs |
+| 4 KB encrypt | ~15.7 ms | ~5–7 ms | ~0.5–1 ms |
+| 4 KB roundtrip | ~31 ms | ~10–14 ms | ~1–2 ms |
+| Throughput | ~128 KB/s | ~350–400 KB/s | ~2–8 MB/s |
+
+---
+
+## Testing
+
+1. **Correctness:** Encrypt with new path, decrypt with new path — round-trip must be exact for all payload sizes (64 B, 256 B, 1 KB, 4 KB, 64 KB) and all 4 modes.
+2. **Backward compatibility:** Encrypt with old path (separate MACs, no duplex), decrypt with new path — must still work. Check the `encrypted.mac` format detection.
+3. **Cross-validate WASM vs TypeScript:** Both backends must produce identical outputs for the same inputs. Run the benchmark suite against both and compare hex outputs byte-for-byte.
+4. **Run existing tests:** All existing phase encryption tests must pass.
+5. **Benchmark:** Run `GET /api/salvi/crypto/phase-benchmark?iterations=100` before and after. Report the per-size throughput table.
+
+---
+
+## Deliverables
+
+1. Updated `server/salvi-core/phase-encryption.ts` with improvements 1–6
+2. Updated `server/crypto/sponge-hash.ts` with `SpongeDuplex` class
+3. `ternary-math/src/wasm_exports.rs` — WASM bindings for sponge
+4. `ternary-math/pkg/` — compiled WASM module
+5. `server/crypto/sponge-wasm-bridge.ts` — TypeScript WASM loader
+6. Updated benchmark results in `docs/security/phase-encryption-benchmarks.md`
+7. Updated `shared/constants.ts` with new BENCH_PHASE_* values
+8. All existing tests passing + new duplex-mode test coverage
+
+---
+
+## Order of Implementation
+
+1. **Improvements 4, 5, 6** — trivial, no architectural change, do first as warmup
+2. **Improvement 3** — minor refactor, prepares for duplex
+3. **Improvements 1 + 2** — the big architectural change (duplex mode). Implement together since they share the SpongeDuplex class. Include backward compatibility for old encrypted payloads.
+4. **Improvement 7** — WASM. This is independent of 1–6 and can be done in parallel if desired. The WASM bridge slots in as a drop-in replacement for the TypeScript sponge functions.
+5. **Run benchmarks, update docs**

@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+"""
+PlenumNET Local DNS Proxy — Metatronic Bridge
+Capomastro Holdings Ltd. — Applied Physics Division
+
+Intercepts .plm DNS queries and resolves them via the TDNS API.
+All other queries are forwarded to the upstream DNS server.
+
+Usage (run as Administrator):
+    python plm_dns_proxy.py
+    python plm_dns_proxy.py --upstream 8.8.8.8 --tdns http://localhost:3927
+
+Then set your DNS to 127.0.0.1 (or use --port to pick a different port).
+"""
+
+import socket
+import struct
+import threading
+import json
+import urllib.request
+import urllib.error
+import argparse
+import sys
+import time
+from datetime import datetime
+
+# ─── Configuration ──────────────────────────────────────────────────────────
+
+DEFAULT_UPSTREAM = "8.8.8.8"
+DEFAULT_UPSTREAM_PORT = 53
+DEFAULT_LISTEN_PORT = 53
+DEFAULT_TDNS_API = "http://localhost:3927"
+BRIDGE_IP = "127.0.0.77"  # .plm names resolve to this sentinel IP
+CACHE_TTL = 300  # 5 minutes
+
+# ─── DNS Packet Parsing ────────────────────────────────────────────────────
+
+def parse_dns_name(data, offset):
+    """Parse a DNS name from a packet, handling compression pointers."""
+    labels = []
+    jumped = False
+    original_offset = offset
+    max_jumps = 20
+
+    for _ in range(max_jumps):
+        if offset >= len(data):
+            break
+        length = data[offset]
+
+        if length == 0:
+            offset += 1
+            break
+        elif (length & 0xC0) == 0xC0:
+            if not jumped:
+                original_offset = offset + 2
+            pointer = ((length & 0x3F) << 8) | data[offset + 1]
+            offset = pointer
+            jumped = True
+        else:
+            offset += 1
+            labels.append(data[offset:offset + length].decode('ascii', errors='replace'))
+            offset += length
+
+    name = '.'.join(labels)
+    if jumped:
+        return name, original_offset
+    return name, offset
+
+
+def build_dns_response(query_data, ip_address, ttl=300):
+    """Build a DNS A record response for a query."""
+    # Parse the query
+    tid = query_data[:2]
+    flags = b'\x81\x80'  # Standard response, no error
+    qdcount = struct.pack('>H', 1)
+    ancount = struct.pack('>H', 1)
+    nscount = struct.pack('>H', 0)
+    arcount = struct.pack('>H', 0)
+
+    # Find the end of the question section
+    offset = 12
+    while offset < len(query_data) and query_data[offset] != 0:
+        offset += query_data[offset] + 1
+    offset += 1  # null terminator
+    offset += 4  # qtype + qclass
+
+    question = query_data[12:offset]
+
+    # Build answer: pointer to name in question + A record
+    answer = b'\xc0\x0c'  # Pointer to name in question section
+    answer += struct.pack('>H', 1)   # Type A
+    answer += struct.pack('>H', 1)   # Class IN
+    answer += struct.pack('>I', ttl)  # TTL
+    answer += struct.pack('>H', 4)   # RDLENGTH
+
+    # IP address
+    ip_parts = ip_address.split('.')
+    answer += bytes([int(p) for p in ip_parts])
+
+    return tid + flags + qdcount + ancount + nscount + arcount + question + answer
+
+
+def build_dns_nxdomain(query_data):
+    """Build an NXDOMAIN response."""
+    tid = query_data[:2]
+    flags = b'\x81\x83'  # Response + NXDOMAIN
+    counts = struct.pack('>HHHH', 1, 0, 0, 0)
+
+    offset = 12
+    while offset < len(query_data) and query_data[offset] != 0:
+        offset += query_data[offset] + 1
+    offset += 5
+    question = query_data[12:offset]
+
+    return tid + flags + counts + question
+
+
+# ─── TDNS Resolution ───────────────────────────────────────────────────────
+
+class TdnsCache:
+    """Simple TTL cache for TDNS resolutions."""
+    def __init__(self, ttl=CACHE_TTL):
+        self.cache = {}
+        self.ttl = ttl
+
+    def get(self, name):
+        if name in self.cache:
+            entry, timestamp = self.cache[name]
+            if time.time() - timestamp < self.ttl:
+                return entry
+            del self.cache[name]
+        return None
+
+    def put(self, name, entry):
+        self.cache[name] = (entry, time.time())
+
+
+def resolve_plm(name, api_base, cache):
+    """Resolve a .plm name via the TDNS API."""
+    cached = cache.get(name)
+    if cached is not None:
+        return cached
+
+    try:
+        url = f"{api_base}/api/v1/resolve/{name}"
+        req = urllib.request.Request(url, method='GET')
+        req.add_header('Accept', 'application/json')
+
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            if data.get('status') == 'ok':
+                cache.put(name, data)
+                return data
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+    except Exception as e:
+        print(f"  [ERROR] TDNS API call failed: {e}")
+
+    return None
+
+
+# ─── DNS Proxy Server ──────────────────────────────────────────────────────
+
+class PlmDnsProxy:
+    def __init__(self, listen_port, upstream, upstream_port, tdns_api):
+        self.listen_port = listen_port
+        self.upstream = upstream
+        self.upstream_port = upstream_port
+        self.tdns_api = tdns_api
+        self.cache = TdnsCache()
+        self.stats = {'total': 0, 'plm': 0, 'forwarded': 0, 'errors': 0}
+
+    def forward_to_upstream(self, data):
+        """Forward a DNS query to the upstream resolver."""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(5)
+            sock.sendto(data, (self.upstream, self.upstream_port))
+            response, _ = sock.recvfrom(4096)
+            sock.close()
+            return response
+        except Exception as e:
+            print(f"  [ERROR] Upstream DNS failed: {e}")
+            self.stats['errors'] += 1
+            return None
+
+    def handle_query(self, data, addr, sock):
+        """Handle a single DNS query."""
+        self.stats['total'] += 1
+
+        if len(data) < 12:
+            return
+
+        # Parse the query name
+        name, offset = parse_dns_name(data, 12)
+
+        # Check query type (offset points past the name)
+        if offset + 4 <= len(data):
+            qtype = struct.unpack('>H', data[offset:offset+2])[0]
+        else:
+            qtype = 0
+
+        # Only handle A record queries for .plm
+        if name.endswith('.plm') and qtype == 1:
+            self.stats['plm'] += 1
+            plm_name = name  # Already includes .plm
+
+            print(f"  [PLM] {plm_name} from {addr[0]}")
+
+            result = resolve_plm(plm_name, self.tdns_api, self.cache)
+            if result:
+                address = result.get('address', 'unknown')
+                crd = result.get('crd', '?')
+                print(f"  [PLM] → {address} CRD:{crd}")
+                response = build_dns_response(data, BRIDGE_IP, ttl=300)
+            else:
+                print(f"  [PLM] → NXDOMAIN (not registered)")
+                response = build_dns_nxdomain(data)
+
+            sock.sendto(response, addr)
+
+        else:
+            # Forward to upstream
+            self.stats['forwarded'] += 1
+            response = self.forward_to_upstream(data)
+            if response:
+                sock.sendto(response, addr)
+
+    def run(self):
+        """Start the DNS proxy server."""
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        try:
+            sock.bind(('0.0.0.0', self.listen_port))
+        except PermissionError:
+            print(f"\n  ERROR: Cannot bind to port {self.listen_port}.")
+            print(f"  Run as Administrator (Windows) or root (Linux).\n")
+            sys.exit(1)
+        except OSError as e:
+            print(f"\n  ERROR: Port {self.listen_port} already in use: {e}")
+            print(f"  Stop existing DNS service or use --port to pick another.\n")
+            sys.exit(1)
+
+        print(f"""
+╔═══════════════════════════════════════════════════╗
+║  PlenumNET DNS Proxy — Metatronic Bridge          ║
+║  Capomastro Holdings Ltd.                         ║
+║  Applied Physics Division                         ║
+╠═══════════════════════════════════════════════════╣
+║  Listening:  0.0.0.0:{self.listen_port:<5}                        ║
+║  Upstream:   {self.upstream}:{self.upstream_port:<5}                        ║
+║  TDNS API:   {self.tdns_api:<35} ║
+║  Bridge IP:  {BRIDGE_IP:<35} ║
+╠═══════════════════════════════════════════════════╣
+║  .plm → TDNS    |    All else → upstream DNS      ║
+╚═══════════════════════════════════════════════════╝
+""")
+        print("  Set your DNS to 127.0.0.1 to activate.\n")
+        print("  Waiting for queries...\n")
+
+        while True:
+            try:
+                data, addr = sock.recvfrom(4096)
+                thread = threading.Thread(
+                    target=self.handle_query,
+                    args=(data, addr, sock),
+                    daemon=True
+                )
+                thread.start()
+            except KeyboardInterrupt:
+                print(f"\n\n  Shutting down. Stats:")
+                print(f"    Total queries:  {self.stats['total']}")
+                print(f"    .plm resolved:  {self.stats['plm']}")
+                print(f"    Forwarded:      {self.stats['forwarded']}")
+                print(f"    Errors:         {self.stats['errors']}")
+                break
+
+        sock.close()
+
+
+# ─── Main ──────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='PlenumNET DNS Proxy — .plm Metatronic Bridge'
+    )
+    parser.add_argument('--port', type=int, default=DEFAULT_LISTEN_PORT,
+                        help=f'Listen port (default: {DEFAULT_LISTEN_PORT})')
+    parser.add_argument('--upstream', default=DEFAULT_UPSTREAM,
+                        help=f'Upstream DNS server (default: {DEFAULT_UPSTREAM})')
+    parser.add_argument('--upstream-port', type=int, default=DEFAULT_UPSTREAM_PORT,
+                        help=f'Upstream DNS port (default: {DEFAULT_UPSTREAM_PORT})')
+    parser.add_argument('--tdns', default=DEFAULT_TDNS_API,
+                        help=f'TDNS API base URL (default: {DEFAULT_TDNS_API})')
+
+    args = parser.parse_args()
+
+    proxy = PlmDnsProxy(
+        listen_port=args.port,
+        upstream=args.upstream,
+        upstream_port=args.upstream_port,
+        tdns_api=args.tdns
+    )
+    proxy.run()
+
+
+if __name__ == '__main__':
+    main()

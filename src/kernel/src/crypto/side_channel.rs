@@ -199,7 +199,7 @@ pub fn analyze_aes_module() -> ModuleAnalysis {
 
 pub fn analyze_sponge_module() -> ModuleAnalysis {
     ModuleAnalysis {
-        module_name: String::from("Ternary Sponge Hash"),
+        module_name: String::from("TL-Sponge-385"),
         module_path: String::from("salvi_kernel::crypto::sponge"),
         checks: vec![
             ConstantTimeCheck {

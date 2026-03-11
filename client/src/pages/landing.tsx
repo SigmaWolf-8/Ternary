@@ -534,7 +534,7 @@ function InterCubeSection() {
     {
       icon: Lock,
       title: "Topology-Derived Cryptography",
-      description: "Each edge in the hypercube gets a TIS-27 sponge-derived tunnel key. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.",
+      description: `${PLATFORM.INTER_CUBE_TUNNELS} unique post-quantum encrypted tunnels per populated cube — each key derived from the geometric positions of the two endpoints via TLSponge-385. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.`,
     },
     {
       icon: Shield,
@@ -630,6 +630,16 @@ function InterCubeSection() {
           >
             <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_ROUTING_TABLES}</span>
             <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.32 }}
+            className="flex flex-col items-center"
+            data-testid="stat-tunnels"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_TUNNELS_SHORT}</span>
+            <span className="text-sm text-muted-foreground mt-2">Encrypted Tunnels</span>
           </motion.div>
         </div>
 
@@ -1075,7 +1085,7 @@ function PerformanceSection() {
       value: PLATFORM.BENCH_TL_DSA_87_SPEEDUP,
       unit: "× faster",
       label: "TL-DSA-87 Optimization",
-      detail: `Full sign+verify in ${PLATFORM.BENCH_TL_DSA_87_US} µs — down from 14,403 µs via NTT, XOF batching, and AVX2 vectorization.`,
+      detail: `Full sign+verify in ${PLATFORM.BENCH_TL_DSA_87_US} µs — down from 14,403 µs via integer NTT (q=12289), XOF batching, and AVX2 vectorization.`,
     },
     {
       icon: Gauge,
@@ -1164,35 +1174,63 @@ function PerformanceSection() {
           className="mb-12 md:mb-16"
         >
           <Card className="max-w-4xl mx-auto p-5 md:p-8 border-primary/10 bg-card/70 backdrop-blur-sm" data-testid="card-dsa-breakdown">
-            <h3 className="text-lg font-semibold mb-1">TL-DSA Sign + Verify Roundtrip</h3>
-            <p className="text-sm text-muted-foreground mb-6">Post-quantum digital signatures at three CNSA 2.0 security levels. All times measured, not estimated.</p>
-            <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-1">TL-DSA vs ML-DSA — Full Roundtrip</h3>
+            <p className="text-sm text-foreground/90 font-medium mb-2">TL-DSA achieves 2.6–3.4× faster signing & verification than ML-DSA at the same NIST security levels — using integer NTT (q=12289), ternary arithmetic, and first-principles optimizations.</p>
+            <p className="text-sm text-muted-foreground mb-6">Keygen + sign + verify at three CNSA 2.0 security levels. TL-DSA measured on x86; ML-DSA (FIPS 204) reference from NIST benchmarks on comparable hardware.</p>
+            <div className="space-y-5">
               {[
-                { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US, pct: 25, bits: "128-bit" },
-                { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US, pct: 45, bits: "192-bit" },
-                { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US, pct: 65, bits: "256-bit" },
-              ].map((row) => (
-                <div key={row.variant} className="flex items-center gap-4" data-testid={`dsa-bar-${row.variant}`}>
-                  <div className="w-24 md:w-28 shrink-0">
-                    <span className="font-mono text-sm font-medium">{row.variant}</span>
-                    <span className="block text-xs text-muted-foreground">{row.bits}</span>
+                { bits: "128-bit", tl: { variant: "TL-DSA-44", time: PLATFORM.BENCH_TL_DSA_44_US }, ml: { variant: "ML-DSA-44", time: PLATFORM.BENCH_ML_DSA_44_US } },
+                { bits: "192-bit", tl: { variant: "TL-DSA-65", time: PLATFORM.BENCH_TL_DSA_65_US }, ml: { variant: "ML-DSA-65", time: PLATFORM.BENCH_ML_DSA_65_US } },
+                { bits: "256-bit", tl: { variant: "TL-DSA-87", time: PLATFORM.BENCH_TL_DSA_87_US }, ml: { variant: "ML-DSA-87", time: PLATFORM.BENCH_ML_DSA_87_US } },
+              ].map((row, _idx, arr) => {
+                const tlNum = parseInt(row.tl.time.replace(/,/g, ""));
+                const mlNum = parseInt(row.ml.time.replace(/,/g, ""));
+                const globalMax = Math.max(...arr.map(r => parseInt(r.ml.time.replace(/,/g, ""))));
+                const tlPct = Math.max(8, Math.round((tlNum / globalMax) * 90));
+                const mlPct = Math.max(8, Math.round((mlNum / globalMax) * 90));
+                const speedup = (mlNum / tlNum).toFixed(1);
+                return (
+                  <div key={row.bits} data-testid={`dsa-pair-${row.bits}`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-muted-foreground">{row.bits}</span>
+                      <span className="text-xs font-mono font-bold text-primary">{speedup}× faster</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono w-20 shrink-0 font-medium text-primary">{row.tl.variant}</span>
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden relative">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${tlPct}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, delay: 0.2 }}
+                            className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-2"
+                          >
+                            <span className="text-[10px] font-mono font-bold text-primary-foreground whitespace-nowrap">{row.tl.time} µs</span>
+                          </motion.div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono w-20 shrink-0 text-muted-foreground">{row.ml.variant}</span>
+                        <div className="flex-1 bg-muted/50 rounded-full h-5 overflow-hidden relative">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${mlPct}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, delay: 0.3 }}
+                            className="h-full bg-muted-foreground/30 rounded-full flex items-center justify-end pr-2"
+                          >
+                            <span className="text-[10px] font-mono font-bold text-muted-foreground whitespace-nowrap">{row.ml.time} µs</span>
+                          </motion.div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 bg-muted/50 rounded-full h-6 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${row.pct}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.2 }}
-                      className="h-full bg-primary/80 rounded-full flex items-center justify-end pr-3"
-                    >
-                      <span className="text-xs font-mono font-bold text-primary-foreground whitespace-nowrap">{row.time} µs</span>
-                    </motion.div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <p className="text-xs text-muted-foreground mt-4 pt-4 border-t border-foreground/5">
-              Optimizations: Integer NTT (q=12289, ψ=3400) · XOF-batched sponge expansion · GF(3)-associative balanced_wrap · AVX2-vectorized substitution (32 trits/cycle)
+              TL-DSA: Integer NTT (q=12289, ψ=3400) · 7-neighbor sponge (9 rounds) · AVX2 vectorization (32 trits/cycle). ML-DSA (FIPS 204): NIST standard reference implementation benchmarks.
             </p>
           </Card>
         </motion.div>
@@ -1288,7 +1326,7 @@ function PerformanceSection() {
               {[
                 { label: "Rounds", value: String(PLATFORM.BENCH_TIS27_ROUNDS), detail: "vs 64 (SHA-256)" },
                 { label: "Theta Neighbors", value: String(PLATFORM.BENCH_TIS27_NEIGHBORS), detail: "±1, ±7, ±13" },
-                { label: "Avalanche", value: `${PLATFORM.BENCH_TIS27_AVALANCHE}%`, detail: "2× safety margin" },
+                { label: "Avalanche", value: `${PLATFORM.BENCH_TIS27_AVALANCHE}%`, detail: "3× safety margin" },
                 { label: "Forgery Check", value: "0 ns", detail: "Algebraically impossible" },
               ].map((s) => (
                 <div key={s.label} className="rounded-md border border-foreground/5 bg-muted/20 p-3 text-center" data-testid={`stat-${s.label.toLowerCase().replace(/\s/g, "-")}`}>
@@ -1335,7 +1373,7 @@ function PerformanceSection() {
                 </thead>
                 <tbody>
                   {[
-                    { op: "Hash (27B)", plm: "TIS-27: 308", ind: "SHA-256: 672", speedup: "2.2×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
+                    { op: "Hash (27B)", plm: "TIS-27: 191", ind: "SHA-256: 672", speedup: "3.5×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
                     { op: "Hash (81B, PQ)", plm: "TIS-81: 863", ind: "SHA3-256: 928", speedup: "1.1×", includes: "257-bit post-quantum capacity, native GF(3) output", requires: "128-bit classical only (Grover halves), binary output" },
                     { op: "Address derivation", plm: "342", ind: "SHA-256 path: 824", speedup: "2.4×", includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee", requires: "Hash + binary→ternary + separate validation" },
                     { op: "Encryption (27B)", plm: "Phase GF(3): 24", ind: "XSalsa20: 402", speedup: "17×", includes: "GF(3) native, Tribonacci tamper detection, adaptive phase modes", requires: "Binary cipher, separate auth tag, no ternary awareness" },
@@ -1371,7 +1409,7 @@ function PerformanceSection() {
 
             <div className="md:hidden space-y-4">
               {[
-                { op: "Hash (27B)", plm: "TIS-27: 308", ind: "SHA-256: 672", speedup: "2.2×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
+                { op: "Hash (27B)", plm: "TIS-27: 191", ind: "SHA-256: 672", speedup: "3.5×", includes: "Native GF(3) output, structural forgery detection, routable address ready", requires: "Binary output, ternary conversion (+34 ns), forgery check separate" },
                 { op: "Hash (81B, PQ)", plm: "TIS-81: 863", ind: "SHA3-256: 928", speedup: "1.1×", includes: "257-bit post-quantum capacity, native GF(3) output", requires: "128-bit classical only (Grover halves), binary output" },
                 { op: "Address derivation", plm: "342", ind: "SHA-256 path: 824", speedup: "2.4×", includes: "Hash + Rep C lift in one step, zero-cannot-appear guarantee", requires: "Hash + binary→ternary + separate validation" },
                 { op: "Encryption (27B)", plm: "Phase GF(3): 24", ind: "XSalsa20: 402", speedup: "17×", includes: "GF(3) native, Tribonacci tamper detection, adaptive phase modes", requires: "Binary cipher, separate auth tag, no ternary awareness" },

@@ -1,0 +1,65 @@
+## Review of "PlenumNET: Post-Quantum Cryptography over GF(3)"  
+
+**Summary**  
+This manuscript proposes a comprehensive cryptographic architecture built entirely over the ternary field GF(3). It introduces a sponge family (TIS‑27, TIS‑81, TLSponge‑385) with a novel χ S‑box over GF(27), a diffusion layer proven to have branch number 8, and a key‑dependent diffusion mechanism using the wreath product S₃ ≀ S₆. It also presents lattice‑based signature and KEM schemes (TL‑DSA, TL‑KEM) over GF(3)[X]/(X²⁵⁶+1), a phase‑domain authenticated cipher, a RISC‑V hardware extension, and several applications (TDNS, HPTP, etc.). The work is ambitious and contains several novel ideas, but it suffers from a critical error in its wide‑trail security analysis that invalidates the claimed differential bounds. Additional concerns about presentation, scope, and missing security justifications further reduce its suitability for publication in its current form.
+
+---
+
+### Major Issue: Incorrect Wide‑Trail Bound  
+
+The authors claim (Corollary 4) that for their sponge construction, the number of active S‑boxes after *r* rounds satisfies *N(r) ≥ 8ʳ*. For *r* = 4 this gives 4096 active S‑boxes, leading to a differential trail probability ≤ (1/9)⁴⁰⁹⁶ < 10⁻³⁹⁰⁸.  
+
+This bound is **impossible** for a finite state. The TIS‑27 state consists of 54 trits, i.e., 18 GF(27) S‑boxes per round. Over four rounds the total number of S‑box applications is at most 4·18 = 72. Hence any differential trail can involve at most 72 active S‑boxes (counting each S‑box activation in each round). The claimed 4096 exceeds this by orders of magnitude, indicating a fundamental misunderstanding of the wide‑trail strategy.
+
+The correct application of the wide‑trail strategy would give relations of the form *wᵢ + wᵢ₊₁ ≥ 8*, where *wᵢ* is the number of active S‑boxes in round *i*. Summing these inequalities yields a lower bound on the **sum** of active S‑boxes over *r* rounds, but that sum cannot exceed *r·m* (with *m* = 18). The exponential bound *8ʳ* is therefore false, and all subsequent security margins derived from it are invalid.
+
+This error is fatal to the paper’s core claim of provable security. The authors must either correct the bound to something realistic (e.g., *N(r) ≥ 8·ceil(r/2)* or a similar linear/exponential‑but‑saturating expression) and recompute the trail probabilities accordingly, or provide a completely different justification for the differential resistance.
+
+---
+
+### Other Technical Concerns  
+
+1. **Key‑dependent diffusion geometry**  
+   The idea of using the wreath product S₃ ≀ S₆ to generate per‑round permutations that depend on the key is interesting, but the security implications are not analysed. Does this provide any provable advantage over fixed permutations? Are there weak keys that could lead to lower diffusion? The paper should include a discussion of potential attacks (e.g., invariant subspaces, slide attacks) and why the large group order (524,880) prevents them.
+
+2. **Lattice schemes**  
+   - The performance comparisons (e.g., TL‑DSA‑44 at 615 µs vs. ML‑DSA‑44 at 1600 µs) are promising, but the paper does not detail the implementation (e.g., whether the ternary NTT is constant‑time, how sampling is done, etc.).  
+   - Security estimates rely on the lattice‑estimator, but the specific parameter choices (e.g., *q* = 12289, *n* = 256) need justification. The ring GF(3)[X]/(X²⁵⁶+1) may not be a field; the polynomial might factor over GF(3). The authors should verify that the NTT works as intended and that the module‑LWE problem remains hard.  
+   - The claim of “37% memory reduction” due to balanced ternary encoding should be clarified: it applies to storage of coefficients, but the actual ciphertext sizes given (e.g., for TL‑KEM) are not compared with ML‑KEM sizes.
+
+3. **Phase‑domain encryption**  
+   - The performance numbers (24 ns per 27‑byte block) seem exceptionally fast. Is this just the XOR step with pre‑computed keystream, or does it include keystream generation? A fair comparison with XSalsa20 (402 ns) would require including all steps.  
+   - The security analysis references a formal proof (TM‑2026‑011) that is not included. For a self‑contained paper, the proof sketch should be expanded, especially the reduction to the keyed‑sponge PRF and the handling of the “phase” input.
+
+4. **TDNS, HPTP, calendar systems, etc.**  
+   These sections describe a complete system architecture but are largely orthogonal to the cryptographic core. While they demonstrate the applicability of the primitives, they add considerable length and distraction. The paper would be stronger if it focused on the cryptographic primitives and moved the system‑level descriptions to an appendix or a separate publication.
+
+5. **“Squaring the circle” and dual‑circle number theory**  
+   The philosophical discussion about π = 14 and the 364° circle is interesting but may be perceived as numerology. The cryptographic relevance of these constants (e.g., why 13 must be a Tribonacci number) is not compelling. The paper should either justify the parameter choices in a more conventional “nothing‑up‑my‑sleeve” manner or omit this section entirely.
+
+6. **Hardware extension (XPlenum)**  
+   The description of the RISC‑V extension is too brief to assess its correctness or efficiency. If the paper aims to cover hardware, it should include more details (e.g., synthesis results on a real FPGA/ASIC, comparison with software). Otherwise, it could be omitted.
+
+---
+
+### Minor Issues  
+
+- Theorem 1 (affinity of GF(3) permutations) is correct but trivial; it could be stated more succinctly.  
+- The exhaustive search for the branch number is well executed and convincing.  
+- The choice of χ(x) = x¹⁷ over GF(27) and its differential/linear properties are properly analysed and appear sound.  
+- The paper contains numerous typographical errors and inconsistent notation (e.g., “DP_max” vs. “DP_max”, “Ŵ” not defined).  
+- References to internal technical memoranda (TM‑2026‑011, BR‑2026‑001) are unhelpful; the paper should be self‑contained.
+
+---
+
+### Recommendation  
+
+**Reject.** The critical error in the wide‑trail bound undermines the main security claim and cannot be overlooked. The paper also suffers from an overly broad scope, insufficient detail on several components, and unsubstantiated performance claims.  
+
+However, the underlying ideas—ternary sponge construction, the χ S‑box over GF(27), the diffusion layer with branch number 8, and the lattice schemes over GF(3)—are potentially valuable. I encourage the authors to:  
+1. Correct the wide‑trail analysis and provide realistic security bounds.  
+2. Focus the paper on the cryptographic primitives, omitting or drastically reducing the system‑level applications.  
+3. Provide full security proofs or at least detailed sketches for all schemes.  
+4. Include concrete benchmarks with clear methodology.  
+
+After such revisions, a resubmission could be suitable for a venue like IACR ePrint or a conference like CHES or ASIACRYPT.

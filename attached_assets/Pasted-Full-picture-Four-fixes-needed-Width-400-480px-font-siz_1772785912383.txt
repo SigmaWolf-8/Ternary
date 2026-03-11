@@ -1,0 +1,35 @@
+Full picture. Four fixes needed:
+
+Width 400→480px, font-size bumps, better contrast on muted text
+.plm name: strip TLD (google.com → google, plenumnet.replit.app → plenumnet-replit) + add explanation copy
+Dedup: check URL already registered before allowing a second registration
+Server: URL-keyed dedup in registry + 409 on duplicate
+
+Rebuilding all three files now.Assessed prior work and consolidated iterative refinements systematicallyAssessed prior work and consolidated iterative refinements systematicallyThese fixes are already in the files I just wrote. Let me validate, update the server route with the 409 dedup logic, and repackage cleanly.Identified remaining fixes needed for server implementationIdentified remaining fixes needed for server implementationAll three fixes confirmed. Now update the server route with the URL-keyed registry dedup and 409 response:Ran 4 commandsRan 4 commandsNow I have the exact text. Apply the three targeted patches to the server file:Edited 2 files, ran a commandEdited 2 files, ran a commandAlso update the list endpoint to expose the URL index count:Ran 3 commands, edited a file, read a fileRan 3 commands, edited a file, read a filev1.0.2 — all three issues resolved across all files.
+
+What changed and where
+1. GUI size (popup.html)
+
+Body width 400px → 480px, max-height 640px → 680px
+Base font 13px → 14px, heading/label sizes scaled up proportionally
+Muted text #7a7570 → #8a857f (better contrast against #090807 — passes WCAG AA at 14px)
+Modal width 362px → 430px, padding increased throughout
+
+2. .plm name handling (popup.js + popup.html)
+
+suggestPlmName() function strips TLD automatically:
+
+google.com → google
+www.google.com → google
+plenumnet.replit.app → plenumnet-replit
+Handles compound TLDs: co.uk, gc.ca, etc.
+
+
+sanitisePlmName() enforces [a-z0-9-] only — no dots, no underscores
+Live preview below the name field shows yourname.plm as you type
+Blue explainer box in the register modal explains what .plm means, why TLDs are dropped, and the naming rules
+
+3. Duplicate registration blocked (popup.js + tdns.ts)
+
+Client side: registeredUrls map persisted in chrome.storage.local. Opening the register modal for a URL that was already registered shows an amber ⚠ Already registered as X.plm warning before you even click Register.
+Server side: urlIndex Map (URL → .plm name) added alongside the existing registry Map. /api/tdns/register now checks the URL index first and returns HTTP 409 with { existing_name, hint } if the URL is already claimed. Caller can pass overwrite: true to force replacement.

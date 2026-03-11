@@ -1,0 +1,356 @@
+#!/usr/bin/env python3
+"""
+TM-2026-007 Program II Verification
+====================================
+1. Construct GF(27) = GF(3)[t] / (t^3 + 2t + 1)
+2. Compute DDT for chi(x) = x^5 and alternative power maps
+3. Verify branch number B(M_theta) = 8 for TIS-27 theta layer
+"""
+import itertools
+from collections import defaultdict
+
+# ═══════════════════════════════════════════
+# GF(27) ARITHMETIC
+# ═══════════════════════════════════════════
+# Elements are triples (a0, a1, a2) representing a0 + a1*t + a2*t^2
+# where t^3 = -2t - 1 = t + 2 (in GF(3), -2 = 1, -1 = 2)
+# So t^3 = t + 2
+
+def gf27_add(a, b):
+    return tuple((ai + bi) % 3 for ai, bi in zip(a, b))
+
+def gf27_neg(a):
+    return tuple((3 - ai) % 3 for ai in a)
+
+def gf27_sub(a, b):
+    return gf27_add(a, gf27_neg(b))
+
+def gf27_mul(a, b):
+    # (a0 + a1*t + a2*t^2)(b0 + b1*t + b2*t^2)
+    # expand and reduce t^3 = t + 2, t^4 = t^2 + 2t
+    a0, a1, a2 = a
+    b0, b1, b2 = b
+    
+    # Direct expansion coefficients for t^0, t^1, t^2, t^3, t^4
+    c0 = a0*b0
+    c1 = a0*b1 + a1*b0
+    c2 = a0*b2 + a1*b1 + a2*b0
+    c3 = a1*b2 + a2*b1
+    c4 = a2*b2
+    
+    # Reduce: t^3 = t + 2, so t^4 = t*t^3 = t(t+2) = t^2 + 2t
+    # c3 * t^3 = c3*(t + 2) = 2*c3 + c3*t
+    # c4 * t^4 = c4*(t^2 + 2t) = 2*c4*t + c4*t^2
+    r0 = (c0 + 2*c3) % 3
+    r1 = (c1 + c3 + 2*c4) % 3
+    r2 = (c2 + c4) % 3
+    
+    return (r0, r1, r2)
+
+def gf27_pow(a, n):
+    if n == 0:
+        return (1, 0, 0)
+    if a == (0, 0, 0):
+        return (0, 0, 0)
+    result = (1, 0, 0)
+    base = a
+    while n > 0:
+        if n % 2 == 1:
+            result = gf27_mul(result, base)
+        base = gf27_mul(base, base)
+        n //= 2
+    return result
+
+def elem_to_int(a):
+    return a[0] + 3*a[1] + 9*a[2]
+
+def int_to_elem(n):
+    return (n % 3, (n // 3) % 3, (n // 9) % 3)
+
+# Generate all 27 elements
+ALL_ELEMS = [int_to_elem(i) for i in range(27)]
+ZERO = (0, 0, 0)
+ONE = (1, 0, 0)
+
+# Verify field structure: check t^3 + 2t + 1 = 0
+t = (0, 1, 0)  # the element t
+t3 = gf27_pow(t, 3)
+check = gf27_add(t3, gf27_add(gf27_mul((2,0,0), t), ONE))
+print(f"Irreducibility check: t^3 + 2t + 1 = {check} (should be (0,0,0))")
+
+# Verify x^26 = 1 for all nonzero x (multiplicative group order = 26)
+all_orders_ok = True
+for x in ALL_ELEMS:
+    if x != ZERO:
+        if gf27_pow(x, 26) != ONE:
+            all_orders_ok = False
+            print(f"  ORDER FAIL: {x}^26 = {gf27_pow(x, 26)}")
+print(f"All nonzero x satisfy x^26 = 1: {all_orders_ok}")
+
+# ═══════════════════════════════════════════
+# DDT COMPUTATION
+# ═══════════════════════════════════════════
+def compute_ddt(exponent):
+    """Compute DDT for chi(x) = x^exponent over GF(27)"""
+    # First check it's a permutation
+    images = set()
+    chi = {}
+    for x in ALL_ELEMS:
+        y = gf27_pow(x, exponent)
+        chi[x] = y
+        images.add(y)
+    
+    is_perm = len(images) == 27
+    
+    # DDT[a][b] = |{x : chi(x+a) - chi(x) = b}| for a != 0
+    ddt = {}
+    max_entry = 0
+    max_pair = None
+    
+    for a in ALL_ELEMS:
+        if a == ZERO:
+            continue
+        ddt[a] = {}
+        for b in ALL_ELEMS:
+            ddt[a][b] = 0
+        
+        for x in ALL_ELEMS:
+            xa = gf27_add(x, a)
+            diff = gf27_sub(chi[xa], chi[x])
+            ddt[a][diff] += 1
+            if ddt[a][diff] > max_entry:
+                max_entry = ddt[a][diff]
+                max_pair = (a, diff)
+    
+    return is_perm, max_entry, max_pair, ddt
+
+print("\n" + "="*60)
+print("DDT ANALYSIS FOR POWER MAPS OVER GF(27)")
+print("="*60)
+
+# Check which exponents give permutations (gcd(e, 26) = 1)
+# 26 = 2 * 13, so coprime exponents: 1,3,5,7,9,11,15,17,19,21,23,25
+import math
+perm_exponents = [e for e in range(1, 27) if math.gcd(e, 26) == 1]
+print(f"\nPermutation exponents (gcd(e,26)=1): {perm_exponents}")
+print(f"Count: {len(perm_exponents)}")
+
+# Compute DDT for each
+results = []
+for e in perm_exponents:
+    is_perm, max_ddt, max_pair, ddt = compute_ddt(e)
+    dp_max = max_ddt / 27
+    results.append((e, is_perm, max_ddt, dp_max, max_pair))
+    
+print(f"\n{'Exp':>4} | {'Perm?':>5} | {'Max DDT':>7} | {'DP_max':>8} | {'Worst pair (a,b)':>30}")
+print("-" * 70)
+for e, is_p, md, dp, mp in sorted(results, key=lambda x: x[2]):
+    a_int = elem_to_int(mp[0]) if mp else "?"
+    b_int = elem_to_int(mp[1]) if mp else "?"
+    print(f"{e:>4} | {str(is_p):>5} | {md:>7} | {dp:>8.4f} | a={a_int}, b={b_int}")
+
+# ═══════════════════════════════════════════
+# FULL DDT FOR x^5
+# ═══════════════════════════════════════════
+print("\n" + "="*60)
+print("FULL DDT FOR chi(x) = x^5 OVER GF(27)")
+print("="*60)
+
+is_perm, max_ddt, max_pair, ddt_x5 = compute_ddt(5)
+print(f"Is permutation: {is_perm}")
+print(f"DP_max = {max_ddt}/27 = {max_ddt/27:.6f}")
+
+# Print DDT as table (input diff a as rows, output diff b as columns)
+# Use integer encoding for readability
+print(f"\nDDT[a][b] (a=row 1-26, b=col 0-26):")
+print(f"{'a\\b':>3}", end="")
+for b in range(27):
+    print(f"{b:>3}", end="")
+print()
+print("-" * (3 + 27*3))
+
+# Distribution of DDT values
+value_counts = defaultdict(int)
+for a_idx in range(1, 27):
+    a = int_to_elem(a_idx)
+    print(f"{a_idx:>3}", end="")
+    for b_idx in range(27):
+        b = int_to_elem(b_idx)
+        val = ddt[a][b]
+        value_counts[val] += 1
+        print(f"{val:>3}", end="")
+    print()
+
+print(f"\nDDT value distribution:")
+for v in sorted(value_counts.keys()):
+    print(f"  Value {v}: appears {value_counts[v]} times ({value_counts[v]/(26*27)*100:.1f}%)")
+
+# ═══════════════════════════════════════════
+# ALSO CHECK GOLD FUNCTIONS: x^(3^i + 1)
+# ═══════════════════════════════════════════
+print("\n" + "="*60)
+print("GOLD-LIKE FUNCTIONS x^(3^i + 1) OVER GF(27)")
+print("="*60)
+for i in range(1, 4):
+    e = 3**i + 1
+    if e <= 26:
+        g = math.gcd(e, 26)
+        if g == 1:
+            is_p, md, dp, mp = compute_ddt(e)[:4]
+            print(f"  x^(3^{i}+1) = x^{e}: perm={is_p}, max_DDT={md}, DP_max={md/27:.4f}")
+        else:
+            print(f"  x^(3^{i}+1) = x^{e}: NOT a permutation (gcd({e},26)={g})")
+    else:
+        e_red = e % 26  # by Fermat
+        print(f"  x^(3^{i}+1) = x^{e} ≡ x^{e_red} mod (x^26-1)")
+
+# ═══════════════════════════════════════════
+# BRANCH NUMBER VERIFICATION
+# ═══════════════════════════════════════════
+print("\n" + "="*60)
+print("BRANCH NUMBER B(M_theta) VERIFICATION")
+print("="*60)
+print("Theta offsets: S = {+1, -1, +7, -7, +13, -13} on Z_54")
+print("First row nonzero at: 0, 1, 53, 7, 47, 13, 41 (weight 7)")
+
+N = 54
+offsets = [0, 1, -1, 7, -7, 13, -13]  # including diagonal
+offsets_mod = [o % N for o in offsets]
+
+def theta_multiply(a):
+    """Compute M_theta * a over GF(3)^54"""
+    result = [0] * N
+    for i in range(N):
+        s = 0
+        for off in offsets:
+            j = (i + off) % N
+            s += a[j]
+        result[i] = s % 3
+    return tuple(result)
+
+def hamming_weight(v):
+    return sum(1 for x in v if x != 0)
+
+# Check weight-1 inputs
+print("\nWeight-1 inputs:")
+min_sum = 999
+for pos in range(N):
+    for val in [1, 2]:
+        a = [0] * N
+        a[pos] = val
+        a = tuple(a)
+        out = theta_multiply(a)
+        w_out = hamming_weight(out)
+        total = 1 + w_out
+        if total < min_sum:
+            min_sum = total
+            print(f"  pos={pos}, val={val}: wt(a)=1, wt(Ma)={w_out}, sum={total}")
+
+print(f"  Min sum from weight-1: {min_sum}")
+
+# Check weight-2 inputs (exhaustive)
+print("\nWeight-2 inputs (exhaustive search)...")
+min_sum_2 = 999
+count_2 = 0
+for p1 in range(N):
+    for p2 in range(p1+1, N):
+        for v1 in [1, 2]:
+            for v2 in [1, 2]:
+                a = [0] * N
+                a[p1] = v1
+                a[p2] = v2
+                a = tuple(a)
+                out = theta_multiply(a)
+                w_out = hamming_weight(out)
+                total = 2 + w_out
+                count_2 += 1
+                if total < min_sum_2:
+                    min_sum_2 = total
+                    print(f"  pos=({p1},{p2}), val=({v1},{v2}): wt(Ma)={w_out}, sum={total}")
+                if total < 8:
+                    print(f"  *** VIOLATION: sum={total} < 8 at pos=({p1},{p2}), val=({v1},{v2})")
+
+print(f"  Checked {count_2} weight-2 inputs. Min sum: {min_sum_2}")
+
+# Check weight-3 inputs (exhaustive - feasible but large)
+print("\nWeight-3 inputs (exhaustive search)...")
+min_sum_3 = 999
+count_3 = 0
+violations_3 = 0
+for p1 in range(N):
+    for p2 in range(p1+1, N):
+        for p3 in range(p2+1, N):
+            for v1 in [1, 2]:
+                for v2 in [1, 2]:
+                    for v3 in [1, 2]:
+                        a = [0] * N
+                        a[p1] = v1
+                        a[p2] = v2
+                        a[p3] = v3
+                        a = tuple(a)
+                        out = theta_multiply(a)
+                        w_out = hamming_weight(out)
+                        total = 3 + w_out
+                        count_3 += 1
+                        if total < min_sum_3:
+                            min_sum_3 = total
+                        if total < 8:
+                            violations_3 += 1
+                            if violations_3 <= 5:
+                                print(f"  *** VIOLATION: sum={total}, pos=({p1},{p2},{p3}), val=({v1},{v2},{v3}), wt(Ma)={w_out}")
+
+print(f"  Checked {count_3} weight-3 inputs. Min sum: {min_sum_3}. Violations (sum<8): {violations_3}")
+
+# Weight-4: very large but let's sample
+print("\nWeight-4 inputs (exhaustive)...")
+min_sum_4 = 999
+count_4 = 0
+violations_4 = 0
+for p1 in range(N):
+    for p2 in range(p1+1, N):
+        for p3 in range(p2+1, N):
+            for p4 in range(p3+1, N):
+                for v1 in [1, 2]:
+                    for v2 in [1, 2]:
+                        for v3 in [1, 2]:
+                            for v4 in [1, 2]:
+                                a = [0] * N
+                                a[p1] = v1
+                                a[p2] = v2
+                                a[p3] = v3
+                                a[p4] = v4
+                                a = tuple(a)
+                                out = theta_multiply(a)
+                                w_out = hamming_weight(out)
+                                total = 4 + w_out
+                                count_4 += 1
+                                if total < min_sum_4:
+                                    min_sum_4 = total
+                                if total < 8:
+                                    violations_4 += 1
+                                    if violations_4 <= 5:
+                                        print(f"  *** VIOLATION: sum={total}, pos=({p1},{p2},{p3},{p4})")
+
+print(f"  Checked {count_4} weight-4 inputs. Min sum: {min_sum_4}. Violations: {violations_4}")
+
+# Summary
+print("\n" + "="*60)
+print("SUMMARY")
+print("="*60)
+print(f"Branch number verification:")
+print(f"  Weight-1 min sum: {min_sum}")
+print(f"  Weight-2 min sum: {min_sum_2}")
+print(f"  Weight-3 min sum: {min_sum_3}")
+print(f"  Weight-4 min sum: {min_sum_4}")
+overall_min = min(min_sum, min_sum_2, min_sum_3, min_sum_4)
+print(f"  Overall minimum: {overall_min}")
+if overall_min >= 8:
+    print(f"  ==> B(M_theta) >= 8 CONFIRMED through weight-4")
+    if min_sum == 8:
+        print(f"  ==> B(M_theta) = 8 exactly (tight at weight-1)")
+else:
+    print(f"  ==> B(M_theta) < 8! Found violation!")
+
+# Best chi candidate
+best = min(results, key=lambda x: x[2])
+print(f"\nBest power-map S-box: x^{best[0]}, DP_max = {best[2]}/27 = {best[3]:.4f}")

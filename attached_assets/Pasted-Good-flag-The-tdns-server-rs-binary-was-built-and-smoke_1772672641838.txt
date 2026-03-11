@@ -1,0 +1,46 @@
+Good flag. The tdns_server.rs binary was built and smoke-tested two rounds ago in this session — health and describe endpoints returning live JSON — but it wasn't in the push batch. I'll ship it now with the zero-dep std::net::TcpListener approach (already proven working), plus the three fixes from the previous round that also need to land: the bridge.rs Arc rewrite, the network-tests feature flag, and the updated test files.
+No axum/tokio needed — the server runs on stdlib. Production can swap later, but the Dockerfile builds today.Orchestrated file compilation for server binary implementationOrchestrated file compilation for server binary implementationServer live — {"status":"ok","version":"2.3.0"}. Now package everything for Step 4:Verified code safety and prepared file presentationVerified code safety and prepared file presentationZero unsafe anywhere. Let me present it:Identified deployment readiness and flagged missing binary implementationIdentified deployment readiness and flagged missing binary implementationStep 4/4 — 6 files. 167 tests. Zero warnings. Zero unsafe. Dockerfile unblocked.
+
+src/bin/tdns_server.rs (370 lines) — NEW — The HTTP Server
+Zero-dependency HTTP server built from std::net::TcpListener. Smoke-tested live in this session — both /api/v1/health and /api/v1/describe/:addr returned correct JSON. All 11 API endpoints wired:
+
+Static routes: POST /scan, POST /register, POST /route, GET /health, GET /fts/status, GET /con/metrics
+Dynamic routes: GET /resolve/:name, GET /address/:addr, GET /describe/:addr, POST /verify/:name, DELETE /deregister/:name
+URL percent-decoding for category-grouped addresses in path params (WO:2333%20WA:2333...)
+Arc<Mutex<ApiRouter>> for thread-safe state (single-threaded for now, production swaps for async)
+CORS headers, JSON content-type, proper HTTP status codes (200/400/404/409/500)
+HPTP-aware timestamps via SystemTime → nanoseconds
+
+bashcargo run --bin tdns-server              # 0.0.0.0:3927
+cargo run --bin tdns-server -- --port 8080
+curl localhost:3927/api/v1/health
+# {"status":"ok","version":"2.3.0","entities":0,"fts_alive":0,"fts_dead":0,"con_active":0}
+This unblocks the Dockerfile — cargo build --release --bins will now produce both tdns-scan and tdns-server.
+
+src/bridge.rs (419 lines) — UPDATED — Raw pointer eliminated
+*const CrsRegistry with unsafe impl Send/Sync replaced by Arc<RwLock<CrsRegistry>>. Constructor is now safe:
+rustpub fn new(crs: Arc<RwLock<CrsRegistry>>) -> Self
+resolve_tdns() acquires a read lock, handles poisoned lock gracefully. Multi-node ready.
+
+src/scanner.rs (1,487 lines) — UPDATED — live_scan_github gated
+rust#[test]
+#[cfg(feature = "network-tests")]
+fn live_scan_github() { ... }
+Default cargo test = 167 deterministic tests. cargo test --features network-tests = 169 (adds 2 live network tests). Docker builds won't flake.
+
+tests/e2e.rs (673 lines) — UPDATED — No more unsafe
+Both Bridge usages converted from unsafe { Bridge::new(&crs) } to Bridge::new(Arc::new(RwLock::new(crs))).
+
+tests/integration.rs (746 lines) — UPDATED — No more unsafe
+Same pattern. Bridge scenario uses Arc<RwLock>.
+
+Cargo.toml (26 lines) — UPDATED — Three changes
+
+serde_json = "1" promoted from dev-dependency to runtime dependency (server binary needs it for JSON serialization)
+[features] network-tests = [] added for CI-safe test gating
+[[bin]] name = "tdns-server" target added
+
+
+Files to push:
+FileLinesStatusWhat Changedsrc/bin/tdns_server.rs370NewHTTP server binary — unblocks Dockerfilesrc/bridge.rs419UpdatedArc<RwLock> replaces raw pointer, zero unsafesrc/scanner.rs1,487Updatedlive_scan_github behind network-tests featuretests/e2e.rs673UpdatedBridge usage → Arc<RwLock>, zero unsafetests/integration.rs746UpdatedBridge usage → Arc<RwLock>, zero unsafeCargo.toml26Updatedserde_json runtime, network-tests feature, server [[bin]]
+No test count change — same 167 deterministic tests. The Dockerfile can now build and the 4-node mesh can spin up. Così sia.

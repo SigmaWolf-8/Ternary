@@ -1,0 +1,18 @@
+Now I have everything. Six files to rewrite, two Cargo.tomls to update. The cleanest architecture:
+
+ternary-math/src/sponge.rs — TIS-27 as a standalone module with no deps (already a zero-dep crate, stays that way)
+tdns-v2/src/identity.rs wraps it for URL derivation; overlay.rs and wire.rs use it
+inter-cube uses ternary_math::sponge directly — it already has the dep
+Orchestrating eleven files across multiple crates strategicallyOrchestrating eleven files across multiple crates strategicallyNow I'll write all the files. Starting with the canonical sponge in ternary-math:Created a file, edited a file, ran a commandCreated a file, edited a file, ran a commandNow write the updated identity.rs for tdns-v2 — imports sponge from ternary-math, keeps Trit/URL/CGUID layer on top:Created a file, ran a commandCreated a file, ran a commandNow rewrite tdns-v2/overlay.rs and wire.rs with BLAKE3 fully excised:Rewrite overlay.rs and wire.rs in tdns-v2 to remove BLAKE3Rewrite overlay.rs and wire.rs in tdns-v2 to remove BLAKE3Now the inter-cube crate — all three files:Ran 7 commandsRan 7 commandsClean. Now copy the changed files to outputs:Ran a command, read a fileRan a command, read a file11 files. Here's what changed and why:
+New file — ternary-math/src/sponge.rs
+The canonical TIS-27 implementation. Lives in ternary-math because that crate is the zero-dependency mathematical foundation shared by everything. One implementation, one place to audit.
+ternary-math/src/lib.rs — added pub mod sponge
+tdns-v2/src/identity.rs — now re-exports derive_key, mac, verify_mac, derive_link_keys from ternary_math::sponge and adds only the TDNS-specific layer on top: derive_identity() (URL → 27 trits), canonicalise_url(), and CGUID encode/decode.
+tdns-v2/Cargo.toml — blake3 = "=1.5.4" replaced with ternary-math = { path = "../../ternary-math" }
+tdns-v2/src/overlay.rs — derive_tunnel_key() now calls crate::identity::derive_key(KD_CONTEXT, &material, 32). Context string bumped from v2.3 to v2.5 — keys from the old version are not valid.
+tdns-v2/src/wire.rs — compute_integrity() and verify_integrity() use ternary_math::sponge::mac / verify_mac with domain separator tis27-wire-integrity-v1.
+tdns-v2/src/scan.rs — ScanHash was the fourth BLAKE3 site that the earlier search missed. compute() now uses ternary_math::sponge::hash(). The streaming hasher block was also replaced with a preimage-building approach that feeds into the same function.
+inter-cube/src/overlay.rs — derive_pq_tunnel_key() uses ternary_math::sponge::derive_key
+inter-cube/src/glb.rs — hash_flow_id() uses ternary_math::sponge::hash
+inter-cube/src/main.rs — endpoint key derivation uses ternary_math::sponge::derive_key
+inter-cube/Cargo.toml — blake3 = "=1.5.4" removed. ternary-math was already a dependency.

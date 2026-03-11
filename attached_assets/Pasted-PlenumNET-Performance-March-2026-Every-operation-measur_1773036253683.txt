@@ -1,0 +1,68 @@
+PlenumNET Performance — March 2026
+Every operation measured on stock x86_64 hardware. PlenumNET operations include what the industry charges separately.
+
+Hash (27B)
+PlenumNET
+TIS-27: 308 ns
+Industry
+SHA-256: 672 ns
+2.2× faster
+Native GF(3) output, structural forgery detection, routable address ready
+Binary output, needs ternary conversion (+34 ns), forgery check separate
+Hash (81B, post-quantum)
+PlenumNET
+TIS-81: 863 ns
+Industry
+SHA3-256: 928 ns
+1.1× faster
+257-bit post-quantum capacity, native GF(3) output
+128-bit classical security only (Grover halves to 128), binary output
+Address derivation
+PlenumNET
+342 ns
+Industry
+SHA-256 path: 824 ns
+2.4× faster
+Hash + Rep C lift in one step, zero-cannot-appear guarantee
+Hash + binary→ternary conversion + separate validation
+Encryption (27B)
+PlenumNET
+Phase GF(3): 24 ns
+Industry
+XSalsa20-Poly1305: 402 ns
+17× faster
+GF(3) native, Tribonacci-weighted tamper detection, adaptive phase modes
+Binary cipher, separate authentication tag, no ternary awareness
+Key derivation
+PlenumNET
+TIS-27 KDF: 758 ns
+Industry
+HKDF-SHA256: 5,642 ns
+7.4× faster
+Topology-derived keys (geometry IS the key agreement), GF(3) output
+Binary key material, needs separate key exchange protocol
+Capability tokens
+PlenumNET
+323 ns
+Industry
+HMAC-SHA256 JWT: 2,683 ns
+8.3× faster
+HPTP femtosecond-bound expiration, ternary permission encoding
+Millisecond timestamps, binary permission bits, separate clock sync
+Integrity checksum
+PlenumNET
+Repunit mod 364: 84 ns
+Industry
+CRC-32: 296 ns
+3.5× faster
+Ternary-circle-aligned (3⁶≡1 mod 364), 6-trit Rep C output
+Binary polynomial, no ternary alignment, separate domain
+Full TDNS pipeline
+PlenumNET
+337 ns
+Industry
+SHA-256 path: 791 ns
+2.3× faster
+Hash → address → routable in one native pipeline
+Hash → convert → validate → encode → then routable
+All times in nanoseconds, measured end-to-end on stock x86_64, GCC -O2 -march=native. "PlenumNET includes" lists what comes free with the operation. "Industry requires separately" lists what must be added on top of the base measurement to reach equivalent functionality.

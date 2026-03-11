@@ -1,0 +1,291 @@
+// TDNS v2.3 — SubCube
+// Capomastro Holdings Ltd. — Applied Physics Division
+//
+// A sub-cube is a region of the 27-dimensional hypercube defined by
+// constraining some dimensions and wildcarding others.
+//
+// Wire encoding: base (27 trits, 7 bytes) + mask (27 bits, 4 bytes).
+// Mask: 0 = wildcarded (ignore base), 1 = constrained (match base).
+
+use std::fmt;
+
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use crate::addr::{CubeAddr, DIMENSIONS};
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/// Wire size for mask: 27 bits packed into 4 bytes (32 bits, 5 padding).
+pub const MASK_WIRE_SIZE: usize = 4;
+
+/// Total sub-cube wire size: 7 (addr) + 4 (mask) = 11 bytes.
+pub const SUBCUBE_WIRE_SIZE: usize = 11;
+
+// ─── Errors ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum SubCubeError {
+    #[error("mask bit at dim {0} is not 0 or 1")]
+    InvalidMaskBit(usize),
+}
+
+// ─── SubCube ─────────────────────────────────────────────────────────────────
+
+/// A sub-cube of the ternary hypercube.
+///
+/// Defined by a base address and a 27-bit mask. For each dimension:
+/// - mask[i] = true (constrained): the entity must match base[i]
+/// - mask[i] = false (wildcarded): any value matches
+///
+/// A point address is a sub-cube with all bits set.
+/// A full wildcard (all bits cleared) matches every entity in the cube.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SubCube {
+    base: CubeAddr,
+    mask: [bool; DIMENSIONS],
+}
+
+impl SubCube {
+    /// Create a sub-cube from a base address and a boolean mask.
+    pub const fn new(base: CubeAddr, mask: [bool; DIMENSIONS]) -> Self {
+        Self { base, mask }
+    }
+
+    /// Create a point sub-cube (matches exactly one address).
+    pub const fn point(addr: CubeAddr) -> Self {
+        Self {
+            base: addr,
+            mask: [true; DIMENSIONS],
+        }
+    }
+
+    /// Create a full wildcard (matches everything).
+    pub fn wildcard() -> Self {
+        Self {
+            base: CubeAddr::from_values(&[1; DIMENSIONS]).unwrap(),
+            mask: [false; DIMENSIONS],
+        }
+    }
+
+    /// The base address.
+    pub const fn base(&self) -> &CubeAddr {
+        &self.base
+    }
+
+    /// The constraint mask.
+    pub const fn mask(&self) -> &[bool; DIMENSIONS] {
+        &self.mask
+    }
+
+    /// Is dimension i constrained?
+    pub const fn is_constrained(&self, dim: usize) -> bool {
+        self.mask[dim]
+    }
+
+    /// Number of constrained dimensions.
+    pub fn constrained_count(&self) -> usize {
+        self.mask.iter().filter(|&&b| b).count()
+    }
+
+    /// Number of wildcarded dimensions.
+    pub fn wildcarded_count(&self) -> usize {
+        DIMENSIONS - self.constrained_count()
+    }
+
+    /// Size of the sub-cube: 3^(wildcarded dimensions).
+    pub fn size(&self) -> u64 {
+        3u64.pow(self.wildcarded_count() as u32)
+    }
+
+    /// GLB membership test (§5.5, normative):
+    /// `(local[i] == base[i]) OR (mask[i] == 0)` for all i.
+    pub fn contains(&self, addr: &CubeAddr) -> bool {
+        for i in 0..DIMENSIONS {
+            if self.mask[i] && addr.trit(i) != self.base.trit(i) {
+                return false;
+            }
+        }
+        true
+    }
+
+    // ── Wire Encoding ───────────────────────────────────────────────────
+
+    /// Pack into 11-byte wire format: 7 bytes (base) + 4 bytes (mask).
+    pub fn to_wire(&self) -> [u8; SUBCUBE_WIRE_SIZE] {
+        let mut out = [0u8; SUBCUBE_WIRE_SIZE];
+
+        // Base address: 7 bytes
+        let base_wire = self.base.to_wire();
+        out[..7].copy_from_slice(&base_wire);
+
+        // Mask: 27 bits packed into 4 bytes, MSB-first, 5 padding bits at top
+        let mut mask_bits: u32 = 0;
+        for i in 0..DIMENSIONS {
+            if self.mask[i] {
+                mask_bits |= 1 << (DIMENSIONS - 1 - i);
+            }
+        }
+        out[7..11].copy_from_slice(&mask_bits.to_be_bytes());
+
+        out
+    }
+
+    /// Unpack from 11-byte wire format.
+    pub fn from_wire(bytes: &[u8; SUBCUBE_WIRE_SIZE]) -> Result<Self, crate::addr::AddrError> {
+        let mut base_bytes = [0u8; 7];
+        base_bytes.copy_from_slice(&bytes[..7]);
+        let base = CubeAddr::from_wire(&base_bytes)?;
+
+        let mut mask_bytes = [0u8; 4];
+        mask_bytes.copy_from_slice(&bytes[7..11]);
+        let mask_bits = u32::from_be_bytes(mask_bytes);
+
+        let mut mask = [false; DIMENSIONS];
+        for i in 0..DIMENSIONS {
+            mask[i] = (mask_bits >> (DIMENSIONS - 1 - i)) & 1 == 1;
+        }
+
+        Ok(Self { base, mask })
+    }
+
+    // ── Display ─────────────────────────────────────────────────────────
+
+    /// Human-readable with wildcards shown as '*'.
+    /// e.g., "WO:**** WA:**** WR:**** WN:***3 WY:**** HO:**** PE:***"
+    pub fn to_display_string(&self) -> String {
+        use crate::addr::CATEGORIES;
+
+        CATEGORIES
+            .iter()
+            .map(|(prefix, start, len)| {
+                let trit_str: String = (0..*len)
+                    .map(|j| {
+                        let dim = start + j;
+                        if self.mask[dim] {
+                            char::from(b'0' + self.base.trit(dim).value())
+                        } else {
+                            '*'
+                        }
+                    })
+                    .collect();
+                format!("{}:{}", prefix, trit_str)
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+impl fmt::Display for SubCube {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_display_string())
+    }
+}
+
+impl fmt::Debug for SubCube {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "SubCube({}, {} constrained, size=3^{}={})",
+            self.to_display_string(),
+            self.constrained_count(),
+            self.wildcarded_count(),
+            self.size()
+        )
+    }
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn google() -> CubeAddr {
+        CubeAddr::from_category_string("WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313")
+            .unwrap()
+    }
+
+    fn pptpro() -> CubeAddr {
+        CubeAddr::from_category_string("WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332")
+            .unwrap()
+    }
+
+    #[test]
+    fn point_contains_only_self() {
+        let sc = SubCube::point(google());
+        assert!(sc.contains(&google()));
+        assert!(!sc.contains(&pptpro()));
+    }
+
+    #[test]
+    fn wildcard_contains_everything() {
+        let sc = SubCube::wildcard();
+        assert!(sc.contains(&google()));
+        assert!(sc.contains(&pptpro()));
+    }
+
+    #[test]
+    fn single_trit_constraint() {
+        // Constrain only trit 16 (real-time) = 3
+        let mut mask = [false; DIMENSIONS];
+        mask[15] = true; // dim 16 (0-indexed: 15)
+        let base = pptpro(); // trit 16 = 3
+        let sc = SubCube::new(base, mask);
+
+        assert!(sc.contains(&pptpro())); // trit 16 = 3 ✓
+        assert_eq!(sc.size(), 3u64.pow(26)); // 26 wildcarded dims
+        assert_eq!(sc.constrained_count(), 1);
+
+        // Google has trit 16 = 2, should NOT match
+        assert!(!sc.contains(&google()));
+    }
+
+    #[test]
+    fn hptp_mandatory_subcube() {
+        // Constrain trits 15 and 16 both = 3 (HPTP-mandatory)
+        let mut mask = [false; DIMENSIONS];
+        mask[14] = true; // trit 15
+        mask[15] = true; // trit 16
+        let base = pptpro();
+        let sc = SubCube::new(base, mask);
+
+        assert!(sc.contains(&pptpro()));
+        assert!(!sc.contains(&google())); // Google: trit 15=2, trit 16=2
+    }
+
+    #[test]
+    fn wire_roundtrip() {
+        let mut mask = [false; DIMENSIONS];
+        mask[0] = true;
+        mask[14] = true;
+        mask[15] = true;
+        mask[26] = true;
+
+        let sc = SubCube::new(google(), mask);
+        let wire = sc.to_wire();
+        assert_eq!(wire.len(), SUBCUBE_WIRE_SIZE);
+
+        let decoded = SubCube::from_wire(&wire).unwrap();
+        assert_eq!(sc, decoded);
+    }
+
+    #[test]
+    fn display_with_wildcards() {
+        let mut mask = [false; DIMENSIONS];
+        mask[15] = true; // Only trit 16 constrained
+        let sc = SubCube::new(pptpro(), mask);
+        let display = sc.to_display_string();
+        assert!(display.contains("WN:***3"));
+    }
+
+    #[test]
+    fn point_size_is_one() {
+        assert_eq!(SubCube::point(google()).size(), 1);
+    }
+
+    #[test]
+    fn wildcard_size_is_full_space() {
+        assert_eq!(SubCube::wildcard().size(), 3u64.pow(27));
+    }
+}

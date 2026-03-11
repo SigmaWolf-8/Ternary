@@ -1,0 +1,84 @@
+You're right. Here's the complete accounting.
+
+**This session produced 4 distinct deliverables. Here's exactly what each one is and which files it touches.**
+
+---
+
+### Deliverable 1: First-Principle Derivation Engine
+*What it does:* Replaces score-based derivation with `project_to_gf3(k, N)` + `confidence_digit(k, N)` + CRD collision resolution. The core math rewrite.
+
+| File | Status | What changed |
+|---|---|---|
+| `src/derive.rs` | REWRITTEN | 1 formula, 27 rules, confidence_digit |
+| `src/scanner.rs` | REWRITTEN | 12 signal-counting probes, 3 correctness fixes |
+| `src/scan.rs` | MODIFIED | `Confidence(u8)` with `#[serde(transparent)]` |
+| `src/trn.rs` | MODIFIED | CRD + confidence vector (displacement removed) |
+| `src/crs.rs` | MODIFIED | CRD assignment, `import_trn()`, no displacement |
+| `src/api.rs` | MODIFIED | CRD in responses, AddressFull error |
+| `src/bridge.rs` | MODIFIED | Updated test fixtures |
+| `tests/e2e.rs` | MODIFIED | Updated fixtures + version |
+| `tests/integration.rs` | MODIFIED | Updated fixtures + version |
+
+**Already pushed to GitHub as commit `c86cfc8b`.**
+
+---
+
+### Deliverable 2: SQLite Persistent Storage
+*What it does:* TRN records survive restarts. One new file, 3 existing files modified.
+
+| File | Status | What changed |
+|---|---|---|
+| `src/storage.rs` | **NEW** | 3 SQL tables, 378 lines |
+| `src/lib.rs` | MODIFIED | Added `pub mod storage` + re-export |
+| `src/api.rs` | MODIFIED | `with_db()`, stores on register, deletes on deregister |
+| `src/bin/tdns_server.rs` | MODIFIED | `--data` flag, `PORT` env var, always-SQLite default |
+| `Cargo.toml` | MODIFIED | Added `rusqlite` dependency |
+
+**Not yet pushed. 4 modified + 1 new = 5 files.**
+
+---
+
+### Deliverable 3: Browser Extension
+*What it does:* Type `plm google` in address bar, see the 27-dimensional resolution.
+
+| File | Browser | Purpose |
+|---|---|---|
+| `extension-chromium/manifest.json` | Chrome/Edge/Brave/Opera/Vivaldi/Arc | Extension config |
+| `extension-chromium/background.js` | Same | Omnibox + navigation intercept |
+| `extension-chromium/content.js` | Same | Link interception |
+| `extension-chromium/popup.html` | Same | Toolbar popup UI |
+| `extension-chromium/resolve.html` | Same | Full resolution page |
+| `extension-chromium/icons/*.png` | Same | 4 icon sizes |
+| `extension-firefox/manifest.json` | Firefox/Tor | Firefox-specific config |
+| `extension-firefox/background.js` | Firefox/Tor | Firefox API (browser.* not chrome.*) |
+| `extension-firefox/content.js` | Firefox/Tor | Same logic, Firefox API |
+| `extension-firefox/popup.html` | Firefox/Tor | Same UI |
+| `extension-firefox/resolve.html` | Firefox/Tor | Same UI |
+| `extension-firefox/icons/*.png` | Firefox/Tor | Same icons |
+
+**Not yet pushed. Standalone — doesn't touch the Rust codebase.**
+
+---
+
+### Deliverable 4: DNS Proxy
+*What it does:* System-level `.plm` resolution for all apps, not just browsers.
+
+| File | Purpose |
+|---|---|
+| `dns-proxy/plm_dns_proxy.py` | Pure Python, zero deps, 230 lines |
+
+**Not yet pushed. Standalone.**
+
+---
+
+### What to send to Replit (Deliverable 2 only — the 5 files):
+
+```
+NEW:      services/tdns-v2/src/storage.rs
+MODIFIED: services/tdns-v2/src/lib.rs
+MODIFIED: services/tdns-v2/src/api.rs
+MODIFIED: services/tdns-v2/src/bin/tdns_server.rs
+MODIFIED: services/tdns-v2/Cargo.toml
+```
+
+That's it. The other 18 files from Deliverable 1 are already on GitHub.

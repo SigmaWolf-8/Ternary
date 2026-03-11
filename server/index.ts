@@ -167,6 +167,23 @@ app.use('/api/tsa/timestamp', (req, _res, next) => {
   } else { next(); }
 });
 
+const CRYPTO_HASH_MAX_BYTES = 10 * 1024 * 1024;
+app.use('/api/salvi/crypto/hash', (req, _res, next) => {
+  if (req.headers['content-type'] === 'application/octet-stream') {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    req.on('data', (chunk: Buffer) => {
+      totalBytes += chunk.length;
+      if (totalBytes > CRYPTO_HASH_MAX_BYTES) {
+        req.destroy(new Error(`Request body exceeds ${CRYPTO_HASH_MAX_BYTES} bytes`));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => { req.body = Buffer.concat(chunks); next(); });
+  } else { next(); }
+});
+
 app.use(
   express.json({
     limit: '50mb',
@@ -469,6 +486,21 @@ function startPqtiService(): ChildProcess | null {
     }
 
     return res.status(status).json({ message });
+  });
+
+  app.get("/install/:filename", (req, res) => {
+    const allowed = new Set(["Install-PlenumNET.bat", "install-windows.ps1", "install.sh"]);
+    const { filename } = req.params;
+    if (!allowed.has(filename)) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    const filePath = path.resolve(process.cwd(), "client", "public", "install", filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.sendFile(filePath);
   });
 
   // importantly only setup vite in development and after

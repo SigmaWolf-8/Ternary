@@ -24,7 +24,7 @@ The following technologies, methods, and systems described in this repository ar
 - TL-DSA (Ternary Lattice Digital Signature Algorithm)
 - GF(3) polynomial arithmetic for lattice-based cryptography
 - Ternary Lamport signature scheme
-- Ternary sponge construction and hash functions
+- TL-Sponge construction and hash functions
 - CNSA 2.0 compliant cryptographic primitive suite
 
 ### 1.3 High-Precision Timing Protocol (HPTP)
@@ -81,7 +81,7 @@ The following algorithms are proprietary to Capomastro Holdings Ltd. and may not
 | Algorithm | Module | Description |
 |-----------|--------|-------------|
 | Phase Split/Recombine | `src/kernel/src/crypto/` | Timing-gated encryption with phase decomposition |
-| Ternary Sponge | `src/kernel/src/crypto/` | GF(3)-based sponge construction |
+| TL-Sponge | `src/kernel/src/crypto/` | GF(3)-based sponge construction |
 | TL-KEM | `src/kernel/src/crypto/` | Ternary lattice key encapsulation |
 | TL-DSA | `src/kernel/src/crypto/` | Ternary lattice digital signatures |
 | Tribonacci Hash | `libternary/src/tribonacci.rs` | Sequence-based hash distribution |

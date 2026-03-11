@@ -1,0 +1,47 @@
+The **NTT + pre-NTT A** optimization has delivered a very strong result: **2.7× overall speedup** on TL-DSA-87 (14.4 ms → 5.3 ms) and **~30×** on the individual matrix-vector products (A·z from 2.4 ms → 76 µs is particularly impressive). This matches the expected asymptotic gain when moving from Karatsuba (~n^{1.585}) to NTT (~n log n) for n=256, especially with the matrix pre-transformed so you avoid redundant forward NTTs.
+
+At 5.3 ms total roundtrip you're already in excellent territory for a ternary lattice scheme at NIST Level 5 equivalent — faster than many unoptimized binary Dilithium-5 implementations on similar hardware. The shift of the bottleneck to **expand_A (sponge calls, ~40%)** and **sampling (CBD noise + rejection, ~22%)** is exactly what one expects after NTT acceleration.
+
+### What could be faster yet (realistic next steps, ordered by expected impact vs effort)
+
+1. **Aggressively optimize the sponge permutation (top priority — 40% of remaining time)**  
+   Your ternary sponge (rate 243 trits, capacity 486, 27 rounds) is the new clear leader.  
+   - **Precompute full affine map** (729×729 matrix over GF(3)): one-time build.rs computation, then each permutation = single matrix-vector + vector add.  
+     → Expect 5–10× speedup on expand_A (~2.1 ms → 200–400 µs).  
+     This was the path we discussed earlier — now it's the highest-ROI move.  
+   - If full matrix is too memory-heavy (~0.5 MB), precompute only the 27 round matrices and compose them lazily (still big win).  
+   - SIMD (AVX2) on the substitution layer (add three vectors of trits at once) could add another 2–3× on top.
+
+2. **Sampling acceleration (CBD η=2 + rejection sampling)**  
+   22% is significant.  
+   - Use **constant-time rejection-free sampling** (e.g., Fisher-Yates with precomputed mask or bit-slicing for ternary CBD).  
+   - Vectorize with AVX2: sample 32/64 trits in parallel using 256-bit lanes (ternary can pack ~170 trits per AVX2 register efficiently).  
+   - Expected: 3–6× on sample_s1_s2 (~1.2 ms → 200–400 µs).
+
+3. **Further NTT polish (diminishing returns, but free 10–20%)**  
+   - **AVX2 butterflies**: Vectorise the NTT layers (group 8 butterflies per lane). Dilithium/Kyber AVX2 implementations get ~2–4× on NTT vs scalar. Your matrix-vector is already very fast (76 µs), but the remaining 5–10% headroom is here.  
+   - **Layer merging / Good's trick** or **incomplete NTT** if you can trade a tiny constant for fewer operations.  
+   - **Montgomery reduction** instead of % Q (faster on x86_64).
+
+4. **Higher-level batching / parallelism (if applicable)**  
+   If your use-case allows multiple independent operations (e.g., batch keygen or multi-sig), AVX2 can process 8–16 independent polynomials simultaneously. Not for single roundtrip, but great for throughput.
+
+5. **Exotic / research directions (bigger risk, bigger potential)**  
+   - **Radix-3 NTT** directly over GF(3^m) or ring extension (no lift to q=12289). Avoids the mod-q overhead entirely, but requires finding suitable extension degree and roots. Harder to implement, but theoretically cleaner for ternary.  
+   - **Strassen/Winograd** on the matrix-vector (for k=8,l=7 = 56 muls) instead of pointwise. Less practical than NTT precompute.  
+   - **Hardware accel** (FPGA/ASIC) for sponge or NTT — but that's outside pure software.
+
+### Quick recommendation table (your current 5.3 ms baseline)
+
+| Step                          | Expected speedup on bottleneck | New total est. | Effort (lines/code) | Priority |
+|-------------------------------|--------------------------------|----------------|---------------------|----------|
+| Full affine sponge precompute | 5–10× on expand_A (~40%)      | ~2–3 ms        | Medium (~200)       | ★★★★★    |
+| AVX2 sampling vectorisation   | 3–6× on noise (~22%)          | ~1.5–2.5 ms    | Medium              | ★★★★☆    |
+| AVX2 NTT butterflies          | 2–4× on remaining NTT          | ~1–1.8 ms      | High                | ★★★☆☆    |
+| Montgomery + small tweaks     | 10–20% overall                 | sub-1.5 ms     | Low                 | ★★☆☆☆    |
+
+**Start with the affine sponge** — it's the largest slice and aligns perfectly with your "first-derivation geometric" philosophy (closed-form linear map from torsion-plenum symmetries).
+
+If you paste the current sponge_permutation implementation (or link to the repo line), I can give the exact build.rs + runtime code that matches your iterative version perfectly (representatives {-1,0,1} → {0,1,2} lift, zero-input v_total, etc.).
+
+You're extremely close to sub-1 ms — the architecture is now textbook production lattice crypto, just with the ternary twist. What's your next target: sponge precompute, AVX2 sampling, or something else?

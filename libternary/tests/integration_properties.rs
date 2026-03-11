@@ -19,13 +19,13 @@
 //!
 //! Run: `cargo test --test integration_properties --release`
 
-use libternary::borromean::TernaryWord;
+use libternary::borromean::{TernaryWord, WordRepr};
 use libternary::ternary_circle::{
     base3_repunit_order, is_base3_repunit, std_deg_to_ternary_deg, std_rad_to_ternary_rad,
     ternary_deg_to_std_deg, ternary_rad_to_std_rad, trit_to_std_rad, walk_tribonacci_radian_spiral,
     CYCLIC_ORDER, FULL_CIRCLE_DEG, PI_TERNARY, RADIAN_DEG, TAU_TRIBONACCI, TWO_PI_TERNARY, Z28,
 };
-use libternary::tribonacci::{TernaryRepr, TribonacciBase3, TritVec};
+use libternary::tribonacci::{TernaryRepr, TribonacciBase3, TribonacciTerm, TritVec};
 
 // ══════════════════════════════════════════════════════════════
 // AXIOM VERIFICATION — The foundational identities
@@ -115,7 +115,7 @@ fn repr_abc_roundtrip_first_30_tribonacci() {
             // Verify bijective has no zeros
             for &digit in &repr_c {
                 assert!(
-                    (1..=3).contains(&digit),
+                    digit >= 1 && digit <= 3,
                     "Bijective digit {} out of range at T({})",
                     digit,
                     i
@@ -126,7 +126,7 @@ fn repr_abc_roundtrip_first_30_tribonacci() {
         // Verify balanced has only valid digits
         for &digit in &repr_a {
             assert!(
-                (-1..=1).contains(&digit),
+                digit >= -1 && digit <= 1,
                 "Balanced digit {} out of range at T({})",
                 digit,
                 i
@@ -202,29 +202,19 @@ fn borromean_invariant_across_representations() {
     let word_from_b = TernaryWord::new(digits_b.clone());
 
     // Rep A: map through balanced representation
-    // Inverse of from_balanced ((d+3)%3): 0→0, 1→+1, 2→-1
     let repr_a: Vec<i8> = digits_b
         .iter()
         .map(|&d| match d {
-            0 => 0_i8,
-            1 => 1,
-            2 => -1,
+            0 => -1_i8,
+            1 => 0,
+            2 => 1,
             _ => unreachable!(),
         })
         .collect();
     let word_from_a = TernaryWord::from_balanced(&repr_a);
 
     // Rep C: map through bijective representation
-    // Inverse of from_bijective (d%3): 0→3, 1→1, 2→2
-    let repr_c: Vec<u8> = digits_b
-        .iter()
-        .map(|&d| match d {
-            0 => 3_u8,
-            1 => 1,
-            2 => 2,
-            _ => unreachable!(),
-        })
-        .collect();
+    let repr_c: Vec<u8> = digits_b.iter().map(|&d| d + 1).collect();
     let word_from_c = TernaryWord::from_bijective(&repr_c);
 
     // All three should produce identical XOR behavior

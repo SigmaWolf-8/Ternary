@@ -1,0 +1,142 @@
+# REPLIT TASK: Precompute Chi Mapping at Startup
+
+## Priority: P0 — Phase encryption is 4× slower than before chi was added
+
+---
+
+## What
+
+At module startup, run `gf27Pow17()` for all 27 GF(27) elements. Store the 27 input→output trit mappings. At runtime, apply the cached result instead of computing 5 polynomial multiplications per block.
+
+The math is unchanged. The irreducible polynomial t³ + 2t + 1 and exponent 17 are the sole inputs. The derivation runs once at startup. The runtime uses its output.
+
+This applies to all three sponge files.
+
+---
+
+## TypeScript: `server/crypto/sponge-hash.ts`
+
+Add at module scope, after the existing `gf27Pow17` function:
+
+```typescript
+// Derive chi mapping from GF(27) field arithmetic at startup
+// Input: 27 elements as [t0, t1, t2] balanced trits
+// Output: 27 results of x¹⁷, same representation
+const CHI_MAP: Int8Array[] = (() => {
+  const map: Int8Array[] = new Array(27);
+  for (let idx = 0; idx < 27; idx++) {
+    const t0 = (idx % 3) - 1;
+    const t1 = (Math.floor(idx / 3) % 3) - 1;
+    const t2 = (Math.floor(idx / 9) % 3) - 1;
+    const result = gf27Pow17([t0, t1, t2]);
+    map[idx] = new Int8Array(result);
+  }
+  return map;
+})();
+```
+
+Replace the runtime chi computation in `chiLayer()`:
+
+```typescript
+function chiLayer(state: Int8Array): void {
+  for (let block = 0; block < STATE_SIZE; block += 3) {
+    const t0 = state[block];
+    const t1 = state[block + 1];
+    const t2 = state[block + 2];
+    // Skip zero element (0¹⁷ = 0)
+    if (t0 === 0 && t1 === 0 && t2 === 0) continue;
+    const idx = (t0 + 1) + (t1 + 1) * 3 + (t2 + 1) * 9;
+    const result = CHI_MAP[idx];
+    state[block]     = result[0];
+    state[block + 1] = result[1];
+    state[block + 2] = result[2];
+  }
+}
+```
+
+Do NOT remove `gf27Mul` or `gf27Pow17`. They stay — they are the derivation. `CHI_MAP` is derived from them at startup.
+
+---
+
+## Rust kernel: `src/kernel/src/crypto/sponge.rs`
+
+Add a `lazy_static` or `const` array computed at compile time (or module init):
+
+```rust
+/// Chi mapping derived from gf27_pow17 at initialization.
+/// CHI_MAP[i] = gf27_pow17(element_i) for i in 0..27
+/// Index encoding: i = (t0+1) + (t1+1)*3 + (t2+1)*9, trits in {-1,0,+1}
+static CHI_MAP: [[i8; 3]; 27] = {
+    let mut map = [[0i8; 3]; 27];
+    let mut idx = 0usize;
+    while idx < 27 {
+        let t0 = (idx % 3) as i8 - 1;
+        let t1 = ((idx / 3) % 3) as i8 - 1;
+        let t2 = (idx / 9) as i8 - 1;
+        map[idx] = gf27_pow17([t0, t1, t2]);
+        idx += 1;
+    }
+    map
+};
+```
+
+If `gf27_pow17` isn't `const fn`, make it `const fn` (it's pure arithmetic — no heap, no IO). Same for `gf27_mul`, `gf3_mul`, `gf3_add`. All are pure functions on fixed-size arrays.
+
+Replace the runtime chi in the scalar path:
+
+```rust
+fn chi_layer(state: &mut [i8]) {
+    for block in (0..state.len()).step_by(3) {
+        let t0 = state[block];
+        let t1 = state[block + 1];
+        let t2 = state[block + 2];
+        if t0 == 0 && t1 == 0 && t2 == 0 { continue; }
+        let idx = (t0 + 1) as usize + (t1 + 1) as usize * 3 + (t2 + 1) as usize * 9;
+        let result = CHI_MAP[idx];
+        state[block]     = result[0];
+        state[block + 1] = result[1];
+        state[block + 2] = result[2];
+    }
+}
+```
+
+For AVX2: load CHI_MAP entries via `vpgatherdd` or restructure as three separate arrays (one per output trit) for SIMD-friendly access:
+
+```rust
+// SoA layout for SIMD gather
+static CHI_MAP_T0: [i8; 27] = { /* CHI_MAP[i][0] for each i */ };
+static CHI_MAP_T1: [i8; 27] = { /* CHI_MAP[i][1] for each i */ };
+static CHI_MAP_T2: [i8; 27] = { /* CHI_MAP[i][2] for each i */ };
+```
+
+Then the AVX2 chi becomes `vpshufb` lookups into 32-byte tables (27 entries fit in one YMM register with 5 bytes unused). One `vpshufb` per output trit, three total per SIMD batch. This replaces the current per-element polynomial chain.
+
+Same for NEON: `vtbl1q` with 16-byte tables (split into two halves for 27 entries).
+
+---
+
+## Rust ternary-math: `ternary-math/src/sponge.rs`
+
+Same changes as the kernel sponge. Derive `CHI_MAP` from the existing `gf27_pow17()` at init. Replace runtime computation with cached lookup.
+
+---
+
+## Testing
+
+1. Hash "PlenumNET" with v2 BEFORE this change. Hash "PlenumNET" with v2 AFTER. Output must be IDENTICAL. This is a performance optimization, not a functional change.
+2. All 16 benchmark test cases must still pass (4 modes × 4 sizes, round-trip verified).
+3. Run benchmark: `GET /api/salvi/crypto/phase-benchmark?iterations=50`. Report per-size throughput table.
+
+---
+
+## Expected Result
+
+Chi overhead drops from ~5 polynomial multiplications per block to ~1 array read per block. The 4× slowdown from adding chi should largely disappear. Target: return to approximately 130–150 KB/s throughput at 4 KB balanced mode.
+
+---
+
+## Do NOT
+
+- Do NOT remove `gf27Mul`, `gf27Pow17`, or any GF(27) arithmetic functions. They are the derivation. They stay.
+- Do NOT change `CHI_MAP` values manually. They are computed from the field arithmetic at startup.
+- Do NOT change sponge versioning, backward compatibility, or API contracts. This is purely internal.

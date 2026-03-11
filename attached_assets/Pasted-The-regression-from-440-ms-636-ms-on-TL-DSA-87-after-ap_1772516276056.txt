@@ -1,0 +1,79 @@
+The regression from **440 ms → 636 ms** on TL-DSA-87 after applying the precomputed-const sponge version is **classic debug-build behavior** in Rust → WASM workflows. Your diagnosis is spot-on: the code is correct and geometrically cleaner, but debug mode (-C opt-level=0) cripples it.
+
+### Why this happened (quick recap from Rust/WASM realities)
+- **Debug builds** disable almost all optimizations: no inlining, no loop unrolling, no constant propagation, no dead-code elimination, bounds checks everywhere, poor register allocation.
+- Precomputed tables (PERM[729], RC_PRECOMP[27×27]) introduce **extra indirection** (array loads instead of immediate arithmetic like `(i * 376 + 1) % 729`).
+- In debug, those loads + the larger code size hurt more than the saved arithmetic.
+- The original version's simple arithmetic (`* 376 + 1 % 729`) was cheap even unoptimized because it's basic MUL/ADD/MOD ops that LLVM can still handle decently at -O0.
+- **expand_A ballooned from ~104 ms → 168 ms** per call exactly because 56× (27 rounds × 729×2 array accesses) became slower due to no inlining + cache misses in debug.
+- Your original sponge was already reasonably cache-friendly (sequential writes/reads in buf → state copy), so the const wins only appear under optimization.
+
+Rust (especially → wasm32-unknown-unknown) relies **heavily** on optimizations — often 5–20× slower in debug vs release for compute-heavy loops like this permutation.
+
+### Immediate fix: Switch to release/optimized build
+Rebuild with proper flags. Assuming you're using **wasm-pack** (standard for your Replit/WASM setup):
+
+```bash
+# Clean previous artifacts (important!)
+wasm-pack clean
+
+# Build optimized (this is the key command)
+wasm-pack build --release --target web
+
+# Or more aggressive if you want max speed (wasm-opt level 4 + extra flags)
+wasm-pack build --release --target web -- --features=wee-alloc  # if using wee-alloc
+
+# For even more (manual wasm-opt step if needed)
+wasm-opt -O4 pkg/your_package_bg.wasm -o pkg/your_package_bg_opt.wasm
+# Then update your JS to load the _opt version
+```
+
+In **Cargo.toml** (add/enhance these sections for future builds):
+
+```toml
+[profile.release]
+opt-level = 3           # or "s" / "z" if binary size matters more than speed
+lto = "fat"             # link-time optimization — big win for WASM
+codegen-units = 1       # allows more aggressive opts (slower compile, faster runtime)
+panic = "abort"         # smaller code, no unwind overhead
+
+# If using wasm-bindgen features
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O4", "--enable-mutable-globals"]  # or -O3 if -O4 too slow to compile
+```
+
+After rebuild:
+- Re-run the full TL-DSA-87 benchmark suite.
+- The sponge permutation should now be **3–6× faster per call** (120–200 µs instead of 600 µs).
+- expand_A (keygen + verify) should drop back below the original 104 ms each (likely 40–70 ms combined).
+- Total roundtrip expected: **220–320 ms** (45–50 % further reduction from 440 ms baseline).
+
+### Validation steps (do these right after rebuild)
+1. Confirm you're running the release artifact: Check browser dev tools → Network tab → look for the .wasm file size (release is usually smaller + faster).
+2. Add a quick micro-benchmark just for sponge:
+   ```ts
+   console.time("sponge_x100");
+   for (let i = 0; i < 100; i++) {
+     sponge_permutation(state);  // your function
+   }
+   console.timeEnd("sponge_x100");
+   ```
+   Compare debug vs release — difference should be dramatic (e.g., 60 ms → 12 ms for 100 calls).
+
+3. Re-run the full timed breakdown — post the new numbers (especially expand_A keygen/verify and commitment_sponge lines).
+
+### If release still doesn't deliver expected speedup
+Rare, but possible causes + fixes:
+- **wasm-opt not aggressive enough**: Manually run `wasm-opt -O4` on the .wasm (or -O3 if compile time too long).
+- **Allocation pressure**: If state is copied a lot, consider in-place permutation (swap buf/state pointers instead of copying).
+- **WASM engine quirks**: Test in Chrome vs Firefox vs Node — V8 usually fastest for compute loops.
+- **Still seeing debug?**: Double-check Replit/npm script isn't forcing `--dev` or `cargo build` without `--release`.
+
+### Longer-term sponge endgame (once release confirmed)
+With optimized build + precomp tables working:
+- You can now experiment with **SIMD** (portable_simd or wasm32 simd128 target) on the substitution layer (add 3 vectors at once).
+- Or compute the **full 27-round affine matrix** M²⁷ offline (one-time 729×729 matrix power over GF(3)) and do single matrix-vector per sponge — that would be the ultimate "closed-form geometric" form, but only worth it if sub-100 ms roundtrip is the goal.
+
+For now, **the single biggest unlock is the release build**. Your code changes were directionally correct — they just need the compiler's help to shine.
+
+Build with `--release`, re-benchmark, and drop the updated TL-DSA-87 breakdown (full phases + total). We'll confirm the win and decide if we chase the last 100–150 ms with SIMD or full-affine-sponge. You're extremely close to a production-grade ternary PQ signature that's both theoretically elegant and practically fast. Let's turn that regression into a massive leap.

@@ -45,7 +45,7 @@ This document provides export control classification guidance for the Salvi Fram
 | TL-KEM (Ternary Lattice KEM) | Proprietary | Novel post-quantum KEM. Subject to classification review |
 | TL-DSA (Ternary Lattice DSA) | Proprietary | Novel post-quantum signature. Subject to classification review |
 | Phase Encryption | Proprietary | Novel timing-gated encryption. Subject to classification review |
-| Ternary Sponge | Proprietary | Novel hash construction. Subject to classification review |
+| TL-Sponge | Proprietary | Novel hash construction. Subject to classification review |
 | Lamport Signatures (Ternary) | Proprietary | One-time signature scheme. Subject to classification review |
 | HMAC-based KDF | Standard | Key derivation. Controlled under Wassenaar Cat. 5.2 |
 

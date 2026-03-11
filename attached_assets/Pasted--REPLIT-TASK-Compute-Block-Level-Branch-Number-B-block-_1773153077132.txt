@@ -1,0 +1,163 @@
+# REPLIT TASK: Compute Block-Level Branch Number (B_block) for TIS-27
+
+## Priority: P0-CRITICAL — This computation fixes a proven error in the wide-trail security bound
+
+---
+
+## Context
+
+The TIS-27 sponge construction has a **trit-level** branch number B_trit = 8, proven by exhaustive primal-dual search over 5,270,004 vectors. That proof is correct and stands.
+
+However, the paper's Corollary 4 claims N(r) ≥ 8ʳ active S-boxes after r rounds, giving a trail probability of (1/9)^4096 for 4 rounds. **This is wrong.** The S-box χ(x) = x¹⁷ operates on GF(27) blocks (groups of 3 trits), and there are only 18 such blocks per round. Over 4 rounds, the maximum possible active S-boxes is 4 × 18 = 72. The claim of 4,096 is physically impossible.
+
+The fix: compute B_block — the branch number measured in GF(27) blocks instead of individual trits. Once we have B_block, all trail bounds update mechanically.
+
+---
+
+## What to Compute
+
+**B_block** = the minimum, over all nonzero vectors x ∈ GF(3)⁵⁴, of:
+
+```
+active_blocks(x) + active_blocks(M_θ(x))
+```
+
+where:
+- The 54-trit state is partitioned into **18 blocks of 3 trits** each: block k = trits [3k, 3k+1, 3k+2]
+- **active_blocks(x)** = number of blocks containing at least one nonzero trit
+- **M_θ** is the theta circulant diffusion layer (defined below)
+
+---
+
+## The Theta Circulant M_θ
+
+M_θ operates on the 54-trit state as follows. For each position i (0 ≤ i < 54):
+
+```python
+left  = balanced_wrap(s[(i-13) % 54] + s[(i-7) % 54] + s[(i-1) % 54])
+right = balanced_wrap(s[(i+1) % 54]  + s[(i+7) % 54]  + s[(i+13) % 54])
+out[i] = balanced_wrap(left + s[i] + right + 1)
+```
+
+where `balanced_wrap(x)` maps to balanced ternary {-1, 0, +1}:
+
+```python
+def balanced_wrap(x):
+    r = ((x % 3) + 3) % 3  # reduce to {0, 1, 2}
+    if r == 0: return 0
+    if r == 1: return 1
+    return -1  # r == 2 maps to -1
+```
+
+**IMPORTANT:** The `+1` constant in the theta makes it nonlinear (it's an affine map, not a linear map). This is correct and matches the implementation in `src/kernel/src/crypto/sponge.rs` and `ternary-math/src/tis_sponge.rs`.
+
+Note: For the **trit-level** branch number proof, the analysis used the linear part of M_θ (without the +1 constant) because the constant doesn't affect differential/linear properties (a constant cancels in differences). **For this block-level computation, use the same approach:** compute the LINEAR part of theta (without the +1), since differential trails depend on the linear behaviour.
+
+The linear theta is:
+
+```python
+def linear_theta(s):
+    """Apply the linear part of theta (no +1 constant) to 54-trit state s."""
+    out = [0] * 54
+    for i in range(54):
+        left  = balanced_wrap(s[(i-13) % 54] + s[(i-7) % 54] + s[(i-1) % 54])
+        right = balanced_wrap(s[(i+1) % 54]  + s[(i+7) % 54] + s[(i+13) % 54])
+        out[i] = balanced_wrap(left + s[i] + right)  # NO +1 here
+    return out
+```
+
+---
+
+## Algorithm: Primal-Dual Search
+
+Use the same strategy that proved B_trit = 8, but count **active blocks** instead of active trits.
+
+### Helper Functions
+
+```python
+def count_active_blocks(x):
+    """Count how many 3-trit blocks in x contain at least one nonzero trit."""
+    count = 0
+    for k in range(18):  # 18 blocks of 3 trits
+        block = x[3*k : 3*k + 3]
+        if any(t != 0 for t in block):
+            count += 1
+    return count
+
+def block_weight_sum(x, M_theta):
+    """Compute active_blocks(x) + active_blocks(M_theta(x))."""
+    y = M_theta(x)
+    return count_active_blocks(x) + count_active_blocks(y)
+```
+
+### Primal Search (input block-weights 1 through 4)
+
+Enumerate all nonzero inputs with 1, 2, 3, or 4 active blocks. For each, compute block_weight_sum and track the minimum.
+
+**Block-weight 1:** Choose 1 of 18 blocks. Fill it with all 26 nonzero GF(27) patterns (3³ − 1 = 26 nonzero 3-trit patterns). Total: 18 × 26 = 468 inputs.
+
+**Block-weight 2:** Choose 2 of 18 blocks (C(18,2) = 153 pairs). Fill each with 26 patterns. Total: 153 × 26² = 103,428 inputs.
+
+**Block-weight 3:** C(18,3) = 816 triples × 26³ = 14,337,408 inputs. Still tractable.
+
+**Block-weight 4:** C(18,4) = 3,060 × 26⁴ = 1,397,925,360 inputs. This is ~1.4 billion — may be slow but feasible on modern hardware. If too slow, sample randomly or use the dual search to cover this range.
+
+### Dual Search (output block-weights 1 and 2)
+
+Compute M_θ⁻¹ (the inverse of the linear theta). Then for every output vector y with block-weight 1 or 2, compute x = M_θ⁻¹(y) and check its block weight.
+
+If the minimum block_weight_sum from the primal search is B_candidate, then:
+- If no output of block-weight 1 has a preimage of block-weight ≤ (B_candidate − 1), and
+- If no output of block-weight 2 has a preimage of block-weight ≤ (B_candidate − 2),
+
+then B_block = B_candidate (confirmed by dual argument).
+
+**Output block-weight 1:** 18 × 26 = 468 vectors.
+**Output block-weight 2:** 153 × 26² = 103,428 vectors.
+
+Both are trivially fast.
+
+### Computing M_θ⁻¹
+
+Build M_θ as a 54×54 matrix over GF(3) (the linear part). Invert it over GF(3). This is a standard matrix inversion mod 3. The trit-level proof already confirmed M_θ is invertible (g(1) = 7 ≡ 1 mod 3 ≠ 0).
+
+---
+
+## Expected Output
+
+A single report with:
+
+1. **B_block = [exact value]** — the proven minimum of active_blocks(x) + active_blocks(M_θ(x))
+2. **Per-weight minima table:**
+   | Input block-weight | Min block_weight_sum | Achieved at (positions) |
+   |---|---|---|
+   | 1 | ? | block ?, pattern [?,?,?] |
+   | 2 | ? | blocks ?,?, patterns ... |
+   | 3 | ? | ... |
+   | 4 | ? | ... |
+3. **Dual search results:**
+   | Output block-weight | Max preimage block-weight | Min preimage block-weight |
+   |---|---|---|
+   | 1 | ? | ? |
+   | 2 | ? | ? |
+4. **Total vectors checked** (primal + dual)
+5. **The corrected wide-trail bounds:**
+   - For TIS-27 (4 rounds): min active S-boxes = 2 × B_block, trail prob ≤ (1/9)^(2 × B_block)
+   - For TLSponge-385 (9 rounds): min active S-boxes = 4 × B_block + 1 (alternating pattern), trail prob ≤ (1/9)^(4 × B_block + 1)
+
+---
+
+## File Locations
+
+- Theta implementation: `ternary-math/src/tis_sponge.rs` (lines ~80–120)
+- Trit-level branch number proof: referenced in `docs/proofs/` and TM-2026-008
+- Kernel sponge (TLSponge-385): `src/kernel/src/crypto/sponge.rs`
+
+**Place the computation script in:** `scripts/compute_block_branch_number.py` (or `.rs` if preferred)
+**Place the results in:** `docs/proofs/B_block_computation_results.md`
+
+---
+
+## Why This Matters
+
+This single number fixes the only fatal error a reviewer found in the paper. Everything else in the security analysis — the S-box, the diffusion, the lattice crypto, the phase cipher — is correct. Once B_block is computed, the paper's Corollary 4 gets corrected, the trail probabilities become real numbers a reviewer can verify, and the "Reject" becomes "Revise."
