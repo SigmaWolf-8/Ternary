@@ -3,7 +3,7 @@
 //
 // TL-Sponge-385 N-API Native Addon — T-AE-MAC (Ternary Authenticated Encryption MAC)
 //
-// T-AE-MAC is a duplex sponge MAC over keyed TLSponge-385:
+// T-AE-MAC is a dual-phase authenticated encryption MAC over keyed TLSponge-385:
 //   - Key enters via domain absorb (key material ‖ nonce ‖ phase angle)
 //   - Keystream via bulk-rate squeeze (486 trits/perm) on cloned state
 //   - GF(3) trit-wise OTP encryption (information-theoretic per nonce)
@@ -16,7 +16,7 @@
 //
 // v1: no chi, sequential, standard rate (backward compat)
 // v2: chi, sequential, standard rate
-// v3: T-AE-MAC — chi, bulk rate keystream, duplex MAC on trits,
+// v3: T-AE-MAC — chi, bulk rate keystream, dual-phase MAC on trits,
 //     mac_trit_count=0 skips MAC (bulk mode, verify via TL-DSA),
 //     auto-parallel when cores>1 AND data large enough
 
@@ -56,6 +56,8 @@ fn trits_to_hex(trits:&[i8])->String{
         for _ in 0..pk{if i<trits.len(){v+=(trits[i]as u32+1)*m;m*=3;i+=1;}}bytes.push(v as u8);}
     hex::encode(&bytes)}
 
+// ---- Bulk keystream generation ----
+
 fn generate_keystream_v3(base:&Sponge385Pub,trit_count:usize,tag:&[u8])->Vec<i8>{
     let num_threads=rayon::current_num_threads();
     if trit_count<PARALLEL_THRESHOLD||num_threads<=1{
@@ -79,6 +81,8 @@ fn cipher_trits(data:&[i8],keystream:&[i8],encrypt:bool)->Vec<i8>{
     }else{for i in 0..len{out[i]=if encrypt{trit_add(data[i],keystream[i])}else{trit_sub(data[i],keystream[i])};}}out
 }
 
+// ---- N-API exports ----
+
 #[napi] pub fn sponge_hash(input:Buffer)->String{hash_hex(input.as_ref())}
 #[napi] pub fn sponge_hash_v1(input:Buffer)->String{hash_hex_v1(input.as_ref())}
 #[napi] pub fn sponge_keystream(domain_input:Buffer,trit_count:u32)->napi::Result<Buffer>{
@@ -101,6 +105,8 @@ fn cipher_trits(data:&[i8],keystream:&[i8],encrypt:bool)->Vec<i8>{
     let mut state=[0i8;729];for i in 0..729{state[i]=src[i]as i8;}sponge_permutation_v1(&mut state);
     Ok(Buffer::from(state.iter().map(|&t|t as u8).collect::<Vec<_>>()))}
 
+// ---- Full phase encrypt (dual-phase) ----
+
 #[napi]
 pub fn phase_duplex_encrypt(
     domain_input:Buffer,primary_plain_bytes:Buffer,switch_marker:Buffer,
@@ -113,6 +119,7 @@ pub fn phase_duplex_encrypt(
     phase_encrypt_sequential(domain_input.as_ref(),p1,switch_marker.as_ref(),p2,mac_trit_count,sponge_version)
 }
 
+/// v1/v2: sequential, standard rate — exact existing behavior preserved
 fn phase_encrypt_sequential(di:&[u8],p1:&[u8],sw:&[u8],p2:&[u8],mac_tc:u32,sv:u32)->napi::Result<Buffer>{
     let pt1=bytes_to_balanced_trits6(p1);let pt2=bytes_to_balanced_trits6(p2);
     let mut s=if sv>=2{Sponge385Pub::new()}else{Sponge385Pub::new_v1()};
@@ -136,6 +143,17 @@ fn phase_encrypt_sequential(di:&[u8],p1:&[u8],sw:&[u8],p2:&[u8],mac_tc:u32,sv:u3
     Ok(Buffer::from(out))
 }
 
+/// v3 T-AE-MAC: bulk keystream, dual-phase MAC on trits (no binary round-trip), auto-parallel
+///
+/// T-AE-MAC dual-phase flow:
+///   1. base sponge absorbs domain (key ‖ nonce ‖ phase_angle ‖ context)
+///   2. Clone base → fork per phase → bulk squeeze keystream trits
+///   3. GF(3) trit cipher: cipher_trits = plain_trits + keystream_trits
+///   4. MAC (mac_tc > 0): base sponge absorbs headers (bytes, tiny) + cipher TRITS
+///      directly — sponge never leaves ternary domain for MAC
+///   5. Squeeze T-AE-MAC tag from capacity (385-bit security)
+///   6. MAC skip (mac_tc = 0): zero MAC permutations, integrity via external TL-DSA
+///   7. Cipher trits → bytes ONLY for wire output (last step)
 fn phase_encrypt_v3(di:&[u8],p1:&[u8],sw:&[u8],p2:&[u8],mac_tc:u32)->napi::Result<Buffer>{
     let mut base=Sponge385Pub::new();
     base.absorb_bytes(di);
@@ -147,6 +165,7 @@ fn phase_encrypt_v3(di:&[u8],p1:&[u8],sw:&[u8],p2:&[u8],mac_tc:u32)->napi::Resul
     let use_parallel=rayon::current_num_threads()>1
         &&(pt1.len()>=PARALLEL_THRESHOLD||pt2.len()>=PARALLEL_THRESHOLD);
 
+    // Keystream: bulk rate (486 trits/perm = 2x throughput)
     let(ks1,ks2)=if use_parallel{
         rayon::join(
             ||generate_keystream_v3(&base,pt1.len(),&[0x00]),
@@ -156,25 +175,37 @@ fn phase_encrypt_v3(di:&[u8],p1:&[u8],sw:&[u8],p2:&[u8],mac_tc:u32)->napi::Resul
          generate_keystream_v3(&base,pt2.len(),&sec_tag))
     };
 
+    // GF(3) cipher — all ternary, no binary
     let(ct1,ct2)=if use_parallel{
         rayon::join(||cipher_trits(&pt1,&ks1,true),||cipher_trits(&pt2,&ks2,true))
     }else{
         (cipher_trits(&pt1,&ks1,true),cipher_trits(&pt2,&ks2,true))
     };
 
+    // Headers (8 bytes each — only binary data in the whole pipeline, unavoidable for transport)
     let mut h1=[0u8;8];h1[0..4].copy_from_slice(&(p1.len()as u32).to_be_bytes());h1[4..8].copy_from_slice(&(pt1.len()as u32).to_be_bytes());
     let mut h2=[0u8;8];h2[0..4].copy_from_slice(&(p2.len()as u32).to_be_bytes());h2[4..8].copy_from_slice(&(pt2.len()as u32).to_be_bytes());
 
+    // T-AE-MAC: dual-phase: base sponge (never squeezed keystream), absorbing TRITS directly.
+    // base already has domain absorbed. Cipher trits feed in without binary conversion.
+    // Headers are 8 bytes (40 trits) — absorb_bytes is fine for those.
+    //
+    // IMPORTANT: mac_trit_count=0 is BULK CONFIDENTIALITY MODE — encryption only,
+    // NO authentication tag. Integrity MUST be provided by an outer mechanism
+    // (TL-DSA signature over ciphertext, or application-layer verification).
+    // Callers MUST NOT assume ciphertext integrity when mac_trit_count=0.
     let mac_hex = if mac_tc > 0 {
-        base.absorb_bytes(&h1);
-        base.absorb(&ct1);
-        base.absorb_bytes(&h2);
-        base.absorb(&ct2);
+        base.absorb_bytes(&h1);   // 40 trits — tiny
+        base.absorb(&ct1);        // cipher trits direct — NO binary round-trip
+        base.absorb_bytes(&h2);   // 40 trits — tiny
+        base.absorb(&ct2);        // cipher trits direct — NO binary round-trip
         trits_to_hex(&base.squeeze(mac_tc as usize))
     } else {
+        // Bulk confidentiality mode: no T-AE-MAC tag. Integrity deferred to outer TL-DSA.
         String::new()
     };
 
+    // Pack for transport — cipher trits to bytes happens here ONLY, for the wire format
     let cb1=cipher_trits_to_bytes(&ct1);
     let cb2=cipher_trits_to_bytes(&ct2);
     let fc1=[&h1[..],&cb1[..]].concat();
@@ -185,6 +216,8 @@ fn phase_encrypt_v3(di:&[u8],p1:&[u8],sw:&[u8],p2:&[u8],mac_tc:u32)->napi::Resul
     out.extend_from_slice(mac_hex.as_bytes());
     Ok(Buffer::from(out))
 }
+
+// ---- Full phase decrypt (dual-phase) ----
 
 #[napi]
 pub fn phase_duplex_decrypt(
@@ -222,6 +255,14 @@ fn phase_decrypt_sequential(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac
     Ok(Buffer::from(out))
 }
 
+/// v3 T-AE-MAC decrypt: verify tag on trits (dual-phase, base never squeezed keystream), then decrypt
+///
+/// T-AE-MAC verification flow:
+///   1. base sponge absorbs domain
+///   2. Clone base BEFORE MAC (keystream needs clean post-domain state)
+///   3. T-AE-MAC verify (if mac_tc > 0): base absorbs headers + cipher TRITS
+///      directly, squeezes tag, constant-time compare
+///   4. Keystream from pre-MAC clone (bulk rate), GF(3) decrypt
 fn phase_decrypt_v3(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32)->napi::Result<Buffer>{
     if r1.len()<8||r2.len()<8{return Err(napi::Error::from_reason(String::from("cipher too short")));}
     let obl1=u32::from_be_bytes([r1[0],r1[1],r1[2],r1[3]])as usize;
@@ -229,19 +270,27 @@ fn phase_decrypt_v3(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32)
     let obl2=u32::from_be_bytes([r2[0],r2[1],r2[2],r2[3]])as usize;
     let tc2=u32::from_be_bytes([r2[4],r2[5],r2[6],r2[7]])as usize;let cb2=&r2[8..];
 
+    // Unpack cipher trits from transport bytes — this is the ONE binary→ternary step
+    // (unavoidable: wire format is bytes)
     let ct1=cipher_bytes_to_trits(cb1,tc1);
     let ct2=cipher_bytes_to_trits(cb2,tc2);
 
+    // Base sponge absorbs domain
     let mut base=Sponge385Pub::new();
     base.absorb_bytes(di);
 
+    // Clone base BEFORE MAC (MAC absorb is destructive, keystream needs clean state)
     let ks_base=base.clone();
 
+    // T-AE-MAC verification: dual-phase: base (never squeezed keystream), absorbing TRITS directly.
+    // When mac_tc=0: BULK CONFIDENTIALITY MODE — no tag verification.
+    // Caller asserts integrity was verified externally (TL-DSA signature).
+    // Ciphertext is decrypted WITHOUT authentication. Use with caution.
     if mac_tc>0{
-        base.absorb_bytes(&r1[0..8]);
-        base.absorb(&ct1);
-        base.absorb_bytes(&r2[0..8]);
-        base.absorb(&ct2);
+        base.absorb_bytes(&r1[0..8]);  // header1 — 40 trits, tiny
+        base.absorb(&ct1);              // cipher trits direct — no binary round-trip
+        base.absorb_bytes(&r2[0..8]);  // header2 — 40 trits, tiny
+        base.absorb(&ct2);              // cipher trits direct — no binary round-trip
         let cm=trits_to_hex(&base.squeeze(mac_tc as usize));
         if cm.len()!=exp_mac.len(){return Ok(Buffer::from(vec![]));}
         let(a,b)=(cm.as_bytes(),exp_mac.as_bytes());
@@ -249,6 +298,7 @@ fn phase_decrypt_v3(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32)
         if d!=0{return Ok(Buffer::from(vec![]));}
     }
 
+    // Keystream from pre-MAC clone (bulk rate)
     let mut sec_tag=Vec::with_capacity(1+sw.len());sec_tag.push(0x01);sec_tag.extend_from_slice(sw);
 
     let use_parallel=rayon::current_num_threads()>1
@@ -263,6 +313,7 @@ fn phase_decrypt_v3(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32)
          generate_keystream_v3(&ks_base,tc2,&sec_tag))
     };
 
+    // GF(3) decrypt
     let(pl1,pl2)=if use_parallel{
         rayon::join(||cipher_trits(&ct1,&ks1,false),||cipher_trits(&ct2,&ks2,false))
     }else{
