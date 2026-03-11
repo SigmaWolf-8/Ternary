@@ -1,0 +1,271 @@
+/**
+ * Plenum Checksum — Mod-333 Integrity Check for 27-Trit TDNS Addresses
+ *
+ * Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+ * Patent(s) Pending — All Rights Reserved — Applied Physics Division
+ *
+ * A secondary lightweight integrity check that complements the existing
+ * repunit checksum (mod 364). Uses mod 333 (the Plenum magic constant).
+ *
+ * MATHEMATICAL BASIS:
+ *   - Repunit checksum: mod R₆ = 364 (six-digit base-3 repunit)
+ *   - Plenum checksum:  mod 333 = 3 × 111 (Plenum magic constant)
+ *   - gcd(333, 364) = 1 (coprime)
+ *   - Combined detection space: 333 × 364 = 121,212 (by CRT)
+ *   - False-pass rate: ~0.0008% (vs ~0.27% for mod-364 alone)
+ *
+ * ALGORITHM (mirrors repunit checksum pattern exactly):
+ *   1. Interpret 27 Rep C trits as Rep B (subtract 1 from each)
+ *   2. Evaluate as base-3 number via Horner's method with incremental mod-333 reduction
+ *   3. Decompose result into 6 Rep B trits (333 < 3⁶ = 729)
+ *   4. Lift back to Rep C (add 1 to each)
+ *
+ * All arithmetic stays in GF(3) — no domain crossing. Constant-time branchless.
+ *
+ * Source: TM-2026-015 §5 (Checksum Hardening)
+ */
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+/** Plenum checksum modulus: 333 = 3 × 111 = Plenum magic constant. */
+export const PLENUM_MODULUS = 333;
+
+/** Repunit checksum modulus: 364 = R₆ = 111111₃. */
+export const REPUNIT_MODULUS = 364;
+
+/** Number of classification trits in a TDNS address. */
+export const CLASSIFICATION_TRITS = 27;
+
+/** Number of output checksum trits (333 < 3⁶ = 729, so 6 trits suffice). */
+export const CHECKSUM_TRITS = 6;
+
+/** Combined detection space: 333 × 364 = 121,212. */
+export const DUAL_DETECTION_SPACE = PLENUM_MODULUS * REPUNIT_MODULUS; // 121,212
+
+// ── Core: Mod-333 Checksum ─────────────────────────────────────────────────
+
+/**
+ * Computes the Plenum checksum (mod 333) for a 27-trit classification address.
+ *
+ * Input: 27 Rep C trits (values in {1, 2, 3}).
+ * Output: 6 Rep C trits (values in {1, 2, 3}).
+ *
+ * Algorithm: Horner's method with incremental mod-333 reduction.
+ * Constant-time: no branches on trit values.
+ *
+ * @param trits - Array of exactly 27 Rep C trit values (each 1, 2, or 3)
+ * @returns Array of 6 Rep C checksum trits
+ * @throws If input length !== 27 or any trit is not in {1, 2, 3}
+ */
+export function computePlenumChecksum(trits: readonly number[]): number[] {
+  if (trits.length !== CLASSIFICATION_TRITS) {
+    throw new Error(
+      `Expected ${CLASSIFICATION_TRITS} trits, got ${trits.length}`,
+    );
+  }
+
+  let acc = 0;
+  for (let i = 0; i < CLASSIFICATION_TRITS; i++) {
+    const repB = trits[i] - 1; // Rep C {1,2,3} → Rep B {0,1,2}
+    acc = (acc * 3 + repB) % PLENUM_MODULUS;
+  }
+
+  const result: number[] = new Array(CHECKSUM_TRITS);
+  let val = acc;
+  for (let i = CHECKSUM_TRITS - 1; i >= 0; i--) {
+    result[i] = val % 3;
+    val = Math.floor(val / 3);
+  }
+
+  for (let i = 0; i < CHECKSUM_TRITS; i++) {
+    result[i] += 1;
+  }
+
+  return result;
+}
+
+/**
+ * Verifies a Plenum checksum against a 27-trit classification address.
+ *
+ * @param trits - 27 Rep C classification trits
+ * @param checksum - 6 Rep C checksum trits to verify
+ * @returns true if checksum matches
+ */
+export function verifyPlenumChecksum(
+  trits: readonly number[],
+  checksum: readonly number[],
+): boolean {
+  if (checksum.length !== CHECKSUM_TRITS) return false;
+  const expected = computePlenumChecksum(trits);
+  let diff = 0;
+  for (let i = 0; i < CHECKSUM_TRITS; i++) {
+    diff |= expected[i] ^ checksum[i];
+  }
+  return diff === 0;
+}
+
+// ── Dual Checksum (Repunit + Plenum) ───────────────────────────────────────
+
+/**
+ * Computes the repunit checksum (mod 364) for a 27-trit classification address.
+ * Mirrors the existing repunit-checksum.ts algorithm for self-contained dual use.
+ *
+ * Input: 27 Rep C trits. Output: 6 Rep C checksum trits.
+ */
+export function computeRepunitChecksum(trits: readonly number[]): number[] {
+  if (trits.length !== CLASSIFICATION_TRITS) {
+    throw new Error(
+      `Expected ${CLASSIFICATION_TRITS} trits, got ${trits.length}`,
+    );
+  }
+
+  let acc = 0;
+  for (let i = 0; i < CLASSIFICATION_TRITS; i++) {
+    const repB = trits[i] - 1;
+    acc = (acc * 3 + repB) % REPUNIT_MODULUS;
+  }
+
+  const result: number[] = new Array(CHECKSUM_TRITS);
+  let val = acc;
+  for (let i = CHECKSUM_TRITS - 1; i >= 0; i--) {
+    result[i] = val % 3;
+    val = Math.floor(val / 3);
+  }
+
+  for (let i = 0; i < CHECKSUM_TRITS; i++) {
+    result[i] += 1;
+  }
+
+  return result;
+}
+
+export interface DualChecksum {
+  readonly repunit: readonly number[];
+  readonly plenum: readonly number[];
+}
+
+/**
+ * Computes both checksums for a 27-trit classification address.
+ * Single pass through the trits (Horner's method with two accumulators).
+ *
+ * @param trits - 27 Rep C classification trits
+ * @returns Both checksum arrays
+ */
+export function computeDualChecksum(trits: readonly number[]): DualChecksum {
+  if (trits.length !== CLASSIFICATION_TRITS) {
+    throw new Error(
+      `Expected ${CLASSIFICATION_TRITS} trits, got ${trits.length}`,
+    );
+  }
+
+  let accRepunit = 0;
+  let accPlenum = 0;
+  for (let i = 0; i < CLASSIFICATION_TRITS; i++) {
+    const repB = trits[i] - 1;
+    accRepunit = (accRepunit * 3 + repB) % REPUNIT_MODULUS;
+    accPlenum = (accPlenum * 3 + repB) % PLENUM_MODULUS;
+  }
+
+  const repunit: number[] = new Array(CHECKSUM_TRITS);
+  let v1 = accRepunit;
+  for (let i = CHECKSUM_TRITS - 1; i >= 0; i--) {
+    repunit[i] = (v1 % 3) + 1;
+    v1 = Math.floor(v1 / 3);
+  }
+
+  const plenum: number[] = new Array(CHECKSUM_TRITS);
+  let v2 = accPlenum;
+  for (let i = CHECKSUM_TRITS - 1; i >= 0; i--) {
+    plenum[i] = (v2 % 3) + 1;
+    v2 = Math.floor(v2 / 3);
+  }
+
+  return { repunit, plenum };
+}
+
+/**
+ * Verifies both checksums against a 27-trit classification address.
+ * Both must match for the address to be considered intact.
+ *
+ * False-pass rate: ~1/121,212 ≈ 0.0008% (vs ~1/364 ≈ 0.27% for single).
+ *
+ * @param trits - 27 Rep C classification trits
+ * @param repunitChecksum - 6 Rep C repunit checksum trits
+ * @param plenumChecksum - 6 Rep C Plenum checksum trits
+ * @returns true if BOTH checksums match
+ */
+export function verifyDualChecksum(
+  trits: readonly number[],
+  repunitChecksum: readonly number[],
+  plenumChecksum: readonly number[],
+): boolean {
+  if (
+    repunitChecksum.length !== CHECKSUM_TRITS ||
+    plenumChecksum.length !== CHECKSUM_TRITS
+  ) {
+    return false;
+  }
+
+  const expected = computeDualChecksum(trits);
+
+  let diff = 0;
+  for (let i = 0; i < CHECKSUM_TRITS; i++) {
+    diff |= expected.repunit[i] ^ repunitChecksum[i];
+    diff |= expected.plenum[i] ^ plenumChecksum[i];
+  }
+  return diff === 0;
+}
+
+// ── Validation Utilities ───────────────────────────────────────────────────
+
+/**
+ * Validates that a trit array is well-formed Rep C (all values in {1, 2, 3}).
+ * Zero presence proves forgery (INVARIANT 3).
+ */
+export function isValidRepC(trits: readonly number[]): boolean {
+  let valid = 1;
+  for (let i = 0; i < trits.length; i++) {
+    const t = trits[i];
+    valid &= ((t - 1) | (3 - t)) >>> 31 ^ 1;
+  }
+  return valid === 1;
+}
+
+/**
+ * Full integrity check: Rep C validation + dual checksum verification.
+ * This is the recommended entry point for TDNS address verification.
+ *
+ * @param trits - 27 Rep C classification trits
+ * @param repunitChecksum - 6 Rep C repunit checksum trits
+ * @param plenumChecksum - 6 Rep C Plenum checksum trits
+ * @returns Object with pass/fail and diagnostic info
+ */
+export function verifyAddressIntegrity(
+  trits: readonly number[],
+  repunitChecksum: readonly number[],
+  plenumChecksum: readonly number[],
+): { valid: boolean; repC: boolean; repunit: boolean; plenum: boolean } {
+  const repC = isValidRepC(trits) && isValidRepC(repunitChecksum) && isValidRepC(plenumChecksum);
+  if (!repC) {
+    return { valid: false, repC: false, repunit: false, plenum: false };
+  }
+
+  const expected = computeDualChecksum(trits);
+
+  let repunitDiff = 0;
+  let plenumDiff = 0;
+  for (let i = 0; i < CHECKSUM_TRITS; i++) {
+    repunitDiff |= expected.repunit[i] ^ repunitChecksum[i];
+    plenumDiff |= expected.plenum[i] ^ plenumChecksum[i];
+  }
+
+  const repunitOk = repunitDiff === 0;
+  const plenumOk = plenumDiff === 0;
+
+  return {
+    valid: repunitOk && plenumOk,
+    repC: true,
+    repunit: repunitOk,
+    plenum: plenumOk,
+  };
+}

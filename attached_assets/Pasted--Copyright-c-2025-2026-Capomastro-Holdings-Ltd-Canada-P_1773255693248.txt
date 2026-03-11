@@ -1,0 +1,432 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved — Applied Physics Division
+//
+// Plenum Checksum — Mod-333 Integrity Check for 27-Trit TDNS Addresses
+//
+// A secondary lightweight integrity check complementing the repunit checksum
+// (mod 364). Uses mod 333 (the Plenum magic constant = 3 × 111).
+//
+// gcd(333, 364) = 1 → combined detection space = 121,212 (by CRT).
+// False-pass rate: ~0.0008% (vs ~0.27% for mod-364 alone).
+//
+// Source: TM-2026-015 §5 (Checksum Hardening)
+
+/// Plenum checksum modulus: 333 = 3 × 111 = Plenum magic constant.
+pub const PLENUM_MODULUS: u32 = 333;
+
+/// Repunit checksum modulus: 364 = R₆ = 111111₃.
+pub const REPUNIT_MODULUS: u32 = 364;
+
+/// Number of classification trits in a TDNS address.
+pub const CLASSIFICATION_TRITS: usize = 27;
+
+/// Number of output checksum trits (both 333 and 364 < 3⁶ = 729).
+pub const CHECKSUM_TRITS: usize = 6;
+
+/// Combined detection space: 333 × 364 = 121,212.
+pub const DUAL_DETECTION_SPACE: u32 = PLENUM_MODULUS * REPUNIT_MODULUS;
+
+/// Error type for checksum operations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChecksumError {
+    /// Input trit array has wrong length.
+    BadLength { expected: usize, got: usize },
+    /// A trit value is not in Rep C {1, 2, 3}. Zero = forgery sentinel.
+    InvalidTrit { index: usize, value: u8 },
+}
+
+impl core::fmt::Display for ChecksumError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::BadLength { expected, got } => {
+                write!(f, "expected {} trits, got {}", expected, got)
+            }
+            Self::InvalidTrit { index, value } => {
+                write!(f, "invalid Rep C trit at index {}: {} (must be 1, 2, or 3)", index, value)
+            }
+        }
+    }
+}
+
+/// Result of a dual checksum computation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DualChecksum {
+    /// 6 Rep C trits — mod-364 repunit checksum.
+    pub repunit: [u8; CHECKSUM_TRITS],
+    /// 6 Rep C trits — mod-333 Plenum checksum.
+    pub plenum: [u8; CHECKSUM_TRITS],
+}
+
+/// Result of full address integrity verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntegrityResult {
+    /// Overall pass/fail.
+    pub valid: bool,
+    /// All trits are valid Rep C (no zeros).
+    pub rep_c: bool,
+    /// Repunit checksum (mod 364) matches.
+    pub repunit: bool,
+    /// Plenum checksum (mod 333) matches.
+    pub plenum: bool,
+}
+
+// ── Validation ─────────────────────────────────────────────────────────────
+
+/// Validates that all trit values are in Rep C {1, 2, 3}.
+/// Returns the index and value of the first invalid trit, if any.
+/// Constant-time: always scans all trits.
+fn validate_rep_c(trits: &[u8]) -> Option<(usize, u8)> {
+    let mut bad_idx: usize = usize::MAX;
+    let mut bad_val: u8 = 0;
+    for (i, &t) in trits.iter().enumerate() {
+        // Invalid if t < 1 or t > 3
+        let invalid = ((t < 1) || (t > 3)) as usize;
+        // Keep first invalid (branchless via min)
+        if invalid == 1 && i < bad_idx {
+            bad_idx = i;
+            bad_val = t;
+        }
+    }
+    if bad_idx == usize::MAX {
+        None
+    } else {
+        Some((bad_idx, bad_val))
+    }
+}
+
+/// Checks if a trit slice is valid Rep C. Constant-time scan.
+pub fn is_valid_rep_c(trits: &[u8]) -> bool {
+    validate_rep_c(trits).is_none()
+}
+
+// ── Core: Single-Modulus Checksum ──────────────────────────────────────────
+
+/// Horner's method evaluation mod `modulus` for a Rep C trit array.
+/// Internal helper — does NOT validate inputs (caller must ensure Rep C).
+#[inline]
+fn horner_mod(trits: &[u8], modulus: u32) -> u32 {
+    let mut acc: u32 = 0;
+    for &t in trits {
+        let rep_b = (t - 1) as u32; // Rep C → Rep B
+        acc = (acc * 3 + rep_b) % modulus;
+    }
+    acc
+}
+
+/// Decomposes a checksum value (< 729) into 6 Rep C trits.
+#[inline]
+fn decompose_to_rep_c(mut val: u32) -> [u8; CHECKSUM_TRITS] {
+    let mut result = [0u8; CHECKSUM_TRITS];
+    for i in (0..CHECKSUM_TRITS).rev() {
+        result[i] = ((val % 3) + 1) as u8; // Rep B → Rep C in one step
+        val /= 3;
+    }
+    result
+}
+
+/// Computes the Plenum checksum (mod 333) for a 27-trit classification address.
+///
+/// Input: 27 Rep C trits (values in {1, 2, 3}).
+/// Output: 6 Rep C checksum trits.
+///
+/// # Errors
+/// Returns `ChecksumError` if input has wrong length or invalid trits.
+pub fn compute_plenum_checksum(trits: &[u8]) -> Result<[u8; CHECKSUM_TRITS], ChecksumError> {
+    if trits.len() != CLASSIFICATION_TRITS {
+        return Err(ChecksumError::BadLength {
+            expected: CLASSIFICATION_TRITS,
+            got: trits.len(),
+        });
+    }
+    if let Some((idx, val)) = validate_rep_c(trits) {
+        return Err(ChecksumError::InvalidTrit { index: idx, value: val });
+    }
+    let val = horner_mod(trits, PLENUM_MODULUS);
+    Ok(decompose_to_rep_c(val))
+}
+
+/// Computes the repunit checksum (mod 364) for a 27-trit classification address.
+///
+/// Mirrors the existing `repunit_checksum.rs` algorithm for self-contained dual use.
+pub fn compute_repunit_checksum(trits: &[u8]) -> Result<[u8; CHECKSUM_TRITS], ChecksumError> {
+    if trits.len() != CLASSIFICATION_TRITS {
+        return Err(ChecksumError::BadLength {
+            expected: CLASSIFICATION_TRITS,
+            got: trits.len(),
+        });
+    }
+    if let Some((idx, val)) = validate_rep_c(trits) {
+        return Err(ChecksumError::InvalidTrit { index: idx, value: val });
+    }
+    let val = horner_mod(trits, REPUNIT_MODULUS);
+    Ok(decompose_to_rep_c(val))
+}
+
+/// Verifies a Plenum checksum against a 27-trit classification address.
+/// Constant-time comparison (no early exit).
+pub fn verify_plenum_checksum(
+    trits: &[u8],
+    checksum: &[u8; CHECKSUM_TRITS],
+) -> Result<bool, ChecksumError> {
+    let expected = compute_plenum_checksum(trits)?;
+    let mut diff: u8 = 0;
+    for i in 0..CHECKSUM_TRITS {
+        diff |= expected[i] ^ checksum[i];
+    }
+    Ok(diff == 0)
+}
+
+// ── Dual Checksum (Repunit + Plenum) ───────────────────────────────────────
+
+/// Computes both checksums in a single pass through the trits.
+/// Two Horner accumulators run in parallel — one multiplication, two mod ops per trit.
+pub fn compute_dual_checksum(trits: &[u8]) -> Result<DualChecksum, ChecksumError> {
+    if trits.len() != CLASSIFICATION_TRITS {
+        return Err(ChecksumError::BadLength {
+            expected: CLASSIFICATION_TRITS,
+            got: trits.len(),
+        });
+    }
+    if let Some((idx, val)) = validate_rep_c(trits) {
+        return Err(ChecksumError::InvalidTrit { index: idx, value: val });
+    }
+
+    // Single pass: two Horner accumulators
+    let mut acc_repunit: u32 = 0;
+    let mut acc_plenum: u32 = 0;
+    for &t in trits {
+        let rep_b = (t - 1) as u32;
+        acc_repunit = (acc_repunit * 3 + rep_b) % REPUNIT_MODULUS;
+        acc_plenum = (acc_plenum * 3 + rep_b) % PLENUM_MODULUS;
+    }
+
+    Ok(DualChecksum {
+        repunit: decompose_to_rep_c(acc_repunit),
+        plenum: decompose_to_rep_c(acc_plenum),
+    })
+}
+
+/// Verifies both checksums. Both must match for the address to be intact.
+/// Constant-time comparison for both checks.
+///
+/// False-pass rate: ~1/121,212 ≈ 0.0008%.
+pub fn verify_dual_checksum(
+    trits: &[u8],
+    repunit_checksum: &[u8; CHECKSUM_TRITS],
+    plenum_checksum: &[u8; CHECKSUM_TRITS],
+) -> Result<bool, ChecksumError> {
+    let expected = compute_dual_checksum(trits)?;
+    let mut diff: u8 = 0;
+    for i in 0..CHECKSUM_TRITS {
+        diff |= expected.repunit[i] ^ repunit_checksum[i];
+        diff |= expected.plenum[i] ^ plenum_checksum[i];
+    }
+    Ok(diff == 0)
+}
+
+/// Full integrity check: Rep C validation + dual checksum verification.
+/// Recommended entry point for TDNS address verification.
+pub fn verify_address_integrity(
+    trits: &[u8],
+    repunit_checksum: &[u8; CHECKSUM_TRITS],
+    plenum_checksum: &[u8; CHECKSUM_TRITS],
+) -> IntegrityResult {
+    // Check Rep C validity on all inputs
+    let trits_ok = is_valid_rep_c(trits);
+    let repunit_ck_ok = is_valid_rep_c(repunit_checksum);
+    let plenum_ck_ok = is_valid_rep_c(plenum_checksum);
+    let rep_c = trits_ok && repunit_ck_ok && plenum_ck_ok && trits.len() == CLASSIFICATION_TRITS;
+
+    if !rep_c {
+        return IntegrityResult {
+            valid: false,
+            rep_c: false,
+            repunit: false,
+            plenum: false,
+        };
+    }
+
+    let expected = compute_dual_checksum(trits).unwrap(); // Safe: validated above
+
+    let mut repunit_diff: u8 = 0;
+    let mut plenum_diff: u8 = 0;
+    for i in 0..CHECKSUM_TRITS {
+        repunit_diff |= expected.repunit[i] ^ repunit_checksum[i];
+        plenum_diff |= expected.plenum[i] ^ plenum_checksum[i];
+    }
+
+    let repunit_ok = repunit_diff == 0;
+    let plenum_ok = plenum_diff == 0;
+
+    IntegrityResult {
+        valid: repunit_ok && plenum_ok,
+        rep_c: true,
+        repunit: repunit_ok,
+        plenum: plenum_ok,
+    }
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Google fixture from repo guide: WO:2323 WA:1133 WR:3131 WN:1322 WY:2331 HO:1212 PE:313
+    const GOOGLE_ADDR: [u8; 27] = [
+        2, 3, 2, 3,  // WHO
+        1, 1, 3, 3,  // WHAT
+        3, 1, 3, 1,  // WHERE
+        1, 3, 2, 2,  // WHEN
+        2, 3, 3, 1,  // WHY
+        1, 2, 1, 2,  // HOW
+        3, 1, 3,     // PEACE
+    ];
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(PLENUM_MODULUS, 333);
+        assert_eq!(REPUNIT_MODULUS, 364);
+        assert_eq!(DUAL_DETECTION_SPACE, 121_212);
+        assert_eq!(CLASSIFICATION_TRITS, 27);
+        assert_eq!(CHECKSUM_TRITS, 6);
+    }
+
+    #[test]
+    fn test_coprimality() {
+        fn gcd(mut a: u32, mut b: u32) -> u32 {
+            while b != 0 {
+                let t = b;
+                b = a % b;
+                a = t;
+            }
+            a
+        }
+        assert_eq!(gcd(PLENUM_MODULUS, REPUNIT_MODULUS), 1, "333 and 364 must be coprime");
+    }
+
+    #[test]
+    fn test_plenum_checksum_google() {
+        let ck = compute_plenum_checksum(&GOOGLE_ADDR).unwrap();
+        // 254 mod 333 → 100102₃ → Rep C: [2,1,1,2,1,3]
+        assert_eq!(ck, [2, 1, 1, 2, 1, 3]);
+    }
+
+    #[test]
+    fn test_repunit_checksum_google() {
+        let ck = compute_repunit_checksum(&GOOGLE_ADDR).unwrap();
+        // 291 mod 364 → decompose 291 in base 3
+        // 291 / 3 = 97 r 0 → 291 = 97*3 + 0
+        // 97 / 3 = 32 r 1
+        // 32 / 3 = 10 r 2
+        // 10 / 3 = 3 r 1
+        // 3 / 3 = 1 r 0
+        // 1 / 3 = 0 r 1
+        // → 101210₃ → Rep C: [2,1,2,3,2,1]
+        assert_eq!(ck, [2, 1, 2, 3, 2, 1]);
+    }
+
+    #[test]
+    fn test_dual_checksum_consistency() {
+        let dual = compute_dual_checksum(&GOOGLE_ADDR).unwrap();
+        let single_repunit = compute_repunit_checksum(&GOOGLE_ADDR).unwrap();
+        let single_plenum = compute_plenum_checksum(&GOOGLE_ADDR).unwrap();
+        assert_eq!(dual.repunit, single_repunit);
+        assert_eq!(dual.plenum, single_plenum);
+    }
+
+    #[test]
+    fn test_verify_plenum_checksum() {
+        let ck = compute_plenum_checksum(&GOOGLE_ADDR).unwrap();
+        assert!(verify_plenum_checksum(&GOOGLE_ADDR, &ck).unwrap());
+
+        // Tamper with one trit
+        let mut bad_ck = ck;
+        bad_ck[0] = if bad_ck[0] == 1 { 2 } else { 1 };
+        assert!(!verify_plenum_checksum(&GOOGLE_ADDR, &bad_ck).unwrap());
+    }
+
+    #[test]
+    fn test_verify_dual_checksum() {
+        let dual = compute_dual_checksum(&GOOGLE_ADDR).unwrap();
+        assert!(verify_dual_checksum(&GOOGLE_ADDR, &dual.repunit, &dual.plenum).unwrap());
+
+        // Tamper: change last classification trit
+        let mut tampered = GOOGLE_ADDR;
+        tampered[26] = if tampered[26] == 1 { 2 } else { 1 };
+        assert!(!verify_dual_checksum(&tampered, &dual.repunit, &dual.plenum).unwrap());
+    }
+
+    #[test]
+    fn test_integrity_valid() {
+        let dual = compute_dual_checksum(&GOOGLE_ADDR).unwrap();
+        let result = verify_address_integrity(&GOOGLE_ADDR, &dual.repunit, &dual.plenum);
+        assert!(result.valid);
+        assert!(result.rep_c);
+        assert!(result.repunit);
+        assert!(result.plenum);
+    }
+
+    #[test]
+    fn test_integrity_forgery_detection() {
+        let dual = compute_dual_checksum(&GOOGLE_ADDR).unwrap();
+        // Insert zero (forgery sentinel)
+        let mut forged = GOOGLE_ADDR;
+        forged[0] = 0;
+        let result = verify_address_integrity(&forged, &dual.repunit, &dual.plenum);
+        assert!(!result.valid);
+        assert!(!result.rep_c, "Zero in Rep C must be detected as forgery");
+    }
+
+    #[test]
+    fn test_wrong_length() {
+        let short: [u8; 10] = [1; 10];
+        assert!(matches!(
+            compute_plenum_checksum(&short),
+            Err(ChecksumError::BadLength { expected: 27, got: 10 })
+        ));
+    }
+
+    #[test]
+    fn test_all_ones() {
+        let all_ones = [1u8; 27];
+        let ck = compute_plenum_checksum(&all_ones).unwrap();
+        // All Rep B zeros → Horner value = 0 → checksum = 0 → Rep C = [1,1,1,1,1,1]
+        assert_eq!(ck, [1, 1, 1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn test_all_threes() {
+        let all_threes = [3u8; 27];
+        let ck = compute_plenum_checksum(&all_threes).unwrap();
+        // All Rep B twos → Horner value = (3^27 - 1) / (3-1) * 2... let's just verify round-trip
+        assert!(verify_plenum_checksum(&all_threes, &ck).unwrap());
+    }
+
+    #[test]
+    fn test_rep_c_validation() {
+        assert!(is_valid_rep_c(&[1, 2, 3, 1, 2, 3]));
+        assert!(!is_valid_rep_c(&[0, 2, 3])); // Zero = forgery
+        assert!(!is_valid_rep_c(&[1, 4, 3])); // 4 out of range
+    }
+
+    #[test]
+    fn test_pptpro_fixture() {
+        // PPTPro: WO:2333 WA:2333 WR:2222 WN:3333 WY:1221 HO:2133 PE:332
+        let pptpro: [u8; 27] = [
+            2, 3, 3, 3,  // WHO
+            2, 3, 3, 3,  // WHAT
+            2, 2, 2, 2,  // WHERE
+            3, 3, 3, 3,  // WHEN
+            1, 2, 2, 1,  // WHY
+            2, 1, 3, 3,  // HOW
+            3, 3, 2,     // PEACE
+        ];
+        let dual = compute_dual_checksum(&pptpro).unwrap();
+        // Verify round-trip
+        assert!(verify_dual_checksum(&pptpro, &dual.repunit, &dual.plenum).unwrap());
+        // Verify this is HPTP-mandatory (trits 15 and 16 both = 3)
+        assert_eq!(pptpro[14], 3); // dim 15 (0-indexed 14) = Live
+        assert_eq!(pptpro[15], 3); // dim 16 (0-indexed 15) = Real-time
+    }
+}

@@ -1,0 +1,274 @@
+# REPLIT AGENT INSTRUCTION SET
+# Plenum Checksum — Dual-Modulus Address Integrity Hardening
+#
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved — Applied Physics Division
+#
+# CONTEXT: Adding a secondary mod-333 integrity check alongside the existing
+# mod-364 repunit checksum for 27-trit TDNS classification addresses. This is
+# purely additive — no existing code changes behavior, only gains a stronger check.
+#
+# MATH: gcd(333, 364) = 1 (coprime). Combined detection space: 121,212 (by CRT).
+# False-pass rate drops from ~0.27% (single) to ~0.0008% (dual).
+#
+# Reference: TM-2026-015 §5 (Checksum Hardening)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 1: DROP IN NEW FILES
+# ═══════════════════════════════════════════════════════════════════════════
+
+# 1a. TypeScript module
+#
+#     Copy the provided `shared/plenum-checksum.ts` into `shared/`.
+#
+#     This file exports:
+#       - computePlenumChecksum(trits) → 6 Rep C trits (mod 333)
+#       - computeRepunitChecksum(trits) → 6 Rep C trits (mod 364)
+#       - computeDualChecksum(trits) → { repunit, plenum } (single-pass)
+#       - verifyPlenumChecksum(trits, checksum) → boolean
+#       - verifyDualChecksum(trits, repunit, plenum) → boolean
+#       - verifyAddressIntegrity(trits, repunit, plenum) → diagnostic result
+#       - isValidRepC(trits) → boolean
+#       - Constants: PLENUM_MODULUS=333, REPUNIT_MODULUS=364, DUAL_DETECTION_SPACE=121212
+#
+#     NOTE: This file is self-contained — no import from './constants' needed.
+#     All numeric constants are defined as module exports.
+
+# 1b. Rust module
+#
+#     Copy the provided `ternary-math/plenum_checksum.rs` into
+#     `ternary-math/src/plenum_checksum.rs`.
+#
+#     Then add to `ternary-math/src/lib.rs`:
+#       pub mod plenum_checksum;
+#
+#     The Rust module includes 12 #[test] functions covering:
+#       - Constants validation
+#       - Coprimality proof (gcd = 1)
+#       - Google fixture checksum values
+#       - PPTPro fixture (HPTP-mandatory)
+#       - Round-trip verification
+#       - Tamper detection
+#       - Forgery detection (zero sentinel)
+#       - All-ones boundary case
+#       - Wrong-length rejection
+#       - Rep C validation
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 2: ADD PLATFORM CONSTANTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+# In `shared/constants.ts`, add to the PLATFORM object (inside PLENUM_SQUARE
+# or as a sibling section):
+#
+#   CHECKSUM: {
+#     /** Plenum checksum modulus: 333 = Plenum magic constant. */
+#     PLENUM_MODULUS: 333,
+#     /** Repunit checksum modulus: 364 = R₆ = 111111₃. */
+#     REPUNIT_MODULUS: 364,
+#     /** Combined detection space (CRT): 333 × 364 = 121,212. */
+#     DUAL_DETECTION_SPACE: 121212,
+#     /** Checksum trit count (both moduli < 3⁶ = 729). */
+#     CHECKSUM_TRITS: 6,
+#   },
+#
+# This ensures no downstream code ever hardcodes 333 or 364 for checksums.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 3: INTEGRATE WITH TDNS SCAN PIPELINE
+# ═══════════════════════════════════════════════════════════════════════════
+
+# The TDNS scan pipeline in `server/routes/tdns.ts` already computes and
+# stores a scan hash via TIS-27. The dual checksum should be computed
+# alongside it during the scan → derive → register pipeline.
+#
+# In `server/routes/tdns.ts`, at the point where classification trits are
+# finalized (after derivation, before registration):
+#
+#   import { computeDualChecksum } from '../../shared/plenum-checksum';
+#
+#   // After deriving 27 classification trits...
+#   const dualChecksum = computeDualChecksum(classificationTrits);
+#
+#   // Store alongside the existing scan hash
+#   // Add to the registration payload:
+#   //   repunit_checksum: dualChecksum.repunit,
+#   //   plenum_checksum: dualChecksum.plenum,
+#
+# IMPORTANT: The dual checksum is ADDITIVE. The existing TIS-27 scan hash
+# and repunit checksum logic should NOT be modified. The Plenum checksum
+# runs in parallel as a second integrity layer.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 4: INTEGRATE WITH TDNS RESOLVE/VERIFY
+# ═══════════════════════════════════════════════════════════════════════════
+
+# When resolving or verifying a .plm address, add dual checksum verification:
+#
+#   import { verifyAddressIntegrity } from '../../shared/plenum-checksum';
+#
+#   // During resolve:
+#   const integrity = verifyAddressIntegrity(
+#     storedTrits,
+#     storedRepunitChecksum,
+#     storedPlenumChecksum,
+#   );
+#
+#   if (!integrity.valid) {
+#     // Log which check failed for diagnostics
+#     console.warn(`Address integrity failure: repC=${integrity.repC}, ` +
+#       `repunit=${integrity.repunit}, plenum=${integrity.plenum}`);
+#   }
+#
+# The verifyAddressIntegrity function checks:
+#   1. All trits are valid Rep C (no zeros → forgery detection)
+#   2. Repunit checksum (mod 364) matches
+#   3. Plenum checksum (mod 333) matches
+# All three must pass for valid=true.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 5: INTEGRATE WITH RUST CRATE (services/tdns-v2/)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# The TDNS Rust crate at `services/tdns-v2/` can optionally consume the
+# Plenum checksum module from `ternary-math/`.
+#
+# In `services/tdns-v2/Cargo.toml`, ensure ternary-math is a dependency:
+#   [dependencies]
+#   ternary-math = { path = "../../ternary-math" }
+#
+# In the wire protocol (`services/tdns-v2/src/wire.rs`), the dual checksum
+# can be added to packet integrity verification alongside TIS-27:
+#
+#   use ternary_math::plenum_checksum::{compute_dual_checksum, verify_dual_checksum};
+#
+# This is optional for Phase 1 deployment — the TypeScript server-side
+# implementation handles all current API traffic. The Rust integration is
+# for when the TDNS Rust binary (`tdns_server.rs`) handles traffic directly.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 6: ADD TYPESCRIPT TEST SUITE
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Create `tests/plenum-checksum.test.ts`:
+#
+# import { describe, it, expect } from 'vitest';
+# import {
+#   computePlenumChecksum,
+#   computeRepunitChecksum,
+#   computeDualChecksum,
+#   verifyPlenumChecksum,
+#   verifyDualChecksum,
+#   verifyAddressIntegrity,
+#   isValidRepC,
+#   PLENUM_MODULUS,
+#   REPUNIT_MODULUS,
+#   DUAL_DETECTION_SPACE,
+# } from '../shared/plenum-checksum';
+#
+# Tests to include:
+#
+#   1. Constants: PLENUM_MODULUS=333, REPUNIT_MODULUS=364, DUAL_DETECTION_SPACE=121212
+#   2. Coprimality: verify gcd(333, 364) === 1
+#   3. Google fixture: computePlenumChecksum → [2,1,1,2,1,3]
+#   4. Google fixture: computeRepunitChecksum → [2,1,2,3,2,1]
+#   5. Dual consistency: computeDualChecksum matches individual computations
+#   6. Round-trip verification: compute then verify returns true
+#   7. Tamper detection: flip one trit, verify returns false
+#   8. All-ones boundary: → [1,1,1,1,1,1] for both checksums
+#   9. PPTPro fixture: verify HPTP-mandatory address round-trips
+#  10. Forgery detection: zero in Rep C → verifyAddressIntegrity.repC = false
+#  11. Wrong length: throw on non-27 input
+#  12. Rep C validation: isValidRepC on valid/invalid arrays
+#  13. Single-trit flip coverage: all 54 single-trit flips detected by dual check
+#
+# Expected: 13+ tests, all passing.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 7: DATABASE SCHEMA (if applicable)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# If TDNS registrations are stored in PostgreSQL via Drizzle ORM
+# (`shared/schema.ts`), consider adding two columns to the TDNS entity table:
+#
+#   repunit_checksum: text (6 Rep C digits as string, e.g., "212321")
+#   plenum_checksum:  text (6 Rep C digits as string, e.g., "211213")
+#
+# These are computed at registration time and verified at resolve time.
+# If the schema doesn't currently store checksums, this can be deferred —
+# the checksums can be recomputed from stored classification trits on demand.
+#
+# DECISION FOR REPLIT AGENT: Check if `shared/schema.ts` has a TDNS entity
+# table with existing checksum columns. If yes, add the plenum_checksum column.
+# If no checksum columns exist, skip this phase — on-demand recomputation
+# is sufficient for now.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 8: VERIFY
+# ═══════════════════════════════════════════════════════════════════════════
+
+# 1. Rust tests pass:
+#    cd ternary-math && cargo test plenum_checksum
+#    → 12 tests passing
+#
+# 2. TypeScript tests pass:
+#    npx vitest run tests/plenum-checksum.test.ts
+#    → 13+ tests passing
+#
+# 3. Full test suite unaffected:
+#    npx vitest run
+#    → All existing suites still green (this is additive — nothing changes)
+#
+# 4. TypeScript compiles:
+#    npx tsc --noEmit
+#    → No new errors
+#
+# 5. Manual smoke test:
+#    - POST /api/tdns/scan with a known URL
+#    - Confirm response includes dual checksum fields (if wired in Phase 3)
+#    - GET /api/tdns/resolve/:name
+#    - Confirm integrity check runs (if wired in Phase 4)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 9: COPYRIGHT HEADERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+# All new files must include:
+#   Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+#   Patent(s) Pending — All Rights Reserved — Applied Physics Division
+#
+# Both provided files already have this header.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SUMMARY OF FILES
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# NEW FILES:
+#   shared/plenum-checksum.ts                    ← TypeScript implementation
+#   ternary-math/src/plenum_checksum.rs          ← Rust implementation
+#   tests/plenum-checksum.test.ts                ← TypeScript test suite
+#
+# MODIFIED FILES:
+#   ternary-math/src/lib.rs                      ← add `pub mod plenum_checksum;`
+#   shared/constants.ts                          ← add PLATFORM.CHECKSUM block
+#   server/routes/tdns.ts                        ← compute dual checksum in scan pipeline
+#   (optional) shared/schema.ts                  ← add plenum_checksum column
+#
+# UNCHANGED FILES:
+#   shared/repunit-checksum.ts                   ← existing mod-364 checksum (untouched)
+#   ternary-math/src/repunit_checksum.rs         ← existing Rust checksum (untouched)
+#
+# ═══════════════════════════════════════════════════════════════════════════
+# CRITICAL CONSTRAINTS — DO NOT VIOLATE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# 🚫 DO NOT modify the existing repunit checksum code — this is ADDITIVE
+# 🚫 DO NOT modify the deployments/ folder
+# 🚫 DO NOT hardcode 333 or 364 — use PLATFORM constants or module exports
+# 🚫 DO NOT use floating-point arithmetic in checksum computation
+# 🚫 DO NOT add early-exit comparisons — all verifications must be constant-time
+# 🚫 DO NOT store checksums without Rep C validation first
+# ✅ DO preserve constant-time branchless patterns in both TS and Rust
+# ✅ DO use the computeDualChecksum() single-pass function (not two separate calls)
+# ✅ DO add copyright headers to all new files
+# ✅ DO run both Rust and TypeScript test suites after integration

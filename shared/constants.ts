@@ -132,6 +132,17 @@ export const PLATFORM = {
 
     CIRCULANT_TRIPLE: [111, 14, 208] as const,
   },
+
+  CHECKSUM: {
+    /** Plenum checksum modulus: 333 = Plenum magic constant. */
+    PLENUM_MODULUS: 333,
+    /** Repunit checksum modulus: 364 = R₆ = 111111₃. */
+    REPUNIT_MODULUS: 364,
+    /** Combined detection space (CRT): 333 × 364 = 121,212. */
+    DUAL_DETECTION_SPACE: 121212,
+    /** Checksum trit count (both moduli < 3⁶ = 729). */
+    CHECKSUM_TRITS: 6,
+  },
 } as const;
 
 export type Platform = typeof PLATFORM;
