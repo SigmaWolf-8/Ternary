@@ -159,7 +159,7 @@ fn theta_pi_rc(state: &mut [i8; STATE_SIZE], buf: &mut [i8; STATE_SIZE], round: 
     }
 }
 
-fn sponge_permutation(state: &mut [i8; STATE_SIZE]) {
+pub fn sponge_permutation(state: &mut [i8; STATE_SIZE]) {
     let mut buf = [0i8; STATE_SIZE];
     for round in 0..ROUNDS {
         chi_layer(state);
@@ -214,6 +214,7 @@ pub struct Sponge385Pub {
     buf: [i8; RATE],
     buf_len: usize,
     absorbed: bool,
+    use_v1: bool,
 }
 
 impl Sponge385Pub {
@@ -223,10 +224,30 @@ impl Sponge385Pub {
             buf: [0i8; RATE],
             buf_len: 0,
             absorbed: false,
+            use_v1: false,
+        }
+    }
+
+    pub fn new_v1() -> Self {
+        Self {
+            state: [0i8; STATE_SIZE],
+            buf: [0i8; RATE],
+            buf_len: 0,
+            absorbed: false,
+            use_v1: true,
+        }
+    }
+
+    fn permute(&mut self) {
+        if self.use_v1 {
+            sponge_permutation_v1(&mut self.state);
+        } else {
+            sponge_permutation(&mut self.state);
         }
     }
 
     pub fn absorb(&mut self, input: &[i8]) {
+        if input.is_empty() { return; }
         self.absorbed = true;
         let mut offset = 0;
         let input_len = input.len();
@@ -243,7 +264,7 @@ impl Sponge385Pub {
                 for i in 0..RATE {
                     self.state[i] = trit_add(self.state[i], self.buf[i]);
                 }
-                sponge_permutation(&mut self.state);
+                self.permute();
                 self.buf_len = 0;
             }
         }
@@ -253,7 +274,7 @@ impl Sponge385Pub {
             for i in 0..RATE {
                 self.state[i] = trit_add(self.state[i], block[i]);
             }
-            sponge_permutation(&mut self.state);
+            self.permute();
             offset += RATE;
         }
 
@@ -279,7 +300,7 @@ impl Sponge385Pub {
                 self.state[self.buf_len] = trit_add(self.state[self.buf_len], 1);
             }
             self.buf_len = 0;
-            sponge_permutation(&mut self.state);
+            self.permute();
         }
 
         let mut output = Vec::with_capacity(output_trits);
@@ -288,7 +309,7 @@ impl Sponge385Pub {
             let take = if remaining < RATE { remaining } else { RATE };
             output.extend_from_slice(&self.state[..take]);
             if output.len() < output_trits {
-                sponge_permutation(&mut self.state);
+                self.permute();
             }
         }
         output.truncate(output_trits);
@@ -303,6 +324,33 @@ pub fn hash(input: &[u8], output_len: usize) -> Vec<u8> {
     let trits = sponge.squeeze(output_trits);
     let bytes = trits_to_bytes(&trits);
     bytes[..output_len].to_vec()
+}
+
+pub fn hash_v1(input: &[u8], output_len: usize) -> Vec<u8> {
+    let mut sponge = Sponge385Pub::new_v1();
+    sponge.absorb_bytes(input);
+    let output_trits = output_len * 5;
+    let trits = sponge.squeeze(output_trits);
+    let bytes = trits_to_bytes(&trits);
+    bytes[..output_len].to_vec()
+}
+
+pub fn hash_hex(input: &[u8]) -> String {
+    let mut sponge = Sponge385Pub::new();
+    sponge.absorb_bytes(input);
+    let trits = sponge.squeeze(243);
+    let bytes = trits_to_bytes(&trits);
+    let out = &bytes[..49];
+    out.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+pub fn hash_hex_v1(input: &[u8]) -> String {
+    let mut sponge = Sponge385Pub::new_v1();
+    sponge.absorb_bytes(input);
+    let trits = sponge.squeeze(243);
+    let bytes = trits_to_bytes(&trits);
+    let out = &bytes[..49];
+    out.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 pub fn derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
