@@ -49,6 +49,8 @@ import {
   SpongeDuplex,
   tritsToHex,
   SPONGE_VERSION,
+  isNativeAvailable,
+  getNativeModule,
 } from '../crypto/sponge-hash';
 
 const PHASE_CONTEXT_TAG = Buffer.from('PlenumNET-Phase-v2');
@@ -347,13 +349,35 @@ function duplexEncrypt(
   secondaryAngle: number,
   spongeVer: number = 2
 ): { primaryCipherB64: string; secondaryCipherB64: string; mac: string } {
-  const primaryTrits = bytesToBalancedTrits6(primaryBytes);
-  const secondaryTrits = bytesToBalancedTrits6(secondaryBytes);
-
   const primaryTernaryAngle = stdDegToTernaryDeg(primaryAngle);
   const secondaryTernaryAngle = stdDegToTernaryDeg(secondaryAngle);
-
   const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
+
+  const switchMarker = Buffer.alloc(4);
+  switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
+  switchMarker.writeUInt16BE(0xFFFF, 2);
+
+  if (isNativeAvailable()) {
+    const _n = getNativeModule();
+    const result: Buffer = _n.phaseDuplexEncrypt(
+      domainInput, primaryBytes, switchMarker, secondaryBytes, MAC_TRITS, spongeVer
+    );
+    let off = 0;
+    const c1Len = result.readUInt32LE(off); off += 4;
+    const fullCipher1 = result.subarray(off, off + c1Len); off += c1Len;
+    const c2Len = result.readUInt32LE(off); off += 4;
+    const fullCipher2 = result.subarray(off, off + c2Len); off += c2Len;
+    const mac = result.subarray(off).toString('utf-8');
+
+    return {
+      primaryCipherB64: Buffer.from(fullCipher1).toString('base64'),
+      secondaryCipherB64: Buffer.from(fullCipher2).toString('base64'),
+      mac,
+    };
+  }
+
+  const primaryTrits = bytesToBalancedTrits6(primaryBytes);
+  const secondaryTrits = bytesToBalancedTrits6(secondaryBytes);
 
   const duplex = new SpongeDuplex(spongeVer);
   duplex.absorb(domainInput);
@@ -362,9 +386,6 @@ function duplexEncrypt(
   const cipher1Trits = encryptTrits(primaryTrits, ks1);
   const cipher1Bytes = cipherTritsToBytes(cipher1Trits);
 
-  const switchMarker = Buffer.alloc(4);
-  switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
-  switchMarker.writeUInt16BE(0xFFFF, 2);
   duplex.absorb(switchMarker);
 
   const ks2 = duplex.squeeze(secondaryTrits.length);
@@ -403,30 +424,47 @@ function duplexDecrypt(
   spongeVer: number = 2
 ): { primaryBuf: Buffer; secondaryBuf: Buffer } | null {
   const raw1 = Buffer.from(primaryCipherB64, 'base64');
+  const raw2 = Buffer.from(secondaryCipherB64, 'base64');
+
+  const primaryTernaryAngle = stdDegToTernaryDeg(primaryAngle);
+  const secondaryTernaryAngle = stdDegToTernaryDeg(secondaryAngle);
+  const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
+
+  const switchMarker = Buffer.alloc(4);
+  switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
+  switchMarker.writeUInt16BE(0xFFFF, 2);
+
+  if (isNativeAvailable()) {
+    const _n = getNativeModule();
+    const result: Buffer = _n.phaseDuplexDecrypt(
+      domainInput, raw1, switchMarker, raw2, macHex, MAC_TRITS, spongeVer
+    );
+    if (result.length === 0) return null;
+
+    let off = 0;
+    const p1Len = result.readUInt32LE(off); off += 4;
+    const primaryBuf = Buffer.from(result.subarray(off, off + p1Len)); off += p1Len;
+    const p2Len = result.readUInt32LE(off); off += 4;
+    const secondaryBuf = Buffer.from(result.subarray(off, off + p2Len));
+
+    return { primaryBuf, secondaryBuf };
+  }
+
   const originalByteLen1 = raw1.readUInt32BE(0);
   const tritCount1 = raw1.readUInt32BE(4);
   const cipher1Bytes = raw1.subarray(8);
   const cipher1Trits = cipherBytesToTrits(cipher1Bytes, tritCount1);
 
-  const raw2 = Buffer.from(secondaryCipherB64, 'base64');
   const originalByteLen2 = raw2.readUInt32BE(0);
   const tritCount2 = raw2.readUInt32BE(4);
   const cipher2Bytes = raw2.subarray(8);
   const cipher2Trits = cipherBytesToTrits(cipher2Bytes, tritCount2);
-
-  const primaryTernaryAngle = stdDegToTernaryDeg(primaryAngle);
-  const secondaryTernaryAngle = stdDegToTernaryDeg(secondaryAngle);
-
-  const domainInput = buildDomainInput(key, nonce, primaryTernaryAngle);
 
   const duplex = new SpongeDuplex(spongeVer);
   duplex.absorb(domainInput);
 
   const ks1 = duplex.squeeze(tritCount1);
 
-  const switchMarker = Buffer.alloc(4);
-  switchMarker.writeUInt16BE(secondaryTernaryAngle, 0);
-  switchMarker.writeUInt16BE(0xFFFF, 2);
   duplex.absorb(switchMarker);
 
   const ks2 = duplex.squeeze(tritCount2);
