@@ -86,7 +86,7 @@ fn chi_layer(state: &mut [i8; STATE_SIZE]) {
         let g1 = (state[base + 1] + 1) as u8;
         let g2 = (state[base + 2] + 1) as u8;
 
-        if g0 == 1 && g1 == 1 && g2 == 1 { continue; }
+        if g0 == 0 && g1 == 0 && g2 == 0 { continue; }
 
         let [r0, r1, r2] = gf27_pow17([g0, g1, g2]);
         state[base] = r0 as i8 - 1;
