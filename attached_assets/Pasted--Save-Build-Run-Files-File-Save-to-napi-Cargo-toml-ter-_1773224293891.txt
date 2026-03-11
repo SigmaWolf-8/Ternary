@@ -1,0 +1,77 @@
+# Save, Build, Run
+
+## Files
+
+| File | Save to |
+|------|---------|
+| `napi_Cargo.toml` | `ternary-math/napi/Cargo.toml` |
+| `sponge.rs` | `ternary-math/src/sponge.rs` |
+| `napi_lib.rs` | `ternary-math/napi/src/lib.rs` |
+
+## TypeScript
+
+In `server/salvi-core/phase-encryption.ts`:
+- Set `spongeVersion: 3` for new encryptions
+- `mac_trit_count = 243` for T-AE-MAC authenticated mode (dual-phase authenticated encryption MAC)
+- `mac_trit_count = 0` for bulk mode (integrity via TL-DSA)
+
+## Build
+
+```bash
+cd /home/runner/workspace && RUSTFLAGS="-C target-cpu=native" cargo build --release
+cp target/release/libsponge_napi.so server/crypto/sponge-native.node
+npm run dev
+```
+
+## Verify
+
+1. Hash "PlenumNET" — must match existing v2 output
+2. v3 mac=243: encrypt→decrypt round-trip (T-AE-MAC authenticated)
+3. v3 mac=0: encrypt→decrypt round-trip (bulk, no MAC)
+4. v2 backward compat: encrypt v2 → decrypt v2
+
+## T-AE-MAC Construction (v3)
+
+T-AE-MAC: Ternary Authenticated Encryption MAC — dual-phase authenticated encryption construction
+over keyed TLSponge-385, operating entirely in native GF(3) arithmetic.
+Permutation: χ(x)=x¹⁷ over GF(27) → 7-neighbor theta → stride-376 pi.
+Security proofs: TM-2026-008, TM-2026-011.
+
+### Encrypt flow:
+1. `base.absorb_bytes(domain)` — key material ‖ nonce ‖ phase_angle ‖ context
+2. Clone base → fork per phase → `squeeze_bulk` keystream (486 trits/perm)
+3. `cipher_trits = plain_trits + keystream_trits` (GF(3) OTP)
+4. `base.absorb(&cipher_trits)` — TRITS DIRECT, no binary conversion
+5. `base.squeeze(mac_tag)` — T-AE-MAC tag from 486-trit capacity
+
+### Decrypt flow:
+1. `base.absorb_bytes(domain)` — same domain
+2. Clone base (pre-MAC state for keystream)
+3. `base.absorb(&cipher_trits)` + `base.squeeze(tag)` → verify (constant-time)
+4. Keystream from clone → `plain_trits = cipher_trits - keystream_trits`
+
+### Security:
+- Forgery: q_f / 2^c (c = 486 trits ≈ 385 bits)
+- IND-CPA: fresh 256-bit nonce + PRF keystream
+- INT-CTXT: dual-phase MAC on ciphertext (base never squeezed keystream) (tag binds to actual sent data)
+- PQ safe: capacity 385 bits > Grover bound 2^192.5
+- Nonce-misuse resistant: dual-phase: base absorbs ciphertext (clean state) → tag commits
+- Constant-time: LUT-based GF(3), timingSafeEqual on tag
+
+### Optimizations stacked:
+| # | What | Effect |
+|---|------|--------|
+| 1 | Bulk rate keystream (486 trits/perm) | 2× fewer keystream permutations |
+| 2 | Dual-phase MAC on trits (not bytes) | Eliminates ternary→binary→ternary round-trip |
+| 3 | Same sponge for domain+MAC (not independent) | Eliminates redundant domain absorption |
+| 4 | MAC skip (mac_trit_count=0) | Zero MAC permutations for bulk mode |
+| 5 | Auto-gated parallelism | Multi-core parallel, single-core sequential |
+| 6 | Precomputed theta indices | No modular arithmetic in scalar theta |
+
+### Permutation count (4KB):
+| Mode | Keystream | MAC absorb | Total | vs v2 |
+|------|-----------|------------|-------|-------|
+| v2 (standard rate, bytes MAC) | 101 | 83 | 184 | 1.0× |
+| v3 T-AE-MAC (bulk, trit MAC) | 51 | 83 | 136 | 1.37× |
+| v3 bulk no MAC | 51 | 0 | 51 | 3.6× |
+| v3 bulk no MAC + 8 cores | ~7/core | 0 | ~7 | 26× |

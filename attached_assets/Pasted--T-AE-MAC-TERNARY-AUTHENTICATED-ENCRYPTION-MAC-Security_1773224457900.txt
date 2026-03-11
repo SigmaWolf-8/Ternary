@@ -1,0 +1,340 @@
+# T-AE-MAC
+
+## TERNARY AUTHENTICATED ENCRYPTION MAC
+
+### Security Analysis and Construction Proof
+
+**Dual-Phase Authenticated Encryption over Keyed TLSponge-385**
+**Phase-Domain Cipher with Native GF(3) MAC**
+
+---
+
+**Technical Monograph — TM-2026-011**
+**Salvi Framework — PlenumNET Architecture Series**
+**March 2026**
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Sherwood Park, Alberta, Canada**
+
+© 2026 Capomastro Holdings Ltd. — All Rights Reserved — Patent(s) Pending
+
+---
+
+## Abstract
+
+This monograph provides the formal security analysis for T-AE-MAC (Ternary Authenticated Encryption MAC), the authenticated encryption construction used by the PlenumNET phase encryption system. T-AE-MAC is a dual-phase authenticated encryption construction over keyed TLSponge-385, separating confidentiality (forked bulk-rate keystream) and integrity (clean base MAC on undisturbed state) from a shared cryptographic root, operating entirely in native GF(3) arithmetic. The construction provides IND-CPA confidentiality and INT-CTXT ciphertext integrity from a single sponge instance, with no binary cryptographic primitives.
+
+The T-AE-MAC construction is architecturally distinct from classical sponge authenticated encryption modes. In classical approaches, a single sponge state alternates between squeezing keystream and absorbing ciphertext — the same state that leaked keystream bits also produces the authentication tag. T-AE-MAC separates these concerns: the base sponge absorbs the domain, then forks. Clones squeeze keystream at bulk rate (486 trits/permutation). The original base sponge — which never squeezed keystream — absorbs ciphertext trits directly and squeezes the authentication tag at standard rate (243 trits/permutation, 385-bit capacity). The MAC state is never contaminated by keystream extraction. Two independent security paths diverge from a shared cryptographic root.
+
+The key advances in this analysis: (1) formal game-based security reductions for both confidentiality and integrity, (2) security bounds for the bulk-rate keystream mode (rate 486, capacity 243) versus the standard-rate MAC (rate 243, capacity 486), (3) the trit-native MAC path that eliminates the ternary-to-binary-to-ternary conversion overhead present in prior versions, and (4) documentation of the bulk confidentiality mode (mac_trit_count = 0) with explicit security caveats.
+
+All security claims rest on the permutation properties proven in TM-2026-008 (Representation Universality): χ(x) = x¹⁷ over GF(27) with DP_max = 1/9, branch number B = 8, and wide-trail bound N(r) ≥ 8ʳ.
+
+### Construction Summary
+
+| Property | Value |
+|----------|-------|
+| Permutation | TLSponge-385: χ(x¹⁷) → 7-neighbor θ(±1,±7,±13) → π(376i+1 mod 729) |
+| State | 729 trits (3⁶) |
+| Rounds | 9 (3²) |
+| Keystream rate | 486 trits/permutation (bulk mode) |
+| MAC rate | 243 trits/permutation (standard mode) |
+| Keystream capacity | 243 trits (≈ 192-bit query bound) |
+| MAC capacity | 486 trits (≈ 385-bit forgery bound) |
+| Nonce | 256-bit random (32 bytes) |
+| Cipher | GF(3) trit-wise OTP: c_i = p_i + k_i mod 3 |
+| MAC | Dual-phase: base absorbs cipher trits, squeezes tag (base never squeezed keystream) |
+
+---
+
+## 1. T-AE-MAC Construction
+
+### 1.1 Domain Injection
+
+The keyed sponge is initialized by absorbing a domain string that binds the encryption to a specific key, nonce, phase angle, and context tag:
+
+    domain = key_material ‖ nonce ‖ phase_angle_364 ‖ context_tag
+
+The key material is derived from the server-side secret via TLSponge-385 KDF. The nonce is 32 bytes of cryptographic randomness generated per operation. The phase angle is an element of Z₃₆₄ (the ternary circle), providing domain separation between primary and secondary encryption phases. The context tag is a fixed string identifying the protocol version.
+
+After domain absorption, the sponge state contains the keyed, nonced, phase-separated initial state. All subsequent operations (keystream squeeze, ciphertext absorb, MAC squeeze) inherit this domain binding.
+
+### 1.2 Keystream Generation (Bulk Rate)
+
+The sponge state is cloned after domain absorption. Each clone absorbs a unique tag (phase identifier + segment counter for parallel forks), then squeezes keystream at the bulk rate of 486 trits per permutation.
+
+    keystream = clone(base).absorb(tag).squeeze_bulk(|plaintext_trits|)
+
+The bulk rate reads 486 of the 729 state trits per permutation, leaving a capacity of 243 trits (≈ 192-bit security level). This is appropriate for keystream generation where the key provides primary security and the capacity bounds query complexity. For a 4 KB payload: ⌈(4096 × 6) / 486⌉ = 51 permutations, versus 101 at the standard rate of 243.
+
+### 1.3 GF(3) Trit-Wise Cipher
+
+Encryption is a one-time pad over GF(3):
+
+    cipher_trit[i] = plain_trit[i] + keystream_trit[i]  (mod 3, balanced)
+
+Decryption reverses:
+
+    plain_trit[i] = cipher_trit[i] - keystream_trit[i]  (mod 3, balanced)
+
+All arithmetic is in balanced ternary {-1, 0, +1}. The cipher operates entirely in the ternary domain. Binary packing (5 trits per byte) occurs only at the transport layer for wire format, not in the cryptographic pipeline.
+
+### 1.4 T-AE-MAC Tag (Dual-Phase, Trit-Native)
+
+The MAC tag is computed by the base sponge — the same instance that absorbed the domain, but critically, one that never squeezed keystream. Keystream generation was performed on clones (§1.2). The base sponge's internal state after domain absorption is pristine: it contains only the keyed domain commitment. The base then absorbs the ciphertext trits directly:
+
+    base.absorb(header1_trits)   // 40 trits (8-byte transport header)
+    base.absorb(&cipher1_trits)  // cipher trits DIRECT, no binary conversion
+    base.absorb(header2_trits)   // 40 trits
+    base.absorb(&cipher2_trits)  // cipher trits DIRECT
+    tag = base.squeeze(mac_trit_count)  // standard rate, 385-bit capacity
+
+The critical property: cipher trits are absorbed via `absorb(&trits)`, not `absorb_bytes(&packed_bytes)`. The sponge never leaves GF(3) for the MAC path. The previous implementation packed cipher trits to bytes (5 trits/byte), then called absorb_bytes which unpacked them back to 5 trits/byte via a different encoding. This ternary → binary → ternary round-trip wasted ~83 permutations per 4 KB and introduced unnecessary complexity.
+
+The MAC squeeze uses the standard rate (243 trits), preserving the full 486-trit capacity (≈ 385-bit security) for authentication. This is a deliberate asymmetry: keystream uses bulk rate for throughput, MAC uses standard rate for maximum forgery resistance.
+
+### 1.5 Bulk Confidentiality Mode (mac_trit_count = 0)
+
+**WARNING: When mac_trit_count = 0, T-AE-MAC provides encryption only. No authentication tag is generated or verified. Ciphertext integrity MUST be provided by an outer mechanism (TL-DSA signature over ciphertext, or application-layer verification). Callers MUST NOT assume ciphertext integrity when mac_trit_count = 0.**
+
+This mode eliminates all MAC permutations, reducing the 4 KB encrypt cost from ~102 permutations (51 keystream + 51 MAC absorb) to ~51 permutations (keystream only). It is appropriate for bulk data encryption where integrity is verified separately, such as document streams signed by TL-DSA-87.
+
+### 1.6 Sponge Version Dispatch
+
+| Version | Chi | Keystream Rate | MAC | Parallelism |
+|---------|-----|----------------|-----|-------------|
+| v1 | None | 243 (standard) | Sequential, bytes | Sequential |
+| v2 | χ(x¹⁷) | 243 (standard) | Sequential, bytes | Sequential |
+| v3 (T-AE-MAC) | χ(x¹⁷) | 486 (bulk) | Dual-phase, trits native | Auto-gated |
+
+v1 and v2 are preserved for backward compatibility with existing encrypted data. All new encryptions use v3.
+
+### 1.7 Architectural Distinction: Dual-Phase vs. Classical Sponge AE
+
+Classical sponge authenticated encryption modes (including those in the literature) use a single sponge state that alternates between squeezing keystream and absorbing ciphertext. The single state that produced keystream bits (exposing rate-sized windows into its internal state) is the same state that produces the authentication tag. The MAC security depends on the capacity remaining opaque despite keystream leakage through the rate.
+
+T-AE-MAC employs a dual-phase topology that diverges from this pattern. Rather than alternating squeeze and absorb on a single instance, the construction splits into two co-equal but asymmetrically optimized phases after a shared domain commitment:
+
+    T-AE-MAC:
+      base = absorb(domain)           ← domain commitment
+      clone(base) → squeeze_bulk(ks)  ← keystream path (bulk rate, clones only)
+      base.absorb(cipher_trits)       ← MAC path (base never squeezed)
+      base.squeeze(tag)               ← tag from pristine base
+
+The base sponge that produces the MAC tag has never had keystream extracted from it. Its full 729-trit state after domain absorption flows directly into ciphertext absorption and tag generation. No rate bits were ever revealed from this state. The keystream path operates on independent clones whose states diverge immediately upon tag absorption.
+
+This separation provides three properties that classical single-state modes do not:
+
+(1) **Clean MAC state.** The MAC sponge's capacity was never exposed by keystream squeezing. In classical modes, the adversary observes keystream bits (rate-sized windows into the state) before the MAC is computed. In T-AE-MAC, the adversary sees no output from the MAC sponge until the tag itself.
+
+(2) **Rate asymmetry without security tradeoff.** Clones squeeze at bulk rate (486 trits, 243-trit capacity) for throughput. The base squeezes the tag at standard rate (243 trits, 486-trit capacity) for maximum forgery resistance. Classical modes cannot use different rates for encryption and authentication from the same state.
+
+(3) **Natural parallelism.** Because the keystream path operates on independent clones, it parallelizes across CPU cores without affecting the MAC path. The MAC computation is sequential (absorb ciphertext → squeeze tag), but the keystream generation — the dominant cost — runs in parallel.
+
+The construction is native to the ternary domain (GF(3) arithmetic throughout, 364° phase-domain separation, Z₂₇-based sponge state) and uses the TLSponge-385 permutation whose security properties are proven in TM-2026-008.
+
+---
+
+## 2. Security Analysis
+
+### 2.1 Notation
+
+Let Π denote the TLSponge-385 permutation (chi + theta + pi + round constants, 9 rounds). Let r = 243 (standard rate), r_b = 486 (bulk rate), c = 729 - r = 486 (standard capacity), c_b = 729 - r_b = 243 (bulk capacity). Let q be the number of encryption queries, q_f the number of forgery attempts, σ the total number of trit blocks processed, and ε_perm the advantage of the best distinguisher against Π.
+
+### 2.2 IND-CPA: Confidentiality
+
+**Game definition.** The adversary chooses two equal-length messages (m₀, m₁) and receives the encryption of m_b for random b ∈ {0,1}. The adversary wins if it determines b with advantage > 1/2.
+
+**Reduction.** If the sponge permutation Π is a random permutation, the keyed sponge is a PRF with advantage bounded by the sponge indifferentiability result. The keystream is then indistinguishable from random, and GF(3) OTP with random keystream provides perfect secrecy per query.
+
+    Adv_IND-CPA ≤ q²/2²⁵⁶ + (σ+q)²/2³⁸⁵ + q·ε_perm
+
+The three terms:
+
+(1) q²/2²⁵⁶: nonce collision probability. With 256-bit random nonces and q queries, a nonce collision (which would produce identical keystreams) occurs with birthday probability q²/2²⁵⁶. For q = 2⁶⁴, this is 2⁻¹²⁸.
+
+(2) (σ+q)²/2³⁸⁵: sponge state collision in the capacity portion. This bounds the probability that two internal states collide across all queries and blocks. The denominator 2³⁸⁵ corresponds to the 486-trit capacity (for standard rate) or 243-trit capacity (for bulk rate). For bulk-rate keystream, replace 385 with ≈192 (243 trits × log₂(3) / 2 ≈ 192.4 bits): (σ+q)²/2¹⁹².
+
+(3) q·ε_perm: advantage of distinguishing Π from a random permutation. Per TM-2026-008, the wide-trail bound gives differential trail probability ≤ 9⁻⁴⁰⁹⁶ after 4 rounds, and the linear trail correlation is ≤ 2⁻⁴⁸ at 9 rounds. This term is negligible.
+
+**Bulk-rate keystream security note.** The bulk rate (486 trits squeezed, 243 capacity) reduces the capacity bound from 385-bit to ~192-bit. This means the state collision term becomes (σ+q)²/2¹⁹². For keystream generation, this is the query complexity bound: an adversary making up to 2⁹⁶ queries cannot distinguish the keystream from random. The key provides the primary confidentiality guarantee; the capacity bounds the number of queries before rekey is required. 192-bit query bound is beyond any practical attack.
+
+### 2.3 INT-CTXT: Ciphertext Integrity
+
+**Game definition.** The adversary can request encryptions and then submits a forged (ciphertext, tag) pair not previously output by the oracle. The adversary wins if the forgery verifies.
+
+**Reduction.** The T-AE-MAC tag is produced by squeezing the sponge after absorbing (domain + ciphertext trits) at the standard rate. The tag is a PRF output keyed by the domain material, evaluated on the ciphertext. Forging the tag requires either:
+
+(a) Finding a collision in the sponge capacity (486 trits), probability bounded by the sponge PRF result, or
+
+(b) Guessing the tag value, probability 3⁻²⁴³ per attempt for a 243-trit tag (≈ 2⁻³⁸⁵).
+
+    Adv_INT-CTXT ≤ q_f / 3²⁴³ + (σ + q + q_f)² / 2³⁸⁵ + (q + q_f) · ε_perm
+
+The MAC uses the standard rate (243), so the capacity term uses the full 486-trit (385-bit) capacity regardless of whether the keystream used the bulk rate. The forgery bound is dominated by 3⁻²⁴³ ≈ 2⁻³⁸⁵ per query.
+
+**Tag truncation.** The mac_trit_count parameter allows shorter tags. For a t-trit tag: forgery probability per attempt is 3⁻ᵗ. Minimum recommended: 81 trits (≈ 2⁻¹²⁸). Default: 243 trits (≈ 2⁻³⁸⁵). Maximum: 486 trits (one full capacity squeeze).
+
+### 2.4 Nonce-Misuse Resistance
+
+If a nonce is reused, the keystream repeats (breaking IND-CPA). However, the T-AE-MAC tag still provides partial security: the base sponge (which never squeezed keystream) absorbs the actual ciphertext trits after keystream generation on clones. Two different messages encrypted under the same nonce produce different ciphertexts, which are absorbed differently into the base state, producing different tags. The tag therefore commits to the transmitted ciphertext even under nonce reuse.
+
+This does not achieve full nonce-misuse resistance (SIV-level), but it prevents an adversary from undetectably substituting ciphertexts. Nonce reuse reveals the GF(3) difference of plaintexts, which is a standard limitation of stream ciphers.
+
+### 2.5 Committing Security
+
+T-AE-MAC is a committing authenticated encryption scheme: the (domain, ciphertext, tag) triple commits to the plaintext. An adversary cannot find two different (key, nonce) pairs that produce the same (ciphertext, tag) for different plaintexts, because the sponge capacity prevents internal state collisions with probability ≥ 1 - 2⁻³⁸⁵.
+
+### 2.6 Post-Quantum Security
+
+Grover's algorithm reduces the security of symmetric primitives by a square root factor. For TLSponge-385:
+
+| Bound | Classical | Post-Quantum (Grover) |
+|-------|-----------|----------------------|
+| MAC forgery (standard rate) | 2³⁸⁵ | 2¹⁹²·⁵ |
+| State collision (standard) | 2³⁸⁵ | 2¹⁹²·⁵ |
+| State collision (bulk) | 2¹⁹² | 2⁹⁶ |
+| Nonce collision (256-bit) | 2²⁵⁶ | 2¹²⁸ |
+
+All bounds remain above 96-bit post-quantum security, exceeding NIST Level 5 requirements.
+
+---
+
+## 3. Trit-Native MAC Path
+
+### 3.1 The Binary Round-Trip Problem (Resolved)
+
+Prior versions (v1, v2) computed the MAC by:
+
+(1) Packing cipher trits to bytes: cipher_trits_to_bytes (5 trits/byte, 243 range encoding)
+
+(2) Calling absorb_bytes on the packed bytes
+
+(3) absorb_bytes internally calls bytes_to_trits (5 trits/byte, base-3 decomposition)
+
+This created a ternary → binary → ternary round-trip that inflated the data (different packing/unpacking encodings), wasted permutations, and introduced unnecessary complexity.
+
+### 3.2 The Fix
+
+v3 (T-AE-MAC) absorbs cipher trits directly via `absorb(&cipher_trits)`. The sponge's absorb method operates on `&[i8]` (balanced trits). The cipher trits already exist in memory as `&[i8]` after the GF(3) cipher step. Feeding them directly to the sponge eliminates the round-trip entirely.
+
+Binary packing occurs only once, at the end, for the wire format. The cryptographic pipeline is ternary throughout: domain absorption → keystream squeeze → GF(3) cipher → trit absorb → MAC squeeze. No binary conversion touches the MAC path.
+
+### 3.3 Permutation Savings
+
+| Step | v2 (bytes MAC) | v3 T-AE-MAC (trits MAC) |
+|------|---------------|------------------------|
+| Domain absorb | 1 permutation | 1 permutation (shared) |
+| Keystream (4 KB, standard) | 101 permutations | — |
+| Keystream (4 KB, bulk) | — | 51 permutations |
+| MAC absorb (4 KB ciphertext) | ~83 permutations (bytes) | ~83 permutations (trits, standard rate) |
+| MAC squeeze | 1 permutation | 1 permutation |
+| **Total** | **~186 permutations** | **~136 permutations** |
+| **Improvement** | — | **1.37× fewer permutations** |
+
+The keystream savings (101 → 51) come from bulk-rate squeeze. The MAC absorb count is similar (~83) because absorb always uses the standard rate (243 trits) to preserve the full 486-trit capacity (385-bit forgery resistance). Using a bulk absorb rate would halve the MAC security to 192-bit — unacceptable for an authentication tag. The trit-native path eliminates the encoding/decoding CPU overhead (no cipher_trits_to_bytes + bytes_to_trits round-trip) but does not significantly change the permutation count.
+
+---
+
+## 4. Auto-Gated Parallelism
+
+### 4.1 Design
+
+v3 uses rayon for multi-core parallelism, gated on two conditions: (1) `rayon::current_num_threads() > 1`, AND (2) payload trit count ≥ PARALLEL_THRESHOLD (1,944 trits = 8 rate blocks ≈ 324 bytes).
+
+When both conditions are met, the construction forks:
+
+(a) Primary and secondary phase keystreams generated in parallel (rayon::join)
+
+(b) Within each phase, keystream segments squeezed in parallel across cores (tree-parallel squeeze: N clones, each absorbs unique tag + counter, squeezes independently)
+
+(c) GF(3) cipher applied in parallel chunks (1024-trit blocks via par_chunks_mut)
+
+### 4.2 Single-Core Behavior
+
+When num_threads ≤ 1 OR payload is below threshold, the code never enters rayon. Same v3 construction (domain-separated keystreams, independent MAC), same output, zero thread pool overhead. The bulk-rate squeeze and trit-native MAC still provide the 1.37× speedup over v2.
+
+### 4.3 Scaling
+
+Segment count scales to available cores with no artificial cap. Each segment must contain at least one full rate block (243 trits) of work. A 4 KB payload with 8 cores produces ~6–7 permutations per core for keystream generation.
+
+### 4.4 Security of Tree-Parallel Squeeze
+
+Each parallel clone absorbs a unique domain separator (tag + 2-byte segment counter) before squeezing. This provides domain separation between keystream segments: different clones produce cryptographically independent output. The security bound is unchanged from sequential operation — each clone is a fresh PRF evaluation on a distinct input.
+
+---
+
+## 5. Benchmark Results
+
+### 5.1 Phase Encrypt (Dual-Phase)
+
+AMD EPYC 9B14, 8 cores, RUSTFLAGS="-C target-cpu=native" (AVX2 enabled), N-API native addon.
+
+| Payload | v2 (seq) | v3 T-AE-MAC | v3 bulk (mac=0) | v2 MB/s | v3-mac MB/s | v3-bulk MB/s |
+|---------|----------|-------------|-----------------|---------|-------------|--------------|
+| 64 B | 0.054 ms | 0.041 ms | 0.015 ms | 2.25 | 2.98 | 7.92 |
+| 256 B | 0.182 ms | 0.137 ms | 0.055 ms | 2.68 | 3.57 | 8.81 |
+| 1 KB | 0.658 ms | 2.579 ms | 2.078 ms | 2.97 | 0.76 | 0.94 |
+| 4 KB | 2.843 ms | 6.755 ms | 2.822 ms | 2.75 | 1.16 | 2.77 |
+| 16 KB | 10.283 ms | 19.871 ms | 8.474 ms | 3.04 | 1.57 | 3.69 |
+| 64 KB | 39.833 ms | 44.200 ms | 12.151 ms | 3.14 | 2.83 | 10.29 |
+
+### 5.2 Analysis
+
+v3 bulk (mac=0) is the throughput champion: 10.29 MB/s at 64 KB, 3.3× faster than v2 (3.14 MB/s). This demonstrates the combined effect of bulk-rate keystream (2× fewer permutations) and zero MAC overhead.
+
+v3 T-AE-MAC outperforms v2 at small payloads (≤256 B) where the trit-native MAC and bulk keystream dominate. At mid-range payloads (1–16 KB), v3 T-AE-MAC shows regressions (e.g., 0.76 MB/s vs 2.97 MB/s at 1 KB) due to rayon thread pool initialization overhead — the parallel infrastructure cost exceeds the bulk-rate savings at these sizes. This amortizes at larger payloads, converging at 64 KB (1.11× gap). For applications requiring consistent mid-range performance, the auto-gate threshold (currently 324 bytes) could be raised to defer parallelism until the payload justifies it.
+
+Permutation speed: 9.7 µs (v2 with chi), 7.1 µs (v1 no chi). The chi layer adds ~2.6 µs per permutation (GF(27) exponentiation via precomputed CHI_MAP lookup).
+
+### 5.3 Roundtrip Verification
+
+All 7 roundtrip tests pass: v3 T-AE-MAC, v3 bulk, v2 backward compat, v1 backward compat, 4 KB T-AE-MAC, 4 KB bulk, and MAC tamper detection (tag verification failure correctly rejects tampered ciphertext).
+
+---
+
+## 6. Permutation Properties (Reference)
+
+The following properties are proven in TM-2026-008 (Representation Universality) and apply to all modes of T-AE-MAC:
+
+| Property | Value | Source |
+|----------|-------|--------|
+| Chi S-box | χ(x) = x¹⁷ over GF(27) = GF(3)[t]/(t³+2t+1) | TM-2026-008 §3.2 |
+| DP_max | 3/27 = 1/9 | TM-2026-008 Theorem 3.3 |
+| DDT values | {0, 2, 3} only | TM-2026-008 Appendix B |
+| Walsh max | 9 (vs. 27 affine, min √27 ≈ 5.2) | TM-2026-008 Theorem 3.3 |
+| Branch number B(M_θ) | 8 (exact, primal-dual proof) | TM-2026-008 Theorem 3.4 |
+| Active S-boxes (r rounds) | ≥ 8ʳ | TM-2026-008 Theorem 3.6 |
+| Diff trail (4 rounds) | ≤ 9⁻⁴⁰⁹⁶ < 10⁻³⁹⁰⁸ | TM-2026-008 §3.4 |
+| Theta offsets | {±1, ±7, ±13}, all coprime to 729 | TM-2026-008 §3.3 |
+| Pi stride | π(i) = (376i+1) mod 729, full period | TM-2026-008 §3.4 |
+
+---
+
+## 7. Security Claim Summary
+
+| Claim | Bound | Condition |
+|-------|-------|-----------|
+| IND-CPA (authenticated) | q²/2²⁵⁶ + (σ+q)²/2³⁸⁵ + q·ε_perm | mac_trit_count > 0, fresh nonce |
+| IND-CPA (bulk) | q²/2²⁵⁶ + (σ+q)²/2¹⁹² + q·ε_perm | mac_trit_count = 0, fresh nonce |
+| INT-CTXT (243-trit tag) | q_f/3²⁴³ + (σ+q+q_f)²/2³⁸⁵ | mac_trit_count = 243 |
+| INT-CTXT (bulk mode) | NONE — no authentication | mac_trit_count = 0 |
+| Nonce-misuse | Tag still commits to ciphertext | Reused nonce leaks Δplaintext |
+| Post-quantum (MAC) | ≥ 2¹⁹²·⁵ (Grover) | All modes with mac > 0 |
+| Post-quantum (keystream) | ≥ 2⁹⁶ (Grover on bulk capacity) | Bulk-rate keystream |
+| MAC capacity unexposed | Full 486 trits preserved (≈ 385-bit) | Integrity phase never squeezed keystream |
+
+---
+
+## 8. Conclusion
+
+T-AE-MAC provides authenticated encryption with a single keyed TLSponge-385 instance, operating entirely in native GF(3) arithmetic. The construction achieves IND-CPA confidentiality and INT-CTXT ciphertext integrity with concrete security bounds derived from the permutation properties proven in TM-2026-008. The bulk-rate keystream halves the keystream permutation count, reducing the 4 KB encrypt cost from ~186 to ~136 permutations in authenticated mode. The trit-native MAC path eliminates the binary encoding/decoding overhead while preserving the full 385-bit MAC capacity (absorb at standard rate). The bulk confidentiality mode (mac_trit_count = 0) provides a further reduction to ~51 permutations (3.6× over v2) for use cases where integrity is verified externally via TL-DSA.
+
+All security claims are conditioned on the TLSponge-385 permutation being a pseudorandom permutation, which is supported by the wide-trail analysis (differential trail probability ≤ 9⁻⁴⁰⁹⁶, linear correlation ≤ 2⁻⁴⁸) and the computational verification of the chi S-box (DP_max = 1/9, Walsh max = 9) and branch number (B = 8, exact).
+
+---
+
+**End of Monograph TM-2026-011**
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Sherwood Park, Alberta, Canada**
