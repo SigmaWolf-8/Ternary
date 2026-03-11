@@ -86,22 +86,22 @@ fn cipher_trits(data:&[i8],keystream:&[i8],encrypt:bool)->Vec<i8>{
 #[napi] pub fn sponge_hash(input:Buffer)->String{hash_hex(input.as_ref())}
 #[napi] pub fn sponge_hash_v1(input:Buffer)->String{hash_hex_v1(input.as_ref())}
 #[napi] pub fn sponge_keystream(domain_input:Buffer,trit_count:u32)->napi::Result<Buffer>{
-    if trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason(String::from("trit_count exceeds max")));}
+    if trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("trit_count exceeds max".to_string()));}
     let mut s=Sponge385Pub::new();s.absorb_bytes(domain_input.as_ref());
     Ok(Buffer::from(s.squeeze(trit_count as usize).iter().map(|&t|(t+1)as u8).collect::<Vec<_>>()))}
 #[napi] pub fn sponge_keystream_v1(domain_input:Buffer,trit_count:u32)->napi::Result<Buffer>{
-    if trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason(String::from("trit_count exceeds max")));}
+    if trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("trit_count exceeds max".to_string()));}
     let mut s=Sponge385Pub::new_v1();s.absorb_bytes(domain_input.as_ref());
     Ok(Buffer::from(s.squeeze(trit_count as usize).iter().map(|&t|(t+1)as u8).collect::<Vec<_>>()))}
 #[napi] pub fn sponge_derive_key(context:Buffer,material:Buffer,key_len:u32)->napi::Result<Buffer>{
-    if key_len>MAX_TRIT_COUNT{return Err(napi::Error::from_reason(String::from("key_len exceeds max")));}
+    if key_len>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("key_len exceeds max".to_string()));}
     Ok(Buffer::from(ternary_math::sponge::derive_key(context.as_ref(),material.as_ref(),key_len as usize)))}
 #[napi] pub fn sponge_permute_v2(state_buf:Buffer)->napi::Result<Buffer>{
-    let src=state_buf.as_ref();if src.len()!=729{return Err(napi::Error::from_reason(String::from("state must be 729")));}
+    let src=state_buf.as_ref();if src.len()!=729{return Err(napi::Error::from_reason("state must be 729".to_string()));}
     let mut state=[0i8;729];for i in 0..729{state[i]=src[i]as i8;}sponge_permutation(&mut state);
     Ok(Buffer::from(state.iter().map(|&t|t as u8).collect::<Vec<_>>()))}
 #[napi] pub fn sponge_permute_v1(state_buf:Buffer)->napi::Result<Buffer>{
-    let src=state_buf.as_ref();if src.len()!=729{return Err(napi::Error::from_reason(String::from("state must be 729")));}
+    let src=state_buf.as_ref();if src.len()!=729{return Err(napi::Error::from_reason("state must be 729".to_string()));}
     let mut state=[0i8;729];for i in 0..729{state[i]=src[i]as i8;}sponge_permutation_v1(&mut state);
     Ok(Buffer::from(state.iter().map(|&t|t as u8).collect::<Vec<_>>()))}
 
@@ -113,8 +113,8 @@ pub fn phase_duplex_encrypt(
     secondary_plain_bytes:Buffer,mac_trit_count:u32,sponge_version:u32,
 )->napi::Result<Buffer>{
     let p1=primary_plain_bytes.as_ref();let p2=secondary_plain_bytes.as_ref();
-    if p1.len()>MAX_PLAIN_BYTES||p2.len()>MAX_PLAIN_BYTES{return Err(napi::Error::from_reason(String::from("plaintext too large")));}
-    if mac_trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason(String::from("mac_trit_count too large")));}
+    if p1.len()>MAX_PLAIN_BYTES||p2.len()>MAX_PLAIN_BYTES{return Err(napi::Error::from_reason("plaintext too large".to_string()));}
+    if mac_trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("mac_trit_count too large".to_string()));}
     if sponge_version>=3{return phase_encrypt_v3(domain_input.as_ref(),p1,switch_marker.as_ref(),p2,mac_trit_count);}
     phase_encrypt_sequential(domain_input.as_ref(),p1,switch_marker.as_ref(),p2,mac_trit_count,sponge_version)
 }
@@ -224,7 +224,7 @@ pub fn phase_duplex_decrypt(
     domain_input:Buffer,primary_cipher_raw:Buffer,switch_marker:Buffer,
     secondary_cipher_raw:Buffer,expected_mac_hex:String,mac_trit_count:u32,sponge_version:u32,
 )->napi::Result<Buffer>{
-    if mac_trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason(String::from("mac_trit_count too large")));}
+    if mac_trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("mac_trit_count too large".to_string()));}
     if sponge_version>=3{return phase_decrypt_v3(domain_input.as_ref(),primary_cipher_raw.as_ref(),
         switch_marker.as_ref(),secondary_cipher_raw.as_ref(),&expected_mac_hex,mac_trit_count);}
     phase_decrypt_sequential(domain_input.as_ref(),primary_cipher_raw.as_ref(),
@@ -232,7 +232,7 @@ pub fn phase_duplex_decrypt(
 }
 
 fn phase_decrypt_sequential(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32,sv:u32)->napi::Result<Buffer>{
-    if r1.len()<8||r2.len()<8{return Err(napi::Error::from_reason(String::from("cipher too short")));}
+    if r1.len()<8||r2.len()<8{return Err(napi::Error::from_reason("cipher too short".to_string()));}
     let obl1=u32::from_be_bytes([r1[0],r1[1],r1[2],r1[3]])as usize;
     let tc1=u32::from_be_bytes([r1[4],r1[5],r1[6],r1[7]])as usize;let cb1=&r1[8..];
     let obl2=u32::from_be_bytes([r2[0],r2[1],r2[2],r2[3]])as usize;
@@ -264,7 +264,7 @@ fn phase_decrypt_sequential(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac
 ///      directly, squeezes tag, constant-time compare
 ///   4. Keystream from pre-MAC clone (bulk rate), GF(3) decrypt
 fn phase_decrypt_v3(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32)->napi::Result<Buffer>{
-    if r1.len()<8||r2.len()<8{return Err(napi::Error::from_reason(String::from("cipher too short")));}
+    if r1.len()<8||r2.len()<8{return Err(napi::Error::from_reason("cipher too short".to_string()));}
     let obl1=u32::from_be_bytes([r1[0],r1[1],r1[2],r1[3]])as usize;
     let tc1=u32::from_be_bytes([r1[4],r1[5],r1[6],r1[7]])as usize;let cb1=&r1[8..];
     let obl2=u32::from_be_bytes([r2[0],r2[1],r2[2],r2[3]])as usize;
