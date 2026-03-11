@@ -138,7 +138,7 @@ fn chi_layer(state: &mut [i8; SPONGE_STATE_SIZE]) {
         let g1 = (state[base + 1] + 1) as u8;
         let g2 = (state[base + 2] + 1) as u8;
 
-        if g0 == 1 && g1 == 1 && g2 == 1 { continue; }
+        if g0 == 0 && g1 == 0 && g2 == 0 { continue; }
 
         let [r0, r1, r2] = gf27_pow17([g0, g1, g2]);
         state[base] = r0 as i8 - 1;
@@ -229,7 +229,7 @@ unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
     while i < CHI_BLOCKS {
         let x = [a0[i], a1[i], a2[i]];
-        if !(x[0] == 1 && x[1] == 1 && x[2] == 1) {
+        if !(x[0] == 0 && x[1] == 0 && x[2] == 0) {
             let [r0, r1, r2] = gf27_pow17(x);
             a0[i] = r0;
             a1[i] = r1;
@@ -315,7 +315,7 @@ unsafe fn chi_layer_neon(state: &mut [i8; SPONGE_STATE_SIZE]) {
 
     while i < CHI_BLOCKS {
         let x = [a0[i], a1[i], a2[i]];
-        if !(x[0] == 1 && x[1] == 1 && x[2] == 1) {
+        if !(x[0] == 0 && x[1] == 0 && x[2] == 0) {
             let [r0, r1, r2] = gf27_pow17(x);
             a0[i] = r0;
             a1[i] = r1;
