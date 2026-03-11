@@ -127,7 +127,7 @@ function chiLayer(state: Int8Array): void {
     const g1 = state[base + 1] + 1;
     const g2 = state[base + 2] + 1;
 
-    if (g0 === 1 && g1 === 1 && g2 === 1) continue;
+    if (g0 === 0 && g1 === 0 && g2 === 0) continue;
 
     const [r0, r1, r2] = gf27Pow17(g0, g1, g2);
     state[base] = r0 - 1;
