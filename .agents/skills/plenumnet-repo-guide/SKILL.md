@@ -258,16 +258,72 @@ The 3×3 circulant magic square:
 |  14 | 208 | 111 |
 ```
 
-Magic constant = 333. Every row, column, diagonal sums to 333. Exact integer alignments:
+Magic constant = 333. Every row, column, diagonal sums to 333. Each row is a cyclic permutation of [111, 14, 208] — the matrix is **circulant**. The three entries are not free parameters; they are forced by the magic constant and the circulant structure.
 
-- RADIUS_COSMIC = 208/16 = **13** = T₇
-- PI_ESOTERIC = **14** = T₇ + T₃ = 13 + 1
-- LUNAR_SOLAR_HARMONIC = 2 × 14 = **28** = Z₂₈ cyclic order
-- COSMIC_CIRCUMFERENCE = 28 × 13 = **364** = full ternary circle
-- PHASE_DISSONANCE = 360 − 333 = **27** = TDNS dimensions
-- DISSONANCE_CLOSURE = 27 + 1 = **28** = 2π
+#### 1.5.1 The Cosmic Radius
 
-Source: `shared/saturnian-blueprint.ts`
+The **Cosmic Radius** is the radius of the ternary circle — the fundamental geometric constant connecting the Saturnian Magic Square to every layer of PlenumNET's architecture. It is extracted from the magic square entry 208:
+
+```
+RADIUS_COSMIC = 208 / 16 = 13 = T₇
+```
+
+The ternary circle formula **C = 2πr** with all-integer constants:
+
+| Symbol | Value | Derivation |
+|--------|-------|------------|
+| r (cosmic radius) | **13** | 208 / 16 = T₇ |
+| π (ternary pi) | **14** | T₇ + T₃ = 13 + 1 |
+| 2π | **28** | Lunar-solar harmonic = Z₂₈ cyclic order |
+| C (circumference) | **364** | 2 × 14 × 13 = 111111₃ |
+
+Verify: 2 × 14 × 13 = **364** ✓
+
+#### 1.5.2 Where 16 Comes From
+
+The expression `208 / 16` is written in the code (rather than the literal `13`) to **preserve provenance** — to show that the cosmic radius is derived from the Saturnian matrix entry, not independently declared. This is the "no rounding, no floating-point" principle: every constant traces back to an exact integer relationship in the magic square.
+
+The number 16 itself carries structural significance:
+
+- **16 = 2 × 8**, where 8 = the number of constraints in the formal system that forces d = 13 as the unique dimension count (§3.2.1)
+- **16 in base 3 = 121₃** — a palindromic ternary number (1×9 + 2×3 + 1)
+- **16 = 4² = (T₅)²** — the square of the 5th Tribonacci number (T₅ = 4)
+- **208 = 16 × 13**: the magic square entry encodes the radius; the cofactor 16 releases it
+
+The three magic square entries decompose through the same Tribonacci lattice: 111 = TERNARY_BALANCE_CENTER, 14 = T₇ + T₃, 208 = (T₅)² × T₇.
+
+#### 1.5.3 Generative Cascade
+
+Every constant in the framework cascades from the magic square through exact integer arithmetic — zero rounding, zero approximation:
+
+```
+208 / 16 = 13           (cosmic radius = T₇)
+14 = 13 + 1             (ternary π = T₇ + T₃)
+2 × 14 = 28             (lunar-solar harmonic = Z₂₈ cyclic order)
+28 × 13 = 364           (cosmic circumference = ternary full circle = 111111₃)
+360 − 333 = 27          (phase dissonance = 3³ = TDNS dimensions)
+27 + 1 = 28             (dissonance closure = 2π)
+```
+
+The magic square is the **generative root**. The values {111, 14, 208} propagate through Tribonacci alignment into the circle, calendar, sponge stride, cube dimension, and every layer of the architecture.
+
+#### 1.5.4 Derived Constants
+
+| Constant | Expression | Value | Role |
+|----------|-----------|-------|------|
+| RADIUS_COSMIC | 208 / 16 | 13 | Cosmic radius, cube dimension, T₇ |
+| PI_ESOTERIC | T₇ + T₃ | 14 | Ternary π |
+| LUNAR_SOLAR_HARMONIC | 2 × PI_ESOTERIC | 28 | Z₂₈ cyclic order, lunar month |
+| COSMIC_CIRCUMFERENCE | 28 × 13 | 364 | Full ternary circle, Salvi calendar year |
+| PHASE_DISSONANCE | 360 − 333 | 27 | 3³, TDNS dimensions |
+| DISSONANCE_CLOSURE | 27 + 1 | 28 | Returns to 2π |
+| TEMPORAL_CROSS_DENOM | SUFT_RADIUS | 13 | φ/13 cross-ratio denominator |
+| MASS_SHELL_RATIO | 13 / 28 | 13/28 | Mass-shell coefficient |
+| SATURNIAN_NATURAL_YEAR | COSMIC_CIRCUMFERENCE | 364 | Calendar year in days |
+
+**Tribonacci–Saturnian Harmony invariant**: `RADIUS_COSMIC === TRIBONACCI_SEQUENCE[7]` — the magic square and the Tribonacci sequence independently produce the same value (13). This is verified at compile time via `HAS_TRIBONACCI_SATURNIAN_HARMONY` in the source.
+
+Source: `shared/saturnian-blueprint.ts`, `shared/saturnian-matrix-utils.ts`
 
 ### 1.6 The 28th Factor: Squaring the Circle
 

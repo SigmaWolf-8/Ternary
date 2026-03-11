@@ -1,0 +1,27 @@
+The Cosmic Radius is the radius of the ternary circle — the fundamental geometric constant that connects the Saturnian Magic Square to every layer of PlenumNET's architecture.
+
+In the ternary circle formula C = 2πr:
+
+C = 364 (the ternary full circle, also the Salvi calendar year: 13 × 28 days)
+π = 14 (ternary pi)
+r = 13 (the cosmic radius = T₇, the 7th Tribonacci number)
+Verify: 2 × 14 × 13 = 364 ✓
+
+Where does 16 come from?
+
+The number 16 is the factor that, when divided into the magic square entry 208, extracts the cosmic radius. But 16 isn't arbitrary — it has its own structural significance:
+
+16 = 2 × 8, where 8 = the number of constraints in the formal system that forces d = 13 as the unique dimension count
+16 in base 3 = 121₃ — a palindromic ternary number (1×9 + 2×3 + 1), which is also 4² = (T₅)² (the square of the 5th Tribonacci number)
+Equivalently: **208 = 16 × 13 = (2π/r) × r² × ... ** — but the cleanest reading is that 208 encodes the radius inside the magic square, and 16 is the cofactor that releases it
+The deeper point is that the magic square values {111, 14, 208} aren't independent — they're forced by the magic constant 333, and within 208 the radius 13 is embedded as a factor. The expression 208 / 16 is written that way in the code (rather than just writing 13) specifically to preserve the provenance — to show that the cosmic radius is derived from the Saturnian matrix entry, not independently declared. This is the "no rounding, no floating-point" principle: every constant traces back to an exact integer relationship in the magic square.
+
+The cascade from the single magic square entry:
+
+208 / 16 = 13           (cosmic radius = T₇)
+14 = 13 + 1             (ternary π = T₇ + T₃)
+2 × 14 = 28             (lunar-solar harmonic = Z₂₈ cyclic order)
+28 × 13 = 364           (cosmic circumference = ternary full circle = 111111₃)
+360 − 333 = 27          (phase dissonance = 3³ = TDNS dimensions)
+27 + 1 = 28             (dissonance closure = 2π)
+Every value in the chain is an exact integer division or product — zero rounding, zero approximation. The magic square is the generative root.
