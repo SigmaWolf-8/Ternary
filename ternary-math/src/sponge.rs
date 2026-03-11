@@ -46,17 +46,17 @@ fn trit_add(a: i8, b: i8) -> i8 {
 }
 
 #[inline(always)]
-fn gf3_mul(a: u8, b: u8) -> u8 {
+const fn gf3_mul(a: u8, b: u8) -> u8 {
     (a * b) % 3
 }
 
 #[inline(always)]
-fn gf3_add(a: u8, b: u8) -> u8 {
+const fn gf3_add(a: u8, b: u8) -> u8 {
     (a + b) % 3
 }
 
 #[inline(always)]
-fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
+const fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
     let c0 = gf3_mul(a[0], b[0]);
     let c1 = gf3_add(gf3_mul(a[0], b[1]), gf3_mul(a[1], b[0]));
     let c2 = gf3_add(gf3_add(gf3_mul(a[0], b[2]), gf3_mul(a[1], b[1])), gf3_mul(a[2], b[0]));
@@ -71,7 +71,7 @@ fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
 }
 
 #[inline(always)]
-fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
+const fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
     let x2 = gf27_mul(x, x);
     let x4 = gf27_mul(x2, x2);
     let x8 = gf27_mul(x4, x4);
@@ -79,19 +79,31 @@ fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
     gf27_mul(x16, x)
 }
 
-fn chi_layer(state: &mut [i8; STATE_SIZE]) {
-    for b in 0..CHI_BLOCKS {
-        let base = b * 3;
-        let g0 = (state[base] + 1) as u8;
-        let g1 = (state[base + 1] + 1) as u8;
-        let g2 = (state[base + 2] + 1) as u8;
-
-        if g0 == 0 && g1 == 0 && g2 == 0 { continue; }
-
+static CHI_MAP: [[i8; 3]; 27] = {
+    let mut map = [[0i8; 3]; 27];
+    let mut idx = 0usize;
+    while idx < 27 {
+        let g0 = (idx % 3) as u8;
+        let g1 = ((idx / 3) % 3) as u8;
+        let g2 = (idx / 9) as u8;
         let [r0, r1, r2] = gf27_pow17([g0, g1, g2]);
-        state[base] = r0 as i8 - 1;
-        state[base + 1] = r1 as i8 - 1;
-        state[base + 2] = r2 as i8 - 1;
+        map[idx] = [r0 as i8 - 1, r1 as i8 - 1, r2 as i8 - 1];
+        idx += 1;
+    }
+    map
+};
+
+fn chi_layer(state: &mut [i8; STATE_SIZE]) {
+    let mut block = 0;
+    while block < STATE_SIZE {
+        let idx = (state[block] + 1) as usize
+            + (state[block + 1] + 1) as usize * 3
+            + (state[block + 2] + 1) as usize * 9;
+        let r = CHI_MAP[idx];
+        state[block]     = r[0];
+        state[block + 1] = r[1];
+        state[block + 2] = r[2];
+        block += 3;
     }
 }
 
