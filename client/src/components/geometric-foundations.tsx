@@ -912,13 +912,14 @@ export default function GeometricFoundations() {
         {topology && (
           <FadeIn delay={100}>
             <div style={{
-              display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 1,
+              display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 1,
               background: t.cardBorder, borderRadius: RADIUS.lg, overflow: "hidden", marginBottom: 32,
             }}>
               <Stat value={2541865828329} label="Address Space" sub="3²⁶ Rep C vertices · scales infinitely" delay={0} />
               <Stat value={topology.neighborsPerCube} label="Neighbors" sub="per cube (2 × 13)" delay={100} />
-              <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={200} />
-              <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={300} />
+              <Stat value={20726199} label="Encrypted Tunnels" sub="unique PQ tunnels per populated cube" delay={200} />
+              <Stat value={4} label="Services" sub="GLB · CON · CRS · FTS" delay={300} />
+              <Stat value={0} label="Routing Tables" sub="pure geometric forwarding" delay={400} />
             </div>
           </FadeIn>
         )}
@@ -929,7 +930,7 @@ export default function GeometricFoundations() {
             desc="Greedy geodesic forwarding with flow affinity. FNV-1a hashes the flow ID to select a consistent dimension, ensuring packets in the same flow traverse identical paths. Dead neighbors trigger detour computation." />
           <ServiceCard delay={80} icon="⬡" tag="CON" name="Cube Overlay Network"
             stat="26" statLabel="tunnel peers"
-            desc="Encrypted post-quantum tunnels between geometric neighbors. Symmetric key derivation via SHA-256 canonical ordering. Full tunnel state machine: Init → Handshake → Active → Rekeying." />
+            desc="20.7M unique post-quantum encrypted tunnels per populated cube — each key derived from the geometric positions of the two endpoints via TLSponge-385. Full tunnel state machine: Init → Handshake → Active → Rekeying." />
           <ServiceCard delay={160} icon="◇" tag="CRS" name="Cube Registration Service"
             stat="3¹³" statLabel="address space"
             desc="Bitmap allocator over 1,594,323 Rep C addresses with flatIndex/fromFlatIndex bijection. Sequential scan with nextHint for deterministic allocation. Heartbeat-based endpoint updates." />

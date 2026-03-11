@@ -534,7 +534,7 @@ function InterCubeSection() {
     {
       icon: Lock,
       title: "Topology-Derived Cryptography",
-      description: "Each edge in the hypercube gets a TIS-27 sponge-derived tunnel key. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.",
+      description: `${PLATFORM.INTER_CUBE_TUNNELS} unique post-quantum encrypted tunnels per populated cube — each key derived from the geometric positions of the two endpoints via TLSponge-385. The cryptographic layer is structural — baked into the geometry itself. No existing overlay network derives keys from its own topology.`,
     },
     {
       icon: Shield,
@@ -630,6 +630,16 @@ function InterCubeSection() {
           >
             <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_ROUTING_TABLES}</span>
             <span className="text-sm text-muted-foreground mt-2">Routing Tables</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.32 }}
+            className="flex flex-col items-center"
+            data-testid="stat-tunnels"
+          >
+            <span className="text-4xl md:text-5xl font-bold text-primary leading-none">{PLATFORM.INTER_CUBE_TUNNELS_SHORT}</span>
+            <span className="text-sm text-muted-foreground mt-2">Encrypted Tunnels</span>
           </motion.div>
         </div>
 

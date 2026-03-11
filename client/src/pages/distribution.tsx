@@ -234,7 +234,7 @@ const MODULES: Module[] = [
     id: "inter-cube",
     name: "Inter-Cube Services",
     version: "v0.1.0",
-    desc: `4-service geometric routing: GLB, CON, CRS, FTS. ${PLATFORM.HYPERCUBE_VERTICES} vertices, ${PLATFORM.HYPERCUBE_NEIGHBORS} neighbors per node.`,
+    desc: `4-service geometric routing: GLB, CON, CRS, FTS. ${PLATFORM.HYPERCUBE_VERTICES} vertices, ${PLATFORM.INTER_CUBE_TUNNELS} PQ encrypted tunnels, ${PLATFORM.HYPERCUBE_NEIGHBORS} neighbors per node.`,
     category: "network",
     size: "120 KB",
     format: ".rs / .ts",
