@@ -485,10 +485,18 @@ fn phase_encrypt_v3(
     secondary_tag.push(0x01);
     secondary_tag.extend_from_slice(switch_marker);
 
-    let (phase1, phase2) = rayon::join(
-        || encrypt_one_phase(&base, p1, &[0x00], true),
-        || encrypt_one_phase(&base, p2, &secondary_tag, true),
-    );
+    let use_parallel = rayon::current_num_threads() > 1;
+
+    let (phase1, phase2) = if use_parallel {
+        rayon::join(
+            || encrypt_one_phase(&base, p1, &[0x00], true),
+            || encrypt_one_phase(&base, p2, &secondary_tag, true),
+        )
+    } else {
+        let p1_result = encrypt_one_phase(&base, p1, &[0x00], false);
+        let p2_result = encrypt_one_phase(&base, p2, &secondary_tag, false);
+        (p1_result, p2_result)
+    };
 
     let full_cipher1 = [&phase1.header[..], &phase1.cipher_bytes[..]].concat();
     let full_cipher2 = [&phase2.header[..], &phase2.cipher_bytes[..]].concat();
@@ -690,14 +698,26 @@ fn phase_decrypt_v3(
     secondary_tag.push(0x01);
     secondary_tag.extend_from_slice(switch_marker);
 
-    let (plain1, plain2) = rayon::join(
-        || decrypt_one_phase(
-            &base, cipher1_bytes, trit_count1, original_byte_len1, &[0x00], true,
-        ),
-        || decrypt_one_phase(
-            &base, cipher2_bytes, trit_count2, original_byte_len2, &secondary_tag, true,
-        ),
-    );
+    let use_parallel = rayon::current_num_threads() > 1;
+
+    let (plain1, plain2) = if use_parallel {
+        rayon::join(
+            || decrypt_one_phase(
+                &base, cipher1_bytes, trit_count1, original_byte_len1, &[0x00], true,
+            ),
+            || decrypt_one_phase(
+                &base, cipher2_bytes, trit_count2, original_byte_len2, &secondary_tag, true,
+            ),
+        )
+    } else {
+        let p1 = decrypt_one_phase(
+            &base, cipher1_bytes, trit_count1, original_byte_len1, &[0x00], false,
+        );
+        let p2 = decrypt_one_phase(
+            &base, cipher2_bytes, trit_count2, original_byte_len2, &secondary_tag, false,
+        );
+        (p1, p2)
+    };
 
     let mut out = Vec::with_capacity(8 + plain1.len() + plain2.len());
     out.extend_from_slice(&(plain1.len() as u32).to_le_bytes());
