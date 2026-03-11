@@ -1797,6 +1797,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "rayon",
  "ternary-math",
 ]
 

@@ -707,6 +707,7 @@ fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
     bytes
 }
 
+#[derive(Clone)]
 pub struct Sponge385Pub {
     state: [i8; STATE_SIZE],
     buf: [i8; RATE],
@@ -1027,5 +1028,16 @@ mod tests {
         sponge_permutation_v1(&mut s_simd);
         sponge_permutation_v1_scalar(&mut s_scalar);
         assert_eq!(s_simd, s_scalar, "SIMD v1 must match scalar v1");
+    }
+
+    #[test]
+    fn test_clone_produces_identical_squeeze() {
+        let mut s1 = Sponge385Pub::new();
+        s1.absorb_bytes(b"test domain input");
+        let s2 = s1.clone();
+        let out1 = s1.squeeze(500);
+        let mut s2 = s2;
+        let out2 = s2.squeeze(500);
+        assert_eq!(out1, out2, "cloned sponge must produce identical squeeze output");
     }
 }

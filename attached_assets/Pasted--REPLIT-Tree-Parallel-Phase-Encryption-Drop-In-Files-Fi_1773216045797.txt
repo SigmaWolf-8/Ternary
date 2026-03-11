@@ -1,0 +1,77 @@
+# REPLIT: Tree-Parallel Phase Encryption — Drop-In Files
+
+## Files to Save
+
+1. `napi_Cargo.toml` → save to `ternary-math/napi/Cargo.toml`
+2. `sponge.rs` → save to `ternary-math/src/sponge.rs`
+3. `napi_lib.rs` → save to `ternary-math/napi/src/lib.rs`
+
+## What Changed
+
+**Cargo.toml** — Added `rayon = "1.10"` dependency. Nothing else.
+
+**sponge.rs** — Added `#[derive(Clone)]` to `Sponge385Pub`. This lets the
+tree parallelism fork sponge state across threads. One new test
+`test_clone_produces_identical_squeeze`. Everything else identical.
+
+**napi/src/lib.rs** — Added tree-parallel v3 path:
+- `sponge_version 3`: tree-parallel keystream (N cores, N sponge clones,
+  independent squeeze per segment) + parallel primary/secondary via
+  `rayon::join` + parallel GF(3) cipher for large payloads
+- `sponge_version 1` and `2`: completely unchanged, backward compatible
+- Segment count scales to available cores automatically — no cap.
+  Each segment gets at least one full rate block (243 trits) of work.
+  Below 1,944 trits (~324 bytes) it runs sequential.
+
+## Build and Deploy
+
+```bash
+# Build with AVX2 enabled
+cd /home/runner/workspace && RUSTFLAGS="-C target-cpu=native" cargo build --release
+
+# Copy the binary
+cp target/release/libsponge_napi.so server/crypto/sponge-native.node
+
+# Restart
+npm run dev
+```
+
+## TypeScript Change Required
+
+In `server/salvi-core/phase-encryption.ts`, find where `phaseSplit` sets
+`spongeVersion`. Change it from `2` to `3` for new encryptions:
+
+```typescript
+// In phaseSplit(), where the result object is built:
+spongeVersion: 3,   // was: SPONGE_VERSION (which is 2)
+```
+
+Old data with `spongeVersion: 1` or `2` decrypts through existing
+sequential paths. v3 output format is identical — same packed buffer
+layout — so TypeScript parsing code does not change.
+
+## Verification
+
+1. Cross-validate: hash "PlenumNET" must match existing v2 output
+   (chi + sequential). The tree parallelism only affects keystream
+   generation, not hashing.
+
+2. Round-trip: encrypt 4 KB with v3, decrypt with v3. Must match exactly.
+
+3. Backward compat: encrypt with v2, decrypt with v2. Still works.
+
+4. Benchmark:
+   ```bash
+   curl -s "http://localhost:5000/api/salvi/crypto/phase-benchmark?iterations=50" | \
+     jq '.results[] | select(.mode=="balanced") | {payloadBytes, encryptUs, throughputKBps}'
+   ```
+
+5. Push all files to GitHub.
+
+## Do NOT
+
+- Do NOT modify any other files. These three are the complete change.
+- Do NOT change the v1/v2 sequential encrypt/decrypt paths. They are
+  preserved exactly as-is for backward compatibility.
+- Do NOT forget `RUSTFLAGS="-C target-cpu=native"` on the build.
+  Without it, AVX2 intrinsics won't emit.
