@@ -36,6 +36,14 @@ const PERM: number[] = (() => {
   return p;
 })();
 
+const INV_PERM: Int32Array = (() => {
+  const p = new Int32Array(STATE_SIZE);
+  for (let i = 0; i < STATE_SIZE; i++) {
+    p[(i * 376 + 1) % STATE_SIZE] = i;
+  }
+  return p;
+})();
+
 const RC_TABLE: Int8Array[] = (() => {
   const rcs: Int8Array[] = [];
   for (let r = 0; r < ROUNDS; r++) {
@@ -48,46 +56,44 @@ const RC_TABLE: Int8Array[] = (() => {
   return rcs;
 })();
 
-const WRAP_TABLE = new Int8Array([
-  -1, 0, 1, -1, 0, 1, -1, 0, 1
-]);
+const RC_INDICES: Int32Array = (() => {
+  const idx = new Int32Array(LANES);
+  for (let i = 0; i < LANES; i++) idx[i] = i * LANES;
+  return idx;
+})();
 
-function balancedWrap(s: number): number {
-  return WRAP_TABLE[s + 4];
-}
+const BW = new Int8Array([-1, 0, 1, -1, 0, 1, -1, 0, 1]);
 
-const TRIT_ADD_TABLE = new Int8Array([
-  1, -1, 0, 1, -1
-]);
+const TA = new Int8Array([1, -1, 0, 1, -1]);
 
 function tritAdd(a: number, b: number): number {
-  return TRIT_ADD_TABLE[a + b + 2];
+  return TA[a + b + 2];
 }
 
-function spongePermutation(state: Int8Array): void {
-  const ext = new Int8Array(STATE_SIZE + 26);
-  const buf = new Int8Array(STATE_SIZE);
+const _ext = new Int8Array(STATE_SIZE + 26);
+const _buf = new Int8Array(STATE_SIZE);
 
+function spongePermutation(state: Int8Array): void {
   for (let round = 0; round < ROUNDS; round++) {
-    ext.set(state.subarray(STATE_SIZE - 13), 0);
-    ext.set(state, 13);
-    ext.set(state.subarray(0, 13), 13 + STATE_SIZE);
+    _ext.set(state.subarray(STATE_SIZE - 13), 0);
+    _ext.set(state, 13);
+    _ext.set(state.subarray(0, 13), STATE_SIZE + 13);
 
     for (let i = 0; i < STATE_SIZE; i++) {
       const ei = i + 13;
-      const left = balancedWrap(ext[ei - 13] + ext[ei - 7] + ext[ei - 1]);
-      const right = balancedWrap(ext[ei + 1] + ext[ei + 7] + ext[ei + 13]);
-      buf[i] = balancedWrap(left + ext[ei] + right + 1);
+      const left  = BW[_ext[ei - 13] + _ext[ei - 7] + _ext[ei - 1] + 4];
+      const right = BW[_ext[ei + 1]  + _ext[ei + 7]  + _ext[ei + 13] + 4];
+      _buf[i] = BW[left + _ext[ei] + right + 5];
     }
 
     for (let i = 0; i < STATE_SIZE; i++) {
-      state[PERM[i]] = buf[i];
+      state[i] = _buf[INV_PERM[i]];
     }
 
     const rc = RC_TABLE[round];
     for (let lane = 0; lane < LANES; lane++) {
-      const idx = lane * LANES;
-      state[idx] = balancedWrap(state[idx] + rc[lane]);
+      const idx = RC_INDICES[lane];
+      state[idx] = BW[state[idx] + rc[lane] + 4];
     }
   }
 }
@@ -110,7 +116,7 @@ function spongeAbsorbAndSqueeze(inputTrits: Int8Array, outputTrits: number): Int
   let offset = 0;
   while (offset + RATE <= inputTrits.length) {
     for (let i = 0; i < RATE; i++) {
-      state[i] = tritAdd(state[i], inputTrits[offset + i]);
+      state[i] = TA[state[i] + inputTrits[offset + i] + 2];
     }
     spongePermutation(state);
     offset += RATE;
@@ -118,10 +124,10 @@ function spongeAbsorbAndSqueeze(inputTrits: Int8Array, outputTrits: number): Int
 
   const remaining = inputTrits.length - offset;
   for (let i = 0; i < remaining; i++) {
-    state[i] = tritAdd(state[i], inputTrits[offset + i]);
+    state[i] = TA[state[i] + inputTrits[offset + i] + 2];
   }
   if (remaining < RATE) {
-    state[remaining] = tritAdd(state[remaining], 1);
+    state[remaining] = TA[state[remaining] + 1 + 2];
   }
   spongePermutation(state);
 
@@ -208,7 +214,7 @@ export class SpongeDuplex {
 
       if (this.bufLen === RATE) {
         for (let i = 0; i < RATE; i++) {
-          this.state[i] = tritAdd(this.state[i], this.buf[i]);
+          this.state[i] = TA[this.state[i] + this.buf[i] + 2];
         }
         spongePermutation(this.state);
         this.bufLen = 0;
@@ -217,7 +223,7 @@ export class SpongeDuplex {
 
     while (offset + RATE <= inputLen) {
       for (let i = 0; i < RATE; i++) {
-        this.state[i] = tritAdd(this.state[i], inputTrits[offset + i]);
+        this.state[i] = TA[this.state[i] + inputTrits[offset + i] + 2];
       }
       spongePermutation(this.state);
       offset += RATE;
@@ -233,10 +239,10 @@ export class SpongeDuplex {
   squeeze(tritCount: number): Int8Array {
     if (this.needsFinalize) {
       for (let i = 0; i < this.bufLen; i++) {
-        this.state[i] = tritAdd(this.state[i], this.buf[i]);
+        this.state[i] = TA[this.state[i] + this.buf[i] + 2];
       }
       if (this.bufLen < RATE) {
-        this.state[this.bufLen] = tritAdd(this.state[this.bufLen], 1);
+        this.state[this.bufLen] = TA[this.state[this.bufLen] + 1 + 2];
       }
       this.bufLen = 0;
       this.needsFinalize = false;
