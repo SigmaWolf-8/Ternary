@@ -17,9 +17,12 @@
 
 import {
   spongeHash as tsSpongeHash,
+  spongeHashV1 as tsSpongeHashV1,
   spongeKeystream as tsSpongeKeystream,
+  spongeKeystreamV1 as tsSpongeKeystreamV1,
   SpongeDuplex,
   tritsToHex,
+  SPONGE_VERSION,
 } from './sponge-hash';
 
 let wasmModule: any = null;
@@ -50,6 +53,10 @@ export function spongeHash(input: Buffer): string {
   return tsSpongeHash(input);
 }
 
+export function spongeHashV1(input: Buffer): string {
+  return tsSpongeHashV1(input);
+}
+
 export function spongeKeystream(domain: Buffer, tritCount: number): Int8Array {
   if (useWasm && wasmModule) {
     const result = wasmModule.sponge_keystream(new Uint8Array(domain), tritCount);
@@ -58,9 +65,15 @@ export function spongeKeystream(domain: Buffer, tritCount: number): Int8Array {
   return tsSpongeKeystream(domain, tritCount);
 }
 
-export function createDuplex(): SpongeDuplex {
-  return new SpongeDuplex();
+export function spongeKeystreamV1(domain: Buffer, tritCount: number): Int8Array {
+  return tsSpongeKeystreamV1(domain, tritCount);
 }
+
+export function createDuplex(version: number = 2): SpongeDuplex {
+  return new SpongeDuplex(version);
+}
+
+export { SPONGE_VERSION };
 
 try {
   initWasmSponge().catch(() => {});
