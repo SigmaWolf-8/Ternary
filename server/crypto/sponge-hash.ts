@@ -120,19 +120,26 @@ function gf27Pow17(a0: number, a1: number, a2: number): [number, number, number]
   return gf27Mul(x0, x1, x2, a0, a1, a2);
 }
 
-function chiLayer(state: Int8Array): void {
-  for (let b = 0; b < CHI_BLOCKS; b++) {
-    const base = b * 3;
-    const g0 = state[base] + 1;
-    const g1 = state[base + 1] + 1;
-    const g2 = state[base + 2] + 1;
-
-    if (g0 === 0 && g1 === 0 && g2 === 0) continue;
-
+const CHI_MAP: Int8Array = (() => {
+  const map = new Int8Array(27 * 3);
+  for (let idx = 0; idx < 27; idx++) {
+    const g0 = idx % 3;
+    const g1 = Math.floor(idx / 3) % 3;
+    const g2 = Math.floor(idx / 9);
     const [r0, r1, r2] = gf27Pow17(g0, g1, g2);
-    state[base] = r0 - 1;
-    state[base + 1] = r1 - 1;
-    state[base + 2] = r2 - 1;
+    map[idx * 3]     = r0 - 1;
+    map[idx * 3 + 1] = r1 - 1;
+    map[idx * 3 + 2] = r2 - 1;
+  }
+  return map;
+})();
+
+function chiLayer(state: Int8Array): void {
+  for (let block = 0; block < STATE_SIZE; block += 3) {
+    const idx = ((state[block] + 1) + (state[block + 1] + 1) * 3 + (state[block + 2] + 1) * 9) * 3;
+    state[block]     = CHI_MAP[idx];
+    state[block + 1] = CHI_MAP[idx + 1];
+    state[block + 2] = CHI_MAP[idx + 2];
   }
 }
 

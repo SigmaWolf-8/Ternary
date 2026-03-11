@@ -1,0 +1,420 @@
+# REPLIT TASK: Rust Sponge N-API Native Addon
+
+## Priority: P0-CRITICAL — Phase encryption throughput is 36 KB/s, target is GB/s
+
+---
+
+## What
+
+Compile the existing Rust TLSponge-385 (with chi layer, AVX2, NEON) as a
+Node.js native addon via napi-rs. This replaces the TypeScript sponge
+permutation (~1.1M interpreted arithmetic operations per 4 KB encrypt) with
+compiled native code called directly from Node.js. No WASM. No special
+linker. Standard cargo build.
+
+Expected improvement: **36 KB/s → 50–100 MB/s** (1,500×+).
+
+---
+
+## Why Not WASM
+
+WASM compilation failed because Replit's `lld` linker is too old for
+`wasm32-unknown-unknown`. N-API native addons compile to a standard shared
+library (`.node` = `.so` on Linux) using the system linker. This works on
+any system with a Rust toolchain and a C linker — including Replit.
+
+---
+
+## Architecture
+
+```
+Node.js (phase-encryption.ts)
+  ↓ calls
+sponge-native-bridge.ts (thin TypeScript wrapper)
+  ↓ loads
+sponge-native.linux-x64-gnu.node (compiled Rust shared library)
+  ↓ executes
+TLSponge-385 with chi + AVX2 (native speed)
+```
+
+Fallback: if the `.node` file fails to load, fall back to the existing
+TypeScript sponge. Same pattern as the WASM bridge that already exists.
+
+---
+
+## Step 1: Create the N-API crate
+
+Create `ternary-math/napi/` as a new crate:
+
+```
+ternary-math/napi/
+├── Cargo.toml
+├── src/
+│   └── lib.rs
+└── build.rs (optional)
+```
+
+`Cargo.toml`:
+```toml
+[package]
+name = "sponge-napi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", features = ["napi8"] }
+napi-derive = "2"
+
+[dependencies.ternary-math]
+path = ".."
+
+[build-dependencies]
+napi-build = "2"
+```
+
+`build.rs`:
+```rust
+extern crate napi_build;
+fn main() {
+  napi_build::setup();
+}
+```
+
+`src/lib.rs`:
+```rust
+use napi::bindgen_prelude::*;
+use napi_derive::napi;
+
+// Import from the existing ternary-math crate
+use ternary_math::sponge::{Sponge385Pub, hash, sponge385_derive_key};
+
+#[napi]
+pub fn sponge_hash(input: Buffer) -> String {
+    hash(input.as_ref())
+}
+
+#[napi]
+pub fn sponge_hash_v1(input: Buffer) -> String {
+    // Call v1 (no chi) hash from ternary-math
+    ternary_math::sponge::hash_v1(input.as_ref())
+}
+
+#[napi]
+pub fn sponge_keystream(domain_input: Buffer, trit_count: u32) -> Buffer {
+    let mut sponge = Sponge385Pub::new();
+    sponge.absorb_bytes(domain_input.as_ref());
+    let trits = sponge.squeeze(trit_count as usize);
+    // Convert i8 trits to u8 for Buffer transport
+    let bytes: Vec<u8> = trits.iter().map(|&t| (t + 1) as u8).collect();
+    Buffer::from(bytes)
+}
+
+#[napi]
+pub fn sponge_keystream_v1(domain_input: Buffer, trit_count: u32) -> Buffer {
+    let mut sponge = Sponge385Pub::new_v1();  // v1 = no chi
+    sponge.absorb_bytes(domain_input.as_ref());
+    let trits = sponge.squeeze(trit_count as usize);
+    let bytes: Vec<u8> = trits.iter().map(|&t| (t + 1) as u8).collect();
+    Buffer::from(bytes)
+}
+
+/// Duplex mode: absorb domain, squeeze keystream, absorb ciphertext, squeeze MAC.
+/// Returns (keystream_trits_as_u8, mac_trits_as_u8) packed in a single buffer
+/// with a 4-byte length prefix for the keystream portion.
+#[napi]
+pub fn sponge_duplex_encrypt(
+    domain_input: Buffer,
+    keystream_trit_count: u32,
+    ciphertext: Buffer,
+    mac_trit_count: u32,
+) -> Buffer {
+    let mut sponge = Sponge385Pub::new();
+    sponge.absorb_bytes(domain_input.as_ref());
+
+    let keystream = sponge.squeeze(keystream_trit_count as usize);
+    sponge.absorb_bytes(ciphertext.as_ref());
+    let mac = sponge.squeeze(mac_trit_count as usize);
+
+    // Pack: [4-byte keystream length][keystream trits as u8][mac trits as u8]
+    let ks_len = keystream.len();
+    let mut out = Vec::with_capacity(4 + ks_len + mac.len());
+    out.extend_from_slice(&(ks_len as u32).to_le_bytes());
+    out.extend(keystream.iter().map(|&t| (t + 1) as u8));
+    out.extend(mac.iter().map(|&t| (t + 1) as u8));
+    Buffer::from(out)
+}
+
+/// Duplex decrypt: absorb domain, squeeze keystream, absorb ciphertext, squeeze MAC.
+/// Same as encrypt (symmetric operation).
+#[napi]
+pub fn sponge_duplex_decrypt(
+    domain_input: Buffer,
+    keystream_trit_count: u32,
+    ciphertext: Buffer,
+    mac_trit_count: u32,
+) -> Buffer {
+    sponge_duplex_encrypt(domain_input, keystream_trit_count, ciphertext, mac_trit_count)
+}
+
+#[napi]
+pub fn sponge_derive_key(context: String, material: Buffer) -> Buffer {
+    let key = sponge385_derive_key(&context, material.as_ref());
+    Buffer::from(key)
+}
+```
+
+---
+
+## Step 2: Ensure ternary-math exports what N-API needs
+
+The N-API crate imports from `ternary_math::sponge`. Verify these are
+publicly exported from `ternary-math/src/sponge.rs`:
+
+- `Sponge385Pub::new()` — v2 (with chi)
+- `Sponge385Pub::new_v1()` — v1 (no chi) — ADD IF MISSING
+- `Sponge385Pub::absorb_bytes(&mut self, input: &[u8])`
+- `Sponge385Pub::squeeze(&mut self, count: usize) -> Vec<i8>`
+- `hash(input: &[u8]) -> String` — v2
+- `hash_v1(input: &[u8]) -> String` — v1 — ADD IF MISSING
+- `sponge385_derive_key(context: &str, material: &[u8]) -> Vec<u8>`
+
+If `new_v1()` or `hash_v1()` don't exist, add them — they call the v1
+permutation (no chi). Same logic, different permutation function.
+
+---
+
+## Step 3: Build
+
+```bash
+cd ternary-math/napi
+
+# Install napi-cli if not present
+npm install -g @napi-rs/cli
+
+# Build the native addon
+napi build --platform --release
+
+# This produces: sponge-napi.linux-x64-gnu.node
+```
+
+If `napi build` isn't available, use cargo directly:
+```bash
+cargo build --release
+# The .so file is at target/release/libsponge_napi.so
+# Copy and rename:
+cp target/release/libsponge_napi.so ../../server/crypto/sponge-native.node
+```
+
+---
+
+## Step 4: TypeScript bridge
+
+Create `server/crypto/sponge-native-bridge.ts`:
+
+```typescript
+let native: any = null;
+let useNative = false;
+
+try {
+  native = require('./sponge-native.node');
+  useNative = true;
+  console.log('[sponge] Native Rust backend loaded');
+} catch (e) {
+  console.log('[sponge] Native backend unavailable, using TypeScript fallback');
+}
+
+export function isNativeAvailable(): boolean {
+  return useNative;
+}
+
+export function nativeSpongeHash(input: Buffer): string {
+  if (!useNative) throw new Error('Native sponge not available');
+  return native.spongeHash(input);
+}
+
+export function nativeSpongeHashV1(input: Buffer): string {
+  if (!useNative) throw new Error('Native sponge not available');
+  return native.spongeHashV1(input);
+}
+
+export function nativeSpongeKeystream(domainInput: Buffer, tritCount: number): Int8Array {
+  if (!useNative) throw new Error('Native sponge not available');
+  const buf: Buffer = native.spongeKeystream(domainInput, tritCount);
+  // Convert u8 (0,1,2) back to balanced trits (-1,0,+1)
+  const trits = new Int8Array(buf.length);
+  for (let i = 0; i < buf.length; i++) {
+    trits[i] = buf[i] - 1;
+  }
+  return trits;
+}
+
+export function nativeSpongeDuplexEncrypt(
+  domainInput: Buffer,
+  keystreamTritCount: number,
+  ciphertext: Buffer,
+  macTritCount: number,
+): { keystream: Int8Array; mac: Int8Array } {
+  if (!useNative) throw new Error('Native sponge not available');
+  const buf: Buffer = native.spongeDuplexEncrypt(
+    domainInput, keystreamTritCount, ciphertext, macTritCount
+  );
+  const ksLen = buf.readUInt32LE(0);
+  const keystream = new Int8Array(ksLen);
+  for (let i = 0; i < ksLen; i++) keystream[i] = buf[4 + i] - 1;
+  const mac = new Int8Array(macTritCount);
+  for (let i = 0; i < macTritCount; i++) mac[i] = buf[4 + ksLen + i] - 1;
+  return { keystream, mac };
+}
+
+export function nativeSpongeKeystreamV1(domainInput: Buffer, tritCount: number): Int8Array {
+  if (!useNative) throw new Error('Native sponge not available');
+  const buf: Buffer = native.spongeKeystreamV1(domainInput, tritCount);
+  const trits = new Int8Array(buf.length);
+  for (let i = 0; i < buf.length; i++) trits[i] = buf[i] - 1;
+  return trits;
+}
+```
+
+---
+
+## Step 5: Wire into sponge-hash.ts
+
+At the top of `server/crypto/sponge-hash.ts`, add:
+
+```typescript
+import { isNativeAvailable, nativeSpongeHash, nativeSpongeHashV1,
+         nativeSpongeKeystream, nativeSpongeKeystreamV1,
+         nativeSpongeDuplexEncrypt } from './sponge-native-bridge';
+```
+
+Replace the exported functions with native-first dispatch:
+
+```typescript
+export function spongeHash(input: Buffer | Uint8Array): string {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  if (isNativeAvailable()) return nativeSpongeHash(buf);
+  // Existing TypeScript implementation as fallback
+  const inputTrits = bytesToBalancedTrits(buf);
+  const outputTrits = spongeAbsorbAndSqueeze(inputTrits, 243);
+  const bytes = tritsToBytes(outputTrits, 49);
+  return bytes.toString('hex');
+}
+
+export function spongeHashV1(input: Buffer | Uint8Array): string {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  if (isNativeAvailable()) return nativeSpongeHashV1(buf);
+  // Existing TypeScript v1 implementation as fallback
+  const inputTrits = bytesToBalancedTrits(buf);
+  const outputTrits = spongeAbsorbAndSqueezeV1(inputTrits, 243);
+  const bytes = tritsToBytes(outputTrits, 49);
+  return bytes.toString('hex');
+}
+
+export function spongeKeystream(
+  domainInput: Buffer | Uint8Array, outputTritCount: number
+): Int8Array {
+  const buf = Buffer.isBuffer(domainInput) ? domainInput : Buffer.from(domainInput);
+  if (isNativeAvailable()) return nativeSpongeKeystream(buf, outputTritCount);
+  // Existing TypeScript implementation as fallback
+  const inputTrits = bytesToBalancedTrits(buf);
+  return spongeAbsorbAndSqueeze(inputTrits, outputTritCount);
+}
+```
+
+Same pattern for `spongeKeystreamV1`, `SpongeDuplex` methods.
+
+---
+
+## Step 6: Cross-validate
+
+CRITICAL: The native addon and the TypeScript implementation MUST produce
+identical outputs for the same inputs. Run both paths on the same test
+vectors and compare byte-for-byte.
+
+```typescript
+// Test script:
+const input = Buffer.from('PlenumNET');
+const tsHash = tsSpongeHash(input);      // TypeScript path
+const nativeHash = nativeSpongeHash(input);  // Rust N-API path
+assert(tsHash === nativeHash, `Hash mismatch: TS=${tsHash} Native=${nativeHash}`);
+
+// Same for v1:
+const tsHashV1 = tsSpongeHashV1(input);
+const nativeHashV1 = nativeSpongeHashV1(input);
+assert(tsHashV1 === nativeHashV1, `V1 hash mismatch`);
+
+// Same for keystream (verify first 1000 trits match):
+const domain = Buffer.from('test-domain-input');
+const tsKs = tsSpongeKeystream(domain, 1000);
+const nativeKs = nativeSpongeKeystream(domain, 1000);
+for (let i = 0; i < 1000; i++) {
+  assert(tsKs[i] === nativeKs[i], `Keystream mismatch at trit ${i}`);
+}
+```
+
+If ANY mismatch exists, the native build is wrong. Do not ship it. Debug
+until outputs match exactly.
+
+---
+
+## Step 7: Benchmark
+
+```
+GET /api/salvi/crypto/phase-benchmark?iterations=50
+```
+
+Report the full table: 4 sizes × 4 modes. Compare against the current
+36 KB/s baseline.
+
+Target: **50+ MB/s** at 4 KB balanced mode. This is the compiled Rust
+sponge with AVX2 chi and theta, called via zero-copy N-API bridge.
+
+---
+
+## Files Created/Modified
+
+NEW:
+- `ternary-math/napi/Cargo.toml`
+- `ternary-math/napi/src/lib.rs`
+- `ternary-math/napi/build.rs`
+- `server/crypto/sponge-native-bridge.ts`
+- `server/crypto/sponge-native.node` (compiled binary)
+
+MODIFIED:
+- `ternary-math/src/sponge.rs` — add `new_v1()`, `hash_v1()` if missing
+- `server/crypto/sponge-hash.ts` — add native dispatch at top of exports
+
+NOT MODIFIED:
+- `server/salvi-core/phase-encryption.ts` — no changes needed, it calls
+  sponge-hash.ts which now dispatches to native automatically
+- `src/kernel/src/crypto/sponge.rs` — kernel sponge unchanged
+
+---
+
+## Do NOT
+
+- Do NOT use WASM. It failed. This is N-API (native shared library).
+- Do NOT remove the TypeScript sponge. It stays as fallback.
+- Do NOT change any API contracts, sponge versioning, or backward compatibility.
+- Do NOT change the phase encryption code. The speedup comes from sponge-hash.ts dispatching to native.
+- Do NOT ship if cross-validation fails. Outputs must match exactly.
+
+---
+
+## After This Task
+
+Once N-API is working and benchmarked, the next steps toward GB/s are:
+
+1. Parallel tree sponge: N independent sponge instances across CPU cores,
+   each squeezing a segment of keystream. 8 cores × 100 MB/s = 800 MB/s.
+
+2. AVX-512 4-way batched permutation: 4 independent sponge states processed
+   in a single AVX-512 pass. 4× per core.
+
+3. Combined: 4-way SIMD × 8 cores × 100 MB/s base = 3.2–7 GB/s.
+
+But step 1 (this task) is the foundation. Everything else builds on having
+the Rust sponge callable from Node.js.
