@@ -380,7 +380,60 @@ export const TRIBONACCI_RADIUS_MATCH = TRIBONACCI_SEQUENCE[7]; // 13
 export const PLENUM_NATURAL_YEAR_DAYS = COSMIC_CIRCUMFERENCE; // 364
 
 // ============================================================================
-// §12  CONVENIENCE: FULL VALIDATION SUITE
+// §12  UNIFIED EQUATION: arc² − 832·arc + 118300 = 0
+// ============================================================================
+
+export const UNIFIED_EQUATION = {
+  B: 832,
+  C: 118300,
+  ARC_DISCRIMINANT: 832 * 832 - 4 * 118300, // = 219024 = 468²
+  ARC_SQRT_DISCRIMINANT: 468,
+  ARC: 182,
+  SECONDARY_DISCRIMINANT: 1 + 4 * 182, // = 729 = 3⁶
+} as const;
+
+export function validateUnifiedEquation(): string[] {
+  const errors: string[] = [];
+  const U = UNIFIED_EQUATION;
+
+  const arcResult = U.ARC * U.ARC - U.B * U.ARC + U.C;
+  if (arcResult !== 0) {
+    errors.push(`arc²−832·arc+118300 = ${arcResult}, expected 0`);
+  }
+
+  if (U.ARC_DISCRIMINANT !== U.ARC_SQRT_DISCRIMINANT * U.ARC_SQRT_DISCRIMINANT) {
+    errors.push(`ARC_DISCRIMINANT=${U.ARC_DISCRIMINANT} ≠ ${U.ARC_SQRT_DISCRIMINANT}²`);
+  }
+
+  const centerFromArc = (U.ARC + 40) / 2;
+  if (centerFromArc !== TERNARY_BALANCE_CENTER) {
+    errors.push(`c=(arc+R₄)/2=${centerFromArc}, expected ${TERNARY_BALANCE_CENTER}`);
+  }
+
+  if (U.SECONDARY_DISCRIMINANT !== 729) {
+    errors.push(`Δ₂=1+4·arc=${U.SECONDARY_DISCRIMINANT}, expected 729=3⁶`);
+  }
+
+  const piFromSecondary = (1 + Math.round(Math.sqrt(U.SECONDARY_DISCRIMINANT))) / 2;
+  if (piFromSecondary !== PI_ESOTERIC) {
+    errors.push(`π=(1+√729)/2=${piFromSecondary}, expected ${PI_ESOTERIC}`);
+  }
+
+  const coeff832 = 40 * 39 - 2 * COSMIC_CIRCUMFERENCE;
+  if (coeff832 !== U.B) {
+    errors.push(`R₄(R₄−1)−2R₆=${coeff832}, expected ${U.B}`);
+  }
+
+  const coeff118300 = COSMIC_CIRCUMFERENCE * RADIUS_COSMIC * (PI_ESOTERIC - 9) * (PI_ESOTERIC - 9);
+  if (coeff118300 !== U.C) {
+    errors.push(`R₆·R₃·(π−9)²=${coeff118300}, expected ${U.C}`);
+  }
+
+  return errors;
+}
+
+// ============================================================================
+// §13  CONVENIENCE: FULL VALIDATION SUITE
 // ============================================================================
 
 export function validateAll(): string[] {
@@ -396,5 +449,7 @@ export function validateAll(): string[] {
     ? []
     : ['[Harmony] RADIUS_COSMIC ≠ T₇ — Tribonacci–Plenum Square harmony broken'];
 
-  return [...familyErrors, ...ladderErrors, ...productErrors, ...harmonyErrors];
+  const unifiedErrors = validateUnifiedEquation().map((e) => `[Unified] ${e}`);
+
+  return [...familyErrors, ...ladderErrors, ...productErrors, ...harmonyErrors, ...unifiedErrors];
 }

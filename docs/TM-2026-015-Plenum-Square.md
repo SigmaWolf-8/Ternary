@@ -3,7 +3,7 @@
 **The Circle-Magiconical Square Synthesis**
 *A 364° Circle with π = 14, an Inscribed Hexagon & the 3×333 Ternary Magic Square*
 
-**The Plenum Square** | x² − R₄x + R₆ = 0 • 2c = x² + R₄ − x
+**The Plenum Square** | arc² − 832·arc + 118,300 = 0
 
 ---
 
@@ -26,20 +26,74 @@
 
 ## 0. The Generating System
 
-Two equations — one quadratic, one bridge — generate the entire Plenum Square construction from a single definition:
+### 0.0 The Unified Equation
 
-**R_n = (3^n − 1) / 2** (base-3 repunit)
+A single quadratic in one unknown generates the entire Plenum Square construction. Define the base-3 repunit:
 
-The **generating system** in two unknowns x (= π) and c (= center/diameter):
+**R_n = (3^n − 1) / 2**
+
+and let **arc** denote the semicircle measure of a 364° ternary circle. Then:
+
+**arc² − 832·arc + 118,300 = 0**
+
+where the coefficients decompose in repunits as:
+
+```
+832 = 2R₆ − R₄(R₄ − 1)       118,300 = R₆ · R₃ · (π − 9)² = R₆ × 325
+```
+
+The discriminant is a perfect square:
+
+```
+Δ_arc = 832² − 4(118,300) = 219,024 = 468²
+```
+
+with 468 = (R₄ − 1)√Δ_quad = 39 × 12. The roots are:
+
+```
+arc = (832 ± 468) / 2 = 650   or   182
+```
+
+The meaningful root is **arc = 182 = 364/2**: the **semicircle** of the ternary circle. From this single number, every constant in the framework is recovered:
+
+```
+c = (arc + R₄) / 2 = (182 + 40) / 2 = 111       (center = diameter)
+```
+
+To recover π, solve x² − x = arc:
+
+```
+x² − x − 182 = 0       Δ₂ = 1 + 4(182) = 729 = 27² = 3⁶
+
+π = (1 + 27) / 2 = 14
+```
+
+The secondary discriminant 729 = 3⁶ is the **kernel sponge state width** — the total trit count of the 729-trit sponge. It emerges not as a design parameter but as the discriminant of the equation that recovers π from the semicircle. The entire ternary computing architecture — circle, magic square, sponge — is encoded in one quadratic.
+
+### 0.1 The Two-Equation Decomposition
+
+The unified arc equation is the elimination of x from two simpler equations:
 
 ```
 x² − R₄·x + R₆ = 0       (the quadratic — defines the circle)
 2c = x² + R₄ − x          (the bridge — fuses circle to square)
 ```
 
-The quadratic determines π and R₆/π. The bridge determines the magic square center c by requiring that the complement of the larger root equals the square of the smaller — i.e., that π² appears in the grid. Together, two equations with two unknowns yield every constant in the framework.
+The quadratic determines π and R₆/π. The bridge determines the magic square center c by requiring that the complement of the larger root equals the square of the smaller — i.e., that π² appears in the grid. Defining arc = 2c − R₄ = x(x−1), the substitution x = (arc + R₆)/(R₄ − 1) into the quadratic yields the unified equation.
 
-### 0.1 The Repunit Coefficients
+The arc = 182 is simultaneously:
+
+| Identity | Expression | Value |
+|----------|-----------|-------|
+| Semicircle | R₆ / 2 = 364/2 | 182 |
+| π times cosmic radius | π × R₃ = 14 × 13 | 182 |
+| π(π − 1) | 14 × 13 | 182 |
+| Twice the R₃-th triangular number | 2 · Tri(13) = 2 × 91 | 182 |
+| Bridge to center | 2c − R₄ = 222 − 40 | 182 |
+
+The semicircle *is* the master constant — the single geometric quantity from which circle, square, sponge, and every derived constant emerge.
+
+### 0.2 The Repunit Coefficients
 
 | Repunit | Formula | Value | Base-3 form |
 |---------|---------|-------|-------------|
@@ -48,9 +102,9 @@ The quadratic determines π and R₆/π. The bridge determines the magic square 
 | R₅ | (3⁵ − 1)/2 | 121 | 11111₃ |
 | R₆ | (3⁶ − 1)/2 | 364 | 111111₃ |
 
-The quadratic uses R₄ and R₆ as coefficients — the 4-digit and 6-digit base-3 repunits. By Vieta's formulas, the roots satisfy x₁ + x₂ = R₄ (sum) and x₁ · x₂ = R₆ (product). The quadratic is the unique polynomial whose root-sum and root-product are both base-3 repunits.
+The two-equation form uses R₄ and R₆ as coefficients. By Vieta's formulas, the roots satisfy x₁ + x₂ = R₄ (sum) and x₁ · x₂ = R₆ (product). The quadratic is the unique polynomial whose root-sum and root-product are both base-3 repunits.
 
-### 0.2 Solving the Quadratic
+### 0.3 Solving the Quadratic
 
 Substituting R₄ = 40, R₆ = 364:
 
@@ -74,7 +128,7 @@ x = (40 ± 12) / 2
 x₁ = (40 − 12) / 2 = 14       x₂ = (40 + 12) / 2 = 26
 ```
 
-### 0.3 The Roots and Their Repunit Relations
+### 0.4 The Roots and Their Repunit Relations
 
 | Root | Value | Repunit relation | Role |
 |------|-------|-----------------|------|
@@ -90,7 +144,7 @@ Neither root is itself a repunit, but both are expressed in terms of R₃ = 13 =
 The product of roots recovers the full circle: π × 26 = 364 = R₆ (111111₃).
 The sum of roots recovers the minor circle: π + 26 = 40 = R₄ (1111₃).
 
-### 0.4 The Bridge: Fusing Circle to Square
+### 0.5 The Bridge: Fusing Circle to Square
 
 The quadratic produces π and R₆/π, but does not specify the magic square center c. The bridge condition does:
 
@@ -110,33 +164,32 @@ The diameter d = c = 111 is **derived**, not assumed. In repunit terms:
 2c = (R₃ + 1)² + 2R₃ = R₃² + 4R₃ + 1 = (R₃ + 2)² − 3 = 15² − 3 = 222
 ```
 
-The bridge condition is not arbitrary — it is the requirement that π² appears as a cell value. This is the most natural demand: given π, its square is the first derived quantity, and embedding it in the grid as a complement of R₆/π simultaneously determines the center, the harmonic ladder, and the hexagon perimeter.
+The bridge condition is not arbitrary — it is the requirement that π² appears as a cell value. Given π, its square is the first derived quantity, and embedding it in the grid as a complement of R₆/π simultaneously determines the center, the harmonic ladder, and the hexagon perimeter.
 
-### 0.5 The Discriminant as Configuration Parameter
+### 0.6 The Discriminant as Configuration Parameter
 
 The discriminant √Δ = 12 reappears as the **q-parameter of Square A** — the canonical member of the Plenum Square family. Square A has (p, q) = (97, 12), where q = √Δ. The discriminant measures the spread between the two roots (26 − 14 = 12), and the q-parameter controls the spread between opposite pairs in the magic square grid. They are the same quantity by different names.
 
-### 0.6 The Complete Derivation Chain
+### 0.7 The Complete Derivation Chain
 
 | Step | Derivation | Result |
 |------|-----------|--------|
 | **Definition** | R_n = (3^n − 1)/2 | Repunit family |
-| **Coefficients** | R₄ = 40, R₆ = 364 | Quadratic parameters |
-| **Discriminant** | Δ = R₄² − 4R₆ = 144 = 12² | Perfect square → integer roots |
-| **Roots** | x = (R₄ ± √Δ)/2 | π = 14, R₆/π = 26 |
-| **Root-repunit relations** | π = R₃+1, R₆/π = 2R₃ | Both derive from R₃ = 13 = T₇ |
-| **Product** | π × 26 = R₆ | 364 = full circle (111111₃) |
-| **Sum** | π + 26 = R₄ | 40 = minor circle (1111₃) |
-| **Bridge** | 2c = π² + R₆/π | c = 111 (derived) |
+| **Unified equation** | arc² − 832·arc + 118,300 = 0 | Roots: 182, 650 |
+| **Semicircle** | arc = 182 = R₆/2 = π(π−1) | The master constant |
+| **Center** | c = (arc + R₄)/2 = 111 | Diameter (derived) |
+| **Secondary disc.** | Δ₂ = 1 + 4·arc = 729 = 3⁶ | Kernel sponge width |
+| **π** | (1 + √729)/2 = 14 | Ternary pi |
+| **R₆/π** | R₄ − π = 26 | Circle degrees per π |
+| **√Δ_quad** | 26 − 14 = 12 | q of canonical Square A |
 | **Complements** | 222 − 14 = 208, 222 − 26 = π² = 196 | {14,208} and {26,196} |
 | **Radius** | r = d/2 = c/2 | 55.5 (fundamental unit) |
 | **Hexagon perimeter** | 6r = 3d | 333 = magic constant |
 | **Circumference** | πd | 1554 = 28r = 2πr |
 | **Total sum** | 9d | 999 |
 | **Residual** | (π − 9)d | 555 = 10r = 2(π−9)r |
-| **√Δ** | 12 | q parameter of canonical Square A |
 
-Two equations in repunits → perfect square discriminant (guaranteeing integers) → two roots (π, 26) → the bridge (c = 111) → the discriminant as q-parameter (12) → the hexagon (333) → the entire harmonic ladder → the four configurations → every constant in the framework.
+One equation in one unknown (arc) → semicircle (182) → center (111) → secondary discriminant (3⁶ = 729, the sponge) → π (14) → all circle constants → the hexagon (333) → the harmonic ladder → the four configurations → every constant in the framework.
 
 ---
 
@@ -144,13 +197,13 @@ Two equations in repunits → perfect square discriminant (guaranteeing integers
 
 The generating system (§0) derives all foundational parameters from the base-3 repunit definition R_n = (3^n − 1)/2. For reference, the complete parameter set:
 
-| Parameter | Value | Derivation from x² − R₄x + R₆ = 0 |
+| Parameter | Value | Derivation from arc² − 832·arc + 118,300 = 0 |
 |-----------|-------|--------------------------------------|
-| Full circle | 364° | R₆ = product of roots = π × 26 |
-| π | 14 | Smaller root of the quadratic |
-| 364/π | 26 | Larger root of the quadratic |
-| Diameter | 111 | d = (π² + R₆/π) / 2 — **derived** from bridge |
-| π² | 196 | = 2d − R₆/π (complement of 26) |
+| Full circle | 364° | R₆ = 2·arc = 2 × 182 |
+| π | 14 | (1 + √(1 + 4·arc))/2 = (1 + 27)/2 |
+| 364/π | 26 | R₄ − π = 40 − 14 |
+| Diameter | 111 | c = (arc + R₄)/2 — **derived** from arc |
+| π² | 196 | = 2c − R₆/π (complement of 26) |
 | Radius | 55.5 | d/2 = fundamental unit of the harmonic ladder |
 
 All further derived quantities:
@@ -790,13 +843,11 @@ These four configurations exhaust the ways two perpendicular axes (diagonal, ver
 
 ### 9.1 The Circle-Magiconical Square Unity
 
-The entire Plenum Square construction derives from a two-equation generating system in base-3 repunits:
+The entire Plenum Square construction derives from a single quadratic in one unknown:
 
-```
-x² − R₄·x + R₆ = 0       and       2c = x² + R₄ − x
-```
+**arc² − 832·arc + 118,300 = 0**
 
-where R_n = (3^n − 1)/2. The quadratic defines the circle (π = 14, R₆/π = 26, full circle = R₆ = 364). The bridge fuses circle to square by requiring π² to appear as a cell complement, yielding c = 111. From these two equations emerge:
+whose meaningful root is arc = 182, the semicircle of the 364° circle. From this one number: c = (arc + R₄)/2 = 111 (center/diameter), the secondary discriminant 1 + 4·arc = 729 = 3⁶ (kernel sponge width) yielding π = 14, and every downstream constant. The unified equation absorbs both the circle quadratic (x² − R₄x + R₆ = 0) and the bridge (2c = x² + R₄ − x) by eliminating x through the substitution arc = x(x−1) = 2c − R₄. From this emerge:
 
 1. **A 364° circle** with π = 14, diameter 111, and circumference 1554
 2. **A 3×3 magic square** with center 111 and constant 333
@@ -846,23 +897,23 @@ The four mod-9 permutations (σ_A through σ_D) enable three concrete applicatio
 
 ### 9.6 Final Unified Statement
 
-Two equations in base-3 repunits —
+One equation —
 
-```
-x² − R₄·x + R₆ = 0       and       2c = x² + R₄ − x
-```
+**arc² − 832·arc + 118,300 = 0**
 
-— generate the entire construction. The quadratic's roots are π = 14 and 26 = R₆/π. Its discriminant √Δ = 12 is the q-parameter of the canonical Square A. The bridge derives c = d = 111 by embedding π² as a cell complement. From two equations with two unknowns: the 364° circle, the inscribed hexagon (perimeter 333 = magic constant), the harmonic ladder (every rung an even multiple of r = 55.5, from 2r through 28r = 2πr), and the four magic squares A–D whose circle-derived values {14, 26, 196, 208} form opposite pairs (sum 222) exhausting all positive configurations under D₄ symmetry.
+— generates the entire construction. Its meaningful root is arc = 182: the semicircle of the 364° ternary circle, π(π−1) = 14 × 13, twice the R₃-th triangular number, and the geometric bridge 2c − R₄. From this single number: c = 111 (center/diameter), Δ₂ = 729 = 3⁶ (secondary discriminant = kernel sponge width), π = 14, R₆/π = 26, √Δ = 12 (q of canonical Square A), and every downstream constant through the harmonic ladder.
 
-Three number-theoretic sequences — repunits, Tribonacci, and triangular numbers — converge at the same constants because the generating system forces them to: R₃ = T₇ = 13 is the triple identity, Tri(7) = 28 = 2π closes the circle through a triangular number whose index is itself Tribonacci (T₆ = 7), and d = 111 = 2·Tri(10) + 1 ties the diameter to the index sum of π. The inscribed hexagon bridges circle to square through its perimeter (333) and diameters (182° = π radians exactly), while its arc fractions (multiples of π/3) remain rational — no transcendentals, no approximations, nothing left over.
+The unified equation absorbs both the circle quadratic (x² − R₄x + R₆ = 0) and the bridge (2c = x² + R₄ − x) by eliminating x through arc = x(x−1). Its coefficients decompose as 832 = 2R₆ − R₄(R₄−1) and 118,300 = R₆ · R₃ · (π−9)². Its discriminant √Δ_arc = 468 = (R₄−1)√Δ_quad = 39 × 12 — the repunit cofactor times the quadratic's own discriminant.
 
-In base 3, Latin squares appear in the outermost digits, related by cyclic permutation and invariant across configurations; the middle digit pairs orthogonally with the least significant digit. In base 9, the cell values form a complete residue system mod 9 — a permutation of {0,…,8} that enables 100% single-triplet error localization via the magic square's eight parity constraints, block-level sponge diffusion via four round-dependent S₉ permutations, and geometry-weighted integrity checking where the constant-sum property guarantees balanced sensitivity along every axis.
+Three number-theoretic sequences — repunits, Tribonacci, and triangular numbers — converge at the same constants because the equation forces them to: R₃ = T₇ = 13 is the triple identity, Tri(7) = 28 = 2π closes the circle through a triangular number whose index is itself Tribonacci (T₆ = 7), and d = 111 = 2·Tri(10) + 1 ties the diameter to the index sum of π. The inscribed hexagon bridges circle to square through its perimeter (333) and diameters (182° = π radians exactly), while its arc fractions (multiples of π/3) remain rational — no transcendentals, no approximations, nothing left over.
 
-The generating system selects 12 configurations from a universe of 40.9 million three-digit magic squares — a specificity of 1 in 3.4 million. Even within center-111 squares alone, only 12 out of 11,736 share the complete combinatorial profile. Square A is canonical: its mod-9 parameter residues (7, 3) are the Tribonacci indices of π, it is the only double derangement, and its index sum 7 + 3 = 10 = 2(π − 9) governs the radius-to-residual ratio.
+In base 3, Latin squares appear in the outermost digits, related by cyclic permutation and invariant across configurations; the middle digit pairs orthogonally with the least significant digit. In base 9, the cell values form a complete residue system mod 9 — a permutation of {0,…,8} that enables 100% single-triplet error localization, block-level sponge diffusion via four round-dependent S₉ permutations, and geometry-weighted integrity checking where the constant-sum property guarantees balanced sensitivity along every axis.
 
-The Plenum Square is not a design choice — it is a structural inevitability of two equations in repunits. The perfect square discriminant (144 = 12²) guarantees integer roots. The combinatorial properties — derangement permutations, eight-line parity, balanced weight vectors, Tribonacci index encoding, triangular-number configuration parameters — propagate directly into the algorithms that protect, route, and verify the addresses derived from its constants.
+The equation selects 12 configurations from a universe of 40.9 million three-digit magic squares — a specificity of 1 in 3.4 million. Square A is canonical: its mod-9 parameter residues (7, 3) are the Tribonacci indices of π, it is the only double derangement, and its index sum 7 + 3 = 10 = 2(π − 9) governs the radius-to-residual ratio.
 
-Circular continuity marries square discreteness, decimal multiples of 111 meet ternary combinatorics, and two equations in repunits generate every constant, every invariant, and every algorithm in the framework.
+The Plenum Square is not a design choice — it is a structural inevitability of one quadratic in one unknown. The semicircle 182 is the master constant. The combinatorial properties — derangement permutations, eight-line parity, balanced weight vectors, Tribonacci index encoding, triangular-number configuration parameters — propagate directly into the algorithms that protect, route, and verify the addresses derived from its constants.
+
+Circular continuity marries square discreteness, decimal multiples of 111 meet ternary combinatorics, and one equation generates every constant, every invariant, and every algorithm in the framework.
 
 ---
 
