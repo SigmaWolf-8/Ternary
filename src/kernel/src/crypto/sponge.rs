@@ -98,17 +98,17 @@ fn sbox(a: i8, b: i8, c: i8) -> i8 {
 // ---------------------------------------------------------------------------
 
 #[inline(always)]
-fn gf3_mul(a: u8, b: u8) -> u8 {
+const fn gf3_mul(a: u8, b: u8) -> u8 {
     (a * b) % 3
 }
 
 #[inline(always)]
-fn gf3_add(a: u8, b: u8) -> u8 {
+const fn gf3_add(a: u8, b: u8) -> u8 {
     (a + b) % 3
 }
 
 #[inline(always)]
-fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
+const fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
     let c0 = gf3_mul(a[0], b[0]);
     let c1 = gf3_add(gf3_mul(a[0], b[1]), gf3_mul(a[1], b[0]));
     let c2 = gf3_add(gf3_add(gf3_mul(a[0], b[2]), gf3_mul(a[1], b[1])), gf3_mul(a[2], b[0]));
@@ -123,7 +123,7 @@ fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
 }
 
 #[inline(always)]
-fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
+const fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
     let x2 = gf27_mul(x, x);
     let x4 = gf27_mul(x2, x2);
     let x8 = gf27_mul(x4, x4);
@@ -131,118 +131,115 @@ fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
     gf27_mul(x16, x)
 }
 
-fn chi_layer(state: &mut [i8; SPONGE_STATE_SIZE]) {
-    for b in 0..CHI_BLOCKS {
-        let base = b * 3;
-        let g0 = (state[base] + 1) as u8;
-        let g1 = (state[base + 1] + 1) as u8;
-        let g2 = (state[base + 2] + 1) as u8;
-
-        if g0 == 0 && g1 == 0 && g2 == 0 { continue; }
-
+static CHI_MAP: [[i8; 3]; 27] = {
+    let mut map = [[0i8; 3]; 27];
+    let mut idx = 0usize;
+    while idx < 27 {
+        let g0 = (idx % 3) as u8;
+        let g1 = ((idx / 3) % 3) as u8;
+        let g2 = (idx / 9) as u8;
         let [r0, r1, r2] = gf27_pow17([g0, g1, g2]);
-        state[base] = r0 as i8 - 1;
-        state[base + 1] = r1 as i8 - 1;
-        state[base + 2] = r2 as i8 - 1;
+        map[idx] = [r0 as i8 - 1, r1 as i8 - 1, r2 as i8 - 1];
+        idx += 1;
+    }
+    map
+};
+
+fn chi_layer(state: &mut [i8; SPONGE_STATE_SIZE]) {
+    let mut block = 0;
+    while block < SPONGE_STATE_SIZE {
+        let idx = (state[block] + 1) as usize
+            + (state[block + 1] + 1) as usize * 3
+            + (state[block + 2] + 1) as usize * 9;
+        let r = CHI_MAP[idx];
+        state[block]     = r[0];
+        state[block + 1] = r[1];
+        state[block + 2] = r[2];
+        block += 3;
     }
 }
+
+static CHI_MAP_T0: [i8; 32] = {
+    let mut t = [0i8; 32];
+    let mut i = 0usize;
+    while i < 27 { t[i] = CHI_MAP[i][0]; i += 1; }
+    t
+};
+static CHI_MAP_T1: [i8; 32] = {
+    let mut t = [0i8; 32];
+    let mut i = 0usize;
+    while i < 27 { t[i] = CHI_MAP[i][1]; i += 1; }
+    t
+};
+static CHI_MAP_T2: [i8; 32] = {
+    let mut t = [0i8; 32];
+    let mut i = 0usize;
+    while i < 27 { t[i] = CHI_MAP[i][2]; i += 1; }
+    t
+};
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
 
-    let mut a0 = [0u8; CHI_BLOCKS];
-    let mut a1 = [0u8; CHI_BLOCKS];
-    let mut a2 = [0u8; CHI_BLOCKS];
+    let v_one   = _mm256_set1_epi8(1);
+    let v_three = _mm256_set1_epi8(3);
+    let v_nine  = _mm256_set1_epi8(9);
 
+    let tbl0_lo = _mm_loadu_si128(CHI_MAP_T0.as_ptr() as *const __m128i);
+    let tbl0_hi = _mm_loadu_si128(CHI_MAP_T0.as_ptr().add(16) as *const __m128i);
+    let map_t0  = _mm256_set_m128i(tbl0_hi, tbl0_lo);
+
+    let tbl1_lo = _mm_loadu_si128(CHI_MAP_T1.as_ptr() as *const __m128i);
+    let tbl1_hi = _mm_loadu_si128(CHI_MAP_T1.as_ptr().add(16) as *const __m128i);
+    let map_t1  = _mm256_set_m128i(tbl1_hi, tbl1_lo);
+
+    let tbl2_lo = _mm_loadu_si128(CHI_MAP_T2.as_ptr() as *const __m128i);
+    let tbl2_hi = _mm_loadu_si128(CHI_MAP_T2.as_ptr().add(16) as *const __m128i);
+    let map_t2  = _mm256_set_m128i(tbl2_hi, tbl2_lo);
+
+    let mut indices = [0u8; CHI_BLOCKS];
     for b in 0..CHI_BLOCKS {
         let base = b * 3;
-        a0[b] = (state[base] + 1) as u8;
-        a1[b] = (state[base + 1] + 1) as u8;
-        a2[b] = (state[base + 2] + 1) as u8;
-    }
-
-    let mul_tbl = _mm256_setr_epi8(
-        0, 0, 0, 0, 1, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 1, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0,
-    );
-    let add_tbl = _mm256_setr_epi8(
-        0, 1, 2, 1, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-        0, 1, 2, 1, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-    );
-    let v_three = _mm256_set1_epi8(3);
-
-    #[inline(always)]
-    unsafe fn gf3_mul_vec(a: __m256i, b: __m256i, mul_tbl: __m256i, _v_three: __m256i) -> __m256i {
-        let idx = _mm256_add_epi8(
-            _mm256_add_epi8(_mm256_add_epi8(a, a), a),
-            b,
-        );
-        _mm256_shuffle_epi8(mul_tbl, idx)
-    }
-
-    #[inline(always)]
-    unsafe fn gf3_add_vec(a: __m256i, b: __m256i, add_tbl: __m256i) -> __m256i {
-        let idx = _mm256_add_epi8(
-            _mm256_add_epi8(_mm256_add_epi8(a, a), a),
-            b,
-        );
-        _mm256_shuffle_epi8(add_tbl, idx)
-    }
-
-    #[inline(always)]
-    unsafe fn gf27_mul_vec(
-        a0: __m256i, a1: __m256i, a2: __m256i,
-        b0: __m256i, b1: __m256i, b2: __m256i,
-        mul_tbl: __m256i, add_tbl: __m256i, v_three: __m256i,
-    ) -> (__m256i, __m256i, __m256i) {
-        let c0 = gf3_mul_vec(a0, b0, mul_tbl, v_three);
-        let c1 = gf3_add_vec(gf3_mul_vec(a0, b1, mul_tbl, v_three), gf3_mul_vec(a1, b0, mul_tbl, v_three), add_tbl);
-        let c2 = gf3_add_vec(gf3_add_vec(gf3_mul_vec(a0, b2, mul_tbl, v_three), gf3_mul_vec(a1, b1, mul_tbl, v_three), add_tbl), gf3_mul_vec(a2, b0, mul_tbl, v_three), add_tbl);
-        let c3 = gf3_add_vec(gf3_mul_vec(a1, b2, mul_tbl, v_three), gf3_mul_vec(a2, b1, mul_tbl, v_three), add_tbl);
-        let c4 = gf3_mul_vec(a2, b2, mul_tbl, v_three);
-        let v_two = _mm256_set1_epi8(2);
-        let r0 = gf3_add_vec(c0, gf3_mul_vec(v_two, c3, mul_tbl, v_three), add_tbl);
-        let r1 = gf3_add_vec(gf3_add_vec(c1, c3, add_tbl), gf3_mul_vec(v_two, c4, mul_tbl, v_three), add_tbl);
-        let r2 = gf3_add_vec(c2, c4, add_tbl);
-        (r0, r1, r2)
+        indices[b] = ((state[base] + 1) as u8)
+            + ((state[base + 1] + 1) as u8) * 3
+            + ((state[base + 2] + 1) as u8) * 9;
     }
 
     let mut i = 0;
     while i + 32 <= CHI_BLOCKS {
-        let va0 = _mm256_loadu_si256(a0.as_ptr().add(i) as *const __m256i);
-        let va1 = _mm256_loadu_si256(a1.as_ptr().add(i) as *const __m256i);
-        let va2 = _mm256_loadu_si256(a2.as_ptr().add(i) as *const __m256i);
+        let idx_vec = _mm256_loadu_si256(indices.as_ptr().add(i) as *const __m256i);
 
-        let (s0, s1, s2) = gf27_mul_vec(va0, va1, va2, va0, va1, va2, mul_tbl, add_tbl, v_three);
-        let (q0, q1, q2) = gf27_mul_vec(s0, s1, s2, s0, s1, s2, mul_tbl, add_tbl, v_three);
-        let (e0, e1, e2) = gf27_mul_vec(q0, q1, q2, q0, q1, q2, mul_tbl, add_tbl, v_three);
-        let (x0, x1, x2) = gf27_mul_vec(e0, e1, e2, e0, e1, e2, mul_tbl, add_tbl, v_three);
-        let (r0, r1, r2) = gf27_mul_vec(x0, x1, x2, va0, va1, va2, mul_tbl, add_tbl, v_three);
+        let r0 = _mm256_shuffle_epi8(map_t0, idx_vec);
+        let r1 = _mm256_shuffle_epi8(map_t1, idx_vec);
+        let r2 = _mm256_shuffle_epi8(map_t2, idx_vec);
 
-        _mm256_storeu_si256(a0.as_mut_ptr().add(i) as *mut __m256i, r0);
-        _mm256_storeu_si256(a1.as_mut_ptr().add(i) as *mut __m256i, r1);
-        _mm256_storeu_si256(a2.as_mut_ptr().add(i) as *mut __m256i, r2);
+        let mut out0 = [0i8; 32];
+        let mut out1 = [0i8; 32];
+        let mut out2 = [0i8; 32];
+        _mm256_storeu_si256(out0.as_mut_ptr() as *mut __m256i, r0);
+        _mm256_storeu_si256(out1.as_mut_ptr() as *mut __m256i, r1);
+        _mm256_storeu_si256(out2.as_mut_ptr() as *mut __m256i, r2);
+
+        for j in 0..32 {
+            let base = (i + j) * 3;
+            state[base]     = out0[j];
+            state[base + 1] = out1[j];
+            state[base + 2] = out2[j];
+        }
+
         i += 32;
     }
 
     while i < CHI_BLOCKS {
-        let x = [a0[i], a1[i], a2[i]];
-        if !(x[0] == 0 && x[1] == 0 && x[2] == 0) {
-            let [r0, r1, r2] = gf27_pow17(x);
-            a0[i] = r0;
-            a1[i] = r1;
-            a2[i] = r2;
-        }
+        let base = i * 3;
+        let idx = indices[i] as usize;
+        let r = CHI_MAP[idx];
+        state[base]     = r[0];
+        state[base + 1] = r[1];
+        state[base + 2] = r[2];
         i += 1;
-    }
-
-    for b in 0..CHI_BLOCKS {
-        let base = b * 3;
-        state[base] = a0[b] as i8 - 1;
-        state[base + 1] = a1[b] as i8 - 1;
-        state[base + 2] = a2[b] as i8 - 1;
     }
 }
 
@@ -251,84 +248,67 @@ unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
 unsafe fn chi_layer_neon(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::aarch64::*;
 
-    let mut a0 = [0u8; CHI_BLOCKS];
-    let mut a1 = [0u8; CHI_BLOCKS];
-    let mut a2 = [0u8; CHI_BLOCKS];
+    let map_t0 = vld1q_s8(CHI_MAP_T0.as_ptr());
+    let map_t1 = vld1q_s8(CHI_MAP_T1.as_ptr());
+    let map_t2 = vld1q_s8(CHI_MAP_T2.as_ptr());
+    let map_t0_hi = vld1q_s8(CHI_MAP_T0.as_ptr().add(16));
+    let map_t1_hi = vld1q_s8(CHI_MAP_T1.as_ptr().add(16));
+    let map_t2_hi = vld1q_s8(CHI_MAP_T2.as_ptr().add(16));
 
+    let mut indices = [0u8; CHI_BLOCKS];
     for b in 0..CHI_BLOCKS {
         let base = b * 3;
-        a0[b] = (state[base] + 1) as u8;
-        a1[b] = (state[base + 1] + 1) as u8;
-        a2[b] = (state[base + 2] + 1) as u8;
+        indices[b] = ((state[base] + 1) as u8)
+            + ((state[base + 1] + 1) as u8) * 3
+            + ((state[base + 2] + 1) as u8) * 9;
     }
 
-    let mul_tbl = vld1q_u8([0u8, 0, 0, 0, 1, 2, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0].as_ptr());
-    let add_tbl = vld1q_u8([0u8, 1, 2, 1, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0].as_ptr());
-
-    #[inline(always)]
-    unsafe fn gf3_mul_neon(a: uint8x16_t, b: uint8x16_t, mul_tbl: uint8x16_t) -> uint8x16_t {
-        let idx = vaddq_u8(vaddq_u8(vaddq_u8(a, a), a), b);
-        vqtbl1q_u8(mul_tbl, idx)
-    }
-
-    #[inline(always)]
-    unsafe fn gf3_add_neon(a: uint8x16_t, b: uint8x16_t, add_tbl: uint8x16_t) -> uint8x16_t {
-        let idx = vaddq_u8(vaddq_u8(vaddq_u8(a, a), a), b);
-        vqtbl1q_u8(add_tbl, idx)
-    }
-
-    #[inline(always)]
-    unsafe fn gf27_mul_neon(
-        a0: uint8x16_t, a1: uint8x16_t, a2: uint8x16_t,
-        b0: uint8x16_t, b1: uint8x16_t, b2: uint8x16_t,
-        mul_tbl: uint8x16_t, add_tbl: uint8x16_t,
-    ) -> (uint8x16_t, uint8x16_t, uint8x16_t) {
-        let c0 = gf3_mul_neon(a0, b0, mul_tbl);
-        let c1 = gf3_add_neon(gf3_mul_neon(a0, b1, mul_tbl), gf3_mul_neon(a1, b0, mul_tbl), add_tbl);
-        let c2 = gf3_add_neon(gf3_add_neon(gf3_mul_neon(a0, b2, mul_tbl), gf3_mul_neon(a1, b1, mul_tbl), add_tbl), gf3_mul_neon(a2, b0, mul_tbl), add_tbl);
-        let c3 = gf3_add_neon(gf3_mul_neon(a1, b2, mul_tbl), gf3_mul_neon(a2, b1, mul_tbl), add_tbl);
-        let c4 = gf3_mul_neon(a2, b2, mul_tbl);
-        let v_two = vdupq_n_u8(2);
-        let r0 = gf3_add_neon(c0, gf3_mul_neon(v_two, c3, mul_tbl), add_tbl);
-        let r1 = gf3_add_neon(gf3_add_neon(c1, c3, add_tbl), gf3_mul_neon(v_two, c4, mul_tbl), add_tbl);
-        let r2 = gf3_add_neon(c2, c4, add_tbl);
-        (r0, r1, r2)
-    }
+    let v_16 = vdupq_n_u8(16);
 
     let mut i = 0;
     while i + 16 <= CHI_BLOCKS {
-        let va0 = vld1q_u8(a0.as_ptr().add(i));
-        let va1 = vld1q_u8(a1.as_ptr().add(i));
-        let va2 = vld1q_u8(a2.as_ptr().add(i));
+        let idx_vec = vld1q_u8(indices.as_ptr().add(i));
 
-        let (s0, s1, s2) = gf27_mul_neon(va0, va1, va2, va0, va1, va2, mul_tbl, add_tbl);
-        let (q0, q1, q2) = gf27_mul_neon(s0, s1, s2, s0, s1, s2, mul_tbl, add_tbl);
-        let (e0, e1, e2) = gf27_mul_neon(q0, q1, q2, q0, q1, q2, mul_tbl, add_tbl);
-        let (x0, x1, x2) = gf27_mul_neon(e0, e1, e2, e0, e1, e2, mul_tbl, add_tbl);
-        let (r0, r1, r2) = gf27_mul_neon(x0, x1, x2, va0, va1, va2, mul_tbl, add_tbl);
+        let lo_mask = vcltq_u8(idx_vec, v_16);
+        let hi_idx = vsubq_u8(idx_vec, v_16);
 
-        vst1q_u8(a0.as_mut_ptr().add(i), r0);
-        vst1q_u8(a1.as_mut_ptr().add(i), r1);
-        vst1q_u8(a2.as_mut_ptr().add(i), r2);
+        let r0_lo = vqtbl1q_s8(map_t0, vreinterpretq_u8_s8(vreinterpretq_s8_u8(idx_vec)));
+        let r0_hi = vqtbl1q_s8(map_t0_hi, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi_idx)));
+        let r0 = vbslq_s8(lo_mask, r0_lo, r0_hi);
+
+        let r1_lo = vqtbl1q_s8(map_t1, vreinterpretq_u8_s8(vreinterpretq_s8_u8(idx_vec)));
+        let r1_hi = vqtbl1q_s8(map_t1_hi, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi_idx)));
+        let r1 = vbslq_s8(lo_mask, r1_lo, r1_hi);
+
+        let r2_lo = vqtbl1q_s8(map_t2, vreinterpretq_u8_s8(vreinterpretq_s8_u8(idx_vec)));
+        let r2_hi = vqtbl1q_s8(map_t2_hi, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi_idx)));
+        let r2 = vbslq_s8(lo_mask, r2_lo, r2_hi);
+
+        let mut out0 = [0i8; 16];
+        let mut out1 = [0i8; 16];
+        let mut out2 = [0i8; 16];
+        vst1q_s8(out0.as_mut_ptr(), r0);
+        vst1q_s8(out1.as_mut_ptr(), r1);
+        vst1q_s8(out2.as_mut_ptr(), r2);
+
+        for j in 0..16 {
+            let base = (i + j) * 3;
+            state[base]     = out0[j];
+            state[base + 1] = out1[j];
+            state[base + 2] = out2[j];
+        }
+
         i += 16;
     }
 
     while i < CHI_BLOCKS {
-        let x = [a0[i], a1[i], a2[i]];
-        if !(x[0] == 0 && x[1] == 0 && x[2] == 0) {
-            let [r0, r1, r2] = gf27_pow17(x);
-            a0[i] = r0;
-            a1[i] = r1;
-            a2[i] = r2;
-        }
+        let base = i * 3;
+        let idx = indices[i] as usize;
+        let r = CHI_MAP[idx];
+        state[base]     = r[0];
+        state[base + 1] = r[1];
+        state[base + 2] = r[2];
         i += 1;
-    }
-
-    for b in 0..CHI_BLOCKS {
-        let base = b * 3;
-        state[base] = a0[b] as i8 - 1;
-        state[base + 1] = a1[b] as i8 - 1;
-        state[base + 2] = a2[b] as i8 - 1;
     }
 }
 
