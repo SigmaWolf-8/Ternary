@@ -183,21 +183,23 @@ static CHI_MAP_T2: [i8; 32] = {
 unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     use core::arch::x86_64::*;
 
-    let v_one   = _mm256_set1_epi8(1);
-    let v_three = _mm256_set1_epi8(3);
-    let v_nine  = _mm256_set1_epi8(9);
+    let t0_lo_128 = _mm_loadu_si128(CHI_MAP_T0.as_ptr() as *const __m128i);
+    let t0_hi_128 = _mm_loadu_si128(CHI_MAP_T0.as_ptr().add(16) as *const __m128i);
+    let map_t0_lo = _mm256_broadcastsi128_si256(t0_lo_128);
+    let map_t0_hi = _mm256_broadcastsi128_si256(t0_hi_128);
 
-    let tbl0_lo = _mm_loadu_si128(CHI_MAP_T0.as_ptr() as *const __m128i);
-    let tbl0_hi = _mm_loadu_si128(CHI_MAP_T0.as_ptr().add(16) as *const __m128i);
-    let map_t0  = _mm256_set_m128i(tbl0_hi, tbl0_lo);
+    let t1_lo_128 = _mm_loadu_si128(CHI_MAP_T1.as_ptr() as *const __m128i);
+    let t1_hi_128 = _mm_loadu_si128(CHI_MAP_T1.as_ptr().add(16) as *const __m128i);
+    let map_t1_lo = _mm256_broadcastsi128_si256(t1_lo_128);
+    let map_t1_hi = _mm256_broadcastsi128_si256(t1_hi_128);
 
-    let tbl1_lo = _mm_loadu_si128(CHI_MAP_T1.as_ptr() as *const __m128i);
-    let tbl1_hi = _mm_loadu_si128(CHI_MAP_T1.as_ptr().add(16) as *const __m128i);
-    let map_t1  = _mm256_set_m128i(tbl1_hi, tbl1_lo);
+    let t2_lo_128 = _mm_loadu_si128(CHI_MAP_T2.as_ptr() as *const __m128i);
+    let t2_hi_128 = _mm_loadu_si128(CHI_MAP_T2.as_ptr().add(16) as *const __m128i);
+    let map_t2_lo = _mm256_broadcastsi128_si256(t2_lo_128);
+    let map_t2_hi = _mm256_broadcastsi128_si256(t2_hi_128);
 
-    let tbl2_lo = _mm_loadu_si128(CHI_MAP_T2.as_ptr() as *const __m128i);
-    let tbl2_hi = _mm_loadu_si128(CHI_MAP_T2.as_ptr().add(16) as *const __m128i);
-    let map_t2  = _mm256_set_m128i(tbl2_hi, tbl2_lo);
+    let v_sixteen = _mm256_set1_epi8(16);
+    let v_fifteen = _mm256_set1_epi8(15);
 
     let mut indices = [0u8; CHI_BLOCKS];
     for b in 0..CHI_BLOCKS {
@@ -210,10 +212,20 @@ unsafe fn chi_layer_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
     let mut i = 0;
     while i + 32 <= CHI_BLOCKS {
         let idx_vec = _mm256_loadu_si256(indices.as_ptr().add(i) as *const __m256i);
+        let idx_hi  = _mm256_sub_epi8(idx_vec, v_sixteen);
+        let mask_hi = _mm256_cmpgt_epi8(idx_vec, v_fifteen);
 
-        let r0 = _mm256_shuffle_epi8(map_t0, idx_vec);
-        let r1 = _mm256_shuffle_epi8(map_t1, idx_vec);
-        let r2 = _mm256_shuffle_epi8(map_t2, idx_vec);
+        let lo0 = _mm256_shuffle_epi8(map_t0_lo, idx_vec);
+        let hi0 = _mm256_shuffle_epi8(map_t0_hi, idx_hi);
+        let r0  = _mm256_blendv_epi8(lo0, hi0, mask_hi);
+
+        let lo1 = _mm256_shuffle_epi8(map_t1_lo, idx_vec);
+        let hi1 = _mm256_shuffle_epi8(map_t1_hi, idx_hi);
+        let r1  = _mm256_blendv_epi8(lo1, hi1, mask_hi);
+
+        let lo2 = _mm256_shuffle_epi8(map_t2_lo, idx_vec);
+        let hi2 = _mm256_shuffle_epi8(map_t2_hi, idx_hi);
+        let r2  = _mm256_blendv_epi8(lo2, hi2, mask_hi);
 
         let mut out0 = [0i8; 32];
         let mut out1 = [0i8; 32];
