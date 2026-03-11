@@ -1,18 +1,20 @@
 # TM-2026-015: Plenum Square
 
-**The Circle-Magic Square Synthesis**
-*A 364° Circle with π = 14 and the 3×3 Ternary Magic Square 3×333*
+**The Circle-Magiconical Square Synthesis**
+*A 364° Circle with π = 14, an Inscribed Hexagon & the 3×333 Ternary Magic Square*
+
+**The Plenum Square** | x² − R₄x + R₆ = 0 • 2c = x² + R₄ − x
 
 ---
 
 | Field | Value |
 |-------|-------|
 | Document | TM-2026-015 |
-| Title | Plenum Square: The Circle-Magic Square Synthesis |
+| Title | Plenum Square: The Circle-Magiconical Square Synthesis |
 | Author | R. Salvi (RSalvi@Salvigroup.com) |
 | Organization | Capomastro Holdings Ltd. — Applied Physics Division |
 | Date | March 2026 |
-| Version | 3.0 |
+| Version | 4.0 |
 | Status | Final |
 | Classification | Patent(s) Pending — All Rights Reserved |
 | Repository | SigmaWolf-8/Ternary |
@@ -22,55 +24,225 @@
 
 ---
 
-## 0. Abstract
+## 0. The Generating System
 
-This manifest formalizes the **Plenum Square** — a family of four 3×3 magic squares derived from the 364° ternary circle with π = 14 and diameter 111. Two circle-derived constant pairs (14 ↔ 208, 26 ↔ 196) embed as opposite pairs summing to 222 = 2 × 111, yielding exactly four distinct positive-integer configurations (A–D) exhaustive up to D₄ dihedral symmetry.
+Two equations — one quadratic, one bridge — generate the entire Plenum Square construction from a single definition:
 
-All configurations share a harmonic ladder of invariant sums (222, 333, 444, 555, 888, 999, 1554) and product identities (14 × 26 = 364, 14² = 196). The inscribed hexagon's perimeter equals the magic constant because d = c — a single equation that fuses circle and square. The radius r = 55.5 is the fundamental unit: every rung of the harmonic ladder is an even multiple of r, from 2r = 111 (center) through 6r = 333 (hexagon perimeter) to 28r = 2πr = 1554 (circumference).
+**R_n = (3^n − 1) / 2** (base-3 repunit)
 
-Base-3 analysis reveals Latin-square structure in the outermost ternary digits, related by cyclic permutation and invariant across configurations. Base-9 analysis uncovers a complete residue system modulo 9 in every configuration, yielding four S₉ permutations that enable single-triplet error localization, block-level sponge diffusion, and geometry-weighted integrity checking. The Tribonacci indices of π (7, 3) appear as Square A's mod-9 parameter residues, making it the unique double derangement and canonical member of the family (§7.9).
+The **generating system** in two unknowns x (= π) and c (= center/diameter):
 
-The ternary circle axioms force a configuration shared by only **12 out of 11,736** center-111 squares (1 in 978), and just **12 out of 40.9 million** three-digit magic squares (1 in 3.4 million). These properties are not imposed as design requirements — they are entailed by the geometry.
+```
+x² − R₄·x + R₆ = 0       (the quadratic — defines the circle)
+2c = x² + R₄ − x          (the bridge — fuses circle to square)
+```
 
-Implementation: `shared/plenum-square.ts` (family definitions, harmonic ladder, validation functions) and `PLATFORM.PLENUM_SQUARE` in `shared/constants.ts` (11 sections, 29 documented constants, 30/30 verified).
+The quadratic determines π and R₆/π. The bridge determines the magic square center c by requiring that the complement of the larger root equals the square of the smaller — i.e., that π² appears in the grid. Together, two equations with two unknowns yield every constant in the framework.
+
+### 0.1 The Repunit Coefficients
+
+| Repunit | Formula | Value | Base-3 form |
+|---------|---------|-------|-------------|
+| R₃ | (3³ − 1)/2 | 13 | 111₃ |
+| R₄ | (3⁴ − 1)/2 | 40 | 1111₃ |
+| R₅ | (3⁵ − 1)/2 | 121 | 11111₃ |
+| R₆ | (3⁶ − 1)/2 | 364 | 111111₃ |
+
+The quadratic uses R₄ and R₆ as coefficients — the 4-digit and 6-digit base-3 repunits. By Vieta's formulas, the roots satisfy x₁ + x₂ = R₄ (sum) and x₁ · x₂ = R₆ (product). The quadratic is the unique polynomial whose root-sum and root-product are both base-3 repunits.
+
+### 0.2 Solving the Quadratic
+
+Substituting R₄ = 40, R₆ = 364:
+
+```
+x² − 40x + 364 = 0
+```
+
+The discriminant:
+
+```
+Δ = R₄² − 4R₆ = 1600 − 1456 = 144 = 12²
+```
+
+**The discriminant is a perfect square** (144 = 12²). This is the critical structural fact: it guarantees that the roots are integers. If Δ were not a perfect square, the roots would be irrational, and the entire integer framework — the magic square, the harmonic ladder, the exact ternary arithmetic — would be impossible. The name "Plenum Square" thus carries a double meaning: a magic *square* whose existence depends on a perfect *square* discriminant, yielding a "full" (plenum) set of integer constants.
+
+The roots:
+
+```
+x = (40 ± 12) / 2
+
+x₁ = (40 − 12) / 2 = 14       x₂ = (40 + 12) / 2 = 26
+```
+
+### 0.3 The Roots and Their Repunit Relations
+
+| Root | Value | Repunit relation | Role |
+|------|-------|-----------------|------|
+| x₁ | **14** | R₃ + 1 = 13 + 1 | π (ternary pi) |
+| x₂ | **26** | 2R₃ = 2 × 13 | R₆/π (circle degrees per π) |
+
+Neither root is itself a repunit, but both are expressed in terms of R₃ = 13 = T₇ (the cosmic radius). The smaller root is the cosmic radius plus one; the larger root is twice the cosmic radius. Since R₃ = T₇ (the 7th Tribonacci number), both roots carry Tribonacci lineage:
+
+```
+π = T₇ + T₃ = 13 + 1 = 14       R₆/π = 2T₇ = 26
+```
+
+The product of roots recovers the full circle: π × 26 = 364 = R₆ (111111₃).
+The sum of roots recovers the minor circle: π + 26 = 40 = R₄ (1111₃).
+
+### 0.4 The Bridge: Fusing Circle to Square
+
+The quadratic produces π and R₆/π, but does not specify the magic square center c. The bridge condition does:
+
+```
+2c = x₁² + x₂ = π² + R₆/π
+```
+
+This says: **the complement of the larger root equals the square of the smaller**. Since opposite cells in a 3×3 magic square sum to 2c, the complement of 26 under this sum is 2c − 26. The bridge requires this complement to be π² = 196:
+
+```
+2c − 26 = 14² = 196  →  2c = 196 + 26 = 222  →  c = 111
+```
+
+The diameter d = c = 111 is **derived**, not assumed. In repunit terms:
+
+```
+2c = (R₃ + 1)² + 2R₃ = R₃² + 4R₃ + 1 = (R₃ + 2)² − 3 = 15² − 3 = 222
+```
+
+The bridge condition is not arbitrary — it is the requirement that π² appears as a cell value. This is the most natural demand: given π, its square is the first derived quantity, and embedding it in the grid as a complement of R₆/π simultaneously determines the center, the harmonic ladder, and the hexagon perimeter.
+
+### 0.5 The Discriminant as Configuration Parameter
+
+The discriminant √Δ = 12 reappears as the **q-parameter of Square A** — the canonical member of the Plenum Square family. Square A has (p, q) = (97, 12), where q = √Δ. The discriminant measures the spread between the two roots (26 − 14 = 12), and the q-parameter controls the spread between opposite pairs in the magic square grid. They are the same quantity by different names.
+
+### 0.6 The Complete Derivation Chain
+
+| Step | Derivation | Result |
+|------|-----------|--------|
+| **Definition** | R_n = (3^n − 1)/2 | Repunit family |
+| **Coefficients** | R₄ = 40, R₆ = 364 | Quadratic parameters |
+| **Discriminant** | Δ = R₄² − 4R₆ = 144 = 12² | Perfect square → integer roots |
+| **Roots** | x = (R₄ ± √Δ)/2 | π = 14, R₆/π = 26 |
+| **Root-repunit relations** | π = R₃+1, R₆/π = 2R₃ | Both derive from R₃ = 13 = T₇ |
+| **Product** | π × 26 = R₆ | 364 = full circle (111111₃) |
+| **Sum** | π + 26 = R₄ | 40 = minor circle (1111₃) |
+| **Bridge** | 2c = π² + R₆/π | c = 111 (derived) |
+| **Complements** | 222 − 14 = 208, 222 − 26 = π² = 196 | {14,208} and {26,196} |
+| **Radius** | r = d/2 = c/2 | 55.5 (fundamental unit) |
+| **Hexagon perimeter** | 6r = 3d | 333 = magic constant |
+| **Circumference** | πd | 1554 = 28r = 2πr |
+| **Total sum** | 9d | 999 |
+| **Residual** | (π − 9)d | 555 = 10r = 2(π−9)r |
+| **√Δ** | 12 | q parameter of canonical Square A |
+
+Two equations in repunits → perfect square discriminant (guaranteeing integers) → two roots (π, 26) → the bridge (c = 111) → the discriminant as q-parameter (12) → the hexagon (333) → the entire harmonic ladder → the four configurations → every constant in the framework.
 
 ---
 
 ## 1. Foundational Parameters
 
-The construction begins with a circle defined by three parameters, each traceable to INVARIANT 4 (Constants Are Bound, Not Chosen):
+The generating system (§0) derives all foundational parameters from the base-3 repunit definition R_n = (3^n − 1)/2. For reference, the complete parameter set:
 
-| Parameter | Value | Derivation |
-|-----------|-------|------------|
-| Full circle | 364° | 111111₃ = (3⁶ − 1) / 2 — six-digit base-3 repunit |
-| π | 14 | T₇ + T₃ = 13 + 1 — exact integer |
-| Diameter | 111 | Center of every Plenum Square — ternary balance point |
+| Parameter | Value | Derivation from x² − R₄x + R₆ = 0 |
+|-----------|-------|--------------------------------------|
+| Full circle | 364° | R₆ = product of roots = π × 26 |
+| π | 14 | Smaller root of the quadratic |
+| 364/π | 26 | Larger root of the quadratic |
+| Diameter | 111 | d = (π² + R₆/π) / 2 — **derived** from bridge |
+| π² | 196 | = 2d − R₆/π (complement of 26) |
+| Radius | 55.5 | d/2 = fundamental unit of the harmonic ladder |
 
-Derived quantities follow from exact integer arithmetic:
+All further derived quantities:
 
 | Derived Quantity | Value | Calculation |
 |------------------|-------|-------------|
-| Radius | 55.5 | 111 / 2 |
-| Circumference | 1554 | π × d = 14 × 111 |
-| 364 / π | 26 | 364 ÷ 14 |
-| π² | 196 | 14² |
-| Inscribed hexagon side | 55.5 | = radius |
-| Hexagon perimeter | 333 | 6 × 55.5 |
-| Total square sum | 999 | 3 × 333 |
-| Circumference − total | 555 | 1554 − 999 = 5 × 111 |
+| Inscribed hexagon side | 55.5 | = r (radius) |
+| Hexagon perimeter | 333 | 6r = 3d = magic constant |
+| Circumference | 1554 | πd = 14 × 111 = 28r = 2πr |
+| Magic square total sum | 999 | 3 × 333 = 9d |
+| Circumference − total sum | 555 | 1554 − 999 = (π − 9)d = 10r |
 
-The inscribed regular hexagon's perimeter (333) becomes the magic constant — the first geometric bridge between circle and square. This is not a coincidence — it is the *defining bridge*, as shown in §5.2.
+The inscribed regular hexagon's perimeter (333) becomes the magic constant of the 3×3 square — a consequence of the bridge equation d = c (§5.2), which is itself forced by the generating system: the bridge condition that yields d = 111 simultaneously requires d to equal the magic square center c.
+
+### 1.1 Three-Sequence Convergence
+
+The Plenum Square's constants sit at the intersection of three number-theoretic sequences: **base-3 repunits**, **Tribonacci numbers**, and **triangular numbers**. Their convergence is not incidental — each sequence contributes a distinct structural role, and they meet at the same values because the quadratic x² − R₄x + R₆ = 0 forces them to.
+
+#### Repunits: R_n = (3^n − 1)/2
+
+| Repunit | Value | Role in the Plenum Square |
+|---------|-------|---------------------------|
+| R₃ | 13 = 111₃ | Cosmic radius, 1 radian, sponge stride, cube dimension |
+| R₄ | 40 = 1111₃ | Sum of quadratic roots (π + 26) = minor circle |
+| R₅ | 121 = 11111₃ | Quarter circle |
+| R₆ | 364 = 111111₃ | Product of quadratic roots (π × 26) = full circle |
+
+The quadratic coefficients *are* repunits. The roots' sum is R₄ and their product is R₆.
+
+#### Tribonacci: T_n (where T₀ = T₁ = 0, T₂ = 1, T_n = T_{n−1} + T_{n−2} + T_{n−3})
+
+| Tribonacci | Value | Expression in the system |
+|------------|-------|-------------------------|
+| T₃ | 1 | Additive unit in π = T₇ + T₃ |
+| T₄ | 2 | Cell value in Square A |
+| T₅ | 4 | T₅² = 16; cofactor in 208 = T₅² × T₇ |
+| T₆ | 7 | Bridge to triangular numbers: Tri(7) = 28 = 2π |
+| T₇ | **13** | **Cosmic radius = R₃ = 1 radian = 111₃** |
+
+Key Tribonacci expressions for the construction's constants:
+
+```
+π = T₇ + T₃ = 13 + 1 = 14
+26 = 2T₇ = 2 × 13
+28 = 2(T₇ + T₃) = 2π
+196 = (T₇ + T₃)² = π²
+208 = T₅² × T₇ = 16 × 13
+364 = 2T₇(T₇ + T₃) = 2T₇² + 2T₃T₇
+```
+
+#### Triangular Numbers: Tri(n) = n(n+1)/2
+
+| Triangular | Value | Where it appears |
+|------------|-------|-----------------|
+| Tri(3) | **6** | Hexagon sides; q of Square B; p of Square D |
+| Tri(7) | **28** | **= 2π = full circle in radians** |
+| Tri(10) | **55** | Radius = Tri(10) + ½; diameter = 2·Tri(10) + 1 = 111 |
+| Tri(13) | **91** | **= p of Square B** |
+| Tri(14) | **105** | **= Tri(π) = cell value in Squares B and D** |
+
+The triangular indices {3, 7, 10, 13, 14} are themselves framework constants: the ternary base, T₆, the Tribonacci index sum of π, T₇ = R₃, and π. Every index carries structural meaning.
+
+**The headline identity:** 2π = 28 = Tri(7), the 7th triangular number. The full circle in radians is a triangular number, and its triangular index (7) is itself a Tribonacci number (T₆ = 7).
+
+**The chain:** T₆ (Tribonacci) = 7 → Tri(7) (Triangular) = 28 = 2π (Circle).
+
+**The diameter identity:** d = 111 = 2 × Tri(10) + 1, and 10 = 7 + 3, the Tribonacci index sum of π. The diameter is twice the (index-sum-of-π)th triangular number, plus one.
+
+**The π-th triangular number:** Tri(14) = Tri(π) = 105, which appears as a cell value in Squares B and D. The triangular number indexed by π is embedded in the magic square.
+
+#### The Triple Identity at 13
+
+The number **13** is the unique point where all three sequences converge:
+
+| Sequence | Identity | Consequence |
+|----------|---------|-------------|
+| Repunit | R₃ = 13 = 111₃ | Three-digit base-3 repunit |
+| Tribonacci | T₇ = 13 | 7th Tribonacci number |
+| Triangular (index) | 13 → Tri(13) = 91 | 91 = p of Square B |
+
+No other number in the operational range simultaneously satisfies all three. This triple identity is why 13 recurs as the cosmic radius, cube dimension, sponge stride, radian measure, and calendar moon count — it is not a design choice but the unique fixed point of three independent number-theoretic constraints.
 
 ---
 
-## 2. Magic Square Framework
+## 2. The Magic Square Framework
 
-Any 3×3 magic square with center *C* has opposite cells summing to 2*C*. With *C* = 111, opposite pairs sum to **222**. This creates natural pairings from the circle:
+Any 3×3 magic square with center C has opposite cells summing to 2C. With center C = 111, opposite pairs sum to **222**. This creates natural pairings of our circle numbers:
 
-- **14** ↔ **208** (222 − 14 = 208)
-- **26** ↔ **196** (222 − 26 = 196)
+- **14** pairs with **208** (since 222 − 14 = 208)
+- **26** pairs with **196** (since 222 − 26 = 196)
 
-Standard parametrization with free parameters p and q:
+We use the standard parametrization with two free parameters p and q:
 
 ```
 | C+p     C-p-q   C+q   |
@@ -78,17 +250,24 @@ Standard parametrization with free parameters p and q:
 | C-q     C+p+q   C-p   |
 ```
 
-Properties: every row, column, and diagonal sums to 3C = 333. Center fixed at 111. Four opposition classes: corners (C+p ↔ C−p), vertical middles (C−p+q ↔ C+p−q), horizontal middles (C−p−q ↔ C+p+q), anti-diagonal corners (C+q ↔ C−q).
+**Properties:**
+- Every row, column, and diagonal sums to 333
+- Center is always 111
+- Opposite pairs sum to 222 in four opposition types:
+  - **Corners:** (C+p) and (C−p)
+  - **Top-middle & bottom-middle:** (C−p−q) and (C+p+q)
+  - **Left-middle & right-middle:** (C−p+q) and (C+p−q)
+  - **Anti-diagonal corners:** (C+q) and (C−q)
 
 ---
 
 ## 3. The Four Valid Configurations
 
-Placing the two circle-derived pairs {14, 208} and {26, 196} into opposite positions yields exactly four distinct positive-integer magic squares (< 250), exhaustive up to rotation and reflection under D₄.
+Placing the two circle-derived pairs (14,208) and (26,196) into opposite positions yields exactly four distinct magic squares with all entries positive integers (< 250). These exhaust all possibilities up to rotation and reflection.
 
-*Note: Negative q values indicate reflection/rotation equivalents. All four grids are distinct up to D₄ actions.*
+*Note: Negative q values (as seen in Squares C and D) indicate a reflection or rotation of an equivalent positive-parameter configuration; all four presented grids are distinct only up to the dihedral group D₄ actions. The set remains complete and minimal.*
 
-### Square A: π-pair corners, 364/π-pair horizontal middles — p = 97, q = 12
+### Square A: (208,14) as Corners, (26,196) as Horizontal Middles — p = 97, q = 12
 
 ```
 208    2   123
@@ -96,9 +275,13 @@ Placing the two circle-derived pairs {14, 208} and {26, 196} into opposite posit
  99  220    14
 ```
 
-14 × 26 = **364** (horizontal) • 14² = **196** in right-middle • Corners = **444** • Edge-centers = **444**
+**Geometric links:**
+- 14 × 26 = **364** (circle degrees)
+- 14² = **196** appears in right-middle
+- Corner sum: 208+123+99+14 = **444** = 4×111
+- Edge-center sum: 2+26+196+220 = **444** = 4×111
 
-### Square B: π-pair vertical middles, 364/π-pair horizontal middles — p = 91, q = 6
+### Square B: (208,14) as Vertical Middles, (26,196) as Horizontal Middles — p = 91, q = 6
 
 ```
 202   14   117
@@ -106,9 +289,14 @@ Placing the two circle-derived pairs {14, 208} and {26, 196} into opposite posit
 105  208    20
 ```
 
-14 × 26 = **364** • 208 + 14 = **222** (vertical opposites) • Corners = **444** • Edge-centers = **444**
+**Geometric links:**
+- 14 × 26 = **364**
+- 14² = **196** in right-middle
+- 208 + 14 = **222** = 2×111
+- Corner sum: 202+117+105+20 = **444**
+- Edge-center sum: 14+26+196+208 = **444**
 
-### Square C: 364/π-pair corners, π-pair horizontal middles — p = 85, q = −12
+### Square C: (196,26) as Corners, (14,208) as Horizontal Middles — p = 85, q = −12
 
 ```
 196   38    99
@@ -116,9 +304,14 @@ Placing the two circle-derived pairs {14, 208} and {26, 196} into opposite posit
 123  184    26
 ```
 
-π² = **196** directly above π = **14** • Vertical middles sum to **222** • Corners = **444** • Edge-centers = **444**
+**Geometric links:**
+- 14 × 26 = **364** (14 left-middle, 26 bottom-right)
+- 14² = **196** in top-left, with 14 directly below
+- Corner sum: 196+99+123+26 = **444**
+- Edge-center sum: 38+14+208+184 = **444**
+- Vertical middle column (38+184) = 222 = 2×111
 
-### Square D: 364/π-pair vertical middles, π-pair horizontal middles — p = 6, q = −91
+### Square D: (196,26) as Vertical Middles, (14,208) as Horizontal Middles — p = 6, q = −91
 
 ```
 117  196    20
@@ -126,31 +319,44 @@ Placing the two circle-derived pairs {14, 208} and {26, 196} into opposite posit
 202   26   105
 ```
 
-196 & 26 vertical opposites • Product sum: 2912 + 5096 = **8008** = 8 × 7 × 11 × 13 • Corners = **444**
+**Geometric links:**
+- 14 × 26 = **364** (14 left-middle, 26 bottom-middle)
+- 14² = **196** in top-middle
+- Corner sum: 117+20+202+105 = **444**
+- Edge-center sum: 196+14+208+26 = **444**
+- Factor echoes: 14×208 = 2912, 26×196 = 5096; sum = 8008 = 8 × 7 × 11 × 13 — echoing the prime factors of 14 (2×7) and 26 (2×13)
 
 ---
 
 ## 4. Systematic Enumeration
 
-Opposition types: **C** = corners, **M** = horizontal middles, **N** = vertical middles, **X** = anti-diagonal (≡ C under rotation).
+The four opposition types are:
+- **C:** Corner opposites (TL-BR or TR-BL)
+- **M:** Middle row opposites (L-R)
+- **N:** Middle column opposites (T-B)
+- **X:** Anti-diagonal opposites (TR-BL) [equivalent to C under rotation]
+
+All positive-integer configurations:
 
 | Config | Pair 1 Position | Pair 2 Position | Square |
 |--------|-----------------|-----------------|--------|
-| 1 | C: (208, 14) | M: (26, 196) | A |
-| 2 | N: (208, 14) | M: (26, 196) | B |
-| 3 | C: (196, 26) | M: (14, 208) | C |
-| 4 | N: (196, 26) | M: (14, 208) | D |
+| 1 | C: (208,14) | M: (26,196) | A |
+| 2 | N: (208,14) | M: (26,196) | B |
+| 3 | C: (196,26) | M: (14,208) | C |
+| 4 | N: (196,26) | M: (14,208) | D |
 
-Attempts to place both pairs in corners yield negative entries (top-middle becomes −71), proving impossibility under positivity. The four squares A–D and their rotations/reflections form the complete set.
+**Attempts to place both pairs in corners** (e.g., (208,14) in TL-BR and (196,26) in TR-BL) yield negative entries (specifically, top-middle becomes −71), proving impossibility under positivity.
+
+**Conclusion:** The four squares A, B, C, D (and their rotations/reflections) form the complete set.
 
 ### Comparative Overview
 
-| Square | Top Row | Middle Row | Bottom Row | p | q | Signature |
-|--------|---------|------------|------------|---|---|-----------|
+| Square | Top row | Middle row | Bottom row | p | q | Special alignment |
+|--------|---------|------------|------------|---|---|-------------------|
 | A | 208  2  123 | 26 111 196 | 99 220  14 | 97 | 12 | 14×26 = 364 horizontal |
-| B | 202  14  117 | 26 111 196 | 105 208  20 | 91 | 6 | 14 & 208 vertical opp. |
-| C | 196  38  99 | 14 111 208 | 123 184  26 | 85 | −12 | π² above π |
-| D | 117 196  20 | 14 111 208 | 202  26  105 | 6 | −91 | 196 & 26 vertical opp. |
+| B | 202  14  117 | 26 111 196 | 105 208  20 | 91 | 6 | 14 & 208 vertical opposites |
+| C | 196  38  99 | 14 111 208 | 123 184  26 | 85 | −12 | 196 over 14 (π² above π) |
+| D | 117 196  20 | 14 111 208 | 202  26  105 | 6 | −91 | 196 & 26 vertical opposites |
 
 ---
 
@@ -158,20 +364,20 @@ Attempts to place both pairs in corners yield negative entries (top-middle becom
 
 ### 5.1 The Harmonic Ladder
 
-All four configurations share invariant numerical relationships. Arranged in ascending order:
+All four squares share invariant numerical relationships. Arranged in ascending order:
 
-| Property | Value | Relation to 111 | Radius Units | Role |
+| Property | Value | Relation to 111 | Radius units | Role |
 |----------|-------|------------------|--------------|------|
-| Opposite-pair sum | 222 | 2 × 111 | 4r | Defines pair placement |
-| Magic constant | 333 | 3 × 111 | **6r** | Hexagon perimeter → row/col/diag |
-| Corner sum | 444 | 4 × 111 | 8r | All four corners, every config |
-| Edge-center sum | 444 | 4 × 111 | 8r | Four non-corner middles |
-| Circumference − total | 555 | 5 × 111 | **10r** | Circle exceeds square = 2(π−9) × r |
-| Surround sum | 888 | 8 × 111 | 16r | Eight non-center cells (999 − 111) |
+| Opposite pair sum | 222 | 2 × 111 | 4r | Defines placement of circle pairs |
+| Magic constant | 333 | 3 × 111 | 6r | Hexagon perimeter → row/col/diagonal |
+| Corner sum | 444 | 4 × 111 | 8r | All four corners in every configuration |
+| Edge-center sum | 444 | 4 × 111 | 8r | Four non-corner edge middles |
+| Circumference − total | 555 | 5 × 111 | 10r | Circle exceeds square = 2(π−9)r |
+| Eight surrounding cells | 888 | 8 × 111 | 16r | 999 − 111 |
 | Total square sum | 999 | 9 × 111 | 18r | 3 × magic constant |
-| **Circumference** | **1554** | **14 × 111** | **28r** | **2πr = π-th rung of the ladder** |
+| **Circumference** | **1554** | **14 × 111** | **28r** | **2πr — π-th rung of the ladder** |
 
-**Layered hierarchy:**
+**Hierarchy insight:**
 444 (corners) + 444 (edge-centers) = 888 (surround)
 888 (surround) + 111 (center) = 999 (whole)
 
@@ -185,10 +391,10 @@ The ladder does not stop at 999. The circumference 1554 = 14 × 111 is the **π-
 
 The identity hexagon_perimeter = magic_constant follows directly from a single equation: **d = c**.
 
-For any inscribed regular hexagon: side = radius = d/2, so perimeter = 6 × (d/2) = 3d.
-For any 3×3 magic square with center c: magic_constant = 3c.
+For any inscribed regular hexagon: side = r = d/2, so perimeter = 6(d/2) = 3d.
+For any 3×3 magic square with center c: magic constant = 3c.
 
-Setting hexagon_perimeter = magic_constant gives:
+Setting hexagon perimeter = magic constant gives:
 
 ```
 3d = 3c  →  d = c
@@ -204,11 +410,36 @@ C / P_hex = πd / 3d = π / 3 = 14 / 3
 
 In Euclidean geometry this ratio is the transcendental π/3 ≈ 1.047. Here it is the rational 14/3 — exact, no approximation, consistent with the system's integer-π axiom. The hexagon tiles the circumference exactly π/3 times.
 
+#### 5.2.1 Hexagon Vertices and Arcs in the 364° Circle
+
+The six vertices of the inscribed hexagon divide the 364° circle into six arcs of 364/6 = 60.667° each — not clean integers. The individual arc measure is irreducibly fractional because gcd(364, 6) = 2, giving 182/3 per arc. This is honest: the hexagon's 6-fold symmetry does not divide the 364° circle evenly at the arc level.
+
+However, the hexagon's **diameters** are exact. The three diameters connect opposite vertices, and each spans a semicircle:
+
+```
+Semicircle = 364 / 2 = 182° = 14 × 13 = π × R₃ = π × T₇
+```
+
+In ternary radians: 182° / 13° = 14 = π exactly. The opposite vertex of the hexagon sits at precisely π radians from any given vertex — the standard definition of a semicircle, here yielding an exact integer.
+
+Vertex positions (in ternary radians, starting from V₀ = 0):
+
+| Vertex | Degrees | Ternary radians | Notable |
+|--------|---------|-----------------|---------|
+| V₀ | 0 | 0 | Origin |
+| V₁ | 60.667 | 14/3 | π/3 |
+| V₂ | 121.333 | 28/3 | 2π/3 |
+| V₃ | **182** | **14** | **= π exactly** (opposite vertex) |
+| V₄ | 242.667 | 56/3 | 4π/3 |
+| V₅ | 303.333 | 70/3 | 5π/3 |
+
+The hexagon maps into the Plenum Square system through two clean channels: its **perimeter** (333 = magic constant, §5.2) and its **diameters** (182° = πR₃). The arc fractions (multiples of π/3) are rational but not integer — a consequence of 3 not dividing 364 evenly. The structural content flows through the perimeter and diameter, not the individual arcs.
+
 ### 5.3 The Radius as Fundamental Unit
 
 The radius r = 55.5 = d/2 is not merely half the diameter — it is the **fundamental unit** from which the entire harmonic ladder is built. Expressing every value in units of the radius reveals that the ladder consists entirely of even multiples of r, terminating at the circumference:
 
-| Value | = n × 111 | Radius Units | Structural Role |
+| Value | = n × 111 | Radius units | Structural role |
 |-------|-----------|--------------|-----------------|
 | 111 | 1 × 111 | 2r | Center = diameter |
 | 222 | 2 × 111 | 4r | Opposite-pair sum |
@@ -226,18 +457,20 @@ The ladder begins at 2r (the diameter) and closes at 28r = 2πr = circumference.
 The circumference residual 555 = 5 × 111 = 10r follows from:
 
 ```
-C − total = πd − 9d = (π − 9) × d = (14 − 9) × 111 = 5 × 111 = 555
+C − total = πd − 9d = (π − 9)d = (14 − 9) × 111 = 5 × 111 = 555
 ```
 
-The factor 5 is not arbitrary — it is **π − 9**, the difference between the ternary π and the number of cells in the square. In radius units, 555 = 10r = 2(π − 9) × r.
+The factor 5 is not arbitrary — it is **π − 9**, the difference between the ternary π and the number of cells in the square. In radius units, 555 = 10r = 2(π − 9)r.
 
-This connects directly to the radius itself: **55.5 = r** and **555 = 10r**. The "decimal shift" between the radius 55.5 and the circumference residual 555 is the factor 10 = 2(π − 9). This relationship only produces a clean integer because π = 14 — in Euclidean geometry, 2(π − 9) ≈ −11.72, which is nonsensical. Here it is exactly 10, placing 555 squarely on the harmonic ladder and binding the radius to the circumference residual through the same integer π that defines the system.
+This connects directly to the radius itself: 55.5 = r and 555 = 10r. The "decimal shift" between the radius 55.5 and the circumference residual 555 is the factor 10 = 2(π − 9). This relationship only produces a clean integer because π = 14 — in Euclidean geometry, 2(π − 9) ≈ −11.72, which is nonsensical. Here it is exactly 10, placing 555 squarely on the harmonic ladder and binding the radius to the circumference residual through the same integer π that defines the entire system.
 
 ---
 
 ## 6. Ternary Depth — Base-3 Analysis
 
-Key numbers in base-3 (5-digit padding):
+The phrase "Ternary Magic Square 3×333" invites examination of base-3 representations.
+
+### 6.1 Base-3 Representations of Key Numbers (5-digit padding)
 
 | Decimal | Base-3 | Digit Sum |
 |---------|--------|-----------|
@@ -248,35 +481,8 @@ Key numbers in base-3 (5-digit padding):
 | 208 | 21201₃ | 6 |
 | 333 | 110100₃ | 3 |
 
-111 and 333 both have digit sum 3 in base-3 — connecting center and magic constant. The inner digits of 111 (1101) exhibit palindromic quality, reinforcing its symbolic center role.
-
-### 6.1 Latin Square Discovery in Outer Digits
-
-Examining each ternary digit position separately in Square A:
-
-**Most significant digit (d₄ = 3⁴ place):**
-
-```
-2  0  1
-0  1  2
-1  2  0
-```
-
-This is a perfect Latin square — each row and column contains {0, 1, 2} exactly once.
-
-**Least significant digit (d₀ = 3⁰ place):**
-
-```
-1  2  0
-2  0  1
-0  1  2
-```
-
-Also a perfect Latin square. Applying the cyclic symbol permutation 2→1, 0→2, 1→0 (the cycle 0→2→1→0) to the d₄ grid yields exactly the d₀ grid — they are the same pattern with permuted symbols.
-
-Verification on specific cells: d₄(TL) = 2 maps to 1 = d₀(TL) ✓; d₄(TM) = 0 maps to 2 = d₀(TM) ✓; d₄(TR) = 1 maps to 0 = d₀(TR) ✓. The mapping holds for all nine cells.
-
-**Invariance:** Square B displays the identical Latin square pair in its outer ternary digits. This invariance across configurations confirms the property is a signature of the entire {14, 26, 111, 196, 208} family rather than an artifact of one particular placement.
+Notice: 111 and 333 both have digit sum 3 in base-3, connecting center and magic constant.
+111 in ternary (011010₃) also exhibits a palindromic quality in its inner four digits (1101), reinforcing its symbolic "center" role.
 
 ### 6.2 Square A in Base-3
 
@@ -292,7 +498,35 @@ Verification on specific cells: d₄(TL) = 2 maps to 1 = d₀(TL) ✓; d₄(TM) 
 | BM | 220 | 2 2 0 1 1 |
 | BR | 14 | 0 0 1 1 2 |
 
-### 6.3 Middle Digit Orthogonality
+### 6.3 Latin Square Discovery in Outer Digits
+
+Examining each ternary digit position separately reveals a striking combinatorial structure:
+
+**Most significant digit (d₄ = 3⁴ place):**
+
+```
+2  0  1
+0  1  2
+1  2  0
+```
+
+This is a **Latin square** — each row and column contains {0,1,2} exactly once.
+
+**Least significant digit (d₀ = 3⁰ place):**
+
+```
+1  2  0
+2  0  1
+0  1  2
+```
+
+This is also a Latin square. Applying the symbol mapping **2→1, 0→2, 1→0** (the cycle 0→2→1→0) to the d₄ grid yields exactly the d₀ grid — they are the same pattern with permuted symbols.
+
+Verification on specific cells: d₄(TL) = 2 maps to 1 = d₀(TL) ✓; d₄(TM) = 0 maps to 2 = d₀(TM) ✓; d₄(TR) = 1 maps to 0 = d₀(TR) ✓. The mapping holds for all nine cells.
+
+This tight cyclic relationship is preserved in Square B as well.
+
+### 6.4 Middle Digit Orthogonality
 
 While digits d₃ and d₂ do not individually form Latin squares, the middle digit d₁ (3¹ place) shows a distinguished role when paired with the outer digits:
 
@@ -301,24 +535,37 @@ While digits d₃ and d₂ do not individually form Latin squares, the middle di
 
 This selective orthogonality arises naturally from the linear structure of the magic square parameters (p, q) and their interaction with base-3 carries when the circle-derived numbers are embedded around center 111.
 
-### 6.4 Significance of Latin Square Structures
+### 6.5 Invariance Across Squares
+
+Square B displays the identical Latin square pair in its outer ternary digits. This invariance across multiple configurations underscores that the property is a signature of the entire {14, 26, 111, 196, 208} family rather than an artifact of one particular placement.
+
+### 6.6 Significance of Latin Square Structures
 
 Latin squares are fundamental combinatorial structures. Any 3×3 magic square can be decomposed as:
 
 **Magic Square = 3 × L₁ + L₂ + 1**
 
-where L₁ and L₂ are orthogonal Latin squares (using digits 0, 1, 2). The classic Lo Shu magic square arises from this decomposition. The orthogonal-like relation between MSB and LSB in our squares, together with the orthogonal pairing of d₀ and d₁, echoes the way classic order-3 magic squares are generated from pairs of orthogonal Latin squares. This reveals that the circle parameters naturally imprint the fundamental combinatorial skeleton of ternary magic squares onto our decimal grids.
+where L₁ and L₂ are orthogonal Latin squares (using digits 0,1,2). The classic Lo Shu magic square arises from:
 
-### 6.5 Rarity
+```
+L₁ (row indicator):  L₂ (column indicator):
+0 1 2               0 1 2
+1 2 0               2 0 1
+2 0 1               1 2 0
+```
+
+The orthogonal-like relation between MSB and LSB in our squares, together with the orthogonal pairing of d₀ and d₁, echoes the way classic order-3 magic squares are generated from pairs of orthogonal Latin squares. This reveals that the circle parameters naturally imprint the fundamental combinatorial skeleton of ternary magic squares onto our decimal grids.
+
+### 6.7 Rarity
 
 Of 11,736 valid distinct-entry center-111 magic squares, only 528 (4.5%) have all four ternary properties simultaneously:
 
-1. d₄ (most significant ternary digit) forms a Latin square on {0, 1, 2}
-2. d₀ (least significant ternary digit) forms a Latin square on {0, 1, 2}
+1. d₄ (most significant ternary digit) forms a Latin square on {0,1,2}
+2. d₀ (least significant ternary digit) forms a Latin square on {0,1,2}
 3. d₄ and d₀ are related by a cyclic symbol permutation (0→2→1→0)
 4. d₀ and d₁ form a complete orthogonal pairing (all nine ordered pairs appear exactly once)
 
-Of these, only 720 (6.1%) exhibit the cyclic d₄→d₀ relation even without the other properties. The specific ratios and differences dictated by the circle parameters (especially 222 − 14 = 208 and 222 − 26 = 196) are tightly tuned to produce this combinatorial skeleton. A full combined rarity assessment including the base-9 properties and circle-pair embedding appears in §7.4.
+Of these, only 720 (6.0%) exhibit the cyclic d₄→d₀ relation even without the other properties. The specific ratios and differences dictated by the circle parameters (especially 222 – 14 = 208 and 222 – 26 = 196) are tightly tuned to produce this combinatorial skeleton. A full combined rarity assessment including the base-9 properties and circle-pair embedding appears in §7.4.
 
 ---
 
@@ -342,23 +589,23 @@ The ternary digits can be grouped in pairs to form base-9 representations. Since
 
 ### 7.2 Complete Residue System Mod 9
 
-The units digits {1, 2, 6, 8, 3, 7, 0, 4, 5} constitute a **complete residue system modulo 9** — every integer from 0 through 8 appears exactly once. Equivalently, the nine cell values modulo 9 form a permutation of {0, …, 8}:
+The units digits {1, 2, 6, 8, 3, 7, 0, 4, 5} constitute a **complete residue system modulo 9** — every integer from 0 through 8 appears exactly once. Equivalently, the nine cell values modulo 9 form a permutation of {0,…,8}:
 
 ```
-σ_A: [1, 2, 6, 8, 3, 7, 0, 4, 5]
+σ_A = [1, 2, 6, 8, 3, 7, 0, 4, 5]
 ```
 
-This is a stronger property than a Latin square on {0, 1, 2} because it uses all nine residue classes, not just three. The structural reason is exact: the nine cell values are 111 + {0, ±p, ±q, ±(p+q), ±(p−q)}, and for all four Plenum Square configurations, the set {0, ±p, ±q, ±(p+q), ±(p−q)} mod 9 = {0, 1, 2, 3, 4, 5, 6, 7, 8}. This is a non-trivial constraint on (p, q) that the circle-derived parameters happen to satisfy.
+This is a stronger property than a Latin square on {0,1,2} because it uses all nine residue classes, not just three. The structural reason is exact: the nine cell values are 111 + {0, ±p, ±q, ±(p+q), ±(p−q)}, and for all four Plenum Square configurations, the set {0, ±p, ±q, ±(p+q), ±(p−q)} mod 9 = {0, 1, 2, 3, 4, 5, 6, 7, 8}. This is a non-trivial constraint on (p, q) that the circle-derived parameters happen to satisfy.
 
 *Clarification on terminology:* Because the grid is 3×3 while the symbol set has 9 elements, this is not a Latin square in the classical sense (which requires an n×n grid with n symbols). It is accurately described as a **mod-9 permutation grid** — the nine values form a permutation of Z₉ arranged in the 3×3 magic square layout.
 
-The hundreds digits reproduce the d₄ ternary Latin square on {0, 1, 2} (this is structurally forced: for values < 243, ⌊value/81⌋ = d₄). The ordered pairs (h, u) are all distinct — a bijection between cells and digit pairs, following automatically from the nine cell values being distinct.
+The hundreds digits reproduce the d₄ ternary Latin square on {0,1,2} (this is structurally forced: for values < 243, ⌊value/81⌋ = d₄). The ordered pairs (h, u) are all distinct — a bijection between cells and digit pairs, following automatically from the nine cell values being distinct.
 
 ### 7.3 Invariance Across Configurations
 
 All four squares exhibit the complete mod-9 residue system property, each yielding a distinct permutation σ ∈ S₉:
 
-| Square | σ (mod-9 permutation) | Cycle Structure | Fixed Points |
+| Square | σ (mod-9 permutation) | Cycle structure | Fixed points |
 |--------|-----------------------|-----------------|--------------|
 | A | [1, 2, 6, 8, 3, 7, 0, 4, 5] | (0 1 2 6)(3 8 5 7 4) | 0 (derangement) |
 | B | [4, 5, 0, 8, 3, 7, 6, 1, 2] | (0 4 3 8 2)(1 5 7)(6) | 1 |
@@ -381,20 +628,20 @@ Exhaustive computation across all 11,736 valid distinct-entry center-111 magic s
 | d₀ Latin square | 5,328 | 45.4% |
 | Both d₄ and d₀ Latin | 1,520 | 13.0% |
 | Cyclic d₄→d₀ permutation relation | 720 | 6.1% |
-| d₀, d₁ full orthogonal pairing (all 9 pairs) | 3,648 | 31.1% |
+| d₀,d₁ full orthogonal pairing (all 9 pairs) | 3,648 | 31.1% |
 | Complete residue system mod 9 | 3,648 | 31.1% |
 
 The "all combinatorial properties" row requires the conjunction of all five:
 
-1. d₄ Latin square on {0, 1, 2}
-2. d₀ Latin square on {0, 1, 2}
+1. d₄ Latin square on {0,1,2}
+2. d₀ Latin square on {0,1,2}
 3. Cyclic d₄→d₀ symbol permutation
-4. d₀, d₁ full orthogonal pairing (all 9 ordered pairs)
+4. d₀,d₁ full orthogonal pairing (all 9 ordered pairs)
 5. Complete residue system modulo 9
 
 | **All five combinatorial properties** | **528** | **4.5%** |
 
-Of those 528, only **12** (p, q) pairs also embed all four circle-derived values {14, 26, 196, 208}. These 12 comprise the 4 named configurations and their D₄ rotations/reflections.
+Of those 528, only **12** (p,q) pairs also embed all four circle-derived values {14, 26, 196, 208}. These 12 comprise our 4 named configurations and their D₄ rotations/reflections.
 
 | Scope | Count out of 11,736 | Ratio |
 |-------|---------------------|-------|
@@ -427,8 +674,8 @@ The most consequential application of mod-9 completeness is **single-triplet err
 
 **Syndrome analysis.** Each cell participates in a unique subset of the 8 lines. Cell indices 0–8 follow row-major order: TL, TM, TR, ML, C, MR, BL, BM, BR (matching the base-9 table in §7.1):
 
-| Cell | Position | Lines Through Cell | Syndrome Pattern |
-|------|----------|--------------------|------------------|
+| Cell | Position | Lines through cell | Syndrome pattern |
+|------|----------|-------------------|-----------------|
 | 0 | TL (corner) | Row 0, Col 0, Diag ↘ | {0, 3, 6} |
 | 1 | TM (edge) | Row 0, Col 1 | {0, 4} |
 | 2 | TR (corner) | Row 0, Col 2, Diag ↗ | {0, 5, 7} |
@@ -466,11 +713,13 @@ The cell values [208, 2, 123, 26, 111, 196, 99, 220, 14] can serve as a **weight
 check = dot(cell_values, triplet_values) mod 333
 ```
 
+where w = [208, 2, 123, 26, 111, 196, 99, 220, 14] are the Square A cell values and v_i are the triplet values.
+
 This is not a random linear combination. The magic square constrains the weight vector such that any three aligned coefficients sum to exactly 333 — the coefficients along every row, column, and diagonal are perfectly balanced. Consequence: if corruption is confined to three aligned triplet positions (one row, column, or diagonal of the grid), the weighted sum is equally sensitive to all three — no blind spots along any geometric axis. This complements the mod-364/mod-333 dual checksum (which treats all 27 trits uniformly) with a geometry-aware integrity check that exploits the Plenum Square's structure.
 
 ### 7.8 Interpretation
 
-The mod-9 completeness property extends the ternary combinatorial depth of §6 into a higher power of 3: the least significant ternary digit (d₀) gives a Latin square on {0, 1, 2}, and combining d₁ and d₀ into a single base-9 digit gives a complete residue system on {0, …, 8}. The hundreds digit coincides with d₄ and reproduces the same {0, 1, 2} Latin square.
+The mod-9 completeness property extends the ternary combinatorial depth of §6 into a higher power of 3: the least significant ternary digit (d₀) gives a Latin square on {0,1,2}, and combining d₁ and d₀ into a single base-9 digit gives a complete residue system on {0,…,8}. The hundreds digit coincides with d₄ and reproduces the same {0,1,2} Latin square.
 
 Crucially, mod-9 completeness is *entailed* by the full §6 property set for center-111 squares — every square with all four ternary properties also has the mod-9 property. The ternary circle axioms force a configuration shared by only 12 out of 11,736 center-111 squares (1 in 978), and just 12 out of 40.9 million three-digit magic squares (1 in 3.4 million). The Tribonacci indices of π (7, 3) appear as the mod-9 residues of Square A's parameters, singling it out as the canonical member — the only double derangement (§7.9).
 
@@ -510,7 +759,7 @@ Only Square A produces a double derangement — zero fixed points under both σ 
 Tribonacci indices (7, 3)
   ↓ look up values
 T₇ = 13, T₃ = 1  →  π = 14  →  364° circle
-  ↓ as mod-9 residues of (p, q)
+  ↓ as mod-9 residues of (p,q)
 Complete residue system  →  derangement σ_A
   ↓ index sum
 7 + 3 = 10 = 2(π − 9)  →  r ↔ 555 decimal shift
@@ -524,135 +773,66 @@ The Tribonacci decomposition of π flows through two independent paths — the *
 
 ## 8. Geometric Interpretation of the Four Squares
 
-| π-pair Position | 364/π-pair Position | Square | Interpretation |
-|-----------------|---------------------|--------|----------------|
-| Main diagonal (corners) | Horizontal midline | A | Diagonal crossed by horizontal |
-| Vertical midline | Horizontal midline | B | Vertical × horizontal cross |
-| Horizontal midline | Main diagonal | C | Horizontal crossed by diagonal |
-| Horizontal midline | Vertical midline | D | Horizontal × vertical cross |
+Each square represents a different orientation of the circle's key numbers within the magic square grid:
 
-These four configurations exhaust the ways two perpendicular axes can be occupied by the two pairs, with positivity as the only constraint.
+| Square | π-pair (14,208) position | 364/π-pair (26,196) position | Geometric interpretation |
+|--------|--------------------------|-------------------------------|-------------------------|
+| A | Main diagonal (corners) | Horizontal midline | Diagonal crossed by horizontal axis |
+| B | Vertical midline | Horizontal midline | Cross formation (vertical × horizontal) |
+| C | Horizontal midline | Main diagonal | Horizontal axis crossed by diagonal |
+| D | Horizontal midline | Vertical midline | Cross formation (horizontal × vertical) |
 
----
-
-## 9. Strategic Integration
-
-The Plenum Square's combinatorial structure provides nine concrete integration points where it delivers speed, security, or both simultaneously. Every row in the comparison below is either faster, more secure, or both — because the combinatorial structure provides for free what would otherwise require additional computation.
-
-### 9.1 Three-Layer Address Integrity
-
-| Layer | Mechanism | What It Catches | Source |
-|-------|-----------|-----------------|--------|
-| 1. Dual checksum | mod-333 × mod-364 (CRT) | Any corruption (detection space 121,212) | `shared/plenum-checksum.ts` |
-| 2. Error localization | 8-line mod-9 syndrome analysis | *Which* of 9 triplets is corrupted | §7.5, `PLATFORM.PLENUM_SQUARE.SYNDROMES` |
-| 3. Correction-in-place | 3-trit exhaustive search in localized triplet | Exact corrected value (3³ = 27 candidates) | Planned |
-
-The three layers compose: Layer 1 detects, Layer 2 localizes to 3 trits, Layer 3 corrects by exhaustive search over 27 candidates (vs. 3²⁷ ≈ 7.6 trillion without localization). For HPTP-mandatory addresses, this enables correction without full re-derivation — a 280-million-fold reduction in search space.
-
-### 9.2 Two-Scale Sponge Diffusion
-
-| Scale | Mechanism | Effect | Source |
-|-------|-----------|--------|--------|
-| Coarse (3-trit blocks) | σ_A–σ_D block permutation per round | Every block moves (σ_A derangement) | §7.6, `PLATFORM.PLENUM_SQUARE.MOD9` |
-| Fine (individual trits) | Stride-13 trit permutation | Complete cycle (gcd(13,54)=1) | Existing TIS-27 |
-
-The two scales compose within each round: block shuffle first, then trit permutation within blocks. The magic constant property (333 ≡ 0 mod 9) ensures the block permutation preserves balanced diffusion. This adds a coarser diffusion layer at zero additional computational cost beyond the permutation lookup.
-
-### 9.3 Geometry-Weighted Tunnel Key Nonces
-
-For Inter-Cube tunnel key derivation, the weight vector [208, 2, 123, 26, 111, 196, 99, 220, 14] provides geometry-aware nonce generation:
-
-```
-nonce = dot(WEIGHT_VECTOR_A, address_triplets) mod 333
-```
-
-The magic constant constraint (any 3 aligned coefficients sum to exactly 333) ensures balanced sensitivity along every geometric axis. No three co-linear address triplets can create a nonce blind spot.
-
-### 9.4 Compact Error-Correcting Wire Frames
-
-For HPTP-mandatory traffic, an 8-trit frame suffix encodes the 8 line-parity values (one per line, each a single trit mod 3). This enables the receiver to:
-
-1. Detect corruption (any non-zero syndrome)
-2. Localize to one of 9 triplets (unique syndrome pattern)
-3. Correct in-place (27-candidate exhaustive search)
-
-Total overhead: 8 trits per 27-trit classification address (29.6%). This eliminates retransmission for single-triplet errors — the receiver corrects locally, maintaining femtosecond timing continuity.
-
-### 9.5 Block-Level Avalanche Amplification
-
-The σ_A derangement guarantees that after one round of block permutation, every 3-trit block has moved to a new position. Combined with stride-13 intra-block diffusion, this achieves full-state avalanche in fewer rounds than stride-13 alone. The double-derangement property (σ²_A also has zero fixed points) ensures the amplification compounds across consecutive rounds.
-
-### 9.6 Checksum-Aware Registration Validation
-
-At TDNS registration time, the dual checksum is computed once and stored alongside the address. On every subsequent resolve, the stored checksums enable O(1) integrity verification without re-computing the full scan. The `repunit_checksum` and `plenum_checksum` fields are already wired into the scan and resolve API responses.
-
-### 9.7 Syndrome-Based Routing Recovery
-
-In the Inter-Cube overlay network, if a routing table entry's address fails dual-checksum verification, the 8-line syndrome analysis can localize the corruption to a single triplet. This enables the Fault Tolerance Service to attempt local repair before falling back to full re-resolution — reducing recovery latency from a full TDNS re-scan to a 27-candidate search.
-
-### 9.8 Round-Key Diversification
-
-The four S₉ permutations provide round-dependent key schedule diversification for TIS-27. Rather than using the same permutation in all 4 rounds, cycling through σ_A → σ_B → σ_C → σ_D at the block level ensures each round sees a different block arrangement. The distinct cycle structures (lengths 4+5, 5+3+1, 7+1+1, 1+7+1) prevent periodic alignment.
-
-### 9.9 Comparison Summary
-
-| Integration Point | Speed | Security | Both |
-|-------------------|-------|----------|------|
-| Three-layer integrity (detect → locate → correct) | ✓ (280M× search reduction) | ✓ (121,212 detection space) | **Both** |
-| Two-scale sponge diffusion | ✓ (fewer rounds to avalanche) | ✓ (no block fixpoints) | **Both** |
-| Geometry-weighted nonces | — | ✓ (no axis blind spots) | Security |
-| 8-trit error-correcting wire frames | ✓ (no retransmission) | ✓ (local correction) | **Both** |
-| Block-level avalanche amplification | ✓ (faster diffusion) | ✓ (double derangement) | **Both** |
-| Checksum-aware registration | ✓ (O(1) verify) | ✓ (tamper detection) | **Both** |
-| Syndrome-based routing recovery | ✓ (local repair) | ✓ (integrity verified) | **Both** |
-| Round-key diversification | — | ✓ (no periodic alignment) | Security |
-| Weighted integrity check | — | ✓ (balanced sensitivity) | Security |
-
-Every row is either faster, more secure, or both — because the combinatorial structure provides for free what would otherwise require additional computation.
+These four configurations exhaust the ways two perpendicular axes (diagonal, vertical, horizontal) can be occupied by the two pairs, with positivity as the only constraint.
 
 ---
 
-## 10. Synthesis and Conclusions
+## 9. Synthesis and Conclusions
 
-### 10.1 The Circle-Magic Square Unity
+### 9.1 The Circle-Magiconical Square Unity
 
-The Plenum Square construction demonstrates a remarkable harmony between:
+The entire Plenum Square construction derives from a two-equation generating system in base-3 repunits:
 
-1. **A 364° circle** with π = 14 and diameter 111
+```
+x² − R₄·x + R₆ = 0       and       2c = x² + R₄ − x
+```
+
+where R_n = (3^n − 1)/2. The quadratic defines the circle (π = 14, R₆/π = 26, full circle = R₆ = 364). The bridge fuses circle to square by requiring π² to appear as a cell complement, yielding c = 111. From these two equations emerge:
+
+1. **A 364° circle** with π = 14, diameter 111, and circumference 1554
 2. **A 3×3 magic square** with center 111 and constant 333
-3. **The inscribed regular hexagon** whose perimeter (333) becomes the magic constant
-
-The key numbers emerge naturally: π = 14, 364/π = 26, π² = 196, 222 − 14 = 208, 222 − 26 = 196 (consistent).
+3. **The inscribed regular hexagon** whose perimeter (333) equals the magic constant
 
 The hexagon is the structural bridge: the identity hexagon_perimeter = magic_constant reduces to d = c (diameter equals center), a single equation that fuses circle and square. The radius r = 55.5 is the fundamental unit of the harmonic ladder — every rung is an even multiple of r, from 2r = 111 (center) through 6r = 333 (hexagon perimeter) to 28r = 2πr = 1554 (circumference). The residual 555 = 10r = 2(π − 9) × r, connecting the radius to the circumference excess through the same integer π that defines the system.
 
-### 10.2 Fourfold Completeness
+### 9.2 Fourfold Completeness
 
-Squares A–D represent the complete set of positive-integer embeddings. They share invariant properties (all expressible as even multiples of the radius r = 55.5):
-
+Squares A–D represent the complete set of positive-integer embeddings of the two opposite pairs. They share invariant properties (all expressible as even multiples of the radius r = 55.5):
 - Opposite pair sum = 222 = 2 × 111 = 4r
 - Magic constant = 333 = 3 × 111 = 6r (hexagon perimeter)
 - Corner sums = 444 = 4 × 111 = 8r
 - Edge-center sums = 444 = 4 × 111 = 8r
-- Circumference − total sum = 555 = 5 × 111 = 10r = 2(π − 9) × r
+- Circumference – total sum = 555 = 5 × 111 = 10r = 2(π − 9) × r
 - Eight surrounding cells = 888 = 8 × 111 = 16r
 - Total square sum = 999 = 9 × 111 = 18r
 - Circumference = 1554 = 14 × 111 = 28r = 2πr
-- Products 14 × 26 = 364 and 14² = 196 appear in each
+- Products 14×26 = 364 and 14² = 196 appear in each
 
-### 10.3 Ternary Depth
+### 9.3 Three-Sequence Convergence
+
+The constants of the Plenum Square sit at the intersection of three number-theoretic sequences (§1.1): base-3 repunits provide the quadratic coefficients (R₄, R₆), Tribonacci numbers provide the root decomposition (π = T₇ + T₃) and the Tribonacci expressions for all cell values (208 = T₅² × T₇, etc.), and triangular numbers provide the configuration parameters (p = Tri(13) = 91 for Square B, q = Tri(3) = 6 for Square B) and the circle closure (2π = Tri(7) = 28). The number 13 is the unique triple identity: R₃ = T₇ = index of Tri(13) = 91. The number 7 bridges Tribonacci to triangular: T₆ = 7 → Tri(7) = 28 = 2π. And d = 111 = 2·Tri(10) + 1, where 10 = 7 + 3 is the Tribonacci index sum of π.
+
+### 9.4 Ternary Depth
 
 Base-3 analysis reveals:
-
-- Most and least significant ternary digits form perfect Latin squares on {0, 1, 2}, related by a consistent cyclic permutation (0→2→1→0).
+- Most and least significant ternary digits form perfect Latin squares on {0,1,2}, related by a consistent cyclic permutation.
 - This pattern is invariant across all four configurations.
 - Digit d₁ (3¹ place) pairs orthogonally with d₀, producing all nine distinct ordered pairs.
 
 These structures connect the circle-derived numbers to the algebraic foundations of order-3 magic squares, where orthogonal Latin squares are the generative basis.
 
-### 10.4 Base-9 Extension and Applications
+### 9.5 Base-9 Extension and Applications
 
-Base-9 analysis uncovers a further structural layer: the nine cell values form a **complete residue system modulo 9** — a permutation of {0, …, 8} — in every configuration. This is not a Latin square in the classical sense (the grid is 3×3 with 9 symbols, not 9×9), but it is a strict combinatorial property: the set of offsets {0, ±p, ±q, ±(p+q), ±(p−q)} mod 9 exhausts all residue classes.
+Base-9 analysis uncovers a further structural layer: the nine cell values form a **complete residue system modulo 9** — a permutation of {0,…,8} — in every configuration. This is not a Latin square in the classical sense (the grid is 3×3 with 9 symbols, not 9×9), but it is a strict combinatorial property: the set of offsets {0, ±p, ±q, ±(p+q), ±(p−q)} mod 9 exhausts all residue classes.
 
 Taken in isolation, individual properties appear in 6–45% of center-111 squares. But the ternary circle axioms force a configuration shared by only **12 out of 11,736** center-111 squares (0.1%), and just **12 out of 40.9 million** three-digit magic squares (0.00003%). The Tribonacci indices of π (7, 3) appear as Square A's mod-9 parameter residues, making it the unique double derangement and the canonical member of the family (§7.9).
 
@@ -664,45 +844,25 @@ The four mod-9 permutations (σ_A through σ_D) enable three concrete applicatio
 
 3. **Geometry-weighted integrity** *(planned):* Cell values as weight coefficients yield a balanced integrity check where the magic constant property (333 per line) ensures equal sensitivity along every geometric axis of the address — no blind spots in any row, column, or diagonal of triplet positions.
 
-### 10.5 Final Unified Statement
+### 9.6 Final Unified Statement
 
-The four magic squares A–D fully embody the arithmetic and geometric signature of a 364° circle (π = 14, diameter = 111) projected into a 3×3 magic square of center 111 and constant 333. The inscribed hexagon provides the bridge: its perimeter equals the magic constant because d = c, a single equation that fuses circle and square. The radius r = 55.5 is the fundamental unit — the entire harmonic ladder from 2r (center) through 6r (hexagon/magic constant) to 28r (circumference = 2πr) consists of even multiples of r, and the "decimal shift" between r = 55.5 and the residual 555 = 10r encodes the factor 2(π − 9), which is exact only because π = 14.
+Two equations in base-3 repunits —
 
-The circle-derived values {14, 26, 196, 208} form opposite pairs (sum 222) that fit in exactly four distinct positive configurations (up to dihedral symmetry). Invariant sums (222, 333, 444×2, 555, 888, 999, 1554) and products (364°, 196 = π²) hold universally. The residual 555 = (π − 9) × 111 and the circumference 1554 = π × 111 extend the ladder into the circle's own metric.
+```
+x² − R₄·x + R₆ = 0       and       2c = x² + R₄ − x
+```
 
-In base 3, Latin squares appear in the outermost digits, related by cyclic permutation and invariant across configurations; the middle digit pairs orthogonally with the least significant digit. In base 9, the cell values form a complete residue system mod 9 — a permutation of {0, …, 8} that enables 100% single-triplet error localization via the magic square's eight parity constraints, block-level sponge diffusion via four round-dependent S₉ permutations, and geometry-weighted integrity checking where the constant-sum property guarantees balanced sensitivity along every axis.
+— generate the entire construction. The quadratic's roots are π = 14 and 26 = R₆/π. Its discriminant √Δ = 12 is the q-parameter of the canonical Square A. The bridge derives c = d = 111 by embedding π² as a cell complement. From two equations with two unknowns: the 364° circle, the inscribed hexagon (perimeter 333 = magic constant), the harmonic ladder (every rung an even multiple of r = 55.5, from 2r through 28r = 2πr), and the four magic squares A–D whose circle-derived values {14, 26, 196, 208} form opposite pairs (sum 222) exhausting all positive configurations under D₄ symmetry.
 
-The ternary circle axioms do not merely produce a magic square — they select 12 configurations from a universe of 40.9 million three-digit magic squares, a specificity of 1 in 3.4 million. Even within center-111 squares alone, only 12 out of 11,736 share the complete combinatorial profile — 1 in 978. Square A is canonical: its mod-9 parameter residues (7, 3) are the Tribonacci indices of π, it is the only double derangement, and its index sum 7 + 3 = 10 = 2(π − 9) governs the radius-to-residual ratio. The Plenum Square family is not a design choice — it is a structural inevitability of the ternary circle axioms, and every combinatorial property it carries propagates directly into the algorithms that protect, route, and verify the addresses derived from its constants.
+Three number-theoretic sequences — repunits, Tribonacci, and triangular numbers — converge at the same constants because the generating system forces them to: R₃ = T₇ = 13 is the triple identity, Tri(7) = 28 = 2π closes the circle through a triangular number whose index is itself Tribonacci (T₆ = 7), and d = 111 = 2·Tri(10) + 1 ties the diameter to the index sum of π. The inscribed hexagon bridges circle to square through its perimeter (333) and diameters (182° = π radians exactly), while its arc fractions (multiples of π/3) remain rational — no transcendentals, no approximations, nothing left over.
 
-Circular continuity marries square discreteness, decimal multiples of 111 meet ternary combinatorics, and the construction finds concrete application in every layer of the framework it generates.
+In base 3, Latin squares appear in the outermost digits, related by cyclic permutation and invariant across configurations; the middle digit pairs orthogonally with the least significant digit. In base 9, the cell values form a complete residue system mod 9 — a permutation of {0,…,8} that enables 100% single-triplet error localization via the magic square's eight parity constraints, block-level sponge diffusion via four round-dependent S₉ permutations, and geometry-weighted integrity checking where the constant-sum property guarantees balanced sensitivity along every axis.
 
----
+The generating system selects 12 configurations from a universe of 40.9 million three-digit magic squares — a specificity of 1 in 3.4 million. Even within center-111 squares alone, only 12 out of 11,736 share the complete combinatorial profile. Square A is canonical: its mod-9 parameter residues (7, 3) are the Tribonacci indices of π, it is the only double derangement, and its index sum 7 + 3 = 10 = 2(π − 9) governs the radius-to-residual ratio.
 
-## 11. Implementation Status
+The Plenum Square is not a design choice — it is a structural inevitability of two equations in repunits. The perfect square discriminant (144 = 12²) guarantees integer roots. The combinatorial properties — derangement permutations, eight-line parity, balanced weight vectors, Tribonacci index encoding, triangular-number configuration parameters — propagate directly into the algorithms that protect, route, and verify the addresses derived from its constants.
 
-| Artifact | Location | Status |
-|----------|----------|--------|
-| Plenum Square module | `shared/plenum-square.ts` | Complete |
-| PLATFORM constants | `shared/constants.ts` (`PLENUM_SQUARE` block) | Complete — 11 sections, 29 constants, 30/30 verified |
-| Utility functions | `shared/plenum-square-utils.ts` | Complete (renamed from `saturnian-matrix-utils.ts`) |
-| Validation suite | `validateAll()` in `plenum-square.ts` | 94/94 invariants passing |
-| Test suite | `tests/plenum-square.test.ts` | 38/38 tests passing |
-| Plenum Checksum (dual-modulus) | `shared/plenum-checksum.ts`, `ternary-math/src/plenum_checksum.rs` | Complete |
-| Checksum tests | `tests/plenum-checksum.test.ts` | 13/13 passing (TS), 14/14 passing (Rust) |
-| TDNS integration | `server/routes/tdns.ts` | Complete (scan + resolve responses) |
-| CI integration | `theory-validation.yml` Stage 1 | Planned |
-| Rust magic square module | `ternary-math/src/magic_square.rs` | Planned |
-| Visualization page | `client/src/pages/plenum-square.tsx` | Planned |
-
-The rename from "Saturnian Magic Square" to "Plenum Square" is complete. Old files (`saturnian-blueprint.ts`, `saturnian-matrix-utils.ts`, `saturnian-blueprint.test.ts`) have been deleted. Deprecated aliases have been removed.
-
----
-
-## 12. Interpretive Note
-
-*Circular continuity weds square discreteness. Decimal multiples of 111 meet ternary combinatorics. And the ancient quest to square the circle attains here one precise, self-resonant numerical incarnation.*
-
-*The Plenum Square is not a different object from the ternary circle — it is the circle's projection into discrete arithmetic, carrying with it the full combinatorial depth of the base-3 system from which it was derived.*
+Circular continuity marries square discreteness, decimal multiples of 111 meet ternary combinatorics, and two equations in repunits generate every constant, every invariant, and every algorithm in the framework.
 
 ---
 

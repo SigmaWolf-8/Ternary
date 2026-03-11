@@ -88,6 +88,16 @@ export const PLATFORM = {
   },
 
   PLENUM_SQUARE: {
+    MASTER: {
+      R4: 40,
+      R6: 364,
+      DISCRIMINANT: 144,
+      SQRT_DISCRIMINANT: 12,
+      ROOT_PI: 14,
+      ROOT_DEGREES_PER_PI: 26,
+      DERIVED_DIAMETER: 111,
+    },
+
     CENTER: 111,
     MAGIC_CONSTANT: 333,
     PI: 14,
@@ -179,6 +189,14 @@ export const PLATFORM = {
       REPUNIT_MODULUS: 364,
       DUAL_DETECTION_SPACE: 121212,
       CHECKSUM_TRITS: 6,
+    },
+
+    TRIANGULAR: {
+      TRI_3: 6,
+      TRI_7: 28,
+      TRI_10: 55,
+      TRI_13: 91,
+      TRI_14: 105,
     },
 
     RARITY: {
