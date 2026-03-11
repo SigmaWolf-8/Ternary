@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 napi = { version = "2", features = ["napi8"] }
 napi-derive = "2"
 hex = "0.4"
+rayon = "1.10"
 
 [dependencies.ternary-math]
 path = ".."
