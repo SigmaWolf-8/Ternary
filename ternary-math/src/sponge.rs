@@ -8,6 +8,9 @@
 // standalone std-compatible implementation for use by inter-cube and
 // other non-kernel crates that need 385-bit PQ security.
 //
+// AVX2/NEON SIMD permutations ported from the kernel crate with runtime
+// feature detection. Scalar fallback for non-SIMD targets.
+//
 // Sponge version history:
 //   v1: 3-neighbor theta, 27 rounds (deprecated)
 //   v2: 7-neighbor theta (±1,±7,±13), 9 rounds, no chi
@@ -93,6 +96,25 @@ static CHI_MAP: [[i8; 3]; 27] = {
     map
 };
 
+static CHI_MAP_T0: [i8; 32] = {
+    let mut t = [0i8; 32];
+    let mut i = 0usize;
+    while i < 27 { t[i] = CHI_MAP[i][0]; i += 1; }
+    t
+};
+static CHI_MAP_T1: [i8; 32] = {
+    let mut t = [0i8; 32];
+    let mut i = 0usize;
+    while i < 27 { t[i] = CHI_MAP[i][1]; i += 1; }
+    t
+};
+static CHI_MAP_T2: [i8; 32] = {
+    let mut t = [0i8; 32];
+    let mut i = 0usize;
+    while i < 27 { t[i] = CHI_MAP[i][2]; i += 1; }
+    t
+};
+
 fn chi_layer(state: &mut [i8; STATE_SIZE]) {
     let mut block = 0;
     while block < STATE_SIZE {
@@ -104,6 +126,152 @@ fn chi_layer(state: &mut [i8; STATE_SIZE]) {
         state[block + 1] = r[1];
         state[block + 2] = r[2];
         block += 3;
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn chi_layer_avx2(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::x86_64::*;
+
+    let t0_lo_128 = _mm_loadu_si128(CHI_MAP_T0.as_ptr() as *const __m128i);
+    let t0_hi_128 = _mm_loadu_si128(CHI_MAP_T0.as_ptr().add(16) as *const __m128i);
+    let map_t0_lo = _mm256_broadcastsi128_si256(t0_lo_128);
+    let map_t0_hi = _mm256_broadcastsi128_si256(t0_hi_128);
+
+    let t1_lo_128 = _mm_loadu_si128(CHI_MAP_T1.as_ptr() as *const __m128i);
+    let t1_hi_128 = _mm_loadu_si128(CHI_MAP_T1.as_ptr().add(16) as *const __m128i);
+    let map_t1_lo = _mm256_broadcastsi128_si256(t1_lo_128);
+    let map_t1_hi = _mm256_broadcastsi128_si256(t1_hi_128);
+
+    let t2_lo_128 = _mm_loadu_si128(CHI_MAP_T2.as_ptr() as *const __m128i);
+    let t2_hi_128 = _mm_loadu_si128(CHI_MAP_T2.as_ptr().add(16) as *const __m128i);
+    let map_t2_lo = _mm256_broadcastsi128_si256(t2_lo_128);
+    let map_t2_hi = _mm256_broadcastsi128_si256(t2_hi_128);
+
+    let v_sixteen = _mm256_set1_epi8(16);
+    let v_fifteen = _mm256_set1_epi8(15);
+
+    let mut indices = [0u8; CHI_BLOCKS];
+    for b in 0..CHI_BLOCKS {
+        let base = b * 3;
+        indices[b] = ((state[base] + 1) as u8)
+            + ((state[base + 1] + 1) as u8) * 3
+            + ((state[base + 2] + 1) as u8) * 9;
+    }
+
+    let mut i = 0;
+    while i + 32 <= CHI_BLOCKS {
+        let idx_vec = _mm256_loadu_si256(indices.as_ptr().add(i) as *const __m256i);
+        let idx_hi  = _mm256_sub_epi8(idx_vec, v_sixteen);
+        let mask_hi = _mm256_cmpgt_epi8(idx_vec, v_fifteen);
+
+        let lo0 = _mm256_shuffle_epi8(map_t0_lo, idx_vec);
+        let hi0 = _mm256_shuffle_epi8(map_t0_hi, idx_hi);
+        let r0  = _mm256_blendv_epi8(lo0, hi0, mask_hi);
+
+        let lo1 = _mm256_shuffle_epi8(map_t1_lo, idx_vec);
+        let hi1 = _mm256_shuffle_epi8(map_t1_hi, idx_hi);
+        let r1  = _mm256_blendv_epi8(lo1, hi1, mask_hi);
+
+        let lo2 = _mm256_shuffle_epi8(map_t2_lo, idx_vec);
+        let hi2 = _mm256_shuffle_epi8(map_t2_hi, idx_hi);
+        let r2  = _mm256_blendv_epi8(lo2, hi2, mask_hi);
+
+        let mut out0 = [0i8; 32];
+        let mut out1 = [0i8; 32];
+        let mut out2 = [0i8; 32];
+        _mm256_storeu_si256(out0.as_mut_ptr() as *mut __m256i, r0);
+        _mm256_storeu_si256(out1.as_mut_ptr() as *mut __m256i, r1);
+        _mm256_storeu_si256(out2.as_mut_ptr() as *mut __m256i, r2);
+
+        for j in 0..32 {
+            let base = (i + j) * 3;
+            state[base]     = out0[j];
+            state[base + 1] = out1[j];
+            state[base + 2] = out2[j];
+        }
+
+        i += 32;
+    }
+
+    while i < CHI_BLOCKS {
+        let base = i * 3;
+        let idx = indices[i] as usize;
+        let r = CHI_MAP[idx];
+        state[base]     = r[0];
+        state[base + 1] = r[1];
+        state[base + 2] = r[2];
+        i += 1;
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn chi_layer_neon(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::aarch64::*;
+
+    let map_t0 = vld1q_s8(CHI_MAP_T0.as_ptr());
+    let map_t1 = vld1q_s8(CHI_MAP_T1.as_ptr());
+    let map_t2 = vld1q_s8(CHI_MAP_T2.as_ptr());
+    let map_t0_hi = vld1q_s8(CHI_MAP_T0.as_ptr().add(16));
+    let map_t1_hi = vld1q_s8(CHI_MAP_T1.as_ptr().add(16));
+    let map_t2_hi = vld1q_s8(CHI_MAP_T2.as_ptr().add(16));
+
+    let mut indices = [0u8; CHI_BLOCKS];
+    for b in 0..CHI_BLOCKS {
+        let base = b * 3;
+        indices[b] = ((state[base] + 1) as u8)
+            + ((state[base + 1] + 1) as u8) * 3
+            + ((state[base + 2] + 1) as u8) * 9;
+    }
+
+    let v_16 = vdupq_n_u8(16);
+
+    let mut i = 0;
+    while i + 16 <= CHI_BLOCKS {
+        let idx_vec = vld1q_u8(indices.as_ptr().add(i));
+
+        let lo_mask = vcltq_u8(idx_vec, v_16);
+        let hi_idx = vsubq_u8(idx_vec, v_16);
+
+        let r0_lo = vqtbl1q_s8(map_t0, vreinterpretq_u8_s8(vreinterpretq_s8_u8(idx_vec)));
+        let r0_hi = vqtbl1q_s8(map_t0_hi, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi_idx)));
+        let r0 = vbslq_s8(lo_mask, r0_lo, r0_hi);
+
+        let r1_lo = vqtbl1q_s8(map_t1, vreinterpretq_u8_s8(vreinterpretq_s8_u8(idx_vec)));
+        let r1_hi = vqtbl1q_s8(map_t1_hi, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi_idx)));
+        let r1 = vbslq_s8(lo_mask, r1_lo, r1_hi);
+
+        let r2_lo = vqtbl1q_s8(map_t2, vreinterpretq_u8_s8(vreinterpretq_s8_u8(idx_vec)));
+        let r2_hi = vqtbl1q_s8(map_t2_hi, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi_idx)));
+        let r2 = vbslq_s8(lo_mask, r2_lo, r2_hi);
+
+        let mut out0 = [0i8; 16];
+        let mut out1 = [0i8; 16];
+        let mut out2 = [0i8; 16];
+        vst1q_s8(out0.as_mut_ptr(), r0);
+        vst1q_s8(out1.as_mut_ptr(), r1);
+        vst1q_s8(out2.as_mut_ptr(), r2);
+
+        for j in 0..16 {
+            let base = (i + j) * 3;
+            state[base]     = out0[j];
+            state[base + 1] = out1[j];
+            state[base + 2] = out2[j];
+        }
+
+        i += 16;
+    }
+
+    while i < CHI_BLOCKS {
+        let base = i * 3;
+        let idx = indices[i] as usize;
+        let r = CHI_MAP[idx];
+        state[base]     = r[0];
+        state[base + 1] = r[1];
+        state[base + 2] = r[2];
+        i += 1;
     }
 }
 
@@ -159,7 +327,7 @@ fn theta_pi_rc(state: &mut [i8; STATE_SIZE], buf: &mut [i8; STATE_SIZE], round: 
     }
 }
 
-pub fn sponge_permutation(state: &mut [i8; STATE_SIZE]) {
+fn sponge_permutation_v2_scalar(state: &mut [i8; STATE_SIZE]) {
     let mut buf = [0i8; STATE_SIZE];
     for round in 0..ROUNDS {
         chi_layer(state);
@@ -167,11 +335,341 @@ pub fn sponge_permutation(state: &mut [i8; STATE_SIZE]) {
     }
 }
 
-pub fn sponge_permutation_v1(state: &mut [i8; STATE_SIZE]) {
+fn sponge_permutation_v1_scalar(state: &mut [i8; STATE_SIZE]) {
     let mut buf = [0i8; STATE_SIZE];
     for round in 0..ROUNDS {
         theta_pi_rc(state, &mut buf, round);
     }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::x86_64::*;
+
+    let mut ext = [0i8; STATE_SIZE + 26];
+    let mut buf = [0i8; STATE_SIZE];
+
+    let v_one   = _mm256_set1_epi8(1);
+    let v_hi    = _mm256_set1_epi8(1);
+    let v_lo    = _mm256_set1_epi8(-1);
+    let v_three = _mm256_set1_epi8(3);
+
+    for round in 0..ROUNDS {
+        chi_layer_avx2(state);
+
+        ext[..13].copy_from_slice(&state[STATE_SIZE - 13..]);
+        ext[13..13 + STATE_SIZE].copy_from_slice(state);
+        ext[13 + STATE_SIZE..].copy_from_slice(&state[..13]);
+
+        let mut i = 0;
+        while i + 32 <= STATE_SIZE {
+            let ei = i + 13;
+
+            let l13 = _mm256_loadu_si256(ext.as_ptr().add(ei - 13) as *const __m256i);
+            let l7  = _mm256_loadu_si256(ext.as_ptr().add(ei - 7)  as *const __m256i);
+            let l1  = _mm256_loadu_si256(ext.as_ptr().add(ei - 1)  as *const __m256i);
+            let lsum = _mm256_add_epi8(_mm256_add_epi8(l13, l7), l1);
+
+            let lgt = _mm256_cmpgt_epi8(lsum, v_hi);
+            let llt = _mm256_cmpgt_epi8(v_lo, lsum);
+            let lwrap = _mm256_blendv_epi8(lsum, _mm256_sub_epi8(lsum, v_three), lgt);
+            let lwrap = _mm256_blendv_epi8(lwrap, _mm256_add_epi8(lsum, v_three), llt);
+
+            let r1  = _mm256_loadu_si256(ext.as_ptr().add(ei + 1)  as *const __m256i);
+            let r7  = _mm256_loadu_si256(ext.as_ptr().add(ei + 7)  as *const __m256i);
+            let r13 = _mm256_loadu_si256(ext.as_ptr().add(ei + 13) as *const __m256i);
+            let rsum = _mm256_add_epi8(_mm256_add_epi8(r1, r7), r13);
+
+            let rgt = _mm256_cmpgt_epi8(rsum, v_hi);
+            let rlt = _mm256_cmpgt_epi8(v_lo, rsum);
+            let rwrap = _mm256_blendv_epi8(rsum, _mm256_sub_epi8(rsum, v_three), rgt);
+            let rwrap = _mm256_blendv_epi8(rwrap, _mm256_add_epi8(rsum, v_three), rlt);
+
+            let center = _mm256_loadu_si256(ext.as_ptr().add(ei) as *const __m256i);
+            let total = _mm256_add_epi8(
+                _mm256_add_epi8(_mm256_add_epi8(lwrap, center), rwrap),
+                v_one,
+            );
+
+            let fgt = _mm256_cmpgt_epi8(total, v_hi);
+            let flt = _mm256_cmpgt_epi8(v_lo, total);
+            let result = _mm256_blendv_epi8(total, _mm256_sub_epi8(total, v_three), fgt);
+            let result = _mm256_blendv_epi8(result, _mm256_add_epi8(total, v_three), flt);
+
+            _mm256_storeu_si256(buf.as_mut_ptr().add(i) as *mut __m256i, result);
+            i += 32;
+        }
+
+        while i < STATE_SIZE {
+            let ei = i + 13;
+            let left  = balanced_wrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);
+            let right = balanced_wrap(ext[ei+1]  + ext[ei+7] + ext[ei+13]);
+            buf[i] = balanced_wrap(left + ext[ei] + right + 1);
+            i += 1;
+        }
+
+        for i in 0..STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+
+        let rc = &RC_TABLE[round];
+        for lane in 0..LANES {
+            let idx = lane * LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn sponge_permutation_v1_avx2(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::x86_64::*;
+
+    let mut ext = [0i8; STATE_SIZE + 26];
+    let mut buf = [0i8; STATE_SIZE];
+
+    let v_one   = _mm256_set1_epi8(1);
+    let v_hi    = _mm256_set1_epi8(1);
+    let v_lo    = _mm256_set1_epi8(-1);
+    let v_three = _mm256_set1_epi8(3);
+
+    for round in 0..ROUNDS {
+        ext[..13].copy_from_slice(&state[STATE_SIZE - 13..]);
+        ext[13..13 + STATE_SIZE].copy_from_slice(state);
+        ext[13 + STATE_SIZE..].copy_from_slice(&state[..13]);
+
+        let mut i = 0;
+        while i + 32 <= STATE_SIZE {
+            let ei = i + 13;
+            let l13 = _mm256_loadu_si256(ext.as_ptr().add(ei - 13) as *const __m256i);
+            let l7  = _mm256_loadu_si256(ext.as_ptr().add(ei - 7)  as *const __m256i);
+            let l1  = _mm256_loadu_si256(ext.as_ptr().add(ei - 1)  as *const __m256i);
+            let lsum = _mm256_add_epi8(_mm256_add_epi8(l13, l7), l1);
+            let lgt = _mm256_cmpgt_epi8(lsum, v_hi);
+            let llt = _mm256_cmpgt_epi8(v_lo, lsum);
+            let lwrap = _mm256_blendv_epi8(lsum, _mm256_sub_epi8(lsum, v_three), lgt);
+            let lwrap = _mm256_blendv_epi8(lwrap, _mm256_add_epi8(lsum, v_three), llt);
+            let r1  = _mm256_loadu_si256(ext.as_ptr().add(ei + 1)  as *const __m256i);
+            let r7  = _mm256_loadu_si256(ext.as_ptr().add(ei + 7)  as *const __m256i);
+            let r13 = _mm256_loadu_si256(ext.as_ptr().add(ei + 13) as *const __m256i);
+            let rsum = _mm256_add_epi8(_mm256_add_epi8(r1, r7), r13);
+            let rgt = _mm256_cmpgt_epi8(rsum, v_hi);
+            let rlt = _mm256_cmpgt_epi8(v_lo, rsum);
+            let rwrap = _mm256_blendv_epi8(rsum, _mm256_sub_epi8(rsum, v_three), rgt);
+            let rwrap = _mm256_blendv_epi8(rwrap, _mm256_add_epi8(rsum, v_three), rlt);
+            let center = _mm256_loadu_si256(ext.as_ptr().add(ei) as *const __m256i);
+            let total = _mm256_add_epi8(
+                _mm256_add_epi8(_mm256_add_epi8(lwrap, center), rwrap),
+                v_one,
+            );
+            let fgt = _mm256_cmpgt_epi8(total, v_hi);
+            let flt = _mm256_cmpgt_epi8(v_lo, total);
+            let result = _mm256_blendv_epi8(total, _mm256_sub_epi8(total, v_three), fgt);
+            let result = _mm256_blendv_epi8(result, _mm256_add_epi8(total, v_three), flt);
+            _mm256_storeu_si256(buf.as_mut_ptr().add(i) as *mut __m256i, result);
+            i += 32;
+        }
+        while i < STATE_SIZE {
+            let ei = i + 13;
+            let left  = balanced_wrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);
+            let right = balanced_wrap(ext[ei+1]  + ext[ei+7] + ext[ei+13]);
+            buf[i] = balanced_wrap(left + ext[ei] + right + 1);
+            i += 1;
+        }
+        for i in 0..STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+        let rc = &RC_TABLE[round];
+        for lane in 0..LANES {
+            let idx = lane * LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn sponge_permutation_v2_neon(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::aarch64::*;
+
+    let mut ext = [0i8; STATE_SIZE + 26];
+    let mut buf = [0i8; STATE_SIZE];
+
+    let v_one   = vdupq_n_s8(1);
+    let v_hi    = vdupq_n_s8(1);
+    let v_lo    = vdupq_n_s8(-1);
+    let v_three = vdupq_n_s8(3);
+    let v_neg3  = vdupq_n_s8(-3);
+
+    for round in 0..ROUNDS {
+        chi_layer_neon(state);
+
+        ext[..13].copy_from_slice(&state[STATE_SIZE - 13..]);
+        ext[13..13 + STATE_SIZE].copy_from_slice(state);
+        ext[13 + STATE_SIZE..].copy_from_slice(&state[..13]);
+
+        let mut i = 0;
+        while i + 16 <= STATE_SIZE {
+            let ei = i + 13;
+
+            let l13 = vld1q_s8(ext.as_ptr().add(ei - 13));
+            let l7  = vld1q_s8(ext.as_ptr().add(ei - 7));
+            let l1  = vld1q_s8(ext.as_ptr().add(ei - 1));
+            let lsum = vaddq_s8(vaddq_s8(l13, l7), l1);
+
+            let lgt = vcgtq_s8(lsum, v_hi);
+            let llt = vcltq_s8(lsum, v_lo);
+            let lwrap = vbslq_s8(lgt, vaddq_s8(lsum, v_neg3), lsum);
+            let lwrap = vbslq_s8(llt, vaddq_s8(lsum, v_three), lwrap);
+
+            let r1  = vld1q_s8(ext.as_ptr().add(ei + 1));
+            let r7  = vld1q_s8(ext.as_ptr().add(ei + 7));
+            let r13 = vld1q_s8(ext.as_ptr().add(ei + 13));
+            let rsum = vaddq_s8(vaddq_s8(r1, r7), r13);
+
+            let rgt = vcgtq_s8(rsum, v_hi);
+            let rlt = vcltq_s8(rsum, v_lo);
+            let rwrap = vbslq_s8(rgt, vaddq_s8(rsum, v_neg3), rsum);
+            let rwrap = vbslq_s8(rlt, vaddq_s8(rsum, v_three), rwrap);
+
+            let center = vld1q_s8(ext.as_ptr().add(ei));
+            let total = vaddq_s8(
+                vaddq_s8(vaddq_s8(lwrap, center), rwrap),
+                v_one,
+            );
+
+            let fgt = vcgtq_s8(total, v_hi);
+            let flt = vcltq_s8(total, v_lo);
+            let result = vbslq_s8(fgt, vaddq_s8(total, v_neg3), total);
+            let result = vbslq_s8(flt, vaddq_s8(total, v_three), result);
+
+            vst1q_s8(buf.as_mut_ptr().add(i), result);
+            i += 16;
+        }
+
+        while i < STATE_SIZE {
+            let ei = i + 13;
+            let left  = balanced_wrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);
+            let right = balanced_wrap(ext[ei+1]  + ext[ei+7] + ext[ei+13]);
+            buf[i] = balanced_wrap(left + ext[ei] + right + 1);
+            i += 1;
+        }
+
+        for i in 0..STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+
+        let rc = &RC_TABLE[round];
+        for lane in 0..LANES {
+            let idx = lane * LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn sponge_permutation_v1_neon(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::aarch64::*;
+
+    let mut ext = [0i8; STATE_SIZE + 26];
+    let mut buf = [0i8; STATE_SIZE];
+
+    let v_one   = vdupq_n_s8(1);
+    let v_hi    = vdupq_n_s8(1);
+    let v_lo    = vdupq_n_s8(-1);
+    let v_three = vdupq_n_s8(3);
+    let v_neg3  = vdupq_n_s8(-3);
+
+    for round in 0..ROUNDS {
+        ext[..13].copy_from_slice(&state[STATE_SIZE - 13..]);
+        ext[13..13 + STATE_SIZE].copy_from_slice(state);
+        ext[13 + STATE_SIZE..].copy_from_slice(&state[..13]);
+
+        let mut i = 0;
+        while i + 16 <= STATE_SIZE {
+            let ei = i + 13;
+            let l13 = vld1q_s8(ext.as_ptr().add(ei - 13));
+            let l7  = vld1q_s8(ext.as_ptr().add(ei - 7));
+            let l1  = vld1q_s8(ext.as_ptr().add(ei - 1));
+            let lsum = vaddq_s8(vaddq_s8(l13, l7), l1);
+            let lgt = vcgtq_s8(lsum, v_hi);
+            let llt = vcltq_s8(lsum, v_lo);
+            let lwrap = vbslq_s8(lgt, vaddq_s8(lsum, v_neg3), lsum);
+            let lwrap = vbslq_s8(llt, vaddq_s8(lsum, v_three), lwrap);
+            let r1  = vld1q_s8(ext.as_ptr().add(ei + 1));
+            let r7  = vld1q_s8(ext.as_ptr().add(ei + 7));
+            let r13 = vld1q_s8(ext.as_ptr().add(ei + 13));
+            let rsum = vaddq_s8(vaddq_s8(r1, r7), r13);
+            let rgt = vcgtq_s8(rsum, v_hi);
+            let rlt = vcltq_s8(rsum, v_lo);
+            let rwrap = vbslq_s8(rgt, vaddq_s8(rsum, v_neg3), rsum);
+            let rwrap = vbslq_s8(rlt, vaddq_s8(rsum, v_three), rwrap);
+            let center = vld1q_s8(ext.as_ptr().add(ei));
+            let total = vaddq_s8(
+                vaddq_s8(vaddq_s8(lwrap, center), rwrap),
+                v_one,
+            );
+            let fgt = vcgtq_s8(total, v_hi);
+            let flt = vcltq_s8(total, v_lo);
+            let result = vbslq_s8(fgt, vaddq_s8(total, v_neg3), total);
+            let result = vbslq_s8(flt, vaddq_s8(total, v_three), result);
+            vst1q_s8(buf.as_mut_ptr().add(i), result);
+            i += 16;
+        }
+        while i < STATE_SIZE {
+            let ei = i + 13;
+            let left  = balanced_wrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);
+            let right = balanced_wrap(ext[ei+1]  + ext[ei+7] + ext[ei+13]);
+            buf[i] = balanced_wrap(left + ext[ei] + right + 1);
+            i += 1;
+        }
+        for i in 0..STATE_SIZE {
+            state[PERM[i] as usize] = buf[i];
+        }
+        let rc = &RC_TABLE[round];
+        for lane in 0..LANES {
+            let idx = lane * LANES;
+            state[idx] = balanced_wrap(state[idx] + rc[lane]);
+        }
+    }
+}
+
+pub fn sponge_permutation(state: &mut [i8; STATE_SIZE]) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { sponge_permutation_v2_avx2(state); }
+            return;
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            unsafe { sponge_permutation_v2_neon(state); }
+            return;
+        }
+    }
+    sponge_permutation_v2_scalar(state);
+}
+
+pub fn sponge_permutation_v1(state: &mut [i8; STATE_SIZE]) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { sponge_permutation_v1_avx2(state); }
+            return;
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            unsafe { sponge_permutation_v1_neon(state); }
+            return;
+        }
+    }
+    sponge_permutation_v1_scalar(state);
 }
 
 pub fn bytes_to_trits_pub(bytes: &[u8]) -> Vec<i8> {
@@ -501,5 +999,33 @@ mod tests {
         sponge_permutation_v1(&mut s1);
         sponge_permutation(&mut s2);
         assert_ne!(s1, s2, "v2 (with chi) must produce different output from v1");
+    }
+
+    #[test]
+    fn test_simd_matches_scalar() {
+        let mut s_simd = [0i8; STATE_SIZE];
+        let mut s_scalar = [0i8; STATE_SIZE];
+        for i in 0..STATE_SIZE {
+            let v = ((i * 7 + 3) % 3) as i8 - 1;
+            s_simd[i] = v;
+            s_scalar[i] = v;
+        }
+        sponge_permutation(&mut s_simd);
+        sponge_permutation_v2_scalar(&mut s_scalar);
+        assert_eq!(s_simd, s_scalar, "SIMD v2 must match scalar v2");
+    }
+
+    #[test]
+    fn test_simd_v1_matches_scalar() {
+        let mut s_simd = [0i8; STATE_SIZE];
+        let mut s_scalar = [0i8; STATE_SIZE];
+        for i in 0..STATE_SIZE {
+            let v = ((i * 7 + 3) % 3) as i8 - 1;
+            s_simd[i] = v;
+            s_scalar[i] = v;
+        }
+        sponge_permutation_v1(&mut s_simd);
+        sponge_permutation_v1_scalar(&mut s_scalar);
+        assert_eq!(s_simd, s_scalar, "SIMD v1 must match scalar v1");
     }
 }
