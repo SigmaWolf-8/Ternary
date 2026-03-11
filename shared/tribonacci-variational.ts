@@ -50,7 +50,7 @@ import {
   MASS_SHELL_RATIO,
   TEMPORAL_CROSS_DENOM,
   ENERGY_CROSS_DENOM,
-} from './saturnian-blueprint';
+} from './plenum-square';
 import type { Trit } from './lagrangian-ternary-utils';
 
 const PHI = (1 + Math.sqrt(5)) / 2;

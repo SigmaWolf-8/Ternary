@@ -52,7 +52,7 @@ import {
   CX_ZERO, CX_ONE, CX_I,
 } from './complex-utils';
 
-import { SUFT_RADIUS } from './saturnian-blueprint';
+import { SUFT_RADIUS } from './plenum-square';
 
 export type QutritState = [Complex, Complex, Complex];
 

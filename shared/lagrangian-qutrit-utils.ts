@@ -30,7 +30,7 @@
  * - triboQutritPotential: Tribonacci-weighted harmonic potential V_Trib
  * - discreteQutritAction: Full SUFT + Tribonacci per-site Lagrangian
  *
- * All coefficients derive from SUFT constants via saturnian-blueprint.ts.
+ * All coefficients derive from SUFT constants via plenum-square.ts.
  *
  * GEOMETRIA PRIMUS. TEMPORIS ARCHITECTURA ABSOLUTA.
  *
@@ -48,7 +48,7 @@ import {
   MASS_SHELL_RATIO,
   TEMPORAL_CROSS_DENOM,
   ENERGY_CROSS_DENOM,
-} from './saturnian-blueprint';
+} from './plenum-square';
 
 import { TRIBONACCI_SEQUENCE } from './tribonacci-constants';
 

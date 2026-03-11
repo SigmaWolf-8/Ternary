@@ -82,7 +82,7 @@ import {
   SUFT_LUNAR_HARMONIC,
   SUFT_COSMIC_CIRCUMFERENCE,
   MASS_SHELL_RATIO,
-} from "@shared/saturnian-blueprint";
+} from "@shared/plenum-square";
 
 function formatComplex(c: { re: number; im: number }): string {
   const r = c.re.toFixed(4);

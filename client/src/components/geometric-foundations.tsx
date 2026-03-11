@@ -785,12 +785,12 @@ export default function GeometricFoundations() {
             desc="The sponge state is a 6D sub-cube. Permutations from S₃ ≀ S₆ — every element is a Hamming-preserving bijection. No precomputed tables." />
           <SubCard delay={160} icon="◇" tag="Security" title="Address Sentinel" axis="Rep C {1,2,3} → zero is impossible"
             desc="Bijective ternary makes zero structurally impossible. A zero in any address digit is mathematical proof of forgery — constant-time, opaque errors." />
-          <SubCard delay={240} icon="△" tag="HPTP" title="Timing Tokens" axis="Z₂₈ · 13° = 364° = Saturnian year"
+          <SubCard delay={240} icon="△" tag="HPTP" title="Timing Tokens" axis="Z₂₈ · 13° = 364° = Plenum natural year"
             desc="28 angular positions encode calendar conversions, timestamp tokens, and regulatory compliance. All timing math inherits from one cyclic group." />
           <SubCard delay={320} icon="☐" tag="Isolation" title="Shell Security Domains" axis="Depth axis (axis 12) → 3 shells"
             desc="Inner, Void, Outer — three shells partition vertices into security domains. Cross-shell transitions require explicit authorization." />
           <SubCard delay={400} icon="≡" tag="Diffusion" title="Round Constants" axis="Magic Square [111, 14, 208] mod 3"
-            desc="Sponge constants derived at compile time from the Saturnian circulant matrix. Auditable derivation, magic sum 333." />
+            desc="Sponge constants derived at compile time from the Plenum circulant matrix. Auditable derivation, magic sum 333." />
         </div>
       </section>
 

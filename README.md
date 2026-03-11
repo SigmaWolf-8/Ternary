@@ -136,7 +136,7 @@ Classical simulation of quantum ternary (qutrit/qudit) operations:
 - **Qudit Basics** — Generalized d>=2 quantum states (qubit through d=13 SUFT)
 
 ### Scientific Integrations
-- **Saturnian Magic Square** — 3x3 circulant foundation for SUFT-derived constants
+- **Plenum Square** — 3×3 magic square family (circulant + 4 non-circulant configurations) derived from the 364° ternary circle (π=14, d=111). Generative root for all framework constants.
 - **Hamiltonian Mechanics** — Symplectic jitter correction, energy invariant enforcement
 - **Lagrangian Mechanics** — Discrete Euler-Lagrange for ternary logic
 - **Noether Symmetries** — Conserved quantities for ternary gauge/reparametrization

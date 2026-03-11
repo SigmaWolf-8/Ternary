@@ -1,0 +1,291 @@
+# REPLIT AGENT INSTRUCTION SET
+# Plenum Square Rename + Family Constants Integration
+#
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved — Applied Physics Division
+#
+# CONTEXT: The "Saturnian Magic Square" is being renamed to "Plenum Square"
+# across the entire repo. Simultaneously, the module is being expanded with
+# the complete Plenum Square Family (four non-circulant configurations A–D),
+# the harmonic ladder (222, 444, 555, 888, 999), and circle-derived constants
+# (26, 196). Two new files are provided; this document tells you exactly
+# where they go and what to rename.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 1: DROP IN NEW FILES
+# ═══════════════════════════════════════════════════════════════════════════
+
+# 1a. Replace saturnian-blueprint.ts with plenum-square.ts
+#
+#     The file `shared/plenum-square.ts` is the COMPLETE replacement for
+#     `shared/saturnian-blueprint.ts`. It preserves every existing export
+#     with deprecated aliases, plus adds all new family/harmonic/validation
+#     exports.
+#
+#     ACTIONS:
+#     - Copy the provided `shared/plenum-square.ts` into `shared/`
+#     - DELETE `shared/saturnian-blueprint.ts` (the new file has deprecated
+#       aliases for SATURNIAN_MATRIX, SATURNIAN_MAGIC_CONSTANT,
+#       SATURNIAN_NATURAL_YEAR, and HAS_TRIBONACCI_SATURNIAN_HARMONY
+#       so nothing breaks during migration)
+#     - Do NOT delete yet — see Phase 2 for import rewiring first
+
+# 1b. Add PLATFORM.PLENUM_SQUARE to shared/constants.ts
+#
+#     The file `shared/platform-plenum-square-addition.ts` contains the
+#     PLATFORM.PLENUM_SQUARE block. This is NOT a standalone file — its
+#     contents go INSIDE the existing PLATFORM object in shared/constants.ts.
+#
+#     ACTIONS:
+#     - Open `shared/constants.ts`
+#     - Find the PLATFORM = { ... } object
+#     - If there is an existing SATURNIAN section inside PLATFORM, REPLACE it
+#       with the PLENUM_SQUARE block from the provided file
+#     - If there is no existing SATURNIAN section, ADD the PLENUM_SQUARE block
+#       alongside the other PLATFORM sections
+#     - Delete the standalone `platform-plenum-square-addition.ts` file after
+#       inserting its contents — it is a delivery vehicle, not a runtime file
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 2: RENAME saturnian-matrix-utils.ts → plenum-square-utils.ts
+# ═══════════════════════════════════════════════════════════════════════════
+
+# The file `shared/saturnian-matrix-utils.ts` must be renamed to
+# `shared/plenum-square-utils.ts`.
+#
+# ACTIONS:
+# - Rename the file: shared/saturnian-matrix-utils.ts → shared/plenum-square-utils.ts
+# - Inside the file:
+#   - Update the copyright header comment (replace "Saturnian" with "Plenum Square")
+#   - Update the import path if it imports from './saturnian-blueprint'
+#     → change to './plenum-square'
+#   - Rename any exported identifiers that contain "Saturnian" or "saturnian":
+#     Replace "Saturnian" → "PlenumSquare" in PascalCase identifiers
+#     Replace "SATURNIAN" → "PLENUM_SQUARE" in SCREAMING_SNAKE identifiers
+#     Replace "saturnian" → "plenumSquare" in camelCase identifiers
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 3: REPO-WIDE IMPORT PATH REWRITE
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Every file that imports from the old paths must be updated.
+#
+# Search the ENTIRE repo for these import patterns and replace:
+#
+#   FIND:    from './saturnian-blueprint'
+#   REPLACE: from './plenum-square'
+#
+#   FIND:    from '../saturnian-blueprint'
+#   REPLACE: from '../plenum-square'
+#
+#   FIND:    from '../../shared/saturnian-blueprint'
+#   REPLACE: from '../../shared/plenum-square'
+#
+#   FIND:    from './saturnian-matrix-utils'
+#   REPLACE: from './plenum-square-utils'
+#
+#   FIND:    from '../saturnian-matrix-utils'
+#   REPLACE: from '../plenum-square-utils'
+#
+#   FIND:    from '../../shared/saturnian-matrix-utils'
+#   REPLACE: from '../../shared/plenum-square-utils'
+#
+# Also check for any require() calls (unlikely in this repo but verify):
+#   FIND:    require('./saturnian-blueprint')
+#   REPLACE: require('./plenum-square')
+#
+# TIP: Run `grep -rn "saturnian-blueprint\|saturnian-matrix-utils" --include="*.ts" --include="*.tsx"`
+# from the repo root to find every file that needs updating.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 4: REPO-WIDE IDENTIFIER RENAME
+# ═══════════════════════════════════════════════════════════════════════════
+
+# After import paths are fixed, rename all Saturnian identifiers repo-wide.
+# The new file provides deprecated aliases for the most critical exports,
+# but ALL call sites should be updated to the new names. Once all call sites
+# are updated, the deprecated aliases can be removed from plenum-square.ts.
+#
+# IDENTIFIER RENAME TABLE (search → replace, exact match):
+#
+# ┌──────────────────────────────────────────┬──────────────────────────────────────────┐
+# │ OLD (Saturnian)                          │ NEW (Plenum Square)                      │
+# ├──────────────────────────────────────────┼──────────────────────────────────────────┤
+# │ SATURNIAN_MATRIX                         │ PLENUM_SQUARE_MATRIX                     │
+# │ SATURNIAN_MAGIC_CONSTANT                 │ PLENUM_MAGIC_CONSTANT                    │
+# │ SATURNIAN_NATURAL_YEAR                   │ PLENUM_NATURAL_YEAR                      │
+# │ HAS_TRIBONACCI_SATURNIAN_HARMONY         │ HAS_TRIBONACCI_PLENUM_HARMONY            │
+# │ SaturnianConfiguration (type/interface)  │ PlenumSquareConfiguration                │
+# │ validateSaturnianFamily                  │ validatePlenumSquareFamily               │
+# │ SATURNIAN_FAMILY                         │ PLENUM_SQUARE_FAMILY                     │
+# │ SATURNIAN_VALUES                         │ PLENUM_SQUARE_VALUES                     │
+# └──────────────────────────────────────────┴──────────────────────────────────────────┘
+#
+# ALSO rename in strings, comments, JSDoc, and UI-visible text:
+#
+# ┌──────────────────────────┬────────────────────────────┐
+# │ OLD                      │ NEW                        │
+# ├──────────────────────────┼────────────────────────────┤
+# │ "Saturnian Magic Square" │ "Plenum Square"            │
+# │ "Saturnian magic square" │ "Plenum Square"            │
+# │ "Saturnian matrix"       │ "Plenum Square matrix"     │
+# │ "Saturnian blueprint"    │ "Plenum Square"            │
+# │ "Saturnian geometry"     │ "Plenum Square geometry"   │
+# │ "Saturnian circulant"    │ "Plenum circulant"         │
+# │ "Saturnian family"       │ "Plenum Square Family"     │
+# │ "Saturnian natural year" │ "Plenum natural year"      │
+# └──────────────────────────┴────────────────────────────┘
+#
+# EXCEPTION: Do NOT rename "Saturnian Tesseract Metatron Ternary Cube" —
+# that is a separate geometric object name (the 13D hypercube), not the
+# magic square.
+#
+# TIP: Run `grep -rn "Saturnian\|SATURNIAN\|saturnian" --include="*.ts" --include="*.tsx" --include="*.md" --include="*.rs"`
+# to find every occurrence. Expect hits in:
+#   - shared/ (constants, blueprint, matrix-utils, tribonacci-constants, etc.)
+#   - client/src/pages/ (whitepaper, quantum-sim, landing, etc.)
+#   - client/src/components/ (any component referencing the magic square)
+#   - server/salvi-core/ (any core module referencing Saturnian constants)
+#   - docs/ (architecture docs, specs)
+#   - README.md
+#   - salvi_docs/
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 5: PLATFORM CONSTANTS MIGRATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+# If any code currently references PLATFORM.SATURNIAN.*, update to
+# PLATFORM.PLENUM_SQUARE.*
+#
+# Search: PLATFORM.SATURNIAN
+# Replace: PLATFORM.PLENUM_SQUARE
+#
+# This applies to any file in client/, server/, shared/, tests/.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 6: README.md UPDATE
+# ═══════════════════════════════════════════════════════════════════════════
+
+# In the root README.md, find the Scientific Integrations section.
+# It currently reads:
+#
+#   - **Saturnian Magic Square** — 3x3 circulant foundation for SUFT-derived constants
+#
+# Replace with:
+#
+#   - **Plenum Square** — 3×3 magic square family (circulant + 4 non-circulant configurations)
+#     derived from the 364° ternary circle (π=14, d=111). Generative root for all framework constants.
+#
+# Also update the Architecture section if "saturnian" appears in the shared/ description.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 7: DELETE OLD FILES + DEPRECATED ALIASES
+# ═══════════════════════════════════════════════════════════════════════════
+
+# After ALL phases 1–6 are complete and verified:
+#
+# 1. Delete `shared/saturnian-blueprint.ts` if it still exists
+#    (it should have been replaced in Phase 1, but confirm)
+#
+# 2. In `shared/plenum-square.ts`, remove the four @deprecated alias lines:
+#      export const SATURNIAN_MATRIX = PLENUM_SQUARE_MATRIX;
+#      export const SATURNIAN_MAGIC_CONSTANT = PLENUM_MAGIC_CONSTANT;
+#      export const SATURNIAN_NATURAL_YEAR = PLENUM_NATURAL_YEAR;
+#      export const HAS_TRIBONACCI_SATURNIAN_HARMONY = HAS_TRIBONACCI_PLENUM_HARMONY;
+#
+#    These aliases exist ONLY to prevent breakage during incremental migration.
+#    Once all consumers are updated (Phase 4), they serve no purpose.
+#
+# 3. Delete the delivery file `shared/platform-plenum-square-addition.ts`
+#    if it still exists (its contents should already be inside constants.ts)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 8: VERIFY
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Run these checks to confirm the rename is complete:
+#
+# 1. Zero stale references:
+#    grep -rn "saturnian-blueprint\|saturnian-matrix-utils" --include="*.ts" --include="*.tsx"
+#    → Should return ZERO results
+#
+# 2. Zero stale identifiers (excluding "Saturnian Tesseract Metatron"):
+#    grep -rn "SATURNIAN_MATRIX\b\|SATURNIAN_MAGIC_CONSTANT\b\|SATURNIAN_NATURAL_YEAR\b\|SATURNIAN_FAMILY\b\|SATURNIAN_VALUES\b" --include="*.ts" --include="*.tsx"
+#    → Should return ZERO results (after deprecated aliases are removed)
+#
+# 3. TypeScript compiles:
+#    npx tsc --noEmit
+#    → Should pass with zero errors
+#
+# 4. All tests pass:
+#    npx vitest run
+#    → All suites green
+#
+# 5. New validation function works:
+#    Add a quick sanity check (can be temporary):
+#      import { validateAll } from './shared/plenum-square';
+#      const errors = validateAll();
+#      if (errors.length > 0) throw new Error(errors.join('\n'));
+#    → Should produce zero errors (94 invariants checked internally)
+#
+# 6. Verify PLATFORM.PLENUM_SQUARE is accessible:
+#    import { PLATFORM } from './shared/constants';
+#    console.log(PLATFORM.PLENUM_SQUARE.HARMONIC.H4); // → 444
+#    console.log(PLATFORM.PLENUM_SQUARE.OPPOSITE_PAIR_SUM); // → 222
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 9: COPYRIGHT HEADERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+# All new and modified files must include the standard copyright header:
+#
+#   Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+#   Patent(s) Pending — All Rights Reserved — Applied Physics Division
+#
+# The new plenum-square.ts already has this. Verify that
+# plenum-square-utils.ts (renamed from saturnian-matrix-utils.ts) also has it.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SUMMARY OF FILES AFFECTED
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# NEW FILES:
+#   shared/plenum-square.ts               ← replaces saturnian-blueprint.ts
+#
+# RENAMED FILES:
+#   shared/saturnian-matrix-utils.ts      → shared/plenum-square-utils.ts
+#
+# DELETED FILES:
+#   shared/saturnian-blueprint.ts         ← replaced by plenum-square.ts
+#   shared/platform-plenum-square-addition.ts ← delivery vehicle, contents merged into constants.ts
+#
+# MODIFIED FILES (expect ~10-20 depending on how widely the old name propagated):
+#   shared/constants.ts                   ← PLATFORM.PLENUM_SQUARE block added
+#   shared/tribonacci-constants.ts        ← if it references Saturnian in comments
+#   client/src/pages/whitepaper.tsx        ← UI text
+#   client/src/pages/quantum-sim.tsx       ← if it references Saturnian
+#   client/src/pages/landing.tsx           ← if it references Saturnian
+#   server/salvi-core/*.ts                ← any core module with imports
+#   README.md                             ← Scientific Integrations section
+#   docs/*.md                             ← architecture docs
+#   salvi_docs/**/*.md                    ← spec docs
+#   Any test file importing saturnian-blueprint
+#
+# Run the grep commands from Phase 8 step 1 and 2 BEFORE starting to get
+# the exact list of files for this specific repo state.
+#
+# ═══════════════════════════════════════════════════════════════════════════
+# CRITICAL CONSTRAINTS — DO NOT VIOLATE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# 🚫 DO NOT modify the deployments/ folder
+# 🚫 DO NOT change any numeric constant values — only names change
+# 🚫 DO NOT rename "Saturnian Tesseract Metatron Ternary Cube" — that is
+#    the 13D hypercube, not the magic square
+# 🚫 DO NOT hardcode numbers — use PLATFORM.PLENUM_SQUARE.* constants
+# 🚫 DO NOT remove the import from './tribonacci-constants' in plenum-square.ts
+#    — it is required for the HAS_TRIBONACCI_PLENUM_HARMONY check
+# ✅ DO preserve all existing export VALUES — only names change
+# ✅ DO add copyright headers to all new/modified files
+# ✅ DO run TypeScript compilation check after all changes
+# ✅ DO run the full test suite after all changes

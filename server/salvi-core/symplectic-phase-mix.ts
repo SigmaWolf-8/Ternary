@@ -43,7 +43,7 @@
  * @license All Rights Reserved and Preserved | © Capomastro Holdings Ltd 2026
  */
 
-import { SUFT_RADIUS, SUFT_LUNAR_HARMONIC, MAGIC_CONSTANT } from '@shared/saturnian-blueprint';
+import { SUFT_RADIUS, SUFT_LUNAR_HARMONIC, MAGIC_CONSTANT } from '@shared/plenum-square';
 import { TRIBONACCI_SEQUENCE } from '@shared/tribonacci-constants';
 
 /**

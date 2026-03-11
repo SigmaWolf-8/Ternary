@@ -46,7 +46,7 @@ import {
   SUFT_LUNAR_HARMONIC,
   SUFT_COSMIC_CIRCUMFERENCE,
   MASS_SHELL_RATIO,
-} from './saturnian-blueprint';
+} from './plenum-square';
 
 import type { Trit } from './lagrangian-ternary-utils';
 

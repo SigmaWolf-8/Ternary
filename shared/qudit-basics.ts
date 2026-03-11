@@ -48,7 +48,7 @@ import {
   identityMatrix,
 } from './complex-utils';
 
-import { SUFT_RADIUS, SUFT_COSMIC_CIRCUMFERENCE } from './saturnian-blueprint';
+import { SUFT_RADIUS, SUFT_COSMIC_CIRCUMFERENCE } from './plenum-square';
 
 export type QuditState = ComplexVector;
 
