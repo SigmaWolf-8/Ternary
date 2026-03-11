@@ -1,0 +1,190 @@
+# REPLIT TASK: Port AVX2/NEON Sponge Permutation to ternary-math
+
+## Priority: P0-CRITICAL — N-API addon is running scalar, not AVX2. 40× performance left on the table.
+
+---
+
+## The Bug
+
+The N-API addon links `ternary-math/src/sponge.rs` — pure scalar code.
+The AVX2 implementation exists only in `src/kernel/src/crypto/sponge.rs`.
+The N-API addon has never used it. Every benchmark so far has been scalar.
+
+Expected permutation time (AVX2): ~1 µs
+Actual permutation time (scalar): ~40 µs
+That 40× gap is the entire missing performance.
+
+---
+
+## What To Do
+
+Copy the AVX2 and NEON permutation functions from
+`src/kernel/src/crypto/sponge.rs` into `ternary-math/src/sponge.rs`.
+Add runtime feature detection. Wire into the existing v2 permutation
+dispatch.
+
+DO NOT make ternary-math depend on the kernel crate. The kernel has
+bare-metal dependencies that won't compile for a Node.js native addon.
+Copy the functions — they are self-contained SIMD code operating on
+`&mut [i8]` slices.
+
+---
+
+## Functions to Copy
+
+From `src/kernel/src/crypto/sponge.rs`, copy these into
+`ternary-math/src/sponge.rs`:
+
+### 1. AVX2 chi layer
+
+The function using `vpshufb` + `vblendvb` split-table lookup for
+precomputed CHI_MAP. Look for `chi_layer_avx2` or similar. It processes
+the 729-trit state in 32-element SIMD batches, using the SoA
+(Structure-of-Arrays) layout with separate CHI_MAP_T0/T1/T2 arrays.
+
+Copy it with its `#[target_feature(enable = "avx2")]` attribute.
+
+### 2. AVX2 theta-pi-rc
+
+The function that does the 7-neighbor theta mixing using AVX2 packed
+operations, the pi permutation via gather/scatter, and round constant
+injection. Look for `sponge_permutation_v2_avx2` or the AVX2 variant
+of the full round.
+
+Copy it with its `#[target_feature(enable = "avx2")]` attribute.
+
+### 3. NEON equivalents
+
+Same as above but for ARM NEON. Look for `chi_layer_neon` and the
+NEON permutation variant. Copy with `#[target_feature(enable = "neon")]`.
+
+### 4. Runtime dispatch
+
+The kernel has a dispatch function that checks
+`is_x86_feature_detected!("avx2")` at runtime and calls the AVX2 path
+if available, otherwise falls back to scalar. Copy this pattern.
+
+In `ternary-math/src/sponge.rs`, the current `sponge_permutation_v2`
+is scalar-only. Replace it with:
+
+```rust
+pub fn sponge_permutation_v2(state: &mut [i8]) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe { sponge_permutation_v2_avx2(state); }
+            return;
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            unsafe { sponge_permutation_v2_neon(state); }
+            return;
+        }
+    }
+    sponge_permutation_v2_scalar(state);
+}
+```
+
+Rename the current scalar `sponge_permutation_v2` to
+`sponge_permutation_v2_scalar` before adding the dispatch.
+
+### 5. Same for v1
+
+If the kernel has AVX2/NEON variants for the v1 permutation (no chi),
+copy those too and add the same dispatch to `sponge_permutation_v1`.
+
+---
+
+## Required Rust Imports
+
+The AVX2 functions need:
+
+```rust
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+
+#[cfg(target_arch = "aarch64")]
+use std::arch::aarch64::*;
+```
+
+Add these at the top of `ternary-math/src/sponge.rs` if not already
+present.
+
+---
+
+## Static Data
+
+The AVX2 chi uses SoA lookup tables. If the kernel defines these:
+
+```rust
+static CHI_MAP_T0: [i8; 27] = ...;
+static CHI_MAP_T1: [i8; 27] = ...;
+static CHI_MAP_T2: [i8; 27] = ...;
+```
+
+Copy them. They are derived from CHI_MAP (already in ternary-math) —
+just the per-trit decomposition for SIMD-friendly access. If they
+don't exist as separate arrays, derive them from the existing CHI_MAP:
+
+```rust
+static CHI_MAP_T0: [i8; 27] = {
+    let mut t = [0i8; 27];
+    let mut i = 0;
+    while i < 27 { t[i] = CHI_MAP[i][0]; i += 1; }
+    t
+};
+// Same for T1 (index [1]) and T2 (index [2])
+```
+
+---
+
+## After Copying
+
+1. `cargo build --release` in the workspace root with
+   `RUSTFLAGS="-C target-cpu=native"`. Must compile clean.
+
+2. Copy the .so:
+   ```bash
+   cp /home/runner/workspace/target/release/libsponge_napi.so server/crypto/sponge-native.node
+   ```
+
+3. Cross-validate: hash "PlenumNET" with the new native addon.
+   Must match the TypeScript v2 hash exactly. If it doesn't match,
+   the SIMD code has a bug — debug until it matches.
+
+4. Benchmark:
+   ```bash
+   curl -s "http://localhost:5000/api/salvi/crypto/phase-benchmark?iterations=50" | \
+     jq '.results[] | select(.mode=="balanced") | {payloadBytes, encryptUs, throughputKBps}'
+   ```
+
+---
+
+## Expected Result
+
+Each permutation drops from ~40 µs (scalar) to ~1 µs (AVX2).
+103 permutations per 4 KB encrypt → ~100 µs total.
+4 KB encrypt time: ~150–200 µs (permutations + overhead).
+Throughput: **20–40 MB/s**.
+
+That's the single-core ceiling. Tree parallelism across 8 cores
+gets to 100+ MB/s. AVX-512 4-way batching on top of that gets to
+GB/s. But this step — real AVX2 permutations — is the foundation.
+
+---
+
+## Do NOT
+
+- Do NOT add the kernel crate as a dependency of ternary-math.
+  Copy the functions. They are self-contained.
+- Do NOT modify the kernel sponge. It stays as-is.
+- Do NOT change any N-API function signatures. The only change is
+  that the permutation called by Sponge385Pub now dispatches to
+  AVX2 instead of scalar.
+- Do NOT change the TypeScript code. The speedup comes from the
+  Rust permutation being faster. Everything above the N-API boundary
+  is unchanged.
+- Do NOT forget `RUSTFLAGS="-C target-cpu=native"` on the build.
+  Without it, AVX2 intrinsics compile but LLVM won't emit them.
