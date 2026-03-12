@@ -1,0 +1,28 @@
+T-08 adds authenticated heartbeats to FTS. The changes:
+
+HMAC key derivation via TLSponge-385("PlenumNET-HB-HMAC" ‖ address ‖ master_secret)
+Authenticated heartbeat struct with monotonic sequence + auth data
+record_authenticated_pong() — verifies HMAC, checks sequence, 3 auth failures → suspect
+NeighborHealth — add last_hb_sequence, consecutive_auth_failures
+Legacy record_pong() preserved unchanged
+Unable to generate summary; prompt is emptyUnable to generate summary; prompt is emptyOne file for T-08. Target: services/inter-cube/src/fts.rs (replaces existing).
+
+fts.rs — 1,212 lines (up from 684), 21 tests (up from 8)
+What changed:
+ComponentBeforeAfterNeighborHealth10 fields13 fields: + last_hb_sequence: u64, consecutive_auth_failures: u8, hmac_key: Option<Vec<u8>>FtsConfig4 fields5 fields: + auth_failure_threshold: u8 (default 3)record_pong()Only pathPreserved (legacy unsigned), now also resets consecutive_auth_failures on successrecord_authenticated_pong()—NEW — verifies HMAC, checks sequence, updates stateHeartbeatAuth enum—NEW — TisHmac (0x01), TlDsaSig (0x02)AuthenticatedHeartbeat struct—NEW — address, endpoint, sequence, timestamp_fs, auth_mode, auth_data + canonical_message()HeartbeatAuthError enum—NEW — 5 variants: HmacInvalid, SignatureInvalid, SequenceReplay, UnknownAuthMode, UnknownAddressderive_hb_hmac_key()—NEW — TLSponge-385("PlenumNET-HB-HMAC" ‖ addr ‖ secret) → 48 bytescompute_hb_hmac() / verify_hb_hmac()—NEW — TIS-27 keyed hash, 27-byte tag, constant-time verifyderive_all_hmac_keys()—NEW — derives + caches keys for all 26 neighborsinvalidate_hmac_keys()—NEW — clears cache on master_secret rotation
+The authentication flow:
+Sender:
+  hmac_key = derive_hb_hmac_key(address, master_secret)  ← derived once, cached
+  msg = address ‖ endpoint ‖ sequence_le ‖ timestamp_le
+  tag = compute_hb_hmac(hmac_key, msg)                    ← TIS-27, <1µs
+
+Receiver (record_authenticated_pong):
+  1. Check sequence > last_accepted (sliding window ±10)   → SequenceReplay
+  2. Reconstruct canonical_message()
+  3. verify_hb_hmac(cached_key, msg, tag)                  → HmacInvalid
+     ├─ fail: consecutive_auth_failures++
+     │        if failures ≥ 3 → Suspect event (same as 3 missed pings)
+     └─ pass: reset failures, update SRTT/state, accept
+13 new tests:
+TestVerifiestest_hmac_key_derivation_deterministicSame (addr, secret) → same key, 48 bytestest_hmac_key_different_addressesDifferent addr → different keytest_hmac_key_different_secretsDifferent secret → different keytest_hmac_compute_and_verifyValid tag verifies, length = 27 bytestest_hmac_wrong_key_failsWrong key → verify returns falsetest_hmac_wrong_message_failsWrong message → verify returns falsetest_authenticated_pong_valid_hmacFull flow: derive key → build HB → verify → accepted, sequence updatedtest_authenticated_pong_invalid_hmacBad tag → HmacInvalid, auth_failures incrementedtest_three_auth_failures_trigger_suspect3 consecutive HMAC failures → Suspect + dead settest_sequence_replay_rejectedseq 50 after seq 100 (outside window) → SequenceReplaytest_derive_all_hmac_keysAll 26 neighbors get 48-byte keystest_invalidate_hmac_keysMaster secret rotation clears all cached keystest_auth_failure_reset_on_success2 failures + 1 success → counter back to 0
+All 8 original tests unchanged. Onwards, Fratello.
