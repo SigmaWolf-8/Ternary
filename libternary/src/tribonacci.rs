@@ -787,12 +787,12 @@ mod tests {
     #[test]
     fn test_tribonacci_constant_starts_correctly() {
         let digits = tribonacci_constant_base3(5);
-        // τ = 1.2010...₃
+        // τ = 1.2111...₃
         assert_eq!(digits[0], 1); // Integer part
         assert_eq!(digits[1], 2); // First fractional digit
-        assert_eq!(digits[2], 0);
+        assert_eq!(digits[2], 1);
         assert_eq!(digits[3], 1);
-        assert_eq!(digits[4], 0);
+        assert_eq!(digits[4], 1);
     }
 
     // ── Representation A/B/C Interchange Tests ────────────────────
