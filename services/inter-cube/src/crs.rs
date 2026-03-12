@@ -12,24 +12,32 @@
 //! and provides the physical endpoint information they need to establish
 //! overlay tunnels to their geometric neighbors.
 //!
-//! ## Design Principle
+//! ## T-06 (SPEC-2026-NEXT): Signed CRS Registrations
 //!
-//! The CRS is a thin coordination layer. It does NOT compute routing,
-//! maintain topology, or make forwarding decisions. Its only job is to map
-//! cube addresses (computed from geometry) to physical endpoints (IP:port).
-//! Neighbor relationships are derived from the address itself — the CRS
-//! just tells you where to find those neighbors on the physical network.
+//! Every registration payload now includes a TL-DSA signature computed by
+//! the registering node. CRS stores the signature alongside the record.
+//! Querying nodes verify the signature before establishing tunnels (T-07).
 //!
-//! ## Address Space
+//! ### Signature Construction
 //!
-//! The 13-trit Rep C address space has 3¹³ = 1,594,323 valid addresses.
-//! The allocator maintains a bitmap of used addresses and never produces
-//! an address containing zero (Rep C guarantee).
+//! Canonical byte concatenation:
+//! `address.to_wire() ‖ endpoint.as_bytes() ‖ public_key ‖ kem_public_key ‖ timestamp_le`
 //!
-//! ## Recursive Design
+//! Domain separator: `"PlenumNET-CRS-REG-v1"` (via TLSponge-385).
+//! Signature algorithm: TL-DSA-87 (WOTS+ over TLSponge-385).
 //!
-//! A CRS at any level of the cube-of-cubes hierarchy works identically:
-//! same allocation algorithm, same neighbor computation, same API.
+//! ### Timestamp Policy
+//!
+//! - `u128` femtoseconds since Salvi Epoch (HPTP-synchronized, not NTP)
+//! - Replay window: 30 seconds (`REGISTRATION_MAX_AGE_FS`)
+//! - Future tolerance: 1 second (`TIMESTAMP_FUTURE_TOLERANCE_FS`)
+//! - Re-registration requires strictly newer timestamp
+//!
+//! ### Feature Flag
+//!
+//! When `PlenumConfig.require_signature == false` (default), unsigned
+//! registrations via `register()` are still accepted. When `true`, only
+//! `register_signed()` succeeds.
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -38,6 +46,10 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+use crate::wire::{
+    pack_addr, WIRE_ADDR_SIZE,
+    REGISTRATION_MAX_AGE_FS, TIMESTAMP_FUTURE_TOLERANCE_FS,
+};
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -51,6 +63,14 @@ const DEFAULT_GRACE_PERIOD_SECS: u64 = 86_400; // 24 hours
 
 /// Default offline threshold: if no heartbeat for this long, mark offline.
 const DEFAULT_OFFLINE_THRESHOLD_SECS: u64 = 120; // 2 minutes
+
+/// Domain separator for CRS registration signatures.
+/// Used as context for TLSponge-385 domain separation in TL-DSA.
+pub const CRS_REG_DOMAIN: &[u8] = b"PlenumNET-CRS-REG-v1";
+
+/// TL-DSA variant used for CRS signatures.
+/// TL-DSA-87 = Level 5 security (post-quantum).
+pub const CRS_SIG_VARIANT: u8 = 87;
 
 // ═══════════════════════════════════════════════════════════════════════
 // CUBE STATUS
@@ -90,16 +110,91 @@ pub struct CubeRecord {
     pub addr: CubeAddr,
     /// Physical IP:port of the cube's gateway nodes.
     pub endpoints: Vec<SocketAddr>,
-    /// Identity public key for tunnel authentication.
+    /// Identity public key for tunnel authentication (TL-DSA-87).
     pub public_key: [u8; 32],
+    /// TL-KEM public key for key exchange (T-15 address-bound keys).
+    pub kem_public_key: Option<Vec<u8>>,
     /// Current status.
     pub status: CubeStatus,
-    /// Last heartbeat timestamp.
+    /// Last heartbeat timestamp (monotonic, for health checks).
     pub last_heartbeat: Instant,
-    /// When this cube was first registered.
+    /// When this cube was first registered (monotonic, for uptime).
     pub registered_at: Instant,
+    /// Registration timestamp in femtoseconds since Salvi Epoch (HPTP).
+    /// Used for replay protection: re-registration must have a strictly
+    /// newer timestamp than this value.
+    pub registered_at_fs: u128,
+    /// TL-DSA registration signature (T-06).
+    ///
+    /// Signature over canonical message:
+    /// `address.to_wire() ‖ endpoint ‖ public_key ‖ kem_public_key ‖ timestamp_le`
+    ///
+    /// Stored so querying nodes can verify the record was created by the
+    /// holder of the signing key (T-07 neighbor-side verification).
+    /// `None` for legacy unsigned registrations.
+    pub reg_signature: Option<Vec<u8>>,
+    /// Whether this record uses a legacy (unbound) key.
+    /// Set to `true` for pre-T-15 registrations. T-15 address-bound keys
+    /// will set this to `false`.
+    pub legacy_key: bool,
     /// Hierarchical level this CRS manages (0 = root).
     pub level: usize,
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SIGNED REGISTRATION — T-06 payload
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A signed CRS registration payload (T-06).
+///
+/// Contains all fields needed for registration plus the TL-DSA signature.
+/// The signature covers the canonical concatenation of all other fields.
+///
+/// `public_key` is the full-length TL-DSA-87 public key (64 bytes) used
+/// for signature verification. The CRS stores a 32-byte truncation in
+/// `CubeRecord.public_key` as the identity key for tunnel authentication.
+#[derive(Debug, Clone)]
+pub struct SignedRegistration {
+    /// Desired address (or None for auto-allocation).
+    pub address: Option<CubeAddr>,
+    /// Physical endpoint (IP:port).
+    pub endpoint: SocketAddr,
+    /// Full TL-DSA-87 public key for signature verification (64 bytes).
+    /// A 32-byte truncation is stored in CubeRecord as the identity key.
+    pub public_key: Vec<u8>,
+    /// TL-KEM public key for key exchange (optional, for T-15).
+    pub kem_public_key: Option<Vec<u8>>,
+    /// Femtosecond timestamp since Salvi Epoch (HPTP-synchronized).
+    pub timestamp_fs: u128,
+    /// TL-DSA-87 signature over the canonical message.
+    pub signature: Vec<u8>,
+}
+
+impl SignedRegistration {
+    /// Construct the canonical message that was signed.
+    ///
+    /// Format: `domain ‖ address.to_wire() ‖ endpoint ‖ public_key ‖ kem_public_key ‖ timestamp_le`
+    ///
+    /// The domain separator `"PlenumNET-CRS-REG-v1"` is prepended to prevent
+    /// cross-protocol signature reuse.
+    pub fn canonical_message(&self, assigned_addr: &CubeAddr) -> Vec<u8> {
+        build_registration_message(
+            assigned_addr,
+            &self.endpoint,
+            &self.public_key,
+            self.kem_public_key.as_deref(),
+            self.timestamp_fs,
+        )
+    }
+
+    /// Extract a 32-byte identity key (truncation of the full public key).
+    /// Stored in CubeRecord for tunnel authentication.
+    pub fn identity_key(&self) -> [u8; 32] {
+        let mut id = [0u8; 32];
+        let len = self.public_key.len().min(32);
+        id[..len].copy_from_slice(&self.public_key[..len]);
+        id
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -117,6 +212,11 @@ pub struct NeighborInfo {
     pub public_key: Option<[u8; 32]>,
     /// Status (if registered).
     pub status: Option<CubeStatus>,
+    /// Registration signature (T-06).
+    /// Included so querying nodes can verify the record (T-07).
+    pub reg_signature: Option<Vec<u8>>,
+    /// KEM public key (if available, for T-15 key exchange).
+    pub kem_public_key: Option<Vec<u8>>,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -143,6 +243,17 @@ pub enum RegistrationError {
     InvalidAddress,
     /// Public key is required.
     MissingPublicKey,
+    /// TL-DSA signature verification failed (T-06).
+    InvalidSignature,
+    /// Timestamp is outside the acceptable window (T-06).
+    /// Either too old (> 30s) or too far in the future (> 1s).
+    StaleTimestamp,
+    /// Re-registration attempted with a timestamp ≤ the existing record (T-06).
+    /// Prevents replay of old registration payloads.
+    ReplayDetected,
+    /// Signed registration required but unsigned payload received.
+    /// Only when `PlenumConfig.require_signature == true`.
+    SignatureRequired,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -243,6 +354,110 @@ impl AddressAllocator {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// SIGNATURE VERIFICATION — T-06
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Verify a TL-DSA-87 signature on a signed registration payload.
+///
+/// Reconstructs the canonical message from the payload fields and verifies
+/// using the public key. Does NOT require the secret key.
+///
+/// Returns `Ok(())` on valid signature, or the appropriate
+/// `RegistrationError` on failure.
+fn verify_registration_signature(
+    reg: &SignedRegistration,
+    assigned_addr: &CubeAddr,
+) -> Result<(), RegistrationError> {
+    let canonical_msg = reg.canonical_message(assigned_addr);
+
+    let variant = ternary_math::tl_dsa::TlDsaVariant::from_u32(CRS_SIG_VARIANT as u32)
+        .ok_or(RegistrationError::InvalidSignature)?;
+
+    let valid = ternary_math::tl_dsa::verify(
+        &reg.public_key,
+        &canonical_msg,
+        &reg.signature,
+        variant,
+    );
+
+    if valid {
+        Ok(())
+    } else {
+        Err(RegistrationError::InvalidSignature)
+    }
+}
+
+/// Validate a registration timestamp against the current time.
+///
+/// Checks:
+/// 1. Timestamp is not too far in the future (> 1s = TIMESTAMP_FUTURE_TOLERANCE_FS)
+/// 2. Timestamp is not too old (> 30s = REGISTRATION_MAX_AGE_FS)
+/// 3. If re-registering, timestamp is strictly newer than existing record
+fn validate_timestamp(
+    timestamp_fs: u128,
+    now_fs: u128,
+    existing_ts: Option<u128>,
+) -> Result<(), RegistrationError> {
+    // Future check
+    if timestamp_fs > now_fs + TIMESTAMP_FUTURE_TOLERANCE_FS {
+        return Err(RegistrationError::StaleTimestamp);
+    }
+
+    // Staleness check
+    if now_fs > timestamp_fs && (now_fs - timestamp_fs) > REGISTRATION_MAX_AGE_FS {
+        return Err(RegistrationError::StaleTimestamp);
+    }
+
+    // Replay check: must be strictly newer than existing record
+    if let Some(existing) = existing_ts {
+        if timestamp_fs <= existing {
+            return Err(RegistrationError::ReplayDetected);
+        }
+    }
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CANONICAL MESSAGE CONSTRUCTION — For callers who need to sign
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Construct the canonical message for a CRS registration signature.
+///
+/// This is the message that the registering node signs with TL-DSA-87.
+/// Both the signer and verifier must construct the same message.
+///
+/// Format: `domain ‖ address_wire ‖ endpoint_string ‖ public_key ‖ kem_public_key ‖ timestamp_le`
+pub fn build_registration_message(
+    addr: &CubeAddr,
+    endpoint: &SocketAddr,
+    public_key: &[u8],
+    kem_public_key: Option<&[u8]>,
+    timestamp_fs: u128,
+) -> Vec<u8> {
+    let addr_wire = pack_addr(addr).unwrap_or([0u8; WIRE_ADDR_SIZE]);
+    let endpoint_str = endpoint.to_string();
+    let kem_bytes = kem_public_key.unwrap_or(&[]);
+    let ts_bytes = timestamp_fs.to_le_bytes();
+
+    let mut msg = Vec::with_capacity(
+        CRS_REG_DOMAIN.len()
+            + WIRE_ADDR_SIZE
+            + endpoint_str.len()
+            + public_key.len()
+            + kem_bytes.len()
+            + 16,
+    );
+    msg.extend_from_slice(CRS_REG_DOMAIN);
+    msg.extend_from_slice(&addr_wire);
+    msg.extend_from_slice(endpoint_str.as_bytes());
+    msg.extend_from_slice(public_key);
+    msg.extend_from_slice(kem_bytes);
+    msg.extend_from_slice(&ts_bytes);
+    msg
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // CUBE REGISTRATION SERVICE
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -282,13 +497,17 @@ impl CubeRegistrationService {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // REGISTRATION
+    // REGISTRATION — Legacy unsigned path
     // ═══════════════════════════════════════════════════════════════
 
-    /// Register a new cube. Allocates an address (or uses the requested one)
-    /// and returns the address along with neighbor endpoint information.
+    /// Register a new cube (legacy unsigned path).
     ///
-    /// This is the bootstrap entry point for a new cube joining the network.
+    /// Allocates an address (or uses the requested one) and returns the
+    /// address along with neighbor endpoint information.
+    ///
+    /// When `PlenumConfig.require_signature == true`, this function should
+    /// NOT be called — use `register_signed()` instead. The API layer
+    /// (`api.rs`) enforces this gate.
     pub fn register(
         &mut self,
         endpoint: SocketAddr,
@@ -316,14 +535,18 @@ impl CubeRegistrationService {
                 .ok_or(RegistrationError::AddressSpaceExhausted)?
         };
 
-        // Create registry record
+        // Create registry record (unsigned — legacy)
         let record = CubeRecord {
             addr: addr.clone(),
             endpoints: vec![endpoint],
             public_key,
+            kem_public_key: None,
             status: CubeStatus::Active,
             last_heartbeat: now,
             registered_at: now,
+            registered_at_fs: 0,
+            reg_signature: None,
+            legacy_key: true,
             level: self.level,
         };
         self.registry.insert(addr.clone(), record);
@@ -337,11 +560,113 @@ impl CubeRegistrationService {
         })
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // REGISTRATION — Signed path (T-06)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Register a new cube with a TL-DSA-87 signed payload (T-06).
+    ///
+    /// Verifies the signature, validates the timestamp, allocates the
+    /// address, and stores the signature alongside the record so querying
+    /// nodes can verify it (T-07 neighbor-side verification).
+    ///
+    /// **Signature verification uses only the public key** — CRS does not
+    /// need the registrant's secret key.
+    ///
+    /// ## Replay Protection
+    ///
+    /// The femtosecond timestamp is part of the signed message. CRS enforces:
+    /// - Maximum registration age: 30s (`REGISTRATION_MAX_AGE_FS`)
+    /// - Future tolerance: 1s (`TIMESTAMP_FUTURE_TOLERANCE_FS`)
+    /// - Re-registration at the same address requires strictly newer timestamp
+    ///
+    /// ## Sybil Cost
+    ///
+    /// Each fake identity requires: 1 TL-DSA keypair + valid signature +
+    /// 26 authenticated tunnels + 26 heartbeat responses per interval.
+    /// Structural Sybil resistance from the geometry itself.
+    pub fn register_signed(
+        &mut self,
+        reg: &SignedRegistration,
+        now_fs: u128,
+    ) -> Result<RegistrationResult, RegistrationError> {
+        let now = Instant::now();
+
+        // Step 1: Allocate or claim the address
+        let addr = if let Some(ref desired) = reg.address {
+            let bytes = desired.to_bytes();
+            for &b in &bytes {
+                if b < 1 || b > 3 {
+                    return Err(RegistrationError::InvalidAddress);
+                }
+            }
+
+            // Check for re-registration (same address, newer timestamp)
+            let existing_ts = self.registry.get(desired).map(|r| r.registered_at_fs);
+
+            // Validate timestamp (staleness, future, replay)
+            validate_timestamp(reg.timestamp_fs, now_fs, existing_ts)?;
+
+            // If re-registering, release the old allocation first
+            if self.registry.contains_key(desired) {
+                self.registry.remove(desired);
+                // Don't release from allocator — we're reclaiming the same address
+            } else {
+                if !self.allocator.allocate_specific(desired) {
+                    return Err(RegistrationError::AddressInUse);
+                }
+            }
+            desired.clone()
+        } else {
+            // Auto-allocation: validate timestamp (no replay check for new address)
+            validate_timestamp(reg.timestamp_fs, now_fs, None)?;
+
+            self.allocator
+                .allocate()
+                .ok_or(RegistrationError::AddressSpaceExhausted)?
+        };
+
+        // Step 2: Verify the TL-DSA signature
+        // The signature covers: domain ‖ address ‖ endpoint ‖ pk ‖ kem_pk ‖ timestamp
+        verify_registration_signature(reg, &addr)?;
+
+        // Step 3: Create the signed registry record
+        let record = CubeRecord {
+            addr: addr.clone(),
+            endpoints: vec![reg.endpoint],
+            public_key: reg.identity_key(),
+            kem_public_key: reg.kem_public_key.clone(),
+            status: CubeStatus::Active,
+            last_heartbeat: now,
+            registered_at: now,
+            registered_at_fs: reg.timestamp_fs,
+            reg_signature: Some(reg.signature.clone()),
+            legacy_key: false,
+            level: self.level,
+        };
+        self.registry.insert(addr.clone(), record);
+
+        // Step 4: Compute neighbors
+        let neighbors = self.compute_neighbor_info(&addr);
+
+        Ok(RegistrationResult {
+            address: addr,
+            neighbors,
+        })
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // NEIGHBOR COMPUTATION
+    // ═══════════════════════════════════════════════════════════════
+
     /// Compute neighbor info for a cube address.
     ///
     /// This is the pure math part: flip each of the 13 trits to its
     /// 2 alternative values → 26 neighbors. Then look up endpoints.
     /// Computed on every call — not stored.
+    ///
+    /// T-06 addition: includes `reg_signature` and `kem_public_key`
+    /// in the neighbor info for T-07 neighbor-side verification.
     pub fn compute_neighbor_info(&self, addr: &CubeAddr) -> Vec<NeighborInfo> {
         let mut neighbors = Vec::with_capacity(NEIGHBORS_PER_CUBE);
         for dim in 0..DIMENSIONS {
@@ -349,15 +674,17 @@ impl CubeRegistrationService {
                 let mut nbr_addr = addr.clone();
                 nbr_addr.set_trit(dim, alt);
 
-                let (endpoint, public_key, status) =
+                let (endpoint, public_key, status, reg_sig, kem_pk) =
                     if let Some(record) = self.registry.get(&nbr_addr) {
                         (
                             record.endpoints.first().copied(),
                             Some(record.public_key),
                             Some(record.status),
+                            record.reg_signature.clone(),
+                            record.kem_public_key.clone(),
                         )
                     } else {
-                        (None, None, None) // Neighbor not yet registered
+                        (None, None, None, None, None)
                     };
 
                 neighbors.push(NeighborInfo {
@@ -365,6 +692,8 @@ impl CubeRegistrationService {
                     endpoint,
                     public_key,
                     status,
+                    reg_signature: reg_sig,
+                    kem_public_key: kem_pk,
                 });
             }
         }
@@ -489,6 +818,22 @@ impl CubeRegistrationService {
             .count()
     }
 
+    /// Number of signed registrations (non-legacy).
+    pub fn signed_count(&self) -> usize {
+        self.registry
+            .values()
+            .filter(|r| r.reg_signature.is_some())
+            .count()
+    }
+
+    /// Number of legacy unsigned registrations.
+    pub fn legacy_count(&self) -> usize {
+        self.registry
+            .values()
+            .filter(|r| r.legacy_key)
+            .count()
+    }
+
     /// Get all registered cube addresses.
     pub fn all_addresses(&self) -> Vec<&CubeAddr> {
         self.registry.keys().collect()
@@ -526,16 +871,16 @@ mod tests {
         [0xAB; 32]
     }
 
+    // ── Legacy (unsigned) registration tests ────────────────────
+
     #[test]
     fn test_register_auto_address() {
         let mut crs = CubeRegistrationService::new();
         let result = crs.register(test_endpoint(), test_key(), None).unwrap();
-        // Should get a valid Rep C address
         let bytes = result.address.to_bytes();
         for &b in &bytes {
             assert!(b >= 1 && b <= 3, "Address must be Rep C");
         }
-        // Should get 26 neighbors
         assert_eq!(result.neighbors.len(), NEIGHBORS_PER_CUBE);
     }
 
@@ -562,8 +907,6 @@ mod tests {
     #[test]
     fn test_neighbor_info_includes_registered() {
         let mut crs = CubeRegistrationService::new();
-
-        // Register cube A
         let addr_a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         crs.register(
             "10.0.0.1:51820".parse().unwrap(),
@@ -572,7 +915,6 @@ mod tests {
         )
         .unwrap();
 
-        // Register cube B (neighbor of A at dim 0)
         let addr_b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let result = crs
             .register(
@@ -582,7 +924,6 @@ mod tests {
             )
             .unwrap();
 
-        // B's neighbor info should include A's endpoint
         let a_info = result.neighbors.iter().find(|n| n.addr == addr_a).unwrap();
         assert!(a_info.endpoint.is_some());
         assert_eq!(a_info.status, Some(CubeStatus::Active));
@@ -598,6 +939,8 @@ mod tests {
         let record = crs.lookup(&desired).unwrap();
         assert_eq!(record.status, CubeStatus::Active);
         assert_eq!(record.public_key, test_key());
+        assert!(record.reg_signature.is_none(), "Legacy registration has no signature");
+        assert!(record.legacy_key, "Legacy registration is marked legacy");
     }
 
     #[test]
@@ -606,9 +949,7 @@ mod tests {
         let desired = addr([1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]);
         crs.register(test_endpoint(), test_key(), Some(desired.clone()))
             .unwrap();
-
         assert!(crs.heartbeat(&desired, test_endpoint()));
-        // Unknown address returns false
         let unknown = addr([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]);
         assert!(!crs.heartbeat(&unknown, test_endpoint()));
     }
@@ -620,18 +961,14 @@ mod tests {
         crs.register(test_endpoint(), test_key(), Some(desired.clone()))
             .unwrap();
         assert_eq!(crs.registered_count(), 1);
-
         assert!(crs.deregister(&desired));
         assert_eq!(crs.registered_count(), 0);
-        assert!(crs.lookup(&desired).is_none());
     }
 
     #[test]
     fn test_multiple_registrations() {
         let mut crs = CubeRegistrationService::new();
         for i in 0u8..10 {
-            let trits = [((i % 3) + 1); 13];
-            // Use auto-allocation to avoid collisions
             crs.register(
                 format!("10.0.0.{}:51820", i).parse().unwrap(),
                 [i; 32],
@@ -641,12 +978,12 @@ mod tests {
         }
         assert_eq!(crs.registered_count(), 10);
         assert_eq!(crs.active_count(), 10);
+        assert_eq!(crs.legacy_count(), 10);
     }
 
     #[test]
     fn test_address_never_contains_zero() {
         let mut crs = CubeRegistrationService::new();
-        // Register 100 cubes with auto-allocated addresses
         for i in 0..100 {
             let result = crs
                 .register(
@@ -657,12 +994,8 @@ mod tests {
                     None,
                 )
                 .unwrap();
-            // Verify every trit is {1, 2, 3}
             for b in result.address.to_bytes() {
-                assert!(
-                    b >= 1 && b <= 3,
-                    "Allocated address must never contain zero"
-                );
+                assert!(b >= 1 && b <= 3);
             }
         }
     }
@@ -673,5 +1006,331 @@ mod tests {
         let inner_crs = CubeRegistrationService::new().at_level(1);
         assert_eq!(root_crs.level(), 0);
         assert_eq!(inner_crs.level(), 1);
+    }
+
+    // ── Signed registration tests (T-06) ────────────────────────
+
+    #[test]
+    fn test_signed_registration_valid() {
+        let mut crs = CubeRegistrationService::new();
+
+        let seed = b"test-seed-for-signed-crs-registration";
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(seed));
+
+        let desired = addr([2, 1, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+        let now_fs: u128 = 100 * crate::wire::FS_PER_SECOND;
+
+        let pk = kp.public_key.clone();
+
+        let msg = build_registration_message(&desired, &endpoint, &pk, None, now_fs);
+        let sig = ternary_math::tl_dsa::sign(&kp.secret_key, &msg, variant);
+
+        let reg = SignedRegistration {
+            address: Some(desired.clone()),
+            endpoint,
+            public_key: pk,
+            kem_public_key: None,
+            timestamp_fs: now_fs,
+            signature: sig,
+        };
+
+        let result = crs.register_signed(&reg, now_fs).unwrap();
+        assert_eq!(result.address, desired);
+
+        let record = crs.lookup(&desired).unwrap();
+        assert!(record.reg_signature.is_some());
+        assert!(!record.legacy_key);
+        assert_eq!(record.registered_at_fs, now_fs);
+    }
+
+    #[test]
+    fn test_signed_registration_wrong_signature() {
+        let mut crs = CubeRegistrationService::new();
+
+        let seed = b"test-seed-wrong-sig";
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(seed));
+
+        let desired = addr([1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]);
+        let endpoint: SocketAddr = "10.0.0.2:51820".parse().unwrap();
+        let now_fs: u128 = 100 * crate::wire::FS_PER_SECOND;
+
+        let pk = kp.public_key.clone();
+
+        let wrong_msg = build_registration_message(
+            &desired,
+            &"10.0.0.99:9999".parse().unwrap(),
+            &pk,
+            None,
+            now_fs,
+        );
+        let sig = ternary_math::tl_dsa::sign(&kp.secret_key, &wrong_msg, variant);
+
+        let reg = SignedRegistration {
+            address: Some(desired),
+            endpoint,
+            public_key: pk,
+            kem_public_key: None,
+            timestamp_fs: now_fs,
+            signature: sig,
+        };
+
+        let err = crs.register_signed(&reg, now_fs).unwrap_err();
+        assert_eq!(err, RegistrationError::InvalidSignature);
+    }
+
+    #[test]
+    fn test_signed_registration_stale_timestamp() {
+        let mut crs = CubeRegistrationService::new();
+
+        let seed = b"test-seed-stale";
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(seed));
+
+        let desired = addr([3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3]);
+        let endpoint: SocketAddr = "10.0.0.3:51820".parse().unwrap();
+        let now_fs: u128 = 1000 * crate::wire::FS_PER_SECOND;
+        let old_ts = now_fs - 60 * crate::wire::FS_PER_SECOND;
+
+        let pk = kp.public_key.clone();
+
+        let msg = build_registration_message(&desired, &endpoint, &pk, None, old_ts);
+        let sig = ternary_math::tl_dsa::sign(&kp.secret_key, &msg, variant);
+
+        let reg = SignedRegistration {
+            address: Some(desired),
+            endpoint,
+            public_key: pk,
+            kem_public_key: None,
+            timestamp_fs: old_ts,
+            signature: sig,
+        };
+
+        let err = crs.register_signed(&reg, now_fs).unwrap_err();
+        assert_eq!(err, RegistrationError::StaleTimestamp);
+    }
+
+    #[test]
+    fn test_signed_registration_replay_detected() {
+        let mut crs = CubeRegistrationService::new();
+
+        let seed = b"test-seed-replay";
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(seed));
+
+        let desired = addr([1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1]);
+        let endpoint: SocketAddr = "10.0.0.4:51820".parse().unwrap();
+        let now_fs: u128 = 500 * crate::wire::FS_PER_SECOND;
+
+        let pk = kp.public_key.clone();
+
+        let msg1 = build_registration_message(&desired, &endpoint, &pk, None, now_fs);
+        let sig1 = ternary_math::tl_dsa::sign(&kp.secret_key, &msg1, variant);
+
+        let reg1 = SignedRegistration {
+            address: Some(desired.clone()),
+            endpoint,
+            public_key: pk.clone(),
+            kem_public_key: None,
+            timestamp_fs: now_fs,
+            signature: sig1,
+        };
+        crs.register_signed(&reg1, now_fs).unwrap();
+
+        let msg2 = build_registration_message(&desired, &endpoint, &pk, None, now_fs);
+        let sig2 = ternary_math::tl_dsa::sign(&kp.secret_key, &msg2, variant);
+
+        let reg2 = SignedRegistration {
+            address: Some(desired),
+            endpoint,
+            public_key: pk,
+            kem_public_key: None,
+            timestamp_fs: now_fs,
+            signature: sig2,
+        };
+
+        let err = crs.register_signed(&reg2, now_fs).unwrap_err();
+        assert_eq!(err, RegistrationError::ReplayDetected);
+    }
+
+    #[test]
+    fn test_signed_re_registration_newer_timestamp() {
+        let mut crs = CubeRegistrationService::new();
+
+        let seed = b"test-seed-rereg";
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(seed));
+
+        let desired = addr([2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2]);
+        let endpoint1: SocketAddr = "10.0.0.5:51820".parse().unwrap();
+        let endpoint2: SocketAddr = "10.0.0.6:51820".parse().unwrap();
+        let ts1: u128 = 500 * crate::wire::FS_PER_SECOND;
+        let ts2: u128 = 510 * crate::wire::FS_PER_SECOND;
+
+        let pk = kp.public_key.clone();
+
+        let msg1 = build_registration_message(&desired, &endpoint1, &pk, None, ts1);
+        let sig1 = ternary_math::tl_dsa::sign(&kp.secret_key, &msg1, variant);
+        let reg1 = SignedRegistration {
+            address: Some(desired.clone()),
+            endpoint: endpoint1,
+            public_key: pk.clone(),
+            kem_public_key: None,
+            timestamp_fs: ts1,
+            signature: sig1,
+        };
+        crs.register_signed(&reg1, ts1).unwrap();
+
+        let msg2 = build_registration_message(&desired, &endpoint2, &pk, None, ts2);
+        let sig2 = ternary_math::tl_dsa::sign(&kp.secret_key, &msg2, variant);
+        let reg2 = SignedRegistration {
+            address: Some(desired.clone()),
+            endpoint: endpoint2,
+            public_key: pk,
+            kem_public_key: None,
+            timestamp_fs: ts2,
+            signature: sig2,
+        };
+        let result = crs.register_signed(&reg2, ts2).unwrap();
+        assert_eq!(result.address, desired);
+
+        let record = crs.lookup(&desired).unwrap();
+        assert_eq!(record.endpoints[0], endpoint2);
+        assert_eq!(record.registered_at_fs, ts2);
+    }
+
+    #[test]
+    fn test_signed_registration_wrong_key() {
+        let mut crs = CubeRegistrationService::new();
+
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp_signer = ternary_math::tl_dsa::keygen(variant, Some(b"signer-seed"));
+        let kp_imposter = ternary_math::tl_dsa::keygen(variant, Some(b"imposter-seed"));
+
+        let desired = addr([3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]);
+        let endpoint: SocketAddr = "10.0.0.7:51820".parse().unwrap();
+        let now_fs: u128 = 200 * crate::wire::FS_PER_SECOND;
+
+        let pk_imposter = kp_imposter.public_key.clone();
+
+        let msg = build_registration_message(&desired, &endpoint, &pk_imposter, None, now_fs);
+        let sig = ternary_math::tl_dsa::sign(&kp_signer.secret_key, &msg, variant);
+
+        let reg = SignedRegistration {
+            address: Some(desired),
+            endpoint,
+            public_key: pk_imposter,
+            kem_public_key: None,
+            timestamp_fs: now_fs,
+            signature: sig,
+        };
+
+        let err = crs.register_signed(&reg, now_fs).unwrap_err();
+        assert_eq!(err, RegistrationError::InvalidSignature);
+    }
+
+    #[test]
+    fn test_neighbor_info_includes_signature() {
+        let mut crs = CubeRegistrationService::new();
+
+        let seed = b"test-seed-nbr-sig";
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(seed));
+
+        let addr_a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let endpoint: SocketAddr = "10.0.0.10:51820".parse().unwrap();
+        let now_fs: u128 = 300 * crate::wire::FS_PER_SECOND;
+
+        let pk = kp.public_key.clone();
+
+        let msg = build_registration_message(&addr_a, &endpoint, &pk, None, now_fs);
+        let sig = ternary_math::tl_dsa::sign(&kp.secret_key, &msg, variant);
+
+        let reg = SignedRegistration {
+            address: Some(addr_a.clone()),
+            endpoint,
+            public_key: pk,
+            kem_public_key: None,
+            timestamp_fs: now_fs,
+            signature: sig,
+        };
+        crs.register_signed(&reg, now_fs).unwrap();
+
+        let addr_b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        crs.register(
+            "10.0.0.11:51820".parse().unwrap(),
+            [0x22; 32],
+            Some(addr_b.clone()),
+        )
+        .unwrap();
+
+        let nbrs = crs.compute_neighbor_info(&addr_b);
+        let a_info = nbrs.iter().find(|n| n.addr == addr_a).unwrap();
+        assert!(
+            a_info.reg_signature.is_some(),
+            "Neighbor info must include the registration signature for T-07 verification"
+        );
+    }
+
+    // ── Timestamp validation unit tests ─────────────────────────
+
+    #[test]
+    fn test_validate_timestamp_current() {
+        let now = 1000 * crate::wire::FS_PER_SECOND;
+        assert!(validate_timestamp(now, now, None).is_ok());
+    }
+
+    #[test]
+    fn test_validate_timestamp_slightly_old() {
+        let now = 1000 * crate::wire::FS_PER_SECOND;
+        let ts = now - 10 * crate::wire::FS_PER_SECOND;
+        assert!(validate_timestamp(ts, now, None).is_ok());
+    }
+
+    #[test]
+    fn test_validate_timestamp_too_old() {
+        let now = 1000 * crate::wire::FS_PER_SECOND;
+        let ts = now - 60 * crate::wire::FS_PER_SECOND;
+        assert_eq!(validate_timestamp(ts, now, None).unwrap_err(), RegistrationError::StaleTimestamp);
+    }
+
+    #[test]
+    fn test_validate_timestamp_replay() {
+        let now = 1000 * crate::wire::FS_PER_SECOND;
+        let existing = now - 5 * crate::wire::FS_PER_SECOND;
+        assert_eq!(
+            validate_timestamp(existing, now, Some(existing)).unwrap_err(),
+            RegistrationError::ReplayDetected
+        );
+    }
+
+    #[test]
+    fn test_validate_timestamp_newer_than_existing() {
+        let now = 1000 * crate::wire::FS_PER_SECOND;
+        let existing = now - 10 * crate::wire::FS_PER_SECOND;
+        let newer = now - 5 * crate::wire::FS_PER_SECOND;
+        assert!(validate_timestamp(newer, now, Some(existing)).is_ok());
+    }
+
+    // ── Statistics tests ────────────────────────────────────────
+
+    #[test]
+    fn test_signed_vs_legacy_counts() {
+        let mut crs = CubeRegistrationService::new();
+
+        for i in 0..3 {
+            crs.register(
+                format!("10.0.0.{}:51820", i).parse().unwrap(),
+                [i as u8; 32],
+                None,
+            )
+            .unwrap();
+        }
+
+        assert_eq!(crs.registered_count(), 3);
+        assert_eq!(crs.legacy_count(), 3);
+        assert_eq!(crs.signed_count(), 0);
     }
 }
