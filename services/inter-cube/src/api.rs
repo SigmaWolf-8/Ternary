@@ -262,11 +262,7 @@ pub async fn crs_register(
         )
     })?;
 
-    let mut public_key = [0u8; 32];
-    let key_bytes = req.public_key.as_bytes();
-    for i in 0..32.min(key_bytes.len()) {
-        public_key[i] = key_bytes[i];
-    }
+    let public_key = req.public_key.as_bytes().to_vec();
 
     let specific_addr = if let Some(ref trits) = req.address {
         let mut arr = [0u8; 13];
