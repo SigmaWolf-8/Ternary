@@ -23,6 +23,11 @@
   }
 
   function render(result, tier) {
+    try { renderInner(result, tier); }
+    catch (e) { console.error("[PlenumNET report] render error:", e); }
+  }
+
+  function renderInner(result, tier) {
     el("no-data").style.display = "none";
     el("report-root").style.display = "block";
 
@@ -45,9 +50,10 @@
       const identSeg  = `<div class="addr-seg"><span class="seg-label" style="color:#38BDF8">ID</span><span class="seg-trits" style="color:#38BDF8;letter-spacing:.08em" title="Identity Anchor — derived from IdentitySponge(URL). 27 trits uniquely identifying this site.">${esc(identPart)}</span></div>`;
       addrEl.innerHTML = classSegs + identSeg + " ";
     } else {
-      addrEl.childNodes[0].textContent = result.address + " ";
+      addrEl.textContent = result.address + " ";
     }
-    el("r-hptp").style.display = result.hptp_mandatory ? "inline-block" : "none";
+    const hptpEl = el("r-hptp");
+    if (hptpEl) hptpEl.style.display = result.hptp_mandatory ? "inline-block" : "none";
     el("r-crd").textContent     = result.crd;
     el("r-hash-algo").textContent = algoLabel;
     el("r-hash").textContent    = (result.scan_hash || "").substring(0, 18) + "…";
