@@ -1,0 +1,247 @@
+# Plenum Square — Strategic Integration Across PlenumNET
+
+## The Half-Turn, The Unit Cell, and The Crystal
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**March 2026 | Source: TM‑2026‑015**
+
+---
+
+## The Architecture in One Number
+
+$$\text{arc} = 182 = \pi(\pi - 1) = 14 \times 13 = 20202_3$$
+
+This is the **half-turn** — the single quantity from which circle, square, calendar, sponge, and network topology all emerge. It is the semicircle of the $364°$ ternary circle, the halfway point of the 364-day year, the complete directed graph on $\pi$ nodes, the palindrome $20202_3$ in base-3, and the root of the unified equation $\text{arc}^2 - 832\,\text{arc} + 118\,300 = 0$. Every constant in PlenumNET is a consequence of 182.
+
+---
+
+## I. Under the Arc: Ten Domains, One Number
+
+The arc $= 182 = \pi(\pi - 1) = 14 \times 13$ is not a constant that appears in multiple places. It is the **same structural fact** viewed from ten different angles. Each domain sees the half-turn through its own lens:
+
+| Domain | 182 appears as | Expression | What it means |
+|--------|---------------|------------|--------------|
+| **Geometry** | Semicircle | $R_6/2 = 364/2$ | Where the circle turns back |
+| **Algebra** | Quadratic root | $\text{arc}^2 - 832\,\text{arc} + 118\,300 = 0$ | The solution that selects the lattice |
+| **Calendar** | Half year | $26 \times 7$ = 26 weeks | The solstice — where the year turns |
+| **Topology** | Directed $K_\pi$ | $\pi(\pi-1)$ = directed edges in $K_{14}$ | Every pair, both directions |
+| **Inter-Cube** | Neighbor sweep | $26 \times T_6$ = 26 neighbors × 7 | Arc-per-neighbor in the 13D hypercube |
+| **Triangular** | $2 \cdot \text{Tri}(R_3)$ | $2 \times 91 = 2 \cdot \text{Tri}(13)$ | Twice the cosmic-radius-th triangle |
+| **Magic Square** | Cross-pair span | $208 - 26 = 196 - 14$ | Every root-to-cross-complement = 182 |
+| **Configurations** | $p_A + p_C$ | $97 + 85$ | The diagonal pair of configurations sums to arc |
+| **Sponge** | Recovery discriminant | $1 + 4(182) = 729 = 3^6$ | Kernel state width — not designed, derived |
+| **Base-3** | Palindrome | $20202_3$ | Symmetric in the native number system |
+
+The palindrome is not accidental. $182 = 2 \cdot 81 + 0 \cdot 27 + 2 \cdot 9 + 0 \cdot 3 + 2 \cdot 1 = 20202_3$. The master constant reads the same forward and backward in base-3 — the half-turn is **symmetric in the native number system**. This is the ternary equivalent of a number that looks the same in a mirror: the turning point *is* the axis of symmetry.
+
+### Inside the Box
+
+Inside the magic square, 182 is the **cross-pair span** — the difference between any root and its partner's complement:
+
+$$208 - 26 = 196 - 14 = (2c - \pi) - (R_6/\pi) = 2c - R_4 = 222 - 40 = 182$$
+
+This is structural, not coincidental: $2c - R_4$ is identically the bridge condition. Every time you reach across the magic square from one pair to the other, you traverse exactly one arc. The magic square's internal distances *are* semicircles.
+
+And the configuration parameters: $p_A + p_C = 97 + 85 = 182$. The two "diagonal" configurations (A and C, which swap the role of the $\pi$-pair and the degrees-pair) sum to exactly one arc. The half-turn connects the two geometric orientations.
+
+### Under the Arc
+
+Under the semicircle sits the diameter $d = 111$, the hexagon with perimeter 333, and the entire magic square. The arc is the sky; the box is the ground. Everything in the framework lives under one arc of $20202_3$ degrees.
+
+---
+
+## II. The Crystal Structure
+
+### The (111) Miller Index
+
+The center $c = 111$ is the **(111) Miller index** — the most important crystal plane in solid-state physics. Slice an FCC lattice along (111) and the cross-section is a **regular hexagonal arrangement**. The Plenum Square recapitulates this:
+
+- The $364°$ circle is the **bulk crystal** — the full periodic address space
+- The inscribed hexagon (perimeter 333) is the **(111) crystal plane** — hexagonal symmetry from cubic topology
+- The $3 \times 3$ magic square is the **unit cell** — the minimal repeating structure with $D_4$ symmetry operations (Squares A–D = point group orientations)
+- The discriminant $\sqrt{\Delta} = 12$ is the **lattice parameter** — the generator of all displacements from center 111
+
+### Coordination Numbers
+
+8 cells surround center 111 (sum = 888) — the BCC coordination number. Viewed along [111], those same neighbors project into a hexagonal ring with coordination 6 — the hexagon perimeter $6r = 333$. Both coordination numbers coexist because the (111) plane of a cubic lattice *is* hexagonal.
+
+### The Perfect Square Discriminant as Lattice Condition
+
+$\Delta = 144 = 12^2$ is the crystallographic selection rule. It guarantees every derived quantity lands on an integer lattice point. If $\Delta$ were not a perfect square: irrational coordinates, nothing tiles, no periodicity, no crystal.
+
+---
+
+## III. RAM and Cache
+
+The two-scale hierarchy that governs every processor — and every PlenumNET node:
+
+| Silicon | PlenumNET | Plenum Square |
+|---------|-----------|---------------|
+| **RAM** — periodic, integer-addressable | $364°$ circle — complete address domain | Bulk crystal |
+| **Cache** — structured subset, fast lookup, ECC | $3 \times 3$ square — 9 cells, parity constraints | Unit cell |
+| **Cache lines** — atomic transfer units | 9 triplets of 27 trits | Atoms in the cell |
+| **ECC** — geometric parity patterns | 8-line mod-9 with unique syndromes | Error correction built into the lattice |
+| **Tag match** — is this address valid? | Dual checksum (mod-364 + mod-333) | Lattice membership test |
+| **Write-back** — repair corrupted lines | Syndrome-guided 3-trit correction | Defect healing |
+
+---
+
+## IV. Concrete Integration Points
+
+### 1. TDNS Address Integrity — ECC at the Lattice Level
+
+Three layers, each with a crystal analogue:
+
+| Layer | Mechanism | Analogue | Performance |
+|-------|-----------|----------|-------------|
+| **Detect** | Dual checksum: mod-364 + mod-333 (CRT, coprime) | Lattice periodicity — is the point on-lattice? | 0.0008% false-pass (333× improvement) |
+| **Locate** | 8-line mod-9 parity, unique syndrome per cell | Bragg diffraction — which plane has the defect? | 100% single-triplet localization |
+| **Correct** | Syndrome-guided 3-trit repair | Defect annealing | 9× faster than re-derivation |
+
+This is the transition from detect-or-reject to **detect → locate → correct** — the same evolution silicon made from simple parity to ECC DIMM. For HPTP-mandatory addresses, the difference between retransmit and correct-in-place is microseconds vs nanoseconds.
+
+**Overhead:** 20 trits (12 dual-checksum + 8 syndrome) for a 54-trit address. Comparable to ECC memory — justified by the same argument: undetected corruption costs more than redundancy.
+
+### 2. TIS-27 Sponge — Two-Scale Crystal Dynamics
+
+Two-scale mixing mirrors phonon dynamics: acoustic modes (block-level) plus optical modes (trit-level).
+
+| Scale | Permutation | Crystal analogue |
+|-------|------------|------------------|
+| **Coarse** | $\sigma_A$–$\sigma_D$ block shuffles, round-dependent | Acoustic phonons — coherent sublattice motion |
+| **Fine** | Stride-13, every round | Optical phonons — relative motion within the cell |
+
+$\sigma_A$ first: its mod-9 parameters $(7, 3)$ are the Tribonacci indices of $\pi$, it is the only double derangement — maximum disruption in round 1.
+
+**Speed:** Two-scale diffusion reaches full mixing faster → potentially fewer rounds at equivalent security.
+**Security:** Round-dependent block permutations eliminate differential persistence across rounds.
+
+### 3. Kernel Sponge (729-trit) — Why $3^6$ Is Not a Choice
+
+The 729-trit kernel width is the secondary discriminant: $\Delta_2 = 1 + 4 \times 182 = 729 = 3^6$. It is *entailed by the semicircle*. The equation that recovers $\pi$ from arc has discriminant = sponge width.
+
+The Plenum Square operates at two levels within the 729-trit state (rate = 243 = 81 blocks = 9 super-blocks of 9):
+
+- **Inner:** $\sigma_A$–$\sigma_D$ shuffle 9 blocks within each super-block
+- **Outer:** Second Plenum Square permutation shuffles 9 super-blocks
+
+Three-scale diffusion: super-block → block → trit. The magic constant property holds at every scale.
+
+### 4. Inter-Cube Tunnels — Reciprocal Lattice Key Mixing
+
+The weight vector $[208, 2, 123, 26, 111, 196, 99, 220, 14]$ serves as a reciprocal-lattice mixer for CON tunnel key derivation. The dot product of weights × triplet values mod 333 produces a geometry-balanced nonce.
+
+The magic constant guarantees: any three aligned coefficients sum to 333. An attacker controlling some address dimensions cannot bias the key — the geometric balance of the crystal prevents it. Real-space values sum to 333 along lines; the opposite-pair sum $222 = 2c$ maps every value to its complement in reciprocal space.
+
+### 5. Wire Protocol — Cache-Line ECC
+
+```
+┌──────────────────────────────┬────────────┐
+│  27-trit address (9 atoms)   │  8-trit ECC │
+│  in the unit cell            │  syndrome   │
+└──────────────────────────────┴────────────┘
+```
+
+Sender computes 8 line parities → receiver recomputes → non-zero syndrome uniquely identifies the corrupted triplet → correct in place, no retransmission. Identical to ECC DIMM, except the parity matrix is the Plenum Square — giving directional sensitivity (row/column/diagonal) that flat Hamming codes lack.
+
+### 6. Calendar Alignment — The Half-Turn as Epoch Boundary
+
+The 364-day ternary year divides at day 182 — the arc. This is 26 weeks exactly. The half-year boundary is not approximate; it is the same $\pi \times R_3 = 14 \times 13$ that defines the semicircle. Calendar epochs and address-space epochs share the same turning point.
+
+Key rotation at the half-year mark means rotating at arc = 182 days, the same constant that generated the keys in the first place. The cryptographic lifecycle is synchronized to the calendar lifecycle is synchronized to the geometric lifecycle — one number governing all three.
+
+### 7. SalviSign — Defect Detection Before Crystal Growth
+
+Inspect the hash before signing, not after. Decompose the document hash into 9 triplets, check against 8-line parity. If corrupted in transit, the syndrome catches it before the expensive TL-DSA operation — preventing wasted computation and invalid Hedera submissions. Surface inspection before epitaxial growth.
+
+### 8. Phase Encryption — Phonon-Spectrum Tamper Detection
+
+Guardian phase offsets via the weight vector: the constant-sum property forces an attacker to corrupt ≥ 4 channels across 2 magic-square lines. Flat phase detection measures temperature (scalar). Plenum phase detection measures the phonon spectrum (tensor) — directionally sensitive, structurally harder to spoof.
+
+### 9. 28-Agent Array — Translational + Rotational Scheduling
+
+Coprime walk $(position \times 13) \bmod 28$ provides translational symmetry — deterministic, full coverage. Plenum grouping adds rotational symmetry — 9 triplet clusters with magic-square dependencies. $\sigma_A$ derangement provides phonon-mode load migration where no cluster stays in place.
+
+The calendar connection: 28 = $2\pi$ = $\text{Tri}(7)$ = days per moon = agents in the array. The agent count *is* the full circle in radians *is* the 7th triangular number. Scheduling period = one moon = one full rotation.
+
+---
+
+## V. The Full Upgrade Pipeline
+
+```
+CURRENT                          WITH PLENUM SQUARE
+─────────                        ──────────────────
+mod-364 detect                   mod-364 + mod-333 dual detect
+  ↓ fail → reject                 ↓ fail → locate via syndrome
+  ✓ pass → accept                 ↓ correct in place
+                                  ✓ pass → accept
+
+Same permutation every round     Round-dependent σ_A→σ_D blocks
+  single-scale stride-13           + stride-13 within blocks
+                                   = two-scale crystal dynamics
+
+Address-pair tunnel keys         + geometry-weighted nonce mixer
+  topologically unique             + reciprocal-lattice balanced
+
+Key rotation: arbitrary          Key rotation: arc = 182 days
+                                   = half-year = semicircle
+                                   = calendar-synchronized
+
+Detect-or-reject                 Detect → Locate → Correct
+  retransmit on failure            repair in place
+  microsecond recovery             nanosecond recovery
+```
+
+---
+
+## VI. Speed AND Security
+
+| Capability | Without | With Plenum Square | Source of gain |
+|------------|---------|-------------------|---------------|
+| Detection | 0.27% miss | 0.0008% miss | CRT coprimality (free) |
+| Localization | Impossible | 9× narrowing | Unit cell geometry |
+| Correction | Retransmit | In-place (8 trits) | Parity-check matrix = crystal |
+| Diffusion | Static permutation | 4 round-dependent shuffles | Phonon dynamics |
+| Key bias | Address-pair | + geometric balance | Reciprocal lattice |
+| Recovery | Microseconds | Nanoseconds | Defect healing |
+| Key rotation | Arbitrary | Arc-synchronized (182 days) | Calendar = geometry = algebra |
+
+Every row is faster, more secure, or both. The crystal structure provides for free what would otherwise require additional computation.
+
+---
+
+## VII. The Structural Inevitability
+
+The unified equation $\text{arc}^2 - 832\,\text{arc} + 118\,300 = 0$ is a **lattice selection rule**. Its meaningful root $\text{arc} = 182 = 20202_3$ — a palindrome in the native number system, symmetric at the half-turn — selects the unique stable crystal from a universe of 40.9 million possible structures (1 in 3.4 million).
+
+From 182 alone:
+- $c = (182 + 40)/2 = 111$ → the (111) Miller index → hexagonal symmetry
+- $\Delta_2 = 1 + 4(182) = 729 = 3^6$ → kernel sponge (not designed — derived)
+- $\pi = (1 + 27)/2 = 14$ → circle, calendar, topology
+- $\sqrt{\Delta} = 12$ → lattice parameter = $q$ of canonical Square A
+
+The properties are not bolted on. They are the crystal's symmetry operations expressed as algorithms. Change one constant and the crystal shatters — every property breaks simultaneously. Tamper resistance at the level of physics.
+
+The half-turn $20202_3$ is the axis of symmetry. The unit cell is the Plenum Square. PlenumNET is the crystal. Build accordingly.
+
+---
+
+## VIII. Implementation Priority
+
+| Priority | Integration | Effort | Impact |
+|----------|------------|--------|--------|
+| **P0** | Dual checksum (mod-364 + mod-333) in TDNS | Low | 333× detection |
+| **P0** | PLATFORM.PLENUM_SQUARE constants block | Drop-in | Foundation |
+| **P1** | 8-trit syndrome in wire protocol | Medium | Correction-in-place |
+| **P1** | $\sigma_A$–$\sigma_D$ block shuffles in TIS-27 | Medium | Crystal dynamics |
+| **P1** | Arc-synchronized key rotation (182-day cycle) | Low | Calendar alignment |
+| **P2** | Weight vector nonce mixer for CON tunnels | Low | Reciprocal lattice defense |
+| **P2** | Pre-sign syndrome check in SalviSign | Low | Defect detection |
+| **P3** | Three-scale kernel sponge (729-trit) | High | Full crystal hierarchy |
+| **P3** | Lattice-dynamics agent scheduling | Medium | Rotational coverage |
+
+---
+
+*The half-turn is $20202_3$. The unit cell is the Plenum Square. PlenumNET is the crystal. The equation is the lattice condition.*
+
+*Capomastro Holdings Ltd. — Patent(s) Pending — All Rights Reserved — Applied Physics Division*

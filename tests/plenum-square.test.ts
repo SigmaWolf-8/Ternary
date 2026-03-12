@@ -27,10 +27,12 @@ import {
   PLENUM_NATURAL_YEAR_DAYS,
   PLENUM_SQUARE_FAMILY,
   HARMONIC_LADDER,
+  UNIFIED_EQUATION,
   validateAll,
   validatePlenumSquareFamily,
   validateHarmonicLadder,
   validateInvariantProducts,
+  validateUnifiedEquation,
 } from '../shared/plenum-square';
 import {
   getPlenumSquareFlattened,
@@ -41,6 +43,7 @@ import {
 } from '../shared/plenum-square-utils';
 import { TRIBONACCI_SEQUENCE } from '../shared/tribonacci-constants';
 import { FULL_CIRCLE_DEG, PI_TERNARY, TWO_PI_TERNARY, RADIAN_DEG } from '../shared/ternary-circle';
+import { PLATFORM } from '../shared/constants';
 
 describe('Plenum Square Blueprint', () => {
   test('matrix has correct magic constant (333)', () => {
@@ -259,6 +262,73 @@ describe('Invariant Products', () => {
   test('all product invariants hold', () => {
     const errors = validateInvariantProducts();
     expect(errors).toEqual([]);
+  });
+});
+
+describe('Unified Equation: arc² − 832·arc + 118300 = 0', () => {
+  test('arc = 182 is a root', () => {
+    expect(182 * 182 - 832 * 182 + 118300).toBe(0);
+  });
+
+  test('arc = 650 is the other root', () => {
+    expect(650 * 650 - 832 * 650 + 118300).toBe(0);
+  });
+
+  test('discriminant is perfect square: 219024 = 468²', () => {
+    expect(UNIFIED_EQUATION.ARC_DISCRIMINANT).toBe(468 * 468);
+    expect(UNIFIED_EQUATION.ARC_DISCRIMINANT).toBe(832 * 832 - 4 * 118300);
+  });
+
+  test('coefficient decomposition: 832 = R₄(R₄−1) − 2R₆', () => {
+    expect(40 * 39 - 2 * 364).toBe(832);
+  });
+
+  test('coefficient decomposition: 118300 = R₆ · R₃ · (π−9)²', () => {
+    expect(364 * 13 * 25).toBe(118300);
+  });
+
+  test('center derived from arc: c = (182 + 40)/2 = 111', () => {
+    expect((UNIFIED_EQUATION.ARC + 40) / 2).toBe(111);
+  });
+
+  test('secondary discriminant: 1 + 4·182 = 729 = 3⁶ (sponge width)', () => {
+    expect(UNIFIED_EQUATION.SECONDARY_DISCRIMINANT).toBe(729);
+    expect(1 + 4 * 182).toBe(729);
+    expect(Math.pow(3, 6)).toBe(729);
+  });
+
+  test('π recovered from secondary discriminant: (1+27)/2 = 14', () => {
+    expect((1 + Math.sqrt(729)) / 2).toBe(14);
+  });
+
+  test('468 = (R₄−1)·√Δ_quad = 39 × 12', () => {
+    expect(UNIFIED_EQUATION.ARC_SQRT_DISCRIMINANT).toBe(39 * 12);
+  });
+
+  test('validateUnifiedEquation() returns zero errors', () => {
+    const errors = validateUnifiedEquation();
+    expect(errors).toEqual([]);
+  });
+});
+
+describe('PLATFORM.PLENUM_SQUARE.MASTER unified constants', () => {
+  test('MASTER block has all unified equation constants', () => {
+    const M = PLATFORM.PLENUM_SQUARE.MASTER;
+    expect(M.ARC_COEFF_B).toBe(832);
+    expect(M.ARC_COEFF_C).toBe(118300);
+    expect(M.ARC_DISCRIMINANT).toBe(219024);
+    expect(M.ARC_SQRT_DISCRIMINANT).toBe(468);
+    expect(M.ARC).toBe(182);
+    expect(M.SECONDARY_DISCRIMINANT).toBe(729);
+  });
+
+  test('unified equation verified through PLATFORM constants', () => {
+    const M = PLATFORM.PLENUM_SQUARE.MASTER;
+    expect(M.ARC * M.ARC - M.ARC_COEFF_B * M.ARC + M.ARC_COEFF_C).toBe(0);
+    expect(M.ARC_COEFF_B * M.ARC_COEFF_B - 4 * M.ARC_COEFF_C).toBe(M.ARC_DISCRIMINANT);
+    expect(M.ARC_SQRT_DISCRIMINANT * M.ARC_SQRT_DISCRIMINANT).toBe(M.ARC_DISCRIMINANT);
+    expect((M.ARC + M.R4) / 2).toBe(M.DERIVED_DIAMETER);
+    expect(1 + 4 * M.ARC).toBe(M.SECONDARY_DISCRIMINANT);
   });
 });
 

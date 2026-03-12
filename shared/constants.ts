@@ -88,6 +88,22 @@ export const PLATFORM = {
   },
 
   PLENUM_SQUARE: {
+    MASTER: {
+      ARC_COEFF_B: 832,
+      ARC_COEFF_C: 118300,
+      ARC_DISCRIMINANT: 219024,
+      ARC_SQRT_DISCRIMINANT: 468,
+      ARC: 182,
+      SECONDARY_DISCRIMINANT: 729,
+      R4: 40,
+      R6: 364,
+      DISCRIMINANT: 144,
+      SQRT_DISCRIMINANT: 12,
+      ROOT_PI: 14,
+      ROOT_DEGREES_PER_PI: 26,
+      DERIVED_DIAMETER: 111,
+    },
+
     CENTER: 111,
     MAGIC_CONSTANT: 333,
     PI: 14,
@@ -96,7 +112,12 @@ export const PLATFORM = {
     PI_SQUARED: 196,
 
     DIAMETER: 111,
+    RADIUS: 55.5,
     CIRCUMFERENCE: 1554,
+    HEXAGON_SIDE: 55.5,
+    HEXAGON_PERIMETER: 333,
+    CIRCUMFERENCE_TO_HEXAGON_RATIO_NUM: 14,
+    CIRCUMFERENCE_TO_HEXAGON_RATIO_DEN: 3,
 
     HARMONIC: {
       H1: 111,
@@ -106,6 +127,7 @@ export const PLATFORM = {
       H5: 555,
       H8: 888,
       H9: 999,
+      H14: 1554,
     },
 
     OPPOSITE_PAIR_SUM: 222,
@@ -131,6 +153,66 @@ export const PLATFORM = {
     ] as const,
 
     CIRCULANT_TRIPLE: [111, 14, 208] as const,
+
+    MOD9: {
+      SIGMA_A: [1, 2, 6, 8, 3, 7, 0, 4, 5] as const,
+      SIGMA_B: [4, 5, 0, 8, 3, 7, 6, 1, 2] as const,
+      SIGMA_C: [7, 2, 0, 5, 3, 1, 6, 4, 8] as const,
+      SIGMA_D: [0, 7, 2, 5, 3, 1, 4, 8, 6] as const,
+      SIGMA_A_INV: [6, 0, 1, 4, 7, 8, 2, 5, 3] as const,
+      SIGMA_B_INV: [2, 7, 8, 4, 0, 1, 6, 5, 3] as const,
+      SIGMA_C_INV: [2, 5, 1, 4, 7, 3, 6, 0, 8] as const,
+      SIGMA_D_INV: [0, 5, 2, 4, 6, 3, 8, 1, 7] as const,
+    },
+
+    WEIGHT_VECTOR_A: [208, 2, 123, 26, 111, 196, 99, 220, 14] as const,
+
+    LINES: [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ] as const,
+
+    SYNDROMES: [
+      [0, 3, 6],
+      [0, 4],
+      [0, 5, 7],
+      [1, 3],
+      [1, 4, 6, 7],
+      [1, 5],
+      [2, 3, 7],
+      [2, 4],
+      [2, 5, 6],
+    ] as const,
+
+    CHECKSUM: {
+      PLENUM_MODULUS: 333,
+      REPUNIT_MODULUS: 364,
+      DUAL_DETECTION_SPACE: 121212,
+      CHECKSUM_TRITS: 6,
+    },
+
+    TRIANGULAR: {
+      TRI_3: 6,
+      TRI_7: 28,
+      TRI_10: 55,
+      TRI_13: 91,
+      TRI_14: 105,
+    },
+
+    RARITY: {
+      CENTER_111_TOTAL: 11736,
+      CENTER_111_ALL_PROPS: 528,
+      CENTER_111_PLENUM: 12,
+      ALL_SQUARES_250: 617644,
+      ALL_SQUARES_999: 40879492,
+      PLENUM_CONFIGS: 12,
+    },
   },
 } as const;
 

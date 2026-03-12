@@ -817,12 +817,29 @@ export function registerSalviRoutes(app: Express): void {
     }
   });
 
+  function parseCalendarDate(raw: string): Date | null {
+    const m = raw.match(/^(-?\d+)-(\d{1,2})-(\d{1,2})/);
+    if (!m) return null;
+    const year = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10) - 1;
+    const day = parseInt(m[3], 10);
+    if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+    const d = new Date(Date.UTC(2000, month, day));
+    d.setUTCFullYear(year);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  }
+
   app.get("/api/salvi/timing/epoch/calendars", (req, res) => {
     try {
       const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : undefined;
-      if (dateParam && isNaN(date!.getTime())) {
-        return res.status(400).json({ error: "Invalid date format. Use ISO 8601." });
+      let date: Date | undefined;
+      if (dateParam) {
+        const parsed = parseCalendarDate(dateParam);
+        if (!parsed) {
+          return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE, e.g. -500-06-15)." });
+        }
+        date = parsed;
       }
       const sync = getSalviEpochCalendarSync(date);
       res.json({ success: true, ...sync });
@@ -833,11 +850,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/mayan", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Mayan Long Count", ...toMayanLongCount(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Mayan calendar conversion failed" });
@@ -846,11 +860,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/hebrew", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Hebrew", ...toHebrewDate(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Hebrew calendar conversion failed" });
@@ -859,11 +870,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/chinese", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Chinese Sexagenary Cycle", ...toChineseSexagenary(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Chinese calendar conversion failed" });
@@ -872,11 +880,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/vedic", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Vedic Kali Yuga", ...toVedicKaliYuga(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Vedic calendar conversion failed" });
@@ -885,11 +890,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/egyptian", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Egyptian Civil", ...toEgyptianCivil(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Egyptian calendar conversion failed" });
@@ -898,11 +900,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/julian-day", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Julian Day Number", ...toJulianDayNumber(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Julian Day conversion failed" });
@@ -911,11 +910,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/islamic", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Islamic Hijri", ...toIslamicHijri(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Islamic calendar conversion failed" });
@@ -924,11 +920,8 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/byzantine", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "Byzantine Anno Mundi", ...toByzantineAnnoMundi(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "Byzantine calendar conversion failed" });
@@ -937,16 +930,18 @@ export function registerSalviRoutes(app: Express): void {
 
   app.get("/api/salvi/timing/epoch/calendars/thirteen-moon", (req, res) => {
     try {
-      const dateParam = req.query.date as string | undefined;
-      const date = dateParam ? new Date(dateParam) : new Date();
-      if (isNaN(date.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
-      }
+      const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+      if (!date) return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
       res.json({ success: true, calendar: "13-Moon Natural Time", ...toThirteenMoonDate(date) });
     } catch (error: unknown) {
       res.status(500).json({ error: "13-Moon calendar conversion failed" });
     }
   });
+
+  function parseCalendarDateOrNow(dateParam: string | undefined): Date | null {
+    if (!dateParam) return new Date();
+    return parseCalendarDate(dateParam);
+  }
 
   const calendarRouteHelper = (
     app: Express,
@@ -956,10 +951,9 @@ export function registerSalviRoutes(app: Express): void {
   ) => {
     app.get(`/api/salvi/timing/epoch/calendars/${path}`, (req, res) => {
       try {
-        const dateParam = req.query.date as string | undefined;
-        const date = dateParam ? new Date(dateParam) : new Date();
-        if (isNaN(date.getTime())) {
-          return res.status(400).json({ error: "Invalid date format" });
+        const date = parseCalendarDateOrNow(req.query.date as string | undefined);
+        if (!date) {
+          return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD (negative year for BCE)." });
         }
         res.json({ success: true, calendar: calendarName, ...converter(date) });
       } catch (error: unknown) {

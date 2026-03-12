@@ -77,6 +77,12 @@ import { SALVI_EPOCH } from './femtosecond-timing';
 const SALVI_EPOCH_DATE = new Date('2025-04-01T00:00:00.000Z');
 const MS_PER_DAY = 86_400_000;
 
+function safeUTC(year: number, month: number, day: number = 1): number {
+  const d = new Date(Date.UTC(2000, month, day));
+  d.setUTCFullYear(year);
+  return d.getTime();
+}
+
 export interface AncientCalendarMapping {
   calendarSystem: string;
   origin: string;
@@ -747,7 +753,7 @@ const LOSAR_DATES: Record<number, [number, number]> = {
 function getLunarNewYear(year: number): Date {
   const entry = LUNAR_NEW_YEAR_DATES[year];
   if (entry) {
-    return new Date(Date.UTC(year, entry[0], entry[1]));
+    return new Date(safeUTC(year, entry[0], entry[1]));
   }
   const jdnJan1 = gregorianToJDN(year, 1, 1);
   const winterSolsticeJDN = gregorianToJDN(year - 1, 12, 21);
@@ -766,7 +772,7 @@ function getLunarNewYear(year: number): Date {
   const day = e - Math.floor((153 * m + 2) / 5) + 1;
   const month = m + 3 - 12 * Math.floor(m / 10);
   const gYear = 100 * b + d - 4800 + Math.floor(m / 10);
-  return new Date(Date.UTC(gYear, month - 1, day));
+  return new Date(safeUTC(gYear, month - 1, day));
 }
 
 /**
@@ -1063,7 +1069,7 @@ const JAIN_NEW_YEAR = NEPAL_SAMBAT_NEW_YEAR;
 function getLosar(year: number): Date {
   const entry = LOSAR_DATES[year];
   if (entry) {
-    return new Date(Date.UTC(year, entry[0], entry[1]));
+    return new Date(safeUTC(year, entry[0], entry[1]));
   }
   const cny = getLunarNewYear(year);
   return new Date(cny.getTime() + MS_PER_DAY);
@@ -1283,7 +1289,7 @@ export function toEgyptianCivil(date: Date): EgyptianCivil {
   const egyptianEpochYear = -2780;
   const year = date.getUTCFullYear() - egyptianEpochYear;
 
-  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 1);
+  const startOfYear = safeUTC(date.getUTCFullYear(), 0, 1);
   const dayOfYear = Math.floor((date.getTime() - startOfYear) / MS_PER_DAY) + 1;
 
   const isEpagomenal = dayOfYear > 360;
@@ -1438,18 +1444,18 @@ export function toThirteenMoonDate(date: Date): ThirteenMoonDate {
   const gYear = date.getUTCFullYear();
   const dateMs = date.getTime();
 
-  const newYearThisYear = Date.UTC(gYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
+  const newYearThisYear = safeUTC(gYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
   const thirteenMoonYear = dateMs >= newYearThisYear ? gYear : gYear - 1;
 
-  const yearStartMs = Date.UTC(thirteenMoonYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
+  const yearStartMs = safeUTC(thirteenMoonYear, THIRTEEN_MOON_NEW_YEAR_MONTH, THIRTEEN_MOON_NEW_YEAR_DAY);
   const daysSinceNewYear = Math.floor((dateMs - yearStartMs) / MS_PER_DAY);
 
-  const dotMs = Date.UTC(thirteenMoonYear, DAY_OUT_OF_TIME_MONTH, DAY_OUT_OF_TIME_DAY);
+  const dotMs = safeUTC(thirteenMoonYear, DAY_OUT_OF_TIME_MONTH, DAY_OUT_OF_TIME_DAY);
   const isDayOutOfTime = dateMs >= dotMs && dateMs < dotMs + MS_PER_DAY;
 
   const leapYearForCycle = thirteenMoonYear + 1;
   const hasLeapDay = isLeapYear(leapYearForCycle);
-  const hunabKuMs = hasLeapDay ? Date.UTC(leapYearForCycle, 1, 29) : 0;
+  const hunabKuMs = hasLeapDay ? safeUTC(leapYearForCycle, 1, 29) : 0;
   const isHunabKu = hasLeapDay && dateMs >= hunabKuMs && dateMs < hunabKuMs + MS_PER_DAY;
 
   const totalCycles = thirteenMoonYear + 28000;
@@ -1566,7 +1572,7 @@ export function toPersianDate(date: Date): PersianDate {
   const afterNowruz = gMonth > 2 || (gMonth === 2 && gDay >= nowruzDay);
   const persianYear = afterNowruz ? gYear - 621 : gYear - 622;
 
-  const nowruzMs = Date.UTC(gYear, 2, nowruzDay);
+  const nowruzMs = safeUTC(gYear, 2, nowruzDay);
   const dateMs = date.getTime();
   let dayOfPersianYear: number;
 
@@ -1574,7 +1580,7 @@ export function toPersianDate(date: Date): PersianDate {
     dayOfPersianYear = Math.floor((dateMs - nowruzMs) / MS_PER_DAY) + 1;
   } else {
     const prevNowruzDay = getNowruzDay(gYear - 1);
-    const prevNowruzMs = Date.UTC(gYear - 1, 2, prevNowruzDay);
+    const prevNowruzMs = safeUTC(gYear - 1, 2, prevNowruzDay);
     dayOfPersianYear = Math.floor((dateMs - prevNowruzMs) / MS_PER_DAY) + 1;
   }
 
@@ -1621,8 +1627,8 @@ export function toEthiopianDate(date: Date): EthiopianDate {
   const ethYear = afterNewYear ? gYear - 7 : gYear - 8;
 
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 8, 11)
-    : Date.UTC(gYear - 1, 8, 11);
+    ? safeUTC(gYear, 8, 11)
+    : safeUTC(gYear - 1, 8, 11);
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -1665,8 +1671,8 @@ export function toCopticDate(date: Date): CopticDate {
   const copticYear = afterNewYear ? gYear - 283 : gYear - 284;
 
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 8, 11)
-    : Date.UTC(gYear - 1, 8, 11);
+    ? safeUTC(gYear, 8, 11)
+    : safeUTC(gYear - 1, 8, 11);
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -1792,8 +1798,8 @@ export function toIndianSakaDate(date: Date): IndianSakaDate {
   const sakaYear = afterNewYear ? gYear - 78 : gYear - 79;
 
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 2, 22)
-    : Date.UTC(gYear - 1, 2, 22);
+    ? safeUTC(gYear, 2, 22)
+    : safeUTC(gYear - 1, 2, 22);
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -2017,8 +2023,8 @@ export function toBengaliDate(date: Date): BengaliDate {
   const bengaliYear = afterNewYear ? gYear - 593 : gYear - 594;
 
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 3, 14)
-    : Date.UTC(gYear - 1, 3, 14);
+    ? safeUTC(gYear, 3, 14)
+    : safeUTC(gYear - 1, 3, 14);
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -2064,8 +2070,8 @@ export function toBerberDate(date: Date): BerberDate {
   const year = afterYennayer ? date.getUTCFullYear() + 950 : date.getUTCFullYear() + 949;
 
   const newYearMs = afterYennayer
-    ? Date.UTC(date.getUTCFullYear(), 0, 14)
-    : Date.UTC(date.getUTCFullYear() - 1, 0, 14);
+    ? safeUTC(date.getUTCFullYear(), 0, 14)
+    : safeUTC(date.getUTCFullYear() - 1, 0, 14);
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -2141,8 +2147,8 @@ export function toZoroastrianFasliDate(date: Date): ZoroastrianFasliDate {
   const fasliYear = afterNowruz ? gYear - 631 : gYear - 632;
 
   const newYearMs = afterNowruz
-    ? Date.UTC(gYear, 2, nowruzDay)
-    : Date.UTC(gYear - 1, 2, getNowruzDay(gYear - 1));
+    ? safeUTC(gYear, 2, nowruzDay)
+    : safeUTC(gYear - 1, 2, getNowruzDay(gYear - 1));
 
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
@@ -2261,7 +2267,7 @@ export function toYorubaDate(date: Date): YorubaDate {
   const jdn = gregorianToJDN(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
   const dayIndex = ((jdn % 4) + 4) % 4;
   const dayName = YORUBA_DAYS[dayIndex];
-  const dayOfYear = Math.floor((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 1)) / MS_PER_DAY) + 1;
+  const dayOfYear = Math.floor((date.getTime() - safeUTC(date.getUTCFullYear(), 0, 1)) / MS_PER_DAY) + 1;
   const month = Math.floor((dayOfYear - 1) / 28) + 1;
   const dayOfMonth = ((dayOfYear - 1) % 28) + 1;
   return {
@@ -2294,8 +2300,8 @@ export function toTamilDate(date: Date): TamilDate {
   const afterNewYear = gMonth > 3 || (gMonth === 3 && gDay >= 14);
   const tamilYear = afterNewYear ? gYear - 31 : gYear - 32;
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 3, 14)
-    : Date.UTC(gYear - 1, 3, 14);
+    ? safeUTC(gYear, 3, 14)
+    : safeUTC(gYear - 1, 3, 14);
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
   let tamilMonth: number;
@@ -2357,8 +2363,8 @@ export function toVikramSamvatDate(date: Date): VikramSamvatDate {
   const afterNewYear = gMonth > 2 || (gMonth === 2 && gDay >= 14);
   const vsYear = afterNewYear ? gYear + 57 : gYear + 56;
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 2, 14)
-    : Date.UTC(gYear - 1, 2, 14);
+    ? safeUTC(gYear, 2, 14)
+    : safeUTC(gYear - 1, 2, 14);
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 385));
   const monthLengths = [30, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30];
@@ -2433,8 +2439,8 @@ export function toMalayalamDate(date: Date): MalayalamDate {
   const afterNewYear = gMonth > 7 || (gMonth === 7 && gDay >= 17);
   const kollamYear = afterNewYear ? gYear - 825 : gYear - 826;
   const newYearMs = afterNewYear
-    ? Date.UTC(gYear, 7, 17)
-    : Date.UTC(gYear - 1, 7, 17);
+    ? safeUTC(gYear, 7, 17)
+    : safeUTC(gYear - 1, 7, 17);
   const daysSinceNewYear = Math.floor((date.getTime() - newYearMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNewYear, 366));
   let mlMonth: number;
@@ -2490,11 +2496,11 @@ export function toNanakshahiDate(date: Date): NanakshahiDate {
     const inMonth = wraps ? (afterStart || beforeEnd) : (afterStart && beforeEnd);
     if (inMonth) {
       nsMonth = i + 1;
-      const startMs = Date.UTC(gYear, startGMonth, startGDay);
-      const nowMs = Date.UTC(gYear, gMonth, gDay);
+      const startMs = safeUTC(gYear, startGMonth, startGDay);
+      const nowMs = safeUTC(gYear, gMonth, gDay);
       nsDay = Math.floor((nowMs - startMs) / MS_PER_DAY) + 1;
       if (nsDay <= 0) {
-        const prevStartMs = Date.UTC(gYear - 1, startGMonth, startGDay);
+        const prevStartMs = safeUTC(gYear - 1, startGMonth, startGDay);
         nsDay = Math.floor((nowMs - prevStartMs) / MS_PER_DAY) + 1;
       }
       break;
@@ -2522,8 +2528,8 @@ export function toBahaiDate(date: Date): BahaiDate {
   const afterNawRuz = gMonth > nawRuzMonth || (gMonth === nawRuzMonth && gDay >= nawRuzDay);
   const bahaiYear = afterNawRuz ? gYear - 1843 : gYear - 1844;
   const nawRuzMs = afterNawRuz
-    ? Date.UTC(gYear, nawRuzMonth, nawRuzDay)
-    : Date.UTC(gYear - 1, nawRuzMonth, nawRuzDay);
+    ? safeUTC(gYear, nawRuzMonth, nawRuzDay)
+    : safeUTC(gYear - 1, nawRuzMonth, nawRuzDay);
   const daysSinceNawRuz = Math.floor((date.getTime() - nawRuzMs) / MS_PER_DAY) + 1;
   const safeDays = Math.max(1, Math.min(daysSinceNawRuz, 366));
   let bahaiMonth: number;
@@ -2566,7 +2572,7 @@ export function toIgboDate(date: Date): IgboDate {
   const jdn = gregorianToJDN(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
   const dayIndex = ((jdn % 4) + 4) % 4;
   const dayName = IGBO_DAYS[dayIndex];
-  const dayOfYear = Math.floor((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 1)) / MS_PER_DAY) + 1;
+  const dayOfYear = Math.floor((date.getTime() - safeUTC(date.getUTCFullYear(), 0, 1)) / MS_PER_DAY) + 1;
   const month = Math.floor((dayOfYear - 1) / 28) + 1;
   const dayOfMonth = ((dayOfYear - 1) % 28) + 1;
   return {
@@ -2597,11 +2603,13 @@ export function toAkanDate(date: Date): AkanDate {
 }
 
 export function toGregorianDate(date: Date): GregorianDate {
+  const y = date.getUTCFullYear();
+  const era = y < 1 ? `${Math.abs(y - 1)} BCE` : `${y} CE`;
   return {
-    year: date.getUTCFullYear(),
+    year: y,
     month: date.getUTCMonth() + 1,
     day: date.getUTCDate(),
-    formatted: `${date.getUTCDate()}/${date.getUTCMonth() + 1}/${date.getUTCFullYear()} CE (Gregorian)`
+    formatted: `${date.getUTCDate()}/${date.getUTCMonth() + 1}/${era} (Gregorian)`
   };
 }
 

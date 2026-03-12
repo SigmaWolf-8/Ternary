@@ -21,6 +21,7 @@
 
 import type { Express, Request, Response } from "express";
 import { createLogger } from "../logger";
+import { computeDualChecksum } from '../../shared/plenum-checksum';
 
 const log = createLogger("tdns");
 
@@ -283,6 +284,8 @@ interface ScanResult {
   cguid:           number;
   scan_hash:       string;
   scan_hash_algo:  string;
+  repunit_checksum: readonly number[];
+  plenum_checksum:  readonly number[];
   hptp_mandatory:  boolean;
   crd:             number;
   dimensions:      Dimension[];
@@ -675,6 +678,9 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   const canonical      = canonicaliseUrl(rawUrl);
   const identity_trits = deriveIdentityTrits(canonical);
   const address        = `${classAddr} · ID:${identity_trits.join("")}`;
+
+  const fullAddress54  = [...trits, ...identity_trits];
+  const dualChecksum   = computeDualChecksum(fullAddress54);
 
   // ── Scan hash via TIS-27 (4-round, 7-neighbor, gather pi) ──────────────
   // Direct copy absorption — matches ternary-math/src/tis_sponge.rs exactly.
@@ -1173,6 +1179,8 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
     cguid:            (scanTritsOut[0] - 1) * 3 + scanTritsOut[1],
     scan_hash,
     scan_hash_algo:   "tis-27",
+    repunit_checksum: dualChecksum.repunit,
+    plenum_checksum:  dualChecksum.plenum,
     hptp_mandatory,
     crd,
     dimensions,
@@ -1355,6 +1363,8 @@ export function registerTdnsRoutes(app: Express) {
       cguid:           entry.cguid,
       canonical_url:   entry.canonical_url,
       scan_hash:       entry.scan_hash,
+      repunit_checksum: entry.repunit_checksum,
+      plenum_checksum:  entry.plenum_checksum,
       hptp_mandatory:  entry.hptp_mandatory,
       crd:             entry.crd,
       registered_at:   entry.registered_at,

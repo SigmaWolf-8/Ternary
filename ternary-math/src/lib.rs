@@ -36,6 +36,7 @@ pub mod ternary_circle;
 pub mod tribonacci;
 pub mod borromean;
 pub mod repunit_checksum;
+pub mod plenum_checksum;
 pub mod repunit_circles;
 pub mod sponge;
 pub mod tis_sponge;
