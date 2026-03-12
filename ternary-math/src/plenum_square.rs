@@ -146,23 +146,24 @@ pub const WEIGHT_VECTOR: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
 // by the σ permutations below. The mathematical derivation via
 // (p, q) parameterization is documented in TM-2026-015 §II.
 
-/// Block permutation σ_A.
+/// Block permutation σ_A — the only **full derangement** (no fixed points).
 ///
-/// Applied first in sponge rounds. Has a fixed point at index 4 (center cell = 111).
-/// The center stays fixed while the 8 surrounding cells rotate — this is
-/// physically correct for a magic square: the center is the axis of symmetry.
+/// Applied first in sponge rounds (round 0). This permutation moves ALL 9
+/// cells including the center, providing maximum disruption on the first round.
+/// Design intent: "maximum disruption first."
 ///
 /// TIS-27 (4 rounds): σ_A on round 0, σ_B on round 1, σ_C on 2, σ_D on 3.
 /// TLSponge-385 (9 rounds): cycling σ_A→σ_D→σ_A.
-pub const SIGMA_A: [usize; 9] = [2, 6, 7, 8, 4, 0, 1, 5, 3];
+pub const SIGMA_A: [usize; 9] = [4, 8, 3, 2, 0, 7, 5, 6, 1];
 
 /// Block permutation σ_B. Fixed point at index 4 (center).
 pub const SIGMA_B: [usize; 9] = [6, 0, 5, 8, 4, 3, 2, 1, 7];
 
-/// Block permutation σ_C — the only **full derangement** (no fixed points).
+/// Block permutation σ_C. Fixed point at index 4 (center).
 ///
-/// This permutation moves ALL 9 cells including the center.
-pub const SIGMA_C: [usize; 9] = [4, 8, 3, 2, 0, 7, 5, 6, 1];
+/// The center stays fixed while the 8 surrounding cells rotate — this is
+/// physically correct for a magic square: the center is the axis of symmetry.
+pub const SIGMA_C: [usize; 9] = [2, 6, 7, 8, 4, 0, 1, 5, 3];
 
 /// Block permutation σ_D. Fixed point at index 4 (center).
 pub const SIGMA_D: [usize; 9] = [8, 2, 1, 0, 4, 6, 7, 3, 5];
@@ -278,9 +279,9 @@ const _: () = {
     assert!(is_valid_permutation(&SIGMA_C));
     assert!(is_valid_permutation(&SIGMA_D));
 
-    // σ_A, σ_B, σ_D have a fixed point at index 4 (center cell).
-    // σ_C is the only full derangement (no fixed points).
-    assert!(is_derangement(&SIGMA_C));
+    // σ_A is the only full derangement (no fixed points).
+    // σ_B, σ_C, σ_D have a fixed point at index 4 (center cell).
+    assert!(is_derangement(&SIGMA_A));
 
     // Magic square property: all rows, cols, diagonals sum to 333
     assert!(row_sum(0) == MAGIC_CONSTANT);
@@ -345,18 +346,18 @@ mod tests {
     }
 
     #[test]
-    fn test_sigma_c_is_derangement() {
-        assert!(is_derangement(&SIGMA_C), "σ_C must be a derangement (no fixed points)");
+    fn test_sigma_a_is_derangement() {
+        assert!(is_derangement(&SIGMA_A), "σ_A must be a derangement (no fixed points)");
     }
 
     #[test]
-    fn test_sigma_abd_have_center_fixed_point() {
-        // σ_A, σ_B, σ_D all fix the center cell (index 4)
-        assert_eq!(SIGMA_A[4], 4, "σ_A fixes center");
+    fn test_sigma_bcd_have_center_fixed_point() {
+        // σ_B, σ_C, σ_D all fix the center cell (index 4)
         assert_eq!(SIGMA_B[4], 4, "σ_B fixes center");
+        assert_eq!(SIGMA_C[4], 4, "σ_C fixes center");
         assert_eq!(SIGMA_D[4], 4, "σ_D fixes center");
-        // σ_C does NOT fix center
-        assert_ne!(SIGMA_C[4], 4, "σ_C moves center");
+        // σ_A does NOT fix center (full derangement)
+        assert_ne!(SIGMA_A[4], 4, "σ_A moves center");
     }
 
     #[test]

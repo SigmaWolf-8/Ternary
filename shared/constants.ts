@@ -155,13 +155,13 @@ export const PLATFORM = {
     CIRCULANT_TRIPLE: [111, 14, 208] as const,
 
     MOD9: {
-      SIGMA_A: [1, 2, 6, 8, 3, 7, 0, 4, 5] as const,
+      SIGMA_A: [7, 2, 0, 5, 3, 1, 6, 4, 8] as const,
       SIGMA_B: [4, 5, 0, 8, 3, 7, 6, 1, 2] as const,
-      SIGMA_C: [7, 2, 0, 5, 3, 1, 6, 4, 8] as const,
+      SIGMA_C: [1, 2, 6, 8, 3, 7, 0, 4, 5] as const,
       SIGMA_D: [0, 7, 2, 5, 3, 1, 4, 8, 6] as const,
-      SIGMA_A_INV: [6, 0, 1, 4, 7, 8, 2, 5, 3] as const,
+      SIGMA_A_INV: [2, 5, 1, 4, 7, 3, 6, 0, 8] as const,
       SIGMA_B_INV: [2, 7, 8, 4, 0, 1, 6, 5, 3] as const,
-      SIGMA_C_INV: [2, 5, 1, 4, 7, 3, 6, 0, 8] as const,
+      SIGMA_C_INV: [6, 0, 1, 4, 7, 8, 2, 5, 3] as const,
       SIGMA_D_INV: [0, 5, 2, 4, 6, 3, 8, 1, 7] as const,
     },
 
@@ -177,14 +177,14 @@ export const PLATFORM = {
     DISCRIMINANT_2: 729,
     FULL_CIRCLE: 364,
     WEIGHT_VECTOR: [208, 2, 123, 26, 111, 196, 99, 220, 14] as const,
-    SIGMA_A: [2, 6, 7, 8, 4, 0, 1, 5, 3] as const,
+    SIGMA_A: [4, 8, 3, 2, 0, 7, 5, 6, 1] as const,
     SIGMA_B: [6, 0, 5, 8, 4, 3, 2, 1, 7] as const,
-    SIGMA_C: [4, 8, 3, 2, 0, 7, 5, 6, 1] as const,
+    SIGMA_C: [2, 6, 7, 8, 4, 0, 1, 5, 3] as const,
     SIGMA_D: [8, 2, 1, 0, 4, 6, 7, 3, 5] as const,
     SIGMAS: [
-      [2, 6, 7, 8, 4, 0, 1, 5, 3],
-      [6, 0, 5, 8, 4, 3, 2, 1, 7],
       [4, 8, 3, 2, 0, 7, 5, 6, 1],
+      [6, 0, 5, 8, 4, 3, 2, 1, 7],
+      [2, 6, 7, 8, 4, 0, 1, 5, 3],
       [8, 2, 1, 0, 4, 6, 7, 3, 5],
     ] as const,
 
