@@ -33,6 +33,16 @@
 //! changes. Every inter-cube message — heartbeats, CRS queries, tunnel
 //! messages — carries this header.
 //!
+//! ## HTTP API
+//!
+//! | Module | Purpose |
+//! |--------|---------|
+//! | [`api`] | Axum route handlers, request/response types, router builders |
+//!
+//! The api module (added by T-02, SPEC-2026-NEXT) extracts all HTTP
+//! handlers from `main.rs` into a reusable module. Provides `crs_router()`
+//! (11 routes) and `cube_router()` (8 routes) for the two operating modes.
+//!
 //! ## Dependency Chain
 //!
 //! ```text
@@ -89,6 +99,7 @@ pub mod overlay;
 pub mod crs;
 pub mod fts;
 pub mod wire;
+pub mod api;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -197,6 +208,7 @@ mod integration_tests {
 
     #[test]
     fn test_full_bootstrap_sequence() {
+        // Step 1: CRS — register a new cube
         let mut crs = CubeRegistrationService::new();
         let result = crs
             .register(
@@ -206,8 +218,10 @@ mod integration_tests {
             )
             .unwrap();
 
+        // Step 2: Initialize the stack with the assigned address
         let mut stack = InterCubeStack::new(result.address.clone());
 
+        // Step 3: CON resolves neighbor endpoints from CRS
         for nbr_info in &result.neighbors {
             if let Some(ep) = nbr_info.endpoint {
                 let pk = nbr_info.public_key.unwrap_or([0u8; 32]);
@@ -215,9 +229,11 @@ mod integration_tests {
             }
         }
 
+        // Step 4: FTS begins monitoring (all neighbors start as Up)
         let (up, _, _, _) = stack.fts.state_counts();
         assert_eq!(up, NEIGHBORS_PER_CUBE);
 
+        // Step 5: GLB ready to forward
         let dest = addr([3, 1, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]);
         let forward = stack.glb.forward_stateless(&dest, 42);
         assert!(forward.is_ok(), "GLB should be ready to forward");
@@ -229,6 +245,7 @@ mod integration_tests {
         let mut stack = InterCubeStack::new(local);
         let nbr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 
+        // Simulate failure
         let config = FtsConfig {
             grace_period: std::time::Duration::from_millis(0),
             recovery_threshold: 2,
@@ -236,6 +253,7 @@ mod integration_tests {
         };
         stack.fts = FaultToleranceService::new(stack.addr.clone()).with_config(config);
 
+        // Drive neighbor to Down
         for _ in 0..4 {
             stack.fts.record_miss(&nbr);
         }
@@ -244,6 +262,7 @@ mod integration_tests {
         assert!(stack.fts.dead_set().contains(&nbr));
         assert!(stack.glb.dead_neighbors().contains(&nbr));
 
+        // Simulate recovery
         stack.fts.record_pong(&nbr, 500_000);
         stack.fts.record_pong(&nbr, 500_000);
         stack.process_fts_events();
@@ -256,6 +275,7 @@ mod integration_tests {
     fn test_multi_cube_registration() {
         let mut crs = CubeRegistrationService::new();
 
+        // Register 5 cubes
         let addrs: Vec<CubeAddr> = (0..5)
             .map(|_| {
                 crs.register(
@@ -270,6 +290,7 @@ mod integration_tests {
 
         assert_eq!(crs.registered_count(), 5);
 
+        // Each cube should be able to find registered neighbors
         for a in &addrs {
             let nbrs = crs.compute_neighbor_info(a);
             assert_eq!(nbrs.len(), NEIGHBORS_PER_CUBE);
@@ -284,6 +305,7 @@ mod integration_tests {
 
         assert_eq!(keys.len(), NEIGHBORS_PER_CUBE);
 
+        // All keys must be unique
         let key_set: std::collections::HashSet<[u8; 32]> =
             keys.iter().map(|(_, k)| *k).collect();
         assert_eq!(key_set.len(), NEIGHBORS_PER_CUBE, "All tunnel keys must be unique");
@@ -301,6 +323,7 @@ mod integration_tests {
 
     #[test]
     fn test_wire_version_negotiation_v1_v2() {
+        // Local supports v1-v2, remote only v1
         let negotiated = negotiate_version(
             PROTOCOL_VERSION_V1,
             PROTOCOL_VERSION_V2,
