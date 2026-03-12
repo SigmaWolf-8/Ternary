@@ -1,0 +1,353 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # PlenumNET Feature Flags Configuration
+//!
+//! Per-feature runtime toggles for safe rollout and immediate rollback
+//! of hardened wire-format changes and cryptographic enhancements.
+//!
+//! ## Design
+//!
+//! Each major feature introduced by SPEC-2026-NEXT has its own boolean flag.
+//! Features can be enabled per-node for testing, then globally. If a feature
+//! causes issues, flip the flag and the node reverts to legacy behavior
+//! without a code deploy.
+//!
+//! ## Environment Variables
+//!
+//! All flags load from environment variables with sensible defaults.
+//! The naming convention is `PLENUM_<FEATURE>`:
+//!
+//! | Variable | Default | Controls |
+//! |----------|---------|----------|
+//! | `PLENUM_REQUIRE_SIGNATURE` | `false` | T-06: Reject unsigned CRS registrations |
+//! | `PLENUM_ENABLE_DUAL_CHECKSUM` | `false` | T-10: mod-364 + mod-333 wire checksum |
+//! | `PLENUM_ENABLE_WIRE_ECC` | `false` | T-17: 8-trit ECC syndrome on addresses |
+//! | `PLENUM_ENABLE_SPONGE_SHUFFLES` | `false` | T-18: σ_A–σ_D block permutations |
+//! | `PLENUM_PROTOCOL_VERSION` | `2` | T-01: Wire protocol version to emit |
+//! | `PLENUM_PROTOCOL_VERSION_MIN` | `1` | Minimum version to accept (dual-accept) |
+//! | `PLENUM_ENABLE_RATE_LIMIT` | `false` | T-11: CRS registration rate limiting |
+//! | `PLENUM_POW_K` | `5` | T-11: Proof-of-work leading zero trits |
+//! | `PLENUM_V25_GRACE_DAYS` | `14` | T-09: Days to warn before hard-rejecting v2.5 |
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use inter_cube::config::PlenumConfig;
+//!
+//! let config = PlenumConfig::from_env();
+//! if config.require_signature {
+//!     // Verify TL-DSA signature on CRS registration
+//! }
+//! ```
+//!
+//! ## Created by T-05 (SPEC-2026-NEXT)
+
+use std::env;
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONFIGURATION STRUCT
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Runtime feature flags for PlenumNET hardening features.
+///
+/// Each flag gates one or more tasks from SPEC-2026-NEXT.
+/// All flags default to `false` (legacy behavior) or conservative values,
+/// ensuring a safe rollout path: deploy code first, enable features second.
+#[derive(Debug, Clone)]
+pub struct PlenumConfig {
+    // ── Cryptographic Hardening (Phase 1) ───────────────────────
+
+    /// T-06: Require TL-DSA signature on CRS registrations.
+    ///
+    /// When `true`, CRS rejects unsigned registrations with `CrsError::InvalidSignature`.
+    /// When `false`, unsigned registrations are accepted (legacy behavior).
+    ///
+    /// Rollback: Set to `false` to accept unsigned registrations again.
+    /// Tunnels built during the signed period remain valid.
+    pub require_signature: bool,
+
+    /// T-11: Enable rate limiting on CRS registration endpoint.
+    ///
+    /// When `true`, per-IP rate caps and proof-of-work are enforced.
+    pub enable_rate_limit: bool,
+
+    /// T-11: Proof-of-work difficulty for CRS registration.
+    ///
+    /// Number of leading zero trits required in `TIS-27(address ‖ nonce)`.
+    /// Defaults: K=5 bootstrap (<1K nodes), K=8 steady-state, K=10 under load.
+    pub pow_k: u8,
+
+    /// T-09: v2.5 grace period in days.
+    ///
+    /// During this window, v2.5 fallback attempts are logged as warnings.
+    /// After the window expires, v2.5 is hard-rejected.
+    pub v25_grace_days: u32,
+
+    // ── Wire Format Extensions (Phase 2) ────────────────────────
+
+    /// T-10: Enable dual checksum (mod-364 + mod-333) on wire addresses.
+    ///
+    /// When `true`, 12 checksum trits are appended to 54-trit addresses.
+    /// When `false`, legacy single-checksum (or no checksum) behavior.
+    pub enable_dual_checksum: bool,
+
+    /// T-17: Enable 8-trit ECC syndrome on wire addresses.
+    ///
+    /// When `true`, an 8-trit syndrome is appended for error correction.
+    /// When `false`, errors are detected-or-rejected (no correction).
+    pub enable_wire_ecc: bool,
+
+    /// T-18: Enable σ_A–σ_D block shuffles in sponge rounds.
+    ///
+    /// When `true`, round-dependent block permutations are applied before stride-13.
+    /// When `false`, sponge uses identity permutation (backward compatible).
+    pub enable_sponge_shuffles: bool,
+
+    // ── Protocol Version ────────────────────────────────────────
+
+    /// Protocol version to emit in wire message headers.
+    ///
+    /// Set to 2 for the hardened format. Set to 1 for legacy.
+    /// This controls what VERSION byte goes into outgoing messages.
+    pub protocol_version: u8,
+
+    /// Minimum protocol version to accept from peers.
+    ///
+    /// During dual-acceptance period: 1 (accept both v1 and v2).
+    /// After Phase 2: 2 (reject v1 peers).
+    pub protocol_version_min: u8,
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DEFAULTS
+// ═══════════════════════════════════════════════════════════════════════
+
+impl Default for PlenumConfig {
+    /// Conservative defaults: all features OFF, legacy behavior preserved.
+    ///
+    /// This means a fresh deploy with no env vars behaves identically
+    /// to the pre-hardening code. Features are opted into explicitly.
+    fn default() -> Self {
+        PlenumConfig {
+            require_signature: false,
+            enable_rate_limit: false,
+            pow_k: 5,
+            v25_grace_days: 14,
+            enable_dual_checksum: false,
+            enable_wire_ecc: false,
+            enable_sponge_shuffles: false,
+            protocol_version: 2,
+            protocol_version_min: 1,
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ENVIRONMENT LOADING
+// ═══════════════════════════════════════════════════════════════════════
+
+impl PlenumConfig {
+    /// Load configuration from environment variables.
+    ///
+    /// Each flag is read from its corresponding `PLENUM_*` env var.
+    /// Missing or unparseable values fall back to defaults.
+    pub fn from_env() -> Self {
+        let mut config = PlenumConfig::default();
+
+        config.require_signature = env_bool("PLENUM_REQUIRE_SIGNATURE", config.require_signature);
+        config.enable_rate_limit = env_bool("PLENUM_ENABLE_RATE_LIMIT", config.enable_rate_limit);
+        config.pow_k = env_u8("PLENUM_POW_K", config.pow_k);
+        config.v25_grace_days = env_u32("PLENUM_V25_GRACE_DAYS", config.v25_grace_days);
+        config.enable_dual_checksum = env_bool("PLENUM_ENABLE_DUAL_CHECKSUM", config.enable_dual_checksum);
+        config.enable_wire_ecc = env_bool("PLENUM_ENABLE_WIRE_ECC", config.enable_wire_ecc);
+        config.enable_sponge_shuffles = env_bool("PLENUM_ENABLE_SPONGE_SHUFFLES", config.enable_sponge_shuffles);
+        config.protocol_version = env_u8("PLENUM_PROTOCOL_VERSION", config.protocol_version);
+        config.protocol_version_min = env_u8("PLENUM_PROTOCOL_VERSION_MIN", config.protocol_version_min);
+
+        config
+    }
+
+    /// Create a config with all features ENABLED.
+    ///
+    /// Useful for testing the fully-hardened path.
+    pub fn all_enabled() -> Self {
+        PlenumConfig {
+            require_signature: true,
+            enable_rate_limit: true,
+            pow_k: 8,
+            v25_grace_days: 14,
+            enable_dual_checksum: true,
+            enable_wire_ecc: true,
+            enable_sponge_shuffles: true,
+            protocol_version: 2,
+            protocol_version_min: 2,
+        }
+    }
+
+    /// Check if the protocol version configuration is consistent.
+    ///
+    /// `protocol_version_min` must not exceed `protocol_version`.
+    pub fn is_valid(&self) -> bool {
+        self.protocol_version_min <= self.protocol_version
+            && self.protocol_version >= 1
+            && self.pow_k <= 27  // max 27 trits in a TIS-27 output
+    }
+
+    /// Log the current configuration for startup diagnostics.
+    pub fn log_startup(&self) {
+        println!("=== PlenumConfig ===");
+        println!("  require_signature:     {}", self.require_signature);
+        println!("  enable_rate_limit:     {}", self.enable_rate_limit);
+        println!("  pow_k:                 {}", self.pow_k);
+        println!("  v25_grace_days:        {}", self.v25_grace_days);
+        println!("  enable_dual_checksum:  {}", self.enable_dual_checksum);
+        println!("  enable_wire_ecc:       {}", self.enable_wire_ecc);
+        println!("  enable_sponge_shuffles:{}", self.enable_sponge_shuffles);
+        println!("  protocol_version:      v{}", self.protocol_version);
+        println!("  protocol_version_min:  v{}", self.protocol_version_min);
+        println!("====================");
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ENV PARSING HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Read a boolean from an environment variable.
+///
+/// Accepts "true", "1", "yes" (case-insensitive) as true.
+/// Everything else (including missing) returns the default.
+fn env_bool(key: &str, default: bool) -> bool {
+    match env::var(key) {
+        Ok(val) => matches!(val.to_lowercase().as_str(), "true" | "1" | "yes"),
+        Err(_) => default,
+    }
+}
+
+/// Read a u8 from an environment variable.
+fn env_u8(key: &str, default: u8) -> u8 {
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+/// Read a u32 from an environment variable.
+fn env_u32(key: &str, default: u32) -> u32 {
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config_all_features_off() {
+        let config = PlenumConfig::default();
+        assert!(!config.require_signature);
+        assert!(!config.enable_rate_limit);
+        assert!(!config.enable_dual_checksum);
+        assert!(!config.enable_wire_ecc);
+        assert!(!config.enable_sponge_shuffles);
+    }
+
+    #[test]
+    fn test_default_config_protocol_versions() {
+        let config = PlenumConfig::default();
+        assert_eq!(config.protocol_version, 2);
+        assert_eq!(config.protocol_version_min, 1);
+    }
+
+    #[test]
+    fn test_default_config_is_valid() {
+        assert!(PlenumConfig::default().is_valid());
+    }
+
+    #[test]
+    fn test_all_enabled_config() {
+        let config = PlenumConfig::all_enabled();
+        assert!(config.require_signature);
+        assert!(config.enable_rate_limit);
+        assert!(config.enable_dual_checksum);
+        assert!(config.enable_wire_ecc);
+        assert!(config.enable_sponge_shuffles);
+        assert_eq!(config.protocol_version, 2);
+        assert_eq!(config.protocol_version_min, 2);
+    }
+
+    #[test]
+    fn test_all_enabled_is_valid() {
+        assert!(PlenumConfig::all_enabled().is_valid());
+    }
+
+    #[test]
+    fn test_invalid_config_min_exceeds_current() {
+        let config = PlenumConfig {
+            protocol_version: 1,
+            protocol_version_min: 2,
+            ..Default::default()
+        };
+        assert!(!config.is_valid());
+    }
+
+    #[test]
+    fn test_invalid_config_pow_k_too_high() {
+        let config = PlenumConfig {
+            pow_k: 28, // max is 27 (trits in TIS-27)
+            ..Default::default()
+        };
+        assert!(!config.is_valid());
+    }
+
+    #[test]
+    fn test_from_env_defaults() {
+        // With no env vars set, from_env should return defaults
+        // (This test works because the PLENUM_* vars are not set in the test env)
+        let config = PlenumConfig::from_env();
+        // Can't assert exact values because CI might set vars,
+        // but we can verify it doesn't panic and is_valid
+        assert!(config.is_valid());
+    }
+
+    #[test]
+    fn test_env_bool_parsing() {
+        // Test the parsing logic directly
+        assert_eq!(env_bool("NONEXISTENT_VAR_12345", false), false);
+        assert_eq!(env_bool("NONEXISTENT_VAR_12345", true), true);
+    }
+
+    #[test]
+    fn test_env_u8_parsing() {
+        assert_eq!(env_u8("NONEXISTENT_VAR_12345", 42), 42);
+    }
+
+    #[test]
+    fn test_env_u32_parsing() {
+        assert_eq!(env_u32("NONEXISTENT_VAR_12345", 365), 365);
+    }
+
+    #[test]
+    fn test_default_pow_k() {
+        let config = PlenumConfig::default();
+        assert_eq!(config.pow_k, 5, "Default PoW K should be 5 (bootstrap mode)");
+    }
+
+    #[test]
+    fn test_default_v25_grace() {
+        let config = PlenumConfig::default();
+        assert_eq!(config.v25_grace_days, 14, "Default v2.5 grace should be 14 days");
+    }
+}

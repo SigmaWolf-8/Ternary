@@ -1,0 +1,21 @@
+Good. I have the convention: all constants go in PLATFORM, never hardcoded. Let me also check what the current ternary-math lib.rs looks like after T-03:Architected modular code structure for mathematical constants and configuration systemsArchitected modular code structure for mathematical constants and configuration systemsNow let me write all files. T-04 first:Prepared partial code additions for platform constants filePrepared partial code additions for platform constants fileNow the TypeScript PLATFORM additions:Orchestrated code completion for configuration and library modulesOrchestrated code completion for configuration and library modulesNow T-05 — the feature flags config:Orchestrated module updates across dual crates for Phase completionOrchestrated module updates across dual crates for Phase completionNow the lib.rs updates for both crates — I'll write splice instructions since these files were already modified by T-01/T-02/T-03:Verified outputs and prepared code deliverablesVerified outputs and prepared code deliverablesNow let me verify all files:Identified and corrected mathematical inconsistencies in permutation documentationIdentified and corrected mathematical inconsistencies in permutation documentationThe math caught something. σ_A is NOT a derangement — index 4 maps to itself (the center cell). σ_C is the only true derangement. Let me fix this:Verified and prepared code delivery for Phase 0 closureVerified and prepared code delivery for Phase 0 closureFinal verification:Orchestrated code generation strategy for Phase 0 completionOrchestrated code generation strategy for Phase 0 completionFour files delivered. Phase 0 is done.
+
+T-04: Plenum Square Constants — 3 files
+ternary-math/src/plenum_square.rs — 410 lines, 12 tests, 34 compile-time assertions
+WhatDetail13 pub constARC, CENTER, MAGIC_CONSTANT, DISCRIMINANT, LATTICE_PARAM, ROOT_A, ROOT_B, COMPLEMENT_A, COMPLEMENT_B, PAIR_SUM, DISCRIMINANT_2, FULL_CIRCLE, WEIGHT_VECTOR4 σ permutationsSIGMA_A through SIGMA_D, plus SIGMAS array for round % 4 indexingweighted_nonce()Computes Σ(weight[i] × triplet[i]) mod 333 for T-2334 compile-time assertionsBuild fails if ANY constant relationship, permutation validity, or magic square sum is broken. The code cannot compile unless the math is correct.
+Catch from verification: The spec said σ_A was a "double derangement." It's not — σ_A[4] = 4 (center cell is a fixed point). σ_A, σ_B, and σ_D all fix the center. σ_C is the only full derangement. This makes geometric sense: the center of a magic square (111) is the axis of symmetry. Fixed in the code and documentation.
+shared/constants.ts — PLATFORM.PLENUM_SQUARE additions (57 lines)
+Splice block with all constants mirrored from Rust. Add inside the existing PLATFORM object. Includes as const for full type narrowing on arrays.
+lib.rs splice
+Add pub mod plenum_square; to ternary-math/src/lib.rs.
+
+T-05: Feature Flags Config — 1 file
+services/inter-cube/src/config.rs — 353 lines, 13 tests
+Feature flagEnv varDefaultControlsrequire_signaturePLENUM_REQUIRE_SIGNATUREfalseT-06: signed CRSenable_rate_limitPLENUM_ENABLE_RATE_LIMITfalseT-11: PoW + IP capspow_kPLENUM_POW_K5T-11: leading zero tritsv25_grace_daysPLENUM_V25_GRACE_DAYS14T-09: grace periodenable_dual_checksumPLENUM_ENABLE_DUAL_CHECKSUMfalseT-10: mod-364+333enable_wire_eccPLENUM_ENABLE_WIRE_ECCfalseT-17: 8-trit syndromeenable_sponge_shufflesPLENUM_ENABLE_SPONGE_SHUFFLESfalseT-18: σ block shufflesprotocol_versionPLENUM_PROTOCOL_VERSION2Wire header versionprotocol_version_minPLENUM_PROTOCOL_VERSION_MIN1Dual-accept floor
+Three constructors: default() (all off — safe deploy), from_env() (reads PLENUM_* vars), all_enabled() (testing). Includes is_valid() consistency check and log_startup() for diagnostics.
+lib.rs splice
+Add pub mod config; and pub use config::PlenumConfig; to services/inter-cube/src/lib.rs.
+
+Phase 0 Complete
+TaskStatusLinesTestsT-01 wire.rs✓ Pushed85727T-02 api.rs✓ Pushed552 + 38389 passingT-03 tl_dsa.rs + N-API + bridge✓ Pushed641 + 109 + 39122T-04 plenum_square.rs + PLATFORM✓ Ready to push410 + 5712T-05 config.rs✓ Ready to push35313Total Phase 05/5 complete~3,752~163
+Phase 1 is unblocked. Così sia.

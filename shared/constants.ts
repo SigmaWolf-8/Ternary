@@ -166,6 +166,27 @@ export const PLATFORM = {
     },
 
     WEIGHT_VECTOR_A: [208, 2, 123, 26, 111, 196, 99, 220, 14] as const,
+    ARC: 182,
+    DISCRIMINANT: 144,
+    LATTICE_PARAM: 12,
+    ROOT_A: 14,
+    ROOT_B: 26,
+    COMPLEMENT_A: 208,
+    COMPLEMENT_B: 196,
+    PAIR_SUM: 222,
+    DISCRIMINANT_2: 729,
+    FULL_CIRCLE: 364,
+    WEIGHT_VECTOR: [208, 2, 123, 26, 111, 196, 99, 220, 14] as const,
+    SIGMA_A: [2, 6, 7, 8, 4, 0, 1, 5, 3] as const,
+    SIGMA_B: [6, 0, 5, 8, 4, 3, 2, 1, 7] as const,
+    SIGMA_C: [4, 8, 3, 2, 0, 7, 5, 6, 1] as const,
+    SIGMA_D: [8, 2, 1, 0, 4, 6, 7, 3, 5] as const,
+    SIGMAS: [
+      [2, 6, 7, 8, 4, 0, 1, 5, 3],
+      [6, 0, 5, 8, 4, 3, 2, 1, 7],
+      [4, 8, 3, 2, 0, 7, 5, 6, 1],
+      [8, 2, 1, 0, 4, 6, 7, 3, 5],
+    ] as const,
 
     LINES: [
       [0, 1, 2],

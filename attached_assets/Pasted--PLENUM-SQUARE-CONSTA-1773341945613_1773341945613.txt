@@ -1,0 +1,57 @@
+// ════════════════════════════════════════════════════════════════════════
+// PLENUM SQUARE CONSTANTS — T-04 (SPEC-2026-NEXT)
+//
+// Add this block to the PLATFORM object in shared/constants.ts.
+// These are the TypeScript mirrors of ternary-math/src/plenum_square.rs.
+// All values derived from arc = 182 = π(π − 1) = 14 × 13 = 20202₃.
+//
+// IMPORTANT: This IS the single source of truth for the frontend/TS layer.
+// The Rust module is the single source of truth for the Rust layer.
+// Both are derived from the same math — they MUST agree.
+// ════════════════════════════════════════════════════════════════════════
+
+// Add inside the PLATFORM object:
+
+  PLENUM_SQUARE: {
+    /** Half-turn: π(π−1) = 14 × 13 = 182 = 20202₃ (palindrome in base-3) */
+    ARC: 182,
+    /** Magic square center: (182 + 40) / 2 = 111 — the (111) Miller index */
+    CENTER: 111,
+    /** Magic constant: 3 × 111 = 333 — all rows/cols/diags sum to this */
+    MAGIC_CONSTANT: 333,
+    /** Discriminant: 12² = 144 — perfect square lattice condition */
+    DISCRIMINANT: 144,
+    /** Lattice parameter: √144 = 12 — generates all displacements */
+    LATTICE_PARAM: 12,
+    /** Ternary pi = 14 */
+    ROOT_A: 14,
+    /** Neighbors per node = 2 × 13 = 26 */
+    ROOT_B: 26,
+    /** 222 − 14 = 208 */
+    COMPLEMENT_A: 208,
+    /** 222 − 26 = 196 */
+    COMPLEMENT_B: 196,
+    /** Opposite-pair sum: 2 × 111 = 222 */
+    PAIR_SUM: 222,
+    /** Secondary discriminant: 1 + 4 × 182 = 729 = 3⁶ = sponge state width */
+    DISCRIMINANT_2: 729,
+    /** Full circle: 2 × 182 = 364 = 111111₃ */
+    FULL_CIRCLE: 364,
+    /** Weight vector — the 9 cell values of the canonical Plenum Square */
+    WEIGHT_VECTOR: [208, 2, 123, 26, 111, 196, 99, 220, 14] as const,
+    /** Block permutation σ_A — center (index 4) is fixed point */
+    SIGMA_A: [2, 6, 7, 8, 4, 0, 1, 5, 3] as const,
+    /** Block permutation σ_B — center (index 4) is fixed point */
+    SIGMA_B: [6, 0, 5, 8, 4, 3, 2, 1, 7] as const,
+    /** Block permutation σ_C — only full derangement (no fixed points) */
+    SIGMA_C: [4, 8, 3, 2, 0, 7, 5, 6, 1] as const,
+    /** Block permutation σ_D — center (index 4) is fixed point */
+    SIGMA_D: [8, 2, 1, 0, 4, 6, 7, 3, 5] as const,
+    /** All four σ permutations for round-dependent selection: SIGMAS[round % 4] */
+    SIGMAS: [
+      [2, 6, 7, 8, 4, 0, 1, 5, 3],
+      [6, 0, 5, 8, 4, 3, 2, 1, 7],
+      [4, 8, 3, 2, 0, 7, 5, 6, 1],
+      [8, 2, 1, 0, 4, 6, 7, 3, 5],
+    ] as const,
+  },
