@@ -650,7 +650,6 @@ mod tests {
             let word = TernaryWord::pseudo_random(16, seed);
 
             // Get the internal B representation.
-            let _b_trits = &word.trits;
 
             // Convert to A, then back to a TernaryWord.
             let as_a = word.to_repr(WordRepr::Balanced);
