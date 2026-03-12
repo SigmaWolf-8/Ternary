@@ -69,7 +69,7 @@
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
-#![allow(missing_docs)]
+#![warn(missing_docs)]
 #![allow(rustdoc::broken_intra_doc_links)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
@@ -99,9 +99,17 @@
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
+/// Borromean topology primitives — three-word ternary XOR invariant
+/// for non-separable cryptographic linking.
 pub mod borromean;
+/// FM-modulated timing subsystem: oscillator, HRV entropy, gradient
+/// diffusion, and packet encoding for tonal network synchronization.
 pub mod fm_timing;
+/// The 364° ternary circle — Z₂₈ cyclic group, radian spiral walk,
+/// repunit verification, and ternary↔standard angle conversions.
 pub mod ternary_circle;
+/// Tribonacci recurrence in base 3, τ constant expansion, carry tracking,
+/// alignment detection, and Rep A/B/C interconversion.
 pub mod tribonacci;
 
 // ══════════════════════════════════════════════════════════════
@@ -168,3 +176,4 @@ pub const DIVISION: &str = "Applied Physics Division";
 
 /// The organization.
 pub const ORG: &str = "Capomastro Holdings Ltd.";
+
