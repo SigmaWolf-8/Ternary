@@ -69,7 +69,7 @@
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
-#![allow(missing_docs)]
+#![warn(missing_docs)]
 #![allow(rustdoc::broken_intra_doc_links)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
