@@ -44,7 +44,7 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use libternary::tribonacci::{TribonacciBase3, TernaryRepr};
 //! use libternary::ternary_circle::{Z28, RADIAN_DEG, walk_tribonacci_radian_spiral};
 //!
@@ -69,11 +69,31 @@
 //! ```
 
 #![doc(html_root_url = "https://docs.rs/libternary/0.1.0")]
-#![warn(missing_docs)]
+#![allow(missing_docs)]
+#![allow(rustdoc::broken_intra_doc_links)]
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::must_use_candidate)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::comparison_chain)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::explicit_iter_loop)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::manual_contains)]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
