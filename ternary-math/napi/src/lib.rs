@@ -25,6 +25,7 @@ use napi_derive::napi;
 use rayon::prelude::*;
 use ternary_math::sponge::{Sponge385Pub, hash_hex, hash_hex_v1,
                             sponge_permutation, sponge_permutation_v1};
+use ternary_math::tl_dsa;
 
 const MAX_TRIT_COUNT: u32 = 1_000_000;
 const MAX_PLAIN_BYTES: usize = 1_048_576;
@@ -325,4 +326,85 @@ fn phase_decrypt_v3(di:&[u8],r1:&[u8],sw:&[u8],r2:&[u8],exp_mac:&str,mac_tc:u32)
     out.extend_from_slice(&(pb1.len()as u32).to_le_bytes());out.extend_from_slice(&pb1);
     out.extend_from_slice(&(pb2.len()as u32).to_le_bytes());out.extend_from_slice(&pb2);
     Ok(Buffer::from(out))
+}
+
+// ---- TL-DSA Signature Operations (T-03, SPEC-2026-NEXT) ----
+
+/// Generate a TL-DSA keypair.
+///
+/// Returns a buffer containing: [pk_len (4 LE) | pk | sk_len (4 LE) | sk]
+///
+/// @param variant - 44, 65, or 87
+/// @param seed - Optional seed bytes (must have ≥256 bits entropy in production)
+#[napi]
+pub fn tl_dsa_keygen(variant: u32, seed: Option<Buffer>) -> napi::Result<Buffer> {
+    let v = tl_dsa::TlDsaVariant::from_u32(variant).ok_or_else(|| {
+        napi::Error::from_reason(format!(
+            "Unknown TL-DSA variant {}. Use 44, 65, or 87.",
+            variant
+        ).to_string())
+    })?;
+
+    let seed_bytes = seed.as_ref().map(|b| b.as_ref());
+    let kp = tl_dsa::keygen(v, seed_bytes);
+
+    let mut out = Vec::with_capacity(4 + kp.public_key.len() + 4 + kp.secret_key.len());
+    out.extend_from_slice(&(kp.public_key.len() as u32).to_le_bytes());
+    out.extend_from_slice(&kp.public_key);
+    out.extend_from_slice(&(kp.secret_key.len() as u32).to_le_bytes());
+    out.extend_from_slice(&kp.secret_key);
+    Ok(Buffer::from(out))
+}
+
+/// Sign a message with a TL-DSA secret key.
+///
+/// Returns the raw signature bytes.
+#[napi]
+pub fn tl_dsa_sign(secret_key: Buffer, message: Buffer, variant: u32) -> napi::Result<Buffer> {
+    let v = tl_dsa::TlDsaVariant::from_u32(variant).ok_or_else(|| {
+        napi::Error::from_reason(format!(
+            "Unknown TL-DSA variant {}. Use 44, 65, or 87.",
+            variant
+        ).to_string())
+    })?;
+
+    let sig = tl_dsa::sign(secret_key.as_ref(), message.as_ref(), v);
+    Ok(Buffer::from(sig))
+}
+
+/// Verify a TL-DSA signature using ONLY the public key.
+///
+/// **This function does NOT require the secret key.**
+#[napi]
+pub fn tl_dsa_verify(
+    public_key: Buffer,
+    message: Buffer,
+    signature: Buffer,
+    variant: u32,
+) -> napi::Result<bool> {
+    let v = tl_dsa::TlDsaVariant::from_u32(variant).ok_or_else(|| {
+        napi::Error::from_reason(format!(
+            "Unknown TL-DSA variant {}. Use 44, 65, or 87.",
+            variant
+        ).to_string())
+    })?;
+
+    Ok(tl_dsa::verify(
+        public_key.as_ref(),
+        message.as_ref(),
+        signature.as_ref(),
+        v,
+    ))
+}
+
+/// Get the signature size for a TL-DSA variant.
+#[napi]
+pub fn tl_dsa_sig_len(variant: u32) -> napi::Result<u32> {
+    let v = tl_dsa::TlDsaVariant::from_u32(variant).ok_or_else(|| {
+        napi::Error::from_reason(format!(
+            "Unknown TL-DSA variant {}. Use 44, 65, or 87.",
+            variant
+        ).to_string())
+    })?;
+    Ok(tl_dsa::sig_len(v) as u32)
 }
