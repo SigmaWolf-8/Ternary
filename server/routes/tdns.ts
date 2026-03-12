@@ -679,8 +679,7 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
   const identity_trits = deriveIdentityTrits(canonical);
   const address        = `${classAddr} · ID:${identity_trits.join("")}`;
 
-  const fullAddress54  = [...trits, ...identity_trits];
-  const dualChecksum   = computeDualChecksum(fullAddress54);
+  const dualChecksum   = computeDualChecksum(trits);
 
   // ── Scan hash via TIS-27 (4-round, 7-neighbor, gather pi) ──────────────
   // Direct copy absorption — matches ternary-math/src/tis_sponge.rs exactly.
