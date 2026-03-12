@@ -943,7 +943,7 @@ mod tests {
         // and round-trip correctly.
         let terms = TribonacciBase3::generate(11);
         for term in &terms {
-            let b = term.value.to_repr_b();
+            let _b = term.value.to_repr_b();
             let a = term.value.to_repr_a();
             let c = term.value.to_repr_c();
 
