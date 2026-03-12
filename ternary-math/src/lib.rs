@@ -41,5 +41,6 @@ pub mod repunit_circles;
 pub mod sponge;
 pub mod tis_sponge;
 pub mod tl_dsa;
+pub mod plenum_square;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_exports;
