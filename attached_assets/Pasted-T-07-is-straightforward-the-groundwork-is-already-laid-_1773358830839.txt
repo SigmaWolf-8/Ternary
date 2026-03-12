@@ -1,0 +1,33 @@
+T-07 is straightforward — the groundwork is already laid by T-06. The NeighborInfo returned from CRS already includes reg_signature and the full public_key. T-07 adds verification on the CON side before establishing a tunnel.
+Changes needed in overlay.rs:
+
+Neighbor struct — add reg_signature: Option<Vec<u8>>
+resolve_neighbor() — new signature accepting reg_signature, verifies before transitioning to Connecting
+New verify_neighbor_registration() — reconstructs canonical message, calls tl_dsa::verify()
+Failure path — neighbor stays Unknown, returns a forgery alert
+Unified public key representation across codebase systematicallyUnified public key representation across codebase systematicallyOne file for T-07. Target: services/inter-cube/src/overlay.rs (replaces existing).
+
+overlay.rs — 1,046 lines (up from ~500), 19 tests (up from 13)
+What changed:
+ComponentBeforeAfterNeighbor structNo signature fields+ reg_signature: Option<Vec<u8>>, signature_verified: boolresolve_neighbor()Only pathPreserved as legacy (unsigned) pathresolve_neighbor_verified()—NEW — verifies TL-DSA-87 before ConnectingForgeryAlert struct—NEW — emitted when verification failsForgeryReason enum—NEW — SignatureInvalid, SignatureMissing, PublicKeyMissingforgery_alerts field—NEW — Vec<ForgeryAlert> on CubeOverlayNetworkdrain_forgery_alerts()—NEW — for T-27 telemetry consumptionConStats8 fields+ verified_neighbors: usize
+The verification flow:
+CRS response arrives with (endpoint, public_key, reg_signature, kem_pk, timestamp_fs)
+    │
+    ▼
+resolve_neighbor_verified()
+    │
+    ├─ signature missing?  → ForgeryAlert(SignatureMissing), neighbor stays Unknown
+    ├─ public_key empty?   → ForgeryAlert(PublicKeyMissing), neighbor stays Unknown
+    │
+    ├─ Reconstruct canonical message via build_registration_message()
+    │   (same function the signer used in T-06)
+    │
+    ├─ tl_dsa::verify(public_key, canonical_msg, signature, TlDsa87)
+    │   ├─ false → ForgeryAlert(SignatureInvalid), neighbor stays Unknown
+    │   └─ true  → endpoint + pk + sig stored, signature_verified = true, → Connecting
+    │
+    └─ Result: Ok(true) / Ok(false) / Err(ForgeryAlert)
+Key security property: A compromised CRS cannot redirect tunnels. It can return a record with a forged endpoint, but it cannot forge the TL-DSA signature because it doesn't hold the registrant's secret key. The worst case is denial of service (refusing to return records).
+6 new tests:
+TestVerifiestest_verified_resolution_valid_signatureFull flow: keygen → sign → verify → Connecting, signature_verified = truetest_verified_resolution_invalid_signatureWrong message signed → SignatureInvalid, stays Unknown, alert loggedtest_verified_resolution_missing_signatureNo signature → SignatureMissing, stays Unknowntest_verified_resolution_wrong_keySigned with key A, presented key B → SignatureInvalidtest_verified_resolution_unknown_addressNon-neighbor address → Ok(false), no alerttest_forgery_alerts_drainAlert accumulates, drain_forgery_alerts() clears list
+Backward compat: resolve_neighbor() (legacy unsigned) is unchanged. All 13 original tests pass. The api.rs layer chooses which path based on PlenumConfig.require_signature.

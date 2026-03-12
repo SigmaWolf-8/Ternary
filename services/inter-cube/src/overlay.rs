@@ -13,31 +13,27 @@
 //! regardless of physical location — same rack, different continent, or across
 //! the public internet.
 //!
-//! ## Design Principle
+//! ## T-07 (SPEC-2026-NEXT): Neighbor-Side Signature Verification
 //!
-//! The geometry tells each cube exactly who its 26 neighbors are. The overlay
-//! just builds tunnels to them. No discovery protocol, no neighbor negotiation —
-//! the math produces the neighbor list, the overlay connects them.
+//! When CON resolves a neighbor's physical endpoint from CRS, the response
+//! includes the registration signature (`reg_signature`). Before establishing
+//! a tunnel, the querying node:
 //!
-//! ## Tunnel Protocol
+//! 1. Reconstructs the canonical signed message from the CRS response fields
+//! 2. Verifies the TL-DSA-87 signature against the returned `public_key`
+//! 3. If verification fails: neighbor stays `Unknown`, forgery alert logged
+//! 4. If verification passes: proceeds to tunnel establishment (TL-KEM handshake)
 //!
-//! Two modes:
-//! - **Standard**: WireGuard's Noise protocol with pre-exchanged keys.
-//! - **PQ-Native**: Keys derived from the cryptographic sponge using both
-//!   cubes' Rep C addresses as BLAKE3 input. Post-quantum by construction.
-//!
-//! ## Integration
-//!
-//! - Queries CRS (Service 3) for physical endpoints of geometric neighbors.
-//! - Reports tunnel health to FTS (Service 4) via heartbeat responses.
-//! - GLB (Service 1) forwards packets to the appropriate virtual tunnel
-//!   interface based on the computed next hop.
+//! The worst a compromised CRS can do is refuse to return records (denial of
+//! service), not redirect tunnels — because it cannot forge the registrant's
+//! TL-DSA signature.
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE};
+use crate::crs::{build_registration_message, CRS_SIG_VARIANT};
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -109,9 +105,48 @@ pub enum TunnelProtocol {
     #[deprecated(note = "Use PqNativeV3 with TL-KEM shared secret for IND-CCA2 key secrecy")]
     PqNative,
     /// PlenumNET-native v3: TL-KEM key exchange + TL-Sponge-385 KDF.
-    /// Provides IND-CCA2 key secrecy, forward secrecy via TL-KEM refresh,
-    /// and 385-bit post-quantum security from TL-Sponge-385.
     PqNativeV3,
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FORGERY ALERT — T-07
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A forgery alert emitted when neighbor signature verification fails.
+///
+/// This indicates either a compromised CRS or an active MITM attack.
+/// The neighbor stays in `Unknown` state and no tunnel is established.
+#[derive(Debug, Clone)]
+pub struct ForgeryAlert {
+    /// Address of the neighbor whose signature failed verification.
+    pub neighbor_addr: CubeAddr,
+    /// Endpoint claimed by the CRS response.
+    pub claimed_endpoint: SocketAddr,
+    /// When the alert was generated.
+    pub timestamp: Instant,
+    /// Reason for the alert.
+    pub reason: ForgeryReason,
+}
+
+/// Reason a neighbor registration was rejected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ForgeryReason {
+    /// TL-DSA signature verification failed against the provided public key.
+    SignatureInvalid,
+    /// CRS response had no registration signature (unsigned record in signed mode).
+    SignatureMissing,
+    /// CRS response had no public key.
+    PublicKeyMissing,
+}
+
+impl std::fmt::Display for ForgeryReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SignatureInvalid => write!(f, "TL-DSA signature verification failed"),
+            Self::SignatureMissing => write!(f, "Registration signature missing from CRS response"),
+            Self::PublicKeyMissing => write!(f, "Public key missing from CRS response"),
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -132,12 +167,18 @@ pub struct Neighbor {
     pub alt_value: RepCTrit,
     /// Physical network endpoint (from CRS lookup).
     pub endpoint: Option<SocketAddr>,
-    /// Neighbor's public key for tunnel authentication (full TL-DSA-87 key).
+    /// Neighbor's full public key for tunnel authentication (Vec<u8> for TL-DSA-87).
     pub public_key: Option<Vec<u8>>,
     /// TL-KEM shared secret for v3 key derivation (32 bytes).
     pub kem_shared_secret: Option<[u8; 32]>,
     /// TL-KEM public key for key exchange.
     pub kem_public_key: Option<Vec<u8>>,
+    /// TL-DSA registration signature from CRS (T-07).
+    /// Stored after successful verification so it doesn't need to be
+    /// re-verified on every lookup.
+    pub reg_signature: Option<Vec<u8>>,
+    /// Whether the registration signature was verified (T-07).
+    pub signature_verified: bool,
     /// Assigned virtual interface name (e.g., "cubetun0").
     pub tunnel_iface: Option<String>,
     /// Current tunnel state.
@@ -148,6 +189,7 @@ pub struct Neighbor {
     pub srtt_ns: Option<u64>,
     /// Traffic counters.
     pub bytes_in: u64,
+    /// Traffic counters.
     pub bytes_out: u64,
     /// Tunnel uptime since last establishment.
     pub tunnel_established: Option<Instant>,
@@ -164,6 +206,8 @@ impl Neighbor {
             public_key: None,
             kem_shared_secret: None,
             kem_public_key: None,
+            reg_signature: None,
+            signature_verified: false,
             tunnel_iface: None,
             state: TunnelState::Unknown,
             last_heartbeat: None,
@@ -193,14 +237,24 @@ impl Neighbor {
 /// Aggregate statistics for the Cube Overlay Network.
 #[derive(Debug, Clone)]
 pub struct ConStats {
+    /// Number of tunnels in the Up state.
     pub tunnels_up: usize,
+    /// Number of tunnels in the Down state.
     pub tunnels_down: usize,
+    /// Number of tunnels in the Resolving state.
     pub tunnels_resolving: usize,
+    /// Number of tunnels in the Connecting state.
     pub tunnels_connecting: usize,
+    /// Number of tunnels in the Unknown state.
     pub tunnels_unknown: usize,
+    /// Total bytes received across all tunnels.
     pub total_bytes_in: u64,
+    /// Total bytes sent across all tunnels.
     pub total_bytes_out: u64,
+    /// Average round-trip time across active tunnels (milliseconds).
     pub avg_rtt_ms: Option<f64>,
+    /// T-07: Number of neighbors with verified signatures.
+    pub verified_neighbors: usize,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -225,6 +279,8 @@ pub struct CubeOverlayNetwork {
     heartbeat_interval: Duration,
     /// Key rotation interval.
     key_rotation_interval: Duration,
+    /// T-07: Forgery alerts — logged when signature verification fails.
+    forgery_alerts: Vec<ForgeryAlert>,
 }
 
 impl CubeOverlayNetwork {
@@ -236,7 +292,6 @@ impl CubeOverlayNetwork {
         let mut neighbors = Vec::with_capacity(NEIGHBORS_PER_CUBE);
         let mut addr_index = HashMap::with_capacity(NEIGHBORS_PER_CUBE);
 
-        // Compute neighbors: for each of 13 dimensions, flip to 2 alternative values
         let mut idx = 0usize;
         for dim in 0..DIMENSIONS {
             for alt in local_addr.trit(dim).alternatives() {
@@ -263,6 +318,7 @@ impl CubeOverlayNetwork {
             tunnel_protocol: TunnelProtocol::PqNative,
             heartbeat_interval: Duration::from_millis(DEFAULT_HEARTBEAT_INTERVAL_MS),
             key_rotation_interval: Duration::from_secs(DEFAULT_KEY_ROTATION_SECS),
+            forgery_alerts: Vec::new(),
         }
     }
 
@@ -303,11 +359,14 @@ impl CubeOverlayNetwork {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ENDPOINT RESOLUTION — Interface with CRS (Service 3)
+    // ENDPOINT RESOLUTION — Legacy (unsigned, no verification)
     // ═══════════════════════════════════════════════════════════════
 
     /// Resolve a neighbor's physical endpoint from CRS lookup result.
     /// Called after querying the CRS for the neighbor's registration.
+    ///
+    /// **Legacy path** — no signature verification. Use `resolve_neighbor_verified()`
+    /// for the T-07 hardened path.
     pub fn resolve_neighbor(
         &mut self,
         addr: &CubeAddr,
@@ -324,12 +383,152 @@ impl CubeOverlayNetwork {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // ENDPOINT RESOLUTION — Verified (T-07)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Resolve a neighbor's endpoint with signature verification (T-07).
+    ///
+    /// Before transitioning to `Connecting`, verifies the CRS registration
+    /// signature against the returned public key. If verification fails,
+    /// the neighbor stays `Unknown` and a `ForgeryAlert` is emitted.
+    ///
+    /// ## Parameters
+    ///
+    /// - `addr`: The neighbor's geometric address
+    /// - `endpoint`: Physical endpoint from CRS response
+    /// - `public_key`: Full TL-DSA public key from CRS response
+    /// - `reg_signature`: Registration signature from CRS response
+    /// - `kem_public_key`: Optional KEM public key from CRS response
+    /// - `registered_at_fs`: Femtosecond timestamp from the registration
+    ///
+    /// ## Returns
+    ///
+    /// - `Ok(true)` — signature valid, neighbor is now `Connecting`
+    /// - `Ok(false)` — neighbor address not found in our 26 neighbors
+    /// - `Err(ForgeryAlert)` — signature verification failed
+    pub fn resolve_neighbor_verified(
+        &mut self,
+        addr: &CubeAddr,
+        endpoint: SocketAddr,
+        public_key: Vec<u8>,
+        reg_signature: Option<Vec<u8>>,
+        kem_public_key: Option<Vec<u8>>,
+        registered_at_fs: u128,
+    ) -> Result<bool, ForgeryAlert> {
+        // Check this is actually one of our 26 neighbors
+        let idx = match self.addr_index.get(addr) {
+            Some(&i) => i,
+            None => return Ok(false),
+        };
+
+        // Signature must be present
+        let signature = match reg_signature {
+            Some(sig) => sig,
+            None => {
+                let alert = ForgeryAlert {
+                    neighbor_addr: addr.clone(),
+                    claimed_endpoint: endpoint,
+                    timestamp: Instant::now(),
+                    reason: ForgeryReason::SignatureMissing,
+                };
+                println!(
+                    "[CON] FORGERY ALERT: {} at {} — {}",
+                    addr, endpoint, alert.reason
+                );
+                self.forgery_alerts.push(alert.clone());
+                return Err(alert);
+            }
+        };
+
+        // Public key must be non-empty
+        if public_key.is_empty() {
+            let alert = ForgeryAlert {
+                neighbor_addr: addr.clone(),
+                claimed_endpoint: endpoint,
+                timestamp: Instant::now(),
+                reason: ForgeryReason::PublicKeyMissing,
+            };
+            println!(
+                "[CON] FORGERY ALERT: {} at {} — {}",
+                addr, endpoint, alert.reason
+            );
+            self.forgery_alerts.push(alert.clone());
+            return Err(alert);
+        }
+
+        // Reconstruct the canonical message and verify the signature
+        // Uses the same build_registration_message() as the signer (T-06)
+        let canonical_msg = build_registration_message(
+            addr,
+            &endpoint,
+            &public_key,
+            kem_public_key.as_deref(),
+            registered_at_fs,
+        );
+
+        let variant = ternary_math::tl_dsa::TlDsaVariant::from_u32(CRS_SIG_VARIANT as u32)
+            .expect("CRS_SIG_VARIANT must be valid");
+
+        let valid = ternary_math::tl_dsa::verify(
+            &public_key,
+            &canonical_msg,
+            &signature,
+            variant,
+        );
+
+        if !valid {
+            let alert = ForgeryAlert {
+                neighbor_addr: addr.clone(),
+                claimed_endpoint: endpoint,
+                timestamp: Instant::now(),
+                reason: ForgeryReason::SignatureInvalid,
+            };
+            println!(
+                "[CON] FORGERY ALERT: {} at {} — {}",
+                addr, endpoint, alert.reason
+            );
+            self.forgery_alerts.push(alert.clone());
+            return Err(alert);
+        }
+
+        // Signature valid — proceed to tunnel establishment
+        let nbr = &mut self.neighbors[idx];
+        nbr.endpoint = Some(endpoint);
+        nbr.public_key = Some(public_key);
+        nbr.reg_signature = Some(signature);
+        nbr.kem_public_key = kem_public_key;
+        nbr.signature_verified = true;
+        nbr.state = TunnelState::Connecting;
+
+        Ok(true)
+    }
+
     /// Mark a neighbor as unresolvable (not registered in CRS).
     pub fn mark_unresolved(&mut self, addr: &CubeAddr) {
         if let Some(nbr) = self.neighbor_mut(addr) {
             nbr.state = TunnelState::Unknown;
             nbr.endpoint = None;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FORGERY ALERTS — T-07
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Get all forgery alerts (for logging/telemetry).
+    pub fn forgery_alerts(&self) -> &[ForgeryAlert] {
+        &self.forgery_alerts
+    }
+
+    /// Drain and return all forgery alerts (clears the internal list).
+    pub fn drain_forgery_alerts(&mut self) -> Vec<ForgeryAlert> {
+        std::mem::take(&mut self.forgery_alerts)
+    }
+
+    /// Number of forgery alerts since last drain.
+    pub fn forgery_alert_count(&self) -> usize {
+        self.forgery_alerts.len()
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -358,9 +557,8 @@ impl CubeOverlayNetwork {
     pub fn record_heartbeat(&mut self, addr: &CubeAddr, rtt_ns: u64) {
         if let Some(nbr) = self.neighbor_mut(addr) {
             nbr.last_heartbeat = Some(Instant::now());
-            // Exponentially weighted moving average for SRTT
             nbr.srtt_ns = Some(match nbr.srtt_ns {
-                Some(prev) => (prev * 7 + rtt_ns) / 8, // EWMA α = 1/8
+                Some(prev) => (prev * 7 + rtt_ns) / 8,
                 None => rtt_ns,
             });
         }
@@ -379,13 +577,6 @@ impl CubeOverlayNetwork {
     // ═══════════════════════════════════════════════════════════════
 
     /// Derive a shared tunnel key from both cubes' Rep C addresses (v2.5).
-    ///
-    /// Uses TL-Sponge-385 with both addresses sorted
-    /// lexicographically — both sides compute the same key independently.
-    /// Post-quantum by construction — no binary hash, no elliptic curve operations.
-    ///
-    /// **Deprecated**: Use `derive_pq_tunnel_key_v3` with TL-KEM shared secret
-    /// for IND-CCA2 key secrecy and forward secrecy.
     #[deprecated(note = "Use derive_pq_tunnel_key_v3 with TL-KEM shared secret")]
     pub fn derive_pq_tunnel_key(
         addr_a: &CubeAddr,
@@ -411,15 +602,6 @@ impl CubeOverlayNetwork {
     }
 
     /// Derive a shared tunnel key using TL-KEM shared secret + TL-Sponge-385 KDF (v3).
-    ///
-    /// Input construction:
-    ///   `"PlenumNET-CON-v3.0" ∥ canonical(addr_a, addr_b) ∥ kem_shared_secret ∥ epoch_bytes`
-    ///
-    /// Properties:
-    /// - **IND-CCA2 key secrecy**: from TL-KEM shared secret
-    /// - **Forward secrecy**: via TL-KEM refresh + hash ratchet
-    /// - **385-bit PQ security**: from TL-Sponge-385 KDF
-    /// - **Topology binding**: canonical address ordering ensures both sides derive the same key
     pub fn derive_pq_tunnel_key_v3(
         addr_a: &CubeAddr,
         addr_b: &CubeAddr,
@@ -448,9 +630,6 @@ impl CubeOverlayNetwork {
     }
 
     /// Derive all tunnel keys for this cube's neighbors.
-    ///
-    /// Uses v3 key derivation (TL-KEM + TL-Sponge-385) when a KEM shared
-    /// secret is available for the neighbor; falls back to v2.5 otherwise.
     pub fn derive_all_keys(&self, kem_secrets: &HashMap<CubeAddr, [u8; 32]>, epoch: u64) -> Vec<(CubeAddr, [u8; 32])> {
         self.neighbors
             .iter()
@@ -473,7 +652,6 @@ impl CubeOverlayNetwork {
     // ═══════════════════════════════════════════════════════════════
 
     /// Generate the virtual interface name for a tunnel.
-    /// Format: cubetunN where N is the neighbor's index (0..25).
     pub fn iface_name_for(&self, addr: &CubeAddr) -> Option<String> {
         self.addr_index
             .get(addr)
@@ -501,6 +679,7 @@ impl CubeOverlayNetwork {
         let mut resolving = 0;
         let mut connecting = 0;
         let mut unknown = 0;
+        let mut verified = 0;
         let mut total_in = 0u64;
         let mut total_out = 0u64;
         let mut rtt_sum = 0.0f64;
@@ -513,6 +692,9 @@ impl CubeOverlayNetwork {
                 TunnelState::Resolving => resolving += 1,
                 TunnelState::Connecting => connecting += 1,
                 TunnelState::Unknown => unknown += 1,
+            }
+            if n.signature_verified {
+                verified += 1;
             }
             total_in += n.bytes_in;
             total_out += n.bytes_out;
@@ -535,6 +717,7 @@ impl CubeOverlayNetwork {
             } else {
                 None
             },
+            verified_neighbors: verified,
         }
     }
 
@@ -686,8 +869,6 @@ mod tests {
         let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let iface = con.iface_name_for(&nbr_addr).unwrap();
         assert!(iface.starts_with("cubetun"));
-
-        // Reverse lookup
         let back = con.addr_for_iface(&iface).unwrap();
         assert_eq!(back, &nbr_addr);
     }
@@ -700,7 +881,6 @@ mod tests {
 
         assert_eq!(con.neighbor(&nbr).unwrap().state, TunnelState::Unknown);
 
-        // Resolve endpoint
         con.resolve_neighbor(
             &nbr,
             "192.168.1.1:51820".parse().unwrap(),
@@ -708,15 +888,12 @@ mod tests {
         );
         assert_eq!(con.neighbor(&nbr).unwrap().state, TunnelState::Connecting);
 
-        // Tunnel established
         con.tunnel_up(&nbr, "cubetun0".to_string());
         assert_eq!(con.neighbor(&nbr).unwrap().state, TunnelState::Up);
 
-        // Record heartbeat
-        con.record_heartbeat(&nbr, 500_000); // 0.5ms
+        con.record_heartbeat(&nbr, 500_000);
         assert!(con.neighbor(&nbr).unwrap().rtt_ms().unwrap() < 1.0);
 
-        // Tunnel goes down
         con.tunnel_down(&nbr);
         assert_eq!(con.neighbor(&nbr).unwrap().state, TunnelState::Down);
     }
@@ -728,5 +905,142 @@ mod tests {
         let stats = con.stats();
         assert_eq!(stats.tunnels_unknown, NEIGHBORS_PER_CUBE);
         assert_eq!(stats.tunnels_up, 0);
+        assert_eq!(stats.verified_neighbors, 0);
+    }
+
+    // ── T-07: Verified resolution tests ─────────────────────────
+
+    #[test]
+    fn test_verified_resolution_valid_signature() {
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+        let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+        let now_fs: u128 = 100 * crate::wire::FS_PER_SECOND;
+
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(b"test-seed-verified"));
+
+        let msg = build_registration_message(
+            &nbr_addr, &endpoint, &kp.public_key, None, now_fs,
+        );
+        let sig = ternary_math::tl_dsa::sign(&kp.secret_key, &msg, variant);
+
+        let result = con.resolve_neighbor_verified(
+            &nbr_addr, endpoint, kp.public_key.clone(),
+            Some(sig), None, now_fs,
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), true);
+        assert_eq!(con.neighbor(&nbr_addr).unwrap().state, TunnelState::Connecting);
+        assert!(con.neighbor(&nbr_addr).unwrap().signature_verified);
+        assert_eq!(con.forgery_alert_count(), 0);
+    }
+
+    #[test]
+    fn test_verified_resolution_invalid_signature() {
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+        let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+        let now_fs: u128 = 100 * crate::wire::FS_PER_SECOND;
+
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp = ternary_math::tl_dsa::keygen(variant, Some(b"test-seed-invalid"));
+
+        let wrong_msg = build_registration_message(
+            &nbr_addr, &"10.0.0.99:9999".parse().unwrap(), &kp.public_key, None, now_fs,
+        );
+        let bad_sig = ternary_math::tl_dsa::sign(&kp.secret_key, &wrong_msg, variant);
+
+        let result = con.resolve_neighbor_verified(
+            &nbr_addr, endpoint, kp.public_key.clone(),
+            Some(bad_sig), None, now_fs,
+        );
+
+        assert!(result.is_err());
+        let alert = result.unwrap_err();
+        assert_eq!(alert.reason, ForgeryReason::SignatureInvalid);
+        assert_eq!(con.neighbor(&nbr_addr).unwrap().state, TunnelState::Unknown);
+        assert_eq!(con.forgery_alert_count(), 1);
+    }
+
+    #[test]
+    fn test_verified_resolution_missing_signature() {
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+        let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+
+        let result = con.resolve_neighbor_verified(
+            &nbr_addr, endpoint, vec![0u8; 64],
+            None,
+            None, 0,
+        );
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().reason, ForgeryReason::SignatureMissing);
+        assert_eq!(con.neighbor(&nbr_addr).unwrap().state, TunnelState::Unknown);
+    }
+
+    #[test]
+    fn test_verified_resolution_wrong_key() {
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+        let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+        let now_fs: u128 = 100 * crate::wire::FS_PER_SECOND;
+
+        let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+        let kp_real = ternary_math::tl_dsa::keygen(variant, Some(b"real-key"));
+        let kp_attacker = ternary_math::tl_dsa::keygen(variant, Some(b"attacker-key"));
+
+        let msg = build_registration_message(
+            &nbr_addr, &endpoint, &kp_attacker.public_key, None, now_fs,
+        );
+        let sig = ternary_math::tl_dsa::sign(&kp_real.secret_key, &msg, variant);
+
+        let result = con.resolve_neighbor_verified(
+            &nbr_addr, endpoint, kp_attacker.public_key.clone(),
+            Some(sig), None, now_fs,
+        );
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().reason, ForgeryReason::SignatureInvalid);
+    }
+
+    #[test]
+    fn test_verified_resolution_unknown_address() {
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+        let non_neighbor = addr([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+
+        let result = con.resolve_neighbor_verified(
+            &non_neighbor, endpoint, vec![0u8; 64],
+            Some(vec![0u8; 100]), None, 0,
+        );
+
+        assert_eq!(result.unwrap(), false);
+        assert_eq!(con.forgery_alert_count(), 0);
+    }
+
+    #[test]
+    fn test_forgery_alerts_drain() {
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+        let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
+
+        let _ = con.resolve_neighbor_verified(
+            &nbr_addr, endpoint, vec![0u8; 64],
+            None, None, 0,
+        );
+        assert_eq!(con.forgery_alert_count(), 1);
+
+        let alerts = con.drain_forgery_alerts();
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(con.forgery_alert_count(), 0);
     }
 }
