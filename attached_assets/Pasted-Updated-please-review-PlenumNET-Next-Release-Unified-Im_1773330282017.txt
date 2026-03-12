@@ -1,0 +1,451 @@
+Updated please review:
+
+PlenumNET Next Release — Unified Implementation Specification
+
+Capomastro Holdings Ltd. — Applied Physics Division Document: SPEC-2026-NEXT | Classification: INTERNAL — Patent(s) Pending March 2026
+
+© 2025–2026 Capomastro Holdings Ltd. (Canada) — All Rights Reserved
+
+Executive Summary
+
+This specification consolidates three workstreams into a single release plan:
+
+
+
+
+
+Security Hardening — Cryptographic binding of the operational layer (signed CRS, authenticated heartbeats, address-bound keys, mutual tunnel authentication)
+
+
+
+Bootstrap Optimization — Geometric placement strategy for sparse cube connectivity
+
+
+
+Plenum Square Integration — Crystal-lattice ECC, two-scale sponge dynamics, reciprocal-lattice key mixing, arc-synchronized key rotation
+
+All items use existing primitives (TL-DSA, TIS-27, TLSponge-385). No new cryptographic dependencies. The four Inter-Cube services (CRS, CON, GLB, FTS) retain their current interfaces with additive fields.
+
+After implementation, the security claim becomes: every CRS record, heartbeat, identity key, and tunnel session is cryptographically bound to the geometric position, the registered identity, and the post-quantum primitives. No operation proceeds without proof of geometric occupancy. The Plenum Square provides structural ECC, crystal-dynamics diffusion, and calendar-synchronized key rotation — all derived from the half-turn arc = 182 = π(π − 1) = 14 × 13 = 20202₃.
+
+Source References
+
+ID Document What it provides SRC-1 SPEC-SEC-2026-001 (Security Hardening) Fixes 1, 2, 4, 5 — signed CRS, auth heartbeats, address-bound keys, mutual tunnel auth SRC-2 Inter-Cube Operational Hardening Spec Signed CRS registrations + bootstrap placement optimization SRC-3 TM-2026-015 (Plenum Square Strategic Integration) Crystal-lattice ECC, two-scale sponge, reciprocal-lattice mixing, arc-synchronized rotation SRC-4 TM-2026-008 (Representation Universality) Permutation properties: chi S-box, branch number, wide-trail bounds SRC-5 TM-2026-011 (T-AE-MAC Security Analysis) Dual-phase AE construction, IND-CPA/INT-CTXT bounds SRC-6 Inter-Cube First Principles 13D hypercube architecture, four services, topology-derived crypto
+
+Master Priority Table
+
+# Priority Task Spec § Source Effort Impact T-01 P0 Signed CRS registrations §1 SRC-1, SRC-2 2-3 days Closes CRS forgery, address hijacking, Sybil T-02 P0 Authenticated heartbeats §2 SRC-1, SRC-2 1 day Closes heartbeat spoofing, endpoint redirect T-03 P0 Neighbor-side signature verification §1 SRC-1, SRC-2 1 day Compromised CRS cannot redirect tunnels T-04 P0 Kill v2.5 key derivation fallback §3 SRC-1, SRC-2 0.5 day Eliminates downgrade attack T-05 P0 Dual checksum (mod-364 + mod-333) in TDNS §8 SRC-3 1 day 333× detection improvement T-06 P0 PLATFORM.PLENUM_SQUARE constants block §7 SRC-3 0.5 day Foundation for all Plenum Square items T-07 P1 Mutual tunnel authentication §4 SRC-1 2 days Defeats MITM during tunnel establishment T-08 P1 Address-bound TL-DSA keys (Phase 1) §5 SRC-1 2-3 days Stolen key unusable at wrong position T-09 P1 Bootstrap placement optimization §6 SRC-2 2-3 days Well-connected sparse cubes from first node T-10 P1 8-trit syndrome in wire protocol §8 SRC-3 2 days Detect → locate → correct (no retransmit) T-11 P1 σ_A–σ_D block shuffles in TIS-27 §8 SRC-3 2 days Crystal dynamics: two-scale diffusion T-12 P1 Arc-synchronized key rotation (182-day) §8 SRC-3 1 day Calendar = geometry = key lifecycle T-13 P2 Authenticated deregistration §2 SRC-1, SRC-2 0.5 day Only registering key can deregister T-14 P2 Dimension density tracking §6 SRC-2 1 day Even spread across all 13 dimensions T-15 P2 Weight vector nonce mixer for CON §8 SRC-3 1 day Reciprocal-lattice balanced key mixing T-16 P2 Pre-sign syndrome check in SignHere §8 SRC-3 1 day Defect detection before expensive TL-DSA T-17 P2 Sampling mode for large cubes (>100K) §6 SRC-2 1 day Allocation performance at scale T-18 P3 Address-bound keys Phase 2 + Phase 3 §5 SRC-1 1 day + migration All keys address-bound T-19 P3 Three-scale kernel sponge (729-trit) §8 SRC-3 3 days Full crystal hierarchy T-20 P3 Lattice-dynamics agent scheduling §8 SRC-3 2 days Rotational coverage for 28-agent array
+
+Total: 20 tasks | Estimated effort: 26-30 days across 3 PRs
+
+Pre-Implementation Resolutions
+
+Three items identified in feasibility assessment, resolved here:
+
+# Issue Resolution 1 TL-DSA TypeScript verification gap. The TS bridge (server/crypto/tl-dsa-bridge.ts) is HMAC simulation — it needs the secret key to verify, so it cannot verify external signatures. Expose tl_dsa_verify() via the existing N-API native addon (ternary-math/napi/src/lib.rs). Same pattern as existing sponge exports. Added to T-01 scope. T-02 HMAC verification uses TIS-27 via N-API (already exposed). 2 §5 sponge parameter discrepancy. Earlier source doc (SRC-1) said "385-trit state, 27 rounds." Wrong. TLSponge-385 = 729-trit state, 9 rounds, stride 13, rate 243, capacity 486 (≈ 385-bit security). The "385" refers to security level from capacity, not state width. Corrected in §5 technical detail. 3 §8.3 TIS-27 round count. Earlier source doc said "TIS-27 (27 rounds)." Wrong. TIS-27 = 4 rounds. The "27" refers to trit count (rate 27, capacity 27, state 54), not rounds. For 4 rounds: σ_A, σ_B, σ_C, σ_D — one per round, perfect fit. For TLSponge-385 (9 rounds): cycling σ_A→σ_D→σ_A. Corrected in §8.3 and T-11.
+
+Additionally: The four canonical square configurations (previously SQUARE_A through SQUARE_D in the constants block) have been removed. They were mathematical derivation parameters — not runtime data. The σ permutations already encode the four square arrangements as ready-to-use block shuffle indices, which is all the code needs. The derivation math is in TM-2026-015 §II for reference.
+
+File Path Divergences (Resolved)
+
+Feasibility audit identified three files referenced in the spec that do not exist in the current codebase, plus two missing from T-11 scope:
+
+# Spec referenced Exists? Resolution 4 services/inter-cube/src/wire.rs NO — wire logic currently in overlay.rs + main.rs CREATE as new module. T-01/02/07/10 introduce enough new wire types (0x30, 0x40–42, ECC syndrome) to justify extraction. 5 services/inter-cube/src/api.rs NO — API handlers currently in services/inter-cube/src/main.rs (Axum routes, lines 119–510) CREATE as new module. Extract Axum route handlers from main.rs for cleaner separation. 6 services/inter-cube/src/identity.rs NO — identity/key logic split across crs.rs and overlay.rs CREATE as new module. T-08 address-bound key derivation is new code, not extraction. 7 ternary-math/src/tis_sponge.rs missing from T-11 EXISTS (225 lines, TIS-27, 4 rounds) but not listed ADD to T-11 file list. TIS-27 needs σ shuffles alongside TLSponge-385. 8 src/kernel/src/crypto/sponge.rs missing from T-11 EXISTS (1,186 lines, AVX2/NEON SIMD) DEFER to post-release follow-up. Kernel sponge SIMD paths need separate shuffle integration. Note in T-11. 9 sign-here/ — no dedicated SignHere module for T-16 NO module — document signing flow in Hedera routes + TL-DSA bridge CREATE sign-here/src/components/PreSignCheck.tsx or add to existing signing flow. Target TBD at implementation time.
+
+All three new Rust modules (wire.rs, api.rs, identity.rs) are created as part of their respective tasks. They are additive — overlay.rs and main.rs are not modified except to re-export from the new modules.
+
+Numbered Task List by Phase
+
+Phase 1 — Operational Security Floor (PR 1)
+
+Ships as a single atomic PR. Estimated: ~600 lines across services/inter-cube/src/ (crs, fts, overlay, wire, api), server/routes/inter-cube.ts, ternary-math/napi/src/lib.rs, and services/tdns-v2/src/ (validation). No dependencies on external work.
+
+Order Task Description Files Tests Effort 1 T-06 Deploy PLATFORM.PLENUM_SQUARE constants block (§7). All downstream Plenum Square tasks depend on this. Drop-in, no behavioral change. ternary-math/src/plenum_square.rs 1 0.5 day 2 T-01 Signed CRS registrations (§1). TL-DSA signature on CrsRegistration. Domain: "PlenumNET-CRS-REG-v1". Timestamp freshness: 30s. Re-registration requires newer timestamp. Prerequisite: expose tl_dsa_verify() via N-API native addon — the TypeScript bridge (server/crypto/tl-dsa-bridge.ts) is HMAC simulation and cannot verify external signatures without the secret key. services/inter-cube/src/crs.rs, services/inter-cube/src/wire.rs, services/inter-cube/src/api.rs, server/routes/inter-cube.ts, ternary-math/napi/src/lib.rs 7 2-3 days 3 T-03 Neighbor-side signature verification (§1.5). CRS lookup returns reg_signature. CON verifies before tunnel establishment. Failure → Unknown + forgery alert. services/inter-cube/src/overlay.rs, services/inter-cube/src/api.rs 2 1 day 4 T-02 Authenticated heartbeats (§2). Default: TIS-27 HMAC (<1 µs). Optional: TL-DSA. HMAC key from TLSponge-385("PlenumNET-HB-HMAC" ‖ address ‖ master_secret). Monotonic sequence. 3 failures → FTS suspect. services/inter-cube/src/fts.rs, services/inter-cube/src/crs.rs, services/inter-cube/src/wire.rs, services/inter-cube/src/api.rs, server/routes/inter-cube.ts 6 1 day 5 T-04 Kill v2.5 key derivation fallback (§3). No KEM secret → tunnel stays Resolving. Eliminates downgrade attack. services/inter-cube/src/overlay.rs 3 0.5 day 6 T-05 Dual checksum in TDNS (§8.1). mod-364 + mod-333 (CRT coprime, modulus 121,212). 12 trits appended. 0.0008% false-pass. Note: compute_dual_checksum() already exists in both TS and Rust — remaining work is wire format integration (appending 12 trits to 54-trit address) and TDNS API response. services/tdns-v2/src/ (validation modules), services/inter-cube/src/wire.rs 3 0.5 day
+
+Phase 1 total: 6 tasks | ~6-7 days | ~22 tests
+
+Phase 2 — Tunnel Hardening + Crystal Dynamics (PR 2)
+
+Depends on Phase 1. Estimated: ~900 lines across services/inter-cube/src/ (overlay, identity, wire), server/routes/inter-cube.ts, and ternary-math/src/sponge.rs.
+
+Order Task Description Files Tests Effort 7 T-07 Mutual tunnel authentication (§4). 3-message handshake: CHALLENGE (0x40) → RESPONSE (0x41) → CONFIRM (0x42). New Authenticating state. 5s timeout, exponential backoff. Rekey triggers re-auth. services/inter-cube/src/overlay.rs, services/inter-cube/src/wire.rs, services/inter-cube/src/fts.rs 7 2 days 8 T-08 Address-bound TL-DSA keys Phase 1 (§5). TLSponge-385("PlenumNET-IDENTITY" ‖ address ‖ master_secret) → deterministic keygen. 729-trit state, 9 rounds (not 385-trit/27-round — see Pre-Implementation Resolutions). Dual-accept: legacy + bound. New registrations MUST use bound. services/inter-cube/src/identity.rs (new), services/inter-cube/src/crs.rs, services/inter-cube/src/overlay.rs 6 2-3 days 9 T-09 Bootstrap placement optimization (§6). allocateOptimal() replaces allocateNext(). Max-spread with connectivity floor K=2 (adaptive K=1 → centroid). Cold start: inner/outer corner + max min distance. placementMetrics in response. server/routes/inter-cube.ts, services/inter-cube/src/cube_addr.rs 9 2-3 days 10 T-10 Wire protocol ECC — 8-trit syndrome (§8.2). 8-line mod-9 parity (3 rows + 3 cols + 2 diags). Single corrupted triplet → unique syndrome → correct in place. 8 trits for 27-trit address. services/inter-cube/src/wire.rs 4 2 days 11 T-11 Two-scale sponge dynamics — σ_A–σ_D block shuffles (§8.3). Round-dependent before stride-13. TIS-27: one σ per round (4 rounds = σ_A, σ_B, σ_C, σ_D). TLSponge-385: cycling (9 rounds). Backward compat: σ = identity reproduces old outputs. Note: Kernel sponge (src/kernel/src/crypto/sponge.rs, 1,186 lines, AVX2/NEON SIMD) deferred to post-release follow-up — SIMD shuffle optimization is separate scope. ternary-math/src/sponge.rs, ternary-math/src/tis_sponge.rs 4 2 days 12 T-12 Arc-synchronized key rotation (§8.4). Interval = 182 days = 26 weeks. Epochs: day 0, 182, 364. rekey_all() at boundary. Tunnels re-auth via T-07 with new epoch. services/inter-cube/src/overlay.rs, services/inter-cube/src/crs.rs 3 1 day
+
+Phase 2 total: 6 tasks | ~11-13 days | ~33 tests
+
+Phase 3 — Crystal Polish (PR 3)
+
+Independent items. Can ship incrementally. Estimated: ~500 lines.
+
+Order Task Description Files Tests Effort 13 T-13 Authenticated deregistration (§2.3). Domain: "PlenumNET-CRS-DEREG-v1". Only registering key can deregister. services/inter-cube/src/crs.rs, services/inter-cube/src/api.rs 2 0.5 day 14 T-14 Dimension density tracking (§6.7). 13 × 3 array. Tiebreaker for allocateOptimal: prefer underrepresented dimension-values. server/routes/inter-cube.ts 2 1 day 15 T-15 Reciprocal-lattice key mixing (§8.5). Weight vector [208,2,123,26,111,196,99,220,14] × triplets mod 333 → domain material in v3 key. Magic constant prevents bias. services/inter-cube/src/overlay.rs 3 1 day 16 T-16 Pre-sign syndrome check in SignHere (§8.6). Hash → 9 triplets → 8-line parity. Non-zero → reject before TL-DSA. sign-here/ (SignHere e-signature platform) 2 1 day 17 T-17 Sampling mode for large cubes (§6.9). >100K nodes: sample 1,000 random, score neighbors, pick best. ~100ms. server/routes/inter-cube.ts 2 1 day 18 T-18 Address-bound keys Phase 2 + Phase 3 (§5.4). After 365 days: reject legacy. Then: remove dual-accept. services/inter-cube/src/crs.rs, services/inter-cube/src/identity.rs 2 1 day + migration 19 T-19 Three-scale kernel sponge — 729-trit (§8.7). Δ₂ = 1 + 4(182) = 729. Rate 243 = 9 super-blocks of 9. Inner σ_A–σ_D + outer Plenum Square. ternary-math/src/sponge.rs 4 3 days 20 T-20 Lattice-dynamics agent scheduling (§8.8). Coprime walk + Plenum grouping + σ_A derangement. 28 = 2π = Tri(7). shared/agents/ (scheduling module) 3 2 days
+
+Phase 3 total: 8 tasks | ~10.5 days | ~20 tests
+
+Dependency Graph
+
+Phase 1 (PR 1):
+  T-06 Constants Block ──┐
+  T-01 Signed CRS ───────┤
+  T-03 Neighbor Verify ──┤── ships together (atomic)
+  T-02 Auth Heartbeats ──┤
+  T-04 Kill v2.5 ────────┤
+  T-05 Dual Checksum ────┘
+            │
+            ▼
+Phase 2 (PR 2):
+  T-07 Mutual Tunnel Auth ──────── depends on T-01, T-03
+  T-08 Address-Bound Keys (P1) ── depends on T-01
+  T-09 Bootstrap Placement ─────── independent (CRS change only)
+  T-10 Wire ECC ────────────────── depends on T-06
+  T-11 Sponge Block Shuffles ──── depends on T-06
+  T-12 Arc-Synchronized Rotation ─ depends on T-07
+            │
+            ▼
+Phase 3 (PR 3):
+  T-13 Auth Deregistration ─────── depends on T-01
+  T-14 Dimension Density ───────── depends on T-09
+  T-15 Weight Vector Mixer ─────── depends on T-06
+  T-16 SignHere Syndrome ─────── depends on T-06
+  T-17 Sampling Mode ───────────── depends on T-09
+  T-18 Bound Keys Phase 2+3 ───── depends on T-08 + calendar cycle
+  T-19 Three-Scale Kernel ──────── depends on T-11
+  T-20 Agent Scheduling ────────── depends on T-06
+
+
+File Change Summary
+
+File Status Phase 1 Phase 2 Phase 3 services/inter-cube/src/crs.rs Exists T-01 sig verify, T-02 HMAC key T-08 legacy flag, T-12 epoch T-13 auth dereg, T-18 remove legacy services/inter-cube/src/fts.rs Exists T-02 auth heartbeats T-07 auth fail event services/inter-cube/src/overlay.rs Exists T-03 neighbor verify, T-04 kill v2.5 T-07 handshake, T-08 init keypair, T-12 rekey T-15 weight mixer services/inter-cube/src/wire.rs NEW — extract from overlay.rs + main.rs T-01 msg 0x30, T-02 HB update, T-05 dual checksum T-07 msgs 0x40-42, T-10 ECC syndrome services/inter-cube/src/api.rs NEW — extract Axum handlers from main.rs T-01 sig field, T-02 auth field T-09 metrics T-13 dereg auth services/inter-cube/src/identity.rs NEW — T-08 scope T-08 derive_address_bound T-18 Phase 2+3 services/inter-cube/src/cube_addr.rs Exists T-09 centroid_distance services/inter-cube/src/main.rs Exists — slimmed after extraction Handlers → api.rs, wire → wire.rs server/routes/inter-cube.ts Exists T-01 TS mirror, T-02 TS mirror T-09 allocateOptimal T-14 density, T-17 sampling server/crypto/tl-dsa-bridge.ts Exists — callers switch to N-API verify T-01 prerequisite ternary-math/napi/src/lib.rs Exists T-01 expose tl_dsa_verify() ternary-math/src/sponge.rs Exists (269 lines, TLSponge-385) T-11 σ block shuffles T-19 three-scale kernel ternary-math/src/tis_sponge.rs Exists (225 lines, TIS-27, 4 rounds) T-11 σ block shuffles ternary-math/src/plenum_square.rs NEW — T-06 scope T-06 constants services/tdns-v2/src/ (validation) Exists T-05 dual checksum wire fmt sign-here/ (SignHere) Exists — needs pre-sign module T-16 pre-sign check shared/agents/ (scheduling) Exists T-20 lattice dynamics src/kernel/src/crypto/sponge.rs Exists (1,186 lines, SIMD) — DEFERRED Post-release: σ shuffle SIMD
+
+Invariant Compliance
+
+Invariant Status Affected by INV 1 (Geometry IS the System) Strengthened T-08 derives keys from geometry. T-07 verifies geometric key agreement. T-15 adds reciprocal-lattice mixing. INV 3 (Rep C, zero excluded) Maintained All wire encodings remain Rep C. INV 7 (TL-DSA everywhere) Strengthened T-01, T-02 add TL-DSA/TIS-27 to CRS ops that previously had none. INV 8 (No raw binary in sponge) Maintained T-08 derivation uses u8_to_trits() before absorb. INV 10 (Sponge stride coprime) Maintained All new TIS-27/TLSponge-385 calls use stride 13.
+
+The Upgrade in One Table
+
+CURRENT                          AFTER THIS RELEASE
+─────────                        ──────────────────
+Unauthenticated CRS              T-01/02/03: TL-DSA signed registrations + HMAC heartbeats
+Trust-on-first-use tunnels       T-07: Mutual 3-message challenge-response auth
+Keys independent of address      T-08: Address-bound identity (IBC from geometry)
+v2.5 fallback (public keys)      T-04: v3 only — no tunnel without KEM secret
+Sequential address allocation    T-09: Greedy max-spread with connectivity floor
+mod-364 detect (0.27% miss)      T-05: mod-364 + mod-333 dual detect (0.0008% miss)
+Detect-or-reject                 T-10: Detect → locate → correct (8-trit syndrome)
+Same permutation every round     T-11: Round-dependent σ_A–σ_D crystal dynamics
+Arbitrary key rotation           T-12: Arc-synchronized (182 days = half-turn)
+Address-pair tunnel keys         T-15: + reciprocal-lattice balanced nonce mixer
+
+
+Every row is more secure, more resilient, or both. The crystal structure provides for free what would otherwise require additional computation.
+
+Technical Detail — §1. Signed CRS Registrations
+
+Threat Model
+
+The current CRS register endpoint accepts an address, endpoint URL, and public key with no proof that the registrant controls the corresponding private key. An attacker who can reach CRS — or a compromised CRS node — can claim any unclaimed address and redirect tunnels destined for the legitimate occupant. This is the single largest gap because CRS is the trust root for neighbor resolution.
+
+Design
+
+Every registration payload includes a TL-DSA signature computed by the registering node. CRS stores the signature alongside the record. Querying nodes verify the signature before establishing tunnels.
+
+Registration Payload:
+
+struct CrsRegistration {
+    address:        CubeAddr,         // 13-trit geometric position
+    endpoint:       String,           // reachable host:port
+    public_key:     TlDsaPublicKey,   // TL-DSA-87 verification key
+    kem_public_key: TlKemPublicKey,   // TL-KEM-1024 encapsulation key
+    timestamp:      u128,             // femtosecond since Salvi Epoch
+    signature:      TlDsaSignature,   // sig over canonical payload
+}
+
+
+Signature Construction: Canonical concatenation: address.to_wire() ‖ endpoint.as_bytes() ‖ public_key.as_bytes() ‖ kem_public_key.as_bytes() ‖ timestamp.to_le_bytes(). Domain: "PlenumNET-CRS-REG-v1". TL-DSA-87.
+
+CRS Record (updated):
+
+struct CrsRecord {
+    address:         CubeAddr,
+    endpoint:        String,
+    public_key:      TlDsaPublicKey,
+    kem_public_key:  TlKemPublicKey,
+    registered_at:   u128,
+    last_heartbeat:  u128,
+    reg_signature:   TlDsaSignature,
+}
+
+
+Verification, Replay Protection, Sybil Cost
+
+On registration: verify signature, reject on failure. On query: response includes reg_signature — querying node verifies before tunnel. Compromised CRS cannot forge (no signing key). Timestamp freshness: 30s window. Re-registration requires newer timestamp. Per-identity Sybil cost: 1 keypair + 26 tunnels + 26 heartbeats/interval. Structural resistance from geometry.
+
+enum CrsError {
+    InvalidSignature,
+    StaleTimestamp,
+    ReplayDetected,
+}
+
+
+Technical Detail — §2. Authenticated Heartbeats
+
+Design
+
+Default: TIS-27 HMAC (<1 µs). Optional: TL-DSA full signature.
+
+struct AuthenticatedHeartbeat {
+    address:     CubeAddr,
+    endpoint:    String,
+    sequence:    u64,
+    timestamp:   u128,
+    auth_mode:   HeartbeatAuth,
+    auth_data:   Vec<u8>,
+}
+
+enum HeartbeatAuth {
+    TisHmac  = 0x01,
+    TlDsaSig = 0x02,
+}
+
+
+HMAC key: TLSponge-385("PlenumNET-HB-HMAC" ‖ address ‖ master_secret) → 48 bytes. Monotonic sequence. 3 failures → FTS suspect. Deregistration (T-13): domain "PlenumNET-CRS-DEREG-v1", only registering key can deregister.
+
+Technical Detail — §3. Kill v2.5 Fallback
+
+// No KEM secret → no key → tunnel stays Resolving
+if let Some(secret) = kem_secret {
+    derive_pq_tunnel_key_v3(...)
+} else {
+    return None;
+}
+
+
+Technical Detail — §4. Mutual Tunnel Authentication
+
+Three-message handshake: CHALLENGE (0x40, encrypted nonce) → RESPONSE (0x41, nonce+1 + own nonce) → CONFIRM (0x42, their nonce+1). Both sides prove same topology key. State: Connecting → Authenticating → Up. 5s timeout, backoff. Rekey: Up → Rekeying → Authenticating → Up with new epoch.
+
+Type Code Payload CHALLENGE 0x40 addr(7) + enc_nonce(32) + iv(12) + tag(16) + epoch(8) + ts(16) RESPONSE 0x41 addr(7) + enc_nonces(64) + iv(12) + tag(16) + epoch(8) + ts(16) CONFIRM 0x42 enc_nonce(32) + iv(12) + tag(16) + ts(16)
+
+Technical Detail — §5. Address-Bound TL-DSA Keys
+
+Sponge parameters: TLSponge-385 = 729-trit state, 9 rounds, stride 13, rate 243, capacity 486 (≈ 385-bit security). The "385" in the name refers to the security level from the capacity, not the state width.
+
+fn derive_address_bound_keypair(
+    address:       &CubeAddr,
+    master_secret: &[u8; 48],
+) -> (TlDsaPublicKey, TlDsaPrivateKey) {
+    let seed = tl_sponge_385(
+        b"PlenumNET-IDENTITY",
+        &[address.to_wire(), master_secret].concat(),
+    );
+    tl_dsa_keygen_from_seed(&seed)
+}
+
+
+Phase 1 (T-08): dual-accept. Phase 2 (T-18): reject legacy after 365 days. Phase 3 (T-18): remove dual-accept.
+
+Technical Detail — §6. Bootstrap Placement
+
+allocateOptimal(existingAddresses, K = 2):
+  candidates = neighbors of existing, unregistered, with ≥K occupied neighbors
+  sort by spread desc, then connectivity desc
+  fallback: K-1 → K=0 → farthest-from-centroid
+  cold start: Node 1 = [1,...,1], Node 2 = [3,...,3], Node 3 = max min distance
+
+
+Nodes Pool Time 10 260 <1 ms 1,000 26,000 <50 ms 100K+ Sampling ~100 ms
+
+Technical Detail — §7. Plenum Square Constants
+
+pub mod plenum_square {
+    pub const ARC: u32 = 182;
+    pub const CENTER: u32 = 111;
+    pub const MAGIC_CONSTANT: u32 = 333;
+    pub const DISCRIMINANT: u32 = 144;
+    pub const LATTICE_PARAM: u32 = 12;
+    pub const ROOT_A: u32 = 14;
+    pub const ROOT_B: u32 = 26;
+    pub const COMPLEMENT_A: u32 = 208;
+    pub const COMPLEMENT_B: u32 = 196;
+    pub const PAIR_SUM: u32 = 222;
+    pub const WEIGHT_VECTOR: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+
+    // The four canonical square arrangements (A, B, C, D) are encoded
+    // by the σ permutations below. The mathematical derivation via
+    // (p, q) parameterization is documented in TM-2026-015 §II.
+
+    // Block permutations (σ_A through σ_D)
+    pub const SIGMA_A: [usize; 9] = [2, 6, 7, 8, 4, 0, 1, 5, 3]; // double derangement
+    pub const SIGMA_B: [usize; 9] = [6, 0, 5, 8, 4, 3, 2, 1, 7];
+    pub const SIGMA_C: [usize; 9] = [4, 8, 3, 2, 0, 7, 5, 6, 1];
+    pub const SIGMA_D: [usize; 9] = [8, 2, 1, 0, 4, 6, 7, 3, 5];
+}
+
+
+Technical Detail — §8. Plenum Square Integrations
+
+§8.1 Dual Checksum (T-05): mod-364 + mod-333. CRT → modulus 121,212. 12 trits. 0.0008% false-pass.
+
+§8.2 Wire ECC (T-10): 8-line mod-9 parity. Unique syndrome per triplet. Correct in place.
+
+§8.3 Sponge Shuffles (T-11): σ_A first (double derangement), then σ_B, σ_C, σ_D — one per round, applied before stride-13 each round. For TIS-27 (4 rounds): σ_A, σ_B, σ_C, σ_D — one per round, perfect fit. For TLSponge-385 (9 rounds): σ_A, σ_B, σ_C, σ_D, σ_A, σ_B, σ_C, σ_D, σ_A — cycling. Note: the "27" in TIS-27 refers to the trit count (rate 27, capacity 27, state 54), not the round count.
+
+§8.4 Arc Rotation (T-12): 182 days. Epochs: 0, 182, 364. Triggers rekey + re-auth.
+
+§8.5 Lattice Mixer (T-15): Weight × triplets mod 333. Magic constant prevents bias.
+
+§8.6 SignHere Syndrome (T-16): Hash → 9 triplets → 8-line parity. Non-zero → reject before TL-DSA.
+
+§8.7 Three-Scale Kernel (T-19): 729 = Δ₂ = 1+4(182). Inner σ_A–σ_D + outer Plenum Square.
+
+§8.8 Agent Scheduling (T-20): Coprime walk + Plenum grouping + σ_A derangement. 28 = 2π.
+
+Operational Hardening Recommendations
+
+The following items are not tasks in the 20-item implementation plan. They are operational best practices that should be applied during and after deployment. They address concerns raised in external reviews regarding master secret protection, denial of service, protocol versioning, performance, and deployment strategy.
+
+Master Secret Protection
+
+The master_secret (48 bytes) is the root of trust for heartbeat HMAC keys (T-02), address-bound key derivation (T-08), and tunnel key material. Its compromise would allow impersonation of any node.
+
+
+
+
+
+Generation: Use a cryptographically secure random number generator with at least 384 bits of entropy. Document the generation process in operational runbooks.
+
+
+
+Storage: Encrypt on disk with a key derived from a node-specific secret (TPM-backed where available, passphrase-derived otherwise). Never store in plaintext. Never transmit over the network.
+
+
+
+Rotation: Master secret rotation requires re-registration (new keypair derived from new secret + same address). Schedule rotation at arc boundaries (182-day epochs) to align with key rotation.
+
+CRS Rate Limiting and DoS Protection
+
+Even with signed registrations (T-01), an attacker can flood CRS with valid signatures (each requiring a new keypair but no ongoing tunnel cost if the attacker doesn't maintain tunnels).
+
+
+
+
+
+Per-source IP rate limiting: Cap registration attempts per IP per time window (e.g., 10 registrations per minute per IP).
+
+
+
+Proof-of-work for registration: Require a lightweight hash puzzle (e.g., find nonce where TIS-27(address ‖ nonce) has K leading zero trits) to raise the cost of mass registration. K is tunable: low during bootstrap, higher under load.
+
+
+
+FTS integration: Nodes that register but never respond to heartbeats accumulate "ghost" scores. CRS can deprioritize or purge registrations with zero tunnel activity after a grace period.
+
+Protocol Version Negotiation
+
+This release introduces wire-format changes: dual checksum (T-05, +12 trits), ECC syndrome (T-10, +8 trits), new message types (T-07, 0x40–0x42), and authenticated heartbeats (T-02, +sequence + auth). These break compatibility with older nodes if deployed without versioning.
+
+
+
+
+
+Version field: Add a protocol_version: u8 to the wire message header. Current = v1, this release = v2.
+
+
+
+Negotiation: During tunnel establishment, nodes exchange supported versions. Both sides use the highest common version. If no overlap, tunnel fails with IncompatibleVersion.
+
+
+
+Dual-acceptance period: For T-05 (dual checksum) and T-10 (wire ECC), accept both old and new formats during Phase 1 rollout. Require new format after Phase 2 ships.
+
+
+
+Monitoring: Log version mismatches. Track the percentage of v1 vs v2 nodes to know when the dual-acceptance period can end.
+
+Performance Caching
+
+Several operations in the spec involve repeated computation of the same result. Caching eliminates redundant work without changing security properties.
+
+
+
+
+
+CRS verification cache: After verifying a neighbor's reg_signature, cache the result with a TTL (e.g., 5 minutes). Re-verify only on cache expiry or CRS record change. Reduces TL-DSA verify calls during steady-state operation.
+
+
+
+Address-bound keypair cache: The derived keypair for a given (address, master_secret) is deterministic and immutable. Cache in memory. Invalidate only on master secret rotation (every 182 days).
+
+
+
+Heartbeat HMAC key cache: Derived once at registration, stored in CrsRecord. Never recomputed unless master_secret changes.
+
+
+
+Bootstrap placement cache: For allocateOptimal(), cache the neighbor-occupancy map between registrations. Invalidate incrementally (only the 26 neighbors of the newly registered node change occupancy status).
+
+Benchmarking
+
+Before shipping each PR, run micro-benchmarks on the critical-path operations:
+
+Operation Target Tool TL-DSA-87 sign < 10 ms Criterion.rs TL-DSA-87 verify (N-API) < 5 ms Criterion.rs TIS-27 HMAC (heartbeat) < 1 µs Criterion.rs TLSponge-385 key derivation < 1 ms Criterion.rs allocateOptimal() at 1,000 nodes < 50 ms Node.js perf_hooks Mutual tunnel handshake (3 messages) < 100 ms round-trip Integration test with network latency simulation Sponge with σ block shuffles vs without < 10% overhead Criterion.rs A/B comparison
+
+If any operation exceeds its target, profile and optimize before merging. The benchmarks become regression tests for subsequent releases.
+
+Deployment Strategy
+
+
+
+
+
+Canary rollout: Deploy Phase 1 (PR 1) to 10% of nodes first. Monitor CRS auth success rate, heartbeat verification rate, and tunnel establishment latency for 48 hours before full rollout.
+
+
+
+Feature flags: Gate Plenum Square items (T-05 dual checksum, T-10 wire ECC, T-11 sponge shuffles) behind runtime flags. Enable per-node for testing, then globally.
+
+
+
+Telemetry: Add metrics for: registrations signed vs unsigned, heartbeat auth pass/fail, tunnel auth pass/fail, v2.5 fallback attempts (should drop to zero after T-04). Expose via existing Kong Konnect metrics endpoints.
+
+
+
+Rollback plan: If Phase 1 causes issues, revert to unsigned CRS with a single config flag (CRS_REQUIRE_SIGNATURE=false). Tunnels built during the signed period remain valid — they were authenticated at establishment time.
+
+v2.5 Teardown Grace Period
+
+T-04 removes the v2.5 key derivation fallback. Existing v2.5 tunnels must be handled:
+
+
+
+
+
+On upgrade: Nodes tear down any v2.5 tunnels and re-establish using v3 (TL-KEM + TLSponge-385).
+
+
+
+Grace period: For 7 days after PR 1 ships, log v2.5 attempts as warnings instead of hard rejections. After 7 days, hard-reject. This gives all nodes time to upgrade.
+
+
+
+Test coverage: The 6 existing tests using #[allow(deprecated)] calls to v2.5 must be updated to expect None (no key derived) instead of a valid key.
+
+External Cryptographic Audit
+
+The system relies on custom primitives (TL-DSA-87, TIS-27, TLSponge-385). Internal monographs (TM-2026-008, TM-2026-011) provide security analysis, but third-party review is required before production deployment at scale.
+
+
+
+
+
+Scope: Engage an external cryptographic auditor to review: (a) the TLSponge-385 permutation and its wide-trail bounds, (b) the T-AE-MAC dual-phase authenticated encryption construction, (c) the TL-DSA and TL-KEM parameter sets, and (d) the topology-derived key derivation protocol.
+
+
+
+Timeline: After CIPO provisional patents are filed (P-01 through P-05) and before ePrint submission. The audit results inform both the patent claims and the academic publication.
+
+
+
+Budget: CAD $15K–$30K for a focused audit of the four items above. This is standard for custom symmetric/lattice primitives.
+
+The half-turn is 20202₃. The unit cell is the Plenum Square. PlenumNET is the crystal.
+
+Capomastro Holdings Ltd. — Patent(s) Pending — All Rights Reserved — Applied Physics Division

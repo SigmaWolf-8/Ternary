@@ -1,0 +1,686 @@
+# PlenumNET Next Release — Unified Implementation Specification
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Document: SPEC-2026-NEXT | Classification: INTERNAL — Patent(s) Pending**
+**March 2026**
+
+© 2025–2026 Capomastro Holdings Ltd. (Canada) — All Rights Reserved
+
+---
+
+## Executive Summary
+
+This specification consolidates three workstreams into a single release plan:
+
+1. **Security Hardening** — Cryptographic binding of the operational layer (signed CRS, authenticated heartbeats, address-bound keys, mutual tunnel authentication)
+2. **Bootstrap Optimization** — Geometric placement strategy for sparse cube connectivity
+3. **Plenum Square Integration** — Crystal-lattice ECC, two-scale sponge dynamics, reciprocal-lattice key mixing, arc-synchronized key rotation
+
+All items use existing primitives (TL-DSA, TIS-27, TLSponge-385). No new cryptographic dependencies. The four Inter-Cube services (CRS, CON, GLB, FTS) retain their current interfaces with additive fields.
+
+After implementation, the security claim becomes: **every CRS record, heartbeat, identity key, and tunnel session is cryptographically bound to the geometric position, the registered identity, and the post-quantum primitives. No operation proceeds without proof of geometric occupancy.** The Plenum Square provides structural ECC, crystal-dynamics diffusion, and calendar-synchronized key rotation — all derived from the half-turn arc = 182 = π(π − 1) = 14 × 13 = 20202₃.
+
+---
+
+## Master Priority Table
+
+| Priority | Item | Source | Effort | Impact |
+|----------|------|--------|--------|--------|
+| **P0** | Signed CRS registrations | §1 | 2-3 days | Closes CRS forgery, address hijacking, Sybil |
+| **P0** | Authenticated heartbeats | §2 | 1 day | Closes heartbeat spoofing, endpoint redirect |
+| **P0** | Neighbor-side signature verification | §1.5 | 1 day | Compromised CRS cannot redirect tunnels |
+| **P0** | Kill v2.5 key derivation fallback | §3 | 0.5 day | Eliminates downgrade attack |
+| **P0** | Dual checksum (mod-364 + mod-333) in TDNS | §8.1 | 1 day | 333× detection improvement |
+| **P0** | PLATFORM.PLENUM_SQUARE constants block | §8 | 0.5 day | Foundation for all Plenum Square items |
+| **P1** | Mutual tunnel authentication | §4 | 2 days | Defeats MITM during tunnel establishment |
+| **P1** | Address-bound TL-DSA keys (Phase 1: dual-accept) | §5 | 2-3 days | Stolen key unusable at wrong position |
+| **P1** | Bootstrap placement optimization | §6 | 2-3 days | Well-connected sparse cubes from first node |
+| **P1** | 8-trit syndrome in wire protocol | §8.2 | 2 days | Detect → locate → correct (no retransmit) |
+| **P1** | σ_A–σ_D block shuffles in TIS-27 | §8.3 | 2 days | Crystal dynamics: two-scale diffusion |
+| **P1** | Arc-synchronized key rotation (182-day cycle) | §8.4 | 1 day | Calendar = geometry = key lifecycle |
+| **P2** | Authenticated deregistration | §2.3 | 0.5 day | Only registering key can deregister |
+| **P2** | Dimension density tracking | §6.7 | 1 day | Even spread across all 13 dimensions |
+| **P2** | Weight vector nonce mixer for CON tunnels | §8.5 | 1 day | Reciprocal-lattice balanced key mixing |
+| **P2** | Pre-sign syndrome check in SalviSign | §8.6 | 1 day | Defect detection before expensive TL-DSA |
+| **P2** | Sampling mode for large cubes (>100K nodes) | §6.9 | 1 day | Allocation performance at scale |
+| **P3** | Address-bound keys Phase 2 (deprecation) + Phase 3 (removal) | §5 | 1 day + migration | All keys address-bound |
+| **P3** | Three-scale kernel sponge (729-trit) | §8.7 | 3 days | Full crystal hierarchy |
+| **P3** | Lattice-dynamics agent scheduling | §8.8 | 2 days | Rotational coverage for 28-agent array |
+
+**Total estimated effort: 26-30 days across 3 PRs**
+
+---
+
+## PR Structure
+
+**PR 1 — Operational Security (P0 items)**
+Signed registrations + authenticated heartbeats + neighbor verification + kill v2.5 + dual checksum + constants block. Ships as a single atomic change. Estimated: ~600 lines across crs.rs, fts.rs, overlay.rs, wire.rs, api.rs, tdns validation.
+
+**PR 2 — Tunnel Hardening + Bootstrap (P1 items)**
+Mutual tunnel auth + address-bound keys (Phase 1) + bootstrap placement + wire ECC + sponge block shuffles + arc-synchronized rotation. Depends on PR 1. Estimated: ~900 lines across overlay.rs, identity.rs, wire.rs, inter-cube.ts, sponge.rs.
+
+**PR 3 — Crystal Polish (P2/P3 items)**
+Auth deregistration + dimension density + weight vector mixer + SalviSign syndrome + sampling mode + three-scale kernel + agent scheduling. Independent polish items. Estimated: ~500 lines.
+
+---
+
+## §1. Signed CRS Registrations
+
+### 1.1 Threat Model
+
+The current CRS register endpoint accepts an address, endpoint URL, and public key with no proof that the registrant controls the corresponding private key. An attacker who can reach CRS — or a compromised CRS node — can claim any unclaimed address and redirect tunnels destined for the legitimate occupant. This is the single largest gap because CRS is the trust root for neighbor resolution.
+
+### 1.2 Design
+
+Every registration payload includes a TL-DSA signature computed by the registering node. CRS stores the signature alongside the record. Querying nodes verify the signature before establishing tunnels.
+
+**Registration Payload (new fields in bold):**
+
+```rust
+struct CrsRegistration {
+    address:        CubeAddr,         // 13-trit geometric position
+    endpoint:       String,           // reachable host:port
+    public_key:     TlDsaPublicKey,   // TL-DSA-87 verification key
+    kem_public_key: TlKemPublicKey,   // TL-KEM-1024 encapsulation key
+    timestamp:      u128,             // femtosecond since Salvi Epoch
+    signature:      TlDsaSignature,   // NEW: sig over canonical payload
+}
+```
+
+**Signature Construction:**
+
+The signed message is the canonical byte concatenation: `address.to_wire() ‖ endpoint.as_bytes() ‖ public_key.as_bytes() ‖ kem_public_key.as_bytes() ‖ timestamp.to_le_bytes()`. The context tag for the TLSponge-385 domain separator is `"PlenumNET-CRS-REG-v1"`. The signature uses TL-DSA-87.
+
+**CRS Record (updated):**
+
+```rust
+struct CrsRecord {
+    address:         CubeAddr,
+    endpoint:        String,
+    public_key:      TlDsaPublicKey,
+    kem_public_key:  TlKemPublicKey,
+    registered_at:   u128,
+    last_heartbeat:  u128,
+    reg_signature:   TlDsaSignature,  // NEW
+}
+```
+
+### 1.3 Verification Flow
+
+On registration: CRS reconstructs the canonical message from the payload fields and calls `tl_dsa_verify(public_key, message, signature)`. Reject with `CrsError::InvalidSignature` on failure.
+
+On query: the response includes the `reg_signature`. The querying node verifies the signature against the returned `public_key` before proceeding to tunnel establishment. A compromised CRS cannot forge registrations because it does not hold the signing key.
+
+### 1.4 Replay Protection
+
+The femtosecond timestamp is part of the signed message. CRS enforces a maximum registration age window: `REGISTRATION_MAX_AGE_FS = 30_000_000_000_000_000` (30 seconds in femtoseconds). Re-registration at the same address requires a fresh signature with a newer timestamp; CRS rejects signatures with timestamps older than the existing record's `registered_at`.
+
+### 1.5 Neighbor-Side Verification
+
+When CON resolves a neighbor's physical endpoint from CRS, the response includes the registration signature. Before establishing a tunnel, the querying node:
+
+1. Reconstructs `sign_payload` from the CRS response fields
+2. Verifies the signature against the returned `publicKey`
+3. If verification fails: marks the neighbor as `Unknown`, does NOT establish tunnel, logs a forgery alert
+4. If verification passes: proceeds to tunnel establishment (TL-KEM handshake)
+
+The worst a compromised CRS can do is refuse to return records (denial of service), not redirect tunnels.
+
+### 1.6 Sybil Cost Analysis
+
+Without signed registrations: creating a fake identity costs one HTTP POST.
+
+With signed registrations: each fake identity requires a unique TL-DSA keypair, a valid signature per registration, maintaining 26 authenticated tunnels per address (each requiring TL-KEM handshake), responding to FTS heartbeats from up to 26 neighbors per address, and sustaining all of the above continuously.
+
+For N Sybil identities: N keypairs + 26N tunnels + 26N heartbeat responses per interval. Structural Sybil resistance from the geometry itself.
+
+### 1.7 Error Types
+
+```rust
+enum CrsError {
+    InvalidSignature,       // TL-DSA verification failed
+    StaleTimestamp,          // timestamp outside acceptance window
+    ReplayDetected,          // timestamp <= existing record
+}
+```
+
+### 1.8 Test Cases
+
+1. Valid registration with correct TL-DSA-87 signature succeeds.
+2. Registration with incorrect signature returns `InvalidSignature`.
+3. Registration with timestamp older than 30s returns `StaleTimestamp`.
+4. Re-registration at existing address with older timestamp returns `ReplayDetected`.
+5. Re-registration with newer timestamp and valid signature overwrites record.
+6. Querying node receives and verifies `reg_signature`; on failure, tunnel stays in Resolving.
+7. Forged signature (correct format, wrong key) fails verification on both CRS and querying node.
+
+---
+
+## §2. Authenticated Heartbeats
+
+### 2.1 Threat Model
+
+The current heartbeat endpoint accepts an address and endpoint with no authentication. An attacker can send heartbeats for any address, keeping a hijacked registration alive indefinitely or changing the endpoint to redirect traffic.
+
+### 2.2 Design
+
+Two authentication modes, negotiated at registration time. Default: **HMAC mode** (one TIS-27 sponge operation per heartbeat, sub-microsecond). Optional: **Full-Sig mode** (TL-DSA-87 for non-repudiable heartbeat trails).
+
+```rust
+struct AuthenticatedHeartbeat {
+    address:     CubeAddr,
+    endpoint:    String,
+    sequence:    u64,           // monotonic counter, prevents replay
+    timestamp:   u128,          // femtosecond since Salvi Epoch
+    auth_mode:   HeartbeatAuth, // HMAC or Signature
+    auth_data:   Vec<u8>,       // HMAC tag or TL-DSA signature bytes
+}
+
+enum HeartbeatAuth {
+    TisHmac  = 0x01,
+    TlDsaSig = 0x02,
+}
+```
+
+**HMAC Key Derivation:** `TLSponge-385("PlenumNET-HB-HMAC" ‖ address.to_wire() ‖ master_secret)` → 48-byte key. Derived independently by both CRS and registering node from the shared master_secret established during KEM exchange. Never transmitted.
+
+**HMAC Computation:** Message: `address.to_wire() ‖ endpoint.as_bytes() ‖ sequence.to_le_bytes() ‖ timestamp.to_le_bytes()`. Tag: `TIS-27-Sponge(hmac_key ‖ message)` squeezed to 27 trits → 7 bytes.
+
+**Verification:** CRS looks up CrsRecord by address, retrieves stored HMAC key, reconstructs message, verifies. The `sequence` field must be strictly monotonically increasing; CRS rejects any heartbeat with `sequence <= last_accepted`. After 3 consecutive auth failures, emit FTS suspect event.
+
+**Performance:** TIS-27 HMAC: < 1 µs per operation. At 1-second heartbeat interval, overhead is negligible.
+
+### 2.3 Authenticated Deregistration
+
+```rust
+struct SignedDeregistration {
+    address:   CubeAddr,
+    timestamp: u128,
+    signature: TlDsaSignature,
+}
+```
+
+Domain separator: `"PlenumNET-CRS-DEREG-v1"`. Only the key that registered the address can deregister it.
+
+### 2.4 Test Cases
+
+1. Valid HMAC heartbeat accepted, `last_hb_sequence` updated.
+2. Incorrect HMAC tag returns `HeartbeatAuthFailed`.
+3. `sequence <= last_accepted` returns `SequenceReplay`.
+4. After 3 consecutive auth failures, FTS emits `NodeSuspect`.
+5. Valid TlDsaSig-mode heartbeat accepted.
+6. Attacker spoofing heartbeats without master_secret fails HMAC.
+
+---
+
+## §3. Kill v2.5 Key Derivation Fallback
+
+### 3.1 Problem
+
+`derive_pq_tunnel_key` (v2.5) is `#[deprecated]` but still callable. It uses only addresses as input. Since addresses are public (stored in CRS), any node can compute the v2.5 key for any pair. The `derive_all_keys` method falls back to v2.5 when no KEM secret is available.
+
+### 3.2 Fix
+
+```rust
+// BEFORE: fallback to v2.5
+if let Some(secret) = kem_secret {
+    derive_pq_tunnel_key_v3(...)
+} else {
+    derive_pq_tunnel_key(...)     // address-only, public inputs
+}
+
+// AFTER: no fallback
+if let Some(secret) = kem_secret {
+    derive_pq_tunnel_key_v3(...)
+} else {
+    return None;  // tunnel stays Resolving until KEM completes
+}
+```
+
+Eliminates downgrade attack: block the KEM exchange, force fallback to v2.5, compute the key from public addresses.
+
+### 3.3 Test Cases
+
+1. No KEM secret → tunnel stays Resolving, no key derived.
+2. With KEM secret → v3 key derived, tunnel proceeds.
+3. v2.5 function removed from public API (or cfg-gated to `#[cfg(test)]` only).
+
+---
+
+## §4. Mutual Tunnel Authentication
+
+### 4.1 Threat Model
+
+The Connecting → Up transition has no verification. A MITM who redirected the endpoint via CRS compromise or DNS poisoning could intercept the tunnel.
+
+### 4.2 Design
+
+A three-message challenge-response handshake between Connecting and Up.
+
+**Message 1: CHALLENGE (Initiator → Responder)**
+
+```rust
+struct TunnelChallenge {
+    msg_type:    u8,        // 0x40
+    initiator:   CubeAddr,
+    nonce_i:     [u8; 32],  // encrypted with tunnel key
+    epoch:       u64,
+    timestamp:   u128,
+}
+```
+
+Initiator encrypts `nonce_i` with the topology-derived tunnel key (AES-256-GCM). Sends ciphertext + IV + GCM tag.
+
+**Message 2: RESPONSE (Responder → Initiator)**
+
+Responder decrypts challenge, verifies `nonce_i`, computes `nonce_i + 1` (big-endian increment), generates own `nonce_r`, encrypts `nonce_i_inc ‖ nonce_r`, sends response.
+
+**Message 3: CONFIRM (Initiator → Responder)**
+
+Initiator decrypts response, verifies `nonce_i_inc == nonce_i + 1`, computes `nonce_r + 1`, encrypts, sends confirmation. Responder verifies. Both transition to Up.
+
+**State Machine Update:**
+
+```
+Resolving → Connecting → Authenticating → Up → Rekeying → Authenticating → Up
+                                ↓
+                              Down (on failure, notify FTS)
+```
+
+New `Authenticating` state between Connecting and Up.
+
+**Timeout:** 5 seconds total. Exponential backoff on retry: 1s, 2s, 4s, 8s, then give up.
+
+**Wire Format:**
+
+| Type | Code | Payload |
+|------|------|---------|
+| CHALLENGE | 0x40 | addr(7) + enc_nonce(32) + iv(12) + tag(16) + epoch(8) + ts(16) |
+| RESPONSE | 0x41 | addr(7) + enc_nonces(64) + iv(12) + tag(16) + epoch(8) + ts(16) |
+| CONFIRM | 0x42 | enc_nonce(32) + iv(12) + tag(16) + ts(16) |
+
+**Rekey Integration:** During `rekey_all()`, tunnels transition Up → Rekeying → Authenticating → Up. The new epoch's keys are used for re-authentication. Mismatched epochs cause immediate rejection.
+
+### 4.3 Security Properties
+
+- **Key confirmation:** Both sides prove they can encrypt/decrypt with the topology-derived key.
+- **Freshness:** Random nonces prevent replay. Nonce+1 proves live computation.
+- **Mutual authentication:** Neither side transitions to Up until the other demonstrates correct key derivation.
+- **MITM resistance:** Attacker at wrong position derives wrong key, cannot decrypt challenge.
+
+### 4.4 Test Cases
+
+1. Matching topology keys → handshake completes, both reach Up.
+2. Wrong key → fails to decrypt challenge, tunnel → Down.
+3. MITM relays challenge but cannot compute nonce_i+1 → detected at response verification.
+4. Replay of old CHALLENGE → nonce uniqueness check fails.
+5. Handshake timeout (>5s) → Down, FTS notification.
+6. Rekey triggers re-authentication; mismatched epochs rejected.
+7. Concurrent handshakes on multiple tunnels do not interfere.
+
+---
+
+## §5. Address-Bound TL-DSA Keys
+
+### 5.1 Threat Model
+
+TL-DSA public key and geometric address are currently independent. A stolen private key can be registered at any address.
+
+### 5.2 Design
+
+The TL-DSA keypair is derived deterministically from the geometric address. The address is an input to key generation — Identity-Based Cryptography where the identity is the geometric coordinate.
+
+```rust
+fn derive_address_bound_keypair(
+    address:       &CubeAddr,
+    master_secret: &[u8; 48],
+) -> (TlDsaPublicKey, TlDsaPrivateKey) {
+    let seed = tl_sponge_385(
+        b"PlenumNET-IDENTITY",
+        &[address.to_wire(), master_secret].concat(),
+    );
+    tl_dsa_keygen_from_seed(&seed)
+}
+```
+
+TLSponge-385 configuration: 385-trit state, 27 rounds, stride 13. Input: `address.to_wire() ‖ master_secret`. Output: 48-byte seed → deterministic TL-DSA-87 keygen. Per INVARIANT 8, all binary values decomposed to trits via `u8_to_trits()` before sponge absorb.
+
+### 5.3 Binding Verification
+
+CRS cannot independently verify the address-key binding (no master_secret). Verified transitively: the registration signature (§1) proves the registrant holds the private key; the derivation formula guarantees that key was derived from the claimed address. A stolen key at a different address produces a different keypair — TL-DSA verification fails.
+
+### 5.4 Migration Path
+
+**Phase 1 (dual-accept):** CRS accepts both legacy unbound keys and new address-bound keys. New registrations MUST use address-bound keys. Existing registrations continue with `legacy_key: bool` flag on CrsRecord.
+
+**Phase 2 (deprecation window):** After 1 calendar cycle (364 + 1 DOT = 365 days), CRS rejects legacy key registrations.
+
+**Phase 3 (removal):** Remove dual-accept code path. All keys address-bound.
+
+### 5.5 Test Cases
+
+1. Same (address, master_secret) → same keypair (deterministic).
+2. Different addresses, same master_secret → different keypairs.
+3. Same address, different master_secrets → different keypairs.
+4. Registration with address-bound key + valid §1 signature → succeeds.
+5. Key derived from address A, registered at address B → signature verification fails.
+6. Legacy key accepted during Phase 1, rejected after Phase 2.
+
+---
+
+## §6. Bootstrap Placement Optimization
+
+### 6.1 Problem
+
+`CRS.allocateNext()` uses sequential flat-index allocation. Early nodes may cluster in nearby addresses (small Hamming distances), creating sparse neighbor sets, detour-heavy routing, and connectivity fragility.
+
+### 6.2 Goal
+
+When a node registers without a `desiredAddress`, CRS suggests an address that maximizes geometric connectivity. Metric: **maximize minimum Hamming distance to existing registrations while ensuring at least K occupied neighbors.**
+
+### 6.3 Algorithm: Greedy Maximum-Spread with Connectivity Floor
+
+```
+function allocateOptimal(existingAddresses, K = 2):
+  candidates = []
+  for each registered address R:
+    for each of R's 26 neighbors N:
+      if N not registered:
+        occupiedCount = count of N's 26 neighbors that ARE registered
+        if occupiedCount >= K:
+          minHamming = min(hamming(N, E) for E in existingAddresses)
+          candidates.push({addr: N, spread: minHamming, connectivity: occupiedCount})
+
+  if candidates empty: return allocateOptimal(existingAddresses, K - 1)
+  if K == 0 and candidates empty: return allocateFarthestFromCentroid(existingAddresses)
+
+  candidates.sort(by spread desc, then connectivity desc)
+  return candidates[0].addr
+```
+
+### 6.4 Why Neighbor-of-Existing
+
+Candidate pool restricted to neighbors of already-registered addresses ensures: immediate connectivity (≥1 occupied neighbor by construction), instant tunnel establishment, and bounded search (26 × |registered| candidates).
+
+### 6.5 Connectivity Floor K
+
+- K=1: One tunnel. Can send/receive, no redundancy.
+- K=2 (default): Two tunnels in different dimensions. One backup path.
+- Adaptive: K=2 → K=1 → farthest-from-centroid.
+
+### 6.6 Cold Start (First Three Nodes)
+
+**Node 1:** Inner corner `[1,1,1,1,1,1,1,1,1,1,1,1,1]` (flat index 0).
+
+**Node 2:** Outer corner `[3,3,3,3,3,3,3,3,3,3,3,3,3]` (Hamming distance 13 from Node 1).
+
+**Node 3:** Maximize min(d₁, d₂). Example: `[2,2,2,2,2,2,2,1,1,1,1,1,1]` (d₁=7, d₂=6).
+
+After 3 nodes, greedy algorithm takes over.
+
+### 6.7 Dimension Density Tracking
+
+```typescript
+interface DimensionDensity {
+  counts: [number, number, number][];  // 13 × 3 array
+}
+```
+
+Tiebreaker: prefer addresses that populate underrepresented dimension-value combinations.
+
+### 6.8 API Changes
+
+Only affects auto-allocation (no `desiredAddress`). Response gains:
+
+```typescript
+placementMetrics?: {
+  minHammingToExisting: number;
+  occupiedNeighborCount: number;
+  dimensionBalance: number;  // 0.0 (clustered) to 1.0 (perfectly spread)
+};
+```
+
+### 6.9 Performance
+
+| Registered nodes | Candidate pool | Allocation time |
+|-----------------|---------------|-----------------|
+| 10 | 260 | <1 ms |
+| 100 | 2,600 | <5 ms |
+| 1,000 | 26,000 | <50 ms |
+| 10,000 | 260,000 | <500 ms |
+| 100,000+ | Sampling (1,000 nodes) | ~100 ms |
+
+### 6.10 Test Cases
+
+1. First node → inner corner.
+2. Second node → outer corner.
+3. Third node maximizes min distance.
+4. Auto-allocated node has ≥ K occupied neighbors.
+5. K fallback: K=2 impossible → K=1.
+6. Dimension density balanced after 100 allocations.
+7. Manual `desiredAddress` bypasses optimization.
+8. 50 optimally placed nodes → all reachable via ≤ 15 hops.
+9. 50 sequential nodes → compare (may have isolates).
+
+---
+
+## §7. Plenum Square Constants
+
+### 7.1 The Foundation
+
+All Plenum Square integrations derive from a single quantity:
+
+```
+arc = 182 = π(π − 1) = 14 × 13 = 20202₃
+```
+
+The half-turn — semicircle of the 364° ternary circle, half of the 364-day year, palindrome in base-3. From arc alone:
+
+- c = (182 + 40)/2 = 111 → the (111) Miller index → hexagonal symmetry
+- Δ₂ = 1 + 4(182) = 729 = 3⁶ → kernel sponge width (derived, not designed)
+- π = (1 + 27)/2 = 14 → circle, calendar, topology
+- √Δ = 12 → lattice parameter
+
+### 7.2 Constants Block
+
+```rust
+pub mod plenum_square {
+    pub const ARC: u32 = 182;              // half-turn = π(π-1)
+    pub const CENTER: u32 = 111;           // (111) Miller index
+    pub const MAGIC_CONSTANT: u32 = 333;   // 3 × center
+    pub const DISCRIMINANT: u32 = 144;     // 12² = perfect square lattice condition
+    pub const LATTICE_PARAM: u32 = 12;     // √Δ = generator of all displacements
+    pub const ROOT_A: u32 = 14;            // π = ternary pi
+    pub const ROOT_B: u32 = 26;            // 2 × 13 = neighbors per node
+    pub const COMPLEMENT_A: u32 = 208;     // 222 − 14
+    pub const COMPLEMENT_B: u32 = 196;     // 222 − 26
+    pub const PAIR_SUM: u32 = 222;         // 2c = opposite-pair sum
+
+    pub const WEIGHT_VECTOR: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+
+    // Configuration parameters for the four canonical squares
+    pub const SQUARE_A: (u32, u32) = (97, 12);   // (p, q)
+    pub const SQUARE_B: (u32, u32) = (97, -12);  // q negated (NOT i32, handle in impl)
+    pub const SQUARE_C: (u32, u32) = (85, 12);
+    pub const SQUARE_D: (u32, u32) = (85, -12);
+
+    // Block permutations (σ_A through σ_D)
+    pub const SIGMA_A: [usize; 9] = [2, 6, 7, 8, 4, 0, 1, 5, 3]; // double derangement
+    pub const SIGMA_B: [usize; 9] = [6, 0, 5, 8, 4, 3, 2, 1, 7];
+    pub const SIGMA_C: [usize; 9] = [4, 8, 3, 2, 0, 7, 5, 6, 1];
+    pub const SIGMA_D: [usize; 9] = [8, 2, 1, 0, 4, 6, 7, 3, 5];
+}
+```
+
+---
+
+## §8. Plenum Square Integrations
+
+### 8.1 TDNS Address Integrity — Dual Checksum (P0)
+
+Replace single mod-364 check with dual: mod-364 + mod-333. Since gcd(364, 333) = 1, the Chinese Remainder Theorem gives combined modulus 364 × 333 = 121,212.
+
+| Layer | Mechanism | Crystal analogue | Performance |
+|-------|-----------|-----------------|-------------|
+| **Detect** | Dual checksum (mod-364 + mod-333, CRT coprime) | Is the point on-lattice? | 0.0008% false-pass (333× improvement over mod-364 alone) |
+
+**Implementation:** After computing `scan_hash_algo: "tis-27"`, compute `checksum_364 = hash mod 364` and `checksum_333 = hash mod 333`. Store both as 6 + 6 = 12 trits appended to the 54-trit address. Validation: recompute and compare both.
+
+### 8.2 Wire Protocol ECC — 8-Trit Syndrome (P1)
+
+Transition from detect-or-reject to **detect → locate → correct**.
+
+```
+┌──────────────────────────────┬────────────┐
+│  27-trit address (9 triplets)│  8-trit ECC │
+│  in the unit cell            │  syndrome   │
+└──────────────────────────────┴────────────┘
+```
+
+8-line mod-9 parity (one per magic square line: 3 rows + 3 columns + 2 diagonals). Each triplet contributes to exactly 2–4 lines. A single corrupted triplet produces a unique syndrome pattern → identify and correct in place without retransmission.
+
+**Overhead:** 8 trits for 27-trit address = 29.6% redundancy. Comparable to ECC DIMM. Justified by the same argument: undetected corruption costs more than redundancy. For HPTP-mandatory addresses, correct-in-place (nanoseconds) vs retransmit (microseconds) is significant.
+
+### 8.3 Two-Scale Sponge Dynamics — σ_A–σ_D Block Shuffles (P1)
+
+Two-scale mixing mirrors phonon dynamics: acoustic modes (block-level) plus optical modes (trit-level).
+
+| Scale | Permutation | Crystal analogue |
+|-------|------------|------------------|
+| **Coarse** | σ_A–σ_D block shuffles, round-dependent | Acoustic phonons — coherent sublattice motion |
+| **Fine** | Stride-13, every round | Optical phonons — relative motion within the cell |
+
+Round assignment: σ_A first (it's the only double derangement — maximum disruption in round 1), then cycle σ_B → σ_C → σ_D for subsequent rounds. For TIS-27 (27 rounds): σ_A, σ_B, σ_C, σ_D, σ_A, σ_B, ... repeating.
+
+**Benefits:**
+- Two-scale diffusion reaches full mixing faster → potentially fewer rounds at equivalent security
+- Round-dependent block permutations eliminate differential persistence across rounds
+- The block permutations ARE the crystal's symmetry operations (D₄ group)
+
+**Backward compatibility:** The stride-13 trit-level permutation is unchanged. Block shuffles are an additional layer applied before the trit permutation each round. Old sponge outputs can be reproduced by disabling block shuffles (all σ = identity).
+
+### 8.4 Arc-Synchronized Key Rotation (P1)
+
+Key rotation interval = arc = 182 days = 26 weeks = half the ternary year.
+
+The same constant that defines the semicircle, the calendar midpoint, and the magic square cross-pair span now governs key lifecycle. Epoch boundaries at day 0, 182, 364 (= day 0 of next year).
+
+`rekey_all()` triggers at epoch boundary. All tunnels re-authenticate (§4 mutual auth with new epoch). The cryptographic lifecycle is synchronized to the calendar lifecycle is synchronized to the geometric lifecycle — one number governing all three.
+
+### 8.5 Reciprocal-Lattice Key Mixing (P2)
+
+The weight vector `[208, 2, 123, 26, 111, 196, 99, 220, 14]` serves as a reciprocal-lattice mixer for CON tunnel key derivation.
+
+**Construction:** For a 27-trit address decomposed into 9 triplets, compute the weighted sum: `nonce = Σ(weight[i] × triplet_value[i]) mod 333`. Feed as additional domain material into the v3 tunnel key derivation alongside the existing inputs.
+
+**Security property:** The magic constant guarantees any three aligned coefficients sum to 333. An attacker controlling some address dimensions cannot bias the key — the geometric balance of the crystal prevents it.
+
+### 8.6 Pre-Sign Syndrome Check in SalviSign (P2)
+
+Before executing the expensive TL-DSA signature on a document hash, decompose the hash into 9 triplets, compute the 8-line parity syndrome. If non-zero → the hash was corrupted in transit → reject before signing → prevent wasted computation and invalid Hedera submissions.
+
+Surface inspection before epitaxial growth.
+
+### 8.7 Three-Scale Kernel Sponge — 729-Trit (P3)
+
+The 729-trit kernel width is the secondary discriminant: Δ₂ = 1 + 4 × 182 = 729 = 3⁶. Entailed by the semicircle.
+
+The Plenum Square operates at two levels within the 729-trit state (rate = 243 = 81 blocks = 9 super-blocks of 9):
+
+- **Inner:** σ_A–σ_D shuffle 9 blocks within each super-block
+- **Outer:** Second Plenum Square permutation shuffles 9 super-blocks
+
+Three-scale diffusion: super-block → block → trit. The magic constant property holds at every scale.
+
+### 8.8 Lattice-Dynamics Agent Scheduling (P3)
+
+The 28-agent compliance engine currently uses coprime walk `(position × 13) mod 28` for translational symmetry. Add rotational symmetry via Plenum grouping: 9 triplet clusters with magic-square dependencies. σ_A derangement provides phonon-mode load migration where no cluster stays in place.
+
+28 = 2π = Tri(7) = days per moon = agents in the array. Scheduling period = one moon = one full rotation.
+
+---
+
+## §9. File Change Summary
+
+| File | §1 | §2 | §3 | §4 | §5 | §6 | §7 | §8 |
+|------|----|----|----|----|----|----|----|----|
+| `crs.rs` | ✓ sig verify | ✓ HMAC key | | | ✓ legacy flag | ✓ allocateOptimal | | |
+| `fts.rs` | | ✓ auth HB | | ✓ auth fail event | | | | |
+| `overlay.rs` | ✓ neighbor verify | | ✓ kill v2.5 | ✓ handshake | ✓ init keypair | | | ✓ weight mixer |
+| `identity.rs` | | | | | ✓ derive_address_bound | | | |
+| `wire.rs` | ✓ 0x30 | ✓ HB update | | ✓ 0x40-42 | | | | ✓ ECC syndrome |
+| `api.rs` | ✓ sig field | ✓ auth field | | | | ✓ metrics | | |
+| `inter-cube.ts` | ✓ TS mirror | ✓ TS mirror | | | | ✓ allocateOptimal | | |
+| `sponge.rs` | | | | | | | | ✓ σ block shuffles |
+| `plenum_square.rs` | | | | | | | ✓ constants | |
+| `tdns/validation` | | | | | | | | ✓ dual checksum |
+| `salvisign` | | | | | | | | ✓ pre-sign check |
+
+---
+
+## §10. Invariant Compliance
+
+| Invariant | Status | Affected by |
+|-----------|--------|-------------|
+| **INV 1** (Geometry IS the System) | **Strengthened** | §5 derives keys from geometry. §4 verifies geometric key agreement. §8.5 adds reciprocal-lattice mixing. |
+| **INV 3** (Rep C, zero excluded) | **Maintained** | All wire encodings remain Rep C. |
+| **INV 7** (TL-DSA everywhere) | **Strengthened** | §1, §2 add TL-DSA/TIS-27 to CRS ops that previously had none. |
+| **INV 8** (No raw binary in sponge) | **Maintained** | §5 derivation uses `u8_to_trits()` before absorb. |
+| **INV 10** (Sponge stride coprime) | **Maintained** | All new TIS-27/TLSponge-385 calls use stride 13. |
+
+---
+
+## §11. Dependency Graph
+
+```
+PR 1 (P0): §1 Signed CRS ──────┐
+           §2 Auth Heartbeats ──┤
+           §3 Kill v2.5 ────────┤
+           §8.1 Dual Checksum ──┤
+           §7 Constants Block ──┘
+                                │
+                                ▼
+PR 2 (P1): §4 Mutual Tunnel Auth
+           §5 Address-Bound Keys (Phase 1)
+           §6 Bootstrap Placement
+           §8.2 Wire ECC
+           §8.3 Sponge Block Shuffles
+           §8.4 Arc-Synchronized Rotation
+                                │
+                                ▼
+PR 3 (P2/P3): §2.3 Auth Deregistration
+              §6.7 Dimension Density
+              §8.5 Weight Vector Mixer
+              §8.6 SalviSign Syndrome
+              §6.9 Sampling Mode
+              §5 Phases 2+3 (migration)
+              §8.7 Three-Scale Kernel
+              §8.8 Agent Scheduling
+```
+
+---
+
+## §12. The Upgrade in One Table
+
+```
+CURRENT                          AFTER THIS RELEASE
+─────────                        ──────────────────
+Unauthenticated CRS              TL-DSA signed registrations + HMAC heartbeats
+Trust-on-first-use tunnels       Mutual 3-message challenge-response auth
+Keys independent of address      Address-bound identity (IBC from geometry)
+v2.5 fallback (public keys)      v3 only — no tunnel without KEM secret
+Sequential address allocation    Greedy max-spread with connectivity floor
+mod-364 detect (0.27% miss)      mod-364 + mod-333 dual detect (0.0008% miss)
+Detect-or-reject                 Detect → locate → correct (8-trit syndrome)
+Same permutation every round     Round-dependent σ_A–σ_D crystal dynamics
+Arbitrary key rotation           Arc-synchronized (182 days = half-turn)
+Address-pair tunnel keys         + reciprocal-lattice balanced nonce mixer
+```
+
+Every row is more secure, more resilient, or both. The crystal structure provides for free what would otherwise require additional computation.
+
+---
+
+*The half-turn is 20202₃. The unit cell is the Plenum Square. PlenumNET is the crystal.*
+
+**Capomastro Holdings Ltd. — Patent(s) Pending — All Rights Reserved — Applied Physics Division**
