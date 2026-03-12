@@ -1098,7 +1098,7 @@ export default function GeometricFoundations() {
               <span style={{ color: t.primary }}>Every Constant.</span>
             </h3>
             <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
-              The unified equation arc² − 832·arc + 118,300 = 0 produces arc = 182.
+              Solve arc² − 832·arc + 118,300 = 0 and you get arc = 182 — the semicircle of a 364° ternary circle.
               From this single root, every framework constant is recovered — not chosen, not tuned, derived.
             </p>
           </div>
