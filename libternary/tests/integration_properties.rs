@@ -19,6 +19,9 @@
 //!
 //! Run: `cargo test --test integration_properties --release`
 
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::float_cmp)]
+
 use libternary::borromean::TernaryWord;
 use libternary::ternary_circle::{
     base3_repunit_order, is_base3_repunit, std_deg_to_ternary_deg, std_rad_to_ternary_rad,
