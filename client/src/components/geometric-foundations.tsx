@@ -1078,11 +1078,19 @@ export default function GeometricFoundations() {
               <div style={{ fontSize: 14, color: t.fg, fontWeight: 600 }}>
                 arc² − 832·arc + 118,300 = 0
               </div>
-              <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 4 }}>
-                Δ = 468² → arc = 182 = semicircle of 364° circle
+              <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 6, lineHeight: 1.8 }}>
+                <span style={{ color: t.fgSoft }}>832</span> = R₄(R₄−1) − 2R₆ = 40·39 − 2·364
               </div>
-              <div style={{ fontSize: 10.5, color: t.fgMuted }}>
-                Δ₂ = 1 + 4·182 = <span style={{ color: t.primary, fontWeight: 600 }}>729 = 3⁶</span> = sponge state width
+              <div style={{ fontSize: 10.5, color: t.fgMuted, lineHeight: 1.8 }}>
+                <span style={{ color: t.fgSoft }}>118,300</span> = R₆ · R₃ · (π−9)² = 364 × 13 × 25
+              </div>
+              <div style={{ marginTop: 8, borderTop: `1px solid ${t.primaryBorder}`, paddingTop: 8 }}>
+                <div style={{ fontSize: 10.5, color: t.fgMuted }}>
+                  Δ = 468² → arc = 182 = semicircle of 364° circle
+                </div>
+                <div style={{ fontSize: 10.5, color: t.fgMuted }}>
+                  Δ₂ = 1 + 4·182 = <span style={{ color: t.primary, fontWeight: 600 }}>729 = 3⁶</span> = sponge state width
+                </div>
               </div>
             </div>
           </FadeIn>
