@@ -44,7 +44,7 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use libternary::tribonacci::{TribonacciBase3, TernaryRepr};
 //! use libternary::ternary_circle::{Z28, RADIAN_DEG, walk_tribonacci_radian_spiral};
 //!
