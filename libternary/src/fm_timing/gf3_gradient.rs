@@ -63,6 +63,7 @@ impl TernaryGradient {
     }
 }
 
+/// Subtract two trits in GF(3): (a − b) mod 3.
 #[inline]
 pub fn gf3_sub(a: TernaryTrit, b: TernaryTrit) -> TernaryTrit {
     let raw = ((a.to_i8() as i16 - b.to_i8() as i16) % 3 + 3) % 3;
@@ -74,6 +75,7 @@ pub fn gf3_sub(a: TernaryTrit, b: TernaryTrit) -> TernaryTrit {
     }
 }
 
+/// Add two trits in GF(3): (a + b) mod 3.
 #[inline]
 pub fn gf3_add(a: TernaryTrit, b: TernaryTrit) -> TernaryTrit {
     let raw = ((a.to_i8() as i16 + b.to_i8() as i16) % 3 + 3) % 3;
@@ -85,6 +87,7 @@ pub fn gf3_add(a: TernaryTrit, b: TernaryTrit) -> TernaryTrit {
     }
 }
 
+/// Negate a trit in GF(3): −a mod 3.
 #[inline]
 pub fn gf3_neg(a: TernaryTrit) -> TernaryTrit {
     match a {
