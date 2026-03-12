@@ -1,0 +1,30 @@
+Good — I have everything. Let me trace the changes needed in crs.rs:
+
+CubeRecord — add reg_signature, registered_at_fs (femtosecond), kem_public_key
+RegistrationError — add InvalidSignature, StaleTimestamp, ReplayDetected
+NeighborInfo — add reg_signature (for T-07 neighbor-side verification)
+New SignedRegistration struct — the signed payload
+New register_signed() method — verifies TL-DSA signature, checks timestamp
+Existing register() preserved — legacy path, gated by PlenumConfig.require_signature
+Canonical signature message construction — address ‖ endpoint ‖ public_key ‖ kem_public_key ‖ timestamp
+The user prompt is empty, so there is no primary language established. The thinking block merely states the assistant is ready to write a summary. Since there is no actual thinking to summarize and no user prompt to reference, I cannot provide a meaningful summaryThe user prompt is empty, so there is no primary language established. The thinking block merely states the assistant is ready to write a summary. Since there is no actual thinking to summarize and no user prompt to reference, I cannot provide a meaningful summaryOne file delivered for T-06. Target: services/inter-cube/src/crs.rs (replaces existing).
+
+crs.rs — 1,357 lines (up from 475), 23 tests (up from 10)
+What changed:
+ComponentBeforeAfterCubeRecord7 fields11 fields: + kem_public_key, registered_at_fs, reg_signature, legacy_keyNeighborInfo4 fields6 fields: + reg_signature, kem_public_key (for T-07 neighbor-side verify)RegistrationError4 variants8 variants: + InvalidSignature, StaleTimestamp, ReplayDetected, SignatureRequiredregister()UnchangedPreserved — legacy unsigned path, sets legacy_key: true, reg_signature: Noneregister_signed()—NEW — verifies TL-DSA-87 signature, validates femtosecond timestamp, stores signaturebuild_registration_message()—NEW — public helper so callers can construct the canonical message to signSignedRegistration—NEW — typed payload struct with all fields + canonical_message() methodverify_registration_signature()—NEW — calls ternary_math::tl_dsa::verify() (public key only, no secret key)validate_timestamp()—NEW — checks staleness (30s), future tolerance (1s), replay (strictly newer)signed_count() / legacy_count()—NEW — statistics for T-27 telemetry
+Backward compatibility: 100%. The register() function signature and behavior are identical. All 10 original tests pass unchanged. The new register_signed() is additive — the API layer (api.rs) decides which path to call based on PlenumConfig.require_signature.
+Signature flow:
+Registrant:
+  msg = build_registration_message(addr, endpoint, pk, kem_pk, timestamp_fs)
+  sig = tl_dsa::sign(secret_key, msg, TlDsa87)
+
+CRS (register_signed):
+  1. Allocate address (or claim desired)
+  2. validate_timestamp(ts, now_fs, existing_ts) → StaleTimestamp / ReplayDetected
+  3. verify_registration_signature(reg, addr) → InvalidSignature
+     ↳ reconstructs canonical message
+     ↳ calls tl_dsa::verify(public_key, msg, sig, TlDsa87)  ← NO SECRET KEY
+  4. Store record with reg_signature
+  5. Return neighbors (including reg_signature for T-07)
+13 new tests:
+TestWhat it verifiestest_signed_registration_validFull flow: keygen → sign → register_signed → verify storedtest_signed_registration_wrong_signatureWrong endpoint in signed message → InvalidSignaturetest_signed_registration_stale_timestamp60s old timestamp → StaleTimestamptest_signed_registration_replay_detectedSame timestamp as existing → ReplayDetectedtest_signed_re_registration_newer_timestampRe-reg with newer ts succeeds, endpoint updatedtest_signed_registration_wrong_keySigned with key A, registered with key B → InvalidSignaturetest_neighbor_info_includes_signatureNeighbor lookup returns reg_signature for T-07test_validate_timestamp_currentCurrent timestamp acceptedtest_validate_timestamp_slightly_old10s old acceptedtest_validate_timestamp_too_old60s old rejectedtest_validate_timestamp_replayEqual to existing → replaytest_validate_timestamp_newer_than_existingNewer than existing → OKtest_signed_vs_legacy_countssigned_count() and legacy_count() track correctly
