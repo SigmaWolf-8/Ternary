@@ -2603,11 +2603,13 @@ export function toAkanDate(date: Date): AkanDate {
 }
 
 export function toGregorianDate(date: Date): GregorianDate {
+  const y = date.getUTCFullYear();
+  const era = y < 1 ? `${Math.abs(y - 1)} BCE` : `${y} CE`;
   return {
-    year: date.getUTCFullYear(),
+    year: y,
     month: date.getUTCMonth() + 1,
     day: date.getUTCDate(),
-    formatted: `${date.getUTCDate()}/${date.getUTCMonth() + 1}/${date.getUTCFullYear()} CE (Gregorian)`
+    formatted: `${date.getUTCDate()}/${date.getUTCMonth() + 1}/${era} (Gregorian)`
   };
 }
 

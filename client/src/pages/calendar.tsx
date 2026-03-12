@@ -528,25 +528,35 @@ function LiveDemoSection() {
   const today = new Date().toISOString().split("T")[0];
   const [dateInput, setDateInput] = useState(today);
   const [queryDate, setQueryDate] = useState(today);
+  const [dateError, setDateError] = useState("");
   const { toast } = useToast();
 
   const { data: calendarData, isLoading, error } = useQuery<CalendarData>({
     queryKey: ["/api/salvi/timing/epoch/calendars", queryDate],
     queryFn: async () => {
-      const res = await fetch(`/api/salvi/timing/epoch/calendars?date=${queryDate}T00:00:00Z`);
+      const res = await fetch(`/api/salvi/timing/epoch/calendars?date=${queryDate}`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
   });
 
+  const validateDateInput = (raw: string): boolean => {
+    return /^-?\d+-\d{1,2}-\d{1,2}$/.test(raw.trim());
+  };
+
   const handleLookup = () => {
-    if (dateInput) {
-      setQueryDate(dateInput);
+    const trimmed = dateInput.trim();
+    if (!trimmed) return;
+    if (!validateDateInput(trimmed)) {
+      setDateError("Use YYYY-MM-DD format. Prefix with - for BCE (e.g. -500-06-15).");
+      return;
     }
+    setDateError("");
+    setQueryDate(trimmed);
   };
 
   const copyEndpoint = () => {
-    navigator.clipboard.writeText(`/api/salvi/timing/epoch/calendars?date=${queryDate}T00:00:00Z`);
+    navigator.clipboard.writeText(`/api/salvi/timing/epoch/calendars?date=${queryDate}`);
     toast({ title: "Copied", description: "API endpoint copied to clipboard." });
   };
 
@@ -594,10 +604,12 @@ function LiveDemoSection() {
           <Card className="max-w-4xl mx-auto p-6 md:p-8 border-primary/10 bg-card/80 backdrop-blur-sm">
             <div className="flex flex-col sm:flex-row items-stretch gap-3 mb-8">
               <input
-                type="date"
+                type="text"
                 value={dateInput}
-                onChange={(e) => setDateInput(e.target.value)}
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                onChange={(e) => { setDateInput(e.target.value); setDateError(""); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleLookup(); }}
+                placeholder="YYYY-MM-DD (e.g. 2025-04-01 or -500-06-15 for BCE)"
+                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
                 data-testid="input-date"
               />
               <Button onClick={handleLookup} disabled={isLoading} data-testid="button-lookup">
@@ -609,6 +621,10 @@ function LiveDemoSection() {
                 Copy Endpoint
               </Button>
             </div>
+
+            {dateError && (
+              <div className="text-destructive text-sm mb-4" data-testid="text-date-error">{dateError}</div>
+            )}
 
             {error && (
               <div className="text-destructive text-sm mb-4" data-testid="text-error">Failed to load calendar data.</div>
