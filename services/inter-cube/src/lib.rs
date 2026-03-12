@@ -106,7 +106,7 @@ pub mod config;
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
 pub use glb::{GeometricLoadBalancer, ForwardResult, ForwardError, GlbStats};
 pub use overlay::{CubeOverlayNetwork, Neighbor, TunnelState, TunnelProtocol, ConStats};
-pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo};
+pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo, SignedRegistration, build_registration_message, CRS_REG_DOMAIN, CRS_SIG_VARIANT};
 pub use fts::{FaultToleranceService, NeighborHealth, NeighborState, StateChangeEvent, FtsConfig};
 pub use config::PlenumConfig;
 pub use wire::{
