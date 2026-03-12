@@ -13,27 +13,40 @@
 
 use crate::TernaryTrit;
 
+/// The three axes of the toroidal diffusion topology.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToroidalAxis {
+    /// Primary longitudinal axis.
     Eta,
+    /// Secondary latitudinal axis.
     Theta,
+    /// Tertiary meridional axis.
     Psi,
 }
 
+/// A neighboring node contributing to the local gradient computation.
 pub struct GradientNeighbor {
+    /// Unique identifier of the neighbor node.
     pub id: u64,
+    /// The neighbor's current ternary field value.
     pub field_value: TernaryTrit,
+    /// The toroidal axis along which this neighbor is positioned.
     pub dominant_axis: ToroidalAxis,
 }
 
+/// Three-component ternary gradient vector on the toroidal topology.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TernaryGradient {
+    /// Gradient component along the eta axis.
     pub eta: TernaryTrit,
+    /// Gradient component along the theta axis.
     pub theta: TernaryTrit,
+    /// Gradient component along the psi axis.
     pub psi: TernaryTrit,
 }
 
 impl TernaryGradient {
+    /// Construct the zero gradient (no directional tendency on any axis).
     pub fn zero() -> Self {
         Self {
             eta: TernaryTrit::Zero,
@@ -42,6 +55,7 @@ impl TernaryGradient {
         }
     }
 
+    /// Count of non-zero gradient components (0, 1, 2, or 3).
     pub fn magnitude(&self) -> u8 {
         (self.eta != TernaryTrit::Zero) as u8
             + (self.theta != TernaryTrit::Zero) as u8
@@ -80,6 +94,10 @@ pub fn gf3_neg(a: TernaryTrit) -> TernaryTrit {
     }
 }
 
+/// Compute the discrete ternary gradient at a node from its neighbors' field values.
+///
+/// For each toroidal axis, the negated GF(3) differences between the local value
+/// and each neighbor on that axis are collected, then resolved by majority vote.
 pub fn ternary_gradient(
     local_value: TernaryTrit,
     neighbors: &[GradientNeighbor],
@@ -104,6 +122,9 @@ pub fn ternary_gradient(
     }
 }
 
+/// Resolve a collection of ternary trit values by majority vote.
+///
+/// Returns `Pos` if the sum is positive, `Neg` if negative, `Zero` on a tie or empty input.
 pub fn majority_vote(trits: &[TernaryTrit]) -> TernaryTrit {
     if trits.is_empty() {
         return TernaryTrit::Zero;
