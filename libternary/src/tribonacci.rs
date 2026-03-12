@@ -52,7 +52,7 @@
 use std::fmt;
 
 /// Maximum number of trits supported (covers T(n) up to n ≈ 200).
-const MAX_TRITS: usize = 128;
+const _MAX_TRITS: usize = 128;
 
 /// The three ternary representations supported by the kernel.
 ///
