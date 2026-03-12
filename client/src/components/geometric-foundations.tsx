@@ -373,6 +373,54 @@ function MagicSquare() {
   );
 }
 
+function CanonicalMagicSquare() {
+  const t = useTheme();
+  const [hovR, setHovR] = useState<number | null>(null);
+  const v = [[208, 2, 123], [26, 111, 196], [99, 220, 14]];
+  const special: Record<number, { label: string; color: string }> = {
+    14:  { label: "π", color: t.esoteric },
+    26:  { label: "°/π", color: t.green },
+    111: { label: "c", color: t.balance },
+    196: { label: "π²", color: t.cosmic },
+    208: { label: "π̄", color: t.cosmic },
+  };
+
+  return (
+    <div style={{ display: "inline-block" }} data-testid="canonical-magic-square">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3, fontFamily: FONTS.mono }}>
+        {v.flatMap((row, r) =>
+          row.map((val, c) => {
+            const sp = special[val];
+            const isSpecial = !!sp;
+            return (
+              <div key={`${r}-${c}`}
+                onMouseEnter={() => setHovR(r)} onMouseLeave={() => setHovR(null)}
+                style={{
+                  width: 80, height: 66, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  background: hovR === r ? t.primaryDim : isSpecial ? t.primaryDim : t.muted,
+                  border: `1px solid ${isSpecial ? t.primaryBorder : t.cardBorder}`,
+                  borderRadius: RADIUS.md,
+                  cursor: "default", transition: "background 0.2s",
+                }}>
+                <span style={{ fontSize: 18, fontWeight: 600, color: isSpecial ? sp.color : t.fgSoft }}>{val}</span>
+                {isSpecial ? (
+                  <span style={{ fontSize: 9, color: sp.color, marginTop: 3, fontWeight: 600 }}>{sp.label}</span>
+                ) : (
+                  <span style={{ fontSize: 9, color: t.fgFaint, marginTop: 3 }}>&nbsp;</span>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div style={{ textAlign: "center", fontSize: 10, fontFamily: FONTS.mono, color: t.fgMuted, marginTop: 8, letterSpacing: 0.5 }}>
+        Config A · p=97, q=12 · Σ = <span style={{ color: t.primary, fontWeight: 600 }}>333</span>
+      </div>
+    </div>
+  );
+}
+
 function useInterCubeTopology() {
   const [data, setData] = useState<{ vertices: number; dimensions: number; neighborsPerCube: number } | null>(null);
   useEffect(() => {
@@ -997,8 +1045,15 @@ export default function GeometricFoundations() {
               Reduced mod 3, it produces deterministic sponge round constants — no arbitrary choices, fully auditable.
             </p>
 
-            <div style={{ display: "flex", justifyContent: "center", margin: "0 0 20px" }}>
-              <MagicSquare />
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", gap: 28, margin: "0 0 20px", flexWrap: "wrap" as const }}>
+              <div>
+                <div style={{ fontSize: 9.5, fontFamily: FONTS.mono, letterSpacing: 1, color: t.fgMuted, textAlign: "center", marginBottom: 8 }}>CIRCULANT MATRIX</div>
+                <MagicSquare />
+              </div>
+              <div>
+                <div style={{ fontSize: 9.5, fontFamily: FONTS.mono, letterSpacing: 1, color: t.primary, textAlign: "center", marginBottom: 8, fontWeight: 600 }}>CANONICAL 3×333 (REP A)</div>
+                <CanonicalMagicSquare />
+              </div>
             </div>
 
             <div style={{
