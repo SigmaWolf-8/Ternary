@@ -176,4 +176,3 @@ pub const DIVISION: &str = "Applied Physics Division";
 
 /// The organization.
 pub const ORG: &str = "Capomastro Holdings Ltd.";
-
