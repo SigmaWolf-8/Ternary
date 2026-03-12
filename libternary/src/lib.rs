@@ -93,6 +93,8 @@
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::return_self_not_must_use)]
 #![allow(clippy::manual_contains)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::cloned_instead_of_copied)]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
