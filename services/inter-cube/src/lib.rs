@@ -22,6 +22,17 @@
 //! | **CRS** | [`crs`] | Cube Registration Service — address allocation + endpoint registry |
 //! | **FTS** | [`fts`] | Fault Tolerance Service — heartbeat monitoring + dead neighbor set |
 //!
+//! ## Wire Protocol
+//!
+//! | Module | Purpose |
+//! |--------|---------|
+//! | [`wire`] | Versioned binary wire format for ALL inter-cube messages |
+//!
+//! The wire module (added by T-01, SPEC-2026-NEXT) provides a universal
+//! 24-byte header with `protocol_version: u8` for safe rollout of format
+//! changes. Every inter-cube message — heartbeats, CRS queries, tunnel
+//! messages — carries this header.
+//!
 //! ## Dependency Chain
 //!
 //! ```text
@@ -68,14 +79,16 @@
 //! - Uses `ternary_math::gf3::{Gf3, Gf3Vec}` for GF(3) primitives
 //! - Rep C ↔ Rep B bijection: `f(c) = c - 1` / `f(b) = b + 1`
 //! - Interoperates with `ternary_math::torus::TorusAddress` for torus topology
-//! - BLAKE3 for flow hashing (GLB) and PQ-native key derivation (CON)
+//! - TIS-27 / TL-Sponge-385 for key derivation (CON) — no binary hash primitives
 //! - HPTP timestamps for precise RTT measurement (FTS)
+//! - Wire protocol carries femtosecond timestamps on all messages
 
 pub mod cube_addr;
 pub mod glb;
 pub mod overlay;
 pub mod crs;
 pub mod fts;
+pub mod wire;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -83,6 +96,15 @@ pub use glb::{GeometricLoadBalancer, ForwardResult, ForwardError, GlbStats};
 pub use overlay::{CubeOverlayNetwork, Neighbor, TunnelState, TunnelProtocol, ConStats};
 pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo};
 pub use fts::{FaultToleranceService, NeighborHealth, NeighborState, StateChangeEvent, FtsConfig};
+pub use wire::{
+    WireHeader, WireMessage, WireError, WireFlags, MessageType,
+    WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,
+    PROTOCOL_VERSION_CURRENT, PROTOCOL_VERSION_V1, PROTOCOL_VERSION_V2,
+    pack_addr, unpack_addr, pack_trit_array, unpack_trit_array,
+    negotiate_version, timestamp_in_window,
+    FS_PER_SECOND, FS_PER_MILLISECOND,
+    REGISTRATION_MAX_AGE_FS, TIMESTAMP_FUTURE_TOLERANCE_FS,
+};
 
 /// Library version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -175,7 +197,6 @@ mod integration_tests {
 
     #[test]
     fn test_full_bootstrap_sequence() {
-        // Step 1: CRS — register a new cube
         let mut crs = CubeRegistrationService::new();
         let result = crs
             .register(
@@ -185,10 +206,8 @@ mod integration_tests {
             )
             .unwrap();
 
-        // Step 2: Initialize the stack with the assigned address
         let mut stack = InterCubeStack::new(result.address.clone());
 
-        // Step 3: CON resolves neighbor endpoints from CRS
         for nbr_info in &result.neighbors {
             if let Some(ep) = nbr_info.endpoint {
                 let pk = nbr_info.public_key.unwrap_or([0u8; 32]);
@@ -196,11 +215,9 @@ mod integration_tests {
             }
         }
 
-        // Step 4: FTS begins monitoring (all neighbors start as Up)
         let (up, _, _, _) = stack.fts.state_counts();
         assert_eq!(up, NEIGHBORS_PER_CUBE);
 
-        // Step 5: GLB ready to forward
         let dest = addr([3, 1, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1]);
         let forward = stack.glb.forward_stateless(&dest, 42);
         assert!(forward.is_ok(), "GLB should be ready to forward");
@@ -212,7 +229,6 @@ mod integration_tests {
         let mut stack = InterCubeStack::new(local);
         let nbr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 
-        // Simulate failure
         let config = FtsConfig {
             grace_period: std::time::Duration::from_millis(0),
             recovery_threshold: 2,
@@ -220,7 +236,6 @@ mod integration_tests {
         };
         stack.fts = FaultToleranceService::new(stack.addr.clone()).with_config(config);
 
-        // Drive neighbor to Down
         for _ in 0..4 {
             stack.fts.record_miss(&nbr);
         }
@@ -229,7 +244,6 @@ mod integration_tests {
         assert!(stack.fts.dead_set().contains(&nbr));
         assert!(stack.glb.dead_neighbors().contains(&nbr));
 
-        // Simulate recovery
         stack.fts.record_pong(&nbr, 500_000);
         stack.fts.record_pong(&nbr, 500_000);
         stack.process_fts_events();
@@ -242,7 +256,6 @@ mod integration_tests {
     fn test_multi_cube_registration() {
         let mut crs = CubeRegistrationService::new();
 
-        // Register 5 cubes
         let addrs: Vec<CubeAddr> = (0..5)
             .map(|_| {
                 crs.register(
@@ -257,7 +270,6 @@ mod integration_tests {
 
         assert_eq!(crs.registered_count(), 5);
 
-        // Each cube should be able to find registered neighbors
         for a in &addrs {
             let nbrs = crs.compute_neighbor_info(a);
             assert_eq!(nbrs.len(), NEIGHBORS_PER_CUBE);
@@ -272,9 +284,29 @@ mod integration_tests {
 
         assert_eq!(keys.len(), NEIGHBORS_PER_CUBE);
 
-        // All keys must be unique
         let key_set: std::collections::HashSet<[u8; 32]> =
             keys.iter().map(|(_, k)| *k).collect();
         assert_eq!(key_set.len(), NEIGHBORS_PER_CUBE, "All tunnel keys must be unique");
+    }
+
+    // ── Wire Protocol Integration Tests ────────────────────────
+
+    #[test]
+    fn test_wire_message_for_heartbeat() {
+        let ts: u128 = 42 * FS_PER_SECOND;
+        let msg = WireMessage::new(MessageType::HeartbeatPing, ts, vec![]);
+        assert!(msg.validate().is_ok());
+        assert_eq!(msg.header.version, PROTOCOL_VERSION_CURRENT);
+    }
+
+    #[test]
+    fn test_wire_version_negotiation_v1_v2() {
+        let negotiated = negotiate_version(
+            PROTOCOL_VERSION_V1,
+            PROTOCOL_VERSION_V2,
+            PROTOCOL_VERSION_V1,
+            PROTOCOL_VERSION_V1,
+        );
+        assert_eq!(negotiated, Some(PROTOCOL_VERSION_V1));
     }
 }
