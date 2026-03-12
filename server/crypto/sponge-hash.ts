@@ -35,30 +35,52 @@
 import { createRequire as _createRequire } from 'module';
 import { fileURLToPath as _fileURLToPath } from 'url';
 import { dirname as _dirname, resolve as _resolve } from 'path';
+import { execFileSync as _execFileSync } from 'child_process';
+import { existsSync as _existsSync } from 'fs';
+
+function _resolveNativePath(): string {
+  if (typeof __filename !== 'undefined') {
+    return _resolve(_dirname(__filename), 'sponge-native.node');
+  } else if (typeof import.meta?.url !== 'undefined') {
+    const _f = _fileURLToPath(import.meta.url);
+    return _resolve(_dirname(_f), 'sponge-native.node');
+  }
+  return _resolve(process.cwd(), 'server/crypto/sponge-native.node');
+}
+
+function _getRequire(): NodeRequire {
+  if (typeof require !== 'undefined') return require;
+  return _createRequire(import.meta.url);
+}
+
+function _probeNativeAddon(addonPath: string): boolean {
+  try {
+    const result = _execFileSync(process.execPath, [
+      '-e',
+      `process.dlopen(module,${JSON.stringify(addonPath)});process.exit(0);`
+    ], { timeout: 5000, stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 let _native: any = null;
 let _useNative = false;
 try {
-  let _nativePath: string;
-  if (typeof __filename !== 'undefined') {
-    _nativePath = _resolve(_dirname(__filename), 'sponge-native.node');
-  } else if (typeof import.meta?.url !== 'undefined') {
-    const _f = _fileURLToPath(import.meta.url);
-    _nativePath = _resolve(_dirname(_f), 'sponge-native.node');
+  const _nativePath = _resolveNativePath();
+  if (_existsSync(_nativePath)) {
+    if (_probeNativeAddon(_nativePath)) {
+      const _req = _getRequire();
+      _native = _req(_nativePath);
+      _useNative = true;
+      console.log('[sponge] Native Rust N-API backend loaded — TL-Sponge-385');
+    } else {
+      console.log('[sponge] Native addon probe failed (SIGILL/incompatible) — using TypeScript backend');
+    }
   } else {
-    _nativePath = _resolve(process.cwd(), 'server/crypto/sponge-native.node');
+    console.log('[sponge] Native addon not found — using TypeScript backend');
   }
-
-  let _req: NodeRequire;
-  if (typeof require !== 'undefined') {
-    _req = require;
-  } else {
-    _req = _createRequire(import.meta.url);
-  }
-
-  _native = _req(_nativePath);
-  _useNative = true;
-  console.log('[sponge] Native Rust N-API backend loaded — TL-Sponge-385');
 } catch (e: any) {
   console.log('[sponge] Using TypeScript sponge backend');
   if (process.env.NODE_ENV === 'development') {
