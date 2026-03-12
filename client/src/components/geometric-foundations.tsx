@@ -988,14 +988,16 @@ export default function GeometricFoundations() {
           <FadeIn delay={150}>
             <SectionLabel text="Deterministic Constants" />
             <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
-              Constants From Geometry, Not Choice.
+              Constants From Geometry,{" "}
+              <span style={{ color: t.primary }}>Not Choice.</span>
             </h3>
-            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 440, margin: "0 0 24px" }}>
-              The circulant matrix [111, 14, 208] has row/column/diagonal sum 333.
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 440, margin: "0 0 16px" }}>
+              The circulant matrix <strong style={{ color: t.fg }}>[111, 14, 208]</strong> has
+              row, column, and diagonal sums all equal to <strong style={{ color: t.fg }}>333</strong>.
               Reduced mod 3, it produces deterministic sponge round constants — no arbitrary choices, fully auditable.
             </p>
 
-            <div style={{ display: "flex", justifyContent: "center", margin: "0 0 24px" }}>
+            <div style={{ display: "flex", justifyContent: "center", margin: "0 0 20px" }}>
               <MagicSquare />
             </div>
 
@@ -1003,6 +1005,7 @@ export default function GeometricFoundations() {
               padding: "18px 22px", background: t.muted,
               border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.lg,
               fontFamily: FONTS.mono, fontSize: 12, lineHeight: 2.2,
+              marginBottom: 16,
             }}>
               <div style={{ fontSize: 9.5, color: t.fgMuted, letterSpacing: 1, marginBottom: 4 }}>COMPILE-TIME DERIVATION</div>
               <div><span style={{ color: t.balance, fontWeight: 600 }}>111</span><span style={{ color: t.fgMuted }}> mod 3 = 0 →</span><span style={{ color: t.fgSoft }}> 0 </span><span style={{ color: t.fgFaint }}>(identity)</span></div>
@@ -1010,7 +1013,212 @@ export default function GeometricFoundations() {
               <div><span style={{ color: t.cosmic, fontWeight: 600 }}>208</span><span style={{ color: t.fgMuted }}> mod 3 = 1 →</span><span style={{ color: t.fgSoft }}> +1</span><span style={{ color: t.fgFaint }}> (shift-1)</span></div>
               <div style={{ marginTop: 8, fontSize: 10, color: t.fgMuted }}>Period 9 = 3² · tiles 81× into 729-trit sponge state</div>
             </div>
+
+            <div style={{
+              padding: "18px 22px", background: t.primaryDim,
+              border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.lg,
+              fontFamily: FONTS.mono, fontSize: 12, lineHeight: 2,
+            }}>
+              <div style={{ fontSize: 9.5, color: t.primary, letterSpacing: 1, marginBottom: 4, fontWeight: 600 }}>UNIFIED EQUATION</div>
+              <div style={{ fontSize: 14, color: t.fg, fontWeight: 600 }}>
+                arc² − 832·arc + 118,300 = 0
+              </div>
+              <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 4 }}>
+                Δ = 468² → arc = 182 = semicircle of 364° circle
+              </div>
+              <div style={{ fontSize: 10.5, color: t.fgMuted }}>
+                Δ₂ = 1 + 4·182 = <span style={{ color: t.primary, fontWeight: 600 }}>729 = 3⁶</span> = sponge state width
+              </div>
+            </div>
           </FadeIn>
+        </div>
+      </section>
+
+      <section style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 28px", borderTop: `1px solid ${dividerColor}`, position: "relative", zIndex: 1 }} data-testid="section-cascade-derivation">
+        <FadeIn>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <SectionLabel text="Cascade Derivation" />
+            <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
+              One Equation.{" "}
+              <span style={{ color: t.primary }}>Every Constant.</span>
+            </h3>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
+              The unified equation arc² − 832·arc + 118,300 = 0 produces arc = 182.
+              From this single root, every framework constant is recovered — not chosen, not tuned, derived.
+            </p>
+          </div>
+        </FadeIn>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14 }}>
+          {[
+            { value: "182", label: "Semicircle (arc)", detail: "(832 − 468) / 2", color: t.primary },
+            { value: "111", label: "Square Center (c)", detail: "(arc + R₄) / 2", color: t.balance },
+            { value: "14", label: "Pi (π)", detail: "(1 + √Δ₂) / 2", color: t.esoteric },
+            { value: "364", label: "Circumference (R₆)", detail: "2 × arc = 2 × 182", color: t.cosmic },
+          ].map((item, i) => (
+            <FadeIn key={i} delay={i * 80}>
+              <div style={{
+                padding: "24px 20px", background: t.card,
+                border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.lg,
+                boxShadow: t.shadow, textAlign: "center",
+              }} data-testid={`card-cascade-${i}`}>
+                <div style={{
+                  fontSize: 32, fontWeight: 700, fontFamily: FONTS.mono,
+                  color: item.color, marginBottom: 8,
+                }}>{item.value}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.fg, marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 11, fontFamily: FONTS.mono, color: t.fgMuted }}>{item.detail}</div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+
+        <FadeIn delay={350}>
+          <div style={{
+            marginTop: 28, display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14,
+          }}>
+            {[
+              { value: "13", label: "Cosmic Radius (R₃)", detail: "(3³ − 1) / 2", color: t.green },
+              { value: "27", label: "Phase Dissonance", detail: "C − M − Σ = 3³", color: t.esoteric },
+              { value: "729", label: "Sponge State (3⁶)", detail: "Δ₂ = 1 + 4·182", color: t.primary },
+              { value: "333", label: "Magic Sum (3 × 111)", detail: "row = col = diag", color: t.cosmic },
+            ].map((item, i) => (
+              <div key={i} style={{
+                padding: "24px 20px", background: t.card,
+                border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.lg,
+                boxShadow: t.shadow, textAlign: "center",
+              }} data-testid={`card-cascade-secondary-${i}`}>
+                <div style={{
+                  fontSize: 32, fontWeight: 700, fontFamily: FONTS.mono,
+                  color: item.color, marginBottom: 8,
+                }}>{item.value}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.fg, marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 11, fontFamily: FONTS.mono, color: t.fgMuted }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={500}>
+          <div style={{
+            marginTop: 36, padding: "28px 32px", background: t.muted,
+            border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.lg,
+          }} data-testid="card-derivation-chain">
+            <div style={{ fontSize: 10, fontFamily: FONTS.mono, letterSpacing: 2, color: t.fgMuted, marginBottom: 16 }}>
+              DERIVATION CHAIN
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 8, flexWrap: "wrap" as const, fontFamily: FONTS.mono, fontSize: 13,
+            }}>
+              {[
+                { text: "arc = 182", color: t.primary },
+                { text: "→", color: t.fgFaint },
+                { text: "c = 111", color: t.balance },
+                { text: "→", color: t.fgFaint },
+                { text: "π = 14", color: t.esoteric },
+                { text: "→", color: t.fgFaint },
+                { text: "C = 364", color: t.cosmic },
+                { text: "→", color: t.fgFaint },
+                { text: "R = 13", color: t.green },
+                { text: "→", color: t.fgFaint },
+                { text: "Δ₂ = 729", color: t.primary },
+              ].map((step, i) => (
+                <span key={i} style={{ color: step.color, fontWeight: step.text === "→" ? 400 : 600, whiteSpace: "nowrap" }}>
+                  {step.text}
+                </span>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: t.fgMuted, textAlign: "center", marginTop: 12, fontFamily: FONTS.mono }}>
+              Every constant emerges from one quadratic. Zero degrees of freedom.
+            </div>
+          </div>
+        </FadeIn>
+      </section>
+
+      <section style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 28px", borderTop: `1px solid ${dividerColor}`, position: "relative", zIndex: 1 }} data-testid="section-plenum-square-benefits">
+        <FadeIn>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <SectionLabel text="Why It Matters" />
+            <h3 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2, margin: "0 0 12px", color: t.fg }}>
+              What Fully Implemented{" "}
+              <span style={{ color: t.primary }}>Plenum Square Delivers.</span>
+            </h3>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto" }}>
+              When every constant in the stack traces back to a single geometric root,
+              auditing, compliance, and trust become structural properties — not checklists.
+            </p>
+          </div>
+        </FadeIn>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
+          {[
+            {
+              icon: "⊘",
+              title: "Zero Arbitrary Constants",
+              desc: "No NIST-style nothing-up-my-sleeve numbers. Every value derives from arc = 182 through closed-form arithmetic. Auditors verify the equation, not a committee's minutes.",
+              color: t.primary,
+              bg: t.primaryDim,
+              border: t.primaryBorder,
+            },
+            {
+              icon: "⇌",
+              title: "Dual Checksum Detection",
+              desc: "Plenum mod 333 and Repunit mod 364 are coprime (gcd = 1), yielding 121,212 distinct syndrome pairs. Corruption that fools one check is caught by the other.",
+              color: t.esoteric,
+              bg: t.esotericBg,
+              border: "hsla(270, 50%, 55%, 0.12)",
+            },
+            {
+              icon: "⟁",
+              title: "Sponge-Square Unity",
+              desc: "The 729-trit sponge state emerges as the secondary discriminant 3⁶ — not a design parameter. Sponge width and magic square center share the same algebraic root.",
+              color: t.cosmic,
+              bg: t.cosmicBg,
+              border: "hsla(340, 55%, 60%, 0.12)",
+            },
+            {
+              icon: "◈",
+              title: "Compile-Time Verification",
+              desc: "Round constants are derived at compile time from the circulant [111, 14, 208] mod 3. The build fails if any constant doesn't match — runtime is never reached.",
+              color: t.green,
+              bg: t.greenBg,
+              border: "hsla(145, 50%, 45%, 0.12)",
+            },
+            {
+              icon: "⬡",
+              title: "182-Day Key Rotation",
+              desc: "Arc = 182 = π(π−1) naturally defines a semicircular key epoch. Rotation is geometry-locked, not policy-chosen — every key lifecycle inherits from the same root.",
+              color: t.balance,
+              bg: t.balanceBg,
+              border: "hsla(210, 100%, 45%, 0.12)",
+            },
+            {
+              icon: "∞",
+              title: "Period-9 Tiling",
+              desc: "The mod-3 residues [0, 2, 1] have period 9 = 3², tiling 81× into the 729-trit sponge state. Diffusion coverage is total, with no untouched trits after 9 rounds.",
+              color: t.primary,
+              bg: t.primaryDim,
+              border: t.primaryBorder,
+            },
+          ].map((item, i) => (
+            <FadeIn key={i} delay={i * 80}>
+              <div style={{
+                padding: "24px 22px", background: t.card,
+                border: `1px solid ${item.border}`, borderRadius: RADIUS.lg,
+                boxShadow: t.shadow, height: "100%",
+              }} data-testid={`card-benefit-${i}`}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  background: item.bg, border: `1px solid ${item.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18, color: item.color, marginBottom: 14,
+                }}>{item.icon}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: t.fg, marginBottom: 6 }}>{item.title}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.75, color: t.fgSoft }}>{item.desc}</div>
+              </div>
+            </FadeIn>
+          ))}
         </div>
       </section>
 
