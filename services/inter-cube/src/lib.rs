@@ -215,7 +215,7 @@ mod integration_tests {
         let result = crs
             .register(
                 "10.0.0.1:51820".parse().unwrap(),
-                [0xAB; 32],
+                vec![0xAB; 32],
                 Some(addr([2, 1, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1])),
             )
             .unwrap();
@@ -226,7 +226,7 @@ mod integration_tests {
         // Step 3: CON resolves neighbor endpoints from CRS
         for nbr_info in &result.neighbors {
             if let Some(ep) = nbr_info.endpoint {
-                let pk = nbr_info.public_key.unwrap_or([0u8; 32]);
+                let pk = nbr_info.public_key.clone().unwrap_or_default();
                 stack.con.resolve_neighbor(&nbr_info.addr, ep, pk);
             }
         }
@@ -282,7 +282,7 @@ mod integration_tests {
             .map(|_| {
                 crs.register(
                     "10.0.0.1:51820".parse().unwrap(),
-                    [0xAB; 32],
+                    vec![0xAB; 32],
                     None,
                 )
                 .unwrap()

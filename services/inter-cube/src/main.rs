@@ -34,7 +34,7 @@ async fn run_crs_mode() {
     // -- Step 1: CRS - Allocate address --------------------------
     let mut crs = CubeRegistrationService::new();
     let endpoint: SocketAddr = "0.0.0.0:51820".parse().unwrap();
-    let public_key = [0xABu8; 32];
+    let public_key = vec![0xABu8; 32];
 
     let registration = crs
         .register(endpoint, public_key, None)
@@ -60,7 +60,7 @@ async fn run_crs_mode() {
     let mut con = CubeOverlayNetwork::new(registration.address.clone());
     for nbr_info in &registration.neighbors {
         if let Some(ep) = nbr_info.endpoint {
-            let pk = nbr_info.public_key.unwrap_or([0u8; 32]);
+            let pk = nbr_info.public_key.clone().unwrap_or_default();
             con.resolve_neighbor(&nbr_info.addr, ep, pk);
         }
     }
@@ -246,7 +246,7 @@ async fn run_cube_mode() {
                     if let (Some(nbr_addr), Ok(nbr_ep)) =
                         (parse_address_string(addr_s), ep_s.parse::<SocketAddr>())
                     {
-                        con.resolve_neighbor(&nbr_addr, nbr_ep, [0u8; 32]);
+                        con.resolve_neighbor(&nbr_addr, nbr_ep, vec![0u8; 32]);
                         println!("[CON] Resolved neighbor: {} at {}", nbr_addr, nbr_ep);
                     }
                 }

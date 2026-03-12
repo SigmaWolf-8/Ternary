@@ -110,8 +110,8 @@ pub struct CubeRecord {
     pub addr: CubeAddr,
     /// Physical IP:port of the cube's gateway nodes.
     pub endpoints: Vec<SocketAddr>,
-    /// Identity public key for tunnel authentication (TL-DSA-87).
-    pub public_key: [u8; 32],
+    /// Identity public key for tunnel authentication (TL-DSA-87, 64 bytes).
+    pub public_key: Vec<u8>,
     /// TL-KEM public key for key exchange (T-15 address-bound keys).
     pub kem_public_key: Option<Vec<u8>>,
     /// Current status.
@@ -187,14 +187,6 @@ impl SignedRegistration {
         )
     }
 
-    /// Extract a 32-byte identity key (truncation of the full public key).
-    /// Stored in CubeRecord for tunnel authentication.
-    pub fn identity_key(&self) -> [u8; 32] {
-        let mut id = [0u8; 32];
-        let len = self.public_key.len().min(32);
-        id[..len].copy_from_slice(&self.public_key[..len]);
-        id
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -208,8 +200,8 @@ pub struct NeighborInfo {
     pub addr: CubeAddr,
     /// Physical endpoint (if the neighbor is registered).
     pub endpoint: Option<SocketAddr>,
-    /// Public key (if the neighbor is registered).
-    pub public_key: Option<[u8; 32]>,
+    /// Public key (if the neighbor is registered, full TL-DSA-87 key).
+    pub public_key: Option<Vec<u8>>,
     /// Status (if registered).
     pub status: Option<CubeStatus>,
     /// Registration signature (T-06).
@@ -511,7 +503,7 @@ impl CubeRegistrationService {
     pub fn register(
         &mut self,
         endpoint: SocketAddr,
-        public_key: [u8; 32],
+        public_key: Vec<u8>,
         desired_address: Option<CubeAddr>,
     ) -> Result<RegistrationResult, RegistrationError> {
         let now = Instant::now();
@@ -634,7 +626,7 @@ impl CubeRegistrationService {
         let record = CubeRecord {
             addr: addr.clone(),
             endpoints: vec![reg.endpoint],
-            public_key: reg.identity_key(),
+            public_key: reg.public_key.clone(),
             kem_public_key: reg.kem_public_key.clone(),
             status: CubeStatus::Active,
             last_heartbeat: now,
@@ -678,7 +670,7 @@ impl CubeRegistrationService {
                     if let Some(record) = self.registry.get(&nbr_addr) {
                         (
                             record.endpoints.first().copied(),
-                            Some(record.public_key),
+                            Some(record.public_key.clone()),
                             Some(record.status),
                             record.reg_signature.clone(),
                             record.kem_public_key.clone(),
@@ -867,8 +859,8 @@ mod tests {
         "127.0.0.1:51820".parse().unwrap()
     }
 
-    fn test_key() -> [u8; 32] {
-        [0xAB; 32]
+    fn test_key() -> Vec<u8> {
+        vec![0xAB; 32]
     }
 
     // ── Legacy (unsigned) registration tests ────────────────────
@@ -910,7 +902,7 @@ mod tests {
         let addr_a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         crs.register(
             "10.0.0.1:51820".parse().unwrap(),
-            [0x11; 32],
+            vec![0x11; 32],
             Some(addr_a.clone()),
         )
         .unwrap();
@@ -919,7 +911,7 @@ mod tests {
         let result = crs
             .register(
                 "10.0.0.2:51820".parse().unwrap(),
-                [0x22; 32],
+                vec![0x22; 32],
                 Some(addr_b.clone()),
             )
             .unwrap();
@@ -971,7 +963,7 @@ mod tests {
         for i in 0u8..10 {
             crs.register(
                 format!("10.0.0.{}:51820", i).parse().unwrap(),
-                [i; 32],
+                vec![i; 32],
                 None,
             )
             .unwrap();
@@ -990,7 +982,7 @@ mod tests {
                     format!("10.0.0.{}:{}", i % 256, 51820 + i / 256)
                         .parse()
                         .unwrap(),
-                    [i as u8; 32],
+                    vec![i as u8; 32],
                     None,
                 )
                 .unwrap();
@@ -1261,7 +1253,7 @@ mod tests {
         let addr_b = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         crs.register(
             "10.0.0.11:51820".parse().unwrap(),
-            [0x22; 32],
+            vec![0x22; 32],
             Some(addr_b.clone()),
         )
         .unwrap();
@@ -1323,7 +1315,7 @@ mod tests {
         for i in 0..3 {
             crs.register(
                 format!("10.0.0.{}:51820", i).parse().unwrap(),
-                [i as u8; 32],
+                vec![i as u8; 32],
                 None,
             )
             .unwrap();

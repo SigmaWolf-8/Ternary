@@ -132,8 +132,8 @@ pub struct Neighbor {
     pub alt_value: RepCTrit,
     /// Physical network endpoint (from CRS lookup).
     pub endpoint: Option<SocketAddr>,
-    /// Neighbor's public key for tunnel authentication.
-    pub public_key: Option<[u8; 32]>,
+    /// Neighbor's public key for tunnel authentication (full TL-DSA-87 key).
+    pub public_key: Option<Vec<u8>>,
     /// TL-KEM shared secret for v3 key derivation (32 bytes).
     pub kem_shared_secret: Option<[u8; 32]>,
     /// TL-KEM public key for key exchange.
@@ -312,7 +312,7 @@ impl CubeOverlayNetwork {
         &mut self,
         addr: &CubeAddr,
         endpoint: SocketAddr,
-        public_key: [u8; 32],
+        public_key: Vec<u8>,
     ) -> bool {
         if let Some(nbr) = self.neighbor_mut(addr) {
             nbr.endpoint = Some(endpoint);
@@ -704,7 +704,7 @@ mod tests {
         con.resolve_neighbor(
             &nbr,
             "192.168.1.1:51820".parse().unwrap(),
-            [0u8; 32],
+            vec![0u8; 32],
         );
         assert_eq!(con.neighbor(&nbr).unwrap().state, TunnelState::Connecting);
 
