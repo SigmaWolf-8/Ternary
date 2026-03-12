@@ -363,6 +363,9 @@ pub fn pack_trit_array(trits: &[u8; 13]) -> Option<[u8; WIRE_ADDR_SIZE]> {
 /// Returns `None` if any 2-bit field is 0b00 (invalid in Rep C).
 pub fn unpack_trit_array(buf: &[u8; WIRE_ADDR_SIZE]) -> Option<[u8; 13]> {
     let packed = u32::from_be_bytes(*buf);
+    if packed & 0x3F != 0 {
+        return None;
+    }
     let mut trits = [0u8; 13];
     for dim in 0..13 {
         let val = ((packed >> (30 - dim * 2)) & 0x03) as u8;
@@ -783,6 +786,14 @@ mod tests {
     fn test_unpack_zero_bits_rejected() {
         let mut packed = [0u8; 4];
         packed[0] = 0b00_01_00_00;
+        assert!(unpack_trit_array(&packed).is_none());
+    }
+
+    #[test]
+    fn test_unpack_reserved_bits_rejected() {
+        let trits: [u8; 13] = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1];
+        let mut packed = pack_trit_array(&trits).unwrap();
+        packed[3] |= 0x01;
         assert!(unpack_trit_array(&packed).is_none());
     }
 
