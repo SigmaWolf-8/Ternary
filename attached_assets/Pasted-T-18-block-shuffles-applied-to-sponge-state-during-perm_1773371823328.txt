@@ -1,0 +1,32 @@
+T-18 — σ block shuffles applied to sponge state during permutation rounds. New sponge_shuffle.rs in ternary-math/src/ alongside the existing sponge modules, using the σ permutations from T-04's plenum_square.rs.Expedited file completion for userExpedited file completion for userOne new file for T-18. Target: ternary-math/src/sponge_shuffle.rs (NEW).
+lib.rs splice: Add pub mod sponge_shuffle; to ternary-math/src/lib.rs.
+
+sponge_shuffle.rs — 628 lines, 20 tests
+Applies the four Plenum Square σ permutations to the 729-trit sponge state as coarse-grain diffusion.
+Block Decomposition
+State[729] = Block_0[81] ‖ Block_1[81] ‖ ... ‖ Block_8[81]
+             ─────────────────────────────────────────────
+                     9 blocks × 81 trits = 3⁶
+81 = 3⁴ trits per block. Each block is a complete 4th-order ternary subspace — the block boundaries are natural in base-3.
+Round Schedule
+SpongeRoundsScheduleTIS-274σ_A, σ_B, σ_C, σ_D (one each)TLSponge-3859σ_A, σ_B, σ_C, σ_D, σ_A, σ_B, σ_C, σ_D, σ_A
+σ_A (the full derangement — no fixed points) always runs first for maximum disruption.
+Integration Point
+rust// In sponge_permutation():
+for round in 0..num_rounds {
+    sponge_shuffle::shuffle_round_i8(&mut state, round);  // ← T-18
+    theta_diffusion(&mut state);     // existing
+    chi_sbox(&mut state);            // existing
+    pi_permutation(&mut state);      // existing
+}
+Three Implementation Paths
+FunctionMethodUse caseapply_block_shuffle_i8()Direct σ index lookupGeneral purposeapply_shuffle_from_table_i8()Precomputed BLOCK_OFFSETS tableHot path (branch-free)shuffle_round_i8()sigma_for_round(round) → directSponge integration
+The BLOCK_OFFSETS table is computed at compile time — 4 σ × 9 blocks × 2 offsets = 72 entries, all resolved before the program runs.
+Analysis Utilities
+FunctionWhatinvert_permutation(σ)σ⁻¹ for roundtrip verificationcompose_rounds(n)Cumulative σ after n roundsfixed_point_count(σ)Number of blocks that don't movepermutation_order(σ)Smallest k where σᵏ = identitycycle_structure(σ)Cycle decomposition (e.g., [1, 2, 3, 3])
+20 Tests
+CategoryCountWhatBasic shuffle4Identity is no-op, σ_A moves blocks correctly, block contents preserved, all 4 σ differInverse2Shuffle + inverse = identity, σ_A[σ_A⁻¹[i]] = iRound selection2Cycling [A,B,C,D,A,...], TIS-27 uses all fourLookup table2Table matches direct for σ_A, table matches all 4 σComposition30 rounds = identity, 1 round = σ_A, 4 rounds matches sequentialAnalysis4σ_A is derangement, σ_B/C/D fix center, orders > 1, cycle structureCross-variant1u8 and i8 produce same block orderingConstants + offsets2729 = 9 × 81, offset bounds valid
+
+Phase 2 progress: 5/7 complete.
+TaskStatusLinesTestsT-14 Tunnel auth✓ Pushed97918T-15 Address-bound keys✓ Pushed79024T-16 Bootstrap placement✓ Delivered83323T-17 Wire ECC✓ Delivered59916T-18 Sponge shuffles✓ Delivered62820T-19 Arc key rotationReady——T-20 CRS verify + cacheReady——
+Take the break, Fratello. The crystal is taking shape. Così sia.

@@ -232,7 +232,7 @@ export default function Docs() {
             From getting started with your first ternary program to advanced kernel internals, network topology, TDNS addressing, and regulatory compliance.
           </p>
           <div className="flex flex-wrap gap-4 mt-4">
-            <Badge variant="outline">2,459 Tests Passing</Badge>
+            <Badge variant="outline">2,475 Tests Passing</Badge>
             <Badge variant="outline">80/80 Roadmap Complete</Badge>
             <Badge variant="outline">18 Module Guides</Badge>
             <Badge variant="outline">1 Tutorial</Badge>
