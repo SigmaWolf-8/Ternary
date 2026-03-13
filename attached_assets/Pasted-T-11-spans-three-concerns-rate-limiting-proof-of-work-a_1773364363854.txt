@@ -1,0 +1,39 @@
+T-11 spans three concerns: rate limiting, proof-of-work, and ghost scoring. I'll put them in a new rate_limit.rs module (the data structures and verification functions) and wire them into crs.rs via a new register_guarded() method that wraps register_signed().Synthesized rate limiting architecture with proof-of-work mechanismsSynthesized rate limiting architecture with proof-of-work mechanismsOne new file for T-11. Target: services/inter-cube/src/rate_limit.rs (NEW).
+lib.rs splice: Add pub mod rate_limit; and pub use rate_limit::{CrsGuard, GuardError};
+
+rate_limit.rs — 866 lines, 24 tests
+Four defense layers in one module:
+1. Per-IP Rate Limiting
+SettingDefaultRegistration cap10 / minute per IPHB auth failure cap30 / minute per IP
+Sliding-window implementation: timestamps are pruned on each check, no timer threads needed. Different IPs are independent.
+2. Proof-of-Work
+TLSponge-385("PlenumNET-CRS-PoW", address_bytes ‖ nonce_le) → 27 bytes
+Count leading zero trits (mod-3 balanced mapping)
+Require K zeros
+StateThresholdKExpected searchBootstrap<1,000 nodes53⁵ = 243 evals (~0.7ms)Steady-state≥1,000 nodes83⁸ = 6,561 evals (~20ms)Under load≥90% address usage103¹⁰ = 59,049 evals (~180ms)
+adaptive_pow_k() selects K based on (registered_count, address_usage_ratio, config_k). Operator config_k (from T-05 PlenumConfig.pow_k) is the floor — network state can push K higher but never lower.
+3. Ghost Scoring
+SettingDefaultGrace period5 minutesMax strikes3Check interval60 seconds
+Flow: track(addr, ip) on registration → clear(addr) on first heartbeat → check_ghosts() returns addresses to purge after 3 strikes. CRS deregisters them and releases addresses.
+4. CrsGuard — Combined API
+rustlet mut guard = CrsGuard::new();
+
+// Before register_signed():
+guard.check_registration(source_ip, &addr_bytes, pow_nonce, required_k)?;
+
+// After successful registration:
+guard.track_registration(addr, source_ip);
+
+// On heartbeat received:
+guard.on_heartbeat(&addr);
+
+// On heartbeat auth failure:
+guard.check_hb_failure(source_ip)?;
+
+// Periodic maintenance (returns addresses to purge):
+let to_purge = guard.periodic_check();
+for addr in to_purge {
+    crs.deregister(&addr);
+}
+24 tests:
+CategoryCountWhat they verifySliding window6Under/over limit, different IPs independent, window expiry, count, pruneProof of work5Leading zeros, different nonces, K=0 always passes, K=27 fails, brute-force K=1Adaptive K4Bootstrap/steady/load thresholds, operator overrideGhost tracker4Track+clear, grace period, 3 strikes→purge, cleared before strikesCrsGuard integration5Registration allowed, rate limited, HB failure limited, ghost tracking, reg count
