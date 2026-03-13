@@ -103,6 +103,8 @@ pub mod api;
 pub mod rate_limit;
 pub mod identity;
 pub mod persistence;
+pub mod tunnel_auth;
+pub mod address_keys;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -113,6 +115,8 @@ pub use fts::{FaultToleranceService, NeighborHealth, NeighborState, StateChangeE
 pub use rate_limit::{CrsGuard, GuardError};
 pub use identity::{MasterSecret, SecretRotation, IdentityError};
 pub use persistence::{SequenceStore, PersistenceError};
+pub use tunnel_auth::{HandshakeManager, HandshakeSession, TunnelAuthError};
+pub use address_keys::{AddressKeyManager, IdentityKeypair};
 pub use wire::{
     WireHeader, WireMessage, WireError, WireFlags, MessageType,
     WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,
