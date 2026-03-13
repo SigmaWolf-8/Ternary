@@ -305,7 +305,7 @@ function HeroSection() {
                       I want to build on it
                     </a>
                   </div>
-                  <div className="border-t border-primary/20 mt-1.5 mb-2" />
+                  <div className="border-t border-primary/60 mt-1.5 mb-2" />
                   <p className="text-base text-muted-foreground leading-relaxed mb-2">
                     Every computer ever built speaks in binary — on or off, yes or no, one or zero.
                   </p>
@@ -325,7 +325,7 @@ function HeroSection() {
                       I want to understand how it works
                     </a>
                   </div>
-                  <div className="border-t border-primary/20 mt-1.5 mb-2" />
+                  <div className="border-t border-primary/60 mt-1.5 mb-2" />
                   <p className="text-base text-muted-foreground leading-relaxed">
                     217% more information per digit — 9 algebraic states where binary offers one;
                   </p>
@@ -348,7 +348,7 @@ function HeroSection() {
                       I want to evaluate the business case
                     </a>
                   </div>
-                  <div className="border-t border-primary/20 mt-1.5 mb-2" />
+                  <div className="border-t border-primary/60 mt-1.5 mb-2" />
                   <p className="text-base text-foreground font-semibold leading-relaxed mb-2">
                     This is not an incremental improvement.
                   </p>
