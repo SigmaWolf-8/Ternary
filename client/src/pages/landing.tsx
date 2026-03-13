@@ -298,14 +298,14 @@ function HeroSection() {
               <div className="max-w-3xl mx-auto text-left space-y-8">
 
                 <div>
-                  <div className="flex items-baseline gap-2 mb-1">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Foundation</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#components" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-build">
                       I want to build on it
                     </a>
                   </div>
-                  <div className="border-t border-border/30 mb-3" />
+                  <div className="border-t border-primary/20 mt-1.5 mb-2" />
                   <p className="text-base text-muted-foreground leading-relaxed mb-2">
                     Every computer ever built speaks in binary — on or off, yes or no, one or zero.
                   </p>
@@ -318,14 +318,14 @@ function HeroSection() {
                 </div>
 
                 <div>
-                  <div className="flex items-baseline gap-2 mb-1">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Architecture</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#geometric-foundations" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-understand">
                       I want to understand how it works
                     </a>
                   </div>
-                  <div className="border-t border-border/30 mb-3" />
+                  <div className="border-t border-primary/20 mt-1.5 mb-2" />
                   <p className="text-base text-muted-foreground leading-relaxed">
                     217% more information per digit — 9 algebraic states where binary offers one;
                   </p>
@@ -341,14 +341,14 @@ function HeroSection() {
                 </div>
 
                 <div>
-                  <div className="flex items-baseline gap-2 mb-1">
+                  <div className="flex items-baseline gap-2">
                     <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Opportunity</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#performance" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-evaluate">
                       I want to evaluate the business case
                     </a>
                   </div>
-                  <div className="border-t border-border/30 mb-3" />
+                  <div className="border-t border-primary/20 mt-1.5 mb-2" />
                   <p className="text-base text-foreground font-semibold leading-relaxed mb-2">
                     This is not an incremental improvement.
                   </p>
