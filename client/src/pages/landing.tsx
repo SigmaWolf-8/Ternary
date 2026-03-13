@@ -349,10 +349,10 @@ function HeroSection() {
                     </a>
                   </div>
                   <div className="border-t border-primary/60 mt-1.5 mb-2" />
-                  <p className="text-base text-foreground font-semibold leading-relaxed mb-2">
+                  <p className="text-base text-foreground leading-relaxed mb-2">
                     This is not an incremental improvement.
                   </p>
-                  <p className="text-base text-foreground font-semibold leading-relaxed mb-2">
+                  <p className="text-base text-foreground leading-relaxed mb-2">
                     This is the foundation of the post-quantum internet.
                   </p>
                   <p className="text-base text-muted-foreground leading-relaxed">
