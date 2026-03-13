@@ -210,6 +210,8 @@ pub struct Pt26SecretKey {
     pub address: CubeAddr,
     pub schedule: SecretSchedule,
     pub master_secret: Vec<u8>,
+    /// Public key commitment (cached for sig_commit binding).
+    pub pk_commitment: [u8; PK_COMMIT_LEN],
     /// Number of signatures produced with this key.
     pub sig_count: u32,
 }
@@ -351,17 +353,25 @@ pub fn compute_step_commit(
 }
 
 /// Compute the aggregate signature commitment.
+///
+/// The `pk_commitment` binds the signature to a specific public key,
+/// preventing cross-key forgery (a signature valid under PK₁ must not
+/// verify under PK₂ even if both share the same address).
 pub fn compute_sig_commit(
     addr: &CubeAddr,
     dest: &CubeAddr,
     walk_checksum: u16,
     msg_hash: &[u8],
     step_commits: &[[u8; STEP_COMMIT_LEN]],
+    pk_commitment: &[u8; PK_COMMIT_LEN],
 ) -> [u8; SIG_COMMIT_LEN] {
-    let mut material = Vec::with_capacity(13 + 13 + 2 + msg_hash.len() + step_commits.len() * STEP_COMMIT_LEN);
+    let mut material = Vec::with_capacity(
+        13 + 13 + 2 + PK_COMMIT_LEN + msg_hash.len() + step_commits.len() * STEP_COMMIT_LEN,
+    );
     material.extend_from_slice(&addr.to_bytes());
     material.extend_from_slice(&dest.to_bytes());
     material.extend_from_slice(&walk_checksum.to_le_bytes());
+    material.extend_from_slice(pk_commitment);
     material.extend_from_slice(msg_hash);
     for commit in step_commits {
         material.extend_from_slice(commit);
@@ -403,6 +413,7 @@ pub fn keygen(
         address: address.clone(),
         schedule,
         master_secret: master_secret.to_vec(),
+        pk_commitment: commitment,
         sig_count: 0,
     };
 
@@ -472,10 +483,10 @@ pub fn sign(
         current = next;
     }
 
-    // Aggregate commitment
+    // Aggregate commitment (bound to PK commitment)
     let sig_commit = compute_sig_commit(
         &sk.address, &dest, walk_checksum as u16,
-        &msg_hash, &step_commits,
+        &msg_hash, &step_commits, &sk.pk_commitment,
     );
 
     sk.sig_count += 1;
@@ -597,7 +608,7 @@ pub fn verify(
     // 5. Verify aggregate commitment (this is the binding check)
     let expected_sig_commit = compute_sig_commit(
         &pk.address, &sig.destination, sig.walk_checksum,
-        &msg_hash, &sig.step_commits,
+        &msg_hash, &sig.step_commits, &pk.commitment,
     );
 
     if sig.sig_commit != expected_sig_commit {

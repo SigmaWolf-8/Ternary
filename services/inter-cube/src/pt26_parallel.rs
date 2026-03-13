@@ -213,10 +213,10 @@ impl ParallelVerifier {
         // (In production, step-level matching provides defense-in-depth
         //  but the aggregate commitment is the binding check)
         
-        // 5. Verify aggregate commitment
+        // 5. Verify aggregate commitment (bound to PK commitment)
         let expected_sig_commit = compute_sig_commit(
             &pk.address, &sig.destination, sig.walk_checksum,
-            &msg_hash, &sig.step_commits,
+            &msg_hash, &sig.step_commits, &pk.commitment,
         );
 
         if sig.sig_commit != expected_sig_commit {
