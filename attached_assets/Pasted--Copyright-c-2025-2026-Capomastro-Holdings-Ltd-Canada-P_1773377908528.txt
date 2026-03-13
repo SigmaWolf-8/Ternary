@@ -1,0 +1,641 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # CRS Verification & Keypair Caching (T-20, SPEC-2026-NEXT)
+//!
+//! Two caches to reduce redundant cryptographic operations:
+//!
+//! ## 1. Signature Verification Cache
+//!
+//! After CRS verifies a TL-DSA registration signature (T-06), the result
+//! is cached. Subsequent lookups for the same address return the cached
+//! verification without re-running the WOTS+ chain computation.
+//!
+//! - **TTL**: 5 minutes (default). After expiry, the next lookup re-verifies.
+//! - **LRU capacity**: 1,024 entries (default).
+//! - **Cache key**: `(address, last_modified_timestamp)` — any re-registration
+//!   with a newer timestamp invalidates the cached entry.
+//!
+//! ## 2. Keypair Derivation Cache
+//!
+//! Wraps T-15's `AddressKeyManager` with CRS-specific tuning:
+//!
+//! - **LRU capacity**: 10,000 entries (from T-15).
+//! - **Hit/miss metrics**: Exposed for T-27 telemetry.
+//!
+//! ## Integration
+//!
+//! CRS calls `check_verification()` instead of calling `tl_dsa::verify()`
+//! directly. The cache transparently handles hits, misses, and TTL expiry.
+//!
+//! ```rust,ignore
+//! let mut vcache = VerificationCache::new();
+//! 
+//! // On registration lookup:
+//! let verified = vcache.check_verification(addr, timestamp, || {
+//!     tl_dsa::verify(&pk, &msg, &sig, TlDsa87)
+//! });
+//! ```
+
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+
+use crate::cube_addr::CubeAddr;
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Default TTL for cached verification results.
+pub const DEFAULT_VERIFY_TTL: Duration = Duration::from_secs(300); // 5 minutes
+
+/// Default LRU capacity for the signature verification cache.
+pub const DEFAULT_VERIFY_CAPACITY: usize = 1_024;
+
+/// Default LRU capacity for the keypair cache (matches T-15).
+pub const DEFAULT_KEYPAIR_CAPACITY: usize = 10_000;
+
+// ═══════════════════════════════════════════════════════════════════════
+// CACHE KEY
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Cache key: (address, last_modified).
+///
+/// The `last_modified` field ensures that re-registrations with a newer
+/// timestamp automatically invalidate the cached entry. A lookup with
+/// a different `last_modified` is treated as a cache miss.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct VerifyCacheKey {
+    address: CubeAddr,
+    last_modified: u128,
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CACHE ENTRY
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A cached verification result.
+#[derive(Debug, Clone)]
+struct VerifyCacheEntry {
+    /// Whether the signature was valid.
+    valid: bool,
+    /// When this entry was created.
+    created_at: Instant,
+    /// When this entry was last accessed.
+    last_accessed: Instant,
+}
+
+impl VerifyCacheEntry {
+    fn new(valid: bool) -> Self {
+        let now = Instant::now();
+        VerifyCacheEntry {
+            valid,
+            created_at: now,
+            last_accessed: now,
+        }
+    }
+
+    /// Check if this entry has expired.
+    fn is_expired(&self, ttl: Duration) -> bool {
+        self.created_at.elapsed() > ttl
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// VERIFICATION CACHE
+// ═══════════════════════════════════════════════════════════════════════
+
+/// LRU cache for TL-DSA signature verification results.
+///
+/// Avoids re-running WOTS+ chain computation (~1ms) on every lookup
+/// for the same registration record.
+pub struct VerificationCache {
+    /// Cached entries: key → entry.
+    entries: HashMap<VerifyCacheKey, VerifyCacheEntry>,
+    /// Access order for LRU eviction (most recent at back).
+    access_order: Vec<VerifyCacheKey>,
+    /// Maximum capacity.
+    capacity: usize,
+    /// TTL for cached entries.
+    ttl: Duration,
+    /// Statistics.
+    hits: u64,
+    misses: u64,
+    expirations: u64,
+}
+
+impl VerificationCache {
+    /// Create a new cache with default settings.
+    pub fn new() -> Self {
+        VerificationCache {
+            entries: HashMap::new(),
+            access_order: Vec::new(),
+            capacity: DEFAULT_VERIFY_CAPACITY,
+            ttl: DEFAULT_VERIFY_TTL,
+            hits: 0,
+            misses: 0,
+            expirations: 0,
+        }
+    }
+
+    /// Create with custom settings.
+    pub fn with_config(capacity: usize, ttl: Duration) -> Self {
+        VerificationCache {
+            entries: HashMap::new(),
+            access_order: Vec::new(),
+            capacity,
+            ttl,
+            hits: 0,
+            misses: 0,
+            expirations: 0,
+        }
+    }
+
+    /// Check the cache for a verification result.
+    ///
+    /// If a valid, non-expired entry exists for `(address, last_modified)`,
+    /// returns the cached result. Otherwise, calls the `verify_fn` closure,
+    /// caches the result, and returns it.
+    ///
+    /// ## Parameters
+    ///
+    /// - `address`: The cube address being verified
+    /// - `last_modified`: The registration timestamp (femtoseconds)
+    /// - `verify_fn`: Closure that performs the actual TL-DSA verification
+    ///
+    /// ## Returns
+    ///
+    /// `true` if the signature is valid (cached or freshly verified).
+    pub fn check_verification<F>(
+        &mut self,
+        address: &CubeAddr,
+        last_modified: u128,
+        verify_fn: F,
+    ) -> bool
+    where
+        F: FnOnce() -> bool,
+    {
+        let key = VerifyCacheKey {
+            address: address.clone(),
+            last_modified,
+        };
+
+        // Check cache
+        if let Some(entry) = self.entries.get_mut(&key) {
+            if entry.is_expired(self.ttl) {
+                // Expired — remove and re-verify
+                self.entries.remove(&key);
+                self.access_order.retain(|k| k != &key);
+                self.expirations += 1;
+            } else {
+                // Cache hit
+                entry.last_accessed = Instant::now();
+                self.touch_access_order(&key);
+                self.hits += 1;
+                return entry.valid;
+            }
+        }
+
+        // Cache miss — verify
+        self.misses += 1;
+        let valid = verify_fn();
+
+        // Insert into cache
+        self.insert(key, VerifyCacheEntry::new(valid));
+
+        valid
+    }
+
+    /// Invalidate the cache entry for a specific address.
+    ///
+    /// Called when a re-registration occurs with a newer timestamp.
+    /// The `last_modified` in the cache key means this is usually
+    /// unnecessary (the new timestamp = new key = automatic miss),
+    /// but explicit invalidation is cleaner.
+    pub fn invalidate(&mut self, address: &CubeAddr) {
+        self.entries.retain(|k, _| k.address != *address);
+        self.access_order.retain(|k| k.address != *address);
+    }
+
+    /// Invalidate all entries (e.g., on master secret rotation).
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.access_order.clear();
+    }
+
+    /// Remove expired entries (periodic cleanup).
+    pub fn prune_expired(&mut self) {
+        let ttl = self.ttl;
+        let before = self.entries.len();
+        self.entries.retain(|_, v| !v.is_expired(ttl));
+        let removed = before - self.entries.len();
+        self.expirations += removed as u64;
+        // Clean up access order
+        self.access_order.retain(|k| self.entries.contains_key(k));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // INTERNAL
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Insert an entry, evicting LRU if at capacity.
+    fn insert(&mut self, key: VerifyCacheKey, entry: VerifyCacheEntry) {
+        if !self.entries.contains_key(&key) && self.entries.len() >= self.capacity {
+            // Evict LRU
+            if let Some(lru_key) = self.access_order.first().cloned() {
+                self.entries.remove(&lru_key);
+                self.access_order.remove(0);
+            }
+        }
+
+        self.access_order.retain(|k| k != &key);
+        self.access_order.push(key.clone());
+        self.entries.insert(key, entry);
+    }
+
+    /// Move a key to the back of the access order (most recently used).
+    fn touch_access_order(&mut self, key: &VerifyCacheKey) {
+        self.access_order.retain(|k| k != key);
+        self.access_order.push(key.clone());
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // STATISTICS
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Number of cached entries.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Whether the cache is empty.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Cache hit count.
+    pub fn hits(&self) -> u64 {
+        self.hits
+    }
+
+    /// Cache miss count.
+    pub fn misses(&self) -> u64 {
+        self.misses
+    }
+
+    /// Number of expired entries removed.
+    pub fn expirations(&self) -> u64 {
+        self.expirations
+    }
+
+    /// Cache hit ratio (0.0–1.0).
+    pub fn hit_ratio(&self) -> f64 {
+        let total = self.hits + self.misses;
+        if total == 0 { 0.0 } else { self.hits as f64 / total as f64 }
+    }
+
+    /// Capacity.
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    /// TTL.
+    pub fn ttl(&self) -> Duration {
+        self.ttl
+    }
+}
+
+impl Default for VerificationCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COMBINED CRS CACHE — Verification + Keypair
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Combined cache for CRS operations: signature verification + keypair derivation.
+///
+/// Wraps `VerificationCache` and `AddressKeyManager` (T-15) into a
+/// single interface for CRS use.
+pub struct CrsCacheManager {
+    /// Signature verification cache.
+    pub verify_cache: VerificationCache,
+    /// Keypair derivation cache (T-15).
+    pub key_mgr: crate::address_keys::AddressKeyManager,
+}
+
+impl CrsCacheManager {
+    /// Create with default settings.
+    pub fn new() -> Self {
+        CrsCacheManager {
+            verify_cache: VerificationCache::new(),
+            key_mgr: crate::address_keys::AddressKeyManager::new(),
+        }
+    }
+
+    /// Create with custom settings.
+    pub fn with_config(
+        verify_capacity: usize,
+        verify_ttl: Duration,
+        keypair_capacity: usize,
+    ) -> Self {
+        CrsCacheManager {
+            verify_cache: VerificationCache::with_config(verify_capacity, verify_ttl),
+            key_mgr: crate::address_keys::AddressKeyManager::with_capacity(keypair_capacity),
+        }
+    }
+
+    /// Clear all caches (e.g., on master secret rotation).
+    pub fn clear_all(&mut self) {
+        self.verify_cache.clear();
+        self.key_mgr.clear_cache();
+    }
+
+    /// Run periodic maintenance: prune expired verification entries.
+    pub fn periodic_maintenance(&mut self) {
+        self.verify_cache.prune_expired();
+    }
+
+    /// Aggregate hit/miss statistics.
+    pub fn stats(&self) -> CrsCacheStats {
+        CrsCacheStats {
+            verify_hits: self.verify_cache.hits(),
+            verify_misses: self.verify_cache.misses(),
+            verify_expirations: self.verify_cache.expirations(),
+            verify_size: self.verify_cache.len(),
+            verify_hit_ratio: self.verify_cache.hit_ratio(),
+            keypair_hits: self.key_mgr.cache_hits(),
+            keypair_misses: self.key_mgr.cache_misses(),
+            keypair_size: self.key_mgr.cache_size(),
+            keypair_hit_ratio: self.key_mgr.hit_ratio(),
+        }
+    }
+}
+
+impl Default for CrsCacheManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Aggregate cache statistics for telemetry (T-27).
+#[derive(Debug, Clone)]
+pub struct CrsCacheStats {
+    /// Signature verification cache hits.
+    pub verify_hits: u64,
+    /// Signature verification cache misses.
+    pub verify_misses: u64,
+    /// Expired verification entries removed.
+    pub verify_expirations: u64,
+    /// Current verification cache size.
+    pub verify_size: usize,
+    /// Verification cache hit ratio.
+    pub verify_hit_ratio: f64,
+    /// Keypair derivation cache hits.
+    pub keypair_hits: u64,
+    /// Keypair derivation cache misses.
+    pub keypair_misses: u64,
+    /// Current keypair cache size.
+    pub keypair_size: usize,
+    /// Keypair cache hit ratio.
+    pub keypair_hit_ratio: f64,
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn addr(trits: [u8; 13]) -> CubeAddr {
+        CubeAddr::new(trits)
+    }
+
+    fn addr_a() -> CubeAddr { addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
+    fn addr_b() -> CubeAddr { addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
+
+    // ── Basic cache operations ──────────────────────────────────
+
+    #[test]
+    fn test_cache_miss_calls_verify() {
+        let mut cache = VerificationCache::new();
+        let mut called = false;
+
+        let result = cache.check_verification(&addr_a(), 100, || {
+            called = true;
+            true
+        });
+
+        assert!(called, "Verify fn must be called on cache miss");
+        assert!(result);
+        assert_eq!(cache.misses(), 1);
+        assert_eq!(cache.hits(), 0);
+    }
+
+    #[test]
+    fn test_cache_hit_skips_verify() {
+        let mut cache = VerificationCache::new();
+
+        // First call: miss
+        cache.check_verification(&addr_a(), 100, || true);
+
+        // Second call: hit
+        let mut called = false;
+        let result = cache.check_verification(&addr_a(), 100, || {
+            called = true;
+            false // Would return false, but shouldn't be called
+        });
+
+        assert!(!called, "Verify fn must NOT be called on cache hit");
+        assert!(result, "Cached result (true) must be returned");
+        assert_eq!(cache.hits(), 1);
+    }
+
+    #[test]
+    fn test_cache_different_addresses_independent() {
+        let mut cache = VerificationCache::new();
+
+        cache.check_verification(&addr_a(), 100, || true);
+        cache.check_verification(&addr_b(), 100, || false);
+
+        assert!(cache.check_verification(&addr_a(), 100, || panic!("should hit")));
+        assert!(!cache.check_verification(&addr_b(), 100, || panic!("should hit")));
+    }
+
+    #[test]
+    fn test_cache_different_timestamps_miss() {
+        let mut cache = VerificationCache::new();
+
+        // Cache with timestamp 100
+        cache.check_verification(&addr_a(), 100, || true);
+
+        // Different timestamp → miss (re-registration with newer ts)
+        let mut called = false;
+        cache.check_verification(&addr_a(), 200, || {
+            called = true;
+            false
+        });
+        assert!(called, "Different timestamp must cause cache miss");
+    }
+
+    #[test]
+    fn test_cache_stores_false_results() {
+        let mut cache = VerificationCache::new();
+
+        // Cache a failed verification
+        cache.check_verification(&addr_a(), 100, || false);
+
+        // Hit should return false
+        let result = cache.check_verification(&addr_a(), 100, || {
+            panic!("should not be called")
+        });
+        assert!(!result, "Cached false result must be returned");
+    }
+
+    // ── TTL expiration ──────────────────────────────────────────
+
+    #[test]
+    fn test_cache_ttl_expiry() {
+        let mut cache = VerificationCache::with_config(100, Duration::from_millis(50));
+
+        cache.check_verification(&addr_a(), 100, || true);
+        assert_eq!(cache.hits(), 0);
+
+        // Wait for TTL to expire
+        std::thread::sleep(Duration::from_millis(60));
+
+        // Should be a miss now (expired)
+        let mut called = false;
+        cache.check_verification(&addr_a(), 100, || {
+            called = true;
+            true
+        });
+        assert!(called, "Expired entry must cause re-verification");
+        assert_eq!(cache.expirations(), 1);
+    }
+
+    #[test]
+    fn test_prune_expired() {
+        let mut cache = VerificationCache::with_config(100, Duration::from_millis(50));
+
+        cache.check_verification(&addr_a(), 100, || true);
+        cache.check_verification(&addr_b(), 100, || true);
+        assert_eq!(cache.len(), 2);
+
+        std::thread::sleep(Duration::from_millis(60));
+        cache.prune_expired();
+        assert_eq!(cache.len(), 0, "All expired entries should be pruned");
+    }
+
+    // ── LRU eviction ────────────────────────────────────────────
+
+    #[test]
+    fn test_cache_lru_eviction() {
+        let mut cache = VerificationCache::with_config(2, DEFAULT_VERIFY_TTL);
+
+        cache.check_verification(&addr_a(), 100, || true);
+        cache.check_verification(&addr_b(), 100, || true);
+        assert_eq!(cache.len(), 2);
+
+        // Third entry should evict addr_a (LRU)
+        let addr_c = addr([3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        cache.check_verification(&addr_c, 100, || true);
+        assert_eq!(cache.len(), 2);
+
+        // addr_a should be evicted (miss on next check)
+        let mut called = false;
+        cache.check_verification(&addr_a(), 100, || {
+            called = true;
+            true
+        });
+        assert!(called, "Evicted entry must cause re-verification");
+    }
+
+    // ── Invalidation ────────────────────────────────────────────
+
+    #[test]
+    fn test_invalidate_address() {
+        let mut cache = VerificationCache::new();
+
+        cache.check_verification(&addr_a(), 100, || true);
+        cache.check_verification(&addr_b(), 100, || true);
+        assert_eq!(cache.len(), 2);
+
+        cache.invalidate(&addr_a());
+        assert_eq!(cache.len(), 1);
+
+        // addr_a should be a miss
+        let mut called = false;
+        cache.check_verification(&addr_a(), 100, || { called = true; true });
+        assert!(called);
+    }
+
+    #[test]
+    fn test_clear_all() {
+        let mut cache = VerificationCache::new();
+
+        cache.check_verification(&addr_a(), 100, || true);
+        cache.check_verification(&addr_b(), 200, || false);
+        assert_eq!(cache.len(), 2);
+
+        cache.clear();
+        assert_eq!(cache.len(), 0);
+    }
+
+    // ── Statistics ───────────────────────────────────────────────
+
+    #[test]
+    fn test_hit_ratio() {
+        let mut cache = VerificationCache::new();
+        assert_eq!(cache.hit_ratio(), 0.0);
+
+        cache.check_verification(&addr_a(), 100, || true); // miss
+        cache.check_verification(&addr_a(), 100, || true); // hit
+        cache.check_verification(&addr_a(), 100, || true); // hit
+
+        assert_eq!(cache.hits(), 2);
+        assert_eq!(cache.misses(), 1);
+        assert!((cache.hit_ratio() - 0.6667).abs() < 0.01);
+    }
+
+    // ── CrsCacheManager ─────────────────────────────────────────
+
+    #[test]
+    fn test_combined_cache_manager() {
+        let mut mgr = CrsCacheManager::new();
+
+        mgr.verify_cache.check_verification(&addr_a(), 100, || true);
+        let stats = mgr.stats();
+        assert_eq!(stats.verify_misses, 1);
+        assert_eq!(stats.verify_size, 1);
+    }
+
+    #[test]
+    fn test_combined_clear_all() {
+        let mut mgr = CrsCacheManager::new();
+
+        mgr.verify_cache.check_verification(&addr_a(), 100, || true);
+        mgr.clear_all();
+
+        assert_eq!(mgr.verify_cache.len(), 0);
+        assert_eq!(mgr.key_mgr.cache_size(), 0);
+    }
+
+    // ── Constants ───────────────────────────────────────────────
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(DEFAULT_VERIFY_TTL, Duration::from_secs(300));
+        assert_eq!(DEFAULT_VERIFY_CAPACITY, 1_024);
+        assert_eq!(DEFAULT_KEYPAIR_CAPACITY, 10_000);
+    }
+}

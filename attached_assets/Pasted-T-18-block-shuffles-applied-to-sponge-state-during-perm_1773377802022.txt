@@ -1,0 +1,113 @@
+T-18 — σ block shuffles applied to sponge state during permutation rounds. New sponge_shuffle.rs in ternary-math/src/ alongside the existing sponge modules, using the σ permutations from T-04's plenum_square.rs.Expedited file completion for userExpedited file completion for userOne new file for T-18. Target: ternary-math/src/sponge_shuffle.rs (NEW).
+lib.rs splice: Add pub mod sponge_shuffle; to ternary-math/src/lib.rs.
+
+sponge_shuffle.rs — 628 lines, 20 tests
+Applies the four Plenum Square σ permutations to the 729-trit sponge state as coarse-grain diffusion.
+Block Decomposition
+State[729] = Block_0[81] ‖ Block_1[81] ‖ ... ‖ Block_8[81]
+             ─────────────────────────────────────────────
+                     9 blocks × 81 trits = 3⁶
+81 = 3⁴ trits per block. Each block is a complete 4th-order ternary subspace — the block boundaries are natural in base-3.
+Round Schedule
+SpongeRoundsScheduleTIS-274σ_A, σ_B, σ_C, σ_D (one each)TLSponge-3859σ_A, σ_B, σ_C, σ_D, σ_A, σ_B, σ_C, σ_D, σ_A
+σ_A (the full derangement — no fixed points) always runs first for maximum disruption.
+Integration Point
+rust// In sponge_permutation():
+for round in 0..num_rounds {
+    sponge_shuffle::shuffle_round_i8(&mut state, round);  // ← T-18
+    theta_diffusion(&mut state);     // existing
+    chi_sbox(&mut state);            // existing
+    pi_permutation(&mut state);      // existing
+}
+Three Implementation Paths
+FunctionMethodUse caseapply_block_shuffle_i8()Direct σ index lookupGeneral purposeapply_shuffle_from_table_i8()Precomputed BLOCK_OFFSETS tableHot path (branch-free)shuffle_round_i8()sigma_for_round(round) → directSponge integration
+The BLOCK_OFFSETS table is computed at compile time — 4 σ × 9 blocks × 2 offsets = 72 entries, all resolved before the program runs.
+Analysis Utilities
+FunctionWhatinvert_permutation(σ)σ⁻¹ for roundtrip verificationcompose_rounds(n)Cumulative σ after n roundsfixed_point_count(σ)Number of blocks that don't movepermutation_order(σ)Smallest k where σᵏ = identitycycle_structure(σ)Cycle decomposition (e.g., [1, 2, 3, 3])
+20 Tests
+CategoryCountWhatBasic shuffle4Identity is no-op, σ_A moves blocks correctly, block contents preserved, all 4 σ differInverse2Shuffle + inverse = identity, σ_A[σ_A⁻¹[i]] = iRound selection2Cycling [A,B,C,D,A,...], TIS-27 uses all fourLookup table2Table matches direct for σ_A, table matches all 4 σComposition30 rounds = identity, 1 round = σ_A, 4 rounds matches sequentialAnalysis4σ_A is derangement, σ_B/C/D fix center, orders > 1, cycle structureCross-variant1u8 and i8 produce same block orderingConstants + offsets2729 = 9 × 81, offset bounds valid
+
+Phase 2 progress: 5/7 complete.
+TaskStatusLinesTestsT-14 Tunnel auth✓ Pushed97918T-15 Address-bound keys✓ Pushed79024T-16 Bootstrap placement✓ Delivered83323T-17 Wire ECC✓ Delivered59916T-18 Sponge shuffles✓ Delivered62820T-19 Arc key rotationReady——T-20 CRS verify + cacheReady——
+Take the break, Fratello. The crystal is taking shape. Così sia.Sponge shuffleRS OpenT-16 is complete. Let me also update the platform-wide test count in replit.md:
+T-16 complete. Here's the summary:
+T-16: Bootstrap Placement Optimization — DONE
+* New file: services/inter-cube/src/placement.rs — 832 lines, 23 tests
+* Algorithm: Replaces sequential allocateNext() with geometry-aware allocate_optimal()
+   * Cold start: First 3 nodes placed at maximally separated corners ([1,1,...,1], [3,3,...,3], [2,2,...,2]) — all at mutual Hamming distance 13
+   * Max-spread: Farthest-first traversal scoring (primary: max min-distance, secondary: max avg-distance, tertiary: min imbalance)
+   * K=2 floor: Prefers candidates with ≥2 registered neighbors; falls back to K=0 if none available
+   * 3-strategy candidates: Neighbor expansion (50% budget), least-populated construction, TLSponge-385 PRNG samples
+   * DimensionDensity: 13×3 tracker biases placement toward sparse dimension-value regions
+   * PlacementMetrics: Full telemetry returned with every allocation
+* Tests: 280/280 inter-cube tests pass (257 existing + 23 new)
+* Pushed: Both files live on GitHub
+Ready for T-17 (8-trit wire ECC syndrome).Show more9:17 PMAcknowledged completion status and noted readiness for next phaseAcknowledged completion status and noted readiness for next phaseT-16 pushed and green. 280 inter-cube tests. T-17 and T-18 code are already delivered and waiting for you — both files were sent in our last sprint.
+Current state:
+TaskStatusTestsT-16 Bootstrap placement✓ Pushed280/280T-17 Wire ECC (wire_ecc.rs)Code delivered+16T-18 Sponge shuffles (sponge_shuffle.rs)Code delivered+20T-19 Arc key rotationReady to write—T-20 CRS verify + cacheReady to write—
+Push T-17 and T-18 whenever you're ready. T-19 and T-20 are the last two Phase 2 tasks — I can write both the moment you say go.Keep em coming brother10:32 PMOrchestrated technical specifications for two cryptographic componentsOrchestrated technical specifications for two cryptographic componentsT-19 and T-20 — the last two Phase 2 tasks. T-19 orchestrates key rotation across all subsystems. T-20 adds CRS-side caching to avoid re-verifying signatures on every lookup.Contemplated verification protocols and caching mechanismsContemplated verification protocols and caching mechanismsNow T-20:Marshaled final deliverables for Phase completionMarshaled final deliverables for Phase completionTwo files — the last two Phase 2 tasks. Both target services/inter-cube/src/ (NEW).
+lib.rs splices:
+
+pub mod key_rotation; + pub use key_rotation::RotationOrchestrator;
+pub mod verify_cache; + pub use verify_cache::{VerificationCache, CrsCacheManager};
+
+
+T-19: key_rotation.rs — 629 lines, 14 tests
+Orchestrates master secret rotation at arc epoch boundaries.
+The Flow
+check_and_rotate(unix_timestamp)
+    │
+    ├─ Rate limit: skip if checked < 60s ago
+    ├─ check_dual_accept(): close expired window
+    ├─ rotation_due_with_jitter(epoch, addr, ts)?
+    │   └─ effective_time = epoch_boundary + per-node jitter
+    │
+    ├─ MasterSecret::generate()
+    ├─ encrypt_master_secret(new, passphrase)
+    ├─ rotation.rotate(new, epoch, ts)
+    │   └─ current → previous, new → current
+    ├─ pending_reregistration = true
+    └─ Return RotationEvent
+Jitter — Prevents Thundering Herd
+jitter = TLSponge-385("PlenumNET-ROT-JITTER", addr_bytes) → ±6 hours
+effective_rotation = epoch_boundary + jitter
+Each node rotates at a deterministic but unique time. Same address always gets the same jitter — predictable for debugging, spread for load balancing.
+Rekey Helpers
+FunctionWhatrekey_fts_hmac(fts, secret)Re-derives all 26 HMAC keys from new secretrekey_identity(key_mgr, addr, secret)Re-derives identity keypair, returns new pk for CRS
+Integration Pattern
+rustlet mut orch = RotationOrchestrator::new(addr, secret, epoch, passphrase);
+
+// In heartbeat loop:
+if let Some(event) = orch.check_and_rotate(unix_now)? {
+    let hmac_count = rekey_fts_hmac(&mut fts, orch.current_secret());
+    let new_pk = rekey_identity(&mut key_mgr, &addr, orch.current_secret());
+    crs.register_signed(&new_registration_with(new_pk));
+    orch.reregistration_complete();
+}
+14 Tests
+CategoryCountJitter (deterministic, range, effective time)4Rotation due (too early, after boundary)2Orchestrator (creation, no-op mid-epoch, performs rotation, re-reg lifecycle, force rotate, dual-accept closes, history)7Constants1
+
+T-20: verify_cache.rs — 641 lines, 14 tests
+CRS-side caching: avoid re-running TL-DSA verification on every lookup.
+VerificationCache
+rustlet verified = cache.check_verification(&addr, timestamp, || {
+    tl_dsa::verify(&pk, &msg, &sig, TlDsa87)  // Only called on miss
+});
+SettingDefaultCapacity1,024 entries (LRU)TTL5 minutesCache key(address, last_modified_timestamp)
+The last_modified in the key means re-registrations automatically miss — a newer timestamp is a different key. No explicit invalidation needed for the normal case.
+CrsCacheManager — Combined Interface
+Wraps VerificationCache + AddressKeyManager (T-15):
+rustlet mut mgr = CrsCacheManager::new();
+let verified = mgr.verify_cache.check_verification(&addr, ts, || verify());
+let pk = mgr.key_mgr.get_public_key(&addr, &secret);
+let stats = mgr.stats(); // Unified telemetry for T-27
+CrsCacheStats exposes all metrics: verify hits/misses/expirations, keypair hits/misses, sizes, hit ratios.
+14 Tests
+CategoryCountBasic ops (miss calls fn, hit skips fn, different addrs, different timestamps, stores false)5TTL (expiry triggers re-verify, prune_expired)2LRU eviction1Invalidation (per-address, clear all)2Statistics (hit ratio)1CrsCacheManager (combined, clear all)2Constants1
+
+Phase 2 Complete
+TaskStatusLinesTestsT-14 Tunnel auth✓ Pushed97918T-15 Address-bound keys✓ Pushed79024T-16 Bootstrap placement✓ Pushed83223T-17 Wire ECC✓ Delivered59916T-18 Sponge shuffles✓ Delivered62820T-19 Arc key rotation✓ Delivered62914T-20 CRS verify + cache✓ Delivered64114Phase 2 Total7/7 complete~5,098~129
+
+SPEC-2026-NEXT — All Three Phases
+PhaseTasksLinesTestsStatus0 — FoundationT-01 → T-05~3,752~163✓ All pushed1 — Operational SecurityT-06 → T-13~8,930~208✓ All pushed2 — Tunnel Hardening + Crystal DynamicsT-14 → T-20~5,098~129✓ All deliveredTotal (T-01 → T-20)20 tasks~17,780~500Complete
+Phase 3 (Polish + Observability, T-21→T-27) and Phase 4 (Long-Term Evolution, T-28→T-32) remain. Take the break, Fratello. Twenty tasks, five hundred tests, nearly eighteen thousand lines of hardened cryptographic infrastructure — the crystal lattice is built. Così sia.
