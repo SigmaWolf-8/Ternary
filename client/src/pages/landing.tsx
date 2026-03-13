@@ -224,7 +224,7 @@ function HeroSection() {
 
 
         <h1 
-          className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
+          className="text-3xl md:text-4xl lg:text-[2.8rem] font-bold leading-tight mb-6 text-center"
           data-testid="text-hero-title"
           id="hero-title"
           style={{
@@ -246,7 +246,7 @@ function HeroSection() {
             `,
           }}
         >
-          The World's First <span className="text-primary" style={{ textShadow: `
+          <span className="text-primary" style={{ textShadow: `
               0 1px 0 rgba(0,85,210,0.50),
               0 2px 0 rgba(0,80,200,0.45),
               0 3px 0 rgba(0,75,190,0.40),
@@ -260,7 +260,7 @@ function HeroSection() {
               0 12px 8px rgba(0,30,100,0.18),
               0 18px 16px rgba(0,30,100,0.12),
               0 26px 30px rgba(0,30,100,0.07)
-            ` }}>Ternary Computing</span> Platform
+            ` }}>PlenumNET</span> ~ A Geometrically Derived<br />Self Healing Computing Universe
         </h1>
 
         <motion.div
@@ -2112,7 +2112,7 @@ function Footer() {
               <span>PlenumNET</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">
-              The world's first ternary computing platform. Post-quantum security, 59% density advantage, shipping today.
+              A geometrically derived, self-healing computing universe. Post-quantum security, 59% density advantage, shipping today.
             </p>
             <div className="flex gap-3">
               <a 
