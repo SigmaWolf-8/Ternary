@@ -100,15 +100,13 @@ pub mod crs;
 pub mod fts;
 pub mod wire;
 pub mod api;
-pub mod config;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
 pub use glb::{GeometricLoadBalancer, ForwardResult, ForwardError, GlbStats};
 pub use overlay::{CubeOverlayNetwork, Neighbor, TunnelState, TunnelProtocol, ConStats};
-pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo, SignedRegistration, build_registration_message, CRS_REG_DOMAIN, CRS_SIG_VARIANT};
+pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo};
 pub use fts::{FaultToleranceService, NeighborHealth, NeighborState, StateChangeEvent, FtsConfig};
-pub use config::PlenumConfig;
 pub use wire::{
     WireHeader, WireMessage, WireError, WireFlags, MessageType,
     WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,
@@ -226,7 +224,7 @@ mod integration_tests {
         // Step 3: CON resolves neighbor endpoints from CRS
         for nbr_info in &result.neighbors {
             if let Some(ep) = nbr_info.endpoint {
-                let pk = nbr_info.public_key.clone().unwrap_or_default();
+                let pk = nbr_info.public_key.clone().unwrap_or_else(|| vec![0u8; 32]);
                 stack.con.resolve_neighbor(&nbr_info.addr, ep, pk);
             }
         }
@@ -302,15 +300,34 @@ mod integration_tests {
     #[test]
     fn test_con_key_derivation_all_unique() {
         let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
-        let con = CubeOverlayNetwork::new(local);
-        let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
+        let con = CubeOverlayNetwork::new(local.clone());
 
+        // T-09: v2.5 fallback removed — must provide KEM secrets for v3 keys.
+        // Generate unique KEM secrets for all 26 neighbors.
+        let mut kem_secrets = std::collections::HashMap::new();
+        for (i, nbr) in con.neighbors().iter().enumerate() {
+            let mut secret = [0u8; 32];
+            secret[0] = (i + 1) as u8;
+            secret[1] = ((i + 1) >> 8) as u8;
+            kem_secrets.insert(nbr.cube_addr.clone(), secret);
+        }
+
+        let keys = con.derive_all_keys(&kem_secrets, 0);
         assert_eq!(keys.len(), NEIGHBORS_PER_CUBE);
 
         // All keys must be unique
         let key_set: std::collections::HashSet<[u8; 32]> =
             keys.iter().map(|(_, k)| *k).collect();
-        assert_eq!(key_set.len(), NEIGHBORS_PER_CUBE, "All tunnel keys must be unique");
+        assert_eq!(key_set.len(), NEIGHBORS_PER_CUBE, "All v3 tunnel keys must be unique");
+    }
+
+    #[test]
+    fn test_con_no_kem_no_keys() {
+        // T-09: No KEM secrets → 0 keys (v2.5 fallback removed)
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let con = CubeOverlayNetwork::new(local);
+        let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
+        assert_eq!(keys.len(), 0, "No KEM secrets → no keys (T-09)");
     }
 
     // ── Wire Protocol Integration Tests ────────────────────────
