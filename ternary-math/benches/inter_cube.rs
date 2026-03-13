@@ -586,253 +586,62 @@ pub fn bench_26_concurrent_heartbeats() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// PT26-DSA — Parallel Traversals × 26-port geometric signature
+// PT26-DSA — Unified (v1/v2 merged): GF(3) geometry + 2 sponge calls
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Benchmark: PT26-DSA schedule derivation (target: < 5µs).
-///
-/// Derives the secret σ schedule from address + master secret.
-/// Two TLSponge-385 KDF calls: one for schedule seed, one for weight key.
-pub fn bench_pt26_schedule_derive() {
-    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let secret = [42u8; 48];
-    let mut material = Vec::with_capacity(61);
-    material.extend_from_slice(&addr);
-    material.extend_from_slice(&secret);
-
-    let seed = ternary_math::sponge::derive_key(
-        b"PT26-SCHEDULE", &material, 42,
-    );
-    let weight_key = ternary_math::sponge::derive_key(
-        b"PT26-WEIGHT", &material, 27,
-    );
-    black_box((seed, weight_key));
-}
-
-/// Benchmark: PT26-DSA keygen (target: < 20µs).
-///
-/// Schedule derive + public key commitment hash.
+/// Benchmark: PT26-DSA keygen (target: < 8µs).
 pub fn bench_pt26_keygen() {
     let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let secret = [42u8; 48];
-    let mut material = Vec::with_capacity(61);
-    material.extend_from_slice(&addr);
-    material.extend_from_slice(&secret);
-
-    // Schedule derive (2 KDFs)
-    let seed = ternary_math::sponge::derive_key(
-        b"PT26-SCHEDULE", &material, 42,
-    );
-    let weight_key = ternary_math::sponge::derive_key(
-        b"PT26-WEIGHT", &material, 27,
-    );
-
-    // PK commitment (1 KDF)
-    let mut pk_material = Vec::with_capacity(42 + 27);
-    pk_material.extend_from_slice(&seed);
-    pk_material.extend_from_slice(&weight_key);
-    let pk_commit = ternary_math::sponge::derive_key(
-        b"PT26-PK", &pk_material, 48,
-    );
-    black_box(pk_commit);
-}
-
-/// Benchmark: PT26-DSA sign (target: < 50µs).
-///
-/// Destination derive + walk construction (h step commitments) + aggregate.
-/// Simulates h=9 (near expected average of 8.67).
-pub fn bench_pt26_sign() {
-    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2]; // h=9 from addr
-    let weight_key = [42u8; 27];
-
-    // Message hash → destination derivation (1 KDF)
-    let msg_hash = ternary_math::sponge::derive_key(
-        b"PT26-MSG", b"benchmark message for PT26-DSA signing", 48,
-    );
-
-    // Walk construction: h=9 step commitments (9 KDFs)
-    let h = 9;
-    let mut step_commits = Vec::with_capacity(h);
-    let mut checksum: u32 = 0;
-    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
-
-    for step in 0..h {
-        let mut step_material = Vec::with_capacity(13 + 13 + 4 + 27 + 1);
-        step_material.extend_from_slice(&addr);
-        step_material.extend_from_slice(&dest);
-        step_material.extend_from_slice(&weights[step % 9].to_le_bytes());
-        step_material.extend_from_slice(&weight_key);
-        step_material.push(step as u8);
-
-        let commit = ternary_math::sponge::derive_key(
-            b"PT26-STEP", &step_material, 48,
-        );
-        checksum = (checksum + weights[step % 9]) % 333;
-        step_commits.push(commit);
-    }
-
-    // Aggregate commitment (1 KDF)
-    let mut sig_material = Vec::with_capacity(13 + 13 + 2 + 48 + h * 48);
-    sig_material.extend_from_slice(&addr);
-    sig_material.extend_from_slice(&dest);
-    sig_material.extend_from_slice(&(checksum as u16).to_le_bytes());
-    sig_material.extend_from_slice(&msg_hash);
-    for commit in &step_commits {
-        sig_material.extend_from_slice(commit);
-    }
-    let sig_commit = ternary_math::sponge::derive_key(
-        b"PT26-SIG", &sig_material, 48,
-    );
-
-    black_box((step_commits, sig_commit, checksum));
-}
-
-/// Benchmark: PT26-DSA verify LOCAL (target: < 130µs).
-///
-/// Sequential verification: h dimensions × 4 σ trials × h step positions.
-/// For h=9: 9 × 4 × 9 = 324 candidate commitment checks.
-/// Each check is one sponge derive_key call.
-pub fn bench_pt26_verify_local() {
-    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2];
-    let h = 9;
-    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
-    let sigmas: [[usize; 9]; 4] = [
-        [4, 8, 3, 2, 0, 7, 5, 6, 1], // σ_A
-        [6, 0, 7, 8, 4, 2, 3, 1, 5], // σ_B
-        [2, 6, 7, 8, 4, 0, 1, 5, 3], // σ_C
-        [8, 5, 0, 1, 4, 6, 7, 3, 2], // σ_D
-    ];
-
-    // Destination + walk length verification (2 KDFs + arithmetic)
-    let msg_hash = ternary_math::sponge::derive_key(
-        b"PT26-MSG", b"benchmark message", 48,
-    );
-
-    // Per-dimension verification: try 4 σ × h step positions
-    let differing: Vec<usize> = (0..13).filter(|&d| addr[d] != dest[d]).collect();
-    let mut total_checks = 0u32;
-
-    for &dim in &differing {
-        for sigma_idx in 0..4 {
-            let triplet_idx = (dim / 3).min(8);
-            let weight = weights[sigmas[sigma_idx][triplet_idx]];
-
-            for step_pos in 0..h {
-                let mut material = Vec::with_capacity(58);
-                material.extend_from_slice(&addr);
-                material.extend_from_slice(&dest);
-                material.extend_from_slice(&weight.to_le_bytes());
-                material.push(step_pos as u8);
-
-                let candidate = ternary_math::sponge::derive_key(
-                    b"PT26-STEP", &material, 48,
-                );
-                total_checks += 1;
-                black_box(candidate);
-            }
-        }
-    }
-
-    // Aggregate commitment check (1 KDF)
-    let sig_commit = ternary_math::sponge::derive_key(
-        b"PT26-SIG", &msg_hash, 48,
-    );
-    black_box((total_checks, sig_commit));
-}
-
-/// Benchmark: PT26-DSA verify 26-PORT SIMULATED (target: < 15µs).
-///
-/// Parallel model: each dimension checks 4 σ × 1 candidate (its own dim).
-/// 13 dimensions in parallel → cost = max(per-dim cost) = 4 sponge calls.
-/// Simulated locally: execute all 13 dims but measure as if parallel.
-pub fn bench_pt26_verify_parallel_sim() {
-    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2];
-    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
-
-    // Per-port cost: 4 σ trials (the parallel bottleneck)
-    // In real 26-port mode, all dims fire simultaneously.
-    // Here we measure ONE dimension's work = the parallel latency.
-    let dim = 0;
-    for sigma_idx in 0..4 {
-        let weight = weights[sigma_idx];
-        let mut material = Vec::with_capacity(58);
-        material.extend_from_slice(&addr);
-        material.extend_from_slice(&dest);
-        material.extend_from_slice(&weight.to_le_bytes());
-        material.push(0u8); // step_pos
-
-        let candidate = ternary_math::sponge::derive_key(
-            b"PT26-STEP", &material, 48,
-        );
-        black_box(candidate);
-    }
-
-    // Plus aggregate check
-    let sig_commit = ternary_math::sponge::derive_key(
-        b"PT26-SIG", b"aggregate-material", 48,
-    );
-    black_box(sig_commit);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// PT26-DSA v2 — Native GF(3) geometry, 2 sponge calls total
-// ═══════════════════════════════════════════════════════════════════════
-
-/// Benchmark: PT26-DSA v2 keygen (target: < 20µs).
-pub fn bench_pt26v2_keygen() {
-    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let (pk, _sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret");
+    let (pk, _sk) = ternary_math::pt26_dsa::keygen(&addr, b"bench-secret");
     black_box(pk);
 }
 
-/// Benchmark: PT26-DSA v2 sign (target: < 12µs).
-pub fn bench_pt26v2_sign() {
+/// Benchmark: PT26-DSA sign (target: < 18µs).
+pub fn bench_pt26_sign() {
     let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let (_pk, mut sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret-sign");
-    let sig = ternary_math::pt26_dsa_v2::sign(&mut sk, b"benchmark message for PT26v2").unwrap();
+    let (_pk, mut sk) = ternary_math::pt26_dsa::keygen(&addr, b"bench-secret-sign");
+    let sig = ternary_math::pt26_dsa::sign(&mut sk, b"benchmark message for PT26-DSA").unwrap();
     black_box(sig);
 }
 
-/// Benchmark: PT26-DSA v2 verify (target: < 22µs).
-pub fn bench_pt26v2_verify() {
+/// Benchmark: PT26-DSA verify local (target: < 18µs).
+pub fn bench_pt26_verify() {
     let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let (pk, mut sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret-verify");
-    let sig = ternary_math::pt26_dsa_v2::sign(&mut sk, b"benchmark message for PT26v2 verify").unwrap();
-    let result = ternary_math::pt26_dsa_v2::verify(&pk, b"benchmark message for PT26v2 verify", &sig);
+    let (pk, mut sk) = ternary_math::pt26_dsa::keygen(&addr, b"bench-secret-verify");
+    let sig = ternary_math::pt26_dsa::sign(&mut sk, b"benchmark message for PT26-DSA verify").unwrap();
+    let result = ternary_math::pt26_dsa::verify(&pk, b"benchmark message for PT26-DSA verify", &sig);
     black_box(result);
 }
 
-/// Benchmark: PT26-DSA v2 parallel verify (target: < 12µs).
-pub fn bench_pt26v2_verify_parallel() {
+/// Benchmark: PT26-DSA 26-port parallel verify (target: < 18µs).
+/// Three phases: sponge 1 → parallel port checks → sponge 2. No redundant verify().
+pub fn bench_pt26_verify_parallel() {
     let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
-    let (pk, mut sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret-par");
-    let sig = ternary_math::pt26_dsa_v2::sign(&mut sk, b"benchmark parallel verify").unwrap();
-    let result = ternary_math::pt26_dsa_v2::verify_parallel(&pk, b"benchmark parallel verify", &sig);
+    let (pk, mut sk) = ternary_math::pt26_dsa::keygen(&addr, b"bench-secret-par");
+    let sig = ternary_math::pt26_dsa::sign(&mut sk, b"benchmark parallel verify").unwrap();
+    let result = ternary_math::pt26_dsa::verify_parallel(&pk, b"benchmark parallel verify", &sig);
     black_box(result);
 }
 
-/// Benchmark: PT26-DSA v2 GF(3) trit_diff (target: < 5ns).
-pub fn bench_pt26v2_trit_diff() {
+/// Benchmark: PT26-DSA GF(3) trit_diff (target: < 5ns).
+pub fn bench_pt26_trit_diff() {
     let a: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
     let b: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 1];
-    let d = ternary_math::pt26_dsa_v2::trit_diff(&a, &b);
+    let d = ternary_math::pt26_dsa::trit_diff(&a, &b);
     black_box(d);
 }
 
-/// Benchmark: PT26-DSA v2 step token (target: < 5ns).
-pub fn bench_pt26v2_step_token() {
+/// Benchmark: PT26-DSA step token (target: < 5ns).
+pub fn bench_pt26_step_token() {
     let delta: [u8; 13] = [2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2];
-    let token = ternary_math::pt26_dsa_v2::compute_step_token(&delta, 0, 0);
+    let token = ternary_math::pt26_dsa::step_token(&delta, 0, 0);
     black_box(token);
 }
 
-/// Benchmark: PT26-DSA v2 walk token (target: < 5ns).
-pub fn bench_pt26v2_walk_token() {
+/// Benchmark: PT26-DSA walk token (target: < 5ns).
+pub fn bench_pt26_walk_token() {
     let tokens = vec![100u32, 200, 50, 175, 88, 222, 31, 299, 5];
-    let wt = ternary_math::pt26_dsa_v2::accumulate_walk_token(&tokens);
+    let wt = ternary_math::pt26_dsa::walk_token(&tokens);
     black_box(wt);
 }
 
@@ -1114,21 +923,14 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "tl_dsa_87_sign", target: "< 5ms", run: bench_tl_dsa_sign },
         BenchmarkEntry { name: "tl_dsa_87_verify", target: "< 3ms", run: bench_tl_dsa_verify },
 
-        // ── PT26-DSA v1: Parallel Traversals × 26 ports ──────
-        BenchmarkEntry { name: "pt26v1_schedule_derive", target: "< 5µs", run: bench_pt26_schedule_derive },
-        BenchmarkEntry { name: "pt26v1_keygen", target: "< 20µs", run: bench_pt26_keygen },
-        BenchmarkEntry { name: "pt26v1_sign", target: "< 50µs", run: bench_pt26_sign },
-        BenchmarkEntry { name: "pt26v1_verify_local", target: "< 130µs", run: bench_pt26_verify_local },
-        BenchmarkEntry { name: "pt26v1_verify_26port_sim", target: "< 15µs", run: bench_pt26_verify_parallel_sim },
-
-        // ── PT26-DSA v2: Native GF(3), 2 sponge calls ──────
-        BenchmarkEntry { name: "pt26v2_keygen", target: "< 20µs", run: bench_pt26v2_keygen },
-        BenchmarkEntry { name: "pt26v2_sign", target: "< 12µs", run: bench_pt26v2_sign },
-        BenchmarkEntry { name: "pt26v2_verify", target: "< 22µs", run: bench_pt26v2_verify },
-        BenchmarkEntry { name: "pt26v2_verify_parallel", target: "< 12µs", run: bench_pt26v2_verify_parallel },
-        BenchmarkEntry { name: "pt26v2_trit_diff", target: "< 5ns", run: bench_pt26v2_trit_diff },
-        BenchmarkEntry { name: "pt26v2_step_token", target: "< 5ns", run: bench_pt26v2_step_token },
-        BenchmarkEntry { name: "pt26v2_walk_token", target: "< 5ns", run: bench_pt26v2_walk_token },
+        // ── PT26-DSA: Unified (GF(3) + 2 sponge) ──────────
+        BenchmarkEntry { name: "pt26_keygen", target: "< 8µs", run: bench_pt26_keygen },
+        BenchmarkEntry { name: "pt26_sign", target: "< 18µs", run: bench_pt26_sign },
+        BenchmarkEntry { name: "pt26_verify", target: "< 18µs", run: bench_pt26_verify },
+        BenchmarkEntry { name: "pt26_verify_parallel", target: "< 18µs", run: bench_pt26_verify_parallel },
+        BenchmarkEntry { name: "pt26_trit_diff", target: "< 5ns", run: bench_pt26_trit_diff },
+        BenchmarkEntry { name: "pt26_step_token", target: "< 5ns", run: bench_pt26_step_token },
+        BenchmarkEntry { name: "pt26_walk_token", target: "< 5ns", run: bench_pt26_walk_token },
 
         // ── TL-DSA v2-87: Ternary lattice NTT ───────────────
         BenchmarkEntry { name: "tl_dsa_v2_ntt_butterfly", target: "< 20ns", run: bench_tl_dsa_v2_ntt_butterfly },
@@ -1250,22 +1052,14 @@ fn criterion_tl_dsa_v1(c: &mut Criterion) {
     c.bench_function("tl_dsa_87_verify", |b| b.iter(bench_tl_dsa_verify));
 }
 
-fn criterion_pt26_dsa_v1(c: &mut Criterion) {
-    c.bench_function("pt26v1_schedule_derive", |b| b.iter(bench_pt26_schedule_derive));
-    c.bench_function("pt26v1_keygen", |b| b.iter(bench_pt26_keygen));
-    c.bench_function("pt26v1_sign", |b| b.iter(bench_pt26_sign));
-    c.bench_function("pt26v1_verify_local", |b| b.iter(bench_pt26_verify_local));
-    c.bench_function("pt26v1_verify_26port_sim", |b| b.iter(bench_pt26_verify_parallel_sim));
-}
-
-fn criterion_pt26_dsa_v2(c: &mut Criterion) {
-    c.bench_function("pt26v2_keygen", |b| b.iter(bench_pt26v2_keygen));
-    c.bench_function("pt26v2_sign", |b| b.iter(bench_pt26v2_sign));
-    c.bench_function("pt26v2_verify", |b| b.iter(bench_pt26v2_verify));
-    c.bench_function("pt26v2_verify_parallel", |b| b.iter(bench_pt26v2_verify_parallel));
-    c.bench_function("pt26v2_trit_diff", |b| b.iter(bench_pt26v2_trit_diff));
-    c.bench_function("pt26v2_step_token", |b| b.iter(bench_pt26v2_step_token));
-    c.bench_function("pt26v2_walk_token", |b| b.iter(bench_pt26v2_walk_token));
+fn criterion_pt26_dsa(c: &mut Criterion) {
+    c.bench_function("pt26_keygen", |b| b.iter(bench_pt26_keygen));
+    c.bench_function("pt26_sign", |b| b.iter(bench_pt26_sign));
+    c.bench_function("pt26_verify", |b| b.iter(bench_pt26_verify));
+    c.bench_function("pt26_verify_parallel", |b| b.iter(bench_pt26_verify_parallel));
+    c.bench_function("pt26_trit_diff", |b| b.iter(bench_pt26_trit_diff));
+    c.bench_function("pt26_step_token", |b| b.iter(bench_pt26_step_token));
+    c.bench_function("pt26_walk_token", |b| b.iter(bench_pt26_walk_token));
 }
 
 fn criterion_tl_dsa_v2(c: &mut Criterion) {
@@ -1322,8 +1116,7 @@ fn criterion_heartbeat(c: &mut Criterion) {
 criterion_group!(
     benches,
     criterion_tl_dsa_v1,
-    criterion_pt26_dsa_v1,
-    criterion_pt26_dsa_v2,
+    criterion_pt26_dsa,
     criterion_tl_dsa_v2,
     criterion_hmac,
     criterion_sponge,

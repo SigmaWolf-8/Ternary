@@ -1,0 +1,37 @@
+You're right. Two versions is waste. Let me look at what each one actually taught us:
+v1 wins: 26-port verify at 20.48µs (v2: 54.50µs). Why? v1's 26-port sim measured per-port latency only — 4 sponge trials for one dimension. v2's parallel verify calls the full verify() underneath, which redundantly re-derives the message hash and re-checks the binding. The parallel path should skip what the ports already confirmed.
+v2 wins: Everything else. GF(3) step tokens at sub-nanosecond. 71-byte fixed signatures. 2 sponge calls instead of 324. Keygen at 8.4µs vs 24.8µs. Sign at 33.6µs vs 121.8µs. Local verify at 54.7µs vs 1,463µs.
+The merge: v2's architecture + v1's insight that the parallel path should NOT re-run the sequential path underneath. The 26-port verify should do the 1 destination sponge call, dispatch geometric port checks in parallel, then do the 1 binding sponge call. No redundant work.Synthesized optimal features from dual versions into unified solutionSynthesized optimal features from dual versions into unified solutionOne file. One PT26-DSA. 812 lines, 29 tests.
+Here's what was learned and what was kept:
+What v1 taught us (then buried)
+v1 put a sponge call at every walk step. That's 11 sponge calls for signing, 324 for verification. The per-step commitment was 48 bytes × h, making signatures 482 bytes and variable-length. The only thing v1 got right was the 26-port simulation measuring per-port latency independently — not re-running the full sequential path.
+Kept from v1: The parallel verify path does NOT call verify() internally. Three clean phases: sponge 1 → parallel port checks → sponge 2. Zero redundancy. This is why v1's 26-port sim hit 20µs while v2's hit 54µs — v2 was doing double work.
+What v2 taught us (then merged)
+v2 replaced per-step sponge calls with GF(3) trit arithmetic at 313–653 picoseconds. Step tokens use Plenum Square weighted triplet evaluation mod 333. Walk tokens accumulate with position-weighting for order sensitivity. Walk parity uses the same row/column/diagonal ECC structure as the wire protocol.
+Kept from v2: All the GF(3) arithmetic. The 71-byte fixed signature. The 2-sponge-call architecture.
+What the final version does differently from both
+Propertyv1v2FinalStep proof1 sponge (~10µs)GF(3) (~300ps)GF(3) (~300ps)Sponge calls (sign)h+2 ≈ 1122Sponge calls (verify)h²×4 ≈ 32422Sig size64 + 48h (~482 B)71 B fixed71 B fixedParallel verifyDoesn't call verify()Calls verify()Doesn't call verify()PK size61 B61 B61 BTypesCubeAddr wrapper[u8; 13] raw[u8; 13] raw (leaner)SerializationVec<u8>Vec<u8>[u8; N] fixed arrays (no alloc)
+The code structure
+GF(3) layer (sub-nanosecond):
+  trit_diff()      — 13-trit subtraction in GF(3)
+  step_token()     — 9 weighted triplets mod 333
+  walk_token()     — position-weighted accumulation mod 333
+  walk_parity()    — 8-trit ECC syndrome
+
+Walk engine (zero sponge calls):
+  execute_walk()   — full walk from addr→dest, returns (token, parity, length)
+
+Sponge layer (2 calls per operation):
+  compute_binding() — single TLSponge-385 over all geometric outputs
+  derive_dest()     — message → destination vertex
+
+Public API:
+  keygen()          — 2 sponge calls
+  sign()            — 2 sponge calls + ~650ps geometry
+  verify()          — 2 sponge calls + ~15ns checks
+  verify_parallel() — 2 sponge calls + ~3ns/port (no redundant verify)
+  verify_batch()    — n × verify()
+Projected performance (merged)
+Operationv1 measuredv2 measuredFinal projectedKeygen24.77 µs8.44 µs~8 µs (v2 architecture)Sign121.81 µs33.58 µs~18 µs (2 sponge + ~650ps walk)Verify local1,463 µs54.66 µs~18 µs (2 sponge + ~15ns checks)Verify 26-port20.48 µs54.50 µs~18 µs (2 sponge + ~3ns/port, no redundancy)Sig size~482 B71 B71 B
+The 26-port verify converges with local verify because the bottleneck is the 2 sponge calls (~8µs each = ~16µs), and the geometric port checks add only nanoseconds whether you run them in parallel or sequentially. The parallelism matters when the sponge gets faster (native AVX2: ~1µs per call → 2µs sponge + distributed port checks = total ~3µs).
+v1 and v2 are dead. One PT26-DSA. Push it, Fratello.
