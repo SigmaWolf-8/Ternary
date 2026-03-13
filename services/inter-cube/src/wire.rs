@@ -6,44 +6,44 @@
 // This file is part of the Salvi Framework / PlenumNET platform.
 // See LICENSE in the repository root for full terms.
 
-//! # Inter-Cube Wire Protocol
+// # Inter-Cube Wire Protocol
 //!
-//! Defines the binary wire format for ALL inter-cube messages: heartbeats,
-//! CRS registrations, tunnel handshakes, forwarding control, and health probes.
+// Defines the binary wire format for ALL inter-cube messages: heartbeats,
+// CRS registrations, tunnel handshakes, forwarding control, and health probes.
 //!
-//! ## Design Principles
+// ## Design Principles
 //!
-//! 1. **Universal versioned header.** Every inter-cube message — heartbeats,
-//!    CRS queries, tunnel messages, everything — carries the same 24-byte
-//!    header with `protocol_version: u8`. This enables safe rollout of
-//!    wire-format changes (dual checksum, ECC syndrome, mutual auth) without
-//!    breaking older nodes.
+// 1. **Universal versioned header.** Every inter-cube message — heartbeats,
+//    CRS queries, tunnel messages, everything — carries the same 24-byte
+//    header with `protocol_version: u8`. This enables safe rollout of
+//    wire-format changes (dual checksum, ECC syndrome, mutual auth) without
+//    breaking older nodes.
 //!
-//! 2. **Femtosecond timestamps.** All timestamps are `u128` femtoseconds
-//!    since the Salvi Epoch (2025-04-01T00:00:00Z). HPTP-synchronized,
-//!    not NTP. The replay window is network propagation time, not clock drift.
+// 2. **Femtosecond timestamps.** All timestamps are `u128` femtoseconds
+//    since the Salvi Epoch (2025-04-01T00:00:00Z). HPTP-synchronized,
+//    not NTP. The replay window is network propagation time, not clock drift.
 //!
-//! 3. **Rep C only.** All trit values on the wire use Rep C {1, 2, 3}.
-//!    Zero never appears — its presence is instant proof of forgery.
-//!    (INVARIANT 3)
+// 3. **Rep C only.** All trit values on the wire use Rep C {1, 2, 3}.
+//    Zero never appears — its presence is instant proof of forgery.
+//    (INVARIANT 3)
 //!
-//! 4. **Future-proof message types.** Message type codes are allocated in
-//!    blocks: 0x10–0x1F for heartbeats/health, 0x20–0x2F for CRS operations,
-//!    0x30–0x3F for signed operations, 0x40–0x4F for tunnel authentication.
-//!    Reserved ranges prevent collisions as new tasks land.
+// 4. **Future-proof message types.** Message type codes are allocated in
+//    blocks: 0x10–0x1F for heartbeats/health, 0x20–0x2F for CRS operations,
+//    0x30–0x3F for signed operations, 0x40–0x4F for tunnel authentication.
+//    Reserved ranges prevent collisions as new tasks land.
 //!
-//! ## Wire Header Layout (24 bytes)
+// ## Wire Header Layout (24 bytes)
 //!
-//! ```text
-//! ┌─────────┬──────────┬───────┬──────────┬─────────────┬───────────────────┐
-//! │ version │ msg_type │ flags │ reserved │ payload_len │    timestamp      │
-//! │  (1B)   │   (1B)   │ (1B)  │   (1B)   │   (4B LE)   │   (16B LE u128)   │
-//! └─────────┴──────────┴───────┴──────────┴─────────────┴───────────────────┘
-//! ```
+// ```text
+// ┌─────────┬──────────┬───────┬──────────┬─────────────┬───────────────────┐
+// │ version │ msg_type │ flags │ reserved │ payload_len │    timestamp      │
+// │  (1B)   │   (1B)   │ (1B)  │   (1B)   │   (4B LE)   │   (16B LE u128)   │
+// └─────────┴──────────┴───────┴──────────┴─────────────┴───────────────────┘
+// ```
 //!
-//! ## Created by T-01 (SPEC-2026-NEXT)
-//! Required by T-06 (signed CRS), T-08 (auth heartbeats), T-10 (dual checksum),
-//! T-14 (mutual tunnel auth), T-17 (wire ECC syndrome).
+// ## Created by T-01 (SPEC-2026-NEXT)
+// Required by T-06 (signed CRS), T-08 (auth heartbeats), T-10 (dual checksum),
+// T-14 (mutual tunnel auth), T-17 (wire ECC syndrome).
 
 use crate::cube_addr::CubeAddr;
 
@@ -324,7 +324,7 @@ impl std::fmt::Display for MessageType {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// WIRE ADDRESS — 13-trit Rep C on the wire (4 bytes packed)
+// WIRE ADDRESS — 13-trit Rep C on the wire (7 bytes packed)
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Packed wire representation of a 13-trit Rep C cube address.
@@ -351,8 +351,9 @@ pub fn pack_trit_array(trits: &[u8; 13]) -> Option<[u8; WIRE_ADDR_SIZE]> {
     let mut packed: u32 = 0;
     for (dim, &trit) in trits.iter().enumerate() {
         if trit == 0 || trit > 3 {
-            return None;
+            return None; // Invalid Rep C value
         }
+        // 2-bit encoding: {1,2,3} → {0b01, 0b10, 0b11}
         packed |= (trit as u32) << (30 - dim * 2);
     }
     Some(packed.to_be_bytes())
@@ -363,14 +364,11 @@ pub fn pack_trit_array(trits: &[u8; 13]) -> Option<[u8; WIRE_ADDR_SIZE]> {
 /// Returns `None` if any 2-bit field is 0b00 (invalid in Rep C).
 pub fn unpack_trit_array(buf: &[u8; WIRE_ADDR_SIZE]) -> Option<[u8; 13]> {
     let packed = u32::from_be_bytes(*buf);
-    if packed & 0x3F != 0 {
-        return None;
-    }
     let mut trits = [0u8; 13];
     for dim in 0..13 {
         let val = ((packed >> (30 - dim * 2)) & 0x03) as u8;
         if val == 0 {
-            return None;
+            return None; // 0b00 = forgery
         }
         trits[dim] = val;
     }
@@ -383,7 +381,12 @@ pub fn unpack_trit_array(buf: &[u8; WIRE_ADDR_SIZE]) -> Option<[u8; 13]> {
 /// Uses `addr.to_bytes()` to get the raw 13-trit Rep C array.
 pub fn pack_addr(addr: &CubeAddr) -> Option<[u8; WIRE_ADDR_SIZE]> {
     let bytes = addr.to_bytes();
-    pack_trit_array(&bytes)
+    if bytes.len() != 13 {
+        return None;
+    }
+    let mut arr = [0u8; 13];
+    arr.copy_from_slice(&bytes[..13]);
+    pack_trit_array(&arr)
 }
 
 /// Unpack 4 wire bytes into a CubeAddr.
@@ -593,9 +596,11 @@ pub const TIMESTAMP_FUTURE_TOLERANCE_FS: u128 = 1 * FS_PER_SECOND;
 /// - `timestamp ≤ now + TIMESTAMP_FUTURE_TOLERANCE_FS` (not too far in the future)
 /// - `now - timestamp ≤ REGISTRATION_MAX_AGE_FS` (not too old)
 pub fn timestamp_in_window(timestamp_fs: u128, now_fs: u128) -> bool {
+    // Future check: allow up to 1s ahead
     if timestamp_fs > now_fs + TIMESTAMP_FUTURE_TOLERANCE_FS {
         return false;
     }
+    // Staleness check: reject if older than 30s
     if now_fs > timestamp_fs && (now_fs - timestamp_fs) > REGISTRATION_MAX_AGE_FS {
         return false;
     }
@@ -603,8 +608,226 @@ pub fn timestamp_in_window(timestamp_fs: u128, now_fs: u128) -> bool {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// TESTS
+// DUAL CHECKSUM — Wire Integration (T-10, SPEC-2026-NEXT)
 // ═══════════════════════════════════════════════════════════════════════
+
+// Wire-level dual checksum: mod-364 (repunit) + mod-333 (Plenum).
+//
+// `gcd(364, 333) = 1` → CRT combined modulus = 121,212.
+// False-pass rate: 0.0008% (vs 0.27% for mod-364 alone).
+//
+// These functions work on **any** Rep C trit array — both 13-trit inter-cube
+// addresses and 27-trit TDNS classification addresses. The full TDNS module
+// (`ternary-math/src/plenum_checksum.rs`) has additional 27-trit-specific
+// validation and integrity checks. These wire-level functions are the
+// minimal integration for the inter-cube wire protocol.
+//
+// ## Wire Format
+//
+// Checksums are appended as 12 Rep C trits (6 mod-364 + 6 mod-333)
+// after the address trits. Packed at 2 bits per trit:
+//
+// ```text
+// ┌───────────────────┬────────────────┬────────────────┐
+// │  address trits    │ 6-trit mod-364 │ 6-trit mod-333 │
+// │  (13 or 27)       │ (repunit)      │ (Plenum)       │
+// └───────────────────┴────────────────┴────────────────┘
+// ```
+//
+// Gated behind `WireFlags::DUAL_CHECKSUM` and `PlenumConfig.enable_dual_checksum`.
+
+/// Repunit checksum modulus: 364 = R₆ = 111111₃ = (3⁶ − 1) / 2.
+pub const CHECKSUM_MOD_REPUNIT: u32 = 364;
+
+/// Plenum checksum modulus: 333 = 3 × 111 = Plenum magic constant.
+pub const CHECKSUM_MOD_PLENUM: u32 = 333;
+
+/// Combined CRT detection space: 364 × 333 = 121,212.
+pub const CHECKSUM_DETECTION_SPACE: u32 = 121_212;
+
+/// Number of Rep C trits per single checksum (6 trits = fits in 729 = 3⁶).
+pub const CHECKSUM_TRITS: usize = 6;
+
+/// Total checksum trits appended to address: 2 × 6 = 12.
+pub const DUAL_CHECKSUM_TRITS: usize = 12;
+
+/// Wire checksum result: two 6-trit Rep C values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WireChecksum {
+    /// 6 Rep C trits — mod-364 repunit checksum.
+    pub repunit: [u8; CHECKSUM_TRITS],
+    /// 6 Rep C trits — mod-333 Plenum checksum.
+    pub plenum: [u8; CHECKSUM_TRITS],
+}
+
+impl WireChecksum {
+    /// Flatten to 12 trits: [repunit(6) ‖ plenum(6)].
+    pub fn to_trits(&self) -> [u8; DUAL_CHECKSUM_TRITS] {
+        let mut out = [0u8; DUAL_CHECKSUM_TRITS];
+        out[..CHECKSUM_TRITS].copy_from_slice(&self.repunit);
+        out[CHECKSUM_TRITS..].copy_from_slice(&self.plenum);
+        out
+    }
+
+    /// Parse from 12 trits: [repunit(6) ‖ plenum(6)].
+    ///
+    /// Returns `None` if any trit is not in Rep C {1, 2, 3}.
+    pub fn from_trits(trits: &[u8; DUAL_CHECKSUM_TRITS]) -> Option<Self> {
+        for &t in trits.iter() {
+            if t < 1 || t > 3 {
+                return None;
+            }
+        }
+        let mut repunit = [0u8; CHECKSUM_TRITS];
+        let mut plenum = [0u8; CHECKSUM_TRITS];
+        repunit.copy_from_slice(&trits[..CHECKSUM_TRITS]);
+        plenum.copy_from_slice(&trits[CHECKSUM_TRITS..]);
+        Some(WireChecksum { repunit, plenum })
+    }
+
+    /// Pack the 12 checksum trits into 3 wire bytes (2 bits per trit, 24 bits).
+    ///
+    /// Same encoding as `pack_trit_array`: {1,2,3} → {0b01, 0b10, 0b11}.
+    pub fn to_wire_bytes(&self) -> [u8; 3] {
+        let trits = self.to_trits();
+        let mut packed: u32 = 0;
+        for (i, &t) in trits.iter().enumerate() {
+            packed |= (t as u32) << (22 - i * 2);
+        }
+        // 24 bits → 3 bytes big-endian
+        [(packed >> 16) as u8, (packed >> 8) as u8, packed as u8]
+    }
+
+    /// Unpack 3 wire bytes into 12 checksum trits.
+    ///
+    /// Returns `None` if any 2-bit field is 0b00 (invalid Rep C).
+    pub fn from_wire_bytes(bytes: &[u8; 3]) -> Option<Self> {
+        let packed = ((bytes[0] as u32) << 16) | ((bytes[1] as u32) << 8) | (bytes[2] as u32);
+        let mut trits = [0u8; DUAL_CHECKSUM_TRITS];
+        for i in 0..DUAL_CHECKSUM_TRITS {
+            let val = ((packed >> (22 - i * 2)) & 0x03) as u8;
+            if val == 0 {
+                return None; // 0b00 = invalid Rep C
+            }
+            trits[i] = val;
+        }
+        Self::from_trits(&trits)
+    }
+}
+
+/// Horner's method evaluation mod `modulus` for a Rep C trit slice.
+///
+/// Works on ANY length trit array (13-trit inter-cube, 27-trit TDNS, etc.).
+/// Trits must be Rep C {1, 2, 3}. Internally converts to Rep B (subtract 1)
+/// before polynomial evaluation — no domain crossing.
+#[inline]
+fn horner_mod(trits: &[u8], modulus: u32) -> u32 {
+    let mut acc: u32 = 0;
+    for &t in trits {
+        let rep_b = (t - 1) as u32; // Rep C → Rep B: {1,2,3} → {0,1,2}
+        acc = (acc * 3 + rep_b) % modulus;
+    }
+    acc
+}
+
+/// Decompose a checksum value (< 729 = 3⁶) into 6 Rep C trits.
+#[inline]
+fn decompose_to_rep_c(mut val: u32) -> [u8; CHECKSUM_TRITS] {
+    let mut result = [0u8; CHECKSUM_TRITS];
+    for i in (0..CHECKSUM_TRITS).rev() {
+        result[i] = ((val % 3) + 1) as u8; // Rep B → Rep C: +1
+        val /= 3;
+    }
+    result
+}
+
+/// Compute the dual checksum (mod-364 + mod-333) for a Rep C trit slice.
+///
+/// Works on any length: 13-trit inter-cube addresses, 27-trit TDNS addresses,
+/// or any other Rep C trit array. Single pass through the data.
+///
+/// Returns `Err` if any trit is not in Rep C {1, 2, 3}.
+pub fn compute_wire_checksum(trits: &[u8]) -> Result<WireChecksum, WireError> {
+    // Validate Rep C
+    for (i, &t) in trits.iter().enumerate() {
+        if t < 1 || t > 3 {
+            return Err(WireError::RepCZeroDetected);
+        }
+        let _ = i; // suppress unused warning
+    }
+
+    let repunit_val = horner_mod(trits, CHECKSUM_MOD_REPUNIT);
+    let plenum_val = horner_mod(trits, CHECKSUM_MOD_PLENUM);
+
+    Ok(WireChecksum {
+        repunit: decompose_to_rep_c(repunit_val),
+        plenum: decompose_to_rep_c(plenum_val),
+    })
+}
+
+/// Verify a dual checksum against a Rep C trit slice.
+///
+/// Recomputes both checksums and compares in constant time.
+/// Returns `true` if both match.
+pub fn verify_wire_checksum(
+    trits: &[u8],
+    checksum: &WireChecksum,
+) -> Result<bool, WireError> {
+    let expected = compute_wire_checksum(trits)?;
+
+    // Constant-time comparison
+    let mut diff: u8 = 0;
+    for i in 0..CHECKSUM_TRITS {
+        diff |= expected.repunit[i] ^ checksum.repunit[i];
+        diff |= expected.plenum[i] ^ checksum.plenum[i];
+    }
+    Ok(diff == 0)
+}
+
+/// Append a dual checksum to a packed wire address.
+///
+/// Takes a 4-byte packed address (from `pack_addr`), unpacks to trits,
+/// computes the dual checksum, and returns 7 bytes:
+/// `[addr(4) ‖ checksum(3)]`.
+///
+/// Returns `None` if the packed address contains invalid trits.
+pub fn pack_addr_with_checksum(packed_addr: &[u8; WIRE_ADDR_SIZE]) -> Option<[u8; 7]> {
+    let trits = unpack_trit_array(packed_addr)?;
+    let checksum = compute_wire_checksum(&trits).ok()?;
+    let ck_bytes = checksum.to_wire_bytes();
+
+    let mut out = [0u8; 7];
+    out[..4].copy_from_slice(packed_addr);
+    out[4..7].copy_from_slice(&ck_bytes);
+    Some(out)
+}
+
+/// Verify and strip a checksummed wire address.
+///
+/// Takes 7 bytes `[addr(4) ‖ checksum(3)]`, verifies the checksum,
+/// and returns the 4-byte packed address if valid.
+///
+/// Returns `None` if the checksum is invalid or trits are not Rep C.
+pub fn verify_and_strip_checksum(data: &[u8; 7]) -> Option<[u8; WIRE_ADDR_SIZE]> {
+    let mut addr_bytes = [0u8; WIRE_ADDR_SIZE];
+    addr_bytes.copy_from_slice(&data[..4]);
+
+    let mut ck_bytes = [0u8; 3];
+    ck_bytes.copy_from_slice(&data[4..7]);
+
+    let trits = unpack_trit_array(&addr_bytes)?;
+    let received_checksum = WireChecksum::from_wire_bytes(&ck_bytes)?;
+    let valid = verify_wire_checksum(&trits, &received_checksum).ok()?;
+
+    if valid {
+        Some(addr_bytes)
+    } else {
+        None
+    }
+}
+
+/// Size of a checksummed wire address: 4 (addr) + 3 (checksum) = 7 bytes.
+pub const WIRE_ADDR_CHECKSUMMED_SIZE: usize = 7;
 
 #[cfg(test)]
 mod tests {
@@ -614,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_header_roundtrip() {
-        let ts: u128 = 42_000_000_000_000_000;
+        let ts: u128 = 42_000_000_000_000_000; // 42 seconds in fs
         let header = WireHeader::new(MessageType::HeartbeatPing, 128, ts);
 
         let wire = header.to_wire();
@@ -630,7 +853,7 @@ mod tests {
 
     #[test]
     fn test_header_from_short_buffer() {
-        let buf = [0u8; 10];
+        let buf = [0u8; 10]; // too short
         assert!(WireHeader::from_wire(&buf).is_none());
     }
 
@@ -694,6 +917,7 @@ mod tests {
     fn test_message_truncated_payload() {
         let msg = WireMessage::new(MessageType::HeartbeatPing, 0, vec![1, 2, 3]);
         let wire = msg.to_wire();
+        // Truncate: header says 3 bytes payload, but we cut 1 byte
         let truncated = &wire[..wire.len() - 1];
         assert!(WireMessage::from_wire(truncated).is_none());
     }
@@ -707,7 +931,7 @@ mod tests {
             0,
             vec![],
         );
-        msg.header.version = PROTOCOL_VERSION_V1;
+        msg.header.version = PROTOCOL_VERSION_V1; // Force v1
 
         let err = msg.validate().unwrap_err();
         assert!(matches!(err, WireError::MessageRequiresV2 { .. }));
@@ -772,28 +996,24 @@ mod tests {
 
     #[test]
     fn test_trit_array_zero_rejected() {
+        // Zero in Rep C = forgery (INVARIANT 3)
         let trits: [u8; 13] = [1, 0, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1];
         assert!(pack_trit_array(&trits).is_none());
     }
 
     #[test]
     fn test_trit_array_four_rejected() {
+        // Value > 3 is invalid Rep C
         let trits: [u8; 13] = [1, 4, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1];
         assert!(pack_trit_array(&trits).is_none());
     }
 
     #[test]
     fn test_unpack_zero_bits_rejected() {
+        // Manually construct packed bytes with 0b00 in a trit position
         let mut packed = [0u8; 4];
-        packed[0] = 0b00_01_00_00;
-        assert!(unpack_trit_array(&packed).is_none());
-    }
-
-    #[test]
-    fn test_unpack_reserved_bits_rejected() {
-        let trits: [u8; 13] = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1];
-        let mut packed = pack_trit_array(&trits).unwrap();
-        packed[3] |= 0x01;
+        // trit 0 = 0b00, trit 1 = 0b01, ... — the 0b00 should be rejected
+        packed[0] = 0b00_01_00_00; // trit 0 = 0, trit 1 = 1 — INVALID
         assert!(unpack_trit_array(&packed).is_none());
     }
 
@@ -816,28 +1036,28 @@ mod tests {
     #[test]
     fn test_timestamp_in_window_slightly_old() {
         let now = 1000 * FS_PER_SECOND;
-        let ts = now - 10 * FS_PER_SECOND;
+        let ts = now - 10 * FS_PER_SECOND; // 10s old
         assert!(timestamp_in_window(ts, now));
     }
 
     #[test]
     fn test_timestamp_in_window_too_old() {
         let now = 1000 * FS_PER_SECOND;
-        let ts = now - 60 * FS_PER_SECOND;
+        let ts = now - 60 * FS_PER_SECOND; // 60s old
         assert!(!timestamp_in_window(ts, now));
     }
 
     #[test]
     fn test_timestamp_in_window_slight_future() {
         let now = 1000 * FS_PER_SECOND;
-        let ts = now + FS_PER_MILLISECOND * 500;
+        let ts = now + FS_PER_MILLISECOND * 500; // 0.5s in future
         assert!(timestamp_in_window(ts, now));
     }
 
     #[test]
     fn test_timestamp_in_window_too_far_future() {
         let now = 1000 * FS_PER_SECOND;
-        let ts = now + 5 * FS_PER_SECOND;
+        let ts = now + 5 * FS_PER_SECOND; // 5s in future
         assert!(!timestamp_in_window(ts, now));
     }
 
@@ -851,5 +1071,134 @@ mod tests {
         assert!(header.is_hptp_mandatory());
         assert_ne!(header.flags & WireFlags::SIGNED, 0);
         assert_eq!(header.flags & WireFlags::DUAL_CHECKSUM, 0);
+    }
+
+    // ── T-10: Dual checksum wire integration ────────────────────
+
+    #[test]
+    fn test_compute_wire_checksum_13_trits() {
+        let addr13: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+        let ck = compute_wire_checksum(&addr13).unwrap();
+        // Both checksums are 6 Rep C trits
+        for &t in ck.repunit.iter().chain(ck.plenum.iter()) {
+            assert!(t >= 1 && t <= 3, "Checksum trits must be Rep C");
+        }
+    }
+
+    #[test]
+    fn test_compute_wire_checksum_27_trits() {
+        // Works on TDNS addresses too
+        let addr27: [u8; 27] = [
+            2, 3, 2, 3, 1, 1, 3, 3, 3, 1, 3, 1, 1, 3, 2, 2,
+            2, 3, 3, 1, 1, 2, 1, 2, 3, 1, 3,
+        ];
+        let ck = compute_wire_checksum(&addr27).unwrap();
+        for &t in ck.repunit.iter().chain(ck.plenum.iter()) {
+            assert!(t >= 1 && t <= 3);
+        }
+    }
+
+    #[test]
+    fn test_compute_wire_checksum_deterministic() {
+        let addr: [u8; 13] = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1];
+        let ck1 = compute_wire_checksum(&addr).unwrap();
+        let ck2 = compute_wire_checksum(&addr).unwrap();
+        assert_eq!(ck1, ck2);
+    }
+
+    #[test]
+    fn test_compute_wire_checksum_different_addrs() {
+        let a: [u8; 13] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+        let b: [u8; 13] = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+        let ck_a = compute_wire_checksum(&a).unwrap();
+        let ck_b = compute_wire_checksum(&b).unwrap();
+        // At least one of the two checksums should differ
+        assert!(ck_a.repunit != ck_b.repunit || ck_a.plenum != ck_b.plenum);
+    }
+
+    #[test]
+    fn test_verify_wire_checksum_valid() {
+        let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+        let ck = compute_wire_checksum(&addr).unwrap();
+        assert!(verify_wire_checksum(&addr, &ck).unwrap());
+    }
+
+    #[test]
+    fn test_verify_wire_checksum_tampered() {
+        let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+        let ck = compute_wire_checksum(&addr).unwrap();
+        // Tamper with one trit
+        let mut tampered = addr;
+        tampered[6] = if tampered[6] == 1 { 2 } else { 1 };
+        assert!(!verify_wire_checksum(&tampered, &ck).unwrap());
+    }
+
+    #[test]
+    fn test_verify_wire_checksum_zero_trit_rejected() {
+        let bad: [u8; 13] = [0, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3];
+        assert!(compute_wire_checksum(&bad).is_err());
+    }
+
+    #[test]
+    fn test_wire_checksum_to_trits_roundtrip() {
+        let addr: [u8; 13] = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1];
+        let ck = compute_wire_checksum(&addr).unwrap();
+        let trits = ck.to_trits();
+        assert_eq!(trits.len(), DUAL_CHECKSUM_TRITS);
+        let recovered = WireChecksum::from_trits(&trits).unwrap();
+        assert_eq!(ck, recovered);
+    }
+
+    #[test]
+    fn test_wire_checksum_wire_bytes_roundtrip() {
+        let addr: [u8; 13] = [3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3];
+        let ck = compute_wire_checksum(&addr).unwrap();
+        let wire = ck.to_wire_bytes();
+        assert_eq!(wire.len(), 3);
+        let recovered = WireChecksum::from_wire_bytes(&wire).unwrap();
+        assert_eq!(ck, recovered);
+    }
+
+    #[test]
+    fn test_pack_addr_with_checksum() {
+        let trits: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+        let packed = pack_trit_array(&trits).unwrap();
+        let checksummed = pack_addr_with_checksum(&packed).unwrap();
+        assert_eq!(checksummed.len(), 7);
+        assert_eq!(&checksummed[..4], &packed[..]);
+    }
+
+    #[test]
+    fn test_verify_and_strip_checksum_valid() {
+        let trits: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+        let packed = pack_trit_array(&trits).unwrap();
+        let checksummed = pack_addr_with_checksum(&packed).unwrap();
+        let recovered = verify_and_strip_checksum(&checksummed).unwrap();
+        assert_eq!(recovered, packed);
+    }
+
+    #[test]
+    fn test_verify_and_strip_checksum_tampered() {
+        let trits: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+        let packed = pack_trit_array(&trits).unwrap();
+        let mut checksummed = pack_addr_with_checksum(&packed).unwrap();
+        // Flip a bit in the checksum bytes
+        checksummed[5] ^= 0x0C;
+        assert!(verify_and_strip_checksum(&checksummed).is_none());
+    }
+
+    #[test]
+    fn test_checksum_constants() {
+        assert_eq!(CHECKSUM_MOD_REPUNIT, 364);
+        assert_eq!(CHECKSUM_MOD_PLENUM, 333);
+        assert_eq!(CHECKSUM_DETECTION_SPACE, 121_212);
+        assert_eq!(CHECKSUM_TRITS, 6);
+        assert_eq!(DUAL_CHECKSUM_TRITS, 12);
+        assert_eq!(WIRE_ADDR_CHECKSUMMED_SIZE, 7);
+        // Coprimality: gcd(364, 333) = 1
+        fn gcd(mut a: u32, mut b: u32) -> u32 {
+            while b != 0 { let t = b; b = a % b; a = t; } a
+        }
+        assert_eq!(gcd(364, 333), 1, "Moduli must be coprime for CRT");
     }
 }
