@@ -45,7 +45,9 @@ import {
   Timer,
   Gauge,
   FlaskRound,
-  TrendingUp
+  TrendingUp,
+  MapPin,
+  Microchip
 } from "lucide-react";
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, useInView } from "framer-motion";
@@ -439,6 +441,18 @@ function PlatformSection() {
       title: "Post-Quantum Security",
       description: "CNSA 2.0 algorithm coverage with phase encryption, Lamport signatures, ternary HMAC, and sponge-based hashing resistant to quantum attacks.",
       stats: "CNSA 2.0",
+    },
+    {
+      icon: MapPin,
+      title: "TDNS v2.5 Addressing",
+      description: "54-trit dual-layer ontological addressing with TL-Sponge-43 identity derivation and TIS-27 wire integrity. Org entities, scan registration, resolution, and formal scaling analysis.",
+      stats: "54-trit addresses",
+    },
+    {
+      icon: Microchip,
+      title: "XPlenum RISC-V Extension",
+      description: "Custom RISC-V extension integrated with CVA6 providing 21 custom instructions and 12 CSRs for ternary security operations, PQC acceleration, and hardware compliance.",
+      stats: "21 instructions",
     },
   ];
 
