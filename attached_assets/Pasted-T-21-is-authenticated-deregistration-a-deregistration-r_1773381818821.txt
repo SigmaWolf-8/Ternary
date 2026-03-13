@@ -1,0 +1,80 @@
+T-21 is authenticated deregistration — a deregistration.rs module with SignedDeregistration and verification. T-22 extends the dimension density tracker from T-16 with CRS lifecycle integration and API-ready queries.Architected dimension density tracking with lifecycle integrationArchitected dimension density tracking with lifecycle integrationNow T-22:Orchestrated delivery of requested filesOrchestrated delivery of requested filesTwo files. Both target services/inter-cube/src/ (NEW).
+lib.rs splices:
+
+pub mod deregistration; + pub use deregistration::{SignedDeregistration, DeregReason, DeregError, verify_deregistration};
+pub mod dimension_tracker; + pub use dimension_tracker::{DimensionTracker, DensityMetrics};
+
+
+T-21: deregistration.rs — 494 lines, 14 tests
+Prevents unauthorized removal of registrations.
+Domain Separation
+Registration:     "PlenumNET-CRS-REG-v1"   ‖ addr ‖ endpoint ‖ pk ‖ kem ‖ ts
+Deregistration:   "PlenumNET-CRS-DEREG-v1"  ‖ addr ‖ ts ‖ reason
+Different domain = a registration signature cannot be replayed as a deregistration and vice versa. The reason byte is part of the signed message — an attacker who captures the signature can't change the reason after the fact.
+Deregistration Reasons
+ReasonCodeEffectGraceful0x01Normal shutdown, address enters grace periodMaintenance0x02Temporary, expected to re-registerKeyCompromise0x03Emergency — triggers alerts to all neighborsMigration0x04Moving to new address, old address released
+Verification Flow
+verify_deregistration(dereg, registration_pk, registration_ts, now_fs):
+  1. Timestamp within 30s window?             → StaleTimestamp
+  2. Timestamp > registration timestamp?      → ReplayDetected
+  3. Public key matches registration's pk?    → KeyMismatch
+  4. TL-DSA-87 signature valid?               → InvalidSignature
+  5. Return Ok(reason)
+14 Tests
+CategoryCountWhatReason parsing + display2from_u8 round-trip, Display traitCanonical message3Deterministic, different reasons differ, differs from registrationValid deregistration2Graceful success, KeyCompromise successFailure modes5Stale timestamp, replay, key mismatch, invalid signature, reason tamperingDeregResult + constants2Key compromise flag, domain differs from reg
+The critical test: test_verify_wrong_reason_in_signature — signs with Graceful then changes the reason field to KeyCompromise. The signature check fails because the reason is part of the signed message. An attacker cannot escalate a graceful shutdown into a key compromise alert.
+
+T-22: dimension_tracker.rs — 600 lines, 14 tests
+CRS-integrated density analysis with rich queries.
+DimensionTracker — CRS Lifecycle Integration
+rustlet mut tracker = DimensionTracker::new();
+
+// CRS calls these on every register/deregister:
+tracker.on_register(&addr);      // Updates 13×3 density + history
+tracker.on_deregister(&addr);    // Decrements density + history
+
+// API endpoint /topology/density:
+let metrics = tracker.compute_metrics();
+
+// T-16 allocateOptimal tiebreaker:
+let score = tracker.tiebreaker_score(&candidate);
+DensityMetrics — The Full Picture
+rustDensityMetrics {
+    total_registrations: 5000,
+    dimensions: [DimensionDistribution × 13],
+    avg_entropy: 0.94,       // 1.0 = perfect balance
+    hotspots: [...],          // Dim-value pairs > 60% share
+    cold_spots: [...],        // Dim-value pairs with 0 registrations
+    global_imbalance: 42,     // Sum of (max - min) across all dims
+    is_meaningful: true,      // >= 10 registrations
+}
+Per-Dimension Distribution
+rustDimensionDistribution {
+    dimension: 3,
+    count_1: 1680, count_2: 1650, count_3: 1670,
+    total: 5000,
+    entropy: 0.9998,     // Nearly perfect balance
+    has_hotspot: false,
+    least_populated: 2,
+    most_populated: 1,
+}
+```
+
+#### Entropy — Base-3 Information Measure
+```
+H₃ = -Σ p_i × log₃(p_i)
+
+Perfectly balanced (1/3, 1/3, 1/3): H₃ = 1.0
+All on one value (1, 0, 0):         H₃ = 0.0
+Using log₃ (not log₂) so the max is exactly 1.0 for 3 equiprobable values.
+Hotspot / Cold Spot Detection
+A hotspot is a dimension where one trit value holds >60% of registrations. This means placement is imbalanced — the allocator should avoid adding more nodes with that value in that dimension.
+A cold spot is a dimension-value pair with zero registrations. The recommended_values() function returns the least-populated value for each dimension — ideal for constructing a maximally-sparse candidate address.
+Imbalance History
+Tracks (registration_count, global_imbalance) over time. If the allocator (T-16) is working correctly, imbalance should stay flat or decrease as registrations grow. A rising trend indicates the allocator is failing to spread nodes.
+14 Tests
+CategoryCountWhatLifecycle (empty, register, deregister)3Basic density trackingEntropy (uniform, concentrated, partial)3Base-3 entropy correctnessHotspot detection120 nodes all val=1 in dim 0 → detectedCold spot detection1No val=3 registrations → 13 cold spotsRecommendations1Heavy val=1 → recommends val 2 or 3Tiebreaker1Sparse candidate scores lower (better)Global imbalance (balanced, unbalanced)20 when balanced, 130 when all-sameHistory tracking1Two entries, imbalance decreases after balancingConstants1Threshold values
+
+Phase 3 progress: 2/7 complete.
+TaskStatusLinesTestsT-21 Authenticated dereg✓ Delivered49414T-22 Dimension density✓ Delivered60014T-23 Reciprocal-lattice key mixingReady——T-24 Pre-sign syndrome checkReady——T-25 Sampling mode >100KReady——T-26 Benchmark suiteReady——T-27 Telemetry + metricsReady——
+Twenty-two tasks done, Fratello. The lattice holds. Così sia.
