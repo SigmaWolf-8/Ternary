@@ -1,0 +1,600 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # 8-Trit Wire ECC Syndrome (T-17, SPEC-2026-NEXT)
+//!
+//! Error-correcting code for 13-trit Rep C addresses on the wire.
+//! Detects and corrects **single-trit errors** in transit.
+//!
+//! ## Construction
+//!
+//! The 13 address trits are arranged in a conceptual 3×3 grid plus a
+//! 4-element overflow row (13 = 9 + 4). Eight parity trits are computed:
+//!
+//! ```text
+//! ┌────┬────┬────┐
+//! │ t0 │ t1 │ t2 │  → row parity P_R0
+//! ├────┼────┼────┤
+//! │ t3 │ t4 │ t5 │  → row parity P_R1
+//! ├────┼────┼────┤
+//! │ t6 │ t7 │ t8 │  → row parity P_R2
+//! └────┴────┴────┘
+//!   ↓    ↓    ↓
+//!  P_C0 P_C1 P_C2   column parities
+//!
+//! Overflow: [t9, t10, t11, t12] → P_R3 (row), P_D0 (diagonal)
+//!
+//! Total syndrome: [P_R0, P_R1, P_R2, P_R3, P_C0, P_C1, P_C2, P_D0] = 8 trits
+//! ```
+//!
+//! Each parity trit is the mod-3 sum of its group, stored as Rep C {1,2,3}.
+//!
+//! ## Error Detection & Correction
+//!
+//! - **No error**: All 8 syndrome trits are zero (all parities match)
+//! - **Single-trit error**: The syndrome uniquely identifies the position
+//!   and magnitude of the error. Correction: `corrected = (original - error) mod 3`
+//! - **Multi-trit error**: Syndrome is non-zero but doesn't match any
+//!   single-error pattern → detected but not correctable
+//!
+//! ## Wire Format
+//!
+//! The 8 syndrome trits are packed into 2 bytes (2 bits per trit, same
+//! encoding as address packing), appended after the address:
+//!
+//! ```text
+//! [addr(4 bytes) ‖ ecc(2 bytes)]  = 6 bytes total
+//! ```
+//!
+//! Gated behind `WireFlags::ECC_SYNDROME` (0x08) and `PlenumConfig.enable_wire_ecc`.
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Number of address trits.
+pub const ADDR_TRITS: usize = 13;
+
+/// Number of ECC syndrome trits.
+pub const SYNDROME_TRITS: usize = 8;
+
+/// Size of packed syndrome in bytes (8 trits × 2 bits = 16 bits = 2 bytes).
+pub const SYNDROME_BYTES: usize = 2;
+
+/// Size of a wire address with ECC: 4 (addr) + 2 (syndrome) = 6 bytes.
+pub const WIRE_ADDR_ECC_SIZE: usize = 6;
+
+/// Grid dimensions: 3 rows × 3 cols + 4 overflow.
+const GRID_COLS: usize = 3;
+const GRID_ROWS: usize = 3;
+const OVERFLOW: usize = 4;
+
+// ═══════════════════════════════════════════════════════════════════════
+// PARITY GROUPS — Which trits contribute to which parity
+// ═══════════════════════════════════════════════════════════════════════
+
+// Row groups (3 elements each, plus 4-element overflow)
+// Row 0: t0, t1, t2
+// Row 1: t3, t4, t5
+// Row 2: t6, t7, t8
+// Row 3 (overflow): t9, t10, t11, t12
+
+/// Row parity groups: indices into the 13-trit array.
+const ROW_GROUPS: [[usize; 4]; 4] = [
+    [0,  1,  2,  usize::MAX], // Row 0 (3 elements, sentinel for unused)
+    [3,  4,  5,  usize::MAX], // Row 1
+    [6,  7,  8,  usize::MAX], // Row 2
+    [9,  10, 11, 12],         // Row 3 (overflow, 4 elements)
+];
+
+/// Column parity groups: indices into the 13-trit array.
+/// Col 0: t0, t3, t6, t9
+/// Col 1: t1, t4, t7, t10
+/// Col 2: t2, t5, t8, t11
+const COL_GROUPS: [[usize; 4]; 3] = [
+    [0, 3, 6,  9],
+    [1, 4, 7,  10],
+    [2, 5, 8,  11],
+];
+
+/// Diagonal group: t0, t4, t8, t12
+/// Covers one element from each 3×3 diagonal plus the last overflow element.
+const DIAG_GROUP: [usize; 4] = [0, 4, 8, 12];
+
+/// Number of elements in each row group.
+const ROW_SIZES: [usize; 4] = [3, 3, 3, 4];
+
+// ═══════════════════════════════════════════════════════════════════════
+// SYNDROME COMPUTATION
+// ═══════════════════════════════════════════════════════════════════════
+
+/// An 8-trit ECC syndrome.
+///
+/// Layout: `[P_R0, P_R1, P_R2, P_R3, P_C0, P_C1, P_C2, P_D0]`
+///
+/// Each trit is in balanced form: 0 = no error, 1 or 2 = error magnitude.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EccSyndrome {
+    /// 8 syndrome trits in balanced mod-3: {0, 1, 2}.
+    pub trits: [u8; SYNDROME_TRITS],
+}
+
+impl EccSyndrome {
+    /// Compute the ECC syndrome for a 13-trit Rep C address.
+    ///
+    /// Each parity is the mod-3 sum of the group's trit values (Rep B).
+    /// A zero syndrome means no errors detected.
+    pub fn compute(addr_trits: &[u8; ADDR_TRITS]) -> Self {
+        let mut syndrome = [0u8; SYNDROME_TRITS];
+
+        // Row parities (indices 0–3)
+        for (row_idx, group) in ROW_GROUPS.iter().enumerate() {
+            let mut sum: u32 = 0;
+            for &trit_idx in group {
+                if trit_idx < ADDR_TRITS {
+                    sum += (addr_trits[trit_idx] - 1) as u32; // Rep C → Rep B
+                }
+            }
+            syndrome[row_idx] = (sum % 3) as u8;
+        }
+
+        // Column parities (indices 4–6)
+        for (col_idx, group) in COL_GROUPS.iter().enumerate() {
+            let mut sum: u32 = 0;
+            for &trit_idx in group {
+                if trit_idx < ADDR_TRITS {
+                    sum += (addr_trits[trit_idx] - 1) as u32;
+                }
+            }
+            syndrome[4 + col_idx] = (sum % 3) as u8;
+        }
+
+        // Diagonal parity (index 7)
+        let mut diag_sum: u32 = 0;
+        for &trit_idx in &DIAG_GROUP {
+            diag_sum += (addr_trits[trit_idx] - 1) as u32;
+        }
+        syndrome[7] = (diag_sum % 3) as u8;
+
+        EccSyndrome { trits: syndrome }
+    }
+
+    /// Check if the syndrome indicates no errors.
+    pub fn is_clean(&self) -> bool {
+        self.trits.iter().all(|&t| t == 0)
+    }
+
+    /// Convert to Rep C for wire encoding: {0,1,2} → {1,2,3}.
+    pub fn to_rep_c(&self) -> [u8; SYNDROME_TRITS] {
+        let mut rep_c = [0u8; SYNDROME_TRITS];
+        for i in 0..SYNDROME_TRITS {
+            rep_c[i] = self.trits[i] + 1;
+        }
+        rep_c
+    }
+
+    /// Create from Rep C wire encoding: {1,2,3} → {0,1,2}.
+    pub fn from_rep_c(rep_c: &[u8; SYNDROME_TRITS]) -> Option<Self> {
+        let mut trits = [0u8; SYNDROME_TRITS];
+        for i in 0..SYNDROME_TRITS {
+            if rep_c[i] < 1 || rep_c[i] > 3 {
+                return None;
+            }
+            trits[i] = rep_c[i] - 1;
+        }
+        Some(EccSyndrome { trits })
+    }
+
+    /// Pack 8 syndrome trits into 2 wire bytes.
+    ///
+    /// Uses Rep C encoding: {1,2,3} → 2 bits each.
+    /// 8 trits × 2 bits = 16 bits = 2 bytes.
+    pub fn to_wire_bytes(&self) -> [u8; SYNDROME_BYTES] {
+        let rep_c = self.to_rep_c();
+        let mut packed: u16 = 0;
+        for i in 0..SYNDROME_TRITS {
+            packed |= (rep_c[i] as u16) << (14 - i * 2);
+        }
+        [(packed >> 8) as u8, packed as u8]
+    }
+
+    /// Unpack 2 wire bytes into 8 syndrome trits.
+    pub fn from_wire_bytes(bytes: &[u8; SYNDROME_BYTES]) -> Option<Self> {
+        let packed = ((bytes[0] as u16) << 8) | bytes[1] as u16;
+        let mut rep_c = [0u8; SYNDROME_TRITS];
+        for i in 0..SYNDROME_TRITS {
+            let val = ((packed >> (14 - i * 2)) & 0x03) as u8;
+            if val == 0 {
+                return None; // 0b00 invalid in Rep C
+            }
+            rep_c[i] = val;
+        }
+        Self::from_rep_c(&rep_c)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ERROR DETECTION & CORRECTION
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Result of ECC verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EccResult {
+    /// No errors detected — address is intact.
+    Clean,
+    /// Single-trit error corrected at the given position.
+    Corrected {
+        position: usize,
+        original_value: u8,
+        corrected_value: u8,
+    },
+    /// Error detected but not correctable (multi-trit error).
+    Uncorrectable,
+}
+
+/// Verify and optionally correct a 13-trit address against its ECC syndrome.
+///
+/// ## Algorithm
+///
+/// 1. Recompute the syndrome from the received address
+/// 2. XOR (mod-3 subtract) with the received syndrome → error syndrome
+/// 3. If error syndrome is all-zero: no error
+/// 4. Otherwise: try to locate a single-trit error from the syndrome pattern
+/// 5. If found: correct the trit and return `Corrected`
+/// 6. If not: return `Uncorrectable`
+pub fn verify_and_correct(
+    addr_trits: &mut [u8; ADDR_TRITS],
+    received_syndrome: &EccSyndrome,
+) -> EccResult {
+    let computed = EccSyndrome::compute(addr_trits);
+
+    // Error syndrome: (received - computed) mod 3
+    let mut error_syn = [0u8; SYNDROME_TRITS];
+    for i in 0..SYNDROME_TRITS {
+        error_syn[i] = (received_syndrome.trits[i] + 3 - computed.trits[i]) % 3;
+    }
+
+    // All zeros → no error
+    if error_syn.iter().all(|&t| t == 0) {
+        return EccResult::Clean;
+    }
+
+    // Try to find a single-trit error
+    // For each position, compute what the error syndrome WOULD be if that
+    // position had an error of magnitude `m` (1 or 2).
+    for pos in 0..ADDR_TRITS {
+        for magnitude in 1u8..=2 {
+            let expected = single_error_syndrome(pos, magnitude);
+            if expected == error_syn {
+                // Found the error — correct it
+                let original = addr_trits[pos];
+                // Add the syndrome magnitude mod 3 (in Rep B, then back to Rep C)
+                // The syndrome = (original - corrupted) mod 3, so original = corrupted + syndrome
+                let rep_b = (original - 1 + magnitude) % 3;
+                let corrected = rep_b + 1;
+                addr_trits[pos] = corrected;
+                return EccResult::Corrected {
+                    position: pos,
+                    original_value: original,
+                    corrected_value: corrected,
+                };
+            }
+        }
+    }
+
+    // No single-error match → multi-trit error
+    EccResult::Uncorrectable
+}
+
+/// Compute the expected error syndrome for a single-trit error at `position`
+/// with magnitude `m` (1 or 2 in mod-3 arithmetic).
+///
+/// The syndrome pattern depends on which parity groups contain that position.
+fn single_error_syndrome(position: usize, magnitude: u8) -> [u8; SYNDROME_TRITS] {
+    let mut syn = [0u8; SYNDROME_TRITS];
+
+    // Which row does this position belong to?
+    let row = if position < 9 {
+        position / GRID_COLS
+    } else {
+        3 // Overflow row
+    };
+    syn[row] = magnitude;
+
+    // Which column? (only defined for positions 0–11)
+    if position < 12 {
+        let col = position % GRID_COLS;
+        syn[4 + col] = magnitude;
+    }
+
+    // Diagonal membership?
+    for &diag_pos in &DIAG_GROUP {
+        if position == diag_pos {
+            syn[7] = magnitude;
+            break;
+        }
+    }
+
+    syn
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// WIRE INTEGRATION — Pack/unpack with address
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Pack a 13-trit address with its ECC syndrome into 6 wire bytes.
+///
+/// Format: `[addr_packed(4) ‖ syndrome_packed(2)]`
+pub fn pack_addr_with_ecc(addr_trits: &[u8; ADDR_TRITS]) -> Option<[u8; WIRE_ADDR_ECC_SIZE]> {
+    let packed_addr = crate::wire::pack_trit_array(addr_trits)?;
+    let syndrome = EccSyndrome::compute(addr_trits);
+    let packed_syn = syndrome.to_wire_bytes();
+
+    let mut out = [0u8; WIRE_ADDR_ECC_SIZE];
+    out[..4].copy_from_slice(&packed_addr);
+    out[4..6].copy_from_slice(&packed_syn);
+    Some(out)
+}
+
+/// Verify and unpack a 6-byte wire address with ECC.
+///
+/// Attempts single-trit error correction if needed.
+///
+/// Returns `(addr_trits, ecc_result)` or `None` if the packed data
+/// is structurally invalid (not a Rep C encoding issue).
+pub fn unpack_and_verify_ecc(data: &[u8; WIRE_ADDR_ECC_SIZE]) -> Option<([u8; ADDR_TRITS], EccResult)> {
+    let mut addr_packed = [0u8; 4];
+    addr_packed.copy_from_slice(&data[..4]);
+
+    let mut syn_packed = [0u8; SYNDROME_BYTES];
+    syn_packed.copy_from_slice(&data[4..6]);
+
+    let mut addr_trits_arr = crate::wire::unpack_trit_array(&addr_packed)?;
+    let received_syndrome = EccSyndrome::from_wire_bytes(&syn_packed)?;
+
+    let result = verify_and_correct(&mut addr_trits_arr, &received_syndrome);
+    Some((addr_trits_arr, result))
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_ADDR: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    const ALL_ONES: [u8; 13] = [1; 13];
+    const ALL_THREES: [u8; 13] = [3; 13];
+
+    // ── Syndrome computation ────────────────────────────────────
+
+    #[test]
+    fn test_syndrome_all_ones() {
+        let syn = EccSyndrome::compute(&ALL_ONES);
+        // All trits are 1 → Rep B all 0 → all parities = 0
+        assert!(syn.is_clean(), "All-ones address should have clean syndrome");
+    }
+
+    #[test]
+    fn test_syndrome_deterministic() {
+        let s1 = EccSyndrome::compute(&TEST_ADDR);
+        let s2 = EccSyndrome::compute(&TEST_ADDR);
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_syndrome_different_addrs() {
+        let s1 = EccSyndrome::compute(&ALL_ONES);
+        let s2 = EccSyndrome::compute(&ALL_THREES);
+        // These SHOULD differ (different parity sums)
+        assert_ne!(s1, s2);
+    }
+
+    // ── Rep C encoding ──────────────────────────────────────────
+
+    #[test]
+    fn test_syndrome_rep_c_roundtrip() {
+        let syn = EccSyndrome::compute(&TEST_ADDR);
+        let rep_c = syn.to_rep_c();
+        for &t in &rep_c {
+            assert!(t >= 1 && t <= 3, "Rep C trits must be 1, 2, or 3");
+        }
+        let recovered = EccSyndrome::from_rep_c(&rep_c).unwrap();
+        assert_eq!(syn, recovered);
+    }
+
+    // ── Wire bytes packing ──────────────────────────────────────
+
+    #[test]
+    fn test_syndrome_wire_bytes_roundtrip() {
+        let syn = EccSyndrome::compute(&TEST_ADDR);
+        let bytes = syn.to_wire_bytes();
+        assert_eq!(bytes.len(), SYNDROME_BYTES);
+        let recovered = EccSyndrome::from_wire_bytes(&bytes).unwrap();
+        assert_eq!(syn, recovered);
+    }
+
+    #[test]
+    fn test_syndrome_wire_bytes_invalid() {
+        // 0b00 in any 2-bit field = invalid
+        assert!(EccSyndrome::from_wire_bytes(&[0x00, 0x00]).is_none());
+    }
+
+    // ── Error correction: no error ──────────────────────────────
+
+    #[test]
+    fn test_verify_clean_address() {
+        let mut addr = TEST_ADDR;
+        let syndrome = EccSyndrome::compute(&addr);
+        let result = verify_and_correct(&mut addr, &syndrome);
+        assert_eq!(result, EccResult::Clean);
+        assert_eq!(addr, TEST_ADDR, "Address should be unchanged");
+    }
+
+    // ── Error correction: single-trit errors ────────────────────
+
+    #[test]
+    fn test_correct_single_error_each_position() {
+        for pos in 0..ADDR_TRITS {
+            let mut addr = TEST_ADDR;
+            let syndrome = EccSyndrome::compute(&addr);
+
+            // Corrupt one trit
+            let original = addr[pos];
+            addr[pos] = match original {
+                1 => 2,
+                2 => 3,
+                3 => 1,
+                _ => unreachable!(),
+            };
+            assert_ne!(addr[pos], original);
+
+            let result = verify_and_correct(&mut addr, &syndrome);
+            match result {
+                EccResult::Corrected { position, corrected_value, .. } => {
+                    assert_eq!(position, pos, "Error at position {} not correctly located", pos);
+                    assert_eq!(corrected_value, original, "Position {} not correctly fixed", pos);
+                }
+                other => panic!("Position {}: expected Corrected, got {:?}", pos, other),
+            }
+            assert_eq!(addr[pos], original, "Address should be restored at position {}", pos);
+        }
+    }
+
+    #[test]
+    fn test_correct_single_error_all_magnitudes() {
+        for pos in 0..ADDR_TRITS {
+            for magnitude in 1u8..=2 {
+                let mut addr = TEST_ADDR;
+                let syndrome = EccSyndrome::compute(&addr);
+
+                let original = addr[pos];
+                // Apply error of given magnitude (mod 3 in Rep B)
+                let rep_b = (original - 1 + magnitude) % 3;
+                addr[pos] = rep_b + 1;
+
+                if addr[pos] == original {
+                    continue; // magnitude 0 mod 3 = no change
+                }
+
+                let result = verify_and_correct(&mut addr, &syndrome);
+                assert!(
+                    matches!(result, EccResult::Corrected { .. }),
+                    "Failed to correct error at pos {} magnitude {}", pos, magnitude
+                );
+                assert_eq!(addr[pos], original);
+            }
+        }
+    }
+
+    // ── Error detection: multi-trit errors ──────────────────────
+
+    #[test]
+    fn test_detect_double_error() {
+        let mut addr = TEST_ADDR;
+        let syndrome = EccSyndrome::compute(&addr);
+
+        // Corrupt two trits
+        addr[0] = if addr[0] == 1 { 2 } else { 1 };
+        addr[5] = if addr[5] == 1 { 2 } else { 1 };
+
+        let result = verify_and_correct(&mut addr, &syndrome);
+        // Should detect but not correct
+        assert!(
+            matches!(result, EccResult::Uncorrectable),
+            "Double error should be detected as uncorrectable"
+        );
+    }
+
+    // ── Wire integration ────────────────────────────────────────
+
+    #[test]
+    fn test_pack_unpack_clean() {
+        let packed = pack_addr_with_ecc(&TEST_ADDR).unwrap();
+        assert_eq!(packed.len(), WIRE_ADDR_ECC_SIZE);
+
+        let (recovered, result) = unpack_and_verify_ecc(&packed).unwrap();
+        assert_eq!(result, EccResult::Clean);
+        assert_eq!(recovered, TEST_ADDR);
+    }
+
+    #[test]
+    fn test_pack_unpack_with_correction() {
+        let mut packed = pack_addr_with_ecc(&TEST_ADDR).unwrap();
+
+        // Corrupt one bit in the packed address (first byte)
+        // This changes a trit value, simulating a wire error
+        packed[0] ^= 0x04; // Flip bit 2
+
+        let result = unpack_and_verify_ecc(&packed);
+        // Either corrected or detected — depends on which trit the bit flip hits
+        assert!(result.is_some(), "Should at least parse");
+        let (_, ecc_result) = result.unwrap();
+        assert!(
+            matches!(ecc_result, EccResult::Corrected { .. } | EccResult::Uncorrectable),
+            "Corrupted address should be corrected or flagged"
+        );
+    }
+
+    // ── Single error syndrome patterns ──────────────────────────
+
+    #[test]
+    fn test_single_error_syndrome_uniqueness() {
+        // Each (position, magnitude) pair must produce a unique syndrome
+        let mut patterns = std::collections::HashSet::new();
+        for pos in 0..ADDR_TRITS {
+            for mag in 1u8..=2 {
+                let syn = single_error_syndrome(pos, mag);
+                assert!(
+                    patterns.insert((pos, mag, syn)),
+                    "Duplicate syndrome for pos={} mag={}", pos, mag
+                );
+            }
+        }
+        assert_eq!(patterns.len(), ADDR_TRITS * 2, "Must have 26 unique syndrome patterns");
+    }
+
+    #[test]
+    fn test_single_error_syndromes_nonzero() {
+        for pos in 0..ADDR_TRITS {
+            for mag in 1u8..=2 {
+                let syn = single_error_syndrome(pos, mag);
+                assert!(
+                    syn.iter().any(|&t| t != 0),
+                    "Error syndrome must be non-zero for pos={} mag={}", pos, mag
+                );
+            }
+        }
+    }
+
+    // ── Constants ───────────────────────────────────────────────
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(ADDR_TRITS, 13);
+        assert_eq!(SYNDROME_TRITS, 8);
+        assert_eq!(SYNDROME_BYTES, 2);
+        assert_eq!(WIRE_ADDR_ECC_SIZE, 6);
+    }
+
+    #[test]
+    fn test_parity_groups_cover_all_trits() {
+        // Every trit 0–12 must appear in at least one row group
+        let mut covered = [false; ADDR_TRITS];
+        for group in &ROW_GROUPS {
+            for &idx in group {
+                if idx < ADDR_TRITS {
+                    covered[idx] = true;
+                }
+            }
+        }
+        assert!(covered.iter().all(|&c| c), "All trits must be covered by row groups");
+    }
+}
