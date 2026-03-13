@@ -281,7 +281,7 @@ function HeroSection() {
 
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Foundation</span>
+                    <span className="text-base font-medium tracking-wide uppercase text-muted-foreground">The Foundation</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#components" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-build">
                       I want to build on it
@@ -301,7 +301,7 @@ function HeroSection() {
 
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Architecture</span>
+                    <span className="text-base font-medium tracking-wide uppercase text-muted-foreground">The Architecture</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#geometric-foundations" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-understand">
                       I want to understand how it works
@@ -324,7 +324,7 @@ function HeroSection() {
 
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Opportunity</span>
+                    <span className="text-base font-medium tracking-wide uppercase text-muted-foreground">The Opportunity</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#performance" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-evaluate">
                       I want to evaluate the business case
