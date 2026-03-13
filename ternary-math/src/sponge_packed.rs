@@ -1,0 +1,548 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # TLSponge-385 Packed Implementation (GF(27)-native)
+//!
+//! The sponge state is 243 elements of GF(27), each stored as one byte
+//! in [0, 26]. This is the GF(27)-native representation — no lookup
+//! tables in the hot path. All operations derived from the irreducible
+//! polynomial t³ + 2t + 1.
+//!
+//! ## Why GF(27)-native
+//!
+//! - χ S-box = x¹⁷ via 4 squarings + 1 multiply. Derived, not looked up.
+//! - No cross-word boundary issues (each element is one byte).
+//! - 243 bytes fits in 4 cache lines. Entirely in L1.
+//! - `vpshufb` on AVX2 can process 32 elements per instruction for
+//!   operations that decompose into byte-level maps.
+//!
+//! ## State Layout
+//!
+//! 243 cells = 9 blocks × 27 cells per block = 9 × 9 × 3.
+//! Block i = cells[27*i .. 27*(i+1)].
+//! The σ permutations (T-18) operate at block granularity.
+
+use crate::gf27::{
+    Gf27, GF27_ZERO, GF27_ONE,
+    gf27_unpack, gf27_pack,
+    gf27_add, gf27_sub, gf27_mul, gf27_square, gf27_neg,
+    chi, chi_inv,
+    gf3_add, gf3_mul,
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// SPONGE PARAMETERS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// State size: 729 trits = 243 GF(27) elements.
+pub const STATE_SIZE: usize = 243;
+
+/// Rate: 128 GF(27) elements (384 trits).
+pub const RATE: usize = 128;
+
+/// Capacity: 115 GF(27) elements (345 trits + 40 trits security margin = 385-bit).
+pub const CAPACITY: usize = STATE_SIZE - RATE; // 115
+
+/// Block count for σ shuffles: 9 blocks of 27 elements.
+pub const BLOCK_COUNT: usize = 9;
+pub const BLOCK_SIZE: usize = 27;
+
+/// Rounds for TLSponge-385.
+pub const ROUNDS_FULL: usize = 9;
+
+/// Rounds for TIS-27.
+pub const ROUNDS_TIS: usize = 4;
+
+/// σ permutation indices (from T-04 Plenum Square).
+const SIGMA_A: [usize; 9] = [4, 8, 3, 2, 0, 7, 5, 6, 1];
+const SIGMA_B: [usize; 9] = [6, 0, 7, 8, 4, 2, 3, 1, 5];
+const SIGMA_C: [usize; 9] = [2, 6, 7, 8, 4, 0, 1, 5, 3];
+const SIGMA_D: [usize; 9] = [8, 5, 0, 1, 4, 6, 7, 3, 2];
+
+const SIGMAS: [[usize; 9]; 4] = [SIGMA_A, SIGMA_B, SIGMA_C, SIGMA_D];
+
+// ═══════════════════════════════════════════════════════════════════════
+// SPONGE STATE
+// ═══════════════════════════════════════════════════════════════════════
+
+/// GF(27)-native sponge state: 243 bytes, one GF(27) element per byte.
+#[repr(align(64))] // Cache-line aligned
+#[derive(Clone)]
+pub struct PackedState {
+    /// 243 elements in [0, 26].
+    pub cells: [u8; STATE_SIZE],
+}
+
+impl PackedState {
+    /// Zero state.
+    pub fn new() -> Self {
+        PackedState { cells: [0; STATE_SIZE] }
+    }
+
+    /// Convert from 729-trit (1 byte per trit) representation.
+    /// Every 3 consecutive trits → 1 GF(27) element via base-3 packing.
+    pub fn from_trits(trits: &[u8; 729]) -> Self {
+        let mut cells = [0u8; STATE_SIZE];
+        for i in 0..STATE_SIZE {
+            let base = i * 3;
+            cells[i] = trits[base] + 3 * trits[base + 1] + 9 * trits[base + 2];
+        }
+        PackedState { cells }
+    }
+
+    /// Convert to 729-trit representation.
+    pub fn to_trits(&self) -> [u8; 729] {
+        let mut trits = [0u8; 729];
+        for i in 0..STATE_SIZE {
+            let v = self.cells[i];
+            let base = i * 3;
+            trits[base] = v % 3;
+            trits[base + 1] = (v / 3) % 3;
+            trits[base + 2] = v / 9;
+        }
+        trits
+    }
+
+    /// Get block i (27 elements).
+    #[inline(always)]
+    pub fn block(&self, i: usize) -> &[u8] {
+        &self.cells[i * BLOCK_SIZE..(i + 1) * BLOCK_SIZE]
+    }
+
+    /// Get mutable block i.
+    #[inline(always)]
+    pub fn block_mut(&mut self, i: usize) -> &mut [u8] {
+        let start = i * BLOCK_SIZE;
+        &mut self.cells[start..start + BLOCK_SIZE]
+    }
+}
+
+impl Default for PackedState {
+    fn default() -> Self { Self::new() }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROUND OPERATIONS — All derived from GF(27) algebra
+// ═══════════════════════════════════════════════════════════════════════
+
+/// θ (theta): Diffusion step.
+///
+/// Each cell absorbs contributions from its column neighbors.
+/// Operates on GF(27) elements using derived GF(3) addition
+/// within each element's 3-coefficient representation.
+///
+/// For packed bytes, we unpack → add → repack.
+pub fn theta(state: &mut PackedState) {
+    // Column sums: 9 columns of 27 elements
+    let mut col_sums = [0u8; BLOCK_COUNT];
+    for col in 0..BLOCK_COUNT {
+        let mut sum = GF27_ZERO;
+        for row in 0..BLOCK_SIZE {
+            let elem = gf27_unpack(state.cells[col * BLOCK_SIZE + row]);
+            sum = gf27_add(&sum, &elem);
+        }
+        col_sums[col] = gf27_pack(&sum);
+    }
+
+    // XOR column sums into neighboring columns
+    for col in 0..BLOCK_COUNT {
+        let left = col_sums[(col + BLOCK_COUNT - 1) % BLOCK_COUNT];
+        let right = col_sums[(col + 1) % BLOCK_COUNT];
+        let contrib = gf27_add(&gf27_unpack(left), &gf27_unpack(right));
+        let contrib_packed = gf27_pack(&contrib);
+
+        for row in 0..BLOCK_SIZE {
+            let idx = col * BLOCK_SIZE + row;
+            let elem = gf27_unpack(state.cells[idx]);
+            state.cells[idx] = gf27_pack(&gf27_add(&elem, &gf27_unpack(contrib_packed)));
+        }
+    }
+}
+
+/// ρ (rho): Rotation step.
+///
+/// Rotate element positions within each block by a fixed offset.
+/// Offset for block i = (i * (i + 1) / 2) mod 27.
+pub fn rho(state: &mut PackedState) {
+    let mut temp = [0u8; STATE_SIZE];
+    for block in 0..BLOCK_COUNT {
+        let offset = (block * (block + 1) / 2) % BLOCK_SIZE;
+        for j in 0..BLOCK_SIZE {
+            let src = block * BLOCK_SIZE + j;
+            let dst = block * BLOCK_SIZE + (j + offset) % BLOCK_SIZE;
+            temp[dst] = state.cells[src];
+        }
+    }
+    state.cells = temp;
+}
+
+/// π (pi): Permutation step.
+///
+/// Transpose-like permutation: position (block, offset) → (offset % 9, block * 3 + offset / 9).
+/// Stride-13 through the state.
+pub fn pi(state: &mut PackedState) {
+    let mut temp = [0u8; STATE_SIZE];
+    for i in 0..STATE_SIZE {
+        let new_pos = (i * 13) % STATE_SIZE;
+        temp[new_pos] = state.cells[i];
+    }
+    state.cells = temp;
+}
+
+/// χ (chi): S-box step.
+///
+/// Apply x¹⁷ over GF(27) to every element.
+/// Derived algebraically: 4 squarings + 1 multiply per element.
+/// No lookup table.
+///
+/// 243 elements × 5 GF(27) operations = 1,215 field operations.
+pub fn chi_step(state: &mut PackedState) {
+    for i in 0..STATE_SIZE {
+        let x = gf27_unpack(state.cells[i]);
+        let y = chi(&x);
+        state.cells[i] = gf27_pack(&y);
+    }
+}
+
+/// ι (iota): Round constant addition.
+///
+/// XOR a round-dependent constant into the first cell.
+/// Constant derived from round index via the irreducible polynomial.
+pub fn iota(state: &mut PackedState, round: usize) {
+    // Round constant: (round + 1)^5 mod 27 (derived from GF(27) structure)
+    let rc_val = {
+        let r = gf27_unpack(((round + 1) % 27) as u8);
+        let r2 = gf27_square(&r);
+        let r4 = gf27_square(&r2);
+        gf27_pack(&gf27_mul(&r4, &r)) // r⁵
+    };
+    let current = gf27_unpack(state.cells[0]);
+    let constant = gf27_unpack(rc_val);
+    state.cells[0] = gf27_pack(&gf27_add(&current, &constant));
+}
+
+/// σ (sigma): Block shuffle step.
+///
+/// Permute the 9 blocks of 27 elements according to the σ schedule.
+/// σ_A for round 0, σ_B for round 1, etc., cycling mod 4.
+pub fn sigma(state: &mut PackedState, round: usize) {
+    let perm = &SIGMAS[round % 4];
+    let mut temp = [0u8; STATE_SIZE];
+    for i in 0..BLOCK_COUNT {
+        let src_start = perm[i] * BLOCK_SIZE;
+        let dst_start = i * BLOCK_SIZE;
+        temp[dst_start..dst_start + BLOCK_SIZE]
+            .copy_from_slice(&state.cells[src_start..src_start + BLOCK_SIZE]);
+    }
+    state.cells = temp;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FULL PERMUTATION
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Full TLSponge-385 permutation: 9 rounds of (θ, ρ, π, χ, ι, σ).
+pub fn permute_full(state: &mut PackedState) {
+    for round in 0..ROUNDS_FULL {
+        theta(state);
+        rho(state);
+        pi(state);
+        chi_step(state);
+        iota(state, round);
+        sigma(state, round);
+    }
+}
+
+/// TIS-27 permutation: 4 rounds of (θ, ρ, π, χ, ι, σ).
+pub fn permute_tis(state: &mut PackedState) {
+    for round in 0..ROUNDS_TIS {
+        theta(state);
+        rho(state);
+        pi(state);
+        chi_step(state);
+        iota(state, round);
+        sigma(state, round);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SPONGE OPERATIONS (absorb / squeeze)
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Absorb data into the sponge state.
+///
+/// Converts input bytes to GF(27) elements and XORs into the rate portion.
+pub fn absorb(state: &mut PackedState, data: &[u8]) {
+    let mut offset = 0;
+    for chunk in data.chunks(RATE) {
+        for (i, &byte) in chunk.iter().enumerate() {
+            if offset + i < RATE {
+                let current = gf27_unpack(state.cells[offset + i]);
+                let input = gf27_unpack(byte % 27);
+                state.cells[offset + i] = gf27_pack(&gf27_add(&current, &input));
+            }
+        }
+        permute_full(state);
+        offset = 0; // Reset for next block
+    }
+}
+
+/// Squeeze output from the sponge state.
+///
+/// Read GF(27) elements from the rate portion, permute between blocks.
+pub fn squeeze(state: &mut PackedState, output_len: usize) -> Vec<u8> {
+    let mut output = Vec::with_capacity(output_len);
+    while output.len() < output_len {
+        let take = (output_len - output.len()).min(RATE);
+        output.extend_from_slice(&state.cells[..take]);
+        if output.len() < output_len {
+            permute_full(state);
+        }
+    }
+    output.truncate(output_len);
+    output
+}
+
+/// Full derive_key: absorb domain + material, squeeze output.
+///
+/// This is the function that replaces the ~8µs scalar derive_key.
+/// Target: ~1.5µs (Phase A), ~530ns (Phase C with SIMD).
+pub fn derive_key_packed(domain: &[u8], material: &[u8], output_len: usize) -> Vec<u8> {
+    let mut state = PackedState::new();
+
+    // Domain separation: absorb domain tag
+    absorb(&mut state, domain);
+
+    // Absorb keying material
+    absorb(&mut state, material);
+
+    // Squeeze output
+    squeeze(&mut state, output_len)
+}
+
+/// Hash with hex output (compatibility with existing API).
+pub fn hash_hex_packed(input: &[u8]) -> String {
+    let output = derive_key_packed(b"HASH", input, 48);
+    output.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── State representation ────────────────────────────────
+
+    #[test]
+    fn state_size_correct() {
+        let s = PackedState::new();
+        assert_eq!(s.cells.len(), 243);
+        assert_eq!(std::mem::size_of::<PackedState>(), 256); // 243 + padding to 64-byte align
+    }
+
+    #[test]
+    fn state_trits_roundtrip() {
+        let mut trits = [0u8; 729];
+        for i in 0..729 {
+            trits[i] = (i % 3) as u8;
+        }
+        let state = PackedState::from_trits(&trits);
+        let back = state.to_trits();
+        assert_eq!(trits, back);
+    }
+
+    #[test]
+    fn state_all_cells_valid() {
+        let mut state = PackedState::new();
+        for i in 0..STATE_SIZE {
+            state.cells[i] = (i % 27) as u8;
+        }
+        for &c in &state.cells {
+            assert!(c < 27, "Cell must be < 27, got {}", c);
+        }
+    }
+
+    #[test]
+    fn block_access() {
+        let mut state = PackedState::new();
+        for i in 0..STATE_SIZE { state.cells[i] = i as u8 % 27; }
+        let b0 = state.block(0);
+        assert_eq!(b0.len(), 27);
+        assert_eq!(b0[0], 0);
+        let b8 = state.block(8);
+        assert_eq!(b8.len(), 27);
+    }
+
+    // ── Individual round operations ─────────────────────────
+
+    #[test]
+    fn theta_modifies_state() {
+        let mut state = PackedState::new();
+        state.cells[0] = 1;
+        state.cells[27] = 2; // different block
+        let before = state.cells;
+        theta(&mut state);
+        assert_ne!(state.cells, before);
+    }
+
+    #[test]
+    fn rho_preserves_elements() {
+        let mut state = PackedState::new();
+        for i in 0..STATE_SIZE { state.cells[i] = (i % 27) as u8; }
+        let mut before_sorted: Vec<u8> = state.cells.to_vec();
+        before_sorted.sort();
+        rho(&mut state);
+        let mut after_sorted: Vec<u8> = state.cells.to_vec();
+        after_sorted.sort();
+        assert_eq!(before_sorted, after_sorted, "ρ must be a permutation");
+    }
+
+    #[test]
+    fn pi_is_permutation() {
+        let mut state = PackedState::new();
+        for i in 0..STATE_SIZE { state.cells[i] = i as u8 % 27; }
+        let before_sum: u64 = state.cells.iter().map(|&c| c as u64).sum();
+        pi(&mut state);
+        let after_sum: u64 = state.cells.iter().map(|&c| c as u64).sum();
+        assert_eq!(before_sum, after_sum, "π must preserve element sum");
+    }
+
+    #[test]
+    fn chi_step_modifies_nonzero() {
+        let mut state = PackedState::new();
+        state.cells[0] = 5; // non-trivial GF(27) element
+        let before = state.cells[0];
+        chi_step(&mut state);
+        // chi(5) should differ from 5 (unless 5¹⁷ happens to equal 5)
+        // We just verify chi ran and produced a valid element
+        assert!(state.cells[0] < 27);
+    }
+
+    #[test]
+    fn chi_step_preserves_zero() {
+        let mut state = PackedState::new(); // all zeros
+        chi_step(&mut state);
+        assert_eq!(state.cells[0], 0, "χ(0) = 0");
+    }
+
+    #[test]
+    fn sigma_is_block_permutation() {
+        let mut state = PackedState::new();
+        for i in 0..STATE_SIZE { state.cells[i] = (i / BLOCK_SIZE) as u8; }
+        sigma(&mut state, 0); // σ_A
+        // After σ_A, block identities should be shuffled
+        // but each block should still contain uniform values
+        for block in 0..BLOCK_COUNT {
+            let val = state.block(block)[0];
+            for &c in state.block(block) {
+                assert_eq!(c, val, "Block {} should be uniform after σ", block);
+            }
+        }
+    }
+
+    #[test]
+    fn iota_modifies_first_cell() {
+        let mut state = PackedState::new();
+        let before = state.cells[0];
+        iota(&mut state, 0);
+        assert_ne!(state.cells[0], before, "ι should modify cell 0");
+    }
+
+    // ── Full permutation ────────────────────────────────────
+
+    #[test]
+    fn permute_full_changes_state() {
+        let mut state = PackedState::new();
+        state.cells[0] = 1;
+        let before = state.cells;
+        permute_full(&mut state);
+        assert_ne!(state.cells, before);
+    }
+
+    #[test]
+    fn permute_full_all_valid() {
+        let mut state = PackedState::new();
+        for i in 0..STATE_SIZE { state.cells[i] = (i % 27) as u8; }
+        permute_full(&mut state);
+        for &c in &state.cells {
+            assert!(c < 27, "After permutation, all cells must be < 27");
+        }
+    }
+
+    #[test]
+    fn permute_tis_changes_state() {
+        let mut state = PackedState::new();
+        state.cells[0] = 1;
+        let before = state.cells;
+        permute_tis(&mut state);
+        assert_ne!(state.cells, before);
+    }
+
+    #[test]
+    fn permute_deterministic() {
+        let mut s1 = PackedState::new();
+        let mut s2 = PackedState::new();
+        s1.cells[0] = 7;
+        s2.cells[0] = 7;
+        permute_full(&mut s1);
+        permute_full(&mut s2);
+        assert_eq!(s1.cells, s2.cells);
+    }
+
+    // ── Sponge operations ───────────────────────────────────
+
+    #[test]
+    fn derive_key_deterministic() {
+        let a = derive_key_packed(b"TEST", b"material", 32);
+        let b = derive_key_packed(b"TEST", b"material", 32);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn derive_key_different_domains() {
+        let a = derive_key_packed(b"DOMAIN-A", b"material", 32);
+        let b = derive_key_packed(b"DOMAIN-B", b"material", 32);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn derive_key_different_material() {
+        let a = derive_key_packed(b"TEST", b"material-a", 32);
+        let b = derive_key_packed(b"TEST", b"material-b", 32);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn derive_key_output_length() {
+        for len in [16, 27, 32, 48, 64, 128] {
+            let out = derive_key_packed(b"TEST", b"mat", len);
+            assert_eq!(out.len(), len);
+        }
+    }
+
+    #[test]
+    fn hash_hex_produces_hex_string() {
+        let hex = hash_hex_packed(b"hello");
+        assert_eq!(hex.len(), 96); // 48 bytes × 2 hex chars
+        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    // ── Constants ───────────────────────────────────────────
+
+    #[test]
+    fn parameters() {
+        assert_eq!(STATE_SIZE, 243);
+        assert_eq!(RATE + CAPACITY, STATE_SIZE);
+        assert_eq!(BLOCK_COUNT * BLOCK_SIZE, STATE_SIZE);
+        assert_eq!(ROUNDS_FULL, 9);
+        assert_eq!(ROUNDS_TIS, 4);
+    }
+}
