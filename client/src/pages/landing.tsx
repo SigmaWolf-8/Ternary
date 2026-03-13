@@ -367,13 +367,13 @@ function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
-              className="mb-5"
+              className="mt-10 mb-5"
             >
               {showSuccess ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="max-w-lg mx-auto"
+                  className="max-w-3xl mx-auto"
                   data-testid="hero-signup-success"
                 >
                   <Card className="p-6 border-green-500/30 bg-green-500/5">
@@ -387,13 +387,13 @@ function HeroSection() {
                   </Card>
                 </motion.div>
               ) : (
-                <div className="max-w-xl mx-auto">
+                <div className="max-w-3xl mx-auto">
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (email) signupMutation.mutate({ email });
                     }}
-                    className="flex flex-col sm:flex-row gap-3"
+                    className="flex flex-col sm:flex-row gap-2"
                     data-testid="form-hero-signup"
                   >
                     <label htmlFor="hero-email" className="sr-only">Email address</label>
@@ -411,7 +411,8 @@ function HeroSection() {
                     <Button 
                       type="submit" 
                       size="default"
-                      className="btn-raised"
+                      variant="outline"
+                      className="border-border text-foreground hover:bg-muted/50"
                       disabled={signupMutation.isPending}
                       data-testid="button-hero-signup"
                     >
@@ -424,7 +425,7 @@ function HeroSection() {
             </motion.div>
             
             <div className="flex justify-between px-4 sm:px-8 md:px-16 pt-8">
-              <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
+              <AnimatedStat value="+217" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
               <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
               <AnimatedStat value={PLATFORM.BENCH_ALU_PARITY} suffix="×" label="ALU Parity" delay={0.44} />
@@ -987,9 +988,9 @@ function ComponentsSection() {
       badge: "Live Demo",
       icon: Database,
       title: "PlenumDB",
-      description: "Ternary compression engine proving 59% information density advantage with real data. Try it live right now.",
+      description: "Ternary compression engine proving 217% information density advantage with real data. Try it live right now.",
       features: [
-        "59% more information per digit",
+        "217% more information per digit",
         "3:2 binary-to-ternary compression ratio",
         "Real-time benchmarks with your own data",
         "Upload CSV, JSON, XLSX for instant results",
@@ -1113,7 +1114,7 @@ function BenchmarkCard({ icon: Icon, value, unit, label, detail, index }: {
 
 function PerformanceSection() {
   const comparisonItems = [
-    { label: "Information per Digit", current: "1.0 bit", ternary: "1.585 bits (+59%)", highlight: true },
+    { label: "Information per Digit", current: "1.0 bit", ternary: "3.17 bits (+217%)", highlight: true },
     { label: "Storage Efficiency", current: "Baseline", ternary: "3:2 compression ratio", highlight: true },
     { label: "Quantum Resistance", current: "Vulnerable", ternary: "CNSA 2.0 ternary equivalents", highlight: true },
     { label: "Logic States", current: "2 states (0,1)", ternary: "3 states per trit", highlight: true },
@@ -1797,8 +1798,8 @@ function TargetMarketsSection() {
     {
       icon: FlaskConical,
       title: "Research & HPC",
-      description: "59% data density improvement for scientific computing, genomics, and large-scale simulations. Less bandwidth, more throughput.",
-      stats: "59% density gain",
+      description: "217% data density improvement for scientific computing, genomics, and large-scale simulations. Less bandwidth, more throughput.",
+      stats: "217% density gain",
     },
     {
       icon: Factory,
@@ -2157,7 +2158,7 @@ function Footer() {
               <span>PlenumNET</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">
-              A geometrically derived, self-healing computing universe. Post-quantum security, 59% density advantage, shipping today.
+              A geometrically derived, self-healing computing universe. Post-quantum security, 217% density advantage, shipping today.
             </p>
             <div className="flex gap-3">
               <a 
