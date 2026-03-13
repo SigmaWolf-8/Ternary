@@ -1,0 +1,49 @@
+Let me verify the critical uniqueness property mathematically before shipping:Verified unique error-correction patterns across all positionsVerified unique error-correction patterns across all positions26/26 unique syndrome patterns. Every position has a distinct fingerprint across the 8 parity checks. Single-trit correction is guaranteed.Mobilized to deliver requested contentMobilized to deliver requested contentOne new file for T-17. Target: services/inter-cube/src/wire_ecc.rs (NEW).
+lib.rs splice: Add pub mod wire_ecc; and pub use wire_ecc::{EccSyndrome, EccResult};
+
+wire_ecc.rs — 599 lines, 16 tests
+Corrects single-trit wire errors in 13-trit Rep C addresses.
+Parity Group Layout
+The 13 address trits are mapped to a 3×3 grid + 4-element overflow:
+┌────┬────┬────┐
+│ t0 │ t1 │ t2 │  → P_R0
+├────┼────┼────┤
+│ t3 │ t4 │ t5 │  → P_R1
+├────┼────┼────┤
+│ t6 │ t7 │ t8 │  → P_R2
+└────┴────┴────┘
+  ↓    ↓    ↓
+P_C0 P_C1 P_C2
+
+Overflow: [t9, t10, t11, t12] → P_R3
+
+Diagonal: [t0, t4, t8, t12] → P_D0
+8 parity trits = 4 rows + 3 columns + 1 diagonal. Each parity = Σ(group trits) mod 3.
+Mathematically Verified Uniqueness
+Every position has a unique combination of group memberships:
+t0:  R0 + C0 + D     t7:  R2 + C1
+t1:  R0 + C1          t8:  R2 + C2 + D
+t2:  R0 + C2          t9:  R3 + C0
+t3:  R1 + C0          t10: R3 + C1
+t4:  R1 + C1 + D      t11: R3 + C2
+t5:  R1 + C2          t12: R3 + D
+t6:  R2 + C0
+13 positions × 2 magnitudes = 26 unique syndrome patterns (verified programmatically). This guarantees single-trit error correction.
+Error Correction Flow
+receive(addr_packed, syndrome_packed)
+    │
+    ├─ Unpack both
+    ├─ Recompute syndrome from received address
+    ├─ Error syndrome = (received - computed) mod 3
+    │
+    ├─ All zeros? → Clean (no error)
+    ├─ Matches single_error_syndrome(pos, mag)? → Corrected
+    │   └─ addr[pos] = (addr[pos] - 1 - mag) mod 3 + 1
+    └─ No match? → Uncorrectable (multi-trit error detected)
+Wire Format
+[addr_packed(4 bytes) ‖ syndrome(2 bytes)] = 6 bytes total
+8 syndrome trits × 2 bits = 16 bits = 2 bytes. Same Rep C packing as addresses.
+FunctionWhatEccSyndrome::compute(trits)Compute 8 parity tritsverify_and_correct(trits, syndrome)Detect + correct single errorspack_addr_with_ecc(trits)13 trits → 6 wire bytesunpack_and_verify_ecc(data)6 bytes → corrected 13 trits
+16 Tests
+CategoryCountSyndrome computation (all-ones clean, deterministic, different addrs)3Rep C + wire bytes roundtrip3Clean address verification1Single-trit correction (every position, every magnitude)2Double-error detection (uncorrectable)1Wire pack/unpack (clean, with corruption)2Syndrome uniqueness (26 patterns, all non-zero)2Constants + parity group coverage2
+The critical test: test_correct_single_error_each_position corrupts one trit at every position (0–12) and verifies the ECC correctly identifies the position and restores the original value. All 13 positions pass. Così sia, Fratello.

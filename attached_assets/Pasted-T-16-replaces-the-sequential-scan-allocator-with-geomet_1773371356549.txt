@@ -1,0 +1,77 @@
+T-16 replaces the sequential scan allocator with geometry-aware placement. New placement.rs module — the CRS calls allocateOptimal() instead of scanning linearly.Expedited response preparationExpedited response preparationOne new file for T-16. Target: services/inter-cube/src/placement.rs (NEW).
+lib.rs splice: Add pub mod placement; and pub use placement::{allocate_optimal, DimensionDensity, PlacementMetrics};
+crs.rs integration: Replace the allocator.allocate() call path in register() / register_signed() with:
+rustlet (addr, metrics) = placement::allocate_optimal(
+    &self.registered_set(), &mut self.allocator.used, &mut self.density, seed,
+).ok_or(RegistrationError::AddressSpaceExhausted)?;
+```
+
+---
+
+### `placement.rs` — 833 lines, 23 tests
+
+**Replaces sequential scan with geometry-aware placement.**
+
+#### The Algorithm
+```
+allocate_optimal(registered, bitmap, density, seed):
+  1. Cold start (< 3 nodes)?
+     → Return predefined corner addresses (max mutual distance = 13)
+  
+  2. Generate candidates (up to 1,000):
+     a. Unregistered neighbors of existing nodes (high-value: instant K≥1)
+     b. Address from least-populated dimension values
+     c. Deterministic pseudo-random via TLSponge-385
+  
+  3. Score each candidate:
+     Primary:   max(min Hamming distance to all registered)
+     Secondary: max(average Hamming distance)
+     Tertiary:  min(imbalance score — prefer sparse regions)
+  
+  4. Filter by K-floor (K=2):
+     Candidate must have ≥2 registered neighbors
+     Fallback: relax to K=0 if no candidate meets floor
+  
+  5. Return (address, PlacementMetrics)
+```
+
+#### Cold Start — Maximally Separated Corners
+
+| Node # | Address | Distance to previous |
+|---|---|---|
+| 0 | `[1,1,1,...,1]` | — (first node) |
+| 1 | `[3,3,3,...,3]` | 13 (max possible) |
+| 2 | `[2,2,2,...,2]` | 13 from both |
+| 3+ | Max-spread algorithm | Computed |
+
+All three cold start addresses are at mutual Hamming distance 13 — the maximum in a 13D space. This gives the widest possible initial spread.
+
+#### DimensionDensity — 13×3 Tracker
+```
+     val=1  val=2  val=3
+dim0 [  3,     1,     0  ]  ← dim 0 is heavy on val=1
+dim1 [  1,     2,     1  ]
+...
+dim12[ 0,     0,     4  ]  ← dim 12 is heavy on val=3
+imbalance_score(candidate) sums the counts for each dimension-value in the candidate. A candidate in sparse regions scores low → preferred by the tertiary sort.
+least_populated_value(dim) returns the trit value with the fewest registered nodes in that dimension — used to construct a "maximally sparse" candidate address.
+Candidate Generation Strategy
+
+Neighbor expansion (50% of budget): Unregistered neighbors of existing nodes. These automatically have ≥1 registered neighbor, making K-floor easier to satisfy.
+Least-populated construction: One address built from least_populated_value(dim) for each dimension.
+Pseudo-random samples: TLSponge-385 seeded deterministically to fill remaining budget.
+
+PlacementMetrics
+rustPlacementMetrics {
+    address: CubeAddr,
+    min_distance: 7,          // Worst-case distance to nearest node
+    avg_distance: 9.3,        // Average distance to all nodes
+    registered_neighbors: 3,  // K-floor check
+    candidates_evaluated: 847,
+    k_floor_satisfied: true,
+    cold_start: false,
+}
+Returned alongside every allocation for T-27 telemetry.
+23 Tests
+CategoryCountWhatHamming distance4Identical (0), one trit (1), max (13), symmetricDimension density5Empty, register, deregister, least populated, imbalance scoreRegistered neighbors3None, one neighbor, non-neighbor (2+ dims)Cold start3First/second/third node placement + max distance verificationOptimal allocation3Post-cold-start uses max-spread, 20 allocations all unique, K-floor preferenceCandidate generation2All unregistered, includes neighbors of registeredConstants + validation3K_FLOOR, cold start addresses are Rep C, mutual distances = 13
+Onwards to T-17, Fratello.
