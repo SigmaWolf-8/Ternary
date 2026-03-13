@@ -778,6 +778,65 @@ pub fn bench_pt26_verify_parallel_sim() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// PT26-DSA v2 — Native GF(3) geometry, 2 sponge calls total
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Benchmark: PT26-DSA v2 keygen (target: < 20µs).
+pub fn bench_pt26v2_keygen() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let (pk, _sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret");
+    black_box(pk);
+}
+
+/// Benchmark: PT26-DSA v2 sign (target: < 12µs).
+pub fn bench_pt26v2_sign() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let (_pk, mut sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret-sign");
+    let sig = ternary_math::pt26_dsa_v2::sign(&mut sk, b"benchmark message for PT26v2").unwrap();
+    black_box(sig);
+}
+
+/// Benchmark: PT26-DSA v2 verify (target: < 22µs).
+pub fn bench_pt26v2_verify() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let (pk, mut sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret-verify");
+    let sig = ternary_math::pt26_dsa_v2::sign(&mut sk, b"benchmark message for PT26v2 verify").unwrap();
+    let result = ternary_math::pt26_dsa_v2::verify(&pk, b"benchmark message for PT26v2 verify", &sig);
+    black_box(result);
+}
+
+/// Benchmark: PT26-DSA v2 parallel verify (target: < 12µs).
+pub fn bench_pt26v2_verify_parallel() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let (pk, mut sk) = ternary_math::pt26_dsa_v2::keygen(&addr, b"bench-secret-par");
+    let sig = ternary_math::pt26_dsa_v2::sign(&mut sk, b"benchmark parallel verify").unwrap();
+    let result = ternary_math::pt26_dsa_v2::verify_parallel(&pk, b"benchmark parallel verify", &sig);
+    black_box(result);
+}
+
+/// Benchmark: PT26-DSA v2 GF(3) trit_diff (target: < 5ns).
+pub fn bench_pt26v2_trit_diff() {
+    let a: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let b: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 1];
+    let d = ternary_math::pt26_dsa_v2::trit_diff(&a, &b);
+    black_box(d);
+}
+
+/// Benchmark: PT26-DSA v2 step token (target: < 5ns).
+pub fn bench_pt26v2_step_token() {
+    let delta: [u8; 13] = [2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2];
+    let token = ternary_math::pt26_dsa_v2::compute_step_token(&delta, 0, 0);
+    black_box(token);
+}
+
+/// Benchmark: PT26-DSA v2 walk token (target: < 5ns).
+pub fn bench_pt26v2_walk_token() {
+    let tokens = vec![100u32, 200, 50, 175, 88, 222, 31, 299, 5];
+    let wt = ternary_math::pt26_dsa_v2::accumulate_walk_token(&tokens);
+    black_box(wt);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // TL-DSA v2 — Ternary Lattice (Module-LWE over Z₃ⁿ, radix-3 NTT)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1055,12 +1114,21 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "tl_dsa_87_sign", target: "< 5ms", run: bench_tl_dsa_sign },
         BenchmarkEntry { name: "tl_dsa_87_verify", target: "< 3ms", run: bench_tl_dsa_verify },
 
-        // ── PT26-DSA: Parallel Traversals × 26 ports ─────────
-        BenchmarkEntry { name: "pt26_schedule_derive", target: "< 5µs", run: bench_pt26_schedule_derive },
-        BenchmarkEntry { name: "pt26_keygen", target: "< 20µs", run: bench_pt26_keygen },
-        BenchmarkEntry { name: "pt26_sign", target: "< 50µs", run: bench_pt26_sign },
-        BenchmarkEntry { name: "pt26_verify_local", target: "< 130µs", run: bench_pt26_verify_local },
-        BenchmarkEntry { name: "pt26_verify_26port_sim", target: "< 15µs", run: bench_pt26_verify_parallel_sim },
+        // ── PT26-DSA v1: Parallel Traversals × 26 ports ──────
+        BenchmarkEntry { name: "pt26v1_schedule_derive", target: "< 5µs", run: bench_pt26_schedule_derive },
+        BenchmarkEntry { name: "pt26v1_keygen", target: "< 20µs", run: bench_pt26_keygen },
+        BenchmarkEntry { name: "pt26v1_sign", target: "< 50µs", run: bench_pt26_sign },
+        BenchmarkEntry { name: "pt26v1_verify_local", target: "< 130µs", run: bench_pt26_verify_local },
+        BenchmarkEntry { name: "pt26v1_verify_26port_sim", target: "< 15µs", run: bench_pt26_verify_parallel_sim },
+
+        // ── PT26-DSA v2: Native GF(3), 2 sponge calls ──────
+        BenchmarkEntry { name: "pt26v2_keygen", target: "< 20µs", run: bench_pt26v2_keygen },
+        BenchmarkEntry { name: "pt26v2_sign", target: "< 12µs", run: bench_pt26v2_sign },
+        BenchmarkEntry { name: "pt26v2_verify", target: "< 22µs", run: bench_pt26v2_verify },
+        BenchmarkEntry { name: "pt26v2_verify_parallel", target: "< 12µs", run: bench_pt26v2_verify_parallel },
+        BenchmarkEntry { name: "pt26v2_trit_diff", target: "< 5ns", run: bench_pt26v2_trit_diff },
+        BenchmarkEntry { name: "pt26v2_step_token", target: "< 5ns", run: bench_pt26v2_step_token },
+        BenchmarkEntry { name: "pt26v2_walk_token", target: "< 5ns", run: bench_pt26v2_walk_token },
 
         // ── TL-DSA v2-87: Ternary lattice NTT ───────────────
         BenchmarkEntry { name: "tl_dsa_v2_ntt_butterfly", target: "< 20ns", run: bench_tl_dsa_v2_ntt_butterfly },
@@ -1133,7 +1201,7 @@ mod tests {
     #[test]
     fn test_all_benchmarks_run_without_panic() {
         let results = smoke_test_all();
-        assert_eq!(results.len(), 32, "All 32 benchmarks must run");
+        assert_eq!(results.len(), 39, "All 39 benchmarks must run");
         for (name, elapsed) in &results {
             assert!(*elapsed > 0, "Benchmark {} should take non-zero time", name);
         }
@@ -1168,7 +1236,7 @@ mod tests {
     #[test]
     fn test_benchmark_registry_complete() {
         let benchmarks = all_benchmarks();
-        assert!(benchmarks.len() >= 32, "Must have at least 32 benchmarks");
+        assert!(benchmarks.len() >= 39, "Must have at least 39 benchmarks");
         for b in &benchmarks {
             assert!(!b.target.is_empty(), "{} has empty target", b.name);
             assert!(b.target.starts_with('<'), "{} target should start with '<'", b.name);
@@ -1182,12 +1250,22 @@ fn criterion_tl_dsa_v1(c: &mut Criterion) {
     c.bench_function("tl_dsa_87_verify", |b| b.iter(bench_tl_dsa_verify));
 }
 
-fn criterion_pt26_dsa(c: &mut Criterion) {
-    c.bench_function("pt26_schedule_derive", |b| b.iter(bench_pt26_schedule_derive));
-    c.bench_function("pt26_keygen", |b| b.iter(bench_pt26_keygen));
-    c.bench_function("pt26_sign", |b| b.iter(bench_pt26_sign));
-    c.bench_function("pt26_verify_local", |b| b.iter(bench_pt26_verify_local));
-    c.bench_function("pt26_verify_26port_sim", |b| b.iter(bench_pt26_verify_parallel_sim));
+fn criterion_pt26_dsa_v1(c: &mut Criterion) {
+    c.bench_function("pt26v1_schedule_derive", |b| b.iter(bench_pt26_schedule_derive));
+    c.bench_function("pt26v1_keygen", |b| b.iter(bench_pt26_keygen));
+    c.bench_function("pt26v1_sign", |b| b.iter(bench_pt26_sign));
+    c.bench_function("pt26v1_verify_local", |b| b.iter(bench_pt26_verify_local));
+    c.bench_function("pt26v1_verify_26port_sim", |b| b.iter(bench_pt26_verify_parallel_sim));
+}
+
+fn criterion_pt26_dsa_v2(c: &mut Criterion) {
+    c.bench_function("pt26v2_keygen", |b| b.iter(bench_pt26v2_keygen));
+    c.bench_function("pt26v2_sign", |b| b.iter(bench_pt26v2_sign));
+    c.bench_function("pt26v2_verify", |b| b.iter(bench_pt26v2_verify));
+    c.bench_function("pt26v2_verify_parallel", |b| b.iter(bench_pt26v2_verify_parallel));
+    c.bench_function("pt26v2_trit_diff", |b| b.iter(bench_pt26v2_trit_diff));
+    c.bench_function("pt26v2_step_token", |b| b.iter(bench_pt26v2_step_token));
+    c.bench_function("pt26v2_walk_token", |b| b.iter(bench_pt26v2_walk_token));
 }
 
 fn criterion_tl_dsa_v2(c: &mut Criterion) {
@@ -1244,7 +1322,8 @@ fn criterion_heartbeat(c: &mut Criterion) {
 criterion_group!(
     benches,
     criterion_tl_dsa_v1,
-    criterion_pt26_dsa,
+    criterion_pt26_dsa_v1,
+    criterion_pt26_dsa_v2,
     criterion_tl_dsa_v2,
     criterion_hmac,
     criterion_sponge,
