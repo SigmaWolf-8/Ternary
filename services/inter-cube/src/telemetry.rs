@@ -1,0 +1,590 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # Telemetry & Metrics (T-27, SPEC-2026-NEXT)
+//!
+//! ## The Headline
+//!
+//! **26 concurrent neighbor interactions per second.** This module
+//! tracks every one of them — every heartbeat authenticated, every
+//! tunnel established, every signature verified, every error corrected.
+//!
+//! ## Architecture
+//!
+//! All metrics are lock-free atomic counters and gauges. Zero external
+//! dependencies — no Prometheus client library, no StatsD, no allocation
+//! on the hot path. The same `MetricsRegistry` instance is shared across
+//! all async tasks via `Arc`. Each task increments its metrics without
+//! waiting for any other task.
+//!
+//! Cost per metric update: ~5ns (one `LOCK XADD` on x86, `LDADD` on ARM).
+//! Cost per snapshot: ~2µs (read 50 atomics). Negligible.
+//!
+//! ## Metrics Collected (50 metrics across 10 subsystems)
+//!
+//! | Subsystem | Metrics |
+//! |-----------|---------|
+//! | CRS (T-06) | Registrations total/signed/legacy, deregistrations, failures |
+//! | FTS (T-08) | HB auth successes/failures, sequence replays, state transitions |
+//! | CON (T-07) | Tunnels up/down/auth, forgery alerts, verified neighbors |
+//! | Wire (T-10/17) | Checksum failures, ECC corrections/uncorrectable, v1/v2 msgs |
+//! | Placement (T-16) | Allocations, cold starts, K-floor satisfaction |
+//! | Cache (T-20) | Verify hit/miss/expiry, keypair hit/miss |
+//! | Rotation (T-19) | Rotations, dual-accept, re-registrations |
+//! | Rate Limit (T-11) | Blocked registrations, blocked HB failures, PoW fails, ghosts |
+//! | Sampling (T-25) | Full scans vs sampled scans |
+//! | **Heartbeat Pipeline** | **Per-second totals, per-neighbor avg, pipeline latency** |
+//!
+//! ## Output Formats
+//!
+//! - **Prometheus text exposition** (`/metrics` endpoint via Kong Konnect)
+//! - **JSON** (PlenumNET dashboard API)
+//! - **Programmatic** (BTreeMap for internal queries)
+
+use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
+
+// ═══════════════════════════════════════════════════════════════════════
+// METRIC TYPES
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A monotonically increasing counter (lock-free atomic).
+///
+/// Cost per increment: ~5ns. No allocation, no lock, no syscall.
+#[derive(Debug)]
+pub struct Counter {
+    value: AtomicU64,
+    name: &'static str,
+    help: &'static str,
+}
+
+impl Counter {
+    pub const fn new(name: &'static str, help: &'static str) -> Self {
+        Counter { value: AtomicU64::new(0), name, help }
+    }
+
+    #[inline(always)]
+    pub fn inc(&self) { self.value.fetch_add(1, Ordering::Relaxed); }
+
+    #[inline(always)]
+    pub fn inc_by(&self, n: u64) { self.value.fetch_add(n, Ordering::Relaxed); }
+
+    #[inline(always)]
+    pub fn get(&self) -> u64 { self.value.load(Ordering::Relaxed) }
+
+    pub fn reset(&self) { self.value.store(0, Ordering::Relaxed); }
+
+    pub fn name(&self) -> &str { self.name }
+    pub fn help(&self) -> &str { self.help }
+}
+
+/// A gauge that can go up or down (lock-free atomic).
+///
+/// Saturating decrement: dec at 0 stays at 0 (no underflow panic).
+#[derive(Debug)]
+pub struct Gauge {
+    value: AtomicU64,
+    name: &'static str,
+    help: &'static str,
+}
+
+impl Gauge {
+    pub const fn new(name: &'static str, help: &'static str) -> Self {
+        Gauge { value: AtomicU64::new(0), name, help }
+    }
+
+    #[inline(always)]
+    pub fn set(&self, val: u64) { self.value.store(val, Ordering::Relaxed); }
+
+    #[inline(always)]
+    pub fn get(&self) -> u64 { self.value.load(Ordering::Relaxed) }
+
+    #[inline(always)]
+    pub fn inc(&self) { self.value.fetch_add(1, Ordering::Relaxed); }
+
+    pub fn dec(&self) {
+        loop {
+            let current = self.value.load(Ordering::Relaxed);
+            if current == 0 { break; }
+            if self.value.compare_exchange_weak(
+                current, current - 1, Ordering::Relaxed, Ordering::Relaxed,
+            ).is_ok() { break; }
+        }
+    }
+
+    pub fn name(&self) -> &str { self.name }
+    pub fn help(&self) -> &str { self.help }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// METRICS REGISTRY — 50 metrics across 10 subsystems
+// ═══════════════════════════════════════════════════════════════════════
+
+/// All inter-cube telemetry metrics.
+///
+/// Thread-safe: every field is atomic. Multiple async tasks update
+/// concurrently — no locks, no contention, no allocation.
+///
+/// **26 neighbors × 1 heartbeat/sec × (HMAC + sequence + ECC + checksum)
+/// = 26 metric updates per second on the hot path, at ~5ns each = 130ns total.**
+pub struct MetricsRegistry {
+    pub started_at: Instant,
+
+    // ── CRS (T-06) ──────────────────────────────────────────
+    pub crs_registrations_total: Counter,
+    pub crs_registrations_signed: Counter,
+    pub crs_registrations_legacy: Counter,
+    pub crs_deregistrations_total: Counter,
+    pub crs_deregistrations_key_compromise: Counter,
+    pub crs_signature_failures: Counter,
+    pub crs_timestamp_failures: Counter,
+    pub crs_replay_attempts: Counter,
+
+    // ── FTS (T-08) ──────────────────────────────────────────
+    pub fts_hb_auth_successes: Counter,
+    pub fts_hb_auth_failures: Counter,
+    pub fts_hb_sequence_replays: Counter,
+    pub fts_state_changes_total: Counter,
+    pub fts_neighbors_up: Gauge,
+    pub fts_neighbors_suspect: Gauge,
+    pub fts_neighbors_down: Gauge,
+    pub fts_neighbors_recovering: Gauge,
+
+    // ── CON (T-07, T-14) ────────────────────────────────────
+    pub con_tunnels_up: Gauge,
+    pub con_tunnels_down: Gauge,
+    pub con_tunnels_authenticating: Gauge,
+    pub con_forgery_alerts: Counter,
+    pub con_verified_neighbors: Gauge,
+    pub con_handshake_successes: Counter,
+    pub con_handshake_failures: Counter,
+    pub con_handshake_timeouts: Counter,
+
+    // ── Wire (T-10, T-17) ───────────────────────────────────
+    pub wire_checksum_failures: Counter,
+    pub wire_ecc_corrections: Counter,
+    pub wire_ecc_uncorrectable: Counter,
+    pub wire_messages_v1: Counter,
+    pub wire_messages_v2: Counter,
+
+    // ── Placement (T-16) ────────────────────────────────────
+    pub placement_allocations: Counter,
+    pub placement_cold_starts: Counter,
+    pub placement_k_floor_satisfied: Counter,
+    pub placement_k_floor_relaxed: Counter,
+
+    // ── Cache (T-20) ────────────────────────────────────────
+    pub cache_verify_hits: Counter,
+    pub cache_verify_misses: Counter,
+    pub cache_verify_expirations: Counter,
+    pub cache_keypair_hits: Counter,
+    pub cache_keypair_misses: Counter,
+
+    // ── Rotation (T-19) ─────────────────────────────────────
+    pub rotation_performed: Counter,
+    pub rotation_dual_accept_active: Gauge,
+    pub rotation_reregistrations_pending: Gauge,
+
+    // ── Rate Limit (T-11) ───────────────────────────────────
+    pub ratelimit_registrations_blocked: Counter,
+    pub ratelimit_hb_failures_blocked: Counter,
+    pub ratelimit_pow_failures: Counter,
+    pub ratelimit_ghosts_purged: Counter,
+
+    // ── Sampling (T-25) ─────────────────────────────────────
+    pub sampling_full_scans: Counter,
+    pub sampling_sampled_scans: Counter,
+
+    // ── Heartbeat Pipeline (THE HEADLINE) ───────────────────
+    /// Total heartbeats processed (all 26 neighbors, cumulative).
+    pub hb_pipeline_total: Counter,
+    /// Total heartbeat processing time in nanoseconds (for averaging).
+    pub hb_pipeline_total_ns: Counter,
+    /// Heartbeats processed in the last second (set by periodic task).
+    pub hb_pipeline_per_second: Gauge,
+}
+
+impl MetricsRegistry {
+    pub fn new() -> Self {
+        MetricsRegistry {
+            started_at: Instant::now(),
+
+            crs_registrations_total: Counter::new("plenum_crs_registrations_total", "Total CRS registrations"),
+            crs_registrations_signed: Counter::new("plenum_crs_registrations_signed", "Signed CRS registrations (T-06)"),
+            crs_registrations_legacy: Counter::new("plenum_crs_registrations_legacy", "Legacy unsigned registrations"),
+            crs_deregistrations_total: Counter::new("plenum_crs_deregistrations_total", "Total deregistrations"),
+            crs_deregistrations_key_compromise: Counter::new("plenum_crs_deregistrations_key_compromise", "Key compromise deregistrations"),
+            crs_signature_failures: Counter::new("plenum_crs_signature_failures", "Registration signature verification failures"),
+            crs_timestamp_failures: Counter::new("plenum_crs_timestamp_failures", "Registration timestamp validation failures"),
+            crs_replay_attempts: Counter::new("plenum_crs_replay_attempts", "Registration replay attempts detected"),
+
+            fts_hb_auth_successes: Counter::new("plenum_fts_hb_auth_successes", "Authenticated heartbeat successes"),
+            fts_hb_auth_failures: Counter::new("plenum_fts_hb_auth_failures", "Authenticated heartbeat failures"),
+            fts_hb_sequence_replays: Counter::new("plenum_fts_hb_sequence_replays", "Heartbeat sequence replay rejections"),
+            fts_state_changes_total: Counter::new("plenum_fts_state_changes_total", "FTS neighbor state transitions"),
+            fts_neighbors_up: Gauge::new("plenum_fts_neighbors_up", "Neighbors in Up state"),
+            fts_neighbors_suspect: Gauge::new("plenum_fts_neighbors_suspect", "Neighbors in Suspect state"),
+            fts_neighbors_down: Gauge::new("plenum_fts_neighbors_down", "Neighbors in Down state"),
+            fts_neighbors_recovering: Gauge::new("plenum_fts_neighbors_recovering", "Neighbors in Recovering state"),
+
+            con_tunnels_up: Gauge::new("plenum_con_tunnels_up", "Active tunnels"),
+            con_tunnels_down: Gauge::new("plenum_con_tunnels_down", "Down tunnels"),
+            con_tunnels_authenticating: Gauge::new("plenum_con_tunnels_authenticating", "Tunnels in handshake"),
+            con_forgery_alerts: Counter::new("plenum_con_forgery_alerts", "Forgery alerts from signature verification"),
+            con_verified_neighbors: Gauge::new("plenum_con_verified_neighbors", "Neighbors with verified signatures"),
+            con_handshake_successes: Counter::new("plenum_con_handshake_successes", "Successful tunnel handshakes"),
+            con_handshake_failures: Counter::new("plenum_con_handshake_failures", "Failed tunnel handshakes"),
+            con_handshake_timeouts: Counter::new("plenum_con_handshake_timeouts", "Timed out tunnel handshakes"),
+
+            wire_checksum_failures: Counter::new("plenum_wire_checksum_failures", "Dual checksum verification failures"),
+            wire_ecc_corrections: Counter::new("plenum_wire_ecc_corrections", "Single-trit ECC corrections"),
+            wire_ecc_uncorrectable: Counter::new("plenum_wire_ecc_uncorrectable", "Uncorrectable wire errors"),
+            wire_messages_v1: Counter::new("plenum_wire_messages_v1", "Protocol v1 messages received"),
+            wire_messages_v2: Counter::new("plenum_wire_messages_v2", "Protocol v2 messages received"),
+
+            placement_allocations: Counter::new("plenum_placement_allocations", "Total address allocations"),
+            placement_cold_starts: Counter::new("plenum_placement_cold_starts", "Cold start allocations"),
+            placement_k_floor_satisfied: Counter::new("plenum_placement_k_floor_satisfied", "Allocations meeting K-floor"),
+            placement_k_floor_relaxed: Counter::new("plenum_placement_k_floor_relaxed", "Allocations with relaxed K-floor"),
+
+            cache_verify_hits: Counter::new("plenum_cache_verify_hits", "Signature verification cache hits"),
+            cache_verify_misses: Counter::new("plenum_cache_verify_misses", "Signature verification cache misses"),
+            cache_verify_expirations: Counter::new("plenum_cache_verify_expirations", "Verification cache TTL expirations"),
+            cache_keypair_hits: Counter::new("plenum_cache_keypair_hits", "Keypair derivation cache hits"),
+            cache_keypair_misses: Counter::new("plenum_cache_keypair_misses", "Keypair derivation cache misses"),
+
+            rotation_performed: Counter::new("plenum_rotation_performed", "Master secret rotations"),
+            rotation_dual_accept_active: Gauge::new("plenum_rotation_dual_accept_active", "Dual-accept window active (0/1)"),
+            rotation_reregistrations_pending: Gauge::new("plenum_rotation_reregistrations_pending", "Re-registrations pending after rotation"),
+
+            ratelimit_registrations_blocked: Counter::new("plenum_ratelimit_registrations_blocked", "Registrations blocked by rate limit"),
+            ratelimit_hb_failures_blocked: Counter::new("plenum_ratelimit_hb_failures_blocked", "HB auth failures blocked by rate limit"),
+            ratelimit_pow_failures: Counter::new("plenum_ratelimit_pow_failures", "Proof-of-work verification failures"),
+            ratelimit_ghosts_purged: Counter::new("plenum_ratelimit_ghosts_purged", "Ghost registrations purged"),
+
+            sampling_full_scans: Counter::new("plenum_sampling_full_scans", "Full-scan allocations (< 100K nodes)"),
+            sampling_sampled_scans: Counter::new("plenum_sampling_sampled_scans", "Sampled allocations (>= 100K nodes)"),
+
+            hb_pipeline_total: Counter::new("plenum_hb_pipeline_total", "Total heartbeats processed across all neighbors"),
+            hb_pipeline_total_ns: Counter::new("plenum_hb_pipeline_total_ns", "Cumulative heartbeat processing time (nanoseconds)"),
+            hb_pipeline_per_second: Gauge::new("plenum_hb_pipeline_per_second", "Heartbeats processed in the last second"),
+        }
+    }
+
+    /// Uptime since registry creation.
+    pub fn uptime_secs(&self) -> f64 {
+        self.started_at.elapsed().as_secs_f64()
+    }
+
+    /// Record a single heartbeat pipeline execution with its duration.
+    ///
+    /// Call this after each `record_authenticated_pong()`:
+    /// ```rust,ignore
+    /// let start = Instant::now();
+    /// fts.record_authenticated_pong(&hb, rtt)?;
+    /// metrics.record_heartbeat_pipeline(start.elapsed().as_nanos() as u64);
+    /// ```
+    pub fn record_heartbeat_pipeline(&self, elapsed_ns: u64) {
+        self.hb_pipeline_total.inc();
+        self.hb_pipeline_total_ns.inc_by(elapsed_ns);
+    }
+
+    /// Compute the average heartbeat pipeline latency in nanoseconds.
+    pub fn avg_heartbeat_ns(&self) -> f64 {
+        let total = self.hb_pipeline_total.get();
+        if total == 0 { return 0.0; }
+        self.hb_pipeline_total_ns.get() as f64 / total as f64
+    }
+}
+
+impl Default for MetricsRegistry {
+    fn default() -> Self { Self::new() }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SNAPSHOT
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A point-in-time snapshot of all metrics.
+#[derive(Debug, Clone)]
+pub struct MetricsSnapshot {
+    pub values: BTreeMap<String, u64>,
+    pub uptime_secs: f64,
+    pub avg_heartbeat_ns: f64,
+}
+
+/// Collect a snapshot from a registry.
+pub fn collect_snapshot(r: &MetricsRegistry) -> MetricsSnapshot {
+    let mut v = BTreeMap::new();
+
+    // Macro to reduce repetition
+    macro_rules! snap {
+        ($field:ident) => {
+            v.insert(r.$field.name().to_string(), r.$field.get());
+        };
+    }
+
+    snap!(crs_registrations_total);
+    snap!(crs_registrations_signed);
+    snap!(crs_registrations_legacy);
+    snap!(crs_deregistrations_total);
+    snap!(crs_deregistrations_key_compromise);
+    snap!(crs_signature_failures);
+    snap!(crs_timestamp_failures);
+    snap!(crs_replay_attempts);
+
+    snap!(fts_hb_auth_successes);
+    snap!(fts_hb_auth_failures);
+    snap!(fts_hb_sequence_replays);
+    snap!(fts_state_changes_total);
+    snap!(fts_neighbors_up);
+    snap!(fts_neighbors_suspect);
+    snap!(fts_neighbors_down);
+    snap!(fts_neighbors_recovering);
+
+    snap!(con_tunnels_up);
+    snap!(con_tunnels_down);
+    snap!(con_tunnels_authenticating);
+    snap!(con_forgery_alerts);
+    snap!(con_verified_neighbors);
+    snap!(con_handshake_successes);
+    snap!(con_handshake_failures);
+    snap!(con_handshake_timeouts);
+
+    snap!(wire_checksum_failures);
+    snap!(wire_ecc_corrections);
+    snap!(wire_ecc_uncorrectable);
+    snap!(wire_messages_v1);
+    snap!(wire_messages_v2);
+
+    snap!(placement_allocations);
+    snap!(placement_cold_starts);
+    snap!(placement_k_floor_satisfied);
+    snap!(placement_k_floor_relaxed);
+
+    snap!(cache_verify_hits);
+    snap!(cache_verify_misses);
+    snap!(cache_verify_expirations);
+    snap!(cache_keypair_hits);
+    snap!(cache_keypair_misses);
+
+    snap!(rotation_performed);
+    snap!(rotation_dual_accept_active);
+    snap!(rotation_reregistrations_pending);
+
+    snap!(ratelimit_registrations_blocked);
+    snap!(ratelimit_hb_failures_blocked);
+    snap!(ratelimit_pow_failures);
+    snap!(ratelimit_ghosts_purged);
+
+    snap!(sampling_full_scans);
+    snap!(sampling_sampled_scans);
+
+    snap!(hb_pipeline_total);
+    snap!(hb_pipeline_total_ns);
+    snap!(hb_pipeline_per_second);
+
+    MetricsSnapshot {
+        values: v,
+        uptime_secs: r.uptime_secs(),
+        avg_heartbeat_ns: r.avg_heartbeat_ns(),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PROMETHEUS TEXT FORMAT
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Render in Prometheus text exposition format.
+pub fn to_prometheus(snapshot: &MetricsSnapshot) -> String {
+    let mut lines = Vec::with_capacity(snapshot.values.len() * 2 + 4);
+    lines.push(format!(
+        "# PlenumNET Inter-Cube Telemetry | uptime: {:.1}s | avg heartbeat: {:.0}ns",
+        snapshot.uptime_secs, snapshot.avg_heartbeat_ns,
+    ));
+    lines.push(String::new());
+
+    for (name, value) in &snapshot.values {
+        let metric_type = if name.ends_with("_total")
+            || name.contains("_failures") || name.contains("_successes")
+            || name.contains("_hits") || name.contains("_misses")
+            || name.contains("_blocked") || name.contains("_alerts")
+            || name.contains("_performed") || name.contains("_purged")
+            || name.contains("_corrections") || name.contains("_replays")
+            || name.contains("_attempts") || name.contains("_expirations")
+            || name.contains("_scans") || name.contains("_timeouts")
+            || name.contains("_total_ns")
+        {
+            "counter"
+        } else {
+            "gauge"
+        };
+        lines.push(format!("# TYPE {} {}", name, metric_type));
+        lines.push(format!("{} {}", name, value));
+    }
+
+    lines.join("\n")
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// JSON FORMAT
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Render as JSON for the PlenumNET dashboard API.
+pub fn to_json(snapshot: &MetricsSnapshot) -> String {
+    let mut entries: Vec<String> = Vec::with_capacity(snapshot.values.len() + 2);
+    entries.push(format!("\"uptime_secs\":{:.1}", snapshot.uptime_secs));
+    entries.push(format!("\"avg_heartbeat_ns\":{:.0}", snapshot.avg_heartbeat_ns));
+
+    for (name, value) in &snapshot.values {
+        entries.push(format!("\"{}\":{}", name, value));
+    }
+
+    format!("{{{}}}", entries.join(","))
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_counter_basic() {
+        let c = Counter::new("test", "help");
+        assert_eq!(c.get(), 0);
+        c.inc();
+        assert_eq!(c.get(), 1);
+        c.inc_by(5);
+        assert_eq!(c.get(), 6);
+        c.reset();
+        assert_eq!(c.get(), 0);
+    }
+
+    #[test]
+    fn test_gauge_basic() {
+        let g = Gauge::new("test", "help");
+        assert_eq!(g.get(), 0);
+        g.set(42);
+        assert_eq!(g.get(), 42);
+        g.inc();
+        assert_eq!(g.get(), 43);
+        g.dec();
+        assert_eq!(g.get(), 42);
+    }
+
+    #[test]
+    fn test_gauge_saturating_dec() {
+        let g = Gauge::new("test", "help");
+        g.dec();
+        assert_eq!(g.get(), 0, "Dec at 0 must not underflow");
+    }
+
+    #[test]
+    fn test_registry_creation() {
+        let r = MetricsRegistry::new();
+        assert_eq!(r.crs_registrations_total.get(), 0);
+        assert_eq!(r.hb_pipeline_total.get(), 0);
+    }
+
+    #[test]
+    fn test_heartbeat_pipeline_recording() {
+        let r = MetricsRegistry::new();
+        r.record_heartbeat_pipeline(1200); // 1.2µs in nanoseconds
+        r.record_heartbeat_pipeline(1000);
+        r.record_heartbeat_pipeline(1400);
+
+        assert_eq!(r.hb_pipeline_total.get(), 3);
+        assert_eq!(r.hb_pipeline_total_ns.get(), 3600);
+        assert!((r.avg_heartbeat_ns() - 1200.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_snapshot_complete() {
+        let r = MetricsRegistry::new();
+        r.crs_registrations_total.inc_by(42);
+        r.con_tunnels_up.set(10);
+        r.hb_pipeline_total.inc_by(100);
+        r.hb_pipeline_total_ns.inc_by(120_000); // 100 × 1200ns avg
+
+        let snap = collect_snapshot(&r);
+        assert_eq!(snap.values.get("plenum_crs_registrations_total"), Some(&42));
+        assert_eq!(snap.values.get("plenum_con_tunnels_up"), Some(&10));
+        assert_eq!(snap.values.get("plenum_hb_pipeline_total"), Some(&100));
+        assert!(snap.uptime_secs >= 0.0);
+        assert!((snap.avg_heartbeat_ns - 1200.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_snapshot_metric_count() {
+        let r = MetricsRegistry::new();
+        let snap = collect_snapshot(&r);
+        assert!(snap.values.len() >= 48, "Expected 48+ metrics, got {}", snap.values.len());
+    }
+
+    #[test]
+    fn test_prometheus_format() {
+        let r = MetricsRegistry::new();
+        r.crs_registrations_total.inc_by(100);
+        r.hb_pipeline_total.inc_by(26);
+        r.hb_pipeline_total_ns.inc_by(31_200); // 26 × 1200ns
+        let snap = collect_snapshot(&r);
+        let prom = to_prometheus(&snap);
+
+        assert!(prom.contains("plenum_crs_registrations_total 100"));
+        assert!(prom.contains("# TYPE plenum_crs_registrations_total counter"));
+        assert!(prom.contains("avg heartbeat:"));
+        assert!(prom.contains("PlenumNET Inter-Cube Telemetry"));
+    }
+
+    #[test]
+    fn test_json_format() {
+        let r = MetricsRegistry::new();
+        r.con_tunnels_up.set(26);
+        let snap = collect_snapshot(&r);
+        let json = to_json(&snap);
+
+        assert!(json.starts_with('{'));
+        assert!(json.ends_with('}'));
+        assert!(json.contains("\"plenum_con_tunnels_up\":26"));
+        assert!(json.contains("\"uptime_secs\":"));
+        assert!(json.contains("\"avg_heartbeat_ns\":"));
+    }
+
+    #[test]
+    fn test_all_metrics_prefixed() {
+        let r = MetricsRegistry::new();
+        let snap = collect_snapshot(&r);
+        for name in snap.values.keys() {
+            assert!(name.starts_with("plenum_"), "Metric '{}' must start with 'plenum_'", name);
+        }
+    }
+
+    #[test]
+    fn test_counter_name_and_help() {
+        let c = Counter::new("test_name", "test help text");
+        assert_eq!(c.name(), "test_name");
+        assert_eq!(c.help(), "test help text");
+    }
+
+    #[test]
+    fn test_gauge_name_and_help() {
+        let g = Gauge::new("test_gauge", "gauge help");
+        assert_eq!(g.name(), "test_gauge");
+        assert_eq!(g.help(), "gauge help");
+    }
+
+    #[test]
+    fn test_avg_heartbeat_zero_division() {
+        let r = MetricsRegistry::new();
+        assert_eq!(r.avg_heartbeat_ns(), 0.0, "No heartbeats → 0 avg");
+    }
+}

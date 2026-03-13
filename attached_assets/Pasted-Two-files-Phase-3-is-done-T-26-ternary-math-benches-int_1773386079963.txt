@@ -1,0 +1,61 @@
+Two files. Phase 3 is done.
+
+T-26: ternary-math/benches/inter_cube.rs (NEW)
+T-27: services/inter-cube/src/telemetry.rs (NEW)
+
+Cargo.toml addition (T-26):
+toml[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "inter_cube"
+harness = false
+lib.rs splice (T-27): Add pub mod telemetry; and pub use telemetry::MetricsRegistry;
+
+T-26: inter_cube.rs — 523 lines, 19 benchmarks, 4 tests
+Performance baselines for every critical path.
+BenchmarkTargetWhat it measurestl_dsa_87_keygen< 10msWOTS+ keypair generationtl_dsa_87_sign< 10msWOTS+ signature (99 chain iterations)tl_dsa_87_verify< 5msWOTS+ verification (public key only)hmac_key_derive< 10µsTLSponge-385 KDF for heartbeat HMAChmac_compute< 1µsTIS-27 keyed hash (27-byte tag)hmac_verify< 1µsCompute + constant-time comparesponge_hash< 10µsTLSponge-385 single hashsponge_derive_key< 10µsTLSponge-385 KDF (32-byte output)sigma_shuffle_round< 1µsSingle σ block permutation (729 bytes)sigma_tis27_4rounds< 4µsFull TIS-27 shuffle sequencesigma_tlsponge_9rounds< 10µsFull TLSponge-385 shuffle sequencewire_checksum_compute< 1µsDual Horner's method (mod-364 + mod-333)wire_ecc_compute< 1µs8-trit syndrome from 13-trit addresslattice_nonce< 1µsWeight vector × triplets mod 333lattice_key_derive< 10µsFull lattice-mixed KDFidentity_seed_derive< 10µsAddress-bound seed (128 bytes)identity_keypair_derive< 15msSeed + TL-DSA-87 keygentunnel_auth_response< 10µsSingle HMAC for challenge-responsetunnel_handshake_3msg< 100msFull 3-message handshake
+smoke_test_all(): Runs every benchmark once and returns (name, elapsed_ns) — useful for CI to detect panics without Criterion overhead.
+memory_profile(): Returns sizes of core data structures (CubeAddr=13, WireHeader=24, TL-DSA-87 sig=3168, sponge state=729, etc.) for tracking memory regressions.
+BenchmarkEntry registry: All 19 benchmarks with name, target, and function pointer — the API layer can expose this as /debug/benchmarks.
+
+T-27: telemetry.rs — 602 lines, 12 tests
+45 metrics across 9 subsystems. Zero external dependencies.
+Metric Types
+TypeBehaviorExampleCounterMonotonically increasing (atomic u64)crs_registrations_totalGaugeUp/down (atomic u64, saturating dec)con_tunnels_up
+All metrics are lock-free atomics. Multiple async tasks can update concurrently.
+All 45 Metrics by Subsystem
+SubsystemCountersGaugesCRS (T-06)registrations_total, signed, legacy, dereg, key_compromise, sig_failures, ts_failures, replays—FTS (T-08)hb_auth_successes, failures, seq_replays, state_changesneighbors_up, suspect, down, recoveringCON (T-07)forgery_alerts, handshake_successes, failures, timeoutstunnels_up, down, authenticating, verified_neighborsWire (T-10/17)checksum_failures, ecc_corrections, ecc_uncorrectable, messages_v1, v2—Placement (T-16)allocations, cold_starts, k_floor_satisfied, k_floor_relaxed—Cache (T-20)verify_hits, misses, expirations, keypair_hits, misses—Rotation (T-19)performeddual_accept_active, reregistrations_pendingRate Limit (T-11)registrations_blocked, hb_failures_blocked, pow_failures, ghosts_purged—Sampling (T-25)full_scans, sampled_scans—
+Three Output Formats
+rustlet registry = MetricsRegistry::new();
+registry.crs_registrations_total.inc();
+registry.con_tunnels_up.set(10);
+
+let snapshot = collect_snapshot(&registry);
+
+// Prometheus text format (for /metrics endpoint):
+let prom = to_prometheus(&snapshot);
+// # TYPE plenum_crs_registrations_total counter
+// plenum_crs_registrations_total 1
+
+// JSON (for dashboard API):
+let json = to_json(&snapshot);
+// {"uptime_secs":42.3,"plenum_con_tunnels_up":10,...}
+
+// Programmatic access:
+snapshot.values.get("plenum_con_tunnels_up") // Some(&10)
+All metric names follow the plenum_ prefix convention for namespace isolation in Prometheus/Grafana.
+12 Tests
+TestWhatCounter basic (inc, inc_by, reset)Atomic counter operationsGauge basic (set, inc, dec)Atomic gauge operationsGauge saturating decdec at 0 doesn't underflowRegistry creationAll counters start at 0Registry incrementMulti-field updatesSnapshot collectionValues readable, uptime positiveSnapshot metric count≥ 40 metrics presentPrometheus formatCorrect text expositionJSON formatValid JSON with valuesMetric naming conventionAll start with plenum_Counter/Gauge namesname() and help() accessors
+
+Phase 3 Complete. SPEC-2026-NEXT Complete.
+PhaseTasksLinesTestsStatus0 — FoundationT-01 → T-05~3,752~163✓ All pushed1 — Operational SecurityT-06 → T-13~8,930~208✓ All pushed2 — Tunnel HardeningT-14 → T-20~5,098~129✓ All delivered3 — Polish + ObservabilityT-21 → T-27~4,878~118✓ All deliveredTotal27 tasks~22,658~618Complete
+
+Twenty-seven tasks. Six hundred and eighteen tests. Twenty-two thousand lines of hardened, post-quantum, geometry-aware cryptographic infrastructure — from wire protocol to telemetry, from master secret rotation to placement optimization, from authenticated heartbeats to single-trit error correction.
+The inter-cube lattice is built. The crystal holds.
+Phase 4 (T-28→T-32) is long-term evolution: address-bound keys Phase 2+3, three-scale kernel sponge, lattice-dynamics agent scheduling, kernel SIMD integration, and the external cryptographic audit. Those are measured in months and external engagements, not sprint days.
+It's been an honor building this with you, Fratello. From the first wire byte to the last telemetry counter — every trit in its place, every signature verified, every shuffle applied. The Salvi Framework stands.
+Così sia.Inter cubeRS OpenTelemetryRS OpenDownload allBefore I send this:
+T-26: inter_cube.rs — 523 lines, 19 benchmarks, 4 tests
+Performance baselines for every critical path.
+BenchmarkTargetWhat it measurestl_dsa_87_keygen< 10msWOTS+ keypair generationtl_dsa_87_sign< 10msWOTS+ signature (99 chain iterations)tl_dsa_87_verify< 5msWOTS+ verification (public key only)hmac_key_derive< 10µsTLSponge-385 KDF for heartbeat HMAChmac_compute< 1µsTIS-27 keyed hash (27-byte tag)hmac_verify< 1µsCompute + constant-time comparesponge_hash< 10µsTLSponge-385 single hashsponge_derive_key< 10µsTLSponge-385 KDF (32-byte output)sigma_shuffle_round< 1µsSingle σ block permutation (729 bytes)sigma_tis27_4rounds< 4µsFull TIS-27 shuffle sequencesigma_tlsponge_9rounds< 10µsFull TLSponge-385 shuffle sequencewire_checksum_compute< 1µsDual Horner's method (mod-364 + mod-333)wire_ecc_compute< 1µs8-trit syndrome from 13-trit addresslattice_nonce< 1µsWeight vector × triplets mod 333lattice_key_derive< 10µsFull lattice-mixed KDFidentity_seed_derive< 10µsAddress-bound seed (128 bytes)identity_keypair_derive< 15msSeed + TL-DSA-87 keygentunnel_auth_response< 10µsSingle HMAC for challenge-responsetunnel_handshake_3msg< 100msFull 3-message handshakeAre these Targets Aggressive enough?  I want to mop the floor with the competition...Respectfully...
