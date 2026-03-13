@@ -56,8 +56,8 @@ export function MarketingFooter() {
               <span>PlenumNET</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
-              The world's first ternary computing platform. Post-quantum
-              security, 59% density advantage, shipping today.
+              A geometrically derived, self-healing computing universe. Post-quantum
+              security, 217% density advantage, shipping today.
             </p>
             <div className="flex gap-3">
               <a

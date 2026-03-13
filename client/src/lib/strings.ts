@@ -85,7 +85,7 @@ export const STRINGS = {
     successMessage: "Our team will review your request and reach out within 48 hours with SDK access credentials and onboarding documentation.",
   },
   footer: {
-    tagline: "The world's first ternary computing platform. Post-quantum security, 59% density advantage, shipping today.",
+    tagline: "A geometrically derived, self-healing computing universe. Post-quantum security, 217% density advantage, shipping today.",
     copyright: "All Rights Reserved and Preserved",
     company: "Capomastro Holdings Ltd",
   },
