@@ -224,7 +224,7 @@ function HeroSection() {
 
 
         <h1 
-          className="text-4xl md:text-5xl lg:text-[3.4rem] font-bold leading-tight mb-6 text-center whitespace-nowrap"
+          className="text-3xl md:text-4xl lg:text-[2.8rem] font-bold leading-tight mb-6 text-center"
           data-testid="text-hero-title"
           id="hero-title"
           style={{
@@ -246,7 +246,7 @@ function HeroSection() {
             `,
           }}
         >
-          The World's First <span className="text-primary" style={{ textShadow: `
+          <span className="text-primary" style={{ textShadow: `
               0 1px 0 rgba(0,85,210,0.50),
               0 2px 0 rgba(0,80,200,0.45),
               0 3px 0 rgba(0,75,190,0.40),
@@ -260,7 +260,7 @@ function HeroSection() {
               0 12px 8px rgba(0,30,100,0.18),
               0 18px 16px rgba(0,30,100,0.12),
               0 26px 30px rgba(0,30,100,0.07)
-            ` }}>Ternary Computing</span> Platform
+            ` }}>PlenumNET</span> ~ A Geometrically Derived<br />Self Healing Computing Universe
         </h1>
 
         <motion.div
@@ -286,24 +286,6 @@ function HeroSection() {
           </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex flex-wrap items-center justify-center gap-3 mb-8"
-          data-testid="visitor-path-anchors"
-        >
-          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
-            I want to build on it
-          </a>
-          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
-            I want to understand how it works
-          </a>
-          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
-            I want to evaluate the business case
-          </a>
-        </motion.div>
-
         <div className="space-y-14">
           <div className="text-center">
             <motion.div 
@@ -313,9 +295,72 @@ function HeroSection() {
               className="mb-5"
               data-testid="text-hero-description"
             >
-              <p className="text-lg text-muted-foreground text-center">
-                Computers think in two states. PlenumNET thinks in three. That one extra state changes everything — 59% more data per digit, encryption that survives quantum computers, and it runs on the hardware you already own.
-              </p>
+              <div className="max-w-3xl mx-auto space-y-10 text-left">
+
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Foundation</h2>
+                    <span className="text-muted-foreground">~</span>
+                    <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
+                      I want to build on it
+                    </a>
+                  </div>
+                  <div className="border-t border-border/40 mb-4" />
+                  <p className="text-lg text-muted-foreground leading-relaxed mb-4">
+                    Every computer ever built speaks in binary — on or off, yes or no, one or zero.
+                  </p>
+                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                    PlenumNET transcends that limitation entirely.
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Through three native representations — Rep A, B, C — data doesn't just gain a third state — it gains the <em>divine geometry of nine</em>, where three representations interlock into a complete algebraic system that binary can never reach.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Architecture</h2>
+                    <span className="text-muted-foreground">~</span>
+                    <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
+                      I want to understand how it works
+                    </a>
+                  </div>
+                  <div className="border-t border-border/40 mb-4" />
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    217% more information per digit — 9 algebraic states where binary offers one;
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Dual-phase, geometrically derived cryptographic encryption that quantum computers cannot decompose;
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    A 13-dimensional hypercube network — its topology derived from nested circles, an inscribed hexagon definitive of the foundational Arc, and a one-in-3.4-million inscribed Plenum Magic Square — threading 20.7 million post-quantum tunnels through every cube;
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Femtosecond-precision timing across every operation...
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Opportunity</h2>
+                    <span className="text-muted-foreground">~</span>
+                    <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
+                      I want to evaluate the business case
+                    </a>
+                  </div>
+                  <div className="border-t border-border/40 mb-4" />
+                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                    This is not an incremental improvement.
+                  </p>
+                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                    This is the foundation of the post-quantum internet.
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    All running on the silicon you already own.
+                  </p>
+                </div>
+
+              </div>
             </motion.div>
 
             <motion.div
@@ -2112,7 +2157,7 @@ function Footer() {
               <span>PlenumNET</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">
-              The world's first ternary computing platform. Post-quantum security, 59% density advantage, shipping today.
+              A geometrically derived, self-healing computing universe. Post-quantum security, 59% density advantage, shipping today.
             </p>
             <div className="flex gap-3">
               <a 
