@@ -949,6 +949,12 @@ export default function GeometricFoundations() {
               the network scales infinitely: stack another 13 trits and the address space jumps from
               1.6 million to 2.5 trillion nodes with no architectural change. This works today.
             </p>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto 12px" }}>
+              26 concurrent neighbor interactions per node. Every node in the 13D hypercube maintains
+              26 authenticated, post-quantum tunnels simultaneously — each with its own heartbeat,
+              HMAC verification, sequence tracking, and fault detection. The cryptographic operations
+              backing these interactions must be invisible to the application layer.
+            </p>
             <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgMuted, maxWidth: 640, margin: "0 auto" }}>
               Greedy geodesic forwarding across the 13D ternary cube.
               Hamming distance IS hop count. Adjacency IS the routing table. Four services orchestrate
