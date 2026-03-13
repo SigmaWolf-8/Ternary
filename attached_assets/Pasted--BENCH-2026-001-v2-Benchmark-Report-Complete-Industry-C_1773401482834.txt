@@ -1,0 +1,221 @@
+# BENCH-2026-001 v2 — Benchmark Report & Complete Industry Comparison
+
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**Document: BENCH-2026-001-v2**
+**Date: March 13, 2026**
+**Supersedes: BENCH-2026-001 v1**
+
+---
+
+## Revision Note
+
+v1 omitted six competitors. v2 adds them all and corrects positioning claims accordingly. Every PlenumNET cryptographic module now has a complete best-in-class comparison.
+
+**Competitors added:** FN-DSA-1024 (Falcon), XMSS, KMAC-256, Ascon, PQ WireGuard (ML-KEM + ML-DSA), Reed-Solomon/BCH codes.
+
+---
+
+## 1. Digital Signatures — Complete Landscape
+
+### 1.1 All NIST PQ Signature Schemes + TL-DSA-87
+
+Measured on Replit x86_64. Industry figures from published benchmarks (liboqs, pq-crystals, SPHINCS+ reference, Falcon reference) on comparable hardware.
+
+| Scheme | Basis | Keygen | Sign | Verify | Sig Size | PK Size | Level |
+|--------|-------|--------|------|--------|----------|---------|-------|
+| **TL-DSA-87** | Hash (TLSponge) | 13.73 ms | 20.07 ms | 26.70 ms | **3,168 B** | **64 B** | 5-eq |
+| ML-DSA-87 | Module Lattice | ~125 µs | ~75 µs | ~125 µs | 4,595 B | 2,592 B | 5 |
+| FN-DSA-1024 | NTRU Lattice | ~15 ms | ~3 ms | ~0.5 ms | **1,330 B** | 1,793 B | 5 |
+| SLH-DSA-256f | Hash (SHA/SHAKE) | 19.40 ms | 91.50 ms | 5.05 ms | 49,856 B | 64 B | 5 |
+| XMSS-SHA256 | Hash (stateful) | ~3 ms | ~5 ms | ~0.5 ms | 2,692 B | 64 B | ~5 |
+
+### 1.2 Honest Positioning — Where TL-DSA-87 Wins and Loses
+
+**TL-DSA-87 wins:**
+
+- **Smallest public key at Level 5** (64 bytes). Tied with SLH-DSA. 40× smaller than ML-DSA-87 (2,592 B). 28× smaller than FN-DSA-1024 (1,793 B). For CRS registration packets and SignHere Hedera witness, this is the dominant bandwidth factor.
+
+- **Signs 4.6× faster than SLH-DSA-256f** (20ms vs 91ms). Among hash-based stateless schemes, TL-DSA is the fastest signer.
+
+- **Signatures 15.7× smaller than SLH-DSA-256f** (3,168 vs 49,856 bytes). Smallest hash-based stateless signature.
+
+- **No algebraic assumptions.** Security depends solely on TLSponge-385 pre-image resistance. No lattice, no ring, no NTRU structure to attack. Same trust basis as SLH-DSA but with better signing performance.
+
+**TL-DSA-87 loses:**
+
+- **FN-DSA-1024 (Falcon) has smaller signatures** (1,330 B vs 3,168 B). Falcon also verifies ~50× faster. However, Falcon requires precise Gaussian sampling (hard to implement safely, side-channel sensitive) and relies on NTRU lattice assumptions.
+
+- **ML-DSA-87 is ~200× faster on all operations.** This is the fundamental speed gap between lattice-based (algebraic parallelism via NTT) and hash-based (sequential chain iteration). ML-DSA's speed advantage is structural, not an implementation deficiency.
+
+- **XMSS verifies ~50× faster** with comparable signature sizes. But XMSS is stateful — it requires careful state management to prevent key reuse, which is incompatible with PlenumNET's stateless CRS model.
+
+- **SLH-DSA-256f verifies 5.3× faster** (5ms vs 27ms). The hypertree structure favors verification over signing — the opposite tradeoff from TL-DSA's flat WOTS+.
+
+### 1.3 Corrected Claims
+
+| Claim | v1 | v2 (Corrected) |
+|-------|-----|-----------------|
+| "Smallest signatures at Level 5" | Implied | **FALSE.** Falcon is 1,330 B. TL-DSA is smallest *hash-based stateless* signature. |
+| "Smallest public key at Level 5" | Not stated | **TRUE.** 64 bytes, tied with SLH-DSA. |
+| "5× faster than SPHINCS+" | Stated for verify | **FALSE for verify** (SLH-DSA verifies faster). **TRUE for sign** (4.6× faster). |
+| "Faster than CRC32" | Stated for wire ops | **MISLEADING.** CRC32 is detection only. ECC is correction. Different category. Corrected: "Sub-2ns error correction — comparable to hardware CRC32 detection speed." |
+
+---
+
+## 2. Symmetric Primitives — Complete Landscape
+
+### 2.1 MAC Comparison — All Best-in-Class
+
+| Scheme | Speed (short msg) | Output | Basis | Standard |
+|--------|-------------------|--------|-------|----------|
+| **TIS-27 (4-round)** | **~185 ns** | 27 B | TLSponge sponge | Salvi Framework |
+| **TLSponge-385 HMAC** | **16.58 µs** | 27 B | TLSponge sponge | Salvi Framework |
+| KMAC-256 | ~150–300 ns | variable | Keccak sponge | NIST SP 800-185 |
+| HMAC-SHA256 | ~200–500 ns | 32 B | SHA-256 Merkle-Damgard | FIPS 198-1 |
+| BLAKE3 keyed | ~50 ns | 32 B | BLAKE3 Merkle tree | Non-NIST |
+| Ascon-MAC | ~50–100 ns | 16 B | Ascon sponge | NIST LWC (2023) |
+| Poly1305 | ~100 ns | 16 B | Polynomial evaluation | RFC 8439 |
+
+**Analysis:**
+
+TIS-27 at 185ns is competitive with KMAC-256. Both are sponge-based MACs on similar-sized state (TIS-27: 729 trits ≈ 1,155 bits; Keccak: 1,600 bits). The speed parity is expected — the operations are architecturally equivalent.
+
+TLSponge-385 HMAC at 16.58µs is not competitive for per-message authentication. It's competitive for key derivation (where you want maximum pre-image resistance), but it should not be used for per-heartbeat MACs. This is exactly the problem T-28b solves.
+
+BLAKE3 and Ascon are faster than TIS-27 because they're specifically optimized for short messages on binary hardware. TIS-27 operates in balanced ternary, which requires binary-ternary conversion overhead on current CPUs. With a ternary-native processor (XPlenum RISC-V), this overhead vanishes.
+
+**Corrected positioning:** TIS-27 is not "faster than HMAC-SHA256" on binary hardware. It's in the same performance class (~150–300ns). The advantage is that TIS-27 is native to the PlenumNET ternary stack — no representation conversion when computing over GF(3) addresses, no domain mismatch between the MAC and the data it authenticates.
+
+### 2.2 Sponge Hash Comparison
+
+| Scheme | Speed (short msg) | State Size | Rounds | Security |
+|--------|-------------------|------------|--------|----------|
+| **TLSponge-385** | **~10 µs** | 729 trits (1,155 bits) | 9 | 385-bit |
+| **TIS-27** | **~185 ns** | 729 trits | 4 | ~183-bit |
+| SHA3-256 (Keccak) | ~250 ns | 1,600 bits | 24 | 256-bit |
+| BLAKE3 | ~50 ns | 1,024 bits | 7 | 128-bit |
+| Ascon-Hash | ~200 ns | 320 bits | 12 | 128-bit |
+
+TLSponge-385 at 10µs is ~40× slower than SHA3-256. This is the cost of operating in balanced ternary on binary hardware: each trit operation requires mod-3 arithmetic that the CPU doesn't have native instructions for. The 385-bit security level also demands more rounds than SHA3-256's 256-bit target.
+
+TIS-27 at 185ns is competitive with SHA3-256 because it runs only 4 rounds. The security level (~183 bits) is lower — sufficient for ephemeral authentication but not for long-term key derivation.
+
+---
+
+## 3. Tunnel & Key Exchange — Complete Landscape
+
+### 3.1 Handshake Comparison — Including PQ Variants
+
+| Protocol | Crypto Cost | Messages | PQ-Safe | Basis |
+|----------|------------|----------|---------|-------|
+| **PlenumNET 3-msg** | **44 µs** | 3 | **Yes** | TLSponge HMAC |
+| WireGuard (Noise IK) | ~1 ms | 2 | No | X25519 + ChaCha20 |
+| PQ WireGuard (Rosenpass) | ~2–3 ms | 2 + PQ | Yes | ML-KEM + Classic McEliece |
+| PQ TLS 1.3 (ML-KEM) | ~0.5–1 ms | 2–3 | Yes | ML-KEM + ML-DSA |
+| TLS 1.3 (ECDHE) | ~2 ms | 2–3 | No | P-256 + AES-GCM |
+
+**Analysis:**
+
+PlenumNET's 44µs is crypto-only (no network RTT). The correct comparison is against the crypto portion of PQ WireGuard (~2ms crypto) and PQ TLS 1.3 (~0.5ms crypto), which gives PlenumNET a 10–50× advantage. This advantage comes from using symmetric authentication (sponge HMAC) rather than public-key operations for the handshake — the KEM shared secret is pre-established at registration time.
+
+**Corrected positioning:** The tunnel handshake does not do key exchange. The KEM secret is established during CRS registration (expensive, one-time). The 3-message handshake only proves mutual possession of the pre-shared KEM secret. Comparing it to WireGuard/TLS (which do key exchange in-band) is apples-to-oranges. The honest comparison is against IKEv2 with pre-shared keys (~0.5ms crypto), which PlenumNET still beats by 10×.
+
+---
+
+## 4. Wire Integrity — Complete Landscape
+
+### 4.1 Error Detection + Correction Comparison
+
+| Scheme | Type | Speed | Corrects | Detects | Overhead |
+|--------|------|-------|----------|---------|----------|
+| **PlenumNET dual checksum** | Detection | **~1.5 ns** | No | Multi-trit | 3 bytes |
+| **PlenumNET ECC syndrome** | Correction | **~1.5 ns** | 1 trit | Multi-trit | 2 bytes |
+| CRC32 | Detection | ~1 ns (HW) | No | Multi-bit | 4 bytes |
+| CRC32C (SSE 4.2) | Detection | ~0.3 ns (HW) | No | Multi-bit | 4 bytes |
+| Reed-Solomon (t=1, GF(256)) | Correction | ~50–200 ns | 1 symbol | 2 symbols | 2 bytes |
+| BCH (t=1) | Correction | ~10–50 ns | 1 bit | 2 bits | varies |
+| Hamming (7,4) | Correction | ~5 ns | 1 bit | 2 bits | 3 bits/4 bits |
+
+**Corrected positioning:**
+
+The 1.5ns measurements are loop/call overhead, not arithmetic cost. The actual computation (13 multiply-accumulates for checksum, 8 parity sums for ECC) is effectively free — the compiler vectorizes it into a handful of ALU instructions.
+
+The correct comparison for the ECC syndrome is Reed-Solomon (t=1), which corrects one symbol error over a short block. RS(t=1) on a 13-symbol block over GF(256) costs ~50–200ns in software. PlenumNET's mod-3 parity scheme operates in GF(3) natively, which is simpler arithmetic. The tradeoff: RS corrects arbitrary symbol errors in GF(256), while PlenumNET corrects single-trit errors in GF(3). For 13-trit addresses where each trit has only 3 possible values, the ternary scheme is optimal.
+
+The dual checksum (mod-364 + mod-333) is not comparable to CRC32 because it serves a different purpose: the coprime moduli (gcd(364,333)=1) enable CRT-based error localization. CRC32 detects errors but cannot localize them. The PlenumNET scheme detects AND localizes errors to specific trit positions when combined with the ECC syndrome.
+
+**Honest claim:** "Sub-2ns combined error detection + single-trit correction for ternary addresses. Comparable to hardware-accelerated CRC32 in detection speed, with correction capability that CRC32 lacks."
+
+---
+
+## 5. Revised Scorecard — All 29 Benchmarks
+
+### 5.1 Signatures vs Complete Field
+
+| Operation | TL-DSA-87 | ML-DSA-87 | FN-DSA-1024 | SLH-DSA-256f | XMSS |
+|-----------|-----------|-----------|-------------|--------------|------|
+| Keygen | 13.73 ms | ~125 µs | ~15 ms | 19.40 ms | ~3 ms |
+| Sign | 20.07 ms | ~75 µs | ~3 ms | 91.50 ms | ~5 ms |
+| Verify | 26.70 ms | ~125 µs | ~0.5 ms | 5.05 ms | ~0.5 ms |
+| Sig size | 3,168 B | 4,595 B | **1,330 B** | 49,856 B | 2,692 B |
+| PK size | **64 B** | 2,592 B | 1,793 B | **64 B** | **64 B** |
+| Stateless | Yes | Yes | Yes | Yes | **No** |
+| Hash-only trust | **Yes** | No | No | **Yes** | **Yes** |
+
+**TL-DSA-87 unique position:** Only scheme with 64-byte PK AND stateless AND hash-only trust AND sub-4KB signatures. SLH-DSA shares the first three properties but has 49KB signatures. XMSS shares all four but is stateful.
+
+### 5.2 MACs vs Complete Field
+
+| Operation | TIS-27 | TLSponge HMAC | KMAC-256 | Ascon-MAC | BLAKE3 |
+|-----------|--------|---------------|----------|-----------|--------|
+| Speed | 185 ns | 16.58 µs | ~200 ns | ~75 ns | ~50 ns |
+| Ternary-native | **Yes** | **Yes** | No | No | No |
+| PQ-safe | Yes | Yes | Yes | Yes | Yes |
+
+### 5.3 Full Benchmark Results (unchanged from v1)
+
+| # | Benchmark | Measured | Category |
+|---|-----------|----------|----------|
+| 1–8 | TIS-27 suite (8 benchmarks) | 178–196 ns | Sponge |
+| 9 | TL-DSA-87 keygen | 13.73 ms | PQ Crypto |
+| 10 | TL-DSA-87 sign | 20.07 ms | PQ Crypto |
+| 11 | TL-DSA-87 verify | 26.70 ms | PQ Crypto |
+| 12 | HMAC key derive | 8.19 µs | Symmetric |
+| 13 | HMAC compute | 16.58 µs | Symmetric |
+| 14 | HMAC verify | 20.57 µs | Symmetric |
+| 15 | Sponge hash | 9.99 µs | Sponge |
+| 16 | Sponge derive_key | 8.08 µs | Sponge |
+| 17 | σ shuffle round | 128.15 ns | Permutation |
+| 18 | σ TIS-27 (4 rounds) | 283.90 ns | Permutation |
+| 19 | σ TLSponge (9 rounds) | 528.17 ns | Permutation |
+| 20 | Wire checksum | 1.52 ns | Wire |
+| 21 | Wire ECC | 1.51 ns | Wire |
+| 22 | Lattice nonce | 1.50 ns | Lattice |
+| 23 | Lattice key derive | 12.13 µs | Lattice |
+| 24 | Identity seed derive | 16.22 µs | Identity |
+| 25 | Identity keypair | 13.58 ms | Identity |
+| 26 | Tunnel auth response | 12.07 µs | Tunnel |
+| 27 | Tunnel handshake 3-msg | 44.40 µs | Tunnel |
+| 28 | Heartbeat pipeline (1 nbr) | 12.78 µs | Heartbeat |
+| 29 | Heartbeat 26 neighbors | 549.39 µs | Heartbeat |
+
+---
+
+## 6. The Corrected Positioning Statement
+
+TL-DSA-87 is not the fastest signature scheme. ML-DSA is ~200× faster. Falcon has smaller signatures. XMSS verifies faster.
+
+TL-DSA-87 occupies a specific and defensible position:
+
+**The only stateless, hash-based, 64-byte-public-key signature scheme with sub-4KB signatures at NIST Level 5 security, operating natively inside a ternary algebraic geometry with 26-neighbor authenticated tunnels at 0.055% CPU utilization.**
+
+No other scheme in existence can make that complete statement. ML-DSA can't (lattice assumptions). Falcon can't (NTRU assumptions, 1.8KB public key). SLH-DSA can't (50KB signatures, no tunnel infrastructure). XMSS can't (stateful).
+
+The speed gap with ML-DSA is the known cost of hash-based security. The framework accepts this cost at registration time (once per node lifetime) and eliminates it from the hot path (per-heartbeat) by using symmetric TIS-27 authentication.
+
+With TL-DSA v2 (ternary lattice construction, scoped separately), the speed gap closes to competitive with ML-DSA while retaining the ternary-native advantage. That's the long-term play.
+
+---
+
+*Salvi Framework — Capomastro Holdings Ltd.*
+*Patent(s) Pending — All Rights Reserved*

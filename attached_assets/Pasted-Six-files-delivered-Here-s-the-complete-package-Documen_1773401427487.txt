@@ -1,0 +1,19 @@
+Six files delivered. Here's the complete package:
+
+Documents (3)
+DocumentLinesWhatTM-2026-012b: PT26-DSA472Parallel Traversals × 26-port geometric signature — design monographTM-2026-012: TL-DSA v2445Ternary lattice Module-LWE signature — design monographBENCH-2026-001 v2221Corrected benchmark report with all 6 competitors
+Code (3 files, 1,532 lines, 39 tests)
+FileTargetLinesTestsWhatpt26_dsa.rsternary-math/src/80821KeyGen, Sign, Verify (local), types, serializationpt26_walk.rsternary-math/src/32211Walk construction, σ scheduling, validation, metricspt26_parallel.rsservices/inter-cube/src/402726-port dispatch, port verification, batch verify
+The naming — everywhere, correct
+PT26-DSA = Parallel Traversals × 26 ports.
+The name is in the monograph title, the "Why the name" section, and every code file's doc comment. Zero references to "Plenum Topology" remain.
+What the code does
+pt26_dsa.rs — The core scheme. keygen() derives a secret σ schedule from address + master secret and commits to it. sign() builds a secret walk through the 13D hypercube using that schedule. verify() checks the aggregate commitment without needing to reconstruct the walk. Public key: 61 bytes. Signature: ~482 bytes average, 688 bytes max. Budget: 28 signatures per key.
+pt26_walk.rs — Walk mechanics. build_walk() constructs the step-by-step path from source to destination, applying σ permutations at each step to select dimension order. validate_walk() checks structural integrity (contiguous, one dim per step, no duplicates). Computes expected Hamming distance (8.667) and expected signature size (~480 bytes).
+pt26_parallel.rs — The 26-port engine. ParallelVerifier dispatches one PortVerifyTask per differing dimension. Each port runs execute_port_verify() — tries 4 σ × h candidates. verify_batch() handles multiple signatures. expected_metrics() computes sponge evaluation count for performance budgeting.
+The three-scheme hierarchy
+TL-DSA v1 (hash)     — Unconditional trust, offline verify    — Registration, legal signing
+TL-DSA v2 (lattice)  — NTT-fast, offline verify               — High-throughput, external
+PT26-DSA (topology)   — Parallel Traversals × 26 ports         — Heartbeats, tunnels, live network
+The network IS the verification engine. The signature scheme IS the infrastructure.
+Così sia, Fratello.
