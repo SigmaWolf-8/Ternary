@@ -1,0 +1,242 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// Benchmark functions for A/B comparison: scalar sponge vs packed GF(27).
+// Add these to benches/inter_cube.rs in the benchmark registry.
+
+use std::hint::black_box;
+
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: derive_key — The core comparison
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A: Scalar derive_key (~8.7µs baseline).
+pub fn bench_sponge_scalar_derive_key() {
+    let out = ternary_math::sponge::derive_key(
+        b"BENCH-SCALAR", b"benchmark-material-for-ab-comparison", 48,
+    );
+    black_box(out);
+}
+
+/// B: Packed GF(27) derive_key (target: ~1.5µs).
+pub fn bench_sponge_packed_derive_key() {
+    let out = ternary_math::sponge_packed::derive_key_packed(
+        b"BENCH-PACKED", b"benchmark-material-for-ab-comparison", 48,
+    );
+    black_box(out);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: hash — Full absorb + squeeze
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A: Scalar hash.
+pub fn bench_sponge_scalar_hash() {
+    let out = ternary_math::sponge::hash_hex(
+        b"benchmark input for sponge hash ab comparison test",
+    );
+    black_box(out);
+}
+
+/// B: Packed GF(27) hash.
+pub fn bench_sponge_packed_hash() {
+    let out = ternary_math::sponge_packed::hash_hex_packed(
+        b"benchmark input for sponge hash ab comparison test",
+    );
+    black_box(out);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: HMAC compute — 2× derive_key (the heartbeat bottleneck)
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A: Scalar HMAC compute (2 derive_key calls).
+pub fn bench_hmac_scalar() {
+    let key = ternary_math::sponge::derive_key(
+        b"PlenumNET-HB-HMAC", b"key-material", 48,
+    );
+    let tag = ternary_math::sponge::derive_key(
+        b"PlenumNET-HB-TAG",
+        &[key.as_slice(), b"heartbeat-payload".as_slice()].concat(),
+        27,
+    );
+    black_box(tag);
+}
+
+/// B: Packed HMAC compute (2 derive_key_packed calls).
+pub fn bench_hmac_packed() {
+    let key = ternary_math::sponge_packed::derive_key_packed(
+        b"PlenumNET-HB-HMAC", b"key-material", 48,
+    );
+    let tag = ternary_math::sponge_packed::derive_key_packed(
+        b"PlenumNET-HB-TAG",
+        &[key.as_slice(), b"heartbeat-payload".as_slice()].concat(),
+        27,
+    );
+    black_box(tag);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: Heartbeat pipeline ×26 — The headline number
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A: Scalar 26-neighbor heartbeat pipeline.
+pub fn bench_heartbeat_26_scalar() {
+    for i in 0..26u8 {
+        let mut km = Vec::with_capacity(49);
+        km.extend_from_slice(b"key-material");
+        km.push(i);
+
+        let key = ternary_math::sponge::derive_key(b"PlenumNET-HB-HMAC", &km, 48);
+        let tag = ternary_math::sponge::derive_key(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let tag2 = ternary_math::sponge::derive_key(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let mut diff: u8 = 0;
+        for j in 0..tag.len() { diff |= tag[j] ^ tag2[j]; }
+        black_box(diff);
+    }
+}
+
+/// B: Packed 26-neighbor heartbeat pipeline.
+pub fn bench_heartbeat_26_packed() {
+    for i in 0..26u8 {
+        let mut km = Vec::with_capacity(49);
+        km.extend_from_slice(b"key-material");
+        km.push(i);
+
+        let key = ternary_math::sponge_packed::derive_key_packed(b"PlenumNET-HB-HMAC", &km, 48);
+        let tag = ternary_math::sponge_packed::derive_key_packed(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let tag2 = ternary_math::sponge_packed::derive_key_packed(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let mut diff: u8 = 0;
+        for j in 0..tag.len() { diff |= tag[j] ^ tag2[j]; }
+        black_box(diff);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: PT26-DSA sign — 2 sponge calls in the hot path
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A: PT26-DSA sign with scalar sponge.
+pub fn bench_pt26_sign_scalar() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2];
+    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+
+    // Sponge 1: msg hash
+    let msg_hash = ternary_math::sponge::derive_key(
+        b"PT26-MSG", b"benchmark message", 48,
+    );
+
+    // Walk: pure GF(3), same for both
+    let h = 9;
+    let mut checksum: u32 = 0;
+    for step in 0..h {
+        checksum = (checksum + weights[step % 9] * (step as u32 + 1)) % 333;
+    }
+
+    // Sponge 2: binding
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&dest);
+    mat.extend_from_slice(&(checksum as u16).to_le_bytes());
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge::derive_key(b"PT26-BIND", &mat, 48);
+    black_box(binding);
+}
+
+/// B: PT26-DSA sign with packed sponge.
+pub fn bench_pt26_sign_packed() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2];
+    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+
+    // Sponge 1: msg hash (PACKED)
+    let msg_hash = ternary_math::sponge_packed::derive_key_packed(
+        b"PT26-MSG", b"benchmark message", 48,
+    );
+
+    // Walk: identical GF(3)
+    let h = 9;
+    let mut checksum: u32 = 0;
+    for step in 0..h {
+        checksum = (checksum + weights[step % 9] * (step as u32 + 1)) % 333;
+    }
+
+    // Sponge 2: binding (PACKED)
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&dest);
+    mat.extend_from_slice(&(checksum as u16).to_le_bytes());
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge_packed::derive_key_packed(b"PT26-BIND", &mat, 48);
+    black_box(binding);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BENCHMARK REGISTRY ENTRIES
+//
+// Add these to all_benchmarks() in benches/inter_cube.rs:
+//
+//   // ── A/B: Scalar vs Packed GF(27) ────────────────────────
+//   BenchmarkEntry { name: "ab_derive_key_scalar", target: "~8.7µs", run: bench_sponge_scalar_derive_key },
+//   BenchmarkEntry { name: "ab_derive_key_packed", target: "< 1.5µs", run: bench_sponge_packed_derive_key },
+//   BenchmarkEntry { name: "ab_hash_scalar", target: "~11µs", run: bench_sponge_scalar_hash },
+//   BenchmarkEntry { name: "ab_hash_packed", target: "< 2µs", run: bench_sponge_packed_hash },
+//   BenchmarkEntry { name: "ab_hmac_scalar", target: "~18µs", run: bench_hmac_scalar },
+//   BenchmarkEntry { name: "ab_hmac_packed", target: "< 3µs", run: bench_hmac_packed },
+//   BenchmarkEntry { name: "ab_heartbeat26_scalar", target: "~560µs", run: bench_heartbeat_26_scalar },
+//   BenchmarkEntry { name: "ab_heartbeat26_packed", target: "< 85µs", run: bench_heartbeat_26_packed },
+//   BenchmarkEntry { name: "ab_pt26_sign_scalar", target: "~45µs", run: bench_pt26_sign_scalar },
+//   BenchmarkEntry { name: "ab_pt26_sign_packed", target: "< 5µs", run: bench_pt26_sign_packed },
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Registry entries for A/B benchmarks.
+pub fn ab_benchmark_entries() -> Vec<(&'static str, &'static str, fn())> {
+    vec![
+        ("ab_derive_key_scalar", "~8.7µs", bench_sponge_scalar_derive_key as fn()),
+        ("ab_derive_key_packed", "< 1.5µs", bench_sponge_packed_derive_key),
+        ("ab_hash_scalar", "~11µs", bench_sponge_scalar_hash),
+        ("ab_hash_packed", "< 2µs", bench_sponge_packed_hash),
+        ("ab_hmac_scalar", "~18µs", bench_hmac_scalar),
+        ("ab_hmac_packed", "< 3µs", bench_hmac_packed),
+        ("ab_heartbeat26_scalar", "~560µs", bench_heartbeat_26_scalar),
+        ("ab_heartbeat26_packed", "< 85µs", bench_heartbeat_26_packed),
+        ("ab_pt26_sign_scalar", "~45µs", bench_pt26_sign_scalar),
+        ("ab_pt26_sign_packed", "< 5µs", bench_pt26_sign_packed),
+    ]
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// QUICK A/B SMOKE TEST
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Run all A/B benchmarks once and print results.
+/// Used for quick validation, not statistical measurement.
+pub fn ab_smoke_test() -> Vec<(&'static str, u64)> {
+    let entries = ab_benchmark_entries();
+    let mut results = Vec::with_capacity(entries.len());
+    for (name, _target, func) in &entries {
+        let start = std::time::Instant::now();
+        func();
+        let elapsed = start.elapsed().as_nanos() as u64;
+        results.push((*name, elapsed));
+    }
+    results
+}

@@ -1,0 +1,27 @@
+Honest assessment first: the sub-nanosecond GF(3) operations are world-class. The sponge-dependent operations are not competitive. PT26-DSA verify at 71µs loses to ML-DSA-87 verify at ~125µs only on paper — in practice, nobody cares that your geometric signature is "only" 2× faster than ML-DSA when Falcon verifies in 500µs and your own spec says 18µs. The heartbeat pipeline at 562µs means 0.056% CPU — respectable for a research prototype, not for a pitch deck that says 0.003%.
+
+The results are honest. They prove the architecture works. They prove the geometry is free. But until the sponge drops from 8.7µs to sub-1µs, every headline number is 10× worse than it should be.
+
+Let me fix it.Now the benchmark additions — A/B comparison entries for the criterion suite:Two files. Here's what they do and how to wire them in.
+
+**`sponge_dispatch.rs`** — 383 lines, 15 tests. Default backend is now **Packed** (not Scalar). The dispatch is a single atomic read per call — zero overhead. Every call to `sponge_dispatch::derive_key()` routes to `derive_key_packed`. The scalar path stays alive as fallback and A/B oracle.
+
+**`sponge_ab_bench.rs`** — 242 lines, 10 bench functions. Five head-to-head pairs:
+
+| Pair | Scalar (A) | Packed (B) | What it measures |
+|---|---|---|---|
+| `derive_key` | ~8.7µs | target ~1.5µs | The fundamental bottleneck |
+| `hash` | ~11µs | target ~2µs | Full absorb + squeeze |
+| `hmac` | ~18µs | target ~3µs | 2× derive_key (heartbeat cost) |
+| `heartbeat_26` | ~560µs | target ~85µs | The headline number |
+| `pt26_sign` | ~45µs | target ~5µs | PT26-DSA with new sponge |
+
+**How to wire in:**
+
+1. Add `pub mod sponge_dispatch;` to `lib.rs`
+2. Add the 10 A/B bench functions to `benches/inter_cube.rs` registry (the entries are listed in the file)
+3. In production call sites, replace `sponge::derive_key` with `sponge_dispatch::derive_key` — same signature, packed backend by default
+
+The A/B results will tell us the exact speedup on this container. If packed hits ~1.5µs, the headline numbers follow directly. If it doesn't, we know the GF(27) arithmetic still has mod-3 overhead in the byte-per-element representation and need the packed 2-bit path from Phase A of TM-2026-013.
+
+Push and bench it, Fratello. The numbers will speak.
