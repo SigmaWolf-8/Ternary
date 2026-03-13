@@ -295,67 +295,67 @@ function HeroSection() {
               className="mb-5"
               data-testid="text-hero-description"
             >
-              <div className="max-w-3xl mx-auto space-y-10 text-left">
+              <div className="max-w-3xl mx-auto text-left space-y-8">
 
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Foundation</h2>
-                    <span className="text-muted-foreground">~</span>
-                    <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Foundation</span>
+                    <span className="text-muted-foreground/50">~</span>
+                    <a href="#components" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-build">
                       I want to build on it
                     </a>
                   </div>
-                  <div className="border-t border-border/40 mb-4" />
-                  <p className="text-lg text-muted-foreground leading-relaxed mb-4">
+                  <div className="border-t border-primary/60 mt-1.5 mb-2" />
+                  <p className="text-base text-muted-foreground leading-relaxed mb-2">
                     Every computer ever built speaks in binary — on or off, yes or no, one or zero.
                   </p>
-                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                  <p className="text-base text-foreground font-semibold leading-relaxed mb-2">
                     PlenumNET transcends that limitation entirely.
                   </p>
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <p className="text-base text-muted-foreground leading-relaxed">
                     Through three native representations — Rep A, B, C — data doesn't just gain a third state — it gains the <em>divine geometry of nine</em>, where three representations interlock into a complete algebraic system that binary can never reach.
                   </p>
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Architecture</h2>
-                    <span className="text-muted-foreground">~</span>
-                    <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Architecture</span>
+                    <span className="text-muted-foreground/50">~</span>
+                    <a href="#geometric-foundations" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-understand">
                       I want to understand how it works
                     </a>
                   </div>
-                  <div className="border-t border-border/40 mb-4" />
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <div className="border-t border-primary/60 mt-1.5 mb-2" />
+                  <p className="text-base text-muted-foreground leading-relaxed">
                     217% more information per digit — 9 algebraic states where binary offers one;
                   </p>
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <p className="text-base text-muted-foreground leading-relaxed">
                     Dual-phase, geometrically derived cryptographic encryption that quantum computers cannot decompose;
                   </p>
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <p className="text-base text-muted-foreground leading-relaxed">
                     A 13-dimensional hypercube network — its topology derived from nested circles, an inscribed hexagon definitive of the foundational Arc, and a one-in-3.4-million inscribed Plenum Magic Square — threading 20.7 million post-quantum tunnels through every cube;
                   </p>
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <p className="text-base text-muted-foreground leading-relaxed">
                     Femtosecond-precision timing across every operation...
                   </p>
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Opportunity</h2>
-                    <span className="text-muted-foreground">~</span>
-                    <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Opportunity</span>
+                    <span className="text-muted-foreground/50">~</span>
+                    <a href="#performance" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-evaluate">
                       I want to evaluate the business case
                     </a>
                   </div>
-                  <div className="border-t border-border/40 mb-4" />
-                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                  <div className="border-t border-primary/60 mt-1.5 mb-2" />
+                  <p className="text-base text-foreground leading-relaxed mb-2">
                     This is not an incremental improvement.
                   </p>
-                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                  <p className="text-base text-foreground leading-relaxed mb-2">
                     This is the foundation of the post-quantum internet.
                   </p>
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <p className="text-base text-muted-foreground leading-relaxed">
                     All running on the silicon you already own.
                   </p>
                 </div>
