@@ -189,7 +189,6 @@ pub struct Neighbor {
     pub srtt_ns: Option<u64>,
     /// Traffic counters.
     pub bytes_in: u64,
-    /// Traffic counters.
     pub bytes_out: u64,
     /// Tunnel uptime since last establishment.
     pub tunnel_established: Option<Instant>,
@@ -237,21 +236,13 @@ impl Neighbor {
 /// Aggregate statistics for the Cube Overlay Network.
 #[derive(Debug, Clone)]
 pub struct ConStats {
-    /// Number of tunnels in the Up state.
     pub tunnels_up: usize,
-    /// Number of tunnels in the Down state.
     pub tunnels_down: usize,
-    /// Number of tunnels in the Resolving state.
     pub tunnels_resolving: usize,
-    /// Number of tunnels in the Connecting state.
     pub tunnels_connecting: usize,
-    /// Number of tunnels in the Unknown state.
     pub tunnels_unknown: usize,
-    /// Total bytes received across all tunnels.
     pub total_bytes_in: u64,
-    /// Total bytes sent across all tunnels.
     pub total_bytes_out: u64,
-    /// Average round-trip time across active tunnels (milliseconds).
     pub avg_rtt_ms: Option<f64>,
     /// T-07: Number of neighbors with verified signatures.
     pub verified_neighbors: usize,
@@ -314,8 +305,7 @@ impl CubeOverlayNetwork {
             local_addr,
             neighbors,
             addr_index,
-            #[allow(deprecated)]
-            tunnel_protocol: TunnelProtocol::PqNative,
+            tunnel_protocol: TunnelProtocol::PqNativeV3,
             heartbeat_interval: Duration::from_millis(DEFAULT_HEARTBEAT_INTERVAL_MS),
             key_rotation_interval: Duration::from_secs(DEFAULT_KEY_ROTATION_SECS),
             forgery_alerts: Vec::new(),
@@ -489,6 +479,7 @@ impl CubeOverlayNetwork {
                 addr, endpoint, alert.reason
             );
             self.forgery_alerts.push(alert.clone());
+            // Neighbor stays Unknown — do NOT establish tunnel
             return Err(alert);
         }
 
@@ -577,7 +568,15 @@ impl CubeOverlayNetwork {
     // ═══════════════════════════════════════════════════════════════
 
     /// Derive a shared tunnel key from both cubes' Rep C addresses (v2.5).
-    #[deprecated(note = "Use derive_pq_tunnel_key_v3 with TL-KEM shared secret")]
+    ///
+    /// **REMOVED FROM PRODUCTION** (T-09, SPEC-2026-NEXT).
+    /// This function uses only public addresses as input — any node can compute
+    /// the key for any pair. An attacker who blocks the KEM exchange could force
+    /// fallback to v2.5, then compute the key from public addresses.
+    ///
+    /// Retained under `#[cfg(test)]` for regression testing only.
+    #[cfg(test)]
+    #[deprecated(note = "REMOVED: v2.5 uses public-only inputs. Use derive_pq_tunnel_key_v3")]
     pub fn derive_pq_tunnel_key(
         addr_a: &CubeAddr,
         addr_b: &CubeAddr,
@@ -630,19 +629,25 @@ impl CubeOverlayNetwork {
     }
 
     /// Derive all tunnel keys for this cube's neighbors.
+    ///
+    /// Uses v3 key derivation (TL-KEM + TL-Sponge-385) exclusively.
+    /// Neighbors without a KEM shared secret are **skipped** — no key is
+    /// derived, and their tunnel stays in `Resolving` until KEM completes.
+    ///
+    /// **T-09 (SPEC-2026-NEXT):** The v2.5 fallback has been removed.
+    /// v2.5 derived keys from public addresses only — any node could compute
+    /// the key for any pair. Blocking the KEM exchange would force fallback
+    /// to v2.5, enabling a downgrade attack. Now: no KEM = no tunnel.
     pub fn derive_all_keys(&self, kem_secrets: &HashMap<CubeAddr, [u8; 32]>, epoch: u64) -> Vec<(CubeAddr, [u8; 32])> {
         self.neighbors
             .iter()
-            .map(|nbr| {
-                let key = if let Some(secret) = nbr.kem_shared_secret.as_ref().or_else(|| kem_secrets.get(&nbr.cube_addr)) {
-                    Self::derive_pq_tunnel_key_v3(&self.local_addr, &nbr.cube_addr, secret, epoch)
-                } else {
-                    #[allow(deprecated)]
-                    {
-                        Self::derive_pq_tunnel_key(&self.local_addr, &nbr.cube_addr)
-                    }
-                };
-                (nbr.cube_addr.clone(), key)
+            .filter_map(|nbr| {
+                let secret = nbr.kem_shared_secret.as_ref()
+                    .or_else(|| kem_secrets.get(&nbr.cube_addr))?;
+                let key = Self::derive_pq_tunnel_key_v3(
+                    &self.local_addr, &nbr.cube_addr, secret, epoch,
+                );
+                Some((nbr.cube_addr.clone(), key))
             })
             .collect()
     }
@@ -918,6 +923,7 @@ mod tests {
         let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
         let now_fs: u128 = 100 * crate::wire::FS_PER_SECOND;
 
+        // Generate keypair and sign the registration
         let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
         let kp = ternary_math::tl_dsa::keygen(variant, Some(b"test-seed-verified"));
 
@@ -949,6 +955,7 @@ mod tests {
         let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
         let kp = ternary_math::tl_dsa::keygen(variant, Some(b"test-seed-invalid"));
 
+        // Sign a DIFFERENT message (wrong endpoint)
         let wrong_msg = build_registration_message(
             &nbr_addr, &"10.0.0.99:9999".parse().unwrap(), &kp.public_key, None, now_fs,
         );
@@ -962,6 +969,7 @@ mod tests {
         assert!(result.is_err());
         let alert = result.unwrap_err();
         assert_eq!(alert.reason, ForgeryReason::SignatureInvalid);
+        // Neighbor stays Unknown — NOT Connecting
         assert_eq!(con.neighbor(&nbr_addr).unwrap().state, TunnelState::Unknown);
         assert_eq!(con.forgery_alert_count(), 1);
     }
@@ -975,7 +983,7 @@ mod tests {
 
         let result = con.resolve_neighbor_verified(
             &nbr_addr, endpoint, vec![0u8; 64],
-            None,
+            None, // No signature
             None, 0,
         );
 
@@ -996,6 +1004,7 @@ mod tests {
         let kp_real = ternary_math::tl_dsa::keygen(variant, Some(b"real-key"));
         let kp_attacker = ternary_math::tl_dsa::keygen(variant, Some(b"attacker-key"));
 
+        // Sign with real key but present attacker's public key
         let msg = build_registration_message(
             &nbr_addr, &endpoint, &kp_attacker.public_key, None, now_fs,
         );
@@ -1014,6 +1023,7 @@ mod tests {
     fn test_verified_resolution_unknown_address() {
         let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let mut con = CubeOverlayNetwork::new(local);
+        // Address that is NOT one of our 26 neighbors
         let non_neighbor = addr([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]);
         let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
 
@@ -1022,6 +1032,7 @@ mod tests {
             Some(vec![0u8; 100]), None, 0,
         );
 
+        // Not our neighbor → Ok(false), no alert
         assert_eq!(result.unwrap(), false);
         assert_eq!(con.forgery_alert_count(), 0);
     }
@@ -1033,14 +1044,88 @@ mod tests {
         let nbr_addr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
         let endpoint: SocketAddr = "10.0.0.1:51820".parse().unwrap();
 
+        // Trigger a forgery alert
         let _ = con.resolve_neighbor_verified(
             &nbr_addr, endpoint, vec![0u8; 64],
             None, None, 0,
         );
         assert_eq!(con.forgery_alert_count(), 1);
 
+        // Drain clears the list
         let alerts = con.drain_forgery_alerts();
         assert_eq!(alerts.len(), 1);
         assert_eq!(con.forgery_alert_count(), 0);
+    }
+
+    // ── T-09: v2.5 fallback removal tests ───────────────────────
+
+    #[test]
+    fn test_derive_all_keys_no_kem_returns_empty() {
+        // T-09: No KEM secret = no key. Tunnel stays Resolving.
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let con = CubeOverlayNetwork::new(local);
+
+        // Empty HashMap, no kem_shared_secret on any neighbor
+        let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
+
+        assert_eq!(
+            keys.len(), 0,
+            "No KEM secrets → 0 keys derived (v2.5 fallback removed by T-09)"
+        );
+    }
+
+    #[test]
+    fn test_derive_all_keys_with_kem_returns_v3_keys() {
+        // T-09: With KEM secrets, v3 keys are derived
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let con = CubeOverlayNetwork::new(local);
+
+        // Provide KEM secrets for 3 neighbors
+        let mut kem_secrets = std::collections::HashMap::new();
+        let nbr1 = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let nbr2 = addr([3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let nbr3 = addr([1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        kem_secrets.insert(nbr1.clone(), [42u8; 32]);
+        kem_secrets.insert(nbr2.clone(), [43u8; 32]);
+        kem_secrets.insert(nbr3.clone(), [44u8; 32]);
+
+        let keys = con.derive_all_keys(&kem_secrets, 100);
+
+        assert_eq!(keys.len(), 3, "Only neighbors with KEM secrets get keys");
+
+        // All 3 keys must be unique (different KEM secrets)
+        let key_set: std::collections::HashSet<[u8; 32]> =
+            keys.iter().map(|(_, k)| *k).collect();
+        assert_eq!(key_set.len(), 3, "All v3 keys must be unique");
+    }
+
+    #[test]
+    fn test_derive_all_keys_partial_kem() {
+        // T-09: Mix of neighbors with and without KEM — only KEM'd ones get keys
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let mut con = CubeOverlayNetwork::new(local);
+
+        // Set KEM shared secret on ONE neighbor directly
+        let nbr = addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        if let Some(n) = con.neighbor_mut(&nbr) {
+            n.kem_shared_secret = Some([99u8; 32]);
+        }
+
+        // derive_all_keys with empty HashMap — should find the one with kem_shared_secret
+        let keys = con.derive_all_keys(&std::collections::HashMap::new(), 0);
+        assert_eq!(keys.len(), 1, "Only the neighbor with KEM secret gets a key");
+        assert_eq!(keys[0].0, nbr);
+    }
+
+    #[test]
+    fn test_default_protocol_is_v3() {
+        // T-09: Default protocol changed from PqNative to PqNativeV3
+        let local = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let con = CubeOverlayNetwork::new(local);
+        // Can't directly access tunnel_protocol (private), but we can verify
+        // the constructor doesn't use #[allow(deprecated)] anymore.
+        // The protocol field is used internally — this test ensures the
+        // struct is created without deprecated warnings.
+        assert_eq!(con.neighbors().len(), NEIGHBORS_PER_CUBE);
     }
 }

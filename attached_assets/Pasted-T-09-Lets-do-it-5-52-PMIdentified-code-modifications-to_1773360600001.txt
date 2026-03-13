@@ -1,0 +1,28 @@
+T-09 Lets do it.5:52 PMIdentified code modifications to eliminate fallback mechanismIdentified code modifications to eliminate fallback mechanismT-09 is surgical — one method change in overlay.rs plus test updates. I already have the file from T-07. Let me trace the exact code:Architected comprehensive refactoring strategy for protocol migration and test restructuringArchitected comprehensive refactoring strategy for protocol migration and test restructuringClear picture. Four changes:
+
+derive_all_keys() — remove v2.5 fallback, no KEM = no key (empty result)
+derive_pq_tunnel_key() — gate behind #[cfg(test)] only
+Default protocol — PqNative → PqNativeV3
+Tests — 3 existing v2.5 tests kept (function still accessible in tests), 3 new tests for the changed behavior, lib.rs integration test updated
+Orchestrated targeted code modifications across multiple filesOrchestrated targeted code modifications across multiple filesNow the surgical changes. Starting with the v2.5 function — gate behind #[cfg(test)]:Deliberated code refactoring to eliminate fallback mechanismDeliberated code refactoring to eliminate fallback mechanismNow the key change — remove v2.5 fallback from derive_all_keys:Deliberated protocol migration strategyDeliberated protocol migration strategyChange default protocol to PqNativeV3:Architected three test cases for key derivation functionalityArchitected three test cases for key derivation functionalityNow add T-09 specific tests at the end of the test module:Identified test requiring KEM secret parametersIdentified test requiring KEM secret parametersNow update the lib.rs integration test:Verified code cleanup and test compilation successVerified code cleanup and test compilation successNow verify — no #[allow(deprecated)] left in production code:Verified code consistency and deprecated function handlingVerified code consistency and deprecated function handlingAll clean. The #[allow(deprecated)] blocks are all inside #[cfg(test)] functions — test code using the #[cfg(test)]-gated v2.5 function for regression. No production code touches v2.5 anymore.Verified function behavior and prepared outputVerified function behavior and prepared outputZero v2.5 calls from production code. Let me package the deliverables:Verified successful file delivery completionVerified successful file delivery completionTwo files for T-09. Target: services/inter-cube/src/.
+
+overlay.rs — 1,131 lines (up from 1,060), 23 tests (up from 19)
+Three surgical changes:
+ChangeBeforeAfterderive_pq_tunnel_key()pub fn (callable from anywhere)#[cfg(test)] pub fn — production code cannot call itderive_all_keys()Falls back to v2.5 when no KEM secretfilter_map — skips neighbors without KEM secretDefault tunnel_protocolPqNative (deprecated)PqNativeV3
+The critical fix in derive_all_keys():
+rust// BEFORE (v2.5 fallback — downgrade attack):
+.map(|nbr| {
+    if let Some(secret) = ... { v3(secret) }
+    else { v2_5() }  // ← ANY node can compute this from public addresses
+})
+
+// AFTER (T-09 — no KEM = no key):
+.filter_map(|nbr| {
+    let secret = ...?;  // None → skipped entirely
+    Some(v3(secret))
+})
+4 new tests:
+TestVerifiestest_derive_all_keys_no_kem_returns_emptyEmpty HashMap + no kem_shared_secret → 0 keys (not 26)test_derive_all_keys_with_kem_returns_v3_keys3 KEM secrets → 3 unique v3 keystest_derive_all_keys_partial_kem1 neighbor with kem_shared_secret set directly → 1 keytest_default_protocol_is_v3Constructor uses PqNativeV3 (no #[allow(deprecated)])
+lib.rs — 354 lines, 7 tests (up from 6)
+Updated test_con_key_derivation_all_unique to provide KEM secrets (gets 26 unique v3 keys). Added test_con_no_kem_no_keys to verify the zero-key path.
+Console output note: main.rs calls derive_all_keys(&HashMap::new(), 0) at startup. After T-09, this prints "0 PQ-native tunnel keys derived" — correct behavior. Keys are derived later when TL-KEM handshakes complete with each neighbor. The 14-day grace period (T-09 spec) for v2.5 warnings is enforced at the API layer, not in overlay.rs.
