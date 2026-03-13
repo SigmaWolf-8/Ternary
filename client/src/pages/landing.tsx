@@ -245,24 +245,6 @@ function HeroSection() {
             ` }}>PlenumNET</span> ~ A Geometrically Derived<br />Self Healing Computing Universe
         </h1>
 
-        <div className="flex justify-center gap-2 mb-6" data-testid="hero-badges">
-          <Badge
-            variant="outline"
-            className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-2.5 py-1 text-xs"
-            data-testid="badge-status"
-          >
-            <Check className="w-3 h-3 mr-1" />
-            Production Ready
-          </Badge>
-          <Badge
-            variant="outline"
-            className="border-primary/30 bg-primary/10 text-primary px-2.5 py-1 text-xs"
-            data-testid="badge-pq"
-          >
-            Post-Quantum Secure
-          </Badge>
-        </div>
-
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

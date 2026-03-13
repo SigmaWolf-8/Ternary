@@ -112,6 +112,7 @@ pub mod verify_cache;
 pub mod deregistration;
 pub mod dimension_tracker;
 pub mod lattice_mixer;
+pub mod sampling;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -131,6 +132,7 @@ pub use verify_cache::{VerificationCache, CrsCacheManager};
 pub use deregistration::{SignedDeregistration, DeregReason, DeregError, verify_deregistration};
 pub use dimension_tracker::{DimensionTracker, DensityMetrics};
 pub use lattice_mixer::{compute_pair_nonce, derive_lattice_mixed_key};
+pub use sampling::{AddressSnapshot, SamplingInfo};
 pub use wire::{
     WireHeader, WireMessage, WireError, WireFlags, MessageType,
     WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,

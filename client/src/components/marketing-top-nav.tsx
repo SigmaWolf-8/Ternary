@@ -52,6 +52,8 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 import { triggerInstallDialog } from "@/components/InstallExtensionCard";
@@ -647,15 +649,36 @@ export function MarketingTopNav() {
           )}
           data-testid="marketing-top-nav"
         >
-          <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 lg:px-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 font-semibold text-foreground mr-2"
-              data-testid="link-logo"
-            >
-              <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
-              <span className="text-base">PlenumNET</span>
-            </Link>
+          <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
+            <div className="flex flex-col mr-2">
+              <Link
+                href="/"
+                className="flex items-center gap-2 font-semibold text-foreground"
+                data-testid="link-logo"
+              >
+                <img src={plenumLogo} alt="PlenumNET" className="w-4 h-4" />
+                <span className="text-base">PlenumNET</span>
+              </Link>
+              {!isMobile && (
+                <div className="flex flex-col gap-0.5 mt-0.5 pl-6">
+                  <Badge
+                    variant="outline"
+                    className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0 text-[9px] w-fit leading-tight"
+                    data-testid="badge-status"
+                  >
+                    <Check className="w-2 h-2 mr-0.5" />
+                    Production Ready
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="border-primary/30 bg-primary/10 text-primary px-1.5 py-0 text-[9px] w-fit leading-tight"
+                    data-testid="badge-pq"
+                  >
+                    Post-Quantum Secure
+                  </Badge>
+                </div>
+              )}
+            </div>
 
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
