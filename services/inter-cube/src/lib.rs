@@ -101,6 +101,7 @@ pub mod fts;
 pub mod wire;
 pub mod api;
 pub mod rate_limit;
+pub mod identity;
 
 // Re-export the most commonly used types
 pub use cube_addr::{CubeAddr, MultiLevelAddr, RepCTrit, DIMENSIONS, TOTAL_VERTICES, NEIGHBORS_PER_CUBE};
@@ -109,6 +110,7 @@ pub use overlay::{CubeOverlayNetwork, Neighbor, TunnelState, TunnelProtocol, Con
 pub use crs::{CubeRegistrationService, CubeRecord, CubeStatus, RegistrationResult, RegistrationError, NeighborInfo};
 pub use fts::{FaultToleranceService, NeighborHealth, NeighborState, StateChangeEvent, FtsConfig};
 pub use rate_limit::{CrsGuard, GuardError};
+pub use identity::{MasterSecret, SecretRotation, IdentityError};
 pub use wire::{
     WireHeader, WireMessage, WireError, WireFlags, MessageType,
     WIRE_HEADER_SIZE, WIRE_ADDR_SIZE,
