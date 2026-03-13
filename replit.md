@@ -4,7 +4,7 @@
 PlenumNET is developing post-quantum internet solutions. This project creates a marketing website to showcase PlenumNET's quantum-resistant infrastructure, including the PlenumDB product with a compression demo and whitepaper management. It integrates payment processing and blockchain witnessing for secure, verifiable, and regulatory-compliant operations in quantum-resistant data and financial services. The project aims to position PlenumNET as a leader in next-generation internet solutions, offering unparalleled security and performance in the quantum-resistant internet domain.
 
 ## Platform Metrics
-Total platform LOC: ~931,360 across 12 languages. Tests passing: 2,436. Breakdown by language: TypeScript 411,952 | JavaScript 257,452 | Rust 101,608 | Python 72,653 | TSX 41,123 | HTML 21,568 | SystemVerilog 11,071 | YAML 7,583 | CSS 3,455 | Shell 2,035 | TOML 577 | SQL 283.
+Total platform LOC: ~310,263 across 12 languages (source only, excluding .d.ts declarations and package caches). Tests passing: 2,436. Breakdown by language: Rust 101,613 (32.8%) | TypeScript 85,687 (27.6%) | TSX 41,123 (13.3%) | Python 38,235 (12.3%) | HTML 20,218 (6.5%) | SystemVerilog 11,071 (3.6%) | YAML 7,165 (2.3%) | Shell 2,035 (0.7%) | JavaScript 1,993 (0.6%) | TOML 577 | CSS 273 | SQL 273.
 
 ## User Preferences
 I prefer iterative development with a focus on delivering working features incrementally. Please ask before making any major architectural changes or decisions that might impact the overall direction of the project. I prefer clear and concise explanations, avoiding overly technical jargon where simpler terms suffice. Do not make changes to the `deployments/` folder.
