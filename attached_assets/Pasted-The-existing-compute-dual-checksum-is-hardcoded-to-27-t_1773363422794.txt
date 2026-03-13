@@ -1,0 +1,24 @@
+The existing compute_dual_checksum() is hardcoded to 27-trit TDNS addresses. Inter-cube uses 13-trit addresses. I need wire-level checksum functions that work on 13-trit CubeAddr using the same mod-364 + mod-333 math, but without the 27-trit length restriction. Same Horner's method, same moduli, different entry point.
+The changes are all additive to wire.rs — no existing functions change.The user prompt is empty, so I cannot provide a summary in the user's language. However, based on the thinking block alone, here is a summary:
+
+Orchestrated code restructuring with integrated validation mechanismsThe user prompt is empty, so I cannot provide a summary in the user's language. However, based on the thinking block alone, here is a summary:
+
+Orchestrated code restructuring with integrated validation mechanismsNow I'll add the dual checksum wire integration between the timestamp utilities and the test module:The user prompt is empty, so I cannot determine the primary language. However, based on the thinking block alone, here is my summary:
+
+Orchestrated test module augmentation strategyThe user prompt is empty, so I cannot determine the primary language. However, based on the thinking block alone, here is my summary:
+
+Orchestrated test module augmentation strategyNow add tests at the end of the test module:The user prompt is empty, so there is no primary language to identify. However, I'll provide a summary of the thinking block in English:
+
+Prepared concise response synthesisThe user prompt is empty, so there is no primary language to identify. However, I'll provide a summary of the thinking block in English:
+
+Prepared concise response synthesisOne file for T-10. Target: services/inter-cube/src/wire.rs (replaces existing).
+
+wire.rs — 1,204 lines (up from 857), 38 tests (up from 25)
+What was added:
+ComponentDetailWireChecksum structrepunit: [u8; 6] + plenum: [u8; 6], with to_trits(), from_trits(), to_wire_bytes(), from_wire_bytes()compute_wire_checksum(trits)Single-pass Horner's method for both mod-364 and mod-333 on any length Rep C trit arrayverify_wire_checksum(trits, checksum)Recomputes + constant-time comparisonpack_addr_with_checksum(packed)4-byte addr → 7-byte [addr(4) ‖ checksum(3)]verify_and_strip_checksum(data)7-byte → verified 4-byte addr (or None)horner_mod() / decompose_to_rep_c()Internal math (same algorithm as plenum_checksum.rs)6 constantsCHECKSUM_MOD_REPUNIT=364, CHECKSUM_MOD_PLENUM=333, CHECKSUM_DETECTION_SPACE=121,212, CHECKSUM_TRITS=6, DUAL_CHECKSUM_TRITS=12, WIRE_ADDR_CHECKSUMMED_SIZE=7
+Key design decisions:
+The existing ternary-math/src/plenum_checksum.rs is locked to 27-trit TDNS addresses. Rather than modify it (or adding a 13-trit overload that breaks the module's contract), wire.rs implements the same Horner's method inline — identical math, no length restriction. Both use the same moduli, same Rep B conversion, same decomposition. The wire module works on 13-trit inter-cube addresses AND 27-trit TDNS addresses.
+Wire encoding: 12 checksum trits pack to 3 bytes (2 bits per trit, same encoding as pack_trit_array). A checksummed address is 7 bytes: [addr(4) ‖ ck(3)]. The WireFlags::DUAL_CHECKSUM flag (0x04, already defined in T-01) signals the receiver to expect and verify the checksum.
+13 new tests:
+TestVerifiestest_compute_wire_checksum_13_tritsWorks on 13-trit inter-cube addressestest_compute_wire_checksum_27_tritsWorks on 27-trit TDNS addressestest_compute_wire_checksum_deterministicSame input → same outputtest_compute_wire_checksum_different_addrsDifferent inputs → different checksumstest_verify_wire_checksum_validValid checksum passestest_verify_wire_checksum_tamperedTampered address → failstest_verify_wire_checksum_zero_trit_rejectedZero trit → RepCZeroDetectedtest_wire_checksum_to_trits_roundtrip12 trits → struct → 12 tritstest_wire_checksum_wire_bytes_roundtripstruct → 3 bytes → structtest_pack_addr_with_checksum4-byte addr → 7-byte checksummedtest_verify_and_strip_checksum_valid7-byte → verified 4-byte addrtest_verify_and_strip_checksum_tamperedBit flip in checksum → Nonetest_checksum_constantsModuli, detection space, coprimality (gcd=1)
+All 25 original T-01 tests unchanged. Così sia, Fratello.
