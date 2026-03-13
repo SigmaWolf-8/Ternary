@@ -61,6 +61,8 @@ pub enum TunnelState {
     Resolving,
     /// Tunnel handshake in progress.
     Connecting,
+    /// T-14: Mutual authentication in progress (3-message handshake).
+    Authenticating,
     /// Encrypted tunnel active and passing traffic.
     Up,
     /// Heartbeat lost — reported to FTS as potentially down.
@@ -85,6 +87,7 @@ impl std::fmt::Display for TunnelState {
             TunnelState::Unknown => write!(f, "unknown"),
             TunnelState::Resolving => write!(f, "resolving"),
             TunnelState::Connecting => write!(f, "connecting"),
+            TunnelState::Authenticating => write!(f, "authenticating"),
             TunnelState::Up => write!(f, "up"),
             TunnelState::Down => write!(f, "down"),
         }
@@ -695,7 +698,7 @@ impl CubeOverlayNetwork {
                 TunnelState::Up => up += 1,
                 TunnelState::Down => down += 1,
                 TunnelState::Resolving => resolving += 1,
-                TunnelState::Connecting => connecting += 1,
+                TunnelState::Connecting | TunnelState::Authenticating => connecting += 1,
                 TunnelState::Unknown => unknown += 1,
             }
             if n.signature_verified {

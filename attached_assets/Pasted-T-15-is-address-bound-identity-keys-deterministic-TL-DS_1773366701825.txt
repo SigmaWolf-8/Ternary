@@ -1,0 +1,57 @@
+T-15 is address-bound identity keys — deterministic TL-DSA keypairs derived from TLSponge-385("PlenumNET-IDENTITY" ‖ address ‖ master_secret). Keypair regenerates from address + master secret alone. LRU cache, dual-accept during rotation.Marshaled enthusiasm to engage with cryptic promptMarshaled enthusiasm to engage with cryptic promptOne new file for T-15. Target: services/inter-cube/src/address_keys.rs (NEW).
+lib.rs splice: Add pub mod address_keys; and pub use address_keys::{AddressKeyManager, IdentityKeypair};
+
+address_keys.rs — 790 lines, 24 tests
+The core idea: A node's identity IS its address + master secret. No separate key file. No key distribution protocol. Lose the master secret → regenerate everything from it.
+Derivation Chain
+master_secret (48 bytes, T-12)
+    │
+    ▼
+seed = TLSponge-385("PlenumNET-IDENTITY", addr_bytes ‖ master_secret, 128)
+    │
+    ▼
+keypair = TL-DSA-87::keygen(seed)
+    │
+    ├── public_key (64 bytes) → registered with CRS, shared with neighbors
+    └── secret_key (128 bytes) → signs registrations, heartbeats, tunnel auth
+Same (address, master_secret) always produces the same keypair. Different address or different secret → completely different keypair.
+Three Layers
+1. derive_identity_keypair() — The pure derivation function
+rustlet kp = derive_identity_keypair(&my_addr, &master_secret);
+let sig = kp.sign(message);        // TL-DSA-87 WOTS+ signature
+let valid = kp.verify(msg, &sig);  // Public-key-only verification
+```
+
+**2. `KeyCache` — LRU cache (10,000 entries)**
+
+Cache key = `(CubeAddr, fingerprint)` where fingerprint = `TLSponge-385("PlenumNET-MS-FP", master_secret)`. This means entries from the old secret can coexist with entries from the new secret during dual-accept — they have different fingerprints. When dual-accept closes, `invalidate_fingerprint()` removes only the old entries.
+
+**3. `AddressKeyManager` — The full interface**
+
+| Method | What |
+|---|---|
+| `set_master_secret(ms)` | Stores fingerprint, moves current → previous |
+| `get_keypair(addr, ms)` | Cache lookup → derive on miss → cache insert |
+| `get_public_key(addr, ms)` | Convenience wrapper |
+| `verify_signature(addr, msg, sig, current, previous?)` | Try current key → fallback to previous (dual-accept) |
+| `close_dual_accept()` | Invalidate old-fingerprint cache entries |
+| `clear_cache()` | Full reset |
+| `hit_ratio()` | Telemetry: cache effectiveness |
+
+#### Dual-Accept During Rotation
+```
+Epoch 0: master_secret_0 → keypair_0 for addr_A
+    │
+    ▼  rotate(master_secret_1)
+Epoch 1: master_secret_1 → keypair_1 for addr_A
+    │   master_secret_0 still in cache (different fingerprint)
+    │
+    │  verify_signature(addr, msg, sig, ms_1, Some(ms_0))
+    │   → tries keypair_1 first
+    │   → falls back to keypair_0 (returns is_current=false)
+    │
+    ▼  close_dual_accept()
+    cache.invalidate_fingerprint(fp_0)  → old entries gone
+24 Tests
+CategoryCountDerivation (deterministic, different addrs, different secrets, key sizes, pk match)5Sign/verify (valid, wrong message, wrong key, post-rotation)4Fingerprint (deterministic, different secrets, length)3LRU cache (hit/miss, eviction, invalidate fingerprint)3AddressKeyManager (get keypair + cache, hit ratio, verify current, verify dual-accept, verify fails without previous, close dual-accept, clear cache)7Zeroize (drop doesn't panic)1Constants1
+Phase 2 rolling. Così sia, Fratello.
