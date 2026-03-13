@@ -36,6 +36,9 @@ axum = "0.7"
 # Uses rustls (pure Rust) to avoid OpenSSL dev headers in Docker build
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
+# Hex encoding for address persistence
+hex = "0.4"
+
 # Logging
 tracing = "0.1"
 
