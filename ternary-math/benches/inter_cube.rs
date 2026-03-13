@@ -1113,6 +1113,159 @@ fn criterion_heartbeat(c: &mut Criterion) {
     c.bench_function("heartbeat_26_neighbors", |b| b.iter(bench_26_concurrent_heartbeats));
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: SCALAR vs PACKED GF(27) SPONGE (TM-2026-013)
+// ═══════════════════════════════════════════════════════════════════════
+
+fn bench_ab_derive_key_scalar() {
+    let out = ternary_math::sponge::derive_key(
+        b"BENCH-SCALAR", b"benchmark-material-for-ab-comparison", 48,
+    );
+    black_box(out);
+}
+
+fn bench_ab_derive_key_packed() {
+    let out = ternary_math::sponge_packed::derive_key_packed(
+        b"BENCH-PACKED", b"benchmark-material-for-ab-comparison", 48,
+    );
+    black_box(out);
+}
+
+fn bench_ab_hash_scalar() {
+    let out = ternary_math::sponge::hash_hex(
+        b"benchmark input for sponge hash ab comparison test",
+    );
+    black_box(out);
+}
+
+fn bench_ab_hash_packed() {
+    let out = ternary_math::sponge_packed::hash_hex_packed(
+        b"benchmark input for sponge hash ab comparison test",
+    );
+    black_box(out);
+}
+
+fn bench_ab_hmac_scalar() {
+    let key = ternary_math::sponge::derive_key(
+        b"PlenumNET-HB-HMAC", b"key-material", 48,
+    );
+    let tag = ternary_math::sponge::derive_key(
+        b"PlenumNET-HB-TAG",
+        &[key.as_slice(), b"heartbeat-payload".as_slice()].concat(),
+        27,
+    );
+    black_box(tag);
+}
+
+fn bench_ab_hmac_packed() {
+    let key = ternary_math::sponge_packed::derive_key_packed(
+        b"PlenumNET-HB-HMAC", b"key-material", 48,
+    );
+    let tag = ternary_math::sponge_packed::derive_key_packed(
+        b"PlenumNET-HB-TAG",
+        &[key.as_slice(), b"heartbeat-payload".as_slice()].concat(),
+        27,
+    );
+    black_box(tag);
+}
+
+fn bench_ab_heartbeat26_scalar() {
+    for i in 0..26u8 {
+        let mut km = Vec::with_capacity(49);
+        km.extend_from_slice(b"key-material");
+        km.push(i);
+
+        let key = ternary_math::sponge::derive_key(b"PlenumNET-HB-HMAC", &km, 48);
+        let tag = ternary_math::sponge::derive_key(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let tag2 = ternary_math::sponge::derive_key(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let mut diff: u8 = 0;
+        for j in 0..tag.len() { diff |= tag[j] ^ tag2[j]; }
+        black_box(diff);
+    }
+}
+
+fn bench_ab_heartbeat26_packed() {
+    for i in 0..26u8 {
+        let mut km = Vec::with_capacity(49);
+        km.extend_from_slice(b"key-material");
+        km.push(i);
+
+        let key = ternary_math::sponge_packed::derive_key_packed(b"PlenumNET-HB-HMAC", &km, 48);
+        let tag = ternary_math::sponge_packed::derive_key_packed(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let tag2 = ternary_math::sponge_packed::derive_key_packed(
+            b"PlenumNET-HB-TAG",
+            &[key.as_slice(), b"hb-payload".as_slice()].concat(),
+            27,
+        );
+        let mut diff: u8 = 0;
+        for j in 0..tag.len() { diff |= tag[j] ^ tag2[j]; }
+        black_box(diff);
+    }
+}
+
+fn bench_ab_pt26_sign_scalar() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2];
+    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+    let msg_hash = ternary_math::sponge::derive_key(b"PT26-MSG", b"benchmark message", 48);
+    let h = 9;
+    let mut checksum: u32 = 0;
+    for step in 0..h {
+        checksum = (checksum + weights[step % 9] * (step as u32 + 1)) % 333;
+    }
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&dest);
+    mat.extend_from_slice(&(checksum as u16).to_le_bytes());
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge::derive_key(b"PT26-BIND", &mat, 48);
+    black_box(binding);
+}
+
+fn bench_ab_pt26_sign_packed() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let dest: [u8; 13] = [3, 3, 1, 1, 3, 1, 3, 3, 1, 2, 1, 3, 2];
+    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+    let msg_hash = ternary_math::sponge_packed::derive_key_packed(b"PT26-MSG", b"benchmark message", 48);
+    let h = 9;
+    let mut checksum: u32 = 0;
+    for step in 0..h {
+        checksum = (checksum + weights[step % 9] * (step as u32 + 1)) % 333;
+    }
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&dest);
+    mat.extend_from_slice(&(checksum as u16).to_le_bytes());
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge_packed::derive_key_packed(b"PT26-BIND", &mat, 48);
+    black_box(binding);
+}
+
+fn criterion_sponge_ab(c: &mut Criterion) {
+    c.bench_function("ab_derive_key_scalar", |b| b.iter(bench_ab_derive_key_scalar));
+    c.bench_function("ab_derive_key_packed", |b| b.iter(bench_ab_derive_key_packed));
+    c.bench_function("ab_hash_scalar", |b| b.iter(bench_ab_hash_scalar));
+    c.bench_function("ab_hash_packed", |b| b.iter(bench_ab_hash_packed));
+    c.bench_function("ab_hmac_scalar", |b| b.iter(bench_ab_hmac_scalar));
+    c.bench_function("ab_hmac_packed", |b| b.iter(bench_ab_hmac_packed));
+    c.bench_function("ab_heartbeat26_scalar", |b| b.iter(bench_ab_heartbeat26_scalar));
+    c.bench_function("ab_heartbeat26_packed", |b| b.iter(bench_ab_heartbeat26_packed));
+    c.bench_function("ab_pt26_sign_scalar", |b| b.iter(bench_ab_pt26_sign_scalar));
+    c.bench_function("ab_pt26_sign_packed", |b| b.iter(bench_ab_pt26_sign_packed));
+}
+
 criterion_group!(
     benches,
     criterion_tl_dsa_v1,
@@ -1126,5 +1279,6 @@ criterion_group!(
     criterion_identity,
     criterion_tunnel,
     criterion_heartbeat,
+    criterion_sponge_ab,
 );
 criterion_main!(benches);

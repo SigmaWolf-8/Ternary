@@ -41,6 +41,7 @@ pub mod repunit_circles;
 pub mod gf27;
 pub mod sponge;
 pub mod sponge_packed;
+pub mod sponge_dispatch;
 pub mod tis_sponge;
 pub mod tl_dsa;
 pub mod plenum_square;
