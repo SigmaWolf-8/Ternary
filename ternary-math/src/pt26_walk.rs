@@ -7,13 +7,14 @@
 //! Builds secret walks through the 13D ternary hypercube using
 //! the σ permutation schedule. The walk is the core structure
 //! that the signer knows and the verifier checks.
+//!
+//! Updated for unified PT26-DSA: uses GF(3) step tokens instead
+//! of per-step sponge commitments.
 
 use crate::cube_addr::CubeAddr;
 use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
 use crate::pt26_dsa::{
-    DIMENSIONS, MAX_WALK_LENGTH, NUM_SIGMAS,
-    SecretSchedule, STEP_COMMIT_LEN,
-    compute_step_commit, hamming_distance,
+    DIMENSIONS, Schedule, trit_diff, step_token, walk_token, walk_parity,
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -31,12 +32,10 @@ pub struct WalkStep {
     pub dimension: usize,
     /// Which σ permutation was used.
     pub sigma_index: u8,
-    /// Weight from the Plenum Square for this step.
-    pub weight: u32,
+    /// Step token (GF(3) weighted triplet evaluation mod 333).
+    pub token: u32,
     /// Step position in the walk (0-indexed).
     pub position: usize,
-    /// The step commitment.
-    pub commitment: [u8; STEP_COMMIT_LEN],
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -52,19 +51,16 @@ pub struct Walk {
     pub destination: CubeAddr,
     /// The individual steps.
     pub steps: Vec<WalkStep>,
-    /// Walk checksum mod 333.
-    pub checksum: u32,
+    /// Walk token (accumulated product mod 333).
+    pub walk_tok: u32,
+    /// Walk parity (8-trit ECC syndrome).
+    pub parity: [u8; 8],
 }
 
 impl Walk {
     /// Walk length (= Hamming distance between source and destination).
     pub fn length(&self) -> usize {
         self.steps.len()
-    }
-
-    /// Total weight (sum of step weights, unreduced).
-    pub fn total_weight(&self) -> u64 {
-        self.steps.iter().map(|s| s.weight as u64).sum()
     }
 
     /// Get the dimension ordering used in this walk.
@@ -77,9 +73,9 @@ impl Walk {
         self.steps.iter().map(|s| s.sigma_index).collect()
     }
 
-    /// Extract step commitments as a flat array.
-    pub fn step_commitments(&self) -> Vec<[u8; STEP_COMMIT_LEN]> {
-        self.steps.iter().map(|s| s.commitment).collect()
+    /// Extract step tokens.
+    pub fn step_tokens(&self) -> Vec<u32> {
+        self.steps.iter().map(|s| s.token).collect()
     }
 }
 
@@ -89,16 +85,16 @@ impl Walk {
 
 /// Construct a secret walk using the σ schedule.
 ///
-/// This is the core signing operation: given a secret schedule,
-/// build the walk from source to destination.
+/// Uses GF(3) trit arithmetic for step tokens (sub-nanosecond).
+/// Zero sponge calls.
 pub fn build_walk(
     source: &CubeAddr,
     destination: &CubeAddr,
-    schedule: &SecretSchedule,
+    schedule: &Schedule,
 ) -> Walk {
     let src_bytes = source.to_bytes();
     let dst_bytes = destination.to_bytes();
-    let h = hamming_distance(source, destination);
+    let h = (0..DIMENSIONS).filter(|&d| src_bytes[d] != dst_bytes[d]).count();
 
     let mut dims_remaining: Vec<usize> = (0..DIMENSIONS)
         .filter(|&d| src_bytes[d] != dst_bytes[d])
@@ -106,51 +102,43 @@ pub fn build_walk(
 
     let mut current = source.clone();
     let mut steps = Vec::with_capacity(h);
-    let mut checksum: u32 = 0;
+    let mut tokens = Vec::with_capacity(h);
 
     for step in 0..h {
-        let sigma = &SIGMAS[schedule.sigma_index[step] as usize];
-
-        // Select dimension using secret ordering
+        let si = schedule.sigma[step] as usize;
         let priority = (schedule.dim_order[step] as usize) % dims_remaining.len();
         let dim = dims_remaining.remove(priority);
 
-        // Construct next vertex
-        let mut next_trits = current.to_bytes();
+        let cur_bytes = current.to_bytes();
+        let mut next_trits = cur_bytes;
         next_trits[dim] = dst_bytes[dim];
         let next = CubeAddr::new(next_trits);
 
-        // Compute step weight
-        let triplet_idx = (dim / 3).min(8);
-        let weight = WEIGHT_VECTOR[sigma[triplet_idx]];
-
-        // Compute commitment
-        let commitment = compute_step_commit(
-            &current, &next, weight, &schedule.weight_key, step,
-        );
-
-        // Update checksum
-        let weight_idx = (schedule.sigma_index[step] as usize * 2 + step % 3) % 9;
-        checksum = (checksum + WEIGHT_VECTOR[weight_idx]) % MAGIC_CONSTANT;
+        let delta = trit_diff(&next_trits, &cur_bytes);
+        let tok = step_token(&delta, si, step);
+        tokens.push(tok);
 
         steps.push(WalkStep {
             from: current.clone(),
             to: next.clone(),
             dimension: dim,
-            sigma_index: schedule.sigma_index[step],
-            weight,
+            sigma_index: schedule.sigma[step],
+            token: tok,
             position: step,
-            commitment,
         });
 
         current = next;
     }
 
+    let wt = walk_token(&tokens);
+    let par = walk_parity(&src_bytes, &dst_bytes, wt, &tokens);
+
     Walk {
         source: source.clone(),
         destination: destination.clone(),
         steps,
-        checksum,
+        walk_tok: wt,
+        parity: par,
     }
 }
 
@@ -163,25 +151,21 @@ pub fn validate_walk(walk: &Walk) -> bool {
         return walk.source == walk.destination;
     }
 
-    // First step starts from source
     if walk.steps[0].from != walk.source {
         return false;
     }
 
-    // Last step ends at destination
     if walk.steps.last().unwrap().to != walk.destination {
         return false;
     }
 
-    // Steps are contiguous
     for i in 1..walk.steps.len() {
         if walk.steps[i].from != walk.steps[i - 1].to {
             return false;
         }
     }
 
-    // Each step fixes exactly one dimension
-    let mut dims_fixed = Vec::with_capacity(walk.steps.len());
+    let mut seen = [false; DIMENSIONS];
     for step in &walk.steps {
         let from = step.from.to_bytes();
         let to = step.to.to_bytes();
@@ -191,21 +175,13 @@ pub fn validate_walk(walk: &Walk) -> bool {
         if changed.len() != 1 {
             return false;
         }
-        dims_fixed.push(changed[0]);
-    }
-
-    // No dimension fixed twice
-    let mut seen = [false; DIMENSIONS];
-    for &dim in &dims_fixed {
+        let dim = changed[0];
         if seen[dim] { return false; }
         seen[dim] = true;
     }
 
-    // Checksum in range
-    walk.checksum < MAGIC_CONSTANT
-
-    // σ indices valid
-    && walk.steps.iter().all(|s| (s.sigma_index as usize) < NUM_SIGMAS)
+    walk.walk_tok < MAGIC_CONSTANT
+        && walk.steps.iter().all(|s| (s.sigma_index as usize) < 4)
 }
 
 /// Compute the expected Hamming distance between two random Z₃¹³ vertices.
@@ -216,12 +192,9 @@ pub fn expected_hamming_distance() -> f64 {
     DIMENSIONS as f64 * 2.0 / 3.0
 }
 
-/// Compute the expected signature size in bytes.
-///
-/// Sig = 64 + 48h bytes. E[h] = 13 × 2/3 ≈ 8.667.
-/// E[sig_size] = 64 + 48 × 8.667 ≈ 480 bytes.
-pub fn expected_signature_size() -> f64 {
-    64.0 + (STEP_COMMIT_LEN as f64) * expected_hamming_distance()
+/// Compute the expected signature size (fixed at 71 bytes in unified PT26-DSA).
+pub fn signature_size() -> usize {
+    71
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -235,14 +208,14 @@ mod tests {
     fn addr_a() -> CubeAddr { CubeAddr::new([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
     fn addr_b() -> CubeAddr { CubeAddr::new([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]) }
 
-    fn test_schedule() -> SecretSchedule {
-        SecretSchedule::derive(&addr_a(), b"test-secret")
+    fn test_schedule() -> Schedule {
+        Schedule::derive(&addr_a().to_bytes(), b"test-secret")
     }
 
     #[test]
     fn test_build_walk_correct_length() {
         let walk = build_walk(&addr_a(), &addr_b(), &test_schedule());
-        assert_eq!(walk.length(), 13); // Max distance
+        assert_eq!(walk.length(), 13);
     }
 
     #[test]
@@ -296,9 +269,9 @@ mod tests {
     }
 
     #[test]
-    fn test_walk_checksum_in_range() {
+    fn test_walk_token_in_range() {
         let walk = build_walk(&addr_a(), &addr_b(), &test_schedule());
-        assert!(walk.checksum < MAGIC_CONSTANT);
+        assert!(walk.walk_tok < MAGIC_CONSTANT);
     }
 
     #[test]
@@ -315,8 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn test_expected_sig_size() {
-        let e = expected_signature_size();
-        assert!(e > 400.0 && e < 500.0, "Expected ~480 bytes, got {}", e);
+    fn test_signature_size() {
+        assert_eq!(signature_size(), 71);
     }
 }
