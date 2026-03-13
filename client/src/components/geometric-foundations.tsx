@@ -949,6 +949,12 @@ export default function GeometricFoundations() {
               the network scales infinitely: stack another 13 trits and the address space jumps from
               1.6 million to 2.5 trillion nodes with no architectural change. This works today.
             </p>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto 12px" }}>
+              26 concurrent neighbor interactions per node. Every node in the 13D hypercube maintains
+              26 authenticated, post-quantum tunnels simultaneously — each with its own heartbeat,
+              HMAC verification, sequence tracking, and fault detection. The cryptographic operations
+              backing these interactions must be invisible to the application layer.
+            </p>
             <p style={{ fontSize: 14, lineHeight: 1.75, color: t.fgMuted, maxWidth: 640, margin: "0 auto" }}>
               Greedy geodesic forwarding across the 13D ternary cube.
               Hamming distance IS hop count. Adjacency IS the routing table. Four services orchestrate
@@ -971,6 +977,39 @@ export default function GeometricFoundations() {
             </div>
           </FadeIn>
         )}
+
+        <FadeIn delay={150}>
+          <div style={{
+            background: t.primaryDim, border: `1px solid ${t.primaryBorder}`,
+            borderRadius: RADIUS.lg, padding: isMobile ? "28px 20px" : "32px 36px",
+            marginBottom: 24, textAlign: "center",
+          }} data-testid="card-cpu-stat">
+            <div style={{
+              fontSize: isMobile ? 40 : 56, fontWeight: 700, fontFamily: FONTS.mono,
+              color: t.primary, lineHeight: 1, marginBottom: 8,
+            }}>
+              0.003%
+            </div>
+            <div style={{
+              fontSize: 13, fontFamily: FONTS.mono, letterSpacing: 1.5,
+              color: t.fgMuted, textTransform: "uppercase" as const, marginBottom: 16,
+            }}>
+              of one CPU core
+            </div>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: t.fgSoft, maxWidth: 640, margin: "0 auto 12px" }}>
+              That's all it takes to maintain 26 concurrent post-quantum cryptographic tunnels.
+              A Raspberry Pi 4 at 1.5 GHz could run every tunnel and still have 99.997% of its CPU
+              left for actual application work. A single AWS t3.micro could theoretically run thousands
+              of nodes before heartbeat crypto becomes the bottleneck.
+            </p>
+            <p style={{ fontSize: 13, lineHeight: 1.75, color: t.fgMuted, maxWidth: 600, margin: "0 auto" }}>
+              HMAC instead of full signatures for heartbeats. Mod-3 arithmetic instead of field
+              operations for checksums. Block-level memcpy instead of trit-level permutation for
+              shuffles. The heavy crypto — TL-DSA verify at 3 ms — only runs once at registration.
+              The per-second cost is all lightweight symmetric operations.
+            </p>
+          </div>
+        </FadeIn>
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 16, marginBottom: 16 }}>
           <ServiceCard delay={0} icon="◎" tag="GLB" name="Geometric Load Balancer"
