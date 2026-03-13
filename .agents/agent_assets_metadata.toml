@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "8T-SCse6gDPSmCVnJN7FI"
+uri = "file://docs/benchmark-report-2026-03-13.md"
+type = "text"
+title = "PlenumNET Criterion Benchmark Report — 46 Benchmarks"
