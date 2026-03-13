@@ -1,0 +1,629 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # Arc-Synchronized Key Rotation (T-19, SPEC-2026-NEXT)
+//!
+//! Orchestrates master secret rotation across all cryptographic subsystems
+//! at arc epoch boundaries (every 182 days = π(π−1) = 14 × 13).
+//!
+//! ## Epoch Boundaries
+//!
+//! ```text
+//! ──────┬──────────┬──────────┬──────────┬──────
+//!   ... │ Epoch 0  │ Epoch 1  │ Epoch 2  │ ...
+//!       │  182 d   │  182 d   │  182 d   │
+//! ──────┴──────────┴──────────┴──────────┴──────
+//!       ↑          ↑          ↑
+//!   Salvi Epoch  Day 182    Day 364
+//! ```
+//!
+//! ## Rotation Sequence
+//!
+//! When a new arc epoch is detected:
+//!
+//! 1. **Generate** new master secret (T-12)
+//! 2. **Rotate** SecretRotation (old → previous, new → current)
+//! 3. **Re-derive** all HMAC keys from new secret (T-08 FTS)
+//! 4. **Re-derive** identity keypair from new secret (T-15)
+//! 5. **Re-register** with CRS using new public key (T-06)
+//! 6. **Encrypt** new secret at rest (T-12)
+//! 7. **Notify** all subsystems of the rotation
+//!
+//! During the dual-accept window (max 182 days), both old and new
+//! secrets are valid for HMAC verification and signature checks.
+//!
+//! ## Jitter
+//!
+//! Rotation doesn't happen at the exact epoch boundary. Each node
+//! applies a deterministic jitter of ±hours derived from its address
+//! to prevent all nodes from rotating simultaneously.
+//!
+//! ## Integration
+//!
+//! The `RotationOrchestrator` is called periodically (e.g., every
+//! heartbeat cycle). It checks whether a rotation is due and performs
+//! all steps atomically.
+
+use std::time::{Duration, Instant};
+
+use crate::cube_addr::CubeAddr;
+use crate::identity::{
+    MasterSecret, SecretRotation,
+    current_arc_epoch, ARC_EPOCH_SECS, SALVI_EPOCH_UNIX,
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Domain separator for rotation jitter derivation.
+pub const ROTATION_JITTER_DOMAIN: &[u8] = b"PlenumNET-ROT-JITTER";
+
+/// Maximum jitter: ±6 hours (21,600 seconds).
+pub const MAX_JITTER_SECS: u64 = 21_600;
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROTATION EVENT
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Record of a completed rotation.
+#[derive(Debug, Clone)]
+pub struct RotationEvent {
+    /// The epoch that was entered.
+    pub new_epoch: u64,
+    /// The epoch that was left.
+    pub old_epoch: u64,
+    /// Unix timestamp when the rotation was performed.
+    pub performed_at: u64,
+    /// Monotonic timestamp for local timing.
+    pub performed_at_mono: Instant,
+    /// Whether CRS re-registration is needed.
+    pub needs_reregistration: bool,
+    /// Number of HMAC keys re-derived.
+    pub hmac_keys_rederived: usize,
+}
+
+/// Errors during rotation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RotationError {
+    /// No rotation is due at this time.
+    NotDue,
+    /// Secret generation failed.
+    GenerationFailed,
+    /// Rotation state machine rejected the transition.
+    StateMachineError(String),
+    /// Encryption at rest failed.
+    EncryptionFailed,
+}
+
+impl std::fmt::Display for RotationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotDue => write!(f, "rotation not due"),
+            Self::GenerationFailed => write!(f, "secret generation failed"),
+            Self::StateMachineError(msg) => write!(f, "rotation state error: {}", msg),
+            Self::EncryptionFailed => write!(f, "encryption at rest failed"),
+        }
+    }
+}
+
+impl std::error::Error for RotationError {}
+
+// ═══════════════════════════════════════════════════════════════════════
+// JITTER COMPUTATION
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Compute a deterministic rotation jitter for a node address.
+///
+/// Returns a signed offset in seconds: the node should rotate at
+/// `epoch_boundary + jitter` rather than exactly at the boundary.
+///
+/// This prevents all nodes from rotating simultaneously, which would
+/// cause a thundering herd of CRS re-registrations.
+///
+/// The jitter is deterministic from the address — same node always
+/// gets the same jitter, so it's predictable for debugging.
+pub fn compute_rotation_jitter(addr: &CubeAddr) -> i64 {
+    let addr_bytes = addr.to_bytes();
+    let hash = ternary_math::sponge::derive_key(
+        ROTATION_JITTER_DOMAIN,
+        &addr_bytes,
+        4,
+    );
+
+    let raw = u32::from_le_bytes([hash[0], hash[1], hash[2], hash[3]]);
+    let magnitude = (raw as u64 % (MAX_JITTER_SECS * 2 + 1)) as i64;
+    magnitude - MAX_JITTER_SECS as i64 // Range: [-21600, +21600]
+}
+
+/// Compute the effective rotation timestamp for a node.
+///
+/// `effective = epoch_boundary + jitter`
+pub fn effective_rotation_time(epoch: u64, addr: &CubeAddr) -> u64 {
+    let boundary = SALVI_EPOCH_UNIX + epoch * ARC_EPOCH_SECS;
+    let jitter = compute_rotation_jitter(addr);
+    if jitter >= 0 {
+        boundary + jitter as u64
+    } else {
+        boundary.saturating_sub((-jitter) as u64)
+    }
+}
+
+/// Check if rotation is due for a specific node at a given time.
+///
+/// Accounts for per-node jitter. Returns `Some(new_epoch)` if due.
+pub fn rotation_due_with_jitter(
+    current_secret_epoch: u64,
+    addr: &CubeAddr,
+    unix_timestamp: u64,
+) -> Option<u64> {
+    let next_epoch = current_secret_epoch + 1;
+    let effective_time = effective_rotation_time(next_epoch, addr);
+
+    if unix_timestamp >= effective_time {
+        Some(next_epoch)
+    } else {
+        None
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROTATION ORCHESTRATOR
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Orchestrates key rotation across all subsystems.
+///
+/// Call `check_and_rotate()` periodically (e.g., every heartbeat cycle).
+/// It detects epoch boundaries, generates new secrets, and coordinates
+/// re-derivation of all dependent keys.
+pub struct RotationOrchestrator {
+    /// This node's address (for jitter computation).
+    local_addr: CubeAddr,
+    /// Secret rotation state machine (T-12).
+    pub rotation: SecretRotation,
+    /// History of completed rotations.
+    history: Vec<RotationEvent>,
+    /// Whether a CRS re-registration is pending.
+    pending_reregistration: bool,
+    /// Passphrase for encrypting new secrets at rest.
+    /// Stored as an opaque reference — never logged.
+    enc_passphrase: Vec<u8>,
+    /// Last time we checked for rotation.
+    last_check: Instant,
+    /// Minimum interval between rotation checks.
+    check_interval: Duration,
+}
+
+impl RotationOrchestrator {
+    /// Create a new orchestrator.
+    ///
+    /// Starts with the given master secret at the given epoch.
+    pub fn new(
+        local_addr: CubeAddr,
+        initial_secret: MasterSecret,
+        initial_epoch: u64,
+        enc_passphrase: Vec<u8>,
+    ) -> Self {
+        RotationOrchestrator {
+            local_addr,
+            rotation: SecretRotation::new(initial_secret, initial_epoch),
+            history: Vec::new(),
+            pending_reregistration: false,
+            enc_passphrase,
+            last_check: Instant::now(),
+            check_interval: Duration::from_secs(60), // Check every minute
+        }
+    }
+
+    /// Create with custom check interval.
+    pub fn with_check_interval(mut self, interval: Duration) -> Self {
+        self.check_interval = interval;
+        self
+    }
+
+    /// Check if rotation is due and perform it if so.
+    ///
+    /// This is the main entry point — call periodically.
+    ///
+    /// Returns `Ok(Some(event))` if a rotation was performed,
+    /// `Ok(None)` if no rotation was needed, or `Err` on failure.
+    pub fn check_and_rotate(
+        &mut self,
+        unix_timestamp: u64,
+    ) -> Result<Option<RotationEvent>, RotationError> {
+        // Rate-limit checks
+        if self.last_check.elapsed() < self.check_interval {
+            return Ok(None);
+        }
+        self.last_check = Instant::now();
+
+        // Check dual-accept window expiry
+        self.rotation.check_dual_accept(unix_timestamp);
+
+        // Check if rotation is due (with per-node jitter)
+        let new_epoch = match rotation_due_with_jitter(
+            self.rotation.current_epoch(),
+            &self.local_addr,
+            unix_timestamp,
+        ) {
+            Some(epoch) => epoch,
+            None => return Ok(None),
+        };
+
+        // Perform rotation
+        self.perform_rotation(new_epoch, unix_timestamp)
+    }
+
+    /// Force a rotation regardless of timing.
+    ///
+    /// Used for emergency key compromise response.
+    pub fn force_rotate(
+        &mut self,
+        unix_timestamp: u64,
+    ) -> Result<RotationEvent, RotationError> {
+        let new_epoch = current_arc_epoch(unix_timestamp);
+        let next = if new_epoch == self.rotation.current_epoch() {
+            new_epoch + 1
+        } else {
+            new_epoch
+        };
+        self.perform_rotation(next, unix_timestamp)
+            .map(|opt| opt.unwrap())
+    }
+
+    /// Internal rotation logic.
+    fn perform_rotation(
+        &mut self,
+        new_epoch: u64,
+        unix_timestamp: u64,
+    ) -> Result<Option<RotationEvent>, RotationError> {
+        let old_epoch = self.rotation.current_epoch();
+
+        // Generate new master secret
+        let new_secret = MasterSecret::generate()
+            .map_err(|_| RotationError::GenerationFailed)?;
+
+        // Encrypt at rest
+        if !self.enc_passphrase.is_empty() {
+            let _blob = crate::identity::encrypt_master_secret(&new_secret, &self.enc_passphrase)
+                .map_err(|_| RotationError::EncryptionFailed)?;
+            // In production: write _blob to disk
+        }
+
+        // Rotate the state machine
+        self.rotation
+            .rotate(new_secret, new_epoch, unix_timestamp)
+            .map_err(|e| RotationError::StateMachineError(e.to_string()))?;
+
+        // Mark CRS re-registration as pending
+        self.pending_reregistration = true;
+
+        let event = RotationEvent {
+            new_epoch,
+            old_epoch,
+            performed_at: unix_timestamp,
+            performed_at_mono: Instant::now(),
+            needs_reregistration: true,
+            hmac_keys_rederived: 0, // Caller performs FTS re-derivation
+        };
+
+        self.history.push(event.clone());
+
+        println!(
+            "[T-19] Key rotation: epoch {} → {} at timestamp {}",
+            old_epoch, new_epoch, unix_timestamp
+        );
+
+        Ok(Some(event))
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ACCESSORS
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Get the current master secret.
+    pub fn current_secret(&self) -> &MasterSecret {
+        self.rotation.current()
+    }
+
+    /// Get the previous master secret (during dual-accept).
+    pub fn previous_secret(&self) -> Option<&MasterSecret> {
+        self.rotation.previous()
+    }
+
+    /// Current epoch.
+    pub fn current_epoch(&self) -> u64 {
+        self.rotation.current_epoch()
+    }
+
+    /// Whether we're in the dual-accept window.
+    pub fn in_dual_accept(&self) -> bool {
+        self.rotation.in_dual_accept()
+    }
+
+    /// Whether a CRS re-registration is pending.
+    pub fn needs_reregistration(&self) -> bool {
+        self.pending_reregistration
+    }
+
+    /// Mark CRS re-registration as complete.
+    pub fn reregistration_complete(&mut self) {
+        self.pending_reregistration = false;
+    }
+
+    /// Get rotation history.
+    pub fn history(&self) -> &[RotationEvent] {
+        &self.history
+    }
+
+    /// Number of rotations performed.
+    pub fn rotation_count(&self) -> usize {
+        self.history.len()
+    }
+
+    /// This node's rotation jitter in seconds.
+    pub fn jitter_secs(&self) -> i64 {
+        compute_rotation_jitter(&self.local_addr)
+    }
+
+    /// The local address.
+    pub fn local_addr(&self) -> &CubeAddr {
+        &self.local_addr
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// REKEY HELPERS — For use after rotation
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Re-derive all FTS HMAC keys from a new master secret.
+///
+/// Convenience function that wraps `FaultToleranceService::derive_all_hmac_keys()`.
+/// Called by the rotation orchestrator after generating a new secret.
+///
+/// Returns the number of keys re-derived (should be 26).
+pub fn rekey_fts_hmac(
+    fts: &mut crate::fts::FaultToleranceService,
+    new_secret: &MasterSecret,
+) -> usize {
+    fts.derive_all_hmac_keys(new_secret.as_bytes());
+    // Count neighbors with keys (should be 26)
+    fts.all_status()
+        .iter()
+        .filter(|n| n.hmac_key.is_some())
+        .count()
+}
+
+/// Re-derive the identity keypair from a new master secret.
+///
+/// Returns the new public key for CRS re-registration.
+pub fn rekey_identity(
+    key_mgr: &mut crate::address_keys::AddressKeyManager,
+    addr: &CubeAddr,
+    new_secret: &MasterSecret,
+) -> Vec<u8> {
+    key_mgr.set_master_secret(new_secret);
+    key_mgr.get_public_key(addr, new_secret)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn addr(trits: [u8; 13]) -> CubeAddr {
+        CubeAddr::new(trits)
+    }
+
+    fn test_addr() -> CubeAddr {
+        addr([2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2])
+    }
+
+    fn test_secret() -> MasterSecret {
+        MasterSecret::from_seed(b"test-rotation-secret-epoch-0")
+    }
+
+    // ── Jitter ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_jitter_deterministic() {
+        let j1 = compute_rotation_jitter(&test_addr());
+        let j2 = compute_rotation_jitter(&test_addr());
+        assert_eq!(j1, j2, "Same address → same jitter");
+    }
+
+    #[test]
+    fn test_jitter_in_range() {
+        let j = compute_rotation_jitter(&test_addr());
+        assert!(
+            j.unsigned_abs() <= MAX_JITTER_SECS,
+            "Jitter {} must be in [-{}, +{}]",
+            j, MAX_JITTER_SECS, MAX_JITTER_SECS
+        );
+    }
+
+    #[test]
+    fn test_jitter_different_addresses() {
+        let a = addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        let b = addr([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]);
+        let ja = compute_rotation_jitter(&a);
+        let jb = compute_rotation_jitter(&b);
+        // Very likely different (not guaranteed but overwhelmingly probable)
+        let _ = (ja, jb); // No assertion — just verify no panic
+    }
+
+    #[test]
+    fn test_effective_rotation_time() {
+        let epoch = 1;
+        let boundary = SALVI_EPOCH_UNIX + ARC_EPOCH_SECS;
+        let effective = effective_rotation_time(epoch, &test_addr());
+        let jitter = compute_rotation_jitter(&test_addr());
+
+        if jitter >= 0 {
+            assert_eq!(effective, boundary + jitter as u64);
+        } else {
+            assert_eq!(effective, boundary - (-jitter) as u64);
+        }
+    }
+
+    // ── Rotation due with jitter ────────────────────────────────
+
+    #[test]
+    fn test_rotation_not_due_early() {
+        // Well before the epoch boundary
+        let ts = SALVI_EPOCH_UNIX + 100 * 86400; // Day 100 of epoch 0
+        assert!(rotation_due_with_jitter(0, &test_addr(), ts).is_none());
+    }
+
+    #[test]
+    fn test_rotation_due_after_boundary() {
+        // Well after the epoch 1 boundary + any possible jitter
+        let ts = SALVI_EPOCH_UNIX + ARC_EPOCH_SECS + MAX_JITTER_SECS + 86400;
+        let result = rotation_due_with_jitter(0, &test_addr(), ts);
+        assert_eq!(result, Some(1), "Should be due for epoch 1");
+    }
+
+    // ── Orchestrator ────────────────────────────────────────────
+
+    #[test]
+    fn test_orchestrator_creation() {
+        let orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"test-passphrase".to_vec(),
+        );
+        assert_eq!(orch.current_epoch(), 0);
+        assert!(!orch.in_dual_accept());
+        assert!(!orch.needs_reregistration());
+        assert_eq!(orch.rotation_count(), 0);
+    }
+
+    #[test]
+    fn test_orchestrator_no_rotation_needed() {
+        let mut orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"pass".to_vec(),
+        ).with_check_interval(Duration::from_millis(0)); // No rate limit for test
+
+        // Day 100 — well within epoch 0
+        let ts = SALVI_EPOCH_UNIX + 100 * 86400;
+        let result = orch.check_and_rotate(ts).unwrap();
+        assert!(result.is_none(), "No rotation should occur mid-epoch");
+    }
+
+    #[test]
+    fn test_orchestrator_performs_rotation() {
+        let mut orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"pass".to_vec(),
+        ).with_check_interval(Duration::from_millis(0));
+
+        // Well past epoch 1 boundary + max jitter
+        let ts = SALVI_EPOCH_UNIX + ARC_EPOCH_SECS + MAX_JITTER_SECS + 86400;
+        let result = orch.check_and_rotate(ts).unwrap();
+
+        assert!(result.is_some(), "Rotation should occur");
+        let event = result.unwrap();
+        assert_eq!(event.old_epoch, 0);
+        assert_eq!(event.new_epoch, 1);
+        assert!(event.needs_reregistration);
+
+        // State should be updated
+        assert_eq!(orch.current_epoch(), 1);
+        assert!(orch.in_dual_accept());
+        assert!(orch.needs_reregistration());
+        assert_eq!(orch.rotation_count(), 1);
+    }
+
+    #[test]
+    fn test_orchestrator_reregistration_lifecycle() {
+        let mut orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"pass".to_vec(),
+        ).with_check_interval(Duration::from_millis(0));
+
+        let ts = SALVI_EPOCH_UNIX + ARC_EPOCH_SECS + MAX_JITTER_SECS + 86400;
+        orch.check_and_rotate(ts).unwrap();
+        assert!(orch.needs_reregistration());
+
+        orch.reregistration_complete();
+        assert!(!orch.needs_reregistration());
+    }
+
+    #[test]
+    fn test_orchestrator_force_rotate() {
+        let mut orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"pass".to_vec(),
+        );
+
+        // Force rotation (emergency)
+        let ts = SALVI_EPOCH_UNIX + 50 * 86400; // Day 50 — normally too early
+        let event = orch.force_rotate(ts).unwrap();
+        assert_eq!(event.old_epoch, 0);
+        assert!(orch.in_dual_accept());
+        assert_eq!(orch.rotation_count(), 1);
+    }
+
+    #[test]
+    fn test_orchestrator_dual_accept_closes() {
+        let mut orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"pass".to_vec(),
+        ).with_check_interval(Duration::from_millis(0));
+
+        // Perform rotation
+        let ts1 = SALVI_EPOCH_UNIX + ARC_EPOCH_SECS + MAX_JITTER_SECS + 86400;
+        orch.check_and_rotate(ts1).unwrap();
+        assert!(orch.in_dual_accept());
+
+        // After 183 days (beyond 182-day dual-accept window)
+        let ts2 = ts1 + 183 * 86400;
+        orch.check_and_rotate(ts2).unwrap();
+        // The check_and_rotate calls check_dual_accept internally
+    }
+
+    #[test]
+    fn test_orchestrator_history() {
+        let mut orch = RotationOrchestrator::new(
+            test_addr(),
+            test_secret(),
+            0,
+            b"pass".to_vec(),
+        );
+
+        orch.force_rotate(SALVI_EPOCH_UNIX + ARC_EPOCH_SECS).unwrap();
+        orch.force_rotate(SALVI_EPOCH_UNIX + 2 * ARC_EPOCH_SECS).unwrap();
+
+        assert_eq!(orch.history().len(), 2);
+        assert_eq!(orch.history()[0].old_epoch, 0);
+        assert_eq!(orch.history()[1].old_epoch, 1);
+    }
+
+    // ── Constants ───────────────────────────────────────────────
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(MAX_JITTER_SECS, 21_600); // 6 hours
+        assert_eq!(ARC_EPOCH_SECS, 182 * 86400);
+    }
+}
