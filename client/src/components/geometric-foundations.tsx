@@ -683,61 +683,40 @@ function RepCard({ name, subtitle, digits, desc, color, bg, border, highlight }:
 
 function AlgebraicDetails() {
   const t = useTheme();
-  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        data-testid="button-toggle-math"
-        style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 16px", fontSize: 13, fontWeight: 600,
-          fontFamily: FONTS.mono, color: t.primary,
-          background: t.primaryDim, border: `1px solid ${t.primaryBorder}`,
-          borderRadius: RADIUS.md, cursor: "pointer",
-          width: "100%", textAlign: "left" as const,
-        }}
-      >
-        <span style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", fontSize: 10 }}>&#9654;</span>
-        {expanded ? "Hide the math" : "See the math"}
-      </button>
-
-      {expanded && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{
-            fontFamily: FONTS.mono, fontSize: 15, background: t.primaryDim,
-            border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.lg,
-            padding: "20px 26px", lineHeight: 2.2,
-          }}>
-            <div style={{ fontSize: 10, color: t.fgMuted, letterSpacing: 1, marginBottom: 6 }}>S&#x2083; &#x2245; Aff(1, &#x1D53D;&#x2083;)</div>
-            <div style={{ color: t.fgSoft }}>
-              <span style={{ color: t.primary, fontWeight: 600 }}>&pi;</span>(x) = (<span style={{ color: t.esoteric }}>a</span> &middot; x + <span style={{ color: t.cosmic }}>b</span>)
-              <span style={{ color: t.fgMuted }}> mod 3</span>
-            </div>
-            <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 4 }}>
-              a &isin; {"{1, 2}"}  &middot;  b &isin; {"{0, 1, 2}"}  &rarr;  6 permutations, zero tables
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
-            {[
-              { op: "Compose", f: "(a\u2081a\u2082, a\u2081b\u2082+b\u2081) mod 3" },
-              { op: "Inverse", f: "(a, 3\u2212a\u00B7b) mod 3" },
-              { op: "Sign", f: "a=1 \u2192 even \u00B7 a=2 \u2192 odd" },
-              { op: "Order", f: "1 (id) \u00B7 2 (swap) \u00B7 3 (cycle)" },
-            ].map((x, i) => (
-              <div key={i} style={{
-                padding: "10px 14px", background: t.muted,
-                border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.md,
-              }}>
-                <div style={{ fontSize: 9.5, color: t.fgMuted, fontFamily: FONTS.mono, marginBottom: 3 }}>{x.op}</div>
-                <div style={{ fontSize: 11.5, color: t.fgSoft, fontFamily: FONTS.mono }}>{x.f}</div>
-              </div>
-            ))}
-          </div>
+    <div data-testid="math-detail">
+      <div style={{
+        fontFamily: FONTS.mono, fontSize: 15, background: t.primaryDim,
+        border: `1px solid ${t.primaryBorder}`, borderRadius: RADIUS.lg,
+        padding: "20px 26px", lineHeight: 2.2,
+      }}>
+        <div style={{ fontSize: 10, color: t.fgMuted, letterSpacing: 1, marginBottom: 6 }}>S&#x2083; &#x2245; Aff(1, &#x1D53D;&#x2083;)</div>
+        <div style={{ color: t.fgSoft }}>
+          <span style={{ color: t.primary, fontWeight: 600 }}>&pi;</span>(x) = (<span style={{ color: t.esoteric }}>a</span> &middot; x + <span style={{ color: t.cosmic }}>b</span>)
+          <span style={{ color: t.fgMuted }}> mod 3</span>
         </div>
-      )}
+        <div style={{ fontSize: 10.5, color: t.fgMuted, marginTop: 4 }}>
+          a &isin; {"{1, 2}"}  &middot;  b &isin; {"{0, 1, 2}"}  &rarr;  6 permutations, zero tables
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+        {[
+          { op: "Compose", f: "(a\u2081a\u2082, a\u2081b\u2082+b\u2081) mod 3" },
+          { op: "Inverse", f: "(a, 3\u2212a\u00B7b) mod 3" },
+          { op: "Sign", f: "a=1 \u2192 even \u00B7 a=2 \u2192 odd" },
+          { op: "Order", f: "1 (id) \u00B7 2 (swap) \u00B7 3 (cycle)" },
+        ].map((x, i) => (
+          <div key={i} style={{
+            padding: "10px 14px", background: t.muted,
+            border: `1px solid ${t.cardBorder}`, borderRadius: RADIUS.md,
+          }}>
+            <div style={{ fontSize: 9.5, color: t.fgMuted, fontFamily: FONTS.mono, marginBottom: 3 }}>{x.op}</div>
+            <div style={{ fontSize: 11.5, color: t.fgSoft, fontFamily: FONTS.mono }}>{x.f}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
