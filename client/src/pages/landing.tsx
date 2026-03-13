@@ -286,24 +286,6 @@ function HeroSection() {
           </div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex flex-wrap items-center justify-center gap-3 mb-8"
-          data-testid="visitor-path-anchors"
-        >
-          <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
-            I want to build on it
-          </a>
-          <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
-            I want to understand how it works
-          </a>
-          <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
-            I want to evaluate the business case
-          </a>
-        </motion.div>
-
         <div className="space-y-14">
           <div className="text-center">
             <motion.div 
@@ -313,9 +295,72 @@ function HeroSection() {
               className="mb-5"
               data-testid="text-hero-description"
             >
-              <p className="text-lg text-muted-foreground text-center leading-relaxed">
-                Every computer ever built speaks in binary — on or off, yes or no, one or zero. PlenumNET transcends that limitation entirely. Through three native representations — Rep A, Rep B, and Rep C — data doesn't just gain a third state — it gains the divine geometry of nine, where three representations interlock into a complete algebraic system that binary can never reach. That single architectural shift unlocks 59% more information per digit, dual-phase, geometrically derived cryptographic encryption that quantum computers cannot decompose, a 13-dimensional hypercube network — its topology derived from nested circles, the inscribed hexagon that defines the foundational Arc, and a one-in-3.4-million inscribed Plenum Magic Square — threading 20.7 million post-quantum tunnels through every cube, and femtosecond-precision timing across every operation — all running on the silicon you already own. This is not an incremental improvement. This is the foundation of the post-quantum internet.
-              </p>
+              <div className="max-w-3xl mx-auto space-y-10 text-left">
+
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Foundation</h2>
+                    <span className="text-muted-foreground">~</span>
+                    <a href="#components" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-build">
+                      I want to build on it
+                    </a>
+                  </div>
+                  <div className="border-t border-border/40 mb-4" />
+                  <p className="text-lg text-muted-foreground leading-relaxed mb-4">
+                    Every computer ever built speaks in binary — on or off, yes or no, one or zero.
+                  </p>
+                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                    PlenumNET transcends that limitation entirely.
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Through three native representations — Rep A, B, C — data doesn't just gain a third state — it gains the <em>divine geometry of nine</em>, where three representations interlock into a complete algebraic system that binary can never reach.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Architecture</h2>
+                    <span className="text-muted-foreground">~</span>
+                    <a href="#geometric-foundations" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-understand">
+                      I want to understand how it works
+                    </a>
+                  </div>
+                  <div className="border-t border-border/40 mb-4" />
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    217% more information per digit — 9 algebraic states where binary offers one;
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Dual-phase, geometrically derived cryptographic encryption that quantum computers cannot decompose;
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    A 13-dimensional hypercube network — its topology derived from nested circles, an inscribed hexagon definitive of the foundational Arc, and a one-in-3.4-million inscribed Plenum Magic Square — threading 20.7 million post-quantum tunnels through every cube;
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    Femtosecond-precision timing across every operation...
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-foreground">The Opportunity</h2>
+                    <span className="text-muted-foreground">~</span>
+                    <a href="#performance" className="text-sm text-primary hover:text-primary/80 border border-primary/20 rounded-full px-4 py-1.5 transition-colors hover:bg-primary/5" data-testid="link-path-evaluate">
+                      I want to evaluate the business case
+                    </a>
+                  </div>
+                  <div className="border-t border-border/40 mb-4" />
+                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                    This is not an incremental improvement.
+                  </p>
+                  <p className="text-lg text-foreground font-semibold leading-relaxed mb-4">
+                    This is the foundation of the post-quantum internet.
+                  </p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
+                    All running on the silicon you already own.
+                  </p>
+                </div>
+
+              </div>
             </motion.div>
 
             <motion.div
