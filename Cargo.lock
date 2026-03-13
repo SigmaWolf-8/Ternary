@@ -808,6 +808,7 @@ version = "0.2.0"
 dependencies = [
  "axum",
  "chrono",
+ "hex",
  "reqwest",
  "serde",
  "serde_json",

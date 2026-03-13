@@ -1,0 +1,819 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # Heartbeat Sequence Persistence (T-13, SPEC-2026-NEXT)
+//!
+//! Persists the last accepted heartbeat sequence number for each neighbor
+//! so that replay protection survives process restarts.
+//!
+//! ## Problem
+//!
+//! Without persistence, a restarted node resets all `last_hb_sequence`
+//! counters to 0. An attacker who captured old heartbeats can replay
+//! them against the restarted node — the node accepts them because
+//! sequence 0 < any previously-accepted sequence.
+//!
+//! ## Solution
+//!
+//! On each accepted heartbeat, the sequence number is written to a
+//! persistent store (file-backed HashMap). On startup, FTS loads the
+//! persisted sequences into each `NeighborHealth.last_hb_sequence`.
+//!
+//! ## File Format
+//!
+//! Simple line-based text file:
+//! ```text
+//! # PlenumNET Heartbeat Sequence State — DO NOT EDIT
+//! # Format: address_hex sequence_u64
+//! 6db6db6db6db6d 42
+//! b6db6db6db6db6 108
+//! ```
+//!
+//! The address is the 13-trit Rep C address packed as hex (4 bytes = 8 hex chars).
+//! The sequence is a decimal u64.
+//!
+//! ## Sliding Window
+//!
+//! On load, each persisted sequence is adjusted by subtracting the
+//! sliding window (±10, from T-08) to allow for in-flight heartbeats
+//! that were sent before the restart but arrive after. This prevents
+//! false-positive replay rejections during the restart window.
+//!
+//! ## Write Strategy
+//!
+//! - **Batch writes**: Sequences are buffered in memory and flushed
+//!   periodically (default: every 30 seconds) rather than on every
+//!   heartbeat. This keeps I/O overhead minimal.
+//! - **Atomic writes**: The file is written to a `.tmp` path first,
+//!   then renamed. This prevents corruption if the process crashes
+//!   mid-write.
+//! - **Dirty tracking**: Only writes when at least one sequence has
+//!   changed since the last flush.
+
+use std::collections::HashMap;
+use std::io::{BufRead, Write};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+use crate::cube_addr::CubeAddr;
+use crate::wire::pack_trit_array;
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Default flush interval: write to disk every 30 seconds.
+pub const DEFAULT_FLUSH_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Sliding window adjustment on load (from T-08 SEQUENCE_WINDOW).
+/// Subtracted from persisted sequences to tolerate in-flight heartbeats.
+pub const LOAD_WINDOW_ADJUST: u64 = 10;
+
+/// File header comment.
+const FILE_HEADER: &str = "# PlenumNET Heartbeat Sequence State — DO NOT EDIT\n# Format: address_hex sequence_u64\n";
+
+/// Default file name.
+pub const DEFAULT_STATE_FILE: &str = "hb_sequences.state";
+
+// ═══════════════════════════════════════════════════════════════════════
+// ERRORS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Persistence errors.
+#[derive(Debug)]
+pub enum PersistenceError {
+    /// I/O error reading or writing the state file.
+    Io(std::io::Error),
+    /// Failed to parse a line in the state file.
+    ParseError { line_number: usize, content: String },
+    /// Address hex decoding failed.
+    InvalidAddress { line_number: usize, hex: String },
+}
+
+impl std::fmt::Display for PersistenceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(e) => write!(f, "I/O error: {}", e),
+            Self::ParseError { line_number, content } => {
+                write!(f, "parse error at line {}: {:?}", line_number, content)
+            }
+            Self::InvalidAddress { line_number, hex } => {
+                write!(f, "invalid address hex at line {}: {:?}", line_number, hex)
+            }
+        }
+    }
+}
+
+impl std::error::Error for PersistenceError {}
+
+impl From<std::io::Error> for PersistenceError {
+    fn from(e: std::io::Error) -> Self {
+        PersistenceError::Io(e)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ADDRESS ENCODING — Hex representation for persistence
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Encode a CubeAddr as a hex string for persistence.
+///
+/// Packs the 13 Rep C trits into 4 bytes (2 bits per trit),
+/// then hex-encodes to 8 characters.
+pub fn addr_to_hex(addr: &CubeAddr) -> Option<String> {
+    let trits = addr.to_bytes();
+    let packed = pack_trit_array(&trits)?;
+    Some(hex::encode(packed))
+}
+
+/// Decode a hex string back to a CubeAddr.
+///
+/// Reverses `addr_to_hex`: hex → 4 bytes → unpack 13 trits → CubeAddr.
+pub fn hex_to_addr(hex_str: &str) -> Option<CubeAddr> {
+    let bytes = hex::decode(hex_str).ok()?;
+    if bytes.len() != 4 {
+        return None;
+    }
+    let mut packed = [0u8; 4];
+    packed.copy_from_slice(&bytes);
+    let trits = crate::wire::unpack_trit_array(&packed)?;
+    Some(CubeAddr::new(trits))
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SEQUENCE STORE — In-memory + file-backed
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Persistent heartbeat sequence store.
+///
+/// Maintains a mapping of `CubeAddr → last_accepted_sequence` with
+/// periodic flush to disk and atomic writes.
+#[derive(Debug)]
+pub struct SequenceStore {
+    /// In-memory sequence map.
+    sequences: HashMap<CubeAddr, u64>,
+    /// Path to the state file.
+    file_path: PathBuf,
+    /// Flush interval.
+    flush_interval: Duration,
+    /// Last flush timestamp.
+    last_flush: Instant,
+    /// Whether any sequence has changed since last flush.
+    dirty: bool,
+    /// Number of successful flushes.
+    flush_count: u64,
+    /// Number of sequences loaded from file.
+    loaded_count: usize,
+}
+
+impl SequenceStore {
+    /// Create a new store backed by the given file path.
+    ///
+    /// Does NOT load from disk — call `load()` explicitly after creation.
+    pub fn new(file_path: impl Into<PathBuf>) -> Self {
+        SequenceStore {
+            sequences: HashMap::new(),
+            file_path: file_path.into(),
+            flush_interval: DEFAULT_FLUSH_INTERVAL,
+            last_flush: Instant::now(),
+            dirty: false,
+            flush_count: 0,
+            loaded_count: 0,
+        }
+    }
+
+    /// Create with custom flush interval.
+    pub fn with_flush_interval(mut self, interval: Duration) -> Self {
+        self.flush_interval = interval;
+        self
+    }
+
+    /// Create an in-memory-only store (no file backing).
+    ///
+    /// Useful for testing. `flush()` is a no-op.
+    pub fn in_memory() -> Self {
+        SequenceStore {
+            sequences: HashMap::new(),
+            file_path: PathBuf::new(), // Empty path = in-memory mode
+            flush_interval: DEFAULT_FLUSH_INTERVAL,
+            last_flush: Instant::now(),
+            dirty: false,
+            flush_count: 0,
+            loaded_count: 0,
+        }
+    }
+
+    /// Whether this store is in-memory only (no file backing).
+    pub fn is_in_memory(&self) -> bool {
+        self.file_path.as_os_str().is_empty()
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SEQUENCE OPERATIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Get the last accepted sequence for a neighbor.
+    pub fn get(&self, addr: &CubeAddr) -> u64 {
+        self.sequences.get(addr).copied().unwrap_or(0)
+    }
+
+    /// Update the sequence for a neighbor.
+    ///
+    /// Only updates if the new sequence is strictly greater than the
+    /// current stored value (monotonic guarantee).
+    pub fn update(&mut self, addr: &CubeAddr, sequence: u64) {
+        let current = self.get(addr);
+        if sequence > current {
+            self.sequences.insert(addr.clone(), sequence);
+            self.dirty = true;
+        }
+    }
+
+    /// Remove a neighbor from the store (e.g., on deregistration).
+    pub fn remove(&mut self, addr: &CubeAddr) {
+        if self.sequences.remove(addr).is_some() {
+            self.dirty = true;
+        }
+    }
+
+    /// Get all stored sequences.
+    pub fn all(&self) -> &HashMap<CubeAddr, u64> {
+        &self.sequences
+    }
+
+    /// Number of stored sequences.
+    pub fn len(&self) -> usize {
+        self.sequences.len()
+    }
+
+    /// Whether the store is empty.
+    pub fn is_empty(&self) -> bool {
+        self.sequences.is_empty()
+    }
+
+    /// Whether any sequence has changed since last flush.
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LOAD FROM DISK
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Load persisted sequences from the state file.
+    ///
+    /// Each loaded sequence is adjusted by subtracting `LOAD_WINDOW_ADJUST`
+    /// to tolerate in-flight heartbeats during the restart window.
+    ///
+    /// If the file doesn't exist, the store starts empty (no error).
+    /// Parse errors on individual lines are logged and skipped.
+    pub fn load(&mut self) -> Result<usize, PersistenceError> {
+        if self.is_in_memory() {
+            return Ok(0);
+        }
+
+        let path = &self.file_path;
+        if !path.exists() {
+            return Ok(0);
+        }
+
+        let file = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(file);
+        let mut loaded = 0usize;
+        let mut line_number = 0usize;
+
+        for line_result in reader.lines() {
+            line_number += 1;
+            let line = line_result?;
+            let trimmed = line.trim();
+
+            // Skip comments and empty lines
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+
+            // Parse: "address_hex sequence_u64"
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            if parts.len() != 2 {
+                // Log and skip malformed lines
+                eprintln!(
+                    "[T-13] Skipping malformed line {}: {:?}",
+                    line_number, trimmed
+                );
+                continue;
+            }
+
+            let addr = match hex_to_addr(parts[0]) {
+                Some(a) => a,
+                None => {
+                    eprintln!(
+                        "[T-13] Skipping invalid address at line {}: {:?}",
+                        line_number, parts[0]
+                    );
+                    continue;
+                }
+            };
+
+            let sequence: u64 = match parts[1].parse() {
+                Ok(s) => s,
+                Err(_) => {
+                    eprintln!(
+                        "[T-13] Skipping invalid sequence at line {}: {:?}",
+                        line_number, parts[1]
+                    );
+                    continue;
+                }
+            };
+
+            // Apply sliding window adjustment
+            let adjusted = sequence.saturating_sub(LOAD_WINDOW_ADJUST);
+            self.sequences.insert(addr, adjusted);
+            loaded += 1;
+        }
+
+        self.loaded_count = loaded;
+        self.dirty = false; // Just loaded — not dirty yet
+        Ok(loaded)
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FLUSH TO DISK
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Flush current sequences to disk.
+    ///
+    /// Uses atomic write: writes to `.tmp` file first, then renames.
+    /// Only writes if dirty (at least one sequence changed since last flush).
+    ///
+    /// Returns `Ok(true)` if written, `Ok(false)` if skipped (not dirty).
+    pub fn flush(&mut self) -> Result<bool, PersistenceError> {
+        if self.is_in_memory() {
+            self.dirty = false;
+            return Ok(false);
+        }
+
+        if !self.dirty {
+            return Ok(false);
+        }
+
+        let tmp_path = self.file_path.with_extension("state.tmp");
+
+        // Write to temp file
+        {
+            let mut file = std::fs::File::create(&tmp_path)?;
+            file.write_all(FILE_HEADER.as_bytes())?;
+
+            // Sort by address hex for deterministic output
+            let mut entries: Vec<_> = self
+                .sequences
+                .iter()
+                .filter_map(|(addr, &seq)| {
+                    addr_to_hex(addr).map(|hex| (hex, seq))
+                })
+                .collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+            for (hex, seq) in &entries {
+                writeln!(file, "{} {}", hex, seq)?;
+            }
+
+            file.flush()?;
+            file.sync_all()?;
+        }
+
+        // Atomic rename
+        std::fs::rename(&tmp_path, &self.file_path)?;
+
+        self.dirty = false;
+        self.flush_count += 1;
+        self.last_flush = Instant::now();
+        Ok(true)
+    }
+
+    /// Flush if the flush interval has elapsed and the store is dirty.
+    ///
+    /// Call this periodically (e.g., in the heartbeat processing loop).
+    /// Returns `Ok(true)` if flushed.
+    pub fn maybe_flush(&mut self) -> Result<bool, PersistenceError> {
+        if self.dirty && self.last_flush.elapsed() >= self.flush_interval {
+            self.flush()
+        } else {
+            Ok(false)
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // BULK OPERATIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Load sequences into FTS neighbor health records.
+    ///
+    /// Iterates the persisted map and sets `last_hb_sequence` on each
+    /// matching `NeighborHealth` entry. Call this during FTS initialization.
+    ///
+    /// Returns the number of neighbors updated.
+    pub fn apply_to_fts(
+        &self,
+        neighbors: &mut [crate::fts::NeighborHealth],
+    ) -> usize {
+        let mut updated = 0;
+        for nbr in neighbors.iter_mut() {
+            if let Some(&seq) = self.sequences.get(&nbr.addr) {
+                nbr.last_hb_sequence = seq;
+                updated += 1;
+            }
+        }
+        updated
+    }
+
+    /// Snapshot current FTS sequences into the store.
+    ///
+    /// Reads `last_hb_sequence` from each neighbor and updates the store.
+    /// Call this before shutdown for a clean persist.
+    pub fn snapshot_from_fts(
+        &mut self,
+        neighbors: &[crate::fts::NeighborHealth],
+    ) {
+        for nbr in neighbors {
+            if nbr.last_hb_sequence > 0 {
+                self.update(&nbr.addr, nbr.last_hb_sequence);
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // STATISTICS
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Number of sequences loaded from the last `load()` call.
+    pub fn loaded_count(&self) -> usize {
+        self.loaded_count
+    }
+
+    /// Number of successful disk flushes.
+    pub fn flush_count(&self) -> u64 {
+        self.flush_count
+    }
+
+    /// Time since last flush.
+    pub fn time_since_flush(&self) -> Duration {
+        self.last_flush.elapsed()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn addr(trits: [u8; 13]) -> CubeAddr {
+        CubeAddr::new(trits)
+    }
+
+    fn test_addr_a() -> CubeAddr {
+        addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    }
+
+    fn test_addr_b() -> CubeAddr {
+        addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    }
+
+    fn test_addr_c() -> CubeAddr {
+        addr([3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3])
+    }
+
+    // ── Address hex encoding ────────────────────────────────────
+
+    #[test]
+    fn test_addr_hex_roundtrip() {
+        let a = test_addr_a();
+        let hex = addr_to_hex(&a).unwrap();
+        let recovered = hex_to_addr(&hex).unwrap();
+        assert_eq!(a, recovered);
+    }
+
+    #[test]
+    fn test_addr_hex_different_addrs() {
+        let hex_a = addr_to_hex(&test_addr_a()).unwrap();
+        let hex_b = addr_to_hex(&test_addr_b()).unwrap();
+        assert_ne!(hex_a, hex_b);
+    }
+
+    #[test]
+    fn test_addr_hex_length() {
+        let hex = addr_to_hex(&test_addr_a()).unwrap();
+        assert_eq!(hex.len(), 8, "4 packed bytes = 8 hex chars");
+    }
+
+    #[test]
+    fn test_hex_to_addr_invalid() {
+        assert!(hex_to_addr("not-hex").is_none());
+        assert!(hex_to_addr("aabb").is_none()); // Too short (2 bytes)
+        assert!(hex_to_addr("aabbccddee").is_none()); // Too long (5 bytes)
+    }
+
+    // ── In-memory sequence store ────────────────────────────────
+
+    #[test]
+    fn test_store_get_default() {
+        let store = SequenceStore::in_memory();
+        assert_eq!(store.get(&test_addr_a()), 0);
+    }
+
+    #[test]
+    fn test_store_update_and_get() {
+        let mut store = SequenceStore::in_memory();
+        store.update(&test_addr_a(), 42);
+        assert_eq!(store.get(&test_addr_a()), 42);
+        assert!(store.is_dirty());
+    }
+
+    #[test]
+    fn test_store_update_monotonic() {
+        let mut store = SequenceStore::in_memory();
+        store.update(&test_addr_a(), 100);
+        store.update(&test_addr_a(), 50); // Lower — should be ignored
+        assert_eq!(store.get(&test_addr_a()), 100, "Monotonic: only higher values accepted");
+    }
+
+    #[test]
+    fn test_store_update_higher() {
+        let mut store = SequenceStore::in_memory();
+        store.update(&test_addr_a(), 100);
+        store.update(&test_addr_a(), 200);
+        assert_eq!(store.get(&test_addr_a()), 200);
+    }
+
+    #[test]
+    fn test_store_remove() {
+        let mut store = SequenceStore::in_memory();
+        store.update(&test_addr_a(), 42);
+        assert_eq!(store.len(), 1);
+
+        store.remove(&test_addr_a());
+        assert_eq!(store.len(), 0);
+        assert_eq!(store.get(&test_addr_a()), 0);
+    }
+
+    #[test]
+    fn test_store_multiple_addrs() {
+        let mut store = SequenceStore::in_memory();
+        store.update(&test_addr_a(), 10);
+        store.update(&test_addr_b(), 20);
+        store.update(&test_addr_c(), 30);
+
+        assert_eq!(store.len(), 3);
+        assert_eq!(store.get(&test_addr_a()), 10);
+        assert_eq!(store.get(&test_addr_b()), 20);
+        assert_eq!(store.get(&test_addr_c()), 30);
+    }
+
+    #[test]
+    fn test_store_in_memory_flush_is_noop() {
+        let mut store = SequenceStore::in_memory();
+        store.update(&test_addr_a(), 42);
+        assert!(store.is_in_memory());
+
+        let result = store.flush().unwrap();
+        assert!(!result, "In-memory flush should return false (no-op)");
+    }
+
+    // ── File-backed persistence ─────────────────────────────────
+
+    #[test]
+    fn test_file_write_and_load_roundtrip() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_roundtrip");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_roundtrip.state");
+        let _ = std::fs::remove_file(&file_path); // Clean start
+
+        // Write
+        {
+            let mut store = SequenceStore::new(&file_path);
+            store.update(&test_addr_a(), 100);
+            store.update(&test_addr_b(), 200);
+            store.update(&test_addr_c(), 300);
+            store.flush().unwrap();
+        }
+
+        // Load
+        {
+            let mut store = SequenceStore::new(&file_path);
+            let loaded = store.load().unwrap();
+            assert_eq!(loaded, 3);
+
+            // Sequences are adjusted by LOAD_WINDOW_ADJUST
+            assert_eq!(store.get(&test_addr_a()), 100 - LOAD_WINDOW_ADJUST);
+            assert_eq!(store.get(&test_addr_b()), 200 - LOAD_WINDOW_ADJUST);
+            assert_eq!(store.get(&test_addr_c()), 300 - LOAD_WINDOW_ADJUST);
+        }
+
+        let _ = std::fs::remove_file(&file_path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn test_file_load_nonexistent() {
+        let mut store = SequenceStore::new("/nonexistent/path/sequences.state");
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded, 0, "Missing file should return 0, not error");
+    }
+
+    #[test]
+    fn test_file_load_with_comments() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_comments");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_comments.state");
+
+        // Write a file with comments and blank lines
+        std::fs::write(
+            &file_path,
+            "# This is a comment\n\n# Another comment\n55555555 42\n",
+        )
+        .unwrap();
+
+        let mut store = SequenceStore::new(&file_path);
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded, 1);
+
+        let _ = std::fs::remove_file(&file_path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn test_file_load_malformed_lines_skipped() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_malformed");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_malformed.state");
+
+        std::fs::write(
+            &file_path,
+            "# Header\n55555555 42\nbadline\n55555555 not_a_number\n",
+        )
+        .unwrap();
+
+        let mut store = SequenceStore::new(&file_path);
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded, 1, "Only the valid line should be loaded");
+
+        let _ = std::fs::remove_file(&file_path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn test_file_atomic_write() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_atomic");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_atomic.state");
+        let tmp_path = file_path.with_extension("state.tmp");
+
+        let mut store = SequenceStore::new(&file_path);
+        store.update(&test_addr_a(), 42);
+        store.flush().unwrap();
+
+        // The .tmp file should NOT exist after successful flush
+        assert!(!tmp_path.exists(), "Temp file should be renamed away");
+        assert!(file_path.exists(), "Final file should exist");
+
+        let _ = std::fs::remove_file(&file_path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn test_file_not_dirty_skips_flush() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_notdirty");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_notdirty.state");
+
+        let mut store = SequenceStore::new(&file_path);
+        assert!(!store.is_dirty());
+
+        let result = store.flush().unwrap();
+        assert!(!result, "Not dirty → skip flush");
+
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    // ── Sliding window adjustment ───────────────────────────────
+
+    #[test]
+    fn test_load_window_adjustment() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_window");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_window.state");
+
+        {
+            let mut store = SequenceStore::new(&file_path);
+            store.update(&test_addr_a(), 5); // Below window adjust
+            store.update(&test_addr_b(), 100);
+            store.flush().unwrap();
+        }
+
+        {
+            let mut store = SequenceStore::new(&file_path);
+            store.load().unwrap();
+            // 5 - 10 = saturating_sub → 0
+            assert_eq!(store.get(&test_addr_a()), 0, "saturating_sub for low values");
+            // 100 - 10 = 90
+            assert_eq!(store.get(&test_addr_b()), 90);
+        }
+
+        let _ = std::fs::remove_file(&file_path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    // ── FTS integration ─────────────────────────────────────────
+
+    #[test]
+    fn test_apply_to_fts() {
+        let mut store = SequenceStore::in_memory();
+        let nbr_addr = test_addr_a();
+        store.update(&nbr_addr, 42);
+
+        // Create a mock NeighborHealth
+        let mut neighbors = vec![crate::fts::NeighborHealth {
+            addr: nbr_addr,
+            dimension: 0,
+            alt_value: crate::cube_addr::RepCTrit::TWO,
+            state: crate::fts::NeighborState::Up,
+            srtt_ns: 0,
+            jitter_ns: 0,
+            consecutive_misses: 0,
+            consecutive_successes: 0,
+            last_pong: None,
+            suspect_since: None,
+            last_hb_sequence: 0,
+            consecutive_auth_failures: 0,
+            hmac_key: None,
+        }];
+
+        let updated = store.apply_to_fts(&mut neighbors);
+        assert_eq!(updated, 1);
+        assert_eq!(neighbors[0].last_hb_sequence, 42);
+    }
+
+    #[test]
+    fn test_snapshot_from_fts() {
+        let mut store = SequenceStore::in_memory();
+        let nbr_addr = test_addr_a();
+
+        let neighbors = vec![crate::fts::NeighborHealth {
+            addr: nbr_addr.clone(),
+            dimension: 0,
+            alt_value: crate::cube_addr::RepCTrit::TWO,
+            state: crate::fts::NeighborState::Up,
+            srtt_ns: 0,
+            jitter_ns: 0,
+            consecutive_misses: 0,
+            consecutive_successes: 0,
+            last_pong: None,
+            suspect_since: None,
+            last_hb_sequence: 99,
+            consecutive_auth_failures: 0,
+            hmac_key: None,
+        }];
+
+        store.snapshot_from_fts(&neighbors);
+        assert_eq!(store.get(&nbr_addr), 99);
+        assert!(store.is_dirty());
+    }
+
+    // ── Statistics ───────────────────────────────────────────────
+
+    #[test]
+    fn test_flush_count() {
+        let dir = std::env::temp_dir().join("plenum_t13_test_flushcount");
+        let _ = std::fs::create_dir_all(&dir);
+        let file_path = dir.join("test_flushcount.state");
+
+        let mut store = SequenceStore::new(&file_path);
+        assert_eq!(store.flush_count(), 0);
+
+        store.update(&test_addr_a(), 1);
+        store.flush().unwrap();
+        assert_eq!(store.flush_count(), 1);
+
+        store.update(&test_addr_a(), 2);
+        store.flush().unwrap();
+        assert_eq!(store.flush_count(), 2);
+
+        let _ = std::fs::remove_file(&file_path);
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    // ── Constants ───────────────────────────────────────────────
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(LOAD_WINDOW_ADJUST, 10);
+        assert_eq!(DEFAULT_FLUSH_INTERVAL, Duration::from_secs(30));
+    }
+}

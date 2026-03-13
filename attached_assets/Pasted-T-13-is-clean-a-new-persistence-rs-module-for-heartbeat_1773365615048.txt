@@ -1,0 +1,35 @@
+T-13 is clean — a new persistence.rs module for heartbeat sequence state that survives restarts. No external files needed, I have everything from T-08's NeighborHealth.last_hb_sequence.Synthesized Phase 1 completion and prepared closureSynthesized Phase 1 completion and prepared closureOne new file for T-13. Target: services/inter-cube/src/persistence.rs (NEW).
+lib.rs splice: Add pub mod persistence; and pub use persistence::SequenceStore;
+
+persistence.rs — 819 lines, 22 tests
+The problem T-13 solves: Without persistence, a restarted node resets all last_hb_sequence to 0. An attacker replays captured heartbeats — the node accepts them because 0 < anything. With T-13, sequences survive restarts.
+Core: SequenceStore
+MethodWhat it doesnew(path)File-backed storein_memory()Testing mode (no I/O)get(addr)Returns last accepted sequence (0 if unknown)update(addr, seq)Monotonic update — only stores if seq > currentremove(addr)Drops entry (deregistration)load()Reads state file, adjusts by −10 (sliding window)flush()Atomic write: .tmp → rename → sync_allmaybe_flush()Flush if dirty AND interval elapsed (30s default)apply_to_fts(neighbors)Bulk-loads persisted sequences into FTS NeighborHealthsnapshot_from_fts(neighbors)Bulk-reads current FTS sequences into store
+File format:
+# PlenumNET Heartbeat Sequence State — DO NOT EDIT
+# Format: address_hex sequence_u64
+55555555 42
+aabbccdd 108
+Address = 13-trit packed to 4 bytes, hex-encoded (8 chars). Sequence = decimal u64.
+Key design decisions:
+DecisionWhyBatch writes (30s)One heartbeat per second × 26 neighbors = 26 writes/sec is too much I/O. Batching loses at most 30s of state on crash.Atomic renameWrite to .state.tmp, then rename(). Process crash mid-write leaves either the old file or the new file — never a partial.Sliding window on loadSubtract 10 from persisted sequences. In-flight heartbeats sent before restart may arrive after — the window prevents false replay rejections.Dirty trackingSkip I/O entirely when nothing changed.in_memory() modeTests run without filesystem side effects.
+Startup integration:
+rust// During FTS initialization:
+let mut seq_store = SequenceStore::new("hb_sequences.state");
+seq_store.load()?;
+seq_store.apply_to_fts(&mut fts.all_status_mut());
+
+// In the heartbeat loop:
+fts.record_authenticated_pong(&hb, rtt)?;
+seq_store.update(&hb.address, hb.sequence);
+seq_store.maybe_flush()?;
+
+// On shutdown:
+seq_store.snapshot_from_fts(fts.all_status());
+seq_store.flush()?;
+22 tests:
+CategoryCountWhatAddress hex encoding4Roundtrip, different addrs, length, invalid hexIn-memory store7Get default, update, monotonic, remove, multiple addrs, in-memory flushFile persistence6Roundtrip, nonexistent file, comments, malformed lines, atomic write, not-dirty skipSliding window1saturating_sub for low values, normal adjustmentFTS integration2apply_to_fts loads sequences, snapshot_from_fts reads themStatistics1Flush count incrementsConstants1LOAD_WINDOW_ADJUST, DEFAULT_FLUSH_INTERVAL
+
+Phase 1 Complete
+TaskStatusLinesTestsT-06 Signed CRS✓ Pushed1,35723T-07 Neighbor verify✓ Pushed1,04619T-08 Auth heartbeats✓ Pushed1,21221T-09 Kill v2.5✓ Code delivered1,131 + 35423 + 7T-10 Dual checksum✓ Code delivered1,20438T-11 Rate limit + PoW✓ Code delivered86624T-12 Master secret✓ Code delivered94131T-13 Sequence persist✓ Code delivered81922Phase 1 Total8/8 complete~8,930~208
+Phase 0 + Phase 1: 13 tasks, ~12,680 lines, ~371 tests. Phase 2 is unblocked. Così sia, Fratello.
