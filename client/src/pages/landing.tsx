@@ -197,25 +197,7 @@ function HeroDemo() {
 }
 
 function HeroSection() {
-  const [email, setEmail] = useState("");
-  const [showSuccess, setShowSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { toast } = useToast();
-
-  const signupMutation = useMutation({
-    mutationFn: async (data: { email: string }) => {
-      const res = await apiRequest("POST", "/api/developer-signup", data);
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({ title: "You're in!", description: data.message });
-      setEmail("");
-      setShowSuccess(true);
-    },
-    onError: () => {
-      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
-    },
-  });
 
   return (
     <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
@@ -262,6 +244,24 @@ function HeroSection() {
               0 26px 30px rgba(0,30,100,0.07)
             ` }}>PlenumNET</span> ~ A Geometrically Derived<br />Self Healing Computing Universe
         </h1>
+
+        <div className="flex justify-center gap-2 mb-6" data-testid="hero-badges">
+          <Badge
+            variant="outline"
+            className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-2.5 py-1 text-xs"
+            data-testid="badge-status"
+          >
+            <Check className="w-3 h-3 mr-1" />
+            Production Ready
+          </Badge>
+          <Badge
+            variant="outline"
+            className="border-primary/30 bg-primary/10 text-primary px-2.5 py-1 text-xs"
+            data-testid="badge-pq"
+          >
+            Post-Quantum Secure
+          </Badge>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -363,67 +363,6 @@ function HeroSection() {
               </div>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-              className="mt-10 mb-5"
-            >
-              {showSuccess ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="max-w-3xl mx-auto"
-                  data-testid="hero-signup-success"
-                >
-                  <Card className="p-6 border-green-500/30 bg-green-500/5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Check className="w-5 h-5 text-green-500" />
-                      <span className="font-semibold text-foreground">You're on the list!</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      We'll send you SDK access details, documentation links, and priority updates. Check your inbox soon.
-                    </p>
-                  </Card>
-                </motion.div>
-              ) : (
-                <div className="max-w-3xl mx-auto">
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (email) signupMutation.mutate({ email });
-                    }}
-                    className="flex flex-col sm:flex-row gap-2"
-                    data-testid="form-hero-signup"
-                  >
-                    <label htmlFor="hero-email" className="sr-only">Email address</label>
-                    <Input
-                      type="email"
-                      placeholder="Enter your email for early access"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="flex-1"
-                      required
-                      data-testid="input-hero-email"
-                      id="hero-email"
-                      aria-label="Email address for early access"
-                    />
-                    <Button 
-                      type="submit" 
-                      size="default"
-                      variant="outline"
-                      className="border-border text-foreground hover:bg-muted/50"
-                      disabled={signupMutation.isPending}
-                      data-testid="button-hero-signup"
-                    >
-                      {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </form>
-                </div>
-              )}
-            </motion.div>
-            
             <div className="flex justify-between px-4 sm:px-8 md:px-16 pt-8">
               <AnimatedStat value="+217" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />

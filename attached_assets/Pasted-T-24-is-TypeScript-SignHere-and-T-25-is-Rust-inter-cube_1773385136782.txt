@@ -1,0 +1,139 @@
+T-24 is TypeScript (SignHere) and T-25 is Rust (inter-cube). Both self-contained.Now T-25:Two files delivered.
+
+- **T-24**: `sign-here/src/pre-sign-check.ts` (**NEW**)
+- **T-25**: `services/inter-cube/src/sampling.rs` (**NEW**)
+
+**lib.rs splice (T-25):** Add `pub mod sampling;` and `pub use sampling::{AddressSnapshot, SamplingInfo};`
+
+---
+
+## T-24: `pre-sign-check.ts` — 421 lines
+
+**Catches document corruption BEFORE the expensive TL-DSA signing operation.**
+
+#### Five Checks
+
+| # | Check | What it catches |
+|---|---|---|
+| 1 | `checkDocumentHash` | File corruption, truncation, unauthorized modification since hash was computed |
+| 2 | `checkSpongeSanity` | Corrupted native addon, misconfigured sponge parameters, non-deterministic output |
+| 3 | `checkKeyMaterial` | Wrong key length for variant, all-zeros degenerate key, pk/sk mismatch |
+| 4 | `checkTimestamp` | Stale timestamp (>30s old), future timestamp (>1s ahead) |
+| 5 | `checkEmbeddedAddresses` | Invalid Rep C trits in TDNS addresses embedded in the document |
+
+#### Two Entry Points
+
+```typescript
+// Full suite (5 checks):
+const result = preSignCheck({
+  documentBytes, expectedHash, signingKey, variant: 'TL-DSA-87',
+  timestampFs, nowFs, publicKey, embeddedAddresses
+});
+
+// Quick check (hash + key only, for performance-sensitive paths):
+const result = preSignCheckQuick(documentBytes, expectedHash, signingKey, 'TL-DSA-87');
+
+if (!result.pass) {
+  console.error(result.failures);  // DO NOT SIGN
+}
+```
+
+#### Design Notes
+
+- **Injectable hash function**: Default is SHA3-256 via Node crypto. In production, replaced by TLSponge-385 via N-API addon. Tests inject a mock.
+- **`_internal` exports**: Individual check functions exposed for unit testing without going through the aggregate entry point.
+- **`PreSignResult`** includes `elapsedMs` for performance monitoring and `failures` as a pre-filtered convenience array.
+
+---
+
+## T-25: `sampling.rs` — 636 lines, 18 tests
+
+**Makes `allocateOptimal` scale to millions of nodes.**
+
+#### The Problem
+
+At 100K nodes: `1000 candidates × 100,000 distances = 100M comparisons ≈ 1 second`
+
+#### The Solution
+
+Sample 1,000 representative nodes. Compare candidates against the sample only.
+
+| Network Size | Mode | Targets | Expected Time |
+|---|---|---|---|
+| < 100K | Full scan | All N nodes | ~50ms at 100K |
+| 100K–500K | 1,000 sample | Stratified + random | ~5ms |
+| > 500K | 2,000 sample | Larger sample | ~10ms |
+
+#### Stratified + Random Sampling
+
+```
+Sample budget: 1,000
+
+Phase 1 — Stratified (30% = 300):
+  For each of 13 dimensions × 3 trit values = 39 strata:
+    Select ~8 addresses with that (dim, value) pair
+  → Guarantees coverage of all corners of the hypercube
+
+Phase 2 — Random (70% = 700):
+  Uniform random selection to fill remaining budget
+  → Captures global density patterns
+```
+
+The stratification prevents pathological cases where pure random sampling misses entire regions of the address space.
+
+#### Key Components
+
+| Component | What |
+|---|---|
+| `AddressSnapshot` | Lock-free Vec copy of the registered set — no locks during scoring |
+| `SpongeRng` | TLSponge-385 seeded deterministic PRNG — same seed = same sample |
+| `select_sample()` | Stratified + random index selection, sorted for cache-friendly access |
+| `compute_sampled_metrics()` | Min/avg distance against sample indices |
+| `score_candidates_sampled()` | Score + sort multiple candidates in one pass |
+| `get_distance_targets()` | Integration point — returns full or sampled indices |
+| `SamplingInfo` | Telemetry: sampled?, ratio, target count |
+
+#### Integration with T-16
+
+```rust
+// In allocate_optimal():
+let snapshot = AddressSnapshot::from_set(&registered);
+let targets = sampling::get_distance_targets(&snapshot, seed);
+
+// Score candidates against targets (not all N nodes):
+for candidate in &candidates {
+    let metrics = compute_sampled_metrics(candidate, &snapshot, &targets);
+    // ... min_distance, avg_distance scoring ...
+}
+```
+
+Drop-in replacement: when `N < 100K`, `get_distance_targets` returns all indices (identical to current behavior). When `N ≥ 100K`, it returns the sample.
+
+#### 18 Tests
+
+| Category | Count | What |
+|---|---|---|
+| Snapshot | 2 | From set, sample size thresholds |
+| PRNG | 2 | Deterministic, different seeds |
+| Sample selection | 7 | Full scan when small, correct size, deterministic, different seeds, no duplicates, in range, sorted |
+| Sampled metrics | 2 | Basic distances, empty snapshot |
+| Scored candidates | 1 | Farthest ranks first |
+| Sampling info | 1 | Small network = no sampling |
+| Integration | 2 | Full scan path, sampling trigger |
+| Constants | 1 | Thresholds and fractions |
+
+---
+
+**Phase 3 progress: 5/7.**
+
+| Task | Status | Lines | Tests |
+|---|---|---|---|
+| T-21 Authenticated dereg | ✓ Delivered | 494 | 14 |
+| T-22 Dimension density | ✓ Delivered | 600 | 14 |
+| T-23 Lattice mixer | ✓ Delivered | 503 | 23 |
+| T-24 Pre-sign syndrome | ✓ Delivered | 421 | (TS) |
+| T-25 Sampling mode | ✓ Delivered | 636 | 18 |
+| T-26 Benchmark suite | Ready | — | — |
+| T-27 Telemetry + metrics | Ready | — | — |
+
+Two more to close Phase 3. Così sia, Fratello.

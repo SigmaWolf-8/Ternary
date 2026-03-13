@@ -25,10 +25,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, Sun, Moon, ExternalLink } from "lucide-react";
+import { Menu, Sun, Moon, ExternalLink, ArrowRight } from "lucide-react";
 import plenumLogo from "@assets/grok-image-69a372f5-5c40-48be-b431-a4dbb4e92ff2_1771299513785.png";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   NavigationMenu,
   NavigationMenuList,
@@ -51,11 +52,12 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
 import { PLATFORM } from "@shared/constants";
 import { createContext, useContext } from "react";
 import { triggerInstallDialog } from "@/components/InstallExtensionCard";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 type AnchorScrollFn = (id: string) => void;
 const AnchorScrollContext = createContext<AnchorScrollFn>(() => {});
@@ -490,8 +492,12 @@ function MobileAccordionSection({
   );
 }
 
-function MobileNav({ onClose }: { onClose: () => void }) {
-  const scrollToAnchor = useContext(AnchorScrollContext);
+function MobileNav({ onClose, navEmail, setNavEmail, navSignupMutation }: {
+  onClose: () => void;
+  navEmail: string;
+  setNavEmail: (v: string) => void;
+  navSignupMutation: ReturnType<typeof useMutation<{ message: string }, Error, { email: string }>>;
+}) {
   const allPlatformItems = platformColumns.flatMap((c) => c.items);
   const allDevelopersItems = developersColumns.flatMap((c) => c.items);
   const allCompanyItems = [...companyItems, ...companyLegalItems];
@@ -503,19 +509,34 @@ function MobileNav({ onClose }: { onClose: () => void }) {
         <MobileAccordionSection title="Developers" items={allDevelopersItems} onNavigate={onClose} />
         <MobileAccordionSection title="Company" items={allCompanyItems} onNavigate={onClose} />
       </Accordion>
-      <a
-        href="/#hero"
-        className="w-full"
-        onClick={(e) => {
+      <form
+        onSubmit={(e) => {
           e.preventDefault();
-          scrollToAnchor("hero");
-          onClose();
+          if (navEmail) navSignupMutation.mutate({ email: navEmail });
         }}
+        className="flex flex-col gap-2"
+        data-testid="form-mobile-signup"
       >
-        <Button className="w-full" data-testid="mobile-button-cta">
-          Get Early Access
+        <Input
+          type="email"
+          placeholder="Enter your email for early access"
+          value={navEmail}
+          onChange={(e) => setNavEmail(e.target.value)}
+          required
+          data-testid="input-mobile-email"
+          aria-label="Email address for early access"
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          className="w-full border-border text-foreground hover:bg-muted/50"
+          disabled={navSignupMutation.isPending}
+          data-testid="button-mobile-signup"
+        >
+          {navSignupMutation.isPending ? "Joining..." : "Join the Waitlist"}
+          <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
-      </a>
+      </form>
     </div>
   );
 }
@@ -524,6 +545,22 @@ export function MarketingTopNav() {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useLocation();
+  const [navEmail, setNavEmail] = useState("");
+  const { toast } = useToast();
+
+  const navSignupMutation = useMutation({
+    mutationFn: async (data: { email: string }) => {
+      const res = await apiRequest("POST", "/api/developer-signup", data);
+      return res.json();
+    },
+    onSuccess: (data: { message: string }) => {
+      toast({ title: "You're in!", description: data.message });
+      setNavEmail("");
+    },
+    onError: () => {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    },
+  });
 
   const handleAnchorScroll = useCallback((id: string) => {
     if (location !== "/") {
@@ -620,29 +657,42 @@ export function MarketingTopNav() {
               <span className="text-base">PlenumNET</span>
             </Link>
 
-            {!isMobile && (
-              <div className="flex items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-2 py-0.5 text-[10px]"
-                  data-testid="badge-status"
-                >
-                  <Check className="w-2.5 h-2.5 mr-0.5" />
-                  Production Ready
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-primary/30 bg-primary/10 text-primary px-2 py-0.5 text-[10px]"
-                  data-testid="badge-pq"
-                >
-                  Post-Quantum Secure
-                </Badge>
-              </div>
-            )}
-
             {!isMobile && <DesktopNav onOpenChange={setMenuOpen} />}
 
             <div className="ml-auto flex items-center gap-2">
+              {!isMobile && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (navEmail) navSignupMutation.mutate({ email: navEmail });
+                  }}
+                  className="flex items-center gap-1.5"
+                  data-testid="form-nav-signup"
+                >
+                  <Input
+                    type="email"
+                    placeholder="Enter your email for early access"
+                    value={navEmail}
+                    onChange={(e) => setNavEmail(e.target.value)}
+                    className="h-8 w-52 text-xs"
+                    required
+                    data-testid="input-nav-email"
+                    aria-label="Email address for early access"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs border-border text-foreground hover:bg-muted/50"
+                    disabled={navSignupMutation.isPending}
+                    data-testid="button-nav-signup"
+                  >
+                    {navSignupMutation.isPending ? "Joining..." : "Join the Waitlist"}
+                    <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </form>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -656,18 +706,6 @@ export function MarketingTopNav() {
                   <Sun className="w-4 h-4" />
                 )}
               </Button>
-
-              {!isMobile && (
-                <a
-                  href="/#hero"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleAnchorScroll("hero");
-                  }}
-                >
-                  <Button data-testid="button-cta">Get Early Access</Button>
-                </a>
-              )}
 
               {isMobile && (
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -688,7 +726,7 @@ export function MarketingTopNav() {
                         PlenumNET
                       </SheetTitle>
                     </SheetHeader>
-                    <MobileNav onClose={() => setMobileOpen(false)} />
+                    <MobileNav onClose={() => setMobileOpen(false)} navEmail={navEmail} setNavEmail={setNavEmail} navSignupMutation={navSignupMutation} />
                   </SheetContent>
                 </Sheet>
               )}
