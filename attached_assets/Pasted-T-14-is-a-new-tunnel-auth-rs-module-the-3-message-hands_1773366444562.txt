@@ -1,0 +1,48 @@
+T-14 is a new tunnel_auth.rs module — the 3-message handshake protocol. The message types (0x40–0x42) are already defined in wire.rs from T-01. The TunnelState enum in overlay.rs needs a new Authenticating variant. I'll write both files.Orchestrated code modifications for authentication state implementationOrchestrated code modifications for authentication state implementationOne new file for T-14. Target: services/inter-cube/src/tunnel_auth.rs (NEW).
+lib.rs splice: Add pub mod tunnel_auth; and pub use tunnel_auth::{HandshakeManager, HandshakeSession, TunnelAuthError};
+overlay.rs splice: Add Authenticating variant to TunnelState:
+rust/// Tunnel handshake in progress.
+Connecting,
+/// T-14: Mutual authentication in progress (3-message handshake).
+Authenticating,
+/// Encrypted tunnel active and passing traffic.
+Up,
+```
+
+And update `is_active()` / `needs_resolution()` / `Display` / `stats()` accordingly. The flow becomes: `Connecting → Authenticating → Up` instead of `Connecting → Up`.
+
+---
+
+### `tunnel_auth.rs` — 979 lines, 18 tests
+
+**Two layers: `HandshakeSession` (single handshake) and `HandshakeManager` (all 26 neighbors)**
+
+#### The Protocol
+```
+A (Initiator)                           B (Responder)
+    │                                       │
+    ├── CHALLENGE(0x40) ───────────────────►│
+    │   challenge_a(32) ‖ addr_a(13)        │
+    │                                       │
+    │◄── RESPONSE(0x41) ────────────────────┤
+    │   response_a(32) ‖ challenge_b(32)    │
+    │   ‖ addr_b(13)                        │
+    │                                       │
+    ├── CONFIRM(0x42) ─────────────────────►│
+    │   response_b(32)                      │
+    │                                       │
+    ╞════════ TUNNEL UP ═══════════════════╡
+```
+
+#### Authentication Computation
+```
+response = TLSponge-385("PlenumNET-TUN-AUTH",
+    kem_secret ‖ challenge ‖ challenger_addr ‖ responder_addr ‖ tag)
+PropertyHow it's enforcedAddress bindingchallenger_addr ‖ responder_addr in hash input — response for A↔B won't work for A↔CAnti-reflectionRESPONSE_TAG vs CONFIRM_TAG — B can't send back A's challenge response as a confirmReplay resistanceFresh random 32-byte challenge per sessionTiming resistance5s timeout + deterministic jitter (100–500ms) per address pairConstant-time verifyAll comparisons use constant_time_eq()
+HandshakeSession — Single Handshake
+MethodRoleWhatnew_initiator()ACreates session, generates challengenew_responder()BCreates session from received challengebuild_challenge()Achallenge(32) ‖ addr(13)build_response()BHMAC(32) ‖ our_challenge(32) ‖ addr(13)build_confirm()AHMAC(32)process_response()AVerifies B's HMAC, extracts B's challengeprocess_confirm()BVerifies A's HMAC, marks Completed
+HandshakeManager — All Active Handshakes
+MethodWhatinitiate(local, peer, kem)Start as initiator → returns CHALLENGE payloadon_challenge(local, peer, kem, payload)Receive CHALLENGE → returns RESPONSE payloadon_response(peer, payload)Receive RESPONSE → returns CONFIRM payloadon_confirm(peer, payload)Receive CONFIRM → marks completedcheck_timeouts()Moves expired sessions to failed listdrain_completed() / drain_failed()Consume results
+18 Tests
+CategoryCountChallenge generation (length, uniqueness)2Auth response (deterministic, different secrets/challenges, address-bound, tag-differentiates)5Jitter (range, deterministic)3Full 3-message handshake (success, wrong secret fails, wrong confirm fails)3HandshakeManager (full flow, duplicate rejected, cancel, timeout)4Constants1
+Phase 2 has begun. Godspeed indeed, Fratello.

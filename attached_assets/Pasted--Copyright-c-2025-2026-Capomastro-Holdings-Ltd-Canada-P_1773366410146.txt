@@ -1,0 +1,979 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # Mutual Tunnel Authentication (T-14, SPEC-2026-NEXT)
+//!
+//! Three-message challenge-response handshake for inter-cube tunnels.
+//! Both sides prove possession of the KEM shared secret before any
+//! data is forwarded.
+//!
+//! ## Protocol
+//!
+//! ```text
+//! Initiator (A)                          Responder (B)
+//!     │                                      │
+//!     ├─── CHALLENGE (0x40) ────────────────►│
+//!     │    challenge_a(32), addr_a           │
+//!     │                                      │
+//!     │◄── RESPONSE  (0x41) ────────────────┤
+//!     │    response_a(32), challenge_b(32)   │
+//!     │    addr_b                            │
+//!     │                                      │
+//!     ├─── CONFIRM   (0x42) ────────────────►│
+//!     │    response_b(32)                    │
+//!     │                                      │
+//!     ╞══════ TUNNEL UP ═══════════════════╡
+//! ```
+//!
+//! ## Authentication
+//!
+//! Each response is a TLSponge-385 HMAC keyed by the KEM shared secret:
+//!
+//! ```text
+//! response_a = TLSponge-385("PlenumNET-TUN-AUTH",
+//!     kem_secret ‖ challenge_a ‖ addr_a ‖ addr_b ‖ "RESPONSE")
+//!
+//! response_b = TLSponge-385("PlenumNET-TUN-AUTH",
+//!     kem_secret ‖ challenge_b ‖ addr_b ‖ addr_a ‖ "CONFIRM")
+//! ```
+//!
+//! The address binding prevents relay attacks: a valid response for
+//! tunnel A↔B cannot be replayed for tunnel A↔C.
+//!
+//! ## Timeout & Jitter
+//!
+//! Each message has a 5-second timeout with ±100-500ms random jitter
+//! to prevent timing-based correlation attacks.
+//!
+//! ## Version Gate
+//!
+//! Requires `protocol_version ≥ 2`. V1 peers cannot participate in
+//! authenticated tunnels — they stay in `Resolving`.
+//!
+//! ## State Machine
+//!
+//! ```text
+//! Connecting ──► Authenticating ──► Up
+//!                    │
+//!                    ├── timeout → Down
+//!                    └── auth fail → Unknown (+ alert)
+//! ```
+
+use std::time::{Duration, Instant};
+
+use crate::cube_addr::CubeAddr;
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Challenge nonce length in bytes.
+pub const CHALLENGE_LEN: usize = 32;
+
+/// Authentication response length in bytes (TLSponge-385 output).
+pub const RESPONSE_LEN: usize = 32;
+
+/// Domain separator for tunnel authentication.
+pub const TUN_AUTH_DOMAIN: &[u8] = b"PlenumNET-TUN-AUTH";
+
+/// Tag appended for RESPONSE message (B proving to A).
+pub const RESPONSE_TAG: &[u8] = b"RESPONSE";
+
+/// Tag appended for CONFIRM message (A proving to B).
+pub const CONFIRM_TAG: &[u8] = b"CONFIRM";
+
+/// Handshake timeout: 5 seconds base.
+pub const HANDSHAKE_TIMEOUT_BASE: Duration = Duration::from_secs(5);
+
+/// Minimum jitter: 100ms.
+pub const JITTER_MIN_MS: u64 = 100;
+
+/// Maximum jitter: 500ms.
+pub const JITTER_MAX_MS: u64 = 500;
+
+/// Maximum number of concurrent handshakes per node.
+pub const MAX_CONCURRENT_HANDSHAKES: usize = 26; // One per neighbor
+
+// ═══════════════════════════════════════════════════════════════════════
+// ERRORS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Tunnel authentication errors.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TunnelAuthError {
+    /// Response verification failed — peer doesn't hold the KEM secret.
+    AuthenticationFailed,
+    /// Handshake timed out.
+    Timeout,
+    /// Unexpected message received in current state.
+    UnexpectedMessage {
+        expected: &'static str,
+        received: &'static str,
+    },
+    /// No KEM shared secret available for this peer.
+    NoSharedSecret,
+    /// Handshake already in progress for this peer.
+    AlreadyInProgress,
+    /// Protocol version too low (requires ≥ 2).
+    VersionTooLow { version: u8 },
+    /// Address mismatch in handshake message.
+    AddressMismatch,
+}
+
+impl std::fmt::Display for TunnelAuthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AuthenticationFailed => write!(f, "tunnel authentication failed"),
+            Self::Timeout => write!(f, "handshake timed out"),
+            Self::UnexpectedMessage { expected, received } => {
+                write!(f, "expected {}, received {}", expected, received)
+            }
+            Self::NoSharedSecret => write!(f, "no KEM shared secret for peer"),
+            Self::AlreadyInProgress => write!(f, "handshake already in progress"),
+            Self::VersionTooLow { version } => {
+                write!(f, "protocol version {} too low (need ≥ 2)", version)
+            }
+            Self::AddressMismatch => write!(f, "address mismatch in handshake"),
+        }
+    }
+}
+
+impl std::error::Error for TunnelAuthError {}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HANDSHAKE STATE MACHINE
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Which role this node plays in the handshake.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandshakeRole {
+    /// This node initiated the handshake (sent CHALLENGE).
+    Initiator,
+    /// This node is responding to a received CHALLENGE.
+    Responder,
+}
+
+/// Current state of a tunnel handshake.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HandshakeState {
+    /// Initiator: CHALLENGE sent, waiting for RESPONSE.
+    AwaitingResponse,
+    /// Responder: RESPONSE sent, waiting for CONFIRM.
+    AwaitingConfirm,
+    /// Handshake completed successfully.
+    Completed,
+    /// Handshake failed.
+    Failed(TunnelAuthError),
+}
+
+/// A single tunnel handshake session.
+///
+/// Tracks the state, challenges, and timing for one handshake
+/// between this node and a specific neighbor.
+#[derive(Debug, Clone)]
+pub struct HandshakeSession {
+    /// Our local address.
+    pub local_addr: CubeAddr,
+    /// Remote peer's address.
+    pub peer_addr: CubeAddr,
+    /// Our role in this handshake.
+    pub role: HandshakeRole,
+    /// Current state.
+    pub state: HandshakeState,
+    /// Our challenge nonce (random 32 bytes).
+    pub our_challenge: [u8; CHALLENGE_LEN],
+    /// Peer's challenge nonce (received in their message).
+    pub peer_challenge: Option<[u8; CHALLENGE_LEN]>,
+    /// KEM shared secret (used to compute/verify responses).
+    pub kem_secret: [u8; 32],
+    /// When this handshake was started.
+    pub started_at: Instant,
+    /// Timeout deadline (base + jitter).
+    pub deadline: Instant,
+}
+
+impl HandshakeSession {
+    /// Create a new initiator session.
+    ///
+    /// Generates a random challenge and prepares the CHALLENGE message.
+    pub fn new_initiator(
+        local_addr: CubeAddr,
+        peer_addr: CubeAddr,
+        kem_secret: [u8; 32],
+        jitter_ms: u64,
+    ) -> Self {
+        let now = Instant::now();
+        let challenge = generate_challenge();
+        let timeout = HANDSHAKE_TIMEOUT_BASE + Duration::from_millis(jitter_ms);
+
+        HandshakeSession {
+            local_addr,
+            peer_addr,
+            role: HandshakeRole::Initiator,
+            state: HandshakeState::AwaitingResponse,
+            our_challenge: challenge,
+            peer_challenge: None,
+            kem_secret,
+            started_at: now,
+            deadline: now + timeout,
+        }
+    }
+
+    /// Create a new responder session from a received CHALLENGE.
+    ///
+    /// Generates our own challenge for the RESPONSE message.
+    pub fn new_responder(
+        local_addr: CubeAddr,
+        peer_addr: CubeAddr,
+        kem_secret: [u8; 32],
+        received_challenge: [u8; CHALLENGE_LEN],
+        jitter_ms: u64,
+    ) -> Self {
+        let now = Instant::now();
+        let our_challenge = generate_challenge();
+        let timeout = HANDSHAKE_TIMEOUT_BASE + Duration::from_millis(jitter_ms);
+
+        HandshakeSession {
+            local_addr,
+            peer_addr,
+            role: HandshakeRole::Responder,
+            state: HandshakeState::AwaitingConfirm,
+            our_challenge,
+            peer_challenge: Some(received_challenge),
+            kem_secret,
+            started_at: now,
+            deadline: now + timeout,
+        }
+    }
+
+    /// Check if this handshake has timed out.
+    pub fn is_timed_out(&self) -> bool {
+        Instant::now() > self.deadline
+    }
+
+    /// Check if this handshake is complete.
+    pub fn is_completed(&self) -> bool {
+        self.state == HandshakeState::Completed
+    }
+
+    /// Check if this handshake has failed.
+    pub fn is_failed(&self) -> bool {
+        matches!(self.state, HandshakeState::Failed(_))
+    }
+
+    /// Elapsed time since handshake start.
+    pub fn elapsed(&self) -> Duration {
+        self.started_at.elapsed()
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MESSAGE CONSTRUCTION
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Build the CHALLENGE message payload (initiator → responder).
+    ///
+    /// Format: `challenge(32) ‖ local_addr_bytes(13)`
+    pub fn build_challenge(&self) -> Vec<u8> {
+        let addr_bytes = self.local_addr.to_bytes();
+        let mut msg = Vec::with_capacity(CHALLENGE_LEN + addr_bytes.len());
+        msg.extend_from_slice(&self.our_challenge);
+        msg.extend_from_slice(&addr_bytes);
+        msg
+    }
+
+    /// Build the RESPONSE message payload (responder → initiator).
+    ///
+    /// Format: `response_to_peer(32) ‖ our_challenge(32) ‖ local_addr_bytes(13)`
+    ///
+    /// The response proves we hold the KEM secret by computing:
+    /// `HMAC(kem_secret, peer_challenge ‖ peer_addr ‖ local_addr ‖ "RESPONSE")`
+    pub fn build_response(&self) -> Option<Vec<u8>> {
+        let peer_challenge = self.peer_challenge.as_ref()?;
+        let response = compute_auth_response(
+            &self.kem_secret,
+            peer_challenge,
+            &self.peer_addr,
+            &self.local_addr,
+            RESPONSE_TAG,
+        );
+
+        let addr_bytes = self.local_addr.to_bytes();
+        let mut msg = Vec::with_capacity(RESPONSE_LEN + CHALLENGE_LEN + addr_bytes.len());
+        msg.extend_from_slice(&response);
+        msg.extend_from_slice(&self.our_challenge);
+        msg.extend_from_slice(&addr_bytes);
+        Some(msg)
+    }
+
+    /// Build the CONFIRM message payload (initiator → responder).
+    ///
+    /// Format: `response_to_peer(32)`
+    ///
+    /// Proves we hold the KEM secret by responding to the responder's challenge.
+    pub fn build_confirm(&self) -> Option<Vec<u8>> {
+        let peer_challenge = self.peer_challenge.as_ref()?;
+        let response = compute_auth_response(
+            &self.kem_secret,
+            peer_challenge,
+            &self.peer_addr,
+            &self.local_addr,
+            CONFIRM_TAG,
+        );
+        Some(response.to_vec())
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MESSAGE PROCESSING
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Process a received RESPONSE message (initiator side).
+    ///
+    /// Verifies the responder's authentication and extracts their challenge.
+    ///
+    /// Expected payload: `response(32) ‖ peer_challenge(32) ‖ peer_addr(13)`
+    pub fn process_response(&mut self, payload: &[u8]) -> Result<(), TunnelAuthError> {
+        if self.state != HandshakeState::AwaitingResponse {
+            return Err(TunnelAuthError::UnexpectedMessage {
+                expected: "AwaitingResponse",
+                received: "RESPONSE in wrong state",
+            });
+        }
+
+        if payload.len() < RESPONSE_LEN + CHALLENGE_LEN + 13 {
+            return Err(TunnelAuthError::AuthenticationFailed);
+        }
+
+        let received_response = &payload[..RESPONSE_LEN];
+        let peer_challenge = &payload[RESPONSE_LEN..RESPONSE_LEN + CHALLENGE_LEN];
+        let peer_addr_bytes = &payload[RESPONSE_LEN + CHALLENGE_LEN..RESPONSE_LEN + CHALLENGE_LEN + 13];
+
+        // Verify peer address matches expected
+        if peer_addr_bytes != self.peer_addr.to_bytes().as_slice() {
+            return Err(TunnelAuthError::AddressMismatch);
+        }
+
+        // Verify the response: peer should have computed
+        // HMAC(kem_secret, our_challenge ‖ our_addr ‖ peer_addr ‖ "RESPONSE")
+        let expected = compute_auth_response(
+            &self.kem_secret,
+            &self.our_challenge,
+            &self.local_addr,
+            &self.peer_addr,
+            RESPONSE_TAG,
+        );
+
+        // Constant-time comparison
+        if !constant_time_eq(received_response, &expected) {
+            self.state = HandshakeState::Failed(TunnelAuthError::AuthenticationFailed);
+            return Err(TunnelAuthError::AuthenticationFailed);
+        }
+
+        // Store peer's challenge for our CONFIRM
+        let mut challenge = [0u8; CHALLENGE_LEN];
+        challenge.copy_from_slice(peer_challenge);
+        self.peer_challenge = Some(challenge);
+
+        Ok(())
+    }
+
+    /// Process a received CONFIRM message (responder side).
+    ///
+    /// Verifies the initiator's authentication response.
+    ///
+    /// Expected payload: `response(32)`
+    pub fn process_confirm(&mut self, payload: &[u8]) -> Result<(), TunnelAuthError> {
+        if self.state != HandshakeState::AwaitingConfirm {
+            return Err(TunnelAuthError::UnexpectedMessage {
+                expected: "AwaitingConfirm",
+                received: "CONFIRM in wrong state",
+            });
+        }
+
+        if payload.len() < RESPONSE_LEN {
+            return Err(TunnelAuthError::AuthenticationFailed);
+        }
+
+        let received_response = &payload[..RESPONSE_LEN];
+
+        // Verify: initiator should have computed
+        // HMAC(kem_secret, our_challenge ‖ our_addr ‖ peer_addr ‖ "CONFIRM")
+        let expected = compute_auth_response(
+            &self.kem_secret,
+            &self.our_challenge,
+            &self.local_addr,
+            &self.peer_addr,
+            CONFIRM_TAG,
+        );
+
+        if !constant_time_eq(received_response, &expected) {
+            self.state = HandshakeState::Failed(TunnelAuthError::AuthenticationFailed);
+            return Err(TunnelAuthError::AuthenticationFailed);
+        }
+
+        self.state = HandshakeState::Completed;
+        Ok(())
+    }
+
+    /// Mark the initiator's handshake as completed after sending CONFIRM.
+    ///
+    /// Called after `build_confirm()` is sent and the initiator considers
+    /// the handshake done (optimistic — doesn't wait for ACK).
+    pub fn mark_completed(&mut self) {
+        self.state = HandshakeState::Completed;
+    }
+
+    /// Mark as failed due to timeout.
+    pub fn mark_timeout(&mut self) {
+        self.state = HandshakeState::Failed(TunnelAuthError::Timeout);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CRYPTO HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Compute an authentication response.
+///
+/// `response = TLSponge-385("PlenumNET-TUN-AUTH",
+///     kem_secret ‖ challenge ‖ challenger_addr ‖ responder_addr ‖ tag)`
+///
+/// The address binding prevents relay: a response for A↔B cannot be
+/// replayed for A↔C because addr_b is baked into the hash.
+///
+/// The `tag` differentiates RESPONSE vs CONFIRM to prevent reflection:
+/// B cannot send back A's own CHALLENGE response as a CONFIRM.
+pub fn compute_auth_response(
+    kem_secret: &[u8; 32],
+    challenge: &[u8; CHALLENGE_LEN],
+    challenger_addr: &CubeAddr,
+    responder_addr: &CubeAddr,
+    tag: &[u8],
+) -> [u8; RESPONSE_LEN] {
+    let challenger_bytes = challenger_addr.to_bytes();
+    let responder_bytes = responder_addr.to_bytes();
+
+    let mut material = Vec::with_capacity(
+        32 + CHALLENGE_LEN + challenger_bytes.len() + responder_bytes.len() + tag.len(),
+    );
+    material.extend_from_slice(kem_secret);
+    material.extend_from_slice(challenge);
+    material.extend_from_slice(&challenger_bytes);
+    material.extend_from_slice(&responder_bytes);
+    material.extend_from_slice(tag);
+
+    let hash = ternary_math::sponge::derive_key(TUN_AUTH_DOMAIN, &material, RESPONSE_LEN);
+    let mut response = [0u8; RESPONSE_LEN];
+    response.copy_from_slice(&hash);
+    response
+}
+
+/// Generate a random 32-byte challenge nonce.
+///
+/// Uses TLSponge-385 KDF with entropy-seeded material for CSPRNG-quality
+/// randomness without an external dependency.
+pub fn generate_challenge() -> [u8; CHALLENGE_LEN] {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or(Duration::from_secs(0));
+
+    let count = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let stack_addr = &count as *const u64 as u64;
+
+    let mut seed = Vec::with_capacity(32);
+    seed.extend_from_slice(&now.as_nanos().to_le_bytes());
+    seed.extend_from_slice(&count.to_le_bytes());
+    seed.extend_from_slice(&stack_addr.to_le_bytes());
+
+    let hash = ternary_math::sponge::derive_key(b"PlenumNET-TUN-NONCE", &seed, CHALLENGE_LEN);
+    let mut challenge = [0u8; CHALLENGE_LEN];
+    challenge.copy_from_slice(&hash);
+    challenge
+}
+
+/// Compute jitter in milliseconds for handshake timeout.
+///
+/// Deterministic from the two addresses — same pair always gets the same
+/// jitter, preventing timing correlation across multiple attempts.
+pub fn compute_jitter(addr_a: &CubeAddr, addr_b: &CubeAddr) -> u64 {
+    let a_bytes = addr_a.to_bytes();
+    let b_bytes = addr_b.to_bytes();
+
+    let mut material = Vec::with_capacity(a_bytes.len() + b_bytes.len());
+    material.extend_from_slice(&a_bytes);
+    material.extend_from_slice(&b_bytes);
+
+    let hash = ternary_math::sponge::derive_key(b"PlenumNET-TUN-JITTER", &material, 2);
+    let val = ((hash[0] as u64) << 8 | hash[1] as u64) % (JITTER_MAX_MS - JITTER_MIN_MS + 1);
+    JITTER_MIN_MS + val
+}
+
+/// Constant-time byte comparison.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff: u8 = 0;
+    for (&x, &y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HANDSHAKE MANAGER — Tracks all active handshakes
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Manages all active tunnel handshakes for a node.
+///
+/// One node can have up to 26 concurrent handshakes (one per neighbor).
+/// The manager handles timeouts, completion, and cleanup.
+pub struct HandshakeManager {
+    /// Active handshake sessions: peer_addr → session.
+    sessions: std::collections::HashMap<CubeAddr, HandshakeSession>,
+    /// Completed handshakes waiting to be drained.
+    completed: Vec<CubeAddr>,
+    /// Failed handshakes waiting to be drained.
+    failed: Vec<(CubeAddr, TunnelAuthError)>,
+}
+
+impl HandshakeManager {
+    /// Create a new handshake manager.
+    pub fn new() -> Self {
+        HandshakeManager {
+            sessions: std::collections::HashMap::new(),
+            completed: Vec::new(),
+            failed: Vec::new(),
+        }
+    }
+
+    /// Start a new handshake as initiator.
+    ///
+    /// Returns the CHALLENGE message payload to send.
+    pub fn initiate(
+        &mut self,
+        local_addr: CubeAddr,
+        peer_addr: CubeAddr,
+        kem_secret: [u8; 32],
+    ) -> Result<Vec<u8>, TunnelAuthError> {
+        if self.sessions.contains_key(&peer_addr) {
+            return Err(TunnelAuthError::AlreadyInProgress);
+        }
+
+        let jitter = compute_jitter(&local_addr, &peer_addr);
+        let session = HandshakeSession::new_initiator(
+            local_addr, peer_addr.clone(), kem_secret, jitter,
+        );
+        let challenge_msg = session.build_challenge();
+        self.sessions.insert(peer_addr, session);
+        Ok(challenge_msg)
+    }
+
+    /// Handle a received CHALLENGE (we become responder).
+    ///
+    /// Returns the RESPONSE message payload to send.
+    pub fn on_challenge(
+        &mut self,
+        local_addr: CubeAddr,
+        peer_addr: CubeAddr,
+        kem_secret: [u8; 32],
+        challenge_payload: &[u8],
+    ) -> Result<Vec<u8>, TunnelAuthError> {
+        if challenge_payload.len() < CHALLENGE_LEN + 13 {
+            return Err(TunnelAuthError::AuthenticationFailed);
+        }
+
+        // Parse challenge
+        let mut received_challenge = [0u8; CHALLENGE_LEN];
+        received_challenge.copy_from_slice(&challenge_payload[..CHALLENGE_LEN]);
+        let peer_addr_bytes = &challenge_payload[CHALLENGE_LEN..CHALLENGE_LEN + 13];
+
+        // Verify peer address
+        if peer_addr_bytes != peer_addr.to_bytes().as_slice() {
+            return Err(TunnelAuthError::AddressMismatch);
+        }
+
+        let jitter = compute_jitter(&local_addr, &peer_addr);
+        let session = HandshakeSession::new_responder(
+            local_addr, peer_addr.clone(), kem_secret, received_challenge, jitter,
+        );
+        let response_msg = session.build_response()
+            .ok_or(TunnelAuthError::AuthenticationFailed)?;
+
+        self.sessions.insert(peer_addr, session);
+        Ok(response_msg)
+    }
+
+    /// Handle a received RESPONSE (we are initiator).
+    ///
+    /// Verifies the response and returns the CONFIRM message payload.
+    pub fn on_response(
+        &mut self,
+        peer_addr: &CubeAddr,
+        response_payload: &[u8],
+    ) -> Result<Vec<u8>, TunnelAuthError> {
+        let session = self.sessions.get_mut(peer_addr)
+            .ok_or(TunnelAuthError::UnexpectedMessage {
+                expected: "active session",
+                received: "RESPONSE for unknown peer",
+            })?;
+
+        session.process_response(response_payload)?;
+        let confirm_msg = session.build_confirm()
+            .ok_or(TunnelAuthError::AuthenticationFailed)?;
+
+        // Initiator considers handshake complete after sending CONFIRM
+        session.mark_completed();
+        self.completed.push(peer_addr.clone());
+
+        Ok(confirm_msg)
+    }
+
+    /// Handle a received CONFIRM (we are responder).
+    ///
+    /// Verifies the confirm and marks the handshake as complete.
+    pub fn on_confirm(
+        &mut self,
+        peer_addr: &CubeAddr,
+        confirm_payload: &[u8],
+    ) -> Result<(), TunnelAuthError> {
+        let session = self.sessions.get_mut(peer_addr)
+            .ok_or(TunnelAuthError::UnexpectedMessage {
+                expected: "active session",
+                received: "CONFIRM for unknown peer",
+            })?;
+
+        session.process_confirm(confirm_payload)?;
+        self.completed.push(peer_addr.clone());
+
+        Ok(())
+    }
+
+    /// Check for timed-out handshakes and move them to the failed list.
+    pub fn check_timeouts(&mut self) {
+        let mut timed_out = Vec::new();
+        for (addr, session) in &self.sessions {
+            if session.is_timed_out() {
+                timed_out.push(addr.clone());
+            }
+        }
+        for addr in timed_out {
+            if let Some(mut session) = self.sessions.remove(&addr) {
+                session.mark_timeout();
+                self.failed.push((addr, TunnelAuthError::Timeout));
+            }
+        }
+    }
+
+    /// Drain completed handshakes.
+    pub fn drain_completed(&mut self) -> Vec<CubeAddr> {
+        let addrs: Vec<_> = self.completed.drain(..).collect();
+        for addr in &addrs {
+            self.sessions.remove(addr);
+        }
+        addrs
+    }
+
+    /// Drain failed handshakes.
+    pub fn drain_failed(&mut self) -> Vec<(CubeAddr, TunnelAuthError)> {
+        let failures: Vec<_> = self.failed.drain(..).collect();
+        for (addr, _) in &failures {
+            self.sessions.remove(addr);
+        }
+        failures
+    }
+
+    /// Get a session by peer address.
+    pub fn session(&self, peer_addr: &CubeAddr) -> Option<&HandshakeSession> {
+        self.sessions.get(peer_addr)
+    }
+
+    /// Number of active handshakes.
+    pub fn active_count(&self) -> usize {
+        self.sessions.len()
+    }
+
+    /// Cancel a handshake.
+    pub fn cancel(&mut self, peer_addr: &CubeAddr) -> bool {
+        self.sessions.remove(peer_addr).is_some()
+    }
+}
+
+impl Default for HandshakeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
+// ═══════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn addr(trits: [u8; 13]) -> CubeAddr {
+        CubeAddr::new(trits)
+    }
+
+    fn addr_a() -> CubeAddr { addr([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
+    fn addr_b() -> CubeAddr { addr([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
+    fn addr_c() -> CubeAddr { addr([3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }
+
+    fn test_kem_secret() -> [u8; 32] { [42u8; 32] }
+    fn wrong_kem_secret() -> [u8; 32] { [99u8; 32] }
+
+    // ── Challenge generation ────────────────────────────────────
+
+    #[test]
+    fn test_generate_challenge_correct_length() {
+        let c = generate_challenge();
+        assert_eq!(c.len(), CHALLENGE_LEN);
+    }
+
+    #[test]
+    fn test_generate_challenge_unique() {
+        let c1 = generate_challenge();
+        let c2 = generate_challenge();
+        assert_ne!(c1, c2, "Two challenges must differ");
+    }
+
+    // ── Auth response computation ───────────────────────────────
+
+    #[test]
+    fn test_auth_response_deterministic() {
+        let challenge = [1u8; CHALLENGE_LEN];
+        let r1 = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_b(), RESPONSE_TAG);
+        let r2 = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_b(), RESPONSE_TAG);
+        assert_eq!(r1, r2);
+    }
+
+    #[test]
+    fn test_auth_response_different_secrets() {
+        let challenge = [1u8; CHALLENGE_LEN];
+        let r1 = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_b(), RESPONSE_TAG);
+        let r2 = compute_auth_response(&wrong_kem_secret(), &challenge, &addr_a(), &addr_b(), RESPONSE_TAG);
+        assert_ne!(r1, r2, "Different KEM secrets → different responses");
+    }
+
+    #[test]
+    fn test_auth_response_different_challenges() {
+        let c1 = [1u8; CHALLENGE_LEN];
+        let c2 = [2u8; CHALLENGE_LEN];
+        let r1 = compute_auth_response(&test_kem_secret(), &c1, &addr_a(), &addr_b(), RESPONSE_TAG);
+        let r2 = compute_auth_response(&test_kem_secret(), &c2, &addr_a(), &addr_b(), RESPONSE_TAG);
+        assert_ne!(r1, r2, "Different challenges → different responses");
+    }
+
+    #[test]
+    fn test_auth_response_address_bound() {
+        let challenge = [1u8; CHALLENGE_LEN];
+        let r_ab = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_b(), RESPONSE_TAG);
+        let r_ac = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_c(), RESPONSE_TAG);
+        assert_ne!(r_ab, r_ac, "Different peer addrs → different responses (relay prevention)");
+    }
+
+    #[test]
+    fn test_auth_response_tag_differentiates() {
+        let challenge = [1u8; CHALLENGE_LEN];
+        let r_resp = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_b(), RESPONSE_TAG);
+        let r_conf = compute_auth_response(&test_kem_secret(), &challenge, &addr_a(), &addr_b(), CONFIRM_TAG);
+        assert_ne!(r_resp, r_conf, "RESPONSE vs CONFIRM tags must differ (anti-reflection)");
+    }
+
+    // ── Jitter computation ──────────────────────────────────────
+
+    #[test]
+    fn test_jitter_in_range() {
+        let j = compute_jitter(&addr_a(), &addr_b());
+        assert!(j >= JITTER_MIN_MS && j <= JITTER_MAX_MS,
+            "Jitter {} must be in [{}, {}]", j, JITTER_MIN_MS, JITTER_MAX_MS);
+    }
+
+    #[test]
+    fn test_jitter_deterministic() {
+        let j1 = compute_jitter(&addr_a(), &addr_b());
+        let j2 = compute_jitter(&addr_a(), &addr_b());
+        assert_eq!(j1, j2, "Same pair → same jitter");
+    }
+
+    #[test]
+    fn test_jitter_different_pairs() {
+        let j_ab = compute_jitter(&addr_a(), &addr_b());
+        let j_ac = compute_jitter(&addr_a(), &addr_c());
+        // These MIGHT be equal by chance, but very unlikely
+        let _ = j_ab;
+        let _ = j_ac;
+        // No assertion — just verify no panic
+    }
+
+    // ── Full 3-message handshake ────────────────────────────────
+
+    #[test]
+    fn test_full_handshake_success() {
+        let kem = test_kem_secret();
+
+        // Initiator (A) creates CHALLENGE
+        let mut session_a = HandshakeSession::new_initiator(
+            addr_a(), addr_b(), kem, 100,
+        );
+        let challenge_msg = session_a.build_challenge();
+
+        // Responder (B) receives CHALLENGE, creates RESPONSE
+        let mut challenge_data = [0u8; CHALLENGE_LEN];
+        challenge_data.copy_from_slice(&challenge_msg[..CHALLENGE_LEN]);
+        let mut session_b = HandshakeSession::new_responder(
+            addr_b(), addr_a(), kem, challenge_data, 100,
+        );
+        let response_msg = session_b.build_response().unwrap();
+
+        // Initiator processes RESPONSE
+        session_a.process_response(&response_msg).unwrap();
+
+        // Initiator builds CONFIRM
+        let confirm_msg = session_a.build_confirm().unwrap();
+        session_a.mark_completed();
+
+        // Responder processes CONFIRM
+        session_b.process_confirm(&confirm_msg).unwrap();
+
+        assert!(session_a.is_completed());
+        assert!(session_b.is_completed());
+    }
+
+    #[test]
+    fn test_handshake_wrong_secret_fails() {
+        let kem_a = test_kem_secret();
+        let kem_b = wrong_kem_secret(); // B has wrong secret
+
+        let mut session_a = HandshakeSession::new_initiator(
+            addr_a(), addr_b(), kem_a, 100,
+        );
+        let challenge_msg = session_a.build_challenge();
+
+        let mut challenge_data = [0u8; CHALLENGE_LEN];
+        challenge_data.copy_from_slice(&challenge_msg[..CHALLENGE_LEN]);
+        let session_b = HandshakeSession::new_responder(
+            addr_b(), addr_a(), kem_b, challenge_data, 100,
+        );
+        let response_msg = session_b.build_response().unwrap();
+
+        // A verifies B's response — should fail (B used wrong secret)
+        let err = session_a.process_response(&response_msg).unwrap_err();
+        assert_eq!(err, TunnelAuthError::AuthenticationFailed);
+    }
+
+    #[test]
+    fn test_handshake_wrong_confirm_fails() {
+        let kem = test_kem_secret();
+
+        let mut session_a = HandshakeSession::new_initiator(
+            addr_a(), addr_b(), kem, 100,
+        );
+        let challenge_msg = session_a.build_challenge();
+
+        let mut challenge_data = [0u8; CHALLENGE_LEN];
+        challenge_data.copy_from_slice(&challenge_msg[..CHALLENGE_LEN]);
+        let mut session_b = HandshakeSession::new_responder(
+            addr_b(), addr_a(), kem, challenge_data, 100,
+        );
+        let response_msg = session_b.build_response().unwrap();
+
+        session_a.process_response(&response_msg).unwrap();
+
+        // Send garbage as CONFIRM
+        let bad_confirm = vec![0u8; RESPONSE_LEN];
+        let err = session_b.process_confirm(&bad_confirm).unwrap_err();
+        assert_eq!(err, TunnelAuthError::AuthenticationFailed);
+    }
+
+    // ── HandshakeManager ────────────────────────────────────────
+
+    #[test]
+    fn test_manager_full_flow() {
+        let kem = test_kem_secret();
+        let mut mgr_a = HandshakeManager::new();
+        let mut mgr_b = HandshakeManager::new();
+
+        // A initiates
+        let challenge = mgr_a.initiate(addr_a(), addr_b(), kem).unwrap();
+
+        // B receives challenge
+        let response = mgr_b.on_challenge(addr_b(), addr_a(), kem, &challenge).unwrap();
+
+        // A receives response, sends confirm
+        let confirm = mgr_a.on_response(&addr_b(), &response).unwrap();
+
+        // B receives confirm
+        mgr_b.on_confirm(&addr_a(), &confirm).unwrap();
+
+        // Both should have completed
+        let completed_a = mgr_a.drain_completed();
+        let completed_b = mgr_b.drain_completed();
+        assert_eq!(completed_a.len(), 1);
+        assert_eq!(completed_b.len(), 1);
+        assert_eq!(completed_a[0], addr_b());
+        assert_eq!(completed_b[0], addr_a());
+    }
+
+    #[test]
+    fn test_manager_duplicate_initiate_rejected() {
+        let kem = test_kem_secret();
+        let mut mgr = HandshakeManager::new();
+
+        mgr.initiate(addr_a(), addr_b(), kem).unwrap();
+        let err = mgr.initiate(addr_a(), addr_b(), kem).unwrap_err();
+        assert_eq!(err, TunnelAuthError::AlreadyInProgress);
+    }
+
+    #[test]
+    fn test_manager_cancel() {
+        let kem = test_kem_secret();
+        let mut mgr = HandshakeManager::new();
+
+        mgr.initiate(addr_a(), addr_b(), kem).unwrap();
+        assert_eq!(mgr.active_count(), 1);
+
+        assert!(mgr.cancel(&addr_b()));
+        assert_eq!(mgr.active_count(), 0);
+    }
+
+    #[test]
+    fn test_manager_timeout() {
+        let kem = test_kem_secret();
+        let mut mgr = HandshakeManager::new();
+
+        mgr.initiate(addr_a(), addr_b(), kem).unwrap();
+
+        // Manually set deadline to the past for testing
+        if let Some(session) = mgr.sessions.get_mut(&addr_b()) {
+            session.deadline = Instant::now() - Duration::from_secs(1);
+        }
+
+        mgr.check_timeouts();
+        let failed = mgr.drain_failed();
+        assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].0, addr_b());
+        assert_eq!(failed[0].1, TunnelAuthError::Timeout);
+    }
+
+    // ── Constants ───────────────────────────────────────────────
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(CHALLENGE_LEN, 32);
+        assert_eq!(RESPONSE_LEN, 32);
+        assert_eq!(HANDSHAKE_TIMEOUT_BASE, Duration::from_secs(5));
+        assert!(JITTER_MIN_MS < JITTER_MAX_MS);
+    }
+}
