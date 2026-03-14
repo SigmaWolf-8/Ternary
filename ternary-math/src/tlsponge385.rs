@@ -334,6 +334,28 @@ fn bytes_to_trits_into(bytes: &[u8], out: &mut Vec<i8>) {
     for &byte in bytes { let mut v = byte; for _ in 0..5 { out.push((v%3) as i8 - 1); v/=3; } }
 }
 
+/// Stack-only trit conversion — writes into a fixed-size slice, returns trit count.
+fn bytes_to_trits_stack(bytes: &[u8], out: &mut [i8]) -> usize {
+    let mut pos = 0;
+    for &byte in bytes {
+        let mut v = byte;
+        for _ in 0..5 { out[pos] = (v % 3) as i8 - 1; v /= 3; pos += 1; }
+    }
+    pos
+}
+
+/// Stack-only byte conversion — writes into a fixed-size slice, returns byte count.
+fn trits_to_bytes_stack(trits: &[i8], out: &mut [u8]) -> usize {
+    let mut bi = 0;
+    let mut i = 0;
+    while i < trits.len() {
+        let mut val: u8 = 0; let mut pow: u8 = 1;
+        for j in 0..5 { if i + j < trits.len() { val += (trits[i + j] + 1) as u8 * pow; } pow = pow.wrapping_mul(3); }
+        out[bi] = val; bi += 1; i += 5;
+    }
+    bi
+}
+
 fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity((trits.len()+4)/5);
     let mut i = 0;
@@ -388,6 +410,18 @@ impl Sponge385Pub {
 
     pub fn absorb_bytes(&mut self, input: &[u8]) { self.absorb(&bytes_to_trits(input)); }
 
+    /// Stack-allocated absorb for inputs ≤ 256 bytes (1280 trits).
+    /// Eliminates the Vec allocation in bytes_to_trits for the common case.
+    pub fn absorb_bytes_stack(&mut self, input: &[u8]) {
+        if input.len() <= 256 {
+            let mut trit_buf = [0i8; 1280];
+            let n = bytes_to_trits_stack(input, &mut trit_buf);
+            self.absorb(&trit_buf[..n]);
+        } else {
+            self.absorb(&bytes_to_trits(input));
+        }
+    }
+
     fn finalize_absorb(&mut self) {
         for i in 0..self.buf_len { self.state[i] = trit_add(self.state[i], self.buf[i]); }
         if self.buf_len < RATE { self.state[self.buf_len] = trit_add(self.state[self.buf_len], 1); }
@@ -422,33 +456,71 @@ impl Sponge385Pub {
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn hash(input: &[u8], output_len: usize) -> Vec<u8> {
-    let mut s = Sponge385Pub::new(); s.absorb_bytes(input);
+    let mut s = Sponge385Pub::new(); s.absorb_bytes_stack(input);
     trits_to_bytes(&s.squeeze(output_len * 5))[..output_len].to_vec()
 }
 pub fn hash_hex(input: &[u8]) -> String {
-    let mut s = Sponge385Pub::new(); s.absorb_bytes(input);
+    let mut s = Sponge385Pub::new(); s.absorb_bytes_stack(input);
     trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
 }
 pub fn hash_hex_tis(input: &[u8]) -> String {
-    let mut s = Sponge385Pub::new_tis(); s.absorb_bytes(input);
+    let mut s = Sponge385Pub::new_tis(); s.absorb_bytes_stack(input);
     trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
 }
 pub fn derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
-    let mut input = Vec::with_capacity(context.len() + material.len());
-    input.extend_from_slice(context); input.extend_from_slice(material);
-    hash(&input, key_len)
+    let total = context.len() + material.len();
+    let mut s = Sponge385Pub::new();
+    if total <= 256 {
+        let mut input_buf = [0u8; 256];
+        input_buf[..context.len()].copy_from_slice(context);
+        input_buf[context.len()..total].copy_from_slice(material);
+        let mut trit_buf = [0i8; 1280];
+        let n = bytes_to_trits_stack(&input_buf[..total], &mut trit_buf);
+        s.absorb(&trit_buf[..n]);
+    } else {
+        let mut input = Vec::with_capacity(total);
+        input.extend_from_slice(context); input.extend_from_slice(material);
+        s.absorb(&bytes_to_trits(&input));
+    }
+    let need = key_len * 5;
+    if need <= 1280 {
+        let trits = s.squeeze(need);
+        let mut out = [0u8; 256];
+        let n = trits_to_bytes_stack(&trits, &mut out);
+        out[..key_len.min(n)].to_vec()
+    } else {
+        trits_to_bytes(&s.squeeze(need))[..key_len].to_vec()
+    }
 }
 pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
+    let total = context.len() + material.len();
     let mut s = Sponge385Pub::new_tis();
-    let mut input = Vec::with_capacity(context.len() + material.len());
-    input.extend_from_slice(context); input.extend_from_slice(material);
-    s.absorb_bytes(&input);
-    trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
+    if total <= 256 {
+        let mut input_buf = [0u8; 256];
+        input_buf[..context.len()].copy_from_slice(context);
+        input_buf[context.len()..total].copy_from_slice(material);
+        let mut trit_buf = [0i8; 1280];
+        let n = bytes_to_trits_stack(&input_buf[..total], &mut trit_buf);
+        s.absorb(&trit_buf[..n]);
+    } else {
+        let mut input = Vec::with_capacity(total);
+        input.extend_from_slice(context); input.extend_from_slice(material);
+        s.absorb(&bytes_to_trits(&input));
+    }
+    let need = key_len * 5;
+    if need <= 1280 {
+        let trits = s.squeeze(need);
+        let mut out = [0u8; 256];
+        let n = trits_to_bytes_stack(&trits, &mut out);
+        out[..key_len.min(n)].to_vec()
+    } else {
+        trits_to_bytes(&s.squeeze(need))[..key_len].to_vec()
+    }
 }
 pub fn sponge385_derive_key(domain: &[u8], addr_a: &[u8], addr_b: &[u8], kem_shared_secret: &[u8; 32], epoch: u64) -> Vec<u8> {
     let mut s = Sponge385Pub::new();
-    s.absorb_bytes(domain); s.absorb_bytes(addr_a); s.absorb_bytes(addr_b);
-    s.absorb_bytes(kem_shared_secret); s.absorb_bytes(&epoch.to_le_bytes());
+    s.absorb_bytes_stack(domain); s.absorb_bytes_stack(addr_a); s.absorb_bytes_stack(addr_b);
+    s.absorb_bytes_stack(kem_shared_secret); s.absorb_bytes_stack(&epoch.to_le_bytes());
     trits_to_bytes(&s.squeeze(RATE))[..32].to_vec()
 }
 pub fn derive_key_batch(domains: &[&[u8]], materials: &[&[u8]], output_len: usize) -> Vec<Vec<u8>> {
