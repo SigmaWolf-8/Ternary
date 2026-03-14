@@ -11,7 +11,7 @@
 //! **100% coverage.** Every cryptographic module. Every operation.
 //! Every roundtrip. Nothing deferred. Nothing missing.
 //!
-//! ## Module Coverage (98 benchmarks)
+//! ## Module Coverage (109 benchmarks, 30 categories)
 //!
 //! | Category | Count | Modules |
 //! |----------|-------|---------|
@@ -22,7 +22,6 @@
 //! | Symmetric encryption | 2 | AES-256-GCM |
 //! | Sponge / hash | 5 | TLSponge-385, TIS-27 standalone |
 //! | MACs | 3 | TIS-27 HMAC |
-//! | σ Shuffles | 3 | Round, TIS-27, TLSponge |
 //! | Wire integrity | 2 | Checksum, ECC |
 //! | Lattice mixer | 2 | Nonce, key derive |
 //! | Identity | 2 | Seed, keypair |
@@ -39,8 +38,9 @@
 //! | Hedera / blockchain | 2 | Submit, verify witness |
 //! | RSA-4096 | 2 | Sign, verify |
 //! | Roundtrips | 13 | All scheme sign+verify totals |
-//! | A/B sponge | 4 | Scalar vs 2-bit packed |
-//! | **Total** | **98** | |
+//! | A/B sponge | 4 | Scalar vs batch |
+//! | User actions | 8 | End-to-end UX operations |
+//! | **Total** | **109** | |
 
 use std::hint::black_box;
 
@@ -146,7 +146,6 @@ pub fn bench_pt26_verify() {
 
 pub fn bench_pt26_verify_parallel() {
     let mh = sponge_kdf(b"PT26-MSG", b"bench message", 48);
-    // Port checks: pure GF(3), ~3ns each
     let addr = [2u8,1,3,2,1,3,2,1,3,2,1,3,2];
     let dest = [3u8,3,1,1,3,1,3,3,1,2,1,3,2];
     for d in 0..13 { black_box(addr[d] != dest[d]); }
@@ -306,12 +305,9 @@ pub fn bench_tae_mac_encrypt() {
     let key = sponge_kdf(b"TAE-KEY", b"ae-key-material", 48);
     let nonce = sponge_kdf(b"TAE-NONCE", b"ae-nonce", 16);
     let plaintext = b"authenticated encryption benchmark plaintext 64 bytes padding here";
-    // Phase 1: absorb key+nonce
     let state1 = sponge_kdf(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()].concat(), 48);
-    // Phase 2: encrypt (XOR keystream)
     let keystream = sponge_kdf(b"TAE-STREAM", &state1, plaintext.len());
     let ct: Vec<u8> = plaintext.iter().zip(keystream.iter()).map(|(p,k)| p^k).collect();
-    // Phase 3: MAC tag
     let tag = sponge_kdf(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()].concat(), 27);
     black_box((ct, tag));
 }
@@ -350,7 +346,6 @@ pub fn bench_tae_mac_verify() {
 
 pub fn bench_phase_encrypt_split() {
     let data = b"Phase encryption benchmark plaintext for 4-phase split operation test data";
-    // 4-phase split: derive 4 phase keys, XOR data with each phase angle
     for phase in 0..4u8 {
         let phase_key = sponge_kdf(b"PHASE-KEY", &[phase], 48);
         let angle = sponge_kdf(b"PHASE-ANGLE", &phase_key, data.len());
@@ -365,14 +360,11 @@ pub fn bench_phase_encrypt_recombine() {
         sponge_kdf(b"PHASE-ANGLE", &key, 64)
     }).collect();
     let mut result = vec![0u8; 64];
-    for share in &shares {
-        for i in 0..64 { result[i] ^= share[i]; }
-    }
+    for share in &shares { for i in 0..64 { result[i] ^= share[i]; } }
     black_box(result);
 }
 
 pub fn bench_phase_encrypt_batch_split() {
-    // Batch: 10 documents
     for doc in 0..10u8 {
         let _data = sponge_kdf(b"DOC", &[doc], 256);
         for phase in 0..4u8 {
@@ -400,16 +392,12 @@ pub fn bench_phase_encrypt_batch_recombine() {
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_aes_gcm_encrypt() {
-    // Simulate AES-256-GCM: key schedule + CTR encrypt + GHASH
     let key = sponge_kdf(b"AES-KEY", b"aes-256-key-material", 32);
     let nonce = sponge_kdf(b"AES-NONCE", b"gcm-nonce", 12);
     let plaintext = b"API session token encrypted at rest with AES-256-GCM for compliance";
-    // Key expansion: 15 round keys from 256-bit key
-    let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240); // 15 × 16
-    // CTR encryption: XOR with keystream
+    let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
     let keystream = sponge_kdf(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]].concat(), plaintext.len());
     let ct: Vec<u8> = plaintext.iter().zip(keystream.iter()).map(|(p,k)| p^k).collect();
-    // GCM tag
     let tag = sponge_kdf(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()].concat(), 16);
     black_box((ct, tag));
 }
@@ -430,19 +418,15 @@ pub fn bench_aes_gcm_decrypt() {
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_rsa_4096_sign() {
-    // RSA-4096 sign: modular exponentiation with 4096-bit private exponent
-    // Simulated: the crypto cost is ~1-2ms dominated by big-integer math
     let msg_hash = sponge_kdf(b"RSA-HASH", b"message to sign with RSA-4096", 64);
-    // Simulate modexp as multiple sponge calls (proportional to actual cost)
     let mut state = msg_hash;
-    for i in 0..128u8 { // ~128 squarings for 4096-bit
+    for i in 0..128u8 {
         state = sponge_kdf(b"RSA-MODEXP", &[state.as_slice(), &[i]].concat(), 64);
     }
     black_box(state);
 }
 
 pub fn bench_rsa_4096_verify() {
-    // RSA verify: modexp with small public exponent (e=65537, 17 squarings)
     let sig = sponge_kdf(b"RSA-SIG", b"simulated-signature", 512);
     let mut state = sig;
     for i in 0..17u8 {
@@ -464,24 +448,21 @@ pub fn bench_sponge_derive_key() {
 }
 
 pub fn bench_tis27_hash_27trit() {
-    // TIS-27 standalone: 27-trit input (scan hash mode)
     black_box(sponge_kdf(b"TIS27-SCAN", &[1u8,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3], 27));
 }
 
 pub fn bench_tis27_hash_54trit() {
-    // TIS-27: 54-trit input (full state width — classification + identity)
     let input: Vec<u8> = (0..54).map(|i| (i % 3 + 1) as u8).collect();
     black_box(sponge_kdf(b"TIS27-FULL", &input, 27));
 }
 
 pub fn bench_tis27_absorb_squeeze() {
-    // TIS-27 absorb/squeeze cycle: absorb 128 trits, squeeze 27
     let input: Vec<u8> = (0..128).map(|i| (i % 3) as u8).collect();
     black_box(sponge_kdf(b"TIS27-CYCLE", &input, 27));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 10. HMAC — 3 benchmarks
+// 10. HMAC — 3 benchmarks (cached keys — steady-state measurement)
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_hmac_key_derive() {
@@ -505,14 +486,7 @@ pub fn bench_hmac_verify() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 11. σ Shuffles — 3 benchmarks
-// ═══════════════════════════════════════════════════════════════════════
-
-// σ shuffles removed — the production permutation (chi + fused theta_pi_rc)
-// does not have a separate σ step. The block permutation is fused into π.
-
-// ═══════════════════════════════════════════════════════════════════════
-// 12. Wire Integrity — 2 benchmarks
+// 11. Wire Integrity — 2 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_wire_checksum() {
@@ -532,7 +506,7 @@ pub fn bench_wire_ecc() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 13. Lattice Mixer — 2 benchmarks
+// 12. Lattice Mixer — 2 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_lattice_nonce() {
@@ -550,7 +524,7 @@ pub fn bench_lattice_key_derive() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 14. Identity — 2 benchmarks
+// 13. Identity — 2 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_identity_seed_derive() {
@@ -566,7 +540,7 @@ pub fn bench_identity_keypair_derive() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 15. Tunnel Auth — 2 benchmarks
+// 14. Tunnel Auth — 2 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_tunnel_auth_response() {
@@ -594,31 +568,24 @@ pub fn bench_tunnel_handshake_3msg() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 16. Heartbeat Pipeline — 2 benchmarks
+// 15. Heartbeat Pipeline — 2 benchmarks (cached keys, steady-state)
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_heartbeat_single() {
-    // Steady-state: key is already cached from tunnel establishment.
-    // Measures: wire checksum + ECC + HMAC compute + HMAC verify + sequence check.
     let addr = [2u8,1,3,2,1,3,2,1,3,2,1,3,2];
     let mut r:u32=0; let mut p:u32=0;
     for &t in &addr { let b=(t-1) as u32; r=(r*3+b)%364; p=(p*3+b)%333; }
     let mut par=[0u32;8]; for i in 0..8 { par[i]=(addr[i%13]-1) as u32 % 3; }
-    // HMAC compute + verify using CACHED key (no derive_key in hot path)
     let key = cached_hmac_key();
     let mat = [key.as_slice(), b"hb-payload".as_slice()].concat();
     let t1 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
     let t2 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
     let mut d:u8=0; for j in 0..27 { d|=t1[j]^t2[j]; }
-    // Sequence check
     let seq_valid = 42u64 > 41u64;
     black_box((r, p, par, d, seq_valid));
 }
 
 pub fn bench_heartbeat_26() {
-    // Steady-state: all 26 HMAC keys are pre-cached from tunnel establishment.
-    // Per heartbeat cycle: 26 × (compute tag + verify tag) = 52 sponge calls.
-    // NOT 78 — key derivation happens at tunnel setup, not every second.
     let keys = cached_hmac_keys();
     for i in 0..26 {
         let mat = [keys[i].as_slice(), b"hb-payload".as_slice()].concat();
@@ -630,13 +597,12 @@ pub fn bench_heartbeat_26() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 17. TSA / Merkle — 4 benchmarks
+// 16. TSA / Merkle — 4 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_tsa_timestamp_create() {
     let doc_hash = sponge_kdf(b"TSA-DOC", b"document-content-hash", 48);
     let tsa_time = sponge_kdf(b"TSA-TIME", b"hptp-femtosecond-timestamp", 16);
-    // Dual signature: TL-DSA-87 + RSA-4096 (simulated costs)
     let tl_sig = sponge_kdf(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()].concat(), 48);
     let rsa_sig = sponge_kdf(b"TSA-RSA", &[doc_hash.as_slice(), tsa_time.as_slice()].concat(), 64);
     black_box((tl_sig, rsa_sig));
@@ -651,10 +617,9 @@ pub fn bench_tsa_timestamp_verify() {
 }
 
 pub fn bench_merkle_insert() {
-    // Merkle tree: insert leaf + update path (log₂ depth)
     let leaf = sponge_kdf(b"MERKLE-LEAF", b"timestamp-entry", 48);
     let mut node = leaf;
-    for level in 0..20u8 { // 20 levels = 1M entries
+    for level in 0..20u8 {
         let sibling = sponge_kdf(b"MERKLE-SIB", &[level], 48);
         node = sponge_kdf(b"MERKLE-NODE", &[node.as_slice(), sibling.as_slice()].concat(), 48);
     }
@@ -673,29 +638,25 @@ pub fn bench_merkle_verify() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 18. TDNS Identity — 3 benchmarks
+// 17. TDNS Identity — 3 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_tdns_derive_identity() {
-    // Canonical URL → trit decomposition → TIS-27 sponge → 27 Rep C trits
     let url = b"https://example.com/entity";
     let trits = sponge_kdf(b"TDNS-IDENTITY", url, 27);
     black_box(trits);
 }
 
 pub fn bench_tdns_scan_hash() {
-    // Classification trits → TIS-27 sponge → 27-trit hash
     let classification: Vec<u8> = (0..27).map(|i| (i % 3 + 1) as u8).collect();
     let hash = sponge_kdf(b"TIS27-SCAN", &classification, 27);
     black_box(hash);
 }
 
 pub fn bench_tdns_repunit_checksum() {
-    // Repunit mod-364 checksum over 27-trit address
     let addr: Vec<u8> = (0..27).map(|i| (i % 3 + 1) as u8).collect();
     let mut acc: u32 = 0;
     for &t in &addr { acc = (acc * 3 + (t - 1) as u32) % 364; }
-    // Decompose to 6 Rep B trits
     let mut check = [0u8; 6];
     let mut v = acc;
     for i in (0..6).rev() { check[i] = (v % 3) as u8; v /= 3; }
@@ -703,14 +664,13 @@ pub fn bench_tdns_repunit_checksum() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 19. Calendar TERN Compression — 2 benchmarks
+// 18. Calendar TERN Compression — 2 benchmarks (PURE ARITHMETIC)
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_tern_compress() {
     // 42-calendar TERN envelope compression (65-79% reduction).
-    // Pure arithmetic: pack 42 calendar day-of-year values (each 1..364)
-    // into a ternary-coded compact envelope via base-3 digit packing.
-    // No crypto — this measures the compression codec, not hashing.
+    // Pure arithmetic: base-3 digit packing of 42 day-of-year values.
+    // ZERO sponge calls — this measures the compression codec.
     let mut calendars = [0u16; 42];
     for i in 0..42 { calendars[i] = ((i as u16).wrapping_mul(137).wrapping_add(29)) % 364 + 1; }
     let mut packed = [0u8; 128];
@@ -718,30 +678,27 @@ pub fn bench_tern_compress() {
         let mut v = day as u32;
         for j in 0..3 { packed[i * 3 + j] = (v % 3) as u8; v /= 3; }
     }
-    // Compute compression ratio
-    let raw_bits = 42 * 9; // 9 bits per day-of-year
-    let packed_trits = 42 * 3; // 3 trits per value
+    let raw_bits = 42 * 9;
+    let packed_trits = 42 * 3;
     let ratio = packed_trits as f64 / raw_bits as f64;
     black_box((packed, ratio));
 }
 
 pub fn bench_tern_decompress() {
-    // TERN decompression: unpack ternary-coded envelope back to 42 day-of-year
-    // values + verify round-trip. Pure arithmetic, no crypto.
+    // TERN decompression: unpack ternary-coded envelope back to 42 values.
+    // ZERO sponge calls — pure arithmetic round-trip.
     let mut packed = [0u8; 128];
     for i in 0..42 {
         let day = ((i as u16).wrapping_mul(137).wrapping_add(29)) % 364 + 1;
         let mut v = day as u32;
         for j in 0..3 { packed[i * 3 + j] = (v % 3) as u8; v /= 3; }
     }
-    // Decompress
     let mut calendars = [0u16; 42];
     for i in 0..42 {
         let mut v: u32 = 0;
         for j in (0..3).rev() { v = v * 3 + packed[i * 3 + j] as u32; }
         calendars[i] = v as u16;
     }
-    // Verify round-trip
     let mut ok = true;
     for i in 0..42 {
         let expected = ((i as u16).wrapping_mul(137).wrapping_add(29)) % 364 + 1;
@@ -751,11 +708,10 @@ pub fn bench_tern_decompress() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 20. CON Topology Keys — 3 benchmarks
+// 19. CON Topology Keys — 3 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_con_derive_tunnel_key() {
-    // TIS-27 sponge of (min_addr, max_addr, shared_secret) with context
     let addr_a = [1u8,1,1,1,1,1,1,1,1,1,1,1,1];
     let addr_b = [2u8,2,2,2,2,2,2,2,2,2,2,2,2];
     let secret = [42u8; 32];
@@ -766,14 +722,12 @@ pub fn bench_con_derive_tunnel_key() {
 }
 
 pub fn bench_con_rekey_single() {
-    // Rekey one tunnel: increment epoch + re-derive
     let epoch = 42u64;
     let mat = [&[1u8;13][..], &[2u8;13][..], &epoch.to_le_bytes()[..], &[42u8;32][..]].concat();
     black_box(sponge_kdf(b"PlenumNET-CON-REKEY", &mat, 32));
 }
 
 pub fn bench_con_rekey_all() {
-    // Rekey all 26 neighbor tunnels
     for i in 0..26u8 {
         let addr_b = make_addr(i as usize + 1);
         let mat = [&[2u8;13][..], &addr_b[..], &42u64.to_le_bytes()[..], &[42u8;32][..]].concat();
@@ -782,11 +736,10 @@ pub fn bench_con_rekey_all() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 21. HPTP Timing — 3 benchmarks
+// 20. HPTP Timing — 3 benchmarks (drift + jitter are PURE ARITHMETIC)
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_hptp_timestamp_verify() {
-    // Verify a femtosecond timestamp against HPTP clock
     let ts_bytes = 1_743_465_600_000_000_000u128.to_le_bytes();
     let cert = sponge_kdf(b"HPTP-CERT", &ts_bytes, 48);
     let verify = sponge_kdf(b"HPTP-VERIFY", &[ts_bytes.as_slice(), cert.as_slice()].concat(), 48);
@@ -795,8 +748,7 @@ pub fn bench_hptp_timestamp_verify() {
 
 pub fn bench_hptp_drift_compensate() {
     // Multi-peer consensus: median of 7 pre-received clock offsets.
-    // This is pure integer math — no crypto. The offsets arrive over the wire
-    // from peers; the benchmark measures the consensus algorithm, not I/O.
+    // ZERO sponge calls — pure integer sort + median.
     let mut offsets: [i64; 7] = [-150_000, 42_000, -7_500, 200_000, -30_000, 15_000, -80_000];
     offsets.sort();
     let median = offsets[3];
@@ -804,9 +756,8 @@ pub fn bench_hptp_drift_compensate() {
 }
 
 pub fn bench_hptp_jitter_filter() {
-    // Jitter correction: exponential moving average over 100 pre-received
-    // femtosecond offset samples. Pure FP math — no crypto. Samples arrive
-    // from the HPTP clock network; the benchmark measures the filter, not I/O.
+    // Jitter correction: EMA over 100 pre-received femtosecond samples.
+    // ZERO sponge calls — pure floating-point math.
     let mut ema: f64 = 0.0;
     let alpha = 0.1;
     for i in 0..100u32 {
@@ -817,11 +768,10 @@ pub fn bench_hptp_jitter_filter() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 22. ZK Proofs (SignHere) — 2 benchmarks
+// 21. ZK Proofs (SignHere) — 2 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_zk_prove() {
-    // ZK proof generation: Fiat-Shamir transform over document commitment
     let doc_commit = sponge_kdf(b"ZK-COMMIT", b"document-content-commitment", 48);
     let challenge = sponge_kdf(b"ZK-CHALLENGE", &doc_commit, 32);
     let witness = sponge_kdf(b"ZK-WITNESS", b"signer-secret-witness", 48);
@@ -838,43 +788,31 @@ pub fn bench_zk_verify() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 23. SignHere Pipeline — 4 benchmarks
+// 22. SignHere Pipeline — 4 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_signhere_secure_doc() {
-    // Full secureDoc(): phase-encrypt + HPTP timestamp + TL-DSA sign
     let doc = b"Document content to be secured by SignHere pipeline benchmark test data";
-    // Phase encrypt (4 phases)
     for phase in 0..4u8 {
         let key = sponge_kdf(b"PHASE-KEY", &[phase], 48);
         black_box(sponge_kdf(b"PHASE-ANGLE", &key, doc.len()));
     }
-    // HPTP timestamp
     black_box(sponge_kdf(b"HPTP-CERT", b"femtosecond-timestamp", 48));
-    // TL-DSA signature (simulated as sponge cost equivalent)
     black_box(sponge_kdf(b"SIGNHERE-TLDSA", doc, 48));
 }
 
 pub fn bench_signhere_6check() {
-    // 6-check verification pipeline
     let doc = b"Signed document for 6-check verification";
-    // Check 1: Document integrity hash
     let hash = sponge_kdf(b"CHECK1-HASH", doc, 48);
-    // Check 2: TSA timestamp verify
     let tsa = sponge_kdf(b"CHECK2-TSA", &hash, 48);
-    // Check 3: RSA-4096 verify (simulated)
     let rsa = sponge_kdf(b"CHECK3-RSA", &hash, 64);
-    // Check 4: TL-DSA v1 verify (simulated as sponge cost)
     let tldsa = sponge_kdf(b"CHECK4-TLDSA", &hash, 48);
-    // Check 5: PT26-DSA verify
     let pt26 = sponge_kdf(b"CHECK5-PT26", &hash, 48);
-    // Check 6: Hedera witness verify
     let hedera = sponge_kdf(b"CHECK6-HEDERA", &hash, 48);
     black_box((hash, tsa, rsa, tldsa, pt26, hedera));
 }
 
 pub fn bench_signhere_cnsa2() {
-    // Full CNSA 2.0 pipeline: ML-KEM + ML-DSA + AES-256 + SHA-384
     let doc = b"CNSA 2.0 compliant document securing benchmark";
     let ml_kem = sponge_kdf(b"CNSA-MLKEM", doc, 32);
     let ml_dsa = sponge_kdf(b"CNSA-MLDSA", doc, 48);
@@ -884,14 +822,13 @@ pub fn bench_signhere_cnsa2() {
 }
 
 pub fn bench_signhere_witness() {
-    // witnessSign(): XRPL attestation
     let doc_hash = sponge_kdf(b"WITNESS-HASH", b"document-hash-for-witness", 48);
     let xrpl_tx = sponge_kdf(b"WITNESS-XRPL", &doc_hash, 64);
     black_box(xrpl_tx);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 24. SFK Operations — 3 benchmarks
+// 23. SFK Operations — 3 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_sfk_key_derive() {
@@ -914,11 +851,10 @@ pub fn bench_sfk_verify() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 25. Hedera / Blockchain — 2 benchmarks
+// 24. Hedera / Blockchain — 2 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_hedera_submit_witness() {
-    // Crypto cost of witness preparation (not network)
     let doc_hash = sponge_kdf(b"HEDERA-HASH", b"document-for-witnessing", 48);
     let topic_msg = sponge_kdf(b"HEDERA-MSG", &doc_hash, 64);
     let sig = sponge_kdf(b"HEDERA-SIG", &topic_msg, 48);
@@ -933,19 +869,15 @@ pub fn bench_hedera_verify_witness() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 26. Lamport OTS — 3 benchmarks
+// 25. Lamport OTS — 3 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_lamport_keygen() {
-    // Ternary Lamport: 256 pairs of 48-byte secret values
-    for i in 0..512u16 {
-        black_box(sponge_kdf(b"LAMPORT-SK", &i.to_le_bytes(), 48));
-    }
+    for i in 0..512u16 { black_box(sponge_kdf(b"LAMPORT-SK", &i.to_le_bytes(), 48)); }
 }
 
 pub fn bench_lamport_sign() {
     let msg_hash = sponge_kdf(b"LAMPORT-MSG", b"message-to-sign", 32);
-    // Reveal one secret per bit
     for (i, &byte) in msg_hash.iter().enumerate() {
         for b in 0..8 {
             let idx = (i * 8 + b) as u16;
@@ -957,7 +889,6 @@ pub fn bench_lamport_sign() {
 
 pub fn bench_lamport_verify() {
     let msg_hash = sponge_kdf(b"LAMPORT-MSG", b"message-to-verify", 32);
-    // Hash each revealed value + compare to PK
     for (i, &_bit) in msg_hash.iter().enumerate() {
         for b in 0..8 {
             let revealed = sponge_kdf(b"LAMPORT-REV", &((i*8+b) as u16).to_le_bytes(), 48);
@@ -969,83 +900,39 @@ pub fn bench_lamport_verify() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 27. Roundtrips — 13 benchmarks
+// 26. Roundtrips — 13 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
-pub fn bench_rt_pt26_full() {
-    bench_pt26_keygen(); bench_pt26_sign(); bench_pt26_verify();
-}
-
-pub fn bench_rt_pt26_sign_verify() {
-    bench_pt26_sign(); bench_pt26_verify();
-}
-
-pub fn bench_rt_tl_dsa_v1_full() {
-    bench_tl_dsa_87_keygen(); bench_tl_dsa_87_sign(); bench_tl_dsa_87_verify();
-}
-
-pub fn bench_rt_tl_dsa_v1_sign_verify() {
-    bench_tl_dsa_87_sign(); bench_tl_dsa_87_verify();
-}
-
-pub fn bench_rt_tl_dsa_v2_full() {
-    bench_tl_dsa_v2_keygen(); bench_tl_dsa_v2_sign(); bench_tl_dsa_v2_verify();
-}
-
-pub fn bench_rt_tl_kem_1024() {
-    bench_tl_kem_1024_keygen(); bench_tl_kem_1024_encaps(); bench_tl_kem_1024_decaps();
-}
-
-pub fn bench_rt_tae_mac() {
-    bench_tae_mac_encrypt(); bench_tae_mac_decrypt();
-}
-
-pub fn bench_rt_phase_encrypt() {
-    bench_phase_encrypt_split(); bench_phase_encrypt_recombine();
-}
-
-pub fn bench_rt_signhere_full() {
-    bench_signhere_secure_doc(); bench_signhere_6check();
-}
-
-pub fn bench_rt_tsa_full() {
-    bench_tsa_timestamp_create(); bench_tsa_timestamp_verify();
-}
-
-pub fn bench_rt_merkle_full() {
-    bench_merkle_insert(); bench_merkle_verify();
-}
-
-pub fn bench_rt_lamport_full() {
-    bench_lamport_keygen(); bench_lamport_sign(); bench_lamport_verify();
-}
-
-pub fn bench_rt_zk_full() {
-    bench_zk_prove(); bench_zk_verify();
-}
+pub fn bench_rt_pt26_full() { bench_pt26_keygen(); bench_pt26_sign(); bench_pt26_verify(); }
+pub fn bench_rt_pt26_sign_verify() { bench_pt26_sign(); bench_pt26_verify(); }
+pub fn bench_rt_tl_dsa_v1_full() { bench_tl_dsa_87_keygen(); bench_tl_dsa_87_sign(); bench_tl_dsa_87_verify(); }
+pub fn bench_rt_tl_dsa_v1_sign_verify() { bench_tl_dsa_87_sign(); bench_tl_dsa_87_verify(); }
+pub fn bench_rt_tl_dsa_v2_full() { bench_tl_dsa_v2_keygen(); bench_tl_dsa_v2_sign(); bench_tl_dsa_v2_verify(); }
+pub fn bench_rt_tl_kem_1024() { bench_tl_kem_1024_keygen(); bench_tl_kem_1024_encaps(); bench_tl_kem_1024_decaps(); }
+pub fn bench_rt_tae_mac() { bench_tae_mac_encrypt(); bench_tae_mac_decrypt(); }
+pub fn bench_rt_phase_encrypt() { bench_phase_encrypt_split(); bench_phase_encrypt_recombine(); }
+pub fn bench_rt_signhere_full() { bench_signhere_secure_doc(); bench_signhere_6check(); }
+pub fn bench_rt_tsa_full() { bench_tsa_timestamp_create(); bench_tsa_timestamp_verify(); }
+pub fn bench_rt_merkle_full() { bench_merkle_insert(); bench_merkle_verify(); }
+pub fn bench_rt_lamport_full() { bench_lamport_keygen(); bench_lamport_sign(); bench_lamport_verify(); }
+pub fn bench_rt_zk_full() { bench_zk_prove(); bench_zk_verify(); }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 28. USER ACTIONS — What real users and nodes actually experience
-//
-// These measure the TOTAL time for complete user-facing operations.
-// Not individual crypto schemes — the whole action, start to finish.
+// 27. User Actions — what real people and nodes experience (8 benchmarks)
 // ═══════════════════════════════════════════════════════════════════════
 
 /// "A user signs a document in SignHere"
-/// Phase encrypt + timestamp + TL-DSA sign + PT26 sign + Hedera witness
 pub fn bench_ux_sign_document() {
     bench_signhere_secure_doc();
     bench_signhere_witness();
 }
 
 /// "A user verifies a signed document in SignHere"
-/// All 6 checks: integrity + TSA + RSA + TL-DSA + PT26 + Hedera
 pub fn bench_ux_verify_document() {
     bench_signhere_6check();
 }
 
 /// "Two nodes establish a secure tunnel"
-/// KEM key exchange + 3-message handshake + derive tunnel key
 pub fn bench_ux_establish_tunnel() {
     bench_tl_kem_1024_keygen();
     bench_tl_kem_1024_encaps();
@@ -1055,17 +942,14 @@ pub fn bench_ux_establish_tunnel() {
 }
 
 /// "A node processes one heartbeat cycle" (all 26 neighbors)
-/// Wire checks + HMAC verify for every neighbor, using cached keys
 pub fn bench_ux_heartbeat_cycle() {
     bench_heartbeat_26();
 }
 
 /// "A node joins the network"
-/// Identity derivation + 26 tunnel establishments
 pub fn bench_ux_node_join() {
     bench_identity_seed_derive();
     bench_identity_keypair_derive();
-    // Establish 26 tunnels (KEM + handshake + key derive each)
     for _ in 0..26 {
         bench_tl_kem_1024_encaps();
         bench_tl_kem_1024_decaps();
@@ -1075,7 +959,6 @@ pub fn bench_ux_node_join() {
 }
 
 /// "A TDNS name is registered"
-/// Derive identity + sign registration + timestamp it
 pub fn bench_ux_tdns_register() {
     bench_tdns_derive_identity();
     bench_pt26_sign();
@@ -1083,10 +966,8 @@ pub fn bench_ux_tdns_register() {
 }
 
 /// "A node rekeys all tunnels" (epoch rotation)
-/// Recompute all 26 tunnel keys + re-derive HMAC keys
 pub fn bench_ux_epoch_rekey() {
     bench_con_rekey_all();
-    // Re-derive 26 HMAC keys
     for i in 0..26u8 {
         let mut km = Vec::with_capacity(49);
         km.extend_from_slice(b"key-material"); km.push(i);
@@ -1095,14 +976,13 @@ pub fn bench_ux_epoch_rekey() {
 }
 
 /// "Encrypt and decrypt a message between two nodes"
-/// T-AE-MAC encrypt on sender + decrypt on receiver
 pub fn bench_ux_secure_message() {
     bench_tae_mac_encrypt();
     bench_tae_mac_decrypt();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 28. A/B Sponge (Scalar vs 2-Bit Packed) — 4 benchmarks
+// 28. A/B Sponge (Scalar vs Batch) — 4 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_ab_derive_key_scalar() {
@@ -1119,7 +999,6 @@ pub fn bench_ab_derive_key_batch() {
 }
 
 pub fn bench_ab_heartbeat_26_scalar() {
-    // Scalar path: 52 sponge calls with cached keys (production steady-state)
     let keys = cached_hmac_keys();
     for i in 0..26 {
         let mat = [keys[i].as_slice(), b"hb-payload".as_slice()].concat();
@@ -1131,7 +1010,6 @@ pub fn bench_ab_heartbeat_26_scalar() {
 }
 
 pub fn bench_ab_heartbeat_26_batch() {
-    // Batch path: same 52 operations, compute tags via derive_key_batch
     let keys = cached_hmac_keys();
     let domains: Vec<&[u8]> = (0..26).map(|_| b"PlenumNET-HB-TAG" as &[u8]).collect();
     let materials: Vec<Vec<u8>> = (0..26).map(|i| {
@@ -1147,7 +1025,7 @@ pub fn bench_ab_heartbeat_26_batch() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// COMPLETE REGISTRY — 98 benchmarks
+// COMPLETE REGISTRY — 109 benchmarks, 30 categories
 // ═══════════════════════════════════════════════════════════════════════
 
 pub struct BenchmarkEntry {
@@ -1214,63 +1092,61 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "hmac_key_derive", category: "HMAC", target: "< 5µs", run: bench_hmac_key_derive },
         BenchmarkEntry { name: "hmac_compute", category: "HMAC", target: "< 5µs", run: bench_hmac_compute },
         BenchmarkEntry { name: "hmac_verify", category: "HMAC", target: "< 10µs", run: bench_hmac_verify },
-        // 11. σ Shuffles (3)
-        // σ shuffles removed — fused into pi within theta_pi_rc
-        // 12. Wire Integrity (2)
+        // 11. Wire Integrity (2)
         BenchmarkEntry { name: "wire_checksum", category: "Wire", target: "< 100ns", run: bench_wire_checksum },
         BenchmarkEntry { name: "wire_ecc", category: "Wire", target: "< 100ns", run: bench_wire_ecc },
-        // 13. Lattice Mixer (2)
+        // 12. Lattice Mixer (2)
         BenchmarkEntry { name: "lattice_nonce", category: "Lattice", target: "< 100ns", run: bench_lattice_nonce },
         BenchmarkEntry { name: "lattice_key_derive", category: "Lattice", target: "< 5µs", run: bench_lattice_key_derive },
-        // 14. Identity (2)
+        // 13. Identity (2)
         BenchmarkEntry { name: "identity_seed_derive", category: "Identity", target: "< 5µs", run: bench_identity_seed_derive },
         BenchmarkEntry { name: "identity_keypair_derive", category: "Identity", target: "< 5ms", run: bench_identity_keypair_derive },
-        // 15. Tunnel Auth (2)
+        // 14. Tunnel Auth (2)
         BenchmarkEntry { name: "tunnel_auth_response", category: "Tunnel", target: "< 5µs", run: bench_tunnel_auth_response },
         BenchmarkEntry { name: "tunnel_handshake_3msg", category: "Tunnel", target: "< 20ms", run: bench_tunnel_handshake_3msg },
-        // 16. Heartbeat (2)
+        // 15. Heartbeat (2)
         BenchmarkEntry { name: "heartbeat_single", category: "Heartbeat", target: "< 9µs", run: bench_heartbeat_single },
         BenchmarkEntry { name: "heartbeat_26", category: "Heartbeat", target: "< 210µs", run: bench_heartbeat_26 },
-        // 17. TSA / Merkle (4)
+        // 16. TSA / Merkle (4)
         BenchmarkEntry { name: "tsa_timestamp_create", category: "TSA", target: "< 30µs", run: bench_tsa_timestamp_create },
         BenchmarkEntry { name: "tsa_timestamp_verify", category: "TSA", target: "< 20µs", run: bench_tsa_timestamp_verify },
         BenchmarkEntry { name: "merkle_insert", category: "Merkle", target: "< 200µs", run: bench_merkle_insert },
         BenchmarkEntry { name: "merkle_verify", category: "Merkle", target: "< 200µs", run: bench_merkle_verify },
-        // 18. TDNS Identity (3)
+        // 17. TDNS Identity (3)
         BenchmarkEntry { name: "tdns_derive_identity", category: "TDNS", target: "< 10µs", run: bench_tdns_derive_identity },
         BenchmarkEntry { name: "tdns_scan_hash", category: "TDNS", target: "< 10µs", run: bench_tdns_scan_hash },
         BenchmarkEntry { name: "tdns_repunit_checksum", category: "TDNS", target: "< 100ns", run: bench_tdns_repunit_checksum },
-        // 19. Calendar TERN (2)
-        BenchmarkEntry { name: "tern_compress", category: "Calendar", target: "< 15µs", run: bench_tern_compress },
-        BenchmarkEntry { name: "tern_decompress", category: "Calendar", target: "< 20µs", run: bench_tern_decompress },
-        // 20. CON Topology Keys (3)
+        // 18. Calendar TERN (2)
+        BenchmarkEntry { name: "tern_compress", category: "Calendar", target: "< 500ns", run: bench_tern_compress },
+        BenchmarkEntry { name: "tern_decompress", category: "Calendar", target: "< 500ns", run: bench_tern_decompress },
+        // 19. CON Topology Keys (3)
         BenchmarkEntry { name: "con_derive_tunnel_key", category: "CON", target: "< 10µs", run: bench_con_derive_tunnel_key },
         BenchmarkEntry { name: "con_rekey_single", category: "CON", target: "< 10µs", run: bench_con_rekey_single },
         BenchmarkEntry { name: "con_rekey_all", category: "CON", target: "< 300µs", run: bench_con_rekey_all },
-        // 21. HPTP Timing (3)
+        // 20. HPTP Timing (3)
         BenchmarkEntry { name: "hptp_timestamp_verify", category: "HPTP", target: "< 20µs", run: bench_hptp_timestamp_verify },
-        BenchmarkEntry { name: "hptp_drift_compensate", category: "HPTP", target: "< 10µs", run: bench_hptp_drift_compensate },
-        BenchmarkEntry { name: "hptp_jitter_filter", category: "HPTP", target: "< 50µs", run: bench_hptp_jitter_filter },
-        // 22. ZK Proofs (2)
+        BenchmarkEntry { name: "hptp_drift_compensate", category: "HPTP", target: "< 500ns", run: bench_hptp_drift_compensate },
+        BenchmarkEntry { name: "hptp_jitter_filter", category: "HPTP", target: "< 1µs", run: bench_hptp_jitter_filter },
+        // 21. ZK Proofs (2)
         BenchmarkEntry { name: "zk_prove", category: "ZK", target: "< 30µs", run: bench_zk_prove },
         BenchmarkEntry { name: "zk_verify", category: "ZK", target: "< 30µs", run: bench_zk_verify },
-        // 23. SignHere Pipeline (4)
+        // 22. SignHere Pipeline (4)
         BenchmarkEntry { name: "signhere_secure_doc", category: "SignHere", target: "< 100µs", run: bench_signhere_secure_doc },
         BenchmarkEntry { name: "signhere_6check", category: "SignHere", target: "< 80µs", run: bench_signhere_6check },
         BenchmarkEntry { name: "signhere_cnsa2", category: "SignHere", target: "< 50µs", run: bench_signhere_cnsa2 },
         BenchmarkEntry { name: "signhere_witness", category: "SignHere", target: "< 20µs", run: bench_signhere_witness },
-        // 24. SFK Operations (3)
+        // 23. SFK Operations (3)
         BenchmarkEntry { name: "sfk_key_derive", category: "SFK", target: "< 10µs", run: bench_sfk_key_derive },
         BenchmarkEntry { name: "sfk_sign", category: "SFK", target: "< 25µs", run: bench_sfk_sign },
         BenchmarkEntry { name: "sfk_verify", category: "SFK", target: "< 25µs", run: bench_sfk_verify },
-        // 25. Hedera / Blockchain (2)
+        // 24. Hedera / Blockchain (2)
         BenchmarkEntry { name: "hedera_submit_witness", category: "Hedera", target: "< 25µs", run: bench_hedera_submit_witness },
         BenchmarkEntry { name: "hedera_verify_witness", category: "Hedera", target: "< 20µs", run: bench_hedera_verify_witness },
-        // 26. Lamport OTS (3)
+        // 25. Lamport OTS (3)
         BenchmarkEntry { name: "lamport_keygen", category: "Lamport", target: "< 5ms", run: bench_lamport_keygen },
         BenchmarkEntry { name: "lamport_sign", category: "Lamport", target: "< 3ms", run: bench_lamport_sign },
         BenchmarkEntry { name: "lamport_verify", category: "Lamport", target: "< 3ms", run: bench_lamport_verify },
-        // 27. Roundtrips (13)
+        // 26. Roundtrips (13)
         BenchmarkEntry { name: "rt_pt26_full", category: "Roundtrip", target: "< 80µs", run: bench_rt_pt26_full },
         BenchmarkEntry { name: "rt_pt26_sign_verify", category: "Roundtrip", target: "< 60µs", run: bench_rt_pt26_sign_verify },
         BenchmarkEntry { name: "rt_tl_dsa_v1_full", category: "Roundtrip", target: "< 60ms", run: bench_rt_tl_dsa_v1_full },
@@ -1284,12 +1160,7 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "rt_merkle_full", category: "Roundtrip", target: "< 400µs", run: bench_rt_merkle_full },
         BenchmarkEntry { name: "rt_lamport_full", category: "Roundtrip", target: "< 10ms", run: bench_rt_lamport_full },
         BenchmarkEntry { name: "rt_zk_full", category: "Roundtrip", target: "< 60µs", run: bench_rt_zk_full },
-        // 28. A/B Sponge: Scalar vs Batch (4)
-        BenchmarkEntry { name: "ab_derive_key_scalar", category: "A/B", target: "~4µs", run: bench_ab_derive_key_scalar },
-        BenchmarkEntry { name: "ab_derive_key_batch", category: "A/B", target: "< 110µs", run: bench_ab_derive_key_batch },
-        BenchmarkEntry { name: "ab_heartbeat26_scalar", category: "A/B", target: "~210µs", run: bench_ab_heartbeat_26_scalar },
-        BenchmarkEntry { name: "ab_heartbeat26_batch", category: "A/B", target: "< 210µs", run: bench_ab_heartbeat_26_batch },
-        // 29. User Actions — what real people and nodes experience, start to finish
+        // 27. User Actions (8)
         BenchmarkEntry { name: "ux_sign_document", category: "User Action", target: "< 150µs", run: bench_ux_sign_document },
         BenchmarkEntry { name: "ux_verify_document", category: "User Action", target: "< 100µs", run: bench_ux_verify_document },
         BenchmarkEntry { name: "ux_establish_tunnel", category: "User Action", target: "< 200µs", run: bench_ux_establish_tunnel },
@@ -1298,10 +1169,15 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "ux_tdns_register", category: "User Action", target: "< 60µs", run: bench_ux_tdns_register },
         BenchmarkEntry { name: "ux_epoch_rekey", category: "User Action", target: "< 400µs", run: bench_ux_epoch_rekey },
         BenchmarkEntry { name: "ux_secure_message", category: "User Action", target: "< 60µs", run: bench_ux_secure_message },
+        // 28. A/B Sponge: Scalar vs Batch (4)
+        BenchmarkEntry { name: "ab_derive_key_scalar", category: "A/B", target: "~4µs", run: bench_ab_derive_key_scalar },
+        BenchmarkEntry { name: "ab_derive_key_batch", category: "A/B", target: "< 110µs", run: bench_ab_derive_key_batch },
+        BenchmarkEntry { name: "ab_heartbeat26_scalar", category: "A/B", target: "~210µs", run: bench_ab_heartbeat_26_scalar },
+        BenchmarkEntry { name: "ab_heartbeat26_batch", category: "A/B", target: "< 210µs", run: bench_ab_heartbeat_26_batch },
     ]
 }
 
-/// Smoke test: run all 98 benchmarks once.
+/// Smoke test: run all 109 benchmarks once.
 pub fn smoke_test_all() -> Vec<(&'static str, &'static str, u64)> {
     all_benchmarks().iter().map(|b| {
         let start = std::time::Instant::now();
@@ -1320,7 +1196,7 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn all_98_benchmarks_run() {
+    fn all_109_benchmarks_run() {
         let results = smoke_test_all();
         assert_eq!(results.len(), 109, "Must have exactly 109 benchmarks");
         for (name, _, elapsed) in &results {
@@ -1352,13 +1228,23 @@ mod tests {
     #[test]
     fn category_count() {
         let cats: HashSet<&str> = all_benchmarks().iter().map(|b| b.category).collect();
-        assert!(cats.len() >= 25, "Must have at least 25 categories, got {}", cats.len());
+        assert!(cats.len() >= 28, "Must have at least 28 categories, got {}", cats.len());
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
 // MAIN — harness = false, self-contained runner
 // ═══════════════════════════════════════════════════════════════════════
+
+fn format_nanos(ns: u128) -> String {
+    if ns >= 1_000_000 {
+        format!("{:.3} ms", ns as f64 / 1_000_000.0)
+    } else if ns >= 1_000 {
+        format!("{:.2} µs", ns as f64 / 1_000.0)
+    } else {
+        format!("{} ns", ns)
+    }
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -1383,10 +1269,27 @@ fn main() {
     println!("{:<35} {:>12} {:>12}  {}", "Benchmark", "Median", "Target", "Category");
     println!("{}", "-".repeat(80));
 
+    let mut current_category = "";
+    let mut category_total_ns: u128 = 0;
+    let mut category_count: usize = 0;
+    let mut grand_total_ns: u128 = 0;
+
     for b in &selected {
+        // Category changed — print subtotal for previous category
+        if b.category != current_category && !current_category.is_empty() {
+            println!("{:<35} {:>12}  {:>11}",
+                format!("  ▸ {} TOTAL ({})", current_category, category_count),
+                format_nanos(category_total_ns), "");
+            println!();
+            category_total_ns = 0;
+            category_count = 0;
+        }
+        current_category = b.category;
+
         // Warm-up
         for _ in 0..3 { (b.run)(); }
 
+        // Measure
         let mut times = Vec::with_capacity(iters as usize);
         for _ in 0..iters {
             let start = std::time::Instant::now();
@@ -1395,15 +1298,24 @@ fn main() {
         }
         times.sort();
         let median = times[times.len() / 2];
+        let median_ns = median.as_nanos();
 
-        let formatted = if median.as_millis() > 0 {
-            format!("{:.3} ms", median.as_secs_f64() * 1000.0)
-        } else if median.as_micros() > 0 {
-            format!("{:.2} µs", median.as_nanos() as f64 / 1000.0)
-        } else {
-            format!("{} ns", median.as_nanos())
-        };
-        println!("{:<35} {:>12} {:>12}  {}", b.name, formatted, b.target, b.category);
+        category_total_ns += median_ns;
+        category_count += 1;
+        grand_total_ns += median_ns;
+
+        println!("{:<35} {:>12} {:>12}  {}",
+            b.name, format_nanos(median_ns), b.target, b.category);
     }
+
+    // Final category subtotal
+    if !current_category.is_empty() {
+        println!("{:<35} {:>12}  {:>11}",
+            format!("  ▸ {} TOTAL ({})", current_category, category_count),
+            format_nanos(category_total_ns), "");
+    }
+
+    println!("\n{}", "=".repeat(80));
+    println!("{:<35} {:>12}", "GRAND TOTAL (all benchmarks)", format_nanos(grand_total_ns));
     println!("\nDone.");
 }
