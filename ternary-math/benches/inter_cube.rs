@@ -593,7 +593,7 @@ pub fn bench_rsa_4096_verify() {
     use rsa::signature::Verifier;
     let data = cached_rsa_data();
     let result = data.verifying_key.verify(data.message, &data.signature);
-    black_box(result);
+    let _ = black_box(result);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1393,7 +1393,9 @@ pub fn smoke_test_all() -> Vec<(&'static str, &'static str, u64)> {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
+    #[allow(unused_imports)]
     use std::collections::HashSet;
 
     #[test]
@@ -1472,7 +1474,8 @@ fn main() {
         category: &'static str,
         target: &'static str,
         pq: bool,
-        production: bool,
+        #[allow(dead_code)]
+        production: bool, // retained for compatibility; report uses dynamic classification
         median_ns: u128,
         grade: &'static str,
     }
@@ -1791,8 +1794,6 @@ fn main() {
         let status = if is_production(cname) { "\u{2705} Production" } else { "\u{1f527} Forge" };
         let (ref_name, _) = industry_ref(cname);
         md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {}/{} |\n",
-            i + 1, cname, status, ref_name, count, format_nanos(*total), pq_tag, pass, count));
-        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {}/{} |\n",
             i + 1, cname, status, ref_name, count, format_nanos(*total), pq_tag, pass, count));
     }
     md.push_str(&format!("| | **GRAND TOTAL** | | | **{}** | **{}** | **{} PQ** | **{}/{}** |\n\n",
