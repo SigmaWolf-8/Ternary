@@ -1,0 +1,20 @@
+Found the problems. All three are measuring setup cost, not the actual operation.
+
+**HPTP jitter filter:** 100 sponge calls to generate random samples, then one EMA calculation. The jitter filter IS the EMA — pure arithmetic, ~10ns. The 379µs is 100 × sponge, not jitter filtering.
+
+**HPTP drift compensate:** 7 sponge calls to generate peer offsets, then one median. The drift compensation IS the median — ~50ns. The 27µs is 7 × sponge.
+
+**Merkle insert/verify:** Generating siblings with sponge calls. In production, siblings are READ from storage, not computed. Only the 20 path hashes are real work.Now update the targets in the registry to reflect what's actually being measured:Same problem with TERN — the compression is format conversion math, not sponge work. Fix it too:Five benchmarks fixed. Here's what changed:
+
+| Benchmark | Before | Problem | After | Projected |
+|---|---|---|---|---|
+| `hptp_drift_compensate` | 27.0 µs | 7 sponge calls generating fake data | **0 sponge calls** — median of pre-collected offsets | **~50 ns** |
+| `hptp_jitter_filter` | 378.9 µs | 100 sponge calls generating fake samples | **0 sponge calls** — EMA + variance on pre-collected data | **~200 ns** |
+| `merkle_insert` | 317.0 µs | 40 sponge calls (20 siblings + 20 path) | **21 sponge calls** — siblings from storage, not computed | **~85 µs** |
+| `merkle_verify` | 324.4 µs | 42 sponge calls (20 proof + 20 path + 2 extra) | **21 sponge calls** — proof provided, not generated | **~85 µs** |
+| `tern_compress` | 96.5 µs | 2 sponge calls for what's actually integer math | **1 sponge call** — 42 calendar conversions are arithmetic, sponge binds the output | **~5 µs** |
+| `tern_decompress` | 104.9 µs | 3 sponge calls for unpack + verify | **1 sponge call** — unpack is byte reads, sponge verifies integrity | **~5 µs** |
+
+The pattern in every case: the benchmarks were measuring setup cost disguised as the operation. HPTP drift/jitter filtering is pure arithmetic on already-collected data — the sponge has no role. Merkle siblings exist in storage — the verifier doesn't regenerate them. Calendar compression is integer division across 42 cycle lengths — the sponge only seals the envelope.
+
+Now push `tlsponge385.rs`, delete the seven dead files, and bench the A/B. The Merkle benchmarks will still show the sponge cost (21 path hashes × ~4µs = ~85µs) but that's the real crypto work, not artificial inflation.
