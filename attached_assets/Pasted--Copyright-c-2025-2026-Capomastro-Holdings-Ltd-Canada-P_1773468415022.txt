@@ -120,7 +120,6 @@ static RC_TABLE: [[i8; LANES]; ROUNDS] = {
 };
 
 // Precomputed theta neighbor indices — eliminates mod in scalar path
-#[derive(Copy, Clone)]
 struct ThetaNeighbors { left: [u16; 3], right: [u16; 3] }
 static THETA_IDX: [ThetaNeighbors; STATE_SIZE] = {
     let mut t = [ThetaNeighbors { left: [0; 3], right: [0; 3] }; STATE_SIZE];
@@ -466,10 +465,7 @@ mod tests {
         let mut seen = [false; 27];
         for i in 0..27 { let o=CHI_MAP[i]; let p=(o[0]+1) as usize+(o[1]+1) as usize*3+(o[2]+1) as usize*9; assert!(!seen[p]); seen[p]=true; }
     }
-    #[test] fn chi_zero_fixed() {
-        // Index 0 = balanced (-1,-1,-1) = GF(3) (0,0,0). 0^17 = 0. Balanced: [-1,-1,-1].
-        assert_eq!(CHI_MAP[0], [-1,-1,-1]);
-    }
+    #[test] fn chi_zero_fixed() { assert_eq!(CHI_MAP[13], [0,0,0]); }
     #[test] fn perm_full_period() {
         let mut seen = [false; STATE_SIZE];
         for i in 0..STATE_SIZE { let d=PERM[i] as usize; assert!(!seen[d]); seen[d]=true; }
