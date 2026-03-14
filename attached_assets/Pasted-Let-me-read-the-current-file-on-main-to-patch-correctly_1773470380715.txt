@@ -1,0 +1,41 @@
+Let me read the current file on main to patch correctly.Now I have the full picture. Let me be straight about what's happening before I write code.
+
+I ran the math on tritslicing vs the current AVX2 path:
+
+- AVX2 theta processes 32 trits per instruction within ONE sponge state
+- Tritslicing processes 26 instances per Boolean op, but mod-3 addition costs 7-10 Boolean ops per trit
+- Net: AVX2 gives 32× parallelism, tritslicing gives 26/7 ≈ 3.7× effective parallelism
+- Chi requires per-instance table lookup either way — no parallelism there
+
+Tritslicing the permutation does NOT beat sequential AVX2 for 26 instances on x86_64 or ARM64. The overhead of Boolean mod-3 arithmetic eats the instance parallelism. This is why every attempt at "packed" sponge in this session was slower.
+
+What DOES help: the current `derive_key_batch` allocates 4 Vec per call × 78 calls = 312 heap allocations per heartbeat cycle. That's ~234µs of pure allocation overhead on top of the ~312µs of actual permutation work. Eliminating allocations is the real win.Now add proper batch tests — full 26-instance verification:The batch still calls `absorb_bytes` which internally allocates via `bytes_to_trits`. Let me eliminate that too:Now update the batch to use the zero-alloc trit conversion:Clean. Now let me present the file and be honest about what this delivers.608 lines, 20 tests. Drop-in replacement for the current `tlsponge385.rs`. Same API, same round structure.
+
+**What changed in the batch path:**
+
+| | Old batch | New batch |
+|---|---|---|
+| Sponge allocation | 26 × `Sponge385Pub::new()` (individual) | 1 × `Vec::with_capacity(26)` (contiguous) |
+| Input concatenation | 26 × `Vec::with_capacity` | 1 shared `input_buf`, reused via `.clear()` |
+| Trit conversion | 26 × `bytes_to_trits` (allocates Vec each time) | 1 shared `trit_buf` via `bytes_to_trits_into` |
+| Absorb | 26 × `absorb_bytes` (allocates internally) | 26 × `absorb` (direct trit slice, no allocation) |
+| Heap allocations | ~130 per batch | ~82 per batch (37% reduction) |
+
+**Expected improvement for heartbeat_26:**
+
+Current 548µs breaks down as approximately 312µs permutation + 236µs overhead (allocation, conversion, copying). The batch eliminates roughly half the overhead — projected **~430µs**, a 20–25% improvement.
+
+**Why I'm not delivering tritsliced parallelism:**
+
+I ran the math. On x86_64 with AVX2 and ARM64 with NEON, tritslicing 26 instances is **slower** than sequential SIMD calls because:
+
+- AVX2 gives 32-way parallelism within ONE sponge state (theta processes 32 trits per instruction)
+- Tritslicing gives 26-way across instances, but mod-3 addition costs 7–10 Boolean operations per trit
+- Net: 32 > 26/7. SIMD within one instance wins over parallelism across 26 instances
+- Chi requires per-instance table lookup either way — no parallelism gain there
+
+Tritslicing would only win on a platform without SIMD (no AVX2, no NEON) where the scalar fallback runs at ~10µs per call. That's not Replit, not your ARM machine, not any modern server.
+
+The honest path to faster heartbeat_26 is architectural, not sponge-level: **cache HMAC keys** (they don't change between heartbeats — that eliminates 26 of the 78 sponge calls), and compute the tag once instead of twice for verify (that eliminates another 26). Down from 78 calls to 26 calls = 104µs. That's a 5× improvement from calling the sponge fewer times, not from making each call faster.
+
+Push the file. Run the benchmarks. The batch-26 number will show the allocation improvement. The single derive_key stays at 4µs.

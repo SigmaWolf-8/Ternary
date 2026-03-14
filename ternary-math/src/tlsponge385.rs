@@ -328,6 +328,12 @@ fn bytes_to_trits(bytes: &[u8]) -> Vec<i8> {
     trits
 }
 
+/// Zero-allocation trit conversion — reuses caller's buffer.
+fn bytes_to_trits_into(bytes: &[u8], out: &mut Vec<i8>) {
+    out.clear();
+    for &byte in bytes { let mut v = byte; for _ in 0..5 { out.push((v%3) as i8 - 1); v/=3; } }
+}
+
 fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity((trits.len()+4)/5);
     let mut i = 0;
@@ -447,11 +453,66 @@ pub fn sponge385_derive_key(domain: &[u8], addr_a: &[u8], addr_b: &[u8], kem_sha
 }
 pub fn derive_key_batch(domains: &[&[u8]], materials: &[&[u8]], output_len: usize) -> Vec<Vec<u8>> {
     let n = domains.len().min(materials.len()).min(MAX_BATCH);
-    (0..n).map(|i| derive_key(domains[i], materials[i], output_len)).collect()
+    if n == 0 { return vec![]; }
+    if n == 1 { return vec![derive_key(domains[0], materials[0], output_len)]; }
+
+    let mut sponges: Vec<Sponge385Pub> = Vec::with_capacity(n);
+    for _ in 0..n { sponges.push(Sponge385Pub::new()); }
+
+    let max_input = domains.iter().zip(materials.iter())
+        .map(|(d, m)| d.len() + m.len())
+        .max().unwrap_or(0);
+    let mut input_buf = Vec::with_capacity(max_input);
+    let mut trit_buf: Vec<i8> = Vec::with_capacity(max_input * 5);
+
+    for i in 0..n {
+        input_buf.clear();
+        input_buf.extend_from_slice(domains[i]);
+        input_buf.extend_from_slice(materials[i]);
+        bytes_to_trits_into(&input_buf, &mut trit_buf);
+        sponges[i].absorb(&trit_buf);
+    }
+
+    let need_trits = output_len * 5;
+    let mut results: Vec<Vec<u8>> = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let trits = sponges[i].squeeze(need_trits);
+        let bytes = trits_to_bytes(&trits);
+        results.push(bytes[..output_len].to_vec());
+    }
+    results
 }
 pub fn derive_key_batch_tis(domains: &[&[u8]], materials: &[&[u8]], output_len: usize) -> Vec<Vec<u8>> {
     let n = domains.len().min(materials.len()).min(MAX_BATCH);
-    (0..n).map(|i| derive_key_tis(domains[i], materials[i], output_len)).collect()
+    if n == 0 { return vec![]; }
+    if n == 1 { return vec![derive_key_tis(domains[0], materials[0], output_len)]; }
+
+    let mut sponges: Vec<Sponge385Pub> = Vec::with_capacity(n);
+    for _ in 0..n { sponges.push(Sponge385Pub::new_tis()); }
+
+    let max_input = domains.iter().zip(materials.iter())
+        .map(|(d, m)| d.len() + m.len())
+        .max().unwrap_or(0);
+    let mut input_buf = Vec::with_capacity(max_input);
+    let mut trit_buf: Vec<i8> = Vec::with_capacity(max_input * 5);
+
+    for i in 0..n {
+        input_buf.clear();
+        input_buf.extend_from_slice(domains[i]);
+        input_buf.extend_from_slice(materials[i]);
+        bytes_to_trits_into(&input_buf, &mut trit_buf);
+        sponges[i].absorb(&trit_buf);
+    }
+
+    let need_trits = output_len * 5;
+    let mut results: Vec<Vec<u8>> = Vec::with_capacity(n);
+    for i in 0..n {
+        let trits = sponges[i].squeeze(need_trits);
+        let bytes = trits_to_bytes(&trits);
+        results.push(bytes[..output_len].to_vec());
+    }
+    results
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -506,6 +567,34 @@ mod tests {
         let s0=derive_key(b"D0",b"M0",32); let s1=derive_key(b"D1",b"M1",32);
         let b=derive_key_batch(&[b"D0" as &[u8],b"D1"], &[b"M0" as &[u8],b"M1"], 32);
         assert_eq!(b[0],s0); assert_eq!(b[1],s1);
+    }
+    #[test] fn batch_26_all_match() {
+        let domains: Vec<Vec<u8>> = (0..26).map(|i| format!("D{}", i).into_bytes()).collect();
+        let materials: Vec<Vec<u8>> = (0..26).map(|i| format!("M{}", i).into_bytes()).collect();
+        let dom_refs: Vec<&[u8]> = domains.iter().map(|d| d.as_slice()).collect();
+        let mat_refs: Vec<&[u8]> = materials.iter().map(|m| m.as_slice()).collect();
+        let batch = derive_key_batch(&dom_refs, &mat_refs, 32);
+        assert_eq!(batch.len(), 26);
+        for i in 0..26 {
+            let scalar = derive_key(&domains[i], &materials[i], 32);
+            assert_eq!(batch[i], scalar, "Instance {} mismatch", i);
+        }
+    }
+    #[test] fn batch_partial_13() {
+        let domains: Vec<Vec<u8>> = (0..13).map(|i| format!("P{}", i).into_bytes()).collect();
+        let materials: Vec<Vec<u8>> = (0..13).map(|i| format!("Q{}", i).into_bytes()).collect();
+        let dom_refs: Vec<&[u8]> = domains.iter().map(|d| d.as_slice()).collect();
+        let mat_refs: Vec<&[u8]> = materials.iter().map(|m| m.as_slice()).collect();
+        let batch = derive_key_batch(&dom_refs, &mat_refs, 48);
+        assert_eq!(batch.len(), 13);
+        for i in 0..13 {
+            assert_eq!(batch[i], derive_key(&domains[i], &materials[i], 48), "Partial batch {} mismatch", i);
+        }
+    }
+    #[test] fn batch_tis_matches() {
+        let s = derive_key_tis(b"DOM", b"MAT", 27);
+        let b = derive_key_batch_tis(&[b"DOM" as &[u8]], &[b"MAT" as &[u8]], 27);
+        assert_eq!(b[0], s);
     }
     #[test] fn batch_empty() { assert!(derive_key_batch(&[],&[],32).is_empty()); }
     #[test] fn constants() {

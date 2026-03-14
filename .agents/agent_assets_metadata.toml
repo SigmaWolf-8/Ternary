@@ -6,3 +6,9 @@ id = "8T-SCse6gDPSmCVnJN7FI"
 uri = "file://docs/benchmark-report-2026-03-13.md"
 type = "text"
 title = "PlenumNET Criterion Benchmark Report — 46 Benchmarks"
+
+[[outputs]]
+id = "03daFSC3A0ojfUFxWPxIn"
+uri = "file://BENCHMARK_RESULTS.md"
+type = "text"
+title = "TLSponge-385 Benchmark Results (32 benchmarks, 266 tests)"
