@@ -27,6 +27,7 @@
 //! - `sponge_fast.rs` — prototype of this file (absorbed)
 //! - `sponge_shuffle.rs` — σ shuffles (absorbed into sigma())
 //! - `gf27.rs` — GF(27) arithmetic (absorbed into compile-time χ table)
+//! - `tis_sponge.rs` — standalone TIS-27 (absorbed into TIS-27 mode)
 //!
 //! ## Architecture
 //!
@@ -127,6 +128,25 @@ const fn compute_chi_table() -> [[u8; 3]; 27] {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// FLAT χ TABLE — cache-optimal layout for hot path
+//
+// CHI_FLAT[idx * 3 .. idx * 3 + 3] = CHI[idx], but packed into a
+// single contiguous array for sequential cache-line access.
+// ═══════════════════════════════════════════════════════════════════════
+
+const CHI_FLAT: [u8; 81] = {
+    let mut f = [0u8; 81];
+    let mut i = 0;
+    while i < 27 {
+        f[i * 3] = CHI[i][0];
+        f[i * 3 + 1] = CHI[i][1];
+        f[i * 3 + 2] = CHI[i][2];
+        i += 1;
+    }
+    f
+};
+
+// ═══════════════════════════════════════════════════════════════════════
 // COMPILE-TIME ρ∘π COMBINED PERMUTATION
 // ρ: rotate within block. π: stride-13. One pass.
 // ═══════════════════════════════════════════════════════════════════════
@@ -160,6 +180,40 @@ const SIGMA: [[usize; BLOCKS]; 4] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════
+// FUSED ρ∘π∘σ PERMUTATION (one scatter per round)
+//
+// Composes rhopi + sigma into a single table per σ schedule.
+// Eliminates one full state copy per round vs separate passes.
+// FUSED[r][i] = destination position for trit i after ρ∘π then σ.
+// ═══════════════════════════════════════════════════════════════════════
+
+const FUSED: [[u16; STATE]; 4] = compute_fused();
+
+const fn compute_fused() -> [[u16; STATE]; 4] {
+    let rp = compute_rhopi();
+    let mut tables = [[0u16; STATE]; 4];
+    let mut r = 0;
+    while r < 4 {
+        let mut inv_sigma = [0usize; BLOCKS];
+        let mut b = 0;
+        while b < BLOCKS {
+            inv_sigma[SIGMA[r][b]] = b;
+            b += 1;
+        }
+        let mut i = 0;
+        while i < STATE {
+            let p = rp[i] as usize;
+            let block = p / BLOCK_SZ;
+            let off = p % BLOCK_SZ;
+            tables[r][i] = (inv_sigma[block] * BLOCK_SZ + off) as u16;
+            i += 1;
+        }
+        r += 1;
+    }
+    tables
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // BRANCHLESS MOD-3 ADDITION
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -175,78 +229,131 @@ fn add3(a: u8, b: u8) -> u8 {
 //
 // ═══════════════════════════════════════════════════════════════════════
 
+#[inline(always)]
 fn theta(s: &mut [u8; STATE]) {
     let mut csum = [0u8; BLOCKS];
     for c in 0..BLOCKS {
         let base = c * BLOCK_SZ;
         let mut acc: u32 = 0;
-        for j in 0..BLOCK_SZ { acc += s[base + j] as u32; }
+        for j in 0..BLOCK_SZ {
+            acc += unsafe { *s.get_unchecked(base + j) } as u32;
+        }
         csum[c] = (acc % 3) as u8;
     }
-    let mut contrib = [0u8; BLOCKS];
+    let contrib: [u8; BLOCKS] = [
+        add3(csum[8], csum[1]), add3(csum[0], csum[2]), add3(csum[1], csum[3]),
+        add3(csum[2], csum[4]), add3(csum[3], csum[5]), add3(csum[4], csum[6]),
+        add3(csum[5], csum[7]), add3(csum[6], csum[8]), add3(csum[7], csum[0]),
+    ];
     for c in 0..BLOCKS {
-        contrib[c] = add3(csum[(c + 8) % BLOCKS], csum[(c + 1) % BLOCKS]);
-    }
-    for c in 0..BLOCKS {
-        if contrib[c] != 0 {
+        let cv = unsafe { *contrib.get_unchecked(c) };
+        if cv != 0 {
             let base = c * BLOCK_SZ;
-            for j in 0..BLOCK_SZ { s[base + j] = add3(s[base + j], contrib[c]); }
+            for j in 0..BLOCK_SZ {
+                unsafe {
+                    let p = s.get_unchecked_mut(base + j);
+                    *p = add3(*p, cv);
+                }
+            }
         }
     }
 }
 
-fn rhopi(s: &mut [u8; STATE]) {
-    let mut tmp = [0u8; STATE];
-    for i in 0..STATE { tmp[RHOPI[i] as usize] = s[i]; }
-    *s = tmp;
-}
-
-fn chi_step(s: &mut [u8; STATE]) {
-    for i in (0..STATE).step_by(3) {
-        let idx = s[i] as usize + 3 * s[i + 1] as usize + 9 * s[i + 2] as usize;
-        let out = CHI[idx];
-        s[i] = out[0]; s[i + 1] = out[1]; s[i + 2] = out[2];
+#[inline(always)]
+fn fused_scatter(src: &[u8; STATE], dst: &mut [u8; STATE], round: usize) {
+    let table = unsafe { FUSED.get_unchecked(round & 3) };
+    for i in 0..STATE {
+        unsafe {
+            *dst.get_unchecked_mut(*table.get_unchecked(i) as usize) =
+                *src.get_unchecked(i);
+        }
     }
 }
 
+#[inline(always)]
+fn chi_step(s: &mut [u8; STATE]) {
+    let mut i = 0;
+    while i < STATE {
+        unsafe {
+            let idx = (*s.get_unchecked(i) as usize)
+                + 3 * (*s.get_unchecked(i + 1) as usize)
+                + 9 * (*s.get_unchecked(i + 2) as usize);
+            let base = idx * 3;
+            *s.get_unchecked_mut(i) = *CHI_FLAT.get_unchecked(base);
+            *s.get_unchecked_mut(i + 1) = *CHI_FLAT.get_unchecked(base + 1);
+            *s.get_unchecked_mut(i + 2) = *CHI_FLAT.get_unchecked(base + 2);
+        }
+        i += 3;
+    }
+}
+
+#[inline(always)]
 fn iota(s: &mut [u8; STATE], round: usize) {
     s[0] = add3(s[0], (((round + 1) * (round + 1)) % 3) as u8);
 }
 
-fn sigma(s: &mut [u8; STATE], round: usize) {
-    let perm = &SIGMA[round % 4];
-    let mut tmp = [0u8; STATE];
-    for dst in 0..BLOCKS {
-        let src = perm[dst];
-        tmp[dst * BLOCK_SZ..(dst + 1) * BLOCK_SZ]
-            .copy_from_slice(&s[src * BLOCK_SZ..(src + 1) * BLOCK_SZ]);
-    }
-    *s = tmp;
-}
-
+#[inline(always)]
 fn permute(s: &mut [u8; STATE], rounds: usize) {
+    let mut tmp = [0u8; STATE];
+    let mut in_s = true;
     for r in 0..rounds {
-        theta(s); rhopi(s); chi_step(s); iota(s, r); sigma(s, r);
+        if in_s {
+            theta(s);
+            fused_scatter(s, &mut tmp, r);
+            chi_step(&mut tmp);
+            iota(&mut tmp, r);
+        } else {
+            theta(&mut tmp);
+            fused_scatter(&tmp, s, r);
+            chi_step(s);
+            iota(s, r);
+        }
+        in_s = !in_s;
     }
+    if !in_s { *s = tmp; }
 }
 
+#[inline(always)]
 fn absorb(s: &mut [u8; STATE], data: &[u8], rounds: usize) {
     let mut off = 0usize;
     for &byte in data {
-        s[off] = add3(s[off], byte % 3); off += 1;
-        if off < RATE { s[off] = add3(s[off], (byte / 3) % 3); off += 1; }
-        if off < RATE { s[off] = add3(s[off], byte / 9 % 3); off += 1; }
+        unsafe {
+            let p = s.get_unchecked_mut(off);
+            *p = add3(*p, byte % 3);
+        }
+        off += 1;
+        if off < RATE {
+            unsafe {
+                let p = s.get_unchecked_mut(off);
+                *p = add3(*p, (byte / 3) % 3);
+            }
+            off += 1;
+        }
+        if off < RATE {
+            unsafe {
+                let p = s.get_unchecked_mut(off);
+                *p = add3(*p, byte / 9 % 3);
+            }
+            off += 1;
+        }
         if off >= RATE { permute(s, rounds); off = 0; }
     }
     if off > 0 { permute(s, rounds); }
 }
 
+#[inline(always)]
 fn squeeze(s: &mut [u8; STATE], len: usize, rounds: usize) -> Vec<u8> {
     let mut out = Vec::with_capacity(len);
     let mut off = 0usize;
     while out.len() < len {
         if off + 2 < RATE {
-            out.push(s[off] + 3 * s[off + 1] + 9 * s[off + 2]);
+            unsafe {
+                out.push(
+                    *s.get_unchecked(off)
+                    + 3 * *s.get_unchecked(off + 1)
+                    + 9 * *s.get_unchecked(off + 2),
+                );
+            }
             off += 3;
         } else { permute(s, rounds); off = 0; }
     }
@@ -650,8 +757,9 @@ mod tests {
         let mut s = [0u8; STATE];
         for i in 0..STATE { s[i] = (i % 3) as u8; }
         let sum: u32 = s.iter().map(|&x| x as u32).sum();
-        rhopi(&mut s);
-        assert_eq!(s.iter().map(|&x| x as u32).sum::<u32>(), sum);
+        let mut dst = [0u8; STATE];
+        for i in 0..STATE { dst[RHOPI[i] as usize] = s[i]; }
+        assert_eq!(dst.iter().map(|&x| x as u32).sum::<u32>(), sum);
     }
 
     #[test]
@@ -666,7 +774,12 @@ mod tests {
     fn sigma_block_permutation() {
         let mut s = [0u8; STATE];
         for b in 0..BLOCKS { for j in 0..BLOCK_SZ { s[b*BLOCK_SZ+j] = (b%3) as u8; } }
-        sigma(&mut s, 0);
+        let orig = s;
+        let perm = &SIGMA[0];
+        for b in 0..BLOCKS {
+            let sb = perm[b];
+            s[b*BLOCK_SZ..(b+1)*BLOCK_SZ].copy_from_slice(&orig[sb*BLOCK_SZ..(sb+1)*BLOCK_SZ]);
+        }
         for b in 0..BLOCKS { let v = s[b*BLOCK_SZ]; for j in 1..BLOCK_SZ { assert_eq!(s[b*BLOCK_SZ+j], v); } }
     }
 

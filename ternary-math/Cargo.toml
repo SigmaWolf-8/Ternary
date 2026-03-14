@@ -17,9 +17,5 @@ wasm-bindgen = "0.2"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "tis27_bench"
-harness = false
-
-[[bench]]
 name = "inter_cube"
 harness = false
