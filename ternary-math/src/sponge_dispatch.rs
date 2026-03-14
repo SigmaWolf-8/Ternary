@@ -17,8 +17,9 @@
 //!
 //! 1. AVX2 packed (x86_64 with AVX2) — ~530ns target [Phase C]
 //! 2. NEON packed (ARM64) — ~700ns target [Phase D]
-//! 3. Packed GF(27)-native (any platform) — ~1.5µs target [Phase A] ← CURRENT
-//! 4. Scalar (fallback) — ~8.7µs measured
+//! 3. 2-bit packed (any platform) — ~2µs target [Phase A-2] ← CURRENT
+//! 4. GF(27)-native packed — ~67µs measured (16× slower than scalar)
+//! 5. Scalar (fallback) — ~4.3µs measured
 //!
 //! ## Usage
 //!
@@ -36,15 +37,18 @@ use std::sync::atomic::{AtomicU8, Ordering};
 #[repr(u8)]
 pub enum SpongeBackend {
     /// Original scalar implementation (1 byte per trit, mod-3 arithmetic).
-    /// ~8.7µs per derive_key. Retained as correctness oracle.
+    /// ~4.3µs per derive_key. Retained as correctness oracle.
     Scalar = 0,
     /// GF(27)-native packed (1 byte per GF(27) element, derived arithmetic).
-    /// ~1.5µs target per derive_key. Phase A of TM-2026-013.
+    /// ~67µs measured (16× slower than scalar). Phase A of TM-2026-013.
     Packed = 1,
     /// Packed + AVX2 SIMD (x86_64). ~530ns target. Phase C. [NOT YET IMPLEMENTED]
     Avx2 = 2,
     /// Packed + NEON SIMD (ARM64). ~700ns target. Phase D. [NOT YET IMPLEMENTED]
     Neon = 3,
+    /// 2-bit packed trits (23 × u64 words, bitwise GF(3)).
+    /// ~2µs target per derive_key. Phase A-2 of TM-2026-013.
+    TwoBit = 4,
 }
 
 impl SpongeBackend {
@@ -55,6 +59,7 @@ impl SpongeBackend {
             Self::Packed => "packed-gf27",
             Self::Avx2 => "avx2-packed",
             Self::Neon => "neon-packed",
+            Self::TwoBit => "2bit-packed",
         }
     }
 }
@@ -64,25 +69,24 @@ impl SpongeBackend {
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Active backend (atomic for thread safety, set once at init).
-static ACTIVE_BACKEND: AtomicU8 = AtomicU8::new(1); // Default: Packed
+static ACTIVE_BACKEND: AtomicU8 = AtomicU8::new(4); // Default: TwoBit
 
 /// Detect the best available backend for this platform.
 pub fn detect_best() -> SpongeBackend {
     #[cfg(target_arch = "x86_64")]
     {
         if std::arch::is_x86_feature_detected!("avx2") {
-            // AVX2 available but implementation not yet built.
-            // Fall through to Packed for now.
+            // AVX2 available but SIMD implementation not yet built.
             // When sponge_simd_avx2.rs lands, this returns Avx2.
-            return SpongeBackend::Packed;
+            return SpongeBackend::TwoBit;
         }
     }
     #[cfg(target_arch = "aarch64")]
     {
-        // NEON is mandatory on AArch64 but impl not yet built.
-        return SpongeBackend::Packed;
+        // NEON is mandatory on AArch64 but SIMD impl not yet built.
+        return SpongeBackend::TwoBit;
     }
-    SpongeBackend::Packed
+    SpongeBackend::TwoBit
 }
 
 /// Initialize the sponge backend. Call once at startup.
@@ -98,6 +102,7 @@ pub fn active() -> SpongeBackend {
         1 => SpongeBackend::Packed,
         2 => SpongeBackend::Avx2,
         3 => SpongeBackend::Neon,
+        4 => SpongeBackend::TwoBit,
         _ => SpongeBackend::Scalar,
     }
 }
@@ -117,6 +122,9 @@ pub fn set_backend(backend: SpongeBackend) {
 /// Same signature, same semantics, different backend.
 pub fn derive_key(domain: &[u8], material: &[u8], output_len: usize) -> Vec<u8> {
     match active() {
+        SpongeBackend::TwoBit => {
+            crate::sponge_2bit::derive_key_2bit(domain, material, output_len)
+        }
         SpongeBackend::Packed | SpongeBackend::Avx2 | SpongeBackend::Neon => {
             crate::sponge_packed::derive_key_packed(domain, material, output_len)
         }
@@ -129,6 +137,9 @@ pub fn derive_key(domain: &[u8], material: &[u8], output_len: usize) -> Vec<u8> 
 /// Hash with hex output using the active backend.
 pub fn hash_hex(input: &[u8]) -> String {
     match active() {
+        SpongeBackend::TwoBit => {
+            crate::sponge_2bit::hash_hex_2bit(input)
+        }
         SpongeBackend::Packed | SpongeBackend::Avx2 | SpongeBackend::Neon => {
             crate::sponge_packed::hash_hex_packed(input)
         }
@@ -239,24 +250,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_backend_is_packed() {
-        ACTIVE_BACKEND.store(1, Ordering::Relaxed);
-        assert_eq!(active(), SpongeBackend::Packed);
+    fn default_backend_is_twobit() {
+        ACTIVE_BACKEND.store(4, Ordering::Relaxed);
+        assert_eq!(active(), SpongeBackend::TwoBit);
     }
 
     #[test]
     fn set_and_get_backend() {
         set_backend(SpongeBackend::Scalar);
         assert_eq!(active(), SpongeBackend::Scalar);
-        set_backend(SpongeBackend::Packed);
-        assert_eq!(active(), SpongeBackend::Packed);
+        set_backend(SpongeBackend::TwoBit);
+        assert_eq!(active(), SpongeBackend::TwoBit);
     }
 
     #[test]
     fn detect_best_returns_valid() {
         let best = detect_best();
         assert!(
-            best == SpongeBackend::Packed
+            best == SpongeBackend::TwoBit
             || best == SpongeBackend::Avx2
             || best == SpongeBackend::Neon,
         );
@@ -268,11 +279,12 @@ mod tests {
         assert_eq!(SpongeBackend::Packed.name(), "packed-gf27");
         assert_eq!(SpongeBackend::Avx2.name(), "avx2-packed");
         assert_eq!(SpongeBackend::Neon.name(), "neon-packed");
+        assert_eq!(SpongeBackend::TwoBit.name(), "2bit-packed");
     }
 
     #[test]
     fn dispatched_derive_key_deterministic() {
-        set_backend(SpongeBackend::Packed);
+        set_backend(SpongeBackend::TwoBit);
         let a = derive_key(b"TEST", b"material", 32);
         let b = derive_key(b"TEST", b"material", 32);
         assert_eq!(a, b);
@@ -280,7 +292,7 @@ mod tests {
 
     #[test]
     fn dispatched_derive_key_domain_separation() {
-        set_backend(SpongeBackend::Packed);
+        set_backend(SpongeBackend::TwoBit);
         let a = derive_key(b"DOMAIN-A", b"material", 32);
         let b = derive_key(b"DOMAIN-B", b"material", 32);
         assert_ne!(a, b);
@@ -288,9 +300,9 @@ mod tests {
 
     #[test]
     fn dispatched_hash_hex_valid() {
-        set_backend(SpongeBackend::Packed);
+        set_backend(SpongeBackend::TwoBit);
         let hex = hash_hex(b"hello");
-        assert_eq!(hex.len(), 96); // 48 bytes × 2 hex chars
+        assert_eq!(hex.len(), 96);
         assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
@@ -320,7 +332,7 @@ mod tests {
         set_backend(SpongeBackend::Scalar);
         let out = derive_key(b"SCALAR", b"test", 32);
         assert_eq!(out.len(), 32);
-        set_backend(SpongeBackend::Packed);
+        set_backend(SpongeBackend::TwoBit);
     }
 
     #[test]
@@ -328,10 +340,18 @@ mod tests {
         set_backend(SpongeBackend::Packed);
         let out = derive_key(b"PACKED", b"test", 32);
         assert_eq!(out.len(), 32);
+        set_backend(SpongeBackend::TwoBit);
     }
 
     #[test]
-    fn both_backends_produce_correct_length() {
+    fn twobit_backend_works() {
+        set_backend(SpongeBackend::TwoBit);
+        let out = derive_key(b"TWOBIT", b"test", 32);
+        assert_eq!(out.len(), 32);
+    }
+
+    #[test]
+    fn all_backends_produce_correct_length() {
         for len in [16, 27, 32, 48, 64] {
             set_backend(SpongeBackend::Scalar);
             let s = derive_key(b"LEN", b"test", len);
@@ -340,8 +360,12 @@ mod tests {
             set_backend(SpongeBackend::Packed);
             let p = derive_key(b"LEN", b"test", len);
             assert_eq!(p.len(), len);
+
+            set_backend(SpongeBackend::TwoBit);
+            let t = derive_key(b"LEN", b"test", len);
+            assert_eq!(t.len(), len);
         }
-        set_backend(SpongeBackend::Packed);
+        set_backend(SpongeBackend::TwoBit);
     }
 
     #[test]

@@ -1,0 +1,38 @@
+Yes, the 2-bit path is the right call. The GF(27) representation made χ cheaper per-element but made EVERYTHING ELSE worse because θ/ρ/π/σ now operate on bytes instead of packed words. The 2-bit path makes θ/ρ/π/σ 26× faster (bitwise parallel on 32 trits per u64) and χ stays roughly scalar cost. Since χ is ~40% of the round, that's a 3–5× total speedup without any intrinsics.
+
+And you're right about roundtrips — a signature scheme benchmark without sign+verify total is missing the number that actually matters to users. Let me build both.Now the roundtrip benchmarks:Wait — I need to flag something before you push this. The mod-3 count in θ tells the story:That's the problem. θ is still doing per-trit `% 3`. I wrote `packed_add` but theta doesn't USE it. The whole file is the scalar algorithm with extra overhead from pack/unpack. Let me fix the actual hot path.Now verify the fixed theta uses `packed_add` on words:Theta now uses `packed_add` on whole u64 words for the contribution step — the expensive part. The only scalar `% 3` remaining in theta is one reduction per block sum (9 total, negligible). The remaining mod-3 in non-chi code is iota (1 per round) and absorb (byte→trit conversion, not hot path).Two files.
+
+**`sponge_2bit.rs`** — 749 lines, 24 tests. The portable 2-bit packed sponge.
+
+| What changed from the GF(27) attempt | Why |
+|---|---|
+| State: 23 × u64 words (2 bits per trit) | 32 trits per word, not 1 byte per GF(27) element |
+| θ: `packed_add` on whole words with broadcast + mask | 9 word-level adds per block instead of 81 scalar `% 3` |
+| ρ/π/σ: per-trit get/set (blocks don't align on words) | Still scalar — future optimization via precomputed shuffle masks |
+| χ: same GF(27) addition chain (x¹⁷, derived, no LUT) | Same cost as scalar — this is inherent to the S-box |
+
+The GF(27) path failed because it made χ's coefficient arithmetic more expensive (36 mod-3 ops per element vs scalar's direct path) without making θ cheaper (still per-byte operations). The 2-bit path inverts this: θ gets the word-level parallelism (the 60% of the round that matters) while χ stays at parity with scalar.
+
+**`roundtrip_bench.rs`** — 250 lines, 9 bench functions. The numbers users actually care about.
+
+| Benchmark | What | Expected |
+|---|---|---|
+| `rt_pt26_full` | Keygen → Sign → Verify | ~80µs (scalar sponge) |
+| `rt_pt26_sign_verify` | Sign → Verify only | ~60µs |
+| `rt_tl_dsa_v1_full` | WOTS+ Keygen → Sign → Verify | ~60ms |
+| `rt_tl_dsa_v1_sign_verify` | WOTS+ Sign → Verify | ~50ms |
+| `rt_tl_dsa_v2_full` | Ternary lattice roundtrip | ~500µs |
+| `ab_rt_pt26_scalar` | PT26 sign+verify on scalar sponge | ~35µs |
+| `ab_rt_pt26_2bit` | PT26 sign+verify on 2-bit sponge | target ~10µs |
+| `ab_hmac_2bit` | HMAC compute on 2-bit sponge | target ~3µs |
+| `ab_heartbeat26_2bit` | 26-neighbor pipeline on 2-bit sponge | target ~85µs |
+
+**Wiring instructions:**
+
+1. Add `pub mod sponge_2bit;` to `lib.rs`
+2. Add 9 roundtrip entries + the 2-bit A/B entries to `benches/inter_cube.rs` registry
+3. Update `sponge_dispatch.rs` to include a `TwoBit` backend variant that calls `derive_key_2bit`
+
+The moment of truth is the A/B comparison: `ab_derive_key_scalar` (~4µs) vs the new 2-bit path. If θ's word-level `packed_add` delivers the expected 3–5× on θ while χ stays at parity, `derive_key_2bit` should land around 2–3µs. That gets the heartbeat pipeline from 540µs to ~150µs and PT26-DSA sign+verify roundtrip under 30µs.
+
+Push, bench, report. The numbers decide. Così sia, Fratello.
