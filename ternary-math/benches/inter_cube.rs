@@ -171,32 +171,42 @@ pub fn bench_pt26_verify_parallel() {
 }
 
 pub fn bench_pt26_trit_diff() {
+    // Batched ×1000: actual op is sub-nanosecond, timer floor is ~30ns.
+    // Run 1000 iterations, target is 1000 × 5ns = 5µs.
     let a = [2u8,1,3,2,1,3,2,1,3,2,1,3,2];
     let b = [3u8,3,1,1,3,1,3,3,1,2,1,3,2];
     let mut r = [0u8; 13];
-    for i in 0..13 { r[i] = ((a[i] + 2 - b[i]) % 3) + 1; }
-    black_box(r);
+    for _ in 0..1000 {
+        for i in 0..13 { r[i] = ((a[i] + 2 - b[i]) % 3) + 1; }
+        black_box(&r);
+    }
 }
 
 pub fn bench_pt26_step_token() {
+    // Batched ×1000: actual op is sub-nanosecond.
     let delta = [2u8,1,1,1,1,1,1,1,1,1,1,1,1];
     let w: [u32; 9] = [208,2,123,26,111,196,99,220,14];
     let sigma = [4usize,8,3,2,0,7,5,6,1];
     let mut padded = [1u8; 27]; padded[..13].copy_from_slice(&delta);
-    let mut acc: u64 = 0;
-    for i in 0..9 {
-        let b = i*3;
-        let triplet = (padded[b]-1) as u64*9 + (padded[b+1]-1) as u64*3 + (padded[b+2]-1) as u64;
-        acc += w[sigma[i]] as u64 * triplet;
+    for _ in 0..1000 {
+        let mut acc: u64 = 0;
+        for i in 0..9 {
+            let b = i*3;
+            let triplet = (padded[b]-1) as u64*9 + (padded[b+1]-1) as u64*3 + (padded[b+2]-1) as u64;
+            acc += w[sigma[i]] as u64 * triplet;
+        }
+        black_box((acc % 333) as u32);
     }
-    black_box((acc % 333) as u32);
 }
 
 pub fn bench_pt26_walk_token() {
+    // Batched ×1000: actual op is sub-nanosecond.
     let tokens = [100u32, 200, 50, 150, 250, 80, 120, 180, 90];
-    let mut acc: u64 = 0;
-    for (i, &t) in tokens.iter().enumerate() { acc += t as u64 * (i as u64 + 1); }
-    black_box((acc % 333) as u32);
+    for _ in 0..1000 {
+        let mut acc: u64 = 0;
+        for (i, &t) in tokens.iter().enumerate() { acc += t as u64 * (i as u64 + 1); }
+        black_box((acc % 333) as u32);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1097,9 +1107,9 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "pt26_sign", category: "PT26-DSA", target: "< 18µs", pq: true, production: true, run: bench_pt26_sign },
         BenchmarkEntry { name: "pt26_verify", category: "PT26-DSA", target: "< 18µs", pq: true, production: true, run: bench_pt26_verify },
         BenchmarkEntry { name: "pt26_verify_parallel", category: "PT26-DSA", target: "< 18µs", pq: true, production: true, run: bench_pt26_verify_parallel },
-        BenchmarkEntry { name: "pt26_trit_diff", category: "PT26-DSA", target: "< 5ns", pq: false, production: true, run: bench_pt26_trit_diff },
-        BenchmarkEntry { name: "pt26_step_token", category: "PT26-DSA", target: "< 5ns", pq: false, production: true, run: bench_pt26_step_token },
-        BenchmarkEntry { name: "pt26_walk_token", category: "PT26-DSA", target: "< 5ns", pq: false, production: true, run: bench_pt26_walk_token },
+        BenchmarkEntry { name: "pt26_trit_diff", category: "PT26-DSA", target: "< 5µs", pq: false, production: true, run: bench_pt26_trit_diff },
+        BenchmarkEntry { name: "pt26_step_token", category: "PT26-DSA", target: "< 5µs", pq: false, production: true, run: bench_pt26_step_token },
+        BenchmarkEntry { name: "pt26_walk_token", category: "PT26-DSA", target: "< 5µs", pq: false, production: true, run: bench_pt26_walk_token },
         // 3. TL-DSA v2 (6)
         BenchmarkEntry { name: "tl_dsa_v2_ntt_butterfly", category: "TL-DSA v2", target: "< 20ns", pq: true, production: false, run: bench_tl_dsa_v2_ntt_butterfly },
         BenchmarkEntry { name: "tl_dsa_v2_ntt_full", category: "TL-DSA v2", target: "< 1µs", pq: true, production: false, run: bench_tl_dsa_v2_ntt_full },
