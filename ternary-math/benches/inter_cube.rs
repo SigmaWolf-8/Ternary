@@ -83,6 +83,20 @@ fn cached_hmac_key() -> &'static Vec<u8> {
     KEY.get_or_init(|| sponge_kdf(b"PlenumNET-HB-HMAC", b"address-plus-master-secret", 48))
 }
 
+/// Zero-allocation sponge KDF with concatenated material.
+/// Copies slices into a stack buffer, calls derive_key on it.
+/// Panics if total material exceeds 768 bytes.
+#[inline(always)]
+fn sponge_kdf_cat(domain: &[u8], parts: &[&[u8]], len: usize) -> Vec<u8> {
+    let mut buf = [0u8; 768];
+    let mut offset = 0;
+    for part in parts {
+        buf[offset..offset + part.len()].copy_from_slice(part);
+        offset += part.len();
+    }
+    ternary_math::tlsponge385::derive_key(domain, &buf[..offset], len)
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // 1. TL-DSA v1-87 (Hash-based WOTS+) — 3 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
@@ -305,10 +319,10 @@ pub fn bench_tae_mac_encrypt() {
     let key = sponge_kdf(b"TAE-KEY", b"ae-key-material", 48);
     let nonce = sponge_kdf(b"TAE-NONCE", b"ae-nonce", 16);
     let plaintext = b"authenticated encryption benchmark plaintext 64 bytes padding here";
-    let state1 = sponge_kdf(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()].concat(), 48);
+    let state1 = sponge_kdf_cat(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()], 48);
     let keystream = sponge_kdf(b"TAE-STREAM", &state1, plaintext.len());
     let ct: Vec<u8> = plaintext.iter().zip(keystream.iter()).map(|(p,k)| p^k).collect();
-    let tag = sponge_kdf(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()].concat(), 27);
+    let tag = sponge_kdf_cat(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()], 27);
     black_box((ct, tag));
 }
 
@@ -316,25 +330,25 @@ pub fn bench_tae_mac_decrypt() {
     let key = sponge_kdf(b"TAE-KEY", b"ae-key-material", 48);
     let nonce = sponge_kdf(b"TAE-NONCE", b"ae-nonce", 16);
     let ct = vec![42u8; 64];
-    let state1 = sponge_kdf(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()].concat(), 48);
+    let state1 = sponge_kdf_cat(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()], 48);
     let keystream = sponge_kdf(b"TAE-STREAM", &state1, ct.len());
     let pt: Vec<u8> = ct.iter().zip(keystream.iter()).map(|(c,k)| c^k).collect();
-    let tag = sponge_kdf(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()].concat(), 27);
+    let tag = sponge_kdf_cat(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()], 27);
     black_box((pt, tag));
 }
 
 pub fn bench_tae_mac_compute() {
     let key = sponge_kdf(b"TAE-MAC-KEY", b"mac-key-material", 48);
     let msg = b"MAC benchmark message for T-AE-MAC construction with sufficient length";
-    let tag = sponge_kdf(b"TAE-MAC", &[key.as_slice(), msg.as_slice()].concat(), 27);
+    let tag = sponge_kdf_cat(b"TAE-MAC", &[key.as_slice(), msg.as_slice()], 27);
     black_box(tag);
 }
 
 pub fn bench_tae_mac_verify() {
     let key = sponge_kdf(b"TAE-MAC-KEY", b"mac-key-material", 48);
     let msg = b"MAC benchmark message for T-AE-MAC construction with sufficient length";
-    let tag1 = sponge_kdf(b"TAE-MAC", &[key.as_slice(), msg.as_slice()].concat(), 27);
-    let tag2 = sponge_kdf(b"TAE-MAC", &[key.as_slice(), msg.as_slice()].concat(), 27);
+    let tag1 = sponge_kdf_cat(b"TAE-MAC", &[key.as_slice(), msg.as_slice()], 27);
+    let tag2 = sponge_kdf_cat(b"TAE-MAC", &[key.as_slice(), msg.as_slice()], 27);
     let mut diff: u8 = 0;
     for i in 0..27 { diff |= tag1[i] ^ tag2[i]; }
     black_box(diff);
@@ -396,9 +410,9 @@ pub fn bench_aes_gcm_encrypt() {
     let nonce = sponge_kdf(b"AES-NONCE", b"gcm-nonce", 12);
     let plaintext = b"API session token encrypted at rest with AES-256-GCM for compliance";
     let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
-    let keystream = sponge_kdf(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]].concat(), plaintext.len());
+    let keystream = sponge_kdf_cat(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]], plaintext.len());
     let ct: Vec<u8> = plaintext.iter().zip(keystream.iter()).map(|(p,k)| p^k).collect();
-    let tag = sponge_kdf(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()].concat(), 16);
+    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()], 16);
     black_box((ct, tag));
 }
 
@@ -407,9 +421,9 @@ pub fn bench_aes_gcm_decrypt() {
     let nonce = sponge_kdf(b"AES-NONCE", b"gcm-nonce", 12);
     let ct = vec![42u8; 64];
     let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
-    let keystream = sponge_kdf(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]].concat(), 64);
+    let keystream = sponge_kdf_cat(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]], 64);
     let pt: Vec<u8> = ct.iter().zip(keystream.iter()).map(|(c,k)| c^k).collect();
-    let tag = sponge_kdf(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()].concat(), 16);
+    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()], 16);
     black_box((pt, tag));
 }
 
@@ -421,7 +435,7 @@ pub fn bench_rsa_4096_sign() {
     let msg_hash = sponge_kdf(b"RSA-HASH", b"message to sign with RSA-4096", 64);
     let mut state = msg_hash;
     for i in 0..128u8 {
-        state = sponge_kdf(b"RSA-MODEXP", &[state.as_slice(), &[i]].concat(), 64);
+        state = sponge_kdf_cat(b"RSA-MODEXP", &[state.as_slice(), &[i]], 64);
     }
     black_box(state);
 }
@@ -430,7 +444,7 @@ pub fn bench_rsa_4096_verify() {
     let sig = sponge_kdf(b"RSA-SIG", b"simulated-signature", 512);
     let mut state = sig;
     for i in 0..17u8 {
-        state = sponge_kdf(b"RSA-MODEXP", &[state.as_slice(), &[i]].concat(), 64);
+        state = sponge_kdf_cat(b"RSA-MODEXP", &[state.as_slice(), &[i]], 64);
     }
     black_box(state);
 }
@@ -471,15 +485,14 @@ pub fn bench_hmac_key_derive() {
 
 pub fn bench_hmac_compute() {
     let key = cached_hmac_key();
-    let tag = sponge_kdf(b"PlenumNET-HB-TAG", &[key.as_slice(), b"heartbeat-payload".as_slice()].concat(), 27);
+    let tag = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[key.as_slice(), b"heartbeat-payload"], 27);
     black_box(tag);
 }
 
 pub fn bench_hmac_verify() {
     let key = cached_hmac_key();
-    let mat = [key.as_slice(), b"heartbeat-payload".as_slice()].concat();
-    let t1 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
-    let t2 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
+    let t1 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[key.as_slice(), b"heartbeat-payload"], 27);
+    let t2 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[key.as_slice(), b"heartbeat-payload"], 27);
     let mut d: u8 = 0;
     for i in 0..27 { d |= t1[i] ^ t2[i]; }
     black_box(d);
@@ -520,7 +533,7 @@ pub fn bench_lattice_nonce() {
 
 pub fn bench_lattice_key_derive() {
     let kem = [42u8; 32];
-    black_box(sponge_kdf(b"PlenumNET-LATTICE-KEY", &[kem.as_slice(), b"epoch-material"].concat(), 32));
+    black_box(sponge_kdf_cat(b"PlenumNET-LATTICE-KEY", &[kem.as_slice(), b"epoch-material"], 32));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -530,7 +543,7 @@ pub fn bench_lattice_key_derive() {
 pub fn bench_identity_seed_derive() {
     let addr = [2u8,1,3,2,1,3,2,1,3,2,1,3,2];
     let secret = [42u8; 48];
-    black_box(sponge_kdf(b"PlenumNET-IDENTITY", &[addr.as_slice(), secret.as_slice()].concat(), 128));
+    black_box(sponge_kdf_cat(b"PlenumNET-IDENTITY", &[addr.as_slice(), secret.as_slice()], 128));
 }
 
 pub fn bench_identity_keypair_derive() {
@@ -577,9 +590,8 @@ pub fn bench_heartbeat_single() {
     for &t in &addr { let b=(t-1) as u32; r=(r*3+b)%364; p=(p*3+b)%333; }
     let mut par=[0u32;8]; for i in 0..8 { par[i]=(addr[i%13]-1) as u32 % 3; }
     let key = cached_hmac_key();
-    let mat = [key.as_slice(), b"hb-payload".as_slice()].concat();
-    let t1 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
-    let t2 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
+    let t1 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[key.as_slice(), b"hb-payload"], 27);
+    let t2 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[key.as_slice(), b"hb-payload"], 27);
     let mut d:u8=0; for j in 0..27 { d|=t1[j]^t2[j]; }
     let seq_valid = 42u64 > 41u64;
     black_box((r, p, par, d, seq_valid));
@@ -588,9 +600,8 @@ pub fn bench_heartbeat_single() {
 pub fn bench_heartbeat_26() {
     let keys = cached_hmac_keys();
     for i in 0..26 {
-        let mat = [keys[i].as_slice(), b"hb-payload".as_slice()].concat();
-        let t1 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
-        let t2 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
+        let t1 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[keys[i].as_slice(), b"hb-payload"], 27);
+        let t2 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[keys[i].as_slice(), b"hb-payload"], 27);
         let mut d:u8=0; for j in 0..27 { d|=t1[j]^t2[j]; }
         black_box(d);
     }
@@ -603,16 +614,16 @@ pub fn bench_heartbeat_26() {
 pub fn bench_tsa_timestamp_create() {
     let doc_hash = sponge_kdf(b"TSA-DOC", b"document-content-hash", 48);
     let tsa_time = sponge_kdf(b"TSA-TIME", b"hptp-femtosecond-timestamp", 16);
-    let tl_sig = sponge_kdf(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()].concat(), 48);
-    let rsa_sig = sponge_kdf(b"TSA-RSA", &[doc_hash.as_slice(), tsa_time.as_slice()].concat(), 64);
+    let tl_sig = sponge_kdf_cat(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()], 48);
+    let rsa_sig = sponge_kdf_cat(b"TSA-RSA", &[doc_hash.as_slice(), tsa_time.as_slice()], 64);
     black_box((tl_sig, rsa_sig));
 }
 
 pub fn bench_tsa_timestamp_verify() {
     let doc_hash = sponge_kdf(b"TSA-DOC", b"document-hash", 48);
     let tsa_time = sponge_kdf(b"TSA-TIME", b"timestamp", 16);
-    let expected = sponge_kdf(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()].concat(), 48);
-    let actual = sponge_kdf(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()].concat(), 48);
+    let expected = sponge_kdf_cat(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()], 48);
+    let actual = sponge_kdf_cat(b"TSA-TLDSA", &[doc_hash.as_slice(), tsa_time.as_slice()], 48);
     black_box(expected == actual);
 }
 
@@ -621,7 +632,7 @@ pub fn bench_merkle_insert() {
     let mut node = leaf;
     for level in 0..20u8 {
         let sibling = sponge_kdf(b"MERKLE-SIB", &[level], 48);
-        node = sponge_kdf(b"MERKLE-NODE", &[node.as_slice(), sibling.as_slice()].concat(), 48);
+        node = sponge_kdf_cat(b"MERKLE-NODE", &[node.as_slice(), sibling.as_slice()], 48);
     }
     black_box(node);
 }
@@ -631,7 +642,7 @@ pub fn bench_merkle_verify() {
     let mut node = leaf;
     for level in 0..20u8 {
         let proof = sponge_kdf(b"MERKLE-SIB", &[level], 48);
-        node = sponge_kdf(b"MERKLE-NODE", &[node.as_slice(), proof.as_slice()].concat(), 48);
+        node = sponge_kdf_cat(b"MERKLE-NODE", &[node.as_slice(), proof.as_slice()], 48);
     }
     let root = sponge_kdf(b"MERKLE-ROOT", b"expected-root", 48);
     black_box(node == root);
@@ -723,15 +734,15 @@ pub fn bench_con_derive_tunnel_key() {
 
 pub fn bench_con_rekey_single() {
     let epoch = 42u64;
-    let mat = [&[1u8;13][..], &[2u8;13][..], &epoch.to_le_bytes()[..], &[42u8;32][..]].concat();
-    black_box(sponge_kdf(b"PlenumNET-CON-REKEY", &mat, 32));
+    black_box(sponge_kdf_cat(b"PlenumNET-CON-REKEY",
+        &[&[1u8;13][..], &[2u8;13][..], &epoch.to_le_bytes()[..], &[42u8;32][..]], 32));
 }
 
 pub fn bench_con_rekey_all() {
     for i in 0..26u8 {
         let addr_b = make_addr(i as usize + 1);
-        let mat = [&[2u8;13][..], &addr_b[..], &42u64.to_le_bytes()[..], &[42u8;32][..]].concat();
-        black_box(sponge_kdf(b"PlenumNET-CON-REKEY", &mat, 32));
+        black_box(sponge_kdf_cat(b"PlenumNET-CON-REKEY",
+            &[&[2u8;13][..], &addr_b[..], &42u64.to_le_bytes()[..], &[42u8;32][..]], 32));
     }
 }
 
@@ -742,7 +753,7 @@ pub fn bench_con_rekey_all() {
 pub fn bench_hptp_timestamp_verify() {
     let ts_bytes = 1_743_465_600_000_000_000u128.to_le_bytes();
     let cert = sponge_kdf(b"HPTP-CERT", &ts_bytes, 48);
-    let verify = sponge_kdf(b"HPTP-VERIFY", &[ts_bytes.as_slice(), cert.as_slice()].concat(), 48);
+    let verify = sponge_kdf_cat(b"HPTP-VERIFY", &[ts_bytes.as_slice(), cert.as_slice()], 48);
     black_box(cert == verify);
 }
 
@@ -775,7 +786,7 @@ pub fn bench_zk_prove() {
     let doc_commit = sponge_kdf(b"ZK-COMMIT", b"document-content-commitment", 48);
     let challenge = sponge_kdf(b"ZK-CHALLENGE", &doc_commit, 32);
     let witness = sponge_kdf(b"ZK-WITNESS", b"signer-secret-witness", 48);
-    let response = sponge_kdf(b"ZK-RESPONSE", &[challenge.as_slice(), witness.as_slice()].concat(), 48);
+    let response = sponge_kdf_cat(b"ZK-RESPONSE", &[challenge.as_slice(), witness.as_slice()], 48);
     black_box(response);
 }
 
@@ -783,7 +794,7 @@ pub fn bench_zk_verify() {
     let doc_commit = sponge_kdf(b"ZK-COMMIT", b"document-content-commitment", 48);
     let challenge = sponge_kdf(b"ZK-CHALLENGE", &doc_commit, 32);
     let response = sponge_kdf(b"ZK-RESPONSE", b"proof-response-data", 48);
-    let check = sponge_kdf(b"ZK-CHECK", &[doc_commit.as_slice(), challenge.as_slice(), response.as_slice()].concat(), 48);
+    let check = sponge_kdf_cat(b"ZK-CHECK", &[doc_commit.as_slice(), challenge.as_slice(), response.as_slice()], 48);
     black_box(check);
 }
 
@@ -816,7 +827,7 @@ pub fn bench_signhere_cnsa2() {
     let doc = b"CNSA 2.0 compliant document securing benchmark";
     let ml_kem = sponge_kdf(b"CNSA-MLKEM", doc, 32);
     let ml_dsa = sponge_kdf(b"CNSA-MLDSA", doc, 48);
-    let aes = sponge_kdf(b"CNSA-AES256", &[ml_kem.as_slice(), doc.as_slice()].concat(), doc.len());
+    let aes = sponge_kdf_cat(b"CNSA-AES256", &[ml_kem.as_slice(), doc.as_slice()], doc.len());
     let sha384 = sponge_kdf(b"CNSA-SHA384", &aes, 48);
     black_box((ml_kem, ml_dsa, aes, sha384));
 }
@@ -838,15 +849,15 @@ pub fn bench_sfk_key_derive() {
 pub fn bench_sfk_sign() {
     let key = sponge_kdf(b"SFK-KEY", b"sfk-key", 48);
     let op_hash = sponge_kdf(b"SFK-OP", b"fortified-operation-data", 48);
-    let sig = sponge_kdf(b"SFK-SIG", &[key.as_slice(), op_hash.as_slice()].concat(), 48);
+    let sig = sponge_kdf_cat(b"SFK-SIG", &[key.as_slice(), op_hash.as_slice()], 48);
     black_box(sig);
 }
 
 pub fn bench_sfk_verify() {
     let key = sponge_kdf(b"SFK-KEY", b"sfk-key", 48);
     let op_hash = sponge_kdf(b"SFK-OP", b"fortified-operation-data", 48);
-    let sig = sponge_kdf(b"SFK-SIG", &[key.as_slice(), op_hash.as_slice()].concat(), 48);
-    let check = sponge_kdf(b"SFK-SIG", &[key.as_slice(), op_hash.as_slice()].concat(), 48);
+    let sig = sponge_kdf_cat(b"SFK-SIG", &[key.as_slice(), op_hash.as_slice()], 48);
+    let check = sponge_kdf_cat(b"SFK-SIG", &[key.as_slice(), op_hash.as_slice()], 48);
     black_box(sig == check);
 }
 
@@ -1001,9 +1012,8 @@ pub fn bench_ab_derive_key_batch() {
 pub fn bench_ab_heartbeat_26_scalar() {
     let keys = cached_hmac_keys();
     for i in 0..26 {
-        let mat = [keys[i].as_slice(), b"hb-payload".as_slice()].concat();
-        let t1 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
-        let t2 = sponge_kdf(b"PlenumNET-HB-TAG", &mat, 27);
+        let t1 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[keys[i].as_slice(), b"hb-payload"], 27);
+        let t2 = sponge_kdf_cat(b"PlenumNET-HB-TAG", &[keys[i].as_slice(), b"hb-payload"], 27);
         let mut d:u8=0; for j in 0..27 { d|=t1[j]^t2[j]; }
         black_box(d);
     }
