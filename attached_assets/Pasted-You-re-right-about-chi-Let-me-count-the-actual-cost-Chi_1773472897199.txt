@@ -1,0 +1,32 @@
+You're right about chi. Let me count the actual cost.
+
+Chi runs 243 table lookups × 9 rounds = 2,187 lookups per `derive_key`. Each lookup is an indexed read from an 81-byte table. The table fits in L1 cache, so each read is ~1ns. That's **~2.2µs** of the 3.80µs — **58% of derive_key is chi lookups.** The table is fast. The algebraic path is 17× slower. But chi is still the dominant cost.
+
+That said, the bigger issue in these results isn't chi. Look at the numbers that don't add up:
+
+**Heartbeat math doesn't work:**
+- `derive_key` = 3.80µs
+- `heartbeat_26` should be 52 × 3.80µs = **197µs**
+- Actual: **406µs** — that's 7.8µs per effective sponge call, double the raw cost
+
+The extra ~4µs per call is absorb/squeeze overhead: `Vec::with_capacity` for input concat, `bytes_to_trits` allocation, `trits_to_bytes` allocation on output. The sponge is fast but the wrapper allocates on every call.
+
+**HPTP and TERN fixes didn't land:**
+
+| Benchmark | Result | Expected after fix | What happened |
+|---|---|---|---|
+| `hptp_drift_compensate` | 27.28 µs | < 100ns | Still running sponge calls — fix not in pushed file |
+| `hptp_jitter_filter` | 401.46 µs | < 500ns | Still running 100 sponge calls — fix not in pushed file |
+| `tern_compress` | 100.42 µs | < 6µs | Still running 2 sponge calls — fix not in pushed file |
+| `tern_decompress` | 101.74 µs | < 8µs | Still running 3 sponge calls — fix not in pushed file |
+
+Those four benchmarks are measuring the wrong thing — the fixes I made earlier to remove fake sponge calls weren't in the file that got pushed.
+
+**HMAC compute is double expected:**
+- `hmac_compute` = 7.82µs with cached key. Should be 1 sponge call = ~4µs. The extra 4µs is the `[key, payload].concat()` allocation + `bytes_to_trits` allocation inside `absorb_bytes`.
+
+**The pattern:** Every sponge call costs ~4µs in the permutation + ~4µs in allocation overhead around it. The sponge is half the problem. The other half is that `derive_key` → `hash` → `Sponge385Pub::new` → `absorb_bytes` → `bytes_to_trits` (allocates Vec) → `absorb` → `squeeze` (allocates Vec) → `trits_to_bytes` (allocates Vec) does **3 heap allocations per call**. At 26 neighbors × 2 calls × 3 allocations = 156 allocations per heartbeat cycle.
+
+This is fixable without touching the sponge or chi. The `derive_key` function should use stack-allocated buffers instead of Vec for inputs under 256 bytes (which covers every HMAC and heartbeat call). That eliminates the allocation overhead entirely.
+
+Want me to fix `derive_key` to use stack buffers for the common case, fix the four benchmark bugs (HPTP/TERN), and deliver one final file?
