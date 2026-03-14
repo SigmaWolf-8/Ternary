@@ -219,7 +219,7 @@ impl Schedule {
         let mut mat = Vec::with_capacity(13 + secret.len());
         mat.extend_from_slice(addr);
         mat.extend_from_slice(secret);
-        let seed = crate::sponge::derive_key(DOMAIN_SCHEDULE, &mat, 26);
+        let seed = crate::tlsponge385::derive_key(DOMAIN_SCHEDULE, &mat, 26);
         let mut sigma = [0u8; DIMENSIONS];
         let mut dim_order = [0u8; DIMENSIONS];
         for i in 0..DIMENSIONS {
@@ -326,7 +326,7 @@ fn hamming(a: &[u8; 13], b: &[u8; 13]) -> usize {
 }
 
 fn derive_dest(addr: &[u8; 13], msg: &[u8]) -> [u8; 13] {
-    let h = crate::sponge::derive_key(DOMAIN_MSG, msg, 13);
+    let h = crate::tlsponge385::derive_key(DOMAIN_MSG, msg, 13);
     let mut d = [0u8; 13];
     for i in 0..13 {
         d[i] = ((addr[i] as u16 - 1 + h[i] as u16) % 3 + 1) as u8;
@@ -348,7 +348,7 @@ fn compute_binding(
     m.extend_from_slice(par);
     m.extend_from_slice(msg_hash);
     m.extend_from_slice(pk_commit);
-    let h = crate::sponge::derive_key(DOMAIN_BIND, &m, BINDING_LEN);
+    let h = crate::tlsponge385::derive_key(DOMAIN_BIND, &m, BINDING_LEN);
     let mut b = [0u8; BINDING_LEN];
     b.copy_from_slice(&h);
     b
@@ -396,7 +396,7 @@ pub fn keygen(addr: &[u8; 13], secret: &[u8]) -> (PublicKey, SecretKey) {
     let mut pk_mat = Vec::with_capacity(26);
     pk_mat.extend_from_slice(&schedule.sigma);
     pk_mat.extend_from_slice(&schedule.dim_order);
-    let h = crate::sponge::derive_key(DOMAIN_PK, &pk_mat, BINDING_LEN);
+    let h = crate::tlsponge385::derive_key(DOMAIN_PK, &pk_mat, BINDING_LEN);
     let mut commit = [0u8; BINDING_LEN];
     commit.copy_from_slice(&h);
 
@@ -417,7 +417,7 @@ pub fn sign(sk: &mut SecretKey, message: &[u8]) -> Result<Signature, Pt26Error> 
     if sk.count >= SIG_BUDGET as u32 { return Err(Pt26Error::BudgetExhausted); }
 
     // Sponge 1: message hash → destination
-    let msg_hash = crate::sponge::derive_key(DOMAIN_MSG, message, 48);
+    let msg_hash = crate::tlsponge385::derive_key(DOMAIN_MSG, message, 48);
     let dest = derive_dest(&sk.addr, message);
 
     // Geometric walk: pure GF(3), zero sponge calls
@@ -438,7 +438,7 @@ pub fn sign(sk: &mut SecretKey, message: &[u8]) -> Result<Signature, Pt26Error> 
 
 pub fn verify(pk: &PublicKey, message: &[u8], sig: &Signature) -> Result<(), Pt26Error> {
     // Sponge 1: message hash → destination check
-    let msg_hash = crate::sponge::derive_key(DOMAIN_MSG, message, 48);
+    let msg_hash = crate::tlsponge385::derive_key(DOMAIN_MSG, message, 48);
     let expected = derive_dest(&pk.addr, message);
     if sig.dest != expected { return Err(Pt26Error::DestinationMismatch); }
 
@@ -514,7 +514,7 @@ pub fn verify_parallel(
     sig: &Signature,
 ) -> Result<(), Pt26Error> {
     // Phase 1: destination (1 sponge call)
-    let msg_hash = crate::sponge::derive_key(DOMAIN_MSG, message, 48);
+    let msg_hash = crate::tlsponge385::derive_key(DOMAIN_MSG, message, 48);
     let expected = derive_dest(&pk.addr, message);
     if sig.dest != expected { return Err(Pt26Error::DestinationMismatch); }
 

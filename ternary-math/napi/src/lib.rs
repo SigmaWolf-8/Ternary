@@ -96,7 +96,7 @@ fn cipher_trits(data:&[i8],keystream:&[i8],encrypt:bool)->Vec<i8>{
     Ok(Buffer::from(s.squeeze(trit_count as usize).iter().map(|&t|(t+1)as u8).collect::<Vec<_>>()))}
 #[napi] pub fn sponge_derive_key(context:Buffer,material:Buffer,key_len:u32)->napi::Result<Buffer>{
     if key_len>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("key_len exceeds max".to_string()));}
-    Ok(Buffer::from(ternary_math::sponge::derive_key(context.as_ref(),material.as_ref(),key_len as usize)))}
+    Ok(Buffer::from(ternary_math::tlsponge385::derive_key(context.as_ref(),material.as_ref(),key_len as usize)))}
 #[napi] pub fn sponge_permute_v2(state_buf:Buffer)->napi::Result<Buffer>{
     let src=state_buf.as_ref();if src.len()!=729{return Err(napi::Error::from_reason("state must be 729".to_string()));}
     let mut state=[0i8;729];for i in 0..729{state[i]=src[i]as i8;}sponge_permutation(&mut state);

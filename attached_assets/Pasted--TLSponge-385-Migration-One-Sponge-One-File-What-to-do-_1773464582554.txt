@@ -1,0 +1,88 @@
+# TLSponge-385 Migration: One Sponge, One File
+
+## What to do
+
+1. Copy `tlsponge385.rs` to `ternary-math/src/tlsponge385.rs`
+2. Add `pub mod tlsponge385;` to `ternary-math/src/lib.rs`
+3. Delete the seven files listed below
+4. Find-and-replace all call sites (see mapping)
+5. Remove old module declarations from `lib.rs`
+6. Build, test, bench
+
+## Files to DELETE
+
+```bash
+# From ternary-math/src/:
+rm ternary-math/src/sponge.rs            # Original scalar — absorbed into tlsponge385.rs
+rm ternary-math/src/sponge_packed.rs      # GF(27) experiment — failed (16× slower)
+rm ternary-math/src/sponge_2bit.rs        # 2-bit packed experiment — failed (101× slower)
+rm ternary-math/src/sponge_dispatch.rs    # Dispatch layer — unnecessary with one sponge
+rm ternary-math/src/sponge_fast.rs        # Prototype — absorbed into tlsponge385.rs
+rm ternary-math/src/sponge_shuffle.rs     # σ shuffles — absorbed into sigma()
+rm ternary-math/src/gf27.rs              # GF(27) arithmetic — absorbed into compile-time χ table
+```
+
+## Call-site migration
+
+| Old call | New call |
+|----------|----------|
+| `ternary_math::sponge::derive_key(d, m, n)` | `ternary_math::tlsponge385::derive_key(d, m, n)` |
+| `ternary_math::sponge::hash_hex(input)` | `ternary_math::tlsponge385::hash_hex(input)` |
+| `ternary_math::sponge_packed::derive_key_packed(d, m, n)` | DELETE — use `tlsponge385::derive_key` |
+| `ternary_math::sponge_2bit::derive_key_2bit(d, m, n)` | DELETE — use `tlsponge385::derive_key` |
+| `ternary_math::sponge_dispatch::derive_key(d, m, n)` | `ternary_math::tlsponge385::derive_key(d, m, n)` |
+| `ternary_math::sponge_shuffle::shuffle_round_i8(s, r)` | DELETE — internal to tlsponge385 |
+| `ternary_math::sponge_shuffle::apply_tis27_sequence_i8(s)` | DELETE — internal to tlsponge385 |
+| `ternary_math::sponge_shuffle::apply_tlsponge_sequence_i8(s)` | DELETE — internal to tlsponge385 |
+| Any TIS-27 specific call | `ternary_math::tlsponge385::derive_key_tis(d, m, n)` |
+
+## For heartbeat/rekey/batch operations
+
+| Old pattern | New pattern |
+|-------------|-------------|
+| `for i in 0..26 { sponge::derive_key(...) }` | `tlsponge385::derive_key_batch(&domains, &materials, n)` |
+
+## lib.rs changes
+
+Remove:
+```rust
+// DELETE these lines:
+pub mod sponge;
+pub mod sponge_packed;
+pub mod sponge_2bit;
+pub mod sponge_dispatch;
+pub mod sponge_fast;
+pub mod sponge_shuffle;
+pub mod gf27;
+```
+
+Add:
+```rust
+// ADD this one line:
+pub mod tlsponge385;
+```
+
+## TypeScript/Node.js callers
+
+The N-API bridge calls into the Rust sponge. Update the bridge to point at `tlsponge385`:
+
+```
+// In the N-API binding (napi/src/lib.rs or similar):
+// Change: ternary_math::sponge::derive_key
+// To:     ternary_math::tlsponge385::derive_key
+```
+
+The TypeScript sponge fallback (`server/salvi-core/sponge.ts` or similar) is separate
+and stays as-is — it's the JS fallback for when the native addon isn't available.
+
+## Verification
+
+After migration, run:
+```bash
+cargo test -p ternary-math
+cargo bench --bench inter_cube
+```
+
+Expected: 27 tests pass in tlsponge385, all benchmarks run.
+The batch-26 test (`batch_26_all_different`) verifies that tritsliced output
+matches scalar output for all 26 instances — this is the correctness proof.

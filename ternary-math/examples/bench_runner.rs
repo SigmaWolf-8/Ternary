@@ -62,11 +62,11 @@ fn main() {
     println!();
     println!("── Sponge Core ─────────────────────────────────────────────────");
     run_n("sponge_hash", "< 5µs", || {
-        let h = ternary_math::sponge::hash(b"benchmark input data for hashing", 48);
+        let h = ternary_math::tlsponge385::derive_key(b"HASH", b"benchmark input data for hashing", 48);
         std::hint::black_box(h);
     }, 1000);
     run_n("sponge_derive_key", "< 5µs", || {
-        let k = ternary_math::sponge::derive_key(b"PlenumNET-BENCH", b"key material", 32);
+        let k = ternary_math::tlsponge385::derive_key(b"PlenumNET-BENCH", b"key material", 32);
         std::hint::black_box(k);
     }, 1000);
     
@@ -74,16 +74,16 @@ fn main() {
     println!();
     println!("── HMAC ────────────────────────────────────────────────────────");
     run_n("hmac_key_derive", "< 5µs", || {
-        let k = ternary_math::sponge::derive_key(b"PlenumNET-HB-HMAC", b"key-material", 48);
+        let k = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-HMAC", b"key-material", 48);
         std::hint::black_box(k);
     }, 1000);
     run_n("hmac_compute", "< 500ns", || {
-        let tag = ternary_math::sponge::derive_key(b"PlenumNET-HB-TAG", b"short-msg", 27);
+        let tag = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-TAG", b"short-msg", 27);
         std::hint::black_box(tag);
     }, 1000);
     run_n("hmac_verify", "< 500ns", || {
-        let t1 = ternary_math::sponge::derive_key(b"PlenumNET-HB-TAG", b"short-msg", 27);
-        let t2 = ternary_math::sponge::derive_key(b"PlenumNET-HB-TAG", b"short-msg", 27);
+        let t1 = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-TAG", b"short-msg", 27);
+        let t2 = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-TAG", b"short-msg", 27);
         let mut diff: u8 = 0;
         for i in 0..t1.len() { diff |= t1[i] ^ t2[i]; }
         std::hint::black_box(diff);
@@ -162,7 +162,7 @@ fn main() {
         std::hint::black_box((sum%333) as u32);
     }, 100000);
     run_n("lattice_key_derive", "< 5µs", || {
-        let k = ternary_math::sponge::derive_key(b"PlenumNET-LATTICE-KEY", b"kem-secret-plus-lattice", 32);
+        let k = ternary_math::tlsponge385::derive_key(b"PlenumNET-LATTICE-KEY", b"kem-secret-plus-lattice", 32);
         std::hint::black_box(k);
     }, 1000);
     
@@ -170,11 +170,11 @@ fn main() {
     println!();
     println!("── Identity ────────────────────────────────────────────────────");
     run_n("identity_seed_derive", "< 5µs", || {
-        let k = ternary_math::sponge::derive_key(b"PlenumNET-IDENTITY", b"addr-plus-secret-material", 128);
+        let k = ternary_math::tlsponge385::derive_key(b"PlenumNET-IDENTITY", b"addr-plus-secret-material", 128);
         std::hint::black_box(k);
     }, 1000);
     run_n("identity_keypair_derive", "< 5ms", || {
-        let seed = ternary_math::sponge::derive_key(b"PlenumNET-IDENTITY", b"addr-plus-secret", 128);
+        let seed = ternary_math::tlsponge385::derive_key(b"PlenumNET-IDENTITY", b"addr-plus-secret", 128);
         let kp = ternary_math::tl_dsa::keygen(ternary_math::tl_dsa::TlDsaVariant::TlDsa87, Some(&seed));
         std::hint::black_box(kp);
     }, 5);
@@ -183,15 +183,15 @@ fn main() {
     println!();
     println!("── Tunnel Auth ─────────────────────────────────────────────────");
     run_n("tunnel_auth_response", "< 5µs", || {
-        let k = ternary_math::sponge::derive_key(b"PlenumNET-TUN-AUTH", b"kem+challenge+addrs+RESPONSE", 32);
+        let k = ternary_math::tlsponge385::derive_key(b"PlenumNET-TUN-AUTH", b"kem+challenge+addrs+RESPONSE", 32);
         std::hint::black_box(k);
     }, 1000);
     run_n("tunnel_handshake_3msg", "< 20ms", || {
-        let c1 = ternary_math::sponge::derive_key(b"PlenumNET-TUN-NONCE", b"seed-a", 32);
-        let r = ternary_math::sponge::derive_key(b"PlenumNET-TUN-AUTH", b"kem+chal+addrs+RESPONSE", 32);
-        let c2 = ternary_math::sponge::derive_key(b"PlenumNET-TUN-NONCE", b"seed-b", 32);
-        let v = ternary_math::sponge::derive_key(b"PlenumNET-TUN-AUTH", b"kem+chal+addrs+RESPONSE", 32);
-        let conf = ternary_math::sponge::derive_key(b"PlenumNET-TUN-AUTH", b"kem+chal+addrs+CONFIRM", 32);
+        let c1 = ternary_math::tlsponge385::derive_key(b"PlenumNET-TUN-NONCE", b"seed-a", 32);
+        let r = ternary_math::tlsponge385::derive_key(b"PlenumNET-TUN-AUTH", b"kem+chal+addrs+RESPONSE", 32);
+        let c2 = ternary_math::tlsponge385::derive_key(b"PlenumNET-TUN-NONCE", b"seed-b", 32);
+        let v = ternary_math::tlsponge385::derive_key(b"PlenumNET-TUN-AUTH", b"kem+chal+addrs+RESPONSE", 32);
+        let conf = ternary_math::tlsponge385::derive_key(b"PlenumNET-TUN-AUTH", b"kem+chal+addrs+CONFIRM", 32);
         std::hint::black_box((c1, r, c2, v, conf));
     }, 100);
     
@@ -199,15 +199,15 @@ fn main() {
     println!();
     println!("── Heartbeat Pipeline ──────────────────────────────────────────");
     run_n("heartbeat_pipeline_single", "< 1.2µs", || {
-        let key = ternary_math::sponge::derive_key(b"PlenumNET-HB-HMAC", b"key-material", 48);
-        let tag = ternary_math::sponge::derive_key(b"PlenumNET-HB-TAG", &[key.as_slice(), b"heartbeat"].concat(), 27);
+        let key = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-HMAC", b"key-material", 48);
+        let tag = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-TAG", &[key.as_slice(), b"heartbeat"].concat(), 27);
         std::hint::black_box(tag);
     }, 1000);
     run_n("heartbeat_26_neighbors", "< 50µs", || {
         for i in 0..26u8 {
             let mut km = Vec::with_capacity(13); km.extend_from_slice(b"key-material"); km.push(i);
-            let key = ternary_math::sponge::derive_key(b"PlenumNET-HB-HMAC", &km, 48);
-            let tag = ternary_math::sponge::derive_key(b"PlenumNET-HB-TAG", &[key.as_slice(), b"hb"].concat(), 27);
+            let key = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-HMAC", &km, 48);
+            let tag = ternary_math::tlsponge385::derive_key(b"PlenumNET-HB-TAG", &[key.as_slice(), b"hb"].concat(), 27);
             std::hint::black_box(tag);
         }
     }, 50);
@@ -216,46 +216,46 @@ fn main() {
     println!();
     println!("── PT26-DSA (Parallel Traversals × 26 ports) ────────────────");
     run_n("pt26_schedule_derive", "< 5µs", || {
-        let s = ternary_math::sponge::derive_key(b"PT26-SCHEDULE", b"addr+secret-material", 42);
-        let w = ternary_math::sponge::derive_key(b"PT26-WEIGHT", b"addr+secret-material", 27);
+        let s = ternary_math::tlsponge385::derive_key(b"PT26-SCHEDULE", b"addr+secret-material", 42);
+        let w = ternary_math::tlsponge385::derive_key(b"PT26-WEIGHT", b"addr+secret-material", 27);
         std::hint::black_box((s, w));
     }, 1000);
     run_n("pt26_keygen", "< 20µs", || {
-        let s = ternary_math::sponge::derive_key(b"PT26-SCHEDULE", b"addr+secret", 42);
-        let w = ternary_math::sponge::derive_key(b"PT26-WEIGHT", b"addr+secret", 27);
+        let s = ternary_math::tlsponge385::derive_key(b"PT26-SCHEDULE", b"addr+secret", 42);
+        let w = ternary_math::tlsponge385::derive_key(b"PT26-WEIGHT", b"addr+secret", 27);
         let mut m = Vec::with_capacity(69); m.extend_from_slice(&s); m.extend_from_slice(&w);
-        let pk = ternary_math::sponge::derive_key(b"PT26-PK", &m, 48);
+        let pk = ternary_math::tlsponge385::derive_key(b"PT26-PK", &m, 48);
         std::hint::black_box(pk);
     }, 1000);
     run_n("pt26_sign (h=9)", "< 50µs", || {
-        let mh = ternary_math::sponge::derive_key(b"PT26-MSG", b"benchmark message", 48);
+        let mh = ternary_math::tlsponge385::derive_key(b"PT26-MSG", b"benchmark message", 48);
         for step in 0..9u8 {
             let mut m = Vec::with_capacity(60); m.extend_from_slice(b"addr+dest+weight"); m.push(step);
-            let c = ternary_math::sponge::derive_key(b"PT26-STEP", &m, 48);
+            let c = ternary_math::tlsponge385::derive_key(b"PT26-STEP", &m, 48);
             std::hint::black_box(c);
         }
-        let sc = ternary_math::sponge::derive_key(b"PT26-SIG", &mh, 48);
+        let sc = ternary_math::tlsponge385::derive_key(b"PT26-SIG", &mh, 48);
         std::hint::black_box(sc);
     }, 100);
     run_n("pt26_verify_local (h=9)", "< 130µs", || {
-        let mh = ternary_math::sponge::derive_key(b"PT26-MSG", b"benchmark message", 48);
+        let mh = ternary_math::tlsponge385::derive_key(b"PT26-MSG", b"benchmark message", 48);
         // 9 differing dims × 4 σ trials × 1 check each = 36 KDFs
         for _dim in 0..9 {
             for _sigma in 0..4 {
-                let c = ternary_math::sponge::derive_key(b"PT26-STEP", b"addr+dest+weight+pos", 48);
+                let c = ternary_math::tlsponge385::derive_key(b"PT26-STEP", b"addr+dest+weight+pos", 48);
                 std::hint::black_box(c);
             }
         }
-        let sc = ternary_math::sponge::derive_key(b"PT26-SIG", &mh, 48);
+        let sc = ternary_math::tlsponge385::derive_key(b"PT26-SIG", &mh, 48);
         std::hint::black_box(sc);
     }, 50);
     run_n("pt26_verify_26port_sim", "< 15µs", || {
         // Parallel: only 4 σ trials (single port bottleneck)
         for _sigma in 0..4 {
-            let c = ternary_math::sponge::derive_key(b"PT26-STEP", b"addr+dest+weight+pos", 48);
+            let c = ternary_math::tlsponge385::derive_key(b"PT26-STEP", b"addr+dest+weight+pos", 48);
             std::hint::black_box(c);
         }
-        let sc = ternary_math::sponge::derive_key(b"PT26-SIG", b"aggregate", 48);
+        let sc = ternary_math::tlsponge385::derive_key(b"PT26-SIG", b"aggregate", 48);
         std::hint::black_box(sc);
     }, 1000);
     
@@ -296,17 +296,17 @@ fn main() {
     }, 100);
     run_n("tl_dsa_v2_keygen", "< 100µs", || {
         for i in 0..56u32 {
-            let s = ternary_math::sponge::derive_key(b"TLDSAv2-EXPAND", &i.to_le_bytes(), 32);
+            let s = ternary_math::tlsponge385::derive_key(b"TLDSAv2-EXPAND", &i.to_le_bytes(), 32);
             std::hint::black_box(s);
         }
-        let s1 = ternary_math::sponge::derive_key(b"TLDSAv2-SECRET", b"s1-seed", 243);
-        let s2 = ternary_math::sponge::derive_key(b"TLDSAv2-SECRET", b"s2-seed", 243);
+        let s1 = ternary_math::tlsponge385::derive_key(b"TLDSAv2-SECRET", b"s1-seed", 243);
+        let s2 = ternary_math::tlsponge385::derive_key(b"TLDSAv2-SECRET", b"s2-seed", 243);
         std::hint::black_box((s1, s2));
     }, 10);
     run_n("tl_dsa_v2_sign", "< 50µs", || {
         for attempt in 0..4u32 {
-            let y = ternary_math::sponge::derive_key(b"TLDSAv2-MASK", &attempt.to_le_bytes(), 243);
-            let ch = ternary_math::sponge::derive_key(b"TLDSAv2-CHAL", &y[..32], 48);
+            let y = ternary_math::tlsponge385::derive_key(b"TLDSAv2-MASK", &attempt.to_le_bytes(), 243);
+            let ch = ternary_math::tlsponge385::derive_key(b"TLDSAv2-CHAL", &y[..32], 48);
             if attempt == 3 { std::hint::black_box(ch); break; }
         }
     }, 50);
@@ -314,7 +314,7 @@ fn main() {
         let q: u64 = 7_340_033;
         let mut z = [0u64; 243];
         for i in 0..243 { z[i] = (i as u64*7919+42)%q; }
-        let h = ternary_math::sponge::derive_key(b"TLDSAv2-VERIFY", &z[..32].iter().map(|x| *x as u8).collect::<Vec<_>>(), 48);
+        let h = ternary_math::tlsponge385::derive_key(b"TLDSAv2-VERIFY", &z[..32].iter().map(|x| *x as u8).collect::<Vec<_>>(), 48);
         std::hint::black_box(h);
     }, 100);
     

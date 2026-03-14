@@ -11,7 +11,7 @@
 //! **100% coverage.** Every cryptographic module. Every operation.
 //! Every roundtrip. Nothing deferred. Nothing missing.
 //!
-//! ## Module Coverage (104 benchmarks)
+//! ## Module Coverage (100 benchmarks)
 //!
 //! | Category | Count | Modules |
 //! |----------|-------|---------|
@@ -39,8 +39,7 @@
 //! | Hedera / blockchain | 2 | Submit, verify witness |
 //! | RSA-4096 | 2 | Sign, verify |
 //! | Roundtrips | 13 | All scheme sign+verify totals |
-//! | A/B sponge | 4 | Scalar vs 2-bit packed |
-//! | **Total** | **104** | |
+//! | **Total** | **100** | |
 
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -57,7 +56,7 @@ fn make_addr(index: usize) -> [u8; 13] {
 }
 
 fn sponge_kdf(domain: &[u8], material: &[u8], len: usize) -> Vec<u8> {
-    ternary_math::sponge::derive_key(domain, material, len)
+    ternary_math::tlsponge385::derive_key(domain, material, len)
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -419,7 +418,7 @@ pub fn bench_rsa_4096_verify() {
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_sponge_hash() {
-    black_box(ternary_math::sponge::hash_hex(b"benchmark sponge hash input"));
+    black_box(ternary_math::tlsponge385::hash_hex(b"benchmark sponge hash input"));
 }
 
 pub fn bench_sponge_derive_key() {
@@ -468,23 +467,56 @@ pub fn bench_hmac_verify() {
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_sigma_shuffle_round() {
-    let mut s = [0i8; 729];
-    for i in 0..729 { s[i] = (i % 3) as i8 - 1; }
-    ternary_math::sponge_shuffle::shuffle_round_i8(&mut s, 0);
-    black_box(s);
+    const SIGMA_A: [usize; 9] = [4, 8, 3, 2, 0, 7, 5, 6, 1];
+    let mut s = [0u8; 729];
+    for i in 0..729 { s[i] = (i % 3) as u8; }
+    let mut tmp = [0u8; 729];
+    for dst in 0..9 {
+        let src = SIGMA_A[dst];
+        tmp[dst*81..(dst+1)*81].copy_from_slice(&s[src*81..(src+1)*81]);
+    }
+    black_box(tmp);
 }
 
 pub fn bench_sigma_tis27_4rounds() {
-    let mut s = [0i8; 729];
-    for i in 0..729 { s[i] = (i % 3) as i8 - 1; }
-    ternary_math::sponge_shuffle::apply_tis27_sequence_i8(&mut s);
+    const SIGMAS: [[usize; 9]; 4] = [
+        [4, 8, 3, 2, 0, 7, 5, 6, 1],
+        [6, 0, 7, 8, 4, 2, 3, 1, 5],
+        [2, 6, 7, 8, 4, 0, 1, 5, 3],
+        [8, 5, 0, 1, 4, 6, 7, 3, 2],
+    ];
+    let mut s = [0u8; 729];
+    for i in 0..729 { s[i] = (i % 3) as u8; }
+    for round in 0..4 {
+        let perm = &SIGMAS[round % 4];
+        let mut tmp = [0u8; 729];
+        for dst in 0..9 {
+            let src = perm[dst];
+            tmp[dst*81..(dst+1)*81].copy_from_slice(&s[src*81..(src+1)*81]);
+        }
+        s = tmp;
+    }
     black_box(s);
 }
 
 pub fn bench_sigma_tlsponge_9rounds() {
-    let mut s = [0i8; 729];
-    for i in 0..729 { s[i] = (i % 3) as i8 - 1; }
-    ternary_math::sponge_shuffle::apply_tlsponge_sequence_i8(&mut s);
+    const SIGMAS: [[usize; 9]; 4] = [
+        [4, 8, 3, 2, 0, 7, 5, 6, 1],
+        [6, 0, 7, 8, 4, 2, 3, 1, 5],
+        [2, 6, 7, 8, 4, 0, 1, 5, 3],
+        [8, 5, 0, 1, 4, 6, 7, 3, 2],
+    ];
+    let mut s = [0u8; 729];
+    for i in 0..729 { s[i] = (i % 3) as u8; }
+    for round in 0..9 {
+        let perm = &SIGMAS[round % 4];
+        let mut tmp = [0u8; 729];
+        for dst in 0..9 {
+            let src = perm[dst];
+            tmp[dst*81..(dst+1)*81].copy_from_slice(&s[src*81..(src+1)*81]);
+        }
+        s = tmp;
+    }
     black_box(s);
 }
 
@@ -931,38 +963,9 @@ pub fn bench_rt_zk_full() {
     bench_zk_prove(); bench_zk_verify();
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// 28. A/B Sponge (Scalar vs 2-Bit Packed) — 4 benchmarks
-// ═══════════════════════════════════════════════════════════════════════
-
-pub fn bench_ab_derive_key_scalar() {
-    black_box(ternary_math::sponge::derive_key(b"AB-SCALAR", b"benchmark-material", 48));
-}
-
-pub fn bench_ab_derive_key_2bit() {
-    black_box(ternary_math::sponge_2bit::derive_key_2bit(b"AB-2BIT", b"benchmark-material", 48));
-}
-
-pub fn bench_ab_heartbeat_26_scalar() {
-    for i in 0..26u8 {
-        let mut km = Vec::with_capacity(49); km.extend_from_slice(b"key-mat"); km.push(i);
-        let k = ternary_math::sponge::derive_key(b"HB-HMAC", &km, 48);
-        let t = ternary_math::sponge::derive_key(b"HB-TAG", &[k.as_slice(),b"hb"].concat(), 27);
-        black_box(t);
-    }
-}
-
-pub fn bench_ab_heartbeat_26_2bit() {
-    for i in 0..26u8 {
-        let mut km = Vec::with_capacity(49); km.extend_from_slice(b"key-mat"); km.push(i);
-        let k = ternary_math::sponge_2bit::derive_key_2bit(b"HB-HMAC", &km, 48);
-        let t = ternary_math::sponge_2bit::derive_key_2bit(b"HB-TAG", &[k.as_slice(),b"hb"].concat(), 27);
-        black_box(t);
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════════════
-// COMPLETE REGISTRY — 104 benchmarks
+// COMPLETE REGISTRY — 100 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
 
 pub struct BenchmarkEntry {
@@ -1101,15 +1104,10 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "rt_merkle_full", category: "Roundtrip", target: "< 400µs", run: bench_rt_merkle_full },
         BenchmarkEntry { name: "rt_lamport_full", category: "Roundtrip", target: "< 10ms", run: bench_rt_lamport_full },
         BenchmarkEntry { name: "rt_zk_full", category: "Roundtrip", target: "< 60µs", run: bench_rt_zk_full },
-        // 28. A/B Sponge (4)
-        BenchmarkEntry { name: "ab_derive_key_scalar", category: "A/B", target: "~8µs", run: bench_ab_derive_key_scalar },
-        BenchmarkEntry { name: "ab_derive_key_2bit", category: "A/B", target: "< 1.5µs", run: bench_ab_derive_key_2bit },
-        BenchmarkEntry { name: "ab_heartbeat26_scalar", category: "A/B", target: "~560µs", run: bench_ab_heartbeat_26_scalar },
-        BenchmarkEntry { name: "ab_heartbeat26_2bit", category: "A/B", target: "< 85µs", run: bench_ab_heartbeat_26_2bit },
     ]
 }
 
-/// Smoke test: run all 104 benchmarks once.
+/// Smoke test: run all 100 benchmarks once.
 pub fn smoke_test_all() -> Vec<(&'static str, &'static str, u64)> {
     all_benchmarks().iter().map(|b| {
         let start = std::time::Instant::now();
@@ -1309,13 +1307,6 @@ fn criterion_roundtrip(c: &mut Criterion) {
     c.bench_function("rt_zk_full", |b| b.iter(bench_rt_zk_full));
 }
 
-fn criterion_sponge_ab(c: &mut Criterion) {
-    c.bench_function("ab_derive_key_scalar", |b| b.iter(bench_ab_derive_key_scalar));
-    c.bench_function("ab_derive_key_2bit", |b| b.iter(bench_ab_derive_key_2bit));
-    c.bench_function("ab_heartbeat26_scalar", |b| b.iter(bench_ab_heartbeat_26_scalar));
-    c.bench_function("ab_heartbeat26_2bit", |b| b.iter(bench_ab_heartbeat_26_2bit));
-}
-
 criterion_group!(
     benches,
     criterion_tl_dsa_v1,
@@ -1347,7 +1338,6 @@ criterion_group!(
     criterion_hedera,
     criterion_lamport,
     criterion_roundtrip,
-    criterion_sponge_ab,
 );
 criterion_main!(benches);
 
@@ -1363,7 +1353,7 @@ mod tests {
     #[test]
     fn all_104_benchmarks_run() {
         let results = smoke_test_all();
-        assert_eq!(results.len(), 104, "Must have exactly 104 benchmarks");
+        assert_eq!(results.len(), 100, "Must have exactly 100 benchmarks");
         for (name, _, elapsed) in &results {
             assert!(*elapsed > 0, "Benchmark {} must take non-zero time", name);
         }

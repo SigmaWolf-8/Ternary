@@ -42,7 +42,7 @@
 //!
 //! ## Created by T-03 (SPEC-2026-NEXT)
 
-use crate::sponge::derive_key;
+use crate::tlsponge385::derive_key;
 
 // ═══════════════════════════════════════════════════════════════════════
 // VARIANT PARAMETERS
