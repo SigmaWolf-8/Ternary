@@ -1,0 +1,103 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $base = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main"
+PS C:\Users\Sigma> $headers = @{ "Accept" = "application/vnd.github.v3.raw" }
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # Download the three key files
+PS C:\Users\Sigma> Invoke-WebRequest "$base/ternary-math/src/tlsponge385.rs" -OutFile "C:\PlenumNET\ternary-math\src\tlsponge385.rs" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/ternary-math/src/lib.rs" -OutFile "C:\PlenumNET\ternary-math\src\lib.rs" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/ternary-math/benches/inter_cube.rs" -OutFile "C:\PlenumNET\ternary-math\benches\inter_cube.rs" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/ternary-math/Cargo.toml" -OutFile "C:\PlenumNET\ternary-math\Cargo.toml" -Headers $headers
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Write-Host "Downloaded: tlsponge385.rs, lib.rs, inter_cube.rs, Cargo.toml"
+Downloaded: tlsponge385.rs, lib.rs, inter_cube.rs, Cargo.toml
+PS C:\Users\Sigma> Write-Host "Now run: cd C:\PlenumNET; cargo bench --bench inter_cube"
+Now run: cd C:\PlenumNET; cargo bench --bench inter_cube
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> cargo bench --bench inter_cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: output filename collision at C:\PlenumNET\target\release\deps\ternary_math.pdb
+  |
+  = note: the bin target `ternary-math` in package `ternary-math v0.1.0 (C:\PlenumNET\ternary-math)` has the same output filename as the lib target `ternary_math` in package `ternary-math v0.1.0 (C:\PlenumNET\ternary-math)`
+  = note: if this looks unexpected, it may be a bug in Cargo. Please file a bug report at https://github.com/rust-lang/cargo/issues/ with as much information as you can provide.
+  = note: cargo 1.94.0 (85eff7c80 2026-01-15) running on `aarch64-pc-windows-msvc` target `aarch64-pc-windows-msvc`
+  = note: first unit: Unit { pkg: Package { id: PackageId { name: "ternary-math", version: "0.1.0", source: "C:\\PlenumNET\\ternary-math" }, ..: ".." }, target: TargetInner { name: "ternary-math", doc: true, ..: with_path("C:\\PlenumNET\\ternary-math\\src\\main.rs", Edition2021) }, profile: Profile { name: "bench", opt_level: "3", lto: Named("fat"), root: Release, codegen_units: Some(1), strip: Resolved(Named("debuginfo")), ..: default() }, kind: Host, mode: Build, features: [], rustflags: [], rustdocflags: [], links_overrides: {}, artifact: false, artifact_target_for_features: None, is_std: false, dep_hash: 2938645644438324531 }
+  = note: second unit: Unit { pkg: Package { id: PackageId { name: "ternary-math", version: "0.1.0", source: "C:\\PlenumNET\\ternary-math" }, ..: ".." }, target: TargetInner { name_inferred: true, ..: lib_target("ternary_math", ["lib", "cdylib"], "C:\\PlenumNET\\ternary-math\\src\\lib.rs", Edition2021) }, profile: Profile { name: "bench", opt_level: "3", lto: Named("fat"), root: Release, codegen_units: Some(1), strip: Resolved(Named("debuginfo")), ..: default() }, kind: Host, mode: Build, features: [], rustflags: [], rustdocflags: [], links_overrides: {}, artifact: false, artifact_target_for_features: None, is_std: false, dep_hash: 4045701179481602246 }
+   Compiling wasm-bindgen-shared v0.2.114
+   Compiling cfg-if v1.0.4
+   Compiling rustversion v1.0.22
+   Compiling bumpalo v3.20.2
+   Compiling unicode-ident v1.0.24
+   Compiling once_cell v1.21.3
+   Compiling half v2.4.1
+   Compiling ciborium-ll v0.2.2
+   Compiling ciborium v0.2.2
+   Compiling wasm-bindgen-macro-support v0.2.114
+   Compiling wasm-bindgen v0.2.114
+   Compiling criterion v0.5.1
+   Compiling wasm-bindgen-macro v0.2.114
+   Compiling ternary-math v0.1.0 (C:\PlenumNET\ternary-math)
+error[E0583]: file not found for module `plenum_checksum`
+  --> ternary-math\src\lib.rs:39:1
+   |
+39 | pub mod plenum_checksum;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: to create the module `plenum_checksum`, create file "ternary-math\src\plenum_checksum.rs" or "ternary-math\src\plenum_checksum\mod.rs"
+   = note: if there is a `mod plenum_checksum` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `tl_dsa`
+  --> ternary-math\src\lib.rs:43:1
+   |
+43 | pub mod tl_dsa;
+   | ^^^^^^^^^^^^^^^
+   |
+   = help: to create the module `tl_dsa`, create file "ternary-math\src\tl_dsa.rs" or "ternary-math\src\tl_dsa\mod.rs"
+   = note: if there is a `mod tl_dsa` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `plenum_square`
+  --> ternary-math\src\lib.rs:44:1
+   |
+44 | pub mod plenum_square;
+   | ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: to create the module `plenum_square`, create file "ternary-math\src\plenum_square.rs" or "ternary-math\src\plenum_square\mod.rs"
+   = note: if there is a `mod plenum_square` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `cube_addr`
+  --> ternary-math\src\lib.rs:45:1
+   |
+45 | pub mod cube_addr;
+   | ^^^^^^^^^^^^^^^^^^
+   |
+   = help: to create the module `cube_addr`, create file "ternary-math\src\cube_addr.rs" or "ternary-math\src\cube_addr\mod.rs"
+   = note: if there is a `mod cube_addr` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `pt26_dsa`
+  --> ternary-math\src\lib.rs:46:1
+   |
+46 | pub mod pt26_dsa;
+   | ^^^^^^^^^^^^^^^^^
+   |
+   = help: to create the module `pt26_dsa`, create file "ternary-math\src\pt26_dsa.rs" or "ternary-math\src\pt26_dsa\mod.rs"
+   = note: if there is a `mod pt26_dsa` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `pt26_walk`
+  --> ternary-math\src\lib.rs:47:1
+   |
+47 | pub mod pt26_walk;
+   | ^^^^^^^^^^^^^^^^^^
+   |
+   = help: to create the module `pt26_walk`, create file "ternary-math\src\pt26_walk.rs" or "ternary-math\src\pt26_walk\mod.rs"
+   = note: if there is a `mod pt26_walk` elsewhere in the crate already, import it with `use crate::...` instead
+
+For more information about this error, try `rustc --explain E0583`.
+error: could not compile `ternary-math` (lib) due to 6 previous errors
+warning: build failed, waiting for other jobs to finish...
+PS C:\PlenumNET>
