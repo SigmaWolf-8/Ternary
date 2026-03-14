@@ -1,494 +1,2132 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PlenumNET Benchmark Report — 65DD00A4</title>
-<style>
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text-dim: #8b949e;
-    --green: #3fb950;
-    --green-bg: rgba(63,185,80,0.12);
-    --blue: #58a6ff;
-    --blue-bg: rgba(88,166,255,0.12);
-    --yellow: #d29922;
-    --yellow-bg: rgba(210,153,34,0.12);
-    --red: #f85149;
-    --red-bg: rgba(248,81,73,0.12);
-    --purple: #bc8cff;
-    --purple-bg: rgba(188,140,255,0.12);
-    --orange: #f0883e;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem; max-width: 1200px; margin: 0 auto; }
-  h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
-  h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: var(--blue); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
-  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; color: var(--text); }
-  .meta { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 2rem; }
-  .meta span { margin-right: 1.5rem; }
-  .meta code { background: var(--surface); padding: 2px 6px; border-radius: 4px; color: var(--blue); }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlenumNET Benchmark Report — 65DD00A4</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --text-dim: #8b949e;
+        --green: #3fb950;
+        --green-bg: rgba(63, 185, 80, 0.12);
+        --blue: #58a6ff;
+        --blue-bg: rgba(88, 166, 255, 0.12);
+        --yellow: #d29922;
+        --yellow-bg: rgba(210, 153, 34, 0.12);
+        --red: #f85149;
+        --red-bg: rgba(248, 81, 73, 0.12);
+        --purple: #bc8cff;
+        --purple-bg: rgba(188, 140, 255, 0.12);
+        --orange: #f0883e;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        font-size: 1.4rem;
+        margin: 2rem 0 1rem;
+        color: var(--blue);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+      }
+      h3 {
+        font-size: 1.1rem;
+        margin: 1.5rem 0 0.5rem;
+        color: var(--text);
+      }
+      .meta {
+        color: var(--text-dim);
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+      }
+      .meta span {
+        margin-right: 1.5rem;
+      }
+      .meta code {
+        background: var(--surface);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--blue);
+      }
 
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; text-align: center; }
-  .summary-card .value { font-size: 2rem; font-weight: 700; }
-  .summary-card .label { font-size: 0.85rem; color: var(--text-dim); margin-top: 0.3rem; }
-  .summary-card.prod .value { color: var(--green); }
-  .summary-card.forge .value { color: var(--yellow); }
-  .summary-card.total .value { color: var(--blue); }
-  .summary-card.time .value { color: var(--purple); }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+      .summary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.2rem;
+        text-align: center;
+      }
+      .summary-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+      }
+      .summary-card .label {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+      }
+      .summary-card.prod .value {
+        color: var(--green);
+      }
+      .summary-card.forge .value {
+        color: var(--yellow);
+      }
+      .summary-card.total .value {
+        color: var(--blue);
+      }
+      .summary-card.time .value {
+        color: var(--purple);
+      }
 
-  .grade-legend { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; font-size: 0.85rem; }
-  .grade-legend span { display: inline-flex; align-items: center; gap: 4px; }
+      .grade-legend {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin: 1rem 0 1.5rem;
+        font-size: 0.85rem;
+      }
+      .grade-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
 
-  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 1.5rem; font-size: 0.9rem; }
-  th { background: var(--surface); text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid var(--border); white-space: nowrap; }
-  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
-  tr:hover td { background: rgba(255,255,255,0.03); }
-  td:nth-child(2), td:nth-child(3) { font-family: 'SF Mono', 'Fira Code', monospace; text-align: right; white-space: nowrap; }
-  th:nth-child(2), th:nth-child(3) { text-align: right; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.8rem 0 1.5rem;
+        font-size: 0.9rem;
+      }
+      th {
+        background: var(--surface);
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: 600;
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+      }
+      td {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      td:nth-child(2),
+      td:nth-child(3) {
+        font-family: "SF Mono", "Fira Code", monospace;
+        text-align: right;
+        white-space: nowrap;
+      }
+      th:nth-child(2),
+      th:nth-child(3) {
+        text-align: right;
+      }
 
-  .grade { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
-  .grade-plenum { background: var(--blue-bg); color: var(--blue); }
-  .grade-pass { background: var(--green-bg); color: var(--green); }
-  .grade-starpass { background: var(--green-bg); color: var(--green); opacity: 0.8; }
-  .grade-fail { background: var(--yellow-bg); color: var(--yellow); }
-  .grade-diagnose { background: var(--red-bg); color: var(--red); }
-  .pq { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; background: var(--purple-bg); color: var(--purple); }
+      .grade {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .grade-plenum {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      .grade-pass {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .grade-starpass {
+        background: var(--green-bg);
+        color: var(--green);
+        opacity: 0.8;
+      }
+      .grade-fail {
+        background: var(--yellow-bg);
+        color: var(--yellow);
+      }
+      .grade-diagnose {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .pq {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: var(--purple-bg);
+        color: var(--purple);
+      }
 
-  .total-row td { font-weight: 700; background: rgba(255,255,255,0.02); border-top: 2px solid var(--border); }
-  .section-ref { color: var(--text-dim); font-size: 0.85rem; font-style: italic; margin-bottom: 0.8rem; }
+      .total-row td {
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.02);
+        border-top: 2px solid var(--border);
+      }
+      .section-ref {
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        font-style: italic;
+        margin-bottom: 0.8rem;
+      }
 
-  .comparison-table td:first-child { font-weight: 600; }
-  .comparison-table tr.highlight td { background: rgba(88,166,255,0.08); }
+      .comparison-table td:first-child {
+        font-weight: 600;
+      }
+      .comparison-table tr.highlight td {
+        background: rgba(88, 166, 255, 0.08);
+      }
 
-  .category-summary td:nth-child(1) { font-weight: 600; }
-  .status-prod { color: var(--green); }
-  .status-forge { color: var(--yellow); }
+      .category-summary td:nth-child(1) {
+        font-weight: 600;
+      }
+      .status-prod {
+        color: var(--green);
+      }
+      .status-forge {
+        color: var(--yellow);
+      }
 
-  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 0.85rem; }
+      .footer {
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 0.85rem;
+      }
 
-  @media (max-width: 768px) {
-    body { padding: 1rem; }
-    .summary-grid { grid-template-columns: repeat(2, 1fr); }
-    table { font-size: 0.8rem; }
-    td, th { padding: 6px 8px; }
-  }
-</style>
-</head>
-<body>
+      @media (max-width: 768px) {
+        body {
+          padding: 1rem;
+        }
+        .summary-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        table {
+          font-size: 0.8rem;
+        }
+        td,
+        th {
+          padding: 6px 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>PlenumNET / Salvi Framework — Benchmark Report</h1>
+    <div class="meta">
+      <span>Date: <strong>2026-03-14</strong></span>
+      <span>Run ID: <code>65DD00A4</code></span>
+      <span>Suite: v6 (109 benchmarks, 100 iterations)</span>
+      <span>Arch: ARM64 (aarch64), NEON SIMD</span>
+    </div>
 
-<h1>PlenumNET / Salvi Framework — Benchmark Report</h1>
-<div class="meta">
-  <span>Date: <strong>2026-03-14</strong></span>
-  <span>Run ID: <code>65DD00A4</code></span>
-  <span>Suite: v6 (109 benchmarks, 100 iterations)</span>
-  <span>Arch: ARM64 (aarch64), NEON SIMD</span>
-</div>
+    <h2>Executive Summary</h2>
+    <div class="summary-grid">
+      <div class="summary-card total">
+        <div class="value">109</div>
+        <div class="label">Total Benchmarks</div>
+      </div>
+      <div class="summary-card prod">
+        <div class="value">51/70</div>
+        <div class="label">Production Grade (73%)</div>
+      </div>
+      <div class="summary-card forge">
+        <div class="value">14/39</div>
+        <div class="label">In The Forge (36%)</div>
+      </div>
+      <div class="summary-card time">
+        <div class="value">208 ms</div>
+        <div class="label">Grand Total</div>
+      </div>
+    </div>
 
-<h2>Executive Summary</h2>
-<div class="summary-grid">
-  <div class="summary-card total"><div class="value">109</div><div class="label">Total Benchmarks</div></div>
-  <div class="summary-card prod"><div class="value">51/70</div><div class="label">Production Grade (73%)</div></div>
-  <div class="summary-card forge"><div class="value">14/39</div><div class="label">In The Forge (36%)</div></div>
-  <div class="summary-card time"><div class="value">208 ms</div><div class="label">Grand Total</div></div>
-</div>
+    <div class="grade-legend">
+      <span><span class="grade grade-plenum">Plenum+</span> ≤50% target</span>
+      <span><span class="grade grade-pass">Pass</span> ≤target</span>
+      <span><span class="grade grade-starpass">*Pass</span> ≤115%</span>
+      <span><span class="grade grade-fail">FAIL</span> &gt;115%</span>
+      <span><span class="grade grade-diagnose">DIAGNOSE</span> &gt;500%</span>
+      <span><span class="pq">PQ</span> Post-quantum verifiable</span>
+    </div>
 
-<div class="grade-legend">
-  <span><span class="grade grade-plenum">Plenum+</span> ≤50% target</span>
-  <span><span class="grade grade-pass">Pass</span> ≤target</span>
-  <span><span class="grade grade-starpass">*Pass</span> ≤115%</span>
-  <span><span class="grade grade-fail">FAIL</span> &gt;115%</span>
-  <span><span class="grade grade-diagnose">DIAGNOSE</span> &gt;500%</span>
-  <span><span class="pq">PQ</span> Post-quantum verifiable</span>
-</div>
+    <h2>Industry Comparison — Post-Quantum Signatures (1KB message)</h2>
+    <table class="comparison-table">
+      <tr>
+        <th>Scheme</th>
+        <th>Keygen</th>
+        <th>Sign</th>
+        <th>Verify</th>
+        <th>Roundtrip</th>
+        <th>Sig Size</th>
+        <th>Security</th>
+        <th>Ref</th>
+      </tr>
+      <tr class="highlight">
+        <td>PT26-DSA (Salvi)</td>
+        <td>6.40 µs</td>
+        <td>46.40 µs</td>
+        <td>53.30 µs</td>
+        <td>105.80 µs</td>
+        <td>71 B</td>
+        <td>Ternary Hypercube Walk</td>
+        <td>This run</td>
+      </tr>
+      <tr>
+        <td>ML-DSA-65 (NIST ref)</td>
+        <td>~150 µs</td>
+        <td>~300 µs</td>
+        <td>~150 µs</td>
+        <td>~600 µs</td>
+        <td>3,309 B</td>
+        <td>Module-LWE</td>
+        <td>FIPS 204</td>
+      </tr>
+      <tr>
+        <td>ML-DSA-65 (peak ARM64)</td>
+        <td>~80 µs</td>
+        <td>~80 µs</td>
+        <td>~50 µs</td>
+        <td>~210 µs</td>
+        <td>3,309 B</td>
+        <td>Module-LWE</td>
+        <td>liboqs</td>
+      </tr>
+      <tr>
+        <td>FALCON-512 (NIST ref)</td>
+        <td>~8 ms</td>
+        <td>~500 µs</td>
+        <td>~50 µs</td>
+        <td>~8.5 ms</td>
+        <td>666 B</td>
+        <td>NTRU lattice</td>
+        <td>NIST std</td>
+      </tr>
+      <tr>
+        <td>SPHINCS+-128f (NIST ref)</td>
+        <td>~3 ms</td>
+        <td>~8 ms</td>
+        <td>~500 µs</td>
+        <td>~11.5 ms</td>
+        <td>17,088 B</td>
+        <td>Hash-based</td>
+        <td>FIPS 205</td>
+      </tr>
+      <tr>
+        <td>Ed25519 (NIST ref)</td>
+        <td>~30 µs</td>
+        <td>~50 µs</td>
+        <td>~100 µs</td>
+        <td>~180 µs</td>
+        <td>64 B</td>
+        <td>Elliptic curve</td>
+        <td style="color: var(--red)">NOT PQ</td>
+      </tr>
+      <tr>
+        <td>Ed25519 (peak ARM64)</td>
+        <td>~15 µs</td>
+        <td>~25 µs</td>
+        <td>~40 µs</td>
+        <td>~80 µs</td>
+        <td>64 B</td>
+        <td>Elliptic curve</td>
+        <td style="color: var(--red)">NOT PQ</td>
+      </tr>
+    </table>
 
-<h2>Industry Comparison — Post-Quantum Signatures (1KB message)</h2>
-<table class="comparison-table">
-  <tr><th>Scheme</th><th>Keygen</th><th>Sign</th><th>Verify</th><th>Roundtrip</th><th>Sig Size</th><th>Security</th><th>Ref</th></tr>
-  <tr class="highlight"><td>PT26-DSA (Salvi)</td><td>6.40 µs</td><td>46.40 µs</td><td>53.30 µs</td><td>105.80 µs</td><td>71 B</td><td>Ternary Hypercube Walk</td><td>This run</td></tr>
-  <tr><td>ML-DSA-65 (NIST ref)</td><td>~150 µs</td><td>~300 µs</td><td>~150 µs</td><td>~600 µs</td><td>3,309 B</td><td>Module-LWE</td><td>FIPS 204</td></tr>
-  <tr><td>ML-DSA-65 (peak ARM64)</td><td>~80 µs</td><td>~80 µs</td><td>~50 µs</td><td>~210 µs</td><td>3,309 B</td><td>Module-LWE</td><td>liboqs</td></tr>
-  <tr><td>FALCON-512 (NIST ref)</td><td>~8 ms</td><td>~500 µs</td><td>~50 µs</td><td>~8.5 ms</td><td>666 B</td><td>NTRU lattice</td><td>NIST std</td></tr>
-  <tr><td>SPHINCS+-128f (NIST ref)</td><td>~3 ms</td><td>~8 ms</td><td>~500 µs</td><td>~11.5 ms</td><td>17,088 B</td><td>Hash-based</td><td>FIPS 205</td></tr>
-  <tr><td>Ed25519 (NIST ref)</td><td>~30 µs</td><td>~50 µs</td><td>~100 µs</td><td>~180 µs</td><td>64 B</td><td>Elliptic curve</td><td style="color:var(--red)">NOT PQ</td></tr>
-  <tr><td>Ed25519 (peak ARM64)</td><td>~15 µs</td><td>~25 µs</td><td>~40 µs</td><td>~80 µs</td><td>64 B</td><td>Elliptic curve</td><td style="color:var(--red)">NOT PQ</td></tr>
-</table>
+    <h2>Industry Comparison — Key Encapsulation (1KB context)</h2>
+    <table class="comparison-table">
+      <tr>
+        <th>Scheme</th>
+        <th>Keygen</th>
+        <th>Encaps</th>
+        <th>Decaps</th>
+        <th>Roundtrip</th>
+        <th>CT Size</th>
+        <th>Security</th>
+        <th>Ref</th>
+      </tr>
+      <tr class="highlight">
+        <td>TL-KEM-1024 (Salvi)</td>
+        <td>95.60 µs</td>
+        <td>23.80 µs</td>
+        <td>20.80 µs</td>
+        <td>140.10 µs</td>
+        <td>~1,568 B</td>
+        <td>Ternary Module-LWE</td>
+        <td>This run</td>
+      </tr>
+      <tr>
+        <td>ML-KEM-1024 (NIST ref)</td>
+        <td>~150 µs</td>
+        <td>~180 µs</td>
+        <td>~170 µs</td>
+        <td>~500 µs</td>
+        <td>1,568 B</td>
+        <td>Module-LWE</td>
+        <td>FIPS 203</td>
+      </tr>
+      <tr>
+        <td>ML-KEM-1024 (peak ARM64)</td>
+        <td>~80 µs</td>
+        <td>~90 µs</td>
+        <td>~80 µs</td>
+        <td>~250 µs</td>
+        <td>1,568 B</td>
+        <td>Module-LWE</td>
+        <td>libcrux/M1</td>
+      </tr>
+    </table>
 
-<h2>Industry Comparison — Key Encapsulation (1KB context)</h2>
-<table class="comparison-table">
-  <tr><th>Scheme</th><th>Keygen</th><th>Encaps</th><th>Decaps</th><th>Roundtrip</th><th>CT Size</th><th>Security</th><th>Ref</th></tr>
-  <tr class="highlight"><td>TL-KEM-1024 (Salvi)</td><td>95.60 µs</td><td>23.80 µs</td><td>20.80 µs</td><td>140.10 µs</td><td>~1,568 B</td><td>Ternary Module-LWE</td><td>This run</td></tr>
-  <tr><td>ML-KEM-1024 (NIST ref)</td><td>~150 µs</td><td>~180 µs</td><td>~170 µs</td><td>~500 µs</td><td>1,568 B</td><td>Module-LWE</td><td>FIPS 203</td></tr>
-  <tr><td>ML-KEM-1024 (peak ARM64)</td><td>~80 µs</td><td>~90 µs</td><td>~80 µs</td><td>~250 µs</td><td>1,568 B</td><td>Module-LWE</td><td>libcrux/M1</td></tr>
-</table>
+    <h2>Production Grade — 51/70 pass (73%) — 35.780 ms</h2>
 
-<h2>Production Grade — 51/70 pass (73%) — 35.780 ms</h2>
+    <h3>1. PT26-DSA — Target: Ed25519</h3>
+    <p class="section-ref">
+      RFC 8032 — fastest classical signature (PQ targets at Ed25519 speed class)
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>pt26_keygen</code></td>
+        <td>6.40 µs</td>
+        <td>&lt; 8µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>pt26_sign</code></td>
+        <td>46.40 µs</td>
+        <td>&lt; 18µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>pt26_verify</code></td>
+        <td>53.30 µs</td>
+        <td>&lt; 18µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>pt26_verify_parallel</code></td>
+        <td>42.80 µs</td>
+        <td>&lt; 18µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>pt26_trit_diff</code></td>
+        <td>700 ns</td>
+        <td>&lt; 5µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>pt26_step_token</code></td>
+        <td>300 ns</td>
+        <td>&lt; 5µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>pt26_walk_token</code></td>
+        <td>300 ns</td>
+        <td>&lt; 5µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ PT26-DSA TOTAL (7)</td>
+        <td>150.20 µs</td>
+        <td>vs 280 µs</td>
+        <td></td>
+        <td><span class="grade grade-pass">Pass [4/7]</span></td>
+      </tr>
+    </table>
 
-<h3>1. PT26-DSA — Target: Ed25519</h3>
-<p class="section-ref">RFC 8032 — fastest classical signature (PQ targets at Ed25519 speed class)</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>pt26_keygen</code></td><td>6.40 µs</td><td>&lt; 8µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>pt26_sign</code></td><td>46.40 µs</td><td>&lt; 18µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>pt26_verify</code></td><td>53.30 µs</td><td>&lt; 18µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>pt26_verify_parallel</code></td><td>42.80 µs</td><td>&lt; 18µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>pt26_trit_diff</code></td><td>700 ns</td><td>&lt; 5µs</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>pt26_step_token</code></td><td>300 ns</td><td>&lt; 5µs</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>pt26_walk_token</code></td><td>300 ns</td><td>&lt; 5µs</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ PT26-DSA TOTAL (7)</td><td>150.20 µs</td><td>vs 280 µs</td><td></td><td><span class="grade grade-pass">Pass [4/7]</span></td></tr>
-</table>
+    <h3>2. TL-DSA v2 — Target: ML-DSA-65 (Dilithium)</h3>
+    <p class="section-ref">NIST FIPS 204 — lattice signature standard</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_v2_ntt_butterfly</code></td>
+        <td>400 ns</td>
+        <td>&lt; 20µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_v2_ntt_full</code></td>
+        <td>900 ns</td>
+        <td>&lt; 2µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_v2_matrix_mul</code></td>
+        <td>11.60 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_v2_keygen</code></td>
+        <td>126.40 µs</td>
+        <td>&lt; 150µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_v2_sign</code></td>
+        <td>22.40 µs</td>
+        <td>&lt; 300µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_v2_verify</code></td>
+        <td>4.20 µs</td>
+        <td>&lt; 150µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ TL-DSA v2 TOTAL (6)</td>
+        <td>165.90 µs</td>
+        <td>vs 600 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+ [6/6]</span></td>
+      </tr>
+    </table>
 
-<h3>2. TL-DSA v2 — Target: ML-DSA-65 (Dilithium)</h3>
-<p class="section-ref">NIST FIPS 204 — lattice signature standard</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tl_dsa_v2_ntt_butterfly</code></td><td>400 ns</td><td>&lt; 20µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_dsa_v2_ntt_full</code></td><td>900 ns</td><td>&lt; 2µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_dsa_v2_matrix_mul</code></td><td>11.60 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_dsa_v2_keygen</code></td><td>126.40 µs</td><td>&lt; 150µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>tl_dsa_v2_sign</code></td><td>22.40 µs</td><td>&lt; 300µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_dsa_v2_verify</code></td><td>4.20 µs</td><td>&lt; 150µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ TL-DSA v2 TOTAL (6)</td><td>165.90 µs</td><td>vs 600 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+ [6/6]</span></td></tr>
-</table>
+    <h3>3. TL-KEM — Target: ML-KEM (Kyber)</h3>
+    <p class="section-ref">
+      NIST FIPS 203 — lattice KEM standard (per security level)
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tl_kem_512_keygen</code></td>
+        <td>34.60 µs</td>
+        <td>&lt; 50µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_512_encaps</code></td>
+        <td>13.90 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_512_decaps</code></td>
+        <td>10.00 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_768_keygen</code></td>
+        <td>53.00 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_768_encaps</code></td>
+        <td>17.10 µs</td>
+        <td>&lt; 50µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_768_decaps</code></td>
+        <td>16.60 µs</td>
+        <td>&lt; 50µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_1024_keygen</code></td>
+        <td>95.60 µs</td>
+        <td>&lt; 120µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_1024_encaps</code></td>
+        <td>23.80 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_kem_1024_decaps</code></td>
+        <td>20.80 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ TL-KEM TOTAL (9)</td>
+        <td>285.40 µs</td>
+        <td>vs 1.5 ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+ [9/9]</span></td>
+      </tr>
+    </table>
 
-<h3>3. TL-KEM — Target: ML-KEM (Kyber)</h3>
-<p class="section-ref">NIST FIPS 203 — lattice KEM standard (per security level)</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tl_kem_512_keygen</code></td><td>34.60 µs</td><td>&lt; 50µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>tl_kem_512_encaps</code></td><td>13.90 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_kem_512_decaps</code></td><td>10.00 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_kem_768_keygen</code></td><td>53.00 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>tl_kem_768_encaps</code></td><td>17.10 µs</td><td>&lt; 50µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_kem_768_decaps</code></td><td>16.60 µs</td><td>&lt; 50µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_kem_1024_keygen</code></td><td>95.60 µs</td><td>&lt; 120µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>tl_kem_1024_encaps</code></td><td>23.80 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tl_kem_1024_decaps</code></td><td>20.80 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ TL-KEM TOTAL (9)</td><td>285.40 µs</td><td>vs 1.5 ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+ [9/9]</span></td></tr>
-</table>
+    <h3>4. Phase Enc — Target: AES-256-CTR (×4 shares)</h3>
+    <p class="section-ref">NIST SP 800-38A — per-phase stream cipher</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>phase_split</code></td>
+        <td>170.40 µs</td>
+        <td>&lt; 120µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>phase_recombine</code></td>
+        <td>163.00 µs</td>
+        <td>&lt; 120µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>phase_batch_split</code></td>
+        <td>2.003 ms</td>
+        <td>&lt; 1200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>phase_batch_recombine</code></td>
+        <td>1.646 ms</td>
+        <td>&lt; 1200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Phase Enc TOTAL (4)</td>
+        <td>3.982 ms</td>
+        <td>vs 4.0 ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [0/4]</span></td>
+      </tr>
+    </table>
 
-<h3>4. Phase Enc — Target: AES-256-CTR (×4 shares)</h3>
-<p class="section-ref">NIST SP 800-38A — per-phase stream cipher</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>phase_split</code></td><td>170.40 µs</td><td>&lt; 120µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>phase_recombine</code></td><td>163.00 µs</td><td>&lt; 120µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>phase_batch_split</code></td><td>2.003 ms</td><td>&lt; 1200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>phase_batch_recombine</code></td><td>1.646 ms</td><td>&lt; 1200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ Phase Enc TOTAL (4)</td><td>3.982 ms</td><td>vs 4.0 ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [0/4]</span></td></tr>
-</table>
+    <h3>5. RSA-4096 — Target: RSA-4096</h3>
+    <p class="section-ref">
+      PKCS#1 v1.5 — real rsa crate (Shor-vulnerable, co-signature only)
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>rsa_4096_sign</code></td>
+        <td>6.854 ms</td>
+        <td>&lt; 15ms</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>rsa_4096_verify</code></td>
+        <td>466.40 µs</td>
+        <td>&lt; 500µs</td>
+        <td></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ RSA-4096 TOTAL (2)</td>
+        <td>7.321 ms</td>
+        <td>vs 16 ms</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+ [2/2]</span></td>
+      </tr>
+    </table>
 
-<h3>5. RSA-4096 — Target: RSA-4096</h3>
-<p class="section-ref">PKCS#1 v1.5 — real rsa crate (Shor-vulnerable, co-signature only)</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>rsa_4096_sign</code></td><td>6.854 ms</td><td>&lt; 15ms</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>rsa_4096_verify</code></td><td>466.40 µs</td><td>&lt; 500µs</td><td></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ RSA-4096 TOTAL (2)</td><td>7.321 ms</td><td>vs 16 ms</td><td></td><td><span class="grade grade-plenum">Plenum+ [2/2]</span></td></tr>
-</table>
+    <h3>6. TIS-27 — Target: SHAKE-128</h3>
+    <p class="section-ref">
+      NIST FIPS 202 — extendable output (reduced-round comparable)
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tis27_hash_27trit</code></td>
+        <td>3.30 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>tis27_hash_54trit</code></td>
+        <td>6.20 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tis27_absorb_squeeze</code></td>
+        <td>17.60 µs</td>
+        <td>&lt; 20µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ TIS-27 TOTAL (3)</td>
+        <td>27.10 µs</td>
+        <td>vs 30 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [2/3]</span></td>
+      </tr>
+    </table>
 
-<h3>6. TIS-27 — Target: SHAKE-128</h3>
-<p class="section-ref">NIST FIPS 202 — extendable output (reduced-round comparable)</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tis27_hash_27trit</code></td><td>3.30 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>tis27_hash_54trit</code></td><td>6.20 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tis27_absorb_squeeze</code></td><td>17.60 µs</td><td>&lt; 20µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ TIS-27 TOTAL (3)</td><td>27.10 µs</td><td>vs 30 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [2/3]</span></td></tr>
-</table>
+    <h3>7. Wire — Target: CRC-32</h3>
+    <p class="section-ref">IEEE 802.3 — error detection primitive</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>wire_checksum</code></td>
+        <td>0 ns</td>
+        <td>&lt; 100ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>wire_ecc</code></td>
+        <td>0 ns</td>
+        <td>&lt; 100ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Wire TOTAL (2)</td>
+        <td>0 ns</td>
+        <td>vs 1 µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+ [2/2]</span></td>
+      </tr>
+    </table>
 
-<h3>7. Wire — Target: CRC-32</h3>
-<p class="section-ref">IEEE 802.3 — error detection primitive</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>wire_checksum</code></td><td>0 ns</td><td>&lt; 100ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>wire_ecc</code></td><td>0 ns</td><td>&lt; 100ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ Wire TOTAL (2)</td><td>0 ns</td><td>vs 1 µs</td><td></td><td><span class="grade grade-plenum">Plenum+ [2/2]</span></td></tr>
-</table>
+    <h3>8. Lattice — Target: HKDF-SHA-256</h3>
+    <p class="section-ref">RFC 5869 — key derivation standard</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>lattice_nonce</code></td>
+        <td>0 ns</td>
+        <td>&lt; 100ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>lattice_key_derive</code></td>
+        <td>6.80 µs</td>
+        <td>&lt; 10µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Lattice TOTAL (2)</td>
+        <td>6.80 µs</td>
+        <td>vs 10 µs</td>
+        <td></td>
+        <td><span class="grade grade-pass">Pass [2/2]</span></td>
+      </tr>
+    </table>
 
-<h3>8. Lattice — Target: HKDF-SHA-256</h3>
-<p class="section-ref">RFC 5869 — key derivation standard</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>lattice_nonce</code></td><td>0 ns</td><td>&lt; 100ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>lattice_key_derive</code></td><td>6.80 µs</td><td>&lt; 10µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ Lattice TOTAL (2)</td><td>6.80 µs</td><td>vs 10 µs</td><td></td><td><span class="grade grade-pass">Pass [2/2]</span></td></tr>
-</table>
+    <h3>9. Tunnel — Target: WireGuard Noise IK</h3>
+    <p class="section-ref">Noise Protocol Framework — tunnel handshake</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tunnel_auth_response</code></td>
+        <td>9.20 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tunnel_handshake_3msg</code></td>
+        <td>38.20 µs</td>
+        <td>&lt; 20ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Tunnel TOTAL (2)</td>
+        <td>47.40 µs</td>
+        <td>vs 200 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+ [1/2]</span></td>
+      </tr>
+    </table>
 
-<h3>9. Tunnel — Target: WireGuard Noise IK</h3>
-<p class="section-ref">Noise Protocol Framework — tunnel handshake</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tunnel_auth_response</code></td><td>9.20 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tunnel_handshake_3msg</code></td><td>38.20 µs</td><td>&lt; 20ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ Tunnel TOTAL (2)</td><td>47.40 µs</td><td>vs 200 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+ [1/2]</span></td></tr>
-</table>
+    <h3>10. Heartbeat — Target: WireGuard keepalive</h3>
+    <p class="section-ref">Noise Protocol Framework — keepalive cycle</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>heartbeat_single</code></td>
+        <td>13.40 µs</td>
+        <td>&lt; 9µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>heartbeat_26</code></td>
+        <td>346.40 µs</td>
+        <td>&lt; 210µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Heartbeat TOTAL (2)</td>
+        <td>359.80 µs</td>
+        <td>vs 500 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>10. Heartbeat — Target: WireGuard keepalive</h3>
-<p class="section-ref">Noise Protocol Framework — keepalive cycle</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>heartbeat_single</code></td><td>13.40 µs</td><td>&lt; 9µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>heartbeat_26</code></td><td>346.40 µs</td><td>&lt; 210µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ Heartbeat TOTAL (2)</td><td>359.80 µs</td><td>vs 500 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [0/2]</span></td></tr>
-</table>
+    <h3>11. Merkle — Target: SHA-256 Merkle (d=20)</h3>
+    <p class="section-ref">Certificate Transparency RFC 6962 — audit log</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>merkle_insert</code></td>
+        <td>270.80 µs</td>
+        <td>&lt; 200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>merkle_verify</code></td>
+        <td>266.90 µs</td>
+        <td>&lt; 200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Merkle TOTAL (2)</td>
+        <td>537.70 µs</td>
+        <td>vs 600 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>11. Merkle — Target: SHA-256 Merkle (d=20)</h3>
-<p class="section-ref">Certificate Transparency RFC 6962 — audit log</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>merkle_insert</code></td><td>270.80 µs</td><td>&lt; 200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>merkle_verify</code></td><td>266.90 µs</td><td>&lt; 200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ Merkle TOTAL (2)</td><td>537.70 µs</td><td>vs 600 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [0/2]</span></td></tr>
-</table>
+    <h3>12. TDNS — Target: DNS A-record lookup</h3>
+    <p class="section-ref">RFC 1035 — name resolution</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tdns_derive_identity</code></td>
+        <td>3.50 µs</td>
+        <td>&lt; 10µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tdns_scan_hash</code></td>
+        <td>3.50 µs</td>
+        <td>&lt; 10µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tdns_repunit_checksum</code></td>
+        <td>0 ns</td>
+        <td>&lt; 100ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ TDNS TOTAL (3)</td>
+        <td>7.00 µs</td>
+        <td>vs 30 µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+ [3/3]</span></td>
+      </tr>
+    </table>
 
-<h3>12. TDNS — Target: DNS A-record lookup</h3>
-<p class="section-ref">RFC 1035 — name resolution</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tdns_derive_identity</code></td><td>3.50 µs</td><td>&lt; 10µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tdns_scan_hash</code></td><td>3.50 µs</td><td>&lt; 10µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tdns_repunit_checksum</code></td><td>0 ns</td><td>&lt; 100ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ TDNS TOTAL (3)</td><td>7.00 µs</td><td>vs 30 µs</td><td></td><td><span class="grade grade-plenum">Plenum+ [3/3]</span></td></tr>
-</table>
+    <h3>13. Calendar — Target: Base-N conversion</h3>
+    <p class="section-ref">Arithmetic primitive — no industry standard</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tern_compress</code></td>
+        <td>0 ns</td>
+        <td>&lt; 500ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>tern_decompress</code></td>
+        <td>0 ns</td>
+        <td>&lt; 500ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Calendar TOTAL (2)</td>
+        <td>0 ns</td>
+        <td>vs 1 µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+ [2/2]</span></td>
+      </tr>
+    </table>
 
-<h3>13. Calendar — Target: Base-N conversion</h3>
-<p class="section-ref">Arithmetic primitive — no industry standard</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tern_compress</code></td><td>0 ns</td><td>&lt; 500ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>tern_decompress</code></td><td>0 ns</td><td>&lt; 500ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ Calendar TOTAL (2)</td><td>0 ns</td><td>vs 1 µs</td><td></td><td><span class="grade grade-plenum">Plenum+ [2/2]</span></td></tr>
-</table>
+    <h3>14. CON — Target: WireGuard multi-peer</h3>
+    <p class="section-ref">Noise Protocol Framework — multi-tunnel rekey</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>con_derive_tunnel_key</code></td>
+        <td>6.80 µs</td>
+        <td>&lt; 10µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>con_rekey_single</code></td>
+        <td>6.80 µs</td>
+        <td>&lt; 10µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>con_rekey_all</code></td>
+        <td>172.30 µs</td>
+        <td>&lt; 300µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ CON TOTAL (3)</td>
+        <td>185.90 µs</td>
+        <td>vs 500 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+ [3/3]</span></td>
+      </tr>
+    </table>
 
-<h3>14. CON — Target: WireGuard multi-peer</h3>
-<p class="section-ref">Noise Protocol Framework — multi-tunnel rekey</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>con_derive_tunnel_key</code></td><td>6.80 µs</td><td>&lt; 10µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>con_rekey_single</code></td><td>6.80 µs</td><td>&lt; 10µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>con_rekey_all</code></td><td>172.30 µs</td><td>&lt; 300µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ CON TOTAL (3)</td><td>185.90 µs</td><td>vs 500 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+ [3/3]</span></td></tr>
-</table>
+    <h3>15. HPTP — Target: IEEE 1588 PTP</h3>
+    <p class="section-ref">IEEE 1588-2019 — precision time protocol</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>hptp_timestamp_verify</code></td>
+        <td>9.40 µs</td>
+        <td>&lt; 20µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>hptp_drift_compensate</code></td>
+        <td>0 ns</td>
+        <td>&lt; 500ns</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>hptp_jitter_filter</code></td>
+        <td>200 ns</td>
+        <td>&lt; 1µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ HPTP TOTAL (3)</td>
+        <td>9.60 µs</td>
+        <td>vs 50 µs</td>
+        <td></td>
+        <td><span class="grade grade-plenum">Plenum+ [3/3]</span></td>
+      </tr>
+    </table>
 
-<h3>15. HPTP — Target: IEEE 1588 PTP</h3>
-<p class="section-ref">IEEE 1588-2019 — precision time protocol</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>hptp_timestamp_verify</code></td><td>9.40 µs</td><td>&lt; 20µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>hptp_drift_compensate</code></td><td>0 ns</td><td>&lt; 500ns</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>hptp_jitter_filter</code></td><td>200 ns</td><td>&lt; 1µs</td><td></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr class="total-row"><td>▸ HPTP TOTAL (3)</td><td>9.60 µs</td><td>vs 50 µs</td><td></td><td><span class="grade grade-plenum">Plenum+ [3/3]</span></td></tr>
-</table>
+    <h3>16. ZK — Target: Schnorr DLOG proof</h3>
+    <p class="section-ref">RFC 8235 — zero-knowledge proof</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>zk_prove</code></td>
+        <td>56.60 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>zk_verify</code></td>
+        <td>59.70 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ ZK TOTAL (2)</td>
+        <td>116.30 µs</td>
+        <td>vs 200 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>16. ZK — Target: Schnorr DLOG proof</h3>
-<p class="section-ref">RFC 8235 — zero-knowledge proof</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>zk_prove</code></td><td>56.60 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>zk_verify</code></td><td>59.70 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ ZK TOTAL (2)</td><td>116.30 µs</td><td>vs 200 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [0/2]</span></td></tr>
-</table>
+    <h3>17. SFK — Target: HKDF-SHA-256</h3>
+    <p class="section-ref">RFC 5869 — key derivation + signing</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>sfk_key_derive</code></td>
+        <td>3.50 µs</td>
+        <td>&lt; 10µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>sfk_sign</code></td>
+        <td>17.10 µs</td>
+        <td>&lt; 25µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>sfk_verify</code></td>
+        <td>24.50 µs</td>
+        <td>&lt; 25µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ SFK TOTAL (3)</td>
+        <td>45.10 µs</td>
+        <td>vs 100 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+ [3/3]</span></td>
+      </tr>
+    </table>
 
-<h3>17. SFK — Target: HKDF-SHA-256</h3>
-<p class="section-ref">RFC 5869 — key derivation + signing</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>sfk_key_derive</code></td><td>3.50 µs</td><td>&lt; 10µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>sfk_sign</code></td><td>17.10 µs</td><td>&lt; 25µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>sfk_verify</code></td><td>24.50 µs</td><td>&lt; 25µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ SFK TOTAL (3)</td><td>45.10 µs</td><td>vs 100 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+ [3/3]</span></td></tr>
-</table>
+    <h3>18. Hedera — Target: Hedera HCS submit</h3>
+    <p class="section-ref">Hedera Hashgraph — blockchain witness API</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>hedera_submit_witness</code></td>
+        <td>54.50 µs</td>
+        <td>&lt; 25µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>hedera_verify_witness</code></td>
+        <td>20.50 µs</td>
+        <td>&lt; 20µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-starpass">*Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Hedera TOTAL (2)</td>
+        <td>75.00 µs</td>
+        <td>vs 100 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [1/2]</span></td>
+      </tr>
+    </table>
 
-<h3>18. Hedera — Target: Hedera HCS submit</h3>
-<p class="section-ref">Hedera Hashgraph — blockchain witness API</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>hedera_submit_witness</code></td><td>54.50 µs</td><td>&lt; 25µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>hedera_verify_witness</code></td><td>20.50 µs</td><td>&lt; 20µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-starpass">*Pass</span></td></tr>
-  <tr class="total-row"><td>▸ Hedera TOTAL (2)</td><td>75.00 µs</td><td>vs 100 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [1/2]</span></td></tr>
-</table>
+    <h3>19. Lamport — Target: Lamport OTS (1979)</h3>
+    <p class="section-ref">
+      Lamport one-time signature — unconditional security
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>lamport_keygen</code></td>
+        <td>1.741 ms</td>
+        <td>&lt; 5ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>lamport_sign</code></td>
+        <td>911.80 µs</td>
+        <td>&lt; 3ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>lamport_verify</code></td>
+        <td>3.491 ms</td>
+        <td>&lt; 3ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Lamport TOTAL (3)</td>
+        <td>6.145 ms</td>
+        <td>vs 11 ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass [2/3]</span></td>
+      </tr>
+    </table>
 
-<h3>19. Lamport — Target: Lamport OTS (1979)</h3>
-<p class="section-ref">Lamport one-time signature — unconditional security</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>lamport_keygen</code></td><td>1.741 ms</td><td>&lt; 5ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>lamport_sign</code></td><td>911.80 µs</td><td>&lt; 3ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>lamport_verify</code></td><td>3.491 ms</td><td>&lt; 3ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ Lamport TOTAL (3)</td><td>6.145 ms</td><td>vs 11 ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass [2/3]</span></td></tr>
-</table>
+    <h3>20. User Action — Target: &lt; 100ms UX threshold</h3>
+    <p class="section-ref">
+      Human perception — Nielsen (1993) response time limits
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>ux_sign_document</code></td>
+        <td>372.80 µs</td>
+        <td>&lt; 150µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_verify_document</code></td>
+        <td>77.50 µs</td>
+        <td>&lt; 100µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_establish_tunnel</code></td>
+        <td>186.60 µs</td>
+        <td>&lt; 200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_heartbeat_cycle</code></td>
+        <td>346.80 µs</td>
+        <td>&lt; 500µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_node_join</code></td>
+        <td>14.769 ms</td>
+        <td>&lt; 20ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_tdns_register</code></td>
+        <td>109.50 µs</td>
+        <td>&lt; 60µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_epoch_rekey</code></td>
+        <td>263.80 µs</td>
+        <td>&lt; 400µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ux_secure_message</code></td>
+        <td>188.50 µs</td>
+        <td>&lt; 200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ User Action TOTAL (8)</td>
+        <td>16.314 ms</td>
+        <td>vs 100 ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+ [6/8]</span></td>
+      </tr>
+    </table>
 
-<h3>20. User Action — Target: &lt; 100ms UX threshold</h3>
-<p class="section-ref">Human perception — Nielsen (1993) response time limits</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>ux_sign_document</code></td><td>372.80 µs</td><td>&lt; 150µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>ux_verify_document</code></td><td>77.50 µs</td><td>&lt; 100µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ux_establish_tunnel</code></td><td>186.60 µs</td><td>&lt; 200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ux_heartbeat_cycle</code></td><td>346.80 µs</td><td>&lt; 500µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ux_node_join</code></td><td>14.769 ms</td><td>&lt; 20ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ux_tdns_register</code></td><td>109.50 µs</td><td>&lt; 60µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>ux_epoch_rekey</code></td><td>263.80 µs</td><td>&lt; 400µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ux_secure_message</code></td><td>188.50 µs</td><td>&lt; 200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ User Action TOTAL (8)</td><td>16.314 ms</td><td>vs 100 ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+ [6/8]</span></td></tr>
-</table>
+    <h2>In The Forge — 14/39 pass (36%) — 172.393 ms</h2>
 
-<h2>In The Forge — 14/39 pass (36%) — 172.393 ms</h2>
+    <h3>1. TL-DSA v1 — Target: SPHINCS+-128f</h3>
+    <p class="section-ref">NIST FIPS 205 — hash-based signature standard</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_87_keygen</code></td>
+        <td>11.377 ms</td>
+        <td>&lt; 3ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_87_sign</code></td>
+        <td>17.772 ms</td>
+        <td>&lt; 5ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tl_dsa_87_verify</code></td>
+        <td>24.541 ms</td>
+        <td>&lt; 3ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-diagnose">DIAGNOSE</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ TL-DSA v1 TOTAL (3)</td>
+        <td>53.690 ms</td>
+        <td>vs 11.5 ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [0/3]</span></td>
+      </tr>
+    </table>
 
-<h3>1. TL-DSA v1 — Target: SPHINCS+-128f</h3>
-<p class="section-ref">NIST FIPS 205 — hash-based signature standard</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tl_dsa_87_keygen</code></td><td>11.377 ms</td><td>&lt; 3ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tl_dsa_87_sign</code></td><td>17.772 ms</td><td>&lt; 5ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tl_dsa_87_verify</code></td><td>24.541 ms</td><td>&lt; 3ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-diagnose">DIAGNOSE</span></td></tr>
-  <tr class="total-row"><td>▸ TL-DSA v1 TOTAL (3)</td><td>53.690 ms</td><td>vs 11.5 ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [0/3]</span></td></tr>
-</table>
+    <h3>2. T-AE-MAC — Target: Ascon-128</h3>
+    <p class="section-ref">
+      NIST LWC winner — sponge-based AEAD (no PQ AEAD standard exists)
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tae_mac_encrypt</code></td>
+        <td>99.10 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tae_mac_decrypt</code></td>
+        <td>95.60 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tae_mac_compute</code></td>
+        <td>39.00 µs</td>
+        <td>&lt; 40µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>tae_mac_verify</code></td>
+        <td>78.90 µs</td>
+        <td>&lt; 50µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ T-AE-MAC TOTAL (4)</td>
+        <td>312.60 µs</td>
+        <td>vs 160 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [1/4]</span></td>
+      </tr>
+    </table>
 
-<h3>2. T-AE-MAC — Target: Ascon-128</h3>
-<p class="section-ref">NIST LWC winner — sponge-based AEAD (no PQ AEAD standard exists)</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tae_mac_encrypt</code></td><td>99.10 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tae_mac_decrypt</code></td><td>95.60 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tae_mac_compute</code></td><td>39.00 µs</td><td>&lt; 40µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>tae_mac_verify</code></td><td>78.90 µs</td><td>&lt; 50µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ T-AE-MAC TOTAL (4)</td><td>312.60 µs</td><td>vs 160 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [1/4]</span></td></tr>
-</table>
+    <h3>3. AES-GCM — Target: AES-256-GCM</h3>
+    <p class="section-ref">
+      NIST SP 800-38D — real aes-gcm crate with hardware AES-NI
+    </p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>aes_gcm_encrypt</code></td>
+        <td>6.00 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>aes_gcm_decrypt</code></td>
+        <td>5.90 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ AES-GCM TOTAL (2)</td>
+        <td>11.90 µs</td>
+        <td>vs 10 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>3. AES-GCM — Target: AES-256-GCM</h3>
-<p class="section-ref">NIST SP 800-38D — real aes-gcm crate with hardware AES-NI</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>aes_gcm_encrypt</code></td><td>6.00 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>aes_gcm_decrypt</code></td><td>5.90 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ AES-GCM TOTAL (2)</td><td>11.90 µs</td><td>vs 10 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [0/2]</span></td></tr>
-</table>
+    <h3>4. Sponge — Target: SHA3-256</h3>
+    <p class="section-ref">NIST FIPS 202 — sponge hash standard</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>sponge_hash</code></td>
+        <td>35.80 µs</td>
+        <td>&lt; 15µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>sponge_derive_key</code></td>
+        <td>35.80 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-diagnose">DIAGNOSE</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Sponge TOTAL (2)</td>
+        <td>71.60 µs</td>
+        <td>vs 20 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>4. Sponge — Target: SHA3-256</h3>
-<p class="section-ref">NIST FIPS 202 — sponge hash standard</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>sponge_hash</code></td><td>35.80 µs</td><td>&lt; 15µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>sponge_derive_key</code></td><td>35.80 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-diagnose">DIAGNOSE</span></td></tr>
-  <tr class="total-row"><td>▸ Sponge TOTAL (2)</td><td>71.60 µs</td><td>vs 20 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [0/2]</span></td></tr>
-</table>
+    <h3>5. HMAC — Target: HMAC-SHA-256</h3>
+    <p class="section-ref">RFC 2104 / NIST FIPS 198-1 — keyed MAC standard</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>hmac_key_derive</code></td>
+        <td>3.30 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>hmac_compute</code></td>
+        <td>38.90 µs</td>
+        <td>&lt; 15µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>hmac_verify</code></td>
+        <td>77.80 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ HMAC TOTAL (3)</td>
+        <td>120.00 µs</td>
+        <td>vs 30 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [1/3]</span></td>
+      </tr>
+    </table>
 
-<h3>5. HMAC — Target: HMAC-SHA-256</h3>
-<p class="section-ref">RFC 2104 / NIST FIPS 198-1 — keyed MAC standard</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>hmac_key_derive</code></td><td>3.30 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>hmac_compute</code></td><td>38.90 µs</td><td>&lt; 15µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>hmac_verify</code></td><td>77.80 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ HMAC TOTAL (3)</td><td>120.00 µs</td><td>vs 30 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [1/3]</span></td></tr>
-</table>
+    <h3>6. Identity — Target: Ed25519 keygen</h3>
+    <p class="section-ref">RFC 8032 — identity keypair generation</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>identity_seed_derive</code></td>
+        <td>13.60 µs</td>
+        <td>&lt; 5µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>identity_keypair_derive</code></td>
+        <td>11.533 ms</td>
+        <td>&lt; 5ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Identity TOTAL (2)</td>
+        <td>11.547 ms</td>
+        <td>vs 5.2 ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>6. Identity — Target: Ed25519 keygen</h3>
-<p class="section-ref">RFC 8032 — identity keypair generation</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>identity_seed_derive</code></td><td>13.60 µs</td><td>&lt; 5µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>identity_keypair_derive</code></td><td>11.533 ms</td><td>&lt; 5ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ Identity TOTAL (2)</td><td>11.547 ms</td><td>vs 5.2 ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [0/2]</span></td></tr>
-</table>
+    <h3>7. TSA — Target: RFC 3161 TSA</h3>
+    <p class="section-ref">IETF RFC 3161 — timestamp authority</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>tsa_timestamp_create</code></td>
+        <td>60.20 µs</td>
+        <td>&lt; 30µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>tsa_timestamp_verify</code></td>
+        <td>56.60 µs</td>
+        <td>&lt; 20µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ TSA TOTAL (2)</td>
+        <td>116.80 µs</td>
+        <td>vs 100 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [0/2]</span></td>
+      </tr>
+    </table>
 
-<h3>7. TSA — Target: RFC 3161 TSA</h3>
-<p class="section-ref">IETF RFC 3161 — timestamp authority</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>tsa_timestamp_create</code></td><td>60.20 µs</td><td>&lt; 30µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>tsa_timestamp_verify</code></td><td>56.60 µs</td><td>&lt; 20µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ TSA TOTAL (2)</td><td>116.80 µs</td><td>vs 100 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [0/2]</span></td></tr>
-</table>
+    <h3>8. SignHere — Target: DocuSign pipeline</h3>
+    <p class="section-ref">Industry SaaS — e-signature end-to-end</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>signhere_secure_doc</code></td>
+        <td>358.80 µs</td>
+        <td>&lt; 100µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>signhere_6check</code></td>
+        <td>77.70 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>signhere_cnsa2</code></td>
+        <td>299.70 µs</td>
+        <td>&lt; 50µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-diagnose">DIAGNOSE</span></td>
+      </tr>
+      <tr>
+        <td><code>signhere_witness</code></td>
+        <td>13.80 µs</td>
+        <td>&lt; 20µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ SignHere TOTAL (4)</td>
+        <td>750.00 µs</td>
+        <td>vs 500 µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL [2/4]</span></td>
+      </tr>
+    </table>
 
-<h3>8. SignHere — Target: DocuSign pipeline</h3>
-<p class="section-ref">Industry SaaS — e-signature end-to-end</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>signhere_secure_doc</code></td><td>358.80 µs</td><td>&lt; 100µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>signhere_6check</code></td><td>77.70 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>signhere_cnsa2</code></td><td>299.70 µs</td><td>&lt; 50µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-diagnose">DIAGNOSE</span></td></tr>
-  <tr><td><code>signhere_witness</code></td><td>13.80 µs</td><td>&lt; 20µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr class="total-row"><td>▸ SignHere TOTAL (4)</td><td>750.00 µs</td><td>vs 500 µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL [2/4]</span></td></tr>
-</table>
+    <h3>9. Roundtrip — Full algorithm cycle</h3>
+    <p class="section-ref">Meta-benchmark — sums component benchmarks</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>rt_pt26_full</code></td>
+        <td>105.80 µs</td>
+        <td>&lt; 80µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_pt26_sign_verify</code></td>
+        <td>99.10 µs</td>
+        <td>&lt; 60µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_tl_dsa_v1_full</code></td>
+        <td>54.094 ms</td>
+        <td>&lt; 60ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_tl_dsa_v1_sign_verify</code></td>
+        <td>42.482 ms</td>
+        <td>&lt; 50ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_tl_dsa_v2_full</code></td>
+        <td>157.30 µs</td>
+        <td>&lt; 500µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_tl_kem_1024</code></td>
+        <td>140.10 µs</td>
+        <td>&lt; 300µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_tae_mac</code></td>
+        <td>176.90 µs</td>
+        <td>&lt; 200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_phase_encrypt</code></td>
+        <td>321.40 µs</td>
+        <td>&lt; 300µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-starpass">*Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_signhere_full</code></td>
+        <td>432.10 µs</td>
+        <td>&lt; 200µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_tsa_full</code></td>
+        <td>115.50 µs</td>
+        <td>&lt; 50µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_merkle_full</code></td>
+        <td>543.20 µs</td>
+        <td>&lt; 600µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_lamport_full</code></td>
+        <td>6.190 ms</td>
+        <td>&lt; 10ms</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>rt_zk_full</code></td>
+        <td>116.20 µs</td>
+        <td>&lt; 60µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ Roundtrip TOTAL (13)</td>
+        <td>104.974 ms</td>
+        <td></td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">[8/13]</span></td>
+      </tr>
+    </table>
 
-<h3>9. Roundtrip — Full algorithm cycle</h3>
-<p class="section-ref">Meta-benchmark — sums component benchmarks</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>rt_pt26_full</code></td><td>105.80 µs</td><td>&lt; 80µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>rt_pt26_sign_verify</code></td><td>99.10 µs</td><td>&lt; 60µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>rt_tl_dsa_v1_full</code></td><td>54.094 ms</td><td>&lt; 60ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>rt_tl_dsa_v1_sign_verify</code></td><td>42.482 ms</td><td>&lt; 50ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>rt_tl_dsa_v2_full</code></td><td>157.30 µs</td><td>&lt; 500µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>rt_tl_kem_1024</code></td><td>140.10 µs</td><td>&lt; 300µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-plenum">Plenum+</span></td></tr>
-  <tr><td><code>rt_tae_mac</code></td><td>176.90 µs</td><td>&lt; 200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>rt_phase_encrypt</code></td><td>321.40 µs</td><td>&lt; 300µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-starpass">*Pass</span></td></tr>
-  <tr><td><code>rt_signhere_full</code></td><td>432.10 µs</td><td>&lt; 200µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>rt_tsa_full</code></td><td>115.50 µs</td><td>&lt; 50µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>rt_merkle_full</code></td><td>543.20 µs</td><td>&lt; 600µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>rt_lamport_full</code></td><td>6.190 ms</td><td>&lt; 10ms</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>rt_zk_full</code></td><td>116.20 µs</td><td>&lt; 60µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ Roundtrip TOTAL (13)</td><td>104.974 ms</td><td></td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">[8/13]</span></td></tr>
-</table>
+    <h3>10. A/B — Scalar vs batch</h3>
+    <p class="section-ref">Diagnostic — internal optimization comparison</p>
+    <table>
+      <tr>
+        <th>Benchmark</th>
+        <th>Time</th>
+        <th>Target</th>
+        <th>PQ</th>
+        <th>Grade</th>
+      </tr>
+      <tr>
+        <td><code>ab_derive_key_scalar</code></td>
+        <td>3.50 µs</td>
+        <td>~4µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ab_derive_key_batch</code></td>
+        <td>92.80 µs</td>
+        <td>&lt; 110µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">Pass</span></td>
+      </tr>
+      <tr>
+        <td><code>ab_heartbeat26_scalar</code></td>
+        <td>345.60 µs</td>
+        <td>~210µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr>
+        <td><code>ab_heartbeat26_batch</code></td>
+        <td>357.20 µs</td>
+        <td>&lt; 210µs</td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+      </tr>
+      <tr class="total-row">
+        <td>▸ A/B TOTAL (4)</td>
+        <td>799.10 µs</td>
+        <td></td>
+        <td><span class="pq">PQ</span></td>
+        <td><span class="grade grade-pass">[2/4]</span></td>
+      </tr>
+    </table>
 
-<h3>10. A/B — Scalar vs batch</h3>
-<p class="section-ref">Diagnostic — internal optimization comparison</p>
-<table>
-  <tr><th>Benchmark</th><th>Time</th><th>Target</th><th>PQ</th><th>Grade</th></tr>
-  <tr><td><code>ab_derive_key_scalar</code></td><td>3.50 µs</td><td>~4µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ab_derive_key_batch</code></td><td>92.80 µs</td><td>&lt; 110µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">Pass</span></td></tr>
-  <tr><td><code>ab_heartbeat26_scalar</code></td><td>345.60 µs</td><td>~210µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr><td><code>ab_heartbeat26_batch</code></td><td>357.20 µs</td><td>&lt; 210µs</td><td><span class="pq">PQ</span></td><td><span class="grade grade-fail">FAIL</span></td></tr>
-  <tr class="total-row"><td>▸ A/B TOTAL (4)</td><td>799.10 µs</td><td></td><td><span class="pq">PQ</span></td><td><span class="grade grade-pass">[2/4]</span></td></tr>
-</table>
+    <h2>Category Summary</h2>
+    <table class="category-summary">
+      <tr>
+        <th>#</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Industry Ref</th>
+        <th>Industry Total</th>
+        <th>Our Total</th>
+        <th>Grade</th>
+        <th>PQ</th>
+        <th>Steps</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>TL-DSA v1</td>
+        <td class="status-forge">Forge</td>
+        <td>SPHINCS+-128f</td>
+        <td>11.500 ms</td>
+        <td>53.690 ms</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/3</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>PT26-DSA</td>
+        <td class="status-prod">Production</td>
+        <td>Ed25519</td>
+        <td>280 µs</td>
+        <td>150.20 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td></td>
+        <td>4/7</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>TL-DSA v2</td>
+        <td class="status-prod">Production</td>
+        <td>ML-DSA-65</td>
+        <td>600 µs</td>
+        <td>165.90 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>6/6</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>TL-KEM</td>
+        <td class="status-prod">Production</td>
+        <td>ML-KEM (Kyber)</td>
+        <td>1.500 ms</td>
+        <td>285.40 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>9/9</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>T-AE-MAC</td>
+        <td class="status-forge">Forge</td>
+        <td>Ascon-128</td>
+        <td>160 µs</td>
+        <td>312.60 µs</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>1/4</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Phase Enc</td>
+        <td class="status-prod">Production</td>
+        <td>AES-256-CTR ×4</td>
+        <td>4.000 ms</td>
+        <td>3.982 ms</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/4</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>AES-GCM</td>
+        <td class="status-forge">Forge</td>
+        <td>AES-256-GCM</td>
+        <td>10 µs</td>
+        <td>11.90 µs</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>RSA-4096</td>
+        <td class="status-prod">Production</td>
+        <td>RSA-4096</td>
+        <td>16.000 ms</td>
+        <td>7.321 ms</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td></td>
+        <td>2/2</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Sponge</td>
+        <td class="status-forge">Forge</td>
+        <td>SHA3-256</td>
+        <td>20 µs</td>
+        <td>71.60 µs</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>TIS-27</td>
+        <td class="status-prod">Production</td>
+        <td>SHAKE-128</td>
+        <td>30 µs</td>
+        <td>27.10 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>2/3</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td>HMAC</td>
+        <td class="status-forge">Forge</td>
+        <td>HMAC-SHA-256</td>
+        <td>30 µs</td>
+        <td>120 µs</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>1/3</td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td>Wire</td>
+        <td class="status-prod">Production</td>
+        <td>CRC-32</td>
+        <td>1 µs</td>
+        <td>0 ns</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td></td>
+        <td>2/2</td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td>Lattice</td>
+        <td class="status-prod">Production</td>
+        <td>HKDF-SHA-256</td>
+        <td>10 µs</td>
+        <td>6.80 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td></td>
+        <td>2/2</td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td>Identity</td>
+        <td class="status-forge">Forge</td>
+        <td>Ed25519 keygen</td>
+        <td>5.200 ms</td>
+        <td>11.547 ms</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>15</td>
+        <td>Tunnel</td>
+        <td class="status-prod">Production</td>
+        <td>WireGuard Noise IK</td>
+        <td>200 µs</td>
+        <td>47.40 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>1/2</td>
+      </tr>
+      <tr>
+        <td>16</td>
+        <td>Heartbeat</td>
+        <td class="status-prod">Production</td>
+        <td>WireGuard keepalive</td>
+        <td>500 µs</td>
+        <td>359.80 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>17</td>
+        <td>TSA</td>
+        <td class="status-forge">Forge</td>
+        <td>RFC 3161 TSA</td>
+        <td>100 µs</td>
+        <td>116.80 µs</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>18</td>
+        <td>Merkle</td>
+        <td class="status-prod">Production</td>
+        <td>SHA-256 Merkle</td>
+        <td>600 µs</td>
+        <td>537.70 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>19</td>
+        <td>TDNS</td>
+        <td class="status-prod">Production</td>
+        <td>DNS A-record</td>
+        <td>30 µs</td>
+        <td>7.00 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td></td>
+        <td>3/3</td>
+      </tr>
+      <tr>
+        <td>20</td>
+        <td>Calendar</td>
+        <td class="status-prod">Production</td>
+        <td>Base-N conversion</td>
+        <td>1 µs</td>
+        <td>0 ns</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td></td>
+        <td>2/2</td>
+      </tr>
+      <tr>
+        <td>21</td>
+        <td>CON</td>
+        <td class="status-prod">Production</td>
+        <td>WireGuard multi-peer</td>
+        <td>500 µs</td>
+        <td>185.90 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>3/3</td>
+      </tr>
+      <tr>
+        <td>22</td>
+        <td>HPTP</td>
+        <td class="status-prod">Production</td>
+        <td>IEEE 1588 PTP</td>
+        <td>50 µs</td>
+        <td>9.60 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td></td>
+        <td>3/3</td>
+      </tr>
+      <tr>
+        <td>23</td>
+        <td>ZK</td>
+        <td class="status-prod">Production</td>
+        <td>Schnorr DLOG</td>
+        <td>200 µs</td>
+        <td>116.30 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>0/2</td>
+      </tr>
+      <tr>
+        <td>24</td>
+        <td>SignHere</td>
+        <td class="status-forge">Forge</td>
+        <td>DocuSign</td>
+        <td>500 µs</td>
+        <td>750 µs</td>
+        <td><span class="grade grade-fail">FAIL</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>2/4</td>
+      </tr>
+      <tr>
+        <td>25</td>
+        <td>SFK</td>
+        <td class="status-prod">Production</td>
+        <td>HKDF-SHA-256</td>
+        <td>100 µs</td>
+        <td>45.10 µs</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>3/3</td>
+      </tr>
+      <tr>
+        <td>26</td>
+        <td>Hedera</td>
+        <td class="status-prod">Production</td>
+        <td>Hedera HCS</td>
+        <td>100 µs</td>
+        <td>75.00 µs</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>1/2</td>
+      </tr>
+      <tr>
+        <td>27</td>
+        <td>Lamport</td>
+        <td class="status-prod">Production</td>
+        <td>Lamport OTS</td>
+        <td>11.000 ms</td>
+        <td>6.145 ms</td>
+        <td><span class="grade grade-pass">Pass</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>2/3</td>
+      </tr>
+      <tr>
+        <td>28</td>
+        <td>Roundtrip</td>
+        <td class="status-forge">Forge</td>
+        <td>Full cycle</td>
+        <td>N/A</td>
+        <td>104.974 ms</td>
+        <td></td>
+        <td><span class="pq">PQ</span></td>
+        <td>8/13</td>
+      </tr>
+      <tr>
+        <td>29</td>
+        <td>User Action</td>
+        <td class="status-prod">Production</td>
+        <td>&lt; 100ms UX</td>
+        <td>100 ms</td>
+        <td>16.314 ms</td>
+        <td><span class="grade grade-plenum">Plenum+</span></td>
+        <td><span class="pq">PQ</span></td>
+        <td>6/8</td>
+      </tr>
+      <tr>
+        <td>30</td>
+        <td>A/B</td>
+        <td class="status-forge">Forge</td>
+        <td>Scalar vs batch</td>
+        <td>N/A</td>
+        <td>799.10 µs</td>
+        <td></td>
+        <td><span class="pq">PQ</span></td>
+        <td>2/4</td>
+      </tr>
+      <tr class="total-row">
+        <td></td>
+        <td>GRAND TOTAL</td>
+        <td>20 Prod / 10 Forge</td>
+        <td></td>
+        <td></td>
+        <td>208.173 ms</td>
+        <td></td>
+        <td>96 PQ</td>
+        <td>65/109</td>
+      </tr>
+    </table>
 
-<h2>Category Summary</h2>
-<table class="category-summary">
-  <tr><th>#</th><th>Category</th><th>Status</th><th>Industry Ref</th><th>Industry Total</th><th>Our Total</th><th>Grade</th><th>PQ</th><th>Steps</th></tr>
-  <tr><td>1</td><td>TL-DSA v1</td><td class="status-forge">Forge</td><td>SPHINCS+-128f</td><td>11.500 ms</td><td>53.690 ms</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>0/3</td></tr>
-  <tr><td>2</td><td>PT26-DSA</td><td class="status-prod">Production</td><td>Ed25519</td><td>280 µs</td><td>150.20 µs</td><td><span class="grade grade-pass">Pass</span></td><td></td><td>4/7</td></tr>
-  <tr><td>3</td><td>TL-DSA v2</td><td class="status-prod">Production</td><td>ML-DSA-65</td><td>600 µs</td><td>165.90 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td><span class="pq">PQ</span></td><td>6/6</td></tr>
-  <tr><td>4</td><td>TL-KEM</td><td class="status-prod">Production</td><td>ML-KEM (Kyber)</td><td>1.500 ms</td><td>285.40 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td><span class="pq">PQ</span></td><td>9/9</td></tr>
-  <tr><td>5</td><td>T-AE-MAC</td><td class="status-forge">Forge</td><td>Ascon-128</td><td>160 µs</td><td>312.60 µs</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>1/4</td></tr>
-  <tr><td>6</td><td>Phase Enc</td><td class="status-prod">Production</td><td>AES-256-CTR ×4</td><td>4.000 ms</td><td>3.982 ms</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>0/4</td></tr>
-  <tr><td>7</td><td>AES-GCM</td><td class="status-forge">Forge</td><td>AES-256-GCM</td><td>10 µs</td><td>11.90 µs</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>8</td><td>RSA-4096</td><td class="status-prod">Production</td><td>RSA-4096</td><td>16.000 ms</td><td>7.321 ms</td><td><span class="grade grade-plenum">Plenum+</span></td><td></td><td>2/2</td></tr>
-  <tr><td>9</td><td>Sponge</td><td class="status-forge">Forge</td><td>SHA3-256</td><td>20 µs</td><td>71.60 µs</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>10</td><td>TIS-27</td><td class="status-prod">Production</td><td>SHAKE-128</td><td>30 µs</td><td>27.10 µs</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>2/3</td></tr>
-  <tr><td>11</td><td>HMAC</td><td class="status-forge">Forge</td><td>HMAC-SHA-256</td><td>30 µs</td><td>120 µs</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>1/3</td></tr>
-  <tr><td>12</td><td>Wire</td><td class="status-prod">Production</td><td>CRC-32</td><td>1 µs</td><td>0 ns</td><td><span class="grade grade-plenum">Plenum+</span></td><td></td><td>2/2</td></tr>
-  <tr><td>13</td><td>Lattice</td><td class="status-prod">Production</td><td>HKDF-SHA-256</td><td>10 µs</td><td>6.80 µs</td><td><span class="grade grade-pass">Pass</span></td><td></td><td>2/2</td></tr>
-  <tr><td>14</td><td>Identity</td><td class="status-forge">Forge</td><td>Ed25519 keygen</td><td>5.200 ms</td><td>11.547 ms</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>15</td><td>Tunnel</td><td class="status-prod">Production</td><td>WireGuard Noise IK</td><td>200 µs</td><td>47.40 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td><span class="pq">PQ</span></td><td>1/2</td></tr>
-  <tr><td>16</td><td>Heartbeat</td><td class="status-prod">Production</td><td>WireGuard keepalive</td><td>500 µs</td><td>359.80 µs</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>17</td><td>TSA</td><td class="status-forge">Forge</td><td>RFC 3161 TSA</td><td>100 µs</td><td>116.80 µs</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>18</td><td>Merkle</td><td class="status-prod">Production</td><td>SHA-256 Merkle</td><td>600 µs</td><td>537.70 µs</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>19</td><td>TDNS</td><td class="status-prod">Production</td><td>DNS A-record</td><td>30 µs</td><td>7.00 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td></td><td>3/3</td></tr>
-  <tr><td>20</td><td>Calendar</td><td class="status-prod">Production</td><td>Base-N conversion</td><td>1 µs</td><td>0 ns</td><td><span class="grade grade-plenum">Plenum+</span></td><td></td><td>2/2</td></tr>
-  <tr><td>21</td><td>CON</td><td class="status-prod">Production</td><td>WireGuard multi-peer</td><td>500 µs</td><td>185.90 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td><span class="pq">PQ</span></td><td>3/3</td></tr>
-  <tr><td>22</td><td>HPTP</td><td class="status-prod">Production</td><td>IEEE 1588 PTP</td><td>50 µs</td><td>9.60 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td></td><td>3/3</td></tr>
-  <tr><td>23</td><td>ZK</td><td class="status-prod">Production</td><td>Schnorr DLOG</td><td>200 µs</td><td>116.30 µs</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>0/2</td></tr>
-  <tr><td>24</td><td>SignHere</td><td class="status-forge">Forge</td><td>DocuSign</td><td>500 µs</td><td>750 µs</td><td><span class="grade grade-fail">FAIL</span></td><td><span class="pq">PQ</span></td><td>2/4</td></tr>
-  <tr><td>25</td><td>SFK</td><td class="status-prod">Production</td><td>HKDF-SHA-256</td><td>100 µs</td><td>45.10 µs</td><td><span class="grade grade-plenum">Plenum+</span></td><td><span class="pq">PQ</span></td><td>3/3</td></tr>
-  <tr><td>26</td><td>Hedera</td><td class="status-prod">Production</td><td>Hedera HCS</td><td>100 µs</td><td>75.00 µs</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>1/2</td></tr>
-  <tr><td>27</td><td>Lamport</td><td class="status-prod">Production</td><td>Lamport OTS</td><td>11.000 ms</td><td>6.145 ms</td><td><span class="grade grade-pass">Pass</span></td><td><span class="pq">PQ</span></td><td>2/3</td></tr>
-  <tr><td>28</td><td>Roundtrip</td><td class="status-forge">Forge</td><td>Full cycle</td><td>N/A</td><td>104.974 ms</td><td></td><td><span class="pq">PQ</span></td><td>8/13</td></tr>
-  <tr><td>29</td><td>User Action</td><td class="status-prod">Production</td><td>&lt; 100ms UX</td><td>100 ms</td><td>16.314 ms</td><td><span class="grade grade-plenum">Plenum+</span></td><td><span class="pq">PQ</span></td><td>6/8</td></tr>
-  <tr><td>30</td><td>A/B</td><td class="status-forge">Forge</td><td>Scalar vs batch</td><td>N/A</td><td>799.10 µs</td><td></td><td><span class="pq">PQ</span></td><td>2/4</td></tr>
-  <tr class="total-row"><td></td><td>GRAND TOTAL</td><td>20 Prod / 10 Forge</td><td></td><td></td><td>208.173 ms</td><td></td><td>96 PQ</td><td>65/109</td></tr>
-</table>
-
-<div class="footer">
-  <p>Generated by inter_cube v6 benchmark runner &bull; PQ = Post-quantum verifiable (sponge pre-image, lattice, hash-based)</p>
-  <p>Run ID: 65DD00A4 &bull; ARM64 (aarch64) NEON SIMD &bull; 100 iterations &bull; 2026-03-14</p>
-</div>
-
-</body>
+    <div class="footer">
+      <p>
+        Generated by inter_cube v6 benchmark runner &bull; PQ = Post-quantum
+        verifiable (sponge pre-image, lattice, hash-based)
+      </p>
+      <p>
+        Run ID: 65DD00A4 &bull; ARM64 (aarch64) NEON SIMD &bull; 100 iterations
+        &bull; 2026-03-14
+      </p>
+    </div>
+  </body>
 </html>
