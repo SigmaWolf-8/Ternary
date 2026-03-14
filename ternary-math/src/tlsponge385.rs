@@ -546,6 +546,92 @@ pub fn derive_key_cat_tis(context: &[u8], parts: &[&[u8]], key_len: usize) -> Ve
         trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// BULK-RATE PUBLIC API — 486-trit rate (97 bytes/permutation)
+//
+// Security: capacity = 243 trits ≈ 385 bits
+//   Grover pre-image: 2^192 — NIST Level 3
+//   Classical collision: 2^192 — exceeds Level 5
+//   BHT quantum collision: 2^128 — NIST Level 1
+//   (SHA3-256 has the same BHT bound due to 256-bit output)
+//
+// Use for: message hashing, MAC computation, bulk KDF
+// Do NOT use for: key derivation from secrets (use full-rate derive_key)
+//
+// Throughput: ~11 permutations per 1KB vs ~21 at standard rate.
+// This is exactly what Keccak does: SHA3-256 uses rate=1088/cap=512
+// while SHAKE128 uses rate=1344/cap=256 for bulk output.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Hash with bulk rate — 2× throughput for large inputs.
+/// Same permutation, same rounds, wider absorption lane.
+pub fn hash_bulk(input: &[u8], output_len: usize) -> Vec<u8> {
+    let trits = bytes_to_trits(input);
+    let mut state = [0i8; STATE_SIZE];
+    let mut offset = 0;
+    while offset + RATE_BULK <= trits.len() {
+        for i in 0..RATE_BULK { state[i] = trit_add(state[i], trits[offset + i]); }
+        permute_n(&mut state, ROUNDS);
+        offset += RATE_BULK;
+    }
+    let remaining = trits.len() - offset;
+    for i in 0..remaining { state[i] = trit_add(state[i], trits[offset + i]); }
+    if remaining < RATE_BULK { state[remaining] = trit_add(state[remaining], 1); }
+    permute_n(&mut state, ROUNDS);
+    let need = output_len * 5;
+    let mut output = Vec::with_capacity(need);
+    while output.len() < need {
+        let take = (need - output.len()).min(RATE_BULK);
+        output.extend_from_slice(&state[..take]);
+        if output.len() < need { permute_n(&mut state, ROUNDS); }
+    }
+    output.truncate(need);
+    trits_to_bytes(&output)[..output_len].to_vec()
+}
+
+/// Bulk-rate KDF — context + material hashed at 2× throughput.
+/// Use for message hashing before signing, MAC over large payloads.
+pub fn derive_key_bulk(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
+    let mut input = Vec::with_capacity(context.len() + material.len());
+    input.extend_from_slice(context);
+    input.extend_from_slice(material);
+    hash_bulk(&input, key_len)
+}
+
+/// TIS-27 bulk-rate hash — 4 rounds, wide absorption.
+pub fn hash_bulk_tis(input: &[u8], output_len: usize) -> Vec<u8> {
+    let trits = bytes_to_trits(input);
+    let mut state = [0i8; STATE_SIZE];
+    let mut offset = 0;
+    while offset + RATE_BULK <= trits.len() {
+        for i in 0..RATE_BULK { state[i] = trit_add(state[i], trits[offset + i]); }
+        permute_n(&mut state, ROUNDS_TIS);
+        offset += RATE_BULK;
+    }
+    let remaining = trits.len() - offset;
+    for i in 0..remaining { state[i] = trit_add(state[i], trits[offset + i]); }
+    if remaining < RATE_BULK { state[remaining] = trit_add(state[remaining], 1); }
+    permute_n(&mut state, ROUNDS_TIS);
+    let need = output_len * 5;
+    let mut output = Vec::with_capacity(need);
+    while output.len() < need {
+        let take = (need - output.len()).min(RATE_BULK);
+        output.extend_from_slice(&state[..take]);
+        if output.len() < need { permute_n(&mut state, ROUNDS_TIS); }
+    }
+    output.truncate(need);
+    trits_to_bytes(&output)[..output_len].to_vec()
+}
+
+/// TIS-27 bulk-rate KDF.
+pub fn derive_key_bulk_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
+    let mut input = Vec::with_capacity(context.len() + material.len());
+    input.extend_from_slice(context);
+    input.extend_from_slice(material);
+    hash_bulk_tis(&input, key_len)
+}
+
 pub fn sponge385_derive_key(domain: &[u8], addr_a: &[u8], addr_b: &[u8], kem_shared_secret: &[u8; 32], epoch: u64) -> Vec<u8> {
     let mut s = Sponge385Pub::new();
     s.absorb_bytes_stack(domain); s.absorb_bytes_stack(addr_a); s.absorb_bytes_stack(addr_b);
@@ -748,5 +834,29 @@ mod tests {
         let new_out = s_new.squeeze(200);
 
         assert_eq!(old_out, new_out, "Stack absorb must match heap absorb");
+    }
+    #[test] fn hash_bulk_deterministic() {
+        let input = vec![42u8; 1024];
+        assert_eq!(hash_bulk(&input, 32), hash_bulk(&input, 32));
+    }
+    #[test] fn hash_bulk_different_from_standard() {
+        let input = vec![42u8; 1024];
+        assert_ne!(hash(&input, 32), hash_bulk(&input, 32),
+            "Bulk and standard rate must produce different outputs");
+    }
+    #[test] fn hash_bulk_tis_deterministic() {
+        let input = vec![42u8; 1024];
+        assert_eq!(hash_bulk_tis(&input, 27), hash_bulk_tis(&input, 27));
+    }
+    #[test] fn derive_key_bulk_matches_hash_bulk() {
+        let input = vec![42u8; 1024];
+        let h = hash_bulk(&[b"CTX" as &[u8], input.as_slice()].concat(), 32);
+        let d = derive_key_bulk(b"CTX", &input, 32);
+        assert_eq!(h, d);
+    }
+    #[test] fn hash_bulk_different_inputs() {
+        let a = vec![1u8; 1024];
+        let b = vec![2u8; 1024];
+        assert_ne!(hash_bulk(&a, 32), hash_bulk(&b, 32));
     }
 }
