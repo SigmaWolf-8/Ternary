@@ -495,10 +495,12 @@ pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8
 /// Eliminates 1 Vec allocation per call. Over 52 heartbeat calls/sec, that's
 /// 52 fewer heap alloc+free cycles per second.
 pub fn derive_key_cat(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8> {
-    let total: usize = context.len() + parts.iter().map(|p| p.len()).sum::<usize>();
-    let mut s = Sponge385Pub::new();
-    if total <= 768 {
-        let mut buf = [0u8; 768];
+    let mut total_len = context.len();
+    for part in parts { total_len += part.len(); }
+    
+    if total_len <= 512 {
+        // Stack path — zero allocation
+        let mut buf = [0u8; 512];
         let mut offset = 0;
         buf[..context.len()].copy_from_slice(context);
         offset += context.len();
@@ -506,22 +508,25 @@ pub fn derive_key_cat(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8
             buf[offset..offset + part.len()].copy_from_slice(part);
             offset += part.len();
         }
+        let mut s = Sponge385Pub::new();
         s.absorb_bytes_stack(&buf[..offset]);
+        trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
     } else {
-        let mut input = Vec::with_capacity(total);
+        // Heap fallback for large inputs (1KB+ benchmark data)
+        let mut input = Vec::with_capacity(total_len);
         input.extend_from_slice(context);
         for part in parts { input.extend_from_slice(part); }
-        s.absorb_bytes(&input);
+        hash(&input, key_len)
     }
-    trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
 }
 
 /// TIS-27 variant of derive_key_cat (4 rounds instead of 9).
 pub fn derive_key_cat_tis(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8> {
-    let total: usize = context.len() + parts.iter().map(|p| p.len()).sum::<usize>();
-    let mut s = Sponge385Pub::new_tis();
-    if total <= 768 {
-        let mut buf = [0u8; 768];
+    let mut total_len = context.len();
+    for part in parts { total_len += part.len(); }
+    
+    if total_len <= 512 {
+        let mut buf = [0u8; 512];
         let mut offset = 0;
         buf[..context.len()].copy_from_slice(context);
         offset += context.len();
@@ -529,14 +534,17 @@ pub fn derive_key_cat_tis(context: &[u8], parts: &[&[u8]], key_len: usize) -> Ve
             buf[offset..offset + part.len()].copy_from_slice(part);
             offset += part.len();
         }
+        let mut s = Sponge385Pub::new_tis();
         s.absorb_bytes_stack(&buf[..offset]);
+        trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
     } else {
-        let mut input = Vec::with_capacity(total);
+        let mut input = Vec::with_capacity(total_len);
         input.extend_from_slice(context);
         for part in parts { input.extend_from_slice(part); }
+        let mut s = Sponge385Pub::new_tis();
         s.absorb_bytes(&input);
+        trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
     }
-    trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
 }
 pub fn sponge385_derive_key(domain: &[u8], addr_a: &[u8], addr_b: &[u8], kem_shared_secret: &[u8; 32], epoch: u64) -> Vec<u8> {
     let mut s = Sponge385Pub::new();
