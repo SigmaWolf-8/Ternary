@@ -1,0 +1,239 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> # Download tlsponge385.rs and inter_cube.rs from GitHub to C:\PlenumNET
+PS C:\Users\Sigma> $headers = @{ "Accept" = "application/vnd.github.v3.raw" }
+PS C:\Users\Sigma> $base = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main"
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Invoke-WebRequest "$base/ternary-math/src/tlsponge385.rs" -OutFile "C:\PlenumNET\ternary-math\src\tlsponge385.rs" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/ternary-math/benches/inter_cube.rs" -OutFile "C:\PlenumNET\ternary-math\benches\inter_cube.rs" -Headers $headers
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Write-Host "Done. Files saved to C:\PlenumNET\ternary-math\"
+Done. Files saved to C:\PlenumNET\ternary-math\
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> git pull origin main
+fatal: not a git repository (or any of the parent directories): .git
+PS C:\PlenumNET> cargo bench --bench inter_cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.44
+   Compiling unicode-ident v1.0.24
+   Compiling serde_core v1.0.228
+   Compiling crossbeam-utils v0.8.21
+   Compiling windows-link v0.2.1
+   Compiling serde v1.0.228
+   Compiling autocfg v1.5.0
+   Compiling libm v0.2.16
+   Compiling zmij v1.0.21
+   Compiling either v1.15.0
+   Compiling cfg-if v1.0.4
+   Compiling windows-sys v0.61.2
+   Compiling rayon-core v1.12.1
+   Compiling serde_json v1.0.149
+   Compiling half v2.4.1
+   Compiling num-traits v0.2.19
+   Compiling plotters-backend v0.3.7
+   Compiling memchr v2.8.0
+   Compiling itoa v1.0.17
+   Compiling clap_lex v1.0.0
+   Compiling regex-syntax v0.8.9
+   Compiling anstyle v1.0.13
+   Compiling ciborium-io v0.2.2
+   Compiling plotters-svg v0.3.7
+   Compiling ciborium-ll v0.2.2
+   Compiling itertools v0.10.5
+   Compiling cast v0.3.0
+   Compiling crossbeam-epoch v0.9.18
+   Compiling clap_builder v4.5.60
+   Compiling oorandom v11.1.5
+   Compiling anes v0.1.6
+   Compiling ternary-math v0.1.0 (C:\PlenumNET\ternary-math)
+   Compiling once_cell v1.21.3
+   Compiling syn v2.0.117
+   Compiling crossbeam-deque v0.8.6
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: function `rot` is never used
+  --> ternary-math\src\tis_sponge.rs:88:4
+   |
+88 | fn rot(src: &[u8], dst: &mut [u8], dist: usize, w: usize) {
+   |    ^^^
+
+   Compiling winapi-util v0.1.11
+   Compiling is-terminal v0.4.17
+   Compiling same-file v1.0.6
+   Compiling rayon v1.10.0
+warning: `ternary-math` (lib) generated 3 warnings
+   Compiling regex-automata v0.4.14
+   Compiling walkdir v2.5.0
+   Compiling criterion-plot v0.5.0
+   Compiling clap v4.5.60
+   Compiling plotters v0.3.7
+   Compiling regex v1.12.3
+   Compiling serde_derive v1.0.228
+   Compiling tinytemplate v1.2.1
+   Compiling ciborium v0.2.2
+   Compiling criterion v0.5.1
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+  --> ternary-math\benches\inter_cube.rs:59:19
+   |
+59 |     ternary_math::tlsponge385::derive_key(domain, material, len)
+   |                   ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+  --> ternary-math\benches\inter_cube.rs:90:19
+   |
+90 |     ternary_math::tlsponge385::derive_key_cat(domain, parts, len)
+   |                   ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+  --> ternary-math\benches\inter_cube.rs:98:28
+   |
+98 |     let kp = ternary_math::tl_dsa::keygen(
+   |                            ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+  --> ternary-math\benches\inter_cube.rs:99:23
+   |
+99 |         ternary_math::tl_dsa::TlDsaVariant::TlDsa87, Some(b"bench-seed"));
+   |                       ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:104:28
+    |
+104 |     let kp = ternary_math::tl_dsa::keygen(
+    |                            ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:105:23
+    |
+105 |         ternary_math::tl_dsa::TlDsaVariant::TlDsa87, Some(b"bench-seed"));
+    |                       ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:106:29
+    |
+106 |     let sig = ternary_math::tl_dsa::sign(
+    |                             ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:107:61
+    |
+107 |         &kp.secret_key, b"benchmark message", ternary_math::tl_dsa::TlDsaVariant::TlDsa87);
+    |                                                             ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:112:28
+    |
+112 |     let kp = ternary_math::tl_dsa::keygen(
+    |                            ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:113:23
+    |
+113 |         ternary_math::tl_dsa::TlDsaVariant::TlDsa87, Some(b"bench-seed"));
+    |                       ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:114:29
+    |
+114 |     let sig = ternary_math::tl_dsa::sign(
+    |                             ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:115:61
+    |
+115 |         &kp.secret_key, b"benchmark message", ternary_math::tl_dsa::TlDsaVariant::TlDsa87);
+    |                                                             ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:116:27
+    |
+116 |     let v = ternary_math::tl_dsa::verify(
+    |                           ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:117:67
+    |
+117 |         &kp.public_key, b"benchmark message", &sig, ternary_math::tl_dsa::TlDsaVariant::TlDsa87);
+    |                                                                   ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:278:29
+    |
+278 |     black_box(ternary_math::tlsponge385::derive_key_batch(&domains_26, &refs_a, 32));
+    |                             ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:279:29
+    |
+279 |     black_box(ternary_math::tlsponge385::derive_key_batch(&domains_26, &refs_b, 32));
+    |                             ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:280:29
+    |
+280 |     black_box(ternary_math::tlsponge385::derive_key_batch(&domains_4, &refs_c, 32));
+    |                             ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:546:29
+    |
+546 |     black_box(ternary_math::tlsponge385::hash_hex(b"benchmark sponge hash input"));
+    |                             ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:642:28
+    |
+642 |     let kp = ternary_math::tl_dsa::keygen(ternary_math::tl_dsa::TlDsaVariant::TlDsa87, Some(&seed));
+    |                            ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tl_dsa` in `ternary_math`
+   --> ternary-math\benches\inter_cube.rs:642:57
+    |
+642 |     let kp = ternary_math::tl_dsa::keygen(ternary_math::tl_dsa::TlDsaVariant::TlDsa87, Some(&seed));
+    |                                                         ^^^^^^ could not find `tl_dsa` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+    --> ternary-math\benches\inter_cube.rs:1090:29
+     |
+1090 |     black_box(ternary_math::tlsponge385::derive_key(b"AB-SCALAR", b"benchmark-material", 48));
+     |                             ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+    --> ternary-math\benches\inter_cube.rs:1099:29
+     |
+1099 |     black_box(ternary_math::tlsponge385::derive_key_batch(&domains, &mat_refs, 48));
+     |                             ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+    --> ternary-math\benches\inter_cube.rs:1119:31
+     |
+1119 |     let tags1 = ternary_math::tlsponge385::derive_key_batch(&domains, &mat_refs, 27);
+     |                               ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+error[E0433]: failed to resolve: could not find `tlsponge385` in `ternary_math`
+    --> ternary-math\benches\inter_cube.rs:1120:31
+     |
+1120 |     let tags2 = ternary_math::tlsponge385::derive_key_batch(&domains, &mat_refs, 27);
+     |                               ^^^^^^^^^^^ could not find `tlsponge385` in `ternary_math`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `ternary-math` (bench "inter_cube") due to 24 previous errors
+PS C:\PlenumNET>
