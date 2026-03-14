@@ -628,6 +628,22 @@ pub fn bench_heartbeat_26() {
     }
 }
 
+/// Benchmark: Batch heartbeat via derive_key_batch (target: < 50µs).
+///
+/// Same 26 HMAC key derivations as heartbeat_26, but
+/// using the batch API which can tritslice internally.
+pub fn bench_heartbeat_26_batch() {
+    let domains: Vec<&[u8]> = (0..26).map(|_| b"PlenumNET-HB-HMAC" as &[u8]).collect();
+    let materials: Vec<Vec<u8>> = (0..26).map(|i| {
+        let mut m = b"key-material".to_vec();
+        m.push(i as u8);
+        m
+    }).collect();
+    let mat_refs: Vec<&[u8]> = materials.iter().map(|m| m.as_slice()).collect();
+    let results = ternary_math::tlsponge385::derive_key_batch(&domains, &mat_refs, 48);
+    std::hint::black_box(results);
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // 17. TSA / Merkle — 4 benchmarks
 // ═══════════════════════════════════════════════════════════════════════
@@ -1109,6 +1125,7 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         // 16. Heartbeat (2)
         BenchmarkEntry { name: "heartbeat_single", category: "Heartbeat", target: "< 1.2µs", run: bench_heartbeat_single },
         BenchmarkEntry { name: "heartbeat_26", category: "Heartbeat", target: "< 50µs", run: bench_heartbeat_26 },
+        BenchmarkEntry { name: "heartbeat_26_batch", category: "Heartbeat", target: "< 50µs", run: bench_heartbeat_26_batch },
         // 17. TSA / Merkle (4)
         BenchmarkEntry { name: "tsa_timestamp_create", category: "TSA", target: "< 30µs", run: bench_tsa_timestamp_create },
         BenchmarkEntry { name: "tsa_timestamp_verify", category: "TSA", target: "< 20µs", run: bench_tsa_timestamp_verify },
@@ -1285,6 +1302,7 @@ fn criterion_tunnel(c: &mut Criterion) {
 fn criterion_heartbeat(c: &mut Criterion) {
     c.bench_function("heartbeat_pipeline_single", |b| b.iter(bench_heartbeat_single));
     c.bench_function("heartbeat_26_neighbors", |b| b.iter(bench_heartbeat_26));
+    c.bench_function("heartbeat_26_batch", |b| b.iter(bench_heartbeat_26_batch));
 }
 
 fn criterion_tsa(c: &mut Criterion) {

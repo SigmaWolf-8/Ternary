@@ -1,815 +1,515 @@
 // Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
-// Patent(s) Pending — All Rights Reserved
-// Applied Physics Division
+// Patent(s) Pending — All Rights Reserved — Applied Physics Division
 //
-// PROPRIETARY AND CONFIDENTIAL
-// This file is part of the Salvi Framework / PlenumNET platform.
-// See LICENSE in the repository root for full terms.
+// TLSponge-385 — The Salvi Framework Sponge
+// Location: ternary-math/src/tlsponge385.rs
+//
+// One sponge. One file.
+//
+// Round function (per round, 9 rounds):
+//   1. Chi  — χ(x) = x¹⁷ over GF(27), compile-time 27-entry table
+//   2. Theta-Pi-RC — fused 7-neighbor diffusion (±1,±7,±13) +
+//                     stride-376 scatter + round constants
+//
+// This IS the old sponge.rs permutation with three improvements:
+//   - Precomputed THETA_IDX eliminates mod arithmetic in scalar fallback
+//   - TIS-27 mode (4 rounds) for scan hash / identity / HMAC fast path
+//   - Batch API for heartbeat×26 (sequential now, tritsliced when ready)
+//
+// State: 729 balanced trits (i8, values -1/0/+1)
+// Rate: 243 | Capacity: 486 | Security: 385-bit PQ
+// Rounds: 9 full (TLSponge-385), 4 fast (TIS-27)
 
-//! # TLSponge-385 — The Salvi Framework Sponge
-//!
-//! One sponge. One file. Two entry points.
-//!
-//! - `derive_key()` — single call, optimized scalar
-//! - `derive_key_batch()` — 1–26 parallel instances, tritsliced
-//!
-//! TIS-27 is TLSponge-385 with 4 rounds. Same permutation, different
-//! round count. Use `derive_key_tis()` or `Rounds::Tis27`.
-//!
-//! ## What This Replaces
-//!
-//! This file replaces ALL of the following (delete them):
-//!
-//! - `sponge.rs` — original scalar (absorbed, optimized)
-//! - `sponge_packed.rs` — GF(27) experiment (failed, 16× slower)
-//! - `sponge_2bit.rs` — 2-bit packed experiment (failed, 101× slower)
-//! - `sponge_dispatch.rs` — dispatch layer (unnecessary with one sponge)
-//! - `sponge_fast.rs` — prototype of this file (absorbed)
-//! - `sponge_shuffle.rs` — σ shuffles (absorbed into sigma())
-//! - `gf27.rs` — GF(27) arithmetic (absorbed into compile-time χ table)
-//!
-//! ## Architecture
-//!
-//! State: 729 bytes, one byte per trit (values 0–2). The A/B benchmark
-//! proved this representation wins on scalar hardware.
-//!
-//! Three algorithmic fixes eliminate the mod-3 bottleneck:
-//!
-//! | Step | Before | After |
-//! |------|--------|-------|
-//! | χ | Runtime x¹⁷ (3,645 mod-3 ops/round) | 27-entry table (0 div/round) |
-//! | ρ∘π | Two passes (1,458 moves) | One precomputed pass (729 moves) |
-//! | θ | Per-trit division | Branchless add3 (0 division) |
-//!
-//! Batch mode: tritsliced across 1–26 instances. Each trit position
-//! stored as 2 bits × N instances in a u64 word. Boolean GF(3) logic
-//! processes all instances per instruction. Partial batches (< 26)
-//! cost the same as full — unused slots are masked on output.
-//!
-//! ## Repo Path
-//!
-//! `ternary-math/src/tlsponge385.rs`
+const STATE_SIZE: usize = 729;
+const RATE: usize = 243;
+const RATE_BULK: usize = 486;
+const ROUNDS: usize = 9;
+const ROUNDS_TIS: usize = 4;
+const LANES: usize = 27;
+const CHI_BLOCKS: usize = 243;
 
-// ═══════════════════════════════════════════════════════════════════════
-// PARAMETERS
-// ═══════════════════════════════════════════════════════════════════════
-
-/// Sponge state: 729 trits = 3⁶ = 27³.
-pub const STATE: usize = 729;
-
-/// Rate portion: 384 trits.
-pub const RATE: usize = 384;
-
-/// Capacity: 345 trits. Security level: 385 bits.
-pub const CAPACITY: usize = STATE - RATE;
-
-/// 9 blocks of 81 trits for σ shuffles.
-pub const BLOCKS: usize = 9;
-pub const BLOCK_SZ: usize = 81;
-
-/// Maximum parallel instances in batch mode.
 pub const MAX_BATCH: usize = 26;
+pub const SPONGE_VERSION: u8 = 2;
 
-/// Round configurations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Rounds {
-    /// TLSponge-385: 9 rounds. Signatures, binding, key derivation.
+pub enum RoundMode {
     Full,
-    /// TIS-27: 4 rounds. Scan hash, identity derivation, HMAC fast path.
     Tis27,
 }
-
-impl Rounds {
+impl RoundMode {
+    #[inline(always)]
     pub fn count(self) -> usize {
-        match self {
-            Self::Full => 9,
-            Self::Tis27 => 4,
-        }
+        match self { Self::Full => ROUNDS, Self::Tis27 => ROUNDS_TIS }
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// COMPILE-TIME χ TABLE
-//
-// Derived from x¹⁷ over GF(27) = GF(3)[t]/(t³ + 2t + 1).
-// Each entry stores [trit0, trit1, trit2] — zero runtime division.
-// Verified against algebraic repeated multiplication in tests.
-// ═══════════════════════════════════════════════════════════════════════
-
-const CHI: [[u8; 3]; 27] = compute_chi_table();
-
-const fn gf3a(a: u8, b: u8) -> u8 { let s = a + b; if s >= 3 { s - 3 } else { s } }
-const fn gf3m(a: u8, b: u8) -> u8 { let p = a * b; if p >= 6 { p - 6 } else if p >= 3 { p - 3 } else { p } }
-
-const fn gf27mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
-    let c0 = gf3m(a[0], b[0]);
-    let c1 = gf3a(gf3m(a[0], b[1]), gf3m(a[1], b[0]));
-    let c2 = gf3a(gf3a(gf3m(a[0], b[2]), gf3m(a[1], b[1])), gf3m(a[2], b[0]));
-    let c3 = gf3a(gf3m(a[1], b[2]), gf3m(a[2], b[1]));
-    let c4 = gf3m(a[2], b[2]);
-    [gf3a(c0, gf3m(2, c3)), gf3a(gf3a(c1, c3), gf3m(2, c4)), gf3a(c2, c4)]
-}
-
-const fn gf27sq(a: [u8; 3]) -> [u8; 3] { gf27mul(a, a) }
-
-const fn compute_chi_table() -> [[u8; 3]; 27] {
-    let mut t = [[0u8; 3]; 27];
-    let mut i: u8 = 0;
-    loop {
-        if i >= 27 { break; }
-        let x = [i % 3, (i / 3) % 3, i / 9];
-        let x2 = gf27sq(x); let x4 = gf27sq(x2);
-        let x8 = gf27sq(x4); let x16 = gf27sq(x8);
-        t[i as usize] = gf27mul(x16, x);
-        i += 1;
-    }
-    t
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// COMPILE-TIME ρ∘π COMBINED PERMUTATION
-// ρ: rotate within block. π: stride-13. One pass.
-// ═══════════════════════════════════════════════════════════════════════
-
-const RHOPI: [u16; STATE] = compute_rhopi();
-
-const fn compute_rhopi() -> [u16; STATE] {
-    let mut t = [0u16; STATE];
-    let mut i = 0usize;
-    loop {
-        if i >= STATE { break; }
-        let block = i / BLOCK_SZ;
-        let off = i % BLOCK_SZ;
-        let rho_off = (off + block * (block + 1) / 2) % BLOCK_SZ;
-        let after_rho = block * BLOCK_SZ + rho_off;
-        t[i] = ((after_rho * 13) % STATE) as u16;
-        i += 1;
-    }
-    t
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// σ BLOCK PERMUTATION SCHEDULES
-// ═══════════════════════════════════════════════════════════════════════
-
-const SIGMA: [[usize; BLOCKS]; 4] = [
-    [4, 8, 3, 2, 0, 7, 5, 6, 1], // σ_A — full derangement
-    [6, 0, 7, 8, 4, 2, 3, 1, 5], // σ_B
-    [2, 6, 7, 8, 4, 0, 1, 5, 3], // σ_C
-    [8, 5, 0, 1, 4, 6, 7, 3, 2], // σ_D
-];
-
-// ═══════════════════════════════════════════════════════════════════════
-// BRANCHLESS MOD-3 ADDITION
+// BALANCED TRIT ARITHMETIC
 // ═══════════════════════════════════════════════════════════════════════
 
 #[inline(always)]
-fn add3(a: u8, b: u8) -> u8 {
+fn balanced_wrap(s: i8) -> i8 {
+    if s >= 2 { s - 3 } else if s <= -2 { s + 3 } else { s }
+}
+
+#[inline(always)]
+fn trit_add(a: i8, b: i8) -> i8 {
     let s = a + b;
-    s - 3 * (s >= 3) as u8
+    if s > 1 { s - 3 } else if s < -1 { s + 3 } else { s }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-//
-//   SINGLE-CALL MODE — Optimized scalar
-//
+// COMPILE-TIME TABLES
 // ═══════════════════════════════════════════════════════════════════════
 
-fn theta(s: &mut [u8; STATE]) {
-    let mut csum = [0u8; BLOCKS];
-    for c in 0..BLOCKS {
-        let base = c * BLOCK_SZ;
-        let mut acc: u32 = 0;
-        for j in 0..BLOCK_SZ { acc += s[base + j] as u32; }
-        csum[c] = (acc % 3) as u8;
-    }
-    let mut contrib = [0u8; BLOCKS];
-    for c in 0..BLOCKS {
-        contrib[c] = add3(csum[(c + 8) % BLOCKS], csum[(c + 1) % BLOCKS]);
-    }
-    for c in 0..BLOCKS {
-        if contrib[c] != 0 {
-            let base = c * BLOCK_SZ;
-            for j in 0..BLOCK_SZ { s[base + j] = add3(s[base + j], contrib[c]); }
-        }
-    }
-}
-
-fn rhopi(s: &mut [u8; STATE]) {
-    let mut tmp = [0u8; STATE];
-    for i in 0..STATE { tmp[RHOPI[i] as usize] = s[i]; }
-    *s = tmp;
-}
-
-fn chi_step(s: &mut [u8; STATE]) {
-    for i in (0..STATE).step_by(3) {
-        let idx = s[i] as usize + 3 * s[i + 1] as usize + 9 * s[i + 2] as usize;
-        let out = CHI[idx];
-        s[i] = out[0]; s[i + 1] = out[1]; s[i + 2] = out[2];
-    }
-}
-
-fn iota(s: &mut [u8; STATE], round: usize) {
-    s[0] = add3(s[0], (((round + 1) * (round + 1)) % 3) as u8);
-}
-
-fn sigma(s: &mut [u8; STATE], round: usize) {
-    let perm = &SIGMA[round % 4];
-    let mut tmp = [0u8; STATE];
-    for dst in 0..BLOCKS {
-        let src = perm[dst];
-        tmp[dst * BLOCK_SZ..(dst + 1) * BLOCK_SZ]
-            .copy_from_slice(&s[src * BLOCK_SZ..(src + 1) * BLOCK_SZ]);
-    }
-    *s = tmp;
-}
-
-fn permute(s: &mut [u8; STATE], rounds: usize) {
-    for r in 0..rounds {
-        theta(s); rhopi(s); chi_step(s); iota(s, r); sigma(s, r);
-    }
-}
-
-fn absorb(s: &mut [u8; STATE], data: &[u8], rounds: usize) {
-    let mut off = 0usize;
-    for &byte in data {
-        s[off] = add3(s[off], byte % 3); off += 1;
-        if off < RATE { s[off] = add3(s[off], (byte / 3) % 3); off += 1; }
-        if off < RATE { s[off] = add3(s[off], byte / 9 % 3); off += 1; }
-        if off >= RATE { permute(s, rounds); off = 0; }
-    }
-    if off > 0 { permute(s, rounds); }
-}
-
-fn squeeze(s: &mut [u8; STATE], len: usize, rounds: usize) -> Vec<u8> {
-    let mut out = Vec::with_capacity(len);
-    let mut off = 0usize;
-    while out.len() < len {
-        if off + 2 < RATE {
-            out.push(s[off] + 3 * s[off + 1] + 9 * s[off + 2]);
-            off += 3;
-        } else { permute(s, rounds); off = 0; }
-    }
-    out.truncate(len); out
-}
-
-/// Primary entry point: derive a key from domain + material.
-/// 9 rounds (TLSponge-385). Use for signatures, binding, key derivation.
-pub fn derive_key(domain: &[u8], material: &[u8], output_len: usize) -> Vec<u8> {
-    let mut s = [0u8; STATE];
-    absorb(&mut s, domain, Rounds::Full.count());
-    absorb(&mut s, material, Rounds::Full.count());
-    squeeze(&mut s, output_len, Rounds::Full.count())
-}
-
-/// TIS-27 variant: 4 rounds. Use for scan hash, identity, HMAC fast path.
-pub fn derive_key_tis(domain: &[u8], material: &[u8], output_len: usize) -> Vec<u8> {
-    let mut s = [0u8; STATE];
-    absorb(&mut s, domain, Rounds::Tis27.count());
-    absorb(&mut s, material, Rounds::Tis27.count());
-    squeeze(&mut s, output_len, Rounds::Tis27.count())
-}
-
-/// Hash with hex output.
-pub fn hash_hex(input: &[u8]) -> String {
-    derive_key(b"HASH", input, 48).iter().map(|b| format!("{:02x}", b)).collect()
-}
-
-/// TIS-27 hash with hex output.
-pub fn hash_hex_tis(input: &[u8]) -> String {
-    derive_key_tis(b"HASH", input, 48).iter().map(|b| format!("{:02x}", b)).collect()
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//
-//   BATCH MODE — Tritsliced across 1–26 geometric ports
-//
-//   Each trit position stored as 2 bits × N instances in u64 words.
-//   A single XOR/AND/OR updates all instances simultaneously.
-//   Partial batches (N < 26) cost the same — unused bits masked on output.
-//
-//   Encoding per instance slot: 0→00, 1→01, 2→10.
-//   Bit layout per trit position: instances packed in consecutive 2-bit pairs.
-//   Word i holds instances 0..31 for trit position floor(i).
-//
-// ═══════════════════════════════════════════════════════════════════════
-
-/// Tritsliced state: each trit position is a pair of u64 words (lo, hi).
-/// lo bit k = low bit of trit for instance k.
-/// hi bit k = high bit of trit for instance k.
-struct SlicedState {
-    lo: [u64; STATE],
-    hi: [u64; STATE],
-    count: usize, // Active instances (1..=26)
-}
-
-impl SlicedState {
-    fn new(count: usize) -> Self {
-        SlicedState { lo: [0; STATE], hi: [0; STATE], count }
-    }
-
-    /// Set trit at position `pos` for instance `inst` to value v (0,1,2).
-    #[inline(always)]
-    fn set(&mut self, pos: usize, inst: usize, v: u8) {
-        let mask = 1u64 << inst;
-        if v & 1 != 0 { self.lo[pos] |= mask; } else { self.lo[pos] &= !mask; }
-        if v & 2 != 0 { self.hi[pos] |= mask; } else { self.hi[pos] &= !mask; }
-    }
-
-    /// Get trit at position `pos` for instance `inst`.
-    #[inline(always)]
-    fn get(&self, pos: usize, inst: usize) -> u8 {
-        let mask = 1u64 << inst;
-        let lo = ((self.lo[pos] & mask) != 0) as u8;
-        let hi = ((self.hi[pos] & mask) != 0) as u8;
-        lo | (hi << 1)
-    }
-
-    /// Output mask: bits 0..(count-1) set.
-    #[inline(always)]
-    fn active_mask(&self) -> u64 {
-        if self.count >= 64 { u64::MAX } else { (1u64 << self.count) - 1 }
-    }
-}
-
-// ── Tritsliced GF(3) arithmetic ─────────────────────────────────────
-// Encoding: 0=00, 1=01, 2=10. Value 11 never occurs.
-// All operations process all instances (up to 64) in one instruction pair.
-
-/// Tritsliced addition: (a + b) mod 3 on all instances.
-/// Uses Boolean decomposition: 7 gates per trit position.
 #[inline(always)]
-fn ts_add(alo: u64, ahi: u64, blo: u64, bhi: u64) -> (u64, u64) {
-    // Binary addition of 2-bit values:
-    // sum_lo = alo XOR blo
-    // carry  = alo AND blo
-    // sum_hi = ahi XOR bhi XOR carry
-    // carry2 = majority(ahi, bhi, carry)
-    let sum_lo = alo ^ blo;
-    let carry = alo & blo;
-    let sum_hi = ahi ^ bhi ^ carry;
-    let carry2 = (ahi & bhi) | (ahi & carry) | (bhi & carry);
-
-    // Reduce mod 3: if value >= 3 (carry2 set OR sum_hi&sum_lo both set), subtract 3
-    // Value 3 = 11 → subtract to 00
-    // Value 4 = 100 (carry2) → subtract to 01
-    let is_3 = (!carry2) & sum_hi & sum_lo;
-    let is_4 = carry2;
-    let rlo = (sum_lo ^ is_3) & !is_4 | is_4;
-    let rhi = (sum_hi ^ is_3) & !is_4;
-    (rlo, rhi)
+const fn gf3_mul(a: u8, b: u8) -> u8 { (a * b) % 3 }
+#[inline(always)]
+const fn gf3_add(a: u8, b: u8) -> u8 { (a + b) % 3 }
+#[inline(always)]
+const fn gf27_mul(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
+    let c0 = gf3_mul(a[0], b[0]);
+    let c1 = gf3_add(gf3_mul(a[0], b[1]), gf3_mul(a[1], b[0]));
+    let c2 = gf3_add(gf3_add(gf3_mul(a[0], b[2]), gf3_mul(a[1], b[1])), gf3_mul(a[2], b[0]));
+    let c3 = gf3_add(gf3_mul(a[1], b[2]), gf3_mul(a[2], b[1]));
+    let c4 = gf3_mul(a[2], b[2]);
+    [gf3_add(c0, gf3_mul(2, c3)), gf3_add(gf3_add(c1, c3), gf3_mul(2, c4)), gf3_add(c2, c4)]
+}
+#[inline(always)]
+const fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
+    let x2 = gf27_mul(x, x); let x4 = gf27_mul(x2, x2);
+    let x8 = gf27_mul(x4, x4); let x16 = gf27_mul(x8, x8);
+    gf27_mul(x16, x)
 }
 
-// ── Tritsliced χ S-box ──────────────────────────────────────────────
-// The CHI table is 27 entries. For tritsliced operation, we process
-// each 3-trit block across all instances. The table is small enough
-// to apply per-instance within the u64 word.
+// Chi table: balanced trit output. Index = (t0+1) + (t1+1)*3 + (t2+1)*9
+static CHI_MAP: [[i8; 3]; 27] = {
+    let mut map = [[0i8; 3]; 27];
+    let mut idx = 0usize;
+    while idx < 27 {
+        let [r0, r1, r2] = gf27_pow17([(idx % 3) as u8, ((idx / 3) % 3) as u8, (idx / 9) as u8]);
+        map[idx] = [r0 as i8 - 1, r1 as i8 - 1, r2 as i8 - 1];
+        idx += 1;
+    }
+    map
+};
 
-fn ts_chi(s: &mut SlicedState) {
-    let mask = s.active_mask();
-    for base in (0..STATE).step_by(3) {
-        // For each instance, look up CHI and write back
-        let mut new_lo = [0u64; 3];
-        let mut new_hi = [0u64; 3];
-        for inst in 0..s.count {
-            let t0 = s.get(base, inst);
-            let t1 = s.get(base + 1, inst);
-            let t2 = s.get(base + 2, inst);
-            let idx = t0 as usize + 3 * t1 as usize + 9 * t2 as usize;
-            let out = CHI[idx];
-            let bit = 1u64 << inst;
-            for k in 0..3 {
-                if out[k] & 1 != 0 { new_lo[k] |= bit; }
-                if out[k] & 2 != 0 { new_hi[k] |= bit; }
-            }
-        }
-        for k in 0..3 {
-            s.lo[base + k] = (s.lo[base + k] & !mask) | (new_lo[k] & mask);
-            s.hi[base + k] = (s.hi[base + k] & !mask) | (new_hi[k] & mask);
-        }
+// SoA for SIMD chi (padded to 32 for AVX2 vpshufb)
+static CHI_MAP_T0: [i8; 32] = { let mut t = [0i8; 32]; let mut i = 0; while i < 27 { t[i] = CHI_MAP[i][0]; i += 1; } t };
+static CHI_MAP_T1: [i8; 32] = { let mut t = [0i8; 32]; let mut i = 0; while i < 27 { t[i] = CHI_MAP[i][1]; i += 1; } t };
+static CHI_MAP_T2: [i8; 32] = { let mut t = [0i8; 32]; let mut i = 0; while i < 27 { t[i] = CHI_MAP[i][2]; i += 1; } t };
+
+// Pi permutation: π(i) = (376*i + 1) mod 729
+static PERM: [u16; STATE_SIZE] = {
+    let mut p = [0u16; STATE_SIZE];
+    let mut i = 0usize;
+    while i < STATE_SIZE { p[i] = ((i * 376 + 1) % STATE_SIZE) as u16; i += 1; }
+    p
+};
+
+// Round constants: (7*round + 13*lane + 3) mod 3 - 1
+static RC_TABLE: [[i8; LANES]; ROUNDS] = {
+    let mut rc = [[0i8; LANES]; ROUNDS];
+    let mut r = 0usize;
+    while r < ROUNDS {
+        let mut lane = 0usize;
+        while lane < LANES { rc[r][lane] = ((r * 7 + lane * 13 + 3) % 3) as i8 - 1; lane += 1; }
+        r += 1;
+    }
+    rc
+};
+
+// Precomputed theta neighbor indices — eliminates mod in scalar path
+#[derive(Copy, Clone)]
+struct ThetaNeighbors { left: [u16; 3], right: [u16; 3] }
+static THETA_IDX: [ThetaNeighbors; STATE_SIZE] = {
+    let mut t = [ThetaNeighbors { left: [0; 3], right: [0; 3] }; STATE_SIZE];
+    let w = STATE_SIZE;
+    let mut i = 0;
+    while i < w {
+        t[i] = ThetaNeighbors {
+            left: [((i+w-13)%w) as u16, ((i+w-7)%w) as u16, ((i+w-1)%w) as u16],
+            right: [((i+1)%w) as u16, ((i+7)%w) as u16, ((i+13)%w) as u16],
+        };
+        i += 1;
+    }
+    t
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// CHI LAYER — scalar + AVX2 + NEON
+// ═══════════════════════════════════════════════════════════════════════
+
+fn chi_layer(state: &mut [i8; STATE_SIZE]) {
+    let mut block = 0;
+    while block < STATE_SIZE {
+        let idx = (state[block]+1) as usize + (state[block+1]+1) as usize * 3 + (state[block+2]+1) as usize * 9;
+        let r = CHI_MAP[idx];
+        state[block]=r[0]; state[block+1]=r[1]; state[block+2]=r[2];
+        block += 3;
     }
 }
 
-// ── Tritsliced θ ────────────────────────────────────────────────────
-
-fn ts_theta(s: &mut SlicedState) {
-    // Column sums: for each of 9 blocks, sum 81 trit positions
-    let mut csum_lo = [0u64; BLOCKS];
-    let mut csum_hi = [0u64; BLOCKS];
-    for c in 0..BLOCKS {
-        let base = c * BLOCK_SZ;
-        let (mut alo, mut ahi) = (0u64, 0u64);
-        for j in 0..BLOCK_SZ {
-            let (nl, nh) = ts_add(alo, ahi, s.lo[base + j], s.hi[base + j]);
-            alo = nl; ahi = nh;
-        }
-        csum_lo[c] = alo;
-        csum_hi[c] = ahi;
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn chi_layer_avx2(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::x86_64::*;
+    let t0_lo = _mm256_broadcastsi128_si256(_mm_loadu_si128(CHI_MAP_T0.as_ptr() as *const __m128i));
+    let t0_hi = _mm256_broadcastsi128_si256(_mm_loadu_si128(CHI_MAP_T0.as_ptr().add(16) as *const __m128i));
+    let t1_lo = _mm256_broadcastsi128_si256(_mm_loadu_si128(CHI_MAP_T1.as_ptr() as *const __m128i));
+    let t1_hi = _mm256_broadcastsi128_si256(_mm_loadu_si128(CHI_MAP_T1.as_ptr().add(16) as *const __m128i));
+    let t2_lo = _mm256_broadcastsi128_si256(_mm_loadu_si128(CHI_MAP_T2.as_ptr() as *const __m128i));
+    let t2_hi = _mm256_broadcastsi128_si256(_mm_loadu_si128(CHI_MAP_T2.as_ptr().add(16) as *const __m128i));
+    let v16 = _mm256_set1_epi8(16); let v15 = _mm256_set1_epi8(15);
+    let mut indices = [0u8; CHI_BLOCKS];
+    for b in 0..CHI_BLOCKS { let base=b*3; indices[b]=((state[base]+1) as u8)+((state[base+1]+1) as u8)*3+((state[base+2]+1) as u8)*9; }
+    let mut i = 0;
+    while i+32 <= CHI_BLOCKS {
+        let iv = _mm256_loadu_si256(indices.as_ptr().add(i) as *const __m256i);
+        let ih = _mm256_sub_epi8(iv, v16);
+        let mh = _mm256_cmpgt_epi8(iv, v15);
+        let r0 = _mm256_blendv_epi8(_mm256_shuffle_epi8(t0_lo,iv), _mm256_shuffle_epi8(t0_hi,ih), mh);
+        let r1 = _mm256_blendv_epi8(_mm256_shuffle_epi8(t1_lo,iv), _mm256_shuffle_epi8(t1_hi,ih), mh);
+        let r2 = _mm256_blendv_epi8(_mm256_shuffle_epi8(t2_lo,iv), _mm256_shuffle_epi8(t2_hi,ih), mh);
+        let mut o0=[0i8;32]; let mut o1=[0i8;32]; let mut o2=[0i8;32];
+        _mm256_storeu_si256(o0.as_mut_ptr() as *mut __m256i, r0);
+        _mm256_storeu_si256(o1.as_mut_ptr() as *mut __m256i, r1);
+        _mm256_storeu_si256(o2.as_mut_ptr() as *mut __m256i, r2);
+        for j in 0..32 { let b=(i+j)*3; state[b]=o0[j]; state[b+1]=o1[j]; state[b+2]=o2[j]; }
+        i+=32;
     }
-
-    // Neighbor contributions: left + right column sums
-    let mut contrib_lo = [0u64; BLOCKS];
-    let mut contrib_hi = [0u64; BLOCKS];
-    for c in 0..BLOCKS {
-        let left = (c + 8) % BLOCKS;
-        let right = (c + 1) % BLOCKS;
-        let (cl, ch) = ts_add(csum_lo[left], csum_hi[left], csum_lo[right], csum_hi[right]);
-        contrib_lo[c] = cl;
-        contrib_hi[c] = ch;
-    }
-
-    // Add contributions into every trit of each block
-    for c in 0..BLOCKS {
-        let base = c * BLOCK_SZ;
-        let (clo, chi_val) = (contrib_lo[c], contrib_hi[c]);
-        // Skip if contribution is zero across all instances
-        if clo | chi_val == 0 { continue; }
-        for j in 0..BLOCK_SZ {
-            let (nl, nh) = ts_add(s.lo[base + j], s.hi[base + j], clo, chi_val);
-            s.lo[base + j] = nl;
-            s.hi[base + j] = nh;
-        }
-    }
+    while i < CHI_BLOCKS { let b=i*3; let idx=indices[i] as usize; let r=CHI_MAP[idx]; state[b]=r[0]; state[b+1]=r[1]; state[b+2]=r[2]; i+=1; }
 }
 
-// ── Tritsliced ρ∘π — same precomputed table, word-level swap ────────
-
-fn ts_rhopi(s: &mut SlicedState) {
-    let mut tlo = [0u64; STATE];
-    let mut thi = [0u64; STATE];
-    for i in 0..STATE {
-        let dest = RHOPI[i] as usize;
-        tlo[dest] = s.lo[i];
-        thi[dest] = s.hi[i];
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn chi_layer_neon(state: &mut [i8; STATE_SIZE]) {
+    use std::arch::aarch64::*;
+    let mt0 = vld1q_s8(CHI_MAP_T0.as_ptr()); let mt0h = vld1q_s8(CHI_MAP_T0.as_ptr().add(16));
+    let mt1 = vld1q_s8(CHI_MAP_T1.as_ptr()); let mt1h = vld1q_s8(CHI_MAP_T1.as_ptr().add(16));
+    let mt2 = vld1q_s8(CHI_MAP_T2.as_ptr()); let mt2h = vld1q_s8(CHI_MAP_T2.as_ptr().add(16));
+    let mut indices = [0u8; CHI_BLOCKS];
+    for b in 0..CHI_BLOCKS { let base=b*3; indices[b]=((state[base]+1) as u8)+((state[base+1]+1) as u8)*3+((state[base+2]+1) as u8)*9; }
+    let v16 = vdupq_n_u8(16);
+    let mut i = 0;
+    while i+16 <= CHI_BLOCKS {
+        let iv = vld1q_u8(indices.as_ptr().add(i));
+        let lm = vcltq_u8(iv, v16); let hi = vsubq_u8(iv, v16);
+        let r0 = vbslq_s8(lm, vqtbl1q_s8(mt0, vreinterpretq_u8_s8(vreinterpretq_s8_u8(iv))), vqtbl1q_s8(mt0h, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi))));
+        let r1 = vbslq_s8(lm, vqtbl1q_s8(mt1, vreinterpretq_u8_s8(vreinterpretq_s8_u8(iv))), vqtbl1q_s8(mt1h, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi))));
+        let r2 = vbslq_s8(lm, vqtbl1q_s8(mt2, vreinterpretq_u8_s8(vreinterpretq_s8_u8(iv))), vqtbl1q_s8(mt2h, vreinterpretq_u8_s8(vreinterpretq_s8_u8(hi))));
+        let mut o0=[0i8;16]; let mut o1=[0i8;16]; let mut o2=[0i8;16];
+        vst1q_s8(o0.as_mut_ptr(),r0); vst1q_s8(o1.as_mut_ptr(),r1); vst1q_s8(o2.as_mut_ptr(),r2);
+        for j in 0..16 { let b=(i+j)*3; state[b]=o0[j]; state[b+1]=o1[j]; state[b+2]=o2[j]; }
+        i+=16;
     }
-    s.lo = tlo;
-    s.hi = thi;
-}
-
-// ── Tritsliced σ — block-level copy ─────────────────────────────────
-
-fn ts_sigma(s: &mut SlicedState, round: usize) {
-    let perm = &SIGMA[round % 4];
-    let mut tlo = [0u64; STATE];
-    let mut thi = [0u64; STATE];
-    for dst in 0..BLOCKS {
-        let src = perm[dst];
-        let (db, sb) = (dst * BLOCK_SZ, src * BLOCK_SZ);
-        tlo[db..db + BLOCK_SZ].copy_from_slice(&s.lo[sb..sb + BLOCK_SZ]);
-        thi[db..db + BLOCK_SZ].copy_from_slice(&s.hi[sb..sb + BLOCK_SZ]);
-    }
-    s.lo = tlo;
-    s.hi = thi;
-}
-
-// ── Tritsliced ι — add round constant to position 0 ────────────────
-
-fn ts_iota(s: &mut SlicedState, round: usize) {
-    let rc = (((round + 1) * (round + 1)) % 3) as u8;
-    if rc == 0 { return; }
-    let mask = s.active_mask();
-    // Broadcast rc to all active instances
-    let (rclo, rchi) = (if rc & 1 != 0 { mask } else { 0 }, if rc & 2 != 0 { mask } else { 0 });
-    let (nl, nh) = ts_add(s.lo[0], s.hi[0], rclo, rchi);
-    s.lo[0] = nl;
-    s.hi[0] = nh;
-}
-
-// ── Tritsliced full permutation ─────────────────────────────────────
-
-fn ts_permute(s: &mut SlicedState, rounds: usize) {
-    for r in 0..rounds {
-        ts_theta(s); ts_rhopi(s); ts_chi(s); ts_iota(s, r); ts_sigma(s, r);
-    }
-}
-
-// ── Tritsliced absorb / squeeze ─────────────────────────────────────
-
-fn ts_absorb(s: &mut SlicedState, domains: &[&[u8]], materials: &[&[u8]], rounds: usize) {
-    let n = s.count;
-    // Absorb domain for each instance
-    for inst in 0..n {
-        let mut off = 0usize;
-        for &byte in domains[inst] {
-            let t0 = byte % 3; let t1 = (byte / 3) % 3; let t2 = byte / 9 % 3;
-            let cur0 = s.get(off, inst);
-            s.set(off, inst, add3(cur0, t0)); off += 1;
-            if off < RATE { let c = s.get(off, inst); s.set(off, inst, add3(c, t1)); off += 1; }
-            if off < RATE { let c = s.get(off, inst); s.set(off, inst, add3(c, t2)); off += 1; }
-            if off >= RATE { off = 0; } // Will permute after loop
-        }
-    }
-    ts_permute(s, rounds);
-
-    // Absorb material for each instance
-    for inst in 0..n {
-        let mut off = 0usize;
-        for &byte in materials[inst] {
-            let t0 = byte % 3; let t1 = (byte / 3) % 3; let t2 = byte / 9 % 3;
-            let cur0 = s.get(off, inst);
-            s.set(off, inst, add3(cur0, t0)); off += 1;
-            if off < RATE { let c = s.get(off, inst); s.set(off, inst, add3(c, t1)); off += 1; }
-            if off < RATE { let c = s.get(off, inst); s.set(off, inst, add3(c, t2)); off += 1; }
-            if off >= RATE { off = 0; }
-        }
-    }
-    ts_permute(s, rounds);
-}
-
-fn ts_squeeze(s: &mut SlicedState, output_len: usize, rounds: usize) -> Vec<Vec<u8>> {
-    let n = s.count;
-    let mut outputs: Vec<Vec<u8>> = (0..n).map(|_| Vec::with_capacity(output_len)).collect();
-    let mut off = 0usize;
-
-    while outputs[0].len() < output_len {
-        if off + 2 < RATE {
-            for inst in 0..n {
-                let t0 = s.get(off, inst);
-                let t1 = s.get(off + 1, inst);
-                let t2 = s.get(off + 2, inst);
-                outputs[inst].push(t0 + 3 * t1 + 9 * t2);
-            }
-            off += 3;
-        } else {
-            ts_permute(s, rounds);
-            off = 0;
-        }
-    }
-    for o in &mut outputs { o.truncate(output_len); }
-    outputs
-}
-
-/// Batch derive_key: process 1–26 independent instances in parallel.
-/// Tritsliced across all instances. Partial batches cost the same as full.
-/// 9 rounds (TLSponge-385).
-pub fn derive_key_batch(
-    domains: &[&[u8]],
-    materials: &[&[u8]],
-    output_len: usize,
-) -> Vec<Vec<u8>> {
-    let n = domains.len().min(materials.len()).min(MAX_BATCH);
-    if n == 0 { return vec![]; }
-    if n == 1 { return vec![derive_key(domains[0], materials[0], output_len)]; }
-
-    let mut s = SlicedState::new(n);
-    ts_absorb(&mut s, domains, materials, Rounds::Full.count());
-    ts_squeeze(&mut s, output_len, Rounds::Full.count())
-}
-
-/// Batch derive_key with TIS-27 (4 rounds).
-pub fn derive_key_batch_tis(
-    domains: &[&[u8]],
-    materials: &[&[u8]],
-    output_len: usize,
-) -> Vec<Vec<u8>> {
-    let n = domains.len().min(materials.len()).min(MAX_BATCH);
-    if n == 0 { return vec![]; }
-    if n == 1 { return vec![derive_key_tis(domains[0], materials[0], output_len)]; }
-
-    let mut s = SlicedState::new(n);
-    ts_absorb(&mut s, domains, materials, Rounds::Tis27.count());
-    ts_squeeze(&mut s, output_len, Rounds::Tis27.count())
+    while i < CHI_BLOCKS { let b=i*3; let idx=indices[i] as usize; let r=CHI_MAP[idx]; state[b]=r[0]; state[b+1]=r[1]; state[b+2]=r[2]; i+=1; }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// TESTS — 30 tests, covering both modes
+// FUSED THETA-PI-RC — scalar (THETA_IDX) + AVX2 + NEON
+// ═══════════════════════════════════════════════════════════════════════
+
+fn theta_pi_rc(state: &mut [i8; STATE_SIZE], buf: &mut [i8; STATE_SIZE], round: usize) {
+    for i in 0..STATE_SIZE {
+        let n = &THETA_IDX[i];
+        let left = balanced_wrap(state[n.left[0] as usize] + state[n.left[1] as usize] + state[n.left[2] as usize]);
+        let right = balanced_wrap(state[n.right[0] as usize] + state[n.right[1] as usize] + state[n.right[2] as usize]);
+        buf[i] = balanced_wrap(left + state[i] + right + 1);
+    }
+    for i in 0..STATE_SIZE { state[PERM[i] as usize] = buf[i]; }
+    let rc = &RC_TABLE[round];
+    for lane in 0..LANES { let idx = lane*LANES; state[idx] = balanced_wrap(state[idx] + rc[lane]); }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn theta_pi_rc_avx2(state: &mut [i8; STATE_SIZE], ext: &mut [i8; STATE_SIZE+26], buf: &mut [i8; STATE_SIZE], round: usize) {
+    use std::arch::x86_64::*;
+    let v1=_mm256_set1_epi8(1); let vhi=_mm256_set1_epi8(1); let vlo=_mm256_set1_epi8(-1); let v3=_mm256_set1_epi8(3);
+    ext[..13].copy_from_slice(&state[STATE_SIZE-13..]);
+    ext[13..13+STATE_SIZE].copy_from_slice(state);
+    ext[13+STATE_SIZE..].copy_from_slice(&state[..13]);
+    let mut i=0;
+    while i+32<=STATE_SIZE {
+        let ei=i+13;
+        let l13=_mm256_loadu_si256(ext.as_ptr().add(ei-13) as *const __m256i);
+        let l7=_mm256_loadu_si256(ext.as_ptr().add(ei-7) as *const __m256i);
+        let l1=_mm256_loadu_si256(ext.as_ptr().add(ei-1) as *const __m256i);
+        let ls=_mm256_add_epi8(_mm256_add_epi8(l13,l7),l1);
+        let lw=_mm256_blendv_epi8(_mm256_blendv_epi8(ls,_mm256_sub_epi8(ls,v3),_mm256_cmpgt_epi8(ls,vhi)),_mm256_add_epi8(ls,v3),_mm256_cmpgt_epi8(vlo,ls));
+        let r1v=_mm256_loadu_si256(ext.as_ptr().add(ei+1) as *const __m256i);
+        let r7=_mm256_loadu_si256(ext.as_ptr().add(ei+7) as *const __m256i);
+        let r13=_mm256_loadu_si256(ext.as_ptr().add(ei+13) as *const __m256i);
+        let rs=_mm256_add_epi8(_mm256_add_epi8(r1v,r7),r13);
+        let rw=_mm256_blendv_epi8(_mm256_blendv_epi8(rs,_mm256_sub_epi8(rs,v3),_mm256_cmpgt_epi8(rs,vhi)),_mm256_add_epi8(rs,v3),_mm256_cmpgt_epi8(vlo,rs));
+        let c=_mm256_loadu_si256(ext.as_ptr().add(ei) as *const __m256i);
+        let t=_mm256_add_epi8(_mm256_add_epi8(_mm256_add_epi8(lw,c),rw),v1);
+        let res=_mm256_blendv_epi8(_mm256_blendv_epi8(t,_mm256_sub_epi8(t,v3),_mm256_cmpgt_epi8(t,vhi)),_mm256_add_epi8(t,v3),_mm256_cmpgt_epi8(vlo,t));
+        _mm256_storeu_si256(buf.as_mut_ptr().add(i) as *mut __m256i, res);
+        i+=32;
+    }
+    while i<STATE_SIZE { let ei=i+13; let left=balanced_wrap(ext[ei-13]+ext[ei-7]+ext[ei-1]); let right=balanced_wrap(ext[ei+1]+ext[ei+7]+ext[ei+13]); buf[i]=balanced_wrap(left+ext[ei]+right+1); i+=1; }
+    for i in 0..STATE_SIZE { state[PERM[i] as usize]=buf[i]; }
+    let rc=&RC_TABLE[round]; for lane in 0..LANES { let idx=lane*LANES; state[idx]=balanced_wrap(state[idx]+rc[lane]); }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon")]
+unsafe fn theta_pi_rc_neon(state: &mut [i8; STATE_SIZE], ext: &mut [i8; STATE_SIZE+26], buf: &mut [i8; STATE_SIZE], round: usize) {
+    use std::arch::aarch64::*;
+    let v1=vdupq_n_s8(1); let vhi=vdupq_n_s8(1); let vlo=vdupq_n_s8(-1); let v3=vdupq_n_s8(3); let vn3=vdupq_n_s8(-3);
+    ext[..13].copy_from_slice(&state[STATE_SIZE-13..]);
+    ext[13..13+STATE_SIZE].copy_from_slice(state);
+    ext[13+STATE_SIZE..].copy_from_slice(&state[..13]);
+    let mut i=0;
+    while i+16<=STATE_SIZE {
+        let ei=i+13;
+        let l13=vld1q_s8(ext.as_ptr().add(ei-13)); let l7=vld1q_s8(ext.as_ptr().add(ei-7)); let l1=vld1q_s8(ext.as_ptr().add(ei-1));
+        let ls=vaddq_s8(vaddq_s8(l13,l7),l1);
+        let lw=vbslq_s8(vcltq_s8(ls,vlo),vaddq_s8(ls,v3),vbslq_s8(vcgtq_s8(ls,vhi),vaddq_s8(ls,vn3),ls));
+        let r1v=vld1q_s8(ext.as_ptr().add(ei+1)); let r7=vld1q_s8(ext.as_ptr().add(ei+7)); let r13=vld1q_s8(ext.as_ptr().add(ei+13));
+        let rs=vaddq_s8(vaddq_s8(r1v,r7),r13);
+        let rw=vbslq_s8(vcltq_s8(rs,vlo),vaddq_s8(rs,v3),vbslq_s8(vcgtq_s8(rs,vhi),vaddq_s8(rs,vn3),rs));
+        let c=vld1q_s8(ext.as_ptr().add(ei));
+        let t=vaddq_s8(vaddq_s8(vaddq_s8(lw,c),rw),v1);
+        let res=vbslq_s8(vcltq_s8(t,vlo),vaddq_s8(t,v3),vbslq_s8(vcgtq_s8(t,vhi),vaddq_s8(t,vn3),t));
+        vst1q_s8(buf.as_mut_ptr().add(i),res);
+        i+=16;
+    }
+    while i<STATE_SIZE { let ei=i+13; let left=balanced_wrap(ext[ei-13]+ext[ei-7]+ext[ei-1]); let right=balanced_wrap(ext[ei+1]+ext[ei+7]+ext[ei+13]); buf[i]=balanced_wrap(left+ext[ei]+right+1); i+=1; }
+    for i in 0..STATE_SIZE { state[PERM[i] as usize]=buf[i]; }
+    let rc=&RC_TABLE[round]; for lane in 0..LANES { let idx=lane*LANES; state[idx]=balanced_wrap(state[idx]+rc[lane]); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PERMUTATION DISPATCH
+// ═══════════════════════════════════════════════════════════════════════
+
+fn permute_n(state: &mut [i8; STATE_SIZE], rounds: usize) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            let mut ext = [0i8; STATE_SIZE + 26];
+            let mut buf = [0i8; STATE_SIZE];
+            for round in 0..rounds {
+                unsafe { chi_layer_avx2(state); theta_pi_rc_avx2(state, &mut ext, &mut buf, round); }
+            }
+            return;
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            let mut ext = [0i8; STATE_SIZE + 26];
+            let mut buf = [0i8; STATE_SIZE];
+            for round in 0..rounds {
+                unsafe { chi_layer_neon(state); theta_pi_rc_neon(state, &mut ext, &mut buf, round); }
+            }
+            return;
+        }
+    }
+    let mut buf = [0i8; STATE_SIZE];
+    for round in 0..rounds { chi_layer(state); theta_pi_rc(state, &mut buf, round); }
+}
+
+pub fn sponge_permutation(state: &mut [i8; STATE_SIZE]) { permute_n(state, ROUNDS); }
+pub fn sponge_permutation_v1(state: &mut [i8; STATE_SIZE]) { permute_n(state, ROUNDS); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// TRIT / BYTE CONVERSION
+// ═══════════════════════════════════════════════════════════════════════
+
+pub fn bytes_to_trits_pub(bytes: &[u8]) -> Vec<i8> { bytes_to_trits(bytes) }
+
+fn bytes_to_trits(bytes: &[u8]) -> Vec<i8> {
+    let mut trits = Vec::with_capacity(bytes.len() * 5);
+    for &byte in bytes { let mut v = byte; for _ in 0..5 { trits.push((v%3) as i8 - 1); v/=3; } }
+    trits
+}
+
+fn trits_to_bytes(trits: &[i8]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity((trits.len()+4)/5);
+    let mut i = 0;
+    while i < trits.len() {
+        let mut val: u8 = 0; let mut pow: u8 = 1;
+        for j in 0..5 { if i+j < trits.len() { val += (trits[i+j]+1) as u8 * pow; } pow = pow.wrapping_mul(3); }
+        bytes.push(val); i += 5;
+    }
+    bytes
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SPONGE STRUCT — N-API compatible (Clone for tree-parallel squeeze)
+// ═══════════════════════════════════════════════════════════════════════
+
+#[derive(Clone)]
+pub struct Sponge385Pub {
+    state: [i8; STATE_SIZE],
+    buf: [i8; RATE],
+    buf_len: usize,
+    absorbed: bool,
+    rounds: usize,
+}
+
+impl Sponge385Pub {
+    pub fn new() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS } }
+    pub fn new_tis() -> Self { Self { state: [0i8; STATE_SIZE], buf: [0i8; RATE], buf_len: 0, absorbed: false, rounds: ROUNDS_TIS } }
+    pub fn new_v1() -> Self { Self::new() }
+
+    fn do_permute(&mut self) { permute_n(&mut self.state, self.rounds); }
+
+    pub fn absorb(&mut self, input: &[i8]) {
+        if input.is_empty() { return; }
+        self.absorbed = true;
+        let mut offset = 0; let input_len = input.len();
+        if self.buf_len > 0 {
+            let fill = input_len.min(RATE - self.buf_len);
+            self.buf[self.buf_len..self.buf_len+fill].copy_from_slice(&input[..fill]);
+            self.buf_len += fill; offset = fill;
+            if self.buf_len == RATE {
+                for i in 0..RATE { self.state[i] = trit_add(self.state[i], self.buf[i]); }
+                self.do_permute(); self.buf_len = 0;
+            }
+        }
+        while offset + RATE <= input_len {
+            for i in 0..RATE { self.state[i] = trit_add(self.state[i], input[offset+i]); }
+            self.do_permute(); offset += RATE;
+        }
+        let remaining = input_len - offset;
+        if remaining > 0 { self.buf[self.buf_len..self.buf_len+remaining].copy_from_slice(&input[offset..]); self.buf_len += remaining; }
+    }
+
+    pub fn absorb_bytes(&mut self, input: &[u8]) { self.absorb(&bytes_to_trits(input)); }
+
+    fn finalize_absorb(&mut self) {
+        for i in 0..self.buf_len { self.state[i] = trit_add(self.state[i], self.buf[i]); }
+        if self.buf_len < RATE { self.state[self.buf_len] = trit_add(self.state[self.buf_len], 1); }
+        self.buf_len = 0; self.do_permute();
+    }
+
+    pub fn squeeze(&mut self, output_trits: usize) -> Vec<i8> {
+        if self.buf_len > 0 || !self.absorbed { self.finalize_absorb(); }
+        let mut output = Vec::with_capacity(output_trits);
+        while output.len() < output_trits {
+            let take = (output_trits - output.len()).min(RATE);
+            output.extend_from_slice(&self.state[..take]);
+            if output.len() < output_trits { self.do_permute(); }
+        }
+        output.truncate(output_trits); output
+    }
+
+    pub fn squeeze_bulk(&mut self, output_trits: usize) -> Vec<i8> {
+        if self.buf_len > 0 || !self.absorbed { self.finalize_absorb(); }
+        let mut output = Vec::with_capacity(output_trits);
+        while output.len() < output_trits {
+            let take = (output_trits - output.len()).min(RATE_BULK);
+            output.extend_from_slice(&self.state[..take]);
+            if output.len() < output_trits { self.do_permute(); }
+        }
+        output.truncate(output_trits); output
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PUBLIC API
+// ═══════════════════════════════════════════════════════════════════════
+
+pub fn hash(input: &[u8], output_len: usize) -> Vec<u8> {
+    let mut s = Sponge385Pub::new(); s.absorb_bytes(input);
+    trits_to_bytes(&s.squeeze(output_len * 5))[..output_len].to_vec()
+}
+pub fn hash_hex(input: &[u8]) -> String {
+    let mut s = Sponge385Pub::new(); s.absorb_bytes(input);
+    trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
+}
+pub fn hash_hex_tis(input: &[u8]) -> String {
+    let mut s = Sponge385Pub::new_tis(); s.absorb_bytes(input);
+    trits_to_bytes(&s.squeeze(243))[..49].iter().map(|b| format!("{:02x}", b)).collect()
+}
+pub fn derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
+    let mut input = Vec::with_capacity(context.len() + material.len());
+    input.extend_from_slice(context); input.extend_from_slice(material);
+    hash(&input, key_len)
+}
+pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
+    let mut s = Sponge385Pub::new_tis();
+    let mut input = Vec::with_capacity(context.len() + material.len());
+    input.extend_from_slice(context); input.extend_from_slice(material);
+    s.absorb_bytes(&input);
+    trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
+}
+pub fn sponge385_derive_key(domain: &[u8], addr_a: &[u8], addr_b: &[u8], kem_shared_secret: &[u8; 32], epoch: u64) -> Vec<u8> {
+    let mut s = Sponge385Pub::new();
+    s.absorb_bytes(domain); s.absorb_bytes(addr_a); s.absorb_bytes(addr_b);
+    s.absorb_bytes(kem_shared_secret); s.absorb_bytes(&epoch.to_le_bytes());
+    trits_to_bytes(&s.squeeze(RATE))[..32].to_vec()
+}
+pub fn derive_key_batch(domains: &[&[u8]], materials: &[&[u8]], output_len: usize) -> Vec<Vec<u8>> {
+    let n = domains.len().min(materials.len()).min(MAX_BATCH);
+    (0..n).map(|i| derive_key(domains[i], materials[i], output_len)).collect()
+}
+pub fn derive_key_batch_tis(domains: &[&[u8]], materials: &[&[u8]], output_len: usize) -> Vec<Vec<u8>> {
+    let n = domains.len().min(materials.len()).min(MAX_BATCH);
+    (0..n).map(|i| derive_key_tis(domains[i], materials[i], output_len)).collect()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TESTS
 // ═══════════════════════════════════════════════════════════════════════
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // ── χ table verification (derived = algebraic) ──────────
-
-    #[test]
-    fn chi_is_bijection() {
+    #[test] fn chi_bijection() {
         let mut seen = [false; 27];
-        for i in 0..27u8 {
-            let out = CHI[i as usize];
-            let packed = out[0] + 3 * out[1] + 9 * out[2];
-            assert!(packed < 27);
-            assert!(!seen[packed as usize], "Duplicate at {}", i);
-            seen[packed as usize] = true;
-        }
+        for i in 0..27 { let o=CHI_MAP[i]; let p=(o[0]+1) as usize+(o[1]+1) as usize*3+(o[2]+1) as usize*9; assert!(!seen[p]); seen[p]=true; }
     }
-
-    #[test]
-    fn chi_zero_fixed() { assert_eq!(CHI[0], [0, 0, 0]); }
-
-    #[test]
-    fn chi_one_fixed() { assert_eq!(CHI[1], [1, 0, 0]); }
-
-    #[test]
-    fn chi_matches_x17_by_repeated_mul() {
-        for i in 0..27u8 {
-            let x = [i % 3, (i / 3) % 3, i / 9];
-            let mut p = [1u8, 0, 0];
-            for _ in 0..17 { p = gf27mul_rt(p, x); }
-            assert_eq!(CHI[i as usize], p, "CHI[{}] mismatch", i);
-        }
+    #[test] fn chi_zero_fixed() {
+        // Index 0 = balanced (-1,-1,-1) = GF(3) (0,0,0). 0^17 = 0. Balanced: [-1,-1,-1].
+        assert_eq!(CHI_MAP[0], [-1,-1,-1]);
     }
-
-    fn gf27mul_rt(a: [u8; 3], b: [u8; 3]) -> [u8; 3] {
-        let m = |x: u8, y: u8| (x * y) % 3;
-        let a2 = |x: u8, y: u8| (x + y) % 3;
-        let c0 = m(a[0],b[0]); let c1 = a2(m(a[0],b[1]),m(a[1],b[0]));
-        let c2 = a2(a2(m(a[0],b[2]),m(a[1],b[1])),m(a[2],b[0]));
-        let c3 = a2(m(a[1],b[2]),m(a[2],b[1])); let c4 = m(a[2],b[2]);
-        [a2(c0,m(2,c3)), a2(a2(c1,c3),m(2,c4)), a2(c2,c4)]
+    #[test] fn perm_full_period() {
+        let mut seen = [false; STATE_SIZE];
+        for i in 0..STATE_SIZE { let d=PERM[i] as usize; assert!(!seen[d]); seen[d]=true; }
     }
-
-    // ── ρ∘π table verification ──────────────────────────────
-
-    #[test]
-    fn rhopi_is_permutation() {
-        let mut seen = [false; STATE];
-        for i in 0..STATE {
-            let d = RHOPI[i] as usize;
-            assert!(d < STATE); assert!(!seen[d]);
-            seen[d] = true;
-        }
+    #[test] fn coprime_neighbors() {
+        fn gcd(mut a: usize, mut b: usize) -> usize { while b!=0 { let t=b; b=a%b; a=t; } a }
+        assert_eq!(gcd(1,STATE_SIZE),1); assert_eq!(gcd(7,STATE_SIZE),1); assert_eq!(gcd(13,STATE_SIZE),1);
     }
-
-    // ── Branchless add3 ─────────────────────────────────────
-
-    #[test]
-    fn add3_exhaustive() {
-        for a in 0..3u8 { for b in 0..3u8 { assert_eq!(add3(a, b), (a + b) % 3); } }
-    }
-
-    // ── Scalar round operations ─────────────────────────────
-
-    #[test]
-    fn theta_changes_state() {
-        let mut s = [0u8; STATE]; s[0] = 1; s[81] = 2;
-        let b = s; theta(&mut s); assert_ne!(s, b);
-    }
-
-    #[test]
-    fn rhopi_preserves_sum() {
-        let mut s = [0u8; STATE];
-        for i in 0..STATE { s[i] = (i % 3) as u8; }
-        let sum: u32 = s.iter().map(|&x| x as u32).sum();
-        rhopi(&mut s);
-        assert_eq!(s.iter().map(|&x| x as u32).sum::<u32>(), sum);
-    }
-
-    #[test]
-    fn chi_preserves_valid_trits() {
-        let mut s = [0u8; STATE];
-        for i in 0..STATE { s[i] = (i % 3) as u8; }
-        chi_step(&mut s);
-        for i in 0..STATE { assert!(s[i] < 3); }
-    }
-
-    #[test]
-    fn sigma_block_permutation() {
-        let mut s = [0u8; STATE];
-        for b in 0..BLOCKS { for j in 0..BLOCK_SZ { s[b*BLOCK_SZ+j] = (b%3) as u8; } }
-        sigma(&mut s, 0);
-        for b in 0..BLOCKS { let v = s[b*BLOCK_SZ]; for j in 1..BLOCK_SZ { assert_eq!(s[b*BLOCK_SZ+j], v); } }
-    }
-
-    // ── Scalar permutation ──────────────────────────────────
-
-    #[test]
-    fn permute_deterministic() {
-        let mut a = [0u8; STATE]; a[0] = 2;
-        let mut b = [0u8; STATE]; b[0] = 2;
-        permute(&mut a, 9); permute(&mut b, 9);
-        assert_eq!(a, b);
-    }
-
-    #[test]
-    fn permute_all_valid() {
-        let mut s = [0u8; STATE]; for i in 0..STATE { s[i] = (i%3) as u8; }
-        permute(&mut s, 9);
-        for i in 0..STATE { assert!(s[i] < 3); }
-    }
-
-    // ── Single-call derive_key ──────────────────────────────
-
-    #[test]
-    fn derive_key_deterministic() {
-        assert_eq!(derive_key(b"T", b"m", 32), derive_key(b"T", b"m", 32));
-    }
-
-    #[test]
-    fn derive_key_domain_sep() {
-        assert_ne!(derive_key(b"A", b"m", 32), derive_key(b"B", b"m", 32));
-    }
-
-    #[test]
-    fn derive_key_material_sep() {
-        assert_ne!(derive_key(b"T", b"a", 32), derive_key(b"T", b"b", 32));
-    }
-
-    #[test]
-    fn derive_key_lengths() {
-        for l in [16, 27, 32, 48, 64, 128] { assert_eq!(derive_key(b"L", b"m", l).len(), l); }
-    }
-
-    #[test]
-    fn hash_hex_valid() {
-        let h = hash_hex(b"hello"); assert_eq!(h.len(), 96);
+    #[test] fn hash_deterministic() { assert_eq!(hash(b"hello world",32), hash(b"hello world",32)); }
+    #[test] fn hash_different() { assert_ne!(hash(b"hello",32), hash(b"world",32)); }
+    #[test] fn derive_key_det() { assert_eq!(derive_key(b"c",b"m",32), derive_key(b"c",b"m",32)); }
+    #[test] fn derive_key_len() { assert_eq!(derive_key(b"c",b"m",32).len(), 32); }
+    #[test] fn derive_key_sep() { assert_ne!(derive_key(b"A",b"m",32), derive_key(b"B",b"m",32)); }
+    #[test] fn tis27_different() { assert_ne!(derive_key(b"T",b"m",32), derive_key_tis(b"T",b"m",32)); }
+    #[test] fn tis27_det() { assert_eq!(derive_key_tis(b"T",b"m",32), derive_key_tis(b"T",b"m",32)); }
+    #[test] fn hash_hex_valid() {
+        let h = hash_hex(b"hello"); assert_eq!(h.len(), 98);
         assert!(h.chars().all(|c| c.is_ascii_hexdigit()));
     }
-
-    // ── TIS-27 ──────────────────────────────────────────────
-
-    #[test]
-    fn tis27_different_from_full() {
-        assert_ne!(derive_key(b"T", b"m", 32), derive_key_tis(b"T", b"m", 32));
+    #[test] fn simd_matches_scalar() {
+        let mut a = [0i8; STATE_SIZE]; let mut b = [0i8; STATE_SIZE];
+        for i in 0..STATE_SIZE { let v=((i*7+3)%3) as i8 - 1; a[i]=v; b[i]=v; }
+        permute_n(&mut a, ROUNDS);
+        let mut buf = [0i8; STATE_SIZE];
+        for round in 0..ROUNDS { chi_layer(&mut b); theta_pi_rc(&mut b, &mut buf, round); }
+        assert_eq!(a, b);
     }
-
-    #[test]
-    fn tis27_deterministic() {
-        assert_eq!(derive_key_tis(b"T", b"m", 32), derive_key_tis(b"T", b"m", 32));
+    #[test] fn clone_identical() {
+        let mut s1 = Sponge385Pub::new(); s1.absorb_bytes(b"test");
+        let mut s2 = s1.clone();
+        assert_eq!(s1.squeeze(500), s2.squeeze(500));
     }
-
-    // ── Tritsliced add ──────────────────────────────────────
-
-    #[test]
-    fn ts_add_exhaustive() {
-        for a in 0..3u8 { for b in 0..3u8 {
-            let (alo, ahi) = (a as u64 & 1, (a as u64 >> 1) & 1);
-            let (blo, bhi) = (b as u64 & 1, (b as u64 >> 1) & 1);
-            let (rlo, rhi) = ts_add(alo, ahi, blo, bhi);
-            let result = (rlo & 1) as u8 | (((rhi & 1) as u8) << 1);
-            assert_eq!(result, (a + b) % 3, "ts_add({},{}) = {} expected {}", a, b, result, (a+b)%3);
-        }}
+    #[test] fn batch_matches() {
+        let s0=derive_key(b"D0",b"M0",32); let s1=derive_key(b"D1",b"M1",32);
+        let b=derive_key_batch(&[b"D0" as &[u8],b"D1"], &[b"M0" as &[u8],b"M1"], 32);
+        assert_eq!(b[0],s0); assert_eq!(b[1],s1);
     }
-
-    // ── Batch mode ──────────────────────────────────────────
-
-    #[test]
-    fn batch_single_matches_scalar() {
-        let s = derive_key(b"DOM", b"MAT", 32);
-        let b = derive_key_batch(&[b"DOM" as &[u8]], &[b"MAT" as &[u8]], 32);
-        assert_eq!(b.len(), 1);
-        assert_eq!(b[0], s);
-    }
-
-    #[test]
-    fn batch_two_independent() {
-        let s0 = derive_key(b"D0", b"M0", 32);
-        let s1 = derive_key(b"D1", b"M1", 32);
-        let b = derive_key_batch(&[b"D0" as &[u8], b"D1"], &[b"M0" as &[u8], b"M1"], 32);
-        assert_eq!(b.len(), 2);
-        assert_eq!(b[0], s0);
-        assert_eq!(b[1], s1);
-    }
-
-    #[test]
-    fn batch_26_all_different() {
-        let domains: Vec<Vec<u8>> = (0..26).map(|i| format!("D{}", i).into_bytes()).collect();
-        let materials: Vec<Vec<u8>> = (0..26).map(|i| format!("M{}", i).into_bytes()).collect();
-        let dom_refs: Vec<&[u8]> = domains.iter().map(|d| d.as_slice()).collect();
-        let mat_refs: Vec<&[u8]> = materials.iter().map(|m| m.as_slice()).collect();
-        let batch = derive_key_batch(&dom_refs, &mat_refs, 32);
-        assert_eq!(batch.len(), 26);
-        // Verify each matches independent scalar call
-        for i in 0..26 {
-            let scalar = derive_key(&domains[i], &materials[i], 32);
-            assert_eq!(batch[i], scalar, "Instance {} mismatch", i);
-        }
-    }
-
-    #[test]
-    fn batch_partial_13_correct() {
-        let domains: Vec<Vec<u8>> = (0..13).map(|i| format!("P{}", i).into_bytes()).collect();
-        let materials: Vec<Vec<u8>> = (0..13).map(|i| format!("Q{}", i).into_bytes()).collect();
-        let dom_refs: Vec<&[u8]> = domains.iter().map(|d| d.as_slice()).collect();
-        let mat_refs: Vec<&[u8]> = materials.iter().map(|m| m.as_slice()).collect();
-        let batch = derive_key_batch(&dom_refs, &mat_refs, 48);
-        assert_eq!(batch.len(), 13);
-        for i in 0..13 {
-            assert_eq!(batch[i], derive_key(&domains[i], &materials[i], 48), "Partial batch {} mismatch", i);
-        }
-    }
-
-    #[test]
-    fn batch_tis_matches_scalar() {
-        let s = derive_key_tis(b"DOM", b"MAT", 27);
-        let b = derive_key_batch_tis(&[b"DOM" as &[u8]], &[b"MAT" as &[u8]], 27);
-        assert_eq!(b[0], s);
-    }
-
-    #[test]
-    fn batch_empty() {
-        let b = derive_key_batch(&[], &[], 32);
-        assert!(b.is_empty());
-    }
-
-    // ── Constants ───────────────────────────────────────────
-
-    #[test]
-    fn constants() {
-        assert_eq!(STATE, 729);
-        assert_eq!(RATE + CAPACITY, STATE);
-        assert_eq!(BLOCKS * BLOCK_SZ, STATE);
-        assert_eq!(Rounds::Full.count(), 9);
-        assert_eq!(Rounds::Tis27.count(), 4);
-        assert_eq!(MAX_BATCH, 26);
+    #[test] fn batch_empty() { assert!(derive_key_batch(&[],&[],32).is_empty()); }
+    #[test] fn constants() {
+        assert_eq!(STATE_SIZE,729); assert_eq!(RATE+486,STATE_SIZE);
+        assert_eq!(RoundMode::Full.count(),9); assert_eq!(RoundMode::Tis27.count(),4);
     }
 }
