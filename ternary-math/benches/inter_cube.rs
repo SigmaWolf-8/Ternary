@@ -83,6 +83,69 @@ fn cached_hmac_key() -> &'static Vec<u8> {
     KEY.get_or_init(|| sponge_kdf(b"PlenumNET-HB-HMAC", b"address-plus-master-secret", 48))
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// REAL RSA-4096 — pre-generated keypair + signature (keygen takes ~2-5s)
+// ═══════════════════════════════════════════════════════════════════════
+
+struct RsaBenchData {
+    signing_key: rsa::pkcs1v15::SigningKey<sha2::Sha256>,
+    verifying_key: rsa::pkcs1v15::VerifyingKey<sha2::Sha256>,
+    message: &'static [u8],
+    signature: rsa::pkcs1v15::Signature,
+}
+
+// Safety: SigningKey/VerifyingKey are Send+Sync (just hold key data)
+unsafe impl Send for RsaBenchData {}
+unsafe impl Sync for RsaBenchData {}
+
+fn cached_rsa_data() -> &'static RsaBenchData {
+    use std::sync::OnceLock;
+    use rsa::signature::Signer;
+    static DATA: OnceLock<RsaBenchData> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let mut rng = rsa::rand_core::OsRng;
+        let sk = rsa::RsaPrivateKey::new(&mut rng, 4096).expect("RSA-4096 keygen failed");
+        let pk = rsa::RsaPublicKey::from(&sk);
+        let signing_key = rsa::pkcs1v15::SigningKey::<sha2::Sha256>::new(sk);
+        let verifying_key = rsa::pkcs1v15::VerifyingKey::<sha2::Sha256>::new(pk);
+        let message: &'static [u8] = b"benchmark message for RSA-4096 sign and verify operations";
+        let signature = signing_key.sign(message);
+        RsaBenchData { signing_key, verifying_key, message, signature }
+    })
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// REAL AES-256-GCM — pre-initialized cipher + pre-encrypted ciphertext
+// ═══════════════════════════════════════════════════════════════════════
+
+struct AesGcmBenchData {
+    cipher: aes_gcm::Aes256Gcm,
+    nonce: aes_gcm::Nonce<aes_gcm::aead::consts::U12>,
+    plaintext: Vec<u8>,
+    ciphertext: Vec<u8>,
+}
+
+// Safety: Aes256Gcm is Send+Sync (static lookup tables)
+unsafe impl Send for AesGcmBenchData {}
+unsafe impl Sync for AesGcmBenchData {}
+
+fn cached_aes_data() -> &'static AesGcmBenchData {
+    use std::sync::OnceLock;
+    use aes_gcm::aead::{Aead, KeyInit};
+    static DATA: OnceLock<AesGcmBenchData> = OnceLock::new();
+    DATA.get_or_init(|| {
+        // Derive AES key from sponge (production path: TL-KEM shared secret → AES key)
+        let key_bytes = sponge_kdf(b"AES-256-KEY", b"kem-derived-key-material", 32);
+        let key = aes_gcm::Key::<aes_gcm::Aes256Gcm>::from_slice(&key_bytes);
+        let cipher = aes_gcm::Aes256Gcm::new(key);
+        let nonce_bytes = sponge_kdf(b"AES-NONCE", b"gcm-nonce-material", 12);
+        let nonce = *aes_gcm::Nonce::from_slice(&nonce_bytes);
+        let plaintext = b"API session token encrypted at rest with AES-256-GCM for CNSA 2.0 compliance".to_vec();
+        let ciphertext = cipher.encrypt(&nonce, plaintext.as_slice()).expect("AES-GCM encrypt failed");
+        AesGcmBenchData { cipher, nonce, plaintext, ciphertext }
+    })
+}
+
 /// Zero-allocation KDF for multi-part material.
 /// Delegates to library derive_key_cat — single stack concat, zero heap allocation.
 #[inline(always)]
@@ -488,54 +551,40 @@ pub fn bench_phase_encrypt_batch_recombine() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 7. AES-256-GCM (Token Encryption) — 2 benchmarks (SIMULATED via sponge)
-// Real AES-NI would be ~5µs. These measure sponge-simulated AES cost.
+// 7. AES-256-GCM (Token Encryption) — 2 benchmarks (REAL aes-gcm crate)
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_aes_gcm_encrypt() {
-    let key = sponge_kdf(b"AES-KEY", b"aes-256-key-material", 32);
-    let nonce = sponge_kdf(b"AES-NONCE", b"gcm-nonce", 12);
-    let plaintext = b"API session token encrypted at rest with AES-256-GCM for compliance";
-    let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
-    let keystream = sponge_kdf_cat(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]], plaintext.len());
-    let mut ct = [0u8; 128]; // stack
-    for i in 0..plaintext.len() { ct[i] = plaintext[i] ^ keystream[i]; }
-    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), &ct[..plaintext.len()]], 16);
-    black_box((ct, tag));
+    use aes_gcm::aead::Aead;
+    let data = cached_aes_data();
+    let ct = data.cipher.encrypt(&data.nonce, data.plaintext.as_slice()).expect("encrypt");
+    black_box(ct);
 }
 
 pub fn bench_aes_gcm_decrypt() {
-    let key = sponge_kdf(b"AES-KEY", b"aes-256-key-material", 32);
-    let nonce = sponge_kdf(b"AES-NONCE", b"gcm-nonce", 12);
-    let ct = [42u8; 64]; // stack
-    let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
-    let keystream = sponge_kdf_cat(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]], 64);
-    let mut pt = [0u8; 64]; // stack
-    for i in 0..64 { pt[i] = ct[i] ^ keystream[i]; }
-    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), &ct[..]], 16);
-    black_box((pt, tag));
+    use aes_gcm::aead::Aead;
+    let data = cached_aes_data();
+    let pt = data.cipher.decrypt(&data.nonce, data.ciphertext.as_slice()).expect("decrypt");
+    black_box(pt);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 8. RSA-4096 (Classical Co-Signature) — 2 benchmarks
+// 8. RSA-4096 (Classical Co-Signature) — 2 benchmarks (REAL rsa crate)
+// Keygen is pre-computed (~2-5s) and cached. Benchmarks measure sign/verify only.
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_rsa_4096_sign() {
-    let msg_hash = sponge_kdf(b"RSA-HASH", b"message to sign with RSA-4096", 64);
-    let mut state = msg_hash;
-    for i in 0..128u8 {
-        state = sponge_kdf_cat(b"RSA-MODEXP", &[state.as_slice(), &[i]], 64);
-    }
-    black_box(state);
+    use rsa::signature::Signer;
+    let data = cached_rsa_data();
+    let sig = data.signing_key.sign(data.message);
+    black_box(sig);
 }
 
 pub fn bench_rsa_4096_verify() {
-    let sig = sponge_kdf(b"RSA-SIG", b"simulated-signature", 512);
-    let mut state = sig;
-    for i in 0..17u8 {
-        state = sponge_kdf_cat(b"RSA-MODEXP", &[state.as_slice(), &[i]], 64);
-    }
-    black_box(state);
+    use rsa::signature::Verifier;
+    let data = cached_rsa_data();
+    let result = data.verifying_key.verify(data.message, &data.signature);
+    black_box(result);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1217,12 +1266,12 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "phase_recombine", category: "Phase Enc", target: "< 40µs", pq: true, production: false, run: bench_phase_encrypt_recombine },
         BenchmarkEntry { name: "phase_batch_split", category: "Phase Enc", target: "< 400µs", pq: true, production: false, run: bench_phase_encrypt_batch_split },
         BenchmarkEntry { name: "phase_batch_recombine", category: "Phase Enc", target: "< 400µs", pq: true, production: false, run: bench_phase_encrypt_batch_recombine },
-        // 7. AES-256-GCM — SIMULATED via sponge (not real AES-NI). Targets reflect sponge cost.
-        BenchmarkEntry { name: "aes_gcm_encrypt", category: "AES-GCM (sim)", target: "< 45µs", pq: true, production: false, run: bench_aes_gcm_encrypt },
-        BenchmarkEntry { name: "aes_gcm_decrypt", category: "AES-GCM (sim)", target: "< 45µs", pq: true, production: false, run: bench_aes_gcm_decrypt },
-        // 8. RSA-4096 (2)
-        BenchmarkEntry { name: "rsa_4096_sign", category: "RSA-4096", target: "< 2ms", pq: false, production: false, run: bench_rsa_4096_sign },
-        BenchmarkEntry { name: "rsa_4096_verify", category: "RSA-4096", target: "< 200µs", pq: false, production: false, run: bench_rsa_4096_verify },
+        // 7. AES-256-GCM — REAL (aes-gcm crate, hardware AES-NI where available)
+        BenchmarkEntry { name: "aes_gcm_encrypt", category: "AES-GCM", target: "< 5µs", pq: true, production: false, run: bench_aes_gcm_encrypt },
+        BenchmarkEntry { name: "aes_gcm_decrypt", category: "AES-GCM", target: "< 5µs", pq: true, production: false, run: bench_aes_gcm_decrypt },
+        // 8. RSA-4096 — REAL (rsa crate, pure Rust big-integer math)
+        BenchmarkEntry { name: "rsa_4096_sign", category: "RSA-4096", target: "< 15ms", pq: false, production: false, run: bench_rsa_4096_sign },
+        BenchmarkEntry { name: "rsa_4096_verify", category: "RSA-4096", target: "< 500µs", pq: false, production: false, run: bench_rsa_4096_verify },
         // 9. Sponge Core (5)
         BenchmarkEntry { name: "sponge_hash", category: "Sponge", target: "< 5µs", pq: true, production: true, run: bench_sponge_hash },
         BenchmarkEntry { name: "sponge_derive_key", category: "Sponge", target: "< 5µs", pq: true, production: true, run: bench_sponge_derive_key },
