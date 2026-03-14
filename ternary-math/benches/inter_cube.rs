@@ -106,8 +106,8 @@ fn cached_rsa_data() -> &'static RsaBenchData {
         let mut rng = rsa::rand_core::OsRng;
         let sk = rsa::RsaPrivateKey::new(&mut rng, 4096).expect("RSA-4096 keygen failed");
         let pk = rsa::RsaPublicKey::from(&sk);
-        let signing_key = rsa::pkcs1v15::SigningKey::<sha2::Sha256>::new(sk);
-        let verifying_key = rsa::pkcs1v15::VerifyingKey::<sha2::Sha256>::new(pk);
+        let signing_key = rsa::pkcs1v15::SigningKey::<sha2::Sha256>::new_unprefixed(sk);
+        let verifying_key = rsa::pkcs1v15::VerifyingKey::<sha2::Sha256>::new_unprefixed(pk);
         let message: &'static [u8] = b"benchmark message for RSA-4096 sign and verify operations";
         let signature = signing_key.sign(message);
         RsaBenchData { signing_key, verifying_key, message, signature }
