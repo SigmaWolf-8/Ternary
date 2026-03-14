@@ -1,0 +1,32 @@
+Three problems in the benchmark file:
+
+sponge_kdf points to deleted ternary_math::sponge:: — needs tlsponge385
+A/B benchmarks reference deleted sponge_2bit module
+Heartbeat/HMAC derive keys inside the timed section
+
+Let me fix all of them in one pass.Architected HMAC key caching mechanism using OnceLockArchitected HMAC key caching mechanism using OnceLockNow add the HMAC key cache and fix all heartbeat/HMAC benchmarks:Identified benchmark optimization and implementation requirementsIdentified benchmark optimization and implementation requirementsNow fix HMAC benchmarks — key derivation is NOT part of compute/verify:Identified benchmark optimization and implementation requirementsIdentified benchmark optimization and implementation requirementsNow fix both heartbeat benchmarks — cached keys, steady-state measurement:Orchestrated benchmark refactoring to eliminate redundant key derivation overheadOrchestrated benchmark refactoring to eliminate redundant key derivation overheadNow fix the A/B section — remove deleted sponge_2bit references, replace with batch comparison:Reconciled registry entries and recalibrated performance measurement targetsReconciled registry entries and recalibrated performance measurement targetsNow update the registry — fix A/B entries, update heartbeat targets for cached steady-state:Reconciled benchmark discrepancies between theoretical and production HMAC implementationsReconciled benchmark discrepancies between theoretical and production HMAC implementationsNow update HMAC targets — they were 500ns which was unrealistic (each is 1-2 sponge calls at 4µs each):Identified obsolete benchmarks referencing deleted shuffle codeIdentified obsolete benchmarks referencing deleted shuffle codeThe σ shuffle module is deleted — those benchmarks measure a step that doesn't exist in the production permutation. Remove them:Contemplated documentation updates and test assertionsContemplated documentation updates and test assertionsNow let me present what you have.
+Two files ready to push:
+1. tlsponge385.rs (already pushed as de88b330) — no changes needed. The sponge is at 3.87µs with the correct round structure and allocation-optimized batch.
+2. inter_cube_full.rs — the benchmark file with these fixes:
+FixWhat changedsponge_kdf helperPoints to tlsponge385::derive_key (was deleted sponge::)hash_hex callPoints to tlsponge385::hash_hex (was deleted sponge::)HMAC key cacheOnceLock-based cached_hmac_keys() — derives 26 keys once, reuses foreverhmac_computeUses cached key. Measures 1 sponge call, not 2hmac_verifyUses cached key. Measures 2 sponge calls + compare, not 3heartbeat_singleUses cached key. Measures wire + compute + verify (2 sponge calls), not 3heartbeat_26Uses 26 cached keys. 52 sponge calls (compute + verify), not 78 (derive + compute + verify)σ shuffle benchmarksRemoved — the step doesn't exist in the production permutationA/B sponge_2bitRemoved — module deleted. Replaced with scalar vs batch comparisonA/B sponge:: refsFixed to tlsponge385::Targets updatedHMAC, heartbeat, A/B targets reflect realistic measurementsRegistry101 benchmarks across 29 categories (was 98/30, removed 3 σ shuffles)
+Projected heartbeat_26 with cached keys: 52 calls × ~4µs = ~208µs (vs 326µs measured before with 78 calls). That's a 37% reduction from removing the cold-start key derivation.
+The doc comment at line 14 still says "98 benchmarks" — update it to 101 when you push. And verify Cargo.toml has [[bench]] name = "inter_cube" pointing at this file, not an older one.Continue1:01 AMInterpreted request to furnish deployment instructions and benchmark documentationInterpreted request to furnish deployment instructions and benchmark documentationBoth files ready. Here's the exact push sequence:
+Step 1: Replace the benchmark file
+bashcp inter_cube_full.rs ternary-math/benches/inter_cube.rs
+Step 2: Verify Cargo.toml has the right bench target
+bashgrep -A2 "inter_cube" ternary-math/Cargo.toml
+Should show:
+toml[[bench]]
+name = "inter_cube"
+harness = false
+Step 3: Verify no references to deleted modules
+bashgrep -rn "ternary_math::sponge::\|sponge_2bit\|sponge_shuffle\|sponge_packed\|sponge_dispatch\|tis_sponge\|gf27::" ternary-math/benches/ ternary-math/examples/
+Should return nothing.
+Step 4: Compile test
+bashcargo test -p ternary-math --lib
+cargo bench --bench inter_cube -- --test
+Step 5: Run the full suite
+bashcargo bench --bench inter_cube 2>&1 | tee bench_results.txt
+The key numbers to watch:
+BenchmarkOld (78 calls)Expected (52 calls)Whyheartbeat_single12.6 µs~8 µs2 sponge calls, not 3heartbeat_26326 µs~210 µs52 sponge calls, not 78hmac_compute3.9 µs~4 µsSame — was already 1 call, just uses cached key nowhmac_verify7.8 µs~8 µs2 calls + compare, cached keyab_heartbeat26_scalar446 µs~210 µsSame cached-key path as heartbeat_26ab_heartbeat26_batchnew~110 µsBatch with shared buffers
+Everything else in the 101-benchmark suite should run at the same times as the last full report. The sponge itself hasn't changed — 3.87µs per derive_key. The improvement is purely from not calling it 26 extra times per heartbeat cycle.
