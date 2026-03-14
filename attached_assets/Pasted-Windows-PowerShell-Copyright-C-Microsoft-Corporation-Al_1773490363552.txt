@@ -1,0 +1,279 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $base = "https://raw.githubusercontent.com/SigmaWolf-8/Ternary/main/ternary-math"
+PS C:\Users\Sigma> $headers = @{ "Accept" = "application/vnd.github.v3.raw" }
+PS C:\Users\Sigma> $dest = "C:\PlenumNET\ternary-math"
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Invoke-WebRequest "$base/Cargo.toml" -OutFile "$dest\Cargo.toml" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/src/tlsponge385.rs" -OutFile "$dest\src\tlsponge385.rs" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/src/lib.rs" -OutFile "$dest\src\lib.rs" -Headers $headers
+PS C:\Users\Sigma> Invoke-WebRequest "$base/benches/inter_cube.rs" -OutFile "$dest\benches\inter_cube.rs" -Headers $headers
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Write-Host "Downloaded. Running benchmarks..."
+Downloaded. Running benchmarks...
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> cargo bench --bench inter_cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+warning: output filename collision at C:\PlenumNET\target\release\deps\ternary_math.pdb
+  |
+  = note: the bin target `ternary-math` in package `ternary-math v0.1.0 (C:\PlenumNET\ternary-math)` has the same output filename as the lib target `ternary_math` in package `ternary-math v0.1.0 (C:\PlenumNET\ternary-math)`
+  = note: if this looks unexpected, it may be a bug in Cargo. Please file a bug report at https://github.com/rust-lang/cargo/issues/ with as much information as you can provide.
+  = note: cargo 1.94.0 (85eff7c80 2026-01-15) running on `aarch64-pc-windows-msvc` target `aarch64-pc-windows-msvc`
+  = note: first unit: Unit { pkg: Package { id: PackageId { name: "ternary-math", version: "0.1.0", source: "C:\\PlenumNET\\ternary-math" }, ..: ".." }, target: TargetInner { name: "ternary-math", doc: true, ..: with_path("C:\\PlenumNET\\ternary-math\\src\\main.rs", Edition2021) }, profile: Profile { name: "bench", opt_level: "3", lto: Named("fat"), root: Release, codegen_units: Some(1), strip: Resolved(Named("debuginfo")), ..: default() }, kind: Host, mode: Build, features: [], rustflags: [], rustdocflags: [], links_overrides: {}, artifact: false, artifact_target_for_features: None, is_std: false, dep_hash: 6286643412164389210 }
+  = note: second unit: Unit { pkg: Package { id: PackageId { name: "ternary-math", version: "0.1.0", source: "C:\\PlenumNET\\ternary-math" }, ..: ".." }, target: TargetInner { name_inferred: true, ..: lib_target("ternary_math", ["lib", "cdylib"], "C:\\PlenumNET\\ternary-math\\src\\lib.rs", Edition2021) }, profile: Profile { name: "bench", opt_level: "3", lto: Named("fat"), root: Release, codegen_units: Some(1), strip: Resolved(Named("debuginfo")), ..: default() }, kind: Host, mode: Build, features: [], rustflags: [], rustdocflags: [], links_overrides: {}, artifact: false, artifact_target_for_features: None, is_std: false, dep_hash: 12757725260387340694 }
+   Compiling ternary-math v0.1.0 (C:\PlenumNET\ternary-math)
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: function `rot` is never used
+  --> ternary-math\src\tis_sponge.rs:88:4
+   |
+88 | fn rot(src: &[u8], dst: &mut [u8], dist: usize, w: usize) {
+   |    ^^^
+
+warning: `ternary-math` (lib) generated 4 warnings (run `cargo fix --lib -p ternary-math` to apply 1 suggestion)
+warning: unused import: `super::*`
+    --> ternary-math\benches\inter_cube.rs:1385:9
+     |
+1385 |     use super::*;
+     |         ^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> ternary-math\benches\inter_cube.rs:1384:1
+     |
+1384 | mod tests {
+     | ^^^^^^^^^
+     = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::HashSet`
+    --> ternary-math\benches\inter_cube.rs:1386:9
+     |
+1386 |     use std::collections::HashSet;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> ternary-math\benches\inter_cube.rs:1384:1
+     |
+1384 | mod tests {
+     | ^^^^^^^^^
+
+warning: unused `Result` that must be used
+   --> ternary-math\benches\inter_cube.rs:587:5
+    |
+587 |     black_box(result);
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+587 |     let _ = black_box(result);
+    |     +++++++
+
+warning: `ternary-math` (bench "inter_cube") generated 3 warnings (run `cargo fix --bench "inter_cube" -p ternary-math` to apply 2 suggestions)
+    Finished `bench` profile [optimized] target(s) in 14.00s
+     Running benches\inter_cube.rs (target\release\deps\inter_cube-d0511abb6ced9d04.exe)
+Running 109 benchmarks (100 iterations each)
+
+Benchmark                                 Median       Target PQ  Grade
+-------------------------------------------------------------------------------------
+tl_dsa_87_keygen                       11.578 ms        < 3ms PQ  FAIL
+tl_dsa_87_sign                         17.166 ms        < 5ms PQ  FAIL
+tl_dsa_87_verify                       24.308 ms        < 3ms PQ  DIAGNOSE
+  ▸ TL-DSA v1 TOTAL (3)                53.052 ms              PQ  [0/3]
+
+pt26_keygen                              7.00 µs        < 8µs PQ  Pass
+pt26_sign                               10.30 µs       < 18µs PQ  Pass
+pt26_verify                             17.30 µs       < 18µs PQ  Pass
+pt26_verify_parallel                    10.50 µs       < 18µs PQ  Pass
+pt26_trit_diff                            800 ns        < 5µs     Plenum+
+pt26_step_token                           300 ns        < 5µs     Plenum+
+pt26_walk_token                           300 ns        < 5µs     Plenum+
+  ▸ PT26-DSA TOTAL (7)                  46.50 µs                  [7/7]
+
+tl_dsa_v2_ntt_butterfly                   400 ns       < 20µs PQ  Plenum+
+tl_dsa_v2_ntt_full                        900 ns        < 2µs PQ  Plenum+
+tl_dsa_v2_matrix_mul                    11.70 µs       < 30µs PQ  Plenum+
+tl_dsa_v2_keygen                       230.20 µs      < 120µs PQ  FAIL
+tl_dsa_v2_sign                          21.70 µs       < 50µs PQ  Plenum+
+tl_dsa_v2_verify                         4.10 µs       < 30µs PQ  Plenum+
+  ▸ TL-DSA v2 TOTAL (6)                269.00 µs              PQ  [5/6]
+
+tl_kem_512_keygen                       34.70 µs       < 50µs PQ  Pass
+tl_kem_512_encaps                       13.90 µs       < 30µs PQ  Plenum+
+tl_kem_512_decaps                        9.20 µs       < 30µs PQ  Plenum+
+tl_kem_768_keygen                       58.50 µs       < 80µs PQ  Pass
+tl_kem_768_encaps                       17.20 µs       < 50µs PQ  Plenum+
+tl_kem_768_decaps                       16.80 µs       < 50µs PQ  Plenum+
+tl_kem_1024_keygen                      95.70 µs      < 120µs PQ  Pass
+tl_kem_1024_encaps                      23.90 µs       < 80µs PQ  Plenum+
+tl_kem_1024_decaps                      20.80 µs       < 80µs PQ  Plenum+
+  ▸ TL-KEM TOTAL (9)                   290.70 µs              PQ  [9/9]
+
+tae_mac_encrypt                         32.60 µs       < 30µs PQ  *Pass
+tae_mac_decrypt                         34.50 µs       < 30µs PQ  *Pass
+tae_mac_compute                         12.40 µs       < 15µs PQ  Pass
+tae_mac_verify                          23.80 µs       < 20µs PQ  FAIL
+  ▸ T-AE-MAC TOTAL (4)                 103.30 µs              PQ  [3/4]
+
+phase_split                             49.70 µs       < 40µs PQ  FAIL
+phase_recombine                         54.80 µs       < 40µs PQ  FAIL
+phase_batch_split                       1.275 ms      < 400µs PQ  FAIL
+phase_batch_recombine                   1.053 ms      < 400µs PQ  FAIL
+  ▸ Phase Enc TOTAL (4)                 2.432 ms              PQ  [0/4]
+
+aes_gcm_encrypt                           900 ns        < 5µs PQ  Plenum+
+aes_gcm_decrypt                           900 ns        < 5µs PQ  Plenum+
+  ▸ AES-GCM TOTAL (2)                    1.80 µs              PQ  [2/2]
+
+rsa_4096_sign                           6.897 ms       < 15ms     Plenum+
+rsa_4096_verify                        468.70 µs      < 500µs     Pass
+  ▸ RSA-4096 TOTAL (2)                  7.366 ms                  [2/2]
+
+sponge_hash                              5.80 µs        < 5µs PQ  FAIL
+sponge_derive_key                        3.20 µs        < 5µs PQ  Pass
+  ▸ Sponge TOTAL (2)                     9.00 µs              PQ  [1/2]
+
+tis27_hash_27trit                        3.60 µs        < 5µs PQ  Pass
+tis27_hash_54trit                        6.20 µs        < 5µs PQ  FAIL
+tis27_absorb_squeeze                     9.30 µs        < 8µs PQ  FAIL
+  ▸ TIS-27 TOTAL (3)                    19.10 µs              PQ  [1/3]
+
+hmac_key_derive                          3.60 µs        < 5µs PQ  Pass
+hmac_compute                             6.90 µs        < 5µs PQ  FAIL
+hmac_verify                             12.40 µs       < 10µs PQ  FAIL
+  ▸ HMAC TOTAL (3)                      22.90 µs              PQ  [1/3]
+
+wire_checksum                               0 ns      < 100ns     Plenum+
+wire_ecc                                    0 ns      < 100ns     Plenum+
+  ▸ Wire TOTAL (2)                          0 ns                  [2/2]
+
+lattice_nonce                               0 ns      < 100ns     Plenum+
+lattice_key_derive                       6.80 µs        < 5µs PQ  FAIL
+  ▸ Lattice TOTAL (2)                    6.80 µs                  [1/2]
+
+identity_seed_derive                    13.70 µs        < 5µs PQ  FAIL
+identity_keypair_derive                11.639 ms        < 5ms PQ  FAIL
+  ▸ Identity TOTAL (2)                 11.652 ms              PQ  [0/2]
+
+tunnel_auth_response                    10.10 µs        < 5µs PQ  FAIL
+tunnel_handshake_3msg                   40.80 µs       < 20ms PQ  Plenum+
+  ▸ Tunnel TOTAL (2)                    50.90 µs              PQ  [1/2]
+
+heartbeat_single                        13.60 µs        < 9µs PQ  FAIL
+heartbeat_26                           353.40 µs      < 210µs PQ  FAIL
+  ▸ Heartbeat TOTAL (2)                367.00 µs              PQ  [0/2]
+
+tsa_timestamp_create                    21.90 µs       < 30µs PQ  Pass
+tsa_timestamp_verify                    20.60 µs       < 20µs PQ  *Pass
+  ▸ TSA TOTAL (2)                       42.50 µs              PQ  [2/2]
+
+merkle_insert                          257.20 µs      < 200µs PQ  FAIL
+merkle_verify                          279.20 µs      < 200µs PQ  FAIL
+  ▸ Merkle TOTAL (2)                   536.40 µs              PQ  [0/2]
+
+tdns_derive_identity                     3.30 µs       < 10µs PQ  Plenum+
+tdns_scan_hash                           3.50 µs       < 10µs PQ  Plenum+
+tdns_repunit_checksum                       0 ns      < 100ns     Plenum+
+  ▸ TDNS TOTAL (3)                       6.80 µs                  [3/3]
+
+tern_compress                               0 ns      < 500ns     Plenum+
+tern_decompress                             0 ns      < 500ns     Plenum+
+  ▸ Calendar TOTAL (2)                      0 ns                  [2/2]
+
+con_derive_tunnel_key                    6.30 µs       < 10µs PQ  Pass
+con_rekey_single                         6.90 µs       < 10µs PQ  Pass
+con_rekey_all                          176.40 µs      < 300µs PQ  Pass
+  ▸ CON TOTAL (3)                      189.60 µs              PQ  [3/3]
+
+hptp_timestamp_verify                   10.30 µs       < 20µs PQ  Pass
+hptp_drift_compensate                       0 ns      < 500ns     Plenum+
+hptp_jitter_filter                        200 ns        < 1µs     Plenum+
+  ▸ HPTP TOTAL (3)                      10.50 µs                  [3/3]
+
+zk_prove                                18.60 µs       < 30µs PQ  Pass
+zk_verify                               21.60 µs       < 30µs PQ  Pass
+  ▸ ZK TOTAL (2)                        40.20 µs              PQ  [2/2]
+
+signhere_secure_doc                     59.40 µs      < 100µs PQ  Pass
+signhere_6check                         40.30 µs       < 80µs PQ  Pass
+signhere_cnsa2                          24.50 µs       < 50µs PQ  Plenum+
+signhere_witness                        12.40 µs       < 20µs PQ  Pass
+  ▸ SignHere TOTAL (4)                 136.60 µs              PQ  [4/4]
+
+sfk_key_derive                           3.50 µs       < 10µs PQ  Plenum+
+sfk_sign                                17.00 µs       < 25µs PQ  Pass
+sfk_verify                              24.60 µs       < 25µs PQ  Pass
+  ▸ SFK TOTAL (3)                       45.10 µs              PQ  [3/3]
+
+hedera_submit_witness                   18.60 µs       < 25µs PQ  Pass
+hedera_verify_witness                   20.70 µs       < 20µs PQ  *Pass
+  ▸ Hedera TOTAL (2)                    39.30 µs              PQ  [2/2]
+
+lamport_keygen                          1.752 ms        < 5ms PQ  Plenum+
+lamport_sign                           888.50 µs        < 3ms PQ  Plenum+
+lamport_verify                          3.521 ms        < 3ms PQ  FAIL
+  ▸ Lamport TOTAL (3)                   6.162 ms              PQ  [2/3]
+
+rt_pt26_full                            34.60 µs       < 80µs PQ  Plenum+
+rt_pt26_sign_verify                     27.40 µs       < 60µs PQ  Plenum+
+rt_tl_dsa_v1_full                      53.091 ms       < 60ms PQ  Pass
+rt_tl_dsa_v1_sign_verify               40.871 ms       < 50ms PQ  Pass
+rt_tl_dsa_v2_full                      258.80 µs      < 500µs PQ  Pass
+rt_tl_kem_1024                         128.90 µs      < 300µs PQ  Plenum+
+rt_tae_mac                              70.30 µs       < 60µs PQ  FAIL
+rt_phase_encrypt                       110.40 µs       < 80µs PQ  FAIL
+rt_signhere_full                       109.80 µs      < 200µs PQ  Pass
+rt_tsa_full                             44.40 µs       < 50µs PQ  Pass
+rt_merkle_full                         531.60 µs      < 400µs PQ  FAIL
+rt_lamport_full                         6.183 ms       < 10ms PQ  Pass
+rt_zk_full                              41.70 µs       < 60µs PQ  Pass
+  ▸ Roundtrip TOTAL (13)              101.503 ms              PQ  [10/13]
+
+ux_sign_document                        79.20 µs      < 150µs PQ  Pass
+ux_verify_document                      44.20 µs      < 100µs PQ  Plenum+
+ux_establish_tunnel                    188.30 µs      < 200µs PQ  Pass
+ux_heartbeat_cycle                     353.40 µs      < 500µs PQ  Pass
+ux_node_join                           14.781 ms       < 20ms PQ  Pass
+ux_tdns_register                        34.20 µs       < 60µs PQ  Pass
+ux_epoch_rekey                         263.80 µs      < 400µs PQ  Pass
+ux_secure_message                       63.10 µs       < 60µs PQ  *Pass
+  ▸ User Action TOTAL (8)              15.808 ms              PQ  [8/8]
+
+ab_derive_key_scalar                     3.60 µs         ~4µs PQ  Pass
+ab_derive_key_batch                     85.00 µs      < 110µs PQ  Pass
+ab_heartbeat26_scalar                  341.20 µs       ~210µs PQ  FAIL
+ab_heartbeat26_batch                   359.80 µs      < 210µs PQ  FAIL
+  ▸ A/B TOTAL (4)                      789.60 µs              PQ  [2/4]
+
+=====================================================================================
+GRAND TOTAL (all benchmarks)          200.999 ms
+Pass rate                           81/109 (74%)
+PQ benchmarks                             96/109
+
+Grade key: Plenum+ (≤50% target) | Pass (≤target) | *Pass (≤115%) | FAIL (>115%) | DIAGNOSE (>500%)
+PQ = Post-quantum verifiable (sponge pre-image, lattice, hash-based)
