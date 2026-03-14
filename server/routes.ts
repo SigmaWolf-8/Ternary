@@ -80,15 +80,19 @@ export async function registerRoutes(
 
   app.get("/api/benchmark-report", async (_req, res) => {
     try {
-      const reportPath = path.resolve("attached_assets/BENCH-2026-03-14-65DD00A4.html");
-      if (existsSync(reportPath)) {
-        const html = await readFile(reportPath, "utf-8");
+      const { readdir } = await import("fs/promises");
+      const benchDir = path.resolve("ternary-math");
+      const all = await readdir(benchDir);
+      const files = all.filter(f => f.startsWith("BENCH-") && f.endsWith(".html")).sort();
+      if (files.length > 0) {
+        const latest = files[files.length - 1];
+        const html = await readFile(path.join(benchDir, latest), "utf-8");
         res.type("html").send(html);
       } else {
-        res.status(404).send("Report not found");
+        res.status(404).send("No benchmark report found");
       }
-    } catch (e) {
-      res.status(500).send("Error loading report");
+    } catch (e: any) {
+      res.status(500).send("Error: " + (e?.message || "unknown"));
     }
   });
 
