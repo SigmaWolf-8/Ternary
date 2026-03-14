@@ -487,7 +487,8 @@ pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8
 }
 
 /// Zero-allocation KDF for multi-part material (HMAC, T-AE-MAC, heartbeat, etc).
-/// Concatenates context + all parts on the stack. Panics if total > 512 bytes.
+/// Concatenates context + all parts on the stack. Panics if total > 768 bytes.
+/// (RSA-4096 verify passes 512B sig + 10B domain + 1B index = 523B.)
 ///
 /// Example: `derive_key_cat(b"HMAC-TAG", &[key, payload], 27)`
 /// replaces: `derive_key(b"HMAC-TAG", &[key, payload].concat(), 27)`
@@ -495,7 +496,7 @@ pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8
 /// Eliminates 1 Vec allocation per call. Over 52 heartbeat calls/sec, that's
 /// 52 fewer heap alloc+free cycles per second.
 pub fn derive_key_cat(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8> {
-    let mut buf = [0u8; 512];
+    let mut buf = [0u8; 768];
     let mut offset = 0;
     // Pack context first (same as derive_key's concat order)
     buf[..context.len()].copy_from_slice(context);
@@ -513,7 +514,7 @@ pub fn derive_key_cat(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8
 
 /// TIS-27 variant of derive_key_cat (4 rounds instead of 9).
 pub fn derive_key_cat_tis(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8> {
-    let mut buf = [0u8; 512];
+    let mut buf = [0u8; 768];
     let mut offset = 0;
     buf[..context.len()].copy_from_slice(context);
     offset += context.len();
@@ -615,7 +616,11 @@ mod tests {
         let mut seen = [false; 27];
         for i in 0..27 { let o=CHI_MAP[i]; let p=(o[0]+1) as usize+(o[1]+1) as usize*3+(o[2]+1) as usize*9; assert!(!seen[p]); seen[p]=true; }
     }
-    #[test] fn chi_zero_fixed() { assert_eq!(CHI_MAP[13], [0,0,0]); }
+    #[test] fn chi_zero_fixed() {
+        // GF(27) zero = (0,0,0) unsigned = index 0 = balanced (-1,-1,-1).
+        // 0^17 = 0 in any field, so CHI_MAP[0] must map to itself.
+        assert_eq!(CHI_MAP[0], [-1,-1,-1]);
+    }
     #[test] fn perm_full_period() {
         let mut seen = [false; STATE_SIZE];
         for i in 0..STATE_SIZE { let d=PERM[i] as usize; assert!(!seen[d]); seen[d]=true; }
