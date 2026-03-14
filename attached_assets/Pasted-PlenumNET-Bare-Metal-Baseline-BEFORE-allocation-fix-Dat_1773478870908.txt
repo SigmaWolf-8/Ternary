@@ -1,0 +1,185 @@
+PlenumNET Bare Metal Baseline — BEFORE allocation fix
+Date: 2026-03-14
+Hardware: ARM64 (aarch64-pc-windows-msvc), NEON SIMD
+Rust: 1.94.0 (2026-03-02)
+Cargo: 1.94.0
+
+Pass rate: 78/109 (72%)
+PQ benchmarks: 96/109
+Grand total: 201.874 ms
+
+Benchmark                                 Median       Target PQ  Grade
+-------------------------------------------------------------------------------------
+tl_dsa_87_keygen                       11.678 ms        < 3ms PQ  FAIL
+tl_dsa_87_sign                         17.886 ms        < 5ms PQ  FAIL
+tl_dsa_87_verify                       25.071 ms        < 3ms PQ  DIAGNOSE
+  ▸ TL-DSA v1 TOTAL (3)                54.635 ms              PQ  [0/3]
+
+pt26_keygen                              7.00 µs        < 8µs PQ  Pass
+pt26_sign                               10.50 µs       < 18µs PQ  Pass
+pt26_verify                             15.70 µs       < 18µs PQ  Pass
+pt26_verify_parallel                    10.40 µs       < 18µs PQ  Pass
+pt26_trit_diff                              0 ns        < 5ns     Plenum+
+pt26_step_token                             0 ns        < 5ns     Plenum+
+pt26_walk_token                             0 ns        < 5ns     Plenum+
+  ▸ PT26-DSA TOTAL (7)                  43.60 µs                  [7/7]
+
+tl_dsa_v2_ntt_butterfly                     0 ns       < 20ns PQ  Plenum+
+tl_dsa_v2_ntt_full                       1.20 µs        < 1µs PQ  FAIL
+tl_dsa_v2_matrix_mul                    11.70 µs       < 30µs PQ  Plenum+
+tl_dsa_v2_keygen                       225.50 µs      < 100µs PQ  FAIL
+tl_dsa_v2_sign                          84.70 µs       < 50µs PQ  FAIL
+tl_dsa_v2_verify                         4.00 µs       < 30µs PQ  Plenum+
+  ▸ TL-DSA v2 TOTAL (6)                327.10 µs              PQ  [3/6]
+
+tl_kem_512_keygen                       34.70 µs       < 50µs PQ  Pass
+tl_kem_512_encaps                       13.90 µs       < 30µs PQ  Plenum+
+tl_kem_512_decaps                       10.20 µs       < 30µs PQ  Plenum+
+tl_kem_768_keygen                       58.30 µs       < 80µs PQ  Pass
+tl_kem_768_encaps                       17.20 µs       < 50µs PQ  Plenum+
+tl_kem_768_decaps                       16.70 µs       < 50µs PQ  Plenum+
+tl_kem_1024_keygen                      95.80 µs      < 120µs PQ  Pass
+tl_kem_1024_encaps                      23.90 µs       < 80µs PQ  Plenum+
+tl_kem_1024_decaps                      21.00 µs       < 80µs PQ  Plenum+
+  ▸ TL-KEM TOTAL (9)                   291.70 µs              PQ  [9/9]
+
+tae_mac_encrypt                         34.50 µs       < 30µs PQ  *Pass
+tae_mac_decrypt                         34.40 µs       < 30µs PQ  *Pass
+tae_mac_compute                         13.70 µs       < 15µs PQ  Pass
+tae_mac_verify                          23.80 µs       < 20µs PQ  FAIL
+  ▸ T-AE-MAC TOTAL (4)                 106.40 µs              PQ  [3/4]
+
+phase_split                             55.60 µs       < 40µs PQ  FAIL
+phase_recombine                         55.50 µs       < 40µs PQ  FAIL
+phase_batch_split                       1.281 ms      < 400µs PQ  FAIL
+phase_batch_recombine                   1.069 ms      < 400µs PQ  FAIL
+  ▸ Phase Enc TOTAL (4)                 2.460 ms              PQ  [0/4]
+
+aes_gcm_encrypt                         38.40 µs       < 25µs PQ  FAIL
+aes_gcm_decrypt                         38.50 µs       < 25µs PQ  FAIL
+  ▸ AES-GCM TOTAL (2)                   76.90 µs              PQ  [0/2]
+
+rsa_4096_sign                           1.291 ms        < 2ms     Pass
+rsa_4096_verify                        239.20 µs      < 200µs     FAIL
+  ▸ RSA-4096 TOTAL (2)                  1.530 ms                  [1/2]
+
+sponge_hash                              5.70 µs        < 5µs PQ  *Pass
+sponge_derive_key                        3.50 µs        < 5µs PQ  Pass
+  ▸ Sponge TOTAL (2)                     9.20 µs              PQ  [2/2]
+
+tis27_hash_27trit                        3.50 µs        < 5µs PQ  Pass
+tis27_hash_54trit                        6.20 µs        < 5µs PQ  FAIL
+tis27_absorb_squeeze                     9.30 µs        < 8µs PQ  FAIL
+  ▸ TIS-27 TOTAL (3)                    19.00 µs              PQ  [1/3]
+
+hmac_key_derive                          3.60 µs        < 5µs PQ  Pass
+hmac_compute                             6.70 µs        < 5µs PQ  FAIL
+hmac_verify                             12.30 µs       < 10µs PQ  FAIL
+  ▸ HMAC TOTAL (3)                      22.60 µs              PQ  [1/3]
+
+wire_checksum                               0 ns      < 100ns     Plenum+
+wire_ecc                                    0 ns      < 100ns     Plenum+
+  ▸ Wire TOTAL (2)                          0 ns                  [2/2]
+
+lattice_nonce                               0 ns      < 100ns     Plenum+
+lattice_key_derive                       6.70 µs        < 5µs PQ  FAIL
+  ▸ Lattice TOTAL (2)                    6.70 µs                  [1/2]
+
+identity_seed_derive                    12.60 µs        < 5µs PQ  FAIL
+identity_keypair_derive                11.545 ms        < 5ms PQ  FAIL
+  ▸ Identity TOTAL (2)                 11.558 ms              PQ  [0/2]
+
+tunnel_auth_response                    10.20 µs        < 5µs PQ  FAIL
+tunnel_handshake_3msg                   43.00 µs       < 20ms PQ  Plenum+
+  ▸ Tunnel TOTAL (2)                    53.20 µs              PQ  [1/2]
+
+heartbeat_single                        13.50 µs        < 9µs PQ  FAIL
+heartbeat_26                           347.20 µs      < 210µs PQ  FAIL
+  ▸ Heartbeat TOTAL (2)                360.70 µs              PQ  [0/2]
+
+tsa_timestamp_create                    24.00 µs       < 30µs PQ  Pass
+tsa_timestamp_verify                    20.60 µs       < 20µs PQ  *Pass
+  ▸ TSA TOTAL (2)                       44.60 µs              PQ  [2/2]
+
+merkle_insert                          274.70 µs      < 200µs PQ  FAIL
+merkle_verify                          252.20 µs      < 200µs PQ  FAIL
+  ▸ Merkle TOTAL (2)                   526.90 µs              PQ  [0/2]
+
+tdns_derive_identity                     3.10 µs       < 10µs PQ  Plenum+
+tdns_scan_hash                           3.20 µs       < 10µs PQ  Plenum+
+tdns_repunit_checksum                       0 ns      < 100ns     Plenum+
+  ▸ TDNS TOTAL (3)                       6.30 µs                  [3/3]
+
+tern_compress                               0 ns      < 500ns     Plenum+
+tern_decompress                             0 ns      < 500ns     Plenum+
+  ▸ Calendar TOTAL (2)                      0 ns                  [2/2]
+
+con_derive_tunnel_key                    6.20 µs       < 10µs PQ  Pass
+con_rekey_single                         6.20 µs       < 10µs PQ  Pass
+con_rekey_all                          167.90 µs      < 300µs PQ  Pass
+  ▸ CON TOTAL (3)                      180.30 µs              PQ  [3/3]
+
+hptp_timestamp_verify                    9.30 µs       < 20µs PQ  Plenum+
+hptp_drift_compensate                       0 ns      < 500ns     Plenum+
+hptp_jitter_filter                        200 ns        < 1µs     Plenum+
+  ▸ HPTP TOTAL (3)                       9.50 µs                  [3/3]
+
+zk_prove                                18.60 µs       < 30µs PQ  Pass
+zk_verify                               23.90 µs       < 30µs PQ  Pass
+  ▸ ZK TOTAL (2)                        42.50 µs              PQ  [2/2]
+
+signhere_secure_doc                     65.60 µs      < 100µs PQ  Pass
+signhere_6check                         44.10 µs       < 80µs PQ  Pass
+signhere_cnsa2                          27.20 µs       < 50µs PQ  Pass
+signhere_witness                        13.70 µs       < 20µs PQ  Pass
+  ▸ SignHere TOTAL (4)                 150.60 µs              PQ  [4/4]
+
+sfk_key_derive                           3.50 µs       < 10µs PQ  Plenum+
+sfk_sign                                15.60 µs       < 25µs PQ  Pass
+sfk_verify                              25.40 µs       < 25µs PQ  *Pass
+  ▸ SFK TOTAL (3)                       44.50 µs              PQ  [3/3]
+
+hedera_submit_witness                   18.50 µs       < 25µs PQ  Pass
+hedera_verify_witness                   18.50 µs       < 20µs PQ  Pass
+  ▸ Hedera TOTAL (2)                    37.00 µs              PQ  [2/2]
+
+lamport_keygen                          1.761 ms        < 5ms PQ  Plenum+
+lamport_sign                           886.80 µs        < 3ms PQ  Plenum+
+lamport_verify                          3.452 ms        < 3ms PQ  FAIL
+  ▸ Lamport TOTAL (3)                   6.100 ms              PQ  [2/3]
+
+rt_pt26_full                            31.10 µs       < 80µs PQ  Plenum+
+rt_pt26_sign_verify                     24.70 µs       < 60µs PQ  Plenum+
+rt_tl_dsa_v1_full                      55.752 ms       < 60ms PQ  Pass
+rt_tl_dsa_v1_sign_verify               43.558 ms       < 50ms PQ  Pass
+rt_tl_dsa_v2_full                      299.90 µs      < 500µs PQ  Pass
+rt_tl_kem_1024                         129.20 µs      < 300µs PQ  Plenum+
+rt_tae_mac                              68.20 µs       < 60µs PQ  *Pass
+rt_phase_encrypt                       108.90 µs       < 80µs PQ  FAIL
+rt_signhere_full                        99.30 µs      < 200µs PQ  Plenum+
+rt_tsa_full                             40.30 µs       < 50µs PQ  Pass
+rt_merkle_full                         535.90 µs      < 400µs PQ  FAIL
+rt_lamport_full                         6.180 ms       < 10ms PQ  Pass
+rt_zk_full                              44.60 µs       < 60µs PQ  Pass
+  ▸ Roundtrip TOTAL (13)              106.872 ms              PQ  [11/13]
+
+ux_sign_document                        79.20 µs      < 150µs PQ  Pass
+ux_verify_document                      44.10 µs      < 100µs PQ  Plenum+
+ux_establish_tunnel                    188.30 µs      < 200µs PQ  Pass
+ux_heartbeat_cycle                     349.30 µs      < 500µs PQ  Pass
+ux_node_join                           14.534 ms       < 20ms PQ  Pass
+ux_tdns_register                        37.70 µs       < 60µs PQ  Pass
+ux_epoch_rekey                         261.50 µs      < 400µs PQ  Pass
+ux_secure_message                       68.40 µs       < 60µs PQ  *Pass
+  ▸ User Action TOTAL (8)              15.563 ms              PQ  [8/8]
+
+ab_derive_key_scalar                     3.20 µs         ~4µs PQ  Pass
+ab_derive_key_batch                     94.10 µs      < 110µs PQ  Pass
+ab_heartbeat26_scalar                  338.40 µs       ~210µs PQ  FAIL
+ab_heartbeat26_batch                   361.50 µs      < 210µs PQ  FAIL
+  ▸ A/B TOTAL (4)                      797.20 µs              PQ  [2/4]
+
+=====================================================================================
+GRAND TOTAL (all benchmarks)          201.874 ms
+Pass rate                           78/109 (72%)
+PQ benchmarks                             96/109
