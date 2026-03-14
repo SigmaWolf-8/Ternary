@@ -83,18 +83,11 @@ fn cached_hmac_key() -> &'static Vec<u8> {
     KEY.get_or_init(|| sponge_kdf(b"PlenumNET-HB-HMAC", b"address-plus-master-secret", 48))
 }
 
-/// Zero-allocation sponge KDF with concatenated material.
-/// Copies slices into a stack buffer, calls derive_key on it.
-/// Panics if total material exceeds 768 bytes (RSA verify uses 512B sig).
+/// Zero-allocation KDF for multi-part material.
+/// Delegates to library derive_key_cat — single stack concat, zero heap allocation.
 #[inline(always)]
 fn sponge_kdf_cat(domain: &[u8], parts: &[&[u8]], len: usize) -> Vec<u8> {
-    let mut buf = [0u8; 768];
-    let mut offset = 0;
-    for part in parts {
-        buf[offset..offset + part.len()].copy_from_slice(part);
-        offset += part.len();
-    }
-    ternary_math::tlsponge385::derive_key(domain, &buf[..offset], len)
+    ternary_math::tlsponge385::derive_key_cat(domain, parts, len)
 }
 
 // ═══════════════════════════════════════════════════════════════════════

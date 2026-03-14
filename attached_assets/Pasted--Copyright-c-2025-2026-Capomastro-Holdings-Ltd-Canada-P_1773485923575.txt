@@ -1,0 +1,675 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// This file is part of the Salvi Framework / PlenumNET platform.
+// See LICENSE in the repository root for full terms.
+
+//! # PT26-DSA Formal Security Tests
+//!
+//! Four empirical validation tests for TM-2026-016:
+//!   1. Collision search      — 2²⁰ bindings, HashSet collision detection
+//!   2. Avalanche analysis    — Single-step walk perturbation → ~50% bit flip
+//!   3. Schedule recovery     — Brute-force σ schedule subset, verify no shortcut
+//!   4. Port distinguishability — Chi-squared test across 26 ports
+//!
+//! These are `#[test]` functions (pass/fail), not benchmarks.
+//! Place in: `ternary-math/tests/pt26_security.rs`
+//!
+//! Run: `cargo test --test pt26_security --release -- --nocapture`
+//!
+//! The `--release` flag is recommended — Test 1 generates 1M sponge calls.
+
+use std::collections::HashSet;
+
+// ═══════════════════════════════════════════════════════════════════════
+// IMPORTS — adjust paths if module structure differs
+// ═══════════════════════════════════════════════════════════════════════
+
+// These reference the existing ternary-math crate modules.
+// If pt26_dsa is not yet re-exported from lib.rs, add:
+//   pub mod pt26_dsa;
+//   pub mod pt26_walk;
+// to ternary-math/src/lib.rs
+
+use ternary_math::sponge::derive_key;
+// If the merged PT26-DSA exports these directly:
+// use ternary_math::pt26_dsa::{
+//     Pt26KeyPair, Pt26Signature, Pt26PublicKey,
+//     keygen, sign, verify,
+//     DIMENSIONS, PORTS, MAGIC_CONSTANT, WEIGHT_VECTOR, SIGMAS,
+//     BINDING_LEN, SIG_BUDGET_PER_KEY,
+//     trit_xor, trit_diff, compute_step_token, compute_walk_token,
+// };
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS (duplicated here for self-contained compilation if needed)
+// ═══════════════════════════════════════════════════════════════════════
+
+const DIMENSIONS: usize = 13;
+const PORTS: usize = 26;
+const MAGIC_CONSTANT: u32 = 333;
+const BINDING_LEN: usize = 48;
+
+const SIGMAS: [[usize; 9]; 4] = [
+    [4, 8, 3, 2, 0, 7, 5, 6, 1], // σ_A
+    [6, 0, 7, 8, 4, 2, 3, 1, 5], // σ_B
+    [2, 6, 7, 8, 4, 0, 1, 5, 3], // σ_C
+    [8, 5, 0, 1, 4, 6, 7, 3, 2], // σ_D
+];
+
+const WEIGHT_VECTOR: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+
+// Domain separation tags (must match pt26_dsa.rs exactly)
+const TAG_SCHED: &[u8] = b"PT26-SCHED";
+const TAG_PK:    &[u8] = b"PT26-PK";
+const TAG_MSG:   &[u8] = b"PT26-MSG";
+const TAG_BIND:  &[u8] = b"PT26-BIND";
+
+// ═══════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Generate a pseudorandom 13-trit address from a seed.
+/// Each trit ∈ {1, 2, 3} (Rep C).
+fn random_addr(seed: &[u8]) -> [u8; DIMENSIONS] {
+    let hash = derive_key(b"PT26-TEST-ADDR", seed, DIMENSIONS);
+    let mut addr = [0u8; DIMENSIONS];
+    for i in 0..DIMENSIONS {
+        addr[i] = (hash[i] % 3) + 1; // Rep C: {1, 2, 3}
+    }
+    addr
+}
+
+/// Generate a pseudorandom master secret from a seed.
+fn random_secret(seed: &[u8]) -> Vec<u8> {
+    derive_key(b"PT26-TEST-SECRET", seed, 32).to_vec()
+}
+
+/// Derive message-dependent destination vertex.
+/// dest[i] = ((addr[i] - 1 + msg_hash[i]) % 3) + 1
+fn derive_destination(addr: &[u8; DIMENSIONS], msg_hash: &[u8]) -> [u8; DIMENSIONS] {
+    let mut dest = [0u8; DIMENSIONS];
+    for i in 0..DIMENSIONS {
+        dest[i] = ((addr[i] as u16 - 1 + msg_hash[i] as u16) % 3 + 1) as u8;
+    }
+    dest
+}
+
+/// Hamming distance between two 13-trit addresses.
+fn hamming_distance(a: &[u8; DIMENSIONS], b: &[u8; DIMENSIONS]) -> usize {
+    (0..DIMENSIONS).filter(|&i| a[i] != b[i]).count()
+}
+
+/// Compute the walk token for a given address, destination, and σ schedule.
+/// This reproduces the sign path's geometric computation.
+fn compute_walk_token(
+    addr: &[u8; DIMENSIONS],
+    dest: &[u8; DIMENSIONS],
+    sigma_indices: &[u8; DIMENSIONS],
+) -> u16 {
+    let h = hamming_distance(addr, dest);
+    let mut checksum: u32 = 0;
+    for step in 0..h {
+        let sigma_idx = sigma_indices[step] as usize % 4;
+        let sigma = &SIGMAS[sigma_idx];
+        // Compute step token: weighted sum of trit deltas under σ permutation
+        let mut step_token: u32 = 0;
+        for j in 0..9 {
+            let dim = if j < DIMENSIONS { j } else { j % DIMENSIONS };
+            let delta = if addr[dim] != dest[dim] { 1u32 } else { 0u32 };
+            step_token = (step_token + WEIGHT_VECTOR[sigma[j]] * delta * (step as u32 + 1)) % MAGIC_CONSTANT;
+        }
+        checksum = (checksum + step_token) % MAGIC_CONSTANT;
+    }
+    checksum as u16
+}
+
+/// Compute the full binding commitment.
+/// binding = TLSponge-385("PT26-BIND", addr ‖ dest ‖ walk_token ‖ parity ‖ msg_hash)
+fn compute_binding(
+    addr: &[u8; DIMENSIONS],
+    dest: &[u8; DIMENSIONS],
+    walk_token: u16,
+    parity: &[u8; 8],
+    msg_hash: &[u8],
+) -> Vec<u8> {
+    let mut material = Vec::with_capacity(DIMENSIONS * 2 + 2 + 8 + BINDING_LEN);
+    material.extend_from_slice(addr);
+    material.extend_from_slice(dest);
+    material.extend_from_slice(&walk_token.to_le_bytes());
+    material.extend_from_slice(parity);
+    material.extend_from_slice(msg_hash);
+    derive_key(TAG_BIND, &material, BINDING_LEN).to_vec()
+}
+
+/// Compute walk parity (ECC syndrome) — simplified 8-byte version.
+fn compute_parity(
+    addr: &[u8; DIMENSIONS],
+    dest: &[u8; DIMENSIONS],
+    walk_token: u16,
+) -> [u8; 8] {
+    // Row parity: XOR-fold step deltas across 3-trit blocks
+    let mut parity = [0u8; 8];
+    let token_bytes = walk_token.to_le_bytes();
+    for i in 0..DIMENSIONS {
+        let delta = if addr[i] != dest[i] { addr[i] ^ dest[i] } else { 0 };
+        parity[i % 8] ^= delta;
+    }
+    parity[6] ^= token_bytes[0];
+    parity[7] ^= token_bytes[1];
+    parity
+}
+
+/// Count differing bits between two byte slices.
+fn bit_diff(a: &[u8], b: &[u8]) -> usize {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b.iter()).map(|(x, y)| (x ^ y).count_ones() as usize).sum()
+}
+
+/// Total bits in a byte slice.
+fn total_bits(a: &[u8]) -> usize {
+    a.len() * 8
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEST 1: COLLISION SEARCH
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Generate 2²⁰ = 1,048,576 random (address, secret, message) triples,
+// compute the binding commitment for each, and check for collisions
+// using a HashSet.
+//
+// Expected: ZERO collisions in 2²⁰ samples.
+//
+// The binding is a 48-byte (384-bit) TLSponge-385 output. By the
+// birthday bound, we'd expect the first collision around 2^192 samples.
+// Finding one in 2²⁰ would indicate a catastrophic structural flaw
+// in the sponge or the binding construction.
+//
+// Runtime estimate: ~4-5 seconds (release mode) on Replit.
+
+#[test]
+fn test_collision_search_2_20() {
+    const N: usize = 1 << 20; // 1,048,576 samples
+    let mut binding_set: HashSet<Vec<u8>> = HashSet::with_capacity(N);
+    let mut collisions = 0usize;
+
+    for i in 0..N {
+        let seed = (i as u64).to_le_bytes();
+        let addr = random_addr(&seed);
+        let secret = random_secret(&seed);
+        let message = format!("collision-test-msg-{}", i);
+
+        // Derive schedule
+        let mut sched_material = Vec::with_capacity(DIMENSIONS + secret.len());
+        sched_material.extend_from_slice(&addr);
+        sched_material.extend_from_slice(&secret);
+        let schedule_seed = derive_key(TAG_SCHED, &sched_material, 26);
+
+        // Extract σ indices
+        let mut sigma_indices = [0u8; DIMENSIONS];
+        for j in 0..DIMENSIONS {
+            sigma_indices[j] = schedule_seed[j] % 4;
+        }
+
+        // Compute message hash and destination
+        let msg_hash = derive_key(TAG_MSG, message.as_bytes(), BINDING_LEN);
+        let dest = derive_destination(&addr, &msg_hash);
+
+        // Compute walk token and parity
+        let walk_token = compute_walk_token(&addr, &dest, &sigma_indices);
+        let parity = compute_parity(&addr, &dest, walk_token);
+
+        // Compute binding
+        let binding = compute_binding(&addr, &dest, walk_token, &parity, &msg_hash);
+
+        if !binding_set.insert(binding) {
+            collisions += 1;
+            eprintln!(
+                "COLLISION at sample {} — addr {:?}, msg {}",
+                i, addr, message
+            );
+        }
+    }
+
+    eprintln!(
+        "[Collision Search] Tested {} bindings, found {} collisions",
+        N, collisions
+    );
+    assert_eq!(
+        collisions, 0,
+        "CRITICAL: Found {} binding collisions in {} samples — sponge or construction is broken",
+        collisions, N
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEST 2: AVALANCHE ANALYSIS (DIFFERENTIAL)
+// ═══════════════════════════════════════════════════════════════════════
+//
+// For N random (address, secret, message) triples:
+//   1. Compute the binding commitment normally.
+//   2. Flip exactly one step in the walk schedule (change σ_index[k]).
+//   3. Recompute the binding with the perturbed schedule.
+//   4. Measure the bit-change ratio between original and perturbed binding.
+//
+// Expected: The mean bit-change ratio converges to ~50% (0.50 ± 0.05).
+//
+// This tests the diffusion quality of the TLSponge-385 binding layer.
+// If the walk structure leaks into the binding output (i.e., changing one
+// step only flips a few bits), the scheme has a differential weakness.
+//
+// The tolerance is ±5% (0.45–0.55). Tighter bounds are possible with
+// more samples but 0.05 is standard for avalanche tests.
+
+#[test]
+fn test_avalanche_single_step_flip() {
+    const N: usize = 10_000;
+    let mut total_ratio: f64 = 0.0;
+    let mut min_ratio: f64 = 1.0;
+    let mut max_ratio: f64 = 0.0;
+
+    for i in 0..N {
+        let seed = (i as u64).to_le_bytes();
+        let addr = random_addr(&seed);
+        let secret = random_secret(&seed);
+        let message = format!("avalanche-test-msg-{}", i);
+
+        // Derive schedule
+        let mut sched_material = Vec::with_capacity(DIMENSIONS + secret.len());
+        sched_material.extend_from_slice(&addr);
+        sched_material.extend_from_slice(&secret);
+        let schedule_seed = derive_key(TAG_SCHED, &sched_material, 26);
+
+        let mut sigma_indices = [0u8; DIMENSIONS];
+        for j in 0..DIMENSIONS {
+            sigma_indices[j] = schedule_seed[j] % 4;
+        }
+
+        let msg_hash = derive_key(TAG_MSG, message.as_bytes(), BINDING_LEN);
+        let dest = derive_destination(&addr, &msg_hash);
+
+        // Original binding
+        let walk_token_orig = compute_walk_token(&addr, &dest, &sigma_indices);
+        let parity_orig = compute_parity(&addr, &dest, walk_token_orig);
+        let binding_orig = compute_binding(&addr, &dest, walk_token_orig, &parity_orig, &msg_hash);
+
+        // Perturbed binding: flip one σ index
+        let mut sigma_perturbed = sigma_indices;
+        let flip_step = i % DIMENSIONS;
+        sigma_perturbed[flip_step] = (sigma_perturbed[flip_step] + 1) % 4;
+
+        let walk_token_pert = compute_walk_token(&addr, &dest, &sigma_perturbed);
+        let parity_pert = compute_parity(&addr, &dest, walk_token_pert);
+        let binding_pert = compute_binding(&addr, &dest, walk_token_pert, &parity_pert, &msg_hash);
+
+        let diff = bit_diff(&binding_orig, &binding_pert);
+        let ratio = diff as f64 / total_bits(&binding_orig) as f64;
+
+        total_ratio += ratio;
+        if ratio < min_ratio { min_ratio = ratio; }
+        if ratio > max_ratio { max_ratio = ratio; }
+    }
+
+    let mean_ratio = total_ratio / N as f64;
+
+    eprintln!(
+        "[Avalanche] N={}, mean={:.4}, min={:.4}, max={:.4}",
+        N, mean_ratio, min_ratio, max_ratio
+    );
+
+    // Strict avalanche criterion: mean should be ~0.50 ± 0.05
+    assert!(
+        mean_ratio > 0.45 && mean_ratio < 0.55,
+        "CRITICAL: Avalanche mean {:.4} outside [0.45, 0.55] — diffusion is broken",
+        mean_ratio
+    );
+
+    // No single sample should be pathologically low (< 0.20 = fewer than 20% bits flipped)
+    assert!(
+        min_ratio > 0.20,
+        "CRITICAL: Minimum avalanche ratio {:.4} < 0.20 — at least one input pair has poor diffusion",
+        min_ratio
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEST 3: SCHEDULE RECOVERY ATTACK
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Given a known (address, message, signature) triple, attempt to recover
+// the secret σ schedule by brute-forcing a subset of the schedule space.
+//
+// The full space is 4¹³ = 67,108,864 possible schedules (each of 13 steps
+// can use one of 4 σ permutations). We test 2¹⁸ = 262,144 candidates
+// (a representative sample of ~0.4% of the space).
+//
+// For each candidate schedule:
+//   1. Compute walk_token from the candidate σ indices
+//   2. Compute parity from the candidate
+//   3. Compute binding from the candidate
+//   4. Compare to the target binding
+//
+// Expected: ZERO matches (no candidate produces the correct binding
+// without knowing the actual secret schedule).
+//
+// Note: This is NOT a proof of pre-image resistance (that comes from
+// the sponge). This tests that the walk structure doesn't create
+// exploitable shortcuts — e.g., multiple distinct schedules that
+// produce the same walk_token + parity + binding.
+
+#[test]
+fn test_schedule_recovery_attack() {
+    const CANDIDATES: usize = 1 << 18; // 262,144 candidates
+
+    // Generate a known signer
+    let addr: [u8; DIMENSIONS] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let secret = b"schedule-recovery-test-secret-key";
+    let message = b"schedule-recovery-target-message";
+
+    // Derive the real schedule
+    let mut sched_material = Vec::with_capacity(DIMENSIONS + secret.len());
+    sched_material.extend_from_slice(&addr);
+    sched_material.extend_from_slice(secret);
+    let schedule_seed = derive_key(TAG_SCHED, &sched_material, 26);
+
+    let mut real_sigma = [0u8; DIMENSIONS];
+    for j in 0..DIMENSIONS {
+        real_sigma[j] = schedule_seed[j] % 4;
+    }
+
+    // Compute the real signature components
+    let msg_hash = derive_key(TAG_MSG, message, BINDING_LEN);
+    let dest = derive_destination(&addr, &msg_hash);
+    let real_token = compute_walk_token(&addr, &dest, &real_sigma);
+    let real_parity = compute_parity(&addr, &dest, real_token);
+    let real_binding = compute_binding(&addr, &dest, real_token, &real_parity, &msg_hash);
+
+    // Brute-force candidate schedules
+    let mut matches = 0usize;
+    let mut token_matches = 0usize;
+
+    for candidate_idx in 0..CANDIDATES {
+        // Generate candidate σ indices deterministically from candidate_idx
+        // This covers a structured subset of the 4¹³ space
+        let mut candidate_sigma = [0u8; DIMENSIONS];
+        let mut val = candidate_idx as u64;
+        for j in 0..DIMENSIONS {
+            candidate_sigma[j] = (val % 4) as u8;
+            val /= 4;
+        }
+
+        // Skip if this IS the real schedule (we'd trivially match)
+        if candidate_sigma == real_sigma {
+            continue;
+        }
+
+        let candidate_token = compute_walk_token(&addr, &dest, &candidate_sigma);
+
+        // Track walk_token collisions (mod 333 space is small)
+        if candidate_token == real_token {
+            token_matches += 1;
+
+            // Only compute the expensive binding if the token matches
+            let candidate_parity = compute_parity(&addr, &dest, candidate_token);
+            let candidate_binding = compute_binding(
+                &addr, &dest, candidate_token, &candidate_parity, &msg_hash,
+            );
+
+            if candidate_binding == real_binding {
+                matches += 1;
+                eprintln!(
+                    "SCHEDULE COLLISION at candidate {} — sigma {:?}",
+                    candidate_idx, candidate_sigma
+                );
+            }
+        }
+    }
+
+    eprintln!(
+        "[Schedule Recovery] Tested {} candidates against known signature",
+        CANDIDATES
+    );
+    eprintln!(
+        "  Walk token matches (mod {}): {} ({:.4}%)",
+        MAGIC_CONSTANT,
+        token_matches,
+        (token_matches as f64 / CANDIDATES as f64) * 100.0
+    );
+    eprintln!("  Full binding matches: {}", matches);
+
+    // Walk token collisions are EXPECTED (mod 333 has only ~8.4 bits of entropy).
+    // What matters is that token collisions do NOT lead to binding collisions.
+    // The binding is 48 bytes (384 bits) from TLSponge-385 — it should absorb
+    // any walk_token collisions with overwhelming probability.
+    assert_eq!(
+        matches, 0,
+        "CRITICAL: Found {} full binding matches from wrong schedules — \
+         the binding function does not adequately separate walk paths",
+        matches
+    );
+
+    // Sanity check: walk_token collisions should be ~CANDIDATES/333 ≈ 787
+    let expected_token_collisions = CANDIDATES as f64 / MAGIC_CONSTANT as f64;
+    let tolerance = expected_token_collisions * 3.0; // 3σ tolerance
+    assert!(
+        (token_matches as f64) < tolerance,
+        "Walk token collision rate {:.1}% exceeds 3σ bound — \
+         walk_token distribution may be biased",
+        (token_matches as f64 / CANDIDATES as f64) * 100.0
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEST 4: PORT DISTINGUISHABILITY
+// ═══════════════════════════════════════════════════════════════════════
+//
+// For each of the 26 ports (Hamming-distance-1 neighbors), generate N
+// signatures where the walk passes through that port, then test whether
+// the binding output distribution is statistically distinguishable
+// from a uniform distribution.
+//
+// Method: Chi-squared goodness-of-fit test on the first byte of the
+// binding output (256 bins). For each port, the null hypothesis is
+// that the first byte is uniformly distributed over [0, 255].
+//
+// Expected: NO port's chi-squared statistic exceeds the critical value
+// at α = 0.01 (chi²_crit(255) ≈ 310.46).
+//
+// This tests the port-independence property: the sponge binding should
+// not leak which port the walk traversed. If any port has a biased
+// distribution, an adversary could distinguish walks by port, reducing
+// the effective security of the σ schedule.
+
+#[test]
+fn test_port_distinguishability() {
+    const SAMPLES_PER_PORT: usize = 2_048;
+    const BINS: usize = 256;
+    // Chi-squared critical value for 255 df at α = 0.01
+    const CHI2_CRIT: f64 = 310.46;
+
+    let base_addr: [u8; DIMENSIONS] = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+
+    let mut failed_ports = Vec::new();
+
+    // 26 ports = 13 dimensions × 2 non-self trit values per dimension
+    for port in 0..PORTS {
+        let dim = port / 2;
+        let trit_offset = port % 2; // 0 → trit value 1, 1 → trit value 3 (skipping self=2)
+        let target_trit = if trit_offset == 0 { 1u8 } else { 3u8 };
+
+        // Construct a destination that differs from base_addr ONLY in dimension `dim`
+        let mut forced_dest = base_addr;
+        forced_dest[dim] = target_trit;
+
+        let mut bins = [0u64; BINS];
+
+        for sample in 0..SAMPLES_PER_PORT {
+            let seed_val = (port as u64 * SAMPLES_PER_PORT as u64 + sample as u64).to_le_bytes();
+            let secret = random_secret(&seed_val);
+
+            // Derive schedule for this signer
+            let mut sched_material = Vec::with_capacity(DIMENSIONS + secret.len());
+            sched_material.extend_from_slice(&base_addr);
+            sched_material.extend_from_slice(&secret);
+            let schedule_seed = derive_key(TAG_SCHED, &sched_material, 26);
+
+            let mut sigma_indices = [0u8; DIMENSIONS];
+            for j in 0..DIMENSIONS {
+                sigma_indices[j] = schedule_seed[j] % 4;
+            }
+
+            // Use the forced destination (walk through this specific port)
+            // Generate a message whose hash maps to this destination
+            // For testing, we directly use the forced destination
+            let msg_bytes = format!("port-test-{}-{}", port, sample);
+            let msg_hash = derive_key(TAG_MSG, msg_bytes.as_bytes(), BINDING_LEN);
+
+            // Compute walk token and binding using forced destination
+            let walk_token = compute_walk_token(&base_addr, &forced_dest, &sigma_indices);
+            let parity = compute_parity(&base_addr, &forced_dest, walk_token);
+            let binding = compute_binding(
+                &base_addr, &forced_dest, walk_token, &parity, &msg_hash,
+            );
+
+            // Bin the first byte of the binding
+            bins[binding[0] as usize] += 1;
+        }
+
+        // Chi-squared test
+        let expected = SAMPLES_PER_PORT as f64 / BINS as f64;
+        let chi2: f64 = bins.iter()
+            .map(|&observed| {
+                let diff = observed as f64 - expected;
+                (diff * diff) / expected
+            })
+            .sum();
+
+        if chi2 > CHI2_CRIT {
+            failed_ports.push((port, dim, target_trit, chi2));
+            eprintln!(
+                "FAIL: Port {} (dim={}, trit={}) — χ²={:.2} > {:.2}",
+                port, dim, target_trit, chi2, CHI2_CRIT
+            );
+        }
+    }
+
+    eprintln!(
+        "[Port Distinguishability] Tested {} ports × {} samples, {} failures",
+        PORTS, SAMPLES_PER_PORT, failed_ports.len()
+    );
+
+    assert!(
+        failed_ports.is_empty(),
+        "CRITICAL: {} ports have distinguishable binding distributions (α=0.01) — \
+         the binding leaks port identity. Failed ports: {:?}",
+        failed_ports.len(),
+        failed_ports
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SUPPLEMENTARY TEST: BINDING SENSITIVITY TO WALK TOKEN
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Verify that two walk tokens differing by 1 (mod 333) produce
+// completely different bindings. This is a targeted avalanche test
+// on the weakest component (the mod-333 walk token has only ~8.4 bits
+// of entropy).
+
+#[test]
+fn test_binding_sensitivity_to_walk_token() {
+    const N: usize = 5_000;
+    let mut total_ratio: f64 = 0.0;
+
+    for i in 0..N {
+        let seed = (i as u64).to_le_bytes();
+        let addr = random_addr(&seed);
+        let dest = random_addr(&[(i as u64 + 1).to_le_bytes().as_slice(), b"dest"].concat().as_slice());
+        let msg_hash = derive_key(TAG_MSG, format!("token-sensitivity-{}", i).as_bytes(), BINDING_LEN);
+
+        let token_a = (i as u16) % (MAGIC_CONSTANT as u16);
+        let token_b = (token_a + 1) % (MAGIC_CONSTANT as u16);
+
+        let parity_a = compute_parity(&addr, &dest, token_a);
+        let parity_b = compute_parity(&addr, &dest, token_b);
+
+        let binding_a = compute_binding(&addr, &dest, token_a, &parity_a, &msg_hash);
+        let binding_b = compute_binding(&addr, &dest, token_b, &parity_b, &msg_hash);
+
+        let ratio = bit_diff(&binding_a, &binding_b) as f64 / total_bits(&binding_a) as f64;
+        total_ratio += ratio;
+    }
+
+    let mean = total_ratio / N as f64;
+    eprintln!("[Token Sensitivity] N={}, mean avalanche={:.4}", N, mean);
+
+    assert!(
+        mean > 0.45 && mean < 0.55,
+        "Walk token ±1 does not produce ~50% bit change in binding (got {:.4}). \
+         The sponge is not adequately diffusing the walk token input.",
+        mean
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SUPPLEMENTARY TEST: WALK TOKEN DISTRIBUTION UNIFORMITY
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Verify the walk_token values (mod 333) are approximately uniformly
+// distributed across [0, 332]. Chi-squared with 332 df at α = 0.01.
+// Critical value ≈ 398.66 (for 332 df).
+
+#[test]
+fn test_walk_token_uniformity() {
+    const N: usize = 100_000;
+    const MODULUS: usize = MAGIC_CONSTANT as usize; // 333
+    const CHI2_CRIT_332: f64 = 398.66;
+
+    let mut bins = [0u64; 333];
+
+    for i in 0..N {
+        let seed = (i as u64).to_le_bytes();
+        let addr = random_addr(&seed);
+        let secret = random_secret(&seed);
+        let message = format!("uniformity-{}", i);
+
+        let mut sched_material = Vec::with_capacity(DIMENSIONS + secret.len());
+        sched_material.extend_from_slice(&addr);
+        sched_material.extend_from_slice(&secret);
+        let schedule_seed = derive_key(TAG_SCHED, &sched_material, 26);
+
+        let mut sigma_indices = [0u8; DIMENSIONS];
+        for j in 0..DIMENSIONS {
+            sigma_indices[j] = schedule_seed[j] % 4;
+        }
+
+        let msg_hash = derive_key(TAG_MSG, message.as_bytes(), BINDING_LEN);
+        let dest = derive_destination(&addr, &msg_hash);
+        let walk_token = compute_walk_token(&addr, &dest, &sigma_indices);
+
+        bins[walk_token as usize] += 1;
+    }
+
+    let expected = N as f64 / MODULUS as f64;
+    let chi2: f64 = bins.iter()
+        .map(|&observed| {
+            let diff = observed as f64 - expected;
+            (diff * diff) / expected
+        })
+        .sum();
+
+    eprintln!(
+        "[Walk Token Uniformity] N={}, χ²={:.2}, critical={:.2}, expected_per_bin={:.1}",
+        N, chi2, CHI2_CRIT_332, expected
+    );
+
+    assert!(
+        chi2 < CHI2_CRIT_332,
+        "Walk token distribution is non-uniform: χ²={:.2} > {:.2} (332 df, α=0.01). \
+         The walk token computation may have structural bias.",
+        chi2, CHI2_CRIT_332
+    );
+}
