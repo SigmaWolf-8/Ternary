@@ -1561,8 +1561,30 @@ fn main() {
     let run_id = format!("{:08X}", (secs as u32) ^ (grand_total_ns as u32));
     let filename = format!("BENCH-{:04}-{:02}-{:02}-{}.md", year, month, day, run_id);
 
-    let prod_results: Vec<&BenchResult> = results.iter().filter(|r| r.production).collect();
-    let forge_results: Vec<&BenchResult> = results.iter().filter(|r| !r.production).collect();
+    // ── Dynamic Production/Forge classification ──────────────────────
+    // A category is Production if ALL its benchmarks pass.
+    // Categories that are always Forge regardless of pass rate:
+    const ALWAYS_FORGE: &[&str] = &["A/B", "TL-DSA v1", "Roundtrip"];
+
+    // Build category pass map
+    let mut cat_all_pass: Vec<(&str, bool)> = Vec::new();
+    for r in &results {
+        let is_pass = r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass";
+        if let Some(entry) = cat_all_pass.iter_mut().find(|e| e.0 == r.category) {
+            if !is_pass { entry.1 = false; }
+        } else {
+            cat_all_pass.push((r.category, is_pass));
+        }
+    }
+
+    // Mark each result as dynamically production or forge
+    let is_production = |cat: &str| -> bool {
+        if ALWAYS_FORGE.contains(&cat) { return false; }
+        cat_all_pass.iter().find(|e| e.0 == cat).map_or(false, |e| e.1)
+    };
+
+    let prod_results: Vec<&BenchResult> = results.iter().filter(|r| is_production(r.category)).collect();
+    let forge_results: Vec<&BenchResult> = results.iter().filter(|r| !is_production(r.category)).collect();
     let prod_pass = prod_results.iter().filter(|r| r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass").count();
     let prod_total_ns: u128 = prod_results.iter().map(|r| r.median_ns).sum();
     let forge_pass = forge_results.iter().filter(|r| r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass").count();
@@ -1702,7 +1724,7 @@ fn main() {
     md.push_str("| # | Category | Status | Count | Total | PQ | Pass Rate |\n");
     md.push_str("|---|---|---|---|---|---|---|\n");
 
-    let mut seen_cats: Vec<(&str, u128, usize, usize, bool, bool)> = Vec::new();
+    let mut seen_cats: Vec<(&str, u128, usize, usize, bool)> = Vec::new();
     for r in &results {
         if let Some(entry) = seen_cats.iter_mut().find(|e| e.0 == r.category) {
             entry.1 += r.median_ns;
@@ -1712,12 +1734,12 @@ fn main() {
             if !r.pq { entry.4 = false; }
         } else {
             let is_pass = r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass";
-            seen_cats.push((r.category, r.median_ns, 1, if is_pass { 1 } else { 0 }, r.pq, r.production));
+            seen_cats.push((r.category, r.median_ns, 1, if is_pass { 1 } else { 0 }, r.pq));
         }
     }
-    for (i, (cname, total, count, pass, pq, prod)) in seen_cats.iter().enumerate() {
+    for (i, (cname, total, count, pass, pq)) in seen_cats.iter().enumerate() {
         let pq_tag = if *pq { "PQ" } else { "" };
-        let status = if *prod { "\u{2705} Production" } else { "\u{1f527} Forge" };
+        let status = if is_production(cname) { "\u{2705} Production" } else { "\u{1f527} Forge" };
         md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {}/{} |\n",
             i + 1, cname, status, count, format_nanos(*total), pq_tag, pass, count));
     }
