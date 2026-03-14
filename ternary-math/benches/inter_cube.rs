@@ -130,24 +130,22 @@ pub fn bench_pt26_keygen() {
 
 pub fn bench_pt26_sign() {
     let mh = sponge_kdf(b"PT26-MSG", b"bench message", 48);
-    let mut mat = Vec::with_capacity(80);
-    mat.extend_from_slice(&[2u8,1,3,2,1,3,2,1,3,2,1,3,2]);
-    mat.extend_from_slice(&[3u8,3,1,1,3,1,3,3,1,2,1,3,2]);
-    mat.extend_from_slice(&42u16.to_le_bytes());
-    mat.extend_from_slice(&mh);
-    let b = sponge_kdf(b"PT26-BIND", &mat, 48);
+    let token_bytes = 42u16.to_le_bytes();
+    let b = sponge_kdf_cat(b"PT26-BIND",
+        &[&[2u8,1,3,2,1,3,2,1,3,2,1,3,2][..], &[3u8,3,1,1,3,1,3,3,1,2,1,3,2][..],
+          &token_bytes[..], mh.as_slice()], 48);
     black_box(b);
 }
 
 pub fn bench_pt26_verify() {
     let mh = sponge_kdf(b"PT26-MSG", b"bench message", 48);
-    let mut mat = Vec::with_capacity(80);
-    mat.extend_from_slice(&[2u8,1,3,2,1,3,2,1,3,2,1,3,2]);
-    mat.extend_from_slice(&[3u8,3,1,1,3,1,3,3,1,2,1,3,2]);
-    mat.extend_from_slice(&42u16.to_le_bytes());
-    mat.extend_from_slice(&mh);
-    let b1 = sponge_kdf(b"PT26-BIND", &mat, 48);
-    let b2 = sponge_kdf(b"PT26-BIND", &mat, 48);
+    let token_bytes = 42u16.to_le_bytes();
+    let b1 = sponge_kdf_cat(b"PT26-BIND",
+        &[&[2u8,1,3,2,1,3,2,1,3,2,1,3,2][..], &[3u8,3,1,1,3,1,3,3,1,2,1,3,2][..],
+          &token_bytes[..], mh.as_slice()], 48);
+    let b2 = sponge_kdf_cat(b"PT26-BIND",
+        &[&[2u8,1,3,2,1,3,2,1,3,2,1,3,2][..], &[3u8,3,1,1,3,1,3,3,1,2,1,3,2][..],
+          &token_bytes[..], mh.as_slice()], 48);
     black_box(b1 == b2);
 }
 
@@ -156,10 +154,9 @@ pub fn bench_pt26_verify_parallel() {
     let addr = [2u8,1,3,2,1,3,2,1,3,2,1,3,2];
     let dest = [3u8,3,1,1,3,1,3,3,1,2,1,3,2];
     for d in 0..13 { black_box(addr[d] != dest[d]); }
-    let mut mat = Vec::with_capacity(80);
-    mat.extend_from_slice(&addr); mat.extend_from_slice(&dest);
-    mat.extend_from_slice(&42u16.to_le_bytes()); mat.extend_from_slice(&mh);
-    let b = sponge_kdf(b"PT26-BIND", &mat, 48);
+    let token_bytes = 42u16.to_le_bytes();
+    let b = sponge_kdf_cat(b"PT26-BIND",
+        &[&addr[..], &dest[..], &token_bytes[..], mh.as_slice()], 48);
     black_box(b);
 }
 
@@ -381,8 +378,8 @@ fn kem_encaps(level: usize) {
 
 fn kem_decaps(level: usize) {
     let n = match level { 512 => 128, 768 => 192, _ => 256 };
-    let ct = vec![42u8; n];
-    let shared = sponge_kdf(b"TLKEM-DEC", &ct, 32);
+    let ct = [42u8; 256]; // stack, oversized is fine — only first n bytes used
+    let shared = sponge_kdf(b"TLKEM-DEC", &ct[..n], 32);
     black_box(shared);
 }
 
@@ -406,19 +403,21 @@ pub fn bench_tae_mac_encrypt() {
     let plaintext = b"authenticated encryption benchmark plaintext 64 bytes padding here";
     let state1 = sponge_kdf_cat(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()], 48);
     let keystream = sponge_kdf(b"TAE-STREAM", &state1, plaintext.len());
-    let ct: Vec<u8> = plaintext.iter().zip(keystream.iter()).map(|(p,k)| p^k).collect();
-    let tag = sponge_kdf_cat(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()], 27);
+    let mut ct = [0u8; 128]; // stack buffer
+    for i in 0..plaintext.len() { ct[i] = plaintext[i] ^ keystream[i]; }
+    let tag = sponge_kdf_cat(b"TAE-TAG", &[state1.as_slice(), &ct[..plaintext.len()]], 27);
     black_box((ct, tag));
 }
 
 pub fn bench_tae_mac_decrypt() {
     let key = sponge_kdf(b"TAE-KEY", b"ae-key-material", 48);
     let nonce = sponge_kdf(b"TAE-NONCE", b"ae-nonce", 16);
-    let ct = vec![42u8; 64];
+    let ct = [42u8; 64]; // stack, not vec!
     let state1 = sponge_kdf_cat(b"TAE-ABSORB", &[key.as_slice(), nonce.as_slice()], 48);
     let keystream = sponge_kdf(b"TAE-STREAM", &state1, ct.len());
-    let pt: Vec<u8> = ct.iter().zip(keystream.iter()).map(|(c,k)| c^k).collect();
-    let tag = sponge_kdf_cat(b"TAE-TAG", &[state1.as_slice(), ct.as_slice()], 27);
+    let mut pt = [0u8; 64]; // stack buffer
+    for i in 0..64 { pt[i] = ct[i] ^ keystream[i]; }
+    let tag = sponge_kdf_cat(b"TAE-TAG", &[state1.as_slice(), &ct[..]], 27);
     black_box((pt, tag));
 }
 
@@ -445,21 +444,23 @@ pub fn bench_tae_mac_verify() {
 
 pub fn bench_phase_encrypt_split() {
     let data = b"Phase encryption benchmark plaintext for 4-phase split operation test data";
+    let mut share = [0u8; 128]; // stack buffer, fits any plaintext ≤128
     for phase in 0..4u8 {
         let phase_key = sponge_kdf(b"PHASE-KEY", &[phase], 48);
         let angle = sponge_kdf(b"PHASE-ANGLE", &phase_key, data.len());
-        let share: Vec<u8> = data.iter().zip(angle.iter()).map(|(d,a)| d^a).collect();
-        black_box(share);
+        for i in 0..data.len() { share[i] = data[i] ^ angle[i]; }
+        black_box(&share[..data.len()]);
     }
 }
 
 pub fn bench_phase_encrypt_recombine() {
-    let shares: Vec<Vec<u8>> = (0..4).map(|phase| {
-        let key = sponge_kdf(b"PHASE-KEY", &[phase as u8], 48);
-        sponge_kdf(b"PHASE-ANGLE", &key, 64)
-    }).collect();
-    let mut result = vec![0u8; 64];
-    for share in &shares { for i in 0..64 { result[i] ^= share[i]; } }
+    // Derive 4 phase angles, XOR into stack buffer
+    let mut result = [0u8; 64];
+    for phase in 0..4u8 {
+        let key = sponge_kdf(b"PHASE-KEY", &[phase], 48);
+        let angle = sponge_kdf(b"PHASE-ANGLE", &key, 64);
+        for i in 0..64 { result[i] ^= angle[i]; }
+    }
     black_box(result);
 }
 
@@ -476,7 +477,7 @@ pub fn bench_phase_encrypt_batch_split() {
 
 pub fn bench_phase_encrypt_batch_recombine() {
     for doc in 0..10u8 {
-        let mut result = vec![0u8; 256];
+        let mut result = [0u8; 256]; // stack buffer
         for phase in 0..4u8 {
             let key = sponge_kdf(b"PHASE-KEY", &[doc, phase], 48);
             let share = sponge_kdf(b"PHASE-ANGLE", &key, 256);
@@ -497,19 +498,21 @@ pub fn bench_aes_gcm_encrypt() {
     let plaintext = b"API session token encrypted at rest with AES-256-GCM for compliance";
     let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
     let keystream = sponge_kdf_cat(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]], plaintext.len());
-    let ct: Vec<u8> = plaintext.iter().zip(keystream.iter()).map(|(p,k)| p^k).collect();
-    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()], 16);
+    let mut ct = [0u8; 128]; // stack
+    for i in 0..plaintext.len() { ct[i] = plaintext[i] ^ keystream[i]; }
+    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), &ct[..plaintext.len()]], 16);
     black_box((ct, tag));
 }
 
 pub fn bench_aes_gcm_decrypt() {
     let key = sponge_kdf(b"AES-KEY", b"aes-256-key-material", 32);
     let nonce = sponge_kdf(b"AES-NONCE", b"gcm-nonce", 12);
-    let ct = vec![42u8; 64];
+    let ct = [42u8; 64]; // stack
     let round_keys = sponge_kdf(b"AES-EXPAND", &key, 240);
     let keystream = sponge_kdf_cat(b"AES-CTR", &[nonce.as_slice(), &round_keys[..16]], 64);
-    let pt: Vec<u8> = ct.iter().zip(keystream.iter()).map(|(c,k)| c^k).collect();
-    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), ct.as_slice()], 16);
+    let mut pt = [0u8; 64]; // stack
+    for i in 0..64 { pt[i] = ct[i] ^ keystream[i]; }
+    let tag = sponge_kdf_cat(b"AES-GHASH", &[nonce.as_slice(), &ct[..]], 16);
     black_box((pt, tag));
 }
 
@@ -552,12 +555,14 @@ pub fn bench_tis27_hash_27trit() {
 }
 
 pub fn bench_tis27_hash_54trit() {
-    let input: Vec<u8> = (0..54).map(|i| (i % 3 + 1) as u8).collect();
+    let mut input = [0u8; 54];
+    for i in 0..54 { input[i] = (i % 3 + 1) as u8; }
     black_box(sponge_kdf(b"TIS27-FULL", &input, 27));
 }
 
 pub fn bench_tis27_absorb_squeeze() {
-    let input: Vec<u8> = (0..128).map(|i| (i % 3) as u8).collect();
+    let mut input = [0u8; 128];
+    for i in 0..128 { input[i] = (i % 3) as u8; }
     black_box(sponge_kdf(b"TIS27-CYCLE", &input, 27));
 }
 
@@ -643,27 +648,25 @@ pub fn bench_identity_keypair_derive() {
 // ═══════════════════════════════════════════════════════════════════════
 
 pub fn bench_tunnel_auth_response() {
-    let mut m = Vec::with_capacity(98);
-    m.extend_from_slice(&[42u8; 32]); m.extend_from_slice(&[1u8; 32]);
-    m.extend_from_slice(&[1u8; 13]); m.extend_from_slice(&[2u8; 13]);
-    m.extend_from_slice(b"RESPONSE");
-    black_box(sponge_kdf(b"PlenumNET-TUN-AUTH", &m, 32));
+    black_box(sponge_kdf_cat(b"PlenumNET-TUN-AUTH",
+        &[&[42u8; 32][..], &[1u8; 32][..], &[1u8; 13][..], &[2u8; 13][..], b"RESPONSE"], 32));
 }
 
 pub fn bench_tunnel_handshake_3msg() {
     let kem = [42u8; 32];
     let ch_a = sponge_kdf(b"PlenumNET-TUN-NONCE", b"seed-a", 32);
-    let mut rm = Vec::with_capacity(128);
-    rm.extend_from_slice(&kem); rm.extend_from_slice(&ch_a);
-    rm.extend_from_slice(&[1u8;13]); rm.extend_from_slice(&[2u8;13]); rm.extend_from_slice(b"RESPONSE");
-    let resp = sponge_kdf(b"PlenumNET-TUN-AUTH", &rm, 32);
+    // Message 1: RESPONSE (zero-alloc)
+    let resp = sponge_kdf_cat(b"PlenumNET-TUN-AUTH",
+        &[&kem[..], ch_a.as_slice(), &[1u8;13][..], &[2u8;13][..], b"RESPONSE"], 32);
     let ch_b = sponge_kdf(b"PlenumNET-TUN-NONCE", b"seed-b", 32);
-    let ver = sponge_kdf(b"PlenumNET-TUN-AUTH", &rm, 32);
+    // Verify message 1 (same inputs = same output)
+    let ver = sponge_kdf_cat(b"PlenumNET-TUN-AUTH",
+        &[&kem[..], ch_a.as_slice(), &[1u8;13][..], &[2u8;13][..], b"RESPONSE"], 32);
     let mut d: u8=0; for i in 0..32 { d|=resp[i]^ver[i]; }
-    let mut cm = Vec::with_capacity(128);
-    cm.extend_from_slice(&kem); cm.extend_from_slice(&ch_b);
-    cm.extend_from_slice(&[2u8;13]); cm.extend_from_slice(&[1u8;13]); cm.extend_from_slice(b"CONFIRM");
-    black_box((d, sponge_kdf(b"PlenumNET-TUN-AUTH", &cm, 32)));
+    // Message 3: CONFIRM (zero-alloc)
+    let confirm = sponge_kdf_cat(b"PlenumNET-TUN-AUTH",
+        &[&kem[..], ch_b.as_slice(), &[2u8;13][..], &[1u8;13][..], b"CONFIRM"], 32);
+    black_box((d, confirm));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -745,13 +748,15 @@ pub fn bench_tdns_derive_identity() {
 }
 
 pub fn bench_tdns_scan_hash() {
-    let classification: Vec<u8> = (0..27).map(|i| (i % 3 + 1) as u8).collect();
+    let mut classification = [0u8; 27];
+    for i in 0..27 { classification[i] = (i % 3 + 1) as u8; }
     let hash = sponge_kdf(b"TIS27-SCAN", &classification, 27);
     black_box(hash);
 }
 
 pub fn bench_tdns_repunit_checksum() {
-    let addr: Vec<u8> = (0..27).map(|i| (i % 3 + 1) as u8).collect();
+    let mut addr = [0u8; 27];
+    for i in 0..27 { addr[i] = (i % 3 + 1) as u8; }
     let mut acc: u32 = 0;
     for &t in &addr { acc = (acc * 3 + (t - 1) as u32) % 364; }
     let mut check = [0u8; 6];
@@ -812,10 +817,8 @@ pub fn bench_con_derive_tunnel_key() {
     let addr_a = [1u8,1,1,1,1,1,1,1,1,1,1,1,1];
     let addr_b = [2u8,2,2,2,2,2,2,2,2,2,2,2,2];
     let secret = [42u8; 32];
-    let mut mat = Vec::with_capacity(58);
-    mat.extend_from_slice(&addr_a); mat.extend_from_slice(&addr_b);
-    mat.extend_from_slice(&secret);
-    black_box(sponge_kdf(b"PlenumNET-CON-v2.5", &mat, 32));
+    black_box(sponge_kdf_cat(b"PlenumNET-CON-v2.5",
+        &[&addr_a[..], &addr_b[..], &secret[..]], 32));
 }
 
 pub fn bench_con_rekey_single() {
@@ -1065,9 +1068,10 @@ pub fn bench_ux_tdns_register() {
 /// "A node rekeys all tunnels" (epoch rotation)
 pub fn bench_ux_epoch_rekey() {
     bench_con_rekey_all();
+    let mut km = [0u8; 13]; // "key-material" = 12 bytes + 1 index
+    km[..12].copy_from_slice(b"key-material");
     for i in 0..26u8 {
-        let mut km = Vec::with_capacity(49);
-        km.extend_from_slice(b"key-material"); km.push(i);
+        km[12] = i;
         std::hint::black_box(sponge_kdf(b"PlenumNET-HB-HMAC", &km, 48));
     }
 }
