@@ -1792,6 +1792,8 @@ fn main() {
         let (ref_name, _) = industry_ref(cname);
         md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {}/{} |\n",
             i + 1, cname, status, ref_name, count, format_nanos(*total), pq_tag, pass, count));
+        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {}/{} |\n",
+            i + 1, cname, status, ref_name, count, format_nanos(*total), pq_tag, pass, count));
     }
     md.push_str(&format!("| | **GRAND TOTAL** | | | **{}** | **{}** | **{} PQ** | **{}/{}** |\n\n",
         grand_count, format_nanos(grand_total_ns), pq_count, grand_pass, grand_count));
