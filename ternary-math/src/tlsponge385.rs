@@ -488,7 +488,7 @@ pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8
 
 /// Zero-allocation KDF for multi-part material (HMAC, T-AE-MAC, heartbeat, etc).
 /// Concatenates context + all parts on the stack. Panics if total > 768 bytes.
-/// (RSA verify passes 512B sig + context = 522B, so 768 gives headroom.)
+/// (RSA-4096 verify passes 512B sig + 10B domain + 1B index = 523B.)
 ///
 /// Example: `derive_key_cat(b"HMAC-TAG", &[key, payload], 27)`
 /// replaces: `derive_key(b"HMAC-TAG", &[key, payload].concat(), 27)`
@@ -616,7 +616,11 @@ mod tests {
         let mut seen = [false; 27];
         for i in 0..27 { let o=CHI_MAP[i]; let p=(o[0]+1) as usize+(o[1]+1) as usize*3+(o[2]+1) as usize*9; assert!(!seen[p]); seen[p]=true; }
     }
-    #[test] fn chi_zero_fixed() { assert_eq!(CHI_MAP[0], [-1,-1,-1]); }
+    #[test] fn chi_zero_fixed() {
+        // GF(27) zero = (0,0,0) unsigned = index 0 = balanced (-1,-1,-1).
+        // 0^17 = 0 in any field, so CHI_MAP[0] must map to itself.
+        assert_eq!(CHI_MAP[0], [-1,-1,-1]);
+    }
     #[test] fn perm_full_period() {
         let mut seen = [false; STATE_SIZE];
         for i in 0..STATE_SIZE { let d=PERM[i] as usize; assert!(!seen[d]); seen[d]=true; }
