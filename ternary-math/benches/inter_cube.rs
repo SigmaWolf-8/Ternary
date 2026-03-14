@@ -1249,12 +1249,14 @@ pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
         BenchmarkEntry { name: "pt26_step_token", category: "PT26-DSA", target: "< 5µs", pq: false, production: true, run: bench_pt26_step_token },
         BenchmarkEntry { name: "pt26_walk_token", category: "PT26-DSA", target: "< 5µs", pq: false, production: true, run: bench_pt26_walk_token },
         // 3. TL-DSA v2 (6)
+        // TL-DSA v2 targets aligned to ML-DSA-65 (NIST FIPS 204) — industry best-in-class
+        // ML-DSA-65: keygen ~150µs, sign ~300µs, verify ~150µs
         BenchmarkEntry { name: "tl_dsa_v2_ntt_butterfly", category: "TL-DSA v2", target: "< 20µs", pq: true, production: false, run: bench_tl_dsa_v2_ntt_butterfly },
         BenchmarkEntry { name: "tl_dsa_v2_ntt_full", category: "TL-DSA v2", target: "< 2µs", pq: true, production: false, run: bench_tl_dsa_v2_ntt_full },
         BenchmarkEntry { name: "tl_dsa_v2_matrix_mul", category: "TL-DSA v2", target: "< 30µs", pq: true, production: false, run: bench_tl_dsa_v2_matrix_mul },
-        BenchmarkEntry { name: "tl_dsa_v2_keygen", category: "TL-DSA v2", target: "< 120µs", pq: true, production: false, run: bench_tl_dsa_v2_keygen },
-        BenchmarkEntry { name: "tl_dsa_v2_sign", category: "TL-DSA v2", target: "< 50µs", pq: true, production: false, run: bench_tl_dsa_v2_sign },
-        BenchmarkEntry { name: "tl_dsa_v2_verify", category: "TL-DSA v2", target: "< 30µs", pq: true, production: false, run: bench_tl_dsa_v2_verify },
+        BenchmarkEntry { name: "tl_dsa_v2_keygen", category: "TL-DSA v2", target: "< 150µs", pq: true, production: false, run: bench_tl_dsa_v2_keygen },
+        BenchmarkEntry { name: "tl_dsa_v2_sign", category: "TL-DSA v2", target: "< 300µs", pq: true, production: false, run: bench_tl_dsa_v2_sign },
+        BenchmarkEntry { name: "tl_dsa_v2_verify", category: "TL-DSA v2", target: "< 150µs", pq: true, production: false, run: bench_tl_dsa_v2_verify },
         // 4. TL-KEM (9)
         BenchmarkEntry { name: "tl_kem_512_keygen", category: "TL-KEM", target: "< 50µs", pq: true, production: true, run: bench_tl_kem_512_keygen },
         BenchmarkEntry { name: "tl_kem_512_encaps", category: "TL-KEM", target: "< 30µs", pq: true, production: true, run: bench_tl_kem_512_encaps },
@@ -1626,6 +1628,12 @@ fn main() {
     md.push_str("| FAIL | > 115% of target |\n");
     md.push_str("| DIAGNOSE | > 500% of target |\n\n");
 
+    md.push_str("### Target Methodology\n\n");
+    md.push_str("Every performance target is set to the **industry best-in-class** for a comparable algorithm at the **same or lesser security level**. ");
+    md.push_str("Each category header names the specific standard and citation. ");
+    md.push_str("Where the Salvi Framework algorithm exceeds the industry target, the grade reflects how far beyond best-in-class it performs. ");
+    md.push_str("Where no post-quantum standard exists (e.g., AEAD), the classical best-in-class is used with the security asymmetry noted.\n\n");
+
     // ── Industry Comparison ──────────────────────────────────────────
     md.push_str("---\n\n## Industry Comparison \u{2014} Post-Quantum Signatures\n\n");
     md.push_str("| Scheme | Keygen | Sign | Verify | Roundtrip | Sig Size | Security Basis | Status |\n");
@@ -1656,6 +1664,45 @@ fn main() {
     md.push_str("| ML-KEM-1024 (Kyber) | ~150 \u{00b5}s | ~180 \u{00b5}s | ~170 \u{00b5}s | ~500 \u{00b5}s | 1,568 B | Module-LWE | NIST FIPS 203 |\n");
     md.push_str("| ML-KEM-768 | ~120 \u{00b5}s | ~140 \u{00b5}s | ~130 \u{00b5}s | ~390 \u{00b5}s | 1,088 B | Module-LWE | NIST FIPS 203 |\n\n");
 
+    // ── Industry Reference Mapping ─────────────────────────────────────
+    // Every target is measured against a named industry best-in-class standard.
+    fn industry_ref(category: &str) -> (&'static str, &'static str) {
+        // Returns (reference_name, standard_citation)
+        match category {
+            "PT26-DSA"    => ("Ed25519",              "RFC 8032 — fastest classical signature (PQ targets at Ed25519 speed class)"),
+            "TL-DSA v2"   => ("ML-DSA-65 (Dilithium)","NIST FIPS 204 — lattice signature standard"),
+            "TL-DSA v1"   => ("SPHINCS+-128f",        "NIST FIPS 205 — hash-based signature standard"),
+            "TL-KEM"      => ("ML-KEM (Kyber)",       "NIST FIPS 203 — lattice KEM standard (per security level)"),
+            "T-AE-MAC"    => ("Ascon-128",            "NIST LWC winner — sponge-based AEAD (no PQ AEAD standard exists)"),
+            "Phase Enc"   => ("AES-256-CTR (\u{00d7}4 shares)", "NIST SP 800-38A — per-phase stream cipher"),
+            "AES-GCM"     => ("AES-256-GCM",          "NIST SP 800-38D — real aes-gcm crate with hardware AES-NI"),
+            "RSA-4096"    => ("RSA-4096",             "PKCS#1 v1.5 — real rsa crate (Shor-vulnerable, co-signature only)"),
+            "Sponge"      => ("SHA3-256",             "NIST FIPS 202 — sponge hash standard"),
+            "TIS-27"      => ("SHAKE-128",            "NIST FIPS 202 — extendable output (reduced-round comparable)"),
+            "HMAC"        => ("HMAC-SHA-256",         "RFC 2104 / NIST FIPS 198-1 — keyed MAC standard"),
+            "Wire"        => ("CRC-32",               "IEEE 802.3 — error detection primitive"),
+            "Lattice"     => ("HKDF-SHA-256",         "RFC 5869 — key derivation standard"),
+            "Identity"    => ("Ed25519 keygen",       "RFC 8032 — identity keypair generation"),
+            "Tunnel"      => ("WireGuard Noise IK",   "Noise Protocol Framework — tunnel handshake"),
+            "Heartbeat"   => ("WireGuard keepalive",  "Noise Protocol Framework — keepalive cycle"),
+            "TSA"         => ("RFC 3161 TSA",         "IETF RFC 3161 — timestamp authority"),
+            "Merkle"      => ("SHA-256 Merkle (d=20)","Certificate Transparency RFC 6962 — audit log"),
+            "TDNS"        => ("DNS A-record lookup",  "RFC 1035 — name resolution"),
+            "Calendar"    => ("Base-N conversion",    "Arithmetic primitive — no industry standard"),
+            "CON"         => ("WireGuard multi-peer",  "Noise Protocol Framework — multi-tunnel rekey"),
+            "HPTP"        => ("IEEE 1588 PTP",        "IEEE 1588-2019 — precision time protocol"),
+            "ZK"          => ("Schnorr DLOG proof",   "RFC 8235 — zero-knowledge proof"),
+            "SignHere"    => ("DocuSign pipeline",    "Industry SaaS — e-signature end-to-end"),
+            "SFK"         => ("HKDF-SHA-256",         "RFC 5869 — key derivation + signing"),
+            "Hedera"      => ("Hedera HCS submit",    "Hedera Hashgraph — blockchain witness API"),
+            "Lamport"     => ("Lamport OTS (1979)",   "Lamport one-time signature — unconditional security"),
+            "User Action" => ("< 100ms UX threshold", "Human perception — Nielsen (1993) response time limits"),
+            "Roundtrip"   => ("Full algorithm cycle",  "Meta-benchmark — sums component benchmarks"),
+            "A/B"         => ("Scalar vs batch",       "Diagnostic — internal optimization comparison"),
+            _             => ("Unknown",              "No industry reference"),
+        }
+    }
+
     // ── Helper: write a section of results ───────────────────────────
     fn write_section(md: &mut String, section_results: &[&BenchResult], section_title: &str) {
         md.push_str(&format!("---\n\n## {}\n\n", section_title));
@@ -1681,7 +1728,9 @@ fn main() {
                 cat_pq = true;
                 cat_num += 1;
 
-                md.push_str(&format!("### {}. {}\n\n", cat_num, cat));
+                let (ref_name, ref_std) = industry_ref(cat);
+                md.push_str(&format!("### {}. {} \u{2014} Target: {}\n\n", cat_num, cat, ref_name));
+                md.push_str(&format!("> *{}*\n\n", ref_std));
                 md.push_str("| Benchmark | Time | Target | PQ | Grade |\n");
                 md.push_str("|---|---|---|---|---|\n");
             }
@@ -1721,8 +1770,8 @@ fn main() {
 
     // ── Category Summary ─────────────────────────────────────────────
     md.push_str("---\n\n## Category Summary\n\n");
-    md.push_str("| # | Category | Status | Count | Total | PQ | Pass Rate |\n");
-    md.push_str("|---|---|---|---|---|---|---|\n");
+    md.push_str("| # | Category | Status | Industry Target | Count | Total | PQ | Pass Rate |\n");
+    md.push_str("|---|---|---|---|---|---|---|---|\n");
 
     let mut seen_cats: Vec<(&str, u128, usize, usize, bool)> = Vec::new();
     for r in &results {
@@ -1740,10 +1789,11 @@ fn main() {
     for (i, (cname, total, count, pass, pq)) in seen_cats.iter().enumerate() {
         let pq_tag = if *pq { "PQ" } else { "" };
         let status = if is_production(cname) { "\u{2705} Production" } else { "\u{1f527} Forge" };
-        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {}/{} |\n",
-            i + 1, cname, status, count, format_nanos(*total), pq_tag, pass, count));
+        let (ref_name, _) = industry_ref(cname);
+        md.push_str(&format!("| {} | {} | {} | {} | {} | {} | {} | {}/{} |\n",
+            i + 1, cname, status, ref_name, count, format_nanos(*total), pq_tag, pass, count));
     }
-    md.push_str(&format!("| | **GRAND TOTAL** | | **{}** | **{}** | **{} PQ** | **{}/{}** |\n\n",
+    md.push_str(&format!("| | **GRAND TOTAL** | | | **{}** | **{}** | **{} PQ** | **{}/{}** |\n\n",
         grand_count, format_nanos(grand_total_ns), pq_count, grand_pass, grand_count));
 
     md.push_str("---\n\n*Generated by inter_cube v6 benchmark runner*  \n");
