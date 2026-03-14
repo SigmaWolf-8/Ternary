@@ -85,7 +85,7 @@ fn cached_hmac_key() -> &'static Vec<u8> {
 
 /// Zero-allocation sponge KDF with concatenated material.
 /// Copies slices into a stack buffer, calls derive_key on it.
-/// Panics if total material exceeds 768 bytes.
+/// Panics if total material exceeds 768 bytes (RSA verify uses 512B sig).
 #[inline(always)]
 fn sponge_kdf_cat(domain: &[u8], parts: &[&[u8]], len: usize) -> Vec<u8> {
     let mut buf = [0u8; 768];
@@ -1315,10 +1315,21 @@ fn main() {
         std::process::exit(1);
     }
 
+    // ── Collect results ──────────────────────────────────────────────
+    struct BenchResult {
+        name: &'static str,
+        category: &'static str,
+        target: &'static str,
+        pq: bool,
+        median_ns: u128,
+        grade: &'static str,
+    }
+
     println!("Running {} benchmarks ({} iterations each)\n", selected.len(), iters);
     println!("{:<35} {:>12} {:>12} {:<3} {:<10}", "Benchmark", "Median", "Target", "PQ", "Grade");
     println!("{}", "-".repeat(85));
 
+    let mut results: Vec<BenchResult> = Vec::with_capacity(selected.len());
     let mut current_category = "";
     let mut category_total_ns: u128 = 0;
     let mut category_count: usize = 0;
@@ -1329,11 +1340,10 @@ fn main() {
     let mut grand_count: usize = 0;
 
     for b in &selected {
-        // Category changed — print subtotal for previous category
         if b.category != current_category && !current_category.is_empty() {
             let pq_label = if category_all_pq { "PQ" } else { "" };
             println!("{:<35} {:>12} {:>12} {:<3} [{}/{}]",
-                format!("  ▸ {} TOTAL ({})", current_category, category_count),
+                format!("  \u{25b8} {} TOTAL ({})", current_category, category_count),
                 format_nanos(category_total_ns), "", pq_label,
                 category_pass_count, category_count);
             println!();
@@ -1344,10 +1354,8 @@ fn main() {
         }
         current_category = b.category;
 
-        // Warm-up
         for _ in 0..3 { (b.run)(); }
 
-        // Measure
         let mut times = Vec::with_capacity(iters as usize);
         for _ in 0..iters {
             let start = std::time::Instant::now();
@@ -1357,7 +1365,6 @@ fn main() {
         times.sort();
         let median = times[times.len() / 2];
         let median_ns = median.as_nanos();
-
         let g = grade(median_ns, b.target);
         let pq_marker = if b.pq { "PQ" } else { "" };
 
@@ -1371,23 +1378,170 @@ fn main() {
 
         println!("{:<35} {:>12} {:>12} {:<3} {}",
             b.name, format_nanos(median_ns), b.target, pq_marker, g);
+
+        results.push(BenchResult {
+            name: b.name, category: b.category, target: b.target,
+            pq: b.pq, median_ns, grade: g,
+        });
     }
 
-    // Final category subtotal
     if !current_category.is_empty() {
         let pq_label = if category_all_pq { "PQ" } else { "" };
         println!("{:<35} {:>12} {:>12} {:<3} [{}/{}]",
-            format!("  ▸ {} TOTAL ({})", current_category, category_count),
+            format!("  \u{25b8} {} TOTAL ({})", current_category, category_count),
             format_nanos(category_total_ns), "", pq_label,
             category_pass_count, category_count);
     }
 
+    let pq_count = selected.iter().filter(|b| b.pq).count();
     println!("\n{}", "=".repeat(85));
     println!("{:<35} {:>12}", "GRAND TOTAL (all benchmarks)", format_nanos(grand_total_ns));
     println!("{:<35} {:>12}", "Pass rate", format!("{}/{} ({:.0}%)", grand_pass, grand_count, grand_pass as f64 / grand_count as f64 * 100.0));
-    println!("{:<35} {:>12}", "PQ benchmarks", format!("{}/{}",
-        selected.iter().filter(|b| b.pq).count(), grand_count));
-    println!("\nGrade key: Plenum+ (≤50% target) | Pass (≤target) | *Pass (≤115%) | FAIL (>115%) | DIAGNOSE (>500%)");
+    println!("{:<35} {:>12}", "PQ benchmarks", format!("{}/{}", pq_count, grand_count));
+    println!("\nGrade key: Plenum+ (\u{2264}50% target) | Pass (\u{2264}target) | *Pass (\u{2264}115%) | FAIL (>115%) | DIAGNOSE (>500%)");
     println!("PQ = Post-quantum verifiable (sponge pre-image, lattice, hash-based)");
-    println!("\nDone.");
+
+    // ── Write Markdown report ────────────────────────────────────────
+    use std::io::Write;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let secs = now.as_secs();
+    // Date components from epoch seconds
+    let days = secs / 86400;
+    let (year, month, day) = epoch_days_to_ymd(days);
+    let run_id = format!("{:08X}", (secs as u32) ^ (grand_total_ns as u32));
+    let filename = format!("BENCH-{:04}-{:02}-{:02}-{}.md", year, month, day, run_id);
+
+    let mut md = String::with_capacity(16384);
+    md.push_str(&format!("# PlenumNET Benchmark Report\n\n"));
+    md.push_str(&format!("**Date**: {:04}-{:02}-{:02}  \n", year, month, day));
+    md.push_str(&format!("**Run ID**: `{}`  \n", run_id));
+    md.push_str(&format!("**Suite**: v5 ({} benchmarks, {} iterations)  \n", grand_count, iters));
+
+    #[cfg(target_arch = "aarch64")]
+    md.push_str("**Architecture**: ARM64 (aarch64), NEON SIMD  \n");
+    #[cfg(target_arch = "x86_64")]
+    md.push_str("**Architecture**: x86_64, AVX2  \n");
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    md.push_str("**Architecture**: unknown  \n");
+
+    md.push_str(&format!("**Rust**: {}  \n\n", env!("CARGO_PKG_VERSION")));
+
+    md.push_str("---\n\n## Summary\n\n");
+    md.push_str("| Metric | Value |\n|---|---|\n");
+    md.push_str(&format!("| Pass rate | **{}/{}** ({:.0}%) |\n", grand_pass, grand_count, grand_pass as f64 / grand_count as f64 * 100.0));
+    md.push_str(&format!("| PQ benchmarks | {}/{} ({}%) |\n", pq_count, grand_count, pq_count * 100 / grand_count));
+    md.push_str(&format!("| Grand total | **{}** |\n", format_nanos(grand_total_ns)));
+    md.push_str("\n### Grading Scale\n\n");
+    md.push_str("| Grade | Criteria |\n|---|---|\n");
+    md.push_str("| Plenum+ | \u{2264} 50% of target (world-class) |\n");
+    md.push_str("| Pass | \u{2264} target |\n");
+    md.push_str("| *Pass | \u{2264} 115% of target (within noise) |\n");
+    md.push_str("| FAIL | > 115% of target |\n");
+    md.push_str("| DIAGNOSE | > 500% of target |\n\n");
+
+    md.push_str("---\n\n## Full Results\n\n");
+
+    let mut cat = "";
+    let mut cat_total: u128 = 0;
+    let mut cat_n: usize = 0;
+    let mut cat_pass: usize = 0;
+    let mut cat_pq = true;
+    let mut cat_num: usize = 0;
+
+    for r in &results {
+        if r.category != cat {
+            // Close previous category
+            if !cat.is_empty() {
+                let pq_tag = if cat_pq { " PQ" } else { "" };
+                md.push_str(&format!("| **\u{25b8} {} TOTAL ({})** | **{}** | |{} | **[{}/{}]** |\n\n",
+                    cat, cat_n, format_nanos(cat_total), pq_tag, cat_pass, cat_n));
+            }
+            // Open new category
+            cat = r.category;
+            cat_total = 0;
+            cat_n = 0;
+            cat_pass = 0;
+            cat_pq = true;
+            cat_num += 1;
+
+            md.push_str(&format!("### {}. {}\n\n", cat_num, cat));
+            md.push_str("| Benchmark | Time | Target | PQ | Grade |\n");
+            md.push_str("|---|---|---|---|---|\n");
+        }
+
+        let pq_tag = if r.pq { "PQ" } else { "" };
+        if !r.pq { cat_pq = false; }
+        let is_pass = r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass";
+        if is_pass { cat_pass += 1; }
+
+        md.push_str(&format!("| `{}` | {} | {} | {} | {} |\n",
+            r.name, format_nanos(r.median_ns), r.target, pq_tag, r.grade));
+
+        cat_total += r.median_ns;
+        cat_n += 1;
+    }
+
+    // Close final category
+    if !cat.is_empty() {
+        let pq_tag = if cat_pq { " PQ" } else { "" };
+        md.push_str(&format!("| **\u{25b8} {} TOTAL ({})** | **{}** | |{} | **[{}/{}]** |\n\n",
+            cat, cat_n, format_nanos(cat_total), pq_tag, cat_pass, cat_n));
+    }
+
+    // Category summary table
+    md.push_str("---\n\n## Category Summary\n\n");
+    md.push_str("| # | Category | Count | Total | PQ | Pass Rate |\n");
+    md.push_str("|---|---|---|---|---|---|\n");
+
+    let mut seen_cats: Vec<(&str, u128, usize, usize, bool)> = Vec::new();
+    for r in &results {
+        if let Some(entry) = seen_cats.iter_mut().find(|e| e.0 == r.category) {
+            entry.1 += r.median_ns;
+            entry.2 += 1;
+            let is_pass = r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass";
+            if is_pass { entry.3 += 1; }
+            if !r.pq { entry.4 = false; }
+        } else {
+            let is_pass = r.grade == "Pass" || r.grade == "Plenum+" || r.grade == "*Pass";
+            seen_cats.push((r.category, r.median_ns, 1, if is_pass { 1 } else { 0 }, r.pq));
+        }
+    }
+    for (i, (cname, total, count, pass, pq)) in seen_cats.iter().enumerate() {
+        let pq_tag = if *pq { "PQ" } else { "" };
+        md.push_str(&format!("| {} | {} | {} | {} | {} | {}/{} |\n",
+            i + 1, cname, count, format_nanos(*total), pq_tag, pass, count));
+    }
+    md.push_str(&format!("| | **GRAND TOTAL** | **{}** | **{}** | **{} PQ** | **{}/{}** |\n\n",
+        grand_count, format_nanos(grand_total_ns), pq_count, grand_pass, grand_count));
+
+    md.push_str("---\n\n*Generated by inter_cube v5 benchmark runner*\n");
+
+    match std::fs::File::create(&filename) {
+        Ok(mut f) => {
+            let _ = f.write_all(md.as_bytes());
+            println!("\nReport saved: {}", filename);
+        }
+        Err(e) => {
+            eprintln!("\nWarning: could not write report file {}: {}", filename, e);
+        }
+    }
+
+    println!("Done.");
+}
+
+/// Convert days since Unix epoch to (year, month, day).
+fn epoch_days_to_ymd(days: u64) -> (u64, u64, u64) {
+    // Simplified civil calendar conversion
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if m <= 2 { y + 1 } else { y };
+    (year, m, d)
 }
