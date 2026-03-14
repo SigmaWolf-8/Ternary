@@ -78,6 +78,20 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.get("/api/benchmark-report", async (_req, res) => {
+    try {
+      const reportPath = path.resolve("attached_assets/BENCH-2026-03-14-65DD00A4.html");
+      if (existsSync(reportPath)) {
+        const html = await readFile(reportPath, "utf-8");
+        res.type("html").send(html);
+      } else {
+        res.status(404).send("Report not found");
+      }
+    } catch (e) {
+      res.status(500).send("Error loading report");
+    }
+  });
+
   // =====================================================
   // PPTPro INTEGRATION API — must register before v1 rewrite
   // =====================================================
