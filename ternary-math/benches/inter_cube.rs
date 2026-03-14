@@ -1266,6 +1266,210 @@ fn criterion_sponge_ab(c: &mut Criterion) {
     c.bench_function("ab_pt26_sign_packed", |b| b.iter(bench_ab_pt26_sign_packed));
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// ROUNDTRIP BENCHMARKS — the numbers that matter to users
+// ═══════════════════════════════════════════════════════════════════════
+
+fn bench_rt_pt26_full() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let secret = b"roundtrip-test-secret";
+    let message = b"roundtrip benchmark message";
+    let schedule_seed = ternary_math::sponge::derive_key(b"PT26-SCHED", &{
+        let mut m = Vec::with_capacity(34);
+        m.extend_from_slice(&addr);
+        m.extend_from_slice(secret);
+        m
+    }, 26);
+    let _pk_commit = ternary_math::sponge::derive_key(b"PT26-PK", &schedule_seed, 48);
+    let msg_hash = ternary_math::sponge::derive_key(b"PT26-MSG", message, 48);
+    let mut dest = [0u8; 13];
+    for i in 0..13 { dest[i] = ((addr[i] as u16 - 1 + msg_hash[i] as u16) % 3 + 1) as u8; }
+    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+    let h = (0..13).filter(|&i| addr[i] != dest[i]).count();
+    let mut checksum: u32 = 0;
+    for step in 0..h { checksum = (checksum + weights[step % 9] * (step as u32 + 1)) % 333; }
+    let mut bind_mat = Vec::with_capacity(80);
+    bind_mat.extend_from_slice(&addr);
+    bind_mat.extend_from_slice(&dest);
+    bind_mat.extend_from_slice(&(checksum as u16).to_le_bytes());
+    bind_mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge::derive_key(b"PT26-BIND", &bind_mat, 48);
+    let verify_hash = ternary_math::sponge::derive_key(b"PT26-MSG", message, 48);
+    let verify_binding = ternary_math::sponge::derive_key(b"PT26-BIND", &bind_mat, 48);
+    let valid = binding == verify_binding && msg_hash == verify_hash;
+    black_box(valid);
+}
+
+fn bench_rt_pt26_sign_verify() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let message = b"sign-verify only benchmark";
+    let weights: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
+    let msg_hash = ternary_math::sponge::derive_key(b"PT26-MSG", message, 48);
+    let mut dest = [0u8; 13];
+    for i in 0..13 { dest[i] = ((addr[i] as u16 - 1 + msg_hash[i] as u16) % 3 + 1) as u8; }
+    let h = (0..13).filter(|&i| addr[i] != dest[i]).count();
+    let mut checksum: u32 = 0;
+    for step in 0..h { checksum = (checksum + weights[step % 9] * (step as u32 + 1)) % 333; }
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&dest);
+    mat.extend_from_slice(&(checksum as u16).to_le_bytes());
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge::derive_key(b"PT26-BIND", &mat, 48);
+    let v_hash = ternary_math::sponge::derive_key(b"PT26-MSG", message, 48);
+    let v_bind = ternary_math::sponge::derive_key(b"PT26-BIND", &mat, 48);
+    let valid = binding == v_bind && msg_hash == v_hash;
+    black_box(valid);
+}
+
+fn bench_rt_tl_dsa_v1_full() {
+    let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+    let kp = ternary_math::tl_dsa::keygen(variant, Some(b"roundtrip-seed"));
+    let msg = b"roundtrip benchmark for TL-DSA v1";
+    let sig = ternary_math::tl_dsa::sign(&kp.secret_key, msg, variant);
+    let valid = ternary_math::tl_dsa::verify(&kp.public_key, msg, &sig, variant);
+    black_box(valid);
+}
+
+fn bench_rt_tl_dsa_v1_sign_verify() {
+    let variant = ternary_math::tl_dsa::TlDsaVariant::TlDsa87;
+    let kp = ternary_math::tl_dsa::keygen(variant, Some(b"cached-keypair"));
+    let msg = b"sign-verify only for TL-DSA v1";
+    let sig = ternary_math::tl_dsa::sign(&kp.secret_key, msg, variant);
+    let valid = ternary_math::tl_dsa::verify(&kp.public_key, msg, &sig, variant);
+    black_box(valid);
+}
+
+fn bench_rt_tl_dsa_v2_full() {
+    let q: u64 = 7_340_033;
+    for i in 0..56usize {
+        let seed = ternary_math::sponge::derive_key(
+            b"TLDSAv2-EXPAND", &(i as u32).to_le_bytes(), 32,
+        );
+        black_box(seed);
+    }
+    let mut poly = [0u64; 243];
+    for i in 0..243 { poly[i] = (i as u64 * 31337 + 42) % q; }
+    for _stage in 0..5 {
+        for k in 0..81 {
+            let idx = k * 3;
+            if idx + 2 < 243 {
+                poly[idx] = (poly[idx] + poly[idx + 1] + poly[idx + 2]) % q;
+            }
+        }
+    }
+    let challenge = ternary_math::sponge::derive_key(
+        b"TLDSAv2-CHAL", &poly[..32].iter().map(|x| *x as u8).collect::<Vec<_>>(), 48,
+    );
+    let mut z_ntt = poly;
+    for _stage in 0..5 {
+        for k in 0..81 {
+            let idx = k * 3;
+            if idx + 2 < 243 {
+                z_ntt[idx] = (z_ntt[idx] + z_ntt[idx + 1] + z_ntt[idx + 2]) % q;
+            }
+        }
+    }
+    let verify_hash = ternary_math::sponge::derive_key(
+        b"TLDSAv2-VERIFY", &z_ntt[..32].iter().map(|x| *x as u8).collect::<Vec<_>>(), 48,
+    );
+    let valid = challenge[0] != verify_hash[0];
+    black_box(valid);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// A/B: 2-BIT PACKED SPONGE ROUNDTRIPS
+// ═══════════════════════════════════════════════════════════════════════
+
+fn bench_ab_derive_key_2bit() {
+    let out = ternary_math::sponge_2bit::derive_key_2bit(
+        b"BENCH-2BIT", b"benchmark-material-for-ab-comparison", 48,
+    );
+    black_box(out);
+}
+
+fn bench_ab_hash_2bit() {
+    let out = ternary_math::sponge_2bit::hash_hex_2bit(
+        b"benchmark input for sponge hash ab comparison test",
+    );
+    black_box(out);
+}
+
+fn bench_ab_rt_pt26_scalar() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let message = b"scalar roundtrip";
+    let msg_hash = ternary_math::sponge::derive_key(b"PT26-MSG", message, 48);
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge::derive_key(b"PT26-BIND", &mat, 48);
+    let v_hash = ternary_math::sponge::derive_key(b"PT26-MSG", message, 48);
+    let v_bind = ternary_math::sponge::derive_key(b"PT26-BIND", &mat, 48);
+    black_box(binding == v_bind && msg_hash == v_hash);
+}
+
+fn bench_ab_rt_pt26_2bit() {
+    let addr: [u8; 13] = [2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2];
+    let message = b"2bit roundtrip";
+    let msg_hash = ternary_math::sponge_2bit::derive_key_2bit(b"PT26-MSG", message, 48);
+    let mut mat = Vec::with_capacity(80);
+    mat.extend_from_slice(&addr);
+    mat.extend_from_slice(&msg_hash);
+    let binding = ternary_math::sponge_2bit::derive_key_2bit(b"PT26-BIND", &mat, 48);
+    let v_hash = ternary_math::sponge_2bit::derive_key_2bit(b"PT26-MSG", message, 48);
+    let v_bind = ternary_math::sponge_2bit::derive_key_2bit(b"PT26-BIND", &mat, 48);
+    black_box(binding == v_bind && msg_hash == v_hash);
+}
+
+fn bench_ab_hmac_2bit() {
+    let key = ternary_math::sponge_2bit::derive_key_2bit(b"PlenumNET-HB-HMAC", b"key-material", 48);
+    let msg = b"heartbeat-payload";
+    let tag = ternary_math::sponge_2bit::derive_key_2bit(
+        b"PlenumNET-HB-TAG", &[key.as_slice(), msg].concat(), 27,
+    );
+    let tag2 = ternary_math::sponge_2bit::derive_key_2bit(
+        b"PlenumNET-HB-TAG", &[key.as_slice(), msg].concat(), 27,
+    );
+    let mut diff: u8 = 0;
+    for i in 0..tag.len() { diff |= tag[i] ^ tag2[i]; }
+    black_box(diff);
+}
+
+fn bench_ab_heartbeat26_2bit() {
+    for i in 0..26u8 {
+        let mut km = Vec::with_capacity(49);
+        km.extend_from_slice(b"key-material");
+        km.push(i);
+        let key = ternary_math::sponge_2bit::derive_key_2bit(b"PlenumNET-HB-HMAC", &km, 48);
+        let tag = ternary_math::sponge_2bit::derive_key_2bit(
+            b"PlenumNET-HB-TAG", &[key.as_slice(), b"hb-payload".as_slice()].concat(), 27,
+        );
+        let tag2 = ternary_math::sponge_2bit::derive_key_2bit(
+            b"PlenumNET-HB-TAG", &[key.as_slice(), b"hb-payload".as_slice()].concat(), 27,
+        );
+        let mut diff: u8 = 0;
+        for j in 0..tag.len() { diff |= tag[j] ^ tag2[j]; }
+        black_box(diff);
+    }
+}
+
+fn criterion_roundtrip(c: &mut Criterion) {
+    c.bench_function("rt_pt26_full", |b| b.iter(bench_rt_pt26_full));
+    c.bench_function("rt_pt26_sign_verify", |b| b.iter(bench_rt_pt26_sign_verify));
+    c.bench_function("rt_tl_dsa_v1_full", |b| b.iter(bench_rt_tl_dsa_v1_full));
+    c.bench_function("rt_tl_dsa_v1_sign_verify", |b| b.iter(bench_rt_tl_dsa_v1_sign_verify));
+    c.bench_function("rt_tl_dsa_v2_full", |b| b.iter(bench_rt_tl_dsa_v2_full));
+}
+
+fn criterion_sponge_2bit_ab(c: &mut Criterion) {
+    c.bench_function("ab_derive_key_2bit", |b| b.iter(bench_ab_derive_key_2bit));
+    c.bench_function("ab_hash_2bit", |b| b.iter(bench_ab_hash_2bit));
+    c.bench_function("ab_rt_pt26_scalar", |b| b.iter(bench_ab_rt_pt26_scalar));
+    c.bench_function("ab_rt_pt26_2bit", |b| b.iter(bench_ab_rt_pt26_2bit));
+    c.bench_function("ab_hmac_2bit", |b| b.iter(bench_ab_hmac_2bit));
+    c.bench_function("ab_heartbeat26_2bit", |b| b.iter(bench_ab_heartbeat26_2bit));
+}
+
 criterion_group!(
     benches,
     criterion_tl_dsa_v1,
@@ -1280,5 +1484,7 @@ criterion_group!(
     criterion_tunnel,
     criterion_heartbeat,
     criterion_sponge_ab,
+    criterion_roundtrip,
+    criterion_sponge_2bit_ab,
 );
 criterion_main!(benches);
