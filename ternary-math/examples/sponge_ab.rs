@@ -1,10 +1,14 @@
 use std::time::Instant;
 
 fn main() {
-    // Warmup
     for _ in 0..100 {
         let _ = ternary_math::tlsponge385::derive_key(b"WARMUP", b"warmup-material", 48);
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 0: PER-STEP PROFILING (θ, ρ∘π, χ, ι, σ individually)
+    // ═══════════════════════════════════════════════════════════════
+    ternary_math::tlsponge385::profile_permute_steps();
 
     // ═══════════════════════════════════════════════════════════════
     // A/B Test 1: derive_key scalar — old baseline was 4.088µs
@@ -47,7 +51,6 @@ fn main() {
     let domain_refs: Vec<&[u8]> = domains.iter().map(|d| d.as_slice()).collect();
     let mat_refs: Vec<&[u8]> = materials.iter().map(|m| m.as_slice()).collect();
 
-    // Warmup batch
     for _ in 0..50 {
         let _ = ternary_math::tlsponge385::derive_key_batch(&domain_refs, &mat_refs, 48);
     }
@@ -72,7 +75,7 @@ fn main() {
     println!("│  Scalar 26× would be: {:.0} ns ({:.3} µs)             │", scalar_26, scalar_26 / 1000.0);
     let batch_speedup = scalar_26 / per_batch;
     println!("│  Batch vs scalar: {:.2}× throughput                    │", batch_speedup);
-    let old_hb26 = 4088.0 * 26.0; // old scalar × 26
+    let old_hb26 = 4088.0 * 26.0;
     let vs_old = old_hb26 / per_batch;
     println!("│  Batch vs old scalar×26: {:.2}×                        │", vs_old);
     println!("└─────────────────────────────────────────────────────────┘");

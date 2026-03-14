@@ -260,12 +260,11 @@ fn theta(s: &mut [u8; STATE]) {
 }
 
 #[inline(always)]
-fn fused_scatter(src: &[u8; STATE], dst: &mut [u8; STATE], round: usize) {
-    let table = unsafe { FUSED.get_unchecked(round & 3) };
+fn rhopi(s: &[u8; STATE], dst: &mut [u8; STATE]) {
     for i in 0..STATE {
         unsafe {
-            *dst.get_unchecked_mut(*table.get_unchecked(i) as usize) =
-                *src.get_unchecked(i);
+            *dst.get_unchecked_mut(*RHOPI.get_unchecked(i) as usize) =
+                *s.get_unchecked(i);
         }
     }
 }
@@ -293,24 +292,25 @@ fn iota(s: &mut [u8; STATE], round: usize) {
 }
 
 #[inline(always)]
+fn sigma(dst: &mut [u8; STATE], src: &[u8; STATE], round: usize) {
+    let perm = unsafe { SIGMA.get_unchecked(round & 3) };
+    for b in 0..BLOCKS {
+        let src_block = unsafe { *perm.get_unchecked(b) };
+        dst[b * BLOCK_SZ..(b + 1) * BLOCK_SZ]
+            .copy_from_slice(&src[src_block * BLOCK_SZ..(src_block + 1) * BLOCK_SZ]);
+    }
+}
+
+#[inline(always)]
 fn permute(s: &mut [u8; STATE], rounds: usize) {
     let mut tmp = [0u8; STATE];
-    let mut in_s = true;
     for r in 0..rounds {
-        if in_s {
-            theta(s);
-            fused_scatter(s, &mut tmp, r);
-            chi_step(&mut tmp);
-            iota(&mut tmp, r);
-        } else {
-            theta(&mut tmp);
-            fused_scatter(&tmp, s, r);
-            chi_step(s);
-            iota(s, r);
-        }
-        in_s = !in_s;
+        theta(s);
+        rhopi(s, &mut tmp);
+        chi_step(&mut tmp);
+        iota(&mut tmp, r);
+        sigma(s, &tmp, r);
     }
-    if !in_s { *s = tmp; }
 }
 
 #[inline(always)]
@@ -385,6 +385,99 @@ pub fn hash_hex(input: &[u8]) -> String {
 /// TIS-27 hash with hex output.
 pub fn hash_hex_tis(input: &[u8]) -> String {
     derive_key_tis(b"HASH", input, 48).iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// Per-step profiling of the permutation round function.
+/// Measures θ, ρ∘π, χ, ι, σ individually over many iterations.
+pub fn profile_permute_steps() {
+    use std::time::Instant;
+
+    let iters = 50_000u64;
+    let rounds = 9usize;
+
+    let mut s = [0u8; STATE];
+    s[0] = 1; s[42] = 2; s[100] = 1;
+    let mut tmp = [0u8; STATE];
+
+    // Warmup
+    for _ in 0..500 {
+        permute(&mut s, rounds);
+    }
+
+    // Measure θ alone
+    let start = Instant::now();
+    for _ in 0..iters {
+        for _ in 0..rounds {
+            theta(&mut s);
+        }
+        std::hint::black_box(&s);
+    }
+    let t_theta = start.elapsed().as_nanos() as f64 / iters as f64;
+
+    // Measure ρ∘π alone
+    let start = Instant::now();
+    for _ in 0..iters {
+        for _ in 0..rounds {
+            rhopi(&s, &mut tmp);
+        }
+        std::hint::black_box(&tmp);
+    }
+    let t_rhopi = start.elapsed().as_nanos() as f64 / iters as f64;
+
+    // Measure χ alone
+    let start = Instant::now();
+    for _ in 0..iters {
+        for _ in 0..rounds {
+            chi_step(&mut s);
+        }
+        std::hint::black_box(&s);
+    }
+    let t_chi = start.elapsed().as_nanos() as f64 / iters as f64;
+
+    // Measure ι alone
+    let start = Instant::now();
+    for _ in 0..iters {
+        for r in 0..rounds {
+            iota(&mut s, r);
+        }
+        std::hint::black_box(&s);
+    }
+    let t_iota = start.elapsed().as_nanos() as f64 / iters as f64;
+
+    // Measure σ alone
+    let start = Instant::now();
+    for _ in 0..iters {
+        for r in 0..rounds {
+            sigma(&mut s, &tmp, r);
+        }
+        std::hint::black_box(&s);
+    }
+    let t_sigma = start.elapsed().as_nanos() as f64 / iters as f64;
+
+    // Measure full permute
+    let start = Instant::now();
+    for _ in 0..iters {
+        permute(&mut s, rounds);
+        std::hint::black_box(&s);
+    }
+    let t_full = start.elapsed().as_nanos() as f64 / iters as f64;
+
+    let sum = t_theta + t_rhopi + t_chi + t_iota + t_sigma;
+
+    println!("┌─────────────────────────────────────────────────────────┐");
+    println!("│  PER-STEP PROFILING (9 rounds × {} iters)       │", iters);
+    println!("├─────────────────────────────────────────────────────────┤");
+    println!("│  θ  (theta):   {:7.0} ns  ({:5.1}%)                    │", t_theta, t_theta / sum * 100.0);
+    println!("│  ρπ (rhopi):   {:7.0} ns  ({:5.1}%)                    │", t_rhopi, t_rhopi / sum * 100.0);
+    println!("│  χ  (chi):     {:7.0} ns  ({:5.1}%)                    │", t_chi, t_chi / sum * 100.0);
+    println!("│  ι  (iota):    {:7.0} ns  ({:5.1}%)                    │", t_iota, t_iota / sum * 100.0);
+    println!("│  σ  (sigma):   {:7.0} ns  ({:5.1}%)                    │", t_sigma, t_sigma / sum * 100.0);
+    println!("├─────────────────────────────────────────────────────────┤");
+    println!("│  Steps sum:    {:7.0} ns                               │", sum);
+    println!("│  Full permute: {:7.0} ns                               │", t_full);
+    println!("│  Overhead:     {:7.0} ns  ({:5.1}%)                    │", t_full - sum, (t_full - sum) / t_full * 100.0);
+    println!("└─────────────────────────────────────────────────────────┘");
+    println!();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
