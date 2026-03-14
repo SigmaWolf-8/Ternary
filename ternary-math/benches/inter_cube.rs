@@ -1032,148 +1032,188 @@ pub struct BenchmarkEntry {
     pub name: &'static str,
     pub category: &'static str,
     pub target: &'static str,
+    pub pq: bool, // true = post-quantum verifiable by industry standards
     pub run: fn(),
+}
+
+/// Parse target string like "< 5µs", "< 500ns", "< 3ms", "~4µs" to nanoseconds.
+fn parse_target_ns(target: &str) -> Option<u128> {
+    let s = target.trim().trim_start_matches('<').trim_start_matches('~').trim();
+    if s.ends_with("ms") {
+        let v: f64 = s.trim_end_matches("ms").trim().parse().ok()?;
+        Some((v * 1_000_000.0) as u128)
+    } else if s.ends_with("µs") {
+        let v: f64 = s.trim_end_matches("µs").trim().parse().ok()?;
+        Some((v * 1_000.0) as u128)
+    } else if s.ends_with("ns") {
+        let v: f64 = s.trim_end_matches("ns").trim().parse().ok()?;
+        Some(v as u128)
+    } else {
+        None
+    }
+}
+
+/// Grade a benchmark result against its target.
+///
+/// - `Plenum+` — measured ≤ 50% of target (world-class)
+/// - `Pass`    — measured ≤ target
+/// - `*Pass`   — measured ≤ 115% of target (within noise)
+/// - `FAIL`    — measured > 115% of target, ≤ 500%
+/// - `DIAGNOSE`— measured > 500% of target
+fn grade(measured_ns: u128, target: &str) -> &'static str {
+    match parse_target_ns(target) {
+        None => "",
+        Some(target_ns) => {
+            if target_ns == 0 { return ""; }
+            let ratio = (measured_ns as f64) / (target_ns as f64);
+            if ratio <= 0.50 { "Plenum+" }
+            else if ratio <= 1.00 { "Pass" }
+            else if ratio <= 1.15 { "*Pass" }
+            else if ratio <= 5.00 { "FAIL" }
+            else { "DIAGNOSE" }
+        }
+    }
 }
 
 pub fn all_benchmarks() -> Vec<BenchmarkEntry> {
     vec![
         // 1. TL-DSA v1 (3)
-        BenchmarkEntry { name: "tl_dsa_87_keygen", category: "TL-DSA v1", target: "< 3ms", run: bench_tl_dsa_87_keygen },
-        BenchmarkEntry { name: "tl_dsa_87_sign", category: "TL-DSA v1", target: "< 5ms", run: bench_tl_dsa_87_sign },
-        BenchmarkEntry { name: "tl_dsa_87_verify", category: "TL-DSA v1", target: "< 3ms", run: bench_tl_dsa_87_verify },
+        BenchmarkEntry { name: "tl_dsa_87_keygen", category: "TL-DSA v1", target: "< 3ms", pq: true, run: bench_tl_dsa_87_keygen },
+        BenchmarkEntry { name: "tl_dsa_87_sign", category: "TL-DSA v1", target: "< 5ms", pq: true, run: bench_tl_dsa_87_sign },
+        BenchmarkEntry { name: "tl_dsa_87_verify", category: "TL-DSA v1", target: "< 3ms", pq: true, run: bench_tl_dsa_87_verify },
         // 2. PT26-DSA (7)
-        BenchmarkEntry { name: "pt26_keygen", category: "PT26-DSA", target: "< 8µs", run: bench_pt26_keygen },
-        BenchmarkEntry { name: "pt26_sign", category: "PT26-DSA", target: "< 18µs", run: bench_pt26_sign },
-        BenchmarkEntry { name: "pt26_verify", category: "PT26-DSA", target: "< 18µs", run: bench_pt26_verify },
-        BenchmarkEntry { name: "pt26_verify_parallel", category: "PT26-DSA", target: "< 18µs", run: bench_pt26_verify_parallel },
-        BenchmarkEntry { name: "pt26_trit_diff", category: "PT26-DSA", target: "< 5ns", run: bench_pt26_trit_diff },
-        BenchmarkEntry { name: "pt26_step_token", category: "PT26-DSA", target: "< 5ns", run: bench_pt26_step_token },
-        BenchmarkEntry { name: "pt26_walk_token", category: "PT26-DSA", target: "< 5ns", run: bench_pt26_walk_token },
+        BenchmarkEntry { name: "pt26_keygen", category: "PT26-DSA", target: "< 8µs", pq: true, run: bench_pt26_keygen },
+        BenchmarkEntry { name: "pt26_sign", category: "PT26-DSA", target: "< 18µs", pq: true, run: bench_pt26_sign },
+        BenchmarkEntry { name: "pt26_verify", category: "PT26-DSA", target: "< 18µs", pq: true, run: bench_pt26_verify },
+        BenchmarkEntry { name: "pt26_verify_parallel", category: "PT26-DSA", target: "< 18µs", pq: true, run: bench_pt26_verify_parallel },
+        BenchmarkEntry { name: "pt26_trit_diff", category: "PT26-DSA", target: "< 5ns", pq: false, run: bench_pt26_trit_diff },
+        BenchmarkEntry { name: "pt26_step_token", category: "PT26-DSA", target: "< 5ns", pq: false, run: bench_pt26_step_token },
+        BenchmarkEntry { name: "pt26_walk_token", category: "PT26-DSA", target: "< 5ns", pq: false, run: bench_pt26_walk_token },
         // 3. TL-DSA v2 (6)
-        BenchmarkEntry { name: "tl_dsa_v2_ntt_butterfly", category: "TL-DSA v2", target: "< 20ns", run: bench_tl_dsa_v2_ntt_butterfly },
-        BenchmarkEntry { name: "tl_dsa_v2_ntt_full", category: "TL-DSA v2", target: "< 1µs", run: bench_tl_dsa_v2_ntt_full },
-        BenchmarkEntry { name: "tl_dsa_v2_matrix_mul", category: "TL-DSA v2", target: "< 30µs", run: bench_tl_dsa_v2_matrix_mul },
-        BenchmarkEntry { name: "tl_dsa_v2_keygen", category: "TL-DSA v2", target: "< 100µs", run: bench_tl_dsa_v2_keygen },
-        BenchmarkEntry { name: "tl_dsa_v2_sign", category: "TL-DSA v2", target: "< 50µs", run: bench_tl_dsa_v2_sign },
-        BenchmarkEntry { name: "tl_dsa_v2_verify", category: "TL-DSA v2", target: "< 30µs", run: bench_tl_dsa_v2_verify },
+        BenchmarkEntry { name: "tl_dsa_v2_ntt_butterfly", category: "TL-DSA v2", target: "< 20ns", pq: true, run: bench_tl_dsa_v2_ntt_butterfly },
+        BenchmarkEntry { name: "tl_dsa_v2_ntt_full", category: "TL-DSA v2", target: "< 1µs", pq: true, run: bench_tl_dsa_v2_ntt_full },
+        BenchmarkEntry { name: "tl_dsa_v2_matrix_mul", category: "TL-DSA v2", target: "< 30µs", pq: true, run: bench_tl_dsa_v2_matrix_mul },
+        BenchmarkEntry { name: "tl_dsa_v2_keygen", category: "TL-DSA v2", target: "< 100µs", pq: true, run: bench_tl_dsa_v2_keygen },
+        BenchmarkEntry { name: "tl_dsa_v2_sign", category: "TL-DSA v2", target: "< 50µs", pq: true, run: bench_tl_dsa_v2_sign },
+        BenchmarkEntry { name: "tl_dsa_v2_verify", category: "TL-DSA v2", target: "< 30µs", pq: true, run: bench_tl_dsa_v2_verify },
         // 4. TL-KEM (9)
-        BenchmarkEntry { name: "tl_kem_512_keygen", category: "TL-KEM", target: "< 50µs", run: bench_tl_kem_512_keygen },
-        BenchmarkEntry { name: "tl_kem_512_encaps", category: "TL-KEM", target: "< 30µs", run: bench_tl_kem_512_encaps },
-        BenchmarkEntry { name: "tl_kem_512_decaps", category: "TL-KEM", target: "< 30µs", run: bench_tl_kem_512_decaps },
-        BenchmarkEntry { name: "tl_kem_768_keygen", category: "TL-KEM", target: "< 80µs", run: bench_tl_kem_768_keygen },
-        BenchmarkEntry { name: "tl_kem_768_encaps", category: "TL-KEM", target: "< 50µs", run: bench_tl_kem_768_encaps },
-        BenchmarkEntry { name: "tl_kem_768_decaps", category: "TL-KEM", target: "< 50µs", run: bench_tl_kem_768_decaps },
-        BenchmarkEntry { name: "tl_kem_1024_keygen", category: "TL-KEM", target: "< 120µs", run: bench_tl_kem_1024_keygen },
-        BenchmarkEntry { name: "tl_kem_1024_encaps", category: "TL-KEM", target: "< 80µs", run: bench_tl_kem_1024_encaps },
-        BenchmarkEntry { name: "tl_kem_1024_decaps", category: "TL-KEM", target: "< 80µs", run: bench_tl_kem_1024_decaps },
+        BenchmarkEntry { name: "tl_kem_512_keygen", category: "TL-KEM", target: "< 50µs", pq: true, run: bench_tl_kem_512_keygen },
+        BenchmarkEntry { name: "tl_kem_512_encaps", category: "TL-KEM", target: "< 30µs", pq: true, run: bench_tl_kem_512_encaps },
+        BenchmarkEntry { name: "tl_kem_512_decaps", category: "TL-KEM", target: "< 30µs", pq: true, run: bench_tl_kem_512_decaps },
+        BenchmarkEntry { name: "tl_kem_768_keygen", category: "TL-KEM", target: "< 80µs", pq: true, run: bench_tl_kem_768_keygen },
+        BenchmarkEntry { name: "tl_kem_768_encaps", category: "TL-KEM", target: "< 50µs", pq: true, run: bench_tl_kem_768_encaps },
+        BenchmarkEntry { name: "tl_kem_768_decaps", category: "TL-KEM", target: "< 50µs", pq: true, run: bench_tl_kem_768_decaps },
+        BenchmarkEntry { name: "tl_kem_1024_keygen", category: "TL-KEM", target: "< 120µs", pq: true, run: bench_tl_kem_1024_keygen },
+        BenchmarkEntry { name: "tl_kem_1024_encaps", category: "TL-KEM", target: "< 80µs", pq: true, run: bench_tl_kem_1024_encaps },
+        BenchmarkEntry { name: "tl_kem_1024_decaps", category: "TL-KEM", target: "< 80µs", pq: true, run: bench_tl_kem_1024_decaps },
         // 5. T-AE-MAC (4)
-        BenchmarkEntry { name: "tae_mac_encrypt", category: "T-AE-MAC", target: "< 30µs", run: bench_tae_mac_encrypt },
-        BenchmarkEntry { name: "tae_mac_decrypt", category: "T-AE-MAC", target: "< 30µs", run: bench_tae_mac_decrypt },
-        BenchmarkEntry { name: "tae_mac_compute", category: "T-AE-MAC", target: "< 15µs", run: bench_tae_mac_compute },
-        BenchmarkEntry { name: "tae_mac_verify", category: "T-AE-MAC", target: "< 20µs", run: bench_tae_mac_verify },
+        BenchmarkEntry { name: "tae_mac_encrypt", category: "T-AE-MAC", target: "< 30µs", pq: true, run: bench_tae_mac_encrypt },
+        BenchmarkEntry { name: "tae_mac_decrypt", category: "T-AE-MAC", target: "< 30µs", pq: true, run: bench_tae_mac_decrypt },
+        BenchmarkEntry { name: "tae_mac_compute", category: "T-AE-MAC", target: "< 15µs", pq: true, run: bench_tae_mac_compute },
+        BenchmarkEntry { name: "tae_mac_verify", category: "T-AE-MAC", target: "< 20µs", pq: true, run: bench_tae_mac_verify },
         // 6. Phase Encryption (4)
-        BenchmarkEntry { name: "phase_split", category: "Phase Enc", target: "< 40µs", run: bench_phase_encrypt_split },
-        BenchmarkEntry { name: "phase_recombine", category: "Phase Enc", target: "< 40µs", run: bench_phase_encrypt_recombine },
-        BenchmarkEntry { name: "phase_batch_split", category: "Phase Enc", target: "< 400µs", run: bench_phase_encrypt_batch_split },
-        BenchmarkEntry { name: "phase_batch_recombine", category: "Phase Enc", target: "< 400µs", run: bench_phase_encrypt_batch_recombine },
+        BenchmarkEntry { name: "phase_split", category: "Phase Enc", target: "< 40µs", pq: true, run: bench_phase_encrypt_split },
+        BenchmarkEntry { name: "phase_recombine", category: "Phase Enc", target: "< 40µs", pq: true, run: bench_phase_encrypt_recombine },
+        BenchmarkEntry { name: "phase_batch_split", category: "Phase Enc", target: "< 400µs", pq: true, run: bench_phase_encrypt_batch_split },
+        BenchmarkEntry { name: "phase_batch_recombine", category: "Phase Enc", target: "< 400µs", pq: true, run: bench_phase_encrypt_batch_recombine },
         // 7. AES-256-GCM (2)
-        BenchmarkEntry { name: "aes_gcm_encrypt", category: "AES-GCM", target: "< 25µs", run: bench_aes_gcm_encrypt },
-        BenchmarkEntry { name: "aes_gcm_decrypt", category: "AES-GCM", target: "< 25µs", run: bench_aes_gcm_decrypt },
+        BenchmarkEntry { name: "aes_gcm_encrypt", category: "AES-GCM", target: "< 25µs", pq: true, run: bench_aes_gcm_encrypt },
+        BenchmarkEntry { name: "aes_gcm_decrypt", category: "AES-GCM", target: "< 25µs", pq: true, run: bench_aes_gcm_decrypt },
         // 8. RSA-4096 (2)
-        BenchmarkEntry { name: "rsa_4096_sign", category: "RSA-4096", target: "< 2ms", run: bench_rsa_4096_sign },
-        BenchmarkEntry { name: "rsa_4096_verify", category: "RSA-4096", target: "< 200µs", run: bench_rsa_4096_verify },
+        BenchmarkEntry { name: "rsa_4096_sign", category: "RSA-4096", target: "< 2ms", pq: false, run: bench_rsa_4096_sign },
+        BenchmarkEntry { name: "rsa_4096_verify", category: "RSA-4096", target: "< 200µs", pq: false, run: bench_rsa_4096_verify },
         // 9. Sponge Core (5)
-        BenchmarkEntry { name: "sponge_hash", category: "Sponge", target: "< 5µs", run: bench_sponge_hash },
-        BenchmarkEntry { name: "sponge_derive_key", category: "Sponge", target: "< 5µs", run: bench_sponge_derive_key },
-        BenchmarkEntry { name: "tis27_hash_27trit", category: "TIS-27", target: "< 5µs", run: bench_tis27_hash_27trit },
-        BenchmarkEntry { name: "tis27_hash_54trit", category: "TIS-27", target: "< 5µs", run: bench_tis27_hash_54trit },
-        BenchmarkEntry { name: "tis27_absorb_squeeze", category: "TIS-27", target: "< 8µs", run: bench_tis27_absorb_squeeze },
+        BenchmarkEntry { name: "sponge_hash", category: "Sponge", target: "< 5µs", pq: true, run: bench_sponge_hash },
+        BenchmarkEntry { name: "sponge_derive_key", category: "Sponge", target: "< 5µs", pq: true, run: bench_sponge_derive_key },
+        BenchmarkEntry { name: "tis27_hash_27trit", category: "TIS-27", target: "< 5µs", pq: true, run: bench_tis27_hash_27trit },
+        BenchmarkEntry { name: "tis27_hash_54trit", category: "TIS-27", target: "< 5µs", pq: true, run: bench_tis27_hash_54trit },
+        BenchmarkEntry { name: "tis27_absorb_squeeze", category: "TIS-27", target: "< 8µs", pq: true, run: bench_tis27_absorb_squeeze },
         // 10. HMAC (3)
-        BenchmarkEntry { name: "hmac_key_derive", category: "HMAC", target: "< 5µs", run: bench_hmac_key_derive },
-        BenchmarkEntry { name: "hmac_compute", category: "HMAC", target: "< 5µs", run: bench_hmac_compute },
-        BenchmarkEntry { name: "hmac_verify", category: "HMAC", target: "< 10µs", run: bench_hmac_verify },
+        BenchmarkEntry { name: "hmac_key_derive", category: "HMAC", target: "< 5µs", pq: true, run: bench_hmac_key_derive },
+        BenchmarkEntry { name: "hmac_compute", category: "HMAC", target: "< 5µs", pq: true, run: bench_hmac_compute },
+        BenchmarkEntry { name: "hmac_verify", category: "HMAC", target: "< 10µs", pq: true, run: bench_hmac_verify },
         // 11. Wire Integrity (2)
-        BenchmarkEntry { name: "wire_checksum", category: "Wire", target: "< 100ns", run: bench_wire_checksum },
-        BenchmarkEntry { name: "wire_ecc", category: "Wire", target: "< 100ns", run: bench_wire_ecc },
+        BenchmarkEntry { name: "wire_checksum", category: "Wire", target: "< 100ns", pq: false, run: bench_wire_checksum },
+        BenchmarkEntry { name: "wire_ecc", category: "Wire", target: "< 100ns", pq: false, run: bench_wire_ecc },
         // 12. Lattice Mixer (2)
-        BenchmarkEntry { name: "lattice_nonce", category: "Lattice", target: "< 100ns", run: bench_lattice_nonce },
-        BenchmarkEntry { name: "lattice_key_derive", category: "Lattice", target: "< 5µs", run: bench_lattice_key_derive },
+        BenchmarkEntry { name: "lattice_nonce", category: "Lattice", target: "< 100ns", pq: false, run: bench_lattice_nonce },
+        BenchmarkEntry { name: "lattice_key_derive", category: "Lattice", target: "< 5µs", pq: true, run: bench_lattice_key_derive },
         // 13. Identity (2)
-        BenchmarkEntry { name: "identity_seed_derive", category: "Identity", target: "< 5µs", run: bench_identity_seed_derive },
-        BenchmarkEntry { name: "identity_keypair_derive", category: "Identity", target: "< 5ms", run: bench_identity_keypair_derive },
+        BenchmarkEntry { name: "identity_seed_derive", category: "Identity", target: "< 5µs", pq: true, run: bench_identity_seed_derive },
+        BenchmarkEntry { name: "identity_keypair_derive", category: "Identity", target: "< 5ms", pq: true, run: bench_identity_keypair_derive },
         // 14. Tunnel Auth (2)
-        BenchmarkEntry { name: "tunnel_auth_response", category: "Tunnel", target: "< 5µs", run: bench_tunnel_auth_response },
-        BenchmarkEntry { name: "tunnel_handshake_3msg", category: "Tunnel", target: "< 20ms", run: bench_tunnel_handshake_3msg },
+        BenchmarkEntry { name: "tunnel_auth_response", category: "Tunnel", target: "< 5µs", pq: true, run: bench_tunnel_auth_response },
+        BenchmarkEntry { name: "tunnel_handshake_3msg", category: "Tunnel", target: "< 20ms", pq: true, run: bench_tunnel_handshake_3msg },
         // 15. Heartbeat (2)
-        BenchmarkEntry { name: "heartbeat_single", category: "Heartbeat", target: "< 9µs", run: bench_heartbeat_single },
-        BenchmarkEntry { name: "heartbeat_26", category: "Heartbeat", target: "< 210µs", run: bench_heartbeat_26 },
+        BenchmarkEntry { name: "heartbeat_single", category: "Heartbeat", target: "< 9µs", pq: true, run: bench_heartbeat_single },
+        BenchmarkEntry { name: "heartbeat_26", category: "Heartbeat", target: "< 210µs", pq: true, run: bench_heartbeat_26 },
         // 16. TSA / Merkle (4)
-        BenchmarkEntry { name: "tsa_timestamp_create", category: "TSA", target: "< 30µs", run: bench_tsa_timestamp_create },
-        BenchmarkEntry { name: "tsa_timestamp_verify", category: "TSA", target: "< 20µs", run: bench_tsa_timestamp_verify },
-        BenchmarkEntry { name: "merkle_insert", category: "Merkle", target: "< 200µs", run: bench_merkle_insert },
-        BenchmarkEntry { name: "merkle_verify", category: "Merkle", target: "< 200µs", run: bench_merkle_verify },
+        BenchmarkEntry { name: "tsa_timestamp_create", category: "TSA", target: "< 30µs", pq: true, run: bench_tsa_timestamp_create },
+        BenchmarkEntry { name: "tsa_timestamp_verify", category: "TSA", target: "< 20µs", pq: true, run: bench_tsa_timestamp_verify },
+        BenchmarkEntry { name: "merkle_insert", category: "Merkle", target: "< 200µs", pq: true, run: bench_merkle_insert },
+        BenchmarkEntry { name: "merkle_verify", category: "Merkle", target: "< 200µs", pq: true, run: bench_merkle_verify },
         // 17. TDNS Identity (3)
-        BenchmarkEntry { name: "tdns_derive_identity", category: "TDNS", target: "< 10µs", run: bench_tdns_derive_identity },
-        BenchmarkEntry { name: "tdns_scan_hash", category: "TDNS", target: "< 10µs", run: bench_tdns_scan_hash },
-        BenchmarkEntry { name: "tdns_repunit_checksum", category: "TDNS", target: "< 100ns", run: bench_tdns_repunit_checksum },
+        BenchmarkEntry { name: "tdns_derive_identity", category: "TDNS", target: "< 10µs", pq: true, run: bench_tdns_derive_identity },
+        BenchmarkEntry { name: "tdns_scan_hash", category: "TDNS", target: "< 10µs", pq: true, run: bench_tdns_scan_hash },
+        BenchmarkEntry { name: "tdns_repunit_checksum", category: "TDNS", target: "< 100ns", pq: false, run: bench_tdns_repunit_checksum },
         // 18. Calendar TERN (2)
-        BenchmarkEntry { name: "tern_compress", category: "Calendar", target: "< 500ns", run: bench_tern_compress },
-        BenchmarkEntry { name: "tern_decompress", category: "Calendar", target: "< 500ns", run: bench_tern_decompress },
+        BenchmarkEntry { name: "tern_compress", category: "Calendar", target: "< 500ns", pq: false, run: bench_tern_compress },
+        BenchmarkEntry { name: "tern_decompress", category: "Calendar", target: "< 500ns", pq: false, run: bench_tern_decompress },
         // 19. CON Topology Keys (3)
-        BenchmarkEntry { name: "con_derive_tunnel_key", category: "CON", target: "< 10µs", run: bench_con_derive_tunnel_key },
-        BenchmarkEntry { name: "con_rekey_single", category: "CON", target: "< 10µs", run: bench_con_rekey_single },
-        BenchmarkEntry { name: "con_rekey_all", category: "CON", target: "< 300µs", run: bench_con_rekey_all },
+        BenchmarkEntry { name: "con_derive_tunnel_key", category: "CON", target: "< 10µs", pq: true, run: bench_con_derive_tunnel_key },
+        BenchmarkEntry { name: "con_rekey_single", category: "CON", target: "< 10µs", pq: true, run: bench_con_rekey_single },
+        BenchmarkEntry { name: "con_rekey_all", category: "CON", target: "< 300µs", pq: true, run: bench_con_rekey_all },
         // 20. HPTP Timing (3)
-        BenchmarkEntry { name: "hptp_timestamp_verify", category: "HPTP", target: "< 20µs", run: bench_hptp_timestamp_verify },
-        BenchmarkEntry { name: "hptp_drift_compensate", category: "HPTP", target: "< 500ns", run: bench_hptp_drift_compensate },
-        BenchmarkEntry { name: "hptp_jitter_filter", category: "HPTP", target: "< 1µs", run: bench_hptp_jitter_filter },
+        BenchmarkEntry { name: "hptp_timestamp_verify", category: "HPTP", target: "< 20µs", pq: true, run: bench_hptp_timestamp_verify },
+        BenchmarkEntry { name: "hptp_drift_compensate", category: "HPTP", target: "< 500ns", pq: false, run: bench_hptp_drift_compensate },
+        BenchmarkEntry { name: "hptp_jitter_filter", category: "HPTP", target: "< 1µs", pq: false, run: bench_hptp_jitter_filter },
         // 21. ZK Proofs (2)
-        BenchmarkEntry { name: "zk_prove", category: "ZK", target: "< 30µs", run: bench_zk_prove },
-        BenchmarkEntry { name: "zk_verify", category: "ZK", target: "< 30µs", run: bench_zk_verify },
+        BenchmarkEntry { name: "zk_prove", category: "ZK", target: "< 30µs", pq: true, run: bench_zk_prove },
+        BenchmarkEntry { name: "zk_verify", category: "ZK", target: "< 30µs", pq: true, run: bench_zk_verify },
         // 22. SignHere Pipeline (4)
-        BenchmarkEntry { name: "signhere_secure_doc", category: "SignHere", target: "< 100µs", run: bench_signhere_secure_doc },
-        BenchmarkEntry { name: "signhere_6check", category: "SignHere", target: "< 80µs", run: bench_signhere_6check },
-        BenchmarkEntry { name: "signhere_cnsa2", category: "SignHere", target: "< 50µs", run: bench_signhere_cnsa2 },
-        BenchmarkEntry { name: "signhere_witness", category: "SignHere", target: "< 20µs", run: bench_signhere_witness },
+        BenchmarkEntry { name: "signhere_secure_doc", category: "SignHere", target: "< 100µs", pq: true, run: bench_signhere_secure_doc },
+        BenchmarkEntry { name: "signhere_6check", category: "SignHere", target: "< 80µs", pq: true, run: bench_signhere_6check },
+        BenchmarkEntry { name: "signhere_cnsa2", category: "SignHere", target: "< 50µs", pq: true, run: bench_signhere_cnsa2 },
+        BenchmarkEntry { name: "signhere_witness", category: "SignHere", target: "< 20µs", pq: true, run: bench_signhere_witness },
         // 23. SFK Operations (3)
-        BenchmarkEntry { name: "sfk_key_derive", category: "SFK", target: "< 10µs", run: bench_sfk_key_derive },
-        BenchmarkEntry { name: "sfk_sign", category: "SFK", target: "< 25µs", run: bench_sfk_sign },
-        BenchmarkEntry { name: "sfk_verify", category: "SFK", target: "< 25µs", run: bench_sfk_verify },
+        BenchmarkEntry { name: "sfk_key_derive", category: "SFK", target: "< 10µs", pq: true, run: bench_sfk_key_derive },
+        BenchmarkEntry { name: "sfk_sign", category: "SFK", target: "< 25µs", pq: true, run: bench_sfk_sign },
+        BenchmarkEntry { name: "sfk_verify", category: "SFK", target: "< 25µs", pq: true, run: bench_sfk_verify },
         // 24. Hedera / Blockchain (2)
-        BenchmarkEntry { name: "hedera_submit_witness", category: "Hedera", target: "< 25µs", run: bench_hedera_submit_witness },
-        BenchmarkEntry { name: "hedera_verify_witness", category: "Hedera", target: "< 20µs", run: bench_hedera_verify_witness },
+        BenchmarkEntry { name: "hedera_submit_witness", category: "Hedera", target: "< 25µs", pq: true, run: bench_hedera_submit_witness },
+        BenchmarkEntry { name: "hedera_verify_witness", category: "Hedera", target: "< 20µs", pq: true, run: bench_hedera_verify_witness },
         // 25. Lamport OTS (3)
-        BenchmarkEntry { name: "lamport_keygen", category: "Lamport", target: "< 5ms", run: bench_lamport_keygen },
-        BenchmarkEntry { name: "lamport_sign", category: "Lamport", target: "< 3ms", run: bench_lamport_sign },
-        BenchmarkEntry { name: "lamport_verify", category: "Lamport", target: "< 3ms", run: bench_lamport_verify },
+        BenchmarkEntry { name: "lamport_keygen", category: "Lamport", target: "< 5ms", pq: true, run: bench_lamport_keygen },
+        BenchmarkEntry { name: "lamport_sign", category: "Lamport", target: "< 3ms", pq: true, run: bench_lamport_sign },
+        BenchmarkEntry { name: "lamport_verify", category: "Lamport", target: "< 3ms", pq: true, run: bench_lamport_verify },
         // 26. Roundtrips (13)
-        BenchmarkEntry { name: "rt_pt26_full", category: "Roundtrip", target: "< 80µs", run: bench_rt_pt26_full },
-        BenchmarkEntry { name: "rt_pt26_sign_verify", category: "Roundtrip", target: "< 60µs", run: bench_rt_pt26_sign_verify },
-        BenchmarkEntry { name: "rt_tl_dsa_v1_full", category: "Roundtrip", target: "< 60ms", run: bench_rt_tl_dsa_v1_full },
-        BenchmarkEntry { name: "rt_tl_dsa_v1_sign_verify", category: "Roundtrip", target: "< 50ms", run: bench_rt_tl_dsa_v1_sign_verify },
-        BenchmarkEntry { name: "rt_tl_dsa_v2_full", category: "Roundtrip", target: "< 500µs", run: bench_rt_tl_dsa_v2_full },
-        BenchmarkEntry { name: "rt_tl_kem_1024", category: "Roundtrip", target: "< 300µs", run: bench_rt_tl_kem_1024 },
-        BenchmarkEntry { name: "rt_tae_mac", category: "Roundtrip", target: "< 60µs", run: bench_rt_tae_mac },
-        BenchmarkEntry { name: "rt_phase_encrypt", category: "Roundtrip", target: "< 80µs", run: bench_rt_phase_encrypt },
-        BenchmarkEntry { name: "rt_signhere_full", category: "Roundtrip", target: "< 200µs", run: bench_rt_signhere_full },
-        BenchmarkEntry { name: "rt_tsa_full", category: "Roundtrip", target: "< 50µs", run: bench_rt_tsa_full },
-        BenchmarkEntry { name: "rt_merkle_full", category: "Roundtrip", target: "< 400µs", run: bench_rt_merkle_full },
-        BenchmarkEntry { name: "rt_lamport_full", category: "Roundtrip", target: "< 10ms", run: bench_rt_lamport_full },
-        BenchmarkEntry { name: "rt_zk_full", category: "Roundtrip", target: "< 60µs", run: bench_rt_zk_full },
+        BenchmarkEntry { name: "rt_pt26_full", category: "Roundtrip", target: "< 80µs", pq: true, run: bench_rt_pt26_full },
+        BenchmarkEntry { name: "rt_pt26_sign_verify", category: "Roundtrip", target: "< 60µs", pq: true, run: bench_rt_pt26_sign_verify },
+        BenchmarkEntry { name: "rt_tl_dsa_v1_full", category: "Roundtrip", target: "< 60ms", pq: true, run: bench_rt_tl_dsa_v1_full },
+        BenchmarkEntry { name: "rt_tl_dsa_v1_sign_verify", category: "Roundtrip", target: "< 50ms", pq: true, run: bench_rt_tl_dsa_v1_sign_verify },
+        BenchmarkEntry { name: "rt_tl_dsa_v2_full", category: "Roundtrip", target: "< 500µs", pq: true, run: bench_rt_tl_dsa_v2_full },
+        BenchmarkEntry { name: "rt_tl_kem_1024", category: "Roundtrip", target: "< 300µs", pq: true, run: bench_rt_tl_kem_1024 },
+        BenchmarkEntry { name: "rt_tae_mac", category: "Roundtrip", target: "< 60µs", pq: true, run: bench_rt_tae_mac },
+        BenchmarkEntry { name: "rt_phase_encrypt", category: "Roundtrip", target: "< 80µs", pq: true, run: bench_rt_phase_encrypt },
+        BenchmarkEntry { name: "rt_signhere_full", category: "Roundtrip", target: "< 200µs", pq: true, run: bench_rt_signhere_full },
+        BenchmarkEntry { name: "rt_tsa_full", category: "Roundtrip", target: "< 50µs", pq: true, run: bench_rt_tsa_full },
+        BenchmarkEntry { name: "rt_merkle_full", category: "Roundtrip", target: "< 400µs", pq: true, run: bench_rt_merkle_full },
+        BenchmarkEntry { name: "rt_lamport_full", category: "Roundtrip", target: "< 10ms", pq: true, run: bench_rt_lamport_full },
+        BenchmarkEntry { name: "rt_zk_full", category: "Roundtrip", target: "< 60µs", pq: true, run: bench_rt_zk_full },
         // 27. User Actions (8)
-        BenchmarkEntry { name: "ux_sign_document", category: "User Action", target: "< 150µs", run: bench_ux_sign_document },
-        BenchmarkEntry { name: "ux_verify_document", category: "User Action", target: "< 100µs", run: bench_ux_verify_document },
-        BenchmarkEntry { name: "ux_establish_tunnel", category: "User Action", target: "< 200µs", run: bench_ux_establish_tunnel },
-        BenchmarkEntry { name: "ux_heartbeat_cycle", category: "User Action", target: "< 500µs", run: bench_ux_heartbeat_cycle },
-        BenchmarkEntry { name: "ux_node_join", category: "User Action", target: "< 20ms", run: bench_ux_node_join },
-        BenchmarkEntry { name: "ux_tdns_register", category: "User Action", target: "< 60µs", run: bench_ux_tdns_register },
-        BenchmarkEntry { name: "ux_epoch_rekey", category: "User Action", target: "< 400µs", run: bench_ux_epoch_rekey },
-        BenchmarkEntry { name: "ux_secure_message", category: "User Action", target: "< 60µs", run: bench_ux_secure_message },
+        BenchmarkEntry { name: "ux_sign_document", category: "User Action", target: "< 150µs", pq: true, run: bench_ux_sign_document },
+        BenchmarkEntry { name: "ux_verify_document", category: "User Action", target: "< 100µs", pq: true, run: bench_ux_verify_document },
+        BenchmarkEntry { name: "ux_establish_tunnel", category: "User Action", target: "< 200µs", pq: true, run: bench_ux_establish_tunnel },
+        BenchmarkEntry { name: "ux_heartbeat_cycle", category: "User Action", target: "< 500µs", pq: true, run: bench_ux_heartbeat_cycle },
+        BenchmarkEntry { name: "ux_node_join", category: "User Action", target: "< 20ms", pq: true, run: bench_ux_node_join },
+        BenchmarkEntry { name: "ux_tdns_register", category: "User Action", target: "< 60µs", pq: true, run: bench_ux_tdns_register },
+        BenchmarkEntry { name: "ux_epoch_rekey", category: "User Action", target: "< 400µs", pq: true, run: bench_ux_epoch_rekey },
+        BenchmarkEntry { name: "ux_secure_message", category: "User Action", target: "< 60µs", pq: true, run: bench_ux_secure_message },
         // 28. A/B Sponge: Scalar vs Batch (4)
-        BenchmarkEntry { name: "ab_derive_key_scalar", category: "A/B", target: "~4µs", run: bench_ab_derive_key_scalar },
-        BenchmarkEntry { name: "ab_derive_key_batch", category: "A/B", target: "< 110µs", run: bench_ab_derive_key_batch },
-        BenchmarkEntry { name: "ab_heartbeat26_scalar", category: "A/B", target: "~210µs", run: bench_ab_heartbeat_26_scalar },
-        BenchmarkEntry { name: "ab_heartbeat26_batch", category: "A/B", target: "< 210µs", run: bench_ab_heartbeat_26_batch },
+        BenchmarkEntry { name: "ab_derive_key_scalar", category: "A/B", target: "~4µs", pq: true, run: bench_ab_derive_key_scalar },
+        BenchmarkEntry { name: "ab_derive_key_batch", category: "A/B", target: "< 110µs", pq: true, run: bench_ab_derive_key_batch },
+        BenchmarkEntry { name: "ab_heartbeat26_scalar", category: "A/B", target: "~210µs", pq: true, run: bench_ab_heartbeat_26_scalar },
+        BenchmarkEntry { name: "ab_heartbeat26_batch", category: "A/B", target: "< 210µs", pq: true, run: bench_ab_heartbeat_26_batch },
     ]
 }
 
@@ -1266,23 +1306,31 @@ fn main() {
     }
 
     println!("Running {} benchmarks ({} iterations each)\n", selected.len(), iters);
-    println!("{:<35} {:>12} {:>12}  {}", "Benchmark", "Median", "Target", "Category");
-    println!("{}", "-".repeat(80));
+    println!("{:<35} {:>12} {:>12} {:<3} {:<10}", "Benchmark", "Median", "Target", "PQ", "Grade");
+    println!("{}", "-".repeat(85));
 
     let mut current_category = "";
     let mut category_total_ns: u128 = 0;
     let mut category_count: usize = 0;
+    let mut category_all_pq = true;
+    let mut category_pass_count: usize = 0;
     let mut grand_total_ns: u128 = 0;
+    let mut grand_pass: usize = 0;
+    let mut grand_count: usize = 0;
 
     for b in &selected {
         // Category changed — print subtotal for previous category
         if b.category != current_category && !current_category.is_empty() {
-            println!("{:<35} {:>12}  {:>11}",
+            let pq_label = if category_all_pq { "PQ" } else { "" };
+            println!("{:<35} {:>12} {:>12} {:<3} [{}/{}]",
                 format!("  ▸ {} TOTAL ({})", current_category, category_count),
-                format_nanos(category_total_ns), "");
+                format_nanos(category_total_ns), "", pq_label,
+                category_pass_count, category_count);
             println!();
             category_total_ns = 0;
             category_count = 0;
+            category_all_pq = true;
+            category_pass_count = 0;
         }
         current_category = b.category;
 
@@ -1300,22 +1348,36 @@ fn main() {
         let median = times[times.len() / 2];
         let median_ns = median.as_nanos();
 
+        let g = grade(median_ns, b.target);
+        let pq_marker = if b.pq { "PQ" } else { "" };
+
+        if !b.pq { category_all_pq = false; }
+        if g == "Pass" || g == "Plenum+" || g == "*Pass" { category_pass_count += 1; grand_pass += 1; }
+
         category_total_ns += median_ns;
         category_count += 1;
         grand_total_ns += median_ns;
+        grand_count += 1;
 
-        println!("{:<35} {:>12} {:>12}  {}",
-            b.name, format_nanos(median_ns), b.target, b.category);
+        println!("{:<35} {:>12} {:>12} {:<3} {}",
+            b.name, format_nanos(median_ns), b.target, pq_marker, g);
     }
 
     // Final category subtotal
     if !current_category.is_empty() {
-        println!("{:<35} {:>12}  {:>11}",
+        let pq_label = if category_all_pq { "PQ" } else { "" };
+        println!("{:<35} {:>12} {:>12} {:<3} [{}/{}]",
             format!("  ▸ {} TOTAL ({})", current_category, category_count),
-            format_nanos(category_total_ns), "");
+            format_nanos(category_total_ns), "", pq_label,
+            category_pass_count, category_count);
     }
 
-    println!("\n{}", "=".repeat(80));
+    println!("\n{}", "=".repeat(85));
     println!("{:<35} {:>12}", "GRAND TOTAL (all benchmarks)", format_nanos(grand_total_ns));
+    println!("{:<35} {:>12}", "Pass rate", format!("{}/{} ({:.0}%)", grand_pass, grand_count, grand_pass as f64 / grand_count as f64 * 100.0));
+    println!("{:<35} {:>12}", "PQ benchmarks", format!("{}/{}",
+        selected.iter().filter(|b| b.pq).count(), grand_count));
+    println!("\nGrade key: Plenum+ (≤50% target) | Pass (≤target) | *Pass (≤115%) | FAIL (>115%) | DIAGNOSE (>500%)");
+    println!("PQ = Post-quantum verifiable (sponge pre-image, lattice, hash-based)");
     println!("\nDone.");
 }
