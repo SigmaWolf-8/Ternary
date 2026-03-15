@@ -1,0 +1,1399 @@
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Layout } from "@/components/layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUp, FileText, RefreshCw, Cpu, HardDrive, Download, FileDown, AlertTriangle, TrendingUp, Activity, Zap, Folder, X, Files, Eye, ChevronRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { createCompressionJob } from "@/lib/api";
+import type { InsertCompressionJob } from "@shared/schema";
+import { getFileTypeInfo, getCategoryColor, getCategoryBgColor, type FileTypeInfo } from "@/lib/file-types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  compressTTCv11, 
+  computeGURFTMetrics, 
+  TTC_V11_HEADER_SPEC,
+  GURFT_THRESHOLDS,
+  ttcCompress,
+  ttcDecompress,
+  ttcCompressMultiple,
+  ttcDecompressMultiple,
+  isMultiFileArchive,
+  isSingleFileArchive,
+  getCompressionConfig,
+  generateEncodingSteps,
+  type AdaptiveCompressionResult,
+  type GURFTMetrics,
+  type CompressionBase,
+  type TTCCompressionResult,
+  type FileEntry,
+  type MultiFileCompressionResult,
+  type EncodingStep
+} from "@/lib/ttc";
+
+type Mode = "compress" | "decompress";
+
+interface SelectedFile {
+  file: File;
+  relativePath: string;
+  typeInfo: FileTypeInfo;
+}
+
+export default function CompressionDemo() {
+  const queryClient = useQueryClient();
+  const [mode, setMode] = useState<Mode>("compress");
+  const [files, setFiles] = useState<SelectedFile[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [binaryStream, setBinaryStream] = useState<string>("");
+  const [ternaryStream, setTernaryStream] = useState<string>("");
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [resultFileName, setResultFileName] = useState<string>("");
+  const [realRatio, setRealRatio] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  
+  // Multi-file decompression results
+  const [decompressedFiles, setDecompressedFiles] = useState<FileEntry[]>([]);
+  
+  // TTC v1.1 GURFT state
+  const [compressionMode, setCompressionMode] = useState<number>(1);
+  const [gurftMetrics, setGurftMetrics] = useState<GURFTMetrics | null>(null);
+  const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveCompressionResult | null>(null);
+  
+  // Store last compressed result for quick decompression
+  const [lastCompressedBlob, setLastCompressedBlob] = useState<Blob | null>(null);
+  const [lastCompressedFileName, setLastCompressedFileName] = useState<string>("");
+  
+  // Fast mode toggle
+  const [fastMode, setFastMode] = useState<boolean>(false);
+  
+  // Encoding steps visualizer
+  const [encodingSteps, setEncodingSteps] = useState<EncodingStep[]>([]);
+  const [sampleFileData, setSampleFileData] = useState<Uint8Array | null>(null);
+  
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // Fake binary/ternary generation for visualization
+  useEffect(() => {
+    if (isProcessing) {
+      const interval = setInterval(() => {
+        const binChunk = Array.from({ length: 8 }, () => Math.random() > 0.5 ? "1" : "0").join("");
+        const terChunk = Array.from({ length: 5 }, () => {
+          const r = Math.random();
+          return r < 0.33 ? "T" : r < 0.66 ? "0" : "1";
+        }).join("");
+        
+        if (mode === "compress") {
+          setBinaryStream(prev => (prev + binChunk).slice(-160));
+          setTernaryStream(prev => (prev + terChunk).slice(-100));
+        } else {
+          setTernaryStream(prev => (prev + terChunk).slice(-160));
+          setBinaryStream(prev => (prev + binChunk).slice(-100));
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isProcessing, mode]);
+
+  // Scroll logs
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  // Recursively read all files from a directory entry
+  const readDirectoryEntries = async (entry: FileSystemDirectoryEntry, basePath: string = ""): Promise<File[]> => {
+    const files: File[] = [];
+    const reader = entry.createReader();
+    
+    const readEntries = (): Promise<FileSystemEntry[]> => {
+      return new Promise((resolve, reject) => {
+        reader.readEntries(resolve as any, reject);
+      });
+    };
+    
+    let entries: FileSystemEntry[] = [];
+    let batch: FileSystemEntry[];
+    do {
+      batch = await readEntries();
+      entries = entries.concat(batch);
+    } while (batch.length > 0);
+    
+    for (const childEntry of entries) {
+      const childPath = basePath ? `${basePath}/${childEntry.name}` : childEntry.name;
+      if (childEntry.isFile) {
+        const fileEntry = childEntry as FileSystemFileEntry;
+        const file = await new Promise<File>((resolve, reject) => {
+          fileEntry.file(resolve, reject);
+        });
+        // Create a new file with the relative path as name
+        const fileWithPath = new File([file], childPath, { type: file.type });
+        files.push(fileWithPath);
+      } else if (childEntry.isDirectory) {
+        const subFiles = await readDirectoryEntries(childEntry as FileSystemDirectoryEntry, childPath);
+        files.push(...subFiles);
+      }
+    }
+    
+    return files;
+  };
+
+  // Handle drag and drop
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const items = e.dataTransfer.items;
+    const droppedFiles: File[] = [];
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const entry = item.webkitGetAsEntry?.();
+      
+      if (entry) {
+        if (entry.isDirectory) {
+          const folderFiles = await readDirectoryEntries(entry as FileSystemDirectoryEntry, entry.name);
+          droppedFiles.push(...folderFiles);
+        } else if (entry.isFile) {
+          const file = item.getAsFile();
+          if (file) droppedFiles.push(file);
+        }
+      } else {
+        const file = item.getAsFile();
+        if (file) droppedFiles.push(file);
+      }
+    }
+    
+    if (droppedFiles.length > 0) {
+      addFiles(droppedFiles);
+    }
+  }, [mode]);
+
+  const addFiles = (newFiles: File[]) => {
+    const selectedFiles: SelectedFile[] = newFiles.map(file => ({
+      file,
+      relativePath: file.name,
+      typeInfo: getFileTypeInfo(file.name)
+    }));
+    
+    setFiles(prev => [...prev, ...selectedFiles]);
+    
+    const totalSize = newFiles.reduce((sum, f) => sum + f.size, 0);
+    const logEntries = [
+      `> ${newFiles.length} file(s) added`,
+      `> Total size: ${(totalSize / 1024).toFixed(2)} KB`,
+      "> Ready for processing."
+    ];
+    
+    setLogs(logEntries);
+    setIsComplete(false);
+    setProgress(0);
+    setResultBlob(null);
+    setError(null);
+    setDecompressedFiles([]);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      addFiles(newFiles);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const compressFile = async (file: File, mode: number, useFastMode: boolean): Promise<TTCCompressionResult> => {
+    const buffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(buffer);
+    
+    // Detect pre-compressed files BEFORE adding filename metadata
+    // This way magic byte detection works on the actual file content
+    const config = getCompressionConfig(uint8, useFastMode);
+    
+    // Encode original filename to preserve extension
+    const filenameBytes = new TextEncoder().encode(file.name);
+    const filenameLength = filenameBytes.length;
+    
+    // Create payload: [2 byte filename length] + [filename bytes] + [file data]
+    const payload = new Uint8Array(2 + filenameLength + uint8.length);
+    payload[0] = (filenameLength >> 8) & 0xff;
+    payload[1] = filenameLength & 0xff;
+    payload.set(filenameBytes, 2);
+    payload.set(uint8, 2 + filenameLength);
+    
+    // Use actual TTC compression with config (includes pre-compressed detection)
+    return ttcCompress(payload, mode, useFastMode, config.isPreCompressed);
+  };
+
+  const decompressFile = async (file: File): Promise<{ data: Uint8Array; originalName: string }> => {
+    const buffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(buffer);
+    
+    // Check for TTC magic header (TTC1)
+    if (uint8[0] !== 0x54 || uint8[1] !== 0x54 || 
+        uint8[2] !== 0x43 || uint8[3] !== 0x31) {
+      throw new Error("Invalid TTC file format. Missing TTC1 header.");
+    }
+    
+    // Use actual TTC decompression
+    const payload = ttcDecompress(uint8);
+    
+    // Extract original filename from payload
+    // Format: [2 byte filename length] + [filename bytes] + [file data]
+    const filenameLength = (payload[0] << 8) | payload[1];
+    const filenameBytes = payload.slice(2, 2 + filenameLength);
+    const originalName = new TextDecoder().decode(filenameBytes);
+    const data = payload.slice(2 + filenameLength);
+    
+    return { data, originalName: originalName || "decompressed_file" };
+  };
+
+  const startCompression = async () => {
+    if (files.length === 0) return;
+    setIsProcessing(true);
+    setIsComplete(false);
+    setProgress(0);
+    setLogs([]);
+    setError(null);
+    setGurftMetrics(null);
+    setAdaptiveResult(null);
+    setDecompressedFiles([]);
+    
+    const startTime = Date.now();
+    const modeName = TTC_V11_HEADER_SPEC.modes[compressionMode]?.name || "BASIC";
+    
+    setLogs([`> Initializing TTC Protocol v1.1 [${modeName}]...`]);
+    setLogs(prev => [...prev, `> Processing ${files.length} file(s)...`]);
+    
+    try {
+      // Convert files to FileEntry format
+      const fileEntries: FileEntry[] = await Promise.all(
+        files.map(async (sf) => {
+          const buffer = await sf.file.arrayBuffer();
+          return {
+            name: sf.relativePath,
+            data: new Uint8Array(buffer)
+          };
+        })
+      );
+      
+      // Capture sample data for encoding steps visualization (first 64 bytes of first file)
+      if (fileEntries.length > 0 && fileEntries[0].data.length > 0) {
+        const sampleBytes = fileEntries[0].data.slice(0, 64);
+        setSampleFileData(sampleBytes);
+        setEncodingSteps(generateEncodingSteps(sampleBytes, 32, fastMode));
+      }
+      
+      // Compress all files
+      const result = ttcCompressMultiple(
+        fileEntries,
+        compressionMode,
+        fastMode,
+        (current, total, fileName) => {
+          setCurrentFileIndex(current);
+          setProgress(Math.floor((current / total) * 100));
+          setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Compressing: ${fileName}`]);
+        }
+      );
+      
+      const processingTime = Date.now() - startTime;
+      
+      // Create result blob
+      const blob = new Blob([result.compressed], { type: "application/octet-stream" });
+      const archiveName = files.length === 1 
+        ? files[0].file.name.replace(/\.[^/.]+$/, "") + ".xTzip"
+        : `archive_${files.length}_files.xTzip`;
+      
+      setResultBlob(blob);
+      setResultFileName(archiveName);
+      setLastCompressedBlob(blob);
+      setLastCompressedFileName(archiveName);
+      setRealRatio(result.compressionRatio);
+      
+      // Log file results
+      for (const fileInfo of result.files) {
+        setLogs(prev => [...prev, `> ${fileInfo.name}: ${(fileInfo.originalSize/1024).toFixed(1)}KB → ${(fileInfo.compressedSize/1024).toFixed(1)}KB (${fileInfo.ratio.toFixed(2)}:1)`]);
+      }
+      
+      setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Total ratio: ${result.compressionRatio.toFixed(2)}:1`]);
+      
+      // Set adaptive result for GURFT metrics display
+      setAdaptiveResult({
+        version: "1.1",
+        mode: compressionMode,
+        modeName: result.modeName,
+        originalSize: result.totalOriginalSize,
+        compressedSize: result.totalCompressedSize,
+        compressionRatio: result.compressionRatio,
+        avgTau: result.avgTau,
+        avgDelta: result.avgDelta,
+        chunks: [],
+        baseDistribution: result.baseDistribution,
+        predominantBase: result.predominantBase,
+        gurftEnabled: compressionMode > 0,
+        fibonacciAnalysis: result.fibonacciAnalysis,
+      });
+      
+      // Log to database
+      try {
+        const jobData: InsertCompressionJob = {
+          originalFileName: archiveName.replace(".xTzip", ""),
+          originalSize: result.totalOriginalSize,
+          compressedSize: result.totalCompressedSize,
+          compressionRatio: result.compressionRatio,
+          algorithm: `TTC_V1.1_${modeName}_MULTI`,
+          processingTimeMs: processingTime,
+        };
+        
+        await createCompressionJob(jobData);
+        queryClient.invalidateQueries({ queryKey: ["compression-jobs"] });
+        queryClient.invalidateQueries({ queryKey: ["compression-stats"] });
+        setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Job logged to database.`]);
+      } catch (dbError) {
+        console.error("Failed to log job:", dbError);
+      }
+      
+      setProgress(100);
+      setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Compression complete.`]);
+      setIsComplete(true);
+    } catch (err: any) {
+      setError(err.message || "Compression failed");
+      setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] ERROR: ${err.message}`]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const startDecompression = async () => {
+    if (files.length === 0) return;
+    setIsProcessing(true);
+    setIsComplete(false);
+    setProgress(0);
+    setLogs([]);
+    setError(null);
+    setDecompressedFiles([]);
+    
+    try {
+      const file = files[0].file;
+      const buffer = await file.arrayBuffer();
+      const uint8 = new Uint8Array(buffer);
+      
+      setLogs([`> Validating archive header...`]);
+      
+      if (isMultiFileArchive(uint8)) {
+        // Multi-file archive
+        setLogs(prev => [...prev, `> Multi-file archive detected`]);
+        
+        const result = ttcDecompressMultiple(uint8, (current, total, fileName) => {
+          setProgress(Math.floor((current / total) * 100));
+          setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Extracting: ${fileName}`]);
+        });
+        
+        setDecompressedFiles(result.files);
+        setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Extracted ${result.files.length} file(s)`]);
+        setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Total size: ${(result.totalOriginalSize / 1024).toFixed(2)} KB`]);
+        
+      } else if (isSingleFileArchive(uint8)) {
+        // Single file archive (legacy format)
+        setLogs(prev => [...prev, `> Single-file archive detected`]);
+        
+        const payload = ttcDecompress(uint8);
+        const filenameLength = (payload[0] << 8) | payload[1];
+        const filenameBytes = payload.slice(2, 2 + filenameLength);
+        const originalName = new TextDecoder().decode(filenameBytes);
+        const data = payload.slice(2 + filenameLength);
+        
+        setDecompressedFiles([{ name: originalName || "decompressed_file", data }]);
+        setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Extracted: ${originalName}`]);
+        setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Size: ${(data.length / 1024).toFixed(2)} KB`]);
+      } else {
+        throw new Error("Invalid archive format. Expected TTC1 or TTCM header.");
+      }
+      
+      setProgress(100);
+      setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] Decompression complete.`]);
+      setIsComplete(true);
+    } catch (err: any) {
+      setError(err.message || "Decompression failed");
+      setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] ERROR: ${err.message}`]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const downloadDecompressedFile = (fileEntry: FileEntry, useFullPath: boolean = true) => {
+    const blob = new Blob([fileEntry.data], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    // Preserve folder structure by encoding path with double underscore separator
+    // "folder/subfolder/file.txt" -> "folder__subfolder__file.txt"
+    const safeName = useFullPath 
+      ? fileEntry.name.replace(/\//g, "__") 
+      : fileEntry.name.split("/").pop() || fileEntry.name;
+    a.download = safeName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setLogs(prev => [...prev, `> Downloaded: ${safeName}`]);
+  };
+
+  const downloadAllDecompressed = () => {
+    setLogs(prev => [...prev, `> Downloading ${decompressedFiles.length} files...`]);
+    // Small delay between downloads to prevent browser blocking
+    decompressedFiles.forEach((file, index) => {
+      setTimeout(() => downloadDecompressedFile(file, true), index * 200);
+    });
+  };
+
+  const reset = () => {
+    setFiles([]);
+    setIsProcessing(false);
+    setIsComplete(false);
+    setProgress(0);
+    setLogs([]);
+    setBinaryStream("");
+    setTernaryStream("");
+    setResultBlob(null);
+    setResultFileName("");
+    setError(null);
+    setGurftMetrics(null);
+    setAdaptiveResult(null);
+    setDecompressedFiles([]);
+  };
+
+  const handleDownload = () => {
+    if (!resultBlob || !resultFileName) return;
+    
+    const url = URL.createObjectURL(resultBlob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = resultFileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    setLogs(prev => [...prev, `> [${new Date().toLocaleTimeString()}] DOWNLOAD_INIT: ${resultFileName}`]);
+  };
+
+  const switchMode = () => {
+    const newMode = mode === "compress" ? "decompress" : "compress";
+    
+    // If switching to decompress and we have a compressed file ready, use it
+    if (newMode === "decompress" && lastCompressedBlob && lastCompressedFileName) {
+      const compressedFile = new File([lastCompressedBlob], lastCompressedFileName, { type: "application/octet-stream" });
+      
+      setIsProcessing(false);
+      setIsComplete(false);
+      setProgress(0);
+      setLogs([
+        `> File loaded: ${lastCompressedFileName}`,
+        `> Size: ${(lastCompressedBlob.size / 1024).toFixed(2)} KB`,
+        `> Ready for decompression.`
+      ]);
+      setBinaryStream("");
+      setTernaryStream("");
+      setResultBlob(null);
+      setResultFileName("");
+      setError(null);
+      setGurftMetrics(null);
+      setAdaptiveResult(null);
+      setDecompressedFiles([]);
+      
+      setFiles([{ 
+        file: compressedFile, 
+        relativePath: lastCompressedFileName,
+        typeInfo: getFileTypeInfo(lastCompressedFileName)
+      }]);
+      setMode(newMode);
+      return;
+    }
+    
+    reset();
+    setMode(newMode);
+  };
+
+  const totalOriginalSize = files.reduce((sum, f) => sum + f.file.size, 0);
+  const compressedSize = resultBlob ? resultBlob.size : 0;
+  const spaceSaved = totalOriginalSize - compressedSize;
+  const spaceSavedPercent = totalOriginalSize > 0 ? ((spaceSaved / totalOriginalSize) * 100) : 0;
+
+  return (
+    <Layout>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+        
+        {/* Left Panel: Upload & Controls */}
+        <div className="lg:col-span-5 space-y-6 flex flex-col">
+          {/* Mode Toggle */}
+          <div className="flex gap-2">
+            <Button
+              onClick={() => { if (mode !== "compress") switchMode(); }}
+              className={cn(
+                "flex-1 font-tech tracking-wider",
+                mode === "compress" 
+                  ? "bg-[var(--color-ttc-cyan)] text-black hover:bg-[var(--color-ttc-cyan)]/80" 
+                  : "bg-white/5 text-muted-foreground hover:bg-white/10"
+              )}
+            >
+              <FileUp className="w-4 h-4 mr-2" />
+              COMPRESS
+            </Button>
+            <Button
+              onClick={() => { if (mode !== "decompress") switchMode(); }}
+              className={cn(
+                "flex-1 font-tech tracking-wider",
+                mode === "decompress" 
+                  ? "bg-[var(--color-ttc-amber)] text-black hover:bg-[var(--color-ttc-amber)]/80" 
+                  : "bg-white/5 text-muted-foreground hover:bg-white/10"
+              )}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              DECOMPRESS
+            </Button>
+          </div>
+
+          <Card className="glass-panel border-white/10 flex-1 flex flex-col">
+            <CardHeader>
+              <CardTitle className={cn(
+                "flex items-center gap-2 font-ui tracking-wider",
+                mode === "compress" ? "text-[var(--color-ttc-cyan)]" : "text-[var(--color-ttc-amber)]"
+              )}>
+                {mode === "compress" ? <FileUp className="w-5 h-5" /> : <FileDown className="w-5 h-5" />}
+                {mode === "compress" ? "SECURE UPLINK // COMPRESS" : "SECURE DOWNLINK // DECOMPRESS"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 flex-1 flex flex-col">
+              
+              {files.length === 0 ? (
+                <div 
+                  ref={dropZoneRef}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={cn(
+                    "flex-1 border-2 border-dashed rounded-lg transition-all duration-300 relative group",
+                    mode === "compress" 
+                      ? "border-[var(--color-ttc-cyan)]/40 bg-gradient-to-br from-[var(--color-ttc-cyan)]/5 to-transparent hover:border-[var(--color-ttc-cyan)]/60 hover:from-[var(--color-ttc-cyan)]/10" 
+                      : "border-[var(--color-ttc-amber)]/40 bg-gradient-to-br from-[var(--color-ttc-amber)]/5 to-transparent hover:border-[var(--color-ttc-amber)]/60 hover:from-[var(--color-ttc-amber)]/10",
+                    isDragOver && "border-[var(--color-ttc-cyan)] bg-[var(--color-ttc-cyan)]/15 scale-[1.02]"
+                  )}
+                >
+                  <Input 
+                    type="file" 
+                    accept={mode === "compress" ? "*" : ".xTzip"}
+                    multiple={mode === "compress"}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    onChange={handleFileChange}
+                    data-testid="file-input"
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center transition-colors pointer-events-none">
+                    {/* Animated ring */}
+                    <div className="relative mb-4">
+                      <div className={cn(
+                        "absolute inset-0 w-20 h-20 rounded-full animate-ping opacity-20",
+                        mode === "compress" ? "bg-[var(--color-ttc-cyan)]" : "bg-[var(--color-ttc-amber)]"
+                      )} style={{ animationDuration: '2s' }} />
+                      <div className={cn(
+                        "relative w-20 h-20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300",
+                        mode === "compress" 
+                          ? "bg-[var(--color-ttc-cyan)]/20 border-2 border-[var(--color-ttc-cyan)]/50" 
+                          : "bg-[var(--color-ttc-amber)]/20 border-2 border-[var(--color-ttc-amber)]/50",
+                        isDragOver && "bg-[var(--color-ttc-cyan)]/30"
+                      )}>
+                        {mode === "compress" 
+                          ? <Folder className={cn("w-10 h-10", mode === "compress" ? "text-[var(--color-ttc-cyan)]" : "text-[var(--color-ttc-amber)]")} /> 
+                          : <FileDown className="w-10 h-10 text-[var(--color-ttc-amber)]" />}
+                      </div>
+                    </div>
+                    <p className={cn(
+                      "font-tech uppercase tracking-widest text-lg text-center px-4 font-bold",
+                      mode === "compress" ? "text-[var(--color-ttc-cyan)]" : "text-[var(--color-ttc-amber)]"
+                    )}>
+                      {mode === "compress" 
+                        ? "TRY IT NOW" 
+                        : "EXTRACT FILES"}
+                    </p>
+                    <p className="text-sm text-white/80 mt-2 text-center px-4 font-ui">
+                      {mode === "compress" 
+                        ? "Drop files or folders here to compress" 
+                        : "Drop .xTzip archive to decompress"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 text-center px-4">
+                      {mode === "compress" 
+                        ? "Text files compress best (code, logs, JSON, CSV)" 
+                        : "Supports single and multi-file archives"}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className={cn(
+                    "flex-1 flex flex-col space-y-4 overflow-hidden rounded-lg border-2 border-dashed p-4 transition-all",
+                    isDragOver 
+                      ? "border-[var(--color-ttc-cyan)] bg-[var(--color-ttc-cyan)]/10" 
+                      : "border-transparent"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {/* File list header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Files className={cn("w-4 h-4", mode === "compress" ? "text-[var(--color-ttc-cyan)]" : "text-[var(--color-ttc-amber)]")} />
+                      <span className="font-tech text-sm">{files.length} file(s) - {(totalOriginalSize / 1024).toFixed(2)} KB</span>
+                      {mode === "compress" && !isProcessing && !isComplete && (
+                        <span className="text-xs text-muted-foreground">(drag more files to add)</span>
+                      )}
+                    </div>
+                    {!isProcessing && !isComplete && (
+                      <Button variant="ghost" size="sm" onClick={reset} className="text-muted-foreground hover:text-white h-8">
+                        <RefreshCw className="w-3 h-3 mr-1" /> Clear
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Pre-compressed file warning */}
+                  {mode === "compress" && (() => {
+                    const preCompressedFiles = files.filter(f => f.typeInfo.isPreCompressed);
+                    const preCompressedSize = preCompressedFiles.reduce((sum, f) => sum + f.file.size, 0);
+                    const preCompressedPercent = totalOriginalSize > 0 ? (preCompressedSize / totalOriginalSize) * 100 : 0;
+                    
+                    if (preCompressedFiles.length > 0) {
+                      return (
+                        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-xs">
+                          <div className="flex items-center gap-2 text-amber-400">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                            <span className="font-tech">
+                              {preCompressedFiles.length} pre-compressed file(s) ({preCompressedPercent.toFixed(0)}% of data)
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground mt-1 ml-5">
+                            These formats (ZIP, PNG, MP4, etc.) are already compressed and won't shrink further.
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Scrollable file list */}
+                  <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-[200px] pr-2">
+                    {files.map((sf, index) => (
+                      <div 
+                        key={index}
+                        className={cn(
+                          "p-3 rounded-lg border flex items-center gap-3",
+                          mode === "compress" ? "bg-white/5 border-white/10" : "bg-[var(--color-ttc-amber)]/5 border-[var(--color-ttc-amber)]/20"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-8 h-8 rounded flex items-center justify-center flex-shrink-0",
+                          mode === "compress" ? "bg-[var(--color-ttc-cyan)]/20 text-[var(--color-ttc-cyan)]" : "bg-[var(--color-ttc-amber)]/20 text-[var(--color-ttc-amber)]"
+                        )}>
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-ui text-sm text-white truncate">{sf.relativePath}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="font-mono text-xs text-muted-foreground">{(sf.file.size / 1024).toFixed(2)} KB</p>
+                            {mode === "compress" && (
+                              <>
+                                <span className={cn("text-xs font-tech px-1.5 py-0.5 rounded border", getCategoryBgColor(sf.typeInfo.category), getCategoryColor(sf.typeInfo.category))}>
+                                  {sf.typeInfo.label}
+                                </span>
+                                {sf.typeInfo.isPreCompressed && (
+                                  <span className="text-xs font-tech px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                                    <AlertTriangle className="w-2.5 h-2.5" />
+                                    PRE-COMP
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {!isProcessing && !isComplete && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => removeFile(index)} 
+                            className="text-muted-foreground hover:text-red-400 h-6 w-6"
+                            data-testid={`remove-file-${index}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {mode === "compress" && !isProcessing && !isComplete && files.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-purple-400" />
+                            <span className="text-sm font-tech text-purple-400">TTC v1.1 MODE</span>
+                          </div>
+                          <Select value={compressionMode.toString()} onValueChange={(v) => setCompressionMode(parseInt(v))}>
+                            <SelectTrigger className="w-36 h-8 text-xs bg-black/30 border-purple-500/30" data-testid="select-compression-mode">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TTC_V11_HEADER_SPEC.modes.map((m) => (
+                                <SelectItem key={m.id} value={m.id.toString()} data-testid={`mode-${m.name.toLowerCase()}`}>
+                                  {m.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {TTC_V11_HEADER_SPEC.modes[compressionMode]?.desc}
+                        </p>
+                      </div>
+                      
+                      <div className="p-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-cyan-400" />
+                            <Label htmlFor="fast-mode" className="text-sm font-tech text-cyan-400 cursor-pointer">
+                              FAST MODE
+                            </Label>
+                          </div>
+                          <Switch 
+                            id="fast-mode"
+                            checked={fastMode}
+                            onCheckedChange={setFastMode}
+                            data-testid="switch-fast-mode"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {fastMode 
+                            ? "Speed optimized: Faster processing, slightly lower compression ratio" 
+                            : "Quality mode: Best compression ratio, thorough analysis"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm font-mono">
+                      ERROR: {error}
+                    </div>
+                  )}
+
+                  {!isProcessing && !isComplete && !error && (
+                    <Button 
+                      onClick={mode === "compress" ? startCompression : startDecompression}
+                      className={cn(
+                        "w-full h-14 font-tech font-bold text-lg tracking-widest relative overflow-hidden group",
+                        mode === "compress" 
+                          ? "bg-[var(--color-ttc-cyan)] text-black hover:bg-[var(--color-ttc-cyan)]/80"
+                          : "bg-[var(--color-ttc-amber)] text-black hover:bg-[var(--color-ttc-amber)]/80"
+                      )}
+                    >
+                      <span className="relative z-10 flex items-center justify-center gap-2">
+                        <Cpu className="w-5 h-5" /> 
+                        {mode === "compress" ? "INITIATE COMPRESSION" : "INITIATE DECOMPRESSION"}
+                      </span>
+                      <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                    </Button>
+                  )}
+
+                  {(isProcessing || isComplete) && (
+                     <div className="space-y-2">
+                       <div className={cn(
+                         "flex justify-between text-xs font-tech",
+                         mode === "compress" ? "text-[var(--color-ttc-cyan)]" : "text-[var(--color-ttc-amber)]"
+                       )}>
+                         <span>PROGRESS</span>
+                         <span>{progress}%</span>
+                       </div>
+                       <div className="h-2 bg-black/50 rounded-full overflow-hidden border border-white/10">
+                         <motion.div 
+                           className={cn(
+                             "h-full",
+                             mode === "compress" ? "bg-[var(--color-ttc-cyan)]" : "bg-[var(--color-ttc-amber)]"
+                           )}
+                           initial={{ width: 0 }}
+                           animate={{ width: `${progress}%` }}
+                         />
+                       </div>
+                     </div>
+                  )}
+                  
+                  {isComplete && mode === "compress" && (
+                    <div className="space-y-3">
+                      <Button 
+                        onClick={handleDownload}
+                        className="w-full font-tech font-bold bg-[var(--color-ttc-cyan)] text-black hover:bg-[var(--color-ttc-cyan)]/80"
+                        data-testid="download-archive"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        DOWNLOAD {resultFileName}
+                      </Button>
+                      <Button 
+                        onClick={reset}
+                        variant="outline"
+                        className="w-full border-white/10 hover:bg-white/5 font-tech"
+                      >
+                        PROCESS MORE FILES
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {isComplete && mode === "decompress" && decompressedFiles.length > 0 && (
+                    <div className="space-y-3">
+                      {decompressedFiles.length === 1 ? (
+                        <Button 
+                          onClick={() => downloadDecompressedFile(decompressedFiles[0])}
+                          className="w-full font-tech font-bold bg-[var(--color-ttc-amber)] text-black hover:bg-[var(--color-ttc-amber)]/80"
+                          data-testid="download-single"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          DOWNLOAD {decompressedFiles[0].name}
+                        </Button>
+                      ) : (
+                        <>
+                          <div className="max-h-[120px] overflow-y-auto space-y-2 pr-2">
+                            {decompressedFiles.map((file, index) => (
+                              <div 
+                                key={index}
+                                className="flex items-center justify-between p-2 bg-[var(--color-ttc-amber)]/10 border border-[var(--color-ttc-amber)]/20 rounded"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileText className="w-4 h-4 text-[var(--color-ttc-amber)] flex-shrink-0" />
+                                  <span className="text-sm truncate">{file.name}</span>
+                                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                                    ({(file.data.length / 1024).toFixed(1)} KB)
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => downloadDecompressedFile(file)}
+                                  className="text-[var(--color-ttc-amber)] hover:bg-[var(--color-ttc-amber)]/20 h-7"
+                                  data-testid={`download-file-${index}`}
+                                >
+                                  <Download className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <Button 
+                            onClick={downloadAllDecompressed}
+                            className="w-full font-tech font-bold bg-[var(--color-ttc-amber)] text-black hover:bg-[var(--color-ttc-amber)]/80"
+                            data-testid="download-all"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            DOWNLOAD ALL ({decompressedFiles.length} FILES)
+                          </Button>
+                        </>
+                      )}
+                      <Button 
+                        onClick={reset}
+                        variant="outline"
+                        className="w-full border-white/10 hover:bg-white/5 font-tech"
+                      >
+                        PROCESS ANOTHER ARCHIVE
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Console Log */}
+              <div className="h-48 bg-black/80 rounded border border-white/10 p-4 font-mono text-[10px] text-green-500/80 overflow-y-auto">
+                <div className="mb-2 opacity-50 border-b border-green-900/30 pb-1">System Console Output</div>
+                {logs.map((log, i) => (
+                  <div key={i} className={cn("mb-1", log.includes("ERROR") && "text-red-400")}>{log}</div>
+                ))}
+                <div ref={logsEndRef} />
+                {isProcessing && <span className="animate-pulse">_</span>}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Panel: Visualization & Results */}
+        <div className="lg:col-span-7 space-y-6 flex flex-col">
+          
+          {/* Stream Visualizer */}
+          <Card className="glass-panel border-white/10 min-h-[200px]">
+            <CardHeader className="py-4 border-b border-white/5">
+               <CardTitle className="font-tech text-xs text-muted-foreground flex justify-between">
+                 <span>REAL-TIME STREAM ANALYSIS</span>
+                 {isProcessing && <span className="text-[var(--color-ttc-amber)] animate-pulse">ACTIVE</span>}
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 grid grid-cols-2 divide-x divide-white/10 h-[200px]">
+               <div className={cn(
+                 "p-4 overflow-hidden relative",
+                 mode === "compress" ? "bg-black/40" : "bg-[var(--color-ttc-amber)]/5"
+               )}>
+                 <div className={cn(
+                   "absolute top-2 left-2 text-[10px] font-bold",
+                   mode === "compress" ? "text-zinc-500" : "text-[var(--color-ttc-amber)]"
+                 )}>
+                   {mode === "compress" ? "BINARY INPUT" : "TERNARY INPUT"}
+                 </div>
+                 <div className={cn(
+                   "font-mono text-xs break-all leading-relaxed mt-4",
+                   mode === "compress" ? "text-zinc-600 opacity-50 blur-[0.5px]" : "text-[var(--color-ttc-amber)] font-bold"
+                 )}>
+                   {mode === "compress" ? binaryStream : ternaryStream}
+                 </div>
+               </div>
+               <div className={cn(
+                 "p-4 overflow-hidden relative",
+                 mode === "compress" ? "bg-[var(--color-ttc-cyan)]/5" : "bg-black/40"
+               )}>
+                 <div className={cn(
+                   "absolute top-2 left-2 text-[10px] font-bold",
+                   mode === "compress" ? "text-[var(--color-ttc-cyan)]" : "text-zinc-500"
+                 )}>
+                   {mode === "compress" ? "TERNARY OUTPUT" : "BINARY OUTPUT"}
+                 </div>
+                 <div className={cn(
+                   "font-mono text-xs break-all leading-relaxed mt-4",
+                   mode === "compress" 
+                     ? "text-[var(--color-ttc-cyan)] font-bold drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]"
+                     : "text-zinc-600 opacity-50"
+                 )}>
+                   {mode === "compress" ? ternaryStream : binaryStream}
+                 </div>
+               </div>
+            </CardContent>
+          </Card>
+
+          {/* GURFT Metrics Panel - Shows during and after compression */}
+          {adaptiveResult && mode === "compress" && (
+            <Card className="glass-panel border-purple-500/30">
+              <CardHeader className="py-3 border-b border-purple-500/20">
+                <CardTitle className="font-tech text-xs text-purple-400 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    GURFT ADAPTIVE ANALYSIS v1.1
+                  </span>
+                  <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded">
+                    {adaptiveResult.modeName} MODE
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="text-center p-2 bg-black/30 rounded border border-white/10">
+                    <p className="text-[10px] font-tech text-muted-foreground">TORSION (τ)</p>
+                    <p className={cn(
+                      "text-lg font-mono font-bold",
+                      adaptiveResult.avgTau >= GURFT_THRESHOLDS.TAU_HARMONIC ? "text-green-400" : "text-zinc-400"
+                    )}>
+                      {adaptiveResult.avgTau.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-black/30 rounded border border-white/10">
+                    <p className="text-[10px] font-tech text-muted-foreground">DIM SYNC (δ)</p>
+                    <p className={cn(
+                      "text-lg font-mono font-bold",
+                      adaptiveResult.avgDelta >= GURFT_THRESHOLDS.DELTA_HOLOGRAPHIC ? "text-green-400" : "text-zinc-400"
+                    )}>
+                      {adaptiveResult.avgDelta.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-black/30 rounded border border-white/10">
+                    <p className="text-[10px] font-tech text-muted-foreground">CHUNKS</p>
+                    <p className="text-lg font-mono font-bold text-white">
+                      {adaptiveResult.chunks.length}
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-purple-500/20 rounded border border-purple-500/30">
+                    <p className="text-[10px] font-tech text-purple-400">PRIMARY BASE</p>
+                    <p className="text-lg font-mono font-bold text-purple-400">
+                      {adaptiveResult.predominantBase}
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-[var(--color-ttc-cyan)]/20 rounded border border-[var(--color-ttc-cyan)]/30">
+                    <p className="text-[10px] font-tech text-[var(--color-ttc-cyan)]">RATIO</p>
+                    <p className="text-lg font-mono font-bold text-[var(--color-ttc-cyan)]">
+                      {adaptiveResult.compressionRatio.toFixed(2)}:1
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Base Distribution */}
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-tech">
+                  <span className="text-muted-foreground">BASE USAGE:</span>
+                  {Object.entries(adaptiveResult.baseDistribution)
+                    .filter(([_, count]) => count > 0)
+                    .map(([base, count]) => (
+                      <span key={base} className="px-2 py-0.5 bg-white/10 rounded border border-white/20">
+                        B{base}: {count}
+                      </span>
+                    ))
+                  }
+                </div>
+                
+                {/* Fibonacci Harmonic Analysis */}
+                {adaptiveResult.fibonacciAnalysis && (
+                  <div className="mt-4 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/30">
+                    <p className="text-[10px] font-tech text-amber-400 mb-2">FIBONACCI HARMONIC ANALYSIS</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">ARB Weight:</span>
+                        <span className="ml-2 text-amber-400 font-mono">{adaptiveResult.fibonacciAnalysis.arbWeight.toFixed(4)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Phase Δ:</span>
+                        <span className="ml-2 text-amber-400 font-mono">{adaptiveResult.fibonacciAnalysis.phaseDelta}°</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Optimal Ratio:</span>
+                        <span className="ml-2 text-amber-400 font-mono">{(adaptiveResult.fibonacciAnalysis.optimalRatio * 100).toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Resonance:</span>
+                        <span className="ml-2 text-amber-400 font-mono">{adaptiveResult.fibonacciAnalysis.resonanceBand}</span>
+                      </div>
+                    </div>
+                    {adaptiveResult.fibonacciAnalysis.alignedTerms.length > 0 && (
+                      <div className="mt-2 flex items-center gap-1 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground">Aligned Terms:</span>
+                        {adaptiveResult.fibonacciAnalysis.alignedTerms.slice(0, 6).map((term: number) => (
+                          <span key={term} className="px-1.5 py-0.5 bg-amber-500/20 rounded text-[10px] text-amber-400 font-mono">
+                            F{term}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Results - Only for compression mode */}
+          <AnimatePresence>
+            {isComplete && mode === "compress" && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex-1"
+              >
+                <Card className="bg-zinc-900/90 border-[var(--color-ttc-cyan)]/30 h-full">
+                  <CardHeader className="border-b border-white/10">
+                    <CardTitle className="font-tech text-[var(--color-ttc-cyan)] text-sm flex items-center gap-2">
+                      <HardDrive className="w-4 h-4" />
+                      COMPRESSION RESULTS
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      {/* Original Size */}
+                      <div className="text-center p-4 bg-white/5 rounded-lg border border-white/10">
+                        <p className="text-xs font-tech text-muted-foreground mb-2">ORIGINAL</p>
+                        <p className="text-2xl font-ui font-bold text-white">
+                          {totalOriginalSize >= 1048576 
+                            ? (totalOriginalSize / 1048576).toFixed(2) + " MB"
+                            : (totalOriginalSize / 1024).toFixed(2) + " KB"
+                          }
+                        </p>
+                      </div>
+                      
+                      {/* Compressed Size */}
+                      <div className="text-center p-4 bg-[var(--color-ttc-cyan)]/10 rounded-lg border border-[var(--color-ttc-cyan)]/30">
+                        <p className="text-xs font-tech text-[var(--color-ttc-cyan)] mb-2">COMPRESSED</p>
+                        <p className="text-2xl font-ui font-bold text-[var(--color-ttc-cyan)]">
+                          {compressedSize >= 1048576 
+                            ? (compressedSize / 1048576).toFixed(2) + " MB"
+                            : (compressedSize / 1024).toFixed(2) + " KB"
+                          }
+                        </p>
+                      </div>
+                      
+                      {/* Compression Ratio */}
+                      <div className="text-center p-4 bg-white/5 rounded-lg border border-white/10">
+                        <p className="text-xs font-tech text-muted-foreground mb-2">RATIO</p>
+                        <p className="text-2xl font-ui font-bold text-white">
+                          {realRatio.toFixed(3)}:1
+                        </p>
+                      </div>
+                      
+                      {/* Space Saved */}
+                      <div className={cn(
+                        "text-center p-4 rounded-lg border",
+                        spaceSaved > 0 
+                          ? "bg-green-500/10 border-green-500/30" 
+                          : spaceSaved < 0 
+                            ? "bg-red-500/10 border-red-500/30"
+                            : "bg-white/5 border-white/10"
+                      )}>
+                        <p className={cn(
+                          "text-xs font-tech mb-2",
+                          spaceSaved > 0 ? "text-green-400" : spaceSaved < 0 ? "text-red-400" : "text-muted-foreground"
+                        )}>
+                          {spaceSaved >= 0 ? "SPACE SAVED" : "SIZE INCREASE"}
+                        </p>
+                        <p className={cn(
+                          "text-2xl font-ui font-bold",
+                          spaceSaved > 0 ? "text-green-400" : spaceSaved < 0 ? "text-red-400" : "text-white"
+                        )}>
+                          {spaceSaved >= 0 ? "+" : ""}{spaceSavedPercent.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Visual Bar Comparison */}
+                    <div className="mt-6 space-y-3">
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs font-tech text-muted-foreground w-20">Original</span>
+                        <div className="flex-1 h-6 bg-white/10 rounded overflow-hidden">
+                          <div className="h-full bg-zinc-500 w-full" />
+                        </div>
+                        <span className="text-xs font-mono text-muted-foreground w-16 text-right">100%</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs font-tech text-[var(--color-ttc-cyan)] w-20">xTzip</span>
+                        <div className="flex-1 h-6 bg-white/10 rounded overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-[var(--color-ttc-cyan)] shadow-[0_0_10px_rgba(0,255,255,0.5)]"
+                            initial={{ width: "100%" }}
+                            animate={{ width: `${Math.min((compressedSize / totalOriginalSize) * 100, 100)}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono text-[var(--color-ttc-cyan)] w-16 text-right">
+                          {((compressedSize / totalOriginalSize) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Compression Effectiveness Analysis */}
+                    <div className="mt-6 p-4 bg-gradient-to-r from-white/5 to-white/10 rounded-lg border border-white/10">
+                      <p className="text-xs font-tech text-[var(--color-ttc-cyan)] mb-2">COMPRESSION EFFECTIVENESS</p>
+                      <div className="grid grid-cols-2 gap-4 text-xs mb-3">
+                        <div>
+                          <span className="text-muted-foreground">Weighted Ratio (by size):</span>
+                          <span className={cn(
+                            "ml-2 font-mono font-bold",
+                            realRatio > 1.2 ? "text-green-400" : realRatio > 1.0 ? "text-amber-400" : "text-red-400"
+                          )}>
+                            {realRatio.toFixed(3)}:1
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Actual Space Saved:</span>
+                          <span className={cn(
+                            "ml-2 font-mono font-bold",
+                            spaceSaved > 0 ? "text-green-400" : "text-red-400"
+                          )}>
+                            {spaceSaved >= 1048576 
+                              ? (spaceSaved / 1048576).toFixed(2) + " MB"
+                              : (spaceSaved / 1024).toFixed(2) + " KB"
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground space-y-1">
+                        <p>
+                          <span className="text-[var(--color-ttc-amber)]">Note:</span> The weighted ratio accounts for actual file sizes. 
+                          Text, code, and uncompressed formats compress well (2-10x). 
+                          Pre-compressed formats (PDF, PNG, DOCX, ZIP, MP4) typically yield minimal gains or slight expansion.
+                        </p>
+                        <p>
+                          For best results, use TTC on text-based content like source code, logs, CSV, and JSON files.
+                        </p>
+                      </div>
+                      
+                      {/* Show Encoding Steps Button */}
+                      {encodingSteps.length > 0 && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-3 w-full border-[var(--color-ttc-cyan)]/30 text-[var(--color-ttc-cyan)] hover:bg-[var(--color-ttc-cyan)]/10"
+                              data-testid="show-encoding-steps"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              Show Encoding Steps
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl bg-zinc-900 border-[var(--color-ttc-cyan)]/30">
+                            <DialogHeader>
+                              <DialogTitle className="text-[var(--color-ttc-cyan)] font-tech flex items-center gap-2">
+                                <Activity className="w-5 h-5" />
+                                TTC ENCODING PIPELINE
+                              </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto">
+                              {encodingSteps.map((step, index) => (
+                                <motion.div
+                                  key={step.step}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.1 }}
+                                  className="relative"
+                                >
+                                  {/* Connector line */}
+                                  {index < encodingSteps.length - 1 && (
+                                    <div className="absolute left-[18px] top-[44px] w-0.5 h-[calc(100%-20px)] bg-gradient-to-b from-[var(--color-ttc-cyan)]/50 to-transparent" />
+                                  )}
+                                  
+                                  <div className="flex gap-4">
+                                    {/* Step number */}
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[var(--color-ttc-cyan)]/20 border border-[var(--color-ttc-cyan)]/50 flex items-center justify-center text-[var(--color-ttc-cyan)] font-bold text-sm">
+                                      {step.step}
+                                    </div>
+                                    
+                                    {/* Step content */}
+                                    <div className="flex-1 p-3 bg-black/30 rounded-lg border border-white/10">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-tech text-white text-sm">{step.name}</h4>
+                                        {step.highlight && (
+                                          <span className="text-[10px] px-2 py-0.5 bg-[var(--color-ttc-cyan)]/20 text-[var(--color-ttc-cyan)] rounded">
+                                            {step.highlight}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mb-2">{step.description}</p>
+                                      
+                                      <div className="space-y-1">
+                                        <div className="flex items-start gap-2">
+                                          <span className="text-[10px] text-zinc-500 w-12 flex-shrink-0">INPUT:</span>
+                                          <code className="text-[10px] font-mono text-amber-400 break-all">{step.input}</code>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[var(--color-ttc-cyan)]">
+                                          <ChevronRight className="w-3 h-3" />
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                          <span className="text-[10px] text-zinc-500 w-12 flex-shrink-0">OUTPUT:</span>
+                                          <code className="text-[10px] font-mono text-[var(--color-ttc-cyan)] break-all">{step.output}</code>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              ))}
+                              
+                              {/* GF(3) Operations Section */}
+                              <div className="mt-4 p-4 bg-purple-500/10 rounded-lg border border-purple-500/30" data-testid="section-gf3-operations">
+                                <p className="text-[10px] font-tech text-purple-400 mb-3">GF(3) FIELD OPERATIONS</p>
+                                <div className="grid grid-cols-2 gap-4 text-xs">
+                                  <div className="space-y-2">
+                                    <p className="text-muted-foreground">Addition (mod 3):</p>
+                                    <div className="font-mono text-purple-300 bg-black/30 p-2 rounded" data-testid="text-gf3-addition">
+                                      <div>0 ⊕ 1 = 1</div>
+                                      <div>1 ⊕ 1 = 2</div>
+                                      <div>2 ⊕ 1 = 0</div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <p className="text-muted-foreground">Multiplication (mod 3):</p>
+                                    <div className="font-mono text-purple-300 bg-black/30 p-2 rounded" data-testid="text-gf3-multiplication">
+                                      <div>1 ⊗ 2 = 2</div>
+                                      <div>2 ⊗ 2 = 1</div>
+                                      <div>0 ⊗ n = 0</div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <p className="text-[10px] text-purple-400/70 mt-2">
+                                  Galois Field operations power TTC's balanced ternary arithmetic
+                                </p>
+                              </div>
+
+                              {/* Legend and Disclaimer */}
+                              <div className="space-y-3 mt-4">
+                                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                                  <p className="text-[10px] font-tech text-muted-foreground mb-2">BALANCED TERNARY LEGEND</p>
+                                  <div className="flex gap-4 text-xs">
+                                    <span><code className="text-red-400">T</code> = -1</span>
+                                    <span><code className="text-zinc-400">0</code> = 0</span>
+                                    <span><code className="text-green-400">1</code> = +1</span>
+                                  </div>
+                                </div>
+                                
+                                <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                                  <p className="text-[10px] text-amber-400">
+                                    <span className="font-tech">EDUCATIONAL DEMO:</span>{" "}
+                                    This visualization demonstrates TTC's encoding stages using a 32-byte sample from your file.
+                                    Token counts, Elias codes, and Tribonacci values are computed with real encoder functions.
+                                    Full-file compression uses larger windows and additional optimizations.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {isComplete && mode === "decompress" && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex-1"
+              >
+                <Card className="bg-[var(--color-ttc-amber)]/10 border-[var(--color-ttc-amber)] h-full flex flex-col justify-center">
+                  <CardContent className="text-center py-12">
+                    <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[var(--color-ttc-amber)]/20 flex items-center justify-center">
+                      <FileDown className="w-12 h-12 text-[var(--color-ttc-amber)]" />
+                    </div>
+                    <h3 className="text-2xl font-ui font-bold text-white mb-2">Decompression Successful</h3>
+                    <p className="text-muted-foreground font-tech mb-4">
+                      Original file restored: <span className="text-[var(--color-ttc-amber)]">{resultFileName}</span>
+                    </p>
+                    <p className="text-3xl font-mono text-white">
+                      {resultBlob ? (resultBlob.size / 1024).toFixed(2) : "0"} <span className="text-lg text-zinc-500">KB</span>
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!isComplete && (
+            <div className="flex-1 flex items-center justify-center border border-white/5 rounded-lg bg-white/5">
+              <div className="text-center opacity-30">
+                <HardDrive className="w-16 h-16 mx-auto mb-4" />
+                <p className="font-tech uppercase tracking-widest">Awaiting Data Input</p>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </Layout>
+  );
+}
