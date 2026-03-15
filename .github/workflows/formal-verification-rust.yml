@@ -213,17 +213,18 @@ jobs:
       - name: Kani Summary
         if: always()
         working-directory: src/kernel
+        shell: bash {0}
         run: |
           echo ""
           echo "================================================================"
           echo "  KANI VERIFICATION SUMMARY"
           echo "================================================================"
-          PASSED=$(grep -c "VERIFICATION:- SUCCESSFUL" kani_output.log 2>/dev/null || echo 0)
-          FAILED=$(grep -c "VERIFICATION:- FAILED" kani_output.log 2>/dev/null || echo 0)
-          ERRORS=$(grep -c "^error:" kani_output.log 2>/dev/null || echo 0)
+          PASSED=$(grep -c "VERIFICATION:- SUCCESSFUL" kani_output.log || true)
+          FAILED=$(grep -c "VERIFICATION:- FAILED" kani_output.log || true)
+          PASSED=${PASSED:-0}
+          FAILED=${FAILED:-0}
           echo "  Proofs passed:  ${PASSED}"
           echo "  Proofs failed:  ${FAILED}"
-          echo "  Cargo errors:   ${ERRORS}"
           echo ""
           if [ "$PASSED" = "0" ] && [ "$FAILED" = "0" ]; then
             echo "::error::No Kani proofs ran — check for compilation errors"
