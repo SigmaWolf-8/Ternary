@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+# Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+# Patent(s) Pending — All Rights Reserved — Applied Physics Division
+#
+# verify_affine_sbox.py — Exhaustive verification of composed chi S-box
+# S(x) = M · x^17 + c over GF(27) = GF(3)[t]/(t^3 + 2t + 1)
+#
+# Verifies: bijection, DP_max = 1/9, LP_max = 1/9, algebraic degree = 5,
+#           zero fixed point eliminated, branch number = 3 (max over GF(3)).
+#
+# Run: python3 verify_affine_sbox.py
+
+import cmath
+from collections import Counter
+from itertools import product, combinations
+
+# ═══════════════════════════════════════════════════════════════════════
+# GF(3) and GF(27) arithmetic — mirrors sponge.rs exactly
+# ═══════════════════════════════════════════════════════════════════════
+
+def gf3_mul(a, b): return (a * b) % 3
+def gf3_add(a, b): return (a + b) % 3
+def gf3_sub(a, b): return (a - b) % 3
+
+def gf27_mul(a, b):
+    """Multiply in GF(27) = GF(3)[t]/(t^3 + 2t + 1)."""
+    c0 = gf3_mul(a[0], b[0])
+    c1 = gf3_add(gf3_mul(a[0], b[1]), gf3_mul(a[1], b[0]))
+    c2 = gf3_add(gf3_add(gf3_mul(a[0], b[2]), gf3_mul(a[1], b[1])), gf3_mul(a[2], b[0]))
+    c3 = gf3_add(gf3_mul(a[1], b[2]), gf3_mul(a[2], b[1]))
+    c4 = gf3_mul(a[2], b[2])
+    r0 = gf3_add(c0, gf3_mul(2, c3))
+    r1 = gf3_add(gf3_add(c1, c3), gf3_mul(2, c4))
+    r2 = gf3_add(c2, c4)
+    return [r0, r1, r2]
+
+def gf27_pow17(x):
+    """x^17 via square-and-multiply: x^17 = x^16 · x."""
+    x2 = gf27_mul(x, x)
+    x4 = gf27_mul(x2, x2)
+    x8 = gf27_mul(x4, x4)
+    x16 = gf27_mul(x8, x8)
+    return gf27_mul(x16, x)
+
+# ═══════════════════════════════════════════════════════════════════════
+# AFFINE CONSTANTS
+# ═══════════════════════════════════════════════════════════════════════
+
+# Circulant matrix [1,1,2] over GF(3)
+# det(M) = 1, branch number = 3 (maximum achievable over GF(3))
+AFFINE_M = [[1, 1, 2],
+            [2, 1, 1],
+            [1, 2, 1]]
+
+# Constant vector — eliminates zero fixed point
+AFFINE_C = [1, 0, 2]
+
+def mat_vec_gf3(M, v):
+    return [sum(gf3_mul(M[i][j], v[j]) for j in range(3)) % 3 for i in range(3)]
+
+def gf27_affine(x):
+    """Composed S-box: S(x) = M · x^17 + c."""
+    p = gf27_pow17(x)
+    mv = mat_vec_gf3(AFFINE_M, p)
+    return [gf3_add(mv[i], AFFINE_C[i]) for i in range(3)]
+
+def gf27_from_idx(idx):
+    return [idx % 3, (idx // 3) % 3, idx // 9]
+
+def gf27_to_idx(x):
+    return x[0] + x[1] * 3 + x[2] * 9
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 1: Matrix properties
+# ═══════════════════════════════════════════════════════════════════════
+
+def verify_matrix():
+    M = AFFINE_M
+    det = (M[0][0]*(M[1][1]*M[2][2] - M[1][2]*M[2][1])
+         - M[0][1]*(M[1][0]*M[2][2] - M[1][2]*M[2][0])
+         + M[0][2]*(M[1][0]*M[2][1] - M[1][1]*M[2][0])) % 3
+    assert det != 0, "M must be invertible"
+    print(f"[PASS] det(M) = {det} (nonzero — M is invertible)")
+
+    # Branch number
+    min_wt = 99
+    for x in product(range(3), repeat=3):
+        if all(v == 0 for v in x): continue
+        mx = [sum(M[i][j] * x[j] for j in range(3)) % 3 for i in range(3)]
+        wt = sum(1 for v in x if v != 0) + sum(1 for v in mx if v != 0)
+        if wt < min_wt: min_wt = wt
+    print(f"[PASS] Branch number = {min_wt} (maximum achievable for 3×3 over GF(3) is 3)")
+    assert min_wt == 3
+
+    # Circulant structure
+    assert M[1] == [M[0][2], M[0][0], M[0][1]], "Not circulant"
+    assert M[2] == [M[0][1], M[0][2], M[0][0]], "Not circulant"
+    print(f"[PASS] Circulant structure confirmed (rows are cyclic shifts of {M[0]})")
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 2: Bijection
+# ═══════════════════════════════════════════════════════════════════════
+
+def verify_bijection():
+    outputs = set()
+    for idx in range(27):
+        r = gf27_affine(gf27_from_idx(idx))
+        outputs.add(tuple(r))
+    assert len(outputs) == 27, f"Not a bijection: {len(outputs)} unique outputs"
+    print(f"[PASS] Bijection: 27/27 unique outputs")
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 3: Zero fixed point eliminated
+# ═══════════════════════════════════════════════════════════════════════
+
+def verify_zero_fixpoint():
+    r = gf27_affine([0, 0, 0])
+    assert r != [0, 0, 0], "Zero fixed point NOT eliminated"
+    balanced = [r[i] - 1 for i in range(3)]
+    print(f"[PASS] Zero fixed point eliminated: S(0) = {r} (GF3) = {balanced} (balanced)")
+    print(f"       Old: S(0) = [0,0,0] → CHI_MAP[0] = [-1,-1,-1]")
+    print(f"       New: S(0) = {r}     → CHI_MAP[0] = {balanced}")
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 4: DP_max = 1/9
+# ═══════════════════════════════════════════════════════════════════════
+
+def verify_dp_max():
+    max_dp = 0
+    ddt_values = set()
+    for da in product(range(3), repeat=3):
+        if all(v == 0 for v in da): continue
+        dd_counts = Counter()
+        for x in product(range(3), repeat=3):
+            y = gf27_affine(list(x))
+            xp = [gf3_add(x[j], da[j]) for j in range(3)]
+            yp = gf27_affine(xp)
+            dd = tuple(gf3_sub(yp[j], y[j]) for j in range(3))
+            dd_counts[dd] += 1
+        local_max = max(dd_counts.values())
+        ddt_values.update(dd_counts.values())
+        if local_max > max_dp:
+            max_dp = local_max
+    print(f"[PASS] DP_max = {max_dp}/27 = 1/{27 // max_dp}")
+    print(f"       DDT values: {sorted(ddt_values)} (same as naked x^17: {{0, 2, 3}})")
+    assert max_dp == 3, f"DP_max changed: expected 3, got {max_dp}"
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 5: LP_max = 1/9 (Walsh spectrum)
+# ═══════════════════════════════════════════════════════════════════════
+
+def verify_lp_max():
+    omega = cmath.exp(2j * cmath.pi / 3)
+
+    # Trace: Tr(x) = x + x^3 + x^9 over GF(27) → GF(3)
+    def gf27_pow(x, n):
+        result = [1, 0, 0]  # multiplicative identity
+        base = list(x)
+        while n > 0:
+            if n % 2 == 1:
+                result = gf27_mul(result, base)
+            base = gf27_mul(base, base)
+            n //= 2
+        return result
+
+    def trace(x):
+        """Absolute trace from GF(27) to GF(3)."""
+        x3 = gf27_mul(gf27_mul(x, x), x)  # x^3
+        x9 = gf27_mul(gf27_mul(x3, x3), x3)  # x^9
+        return gf3_add(gf3_add(x[0], x3[0]), x9[0])
+
+    max_walsh = 0
+    walsh_magnitudes = set()
+
+    for a_idx in range(27):
+        for b_idx in range(1, 27):  # b != 0
+            a = gf27_from_idx(a_idx)
+            b = gf27_from_idx(b_idx)
+            W = 0j
+            for x_idx in range(27):
+                x = gf27_from_idx(x_idx)
+                sx = gf27_affine(x)
+                bsx = gf27_mul(b, sx)
+                ax = gf27_mul(a, x)
+                exp_arg = gf3_sub(trace(bsx), trace(ax))
+                W += omega ** exp_arg
+            mag = abs(W)
+            mag_rounded = round(mag)
+            walsh_magnitudes.add(mag_rounded)
+            if mag_rounded > max_walsh:
+                max_walsh = mag_rounded
+
+    lp_max_num = max_walsh ** 2
+    lp_max_den = 27 ** 2
+    print(f"[PASS] Walsh magnitudes: {sorted(walsh_magnitudes)}")
+    print(f"       L(S) = max|W(a,b)| = {max_walsh}")
+    print(f"       LP_max = ({max_walsh}/27)² = {lp_max_num}/{lp_max_den} = 1/{lp_max_den // lp_max_num}")
+    assert max_walsh == 9, f"L(S) changed: expected 9, got {max_walsh}"
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 6: Algebraic degree = 5
+# ═══════════════════════════════════════════════════════════════════════
+
+def verify_algebraic_degree():
+    d = 17
+    digits = []
+    n = d
+    while n > 0:
+        digits.append(n % 3)
+        n //= 3
+    weight = sum(digits)
+    base3 = ''.join(str(x) for x in reversed(digits))
+    print(f"[PASS] Exponent 17 = {base3}₃, 3-ary weight = {weight}")
+    print(f"       Algebraic degree = {weight} out of max 6 (unchanged by affine composition)")
+    print(f"       Degree saturation: after 2 rounds, {weight}×{weight} = {weight*weight} > 6 → saturated to max")
+    assert weight == 5
+
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION 7: Generate CHI_MAP for code use
+# ═══════════════════════════════════════════════════════════════════════
+
+def print_chi_map():
+    print("\n--- Composed CHI_MAP (balanced trits, for code verification) ---")
+    for idx in range(27):
+        x = gf27_from_idx(idx)
+        r = gf27_affine(x)
+        b = [r[i] - 1 for i in range(3)]
+        print(f"  CHI_MAP[{idx:2d}] = [{b[0]:+d}, {b[1]:+d}, {b[2]:+d}]")
+
+# ═══════════════════════════════════════════════════════════════════════
+# RUN ALL VERIFICATIONS
+# ═══════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    print("=" * 72)
+    print("Chi S-Box Affine Composition Verification")
+    print("S(x) = M · x^17 + c over GF(27) = GF(3)[t]/(t³ + 2t + 1)")
+    print(f"M = {AFFINE_M}")
+    print(f"c = {AFFINE_C}")
+    print("=" * 72)
+    print()
+
+    verify_matrix()
+    print()
+    verify_bijection()
+    print()
+    verify_zero_fixpoint()
+    print()
+    verify_dp_max()
+    print()
+    verify_lp_max()
+    print()
+    verify_algebraic_degree()
+    print()
+    print_chi_map()
+    print()
+    print("=" * 72)
+    print("ALL VERIFICATIONS PASSED")
+    print("=" * 72)

@@ -1,0 +1,278 @@
+# Chi S-Box Affine Composition — Code Changeset
+
+## CB-2026-001 Hardening — Applied Physics Division
+## Capomastro Holdings Ltd. — March 2026
+
+---
+
+This changeset adds the affine composition S(x) = M · x¹⁷ + c to the chi
+layer across all three sponge implementations. The change is compile-time
+only — the runtime hot path (table lookups) is unchanged.
+
+**Properties verified exhaustively (verify_affine_sbox.py):**
+- Bijection: 27/27 unique outputs ✓
+- DP_max = 1/9 (unchanged) ✓
+- LP_max = 1/9 (unchanged) ✓
+- Algebraic degree = 5 (unchanged) ✓
+- Zero fixed point eliminated ✓
+- Branch number = 3 (maximum for 3×3 over GF(3)) ✓
+
+**Affine constants:**
+```
+M = | 1  1  2 |    c = | 1 |
+    | 2  1  1 |        | 0 |     (circulant [1,1,2], det=1)
+    | 1  2  1 |        | 2 |
+```
+
+---
+
+## File 1: `src/kernel/src/crypto/sponge.rs`
+
+### Change 1A: Add `gf27_affine` after `gf27_pow17` (~line 132)
+
+**AFTER** the existing `gf27_pow17` function, **ADD:**
+
+```rust
+/// Affine-composed chi S-box: S(x) = M · x¹⁷ + c over GF(27).
+///
+/// M = circulant [1,1,2] over GF(3)³:
+///   | 1 1 2 |
+///   | 2 1 1 |    det(M) = 1, branch number 3 (max over GF(3))
+///   | 1 2 1 |
+///
+/// c = [1, 0, 2] — eliminates zero fixed point (0¹⁷ = 0 → M·0 + c = c ≠ 0).
+///
+/// Properties preserved: DP_max = 1/9, LP_max = 1/9, algebraic degree = 5.
+/// Properties gained: monomial structure broken → Gröbner basis hardened.
+/// Verified exhaustively: see docs/proofs/verify_affine_sbox.py.
+#[inline(always)]
+const fn gf27_affine(x: [u8; 3]) -> [u8; 3] {
+    let p = gf27_pow17(x);
+    // Row 0: 1·p₀ + 1·p₁ + 2·p₂ + 1  (mod 3)
+    // Row 1: 2·p₀ + 1·p₁ + 1·p₂ + 0  (mod 3)
+    // Row 2: 1·p₀ + 2·p₁ + 1·p₂ + 2  (mod 3)
+    [
+        gf3_add(gf3_add(p[0], gf3_add(p[1], gf3_mul(2, p[2]))), 1),
+        gf3_add(gf3_add(gf3_mul(2, p[0]), p[1]), p[2]),
+        gf3_add(gf3_add(p[0], gf3_add(gf3_mul(2, p[1]), p[2])), 2),
+    ]
+}
+```
+
+### Change 1B: Update CHI_MAP generation (~line 134)
+
+**REPLACE:**
+```rust
+        let [r0, r1, r2] = gf27_pow17([g0, g1, g2]);
+```
+
+**WITH:**
+```rust
+        let [r0, r1, r2] = gf27_affine([g0, g1, g2]);
+```
+
+### Change 1C: Update `test_chi_is_bijection` comment (~line 508)
+
+No code change needed — the test checks bijectivity dynamically and will pass.
+
+### Change 1D: Update `test_chi_v2_differs_from_v1` (optional)
+
+No code change needed — v2 (with chi) already differs from v1 (without chi).
+
+### Change 1E: Update module docstring (~line 26)
+
+**REPLACE:**
+```rust
+//!   - **v3**: Chi layer χ(x) = x¹⁷ over GF(27) added before theta
+```
+
+**WITH:**
+```rust
+//!   - **v3**: Chi layer S(x) = M·x¹⁷+c over GF(27) (affine-composed) before theta
+```
+
+### Change 1F: Update round function docstring (~line 29)
+
+**REPLACE:**
+```rust
+//!   1. Chi — χ(x) = x¹⁷ over GF(27) on each 3-trit block (243 blocks)
+```
+
+**WITH:**
+```rust
+//!   1. Chi — S(x) = M·x¹⁷+c over GF(27), affine-composed (243 blocks)
+```
+
+---
+
+## File 2: `ternary-math/src/tlsponge385.rs`
+
+### Change 2A: Add `gf27_affine` after `gf27_pow17` (~line 87)
+
+**AFTER** the existing `gf27_pow17` function, **ADD** the same function:
+
+```rust
+/// Affine-composed chi S-box: S(x) = M · x¹⁷ + c over GF(27).
+/// M = circulant [1,1,2], det=1, bn=3 (max over GF(3)).
+/// c = [1,0,2] — eliminates zero fixed point.
+/// DP_max = LP_max = 1/9 (preserved). Algebraic degree = 5 (preserved).
+#[inline(always)]
+const fn gf27_affine(x: [u8; 3]) -> [u8; 3] {
+    let p = gf27_pow17(x);
+    [
+        gf3_add(gf3_add(p[0], gf3_add(p[1], gf3_mul(2, p[2]))), 1),
+        gf3_add(gf3_add(gf3_mul(2, p[0]), p[1]), p[2]),
+        gf3_add(gf3_add(p[0], gf3_add(gf3_mul(2, p[1]), p[2])), 2),
+    ]
+}
+```
+
+### Change 2B: Update CHI_MAP generation (~line 92)
+
+**REPLACE:**
+```rust
+        let [r0, r1, r2] = gf27_pow17([(idx % 3) as u8, ((idx / 3) % 3) as u8, (idx / 9) as u8]);
+```
+
+**WITH:**
+```rust
+        let [r0, r1, r2] = gf27_affine([(idx % 3) as u8, ((idx / 3) % 3) as u8, (idx / 9) as u8]);
+```
+
+### Change 2C: Update `chi_zero_fixed` test
+
+**REPLACE:**
+```rust
+    #[test] fn chi_zero_fixed() {
+        // GF(27) zero = (0,0,0) unsigned = index 0 = balanced (-1,-1,-1).
+        // 0^17 = 0 in any field, so CHI_MAP[0] must map to itself.
+        assert_eq!(CHI_MAP[0], [-1,-1,-1]);
+    }
+```
+
+**WITH:**
+```rust
+    #[test] fn chi_zero_fixed() {
+        // After affine composition S(x) = M·x^17+c, zero maps to c = [1,0,2]
+        // in GF(3), which is [0,-1,1] in balanced trits.
+        // The zero fixed point is eliminated — a security improvement.
+        assert_eq!(CHI_MAP[0], [0,-1,1]);
+    }
+```
+
+### Change 2D: Update file docstring (~line 10)
+
+**REPLACE:**
+```rust
+//   1. Chi  — χ(x) = x¹⁷ over GF(27), compile-time 27-entry table
+```
+
+**WITH:**
+```rust
+//   1. Chi  — S(x) = M·x¹⁷+c over GF(27), affine-composed, compile-time table
+```
+
+---
+
+## File 3: `server/crypto/sponge-hash.ts`
+
+### Change 3A: Add affine constants and function after `gf27Pow17` (~line 195)
+
+**AFTER** the existing `gf27Pow17` function, **ADD:**
+
+```typescript
+/**
+ * Affine-composed chi S-box: S(x) = M · x^17 + c over GF(27).
+ * M = circulant [1,1,2] over GF(3)³, det=1, bn=3 (max over GF(3)).
+ * c = [1, 0, 2] — eliminates zero fixed point.
+ * DP_max = LP_max = 1/9 (preserved). Algebraic degree = 5 (preserved).
+ */
+function gf27Affine(a0: number, a1: number, a2: number): [number, number, number] {
+  const [p0, p1, p2] = gf27Pow17(a0, a1, a2);
+  // M · p + c where M = [[1,1,2],[2,1,1],[1,2,1]], c = [1,0,2]
+  const r0 = GF3_ADD[GF3_ADD[p0 * 3 + GF3_ADD[p1 * 3 + GF3_MUL[2 * 3 + p2]]] * 3 + 1];
+  const r1 = GF3_ADD[GF3_ADD[GF3_MUL[2 * 3 + p0] * 3 + p1] * 3 + p2];
+  const r2 = GF3_ADD[GF3_ADD[p0 * 3 + GF3_ADD[GF3_MUL[2 * 3 + p1] * 3 + p2]] * 3 + 2];
+  return [r0, r1, r2];
+}
+```
+
+### Change 3B: Update CHI_MAP generation (~line 207)
+
+**REPLACE:**
+```typescript
+    const [r0, r1, r2] = gf27Pow17(g0, g1, g2);
+```
+
+**WITH:**
+```typescript
+    const [r0, r1, r2] = gf27Affine(g0, g1, g2);
+```
+
+### Change 3C: Update file docstring (~line 18)
+
+**REPLACE:**
+```typescript
+ *   Chi:      χ(x) = x¹⁷ over GF(27) = GF(3)[t]/(t³ + 2t + 1)  [v2]
+```
+
+**WITH:**
+```typescript
+ *   Chi:      S(x) = M·x¹⁷+c over GF(27), affine-composed  [v2]
+```
+
+---
+
+## What Does NOT Change
+
+- **SIMD paths** (chi_layer_avx2, chi_layer_neon): These are pure table consumers.
+  They index into CHI_MAP / CHI_MAP_T0/T1/T2, which are derived from CHI_MAP.
+  Updated table → updated SIMD output automatically. Zero code changes.
+
+- **Theta, Pi, Round Constants**: Completely unaffected.
+
+- **sponge_permutation_v1**: The backward-compatible no-chi path. Untouched.
+
+- **server/routes/tdns.ts**: Uses TIS-27/TL-Sponge-43 with NO chi layer. Untouched.
+
+- **Sponge API** (absorb, squeeze, hash, derive_key): All unchanged.
+  They call sponge_permutation, which calls chi_layer, which uses CHI_MAP.
+  The change propagates through the existing call chain.
+
+---
+
+## Test Impact
+
+Tests that will **pass unchanged:**
+- `test_chi_is_bijection` / `chi_bijection` — checks dynamically
+- `test_chi_v2_differs_from_v1` — still differs
+- `test_balanced_wrap_*` — unrelated to chi
+- `test_neighbor_distances_coprime` — unrelated
+- `test_diffusion_full_period` / `perm_full_period` — unrelated
+- `simd_matches_scalar` — compares SIMD vs scalar (same table)
+- `test_avalanche` — may produce different numbers, but should still pass
+- All sponge API tests (deterministic, incremental, reset, etc.)
+
+Tests that need **updated expected values:**
+- `chi_zero_fixed` — change assertion from [-1,-1,-1] to [0,-1,1]
+- Any test comparing sponge output against hardcoded hex strings
+
+Tests that need **new additions:**
+- `test_affine_preserves_bijection` (optional — existing bijection test covers this)
+- `test_affine_eliminates_zero_fixpoint` (optional — chi_zero_fixed covers this)
+
+---
+
+## Verification
+
+Before committing, run:
+```bash
+# 1. Exhaustive S-box verification
+python3 docs/proofs/verify_affine_sbox.py
+
+# 2. Rust tests
+cargo test --lib
+
+# 3. Benchmark comparison (should be identical)
+cargo bench -- chi
+```

@@ -21,10 +21,10 @@
 //! Sponge version history:
 //!   - **v1**: 3-neighbor theta, 27 rounds (deprecated)
 //!   - **v2**: 7-neighbor theta (±1,±7,±13), 9 rounds, no chi
-//!   - **v3**: Chi layer χ(x) = x¹⁷ over GF(27) added before theta
+//!   - **v3**: Chi layer S(x) = M·x¹⁷+c over GF(27), affine-composed, before theta
 //!
 //! Round function (v3):
-//!   1. Chi — χ(x) = x¹⁷ over GF(27) on each 3-trit block (243 blocks)
+//!   1. Chi — S(x) = M·x¹⁷+c over GF(27), affine-composed (243 blocks)
 //!   2. Theta — 7-neighbor extended substitution (±1, ±7, ±13)
 //!   3. Pi — stride-376 fixed permutation
 //!   4. Round constants
@@ -131,6 +131,31 @@ const fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
     gf27_mul(x16, x)
 }
 
+/// Affine-composed chi S-box: S(x) = M · x¹⁷ + c over GF(27).
+///
+/// M = circulant [1,1,2] over GF(3)³:
+///   | 1 1 2 |
+///   | 2 1 1 |    det(M) = 1, branch number 3 (max over GF(3))
+///   | 1 2 1 |
+///
+/// c = [1, 0, 2] — eliminates zero fixed point (0¹⁷ = 0 → M·0 + c = c ≠ 0).
+///
+/// Properties preserved: DP_max = 1/9, LP_max = 1/9, algebraic degree = 5.
+/// Properties gained: monomial structure broken → Gröbner basis hardened.
+/// Verified exhaustively: see docs/proofs/verify_affine_sbox.py.
+#[inline(always)]
+const fn gf27_affine(x: [u8; 3]) -> [u8; 3] {
+    let p = gf27_pow17(x);
+    // Row 0: 1·p₀ + 1·p₁ + 2·p₂ + 1  (mod 3)
+    // Row 1: 2·p₀ + 1·p₁ + 1·p₂ + 0  (mod 3)
+    // Row 2: 1·p₀ + 2·p₁ + 1·p₂ + 2  (mod 3)
+    [
+        gf3_add(gf3_add(p[0], gf3_add(p[1], gf3_mul(2, p[2]))), 1),
+        gf3_add(gf3_add(gf3_mul(2, p[0]), p[1]), p[2]),
+        gf3_add(gf3_add(p[0], gf3_add(gf3_mul(2, p[1]), p[2])), 2),
+    ]
+}
+
 static CHI_MAP: [[i8; 3]; 27] = {
     let mut map = [[0i8; 3]; 27];
     let mut idx = 0usize;
@@ -138,7 +163,7 @@ static CHI_MAP: [[i8; 3]; 27] = {
         let g0 = (idx % 3) as u8;
         let g1 = ((idx / 3) % 3) as u8;
         let g2 = (idx / 9) as u8;
-        let [r0, r1, r2] = gf27_pow17([g0, g1, g2]);
+        let [r0, r1, r2] = gf27_affine([g0, g1, g2]);
         map[idx] = [r0 as i8 - 1, r1 as i8 - 1, r2 as i8 - 1];
         idx += 1;
     }
@@ -399,44 +424,36 @@ unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
         ext[13..13 + SPONGE_STATE_SIZE].copy_from_slice(state);
         ext[13 + SPONGE_STATE_SIZE..].copy_from_slice(&state[..13]);
 
-        // SIMD 7-neighbor substitution: 32 trits per iteration
-        // For position i in state, ext index = i + 13
         let mut i = 0;
         while i + 32 <= SPONGE_STATE_SIZE {
-            let ei = i + 13; // offset into ext
+            let ei = i + 13;
 
-            // Left group: s[i-13] + s[i-7] + s[i-1]
             let l13 = _mm256_loadu_si256(ext.as_ptr().add(ei - 13) as *const __m256i);
             let l7  = _mm256_loadu_si256(ext.as_ptr().add(ei - 7)  as *const __m256i);
             let l1  = _mm256_loadu_si256(ext.as_ptr().add(ei - 1)  as *const __m256i);
-            let lsum = _mm256_add_epi8(_mm256_add_epi8(l13, l7), l1); // range [-3, +3]
+            let lsum = _mm256_add_epi8(_mm256_add_epi8(l13, l7), l1);
 
-            // balanced_wrap left group
             let lgt = _mm256_cmpgt_epi8(lsum, v_hi);
             let llt = _mm256_cmpgt_epi8(v_lo, lsum);
             let lwrap = _mm256_blendv_epi8(lsum, _mm256_sub_epi8(lsum, v_three), lgt);
             let lwrap = _mm256_blendv_epi8(lwrap, _mm256_add_epi8(lsum, v_three), llt);
 
-            // Right group: s[i+1] + s[i+7] + s[i+13]
             let r1  = _mm256_loadu_si256(ext.as_ptr().add(ei + 1)  as *const __m256i);
             let r7  = _mm256_loadu_si256(ext.as_ptr().add(ei + 7)  as *const __m256i);
             let r13 = _mm256_loadu_si256(ext.as_ptr().add(ei + 13) as *const __m256i);
             let rsum = _mm256_add_epi8(_mm256_add_epi8(r1, r7), r13);
 
-            // balanced_wrap right group
             let rgt = _mm256_cmpgt_epi8(rsum, v_hi);
             let rlt = _mm256_cmpgt_epi8(v_lo, rsum);
             let rwrap = _mm256_blendv_epi8(rsum, _mm256_sub_epi8(rsum, v_three), rgt);
             let rwrap = _mm256_blendv_epi8(rwrap, _mm256_add_epi8(rsum, v_three), rlt);
 
-            // Combine: left_wrap + center + right_wrap + 1
             let center = _mm256_loadu_si256(ext.as_ptr().add(ei) as *const __m256i);
             let total = _mm256_add_epi8(
                 _mm256_add_epi8(_mm256_add_epi8(lwrap, center), rwrap),
                 v_one,
             );
 
-            // balanced_wrap final
             let fgt = _mm256_cmpgt_epi8(total, v_hi);
             let flt = _mm256_cmpgt_epi8(v_lo, total);
             let result = _mm256_blendv_epi8(total, _mm256_sub_epi8(total, v_three), fgt);
@@ -446,7 +463,6 @@ unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
             i += 32;
         }
 
-        // Scalar tail (729 % 32 = 25 remaining)
         while i < SPONGE_STATE_SIZE {
             let ei = i + 13;
             let left  = balanced_wrap(ext[ei-13] + ext[ei-7] + ext[ei-1]);
@@ -455,12 +471,10 @@ unsafe fn sponge_permutation_v2_avx2(state: &mut [i8; SPONGE_STATE_SIZE]) {
             i += 1;
         }
 
-        // Diffusion: π(i) = (376·i + 1) mod 729
         for i in 0..SPONGE_STATE_SIZE {
             state[PERM[i] as usize] = buf[i];
         }
 
-        // Round constant injection
         let rc = &RC_TABLE[round];
         for lane in 0..SPONGE_LANES {
             let idx = lane * SPONGE_LANES;
@@ -999,15 +1013,23 @@ mod tests {
         for a0 in 0u8..3 {
             for a1 in 0u8..3 {
                 for a2 in 0u8..3 {
-                    let result = gf27_pow17([a0, a1, a2]);
+                    let result = gf27_affine([a0, a1, a2]);
                     outputs.push(result);
                 }
             }
         }
-        assert_eq!(gf27_pow17([0, 0, 0]), [0, 0, 0], "0 must map to 0");
         outputs.sort();
         outputs.dedup();
         assert_eq!(outputs.len(), 27, "chi must be a bijection over all 27 GF(27) elements");
+    }
+
+    #[test]
+    fn test_chi_zero_not_fixed() {
+        // After affine composition S(x) = M·x^17+c, zero maps to c = [1,0,2]
+        // in GF(3), which is [0,-1,1] in balanced trits.
+        // The zero fixed point is eliminated — a security improvement.
+        assert_eq!(CHI_MAP[0], [0, -1, 1]);
+        assert_ne!(CHI_MAP[0], [-1, -1, -1], "Zero fixed point must be eliminated");
     }
 
     #[test]
@@ -1023,7 +1045,6 @@ mod tests {
 
     #[test]
     fn test_balanced_wrap_group_range() {
-        // 3 balanced trits sum to [-3, +3]. All must wrap to {-1, 0, +1}.
         for s in -3i8..=3 {
             let r = balanced_wrap(s);
             assert!(r >= -1 && r <= 1, "balanced_wrap({}) = {} out of range", s, r);
@@ -1032,7 +1053,6 @@ mod tests {
 
     #[test]
     fn test_balanced_wrap_combine_range() {
-        // Final combine: left_wrap + center + right_wrap + 1 → [-2, +4]
         for s in -2i8..=4 {
             let r = balanced_wrap(s);
             assert!(r >= -1 && r <= 1, "balanced_wrap({}) = {} out of range", s, r);

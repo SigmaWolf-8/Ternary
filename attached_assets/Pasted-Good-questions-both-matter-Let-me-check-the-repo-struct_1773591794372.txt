@@ -1,0 +1,63 @@
+Good questions — both matter. Let me check the repo structure to give you a precise answer on the code side.Good — now I can give you a precise answer on both.
+
+---
+
+## Performance Impact
+
+The short answer: **negligible**. Here's why.
+
+The current chi step computes x¹⁷ over GF(27), which requires multiple field multiplications in GF(3³) — that's the expensive part of each round. The proposed affine layer adds a 3×3 matrix-vector multiply over GF(3) plus a constant addition. That's 9 GF(3) multiplications (which are single-digit mod-3 ops), 9 GF(3) additions, and 3 more additions for the constant vector. We're talking about ~21 trivial integer operations per S-box invocation, on top of the power map that's already doing the heavy lifting.
+
+To put it in context against your current benchmarks:
+
+The existing TLSponge-385 throughput is ~10 MB/s with AVX2/NEON SIMD and bulk squeeze. The affine map is a linear operation — it vectorizes perfectly under SIMD. A 3×3 matrix multiply over {0,1,2} values fits entirely in registers. On AVX2, you could process multiple S-box evaluations in parallel within a single vector instruction. On NEON (your ARM64 path at ~3.2 µs per sponge hash), the same applies.
+
+Rough estimate: the affine layer adds somewhere between 2–5% overhead per round. Across 24 rounds, you might see throughput drop from ~10 MB/s to ~9.5–9.8 MB/s. For TIS-27 (the smaller sponge at 191 ns/hash, 2.52 GB/s), the impact would be proportionally similar — a few percent at most.
+
+The power map x¹⁷ will still dominate the round function cost. The affine layer is a rounding error by comparison.
+
+---
+
+## Files to Review
+
+Based on the repo structure, here's the hit list organized by priority:
+
+**Primary — Where the S-box lives and must change:**
+
+| File | Location | Why |
+|---|---|---|
+| `sponge.rs` (TIS-27) | `ternary-math/src/sponge.rs` | The base sponge module — chi function defined here. This is where x¹⁷ is computed and where the affine composition gets added. |
+| TLSponge-385 implementation | `src/kernel/src/crypto/` (likely `sponge.rs` or `tlsponge385.rs` within the 39-file crypto subsystem) | The full-size sponge used by T-AE-MAC. Same chi modification. |
+| `identity.rs` | `services/tdns-v2/src/identity.rs` | Rust TDNS identity sponge — mirrors the ternary-math sponge. If TIS-27's chi is shared, this inherits the change. |
+
+**Secondary — TypeScript mirrors and bridges:**
+
+| File | Location | Why |
+|---|---|---|
+| TDNS routes | `server/routes/tdns.ts` (lines 39–97) | TypeScript implementation of TIS-27 sponge ops. The chi function here needs the same affine composition to stay in sync with Rust. |
+| Phase encryption | `server/salvi-core/phase-encryption.ts` | Uses sponge primitives — verify it picks up the updated chi. |
+
+**Tertiary — Tests, benchmarks, and verification:**
+
+| File | Location | Why |
+|---|---|---|
+| Bare-metal tests | `src/kernel/bare-metal/` | 45+ self-tests including GF(3) arithmetic. Need new test vectors for the composed S-box. |
+| Criterion benchmarks | Benchmark suite (395 LOC) | Re-run to measure actual performance delta. This gives you the hard number instead of my estimate. |
+| Fuzz targets | `fuzz_gateway`, `fuzz_trit_ops`, `fuzz_tryte_ops` (330 LOC) | Ensure the composed S-box doesn't introduce edge cases. |
+| Kani/MIRI harnesses | `src/kernel/bare-metal/` (38 proof harnesses) | The formal verification pipeline should re-verify the chi layer properties. |
+| Integration tests | `ternary-math/` (210 LOC) | Sponge integration tests need updated expected values. |
+
+**New files to create:**
+
+| File | Purpose |
+|---|---|
+| Affine constants module | The matrix M, constant vector c, and their derivation. Should live alongside the sponge module so the S-box composition is self-contained. |
+| TM-2026-023 | Algebraic degree saturation verification report — the proof artifact showing degree-6 saturation by round 2. |
+
+---
+
+## Recommended Approach
+
+The cleanest path: define M and c as constants in the sponge module (or a dedicated `chi_affine.rs`), compose the S-box in one place, and have both TIS-27 and TLSponge-385 call the same composed function. That way the change is atomic — one function, one set of constants, propagated everywhere through the existing module structure.
+
+Want me to pull the actual source files from the repo so we can look at the current chi implementation and plan the exact modifications?

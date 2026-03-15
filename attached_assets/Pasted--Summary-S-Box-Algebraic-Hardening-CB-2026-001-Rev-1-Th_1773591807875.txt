@@ -1,0 +1,25 @@
+## Summary: S-Box Algebraic Hardening — CB-2026-001 Rev. 1
+
+### The Stated Issue
+
+An external review of the T-AE-MAC challenge brief identified that the chi (χ) S-box — defined as a pure monomial power map χ(x) = x¹⁷ over GF(27) — could be vulnerable to algebraic attacks. The concern is that monomial S-boxes produce clean, uniform polynomial equations over the base field, which Gröbner basis solvers and XL-style linearization algorithms can exploit more efficiently than systems with messier algebraic structure. In short: a naked power map, no matter how good its differential and nonlinear properties, gives algebraic attackers a structurally simpler system of equations to work with than a composed S-box would.
+
+This is a well-known attack class. AES addressed the same concern by composing its power map (x²⁵⁴ over GF(2⁸)) with a GF(2)-affine transformation, specifically to break the monomial structure.
+
+### The Reviewer's Error (Rebuttal)
+
+The reviewer claimed the algebraic degree of x¹⁷ over GF(27) is **2**, citing the reasoning "since 17 ≡ 2 mod 26." This is incorrect on multiple levels. The algebraic degree of a power map x^d over GF(3ⁿ) is determined by the **3-ary weight** of d — the sum of its base-3 digits — not by reduction modulo the multiplicative group order.
+
+17 in base 3 = 122₃, giving a 3-ary weight of 1 + 2 + 2 = **5**. The maximum possible algebraic degree for any function over GF(3)³ is 6 (since each of the 3 variables can appear with degree at most p−1 = 2, and 2 × 3 = 6). So χ₀ achieves degree **5 out of 6** — 83% of the theoretical maximum, not the dangerously low degree 2 the reviewer claimed. Furthermore, x¹⁷ is tied with x²³ (its multiplicative inverse) for the highest achievable 3-ary weight among valid permutation exponents over GF(27), confirming the original design choice was already optimal for this field size.
+
+The reviewer correctly identified algebraic attacks as the right class to investigate but fundamentally miscalculated the property that determines feasibility, arriving at a conclusion far more alarming than reality warrants.
+
+### The Proposed Solution
+
+Despite the reviewer's error, the underlying concern — that pure monomials yield cleaner equation systems than composed functions — remains structurally valid regardless of algebraic degree. The hardening adopted in Rev. 1 combines two measures:
+
+**Affine Composition (Design Change):** The S-box is redefined from a naked power map to a composed function S(x) = A(x¹⁷), where A(x) = M·x + c is a GF(3)-affine transformation. M is a fixed 3×3 ternary matrix with branch number 4 over GF(3)³, and c is a per-position constant. This preserves all existing differential properties (DP_max remains 1/9) and preserves the algebraic degree (still 5), but shatters the monomial structure in any equation system representation. Every S-box invocation now introduces additional cross-coupling linear terms that substantially increase the complexity of Gröbner basis computation. This directly mirrors the AES design philosophy adapted to GF(3³).
+
+**Algebraic Degree Saturation Verification (Proof Artifact):** A new technical monograph (TM-2026-023) documents that after just two rounds of the full TLSponge-385 permutation, the algebraic degree of any output coordinate saturates to the maximum value of 6 over GF(3). This means any algebraic attack against the full 24-round permutation faces an equation system at maximum nonlinear complexity, rendering linearization and Gröbner basis approaches computationally infeasible. This verification is included in the challenge materials so the challenger knows the saturation property has been analyzed and can independently verify it.
+
+The net effect: the valid kernel of the reviewer's concern is addressed (monomial structure eliminated, saturation proven), while the incorrect severity estimate (degree 2) is corrected in the record.

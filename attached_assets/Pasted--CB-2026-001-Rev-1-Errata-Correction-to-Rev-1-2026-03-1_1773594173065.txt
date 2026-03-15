@@ -1,0 +1,46 @@
+# CB-2026-001 Rev. 1 — Errata
+
+**Correction to Rev. 1 (2026-03-15)**
+
+---
+
+## Branch Number Correction
+
+Rev. 1 of the challenge brief stated:
+
+> "an affine transformation A(x) = M·x + c over GF(27), where M is a fixed 3×3 ternary matrix with **branch number 4**"
+
+This is incorrect. The maximum branch number achievable by any 3×3 matrix over GF(3) is **3**, not 4. True MDS (branch number k+1 = 4) requires a field of order q ≥ k+1 = 4, which GF(3) does not provide.
+
+### Corrected text (three locations):
+
+**§2, Item 4 — Replace:**
+> M is a fixed 3×3 ternary matrix with branch number 4
+
+**With:**
+> M is a circulant 3×3 ternary matrix with branch number 3 (maximum achievable over GF(3))
+
+**§5.1, Chi description — Replace:**
+> The affine map M is chosen to maximize diffusion within the S‑box (branch number 4 over GF(3)³) and to avoid any linear invariants.
+
+**With:**
+> The affine map M is a circulant [1,1,2] matrix achieving branch number 3 (the maximum for any 3×3 matrix over GF(3)) and determinant 1.
+
+**Appendix A, checklist — Replace:**
+> Affine transformation M and c | 3×3 ternary matrix and constant vector
+
+**With:**
+> Affine transformation M and c | Circulant [1,1,2] matrix (bn=3, det=1) and constant vector [1,0,2]
+
+---
+
+### Why this doesn't weaken the construction
+
+The affine layer's purpose is to break monomial structure in the algebraic equation system, not to provide diffusion. Diffusion comes from the theta layer (branch number B(M_θ) = 8). The affine map with branch number 3 still ensures that:
+
+1. Every non-trivial GF(3)³ input activates at least 3 output positions (out of 6 total input+output)
+2. The matrix is invertible (det = 1), preserving bijectivity
+3. The circulant structure provides symmetric mixing across all three trit components
+4. DP_max and LP_max are preserved at 1/9 (proven, verified exhaustively)
+
+The branch number of the affine map is a local mixing property within a single 3-trit S-box. The global security properties (wide-trail bounds, active S-box counts, trail probabilities) are determined by the theta layer's branch number of 8, which is unchanged.

@@ -1,0 +1,23 @@
+Six items. Let me disposition each before touching the file:
+
+**Critical 1 — TIS-27 rounds: 27 → 4.** Fix. Clear factual error.
+
+**Critical 2 — TLSponge-385 state: 385-trit → 729-trit (rate=243, capacity=486, 9 rounds), 385 = security level not state width.** Fix. Clear factual error.
+
+**Moderate 3 — PT26-DSA naming.** PT26-DSA is the correct current name in the framework — it is the post-quantum signature scheme built on TLSponge-385 as its security assumption. TL-DSA is a separate primitive (the lattice signature). These are distinct. No change needed here — the reviewer conflated them.
+
+**Moderate 4 — TIS-27 as "reduced-round mode" framing.** Fix. With a 54-trit state vs 729-trit, calling it a "reduced-round mode" understates the structural difference. Better framing: they share the theta permutation and stride=13 design lineage but are architecturally distinct constructions.
+
+**Moderate 5 — TIS-27 43-bit security level omitted.** Fix. Add it to the definition with the wide-trail proof attribution.
+
+**Minor 6 — "Torsion" vs "Torus" heading.** Fix. `torus.rs` is the file, torus topology is the correct graph-theory term. "Torsion" is a different mathematical object entirely.
+
+That is five fixes. Applying all now.Five fixes applied:
+
+**TLSponge-385** — State corrected to 729-trit (rate=243, capacity=486), 9 rounds. "385" is now explicitly identified as the security level in bits, not the state width.
+
+**TIS-27** — Round count corrected from 27 to **4**. "Reduced-round mode" framing removed and replaced with an accurate statement: shared design lineage (theta permutation, stride=13) but architecturally distinct — 54-trit state vs 729-trit (13.5× smaller). **43-bit security level** added with the wide-trail proof attribution, and a clear statement that this level is appropriate for checksums but not high-security key derivation.
+
+**Torsion → Torus** — Fixed in both the Layer 1 section heading and the summary table row. "Torsion" is a different mathematical object; the correct term matching the file name and graph-theory usage is torus.
+
+**PT26-DSA** — No change. The reviewer conflated PT26-DSA with TL-DSA; they are distinct primitives and the document's usage is correct.

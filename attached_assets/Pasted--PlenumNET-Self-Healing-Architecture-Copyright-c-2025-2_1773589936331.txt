@@ -1,0 +1,183 @@
+# PlenumNET Self-Healing Architecture
+
+Copyright (c) 2025–2026 Capomastro Holdings Ltd. — Applied Physics Division  
+Author: RSalvi@Salvigroup.com | Verified: March 2026
+
+---
+
+## Definitions
+
+**Trit** — The base-3 equivalent of a bit. A single ternary digit with three possible values. PlenumNET uses three representations: Rep A {−1, 0, +1} for signed arithmetic; Rep B {0, 1, 2} for internal computation; Rep C {1, 2, 3} for all wire formats and external addresses. Zero is never a valid trit value in Rep C — its presence on the wire is proof of forgery.
+
+**GF(3)** — Galois Field of order 3. The finite arithmetic system with exactly three elements {0, 1, 2} where all addition and multiplication is performed modulo 3. Every routing decision, checksum, and sponge operation in PlenumNET stays within GF(3) — no binary arithmetic crosses the boundary.
+
+**GF(27)** — Galois Field of order 27, the degree-3 extension field GF(3³). Contains 27 elements and is constructed from GF(3) as its prime subfield. GF(27) governs the 27-dimensional TDNS address space — each address dimension corresponds to one element of the field. It is also the algebraic setting for the Z₃ⁿ → Z₂₇ⁿ isometry proven in TM-2026-008, which establishes a scale factor of 9 between the base ternary and the extended address space. GF(3) and GF(27) are distinct fields with different multiplicative structure; GF(3) is the element-level arithmetic, GF(27) is the address-space algebra.
+
+**Hamming Distance** — The number of trit positions at which two addresses differ. In a hypercube, Hamming distance equals the minimum number of hops required to travel from one node to another. A distance of 0 means same node; a distance of 13 means every trit differs (worst case in a 13D cube).
+
+**Hypercube** — A network topology where each node is assigned a coordinate in an n-dimensional space, and two nodes are neighbors if and only if their coordinates differ in exactly one dimension. PlenumNET uses a 13-dimensional ternary hypercube: 13 dimensions, each with 3 possible values, giving 3¹³ = 1,594,323 node addresses.
+
+***d!*** (d-factorial) — The number of shortest paths between two nodes at Hamming distance *d* in a hypercube. At distance 1: 1 path. At distance 2: 2 paths. At distance 13: 13! = 6,227,020,800 paths. This is the mathematical guarantee of path redundancy — it requires no configuration, it is a property of the geometry.
+
+**Rep C** — Bijective ternary encoding using digits {1, 2, 3}. All TDNS addresses, wire packets, and cryptographic outputs use Rep C. Zero is excluded by definition, making its presence a structural forgery indicator.
+
+**TLSponge-385** — The Salvi Framework's post-quantum sponge hash function. Operates on a 729-trit state (rate = 243, capacity = 486), 9 rounds, stride = 13, entirely within GF(3). The "385" designates the post-quantum security level in bits — not the state width. Used for tunnel key derivation in the Cube Overlay Network and for master secret encryption at rest. The sole security assumption underlying PT26-DSA. TIS-27 shares the same theta permutation and stride=13 design lineage but is a structurally distinct construction (see below).
+
+**TIS-27** — Ternary Identity Sponge, 27-dimension variant. A sponge hash with a 54-trit state (rate = 27, capacity = 27), **4 rounds**, and stride = 13. The "27" in TIS-27 refers to the 27-trit rate and 27-dimension address context — not the round count. TIS-27 shares the extended theta permutation and stride=13 design lineage with TLSponge-385 but is an architecturally distinct construction: its state is 54 trits vs TLSponge-385's 729 trits (13.5× smaller), and its 4-round structure is proven secure for integrity verification by wide-trail analysis at **43-bit cryptographic security**. This security level is appropriate for packet-level checksums and TDNS address integrity checks — it is not intended as a general-purpose hash for high-security key derivation, for which TLSponge-385 is used. Operates entirely in GF(3) — no binary hash primitives.
+
+**TL-KEM** — Ternary Lattice Key Encapsulation Mechanism. The post-quantum key exchange primitive used to establish shared secrets between tunnel endpoints. Security levels: 512 / 768 / 1024 — these numbers are the lattice dimension parameter; higher values increase the size of the underlying lattice problem, raising the cost of a quantum attack at the expense of larger key and ciphertext sizes.
+
+**TL-DSA** — Ternary Lattice Digital Signature Algorithm. The post-quantum signature scheme used throughout PlenumNET for node identity, heartbeat authentication, CRS registration, and tunnel establishment. Security levels: 44 / 65 / 87 — these numbers are the lattice dimension parameter; TL-DSA-44 is the lightest (smallest signatures, fastest verification), TL-DSA-87 provides the highest security margin (NIST PQC Level 5, 192-bit quantum security) at the cost of larger signatures and slower signing. Ed25519 and all classical signature schemes are explicitly excluded from the stack.
+
+**HPTP** — High-Precision Timing Protocol. PlenumNET's femtosecond-precision (10⁻¹⁵ second) clock synchronization protocol. Any node whose address has trits 15–16 both equal to 3 is HPTP-mandatory: all packets to and from that node must carry a valid femtosecond timestamp or be rejected at the wire.
+
+**Arc** — A value derived from the Plenum Square ternary circle geometry (TM-2026-015). The arc equation `arc² − 832·arc + 118,300 = 0` has two roots: 182 (the smaller, used as the master secret rotation period) and 650. The arc is not an arbitrary constant — it is bound by the same ternary circle that defines π = 14, the 364° full circle, and the 13×28 calendar structure. One arc-radian equals π = 14 days (exact integer, ternary system); this is the tunnel key exchange period in the Cube Overlay Network — `derive_all_keys()` is triggered every 14 days. The two schedules are geometrically related but distinct: tunnel keys rotate at the π-day cadence, master secrets rotate at the 182-day arc-root cadence.
+
+**Master Secret** — The single 48-byte (384-bit) root value from which every cryptographic identity, key, and HMAC in a PlenumNET node is derived. Encrypted at rest using TLSponge-385 keystream XOR with a TLSponge-385 authentication tag — no AES dependency, no external crypto crate. If a node restarts, the entire cryptographic state is regenerated from this one value plus the node's geometric address.
+
+**Dual-Accept Window** — During a key rotation, a period where both the outgoing (old) key and the incoming (new) key are simultaneously valid for verification. Prevents any service interruption during the transition.
+
+**Anti-Replay State** — The record of the highest-seen sequence number for each neighbor's heartbeat stream. Used to reject heartbeat packets that have already been processed, preventing an attacker from replaying captured heartbeats to fake liveness.
+
+**Epoch (tunnel)** — An integer counter incremented each time tunnel keys are rotated via `derive_all_keys()`. All tunnel keys are derived as a function of both geometric position and the current epoch, so rotating the epoch invalidates all prior link keys simultaneously.
+
+**Dimension Density** — A per-dimension count of how many registered nodes currently have each trit value in a given address dimension. Used by the Dimension Tracker to detect topology imbalances across the 27 classification dimensions.
+
+**SubCube** — A subset of the hypercube defined by fixing some trit positions and wildcarding others. Used for multicast: a packet addressed to a SubCube mask is delivered to all nodes whose addresses match the fixed trits.
+
+**TTL (Time-to-Live)** — In the CRS redirect context, the number of seconds a forwarding redirect (`old_addr` → `new_addr`) remains valid before expiring and being removed.
+
+**Sliding Window (heartbeat)** — A tolerance range applied to sequence counters on restart. On reboot, the persisted sequence counter for each neighbor is adjusted by ±10 to account for heartbeats that were in-flight when the crash occurred, preventing false replay rejections of legitimate packets.
+
+---
+
+## Introduction
+
+PlenumNET's self-healing is not a bolt-on recovery layer but an emergent property of its geometric foundations. The network is built on a 13-dimensional ternary hypercube (3¹³ addresses), where every node's address determines its position and forwarding is a simple geometric calculation. Because the topology is a perfect symmetric structure, **redundancy and alternate paths are mathematical certainties**, not configured contingencies.
+
+Self-healing operates across two complementary layers:
+
+- **Geometric healing** — alternate paths guaranteed by hypercube structure
+- **Cryptographic healing** — anti-replay state, key material, and identity all self-regenerate across restarts and rotations
+
+---
+
+## The Core Insight: Geometry IS the System
+
+Every constant in PlenumNET — the sponge width, the tunnel count, the signature size, the network's dimensionality — is derived, not chosen. The entire system descends from a single geometric root through exact integer arithmetic, with no floating-point approximations and no arbitrary "nothing-up-my-sleeve" values. An auditor can trace any parameter back to first principles and verify that no number was selected for convenience or concealment. In a field where hidden parameters have historically masked backdoors, this is not a design preference — it is a security guarantee.
+
+**Invariant 1:** The hypercube's structure guarantees that between any two nodes at Hamming distance *d* there are exactly *d!* shortest paths. For the maximum distance *d* = 13, that is over 6.2 billion disjoint routes. Healing therefore does not require detection, rerouting protocols, or convergence delays — it is the automatic consequence of the geometry itself.
+
+All modules below operate within this invariant. They do not "fix" failures; they continue forwarding using the remaining geometrically valid paths, and any state change (node failure, address drift, clock source outage, process restart) is absorbed because the geometry and the cryptographic regeneration chain already supply the alternatives.
+
+---
+
+## Layer 1 — Mathematical Foundations
+
+These crates provide the low-level arithmetic and topological primitives upon which all self-healing rests.
+
+### Hamming Distance Engine (`cube_addr.rs`)
+- **Role:** Defines the 27-trit Rep C address and computes Hamming distance (which equals hop count) between any two addresses in O(13) operations.
+- **Geometric Guarantee:** With 26 neighbors per node (13 dimensions × 2 non-self trit values per dimension), the hypercube's diameter is 13, but the high degree ensures *d!* geometrically valid shortest paths between every pair. The Hamming distance calculation is the sole routing metric — no tables, no convergence.
+
+### Geometric Load Balancer (`glb.rs`)
+- **Role:** Implements the forwarding primitive: to route to a destination, flip the trit in the dimension that most reduces Hamming distance. This is a single GF(3) arithmetic operation. Also provides dead-node avoidance, one-hop detour (momentarily increasing distance by 1 to bypass a dead region), SubCube multicast, and redirect-with-TTL.
+- **Geometric Guarantee:** As long as any path exists, the greedy algorithm finds it because each hop strictly decreases Hamming distance. Dead nodes are skipped automatically — the algorithm selects the next-best trit flip. The *d!* path count ensures abundant alternatives; no routing tables are consulted or corrupted.
+
+### Parallel 26-Direction Walker (`pt26_walk.rs`)
+- **Role:** Encodes movement in all 26 hypercube directions simultaneously. Used by the Geometric Load Balancer to explore alternate paths and enumerate candidates.
+- **Geometric Guarantee:** The 26 directions are the only possible moves in a 13D ternary hypercube (13 dimensions × 2 non-self trit values). The cube's symmetry means that if one direction is blocked, the remaining directions still offer valid geometric progress toward the destination.
+
+### Torus Network Topology (`torus.rs`)
+- **Role:** Defines the underlying k-ary n-cube (with wrap-around edges) that gives the hypercube its uniform degree and absence of edge nodes. Provides constant-time neighbor discovery.
+- **Geometric Guarantee:** No node is a single point of failure; the toroidal wrap-around eliminates boundaries so connectivity is never fragmented by position.
+
+---
+
+## Layer 2 — Core Infrastructure Modules
+
+Implemented in `services/inter-cube/src/`. These services leverage the mathematical foundations to deliver self-healing at the system level.
+
+### Fault Tolerance Service (`fts.rs`)
+- **Self-Healing Role:** Monitors neighbor health via HMAC-authenticated heartbeats and HPTP timing offsets. Maintains a **four-state machine: `Up` → `Suspect` → `Down` → `Recovering` → `Up`**. Notifies the Geometric Load Balancer immediately of state changes; the hypercube geometry absorbs the update without any network-wide announcement or re-flooding.
+- **Geometric Guarantee:** Detection is strictly local; the hypercube's path redundancy means a `Down` node is simply omitted from path selection, and the `Recovering` → `Up` transition reinstates it silently.
+
+### Cube Overlay Network (`overlay.rs`)
+- **Self-Healing Role:** Establishes 26 post-quantum encrypted tunnels — one per geometric neighbor. Tunnel keys are derived via **TLSponge-385** using TL-KEM shared secrets and an epoch counter, domain-separated as `"PlenumNET-CON-v3.0"`. **`derive_all_keys()`** is triggered on two schedules: every **π days (14 days = 1 arc-radian)** as a routine key exchange, and immediately on link recovery. In both cases the epoch is incremented and all 26 link keys are re-derived structurally without manual intervention.
+- **Geometric Guarantee:** Key material is a function of geometric position and the TL-KEM exchange — a link cannot be spoofed without occupying the correct address in the hypercube. The π-day exchange period is not an arbitrary security parameter; it is the ternary integer π = 14, the same constant that defines the circle, the calendar, and the sponge stride. Healing is an epoch increment and key re-derivation, not a full protocol re-negotiation.
+
+### Mutual Tunnel Authentication (`tunnel_auth.rs`) — 978 LOC
+- **Self-Healing Role:** Implements the 3-message mutual authentication handshake that establishes each of the 26 tunnels. Both endpoints prove their TL-DSA identity before any traffic flows. Tunnel establishment is authenticated and replay-protected; a recovered link cannot be hijacked during re-establishment.
+- **Geometric Guarantee:** Every tunnel is cryptographically bound to two specific geometric positions. Authentication failure at either end cleanly aborts that single link while the remaining 25 tunnels continue carrying traffic uninterrupted.
+
+### Cube Registration Service (`crs.rs`)
+- **Self-Healing Role:** Detects address drift when an entity's real-world classification changes (causing its ternary address to shift), issues TTL-bounded redirects (`old_addr` → `new_addr`), and initiates re-scans. Manages TRN (Ternary Resource Name) records and supports verification and re-scan protocols.
+- **Geometric Guarantee:** Ternary addresses are not arbitrary labels — they reflect real-world measured properties. Drift is detectable because the address encodes truth. TTL redirects allow seamless address migration without breaking hypercube connectivity.
+
+### Dimension Tracker (`dimension_tracker.rs`)
+- **Self-Healing Role:** Tracks dimension density across all 27 classification dimensions, giving the network a continuous health view of its own topology distribution. Surfaced via the Cube Registration Service but implemented as a dedicated module.
+- **Geometric Guarantee:** Dimension density imbalance is detectable before it causes routing degradation — topology health is observable at the per-dimension level, not just at the per-node level.
+
+### Wire Protocol (`wire.rs`)
+- **Self-Healing Role:** Every packet carries a TIS-27 integrity check (fully ternary — no binary hash primitives). Enforces HPTP-mandatory packets (destination trits 15–16 = 3,3) to require a valid femtosecond timestamp or be rejected before delivery.
+- **Geometric Guarantee:** Corrupted or replayed packets are structurally detectable at the wire layer; timing anomalies are self-diagnosing at the packet level, preventing silent state degradation deeper in the stack.
+
+### Wire Error Correction (`wire_ecc.rs`) — 599 LOC
+- **Self-Healing Role:** Provides single-trit error correction for 13-trit addresses while packets are still on the wire. Uses a 3×3+4 parity grid (8 syndrome trits: row, column, and diagonal parities). Corrects single-trit corruption in transit and detects multi-trit errors before they reach the routing layer.
+- **Geometric Guarantee:** Address corruption is healed at the wire level — the Hamming distance engine and Geometric Load Balancer always operate on clean, verified addresses.
+
+---
+
+## Layer 3 — Cryptographic Healing Chain
+
+This layer is entirely absent from most descriptions of PlenumNET's self-healing, yet it accounts for 4,752 lines of code and provides the property that the system self-heals its cryptographic state across restarts, rotations, and crashes — not just its routing paths.
+
+### Master Secret Manager (`identity.rs`) — 940 LOC
+- **Self-Healing Role:** Manages the 48-byte (384-bit) master secret from which all cryptographic material is derived. The secret is encrypted at rest using TLSponge-385 keystream XOR with a TLSponge-385 authentication tag — no AES dependency, no external crypto crate. The secret is zeroized on drop and supports TPM 2.0 sealing. If a node crashes and restarts, its entire identity — TL-DSA keypairs, tunnel keys, heartbeat HMACs — is re-derived deterministically from this single secret plus the node's geometric address.
+- **Cryptographic Guarantee:** This is the root of the healing chain. No key files are required on disk. The master secret is the only persistent value needed; the derivation path ensures the node re-enters the network with the same cryptographic identity every time. The encryption of the secret at rest uses only the framework's own sponge primitive — zero external cryptographic dependencies.
+
+### Address-Bound Identity Keys (`address_keys.rs`) — 789 LOC
+- **Self-Healing Role:** Derives TL-DSA keypairs deterministically: `seed = TLSponge-385("PlenumNET-IDENTITY" ‖ address ‖ master_secret)`. No key files are stored. An LRU cache (10,000 entries) provides performance without persistence. During key rotation, a **dual-accept window** is enforced: verifiers try the new key first, fall back to the old — identity verification is never interrupted during transition.
+- **Cryptographic Guarantee:** Identity self-heals after any restart or rotation. Key material is structurally bound to the node's geometric address — the same address always produces the same keypair from the same master secret.
+
+### Arc-Synchronized Key Rotation Orchestrator (`key_rotation.rs`) — 628 LOC
+- **Self-Healing Role:** Rotates the master secret every **182 days** (the smaller root of the ternary arc equation; see Arc definition above). On rotation: re-derives all HMAC keys, TL-DSA identity keypairs, and re-registers with the Cube Registration Service. Uses **deterministic jitter (±6 hours)** derived from the node's own address to stagger rotations across the network, preventing all nodes from rotating simultaneously. Both old and new keys remain valid during the dual-accept transition window.
+- **Cryptographic Guarantee:** The rotation period is geometrically canonical, not arbitrarily chosen. Key material self-renews on a mathematically defined schedule synchronized to the same ternary circle geometry that governs routing.
+
+### Heartbeat Sequence Persistence (`persistence.rs`) — 818 LOC
+- **Self-Healing Role:** Persists the last accepted anti-replay sequence number per neighbor to stable storage using atomic writes (tmp-file + rename) with dirty tracking. On restart, applies a **sliding-window adjustment (±10)** to each loaded counter to tolerate heartbeats that were in-flight when the crash occurred. Without this module, a restarted node resets all sequence counters to zero, allowing an attacker to replay any captured heartbeat.
+- **Cryptographic Guarantee:** Anti-replay state survives process restarts. The system reconstitutes its replay-protection windows automatically on boot — no manual state reconciliation, no grace period during which replayed packets would be accepted.
+
+---
+
+## Summary Table
+
+| Module | File | Self-Healing Role | Guarantee Type |
+|--------|------|-------------------|----------------|
+| **Hamming Distance Engine** | `cube_addr.rs` | Hamming distance primitive<br>*Calculates the shortest path length between any two nodes — the single number every routing decision is based on.* | Geometric: 26 neighbors/node → *d!* shortest paths |
+| **Geometric Load Balancer** | `glb.rs` | Greedy routing, dead-node avoidance, one-hop detour, SubCube multicast<br>*When a node goes down, traffic automatically reroutes around it in one GF(3) arithmetic step — no tables to update, no waiting for the network to "converge."* | Geometric: no table updates; *d!* path count |
+| **Parallel 26-Direction Walker** | `pt26_walk.rs` | Parallel traversal of all 26 hypercube directions<br>*Checks every possible next hop simultaneously so the router always picks the best available move, even when several neighbors are unreachable.* | Geometric: symmetric exploration of all valid moves |
+| **Torus Network Topology** | `torus.rs` | k-ary n-cube wrap-around topology<br>*Gives the network its wrap-around shape so there are no "edge" nodes with fewer connections — every node has the same 26 neighbors and the same resilience.* | Geometric: no edge nodes; uniform degree throughout |
+| **Fault Tolerance Service** | `fts.rs` | 4-state failure detection (Up → Suspect → Down → Recovering)<br>*Watches each neighbor's authenticated heartbeat. If a neighbor goes quiet it is marked suspect, then down; when it comes back it moves through recovering before being trusted again — no manual intervention required.* | Geometric: topology absorbs state changes; no flooding |
+| **Cube Overlay Network** | `overlay.rs` | TLSponge-385 + TL-KEM tunnel key derivation via `derive_all_keys()` — every π days (14 days) and on link recovery<br>*Maintains an encrypted tunnel to each of the 26 neighbors. Keys are re-derived every 14 days (1 arc-radian = π, exact integer) and immediately when a tunnel recovers — no renegotiation, just an epoch increment.* | Geometric + Cryptographic: key = position + KEM exchange + epoch; π-day cadence is geometrically derived |
+| **Mutual Tunnel Authentication** | `tunnel_auth.rs` | 3-message mutual TL-DSA handshake for all 26 tunnels<br>*The handshake that actually opens each tunnel. Both ends prove their TL-DSA identity before any traffic flows, so a recovered link cannot be hijacked during re-establishment.* | Cryptographic: per-tunnel authenticated handshake |
+| **Cube Registration Service** | `crs.rs` | Address drift detection + TTL-bounded redirect<br>*If a node's real-world properties change (shifting its ternary address), CRS detects the drift and issues a forwarding redirect so nothing in the network loses track of it.* | Geometric: address encodes truth; TTL redirect on drift |
+| **Dimension Tracker** | `dimension_tracker.rs` | Per-dimension density monitoring across all 27 address dimensions<br>*Keeps a running count of how nodes are distributed across all 27 address dimensions — an early-warning system for topology imbalances before they affect routing.* | Geometric: density imbalance detected pre-failure |
+| **Wire Protocol** | `wire.rs` | TIS-27 packet integrity + HPTP femtosecond enforcement<br>*Every packet carries a fully ternary checksum. Corrupted or replayed packets are rejected at the wire; HPTP-mandatory packets are verified against femtosecond clocks before delivery.* | Geometric: structural ternary integrity; no binary primitives |
+| **Wire Error Correction** | `wire_ecc.rs` | 8-trit single-trit error correction via 3×3+4 parity grid<br>*Fixes single-trit corruptions in node addresses while the packet is still on the wire, before it ever reaches the router — the Hamming distance engine always sees clean addresses.* | Geometric: corrupted addresses healed before routing |
+| **Master Secret Manager** | `identity.rs` | 48-byte master secret — root of the cryptographic regeneration chain<br>*Holds the one secret from which every key, tunnel, and identity in the node is derived. Encrypted at rest using only TLSponge-385 — no AES, no external crypto crate. After a crash and restart, the entire cryptographic identity rebuilds itself from this single value plus the node's geometric address.* | Cryptographic: full identity re-derived from one secret |
+| **Address-Bound Identity Keys** | `address_keys.rs` | Deterministic TL-DSA keypairs + dual-accept rotation window<br>*Generates the node's signing keys directly from its geometric address and master secret — no key files stored. During rotation both old and new keys are accepted so nothing breaks mid-transition.* | Cryptographic: geometric address = deterministic keypair |
+| **Key Rotation Orchestrator** | `key_rotation.rs` | Arc-synchronized 182-day master secret rotation with deterministic per-node jitter<br>*Rotates all key material every 182 days on a schedule derived from the ternary arc equation. Each node's rotation is staggered by up to ±6 hours based on its own address so the whole network never rotates at once.* | Cryptographic + Geometric: rotation epoch = ternary arc |
+| **Heartbeat Sequence Persistence** | `persistence.rs` | Anti-replay sequence number persistence across process restarts<br>*Saves the last-seen heartbeat counter for every neighbor to disk. On restart it reloads those counters with a ±10 sliding-window tolerance so an attacker cannot replay heartbeats captured before the crash.* | Cryptographic: anti-replay state survives crashes |
+
+---
+
+## Synthesis: Healing by Construction
+
+PlenumNET does not *detect failures and then heal* — it operates in a geometric space where alternate paths are a mathematical consequence of the hypercube's structure, and where every key, every timestamp, and every route is derived from position in that space rather than negotiated at runtime.
+
+The geometric layer guarantees that *d!* paths exist between any two nodes and that no routing table can be corrupted because none exists. The cryptographic layer guarantees that a node which crashes, restarts, or rotates its key material re-enters the network with the same identity, the same anti-replay sequence windows, and the same tunnel keys — all regenerated deterministically from a single master secret bound to its geometric address.
+
+These are not a stack of recovery mechanisms. They are the faithful implementation of the geometry, at every layer of the stack.
+
+*Così sia.*
