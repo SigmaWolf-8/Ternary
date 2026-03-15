@@ -1197,13 +1197,30 @@ async function scanUrl(rawUrl: string): Promise<ScanResult> {
 }
 
 // ── Route registration ────────────────────────────────────────────────────────
+import { scopedApiKeyAuth } from "../middleware/api-key-auth";
+
+function extractApiKey(req: Request): string | undefined {
+  return (req.headers["x-api-key"] as string) ||
+    (req.headers["authorization"] as string)?.replace(/^Bearer\s+/i, "") ||
+    (req.query.api_key as string) || undefined;
+}
+
+function optionalScopeAuth(scopes: string[]) {
+  return (req: Request, res: Response, next: () => void) => {
+    if (extractApiKey(req)) {
+      return scopedApiKeyAuth(scopes)(req, res, next);
+    }
+    next();
+  };
+}
+
 export function registerTdnsRoutes(app: Express) {
 
   app.get("/api/tdns/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", version: "2.5.0", entities: registry.size, engine: "server-js-v141" });
   });
 
-  app.post("/api/tdns/scan", async (req: Request, res: Response) => {
+  app.post("/api/tdns/scan", optionalScopeAuth(["read:tdns"]), async (req: Request, res: Response) => {
     const { url } = req.body;
     if (!url) { res.status(400).json({ error: "url required" }); return; }
     try {
@@ -1215,7 +1232,7 @@ export function registerTdnsRoutes(app: Express) {
     }
   });
 
-  app.post("/api/tdns/register", async (req: Request, res: Response) => {
+  app.post("/api/tdns/register", optionalScopeAuth(["write:tdns"]), async (req: Request, res: Response) => {
     const { name, zone, url, overwrite, org_name } = req.body;
     if (!name || !url) { res.status(400).json({ error: "name and url required" }); return; }
 
@@ -1274,7 +1291,7 @@ export function registerTdnsRoutes(app: Express) {
     }
   });
 
-  app.post("/api/tdns/org/create", (req: Request, res: Response) => {
+  app.post("/api/tdns/org/create", optionalScopeAuth(["write:tdns"]), (req: Request, res: Response) => {
     const { org_name, display_name } = req.body;
     if (!org_name) { res.status(400).json({ error: "org_name required" }); return; }
     const handle = sanitiseOrgHandle(org_name);
@@ -1292,7 +1309,7 @@ export function registerTdnsRoutes(app: Express) {
     res.json({ status: "ok", org_name: handle });
   });
 
-  app.post("/api/tdns/org/add-url", (req: Request, res: Response) => {
+  app.post("/api/tdns/org/add-url", optionalScopeAuth(["write:tdns"]), (req: Request, res: Response) => {
     const { org_name, plm_name } = req.body;
     if (!org_name || !plm_name) { res.status(400).json({ error: "org_name and plm_name required" }); return; }
     const handle = sanitiseOrgHandle(org_name);

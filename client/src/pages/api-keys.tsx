@@ -41,6 +41,8 @@ import {
   FolderKanban,
   X,
   Users,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -95,17 +97,11 @@ interface KeyStats {
   totalUsage: number;
 }
 
-const SCOPE_CATEGORIES: Record<string, string[]> = {
-  Ternary: ["read:ternary", "write:ternary"],
-  "Phase Encryption": ["read:phase", "write:phase"],
-  HPTP: ["read:hptp", "write:hptp"],
-  Compression: ["read:compression", "write:compression"],
-  PlenumDB: ["read:plenumdb", "write:plenumdb"],
-  Calendar: ["read:calendar"],
-  "Agent Array": ["read:agent-array", "write:agent-array"],
-  Whitepaper: ["read:whitepaper"],
-  Admin: ["admin:keys"],
-};
+import { SCOPE_REGISTRY } from "@shared/scopes";
+
+const SCOPE_CATEGORIES: Record<string, string[]> = Object.fromEntries(
+  SCOPE_REGISTRY.map((cat) => [cat.label, cat.scopes.map((s) => s.id)])
+);
 
 const TIER_LABELS: Record<string, string> = {
   research: "Research (100 rpm)",
@@ -138,6 +134,8 @@ function ScopeSelector({
   selected: string[];
   onChange: (scopes: string[]) => void;
 }) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
   const toggle = (scope: string) => {
     if (selected.includes(scope)) {
       onChange(selected.filter((s) => s !== scope));
@@ -153,35 +151,101 @@ function ScopeSelector({
 
   const clearAll = () => onChange([]);
 
+  const toggleCategory = (catLabel: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(catLabel)) {
+        next.delete(catLabel);
+      } else {
+        next.add(catLabel);
+      }
+      return next;
+    });
+  };
+
+  const selectCategoryAll = (catScopes: string[]) => {
+    const allSelected = catScopes.every((s) => selected.includes(s));
+    if (allSelected) {
+      onChange(selected.filter((s) => !catScopes.includes(s)));
+    } else {
+      const merged = new Set([...selected, ...catScopes]);
+      onChange(Array.from(merged));
+    }
+  };
+
+  const totalScopes = Object.values(SCOPE_CATEGORIES).flat().length;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <Button variant="outline" size="sm" onClick={selectAll} data-testid="button-select-all-scopes">
-          Select All
+          Select All ({totalScopes})
         </Button>
         <Button variant="outline" size="sm" onClick={clearAll} data-testid="button-clear-all-scopes">
           Clear All
         </Button>
+        <span className="text-xs text-muted-foreground ml-auto">
+          {selected.length}/{totalScopes} selected
+        </span>
       </div>
-      <div className="space-y-2">
-        {Object.entries(SCOPE_CATEGORIES).map(([category, scopes]) => (
-          <div key={category}>
-            <p className="text-xs font-medium text-muted-foreground mb-1">{category}</p>
-            <div className="flex gap-1 flex-wrap">
-              {scopes.map((scope) => (
-                <Badge
-                  key={scope}
-                  variant={selected.includes(scope) ? "default" : "outline"}
-                  className="cursor-pointer select-none toggle-elevate"
-                  onClick={() => toggle(scope)}
-                  data-testid={`badge-scope-${scope}`}
+      <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
+        {SCOPE_REGISTRY.map((category) => {
+          const catScopes = category.scopes.map((s) => s.id);
+          const selectedCount = catScopes.filter((s) => selected.includes(s)).length;
+          const isExpanded = expandedCategories.has(category.label);
+          const allSelected = selectedCount === catScopes.length;
+
+          return (
+            <div key={category.id} className="border rounded-md" data-testid={`scope-category-${category.id}`}>
+              <div
+                className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => toggleCategory(category.label)}
+                data-testid={`toggle-category-${category.id}`}
+              >
+                <div className="flex items-center gap-2">
+                  {isExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  )}
+                  <span className="text-sm font-medium">{category.label}</span>
+                  {selectedCount > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                      {selectedCount}/{catScopes.length}
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[11px] px-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    selectCategoryAll(catScopes);
+                  }}
+                  data-testid={`button-toggle-all-${category.id}`}
                 >
-                  {scope}
-                </Badge>
-              ))}
+                  {allSelected ? "Deselect" : "Select All"}
+                </Button>
+              </div>
+              {isExpanded && (
+                <div className="px-3 pb-2 flex gap-1 flex-wrap">
+                  {category.scopes.map((scope) => (
+                    <Badge
+                      key={scope.id}
+                      variant={selected.includes(scope.id) ? "default" : "outline"}
+                      className="cursor-pointer select-none toggle-elevate text-[11px]"
+                      onClick={() => toggle(scope.id)}
+                      data-testid={`badge-scope-${scope.id}`}
+                    >
+                      {scope.id}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

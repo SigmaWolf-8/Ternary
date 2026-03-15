@@ -6,7 +6,7 @@
 
 import { Router } from "express";
 import { z } from "zod";
-import { apiKeyService, AVAILABLE_SCOPES } from "../services/api-key.service";
+import { apiKeyService, AVAILABLE_SCOPES, isScopeValid } from "../services/api-key.service";
 import { createRequireAdmin } from "./middleware";
 import type { IStorage } from "../storage";
 import { createLogger } from "../logger";
@@ -70,7 +70,7 @@ export function registerApiKeyRoutes(app: Router, storage: IStorage) {
       const { name, scopes, expiresDays, rateLimitTier, enableRotation, entityType, entityName, project, department, tags, notes } = parsed.data;
 
       const invalidScopes = scopes.filter(
-        (s) => !(AVAILABLE_SCOPES as readonly string[]).includes(s)
+        (s) => !isScopeValid(s)
       );
       if (invalidScopes.length > 0) {
         return res.status(400).json({

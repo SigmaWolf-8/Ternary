@@ -15,9 +15,10 @@
  * All addresses are Rep C (bijective ternary {1, 2, 3}). Zero never appears.
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import type { TritC } from '../salvi-core/ternary-types';
 import { spongeHash } from '../crypto/sponge-hash';
+import { scopedApiKeyAuth } from '../middleware/api-key-auth';
 
 const DIMENSIONS = 13;
 const NEIGHBORS_PER_CUBE = 26;
@@ -557,10 +558,25 @@ let currentStack: {
   fts: FaultToleranceService;
 } | null = null;
 
+function extractApiKey(req: Request): string | undefined {
+  return (req.headers["x-api-key"] as string) ||
+    (req.headers["authorization"] as string)?.replace(/^Bearer\s+/i, "") ||
+    (req.query.api_key as string) || undefined;
+}
+
+function optionalScopeAuth(scopes: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (extractApiKey(req)) {
+      return scopedApiKeyAuth(scopes)(req, res, next);
+    }
+    next();
+  };
+}
+
 export function registerInterCubeRoutes(app: Router) {
   const router = Router();
 
-  router.post('/crs/register', (req: Request, res: Response) => {
+  router.post('/crs/register', optionalScopeAuth(["write:inter-cube"]), (req: Request, res: Response) => {
     try {
       const { endpoint, publicKey, desiredAddress, kemPublicKey } = req.body;
       const desired = desiredAddress ? cubeAddr(desiredAddress) : undefined;
@@ -593,7 +609,7 @@ export function registerInterCubeRoutes(app: Router) {
     }
   });
 
-  router.get('/crs/lookup/:address', (req: Request, res: Response) => {
+  router.get('/crs/lookup/:address', optionalScopeAuth(["read:inter-cube"]), (req: Request, res: Response) => {
     try {
       const addr = addrFromString(String(req.params.address));
       const record = crs.lookup(addr);
@@ -628,7 +644,7 @@ export function registerInterCubeRoutes(app: Router) {
     }
   });
 
-  router.post('/crs/heartbeat', (req: Request, res: Response) => {
+  router.post('/crs/heartbeat', optionalScopeAuth(["write:inter-cube"]), (req: Request, res: Response) => {
     try {
       const { address, endpoint } = req.body;
       const addr = cubeAddr(address);
@@ -639,7 +655,7 @@ export function registerInterCubeRoutes(app: Router) {
     }
   });
 
-  router.post('/crs/deregister', (req: Request, res: Response) => {
+  router.post('/crs/deregister', optionalScopeAuth(["write:inter-cube"]), (req: Request, res: Response) => {
     try {
       const addr = cubeAddr(req.body.address);
       const ok = crs.deregister(addr);
@@ -658,7 +674,7 @@ export function registerInterCubeRoutes(app: Router) {
     });
   });
 
-  router.post('/glb/forward', (req: Request, res: Response) => {
+  router.post('/glb/forward', optionalScopeAuth(["write:inter-cube"]), (req: Request, res: Response) => {
     if (!currentStack) return res.status(503).json({ error: 'not_initialized' });
     try {
       const { destination, flowId } = req.body;
@@ -716,7 +732,7 @@ export function registerInterCubeRoutes(app: Router) {
     res.json(currentStack.con.stats());
   });
 
-  router.post('/con/tunnel/refresh', (_req: Request, res: Response) => {
+  router.post('/con/tunnel/refresh', optionalScopeAuth(["write:inter-cube"]), (_req: Request, res: Response) => {
     if (!currentStack) return res.status(503).json({ error: 'not_initialized' });
     for (const nbr of currentStack.con.neighbors) {
       if (nbr.state !== 'up') nbr.state = 'resolving';
@@ -724,7 +740,7 @@ export function registerInterCubeRoutes(app: Router) {
     res.json({ ack: true, tunnelsRefreshed: currentStack.con.neighbors.length });
   });
 
-  router.post('/con/tunnel/upgrade-key', (req: Request, res: Response) => {
+  router.post('/con/tunnel/upgrade-key', optionalScopeAuth(["write:inter-cube"]), (req: Request, res: Response) => {
     if (!currentStack) return res.status(503).json({ error: 'not_initialized' });
     try {
       const { neighborAddress, kemSharedSecret, epoch } = req.body;
@@ -778,7 +794,7 @@ export function registerInterCubeRoutes(app: Router) {
     });
   });
 
-  router.post('/fts/config', (req: Request, res: Response) => {
+  router.post('/fts/config', optionalScopeAuth(["write:inter-cube"]), (req: Request, res: Response) => {
     if (!currentStack) return res.status(503).json({ error: 'not_initialized' });
     const { missThreshold, recoveryThreshold, gracePeriodMs } = req.body;
     const config = currentStack.fts.config;
