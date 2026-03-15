@@ -1,0 +1,103 @@
+PlenumNET's self-healing is not a bolt-on recovery layer but an emergent property of its geometric foundations. The network is built on a 13‑dimensional ternary hypercube (3¹³ addresses), where every node's address determines its position, and forwarding is a simple geometric calculation. Because the topology is a perfect symmetric structure, **redundancy and alternate paths are mathematical certainties**, not configured contingencies. This document weaves together the complete picture of PlenumNET's self-healing architecture, detailing the modules that realize it and the geometric invariants that guarantee it.
+
+---
+
+## The Core Insight: Geometry IS the System
+
+**Invariant 1:** The hypercube's structure guarantees that between any two nodes at Hamming distance \(d\) there are exactly \(d!\) shortest paths. For the maximum distance \(d = 13\), that is over 6.2 billion disjoint routes. Healing therefore does not require detection, rerouting protocols, or convergence delays—it is the automatic consequence of the geometry itself.
+
+All modules below are designed to operate within this invariant. They do not “fix” failures; they simply continue forwarding using the remaining geometrically valid paths, and any state that changes (node failure, address drift, clock source outage) is instantly absorbed because the geometry already supplies the alternatives.
+
+---
+
+## Mathematical Foundations
+
+These crates provide the low‑level arithmetic and topological primitives upon which all self‑healing rests.
+
+### `addr.rs` (`CubeAddr`) — Hamming Distance Engine
+- **Role:** Defines the 27‑trit ternary address and computes Hamming distance (which equals hop count) between any two addresses in O(13) operations.
+- **Geometric Guarantee:** With 26 neighbors per node (13 dimensions × 2 directions), the hypercube’s diameter is 13, but the high degree ensures multiple geometrically valid paths between every pair. The distance calculation is the sole metric for routing—no tables, no convergence.
+
+### `routing.rs` (Greedy Geometric Routing & `NeighborMap`)
+- **Role:** Implements the forwarding primitive: to route to a destination, flip the trit in the dimension that most reduces the Hamming distance. This is a single GF(3) arithmetic operation.
+- **Geometric Guarantee:** As long as any path exists, the greedy algorithm will find it because each hop strictly decreases distance. Dead nodes are automatically skipped—the algorithm simply picks the next‑best trit flip. This is self‑healing at the packet level.
+
+### `pt26_walk.rs` — Parallel Traversal of 26 Directions
+- **Role:** Encodes the logic for moving in all 26 dimensions simultaneously. Used by GLB to explore alternate paths and by the greedy router to enumerate candidates.
+- **Geometric Guarantee:** The 26 directions are the only possible moves; the cube’s symmetry means that if one direction is blocked, the other 25 (or fewer, depending on remaining distance) still offer valid progress.
+
+### `torus.rs` — Torsion Network Topology
+- **Role:** Defines the underlying k‑ary n‑cube (with wrap‑around) that gives the hypercube its uniform degree and lack of edge nodes. Ensures constant‑time neighbor discovery.
+- **Geometric Guarantee:** No node is a single point of failure; the toroidal structure eliminates boundaries, so connectivity is never fragmented.
+
+---
+
+## Core Infrastructure Modules
+
+These services, implemented in `services/inter-cube/src/`, leverage the mathematical foundations to provide self‑healing at the system level.
+
+### `glb.rs` — Geometric Load Balancer
+- **Self‑Healing Role:** 
+  - **Dead‑node avoidance:** consults FTS’s dead‑set and excludes dead neighbors from forwarding choices, automatically falling back to the remaining \(d! - (d-1)!\) paths.
+  - **One‑hop detour:** when all direct shortest paths are locally blocked, it can momentarily increase distance by one to bypass a dead region.
+  - **SubCube multicast:** fan‑out to all neighbors matching a sub‑cube mask, ensuring multicast trees survive partial failures.
+  - **Redirect with TTL:** handles address migration without topology‑wide updates.
+- **Geometric Guarantee:** The factorial path count ensures abundant alternatives; the GLB simply selects among them geometrically—no routing tables to corrupt.
+
+### `fts.rs` — Fault Tolerance Service
+- **Self‑Healing Role:** 
+  - Monitors neighbor health via authenticated heartbeats and HPTP timing offsets.
+  - Maintains a three‑state machine: `Alive` → `Suspect` → `Dead` → `Alive` (on recovery).
+  - Notifies GLB immediately of state changes; the geometry absorbs the update without any network‑wide announcement.
+- **Geometric Guarantee:** Detection is local; the hypercube’s redundancy means a `Dead` node is simply omitted from path selection, and recovery reinstates it instantly.
+
+### `overlay.rs` — Cube Overlay Network (CON)
+- **Self‑Healing Role:** 
+  - Establishes 26 authenticated, post‑quantum encrypted tunnels to every geometric neighbor.
+  - Tunnel keys are derived deterministically from the two endpoints’ addresses and a shared secret using a TIS‑27 sponge—**no key exchange protocol**.
+  - When a link recovers after a failure, `rekey_all()` increments an epoch and re‑derives all link keys structurally.
+- **Geometric Guarantee:** Key agreement is a function of geometric position; a compromised link cannot be spoofed without occupying the correct address. Healing is a state transition, not a re‑negotiation.
+
+### `crs.rs` — Cube Registration Service
+- **Self‑Healing Role:** 
+  - Detects address drift when an entity’s classification changes (its ternary address shifts).
+  - Issues redirects (`old_addr` → `new_addr` with TTL) and initiates re‑scans.
+  - Tracks dimension density across all 27 dimensions, giving the network a health view of its own topology.
+- **Geometric Guarantee:** Addresses are not arbitrary labels; they reflect real‑world properties. Drift is detected geometrically, and redirects allow seamless migration without breaking connectivity.
+
+### `wire.rs` — Wire Protocol Integrity
+- **Self‑Healing Role:** 
+  - Every packet carries a TIS‑27 integrity check (fully ternary, no binary hashes).
+  - Enforces HPTP‑mandatory packets (destination trits 15‑16 = 3,3) to require valid femtosecond timing.
+- **Geometric Guarantee:** Corrupted or replayed packets are structurally detectable; timing anomalies become self‑diagnosing at the packet level, preventing silent degradation.
+
+### `hptp/coprime_clock_rotation.rs` — Clock Failover
+- **Self‑Healing Role:** 
+  - Rotates among N clock sources (N=7) to maintain accurate timing.
+  - Uses the **Generator Theorem**: the rotation step must be coprime to N to guarantee a complete cycle visiting all sources without repetition.
+- **Geometric Guarantee:** With N=7 (prime), all steps 1‑6 are valid; the preferred step is \(T_7 \mod N = 6\), ensuring maximally robust failover. The timing substrate never silently degrades.
+
+---
+
+## Summary Table: Modules & Their Geometric Guarantees
+
+| Module | File | Self‑Healing Role | Geometric Guarantee |
+|--------|------|-------------------|---------------------|
+| **Routing** | `routing.rs` | Path computation with dead‑node exclusion | Greedy Hamming reduction always finds a path if one exists |
+| **Addresses** | `addr.rs` | Hamming distance primitive | 26 neighbors/node → \(d!\) shortest paths between any pair |
+| **FTS** | `fts.rs` | Failure detection & recovery events | Topology absorbs state changes instantly; no flooding |
+| **GLB** | `glb.rs` | Dead‑node avoidance, detour, multicast | Geometric selection—no table updates; factorial path count |
+| **CON** | `overlay.rs` | Topology‑derived key rekeying | Key agreement = geometric position; no exchange protocol |
+| **CRS** | `crs.rs` | Address drift detection & redirect | Dimension density tracking across all 27 dims |
+| **HPTP Clock** | `coprime_clock_rotation.rs` | Clock source failover | Coprime rotation = complete cycle guarantee |
+| **Wire** | `wire.rs` | Packet integrity & timing enforcement | TIS‑27 structural integrity, no binary primitives |
+| **PT26 Walk** | `pt26_walk.rs` | Parallel traversal of 26 directions | Symmetric exploration of all geometrically valid moves |
+| **Torus** | `torus.rs` | Underlying k‑ary n‑cube topology | No edge nodes; uniform degree guarantees connectivity |
+
+---
+
+## Synthesis: Healing by Construction
+
+PlenumNET does not *detect failures and then heal*—it operates in a geometric space where **alternate paths are a mathematical consequence of the hypercube's structure**, and where **every key, every timestamp, and every route is derived from position in that space** rather than negotiated at runtime. The modules above are not a stack of recovery mechanisms; they are the faithful implementation of the geometry. When a node fails, the remaining \((d-1)!\) paths continue to carry traffic. When a clock source wavers, the coprime rotation guarantees a complete cycle. When an address drifts, the CRS redirects without topology‑wide reconfiguration.
+
+The self‑healing is baked into the geometry itself. *Così sia.*
