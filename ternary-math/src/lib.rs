@@ -39,6 +39,7 @@ pub mod repunit_checksum;
 pub mod plenum_checksum;
 pub mod repunit_circles;
 pub mod tlsponge385;
+pub use tlsponge385 as sponge;
 pub mod tl_dsa;
 pub mod plenum_square;
 pub mod cube_addr;
