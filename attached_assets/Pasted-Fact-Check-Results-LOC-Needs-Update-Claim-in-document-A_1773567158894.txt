@@ -1,0 +1,52 @@
+Fact-Check Results
+LOC — Needs Update
+Claim in document	Actual measured	Verdict
+~210,000 lines of code	~288,700	Wrong — off by ~79K. Should say ~289,000 or ~290,000
+Breakdown (actual):
+
+Rust: 113,275 (39.2%)
+TypeScript: 59,549 (20.6%)
+TSX: 53,919 (18.7%)
+Python: 39,396 (13.6%)
+HTML: 6,307 (2.2%)
+CSS+SQL: 4,362 (1.5%)
+YAML: 3,258 (1.1%)
+SystemVerilog: 3,100 (1.1%)
+JavaScript: 2,917 (1.0%)
+Shell: 2,035 (0.7%)
+TOML: 594 (0.2%)
+Benchmark Count — Needs Update
+Claim	Actual	Verdict
+109 benchmarks	113 bench functions (since split-input refactor added 4 new A/B tests)	Stale — should say 113
+Performance Numbers — Mostly Accurate
+From the ARM64 report 65DD00A4 directly:
+
+Claim	Measured	Verdict
+PT26-DSA total: 106 µs	106.1 µs	Correct
+TL-DSA v2 total: 153 µs	153.0 µs	Correct
+TL-KEM-1024 total: 140 µs	140.2 µs	Correct
+Lamport total: 6.14 ms	6,143.8 µs	Correct
+SignHere pipeline: 750 µs	750.0 µs	Correct
+ux_node_join: 14.8 ms	14.769 ms	Correct
+Minor inaccuracies in TL-KEM detail table:
+
+Claim	Measured	Off by
+TL-KEM-512 keygen: 31.3 µs	34.60 µs	3.3 µs high — use 34.6
+TL-KEM-512 decaps: 11.0 µs	10.00 µs	1.0 µs low — use 10.0
+TL-KEM-512 total: 56 µs	58.5 µs	2.5 µs — use 58.5
+TL-KEM-768 encaps: 15.5 µs	17.10 µs	1.6 µs — use 17.1
+TL-KEM-768 total: 85 µs	86.7 µs	~rounding, minor
+Other Claims
+Claim	Verified	Verdict
+38 Kani proof harnesses	No kani::proof attributes found in Rust crate	Cannot verify from this workspace — may be in the full repo on your local machine
+266 lib tests	266 #[test] attributes confirmed	Correct (doc says nothing about tests, just FYI)
+PT26 sig size 71 bytes	Matches codebase constant	Correct
+42-calendar TERN format	Present in codebase	Correct
+XPlenum: 25 instructions, 2,407 lines Verilog	3,100 lines .sv files found; instruction count not verified	Verilog LOC is higher than claimed
+Summary of Corrections Needed
+~210,000 LOC → ~289,000 LOC (biggest error)
+109 benchmarks → 113 benchmarks
+TL-KEM-512: keygen 31.3→34.6 µs, decaps 11.0→10.0 µs, total 56→58.5 µs
+TL-KEM-768: encaps 15.5→17.1 µs, total 85→86.7 µs
+XPlenum Verilog: 2,407 lines → 3,100 lines (if counting all .sv files)
+Everything else checks out against the benchmark data. Want me to update the document with the corrected numbers?
