@@ -16,7 +16,7 @@
  *   Rate:     243 trits  (3⁵)
  *   Capacity: 486 trits  → 385-bit post-quantum security
  *   Rounds:   9          (3² — 3× safety margin over 3-round full diffusion)
- *   Chi:      χ(x) = x¹⁷ over GF(27) = GF(3)[t]/(t³ + 2t + 1)  [v2]
+ *   Chi:      S(x) = M·x¹⁷+c over GF(27), affine-composed  [v2]
  *   Theta:    7-neighbor substitution at distances ±1, ±7, ±13
  *   Pi:       stride 376, offset +1: π(i) = (376·i + 1) mod 729
  *
@@ -188,13 +188,28 @@ function gf27Pow17(a0: number, a1: number, a2: number): [number, number, number]
   return gf27Mul(x0, x1, x2, a0, a1, a2);
 }
 
+/**
+ * Affine-composed chi S-box: S(x) = M · x^17 + c over GF(27).
+ * M = circulant [1,1,2] over GF(3)³, det=1, bn=3 (max over GF(3)).
+ * c = [1, 0, 2] — eliminates zero fixed point.
+ * DP_max = LP_max = 1/9 (preserved). Algebraic degree = 5 (preserved).
+ */
+function gf27Affine(a0: number, a1: number, a2: number): [number, number, number] {
+  const [p0, p1, p2] = gf27Pow17(a0, a1, a2);
+  // M · p + c where M = [[1,1,2],[2,1,1],[1,2,1]], c = [1,0,2]
+  const r0 = GF3_ADD[GF3_ADD[p0 * 3 + GF3_ADD[p1 * 3 + GF3_MUL[2 * 3 + p2]]] * 3 + 1];
+  const r1 = GF3_ADD[GF3_ADD[GF3_MUL[2 * 3 + p0] * 3 + p1] * 3 + p2];
+  const r2 = GF3_ADD[GF3_ADD[p0 * 3 + GF3_ADD[GF3_MUL[2 * 3 + p1] * 3 + p2]] * 3 + 2];
+  return [r0, r1, r2];
+}
+
 const CHI_MAP: Int8Array = (() => {
   const map = new Int8Array(27 * 3);
   for (let idx = 0; idx < 27; idx++) {
     const g0 = idx % 3;
     const g1 = Math.floor(idx / 3) % 3;
     const g2 = Math.floor(idx / 9);
-    const [r0, r1, r2] = gf27Pow17(g0, g1, g2);
+    const [r0, r1, r2] = gf27Affine(g0, g1, g2);
     map[idx * 3]     = r0 - 1;
     map[idx * 3 + 1] = r1 - 1;
     map[idx * 3 + 2] = r2 - 1;

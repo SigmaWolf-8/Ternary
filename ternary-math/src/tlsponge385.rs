@@ -7,7 +7,7 @@
 // One sponge. One file.
 //
 // Round function (per round, 9 rounds):
-//   1. Chi  — χ(x) = x¹⁷ over GF(27), compile-time 27-entry table
+//   1. Chi  — S(x) = M·x¹⁷+c over GF(27), affine-composed, compile-time table
 //   2. Theta-Pi-RC — fused 7-neighbor diffusion (±1,±7,±13) +
 //                     stride-376 scatter + round constants
 //
@@ -82,12 +82,27 @@ const fn gf27_pow17(x: [u8; 3]) -> [u8; 3] {
     gf27_mul(x16, x)
 }
 
+/// Affine-composed chi S-box: S(x) = M · x¹⁷ + c over GF(27).
+/// M = circulant [1,1,2], det=1, bn=3 (max over GF(3)).
+/// c = [1,0,2] — eliminates zero fixed point.
+/// DP_max = LP_max = 1/9 (preserved). Algebraic degree = 5 (preserved).
+/// Verified exhaustively: see docs/proofs/verify_affine_sbox.py.
+#[inline(always)]
+const fn gf27_affine(x: [u8; 3]) -> [u8; 3] {
+    let p = gf27_pow17(x);
+    [
+        gf3_add(gf3_add(p[0], gf3_add(p[1], gf3_mul(2, p[2]))), 1),
+        gf3_add(gf3_add(gf3_mul(2, p[0]), p[1]), p[2]),
+        gf3_add(gf3_add(p[0], gf3_add(gf3_mul(2, p[1]), p[2])), 2),
+    ]
+}
+
 // Chi table: balanced trit output. Index = (t0+1) + (t1+1)*3 + (t2+1)*9
 static CHI_MAP: [[i8; 3]; 27] = {
     let mut map = [[0i8; 3]; 27];
     let mut idx = 0usize;
     while idx < 27 {
-        let [r0, r1, r2] = gf27_pow17([(idx % 3) as u8, ((idx / 3) % 3) as u8, (idx / 9) as u8]);
+        let [r0, r1, r2] = gf27_affine([(idx % 3) as u8, ((idx / 3) % 3) as u8, (idx / 9) as u8]);
         map[idx] = [r0 as i8 - 1, r1 as i8 - 1, r2 as i8 - 1];
         idx += 1;
     }
@@ -453,7 +468,6 @@ pub fn hash_hex_tis(input: &[u8]) -> String {
 pub fn derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
     let total = context.len() + material.len();
     if total <= 256 {
-        // Stack path — zero heap allocation for input concat + trit conversion
         let mut input_buf = [0u8; 256];
         input_buf[..context.len()].copy_from_slice(context);
         input_buf[context.len()..total].copy_from_slice(material);
@@ -461,7 +475,6 @@ pub fn derive_key(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
         s.absorb_bytes_stack(&input_buf[..total]);
         trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
     } else {
-        // Heap fallback for large inputs
         let mut input = Vec::with_capacity(total);
         input.extend_from_slice(context); input.extend_from_slice(material);
         hash(&input, key_len)
@@ -487,19 +500,11 @@ pub fn derive_key_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8
 }
 
 /// Zero-allocation KDF for multi-part material (HMAC, T-AE-MAC, heartbeat, etc).
-/// Concatenates context + all parts on the stack. Panics if total > 512 bytes.
-///
-/// Example: `derive_key_cat(b"HMAC-TAG", &[key, payload], 27)`
-/// replaces: `derive_key(b"HMAC-TAG", &[key, payload].concat(), 27)`
-///
-/// Eliminates 1 Vec allocation per call. Over 52 heartbeat calls/sec, that's
-/// 52 fewer heap alloc+free cycles per second.
 pub fn derive_key_cat(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8> {
     let mut total_len = context.len();
     for part in parts { total_len += part.len(); }
     
     if total_len <= 512 {
-        // Stack path — zero allocation
         let mut buf = [0u8; 512];
         let mut offset = 0;
         buf[..context.len()].copy_from_slice(context);
@@ -512,7 +517,6 @@ pub fn derive_key_cat(context: &[u8], parts: &[&[u8]], key_len: usize) -> Vec<u8
         s.absorb_bytes_stack(&buf[..offset]);
         trits_to_bytes(&s.squeeze(key_len * 5))[..key_len].to_vec()
     } else {
-        // Heap fallback for large inputs (1KB+ benchmark data)
         let mut input = Vec::with_capacity(total_len);
         input.extend_from_slice(context);
         for part in parts { input.extend_from_slice(part); }
@@ -549,23 +553,8 @@ pub fn derive_key_cat_tis(context: &[u8], parts: &[&[u8]], key_len: usize) -> Ve
 
 // ═══════════════════════════════════════════════════════════════════════
 // BULK-RATE PUBLIC API — 486-trit rate (97 bytes/permutation)
-//
-// Security: capacity = 243 trits ≈ 385 bits
-//   Grover pre-image: 2^192 — NIST Level 3
-//   Classical collision: 2^192 — exceeds Level 5
-//   BHT quantum collision: 2^128 — NIST Level 1
-//   (SHA3-256 has the same BHT bound due to 256-bit output)
-//
-// Use for: message hashing, MAC computation, bulk KDF
-// Do NOT use for: key derivation from secrets (use full-rate derive_key)
-//
-// Throughput: ~11 permutations per 1KB vs ~21 at standard rate.
-// This is exactly what Keccak does: SHA3-256 uses rate=1088/cap=512
-// while SHAKE128 uses rate=1344/cap=256 for bulk output.
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Hash with bulk rate — 2× throughput for large inputs.
-/// Same permutation, same rounds, wider absorption lane.
 pub fn hash_bulk(input: &[u8], output_len: usize) -> Vec<u8> {
     let trits = bytes_to_trits(input);
     let mut state = [0i8; STATE_SIZE];
@@ -590,8 +579,6 @@ pub fn hash_bulk(input: &[u8], output_len: usize) -> Vec<u8> {
     trits_to_bytes(&output)[..output_len].to_vec()
 }
 
-/// Bulk-rate KDF — context + material hashed at 2× throughput.
-/// Use for message hashing before signing, MAC over large payloads.
 pub fn derive_key_bulk(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
     let mut input = Vec::with_capacity(context.len() + material.len());
     input.extend_from_slice(context);
@@ -599,7 +586,6 @@ pub fn derive_key_bulk(context: &[u8], material: &[u8], key_len: usize) -> Vec<u
     hash_bulk(&input, key_len)
 }
 
-/// TIS-27 bulk-rate hash — 4 rounds, wide absorption.
 pub fn hash_bulk_tis(input: &[u8], output_len: usize) -> Vec<u8> {
     let trits = bytes_to_trits(input);
     let mut state = [0i8; STATE_SIZE];
@@ -624,7 +610,6 @@ pub fn hash_bulk_tis(input: &[u8], output_len: usize) -> Vec<u8> {
     trits_to_bytes(&output)[..output_len].to_vec()
 }
 
-/// TIS-27 bulk-rate KDF.
 pub fn derive_key_bulk_tis(context: &[u8], material: &[u8], key_len: usize) -> Vec<u8> {
     let mut input = Vec::with_capacity(context.len() + material.len());
     input.extend_from_slice(context);
@@ -643,22 +628,15 @@ pub fn derive_key_batch(domains: &[&[u8]], materials: &[&[u8]], output_len: usiz
     if n == 0 { return vec![]; }
     if n == 1 { return vec![derive_key(domains[0], materials[0], output_len)]; }
 
-    // Pre-allocate all sponge states at once — one contiguous block.
-    // Eliminates N individual Sponge385Pub constructions + N Vec allocations
-    // for input concatenation + N Vec allocations for bytes_to_trits +
-    // N Vec allocations for squeeze output + N Vec allocations for trits_to_bytes.
-    // Total eliminated: ~5N heap allocations → ~5 allocations.
     let mut sponges: Vec<Sponge385Pub> = Vec::with_capacity(n);
     for _ in 0..n { sponges.push(Sponge385Pub::new()); }
 
-    // Shared buffers — reused across all instances, zero per-instance allocation
     let max_input = domains.iter().zip(materials.iter())
         .map(|(d, m)| d.len() + m.len())
         .max().unwrap_or(0);
     let mut input_buf = Vec::with_capacity(max_input);
     let mut trit_buf: Vec<i8> = Vec::with_capacity(max_input * 5);
 
-    // Absorb all inputs — no per-instance heap allocation
     for i in 0..n {
         input_buf.clear();
         input_buf.extend_from_slice(domains[i]);
@@ -667,7 +645,6 @@ pub fn derive_key_batch(domains: &[&[u8]], materials: &[&[u8]], output_len: usiz
         sponges[i].absorb(&trit_buf);
     }
 
-    // Squeeze all outputs
     let need_trits = output_len * 5;
     let mut results: Vec<Vec<u8>> = Vec::with_capacity(n);
 
@@ -723,9 +700,10 @@ mod tests {
         for i in 0..27 { let o=CHI_MAP[i]; let p=(o[0]+1) as usize+(o[1]+1) as usize*3+(o[2]+1) as usize*9; assert!(!seen[p]); seen[p]=true; }
     }
     #[test] fn chi_zero_fixed() {
-        // GF(27) zero = (0,0,0) unsigned = index 0 = balanced (-1,-1,-1).
-        // 0^17 = 0 in any field, so CHI_MAP[0] must map to itself.
-        assert_eq!(CHI_MAP[0], [-1,-1,-1]);
+        // After affine composition S(x) = M·x^17+c, zero maps to c = [1,0,2]
+        // in GF(3), which is [0,-1,1] in balanced trits.
+        // The zero fixed point is eliminated — a security improvement.
+        assert_eq!(CHI_MAP[0], [0,-1,1]);
     }
     #[test] fn perm_full_period() {
         let mut seen = [false; STATE_SIZE];
@@ -798,7 +776,6 @@ mod tests {
         assert_eq!(RoundMode::Full.count(),9); assert_eq!(RoundMode::Tis27.count(),4);
     }
     #[test] fn derive_key_cat_matches_concat() {
-        // derive_key_cat(ctx, &[a, b], len) must equal derive_key(ctx, &[a,b].concat(), len)
         let key = derive_key(b"KEY", b"material", 48);
         let a = b"mat";
         let b_slice = b"erial";
@@ -823,8 +800,6 @@ mod tests {
         assert_eq!(old, new);
     }
     #[test] fn stack_path_matches_heap_path() {
-        // Verify the stack-buffer derive_key produces same output as the old heap path
-        // for inputs that fit in 256 bytes (which is all of our production calls)
         let mut s_old = Sponge385Pub::new();
         s_old.absorb_bytes(b"test-input-for-stack-vs-heap-comparison");
         let old_out = s_old.squeeze(200);
