@@ -8,7 +8,7 @@
  * POST /api/v1/ephemeris — planetary position in ternary coordinates
  */
 
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import {
   convertDegrees,
@@ -19,8 +19,24 @@ import {
   Z28_COUNT
 } from "../ternary-ephemeris";
 import { createLogger } from "../logger";
+import { scopedApiKeyAuth } from "../middleware/api-key-auth";
 
 const log = createLogger("ephemeris");
+
+function extractApiKey(req: Request): string | undefined {
+  return (req.headers["x-api-key"] as string) ||
+    (req.headers["authorization"] as string)?.replace(/^Bearer\s+/i, "") ||
+    (req.query.api_key as string) || undefined;
+}
+
+function optionalScopeAuth(scopes: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (extractApiKey(req)) {
+      return scopedApiKeyAuth(scopes)(req, res, next);
+    }
+    next();
+  };
+}
 
 export function registerEphemerisRoutes(app: Express) {
   const convertSchema = z.object({
@@ -29,7 +45,7 @@ export function registerEphemerisRoutes(app: Express) {
     return_resonance: z.boolean().optional().default(false)
   });
 
-  app.post("/api/ephemeris/convert", async (req, res) => {
+  app.post("/api/ephemeris/convert", optionalScopeAuth(["read:ephemeris"]), async (req, res) => {
     try {
       const parsed = convertSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -62,7 +78,7 @@ export function registerEphemerisRoutes(app: Express) {
     observer: observerSchema
   });
 
-  app.post("/api/ephemeris/position", async (req, res) => {
+  app.post("/api/ephemeris/position", optionalScopeAuth(["read:ephemeris"]), async (req, res) => {
     try {
       const parsed = ephemerisSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -116,7 +132,7 @@ export function registerEphemerisRoutes(app: Express) {
     observer: observerSchema
   });
 
-  app.post("/api/ephemeris/batch", async (req, res) => {
+  app.post("/api/ephemeris/batch", optionalScopeAuth(["read:ephemeris"]), async (req, res) => {
     try {
       const parsed = batchEphemerisSchema.safeParse(req.body);
       if (!parsed.success) {

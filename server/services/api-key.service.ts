@@ -23,7 +23,9 @@ function constantTimeCompare(a: string, b: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-export const AVAILABLE_SCOPES = [
+import { getAllScopes, isValidScope } from "@shared/scopes";
+
+const LEGACY_SCOPES = [
   "read:ternary",
   "write:ternary",
   "read:phase",
@@ -41,7 +43,13 @@ export const AVAILABLE_SCOPES = [
   "admin:keys",
 ] as const;
 
-export type ApiKeyScope = (typeof AVAILABLE_SCOPES)[number];
+export const AVAILABLE_SCOPES = getAllScopes();
+
+export type ApiKeyScope = string;
+
+export function isScopeValid(scope: string): boolean {
+  return isValidScope(scope) || (LEGACY_SCOPES as readonly string[]).includes(scope);
+}
 
 export const apiKeyService = {
   async generate(
