@@ -125,20 +125,20 @@ jobs:
           echo "================================================================"
           echo "  Kani — Proving Ternary Arithmetic Properties"
           echo "================================================================"
-          cargo kani --harness proof_trit_from_a_rejects_invalid 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_not_involution 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_not_negates 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_and_commutative 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_or_commutative 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_add_closure 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_add_identity 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_add_commutative 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_mul_closure 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_mul_commutative 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_mul_identity 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_gf3_mul_zero 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_rotate_cycles 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_rotate_inverse 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_trit_from_a_rejects_invalid 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_not_involution 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_not_negates 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_and_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_or_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_add_closure 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_add_identity 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_add_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_mul_closure 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_mul_commutative 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_mul_identity 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_gf3_mul_zero 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_rotate_cycles 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_rotate_inverse 2>&1 | tee -a kani_output.log
 
       - name: Run Kani — Bijection Proofs
         working-directory: src/kernel
@@ -148,10 +148,10 @@ jobs:
           echo "================================================================"
           echo "  Kani — Proving Representation Bijections"
           echo "================================================================"
-          cargo kani --harness proof_bijection_a_b_roundtrip 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_bijection_a_c_roundtrip 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_convert_representation_roundtrip 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_pack_unpack_roundtrip_9 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_bijection_a_b_roundtrip 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_bijection_a_c_roundtrip 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_convert_representation_roundtrip 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_pack_unpack_roundtrip_9 2>&1 | tee -a kani_output.log
 
       - name: Run Kani — Constant-Time Proofs
         working-directory: src/kernel
@@ -161,16 +161,16 @@ jobs:
           echo "================================================================"
           echo "  Kani — Proving Constant-Time Correctness"
           echo "================================================================"
-          cargo kani --harness proof_ct_eq_reflexive 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_eq_symmetric 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_eq_binary_output 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_eq_correctness 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_neq_complement 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_select_u8_correctness 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_select_i8_correctness 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_is_zero_correctness 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_lt_u32_correctness 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_select_u32_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_eq_reflexive 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_eq_symmetric 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_eq_binary_output 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_eq_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_neq_complement 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_select_u8_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_select_i8_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_is_zero_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_lt_u32_correctness 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_select_u32_correctness 2>&1 | tee -a kani_output.log
 
       - name: Run Kani — Memory Safety Proofs
         working-directory: src/kernel
@@ -180,10 +180,10 @@ jobs:
           echo "================================================================"
           echo "  Kani — Proving Memory Safety Properties"
           echo "================================================================"
-          cargo kani --harness proof_ct_zeroize_complete 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_zeroize_i8_complete 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_cmov_bytes_noop 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_ct_cmov_bytes_copies 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_zeroize_complete 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_zeroize_i8_complete 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_cmov_bytes_noop 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_ct_cmov_bytes_copies 2>&1 | tee -a kani_output.log
 
       - name: Run Kani — Boot & Timing Proofs
         working-directory: src/kernel
@@ -193,11 +193,11 @@ jobs:
           echo "================================================================"
           echo "  Kani — Proving Boot Sequence & Timing Invariants"
           echo "================================================================"
-          cargo kani --harness proof_boot_sequence_length 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_boot_cannot_overrun 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_sub_second_bounded 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_milliseconds_bounded 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_precision_constants 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_boot_sequence_length 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_boot_cannot_overrun 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_sub_second_bounded 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_milliseconds_bounded 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_precision_constants 2>&1 | tee -a kani_output.log
 
       - name: Run Kani — Phase Encryption Proofs
         working-directory: src/kernel
@@ -207,8 +207,8 @@ jobs:
           echo "================================================================"
           echo "  Kani — Proving Phase Encryption Properties"
           echo "================================================================"
-          cargo kani --harness proof_phase_count_minimum 2>&1 | tee -a kani_output.log
-          cargo kani --harness proof_split_ratio_bounded 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_phase_count_minimum 2>&1 | tee -a kani_output.log
+          cargo kani --lib --harness proof_split_ratio_bounded 2>&1 | tee -a kani_output.log
 
       - name: Kani Summary
         if: always()
@@ -220,15 +220,21 @@ jobs:
           echo "================================================================"
           PASSED=$(grep -c "VERIFICATION:- SUCCESSFUL" kani_output.log 2>/dev/null || echo 0)
           FAILED=$(grep -c "VERIFICATION:- FAILED" kani_output.log 2>/dev/null || echo 0)
+          ERRORS=$(grep -c "^error:" kani_output.log 2>/dev/null || echo 0)
           echo "  Proofs passed:  ${PASSED}"
           echo "  Proofs failed:  ${FAILED}"
+          echo "  Cargo errors:   ${ERRORS}"
           echo ""
-          if [ "$FAILED" != "0" ]; then
+          if [ "$PASSED" = "0" ] && [ "$FAILED" = "0" ]; then
+            echo "::error::No Kani proofs ran — check for compilation errors"
+            grep "^error:" kani_output.log || true
+            exit 1
+          elif [ "$FAILED" != "0" ]; then
             echo "::error::${FAILED} Kani proof(s) failed — properties violated"
             grep -B2 "VERIFICATION:- FAILED" kani_output.log || true
             exit 1
           else
-            echo "All Kani proofs passed — properties formally verified."
+            echo "All ${PASSED} Kani proofs passed — properties formally verified."
           fi
 
       - name: Upload Kani log
