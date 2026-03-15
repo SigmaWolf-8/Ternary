@@ -19,7 +19,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.75.0'
+          toolchain: '1.77.0'
       - name: Run POST
         run: |
           cd src/kernel
@@ -39,7 +39,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.75.0'
+          toolchain: '1.77.0'
       - name: KEM Keygen Consistency
         run: |
           cd src/kernel
@@ -61,7 +61,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.75.0'
+          toolchain: '1.77.0'
       - name: Repetition Count Test
         run: |
           cd src/kernel
@@ -83,7 +83,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.75.0'
+          toolchain: '1.77.0'
       - name: Valid Transitions
         run: |
           cd src/kernel
@@ -105,7 +105,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.75.0'
+          toolchain: '1.77.0'
       - name: Generate ACVTS Registration
         run: |
           cd src/kernel
@@ -124,7 +124,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.75.0'
+          toolchain: '1.77.0'
       - name: Build 1
         run: scripts/cmvp-build.sh
       - name: Record Hash 1
