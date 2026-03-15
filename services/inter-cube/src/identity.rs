@@ -85,9 +85,14 @@ pub const ARC_EPOCH_SECS: u64 = 182 * 24 * 60 * 60;
 /// Arc epoch duration.
 pub const ARC_EPOCH_DURATION: Duration = Duration::from_secs(ARC_EPOCH_SECS);
 
-/// Maximum dual-accept window: 182 days (one full arc).
-/// During this window, both old and new master secrets are valid.
-pub const MAX_DUAL_ACCEPT_SECS: u64 = ARC_EPOCH_SECS;
+/// Maximum dual-accept window: 1 second.
+///
+/// After rotation, the previous master secret remains valid for this
+/// duration to cover in-flight messages signed under the old key.
+/// On HPTP-synchronized infrastructure, 1 second is generous.
+///
+/// SYNC: Must equal `key_rotation::DUAL_ACCEPT_SECS`.
+pub const MAX_DUAL_ACCEPT_SECS: u64 = 1;
 
 /// Salvi Epoch: 2025-04-01T00:00:00Z (Unix timestamp).
 /// All arc epochs are measured from this point.
@@ -936,6 +941,6 @@ mod tests {
         assert_eq!(MASTER_SECRET_LEN, 48);
         assert_eq!(ENCRYPTED_BLOB_LEN, 92); // 16 + 12 + 48 + 16
         assert_eq!(ARC_EPOCH_SECS, 182 * 86400);
-        assert_eq!(MAX_DUAL_ACCEPT_SECS, ARC_EPOCH_SECS);
+        assert_eq!(MAX_DUAL_ACCEPT_SECS, 1, "Dual-accept window must be 1 second (SYNC: key_rotation::DUAL_ACCEPT_SECS)");
     }
 }
