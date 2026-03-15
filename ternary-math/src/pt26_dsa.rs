@@ -83,11 +83,22 @@ pub const SIGMAS: [[usize; 9]; 4] = [
 /// Plenum Square weight vector.
 pub const WEIGHT_VECTOR: [u32; 9] = [208, 2, 123, 26, 111, 196, 99, 220, 14];
 
+/// Number of σ permutations in the Plenum Square.
+pub const NUM_SIGMAS: usize = 4;
+
+/// Length of a per-step commitment (TIS-27 fast output).
+pub const STEP_COMMIT_LEN: usize = 27;
+
+/// Length of the aggregate signature commitment (TLSponge-385 output).
+pub const SIG_COMMIT_LEN: usize = 48;
+
 /// Domain separators.
 pub const DOMAIN_SCHEDULE: &[u8] = b"PT26-SCHED";
 pub const DOMAIN_PK: &[u8] = b"PT26-PK";
 pub const DOMAIN_MSG: &[u8] = b"PT26-MSG";
 pub const DOMAIN_BIND: &[u8] = b"PT26-BIND";
+pub const DOMAIN_SIG: &[u8] = b"PT26-SIG";
+pub const DOMAIN_STEP: &[u8] = b"PT26-STEP";
 
 // ═══════════════════════════════════════════════════════════════════════
 // ERRORS
@@ -101,6 +112,9 @@ pub enum Pt26Error {
     BindingMismatch,
     BudgetExhausted,
     PortCheckFailed { dimension: usize },
+    WalkLengthMismatch { expected: usize, got: usize },
+    ChecksumOutOfRange,
+    CommitmentMismatch,
 }
 
 impl std::fmt::Display for Pt26Error {
@@ -114,6 +128,11 @@ impl std::fmt::Display for Pt26Error {
             Self::PortCheckFailed { dimension } => {
                 write!(f, "port check failed: dim {}", dimension)
             }
+            Self::WalkLengthMismatch { expected, got } => {
+                write!(f, "walk length mismatch: expected {}, got {}", expected, got)
+            }
+            Self::ChecksumOutOfRange => write!(f, "walk checksum out of range (>= 333)"),
+            Self::CommitmentMismatch => write!(f, "aggregate signature commitment mismatch"),
         }
     }
 }
@@ -354,6 +373,109 @@ fn compute_binding(
     b
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// EXTENDED TYPES — For parallel verification engine (pt26_parallel)
+//
+// These carry step-level commitment data that the compact Signature
+// omits. Used by the 26-port distributed verifier.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Extended public key with CubeAddr (parallel verifier API).
+#[derive(Debug, Clone)]
+pub struct Pt26PublicKey {
+    pub address: crate::cube_addr::CubeAddr,
+    pub commitment: [u8; BINDING_LEN],
+}
+
+impl From<&PublicKey> for Pt26PublicKey {
+    fn from(pk: &PublicKey) -> Self {
+        Pt26PublicKey {
+            address: crate::cube_addr::CubeAddr::new(pk.addr),
+            commitment: pk.commit,
+        }
+    }
+}
+
+/// Extended signature with step-level commitments (parallel verifier API).
+#[derive(Debug, Clone)]
+pub struct Pt26Signature {
+    pub destination: crate::cube_addr::CubeAddr,
+    pub step_commits: Vec<[u8; STEP_COMMIT_LEN]>,
+    pub walk_length: u16,
+    pub walk_checksum: u16,
+    pub sig_commit: [u8; SIG_COMMIT_LEN],
+}
+
+/// Hamming distance between two CubeAddr values.
+pub fn hamming_distance(a: &crate::cube_addr::CubeAddr, b: &crate::cube_addr::CubeAddr) -> usize {
+    let ab = a.to_bytes();
+    let bb = b.to_bytes();
+    hamming(&ab, &bb)
+}
+
+/// Derive destination CubeAddr from signer address and message.
+pub fn derive_destination(addr: &crate::cube_addr::CubeAddr, message: &[u8]) -> crate::cube_addr::CubeAddr {
+    let ab = addr.to_bytes();
+    let dest = derive_dest(&ab, message);
+    crate::cube_addr::CubeAddr::new(dest)
+}
+
+/// Compute a per-step commitment (TIS-27 fast path).
+///
+/// Binds (current, next, weight, step_index) into a STEP_COMMIT_LEN digest.
+pub fn compute_step_commit(
+    current: &crate::cube_addr::CubeAddr,
+    next: &crate::cube_addr::CubeAddr,
+    weight: u32,
+    weight_key: &[u8],
+    step: usize,
+) -> [u8; STEP_COMMIT_LEN] {
+    let mut material = Vec::with_capacity(13 + 13 + 4 + weight_key.len() + 4);
+    material.extend_from_slice(&current.to_bytes());
+    material.extend_from_slice(&next.to_bytes());
+    material.extend_from_slice(&weight.to_le_bytes());
+    material.extend_from_slice(weight_key);
+    material.extend_from_slice(&(step as u32).to_le_bytes());
+    let h = crate::tlsponge385::derive_key(DOMAIN_STEP, &material, STEP_COMMIT_LEN);
+    let mut out = [0u8; STEP_COMMIT_LEN];
+    out.copy_from_slice(&h);
+    out
+}
+
+/// Compute aggregate signature commitment.
+///
+/// Binds (addr, dest, checksum, msg_hash, step_commits, pk_commit)
+/// into a SIG_COMMIT_LEN digest via TLSponge-385.
+pub fn compute_sig_commit(
+    addr: &crate::cube_addr::CubeAddr,
+    dest: &crate::cube_addr::CubeAddr,
+    checksum: u16,
+    msg_hash: &[u8],
+    step_commits: &[[u8; STEP_COMMIT_LEN]],
+    pk_commit: &[u8; BINDING_LEN],
+) -> [u8; SIG_COMMIT_LEN] {
+    let step_data_len = step_commits.len() * STEP_COMMIT_LEN;
+    let mut material = Vec::with_capacity(
+        13 + 13 + 2 + msg_hash.len() + step_data_len + BINDING_LEN,
+    );
+    material.extend_from_slice(&addr.to_bytes());
+    material.extend_from_slice(&dest.to_bytes());
+    material.extend_from_slice(&checksum.to_le_bytes());
+    material.extend_from_slice(msg_hash);
+    for sc in step_commits {
+        material.extend_from_slice(sc);
+    }
+    material.extend_from_slice(pk_commit);
+    let h = crate::tlsponge385::derive_key(DOMAIN_SIG, &material, SIG_COMMIT_LEN);
+    let mut out = [0u8; SIG_COMMIT_LEN];
+    out.copy_from_slice(&h);
+    out
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// WALK EXECUTION
+// ═══════════════════════════════════════════════════════════════════════
+
 /// Execute the geometric walk. Pure GF(3), zero sponge calls.
 ///
 /// Returns (walk_token, walk_parity, step_count).
@@ -429,6 +551,63 @@ pub fn sign(sk: &mut SecretKey, message: &[u8]) -> Result<Signature, Pt26Error> 
 
     sk.count += 1;
     Ok(Signature { dest, walk_token: wt, parity: par, binding })
+}
+
+/// Extended sign: produces a Pt26Signature with per-step commitments.
+///
+/// Used by the 26-port parallel verifier. Includes step-level data
+/// that the compact Signature omits.
+pub fn sign_extended(sk: &mut SecretKey, message: &[u8]) -> Result<Pt26Signature, Pt26Error> {
+    if sk.count >= SIG_BUDGET as u32 { return Err(Pt26Error::BudgetExhausted); }
+
+    let msg_hash = crate::tlsponge385::derive_key(DOMAIN_MSG, message, 48);
+    let dest = derive_dest(&sk.addr, message);
+    let h = hamming(&sk.addr, &dest);
+
+    let mut dims: Vec<usize> = (0..13).filter(|&d| sk.addr[d] != dest[d]).collect();
+    let mut cur = sk.addr;
+    let mut step_commits = Vec::with_capacity(h);
+
+    for step in 0..h {
+        let si = sk.schedule.sigma[step] as usize;
+        let pri = (sk.schedule.dim_order[step] as usize) % dims.len();
+        let dim = dims.remove(pri);
+
+        let mut nxt = cur;
+        nxt[dim] = dest[dim];
+
+        let triplet_idx = (dim / 3).min(8);
+        let sigma = &SIGMAS[si];
+        let weight = WEIGHT_VECTOR[sigma[triplet_idx]];
+
+        step_commits.push(compute_step_commit(
+            &crate::cube_addr::CubeAddr::new(cur),
+            &crate::cube_addr::CubeAddr::new(nxt),
+            weight,
+            &[],
+            step,
+        ));
+
+        cur = nxt;
+    }
+
+    let tokens: Vec<u32> = (0..h).map(|_| 0).collect();
+    let wt = walk_token(&tokens) as u16;
+
+    let addr_ca = crate::cube_addr::CubeAddr::new(sk.addr);
+    let dest_ca = crate::cube_addr::CubeAddr::new(dest);
+    let sig_commit = compute_sig_commit(
+        &addr_ca, &dest_ca, wt, &msg_hash, &step_commits, &sk.pk_commit,
+    );
+
+    sk.count += 1;
+    Ok(Pt26Signature {
+        destination: dest_ca,
+        step_commits,
+        walk_length: h as u16,
+        walk_checksum: wt,
+        sig_commit,
+    })
 }
 
 // ═══════════════════════════════════════════════════════════════════════

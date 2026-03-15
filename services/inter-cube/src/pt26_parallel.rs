@@ -303,48 +303,55 @@ pub fn expected_metrics(walk_length: usize, distributed: bool) -> ParallelVerify
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ternary_math::pt26_dsa::{keygen, sign};
+    use ternary_math::pt26_dsa::{keygen, sign_extended};
 
-    fn test_addr() -> CubeAddr {
-        CubeAddr::new([2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2])
-    }
-
+    fn test_addr() -> CubeAddr { CubeAddr::new([2, 1, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3, 2]) }
     fn test_secret() -> Vec<u8> { b"pt26-parallel-test".to_vec() }
+
+    fn to_ext_pk(pk: &ternary_math::pt26_dsa::PublicKey) -> Pt26PublicKey {
+        Pt26PublicKey::from(pk)
+    }
 
     #[test]
     fn test_parallel_verify_roundtrip() {
-        let (pk, mut sk) = keygen(&test_addr(), &test_secret());
+        let addr = test_addr().to_bytes();
+        let (pk, mut sk) = keygen(&addr, &test_secret());
         let msg = b"parallel verification test";
-        let sig = sign(&mut sk, msg).unwrap();
+        let sig = sign_extended(&mut sk, msg).unwrap();
+        let epk = to_ext_pk(&pk);
 
-        let mut verifier = ParallelVerifier::new(&pk, &sig);
+        let mut verifier = ParallelVerifier::new(&epk, &sig);
         assert!(verifier.task_count() > 0);
         assert!(verifier.task_count() <= 13);
 
         verifier.execute_local();
         assert!(verifier.is_complete());
 
-        let result = verifier.finalize(&pk, msg, &sig);
+        let result = verifier.finalize(&epk, msg, &sig);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_parallel_verify_wrong_message() {
-        let (pk, mut sk) = keygen(&test_addr(), &test_secret());
-        let sig = sign(&mut sk, b"correct").unwrap();
+        let addr = test_addr().to_bytes();
+        let (pk, mut sk) = keygen(&addr, &test_secret());
+        let sig = sign_extended(&mut sk, b"correct").unwrap();
+        let epk = to_ext_pk(&pk);
 
-        let mut verifier = ParallelVerifier::new(&pk, &sig);
+        let mut verifier = ParallelVerifier::new(&epk, &sig);
         verifier.execute_local();
-        let result = verifier.finalize(&pk, b"wrong", &sig);
+        let result = verifier.finalize(&epk, b"wrong", &sig);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_port_verify_task_structure() {
-        let (pk, mut sk) = keygen(&test_addr(), &test_secret());
-        let sig = sign(&mut sk, b"test").unwrap();
+        let addr = test_addr().to_bytes();
+        let (pk, mut sk) = keygen(&addr, &test_secret());
+        let sig = sign_extended(&mut sk, b"test").unwrap();
+        let epk = to_ext_pk(&pk);
 
-        let verifier = ParallelVerifier::new(&pk, &sig);
+        let verifier = ParallelVerifier::new(&epk, &sig);
         for task in verifier.tasks() {
             assert!(task.dimension < DIMENSIONS);
             assert_eq!(task.walk_length, sig.walk_length as usize);
@@ -354,13 +361,15 @@ mod tests {
 
     #[test]
     fn test_batch_verify() {
-        let (pk, mut sk) = keygen(&test_addr(), &test_secret());
+        let addr = test_addr().to_bytes();
+        let (pk, mut sk) = keygen(&addr, &test_secret());
         let messages: Vec<&[u8]> = vec![b"msg-0", b"msg-1", b"msg-2"];
         let sigs: Vec<Pt26Signature> = messages.iter()
-            .map(|m| sign(&mut sk, m).unwrap())
+            .map(|m| sign_extended(&mut sk, m).unwrap())
             .collect();
+        let epk = to_ext_pk(&pk);
 
-        let result = verify_batch(&pk, &messages, &sigs);
+        let result = verify_batch(&epk, &messages, &sigs);
         assert_eq!(result.total, 3);
         assert_eq!(result.passed, 3);
         assert!(result.failures.is_empty());
@@ -368,19 +377,20 @@ mod tests {
 
     #[test]
     fn test_batch_verify_with_bad_sig() {
-        let (pk, mut sk) = keygen(&test_addr(), &test_secret());
-        let sig_good = sign(&mut sk, b"good").unwrap();
-        let sig_bad = sign(&mut sk, b"bad").unwrap();
+        let addr = test_addr().to_bytes();
+        let (pk, mut sk) = keygen(&addr, &test_secret());
+        let sig_good = sign_extended(&mut sk, b"good").unwrap();
+        let sig_bad = sign_extended(&mut sk, b"bad").unwrap();
+        let epk = to_ext_pk(&pk);
 
-        // Verify sig_bad against wrong message
         let messages: Vec<&[u8]> = vec![b"good", b"WRONG"];
         let sigs = vec![sig_good, sig_bad];
 
-        let result = verify_batch(&pk, &messages, &sigs);
+        let result = verify_batch(&epk, &messages, &sigs);
         assert_eq!(result.total, 2);
         assert_eq!(result.passed, 1);
         assert_eq!(result.failures.len(), 1);
-        assert_eq!(result.failures[0].0, 1); // Second sig failed
+        assert_eq!(result.failures[0].0, 1);
     }
 
     #[test]
