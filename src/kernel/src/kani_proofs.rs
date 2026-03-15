@@ -229,7 +229,7 @@ mod ternary_proofs {
 
     /// PROOF: pack_trits/unpack_trits round-trip (bounded to 9 trits)
     #[kani::proof]
-    #[kani::unwind(10)]
+    #[kani::unwind(28)]
     fn proof_pack_unpack_roundtrip_9() {
         let mut trits = [Trit::from_a(0).unwrap(); 9];
         for i in 0..9 {
