@@ -238,7 +238,7 @@ mod ternary_proofs {
             trits[i] = Trit::from_a(val).unwrap();
         }
         let packed = pack_trits(&trits);
-        let unpacked = unpack_trits(packed, 9);
+        let unpacked = unpack_trits(packed);
         for i in 0..9 {
             assert_eq!(trits[i].to_a(), unpacked[i].to_a(),
                 "Pack/unpack must round-trip at every position");

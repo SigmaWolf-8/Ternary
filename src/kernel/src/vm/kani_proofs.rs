@@ -47,8 +47,8 @@ mod gc_proofs {
             assert_ne!(i2, i3);
             assert_ne!(i1, i3);
 
-            // Free and re-allocate — handle must not collide with live objects
-            heap.free(i1);
+            // Deallocate and re-allocate — handle must not collide with live objects
+            let _ = heap.deallocate(i1);
             let h4 = heap.allocate(GcObjectType::Integer, 8, false);
             if let Ok(i4) = h4 {
                 assert_ne!(i4, i2, "Recycled handle must not alias live object");
