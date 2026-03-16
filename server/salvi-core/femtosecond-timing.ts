@@ -44,26 +44,40 @@ export interface TimingMetrics {
 }
 
 /**
- * Generate a femtosecond-precision timestamp
- * 
- * Note: JavaScript's Date only provides millisecond precision.
- * We simulate femtosecond precision using high-resolution timer + random entropy.
- * Real implementations would use optical atomic clocks.
+ * Anchor hrtime to wall-clock at process start.
+ *
+ * process.hrtime.bigint() returns monotonic nanoseconds since an
+ * arbitrary reference (process boot). By capturing both Date.now()
+ * and hrtime at startup we can derive wall-clock nanoseconds for any
+ * later hrtime reading:
+ *
+ *   wall_ns = anchorWallNs + (hrtime_now - anchorHrNs)
+ *
+ * This gives real sub-millisecond precision (µs/ns from the OS
+ * monotonic clock) anchored to wall-clock time.  Below the
+ * nanosecond level the digits are zero — no fake entropy is
+ * injected.  Real femtosecond/picosecond resolution requires
+ * optical atomic clocks (HPTP hardware).
  */
+const _anchorWallMs  = Date.now();
+const _anchorHrNs    = process.hrtime.bigint();
+const _anchorWallNs  = BigInt(_anchorWallMs) * 1_000_000n;
+
+const FEMTOSECONDS_PER_NANOSECOND = 1_000_000n;
+
 export function getFemtosecondTimestamp(): FemtosecondTimestamp {
-  const now = Date.now();
-  const salviEpochOffset = now - SALVI_EPOCH;
-  
-  const millisecondsPart = BigInt(salviEpochOffset);
-  const femtosecondsFromMs = millisecondsPart * FEMTOSECONDS_PER_MILLISECOND;
-  
-  const hrTime = process.hrtime.bigint();
-  const subMillisecondPart = hrTime % FEMTOSECONDS_PER_MILLISECOND;
-  
-  const totalFemtoseconds = femtosecondsFromMs + subMillisecondPart;
-  
-  const date = new Date(now);
-  
+  const hrNow  = process.hrtime.bigint();
+  const wallNs = _anchorWallNs + (hrNow - _anchorHrNs);
+
+  const wallMs       = Number(wallNs / 1_000_000n);
+  const salviOffsetMs = wallMs - SALVI_EPOCH;
+  const salviOffsetNs = BigInt(salviOffsetMs) * 1_000_000n
+                        + (wallNs % 1_000_000n);
+
+  const totalFemtoseconds = salviOffsetNs * FEMTOSECONDS_PER_NANOSECOND;
+
+  const date = new Date(wallMs);
+
   return {
     femtoseconds: totalFemtoseconds,
     humanReadable: formatFemtoseconds(totalFemtoseconds),
