@@ -18,7 +18,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Clock, Calculator, Shield, Database, TrendingUp, Cpu, Key,
   Globe, Network, Radio, Star, FileText, Activity, Lock,
@@ -118,11 +117,11 @@ function TryItPanel({ endpoint }: { endpoint: EndpointDef }) {
         </div>
       )}
       {result && (
-        <ScrollArea className="max-h-48">
-          <pre className="text-xs bg-muted/50 rounded p-2 whitespace-pre-wrap break-all font-mono" data-testid={`result-${endpoint.path.replace(/\//g, "-").slice(1)}`}>
+        <div className="max-h-64 overflow-auto rounded border border-border">
+          <pre className="text-xs bg-muted/50 p-2 whitespace-pre-wrap break-all font-mono" data-testid={`result-${endpoint.path.replace(/\//g, "-").slice(1)}`}>
             {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
           </pre>
-        </ScrollArea>
+        </div>
       )}
     </div>
   );
