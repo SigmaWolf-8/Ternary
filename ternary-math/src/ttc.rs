@@ -2275,6 +2275,30 @@ mod tests {
         let dec = ttc_decompress(&result.compressed).unwrap();
         assert_eq!(dec.data, data.to_vec()); assert_eq!(dec.original_file_name, Some("test.txt".into()));
         assert!(dec.crc32_verified); }
+
+    #[test] fn test_compression_bloat_diagnostic() {
+        let data = b"Hello PlenumNET! This is a test of TTC v4.2 compression with corrected Tribonacci constants. The 13-dimensional hypercube geometry provides 26 tunnels. Repeated: The 13-dimensional hypercube geometry provides 26 tunnels. More repeated content for compression testing purposes.";
+        eprintln!("
+=== BLOAT DIAGNOSTIC ===");
+        eprintln!("Input: {} bytes", data.len());
+        for &(level, mode) in &[(1u8, CompressionMode::Basic), (3, CompressionMode::Basic), (5, CompressionMode::Temporal)] {
+            let opts = CompressOptions { mode, level, independent_chunks: true, filename: Some("upload.bin".into()), ..Default::default() };
+            let r = ttc_compress(data, &opts).unwrap();
+            let overhead = HEADER_SIZE + r.chunks.len() * CHUNK_MAP_ENTRY_SIZE;
+            eprintln!("L{} {}: in={} out={} ratio={:.2}x overhead={} payload={}",
+                level, mode.name(), r.original_size, r.compressed_size, r.compression_ratio,
+                overhead, r.compressed_size as usize - overhead);
+            for c in &r.chunks {
+                eprintln!("  chunk[{}]: orig={} comp={} mode={} delta_flag={} delta_rep={}",
+                    c.index, c.original_size, c.compressed_size, c.mode, c.delta_flag, c.delta_rep);
+            }
+            let dec = ttc_decompress(&r.compressed).unwrap();
+            assert_eq!(dec.data, data.to_vec(), "Round-trip failed at L{}", level);
+        }
+        eprintln!("=== END DIAGNOSTIC ===
+");
+    }
+
     #[test] fn test_stored_mode_constant_data() {
         let data = vec![0u8; 200];
         let opts = CompressOptions { mode: CompressionMode::Basic, level: 1, independent_chunks: true, ..Default::default() };

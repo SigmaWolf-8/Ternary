@@ -556,7 +556,15 @@ export function createTernFile(
     ttcGf3Representation: ttcMetadata?.gf3Representation,
   };
 
-  const headerJson = JSON.stringify(header);
+  const wireHeader: Record<string, unknown> = {
+    v: ttcMetadata ? 2 : 1,
+    f: originalFileName,
+    s: originalSize,
+    e: encrypted ? 1 : 0,
+  };
+  if (encrypted && encryptionMode) wireHeader.em = encryptionMode;
+  if (!ttcMetadata) wireHeader.c = crc32Checksum(inputBuffer);
+  const headerJson = JSON.stringify(wireHeader);
   const headerBuffer = Buffer.from(headerJson, 'utf-8');
   const headerLenBuffer = Buffer.alloc(4);
   headerLenBuffer.writeUInt32BE(headerBuffer.length, 0);
@@ -585,9 +593,28 @@ export function parseTernFile(ternBuffer: Buffer): {
 
   const headerLen = ternBuffer.readUInt32BE(4);
   const headerJson = ternBuffer.subarray(8, 8 + headerLen).toString('utf-8');
-  const header: TernFileHeader = JSON.parse(headerJson);
+  const rawHeader = JSON.parse(headerJson);
+
+  let header: TernFileHeader;
+  if ('magic' in rawHeader) {
+    header = rawHeader as TernFileHeader;
+  } else {
+    header = {
+      magic: 'TERN',
+      version: rawHeader.v ?? 2,
+      originalFileName: rawHeader.f ?? 'unknown',
+      originalSize: rawHeader.s ?? 0,
+      compressedSize: 0,
+      compressionRatio: 0,
+      encrypted: rawHeader.e === 1,
+      encryptionMode: rawHeader.em,
+      checksum: rawHeader.c ?? 0,
+      timestamp: '',
+    };
+  }
 
   const dataBuffer = ternBuffer.subarray(8 + headerLen);
+  header.compressedSize = dataBuffer.length;
 
   let compressedPayload: Buffer;
 
@@ -605,12 +632,23 @@ export function parseTernFile(ternBuffer: Buffer): {
 
   const result = decompressFileBuffer(compressedPayload);
 
+  if (header.originalSize === 0) header.originalSize = result.data.length;
+  if (header.originalSize > 0 && header.compressedSize > 0) {
+    header.compressionRatio = (1 - header.compressedSize / header.originalSize) * 100;
+  }
+
   if (result.ttcMetadata) {
+    header.ttcEngine = header.ttcEngine ?? result.ttcMetadata.engine;
+    header.ttcVersion = header.ttcVersion ?? result.ttcMetadata.version;
+    header.ttcLevel = header.ttcLevel ?? (result.ttcMetadata.level ?? undefined);
+    header.ttcLevelName = header.ttcLevelName ?? (result.ttcMetadata.levelName ?? undefined);
+    header.ttcCrc32 = header.ttcCrc32 ?? (typeof (result.ttcMetadata as any).crc32 === 'number' ? (result.ttcMetadata as any).crc32 : undefined);
+    header.checksum = header.checksum || header.ttcCrc32 || 0;
     return { header, originalData: result.data, ttcMetadata: result.ttcMetadata };
   }
 
   const actualChecksum = simpleChecksum(result.data);
-  if (actualChecksum !== header.checksum) {
+  if (header.checksum && actualChecksum !== header.checksum) {
     console.warn(`Checksum mismatch: expected ${header.checksum}, got ${actualChecksum}. File may be corrupted or truncated.`);
   }
 
