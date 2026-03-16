@@ -2,6 +2,7 @@ _format_version: "3.0"
 _transform: true
 
 # PlenumNET Kong Konnect Configuration
+# Control Plane: plenumnet-cloud (CP ID: eb53e650-7209-4916-b5e1-5e7b6ad3c56d)
 # This file defines API services, routes, and security plugins
 # for the PlenumNET Framework APIs
 #
@@ -9,7 +10,8 @@ _transform: true
 # For AI Agents: This configuration can be synced to Kong Konnect
 # using the decK CLI or the PlenumNET admin interface
 #
-# Total Services: 21 | Total Endpoints: 95+
+# Target: plenumnet.replit.app (production)
+# Total Services: 37 | Total Endpoints: 95+
 
 services:
   # =====================================================
