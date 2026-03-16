@@ -105,10 +105,12 @@ const CRC32_TABLE: [u32; 256] = {
     table
 };
 
+/// Tribonacci sequence T(0)..T(29). Index-preserving: TRIBONACCI_SEQ[7] = 13 = T₇.
+/// T(n) = T(n-1) + T(n-2) + T(n-3), seeded T(0)=0, T(1)=0, T(2)=1.
 const TRIBONACCI_SEQ: [u64; 30] = [
-    1, 2, 3, 6, 11, 20, 37, 68, 125, 230,
-    423, 778, 1431, 2632, 4841, 8904, 16377, 30122, 55403, 101902,
-    187427, 344732, 634061, 1166220, 2145013, 3945294, 7256527, 13346834, 24548655, 45152016,
+    0, 0, 1, 1, 2, 4, 7, 13, 24, 44,
+    81, 149, 274, 504, 927, 1705, 3136, 5768, 10609, 19513,
+    35890, 66012, 121415, 223317, 410744, 755476, 1389537, 2555757, 4700770, 8646064,
 ];
 
 // ─── Error Type ─────────────────────────────────────────────────────────────
@@ -212,22 +214,28 @@ pub struct LevelConfig {
 }
 
 static LEVEL_CONFIGS: [LevelConfig; 9] = [
-    // TTC1: Speed tier. Window = 3^(k+7), chunk = 3^(k+8).
-    // Chunk > window is valid — LZ77 only looks back window_size bytes.
-    // Larger chunks reduce per-chunk overhead (freq tables, headers, GURFT).
-    LevelConfig { level: 1, tier_name: "TTC1-1", window_size: 6_561,       min_match: 8, min_run: 6, skip_gurft: true,  chunk_size: 19_683,      chain_depth: 8,   parsing: Parsing::Greedy,      candidates: 2 },  // 3^8  / 3^9
-    LevelConfig { level: 2, tier_name: "TTC1-2", window_size: 19_683,      min_match: 6, min_run: 5, skip_gurft: true,  chunk_size: 59_049,      chain_depth: 16,  parsing: Parsing::Lazy,        candidates: 3 },  // 3^9  / 3^10
-    LevelConfig { level: 3, tier_name: "TTC1-3", window_size: 59_049,      min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 59_049,      chain_depth: 32,  parsing: Parsing::Lazy,        candidates: 4 },  // 3^10 / 3^10
-    // TTC2: Balanced tier. L4 chunk = 3^11 = TANS_L (structural resonance).
-    // L5 chunk = 3^12: most documents fit in 1 chunk.
-    LevelConfig { level: 4, tier_name: "TTC2-1", window_size: 177_147,     min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 177_147,     chain_depth: 32,  parsing: Parsing::Lazy,        candidates: 4 },  // 3^11 / 3^11 = TANS_L
-    LevelConfig { level: 5, tier_name: "TTC2-2", window_size: 531_441,     min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 531_441,     chain_depth: 64,  parsing: Parsing::Lazy,        candidates: 4 },  // 3^12 / 3^12
-    LevelConfig { level: 6, tier_name: "TTC2-3", window_size: 1_594_323,   min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 531_441,     chain_depth: 128, parsing: Parsing::Lazy,        candidates: 4 },  // 3^13 / 3^12
-    // TTC3: Maximum ratio. Chunk = 3^13 = hypercube vertices (1.52 MB).
-    // Single chunk for virtually all documents. Window scales to 3^16 = 41 MB.
-    LevelConfig { level: 7, tier_name: "TTC3-1", window_size: 4_782_969,   min_match: 3, min_run: 3, skip_gurft: false, chunk_size: 1_594_323,   chain_depth: 128, parsing: Parsing::BeamOptimal, candidates: 4 },  // 3^14 / 3^13
-    LevelConfig { level: 8, tier_name: "TTC3-2", window_size: 14_348_907,  min_match: 3, min_run: 3, skip_gurft: false, chunk_size: 1_594_323,   chain_depth: 192, parsing: Parsing::BeamOptimal, candidates: 4 },  // 3^15 / 3^13
-    LevelConfig { level: 9, tier_name: "TTC3-3", window_size: 43_046_721,  min_match: 3, min_run: 3, skip_gurft: false, chunk_size: 1_594_323,   chain_depth: 256, parsing: Parsing::BeamOptimal, candidates: 4 },  // 3^16 / 3^13
+    // TTC1: Speed tier.
+    // L1: 8-trit window (3^8 = 6,561), 9-trit chunk (3^9 = 19,683)
+    LevelConfig { level: 1, tier_name: "TTC1-1", window_size: 6_561,       min_match: 8, min_run: 6, skip_gurft: true,  chunk_size: 19_683,      chain_depth: 8,   parsing: Parsing::Greedy,      candidates: 2 },
+    // L2: 9-trit window (3^9 = 19,683), 10-trit chunk (3^10 = 59,049)
+    LevelConfig { level: 2, tier_name: "TTC1-2", window_size: 19_683,      min_match: 6, min_run: 5, skip_gurft: true,  chunk_size: 59_049,      chain_depth: 16,  parsing: Parsing::Lazy,        candidates: 3 },
+    // L3: 10-trit window = chunk (3^10 = 59,049)
+    LevelConfig { level: 3, tier_name: "TTC1-3", window_size: 59_049,      min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 59_049,      chain_depth: 32,  parsing: Parsing::Lazy,        candidates: 4 },
+    // TTC2: Document tier.
+    // L4: 11-trit window = chunk (3^11 = 177,147 = TANS_L). ANS table and chunk are the same object.
+    LevelConfig { level: 4, tier_name: "TTC2-1", window_size: 177_147,     min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 177_147,     chain_depth: 32,  parsing: Parsing::Lazy,        candidates: 4 },
+    // L5: 12-trit window = chunk (3^12 = 531,441). Most documents fit in 1 chunk.
+    LevelConfig { level: 5, tier_name: "TTC2-2", window_size: 531_441,     min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 531_441,     chain_depth: 64,  parsing: Parsing::Lazy,        candidates: 4 },
+    // L6: 13-trit window (3^13 = 1,594,323 = hypercube), 12-trit chunk (3^12)
+    LevelConfig { level: 6, tier_name: "TTC2-3", window_size: 1_594_323,   min_match: 4, min_run: 4, skip_gurft: false, chunk_size: 531_441,     chain_depth: 128, parsing: Parsing::Lazy,        candidates: 4 },
+    // TTC3: Maximum ratio tier. Lazy parsing — BeamOptimal cannot cover 3^13
+    // positions with BEAM_WIDTH=8 (good paths pruned, never recover).
+    // L7: 14-trit window (3^14), 13-trit chunk (3^13 = hypercube). Single chunk for most documents.
+    LevelConfig { level: 7, tier_name: "TTC3-1", window_size: 4_782_969,   min_match: 3, min_run: 3, skip_gurft: false, chunk_size: 1_594_323,   chain_depth: 128, parsing: Parsing::Lazy, candidates: 4 },
+    // L8: 15-trit window (3^15), 13-trit chunk (3^13)
+    LevelConfig { level: 8, tier_name: "TTC3-2", window_size: 14_348_907,  min_match: 3, min_run: 3, skip_gurft: false, chunk_size: 1_594_323,   chain_depth: 192, parsing: Parsing::Lazy, candidates: 4 },
+    // L9: 16-trit window (3^16), 13-trit chunk (3^13)
+    LevelConfig { level: 9, tier_name: "TTC3-3", window_size: 43_046_721,  min_match: 3, min_run: 3, skip_gurft: false, chunk_size: 1_594_323,   chain_depth: 256, parsing: Parsing::Lazy, candidates: 4 },
 ];
 
 #[inline]
@@ -604,15 +612,24 @@ impl<'a> TritStreamReader<'a> {
 
 // ─── Prefix Codes (§2.2, §3.4, §3.5, §3.6) ────────────────────────────────
 
+/// Encoding basis: unique positive Tribonacci values for Zeckendorf representation.
+/// Derived from TRIBONACCI_SEQ by skipping T(0)=T(1)=0 and duplicate T(3)=T(2)=1.
+/// Used by encode/decode_tribonacci for prefix codes.
+const TRIBONACCI_BASIS: [u64; 27] = [
+    1, 2, 4, 7, 13, 24, 44, 81, 149, 274,
+    504, 927, 1705, 3136, 5768, 10609, 19513, 35890, 66012, 121415,
+    223317, 410744, 755476, 1389537, 2555757, 4700770, 8646064,
+];
+
 #[inline] pub fn encode_tribonacci(n: u64) -> Vec<bool> {
     if n == 0 { return vec![false]; }
-    let mut top = 0; for (i, &v) in TRIBONACCI_SEQ.iter().enumerate() { if v <= n { top = i; } }
+    let mut top = 0; for (i, &v) in TRIBONACCI_BASIS.iter().enumerate() { if v <= n { top = i; } }
     let mut bits = vec![false; top + 1]; let mut rem = n;
-    for i in (0..=top).rev() { if TRIBONACCI_SEQ[i] <= rem { bits[i] = true; rem -= TRIBONACCI_SEQ[i]; if rem == 0 { break; } } }
+    for i in (0..=top).rev() { if TRIBONACCI_BASIS[i] <= rem { bits[i] = true; rem -= TRIBONACCI_BASIS[i]; if rem == 0 { break; } } }
     let msb = bits.iter().rposition(|&b| b).unwrap_or(0); bits[..=msb].to_vec()
 }
 #[inline] pub fn decode_tribonacci(bits: &[bool]) -> u64 {
-    let mut s = 0u64; for (i, &b) in bits.iter().enumerate() { if b && i < TRIBONACCI_SEQ.len() { s += TRIBONACCI_SEQ[i]; } } s
+    let mut s = 0u64; for (i, &b) in bits.iter().enumerate() { if b && i < TRIBONACCI_BASIS.len() { s += TRIBONACCI_BASIS[i]; } } s
 }
 #[inline] fn encode_hybrid_prefix(w: &mut BitWriter, value: u64) {
     if value == 0 { w.write(0b00, 2); } else if value <= 3 { w.write(0b01, 2); w.write((value-1) as u32, 2); }
@@ -2346,61 +2363,52 @@ mod tests {
             and TL-KEM for secure tunnel establishment. Each populated cube contains 20,726,199 unique \
             PQ-encrypted tunnels computed as 26 times 3^13 divided by 2. The Tribonacci constant governs \
             structural resonance across the ternary addressing lattice. ";
-        let chunk_sizes: [(u8, usize); 9] = [
-            (1, T3_9),   (2, T3_10),  (3, T3_10),
-            (4, T3_11),  (5, T3_12),  (6, T3_12),
-            (7, T3_13),  (8, T3_13),  (9, T3_13),
+        // Each level benchmarked at its own chunk size (1 chunk) and 3× chunk size (3 chunks).
+        // Sizes are pure 3^k — matching the ternary architecture exactly.
+        // Levels tested in dependent mode (default for document compression).
+        let cases: &[(usize, &str, u8, &str)] = &[
+            // (data_size, size_label, level, trit_label)
+            // ── TTC1: speed tier ──
+            (19_683,       "3^9=19.2K",  1, "9-trit"),   // L1: 1 chunk
+            (59_049,       "3^10=57.7K", 1, "10-trit"),  // L1: 3 chunks
+            (59_049,       "3^10=57.7K", 2, "10-trit"),  // L2: 1 chunk
+            (177_147,      "3^11=173K",  2, "11-trit"),  // L2: 3 chunks
+            (59_049,       "3^10=57.7K", 3, "10-trit"),  // L3: 1 chunk
+            (177_147,      "3^11=173K",  3, "11-trit"),  // L3: 3 chunks
+            // ── TTC2: document tier ──
+            (177_147,      "3^11=173K",  4, "11-trit"),  // L4: 1 chunk = TANS_L
+            (531_441,      "3^12=519K",  4, "12-trit"),  // L4: 3 chunks
+            (531_441,      "3^12=519K",  5, "12-trit"),  // L5: 1 chunk (document sweet spot)
+            (1_594_323,    "3^13=1.52M", 5, "13-trit"),  // L5: 3 chunks
+            (531_441,      "3^12=519K",  6, "12-trit"),  // L6: 1 chunk
+            (1_594_323,    "3^13=1.52M", 6, "13-trit"),  // L6: 3 chunks
+            // ── TTC3: max ratio (skip L8-L9 in bench — too slow for CI) ──
+            (1_594_323,    "3^13=1.52M", 7, "13-trit"),  // L7: 1 chunk = hypercube
         ];
-        let trit_labels: [&str; 9] = [
-            "3^9",  "3^10", "3^10",
-            "3^11", "3^12", "3^12",
-            "3^13", "3^13", "3^13",
-        ];
-        eprintln!("\n=== TTC v2.0+v4.2 Benchmark — each level at its own 3^k chunk size (dependent mode) ===");
-        eprintln!("{:<6} {:<8} {:<6} {:>9} {:>4} {:>8} {:>8} {:>10} {:>10} {:>7} {:>7} {:<7}",
-            "Level", "Tier", "Trit", "Data", "#Chk", "Ratio", "Saved%", "Comp MB/s", "Dec MB/s", "Comp", "Dec", "Mode");
-        eprintln!("{}", "-".repeat(115));
-        for (idx, &(level, chunk_sz)) in chunk_sizes.iter().enumerate() {
-            let cfg = level_config(level).unwrap();
-            let trit = trit_labels[idx];
-            let max_chunks: &[usize] = if chunk_sz >= T3_13 { &[1] } else { &[1, 3] };
-            for &num_chunks in max_chunks {
-                let size = chunk_sz * num_chunks;
-                let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
-                let opts = CompressOptions {
-                    mode: CompressionMode::Basic, level,
-                    independent_chunks: false, ..Default::default()
-                };
-                let iters = if size <= T3_10 { 10 } else if size <= T3_11 { 3 } else { 1 };
-                let t0 = Instant::now();
-                let mut result = ttc_compress(&data, &opts).unwrap();
-                for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }
-                let comp_us = t0.elapsed().as_micros() as f64 / iters as f64;
-                let t1 = Instant::now();
-                let mut dec = ttc_decompress(&result.compressed).unwrap();
-                for _ in 1..iters { dec = ttc_decompress(&result.compressed).unwrap(); }
-                let dec_us = t1.elapsed().as_micros() as f64 / iters as f64;
-                assert_eq!(dec.data, data, "round-trip failed: level={} chunks={}", level, num_chunks);
-                let ratio = data.len() as f64 / result.compressed_size as f64;
-                let saved = (1.0 - result.compressed_size as f64 / data.len() as f64) * 100.0;
-                let size_mb = size as f64 / 1_048_576.0;
-                let comp_mbps = if comp_us > 0.0 { size_mb / (comp_us / 1_000_000.0) } else { 0.0 };
-                let dec_mbps = if dec_us > 0.0 { size_mb / (dec_us / 1_000_000.0) } else { 0.0 };
-                let mode = result.chunks.first().map(|c| c.mode).unwrap_or(0);
-                let mn = match mode { 0=>"Stored", 1=>"Comp", 2=>"TernEnh", 3=>"rANS/3", _=>"?" };
-                let size_label = if size >= 1_048_576 { format!("{:.1}MB", size_mb) }
-                    else if size >= 1024 { format!("{:.0}KB", size as f64 / 1024.0) }
-                    else { format!("{}B", size) };
-                let comp_time = if comp_us >= 1_000_000.0 { format!("{:.1}s", comp_us / 1_000_000.0) }
-                    else if comp_us >= 1_000.0 { format!("{:.1}ms", comp_us / 1_000.0) }
-                    else { format!("{:.0}us", comp_us) };
-                let dec_time = if dec_us >= 1_000_000.0 { format!("{:.1}s", dec_us / 1_000_000.0) }
-                    else if dec_us >= 1_000.0 { format!("{:.1}ms", dec_us / 1_000.0) }
-                    else { format!("{:.0}us", dec_us) };
-                eprintln!("L{:<5} {:<8} {:<6} {:>9} {:>4} {:>7.1}x {:>7.1}% {:>10.1} {:>10.1} {:>7} {:>7} {:<7}",
-                    level, cfg.tier_name, trit, size_label, num_chunks, ratio, saved,
-                    comp_mbps, dec_mbps, comp_time, dec_time, mn);
-            }
+        eprintln!("\n=== TTC v2.0+v4.2 Benchmark (dependent mode, ternary rANS, pure 3^k sizes) ===");
+        eprintln!("{:<14} {:<7} {:<8} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7} {:<6}",
+            "Size", "Trits", "Level", "Comp(us)", "Dec(us)", "Total(us)", "Ratio", "Saved%", "Mode", "Chunks");
+        eprintln!("{}", "-".repeat(100));
+        for &(size, label, level, trit_label) in cases {
+            let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
+            let opts = CompressOptions { mode: CompressionMode::Basic, level,
+                independent_chunks: false, ..Default::default() };
+            let iters = if size <= 59_049 { 10 } else if size <= 531_441 { 3 } else { 1 };
+            let t0 = Instant::now();
+            let mut result = ttc_compress(&data, &opts).unwrap();
+            for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }
+            let comp_us = t0.elapsed().as_micros() as f64 / iters as f64;
+            let t1 = Instant::now();
+            let mut dec = ttc_decompress(&result.compressed).unwrap();
+            for _ in 1..iters { dec = ttc_decompress(&result.compressed).unwrap(); }
+            let dec_us = t1.elapsed().as_micros() as f64 / iters as f64;
+            assert_eq!(dec.data, data, "round-trip failed: size={} level={}", size, level);
+            let ratio = data.len() as f64 / result.compressed_size as f64;
+            let saved = (1.0 - result.compressed_size as f64 / data.len() as f64) * 100.0;
+            let mode = result.chunks.first().map(|c| c.mode).unwrap_or(0);
+            let mn = match mode { 0=>"Stored", 1=>"Comp", 2=>"TernEnh", 3=>"rANS/3", _=>"?" };
+            eprintln!("{:<14} {:<7} L{:<7} {:>10.1} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7} {}",
+                label, trit_label, level, comp_us, dec_us, comp_us+dec_us, ratio, saved, mn, result.chunks.len());
         }
         eprintln!(); }
 }
