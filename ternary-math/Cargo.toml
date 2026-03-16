@@ -28,3 +28,7 @@ aes-gcm = "0.10"
 [[bench]]
 name = "inter_cube"
 harness = false
+
+[[bench]]
+name = "ttc_benchmark"
+harness = false

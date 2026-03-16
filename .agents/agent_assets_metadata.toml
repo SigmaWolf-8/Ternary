@@ -23,4 +23,10 @@ title = "TTC v2.0 & Crypto Primitives Benchmark Report"
 id = "lVOYsmBadEqkzcqoxhSlm"
 uri = "file://.local/tasks/ttc-frontend-wiring-instructions.md"
 type = "text"
-title = "TTC Frontend App — API Wiring Instructions (Corrected)"
+title = "TTC Frontend App — API Wiring Instructions (v4.1 rANS Updated)"
+
+[[outputs]]
+id = "5kHxGlPCdmEhJbTYngtrm"
+uri = "file://TTC-v4.1-benchmark-report.md"
+type = "text"
+title = "TTC v4.1 Comprehensive Benchmark Report"
