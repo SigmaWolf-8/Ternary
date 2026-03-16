@@ -25,6 +25,7 @@
 
 // Salvi Epoch: April 1, 2025 - Day Zero
 export const SALVI_EPOCH = new Date('2025-04-01T00:00:00.000Z').getTime();
+export const SALVI_EPOCH_FS = BigInt(SALVI_EPOCH) * 1_000_000n * 1_000_000n; // in femtoseconds
 export const FEMTOSECONDS_PER_MILLISECOND = 1_000_000_000_000n;
 export const FEMTOSECONDS_PER_SECOND = 1_000_000_000_000_000n;
 
@@ -69,21 +70,17 @@ export function getFemtosecondTimestamp(): FemtosecondTimestamp {
   const hrNow  = process.hrtime.bigint();
   const wallNs = _anchorWallNs + (hrNow - _anchorHrNs);
 
-  const wallMs       = Number(wallNs / 1_000_000n);
-  const salviOffsetMs = wallMs - SALVI_EPOCH;
-  const salviOffsetNs = BigInt(salviOffsetMs) * 1_000_000n
-                        + (wallNs % 1_000_000n);
+  const wallFs = wallNs * FEMTOSECONDS_PER_NANOSECOND;
 
-  const totalFemtoseconds = salviOffsetNs * FEMTOSECONDS_PER_NANOSECOND;
-
-  const date = new Date(wallMs);
+  const wallMs = Number(wallNs / 1_000_000n);
+  const date   = new Date(wallMs);
 
   return {
-    femtoseconds: totalFemtoseconds,
-    humanReadable: formatFemtoseconds(totalFemtoseconds),
+    femtoseconds: wallFs,
+    humanReadable: formatFemtoseconds(wallFs),
     isoDate: date.toISOString(),
     precision: 'femtosecond',
-    salviEpochOffset: totalFemtoseconds
+    salviEpochOffset: wallFs - SALVI_EPOCH_FS
   };
 }
 
@@ -91,9 +88,8 @@ export function getFemtosecondTimestamp(): FemtosecondTimestamp {
  * Format femtoseconds into human-readable date/time string
  */
 function formatFemtoseconds(fs: bigint): string {
-  // Convert femtoseconds back to milliseconds and add to Salvi Epoch
   const milliseconds = Number(fs / FEMTOSECONDS_PER_MILLISECOND);
-  const date = new Date(SALVI_EPOCH + milliseconds);
+  const date = new Date(milliseconds);
   
   // Get sub-millisecond precision: µs.ns.ps.fs (each 0–999)
   const remainingFs = fs % FEMTOSECONDS_PER_MILLISECOND;
