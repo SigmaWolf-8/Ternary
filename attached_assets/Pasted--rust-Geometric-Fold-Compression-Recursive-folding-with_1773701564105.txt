@@ -1,0 +1,231 @@
+```rust
+// Geometric Fold Compression – Recursive folding with actual band encoding
+// This program performs up to 5 folds on a byte stream,
+// encoding corrections using run-length encoding of zero runs (bijective base‑255 gaps)
+// and raw bytes for non‑zero differences. It computes total compressed size after each fold.
+
+use std::collections::HashMap;
+
+const CANDIDATES: [usize; 17] = [
+    8, 13, 20, 25, 26, 27, 28, 30, 35, 36, 40, 42, 45, 46, 50, 52, 56,
+];
+const CIRCLES: [usize; 3] = [13, 27, 28];
+
+// ----- Period detection -----
+fn detect_period(data: &[u8]) -> usize {
+    let mut best_s = 1;
+    let mut best_match = 0.0;
+    for &s in &CANDIDATES {
+        if s * s > data.len() { continue; }
+        let matches = diagonal_match_rate(&data[0..s*s], s);
+        if matches > best_match {
+            best_match = matches;
+            best_s = s;
+        }
+    }
+    eprintln!("  detected S={} (match rate {:.2}%)", best_s, best_match * 100.0);
+    best_s
+}
+
+fn diagonal_match_rate(block: &[u8], s: usize) -> f64 {
+    let mut total = 0;
+    let mut matches = 0;
+    for r in 0..s {
+        for c in 0..r {
+            if block[r*s + c] == block[c*s + r] {
+                matches += 1;
+            }
+            total += 1;
+        }
+    }
+    if total == 0 { 0.0 } else { matches as f64 / total as f64 }
+}
+
+// ----- Diagonal fold -----
+#[derive(Debug, Clone)]
+struct Band {
+    d: usize,
+    corrections: Vec<Option<u8>>, // None = match, Some(diff) = non‑match (byte difference)
+}
+
+fn diagonal_fold(block: &[u8], s: usize) -> (Vec<u8>, Vec<Band>) {
+    let mut upper = Vec::with_capacity(s * (s + 1) / 2);
+    for r in 0..s {
+        for c in r..s {
+            upper.push(block[r*s + c]);
+        }
+    }
+
+    let mut bands = Vec::with_capacity(s - 1);
+    for d in 1..s {
+        let mut corr = Vec::new();
+        for r in 0..s {
+            let c = r + d;
+            if c < s {
+                let a = block[r*s + c];
+                let b = block[c*s + r];
+                corr.push(if a == b { None } else { Some(a.wrapping_sub(b)) });
+            }
+        }
+        bands.push(Band { d, corrections: corr });
+    }
+    (upper, bands)
+}
+
+// ----- Encode a band using run‑length encoding -----
+// Format: for each run of zeros (matches), emit gap count (bijective base‑255) then any non‑zero values.
+// Returns encoded bytes.
+fn encode_band(band: &Band) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut gap = 0;
+    for corr in &band.corrections {
+        match corr {
+            None => gap += 1,
+            Some(val) => {
+                if gap > 0 {
+                    out.extend(bijective_base255(gap));
+                    gap = 0;
+                }
+                out.push(*val);
+            }
+        }
+    }
+    // Trailing gap (if any) is not stored because decoder knows band length.
+    out
+}
+
+// Bijective base‑255 encoding of a positive integer.
+fn bijective_base255(mut n: usize) -> Vec<u8> {
+    let mut digits = Vec::new();
+    while n > 0 {
+        let rem = n % 255;
+        if rem == 0 {
+            digits.push(255);
+            n = n / 255 - 1;
+        } else {
+            digits.push(rem as u8);
+            n /= 255;
+        }
+    }
+    digits.reverse();
+    digits
+}
+
+// ----- Process one block: return (kernel, encoded correction bytes) -----
+fn process_block(block: &[u8], s: usize) -> (Vec<u8>, Vec<u8>) {
+    let (upper, bands) = diagonal_fold(block, s);
+    let mut all_corrections = Vec::new();
+    for band in bands {
+        let enc = encode_band(&band);
+        all_corrections.extend(enc);
+    }
+    (upper, all_corrections)
+}
+
+// ----- Generate synthetic JSON-like data (record length 34) -----
+fn generate_test_data(len: usize) -> Vec<u8> {
+    let record = b"{\"id\":123,\"name\":\"John\",\"value\":45}"; // 34 bytes
+    (0..len).map(|i| {
+        let noise = if i % 100 == 0 { i as u8 } else { 0 };
+        record[i % record.len()].wrapping_add(noise % 10)
+    }).collect()
+}
+
+// ----- Main -----
+fn main() {
+    // Choose dataset size
+    let total_bytes = 4_800; // 3 full blocks of 40x40? Actually 40*40*3 = 4800, but record length is 34.
+    let data = generate_test_data(total_bytes);
+    let original_len = data.len();
+    println!("Original size: {} bytes", original_len);
+    println!("---");
+
+    // We'll store the current data to be folded (initially the original)
+    let mut current_data = data;
+    let mut total_compressed_size = original_len;
+    let mut fold_count = 0;
+    let max_folds = 5;
+
+    for fold in 1..=max_folds {
+        if current_data.len() < 16 {
+            println!("Data too small for further folds.");
+            break;
+        }
+        let s = detect_period(&current_data);
+        if s * s > current_data.len() {
+            println!("Cannot form a full {}x{} block (need {} bytes, have {})", s, s, s*s, current_data.len());
+            break;
+        }
+        let block_size = s * s;
+        let num_blocks = current_data.len() / block_size;
+        let mut new_kernel = Vec::new();
+        let mut total_corr_bytes = 0;
+        for i in 0..num_blocks {
+            let start = i * block_size;
+            let block = &current_data[start..start+block_size];
+            let (kernel, corr) = process_block(block, s);
+            new_kernel.extend(kernel);
+            total_corr_bytes += corr.len();
+        }
+        // The remainder (if any) is not folded in this demo; we ignore it.
+        // Replace current_data with the concatenated kernels.
+        current_data = new_kernel;
+        total_compressed_size = current_data.len() + total_corr_bytes; // + corrections from this fold only? Wait, we need to accumulate all corrections.
+        // Actually total_compressed_size should include all corrections from all folds.
+        // We'll recompute total each time as sum of current kernel + all corrections so far.
+        // We need to accumulate corrections across folds. Let's keep a vector of all correction bytes.
+        // Simpler: after each fold, we can compute total = current_kernel_size + sum_corrections_so_far.
+        // We'll maintain a running sum.
+        // For first fold, sum_corr = total_corr_bytes.
+        // For second fold, sum_corr += total_corr_bytes (new corrections) + new kernel size.
+        // But careful: after first fold, we have kernel1 + corr1. After second fold, we replace kernel1 with kernel2 and add corr2.
+        // So total after fold 2 = kernel2.len() + corr1.len() + corr2.len().
+        // So we need to accumulate corrections in a separate variable.
+
+        // Let's restructure: have a variable `acc_corrections` that stores all correction bytes so far.
+        // We'll keep a Vec<u8> accumulating all corrections from all folds.
+        // At start, acc_corrections is empty.
+        // After first fold: kernel1, corr1; total = kernel1.len() + corr1.len(); acc_corrections = corr1.
+        // After second fold: we take kernel1 as data, produce kernel2 and corr2; then total = kernel2.len() + acc_corrections.len() + corr2.len(); acc_corrections.extend(corr2).
+
+        // We'll implement that.
+    }
+
+    // Let's rewrite to accumulate properly.
+    let mut current_data = data;
+    let mut acc_corrections = Vec::new();
+    let mut fold = 1;
+    loop {
+        if current_data.len() < 16 {
+            println!("Data too small for further folds.");
+            break;
+        }
+        let s = detect_period(&current_data);
+        if s * s > current_data.len() {
+            println!("Cannot form a full {}x{} block (need {} bytes, have {})", s, s, s*s, current_data.len());
+            break;
+        }
+        let block_size = s * s;
+        let num_blocks = current_data.len() / block_size;
+        let mut new_kernel = Vec::new();
+        let mut new_corr = Vec::new();
+        for i in 0..num_blocks {
+            let start = i * block_size;
+            let block = &current_data[start..start+block_size];
+            let (kernel, corr) = process_block(block, s);
+            new_kernel.extend(kernel);
+            new_corr.extend(corr);
+        }
+        // Update accumulated corrections
+        let old_acc_len = acc_corrections.len();
+        acc_corrections.extend(new_corr);
+        let total = new_kernel.len() + acc_corrections.len();
+        let ratio = original_len as f64 / total as f64;
+        println!("Fold {}: kernel {} bytes, corrections total {} (this fold added {}), total {} bytes, ratio {:.2}:1",
+                 fold, new_kernel.len(), acc_corrections.len(), new_corr.len(), total, ratio);
+        current_data = new_kernel;
+        fold += 1;
+        if fold > 5 { break; }
+    }
+}
+```
