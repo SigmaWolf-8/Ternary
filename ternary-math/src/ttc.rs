@@ -2693,8 +2693,11 @@ fn compress_chunk(
         let comp = serialize_compressed(&tokens, rice_m);
         candidates.push((ChunkMode::Compressed, make_mode_payload(chunk, 1, &comp)));
 
-        let tans = serialize_tans(&tokens, cfg.window_size);
-        candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
+        let has_match = tokens.iter().any(|t| matches!(t, Token::Match { .. }));
+        if !has_match {
+            let tans = serialize_tans(&tokens, cfg.window_size);
+            candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
+        }
 
         if chunk.len() <= 16384 {
             let enh = serialize_ternary_enhanced(&tokens, rice_m, tc);
@@ -2823,8 +2826,11 @@ fn phase2_compress(
         let comp = serialize_compressed(&tokens, rice_m);
         candidates.push((ChunkMode::Compressed, make_mode_payload(chunk, 1, &comp)));
 
-        let tans = serialize_tans(&tokens, cfg.window_size);
-        candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
+        let has_match = tokens.iter().any(|t| matches!(t, Token::Match { .. }));
+        if !has_match {
+            let tans = serialize_tans(&tokens, cfg.window_size);
+            candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
+        }
 
         if chunk.len() <= 16384 {
             let enh = serialize_ternary_enhanced(&tokens, rice_m, tc);
@@ -3949,5 +3955,46 @@ mod tests {
         let fa = fibonacci_analysis(1024);
         assert!(fa.arb_weight >= 1.0);
         assert!(!fa.resonance_band.is_empty());
+    }
+
+    #[test]
+    fn bench_ttc_compress_decompress() {
+        use std::time::Instant;
+        let text = b"The 13-dimensional ternary hypercube geometry provides exactly 26 neighbor tunnels per node. \
+            PlenumNET leverages post-quantum cryptographic primitives including TL-Sponge-385, TL-DSA-87, \
+            and TL-KEM for secure tunnel establishment. Each populated cube contains 20,726,199 unique \
+            PQ-encrypted tunnels computed as 26 times 3^13 divided by 2. The Tribonacci constant governs \
+            structural resonance across the ternary addressing lattice. ";
+        let sizes: &[(usize, &str)] = &[(1024, "1 KB"), (4096, "4 KB"), (16384, "16 KB"), (65536, "64 KB")];
+        let levels: &[u8] = &[1, 3, 5, 9];
+        eprintln!("\n=== TTC v2.0 Compression Benchmark (release, Basic mode) ===");
+        eprintln!("{:<8} {:<6} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7}", "Size", "Level", "Comp(µs)", "Dec(µs)", "Total(µs)", "Ratio", "Saved%", "Mode");
+        eprintln!("{}", "-".repeat(72));
+        for &(size, label) in sizes {
+            let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
+            for &level in levels {
+                let opts = CompressOptions {
+                    mode: CompressionMode::Basic, level, independent_chunks: true,
+                    ..Default::default()
+                };
+                let iters = if size <= 4096 { 20 } else { 5 };
+                let t0 = Instant::now();
+                let mut result = ttc_compress(&data, &opts).unwrap();
+                for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }
+                let compress_us = t0.elapsed().as_micros() as f64 / iters as f64;
+                let t1 = Instant::now();
+                let mut dec = ttc_decompress(&result.compressed).unwrap();
+                for _ in 1..iters { dec = ttc_decompress(&result.compressed).unwrap(); }
+                let decompress_us = t1.elapsed().as_micros() as f64 / iters as f64;
+                assert_eq!(dec.data, data, "round-trip failed: size={} level={} chunks={}", size, level, result.chunks.len());
+                let ratio = data.len() as f64 / result.compressed_size as f64;
+                let saved = (1.0 - result.compressed_size as f64 / data.len() as f64) * 100.0;
+                let mode = result.chunks.first().map(|c| c.mode).unwrap_or(0);
+                let mode_name = match mode { 0=>"Stored", 1=>"Comp", 2=>"TernEnh", 3=>"tANS", _=>"?" };
+                eprintln!("{:<8} {:<6} {:>10.1} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7}",
+                    label, level, compress_us, decompress_us, compress_us + decompress_us, ratio, saved, mode_name);
+            }
+        }
+        eprintln!();
     }
 }
