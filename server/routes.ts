@@ -637,7 +637,7 @@ export async function registerRoutes(
 
       if (isRaw) {
         inputBuffer = req.body as Buffer;
-        fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin';
+        try { fileName = decodeURIComponent((req.headers['x-ttc-filename'] as string) || 'upload.bin'); } catch { fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin'; }
         encrypt = req.headers['x-ttc-encrypt'] === 'true';
         encryptionMode = (req.headers['x-ttc-encryption-mode'] as string) || 'balanced';
         imageWidth = req.headers['x-ttc-image-width'] ? parseInt(req.headers['x-ttc-image-width'] as string, 10) : undefined;
@@ -674,7 +674,7 @@ export async function registerRoutes(
 
       const ttcHeaders: Record<string, string> = {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${fileName.replace(/\.[^.]+$/, '')}.tern"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName.replace(/\.[^.]+$/, '') + '.tern')}`,
         'X-TTC-Original-Size': String(header.originalSize),
         'X-TTC-Compressed-Size': String(ternFile.length),
         'X-TTC-Compression-Ratio': header.compressionRatio.toFixed(1),
@@ -686,7 +686,7 @@ export async function registerRoutes(
         'X-TTC-CRC32': String(ttcMetadata?.crc32 ?? header.checksum),
         'X-TTC-Encrypted': String(header.encrypted || false),
         'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
-        'X-TTC-Original-Filename': fileName,
+        'X-TTC-Original-Filename': encodeURIComponent(fileName),
         'X-TTC-Predominant-Base': String(ttcMetadata?.predominantBase ?? 3),
         'X-TTC-Avg-Tau': String(ttcMetadata?.avgTau ?? 0),
         'X-TTC-Avg-Delta': String(ttcMetadata?.avgDelta ?? 0),
@@ -758,13 +758,13 @@ export async function registerRoutes(
       if (isRaw) {
         const decompHeaders: Record<string, string> = {
           'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${header.originalFileName || 'decompressed.bin'}"`,
+          'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(header.originalFileName || 'decompressed.bin')}`,
           'X-TTC-Original-Size': String(header.originalSize),
           'X-TTC-Compressed-Size': String(header.compressedSize),
           'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
           'X-TTC-Engine': ttcMetadata?.engine || 'ttc-ts-fallback',
           'X-TTC-Was-Encrypted': String(header.encrypted || false),
-          'X-TTC-Original-Filename': header.originalFileName || '',
+          'X-TTC-Original-Filename': encodeURIComponent(header.originalFileName || ''),
           'X-TTC-CRC32-Verified': String(ttcMetadata?.crc32Verified ?? true),
           'X-TTC-Version': ttcMetadata?.version || '1.0',
           'X-TTC-Level': String(ttcMetadata?.level ?? 5),
@@ -808,7 +808,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Empty or invalid body. Send raw bytes with Content-Type: application/octet-stream" });
       }
 
-      const fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin';
+      let fileName: string;
+      try { fileName = decodeURIComponent((req.headers['x-ttc-filename'] as string) || 'upload.bin'); } catch { fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin'; }
       const encrypt = req.headers['x-ttc-encrypt'] === 'true';
       const encryptionMode = (req.headers['x-ttc-encryption-mode'] as string) || 'balanced';
       const imageWidth = req.headers['x-ttc-image-width'] ? parseInt(req.headers['x-ttc-image-width'] as string, 10) : undefined;
@@ -826,7 +827,7 @@ export async function registerRoutes(
 
       res.set({
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${fileName.replace(/\.[^.]+$/, '')}.tern"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName.replace(/\.[^.]+$/, '') + '.tern')}`,
         'X-TTC-Original-Size': String(header.originalSize),
         'X-TTC-Compressed-Size': String(ternFile.length),
         'X-TTC-Compression-Ratio': header.compressionRatio.toFixed(1),
@@ -838,7 +839,7 @@ export async function registerRoutes(
         'X-TTC-CRC32': String(ttcMetadata?.crc32 ?? header.checksum),
         'X-TTC-Encrypted': String(header.encrypted || false),
         'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
-        'X-TTC-Original-Filename': fileName,
+        'X-TTC-Original-Filename': encodeURIComponent(fileName),
         'X-TTC-Predominant-Base': String(ttcMetadata?.predominantBase ?? 3),
         'X-TTC-Avg-Tau': String(ttcMetadata?.avgTau ?? 0),
         'X-TTC-Avg-Delta': String(ttcMetadata?.avgDelta ?? 0),
@@ -868,13 +869,13 @@ export async function registerRoutes(
 
       res.set({
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${header.originalFileName || 'decompressed.bin'}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(header.originalFileName || 'decompressed.bin')}`,
         'X-TTC-Original-Size': String(header.originalSize),
         'X-TTC-Compressed-Size': String(header.compressedSize),
         'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
         'X-TTC-Engine': ttcMetadata?.engine || 'ttc-ts-fallback',
         'X-TTC-Was-Encrypted': String(header.encrypted || false),
-        'X-TTC-Original-Filename': header.originalFileName || '',
+        'X-TTC-Original-Filename': encodeURIComponent(header.originalFileName || ''),
         'X-TTC-CRC32-Verified': String(ttcMetadata?.crc32Verified ?? true),
         'X-TTC-Version': ttcMetadata?.version || '1.0',
         'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),

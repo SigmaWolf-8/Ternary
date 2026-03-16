@@ -124,7 +124,7 @@ function parseTtcHeaders(headers: Headers): {
     avgTau: parseFloat(headers.get('X-TTC-Avg-Tau') || '0'),
     avgDelta: parseFloat(headers.get('X-TTC-Avg-Delta') || '0'),
     adaptiveRepUsed: headers.get('X-TTC-Adaptive-Rep') === 'true',
-    originalFileName: headers.get('X-TTC-Original-Filename') || '',
+    originalFileName: (() => { try { return decodeURIComponent(headers.get('X-TTC-Original-Filename') || ''); } catch { return headers.get('X-TTC-Original-Filename') || ''; } })(),
     wasEncrypted: headers.get('X-TTC-Was-Encrypted') === 'true',
     crc32Verified: headers.get('X-TTC-CRC32-Verified') !== 'false',
     gf3Representation: headers.get('X-TTC-GF3-Rep') || 'balanced',
@@ -146,7 +146,7 @@ function FileCompressionTab() {
       const bytes = fileBytes || new TextEncoder().encode(fileContent);
       const headers: Record<string, string> = {
         'Content-Type': 'application/octet-stream',
-        'X-TTC-Filename': fileName || 'untitled.txt',
+        'X-TTC-Filename': encodeURIComponent(fileName || 'untitled.txt'),
       };
       if (encrypt) {
         headers['X-TTC-Encrypt'] = 'true';
@@ -164,8 +164,16 @@ function FileCompressionTab() {
       }
       const h = parseTtcHeaders(res.headers);
       const contentDisp = res.headers.get('Content-Disposition') || '';
+      const fnStarMatch = contentDisp.match(/filename\*=UTF-8''(.+)/);
       const fnMatch = contentDisp.match(/filename="([^"]+)"/);
-      const outputName = fnMatch ? fnMatch[1] : (fileName || 'output').replace(/\.[^.]+$/, '') + '.tern';
+      let outputName: string;
+      if (fnStarMatch) {
+        try { outputName = decodeURIComponent(fnStarMatch[1]); } catch { outputName = fnStarMatch[1]; }
+      } else if (fnMatch) {
+        outputName = fnMatch[1];
+      } else {
+        outputName = (fileName || 'output').replace(/\.[^.]+$/, '') + '.tern';
+      }
       const buffer = await res.arrayBuffer();
       return {
         fileName: outputName,
