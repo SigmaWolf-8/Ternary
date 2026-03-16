@@ -136,6 +136,8 @@ function FileCompressionTab() {
   const [fileContent, setFileContent] = useState("");
   const [encrypt, setEncrypt] = useState(false);
   const [encryptionMode, setEncryptionMode] = useState("balanced");
+  const [ttcLevel, setTtcLevel] = useState("5");
+  const [ttcMode, setTtcMode] = useState("auto");
   const [compressResult, setCompressResult] = useState<FileCompressionResult | null>(null);
   const [decompressResult, setDecompressResult] = useState<FileDecompressionResult | null>(null);
   const [ternFileBuffer, setTernFileBuffer] = useState<ArrayBuffer | null>(null);
@@ -147,7 +149,11 @@ function FileCompressionTab() {
       const headers: Record<string, string> = {
         'Content-Type': 'application/octet-stream',
         'X-TTC-Filename': encodeURIComponent(fileName || 'untitled.txt'),
+        'X-TTC-Level': ttcLevel,
       };
+      if (ttcMode !== 'auto') {
+        headers['X-TTC-Compress-Mode'] = ttcMode;
+      }
       if (encrypt) {
         headers['X-TTC-Encrypt'] = 'true';
         headers['X-TTC-Encryption-Mode'] = encryptionMode;
@@ -337,6 +343,47 @@ function FileCompressionTab() {
                 className="min-h-[80px] text-xs font-mono"
                 data-testid="textarea-file-content"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Level</Label>
+                <Select value={ttcLevel} onValueChange={setTtcLevel}>
+                  <SelectTrigger className="w-full" data-testid="select-ttc-level">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">L1 — TTC1-1 (Fast)</SelectItem>
+                    <SelectItem value="2">L2 — TTC1-2</SelectItem>
+                    <SelectItem value="3">L3 — TTC1-3</SelectItem>
+                    <SelectItem value="4">L4 — TTC2-1</SelectItem>
+                    <SelectItem value="5">L5 — TTC2-2 (Default)</SelectItem>
+                    <SelectItem value="6">L6 — TTC2-3</SelectItem>
+                    <SelectItem value="7">L7 — TTC3-1</SelectItem>
+                    <SelectItem value="8">L8 — TTC3-2</SelectItem>
+                    <SelectItem value="9">L9 — TTC3-3 (Max)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Mode</Label>
+                <Select value={ttcMode} onValueChange={setTtcMode}>
+                  <SelectTrigger className="w-full" data-testid="select-ttc-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto-detect</SelectItem>
+                    <SelectItem value="basic">Basic</SelectItem>
+                    <SelectItem value="temporal">Temporal</SelectItem>
+                    <SelectItem value="source">Source</SelectItem>
+                    <SelectItem value="structured">Structured</SelectItem>
+                    <SelectItem value="log">Log</SelectItem>
+                    <SelectItem value="image">Image</SelectItem>
+                    <SelectItem value="audio">Audio</SelectItem>
+                    <SelectItem value="genomic">Genomic</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex items-center justify-between gap-4">

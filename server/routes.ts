@@ -635,18 +635,26 @@ export async function registerRoutes(
       let encryptionMode: string;
       let imageWidth: number | undefined;
 
+      let ttcLevel: number | undefined;
+      let ttcMode: string | undefined;
+
       if (isRaw) {
         inputBuffer = req.body as Buffer;
         try { fileName = decodeURIComponent((req.headers['x-ttc-filename'] as string) || 'upload.bin'); } catch { fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin'; }
         encrypt = req.headers['x-ttc-encrypt'] === 'true';
         encryptionMode = (req.headers['x-ttc-encryption-mode'] as string) || 'balanced';
         imageWidth = req.headers['x-ttc-image-width'] ? parseInt(req.headers['x-ttc-image-width'] as string, 10) : undefined;
+        const rawLevel = req.headers['x-ttc-level'] as string | undefined;
+        if (rawLevel) { const n = parseInt(rawLevel, 10); if (n >= 1 && n <= 9) ttcLevel = n; }
+        ttcMode = (req.headers['x-ttc-compress-mode'] as string) || undefined;
       } else {
         const schema = z.object({
           fileName: z.string().min(1),
           content: z.string().min(1),
           encrypt: z.boolean().optional().default(false),
           encryptionMode: z.enum(["high_security", "balanced", "performance", "adaptive"]).optional().default("balanced"),
+          level: z.number().int().min(1).max(9).optional(),
+          mode: z.string().optional(),
         });
 
         const parsed = schema.safeParse(req.body);
@@ -659,6 +667,8 @@ export async function registerRoutes(
         encryptionMode = parsed.data.encryptionMode;
         inputBuffer = Buffer.from(parsed.data.content, 'base64');
         imageWidth = undefined;
+        ttcLevel = parsed.data.level;
+        ttcMode = parsed.data.mode;
       }
 
       const { createTernFile } = await import("./compression-layer");
@@ -668,6 +678,8 @@ export async function registerRoutes(
       const { ternFile, header, ttcMetadata } = createTernFile(inputBuffer, fileName, {
         encrypt,
         encryptionMode: encMode,
+        level: ttcLevel,
+        mode: ttcMode,
       });
       
       const processingTimeMs = performance.now() - startTime;
@@ -813,6 +825,10 @@ export async function registerRoutes(
       const encrypt = req.headers['x-ttc-encrypt'] === 'true';
       const encryptionMode = (req.headers['x-ttc-encryption-mode'] as string) || 'balanced';
       const imageWidth = req.headers['x-ttc-image-width'] ? parseInt(req.headers['x-ttc-image-width'] as string, 10) : undefined;
+      let ttcLevel: number | undefined;
+      const rawLevel = req.headers['x-ttc-level'] as string | undefined;
+      if (rawLevel) { const n = parseInt(rawLevel, 10); if (n >= 1 && n <= 9) ttcLevel = n; }
+      const ttcMode = (req.headers['x-ttc-compress-mode'] as string) || undefined;
 
       const { createTernFile } = await import("./compression-layer");
       const startTime = performance.now();
@@ -821,6 +837,8 @@ export async function registerRoutes(
       const { ternFile, header, ttcMetadata } = createTernFile(body, fileName, {
         encrypt,
         encryptionMode: encMode,
+        level: ttcLevel,
+        mode: ttcMode,
       });
 
       const processingTimeMs = performance.now() - startTime;

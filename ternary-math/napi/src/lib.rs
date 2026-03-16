@@ -453,7 +453,7 @@ pub fn ttc_compress(input: Buffer, level: Option<u8>, mode: Option<String>, file
         Some("source") => CompressionMode::Source,
         Some("log") => CompressionMode::Log,
         Some("structured") => CompressionMode::Structured,
-        _ => CompressionMode::Temporal,
+        _ => CompressionMode::Basic,
     };
     let opts = CompressOptions {
         level: lvl,
