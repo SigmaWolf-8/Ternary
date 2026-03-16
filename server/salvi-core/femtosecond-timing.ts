@@ -15,111 +15,101 @@
  */
 
 /**
- * Salvi Framework — High-Precision Timing
+ * Salvi Framework — Femtosecond Timing
+ *
+ * All values resolve to femtosecond (10⁻¹⁵ s) mathematical precision
+ * so the data structures are ready for Tier 0 atomic clock sources.
  *
  * Clock hierarchy (HPTP spec):
- *   Tier 0  Optical atomic clock       → femtosecond  (10⁻¹⁵ s)
- *   Tier 1  PTP / White-Rabbit         → nanosecond   (10⁻⁹ s)
- *   Tier 2  OS monotonic + wall anchor → nanosecond   (10⁻⁹ s, ±µs jitter)
+ *   Tier 0  Optical atomic clock       → fs measured   (target)
+ *   Tier 1  PTP / White-Rabbit         → ns measured, ps/fs = 0
+ *   Tier 2  OS monotonic + wall anchor → ns measured, ps/fs = 0
  *
- * This software implementation is Tier 2:
- *   • process.hrtime.bigint() provides monotonic nanoseconds
- *   • Anchored to wall-clock (Date.now()) at process start
- *   • Real precision: nanosecond.  Practical jitter: ~1–50 µs (OS scheduler)
- *   • Sub-nanosecond tiers (ps, fs) are ZERO — no fake entropy injected
+ * Current implementation: Tier 2
+ *   • process.hrtime.bigint() → monotonic nanoseconds
+ *   • Anchored to wall-clock (Date.now()) at startup
+ *   • Measured tiers: ms ✓  µs ✓  ns ✓
+ *   • Awaiting hardware: ps ·  fs ·  (zero until clock source provides them)
  *
- * The response explicitly declares the clock tier and measured precision
- * so consumers know what they're getting vs. what the full HPTP spec targets.
+ * When a Tier 0/1 clock source is paired, only the clock-read function
+ * changes — all downstream math, formats, and APIs already resolve
+ * to femtosecond granularity.
  */
 
 // Salvi Epoch: April 1, 2025 — Day Zero
 export const SALVI_EPOCH = new Date('2025-04-01T00:00:00.000Z').getTime();
-export const SALVI_EPOCH_NS = BigInt(SALVI_EPOCH) * 1_000_000n;
+export const SALVI_EPOCH_FS = BigInt(SALVI_EPOCH) * 1_000_000_000_000n;
 
-export const NANOSECONDS_PER_SECOND  = 1_000_000_000n;
-export const NANOSECONDS_PER_MS      = 1_000_000n;
+export const FEMTOSECONDS_PER_MILLISECOND = 1_000_000_000_000n;
+export const FEMTOSECONDS_PER_SECOND      = 1_000_000_000_000_000n;
+export const FEMTOSECONDS_PER_NANOSECOND  = 1_000_000n;
 
-// Legacy export kept for any callers using the femtosecond constant
-export const FEMTOSECONDS_PER_SECOND = 1_000_000_000_000_000n;
-
-export interface HighPrecisionTimestamp {
-  nanoseconds: bigint;
-  unix_seconds: number;
-  sub_second: {
-    milliseconds: number;
-    microseconds: number;
-    nanoseconds: number;
-  };
+export interface FemtosecondTimestamp {
+  femtoseconds: bigint;
   humanReadable: string;
   isoDate: string;
-  salviEpochOffset_ns: bigint;
+  precision: 'femtosecond';
+  salviEpochOffset: bigint;
   clockTier: number;
-  measuredPrecision: string;
+  measured: string;
 }
 
 export interface TimingMetrics {
-  timestamp: HighPrecisionTimestamp;
+  timestamp: FemtosecondTimestamp;
   clockSource: string;
   clockTier: number;
-  synchronizationStatus: 'free-running' | 'ntp-disciplined';
-  estimatedJitter: string;
+  synchronizationStatus: string;
+  estimatedAccuracy: string;
+  measuredTiers: string;
 }
 
 /**
  * Anchor hrtime to wall-clock at process start.
  *
- * process.hrtime.bigint() returns monotonic nanoseconds since an
- * arbitrary reference (process boot). By capturing both Date.now()
- * and hrtime at startup we derive wall-clock nanoseconds for any
- * later hrtime reading:
+ * process.hrtime.bigint() → monotonic nanoseconds since process boot.
+ * We capture Date.now() + hrtime together at startup so any later
+ * hrtime reading maps to wall-clock nanoseconds:
  *
  *   wall_ns = anchorWallNs + (hrtime_now − anchorHrNs)
  *
- * Sub-millisecond digits (µs, ns) come from the monotonic clock.
- * Below nanosecond the digits are zero — no fake data.
+ * Then scale to femtoseconds:  wall_fs = wall_ns × 10⁶
+ *
+ * The ns→fs multiplication preserves the measurement — it does NOT
+ * inject fake sub-nanosecond data. The ps/fs digits are 0 until a
+ * Tier 0 clock source provides them.
  */
 const _anchorWallMs  = Date.now();
 const _anchorHrNs    = process.hrtime.bigint();
-const _anchorWallNs  = BigInt(_anchorWallMs) * NANOSECONDS_PER_MS;
+const _anchorWallNs  = BigInt(_anchorWallMs) * 1_000_000n;
 
-export function getHighPrecisionTimestamp(): HighPrecisionTimestamp {
+export function getFemtosecondTimestamp(): FemtosecondTimestamp {
   const hrNow  = process.hrtime.bigint();
   const wallNs = _anchorWallNs + (hrNow - _anchorHrNs);
+  const wallFs = wallNs * FEMTOSECONDS_PER_NANOSECOND;
 
-  const unixSec = Number(wallNs / NANOSECONDS_PER_SECOND);
-  const subNs   = wallNs % NANOSECONDS_PER_SECOND;
-  const ms = Number(subNs / NANOSECONDS_PER_MS);
-  const us = Number((subNs % NANOSECONDS_PER_MS) / 1_000n);
-  const ns = Number(subNs % 1_000n);
-
-  const wallMs = Number(wallNs / NANOSECONDS_PER_MS);
+  const wallMs = Number(wallNs / 1_000_000n);
   const date   = new Date(wallMs);
 
   return {
-    nanoseconds: wallNs,
-    unix_seconds: unixSec,
-    sub_second: { milliseconds: ms, microseconds: us, nanoseconds: ns },
-    humanReadable: formatNanoseconds(wallNs),
+    femtoseconds: wallFs,
+    humanReadable: formatFemtoseconds(wallFs),
     isoDate: date.toISOString(),
-    salviEpochOffset_ns: wallNs - SALVI_EPOCH_NS,
+    precision: 'femtosecond',
+    salviEpochOffset: wallFs - SALVI_EPOCH_FS,
     clockTier: 2,
-    measuredPrecision: 'nanosecond',
+    measured: 'ms.µs.ns (ps.fs awaiting Tier 0 clock)',
   };
 }
 
-// Keep old name as alias so existing internal callers don't break
-export function getFemtosecondTimestamp(): HighPrecisionTimestamp {
-  return getHighPrecisionTimestamp();
-}
+function formatFemtoseconds(fs: bigint): string {
+  const milliseconds = Number(fs / FEMTOSECONDS_PER_MILLISECOND);
+  const date = new Date(milliseconds);
 
-function formatNanoseconds(totalNs: bigint): string {
-  const wallMs = Number(totalNs / NANOSECONDS_PER_MS);
-  const date = new Date(wallMs);
-
-  const subNs = totalNs % NANOSECONDS_PER_SECOND;
-  const ms = Number(subNs / NANOSECONDS_PER_MS);
-  const us = Number((subNs % NANOSECONDS_PER_MS) / 1_000n);
-  const ns = Number(subNs % 1_000n);
+  const remainingFs = fs % FEMTOSECONDS_PER_MILLISECOND;
+  const microseconds = remainingFs / 1_000_000_000n;
+  const nanoseconds  = (remainingFs % 1_000_000_000n) / 1_000_000n;
+  const picoseconds  = (remainingFs % 1_000_000n) / 1_000n;
+  const femtoseconds = remainingFs % 1_000n;
 
   const y   = date.getUTCFullYear();
   const mon = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -127,72 +117,86 @@ function formatNanoseconds(totalNs: bigint): string {
   const h   = String(date.getUTCHours()).padStart(2, '0');
   const min = String(date.getUTCMinutes()).padStart(2, '0');
   const s   = String(date.getUTCSeconds()).padStart(2, '0');
+  const msS = String(date.getUTCMilliseconds()).padStart(3, '0');
+  const usS = String(microseconds).padStart(3, '0');
+  const nsS = String(nanoseconds).padStart(3, '0');
+  const psS = String(picoseconds).padStart(3, '0');
+  const fsS = String(femtoseconds).padStart(3, '0');
 
-  return `${y}-${mon}-${d} ${h}:${min}:${s}.${String(ms).padStart(3,'0')}.${String(us).padStart(3,'0')}.${String(ns).padStart(3,'0')} UTC`;
+  return `${y}-${mon}-${d} ${h}:${min}:${s}.${msS}.${usS}.${nsS}.${psS}.${fsS} UTC`;
 }
 
 /**
- * Calculate duration between two timestamps
+ * Calculate duration between two femtosecond timestamps
  */
-export function calculateDuration(start: HighPrecisionTimestamp, end: HighPrecisionTimestamp): {
-  nanoseconds: bigint;
+export function calculateDuration(start: FemtosecondTimestamp, end: FemtosecondTimestamp): {
+  femtoseconds: bigint;
+  nanoseconds: number;
   microseconds: number;
   milliseconds: number;
   humanReadable: string;
 } {
-  const durationNs = end.nanoseconds - start.nanoseconds;
+  const durationFs = end.femtoseconds - start.femtoseconds;
+  const durationNs = Number(durationFs / FEMTOSECONDS_PER_NANOSECOND);
+  const durationUs = Number(durationFs / 1_000_000_000n);
+  const durationMs = Number(durationFs / FEMTOSECONDS_PER_MILLISECOND);
+
   return {
+    femtoseconds: durationFs,
     nanoseconds: durationNs,
-    microseconds: Number(durationNs / 1_000n),
-    milliseconds: Number(durationNs / NANOSECONDS_PER_MS),
-    humanReadable: formatDuration(durationNs),
+    microseconds: durationUs,
+    milliseconds: durationMs,
+    humanReadable: formatDuration(durationFs),
   };
 }
 
-function formatDuration(ns: bigint): string {
-  if (ns < 1_000n)                return `${ns}ns`;
-  if (ns < NANOSECONDS_PER_MS)    return `${Number(ns / 1_000n)}µs`;
-  if (ns < NANOSECONDS_PER_SECOND) return `${Number(ns / NANOSECONDS_PER_MS)}ms`;
-  return `${Number(ns / NANOSECONDS_PER_SECOND)}s`;
+function formatDuration(fs: bigint): string {
+  if (fs < FEMTOSECONDS_PER_NANOSECOND) return `${fs}fs`;
+  if (fs < 1_000_000_000n)              return `${Number(fs / FEMTOSECONDS_PER_NANOSECOND)}ns`;
+  if (fs < FEMTOSECONDS_PER_MILLISECOND) return `${Number(fs / 1_000_000_000n)}µs`;
+  if (fs < FEMTOSECONDS_PER_SECOND)      return `${Number(fs / FEMTOSECONDS_PER_MILLISECOND)}ms`;
+  return `${Number(fs / FEMTOSECONDS_PER_SECOND)}s`;
 }
 
 export function getTimingMetrics(): TimingMetrics {
   return {
-    timestamp: getHighPrecisionTimestamp(),
-    clockSource: 'process.hrtime.bigint()',
+    timestamp: getFemtosecondTimestamp(),
+    clockSource: 'process.hrtime.bigint() + Date.now() anchor',
     clockTier: 2,
-    synchronizationStatus: 'free-running',
-    estimatedJitter: '±1–50µs (OS scheduler dependent)',
+    synchronizationStatus: 'free-running (Tier 2 — OS monotonic)',
+    estimatedAccuracy: '±1–50µs (OS scheduler jitter)',
+    measuredTiers: 'ms ✓ | µs ✓ | ns ✓ | ps · | fs · (awaiting Tier 0)',
   };
 }
 
 /**
  * Validate timestamp pair is within acceptable recombination window
+ * As per whitepaper: |τₚ - τₛ| < tolerance
  */
 export function validateRecombinationWindow(
-  primary: HighPrecisionTimestamp,
-  secondary: HighPrecisionTimestamp,
-  toleranceNs: bigint = 100_000n
+  primary: FemtosecondTimestamp,
+  secondary: FemtosecondTimestamp,
+  toleranceFs: bigint = 100n
 ): {
   valid: boolean;
-  offset_ns: bigint;
-  tolerance_ns: bigint;
+  offset: bigint;
+  tolerance: bigint;
 } {
-  const offset = primary.nanoseconds > secondary.nanoseconds
-    ? primary.nanoseconds - secondary.nanoseconds
-    : secondary.nanoseconds - primary.nanoseconds;
+  const offset = primary.femtoseconds > secondary.femtoseconds
+    ? primary.femtoseconds - secondary.femtoseconds
+    : secondary.femtoseconds - primary.femtoseconds;
 
   return {
-    valid: offset < toleranceNs,
-    offset_ns: offset,
-    tolerance_ns: toleranceNs,
+    valid: offset < toleranceFs,
+    offset,
+    tolerance: toleranceFs,
   };
 }
 
-export function generateTimestampBatch(count: number): HighPrecisionTimestamp[] {
-  const timestamps: HighPrecisionTimestamp[] = [];
+export function generateTimestampBatch(count: number): FemtosecondTimestamp[] {
+  const timestamps: FemtosecondTimestamp[] = [];
   for (let i = 0; i < count; i++) {
-    timestamps.push(getHighPrecisionTimestamp());
+    timestamps.push(getFemtosecondTimestamp());
   }
   return timestamps;
 }
@@ -212,7 +216,7 @@ export interface HptpCorrectionResult {
   roundTripDelayMs: number;
   oneWayDelayMs: number;
   clockOffsetMs: number;
-  correctionNanoseconds: bigint;
+  correctionFemtoseconds: bigint;
   protocol: string;
 }
 
@@ -221,23 +225,24 @@ export function computeHptpCorrection(params: HptpCorrectionParams): HptpCorrect
   const roundTrip = (t4_client_receive_ms - t1_client_send_ms) - (t3_server_send_ms - t2_server_receive_ms);
   const oneWay = roundTrip / 2;
   const clockOffset = ((t2_server_receive_ms - t1_client_send_ms) + (t3_server_send_ms - t4_client_receive_ms)) / 2;
-  const correctionNs = BigInt(Math.round(oneWay * 1_000_000));
+  const correctionFs = BigInt(Math.round(oneWay * 1e12));
 
   return {
     roundTripDelayMs: roundTrip,
     oneWayDelayMs: oneWay,
     clockOffsetMs: clockOffset,
-    correctionNanoseconds: correctionNs,
+    correctionFemtoseconds: correctionFs,
     protocol: 'HPTP/1.0',
   };
 }
 
 export function getSalviEpochAnchorPoints() {
-  const now = getHighPrecisionTimestamp();
+  const now = getFemtosecondTimestamp();
   return {
     salviEpoch: new Date(SALVI_EPOCH).toISOString(),
     currentTime: now.isoDate,
-    offsetFromEpoch_ns: now.salviEpochOffset_ns.toString(),
-    clockTier: 2,
+    offsetFromEpoch_fs: now.salviEpochOffset.toString(),
+    clockTier: now.clockTier,
+    measured: now.measured,
   };
 }

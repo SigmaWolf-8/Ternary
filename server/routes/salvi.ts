@@ -677,23 +677,33 @@ export function registerSalviRoutes(app: Express): void {
       const lastTs = getFemtosecondTimestamp();
       const resolutionFs = Number(lastTs.femtoseconds - firstTs.femtoseconds);
 
+      const minDeltaNs = minDelta / 1e6;
+      const meanDeltaNs = meanDelta / 1e6;
+      const medianDeltaNs = medianDelta / 1e6;
+      const stdDevNs = stdDev / 1e6;
+      const maxDeltaNs = maxDelta / 1e6;
+
       res.json({
         success: true,
-        selfTest: "HPTP Femtosecond Timer Resolution & Jitter Analysis",
-        claim: "10^-15 second (femtosecond) precision timing",
+        selfTest: "HPTP Timer Resolution & Jitter Analysis",
+        clockTier: 2,
+        clockSource: "process.hrtime.bigint() + Date.now() anchor",
+        measuredPrecision: "nanosecond (ps/fs awaiting Tier 0 clock)",
+        mathematicalResolution: "femtosecond (10⁻¹⁵ s) — data structures ready for atomic clock pairing",
         sampleCount,
         resolution: {
-          minimumDeltaFs: minDelta,
-          minimumDeltaDescription: minDelta > 0
-            ? `${minDelta} femtoseconds (${(minDelta / 1e15).toExponential(2)} seconds)`
-            : "sub-sample resolution (multiple samples within single tick)",
-          instantResolutionFs: resolutionFs,
+          minimumDelta_fs: minDelta,
+          minimumDelta_ns: Math.round(minDeltaNs * 1000) / 1000,
+          minimumDelta_human: minDelta > 0
+            ? `${Math.round(minDeltaNs * 1000) / 1000} ns (${(minDelta / 1e15).toExponential(2)} s)`
+            : "sub-sample (multiple samples within single OS tick)",
+          instantResolution_fs: resolutionFs,
         },
         jitter: {
-          meanDeltaFs: Math.round(meanDelta),
-          medianDeltaFs: medianDelta,
-          stdDevFs: Math.round(stdDev),
-          maxDeltaFs: maxDelta,
+          mean_ns: Math.round(meanDeltaNs * 1000) / 1000,
+          median_ns: Math.round(medianDeltaNs * 1000) / 1000,
+          stdDev_ns: Math.round(stdDevNs * 1000) / 1000,
+          max_ns: Math.round(maxDeltaNs * 1000) / 1000,
           coefficientOfVariation: meanDelta > 0 ? Math.round((stdDev / meanDelta) * 10000) / 100 : 0,
         },
         systemClock: {
@@ -706,7 +716,7 @@ export function registerSalviRoutes(app: Express): void {
           zeroDeltas: deltas.filter(d => d === 0).length,
         },
         verdict: monotonic
-          ? "PASS: Timer is monotonic with femtosecond-scale resolution"
+          ? "PASS: Timer is monotonic — Tier 2 (ns measured, fs math-ready)"
           : "WARN: Non-monotonic timestamps detected (possible clock adjustment)",
       });
     } catch (error: unknown) {
@@ -756,17 +766,18 @@ export function registerSalviRoutes(app: Express): void {
           utc: timestamp.humanReadable,
           isoDate: timestamp.isoDate,
           unix_seconds: unixSeconds,
-          precision: timestamp.precision,
+          resolution: timestamp.precision,
+          clockTier: timestamp.clockTier,
+          measured: timestamp.measured,
           components: {
-            milliseconds: ms,
-            microseconds: us,
-            nanoseconds: ns,
-            picoseconds: ps,
-            femtoseconds: fs,
+            milliseconds:  { value: ms, source: 'measured' },
+            microseconds:  { value: us, source: 'measured' },
+            nanoseconds:   { value: ns, source: 'measured' },
+            picoseconds:   { value: ps, source: ps > 0 ? 'measured' : 'awaiting Tier 0 clock' },
+            femtoseconds:  { value: fs, source: fs > 0 ? 'measured' : 'awaiting Tier 0 clock' },
           },
           absolute_fs: timestamp.femtoseconds.toString(),
           salviEpochOffset_fs: timestamp.salviEpochOffset.toString(),
-          verify: `unix_seconds × 10¹⁵ + sub-second components = absolute_fs`,
         },
         epoch: {
           salviEpoch: new Date(SALVI_EPOCH).toISOString(),
@@ -794,20 +805,15 @@ export function registerSalviRoutes(app: Express): void {
       res.json({ 
         success: true, 
         clockSource: metrics.clockSource,
+        clockTier: metrics.clockTier,
         synchronizationStatus: metrics.synchronizationStatus,
         estimatedAccuracy: metrics.estimatedAccuracy,
+        measuredTiers: metrics.measuredTiers,
         timestamp: {
           utc: ts.humanReadable,
           isoDate: ts.isoDate,
           unix_seconds: Number(ts.femtoseconds / FEMTOSECONDS_PER_SECOND),
-          precision: ts.precision,
-          components: {
-            milliseconds: Number(subSecFs / 1_000_000_000_000n),
-            microseconds: Number((subSecFs % 1_000_000_000_000n) / 1_000_000_000n),
-            nanoseconds: Number((subSecFs % 1_000_000_000n) / 1_000_000n),
-            picoseconds: Number((subSecFs % 1_000_000n) / 1_000n),
-            femtoseconds: Number(subSecFs % 1_000n),
-          },
+          resolution: ts.precision,
           absolute_fs: ts.femtoseconds.toString(),
           salviEpochOffset_fs: ts.salviEpochOffset.toString(),
         }
