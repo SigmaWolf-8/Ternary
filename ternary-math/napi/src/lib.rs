@@ -26,6 +26,7 @@ use rayon::prelude::*;
 use ternary_math::sponge::{Sponge385Pub, hash_hex,
                             sponge_permutation, sponge_permutation_v1};
 use ternary_math::tl_dsa;
+use ternary_math::pt26_dsa;
 use ternary_math::ttc::{self, CompressOptions, CompressionMode};
 
 const MAX_TRIT_COUNT: u32 = 1_000_000;
@@ -497,4 +498,91 @@ pub fn ttc_decompress(input: Buffer) -> napi::Result<TtcDecompressResult> {
         crc32_verified: r.crc32_verified,
         original_file_name: r.original_file_name,
     })
+}
+
+// ─── PT26-DSA Hypercube Walk Signature N-API Exports ─────────────────────
+
+#[napi(object)]
+pub struct Pt26KeygenResult {
+    pub public_key: Buffer,
+    pub secret_key: Buffer,
+    pub address: Vec<u8>,
+}
+
+#[napi]
+pub fn pt26_keygen(address: Buffer, secret: Buffer) -> napi::Result<Pt26KeygenResult> {
+    if address.len() != 13 {
+        return Err(napi::Error::from_reason("address must be exactly 13 bytes (Rep C cube address)".to_string()));
+    }
+    let mut addr = [0u8; 13];
+    addr.copy_from_slice(address.as_ref());
+    let (pk, sk) = pt26_dsa::keygen(&addr, secret.as_ref());
+    let pk_bytes = pk.to_bytes();
+    let mut sk_buf = Vec::with_capacity(13 + sk.master.len() + 4);
+    sk_buf.extend_from_slice(&sk.addr);
+    sk_buf.extend_from_slice(&(sk.master.len() as u32).to_le_bytes());
+    sk_buf.extend_from_slice(&sk.master);
+    sk_buf.extend_from_slice(&sk.pk_commit);
+    sk_buf.extend_from_slice(&sk.schedule.sigma);
+    sk_buf.extend_from_slice(&sk.schedule.dim_order);
+    sk_buf.extend_from_slice(&sk.count.to_le_bytes());
+    Ok(Pt26KeygenResult {
+        public_key: Buffer::from(pk_bytes.to_vec()),
+        secret_key: Buffer::from(sk_buf),
+        address: addr.to_vec(),
+    })
+}
+
+#[napi]
+pub fn pt26_sign(secret_key: Buffer, message: Buffer) -> napi::Result<Buffer> {
+    let sk_data = secret_key.as_ref();
+    if sk_data.len() < 17 {
+        return Err(napi::Error::from_reason("secret key too short".to_string()));
+    }
+    let mut addr = [0u8; 13];
+    addr.copy_from_slice(&sk_data[..13]);
+    let master_len = u32::from_le_bytes([sk_data[13], sk_data[14], sk_data[15], sk_data[16]]) as usize;
+    if sk_data.len() < 17 + master_len + pt26_dsa::BINDING_LEN + 13 + 13 + 4 {
+        return Err(napi::Error::from_reason("secret key buffer incomplete".to_string()));
+    }
+    let master = &sk_data[17..17 + master_len];
+    let offset = 17 + master_len;
+    let mut pk_commit = [0u8; pt26_dsa::BINDING_LEN];
+    pk_commit.copy_from_slice(&sk_data[offset..offset + pt26_dsa::BINDING_LEN]);
+    let soff = offset + pt26_dsa::BINDING_LEN;
+    let mut sigma = [0u8; 13];
+    sigma.copy_from_slice(&sk_data[soff..soff + 13]);
+    let mut dim_order = [0u8; 13];
+    dim_order.copy_from_slice(&sk_data[soff + 13..soff + 26]);
+    let count = u32::from_le_bytes([sk_data[soff + 26], sk_data[soff + 27], sk_data[soff + 28], sk_data[soff + 29]]);
+
+    let schedule = pt26_dsa::Schedule { sigma, dim_order };
+    let mut sk = pt26_dsa::SecretKey {
+        addr, schedule, master: master.to_vec(), pk_commit, count,
+    };
+    let sig = pt26_dsa::sign(&mut sk, message.as_ref())
+        .map_err(|e| napi::Error::from_reason(format!("PT-26 sign failed: {e:?}")))?;
+    Ok(Buffer::from(sig.to_bytes().to_vec()))
+}
+
+#[napi]
+pub fn pt26_verify(public_key: Buffer, message: Buffer, signature: Buffer) -> napi::Result<bool> {
+    let pk = pt26_dsa::PublicKey::from_bytes(public_key.as_ref())
+        .ok_or_else(|| napi::Error::from_reason("invalid public key format".to_string()))?;
+    let sig = pt26_dsa::Signature::from_bytes(signature.as_ref())
+        .ok_or_else(|| napi::Error::from_reason("invalid signature format".to_string()))?;
+    match pt26_dsa::verify(&pk, message.as_ref(), &sig) {
+        Ok(()) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+#[napi]
+pub fn pt26_public_key_size() -> u32 {
+    pt26_dsa::PublicKey::SIZE as u32
+}
+
+#[napi]
+pub fn pt26_signature_size() -> u32 {
+    pt26_dsa::Signature::SIZE as u32
 }

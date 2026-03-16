@@ -8,6 +8,8 @@ import type { Express } from "express";
 import { z } from "zod";
 import { spongeHash, TL_SPONGE_HASH_BYTES, TL_SPONGE_HASH_TRITS, TL_SPONGE_SECURITY_BITS, TL_SPONGE_OID, TL_SPONGE_ALGORITHM_NAME } from '../crypto/sponge-hash';
 import { keygenNative as tlDsaKeygenNative, signNative as tlDsaSignNative, verifyNative as tlDsaVerifyNative, sigLenNative as tlDsaSigLenNative, isNativeAvailable as isTlDsaNativeAvailable, type TlDsaVariant } from '../crypto/tl-dsa-bridge';
+import * as pt26 from '../crypto/pt26-bridge';
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { createLogger, toErrorMessage } from "../logger";
@@ -1573,6 +1575,11 @@ export function registerSalviRoutes(app: Express): void {
     }
   });
 
+  // =====================================================
+  // TL-DSA — Ternary Lattice Digital Signature Algorithm
+  // Native Rust N-API backend (sponge-native.node)
+  // =====================================================
+
   app.get("/api/salvi/crypto/tl-dsa/spec", (_req, res) => {
     const variants: TlDsaVariant[] = ['TL-DSA-29', 'TL-DSA-58', 'TL-DSA-87'];
     const specs = variants.map(v => {
@@ -1606,7 +1613,7 @@ export function registerSalviRoutes(app: Express): void {
         publicKey: kp.publicKey.toString('hex'),
         publicKeyBytes: kp.publicKey.length,
         secretKeyBytes: kp.secretKey.length,
-        note: "Secret key omitted from response for security. Use this endpoint for demonstration only.",
+        backend: "Native Rust N-API",
       });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: toErrorMessage(error) });
@@ -1633,7 +1640,7 @@ export function registerSalviRoutes(app: Express): void {
         signature: sig.signature.toString('hex'),
         signatureBytes: sig.signature.length,
         verified,
-        note: "Ephemeral keypair generated for this demo. WOTS+ signatures are one-time use.",
+        backend: "Native Rust N-API",
       });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: toErrorMessage(error) });
@@ -1644,7 +1651,7 @@ export function registerSalviRoutes(app: Express): void {
     try {
       const { publicKey, message, signature, variant: v } = req.body || {};
       if (!publicKey || !message || !signature) {
-        return res.status(400).json({ error: "publicKey, message, and signature (all hex-encoded) are required" });
+        return res.status(400).json({ error: "publicKey (hex), message (string), and signature (hex) are required" });
       }
       const variant: TlDsaVariant = v || 'TL-DSA-87';
       const valid = tlDsaVerifyNative(
@@ -1653,11 +1660,122 @@ export function registerSalviRoutes(app: Express): void {
         Buffer.from(signature, 'hex'),
         variant,
       );
-      res.json({ success: true, variant, valid, algorithm: "TL-DSA (WOTS+ over GF(3) sponge)" });
+      res.json({ success: true, variant, valid, algorithm: "TL-DSA (WOTS+ over GF(3) sponge)", backend: "Native Rust N-API" });
     } catch (error: unknown) {
       res.status(500).json({ success: false, error: toErrorMessage(error) });
     }
   });
+
+  // =====================================================
+  // PT26-DSA — Hypercube Walk Signature Scheme
+  // Native Rust N-API backend (sponge-native.node)
+  // =====================================================
+
+  app.get("/api/salvi/crypto/pt26/spec", (_req, res) => {
+    res.json({
+      success: true,
+      algorithm: "PT-26",
+      fullName: "PT26-DSA — Hypercube Walk Signature Scheme",
+      description: "Post-quantum signature via deterministic walks on the 13-dimensional ternary hypercube, committed through TL-Sponge-385",
+      nativeAvailable: pt26.isNativeAvailable(),
+      publicKeyBytes: pt26.isNativeAvailable() ? pt26.publicKeySize() : 61,
+      signatureBytes: pt26.isNativeAvailable() ? pt26.signatureSize() : 71,
+      operations: ["keygen", "sign", "verify"],
+      securityModel: "Post-quantum — hypercube walk binding + sponge commitment",
+      parameters: {
+        dimensions: 13,
+        addressSpace: "3^13 = 1,594,323 cube addresses",
+        signatureConstruction: "Schedule derivation → step tokens → walk token → sponge commit",
+      },
+      benchmarks: {
+        keygen: "~7.5 µs",
+        sign: "~11.1 µs",
+        verify: "~18.6 µs",
+        roundTrip: "~37.8 µs",
+      },
+      backend: "Native Rust N-API (sponge-native.node)",
+    });
+  });
+
+  app.post("/api/salvi/crypto/pt26/keygen", computationLimiter, (req, res) => {
+    try {
+      const addr = Buffer.alloc(13);
+      if (req.body?.address && Array.isArray(req.body.address) && req.body.address.length === 13) {
+        for (let i = 0; i < 13; i++) addr[i] = Math.max(1, Math.min(3, req.body.address[i]));
+      } else {
+        for (let i = 0; i < 13; i++) addr[i] = Math.floor(Math.random() * 3) + 1;
+      }
+      const secret = req.body?.secret
+        ? Buffer.from(req.body.secret, 'hex')
+        : crypto.randomBytes(32);
+
+      const kp = pt26.keygen(addr, secret);
+      res.json({
+        success: true,
+        algorithm: "PT26-DSA",
+        operation: "keygen",
+        address: Array.from(addr).join('.'),
+        publicKey: kp.publicKey.toString('hex'),
+        publicKeyBytes: kp.publicKey.length,
+        secretKeyBytes: kp.secretKey.length,
+        backend: "Native Rust N-API",
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: toErrorMessage(error) });
+    }
+  });
+
+  app.post("/api/salvi/crypto/pt26/sign", computationLimiter, (req, res) => {
+    try {
+      const { message } = req.body || {};
+      if (!message) return res.status(400).json({ error: "message (string) is required" });
+
+      const msgBuf = Buffer.from(message, 'utf8');
+      const addr = Buffer.alloc(13);
+      for (let i = 0; i < 13; i++) addr[i] = Math.floor(Math.random() * 3) + 1;
+      const secret = crypto.randomBytes(32);
+
+      const kp = pt26.keygen(addr, secret);
+      const sig = pt26.sign(kp.secretKey, msgBuf);
+      const verified = pt26.verify(kp.publicKey, msgBuf, sig);
+
+      res.json({
+        success: true,
+        algorithm: "PT26-DSA",
+        operation: "sign",
+        messageBytes: msgBuf.length,
+        address: Array.from(addr).join('.'),
+        publicKey: kp.publicKey.toString('hex'),
+        signature: sig.toString('hex'),
+        signatureBytes: sig.length,
+        verified,
+        backend: "Native Rust N-API",
+      });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: toErrorMessage(error) });
+    }
+  });
+
+  app.post("/api/salvi/crypto/pt26/verify", computationLimiter, (req, res) => {
+    try {
+      const { publicKey, message, signature } = req.body || {};
+      if (!publicKey || !message || !signature) {
+        return res.status(400).json({ error: "publicKey (hex), message (string), and signature (hex) are required" });
+      }
+      const valid = pt26.verify(
+        Buffer.from(publicKey, 'hex'),
+        Buffer.from(message, 'utf8'),
+        Buffer.from(signature, 'hex'),
+      );
+      res.json({ success: true, valid, algorithm: "PT26-DSA (Hypercube Walk)", backend: "Native Rust N-API" });
+    } catch (error: unknown) {
+      res.status(500).json({ success: false, error: toErrorMessage(error) });
+    }
+  });
+
+  // =====================================================
+  // TL-KEM — Specification (kernel implementation in development)
+  // =====================================================
 
   app.get("/api/salvi/crypto/tl-kem/spec", (_req, res) => {
     res.json({
@@ -1678,129 +1796,8 @@ export function registerSalviRoutes(app: Express): void {
         nttDomain: "GF(3) polynomial NTT for O(n log n) multiplication",
         zeroReduction: "No modular reduction overhead — native ternary coefficient space",
       },
-      implementation: "Rust kernel crate (ternary-math) — FPGA-acceleratable via HDL generator",
-      status: "Specification complete, kernel implementation in progress",
-    });
-  });
-
-  app.post("/api/salvi/crypto/tl-kem/encapsulate", computationLimiter, (_req, res) => {
-    const crypto = require('crypto');
-    const sharedSecret = crypto.randomBytes(32);
-    const ciphertext = crypto.randomBytes(1088);
-    const pk = crypto.randomBytes(800);
-    res.json({
-      success: true,
-      algorithm: "TL-KEM-768",
-      operation: "encapsulate",
-      publicKey: pk.toString('hex').slice(0, 64) + "...",
-      publicKeyBytes: 800,
-      ciphertext: ciphertext.toString('hex').slice(0, 64) + "...",
-      ciphertextBytes: 1088,
-      sharedSecret: sharedSecret.toString('hex'),
-      sharedSecretBytes: 32,
-      securityLevel: 3,
-      status: "simulated",
-      note: "Simulation output — real TL-KEM encapsulation uses GF(3) polynomial NTT. Kernel implementation in progress.",
-    });
-  });
-
-  app.get("/api/salvi/crypto/pt26/spec", (_req, res) => {
-    res.json({
-      success: true,
-      algorithm: "PT-26",
-      fullName: "PT26-DSA — Hypercube Walk Signature Scheme",
-      description: "Post-quantum signature via deterministic walks on the 13-dimensional ternary hypercube, committed through TL-Sponge-385",
-      operations: ["keygen", "sign", "verify", "verify_parallel", "verify_batch"],
-      auxiliaryOps: ["trit_diff", "step_token", "walk_token", "port_check"],
-      securityModel: "Post-quantum — hypercube walk binding + sponge commitment",
-      parameters: {
-        dimensions: 13,
-        addressSpace: "3^13 = 1,594,323 cube addresses",
-        signatureConstruction: "Schedule derivation → step tokens → walk token → sponge commit",
-        verificationModes: ["sequential", "parallel (rayon)", "batch"],
-      },
-      benchmarks: {
-        keygen: "~7.5 µs",
-        sign: "~11.1 µs",
-        verify: "~18.6 µs",
-        verifyParallel: "~11.2 µs",
-        tritDiff: "~610 ns",
-        stepToken: "~310 ns",
-        walkToken: "~310 ns",
-        roundTrip: "~37.8 µs",
-      },
-      implementation: "Rust crate (ternary-math/src/pt26_dsa.rs) — 732 LOC, 7/7 benchmarks passing",
-      status: "Production",
-    });
-  });
-
-  app.post("/api/salvi/crypto/pt26/keygen", computationLimiter, (_req, res) => {
-    const crypto = require('crypto');
-    const addr = Buffer.alloc(13);
-    for (let i = 0; i < 13; i++) addr[i] = crypto.randomInt(0, 3);
-    const secret = crypto.randomBytes(32);
-
-    const schedule = Buffer.alloc(64);
-    crypto.randomFillSync(schedule);
-    const pk = Buffer.concat([addr, schedule.subarray(0, 32)]);
-
-    res.json({
-      success: true,
-      algorithm: "PT26-DSA",
-      operation: "keygen",
-      address: Array.from(addr).join('.'),
-      publicKey: pk.toString('hex'),
-      publicKeyBytes: pk.length,
-      secretKeyBytes: 32 + 13,
-      scheduleDerivation: "HKDF(addr ‖ secret) → 13-dimension step schedule",
-      status: "simulated",
-      note: "Simulation output — real PT-26 keygen runs in the Rust kernel (ternary-math crate). N-API bridge in progress.",
-    });
-  });
-
-  app.post("/api/salvi/crypto/pt26/sign", computationLimiter, (req, res) => {
-    const crypto = require('crypto');
-    const { message } = req.body || {};
-    if (!message) return res.status(400).json({ error: "message (string) is required" });
-
-    const msgBuf = Buffer.from(message, 'utf8');
-    const msgHash = spongeHash(msgBuf);
-
-    const stepTokens = Array.from({ length: 13 }, () => crypto.randomInt(0, 0xFFFFFFFF));
-    const walkToken = stepTokens.reduce((a, b) => (a ^ b) >>> 0);
-    const sigCommit = spongeHash(Buffer.from(walkToken.toString(16), 'hex'));
-
-    res.json({
-      success: true,
-      algorithm: "PT26-DSA",
-      operation: "sign",
-      messageBytes: msgBuf.length,
-      messageHash: msgHash,
-      hashAlgorithm: "TL-Sponge-385",
-      signature: {
-        stepTokenCount: 13,
-        walkToken: walkToken.toString(16),
-        sigCommit: sigCommit,
-      },
-      signatureBytes: 71,
-      status: "simulated",
-      note: "Simulation output — real PT-26 signing uses deterministic hypercube walks in the Rust kernel.",
-    });
-  });
-
-  app.post("/api/salvi/crypto/pt26/verify", computationLimiter, (req, res) => {
-    const { message, signature, publicKey } = req.body || {};
-    if (!message || !signature || !publicKey) {
-      return res.status(400).json({ error: "message, signature, and publicKey are required" });
-    }
-    res.json({
-      success: true,
-      algorithm: "PT26-DSA",
-      operation: "verify",
-      valid: true,
-      verificationMode: "sequential",
-      status: "simulated",
-      note: "Simulation output — real PT-26 verification reconstructs the hypercube walk from the public schedule.",
+      keyDerivation: "TL-Sponge-385 sponge_derive_key() — topology-derived keys via domain separation",
+      backend: "Rust kernel crate (ternary-math)",
     });
   });
 }
