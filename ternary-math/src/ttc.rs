@@ -2346,19 +2346,32 @@ mod tests {
             and TL-KEM for secure tunnel establishment. Each populated cube contains 20,726,199 unique \
             PQ-encrypted tunnels computed as 26 times 3^13 divided by 2. The Tribonacci constant governs \
             structural resonance across the ternary addressing lattice. ";
-        let cases: &[(usize, &str, &[u8])] = &[
-            (1024, "1 KB", &[1,2]), (4096, "4 KB", &[1,2]), (16384, "16 KB", &[1,2,3]),
-            (65536, "64 KB", &[2,3,4]), (262144, "256 KB", &[3,4,5]),
-            (1048576, "1 MB", &[4,5,6]), (4194304, "4 MB", &[5,6]) ];
-        eprintln!("\n=== TTC v2.0+v4.2 Compression Benchmark (release, Basic mode, ternary rANS) ===");
-        eprintln!("{:<8} {:<6} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7} {:<6}",
-            "Size", "Level", "Comp(us)", "Dec(us)", "Total(us)", "Ratio", "Saved%", "Mode", "Chunks");
-        eprintln!("{}", "-".repeat(80));
-        for &(size, label, levels) in cases {
-            let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
-            for &level in levels {
-                let opts = CompressOptions { mode: CompressionMode::Basic, level, independent_chunks: true, ..Default::default() };
-                let iters = if size<=4096{20} else if size<=65536{5} else {1};
+        let chunk_sizes: [(u8, usize); 9] = [
+            (1, T3_9),   (2, T3_10),  (3, T3_10),
+            (4, T3_11),  (5, T3_12),  (6, T3_12),
+            (7, T3_13),  (8, T3_13),  (9, T3_13),
+        ];
+        let trit_labels: [&str; 9] = [
+            "3^9",  "3^10", "3^10",
+            "3^11", "3^12", "3^12",
+            "3^13", "3^13", "3^13",
+        ];
+        eprintln!("\n=== TTC v2.0+v4.2 Benchmark — each level at its own 3^k chunk size (dependent mode) ===");
+        eprintln!("{:<6} {:<8} {:<8} {:>10} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7} {:<6}",
+            "Level", "Tier", "Trit", "DataSize", "Chunks", "Comp(us)", "Dec(us)", "Ratio", "Saved%", "Mode", "ChkCnt");
+        eprintln!("{}", "-".repeat(110));
+        for (idx, &(level, chunk_sz)) in chunk_sizes.iter().enumerate() {
+            let cfg = level_config(level).unwrap();
+            let trit = trit_labels[idx];
+            let max_chunks: &[usize] = if chunk_sz >= T3_13 { &[1] } else { &[1, 3] };
+            for &num_chunks in max_chunks {
+                let size = chunk_sz * num_chunks;
+                let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
+                let opts = CompressOptions {
+                    mode: CompressionMode::Basic, level,
+                    independent_chunks: false, ..Default::default()
+                };
+                let iters = if size <= T3_10 { 10 } else if size <= T3_11 { 3 } else { 1 };
                 let t0 = Instant::now();
                 let mut result = ttc_compress(&data, &opts).unwrap();
                 for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }
@@ -2367,12 +2380,17 @@ mod tests {
                 let mut dec = ttc_decompress(&result.compressed).unwrap();
                 for _ in 1..iters { dec = ttc_decompress(&result.compressed).unwrap(); }
                 let dec_us = t1.elapsed().as_micros() as f64 / iters as f64;
-                assert_eq!(dec.data, data, "round-trip failed: size={} level={}", size, level);
+                assert_eq!(dec.data, data, "round-trip failed: level={} chunks={}", level, num_chunks);
                 let ratio = data.len() as f64 / result.compressed_size as f64;
                 let saved = (1.0 - result.compressed_size as f64 / data.len() as f64) * 100.0;
                 let mode = result.chunks.first().map(|c| c.mode).unwrap_or(0);
                 let mn = match mode { 0=>"Stored", 1=>"Comp", 2=>"TernEnh", 3=>"rANS/3", _=>"?" };
-                eprintln!("{:<8} L{:<5} {:>10.1} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7} {}",
-                    label, level, comp_us, dec_us, comp_us+dec_us, ratio, saved, mn, result.chunks.len()); } }
+                let size_label = if size >= 1_048_576 { format!("{:.1}MB", size as f64 / 1_048_576.0) }
+                    else if size >= 1024 { format!("{:.1}KB", size as f64 / 1024.0) }
+                    else { format!("{}B", size) };
+                eprintln!("L{:<5} {:<8} {:<8} {:>10} {:>10} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7} {}",
+                    level, cfg.tier_name, trit, size_label, num_chunks, comp_us, dec_us, ratio, saved, mn, result.chunks.len());
+            }
+        }
         eprintln!(); }
 }
