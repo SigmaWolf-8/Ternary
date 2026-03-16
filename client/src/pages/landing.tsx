@@ -327,7 +327,7 @@ function HeroSection() {
                   </div>
                   <div className="border-t border-primary/60 mt-1.5 mb-2" />
                   <p className="text-base text-muted-foreground leading-relaxed">
-                    217% more information per digit — 9 algebraic states where binary offers one;
+                    217% more information per digit — 9 algebraic states where binary offers two;
                   </p>
                   <p className="text-base text-muted-foreground leading-relaxed">
                     Dual-phase, geometrically derived cryptographic encryption that quantum computers cannot decompose;
