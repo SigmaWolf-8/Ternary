@@ -100,19 +100,19 @@ services:
           - plenumnet
           - encryption
 
-  # 5. Compression Engine Service (PlenumDB)
+  # 5. Compression Engine Service (PlenumDB / TTC)
   - name: plenumnet-compression
-    url: https://plenumnet.replit.app/api/demo
+    url: https://plenumnet.replit.app/api/compression
     enabled: true
     tags:
       - plenumnet
       - compression
       - plenumdb
-      - benchmarks
+      - ttc
     routes:
       - name: compression-api
         paths:
-          - /api/demo
+          - /api/compression
         methods:
           - GET
           - POST
@@ -120,6 +120,7 @@ services:
         tags:
           - plenumnet
           - compression
+          - ttc
 
   # 6. Kernel Crypto Modules Service (CNSA 2.0 - 11/11 algorithms)
   - name: plenumnet-crypto
