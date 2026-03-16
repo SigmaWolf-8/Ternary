@@ -339,13 +339,13 @@ export default function APIEndpointCatalog() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap gap-1">
           <Button
             size="sm"
             variant={!activeFilter && !activeDomain ? "default" : "outline"}
             onClick={() => { setActiveFilter(null); setActiveDomain(null); }}
-            className="h-7 text-xs"
+            className="h-6 text-[11px] px-2"
             data-testid="filter-all"
           >
             All ({totalEndpoints})
@@ -361,7 +361,7 @@ export default function APIEndpointCatalog() {
                 size="sm"
                 variant={activeDomain === group.id ? "default" : "outline"}
                 onClick={() => handleDomainClick(group.id)}
-                className="h-7 text-xs"
+                className="h-6 text-[11px] px-2"
                 data-testid={`filter-domain-${group.id}`}
               >
                 {group.name} ({groupCount})
@@ -370,7 +370,7 @@ export default function APIEndpointCatalog() {
           })}
         </div>
         {(activeDomain || activeFilter) && (
-          <div className="flex flex-wrap gap-1.5 pl-1">
+          <div className="flex flex-wrap gap-1 pl-1">
             {(activeDomain ? DOMAIN_GROUPS.find(g => g.id === activeDomain)?.serviceIds || [] : SERVICE_CATALOG.map(c => c.id)).map(svcId => {
               const svc = SERVICE_MAP.get(svcId);
               if (!svc) return null;
@@ -380,7 +380,7 @@ export default function APIEndpointCatalog() {
                   size="sm"
                   variant={activeFilter === svc.id ? "secondary" : "ghost"}
                   onClick={() => handleServiceClick(svc.id)}
-                  className="h-6 text-[11px] px-2"
+                  className="h-5 text-[10px] px-1.5"
                   data-testid={`filter-${svc.id}`}
                 >
                   {svc.name} ({svc.endpoints.length})

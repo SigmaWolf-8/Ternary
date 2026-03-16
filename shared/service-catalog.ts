@@ -221,7 +221,7 @@ export const SERVICE_CATALOG: ServiceDef[] = [
   },
   {
     id: "tsa",
-    name: "TSA / Ternary Notary Stamp",
+    name: "TSA / Time-Stamp Authority",
     description: "RFC 3161 digital notary with dual-signature (RSA-4096 + TL-DSA), ternary compression, Hedera HCS anchoring, and 42 calendar proofs",
     icon: "Stamp",
     color: "text-emerald-700",
@@ -752,7 +752,7 @@ export const DOMAIN_GROUPS: DomainGroupDef[] = [
   {
     id: "trust",
     name: "Cryptography & Trust",
-    description: "Proof-of-existence pipeline: phase encryption, notary timestamping, blockchain witnessing",
+    description: "Phase encryption (TL-KEM, PT-26, TL-DSA), RFC 3161 timestamping, and blockchain witnessing",
     serviceIds: ["phase", "tsa", "hedera"],
   },
   {
