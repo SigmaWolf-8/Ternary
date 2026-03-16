@@ -32,6 +32,7 @@ pub struct FmTimingPacket {
     pub entropy_nonce: [u8; 8],
 }
 
+/// Instantaneous frequency state of the FM timing oscillator.
 #[derive(Clone, Debug)]
 pub struct FrequencyState {
     /// Instantaneous frequency in Hz
@@ -42,10 +43,14 @@ pub struct FrequencyState {
     pub coherence: f64,
 }
 
+/// Errors that can occur during FM timing packet encoding or decoding.
 #[derive(Debug, PartialEq)]
 pub enum PacketError {
+    /// The encoded byte slice is shorter than the minimum packet length.
     TooShort,
+    /// A trit value outside the valid balanced range was encountered.
     InvalidTrit,
+    /// The coherence metric is outside the valid [0.0, 1.0] range.
     InvalidCoherence,
 }
 

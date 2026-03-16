@@ -31,15 +31,23 @@ pub struct HrvEntropy {
     deterministic_value: Option<f64>,
 }
 
+/// Health status of the HRV entropy source.
 #[derive(Debug, Clone)]
 pub struct EntropyHealth {
+    /// Estimated min-entropy per sample (bits).
     pub min_entropy_estimate: f64,
+    /// Total number of noise samples collected.
     pub samples_collected: u64,
+    /// Sample count at which the last health check was performed.
     pub last_health_check: u64,
+    /// Whether the source passes statistical health checks.
     pub healthy: bool,
 }
 
 impl HrvEntropy {
+    /// Create a new HRV entropy source seeded with an initial state.
+    ///
+    /// The seed is clamped to (0.01, 0.99) for the logistic map's chaotic regime.
     pub fn new(seed: f64) -> Self {
         let clamped = seed.clamp(0.01, 0.99);
         Self {
@@ -134,6 +142,7 @@ impl HrvEntropy {
         self.health.last_health_check = self.health.samples_collected;
     }
 
+    /// Return a reference to the current entropy health status.
     pub fn health(&self) -> &EntropyHealth {
         &self.health
     }

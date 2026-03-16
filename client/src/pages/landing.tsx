@@ -45,9 +45,7 @@ import {
   Timer,
   Gauge,
   FlaskRound,
-  TrendingUp,
-  MapPin,
-  Microchip
+  TrendingUp
 } from "lucide-react";
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion, useInView } from "framer-motion";
@@ -199,7 +197,25 @@ function HeroDemo() {
 }
 
 function HeroSection() {
+  const [email, setEmail] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { toast } = useToast();
+
+  const signupMutation = useMutation({
+    mutationFn: async (data: { email: string }) => {
+      const res = await apiRequest("POST", "/api/developer-signup", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "You're in!", description: data.message });
+      setEmail("");
+      setShowSuccess(true);
+    },
+    onError: () => {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    },
+  });
 
   return (
     <section id="hero" className="relative pt-16 pb-12 md:pt-20 md:pb-16 overflow-hidden" data-testid="section-hero" role="region" aria-labelledby="hero-title">
@@ -260,7 +276,6 @@ function HeroSection() {
               muted
               playsInline
               loop
-              preload="none"
               className="w-full"
               style={{ height: "390px", objectFit: "fill" }}
               data-testid="hero-video"
@@ -284,7 +299,7 @@ function HeroSection() {
 
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-base font-medium tracking-wide uppercase text-muted-foreground">The Foundation</span>
+                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Foundation</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#components" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-build">
                       I want to build on it
@@ -304,7 +319,7 @@ function HeroSection() {
 
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-base font-medium tracking-wide uppercase text-muted-foreground">The Architecture</span>
+                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Architecture</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#geometric-foundations" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-understand">
                       I want to understand how it works
@@ -312,7 +327,7 @@ function HeroSection() {
                   </div>
                   <div className="border-t border-primary/60 mt-1.5 mb-2" />
                   <p className="text-base text-muted-foreground leading-relaxed">
-                    217% more information per digit — 9 algebraic states where binary offers two;
+                    217% more information per digit — 9 algebraic states where binary offers one;
                   </p>
                   <p className="text-base text-muted-foreground leading-relaxed">
                     Dual-phase, geometrically derived cryptographic encryption that quantum computers cannot decompose;
@@ -327,7 +342,7 @@ function HeroSection() {
 
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-base font-medium tracking-wide uppercase text-muted-foreground">The Opportunity</span>
+                    <span className="text-sm font-medium tracking-wide uppercase text-muted-foreground">The Opportunity</span>
                     <span className="text-muted-foreground/50">~</span>
                     <a href="#performance" className="text-xs text-primary hover:text-primary/80 transition-colors" data-testid="link-path-evaluate">
                       I want to evaluate the business case
@@ -348,8 +363,68 @@ function HeroSection() {
               </div>
             </motion.div>
 
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+              className="mb-5"
+            >
+              {showSuccess ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="max-w-lg mx-auto"
+                  data-testid="hero-signup-success"
+                >
+                  <Card className="p-6 border-green-500/30 bg-green-500/5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Check className="w-5 h-5 text-green-500" />
+                      <span className="font-semibold text-foreground">You're on the list!</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      We'll send you SDK access details, documentation links, and priority updates. Check your inbox soon.
+                    </p>
+                  </Card>
+                </motion.div>
+              ) : (
+                <div className="max-w-xl mx-auto">
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (email) signupMutation.mutate({ email });
+                    }}
+                    className="flex flex-col sm:flex-row gap-3"
+                    data-testid="form-hero-signup"
+                  >
+                    <label htmlFor="hero-email" className="sr-only">Email address</label>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email for early access"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="flex-1"
+                      required
+                      data-testid="input-hero-email"
+                      id="hero-email"
+                      aria-label="Email address for early access"
+                    />
+                    <Button 
+                      type="submit" 
+                      size="default"
+                      className="btn-raised"
+                      disabled={signupMutation.isPending}
+                      data-testid="button-hero-signup"
+                    >
+                      {signupMutation.isPending ? "Joining..." : "Join the Waitlist"}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </form>
+                </div>
+              )}
+            </motion.div>
+            
             <div className="flex justify-between px-4 sm:px-8 md:px-16 pt-8">
-              <AnimatedStat value="+217" suffix="%" label="vs Binary Density" delay={0.35} />
+              <AnimatedStat value="+59" suffix="%" label="vs Binary Density" delay={0.35} />
               <AnimatedStat value={PLATFORM.BENCH_TL_DSA_87_SPEEDUP} suffix="×" label="Crypto Speedup" delay={0.38} />
               <AnimatedStat value={PLATFORM.TESTS_PASSING} label="Tests Passing" delay={0.41} />
               <AnimatedStat value={PLATFORM.BENCH_ALU_PARITY} suffix="×" label="ALU Parity" delay={0.44} />
@@ -442,18 +517,6 @@ function PlatformSection() {
       title: "Post-Quantum Security",
       description: "CNSA 2.0 algorithm coverage with phase encryption, Lamport signatures, ternary HMAC, and sponge-based hashing resistant to quantum attacks.",
       stats: "CNSA 2.0",
-    },
-    {
-      icon: MapPin,
-      title: "TDNS v2.5 Addressing",
-      description: "54-trit dual-layer ontological addressing with TL-Sponge-43 identity derivation and TIS-27 wire integrity. Org entities, scan registration, resolution, and formal scaling analysis.",
-      stats: "54-trit addresses",
-    },
-    {
-      icon: Microchip,
-      title: "XPlenum RISC-V Extension",
-      description: "Custom RISC-V extension integrated with CVA6 providing 21 custom instructions and 12 CSRs for ternary security operations, PQC acceleration, and hardware compliance.",
-      stats: "21 instructions",
     },
   ];
 
@@ -924,9 +987,9 @@ function ComponentsSection() {
       badge: "Live Demo",
       icon: Database,
       title: "PlenumDB",
-      description: "Ternary compression engine proving 217% information density advantage with real data. Try it live right now.",
+      description: "Ternary compression engine proving 59% information density advantage with real data. Try it live right now.",
       features: [
-        "217% more information per digit",
+        "59% more information per digit",
         "3:2 binary-to-ternary compression ratio",
         "Real-time benchmarks with your own data",
         "Upload CSV, JSON, XLSX for instant results",
@@ -1050,7 +1113,7 @@ function BenchmarkCard({ icon: Icon, value, unit, label, detail, index }: {
 
 function PerformanceSection() {
   const comparisonItems = [
-    { label: "Information per Digit", current: "1.0 bit", ternary: "3.17 bits (+217%)", highlight: true },
+    { label: "Information per Digit", current: "1.0 bit", ternary: "1.585 bits (+59%)", highlight: true },
     { label: "Storage Efficiency", current: "Baseline", ternary: "3:2 compression ratio", highlight: true },
     { label: "Quantum Resistance", current: "Vulnerable", ternary: "CNSA 2.0 ternary equivalents", highlight: true },
     { label: "Logic States", current: "2 states (0,1)", ternary: "3 states per trit", highlight: true },
@@ -1734,8 +1797,8 @@ function TargetMarketsSection() {
     {
       icon: FlaskConical,
       title: "Research & HPC",
-      description: "217% data density improvement for scientific computing, genomics, and large-scale simulations. Less bandwidth, more throughput.",
-      stats: "217% density gain",
+      description: "59% data density improvement for scientific computing, genomics, and large-scale simulations. Less bandwidth, more throughput.",
+      stats: "59% density gain",
     },
     {
       icon: Factory,
@@ -2094,7 +2157,7 @@ function Footer() {
               <span>PlenumNET</span>
             </a>
             <p className="text-sm text-muted-foreground mb-4">
-              A geometrically derived, self-healing computing universe. Post-quantum security, 217% density advantage, shipping today.
+              A geometrically derived, self-healing computing universe. Post-quantum security, 59% density advantage, shipping today.
             </p>
             <div className="flex gap-3">
               <a 

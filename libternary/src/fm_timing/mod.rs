@@ -11,7 +11,11 @@
 //
 // See LICENSE in the repository root for full terms.
 
+/// GF(3) gradient computation for toroidal field diffusion.
 pub mod gf3_gradient;
+/// Heart Rate Variability entropy source for post-quantum key material.
 pub mod hrv;
+/// Van der Pol oscillator producing FM-modulated ternary timing signals.
 pub mod oscillator;
+/// FM timing packet encoding, decoding, and frequency state transitions.
 pub mod packet;

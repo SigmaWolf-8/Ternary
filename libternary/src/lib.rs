@@ -94,12 +94,22 @@
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::return_self_not_must_use)]
 #![allow(clippy::manual_contains)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::cloned_instead_of_copied)]
 // Nightly: uncomment for doc-cfg labels on feature-gated items
 // #![cfg_attr(docsrs, feature(doc_cfg))]
 
+/// Borromean topology primitives — three-word ternary XOR invariant
+/// for non-separable cryptographic linking.
 pub mod borromean;
+/// FM-modulated timing subsystem: oscillator, HRV entropy, gradient
+/// diffusion, and packet encoding for tonal network synchronization.
 pub mod fm_timing;
+/// The 364° ternary circle — Z₂₈ cyclic group, radian spiral walk,
+/// repunit verification, and ternary↔standard angle conversions.
 pub mod ternary_circle;
+/// Tribonacci recurrence in base 3, τ constant expansion, carry tracking,
+/// alignment detection, and Rep A/B/C interconversion.
 pub mod tribonacci;
 
 // ══════════════════════════════════════════════════════════════

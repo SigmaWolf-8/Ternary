@@ -63,10 +63,10 @@ export const corsMiddleware = cors({
     "X-TTC-Predominant-Base",
     "X-TTC-Avg-Tau",
     "X-TTC-Avg-Delta",
+    "X-TTC-GF3-Rep",
     "X-TTC-Adaptive-Rep",
     "X-TTC-Original-Filename",
     "X-TTC-CRC32-Verified",
     "X-TTC-Was-Encrypted",
-    "X-TTC-GF3-Rep",
   ],
 });

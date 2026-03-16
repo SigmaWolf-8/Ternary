@@ -133,14 +133,17 @@ impl TonalOscillator {
         }
     }
 
+    /// Total elapsed simulation time (seconds).
     pub fn elapsed(&self) -> f64 {
         self.time
     }
 
+    /// Current oscillator displacement V.
     pub fn state_v(&self) -> f64 {
         self.state[0]
     }
 
+    /// Current oscillator velocity dV/dt.
     pub fn state_dv(&self) -> f64 {
         self.state[1]
     }
