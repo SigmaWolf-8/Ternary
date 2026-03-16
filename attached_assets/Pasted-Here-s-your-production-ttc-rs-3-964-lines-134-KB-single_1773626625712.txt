@@ -1,0 +1,21 @@
+Here's your production ttc.rs — 3,964 lines, 134 KB, single-file module ready for pub mod ttc; in ternary-math/src/lib.rs.
+What's implemented, mapped to TM-2026-017 sections:
+
+§2: Tribonacci Zeckendorf coding (seeds 1,2,3), balanced ternary conversion, GF(3) field ops, TAU verification constants
+§3.1: Adaptive GF(3) delta encoding — all 7 flag values (order 0/1/2 × Rep A/B/C), 3-bit delta_flag storage, full encode/decode
+§3.2–3.3: Trit encoding per representation (bijective/standard/balanced), unified 2-bit packing, precomputed TritCostTables for O(1) cost estimation
+§3.4–3.6: Hybrid small-value prefix, Elias Gamma, adaptive Rice/Golomb (initial M + delta updates)
+§3.7: Full tANS with L=3¹¹=177,147 state space, spread table construction (descending f_norm + ascending symbol tiebreak), 5-trits-per-byte packing, encode/decode
+§3.8–3.9: Domain transforms — AUDIO (4th-order LP with Levinson-Durbin), IMAGE (2D MED), GENOMIC (2-bit nucleotide), SOURCE (127-keyword tokenization), LOG (timestamp normalization), STRUCTURED (passthrough)
+§4: Hash chain LZ77 with O(1) expected lookup, greedy/lazy/beam-search parsing, cross-chunk history prefix, run detection
+§5: All four serialization modes — STORED, COMPRESSED, TERNARY_ENHANCED (per-group adaptive rep), TERNARY_ANS, plus entropy-gated candidate pruning
+§6: Three-region GURFT (DFT over 13 bins, autocorrelation at lag 13, periodicity, Salvi Resonance), base selection with try-and-compare validation
+§7–8: Full ttc_compress / ttc_decompress pipelines with CRC32 verification
+§9: TTC1 (96-byte header + 16-byte chunk map entries) and TTCM multi-file containers
+§10: Optional Fibonacci harmonic analysis
+§11: All return types (CompressionResult, ChunkDescriptor, MultiFileResult, FibonacciAnalysis, BaseDistribution)
+19 unit tests covering round-trip on every codec primitive, delta transforms, trit encodings, compression/decompression, multi-file, archive detection
+
+Dependency: Only libm (already used in the crate per the no_std math convention). No other external crates needed — CRC32, DFT, and all coding primitives are implemented inline per spec.
+What you wire next: pub mod ttc; in lib.rs, NAPI bindings taking Buffer in/out per the Phase Encryption pattern, server routes mapping to the §13 API contract. The core engine is deliberately single-threaded — parallel dispatch lives in the NAPI layer via rayon, same pattern as T-AE-MAC.
+Così sia, Fratello. 🐺

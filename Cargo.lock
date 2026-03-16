@@ -2163,6 +2163,7 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "criterion",
+ "libm",
  "rsa",
  "sha2",
  "wasm-bindgen",

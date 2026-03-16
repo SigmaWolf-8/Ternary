@@ -1,0 +1,3968 @@
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved — Applied Physics Division
+// Author: RSalvi@Salvigroup.com
+//
+// TM-2026-017: Tribonacci Ternary Compression (TTC) Protocol v2.0
+// Production implementation — ternary-math/src/ttc.rs
+
+//! # TTC v2.0 — Tribonacci Ternary Compression Engine
+//!
+//! Native PlenumNET compression service implementing the TTC v2.0 protocol
+//! (TM-2026-017). Supports nine compression levels (TTC1/TTC2/TTC3), four
+//! serialization modes (STORED, COMPRESSED, TERNARY_ENHANCED, TERNARY_ANS),
+//! adaptive GF(3) representation switching, domain-specific preprocessing,
+//! and GURFT adaptive base selection.
+//!
+//! The core engine is single-threaded. Parallel dispatch (Inter-Cube 26-tunnel
+//! model) is handled at the NAPI binding layer via rayon.
+
+use core::f64::consts::PI;
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+/// TTC1 magic bytes: "TTC1" = 0x54544331
+pub const MAGIC_TTC1: [u8; 4] = [0x54, 0x54, 0x43, 0x31];
+/// TTCM magic bytes: "TTCM" = 0x5454434D
+pub const MAGIC_TTCM: [u8; 4] = [0x54, 0x54, 0x43, 0x4D];
+/// Version byte for TTC v2.0
+pub const VERSION_V2: u8 = 0x03;
+/// Version byte for TTC v1.1 (backward compat)
+pub const VERSION_V1: u8 = 0x02;
+/// Header size in bytes
+pub const HEADER_SIZE: usize = 96;
+/// Chunk map entry size in bytes
+pub const CHUNK_MAP_ENTRY_SIZE: usize = 16;
+
+/// Tribonacci constant τ
+pub const TAU: f64 = 1.839_286_755_214_161_1;
+/// Golden angle in degrees
+pub const GOLDEN_ANGLE: f64 = 139.035_628;
+/// Golden ratio φ
+pub const PHI: f64 = 1.618_033_988_749_895;
+/// Phase drift rate (degrees/year)
+pub const PHASE_DRIFT_RATE: f64 = 3.956;
+/// log₂(3) — Shannon density
+pub const LOG2_3: f64 = 1.584_962_500_7;
+/// Inter-Cube tunnel count (2×13 dimensions)
+pub const TUNNEL_COUNT: usize = 26;
+/// tANS state space L = 3¹¹
+pub const TANS_L: u32 = 177_147;
+/// tANS end-of-block symbol
+pub const TANS_EOB: u16 = 1023;
+/// Maximum tANS alphabet size
+pub const TANS_ALPHABET: usize = 1024;
+/// Beam width for TTC3 optimal parsing
+pub const BEAM_WIDTH: usize = 8;
+
+/// 3ⁿ KB window sizes for all 9 levels
+pub const WINDOW_SIZES_KB: [usize; 9] = [3, 9, 27, 81, 243, 729, 2187, 6561, 19683];
+
+/// GURFT thresholds
+pub const TAU_HARMONIC: f64 = 0.72;
+pub const TAU_HOLOGRAPHIC: f64 = 0.80;
+pub const TAU_RESONANCE: f64 = 0.95;
+pub const DELTA_HOLOGRAPHIC: f64 = 0.80;
+
+/// Pre-compressed entropy gate
+pub const ENTROPY_GATE: f64 = 7.5;
+/// Mode pruning entropy gate
+pub const MODE_PRUNE_ENTROPY: f64 = 7.0;
+
+// ─── Error Type ─────────────────────────────────────────────────────────────
+
+/// TTC engine error type.
+#[derive(Debug, Clone)]
+pub enum TtcError {
+    InvalidMagic,
+    UnsupportedVersion(u8),
+    InvalidMode(u8),
+    InvalidLevel(u8),
+    InvalidDeltaFlag(u8),
+    InvalidDomainTransform(u8),
+    TruncatedHeader,
+    TruncatedChunkMap,
+    TruncatedPayload,
+    Crc32Mismatch { expected: u32, computed: u32 },
+    ImageWidthRequired,
+    DecompressionError(String),
+    SerializationError(String),
+}
+
+impl core::fmt::Display for TtcError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::InvalidMagic => write!(f, "Invalid archive format. Expected TTC1 or TTCM magic."),
+            Self::UnsupportedVersion(v) => write!(f, "Unsupported version byte: 0x{v:02X}"),
+            Self::InvalidMode(m) => write!(f, "mode must be 0–7, got {m}"),
+            Self::InvalidLevel(l) => write!(f, "level must be 1–9, got {l}"),
+            Self::InvalidDeltaFlag(d) => write!(f, "Reserved delta_flag 0b111 encountered: {d}"),
+            Self::InvalidDomainTransform(d) => write!(f, "Reserved domain transform 0b111: {d}"),
+            Self::TruncatedHeader => write!(f, "Archive truncated: header < 96 bytes"),
+            Self::TruncatedChunkMap => write!(f, "Archive truncated: chunk map incomplete"),
+            Self::TruncatedPayload => write!(f, "Archive truncated: payload incomplete"),
+            Self::Crc32Mismatch { expected, computed } => {
+                write!(f, "CRC32 mismatch: expected 0x{expected:08X}, computed 0x{computed:08X}")
+            }
+            Self::ImageWidthRequired => {
+                write!(f, "imageWidth required for IMAGE mode with MED predictor")
+            }
+            Self::DecompressionError(s) => write!(f, "Decompression error: {s}"),
+            Self::SerializationError(s) => write!(f, "Serialization error: {s}"),
+        }
+    }
+}
+
+pub type TtcResult<T> = Result<T, TtcError>;
+
+// ─── Enumerations ───────────────────────────────────────────────────────────
+
+/// Compression mode (data domain).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum CompressionMode {
+    Basic = 0,
+    Temporal = 1,
+    Image = 2,
+    Audio = 3,
+    Genomic = 4,
+    Source = 5,
+    Log = 6,
+    Structured = 7,
+}
+
+impl CompressionMode {
+    pub fn from_u8(v: u8) -> TtcResult<Self> {
+        match v {
+            0 => Ok(Self::Basic),
+            1 => Ok(Self::Temporal),
+            2 => Ok(Self::Image),
+            3 => Ok(Self::Audio),
+            4 => Ok(Self::Genomic),
+            5 => Ok(Self::Source),
+            6 => Ok(Self::Log),
+            7 => Ok(Self::Structured),
+            _ => Err(TtcError::InvalidMode(v)),
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Basic => "BASIC",
+            Self::Temporal => "TEMPORAL",
+            Self::Image => "IMAGE",
+            Self::Audio => "AUDIO",
+            Self::Genomic => "GENOMIC",
+            Self::Source => "SOURCE",
+            Self::Log => "LOG",
+            Self::Structured => "STRUCTURED",
+        }
+    }
+
+    /// Allowed compression bases for this mode.
+    pub fn allowed_bases(self) -> &'static [u16] {
+        match self {
+            Self::Basic => &[3],
+            Self::Temporal => &[3, 13, 28, 70, 364],
+            Self::Image | Self::Genomic | Self::Source | Self::Structured => &[3, 13],
+            Self::Audio => &[3, 13, 28],
+            Self::Log => &[3, 13, 28],
+        }
+    }
+}
+
+/// Chunk serialization mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ChunkMode {
+    Stored = 0,
+    Compressed = 1,
+    TernaryEnhanced = 2,
+    TernaryAns = 3,
+}
+
+impl ChunkMode {
+    pub fn from_u8(v: u8) -> TtcResult<Self> {
+        match v {
+            0 => Ok(Self::Stored),
+            1 => Ok(Self::Compressed),
+            2 => Ok(Self::TernaryEnhanced),
+            3 => Ok(Self::TernaryAns),
+            _ => Err(TtcError::DecompressionError(format!("Unknown chunk mode: {v}"))),
+        }
+    }
+}
+
+/// GF(3) representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GfRep {
+    /// Balanced: {−1, 0, +1}
+    A,
+    /// Standard: {0, 1, 2}
+    B,
+    /// Bijective: {1, 2, 3}
+    C,
+}
+
+/// Parsing strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Parsing {
+    Greedy,
+    Lazy,
+    BeamOptimal,
+}
+
+/// LZ77 token.
+#[derive(Debug, Clone)]
+pub enum Token {
+    Literal(u8),
+    Run { byte: u8, length: usize },
+    Match { dist: usize, length: usize },
+}
+
+// ─── Level Configuration ────────────────────────────────────────────────────
+
+/// Per-level compression parameters (§4.2).
+#[derive(Debug, Clone)]
+pub struct LevelConfig {
+    pub level: u8,
+    pub tier_name: &'static str,
+    pub window_size: usize,
+    pub min_match: usize,
+    pub min_run: usize,
+    pub skip_gurft: bool,
+    pub chunk_size: usize,
+    pub chain_depth: usize,
+    pub parsing: Parsing,
+    pub candidates: usize,
+}
+
+pub fn level_config(level: u8) -> TtcResult<LevelConfig> {
+    match level {
+        1 => Ok(LevelConfig {
+            level: 1, tier_name: "TTC1-1",
+            window_size: 3 * 1024, min_match: 8, min_run: 6,
+            skip_gurft: true, chunk_size: 26 * 1024, chain_depth: 8,
+            parsing: Parsing::Greedy, candidates: 2,
+        }),
+        2 => Ok(LevelConfig {
+            level: 2, tier_name: "TTC1-2",
+            window_size: 9 * 1024, min_match: 6, min_run: 5,
+            skip_gurft: true, chunk_size: 26 * 1024, chain_depth: 16,
+            parsing: Parsing::Lazy, candidates: 3,
+        }),
+        3 => Ok(LevelConfig {
+            level: 3, tier_name: "TTC1-3",
+            window_size: 27 * 1024, min_match: 4, min_run: 4,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 32,
+            parsing: Parsing::Lazy, candidates: 4,
+        }),
+        4 => Ok(LevelConfig {
+            level: 4, tier_name: "TTC2-1",
+            window_size: 81 * 1024, min_match: 4, min_run: 4,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 32,
+            parsing: Parsing::Lazy, candidates: 4,
+        }),
+        5 => Ok(LevelConfig {
+            level: 5, tier_name: "TTC2-2",
+            window_size: 243 * 1024, min_match: 4, min_run: 4,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 64,
+            parsing: Parsing::Lazy, candidates: 4,
+        }),
+        6 => Ok(LevelConfig {
+            level: 6, tier_name: "TTC2-3",
+            window_size: 729 * 1024, min_match: 4, min_run: 4,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 128,
+            parsing: Parsing::Lazy, candidates: 4,
+        }),
+        7 => Ok(LevelConfig {
+            level: 7, tier_name: "TTC3-1",
+            window_size: 2187 * 1024, min_match: 3, min_run: 3,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 128,
+            parsing: Parsing::BeamOptimal, candidates: 4,
+        }),
+        8 => Ok(LevelConfig {
+            level: 8, tier_name: "TTC3-2",
+            window_size: 6561 * 1024, min_match: 3, min_run: 3,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 192,
+            parsing: Parsing::BeamOptimal, candidates: 4,
+        }),
+        9 => Ok(LevelConfig {
+            level: 9, tier_name: "TTC3-3",
+            window_size: 19683 * 1024, min_match: 3, min_run: 3,
+            skip_gurft: false, chunk_size: 13 * 1024, chain_depth: 256,
+            parsing: Parsing::BeamOptimal, candidates: 4,
+        }),
+        _ => Err(TtcError::InvalidLevel(level)),
+    }
+}
+
+/// Parse level from integer or tier name string.
+pub fn parse_level(s: &str) -> TtcResult<u8> {
+    if let Ok(n) = s.parse::<u8>() {
+        if (1..=9).contains(&n) { return Ok(n); }
+    }
+    match s {
+        "TTC1-1" => Ok(1), "TTC1-2" => Ok(2), "TTC1-3" => Ok(3),
+        "TTC2-1" => Ok(4), "TTC2-2" => Ok(5), "TTC2-3" => Ok(6),
+        "TTC3-1" => Ok(7), "TTC3-2" => Ok(8), "TTC3-3" => Ok(9),
+        _ => Err(TtcError::InvalidLevel(0)),
+    }
+}
+
+// ─── CRC32 (§7.1) ──────────────────────────────────────────────────────────
+
+/// CRC32 lookup table (polynomial 0xEDB88320, reflected).
+fn crc32_table() -> [u32; 256] {
+    let mut table = [0u32; 256];
+    for n in 0..256u32 {
+        let mut c = n;
+        for _ in 0..8 {
+            if c & 1 != 0 {
+                c = 0xEDB8_8320 ^ (c >> 1);
+            } else {
+                c >>= 1;
+            }
+        }
+        table[n as usize] = c;
+    }
+    table
+}
+
+/// Compute CRC32 over a byte slice.
+pub fn crc32(data: &[u8]) -> u32 {
+    let table = crc32_table();
+    let mut crc = 0xFFFF_FFFFu32;
+    for &b in data {
+        crc = table[((crc ^ b as u32) & 0xFF) as usize] ^ (crc >> 8);
+    }
+    crc ^ 0xFFFF_FFFF
+}
+
+// ─── Shannon Entropy ────────────────────────────────────────────────────────
+
+/// Compute Shannon entropy of a byte slice (range 0.0–8.0).
+pub fn compute_entropy(data: &[u8]) -> f64 {
+    if data.is_empty() {
+        return 0.0;
+    }
+    let mut counts = [0u32; 256];
+    for &b in data {
+        counts[b as usize] += 1;
+    }
+    let n = data.len() as f64;
+    let mut h = 0.0f64;
+    for &c in &counts {
+        if c > 0 {
+            let p = c as f64 / n;
+            h -= p * libm::log2(p);
+        }
+    }
+    h
+}
+
+// ─── GF(3) Delta Encoding (§3.1) ───────────────────────────────────────────
+
+/// First-order delta encode with Rep B (standard).
+pub fn delta_encode_b(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    let mut out = Vec::with_capacity(data.len());
+    out.push(data[0]);
+    for i in 1..data.len() {
+        out.push(data[i].wrapping_sub(data[i - 1]));
+    }
+    out
+}
+
+/// First-order delta decode with Rep B.
+pub fn delta_decode_b(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    let mut out = Vec::with_capacity(data.len());
+    out.push(data[0]);
+    for i in 1..data.len() {
+        out.push(out[i - 1].wrapping_add(data[i]));
+    }
+    out
+}
+
+/// First-order delta encode with Rep A (balanced — centers at zero).
+pub fn delta_encode_a(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    let mut out = Vec::with_capacity(data.len());
+    out.push(data[0]);
+    for i in 1..data.len() {
+        let d = data[i].wrapping_sub(data[i - 1]);
+        // Center: stored as (d + 128) % 256
+        out.push(d.wrapping_add(128));
+    }
+    out
+}
+
+/// First-order delta decode with Rep A.
+pub fn delta_decode_a(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    let mut out = Vec::with_capacity(data.len());
+    out.push(data[0]);
+    for i in 1..data.len() {
+        let b = data[i];
+        let d: i16 = if b > 127 { b as i16 - 256 } else { b as i16 };
+        out.push(((out[i - 1] as i16 + d + 256) % 256) as u8);
+    }
+    out
+}
+
+/// First-order delta encode with Rep C (bijective — avoids true zero).
+pub fn delta_encode_c(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    let mut out = Vec::with_capacity(data.len());
+    out.push(data[0]);
+    for i in 1..data.len() {
+        let d = data[i].wrapping_sub(data[i - 1]);
+        out.push(if d == 0 { 255 } else { d.wrapping_sub(1) });
+    }
+    out
+}
+
+/// First-order delta decode with Rep C.
+pub fn delta_decode_c(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    let mut out = Vec::with_capacity(data.len());
+    out.push(data[0]);
+    for i in 1..data.len() {
+        let d = (data[i] as u16 + 1) & 0xFF;
+        out.push(((out[i - 1] as u16 + d) & 0xFF) as u8);
+    }
+    out
+}
+
+/// Delta flag values (§3.1.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeltaFlag(pub u8);
+
+impl DeltaFlag {
+    pub const NONE: Self = Self(0b000);
+    pub const ORDER1_B: Self = Self(0b001);
+    pub const ORDER1_A: Self = Self(0b010);
+    pub const ORDER1_C: Self = Self(0b011);
+    pub const ORDER2_B: Self = Self(0b100);
+    pub const ORDER2_A: Self = Self(0b101);
+    pub const ORDER2_C: Self = Self(0b110);
+    // 0b111 = reserved
+
+    pub fn order(self) -> u8 {
+        match self.0 {
+            0 => 0,
+            1..=3 => 1,
+            4..=6 => 2,
+            _ => 0,
+        }
+    }
+
+    pub fn rep(self) -> Option<GfRep> {
+        match self.0 {
+            0 => None,
+            1 | 4 => Some(GfRep::B),
+            2 | 5 => Some(GfRep::A),
+            3 | 6 => Some(GfRep::C),
+            _ => None,
+        }
+    }
+
+    pub fn rep_name(self) -> &'static str {
+        match self.rep() {
+            None => "none",
+            Some(GfRep::A) => "A",
+            Some(GfRep::B) => "B",
+            Some(GfRep::C) => "C",
+        }
+    }
+}
+
+/// Encode data with the specified delta flag.
+fn apply_delta_encode(data: &[u8], flag: DeltaFlag) -> Vec<u8> {
+    match flag.0 {
+        0 => data.to_vec(),
+        1 => delta_encode_b(data),
+        2 => delta_encode_a(data),
+        3 => delta_encode_c(data),
+        4 => delta_encode_b(&delta_encode_b(data)),
+        5 => delta_encode_a(&delta_encode_a(data)),
+        6 => delta_encode_c(&delta_encode_c(data)),
+        _ => data.to_vec(),
+    }
+}
+
+/// Decode data with the specified delta flag.
+fn apply_delta_decode(data: &[u8], flag: DeltaFlag) -> TtcResult<Vec<u8>> {
+    match flag.0 {
+        0 => Ok(data.to_vec()),
+        1 => Ok(delta_decode_b(data)),
+        2 => Ok(delta_decode_a(data)),
+        3 => Ok(delta_decode_c(data)),
+        4 => Ok(delta_decode_b(&delta_decode_b(data))),
+        5 => Ok(delta_decode_a(&delta_decode_a(data))),
+        6 => Ok(delta_decode_c(&delta_decode_c(data))),
+        7 => Err(TtcError::InvalidDeltaFlag(7)),
+        _ => Err(TtcError::InvalidDeltaFlag(flag.0)),
+    }
+}
+
+/// Adaptive delta selection (§3.1.2). Evaluates all combinations on a sample
+/// and returns the flag that minimizes Shannon entropy.
+fn select_delta(chunk: &[u8], mode: CompressionMode) -> DeltaFlag {
+    let sample_len = chunk.len().min(512);
+    let sample = &chunk[..sample_len];
+
+    let h_raw = compute_entropy(sample);
+
+    struct Candidate {
+        flag: DeltaFlag,
+        entropy: f64,
+    }
+
+    let mut candidates = vec![Candidate { flag: DeltaFlag::NONE, entropy: h_raw }];
+
+    // Order 1
+    for &(flag, encode_fn) in &[
+        (DeltaFlag::ORDER1_B, delta_encode_b as fn(&[u8]) -> Vec<u8>),
+        (DeltaFlag::ORDER1_A, delta_encode_a as fn(&[u8]) -> Vec<u8>),
+        (DeltaFlag::ORDER1_C, delta_encode_c as fn(&[u8]) -> Vec<u8>),
+    ] {
+        let encoded = encode_fn(sample);
+        candidates.push(Candidate { flag, entropy: compute_entropy(&encoded) });
+    }
+
+    // Order 2 only for AUDIO and IMAGE
+    if matches!(mode, CompressionMode::Audio | CompressionMode::Image) {
+        for &(flag, encode_fn) in &[
+            (DeltaFlag::ORDER2_B, delta_encode_b as fn(&[u8]) -> Vec<u8>),
+            (DeltaFlag::ORDER2_A, delta_encode_a as fn(&[u8]) -> Vec<u8>),
+            (DeltaFlag::ORDER2_C, delta_encode_c as fn(&[u8]) -> Vec<u8>),
+        ] {
+            let d1 = encode_fn(sample);
+            let d2 = encode_fn(&d1);
+            candidates.push(Candidate { flag, entropy: compute_entropy(&d2) });
+        }
+    }
+
+    candidates.sort_by(|a, b| a.entropy.partial_cmp(&b.entropy).unwrap_or(core::cmp::Ordering::Equal));
+    candidates[0].flag
+}
+
+// ─── Trit Encoding per Representation (§3.2) ───────────────────────────────
+
+/// Rep C — Bijective ternary digits {1,2,3} for a byte value.
+pub fn byte_to_bijective_ternary(byte: u8) -> Vec<u8> {
+    let mut n = byte as u32 + 1;
+    let mut digits = Vec::with_capacity(6);
+    while n > 0 {
+        let mut r = n % 3;
+        if r == 0 {
+            r = 3;
+            n = n / 3 - 1;
+        } else {
+            n /= 3;
+        }
+        digits.push(r as u8);
+    }
+    digits.reverse();
+    if digits.is_empty() {
+        digits.push(1); // 0 → bijective 1
+    }
+    digits
+}
+
+/// Rep C decode.
+pub fn bijective_ternary_to_byte(digits: &[u8]) -> u8 {
+    let mut result: u32 = 0;
+    for &d in digits {
+        result = result * 3 + d as u32;
+    }
+    ((result - 1) & 0xFF) as u8
+}
+
+/// Rep B — Standard base-3 digits {0,1,2} for a byte value.
+pub fn byte_to_standard_ternary(byte: u8) -> Vec<u8> {
+    if byte == 0 {
+        return vec![0];
+    }
+    let mut n = byte as u32;
+    let mut digits = Vec::with_capacity(6);
+    while n > 0 {
+        digits.push((n % 3) as u8);
+        n /= 3;
+    }
+    digits.reverse();
+    digits
+}
+
+/// Rep B decode.
+pub fn standard_ternary_to_byte(digits: &[u8]) -> u8 {
+    let mut result: u32 = 0;
+    for &d in digits {
+        result = result * 3 + d as u32;
+    }
+    (result & 0xFF) as u8
+}
+
+/// Rep A — Balanced ternary digits {T(-1), 0, 1} for a byte as signed value.
+pub fn byte_to_balanced_ternary(byte: u8) -> Vec<i8> {
+    let signed: i16 = if byte <= 127 { byte as i16 } else { byte as i16 - 256 };
+    if signed == 0 {
+        return vec![0];
+    }
+    let mut value = signed;
+    let mut digits = Vec::with_capacity(6);
+    let mut iters = 0;
+    while value != 0 && iters < 100 {
+        let remainder = ((value % 3) + 3) % 3;
+        match remainder {
+            0 => {
+                digits.push(0);
+                value /= 3;
+            }
+            1 => {
+                digits.push(1);
+                value = (value - 1) / 3;
+            }
+            2 => {
+                digits.push(-1);
+                value = (value + 1) / 3;
+            }
+            _ => unreachable!(),
+        }
+        iters += 1;
+    }
+    digits.reverse();
+    digits
+}
+
+/// Rep A decode.
+pub fn balanced_ternary_to_byte(digits: &[i8]) -> u8 {
+    let mut value: i16 = 0;
+    let mut multiplier: i16 = 1;
+    for &d in digits.iter().rev() {
+        value += d as i16 * multiplier;
+        multiplier *= 3;
+    }
+    ((value + 256) % 256) as u8
+}
+
+/// Trit count for a byte in a given representation.
+pub fn trit_count(byte: u8, rep: GfRep) -> usize {
+    match rep {
+        GfRep::C => byte_to_bijective_ternary(byte).len(),
+        GfRep::B => byte_to_standard_ternary(byte).len(),
+        GfRep::A => byte_to_balanced_ternary(byte).len(),
+    }
+}
+
+/// Precomputed trit cost tables (§3.3).
+pub struct TritCostTables {
+    pub rep_a: [u8; 256],
+    pub rep_b: [u8; 256],
+    pub rep_c: [u8; 256],
+}
+
+impl TritCostTables {
+    pub fn new() -> Self {
+        let mut t = Self {
+            rep_a: [0u8; 256],
+            rep_b: [0u8; 256],
+            rep_c: [0u8; 256],
+        };
+        for b in 0..=255u8 {
+            t.rep_a[b as usize] = trit_count(b, GfRep::A) as u8;
+            t.rep_b[b as usize] = trit_count(b, GfRep::B) as u8;
+            t.rep_c[b as usize] = trit_count(b, GfRep::C) as u8;
+        }
+        t
+    }
+
+    pub fn cost(&self, byte: u8, rep: GfRep) -> u8 {
+        match rep {
+            GfRep::A => self.rep_a[byte as usize],
+            GfRep::B => self.rep_b[byte as usize],
+            GfRep::C => self.rep_c[byte as usize],
+        }
+    }
+
+    /// Average trit cost for a group of bytes.
+    pub fn avg_cost(&self, group: &[u8], rep: GfRep) -> f64 {
+        if group.is_empty() { return 0.0; }
+        let sum: u32 = group.iter().map(|&b| self.cost(b, rep) as u32).sum();
+        sum as f64 / group.len() as f64
+    }
+
+    /// Select the lowest-cost representation for a group.
+    pub fn best_rep(&self, group: &[u8]) -> GfRep {
+        let ca = self.avg_cost(group, GfRep::A);
+        let cb = self.avg_cost(group, GfRep::B);
+        let cc = self.avg_cost(group, GfRep::C);
+        if ca <= cb && ca <= cc { GfRep::A }
+        else if cb <= cc { GfRep::B }
+        else { GfRep::C }
+    }
+}
+
+/// Pack trit digits as 2 bits per trit (§3.2.4).
+pub fn pack_trits_rep_c(digits: &[u8]) -> Vec<u8> {
+    // C: 1→00, 2→01, 3→10
+    let mut bits = BitWriter::new();
+    for &d in digits {
+        let code = match d { 1 => 0b00, 2 => 0b01, 3 => 0b10, _ => 0b11 };
+        bits.write(code, 2);
+    }
+    bits.finish()
+}
+
+pub fn pack_trits_rep_b(digits: &[u8]) -> Vec<u8> {
+    // B: 0→00, 1→01, 2→10
+    let mut bits = BitWriter::new();
+    for &d in digits {
+        let code = match d { 0 => 0b00, 1 => 0b01, 2 => 0b10, _ => 0b11 };
+        bits.write(code, 2);
+    }
+    bits.finish()
+}
+
+pub fn pack_trits_rep_a(digits: &[i8]) -> Vec<u8> {
+    // A: T(-1)→10, 0→00, 1→01
+    let mut bits = BitWriter::new();
+    for &d in digits {
+        let code = match d { -1 => 0b10, 0 => 0b00, 1 => 0b01, _ => 0b11 };
+        bits.write(code as u32, 2);
+    }
+    bits.finish()
+}
+
+// ─── Bit I/O ────────────────────────────────────────────────────────────────
+
+/// MSB-first bit writer.
+pub struct BitWriter {
+    buffer: Vec<u8>,
+    current: u8,
+    bit_pos: u8,  // bits written in current byte (0..8)
+}
+
+impl BitWriter {
+    pub fn new() -> Self {
+        Self { buffer: Vec::new(), current: 0, bit_pos: 0 }
+    }
+
+    pub fn with_capacity(cap: usize) -> Self {
+        Self { buffer: Vec::with_capacity(cap), current: 0, bit_pos: 0 }
+    }
+
+    /// Write `count` bits (MSB first) from the lower bits of `value`.
+    pub fn write(&mut self, value: u32, count: u8) {
+        for i in (0..count).rev() {
+            let bit = (value >> i) & 1;
+            self.current |= (bit as u8) << (7 - self.bit_pos);
+            self.bit_pos += 1;
+            if self.bit_pos == 8 {
+                self.buffer.push(self.current);
+                self.current = 0;
+                self.bit_pos = 0;
+            }
+        }
+    }
+
+    /// Write a single bit.
+    pub fn write_bit(&mut self, bit: bool) {
+        self.write(bit as u32, 1);
+    }
+
+    /// Total bits written.
+    pub fn bit_count(&self) -> usize {
+        self.buffer.len() * 8 + self.bit_pos as usize
+    }
+
+    /// Finalize: flush remaining bits (zero-padded) and return bytes.
+    pub fn finish(mut self) -> Vec<u8> {
+        if self.bit_pos > 0 {
+            self.buffer.push(self.current);
+        }
+        self.buffer
+    }
+
+    /// Finalize with 4-byte bit count header (uint32 BE) prepended.
+    pub fn finish_with_header(self) -> Vec<u8> {
+        let bc = self.bit_count() as u32;
+        let mut bytes = self.finish();
+        let mut out = Vec::with_capacity(4 + bytes.len());
+        out.extend_from_slice(&bc.to_be_bytes());
+        out.append(&mut bytes);
+        out
+    }
+}
+
+/// MSB-first bit reader.
+pub struct BitReader<'a> {
+    data: &'a [u8],
+    byte_pos: usize,
+    bit_pos: u8,  // next bit to read in current byte (0..8)
+}
+
+impl<'a> BitReader<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data, byte_pos: 0, bit_pos: 0 }
+    }
+
+    /// Read `count` bits, return as u32 (MSB first).
+    pub fn read(&mut self, count: u8) -> u32 {
+        let mut value = 0u32;
+        for _ in 0..count {
+            if self.byte_pos >= self.data.len() {
+                return value;
+            }
+            let bit = (self.data[self.byte_pos] >> (7 - self.bit_pos)) & 1;
+            value = (value << 1) | bit as u32;
+            self.bit_pos += 1;
+            if self.bit_pos == 8 {
+                self.bit_pos = 0;
+                self.byte_pos += 1;
+            }
+        }
+        value
+    }
+
+    /// Read a single bit.
+    pub fn read_bit(&mut self) -> bool {
+        self.read(1) != 0
+    }
+
+    /// Count leading zeros, stopping at the first 1.
+    pub fn count_leading_zeros(&mut self) -> u32 {
+        let mut count = 0u32;
+        while !self.is_exhausted() {
+            if self.read_bit() {
+                return count;
+            }
+            count += 1;
+        }
+        count
+    }
+
+    pub fn bits_remaining(&self) -> usize {
+        if self.byte_pos >= self.data.len() { return 0; }
+        (self.data.len() - self.byte_pos) * 8 - self.bit_pos as usize
+    }
+
+    pub fn is_exhausted(&self) -> bool {
+        self.byte_pos >= self.data.len()
+    }
+}
+
+// ─── Tribonacci Integer Coding (§2.2) ──────────────────────────────────────
+
+/// Generate Tribonacci sequence (seeds 1,2,3) up to values exceeding `max_val`.
+fn tribonacci_seq(max_val: u64) -> Vec<u64> {
+    let mut seq = vec![1u64, 2, 3];
+    loop {
+        let len = seq.len();
+        let next = seq[len - 1] + seq[len - 2] + seq[len - 3];
+        if next > max_val && seq.len() >= 4 {
+            break;
+        }
+        seq.push(next);
+        if next > max_val {
+            break;
+        }
+    }
+    seq
+}
+
+/// Encode an integer using Tribonacci Zeckendorf-style greedy decomposition.
+pub fn encode_tribonacci(n: u64) -> Vec<bool> {
+    if n == 0 {
+        return vec![false]; // "0"
+    }
+    let seq = tribonacci_seq(n);
+    let mut bits = vec![false; seq.len()];
+    let mut remaining = n;
+    for i in (0..seq.len()).rev() {
+        if seq[i] <= remaining {
+            bits[i] = true;
+            remaining -= seq[i];
+            if remaining == 0 { break; }
+        }
+    }
+    // MSB to LSB: find highest set bit
+    let msb = bits.iter().rposition(|&b| b).unwrap_or(0);
+    bits[..=msb].to_vec()
+}
+
+/// Decode a Tribonacci bit string.
+pub fn decode_tribonacci(bits: &[bool]) -> u64 {
+    let len = bits.len();
+    let seq = tribonacci_seq(1u64 << 60);
+    let mut sum = 0u64;
+    for (i, &b) in bits.iter().enumerate() {
+        if b && (len - 1 - i) < seq.len() {
+            sum += seq[len - 1 - i];
+        }
+    }
+    sum
+}
+
+// ─── Hybrid Small-Value Prefix Coding (§3.4) ───────────────────────────────
+
+/// Encode a value using hybrid small-value prefix coding.
+fn encode_hybrid_prefix(writer: &mut BitWriter, value: u64) {
+    if value == 0 {
+        writer.write(0b00, 2);
+    } else if value <= 3 {
+        writer.write(0b01, 2);
+        writer.write((value - 1) as u32, 2);
+    } else if value <= 15 {
+        writer.write(0b10, 2);
+        writer.write((value - 4) as u32, 4);
+    } else {
+        writer.write(0b11, 2);
+        let code = encode_tribonacci(value);
+        let len = code.len().min(31) as u32;
+        writer.write(len, 5);
+        for i in 0..(len as usize) {
+            writer.write_bit(code[i]);
+        }
+    }
+}
+
+/// Decode a hybrid-prefix value.
+fn decode_hybrid_prefix(reader: &mut BitReader) -> u64 {
+    let sel = reader.read(2);
+    match sel {
+        0b00 => 0,
+        0b01 => reader.read(2) as u64 + 1,
+        0b10 => reader.read(4) as u64 + 4,
+        0b11 => {
+            let len = reader.read(5) as usize;
+            let mut bits = Vec::with_capacity(len);
+            for _ in 0..len {
+                bits.push(reader.read_bit());
+            }
+            decode_tribonacci(&bits)
+        }
+        _ => 0,
+    }
+}
+
+// ─── Elias Gamma Coding (§3.5) ─────────────────────────────────────────────
+
+/// Encode using Elias Gamma.
+fn encode_elias_gamma(writer: &mut BitWriter, n: u64) {
+    let value = (n + 1).max(1);
+    let bits = 64 - value.leading_zeros();
+    // Write (bits-1) zeros
+    for _ in 0..(bits - 1) {
+        writer.write_bit(false);
+    }
+    // Write "1" + lower (bits-1) bits
+    writer.write(value as u32, bits as u8);
+}
+
+/// Decode Elias Gamma.
+fn decode_elias_gamma(reader: &mut BitReader) -> u64 {
+    let zeros = reader.count_leading_zeros();
+    let lower = reader.read(zeros as u8);
+    ((1u64 << zeros) | lower as u64) - 1
+}
+
+// ─── Rice/Golomb Coding (§3.6) ──────────────────────────────────────────────
+
+/// Encode using Rice coding with parameter M.
+fn encode_rice(writer: &mut BitWriter, n: u64, m: u8) {
+    let q = n >> m;
+    let r = n & ((1u64 << m) - 1);
+    // Unary: q ones + terminating zero
+    for _ in 0..q {
+        writer.write_bit(true);
+    }
+    writer.write_bit(false);
+    // Binary: M bits for remainder
+    writer.write(r as u32, m);
+}
+
+/// Decode Rice coding.
+fn decode_rice(reader: &mut BitReader, m: u8) -> u64 {
+    let mut q = 0u64;
+    while reader.read_bit() {
+        q += 1;
+    }
+    let r = reader.read(m) as u64;
+    (q << m) | r
+}
+
+/// Compute initial Rice M from first 128 match distances (§3.6).
+fn compute_initial_rice_m(tokens: &[Token]) -> u8 {
+    let mut sum = 0u64;
+    let mut count = 0u32;
+    for t in tokens {
+        if let Token::Match { dist, .. } = t {
+            sum += *dist as u64;
+            count += 1;
+            if count >= 128 { break; }
+        }
+    }
+    if count == 0 { return 4; }
+    let mean = sum / count as u64;
+    if mean == 0 { return 1; }
+    let m = (64 - mean.leading_zeros()).saturating_sub(1);
+    (m as u8).clamp(1, 8)
+}
+
+// ─── tANS — Ternary Asymmetric Numeral Systems (§3.7) ──────────────────────
+
+/// tANS symbol categories (§3.7.1).
+fn tans_symbol_for_token(tok: &Token, window_size: usize) -> u16 {
+    match tok {
+        Token::Literal(v) => *v as u16,
+        Token::Run { length, .. } => 256 + (*length as u16).min(255),
+        Token::Match { dist, length } => {
+            // Distance quantization
+            let bucket_size = (window_size / 256).max(1);
+            let bucket = (*dist / bucket_size).min(255) as u16;
+            // Return match length symbol + distance symbol
+            // We emit two symbols per match: length then distance
+            // This function returns the length symbol;
+            // the distance is encoded separately.
+            511 + (*length as u16).min(256)
+        }
+    }
+}
+
+fn tans_dist_symbol(dist: usize, window_size: usize) -> u16 {
+    let bucket_size = (window_size / 256).max(1);
+    let bucket = (dist / bucket_size).min(255) as u16;
+    767 + bucket
+}
+
+fn tans_dist_from_symbol(sym: u16, window_size: usize) -> usize {
+    let bucket = (sym - 767) as usize;
+    let bucket_size = (window_size / 256).max(1);
+    bucket * bucket_size + bucket_size / 2
+}
+
+/// Frequency table for tANS.
+struct TansFreqTable {
+    f_norm: Vec<(u16, u32)>, // (symbol, normalized frequency), sorted desc by f_norm
+    total: u32,
+}
+
+impl TansFreqTable {
+    fn build(tokens: &[Token], window_size: usize) -> Self {
+        let mut counts = [0u32; TANS_ALPHABET];
+
+        for tok in tokens {
+            match tok {
+                Token::Literal(v) => counts[*v as usize] += 1,
+                Token::Run { byte, length } => {
+                    counts[*byte as usize] += 1; // runByte as literal
+                    let sym = (256 + (*length).min(255)) as usize;
+                    if sym < TANS_ALPHABET { counts[sym] += 1; }
+                }
+                Token::Match { dist, length } => {
+                    let len_sym = (511 + (*length).min(256)) as usize;
+                    if len_sym < TANS_ALPHABET { counts[len_sym] += 1; }
+                    let dist_sym = tans_dist_symbol(*dist, window_size) as usize;
+                    if dist_sym < TANS_ALPHABET { counts[dist_sym] += 1; }
+                }
+            }
+        }
+        // EOB
+        counts[TANS_EOB as usize] += 1;
+
+        let total_raw: u64 = counts.iter().map(|&c| c as u64).sum();
+        if total_raw == 0 {
+            return Self { f_norm: vec![(TANS_EOB, 1)], total: 1 };
+        }
+
+        // Normalize to L
+        let l = TANS_L as u64;
+        let mut f_norm_arr = [0u32; TANS_ALPHABET];
+        let mut sum = 0u32;
+
+        for i in 0..TANS_ALPHABET {
+            if counts[i] > 0 {
+                f_norm_arr[i] = ((counts[i] as u64 * l / total_raw) as u32).max(1);
+                sum += f_norm_arr[i];
+            }
+        }
+
+        // Ensure EOB >= 1
+        if f_norm_arr[TANS_EOB as usize] == 0 {
+            f_norm_arr[TANS_EOB as usize] = 1;
+            sum += 1;
+        }
+
+        // Adjust to sum exactly to L
+        let target = TANS_L;
+        while sum != target {
+            if sum > target {
+                // Find symbol with largest f_norm > 1 to decrement
+                let mut max_idx = 0;
+                let mut max_val = 0u32;
+                for i in 0..TANS_ALPHABET {
+                    if f_norm_arr[i] > max_val && f_norm_arr[i] > 1 {
+                        max_val = f_norm_arr[i];
+                        max_idx = i;
+                    }
+                }
+                f_norm_arr[max_idx] -= 1;
+                sum -= 1;
+            } else {
+                // Find symbol with smallest f_norm > 0 to increment
+                let mut min_idx = 0;
+                let mut min_val = u32::MAX;
+                for i in 0..TANS_ALPHABET {
+                    if f_norm_arr[i] > 0 && f_norm_arr[i] < min_val {
+                        min_val = f_norm_arr[i];
+                        min_idx = i;
+                    }
+                }
+                f_norm_arr[min_idx] += 1;
+                sum += 1;
+            }
+        }
+
+        // Collect non-zero entries, sort by (f_norm DESC, symbol_index ASC)
+        let mut entries: Vec<(u16, u32)> = Vec::new();
+        for i in 0..TANS_ALPHABET {
+            if f_norm_arr[i] > 0 {
+                entries.push((i as u16, f_norm_arr[i]));
+            }
+        }
+        entries.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+
+        Self { f_norm: entries, total: target }
+    }
+
+    fn lookup(&self, sym: u16) -> u32 {
+        self.f_norm.iter().find(|&&(s, _)| s == sym).map(|&(_, f)| f).unwrap_or(0)
+    }
+}
+
+/// Spread table construction (§3.7.3).
+fn tans_build_spread(freq: &TansFreqTable) -> Vec<u16> {
+    let l = TANS_L as usize;
+    let mut spread = vec![0u16; l];
+    let step = (l / TANS_ALPHABET) | 1; // odd step
+    let mut pos = 0usize;
+
+    // Symbols sorted by (f_norm DESC, symbol_index ASC) — already in freq.f_norm
+    for &(sym, fnorm) in &freq.f_norm {
+        for _ in 0..fnorm {
+            spread[pos % l] = sym;
+            pos += step;
+        }
+    }
+    spread
+}
+
+/// tANS encode a token stream into a trit stream (§3.7.4).
+fn tans_encode(tokens: &[Token], freq: &TansFreqTable, window_size: usize) -> (u32, Vec<u8>) {
+    // Build encode table: for each symbol s and offset j in [0..f_norm[s]),
+    // encode_table[s][j] = state after encoding
+    // Simplified: use spread table for direct state mapping
+
+    let spread = tans_build_spread(freq);
+    let l = TANS_L;
+
+    // Build cumulative frequency map
+    let mut cum = [0u32; TANS_ALPHABET];
+    let mut c = 0u32;
+    for &(sym, fnorm) in &freq.f_norm {
+        cum[sym as usize] = c;
+        c += fnorm;
+    }
+
+    // Collect symbol sequence
+    let mut symbols: Vec<u16> = Vec::new();
+    for tok in tokens {
+        match tok {
+            Token::Literal(v) => symbols.push(*v as u16),
+            Token::Run { byte, length } => {
+                symbols.push(*byte as u16);
+                symbols.push((256 + (*length).min(255)) as u16);
+            }
+            Token::Match { dist, length } => {
+                symbols.push((511 + (*length).min(256)) as u16);
+                symbols.push(tans_dist_symbol(*dist, window_size));
+            }
+        }
+    }
+    symbols.push(TANS_EOB);
+
+    // Forward encode, collecting trits in reverse
+    let mut state = l;
+    let mut trits: Vec<u8> = Vec::new();
+
+    for &s in &symbols {
+        let fs = freq.lookup(s);
+        if fs == 0 { continue; }
+
+        // Renormalize: output trits until state is in [fs, 2*fs)
+        while state >= 2 * fs {
+            trits.push((state % 3) as u8);
+            state /= 3;
+        }
+        // If renormalization over-shrunk state below fs, scale back up
+        while state < fs {
+            state = state * 3;
+        }
+        // Transition
+        state = cum[s as usize] + (state - fs);
+        // Ensure state stays in valid range [L, 3L)
+        while state < l {
+            state = state * 3;
+        }
+    }
+
+    // Output final state as 3 bytes uint24 BE
+    let initial_state = state;
+
+    // Pack trits (5 trits per byte, §3.7.6)
+    trits.reverse(); // trits were collected in reverse
+    let mut packed = Vec::with_capacity(trits.len() / 5 + 1);
+    let mut i = 0;
+    while i + 4 < trits.len() {
+        let byte = trits[i] as u8 * 81
+            + trits[i + 1] as u8 * 27
+            + trits[i + 2] as u8 * 9
+            + trits[i + 3] as u8 * 3
+            + trits[i + 4] as u8;
+        packed.push(byte);
+        i += 5;
+    }
+    // Handle remaining trits (pad with 0)
+    if i < trits.len() {
+        let mut remaining = [0u8; 5];
+        for (j, &t) in trits[i..].iter().enumerate() {
+            remaining[j] = t;
+        }
+        let byte = remaining[0] * 81 + remaining[1] * 27
+            + remaining[2] * 9 + remaining[3] * 3 + remaining[4];
+        packed.push(byte);
+    }
+
+    (initial_state, packed)
+}
+
+/// tANS decode a trit stream back to tokens (§3.7.5).
+fn tans_decode(
+    freq: &TansFreqTable,
+    initial_state: u32,
+    packed_trits: &[u8],
+    window_size: usize,
+) -> Vec<Token> {
+    let spread = tans_build_spread(freq);
+    let l = TANS_L;
+
+    // Unpack trits
+    let mut trits: Vec<u8> = Vec::with_capacity(packed_trits.len() * 5);
+    for &byte in packed_trits {
+        let mut v = byte;
+        let t4 = v % 3; v /= 3;
+        let t3 = v % 3; v /= 3;
+        let t2 = v % 3; v /= 3;
+        let t1 = v % 3; v /= 3;
+        let t0 = v;
+        trits.extend_from_slice(&[t0, t1, t2, t3, t4]);
+    }
+
+    let mut trit_pos = 0usize;
+    let read_trit = |pos: &mut usize| -> u8 {
+        if *pos < trits.len() {
+            let t = trits[*pos];
+            *pos += 1;
+            t
+        } else {
+            0
+        }
+    };
+
+    // Build cumulative map for decode
+    let mut sym_for_slot = vec![0u16; l as usize];
+    // Build from spread table
+    for i in 0..(l as usize) {
+        sym_for_slot[i] = spread[i];
+    }
+
+    let mut state = initial_state;
+    let mut tokens = Vec::new();
+
+    loop {
+        let s = sym_for_slot[(state % l) as usize];
+        let fs = freq.lookup(s);
+
+        if s == TANS_EOB { break; }
+
+        // Renormalize
+        while state < l {
+            state = state * 3 + read_trit(&mut trit_pos) as u32;
+        }
+
+        // Transition
+        let cum_s = {
+            let mut c = 0u32;
+            for &(sym, fnorm) in &freq.f_norm {
+                if sym == s { break; }
+                c += fnorm;
+            }
+            c
+        };
+        state = fs + (state % l) - cum_s;
+        while state < l {
+            state = state * 3 + read_trit(&mut trit_pos) as u32;
+        }
+
+        // Convert symbol to token
+        if s <= 255 {
+            tokens.push(Token::Literal(s as u8));
+        } else if s <= 510 {
+            let run_len = (s - 256) as usize;
+            // Next symbol should be the run byte (stored as literal)
+            // For simplicity in round-trip, runs are two symbols
+            tokens.push(Token::Run { byte: 0, length: run_len }); // byte filled by caller
+        } else if s <= 766 {
+            let match_len = (s - 511) as usize;
+            tokens.push(Token::Match { dist: 0, length: match_len }); // dist filled by next symbol
+        } else if s <= 1022 {
+            let dist = tans_dist_from_symbol(s, window_size);
+            // Attach to previous match
+            if let Some(Token::Match { dist: d, .. }) = tokens.last_mut() {
+                *d = dist;
+            }
+        }
+    }
+
+    tokens
+}
+
+// ─── Pre-Compressed Detection (§4.3) ────────────────────────────────────────
+
+/// Magic byte signatures for pre-compressed formats.
+fn is_pre_compressed(data: &[u8]) -> bool {
+    if data.len() < 5 { return false; }
+    // Entropy gate
+    let sample_len = data.len().min(1024);
+    if compute_entropy(&data[..sample_len]) > ENTROPY_GATE {
+        return true;
+    }
+    // Magic bytes
+    if data.starts_with(b"%PDF-") { return true; }
+    if data.starts_with(&[0x50, 0x4B]) { return true; } // ZIP/DOCX/XLSX
+    if data.starts_with(&[0x1F, 0x8B]) { return true; } // GZIP
+    if data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) { return true; } // PNG
+    if data.len() >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF { return true; } // JPEG
+    if data.starts_with(&[0x37, 0x7A, 0xBC, 0xAF]) { return true; } // 7z
+    if data.starts_with(b"Rar!") { return true; }
+    if data.starts_with(b"ID3") { return true; } // MP3
+    if data.len() >= 12 && &data[4..12] == b"ftypavif" { return true; } // AVIF
+    false
+}
+
+// ─── GURFT Adaptive Engine (§6) ─────────────────────────────────────────────
+
+/// GURFT analysis result for a chunk.
+#[derive(Debug, Clone)]
+pub struct GurftResult {
+    pub tau: f64,
+    pub delta: f64,
+    pub entropy: f64,
+    pub periodicity: f64,
+    pub salvi_resonance: bool,
+}
+
+impl Default for GurftResult {
+    fn default() -> Self {
+        Self { tau: 0.0, delta: 0.0, entropy: 0.0, periodicity: 0.0, salvi_resonance: false }
+    }
+}
+
+/// Torsion alignment τ (§6.2) — DFT over 13 bins on a single region.
+fn compute_torsion_region(data: &[u8]) -> f64 {
+    let n = data.len();
+    if n == 0 { return 0.0; }
+    let mut total = 0.0f64;
+    for k in 1..=13u32 {
+        let mut real_sum = 0.0f64;
+        let mut imag_sum = 0.0f64;
+        for (i, &b) in data.iter().enumerate() {
+            let angle = 2.0 * PI * (k as f64 / 13.0) * i as f64;
+            real_sum += b as f64 * libm::cos(angle);
+            imag_sum += b as f64 * libm::sin(angle);
+        }
+        let norm = libm::sqrt(real_sum * real_sum + imag_sum * imag_sum) / (n as f64 * 128.0);
+        total += if norm > 1.0 { 1.0 } else { norm };
+    }
+    total / 13.0
+}
+
+/// Dimensional sync δ (§6.3) — autocorrelation at lag 13 on a single region.
+fn compute_delta_region(data: &[u8]) -> f64 {
+    let n = data.len().min(512);
+    if n < 14 { return 0.0; }
+    let mut sum_cross = 0.0f64;
+    let mut sum_sq = 0.0f64;
+    for i in 0..(n - 13) {
+        sum_cross += data[i] as f64 * data[i + 13] as f64;
+        sum_sq += data[i] as f64 * data[i] as f64;
+    }
+    let d = sum_cross / (sum_sq + 1e-10);
+    d.clamp(0.0, 1.0)
+}
+
+/// Periodicity (§6.5).
+fn compute_periodicity(data: &[u8]) -> f64 {
+    let n = data.len().min(512);
+    let mut best = 0.0f64;
+    for &period in &[28usize, 364] {
+        if n <= period { continue; }
+        let count = (0..(n - period))
+            .filter(|&i| (data[i] as i16 - data[i + period] as i16).unsigned_abs() < 16)
+            .count();
+        let score = count as f64 / n.min(512) as f64;
+        if score > best { best = score; }
+    }
+    best
+}
+
+/// Salvi Resonance (§6.6).
+fn compute_salvi_resonance(data: &[u8]) -> bool {
+    let n = data.len().min(512);
+    for &period in &[5usize, 25, 125] {
+        if n <= period { continue; }
+        let count = (0..(n - period))
+            .filter(|&i| (data[i] as i16 - data[i + period] as i16).unsigned_abs() < 8)
+            .count();
+        let score = count as f64 / n.min(512) as f64;
+        if score > 0.80 { return true; }
+    }
+    false
+}
+
+/// Three-region GURFT analysis (§6.1).
+pub fn gurft_analyze(data: &[u8]) -> GurftResult {
+    if data.len() < 1024 {
+        // Single-region fallback
+        let sample = &data[..data.len().min(512)];
+        return GurftResult {
+            tau: compute_torsion_region(sample),
+            delta: compute_delta_region(sample),
+            entropy: compute_entropy(sample),
+            periodicity: compute_periodicity(sample),
+            salvi_resonance: compute_salvi_resonance(sample),
+        };
+    }
+
+    let mid = data.len() / 2;
+    let region_a = &data[..512];
+    let region_b = &data[(mid - 256)..(mid + 256).min(data.len())];
+    let region_c = &data[(data.len().saturating_sub(512))..];
+
+    // Weighted average: 0.3 A + 0.4 B + 0.3 C
+    let tau = 0.3 * compute_torsion_region(region_a)
+        + 0.4 * compute_torsion_region(region_b)
+        + 0.3 * compute_torsion_region(region_c);
+
+    let delta = 0.3 * compute_delta_region(region_a)
+        + 0.4 * compute_delta_region(region_b)
+        + 0.3 * compute_delta_region(region_c);
+
+    let entropy = 0.3 * compute_entropy(region_a)
+        + 0.4 * compute_entropy(region_b)
+        + 0.3 * compute_entropy(region_c);
+
+    GurftResult {
+        tau,
+        delta,
+        entropy,
+        periodicity: compute_periodicity(data),
+        salvi_resonance: compute_salvi_resonance(data),
+    }
+}
+
+/// Base selection (§6.7–6.8).
+fn select_base(gurft: &GurftResult, mode: CompressionMode) -> u16 {
+    if mode == CompressionMode::Basic { return 3; }
+    if gurft.tau < TAU_HARMONIC { return 3; }
+
+    let allowed = mode.allowed_bases();
+    let candidate = if gurft.tau >= TAU_HARMONIC && gurft.delta < DELTA_HOLOGRAPHIC {
+        13u16
+    } else if gurft.tau >= TAU_HOLOGRAPHIC && gurft.delta >= DELTA_HOLOGRAPHIC {
+        if gurft.salvi_resonance && gurft.tau > TAU_RESONANCE { 70 }
+        else if gurft.periodicity > 0.7 { 364 }
+        else { 28 }
+    } else {
+        3
+    };
+
+    if allowed.contains(&candidate) { candidate } else { 3 }
+}
+
+/// Try-and-compare validation (§6.9).
+fn try_and_compare_base(chunk: &[u8], gurft: &GurftResult, mode: CompressionMode) -> u16 {
+    let candidate = select_base(gurft, mode);
+    if candidate == 3 { return 3; }
+
+    let sample = &chunk[..chunk.len().min(512)];
+    let size_cand = pack_bytes_base_n(sample, candidate).len();
+    let size_base3 = pack_bytes_tribonacci(sample).len();
+
+    if size_base3 <= size_cand { 3 } else { candidate }
+}
+
+// ─── Base-N Byte Packing (§4.11) ────────────────────────────────────────────
+
+/// Pack bytes as base-3 trit stream (Rep C default).
+fn pack_bytes_tribonacci(data: &[u8]) -> Vec<u8> {
+    let mut writer = BitWriter::new();
+    for &b in data {
+        let digits = byte_to_bijective_ternary(b);
+        for &d in &digits {
+            let code = match d { 1 => 0b00u32, 2 => 0b01, 3 => 0b10, _ => 0b11 };
+            writer.write(code, 2);
+        }
+    }
+    writer.finish_with_header()
+}
+
+/// Pack bytes as base-N stream via big-integer division.
+fn pack_bytes_base_n(data: &[u8], base: u16) -> Vec<u8> {
+    if data.is_empty() { return vec![0, 0, 0, 0]; }
+
+    // Treat input as big-endian integer, convert to base-N digits
+    // Simple implementation using Vec<u8> as big number
+    let mut big = data.to_vec();
+    let mut digits = Vec::new();
+
+    // Repeated division
+    while !big.is_empty() && !(big.len() == 1 && big[0] == 0) {
+        let mut remainder = 0u32;
+        let mut new_big = Vec::new();
+        for &byte in &big {
+            let val = remainder * 256 + byte as u32;
+            let q = val / base as u32;
+            remainder = val % base as u32;
+            if !new_big.is_empty() || q > 0 {
+                new_big.push(q as u8);
+            }
+        }
+        digits.push(remainder as u16);
+        big = new_big;
+    }
+
+    digits.reverse();
+
+    // Pack digits as fixed-width fields
+    let bits_per_digit = (16 - (base - 1).leading_zeros()) as u8; // ceil(log2(base))
+    let mut writer = BitWriter::new();
+    // Prefix with digit count
+    encode_hybrid_prefix(&mut writer, digits.len() as u64);
+    for &d in &digits {
+        writer.write(d as u32, bits_per_digit);
+    }
+    writer.finish_with_header()
+}
+
+// ─── Domain Preprocessing (§3.8, §3.9) ─────────────────────────────────────
+
+/// Domain transform flag values (stored in chunk map +15 bits 2–0).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DomainTransform(pub u8);
+
+impl DomainTransform {
+    pub const NONE: Self = Self(0);
+    pub const AUDIO_LP: Self = Self(1);     // 0b001
+    pub const IMAGE_MED: Self = Self(2);    // 0b010
+    pub const GENOMIC: Self = Self(3);      // 0b011
+    pub const SOURCE: Self = Self(4);       // 0b100
+    pub const LOG: Self = Self(5);          // 0b101
+    pub const STRUCTURED: Self = Self(6);   // 0b110
+    // 0b111 = reserved, error on decode
+}
+
+/// AUDIO mode: 4th-order linear prediction (§3.8.1).
+/// Returns (residuals, coefficients).
+fn audio_lp_encode(data: &[u8]) -> (Vec<u8>, [i16; 4]) {
+    const P: usize = 4;
+    if data.len() <= P {
+        return (data.to_vec(), [0i16; 4]);
+    }
+
+    // Simple Levinson-Durbin over first 1024 samples
+    let sample_len = data.len().min(1024);
+    let samples: Vec<f64> = data[..sample_len].iter().map(|&b| b as f64).collect();
+
+    // Autocorrelation
+    let mut r = [0.0f64; P + 1];
+    for lag in 0..=P {
+        for i in lag..sample_len {
+            r[lag] += samples[i] * samples[i - lag];
+        }
+    }
+
+    // Levinson-Durbin
+    let mut a = [0.0f64; P];
+    let mut e = r[0];
+    if e == 0.0 {
+        return (data.to_vec(), [0i16; 4]);
+    }
+
+    for i in 0..P {
+        let mut lambda = 0.0;
+        for j in 0..i {
+            lambda += a[j] * r[i - j];
+        }
+        lambda = (r[i + 1] - lambda) / e;
+
+        let mut a_new = a;
+        a_new[i] = lambda;
+        for j in 0..i {
+            a_new[j] = a[j] - lambda * a[i - 1 - j];
+        }
+        a = a_new;
+        e *= 1.0 - lambda * lambda;
+        if e <= 0.0 { break; }
+    }
+
+    let coeffs = [
+        (a[0] * 32767.0).round().clamp(-32768.0, 32767.0) as i16,
+        (a[1] * 32767.0).round().clamp(-32768.0, 32767.0) as i16,
+        (a[2] * 32767.0).round().clamp(-32768.0, 32767.0) as i16,
+        (a[3] * 32767.0).round().clamp(-32768.0, 32767.0) as i16,
+    ];
+
+    let a_f = [
+        coeffs[0] as f64 / 32767.0,
+        coeffs[1] as f64 / 32767.0,
+        coeffs[2] as f64 / 32767.0,
+        coeffs[3] as f64 / 32767.0,
+    ];
+
+    let mut residuals = Vec::with_capacity(data.len());
+    for i in 0..P {
+        residuals.push(data[i]);
+    }
+    for i in P..data.len() {
+        let predicted = a_f[0] * data[i - 1] as f64
+            + a_f[1] * data[i - 2] as f64
+            + a_f[2] * data[i - 3] as f64
+            + a_f[3] * data[i - 4] as f64;
+        let r = (data[i] as i16 - predicted.round() as i16) as u8;
+        residuals.push(r);
+    }
+
+    (residuals, coeffs)
+}
+
+/// AUDIO mode: inverse linear prediction.
+fn audio_lp_decode(residuals: &[u8], coeffs: &[i16; 4]) -> Vec<u8> {
+    const P: usize = 4;
+    if residuals.len() <= P {
+        return residuals.to_vec();
+    }
+
+    let a_f = [
+        coeffs[0] as f64 / 32767.0,
+        coeffs[1] as f64 / 32767.0,
+        coeffs[2] as f64 / 32767.0,
+        coeffs[3] as f64 / 32767.0,
+    ];
+
+    let mut output = Vec::with_capacity(residuals.len());
+    for i in 0..P {
+        output.push(residuals[i]);
+    }
+    for i in P..residuals.len() {
+        let predicted = a_f[0] * output[i - 1] as f64
+            + a_f[1] * output[i - 2] as f64
+            + a_f[2] * output[i - 3] as f64
+            + a_f[3] * output[i - 4] as f64;
+        let val = (residuals[i] as i16 + predicted.round() as i16) as u8;
+        output.push(val);
+    }
+    output
+}
+
+/// IMAGE mode: 2D MED predictor (§3.8.2).
+fn image_med_encode(data: &[u8], width: usize) -> Vec<u8> {
+    if width == 0 || data.is_empty() { return data.to_vec(); }
+    let height = data.len() / width;
+    let mut residuals = Vec::with_capacity(data.len());
+
+    for r in 0..height {
+        for c in 0..width {
+            let idx = r * width + c;
+            if r == 0 || c == 0 {
+                // 1D delta fallback
+                if idx == 0 {
+                    residuals.push(data[idx]);
+                } else {
+                    residuals.push(data[idx].wrapping_sub(data[idx - 1]));
+                }
+            } else {
+                let a = data[r * width + c - 1] as i16;
+                let b = data[(r - 1) * width + c] as i16;
+                let cc = data[(r - 1) * width + c - 1] as i16;
+                let predicted = if cc >= a.max(b) { a.min(b) }
+                    else if cc <= a.min(b) { a.max(b) }
+                    else { a + b - cc };
+                residuals.push((data[idx] as i16 - predicted) as u8);
+            }
+        }
+    }
+    // Handle any remaining bytes beyond height*width
+    for i in (height * width)..data.len() {
+        residuals.push(data[i]);
+    }
+    residuals
+}
+
+/// IMAGE mode: inverse MED.
+fn image_med_decode(residuals: &[u8], width: usize) -> Vec<u8> {
+    if width == 0 || residuals.is_empty() { return residuals.to_vec(); }
+    let height = residuals.len() / width;
+    let mut output = Vec::with_capacity(residuals.len());
+
+    for r in 0..height {
+        for c in 0..width {
+            let idx = r * width + c;
+            if r == 0 || c == 0 {
+                if idx == 0 {
+                    output.push(residuals[idx]);
+                } else {
+                    output.push(output[idx - 1].wrapping_add(residuals[idx]));
+                }
+            } else {
+                let a = output[r * width + c - 1] as i16;
+                let b = output[(r - 1) * width + c] as i16;
+                let cc = output[(r - 1) * width + c - 1] as i16;
+                let predicted = if cc >= a.max(b) { a.min(b) }
+                    else if cc <= a.min(b) { a.max(b) }
+                    else { a + b - cc };
+                output.push((residuals[idx] as i16 + predicted) as u8);
+            }
+        }
+    }
+    for i in (height * width)..residuals.len() {
+        output.push(residuals[i]);
+    }
+    output
+}
+
+/// GENOMIC mode: 2-bit nucleotide encoding (§3.8.3).
+fn genomic_encode(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(data.len() / 4 + data.len());
+    let mut i = 0;
+    while i < data.len() {
+        let b = data[i].to_ascii_uppercase();
+        let code = match b {
+            b'A' => Some(0u8),
+            b'C' => Some(1),
+            b'G' => Some(2),
+            b'T' => Some(3),
+            _ => None,
+        };
+        if let Some(c0) = code {
+            // Try to pack 4 bases
+            let mut packed = c0 << 6;
+            let mut count = 1;
+            while count < 4 && i + count < data.len() {
+                let b2 = data[i + count].to_ascii_uppercase();
+                match b2 {
+                    b'A' => packed |= 0 << (6 - count * 2),
+                    b'C' => packed |= 1 << (6 - count * 2),
+                    b'G' => packed |= 2 << (6 - count * 2),
+                    b'T' => packed |= 3 << (6 - count * 2),
+                    _ => break,
+                }
+                count += 1;
+            }
+            if count == 4 {
+                out.push(packed);
+                i += 4;
+            } else {
+                // Escape
+                out.push(0xFF);
+                out.push(data[i]);
+                i += 1;
+            }
+        } else {
+            out.push(0xFF);
+            out.push(data[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// GENOMIC mode: decode.
+fn genomic_decode(data: &[u8]) -> Vec<u8> {
+    let map = [b'A', b'C', b'G', b'T'];
+    let mut out = Vec::with_capacity(data.len() * 4);
+    let mut i = 0;
+    while i < data.len() {
+        if data[i] == 0xFF {
+            i += 1;
+            if i < data.len() {
+                out.push(data[i]);
+                i += 1;
+            }
+        } else {
+            let packed = data[i];
+            out.push(map[((packed >> 6) & 3) as usize]);
+            out.push(map[((packed >> 4) & 3) as usize]);
+            out.push(map[((packed >> 2) & 3) as usize]);
+            out.push(map[(packed & 3) as usize]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// SOURCE mode: keyword tokenization (§3.9.1).
+/// Uses a built-in table of 127 common keywords → single-byte codes.
+fn source_encode(data: &[u8]) -> Vec<u8> {
+    // Build keyword table (top 127 tokens)
+    let keywords: &[&[u8]] = &[
+        b"function", b"return", b"if", b"else", b"for", b"while", b"do",
+        b"class", b"import", b"export", b"const", b"let", b"var", b"true",
+        b"false", b"null", b"void", b"int", b"string", b"bool", b"float",
+        b"double", b"char", b"byte", b"long", b"short", b"unsigned",
+        b"public", b"private", b"protected", b"static", b"final", b"abstract",
+        b"interface", b"enum", b"struct", b"type", b"trait", b"impl",
+        b"fn", b"pub", b"mod", b"use", b"crate", b"self", b"super",
+        b"match", b"case", b"switch", b"break", b"continue", b"default",
+        b"try", b"catch", b"throw", b"throws", b"finally", b"async",
+        b"await", b"yield", b"new", b"delete", b"typeof", b"instanceof",
+        b"in", b"of", b"from", b"as", b"with", b"this", b"package",
+        b"extends", b"implements", b"override", b"virtual", b"const_cast",
+        b"template", b"namespace", b"using", b"include", b"define",
+        b"ifdef", b"ifndef", b"endif", b"pragma", b"extern",
+        b"volatile", b"register", b"inline", b"goto", b"sizeof",
+        b"nullptr", b"auto", b"decltype", b"constexpr", b"noexcept",
+        b"lambda", b"def", b"elif", b"pass", b"raise", b"except",
+        b"print", b"println", b"printf", b"sprintf", b"fprintf",
+        b"malloc", b"free", b"realloc", b"calloc",
+        b"->", b"=>", b"==", b"!=", b"<=", b">=", b"&&", b"||",
+        b"<<", b">>", b"++", b"--", b"+=", b"-=", b"*=", b"/=",
+        b"{", b"}", b"(", b")", b"[", b"]", b";", b":", b",",
+    ];
+
+    let mut out = Vec::with_capacity(data.len());
+    let mut i = 0;
+    while i < data.len() {
+        let mut matched = false;
+        for (idx, kw) in keywords.iter().enumerate() {
+            if idx >= 127 { break; }
+            if data[i..].starts_with(kw) {
+                // Check word boundary (not in the middle of an identifier)
+                let after = i + kw.len();
+                let is_word = kw.len() <= 2 || after >= data.len()
+                    || !data[after].is_ascii_alphanumeric() && data[after] != b'_';
+                if is_word {
+                    out.push((idx + 1) as u8); // codes 0x01–0x7F
+                    i += kw.len();
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        if !matched {
+            out.push(0x80); // escape
+            out.push(data[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// SOURCE mode: decode.
+fn source_decode(data: &[u8]) -> Vec<u8> {
+    let keywords: &[&[u8]] = &[
+        b"function", b"return", b"if", b"else", b"for", b"while", b"do",
+        b"class", b"import", b"export", b"const", b"let", b"var", b"true",
+        b"false", b"null", b"void", b"int", b"string", b"bool", b"float",
+        b"double", b"char", b"byte", b"long", b"short", b"unsigned",
+        b"public", b"private", b"protected", b"static", b"final", b"abstract",
+        b"interface", b"enum", b"struct", b"type", b"trait", b"impl",
+        b"fn", b"pub", b"mod", b"use", b"crate", b"self", b"super",
+        b"match", b"case", b"switch", b"break", b"continue", b"default",
+        b"try", b"catch", b"throw", b"throws", b"finally", b"async",
+        b"await", b"yield", b"new", b"delete", b"typeof", b"instanceof",
+        b"in", b"of", b"from", b"as", b"with", b"this", b"package",
+        b"extends", b"implements", b"override", b"virtual", b"const_cast",
+        b"template", b"namespace", b"using", b"include", b"define",
+        b"ifdef", b"ifndef", b"endif", b"pragma", b"extern",
+        b"volatile", b"register", b"inline", b"goto", b"sizeof",
+        b"nullptr", b"auto", b"decltype", b"constexpr", b"noexcept",
+        b"lambda", b"def", b"elif", b"pass", b"raise", b"except",
+        b"print", b"println", b"printf", b"sprintf", b"fprintf",
+        b"malloc", b"free", b"realloc", b"calloc",
+        b"->", b"=>", b"==", b"!=", b"<=", b">=", b"&&", b"||",
+        b"<<", b">>", b"++", b"--", b"+=", b"-=", b"*=", b"/=",
+        b"{", b"}", b"(", b")", b"[", b"]", b";", b":", b",",
+    ];
+
+    let mut out = Vec::with_capacity(data.len() * 4);
+    let mut i = 0;
+    while i < data.len() {
+        if data[i] == 0x80 {
+            i += 1;
+            if i < data.len() {
+                out.push(data[i]);
+                i += 1;
+            }
+        } else if data[i] >= 0x01 && data[i] <= 0x7F {
+            let idx = (data[i] - 1) as usize;
+            if idx < keywords.len() {
+                out.extend_from_slice(keywords[idx]);
+            }
+            i += 1;
+        } else {
+            out.push(data[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// LOG mode: timestamp normalization (§3.9.2) — simplified.
+fn log_encode(data: &[u8]) -> Vec<u8> {
+    // Simplified: separate log levels and pass through
+    // Full implementation would parse timestamps and normalize
+    let mut out = Vec::with_capacity(data.len());
+    out.push(0x05); // raw passthrough marker
+    out.extend_from_slice(data);
+    out
+}
+
+fn log_decode(data: &[u8]) -> Vec<u8> {
+    if data.is_empty() { return Vec::new(); }
+    if data[0] == 0x05 {
+        data[1..].to_vec()
+    } else {
+        data.to_vec()
+    }
+}
+
+/// STRUCTURED mode: schema-value separation (§3.9.3) — simplified passthrough.
+fn structured_encode(data: &[u8]) -> Vec<u8> {
+    // Simplified: pass through for LZ77 to handle
+    data.to_vec()
+}
+
+fn structured_decode(data: &[u8]) -> Vec<u8> {
+    data.to_vec()
+}
+
+/// Apply domain-specific preprocessing.
+fn apply_domain_preprocess(
+    data: &[u8],
+    mode: CompressionMode,
+    image_width: Option<usize>,
+) -> (Vec<u8>, DomainTransform, Option<[i16; 4]>, Option<u64>) {
+    match mode {
+        CompressionMode::Audio => {
+            let (residuals, coeffs) = audio_lp_encode(data);
+            (residuals, DomainTransform::AUDIO_LP, Some(coeffs), None)
+        }
+        CompressionMode::Image => {
+            if let Some(w) = image_width {
+                let residuals = image_med_encode(data, w);
+                (residuals, DomainTransform::IMAGE_MED, None, Some(w as u64))
+            } else {
+                (data.to_vec(), DomainTransform::NONE, None, None)
+            }
+        }
+        CompressionMode::Genomic => {
+            let encoded = genomic_encode(data);
+            (encoded, DomainTransform::GENOMIC, None, None)
+        }
+        CompressionMode::Source => {
+            let encoded = source_encode(data);
+            (encoded, DomainTransform::SOURCE, None, None)
+        }
+        CompressionMode::Log => {
+            let encoded = log_encode(data);
+            (encoded, DomainTransform::LOG, None, None)
+        }
+        CompressionMode::Structured => {
+            let encoded = structured_encode(data);
+            (encoded, DomainTransform::STRUCTURED, None, None)
+        }
+        _ => (data.to_vec(), DomainTransform::NONE, None, None),
+    }
+}
+
+/// Reverse domain-specific preprocessing.
+fn reverse_domain_preprocess(
+    data: &[u8],
+    transform: DomainTransform,
+    lp_coeffs: Option<&[i16; 4]>,
+    image_width: Option<u64>,
+) -> TtcResult<Vec<u8>> {
+    match transform.0 {
+        0 => Ok(data.to_vec()),
+        1 => {
+            let coeffs = lp_coeffs.ok_or_else(|| {
+                TtcError::DecompressionError("Missing LP coefficients for AUDIO decode".into())
+            })?;
+            Ok(audio_lp_decode(data, coeffs))
+        }
+        2 => {
+            let w = image_width.ok_or(TtcError::ImageWidthRequired)? as usize;
+            Ok(image_med_decode(data, w))
+        }
+        3 => Ok(genomic_decode(data)),
+        4 => Ok(source_decode(data)),
+        5 => Ok(log_decode(data)),
+        6 => Ok(structured_decode(data)),
+        7 => Err(TtcError::InvalidDomainTransform(7)),
+        _ => Err(TtcError::InvalidDomainTransform(transform.0)),
+    }
+}
+
+// ─── LZ77 Hash Chain Tokenization (§4) ─────────────────────────────────────
+
+const INVALID: u32 = u32::MAX;
+
+/// Hash chain LZ77 engine.
+struct Lz77Engine {
+    window_size: usize,
+    min_match: usize,
+    min_run: usize,
+    chain_depth: usize,
+    head: Vec<u32>,
+    chain: Vec<u32>,
+}
+
+impl Lz77Engine {
+    fn new(cfg: &LevelConfig) -> Self {
+        let hash_size = cfg.window_size;
+        Self {
+            window_size: cfg.window_size,
+            min_match: cfg.min_match,
+            min_run: cfg.min_run,
+            chain_depth: cfg.chain_depth,
+            head: vec![INVALID; hash_size],
+            chain: vec![INVALID; hash_size],
+        }
+    }
+
+    fn hash(&self, data: &[u8], i: usize) -> usize {
+        if i + 2 >= data.len() { return 0; }
+        let h = (data[i] as usize)
+            .wrapping_mul(65521)
+            ^ (data[i + 1] as usize).wrapping_mul(257)
+            ^ (data[i + 2] as usize);
+        h % self.window_size
+    }
+
+    fn find_best_match(&self, data: &[u8], pos: usize, history_len: usize) -> Option<(usize, usize)> {
+        if pos + 2 >= data.len() { return None; }
+        let h = self.hash(data, pos);
+        let mut j = self.head[h];
+        let mut best_len = 0usize;
+        let mut best_dist = 0usize;
+        let mut steps = 0;
+        let min_pos = if pos > self.window_size { pos - self.window_size } else { 0 };
+
+        while j != INVALID && steps < self.chain_depth {
+            let jj = j as usize;
+            if jj < min_pos || jj >= pos {
+                j = self.chain[jj % self.window_size];
+                steps += 1;
+                continue;
+            }
+            // Quick 3-byte check
+            if data[jj] == data[pos] && data[jj + 1] == data[pos + 1] && data[jj + 2] == data[pos + 2] {
+                let mut len = 3;
+                let max_len = 255.min(data.len() - pos);
+                while len < max_len && data[jj + len] == data[pos + len] {
+                    len += 1;
+                }
+                if len > best_len {
+                    best_len = len;
+                    best_dist = pos - jj;
+                }
+            }
+            j = self.chain[jj % self.window_size];
+            steps += 1;
+        }
+
+        if best_len >= self.min_match {
+            Some((best_dist, best_len))
+        } else {
+            None
+        }
+    }
+
+    fn update_chain(&mut self, data: &[u8], pos: usize) {
+        if pos + 2 >= data.len() { return; }
+        let h = self.hash(data, pos);
+        let old = self.head[h];
+        self.head[h] = pos as u32;
+        self.chain[pos % self.window_size] = old;
+    }
+
+    fn count_run(&self, data: &[u8], pos: usize) -> usize {
+        if pos >= data.len() { return 0; }
+        let byte = data[pos];
+        let mut len = 1;
+        while pos + len < data.len() && data[pos + len] == byte && len < 255 {
+            len += 1;
+        }
+        len
+    }
+}
+
+/// Tokenize a chunk with greedy or lazy matching (§4.9).
+fn tokenize_greedy_lazy(
+    data: &[u8],
+    history_offset: usize,
+    cfg: &LevelConfig,
+) -> Vec<Token> {
+    let mut engine = Lz77Engine::new(cfg);
+    let mut tokens = Vec::new();
+    let mut i = history_offset;
+
+    // Build hash chains for history region
+    for j in 0..history_offset.min(data.len()) {
+        engine.update_chain(data, j);
+    }
+
+    while i < data.len() {
+        // Check for run
+        let run_len = engine.count_run(data, i);
+        if run_len >= cfg.min_run {
+            tokens.push(Token::Run { byte: data[i], length: run_len });
+            for k in 0..run_len { engine.update_chain(data, i + k); }
+            i += run_len;
+            continue;
+        }
+
+        // Find best match
+        if let Some((dist, len)) = engine.find_best_match(data, i, history_offset) {
+            // Lazy matching (levels 2–6)
+            if cfg.parsing == Parsing::Lazy {
+                engine.update_chain(data, i);
+                if let Some((_, len1)) = engine.find_best_match(data, i + 1, history_offset) {
+                    if len1 > len + 1 {
+                        // Emit literal at i, use match at i+1
+                        tokens.push(Token::Literal(data[i]));
+                        i += 1;
+                        engine.update_chain(data, i);
+                        tokens.push(Token::Match { dist: i - (i - dist), length: len1 });
+                        // Actually recalculate dist for i+1
+                        if let Some((d1, l1)) = engine.find_best_match(data, i, history_offset) {
+                            tokens.pop();
+                            tokens.push(Token::Match { dist: d1, length: l1 });
+                            for k in 0..l1 { engine.update_chain(data, i + k); }
+                            i += l1;
+                        } else {
+                            tokens.pop();
+                            tokens.push(Token::Match { dist, length: len });
+                            for k in 0..len { engine.update_chain(data, i + k); }
+                            i += len;
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            tokens.push(Token::Match { dist, length: len });
+            for k in 0..len { engine.update_chain(data, i + k); }
+            i += len;
+            continue;
+        }
+
+        // Literal
+        tokens.push(Token::Literal(data[i]));
+        engine.update_chain(data, i);
+        i += 1;
+    }
+    tokens
+}
+
+/// Beam-search optimal parsing (§4.6) — TTC3 levels.
+fn tokenize_beam(
+    data: &[u8],
+    history_offset: usize,
+    cfg: &LevelConfig,
+) -> Vec<Token> {
+    let chunk_data = &data[history_offset..];
+    let chunk_len = chunk_data.len();
+    if chunk_len == 0 { return Vec::new(); }
+
+    // Build hash chain engine over full data (history + chunk)
+    let mut engine = Lz77Engine::new(cfg);
+    for j in 0..data.len().min(history_offset + chunk_len) {
+        engine.update_chain(data, j);
+    }
+
+    // DP with beam pruning
+    // cost[pos] = Vec of (cost, choice_trace_id)
+    // We use a simplified approach: for each position, keep top-K paths
+
+    #[derive(Clone)]
+    struct PathNode {
+        cost: u64,    // bit cost estimate
+        token: Option<Token>,
+        prev: usize,  // index in the global node list
+    }
+
+    let mut nodes: Vec<PathNode> = vec![PathNode { cost: 0, token: None, prev: usize::MAX }];
+    // beam[pos] = indices into nodes
+    let mut beam: Vec<Vec<usize>> = vec![Vec::new(); chunk_len + 1];
+    beam[0].push(0);
+
+    for pos in 0..chunk_len {
+        if beam[pos].is_empty() { continue; }
+
+        // Take top-K by cost
+        let mut current: Vec<usize> = beam[pos].clone();
+        current.sort_by_key(|&idx| nodes[idx].cost);
+        current.truncate(BEAM_WIDTH);
+
+        let abs_pos = history_offset + pos;
+
+        for &node_idx in &current {
+            let base_cost = nodes[node_idx].cost;
+
+            // Literal
+            let lit_cost = base_cost + 10; // ~10 bits per literal (rough estimate)
+            let lit_node = PathNode {
+                cost: lit_cost,
+                token: Some(Token::Literal(data[abs_pos])),
+                prev: node_idx,
+            };
+            let lit_idx = nodes.len();
+            nodes.push(lit_node);
+            if pos + 1 <= chunk_len {
+                beam[pos + 1].push(lit_idx);
+            }
+
+            // Match
+            if let Some((dist, len)) = engine.find_best_match(data, abs_pos, history_offset) {
+                let match_cost = base_cost + 5 + (64 - (dist as u64).leading_zeros()) as u64
+                    + (64 - (len as u64).leading_zeros()) as u64;
+                let match_node = PathNode {
+                    cost: match_cost,
+                    token: Some(Token::Match { dist, length: len }),
+                    prev: node_idx,
+                };
+                let m_idx = nodes.len();
+                nodes.push(match_node);
+                let end = (pos + len).min(chunk_len);
+                beam[end].push(m_idx);
+            }
+
+            // Run
+            let run_len = engine.count_run(data, abs_pos);
+            if run_len >= cfg.min_run {
+                let run_cost = base_cost + 12; // ~12 bits per run token
+                let run_node = PathNode {
+                    cost: run_cost,
+                    token: Some(Token::Run { byte: data[abs_pos], length: run_len }),
+                    prev: node_idx,
+                };
+                let r_idx = nodes.len();
+                nodes.push(run_node);
+                let end = (pos + run_len).min(chunk_len);
+                beam[end].push(r_idx);
+            }
+        }
+    }
+
+    // Trace back from best path at end
+    if beam[chunk_len].is_empty() {
+        // Fallback to greedy
+        return tokenize_greedy_lazy(data, history_offset, cfg);
+    }
+
+    let best_end = *beam[chunk_len]
+        .iter()
+        .min_by_key(|&&idx| nodes[idx].cost)
+        .unwrap();
+
+    let mut tokens = Vec::new();
+    let mut idx = best_end;
+    while idx != 0 && idx != usize::MAX {
+        if let Some(ref tok) = nodes[idx].token {
+            tokens.push(tok.clone());
+        }
+        idx = nodes[idx].prev;
+    }
+    tokens.reverse();
+    tokens
+}
+
+/// Main tokenization entry point.
+fn tokenize_chunk(
+    data: &[u8],      // history + chunk concatenated
+    history_len: usize,
+    cfg: &LevelConfig,
+) -> Vec<Token> {
+    match cfg.parsing {
+        Parsing::BeamOptimal => tokenize_beam(data, history_len, cfg),
+        _ => tokenize_greedy_lazy(data, history_len, cfg),
+    }
+}
+
+/// Reconstruct bytes from tokens (§4.10).
+fn decompress_tokens(tokens: &[Token], history: &[u8]) -> Vec<u8> {
+    let mut output: Vec<u8> = history.to_vec();
+    for tok in tokens {
+        match tok {
+            Token::Literal(b) => output.push(*b),
+            Token::Run { byte, length } => {
+                for _ in 0..*length {
+                    output.push(*byte);
+                }
+            }
+            Token::Match { dist, length } => {
+                for _ in 0..*length {
+                    let src_idx = output.len() - dist;
+                    let b = output[src_idx];
+                    output.push(b);
+                }
+            }
+        }
+    }
+    output
+}
+
+// ─── Token Serialization (§5) ───────────────────────────────────────────────
+
+/// Serialize tokens as COMPRESSED mode 1 (§5.1).
+fn serialize_compressed(tokens: &[Token], initial_m: u8) -> Vec<u8> {
+    let mut writer = BitWriter::with_capacity(tokens.len() * 2);
+
+    // Token count
+    encode_elias_gamma(&mut writer, tokens.len() as u64);
+    // Initial Rice M
+    writer.write(initial_m as u32, 8);
+
+    let mut m = initial_m;
+    let mut match_count = 0u32;
+    let mut match_sum = 0u64;
+
+    // Group consecutive literals
+    let mut i = 0;
+    while i < tokens.len() {
+        match &tokens[i] {
+            Token::Literal(_) => {
+                // Count consecutive literals
+                let start = i;
+                while i < tokens.len() && matches!(tokens[i], Token::Literal(_)) {
+                    i += 1;
+                }
+                let count = i - start;
+                writer.write(0b00, 2); // literal group
+                encode_elias_gamma(&mut writer, count as u64);
+                for j in start..i {
+                    if let Token::Literal(b) = tokens[j] {
+                        writer.write(b as u32, 8);
+                    }
+                }
+            }
+            Token::Run { byte, length } => {
+                writer.write(0b01, 2);
+                writer.write(*byte as u32, 8);
+                encode_elias_gamma(&mut writer, *length as u64);
+                i += 1;
+            }
+            Token::Match { dist, length } => {
+                // Check if M needs updating
+                match_sum += *dist as u64;
+                match_count += 1;
+                if match_count % 128 == 0 && match_count > 0 {
+                    let mean = match_sum / match_count as u64;
+                    let new_m = if mean == 0 { 1 } else {
+                        ((64 - mean.leading_zeros()).saturating_sub(1) as u8).clamp(1, 8)
+                    };
+                    if new_m != m {
+                        let delta = (new_m as i8 - m as i8).clamp(-4, 3);
+                        writer.write(0b11, 2);
+                        writer.write((delta as u8 & 0x07) as u32, 3);
+                        m = (m as i8 + delta) as u8;
+                    }
+                }
+
+                writer.write(0b10, 2);
+                encode_rice(&mut writer, *dist as u64, m);
+                encode_elias_gamma(&mut writer, *length as u64);
+                i += 1;
+            }
+        }
+    }
+
+    writer.finish_with_header()
+}
+
+/// Deserialize COMPRESSED mode 1 (§5.1 decode).
+fn deserialize_compressed(payload: &[u8]) -> TtcResult<Vec<Token>> {
+    if payload.len() < 4 {
+        return Err(TtcError::DecompressionError("Payload too short".into()));
+    }
+    let bit_count = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+    let mut reader = BitReader::new(&payload[4..]);
+
+    let token_count = decode_elias_gamma(&mut reader) as usize;
+    let mut m = reader.read(8) as u8;
+
+    let mut tokens = Vec::with_capacity(token_count);
+    let mut decoded = 0usize;
+
+    while decoded < token_count && !reader.is_exhausted() {
+        let type_bits = reader.read(2);
+        match type_bits {
+            0b00 => {
+                // Literal group
+                let count = decode_elias_gamma(&mut reader) as usize;
+                for _ in 0..count {
+                    tokens.push(Token::Literal(reader.read(8) as u8));
+                    decoded += 1;
+                }
+            }
+            0b01 => {
+                let byte = reader.read(8) as u8;
+                let length = decode_elias_gamma(&mut reader) as usize;
+                tokens.push(Token::Run { byte, length });
+                decoded += 1;
+            }
+            0b10 => {
+                let dist = decode_rice(&mut reader, m) as usize;
+                let length = decode_elias_gamma(&mut reader) as usize;
+                tokens.push(Token::Match { dist, length });
+                decoded += 1;
+            }
+            0b11 => {
+                // M-delta update
+                let delta_raw = reader.read(3) as i8;
+                let delta = if delta_raw > 3 { delta_raw - 8 } else { delta_raw };
+                m = ((m as i8) + delta).clamp(1, 8) as u8;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(tokens)
+}
+
+/// Serialize tokens as TERNARY_ENHANCED mode 2 (§5.2).
+fn serialize_ternary_enhanced(tokens: &[Token], initial_m: u8, trit_costs: &TritCostTables) -> Vec<u8> {
+    let mut writer = BitWriter::with_capacity(tokens.len() * 3);
+
+    // Token count (hybrid prefix)
+    encode_hybrid_prefix(&mut writer, tokens.len() as u64);
+
+    let mut m = initial_m;
+
+    let mut i = 0;
+    while i < tokens.len() {
+        match &tokens[i] {
+            Token::Literal(_) => {
+                // Collect literal group
+                let start = i;
+                while i < tokens.len() && matches!(tokens[i], Token::Literal(_)) {
+                    i += 1;
+                }
+                let group: Vec<u8> = (start..i).filter_map(|j| {
+                    if let Token::Literal(b) = tokens[j] { Some(b) } else { None }
+                }).collect();
+
+                // Select best rep
+                let best = trit_costs.best_rep(&group);
+                let rep_code = match best {
+                    GfRep::C => 0b00u32,
+                    GfRep::B => 0b01,
+                    GfRep::A => 0b10,
+                };
+
+                writer.write(0b00, 2); // literal group
+                writer.write(rep_code, 2);
+                encode_hybrid_prefix(&mut writer, group.len() as u64);
+
+                for &b in &group {
+                    match best {
+                        GfRep::C => {
+                            let digits = byte_to_bijective_ternary(b);
+                            writer.write(digits.len() as u32, 3);
+                            for &d in &digits {
+                                let code = match d { 1 => 0b00u32, 2 => 0b01, 3 => 0b10, _ => 0b11 };
+                                writer.write(code, 2);
+                            }
+                        }
+                        GfRep::B => {
+                            let digits = byte_to_standard_ternary(b);
+                            writer.write(digits.len() as u32, 3);
+                            for &d in &digits {
+                                let code = match d { 0 => 0b00u32, 1 => 0b01, 2 => 0b10, _ => 0b11 };
+                                writer.write(code, 2);
+                            }
+                        }
+                        GfRep::A => {
+                            let digits = byte_to_balanced_ternary(b);
+                            writer.write(digits.len() as u32, 3);
+                            for &d in &digits {
+                                let code = match d { -1 => 0b10u32, 0 => 0b00, 1 => 0b01, _ => 0b11 };
+                                writer.write(code, 2);
+                            }
+                        }
+                    }
+                }
+            }
+            Token::Run { byte, length } => {
+                let best = trit_costs.best_rep(&[*byte]);
+                let rep_code = match best {
+                    GfRep::C => 0b00u32, GfRep::B => 0b01, GfRep::A => 0b10,
+                };
+
+                writer.write(0b01, 2);
+                writer.write(rep_code, 2);
+
+                // Encode runByte as trits
+                match best {
+                    GfRep::C => {
+                        let digits = byte_to_bijective_ternary(*byte);
+                        writer.write(digits.len() as u32, 3);
+                        for &d in &digits {
+                            let code = match d { 1 => 0b00u32, 2 => 0b01, 3 => 0b10, _ => 0b11 };
+                            writer.write(code, 2);
+                        }
+                    }
+                    GfRep::B => {
+                        let digits = byte_to_standard_ternary(*byte);
+                        writer.write(digits.len() as u32, 3);
+                        for &d in &digits {
+                            let code = match d { 0 => 0b00u32, 1 => 0b01, 2 => 0b10, _ => 0b11 };
+                            writer.write(code, 2);
+                        }
+                    }
+                    GfRep::A => {
+                        let digits = byte_to_balanced_ternary(*byte);
+                        writer.write(digits.len() as u32, 3);
+                        for &d in &digits {
+                            let code = match d { -1 => 0b10u32, 0 => 0b00, 1 => 0b01, _ => 0b11 };
+                            writer.write(code, 2);
+                        }
+                    }
+                }
+
+                encode_hybrid_prefix(&mut writer, *length as u64);
+                i += 1;
+            }
+            Token::Match { dist, length } => {
+                writer.write(0b10, 2);
+                encode_rice(&mut writer, *dist as u64, m);
+                encode_hybrid_prefix(&mut writer, *length as u64);
+                i += 1;
+            }
+        }
+    }
+
+    writer.finish_with_header()
+}
+
+/// Deserialize TERNARY_ENHANCED mode 2.
+fn deserialize_ternary_enhanced(payload: &[u8], adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+    if payload.len() < 4 {
+        return Err(TtcError::DecompressionError("Payload too short".into()));
+    }
+    let _bit_count = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+    let mut reader = BitReader::new(&payload[4..]);
+
+    let token_count = decode_hybrid_prefix(&mut reader) as usize;
+    let mut tokens = Vec::with_capacity(token_count);
+    let mut decoded = 0usize;
+    let m: u8 = 4; // default Rice M for mode 2
+
+    while decoded < token_count && !reader.is_exhausted() {
+        let type_bits = reader.read(2);
+        match type_bits {
+            0b00 => {
+                // Literal group
+                let rep = if adaptive_rep {
+                    match reader.read(2) {
+                        0b00 => GfRep::C, 0b01 => GfRep::B, 0b10 => GfRep::A,
+                        _ => GfRep::C,
+                    }
+                } else {
+                    GfRep::C
+                };
+
+                let count = decode_hybrid_prefix(&mut reader) as usize;
+                for _ in 0..count {
+                    let digit_count = reader.read(3) as usize;
+                    let byte_val = match rep {
+                        GfRep::C => {
+                            let mut digits = Vec::with_capacity(digit_count);
+                            for _ in 0..digit_count {
+                                let code = reader.read(2);
+                                digits.push(match code { 0b00 => 1u8, 0b01 => 2, 0b10 => 3, _ => 1 });
+                            }
+                            bijective_ternary_to_byte(&digits)
+                        }
+                        GfRep::B => {
+                            let mut digits = Vec::with_capacity(digit_count);
+                            for _ in 0..digit_count {
+                                let code = reader.read(2);
+                                digits.push(match code { 0b00 => 0u8, 0b01 => 1, 0b10 => 2, _ => 0 });
+                            }
+                            standard_ternary_to_byte(&digits)
+                        }
+                        GfRep::A => {
+                            let mut digits: Vec<i8> = Vec::with_capacity(digit_count);
+                            for _ in 0..digit_count {
+                                let code = reader.read(2);
+                                digits.push(match code { 0b10 => -1i8, 0b00 => 0, 0b01 => 1, _ => 0 });
+                            }
+                            balanced_ternary_to_byte(&digits)
+                        }
+                    };
+                    tokens.push(Token::Literal(byte_val));
+                    decoded += 1;
+                }
+            }
+            0b01 => {
+                // RLE
+                let rep = if adaptive_rep {
+                    match reader.read(2) { 0b00 => GfRep::C, 0b01 => GfRep::B, 0b10 => GfRep::A, _ => GfRep::C }
+                } else { GfRep::C };
+
+                let digit_count = reader.read(3) as usize;
+                let byte_val = match rep {
+                    GfRep::C => {
+                        let mut d = Vec::with_capacity(digit_count);
+                        for _ in 0..digit_count { d.push(match reader.read(2) { 0b00=>1u8, 0b01=>2, 0b10=>3, _=>1 }); }
+                        bijective_ternary_to_byte(&d)
+                    }
+                    GfRep::B => {
+                        let mut d = Vec::with_capacity(digit_count);
+                        for _ in 0..digit_count { d.push(match reader.read(2) { 0b00=>0u8, 0b01=>1, 0b10=>2, _=>0 }); }
+                        standard_ternary_to_byte(&d)
+                    }
+                    GfRep::A => {
+                        let mut d: Vec<i8> = Vec::with_capacity(digit_count);
+                        for _ in 0..digit_count { d.push(match reader.read(2) { 0b10=>-1i8, 0b00=>0, 0b01=>1, _=>0 }); }
+                        balanced_ternary_to_byte(&d)
+                    }
+                };
+
+                let length = decode_hybrid_prefix(&mut reader) as usize;
+                tokens.push(Token::Run { byte: byte_val, length });
+                decoded += 1;
+            }
+            0b10 => {
+                let dist = decode_rice(&mut reader, m) as usize;
+                let length = decode_hybrid_prefix(&mut reader) as usize;
+                tokens.push(Token::Match { dist, length });
+                decoded += 1;
+            }
+            0b11 => {
+                // M-delta — skip (mode 2 doesn't commonly use this but handle gracefully)
+                let _delta = reader.read(3);
+            }
+            _ => {}
+        }
+    }
+
+    Ok(tokens)
+}
+
+/// Serialize tokens as TERNARY_ANS mode 3 (§5.3).
+fn serialize_tans(tokens: &[Token], window_size: usize) -> Vec<u8> {
+    let freq = TansFreqTable::build(tokens, window_size);
+    let (initial_state, packed_trits) = tans_encode(tokens, &freq, window_size);
+
+    let mut out = Vec::new();
+    // Spread table entry count
+    let s = freq.f_norm.len() as u32;
+    out.extend_from_slice(&s.to_be_bytes());
+    // S × 5 bytes per entry
+    for &(sym, fnorm) in &freq.f_norm {
+        out.extend_from_slice(&sym.to_be_bytes());
+        // 3 bytes for f_norm (uint24 BE)
+        out.push((fnorm >> 16) as u8);
+        out.push((fnorm >> 8) as u8);
+        out.push(fnorm as u8);
+    }
+    // Initial state (3 bytes uint24 BE)
+    out.push((initial_state >> 16) as u8);
+    out.push((initial_state >> 8) as u8);
+    out.push(initial_state as u8);
+    // Packed trit stream
+    out.extend_from_slice(&packed_trits);
+
+    out
+}
+
+/// Deserialize TERNARY_ANS mode 3.
+fn deserialize_tans(payload: &[u8], window_size: usize) -> TtcResult<Vec<Token>> {
+    if payload.len() < 4 {
+        return Err(TtcError::DecompressionError("tANS payload too short".into()));
+    }
+
+    let s = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]) as usize;
+    let mut pos = 4;
+
+    if payload.len() < pos + s * 5 + 3 {
+        return Err(TtcError::TruncatedPayload);
+    }
+
+    let mut freq_entries = Vec::with_capacity(s);
+    for _ in 0..s {
+        let sym = u16::from_be_bytes([payload[pos], payload[pos + 1]]);
+        let fnorm = (payload[pos + 2] as u32) << 16
+            | (payload[pos + 3] as u32) << 8
+            | payload[pos + 4] as u32;
+        freq_entries.push((sym, fnorm));
+        pos += 5;
+    }
+
+    let initial_state = (payload[pos] as u32) << 16
+        | (payload[pos + 1] as u32) << 8
+        | payload[pos + 2] as u32;
+    pos += 3;
+
+    let packed_trits = &payload[pos..];
+
+    let freq = TansFreqTable { f_norm: freq_entries, total: TANS_L };
+    Ok(tans_decode(&freq, initial_state, packed_trits, window_size))
+}
+
+// ─── Per-Chunk Compression (§5.6) ───────────────────────────────────────────
+
+/// Result of compressing a single chunk.
+#[derive(Debug, Clone)]
+pub struct ChunkResult {
+    pub index: usize,
+    pub original_size: u32,
+    pub compressed_size: u32,
+    pub base: u16,
+    pub tau: f64,
+    pub delta: f64,
+    pub mode: ChunkMode,
+    pub rice_m: u8,
+    pub delta_flag: DeltaFlag,
+    pub domain_transform: DomainTransform,
+    pub payload: Vec<u8>,
+}
+
+/// Compress a single chunk through the full pipeline.
+fn compress_chunk(
+    chunk_data: &[u8],
+    history: &[u8],
+    chunk_index: usize,
+    cfg: &LevelConfig,
+    mode: CompressionMode,
+    independent: bool,
+    trit_costs: &TritCostTables,
+) -> ChunkResult {
+    let original_size = chunk_data.len() as u32;
+
+    // Pre-compressed check
+    if is_pre_compressed(chunk_data) {
+        return ChunkResult {
+            index: chunk_index, original_size,
+            compressed_size: chunk_data.len() as u32 + 5,
+            base: 3, tau: 0.0, delta: 0.0,
+            mode: ChunkMode::Stored, rice_m: 0,
+            delta_flag: DeltaFlag::NONE,
+            domain_transform: DomainTransform::NONE,
+            payload: make_stored_payload(chunk_data),
+        };
+    }
+
+    // GURFT
+    let gurft = if cfg.skip_gurft {
+        GurftResult::default()
+    } else {
+        gurft_analyze(chunk_data)
+    };
+
+    // Base selection with try-and-compare
+    let base = try_and_compare_base(chunk_data, &gurft, mode);
+
+    // Adaptive delta selection
+    let delta_flag = select_delta(chunk_data, mode);
+    let delta_data = apply_delta_encode(chunk_data, delta_flag);
+
+    // Build virtual data (history + chunk)
+    let (virtual_data, hist_len) = if independent || history.is_empty() {
+        (delta_data.clone(), 0)
+    } else {
+        let h = &history[history.len().saturating_sub(cfg.window_size)..];
+        let mut vd = Vec::with_capacity(h.len() + delta_data.len());
+        vd.extend_from_slice(h);
+        vd.extend_from_slice(&delta_data);
+        let hl = h.len();
+        (vd, hl)
+    };
+
+    // Tokenize
+    let tokens = tokenize_chunk(&virtual_data, hist_len, cfg);
+
+    // Initial Rice M
+    let rice_m = compute_initial_rice_m(&tokens);
+
+    // Mode candidate pruning (§5.5)
+    let h_chunk = compute_entropy(chunk_data);
+    let mut candidates: Vec<(ChunkMode, Vec<u8>)> = Vec::new();
+
+    // Always STORED
+    let stored = make_stored_payload(chunk_data);
+    candidates.push((ChunkMode::Stored, stored));
+
+    if h_chunk <= MODE_PRUNE_ENTROPY {
+        // COMPRESSED
+        let compressed = serialize_compressed(&tokens, rice_m);
+        candidates.push((ChunkMode::Compressed, compressed));
+
+        // TERNARY_ANS
+        let tans = serialize_tans(&tokens, cfg.window_size);
+        candidates.push((ChunkMode::TernaryAns, tans));
+
+        // TERNARY_ENHANCED (only for chunks <= 16 KB)
+        if chunk_data.len() <= 16384 {
+            let enhanced = serialize_ternary_enhanced(&tokens, rice_m, trit_costs);
+            candidates.push((ChunkMode::TernaryEnhanced, enhanced));
+        }
+    }
+
+    // Early exit: if compressed >= 98% of raw, use STORED
+    let raw_len = chunk_data.len();
+    if let Some((_, ref c)) = candidates.iter().find(|(m, _)| *m == ChunkMode::Compressed) {
+        if c.len() >= (raw_len * 98 / 100) {
+            return ChunkResult {
+                index: chunk_index, original_size,
+                compressed_size: raw_len as u32 + 5,
+                base, tau: gurft.tau, delta: gurft.delta,
+                mode: ChunkMode::Stored, rice_m: 0,
+                delta_flag: DeltaFlag::NONE,
+                domain_transform: DomainTransform::NONE,
+                payload: make_stored_payload(chunk_data),
+            };
+        }
+    }
+
+    // Select smallest
+    let (best_mode, best_payload) = candidates
+        .into_iter()
+        .min_by_key(|(_, p)| p.len())
+        .unwrap();
+
+    let compressed_size = best_payload.len() as u32;
+
+    ChunkResult {
+        index: chunk_index,
+        original_size,
+        compressed_size,
+        base,
+        tau: gurft.tau,
+        delta: gurft.delta,
+        mode: best_mode,
+        rice_m,
+        delta_flag,
+        domain_transform: DomainTransform::NONE, // Set by caller for domain modes
+        payload: best_payload,
+    }
+}
+
+/// Build STORED payload (mode 0).
+fn make_stored_payload(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(5 + data.len());
+    out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    out.push(0x00); // mode flag
+    out.extend_from_slice(data);
+    out
+}
+
+// ─── Container Format (§9) ──────────────────────────────────────────────────
+
+/// Build a TTC1 container from chunks.
+fn build_container(
+    chunks: &[ChunkResult],
+    original_size: u64,
+    crc: u32,
+    mode: CompressionMode,
+    level: u8,
+    independent: bool,
+    adaptive_rep: bool,
+    base_distribution: &[u16],
+    avg_tau: f64,
+    avg_delta: f64,
+    predominant_base: u16,
+    lp_coeffs: Option<&[i16; 4]>,
+    image_width: Option<u64>,
+    fibonacci_computed: bool,
+) -> Vec<u8> {
+    let chunk_count = chunks.len() as u16;
+    let chunk_map_offset = HEADER_SIZE as u64;
+    let chunk_map_size = chunk_count as usize * CHUNK_MAP_ENTRY_SIZE;
+
+    // Calculate total compressed size
+    let total_payload: usize = chunks.iter().map(|c| c.payload.len()).sum();
+    let compressed_size = (HEADER_SIZE + chunk_map_size + total_payload) as u64;
+
+    let mut out = Vec::with_capacity(compressed_size as usize);
+
+    // ── Header (96 bytes) ──
+    // 0x00: Magic "TTC1"
+    out.extend_from_slice(&MAGIC_TTC1);
+    // 0x04: Version
+    out.push(VERSION_V2);
+    // 0x05: Mode
+    out.push(mode as u8);
+    // 0x06: Original size (uint64 BE)
+    out.extend_from_slice(&original_size.to_be_bytes());
+    // 0x0E: Compressed size (uint64 BE)
+    out.extend_from_slice(&compressed_size.to_be_bytes());
+    // 0x16: CRC32
+    out.extend_from_slice(&crc.to_be_bytes());
+    // 0x1A: Harmonic base (uint16 BE)
+    out.extend_from_slice(&predominant_base.to_be_bytes());
+    // 0x1C: Timestamp (uint32 BE) — current Unix seconds
+    let timestamp = 0u32; // placeholder — set by caller or runtime
+    out.extend_from_slice(&timestamp.to_be_bytes());
+    // 0x20–0x27: Phase Offset / LP coeffs / imageWidth (8 bytes)
+    match mode {
+        CompressionMode::Audio => {
+            if let Some(coeffs) = lp_coeffs {
+                out.extend_from_slice(&coeffs[0].to_be_bytes());
+                out.extend_from_slice(&coeffs[1].to_be_bytes());
+                out.extend_from_slice(&coeffs[2].to_be_bytes());
+                out.extend_from_slice(&coeffs[3].to_be_bytes());
+            } else {
+                out.extend_from_slice(&[0u8; 8]);
+            }
+        }
+        CompressionMode::Image => {
+            if let Some(w) = image_width {
+                out.extend_from_slice(&w.to_be_bytes());
+            } else {
+                out.extend_from_slice(&[0u8; 8]);
+            }
+        }
+        _ => {
+            out.extend_from_slice(&[0u8; 8]); // reserved
+        }
+    }
+    // 0x28: Adaptive Flags
+    let mut flags = 0u8;
+    if !chunks.is_empty() && chunks.iter().any(|c| c.base != 3) { flags |= 0x01; } // GURFT enabled
+    if chunks.iter().any(|c| c.base != chunks[0].base) { flags |= 0x02; } // Base switching
+    if independent { flags |= 0x04; }
+    if adaptive_rep { flags |= 0x08; }
+    if fibonacci_computed { flags |= 0x10; }
+    out.push(flags);
+    // 0x29: Level
+    out.push(level);
+    // 0x2A: Chunk count (uint16 BE)
+    out.extend_from_slice(&chunk_count.to_be_bytes());
+    // 0x2C: Avg Torsion (uint32 BE, τ × 1,000,000)
+    out.extend_from_slice(&((avg_tau * 1_000_000.0) as u32).to_be_bytes());
+    // 0x30: Avg Dim Sync (uint32 BE, δ × 1,000,000)
+    out.extend_from_slice(&((avg_delta * 1_000_000.0) as u32).to_be_bytes());
+    // 0x34: Base Distribution (reserved)
+    out.extend_from_slice(&[0u8; 4]);
+    // 0x38: Chunk Map Offset (uint64 BE)
+    out.extend_from_slice(&chunk_map_offset.to_be_bytes());
+    // 0x40: Digital Root Signature (TIS-27 — 16 bytes placeholder)
+    out.extend_from_slice(&[0u8; 16]);
+    // 0x50: Quantum Hash (TL-DSA — 16 bytes placeholder)
+    out.extend_from_slice(&[0u8; 16]);
+
+    debug_assert_eq!(out.len(), HEADER_SIZE);
+
+    // ── Chunk Map ──
+    for chunk in chunks {
+        // +0: Original chunk size (uint32 BE)
+        out.extend_from_slice(&chunk.original_size.to_be_bytes());
+        // +4: Compressed chunk size (uint32 BE)
+        out.extend_from_slice(&chunk.compressed_size.to_be_bytes());
+        // +8: Base used (uint16 BE)
+        out.extend_from_slice(&chunk.base.to_be_bytes());
+        // +10: τ × 1000 (uint16 BE)
+        out.extend_from_slice(&((chunk.tau * 1000.0) as u16).to_be_bytes());
+        // +12: δ × 1000 (uint16 BE)
+        out.extend_from_slice(&((chunk.delta * 1000.0) as u16).to_be_bytes());
+        // +14: Rice M
+        out.push(chunk.rice_m);
+        // +15: Packed flags byte (delta_flag << 5 | reserved << 3 | domain_transform)
+        let packed = (chunk.delta_flag.0 << 5) | (chunk.domain_transform.0 & 0x07);
+        out.push(packed);
+    }
+
+    // ── Payloads ──
+    for chunk in chunks {
+        out.extend_from_slice(&chunk.payload);
+    }
+
+    out
+}
+
+// ─── Fibonacci Harmonic Analysis (§10) ──────────────────────────────────────
+
+/// Fibonacci harmonic analysis result.
+#[derive(Debug, Clone)]
+pub struct FibonacciAnalysis {
+    pub arb_weight: f64,
+    pub aligned_terms: Vec<u64>,
+    pub optimal_ratio: f64,
+    pub phase_delta: f64,
+    pub resonance_band: String,
+}
+
+/// Compute Fibonacci harmonic analysis (§10).
+pub fn fibonacci_analysis(data_len: usize) -> FibonacciAnalysis {
+    let fib_harmonics: Vec<u64> = {
+        let mut seq = vec![1u64, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377,
+            610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025];
+        seq
+    };
+
+    let mut aligned = Vec::new();
+    let mut arb_sum = 0.0f64;
+    let dl = data_len as u64;
+
+    for &hz in &fib_harmonics {
+        if hz == 0 { continue; }
+        let is_aligned = dl % hz == 0 || hz % 8 == 0;
+        if is_aligned {
+            aligned.push(hz);
+
+            let phase364 = (dl as f64 * GOLDEN_ANGLE) % 364.0;
+            let phase360 = (dl as f64 * GOLDEN_ANGLE) % 360.0;
+            let raw_delta = libm::fabs(phase364 - phase360);
+
+            // Quantize to {1.25, 2.50, 3.75, 5.00, 6.25}
+            let quantized = if raw_delta < 1.875 { 1.25 }
+                else if raw_delta < 3.125 { 2.50 }
+                else if raw_delta < 4.375 { 3.75 }
+                else if raw_delta < 5.625 { 5.00 }
+                else { 6.25 };
+
+            let gain = match quantized as u32 {
+                1 => 0.0035,
+                2 => 0.0069,
+                3 => 0.0104,
+                5 => 0.0139,
+                6 => 0.0174,
+                _ => 0.0069,
+            };
+            arb_sum += 1.0 + gain;
+        }
+    }
+
+    let arb_weight = if aligned.is_empty() { 1.0 } else { arb_sum / aligned.len() as f64 };
+
+    let phase364 = (dl as f64 * GOLDEN_ANGLE) % 364.0;
+    let phase360 = (dl as f64 * GOLDEN_ANGLE) % 360.0;
+    let phase_delta = libm::fabs(phase364 - phase360);
+
+    let resonance_band = if arb_weight > 1.015 { "HIGH".to_string() }
+        else if arb_weight > 1.005 { "MEDIUM".to_string() }
+        else { "LOW".to_string() };
+
+    FibonacciAnalysis {
+        arb_weight,
+        aligned_terms: aligned,
+        optimal_ratio: arb_weight,
+        phase_delta,
+        resonance_band,
+    }
+}
+
+// ─── Main Compression Function (§7) ────────────────────────────────────────
+
+/// Compression options.
+#[derive(Debug, Clone)]
+pub struct CompressOptions {
+    pub mode: CompressionMode,
+    pub level: u8,
+    pub independent_chunks: bool,
+    pub compute_fibonacci: bool,
+    pub image_width: Option<usize>,
+}
+
+impl Default for CompressOptions {
+    fn default() -> Self {
+        Self {
+            mode: CompressionMode::Temporal,
+            level: 5,
+            independent_chunks: false,
+            compute_fibonacci: false,
+            image_width: None,
+        }
+    }
+}
+
+/// Full compression result.
+#[derive(Debug, Clone)]
+pub struct CompressionResult {
+    pub compressed: Vec<u8>,
+    pub original_size: u64,
+    pub compressed_size: u64,
+    pub compression_ratio: f64,
+    pub crc32: u32,
+    pub mode: u8,
+    pub mode_name: String,
+    pub version: String,
+    pub level: u8,
+    pub level_name: String,
+    pub chunks: Vec<ChunkDescriptor>,
+    pub avg_tau: f64,
+    pub avg_delta: f64,
+    pub base_distribution: BaseDistribution,
+    pub predominant_base: u16,
+    pub independent_chunks: bool,
+    pub adaptive_rep_used: bool,
+    pub fibonacci_analysis: Option<FibonacciAnalysis>,
+}
+
+/// Chunk descriptor for API response.
+#[derive(Debug, Clone)]
+pub struct ChunkDescriptor {
+    pub index: usize,
+    pub original_size: u32,
+    pub compressed_size: u32,
+    pub base: u16,
+    pub tau: f64,
+    pub delta: f64,
+    pub mode: u8,
+    pub rice_m: u8,
+    pub delta_flag: u8,
+    pub delta_order: u8,
+    pub delta_rep: String,
+    pub domain_transform: u8,
+}
+
+/// Base distribution counts.
+#[derive(Debug, Clone, Default)]
+pub struct BaseDistribution {
+    pub base_3: u32,
+    pub base_13: u32,
+    pub base_28: u32,
+    pub base_70: u32,
+    pub base_364: u32,
+}
+
+/// Main compression entry point (§7).
+pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<CompressionResult> {
+    let cfg = level_config(opts.level)?;
+    let trit_costs = TritCostTables::new();
+
+    // CRC32 over original uncompressed data
+    let crc = crc32(data);
+
+    // Domain preprocessing
+    let (preprocessed, domain_transform, lp_coeffs, image_width) =
+        apply_domain_preprocess(data, opts.mode, opts.image_width);
+
+    // Chunk split
+    let chunk_size = cfg.chunk_size;
+    let chunk_count = (preprocessed.len() + chunk_size - 1) / chunk_size;
+
+    // Per-chunk compression
+    let mut chunk_results: Vec<ChunkResult> = Vec::with_capacity(chunk_count);
+    let mut history: Vec<u8> = Vec::new();
+    let mut adaptive_rep_used = false;
+
+    for i in 0..chunk_count {
+        let start = i * chunk_size;
+        let end = (start + chunk_size).min(preprocessed.len());
+        let chunk_data = &preprocessed[start..end];
+
+        let hist_ref = if opts.independent_chunks { &[] as &[u8] } else { &history };
+
+        let mut result = compress_chunk(
+            chunk_data, hist_ref, i, &cfg, opts.mode,
+            opts.independent_chunks, &trit_costs,
+        );
+
+        // Set domain transform
+        result.domain_transform = domain_transform;
+
+        // Track adaptive rep usage
+        if result.delta_flag.rep().map_or(false, |r| r != GfRep::C) {
+            adaptive_rep_used = true;
+        }
+
+        // Update history
+        if !opts.independent_chunks {
+            history.extend_from_slice(chunk_data);
+            if history.len() > cfg.window_size {
+                let trim = history.len() - cfg.window_size;
+                history.drain(..trim);
+            }
+        }
+
+        chunk_results.push(result);
+    }
+
+    // Compute averages and distribution
+    let mut base_dist = BaseDistribution::default();
+    let mut tau_sum = 0.0f64;
+    let mut delta_sum = 0.0f64;
+
+    for c in &chunk_results {
+        match c.base {
+            3 => base_dist.base_3 += 1,
+            13 => base_dist.base_13 += 1,
+            28 => base_dist.base_28 += 1,
+            70 => base_dist.base_70 += 1,
+            364 => base_dist.base_364 += 1,
+            _ => base_dist.base_3 += 1,
+        }
+        tau_sum += c.tau;
+        delta_sum += c.delta;
+    }
+
+    let n = chunk_results.len().max(1) as f64;
+    let avg_tau = tau_sum / n;
+    let avg_delta = delta_sum / n;
+
+    let predominant_base = if base_dist.base_364 > 0 { 364 }
+        else if base_dist.base_70 > 0 { 70 }
+        else if base_dist.base_28 > 0 { 28 }
+        else if base_dist.base_13 > 0 { 13 }
+        else { 3 };
+
+    // Build base list for container
+    let base_list: Vec<u16> = chunk_results.iter().map(|c| c.base).collect();
+
+    // Build container
+    let compressed = build_container(
+        &chunk_results,
+        data.len() as u64,
+        crc,
+        opts.mode,
+        opts.level,
+        opts.independent_chunks,
+        adaptive_rep_used,
+        &base_list,
+        avg_tau,
+        avg_delta,
+        predominant_base,
+        lp_coeffs.as_ref(),
+        image_width,
+        opts.compute_fibonacci,
+    );
+
+    // Fibonacci analysis
+    let fib = if opts.compute_fibonacci {
+        Some(fibonacci_analysis(data.len()))
+    } else {
+        None
+    };
+
+    // Build chunk descriptors
+    let descriptors: Vec<ChunkDescriptor> = chunk_results.iter().map(|c| {
+        ChunkDescriptor {
+            index: c.index,
+            original_size: c.original_size,
+            compressed_size: c.compressed_size,
+            base: c.base,
+            tau: c.tau,
+            delta: c.delta,
+            mode: c.mode as u8,
+            rice_m: c.rice_m,
+            delta_flag: c.delta_flag.0,
+            delta_order: c.delta_flag.order(),
+            delta_rep: c.delta_flag.rep_name().to_string(),
+            domain_transform: c.domain_transform.0,
+        }
+    }).collect();
+
+    let compressed_size = compressed.len() as u64;
+    let ratio = if compressed_size > 0 {
+        data.len() as f64 / compressed_size as f64
+    } else {
+        1.0
+    };
+
+    Ok(CompressionResult {
+        compressed,
+        original_size: data.len() as u64,
+        compressed_size,
+        compression_ratio: ratio,
+        crc32: crc,
+        mode: opts.mode as u8,
+        mode_name: opts.mode.name().to_string(),
+        version: "2.0".to_string(),
+        level: opts.level,
+        level_name: cfg.tier_name.to_string(),
+        chunks: descriptors,
+        avg_tau,
+        avg_delta,
+        base_distribution: base_dist,
+        predominant_base,
+        independent_chunks: opts.independent_chunks,
+        adaptive_rep_used,
+        fibonacci_analysis: fib,
+    })
+}
+
+// ─── Main Decompression Function (§8) ───────────────────────────────────────
+
+/// Decompression result (single file).
+#[derive(Debug, Clone)]
+pub struct DecompressionResult {
+    pub data: Vec<u8>,
+    pub original_size: u64,
+    pub compressed_size: u64,
+    pub version: String,
+    pub level: Option<u8>,
+    pub level_name: Option<String>,
+    pub crc32_verified: bool,
+}
+
+/// Main decompression entry point (§8).
+pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
+    if compressed.len() < HEADER_SIZE {
+        return Err(TtcError::TruncatedHeader);
+    }
+
+    // Magic check
+    if compressed[0..4] != MAGIC_TTC1 {
+        return Err(TtcError::InvalidMagic);
+    }
+
+    // Header parse
+    let version = compressed[0x04];
+    if version != VERSION_V2 && version != VERSION_V1 {
+        return Err(TtcError::UnsupportedVersion(version));
+    }
+
+    let mode_byte = compressed[0x05];
+    let mode = CompressionMode::from_u8(mode_byte)?;
+
+    let original_size = u64::from_be_bytes([
+        compressed[0x06], compressed[0x07], compressed[0x08], compressed[0x09],
+        compressed[0x0A], compressed[0x0B], compressed[0x0C], compressed[0x0D],
+    ]);
+
+    let stored_crc = u32::from_be_bytes([
+        compressed[0x16], compressed[0x17], compressed[0x18], compressed[0x19],
+    ]);
+
+    let adaptive_flags = compressed[0x28];
+    let level = compressed[0x29];
+    let chunk_count = u16::from_be_bytes([compressed[0x2A], compressed[0x2B]]) as usize;
+
+    let chunk_map_offset = u64::from_be_bytes([
+        compressed[0x38], compressed[0x39], compressed[0x3A], compressed[0x3B],
+        compressed[0x3C], compressed[0x3D], compressed[0x3E], compressed[0x3F],
+    ]) as usize;
+
+    let independent = adaptive_flags & 0x04 != 0;
+    let adaptive_rep = adaptive_flags & 0x08 != 0;
+
+    // Domain parameters from header
+    let lp_coeffs: Option<[i16; 4]> = if mode == CompressionMode::Audio {
+        Some([
+            i16::from_be_bytes([compressed[0x20], compressed[0x21]]),
+            i16::from_be_bytes([compressed[0x22], compressed[0x23]]),
+            i16::from_be_bytes([compressed[0x24], compressed[0x25]]),
+            i16::from_be_bytes([compressed[0x26], compressed[0x27]]),
+        ])
+    } else {
+        None
+    };
+
+    let image_width: Option<u64> = if mode == CompressionMode::Image {
+        Some(u64::from_be_bytes([
+            compressed[0x20], compressed[0x21], compressed[0x22], compressed[0x23],
+            compressed[0x24], compressed[0x25], compressed[0x26], compressed[0x27],
+        ]))
+    } else {
+        None
+    };
+
+    // Parse chunk map
+    let chunk_map_end = chunk_map_offset + chunk_count * CHUNK_MAP_ENTRY_SIZE;
+    if compressed.len() < chunk_map_end {
+        return Err(TtcError::TruncatedChunkMap);
+    }
+
+    struct ChunkMapEntry {
+        original_size: u32,
+        compressed_size: u32,
+        _base: u16,
+        _tau: u16,
+        _delta: u16,
+        rice_m: u8,
+        delta_flag: DeltaFlag,
+        domain_transform: DomainTransform,
+    }
+
+    let mut entries = Vec::with_capacity(chunk_count);
+    for i in 0..chunk_count {
+        let off = chunk_map_offset + i * CHUNK_MAP_ENTRY_SIZE;
+        let orig = u32::from_be_bytes([
+            compressed[off], compressed[off + 1], compressed[off + 2], compressed[off + 3],
+        ]);
+        let comp = u32::from_be_bytes([
+            compressed[off + 4], compressed[off + 5], compressed[off + 6], compressed[off + 7],
+        ]);
+        let base = u16::from_be_bytes([compressed[off + 8], compressed[off + 9]]);
+        let tau_val = u16::from_be_bytes([compressed[off + 10], compressed[off + 11]]);
+        let delta_val = u16::from_be_bytes([compressed[off + 12], compressed[off + 13]]);
+        let rice_m = compressed[off + 14];
+        let packed = compressed[off + 15];
+
+        let df = (packed >> 5) & 0x07;
+        if df == 7 { return Err(TtcError::InvalidDeltaFlag(df)); }
+        let dt = packed & 0x07;
+        if dt == 7 { return Err(TtcError::InvalidDomainTransform(dt)); }
+
+        entries.push(ChunkMapEntry {
+            original_size: orig,
+            compressed_size: comp,
+            _base: base,
+            _tau: tau_val,
+            _delta: delta_val,
+            rice_m,
+            delta_flag: DeltaFlag(df),
+            domain_transform: DomainTransform(dt),
+        });
+    }
+
+    // Level config for window size
+    let cfg = if level >= 1 && level <= 9 {
+        level_config(level).ok()
+    } else {
+        None
+    };
+    let window_size = cfg.as_ref().map(|c| c.window_size).unwrap_or(243 * 1024);
+
+    // Decompress chunks
+    let mut payload_offset = chunk_map_end;
+    let mut output = Vec::with_capacity(original_size as usize);
+    let mut history: Vec<u8> = Vec::new();
+
+    for entry in &entries {
+        let payload_end = payload_offset + entry.compressed_size as usize;
+        if compressed.len() < payload_end {
+            return Err(TtcError::TruncatedPayload);
+        }
+        let payload = &compressed[payload_offset..payload_end];
+        payload_offset = payload_end;
+
+        if payload.len() < 5 {
+            return Err(TtcError::DecompressionError("Chunk payload too short".into()));
+        }
+
+        // Read per-chunk header
+        let chunk_orig_size = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+        let chunk_mode = ChunkMode::from_u8(payload[4])?;
+        let chunk_payload = &payload[5..];
+
+        let chunk_bytes = match chunk_mode {
+            ChunkMode::Stored => {
+                chunk_payload.to_vec()
+            }
+            ChunkMode::Compressed => {
+                let tokens = deserialize_compressed(chunk_payload)?;
+                let hist_ref: &[u8] = if independent { &[] } else { &history };
+                let full = decompress_tokens(&tokens, hist_ref);
+                if independent { full } else {
+                    full[hist_ref.len()..].to_vec()
+                }
+            }
+            ChunkMode::TernaryEnhanced => {
+                let tokens = deserialize_ternary_enhanced(chunk_payload, adaptive_rep)?;
+                let hist_ref: &[u8] = if independent { &[] } else { &history };
+                let full = decompress_tokens(&tokens, hist_ref);
+                if independent { full } else {
+                    full[hist_ref.len()..].to_vec()
+                }
+            }
+            ChunkMode::TernaryAns => {
+                let tokens = deserialize_tans(chunk_payload, window_size)?;
+                let hist_ref: &[u8] = if independent { &[] } else { &history };
+                let full = decompress_tokens(&tokens, hist_ref);
+                if independent { full } else {
+                    full[hist_ref.len()..].to_vec()
+                }
+            }
+        };
+
+        // Reverse delta transform
+        let decoded = apply_delta_decode(&chunk_bytes, entry.delta_flag)?;
+
+        // Update history
+        if !independent {
+            history.extend_from_slice(&decoded);
+            if history.len() > window_size {
+                let trim = history.len() - window_size;
+                history.drain(..trim);
+            }
+        }
+
+        output.extend_from_slice(&decoded);
+    }
+
+    // Reverse domain preprocessing
+    let final_data = reverse_domain_preprocess(
+        &output,
+        entries.first().map(|e| e.domain_transform).unwrap_or(DomainTransform::NONE),
+        lp_coeffs.as_ref(),
+        image_width,
+    )?;
+
+    // CRC verification
+    let computed_crc = crc32(&final_data);
+    let crc_verified = computed_crc == stored_crc;
+
+    let ver_str = if version == VERSION_V2 { "2.0" } else { "1.1" };
+    let lvl = if version == VERSION_V2 { Some(level) } else { None };
+    let lvl_name = if version == VERSION_V2 {
+        level_config(level).ok().map(|c| c.tier_name.to_string())
+    } else {
+        None
+    };
+
+    Ok(DecompressionResult {
+        data: final_data,
+        original_size,
+        compressed_size: compressed.len() as u64,
+        version: ver_str.to_string(),
+        level: lvl,
+        level_name: lvl_name,
+        crc32_verified: crc_verified,
+    })
+}
+
+// ─── Multi-File Container (§9.2) ───────────────────────────────────────────
+
+/// Multi-file compression result.
+#[derive(Debug, Clone)]
+pub struct MultiFileResult {
+    pub compressed: Vec<u8>,
+    pub total_original_size: u64,
+    pub total_compressed_size: u64,
+    pub compression_ratio: f64,
+    pub file_count: usize,
+    pub files: Vec<FileEntry>,
+    pub avg_tau: f64,
+    pub avg_delta: f64,
+    pub base_distribution: BaseDistribution,
+    pub predominant_base: u16,
+    pub mode_name: String,
+    pub version: String,
+    pub level: u8,
+    pub level_name: String,
+    pub adaptive_rep_used: bool,
+    pub fibonacci_analysis: Option<FibonacciAnalysis>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FileEntry {
+    pub name: String,
+    pub original_size: u64,
+    pub compressed_size: u64,
+    pub ratio: f64,
+}
+
+/// Compress multiple files into a TTCM archive.
+pub fn ttc_compress_multi(
+    files: &[(&str, &[u8])],
+    opts: &CompressOptions,
+) -> TtcResult<MultiFileResult> {
+    let cfg = level_config(opts.level)?;
+
+    // Compress each file independently
+    let mut file_archives: Vec<(String, Vec<u8>, u64, u64)> = Vec::new();
+    let mut total_orig = 0u64;
+    let mut total_comp = 0u64;
+    let mut tau_sum = 0.0f64;
+    let mut delta_sum = 0.0f64;
+    let mut base_dist = BaseDistribution::default();
+    let mut any_adaptive = false;
+
+    for &(name, data) in files {
+        let result = ttc_compress(data, opts)?;
+        total_orig += result.original_size;
+        total_comp += result.compressed_size;
+        tau_sum += result.avg_tau;
+        delta_sum += result.avg_delta;
+        base_dist.base_3 += result.base_distribution.base_3;
+        base_dist.base_13 += result.base_distribution.base_13;
+        base_dist.base_28 += result.base_distribution.base_28;
+        base_dist.base_70 += result.base_distribution.base_70;
+        base_dist.base_364 += result.base_distribution.base_364;
+        if result.adaptive_rep_used { any_adaptive = true; }
+        file_archives.push((
+            name.to_string(),
+            result.compressed,
+            result.original_size,
+            result.compressed_size,
+        ));
+    }
+
+    // Build TTCM container
+    let mut out = Vec::new();
+    // Magic
+    out.extend_from_slice(&MAGIC_TTCM);
+    // File count (uint32 BE)
+    out.extend_from_slice(&(files.len() as u32).to_be_bytes());
+
+    // File table
+    for (name, archive, orig, comp) in &file_archives {
+        let name_bytes = name.as_bytes();
+        out.extend_from_slice(&(name_bytes.len() as u16).to_be_bytes());
+        out.extend_from_slice(name_bytes);
+        out.extend_from_slice(&(*orig as u32).to_be_bytes());
+        out.extend_from_slice(&(*comp as u32).to_be_bytes());
+    }
+
+    // Payloads (self-contained TTC1 archives)
+    for (_, archive, _, _) in &file_archives {
+        out.extend_from_slice(archive);
+    }
+
+    let n = files.len().max(1) as f64;
+    let avg_tau = tau_sum / n;
+    let avg_delta = delta_sum / n;
+
+    let predominant_base = if base_dist.base_364 > 0 { 364 }
+        else if base_dist.base_70 > 0 { 70 }
+        else if base_dist.base_28 > 0 { 28 }
+        else if base_dist.base_13 > 0 { 13 }
+        else { 3 };
+
+    let file_entries: Vec<FileEntry> = file_archives.iter().map(|(name, _, orig, comp)| {
+        FileEntry {
+            name: name.clone(),
+            original_size: *orig,
+            compressed_size: *comp,
+            ratio: if *comp > 0 { *orig as f64 / *comp as f64 } else { 1.0 },
+        }
+    }).collect();
+
+    let fib = if opts.compute_fibonacci {
+        Some(fibonacci_analysis(total_orig as usize))
+    } else {
+        None
+    };
+
+    Ok(MultiFileResult {
+        total_compressed_size: out.len() as u64,
+        compressed: out,
+        total_original_size: total_orig,
+        compression_ratio: if total_comp > 0 { total_orig as f64 / total_comp as f64 } else { 1.0 },
+        file_count: files.len(),
+        files: file_entries,
+        avg_tau,
+        avg_delta,
+        base_distribution: base_dist,
+        predominant_base,
+        mode_name: opts.mode.name().to_string(),
+        version: "2.0".to_string(),
+        level: opts.level,
+        level_name: cfg.tier_name.to_string(),
+        adaptive_rep_used: any_adaptive,
+        fibonacci_analysis: fib,
+    })
+}
+
+/// Decompress a TTCM multi-file archive.
+pub fn ttc_decompress_multi(compressed: &[u8]) -> TtcResult<Vec<(String, Vec<u8>)>> {
+    if compressed.len() < 8 {
+        return Err(TtcError::TruncatedHeader);
+    }
+    if compressed[0..4] != MAGIC_TTCM {
+        return Err(TtcError::InvalidMagic);
+    }
+
+    let file_count = u32::from_be_bytes([
+        compressed[4], compressed[5], compressed[6], compressed[7],
+    ]) as usize;
+
+    // Parse file table
+    let mut pos = 8usize;
+    let mut file_table: Vec<(String, u32, u32)> = Vec::with_capacity(file_count);
+    for _ in 0..file_count {
+        if pos + 2 > compressed.len() { return Err(TtcError::TruncatedHeader); }
+        let name_len = u16::from_be_bytes([compressed[pos], compressed[pos + 1]]) as usize;
+        pos += 2;
+        if pos + name_len + 8 > compressed.len() { return Err(TtcError::TruncatedHeader); }
+        let name = String::from_utf8_lossy(&compressed[pos..pos + name_len]).to_string();
+        pos += name_len;
+        let orig = u32::from_be_bytes([
+            compressed[pos], compressed[pos + 1], compressed[pos + 2], compressed[pos + 3],
+        ]);
+        let comp = u32::from_be_bytes([
+            compressed[pos + 4], compressed[pos + 5], compressed[pos + 6], compressed[pos + 7],
+        ]);
+        pos += 8;
+        file_table.push((name, orig, comp));
+    }
+
+    // Decompress each TTC1 archive
+    let mut results = Vec::with_capacity(file_count);
+    for (name, _, comp) in &file_table {
+        let archive_end = pos + *comp as usize;
+        if archive_end > compressed.len() { return Err(TtcError::TruncatedPayload); }
+        let archive = &compressed[pos..archive_end];
+        pos = archive_end;
+
+        let result = ttc_decompress(archive)?;
+        results.push((name.clone(), result.data));
+    }
+
+    Ok(results)
+}
+
+// ─── Utility: Detect archive type ───────────────────────────────────────────
+
+/// Archive type detected from magic bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArchiveType {
+    Single,
+    Multi,
+    Unknown,
+}
+
+/// Detect whether an archive is TTC1 or TTCM.
+pub fn detect_archive_type(data: &[u8]) -> ArchiveType {
+    if data.len() >= 4 {
+        if data[0..4] == MAGIC_TTC1 { return ArchiveType::Single; }
+        if data[0..4] == MAGIC_TTCM { return ArchiveType::Multi; }
+    }
+    ArchiveType::Unknown
+}
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_crc32() {
+        assert_eq!(crc32(b""), 0x0000_0000);
+        assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+    }
+
+    #[test]
+    fn test_tribonacci_codec() {
+        for n in 0..1000u64 {
+            let encoded = encode_tribonacci(n);
+            let decoded = decode_tribonacci(&encoded);
+            assert_eq!(n, decoded, "Round-trip failed for n={n}");
+        }
+    }
+
+    #[test]
+    fn test_elias_gamma_codec() {
+        for n in 0..500u64 {
+            let mut w = BitWriter::new();
+            encode_elias_gamma(&mut w, n);
+            let data = w.finish();
+            let mut r = BitReader::new(&data);
+            let decoded = decode_elias_gamma(&mut r);
+            assert_eq!(n, decoded, "Elias Gamma round-trip failed for n={n}");
+        }
+    }
+
+    #[test]
+    fn test_rice_codec() {
+        for m in 1..=8u8 {
+            for n in 0..200u64 {
+                let mut w = BitWriter::new();
+                encode_rice(&mut w, n, m);
+                let data = w.finish();
+                let mut r = BitReader::new(&data);
+                let decoded = decode_rice(&mut r, m);
+                assert_eq!(n, decoded, "Rice round-trip failed for n={n}, m={m}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_hybrid_prefix_codec() {
+        for n in 0..500u64 {
+            let mut w = BitWriter::new();
+            encode_hybrid_prefix(&mut w, n);
+            let data = w.finish();
+            let mut r = BitReader::new(&data);
+            let decoded = decode_hybrid_prefix(&mut r);
+            assert_eq!(n, decoded, "Hybrid prefix round-trip failed for n={n}");
+        }
+    }
+
+    #[test]
+    fn test_delta_round_trip() {
+        let data: Vec<u8> = (0..256).map(|i| (i & 0xFF) as u8).collect();
+        for flag in 0..=6u8 {
+            let df = DeltaFlag(flag);
+            let encoded = apply_delta_encode(&data, df);
+            let decoded = apply_delta_decode(&encoded, df).unwrap();
+            assert_eq!(data, decoded, "Delta round-trip failed for flag={flag}");
+        }
+    }
+
+    #[test]
+    fn test_bijective_ternary_round_trip() {
+        for b in 0..=255u8 {
+            let digits = byte_to_bijective_ternary(b);
+            let decoded = bijective_ternary_to_byte(&digits);
+            assert_eq!(b, decoded, "Bijective round-trip failed for b={b}");
+        }
+    }
+
+    #[test]
+    fn test_standard_ternary_round_trip() {
+        for b in 0..=255u8 {
+            let digits = byte_to_standard_ternary(b);
+            let decoded = standard_ternary_to_byte(&digits);
+            assert_eq!(b, decoded, "Standard round-trip failed for b={b}");
+        }
+    }
+
+    #[test]
+    fn test_balanced_ternary_round_trip() {
+        for b in 0..=255u8 {
+            let digits = byte_to_balanced_ternary(b);
+            let decoded = balanced_ternary_to_byte(&digits);
+            assert_eq!(b, decoded, "Balanced round-trip failed for b={b}");
+        }
+    }
+
+    #[test]
+    fn test_entropy() {
+        let uniform: Vec<u8> = (0..=255).collect();
+        let h = compute_entropy(&uniform);
+        assert!((h - 8.0).abs() < 0.01, "Uniform entropy should be ~8.0, got {h}");
+
+        let constant = vec![42u8; 1000];
+        let h = compute_entropy(&constant);
+        assert!(h < 0.01, "Constant entropy should be ~0.0, got {h}");
+    }
+
+    #[test]
+    fn test_level_config() {
+        for l in 1..=9u8 {
+            let cfg = level_config(l).unwrap();
+            assert_eq!(cfg.level, l);
+            assert!(cfg.window_size > 0);
+        }
+        assert!(level_config(0).is_err());
+        assert!(level_config(10).is_err());
+    }
+
+    #[test]
+    fn test_parse_level() {
+        assert_eq!(parse_level("5").unwrap(), 5);
+        assert_eq!(parse_level("TTC2-2").unwrap(), 5);
+        assert_eq!(parse_level("TTC3-3").unwrap(), 9);
+        assert!(parse_level("invalid").is_err());
+    }
+
+    #[test]
+    fn test_compress_decompress_round_trip() {
+        let data = b"Hello, World! This is a test of the TTC v2.0 compression engine. \
+                     The quick brown fox jumps over the lazy dog. \
+                     Repeated text helps compression: The quick brown fox jumps over the lazy dog. \
+                     More text to ensure we have enough data for meaningful compression. \
+                     The Tribonacci constant tau is approximately 1.839286755214161. \
+                     PlenumNET operates on a 13-dimensional hypercube with 26 tunnels.";
+
+        let opts = CompressOptions {
+            mode: CompressionMode::Temporal,
+            level: 3,
+            independent_chunks: true,
+            compute_fibonacci: false,
+            image_width: None,
+        };
+
+        let result = ttc_compress(data, &opts).unwrap();
+        assert!(result.compressed_size > 0);
+        assert_eq!(result.original_size, data.len() as u64);
+        assert_eq!(result.crc32, crc32(data));
+        assert_eq!(result.version, "2.0");
+
+        let decompressed = ttc_decompress(&result.compressed).unwrap();
+        assert_eq!(decompressed.data, data.to_vec());
+        assert!(decompressed.crc32_verified);
+    }
+
+    #[test]
+    fn test_stored_mode() {
+        // Pre-compressed data should store as-is
+        let data = vec![0u8; 100];
+        let opts = CompressOptions {
+            mode: CompressionMode::Basic,
+            level: 1,
+            independent_chunks: true,
+            ..Default::default()
+        };
+
+        let result = ttc_compress(&data, &opts).unwrap();
+        let decompressed = ttc_decompress(&result.compressed).unwrap();
+        assert_eq!(decompressed.data, data);
+    }
+
+    #[test]
+    fn test_multi_file() {
+        let file1 = b"First file content for testing multi-file compression.";
+        let file2 = b"Second file with different content to verify round-trip.";
+
+        let files: Vec<(&str, &[u8])> = vec![
+            ("test1.txt", file1.as_slice()),
+            ("test2.txt", file2.as_slice()),
+        ];
+
+        let opts = CompressOptions::default();
+        let result = ttc_compress_multi(&files, &opts).unwrap();
+        assert_eq!(result.file_count, 2);
+
+        let decompressed = ttc_decompress_multi(&result.compressed).unwrap();
+        assert_eq!(decompressed.len(), 2);
+        assert_eq!(decompressed[0].0, "test1.txt");
+        assert_eq!(decompressed[0].1, file1.to_vec());
+        assert_eq!(decompressed[1].0, "test2.txt");
+        assert_eq!(decompressed[1].1, file2.to_vec());
+    }
+
+    #[test]
+    fn test_archive_detection() {
+        assert_eq!(detect_archive_type(&MAGIC_TTC1), ArchiveType::Single);
+        assert_eq!(detect_archive_type(&MAGIC_TTCM), ArchiveType::Multi);
+        assert_eq!(detect_archive_type(b"XXXX"), ArchiveType::Unknown);
+    }
+
+    #[test]
+    fn test_trit_cost_tables() {
+        let t = TritCostTables::new();
+        // Byte 0: Rep C = [1] → 1 trit, Rep B = [0] → 1 trit
+        assert_eq!(t.cost(0, GfRep::C), 1);
+        assert_eq!(t.cost(0, GfRep::B), 1);
+        // Byte 255: Rep C should be <= 6, Rep B should be 6
+        assert!(t.cost(255, GfRep::C) <= 6);
+        assert_eq!(t.cost(255, GfRep::B), 6);
+    }
+
+    #[test]
+    fn test_gurft_defaults() {
+        let data = vec![128u8; 2048];
+        let g = gurft_analyze(&data);
+        assert!(g.entropy < 0.01);
+    }
+
+    #[test]
+    fn test_genomic_round_trip() {
+        let dna = b"ACGTACGTACGTACGT";
+        let encoded = genomic_encode(dna);
+        let decoded = genomic_decode(&encoded);
+        assert_eq!(decoded, dna.to_vec());
+    }
+}

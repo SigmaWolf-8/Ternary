@@ -1,0 +1,1817 @@
+# TM-2026-017: TTC Protocol v2.0 — Compression Engine Specification
+
+**Document**: TM-2026-017
+**Revision**: 7
+**Subject**: Tribonacci Ternary Compression (TTC) Protocol v2.0 — Full Engine Specification
+**Supersedes**: TM-2026-016 (retained as reference for originating app compatibility only)
+**Prepared for**: PlenumNET Server-Side Implementation
+**Date**: 2026-03-15
+**Status**: ACTIVE
+**Classification**: Internal Engineering Reference
+
+---
+
+## 1. OVERVIEW
+
+TTC v2.0 is the canonical PlenumNET implementation of the Tribonacci Ternary Compression engine. It is implemented from first principles as a native PlenumNET service. TM-2026-016 is retained solely as a compatibility reference for the originating TypeScript app (`ttc.ts`). All new development targets this document exclusively.
+
+The primary design target is **document compression** — legal contracts, technical manuals, financial reports, structured text, source code archives, and log files. The engine exploits long-range repetition through large adaptive windows, entropy-optimal tANS coding, domain-aware transforms, adaptive GF(3) representation switching, and PlenumNET-native Inter-Cube parallel dispatch across 26 tunnels (2×13 dimensions). Secondary workloads (image, audio, genomic, source code, log, structured data) are supported via mode-specific preprocessing.
+
+### 1.1 Compression Tier System
+
+TTC v2.0 organizes its nine compression levels into three tiers of three, named TTC1, TTC2, and TTC3. Window sizes follow a pure 3ⁿ KB progression — each value is exactly 3× the previous, with no binary-derived sizes anywhere in the system.
+
+```
+TTC1  (    3 KB,     9 KB,    27 KB )  — 3¹, 3², 3³   Short documents, pages
+TTC2  (   81 KB,   243 KB,   729 KB )  — 3⁴, 3⁵, 3⁶   Standard documents, reports
+TTC3  ( 2,187 KB, 6,561 KB, 19,683 KB) — 3⁷, 3⁸, 3⁹   Large archives, corpora
+```
+
+**Note on TTC3 window sizes:** 3⁷ KB = 2,187 KB ≈ 2.1 MB, 3⁸ KB = 6,561 KB ≈ 6.4 MB, 3⁹ KB = 19,683 KB ≈ 19.2 MB. These values are expressed in KB throughout the specification to preserve the pure 3ⁿ derivation. Approximate MB equivalents are used only in prose for readability and are clearly labeled as approximations.
+
+Tier boundaries fall at 3³ / 3⁶ / 3⁹ — cubic powers of 3. Each tier contains three levels corresponding to greedy, lazy, and optimal parsing within that window size. API levels are referenced as `TTC1-1` through `TTC3-3`, or equivalently as integers 1–9. Default is level 5 = `TTC2-2`.
+
+### 1.2 GF(3) Representation Model
+
+Three algebraically equivalent representations of GF(3) are used throughout the engine. The representation is adaptive — the engine evaluates all three per context and selects the lowest entropy cost.
+
+| Rep | Symbols | Best for |
+|-----|---------|----------|
+| A (Balanced) | {−1, 0, +1} | Residuals, deltas, smooth gradients, audio |
+| B (Standard) | {0, 1, 2} | Uniform distributions, counting sequences |
+| C (Bijective) | {1, 2, 3} | Sparse data, no-zero-digit encoding |
+
+Applied in: delta encoding (§3.1) and per-literal-group encoding in TERNARY_ENHANCED mode (§5.2). Mode 3 (tANS) is representation-agnostic by construction.
+
+### 1.3 Inter-Cube Parallel Dispatch
+
+TTC v2.0 exploits the PlenumNET Inter-Cube topology (26 tunnels = 2×13 dimensions) as its native parallel execution model. See §4.8 for full dispatch specification and §12.9 for throughput analysis.
+
+### 1.4 What Changed from v1.1
+
+| Area | v1.1 | v2.0 |
+|------|------|------|
+| LZ77 search | O(n²) brute force | Hash chain O(1) expected |
+| LZ77 matching | Greedy first match | Lazy + optional beam-search optimal |
+| LZ77 context | Resets at chunk boundary | Cross-chunk history prefix |
+| Window sizes | 1 KB / 4 KB | 3 KB → 19,683 KB (3ⁿ KB, 9 levels) |
+| Delta decision | Variance ratio > 1.2 | H(Δ) < H(raw) |
+| Delta representation | Rep B fixed | Adaptive Rep A / B / C per chunk |
+| Delta order | First-order only | First-order + second-order + domain |
+| Domain transforms | None | AUDIO, IMAGE, GENOMIC, SOURCE, LOG, STRUCTURED |
+| GURFT sampling | First 1024 bytes only | Three-region: start / mid / end |
+| δ metric | Midpoint interpolation | Autocorrelation at lag 13 |
+| Base selection | Threshold only | Threshold + try-and-compare |
+| Pre-compressed | Magic bytes only | Magic bytes + entropy gate |
+| Distance coding | Elias Gamma | Rice/Golomb, adaptive M per group |
+| Prefix coding | 5-bit Tribonacci | Hybrid small-value + Tribonacci |
+| Literal representation | Rep C fixed | Adaptive Rep A / B / C per group |
+| Entropy coding | None | tANS (mode 3), L = 3¹¹ |
+| Chunk modes | 3 | 4 (+ TERNARY_ANS) |
+| Delta flag storage | 1-bit in payload | 3-bit packed in chunk map byte +15 |
+| Mode pruning | None | Entropy-gated fast classifier |
+| Parallel dispatch | Not supported | 26-tunnel Inter-Cube model |
+| Fibonacci analysis | Always computed | Optional (API flag, default off) |
+| Version byte | 0x02 | 0x03 |
+
+### 1.5 Pipeline Summary
+
+```
+Raw Bytes
+  │
+  ├── Pre-compressed detection (entropy gate H > 7.5 + magic bytes → STORED)
+  │
+  ├── Domain-specific preprocessing (§3.8, §3.9)
+  │     ├── AUDIO:      Linear prediction (4th order)
+  │     ├── IMAGE:      2D spatial prediction (MED)
+  │     ├── GENOMIC:    2-bit nucleotide encoding
+  │     ├── SOURCE:     Keyword tokenization
+  │     ├── LOG:        Timestamp normalization + field separation
+  │     └── STRUCTURED: JSON/XML/CSV schema-value separation
+  │
+  ├── Three-region GURFT analysis (start / mid / end)
+  │     ├── Torsion τ (DFT, 13 bins)
+  │     ├── Dimensional sync δ (autocorrelation, lag 13)
+  │     ├── Shannon entropy H
+  │     └── Periodicity + Salvi Resonance
+  │
+  ├── Base selection (GURFT thresholds + try-and-compare)
+  │
+  ├── Adaptive delta encoding (§3.1)
+  │     ├── Evaluate H for: none / order-1 / order-2
+  │     ├── Per order: evaluate H under Rep A, Rep B, Rep C
+  │     └── Select lowest H — record 3-bit delta_flag in chunk map
+  │
+  ├── RLE + LZ77 tokenization (§4)
+  │     ├── Hash chain O(1), window per tier (3 KB – 19,683 KB)
+  │     ├── Greedy (TTC_-1) / Lazy (TTC_-2) / Beam-optimal (TTC_-3)
+  │     └── Cross-chunk history prefix (unless independent-chunk flag)
+  │
+  ├── 26-tunnel Inter-Cube parallel dispatch (§4.8)
+  │
+  ├── Token serialization — best of four (entropy-gated pruning §5.5):
+  │     ├── STORED (0)           — raw bytes
+  │     ├── COMPRESSED (1)       — adaptive Rice + Elias Gamma
+  │     ├── TERNARY_ENHANCED (2) — adaptive per-group Rep A/B/C + hybrid prefix
+  │     └── TERNARY_ANS (3)      — tANS entropy coding
+  │
+  └── Container packaging (96-byte TTC1 header + chunk map + payloads)
+```
+
+### 1.6 Constants
+
+| Constant | Value | Source |
+|----------|-------|--------|
+| Tribonacci Constant (τ) | 1.8392867552141612 | OEIS A058265 |
+| τ (full 50-digit) | 1.83928675521416113255185256465328660042417874609759 | Rust f128 / bignum |
+| Golden Angle | 139.035628° | |
+| Golden Ratio (φ) | 1.618033988749895 | |
+| Phase Drift Rate | 3.956°/year | |
+| log₂(3) | 1.5849625007... | Shannon density |
+| Harmonic Chain | 13, 28, 56, 364 | TTC v1.0 whitepaper |
+| TUNNEL_COUNT | 26 | Inter-Cube dimensions (2×13) |
+| tANS State Space L | 177,147 | 3¹¹ |
+
+---
+
+## 2. MATHEMATICAL FOUNDATIONS
+
+### 2.1 Tribonacci Sequence
+
+```
+T(1) = 1, T(2) = 2, T(3) = 3
+T(n) = T(n-1) + T(n-2) + T(n-3)  for n > 3
+```
+
+Sequence: 1, 2, 3, 6, 11, 20, 37, 68, 125, 230, 423, 778, 1431, 2632, 4841, 8904, 16377, 30122, ...
+
+**Important — two distinct sequences in the PlenumNET codebase:**
+
+This specification uses the above sequence (seeds 1, 2, 3) for Zeckendorf-style integer coding in the compression engine. This is not the same as the standard OEIS A000073 sequence (seeds 0, 0, 1 → 0, 0, 1, 1, 2, 4, 7, 13, 24, 44, 81...) used elsewhere in PlenumNET, where T₇ = 13 is load-bearing for the cube dimension, sponge stride, and harmonic constants.
+
+The two sequences are used for different purposes and must not be conflated. When referencing Tribonacci numbers in other PlenumNET contexts, verify which sequence applies.
+
+### 2.2 Tribonacci Integer Coding (Zeckendorf-style Greedy)
+
+**Encoding** (`encodeTribonacci`):
+1. Build sequence until largest term exceeds `n`.
+2. Greedy decomposition from largest term: subtract each term that fits.
+3. Bit string MSB to LSB: 1 = term used, 0 = skipped.
+4. `n = 0` returns `"0"`.
+
+**Decoding** (`decodeTribonacci`):
+1. For bit string length L, generate L Tribonacci numbers.
+2. `code[0]` = MSB maps to `tribSeq[L-1]`.
+3. Sum terms where bit = 1.
+
+Efficiency: Tribonacci Zeckendorf coding achieves approximately 21% fewer bits per integer than Fibonacci coding. Bit cost ≈ 1.137 × log₂(N) — better than Fibonacci (≈ 1.440 × log₂(N)) but, as with any prefix-free code, cannot fall below the information-theoretic minimum of 1.0 × log₂(N).
+
+### 2.3 Balanced Ternary Conversion
+
+Symbols: T = −1, 0 = 0, 1 = +1.
+
+**Encode** (`toBalancedTernary`):
+```
+while value ≠ 0:
+    remainder = ((value % 3) + 3) % 3
+    if remainder == 0: emit "0", value = value / 3
+    if remainder == 1: emit "1", value = (value - 1) / 3
+    if remainder == 2: emit "T", value = (value + 1) / 3
+    value = round(value)
+```
+Digits emitted LSB-first, reversed for output. Safety limit: 100 iterations.
+
+**Decode** (`balancedTernaryToValue`):
+```
+value = 0, multiplier = 1
+for each digit right to left:
+    if '1': value += multiplier
+    if 'T': value -= multiplier
+    multiplier *= 3
+```
+
+### 2.4 GF(3) Field Operations
+
+| Representation | Symbols | Use |
+|----------------|---------|-----|
+| A (Balanced) | −1, 0, +1 | Computation, residuals |
+| B (Standard) | 0, 1, 2 | Network/wire, arithmetic |
+| C (Bijective) | 1, 2, 3 | Sparse encoding, no zero digit |
+
+**GF(3) mapping:**
+```
+toGF3(a) = ((a % 3) + 3) % 3
+fromGF3(g): 0→0, 1→1, 2→−1
+```
+
+**Operations** (all mod 3):
+- `gf3Add(a,b)`: `(toGF3(a) + toGF3(b)) % 3`
+- `gf3Multiply(a,b)`: `(toGF3(a) * toGF3(b)) % 3`
+- `gf3Not(a)`: `−a`
+- `gf3Rotate(value, steps)`: `fromGF3((toGF3(value) + ((steps%3)+3)%3) % 3)`
+
+**Addition Table:**
+```
+     -1   0   +1
+-1 |  1  -1    0
+ 0 | -1   0    1
++1 |  0   1   -1
+```
+
+**Multiplication Table:**
+```
+     -1   0   +1
+-1 |  1   0   -1
+ 0 |  0   0    0
++1 | -1   0    1
+```
+
+### 2.5 TAU Verification
+
+τ³ = τ² + τ + 1. Verification: `|τ³ − (τ² + τ + 1)| < 1e-10`
+
+**TAU-Derived VM Constants:**
+
+| Constant | Derivation | Exact τ power | Integer value |
+|----------|-----------|---------------|---------------|
+| HASH_SEED | floor(τ² × 1e9) | τ² = 3.382975767... | 3,382,975,767 |
+| HASH_MIX | floor(τ⁷ × 1e6) | τ⁷ = 71.210839290... | 71,210,839 |
+| HASH_ROUNDS | 13 | Direct | 13 |
+| GC_THRESHOLD_RATIO | τ⁻² | τ⁻² = 0.295597742... | 0.295597... |
+| INSTRUCTION_CACHE_SIZE | floor(τ⁵ × 4) | τ⁵ = 21.049763337... | 84 |
+| TRIT_BUFFER_SIZE | floor(τ⁷ × 2) | τ⁷ = 71.210839290... | 142 |
+
+---
+
+## 3. COMPRESSION PRIMITIVES
+
+### 3.1 Adaptive GF(3) Delta Encoding
+
+Computes byte-to-byte differences to smooth sequences for LZ77. Both the delta order and GF(3) representation are selected adaptively by minimizing Shannon entropy over a 512-byte sample. The winning combination is recorded as a 3-bit delta_flag stored in chunk map byte +15 (§9.1 chunk map layout).
+
+#### 3.1.1 Delta Computation per Representation
+
+**Rep B (Standard) — `deltaEncodeB`:**
+```
+result[0] = data[0]
+result[i] = (data[i] - data[i-1] + 256) % 256
+```
+
+**Rep A (Balanced) — `deltaEncodeA`:**
+```
+result[0] = data[0]
+d = (data[i] - data[i-1] + 256) % 256
+// Center: values > 127 become negative
+result_byte[i] = (d + 128) % 256    // stored offset; decode: d = b > 127 ? b-256 : b
+```
+Centers residuals at zero. For smooth data (audio, gradients) this clusters near zero, reducing entropy.
+
+**Rep C (Bijective) — `deltaEncodeC`:**
+```
+result[0] = data[0]
+d = (data[i] - data[i-1] + 256) % 256
+result_byte[i] = d == 0 ? 255 : (d - 1)    // shifts [0..255] → [0..255] avoiding true zero
+```
+Eliminates zero residuals. Useful when zero differences are rare.
+
+#### 3.1.2 Decision Algorithm
+
+```
+sample = chunk[0..min(512, chunk.len)]
+
+candidates = [
+    { order:0, rep:B, data: chunk,             H: computeEntropy(sample) },
+    { order:1, rep:A, data: deltaEncodeA(·),   H: computeEntropy(sample_A1) },
+    { order:1, rep:B, data: deltaEncodeB(·),   H: computeEntropy(sample_B1) },
+    { order:1, rep:C, data: deltaEncodeC(·),   H: computeEntropy(sample_C1) },
+]
+
+// AUDIO and IMAGE modes additionally evaluate second-order:
+if mode in [AUDIO, IMAGE]:
+    for rep in [A, B, C]:
+        d2 = deltaEncode_rep(deltaEncode_rep(chunk))
+        candidates += { order:2, rep, H: computeEntropy(d2_sample) }
+
+winner = min(candidates, key=H)
+apply winner.data as input to tokenizer
+record winner.delta_flag (3 bits) in chunk map byte +15
+```
+
+Full-chunk transform is applied only after the winner is selected from the sample evaluation.
+
+#### 3.1.3 Delta Flag Values (3 bits, stored in chunk map byte +15 bits 7–5)
+
+```
+0b000 = no delta         (order 0, passthrough)
+0b001 = order-1, Rep B   (standard — backward compatible with v1.1)
+0b010 = order-1, Rep A   (balanced)
+0b011 = order-1, Rep C   (bijective)
+0b100 = order-2, Rep B
+0b101 = order-2, Rep A
+0b110 = order-2, Rep C
+0b111 = reserved
+```
+
+**Storage:** The delta_flag is packed into the upper 3 bits of chunk map entry offset +15. The lower 3 bits store the domain transform flag (§9.1). This eliminates the need to parse any chunk payload to determine the delta transform applied — the full transform descriptor is in the chunk map.
+
+#### 3.1.4 Delta Decode per Flag
+
+```
+0b000: passthrough
+0b001: result[i] = (result[i-1] + data[i]) % 256
+0b010: d = data[i] > 127 ? data[i]-256 : data[i]
+       result[i] = (result[i-1] + d + 256) % 256
+0b011: d = (data[i] + 1) & 0xFF
+       result[i] = (result[i-1] + d) % 256
+0b100: apply Rep B decode twice
+0b101: apply Rep A decode twice
+0b110: apply Rep C decode twice
+0b111: error — reject archive
+```
+
+### 3.2 GF(3) Trit Encoding per Representation
+
+All three representations encode each byte (0–255) as a sequence of trits. The encoding differs in trit count distribution, which the adaptive selection exploits.
+
+#### 3.2.1 Rep C — Bijective Ternary (digits {1, 2, 3})
+
+**Encode** (`byteToBijectiveTernary`):
+```
+n = byte + 1
+digits = []
+while n > 0:
+    r = n % 3
+    if r == 0: r = 3, n = floor(n/3) - 1
+    else:           n = floor(n/3)
+    prepend r
+```
+
+**Decode** (`bijectiveTernaryToByte`):
+```
+result = 0
+for each digit d: result = result * 3 + d
+return (result - 1) & 0xFF
+```
+
+Digit count: 1 trit (bytes 0–2) to 5 trits (byte 255 = [2,3,1,1,1] bijective = 5 trits). Rep C always requires one fewer trit than Rep B for byte 255 due to the bijective shift.
+
+#### 3.2.2 Rep B — Standard Base-3 (digits {0, 1, 2})
+
+**Encode** (`byteToStandardTernary`):
+```
+n = byte
+digits = []
+while n > 0: digits.prepend(n % 3), n = floor(n/3)
+if empty: digits = [0]
+```
+
+**Decode**: standard base-3 reconstruction. Returns `result & 0xFF`.
+
+Digit count: 1 trit (bytes 0–2) to 6 trits (byte 255). Byte 0 encodes as single `0` trit — valid in standard, invalid in bijective.
+
+#### 3.2.3 Rep A — Balanced Ternary (digits {T, 0, 1})
+
+**Encode** (`byteToBalancedTernary`):
+```
+signed = byte <= 127 ? byte : byte - 256
+digits = toBalancedTernary(signed)    // §2.3
+```
+
+**Decode** (`balancedTernaryToByte`):
+```
+signed = balancedTernaryToValue(digits)
+return (signed + 256) % 256
+```
+
+Digit count: 1 trit (values {−1,0,+1}) to 6 trits (values ±127 and −128). Values ±121 require 5 trits; values beyond ±121 up to the signed byte range extremes (±127, −128) require 6 trits — the same maximum as Rep B. Rep A is more compact than Rep B/C for values near zero (a residual of ±1 costs 1 trit vs up to 6 trits for large byte values) but the maximum digit count is identical.
+
+#### 3.2.4 Unified Bit Packing (all representations)
+
+All representations pack digits as 2 bits per trit:
+
+| Rep | Digit → 2-bit code |
+|-----|-------------------|
+| A | T(−1) → `10`, 0 → `00`, 1 → `01` |
+| B | 0 → `00`, 1 → `01`, 2 → `10` |
+| C | 1 → `00`, 2 → `01`, 3 → `10` |
+
+Code `11` is reserved in all representations (unused digit position).
+
+**Pack** (`packTrits(digits, rep)`): for each digit, emit 2-bit code per table.
+
+**Unpack** (`unpackTrits(bits, count, rep)`): read 2 bits, map via inverse table.
+
+### 3.3 Adaptive Trit Cost Estimation
+
+Precomputed lookup tables enable O(1) per-byte cost estimation without full encoding.
+
+```
+// Built at engine initialization:
+TRIT_COST[REP_A][b]  for b in [0..255]   // balanced trit count
+TRIT_COST[REP_B][b]  for b in [0..255]   // standard trit count
+TRIT_COST[REP_C][b]  for b in [0..255]   // bijective trit count
+
+avgTritCost(group, rep) = mean(TRIT_COST[rep][b] for b in group)
+```
+
+Used in delta selection (§3.1.2) and per-literal-group selection (§5.2).
+
+### 3.4 Hybrid Small-Value Prefix Coding
+
+**Encoding:**
+```
+2-bit selector:
+    00  →  value = 0                    (2 bits total)
+    01  →  value = 1–3  (2 more bits)   (4 bits total)
+    10  →  value = 4–15 (4 more bits)   (6 bits total)
+    11  →  Tribonacci prefixed          (7+ bits)
+```
+
+**Tribonacci prefixed** (selector `11`):
+```
+code = encodeTribonacci(n)
+len  = min(code.length, 31)
+return 5-bit binary(len) + code[0..len]
+```
+
+**Decoding:**
+```
+sel = read 2 bits
+if 00: return 0
+if 01: return parseInt(2 bits) + 1
+if 10: return parseInt(4 bits) + 4
+if 11: len = parseInt(5 bits)
+       return decodeTribonacci(read len bits)
+```
+
+Maximum: ~28 million (τ³¹).
+
+### 3.5 Elias Gamma Coding
+
+Used for token counts and match lengths.
+
+**Encode:**
+```
+value = max(1, n+1)
+bits  = floor(log₂(value)) + 1
+return (bits-1) zeros + "1" + (bits-1) LSBs of value
+```
+
+**Decode:**
+```
+zeros = count leading zeros
+skip "1"
+lower = read zeros bits
+return ((1 << zeros) | lower) - 1
+```
+
+### 3.6 Adaptive Rice/Golomb Coding for Match Distances
+
+**Initial M (per chunk):**
+```
+mean_dist = avg matchDist over first 128 TOKEN_MATCH tokens
+M_initial = floor(log₂(mean_dist))  clamped [1,8]
+```
+
+**Adaptive update (every 128 matches):**
+```
+M_new = floor(log₂(mean_recent))    clamped [1,8]
+if M_new != M_current:
+    emit 3-bit signed delta (range −4..+3)
+    M_current = M_new
+```
+
+Initial M stored in chunk map `+14`. Delta updates embedded in-stream via type marker `11`.
+
+**Encode** `encodeRice(n, M)`:
+```
+return unary(n >> M) + binary(n & ((1<<M)-1), M bits)
+```
+
+**Decode** `decodeRice(stream, M)`:
+```
+q = count ones, consume zero terminator
+r = read M bits
+return (q << M) | r
+```
+
+### 3.7 Ternary Asymmetric Numeral Systems (tANS)
+
+Tabular ANS with ternary alphabet achieves compression within 0.01% of arithmetic coding. State space L = 3¹¹ = 177,147 — a power of three. Representation-agnostic: the ANS table adapts to observed symbol frequencies regardless of which GF(3) representation was used upstream.
+
+**Note on rANS:** Range ANS (rANS) is an alternative with simpler state transitions and sometimes faster decode on certain hardware. Either variant produces identical compression ratios. tANS is the reference implementation; implementers may substitute rANS with identical symbol alphabet and frequency normalization.
+
+#### 3.7.1 Symbol Alphabet
+
+| Range | Meaning |
+|-------|---------|
+| 0–255 | Literal byte values |
+| 256–510 | Run lengths 1–255 (runByte coded as separate literal) |
+| 511–766 | Match lengths 1–256 |
+| 767–1022 | Match distances, 256 buckets |
+| 1023 | End-of-block |
+
+**Distance quantization:**
+```
+bucket = floor(matchDist / (windowSize / 256))  clamped [0,255]
+symbol = 767 + bucket
+// decode: matchDist = bucket × (windowSize/256) + (windowSize/512)
+```
+
+#### 3.7.2 Frequency Normalization
+
+```
+1. Count f[s] for each symbol s in token stream.
+2. f_norm[s] = max(1, round(f[s] × L / total_tokens))
+3. Sort by fractional rounding error; add/subtract 1 until Σf_norm = L.
+4. f_norm[1023] >= 1 always.
+```
+
+#### 3.7.3 Spread Table Construction
+
+Symbols are assigned to the L state slots in descending frequency order. The spread is interleaved using an odd step to ensure good distribution.
+
+```
+// Symbols must be sorted descending by f_norm before assignment.
+// Tie-breaking rule: when two symbols have equal f_norm, order by
+// ascending symbol index. This rule is mandatory — without it,
+// two implementations can produce different spread tables from the
+// same token stream, resulting in incompatible archives.
+// This ordering must be preserved in the serialized spread table (§3.7.6)
+// so the decoder reconstructs the identical table.
+
+step = floor(L / alphabet_size) | 1    // odd step
+pos  = 0
+for each symbol s sorted by (f_norm DESC, symbol_index ASC):
+    for i in [0..f_norm[s]):
+        spread[pos % L] = s
+        pos += step
+```
+
+#### 3.7.4 Encoding
+
+```
+state = L
+for each token t:
+    s = symbol_for_token(t)
+    while state >= 2 × f_norm[s]:
+        output_trit(state % 3)
+        state /= 3
+    state = encode_table[s][state - f_norm[s]]
+output_state(state)    // 3 bytes, uint24 big-endian
+```
+
+#### 3.7.5 Decoding
+
+```
+state = read_initial_state()    // uint24 big-endian, 3 bytes
+tokens = []
+while true:
+    s = decode_symbol[state % L]
+    tokens.prepend(token_from_symbol(s))
+    if s == 1023: break
+    while state < L: state = state × 3 + read_trit()
+    state = decode_next[state % L]
+return reverse(tokens)
+```
+
+#### 3.7.6 Chunk Payload Structure (TERNARY_ANS — mode 3)
+
+```
+[4 bytes: spread table entry count S (uint32 big-endian)]
+[S × 5 bytes per entry, sorted by f_norm descending:
+    2 bytes: symbol index (uint16 big-endian)
+    3 bytes: f_norm       (uint24 big-endian)]
+[3 bytes: initial ANS state (uint24 big-endian)]
+[N bytes: packed trit stream — 5 trits per byte]
+    byte = t[0]×81 + t[1]×27 + t[2]×9 + t[3]×3 + t[4]
+```
+
+Only symbols with f_norm > 0 stored (≤ 1024 entries). Final partial trit group padded with trit 0.
+
+**Trit packing:** 3⁵ = 243 ≤ 255. Five trits per byte. More efficient than 4 trits/byte (3⁴ = 81, wastes 175/256 values).
+
+### 3.8 Domain-Specific Preprocessing Transforms (AUDIO / IMAGE / GENOMIC)
+
+Applied before delta encoding for modes 2 (IMAGE), 3 (AUDIO), 4 (GENOMIC).
+
+**Header field dual-use:** When domain transforms requiring parameters are applied, the reserved header fields at 0x20–0x27 (Phase Offset + Drift Rate, 8 bytes total) are repurposed as follows:
+
+| Mode | Domain Transform | 0x20–0x27 Content |
+|------|-----------------|-------------------|
+| AUDIO (3) | Linear prediction (0x01) | 4 × int16 BE LP coefficients [c0,c1,c2,c3] |
+| IMAGE (2) | MED predictor (0x02) | uint64 BE image width in pixels |
+| Other | Any | Reserved (degrees × 1000 / °yr × 1000) |
+
+These fields are interpreted according to `mode` byte at header offset 0x05.
+
+#### 3.8.1 AUDIO Mode: 4th-Order Linear Prediction
+
+```
+P = 4
+
+// Coefficient estimation (Levinson-Durbin over first 1024 samples)
+// Results stored as 4 × int16 BE at header 0x20–0x27
+
+for i in [P..data.len):
+    predicted  = Σ coeff[k] × data[i-k-1]  for k in [0..P)
+    residual[i] = data[i] - round(predicted)
+// For i < P: residual[i] = data[i]
+```
+
+**Inverse:**
+```
+for i in [P..data.len):
+    predicted = Σ coeff[k] × output[i-k-1]  for k in [0..P)
+    output[i] = residual[i] + round(predicted)
+```
+
+Domain transform flag bits 2–0 = `001`.
+
+#### 3.8.2 IMAGE Mode: 2D Median Edge Detector (MED)
+
+```
+// imageWidth stored as uint64 BE at header 0x20–0x27
+
+for each pixel (row r, col c):
+    a=pixel[r][c-1], b=pixel[r-1][c], cc=pixel[r-1][c-1]
+    if   cc >= max(a,b): predicted = min(a,b)
+    elif cc <= min(a,b): predicted = max(a,b)
+    else:                predicted = a + b - cc
+    residual[r][c] = pixel[r][c] - predicted
+// Row 0 / col 0: 1D delta fallback
+// Residuals flattened row-major
+```
+
+Domain transform flag bits 2–0 = `010`.
+
+#### 3.8.3 GENOMIC Mode: 2-bit Nucleotide Encoding
+
+```
+A→00, C→01, G→10, T→11
+Pack 4 bases per byte: (b0<<6)|(b1<<4)|(b2<<2)|b3
+Non-ACGT: escape 0xFF + raw byte
+```
+
+Reduces genomic input to 25% of original size before LZ77.
+
+Domain transform flag bits 2–0 = `011`.
+
+### 3.9 Extended Domain Preprocessing Transforms (SOURCE / LOG / STRUCTURED)
+
+Applied for compression modes 5, 6, 7 (new in v2.0). These transforms expose structural redundancy in text-heavy document types before LZ77 tokenization, dramatically reducing effective entropy.
+
+#### 3.9.1 SOURCE Mode (mode 5): Keyword Tokenization
+
+Source code files have a small, highly repetitive vocabulary of keywords, operators, and punctuation. Pre-tokenizing these into a compact dictionary reduces average token byte size from 4–8 bytes to 1–2 bytes.
+
+```
+// Built-in keyword table: top 127 tokens → single-byte codes 0x01–0x7F
+// Language-agnostic set covers: function, return, if, else, for, while,
+//   class, import, const, let, var, true, false, null, void, int, string,
+//   public, private, static, {, }, (, ), [, ], ;, :, =, ==, !=, ->, =>, ...
+//   (full table: 127 entries, maintained in engine constants)
+
+// Encoding pass:
+for each token in source stream:
+    if token in KEYWORD_TABLE:
+        emit KEYWORD_TABLE[token]    // 1 byte
+    else:
+        emit 0x80                    // escape marker
+        emit raw UTF-8 bytes
+        emit 0x00                    // null terminator
+
+// Resulting byte stream fed to delta selection and LZ77
+```
+
+Domain transform flag bits 2–0 = `100`.
+
+#### 3.9.2 LOG Mode (mode 6): Timestamp Normalization
+
+Log files contain monotonically advancing timestamps that compress poorly with standard delta because the absolute values are large. Field separation allows each log component to be compressed with its own optimal strategy.
+
+```
+// Timestamp detection: ISO 8601, Unix epoch, syslog format
+// Normalization:
+//   First timestamp → stored as absolute (8 bytes, uint64 ms)
+//   Subsequent timestamps → delta from previous (variable-length, typically 1–3 bytes)
+//
+// Field separation:
+//   Log level tokens (DEBUG/INFO/WARN/ERROR/FATAL) → 1-byte codes 0x01–0x05
+//   Service/module name → deduplicated dictionary, 2-byte index
+//   Message body → raw bytes, benefits from standard LZ77
+
+// Stream format:
+[1 byte: field type marker]
+    0x01 = timestamp delta (followed by varint)
+    0x02 = level code (1 byte)
+    0x03 = service index (2 bytes)
+    0x04 = message body (length-prefixed)
+    0x05 = raw passthrough (for unrecognized log formats)
+```
+
+Domain transform flag bits 2–0 = `101`.
+
+#### 3.9.3 STRUCTURED Mode (mode 7): Schema-Value Separation
+
+JSON, XML, and CSV files have a schema (keys, tags, column headers) that is highly repetitive and a value stream that varies. Separating these allows the schema to be dictionary-compressed and values to be delta-compressed.
+
+```
+// JSON:
+//   Key extraction: build key dictionary (max 65535 keys, 2-byte index)
+//   Value stream: typed (string/number/bool/null) with per-type delta encoding
+//   Numbers: delta from previous number of same key
+//   Strings: raw LZ77 input
+
+// CSV:
+//   Header row → column dictionary
+//   Numeric columns → first-order delta per column
+//   String columns → raw LZ77
+
+// XML:
+//   Tag names → dictionary with 2-byte index
+//   Attributes → key dictionary + value stream
+//   Text content → raw LZ77
+
+// Output: [schema block][value stream], concatenated, fed to LZ77
+```
+
+Domain transform flag bits 2–0 = `110`.
+
+---
+
+## 4. RLE + LZ77 TOKENIZATION
+
+### 4.1 Token Types
+
+| Type Code | Name | Fields |
+|-----------|------|--------|
+| 0 | TOKEN_LITERAL | `literal` (byte 0–255) |
+| 1 | TOKEN_RUN | `runByte` (byte), `runLength` (1–255) |
+| 2 | TOKEN_MATCH | `matchDist` (1–windowSize), `matchLen` (1–255) |
+
+### 4.2 Compression Tier Configurations
+
+| Level | Tier | Window | Min Match | Min Run | GURFT | Chunk | Chain | Parsing | Candidates |
+|-------|------|--------|-----------|---------|-------|-------|-------|---------|------------|
+| 1 (TTC1-1) | TTC1 | 3 KB | 8 | 6 | Skip | 26 KB | 8 | Greedy | 2 |
+| 2 (TTC1-2) | TTC1 | 9 KB | 6 | 5 | Skip | 26 KB | 16 | Lazy | 3 |
+| 3 (TTC1-3) | TTC1 | 27 KB | 4 | 4 | Yes | 13 KB | 32 | Lazy | 4 |
+| 4 (TTC2-1) | TTC2 | 81 KB | 4 | 4 | Yes | 13 KB | 32 | Lazy | 4 |
+| 5 (TTC2-2) | TTC2 | 243 KB | 4 | 4 | Yes | 13 KB | 64 | Lazy | 4 |
+| 6 (TTC2-3) | TTC2 | 729 KB | 4 | 4 | Yes | 13 KB | 128 | Lazy | 4 |
+| 7 (TTC3-1) | TTC3 | 2,187 KB | 3 | 3 | Yes | 13 KB | 128 | Beam-opt | 4 |
+| 8 (TTC3-2) | TTC3 | 6,561 KB | 3 | 3 | Yes | 13 KB | 192 | Beam-opt | 4 |
+| 9 (TTC3-3) | TTC3 | 19,683 KB | 3 | 3 | Yes | 13 KB | 256 | Beam-opt | 4 |
+
+Default level: 5 (TTC2-2). All window sizes are powers of 3 (KB or MB).
+
+**Window size rationale:** TTC1 targets local repetition within pages (3–27 KB). TTC2 targets clause and paragraph repetition across full documents (81–729 KB). TTC3 targets long-range repetition across entire large archives and corpora (2,187–19,683 KB, approximately 2–19 MB). The TTC3-3 ceiling of 19,683 KB holds the equivalent of a full large legal discovery set or a large codebase in one back-reference window.
+
+**Note on chunk size vs window:** Chunk size (13–26 KB) determines the unit of independent serialization. Window size determines the back-reference reach. At TTC3 levels the window vastly exceeds the chunk size — this is intentional. Cross-chunk history (§4.7) bridges the gap, allowing back-references to span many chunk boundaries.
+
+### 4.3 Pre-Compressed Detection
+
+**Step 1 — Entropy gate:**
+```
+H = computeEntropy(data[0..min(1024, data.len)])
+if H > 7.5: → STORED path immediately
+```
+
+**Step 2 — Magic byte detection:**
+
+| Format | Magic |
+|--------|-------|
+| PDF | `%PDF-` (25 50 44 46 2D) |
+| ZIP/DOCX/XLSX | `PK` (50 4B) |
+| GZIP | 1F 8B |
+| PNG | 89 50 4E 47 |
+| JPEG | FF D8 FF |
+| 7z | 37 7A BC AF |
+| RAR | `Rar!` (52 61 72 21) |
+| MP3 | `ID3` (49 44 33) |
+| AVIF | `ftypavif` at offset 4 |
+
+### 4.4 Hash Chain LZ77
+
+```
+HASH_SIZE = windowSize
+hash(data, i) = (data[i]×65521 XOR data[i+1]×257 XOR data[i+2]) % HASH_SIZE
+
+h = hash(data, i)
+j = head[h], best_len=0, best_dist=0, steps=0
+while j != INVALID AND steps < max_chain_depth:
+    if data[j..j+3] == data[i..i+3]:
+        len = extend_match(data, i, j, max=255)
+        if len > best_len: best_len=len, best_dist=i-j
+    j = chain[j % HASH_SIZE], steps++
+
+old=head[h], head[h]=i, chain[i % HASH_SIZE]=old
+```
+
+### 4.5 Lazy Matching (Levels 2–6)
+
+```
+m_i  = findBestMatch(i)
+m_i1 = findBestMatch(i+1)
+if m_i1.len > m_i.len + 1:
+    emit TOKEN_LITERAL(data[i]), i++
+    use m_i1
+else:
+    use m_i
+```
+
+### 4.6 Beam-Search Optimal Parsing (Levels 7–9, TTC3)
+
+Full DP over 19,683 KB windows is O(n × matches) — too slow for practical use. TTC3 uses beam-search DP: maintain a beam of the top-K lowest-cost paths at each position. K=8 is the default beam width, retaining near-optimal quality at 3–5× the speed of exhaustive DP.
+
+```
+BEAM_WIDTH = 8
+
+beam[0] = [{ cost:0, choice:START }]
+
+for i in [0..chunk.len]:
+    candidates = []
+    for each path p in beam[i]:
+
+        // Literal
+        c_lit = p.cost + bits_for_literal(data[i])
+        candidates += { pos:i+1, cost:c_lit, choice:LITERAL(data[i]), prev:p }
+
+        // Match
+        m = findBestMatch(i)
+        if m.len >= minMatchLen:
+            c_m = p.cost + bits_for_match(m.dist, m.len)
+            candidates += { pos:i+m.len, cost:c_m, choice:MATCH(m), prev:p }
+
+        // Run
+        r = findRun(i)
+        if r.len >= minRunLen:
+            c_r = p.cost + bits_for_run(r.byte, r.len)
+            candidates += { pos:i+r.len, cost:c_r, choice:RUN(r), prev:p }
+
+    // Prune to beam width
+    group by pos, keep top-BEAM_WIDTH by cost per position
+    beam[i+1..] = grouped results
+
+// Trace best path from beam[chunk.len]
+```
+
+**Bit cost estimation:** `bits_for_literal` uses the current entropy model (trit cost table for mode 2, ANS symbol cost for mode 3, Elias Gamma cost for mode 1). Costs are precomputed once per chunk from the first-pass token statistics and reused during DP.
+
+**Critical alignment requirement:** The cost model used in the beam DP must match the serializer mode that will be applied to this chunk. If the pruning pass (§5.5) selects mode 3 (TERNARY_ANS), the DP must have used tANS symbol costs — not Elias Gamma costs. Using a mismatched cost model produces beam decisions that are suboptimal for the actual serialization path. The cost model is therefore selected after the entropy-gated pruning pass determines which serializer candidates are live, and the DP is re-run if necessary when the winning mode differs from the model used.
+
+**Approximation note:** Beam width K=8 achieves within 0.5–1% of exhaustive DP quality in benchmarks. Implementers may increase K for higher ratio at the cost of speed. K=1 degrades to greedy matching.
+
+### 4.7 Cross-Chunk History Prefix
+
+```
+history      = last windowSize bytes of previous chunk (empty for chunk 0)
+virtual_data = history + current_chunk_data
+compress starting at offset history.len
+    back-references allowed into history region
+```
+
+Disabled when independent-chunk flag (`0x04` in Adaptive Flags) is set.
+
+### 4.8 Inter-Cube Parallel Dispatch
+
+TTC v2.0 uses the PlenumNET Inter-Cube topology (26 tunnels = 2×13 dimensions) as its native parallel execution model. This is not generic thread pooling — it is grounded in the same dimensional geometry as the rest of PlenumNET.
+
+```
+TUNNEL_COUNT = 26    // 2 × 13 Inter-Cube dimensions
+```
+
+**Independent chunk mode (full parallel):**
+```
+// All 26 tunnels run simultaneously per round
+// Chunks dispatch round-robin across tunnels
+for round in [0 .. ceil(chunk_count / 26)):
+    for t in [0..26):
+        chunk_idx = round × 26 + t
+        if chunk_idx < chunk_count:
+            tunnel[t].dispatch(compress_chunk(chunk[chunk_idx]))
+
+// Collect results and assemble chunk map in index order
+// (chunks may complete out of order — use slot-based output buffer)
+output_buffer[chunk_idx] = result when complete
+```
+
+**Dependent mode (cross-chunk history — pipelined parallel):**
+
+Phase 2 (LZ77 compression) requires sequential ordering due to history dependency. However Phase 1 operations (GURFT analysis, delta decision, base selection) are read-only on raw chunk data and have no ordering constraint. These run in parallel across the next batch while Phase 2 processes the current batch.
+
+```
+// The 13+13 grouping below is a logical model, not a static tunnel allocation.
+// Physical tunnel assignment is dynamic — the dispatch layer allocates available
+// tunnels from the 26-tunnel pool at runtime. The fixed labels "Phase 1 tunnels"
+// and "Phase 2 tunnels" describe roles, not hardcoded tunnel indices.
+// Implementers must not hardcode tunnel 0–12 / 13–25 assignments.
+
+Phase 1 batch (13 logical workers, parallel, read-only):
+    For chunks [i .. i+12]: run GURFT + delta decision + base selection
+    Results stored in analysis_cache[chunk_idx]
+
+Phase 2 batch (13 logical workers, sequential within batch):
+    For chunks [i-13 .. i-1]: run LZ77 using analysis_cache results
+    History passed sequentially: chunk[j] history ← tail of chunk[j-1] output
+
+// Pipeline: while Phase 2 processes batch N, Phase 1 analyses batch N+1
+```
+
+**13+13 geometric grouping:** The 2×13 structure maps naturally to a double-buffered pipeline — one group of 13 compresses while the other analyses. This is not arbitrary: 13 is the holographic boundary dimension in PlenumNET's geometric framework.
+
+**Throughput impact (§12.9 for full analysis):**
+- Independent mode: up to 26× throughput multiplier vs single-thread
+- Dependent mode: Phase 1 fully parallel (~13×), Phase 2 sequential (~1×), net improvement ~3–5× depending on Phase 1 / Phase 2 ratio
+
+### 4.9 Tokenization Algorithm (`compressToTokens`)
+
+```
+i = 0
+while i < data.len:
+
+    r = countRun(i)
+    if r >= minRunLen:
+        emit TOKEN_RUN(data[i], r), i+=r, continue
+
+    m = findBestMatch(i)    // hash chain; beam DP result in TTC3
+    if m.len >= minMatchLen:
+        if level <= 6:      // lazy matching
+            m1 = findBestMatch(i+1)
+            if m1.len > m.len + 1:
+                emit TOKEN_LITERAL(data[i]), i++
+                emit TOKEN_MATCH(m1.dist, m1.len), i+=m1.len, continue
+        emit TOKEN_MATCH(m.dist, m.len), i+=m.len, continue
+
+    emit TOKEN_LITERAL(data[i]), i++
+```
+
+### 4.10 Token Decompression (`decompressTokens`)
+
+```
+// output pre-seeded with history (cross-chunk mode)
+for each token:
+    LITERAL: push token.literal
+    RUN:     push token.runByte × token.runLength times
+    MATCH:   copy token.matchLen bytes from output[output.len - token.matchDist]
+```
+
+### 4.11 Base-N Byte Packing Reference
+
+Two functions are referenced throughout for packing bytes using higher compression bases.
+
+**`packBytesWithTribonacci(data)`** — base-3 packing:
+```
+for each byte b in data:
+    digits = byteToRep(b, selected_rep)    // Rep A, B, or C per §3.2
+    for each digit d: emit 2-bit packed trit (§3.2.4)
+output as bit stream with 4-byte bit-count header
+```
+
+**`packBytesWithBaseN(data, N)`** — higher base packing (N = 13, 28, 70, 364):
+```
+// Treat input as a large integer in base-256
+// Convert to base-N by repeated division
+// Each base-N digit requires ceil(log₂(N)) bits
+// For N=13: 4 bits/digit. N=28: 5 bits. N=70: 7 bits. N=364: 9 bits.
+
+digits = []
+value  = data interpreted as big-endian integer
+while value > 0:
+    digits.prepend(value % N)
+    value = floor(value / N)
+
+// Pack digits as fixed-width fields
+// Prefix with digit count (Hybrid prefix coded)
+```
+
+The try-and-compare in §6.9 runs `packBytesWithBaseN` on a 512-byte sample to validate the GURFT base selection before committing to full-chunk compression.
+
+---
+
+## 5. TOKEN SERIALIZATION
+
+Four modes. The engine produces all applicable candidates (entropy-gated, §5.5) and keeps the smallest.
+
+### 5.1 Standard Serialization (`COMPRESSED` — mode 1)
+
+**Bit stream structure:**
+```
+[Elias Gamma: total token count]
+[1 byte: initial Rice M]
+[Token groups...]
+```
+
+**Token group encoding:**
+```
+Literal group (type "00"):
+    "00" + Elias Gamma(count) + [8-bit literal values...]
+
+RLE (type "01"):
+    "01" + 8-bit runByte + Elias Gamma(runLength)
+
+Match (type "10"):
+    "10" + Rice(matchDist, M) + Elias Gamma(matchLen)
+
+M-delta update (type "11"):
+    "11" + 3-bit signed delta    (emitted every 128 matches when M changes)
+```
+
+**Byte packing:** 4-byte bit count header (uint32 BE) + MSB-first packed bytes.
+
+**Delta flag:** Stored in chunk map byte +15 bits 7–5 (§3.1.3). Mode 1 does not embed the delta flag in its payload — the decompressor reads it from the chunk map before parsing the payload. This is consistent across all modes: the chunk map is the single authority for the delta transform applied.
+
+### 5.2 Enhanced Ternary Serialization (`TERNARY_ENHANCED` — mode 2)
+
+Adaptive representation selection per literal group. Each group independently evaluates Rep A, B, C trit cost via TRIT_COST tables (§3.3) and emits a 2-bit selector.
+
+**Bit stream structure:**
+```
+[Hybrid prefix: total token count]
+[Token groups...]
+```
+
+*(Delta flag is in chunk map, not payload.)*
+
+**Token group encoding:**
+
+```
+Literal group (type "00"):
+    "00"
+    + 2-bit rep selector (00=Rep C, 01=Rep B, 10=Rep A)
+    + HybridPrefix(count)
+    + for each literal: 3-bit trit digit count + [2-bit packed trits per §3.2.4]
+
+RLE (type "01"):
+    "01"
+    + 2-bit rep selector (for runByte encoding)
+    + 3-bit trit digit count
+    + [2-bit packed trits for runByte]
+    + HybridPrefix(runLength)
+
+Match (type "10"):
+    "10" + Rice(matchDist, M) + HybridPrefix(matchLen)
+
+M-delta (type "11"):
+    "11" + 3-bit signed delta
+```
+
+**Rep selector decision:**
+```
+cost_A = avgTritCost(group_bytes, REP_A)
+cost_B = avgTritCost(group_bytes, REP_B)
+cost_C = avgTritCost(group_bytes, REP_C)
+emit 2-bit selector for argmin
+```
+
+2-bit overhead per group amortizes to near-zero for groups > 4 bytes.
+
+**Chunk limit:** Mode 2 only attempted for chunks ≤ 16 KB.
+
+**Byte packing:** Same as mode 1.
+
+### 5.3 Ternary ANS Serialization (`TERNARY_ANS` — mode 3)
+
+*(Delta flag is in chunk map, not payload.)*
+
+**Chunk payload structure:**
+```
+[4 bytes: spread table entry count S (uint32 BE)]
+[S × 5 bytes, sorted by f_norm descending:
+    2 bytes: symbol index (uint16 BE)
+    3 bytes: f_norm       (uint24 BE)]
+[3 bytes: initial ANS state (uint24 BE)]
+[N bytes: packed trit stream (5 trits/byte)]
+```
+
+See §3.7 for full tANS algorithms.
+
+### 5.4 STORED (`STORED` — mode 0)
+
+Raw bytes. No transformation. Used when all other modes expand the data or chunk is pre-compressed.
+
+### 5.5 Mode Candidate Pruning
+
+```
+H_chunk = computeEntropy(chunk)
+candidates = [STORED]
+
+if H_chunk <= 7.0:
+    candidates += [COMPRESSED, TERNARY_ANS]
+    if chunk.len <= 16384:
+        candidates += [TERNARY_ENHANCED]
+
+// Early exit: if COMPRESSED result >= 98% of raw, skip all coding paths
+if COMPRESSED_size >= 0.98 × chunk.len:
+    return STORED
+
+selected = argmin size among candidates
+```
+
+### 5.6 Per-Chunk Binary Layout
+
+**Modes 0, 1, 2 — base-3:**
+```
+[4 bytes: original size  (uint32 BE)]
+[1 byte:  mode flag      (0, 1, or 2)]
+[N bytes: payload]
+```
+
+**Mode 3 — TERNARY_ANS:**
+```
+[4 bytes: original size  (uint32 BE)]
+[1 byte:  mode flag = 3]
+[N bytes: payload (spread table + state + trit stream)]
+```
+
+**Any mode — base > 3:**
+```
+[4 bytes: original size  (uint32 BE)]
+[2 bytes: base           (uint16 BE)]
+[1 byte:  mode flag]
+[N bytes: payload]
+```
+
+---
+
+## 6. GURFT ADAPTIVE ENGINE
+
+**Design note:** GURFT serves a dual purpose. As a compression heuristic, τ and δ inform base selection — validated by try-and-compare (§6.9). As PlenumNET measurement primitives, τ and δ are first-class archive metadata: stored in the header, returned in API responses, available via the stats endpoint. They describe the harmonic and dimensional properties of the data within the PlenumNET framework. Both roles are load-bearing.
+
+**Performance optimization:** GURFT analysis already operates on 512-byte regional samples. Implementers may further reduce GURFT cost at TTC2 levels by caching results for chunks with similar entropy profiles. At TTC1 levels, GURFT is skipped entirely (levels 1–2).
+
+### 6.1 Three-Region Sampling
+
+```
+Region A = data[0..512]
+Region B = data[mid-256..mid+256]    mid = floor(data.len/2)
+Region C = data[data.len-512..end]
+
+metric(data) = 0.3×metric(A) + 0.4×metric(B) + 0.3×metric(C)
+```
+
+Fallback to single-region for data < 1024 bytes.
+
+### 6.2 Torsion Alignment (τ)
+
+```
+for k in [1..13]:
+    realSum = Σ data[i]×cos(2π×(k/13)×i)
+    imagSum = Σ data[i]×sin(2π×(k/13)×i)
+    norm    = min(1, sqrt(realSum²+imagSum²) / (N×128))
+τ = mean(norm) across 13 bins
+```
+
+Applied per region, weighted-averaged.
+
+### 6.3 Dimensional Sync (δ)
+
+```
+N         = min(data.len, 512)
+sum_cross = Σ data[i]×data[i+13]   for i in [0..N-14]
+sum_sq    = Σ data[i]²
+δ         = clamp(sum_cross / (sum_sq + 1e-10), 0, 1)
+```
+
+Applied per region, weighted-averaged.
+
+### 6.4 Shannon Entropy
+
+```
+H = −Σ p(x)×log₂(p(x))    range [0,8]
+```
+
+Used in pre-compressed gate (§4.3), delta decision (§3.1.2), mode pruning (§5.5).
+
+### 6.5 Periodicity
+
+```
+for P in [28, 364]:
+    score[P] = count(|data[i]-data[i+P]|<16) / 512   first 512 samples
+periodicity = max(score[28], score[364])
+```
+
+### 6.6 Salvi Resonance
+
+```
+for P in [5, 25, 125]:
+    score[P] = count(|data[i]-data[i+P]|<8) / 512
+salviResonance = any score[P] > 0.80
+```
+
+### 6.7 Base Selection Thresholds
+
+| Threshold | Value | Meaning |
+|-----------|-------|---------|
+| TAU_HARMONIC | 0.72 | τ ≥ this enables Base-13 |
+| TAU_HOLOGRAPHIC | 0.80 | τ ≥ this enables Base-28/364 |
+| TAU_RESONANCE | 0.95 | τ ≥ this enables Base-70 |
+| DELTA_HOLOGRAPHIC | 0.80 | δ ≥ this enables holographic path |
+
+### 6.8 Base Selection Logic
+
+```
+if mode == BASIC: return Base-3
+if τ < 0.72:      return Base-3
+if τ ≥ 0.72 AND δ < 0.80: return Base-13
+if τ ≥ 0.80 AND δ ≥ 0.80:
+    if salviResonance AND τ > 0.95: return Base-70
+    if periodicity > 0.7:           return Base-364
+    else:                           return Base-28
+```
+
+### 6.9 Try-and-Compare Empirical Validation
+
+```
+candidate = selectOptimalBase(τ, δ, salviResonance, periodicity, mode)
+if candidate != 3:
+    sample        = chunk[0..min(512, chunk.len)]
+    size_cand     = len(packBytesWithBaseN(sample, candidate))
+    size_base3    = len(packBytesWithTribonacci(sample))
+    if size_base3 <= size_cand: candidate = 3
+```
+
+### 6.10 Mode-Allowed Bases
+
+| Mode | ID | Allowed Bases |
+|------|----|--------------|
+| BASIC | 0 | 3 |
+| TEMPORAL | 1 | 3, 13, 28, 364, 70 |
+| IMAGE | 2 | 3, 13 |
+| AUDIO | 3 | 3, 13, 28 |
+| GENOMIC | 4 | 3, 13 |
+| SOURCE | 5 | 3, 13 |
+| LOG | 6 | 3, 13, 28 |
+| STRUCTURED | 7 | 3, 13 |
+
+### 6.11 Compression Bases
+
+| Base | bits/symbol | Use Case |
+|------|-------------|----------|
+| 3 | 1.585 | Default ternary, general purpose |
+| 13 | 3.700 | Harmonic alignment |
+| 28 | 4.807 | Lunar cycle, high torsion sync |
+| 70 | 6.129 | Salvi resonance (5×14) |
+| 364 | 8.508 | Annual cycle, periodic patterns |
+
+---
+
+## 7. MAIN COMPRESSION FUNCTION (`ttcCompress`)
+
+**Input:** `data: Uint8Array`, `mode: number (0–7)`, `level: number (1–9)`, `forcePreCompressed: boolean`, `independentChunks: boolean`, `computeFibonacci: boolean`
+
+**Steps:**
+
+1. **Level resolution:** Map to `{windowSize, chainDepth, minMatch, minRun, skipGURFT, chunkSize, parsing, candidates}` per §4.2.
+2. **Entropy gate:** H > 7.5 on first 1024 bytes → STORED path.
+3. **Magic byte detection:** Pre-compressed match → STORED path.
+4. **CRC32:** Compute over full original input (§7.1). Store for header.
+5. **Domain preprocessing:** Apply transform per mode (§3.8, §3.9). Record domain transform flag. Store LP coefficients or imageWidth in header 0x20–0x27 if applicable.
+6. **Chunk split:** Per `chunkSize` from level config.
+7. **Initialize history buffer and parallel dispatch context.**
+8. **Per chunk (via Inter-Cube dispatch, §4.8):**
+   a. If pre-compressed: STORED, skip to (j).
+   b. Three-region GURFT (or defaults at levels 1–2).
+   c. Base selection with try-and-compare.
+   d. Adaptive delta: evaluate all order × rep combinations on sample (§3.1.2). Apply winner to full chunk. Record 3-bit delta_flag.
+   e. Hash chain LZ77 with greedy / lazy / beam-optimal over (history + chunk).
+   f. Entropy-gated candidate pruning (§5.5).
+   g. Serialize best surviving candidates.
+   h. Compute initial Rice M.
+   i. Pack chunk map byte +15: `(delta_flag << 5) | (0 << 3) | domain_transform` (§9.1).
+   j. Record chunk descriptor.
+   k. Update history (skip if `independentChunks`).
+9. **Assemble chunk map in index order** (chunks may have completed out of order in parallel mode).
+10. **Build container:** 96-byte TTC1 header + chunk map + payloads (§9.1).
+11. **Fibonacci harmonic analysis** (§10) — only if `computeFibonacci = true`.
+12. **Return** `TTCCompressionResult` (§11.1).
+
+### 7.1 CRC32
+
+Standard CRC32 (polynomial 0xEDB88320, reflected). Precomputed 256-entry table.
+
+```
+// Table generation
+for n in [0..255]:
+    c = n
+    for k in [0..7]:
+        c = (c & 1) ? (0xEDB88320 XOR (c>>>1)) : (c>>>1)
+    TABLE[n] = c
+
+// Computation
+crc = 0xFFFFFFFF
+for each byte b: crc = TABLE[(crc XOR b) & 0xFF] XOR (crc>>>8)
+return (crc XOR 0xFFFFFFFF) >>> 0
+```
+
+CRC covers **original uncompressed data before any preprocessing or delta transform.** Stored at 0x16.
+
+---
+
+## 8. MAIN DECOMPRESSION FUNCTION (`ttcDecompress`)
+
+**Input:** `compressed: Uint8Array` (≥ 96 bytes)
+
+**Steps:**
+
+1. **Magic:** Bytes 0–3 = `TTC1` (0x54544331). Clear error on mismatch.
+2. **Header parse:** Version (0x04), mode (0x05), original size (0x06 uint64 BE), CRC32 (0x16), chunk count (0x2A), adaptive flags (0x28), level (0x29), chunk map offset (0x38).
+3. **Domain parameters:** If mode = AUDIO (3), read LP coefficients from header 0x20–0x27 as 4×int16 BE. If mode = IMAGE (2), read imageWidth from 0x20–0x27 as uint64 BE.
+4. **Version routing:** `0x02` → v1.1 path. `0x03` → this path.
+5. **Flags:** Independent chunks = bit `0x04` of adaptive flags. Adaptive rep = bit `0x08`.
+6. **Chunk map parse:** N × 16-byte entries from chunk map offset.
+7. **Initialize history buffer:** Empty.
+8. **Per chunk (in order):**
+   a. Extract bytes per compressed size in chunk map.
+   b. Read Rice M from `+14`.
+   c. Read packed byte `+15`: `delta_flag = (byte >> 5) & 0x07`, `domain_transform = byte & 0x07`.
+   d. Pre-seed output with history (unless independent mode).
+   e. Decompress by mode (deserialize → detokenize → reconstruct bytes):
+      - **Mode 0 (STORED):** Raw copy.
+      - **Mode 1 (COMPRESSED):** Elias Gamma token count, initial M byte. Decode: `11`=M-delta, `10`=match (Rice+EG), `01`=RLE, `00`=literals (8-bit). `decompressTokens`.
+      - **Mode 2 (TERNARY_ENHANCED):** Hybrid prefix token count. Decode groups: read 2-bit rep selector per literal/RLE group, decode trits per §3.2, Rice for distances. `decompressTokens`. Adaptive rep fast-path: if adaptive flags bit `0x08` is unset, all groups use Rep C — skip rep selector reads.
+      - **Mode 3 (TERNARY_ANS):** Read spread table (S×5 bytes, descending f_norm order). Read initial state (3 bytes). Unpack trit stream (5 trits/byte). Decode via tANS until Symbol 1023. `decompressTokens`.
+      - **Unknown mode:** Clear error. Never silently corrupt.
+   f. **Reverse delta transform** per delta_flag (§3.1.4) — applied to the reconstructed byte stream output of `decompressTokens`, not before it. Compression order was: delta encode → tokenize → serialize. Decompression reverses this exactly: deserialize → detokenize → reverse delta.
+   g. Strip history prefix. Update history.
+9. **Concatenate** chunks.
+10. **Domain postprocessing:** Reverse per mode and per-chunk domain_transform flags (§3.8, §3.9). If domain_transform flag value is `0b111` (reserved), return a clear error and refuse to decompress — do not attempt to apply an undefined transform.
+11. **CRC32 verification:** Warn on mismatch; return data.
+12. **Return** `Uint8Array`.
+
+---
+
+## 9. CONTAINER FORMATS
+
+### 9.1 Single-File Container (`TTC1`)
+
+**96-byte header:**
+
+```
+Offset  Size  Field                    Notes
+------  ----  -----                    -----
+0x00    4     Magic                    "TTC1" (0x54544331)
+0x04    1     Version                  0x03 for v2.0
+0x05    1     Mode                     0-7
+0x06    8     Original Size            uint64 BE
+0x0E    8     Compressed Size          uint64 BE
+0x16    4     CRC32                    CRC32 of original data
+0x1A    2     Harmonic Base            uint16 BE (predominant base)
+0x1C    4     Timestamp                uint32 BE (Unix seconds)
+0x20    4     Phase Offset / LP[0-1]   See dual-use table below
+0x24    4     Drift Rate   / LP[2-3]   See dual-use table below
+0x28    1     Adaptive Flags           See bit table below
+0x29    1     Level                    TTC level 1–9
+0x2A    2     Chunk Count (N)          uint16 BE
+0x2C    4     Avg Torsion              uint32 BE (τ × 1,000,000)
+0x30    4     Avg Dim Sync             uint32 BE (δ × 1,000,000)
+0x34    4     Base Distribution        Reserved
+0x38    8     Chunk Map Offset         uint64 BE (typically 96)
+0x40    16    Digital Root Signature   TIS-27 sponge over chunk map
+0x50    16    Quantum Hash             TL-DSA commitment
+```
+
+**Header fields 0x20–0x27 dual-use (interpreted per mode byte at 0x05):**
+
+| Mode | Condition | 0x20–0x23 | 0x24–0x27 |
+|------|-----------|-----------|-----------|
+| AUDIO (3) | domain transform = 0x01 | LP coeff [c0,c1] as 2×int16 BE | LP coeff [c2,c3] as 2×int16 BE |
+| IMAGE (2) | domain transform = 0x02 | imageWidth high 32 bits (uint32 BE) | imageWidth low 32 bits (uint32 BE) |
+| Any other | — | Phase Offset (degrees×1000, reserved) | Drift Rate (°/yr×1000, reserved) |
+
+**Adaptive Flags (0x28) bit definitions:**
+
+| Bit | Mask | Meaning |
+|-----|------|---------|
+| 0 | 0x01 | GURFT adaptive base selection enabled |
+| 1 | 0x02 | Base switching occurred |
+| 2 | 0x04 | Independent chunks |
+| 3 | 0x08 | Adaptive representation used (Rep A or B in any chunk) |
+| 4 | 0x10 | Fibonacci analysis computed and available |
+| 5–7 | — | Reserved |
+
+**Chunk Map** (16 bytes per entry):
+
+```
+Offset  Size  Field
+------  ----  -----
++0      4     Original chunk size      uint32 BE
++4      4     Compressed chunk size    uint32 BE
++8      2     Base used                uint16 BE
++10     2     τ × 1000                 uint16 BE
++12     2     δ × 1000                 uint16 BE
++14     1     Rice parameter M         uint8 (0 if unused)
++15     1     Packed flags byte:
+                bits 7-5: delta_flag   (3-bit value per §3.1.3; value 0b111 = reserved, error on decode)
+                bits 4-3: reserved
+                bits 2-0: domain transform (3-bit value, 0-6; value 0b111 = reserved, error on decode)
+```
+
+**Payload:** Compressed chunk data immediately after chunk map.
+
+### 9.2 Multi-File Container (`TTCM`)
+
+```
+0x00  4  Magic "TTCM" (0x5454434D)
+0x04  4  File Count (uint32 BE)
+```
+
+**File Table (one entry per file):**
+```
+2  Filename length  uint16 BE
+N  Filename         UTF-8 (path separators preserved)
+4  Original size    uint32 BE
+4  Compressed size  uint32 BE
+```
+
+**Payload:** Self-contained TTC1 archives in file table order. Each independently decompressible. No cross-file back-references.
+
+### 9.3 Filename Embedding (Internal Implementation Detail)
+
+```
+[2 bytes: filename length (uint16 BE)]
+[N bytes: filename (UTF-8)]
+[remaining: file content]
+```
+
+Prepended before `ttcCompress`. Stripped server-side on decompression. Never an API-surface concern — `fileName` is always a discrete JSON parameter.
+
+---
+
+## 10. FIBONACCI HARMONIC ANALYSIS
+
+Optional metadata computed post-compression. **Not computed by default.** Enabled via `computeFibonacci: true` in the API request or the `fibonacciAnalysis` flag. When computed, results are stored in the response and Adaptive Flags bit `0x10` is set in the header.
+
+Performance note: Fibonacci analysis adds no compression benefit and has non-trivial computational cost. Omit in throughput-critical pipelines.
+
+### 10.1 ARB Weight Factor
+
+```
+for each of 25 Fibonacci harmonics baseHz:
+    if dataLength % baseHz == 0 OR baseHz % 8 == 0:
+        mark aligned, accumulate ARB gain
+
+phase364 = (value × GOLDEN_ANGLE) % 364
+phase360 = (value × GOLDEN_ANGLE) % 360
+delta    = quantize |phase364 - phase360| to {1.25, 2.50, 3.75, 5.00, 6.25}
+```
+
+| Δ | ARB | Gain |
+|---|-----|------|
+| 1.25° | 1.0035 | 0.35% |
+| 2.50° | 1.0069 | 0.69% |
+| 3.75° | 1.0104 | 1.04% |
+| 5.00° | 1.0139 | 1.39% |
+| 6.25° | 1.0174 | 1.74% |
+
+---
+
+## 11. RETURN TYPES
+
+### 11.1 TTCCompressionResult
+
+```typescript
+{
+  compressed:         Uint8Array;
+  originalSize:       number;
+  compressedSize:     number;
+  compressionRatio:   number;
+  crc32:              number;
+  mode:               number;               // 0-7
+  modeName:           string;               // "BASIC"..."STRUCTURED"
+  version:            string;               // "2.0"
+  level:              number;               // 1-9
+  levelName:          string;               // "TTC1-1"..."TTC3-3"
+  chunks:             ChunkDescriptor[];
+  avgTau:             number;
+  avgDelta:           number;
+  baseDistribution:   Record<3|13|28|70|364, number>;
+  predominantBase:    3|13|28|70|364;
+  independentChunks:  boolean;
+  adaptiveRepUsed:    boolean;
+  fibonacciAnalysis:  FibonacciHarmonicAnalysis | null;
+}
+```
+
+### 11.2 ChunkDescriptor
+
+```typescript
+{
+  index:            number;
+  originalSize:     number;
+  compressedSize:   number;
+  base:             3|13|28|70|364;
+  tau:              number;
+  delta:            number;
+  mode:             0|1|2|3;
+  riceM:            number;
+  deltaFlag:        number;                 // 0-6, §3.1.3
+  deltaOrder:       0|1|2;
+  deltaRep:         'none'|'A'|'B'|'C';
+  domainTransform:  0|1|2|3|4|5|6;
+}
+```
+
+### 11.3 MultiFileCompressionResult
+
+```typescript
+{
+  compressed:          Uint8Array;
+  totalOriginalSize:   number;
+  totalCompressedSize: number;
+  compressionRatio:    number;
+  fileCount:           number;
+  files:               Array<{ name: string, originalSize: number,
+                                compressedSize: number, ratio: number }>;
+  avgTau:              number;
+  avgDelta:            number;
+  baseDistribution:    Record<3|13|28|70|364, number>;
+  predominantBase:     3|13|28|70|364;
+  modeName:            string;
+  version:             string;
+  level:               number;
+  levelName:           string;
+  adaptiveRepUsed:     boolean;
+  fibonacciAnalysis:   FibonacciHarmonicAnalysis | null;
+}
+```
+
+### 11.4 FibonacciHarmonicAnalysis
+
+```typescript
+{
+  arbWeight:     number;
+  alignedTerms:  number[];
+  optimalRatio:  number;
+  phaseDelta:    number;
+  resonanceBand: string;
+}
+```
+
+---
+
+## 12. IMPLEMENTATION NOTES
+
+### 12.1 Critical Round-Trip Requirements
+
+- All four modes (STORED, COMPRESSED, TERNARY_ENHANCED, TERNARY_ANS) must be supported in both compress and decompress paths.
+- Delta flag is stored in chunk map byte +15 bits 7–5. The decompressor reads the chunk map before parsing any payload. The payload itself never contains the delta flag.
+- The 2-bit rep selector is emitted per literal/RLE group in mode 2. If Adaptive Flags bit `0x08` is unset, the decompressor may skip all rep selectors and apply Rep C directly (fast path).
+- Cross-chunk history must be reconstructed sequentially unless independent flag set.
+- Domain preprocessing reversed after token reconstruction, using per-chunk domain_transform from chunk map +15 bits 2–0.
+- CRC32 covers original data before preprocessing. Warn on mismatch; never fail.
+
+### 12.2 Byte Order
+
+All multi-byte integers in headers and chunk maps are **big-endian**.
+
+### 12.3 Backward Compatibility
+
+Version byte `0x02` → v1.1 path: 1-bit delta flag embedded in payload bits, Elias Gamma distances, Tribonacci prefix, Rep C fixed. Version byte `0x03` → this path. A v1.1 decompressor reading `0x03` must return a clear error on unknown modes — never silently corrupt.
+
+### 12.4 Adaptive Representation Fast Path
+
+If Adaptive Flags bit `0x08` is unset, no chunk in the archive used Rep A or Rep B. The mode 2 decompressor can skip the 2-bit rep selector reads and apply Rep C to all literal groups directly. This eliminates per-group branching for archives where Rep C was always optimal.
+
+### 12.5 PlenumNET Signing Integration
+
+- `0x40` (16 bytes): TIS-27 sponge hash over the chunk map.
+- `0x50` (16 bytes): TL-DSA commitment over full archive blob.
+
+Verification without decompression: read CRC32 at `0x16`, chunk map from offset 96. Per-chunk delta_flags, domain transforms, τ, δ values are all accessible from the chunk map without touching any payload.
+
+### 12.6 Performance Expectations
+
+Results are best-case estimates for well-suited data at the indicated tier. Actual results vary by data characteristics.
+
+| Data Type | v1.1 | TTC1 | TTC2 | TTC3 |
+|-----------|------|------|------|------|
+| Legal / contract docs | 3–8× | 4–9× | 7–16× | 12–25× |
+| Source code (SOURCE mode) | 2–6× | 4–10× | 8–18× | 12–28× |
+| Log files (LOG mode) | 2–8× | 5–12× | 9–20× | 14–30× |
+| JSON/XML/CSV (STRUCTURED) | 2–8× | 5–11× | 8–16× | 12–22× |
+| Plain text | 2–6× | 3–7× | 5–10× | 7–13× |
+| HTML/CSS | 3–75× | 5–80× | 7–90× | 10–100× |
+| PDF, DOCX, ZIP | ~1.0× | ~1.0× | ~1.0× | ~1.0× |
+| Binary executables | 1.5–2.5× | 2–3× | 3–5× | 4–6× |
+| Audio (AUDIO mode) | ~1.0× | 1.5–2× | 2–3× | 2.5–4× |
+| Images (IMAGE mode) | ~1.0× | 1.2–1.8× | 1.5–2.5× | 2–3× |
+| Genomic (GENOMIC mode) | 1.5–3× | 4–7× | 6–10× | 8–14× |
+| Sequential / synthetic | up to 91× | up to 100× | up to 120× | up to 150× |
+
+Adaptive representation switching contributes 3–8% additional gain on structured text. Source, log, and structured modes show the largest gains due to pre-tokenization dramatically reducing effective alphabet size before LZ77.
+
+### 12.7 Level and Tier Reference
+
+| Level | Name | Window | Parsing | Primary Use Case |
+|-------|------|--------|---------|-----------------|
+| 1 | TTC1-1 | 3 KB | Greedy | Short pages, API responses |
+| 2 | TTC1-2 | 9 KB | Lazy | Short documents, emails |
+| 3 | TTC1-3 | 27 KB | Lazy | Single reports, letters |
+| 4 | TTC2-1 | 81 KB | Lazy | Business contracts |
+| 5 | TTC2-2 | 243 KB | Lazy | Technical specs, manuals |
+| 6 | TTC2-3 | 729 KB | Lazy | Large reports, codebases |
+| 7 | TTC3-1 | 2,187 KB | Beam-opt | Document archives |
+| 8 | TTC3-2 | 6,561 KB | Beam-opt | Large corpora, log sets |
+| 9 | TTC3-3 | 19,683 KB | Beam-opt | Full discovery sets, full repos |
+
+### 12.8 Compression Modes Reference
+
+| Mode | ID | Domain Transform | Allowed Bases | Primary Data |
+|------|----|-----------------|---------------|-------------|
+| BASIC | 0 | None | 3 | General purpose |
+| TEMPORAL | 1 | None (uses adaptive delta) | 3,13,28,364,70 | Time-series, docs |
+| IMAGE | 2 | MED predictor | 3,13 | Raster images |
+| AUDIO | 3 | 4th-order LP | 3,13,28 | Audio samples |
+| GENOMIC | 4 | 2-bit nucleotide | 3,13 | DNA sequences |
+| SOURCE | 5 | Keyword tokenization | 3,13 | Source code |
+| LOG | 6 | Timestamp normalization | 3,13,28 | Log files |
+| STRUCTURED | 7 | Schema-value separation | 3,13 | JSON/XML/CSV |
+
+### 12.9 Inter-Cube Parallel Dispatch Throughput Analysis
+
+The 26-tunnel model maps directly to PlenumNET's existing Inter-Cube topology. No additional infrastructure is required — chunk dispatch uses the same tunnel primitives as all other PlenumNET services.
+
+**Independent mode throughput:**
+
+A 19,683 KB document at TTC3-3 with 13 KB chunks produces approximately 1,514 chunks. In independent mode across 26 tunnels:
+- 2,100 / 26 = 81 full dispatch rounds
+- Each round runs all 26 compressions simultaneously
+- Net throughput multiplier: up to **26×** vs single-threaded
+
+A compression that takes 60 seconds single-threaded finishes in ~2–3 seconds across the full tunnel topology. This fundamentally changes the practical profile of TTC3 levels — the speed penalty of large-window optimal parsing becomes negligible at the system level.
+
+**Dependent mode throughput:**
+
+LZ77 compression phase is sequential due to history dependency. Phase 1 (GURFT, delta decision, base selection) is parallelizable:
+
+```
+Phase 1 (13 tunnels, parallel):     ~5–10% of compression time
+Phase 2 (LZ77 + serialize, serial): ~90–95% of compression time
+```
+
+Net speedup in dependent mode: approximately **2–4×** from pipeline overlap, depending on the Phase 1/Phase 2 ratio at the level being used.
+
+**The 13+13 geometric grouping** maps the two groups of 13 tunnels to the dual 13-dimensional structure of the Inter-Cube — one group per cube face. This is not an optimization choice imposed on the algorithm; it is the natural geometry of the execution environment expressing itself in the compression pipeline.
+
+---
+
+## 13. API CONTRACT (PlenumNET Compression Endpoints)
+
+All endpoints accept and return JSON. Binary data is standard base64 (RFC 4648 §4). Bearer token authentication via `Authorization` header.
+
+### 13.1 `POST /api/compression/file` — Single-File Compress
+
+**Request:**
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `fileName` | string | Yes | — | Original filename |
+| `content` | string | Yes | — | File content, base64-encoded |
+| `mode` | integer | No | 1 | 0=BASIC, 1=TEMPORAL, 2=IMAGE, 3=AUDIO, 4=GENOMIC, 5=SOURCE, 6=LOG, 7=STRUCTURED |
+| `level` | integer or string | No | 5 | 1–9 or "TTC1-1" through "TTC3-3" |
+| `independentChunks` | boolean | No | false | Disable cross-chunk history; enable parallel decompression |
+| `computeFibonacci` | boolean | No | false | Compute Fibonacci harmonic analysis (adds latency) |
+| `imageWidth` | integer | No | null | Pixel width for IMAGE mode MED predictor |
+
+**Response (200):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` |
+| `compressed` | string | TTC1 archive, base64-encoded |
+| `fileName` | string | Input name + `.xTzip` |
+| `originalSize` | integer | Bytes |
+| `compressedSize` | integer | Bytes |
+| `compressionRatio` | number | `originalSize / compressedSize` |
+| `mode` | integer | Mode used |
+| `modeName` | string | e.g. `"SOURCE"` |
+| `version` | string | `"2.0"` |
+| `level` | integer | Level used |
+| `levelName` | string | e.g. `"TTC2-2"` |
+| `crc32` | integer | CRC32 of original |
+| `avgTau` | number | Weighted torsion (0–1) |
+| `avgDelta` | number | Weighted dimensional sync (0–1) |
+| `predominantBase` | integer | Most-used base |
+| `baseDistribution` | object | `{ "3": n, "13": n, "28": n, "70": n, "364": n }` |
+| `independentChunks` | boolean | Mode used |
+| `adaptiveRepUsed` | boolean | Rep A or B selected in any chunk |
+| `processingTimeMs` | integer | Server time |
+| `fibonacciAnalysis` | object \| null | null unless `computeFibonacci: true` |
+
+**Errors (400):**
+```json
+{ "error": "fileName and content are required" }
+{ "error": "level must be 1–9 or a valid tier name (TTC1-1 through TTC3-3)" }
+{ "error": "mode must be 0–7" }
+{ "error": "imageWidth required for IMAGE mode with MED predictor" }
+```
+
+---
+
+### 13.2 `POST /api/compression/multi` — Multi-File Compress
+
+**Request:**
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `files` | array | Yes | — | `[{ fileName, content }]` |
+| `mode` | integer | No | 1 | Applied to all files |
+| `level` | integer or string | No | 5 | 1–9 or tier name |
+| `independentChunks` | boolean | No | false | Per-file |
+| `computeFibonacci` | boolean | No | false | Aggregate analysis |
+| `archiveName` | string | No | auto | Default: `archive_N_files.xTzip` |
+
+**Response (200):** Same shape as §13.1 with `totalOriginalSize`, `totalCompressedSize`, `fileCount`, and `files: [{ name, originalSize, compressedSize, ratio }]`.
+
+---
+
+### 13.3 `POST /api/compression/decompress` — Decompress
+
+**Request:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `content` | string | Yes | TTC1 or TTCM archive, base64-encoded |
+
+**Response — Single-file (200):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` |
+| `type` | string | `"single"` |
+| `data` | string | Decompressed content, base64-encoded |
+| `originalFileName` | string | From §9.3 prefix |
+| `originalSize` | integer | Bytes |
+| `compressedSize` | integer | Bytes |
+| `version` | string | `"1.1"` or `"2.0"` |
+| `level` | integer \| null | null for v1.1 |
+| `levelName` | string \| null | null for v1.1 |
+| `crc32Verified` | boolean | `false` = mismatch (data still returned) |
+| `processingTimeMs` | integer | Server time |
+
+**Response — Multi-file (200):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | `true` |
+| `type` | string | `"multi"` |
+| `files` | array | `[{ fileName, data (base64), size }]` |
+| `totalOriginalSize` | integer | Bytes |
+| `compressedSize` | integer | Bytes |
+| `fileCount` | integer | Count |
+| `processingTimeMs` | integer | Server time |
+
+**Errors (400):**
+```json
+{ "error": "content is required" }
+{ "error": "Invalid archive format. Expected TTC1 or TTCM magic." }
+```
+
+---
+
+### 13.4 `GET /api/compression/stats/:jobId` — GURFT Metrics
+
+**Response (200):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `jobId` | integer | Job ID |
+| `mode` | integer | Mode used |
+| `modeName` | string | Mode name |
+| `version` | string | `"2.0"` |
+| `level` | integer | Level used |
+| `levelName` | string | Tier name |
+| `avgTau` | number | Weighted torsion |
+| `avgDelta` | number | Weighted dimensional sync |
+| `predominantBase` | integer | Most-used base |
+| `baseDistribution` | object | Counts per base |
+| `independentChunks` | boolean | Mode used |
+| `adaptiveRepUsed` | boolean | Rep A/B used |
+| `chunks` | array | `[{ index, mode, base, tau, delta, riceM, deltaFlag, deltaOrder, deltaRep, domainTransform, originalSize, compressedSize }]` |
+| `fibonacciAnalysis` | object \| null | null unless computed |
+
+**Error (404):**
+```json
+{ "error": "Job not found" }
+```
+
+---
+
+### 13.5 Contract Notes
+
+1. **Binary encoding**: Standard base64 (RFC 4648 §4). No URL-safe or unpadded variants.
+2. **Content-Type**: `application/json` throughout.
+3. **Authentication**: Bearer token via `Authorization` header.
+4. **Level aliases**: Integer `5` and string `"TTC2-2"` are equivalent. Invalid values return 400 with valid range in error message.
+5. **Idempotency**: Same input + level always produces identical output (CRC32-verified). Independent-chunk flag does not affect this — chunk boundaries and parallel dispatch are deterministic.
+6. **Size limits**: Recommended max 50 MB (base64-encoded). TTC3-3 on 50 MB with `computeFibonacci: false` and `independentChunks: true` across 26 tunnels completes in approximately 3–8 seconds. Sequential TTC3-3 may require 30–90 seconds; set timeouts accordingly.
+7. **`computeFibonacci` default is false**: Fibonacci analysis adds meaningful latency and is not part of the compression pipeline. Omit unless the analytical metadata is specifically required.
+8. **`imageWidth` is required for MED predictor**: Without it, IMAGE mode falls back to first-order GF(3) delta. The 400 error is returned only if mode=2 is explicitly set AND the server determines MED would have been applied.
+9. **Version in decompress**: Reflects archive header byte. v2.0 server decompressing v1.1 archive returns `"version": "1.1"`, `"level": null`, `"levelName": null`.
+10. **Mode 0 (BASIC) vs mode 1 (TEMPORAL)**: BASIC always uses Base-3, skips GURFT base selection, and is the simplest possible encoding path. Use for maximum determinism. TEMPORAL enables full GURFT and all bases — use for maximum ratio on time-series and document data.
+
+---
+
+**END OF TM-2026-017 — REVISION 5**
