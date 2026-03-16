@@ -29,7 +29,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface FileCompressionResult {
-  success: boolean;
   fileName: string;
   originalSize: number;
   compressedSize: number;
@@ -37,30 +36,28 @@ interface FileCompressionResult {
   encrypted: boolean;
   encryptionMode?: string;
   processingTimeMs: string;
-  data: string;
-  header: {
-    magic: string;
-    version: number;
-    originalFileName: string;
-    originalSize: number;
-    compressedSize: number;
-    compressionRatio: number;
-    encrypted: boolean;
-    encryptionMode?: string;
-    checksum: number;
-    timestamp: string;
-  };
+  mode: string;
+  level: string;
+  levelName: string;
+  version: string;
+  crc32: string;
+  predominantBase: string;
+  avgTau: string;
+  avgDelta: string;
+  gf3Rep: string;
+  adaptiveRep: string;
+  data: ArrayBuffer;
 }
 
 interface FileDecompressionResult {
-  success: boolean;
   originalFileName: string;
   originalSize: number;
   compressedSize: number;
+  compressionRatio: string;
   wasEncrypted: boolean;
-  encryptionMode?: string;
+  crc32Verified: boolean;
   processingTimeMs: string;
-  data: string;
+  data: ArrayBuffer;
 }
 
 interface DbDocument {
