@@ -81,13 +81,14 @@ function formatFemtoseconds(fs: bigint): string {
   const milliseconds = Number(fs / FEMTOSECONDS_PER_MILLISECOND);
   const date = new Date(SALVI_EPOCH + milliseconds);
   
-  // Get sub-millisecond precision
+  // Get sub-millisecond precision: µs.ns.ps.fs (each 0–999)
   const remainingFs = fs % FEMTOSECONDS_PER_MILLISECOND;
-  const nanoseconds = remainingFs / 1_000_000n;
+  const microseconds = remainingFs / 1_000_000_000n;
+  const nanoseconds = (remainingFs % 1_000_000_000n) / 1_000_000n;
   const picoseconds = (remainingFs % 1_000_000n) / 1_000n;
   const femtoseconds = remainingFs % 1_000n;
   
-  // Format: YYYY-MM-DD HH:mm:ss.mmm.nnn.ppp.fff
+  // Format: YYYY-MM-DD HH:mm:ss.mmm.µµµ.nnn.ppp.fff
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
@@ -95,11 +96,12 @@ function formatFemtoseconds(fs: bigint): string {
   const minutes = String(date.getUTCMinutes()).padStart(2, '0');
   const seconds = String(date.getUTCSeconds()).padStart(2, '0');
   const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
+  const us = String(microseconds).padStart(3, '0');
   const ns = String(nanoseconds).padStart(3, '0');
   const ps = String(picoseconds).padStart(3, '0');
   const fsStr = String(femtoseconds).padStart(3, '0');
   
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}.${ns}.${ps}.${fsStr} UTC`;
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}.${us}.${ns}.${ps}.${fsStr} UTC`;
 }
 
 /**
