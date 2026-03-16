@@ -385,20 +385,21 @@ fn apply_delta_decode(data: &[u8], flag: DeltaFlag) -> TtcResult<Vec<u8>> {
 fn select_delta(chunk: &[u8], mode: CompressionMode) -> DeltaFlag {
     let sample_len = chunk.len().min(512); let sample = &chunk[..sample_len];
     let h_raw = compute_entropy(sample);
+    let delta_threshold = 0.5_f64;
     let mut best_flag = DeltaFlag::NONE; let mut best_h = h_raw;
     let mut buf = Vec::with_capacity(sample_len); let mut buf2 = Vec::with_capacity(sample_len);
     for &(flag, enc) in &[(DeltaFlag::ORDER1_B, delta_encode_b as fn(&[u8], &mut Vec<u8>)),
         (DeltaFlag::ORDER1_A, delta_encode_a as fn(&[u8], &mut Vec<u8>)),
         (DeltaFlag::ORDER1_C, delta_encode_c as fn(&[u8], &mut Vec<u8>))] {
         enc(sample, &mut buf); let h = compute_entropy(&buf);
-        if h < best_h { best_h = h; best_flag = flag; }
+        if h < best_h && (h_raw - h) >= delta_threshold { best_h = h; best_flag = flag; }
     }
     if matches!(mode, CompressionMode::Audio | CompressionMode::Image) {
         for &(flag, enc) in &[(DeltaFlag::ORDER2_B, delta_encode_b as fn(&[u8], &mut Vec<u8>)),
             (DeltaFlag::ORDER2_A, delta_encode_a as fn(&[u8], &mut Vec<u8>)),
             (DeltaFlag::ORDER2_C, delta_encode_c as fn(&[u8], &mut Vec<u8>))] {
             enc(sample, &mut buf); enc(&buf, &mut buf2);
-            let h = compute_entropy(&buf2); if h < best_h { best_h = h; best_flag = flag; }
+            let h = compute_entropy(&buf2); if h < best_h && (h_raw - h) >= delta_threshold { best_h = h; best_flag = flag; }
         }
     }
     best_flag
@@ -1905,12 +1906,9 @@ pub struct ChunkDescriptor { pub index: usize, pub original_size: u32, pub compr
 #[derive(Debug, Clone, Default)]
 pub struct BaseDistribution { pub base_3: u32, pub base_13: u32, pub base_28: u32, pub base_70: u32, pub base_364: u32 }
 
-pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<CompressionResult> {
-    let cfg = level_config(opts.level)?;
-    let tc = trit_cost_tables();
-    let crc = crc32(data);
-    let input = if let Some(ref name) = opts.filename { embed_filename(data, name) } else { data.to_vec() };
-    let (preprocessed, dom_xform, lp_coeffs, iw) = apply_domain_preprocess(&input, opts.mode, opts.image_width);
+fn compress_at_level(data: &[u8], preprocessed: &[u8], crc: u32, dom_xform: DomainTransform,
+    lp_coeffs: Option<&[i16; 4]>, iw: Option<u64>, cfg: &LevelConfig, opts: &CompressOptions,
+    tc: &TritCostTables) -> (Vec<u8>, Vec<ChunkResult>) {
     let cs = cfg.chunk_size; let cc = (preprocessed.len()+cs-1)/cs;
     let chunk_slices: Vec<&[u8]> = (0..cc).map(|i| { let start=i*cs; let end=(start+cs).min(preprocessed.len()); &preprocessed[start..end] }).collect();
     let mut chunks = dispatch_chunks(&chunk_slices, cfg, opts.mode, opts.independent_chunks, tc, dom_xform);
@@ -1921,19 +1919,51 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
         ts+=c.tau; ds+=c.delta; }
     let n = chunks.len().max(1) as f64; let (at,ad) = (ts/n, ds/n);
     let pb = if bd.base_364>0{364} else if bd.base_70>0{70} else if bd.base_28>0{28} else if bd.base_13>0{13} else {3};
-    let compressed = build_container(&chunks, data.len() as u64, crc, opts.mode, opts.level,
-        opts.independent_chunks, adaptive_rep, at, ad, pb, lp_coeffs.as_ref(), iw, opts.compute_fibonacci, opts.filename.is_some());
+    let compressed = build_container(&chunks, data.len() as u64, crc, opts.mode, cfg.level,
+        opts.independent_chunks, adaptive_rep, at, ad, pb, lp_coeffs, iw, opts.compute_fibonacci, opts.filename.is_some());
+    (compressed, chunks)
+}
+
+pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<CompressionResult> {
+    let cfg = level_config(opts.level)?;
+    let tc = trit_cost_tables();
+    let crc = crc32(data);
+    let input = if let Some(ref name) = opts.filename { embed_filename(data, name) } else { data.to_vec() };
+    let (preprocessed, dom_xform, lp_coeffs, iw) = apply_domain_preprocess(&input, opts.mode, opts.image_width);
+
+    let (mut best_compressed, mut best_chunks) = compress_at_level(
+        data, &preprocessed, crc, dom_xform, lp_coeffs.as_ref(), iw, cfg, opts, tc);
+    let mut best_level = opts.level;
+
+    if opts.level > 1 {
+        let l1_cfg = level_config(1).unwrap();
+        let (l1_compressed, l1_chunks) = compress_at_level(
+            data, &preprocessed, crc, dom_xform, lp_coeffs.as_ref(), iw, l1_cfg, opts, tc);
+        if l1_compressed.len() < best_compressed.len() {
+            best_compressed = l1_compressed;
+            best_chunks = l1_chunks;
+            best_level = 1;
+        }
+    }
+
+    let effective_cfg = level_config(best_level)?;
+    let adaptive_rep = best_chunks.iter().any(|c| c.delta_flag.rep().map_or(false, |r| r != GfRep::C));
+    let mut bd = BaseDistribution::default(); let (mut ts, mut ds) = (0.0f64, 0.0f64);
+    for c in &best_chunks { match c.base { 3=>bd.base_3+=1, 13=>bd.base_13+=1, 28=>bd.base_28+=1, 70=>bd.base_70+=1, 364=>bd.base_364+=1, _=>bd.base_3+=1 }
+        ts+=c.tau; ds+=c.delta; }
+    let n = best_chunks.len().max(1) as f64; let (at,ad) = (ts/n, ds/n);
+    let pb = if bd.base_364>0{364} else if bd.base_70>0{70} else if bd.base_28>0{28} else if bd.base_13>0{13} else {3};
     let fib = if opts.compute_fibonacci { Some(fibonacci_analysis(data.len())) } else { None };
-    let descs: Vec<ChunkDescriptor> = chunks.iter().map(|c| ChunkDescriptor {
+    let descs: Vec<ChunkDescriptor> = best_chunks.iter().map(|c| ChunkDescriptor {
         index: c.index, original_size: c.original_size, compressed_size: c.compressed_size,
         base: c.base, tau: c.tau, delta: c.delta, mode: c.mode as u8, rice_m: c.rice_m,
         delta_flag: c.delta_flag.0, delta_order: c.delta_flag.order(), delta_rep: c.delta_flag.rep_name().into(),
         domain_transform: c.domain_transform.0 }).collect();
-    let csz = compressed.len() as u64;
-    Ok(CompressionResult { compressed, original_size: data.len() as u64, compressed_size: csz,
+    let csz = best_compressed.len() as u64;
+    Ok(CompressionResult { compressed: best_compressed, original_size: data.len() as u64, compressed_size: csz,
         compression_ratio: if csz>0{data.len() as f64/csz as f64}else{1.0}, crc32: crc,
         mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: "3.0".into(),
-        level: opts.level, level_name: cfg.tier_name.into(), chunks: descs,
+        level: opts.level, level_name: effective_cfg.tier_name.into(), chunks: descs,
         avg_tau: at, avg_delta: ad, base_distribution: bd, predominant_base: pb,
         independent_chunks: opts.independent_chunks, adaptive_rep_used: adaptive_rep, fibonacci_analysis: fib })
 }
