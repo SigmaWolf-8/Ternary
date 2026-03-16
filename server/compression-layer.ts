@@ -534,7 +534,7 @@ export function createTernFile(
 
   const header: TernFileHeader = {
     magic: 'TERN',
-    version: ttcMetadata ? 2 : 1,
+    version: ttcMetadata ? 3 : 1,
     originalFileName,
     originalSize,
     compressedSize: finalData.length,

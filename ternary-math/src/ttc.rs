@@ -58,8 +58,13 @@ pub const MAGIC_TTC1: [u8; 4] = [0x54, 0x54, 0x43, 0x31];
 pub const MAGIC_TTCM: [u8; 4] = [0x54, 0x54, 0x43, 0x4D];
 pub const VERSION_V2: u8 = 0x03;
 pub const VERSION_V1: u8 = 0x02;
-pub const HEADER_SIZE: usize = 96;
-pub const CHUNK_MAP_ENTRY_SIZE: usize = 16;
+pub const HEADER_SIZE_V3: usize = 27;
+pub const HEADER_SIZE_V2_LEGACY: usize = 96;
+pub const HEADER_SIZE: usize = HEADER_SIZE_V3;
+pub const CHUNK_MAP_ENTRY_SIZE_V3: usize = 9;
+pub const CHUNK_MAP_ENTRY_SIZE_V2_LEGACY: usize = 16;
+pub const CHUNK_MAP_ENTRY_SIZE: usize = CHUNK_MAP_ENTRY_SIZE_V3;
+pub const VERSION_V3: u8 = 0x04;
 pub const TAU: f64 = 1.839_286_755_214_161_1;
 pub const GOLDEN_ANGLE: f64 = 139.035_628;
 pub const PHI: f64 = 1.618_033_988_749_895;
@@ -79,15 +84,19 @@ pub const T3_15: usize = 14_348_907;   // 3^15 — L8 window
 pub const T3_16: usize = 43_046_721;   // 3^16 — L9 window
 /// tANS table size: L = 3^11 = 177,147 — structurally unified with L4 chunk size.
 pub const TANS_L: u32 = 177_147;
-pub const TANS_EOB: u16 = 1023;
-pub const TANS_ALPHABET: usize = 1024;
-pub const BEAM_WIDTH: usize = 8;
+pub const TANS_SYM_RUN_BASE: u16 = 256;
+pub const TANS_SYM_MATCH_BASE: u16 = TANS_SYM_RUN_BASE + MAX_RUN_LEN as u16 + 1;
+pub const TANS_EOB: u16 = TANS_SYM_MATCH_BASE + MAX_MATCH_LEN as u16 + 1;
+pub const TANS_ALPHABET: usize = (TANS_EOB as usize) + 1;
+pub const BEAM_WIDTH: usize = 9;
 pub const TAU_HARMONIC: f64 = 0.72;
 pub const TAU_HOLOGRAPHIC: f64 = 0.80;
 pub const TAU_RESONANCE: f64 = 0.95;
 pub const DELTA_HOLOGRAPHIC: f64 = 0.80;
-pub const ENTROPY_GATE: f64 = 7.5;
-pub const MODE_PRUNE_ENTROPY: f64 = 7.0;
+pub const ENTROPY_GATE: f64 = 7.99;
+pub const MODE_PRUNE_ENTROPY: f64 = 7.99;
+pub const MAX_MATCH_LEN: usize = 729;
+pub const MAX_RUN_LEN: usize = 243;
 
 const CRC32_TABLE: [u32; 256] = {
     let mut table = [0u32; 256];
@@ -133,7 +142,7 @@ impl core::fmt::Display for TtcError {
             Self::InvalidLevel(l) => write!(f, "level must be 1–9 or a valid tier name (TTC1-1 through TTC3-3), got {l}"),
             Self::InvalidDeltaFlag(d) => write!(f, "Reserved delta_flag 0b111 encountered: {d}"),
             Self::InvalidDomainTransform(d) => write!(f, "Reserved domain transform 0b111: {d}"),
-            Self::TruncatedHeader => write!(f, "Archive truncated: header < 96 bytes"),
+            Self::TruncatedHeader => write!(f, "Archive truncated: header too short"),
             Self::TruncatedChunkMap => write!(f, "Archive truncated: chunk map incomplete"),
             Self::TruncatedPayload => write!(f, "Archive truncated: payload incomplete"),
             Self::Crc32Mismatch { expected, computed } => write!(f, "CRC32 mismatch: expected 0x{expected:08X}, computed 0x{computed:08X}"),
@@ -202,6 +211,7 @@ pub enum GfRep { A, B, C }
 pub enum Parsing { Greedy, Lazy, BeamOptimal }
 
 #[derive(Debug, Clone)]
+#[derive(PartialEq)]
 pub enum Token { Literal(u8), Run { byte: u8, length: usize }, Match { dist: usize, length: usize } }
 
 // ─── Level Configuration (§4.2) ────────────────────────────────────────────
@@ -714,11 +724,11 @@ impl TansFreqTable {
                 Token::Literal(v) => counts[*v as usize] += 1,
                 Token::Run { byte, length } => {
                     counts[*byte as usize] += 1;
-                    let sym = (256 + (*length).min(255)) as usize;
+                    let sym = (TANS_SYM_RUN_BASE as usize) + (*length).min(MAX_RUN_LEN);
                     if sym < TANS_ALPHABET { counts[sym] += 1; }
                 }
                 Token::Match { length, .. } => {
-                    let len_sym = (512 + (*length).min(255)) as usize;
+                    let len_sym = (TANS_SYM_MATCH_BASE as usize) + (*length).min(MAX_MATCH_LEN);
                     if len_sym < TANS_ALPHABET { counts[len_sym] += 1; }
                 }
             }
@@ -793,10 +803,10 @@ fn tans_encode(tokens: &[Token], freq: &TansFreqTable, _window_size: usize) -> (
             Token::Literal(v) => symbols.push(*v as u16),
             Token::Run { byte, length } => {
                 symbols.push(*byte as u16);
-                symbols.push((256 + (*length).min(255)) as u16);
+                symbols.push(TANS_SYM_RUN_BASE + (*length).min(MAX_RUN_LEN) as u16);
             }
             Token::Match { dist, length } => {
-                symbols.push((512 + (*length).min(255)) as u16);
+                symbols.push(TANS_SYM_MATCH_BASE + (*length).min(MAX_MATCH_LEN) as u16);
                 distances.push(*dist);
             }
         }
@@ -872,17 +882,16 @@ fn tans_decode(
             state = state * 3 + t;
         }
 
-        // Emit token
         if s <= 255 {
             tokens.push(Token::Literal(s as u8));
-        } else if s >= 256 && s <= 511 {
-            let run_len = (s - 256) as usize;
+        } else if s >= TANS_SYM_RUN_BASE && s < TANS_SYM_MATCH_BASE {
+            let run_len = (s - TANS_SYM_RUN_BASE) as usize;
             if let Some(Token::Literal(b)) = tokens.last() {
                 let byte = *b; tokens.pop();
                 tokens.push(Token::Run { byte, length: run_len });
             }
-        } else if s >= 512 && s <= 767 {
-            let match_len = (s - 512) as usize;
+        } else if s >= TANS_SYM_MATCH_BASE && s < TANS_EOB {
+            let match_len = (s - TANS_SYM_MATCH_BASE) as usize;
             let dist = if dist_idx < distances.len() { distances[dist_idx] } else { 0 };
             dist_idx += 1;
             tokens.push(Token::Match { dist, length: match_len });
@@ -996,16 +1005,12 @@ fn deserialize_tans(payload: &[u8], _window_size: usize) -> TtcResult<Vec<Token>
 
 fn is_pre_compressed(data: &[u8]) -> bool {
     if data.len() < 5 { return false; }
-    let sample_len = data.len().min(1024);
-    if compute_entropy(&data[..sample_len]) > ENTROPY_GATE { return true; }
-    if data.starts_with(b"%PDF-") { return true; }
     if data.starts_with(&[0x50, 0x4B]) { return true; }
     if data.starts_with(&[0x1F, 0x8B]) { return true; }
     if data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) { return true; }
     if data.len() >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF { return true; }
     if data.starts_with(&[0x37, 0x7A, 0xBC, 0xAF]) { return true; }
     if data.starts_with(b"Rar!") { return true; }
-    if data.starts_with(b"ID3") { return true; }
     if data.len() >= 12 && &data[4..12] == b"ftypavif" { return true; }
     false
 }
@@ -1454,7 +1459,7 @@ impl Lz77Engine {
         while j != INVALID_POS && steps < self.chain_depth { let jj = j as usize;
             if jj < min_pos || jj >= pos { j = self.chain[jj % self.window_size]; steps += 1; continue; }
             if data[jj]==data[pos] && data[jj+1]==data[pos+1] && data[jj+2]==data[pos+2] {
-                let ml = 255.min(data.len()-pos); let mut len = 3;
+                let ml = MAX_MATCH_LEN.min(data.len()-pos); let mut len = 3;
                 while len < ml && jj+len < data.len() && data[jj+len]==data[pos+len] { len += 1; }
                 if len > bl { bl = len; bd = pos - jj; } }
             j = self.chain[jj % self.window_size]; steps += 1; }
@@ -1463,7 +1468,7 @@ impl Lz77Engine {
     #[inline] fn update(&mut self, data: &[u8], pos: usize) { if pos+2 >= data.len() { return; }
         let h = self.hash(data, pos); let old = self.head[h]; self.head[h] = pos as u32; self.chain[pos % self.window_size] = old; }
     #[inline] fn count_run(&self, data: &[u8], pos: usize) -> usize { if pos >= data.len() { return 0; }
-        let byte = data[pos]; let mut len = 1; while pos+len < data.len() && data[pos+len]==byte && len < 255 { len += 1; } len }
+        let byte = data[pos]; let mut len = 1; while pos+len < data.len() && data[pos+len]==byte && len < MAX_RUN_LEN { len += 1; } len }
 }
 
 fn tokenize_greedy_lazy(data: &[u8], hist_off: usize, cfg: &LevelConfig) -> Vec<Token> {
@@ -1567,6 +1572,7 @@ fn deserialize_compressed(payload: &[u8]) -> TtcResult<Vec<Token>> {
 
 fn serialize_ternary_enhanced(tokens: &[Token], initial_m: u8, tc: &TritCostTables) -> Vec<u8> {
     let mut w = BitWriter::with_capacity(tokens.len()*3); encode_hybrid_prefix(&mut w, tokens.len() as u64);
+    w.write(initial_m as u32, 4);
     let m = initial_m; let mut i = 0;
     while i < tokens.len() { match &tokens[i] {
         Token::Literal(_) => { let start = i; while i < tokens.len() && matches!(tokens[i], Token::Literal(_)) { i+=1; }
@@ -1591,29 +1597,28 @@ fn write_trit_encoded(w: &mut BitWriter, byte: u8, rep: GfRep) { match rep {
 
 /// Deserialize ternary enhanced — with fast-path Rep C optimization.
 /// When adaptive_rep == false, skip the 2-bit rep selector and assume Rep C.
-fn deserialize_ternary_enhanced(payload: &[u8], adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+    deserialize_ternary_enhanced_v3(payload)
+}
+fn deserialize_ternary_enhanced_legacy(payload: &[u8]) -> TtcResult<Vec<Token>> {
+    deserialize_ternary_enhanced_inner(payload, false)
+}
+fn deserialize_ternary_enhanced_v3(payload: &[u8]) -> TtcResult<Vec<Token>> {
+    deserialize_ternary_enhanced_inner(payload, true)
+}
+fn deserialize_ternary_enhanced_inner(payload: &[u8], has_embedded_rice: bool) -> TtcResult<Vec<Token>> {
     if payload.len() < 4 { return Err(TtcError::DecompressionError("Payload too short".into())); }
     let mut r = BitReader::new(&payload[4..]); let tc = decode_hybrid_prefix(&mut r) as usize;
-    let mut tokens = Vec::with_capacity(tc); let mut decoded = 0; let m: u8 = 4;
+    let m: u8 = if has_embedded_rice { (r.read(4) as u8).clamp(1, 8) } else { 4 };
+    let mut tokens = Vec::with_capacity(tc); let mut decoded = 0;
     while decoded < tc && !r.is_exhausted() { match r.read(2) {
         0b00 => {
-            // OPTIMIZATION: fast-path when adaptive_rep is false → always Rep C
-            if !adaptive_rep {
-                let _ = r.read(2); // consume rep selector (ignored, force Rep C)
-                let cnt = decode_hybrid_prefix(&mut r) as usize;
-                for _ in 0..cnt {
-                    tokens.push(Token::Literal(read_trit_decoded(&mut r, GfRep::C)));
-                    decoded += 1;
-                }
-            } else {
-                let rep = match r.read(2) { 0b00=>GfRep::C, 0b01=>GfRep::B, _=>GfRep::A };
-                let cnt = decode_hybrid_prefix(&mut r) as usize;
-                for _ in 0..cnt { tokens.push(Token::Literal(read_trit_decoded(&mut r, rep))); decoded+=1; }
-            }
+            let rep = match r.read(2) { 0b00=>GfRep::C, 0b01=>GfRep::B, _=>GfRep::A };
+            let cnt = decode_hybrid_prefix(&mut r) as usize;
+            for _ in 0..cnt { tokens.push(Token::Literal(read_trit_decoded(&mut r, rep))); decoded+=1; }
         }
         0b01 => {
-            let rep = if !adaptive_rep { let _ = r.read(2); GfRep::C }
-                      else { match r.read(2) { 0b00=>GfRep::C, 0b01=>GfRep::B, _=>GfRep::A } };
+            let rep = match r.read(2) { 0b00=>GfRep::C, 0b01=>GfRep::B, _=>GfRep::A };
             let byte = read_trit_decoded(&mut r, rep); let len = decode_hybrid_prefix(&mut r) as usize;
             tokens.push(Token::Run { byte, length: len }); decoded+=1;
         }
@@ -1706,7 +1711,7 @@ fn phase2_compress(
 
     let mut candidates: Vec<(ChunkMode, Vec<u8>)> = vec![(ChunkMode::Stored, make_stored_payload(chunk))];
 
-    if p1.h_chunk <= MODE_PRUNE_ENTROPY {
+    {
         let best_cost_mode = if p1.h_chunk < 4.0 { ChunkMode::TernaryAns }
             else if chunk.len() <= 16384 { ChunkMode::TernaryEnhanced }
             else { ChunkMode::Compressed };
@@ -1714,29 +1719,15 @@ fn phase2_compress(
         let tokens = tokenize_chunk(&vdata, hlen, cfg, best_cost_mode);
         let rice_m = compute_initial_rice_m(&tokens);
 
-        // Mode 1: Compressed
         let comp = serialize_compressed(&tokens, rice_m);
         candidates.push((ChunkMode::Compressed, make_mode_payload(chunk, 1, &comp)));
 
-        // Mode 3: Ternary ANS (now spec-compliant base-3 state machine)
         let tans = serialize_tans(&tokens, cfg.window_size);
         candidates.push((ChunkMode::TernaryAns, make_mode_payload(chunk, 3, &tans)));
 
-        // Mode 2: TernaryEnhanced (≤16 KB chunks only)
         if chunk.len() <= 16384 {
             let enh = serialize_ternary_enhanced(&tokens, rice_m, tc);
             candidates.push((ChunkMode::TernaryEnhanced, make_mode_payload(chunk, 2, &enh)));
-        }
-
-        // Early exit: compressed >= 98% of raw → STORED
-        if let Some((_, ref c)) = candidates.iter().find(|(m, _)| *m == ChunkMode::Compressed) {
-            if c.len() >= chunk.len() * 98 / 100 {
-                return ChunkResult { index: p1.chunk_index, original_size: orig_size,
-                    compressed_size: (chunk.len()+5) as u32, base: p1.base, tau: p1.gurft.tau,
-                    delta: p1.gurft.delta, mode: ChunkMode::Stored, rice_m: 0,
-                    delta_flag: DeltaFlag::NONE, domain_transform: dom_xform,
-                    payload: make_stored_payload(chunk) };
-            }
         }
     }
 
@@ -1823,37 +1814,35 @@ fn dispatch_chunks(cs: &[&[u8]], cfg: &LevelConfig, mode: CompressionMode, indep
 // ─── Container (§9), Filename (§9.3), Fibonacci (§10) ──────────────────────
 
 fn build_container(chunks: &[ChunkResult], orig_size: u64, crc: u32, mode: CompressionMode,
-    level: u8, independent: bool, adaptive_rep: bool, avg_tau: f64, avg_delta: f64,
-    predominant_base: u16, lp_coeffs: Option<&[i16; 4]>, image_width: Option<u64>,
+    level: u8, independent: bool, adaptive_rep: bool, _avg_tau: f64, _avg_delta: f64,
+    predominant_base: u16, _lp_coeffs: Option<&[i16; 4]>, _image_width: Option<u64>,
     fib_computed: bool, has_filename: bool) -> Vec<u8> {
-    let chunk_count = chunks.len() as u16; let cm_off = HEADER_SIZE as u64;
+    let chunk_count = chunks.len() as u16;
     let cm_size = chunk_count as usize * CHUNK_MAP_ENTRY_SIZE;
     let total_payload: usize = chunks.iter().map(|c| c.payload.len()).sum();
-    let comp_size = (HEADER_SIZE + cm_size + total_payload) as u64;
-    let mut out = Vec::with_capacity(comp_size as usize);
-    out.extend_from_slice(&MAGIC_TTC1); out.push(VERSION_V2); out.push(mode as u8);
-    out.extend_from_slice(&orig_size.to_be_bytes()); out.extend_from_slice(&comp_size.to_be_bytes());
-    out.extend_from_slice(&crc.to_be_bytes()); out.extend_from_slice(&predominant_base.to_be_bytes());
-    out.extend_from_slice(&0u32.to_be_bytes());
-    match mode { CompressionMode::Audio => { if let Some(c) = lp_coeffs { for &v in c { out.extend_from_slice(&v.to_be_bytes()); } }
-        else { out.extend_from_slice(&[0u8;8]); } }
-        CompressionMode::Image => { out.extend_from_slice(&image_width.unwrap_or(0).to_be_bytes()); }
-        _ => out.extend_from_slice(&[0u8;8]) }
+    let comp_size = HEADER_SIZE + cm_size + total_payload;
+    let mut out = Vec::with_capacity(comp_size);
+    out.extend_from_slice(&MAGIC_TTC1);
+    out.push(VERSION_V3);
+    out.push(mode as u8);
+    out.extend_from_slice(&orig_size.to_be_bytes());
+    out.extend_from_slice(&crc.to_be_bytes());
     let mut flags = 0u8;
     if chunks.iter().any(|c| c.base != 3) { flags |= 0x01; }
     if chunks.len() > 1 && chunks.iter().any(|c| c.base != chunks[0].base) { flags |= 0x02; }
     if independent { flags |= 0x04; } if adaptive_rep { flags |= 0x08; }
     if fib_computed { flags |= 0x10; } if has_filename { flags |= 0x20; }
-    out.push(flags); out.push(level); out.extend_from_slice(&chunk_count.to_be_bytes());
-    out.extend_from_slice(&((avg_tau*1_000_000.0) as u32).to_be_bytes());
-    out.extend_from_slice(&((avg_delta*1_000_000.0) as u32).to_be_bytes());
-    out.extend_from_slice(&[0u8;4]); out.extend_from_slice(&cm_off.to_be_bytes());
-    out.extend_from_slice(&[0u8;16]); out.extend_from_slice(&[0u8;16]);
+    out.push(flags);
+    out.push(level);
+    out.extend_from_slice(&chunk_count.to_be_bytes());
+    out.extend_from_slice(&predominant_base.to_be_bytes());
+    out.extend_from_slice(&[0u8; 3]);
     debug_assert_eq!(out.len(), HEADER_SIZE);
-    for c in chunks { out.extend_from_slice(&c.original_size.to_be_bytes()); out.extend_from_slice(&c.compressed_size.to_be_bytes());
-        out.extend_from_slice(&c.base.to_be_bytes()); out.extend_from_slice(&((c.tau*1000.0) as u16).to_be_bytes());
-        out.extend_from_slice(&((c.delta*1000.0) as u16).to_be_bytes()); out.push(c.rice_m);
-        out.push((c.delta_flag.0 << 5) | (c.domain_transform.0 & 0x07)); }
+    for c in chunks {
+        out.extend_from_slice(&c.original_size.to_be_bytes());
+        out.extend_from_slice(&c.compressed_size.to_be_bytes());
+        out.push((c.delta_flag.0 << 5) | (c.domain_transform.0 & 0x07));
+    }
     for c in chunks { out.extend_from_slice(&c.payload); } out
 }
 
@@ -1943,7 +1932,7 @@ pub fn ttc_compress(data: &[u8], opts: &CompressOptions) -> TtcResult<Compressio
     let csz = compressed.len() as u64;
     Ok(CompressionResult { compressed, original_size: data.len() as u64, compressed_size: csz,
         compression_ratio: if csz>0{data.len() as f64/csz as f64}else{1.0}, crc32: crc,
-        mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: "2.0".into(),
+        mode: opts.mode as u8, mode_name: opts.mode.name().into(), version: "3.0".into(),
         level: opts.level, level_name: cfg.tier_name.into(), chunks: descs,
         avg_tau: at, avg_delta: ad, base_distribution: bd, predominant_base: pb,
         independent_chunks: opts.independent_chunks, adaptive_rep_used: adaptive_rep, fibonacci_analysis: fib })
@@ -1957,10 +1946,15 @@ pub struct DecompressionResult { pub data: Vec<u8>, pub original_file_name: Opti
     pub level: Option<u8>, pub level_name: Option<String>, pub crc32_verified: bool }
 
 pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
-    if compressed.len() < HEADER_SIZE { return Err(TtcError::TruncatedHeader); }
+    if compressed.len() < 5 { return Err(TtcError::TruncatedHeader); }
     if compressed[0..4] != MAGIC_TTC1 { return Err(TtcError::InvalidMagic); }
     let version = compressed[0x04];
+
+    if version == VERSION_V3 {
+        return ttc_decompress_v3(compressed);
+    }
     if version != VERSION_V2 && version != VERSION_V1 { return Err(TtcError::UnsupportedVersion(version)); }
+    if compressed.len() < HEADER_SIZE_V2_LEGACY { return Err(TtcError::TruncatedHeader); }
     let mode = CompressionMode::from_u8(compressed[0x05])?;
     let orig_size = u64::from_be_bytes(compressed[0x06..0x0E].try_into().unwrap());
     let stored_crc = u32::from_be_bytes(compressed[0x16..0x1A].try_into().unwrap());
@@ -1973,11 +1967,11 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
         i16::from_be_bytes([compressed[0x20],compressed[0x21]]), i16::from_be_bytes([compressed[0x22],compressed[0x23]]),
         i16::from_be_bytes([compressed[0x24],compressed[0x25]]), i16::from_be_bytes([compressed[0x26],compressed[0x27]])]) } else { None };
     let iw: Option<u64> = if mode==CompressionMode::Image { Some(u64::from_be_bytes(compressed[0x20..0x28].try_into().unwrap())) } else { None };
-    let cm_end = cm_off + chunk_count * CHUNK_MAP_ENTRY_SIZE;
+    let cm_end = cm_off + chunk_count * CHUNK_MAP_ENTRY_SIZE_V2_LEGACY;
     if compressed.len() < cm_end { return Err(TtcError::TruncatedChunkMap); }
     struct CME { comp: u32, dflag: DeltaFlag, dxform: DomainTransform }
     let mut entries = Vec::with_capacity(chunk_count);
-    for i in 0..chunk_count { let o = cm_off+i*CHUNK_MAP_ENTRY_SIZE;
+    for i in 0..chunk_count { let o = cm_off+i*CHUNK_MAP_ENTRY_SIZE_V2_LEGACY;
         let comp = u32::from_be_bytes(compressed[o+4..o+8].try_into().unwrap());
         let pk = compressed[o+15]; let df = (pk>>5)&0x07; let dt = pk&0x07;
         if df == 7 { return Err(TtcError::InvalidDeltaFlag(df)); }
@@ -1995,7 +1989,7 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
             ChunkMode::Compressed => { let toks = deserialize_compressed(cp)?;
                 let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
                 if independent{full}else{full[hr.len()..].to_vec()} }
-            ChunkMode::TernaryEnhanced => { let toks = deserialize_ternary_enhanced(cp, adaptive_rep)?;
+            ChunkMode::TernaryEnhanced => { let toks = deserialize_ternary_enhanced_legacy(cp)?;
                 let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
                 if independent{full}else{full[hr.len()..].to_vec()} }
             ChunkMode::TernaryAns => { let toks = deserialize_tans(cp, ws)?;
@@ -2016,6 +2010,66 @@ pub fn ttc_decompress(compressed: &[u8]) -> TtcResult<DecompressionResult> {
         compressed_size: compressed.len() as u64, version: if version==VERSION_V2{"2.0"}else{"1.1"}.into(),
         level: if version==VERSION_V2{Some(level)}else{None},
         level_name: if version==VERSION_V2{level_config(level).ok().map(|c| c.tier_name.into())}else{None},
+        crc32_verified: computed_crc == stored_crc })
+}
+
+fn ttc_decompress_v3(compressed: &[u8]) -> TtcResult<DecompressionResult> {
+    if compressed.len() < HEADER_SIZE_V3 { return Err(TtcError::TruncatedHeader); }
+    let mode = CompressionMode::from_u8(compressed[0x05])?;
+    let orig_size = u64::from_be_bytes(compressed[0x06..0x0E].try_into().unwrap());
+    let stored_crc = u32::from_be_bytes(compressed[0x0E..0x12].try_into().unwrap());
+    let aflags = compressed[0x12];
+    let level = compressed[0x13];
+    let chunk_count = u16::from_be_bytes(compressed[0x14..0x16].try_into().unwrap()) as usize;
+    let independent = aflags & 0x04 != 0;
+    let adaptive_rep = aflags & 0x08 != 0;
+    let has_filename = aflags & 0x20 != 0;
+    let cm_off = HEADER_SIZE_V3;
+    let cm_end = cm_off + chunk_count * CHUNK_MAP_ENTRY_SIZE_V3;
+    if compressed.len() < cm_end { return Err(TtcError::TruncatedChunkMap); }
+    struct CME { comp: u32, dflag: DeltaFlag, dxform: DomainTransform }
+    let mut entries = Vec::with_capacity(chunk_count);
+    for i in 0..chunk_count {
+        let o = cm_off + i * CHUNK_MAP_ENTRY_SIZE_V3;
+        let comp = u32::from_be_bytes(compressed[o+4..o+8].try_into().unwrap());
+        let pk = compressed[o+8]; let df = (pk>>5)&0x07; let dt = pk&0x07;
+        if df == 7 { return Err(TtcError::InvalidDeltaFlag(df)); }
+        if dt == 7 { return Err(TtcError::InvalidDomainTransform(dt)); }
+        entries.push(CME { comp, dflag: DeltaFlag(df), dxform: DomainTransform(dt) });
+    }
+    let ws = if level>=1&&level<=9 { level_config(level).ok().map(|c| c.window_size) } else { None }.unwrap_or(243*1024);
+    let mut poff = cm_end; let mut output = Vec::with_capacity(orig_size as usize); let mut history: Vec<u8> = Vec::new();
+    for entry in &entries { let pe = poff + entry.comp as usize;
+        if compressed.len() < pe { return Err(TtcError::TruncatedPayload); }
+        let payload = &compressed[poff..pe]; poff = pe;
+        if payload.len() < 5 { return Err(TtcError::DecompressionError("Chunk payload too short".into())); }
+        let cm = ChunkMode::from_u8(payload[4])?; let cp = &payload[5..];
+        let chunk_bytes = match cm {
+            ChunkMode::Stored => cp.to_vec(),
+            ChunkMode::Compressed => { let toks = deserialize_compressed(cp)?;
+                let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
+                if independent{full}else{full[hr.len()..].to_vec()} }
+            ChunkMode::TernaryEnhanced => { let toks = deserialize_ternary_enhanced_v3(cp)?;
+                let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
+                if independent{full}else{full[hr.len()..].to_vec()} }
+            ChunkMode::TernaryAns => { let toks = deserialize_tans(cp, ws)?;
+                let hr = if independent{&[]}else{&history[..]}; let full = decompress_tokens(&toks, hr);
+                if independent{full}else{full[hr.len()..].to_vec()} } };
+        let decoded = apply_delta_decode(&chunk_bytes, entry.dflag)?;
+        if !independent { history.extend_from_slice(&decoded);
+            if history.len() > ws { let t = history.len()-ws; history.drain(..t); } }
+        output.extend_from_slice(&decoded); }
+    let gdt = entries.first().map(|e| e.dxform).unwrap_or(DomainTransform::NONE);
+    let final_data = reverse_domain_preprocess(&output, gdt, None, None)?;
+    let (actual_data, original_file_name) = if has_filename {
+        let (fname, content) = extract_filename(&final_data);
+        if !fname.is_empty() { (content.to_vec(), Some(fname)) } else { (final_data, None) }
+    } else { (final_data, None) };
+    let computed_crc = crc32(&actual_data);
+    Ok(DecompressionResult { data: actual_data, original_file_name, original_size: orig_size,
+        compressed_size: compressed.len() as u64, version: "3.0".into(),
+        level: Some(level),
+        level_name: level_config(level).ok().map(|c| c.tier_name.into()),
         crc32_verified: computed_crc == stored_crc })
 }
 
@@ -2054,7 +2108,7 @@ pub fn ttc_compress_multi(files: &[(&str, &[u8])], opts: &CompressOptions) -> Tt
         files: archives.iter().map(|(n,_,o,c)| FileEntry { name: n.clone(), original_size: *o, compressed_size: *c,
             ratio: if *c>0{*o as f64/ *c as f64}else{1.0} }).collect(),
         avg_tau: ts/n, avg_delta: ds/n, base_distribution: bd, predominant_base: pb,
-        mode_name: opts.mode.name().into(), version: "2.0".into(), level: opts.level, level_name: cfg.tier_name.into(),
+        mode_name: opts.mode.name().into(), version: "3.0".into(), level: opts.level, level_name: cfg.tier_name.into(),
         adaptive_rep_used: any_ar, fibonacci_analysis: if opts.compute_fibonacci{Some(fibonacci_analysis(to as usize))}else{None} })
 }
 pub fn ttc_decompress_multi(compressed: &[u8]) -> TtcResult<Vec<(String, Vec<u8>)>> {
@@ -2275,6 +2329,20 @@ mod tests {
         let dec = ttc_decompress(&result.compressed).unwrap();
         assert_eq!(dec.data, data.to_vec()); assert_eq!(dec.original_file_name, Some("test.txt".into()));
         assert!(dec.crc32_verified); }
+
+    #[test] fn test_repeating_pattern_round_trip() {
+        for modulus in &[13u8, 7, 3, 1, 26, 100, 255] {
+            let data: Vec<u8> = (0..4096).map(|i| (i % *modulus as usize) as u8).collect();
+            for &lvl in &[1u8, 3, 5, 7] {
+                let opts = CompressOptions { mode: CompressionMode::Basic, level: lvl,
+                    independent_chunks: false, ..Default::default() };
+                let result = ttc_compress(&data, &opts).unwrap();
+                let dec = ttc_decompress(&result.compressed).unwrap();
+                assert_eq!(dec.data, data, "Round-trip failed: mod={}, L{}", modulus, lvl);
+                assert!(dec.crc32_verified, "CRC failed: mod={}, L{}", modulus, lvl);
+            }
+        }
+    }
 
     #[test] fn test_compression_bloat_diagnostic() {
         let data = b"Hello PlenumNET! This is a test of TTC v4.2 compression with corrected Tribonacci constants. The 13-dimensional hypercube geometry provides 26 tunnels. Repeated: The 13-dimensional hypercube geometry provides 26 tunnels. More repeated content for compression testing purposes.";
