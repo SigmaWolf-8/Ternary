@@ -2357,9 +2357,9 @@ mod tests {
             "3^13", "3^13", "3^13",
         ];
         eprintln!("\n=== TTC v2.0+v4.2 Benchmark — each level at its own 3^k chunk size (dependent mode) ===");
-        eprintln!("{:<6} {:<8} {:<8} {:>10} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7} {:<6}",
-            "Level", "Tier", "Trit", "DataSize", "Chunks", "Comp(us)", "Dec(us)", "Ratio", "Saved%", "Mode", "ChkCnt");
-        eprintln!("{}", "-".repeat(110));
+        eprintln!("{:<6} {:<8} {:<6} {:>9} {:>4} {:>8} {:>8} {:>10} {:>10} {:>7} {:>7} {:<7}",
+            "Level", "Tier", "Trit", "Data", "#Chk", "Ratio", "Saved%", "Comp MB/s", "Dec MB/s", "Comp", "Dec", "Mode");
+        eprintln!("{}", "-".repeat(115));
         for (idx, &(level, chunk_sz)) in chunk_sizes.iter().enumerate() {
             let cfg = level_config(level).unwrap();
             let trit = trit_labels[idx];
@@ -2383,13 +2383,23 @@ mod tests {
                 assert_eq!(dec.data, data, "round-trip failed: level={} chunks={}", level, num_chunks);
                 let ratio = data.len() as f64 / result.compressed_size as f64;
                 let saved = (1.0 - result.compressed_size as f64 / data.len() as f64) * 100.0;
+                let size_mb = size as f64 / 1_048_576.0;
+                let comp_mbps = if comp_us > 0.0 { size_mb / (comp_us / 1_000_000.0) } else { 0.0 };
+                let dec_mbps = if dec_us > 0.0 { size_mb / (dec_us / 1_000_000.0) } else { 0.0 };
                 let mode = result.chunks.first().map(|c| c.mode).unwrap_or(0);
                 let mn = match mode { 0=>"Stored", 1=>"Comp", 2=>"TernEnh", 3=>"rANS/3", _=>"?" };
-                let size_label = if size >= 1_048_576 { format!("{:.1}MB", size as f64 / 1_048_576.0) }
-                    else if size >= 1024 { format!("{:.1}KB", size as f64 / 1024.0) }
+                let size_label = if size >= 1_048_576 { format!("{:.1}MB", size_mb) }
+                    else if size >= 1024 { format!("{:.0}KB", size as f64 / 1024.0) }
                     else { format!("{}B", size) };
-                eprintln!("L{:<5} {:<8} {:<8} {:>10} {:>10} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7} {}",
-                    level, cfg.tier_name, trit, size_label, num_chunks, comp_us, dec_us, ratio, saved, mn, result.chunks.len());
+                let comp_time = if comp_us >= 1_000_000.0 { format!("{:.1}s", comp_us / 1_000_000.0) }
+                    else if comp_us >= 1_000.0 { format!("{:.1}ms", comp_us / 1_000.0) }
+                    else { format!("{:.0}us", comp_us) };
+                let dec_time = if dec_us >= 1_000_000.0 { format!("{:.1}s", dec_us / 1_000_000.0) }
+                    else if dec_us >= 1_000.0 { format!("{:.1}ms", dec_us / 1_000.0) }
+                    else { format!("{:.0}us", dec_us) };
+                eprintln!("L{:<5} {:<8} {:<6} {:>9} {:>4} {:>7.1}x {:>7.1}% {:>10.1} {:>10.1} {:>7} {:>7} {:<7}",
+                    level, cfg.tier_name, trit, size_label, num_chunks, ratio, saved,
+                    comp_mbps, dec_mbps, comp_time, dec_time, mn);
             }
         }
         eprintln!(); }
