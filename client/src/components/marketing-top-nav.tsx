@@ -127,6 +127,7 @@ const developersColumns: NavColumn[] = [
     heading: "Get Started",
     items: [
       { title: "Documentation", subtitle: "API reference & guides", href: "/docs" },
+      { title: "Kong Konnect Gateway", subtitle: "API gateway management", href: "/kong-konnect" },
       { title: "Module Distribution", subtitle: "Install the framework", href: "/distribution" },
       { title: "Install TDNS Browser Extension", subtitle: "Resolve .plm addresses", href: "#install-extension-download" },
       { title: "GitHub Repository", subtitle: "Source code & issues", href: "https://github.com/SigmaWolf-8/Ternary", external: true },
