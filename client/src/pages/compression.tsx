@@ -28,6 +28,28 @@ import { FileUp, FileDown, Database, Shield, RefreshCw, Play, Download, Upload, 
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+interface TtcMetadata {
+  engine: 'ttc-native' | 'legacy-zlib';
+  version: string;
+  level: number;
+  levelName: string;
+  modeName: string;
+  crc32: number;
+  avgTau: number;
+  avgDelta: number;
+  predominantBase: number;
+  adaptiveRepUsed: boolean;
+}
+
+interface TtcDecompressMetadata {
+  engine: 'ttc-native' | 'legacy-zlib';
+  version: string;
+  level: number | null;
+  levelName: string | null;
+  crc32Verified: boolean;
+  originalFileName: string | null;
+}
+
 interface FileCompressionResult {
   fileName: string;
   originalSize: number;
@@ -36,17 +58,8 @@ interface FileCompressionResult {
   encrypted: boolean;
   encryptionMode?: string;
   processingTimeMs: string;
-  mode: string;
-  level: string;
-  levelName: string;
-  version: string;
-  crc32: string;
-  predominantBase: string;
-  avgTau: string;
-  avgDelta: string;
-  gf3Rep: string;
-  adaptiveRep: string;
-  data: ArrayBuffer;
+  data: string;
+  ttcMetadata: TtcMetadata | null;
 }
 
 interface FileDecompressionResult {
@@ -55,9 +68,9 @@ interface FileDecompressionResult {
   compressedSize: number;
   compressionRatio: string;
   wasEncrypted: boolean;
-  crc32Verified: boolean;
   processingTimeMs: string;
-  data: ArrayBuffer;
+  data: string;
+  ttcMetadata: TtcDecompressMetadata | null;
 }
 
 interface DbDocument {
@@ -154,7 +167,7 @@ function FileCompressionTab() {
 
   const downloadCompressed = () => {
     if (!compressResult) return;
-    const binary = atob(compressResult.data);
+    const binary = atob(compressResult.data as string);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const blob = new Blob([bytes], { type: 'application/octet-stream' });
@@ -175,7 +188,7 @@ function FileCompressionTab() {
 
   const downloadDecompressed = () => {
     if (!decompressResult) return;
-    const bytes = base64ToBytes(decompressResult.data);
+    const bytes = base64ToBytes(decompressResult.data as string);
     const blob = new Blob([bytes], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -286,6 +299,35 @@ function FileCompressionTab() {
                     </Badge>
                   )}
                 </div>
+                {compressResult.ttcMetadata && (
+                  <div className="bg-muted/30 border rounded-md p-3 space-y-2" data-testid="ttc-metadata-compress">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="secondary" className="text-xs" data-testid="badge-engine">
+                        {compressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + compressResult.ttcMetadata.version + ' Native' : 'Legacy'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs" data-testid="badge-mode">
+                        {compressResult.ttcMetadata.modeName}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs" data-testid="badge-level">
+                        L{compressResult.ttcMetadata.level} {compressResult.ttcMetadata.levelName}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">CRC32: </span>
+                        <span className="font-mono" data-testid="text-crc32">{compressResult.ttcMetadata.crc32.toString(16).toUpperCase()}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Base: </span>
+                        <span className="font-mono" data-testid="text-predominant-base">{compressResult.ttcMetadata.predominantBase}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Adaptive: </span>
+                        <span data-testid="text-adaptive-rep">{compressResult.ttcMetadata.adaptiveRepUsed ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Button onClick={downloadCompressed} variant="outline" className="w-full" data-testid="button-download-tern">
                   <Download className="w-4 h-4 mr-2" />
                   Download {compressResult.fileName}
@@ -369,6 +411,18 @@ function FileCompressionTab() {
                     </Badge>
                   )}
                 </div>
+                {decompressResult.ttcMetadata && (
+                  <div className="bg-muted/30 border rounded-md p-3 space-y-1" data-testid="ttc-metadata-decompress">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {decompressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + decompressResult.ttcMetadata.version + ' Native' : 'Legacy'}
+                      </Badge>
+                      <Badge variant={decompressResult.ttcMetadata.crc32Verified ? 'default' : 'destructive'} className="text-xs" data-testid="badge-crc32-verified">
+                        CRC32 {decompressResult.ttcMetadata.crc32Verified ? 'Verified' : 'MISMATCH'}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
                 <Button onClick={downloadDecompressed} variant="outline" className="w-full" data-testid="button-download-decompressed">
                   <Download className="w-4 h-4 mr-2" />
                   Download {decompressResult.originalFileName}
@@ -386,12 +440,12 @@ function FileCompressionTab() {
         <CardContent>
           <div className="grid md:grid-cols-4 gap-4 text-center text-sm">
             <div className="bg-muted/50 rounded-md p-4">
-              <div className="font-bold mb-1">1. Ternary Encode</div>
-              <div className="text-muted-foreground">Binary bytes are converted to base-3 trit sequences (5 trits per byte)</div>
+              <div className="font-bold mb-1">1. Domain Analysis</div>
+              <div className="text-muted-foreground">TTC v4.2 analyzes input domain (temporal, image, audio, source) for optimal encoding</div>
             </div>
             <div className="bg-muted/50 rounded-md p-4">
-              <div className="font-bold mb-1">2. RLE Compress</div>
-              <div className="text-muted-foreground">Run-length encoding compresses repeated trit patterns</div>
+              <div className="font-bold mb-1">2. Ternary rANS</div>
+              <div className="text-muted-foreground">Asymmetric numeral systems with pure ternary 3^k window sizes and GURFT fast-path</div>
             </div>
             <div className="bg-muted/50 rounded-md p-4">
               <div className="font-bold mb-1">3. Phase Encrypt</div>

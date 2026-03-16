@@ -15,8 +15,94 @@
  */
 
 import zlib from 'zlib';
+import { createRequire } from 'module';
+import { resolve as _resolve } from 'path';
 import { compressData, decompressData, ternaryEncode, ternaryDecode, runLengthCompress, runLengthDecompress } from './ternary';
 import { phaseSplit, phaseRecombine, type EncryptionMode, type EncryptedPhaseData } from './salvi-core/phase-encryption';
+
+const _getRequire = (): NodeRequire => {
+  if (typeof require !== 'undefined') return require;
+  return createRequire(import.meta.url);
+};
+
+interface TtcNativeAddon {
+  ttcCompress(input: Buffer, level?: number | null, mode?: string | null, filename?: string | null): {
+    compressed: Buffer;
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+    crc32: number;
+    modeName: string;
+    version: string;
+    level: number;
+    levelName: string;
+    avgTau: number;
+    avgDelta: number;
+    predominantBase: number;
+    adaptiveRepUsed: boolean;
+  };
+  ttcDecompress(input: Buffer): {
+    data: Buffer;
+    originalSize: number;
+    compressedSize: number;
+    version: string;
+    level: number | null;
+    levelName: string | null;
+    crc32Verified: boolean;
+    originalFileName: string | null;
+  };
+}
+
+let _ttcAddon: TtcNativeAddon | null = null;
+let _ttcProbed = false;
+
+function loadTtcAddon(): TtcNativeAddon | null {
+  if (_ttcProbed) return _ttcAddon;
+  _ttcProbed = true;
+  const _req = _getRequire();
+  const paths = [
+    _resolve(process.cwd(), 'server/crypto/sponge-native.node'),
+  ];
+  if (typeof __dirname !== 'undefined') {
+    paths.unshift(_resolve(__dirname, 'crypto/sponge-native.node'));
+  }
+  for (const p of paths) {
+    try {
+      const addon = _req(p);
+      if (typeof addon.ttcCompress === 'function' && typeof addon.ttcDecompress === 'function') {
+        _ttcAddon = addon as TtcNativeAddon;
+        console.log('[TTC] Native N-API addon loaded — TTC v4.2 engine active');
+        return _ttcAddon;
+      }
+    } catch (e) {
+      console.warn('[TTC] Probe failed for', p, ':', (e as Error).message?.slice(0, 80));
+    }
+  }
+  console.warn('[TTC] Native addon not found — falling back to legacy zlib pipeline');
+  return null;
+}
+
+export interface TtcCompressionMetadata {
+  engine: 'ttc-native' | 'legacy-zlib';
+  version: string;
+  level: number;
+  levelName: string;
+  modeName: string;
+  crc32: number;
+  avgTau: number;
+  avgDelta: number;
+  predominantBase: number;
+  adaptiveRepUsed: boolean;
+}
+
+export interface TtcDecompressionMetadata {
+  engine: 'ttc-native' | 'legacy-zlib';
+  version: string;
+  level: number | null;
+  levelName: string | null;
+  crc32Verified: boolean;
+  originalFileName: string | null;
+}
 
 export interface CompressionPolicy {
   enabled: boolean;
@@ -131,26 +217,83 @@ export function getCompressionMetadata(storedValue: string): {
   }
 }
 
-export function compressFileBuffer(inputBuffer: Buffer): {
+export function compressFileBuffer(inputBuffer: Buffer, options?: {
+  level?: number;
+  mode?: string;
+  filename?: string;
+}): {
   compressed: Buffer;
   originalSize: number;
   compressedSize: number;
   compressionRatio: number;
+  ttcMetadata?: TtcCompressionMetadata;
 } {
+  const addon = loadTtcAddon();
+  if (addon) {
+    const r = addon.ttcCompress(
+      inputBuffer,
+      options?.level ?? 5,
+      options?.mode ?? null,
+      options?.filename ?? null
+    );
+    return {
+      compressed: Buffer.from(r.compressed),
+      originalSize: r.originalSize,
+      compressedSize: r.compressedSize,
+      compressionRatio: r.originalSize > 0
+        ? ((r.originalSize - r.compressedSize) / r.originalSize) * 100
+        : 0,
+      ttcMetadata: {
+        engine: 'ttc-native',
+        version: r.version,
+        level: r.level,
+        levelName: r.levelName,
+        modeName: r.modeName,
+        crc32: r.crc32,
+        avgTau: r.avgTau,
+        avgDelta: r.avgDelta,
+        predominantBase: r.predominantBase,
+        adaptiveRepUsed: r.adaptiveRepUsed,
+      },
+    };
+  }
   const originalSize = inputBuffer.length;
   const deflated = zlib.deflateSync(inputBuffer, { level: 9 });
   const ternaryEncoded = ternaryEncode(deflated);
   const compressed = runLengthCompress(ternaryEncoded);
   const compressedSize = compressed.length;
   const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
-
   return { compressed, originalSize, compressedSize, compressionRatio };
 }
 
-export function decompressFileBuffer(compressedBuffer: Buffer): Buffer {
+export function decompressFileBuffer(compressedBuffer: Buffer): {
+  data: Buffer;
+  ttcMetadata?: TtcDecompressionMetadata;
+} {
+  const addon = loadTtcAddon();
+  if (addon) {
+    try {
+      const r = addon.ttcDecompress(compressedBuffer);
+      return {
+        data: Buffer.from(r.data),
+        ttcMetadata: {
+          engine: 'ttc-native',
+          version: r.version,
+          level: r.level,
+          levelName: r.levelName,
+          crc32Verified: r.crc32Verified,
+          originalFileName: r.originalFileName,
+        },
+      };
+    } catch {
+      const ternaryEncoded = runLengthDecompress(compressedBuffer);
+      const deflated = ternaryDecode(ternaryEncoded);
+      return { data: zlib.inflateSync(deflated) };
+    }
+  }
   const ternaryEncoded = runLengthDecompress(compressedBuffer);
   const deflated = ternaryDecode(ternaryEncoded);
-  return zlib.inflateSync(deflated);
+  return { data: zlib.inflateSync(deflated) };
 }
 
 export interface TernFileHeader {
@@ -177,9 +320,14 @@ function simpleChecksum(data: Buffer): number {
 export function createTernFile(
   inputBuffer: Buffer,
   originalFileName: string,
-  options: { encrypt?: boolean; encryptionMode?: EncryptionMode } = {}
-): { ternFile: Buffer; header: TernFileHeader } {
-  const { compressed, originalSize, compressedSize, compressionRatio } = compressFileBuffer(inputBuffer);
+  options: { encrypt?: boolean; encryptionMode?: EncryptionMode; level?: number; mode?: string } = {}
+): { ternFile: Buffer; header: TernFileHeader; ttcMetadata?: TtcCompressionMetadata } {
+  const result = compressFileBuffer(inputBuffer, {
+    level: options.level,
+    mode: options.mode,
+    filename: originalFileName,
+  });
+  const { compressed, originalSize, compressedSize, compressionRatio, ttcMetadata } = result;
 
   let finalData: Buffer;
   let encrypted = false;
@@ -198,14 +346,14 @@ export function createTernFile(
 
   const header: TernFileHeader = {
     magic: 'TERN',
-    version: 1,
+    version: ttcMetadata ? 2 : 1,
     originalFileName,
     originalSize,
     compressedSize: finalData.length,
     compressionRatio,
     encrypted,
     encryptionMode,
-    checksum: simpleChecksum(inputBuffer),
+    checksum: ttcMetadata ? ttcMetadata.crc32 : simpleChecksum(inputBuffer),
     timestamp: new Date().toISOString(),
   };
 
@@ -222,12 +370,14 @@ export function createTernFile(
       finalData,
     ]),
     header,
+    ttcMetadata,
   };
 }
 
 export function parseTernFile(ternBuffer: Buffer): {
   header: TernFileHeader;
   originalData: Buffer;
+  ttcMetadata?: TtcDecompressionMetadata;
 } {
   const magic = ternBuffer.subarray(0, 4).toString('utf-8');
   if (magic !== 'TERN') {
@@ -240,7 +390,7 @@ export function parseTernFile(ternBuffer: Buffer): {
 
   const dataBuffer = ternBuffer.subarray(8 + headerLen);
 
-  let decompressedBuffer: Buffer;
+  let compressedPayload: Buffer;
 
   if (header.encrypted) {
     const phaseJson = dataBuffer.toString('utf-8');
@@ -249,16 +399,21 @@ export function parseTernFile(ternBuffer: Buffer): {
     if (!recombined.success || !recombined.data) {
       throw new Error(`Phase decryption failed: ${recombined.error}`);
     }
-    const compressedBuffer = Buffer.from(recombined.data, 'base64');
-    decompressedBuffer = decompressFileBuffer(compressedBuffer);
+    compressedPayload = Buffer.from(recombined.data, 'base64');
   } else {
-    decompressedBuffer = decompressFileBuffer(dataBuffer);
+    compressedPayload = dataBuffer;
   }
 
-  const actualChecksum = simpleChecksum(decompressedBuffer);
+  const result = decompressFileBuffer(compressedPayload);
+
+  if (result.ttcMetadata) {
+    return { header, originalData: result.data, ttcMetadata: result.ttcMetadata };
+  }
+
+  const actualChecksum = simpleChecksum(result.data);
   if (actualChecksum !== header.checksum) {
     console.warn(`Checksum mismatch: expected ${header.checksum}, got ${actualChecksum}. File may be corrupted or truncated.`);
   }
 
-  return { header, originalData: decompressedBuffer };
+  return { header, originalData: result.data };
 }

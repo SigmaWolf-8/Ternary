@@ -23,9 +23,10 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use rayon::prelude::*;
-use ternary_math::sponge::{Sponge385Pub, hash_hex, hash_hex_v1,
+use ternary_math::sponge::{Sponge385Pub, hash_hex,
                             sponge_permutation, sponge_permutation_v1};
 use ternary_math::tl_dsa;
+use ternary_math::ttc::{self, CompressOptions, CompressionMode};
 
 const MAX_TRIT_COUNT: u32 = 1_000_000;
 const MAX_PLAIN_BYTES: usize = 1_048_576;
@@ -85,7 +86,7 @@ fn cipher_trits(data:&[i8],keystream:&[i8],encrypt:bool)->Vec<i8>{
 // ---- N-API exports ----
 
 #[napi] pub fn sponge_hash(input:Buffer)->String{hash_hex(input.as_ref())}
-#[napi] pub fn sponge_hash_v1(input:Buffer)->String{hash_hex_v1(input.as_ref())}
+#[napi] pub fn sponge_hash_v1(input:Buffer)->String{hash_hex(input.as_ref())}
 #[napi] pub fn sponge_keystream(domain_input:Buffer,trit_count:u32)->napi::Result<Buffer>{
     if trit_count>MAX_TRIT_COUNT{return Err(napi::Error::from_reason("trit_count exceeds max".to_string()));}
     let mut s=Sponge385Pub::new();s.absorb_bytes(domain_input.as_ref());
@@ -407,4 +408,92 @@ pub fn tl_dsa_sig_len(variant: u32) -> napi::Result<u32> {
         ).to_string())
     })?;
     Ok(tl_dsa::sig_len(v) as u32)
+}
+
+// ─── TTC v4.2 Compression N-API Exports ─────────────────────────────────
+
+#[napi(object)]
+pub struct TtcCompressResult {
+    pub compressed: Buffer,
+    pub original_size: u32,
+    pub compressed_size: u32,
+    pub compression_ratio: f64,
+    pub crc32: u32,
+    pub mode_name: String,
+    pub version: String,
+    pub level: u8,
+    pub level_name: String,
+    pub avg_tau: f64,
+    pub avg_delta: f64,
+    pub predominant_base: u32,
+    pub adaptive_rep_used: bool,
+}
+
+#[napi(object)]
+pub struct TtcDecompressResult {
+    pub data: Buffer,
+    pub original_size: u32,
+    pub compressed_size: u32,
+    pub version: String,
+    pub level: Option<u8>,
+    pub level_name: Option<String>,
+    pub crc32_verified: bool,
+    pub original_file_name: Option<String>,
+}
+
+#[napi]
+pub fn ttc_compress(input: Buffer, level: Option<u8>, mode: Option<String>, filename: Option<String>) -> napi::Result<TtcCompressResult> {
+    let lvl = level.unwrap_or(5);
+    let cm = match mode.as_deref() {
+        Some("basic") => CompressionMode::Basic,
+        Some("temporal") => CompressionMode::Temporal,
+        Some("image") => CompressionMode::Image,
+        Some("audio") => CompressionMode::Audio,
+        Some("genomic") => CompressionMode::Genomic,
+        Some("source") => CompressionMode::Source,
+        Some("log") => CompressionMode::Log,
+        Some("structured") => CompressionMode::Structured,
+        _ => CompressionMode::Temporal,
+    };
+    let opts = CompressOptions {
+        level: lvl,
+        mode: cm,
+        filename,
+        independent_chunks: false,
+        compute_fibonacci: false,
+        image_width: None,
+    };
+    let r = ttc::ttc_compress(input.as_ref(), &opts)
+        .map_err(|e| napi::Error::from_reason(format!("TTC compress failed: {e:?}")))?;
+    Ok(TtcCompressResult {
+        compressed: Buffer::from(r.compressed),
+        original_size: r.original_size as u32,
+        compressed_size: r.compressed_size as u32,
+        compression_ratio: r.compression_ratio,
+        crc32: r.crc32,
+        mode_name: r.mode_name,
+        version: r.version,
+        level: r.level,
+        level_name: r.level_name,
+        avg_tau: r.avg_tau,
+        avg_delta: r.avg_delta,
+        predominant_base: r.predominant_base as u32,
+        adaptive_rep_used: r.adaptive_rep_used,
+    })
+}
+
+#[napi]
+pub fn ttc_decompress(input: Buffer) -> napi::Result<TtcDecompressResult> {
+    let r = ttc::ttc_decompress(input.as_ref())
+        .map_err(|e| napi::Error::from_reason(format!("TTC decompress failed: {e:?}")))?;
+    Ok(TtcDecompressResult {
+        data: Buffer::from(r.data),
+        original_size: r.original_size as u32,
+        compressed_size: r.compressed_size as u32,
+        version: r.version,
+        level: r.level,
+        level_name: r.level_name,
+        crc32_verified: r.crc32_verified,
+        original_file_name: r.original_file_name,
+    })
 }

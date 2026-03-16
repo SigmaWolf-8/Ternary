@@ -664,10 +664,9 @@ export async function registerRoutes(
       const { createTernFile } = await import("./compression-layer");
       const startTime = performance.now();
       
-      const { ternFile, header } = createTernFile(inputBuffer, fileName, {
+      const { ternFile, header, ttcMetadata } = createTernFile(inputBuffer, fileName, {
         encrypt,
         encryptionMode: encrypt ? encryptionMode as any : undefined,
-        imageWidth,
       });
       
       const processingTimeMs = performance.now() - startTime;
@@ -679,19 +678,19 @@ export async function registerRoutes(
           'X-TTC-Original-Size': String(header.originalSize),
           'X-TTC-Compressed-Size': String(ternFile.length),
           'X-TTC-Compression-Ratio': header.compressionRatio.toFixed(1),
-          'X-TTC-Mode': header.mode || 'BASIC',
-          'X-TTC-Level': String(header.level || 5),
-          'X-TTC-Level-Name': header.levelName || '',
-          'X-TTC-Version': header.version || '2.0',
-          'X-TTC-CRC32': header.crc32 || '',
+          'X-TTC-Engine': ttcMetadata?.engine || 'legacy-zlib',
+          'X-TTC-Mode': ttcMetadata?.modeName || 'BASIC',
+          'X-TTC-Level': String(ttcMetadata?.level ?? 5),
+          'X-TTC-Level-Name': ttcMetadata?.levelName || '',
+          'X-TTC-Version': ttcMetadata?.version || '1.0',
+          'X-TTC-CRC32': String(ttcMetadata?.crc32 ?? header.checksum),
           'X-TTC-Encrypted': String(header.encrypted || false),
           'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
           'X-TTC-Original-Filename': fileName,
-          'X-TTC-Predominant-Base': String(header.predominantBase || 3),
-          'X-TTC-Avg-Tau': String(header.avgTau || 0),
-          'X-TTC-Avg-Delta': String(header.avgDelta || 0),
-          'X-TTC-GF3-Rep': header.gf3Rep || '',
-          'X-TTC-Adaptive-Rep': String(header.adaptiveRepUsed || false),
+          'X-TTC-Predominant-Base': String(ttcMetadata?.predominantBase ?? 3),
+          'X-TTC-Avg-Tau': String(ttcMetadata?.avgTau ?? 0),
+          'X-TTC-Avg-Delta': String(ttcMetadata?.avgDelta ?? 0),
+          'X-TTC-Adaptive-Rep': String(ttcMetadata?.adaptiveRepUsed ?? false),
         });
         res.send(ternFile);
       } else {
@@ -706,6 +705,7 @@ export async function registerRoutes(
           processingTimeMs: processingTimeMs.toFixed(2),
           data: ternFile.toString('base64'),
           header,
+          ttcMetadata: ttcMetadata || null,
         });
       }
     } catch (error: unknown) {
@@ -748,7 +748,7 @@ export async function registerRoutes(
       const { parseTernFile } = await import("./compression-layer");
       const startTime = performance.now();
       
-      const { header, originalData } = parseTernFile(ternBuffer);
+      const { header, originalData, ttcMetadata } = parseTernFile(ternBuffer);
       const processingTimeMs = performance.now() - startTime;
 
       if (isRaw) {
@@ -758,9 +758,11 @@ export async function registerRoutes(
           'X-TTC-Original-Size': String(header.originalSize),
           'X-TTC-Compressed-Size': String(header.compressedSize),
           'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
+          'X-TTC-Engine': ttcMetadata?.engine || 'legacy-zlib',
           'X-TTC-Was-Encrypted': String(header.encrypted || false),
           'X-TTC-Original-Filename': header.originalFileName || '',
-          'X-TTC-CRC32-Verified': String(header.crc32Verified ?? true),
+          'X-TTC-CRC32-Verified': String(ttcMetadata?.crc32Verified ?? true),
+          'X-TTC-Version': ttcMetadata?.version || '1.0',
           'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
         });
         res.send(originalData);
@@ -775,6 +777,7 @@ export async function registerRoutes(
           processingTimeMs: processingTimeMs.toFixed(2),
           data: originalData.toString('base64'),
           header,
+          ttcMetadata: ttcMetadata || null,
         });
       }
     } catch (error: unknown) {
@@ -805,10 +808,9 @@ export async function registerRoutes(
       const { createTernFile } = await import("./compression-layer");
       const startTime = performance.now();
 
-      const { ternFile, header } = createTernFile(body, fileName, {
+      const { ternFile, header, ttcMetadata } = createTernFile(body, fileName, {
         encrypt,
         encryptionMode: encrypt ? encryptionMode as any : undefined,
-        imageWidth,
       });
 
       const processingTimeMs = performance.now() - startTime;
@@ -819,19 +821,19 @@ export async function registerRoutes(
         'X-TTC-Original-Size': String(header.originalSize),
         'X-TTC-Compressed-Size': String(ternFile.length),
         'X-TTC-Compression-Ratio': header.compressionRatio.toFixed(1),
-        'X-TTC-Mode': header.mode || 'BASIC',
-        'X-TTC-Level': String(header.level || 5),
-        'X-TTC-Level-Name': header.levelName || '',
-        'X-TTC-Version': header.version || '2.0',
-        'X-TTC-CRC32': header.crc32 || '',
+        'X-TTC-Engine': ttcMetadata?.engine || 'legacy-zlib',
+        'X-TTC-Mode': ttcMetadata?.modeName || 'BASIC',
+        'X-TTC-Level': String(ttcMetadata?.level ?? 5),
+        'X-TTC-Level-Name': ttcMetadata?.levelName || '',
+        'X-TTC-Version': ttcMetadata?.version || '1.0',
+        'X-TTC-CRC32': String(ttcMetadata?.crc32 ?? header.checksum),
         'X-TTC-Encrypted': String(header.encrypted || false),
         'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
         'X-TTC-Original-Filename': fileName,
-        'X-TTC-Predominant-Base': String(header.predominantBase || 3),
-        'X-TTC-Avg-Tau': String(header.avgTau || 0),
-        'X-TTC-Avg-Delta': String(header.avgDelta || 0),
-        'X-TTC-GF3-Rep': header.gf3Rep || '',
-        'X-TTC-Adaptive-Rep': String(header.adaptiveRepUsed || false),
+        'X-TTC-Predominant-Base': String(ttcMetadata?.predominantBase ?? 3),
+        'X-TTC-Avg-Tau': String(ttcMetadata?.avgTau ?? 0),
+        'X-TTC-Avg-Delta': String(ttcMetadata?.avgDelta ?? 0),
+        'X-TTC-Adaptive-Rep': String(ttcMetadata?.adaptiveRepUsed ?? false),
       });
 
       res.send(ternFile);
@@ -851,7 +853,7 @@ export async function registerRoutes(
       const { parseTernFile } = await import("./compression-layer");
       const startTime = performance.now();
 
-      const { header, originalData } = parseTernFile(body);
+      const { header, originalData, ttcMetadata } = parseTernFile(body);
       const processingTimeMs = performance.now() - startTime;
 
       res.set({
@@ -860,9 +862,11 @@ export async function registerRoutes(
         'X-TTC-Original-Size': String(header.originalSize),
         'X-TTC-Compressed-Size': String(header.compressedSize),
         'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
+        'X-TTC-Engine': ttcMetadata?.engine || 'legacy-zlib',
         'X-TTC-Was-Encrypted': String(header.encrypted || false),
         'X-TTC-Original-Filename': header.originalFileName || '',
-        'X-TTC-CRC32-Verified': String(header.crc32Verified ?? true),
+        'X-TTC-CRC32-Verified': String(ttcMetadata?.crc32Verified ?? true),
+        'X-TTC-Version': ttcMetadata?.version || '1.0',
         'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
       });
 
