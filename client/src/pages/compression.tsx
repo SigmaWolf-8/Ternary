@@ -29,7 +29,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface TtcMetadata {
-  engine: 'ttc-native' | 'legacy-zlib';
+  engine: 'ttc-native' | 'ttc-ts-fallback';
   version: string;
   level: number;
   levelName: string;
@@ -39,15 +39,17 @@ interface TtcMetadata {
   avgDelta: number;
   predominantBase: number;
   adaptiveRepUsed: boolean;
+  gf3Representation?: 'balanced' | 'unsigned' | 'native';
 }
 
 interface TtcDecompressMetadata {
-  engine: 'ttc-native' | 'legacy-zlib';
+  engine: 'ttc-native' | 'ttc-ts-fallback';
   version: string;
   level: number | null;
   levelName: string | null;
   crc32Verified: boolean;
   originalFileName: string | null;
+  gf3Representation?: 'balanced' | 'unsigned' | 'native';
 }
 
 interface FileCompressionResult {
@@ -104,12 +106,13 @@ function parseTtcHeaders(headers: Headers): {
   originalFileName: string;
   wasEncrypted: boolean;
   crc32Verified: boolean;
+  gf3Representation: string;
 } {
   return {
     originalSize: parseInt(headers.get('X-TTC-Original-Size') || '0', 10),
     compressedSize: parseInt(headers.get('X-TTC-Compressed-Size') || '0', 10),
     compressionRatio: headers.get('X-TTC-Compression-Ratio') || '0',
-    engine: (headers.get('X-TTC-Engine') || 'legacy-zlib') as 'ttc-native' | 'legacy-zlib',
+    engine: (headers.get('X-TTC-Engine') || 'ttc-ts-fallback') as 'ttc-native' | 'ttc-ts-fallback',
     mode: headers.get('X-TTC-Mode') || 'BASIC',
     level: parseInt(headers.get('X-TTC-Level') || '5', 10),
     levelName: headers.get('X-TTC-Level-Name') || '',
@@ -124,6 +127,7 @@ function parseTtcHeaders(headers: Headers): {
     originalFileName: headers.get('X-TTC-Original-Filename') || '',
     wasEncrypted: headers.get('X-TTC-Was-Encrypted') === 'true',
     crc32Verified: headers.get('X-TTC-CRC32-Verified') !== 'false',
+    gf3Representation: headers.get('X-TTC-GF3-Rep') || 'balanced',
   };
 }
 
@@ -183,6 +187,7 @@ function FileCompressionTab() {
           avgDelta: h.avgDelta,
           predominantBase: h.predominantBase,
           adaptiveRepUsed: h.adaptiveRepUsed,
+          gf3Representation: h.gf3Representation as 'balanced' | 'unsigned' | 'native',
         },
       } as FileCompressionResult;
     },
@@ -420,6 +425,10 @@ function FileCompressionTab() {
                     <div>
                       <span className="text-muted-foreground">Avg Delta: </span>
                       <span className="font-mono" data-testid="text-avg-delta">{compressResult.ttcMetadata.avgDelta.toFixed(4)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">GF(3): </span>
+                      <span className="font-mono" data-testid="text-gf3-rep">{compressResult.ttcMetadata.gf3Representation || 'balanced'}</span>
                     </div>
                   </div>
                 </div>

@@ -67,5 +67,6 @@ export const corsMiddleware = cors({
     "X-TTC-Original-Filename",
     "X-TTC-CRC32-Verified",
     "X-TTC-Was-Encrypted",
+    "X-TTC-GF3-Rep",
   ],
 });

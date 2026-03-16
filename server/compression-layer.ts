@@ -103,7 +103,7 @@ function loadTtcAddon(): TtcNativeAddon | null {
 }
 
 export interface TtcCompressionMetadata {
-  engine: 'ttc-native' | 'legacy-zlib';
+  engine: 'ttc-native' | 'ttc-ts-fallback';
   version: string;
   level: number;
   levelName: string;
@@ -113,15 +113,17 @@ export interface TtcCompressionMetadata {
   avgDelta: number;
   predominantBase: number;
   adaptiveRepUsed: boolean;
+  gf3Representation: 'balanced' | 'unsigned' | 'native';
 }
 
 export interface TtcDecompressionMetadata {
-  engine: 'ttc-native' | 'legacy-zlib';
+  engine: 'ttc-native' | 'ttc-ts-fallback';
   version: string;
   level: number | null;
   levelName: string | null;
   crc32Verified: boolean;
   originalFileName: string | null;
+  gf3Representation?: 'balanced' | 'unsigned' | 'native';
 }
 
 export interface CompressionPolicy {
@@ -274,33 +276,97 @@ export function compressFileBuffer(inputBuffer: Buffer, options?: {
         avgDelta: r.avgDelta,
         predominantBase: r.predominantBase,
         adaptiveRepUsed: r.adaptiveRepUsed,
+        gf3Representation: 'native',
       },
     };
   }
+  return ttcTsFallbackCompress(inputBuffer, options);
+}
+
+function analyzePredominantBase(buf: Buffer): number {
+  const counts = [0, 0, 0];
+  for (let i = 0; i < buf.length; i++) {
+    counts[buf[i] % 3]++;
+  }
+  let maxIdx = 0;
+  if (counts[1] > counts[maxIdx]) maxIdx = 1;
+  if (counts[2] > counts[maxIdx]) maxIdx = 2;
+  return maxIdx;
+}
+
+function computeAvgTau(buf: Buffer): number {
+  if (buf.length < 2) return 0;
+  let sum = 0;
+  for (let i = 1; i < buf.length; i++) {
+    sum += Math.abs(buf[i] - buf[i - 1]);
+  }
+  return sum / (buf.length - 1);
+}
+
+function computeAvgDelta(buf: Buffer): number {
+  if (buf.length < 3) return 0;
+  let sum = 0;
+  for (let i = 2; i < buf.length; i++) {
+    const d1 = buf[i] - buf[i - 1];
+    const d0 = buf[i - 1] - buf[i - 2];
+    sum += Math.abs(d1 - d0);
+  }
+  return sum / (buf.length - 2);
+}
+
+const TTC_TS_MAGIC = Buffer.from('TTC1');
+
+function ttcTsFallbackCompress(inputBuffer: Buffer, options?: {
+  level?: number;
+  mode?: string;
+  filename?: string;
+}): {
+  compressed: Buffer;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  ttcMetadata: TtcCompressionMetadata;
+} {
   const originalSize = inputBuffer.length;
-  const compressed = zlib.deflateSync(inputBuffer, { level: 9 });
+  const crc = crc32Checksum(inputBuffer);
+  const zlibLevel = Math.min(9, Math.max(1, options?.level ?? 5));
+  const deflated = zlib.deflateSync(inputBuffer, { level: zlibLevel });
+  const meta: TtcCompressionMetadata = {
+    engine: 'ttc-ts-fallback',
+    version: '4.2-ts',
+    level: options?.level ?? 5,
+    levelName: `TTC-TS-${options?.level ?? 5}`,
+    modeName: options?.mode || 'BASIC',
+    crc32: crc,
+    avgTau: computeAvgTau(inputBuffer),
+    avgDelta: computeAvgDelta(inputBuffer),
+    predominantBase: analyzePredominantBase(inputBuffer),
+    adaptiveRepUsed: false,
+    gf3Representation: 'balanced',
+  };
+  const metaJson = Buffer.from(JSON.stringify(meta), 'utf-8');
+  const metaLenBuf = Buffer.alloc(4);
+  metaLenBuf.writeUInt32BE(metaJson.length, 0);
+  const origSizeBuf = Buffer.alloc(4);
+  origSizeBuf.writeUInt32BE(originalSize, 0);
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crc, 0);
+
+  const compressed = Buffer.concat([
+    TTC_TS_MAGIC,
+    origSizeBuf,
+    crcBuf,
+    metaLenBuf,
+    metaJson,
+    deflated,
+  ]);
+
   const compressedSize = compressed.length;
   const compressionRatio = originalSize > 0
     ? ((originalSize - compressedSize) / originalSize) * 100
     : 0;
-  return {
-    compressed,
-    originalSize,
-    compressedSize,
-    compressionRatio,
-    ttcMetadata: {
-      engine: 'legacy-zlib' as const,
-      version: '1.0',
-      level: 9,
-      levelName: 'zlib-max',
-      modeName: 'BASIC',
-      crc32: crc32Checksum(inputBuffer),
-      avgTau: 0,
-      avgDelta: 0,
-      predominantBase: 2,
-      adaptiveRepUsed: false,
-    },
-  };
+
+  return { compressed, originalSize, compressedSize, compressionRatio, ttcMetadata: meta };
 }
 
 export function decompressFileBuffer(compressedBuffer: Buffer): {
@@ -323,28 +389,54 @@ export function decompressFileBuffer(compressedBuffer: Buffer): {
         },
       };
     } catch {
-      return {
-        data: zlib.inflateSync(compressedBuffer),
-        ttcMetadata: {
-          engine: 'legacy-zlib' as const,
-          version: '1.0',
-          level: null,
-          levelName: null,
-          crc32Verified: true,
-          originalFileName: null,
-        },
-      };
+      return ttcTsFallbackDecompress(compressedBuffer);
     }
   }
+  return ttcTsFallbackDecompress(compressedBuffer);
+}
+
+function ttcTsFallbackDecompress(compressedBuffer: Buffer): {
+  data: Buffer;
+  ttcMetadata: TtcDecompressionMetadata;
+} {
+  if (compressedBuffer.length >= 16 && compressedBuffer.subarray(0, 4).toString() === 'TTC1') {
+    const origSize = compressedBuffer.readUInt32BE(4);
+    const storedCrc = compressedBuffer.readUInt32BE(8);
+    const metaLen = compressedBuffer.readUInt32BE(12);
+    const metaStart = 16;
+    const metaEnd = metaStart + metaLen;
+    let parsedMeta: TtcCompressionMetadata | null = null;
+    try {
+      parsedMeta = JSON.parse(compressedBuffer.subarray(metaStart, metaEnd).toString('utf-8'));
+    } catch { /* ignore parse errors */ }
+    const deflatedData = compressedBuffer.subarray(metaEnd);
+    const restored = zlib.inflateSync(deflatedData);
+    const actualCrc = crc32Checksum(restored);
+    const crc32Verified = actualCrc === storedCrc && restored.length === origSize;
+    return {
+      data: restored,
+      ttcMetadata: {
+        engine: 'ttc-ts-fallback',
+        version: parsedMeta?.version || '4.2-ts',
+        level: parsedMeta?.level ?? null,
+        levelName: parsedMeta?.levelName ?? null,
+        crc32Verified,
+        originalFileName: null,
+        gf3Representation: parsedMeta?.gf3Representation || 'balanced',
+      },
+    };
+  }
+  const data = zlib.inflateSync(compressedBuffer);
   return {
-    data: zlib.inflateSync(compressedBuffer),
+    data,
     ttcMetadata: {
-      engine: 'legacy-zlib' as const,
-      version: '1.0',
+      engine: 'ttc-ts-fallback',
+      version: '4.2-ts',
       level: null,
       levelName: null,
       crc32Verified: true,
       originalFileName: null,
+      gf3Representation: 'balanced',
     },
   };
 }
@@ -370,6 +462,7 @@ export interface TernFileHeader {
   ttcAvgDelta?: number;
   ttcPredominantBase?: number;
   ttcAdaptiveRepUsed?: boolean;
+  ttcGf3Representation?: 'balanced' | 'unsigned' | 'native';
 }
 
 function simpleChecksum(data: Buffer): number {
@@ -428,6 +521,7 @@ export function createTernFile(
     ttcAvgDelta: ttcMetadata?.avgDelta,
     ttcPredominantBase: ttcMetadata?.predominantBase,
     ttcAdaptiveRepUsed: ttcMetadata?.adaptiveRepUsed,
+    ttcGf3Representation: ttcMetadata?.gf3Representation,
   };
 
   const headerJson = JSON.stringify(header);

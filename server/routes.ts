@@ -691,6 +691,7 @@ export async function registerRoutes(
         'X-TTC-Avg-Tau': String(ttcMetadata?.avgTau ?? 0),
         'X-TTC-Avg-Delta': String(ttcMetadata?.avgDelta ?? 0),
         'X-TTC-Adaptive-Rep': String(ttcMetadata?.adaptiveRepUsed ?? false),
+        'X-TTC-GF3-Rep': ttcMetadata?.gf3Representation || 'balanced',
       };
 
       if (isRaw) {
@@ -769,6 +770,7 @@ export async function registerRoutes(
           'X-TTC-Level': String(ttcMetadata?.level ?? 5),
           'X-TTC-Level-Name': ttcMetadata?.levelName || '',
           'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
+          'X-TTC-GF3-Rep': ttcMetadata?.gf3Representation || 'balanced',
         };
         res.set(decompHeaders);
         res.send(originalData);
@@ -841,6 +843,7 @@ export async function registerRoutes(
         'X-TTC-Avg-Tau': String(ttcMetadata?.avgTau ?? 0),
         'X-TTC-Avg-Delta': String(ttcMetadata?.avgDelta ?? 0),
         'X-TTC-Adaptive-Rep': String(ttcMetadata?.adaptiveRepUsed ?? false),
+        'X-TTC-GF3-Rep': ttcMetadata?.gf3Representation || 'balanced',
       });
 
       res.send(ternFile);
