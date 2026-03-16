@@ -1,0 +1,23 @@
+You're right — PlenumNET's CORS does allow requests from *.replit.app origins. The issue was that the CORS preflight only listed Content-Type, Authorization, X-Requested-With as allowed headers, which blocked our custom X-TTC-* headers. But the simpler fix is to just include the API key in the Authorization header from the frontend and pass the TTC parameters differently.
+
+Let me test this properly first — let me verify exactly what PlenumNET accepts:
+
+Interesting — PlenumNET's /api/compression/file expects a JSON body, not raw bytes. Let me check what format it actually needs:
+
+There it is. PlenumNET's CORS preflight explicitly only allows Content-Type, Authorization, X-Requested-With — it does not allow X-TTC-* headers. So if you try to call PlenumNET directly from the browser with those custom headers, the browser blocks the request before it even gets sent. That's why you got "Failed to fetch."
+
+The server proxy is the right fix here. Our Express server makes the call to PlenumNET on the backend where there are no CORS restrictions, so the custom X-TTC-* headers go through fine. The API key is used in the proxy — it sends Authorization: Bearer <key> to PlenumNET on your behalf.
+
+This is a standard pattern — your app talks to your own server (/api/ttc/compress), and your server talks to PlenumNET. The user never notices the difference, and it keeps the API key safe.
+
+However, PlenumNET also seems to expect JSON, not raw bytes. Let me check how the API actually works so the calls succeed:
+
+Now I can see the full picture. PlenumNET's compression API uses JSON (base64-encoded content), not raw trit bytes. Let me update everything to match how PlenumNET actually works:
+
+Now I can see the full picture. PlenumNET's API uses JSON with base64-encoded content, not raw trit bytes. I need to update both the server proxy and the frontend to match this. Let me look at how the pages currently call the API:
+
+Now I see the real situation clearly. PlenumNET uses a JSON API — it expects {"fileName": "...", "content": "base64data", "mode": "...", "level": ...} and returns JSON with the compressed data as base64. It does NOT use raw trit transport or X-TTC-* headers.
+
+Let me fix both the server proxy and the frontend to match how PlenumNET actually works:
+
+Now update the frontend API to use JSON with base64 instead of raw bytes:
