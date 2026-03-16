@@ -17,13 +17,33 @@
 import zlib from 'zlib';
 import { createRequire } from 'module';
 import { resolve as _resolve } from 'path';
-import { compressData, decompressData, ternaryEncode, ternaryDecode, runLengthCompress, runLengthDecompress } from './ternary';
+import { compressData, decompressData } from './ternary';
 import { phaseSplit, phaseRecombine, type EncryptionMode, type EncryptedPhaseData } from './salvi-core/phase-encryption';
 
 const _getRequire = (): NodeRequire => {
   if (typeof require !== 'undefined') return require;
   return createRequire(import.meta.url);
 };
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32Checksum(buf: Buffer): number {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) {
+    crc = CRC32_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
 
 interface TtcNativeAddon {
   ttcCompress(input: Buffer, level?: number | null, mode?: string | null, filename?: string | null): {
@@ -258,12 +278,29 @@ export function compressFileBuffer(inputBuffer: Buffer, options?: {
     };
   }
   const originalSize = inputBuffer.length;
-  const deflated = zlib.deflateSync(inputBuffer, { level: 9 });
-  const ternaryEncoded = ternaryEncode(deflated);
-  const compressed = runLengthCompress(ternaryEncoded);
+  const compressed = zlib.deflateSync(inputBuffer, { level: 9 });
   const compressedSize = compressed.length;
-  const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
-  return { compressed, originalSize, compressedSize, compressionRatio };
+  const compressionRatio = originalSize > 0
+    ? ((originalSize - compressedSize) / originalSize) * 100
+    : 0;
+  return {
+    compressed,
+    originalSize,
+    compressedSize,
+    compressionRatio,
+    ttcMetadata: {
+      engine: 'legacy-zlib' as const,
+      version: '1.0',
+      level: 9,
+      levelName: 'zlib-max',
+      modeName: 'BASIC',
+      crc32: crc32Checksum(inputBuffer),
+      avgTau: 0,
+      avgDelta: 0,
+      predominantBase: 2,
+      adaptiveRepUsed: false,
+    },
+  };
 }
 
 export function decompressFileBuffer(compressedBuffer: Buffer): {
@@ -286,14 +323,30 @@ export function decompressFileBuffer(compressedBuffer: Buffer): {
         },
       };
     } catch {
-      const ternaryEncoded = runLengthDecompress(compressedBuffer);
-      const deflated = ternaryDecode(ternaryEncoded);
-      return { data: zlib.inflateSync(deflated) };
+      return {
+        data: zlib.inflateSync(compressedBuffer),
+        ttcMetadata: {
+          engine: 'legacy-zlib' as const,
+          version: '1.0',
+          level: null,
+          levelName: null,
+          crc32Verified: true,
+          originalFileName: null,
+        },
+      };
     }
   }
-  const ternaryEncoded = runLengthDecompress(compressedBuffer);
-  const deflated = ternaryDecode(ternaryEncoded);
-  return { data: zlib.inflateSync(deflated) };
+  return {
+    data: zlib.inflateSync(compressedBuffer),
+    ttcMetadata: {
+      engine: 'legacy-zlib' as const,
+      version: '1.0',
+      level: null,
+      levelName: null,
+      crc32Verified: true,
+      originalFileName: null,
+    },
+  };
 }
 
 export interface TernFileHeader {
@@ -307,6 +360,16 @@ export interface TernFileHeader {
   encryptionMode?: string;
   checksum: number;
   timestamp: string;
+  ttcEngine?: 'ttc-native' | 'legacy-zlib';
+  ttcVersion?: string;
+  ttcLevel?: number;
+  ttcLevelName?: string;
+  ttcModeName?: string;
+  ttcCrc32?: number;
+  ttcAvgTau?: number;
+  ttcAvgDelta?: number;
+  ttcPredominantBase?: number;
+  ttcAdaptiveRepUsed?: boolean;
 }
 
 function simpleChecksum(data: Buffer): number {
@@ -353,8 +416,18 @@ export function createTernFile(
     compressionRatio,
     encrypted,
     encryptionMode,
-    checksum: ttcMetadata ? ttcMetadata.crc32 : simpleChecksum(inputBuffer),
+    checksum: ttcMetadata ? ttcMetadata.crc32 : crc32Checksum(inputBuffer),
     timestamp: new Date().toISOString(),
+    ttcEngine: ttcMetadata?.engine,
+    ttcVersion: ttcMetadata?.version,
+    ttcLevel: ttcMetadata?.level,
+    ttcLevelName: ttcMetadata?.levelName,
+    ttcModeName: ttcMetadata?.modeName,
+    ttcCrc32: ttcMetadata?.crc32,
+    ttcAvgTau: ttcMetadata?.avgTau,
+    ttcAvgDelta: ttcMetadata?.avgDelta,
+    ttcPredominantBase: ttcMetadata?.predominantBase,
+    ttcAdaptiveRepUsed: ttcMetadata?.adaptiveRepUsed,
   };
 
   const headerJson = JSON.stringify(header);

@@ -697,8 +697,19 @@ export async function registerRoutes(
         res.set(ttcHeaders);
         res.send(ternFile);
       } else {
-        res.set(ttcHeaders);
-        res.send(ternFile);
+        res.json({
+          success: true,
+          fileName: fileName.replace(/\.[^.]+$/, '') + '.tern',
+          originalSize: header.originalSize,
+          compressedSize: ternFile.length,
+          compressionRatio: header.compressionRatio.toFixed(1),
+          encrypted: header.encrypted,
+          encryptionMode: header.encryptionMode,
+          processingTimeMs: processingTimeMs.toFixed(2),
+          data: ternFile.toString('base64'),
+          header,
+          ttcMetadata: ttcMetadata || null,
+        });
       }
     } catch (error: unknown) {
       log.error("File compression error:", error);
@@ -743,23 +754,38 @@ export async function registerRoutes(
       const { header, originalData, ttcMetadata } = parseTernFile(ternBuffer);
       const processingTimeMs = performance.now() - startTime;
 
-      const decompHeaders: Record<string, string> = {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${header.originalFileName || 'decompressed.bin'}"`,
-        'X-TTC-Original-Size': String(header.originalSize),
-        'X-TTC-Compressed-Size': String(header.compressedSize),
-        'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
-        'X-TTC-Engine': ttcMetadata?.engine || 'legacy-zlib',
-        'X-TTC-Was-Encrypted': String(header.encrypted || false),
-        'X-TTC-Original-Filename': header.originalFileName || '',
-        'X-TTC-CRC32-Verified': String(ttcMetadata?.crc32Verified ?? true),
-        'X-TTC-Version': ttcMetadata?.version || '1.0',
-        'X-TTC-Level': String(ttcMetadata?.level ?? 5),
-        'X-TTC-Level-Name': ttcMetadata?.levelName || '',
-        'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
-      };
-      res.set(decompHeaders);
-      res.send(originalData);
+      if (isRaw) {
+        const decompHeaders: Record<string, string> = {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${header.originalFileName || 'decompressed.bin'}"`,
+          'X-TTC-Original-Size': String(header.originalSize),
+          'X-TTC-Compressed-Size': String(header.compressedSize),
+          'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
+          'X-TTC-Engine': ttcMetadata?.engine || 'legacy-zlib',
+          'X-TTC-Was-Encrypted': String(header.encrypted || false),
+          'X-TTC-Original-Filename': header.originalFileName || '',
+          'X-TTC-CRC32-Verified': String(ttcMetadata?.crc32Verified ?? true),
+          'X-TTC-Version': ttcMetadata?.version || '1.0',
+          'X-TTC-Level': String(ttcMetadata?.level ?? 5),
+          'X-TTC-Level-Name': ttcMetadata?.levelName || '',
+          'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
+        };
+        res.set(decompHeaders);
+        res.send(originalData);
+      } else {
+        res.json({
+          success: true,
+          originalFileName: header.originalFileName,
+          originalSize: header.originalSize,
+          compressedSize: header.compressedSize,
+          wasEncrypted: header.encrypted,
+          encryptionMode: header.encryptionMode,
+          processingTimeMs: processingTimeMs.toFixed(2),
+          data: originalData.toString('base64'),
+          header,
+          ttcMetadata: ttcMetadata || null,
+        });
+      }
     } catch (error: unknown) {
       log.error("File decompression error:", error);
       res.status(500).json({ error: "Decompression failed", details: toErrorMessage(error) });

@@ -56,6 +56,7 @@ interface FileCompressionResult {
   compressedSize: number;
   compressionRatio: string;
   encrypted: boolean;
+  encryptionMode?: string;
   processingTimeMs: string;
   data: ArrayBuffer;
   ttcMetadata: TtcMetadata;
@@ -168,6 +169,7 @@ function FileCompressionTab() {
         compressedSize: h.compressedSize,
         compressionRatio: h.compressionRatio,
         encrypted: h.encrypted,
+        encryptionMode: encrypt ? encryptionMode : undefined,
         processingTimeMs: h.processingTimeMs,
         data: buffer,
         ttcMetadata: {
