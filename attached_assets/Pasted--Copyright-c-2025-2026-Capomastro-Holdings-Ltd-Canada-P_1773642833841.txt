@@ -687,7 +687,7 @@ impl TansFreqTable {
                     if sym < TANS_ALPHABET { counts[sym] += 1; }
                 }
                 Token::Match { length, .. } => {
-                    let len_sym = (512 + (*length).min(255)) as usize;
+                    let len_sym = (511 + (*length).min(256)) as usize;
                     if len_sym < TANS_ALPHABET { counts[len_sym] += 1; }
                 }
             }
@@ -765,7 +765,7 @@ fn tans_encode(tokens: &[Token], freq: &TansFreqTable, _window_size: usize) -> (
                 symbols.push((256 + (*length).min(255)) as u16);
             }
             Token::Match { dist, length } => {
-                symbols.push((512 + (*length).min(255)) as u16);
+                symbols.push((511 + (*length).min(256)) as u16);
                 distances.push(*dist);
             }
         }
@@ -844,14 +844,14 @@ fn tans_decode(
         // Emit token
         if s <= 255 {
             tokens.push(Token::Literal(s as u8));
-        } else if s >= 256 && s <= 511 {
+        } else if s >= 256 && s <= 510 {
             let run_len = (s - 256) as usize;
             if let Some(Token::Literal(b)) = tokens.last() {
                 let byte = *b; tokens.pop();
                 tokens.push(Token::Run { byte, length: run_len });
             }
-        } else if s >= 512 && s <= 767 {
-            let match_len = (s - 512) as usize;
+        } else if s >= 511 && s <= 766 {
+            let match_len = (s - 511) as usize;
             let dist = if dist_idx < distances.len() { distances[dist_idx] } else { 0 };
             dist_idx += 1;
             tokens.push(Token::Match { dist, length: match_len });
@@ -2180,7 +2180,7 @@ mod tests {
                 for _ in 0..2048 { s = s.wrapping_mul(1103515245).wrapping_add(12345);
                     v.push((s >> 16) as u8); } v }),
             // Repeated short pattern → high match density
-            ("repeating_short", b"ABCABC".repeat(200)),
+            ("repeating_short", b"ABCABC".repeat(200).into_bytes()),
             // Nearly incompressible (uniform) → stress ANS with high entropy
             ("high_entropy", (0..1024).map(|i| ((i*7+13) % 256) as u8).collect()),
             // Very small (edge case) → few tokens
