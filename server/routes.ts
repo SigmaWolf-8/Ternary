@@ -15,6 +15,7 @@
  */
 
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { randomUUID } from "crypto";
@@ -77,6 +78,24 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.get("/api/benchmark-report", async (_req, res) => {
+    try {
+      const { readdir } = await import("fs/promises");
+      const benchDir = path.resolve("ternary-math");
+      const all = await readdir(benchDir);
+      const files = all.filter(f => f.startsWith("BENCH-") && f.endsWith(".html")).sort();
+      if (files.length > 0) {
+        const latest = files[files.length - 1];
+        const html = await readFile(path.join(benchDir, latest), "utf-8");
+        res.type("html").send(html);
+      } else {
+        res.status(404).send("No benchmark report found");
+      }
+    } catch (e: any) {
+      res.status(500).send("Error: " + (e?.message || "unknown"));
+    }
+  });
 
   // =====================================================
   // PPTPro INTEGRATION API — must register before v1 rewrite
@@ -672,6 +691,96 @@ export async function registerRoutes(
       });
     } catch (error: unknown) {
       log.error("File decompression error:", error);
+      res.status(500).json({ error: "Decompression failed", details: toErrorMessage(error) });
+    }
+  });
+
+  // ==========================================
+  // RAW BINARY TRANSPORT — application/octet-stream
+  // Config via X-TTC-* request headers, results in X-TTC-* response headers
+  // ==========================================
+
+  const rawBodyParser = express.raw({ type: 'application/octet-stream', limit: '50mb' });
+
+  app.post("/api/compression/file/raw", rawBodyParser, async (req, res) => {
+    try {
+      const body = req.body as Buffer;
+      if (!body || !Buffer.isBuffer(body) || body.length === 0) {
+        return res.status(400).json({ error: "Empty or invalid body. Send raw bytes with Content-Type: application/octet-stream" });
+      }
+
+      const fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin';
+      const encrypt = req.headers['x-ttc-encrypt'] === 'true';
+      const encryptionMode = (req.headers['x-ttc-encryption-mode'] as string) || 'balanced';
+      const imageWidth = req.headers['x-ttc-image-width'] ? parseInt(req.headers['x-ttc-image-width'] as string, 10) : undefined;
+
+      const { createTernFile } = await import("./compression-layer");
+      const startTime = performance.now();
+
+      const { ternFile, header } = createTernFile(body, fileName, {
+        encrypt,
+        encryptionMode: encrypt ? encryptionMode as any : undefined,
+        imageWidth,
+      });
+
+      const processingTimeMs = performance.now() - startTime;
+
+      res.set({
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${fileName.replace(/\.[^.]+$/, '')}.tern"`,
+        'X-TTC-Original-Size': String(header.originalSize),
+        'X-TTC-Compressed-Size': String(ternFile.length),
+        'X-TTC-Compression-Ratio': header.compressionRatio.toFixed(1),
+        'X-TTC-Mode': header.mode || 'BASIC',
+        'X-TTC-Level': String(header.level || 5),
+        'X-TTC-Level-Name': header.levelName || '',
+        'X-TTC-Version': header.version || '2.0',
+        'X-TTC-CRC32': header.crc32 || '',
+        'X-TTC-Encrypted': String(header.encrypted || false),
+        'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
+        'X-TTC-Original-Filename': fileName,
+        'X-TTC-Predominant-Base': String(header.predominantBase || 3),
+        'X-TTC-Avg-Tau': String(header.avgTau || 0),
+        'X-TTC-Avg-Delta': String(header.avgDelta || 0),
+        'X-TTC-GF3-Rep': header.gf3Rep || '',
+        'X-TTC-Adaptive-Rep': String(header.adaptiveRepUsed || false),
+      });
+
+      res.send(ternFile);
+    } catch (error: unknown) {
+      log.error("Raw file compression error:", error);
+      res.status(500).json({ error: "Compression failed", details: toErrorMessage(error) });
+    }
+  });
+
+  app.post("/api/compression/decompress/raw", rawBodyParser, async (req, res) => {
+    try {
+      const body = req.body as Buffer;
+      if (!body || !Buffer.isBuffer(body) || body.length === 0) {
+        return res.status(400).json({ error: "Empty or invalid body. Send .tern bytes with Content-Type: application/octet-stream" });
+      }
+
+      const { parseTernFile } = await import("./compression-layer");
+      const startTime = performance.now();
+
+      const { header, originalData } = parseTernFile(body);
+      const processingTimeMs = performance.now() - startTime;
+
+      res.set({
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${header.originalFileName || 'decompressed.bin'}"`,
+        'X-TTC-Original-Size': String(header.originalSize),
+        'X-TTC-Compressed-Size': String(header.compressedSize),
+        'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
+        'X-TTC-Was-Encrypted': String(header.encrypted || false),
+        'X-TTC-Original-Filename': header.originalFileName || '',
+        'X-TTC-CRC32-Verified': String(header.crc32Verified ?? true),
+        'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
+      });
+
+      res.send(originalData);
+    } catch (error: unknown) {
+      log.error("Raw file decompression error:", error);
       res.status(500).json({ error: "Decompression failed", details: toErrorMessage(error) });
     }
   });
