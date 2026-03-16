@@ -45,5 +45,6 @@ pub mod plenum_square;
 pub mod cube_addr;
 pub mod pt26_dsa;
 pub mod pt26_walk;
+pub mod ttc;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_exports;

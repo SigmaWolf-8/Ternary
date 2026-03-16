@@ -17,7 +17,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Box } from "lucide-react";
-import { useLocation } from "wouter";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -55,8 +54,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     });
   };
 
+  handleReload = () => {
+    window.location.reload();
+  };
+
   render() {
     if (this.state.hasError) {
+      const isChunkError = this.state.error?.message?.includes("Loading chunk") ||
+        this.state.error?.message?.includes("dynamically imported module") ||
+        this.state.error?.message?.includes("Failed to fetch");
       return (
         <div
           className="min-h-screen w-full flex items-center justify-center bg-background text-foreground"
@@ -68,23 +74,36 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <span>PlenumNET</span>
             </div>
 
-            <h1 className="text-3xl font-bold text-foreground mb-4">Something went wrong</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-4">
+              {isChunkError ? "Page failed to load" : "Something went wrong"}
+            </h1>
             <p className="text-sm text-muted-foreground mb-2">
-              An unexpected error occurred. Please try refreshing the page or returning to home.
+              {isChunkError
+                ? "A network issue prevented the page from loading. Please reload to try again."
+                : "An unexpected error occurred. Please try refreshing the page or returning to home."}
             </p>
-            {this.state.error && (
+            {this.state.error && !isChunkError && (
               <p className="text-xs text-destructive mb-8 font-mono bg-background/50 p-3 rounded border border-destructive/20">
                 {this.state.error.message}
               </p>
             )}
 
             <div className="flex flex-wrap justify-center gap-3">
-              <Button
-                onClick={this.handleReset}
-                data-testid="button-error-reset"
-              >
-                Try Again
-              </Button>
+              {isChunkError ? (
+                <Button
+                  onClick={this.handleReload}
+                  data-testid="button-error-reload"
+                >
+                  Reload Page
+                </Button>
+              ) : (
+                <Button
+                  onClick={this.handleReset}
+                  data-testid="button-error-reset"
+                >
+                  Try Again
+                </Button>
+              )}
               <Button variant="outline" asChild data-testid="button-error-home">
                 <a href="/">
                   Return to Home

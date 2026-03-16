@@ -35,29 +35,59 @@ import Landing from "@/pages/landing";
 import LegalPage from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 
-const TernaryDB = lazy(() => import("@/pages/ternarydb"));
-const Whitepaper = lazy(() => import("@/pages/whitepaper"));
-const GitHubManager = lazy(() => import("@/pages/github-manager"));
-const APIDemo = lazy(() => import("@/pages/api-demo"));
-const KongKonnect = lazy(() => import("@/pages/kong-konnect"));
-const Admin = lazy(() => import("@/pages/admin"));
-const Docs = lazy(() => import("@/pages/docs"));
-const CalendarPage = lazy(() => import("@/pages/calendar"));
-const CompliancePage = lazy(() => import("@/pages/compliance"));
-const HPTPDemo = lazy(() => import("@/pages/hptp-demo"));
-const ThirteenMoonPage = lazy(() => import("@/pages/thirteen-moon"));
-const CompressionPage = lazy(() => import("@/pages/compression"));
-const Tribonacci28DS = lazy(() => import("@/pages/tribonacci-28ds"));
-const About = lazy(() => import("@/pages/about"));
-const Contact = lazy(() => import("@/pages/contact"));
-const Distribution = lazy(() => import("@/pages/distribution"));
-const ISASecurityPaper = lazy(() => import("@/pages/isa-security-paper"));
-const VMDemo = lazy(() => import("@/pages/vm-demo"));
-const AgentArray = lazy(() => import("@/pages/agent-array"));
-const QuantumSim = lazy(() => import("@/pages/quantum-sim"));
-const ApiKeysPage = lazy(() => import("@/pages/api-keys"));
-const FPGABenchmarks = lazy(() => import("@/pages/fpga-benchmarks"));
-const TsaPage = lazy(() => import("@/pages/tsa"));
+function isRetryableChunkError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message;
+  return msg.includes("Loading chunk") ||
+    msg.includes("dynamically imported module") ||
+    msg.includes("Importing a module script failed") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("ChunkLoadError");
+}
+
+function lazyRetry<T extends { default: React.ComponentType<any> }>(
+  factory: () => Promise<T>,
+  maxRetries = 2,
+): React.LazyExoticComponent<T["default"]> {
+  return lazy(async () => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await factory();
+      } catch (err) {
+        if (attempt < maxRetries && isRetryableChunkError(err)) {
+          await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+    return factory();
+  });
+}
+
+const TernaryDB = lazyRetry(() => import("@/pages/ternarydb"));
+const Whitepaper = lazyRetry(() => import("@/pages/whitepaper"));
+const GitHubManager = lazyRetry(() => import("@/pages/github-manager"));
+const APIDemo = lazyRetry(() => import("@/pages/api-demo"));
+const KongKonnect = lazyRetry(() => import("@/pages/kong-konnect"));
+const Admin = lazyRetry(() => import("@/pages/admin"));
+const Docs = lazyRetry(() => import("@/pages/docs"));
+const CalendarPage = lazyRetry(() => import("@/pages/calendar"));
+const CompliancePage = lazyRetry(() => import("@/pages/compliance"));
+const HPTPDemo = lazyRetry(() => import("@/pages/hptp-demo"));
+const ThirteenMoonPage = lazyRetry(() => import("@/pages/thirteen-moon"));
+const CompressionPage = lazyRetry(() => import("@/pages/compression"));
+const Tribonacci28DS = lazyRetry(() => import("@/pages/tribonacci-28ds"));
+const About = lazyRetry(() => import("@/pages/about"));
+const Contact = lazyRetry(() => import("@/pages/contact"));
+const Distribution = lazyRetry(() => import("@/pages/distribution"));
+const ISASecurityPaper = lazyRetry(() => import("@/pages/isa-security-paper"));
+const VMDemo = lazyRetry(() => import("@/pages/vm-demo"));
+const AgentArray = lazyRetry(() => import("@/pages/agent-array"));
+const QuantumSim = lazyRetry(() => import("@/pages/quantum-sim"));
+const ApiKeysPage = lazyRetry(() => import("@/pages/api-keys"));
+const FPGABenchmarks = lazyRetry(() => import("@/pages/fpga-benchmarks"));
+const TsaPage = lazyRetry(() => import("@/pages/tsa"));
 import InstallExtensionDialog from "@/components/InstallExtensionCard";
 
 function LoadingSpinner() {
