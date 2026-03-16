@@ -615,80 +615,168 @@ export async function registerRoutes(
   // STANDALONE FILE COMPRESSION API
   // ==========================================
   
-  app.post("/api/compression/file", async (req, res) => {
-    try {
-      const schema = z.object({
-        fileName: z.string().min(1),
-        content: z.string().min(1),
-        encrypt: z.boolean().optional().default(false),
-        encryptionMode: z.enum(["high_security", "balanced", "performance", "adaptive"]).optional().default("balanced"),
-      });
-      
-      const parsed = schema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+  app.post("/api/compression/file",
+    (req, res, next) => {
+      const ct = (req.headers['content-type'] || '').toLowerCase();
+      if (ct.includes('application/octet-stream')) {
+        express.raw({ type: 'application/octet-stream', limit: '50mb' })(req, res, next);
+      } else {
+        next();
       }
-      
-      const { fileName, content, encrypt, encryptionMode } = parsed.data;
+    },
+    async (req, res) => {
+    try {
+      const ct = (req.headers['content-type'] || '').toLowerCase();
+      const isRaw = ct.includes('application/octet-stream') && Buffer.isBuffer(req.body) && req.body.length > 0;
+
+      let inputBuffer: Buffer;
+      let fileName: string;
+      let encrypt: boolean;
+      let encryptionMode: string;
+      let imageWidth: number | undefined;
+
+      if (isRaw) {
+        inputBuffer = req.body as Buffer;
+        fileName = (req.headers['x-ttc-filename'] as string) || 'upload.bin';
+        encrypt = req.headers['x-ttc-encrypt'] === 'true';
+        encryptionMode = (req.headers['x-ttc-encryption-mode'] as string) || 'balanced';
+        imageWidth = req.headers['x-ttc-image-width'] ? parseInt(req.headers['x-ttc-image-width'] as string, 10) : undefined;
+      } else {
+        const schema = z.object({
+          fileName: z.string().min(1),
+          content: z.string().min(1),
+          encrypt: z.boolean().optional().default(false),
+          encryptionMode: z.enum(["high_security", "balanced", "performance", "adaptive"]).optional().default("balanced"),
+        });
+
+        const parsed = schema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        }
+
+        fileName = parsed.data.fileName;
+        encrypt = parsed.data.encrypt;
+        encryptionMode = parsed.data.encryptionMode;
+        inputBuffer = Buffer.from(parsed.data.content, 'base64');
+        imageWidth = undefined;
+      }
+
       const { createTernFile } = await import("./compression-layer");
-      
-      const inputBuffer = Buffer.from(content, 'base64');
       const startTime = performance.now();
       
       const { ternFile, header } = createTernFile(inputBuffer, fileName, {
         encrypt,
-        encryptionMode: encrypt ? encryptionMode : undefined,
+        encryptionMode: encrypt ? encryptionMode as any : undefined,
+        imageWidth,
       });
       
       const processingTimeMs = performance.now() - startTime;
-      
-      res.json({
-        success: true,
-        fileName: fileName.replace(/\.[^.]+$/, '') + '.tern',
-        originalSize: header.originalSize,
-        compressedSize: ternFile.length,
-        compressionRatio: header.compressionRatio.toFixed(1),
-        encrypted: header.encrypted,
-        encryptionMode: header.encryptionMode,
-        processingTimeMs: processingTimeMs.toFixed(2),
-        data: ternFile.toString('base64'),
-        header,
-      });
+
+      if (isRaw) {
+        res.set({
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${fileName.replace(/\.[^.]+$/, '')}.tern"`,
+          'X-TTC-Original-Size': String(header.originalSize),
+          'X-TTC-Compressed-Size': String(ternFile.length),
+          'X-TTC-Compression-Ratio': header.compressionRatio.toFixed(1),
+          'X-TTC-Mode': header.mode || 'BASIC',
+          'X-TTC-Level': String(header.level || 5),
+          'X-TTC-Level-Name': header.levelName || '',
+          'X-TTC-Version': header.version || '2.0',
+          'X-TTC-CRC32': header.crc32 || '',
+          'X-TTC-Encrypted': String(header.encrypted || false),
+          'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
+          'X-TTC-Original-Filename': fileName,
+          'X-TTC-Predominant-Base': String(header.predominantBase || 3),
+          'X-TTC-Avg-Tau': String(header.avgTau || 0),
+          'X-TTC-Avg-Delta': String(header.avgDelta || 0),
+          'X-TTC-GF3-Rep': header.gf3Rep || '',
+          'X-TTC-Adaptive-Rep': String(header.adaptiveRepUsed || false),
+        });
+        res.send(ternFile);
+      } else {
+        res.json({
+          success: true,
+          fileName: fileName.replace(/\.[^.]+$/, '') + '.tern',
+          originalSize: header.originalSize,
+          compressedSize: ternFile.length,
+          compressionRatio: header.compressionRatio.toFixed(1),
+          encrypted: header.encrypted,
+          encryptionMode: header.encryptionMode,
+          processingTimeMs: processingTimeMs.toFixed(2),
+          data: ternFile.toString('base64'),
+          header,
+        });
+      }
     } catch (error: unknown) {
       log.error("File compression error:", error);
       res.status(500).json({ error: "Compression failed", details: toErrorMessage(error) });
     }
   });
 
-  app.post("/api/compression/decompress", async (req, res) => {
-    try {
-      const schema = z.object({
-        content: z.string().min(1),
-      });
-      
-      const parsed = schema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+  app.post("/api/compression/decompress",
+    (req, res, next) => {
+      const ct = (req.headers['content-type'] || '').toLowerCase();
+      if (ct.includes('application/octet-stream')) {
+        express.raw({ type: 'application/octet-stream', limit: '50mb' })(req, res, next);
+      } else {
+        next();
       }
-      
+    },
+    async (req, res) => {
+    try {
+      const ct = (req.headers['content-type'] || '').toLowerCase();
+      const isRaw = ct.includes('application/octet-stream') && Buffer.isBuffer(req.body) && req.body.length > 0;
+
+      let ternBuffer: Buffer;
+
+      if (isRaw) {
+        ternBuffer = req.body as Buffer;
+      } else {
+        const schema = z.object({
+          content: z.string().min(1),
+        });
+
+        const parsed = schema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ error: "Invalid request", details: parsed.error.errors });
+        }
+
+        ternBuffer = Buffer.from(parsed.data.content, 'base64');
+      }
+
       const { parseTernFile } = await import("./compression-layer");
-      const ternBuffer = Buffer.from(parsed.data.content, 'base64');
       const startTime = performance.now();
       
       const { header, originalData } = parseTernFile(ternBuffer);
       const processingTimeMs = performance.now() - startTime;
-      
-      res.json({
-        success: true,
-        originalFileName: header.originalFileName,
-        originalSize: header.originalSize,
-        compressedSize: header.compressedSize,
-        wasEncrypted: header.encrypted,
-        encryptionMode: header.encryptionMode,
-        processingTimeMs: processingTimeMs.toFixed(2),
-        data: originalData.toString('base64'),
-        header,
-      });
+
+      if (isRaw) {
+        res.set({
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${header.originalFileName || 'decompressed.bin'}"`,
+          'X-TTC-Original-Size': String(header.originalSize),
+          'X-TTC-Compressed-Size': String(header.compressedSize),
+          'X-TTC-Compression-Ratio': header.compressionRatio?.toFixed(1) || '',
+          'X-TTC-Was-Encrypted': String(header.encrypted || false),
+          'X-TTC-Original-Filename': header.originalFileName || '',
+          'X-TTC-CRC32-Verified': String(header.crc32Verified ?? true),
+          'X-TTC-Processing-Ms': processingTimeMs.toFixed(2),
+        });
+        res.send(originalData);
+      } else {
+        res.json({
+          success: true,
+          originalFileName: header.originalFileName,
+          originalSize: header.originalSize,
+          compressedSize: header.compressedSize,
+          wasEncrypted: header.encrypted,
+          encryptionMode: header.encryptionMode,
+          processingTimeMs: processingTimeMs.toFixed(2),
+          data: originalData.toString('base64'),
+          header,
+        });
+      }
     } catch (error: unknown) {
       log.error("File decompression error:", error);
       res.status(500).json({ error: "Decompression failed", details: toErrorMessage(error) });
