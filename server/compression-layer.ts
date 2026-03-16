@@ -484,7 +484,7 @@ export interface TernFileHeader {
   encryptionMode?: string;
   checksum: number;
   timestamp: string;
-  ttcEngine?: 'ttc-native' | 'legacy-zlib';
+  ttcEngine?: 'ttc-native' | 'ttc-ts-fallback';
   ttcVersion?: string;
   ttcLevel?: number;
   ttcLevelName?: string;

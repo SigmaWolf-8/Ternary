@@ -91,7 +91,7 @@ function parseTtcHeaders(headers: Headers): {
   originalSize: number;
   compressedSize: number;
   compressionRatio: string;
-  engine: 'ttc-native' | 'legacy-zlib';
+  engine: 'ttc-native' | 'ttc-ts-fallback';
   mode: string;
   level: number;
   levelName: string;
@@ -396,7 +396,7 @@ function FileCompressionTab() {
                 <div className="bg-muted/30 border rounded-md p-3 space-y-2" data-testid="ttc-metadata-compress">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <Badge variant="secondary" className="text-xs" data-testid="badge-engine">
-                      {compressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + compressResult.ttcMetadata.version + ' Native' : 'Legacy'}
+                      {compressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + compressResult.ttcMetadata.version + ' Native' : 'TTC v' + compressResult.ttcMetadata.version + ' TS'}
                     </Badge>
                     <Badge variant="outline" className="text-xs" data-testid="badge-mode">
                       {compressResult.ttcMetadata.modeName}
@@ -518,7 +518,7 @@ function FileCompressionTab() {
                 <div className="bg-muted/30 border rounded-md p-3 space-y-1" data-testid="ttc-metadata-decompress">
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="text-xs">
-                      {decompressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + decompressResult.ttcMetadata.version + ' Native' : 'Legacy'}
+                      {decompressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + decompressResult.ttcMetadata.version + ' Native' : 'TTC v' + decompressResult.ttcMetadata.version + ' TS'}
                     </Badge>
                     <Badge variant={decompressResult.ttcMetadata.crc32Verified ? 'default' : 'destructive'} className="text-xs" data-testid="badge-crc32-verified">
                       CRC32 {decompressResult.ttcMetadata.crc32Verified ? 'Verified' : 'MISMATCH'}
