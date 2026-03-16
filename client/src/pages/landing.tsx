@@ -260,6 +260,7 @@ function HeroSection() {
               muted
               playsInline
               loop
+              preload="none"
               className="w-full"
               style={{ height: "390px", objectFit: "fill" }}
               data-testid="hero-video"

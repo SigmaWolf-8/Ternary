@@ -31,7 +31,7 @@ import { Suspense, lazy } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CookieConsent } from "@/components/cookie-consent";
 import { usePageTitle } from "@/hooks/use-page-title";
-import Landing from "@/pages/landing";
+const Landing = lazyRetry(() => import("@/pages/landing"));
 import LegalPage from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 
