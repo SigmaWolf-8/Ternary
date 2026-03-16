@@ -40,7 +40,8 @@ import {
   calculateDuration,
   validateRecombinationWindow,
   generateTimestampBatch,
-  SALVI_EPOCH
+  SALVI_EPOCH,
+  FEMTOSECONDS_PER_SECOND
 } from "../salvi-core/femtosecond-timing";
 import {
   phaseSplit,
@@ -740,16 +741,36 @@ export function registerSalviRoutes(app: Express): void {
       const t3_wall = Date.now();
       const serverProcessingUs = Math.round((performance.now() - t2_perf) * 1000);
 
+      const absFs = timestamp.femtoseconds;
+      const unixSeconds = Number(absFs / FEMTOSECONDS_PER_SECOND);
+      const subSecFs = absFs % FEMTOSECONDS_PER_SECOND;
+      const ms  = Number(subSecFs / 1_000_000_000_000n);
+      const us  = Number((subSecFs % 1_000_000_000_000n) / 1_000_000_000n);
+      const ns  = Number((subSecFs % 1_000_000_000n) / 1_000_000n);
+      const ps  = Number((subSecFs % 1_000_000n) / 1_000n);
+      const fs  = Number(subSecFs % 1_000n);
+
       res.json({ 
         success: true, 
         timestamp: {
-          ...timestamp,
-          femtoseconds: timestamp.femtoseconds.toString(),
-          salviEpochOffset: timestamp.salviEpochOffset.toString()
+          utc: timestamp.humanReadable,
+          isoDate: timestamp.isoDate,
+          unix_seconds: unixSeconds,
+          precision: timestamp.precision,
+          components: {
+            milliseconds: ms,
+            microseconds: us,
+            nanoseconds: ns,
+            picoseconds: ps,
+            femtoseconds: fs,
+          },
+          absolute_fs: timestamp.femtoseconds.toString(),
+          salviEpochOffset_fs: timestamp.salviEpochOffset.toString(),
+          verify: `unix_seconds × 10¹⁵ + sub-second components = absolute_fs`,
         },
         epoch: {
           salviEpoch: new Date(SALVI_EPOCH).toISOString(),
-          description: "Femtoseconds since 2025-04-01T00:00:00Z (Salvi Epoch)"
+          unixEpoch: "1970-01-01T00:00:00.000Z",
         },
         hptp: {
           t2_server_receive_ms: t2_wall,
@@ -757,7 +778,6 @@ export function registerSalviRoutes(app: Express): void {
           server_processing_us: serverProcessingUs,
           protocol: "HPTP/1.0",
           correction_model: "NTP-symmetric",
-          description: "T2 captured at request entry, T3 captured just before response. Client uses NTP offset theta = ((T2-T1)+(T3-T4))/2 to correct its local clock reading to server time."
         }
       });
     } catch (error: unknown) {
@@ -769,13 +789,27 @@ export function registerSalviRoutes(app: Express): void {
   app.get("/api/salvi/timing/metrics", (req, res) => {
     try {
       const metrics = getTimingMetrics();
+      const ts = metrics.timestamp;
+      const subSecFs = ts.femtoseconds % FEMTOSECONDS_PER_SECOND;
       res.json({ 
         success: true, 
-        ...metrics,
+        clockSource: metrics.clockSource,
+        synchronizationStatus: metrics.synchronizationStatus,
+        estimatedAccuracy: metrics.estimatedAccuracy,
         timestamp: {
-          ...metrics.timestamp,
-          femtoseconds: metrics.timestamp.femtoseconds.toString(),
-          salviEpochOffset: metrics.timestamp.salviEpochOffset.toString()
+          utc: ts.humanReadable,
+          isoDate: ts.isoDate,
+          unix_seconds: Number(ts.femtoseconds / FEMTOSECONDS_PER_SECOND),
+          precision: ts.precision,
+          components: {
+            milliseconds: Number(subSecFs / 1_000_000_000_000n),
+            microseconds: Number((subSecFs % 1_000_000_000_000n) / 1_000_000_000n),
+            nanoseconds: Number((subSecFs % 1_000_000_000n) / 1_000_000n),
+            picoseconds: Number((subSecFs % 1_000_000n) / 1_000n),
+            femtoseconds: Number(subSecFs % 1_000n),
+          },
+          absolute_fs: ts.femtoseconds.toString(),
+          salviEpochOffset_fs: ts.salviEpochOffset.toString(),
         }
       });
     } catch (error: unknown) {
@@ -791,11 +825,20 @@ export function registerSalviRoutes(app: Express): void {
         return res.status(400).json({ error: "count must be between 1 and 100" });
       }
       
-      const timestamps = generateTimestampBatch(count).map(ts => ({
-        ...ts,
-        femtoseconds: ts.femtoseconds.toString(),
-        salviEpochOffset: ts.salviEpochOffset.toString()
-      }));
+      const timestamps = generateTimestampBatch(count).map(ts => {
+        const subSecFs = ts.femtoseconds % FEMTOSECONDS_PER_SECOND;
+        return {
+          utc: ts.humanReadable,
+          isoDate: ts.isoDate,
+          unix_seconds: Number(ts.femtoseconds / FEMTOSECONDS_PER_SECOND),
+          components: {
+            milliseconds: Number(subSecFs / 1_000_000_000_000n),
+            microseconds: Number((subSecFs % 1_000_000_000_000n) / 1_000_000_000n),
+            nanoseconds: Number((subSecFs % 1_000_000_000n) / 1_000_000n),
+          },
+          absolute_fs: ts.femtoseconds.toString(),
+        };
+      });
       
       res.json({ 
         success: true, 
