@@ -391,11 +391,10 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
     }
   });
 
+  const PLENUMNET_CLOUD_CP_ID = "eb53e650-7209-4916-b5e1-5e7b6ad3c56d";
+
   function getPlenumnetServices() {
-    const replitDomains = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
-    const baseUrl = replitDomains 
-      ? `https://${replitDomains.split(',')[0]}`
-      : 'https://plenumnet.replit.app';
+    const baseUrl = 'https://plenumnet.replit.app';
     return { baseUrl, services: [
         {
           name: "plenumnet-timing",
@@ -759,6 +758,50 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
           methods: ["GET"],
           endpointCount: 1,
           endpoints: ["GET /plenum"]
+        },
+        {
+          name: "plenumnet-blockchain",
+          url: `${baseUrl}/api/blockchain`,
+          tags: ["plenumnet", "blockchain", "hedera", "xrpl", "algorand", "witnessing"],
+          routePath: "/api/blockchain",
+          stripPath: false,
+          rateLimit: { minute: 40, hour: 400 },
+          methods: ["GET", "POST"],
+          endpointCount: 3,
+          endpoints: ["GET /status", "POST /witness", "POST /verify"]
+        },
+        {
+          name: "plenumnet-certification",
+          url: `${baseUrl}/api/salvi/certification`,
+          tags: ["plenumnet", "certification", "audit", "compliance"],
+          routePath: "/api/salvi/certification",
+          stripPath: false,
+          rateLimit: { minute: 50, hour: 500 },
+          methods: ["GET", "POST"],
+          endpointCount: 3,
+          endpoints: ["GET /status", "POST /certify", "GET /audit"]
+        },
+        {
+          name: "plenumnet-crypto",
+          url: `${baseUrl}/api/salvi/crypto`,
+          tags: ["plenumnet", "crypto", "cnsa2", "fips-140-3", "quantum-safe"],
+          routePath: "/api/salvi/crypto",
+          stripPath: false,
+          rateLimit: { minute: 80, hour: 800 },
+          methods: ["GET", "POST"],
+          endpointCount: 4,
+          endpoints: ["GET /algorithms", "GET /compliance", "POST /validate", "GET /status"]
+        },
+        {
+          name: "plenumnet-payments",
+          url: `${baseUrl}/api/payments`,
+          tags: ["plenumnet", "payments", "stripe", "interac", "crypto", "financial"],
+          routePath: "/api/payments",
+          stripPath: false,
+          rateLimit: { minute: 30, hour: 300 },
+          methods: ["GET", "POST"],
+          endpointCount: 4,
+          endpoints: ["GET /status", "POST /create", "POST /verify", "GET /history"]
         }
       ]};
   }
@@ -876,46 +919,15 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
       }
 
-      const kongHeaders = {
-        "Authorization": `Bearer ${KONG_KONNECT_TOKEN}`,
-        "Content-Type": "application/json"
-      };
-
-      const cpResp = await fetch(`${KONG_API_BASE}/control-planes`, { headers: kongHeaders });
-      if (!cpResp.ok) {
-        return res.status(cpResp.status).json({ error: `Failed to fetch control planes: ${cpResp.status}` });
-      }
-      const cpData = await cpResp.json();
-      const controlPlanes = cpData.data || [];
-
-      if (controlPlanes.length === 0) {
-        return res.json({ success: false, error: "No control planes found" });
-      }
-
-      const allResults: any[] = [];
-
-      for (const cp of controlPlanes) {
-        try {
-          const syncResult = await syncControlPlane(cp.id);
-          allResults.push({
-            controlPlane: cp.name,
-            controlPlaneId: cp.id,
-            ...syncResult
-          });
-        } catch (err: unknown) {
-          allResults.push({
-            controlPlane: cp.name,
-            controlPlaneId: cp.id,
-            success: false,
-            error: toErrorMessage(err)
-          });
-        }
-      }
-
+      const syncResult = await syncControlPlane(PLENUMNET_CLOUD_CP_ID);
       res.json({
         success: true,
-        controlPlanesProcessed: allResults.length,
-        results: allResults
+        controlPlanesProcessed: 1,
+        results: [{
+          controlPlane: "plenumnet-cloud",
+          controlPlaneId: PLENUMNET_CLOUD_CP_ID,
+          ...syncResult
+        }]
       });
     } catch (error: unknown) {
       res.status(500).json({ error: toErrorMessage(error) });
@@ -923,10 +935,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
   });
 
   app.get("/api/kong/service-catalog", async (_req, res) => {
-    const replitDomains = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
-    const baseUrl = replitDomains 
-      ? `https://${replitDomains.split(',')[0]}`
-      : 'https://plenumnet.replit.app';
+    const baseUrl = 'https://plenumnet.replit.app';
 
     const catalog = [
       { name: "plenumnet-timing", label: "HPTP Timing API", routePath: "/api/salvi/timing", endpointCount: 5, category: "core", endpoints: ["GET /timestamp", "GET /metrics", "GET /batch/:count", "GET /self-test", "GET /error-budget"] },
@@ -961,7 +970,11 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
       { name: "plenumnet-tonal", label: "Tonal Diffusion System", routePath: "/api/tonal", endpointCount: 3, category: "core", endpoints: ["GET /field", "GET /neighbors", "POST /packet"] },
       { name: "plenumnet-resonance", label: "Resonance Detector", routePath: "/api/resonance", endpointCount: 3, category: "core", endpoints: ["GET /status", "POST /sweep", "POST /rtt"] },
       { name: "plenumnet-entrainment", label: "Entrainment Service", routePath: "/api/v1", endpointCount: 5, category: "core", endpoints: ["GET /status", "GET /ternary/state", "GET /safety/limits", "POST /entrain/advise", "POST /logs/coherence"] },
-      { name: "plenumnet-metrics", label: "Metrics & Observability", routePath: "/api/metrics", endpointCount: 1, category: "platform", endpoints: ["GET /plenum"] }
+      { name: "plenumnet-metrics", label: "Metrics & Observability", routePath: "/api/metrics", endpointCount: 1, category: "platform", endpoints: ["GET /plenum"] },
+      { name: "plenumnet-blockchain", label: "Blockchain Witnessing", routePath: "/api/blockchain", endpointCount: 3, category: "core", endpoints: ["GET /status", "POST /witness", "POST /verify"] },
+      { name: "plenumnet-certification", label: "Certification & Audit", routePath: "/api/salvi/certification", endpointCount: 3, category: "core", endpoints: ["GET /status", "POST /certify", "GET /audit"] },
+      { name: "plenumnet-crypto", label: "Kernel Crypto (CNSA 2.0)", routePath: "/api/salvi/crypto", endpointCount: 4, category: "core", endpoints: ["GET /algorithms", "GET /compliance", "POST /validate", "GET /status"] },
+      { name: "plenumnet-payments", label: "Payment Processing", routePath: "/api/payments", endpointCount: 4, category: "core", endpoints: ["GET /status", "POST /create", "POST /verify", "GET /history"] }
     ];
 
     const totalEndpoints = catalog.reduce((sum, s) => sum + s.endpointCount, 0);
