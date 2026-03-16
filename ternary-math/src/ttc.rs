@@ -3965,19 +3965,26 @@ mod tests {
             and TL-KEM for secure tunnel establishment. Each populated cube contains 20,726,199 unique \
             PQ-encrypted tunnels computed as 26 times 3^13 divided by 2. The Tribonacci constant governs \
             structural resonance across the ternary addressing lattice. ";
-        let sizes: &[(usize, &str)] = &[(1024, "1 KB"), (4096, "4 KB"), (16384, "16 KB"), (65536, "64 KB")];
-        let levels: &[u8] = &[1, 3, 5, 9];
+        let cases: &[(usize, &str, &[u8])] = &[
+            (1024,    "1 KB",   &[1, 2, 3]),
+            (4096,    "4 KB",   &[1, 2, 3]),
+            (16384,   "16 KB",  &[1, 3, 5]),
+            (65536,   "64 KB",  &[2, 4, 6]),
+            (262144,  "256 KB", &[3, 5, 7]),
+            (1048576, "1 MB",   &[5, 7, 9]),
+        ];
         eprintln!("\n=== TTC v2.0 Compression Benchmark (release, Basic mode) ===");
-        eprintln!("{:<8} {:<6} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7}", "Size", "Level", "Comp(µs)", "Dec(µs)", "Total(µs)", "Ratio", "Saved%", "Mode");
-        eprintln!("{}", "-".repeat(72));
-        for &(size, label) in sizes {
+        eprintln!("{:<8} {:<6} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7} {:<6}",
+            "Size", "Level", "Comp(µs)", "Dec(µs)", "Total(µs)", "Ratio", "Saved%", "Mode", "Chunks");
+        eprintln!("{}", "-".repeat(80));
+        for &(size, label, levels) in cases {
             let data: Vec<u8> = (0..size).map(|i| text[i % text.len()]).collect();
             for &level in levels {
                 let opts = CompressOptions {
                     mode: CompressionMode::Basic, level, independent_chunks: true,
                     ..Default::default()
                 };
-                let iters = if size <= 4096 { 20 } else { 5 };
+                let iters = if size <= 4096 { 20 } else if size <= 65536 { 5 } else { 3 };
                 let t0 = Instant::now();
                 let mut result = ttc_compress(&data, &opts).unwrap();
                 for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }
@@ -3991,8 +3998,9 @@ mod tests {
                 let saved = (1.0 - result.compressed_size as f64 / data.len() as f64) * 100.0;
                 let mode = result.chunks.first().map(|c| c.mode).unwrap_or(0);
                 let mode_name = match mode { 0=>"Stored", 1=>"Comp", 2=>"TernEnh", 3=>"tANS", _=>"?" };
-                eprintln!("{:<8} {:<6} {:>10.1} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7}",
-                    label, level, compress_us, decompress_us, compress_us + decompress_us, ratio, saved, mode_name);
+                let nchunks = result.chunks.len();
+                eprintln!("{:<8} L{:<5} {:>10.1} {:>10.1} {:>10.1} {:>8.2}x {:>6.1}% {:<7} {}",
+                    label, level, compress_us, decompress_us, compress_us + decompress_us, ratio, saved, mode_name, nchunks);
             }
         }
         eprintln!();
