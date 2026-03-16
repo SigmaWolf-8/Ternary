@@ -116,39 +116,47 @@ describe("PlenumNET API Integration Tests", () => {
       expect(Array.isArray(data.history)).toBe(true);
     });
 
-    it("POST /api/compression/file with test data", async () => {
-      const testContent = Buffer.from("Hello PlenumNET test data for compression").toString("base64");
-      const res = await jsonPost("/api/compression/file", {
-        fileName: "test.txt",
-        content: testContent,
+    it("POST /api/compression/file with raw binary", async () => {
+      const inputBytes = Buffer.from("Hello PlenumNET test data for compression");
+      const res = await fetch(`${BASE_URL}/api/compression/file`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "X-TTC-Filename": "test.txt",
+        },
+        body: inputBytes,
       });
       expect(res.status).toBe(200);
-      const data = await res.json();
-      expect(data.success).toBe(true);
-      expect(data).toHaveProperty("originalSize");
-      expect(data).toHaveProperty("compressedSize");
-      expect(data).toHaveProperty("compressionRatio");
-      expect(data).toHaveProperty("data");
+      expect(res.headers.get("x-ttc-original-size")).toBeTruthy();
+      expect(res.headers.get("x-ttc-compressed-size")).toBeTruthy();
+      expect(res.headers.get("x-ttc-compression-ratio")).toBeTruthy();
+      expect(res.headers.get("x-ttc-engine")).toBeTruthy();
+      const body = await res.arrayBuffer();
+      expect(body.byteLength).toBeGreaterThan(0);
     }, 10000);
 
-    it("POST /api/compression/decompress with compressed data", async () => {
-      const testContent = Buffer.from("Decompress round-trip test").toString("base64");
-      const compressRes = await jsonPost("/api/compression/file", {
-        fileName: "roundtrip.txt",
-        content: testContent,
+    it("POST /api/compression/decompress round-trip", async () => {
+      const inputBytes = Buffer.from("Decompress round-trip test");
+      const compressRes = await fetch(`${BASE_URL}/api/compression/file`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "X-TTC-Filename": "roundtrip.txt",
+        },
+        body: inputBytes,
       });
-      const compressData = await compressRes.json();
+      expect(compressRes.status).toBe(200);
+      const ternData = Buffer.from(await compressRes.arrayBuffer());
 
-      if (compressData.success && compressData.data) {
-        const res = await jsonPost("/api/compression/decompress", {
-          content: compressData.data,
-        });
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.success).toBe(true);
-        expect(data).toHaveProperty("originalFileName");
-        expect(data).toHaveProperty("originalSize");
-      }
+      const decompRes = await fetch(`${BASE_URL}/api/compression/decompress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: ternData,
+      });
+      expect(decompRes.status).toBe(200);
+      expect(decompRes.headers.get("x-ttc-original-filename")).toBe("roundtrip.txt");
+      const restored = Buffer.from(await decompRes.arrayBuffer());
+      expect(restored.toString()).toBe("Decompress round-trip test");
     }, 10000);
 
     it("POST /api/compression/db/store stores test data", async () => {

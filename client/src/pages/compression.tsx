@@ -56,10 +56,9 @@ interface FileCompressionResult {
   compressedSize: number;
   compressionRatio: string;
   encrypted: boolean;
-  encryptionMode?: string;
   processingTimeMs: string;
-  data: string;
-  ttcMetadata: TtcMetadata | null;
+  data: ArrayBuffer;
+  ttcMetadata: TtcMetadata;
 }
 
 interface FileDecompressionResult {
@@ -69,8 +68,8 @@ interface FileDecompressionResult {
   compressionRatio: string;
   wasEncrypted: boolean;
   processingTimeMs: string;
-  data: string;
-  ttcMetadata: TtcDecompressMetadata | null;
+  data: ArrayBuffer;
+  ttcMetadata: TtcDecompressMetadata;
 }
 
 interface DbDocument {
@@ -85,6 +84,48 @@ interface DbDocument {
   createdAt: string;
 }
 
+function parseTtcHeaders(headers: Headers): {
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: string;
+  engine: 'ttc-native' | 'legacy-zlib';
+  mode: string;
+  level: number;
+  levelName: string;
+  version: string;
+  crc32: number;
+  encrypted: boolean;
+  processingTimeMs: string;
+  predominantBase: number;
+  avgTau: number;
+  avgDelta: number;
+  adaptiveRepUsed: boolean;
+  originalFileName: string;
+  wasEncrypted: boolean;
+  crc32Verified: boolean;
+} {
+  return {
+    originalSize: parseInt(headers.get('X-TTC-Original-Size') || '0', 10),
+    compressedSize: parseInt(headers.get('X-TTC-Compressed-Size') || '0', 10),
+    compressionRatio: headers.get('X-TTC-Compression-Ratio') || '0',
+    engine: (headers.get('X-TTC-Engine') || 'legacy-zlib') as 'ttc-native' | 'legacy-zlib',
+    mode: headers.get('X-TTC-Mode') || 'BASIC',
+    level: parseInt(headers.get('X-TTC-Level') || '5', 10),
+    levelName: headers.get('X-TTC-Level-Name') || '',
+    version: headers.get('X-TTC-Version') || '1.0',
+    crc32: parseInt(headers.get('X-TTC-CRC32') || '0', 10),
+    encrypted: headers.get('X-TTC-Encrypted') === 'true',
+    processingTimeMs: headers.get('X-TTC-Processing-Ms') || '0',
+    predominantBase: parseInt(headers.get('X-TTC-Predominant-Base') || '3', 10),
+    avgTau: parseFloat(headers.get('X-TTC-Avg-Tau') || '0'),
+    avgDelta: parseFloat(headers.get('X-TTC-Avg-Delta') || '0'),
+    adaptiveRepUsed: headers.get('X-TTC-Adaptive-Rep') === 'true',
+    originalFileName: headers.get('X-TTC-Original-Filename') || '',
+    wasEncrypted: headers.get('X-TTC-Was-Encrypted') === 'true',
+    crc32Verified: headers.get('X-TTC-CRC32-Verified') !== 'false',
+  };
+}
+
 function FileCompressionTab() {
   const [fileName, setFileName] = useState("");
   const [fileContent, setFileContent] = useState("");
@@ -92,45 +133,105 @@ function FileCompressionTab() {
   const [encryptionMode, setEncryptionMode] = useState("balanced");
   const [compressResult, setCompressResult] = useState<FileCompressionResult | null>(null);
   const [decompressResult, setDecompressResult] = useState<FileDecompressionResult | null>(null);
-  const [ternFileContent, setTernFileContent] = useState("");
+  const [ternFileBuffer, setTernFileBuffer] = useState<ArrayBuffer | null>(null);
   const { toast } = useToast();
 
   const compressMutation = useMutation({
     mutationFn: async () => {
       const bytes = fileBytes || new TextEncoder().encode(fileContent);
-      let binary = '';
-      bytes.forEach(b => binary += String.fromCharCode(b));
-      const base64 = btoa(binary);
-      const res = await apiRequest("POST", "/api/compression/file", {
-        fileName: fileName || "untitled.txt",
-        content: base64,
-        encrypt,
-        encryptionMode: encrypt ? encryptionMode : undefined,
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/octet-stream',
+        'X-TTC-Filename': fileName || 'untitled.txt',
+      };
+      if (encrypt) {
+        headers['X-TTC-Encrypt'] = 'true';
+        headers['X-TTC-Encryption-Mode'] = encryptionMode;
+      }
+      const res = await fetch('/api/compression/file', {
+        method: 'POST',
+        headers,
+        body: bytes,
+        credentials: 'include',
       });
-      return res.json();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Compression failed' }));
+        throw new Error(err.error || 'Compression failed');
+      }
+      const h = parseTtcHeaders(res.headers);
+      const contentDisp = res.headers.get('Content-Disposition') || '';
+      const fnMatch = contentDisp.match(/filename="([^"]+)"/);
+      const outputName = fnMatch ? fnMatch[1] : (fileName || 'output').replace(/\.[^.]+$/, '') + '.tern';
+      const buffer = await res.arrayBuffer();
+      return {
+        fileName: outputName,
+        originalSize: h.originalSize,
+        compressedSize: h.compressedSize,
+        compressionRatio: h.compressionRatio,
+        encrypted: h.encrypted,
+        processingTimeMs: h.processingTimeMs,
+        data: buffer,
+        ttcMetadata: {
+          engine: h.engine,
+          version: h.version,
+          level: h.level,
+          levelName: h.levelName,
+          modeName: h.mode,
+          crc32: h.crc32,
+          avgTau: h.avgTau,
+          avgDelta: h.avgDelta,
+          predominantBase: h.predominantBase,
+          adaptiveRepUsed: h.adaptiveRepUsed,
+        },
+      } as FileCompressionResult;
     },
     onSuccess: (data: FileCompressionResult) => {
       setCompressResult(data);
       toast({ title: "File compressed", description: `${data.fileName} created (${data.compressionRatio}% ratio)` });
     },
-    onError: () => {
-      toast({ title: "Compression failed", variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Compression failed", description: err.message, variant: "destructive" });
     },
   });
 
   const decompressMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/compression/decompress", {
-        content: ternFileContent,
+      if (!ternFileBuffer) throw new Error('No .tern file loaded');
+      const res = await fetch('/api/compression/decompress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: ternFileBuffer,
+        credentials: 'include',
       });
-      return res.json();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Decompression failed' }));
+        throw new Error(err.error || 'Decompression failed');
+      }
+      const h = parseTtcHeaders(res.headers);
+      const buffer = await res.arrayBuffer();
+      return {
+        originalFileName: h.originalFileName || 'decompressed.bin',
+        originalSize: h.originalSize,
+        compressedSize: h.compressedSize,
+        compressionRatio: h.compressionRatio,
+        wasEncrypted: h.wasEncrypted,
+        processingTimeMs: h.processingTimeMs,
+        data: buffer,
+        ttcMetadata: {
+          engine: h.engine,
+          version: h.version,
+          level: h.level,
+          levelName: h.levelName,
+          crc32Verified: h.crc32Verified,
+          originalFileName: h.originalFileName,
+        },
+      } as FileDecompressionResult;
     },
     onSuccess: (data: FileDecompressionResult) => {
       setDecompressResult(data);
       toast({ title: "File decompressed", description: `Restored ${data.originalFileName}` });
     },
-    onError: () => {
-      toast({ title: "Decompression failed", variant: "destructive" });
+    onError: (err: Error) => {
+      toast({ title: "Decompression failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -157,20 +258,14 @@ function FileCompressionTab() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const buffer = event.target?.result as ArrayBuffer;
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      bytes.forEach(b => binary += String.fromCharCode(b));
-      setTernFileContent(btoa(binary));
+      setTernFileBuffer(buffer);
     };
     reader.readAsArrayBuffer(file);
   };
 
   const downloadCompressed = () => {
     if (!compressResult) return;
-    const binary = atob(compressResult.data as string);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const blob = new Blob([compressResult.data], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -179,17 +274,9 @@ function FileCompressionTab() {
     URL.revokeObjectURL(url);
   };
 
-  const base64ToBytes = (b64: string): Uint8Array => {
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes;
-  };
-
   const downloadDecompressed = () => {
     if (!decompressResult) return;
-    const bytes = base64ToBytes(decompressResult.data as string);
-    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const blob = new Blob([decompressResult.data], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -299,35 +386,41 @@ function FileCompressionTab() {
                     </Badge>
                   )}
                 </div>
-                {compressResult.ttcMetadata && (
-                  <div className="bg-muted/30 border rounded-md p-3 space-y-2" data-testid="ttc-metadata-compress">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="secondary" className="text-xs" data-testid="badge-engine">
-                        {compressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + compressResult.ttcMetadata.version + ' Native' : 'Legacy'}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs" data-testid="badge-mode">
-                        {compressResult.ttcMetadata.modeName}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs" data-testid="badge-level">
-                        L{compressResult.ttcMetadata.level} {compressResult.ttcMetadata.levelName}
-                      </Badge>
+                <div className="bg-muted/30 border rounded-md p-3 space-y-2" data-testid="ttc-metadata-compress">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <Badge variant="secondary" className="text-xs" data-testid="badge-engine">
+                      {compressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + compressResult.ttcMetadata.version + ' Native' : 'Legacy'}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs" data-testid="badge-mode">
+                      {compressResult.ttcMetadata.modeName}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs" data-testid="badge-level">
+                      L{compressResult.ttcMetadata.level} {compressResult.ttcMetadata.levelName}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">CRC32: </span>
+                      <span className="font-mono" data-testid="text-crc32">{compressResult.ttcMetadata.crc32.toString(16).toUpperCase()}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">CRC32: </span>
-                        <span className="font-mono" data-testid="text-crc32">{compressResult.ttcMetadata.crc32.toString(16).toUpperCase()}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Base: </span>
-                        <span className="font-mono" data-testid="text-predominant-base">{compressResult.ttcMetadata.predominantBase}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Adaptive: </span>
-                        <span data-testid="text-adaptive-rep">{compressResult.ttcMetadata.adaptiveRepUsed ? 'Yes' : 'No'}</span>
-                      </div>
+                    <div>
+                      <span className="text-muted-foreground">Base: </span>
+                      <span className="font-mono" data-testid="text-predominant-base">{compressResult.ttcMetadata.predominantBase}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Adaptive: </span>
+                      <span data-testid="text-adaptive-rep">{compressResult.ttcMetadata.adaptiveRepUsed ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Avg Tau: </span>
+                      <span className="font-mono" data-testid="text-avg-tau">{compressResult.ttcMetadata.avgTau.toFixed(4)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Avg Delta: </span>
+                      <span className="font-mono" data-testid="text-avg-delta">{compressResult.ttcMetadata.avgDelta.toFixed(4)}</span>
                     </div>
                   </div>
-                )}
+                </div>
                 <Button onClick={downloadCompressed} variant="outline" className="w-full" data-testid="button-download-tern">
                   <Download className="w-4 h-4 mr-2" />
                   Download {compressResult.fileName}
@@ -363,7 +456,7 @@ function FileCompressionTab() {
                 <Label>Or use last compressed output</Label>
                 <Button
                   variant="outline"
-                  onClick={() => setTernFileContent(compressResult.data)}
+                  onClick={() => setTernFileBuffer(compressResult.data)}
                   className="w-full"
                   data-testid="button-use-last-compressed"
                 >
@@ -375,7 +468,7 @@ function FileCompressionTab() {
 
             <Button
               onClick={() => decompressMutation.mutate()}
-              disabled={!ternFileContent || decompressMutation.isPending}
+              disabled={!ternFileBuffer || decompressMutation.isPending}
               className="w-full"
               data-testid="button-decompress-file"
             >
@@ -411,18 +504,16 @@ function FileCompressionTab() {
                     </Badge>
                   )}
                 </div>
-                {decompressResult.ttcMetadata && (
-                  <div className="bg-muted/30 border rounded-md p-3 space-y-1" data-testid="ttc-metadata-decompress">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {decompressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + decompressResult.ttcMetadata.version + ' Native' : 'Legacy'}
-                      </Badge>
-                      <Badge variant={decompressResult.ttcMetadata.crc32Verified ? 'default' : 'destructive'} className="text-xs" data-testid="badge-crc32-verified">
-                        CRC32 {decompressResult.ttcMetadata.crc32Verified ? 'Verified' : 'MISMATCH'}
-                      </Badge>
-                    </div>
+                <div className="bg-muted/30 border rounded-md p-3 space-y-1" data-testid="ttc-metadata-decompress">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {decompressResult.ttcMetadata.engine === 'ttc-native' ? 'TTC v' + decompressResult.ttcMetadata.version + ' Native' : 'Legacy'}
+                    </Badge>
+                    <Badge variant={decompressResult.ttcMetadata.crc32Verified ? 'default' : 'destructive'} className="text-xs" data-testid="badge-crc32-verified">
+                      CRC32 {decompressResult.ttcMetadata.crc32Verified ? 'Verified' : 'MISMATCH'}
+                    </Badge>
                   </div>
-                )}
+                </div>
                 <Button onClick={downloadDecompressed} variant="outline" className="w-full" data-testid="button-download-decompressed">
                   <Download className="w-4 h-4 mr-2" />
                   Download {decompressResult.originalFileName}
