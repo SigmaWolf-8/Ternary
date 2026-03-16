@@ -1,0 +1,351 @@
+<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>PlenumNET Benchmark Report</title>
+<style>
+:root{--bg:#fff;--fg:#1a202c;--mute:#718096;--bdr:#e2e8f0;--tbg:#f7fafc;--hdr:#1a365d;--gold:#d4a843}
+@media(prefers-color-scheme:dark){:root{--bg:#1a202c;--fg:#e2e8f0;--mute:#a0aec0;--bdr:#2d3748;--tbg:#2d3748;--hdr:#2a4365;--gold:#ecc94b}}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);padding:2rem;max-width:960px;margin:0 auto;font-size:14px;line-height:1.6}
+h1{color:var(--hdr);font-size:1.8rem;margin-bottom:0.2rem}h2{color:var(--hdr);font-size:1.3rem;margin:1.5rem 0 0.5rem;border-bottom:2px solid var(--gold);padding-bottom:0.3rem}
+h3{color:var(--hdr);font-size:1.05rem;margin:1rem 0 0.3rem}.sub{color:var(--gold);font-size:1.1rem;margin-bottom:0.5rem}
+.cite{color:var(--mute);font-style:italic;font-size:0.85rem;margin-bottom:0.5rem}
+table{width:100%;border-collapse:collapse;margin:0.5rem 0 1rem;font-size:0.85rem}
+th{background:var(--hdr);color:#fff;text-align:left;padding:6px 8px;font-weight:500}td{padding:5px 8px;border-bottom:1px solid var(--bdr)}
+tr:nth-child(even){background:var(--tbg)}tr.total{font-weight:600;background:var(--bdr)}
+.r{text-align:right}.c{text-align:center}
+.plenum{color:#2b6cb0;font-weight:600}.pass{color:#276749;font-weight:600}.star{color:#975a16;font-weight:600}.fail{color:#c53030;font-weight:600}.diag{color:#9b2c2c;font-weight:700;background:#fff5f5}
+.prod{color:#276749}.forge{color:#c05621}
+.highlight{background:#ebf8ff}.salvi{font-weight:600;color:#2b6cb0}.notpq{color:#c53030;background:#fff5f5}
+.meta{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 12px;font-size:0.9rem;margin:0.5rem 0 1rem}
+.meta b{color:var(--mute)}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:1rem 0}
+.card{padding:12px;border-radius:8px;border:1px solid var(--bdr)}.card .label{font-size:0.75rem;color:var(--mute)}.card .val{font-size:1.4rem;font-weight:600;margin:2px 0}
+.card.green{border-color:#276749;background:#f0fff4}.card.green .val{color:#276749}
+.card.amber{border-color:#c05621;background:#fffbeb}.card.amber .val{color:#c05621}
+.card.blue{border-color:#2b6cb0;background:#ebf8ff}.card.blue .val{color:#2b6cb0}
+.method{background:var(--tbg);padding:12px 16px;border-radius:8px;font-size:0.85rem;margin:1rem 0;border-left:3px solid var(--gold)}
+</style></head><body>
+<h1>PlenumNET / Salvi Framework</h1>
+<div class='sub'>Benchmark Report</div>
+<div class='meta'>
+<b>Date</b><span>2026-03-16</span><b>Run ID</b><span><code>6EAAD6A9</code></span><b>Architecture</b><span>x86_64, AVX2</span><b>Suite</b><span>v6 (109 benchmarks, 100 iter; 92 primitives + 17 diagnostic)</span></div>
+<div class='cards'>
+<div class='card green'><div class='label'>Production Grade</div><div class='val'>62/70</div><div class='label'>89% pass</div></div>
+<div class='card amber'><div class='label'>In The Forge</div><div class='val'>18/39</div><div class='label'>46% pass</div></div>
+<div class='card blue'><div class='label'>Post-Quantum</div><div class='val'>79/92</div><div class='label'>86%</div></div>
+<div class='card'><div class='label'>Grand Total (primitives)</div><div class='val'>119.385 ms</div><div class='label'>variable input sizes</div></div>
+</div>
+<div class='method'><b>Target methodology:</b> Every target is the <b>industry best-in-class</b> at the same or lesser security level. Input sizes are <b>per-primitive</b> following NIST, SUPERCOP/eBASH, and liboqs methodology: <b>59 bytes</b> for signatures (NIST PQC KAT), <b>48 bytes</b> for digest operations (TSA, Merkle, ZK, Hedera), <b>200 bytes</b> for document pipelines (SignHere), <b>1024 bytes</b> for AEAD/hash throughput (T-AE-MAC, AES-GCM, HMAC, Sponge hash), <b>0 bytes</b> for fixed-input operations (keygen, KEM, nonce, wire). Industry references are <b>NIST FIPS reference implementations</b>; peak optimized assembly may be 2–3× faster. <b>Production/Forge</b> classification uses <b>category total</b> vs industry total — individual steps may exceed targets if the total is competitive.</div>
+<p style='font-size:0.8rem;color:var(--mute);margin:0.5rem 0'><span class='plenum'>Plenum+</span> ≤50% | <span class='pass'>Pass</span> ≤target | <span class='star'>*Pass</span> ≤115% | <span class='fail'>FAIL</span> &gt;115% | <span class='diag'>DIAGNOSE</span> &gt;500%</p>
+<h2>Industry Comparison — Post-Quantum Signatures (59-byte message)</h2>
+<p style='font-size:0.75rem;color:var(--mute);margin:0 0 4px'>Input: 59 bytes (NIST PQC KAT short-message standard). Ed25519/ML-DSA industry figures are short-message benchmarks.</p>
+<table><tr><th>Scheme</th><th class='r'>Keygen</th><th class='r'>Sign</th><th class='r'>Verify</th><th class='r'>Roundtrip</th><th class='r'>Sig Size</th><th>Ref</th></tr>
+<tr class='highlight'><td class='salvi'>PT26-DSA (Salvi)</td><td class='r salvi'>10.75 µs</td><td class='r salvi'>14.76 µs</td><td class='r salvi'>22.31 µs</td><td class='r salvi'>47.82 µs</td><td class='r salvi'>71 B</td><td>This run</td></tr>
+<tr><td>ML-DSA-65 (NIST ref)</td><td class='r'>~150 µs</td><td class='r'>~300 µs</td><td class='r'>~150 µs</td><td class='r'>~600 µs</td><td class='r'>3,309 B</td><td>FIPS 204</td></tr>
+<tr><td>ML-DSA-65 (peak ARM64)</td><td class='r'>~80 µs</td><td class='r'>~80 µs</td><td class='r'>~50 µs</td><td class='r'>~210 µs</td><td class='r'>3,309 B</td><td>liboqs</td></tr>
+<tr><td>FALCON-512</td><td class='r'>~8 ms</td><td class='r'>~500 µs</td><td class='r'>~50 µs</td><td class='r'>~8.5 ms</td><td class='r'>666 B</td><td>NIST std</td></tr>
+<tr><td>SPHINCS+-128f</td><td class='r'>~3 ms</td><td class='r'>~8 ms</td><td class='r'>~500 µs</td><td class='r'>~11.5 ms</td><td class='r'>17,088 B</td><td>FIPS 205</td></tr>
+<tr class='notpq'><td>Ed25519 (NOT PQ)</td><td class='r'>~30 µs</td><td class='r'>~50 µs</td><td class='r'>~100 µs</td><td class='r'>~180 µs</td><td class='r'>64 B</td><td>NOT PQ</td></tr>
+<tr class='notpq'><td>Ed25519 (peak ARM64)</td><td class='r'>~15 µs</td><td class='r'>~25 µs</td><td class='r'>~40 µs</td><td class='r'>~80 µs</td><td class='r'>64 B</td><td>NOT PQ</td></tr>
+</table>
+<h2>Industry Comparison — Key Encapsulation (fixed-size operations)</h2>
+<p style='font-size:0.75rem;color:var(--mute);margin:0 0 4px'>KEMs have no variable message input. All operations are fixed-size seed/public-key arithmetic per NIST FIPS 203.</p>
+<table><tr><th>Scheme</th><th class='r'>Keygen</th><th class='r'>Encaps</th><th class='r'>Decaps</th><th class='r'>Roundtrip</th><th class='r'>CT Size</th><th>Ref</th></tr>
+<tr class='highlight'><td class='salvi'>TL-KEM-1024 (Salvi)</td><td class='r salvi'>104.73 µs</td><td class='r salvi'>25.44 µs</td><td class='r salvi'>22.23 µs</td><td class='r salvi'>152.40 µs</td><td class='r salvi'>~1,568 B</td><td>This run</td></tr>
+<tr><td>ML-KEM-1024 (NIST ref)</td><td class='r'>~150 µs</td><td class='r'>~180 µs</td><td class='r'>~170 µs</td><td class='r'>~500 µs</td><td class='r'>1,568 B</td><td>FIPS 203</td></tr>
+<tr><td>ML-KEM-1024 (peak ARM64)</td><td class='r'>~80 µs</td><td class='r'>~90 µs</td><td class='r'>~80 µs</td><td class='r'>~250 µs</td><td class='r'>1,568 B</td><td>libcrux/M1</td></tr>
+</table>
+<h2>Production Grade — 62/70 pass (89%) — 43.912 ms</h2>
+<h3>1. PT26-DSA — Target: Ed25519</h3>
+<div class='cite'>RFC 8032 — fastest classical signature (PQ targets at Ed25519 speed class)</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>pt26_keygen</code></td><td class='r'>10.75 µs</td><td class='r'>< 30µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>pt26_sign</code></td><td class='r'>14.76 µs</td><td class='r'>< 50µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>pt26_verify</code></td><td class='r'>22.31 µs</td><td class='r'>< 100µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>pt26_verify_parallel</code></td><td class='r'>14.83 µs</td><td class='r'>< 100µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>pt26_trit_diff</code></td><td class='r'>610 ns</td><td class='r'>< 5µs</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>pt26_step_token</code></td><td class='r'>310 ns</td><td class='r'>< 5µs</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>pt26_walk_token</code></td><td class='r'>310 ns</td><td class='r'>< 5µs</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ PT26-DSA TOTAL (7)</td><td class='r'>63.88 µs</td><td> (vs 295.00 µs industry)</td><td class='c'></td><td class='plenum'>Plenum+ [7/7]</td></tr>
+</table>
+<h3>2. TL-DSA v2 — Target: ML-DSA-65 (Dilithium)</h3>
+<div class='cite'>NIST FIPS 204 — lattice signature standard</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tl_dsa_v2_ntt_butterfly</code></td><td class='r'>460 ns</td><td class='r'>< 20µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_dsa_v2_ntt_full</code></td><td class='r'>2.04 µs</td><td class='r'>< 2µs</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr><td><code>tl_dsa_v2_matrix_mul</code></td><td class='r'>38.61 µs</td><td class='r'>< 30µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tl_dsa_v2_keygen</code></td><td class='r'>149.51 µs</td><td class='r'>< 150µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>tl_dsa_v2_sign</code></td><td class='r'>24.30 µs</td><td class='r'>< 300µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_dsa_v2_verify</code></td><td class='r'>7.89 µs</td><td class='r'>< 150µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ TL-DSA v2 TOTAL (6)</td><td class='r'>222.81 µs</td><td> (vs 652.00 µs industry)</td><td class='c'>PQ</td><td class='plenum'>Plenum+ [5/6]</td></tr>
+</table>
+<h3>3. TL-KEM — Target: ML-KEM (Kyber)</h3>
+<div class='cite'>NIST FIPS 203 — lattice KEM standard (per security level)</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tl_kem_512_keygen</code></td><td class='r'>55.14 µs</td><td class='r'>< 80µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>tl_kem_512_encaps</code></td><td class='r'>14.63 µs</td><td class='r'>< 100µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_kem_512_decaps</code></td><td class='r'>11.02 µs</td><td class='r'>< 90µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_kem_768_keygen</code></td><td class='r'>62.71 µs</td><td class='r'>< 120µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>tl_kem_768_encaps</code></td><td class='r'>18.29 µs</td><td class='r'>< 140µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_kem_768_decaps</code></td><td class='r'>18.23 µs</td><td class='r'>< 130µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_kem_1024_keygen</code></td><td class='r'>104.73 µs</td><td class='r'>< 150µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>tl_kem_1024_encaps</code></td><td class='r'>25.44 µs</td><td class='r'>< 180µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tl_kem_1024_decaps</code></td><td class='r'>22.23 µs</td><td class='r'>< 170µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ TL-KEM TOTAL (9)</td><td class='r'>332.42 µs</td><td> (vs 1.160 ms industry)</td><td class='c'>PQ</td><td class='plenum'>Plenum+ [9/9]</td></tr>
+</table>
+<h3>4. Phase Enc — Target: AES-256-CTR (×4 shares)</h3>
+<div class='cite'>NIST SP 800-38A — per-phase stream cipher</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>phase_split</code></td><td class='r'>194.82 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>phase_recombine</code></td><td class='r'>186.17 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>phase_batch_split</code></td><td class='r'>2.342 ms</td><td class='r'>< 2000µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>phase_batch_recombine</code></td><td class='r'>1.872 ms</td><td class='r'>< 2000µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ Phase Enc TOTAL (4)</td><td class='r'>4.594 ms</td><td> (vs 4.400 ms industry)</td><td class='c'>PQ</td><td class='star'>*Pass [3/4]</td></tr>
+</table>
+<h3>5. AES-GCM — Target: AES-256-GCM</h3>
+<div class='cite'>NIST SP 800-38D — real aes-gcm crate with hardware AES-NI</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>aes_gcm_encrypt</code></td><td class='r'>910 ns</td><td class='r'>< 5µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>aes_gcm_decrypt</code></td><td class='r'>900 ns</td><td class='r'>< 5µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ AES-GCM TOTAL (2)</td><td class='r'>1.81 µs</td><td> (vs 10.00 µs industry)</td><td class='c'>PQ</td><td class='plenum'>Plenum+ [2/2]</td></tr>
+</table>
+<h3>6. RSA-4096 — Target: RSA-4096</h3>
+<div class='cite'>PKCS#1 v1.5 — real rsa crate (Shor-vulnerable, co-signature only)</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>rsa_4096_sign</code></td><td class='r'>11.674 ms</td><td class='r'>< 15ms</td><td class='c'></td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rsa_4096_verify</code></td><td class='r'>783.14 µs</td><td class='r'>< 500µs</td><td class='c'></td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ RSA-4096 TOTAL (2)</td><td class='r'>12.457 ms</td><td> (vs 15.500 ms industry)</td><td class='c'></td><td class='pass'>Pass [1/2]</td></tr>
+</table>
+<h3>7. TIS-27 — Target: SHAKE-128</h3>
+<div class='cite'>NIST FIPS 202 — extendable output (reduced-round comparable)</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tis27_hash_27trit</code></td><td class='r'>3.72 µs</td><td class='r'>< 5µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>tis27_hash_54trit</code></td><td class='r'>7.29 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>tis27_absorb_squeeze</code></td><td class='r'>22.65 µs</td><td class='r'>< 15µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ TIS-27 TOTAL (3)</td><td class='r'>33.66 µs</td><td> (vs 30.00 µs industry)</td><td class='c'>PQ</td><td class='star'>*Pass [2/3]</td></tr>
+</table>
+<h3>8. Wire — Target: CRC-32</h3>
+<div class='cite'>IEEE 802.3 — error detection primitive</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>wire_checksum</code></td><td class='r'>30 ns</td><td class='r'>< 100ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>wire_ecc</code></td><td class='r'>30 ns</td><td class='r'>< 100ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ Wire TOTAL (2)</td><td class='r'>60 ns</td><td> (vs 200 ns industry)</td><td class='c'></td><td class='plenum'>Plenum+ [2/2]</td></tr>
+</table>
+<h3>9. Lattice — Target: HKDF-SHA-256</h3>
+<div class='cite'>RFC 5869 — key derivation standard</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>lattice_nonce</code></td><td class='r'>30 ns</td><td class='r'>< 100ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>lattice_key_derive</code></td><td class='r'>7.36 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ Lattice TOTAL (2)</td><td class='r'>7.39 µs</td><td> (vs 10.10 µs industry)</td><td class='c'></td><td class='pass'>Pass [2/2]</td></tr>
+</table>
+<h3>10. Tunnel — Target: WireGuard Noise IK</h3>
+<div class='cite'>Noise Protocol Framework — tunnel handshake</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tunnel_auth_response</code></td><td class='r'>16.32 µs</td><td class='r'>< 50µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tunnel_handshake_3msg</code></td><td class='r'>41.05 µs</td><td class='r'>< 150µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ Tunnel TOTAL (2)</td><td class='r'>57.37 µs</td><td> (vs 200.00 µs industry)</td><td class='c'>PQ</td><td class='plenum'>Plenum+ [2/2]</td></tr>
+</table>
+<h3>11. Heartbeat — Target: WireGuard keepalive</h3>
+<div class='cite'>Noise Protocol Framework — keepalive cycle</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>heartbeat_single</code></td><td class='r'>14.74 µs</td><td class='r'>< 20µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>heartbeat_26</code></td><td class='r'>395.86 µs</td><td class='r'>< 480µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ Heartbeat TOTAL (2)</td><td class='r'>410.60 µs</td><td> (vs 500.00 µs industry)</td><td class='c'>PQ</td><td class='pass'>Pass [2/2]</td></tr>
+</table>
+<h3>12. TSA — Target: RFC 3161 TSA</h3>
+<div class='cite'>IETF RFC 3161 — timestamp authority</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tsa_timestamp_create</code></td><td class='r'>29.41 µs</td><td class='r'>< 25µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tsa_timestamp_verify</code></td><td class='r'>25.91 µs</td><td class='r'>< 25µs</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr class='total'><td>▸ TSA TOTAL (2)</td><td class='r'>55.32 µs</td><td> (vs 50.00 µs industry)</td><td class='c'>PQ</td><td class='star'>*Pass [1/2]</td></tr>
+</table>
+<h3>13. TDNS — Target: DNS A-record lookup</h3>
+<div class='cite'>RFC 1035 — name resolution</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tdns_derive_identity</code></td><td class='r'>3.72 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tdns_scan_hash</code></td><td class='r'>3.72 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tdns_repunit_checksum</code></td><td class='r'>30 ns</td><td class='r'>< 100ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ TDNS TOTAL (3)</td><td class='r'>7.47 µs</td><td> (vs 20.10 µs industry)</td><td class='c'></td><td class='plenum'>Plenum+ [3/3]</td></tr>
+</table>
+<h3>14. Calendar — Target: Base-N conversion</h3>
+<div class='cite'>Arithmetic primitive — no industry standard</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tern_compress</code></td><td class='r'>30 ns</td><td class='r'>< 500ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>tern_decompress</code></td><td class='r'>30 ns</td><td class='r'>< 500ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ Calendar TOTAL (2)</td><td class='r'>60 ns</td><td> (vs 1.00 µs industry)</td><td class='c'></td><td class='plenum'>Plenum+ [2/2]</td></tr>
+</table>
+<h3>15. CON — Target: WireGuard multi-peer</h3>
+<div class='cite'>Noise Protocol Framework — multi-tunnel rekey</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>con_derive_tunnel_key</code></td><td class='r'>7.46 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>con_rekey_single</code></td><td class='r'>7.38 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>con_rekey_all</code></td><td class='r'>200.18 µs</td><td class='r'>< 300µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ CON TOTAL (3)</td><td class='r'>215.02 µs</td><td> (vs 320.00 µs industry)</td><td class='c'>PQ</td><td class='pass'>Pass [3/3]</td></tr>
+</table>
+<h3>16. HPTP — Target: IEEE 1588 PTP</h3>
+<div class='cite'>IEEE 1588-2019 — precision time protocol</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>hptp_timestamp_verify</code></td><td class='r'>11.12 µs</td><td class='r'>< 20µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>hptp_drift_compensate</code></td><td class='r'>30 ns</td><td class='r'>< 500ns</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>hptp_jitter_filter</code></td><td class='r'>190 ns</td><td class='r'>< 1µs</td><td class='c'></td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ HPTP TOTAL (3)</td><td class='r'>11.34 µs</td><td> (vs 21.50 µs industry)</td><td class='c'></td><td class='pass'>Pass [3/3]</td></tr>
+</table>
+<h3>17. ZK — Target: Schnorr DLOG proof</h3>
+<div class='cite'>RFC 8235 — zero-knowledge proof</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>zk_prove</code></td><td class='r'>25.94 µs</td><td class='r'>< 50µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>zk_verify</code></td><td class='r'>29.51 µs</td><td class='r'>< 50µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ ZK TOTAL (2)</td><td class='r'>55.45 µs</td><td> (vs 100.00 µs industry)</td><td class='c'>PQ</td><td class='pass'>Pass [2/2]</td></tr>
+</table>
+<h3>18. SFK — Target: HKDF-SHA-256</h3>
+<div class='cite'>RFC 5869 — key derivation + signing</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>sfk_key_derive</code></td><td class='r'>3.75 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>sfk_sign</code></td><td class='r'>18.47 µs</td><td class='r'>< 25µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>sfk_verify</code></td><td class='r'>29.55 µs</td><td class='r'>< 25µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ SFK TOTAL (3)</td><td class='r'>51.77 µs</td><td> (vs 60.00 µs industry)</td><td class='c'>PQ</td><td class='pass'>Pass [2/3]</td></tr>
+</table>
+<h3>19. Lamport — Target: Lamport OTS (1979)</h3>
+<div class='cite'>Lamport one-time signature — unconditional security</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>lamport_keygen</code></td><td class='r'>2.018 ms</td><td class='r'>< 5ms</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>lamport_sign</code></td><td class='r'>986.30 µs</td><td class='r'>< 3ms</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>lamport_verify</code></td><td class='r'>4.496 ms</td><td class='r'>< 3ms</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ Lamport TOTAL (3)</td><td class='r'>7.500 ms</td><td> (vs 11.000 ms industry)</td><td class='c'>PQ</td><td class='pass'>Pass [2/3]</td></tr>
+</table>
+<h3>20. User Action — Target: < 100ms UX threshold</h3>
+<div class='cite'>Human perception — Nielsen (1993) response time limits</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>ux_sign_document</code></td><td class='r'>138.67 µs</td><td class='r'>< 150µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ux_verify_document</code></td><td class='r'>58.60 µs</td><td class='r'>< 100µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ux_establish_tunnel</code></td><td class='r'>206.85 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr><td><code>ux_heartbeat_cycle</code></td><td class='r'>390.09 µs</td><td class='r'>< 500µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ux_node_join</code></td><td class='r'>16.379 ms</td><td class='r'>< 20ms</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ux_tdns_register</code></td><td class='r'>48.05 µs</td><td class='r'>< 60µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ux_epoch_rekey</code></td><td class='r'>333.99 µs</td><td class='r'>< 400µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ux_secure_message</code></td><td class='r'>279.33 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ User Action TOTAL (8)</td><td class='r'>17.835 ms</td><td> (vs 21.610 ms industry)</td><td class='c'>PQ</td><td class='pass'>Pass [7/8]</td></tr>
+</table>
+<h2>In The Forge — 18/39 pass (46%) — 194.525 ms</h2>
+<h3>1. TL-DSA v1 — Target: SPHINCS+-128f</h3>
+<div class='cite'>NIST FIPS 205 — hash-based signature standard</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tl_dsa_87_keygen</code></td><td class='r'>13.323 ms</td><td class='r'>< 3ms</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tl_dsa_87_sign</code></td><td class='r'>19.830 ms</td><td class='r'>< 5ms</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tl_dsa_87_verify</code></td><td class='r'>27.280 ms</td><td class='r'>< 3ms</td><td class='c'>PQ</td><td class='c diag'>DIAGNOSE</td></tr>
+<tr class='total'><td>▸ TL-DSA v1 TOTAL (3)</td><td class='r'>60.433 ms</td><td> (vs 11.000 ms industry)</td><td class='c'>PQ</td><td class='diag'>DIAGNOSE [0/3]</td></tr>
+</table>
+<h3>2. T-AE-MAC — Target: Ascon-128</h3>
+<div class='cite'>NIST LWC winner — sponge-based AEAD (no PQ AEAD standard exists)</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>tae_mac_encrypt</code></td><td class='r'>126.60 µs</td><td class='r'>< 40µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tae_mac_decrypt</code></td><td class='r'>155.48 µs</td><td class='r'>< 40µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tae_mac_compute</code></td><td class='r'>48.41 µs</td><td class='r'>< 30µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>tae_mac_verify</code></td><td class='r'>97.32 µs</td><td class='r'>< 50µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ T-AE-MAC TOTAL (4)</td><td class='r'>427.81 µs</td><td> (vs 160.00 µs industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [0/4]</td></tr>
+</table>
+<h3>3. Sponge — Target: SHA3-256</h3>
+<div class='cite'>NIST FIPS 202 — sponge hash standard</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>sponge_hash</code></td><td class='r'>44.47 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>sponge_derive_key</code></td><td class='r'>3.72 µs</td><td class='r'>< 5µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ Sponge TOTAL (2)</td><td class='r'>48.19 µs</td><td> (vs 15.00 µs industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [1/2]</td></tr>
+</table>
+<h3>4. HMAC — Target: HMAC-SHA-256</h3>
+<div class='cite'>RFC 2104 / NIST FIPS 198-1 — keyed MAC standard</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>hmac_key_derive</code></td><td class='r'>3.79 µs</td><td class='r'>< 5µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>hmac_compute</code></td><td class='r'>48.37 µs</td><td class='r'>< 10µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>hmac_verify</code></td><td class='r'>97.00 µs</td><td class='r'>< 15µs</td><td class='c'>PQ</td><td class='c diag'>DIAGNOSE</td></tr>
+<tr class='total'><td>▸ HMAC TOTAL (3)</td><td class='r'>149.16 µs</td><td> (vs 30.00 µs industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [1/3]</td></tr>
+</table>
+<h3>5. Identity — Target: Ed25519 keygen</h3>
+<div class='cite'>RFC 8032 — identity keypair generation</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>identity_seed_derive</code></td><td class='r'>14.64 µs</td><td class='r'>< 5µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>identity_keypair_derive</code></td><td class='r'>13.446 ms</td><td class='r'>< 5ms</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ Identity TOTAL (2)</td><td class='r'>13.460 ms</td><td> (vs 5.005 ms industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [0/2]</td></tr>
+</table>
+<h3>6. Merkle — Target: SHA-256 Merkle (d=20)</h3>
+<div class='cite'>Certificate Transparency RFC 6962 — audit log</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>merkle_insert</code></td><td class='r'>306.98 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>merkle_verify</code></td><td class='r'>312.04 µs</td><td class='r'>< 300µs</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr class='total'><td>▸ Merkle TOTAL (2)</td><td class='r'>619.02 µs</td><td> (vs 500.00 µs industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [1/2]</td></tr>
+</table>
+<h3>7. SignHere — Target: DocuSign pipeline</h3>
+<div class='cite'>Industry SaaS — e-signature end-to-end</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>signhere_secure_doc</code></td><td class='r'>125.95 µs</td><td class='r'>< 80µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>signhere_6check</code></td><td class='r'>58.86 µs</td><td class='r'>< 80µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>signhere_cnsa2</code></td><td class='r'>88.05 µs</td><td class='r'>< 60µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>signhere_witness</code></td><td class='r'>14.65 µs</td><td class='r'>< 30µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr class='total'><td>▸ SignHere TOTAL (4)</td><td class='r'>287.51 µs</td><td> (vs 250.00 µs industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [2/4]</td></tr>
+</table>
+<h3>8. Hedera — Target: Hedera HCS submit</h3>
+<div class='cite'>Hedera Hashgraph — blockchain witness API</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>hedera_submit_witness</code></td><td class='r'>25.65 µs</td><td class='r'>< 20µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>hedera_verify_witness</code></td><td class='r'>22.00 µs</td><td class='r'>< 20µs</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr class='total'><td>▸ Hedera TOTAL (2)</td><td class='r'>47.65 µs</td><td> (vs 40.00 µs industry)</td><td class='c'>PQ</td><td class='fail'>FAIL [1/2]</td></tr>
+</table>
+<h3>9. Roundtrip — Target: Full algorithm cycle</h3>
+<div class='cite'>Meta-benchmark — sums component benchmarks</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>rt_pt26_full</code></td><td class='r'>63.58 µs</td><td class='r'>< 80µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rt_pt26_sign_verify</code></td><td class='r'>53.90 µs</td><td class='r'>< 60µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rt_tl_dsa_v1_full</code></td><td class='r'>61.524 ms</td><td class='r'>< 60ms</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr><td><code>rt_tl_dsa_v1_sign_verify</code></td><td class='r'>47.406 ms</td><td class='r'>< 50ms</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rt_tl_dsa_v2_full</code></td><td class='r'>173.97 µs</td><td class='r'>< 500µs</td><td class='c'>PQ</td><td class='c plenum'>Plenum+</td></tr>
+<tr><td><code>rt_tl_kem_1024</code></td><td class='r'>152.69 µs</td><td class='r'>< 300µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rt_tae_mac</code></td><td class='r'>279.15 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>rt_phase_encrypt</code></td><td class='r'>375.59 µs</td><td class='r'>< 300µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>rt_signhere_full</code></td><td class='r'>191.97 µs</td><td class='r'>< 200µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rt_tsa_full</code></td><td class='r'>73.40 µs</td><td class='r'>< 50µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>rt_merkle_full</code></td><td class='r'>631.40 µs</td><td class='r'>< 600µs</td><td class='c'>PQ</td><td class='c star'>*Pass</td></tr>
+<tr><td><code>rt_lamport_full</code></td><td class='r'>7.169 ms</td><td class='r'>< 10ms</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>rt_zk_full</code></td><td class='r'>55.51 µs</td><td class='r'>< 60µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr class='total'><td>▸ Roundtrip TOTAL (13)</td><td class='r'>118.150 ms</td><td></td><td class='c'>PQ</td><td class=''> [10/13]</td></tr>
+</table>
+<h3>10. A/B — Target: Scalar vs batch</h3>
+<div class='cite'>Diagnostic — internal optimization comparison</div>
+<table><tr><th>Benchmark</th><th class='r'>Time</th><th class='r'>Target</th><th class='c'>PQ</th><th class='c'>Grade</th></tr>
+<tr><td><code>ab_derive_key_scalar</code></td><td class='r'>3.75 µs</td><td class='r'>~4µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ab_derive_key_batch</code></td><td class='r'>101.99 µs</td><td class='r'>< 110µs</td><td class='c'>PQ</td><td class='c pass'>Pass</td></tr>
+<tr><td><code>ab_heartbeat26_scalar</code></td><td class='r'>392.22 µs</td><td class='r'>~210µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr><td><code>ab_heartbeat26_batch</code></td><td class='r'>404.18 µs</td><td class='r'>< 210µs</td><td class='c'>PQ</td><td class='c fail'>FAIL</td></tr>
+<tr class='total'><td>▸ A/B TOTAL (4)</td><td class='r'>902.14 µs</td><td></td><td class='c'>PQ</td><td class=''> [2/4]</td></tr>
+</table>
+<h2>Category Summary</h2>
+<table><tr><th>#</th><th>Category</th><th>Status</th><th>Industry Ref</th><th class='r'>Industry Total</th><th class='r'>Our Total</th><th class='c'>Grade</th><th class='c'>PQ</th><th class='c'>Steps</th></tr>
+<tr><td class='c'>1</td><td>TL-DSA v1</td><td class='forge'>🔧 Forge</td><td>SPHINCS+-128f</td><td class='r'>11.000 ms</td><td class='r'>60.433 ms</td><td class='c diag'>DIAGNOSE</td><td class='c'>PQ</td><td class='c'>0/3</td></tr>
+<tr><td class='c'>2</td><td>PT26-DSA</td><td class='prod'>✅ Production</td><td>Ed25519</td><td class='r'>295.00 µs</td><td class='r'>63.88 µs</td><td class='c plenum'>Plenum+</td><td class='c'></td><td class='c'>7/7</td></tr>
+<tr><td class='c'>3</td><td>TL-DSA v2</td><td class='prod'>✅ Production</td><td>ML-DSA-65 (Dilithium)</td><td class='r'>652.00 µs</td><td class='r'>222.81 µs</td><td class='c plenum'>Plenum+</td><td class='c'>PQ</td><td class='c'>5/6</td></tr>
+<tr><td class='c'>4</td><td>TL-KEM</td><td class='prod'>✅ Production</td><td>ML-KEM (Kyber)</td><td class='r'>1.160 ms</td><td class='r'>332.42 µs</td><td class='c plenum'>Plenum+</td><td class='c'>PQ</td><td class='c'>9/9</td></tr>
+<tr><td class='c'>5</td><td>T-AE-MAC</td><td class='forge'>🔧 Forge</td><td>Ascon-128</td><td class='r'>160.00 µs</td><td class='r'>427.81 µs</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>0/4</td></tr>
+<tr><td class='c'>6</td><td>Phase Enc</td><td class='prod'>✅ Production</td><td>AES-256-CTR (×4 shares)</td><td class='r'>4.400 ms</td><td class='r'>4.594 ms</td><td class='c star'>*Pass</td><td class='c'>PQ</td><td class='c'>3/4</td></tr>
+<tr><td class='c'>7</td><td>AES-GCM</td><td class='prod'>✅ Production</td><td>AES-256-GCM</td><td class='r'>10.00 µs</td><td class='r'>1.81 µs</td><td class='c plenum'>Plenum+</td><td class='c'>PQ</td><td class='c'>2/2</td></tr>
+<tr><td class='c'>8</td><td>RSA-4096</td><td class='prod'>✅ Production</td><td>RSA-4096</td><td class='r'>15.500 ms</td><td class='r'>12.457 ms</td><td class='c pass'>Pass</td><td class='c'></td><td class='c'>1/2</td></tr>
+<tr><td class='c'>9</td><td>Sponge</td><td class='forge'>🔧 Forge</td><td>SHA3-256</td><td class='r'>15.00 µs</td><td class='r'>48.19 µs</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>1/2</td></tr>
+<tr><td class='c'>10</td><td>TIS-27</td><td class='prod'>✅ Production</td><td>SHAKE-128</td><td class='r'>30.00 µs</td><td class='r'>33.66 µs</td><td class='c star'>*Pass</td><td class='c'>PQ</td><td class='c'>2/3</td></tr>
+<tr><td class='c'>11</td><td>HMAC</td><td class='forge'>🔧 Forge</td><td>HMAC-SHA-256</td><td class='r'>30.00 µs</td><td class='r'>149.16 µs</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>1/3</td></tr>
+<tr><td class='c'>12</td><td>Wire</td><td class='prod'>✅ Production</td><td>CRC-32</td><td class='r'>200 ns</td><td class='r'>60 ns</td><td class='c plenum'>Plenum+</td><td class='c'></td><td class='c'>2/2</td></tr>
+<tr><td class='c'>13</td><td>Lattice</td><td class='prod'>✅ Production</td><td>HKDF-SHA-256</td><td class='r'>10.10 µs</td><td class='r'>7.39 µs</td><td class='c pass'>Pass</td><td class='c'></td><td class='c'>2/2</td></tr>
+<tr><td class='c'>14</td><td>Identity</td><td class='forge'>🔧 Forge</td><td>Ed25519 keygen</td><td class='r'>5.005 ms</td><td class='r'>13.460 ms</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>0/2</td></tr>
+<tr><td class='c'>15</td><td>Tunnel</td><td class='prod'>✅ Production</td><td>WireGuard Noise IK</td><td class='r'>200.00 µs</td><td class='r'>57.37 µs</td><td class='c plenum'>Plenum+</td><td class='c'>PQ</td><td class='c'>2/2</td></tr>
+<tr><td class='c'>16</td><td>Heartbeat</td><td class='prod'>✅ Production</td><td>WireGuard keepalive</td><td class='r'>500.00 µs</td><td class='r'>410.60 µs</td><td class='c pass'>Pass</td><td class='c'>PQ</td><td class='c'>2/2</td></tr>
+<tr><td class='c'>17</td><td>TSA</td><td class='prod'>✅ Production</td><td>RFC 3161 TSA</td><td class='r'>50.00 µs</td><td class='r'>55.32 µs</td><td class='c star'>*Pass</td><td class='c'>PQ</td><td class='c'>1/2</td></tr>
+<tr><td class='c'>18</td><td>Merkle</td><td class='forge'>🔧 Forge</td><td>SHA-256 Merkle (d=20)</td><td class='r'>500.00 µs</td><td class='r'>619.02 µs</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>1/2</td></tr>
+<tr><td class='c'>19</td><td>TDNS</td><td class='prod'>✅ Production</td><td>DNS A-record lookup</td><td class='r'>20.10 µs</td><td class='r'>7.47 µs</td><td class='c plenum'>Plenum+</td><td class='c'></td><td class='c'>3/3</td></tr>
+<tr><td class='c'>20</td><td>Calendar</td><td class='prod'>✅ Production</td><td>Base-N conversion</td><td class='r'>1.00 µs</td><td class='r'>60 ns</td><td class='c plenum'>Plenum+</td><td class='c'></td><td class='c'>2/2</td></tr>
+<tr><td class='c'>21</td><td>CON</td><td class='prod'>✅ Production</td><td>WireGuard multi-peer</td><td class='r'>320.00 µs</td><td class='r'>215.02 µs</td><td class='c pass'>Pass</td><td class='c'>PQ</td><td class='c'>3/3</td></tr>
+<tr><td class='c'>22</td><td>HPTP</td><td class='prod'>✅ Production</td><td>IEEE 1588 PTP</td><td class='r'>21.50 µs</td><td class='r'>11.34 µs</td><td class='c pass'>Pass</td><td class='c'></td><td class='c'>3/3</td></tr>
+<tr><td class='c'>23</td><td>ZK</td><td class='prod'>✅ Production</td><td>Schnorr DLOG proof</td><td class='r'>100.00 µs</td><td class='r'>55.45 µs</td><td class='c pass'>Pass</td><td class='c'>PQ</td><td class='c'>2/2</td></tr>
+<tr><td class='c'>24</td><td>SignHere</td><td class='forge'>🔧 Forge</td><td>DocuSign pipeline</td><td class='r'>250.00 µs</td><td class='r'>287.51 µs</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>2/4</td></tr>
+<tr><td class='c'>25</td><td>SFK</td><td class='prod'>✅ Production</td><td>HKDF-SHA-256</td><td class='r'>60.00 µs</td><td class='r'>51.77 µs</td><td class='c pass'>Pass</td><td class='c'>PQ</td><td class='c'>2/3</td></tr>
+<tr><td class='c'>26</td><td>Hedera</td><td class='forge'>🔧 Forge</td><td>Hedera HCS submit</td><td class='r'>40.00 µs</td><td class='r'>47.65 µs</td><td class='c fail'>FAIL</td><td class='c'>PQ</td><td class='c'>1/2</td></tr>
+<tr><td class='c'>27</td><td>Lamport</td><td class='prod'>✅ Production</td><td>Lamport OTS (1979)</td><td class='r'>11.000 ms</td><td class='r'>7.500 ms</td><td class='c pass'>Pass</td><td class='c'>PQ</td><td class='c'>2/3</td></tr>
+<tr><td class='c'>28</td><td>Roundtrip</td><td class='forge'>🔧 Forge</td><td>Full algorithm cycle</td><td class='r'>N/A</td><td class='r'>118.150 ms</td><td class='c '></td><td class='c'>PQ</td><td class='c'>10/13</td></tr>
+<tr><td class='c'>29</td><td>User Action</td><td class='prod'>✅ Production</td><td>< 100ms UX threshold</td><td class='r'>21.610 ms</td><td class='r'>17.835 ms</td><td class='c pass'>Pass</td><td class='c'>PQ</td><td class='c'>7/8</td></tr>
+<tr><td class='c'>30</td><td>A/B</td><td class='forge'>🔧 Forge</td><td>Scalar vs batch</td><td class='r'>N/A</td><td class='r'>902.14 µs</td><td class='c '></td><td class='c'>PQ</td><td class='c'>2/4</td></tr>
+<tr class='total'><td></td><td>GRAND TOTAL</td><td>20 Prod / 10 Forge</td><td></td><td></td><td class='r'>119.385 ms</td><td></td><td class='c'>79 PQ</td><td class='c'>68/92</td></tr>
+</table>
+<p style='font-size:0.75rem;color:var(--mute);margin-top:2rem;text-align:center'>Generated by inter_cube v6 benchmark runner • PQ = Post-quantum verifiable (sponge pre-image, lattice, hash-based) • © 2025-2026 Capomastro Holdings Ltd. (Canada) • Applied Physics Division</p>
+</body></html>

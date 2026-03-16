@@ -12,3 +12,9 @@ id = "03daFSC3A0ojfUFxWPxIn"
 uri = "file://BENCHMARK_RESULTS.md"
 type = "text"
 title = "PlenumNET Benchmark Results v5 — Dual Environment (Replit + Bare Metal ARM64)"
+
+[[outputs]]
+id = "ttX0PsB-j6SJKPD6P2QST"
+uri = "file://TTC-v2.0-benchmark-report.md"
+type = "text"
+title = "TTC v2.0 & Crypto Primitives Benchmark Report"

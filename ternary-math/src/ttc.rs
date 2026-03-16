@@ -3966,12 +3966,13 @@ mod tests {
             PQ-encrypted tunnels computed as 26 times 3^13 divided by 2. The Tribonacci constant governs \
             structural resonance across the ternary addressing lattice. ";
         let cases: &[(usize, &str, &[u8])] = &[
-            (1024,    "1 KB",   &[1, 2, 3]),
-            (4096,    "4 KB",   &[1, 2, 3]),
-            (16384,   "16 KB",  &[1, 3, 5]),
-            (65536,   "64 KB",  &[2, 4, 6]),
-            (262144,  "256 KB", &[3, 5, 7]),
-            (1048576, "1 MB",   &[5, 7, 9]),
+            (1024,      "1 KB",    &[1, 2]),
+            (4096,      "4 KB",    &[1, 2]),
+            (16384,     "16 KB",   &[1, 2, 3]),
+            (65536,     "64 KB",   &[2, 3, 4]),
+            (262144,    "256 KB",  &[3, 4, 5]),
+            (1048576,   "1 MB",    &[4, 5, 6]),
+            (4194304,   "4 MB",    &[5, 6]),
         ];
         eprintln!("\n=== TTC v2.0 Compression Benchmark (release, Basic mode) ===");
         eprintln!("{:<8} {:<6} {:>10} {:>10} {:>10} {:>8} {:>8} {:<7} {:<6}",
@@ -3984,7 +3985,7 @@ mod tests {
                     mode: CompressionMode::Basic, level, independent_chunks: true,
                     ..Default::default()
                 };
-                let iters = if size <= 4096 { 20 } else if size <= 65536 { 5 } else { 3 };
+                let iters = if size <= 4096 { 20 } else if size <= 65536 { 5 } else { 1 };
                 let t0 = Instant::now();
                 let mut result = ttc_compress(&data, &opts).unwrap();
                 for _ in 1..iters { result = ttc_compress(&data, &opts).unwrap(); }
