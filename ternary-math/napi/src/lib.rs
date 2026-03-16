@@ -444,7 +444,8 @@ pub struct TtcDecompressResult {
 #[napi]
 pub fn ttc_compress(input: Buffer, level: Option<u8>, mode: Option<String>, filename: Option<String>) -> napi::Result<TtcCompressResult> {
     let lvl = level.unwrap_or(5);
-    let cm = match mode.as_deref() {
+    let mode_lower = mode.map(|m| m.to_lowercase());
+    let cm = match mode_lower.as_deref() {
         Some("basic") => CompressionMode::Basic,
         Some("temporal") => CompressionMode::Temporal,
         Some("image") => CompressionMode::Image,

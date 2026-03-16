@@ -54,7 +54,11 @@ import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { PLATFORM } from "@shared/constants";
+import {
+  getTotalEndpoints,
+  getTotalServices,
+  getKongServiceCatalog,
+} from "@shared/service-catalog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -131,30 +135,7 @@ interface RouteData {
   protocols?: string[];
 }
 
-interface CatalogService {
-  name: string;
-  label: string;
-  routePath: string;
-  endpointCount: number;
-  category: string;
-  endpoints: string[];
-}
-
-interface ServiceCatalog {
-  totalServices: number;
-  totalEndpoints: number;
-  baseUrl: string;
-  categories: {
-    core: CatalogService[];
-    tools: CatalogService[];
-    reference: CatalogService[];
-    platform: CatalogService[];
-    admin: CatalogService[];
-  };
-  services: CatalogService[];
-}
-
-const categoryIcons: Record<string, typeof Shield> = {
+const kongCategoryIcons: Record<string, typeof Shield> = {
   core: Cpu,
   tools: Database,
   reference: FileText,
@@ -162,7 +143,7 @@ const categoryIcons: Record<string, typeof Shield> = {
   admin: Settings
 };
 
-const categoryLabels: Record<string, string> = {
+const kongCategoryLabels: Record<string, string> = {
   core: "Core Computing",
   tools: "Tools & Storage",
   reference: "Reference & Docs",
@@ -344,9 +325,7 @@ function ControlPlanesOverview({ status }: { status: KongStatus | undefined }) {
 }
 
 function ServiceCatalogSection() {
-  const { data: catalog, isLoading } = useQuery<ServiceCatalog>({
-    queryKey: ['/api/kong/service-catalog']
-  });
+  const catalog = getKongServiceCatalog('https://plenumnet.replit.app');
 
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
 
@@ -358,21 +337,6 @@ function ServiceCatalogSection() {
       return next;
     });
   };
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            Loading service catalog...
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!catalog) return null;
 
   return (
     <Card>
@@ -401,9 +365,9 @@ function ServiceCatalogSection() {
         <div className="space-y-6">
           {Object.entries(catalog.categories).map(([catKey, services]) => {
             if (!services.length) return null;
-            const CatIcon = categoryIcons[catKey] || Layers;
-            const catLabel = categoryLabels[catKey] || catKey;
-            const catEndpoints = services.reduce((s, svc) => s + svc.endpointCount, 0);
+            const CatIcon = kongCategoryIcons[catKey] || Layers;
+            const catLabel = kongCategoryLabels[catKey] || catKey;
+            const catEndpoints = services.reduce((s: number, svc: any) => s + svc.endpointCount, 0);
             return (
               <div key={catKey} data-testid={`catalog-category-${catKey}`}>
                 <div className="flex items-center gap-2 mb-3">
@@ -413,7 +377,7 @@ function ServiceCatalogSection() {
                   <Badge variant="outline" className="text-xs">{catEndpoints} endpoints</Badge>
                 </div>
                 <div className="space-y-2">
-                  {services.map((svc) => (
+                  {services.map((svc: any) => (
                     <div 
                       key={svc.name} 
                       className="border rounded-md overflow-hidden"
@@ -441,7 +405,7 @@ function ServiceCatalogSection() {
                       {expandedServices.has(svc.name) && (
                         <div className="border-t px-3 py-2 bg-secondary/30">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-                            {svc.endpoints.map((ep, idx) => {
+                            {svc.endpoints.map((ep: string, idx: number) => {
                               const [method, ...pathParts] = ep.split(" ");
                               const epPath = pathParts.join(" ");
                               return (
@@ -561,7 +525,7 @@ function SyncSection({ selectedCP, setSelectedCP }: { selectedCP: string | null;
             Deploy Services to Kong
           </CardTitle>
           <CardDescription>
-            Sync all {PLATFORM.API_SERVICES} PlenumNET services ({PLATFORM.API_ENDPOINTS} endpoints) to your Kong control planes
+            Sync all {getTotalServices()} PlenumNET services ({getTotalEndpoints()} endpoints) to your Kong control planes
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -571,7 +535,7 @@ function SyncSection({ selectedCP, setSelectedCP }: { selectedCP: string | null;
               Sync All Control Planes
             </h4>
             <p className="text-sm text-muted-foreground mb-3">
-              Deploy all {PLATFORM.API_SERVICES} services with routes and rate-limiting plugins to every control plane simultaneously.
+              Deploy all {getTotalServices()} services with routes and rate-limiting plugins to every control plane simultaneously.
             </p>
             <Button 
               onClick={() => syncAllMutation.mutate()}
@@ -853,7 +817,7 @@ function HeroSection() {
             data-testid="text-hero-description"
           >
             Manage your Kong Konnect API gateway directly from PlenumNET. 
-            Deploy {PLATFORM.API_SERVICES} services covering {PLATFORM.API_ENDPOINTS} endpoints across all control planes.
+            Deploy {getTotalServices()} services covering {getTotalEndpoints()} endpoints across all control planes.
           </motion.p>
 
           <motion.div
@@ -864,11 +828,11 @@ function HeroSection() {
           >
             <Badge variant="secondary" className="text-xs">
               <Activity className="w-3 h-3 mr-1" />
-              {PLATFORM.API_SERVICES} API Services
+              {getTotalServices()} API Services
             </Badge>
             <Badge variant="secondary" className="text-xs">
               <Globe className="w-3 h-3 mr-1" />
-              {PLATFORM.API_ENDPOINTS} Endpoints
+              {getTotalEndpoints()} Endpoints
             </Badge>
             <Badge variant="secondary" className="text-xs">
               <Shield className="w-3 h-3 mr-1" />
