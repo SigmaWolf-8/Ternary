@@ -2164,6 +2164,7 @@ dependencies = [
  "aes-gcm",
  "criterion",
  "libm",
+ "rayon",
  "rsa",
  "sha2",
  "wasm-bindgen",

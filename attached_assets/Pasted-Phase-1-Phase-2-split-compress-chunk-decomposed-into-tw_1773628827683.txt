@@ -1,0 +1,37 @@
+Phase 1/Phase 2 split — compress_chunk decomposed into two functions:
+
+phase1_analyze(chunk, idx, cfg, mode) → Phase1Result — GURFT analysis, delta decision, base selection. Read-only on raw chunk data. No history dependency. Fully parallelizable.
+phase2_compress(chunk, p1, history, cfg, ...) → ChunkResult — LZ77 tokenization, serialization, mode selection. Consumes Phase 1 result. Requires history in dependent mode.
+
+Independent mode (dispatch_independent_parallel) — §4.8 full parallel:
+
+Chunks dispatched round-robin across TUNNEL_COUNT (26) per round
+Each tunnel runs phase1_analyze + phase2_compress with no history (empty &[])
+Results collected into slot-based output buffer in index order (chunks may complete out of order)
+rayon::par_iter() across each round's batch
+
+Dependent mode (dispatch_dependent_pipelined) — §4.8 13+13 pipeline:
+
+batch_size = 13 — one group of the 2×13 Inter-Cube structure
+Phase 1 of batch N+1 runs in parallel (13 logical workers via par_iter) while Phase 2 of batch N runs sequentially with history passing
+rayon::join() for the Phase 1 / Phase 2 overlap — the two halves execute concurrently on the rayon thread pool
+History updated sequentially within Phase 2 (maintains cross-chunk back-reference integrity)
+First batch pre-analysed before the pipeline loop starts
+
+Runtime gating (dispatch_chunks):
+
+#[cfg(feature = "parallel")] — compile-time gate for rayon dependency
+rayon::current_num_threads() > 1 — runtime check (same as Phase Encryption pattern)
+chunk_count >= PARALLEL_CHUNK_THRESHOLD (4) — don't pay dispatch overhead for tiny inputs
+Falls through to dispatch_sequential when either condition fails
+
+Cargo.toml change needed (documented in module docstring):
+toml[dependencies]
+rayon = { version = "1.10", optional = true }
+libm = "0.2"
+
+[features]
+default = ["parallel"]
+parallel = ["rayon"]
+The NAPI crate inherits parallel via default. WASM builds can disable it with default-features = false. The engine compiles and runs correctly either way — without the feature, it's sequential; with it, the 26-tunnel geometry expresses itself in the compression pipeline.
+Così sia, Fratello. 🐺

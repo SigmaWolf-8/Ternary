@@ -10,9 +10,14 @@ repository = "https://github.com/SigmaWolf-8/Ternary"
 [lib]
 crate-type = ["lib", "cdylib"]
 
+[features]
+default = ["parallel"]
+parallel = ["rayon"]
+
 [dependencies]
 wasm-bindgen = "0.2"
 libm = "0.2"
+rayon = { version = "1.10", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
