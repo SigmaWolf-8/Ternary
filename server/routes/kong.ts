@@ -391,7 +391,7 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
     }
   });
 
-  const PLENUMNET_CLOUD_CP_ID = "eb53e650-7209-4916-b5e1-5e7b6ad3c56d";
+  const KONG_TARGET_CP_ID = "5c3184ac-eacc-4459-94b2-643f7726c3a2";
 
   function getPlenumnetServices() {
     const baseUrl = 'https://plenumnet.replit.app';
@@ -919,13 +919,13 @@ export function registerKongRoutes(app: Express, storage: IStorage): void {
         return res.status(401).json({ error: "Kong Konnect token not configured" });
       }
 
-      const syncResult = await syncControlPlane(PLENUMNET_CLOUD_CP_ID);
+      const syncResult = await syncControlPlane(KONG_TARGET_CP_ID);
       res.json({
         success: true,
         controlPlanesProcessed: 1,
         results: [{
-          controlPlane: "plenumnet-cloud",
-          controlPlaneId: PLENUMNET_CLOUD_CP_ID,
+          controlPlane: "serverless-default",
+          controlPlaneId: KONG_TARGET_CP_ID,
           ...syncResult
         }]
       });
