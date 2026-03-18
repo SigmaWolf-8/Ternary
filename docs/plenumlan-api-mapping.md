@@ -197,9 +197,9 @@ PlenumLAN features required by TM-2026-019.2 that have **NO existing API equival
 
 ---
 
-# Section 3: Showcase-Only Endpoints
+# Section 3: PlenumNET-Only Endpoints
 
-Current PlenumNET APIs that do **NOT transfer** to PlenumLAN and remain exclusive to **plenumnet.replit.app**. These are developer tools, demo features, compliance showcases, or third-party integrations that serve the marketing/developer platform, not the LAN management product.
+Current PlenumNET APIs that do **NOT transfer** to PlenumLAN and remain exclusive to **plenumnet.replit.app**. These are production endpoints for developer tools, third-party integrations, or platform services that serve the PlenumNET platform, not the LAN management product.
 
 ## 3.1 Kong Gateway Management
 
@@ -361,7 +361,7 @@ Current PlenumNET APIs that do **NOT transfer** to PlenumLAN and remain exclusiv
 | POST | `/api/csp-reports` | `server/routes.ts` | CSP violation reporting for web platform |
 | GET | `/api/verify` | `server/routes.ts` | Replit Auth verification |
 
-## 3.13 Salvi Core — Demo/Showcase-Only Endpoints
+## 3.13 Salvi Core — Demo/PlenumNET-Only Endpoints
 
 | Method | Path | Source File | Reason |
 |---|---|---|---|
@@ -483,7 +483,7 @@ Current PlenumNET APIs that do **NOT transfer** to PlenumLAN and remain exclusiv
 | GET | `/api/gdpr/requests` | `server/routes/data-subject-rights.ts` | Same |
 | GET | `/api/gdpr/policy` | `server/routes/data-subject-rights.ts` | Same |
 
-## 3.19 TSA — Showcase-Only Subset
+## 3.19 TSA — PlenumNET-Only Subset
 
 | Method | Path | Source File | Reason |
 |---|---|---|---|
