@@ -12,9 +12,80 @@
 | Category | Count |
 |---|---|
 | Mapped endpoints | 79 |
+| — backed by existing Rust | 49 (62%) |
+| — TS-only (needs Rust port) | 30 (38%) |
 | PlenumNET-Only endpoints | 195 |
 | Total existing endpoints | 274 |
 | Gap items (net-new) | 24 |
+| Existing Rust modules | 47 (25 inter-cube + 22 ternary-math) |
+
+---
+
+# Existing Rust Modules
+
+The following Rust crates are already built and operational. Many mapped endpoints below are backed by these modules — PlenumLAN extends them, not rewrites them.
+
+**Inter-Cube Infrastructure** (`services/inter-cube/src/` — 25 modules, 12,865 LOC, 324 tests):
+
+| Module | LOC | Function |
+|---|---|---|
+| `crs.rs` | 1,328 | Signed registrations |
+| `overlay.rs` | 1,132 | Neighbor verification |
+| `fts.rs` | 1,211 | Authenticated heartbeats |
+| `wire.rs` | 1,203 | Wire protocol, dual checksum |
+| `tunnel_auth.rs` | 979 | 3-message mutual tunnel auth |
+| `identity.rs` | 940 | Master secret, arc-epoch rotation |
+| `rate_limit.rs` | 864 | Sliding window, PoW, ghost scoring |
+| `placement.rs` | 832 | Geometry-aware bootstrap placement |
+| `address_keys.rs` | 790 | Address-bound TL-DSA-87, LRU cache |
+| `persistence.rs` | 818 | Heartbeat sequence persistence |
+| `verify_cache.rs` | 641 | CRS verification LRU+TTL cache |
+| `key_rotation.rs` | 628 | Arc-synchronized key rotation |
+| `wire_ecc.rs` | 599 | 8-trit ECC syndrome correction |
+| `cube_addr.rs` | — | 13D cube addressing |
+| `glb.rs` | — | Geometric Load Balancer |
+| `api.rs` | 554 | REST API handlers |
+| `config.rs` | 348 | Feature flags |
+| `deregistration.rs` | — | Entity deregistration |
+| `dimension_tracker.rs` | — | DimensionDensity tracker |
+| `lattice_mixer.rs` | — | Lattice mixing |
+| `pt26_parallel.rs` | — | PT26 parallel ops |
+| `sampling.rs` | — | Sampling |
+| `telemetry.rs` | — | Telemetry stats |
+
+**Ternary Math Library** (`ternary-math/src/` — 22 modules):
+
+| Module | Function |
+|---|---|
+| `tlsponge385.rs` | TL-Sponge-385 (AVX2/NEON SIMD) |
+| `tl_dsa.rs` | TL-DSA signatures |
+| `pt26_dsa.rs` | PT26-DSA signatures |
+| `ttc.rs` | TTC v4.2 compression engine |
+| `gf3.rs` | GF(3) arithmetic |
+| `gf3_algebra.rs` | GF(3) algebraic ops |
+| `cube_addr.rs` | Cube addressing |
+| `plenum_square.rs` | Plenum Square geometry |
+| `plenum_checksum.rs` | Checksum |
+| `tribonacci.rs` | Tribonacci constants |
+| `repunit_circles.rs` | Repunit circle ops |
+| `radix.rs` | Radix conversion |
+| `ternary_circle.rs` | Ternary circle |
+| `torus.rs` | Torus topology |
+| `borromean.rs` | Borromean rings |
+| `clifford.rs` | Clifford algebra |
+
+**N-API Bridge** (`ternary-math/napi/src/lib.rs`):
+Compiled native addon (`server/crypto/sponge-native.node`) exposing TL-Sponge-385, TTC compress/decompress, and SIMD permutations to Node.js.
+
+**TypeScript Crypto Layer** (`server/crypto/`):
+
+| File | Function |
+|---|---|
+| `sponge-hash.ts` | TL-Sponge-385 (TS fallback) |
+| `tl-dsa-bridge.ts` | TL-DSA bridge to Rust |
+| `pt26-bridge.ts` | PT26-DSA bridge to Rust |
+| `key-management.ts` | Key management |
+| `rsa4096-signing.ts` | RSA-4096 dual-signing |
 
 ---
 
@@ -44,14 +115,14 @@
 
 ## 1.2 Inter-Cube CRS → CRS-L
 
-| Method | Path | Source | LAN Target | §Ref |
+| Method | Path | Source | Existing Rust | §Ref |
 |---|---|---|---|---|
-| POST | `/api/salvi/inter-cube/crs/register` | `inter-cube.ts` | `crs_l/register.rs` | §10.1 |
-| GET | `/api/salvi/inter-cube/crs/lookup/:address` | `inter-cube.ts` | `crs_l/lookup.rs` | §10 |
-| GET | `/api/salvi/inter-cube/crs/neighbors/:address` | `inter-cube.ts` | `crs_l/neighbors.rs` | §8.1 |
-| POST | `/api/salvi/inter-cube/crs/heartbeat` | `inter-cube.ts` | `crs_l/heartbeat.rs` | §10.1 |
-| POST | `/api/salvi/inter-cube/crs/deregister` | `inter-cube.ts` | `crs_l/deregister.rs` | §10 |
-| GET | `/api/salvi/inter-cube/crs/stats` | `inter-cube.ts` | `crs_l/stats.rs` | §10 |
+| POST | `/api/salvi/inter-cube/crs/register` | `inter-cube.ts` | `inter-cube/crs.rs` | §10.1 |
+| GET | `/api/salvi/inter-cube/crs/lookup/:address` | `inter-cube.ts` | `inter-cube/crs.rs` | §10 |
+| GET | `/api/salvi/inter-cube/crs/neighbors/:address` | `inter-cube.ts` | `inter-cube/overlay.rs` | §8.1 |
+| POST | `/api/salvi/inter-cube/crs/heartbeat` | `inter-cube.ts` | `inter-cube/fts.rs` | §10.1 |
+| POST | `/api/salvi/inter-cube/crs/deregister` | `inter-cube.ts` | `inter-cube/deregistration.rs` | §10 |
+| GET | `/api/salvi/inter-cube/crs/stats` | `inter-cube.ts` | `inter-cube/crs.rs` | §10 |
 
 **Delta Notes:**
 
@@ -64,21 +135,21 @@
 
 ## 1.3 Inter-Cube GLB/CON/FTS → LAN Infrastructure
 
-| Method | Path | Source | LAN Target | §Ref |
+| Method | Path | Source | Existing Rust | §Ref |
 |---|---|---|---|---|
-| POST | `/api/salvi/inter-cube/glb/forward` | `inter-cube.ts` | `routes/glb.rs` | §8.1 |
-| GET | `/api/salvi/inter-cube/glb/stats` | `inter-cube.ts` | `routes/glb.rs` | §8.1 |
-| GET | `/api/salvi/inter-cube/glb/health` | `inter-cube.ts` | `routes/glb.rs` | §8.1 |
-| GET | `/api/salvi/inter-cube/con/neighbors` | `inter-cube.ts` | `routes/con.rs` | §12 |
-| GET | `/api/salvi/inter-cube/con/stats` | `inter-cube.ts` | `routes/con.rs` | §12 |
-| POST | `/api/salvi/inter-cube/con/tunnel/refresh` | `inter-cube.ts` | `routes/con.rs` | §12 |
-| POST | `/api/salvi/inter-cube/con/tunnel/upgrade-key` | `inter-cube.ts` | `routes/con.rs` | §12 |
-| GET | `/api/salvi/inter-cube/fts/status` | `inter-cube.ts` | `crs_l/fts.rs` | §10.1 |
-| GET | `/api/salvi/inter-cube/fts/dead` | `inter-cube.ts` | `crs_l/fts.rs` | §10.1 |
-| POST | `/api/salvi/inter-cube/fts/config` | `inter-cube.ts` | `crs_l/fts.rs` | §10.1 |
-| POST | `/api/salvi/inter-cube/routing/compute` | `inter-cube.ts` | `routes/routing.rs` | §8.1 |
-| POST | `/api/salvi/inter-cube/address/validate` | `inter-cube.ts` | `address/rep_c.rs` | §5 |
-| GET | `/api/salvi/inter-cube/topology` | `inter-cube.ts` | `routes/topology.rs` | §8 |
+| POST | `/api/salvi/inter-cube/glb/forward` | `inter-cube.ts` | `inter-cube/glb.rs` | §8.1 |
+| GET | `/api/salvi/inter-cube/glb/stats` | `inter-cube.ts` | `inter-cube/glb.rs` | §8.1 |
+| GET | `/api/salvi/inter-cube/glb/health` | `inter-cube.ts` | `inter-cube/glb.rs` | §8.1 |
+| GET | `/api/salvi/inter-cube/con/neighbors` | `inter-cube.ts` | `inter-cube/overlay.rs` | §12 |
+| GET | `/api/salvi/inter-cube/con/stats` | `inter-cube.ts` | `inter-cube/overlay.rs` | §12 |
+| POST | `/api/salvi/inter-cube/con/tunnel/refresh` | `inter-cube.ts` | `inter-cube/tunnel_auth.rs` | §12 |
+| POST | `/api/salvi/inter-cube/con/tunnel/upgrade-key` | `inter-cube.ts` | `inter-cube/key_rotation.rs` | §12 |
+| GET | `/api/salvi/inter-cube/fts/status` | `inter-cube.ts` | `inter-cube/fts.rs` | §10.1 |
+| GET | `/api/salvi/inter-cube/fts/dead` | `inter-cube.ts` | `inter-cube/fts.rs` | §10.1 |
+| POST | `/api/salvi/inter-cube/fts/config` | `inter-cube.ts` | `inter-cube/fts.rs` | §10.1 |
+| POST | `/api/salvi/inter-cube/routing/compute` | `inter-cube.ts` | `inter-cube/cube_addr.rs` | §8.1 |
+| POST | `/api/salvi/inter-cube/address/validate` | `inter-cube.ts` | `inter-cube/cube_addr.rs` | §5 |
+| GET | `/api/salvi/inter-cube/topology` | `inter-cube.ts` | `inter-cube/config.rs` | §8 |
 
 **Delta Notes:**
 
@@ -90,26 +161,26 @@
 
 ## 1.4 Salvi Core Crypto → LAN Kernel (Direct Rust)
 
-In PlenumLAN (pure Rust), these become direct function calls — no HTTP layer. Thin Axum handlers wrap the same Rust functions for the web console.
+In PlenumLAN (pure Rust), these become direct function calls — no HTTP layer. Thin Axum handlers wrap the same Rust functions for the web console. The Rust implementations already exist in `ternary-math/src/`.
 
-| Method | Path | Source | LAN Target | §Ref |
+| Method | Path | Source | Existing Rust | §Ref |
 |---|---|---|---|---|
-| POST | `/api/salvi/crypto/hash` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/crypto/tl-dsa/keygen` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/crypto/tl-dsa/sign` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/crypto/tl-dsa/verify` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| GET | `/api/salvi/crypto/tl-dsa/spec` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| GET | `/api/salvi/crypto/tl-kem/spec` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/phase/split` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/phase/recombine` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| GET | `/api/salvi/phase/config/:mode` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| GET | `/api/salvi/phase/recommend` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/phase/batch/split` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
-| POST | `/api/salvi/phase/batch/recombine` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/crypto/hash` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
+| POST | `/api/salvi/crypto/tl-dsa/keygen` | `salvi.ts` | `ternary-math/tl_dsa.rs` | §8.3 |
+| POST | `/api/salvi/crypto/tl-dsa/sign` | `salvi.ts` | `ternary-math/tl_dsa.rs` | §8.3 |
+| POST | `/api/salvi/crypto/tl-dsa/verify` | `salvi.ts` | `ternary-math/tl_dsa.rs` | §8.3 |
+| GET | `/api/salvi/crypto/tl-dsa/spec` | `salvi.ts` | `ternary-math/tl_dsa.rs` | §8.3 |
+| GET | `/api/salvi/crypto/tl-kem/spec` | `salvi.ts` | `ternary-math/tl_dsa.rs` | §8.3 |
+| POST | `/api/salvi/phase/split` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
+| POST | `/api/salvi/phase/recombine` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
+| GET | `/api/salvi/phase/config/:mode` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
+| GET | `/api/salvi/phase/recommend` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
+| POST | `/api/salvi/phase/batch/split` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
+| POST | `/api/salvi/phase/batch/recombine` | `salvi.ts` | `ternary-math/tlsponge385.rs` | §8.3 |
 
 **Delta Notes:**
 
-- `hash` → TL-Sponge-385 direct Rust, no TS-Rust bridge
+- `hash` → TL-Sponge-385 direct Rust call, no TS↔Rust N-API bridge needed
 - `tl-dsa/*` → keygen at entity registration; sign/verify for capability tokens and auth
 - `tl-kem/spec` → used for CON tunnel key exchange
 - `phase/*` → phase encryption for PFS data at rest
@@ -191,14 +262,14 @@ In PlenumLAN (pure Rust), these become direct function calls — no HTTP layer. 
 
 ## 1.9 Ternary Operations → LAN Kernel
 
-| Method | Path | Source | LAN Target | §Ref |
+| Method | Path | Source | Existing Rust | §Ref |
 |---|---|---|---|---|
-| POST | `/api/salvi/ternary/convert` | `salvi.ts` | `routes/ternary.rs` | §5.1 |
-| POST | `/api/salvi/ternary/add` | `salvi.ts` | `routes/ternary.rs` | §4 |
-| POST | `/api/salvi/ternary/multiply` | `salvi.ts` | `routes/ternary.rs` | §4 |
-| POST | `/api/salvi/ternary/rotate` | `salvi.ts` | `routes/ternary.rs` | §4 |
-| POST | `/api/salvi/ternary/not` | `salvi.ts` | `routes/ternary.rs` | §4 |
-| POST | `/api/salvi/ternary/xor` | `salvi.ts` | `routes/ternary.rs` | §4 |
+| POST | `/api/salvi/ternary/convert` | `salvi.ts` | `ternary-math/radix.rs` | §5.1 |
+| POST | `/api/salvi/ternary/add` | `salvi.ts` | `ternary-math/gf3.rs` | §4 |
+| POST | `/api/salvi/ternary/multiply` | `salvi.ts` | `ternary-math/gf3.rs` | §4 |
+| POST | `/api/salvi/ternary/rotate` | `salvi.ts` | `ternary-math/gf3.rs` | §4 |
+| POST | `/api/salvi/ternary/not` | `salvi.ts` | `ternary-math/gf3.rs` | §4 |
+| POST | `/api/salvi/ternary/xor` | `salvi.ts` | `ternary-math/gf3.rs` | §4 |
 
 **Delta Notes:**
 
@@ -616,22 +687,43 @@ PEM download, admin token log, policy info.
 
 ---
 
-# Appendix: Cross-Reference by PlenumLAN Module
+# Appendix A: Cross-Reference by PlenumLAN Module
 
-| LAN Module | Mapped From | Gaps (Net-New) |
-|---|---|---|
-| TDNS-L | TDNS scan, resolve, list, health | Dual-stack DNS, LAN scan |
-| CRS-L | CRS register/lookup/heartbeat/deregister/stats | Address module, bitmap, IPv4 collision, nearest-service |
-| PDS | Capabilities (issue/validate/delegate), TDNS orgs | User enrollment, auth, sessions, issuance rules, delegation, Merkle audit, AD importer |
-| PFS | *(none)* | SMB 3.1.1 + NFS v4.2 bridge, backups, updates, print drivers |
-| Shims | *(none)* | RADIUS, LDAP, DHCP, print bridge |
-| PTS | *(none)* | Phase-encrypted tunnel, WebAuthn, scoped remote access |
-| Crypto Kernel | Salvi crypto (hash, TL-DSA, phase, timing) | Direct Rust calls (no bridge) |
-| GLB/CON/FTS | Inter-Cube GLB/CON/FTS endpoints | Identical logic; activates on second-site |
-| Console | *(none)* | 16 management screens |
-| Infrastructure | *(none)* | Setup wizard, installer, auto-update, PlenumDB, emergency console |
+| LAN Module | Existing Rust Foundation | Mapped Endpoints | Gaps (Net-New) |
+|---|---|---|---|
+| TDNS-L | `inter-cube/crs.rs`, `cube_addr.rs` | TDNS scan, resolve, list, health | Dual-stack DNS, LAN scan |
+| CRS-L | `inter-cube/crs.rs`, `placement.rs`, `deregistration.rs`, `address_keys.rs` | CRS register/lookup/heartbeat/deregister/stats | Address module, bitmap, IPv4 collision, nearest-service |
+| PDS | *(new — extends capability system)* | Capabilities (issue/validate/delegate), TDNS orgs | User enrollment, auth, sessions, issuance rules, Merkle audit, AD importer |
+| PFS | *(new)* | *(none)* | SMB 3.1.1 + NFS v4.2 bridge |
+| Shims | *(new)* | *(none)* | RADIUS, LDAP, DHCP, print bridge |
+| PTS | `inter-cube/tunnel_auth.rs`, `wire.rs` | *(none)* | Phase-encrypted remote console |
+| Crypto Kernel | `ternary-math/tlsponge385.rs`, `tl_dsa.rs`, `gf3.rs`, `radix.rs` | Salvi crypto (hash, TL-DSA, phase) | Direct calls (no N-API bridge) |
+| Ternary Ops | `ternary-math/gf3.rs`, `gf3_algebra.rs`, `radix.rs` | Ternary convert/add/multiply/rotate/not/xor | Direct calls |
+| GLB/CON/FTS | `inter-cube/glb.rs`, `overlay.rs`, `fts.rs`, `key_rotation.rs` | Inter-Cube GLB/CON/FTS endpoints | Identical logic; activates on second-site |
+| Console | *(new — frontend)* | *(none)* | 16 management screens |
+| Infrastructure | *(new)* | *(none)* | Setup wizard, installer, auto-update, PlenumDB |
+
+# Appendix B: Existing Rust Coverage Summary
+
+| Category | Existing Modules | LOC | Tests |
+|---|---|---|---|
+| Inter-Cube Infrastructure | 25 modules in `services/inter-cube/src/` | 12,865 | 324 |
+| Ternary Math / Crypto | 22 modules in `ternary-math/src/` | — | — |
+| N-API Bridge | `ternary-math/napi/src/lib.rs` | — | — |
+| TS Crypto Layer | 5 files in `server/crypto/` | — | — |
+| **Total existing Rust** | **47 modules** | — | — |
+
+Of the 79 mapped endpoints in Section 1:
+- **31 endpoints** (§1.2, §1.3) backed by existing `inter-cube/` Rust modules
+- **18 endpoints** (§1.4, §1.9) backed by existing `ternary-math/` Rust modules
+- **14 endpoints** (§1.6) capability system (TS, Rust extension for PlenumLAN)
+- **9 endpoints** (§1.1) TDNS (TS, backed by `inter-cube/crs.rs` for registration)
+- **5 endpoints** (§1.5) timing (TS `femtosecond-timing.ts`)
+- **6 endpoints** (§1.7, §1.8, §1.10) TSA/Security/Health (TS)
+
+**Bottom line:** ~62% of mapped endpoints (49/79) already have working Rust implementations. PlenumLAN extends and wraps these — it does not recreate them.
 
 ---
 
 *Document produced from full endpoint inventory of PlenumNET mapped against TM-2026-019.2 §5–§24.*
-*All source files under `server/routes/`. All LAN targets under `plenumlan/src/`.*
+*TS source files under `server/routes/`. Existing Rust under `services/inter-cube/src/` and `ternary-math/src/`.*
