@@ -30,3 +30,9 @@ id = "5kHxGlPCdmEhJbTYngtrm"
 uri = "file://TTC-v4.1-benchmark-report.md"
 type = "text"
 title = "TTC v4.1 Benchmark Report (fixed formatting)"
+
+[[outputs]]
+id = "_wycyy965eATUstJ3t-ES"
+uri = "file://docs/plenumlan-api-mapping.md"
+type = "text"
+title = "API-to-PlenumLAN Mapping Document"
