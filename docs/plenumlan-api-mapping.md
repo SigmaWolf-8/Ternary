@@ -1,6 +1,7 @@
 # PlenumNET → PlenumLAN API Mapping Document
 
 **Reference:** TM-2026-019.2 (PlenumLAN Technical Manifest — Unified)
+**Repository:** [SigmaWolf-8/Ternary](https://github.com/SigmaWolf-8/Ternary)
 **Capomastro Holdings Ltd. — Applied Physics Division**
 **Generated: March 2026**
 
@@ -11,11 +12,11 @@
 | Category | Count |
 |---|---|
 | **Mapped endpoints** (PlenumNET → PlenumLAN equivalent) | 79 |
-| **Showcase-only endpoints** (stay in plenumnet.replit.app) | 195 |
+| **PlenumNET-Only endpoints** (stay in plenumnet.replit.app) | 195 |
 | **Total existing endpoints** | 274 |
 | **Gap items** (PlenumLAN net-new, no existing API) | 24 |
 
-*Inventory method: endpoint counts derived from explicit `app.METHOD(path)`, `router.METHOD(path)`, and `app.use(path)` proxy-mount declarations across `server/routes.ts` and 18 files in `server/routes/*.ts` (excluding `middleware.ts` which has 0 endpoints). Router-mounted files (e.g., `inter-cube.ts` mounted at `/api/salvi/inter-cube`) list fully-resolved paths in the table. The PQTI catch-all proxy (`app.use("/api/pqti", ...)`) is inventoried as `ALL /api/pqti/*` alongside its companion `GET /api/pqti-status`. Each declared endpoint appears exactly once in either Section 1 (Mapped) or Section 3 (Showcase-only). Gap items (Section 2) represent planned PlenumLAN features with no existing PlenumNET API and are excluded from the endpoint total.*
+*Inventory method: endpoint counts derived from explicit `app.METHOD(path)`, `router.METHOD(path)`, and `app.use(path)` proxy-mount declarations across `server/routes.ts` and 18 files in `server/routes/*.ts` (excluding `middleware.ts` which has 0 endpoints). Router-mounted files (e.g., `inter-cube.ts` mounted at `/api/salvi/inter-cube`) list fully-resolved paths in the table. The PQTI catch-all proxy (`app.use("/api/pqti", ...)`) is inventoried as `ALL /api/pqti/*` alongside its companion `GET /api/pqti-status`. Each declared endpoint appears exactly once in either Section 1 (Mapped) or Section 3 (PlenumNET-Only). Gap items (Section 2) represent planned PlenumLAN features with no existing PlenumNET API and are excluded from the endpoint total.*
 
 ---
 
