@@ -1,0 +1,1753 @@
+# PlenumLAN — Technical Manifest
+
+**One Language. One Binary. Four Stages.**
+
+LAN Infrastructure on the 13-Dimensional Ternary Cube
+
+**TM-2026-019.2**
+Capomastro Holdings Ltd. — Applied Physics Division
+Sherwood Park, Alberta, Canada — March 2026
+
+---
+
+## Revision History
+
+| Version | Date | Change |
+|---|---|---|
+| v1 | March 2026 | Initial draft. Proposed truncated 18-dim schema + 15 independent services. Wrong approach. |
+| v2 | March 2026 | Restored full 27-dim 54-trit address. Consolidated to 6 workstreams. |
+| v3 | March 2026 | Technical Manifest. Dual-interpretation address, deterministic IPv4/IPv6 derivation. Cube IS the infrastructure. |
+| v3-A v1–v8 | March 2026 | Platform Trajectory addendum: 8 iterations incorporating technical review. Single-binary Rust, installer, integration testing, standards mappings. |
+| v4 | March 2026 | **Unified document.** Technical Manifest + Platform Trajectory merged. Two parts, one document. |
+
+---
+
+## Table of Contents
+
+### Part I: What PlenumLAN Is
+
+1. [Executive Summary](#1-executive-summary)
+2. [Product Definition](#2-product-definition)
+3. [How It Works: Two Experiences, One Product](#3-how-it-works-two-experiences-one-product)
+4. [Foundational Principle](#4-foundational-principle)
+5. [The 54-Trit Dual-Interpretation Address](#5-the-54-trit-dual-interpretation-address)
+6. [Deterministic Dual-Stack IP Derivation](#6-deterministic-dual-stack-ip-derivation)
+7. [The LAN Ontological Scan](#7-the-lan-ontological-scan)
+8. [Cube Geometry as LAN Infrastructure](#8-cube-geometry-as-lan-infrastructure)
+9. [Protocol Bridges](#9-protocol-bridges)
+10. [Directory Operations on the Cube](#10-directory-operations-on-the-cube)
+11. [Security: Structural Elimination of AD Attack Classes](#11-security-structural-elimination-of-ad-attack-classes)
+12. [Promotion Path: Local → Global](#12-promotion-path-local--global)
+
+### Part II: How PlenumLAN Ships
+
+13. [Single-Binary Architecture](#13-single-binary-architecture)
+14. [The Download and Install Experience](#14-the-download-and-install-experience)
+15. [Deployment Architecture](#15-deployment-architecture)
+16. [Secure Remote Administration](#16-secure-remote-administration)
+17. [The Four-Stage Platform Trajectory](#17-the-four-stage-platform-trajectory)
+18. [Management Console: 16 Screens](#18-management-console-16-screens)
+19. [Release Phasing](#19-release-phasing)
+20. [Release Timeline Summary](#20-release-timeline-summary)
+21. [Developer Allocation](#21-developer-allocation)
+22. [Windows Application Compatibility: ReactOS on PlenumNET OS](#22-windows-application-compatibility-reactos-on-plenumnet-os)
+23. [Browser-Based Remote Desktop: Post-Quantum Secure Application Streaming](#23-browser-based-remote-desktop-post-quantum-secure-application-streaming)
+24. [Product Positioning](#24-product-positioning)
+
+### Appendices
+
+- [Appendix A: Definitions](#appendix-a-definitions)
+- [Appendix B: Deployment Example](#appendix-b-deployment-example)
+
+---
+
+# PART I: WHAT PLENUMLAN IS
+
+---
+
+## 1. Executive Summary
+
+**PlenumLAN** replaces the 12 core Windows Server roles that small and medium businesses actually use — Active Directory, DNS, DHCP, Group Policy, Certificate Services, File Services, Print Services, Network Policy Server, Windows Update Services, Event Logging, VPN, and Remote Desktop. It does not attempt to replace the hundreds of enterprise-scale features (DFS replication, multi-domain forests, Failover Clustering, access-based enumeration) that a 10–500 person office never touches. The scope is honest: the roles your office runs, replaced entirely. No Windows. No native desktop application. No special hardware. One program, one web console, one browser tab.
+
+The admin opens a browser, sees the management dashboard, registers devices, manages the network. That experience is the same whether the server is running on Replit, on a laptop, on a dedicated office machine, or on a USB-bootable appliance. The web console is the permanent interface. The server underneath it is what moves.
+
+**PlenumLAN is written entirely in Rust.** One language. One compiled program. No bridges between languages. No code written twice. No migration from one technology to another. The same program that runs on Replit is the same program that runs on a customer's office machine. Nothing changes but the address in the browser.
+
+**PlenumLAN.replit.app serves two purposes:** it is the live product (the full web console running production code) and it is the distribution point (a Download button that gives you the installer for your own machine). You try the product online, then you take it home and run it on your network.
+
+**The program supports full network management from the moment it runs on any machine with a network connection.** It scans the local network, registers devices, resolves names, serves files, controls network access, and manages printers. On Replit, the server is in a data center — it cannot see your office printer. On your laptop or office server, it can. The code is identical. The server just needs to be in the same room as the things it manages.
+
+**Release timeline:**
+
+| Release | Weeks | What It Delivers |
+|---|---|---|
+| 0.1 — Cube Console | 6–8 | Entity scanning, registration, address computation, network visualization. Live at PlenumLAN.replit.app. Download button for local install. |
+| 0.5 — Authentication and Policy | 12–16 | User identity, login, permissions, security certificates, audit logging. Can run alongside existing Windows Server. |
+| 1.0 — Full Stack | 18–24 | Replaces all 12 core SMB Windows Server roles: file sharing, printer management, network access control, all 16 console screens. |
+| 1.5 — Network Integration Testing | 22–30 | Real-hardware validation: SMB against Windows clients, RADIUS against managed switches, DHCP against printers/VoIP phones. Edge case debugging. |
+| 2.0 — Production Package | 30–38 | Polished installer packages for Windows and Linux. Secure remote access. Database backend. Administrator documentation. |
+| 3.0 — PlenumNET Operating System | 48–66 | Bootable from USB stick. No Windows or Linux underneath. The cube IS the operating system. |
+| 4.0 — XPlenum Hardware | TBD | Custom computer chip that runs ternary operations natively. |
+
+With two developers, Release 1.0 (all 12 core SMB roles replaced) is achievable in under five months. Production-ready deployment with real-hardware validation in under eight months. No migration phase. No rewrite. The binary that runs on Replit is the binary that ships to customers.
+
+**Current status:** The core ternary math kernel is operational (210,000+ lines of tested Rust). The TDNS scanner is deployed and processing live scans. The cryptographic primitives (post-quantum signatures, integrity hashing, phase encryption, precision timestamps) are compiled and benchmarked. The existing PlenumNET platform at plenumnet.replit.app demonstrates 278 production features. PlenumLAN.replit.app is targeted for the Cube Console and Download button (Release 0.1 — production code running on Replit from day one). PlenumLAN development begins from this proven foundation.
+
+---
+
+## 2. Product Definition
+
+**PlenumLAN** replaces Windows Server without a Windows-style management application. There is no Server Manager. There is no Remote Desktop session into a server. There is no Windows.
+
+The administrator manages the entire local network from a web page in a standard browser — Chrome, Firefox, Safari, Edge, on any device. Desktop, laptop, tablet, phone. Nothing to install on the admin's machine. Ever. The web console is the only management interface.
+
+This is how every modern infrastructure platform works:
+
+| Platform | How the Admin Manages It |
+|---|---|
+| Proxmox (server virtualization) | Web page in a browser |
+| TrueNAS (network file storage) | Web page in a browser |
+| UniFi (networking equipment) | Web page in a browser |
+| pfSense (firewall and routing) | Web page in a browser |
+| PlenumLAN (complete LAN management) | Web page in a browser |
+
+For remote administration (managing the office network from home or while traveling), PlenumLAN provides a secure encrypted tunnel that connects the admin's browser to the office console. The tunnel uses post-quantum cryptography and only allows access to the management console — not to the rest of the office network. There is no VPN. There is no full network access. Every remote session requires fresh authentication.
+
+---
+
+## 3. How It Works: Two Experiences, One Product
+
+The web console is the remote control. The server program is the engine. The console always runs in a browser. The server program is what moves from place to place.
+
+### 3.1 Experience One: On Replit
+
+The server runs on Replit's computers. You open your browser, go to PlenumLAN.replit.app, and see the full management console. You can:
+
+- Scan and register entities (devices, servers, printers, users)
+- See their computed addresses (both the 54-digit ternary address and the derived standard network addresses)
+- Explore the cube visualization showing where every entity sits in the network topology
+- Create and manage security policies (who can access what)
+- View the tamper-proof audit log
+- Browse the name resolution system
+
+What you cannot do is have the server see your office printer, serve files to your office laptop, or hand out network addresses to devices on your office switch. Because the server is in Replit's data center. It is not connected to your office network. This is not a software limitation — the code for all of those features is in the program. The server just isn't physically present on your network.
+
+### 3.2 Experience Two: On Your Machine
+
+You download the same program and run it on any computer connected to your office network — your laptop, a dedicated server, a Raspberry Pi. Now:
+
+- The name resolver listens on the network. Devices can use it to look up addresses.
+- The network address allocator responds to new devices joining the network.
+- The file service shares files to Windows, Mac, and Linux machines.
+- The printer manager discovers and manages printers.
+- The network access controller talks to managed switches.
+- The security certificate authority issues identity certificates to every device.
+
+The admin still opens a browser — pointed at the local machine instead of Replit — and sees the exact same web console. Same screens. Same buttons. Same everything. The difference is that the plumbing underneath is now connected to real devices.
+
+### 3.3 The Web Console Is Always the Same
+
+Whether the server is on Replit, on your laptop, on a dedicated office server, on a USB-bootable appliance, or eventually on custom hardware — the admin's experience is identical. Open browser. See console. Manage network.
+
+---
+
+## 4. Foundational Principle
+
+A single 13-dimensional ternary cube has 3¹³ = 1,594,323 vertices. Its symmetry group determines how packets route, how the sponge diffuses, how addresses validate, and how timing tokens encode. These are not five separate systems bolted together. They are five expressions of one geometric object.
+
+A LAN is one cube. Every workstation, server, printer, API, and IoT device on a site network occupies a vertex in that cube. Registering an entity into the cube assigns it a 54-trit Rep C address that simultaneously encodes:
+
+- **WHAT the entity is** (first 27 trits: ontological classification via the 27-question scan)
+- **WHERE the entity is** (second 27 trits: ternary host identifier, from which IPv4 and IPv6 addresses are deterministically derived)
+
+There is no separate naming service, no separate address allocation service, no separate identity service, no separate routing service. The 54-trit address IS the name IS the identity IS the route IS the network binding. Building separate services for these functions would re-introduce the protocol decomposition that the ternary architecture was specifically designed to eliminate.
+
+This document is the technical manifest for **TDNS-L** (TDNS Local) — the LAN-scale deployment of the Ternary Domain Name System. It defines the 54-trit dual-interpretation address format, the deterministic IPv4/IPv6 derivation from the ternary host identifier, the LAN ontological scan, the protocol bridges for legacy device compatibility, and the focused build requirements for replacing the 12 core Windows Server roles that SMBs actually use.
+
+---
+
+## 5. The 54-Trit Dual-Interpretation Address
+
+### 5.1 Format
+
+Every TDNS address — global or local — is a 54-trit Rep C structure. Rep C encodes each trit as {1, 2, 3}. Zero is structurally impossible. A zero in any position is mathematical proof of forgery, detectable in constant time with no branching on secrets.
+
+The 54 trits are always two halves of 27:
+
+| Half | Position | Global (.plm) | Local (.plm.local) |
+|---|---|---|---|
+| First 27 trits | Classification | Ontological scan: 27 questions answered from live HTTP fetch | Ontological scan: 27 questions answered from entity registration profile |
+| Second 27 trits | Binding | TL-Sponge-43 identity hash of canonical URL (collision resistance for internet namespace) | Ternary host identifier (native network address; IPv4/IPv6 derived deterministically) |
+
+The wire format is identical at both tiers. The interpretation of the second half is determined by scope: the resolver knows whether it is handling a `.plm` or `.plm.local` query, and applies the corresponding interpretation. No flag bit, no version field, no mode switch. The TLD suffix IS the mode switch.
+
+**Reference implementation** — one function handles both local and global modes, with constant-time zero-sentinel forgery detection:
+
+```rust
+// plenumlan/src/address/rep_c.rs
+pub fn parse_54_trit(address: &[u8; 54]) -> Result<(Classification, Binding), ForgeryError> {
+    if address.iter().any(|&t| t == 0) {
+        return Err(ForgeryError::ZeroSentinel); // constant-time, no secret branches
+    }
+    let class = Classification::from_trits(&address[0..27]);
+    let binding = if is_local_scope() {
+        Binding::HostId(TernaryHostId::from_trits(&address[27..54])) // derives IPv4/IPv6
+    } else {
+        Binding::Identity(TlSponge43::hash_url(&address[27..54])) // global identity
+    };
+    Ok((class, binding))
+}
+```
+
+### 5.2 Mathematical Invariants Preserved
+
+The dual-interpretation design preserves every proven result that depends on the 54-trit structure:
+
+- **TM-2026-008 Program I:** Z₃ⁿ → Z₂₇ⁿ isometry, scale factor 9. Requires 27-dimensional state in each half. Intact.
+- **TM-2026-008 Program II:** Branch number B(Mθ) = 8, optimal chi S-box χ(x) = x¹⁷, DP_max = 1/9. Proven over 27-dim state. Intact.
+- **TM-2026-008 Program III:** Aut ≅ (S₃)²⁵ × (C₂)². Automorphism group. Intact.
+- **Hamming-distance routing:** Computed across all 54 coordinate positions. Intact.
+- **Rep C sentinel:** Zero impossible in all 54 positions. Forgery detection constant-time. Intact.
+- **Dual checksum:** Plenum mod 333 and Repunit mod 364 computed over the full 27 classification trits. Intact.
+- **Binary wire interop:** 54-trit ↔ binary mapping produces fixed byte widths. Intact.
+
+### 5.3 Why Not Encode IP Addresses Directly?
+
+The second 27 trits are NOT an encoded IPv4 or IPv6 address. They are the ternary-native host identifier — the real address — from which legacy IP addresses are derived as protocol translations. This distinction matters:
+
+- **Protocol independence.** If the second half were an encoded IPv4 address, it would be useless on an IPv6-only network. If it were an encoded IPv6 address, it would waste trit space on binary structure. The ternary host identifier is native to the cube and derives both protocols simultaneously.
+- **Address space.** 3²⁷ = 7,625,597,484,987 unique host identifiers per site cube. That's ~7.6 trillion addresses from the ternary space, vastly exceeding any LAN requirement.
+- **Sentinel preservation.** An encoded IPv4 address would contain zeros (e.g. 192.168.0.1 → the .0. octet). In Rep C, zero is forgery. The ternary host identifier is computed in Rep C from the start — zeros are never introduced.
+
+---
+
+## 6. Bidirectional Address Binding: IP ↔ Ternary Host Identifier
+
+The second 27 trits of a TDNS-L address are the ternary host identifier. The mapping between this identifier and standard IPv4/IPv6 addresses is **bijective** — it works in both directions. This is critical because PlenumLAN must handle two completely different situations:
+
+**Situation 1 — Existing network (day one).** The office already has devices with IP addresses. The printer is already at 192.168.1.50. John's laptop is already at 192.168.1.101. PlenumLAN does not reassign IP addresses to a running network. Instead, it scans each device's existing IP and **computes the ternary host identifier FROM the IP**. The device keeps its address. The 54-trit ternary address wraps around the existing IP, not the other way around.
+
+**Situation 2 — New device (PlenumLAN is primary).** A new device joins the network after PlenumLAN is the infrastructure authority. PlenumLAN assigns a ternary host identifier from the cube vertex space and **derives the IP FROM the host identifier**. The device gets both a ternary address and an IP in one registration.
+
+**Situation 3 — Legacy device (doesn't speak PlenumLAN).** A printer or VoIP phone sends a raw DHCP DISCOVER. The legacy DHCP responder assigns an IP from the available pool. The CRS then **computes the matching ternary host identifier FROM the assigned IP**, completing the registration. From the device's perspective, it got a normal DHCP lease. From the cube's perspective, a vertex was occupied.
+
+All three situations use the same bijective conversion functions. The direction depends on which value is known first.
+
+### 6.1 The Bijective Conversion
+
+Every conversion passes through a single intermediate value: the **host integer**. This is a plain integer in the range [0, 3²⁷ – 1] = [0, 7,625,597,484,986].
+
+```
+  27-trit Rep C host identifier
+           ↕  (positional base-3 with Rep C offset)
+       host integer (u64)
+           ↕  (modular arithmetic for IPv4, direct embed for IPv6)
+    IPv4 address + IPv6 address
+```
+
+**Both directions are pure functions. No lookup table. No state. No database query.**
+
+**Direction A: Ternary → Integer → IP** (new device registration)
+
+```
+host_int = Σ(i=0..26) (trit[i] – 1) × 3ⁱ
+```
+
+Since each trit is {1, 2, 3}, the subtraction `trit[i] – 1` maps to {0, 1, 2} for the positional calculation.
+
+**Direction B: IP → Integer → Ternary** (existing device scan / DHCP import)
+
+```
+host_int = ipv4_host - range_start    (IPv4 path — approximate; see collision note)
+host_int = interface_id & 0x7FF_FFFF_FFFF   (IPv6 path — exact, no loss)
+
+trit[i] = ((host_int / 3ⁱ) mod 3) + 1   (for i = 0..26)
+```
+
+The IPv6 path is **lossless** — the 43-bit host integer is embedded directly in the interface ID, so extraction is exact. The IPv4 path loses information during modular reduction (254 possible values mapped from 7.6 trillion), so the CRS records the full host integer at registration time to ensure the round-trip is exact.
+
+### 6.2 Site Network Configuration
+
+Each site stores a single network configuration record in the Local CRS:
+
+| Field | Example | Purpose |
+|---|---|---|
+| site_ipv4_prefix | 192.168.1.0/24 | IPv4 subnet for this site |
+| site_ipv4_host_range | 1–254 | Usable host range (excludes network + broadcast) |
+| site_ipv6_prefix | fd00:abcd:1234::/48 | ULA prefix for this site |
+| site_ipv6_subnet_bits | 16 | Bits available for subnet segmentation |
+| shell_to_vlan | {Inner: VLAN 10, Void: VLAN 20, Outer: VLAN 30} | Maps cube shell security domains to VLANs |
+
+This configuration is set once at site initialization (the First-Run Wizard auto-detects it from the local network). It never changes during normal operation.
+
+### 6.3 Direction A: Ternary Host ID → IP Address (New Device Registration)
+
+When PlenumLAN assigns a ternary host identifier to a new device, it derives both IPv4 and IPv6:
+
+**IPv4:**
+
+```
+ipv4_host = (host_int mod host_range_size) + range_start
+ipv4_addr = site_prefix | ipv4_host
+```
+
+Example for a /24 subnet (254 usable hosts):
+
+```
+host_int  = 4,831,207,913,542  (from 27-trit conversion)
+ipv4_host = 4,831,207,913,542 mod 254 + 1 = 159
+ipv4_addr = 192.168.1.159
+```
+
+**IPv6:**
+
+```
+interface_id (64 bits):
+  Bits 63–43:  21-bit structural prefix = 0x15A (Rep C sentinel pattern)
+  Bits 42–0:   43-bit host_int direct embed
+
+ipv6_addr = fd00:abcd:1234:[subnet]:[interface_id]
+```
+
+Key properties:
+
+- **No IPv6 collision.** 3²⁷ ≈ 2⁴³ fits entirely within the 64-bit interface identifier with 21 bits to spare. Every 27-trit host ID maps to a unique IPv6 interface ID.
+- **Sentinel prefix.** The 21 high bits carry a fixed Rep C sentinel pattern (0x15A). Any IPv6 address without this prefix was not issued by TDNS-L — detectable as unauthorized at the network layer.
+- **Subnet segmentation.** The site's /48 ULA prefix provides 16 bits for subnet IDs (65,536 subnets). Shell security domains (Inner/Void/Outer on axis 12) map to subnet IDs, providing geometric VLAN segmentation.
+- **Reversible.** Given any PlenumLAN-issued IPv6 address, the ternary host identifier can be extracted by stripping the sentinel prefix and converting the 43-bit integer back to 27 Rep C trits. No lookup required.
+
+**Reference implementation** — Direction A (ternary → IP):
+
+```rust
+// plenumlan/src/address/derivation.rs
+pub fn ternary_to_ip(host_id: &TernaryHostId, cfg: &SiteConfig) -> (Ipv4Addr, Ipv6Addr) {
+    let host_int = host_id.to_u64(); // 27-trit → integer
+
+    // IPv4 (modular reduction — may collide, CRS override table handles it)
+    let ipv4_host = ((host_int % cfg.ipv4_range_size) as u32) + cfg.range_start;
+    let ipv4 = cfg.ipv4_prefix | Ipv4Addr::from(ipv4_host);
+
+    // IPv6 (collision-free: sentinel prefix + 43-bit host_int)
+    let interface_id = (0x15A_u64 << 43) | (host_int & 0x7FF_FFFF_FFFF);
+    let ipv6 = Ipv6Addr::from_parts(cfg.ipv6_prefix, cfg.subnet, 0, interface_id);
+
+    (ipv4, ipv6)
+}
+```
+
+### 6.4 Direction B: IP Address → Ternary Host ID (Existing Device Scan / DHCP Import)
+
+When PlenumLAN scans an existing network or a legacy device obtains an IP via DHCP, the ternary host identifier is computed FROM the known IP address.
+
+**From IPv6 (lossless — preferred path):**
+
+If the device has a PlenumLAN-issued IPv6 address (sentinel prefix present), extraction is exact:
+
+```
+host_int = interface_id & 0x7FF_FFFF_FFFF   (strip sentinel, keep 43-bit host_int)
+trit[i] = ((host_int / 3ⁱ) mod 3) + 1       (for i = 0..26)
+```
+
+This is a pure mathematical inversion. No state. No lookup. The round-trip is perfect.
+
+**From IPv4 (lossy — requires CRS record):**
+
+IPv4 modular reduction is many-to-one (7.6 trillion host integers map to 254 IPv4 addresses in a /24). The inverse is ambiguous — given 192.168.1.159, you cannot reconstruct which of the ~30 billion possible host integers produced it.
+
+The solution: **when scanning an existing device with only an IPv4 address, the CRS assigns a NEW ternary host identifier that, when converted forward via Direction A, produces the device's existing IPv4 address.** The CRS searches the host integer space for the lowest value that maps to the target IPv4 host number:
+
+```
+target_ipv4_host = device_ip - range_start   (e.g. 192.168.1.50 - 1 = 49)
+host_int = target_ipv4_host                   (simplest: use the host number directly)
+```
+
+Since the host number (0–253 for a /24) is already a valid host integer within [0, 3²⁷–1], the simplest approach is to use the IPv4 host number directly as the host integer, then convert to 27 trits. This guarantees the forward derivation reproduces the original IPv4 address exactly. The ternary host identifier is small (low vertex in the cube) but mathematically valid.
+
+For devices that also have an IPv6 address with the PlenumLAN sentinel, the IPv6 path takes precedence — it preserves the full 43-bit host integer without ambiguity.
+
+**Reference implementation** — Direction B (IP → ternary):
+
+```rust
+// plenumlan/src/address/derivation.rs
+
+/// Lossless: extract host_int from PlenumLAN-issued IPv6 address
+pub fn ipv6_to_ternary(ipv6: &Ipv6Addr, cfg: &SiteConfig) -> Option<TernaryHostId> {
+    let iface_id = ipv6.interface_id();
+    let sentinel = (iface_id >> 43) & 0x1FFFFF;
+    if sentinel != 0x15A { return None; } // not a PlenumLAN address
+    let host_int = iface_id & 0x7FF_FFFF_FFFF;
+    Some(TernaryHostId::from_u64(host_int))
+}
+
+/// Lossy (IPv4): assign the lowest host_int that maps to this IPv4 address
+pub fn ipv4_to_ternary(ipv4: &Ipv4Addr, cfg: &SiteConfig) -> TernaryHostId {
+    let ipv4_host = ipv4.host_part() - cfg.range_start; // e.g. 192.168.1.50 → 49
+
+    // Use host number directly so forward mod reproduces exact same IPv4
+    // (round-trip guaranteed: 49 → mod 254 → 49 → .50 again)
+    TernaryHostId::from_u64(ipv4_host as u64)
+}
+
+/// Bidirectional: prefer IPv6 extraction, fall back to IPv4 assignment
+pub fn ip_to_ternary(
+    ipv4: Option<&Ipv4Addr>,
+    ipv6: Option<&Ipv6Addr>,
+    cfg: &SiteConfig,
+) -> TernaryHostId {
+    // IPv6 is lossless — always prefer it
+    if let Some(v6) = ipv6 {
+        if let Some(id) = ipv6_to_ternary(v6, cfg) {
+            return id;
+        }
+    }
+    // Fall back to IPv4 assignment
+    ipv4_to_ternary(ipv4.expect("device must have at least one IP"), cfg)
+}
+```
+
+### 6.5 The Three Registration Flows
+
+Here is exactly what happens in each situation, step by step. A developer implementing this section must handle all three flows.
+
+**Flow 1: Scan of existing device (day one import)**
+
+```
+1. Network scan discovers device at 192.168.1.50 (IPv4) and/or fd00:...:15a:...:0031 (IPv6)
+2. Admin classifies device → first 27 trits computed from ontological scan (Section 7)
+3. ip_to_ternary() computes second 27 trits FROM the device's existing IP
+   → IPv6 path if sentinel present (lossless extraction)
+   → IPv4 path otherwise (host number 49 → host_int 49 → 27 trits)
+4. CRS records: 54-trit address, original IPv4, original IPv6, host_int
+5. DEVICE KEEPS ITS EXISTING IP. Nothing changes on the wire.
+6. The 54-trit address now wraps the device's real network position.
+```
+
+**Flow 2: New device registration (PlenumLAN is primary)**
+
+```
+1. New device has no IP yet
+2. Admin classifies device → first 27 trits from scan
+3. CRS bitmap allocator assigns next available vertex → second 27 trits = host_int
+4. ternary_to_ip() derives IPv4 and IPv6 FROM the host_int
+5. CRS records: 54-trit address, derived IPv4, derived IPv6, host_int
+6. Device receives its addresses (via PlenumLAN agent, or manual config, or DHCP response)
+7. RESOLVER serves A/AAAA records derived from the CRS record
+```
+
+**Flow 3: Legacy DHCP device (no PlenumLAN awareness)**
+
+```
+1. Device sends DHCP DISCOVER
+2. Legacy DHCP responder assigns next available IPv4 from the CRS pool (e.g. 192.168.1.55)
+3. CRS computes ternary host ID from the assigned IP: ipv4_to_ternary(192.168.1.55)
+4. Admin is prompted to classify the device (or auto-classification runs from MAC OUI/mDNS)
+   → first 27 trits from scan
+5. CRS records: 54-trit address, assigned IPv4, derived IPv6, host_int
+6. Device thinks it got a normal DHCP lease. Cube registered a new vertex.
+```
+
+**The invariant across all three flows:** after registration, every CRS record contains the full 54-trit address, the IPv4 address, the IPv6 address, and the host integer. The forward function (ternary → IP) and the reverse function (IP → ternary) both work. The record is the single source of truth. The resolver serves A/AAAA records from it. The ternary address indexes it. The IP addresses are consistent with the ternary host identifier.
+
+### 6.6 IPv4 Collision Handling
+
+For Direction A (ternary → IPv4), 3²⁷ >> 254, so multiple host integers will map to the same IPv4 host address via modular reduction. The Local CRS maintains a collision set per IPv4 address. On first registration, the mapping is recorded. On collision, the CRS increments to the next available host address and records the override. This is the only state the CRS must maintain for IPv4 — a sparse override table, not a full binding table. In practice, a 10-person office will never see a collision.
+
+For Direction B (IPv4 → ternary), collisions don't arise — the CRS assigns the lowest host integer that maps to the target IPv4, which is unique by construction (the host number itself).
+
+**Reference implementation** — collision override table (stays empty in most deployments):
+
+```rust
+// plenumlan/src/crs/collision.rs
+use std::collections::HashMap;
+
+pub struct Ipv4CollisionTable {
+    overrides: HashMap<u32, u32>, // original_host → actual_host
+}
+
+impl Ipv4CollisionTable {
+    /// Direction A only: check if this IPv4 host is already taken
+    pub fn resolve(&self, host_int: u64, range_size: u32, range_start: u32) -> u32 {
+        let candidate = ((host_int % range_size as u64) as u32) + range_start;
+        self.overrides.get(&candidate).copied().unwrap_or(candidate)
+    }
+
+    pub fn record_collision(&mut self, original: u32, next_available: u32) {
+        self.overrides.insert(original, next_available);
+
+        // Alert if collisions pile up — suggests subnet is too small
+        if self.overrides.len() > 10 {
+            log::warn!(
+                "High IPv4 collision count: {} overrides. Consider expanding subnet.",
+                self.overrides.len()
+            );
+        }
+    }
+}
+```
+
+**Resolver acceptance test** — proves the resolver returns exactly what was stored at registration, for both day-one imports and new registrations:
+
+```rust
+// plenumlan/tests/resolver.rs
+#[test]
+fn resolver_returns_stored_ips() {
+    // Simulate registration of a printer at its existing IPv4 (day-one scan)
+    let printer_ip = Ipv4Addr::new(192, 168, 1, 50);
+    let record = register_test_device("printer-color", printer_ip, None);
+
+    // Resolve by .plm.local name
+    let resolved = resolve_name("printer-color.shomes.plm.local").unwrap();
+
+    // Resolver must return exactly the preserved IPv4 — no recomputation
+    assert_eq!(resolved.ipv4, printer_ip, "Resolver must return preserved IPv4");
+}
+```
+
+**Larger subnets:** For a /16 (65,534 hosts), collisions via Direction A become vanishingly rare. For a /8 (16 million hosts), effectively impossible.
+
+### 6.7 Dual-Stack Resolution
+
+When the TDNS-L resolver receives a query for a `.plm.local` name, it returns:
+
+| Query Type | Response | Source |
+|---|---|---|
+| A (IPv4) | 192.168.1.50 | From CRS record (original IP preserved, or derived via Direction A) |
+| AAAA (IPv6) | fd00:abcd:1234:10:15a:0000:0000:0031 | From CRS record (extracted via Direction B, or derived via Direction A) |
+| TDNS-L native (PlenumNET client) | Full 54-trit Rep C address + classification metadata | Direct from CRS record |
+
+All three responses describe the same entity. Legacy devices get IP addresses. PlenumNET-aware devices get the full ternary address. The resolver serves all from a single CRS record.
+
+### 6.8 What This Eliminates
+
+| Eliminated Component | Reason |
+|---|---|
+| DHCP server (for PlenumLAN-aware devices) | IP addresses are derived from the ternary host ID at registration time (Direction A). No lease negotiation. |
+| IP binding table | The CRS record IS the binding. host_int ↔ IP is a bijective function. The CRS record stores both. |
+| DNS dynamic updates (DDNS) | Registration in the CRS is the authoritative record. The resolver serves A/AAAA records from it directly. |
+| IP address management (IPAM) software | The CRS is the IPAM. The address space is the cube. Utilization is vertex occupancy. |
+
+**What is NOT eliminated (day one):**
+
+| Preserved Component | Reason |
+|---|---|
+| Legacy DHCP responder | Devices that don't speak PlenumLAN (printers, VoIP phones, badge readers) still send DHCP DISCOVER. The responder assigns an IP and the CRS computes the matching ternary host ID (Flow 3). This shim exists until all devices are PlenumLAN-aware. |
+| Existing IPv4 addresses | On an existing network, every device keeps its current IP. The ternary host ID is computed FROM the IP (Direction B), not the other way around. Zero disruption on day one. |
+| DHCPv6 / SLAAC (transitional) | Until PlenumLAN manages IPv6 natively for all devices, existing IPv6 mechanisms coexist. The CRS records both PlenumLAN-derived and externally-assigned IPv6 addresses. |
+
+---
+
+## 7. The LAN Ontological Scan: 27-Dimensional Network Discovery, Asset Management, and Security Posture Assessment
+
+The 27-dimension scan classifies every LAN-connected entity using signals that are native to local networks. No HTTP fetch of a public URL. No web-centric heuristics. Every derivation relies on LAN-native signals only:
+
+- MAC OUI + DHCP class/option fingerprint (options 60, 55, 12, 77, 81, etc.)
+- mDNS announcements + TXT records
+- SNMP sysDescr / sysObjectID / LLDP chassis and port capabilities
+- Port scan + observed protocol behavior + STP/BPDU inspection
+- OS/firmware/version self-report at CRS registration
+- TL-DSA key presence + heartbeat + shell location (Inner/Void/Outer)
+- Historical association patterns, power state changes, traffic analysis
+- Quantitative thresholds: `gf3(k, n) = min(floor(3k/n), 2) + 1`
+
+The result is a mutually exclusive and collectively exhaustive classification for all LAN-connected devices — endpoints, servers, infrastructure, OT equipment, IoT sensors, and everything in between.
+
+### 7.1 WHO (Dimensions 1–4): Identity and Ownership
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D1 | What kind of entity? | Personal / endpoint | Corporate / service | Network infrastructure / appliance | Workstation/laptop/phone = 1. Server/VM/NAS/application = 2. Managed switch/router/firewall/AP/WLC/DC/CRS appliance = 3. (MAC OUI + LLDP chassis capabilities "bridge/router" + SNMP enterprise OID + template) |
+| D2 | What is the access scope? | Personal (single user) | Group / department | Enterprise / site-wide | Derived from shell region, access patterns, registration context. Personal = 1. Department-shared = 2. Site-wide DNS/DHCP/core switching = 3. |
+| D3 | Who operates it? | Rogue / unauthorized | Known but unmanaged | Transparent / managed | Rogue (FTS-flagged, no CRS record) = 1. Registered but no TL-DSA = 2. Fully managed (CRS + TL-DSA + heartbeat) = 3. |
+| D4 | Hosting model? | Bare metal / physical | Virtualized (VM) | Containerized / orchestrated | Physical hardware = 1. VM (hypervisor fingerprints) = 2. Container/K8s/cloud-native = 3. |
+
+### 7.2 WHAT (Dimensions 5–8): Function and Capability
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D5 | What is the device role? | Endpoint / user device | Server / appliance | Network infrastructure | Workstation, laptop, phone, tablet = 1. Server, VM, NAS, printer, camera, sensor = 2. Switch, router, firewall, load balancer, wireless controller = 3. (MAC OUI + DHCP class + SNMP sysObject + port behavior) |
+| D6 | Content type? | Documents / logs / code | Media / stored AV / binaries | Live stream / telemetry | Text/logs/DB/files/code repos = 1. Media server, NVR recordings, firmware images = 2. RTSP/ONVIF camera, sensor feed, audio = 3. |
+| D7 | Primary consumer? | Humans | Machines / M2M | Both | Desktop/user app only = 1. API/backup/monitoring collector = 2. Service with UI + API = 3. |
+| D8 | Operational domain? | IT (information technology) | OT (operational technology) | Mixed / gateway | Derived from protocol fingerprint: Modbus, Profinet, BACnet, EtherNet/IP = 2. Standard IT protocols (HTTP, SMB) = 1. Both = 3. Vendor OUI hints. |
+
+### 7.3 WHERE (Dimensions 9–12): Access and Protocol
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D9 | Connectivity medium? | Wired (Ethernet, fiber) | Wireless (Wi-Fi, BT) | Both | LLDP/CDP presence = 1. Wireless MIB, AP association = 2. Devices with both (e.g., laptop with dock) = 3. |
+| D10 | Authentication? | None / open | Basic (PSK/password) | Strong (cert/TL-DSA/802.1X/TACACS+) | EAP/TLS presence vs plaintext vs weak PSK. |
+| D11 | Infrastructure scale? | Single instance | Redundant / HA pair | Distributed / clustered / stacked | LLDP neighbors, stacking protocols (e.g., Cisco StackWise), cluster membership. |
+| D12 | Transport protocol? | Standard file/print (SMB/RDP/HTTP/IPP) | Streaming / pub-sub (WebSocket/MQTT/gRPC) | Control / industrial / management (SNMP/NETCONF/Modbus/BACnet/LLDP/STP) | Open ports + protocol fingerprint + BPDU observation. |
+
+### 7.4 WHEN (Dimensions 13–16): Timing and Availability
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D13 | Technology era? | Legacy (pre-2018) | Modern (2018–2023) | Current (2024+) | Firmware/OS report (CRS self-report, SNMP sysDescr). |
+| D14 | Availability? | Business hours only | Extended / on-demand | 24/7 always-on | Workstation = 1. Server/UPS = 2. Infrastructure (DNS/cameras/core fabric) = 3. (Heartbeat pattern + UPS SNMP) |
+| D15 | Data freshness? | Static / archive | Periodic sync | Live / continuous | Archive = 1. Nightly/periodic = 2. Real-time feed = 3. |
+| D16 | Real-time? | Batch / scheduled | Near-real-time | Strict real-time | Batch backup = 1. Polling = 2. HPTP/streaming (camera/telemetry) / routing fabric = 3. |
+
+### 7.5 WHY (Dimensions 17–20): Purpose and Policy
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D17 | Regulatory exposure? | None | Internal compliance | External regulation (SOX/HIPAA/PCI) | CRS tags, port/content type, self-report. |
+| D18 | Data collection? | Minimal | Moderate | Heavy / telemetry | Read-only = 1. User input = 2. Monitoring collector = 3. (gf3 quantitative threshold) |
+| D19 | Mobility pattern? | Stationary | Nomadic (occasional moves) | Mobile (frequent roaming) | Historical AP associations, DHCP lease churn, power states. |
+| D20 | Power source? | Mains (always on) | PoE (Power over Ethernet) | Battery / energy-harvesting | SNMP UPS MIB, LLDP PoE negotiation, uptime patterns. |
+
+### 7.6 HOW (Dimensions 21–24): Delivery and State
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D21 | Delivery topology? | Direct | Proxied / gateway | Clustered / fabric | Single IP/port = 1. Proxy/gateway = 2. Load-balanced cluster or switched fabric (spine-leaf) = 3. (ARP/LLDP + port multiplicity) |
+| D22 | Data flow direction? | Primarily serves data | Bidirectional / peer | Primarily collects data | Server → client = 1. Collaboration tools = 2. Logging/monitoring sink = 3. |
+| D23 | Update mechanism? | Manual / pull | Subscribe / webhook | Push / real-time | Manual = 1. Subscription = 2. Push/HPTP = 3. |
+| D24 | User interface? | Headless (remote management only) | Local UI (occasional) | Interactive (full desktop) | Presence of graphics ports, USB HID, OS type (Windows vs embedded). |
+
+### 7.7 PEACE (Dimensions 25–27): Trust and Security
+
+| Dim | Question | Trit 1 | Trit 2 | Trit 3 | LAN Derivation |
+|---|---|---|---|---|---|
+| D25 | Encryption posture? | None / weak / plaintext | Basic (TLS 1.2 / IPsec) | Hardened (TL-DSA + MACsec + post-quantum ready) | Cipher negotiation, 802.1AE (MACsec) negotiation, certificate type. |
+| D26 | Trust assurance? | Low (external trackers, no audit) | Medium (internal logs only) | High (certified/audited) | Firewall/egress logs, CRS tags, self-report. |
+| D27 | Confidence level? | Passive inference | Active probe confirmed | Verified (CRS / certificate) | How the data was obtained: observed only = 1. Active scan confirmed = 2. Self-report/CRS/certificate = 3. |
+
+### 7.8 Scan Templates
+
+To ensure consistent classification across administrators and sites, PlenumLAN provides scan templates for each entity class. A template pre-fills dimensions that are deterministic for that class and prompts only for dimensions that vary:
+
+| Template | Pre-filled Dims | Variable Dims | Typical Variable Count |
+|---|---|---|---|
+| Workstation | D1=1, D2=1, D3=3, D5=1, D7=1, D24=3 | D4, D8, D9, D13, D19, D25 + others | ~12 questions |
+| Server | D2=3, D3=3, D5=2, D14=3, D24=1 | D4, D7, D8, D11, D16, D17, D25 + others | ~14 questions |
+| Network Infrastructure | D1=3, D3=3, D5=3, D14=3, D16=3, D24=1 | D9, D11, D12, D13, D25 + limited others | ~8 questions |
+| Printer / Device | D1=2, D3=3, D5=2, D7=1, D8=1, D17=1, D24=1 | D9, D12, D13, D20, D25 + limited others | ~9 questions |
+| IoT / Sensor | D1=2, D3=3, D5=2, D7=2, D8=2, D17=1 | D6, D9, D12, D15, D16, D20, D25 + limited others | ~10 questions |
+| Service Endpoint | D3=3, D27=3 | All others via standard TDNS HTTP scan against LAN URL | Automatic (HTTP scan) |
+
+For service endpoints with HTTP interfaces, the standard TDNS scanner runs unchanged — it fetches the LAN URL and derives all 27 trits automatically, just as it does for public URLs. The only difference is that the URL is a `.plm.local` address instead of a public domain.
+
+**Reference implementation** — template-driven scan reduces registration to seconds:
+
+```rust
+// plenumlan/src/scan/templates.rs
+pub static TEMPLATES: phf::Map<&'static str, Template> = phf_map! {
+    "workstation"    => Template { prefilled: &[(D1,1),(D2,1),(D3,3),(D5,1),(D7,1),(D24,3)],
+                                   variable: &[D4,D8,D9,D13,D19,D25] },
+    "server"         => Template { prefilled: &[(D2,3),(D3,3),(D5,2),(D14,3),(D24,1)],
+                                   variable: &[D4,D7,D8,D11,D16,D17,D25] },
+    "infrastructure" => Template { prefilled: &[(D1,3),(D3,3),(D5,3),(D14,3),(D16,3),(D24,1)],
+                                   variable: &[D9,D11,D12,D13,D25] },
+    "printer"        => Template { prefilled: &[(D1,2),(D3,3),(D5,2),(D7,1),(D8,1),(D17,1),(D24,1)],
+                                   variable: &[D9,D12,D13,D20,D25] },
+    "iot"            => Template { prefilled: &[(D1,2),(D3,3),(D5,2),(D7,2),(D8,2),(D17,1)],
+                                   variable: &[D6,D9,D12,D15,D16,D20,D25] },
+    "service"        => Template { prefilled: &[(D3,3),(D27,3)],
+                                   variable: &[] }, // full HTTP auto-scan
+};
+
+pub fn scan_entity(entity_type: &str, signals: &ProbeResults) -> [u8; 27] {
+    let tmpl = TEMPLATES.get(entity_type).expect("unknown entity type");
+    let mut trits = [0u8; 27];
+    for &(dim, val) in tmpl.prefilled { trits[dim] = val; }
+    for &dim in tmpl.variable { trits[dim] = auto_fill_or_prompt(dim, signals); }
+    trits
+}
+```
+
+---
+
+## 8. Cube Geometry as LAN Infrastructure
+
+The 13-dimensional ternary cube provides five subsystems. On a LAN, each subsystem maps directly to a Windows Server function without requiring a new service.
+
+### 8.1 Topology → Network Routing
+
+Vertices ARE network nodes. Hamming distance IS hop count. Geodesic routing follows cube adjacency. On a LAN:
+
+- **Service discovery:** Querying "all entities where D5=3" (device class) returns all printers, sensors, and IoT devices. The classification IS the discovery mechanism. No mDNS broadcast storms. No manual printer deployment via GPO.
+- **Department segmentation:** Entities in the same cube region (matching address prefix) are topologically adjacent. The Engineering department's devices cluster in one region; Finance in another. Emergent from consistent scanning, not manual VLAN assignment.
+- **Nearest-service routing:** When a workstation prints, the resolver finds the printer with the smallest Hamming distance from the workstation's cube position. No print server queue management. Geometric proximity is the routing decision.
+
+### 8.2 Shell Security Domains → Network Segmentation
+
+Axis 12 (depth) partitions the cube into three shells: Inner, Void, Outer. On a LAN:
+
+| Shell | Axis 12 Value | LAN Security Zone | IPv6 Subnet | Equivalent |
+|---|---|---|---|---|
+| Inner | 1 | Management plane: PDS server, Local CRS, audit fabric, root CA | fd00:...:10::/64 | Management VLAN |
+| Void | 2 | Service plane: file servers, application servers, internal APIs | fd00:...:20::/64 | Server VLAN |
+| Outer | 3 | Client plane: workstations, printers, IoT, guest devices | fd00:...:30::/64 | Client VLAN |
+
+Cross-shell transitions require explicit authorization — a capability token with shell-transition permission. This is the 802.1X / NPS function: a workstation (Outer) accessing a file server (Void) must present a valid capability token that authorizes the cross-shell access. The geometric structure enforces the policy.
+
+**Reference implementation** — security zone determination is a single trit lookup:
+
+```rust
+// plenumlan/src/cube/shell.rs
+pub fn shell_from_address(addr: &[u8; 54]) -> Shell {
+    match addr[11] { // axis 12 (zero-indexed = position 11)
+        1 => Shell::Inner,   // management VLAN — PDS, CRS, audit, root CA
+        2 => Shell::Void,    // services VLAN — file servers, APIs
+        3 => Shell::Outer,   // client VLAN — workstations, printers, IoT
+        _ => unreachable!()  // Rep C invariant: only {1, 2, 3} possible
+    }
+}
+```
+
+Every packet, every file access, every remote login checks this one trit. That single-digit lookup replaces VLAN configuration, firewall rules, and Group Policy security filtering.
+
+**Reference implementation** — cross-shell authorization enforcement (called in PFS, PTS, RADIUS shim):
+
+```rust
+// plenumlan/src/network/vlan.rs
+pub fn authorize_cross_shell(from: Shell, to: Shell, cap: &CapabilityToken) -> bool {
+    if from == to { return true; } // same shell = always permitted
+    cap.has_permission(Permission::ShellTransition) // crossing requires explicit token
+}
+```
+
+### 8.3 Sponge Cryptography → Authentication & Encryption
+
+The inner ring (axes 1–6) defines the 3⁶ = 729-trit sponge state. This provides:
+
+- **TL-DSA keypairs:** Every registered entity receives a TL-DSA keypair at scan/registration. The private key is held by the entity; the public key is stored in the CRS. This IS the identity system.
+- **TIS-27 integrity:** Every CRS record, every file on PFS, every audit log entry is TIS-27 hashed. Integrity verification is structural, not optional.
+- **Phase encryption:** Data at rest on PFS is phase-encrypted. Data in transit between PlenumNET-aware devices uses phase-encrypted tunnels.
+- **Capability tokens:** HMAC-chained, HPTP-timestamped, TL-DSA-signed. Unforgeable, attenuable, delegable. Replace AD group membership, DACLs, and GPOs in a single mechanism.
+
+### 8.4 HPTP Timing → Lease Management & Token Expiration
+
+Z₂₈ encodes 28 angular positions in the ternary circle. On a LAN:
+
+- **Token expiration:** Capability tokens carry HPTP femtosecond-precision expiration. No NTP dependency. No Kerberos 5-minute clock skew tolerance.
+- **Registration TTL:** CRS registrations carry HPTP timestamps. An entity that fails to heartbeat within its TTL window is transitioned through FTS health states: Up → Suspect → Down → Recovering.
+- **Key rotation:** Arc = 182 = π(π−1) defines the semicircular key epoch. TL-DSA key rotation follows the geometric schedule.
+- **Audit timestamps:** Every event in the Merkle-chained audit fabric carries an HPTP timestamp. Tamper-evident and femtosecond-precise.
+
+### 8.5 Capabilities → Authorization (ACLs + GPO + Groups Unified)
+
+Capability tokens replace three separate Windows Server systems in a single primitive:
+
+| Windows Server Concept | Capability Token Equivalent | Mechanism |
+|---|---|---|
+| DACL (file/object permission) | Resource-scoped capability token | Token encodes (subject, resource, action, expiration). Verified by any service holding the root public key. |
+| Group membership | Delegation chain | Group capability is HMAC-attenuated and delegated to members. Adding user to group = delegating the group's capability to that user's TL-DSA identity. |
+| Group Policy Object (GPO) | Issuance rule on cube region | Rule: "all objects with address prefix P receive capability set C." Evaluated at registration. The token set IS the applied policy. |
+| VLAN assignment (802.1X) | Shell-transition capability | Cross-shell access requires a token with shell-transition permission. The shell IS the VLAN. |
+| Kerberos ticket | Session capability token | HPTP-timestamped, TL-DSA-signed. Non-replayable. No KDC single point of compromise. |
+
+The issuance rules are CRS metadata on cube regions. When an entity registers and its 27 ontological trits place it in a particular cube region, the Local CRS evaluates all matching issuance rules and attaches the resulting capability tokens to the entity's CRS record. The evaluated token set *is* the GPO. No separate policy engine. No separate policy evaluation. No XML documents linked to OU paths.
+
+---
+
+## 9. Protocol Bridges
+
+The cube provides the infrastructure. What it does not provide is protocol translation for legacy devices and legacy protocols. A Cisco switch speaks RADIUS, not TL-DSA. A Windows laptop speaks SMB, not Rep C. A printer speaks CUPS/IPP, not capability tokens.
+
+Protocol bridges are thin translation layers. They receive legacy protocol requests, translate them into cube operations (CRS lookups, capability verifications, TL-DSA challenges), and return legacy protocol responses. The bridge is not the service — the cube is the service. The bridge is the interpreter.
+
+### 9.1 PFS: File Protocol Bridge
+
+PFS (Plenum File Service) is the largest protocol bridge and the only genuine **net-new build** required. It translates SMB 3.1.1 and NFS v4.2 file operations into capability-mediated access against cube-addressed storage.
+
+**Inbound path (client → PFS → cube):**
+
+- SMB client sends authentication request (NTLMSSP or Kerberos).
+- PFS translates to TL-DSA challenge-response against the client's CRS-registered identity.
+- On success, PFS requests a file-access capability token from the CRS for the target share.
+- Subsequent file operations (read/write/delete) are authorized against the capability token.
+- Every file is TIS-27 integrity-hashed on write. Reads include verification.
+- Data at rest is phase-encrypted. Decryption requires the capability token + owner's TL-DSA key.
+
+**Outbound path (cube → PFS → client):**
+
+- PFS presents file contents via SMB/NFS protocol to the legacy client.
+- File share namespace is the TDNS-L address: `\\files.salvi-homes.plm.local\projects`.
+- Cube topology IS the namespace. No DFS configuration. No drive mappings. No GPO mount scripts.
+
+**Subsystems absorbed by PFS (not separate services):**
+
+- **Backup:** TIS-27 Merkle tree snapshots are a PFS operation. A snapshot is a Merkle root + phase-encrypted archive. No separate backup service.
+- **Update distribution (WSUS replacement):** A PFS share containing TL-DSA-signed manifests. Clients verify signatures, download deltas. Two endpoints, not a service.
+- **Print driver distribution:** Drivers served from a PFS share, TL-DSA-signed. Unsigned drivers rejected. PrintNightmare structurally eliminated.
+
+### 9.2 Auth Protocol Shims
+
+Three thin shims translate legacy authentication protocols into TL-DSA challenge-response:
+
+**9.2.1 RADIUS Shim (for 802.1X switches)**
+
+- Receives RADIUS Access-Request from switch.
+- Translates to TL-DSA challenge via EAP-TLS.
+- Queries CRS for client's capability tokens → maps to RADIUS attributes (VLAN = shell, ACL = capability scope).
+- Returns RADIUS Access-Accept/Reject.
+- Accounting records logged to Merkle audit fabric.
+
+Implementation: 3 endpoints. `/api/radius/auth`, `/api/radius/acct`, `/api/radius/status`.
+
+**9.2.2 LDAP Compatibility Shim (for legacy directory queries)**
+
+- Accepts LDAP bind and search operations from legacy applications expecting AD.
+- Translates LDAP search filters to CRS cube queries (e.g., `(objectClass=user)` → query entities where D5=2, D7=1).
+- Returns LDAP-formatted results from CRS records.
+- Read-only: LDAP writes are translated to PDS API calls requiring TL-DSA-signed capability tokens.
+
+Implementation: 4 endpoints. `/api/ldap/bind`, `/api/ldap/search`, `/api/ldap/compare`, `/api/ldap/unbind`.
+
+**9.2.3 Legacy DHCP Responder (for non-PlenumNET devices)**
+
+- Receives DHCP DISCOVER from devices that don't speak PlenumNET (printers, IoT, guest devices).
+- Assigns a scan template based on MAC OUI or mDNS announcement.
+- Registers the device in the CRS with a templated ontological scan.
+- Derives IPv4 from the ternary host identifier.
+- Returns standard DHCP OFFER/ACK with the derived IP, TDNS-L resolver as DNS, and standard gateway.
+
+From the device's perspective, it received a normal DHCP lease. From the cube's perspective, a new vertex was occupied and a 54-trit address was assigned. Implementation: 2 endpoints. `/crs/dhcp-discover`, `/crs/dhcp-request`.
+
+### 9.3 Print Bridge
+
+CUPS is the cross-platform print system used by Linux and macOS. The PlenumNET print bridge wraps CUPS with cube-native discovery and authorization:
+
+- **Discovery:** Printers are CRS-registered entities with D5=3 (device class). Querying the resolver for device-class entities in the same cube region returns the topologically nearest printer.
+- **Authorization:** Print jobs require a capability token with print-resource scope. Department restrictions are cube-region issuance rules.
+- **Drivers:** Served from PFS, TL-DSA-signed (see Section 6.1).
+
+Implementation: CUPS configuration + 2 CRS registration endpoints for printer-class entities. No net-new code beyond PFS.
+
+---
+
+## 10. Directory Operations on the Cube
+
+PDS (Plenum Directory Service) is not a separate data store. It is an API layer over the CRS that provides directory-style operations: user enrollment, authentication orchestration, capability lifecycle management, and administrative tooling. The CRS IS the directory. PDS is the management interface.
+
+### 10.1 Entity Registration Workflow
+
+When a new entity joins the LAN:
+
+- **Step 1 — Scan:** The entity is scanned using its class template (Section 4). The 27 ontological trits are derived.
+- **Step 2 — Host ID Assignment:** The CRS assigns a 27-trit host identifier from the cube vertex space. The CRS bitmap allocator (flatIndex/fromFlatIndex bijection) selects the next available vertex.
+- **Step 3 — TL-DSA Key Generation:** A TL-DSA-87 keypair is generated. Private key stored on the entity; public key registered in the CRS record.
+- **Step 4 — Capability Evaluation:** The CRS evaluates all issuance rules matching the entity's cube region prefix. Matching capabilities are attached to the CRS record.
+- **Step 5 — IP Derivation:** IPv4 and IPv6 addresses are derived from the host identifier per Section 3. Recorded in the CRS record for resolver serving.
+- **Step 6 — Heartbeat Starts:** The entity begins HPTP-timestamped heartbeats to the Local CRS. FTS monitors health: Up → Suspect → Down → Recovering.
+
+The entity now has: a 54-trit Rep C address, a TL-DSA identity, capability tokens, IPv4 and IPv6 addresses, a `.plm.local` DNS name, and a heartbeat. It is fully operational on the LAN. Total registration time: one CRS write + one IP derivation + one capability evaluation. No domain join. No computer account. No GPO processing delay.
+
+### 10.2 Authentication Flow
+
+| Step | Kerberos (AD) | PDS (PlenumNET) |
+|---|---|---|
+| 1. Identity proof | AS-REQ: password hash sent to KDC | Client signs HPTP-timestamped challenge with TL-DSA private key |
+| 2. Session token | AS-REP: TGT issued (symmetric key) | PDS issues HPTP-bound session capability token (HMAC-chained) |
+| 3. Service access | TGS-REQ: service ticket requested | Client presents session token; CRS evaluates and issues service-scoped capability with HMAC attenuation |
+| 4. Verification | AP-REQ: service decrypts ticket | Service verifies TL-DSA signature on capability. No decryption step — verification is public-key. |
+| 5. Mutual auth | Optional: AP-REP | Default: service signs response. Mutual auth is the default, not optional. |
+| 6. Expiration | Ticket lifetime (~10 hrs, NTP-dependent) | HPTP femtosecond-precision expiration. Zero clock skew tolerance. |
+
+**Critical advantage:** Kerberos requires all machines synchronized within 5 minutes (MaxClockSkew). A desynchronized clock causes authentication failures. HPTP eliminates clock skew as an attack vector and an operational failure mode simultaneously.
+
+### 10.3 AD Concept Mapping
+
+| AD Concept | PDS / Cube Equivalent | Mechanism |
+|---|---|---|
+| Forest | PlenumNET fabric (all sites) | Inter-Cube topology. Activates when second site onboards. |
+| Domain | Site cube (.plm.local scope) | Single 13D hypercube. |
+| Organizational Unit | Cube region (address prefix) | First N dimensions of classification address. |
+| User account | CRS record with TL-DSA keypair | Scan template: Workstation or explicit user enrollment. |
+| Computer account | CRS record with TL-DSA keypair | Same as user — no distinction needed. Entity is entity. |
+| Security group | Capability delegation chain | HMAC-chained tokens propagated to members. |
+| Group Policy link | Issuance rule on cube region | CRS metadata: prefix P → capability set C. |
+| Trust relationship | Inter-Cube mutual TL-DSA auth | CON tunnel handshake between site cubes. |
+| Replication | CRS Merkle-tree sync | TIS-27 Merkle root comparison. |
+| DNS SRV records | TDNS-L classification query | Query by dimension values returns matching entities. |
+| LDAP search | CRS cube query via LDAP shim | Dimension-based filtering translated from LDAP syntax. |
+
+---
+
+## 11. Security: Structural Elimination of AD Attack Classes
+
+The PlenumNET LAN is not a security improvement over Windows Server. It is a structural category change. Every known AD attack class is eliminated by the architecture, not mitigated by a security product:
+
+| Attack | Windows Vulnerability | PlenumNET: How It's Prevented |
+|---|---|---|
+| Pass-the-Hash | NTLM hashes replayable | No password hashes exist. TL-DSA is asymmetric and challenge-response. Nothing to steal, nothing to replay. |
+| Kerberoasting | Service tickets crackable offline | No Kerberos. Capability tokens are HMAC-chained with HPTP expiration. No offline crack path exists. |
+| Golden Ticket | KRBTGT key forges all tickets | No single key controls all auth. Each capability chain is independently verifiable from the root public key. |
+| DCSync | Replication leaks password hashes | CRS Merkle sync compares state hashes. No credential material in the sync stream. Nothing to intercept. |
+| GPO abuse | Unsigned XML silently modified | Issuance rules are TL-DSA-signed. Modification without signing key = cryptographic verification failure. |
+| PrintNightmare | Unsigned drivers run as SYSTEM | PFS serves TL-DSA-signed drivers only. Unsigned binary = rejected at the cryptographic layer. |
+| NTLM relay | Auth relayed to other services | TL-DSA mutual auth is bound to specific service identity. Relay = signature mismatch. Cryptographically prevented and Merkle-audited. |
+| Certificate theft | Stolen CA issues arbitrary certs | Root TL-DSA key in HSM. Issuance logged to Merkle fabric. Theft = detectable. Forged cert = invalid chain. |
+| Shadow credentials | User attrs modified for persistence | CRS writes require TL-DSA-signed capability. Every modification Merkle-chained. Tamper = detectable. |
+| Clock skew attack | Kerberos 5-min tolerance exploited | HPTP femtosecond precision. Zero tolerance window. Clock is a cryptographic service, not NTP. |
+| Unconstrained delegation | Delegated tickets forwarded anywhere | Capability attenuation: each delegation hop narrows scope. Widening is cryptographically impossible. |
+| AS-REP roasting | Accounts without pre-auth cracked | No pre-auth concept. TL-DSA challenge-response requires private key possession. No crackable material exposed. |
+
+The paradigm shift: AD is *trust-then-verify* — trust that the Domain Admin is legitimate, detect abuse after the fact, hope the audit logs haven't been cleared. PlenumNET is *prove-then-act* — every action requires cryptographic proof of authorization that is independently verifiable and immutably logged. Every proof is Merkle-chained. Every timestamp is HPTP-precise. Every identity is TL-DSA-bound. The security model is the geometry.
+
+---
+
+## 12. Promotion Path: Local → Global
+
+Any TDNS-L entity can acquire a TDNS Global address without architectural change. The process is second-half recomputation, not migration:
+
+| Step | Action | Address Change |
+|---|---|---|
+| 1. Local registration | Entity registered at signhere.salvi-homes.plm.local | [27 ontological] · [27 ternary host ID] |
+| 2. Promotion request | Operator registers the same entity with global TDNS fabric | First 27 trits: unchanged (same ontological classification) |
+| 3. Second-half recomputation | TL-Sponge-43 computes identity hash of global canonical URL (sign.salvigroup.plm) | Second 27 trits: host ID replaced by identity hash |
+| 4. Dual resolution | Both addresses resolve to the same entity | .plm.local: LAN routing via host ID. .plm: fabric routing via identity hash. |
+
+The `.plm.local` address remains live for LAN access. The `.plm` address enters the Inter-Cube fabric for internet access. The entity's TL-DSA identity, capability tokens, and CRS registration are unchanged. Only the second 27 trits differ between the two addresses, and they serve different purposes at different scopes.
+
+When a second site comes online, the CON service activates, tunnels connect the two cubes (26 tunnels per cube, TL-DSA mutual auth, phase-encrypted), and the GLB starts routing cross-cube queries. Each site's LAN entities remain on their `.plm.local` addresses within their local cube. Cross-site services use `.plm` addresses routed via the Inter-Cube fabric. Zero reconfiguration at either site.
+
+---
+
+
+---
+
+
+---
+
+# PART II: HOW PLENUMLAN SHIPS
+
+---
+
+## 13. Single-Binary Architecture
+
+PlenumLAN is written entirely in Rust. One language. One compiled program.
+
+```
+Web Console (React — runs in the admin's browser)
+       │ Standard web requests (REST/JSON)
+       ▼
+Web Server (Axum — Rust)
+       │ Direct function call (same program)
+       ▼
+PlenumLAN Modules (Rust)
+  ├── Directory Service     (user identity, login, permissions)
+  ├── Local Registry        (device registration, address pool, policies)
+  ├── Name Resolver         (network name → address lookup)
+  ├── File Service          (shared folders for Windows/Mac/Linux)
+  ├── Protocol Translators  (speak to legacy switches, printers, apps)
+  └── Remote Tunnel         (encrypted off-site admin access)
+       │ Direct function call (same program)
+       ▼
+Cryptographic Kernel (Rust — existing 210,000+ lines of code)
+  Post-quantum signatures · Integrity hashing · Encryption
+  Precision timestamps · Ternary addressing · Device registry
+```
+
+The React web console is the only part written in TypeScript. It runs in the admin's browser, not on the server. It sends standard web requests and displays what the server returns. It does not compute addresses, verify identities, or encrypt anything. The console is the display. The Rust program is the engine.
+
+### 13.1 Why One Language Matters
+
+The existing PlenumNET web application (plenumnet.replit.app, 278 features) is written in TypeScript with the cryptographic functions duplicated from Rust. Two programs computing the same thing. When one gets a bug fix, the other needs the same fix.
+
+PlenumLAN does not inherit this. It is a new application. It is written in Rust from line one. Every function exists once. Every bug is fixed once. Every test is run once. There is no bridge between languages, no translation layer, no duplication, no migration from one technology to another.
+
+### 13.2 What This Eliminates
+
+| Eliminated | What It Was | What Replaced It |
+|---|---|---|
+| TypeScript server code | Duplicate of Rust logic | Not needed. Rust called directly. |
+| Language bridge | Translation layer between TypeScript and Rust | Not needed. Same language. Same program. |
+| Duplicate bug fixes | Fix in TypeScript, then fix again in Rust | Fix once. In Rust. |
+| Duplicate test suites | Two test frameworks testing the same logic | One test framework. Rust. |
+| Technology migration | Rewrite from TypeScript to Rust (6–8 weeks) | No rewrite. Was Rust from the start. |
+
+---
+
+## 14. The Download and Install Experience
+
+PlenumLAN.replit.app is both the live product and the download source. The goal: a user tries the console online, decides they want it on their network, and is running it locally within minutes.
+
+### 14.1 The Download Button
+
+The web console includes a prominent **Download** section. The console detects the visitor's operating system from the browser and presents the correct download:
+
+| Operating System | What They Download | File Size (estimated) |
+|---|---|---|
+| Windows 10/11 (64-bit) | PlenumLAN-Setup.exe (installer) | ~15–25 megabytes |
+| Ubuntu / Debian Linux | plenumlan.deb (package) | ~10–20 megabytes |
+| Red Hat / Fedora Linux | plenumlan.rpm (package) | ~10–20 megabytes |
+| macOS (Apple Silicon or Intel) | PlenumLAN.dmg (disk image) | ~15–25 megabytes |
+| Linux (any distribution) | plenumlan (standalone binary) | ~10–20 megabytes |
+| Raspberry Pi (ARM) | plenumlan-arm64 (standalone binary) | ~10–20 megabytes |
+
+All six files are compiled from the same Rust source code. The Replit build pipeline cross-compiles for each target on every release. The downloads are always the current version.
+
+### 14.2 The Windows Install Experience
+
+1. Download PlenumLAN-Setup.exe.
+2. Double-click. Standard Windows installer runs.
+3. Installs to Program Files. Creates Start Menu shortcut. Optionally registers as a Windows Service (starts automatically on boot).
+4. Program starts. Detects first run. Opens the default browser to `http://localhost:3000`.
+5. Browser shows the **First-Run Setup Wizard** (3 screens):
+   - **Screen 1: Name your site.** "Salvi Homes Office" — this becomes the name in all network addresses.
+   - **Screen 2: Network settings.** The wizard auto-detects the local network range (e.g. 192.168.1.0/24) and the IPv6 prefix. Admin confirms or adjusts.
+   - **Screen 3: Create your admin account.** A cryptographic identity key is generated on the machine. The admin's name and role are recorded. No password is created — the key IS the identity.
+6. Setup complete. The console shows the System Overview dashboard. The server is scanning the local network and discovering devices.
+
+Total time from download to operational: under five minutes.
+
+### 14.3 The Linux Install Experience
+
+1. Download the .deb (or .rpm, or standalone binary).
+2. Install: `sudo dpkg -i plenumlan.deb` (or `rpm -i`, or just `chmod +x plenumlan && ./plenumlan`).
+3. The package creates a systemd service. The server starts automatically.
+4. Open browser to `http://localhost:3000`. First-Run Setup Wizard appears.
+5. Same three screens as Windows. Same result.
+
+### 14.4 What the First-Run Wizard Does Behind the Scenes
+
+When the admin completes the three setup screens, the server:
+
+- Generates the site root cryptographic identity key (the master certificate authority)
+- Configures the name resolver for the local network scope
+- Initializes the device registry with the site's network range
+- Registers the server itself as the first entity in the cube
+- Derives the server's standard network addresses from its ternary address
+- Registers the admin's machine as the second entity
+- Begins scanning the local network for existing devices (printers, switches, other computers)
+- Starts the heartbeat monitor to track which devices are online
+
+The admin sees devices appearing in the Entity Registry as the scan discovers them. Each discovered device gets a prompted classification (the console asks: "Is this a printer? A workstation? A server?"), and on confirmation, it receives a full ternary address, derived network addresses, and a security identity.
+
+### 14.5 How Replit Builds the Downloads
+
+The Replit deployment includes a GitHub Actions workflow (or equivalent continuous integration pipeline) triggered on every tagged release:
+
+1. Source code in `plenumlan/` is compiled with `cargo build --release` for each target:
+   - `x86_64-unknown-linux-gnu` (Linux Intel/AMD)
+   - `aarch64-unknown-linux-gnu` (Linux ARM — Raspberry Pi)
+   - `x86_64-pc-windows-msvc` (Windows Intel/AMD)
+   - `aarch64-apple-darwin` + `x86_64-apple-darwin` (macOS)
+2. The React console is built (`npm run build` in `plenumlan/console/`) and embedded in the binary as a static asset.
+3. Platform-specific packaging:
+   - Windows: the binary is wrapped in a WiX or NSIS installer that handles Program Files, Start Menu, and optional service registration.
+   - Debian/Ubuntu: the binary is packaged in a .deb with systemd service unit.
+   - Red Hat/Fedora: the binary is packaged in a .rpm with systemd service unit.
+   - macOS: the binary is placed in a .dmg with drag-to-Applications.
+4. All packages are uploaded to the Replit deployment's `/downloads/` directory and served statically.
+5. The console's Download section links to these files and detects the visitor's operating system to highlight the correct one.
+
+### 14.6 Automatic Updates
+
+After installation, the server periodically checks PlenumLAN.replit.app for new versions. When an update is available, the console shows a notification. The admin clicks "Update" and the server downloads the new binary, verifies its cryptographic signature (signed with the project's identity key), and restarts. On Windows, the service restarts automatically. On Linux, systemd restarts it. The console reconnects after a few seconds.
+
+No manual download. No reinstallation. No data loss. The device registry, security keys, policies, and audit log persist across updates.
+
+---
+
+## 15. Deployment Architecture
+
+PlenumLAN is a separate application from the existing PlenumNET web platform. Both share the same source code repository (SigmaWolf-8/Ternary on GitHub) but they are independent programs that deploy independently.
+
+### 15.1 Two Applications, One Source Repository
+
+| Property | PlenumNET (existing platform) | PlenumLAN (new product) |
+|---|---|---|
+| Language | TypeScript (existing) | Rust (new) |
+| Available at | plenumnet.replit.app | PlenumLAN.replit.app + Download for local install |
+| Purpose | Internet services: domain scanning, digital signatures, developer tools | Office network management: devices, files, printers, security, access |
+| Features | 278 existing features | ~62 new features for local network management |
+| Security model | Developer API key | Cryptographic identity key (post-quantum) |
+| Users | Software developers, public web users | Office network administrator |
+| Source code | SigmaWolf-8/Ternary repository | Same repository, different directory (plenumlan/) |
+
+### 15.2 Source Code Structure
+
+```
+SigmaWolf-8/Ternary/  (shared GitHub repository)
+├── ternary-math/      ← Cryptographic kernel (shared by both applications)
+├── server/            ← PlenumNET web platform (TypeScript, 278 features)
+├── plenumlan/         ← PlenumLAN application (Rust)
+│   ├── src/
+│   │   ├── main.rs          ← Program entry point: web server + setup wizard
+│   │   ├── routes/          ← Web request handlers (thin: receive, process, respond)
+│   │   ├── pds/             ← Directory service: identity, login, permissions
+│   │   ├── crs_l/           ← Local registry: device registration, address pool, policies
+│   │   ├── tdns_l/          ← Name resolver: address lookup, standard address derivation
+│   │   ├── pfs/             ← File service: shared folders, file integrity, encryption
+│   │   ├── shims/           ← Protocol translators: managed switches, legacy apps, printers
+│   │   └── pts/             ← Remote tunnel: encrypted off-site access
+│   ├── console/             ← Web console (React, 16 management screens)
+│   ├── templates/           ← Device classification templates
+│   ├── installer/           ← Windows/Linux/macOS packaging scripts
+│   └── Cargo.toml           ← Rust project file (depends on ternary-math)
+├── xplenum/           ← Custom hardware design (RISC-V chip, long-term)
+└── docs/              ← Technical documents
+```
+
+### 15.3 How Users Access PlenumLAN
+
+| How | Address | Who | What They Can Do |
+|---|---|---|---|
+| Replit web console | PlenumLAN.replit.app | Anyone | Try the console, explore features, download installer |
+| Local console | http://localhost:3000 | Office admin (on-site) | Full network management including devices, files, printers |
+| Local console (named) | http://pds.your-site.plm.local | Office admin (on-site) | Same as above, using the site's network name |
+| Remote console | https://remote.your-site.plm | Office admin (off-site) | Full management through encrypted tunnel |
+
+---
+
+## 16. Secure Remote Administration
+
+The web console runs on the office network. How does an administrator manage the network from home or while traveling?
+
+### 16.1 The Encrypted Tunnel
+
+PlenumLAN includes a built-in secure tunnel that connects the admin's browser to the office console from anywhere in the world. The tunnel uses post-quantum encryption — security that protects against both current and future quantum computers.
+
+**How it works:**
+
+1. **One-time setup (in the office).** The admin connects a laptop or phone to the office network and enrolls it as an authorized remote device. The device generates a cryptographic identity key. This takes about 30 seconds.
+
+2. **Remote connection (from anywhere).** The admin opens a browser and goes to `remote.your-site.plm`. The server challenges the device to prove its identity. The device responds via WebAuthn — the browser prompts for biometric confirmation (face or fingerprint on a phone, fingerprint or PIN on a laptop) and completes the cryptographic challenge. If verified, an encrypted tunnel opens and the console loads — identical to being in the office.
+
+3. **Session ends automatically.** The tunnel has a precise expiration time. When it expires, the connection closes. There is no "remember me." Every remote session requires fresh authentication.
+
+### 16.2 Why This Is Not a VPN
+
+A traditional VPN gives you full access to the entire office network. If someone compromises your VPN connection, they can reach every device in the office. PlenumLAN's tunnel only connects to the management console — not to the office network. An attacker who somehow compromises the tunnel can see the console but cannot reach your file server, your printers, or your other computers through it. The tunnel terminates at the console. Period.
+
+If the admin needs to reach a specific service remotely (for example, a remote desktop connection to a particular computer), that requires a separate authorization token scoped to that specific service. Each remote service has its own tunnel. Each tunnel is individually authorized and individually logged.
+
+### 16.3 Managing from a Phone
+
+The web console is designed to work on phone screens. Initial mobile authentication uses WebAuthn/FIDO2 — the web standard for passwordless login that works in all modern browsers. The admin registers a security key or biometric credential during enrollment. On subsequent logins, the browser prompts for biometric confirmation (face or fingerprint) and the WebAuthn protocol handles the cryptographic challenge-response. No password to type. No separate app to install.
+
+**Future capability (native agent):** Direct access to the device's secure hardware enclave (iOS Secure Enclave, Android StrongBox) for storing the TL-DSA private key requires a native application, which browsers cannot access today. A lightweight PlenumLAN agent app would provide this deeper hardware integration. For Release 1.0 through 2.0, WebAuthn provides strong passwordless authentication that works in standard browsers on any phone.
+
+**Device revocation.** If an enrolled remote device is lost or compromised, the admin revokes its authorization through the console. The Directory Service publishes a revocation record to the Local Registry, which propagates on the next Merkle sync. The revoked device's WebAuthn credential is invalidated server-side — even if the attacker possesses the device, the tunnel endpoint rejects the authentication challenge. Revocation takes effect immediately; no certificate revocation list propagation delay. The audit log records the revocation event with a precision timestamp.
+
+---
+
+## 17. The Four-Stage Platform Trajectory
+
+The same compiled program runs at every stage. The only thing that changes is what's underneath it — and at every stage, the admin opens a browser and sees the same web console.
+
+```
+Stage 1: Replit               The program runs on Replit's servers.
+                               Full console. Download button for local install.
+
+Stage 2: Office Computer       The same program runs on a computer in the office.
+                               Full console + full network management.
+                               Linux is underneath (providing hardware drivers).
+
+Stage 3: PlenumNET OS          The same program boots directly from a USB stick.
+                               No Linux underneath. No operating system to maintain.
+                               Plug in, power on, manage network.
+
+Stage 4: Custom Hardware        The same program runs on a purpose-built chip
+                               that executes ternary math in hardware.
+                               Maximum speed. Minimum attack surface.
+```
+
+### 17.1 Stage 1: Replit
+
+The program runs on Replit's servers. The admin goes to PlenumLAN.replit.app and uses the full web console. All computational features work: scanning, registration, address derivation, cube visualization, policy management, audit logging. Network features that require physical presence (file sharing, printer management, network address allocation, switch communication) work in the code but have no local network to connect to — because the server is in Replit's data center, not in the office.
+
+The Replit deployment also hosts the Download section for local installation.
+
+### 17.2 Stage 2: Office Computer (Linux Underneath)
+
+The same program runs on any computer in the office — a dedicated server, a spare laptop, a Raspberry Pi. It's packaged as a standard Linux or Windows application. Linux provides the hardware drivers (network card, hard drive, USB). Everything above the hardware drivers is PlenumLAN's Rust code.
+
+This is the production deployment for real offices. Full network management. Full web console. Secure remote access.
+
+### 17.3 Stage 3: PlenumNET Operating System (No Linux)
+
+The Linux layer is removed. PlenumLAN boots directly from a USB stick or network boot, using a minimal Rust-based bootloader that provides just enough hardware support (network card driver, hard drive driver, USB) to run the PlenumLAN program. There is no Linux. No operating system to maintain. No patches to apply. No terminal. No command line. No way to log into the machine except through the web console.
+
+You plug a USB stick into any standard computer, turn it on, and 30 seconds later the admin opens a browser and the network is managed. That's the appliance vision.
+
+**Driver strategy.** Writing bare-metal network card and storage drivers from scratch is non-trivial — interrupt handling, DMA safety, PCI enumeration, and power management edge cases take time. The pragmatic path: leverage existing `no_std` Rust crates for initial driver support (`smoltcp` for a `no_std` userspace TCP/IP stack paired with a custom kernel socket layer, `virtio-drivers` for virtual machine environments), then develop custom physical PCI/PCIe drivers (Intel e1000e, Realtek r8169) for common commodity hardware as a follow-on effort. Storage drivers start in polling mode with basic read/write; interrupt-driven asynchronous I/O follows in later sprints. This approach delivers a bootable appliance for virtual machines first, then extends to bare-metal hardware incrementally.
+
+**Emergency console.** If the network dies and the web console is unreachable, an administrator can plug in a USB keyboard and see a read-only text display: system uptime, FTS health states, last audit chain hash, and scrollable log output. No shell. No login. No command execution. Read-only status and reboot — nothing else.
+
+**Async I/O primitives.** On Stage 2 (Linux), the Axum web server uses Tokio, which relies on Linux's `epoll` for asynchronous I/O. Stage 3 removes Linux — so PlenumNET OS must provide its own async I/O primitives. The kernel implements an epoll-equivalent notification system: a lightweight event loop supporting edge-triggered and level-triggered file descriptor monitoring, timer events (for HPTP token expiration), and inter-process notifications (for CRS registration events). This is designed early (during Stage 3 kernel development) rather than retrofitted, because Axum/Tokio's runtime depends on it for every HTTP connection, every WebSocket stream, and every PTS tunnel session. The notification API is specified before driver development begins so that NIC drivers, storage drivers, and the Guacamole display streamer can all use the same async primitives.
+
+```rust
+// plenumlan/src/display/emergency.rs
+pub fn emergency_console() {
+    if !network_up() {
+        let mut con = TextConsole::new(); // VGA framebuffer or serial
+        con.print("PlenumNET OS — Emergency Mode\n");
+        con.print("Network: DOWN. Web console unreachable.\n");
+        con.print_status(); // uptime, FTS health, last Merkle audit hash
+        // Read-only keys: arrows to scroll logs, Ctrl+R to reboot
+        loop { handle_key_blocking(&mut con); }
+    }
+}
+```
+
+### 17.4 Stage 4: Custom Hardware (XPlenum)
+
+The ternary math operations that the program currently computes in software are executed by custom hardware instructions on a purpose-built RISC-V processor chip. The admin still opens a browser and sees the same console. Everything is faster because the math runs in silicon instead of software.
+
+The hardware design exists: 2,407 lines of verified chip description code, 22 of 22 tests passing, synthesized to a 19,173-gate circuit. Timeline depends on hardware fabrication partnerships. The architecture is ready; the silicon is patient.
+
+### 17.5 What Changes and What Stays the Same
+
+| Component | Stage 1 (Replit) | Stage 2 (Office) | Stage 3 (USB Appliance) | Stage 4 (Custom Chip) |
+|---|---|---|---|---|
+| Web console in browser | ✓ Same | ✓ Same | ✓ Same | ✓ Same |
+| Rust program | ✓ Same | ✓ Same | ✓ Same | ✓ Same |
+| Network features | Limited by Replit | Full | Full | Full |
+| What's underneath | Replit container | Linux (scaffolding) | Rust bootloader | Rust bootloader |
+| Network card driver | Replit's | Linux kernel | Rust driver | Rust driver |
+| Hard drive | Replit's | Linux filesystem | Raw disk access | Raw disk access |
+| Security hashing speed | Software | Software | Software | Hardware (1 instruction) |
+| Install method | None (web) | Download + install | USB stick or network boot | USB stick or network boot |
+
+**What never changes:** The web console. The Rust program. The ternary addressing system. The 27-question device scan. The security permissions model. The cryptographic identity system. The tamper-proof audit log. The precision timestamps. The cube geometry. One program. One console. Four stages.
+
+---
+
+## 18. Management Console: 16 Screens
+
+The console replaces every Windows Server management tool:
+
+| Windows Server Tool | PlenumLAN Console Screen | What It Shows |
+|---|---|---|
+| Server Manager | System Overview | Health dashboard, device count, network utilization, recent events |
+| Active Directory Users | Entity Registry | All registered devices, users, and services — browse, search, filter |
+| Active Directory Properties | Entity Detail | Full device profile: classification, identity key, permissions, network addresses |
+| DNS Manager | Name Browser | Name resolution records, address derivations, query history |
+| DHCP Manager | Address Allocation | Network address pool, assigned addresses, utilization, conflicts |
+| Group Policy Management | Permission Rules | Security rules: who gets what access based on their classification |
+| Active Directory Groups | Delegation Chains | Group membership as permission chains, visual hierarchy |
+| Certificate Authority | Identity Dashboard | Root certificate, issued device certificates, expiration timeline |
+| File Server Manager | Shared Folders | File shares, integrity status, backup snapshots, access logs |
+| Print Management | Printer Devices | Discovered printers, access permissions, signed driver status |
+| Event Viewer | Audit Log | Tamper-proof event chain with precision timestamps |
+| Security Dashboard | Security Overview | Network zones, active sessions, failed logins, anomaly alerts |
+| RADIUS / Network Policy | Network Access | Managed switch sessions, zone assignments, accounting records |
+| Performance Monitor | System Health | Device heartbeats, registry utilization, processing performance |
+| (no equivalent) | Cube Visualizer | Interactive 3D/2D network topology showing device positions and zones |
+| (no equivalent) | Scan Workflow | Guided device registration: classify, preview address, one-click deploy |
+
+### 18.1 Scan Workflow (Registering a New Device)
+
+The scan workflow replaces the Windows "domain join" process:
+
+1. **Choose device type:** Workstation, Server, Printer, Sensor, or Web Service. This loads a template that pre-fills obvious answers.
+2. **Automatic detection:** For web services, the system scans the service automatically. For physical devices, it checks the manufacturer code and network announcements to pre-fill more answers.
+3. **Answer remaining questions:** The console shows only the questions the template didn't answer. A printer typically needs about 8 answers. A workstation about 12. Each question has three clear options.
+4. **Preview:** Before committing, the console shows everything that will happen: the full ternary address, the derived standard network addresses (both IPv4 and IPv6), the network zone, the security permissions the device will receive.
+5. **Register:** One click. The device gets its cryptographic identity, its network addresses, its permissions, and its name. It is immediately operational on the network.
+
+This replaces: domain join wizard + network address lease + DNS registration + Group Policy processing + computer account creation + certificate enrollment. One workflow. One click. Seconds, not minutes.
+
+### 18.2 Cube Visualizer
+
+An interactive 3D visualization showing the 13-dimensional network topology as a navigable projection. Each registered device appears as a node at its position in the cube. Nodes are color-coded by network zone (management = blue, services = purple, client devices = green). Lines between nodes show topological distance. The admin clicks any node to see its full profile.
+
+This has no Windows Server equivalent. It makes the network topology visible and navigable — a powerful tool for understanding how the network is organized and for investor demonstrations.
+
+---
+
+## 19. Release Phasing
+
+Five releases across four stages. Each release is independently usable. The program grows in capability but never changes its fundamental architecture.
+
+### 19.1 Release 0.1: Cube Console
+
+**Goal:** Production console at PlenumLAN.replit.app with Download button for local install.
+
+| Component | What It Delivers | Development Time |
+|---|---|---|
+| Name Resolver | Local network name lookup, standard address derivation, dual-stack | 1–2 weeks |
+| Local Registry Extensions | Address pool, permission rule engine, device templates | 2–3 weeks |
+| Scan Templates | 5 device type templates with pre-filled answers | 1 week |
+| Console: System Overview | Health dashboard | 1 week |
+| Console: Scan Workflow | Guided device registration with preview | 2 weeks |
+| Console: Entity Registry | Browse, search, filter all registered devices | 1–2 weeks |
+| Console: Cube Visualizer | Interactive 3D network topology | 2 weeks |
+| Console: Name Browser | Name resolution records and query history | 1 week |
+| Download Section | Cross-compiled installers for Windows, Linux, macOS, ARM | 1 week |
+| First-Run Wizard | 3-screen local setup: site name, network range, admin account | 1 week |
+
+**Elapsed: 6–8 weeks.** Delivers a working product on Replit and a one-click installer for local deployment.
+
+### 19.2 Release 0.5: Authentication and Policy
+
+**Goal:** User identity and permissions. Can run alongside existing Windows Server.
+
+| Component | What It Delivers | Development Time |
+|---|---|---|
+| Directory Service | User enrollment, cryptographic login, session management, permissions | 5–7 weeks |
+| Console: Entity Detail | Full device/user profile with identity and permission details | 1 week |
+| Console: Permission Rules | Create and manage security rules bound to network regions | 2 weeks |
+| Console: Delegation Chains | Group membership and permission hierarchy visualization | 1–2 weeks |
+| Console: Identity Dashboard | Certificate authority status, issued certificates, expiration tracking | 1 week |
+| Console: Audit Log | Tamper-proof event log with precision timestamps | 1–2 weeks |
+| Console: Security Overview | Active sessions, failed logins, network zone map | 1 week |
+| Windows Server Importer | Reads existing Active Directory and creates matching entries | 2–3 weeks |
+
+**Elapsed: 12–16 weeks cumulative.**
+
+### 19.3 Release 1.0: Full Stack
+
+**Goal:** Replace all 12 core Windows Server roles used by SMBs.
+
+| Component | What It Delivers | Development Time |
+|---|---|---|
+| File Service | Shared folders for Windows, Mac, and Linux computers. Core file operations: read, write, create, delete, enumerate, permission check. File integrity verification. Encrypted storage. Backup snapshots. Note: advanced SMB features (DFS replication, oplocks, durable handles, multi-channel) are post-1.0 hardening work. Basic SMB coverage is sufficient for the target market. | 5–7 weeks |
+| Switch Communicator | Speaks the RADIUS protocol to managed network switches for access control | 1–2 weeks |
+| Legacy Directory Translator | Speaks LDAP to older applications that expect Active Directory | 1–2 weeks |
+| Legacy Address Responder | Speaks DHCP to devices that don't understand PlenumLAN | 1 week |
+| Console: 5 remaining screens | Shared Folders, Printers, Network Access, Address Allocation, System Health | 4–5 weeks |
+
+**Elapsed: 18–24 weeks cumulative.**
+
+**Compatibility risk note:** The switch communicator, legacy directory translator, and legacy address responder are each 1–2 weeks to build — but potentially months to debug against real-world edge cases. A Cisco switch may send vendor-specific RADIUS attributes the communicator doesn't recognize. A legacy application may send LDAP operations beyond bind/search/compare and receive unexpected errors. A VoIP phone or building access controller may send DHCP options the responder doesn't handle. These are not bugs in PlenumLAN — they are the accumulated complexity of protocols designed over decades. Release 1.5 explicitly budgets for this real-hardware validation.
+
+### 19.4 Release 1.5: Network Integration Testing
+
+**Goal:** Validate every protocol translator and network-facing feature against real hardware on a real office network. This is where Replit-developed code meets physical devices for the first time.
+
+The file service has never served a real file to a real Windows Explorer. The switch communicator has never responded to a real RADIUS packet from a real managed switch. The legacy address responder has never answered a real DHCP DISCOVER from a real printer. This release exists to close that gap.
+
+| Test Category | What Gets Tested | Target Hardware |
+|---|---|---|
+| File sharing (SMB) | Read, write, create, delete, enumerate from Windows 10/11, macOS Finder, Linux nautilus/smbclient | Windows laptops, Mac laptops, Linux workstations |
+| File sharing (NFS) | Mount, read, write from Linux and macOS NFS clients | Linux servers, macOS workstations |
+| Switch communication (RADIUS) | 802.1X authentication, VLAN assignment, accounting records | Cisco Catalyst, Aruba, Juniper EX, UniFi switches |
+| Legacy address allocation (DHCP) | DISCOVER/OFFER/REQUEST/ACK for devices that don't speak PlenumLAN | HP/Brother printers, Polycom/Cisco VoIP phones, badge readers, IoT sensors |
+| Legacy directory (LDAP) | Bind, search, compare against applications expecting Active Directory | Common LOB apps, email clients, VPN concentrators |
+| Name resolution (DNS) | A/AAAA queries from standard DNS clients; zone transfer compatibility | Windows DNS client, macOS resolver, Linux systemd-resolved |
+| Certificate enrollment | Auto-enrollment on device registration; browser trust of internal certificates | Chrome, Firefox, Safari, Edge on Windows/Mac/Linux |
+| Audit and integrity | Merkle chain verification under sustained load; audit log query performance | Load testing tools, multi-device concurrent access |
+
+**Effort: 4–6 weeks.** This is not feature development. This is debugging, edge case discovery, and protocol conformance hardening. Every issue found here is an issue that would have been found by a customer — finding it first is the difference between a production product and a promising demo.
+
+**Reboot persistence testing.** In addition to protocol conformance, Release 1.5 includes automated reboot testing: the CI pipeline registers entities, creates capability rules, writes audit entries, then restarts the PlenumLAN process (or reboots the test VM). After restart, the test verifies: all registered entities are present and unchanged, the audit chain is intact (Merkle root matches pre-reboot value), the web console serves correctly, and no data was lost or corrupted. This proves that PlenumDB and the CRS survive unclean shutdown — a prerequisite for production deployment.
+
+**Elapsed: 22–30 weeks cumulative.**
+
+### 19.5 Release 2.0: Production Package
+
+**Goal:** Polished installer packages. Secure remote access. Production storage backend.
+
+| Component | What It Delivers | Development Time |
+|---|---|---|
+| Remote Tunnel | Encrypted remote console access with post-quantum cryptography | 2–3 weeks |
+| PlenumDB | Native storage backend (see below) | 2–3 weeks |
+| Installer Polish | Production-quality installers for Windows (.exe) and Linux (.deb/.rpm) | 1–2 weeks |
+| First-Run Wizard Polish | Production-quality setup experience with network auto-detection | 1–2 weeks |
+| Administrator Documentation | Complete admin guide, feature reference, deployment handbook | 2–3 weeks |
+| Developer Documentation | Module map, invariant summary, onboarding guide for new engineers joining the project. Covers kernel subsystem interactions, boot flow, CRS data model, capability token lifecycle, and unsafe code conventions. | 1–2 weeks |
+| Automatic Update System | Check for updates, verify signature, self-update with zero data loss | 1–2 weeks |
+
+**PlenumDB specification.** PlenumDB is the native storage backend for the device registry. It stores every registered entity record, every cryptographic public key, every capability token chain, every permission issuance rule, and every entry in the tamper-proof audit log. In Stage 1 (Replit) and early Stage 2, data is stored in an embedded key-value store (sled or redb — proven Rust-native storage engines). PlenumDB replaces this with a purpose-built key-value store optimized for three specific access patterns: ternary-addressed entity lookup (27-trit key → record), Merkle-tree audit chain traversal (sequential reads along the hash chain), and the bitmap allocator's vertex occupancy map (1,594,323-bit bitmap with fast scan for next available vertex). In Stage 3 (PlenumNET OS), PlenumDB operates directly on raw block devices without a filesystem intermediary. Crash safety is provided by a write-ahead log (WAL): every write is journaled before it modifies the primary data structure, ensuring that a power failure or crash at any point leaves the database in a consistent, recoverable state. WAL correctness is verified by a crash-injection test harness: automated tests simulate power failure at every I/O boundary (before journal write, after journal write but before data write, during data write, after data write but before journal clear), then verify that the database recovers to a consistent state on restart. This harness runs in CI alongside the integration tests.
+
+**Elapsed: 30–38 weeks cumulative.**
+
+### 19.6 Release 3.0: PlenumNET Operating System
+
+**Goal:** Bootable appliance. No operating system to maintain. USB in, power on, manage network.
+
+| Component | What It Delivers | Development Time |
+|---|---|---|
+| Rust Bootloader | Minimal boot program: hardware initialization, then PlenumLAN | 4–6 weeks |
+| Network Card Drivers | Rust drivers for common network cards (Intel, Realtek, virtual) | 4–6 weeks |
+| Hard Drive Drivers | Rust drivers for NVMe and SATA storage | 3–4 weeks |
+| USB Support | Keyboard, boot media, basic peripherals | 2–3 weeks |
+| Network Boot | Boot PlenumLAN from the network (for deploying multiple servers) | 2–3 weeks |
+| USB/Disk Image Builder | Build pipeline that produces a bootable image | 1–2 weeks |
+| Emergency Display | Text-only screen output for pre-network hardware diagnostics | 1–2 weeks |
+| Lockdown | No command line. No login screen. No remote terminal. Console only. | 1 week |
+
+**Elapsed: 48–66 weeks cumulative.**
+
+**Driver development strategy.** Network card and storage drivers begin with virtual machine targets (`virtio-net`, `virtio-blk`) using existing `no_std` Rust crate abstractions, then progress to physical PCI/PCIe devices (Intel e1000e, Realtek r8169, NVMe). Storage drivers start in polling mode with basic read/write operations; interrupt-driven asynchronous I/O follows in subsequent sprints. This delivers a bootable appliance for VM environments (Proxmox, VMware, Hyper-V) first, extending to commodity bare-metal hardware incrementally.
+
+**Unsafe code discipline.** Stage 3 drivers and boot code will contain `unsafe` blocks for MMIO register access, page table manipulation, DMA buffer setup, and interrupt handling. Every `unsafe` block must document its safety invariants in a `// SAFETY:` comment. In addition to unit tests, debug-mode builds include runtime assertions in critical paths: page table walks verify alignment and present bits, DMA buffers verify physical address alignment, and interrupt entry/exit routines verify stack pointer bounds. These assertions are compiled out of release builds but catch subtle errors (missing memory barriers, incorrect page flags, unaligned MMIO) during development. For the most safety-critical code (context switch, interrupt dispatch), the existing Kani/MIRI formal verification pipeline is extended with targeted proof harnesses.
+
+**Stage 4: XPlenum Hardware** is the long-term target. The chip design is verified (2,407 lines of hardware description, 22 of 22 tests passing, synthesized to 19,173 logic gates). Timeline depends on hardware fabrication partnerships.
+
+---
+
+## 20. Release Timeline Summary
+
+| Release | Name | Stage | Weeks | What Ships |
+|---|---|---|---|---|
+| 0.1 | Cube Console | 1 | 6–8 | PlenumLAN.replit.app + downloadable installer |
+| 0.5 | Authentication | 1 | 12–16 | Identity, permissions, certificates. Runs alongside Windows Server. |
+| 1.0 | Full Stack | 1+2 | 18–24 | All 12 core SMB Windows Server roles replaced |
+| 1.5 | Integration Testing | 2 | 22–30 | Real-hardware validation against Windows clients, managed switches, printers, VoIP |
+| 2.0 | Production Package | 2 | 30–38 | Polished installers, remote access, database, documentation |
+| 3.0 | PlenumNET OS | 3 | 48–66 | Bootable USB/network appliance |
+| 4.0 | XPlenum | 4 | TBD | Hardware-accelerated appliance |
+
+**With 2 developers:** Release 0.1 at week 4–5. Release 0.5 at week 9–11. Release 1.0 at week 12–16. All 12 core SMB roles replaced in under five months.
+
+**Integration and production:** Release 1.5 (real-hardware validation) at week 16–20. Release 2.0 (production package with remote access) at week 22–26. Production-ready in under seven months.
+
+**Appliance:** Release 3.0 at 12–18 months with 3–4 developers.
+
+**Timeline note:** All estimates assume parallel development and no major protocol specification deviations. Add ±25% contingency for real-world surprises. Release 1.5 (Network Integration Testing) is the make-or-break phase for production readiness — it is where Replit-developed code meets physical hardware for the first time, and every protocol compatibility issue surfaces here rather than at a customer site. Release 1.5 should not be shortened or skipped.
+
+### 20.1 What Each Release Replaces
+
+| Windows Server Feature | Replaced In |
+|---|---|
+| DNS Server (name resolution) | Release 0.1 |
+| DHCP Server (address allocation) | Release 0.1 (automatic) + 1.0 (legacy device support) |
+| Active Directory (user identity, login) | Release 0.5 |
+| Group Policy (security configuration) | Release 0.5 |
+| Certificate Services (identity certificates) | Release 0.5 |
+| Event Logging (audit trail) | Release 0.5 |
+| File Services (shared folders) | Release 1.0 |
+| Print Services (printer management) | Release 1.0 |
+| Network Policy Server (switch access control) | Release 1.0 |
+| Windows Update Services | Release 1.0 (signed update distribution via file service) |
+| Backup and Recovery | Release 1.0 (integrity-verified snapshots via file service) |
+| VPN and Remote Desktop | Release 2.0 (encrypted tunnel) |
+| Windows Server itself (the operating system) | Release 3.0 (PlenumNET OS) |
+
+---
+
+## 21. Developer Allocation
+
+Two Rust developers through Release 1.5. Expand to 3–4 for Release 2.0 and 3.0.
+
+| Week | Developer A (Server Modules) | Developer B (Console + Translators) |
+|---|---|---|
+| 1–2 | Name resolver module | Console scaffold: design system, authentication, routing |
+| 3–4 | Local registry extensions, first-run wizard | Console: System Overview + Scan Workflow |
+| 5 | Integration testing, download/installer pipeline | Console: Entity Registry + Cube Visualizer |
+|   | **— RELEASE 0.1: CUBE CONSOLE —** |   |
+| 6–8 | Directory service: identity, login, sessions | Console: Name Browser + Entity Detail |
+| 9–11 | Directory service: permissions, groups, Windows importer | Console: Permission Rules + Chains + Identity + Audit + Security |
+| 12 | Integration testing | Console polish |
+|   | **— RELEASE 0.5: AUTHENTICATION —** |   |
+| 13–16 | File service: shared folders, integrity, encryption | Translators: switch communicator + legacy directory + legacy DHCP |
+| 17–18 | File service: snapshots, updates, print drivers | Console: Shared Folders + Printers + Network Access + Addresses + Health |
+|   | **— RELEASE 1.0: FULL STACK —** |   |
+| 19–20 | SMB testing: Windows 10/11 clients, macOS Finder, Linux smbclient | RADIUS testing: Cisco, Aruba, Juniper, UniFi switches |
+| 21–22 | NFS testing + LDAP compatibility against legacy apps | DHCP testing: printers, VoIP phones, badge readers, IoT |
+| 23–24 | Edge case fixes, performance hardening, certificate enrollment testing | DNS compatibility, audit chain verification under load |
+|   | **— RELEASE 1.5: INTEGRATION TESTED —** |   |
+| 25–27 | Remote tunnel + PlenumDB | Installer polish + auto-update system |
+| 28–30 | PlenumDB hardening + .deb/.rpm packaging | Documentation: admin guide, feature reference, deployment handbook |
+|   | **— RELEASE 2.0: PRODUCTION PACKAGE —** |   |
+
+**Release 3.0 team expansion:**
+
+- **Developer C:** Rust bootloader + network card drivers + hard drive drivers. Starts around week 25 (once Release 1.5 integration testing validates the core stack).
+- **Developer D:** Network boot + image builder + emergency display + lockdown. Joins after bootloader works.
+- **Developers A + B:** Maintain existing releases, customer support, console improvements.
+
+---
+
+## 22. Windows Application Compatibility: ReactOS on PlenumNET OS
+
+PlenumLAN replaces Windows Server. But some offices will always have Windows-only software — QuickBooks Desktop, AutoCAD, industry-specific tools, legacy line-of-business applications that have no web version and no Linux port. Replacing the server infrastructure doesn't eliminate the need to run these applications. The question is how to run them without reintroducing Windows.
+
+### 22.1 The Problem with "Just Run a Windows VM"
+
+The obvious answer — run Windows virtual machines — reintroduces everything PlenumLAN eliminates: a Windows license, a Windows attack surface, Windows patching, and a dependency on Microsoft for the core of the office workflow. Running Windows VMs on a PlenumLAN server is the same as running Windows Server with extra steps.
+
+### 22.2 The Answer: ReactOS
+
+ReactOS is an open-source operating system designed from the ground up to be binary-compatible with Windows. It provides the same APIs that Windows provides — kernel32, user32, gdi32, ntdll — all rewritten as free, open-source code. Windows executables run on ReactOS the same way they run on Windows. It is not a translation layer. It is not emulation. It is the actual API implementation, built clean-room with zero Microsoft code and zero Microsoft licensing.
+
+ReactOS has been in active development since 1996. It runs Microsoft Office, QuickBooks, AutoCAD LT, and thousands of business applications today. It is GPL licensed — free to use, modify, and distribute.
+
+### 22.3 Architecture: ReactOS as a Managed Subsystem
+
+On PlenumNET OS (Stage 3 — the bootable appliance), ReactOS runs as a managed guest subsystem inside the PlenumNET environment. The Rust bootloader owns the hardware. PlenumLAN owns the network and security. ReactOS owns the Windows API surface. Each does one job.
+
+```
+PlenumNET OS (Rust bootloader — owns the hardware)
+    │
+    ├── PlenumLAN binary
+    │   ├── Cube management (CRS, PDS, TDNS-L, audit)
+    │   ├── Web console (Axum serving React)
+    │   ├── Network services (PFS, RADIUS, DHCP, DNS)
+    │   └── Application Manager (registers and controls ReactOS guest)
+    │
+    └── ReactOS subsystem (managed guest — runs Windows applications)
+            │
+            ├── QuickBooks.exe
+            ├── AutoCAD.exe
+            ├── CustomIndustryApp.exe
+            └── (any standard Windows application)
+```
+
+No Linux anywhere. No Windows anywhere. No Microsoft licensing. The office runs on a ternary cube with a Windows-compatible application layer built from open-source code.
+
+**Virtualization approach.** ReactOS runs as a hardware-virtualized guest using the host processor's virtualization extensions. On x86_64 this is VT-x/EPT — mature, well-supported, and the primary target for initial ReactOS integration. On ARM64 it requires EL2 (Hypervisor Exception Level) support, available on most server-class ARM processors. On RISC-V it requires the H (Hypervisor) extension, which is not yet ubiquitous in commodity hardware. Therefore: ReactOS compatibility ships on x86_64 first. ARM64 support follows when the target hardware is confirmed. RISC-V support tracks hypervisor extension availability. The architecture choices in PlenumNET OS (address space layout, interrupt routing, memory management) are designed from Stage 3 onward to reserve the structures needed for guest isolation, so no redesign is required when additional architectures gain hypervisor support.
+
+### 22.4 How It Works for the Admin
+
+1. **Install an application.** The admin opens the PlenumLAN console, navigates to the Applications surface, and uploads a Windows installer file (.exe or .msi). PlenumLAN passes the installer to the ReactOS subsystem. ReactOS installs it the same way Windows would — writing files, registering DLLs, creating shortcuts.
+
+2. **Assign access.** The admin creates a capability token scoping which users can launch which application. "Maria can access QuickBooks. John can access AutoCAD. Nobody else." Same capability model as every other PlenumLAN permission — scoped, expiring, attenuable, Merkle-audited.
+
+3. **User launches the application.** The user opens the PlenumLAN console in their browser (from any device, anywhere), goes to the Applications screen, and clicks "QuickBooks." The application launches on the ReactOS subsystem on the office server. The display streams to the user's browser as an interactive desktop session.
+
+4. **Files save to PFS.** The application saves files to what it thinks is a network drive. That drive is a PFS share — capability-gated, integrity-verified, phase-encrypted, Merkle-snapshotted. The user's documents are protected by the full PlenumLAN security model.
+
+5. **Session ends.** The user closes the browser tab. The application session terminates. The audit log records: who connected, which application, when, from what device, how long.
+
+### 22.5 How It Works for the User
+
+The user doesn't know or care about ReactOS. They open a browser, log in with their face or fingerprint (WebAuthn), see the list of applications they're authorized to use, click one, and a familiar Windows application appears in their browser. They work normally. They save files. They print. They close the tab and walk away.
+
+No Windows on their laptop. No application installed on their device. No VPN. No RDP client. No special software. Just a browser.
+
+### 22.6 What ReactOS Can and Cannot Do Today
+
+ReactOS is production-capable for many business applications but not yet for everything. This is the honest assessment:
+
+| Works today on ReactOS | May have issues | Unlikely to work (yet) |
+|---|---|---|
+| Microsoft Office (2003–2010) | Office 2016/2019 (partial) | Office 365 desktop (heavy COM) |
+| QuickBooks Desktop (older versions) | QuickBooks 2020+ (testing needed) | Applications with kernel drivers |
+| AutoCAD LT | Full AutoCAD (GPU-dependent) | Applications with hardware dongles |
+| Most .NET Framework apps | .NET Core/5+ apps (improving) | Kernel-mode anti-cheat or DRM |
+| Standard Win32 business tools | Electron apps (varies) | Games requiring DirectX 12+ |
+| Installers (MSI, NSIS, Inno) | Complex installers (WiX) | UEFI-dependent applications |
+
+By the time PlenumLAN reaches the appliance stage (12–18 months out), ReactOS will be further along. The project is actively maintained with regular releases. Compatibility improves with every version.
+
+For applications that genuinely cannot run on ReactOS, the fallback is a Windows VM accessed through the same browser-based remote desktop (Section 23). But this is positioned as the last resort — not the default.
+
+### 22.7 The Complete Elimination Story
+
+PlenumLAN replaces Windows Server (the infrastructure). ReactOS replaces Windows Desktop (the application platform). Combined:
+
+- Zero Microsoft licenses — server or desktop
+- Zero Microsoft dependencies — no Active Directory, no Windows Update, no patch Tuesday
+- Zero Windows attack surface — no NTLM, no RDP exposed, no SMB vulnerabilities in Windows code
+- All applications managed through the cube — capability-gated, audit-logged, post-quantum secured
+- All application access through the browser — no client software, no VPN, any device, anywhere
+- Everything boots from a USB stick — the ternary cube, the network stack, and the Windows application layer, all from one device
+
+### 22.8 Build Estimate
+
+| Component | What It Is | Effort |
+|---|---|---|
+| ReactOS integration | Managed guest subsystem under PlenumNET OS hypervisor layer | 4–6 weeks |
+| Application installer workflow | Console surface for uploading .exe/.msi, ReactOS installs it, registers as cube entity | 2–3 weeks |
+| Session streaming (Guacamole) | HTML5 Canvas stream from ReactOS desktop to browser through PTS | 2–3 weeks (see Section 23) |
+| Console: Applications surface | Available apps, user sessions, launch button, capability gating | 2 weeks |
+| Capability token scoping | `application:{app-id}` permission type with session limits | 1 week |
+| PFS integration | ReactOS sees PFS shares as network drives. File saves go through PFS. | 1 week |
+
+**Total: 12–16 weeks.** This is a post-Release 2.0 feature — it depends on PlenumNET OS (Stage 3 bootloader and drivers), PFS (file shares), and PTS (remote tunnel) all being operational.
+
+---
+
+## 23. Browser-Based Remote Desktop: Post-Quantum Secure Application Streaming
+
+When a user launches a Windows application through the PlenumLAN console, the application's display must travel from the office server to the user's browser. This is the remote desktop component. It is built into PlenumLAN — not a separate product, not a third-party service, not an exposed RDP port.
+
+### 23.1 How It Works
+
+The display streaming uses the Guacamole protocol — a proven open-source technology (Apache project, in production for over a decade) that translates desktop display protocols into an HTML5 Canvas stream that renders in any standard browser.
+
+```
+User's browser (anywhere in the world)
+    │
+    │  PTS tunnel
+    │  Phase-encrypted (post-quantum)
+    │  WebAuthn authenticated
+    │  Capability token authorized
+    │
+    ▼
+PlenumLAN Console
+    │  "Applications" surface — click to launch
+    │
+    ▼
+Guacamole rendering engine (inside PlenumLAN spoke agent or binary)
+    │
+    │  Translates display output → HTML5 Canvas
+    │  Translates keyboard/mouse input → application input
+    │  Translates clipboard → bidirectional copy/paste
+    │  Translates file transfer → PFS share access
+    │
+    ▼
+ReactOS subsystem (or Windows VM as last-resort fallback)
+    │
+    └── Application.exe running, display rendered, input processed
+```
+
+### 23.2 Every Layer Is Post-Quantum Secured
+
+This is not standard RDP. Every layer of the connection is protected by PlenumLAN's post-quantum cryptographic stack:
+
+| Layer | What Protects It | How |
+|---|---|---|
+| Authentication | WebAuthn + TL-DSA | User proves identity with biometric (face/fingerprint). Device's cryptographic key is verified against PDS. No password. No NTLM hash. Nothing to steal. |
+| Authorization | Capability token | The user must hold a valid `application:{app-id}` token to launch the session. Token is scoped, expiring, and attenuable. Even if someone intercepts the session, they can't launch a different application or access a different VM. |
+| Transport | PTS tunnel (phase encryption) | The entire display stream — every pixel, every keystroke, every clipboard copy — travels through the PTS tunnel. Phase encryption provides post-quantum confidentiality. A quantum computer intercepting the traffic cannot decrypt it. |
+| Session binding | HPTP timestamp | Each session has a precision-timestamped start and expiration. The session token cannot be replayed — it is cryptographically bound to the specific time window and specific device. |
+| Audit | Merkle chain | Session start, session end, user identity, source device, target application, duration — all logged to the tamper-proof audit fabric with precision timestamps. Every session is provable and every absence of a session is provable. |
+| File access | PFS capability | Files saved during the session go through PFS — capability-gated, integrity-hashed, phase-encrypted at rest. The application cannot write to arbitrary disk locations — only to PFS shares the user's token authorizes. |
+
+### 23.3 What This Replaces
+
+| What offices do today | What PlenumLAN does instead |
+|---|---|
+| Expose RDP port 3389 to the internet | Never exposed. PTS tunnel only. Port 3389 does not exist on the network perimeter. |
+| Require a VPN to reach the RDP server | No VPN. Browser only. PTS tunnel handles encryption and authentication. |
+| Windows username + password for RDP | No password. WebAuthn biometric + capability token. |
+| RDP client installed on every remote device | No client software. Any device with a browser. |
+| Full desktop access to the entire server | Scoped: each user gets access to specific applications only. Not the full desktop. |
+| No meaningful audit trail (Event Viewer is clearable) | Merkle-chained, tamper-proof, precision-timestamped session log. |
+| Pre-quantum encryption (TLS 1.2/1.3) | Post-quantum (PTS phase encryption + TL-DSA authentication). |
+| Anyone with the password can log in from anywhere | Capability token is scoped to specific user, specific application, specific time window, specific enrolled device. |
+
+### 23.4 Single-Application Mode
+
+For most office use cases, the user doesn't need a full Windows desktop. They need one application — QuickBooks, AutoCAD, the custom industry tool. PlenumLAN supports single-application mode: when the user clicks "QuickBooks" in the console, only the QuickBooks window appears in the browser, not the full Windows desktop. This is similar to Microsoft's RemoteApp feature, but implemented through the Guacamole rendering layer.
+
+The user sees QuickBooks in a browser tab, not a remote desktop with a Start menu and icons. This is cleaner, faster (less data to stream), and more secure (the user cannot browse the server's filesystem or launch unauthorized programs).
+
+### 23.5 Multi-Site Application Hosting
+
+In a multi-site deployment (hub and spoke model), each office's spoke agent can host its own ReactOS subsystem and applications. The admin manages all applications across all sites from a single console. A user in Office A can launch an application hosted on Office B's server — the PTS tunnel connects through the Inter-Cube fabric, the Guacamole stream delivers the display, and the experience is seamless.
+
+The admin sees: all applications, all sites, all active sessions, all audit records — in one console.
+
+### 23.6 Build Estimate
+
+| Component | What It Is | Effort |
+|---|---|---|
+| Guacamole rendering engine | guacd compiled into the PlenumLAN binary or spoke agent (Rust wrapper around C library, or pure Rust reimplementation of the protocol) | 3–4 weeks |
+| PTS integration | Display stream routed through the PTS tunnel. Phase-encrypted end-to-end. | 1–2 weeks (PTS already exists) |
+| Console: Applications surface | 18th management screen. App list, session status, single-app launch, full-desktop fallback | 2 weeks |
+| Session capability tokens | `application:{app-id}` permission type. Session limits (max concurrent, timeout, idle disconnect). | 1 week |
+| Audit integration | Merkle-log: session start/stop, user, source device, target app, duration | 1 week |
+| Clipboard and file transfer | Bidirectional clipboard through PTS. File saves routed to PFS shares. | 1–2 weeks |
+
+**Total: 9–12 weeks.** Delivered alongside or after the ReactOS integration (Section 22). Combined with Section 22, the full Windows application compatibility stack is 21–28 weeks of development, post-Release 2.0.
+
+### 23.7 The Complete Remote Access Picture
+
+With Sections 16 (PTS tunnel), 22 (ReactOS), and 23 (browser-based remote desktop) together, PlenumLAN provides:
+
+| What the user needs | PlenumLAN solution | Windows equivalent replaced |
+|---|---|---|
+| Manage the office network from home | PTS tunnel → web console (Section 16) | VPN + RSAT / Windows Admin Center |
+| Run a Windows application from home | PTS tunnel → Guacamole → ReactOS (this section) | VPN + RDP / RemoteApp |
+| Access office files from home | PTS tunnel → PFS share (Section 9) | VPN + SMB / OneDrive |
+| Print to office printer from home | PTS tunnel → PFS print bridge (Section 9) | VPN + network printer |
+
+One authentication (WebAuthn). One authorization model (capability tokens). One encrypted transport (PTS phase encryption). One audit trail (Merkle chain). Four completely different remote access needs — all served from the web console in a browser, all post-quantum secured.
+
+---
+
+## 24. Product Positioning
+
+**PlenumLAN** replaces the 12 core Windows Server roles that small and medium businesses actually use — and evolves from a web-hosted program to a standalone operating system to custom hardware, without a single rewrite, technology migration, or language change along the way.
+
+- **Post-quantum security from day one.** Every identity is protected by cryptography designed to resist quantum computers. Not a future upgrade. Built in from the start.
+- **No passwords anywhere.** Every login uses a cryptographic identity key. There is no password database to steal. There are no password hashes to crack. There are no tickets to forge.
+- **No DHCP server, no separate address management.** Network addresses are computed mathematically from each device's ternary address. One registration produces both IPv4 and IPv6 addresses automatically.
+- **Network zones from geometry.** The device's classification determines its security zone. The zone determines its network segment. Policy is math, not manual configuration.
+- **Tamper-proof audit trail.** Every event is cryptographically chained to the previous one with femtosecond-precision timestamps. If anyone tampers with the log, the chain breaks visibly.
+- **Zero Microsoft licensing — server AND desktop.** No Windows Server license. No Windows Desktop license. No per-device licenses. No per-user licenses. No annual agreements. Business applications run on ReactOS (open source, zero licensing) and are streamed to any browser.
+- **Manage from anywhere.** Web console from any browser. Encrypted remote access from any internet connection. Passwordless login via WebAuthn on phone or tablet. Native secure enclave integration on roadmap.
+- **Run Windows applications from anywhere.** QuickBooks, AutoCAD, legacy tools — all running on ReactOS inside PlenumNET OS, streamed to the browser through a post-quantum encrypted tunnel. No RDP exposed. No VPN. No Windows.
+- **One program. One language. No migration.** Rust from the first line of code. The program that runs on Replit today is the program that ships to customers tomorrow.
+- **Appliance roadmap.** Eventually boots from a USB stick. No operating system to maintain. Plug in. Power on. Manage network. Run applications.
+- **Custom hardware roadmap.** Purpose-built chip executing ternary math natively. Maximum speed. Minimum attack surface.
+
+**Who is this for:** Small and medium businesses (10–500 people) currently running Windows Server for their office network. Construction firms, professional services offices, medical clinics, law firms, manufacturing shops — any organization where the network infrastructure should be invisible and unbreakable, where Microsoft licensing costs are an unnecessary burden, and where remote access to business applications needs to be simple and secure.
+
+**Where it goes:** The office appliance is the entry point. The multi-site encrypted fabric is the platform. The custom silicon is the endgame. The same geometry that manages a 10-person construction office scales to a global network of thousands of sites — with zero routing tables, zero configuration, and pure mathematical forwarding.
+
+*Così sia, Fratello.*
+
+---
+
+## Appendix A: Definitions
+
+Terms are alphabetized for quick reference. Cryptographic primitives include standards equivalence mappings for external evaluators.
+
+| Term | Definition |
+|---|---|
+| **13-Dimensional Hypercube** | A geometric structure with 1,594,323 points (3¹³). The mathematical foundation from which all PlenumLAN subsystems are derived. One office network is one cube. |
+| **54-Trit Address** | Every device's complete address: 27 digits for classification (what it is) + 27 digits for network binding (where it is). Each digit is 1, 2, or 3 in Rep C encoding. Zero is structurally impossible — its presence proves tampering. |
+| **802.1X** | IEEE standard for port-based network access control. PlenumLAN speaks this protocol to managed switches via the switch communicator (RADIUS translation layer). |
+| **Axum** | Rust async web framework built on the Tokio runtime. PlenumLAN's HTTP server from day one. Handles all communication between the web console and the server program. Serves the React console as an embedded static asset. |
+| **Capability Token** | A cryptographically signed permission slip. Says who can do what, to which resource, until when. Cannot be forged (TL-DSA signed). Cannot be widened, only narrowed (HMAC-chained attenuation). Replaces Active Directory groups, file permissions, and Group Policy in one mechanism. |
+| **Cube Registration Service (CRS)** | The device registry. Bitmap allocator tracking all 1,594,323 possible positions in the cube. Handles device enrollment, heartbeat monitoring, address pool management, and capability issuance rule evaluation. The CRS IS the directory. |
+| **Cube Visualizer** | Interactive Three.js/D3 component rendering the 13-dimensional network topology as a navigable 2D/3D projection. Each device appears as a color-coded node at its cube position. No Windows Server equivalent. |
+| **Dual Checksum** | Two independent error-detection codes computed over each address: Plenum mod 333 and Repunit mod 364. Since gcd(333, 364) = 1, the pair produces 121,212 distinct syndrome pairs. Corruption that fools one check is caught by the other. |
+| **Fault Tolerance Service (FTS)** | Monitors device health via heartbeats. Tracks four states: Up → Suspect → Down → Recovering. One instance per office site. Feeds dead-set information to the name resolver for path avoidance. |
+| **Geometric Load Balancer (GLB)** | Routes network traffic by computing the shortest geometric path through the cube (greedy geodesic forwarding). On a single-site network, embedded in the name resolver. No routing tables required. |
+| **Guacamole Protocol** | Apache Guacamole's open-source protocol for translating desktop display protocols (RDP, VNC) into an HTML5 Canvas stream renderable in any standard browser. PlenumLAN uses this technology to stream ReactOS application sessions to the user's browser through the PTS tunnel. No client software required. |
+| **Hamming Distance** | The number of coordinate positions where two cube addresses differ. In PlenumLAN, Hamming distance IS the number of network hops between two devices. All routing is pure geometry. |
+| **High-Precision Timing Protocol (HPTP)** | High-precision monotonic timestamps with femtosecond-equivalent resolution, derived from the ternary circle (364 degrees, 28 angular positions, Z₂₈ cyclic group). HPTP provides logical ordering precision for non-replayable authentication challenges, capability token expiration, key rotation scheduling, and audit event sequencing. Not a physical network time synchronization protocol — it is a mathematical timing framework that eliminates the clock-skew vulnerabilities inherent in NTP-dependent systems like Kerberos. |
+| **Inter-Cube Infrastructure** | The system that connects multiple office sites via 26 encrypted tunnels per site (one per neighboring cube face in 13 dimensions × 2 directions). Activates automatically when a second site comes online. Uses TL-DSA mutual authentication and phase encryption for each tunnel. |
+| **Issuance Rule** | A security policy that says "all devices in cube region X automatically receive permission set Y." Stored as registry metadata. Evaluated when a device registers. Replaces Group Policy Objects. |
+| **Merkle Audit Fabric** | The tamper-proof event log. Each event is integrity-hashed (TIS-27) and cryptographically chained to the previous one with an HPTP timestamp. Breaking any link in the chain is mathematically detectable. Every authentication, authorization, file access, and configuration change is logged. |
+| **Phase Encryption** | PlenumNET's symmetric encryption scheme using the phase split/recombine construction. Data is split into phase components for encryption and recombined for decryption. Used for data at rest (file storage) and data in transit (remote tunnel). |
+| **Plenum Directory Service (PDS)** | The management API layer over the registry. Handles user enrollment, TL-DSA authentication orchestration, capability token lifecycle, and admin tooling. The CRS is the directory; PDS is the management interface. Replaces Active Directory Domain Services. |
+| **Plenum File Service (PFS)** | Protocol bridge translating standard file-sharing protocols (SMB 3.1.1 for Windows, NFS v4.2 for Linux/Mac) into capability-verified, integrity-checked, phase-encrypted file access. Core operations: read, write, create, delete, enumerate, permission check. Also handles backup snapshots (Merkle tree), update distribution (signed manifests), and print driver signing. Advanced SMB features (DFS, oplocks, durable handles) are post-1.0 hardening work. |
+| **Plenum Tunnel Service (PTS)** | Phase-encrypted, TL-DSA-authenticated remote access tunnel. Connects an off-site admin's browser to the office console via WebAuthn authentication. Not a VPN — the tunnel terminates at the console API, not at the network layer. Lateral movement through the tunnel is structurally impossible. |
+| **PlenumDB** | Native storage backend for the device registry. Optimized for ternary-addressed entity lookup, Merkle-tree audit chain traversal, and bitmap allocator vertex occupancy scanning. Crash-safe via write-ahead log (WAL). Operates on raw block devices in Stage 3 (PlenumNET OS). |
+| **PlenumLAN** | The product. A single compiled Rust binary + React web console that replaces the 12 core Windows Server roles used by small and medium businesses. |
+| **PlenumNET** | The platform. Ternary mathematics, post-quantum cryptography, 13-dimensional geometry, and Inter-Cube fabric on which PlenumLAN and other products are built. |
+| **PlenumNET OS** | The bootable operating system (Stage 3). PlenumLAN runs directly on hardware via a minimal Rust bootloader. No Linux. No shell. No login. Console is the only interface. |
+| **Rep C** | Bijective ternary encoding using digits {1, 2, 3}. Zero is structurally impossible — its presence at any trust boundary is mathematical proof of forgery, detectable in constant time with no branching on secrets. All TDNS addresses, CRS records, and wire-format data use Rep C. |
+| **ReactOS** | Open-source operating system binary-compatible with Windows. Provides Win32 APIs (kernel32, user32, gdi32, ntdll) rewritten from scratch as free GPL-licensed code. Runs standard Windows applications (.exe/.msi) without Microsoft licensing. In PlenumLAN, ReactOS runs as a managed guest subsystem under PlenumNET OS, providing Windows application compatibility without any Microsoft dependency. |
+| **Salvi Framework** | The complete source code repository (SigmaWolf-8/Ternary on GitHub). 210,000+ lines of Rust. The cryptographic kernel, addressing system, timing protocol, and all derived products. Foundation for all Capomastro Holdings products. |
+| **Scan Template** | Pre-filled classification answers for a device type (workstation, server, printer, sensor, web service). Reduces the 27-question ontological scan to 8–16 variable questions depending on entity class. |
+| **Shell (Security Zone)** | One of three network security zones determined by a device's position on axis 12 of the cube: Inner (management — TL-DSA CA, registry, audit fabric), Void (services — file servers, application servers), Outer (clients — workstations, printers, IoT). Maps directly to network segments and IPv6 subnets. Cross-zone access requires an explicit capability token. |
+| **Ternary Host Identifier** | The second 27 digits of a local network address. The device's native ternary network position from which standard IPv4 and IPv6 addresses are computed deterministically. 3²⁷ = 7.6 trillion unique identifiers per site cube. No DHCP required. |
+| **TIS-27 (Ternary Integrity Sponge)** | Custom 27-trit ternary sponge construction providing approximately 128-bit post-quantum collision resistance (capacity = 27 trits → 3²⁷ ≈ 2⁴³ classical preimage; Grover-bounded to ~2²¹·⁵ quantum). Four rounds, 7-neighbor extended theta diffusion at offsets ±1/±7/±13. 191 nanoseconds per hash, 2.52 GB/s throughput. Used for file integrity, network wire integrity, scan verification, Merkle audit chain linking, and dual checksum computation. Not used for identity binding (see TL-Sponge-43). |
+| **TL-DSA (Ternary Lattice Digital Signature Algorithm)** | Post-quantum digital signature scheme achieving security equivalent to NIST Post-Quantum Cryptography Level 5 (comparable to ML-DSA-87 / Dilithium-5; ~256-bit classical security, ~192-bit quantum security). Built on TLSponge-385 as the sole cryptographic assumption. Every device's cryptographic identity. Provides authentication that resists both classical and quantum computer attacks. TL-DSA-87 benchmark: 1,441 microseconds per sign/verify operation (AVX2-optimized x86_64). Replaces Kerberos, NTLM, and all password-based authentication. |
+| **TL-Sponge-43** | TDNS identity sponge. 9-round ternary sponge construction with 54-trit state (rate=27, capacity=27). Computes the 27-trit identity anchor from a canonical URL. 43-bit classical preimage resistance (3²⁷ ≈ 2⁴³). Used for global TDNS identity binding — not for local network host identifiers and not for integrity hashing. |
+| **TLSponge-385** | The primary cryptographic sponge construction. 385-trit state width, post-quantum security margins. The sole security assumption underlying TL-DSA. Benchmarked at approximately 10 MB/s via AVX2/NEON SIMD optimization, bulk squeeze, and rayon parallelism. |
+| **TDNS (Ternary Domain Name System)** | The 54-trit ontological addressing system. In PlenumLAN, a single TDNS resolution simultaneously provides: name lookup, device identity, network route, security classification, and capability context. Resolution IS identity IS discovery IS routing IS classification. |
+| **TDNS-L (TDNS Local)** | The local network deployment of TDNS. Uses .plm.local as its top-level domain. Same 54-trit Rep C address format as global TDNS, with the second 27 trits reinterpreted as the ternary host identifier (from which IPv4/IPv6 are derived) instead of a global identity hash. |
+| **WebAuthn / FIDO2** | W3C web standard for passwordless, phishing-resistant authentication. Used by PlenumLAN for remote console login. The browser prompts for biometric confirmation (face, fingerprint, or PIN) and completes the cryptographic challenge-response without transmitting a password. Supported in all modern browsers on desktop and mobile. |
+| **XPlenum** | Custom RISC-V processor extension for executing ternary operations in hardware. 2,407 lines of verified Verilog RTL, 22 of 22 tests passing, synthesized to 19,173 logic gates (Yosys). Six functional groups: ternary masking, domain isolation, CHERI-inspired capabilities, cryptographic primitives, trit encoding, signal processing. Long-term Stage 4 target. |
+
+---
+
+
+## Appendix B: Deployment Example
+
+
+A 10-person construction office. Mixed Windows/Linux workstations. One file server. Two printers. Internet-facing SalviSign.
+
+Note: In this deployment, PlenumLAN is installed on an existing office network. All devices already have IPv4 addresses. The ternary host identifiers are computed FROM the existing IPs (Direction B — Section 6.4). No IP addresses change on day one.
+
+| Entity | Tier | TDNS-L Address | IPv4 (preserved) | IPv6 (assigned) |
+|---|---|---|---|---|
+| PlenumNET Server | Local | pds.salvi-homes.plm.local | 192.168.1.1 | fd00:abcd:1234:10:15a:... |
+| File Server | Local | files.salvi-homes.plm.local | 192.168.1.2 | fd00:abcd:1234:20:15a:... |
+| Color Printer | Local | printer-color.shomes.plm.local | 192.168.1.50 | fd00:abcd:1234:30:15a:... |
+| B&W Printer | Local | printer-bw.shomes.plm.local | 192.168.1.51 | fd00:abcd:1234:30:15a:... |
+| John's Workstation | Local | john-pc.shomes.plm.local | 192.168.1.101 | fd00:abcd:1234:30:15a:... |
+| Maria's Laptop | Local | maria-lt.shomes.plm.local | 192.168.1.102 | fd00:abcd:1234:30:15a:... |
+| HR API | Local | hr-api.shomes.plm.local | 192.168.1.10 | fd00:abcd:1234:20:15a:... |
+| SalviSign (internal) | Local | signhere.shomes.plm.local | 192.168.1.11 | fd00:abcd:1234:20:15a:... |
+| SalviSign (public) | Global | sign.salvigroup.plm | N/A (fabric-routed) | N/A (fabric-routed) |
+| PlenumNET Portal | Global | portal.capomastro.plm | N/A (fabric-routed) | N/A (fabric-routed) |
+
+Note the IPv6 subnet segmentation: the PlenumNET server is on `:10:` (Inner shell — management plane), file server and APIs are on `:20:` (Void shell — service plane), workstations and printers are on `:30:` (Outer shell — client plane). This segmentation is *derived from each entity's cube position*, not manually configured per device. The scan determines the shell; the shell determines the subnet; the subnet determines the VLAN. Geometry is the policy.
+
+**Hardware requirement:** Any Linux box (x86-64 or ARM64), 4 cores, 16 GB RAM, 256 GB SSD. The entire PDS + CRS + resolver + PFS + audit stack runs as Rust services on a single machine. No AD domain controller. No Windows Server license. No CALs. No NTP server. No DHCP server. No separate DNS server. No PKI server. One cube.
+
+---
+
+
+---
+
+**Document Reference:** TM-2026-019.2
+**Classification:** PlenumLAN Technical Manifest (Unified)
+**Author:** Capomastro Holdings Ltd. — Applied Physics Division
+**Contact:** RSalvi@Salvigroup.com

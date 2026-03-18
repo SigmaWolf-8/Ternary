@@ -1,0 +1,1375 @@
+# #9 — Multi-Arch Boot, Server OS & Workstation Platform for PlenumNET Kernel
+
+**Complete A–Z Implementation Plan — Ternary-Native on Rust**
+
+Document Reference: TM-2026-019 v2.2
+Capomastro Holdings Ltd. — Applied Physics Division
+Classification: PROPRIETARY AND CONFIDENTIAL
+
+Companion Document: TM-2026-019.2 (PlenumLAN Technical Manifest — Unified)
+
+---
+
+## Executive Summary
+
+This plan takes the PlenumNET kernel from its current state — a formally verified bare-metal boot on x86_64 via QEMU direct-load with 50+ self-tests, Kani/MIRI proofs, and simulated architecture modules — to a complete, deployable server operating system bootable on three architectures (x86_64, aarch64, RISC-V 64), with a forward path to workstation capability and Windows application compatibility.
+
+**PlenumLAN** (TM-2026-019.2) is the reference application for this OS. PlenumLAN is a single compiled Rust binary — Axum web server, React console, and PlenumNET cryptographic kernel linked together — that replaces Windows Server for small and medium business LAN management. Every kernel subsystem in this plan is validated by PlenumLAN's requirements. If PlenumLAN cannot boot, bind a network port, serve its web console, register a device, issue a capability token, and resolve a TDNS-L address on PlenumNET OS, the OS is not done. PlenumLAN's four-stage trajectory (Replit → Linux → PlenumNET OS → XPlenum) defines the deployment path this OS must support.
+
+The work is organized into five tiers, each building on the last:
+
+- **Tier 1 — Bootable Multi-Arch Kernel** (Phases 0–6): Real firmware boot paths on all three architectures, hardware page tables, IDT/APIC/timer, serial and framebuffer output. The kernel boots on real (emulated) hardware rather than QEMU's flat-binary loader.
+- **Tier 2 — Kernel Core Services** (Phases 7–10): Physical and virtual memory management, process/thread scheduling, a ternary-native system call ABI with async I/O primitives for Tokio/Axum, and inter-process communication via ternary message passing.
+- **Tier 3 — Server OS Foundation** (Phases 11–17): Virtual file system with block storage drivers, PlenumDB native storage engine, a dual network stack (ternary-native PlenumNET + TCP/IP compatibility with raw sockets and broadcast/multicast), USB subsystem, a unified device driver model, security via ternary capability tokens, a service supervisor with deployment profiles (server mode and appliance mode), and bootable server images validated by PlenumLAN end-to-end.
+- **Tier 4 — Workstation Foundation** (Phases 18–21): HID input subsystem, a window compositor with 28-window Z₂₈ agent array, audio pipeline, and a GPU abstraction layer (software rendering with hardware acceleration path).
+- **Tier 5 — Windows Application Compatibility** (Phases 22–24): ReactOS as a managed guest subsystem providing binary-compatible Win32 APIs, Apache Guacamole display streaming to the browser through PTS, and application lifecycle management through the PlenumLAN console. Windows applications run without Windows, without Microsoft licensing, and without exposing RDP.
+
+Tiers 1–3 constitute the **PlenumNET Server OS** — the primary deliverable, validated by PlenumLAN as the reference application. Tiers 4–5 extend to **PlenumNET Workstation** and are designed from Phase 0 onward so that no architectural decisions in Tiers 1–3 preclude them.
+
+---
+
+## What & Why
+
+The PlenumNET kernel boots bare-metal on x86_64 via QEMU direct-load (`-kernel` flag), with the full Kani/MIRI formal verification pipeline and bare-metal self-test suite proving correctness. All three architecture modules (x86_64, aarch64, RISC-V) implement identical trait interfaces (`ArchOps`, `MmuOps`, `InterruptOps`, `TimerOps`, `BootOps`) and the 12-stage `BootSequence` state machine is firmware-agnostic. The XPlenum RISC-V extension has full RTL simulation + formal verification via SymbiYosys, and `cargo check --target riscv64gc-unknown-none-elf` already passes in CI.
+
+**What's missing to reach Server OS:**
+
+1. **Real firmware handoff.** The current boot entry (`_start` at 0x100000) only works with QEMU's `-kernel` flat-binary loader. No UEFI stub, no Multiboot2 header, no Device Tree parser, no OpenSBI S-mode entry, no XPlenum runtime initialization during boot. Serial output is x86_64 COM1 only.
+2. **Hardware memory management.** Architecture modules use `BTreeMap` page tables and simulated memory maps rather than firmware-provided data and real hardware page table walks.
+3. **Process isolation.** No user-space/kernel-space separation, no context switching, no scheduler. The kernel runs as a single thread of execution.
+4. **System call interface.** No mechanism for user-space programs to request kernel services. The ternary-native ABI (27-class syscall dispatch, Rep C parameters) exists only in design. No async I/O primitives (`epoll` or equivalent) — required by Tokio, the async runtime underpinning PlenumLAN's Axum server.
+5. **Storage and file system.** No block device drivers, no VFS layer, no file abstraction. No PlenumDB storage engine for CRS-native structured data. The kernel cannot persist data or load executables from disk.
+6. **Networking.** No network drivers, no IP stack, no PlenumNET ternary tunnel integration at the OS level. No raw socket support for DHCP broadcast, no multicast for mDNS discovery, no privileged port binding policy for PlenumLAN's protocol shims (RADIUS/LDAP/SMB on ports < 1024).
+7. **Security model.** TL-DSA and TIS-27 exist as libraries, but there is no kernel-enforced capability system, no MAC framework, no process-level cryptographic identity.
+8. **Service management.** No init system, no service supervision, no deployment profiles (server mode vs. locked-down appliance mode). No PTS (Plenum Tunnel Service) for secure remote console access.
+9. **USB subsystem.** No xHCI host controller driver, no USB mass storage (needed for boot media), no USB HID keyboard (needed for emergency console input on headless appliances).
+
+**What's missing to reach Workstation (future, designed now):**
+
+10. **Window compositor.** No graphical window management, no client/server display protocol.
+11. **Audio.** No audio pipeline.
+12. **GPU abstraction.** Software-only framebuffer; no acceleration path.
+13. **Windows application compatibility.** No PE/COFF loader, no NT personality, no Win32 API surface. ReactOS (Tier 5) provides these as a managed guest subsystem — PlenumNET provides the hypervisor, not the Win32 reimplementation.
+
+This plan addresses all thirteen gaps in a single coherent roadmap where every phase is aware of the requirements that follow it.
+
+---
+
+## Done Looks Like
+
+### Tier 1 Milestone: Multi-Arch Boot (Server prerequisite)
+
+- The kernel boots via UEFI on x86_64 (QEMU with OVMF firmware)
+- The kernel boots via GRUB on legacy BIOS x86_64 (QEMU with Multiboot2)
+- The kernel boots on aarch64 via UEFI and Device Tree (QEMU virt machine)
+- The kernel boots on RISC-V 64 via OpenSBI + Device Tree (QEMU virt machine), with XPlenum coprocessor initialized when hardware is detected
+- All boot paths populate `FirmwareInfo` → `BootParams` and enter the existing 12-stage `BootSequence`
+- Existing QEMU direct-load boot path (`_start` at 0x100000) continues working unchanged
+- Real x86_64 page tables (PML4 4-level), real IDT with exception handlers, APIC timer at ~100 Hz
+- All 50+ bare-metal self-tests pass through every boot path
+- Kani proofs and MIRI checks continue passing
+- Framebuffer-based boot splash with progress bar visible on screen
+- Boot images buildable for all architecture/firmware combinations
+- CI extended for multi-arch validation
+
+### Tier 2 Milestone: Kernel Core Services
+
+- Physical page frame allocator managing firmware-reported memory
+- Virtual memory with per-process address spaces (4-level paging on all architectures)
+- Kernel heap allocator (slab or buddy) replacing the bump allocator
+- Preemptive round-robin scheduler with priority levels mapped to ternary phase weights
+- User-space process execution with ring 3 / EL0 / U-mode isolation
+- Ternary-native system call ABI: 27 syscall classes (3³), parameters in Rep C, dispatch via `syscall`/`svc`/`ecall`
+- Async I/O notification (`epoll`-equivalent or ternary-native) sufficient for Tokio runtime
+- POSIX compatibility shim acceptance test: Axum starts, binds port 3000, serves HTTP, handles 10 concurrent connections
+- IPC via ternary message channels (54-trit addressed, TIS-27 integrity-checked)
+- Shared memory regions with ternary capability tokens
+
+### Tier 3 Milestone: PlenumNET Server OS (PRIMARY DELIVERABLE)
+
+**PlenumLAN end-to-end acceptance test:** Kernel boots → `plenum-init` starts → PlenumLAN binary launches → Axum binds port 443 → React console serves in browser → admin completes first-run wizard → network scan discovers devices → entity registers with 54-trit address → capability token issues → TDNS-L resolves `.plm.local` name → audit log entry is Merkle-chained with HPTP timestamp. If any step fails, Tier 3 is not complete.
+
+- Virtual File System with mount points, inodes, directory traversal
+- Block device drivers: VirtIO-blk (QEMU), AHCI/SATA, NVMe (staged)
+- PlenumFS: ternary-native file system with 27-trit inode addresses, TIS-27 integrity per block, TL-DSA signed metadata
+- PlenumDB: CRS-native storage engine for structured data (entity records, capability tokens, Merkle audit chains, vertex occupancy bitmaps)
+- Network drivers: VirtIO-net (QEMU), Intel e1000 + e1000e (legacy QEMU + modern PCIe server hardware), Realtek r8169 (ubiquitous commodity/SMB hardware)
+- Dual network stack: TCP/IP compatibility layer (BSD sockets API with raw sockets, broadcast, multicast, privileged port binding via capability tokens) + native PlenumNET ternary tunnel protocol (13D hypercube routing at kernel level)
+- USB subsystem: xHCI host controller, USB mass storage (boot media), USB HID keyboard (emergency console input)
+- Unified device driver framework with ternary bus enumeration
+- Ternary capability-based security: 27-trit capability tokens, per-process capability sets, mandatory access control via TIS-27 labels
+- Service supervisor (`plenum-init`) with deployment profiles:
+  - **Server profile:** All services available including SSH, management shell, full diagnostics
+  - **Appliance profile (PlenumLAN):** No SSH, no shell, no login. Console-only. PTS for remote access. The locked-down mode described in TM-2026-019.2 §8.3.
+- Core services: `plenum-networkd`, `plenum-sshd` (server profile), `plenum-tdnsd`, `plenum-logd`, `plenum-crond`, `plenum-ptsd` (Plenum Tunnel Service — phase-encrypted remote console access, replaces SSH/VPN in appliance profile)
+- PlenumNET Rust target triple (`x86_64-plenumnet-none`) with native `libstd` implementation calling ternary syscalls directly — eliminates POSIX shim overhead for native builds
+- Bootable server/appliance ISO images for x86_64 (UEFI + legacy BIOS), aarch64, RISC-V
+- Server configuration via first-run wizard, Device Tree overlays, and command-line parameters
+- CI pipeline producing tested, bootable images validated by PlenumLAN end-to-end test on every merge
+
+### Tier 4 Milestone: Workstation Foundation (FUTURE — designed now)
+
+- HID input stack: PS/2 keyboard/mouse, USB HID (via xHCI from Tier 3)
+- Window compositor: 28-window Z₂₈ agent array, double-buffered, z-ordered, title bars, move/resize
+- Display protocol: ternary-addressed window buffers, client/server separation via IPC
+- Audio pipeline: VirtIO-snd or Intel HDA, mixing, per-process audio streams
+- GPU abstraction: VirtIO-gpu (QEMU), software rasterizer fallback, eventual DRM/KMS path for real hardware
+
+### Tier 5 Milestone: Windows Application Compatibility (FUTURE — architecture reserved)
+
+- ReactOS runs as a managed guest subsystem under PlenumNET OS
+- Admin uploads a Windows installer (.exe/.msi) through the PlenumLAN console; ReactOS installs it
+- User clicks an application in the console; Guacamole streams the application display to the browser through PTS
+- Application sessions are capability-gated, HPTP-timestamped, Merkle-audited
+- Files saved by Windows applications go through PFS (capability-verified, integrity-hashed, phase-encrypted)
+- Single-application mode: user sees only the application window, not a full desktop
+- No Windows license. No Microsoft code. No RDP exposed. No VPN required.
+
+---
+
+## Out of Scope (This Document)
+
+- Windows kernel driver compatibility (`.sys` files) — ReactOS handles its own driver model internally
+- DirectX 12 / Vulkan GPU driver implementation (abstraction layer only)
+- Real-time kernel variant (PREEMPT_RT equivalent)
+- Distributed PlenumNET cluster orchestration (separate planning document)
+- Mobile / embedded targets (ARM Cortex-M, ESP32)
+- Changes to Kani proofs or MIRI-verified code (new code extends, never modifies, verified modules)
+- PlenumLAN application code (specified in TM-2026-019.2; this document specifies the OS it runs on)
+- ReactOS development (ReactOS is an external open-source project; this plan covers integration, not ReactOS internals)
+- smoltcp development (smoltcp is an external open-source crate; this plan covers integration and the kernel socket layer built on top of it)
+
+---
+
+## PlenumNET Architectural Invariants (MANDATORY — All Agents Must Follow)
+
+Every file created or modified in this project MUST comply with these invariants. Violations break mathematical consistency across the entire framework.
+
+### Copyright Header (Required on ALL source files)
+
+```
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// All Rights Reserved.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+```
+
+### INVARIANT 1: The Geometry IS the System
+
+Every component derives from ternary geometry. Routing = Hamming distance in 13D ternary hypercube. Addressing = 27-trit coordinates. Key derivation = Kernel sponge (729-trit, 9 rounds, 385-bit PQ security). Wire integrity = TIS-27 sponge (54-trit, 4 rounds, 43-bit). DO NOT replace geometric routing with routing tables. DO NOT decouple cryptographic keys from topological adjacency.
+
+### INVARIANT 2: First-Position Derivation — No Tuning Parameters
+
+```
+gf3 = min(floor(3k / N), 2)     where k = signals fired, N = total signals
+trit = gf3 + 1                   lift from GF(3) {0,1,2} to Rep C {1,2,3}
+```
+
+Boundaries at N/3 and 2N/3. NO tuning parameters, NO arbitrary thresholds.
+
+### INVARIANT 3: Rep C (Bijective Ternary) — Zero Is Excluded
+
+TDNS addresses, wire formats, and crypto use Rep C: {1, 2, 3}. Zero is NEVER a valid trit value. Zero is a sentinel proving forgery.
+
+- Rep A (Balanced): {-1, 0, +1} — signed arithmetic
+- Rep B (Standard): {0, 1, 2} — internal only
+- Rep C (Bijective): {1, 2, 3} — wire format, TDNS, crypto, ALL external representation
+
+### INVARIANT 4: Constants Are Bound, Not Chosen
+
+```
+C = πd = 14d → C/r = 28 → Full circle = 28 radians = 364°
+Full circle = 364° = 111111₃ = (3⁶ − 1)/2
+π = 14 = T₇ + T₃ (exact integer)
+2π = 28 = full circle in radians
+1 radian = 13° = 111₃ = T₇
+Calendar = 13 × 28 = 364
+```
+
+DO NOT change any of these. They are all interdependent. The derivation chain: ternary circle has 3⁶ = 729 arc positions; the full circle spans (729 − 1)/2 = 364 degrees; one radian = 364/28 = 13° = 111₃ = T₇ (the 7th Tribonacci number); π = 364/(2×13) = 14 = T₇ + T₃; the calendar follows from 364 = 13 months × 28 days. Every constant derives from the base-3 exponential. Source code implementing these constants MUST include this derivation in comments so future developers understand why the values cannot be changed independently.
+
+### INVARIANT 5: HPTP-Mandatory Is Structural
+
+If trits 15 AND 16 are both 3, the address is HPTP-mandatory. Femtosecond timing verification REQUIRED.
+
+### INVARIANT 6: The Salvi Epoch
+
+April 1, 2025 (2025-04-01T00:00:00Z) = Day Zero. All femtosecond timestamps are 128-bit integers from this epoch. DO NOT change.
+
+### INVARIANT 7: TL-DSA Everywhere — No Ed25519
+
+TL-DSA for ALL digital signatures. Ed25519 was explicitly rejected (not post-quantum). DO NOT use `crypto.generateKeyPairSync('ed25519')`, HMAC simulations, or `crypto.sign(null, ...)`.
+
+### INVARIANT 8: Raw Binary → Trit Decomposition Before Ternary Ops
+
+Never feed raw binary integers into ternary sponge operations. All values MUST be decomposed via `u16_to_trits()` / `u8_to_trits()` first.
+
+### INVARIANT 9: `deployments/` Folder Is Sacred
+
+NEVER modify the `deployments/` folder. Zero exceptions.
+
+### INVARIANT 10: Sponge Stride Coprime to State Width
+
+TIS-27 uses stride 13 on state width 54. `gcd(13, 54) = 1` required. Stride 13 is structurally bound (T₇, 111₃, 1 radian).
+
+### INVARIANT 11: System Call Classes Are Ternary
+
+The system call ABI uses 27 classes (3³). Syscall numbers are encoded in Rep B internally and Rep C on the wire. The class/subclass/operation triple maps to 3×9×9 = 243 distinct syscalls per class group. DO NOT use flat linear syscall numbering.
+
+### INVARIANT 12: Capability Tokens Are 27-Trit
+
+Kernel capability tokens are 27-trit values in Rep C, derived from TIS-27 sponge over (process_id ∥ resource_id ∥ permission_mask). Zero-trit detection (Invariant 3) provides forgery evidence. DO NOT use integer bitmask capabilities.
+
+### INVARIANT 13: Window Count Bound to Z₂₈
+
+The compositor supports exactly 28 windows maximum (2π = 28 = full circle in radians, Invariant 4). Window IDs are elements of Z₂₈. DO NOT make this configurable or arbitrary. This is 28 *concurrent* windows — when a window is destroyed, its Z₂₈ slot becomes available for reuse. The window ID is the slot index, not a monotonic counter.
+
+---
+
+## Rust Conventions
+
+- `edition = "2021"`, pinned deps
+- `thiserror` for error types, `serde` with derive for serialization
+- Constant-time GF(3) operations in crypto modules
+- All modules re-exported from `lib.rs`
+- `no_std` math: Use `libm::log2()`, `libm::ceil()`, `libm::fabs()` — NOT `f64` methods
+- Bare-metal code: `#![no_std]`, `#![no_main]`, abort on panic
+- New code uses `#[cfg(feature = "...")]` gating to avoid compiling all boot/platform code into every image
+- All firmware data parsers take `(base_ptr, max_length)` and bounds-check all pointer advances via a shared `BoundsCheckedReader` utility
+- Every `unsafe` block documents its safety invariant in a `// SAFETY:` comment
+- All secondary harts/cores are parked (`WFI`/`wfe` loop); only hart 0 / core 0 executes boot
+
+---
+
+## Existing Infrastructure (DO NOT RECREATE — extend these)
+
+### Bare-Metal Boot (working today)
+
+- `src/kernel/bare-metal/src/main.rs`: `_start` entry at 0x100000, bump allocator, BSS zeroing, QEMU exit via port 0xF4
+- `src/kernel/bare-metal/src/serial.rs`: COM1 (0x3F8) serial driver with `print_str`, `print_line`, `print_u64`
+- `src/kernel/bare-metal/src/selftest.rs`: 50+ self-tests exercising real kernel library
+- `src/kernel/bare-metal/linker.ld`: loads at 0x100000, 64K stack, 4M heap, `.text.boot` section
+- `src/kernel/bare-metal/x86_64-ternary-none.json`: custom target
+- `src/kernel/bare-metal/scripts/build.sh`: nightly Rust + cargo build
+- `src/kernel/bare-metal/scripts/qemu-run.sh`: QEMU boot with 30s timeout, exit code 33=PASS/35=FAIL
+
+### Formal Verification (proven correct — do not modify)
+
+- `src/kernel/src/kani_proofs.rs`: 361 lines, 20+ Kani proof harnesses
+- `.github/workflows/formal-verification-rust.yml`: Kani + MIRI
+- `.github/workflows/bare-metal-validation.yml`: QEMU boot validation
+- `.github/workflows/xplenum-riscv.yml`: RTL lint/sim/formal, cargo check RISC-V, kernel unit tests
+
+### Architecture Modules (trait implementations — simulated, not hardware)
+
+- `src/kernel/src/arch/x86_64.rs`: `X86_64Arch` — simulated page tables, APIC, TSC
+- `src/kernel/src/arch/aarch64.rs`: `Aarch64Arch` — simulated page tables, GIC, Generic Timer
+- `src/kernel/src/arch/riscv64.rs`: `RiscV64Arch` — simulated page tables, PLIC, mtime
+- `src/kernel/src/arch/xplenum.rs`: 21 instructions + 12 CSRs (real inline asm)
+- `src/kernel/src/arch/xplenum_stub.rs`: No-op stubs for non-RISC-V
+- `src/kernel/src/arch/boot.rs`: `BootSequence` 12-stage state machine, `BootParams`
+- `src/kernel/src/arch/mod.rs`: Trait definitions (`ArchOps`, `MmuOps`, `InterruptOps`, `TimerOps`, `BootOps`)
+
+### Kernel Library (`src/kernel/src/lib.rs`)
+
+- `#![cfg_attr(feature = "no_std", no_std)]`, `extern crate alloc`
+- Modules: timing, ternary, phase, error, memory, sync, process, security, crypto, device, io, fs, arch, drivers, network, vm, hptp, compat
+- Device subsystem: `src/kernel/src/device/` (bus, dma, interrupt, registry)
+- I/O subsystem: `src/kernel/src/io/` (block, buffer, chardev, poll, scheduler)
+- Drivers: `src/kernel/src/drivers/` (femtoclock, tpu)
+
+---
+
+## Reference Application: PlenumLAN
+
+PlenumLAN (specified fully in TM-2026-019.2) is the first and primary application for PlenumNET OS. Every kernel subsystem is designed and tested against PlenumLAN's requirements. The relationship is:
+
+- **TM-2026-019 (this document)** specifies what the OS provides.
+- **TM-2026-019.2** specifies what the application demands.
+- Every PlenumLAN requirement maps to a phase in this plan. Every subsystem in this plan has PlenumLAN as its first consumer.
+
+PlenumLAN is a single compiled Rust binary: Axum HTTP server + React console (embedded static assets) + PlenumLAN modules (PDS, CRS-L, TDNS-L, PFS, protocol shims, PTS) + ternary-math kernel crate. It calls the cryptographic kernel via direct Rust function calls — no FFI, no bridge, no serialization boundary. The binary runs identically on Replit (Stage 1), Linux (Stage 2), PlenumNET OS (Stage 3), and XPlenum silicon (Stage 4).
+
+**What PlenumLAN demands from the OS (and where this plan delivers it):**
+
+| PlenumLAN Requirement | OS Subsystem | Phase |
+|---|---|---|
+| Axum/Tokio async runtime (epoll, non-blocking sockets, timers) | Syscall Class 4 + async I/O primitives | 9 (Task 9.4) |
+| TCP port binding on 443, 389, 445, 1812, 67-68 (privileged) | TCP/IP stack + capability-gated privileged ports | 12 (Task 12.4) |
+| DHCP broadcast (SOCK_RAW, SO_BROADCAST) | Raw socket + broadcast support | 12 (Task 12.4) |
+| mDNS device discovery (multicast) | Multicast group join (IP_ADD_MEMBERSHIP) | 12 (Task 12.4) |
+| PlenumDB on raw block device (Stage 3) | Block drivers + raw I/O or PlenumFS backing | 11 (Task 11.10) |
+| TL-DSA, TIS-27, TLSponge-385 (kernel crate) | Linked directly — no OS involvement | Existing |
+| PTS phase-encrypted remote tunnel | plenum-ptsd service | 16 (Task 16.3) |
+| No SSH, no shell, console-only (appliance mode) | Deployment profiles in plenum-init | 16 (Task 16.1) |
+| USB boot media + emergency keyboard | xHCI + mass storage + HID | 13 (Task 13.5) |
+| Intel e1000e, Realtek r8169 NIC drivers | Network driver list | 12 (Task 12.3) |
+| Same binary on Linux and PlenumNET OS | POSIX compat shim + native target triple | 9 (Task 9.3) + 17 (Task 17.5) |
+
+**The "same binary" mechanism:** On Linux (PlenumLAN Stage 2), the binary uses Linux syscalls via Rust's standard library, which calls libc, which calls the kernel. On PlenumNET OS (Stage 3), the same source code compiles against a PlenumNET-native `libstd` (Task 17.5) that calls ternary syscalls directly. Same source code, same behavior, different compilation target. The POSIX compatibility shim (Task 9.3) provides the fallback: a Linux-compiled binary can also run on PlenumNET OS via the shim, but native compilation is the production path.
+
+---
+
+## TIER 1 — BOOTABLE MULTI-ARCH KERNEL
+
+### Phase 0: Toolchain & Build Prerequisites
+
+*Before any code, ensure the development and CI environment can build and test all targets.*
+
+**Task 0.1. Cross-compilation toolchain setup**
+
+Document and script the installation of: Rust nightly with targets `x86_64-unknown-none`, `x86_64-unknown-uefi`, `aarch64-unknown-none-softfloat`, `aarch64-unknown-uefi`, `riscv64gc-unknown-none-elf`. Install `qemu-system-x86_64`, `qemu-system-aarch64`, `qemu-system-riscv64`. Obtain OVMF firmware images (x86_64 and aarch64). Install `grub-mkrescue`, `xorriso`, `mtools` for ISO/FAT32 image creation. Obtain OpenSBI firmware binary (`fw_jump.elf`). Create `scripts/setup-toolchain.sh` that idempotently installs everything.
+
+**Task 0.2. Feature flag architecture in Cargo.toml**
+
+Add feature flags to `src/kernel/bare-metal/Cargo.toml`: `boot-qemu-direct` (default), `boot-multiboot2`, `boot-uefi`, `boot-devicetree`, `boot-opensbi`. Each boot path compiles only when its feature is active. The x86_64 UEFI image does not include the Multiboot2 parser; the RISC-V image does not include the UEFI app. This keeps images minimal and reduces attack surface.
+
+**Task 0.3. Shared `BoundsCheckedReader` utility**
+
+Create `src/kernel/src/arch/bounds_reader.rs`: a zero-allocation, `no_std` utility for safely walking firmware data structures. Takes `(base: *const u8, length: usize)`, provides `read_u8`, `read_u16_le`, `read_u32_le`, `read_u64_le`, `read_bytes`, `advance`, `remaining`, all returning `Result<T, ParseError>`. Every firmware parser (Multiboot2 tags, UEFI memory map, FDT blobs) MUST use this instead of raw pointer arithmetic.
+
+**Task 0.4. Boot panic infrastructure**
+
+Create `boot_panic!` macro in `src/kernel/bare-metal/src/panic.rs`: outputs to serial (and VGA text if available) with file, line, boot stage, and message, then halts the CPU. Architecture-dispatched: `hlt` loop on x86_64, `wfe` loop on aarch64, `wfi` loop on RISC-V. Consistent panic interface across all three architectures.
+
+### Phase 1: Boot Protocol Abstraction Layer
+
+**Task 1.1. Define unified `FirmwareInfo` struct and `BootProtocol` enum**
+
+Create `src/kernel/src/arch/boot_protocol.rs`:
+
+- `BootProtocol` enum: `QemuDirect`, `Multiboot2`, `Uefi`, `DeviceTree`, `OpenSbi`
+- `FirmwareMemoryRegion` struct mapping to existing `MemoryRegionType` enum (`Usable`, `Reserved`, `AcpiReclaimable`, `AcpiNvs`, `Defective`, `TernaryCoprocessor`) — add `Framebuffer` variant to `MemoryRegionType` so the allocator never hands out framebuffer pages
+- `FramebufferInfo` struct: `physical_address`, `width`, `height`, `pitch`, `bpp`, `pixel_format` (`Rgb`/`Bgr`/`Indexed`) — handle arbitrary resolutions, not just 1920×1080
+- `FirmwareInfo` struct: all fixed-size (no heap — used before allocator init), max **256** memory regions (real UEFI systems can exceed 200 due to firmware fragmentation), 256-byte command line buffer, optional ACPI RSDP pointer. Adjacent same-type regions are merged to stay within the 256 cap.
+- `impl FirmwareInfo { fn into_boot_params(self) -> Result<BootParams, BootError> }` — fallible conversion that validates: no zero-size regions, no overlapping ranges, framebuffer within a described region.
+- Re-export from `arch/mod.rs`
+
+**Task 1.2. `FirmwareInfo` integration tests**
+
+Before any new boot paths: tests that construct a `FirmwareInfo` for each `BootProtocol` variant, call `into_boot_params()`, and verify the resulting `BootParams` matches expected values. Test edge cases: 256 regions (full), overlapping regions (error), zero-size region (error), no framebuffer (Ok, framebuffer field is None), framebuffer outside any region (error).
+
+**Firmware chaos suite:** In addition to happy-path tests, include a "firmware chaos" battery that exercises the worst-case inputs real firmware produces. These cost a day to write and catch an entire class of boot-time data-handling bugs before they compound with real firmware:
+
+- Max 256 regions with alternating Usable/Reserved (UEFI fragmentation pattern from runtime services holes)
+- 200+ regions requiring merge-down to 256 cap (verify same-type adjacency merging works under pressure)
+- Huge reserved ranges (e.g., a single 3.5 GB reserved range leaving only 512 MB usable — typical of some UEFI implementations)
+- Framebuffer at end of physical address space (above 4 GB — requires correct 64-bit arithmetic in region validation)
+- Multiple ACPI tables with overlapping reserved regions (must deduplicate, not double-count)
+- Zero-length command line and maximum-length (256-byte) command line with embedded nulls
+- All `BootProtocol` variants exercised: `QemuDirect` (known good), `Multiboot2` (with tag parser edge cases), `Uefi` (with runtime services regions), `DeviceTree` (with missing `/memory` node — must error), `OpenSbi` (with DTB pointer at unusual alignment)
+
+**Task 1.3. Refactor bare-metal `main.rs` to use boot protocol abstraction**
+
+Modify `src/kernel/bare-metal/src/main.rs`: `_start` constructs `FirmwareInfo` with `BootProtocol::QemuDirect`, populates from `x86_64_boot_config()`, calls `into_boot_params()`. All existing self-tests MUST continue to pass unchanged. Print `[BOOT] Protocol: QEMU Direct` via existing serial module. Non-breaking refactor.
+
+### Phase 2: x86_64 Multiboot2 / GRUB Legacy BIOS Support
+
+**Task 2.1. Add Multiboot2 header and 32-to-64-bit trampoline**
+
+Create Multiboot2 header (magic `0xE85250D6`, `.multiboot_header` section in first 32KB) with framebuffer tag (preferred 1920×1080×32, but accept whatever GRUB provides), memory map request, and information request tag. Create 32-bit entry `_start_multiboot2` that saves EBX (info pointer) and EAX (magic `0x36D76289`), identity-maps first 4GB with 2MB huge pages, transitions protected → long mode, then calls Rust `multiboot2_entry(info_ptr: u32)`.
+
+**Task 2.2. Parse Multiboot2 boot information into `FirmwareInfo`**
+
+Create Multiboot2 tag parser using `BoundsCheckedReader` (Task 0.3): walk tag list (type/size pairs, 8-byte aligned, end tag type=0), parse memory map (tag 6), framebuffer (tag 8), command line (tag 1), ACPI RSDP (tags 14/15). All `no_std`, no heap. Validate magic `0x36D76289`. Accept whatever framebuffer resolution GRUB actually provides.
+
+**Task 2.3. Separate Multiboot2 linker script**
+
+Create `linker-multiboot2.ld` (NOT modify existing `linker.ld`): includes `.multiboot_header`, `.boot32`, `.boot_page_tables`, `.gdt` sections. Uses `INCLUDE linker-common.ld` for shared section definitions. Extract common sections from existing `linker.ld` into `linker-common.ld`. Two linker scripts is safer than one fragile one.
+
+**Task 2.4. Build GRUB-bootable ISO image**
+
+Create `grub.cfg` and `scripts/build-grub-iso.sh` using `grub-mkrescue`. QEMU test: `qemu-system-x86_64 -cdrom plenumnet.iso -serial stdio`.
+
+### Phase 3: x86_64 UEFI Boot Application
+
+**Task 3.1. Create UEFI boot application crate**
+
+New crate `src/kernel/uefi-boot/`: target `x86_64-unknown-uefi`, depends on `uefi` crate (pinned version), `#![no_std]` `#![no_main]`. Separate PE/COFF binary that loads and jumps to kernel.
+
+**Task 3.2. Implement UEFI memory map, GOP framebuffer, and ACPI discovery**
+
+Query memory map via Boot Services (`EfiConventionalMemory` → `Usable`, `EfiRuntimeServicesCode`/`Data` → `Reserved`), locate GOP for framebuffer, find ACPI RSDP from config table, package into `FirmwareInfo` with `BootProtocol::Uefi`. Capture ALL info before `exit_boot_services()`.
+
+**Known limitation:** UEFI runtime services are not used post-ExitBootServices in this phase. Their memory is marked Reserved, preserving the option to use them later.
+
+**Task 3.3. Implement UEFI → kernel handoff**
+
+Define `UEFI_HANDOFF_ADDRESS` as a shared constant (`0x80000`). After `ExitBootServices()`: write `FirmwareInfo` to handoff address, set up identity-map page tables, jump to `_start_uefi` entry with info pointer in RDI (System V ABI). Create `uefi_entry.rs` in bare-metal crate.
+
+**Task 3.4. Build x86_64 UEFI boot image**
+
+Create `scripts/build-uefi-image.sh`: compile for `x86_64-unknown-uefi`, create FAT32 ESP with `EFI/BOOT/BOOTX64.EFI`. QEMU test: `qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=esp.img -serial stdio`.
+
+### Phase 4: aarch64 Boot Paths (UEFI + Device Tree)
+
+**Task 4.1. Create aarch64 UEFI boot application**
+
+Add aarch64 target (`aarch64-unknown-uefi`) to `uefi-boot` crate. Same flow as x86_64 UEFI but no 32→64 transition. Jump to `_start_uefi_aarch64` with `FirmwareInfo` in X0 (AAPCS64). Output: `EFI/BOOT/BOOTAA64.EFI`.
+
+**Task 4.2. Shared FDT (Flattened Device Tree) parser**
+
+Create `src/kernel/src/arch/fdt_parse.rs` using `BoundsCheckedReader`: parse FDT header (magic `0xD00DFEED`), walk structure block by tokens, extract `/memory` nodes, `/chosen` for `bootargs` and `stdout-path`, `simple-framebuffer` compatible nodes, interrupt controller type (GIC vs PLIC). Designed generically via trait-based visitor pattern — shared with RISC-V (Phase 5). Design the parser API before implementing either platform-specific boot path.
+
+**Task 4.3. Create aarch64 Device Tree boot path**
+
+Create `aarch64_dt.rs`. Entry stub (`_start_aarch64`): check exception level (EL2 → drop to EL1), park secondary cores (MPIDR_EL1 check → `wfe` loop), set up stack, zero BSS, **execute cache/TLB coherency barrier** (`dc ivac` range, `dsb sy`, `ic iallu`, `isb`, `tlbi alle1`, `dsb sy`, `isb`) before enabling MMU, call Rust `aarch64_dt_entry(dtb_ptr)`. Create `aarch64-ternary-none.json` and `aarch64-linker.ld` (load at 0x40080000).
+
+**Task 4.4. aarch64 serial output via PL011 UART**
+
+Create `serial_pl011.rs`: PL011 at MMIO 0x09000000, TX and RX (`fn try_read_byte() -> Option<u8>`). Same interface as existing `serial.rs`. Conditional compilation: PL011 on aarch64, COM1 on x86_64.
+
+**Task 4.5. Build aarch64 boot images**
+
+Create `scripts/build-aarch64.sh`. QEMU tests for both DT and UEFI paths.
+
+### Phase 5: RISC-V 64 Boot Path (OpenSBI + Device Tree + XPlenum)
+
+**Task 5.1. Create RISC-V 64 boot entry with OpenSBI handoff**
+
+Create `riscv64_boot.rs`: OpenSBI jumps to kernel in S-mode with `a0` = hart ID, `a1` = DTB pointer. Entry `_start_riscv64`: park secondary harts (`wfi` loop), set stack, zero BSS, call `riscv64_entry(hart_id, dtb_ptr)`. Reuse `fdt_parse.rs`. Create `riscv64-ternary-none.json` and `riscv64-linker.ld` (load at 0x80200000).
+
+**Task 5.2. RISC-V serial output via SBI console and NS16550 UART**
+
+Create `serial_sbi.rs`: SBI `putchar`/`getchar`, fallback to NS16550 at MMIO 0x10000000. Same interface as other serial drivers.
+
+**Task 5.3. XPlenum coprocessor detection and initialization during boot**
+
+Create `xplenum_init.rs`: during `BootStage::TernaryCoprocessorInit`:
+
+1. Install temporary `stvec` pointing to minimal trap handler (sets `probe_failed` flag, advances `sepc += 4`)
+2. Attempt to read CSR 0x7CB (`XPVERSION`)
+3. If probe failed: XPlenum not present, software ternary mode
+4. If present: enable XPSTATUS bits 0-2, set XPDOMID=0 (kernel domain), set XPCAPBASE/XPCAPBOUND to full range, seed XPMASK from `mtime` entropy
+5. Restore `stvec` to production trap vector
+
+Uses existing `xplenum.rs` CSR accessors.
+
+**Task 5.4. Build RISC-V boot images**
+
+Create `scripts/build-riscv64.sh`. QEMU test with OpenSBI. Timeout 60s for TCG emulation.
+
+**Task 5.5. `build-all.sh` master build script**
+
+Create `scripts/build-all.sh`: builds all architecture/firmware combinations.
+
+### Phase 6: Post-Boot Hardware Initialization
+
+*Replaces simulated page tables and fake interrupt controllers with real hardware. Must happen before Tier 2 because process isolation requires real page tables.*
+
+**Task 6.1. Real x86_64 page table management**
+
+Replace `BTreeMap`-based simulation in `X86_64Arch`: real PML4/PDPT/PD/PT pages, identity-map first 4GB, map kernel at higher-half `0xFFFF_8000_0000_0000`, map framebuffer, real 4-level walks, set CR3 via inline asm.
+
+**Kani/MIRI boundary:** `MmuOps` trait and contract unchanged. Kani proofs verify trait-level properties which remain true. New hardware-specific code gets its own tests, not Kani modifications.
+
+**Task 6.2. Real x86_64 IDT, APIC, and timer setup**
+
+256-entry IDT, ISR stubs, exception handlers (vectors 0-31), Local APIC + periodic timer (~100 Hz), TSC calibration, `lidt`. Conforms to existing `InterruptOps` and `TimerOps` traits.
+
+**Task 6.3. VGA text console fallback**
+
+Create `console_vga.rs`: VGA text mode at 0xB8000, scrolling, cursor, colors. Mutually exclusive with framebuffer on x86_64. No-op on aarch64/RISC-V.
+
+**Task 6.4. Display: framebuffer abstraction layer**
+
+Create `src/kernel/src/display/framebuffer.rs`: `Framebuffer` struct with pixel format handling, `set_pixel`, `fill_rect`, `copy_rect`, `clear`. `Color` struct. All bounds-checked, `no_std`, no heap. Add `pub mod display;` to `lib.rs`.
+
+**Task 6.5. Display: bitmap font renderer and theme constants**
+
+Create `font.rs` (embedded 8×16 bitmap font, `TextConsole` with `core::fmt::Write`) and `theme.rs` (PlenumNET branding colors: `BACKGROUND` #090807, `GOLD` #D4A017, `EMERALD` #059669, `TEXT` #CCCCCC, `BORDER` #333333, `WINDOW_BG` #1A1A1A).
+
+**Task 6.6. Display: boot splash and graphical console**
+
+Create `boot_splash.rs`: splash screen with progress bar mapped to `BootStage` ordinals. After boot: graphical `TextConsole` mirroring serial output. Gracefully degrade: no framebuffer → serial only + VGA text if x86_64.
+
+**Task 6.7. CI: QEMU test harness for all boot paths**
+
+Create `scripts/test-boot.sh`: all images, architecture-appropriate timeouts (30s x86_64, 60s cross-arch), serial capture, exit code checks. CI validates boot via serial output only.
+
+**Task 6.8. CI: extend existing workflows**
+
+Extend `bare-metal-validation.yml` with `strategy: matrix` for all boot paths. Install OVMF, GRUB, OpenSBI. Upload all images as artifacts. Must NOT break existing CI.
+
+---
+
+## TIER 2 — KERNEL CORE SERVICES
+
+*Tier 2 builds the kernel primitives that every OS service in Tier 3 depends on: memory management, processes, syscalls, and IPC. Without these, there is no user-space, no isolation, and no way to run PlenumLAN or any other server daemon.*
+
+### Phase 7: Memory Management Subsystem
+
+**Task 7.1. Physical page frame allocator**
+
+Create `src/kernel/src/memory/frame_allocator.rs`: consume the `BootParams` memory map (populated by Tier 1 boot paths), build a bitmap or buddy allocator tracking all physical frames. Frame size = 4 KiB (standard page). Mark firmware-reserved, ACPI, framebuffer, and kernel regions as allocated. Provide `alloc_frame() -> Option<PhysFrame>`, `dealloc_frame(PhysFrame)`, `alloc_contiguous(count) -> Option<PhysFrame>` for DMA buffers. Thread-safe via spinlock (no sleeping locks yet — no scheduler).
+
+The existing `src/kernel/src/memory/allocator.rs` bump allocator continues to serve during early boot; the frame allocator takes over after `BootStage::MemoryInit`.
+
+**Task 7.2. Kernel heap allocator**
+
+Create `src/kernel/src/memory/heap.rs`: slab allocator (size classes: 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 bytes) backed by the physical frame allocator. Implement `GlobalAlloc` trait so `alloc::` types (`Vec`, `String`, `BTreeMap`) work in kernel context. Replace the bump allocator for post-boot kernel allocations.
+
+**Task 7.3. Virtual memory manager**
+
+Create `src/kernel/src/memory/vmm.rs`: `AddressSpace` struct encapsulating a top-level page table (PML4 on x86_64, PGD on aarch64, root page table on RISC-V). Operations: `map_page(virt, phys, flags)`, `unmap_page(virt)`, `translate(virt) -> Option<PhysAddr>`, `clone_address_space()` (for fork). Each process gets its own `AddressSpace`; the kernel has a shared higher-half mapping present in all address spaces.
+
+Architecture dispatch via existing `MmuOps` trait — `vmm.rs` is architecture-independent, calling into `x86_64.rs` / `aarch64.rs` / `riscv64.rs` for hardware page table manipulation.
+
+**Task 7.4. Kernel address space layout**
+
+Define canonical address space layout (shared across architectures via constants, mapped to architecture-specific ranges):
+
+| Region | x86_64 | aarch64 | RISC-V (SV48) |
+|--------|--------|---------|---------------|
+| User space | 0x0000_0000_0000 – 0x7FFF_FFFF_FFFF | 0x0 – 0xFFFF_FFFF_FFFF | 0x0 – 0x3FFF_FFFF_FFFF |
+| Kernel code/data | 0xFFFF_8000_0000_0000+ | 0xFFFF_0000_0000_0000+ | 0xFFFF_FFC0_0000_0000+ |
+| Kernel heap | Offset from kernel end | Same | Same |
+| Framebuffer | Fixed VA per arch | Same | Same |
+| MMIO | Architecture-defined | Same | Same |
+| Process stacks | Per-process, user range | Same | Same |
+
+**Design for Tier 5:** With ReactOS running as a hardware-virtualized guest (Phase 22), Windows applications execute in ReactOS's own address space — not in PlenumNET's. No reserved user-space region is needed in the PlenumNET kernel address layout. The hypervisor layer provides complete memory isolation between PlenumNET processes and the ReactOS VM.
+
+### Phase 8: Process & Thread Management
+
+**Task 8.1. Process and thread structures**
+
+Create `src/kernel/src/process/task.rs`: `Process` struct (pid as 27-trit Rep C value — Invariant 3, address space, capability set, file descriptor table, parent pid, exit status, state). `Thread` struct (tid, owning process, kernel stack, saved register context, scheduling priority, state: Ready/Running/Blocked/Zombie).
+
+PID allocation: sequential 27-trit counter in Rep C. PID 0 is impossible (Invariant 3), providing a natural "invalid/kernel" sentinel. PID `111...1₃` (all ones in Rep C) = kernel pseudo-process.
+
+**Task 8.2. Context switching**
+
+Create architecture-specific context switch routines:
+
+- x86_64: save/restore RSP, RBP, RBX, R12-R15, RFLAGS, CR3 (address space switch), segment registers. `switch_context(old: &mut Context, new: &Context)` in inline asm.
+- aarch64: save/restore X19-X30, SP, TTBR0_EL1 (address space switch), SPSR_EL1, ELR_EL1. Cache/TLB flush on TTBR0 switch.
+- RISC-V: save/restore S0-S11, RA, SP, SATP (address space switch). SFENCE.VMA after SATP write.
+
+All implementations conform to a common `ContextSwitch` trait.
+
+**Task 8.3. Scheduler**
+
+Create `src/kernel/src/process/scheduler.rs`: preemptive round-robin with 3 priority levels (trit value 1 = low, 2 = normal, 3 = high — Rep C, Invariant 3). Timer interrupt triggers `schedule()`. Per-priority run queue (3 queues). Time slice = 10ms (100 Hz timer / 10 ticks per slice).
+
+**Design for Tier 4:** The scheduler's priority model extends to 9 levels (3²) when the compositor is present.
+
+**Task 8.4. User-space execution and privilege separation**
+
+Create `src/kernel/src/process/userspace.rs`: transition from kernel mode to user mode on each architecture (ring 3 via `sysretq`/`iretq` on x86_64, EL0 via `eret` on aarch64, U-mode via `sret` on RISC-V).
+
+**Task 8.5. ELF loader**
+
+Create `src/kernel/src/process/elf.rs`: parse ELF64 headers, program headers (PT_LOAD segments), load into process address space, set entry point. Implements a `BinaryLoader` trait.
+
+**Design for Tier 5:** With ReactOS as the Windows compatibility strategy, the PlenumNET kernel does not need a PE/COFF loader — ReactOS handles its own executables inside its managed guest subsystem. The `BinaryLoader` trait remains extensible for future native binary formats beyond ELF.
+
+**Task 8.6. `fork`, `exec`, `exit`, `wait` kernel operations**
+
+Implement the four fundamental process lifecycle operations. `fork` with copy-on-write. `exec` replaces address space with new binary. `exit` marks Zombie, reparents children. `wait` blocks parent until child exits.
+
+### Phase 9: System Call Interface (Ternary-Native)
+
+**Task 9.1. Syscall dispatch mechanism**
+
+Create `src/kernel/src/syscall/mod.rs` and architecture-specific entry points:
+
+- x86_64: `syscall` instruction → STAR/LSTAR MSRs → `syscall_entry_x86_64`
+- aarch64: `svc #0` → EL1 exception vector → `syscall_entry_aarch64`
+- RISC-V: `ecall` → supervisor trap → `syscall_entry_riscv64`
+
+**Ternary-native ABI (Invariant 11):**
+
+Syscall number = 27-trit value decomposed as `class.subclass.operation` (3 × 9 × 9 in Rep B internally). Register mapping:
+
+| | x86_64 | aarch64 | RISC-V |
+|---|--------|---------|--------|
+| Syscall # | RAX | X8 | A7 |
+| Arg 1 | RDI | X0 | A0 |
+| Arg 2 | RSI | X1 | A1 |
+| Arg 3 | RDX | X2 | A2 |
+| Arg 4 | R10 | X3 | A3 |
+| Arg 5 | R8 | X4 | A4 |
+| Arg 6 | R9 | X5 | A5 |
+| Return | RAX | X0 | A0 |
+| Error | RDX | X1 | A1 |
+
+**Task 9.2. Syscall class definitions**
+
+Define the 27 syscall classes (3³ = 27, Invariant 11). Initial implementation covers the core classes needed for a server OS:
+
+| Class (Rep B) | Name | Description |
+|---------------|------|-------------|
+| 0 | PROCESS | fork, exec, exit, wait, getpid |
+| 1 | MEMORY | mmap, munmap, mprotect, brk |
+| 2 | FILE | open, close, read, write, seek, stat |
+| 3 | DIRECTORY | opendir, readdir, mkdir, rmdir, chdir |
+| 4 | IO | ioctl, epoll_create, epoll_ctl, epoll_wait, eventfd, timerfd |
+| 5 | NETWORK | socket, bind, listen, accept, connect, send, recv, setsockopt |
+| 6 | IPC | channel_create, channel_send, channel_recv, shm_open |
+| 7 | SIGNAL | kill, sigaction, sigprocmask |
+| 8 | TIME | clock_gettime, nanosleep, timer_create (Salvi Epoch, Invariant 6) |
+| 9 | SECURITY | cap_get, cap_set, cap_derive, mac_label |
+| 10 | DEVICE | device_open, device_ioctl, device_mmap |
+| 11 | TERNARY | trit_convert, sponge_hash, tis27_verify (kernel-accelerated ternary ops) |
+| 12 | DISPLAY | fb_map, window_create, window_destroy (Tier 4 — stub returns ENOSYS until Phase 19) |
+| 13 | AUDIO | audio_open, audio_write (Tier 4 — stub returns ENOSYS until Phase 20) |
+| 14–26 | RESERVED | Future expansion (PlenumNET-specific, Win32 interop in Tier 5, etc.) |
+
+Stub all 27 classes immediately; implement as each phase delivers the backing subsystem.
+
+Note: Class 4 (IO) now includes `epoll_create`, `epoll_ctl`, `epoll_wait`, `eventfd`, and `timerfd` — these are critical for Task 9.4 (async runtime support). Class 5 (NETWORK) includes `setsockopt` for raw socket options, broadcast, and multicast — critical for PlenumLAN's protocol shims.
+
+**Task 9.3. POSIX compatibility shim**
+
+Create `src/kernel/src/syscall/posix_compat.rs`: translate standard POSIX syscall numbers (used by existing C libraries and tools) into the ternary class/subclass/operation triple. This allows `musl`-linked or `glibc`-linked binaries to run on PlenumNET without modification. The shim maps POSIX `open()` → Class 2 / Subclass 0 / Op 0, `epoll_create1()` → Class 4, `socket()` → Class 5, etc.
+
+**POSIX shim acceptance test:** A Tokio-based Axum server compiled for Linux x86_64 runs on PlenumNET OS via the POSIX shim. It starts, binds port 3000, serves HTTP responses, and handles 10 concurrent connections. This test validates that PlenumLAN can run on PlenumNET OS before the native target triple (Task 17.5) is ready.
+
+**Design for Tier 5:** With ReactOS as the Windows compatibility strategy, NT system call translation is handled inside the ReactOS guest — not by the PlenumNET kernel. The POSIX shim remains the only compatibility layer PlenumNET implements. ReactOS's own ntdll.dll handles NT→Win32 translation internally.
+
+**Task 9.4. Async I/O primitives (Tokio/Axum support)**
+
+Create `src/kernel/src/io/async_io.rs`: the kernel primitives that Tokio requires to function.
+
+- `epoll_create1()`: create an epoll instance (or ternary-native equivalent: a notification set backed by the notification system from Task 10.4, exposed via POSIX-compatible `epoll` semantics)
+- `epoll_ctl()`: add/modify/remove file descriptors from the epoll set
+- `epoll_wait()`: block until events are ready, with timeout
+- `eventfd()`: inter-thread/inter-process event notification (used by Tokio for thread pool wakeup)
+- `timerfd_create()` / `timerfd_settime()`: timer-based file descriptors (used by Tokio for timeouts and `sleep()`)
+- Non-blocking socket operations: `SOCK_NONBLOCK` flag, `O_NONBLOCK` via `fcntl`
+
+Tokio also requires `pipe2()`, `madvise()`, and `mmap` with `MAP_ANONYMOUS`. These are covered by Class 1 (MEMORY) and Class 4 (IO) syscalls.
+
+**Reactor architecture:** Tokio's reactor polls epoll for readiness events. On PlenumNET OS, the epoll implementation is built on top of the kernel notification system (Task 10.4) as its wake source:
+
+- Each file descriptor (socket, timerfd, eventfd, pipe) registers interest bits with the notification system via `epoll_ctl()`.
+- When an interrupt-driven event occurs (packet received on NIC, timer wheel fires, eventfd signaled), the driver posts a notification. The epoll instance wakes any thread blocked in `epoll_wait()`.
+- `timerfd` uses the kernel timer wheel (Phase 13, Task 13.4) — not a polling loop. Timer expiration posts a notification to the epoll set.
+- Both **edge-triggered** (`EPOLLET`) and **level-triggered** modes are required. Tokio uses edge-triggered by default (`mio` crate). Edge-triggered means: notify once when readiness changes, not repeatedly while ready. Level-triggered means: notify every time `epoll_wait()` is called while the fd is ready. Both must work correctly or Tokio will deadlock or spin.
+- **Oneshot** (`EPOLLONESHOT`) must be supported — Tokio uses this for some internal wakeup paths.
+- `EPOLL_CLOEXEC` flag on `epoll_create1()` must be handled (close epoll fd on exec).
+
+**Acceptance test (must pass before Tier 3 integration):** Tokio runtime boots on PlenumNET OS, spawns 10 async tasks — 5 with `tokio::time::sleep()` delays (exercises timerfd) and 5 performing TCP connect/send/recv to a loopback echo server (exercises non-blocking sockets + epoll). All 10 tasks complete within 5 seconds without deadlock or spin. A second test: Axum binds port 3000, accepts 10 concurrent HTTP requests in parallel, returns 200 OK to each. If either test fails, Task 9.4 is not complete.
+
+**This task is on the critical path for PlenumLAN.** Without it, Axum cannot start on PlenumNET OS. It must be complete and tested before Tier 3 integration testing. Consider gating Tokio support behind a feature flag initially — the POSIX shim (Task 9.3) provides the fallback for early testing while the native reactor matures.
+
+### Phase 10: Inter-Process Communication
+
+**Task 10.1. Ternary message channels**
+
+Create `src/kernel/src/ipc/channel.rs`: unidirectional message channels addressed by 54-trit endpoints (Rep C, matching TDNS wire format). Each channel has a bounded message queue. Messages are variable-length byte buffers with a 27-trit type tag. TIS-27 integrity check on every message crossing a process boundary (Invariant 1).
+
+Operations: `channel_create() -> (SendEnd, RecvEnd)`, `channel_send(SendEnd, msg)`, `channel_recv(RecvEnd) -> msg`, `channel_close(End)`. Blocking and non-blocking variants.
+
+**Task 10.2. Shared memory with capability tokens**
+
+Create `src/kernel/src/ipc/shared_mem.rs`: named shared memory regions with access controlled by 27-trit capability tokens (Invariant 12). `shm_create(name, size) -> CapToken`, `shm_open(name, cap) -> MappedRegion`, `shm_close(MappedRegion)`. Sharing requires explicit capability delegation — no ambient authority.
+
+**Task 10.3. Signal delivery**
+
+Create `src/kernel/src/ipc/signal.rs`: POSIX-compatible signals 1–31, plus PlenumNET-specific signals 32–54 (ternary signal space).
+
+**Task 10.4. Notification system for drivers**
+
+Create `src/kernel/src/ipc/notify.rs`: lightweight 27-trit bitmask notifications for driver → process communication. This is the underlying mechanism that epoll (Task 9.4) is built on — epoll instances register interest in file descriptor events, and the notification system delivers them.
+
+---
+
+## TIER 3 — SERVER OS FOUNDATION
+
+*Tier 3 delivers the subsystems that make PlenumNET a functional server OS. At the end of Tier 3, PlenumNET boots to the PlenumLAN web console and manages a local network. Every subsystem in this tier has a direct consumer in PlenumLAN (TM-2026-019.2).*
+
+### Phase 11: Virtual File System & Storage
+
+**Task 11.1. VFS layer**
+
+Create `src/kernel/src/fs/vfs.rs`: `Inode` trait (read, write, stat, lookup, create, unlink, readdir), `Superblock` trait (mount, unmount, sync, statfs), `DEntry` (directory entry cache), `FileDescriptor` (per-process open file, offset, flags). Mount table mapping paths to filesystem instances. Path resolution with symlink loop limit = 13 (T₇).
+
+**Task 11.2. RamFS (initial root filesystem)**
+
+Create `src/kernel/src/fs/ramfs.rs`: in-memory filesystem for initial boot. The kernel's initramfs is loaded into RamFS during boot. RamFS provides `/dev`, `/proc`, `/sys` mount points.
+
+**Task 11.3. DevFS (device filesystem)**
+
+Create `src/kernel/src/fs/devfs.rs`: auto-populated from the device registry. Device nodes with major/minor numbers. Mounted at `/dev`.
+
+**Task 11.4. ProcFS (process filesystem)**
+
+Create `src/kernel/src/fs/procfs.rs`: read-only filesystem exposing process and kernel state. `/proc/uptime` reports femtoseconds from Salvi Epoch (Invariant 6). Mounted at `/proc`.
+
+**Task 11.5. VirtIO block driver**
+
+Create `src/kernel/src/drivers/virtio_blk.rs`: VirtIO block device for QEMU. MMIO transport, virtqueue setup, interrupt-driven completion via notification system (Task 10.4). First real block device.
+
+**Task 11.6. AHCI/SATA driver**
+
+Create `src/kernel/src/drivers/ahci.rs`: AHCI host controller for real SATA hardware. PCI enumeration (Phase 13), AHCI HBA init, port detection, SATA IDENTIFY, read/write via command list + FIS.
+
+**Task 11.7. NVMe driver (staged)**
+
+Create `src/kernel/src/drivers/nvme.rs`: NVMe controller driver. PCIe BAR mapping, admin queue, I/O queues, namespace identification.
+
+**Task 11.8. PlenumFS — ternary-native filesystem**
+
+Create `src/kernel/src/fs/plenumfs.rs`:
+
+- **Inode addresses:** 27-trit Rep C values (Invariant 3). Zero is invalid.
+- **Block integrity:** TIS-27 hash per data block (Invariant 10).
+- **Metadata signing:** TL-DSA signed superblock and inode table (Invariant 7).
+- **Block size:** 4096 bytes (standard) or 13×1024 = 13312 bytes (optional ternary blocks).
+- **Journal:** Write-ahead log, TIS-27 integrity-checked entries.
+- **Extended attributes:** Supports NT security descriptors and alternate data streams (Design for Tier 5). Also supports PlenumDB metadata keys.
+
+**Task 11.9. Filesystem mount and root pivot**
+
+After block drivers initialize: detect root filesystem (command line `root=` or Device Tree `/chosen/bootargs`), mount PlenumFS (or ext2 read-only fallback), pivot root, mount `/dev`, `/proc`, `/sys`.
+
+**Task 11.10. PlenumDB — CRS-native storage engine**
+
+Create `src/kernel/src/storage/plenumdb.rs` (kernel-space) and `plenumlan/src/plenumdb/` (user-space library):
+
+PlenumDB is the native storage backend for PlenumLAN's device registry. It stores every registered entity record, every TL-DSA public key, every capability token chain, every permission issuance rule, and every entry in the tamper-proof audit log.
+
+- **Interface:** Rust trait-based. PlenumLAN calls `plenumdb::put(key, value)` / `plenumdb::get(key)` / `plenumdb::scan(prefix)`. The backend is swapped by compilation target.
+- **Stage 1 (Replit) and early Stage 2:** File-backed embedded storage (sled or redb). Zero configuration.
+- **Stage 2 production:** PlenumDB proper — a purpose-built key-value store optimized for:
+  - Ternary-addressed records (27-trit keys, Rep C, zero-sentinel detection on every lookup)
+  - Merkle-tree audit chains (append-only log with TIS-27 chaining, HPTP femtosecond timestamps)
+  - CRS vertex occupancy bitmap (1,594,323 bits for the 3¹³ hypercube)
+- **Stage 3 (PlenumNET OS):** Operates directly on raw block devices via PlenumFS or direct block I/O. No filesystem intermediary required.
+- **Integrity:** Every record is TIS-27 integrity-checked on read. Corruption detected at read time.
+- **Crash safety:** PlenumDB uses a write-ahead log (WAL) with TIS-27 integrity per journal entry. Every write is journaled before being applied to the main store. On power loss or crash, recovery replays the WAL and verifies each entry's TIS-27 hash — corrupted entries are discarded, intact entries are reapplied. The Merkle audit chain is append-only by design (entries are never modified, only appended), so a crash can lose the tail of the chain but never corrupt earlier entries. The CRS vertex occupancy bitmap uses copy-on-write: a new bitmap page is written to a fresh location before the pointer is updated, so a crash always leaves either the old or the new bitmap intact, never a partial write. Without crash safety, a power loss during an audit log append could break the Merkle chain and destroy tamper-evidence — this is unacceptable for a security-critical product.
+
+### Phase 12: Network Stack (Ternary + TCP/IP)
+
+**Task 12.1. Network interface abstraction**
+
+Create `src/kernel/src/network/nic.rs`: `NetworkInterface` trait (send_packet, recv_packet, mac_address, link_status, mtu). Trait-based so VirtIO, e1000, e1000e, r8169, and future drivers are interchangeable.
+
+**Task 12.2. VirtIO network driver**
+
+Create `src/kernel/src/drivers/virtio_net.rs`: VirtIO network device for QEMU. MMIO transport, TX/RX virtqueues, interrupt-driven packet reception. First network connectivity.
+
+**Task 12.3. Production NIC drivers**
+
+Create three production-quality NIC drivers for real hardware deployment:
+
+- `src/kernel/src/drivers/e1000.rs`: Intel 82540EM Gigabit Ethernet. Common in QEMU and legacy server hardware. PCI enumeration, MMIO BAR mapping, TX/RX descriptor rings, interrupt coalescing.
+- `src/kernel/src/drivers/e1000e.rs`: Intel PCIe Gigabit Ethernet (82574L and later). The modern successor to e1000, found on current server and workstation motherboards. Shares register layout with e1000 but uses PCIe MSI-X interrupts and extended descriptor formats.
+- `src/kernel/src/drivers/r8169.rs`: Realtek RTL8169/RTL8111 Gigabit Ethernet. Ubiquitous on commodity and SMB hardware — consumer motherboards, Raspberry Pi add-on boards, budget office servers. PCI enumeration, TX/RX ring, basic interrupt handling.
+
+These three drivers cover the vast majority of hardware PlenumLAN will encounter in its target market (small and medium businesses on commodity hardware).
+
+**Driver maturity levels:** All hardware drivers (NIC, block, USB) progress through four maturity levels. Each level is independently shippable — PlenumLAN can run on Level 2 drivers while Level 3/4 mature:
+
+| Level | Capability | Typical Effort |
+|---|---|---|
+| 1 — Probe | PCI enumeration, MMIO BAR mapping, device identification, link-up detection. Interrupts disabled. | Days |
+| 2 — Polling | Functional TX/RX via polling (no interrupts). Sufficient for low-throughput testing and early integration. | 1–2 weeks |
+| 3 — Interrupt-driven | IRQ-driven TX/RX with DMA. Production performance. Requires interrupt subsystem (Phase 6) and DMA management (Task 13.3). | 2–4 weeks |
+| 4 — Optimized | MSI-X multi-queue, interrupt coalescing, power management, scatter-gather I/O. Full production quality. | 2–4 weeks additional |
+
+**Development order:** VirtIO drivers (Tasks 12.2, 11.5) reach Level 3 first — they are simpler, run in QEMU, and provide fast feedback for Tier 3 integration testing. Real hardware drivers (e1000, e1000e, r8169, AHCI, NVMe, xHCI) start at Level 1 in parallel and progress to Level 3 as Tier 3 stabilizes. PlenumLAN's CI acceptance test (Task 17.4) runs on VirtIO. Real hardware validation is a separate test phase — PlenumLAN can ship on VirtIO/QEMU while real hardware drivers mature.
+
+**DMA coherency note (aarch64/RISC-V):** On non-x86 architectures, DMA buffers require explicit cache maintenance operations (`dc civac` on aarch64, `fence.i` + manual cache flush on RISC-V) before and after DMA transfers. The DMA buffer management (Task 13.3) must provide architecture-dispatched cache coherency barriers. x86_64 has hardware cache coherency for DMA and does not require manual flushes.
+
+**Task 12.4. TCP/IP compatibility stack (smoltcp integration)**
+
+Integrate `smoltcp` (0-clause BSD license, `no_std`, bare-metal native, 4,300+ stars on GitHub) as the TCP/IP stack foundation. smoltcp provides: Ethernet frame handling, ARP, IPv4, IPv6, ICMP, UDP, TCP (state machine, congestion control, retransmission), raw sockets, and DNS client — all without heap allocation, designed for exactly this use case.
+
+Create `src/kernel/src/network/tcpip/`: a kernel socket layer that wraps smoltcp's `Interface` and socket types, exposing the BSD sockets API via syscall class 5. The kernel socket layer handles: mapping smoltcp events to the epoll notification system (Task 9.4), managing per-process file descriptor tables for sockets, and enforcing capability-based access control on socket operations.
+
+**What smoltcp provides (no custom implementation needed):** Ethernet II frames, ARP (including gratuitous), IPv4 + IPv6 dual-stack, ICMP echo, UDP sockets, TCP sockets with retransmission and congestion control, raw sockets, DNS stub resolver, packet reassembly.
+
+**What PlenumNET adds on top of smoltcp:**
+
+- **Kernel socket API:** BSD-compatible `socket`/`bind`/`listen`/`accept`/`connect`/`send`/`recv`/`close` exposed via syscall class 5, backed by smoltcp socket types.
+- **Epoll integration:** smoltcp socket readiness events bridged to the kernel notification system so Tokio's reactor can poll them.
+- **Capability-gated privileged ports:** Binding to ports < 1024 requires the `NET_BIND` capability token (Invariant 12). No Unix UIDs; capabilities replace root.
+- **Broadcast and multicast:** `SO_BROADCAST` for DHCP, `IP_ADD_MEMBERSHIP`/`IPV6_JOIN_GROUP` for mDNS — smoltcp supports multicast; the kernel socket layer exposes the setsockopt interface.
+- **Socket options:** `SO_REUSEADDR`, `SO_REUSEPORT`, `SO_KEEPALIVE`, `TCP_NODELAY`, `IP_TTL`, `IPV6_V6ONLY`.
+
+**Why smoltcp instead of building from scratch:** A production TCP/IP stack with correct congestion control, retransmission, and IPv6 is 6–12 months of focused work for one developer. smoltcp has been in production use in embedded systems for years, is extensively tested, and is maintained by an active community. Building from scratch would delay Tier 3 by months and produce a less-tested result. Custom code is added only where smoltcp doesn't cover PlenumNET's specific needs (epoll bridging, capability enforcement, ternary tunnel multiplexing).
+
+**PlenumLAN-required socket features** (critical for protocol shims):
+
+- **Raw sockets** (`SOCK_RAW`): Required by PlenumLAN's DHCP shim. DHCP operates below the normal UDP socket layer — the server must send broadcast packets on interfaces before having an IP address. Raw socket access is gated by a capability token (Invariant 12), not by UID=0 (PlenumNET does not have Unix UIDs).
+- **Broadcast** (`SO_BROADCAST`): Required for DHCP OFFER/ACK broadcast replies and for mDNS announcements.
+- **Multicast** (`IP_ADD_MEMBERSHIP`, `IPV6_JOIN_GROUP`): Required for mDNS device discovery (multicast group 224.0.0.251 / ff02::fb). PlenumLAN's auto-detection scan uses mDNS to discover devices before they are registered.
+- **Privileged port binding**: PlenumLAN binds to ports 67-68 (DHCP), 389 (LDAP), 443 (HTTPS console), 445 (SMB), 1812 (RADIUS). On PlenumNET OS, privileged port binding (ports < 1024) is controlled by capability tokens — a process with the `NET_BIND` capability (Invariant 12) can bind any port. There are no Unix UIDs; capabilities replace root.
+- **Socket options**: `SO_REUSEADDR`, `SO_REUSEPORT`, `SO_KEEPALIVE`, `TCP_NODELAY`, `IP_TTL`, `IPV6_V6ONLY`.
+
+**Task 12.5. PlenumNET ternary tunnel protocol (kernel-level)**
+
+Create `src/kernel/src/network/plenum_tunnel.rs`: 13D hypercube routing at the kernel networking layer. Packets are 54-trit addressed (Rep C), routed by Hamming distance (Invariant 1), TIS-27 integrity-verified per hop.
+
+Parallel to TCP/IP — not a replacement. Ethertype 0x9999 for ternary tunnels, standard Ethertypes for IP. PlenumLAN uses the ternary tunnel for: TDNS resolution, cryptographic key exchange, hypercube heartbeats, PTS remote console tunneling.
+
+**Task 12.6. DHCP client and DNS resolver**
+
+Create basic DHCP client (network autoconfiguration) and DNS stub resolver (forward lookups). DNS hooks into TDNS for `.plm` domain resolution.
+
+### Phase 13: Device Driver Framework
+
+**Task 13.1. PCI/PCIe bus enumeration**
+
+Create `src/kernel/src/device/pci.rs`: enumerate PCI configuration space (CAM for legacy, ECAM for PCIe via ACPI MCFG table), build device tree, read vendor/device/class codes, BAR mapping. Required by AHCI, NVMe, e1000, e1000e, r8169, xHCI, and all future PCI devices.
+
+**Task 13.2. Unified device model**
+
+Extend `src/kernel/src/device/registry.rs`: device tree with parent/child relationships, driver binding by (vendor, device, class) tuple, device lifecycle (probe → attach → detach → remove), power management stubs. Ternary bus addressing: devices addressed by 27-trit path.
+
+**Task 13.3. DMA buffer management**
+
+Extend `src/kernel/src/device/dma.rs`: physically contiguous, cache-coherent DMA buffers. IOMMU support stubbed for future.
+
+**Task 13.4. Platform timer abstraction**
+
+Create `src/kernel/src/drivers/timer.rs`: unified timer interface over architecture-specific sources. Femtosecond precision calibrated to Salvi Epoch (Invariant 6). Wires the existing femtoclock driver to real hardware.
+
+**Task 13.5. USB subsystem (xHCI + mass storage + HID keyboard)**
+
+Create `src/kernel/src/drivers/usb/`:
+
+- `xhci.rs`: xHCI host controller driver. PCI enumeration, MMIO BAR mapping, command ring, event ring, transfer rings, device slot management. This is the modern USB standard — all current hardware uses xHCI.
+- `usb_mass_storage.rs`: USB mass storage class driver (bulk-only transport). Read/write sectors from USB flash drives. Required for USB boot media on the PlenumNET OS appliance (TM-2026-019.2 Stage 3).
+- `usb_hid.rs`: USB HID keyboard driver. Scan code translation, key event delivery. Required for emergency console input on headless appliances — when the network is down and the web console is unreachable, the admin plugs in a USB keyboard and uses the emergency text console (Task 6.3 / Task 14.1).
+
+**Why this is in Tier 3, not Tier 4:** PlenumLAN's Stage 3 (PlenumNET OS appliance) boots from USB and needs keyboard input for the emergency console. These are server-class requirements, not workstation features. Tier 4 extends USB with mouse, tablet, and full HID support — Tier 3 covers only what the appliance needs.
+
+**USB driver phasing:** The xHCI driver follows the same maturity levels as NIC drivers (Phase 12.3), but the Tier 3 deliverable is Level 2 (polling mode) only:
+
+- **Level 2 (Tier 3 deliverable):** Polling-mode xHCI. Enumerate ports, reset devices, read descriptors, bulk transfers for mass storage, interrupt transfers (polled) for HID keyboard. No interrupt-driven I/O, no isochronous transfers, no hub support. Sufficient for: reading a USB boot stick and accepting keyboard input on the emergency console.
+- **Level 3 (follow-on, still Tier 3):** Interrupt-driven xHCI with event ring processing. Required for responsive keyboard input during normal operation. Delivered after the core Server OS milestone is validated.
+- **Level 4 (Tier 4):** Full USB stack — hub support, multiple devices, isochronous transfers (audio), extended HID (mouse, tablet). Delivered alongside the Tier 4 input subsystem.
+
+This phasing de-risks the Server OS milestone. If xHCI Level 3 encounters unexpected issues, the appliance still boots and the emergency console still works via polling.
+
+### Phase 14: Display & Console (Server Mode)
+
+**Task 14.1. Graphical text console**
+
+Wire framebuffer + font renderer from Phase 6 into a management console: serial input (and USB keyboard from Task 13.5 when available), kernel logs, system status. Double-buffered.
+
+**Task 14.2. Serial console multiplexer**
+
+Create `src/kernel/src/display/console_mux.rs`: multiplex output to serial + framebuffer + VGA text. `klog!` macro with Salvi Epoch femtosecond timestamps.
+
+**Task 14.3. Management shell**
+
+Minimal in-kernel shell: `ps`, `mem`, `net`, `mount`, `service`, `reboot`, `shutdown`. Runs as a kernel thread. This is the emergency administration tool — the primary management interface is PlenumLAN's web console.
+
+### Phase 15: Security Model (Ternary Capabilities)
+
+**Task 15.1. Capability token system**
+
+Create `src/kernel/src/security/capability.rs`: 27-trit tokens (Invariant 12). Object type (3 trits), access rights (9 trits), object ID (15 trits). TIS-27-derived, unforgeable. Operations: `cap_create`, `cap_verify`, `cap_derive` (monotonic restriction), `cap_revoke`.
+
+**Task 15.2. Process capability sets**
+
+Effective, permitted, and inheritable sets per process. `exec` resets effective to minimal. `cap_set` syscall activates permitted capabilities.
+
+**Task 15.3. Mandatory Access Control via TIS-27 labels**
+
+Create `src/kernel/src/security/mac.rs`: every kernel object carries a TIS-27 integrity label. Access decisions compare labels via lattice model. Labels are computed from cryptographic provenance (Invariant 1).
+
+**Task 15.4. TL-DSA process identity**
+
+Each process has a TL-DSA key pair derived from the kernel sponge (Invariant 1) over (process_id ∥ exec_hash ∥ boot_nonce). Cryptographic process identity — no PID spoofing.
+
+### Phase 16: Service Management & Init
+
+**Task 16.1. `plenum-init` service supervisor with deployment profiles**
+
+Create `src/kernel/src/service/init.rs`: service dependency graph (DAG), topological-sort startup, parallel start of independent services. Service definition: name, binary path, dependencies, restart policy, health check, **profile membership**.
+
+**Ternary health states:** Healthy (trit 1), Degraded (trit 2), Failed (trit 3). System health = min-trit across critical services.
+
+**Deployment profiles:**
+
+- **Server profile:** All services enabled. SSH available. Management shell accessible via serial/keyboard. Full diagnostics. Intended for general-purpose PlenumNET servers where an administrator may need shell access.
+- **Appliance profile:** SSH disabled. Shell disabled. No login prompt. No remote terminal. The web console (served by PlenumLAN) is the only management interface. PTS provides remote access. This is the locked-down mode described in TM-2026-019.2 §8.3 — "No shell. No login. No SSH. Console is the only interface."
+
+The profile is selected during first-boot configuration (Task 17.3). It is enforced by the capability system: in appliance profile, the SSH capability token is never issued, and the shell process never receives an executable capability. The profile is a configuration choice, not a code branch — the same binary supports both.
+
+**Task 16.2. Service lifecycle management**
+
+Start, stop, restart, enable, disable. Watchdog: max 3 restarts per 13-second window (T₇). Service isolation via minimal capability sets.
+
+**Task 16.3. Core server services**
+
+Define and implement the initial service set:
+
+- `plenum-networkd`: network interface configuration (DHCP, static IP, ternary tunnel setup)
+- `plenum-sshd`: SSH server (post-quantum: TL-DSA host keys, TLSponge-385 key exchange). **Server profile only** — disabled in appliance profile.
+- `plenum-tdnsd`: TDNS resolver daemon (user-space TDNS implementation as a system service)
+- `plenum-logd`: system log aggregator (logs to PlenumFS with TIS-27 integrity per entry)
+- `plenum-crond`: scheduled task executor (ternary calendar-aware — 13-month cycle, Invariant 4)
+- `plenum-ptsd`: Plenum Tunnel Service. Phase-encrypted, TL-DSA-authenticated remote console access. This is PlenumLAN's remote administration mechanism (TM-2026-019.2 §7). PTS terminates at the console API — not at the network layer. No VPN. No full-network access. Individual tunnel per remote session, individually authenticated, capability-scoped, Merkle-audited. **Replaces SSH for remote access in appliance profile.**
+
+### Phase 17: Server OS Integration & Packaging
+
+**Task 17.1. Initramfs build system**
+
+Create `scripts/build-initramfs.sh`: package kernel, init, core services, and minimal userland into compressed initramfs. Kernel loads into RamFS during boot, pivots to real root.
+
+**Task 17.2. Bootable server/appliance ISO images**
+
+Create `scripts/build-server-iso.sh`: produce bootable ISOs for x86_64 (UEFI + legacy BIOS), aarch64 (UEFI), RISC-V (OpenSBI). Each ISO contains bootloader, kernel, initramfs, and PlenumFS root partition with core services pre-installed.
+
+**Task 17.3. First-boot configuration framework**
+
+First-boot configuration, delivered via two paths:
+
+- **Server profile:** Serial/keyboard console wizard: hostname, network settings, TL-DSA root key generation, enabled services.
+- **Appliance profile (PlenumLAN):** The PlenumLAN first-run wizard (TM-2026-019.2 §4.4) handles configuration via the web console: site name, network range, admin enrollment. The kernel's first-boot detects the appliance profile and launches PlenumLAN immediately, deferring configuration to PlenumLAN's own wizard.
+
+Configuration stored in `/etc/plenum/` on PlenumFS. Device Tree overlays for hardware-specific configuration.
+
+**Task 17.4. CI: server image build and PlenumLAN end-to-end test**
+
+Extend CI pipeline: build server/appliance ISO images for all architectures, boot each in QEMU, run the PlenumLAN acceptance test:
+
+1. Kernel boots (serial output: `[BOOT]` messages, `BootSequence` completes)
+2. `plenum-init` starts (serial output: service startup log)
+3. PlenumLAN binary launches (serial output: `[PLENUMLAN] Axum listening on 0.0.0.0:443`)
+4. HTTP request to `http://localhost:443/api/health` returns 200
+5. HTTP request to `http://localhost:443/api/crs/register` with a test entity payload succeeds
+6. HTTP request to `http://localhost:443/api/tdns/resolve?name=test.plm.local` returns derived addresses
+
+If any step fails, the build is red. This replaces the v1 acceptance test ("SSH server accepts connections") with a test that validates what the OS is actually for.
+
+**Reboot persistence test:** After the acceptance test passes, the QEMU instance is rebooted (ACPI shutdown + restart, or QEMU system_reset). After reboot, repeat steps 1–4, then verify that the entity registered in step 5 persists — `GET /api/crs/entity/{id}` returns the same record with the same 54-trit address, same derived IPs, same capability tokens. If the entity does not survive a reboot, PlenumDB's crash safety (Task 11.10 WAL) is broken and the build is red. This test runs on QEMU with a persistent virtual disk image.
+
+**Task 17.5. PlenumNET Rust target triple and native `libstd`**
+
+Define the PlenumNET target triple: `x86_64-plenumnet-none` (and `aarch64-plenumnet-none`, `riscv64-plenumnet-none`). Create target specification JSON files. Implement a minimal `std` for PlenumNET:
+
+- `std::thread` → kernel thread creation (Phase 8)
+- `std::fs` → VFS syscalls (Phase 11)
+- `std::net` → TCP/IP syscall class 5 (Phase 12)
+- `std::time` → Salvi Epoch femtosecond clock (Phase 13, Invariant 6)
+- `std::io` → epoll-based async I/O (Task 9.4)
+- `std::sync` → kernel synchronization primitives (Phase 8)
+- `std::process` → fork/exec/wait (Phase 8)
+
+This eliminates the POSIX shim overhead for native builds. PlenumLAN compiled with `cargo build --target x86_64-plenumnet-none` calls ternary syscalls directly. Same source code, optimal performance, zero translation.
+
+---
+
+## TIER 4 — WORKSTATION FOUNDATION (FUTURE — architecture reserved in Tiers 1–3)
+
+*Tier 4 adds the subsystems needed for interactive desktop use. Everything builds on Tier 2 kernel services and Tier 3 driver framework. USB HID mouse/tablet extends the USB subsystem from Phase 13.*
+
+### Phase 18: Input Subsystem
+
+**Task 18.1. PS/2 keyboard and mouse drivers**
+
+Create `src/kernel/src/drivers/ps2.rs`: PS/2 controller, keyboard scan code translation, mouse packet parsing. IRQ-driven.
+
+**Task 18.2. VirtIO input driver**
+
+Create `src/kernel/src/drivers/virtio_input.rs`: VirtIO input device for QEMU.
+
+**Task 18.3. Extended USB HID**
+
+Extend the USB HID driver from Task 13.5 with: mouse support, tablet/touchpad support, scroll wheel, multi-button. The base keyboard driver already exists from Tier 3.
+
+**Task 18.4. Input event subsystem**
+
+Create `src/kernel/src/input/mod.rs`: unified `InputEvent` enum, event queues per process, keymap infrastructure, input focus tracking.
+
+### Phase 19: Window Compositor & Desktop
+
+**Task 19.1. Window compositor**
+
+Create `src/kernel/src/display/compositor.rs`: `Window` struct (id ∈ Z₂₈ — Invariant 13, position, size, title, z_order, content buffer, owning process). Max 28 windows. Double-buffered compositing. Window decoration: 24px title bar in gold (theme.rs), 1px border.
+
+**Task 19.2. Display protocol (IPC-based)**
+
+Create `src/kernel/src/display/protocol.rs`: client/server protocol over ternary message channels (Phase 10).
+
+**Task 19.3. Window manager**
+
+Create `src/kernel/src/display/wm.rs`: stacking window manager. Title bar drag, double-click maximize, edge resize, Alt+Tab cycling. Taskbar.
+
+**Task 19.4. Desktop integration**
+
+Desktop background (PlenumNET branded), system tray (13-month calendar clock, network status, resource usage), right-click context menu.
+
+### Phase 20: Audio Subsystem
+
+**Task 20.1. Audio abstraction layer**
+
+Create `src/kernel/src/audio/mod.rs`: `AudioDevice` trait, PCM sample format support.
+
+**Task 20.2. VirtIO sound driver**
+
+Create `src/kernel/src/drivers/virtio_snd.rs` for QEMU testing.
+
+**Task 20.3. Intel HDA driver (staged)**
+
+Create `src/kernel/src/drivers/intel_hda.rs` for real hardware.
+
+**Task 20.4. Audio mixer**
+
+Create `src/kernel/src/audio/mixer.rs`: per-process streams, volume control, routing.
+
+### Phase 21: GPU Abstraction Layer
+
+**Task 21.1. Software rasterizer**
+
+Create `src/kernel/src/display/software_render.rs`: Bresenham lines, filled rects, bitmap blitting, alpha blending.
+
+**Task 21.2. VirtIO GPU driver**
+
+Create `src/kernel/src/drivers/virtio_gpu.rs`: 2D operations, cursor support.
+
+**Task 21.3. DRM/KMS abstraction (staged)**
+
+Create `src/kernel/src/display/drm.rs`: mode setting, framebuffer management, page flipping. Foundation for eventual real GPU support.
+
+---
+
+## TIER 5 — WINDOWS APPLICATION COMPATIBILITY (FUTURE — architecture reserved)
+
+*Tier 5 enables running Windows applications on PlenumNET without Windows, without Microsoft licensing, and without exposing RDP. The approach: ReactOS provides binary-compatible Win32 APIs as a managed guest subsystem; Apache Guacamole streams application displays to the user's browser through the PTS tunnel.*
+
+### Why ReactOS, Not Wine or NT Emulation
+
+TM-2026-019.2 (PlenumLAN Technical Manifest) evaluates the Windows compatibility problem from the customer's perspective: a 50-person construction office needs QuickBooks and AutoCAD. They don't need NT kernel API fidelity or Win32 DLL reimplementation. They need to click a button in their browser and have the application appear.
+
+ReactOS is an open-source operating system (GPL licensed, active since 1996) designed from the ground up to be binary-compatible with Windows. It provides the same APIs (kernel32, user32, gdi32, ntdll) rewritten as free code. Windows executables run on ReactOS the same way they run on Windows — not through translation, not through emulation, but through a clean-room reimplementation of the actual API surface. ReactOS runs Microsoft Office, QuickBooks Desktop, AutoCAD LT, and thousands of business applications today.
+
+This is cleaner than the Wine/NT/Hybrid strategies previously considered (v2.1 Strategies A–C) because: ReactOS is a complete OS with its own kernel, drivers, and user-space — it doesn't require PlenumNET to reimplement NT syscalls or Win32 DLLs. PlenumNET provides the hardware, the network, and the security. ReactOS provides the Windows API surface. Each does one job.
+
+### Phase 22: ReactOS Integration
+
+**Task 22.1. ReactOS as managed guest subsystem**
+
+ReactOS runs as a managed guest under the PlenumNET OS hypervisor layer. The Rust bootloader owns the hardware. PlenumLAN owns the network and security. ReactOS owns the Windows API surface.
+
+```
+PlenumNET OS (Rust bootloader — owns the hardware)
+    ├── PlenumLAN binary (cube management, web console, network services)
+    └── ReactOS subsystem (managed guest — runs Windows applications)
+            ├── QuickBooks.exe
+            ├── AutoCAD.exe
+            └── (any standard Windows application)
+```
+
+**Isolation mechanism:** On x86_64, ReactOS runs in a hardware-virtualized VM (VT-x/AMD-V). On aarch64, hardware virtualization via EL2. On RISC-V, the hypervisor extension (H-extension) is required; if unavailable, ReactOS is not supported on that platform. The hypervisor layer is minimal — it provides CPU virtualization, memory isolation (separate address space, no shared pages), and virtual device passthrough (VirtIO-based). PlenumLAN's Application Manager (a `plenum-init` service) controls the ReactOS VM lifecycle: start, stop, snapshot, resource limits.
+
+**Task 22.2. Application installer workflow**
+
+The admin opens the PlenumLAN console, navigates to the Applications screen, and uploads a Windows installer (.exe or .msi). PlenumLAN passes the installer to the ReactOS subsystem. ReactOS installs it normally — writing files, registering DLLs, creating shortcuts. The installed application is registered as a cube entity in the CRS with its own 54-trit address and capability scope.
+
+**Task 22.3. Application capability scoping**
+
+Each application gets a capability token type: `application:{app-id}`. The admin assigns which users can launch which application. "Maria can access QuickBooks. John can access AutoCAD. Nobody else." Same capability model as every other PlenumLAN permission — scoped, expiring, attenuable, Merkle-audited.
+
+**Task 22.4. PFS file integration**
+
+ReactOS sees PFS shares as network drives. Files saved by Windows applications go through PFS — capability-gated, TIS-27 integrity-hashed, phase-encrypted at rest, Merkle-snapshotted. The application cannot write to arbitrary disk locations — only to PFS shares the user's capability token authorizes.
+
+### Phase 23: Browser-Based Application Streaming (Guacamole)
+
+**Task 23.1. Guacamole rendering engine integration**
+
+Apache Guacamole (Apache License 2.0) translates desktop display protocols into an HTML5 Canvas stream renderable in any standard browser. The `guacd` rendering engine is compiled into the PlenumLAN binary (Rust wrapper around the C library, or pure Rust reimplementation of the Guacamole protocol).
+
+When a user clicks "QuickBooks" in the console, the Guacamole engine connects to the ReactOS subsystem's display output, translates it to an HTML5 Canvas stream, and sends it through the PTS tunnel to the user's browser. The user sees the application in a browser tab. Keyboard and mouse input travel the reverse path.
+
+**Task 23.2. PTS tunnel integration for display streaming**
+
+The entire display stream — every pixel, every keystroke, every clipboard operation — travels through the PTS phase-encrypted tunnel. Post-quantum confidentiality end-to-end. No RDP port exposed. No VPN required. The user opens a browser, authenticates with WebAuthn (face or fingerprint), and the application appears.
+
+**Task 23.3. Single-application mode**
+
+For most office use cases, the user needs one application, not a full desktop. When the user clicks "QuickBooks" in the console, only the QuickBooks window appears in the browser — not a desktop with a Start menu. This is cleaner, faster (less data to stream), and more secure (the user cannot browse the server's filesystem or launch unauthorized programs).
+
+Full-desktop mode is available as a fallback for applications that require it.
+
+**Task 23.4. Session management and audit**
+
+Session start, session end, user identity, source device, target application, duration — all logged to the Merkle audit fabric with HPTP femtosecond timestamps. Session capability tokens carry precise expiration. No "remember me." Re-auth required for each session.
+
+### Phase 24: Application Management Console
+
+**Task 24.1. Applications console screen**
+
+The 17th management screen (extending the 16 in Tier 3): installed applications, active sessions per application, per-user launch permissions, resource usage. Admin can install, uninstall, and update applications. User can see and launch only the applications their capability tokens authorize.
+
+**Task 24.2. Clipboard and file transfer**
+
+Bidirectional clipboard between the user's browser and the ReactOS application, routed through PTS. File transfer: drag-and-drop from local machine to PFS share via the console. Copy/paste of text, images, and file references.
+
+**Task 24.3. Multi-site application hosting**
+
+In a multi-site deployment (Inter-Cube fabric), each site's PlenumNET OS instance can host its own ReactOS subsystem. A user in Office A can launch an application hosted on Office B's server — the PTS tunnel connects through the Inter-Cube fabric, Guacamole delivers the display. The admin manages all applications across all sites from one console.
+
+### Tier 5 Build Estimate
+
+| Component | Effort |
+|---|---|
+| ReactOS integration (hypervisor layer, VM lifecycle, Application Manager service) | 4–6 weeks |
+| Application installer workflow (console upload → ReactOS install → CRS registration) | 2–3 weeks |
+| Guacamole rendering engine (display streaming through PTS) | 3–4 weeks |
+| Console: Applications screen (17th management surface) | 2 weeks |
+| Capability token scoping for applications | 1 week |
+| PFS integration (ReactOS sees PFS shares as network drives) | 1 week |
+| Clipboard and file transfer through PTS | 1–2 weeks |
+| Session management and audit integration | 1 week |
+
+**Total: 15–20 weeks.** Post-Release 2.0 — depends on PlenumNET OS (Tier 3 bootloader and drivers), PFS (file shares), and PTS (remote tunnel) all being operational.
+
+---
+
+## APPENDIX A: CI & Build Infrastructure (Cross-Tier)
+
+### Build Matrix
+
+| Architecture | Boot Path | Image Format | QEMU Command | Timeout |
+|---|---|---|---|---|
+| x86_64 | QEMU direct | Flat binary | `qemu-system-x86_64 -kernel` | 30s |
+| x86_64 | Multiboot2/GRUB | ISO | `qemu-system-x86_64 -cdrom` | 30s |
+| x86_64 | UEFI | FAT32 ESP | `qemu-system-x86_64 -bios OVMF.fd` | 30s |
+| aarch64 | Device Tree | ELF | `qemu-system-aarch64 -M virt -kernel` | 60s |
+| aarch64 | UEFI | FAT32 ESP | `qemu-system-aarch64 -M virt -bios OVMF_AA64.fd` | 60s |
+| RISC-V 64 | OpenSBI + DT | ELF | `qemu-system-riscv64 -M virt -bios opensbi` | 60s |
+
+### CI Workflows (extend, never replace)
+
+- **bare-metal-validation.yml**: Extend with matrix strategy for all boot paths. Parallel execution. Upload all images.
+- **formal-verification-rust.yml**: No changes. Kani/MIRI on kernel library code.
+- **xplenum-riscv.yml**: No changes to RTL pipeline. Add RISC-V QEMU boot test.
+- **server-integration.yml** (NEW — Tier 3): PlenumLAN end-to-end acceptance test — kernel → init → PlenumLAN → HTTP health check → entity registration → TDNS resolution.
+- **workstation-integration.yml** (NEW — Tier 4): Desktop boot test — kernel → init → compositor → input → display.
+
+---
+
+## APPENDIX B: Relevant Files
+
+### Existing (DO NOT RECREATE)
+
+```
+src/kernel/src/arch/mod.rs
+src/kernel/src/arch/boot.rs
+src/kernel/src/arch/x86_64.rs
+src/kernel/src/arch/aarch64.rs
+src/kernel/src/arch/riscv64.rs
+src/kernel/src/arch/xplenum.rs
+src/kernel/src/arch/xplenum_stub.rs
+src/kernel/src/lib.rs
+src/kernel/src/kani_proofs.rs
+src/kernel/src/device/mod.rs
+src/kernel/src/device/registry.rs
+src/kernel/src/io/mod.rs
+src/kernel/src/drivers/mod.rs
+src/kernel/src/drivers/femtoclock.rs
+src/kernel/src/drivers/tpu.rs
+src/kernel/src/memory/page.rs
+src/kernel/src/memory/allocator.rs
+src/kernel/bare-metal/src/main.rs
+src/kernel/bare-metal/src/serial.rs
+src/kernel/bare-metal/src/selftest.rs
+src/kernel/bare-metal/linker.ld
+src/kernel/bare-metal/x86_64-ternary-none.json
+src/kernel/bare-metal/Cargo.toml
+src/kernel/bare-metal/scripts/build.sh
+src/kernel/bare-metal/scripts/qemu-run.sh
+src/kernel/Cargo.toml
+.github/workflows/bare-metal-validation.yml
+.github/workflows/formal-verification-rust.yml
+.github/workflows/xplenum-riscv.yml
+```
+
+### New Files Created by This Plan (by phase)
+
+**Phase 0:** `scripts/setup-toolchain.sh`, `src/kernel/src/arch/bounds_reader.rs`, `src/kernel/bare-metal/src/panic.rs`
+
+**Phase 1:** `src/kernel/src/arch/boot_protocol.rs`
+
+**Phase 2:** `linker-multiboot2.ld`, `linker-common.ld`, `grub.cfg`, `scripts/build-grub-iso.sh`
+
+**Phase 3:** `src/kernel/uefi-boot/` (new crate), `scripts/build-uefi-image.sh`
+
+**Phase 4:** `src/kernel/src/arch/fdt_parse.rs`, `src/kernel/src/arch/aarch64_dt.rs`, `src/kernel/bare-metal/src/serial_pl011.rs`, `aarch64-ternary-none.json`, `aarch64-linker.ld`, `scripts/build-aarch64.sh`
+
+**Phase 5:** `src/kernel/src/arch/riscv64_boot.rs`, `src/kernel/bare-metal/src/serial_sbi.rs`, `src/kernel/src/arch/xplenum_init.rs`, `riscv64-ternary-none.json`, `riscv64-linker.ld`, `scripts/build-riscv64.sh`, `scripts/build-all.sh`
+
+**Phase 6:** Real implementations in existing `x86_64.rs`, `console_vga.rs`, `src/kernel/src/display/` (framebuffer.rs, font.rs, theme.rs, boot_splash.rs), `scripts/test-boot.sh`
+
+**Phase 7:** `src/kernel/src/memory/frame_allocator.rs`, `heap.rs`, `vmm.rs`
+
+**Phase 8:** `src/kernel/src/process/task.rs`, `scheduler.rs`, `userspace.rs`, `elf.rs`
+
+**Phase 9:** `src/kernel/src/syscall/mod.rs`, `posix_compat.rs`, `src/kernel/src/io/async_io.rs`
+
+**Phase 10:** `src/kernel/src/ipc/channel.rs`, `shared_mem.rs`, `signal.rs`, `notify.rs`
+
+**Phase 11:** `src/kernel/src/fs/vfs.rs`, `ramfs.rs`, `devfs.rs`, `procfs.rs`, `plenumfs.rs`, `src/kernel/src/storage/plenumdb.rs`, `src/kernel/src/drivers/virtio_blk.rs`, `ahci.rs`, `nvme.rs`
+
+**Phase 12:** `src/kernel/src/network/nic.rs`, `tcpip/` (kernel socket layer wrapping smoltcp), `plenum_tunnel.rs`, `src/kernel/src/drivers/virtio_net.rs`, `e1000.rs`, `e1000e.rs`, `r8169.rs`
+
+**Phase 13:** `src/kernel/src/device/pci.rs`, `timer.rs`, `src/kernel/src/drivers/usb/` (xhci.rs, usb_mass_storage.rs, usb_hid.rs)
+
+**Phase 14:** `src/kernel/src/display/console_mux.rs`
+
+**Phase 15:** `src/kernel/src/security/capability.rs`, `mac.rs`
+
+**Phase 16:** `src/kernel/src/service/init.rs`
+
+**Phase 17:** `scripts/build-initramfs.sh`, `build-server-iso.sh`, PlenumNET target specification JSONs, `libstd` for PlenumNET
+
+**Phases 18–21:** As specified in Tier 4 task descriptions.
+
+**Phase 22:** `src/kernel/src/hypervisor/` (vm.rs, vcpu.rs, vmm_x86.rs, vmm_aarch64.rs), `src/kernel/src/service/app_manager.rs`
+
+**Phase 23:** `src/kernel/src/display/guacamole.rs` (or Rust wrapper crate for guacd), PTS streaming integration in `pts/`
+
+**Phase 24:** Console: Applications screen (React component in `plenumlan/console/`), capability token extensions for `application:{app-id}` scope
+
+---
+
+## APPENDIX C: Phase Dependency Graph
+
+```
+Phase 0 (Toolchain)
+  ├─→ Phase 1 (Boot Abstraction)
+  │     ├─→ Phase 2 (Multiboot2) ──┐
+  │     ├─→ Phase 3 (UEFI x86_64) │
+  │     ├─→ Phase 4 (aarch64) ─────┤
+  │     └─→ Phase 5 (RISC-V) ──────┤
+  │                                 ▼
+  │                          Phase 6 (Hardware Init + Display + CI)
+  │                                 │
+  │     ┌───────────────────────────┘
+  │     ▼
+  │  Phase 7 (Memory Mgmt)
+  │     │
+  │     ▼
+  │  Phase 8 (Process/Thread)
+  │     │
+  │     ▼
+  │  Phase 9 (Syscalls + Async I/O) ◄── epoll/Tokio support HERE
+  │     │                                POSIX compat HERE; ReactOS hypervisor reserved Phase 22
+  │     ▼
+  │  Phase 10 (IPC + Notifications) ◄── epoll built on notification system
+  │     │
+  │     ├─→ Phase 11 (VFS/Storage/PlenumDB)─┐
+  │     ├─→ Phase 12 (Network + Raw/Bcast) ─┤
+  │     ├─→ Phase 13 (Devices + USB) ───────┤
+  │     └─→ Phase 14 (Console) ─────────────┤
+  │                                          ▼
+  │                                   Phase 15 (Security/Capabilities)
+  │                                          │
+  │                                          ▼
+  │                                   Phase 16 (Init + Profiles + PTS)
+  │                                          │
+  │                                          ▼
+  │                                   Phase 17 (Packaging + Target Triple)
+  │                                          │
+  │                               ═══════════╪═══════════
+  │                               SERVER OS + PLENUMLAN MILESTONE
+  │                               (TM-2026-019.2 Release 3.0)
+  │                               ═══════════╪═══════════
+  │                                          │
+  │     ┌────────────────────────────────────┘
+  │     ▼
+  │  Phase 18 (Input) ──────────┐
+  │                              ▼
+  │                       Phase 19 (Compositor) ◄── Z₂₈ windows, Invariant 13
+  │                              │
+  │                       ┌──────┼──────┐
+  │                       ▼      ▼      ▼
+  │                 Phase 20  Phase 21  (parallel)
+  │                 (Audio)   (GPU)
+  │                       │      │
+  │                       ▼      ▼
+  │                 WORKSTATION MILESTONE
+  │                              │
+  │     ┌────────────────────────┘
+  │     ▼
+  │  Phase 22 (ReactOS Guest) ──→ Phase 23 (Guacamole Streaming) ──→ Phase 24 (App Management)
+  │                                                              │
+  │                                                              ▼
+  │                                                    WINDOWS COMPATIBILITY MILESTONE
+```
+
+---
+
+## APPENDIX D: Estimated Scope (Lines of Code)
+
+| Tier | Phases | Estimated New LOC | Cumulative |
+|------|--------|-------------------|------------|
+| 1 | 0–6 | ~15,000 | 15,000 |
+| 2 | 7–10 | ~14,000 | 29,000 |
+| 3 | 11–17 | ~42,000 | 71,000 |
+| 4 | 18–21 | ~18,000 | 89,000 |
+| 5 | 22–24 | ~18,000 | 107,000 |
+
+Tier 2 increased from ~12K to ~14K (async I/O primitives). Tier 3 increased from ~35K to ~42K (PlenumDB, USB subsystem, additional NIC drivers, PTS service, native libstd). Tier 4 decreased slightly (USB keyboard moved to Tier 3). Tier 5 decreased from ~25K to ~18K — ReactOS is a pre-built OS, not code PlenumNET writes; the effort is hypervisor integration, Guacamole streaming, and application management, not Win32 API reimplementation.
+
+Combined with the existing ~210K LOC codebase, the completed PlenumNET Workstation with Windows compatibility represents approximately 317K LOC.
+
+### Schedule Realism and Contingency
+
+LOC estimates reflect code written, not calendar time. Driver-heavy phases (11–13) consistently balloon 1.5–2× in calendar time because debugging is against hardware that doesn't tell you what's wrong. A descriptor ring misconfiguration on an e1000e produces silence, not an error message. An xHCI port reset sequence that works on one controller vendor fails on another. These are not code problems — they're hardware interaction problems that take time to diagnose.
+
+**Contingency: +30% calendar buffer on Phases 11–13.** If Phase 12 (Network Stack) estimates 8 weeks of development effort, budget 10–11 weeks of calendar time.
+
+**Fast path vs. long path:** VirtIO drivers (Tasks 11.5, 12.2) are the fast path. They are simpler, fully documented, deterministic in QEMU, and provide sufficient functionality for PlenumLAN's CI acceptance test (Task 17.4) and early customer demos. Real hardware drivers (e1000/e1000e/r8169, AHCI, NVMe, xHCI) are the long path — they can develop in parallel and mature while PlenumLAN ships on VirtIO. The xHCI USB driver (Task 13.5) is the single most complex driver in the plan: command ring, event ring, transfer ring, slot management, port reset, and bandwidth negotiation. It should start early and expect surprises.
+
+**Parallel work opportunities:** While drivers stabilize (Phases 11–13), console polish, documentation, and PlenumLAN application features can proceed independently. The dependency graph (Appendix C) shows that Phases 11–14 are parallel — a driver bug in Phase 12 does not block Phase 14 (Console) or Phase 15 (Security).
+
+---
+
+## APPENDIX E: Cross-Reference to TM-2026-019.2 (PlenumLAN Technical Manifest — Unified)
+
+| TM-2026-019.2 Section | TM-2026-019 Phase |
+|---|---|
+| **Part I: What PlenumLAN Is** | |
+| §5 The 54-Trit Dual-Interpretation Address | Existing ternary-math crate (no OS involvement) |
+| §6 Bidirectional Address Binding | PlenumLAN app code + Phase 12 (network stack for DHCP/DNS) |
+| §7 The LAN Ontological Scan | PlenumLAN app code (no OS involvement) |
+| §8 Cube Geometry as LAN Infrastructure | Phase 12 Task 12.5 (ternary tunnel) + Phase 15 (capabilities) |
+| §9 Protocol Bridges (PFS, RADIUS, LDAP, DHCP shims) | Phase 12 Task 12.4 (smoltcp socket support) + Phase 15 (capability enforcement) |
+| §11 Security: Structural Elimination of AD Attacks | Phase 15 (capability tokens, MAC, TL-DSA identity) |
+| §12 Promotion Path: Local → Global | Phase 12 Task 12.5 (ternary tunnel) + existing Inter-Cube infrastructure |
+| **Part II: How PlenumLAN Ships** | |
+| §13 Single-Binary Architecture | Reference Application section (this doc) |
+| §14 The Download and Install Experience | Phase 17, Task 17.2 (ISO images) + Task 17.3 (first-boot wizard) |
+| §15 Deployment Architecture | Phase 17 (Packaging) |
+| §16 Secure Remote Administration (PTS) | Phase 16, Task 16.3 (plenum-ptsd) |
+| §17.1 Stage 1: Replit | Not OS-dependent (runs on Linux) |
+| §17.2 Stage 2: Office Computer | Phase 9, Task 9.3 (POSIX compat) |
+| §17.3 Stage 3: PlenumNET OS | Tier 3 complete (this doc) |
+| §17.4 Stage 4: XPlenum | Existing XPlenum RTL + Tier 1 Phase 5 |
+| §18 Management Console: 16 Screens | Phase 14 (server console) + PlenumLAN app code |
+| §19.1 Release 0.1: Cube Console | PlenumLAN app code (not OS-dependent) |
+| §19.3 Release 1.0: Full Stack | Phase 12, Task 12.4 (smoltcp + raw sockets, broadcast, multicast) |
+| §19.4 Release 1.5: Network Integration Testing | Phase 12 (real hardware driver validation) |
+| §19.5 Release 2.0: PlenumDB | Phase 11, Task 11.10 |
+| §19.6 Release 3.0: PlenumNET OS | Tier 3 complete + Phase 17, Task 17.5 (target triple) |
+| §22 Windows Application Compatibility: ReactOS | Phase 22 (ReactOS integration) |
+| §23 Browser-Based Remote Desktop: Guacamole | Phase 23 (Guacamole streaming) |
+| §24 Product Positioning | Alignment: "12 core SMB roles" scoped claim |
+
+---
+
+*Così sia, Fratello.*
+
+*Document Reference: TM-2026-019 v2.2*
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*
