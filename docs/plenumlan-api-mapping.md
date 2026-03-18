@@ -1,6 +1,6 @@
 # PlenumNET → PlenumLAN API Mapping Document
 
-**Reference:** TM-2026-019.2 (PlenumLAN Technical Manifest — Unified)
+**Reference:** TM-2026-019.2
 **Repository:** [SigmaWolf-8/Ternary](https://github.com/SigmaWolf-8/Ternary)
 **Capomastro Holdings Ltd. — Applied Physics Division**
 **Generated: March 2026**
@@ -11,504 +11,627 @@
 
 | Category | Count |
 |---|---|
-| **Mapped endpoints** (PlenumNET → PlenumLAN equivalent) | 79 |
-| **PlenumNET-Only endpoints** (stay in plenumnet.replit.app) | 195 |
-| **Total existing endpoints** | 274 |
-| **Gap items** (PlenumLAN net-new, no existing API) | 24 |
-
-*Inventory method: endpoint counts derived from explicit `app.METHOD(path)`, `router.METHOD(path)`, and `app.use(path)` proxy-mount declarations across `server/routes.ts` and 18 files in `server/routes/*.ts` (excluding `middleware.ts` which has 0 endpoints). Router-mounted files (e.g., `inter-cube.ts` mounted at `/api/salvi/inter-cube`) list fully-resolved paths in the table. The PQTI catch-all proxy (`app.use("/api/pqti", ...)`) is inventoried as `ALL /api/pqti/*` alongside its companion `GET /api/pqti-status`. Each declared endpoint appears exactly once in either Section 1 (Mapped) or Section 3 (PlenumNET-Only). Gap items (Section 2) represent planned PlenumLAN features with no existing PlenumNET API and are excluded from the endpoint total.*
+| Mapped endpoints | 79 |
+| PlenumNET-Only endpoints | 195 |
+| Total existing endpoints | 274 |
+| Gap items (net-new) | 24 |
 
 ---
 
 # Section 1: Mapped Endpoints
 
-Each existing PlenumNET API endpoint that has a corresponding PlenumLAN Rust module, the TM-2026-019.2 section it fulfills, and notes on what changes in the Rust rewrite.
+## 1.1 TDNS → TDNS-L
 
-## 1.1 TDNS → TDNS-L (Local Name Resolver)
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| GET | `/api/tdns/health` | `tdns.ts` | `tdns_l/health.rs` | §5–§7 |
+| POST | `/api/tdns/scan` | `tdns.ts` | `tdns_l/scan.rs` | §7 |
+| POST | `/api/tdns/register` | `tdns.ts` | `crs_l/register.rs` | §10.1 |
+| GET | `/api/tdns/resolve/:name` | `tdns.ts` | `tdns_l/resolve.rs` | §6.7 |
+| GET | `/api/tdns/list` | `tdns.ts` | `crs_l/list.rs` | §10 |
+| POST | `/api/tdns/org/create` | `tdns.ts` | `pds/org.rs` | §10.3 |
+| POST | `/api/tdns/org/add-url` | `tdns.ts` | `pds/org.rs` | §10.3 |
+| GET | `/api/tdns/org/:name` | `tdns.ts` | `pds/org.rs` | §10.3 |
+| GET | `/api/tdns/orgs` | `tdns.ts` | `pds/org.rs` | §10.3 |
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| GET | `/api/tdns/health` | `server/routes/tdns.ts` | `plenumlan/src/tdns_l/health.rs` | §5–§7 | Identical health-check pattern; version changes to TDNS-L |
-| POST | `/api/tdns/scan` | `server/routes/tdns.ts` | `plenumlan/src/tdns_l/scan.rs` | §7 | HTTP-fetch scanner identical for `.plm.local` service endpoints; physical LAN entities use template-driven scan (§7.8) instead of HTTP fetch |
-| POST | `/api/tdns/register` | `server/routes/tdns.ts` | `plenumlan/src/crs_l/register.rs` | §10.1 | Registration moves to CRS-L; adds TL-DSA keygen, IP derivation (§6), heartbeat init, capability evaluation |
-| GET | `/api/tdns/resolve/:name` | `server/routes/tdns.ts` | `plenumlan/src/tdns_l/resolve.rs` | §6.7 | Adds dual-stack resolution (A/AAAA/TDNS-L native); `.plm.local` TLD triggers host-ID interpretation of second 27 trits |
-| GET | `/api/tdns/list` | `server/routes/tdns.ts` | `plenumlan/src/crs_l/list.rs` | §10 | Registry listing sourced from CRS-L entity store instead of in-memory map |
-| POST | `/api/tdns/org/create` | `server/routes/tdns.ts` | `plenumlan/src/pds/org.rs` | §10.3 | Org entities become PDS directory objects; creation requires TL-DSA-signed capability |
-| POST | `/api/tdns/org/add-url` | `server/routes/tdns.ts` | `plenumlan/src/pds/org.rs` | §10.3 | Member association via CRS-L entity linking |
-| GET | `/api/tdns/org/:name` | `server/routes/tdns.ts` | `plenumlan/src/pds/org.rs` | §10.3 | Org detail from PDS directory query |
-| GET | `/api/tdns/orgs` | `server/routes/tdns.ts` | `plenumlan/src/pds/org.rs` | §10.3 | Org listing from PDS |
+**Delta Notes:**
 
-## 1.2 Inter-Cube CRS → CRS-L (Local Cube Registration Service)
+- `register` → moves to CRS-L; adds TL-DSA keygen, IP derivation (§6), heartbeat init, capability evaluation
+- `resolve` → adds dual-stack (A/AAAA/TDNS-L native); `.plm.local` TLD triggers host-ID interpretation of second 27 trits
+- `scan` → HTTP-fetch identical for `.plm.local`; physical LAN entities use template-driven scan (§7.8)
+- `list` → sourced from CRS-L entity store instead of in-memory map
+- `org/*` → become PDS directory objects; creation requires TL-DSA-signed capability
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/salvi/inter-cube/crs/register` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/register.rs` | §10.1 | LAN version adds IP derivation (§6), scan template classification (§7.8), and auto-capability evaluation |
-| GET | `/api/salvi/inter-cube/crs/lookup/:address` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/lookup.rs` | §10 | CRS-L lookup returns full dual-stack addresses + classification metadata |
-| GET | `/api/salvi/inter-cube/crs/neighbors/:address` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/neighbors.rs` | §8.1 | Neighbors used for nearest-service routing (e.g., closest printer) |
-| POST | `/api/salvi/inter-cube/crs/heartbeat` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/heartbeat.rs` | §10.1, §8.4 | HPTP-timestamped heartbeats; FTS health state transitions (Up→Suspect→Down→Recovering) |
-| POST | `/api/salvi/inter-cube/crs/deregister` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/deregister.rs` | §10 | Frees vertex in cube bitmap allocator; revokes all capability tokens |
-| GET | `/api/salvi/inter-cube/crs/stats` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/stats.rs` | §10 | Registry stats include vertex occupancy bitmap utilization |
+## 1.2 Inter-Cube CRS → CRS-L
 
-## 1.3 Inter-Cube GLB/CON/FTS → PlenumLAN Infrastructure Services
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/salvi/inter-cube/crs/register` | `inter-cube.ts` | `crs_l/register.rs` | §10.1 |
+| GET | `/api/salvi/inter-cube/crs/lookup/:address` | `inter-cube.ts` | `crs_l/lookup.rs` | §10 |
+| GET | `/api/salvi/inter-cube/crs/neighbors/:address` | `inter-cube.ts` | `crs_l/neighbors.rs` | §8.1 |
+| POST | `/api/salvi/inter-cube/crs/heartbeat` | `inter-cube.ts` | `crs_l/heartbeat.rs` | §10.1 |
+| POST | `/api/salvi/inter-cube/crs/deregister` | `inter-cube.ts` | `crs_l/deregister.rs` | §10 |
+| GET | `/api/salvi/inter-cube/crs/stats` | `inter-cube.ts` | `crs_l/stats.rs` | §10 |
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/salvi/inter-cube/glb/forward` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/glb.rs` | §8.1, §12 | Active only when second site onboards (promotion path); LAN-internal routing uses direct cube adjacency |
-| GET | `/api/salvi/inter-cube/glb/stats` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/glb.rs` | §8.1 | Same metrics; inactive until multi-site |
-| GET | `/api/salvi/inter-cube/glb/health` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/glb.rs` | §8.1 | Same |
-| GET | `/api/salvi/inter-cube/con/neighbors` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/con.rs` | §12 | Tunnels activate on second-site onboarding; 26 tunnels per cube |
-| GET | `/api/salvi/inter-cube/con/stats` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/con.rs` | §12 | Same |
-| POST | `/api/salvi/inter-cube/con/tunnel/refresh` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/con.rs` | §12 | Same |
-| POST | `/api/salvi/inter-cube/con/tunnel/upgrade-key` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/con.rs` | §12 | Same TLSponge-385 key derivation |
-| GET | `/api/salvi/inter-cube/fts/status` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/fts.rs` | §10.1 | FTS health states for LAN entities (heartbeat monitoring) |
-| GET | `/api/salvi/inter-cube/fts/dead` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/fts.rs` | §10.1 | Dead/suspect entity listing |
-| POST | `/api/salvi/inter-cube/fts/config` | `server/routes/inter-cube.ts` | `plenumlan/src/crs_l/fts.rs` | §10.1 | FTS tuning (miss thresholds, recovery periods) |
-| POST | `/api/salvi/inter-cube/routing/compute` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/routing.rs` | §8.1 | Pure math Hamming distance/path computation — identical logic |
-| POST | `/api/salvi/inter-cube/address/validate` | `server/routes/inter-cube.ts` | `plenumlan/src/address/rep_c.rs` | §5 | Rep C validation with zero-sentinel forgery detection — identical |
-| GET | `/api/salvi/inter-cube/topology` | `server/routes/inter-cube.ts` | `plenumlan/src/routes/topology.rs` | §8 | Architectural constants (13D, 3¹³ vertices, etc.) |
+**Delta Notes:**
 
-## 1.4 Salvi Core Crypto → PlenumLAN Kernel (Direct Rust Calls)
+- `register` → adds IP derivation (§6), scan template classification (§7.8), auto-capability evaluation
+- `lookup` → returns full dual-stack addresses + classification metadata
+- `neighbors` → used for nearest-service routing (e.g., closest printer)
+- `heartbeat` → HPTP-timestamped; FTS health state transitions
+- `deregister` → frees vertex in bitmap allocator; revokes all capability tokens
+- `stats` → includes vertex occupancy bitmap utilization
 
-These endpoints exist in PlenumNET as HTTP APIs because the TypeScript server needs to expose Rust crypto logic over HTTP. In PlenumLAN (pure Rust), these become direct function calls — no HTTP layer. However, the web console still needs API access, so thin Axum handlers wrap the same Rust functions.
+## 1.3 Inter-Cube GLB/CON/FTS → LAN Infrastructure
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/salvi/crypto/hash` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | TL-Sponge-385 hash — direct Rust call, no TS↔Rust bridge |
-| POST | `/api/salvi/crypto/tl-dsa/keygen` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3, §10.1 | TL-DSA keygen at entity registration; direct Rust |
-| POST | `/api/salvi/crypto/tl-dsa/sign` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3, §10.2 | TL-DSA sign for capability tokens and auth |
-| POST | `/api/salvi/crypto/tl-dsa/verify` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3, §10.2 | TL-DSA verify — used in every auth challenge |
-| GET | `/api/salvi/crypto/tl-dsa/spec` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Spec metadata |
-| GET | `/api/salvi/crypto/tl-kem/spec` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3, §12 | TL-KEM for CON tunnel key exchange |
-| POST | `/api/salvi/phase/split` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Phase encryption for PFS data at rest |
-| POST | `/api/salvi/phase/recombine` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Phase decryption |
-| GET | `/api/salvi/phase/config/:mode` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Mode configuration |
-| GET | `/api/salvi/phase/recommend` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Mode recommendation |
-| POST | `/api/salvi/phase/batch/split` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Batch phase encrypt |
-| POST | `/api/salvi/phase/batch/recombine` | `server/routes/salvi.ts` | `plenumlan/src/routes/crypto.rs` | §8.3 | Batch phase decrypt |
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/salvi/inter-cube/glb/forward` | `inter-cube.ts` | `routes/glb.rs` | §8.1 |
+| GET | `/api/salvi/inter-cube/glb/stats` | `inter-cube.ts` | `routes/glb.rs` | §8.1 |
+| GET | `/api/salvi/inter-cube/glb/health` | `inter-cube.ts` | `routes/glb.rs` | §8.1 |
+| GET | `/api/salvi/inter-cube/con/neighbors` | `inter-cube.ts` | `routes/con.rs` | §12 |
+| GET | `/api/salvi/inter-cube/con/stats` | `inter-cube.ts` | `routes/con.rs` | §12 |
+| POST | `/api/salvi/inter-cube/con/tunnel/refresh` | `inter-cube.ts` | `routes/con.rs` | §12 |
+| POST | `/api/salvi/inter-cube/con/tunnel/upgrade-key` | `inter-cube.ts` | `routes/con.rs` | §12 |
+| GET | `/api/salvi/inter-cube/fts/status` | `inter-cube.ts` | `crs_l/fts.rs` | §10.1 |
+| GET | `/api/salvi/inter-cube/fts/dead` | `inter-cube.ts` | `crs_l/fts.rs` | §10.1 |
+| POST | `/api/salvi/inter-cube/fts/config` | `inter-cube.ts` | `crs_l/fts.rs` | §10.1 |
+| POST | `/api/salvi/inter-cube/routing/compute` | `inter-cube.ts` | `routes/routing.rs` | §8.1 |
+| POST | `/api/salvi/inter-cube/address/validate` | `inter-cube.ts` | `address/rep_c.rs` | §5 |
+| GET | `/api/salvi/inter-cube/topology` | `inter-cube.ts` | `routes/topology.rs` | §8 |
 
-## 1.5 Timing → HPTP (Femtosecond Timing)
+**Delta Notes:**
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| GET | `/api/salvi/timing/timestamp` | `server/routes/salvi.ts` | `plenumlan/src/routes/timing.rs` | §8.4 | HPTP timestamp — direct Rust; used for token expiration and audit |
-| GET | `/api/salvi/timing/metrics` | `server/routes/salvi.ts` | `plenumlan/src/routes/timing.rs` | §8.4 | Timing metrics |
-| GET | `/api/salvi/timing/self-test` | `server/routes/salvi.ts` | `plenumlan/src/routes/timing.rs` | §8.4 | Diagnostic self-test |
-| GET | `/api/salvi/timing/error-budget` | `server/routes/salvi.ts` | `plenumlan/src/routes/timing.rs` | §8.4 | Drift and jitter reporting |
-| GET | `/api/salvi/timing/batch/:count` | `server/routes/salvi.ts` | `plenumlan/src/routes/timing.rs` | §8.4 | Batch timestamps |
+- GLB → active only when second site onboards; LAN-internal routing uses direct cube adjacency
+- CON → tunnels activate on second-site onboarding; 26 tunnels per cube; same TLSponge-385 key derivation
+- FTS → health states for LAN entities (heartbeat monitoring); tuning for miss thresholds and recovery periods
+- `routing/compute` → pure math Hamming distance/path computation — identical logic
+- `address/validate` → Rep C validation with zero-sentinel forgery detection — identical
 
-## 1.6 Capability Tokens → PlenumLAN Capability System
+## 1.4 Salvi Core Crypto → LAN Kernel (Direct Rust)
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/capabilities/issue` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5, §10.1 | Core issuance; in PlenumLAN, auto-triggered by CRS-L issuance rules on cube regions |
-| POST | `/api/capabilities/validate` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5 | Validation called by every protocol bridge (PFS, RADIUS shim, LDAP shim) |
-| POST | `/api/capabilities/delegate` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5 | HMAC-chained delegation replaces AD group membership |
-| POST | `/api/capabilities/delegate/chain` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5 | Multi-hop delegation |
-| POST | `/api/capabilities/verify-chain` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5 | Chain integrity verification |
-| GET | `/api/capabilities/audit` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5 | Capability audit statistics |
-| POST | `/api/capabilities/hardware/register` | `server/routes/capabilities.ts` | `plenumlan/src/pds/hardware_bind.rs` | §8.5, §16 | Device registration for WebAuthn/hardware binding |
-| POST | `/api/capabilities/hardware/challenge` | `server/routes/capabilities.ts` | `plenumlan/src/pds/hardware_bind.rs` | §10.2, §16 | HPTP-based challenge for remote auth |
-| POST | `/api/capabilities/hardware/verify` | `server/routes/capabilities.ts` | `plenumlan/src/pds/hardware_bind.rs` | §10.2 | Challenge-response verification |
-| POST | `/api/capabilities/hardware/issue` | `server/routes/capabilities.ts` | `plenumlan/src/pds/hardware_bind.rs` | §8.5 | Hardware-bound token issuance |
-| POST | `/api/capabilities/certificate/issue` | `server/routes/capabilities.ts` | `plenumlan/src/pds/certificates.rs` | §8.3 | RFC 3161 certificate for capabilities |
-| POST | `/api/capabilities/certificate/verify` | `server/routes/capabilities.ts` | `plenumlan/src/pds/certificates.rs` | §8.3 | Certificate verification |
-| GET | `/api/capabilities/certificate/:certId/rfc3161` | `server/routes/capabilities.ts` | `plenumlan/src/pds/certificates.rs` | §8.3 | RFC 3161 TSR export |
-| GET | `/api/capabilities/status` | `server/routes/capabilities.ts` | `plenumlan/src/pds/capabilities.rs` | §8.5 | System status |
+In PlenumLAN (pure Rust), these become direct function calls — no HTTP layer. Thin Axum handlers wrap the same Rust functions for the web console.
 
-## 1.7 TSA → PlenumLAN Audit Fabric
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/salvi/crypto/hash` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/crypto/tl-dsa/keygen` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/crypto/tl-dsa/sign` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/crypto/tl-dsa/verify` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| GET | `/api/salvi/crypto/tl-dsa/spec` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| GET | `/api/salvi/crypto/tl-kem/spec` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/phase/split` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/phase/recombine` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| GET | `/api/salvi/phase/config/:mode` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| GET | `/api/salvi/phase/recommend` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/phase/batch/split` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
+| POST | `/api/salvi/phase/batch/recombine` | `salvi.ts` | `routes/crypto.rs` | §8.3 |
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/tsa/timestamp` | `server/routes/tsa.ts` | `plenumlan/src/pds/audit.rs` | §8.4 | RFC 3161 timestamping feeds Merkle-chained audit fabric |
-| POST | `/api/tsa/timestamp/json` | `server/routes/tsa.ts` | `plenumlan/src/pds/audit.rs` | §8.4 | JSON-based timestamp requests |
-| POST | `/api/tsa/verify` | `server/routes/tsa.ts` | `plenumlan/src/pds/audit.rs` | §8.4 | Token verification |
-| GET | `/api/tsa/certificate` | `server/routes/tsa.ts` | `plenumlan/src/pds/audit.rs` | §8.3 | TSA certificate info |
-| GET | `/api/tsa/health` | `server/routes/tsa.ts` | `plenumlan/src/pds/audit.rs` | §8.4 | Health check |
-| GET | `/api/tsa/audit/query` | `server/routes/tsa.ts` | `plenumlan/src/pds/audit.rs` | §8.4 | Audit record query — Merkle-chained in PlenumLAN |
+**Delta Notes:**
 
-## 1.8 Security → PlenumLAN Security Dashboard
+- `hash` → TL-Sponge-385 direct Rust, no TS-Rust bridge
+- `tl-dsa/*` → keygen at entity registration; sign/verify for capability tokens and auth
+- `tl-kem/spec` → used for CON tunnel key exchange
+- `phase/*` → phase encryption for PFS data at rest
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/security/audit` | `server/routes/security.ts` | `plenumlan/src/pds/security.rs` | §11 | Security event logging to Merkle audit fabric |
-| GET | `/api/security/audit` | `server/routes/security.ts` | `plenumlan/src/pds/security.rs` | §11 | Event retrieval |
-| GET | `/api/security/audit/summary` | `server/routes/security.ts` | `plenumlan/src/pds/security.rs` | §11 | Severity summary |
-| GET | `/api/security/audit/stats` | `server/routes/security.ts` | `plenumlan/src/pds/security.rs` | §11 | Audit statistics |
-| GET | `/api/security/dashboard` | `server/routes/security.ts` | `plenumlan/src/pds/security.rs` | §11, §18 | Unified dashboard (Console Screen: Security Overview) |
-| GET | `/api/security/kri` | `server/routes/security.ts` | `plenumlan/src/pds/security.rs` | §11 | Key Risk Indicators |
+## 1.5 Timing → HPTP
 
-## 1.9 Ternary Operations → PlenumLAN Kernel (Direct Calls)
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| GET | `/api/salvi/timing/timestamp` | `salvi.ts` | `routes/timing.rs` | §8.4 |
+| GET | `/api/salvi/timing/metrics` | `salvi.ts` | `routes/timing.rs` | §8.4 |
+| GET | `/api/salvi/timing/self-test` | `salvi.ts` | `routes/timing.rs` | §8.4 |
+| GET | `/api/salvi/timing/error-budget` | `salvi.ts` | `routes/timing.rs` | §8.4 |
+| GET | `/api/salvi/timing/batch/:count` | `salvi.ts` | `routes/timing.rs` | §8.4 |
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| POST | `/api/salvi/ternary/convert` | `server/routes/salvi.ts` | `plenumlan/src/routes/ternary.rs` | §5.1 | Rep A/B/C conversion — direct Rust; thin Axum handler for console |
-| POST | `/api/salvi/ternary/add` | `server/routes/salvi.ts` | `plenumlan/src/routes/ternary.rs` | §4 | GF(3) addition |
-| POST | `/api/salvi/ternary/multiply` | `server/routes/salvi.ts` | `plenumlan/src/routes/ternary.rs` | §4 | GF(3) multiplication |
-| POST | `/api/salvi/ternary/rotate` | `server/routes/salvi.ts` | `plenumlan/src/routes/ternary.rs` | §4 | Bijective rotation |
-| POST | `/api/salvi/ternary/not` | `server/routes/salvi.ts` | `plenumlan/src/routes/ternary.rs` | §4 | Ternary NOT |
-| POST | `/api/salvi/ternary/xor` | `server/routes/salvi.ts` | `plenumlan/src/routes/ternary.rs` | §4 | Ternary XOR |
+**Delta Notes:**
+
+- `timestamp` → direct Rust; used for token expiration and audit
+- `error-budget` → drift and jitter reporting
+
+## 1.6 Capability Tokens → LAN Capability System
+
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/capabilities/issue` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+| POST | `/api/capabilities/validate` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+| POST | `/api/capabilities/delegate` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+| POST | `/api/capabilities/delegate/chain` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+| POST | `/api/capabilities/verify-chain` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+| GET | `/api/capabilities/audit` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+| POST | `/api/capabilities/hardware/register` | `capabilities.ts` | `pds/hardware_bind.rs` | §8.5 |
+| POST | `/api/capabilities/hardware/challenge` | `capabilities.ts` | `pds/hardware_bind.rs` | §10.2 |
+| POST | `/api/capabilities/hardware/verify` | `capabilities.ts` | `pds/hardware_bind.rs` | §10.2 |
+| POST | `/api/capabilities/hardware/issue` | `capabilities.ts` | `pds/hardware_bind.rs` | §8.5 |
+| POST | `/api/capabilities/certificate/issue` | `capabilities.ts` | `pds/certificates.rs` | §8.3 |
+| POST | `/api/capabilities/certificate/verify` | `capabilities.ts` | `pds/certificates.rs` | §8.3 |
+| GET | `/api/capabilities/certificate/:certId/rfc3161` | `capabilities.ts` | `pds/certificates.rs` | §8.3 |
+| GET | `/api/capabilities/status` | `capabilities.ts` | `pds/capabilities.rs` | §8.5 |
+
+**Delta Notes:**
+
+- `issue` → auto-triggered by CRS-L issuance rules on cube regions
+- `validate` → called by every protocol bridge (PFS, RADIUS, LDAP)
+- `delegate` → HMAC-chained delegation replaces AD group membership
+- `hardware/*` → WebAuthn/FIDO2 device binding; HPTP-based challenge for remote auth
+- `certificate/*` → RFC 3161 certificates for capabilities
+
+## 1.7 TSA → LAN Audit Fabric
+
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/tsa/timestamp` | `tsa.ts` | `pds/audit.rs` | §8.4 |
+| POST | `/api/tsa/timestamp/json` | `tsa.ts` | `pds/audit.rs` | §8.4 |
+| POST | `/api/tsa/verify` | `tsa.ts` | `pds/audit.rs` | §8.4 |
+| GET | `/api/tsa/certificate` | `tsa.ts` | `pds/audit.rs` | §8.3 |
+| GET | `/api/tsa/health` | `tsa.ts` | `pds/audit.rs` | §8.4 |
+| GET | `/api/tsa/audit/query` | `tsa.ts` | `pds/audit.rs` | §8.4 |
+
+**Delta Notes:**
+
+- `timestamp` → RFC 3161 timestamping feeds Merkle-chained audit fabric
+- `audit/query` → Merkle-chained in PlenumLAN
+
+## 1.8 Security → LAN Security Dashboard
+
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/security/audit` | `security.ts` | `pds/security.rs` | §11 |
+| GET | `/api/security/audit` | `security.ts` | `pds/security.rs` | §11 |
+| GET | `/api/security/audit/summary` | `security.ts` | `pds/security.rs` | §11 |
+| GET | `/api/security/audit/stats` | `security.ts` | `pds/security.rs` | §11 |
+| GET | `/api/security/dashboard` | `security.ts` | `pds/security.rs` | §11 |
+| GET | `/api/security/kri` | `security.ts` | `pds/security.rs` | §11 |
+
+**Delta Notes:**
+
+- `audit` → security event logging to Merkle audit fabric
+- `dashboard` → unified dashboard (Console Screen: Security Overview)
+- `kri` → Key Risk Indicators
+
+## 1.9 Ternary Operations → LAN Kernel
+
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| POST | `/api/salvi/ternary/convert` | `salvi.ts` | `routes/ternary.rs` | §5.1 |
+| POST | `/api/salvi/ternary/add` | `salvi.ts` | `routes/ternary.rs` | §4 |
+| POST | `/api/salvi/ternary/multiply` | `salvi.ts` | `routes/ternary.rs` | §4 |
+| POST | `/api/salvi/ternary/rotate` | `salvi.ts` | `routes/ternary.rs` | §4 |
+| POST | `/api/salvi/ternary/not` | `salvi.ts` | `routes/ternary.rs` | §4 |
+| POST | `/api/salvi/ternary/xor` | `salvi.ts` | `routes/ternary.rs` | §4 |
+
+**Delta Notes:**
+
+- All → direct Rust calls; thin Axum handler for console
+- `convert` → Rep A/B/C conversion
 
 ## 1.10 Health & Platform
 
-| Method | Path | Source File | Target PlenumLAN Handler | TM §Ref | Delta Note |
-|---|---|---|---|---|---|
-| GET | `/api/health` | `server/routes.ts` | `plenumlan/src/routes/health.rs` | §18 | System health for console System Overview screen |
-| GET | `/api/salvi/docs` | `server/routes/salvi.ts` | `plenumlan/src/routes/docs.rs` | §18 | API documentation endpoint |
+| Method | Path | Source | LAN Target | §Ref |
+|---|---|---|---|---|
+| GET | `/api/health` | `routes.ts` | `routes/health.rs` | §18 |
+| GET | `/api/salvi/docs` | `salvi.ts` | `routes/docs.rs` | §18 |
 
 ---
 
 # Section 2: Gap Analysis
 
-PlenumLAN features required by TM-2026-019.2 that have **NO existing API equivalent** in the current PlenumNET app. These are net-new Rust implementations.
+PlenumLAN features required by TM-2026-019.2 with no existing PlenumNET API equivalent. Net-new Rust implementations.
 
-| # | Feature | TM §Ref | Description | Release | Complexity |
-|---|---|---|---|---|---|
-| G1 | **PFS — Plenum File Service (SMB 3.1.1 + NFS v4.2)** | §9.1 | Full file protocol bridge: SMB/NFS → capability-mediated access against cube-addressed storage. Includes backup snapshots, update distribution, print driver distribution. The largest net-new build. | 1.0 | **Large** |
-| G2 | **RADIUS Shim** | §9.2.1 | RADIUS Access-Request → TL-DSA challenge; capability tokens → RADIUS attributes (VLAN=shell, ACL=capability scope). 3 endpoints: `/api/radius/auth`, `/api/radius/acct`, `/api/radius/status`. | 1.0 | **Medium** |
-| G3 | **LDAP Compatibility Shim** | §9.2.2 | LDAP bind/search/compare → CRS cube queries. Read-only; LDAP writes → PDS API calls with TL-DSA-signed capabilities. 4 endpoints. | 1.0 | **Medium** |
-| G4 | **Legacy DHCP Responder** | §9.2.3 | DHCP DISCOVER → scan template assignment → CRS registration → IP derivation → DHCP OFFER/ACK. 2 endpoints: `/crs/dhcp-discover`, `/crs/dhcp-request`. | 1.0 (0.1 partial) | **Medium** |
-| G5 | **Print Bridge (CUPS integration)** | §9.3 | CUPS wrapping with cube-native discovery (D5=3 query) and capability-gated authorization. Drivers served from PFS, TL-DSA-signed. | 1.0 | **Medium** |
-| G6 | **PDS — Plenum Directory Service** | §10 | User enrollment, cryptographic login (TL-DSA challenge-response), session management, capability lifecycle, group delegation chains. Replaces Active Directory. | 0.5 | **Large** |
-| G7 | **54-Trit Dual-Interpretation Address Module** | §5 | Bidirectional IP↔ternary bijection with host integer intermediary. Rep C parse with zero-sentinel forgery detection. Direction A (ternary→IP) and Direction B (IP→ternary). | 0.1 | **Medium** |
-| G8 | **LAN Ontological Scan (27-Dimension)** | §7 | MAC OUI/DHCP fingerprint, mDNS, SNMP, LLDP, port scan — all LAN-native signals (not HTTP fetch). 6 scan templates (workstation, server, infrastructure, printer, IoT, service). `gf3` quantitative threshold formula. | 0.1 | **Large** |
-| G9 | **Site Network Configuration** | §6.2 | First-run auto-detection of IPv4 prefix, host range, IPv6 ULA prefix, shell-to-VLAN mapping. Stored once, referenced by all IP derivation. | 0.1 | **Small** |
-| G10 | **First-Run Setup Wizard** | §14.4 | 3 screens: site name, network settings (auto-detect), admin account (TL-DSA keygen). Behind the scenes: root key generation, resolver init, CRS init, first entity registration, network scan start. | 0.1 | **Medium** |
-| G11 | **Download/Installer Pipeline** | §14 | Cross-compiled installers for Windows (.exe), Debian (.deb), RPM (.rpm), macOS (.dmg), standalone Linux binary, ARM binary. CI pipeline with `cargo build --release` for 6 targets. | 0.1 | **Medium** |
-| G12 | **Automatic Update System** | §14.6 | Periodic version check against PlenumLAN.replit.app, TL-DSA signature verification of new binary, self-update with zero data loss, automatic restart. | 2.0 | **Medium** |
-| G13 | **PlenumDB — Native Storage Backend** | §19.5 | Purpose-built key-value store: 27-trit entity lookup, Merkle-tree audit chain traversal, vertex occupancy bitmap (1,594,323-bit). WAL crash safety with crash-injection test harness. | 2.0 | **Large** |
-| G14 | **PTS — Plenum Tunnel Service** | §16 | Phase-encrypted remote console access. WebAuthn/FIDO2 enrollment, TL-DSA challenge-response, scoped tunnel (console only, not full network). Per-service tunnels with individual capability tokens. | 2.0 | **Large** |
-| G15 | **Management Console: 16 Screens** | §18 | React web console: System Overview, Entity Registry, Entity Detail, Name Browser, Address Allocation, Permission Rules, Delegation Chains, Identity Dashboard, Shared Folders, Printer Devices, Audit Log, Security Overview, Network Access, System Health, Cube Visualizer, Scan Workflow. | 0.1–1.0 | **Large** |
-| G16 | **Windows Server Importer** | §19.2 | Reads existing Active Directory (LDAP export) and creates matching CRS-L entries with capability equivalents for group memberships and GPOs. | 0.5 | **Medium** |
-| G17 | **Cube Bitmap Allocator** | §10.1 | flatIndex/fromFlatIndex bijection for 3¹³ = 1,594,323 vertex occupancy tracking. Fast scan for next available vertex. | 0.1 | **Small** |
-| G18 | **Cross-Shell Authorization** | §8.2 | Axis 12 shell lookup (Inner/Void/Outer → VLAN 10/20/30). Single-trit security zone determination. Shell-transition capability tokens. | 0.5 | **Small** |
-| G19 | **Issuance Rules Engine** | §8.5 | CRS metadata on cube regions: "all entities with address prefix P receive capability set C." Evaluated at registration time. The token set IS the applied GPO. | 0.5 | **Medium** |
-| G20 | **Merkle-Chained Audit Fabric** | §8.4 | Every event HPTP-timestamped and Merkle-chained. TIS-27 integrity per entry. Tamper-evident, immutable log with chain verification. | 0.5 | **Medium** |
-| G21 | **Nearest-Service Routing** | §8.1 | Hamming-distance query: "find printer with smallest distance from requesting workstation." Classification-based discovery (D5=3 → all printers). | 0.1 | **Small** |
-| G22 | **IPv4 Collision Resolution Table** | §6.5–§6.6 | CRS override table for /24 subnets where modular reduction causes collisions. IPv4 preservation for existing devices scanned via Direction B. | 0.1 | **Small** |
-| G23 | **Dual-Stack DNS Resolver** | §6.7 | Serves A (IPv4), AAAA (IPv6), and TDNS-L native queries from CRS records. Listens on port 53. Replaces Windows DNS Server. | 0.1 | **Medium** |
-| G24 | **Emergency Console (Text-Only)** | §17.3 | USB keyboard + VGA/serial text display: read-only system status, FTS health, last Merkle audit hash, scrollable logs. No shell, no login. Stage 3 only. | 3.0 | **Small** |
+| # | Feature | §Ref | Release | Size |
+|---|---|---|---|---|
+| G1 | PFS (SMB 3.1.1 + NFS v4.2) | §9.1 | 1.0 | Large |
+| G2 | RADIUS Shim | §9.2.1 | 1.0 | Medium |
+| G3 | LDAP Compatibility Shim | §9.2.2 | 1.0 | Medium |
+| G4 | Legacy DHCP Responder | §9.2.3 | 1.0 | Medium |
+| G5 | Print Bridge (CUPS) | §9.3 | 1.0 | Medium |
+| G6 | PDS — Directory Service | §10 | 0.5 | Large |
+| G7 | 54-Trit Address Module | §5 | 0.1 | Medium |
+| G8 | LAN Ontological Scan (27D) | §7 | 0.1 | Large |
+| G9 | Site Network Configuration | §6.2 | 0.1 | Small |
+| G10 | First-Run Setup Wizard | §14.4 | 0.1 | Medium |
+| G11 | Download/Installer Pipeline | §14 | 0.1 | Medium |
+| G12 | Automatic Update System | §14.6 | 2.0 | Medium |
+| G13 | PlenumDB Storage Backend | §19.5 | 2.0 | Large |
+| G14 | PTS — Tunnel Service | §16 | 2.0 | Large |
+| G15 | Management Console (16 Screens) | §18 | 0.1–1.0 | Large |
+| G16 | Windows Server Importer | §19.2 | 0.5 | Medium |
+| G17 | Cube Bitmap Allocator | §10.1 | 0.1 | Small |
+| G18 | Cross-Shell Authorization | §8.2 | 0.5 | Small |
+| G19 | Issuance Rules Engine | §8.5 | 0.5 | Medium |
+| G20 | Merkle-Chained Audit Fabric | §8.4 | 0.5 | Medium |
+| G21 | Nearest-Service Routing | §8.1 | 0.1 | Small |
+| G22 | IPv4 Collision Table | §6.5 | 0.1 | Small |
+| G23 | Dual-Stack DNS Resolver | §6.7 | 0.1 | Medium |
+| G24 | Emergency Console (Text) | §17.3 | 3.0 | Small |
+
+**Gap Descriptions:**
+
+- **G1 PFS** — Full file protocol bridge: SMB/NFS to capability-mediated cube-addressed storage. Includes backup snapshots, update distribution, print driver distribution.
+- **G2 RADIUS** — Access-Request to TL-DSA challenge; capability tokens to RADIUS attributes (VLAN=shell, ACL=capability scope). 3 endpoints.
+- **G3 LDAP** — bind/search/compare to CRS cube queries. Read-only; writes to PDS API with TL-DSA-signed capabilities. 4 endpoints.
+- **G4 DHCP** — DISCOVER to scan template assignment to CRS registration to IP derivation to OFFER/ACK. 2 endpoints.
+- **G5 Print Bridge** — CUPS wrapping with cube-native discovery (D5=3 query) and capability-gated authorization.
+- **G6 PDS** — User enrollment, cryptographic login (TL-DSA challenge-response), session management, capability lifecycle, delegation chains. Replaces Active Directory.
+- **G7 Address Module** — Bidirectional IP-ternary bijection with host integer intermediary. Rep C parse with zero-sentinel forgery detection.
+- **G8 LAN Scan** — MAC OUI/DHCP fingerprint, mDNS, SNMP, LLDP, port scan. 6 scan templates (workstation, server, infrastructure, printer, IoT, service).
+- **G9 Site Config** — First-run auto-detection of IPv4 prefix, host range, IPv6 ULA prefix, shell-to-VLAN mapping.
+- **G10 Setup Wizard** — 3 screens: site name, network settings, admin account (TL-DSA keygen). Root key generation, resolver init, CRS init, first entity registration, network scan start.
+- **G11 Installer** — Cross-compiled for Windows (.exe), Debian (.deb), RPM (.rpm), macOS (.dmg), Linux binary, ARM binary. CI pipeline with cargo build for 6 targets.
+- **G12 Auto-Update** — Periodic version check, TL-DSA signature verification, self-update with zero data loss, automatic restart.
+- **G13 PlenumDB** — Purpose-built key-value store: 27-trit entity lookup, Merkle-tree audit chain, vertex occupancy bitmap (1,594,323-bit). WAL crash safety.
+- **G14 PTS** — Phase-encrypted remote console. WebAuthn/FIDO2 enrollment, TL-DSA challenge-response, scoped tunnel (console only). Per-service capability tokens.
+- **G15 Console** — 16 React screens: System Overview, Entity Registry, Entity Detail, Name Browser, Address Allocation, Permission Rules, Delegation Chains, Identity Dashboard, Shared Folders, Printer Devices, Audit Log, Security Overview, Network Access, System Health, Cube Visualizer, Scan Workflow.
+- **G16 AD Importer** — Reads Active Directory (LDAP export) and creates matching CRS-L entries with capability equivalents for group memberships and GPOs.
+- **G17 Bitmap Allocator** — flatIndex/fromFlatIndex bijection for 3^13 = 1,594,323 vertex occupancy tracking.
+- **G18 Cross-Shell Auth** — Axis 12 shell lookup (Inner/Void/Outer to VLAN 10/20/30). Shell-transition capability tokens.
+- **G19 Issuance Rules** — CRS metadata on cube regions: entities with address prefix P receive capability set C. Evaluated at registration time.
+- **G20 Merkle Audit** — Every event HPTP-timestamped and Merkle-chained. TIS-27 integrity per entry. Tamper-evident, immutable log.
+- **G21 Nearest-Service** — Hamming-distance query: find printer with smallest distance from requesting workstation.
+- **G22 IPv4 Collision** — CRS override table for /24 subnets where modular reduction causes collisions.
+- **G23 DNS Resolver** — Serves A (IPv4), AAAA (IPv6), and TDNS-L native queries from CRS records. Port 53. Replaces Windows DNS.
+- **G24 Emergency Console** — USB keyboard + VGA/serial text display: read-only system status, FTS health, last Merkle hash, logs. No shell, no login.
 
 ### Complexity Summary
 
-| Complexity | Count | Items |
+| Size | Count | Items |
 |---|---|---|
-| **Large** | 6 | PFS, PDS, LAN Scan, PlenumDB, PTS, 16-Screen Console |
-| **Medium** | 12 | RADIUS, LDAP, DHCP, Print Bridge, Address Module, First-Run Wizard, Installer, Auto-Update, AD Importer, Issuance Rules, Merkle Audit, DNS Resolver |
-| **Small** | 6 | Site Config, Bitmap Allocator, Cross-Shell Auth, Nearest-Service, IPv4 Collision Table, Emergency Console |
+| Large | 6 | PFS, PDS, LAN Scan, PlenumDB, PTS, Console |
+| Medium | 12 | RADIUS, LDAP, DHCP, Print, Address, Wizard, Installer, Update, AD Import, Issuance, Merkle, DNS |
+| Small | 6 | Site Config, Bitmap, Cross-Shell, Nearest-Service, IPv4 Collision, Emergency |
 
 ---
 
 # Section 3: PlenumNET-Only Endpoints
 
-Current PlenumNET APIs that do **NOT transfer** to PlenumLAN and remain exclusive to **plenumnet.replit.app**. These are production endpoints for developer tools, third-party integrations, or platform services that serve the PlenumNET platform, not the LAN management product.
+Production endpoints that do NOT transfer to PlenumLAN. They remain exclusive to plenumnet.replit.app — platform services, developer tools, and third-party integrations.
 
 ## 3.1 Kong Gateway Management
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/kong/status` | `server/routes/kong.ts` | Kong Konnect is a PlenumNET platform API gateway; PlenumLAN has no external API gateway |
-| GET | `/api/kong/organization` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/control-planes` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/control-planes/:cpId/services` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/control-planes/:cpId/routes` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/control-planes/:cpId/plugins` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/config` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/control-planes/:cpId/services` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/control-planes/:cpId/services/:serviceId/routes` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/control-planes/:cpId/sync-plenumnet` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/sync-all-control-planes` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/service-catalog` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/save-to-github` | `server/routes/kong.ts` | Same |
-| GET | `/api/kong/control-planes/:cpId/deploy-instructions` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/control-planes/:cpId/generate-deployment` | `server/routes/kong.ts` | Same |
-| POST | `/api/kong/control-planes/:cpId/deploy-to-cloud` | `server/routes/kong.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/kong/status` | `kong.ts` |
+| GET | `/api/kong/organization` | `kong.ts` |
+| GET | `/api/kong/control-planes` | `kong.ts` |
+| GET | `/api/kong/control-planes/:cpId/services` | `kong.ts` |
+| GET | `/api/kong/control-planes/:cpId/routes` | `kong.ts` |
+| GET | `/api/kong/control-planes/:cpId/plugins` | `kong.ts` |
+| GET | `/api/kong/config` | `kong.ts` |
+| POST | `/api/kong/control-planes/:cpId/services` | `kong.ts` |
+| POST | `/api/kong/control-planes/:cpId/services/:serviceId/routes` | `kong.ts` |
+| POST | `/api/kong/control-planes/:cpId/services/:serviceId/plugins` | `kong.ts` |
+| POST | `/api/kong/control-planes/:cpId/sync-plenumnet` | `kong.ts` |
+| POST | `/api/kong/sync-all-control-planes` | `kong.ts` |
+| GET | `/api/kong/service-catalog` | `kong.ts` |
+| POST | `/api/kong/save-to-github` | `kong.ts` |
+| GET | `/api/kong/control-planes/:cpId/deploy-instructions` | `kong.ts` |
+| POST | `/api/kong/control-planes/:cpId/generate-deployment` | `kong.ts` |
+| POST | `/api/kong/control-planes/:cpId/deploy-to-cloud` | `kong.ts` |
+
+PlenumNET platform API gateway. PlenumLAN has no external API gateway.
 
 ## 3.2 SFK Operations Pipeline
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/sfk/v1/operations` | `server/routes/sfk-operations.ts` | Platform-specific batch processing workflow; PlenumLAN uses direct Rust calls |
-| GET | `/api/sfk/v1/operations/:id` | `server/routes/sfk-operations.ts` | Same |
-| GET | `/api/sfk/v1/operations` | `server/routes/sfk-operations.ts` | Same |
-| DELETE | `/api/sfk/v1/operations/:id` | `server/routes/sfk-operations.ts` | Same |
-| GET | `/api/sfk/v1/stats` | `server/routes/sfk-operations.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/sfk/v1/operations` | `sfk-operations.ts` |
+| GET | `/api/sfk/v1/operations/:id` | `sfk-operations.ts` |
+| GET | `/api/sfk/v1/operations` | `sfk-operations.ts` |
+| DELETE | `/api/sfk/v1/operations/:id` | `sfk-operations.ts` |
+| GET | `/api/sfk/v1/stats` | `sfk-operations.ts` |
+
+Platform-specific batch processing. PlenumLAN uses direct Rust calls.
 
 ## 3.3 Tonal Field System
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/tonal/field` | `server/routes/tonal-field.ts` | Network diffusion research tool; not a LAN management feature |
-| GET | `/api/tonal/neighbors` | `server/routes/tonal-field.ts` | Same |
-| POST | `/api/tonal/packet` | `server/routes/tonal-field.ts` | Same |
-| GET | `/api/resonance/status` | `server/routes/tonal-field.ts` | Same |
-| POST | `/api/resonance/sweep` | `server/routes/tonal-field.ts` | Same |
-| POST | `/api/resonance/rtt` | `server/routes/tonal-field.ts` | Same |
-| GET | `/api/metrics/plenum` | `server/routes/tonal-field.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/tonal/field` | `tonal-field.ts` |
+| GET | `/api/tonal/neighbors` | `tonal-field.ts` |
+| POST | `/api/tonal/packet` | `tonal-field.ts` |
+| GET | `/api/resonance/status` | `tonal-field.ts` |
+| POST | `/api/resonance/sweep` | `tonal-field.ts` |
+| POST | `/api/resonance/rtt` | `tonal-field.ts` |
+| GET | `/api/metrics/plenum` | `tonal-field.ts` |
 
-## 3.4 PPTPro (Plenum Pulse Tonal Professor)
+Network diffusion research tool.
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/v1/status` | `server/routes/pptpro-integration.ts` | Biometric/tonal integration; not a LAN management feature |
-| GET | `/api/v1/safety/limits` | `server/routes/pptpro-integration.ts` | Same |
-| GET | `/api/v1/ternary/state` | `server/routes/pptpro-integration.ts` | Same |
-| POST | `/api/v1/entrain/advise` | `server/routes/pptpro-integration.ts` | Same |
-| POST | `/api/v1/logs/coherence` | `server/routes/pptpro-integration.ts` | Same |
+## 3.4 PPTPro
+
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/v1/status` | `pptpro-integration.ts` |
+| GET | `/api/v1/safety/limits` | `pptpro-integration.ts` |
+| GET | `/api/v1/ternary/state` | `pptpro-integration.ts` |
+| POST | `/api/v1/entrain/advise` | `pptpro-integration.ts` |
+| POST | `/api/v1/logs/coherence` | `pptpro-integration.ts` |
+
+Biometric/tonal integration.
 
 ## 3.5 GitHub Integration
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/github/token` | `server/routes/github.ts` | Developer platform GitHub proxy; PlenumLAN has no GitHub integration |
-| GET | `/api/github/status` | `server/routes/github.ts` | Same |
-| GET | `/api/github/repos/:owner/:repo/branches` | `server/routes/github.ts` | Same |
-| GET | `/api/github/repos/:owner/:repo/contents` | `server/routes/github.ts` | Same |
-| GET | `/api/github/file/:owner/:repo` | `server/routes/github.ts` | Same |
-| PUT | `/api/github/file/:owner/:repo` | `server/routes/github.ts` | Same |
-| DELETE | `/api/github/file/:owner/:repo` | `server/routes/github.ts` | Same |
-| POST | `/api/github/push-workflows/:owner/:repo` | `server/routes/github.ts` | Same |
-| POST | `/api/github/push-env/:owner/:repo` | `server/routes/github.ts` | Same |
-| POST | `/api/github/push-batch/:owner/:repo` | `server/routes/github.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/github/token` | `github.ts` |
+| GET | `/api/github/status` | `github.ts` |
+| GET | `/api/github/repos/:owner/:repo/branches` | `github.ts` |
+| GET | `/api/github/repos/:owner/:repo/contents` | `github.ts` |
+| GET | `/api/github/file/:owner/:repo` | `github.ts` |
+| PUT | `/api/github/file/:owner/:repo` | `github.ts` |
+| DELETE | `/api/github/file/:owner/:repo` | `github.ts` |
+| POST | `/api/github/push-workflows/:owner/:repo` | `github.ts` |
+| POST | `/api/github/push-env/:owner/:repo` | `github.ts` |
+| POST | `/api/github/push-batch/:owner/:repo` | `github.ts` |
+
+Developer platform GitHub proxy.
 
 ## 3.6 Hedera HCS Witnessing
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/hedera/v1/witness` | `server/routes/hedera.ts` | Blockchain witnessing is a PlenumNET platform feature; PlenumLAN uses Merkle audit fabric instead |
-| GET | `/api/hedera/v1/witness/:txId` | `server/routes/hedera.ts` | Same |
-| POST | `/api/hedera/v1/verify` | `server/routes/hedera.ts` | Same |
-| GET | `/api/hedera/v1/topic` | `server/routes/hedera.ts` | Same |
-| GET | `/api/hedera/v1/health` | `server/routes/hedera.ts` | Same |
-| GET | `/api/hedera/v1/stats` | `server/routes/hedera.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/hedera/v1/witness` | `hedera.ts` |
+| GET | `/api/hedera/v1/witness/:txId` | `hedera.ts` |
+| POST | `/api/hedera/v1/verify` | `hedera.ts` |
+| GET | `/api/hedera/v1/topic` | `hedera.ts` |
+| GET | `/api/hedera/v1/health` | `hedera.ts` |
+| GET | `/api/hedera/v1/stats` | `hedera.ts` |
+
+Blockchain witnessing. PlenumLAN uses Merkle audit fabric instead.
 
 ## 3.7 PQTI Proxy
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| ALL | `/api/pqti/*` | `server/routes/pqti.ts` | Microservice proxy for developer platform; PlenumLAN integrates PQTI modules directly |
-| GET | `/api/pqti-status` | `server/routes/pqti.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| ALL | `/api/pqti/*` | `pqti.ts` |
+| GET | `/api/pqti-status` | `pqti.ts` |
+
+Microservice proxy. PlenumLAN integrates PQTI modules directly.
 
 ## 3.8 API Key Management
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/keys/scopes` | `server/routes/api-keys.ts` | PlenumNET uses API keys for developer/partner access; PlenumLAN uses TL-DSA identity + capability tokens exclusively |
-| POST | `/api/keys/generate` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/stats` | `server/routes/api-keys.ts` | Same |
-| POST | `/api/keys/revoke/:id` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/:id/logs` | `server/routes/api-keys.ts` | Same |
-| POST | `/api/keys/rotate/:id` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/expiring` | `server/routes/api-keys.ts` | Same |
-| PATCH | `/api/keys/:id/rate-limit` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/rate-limit-tiers` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/entity-types` | `server/routes/api-keys.ts` | Same |
-| PATCH | `/api/keys/:id/metadata` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/anomalies` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/audit` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/:id/audit` | `server/routes/api-keys.ts` | Same |
-| GET | `/api/keys/validate-external` | `server/routes/api-keys.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/keys/scopes` | `api-keys.ts` |
+| POST | `/api/keys/generate` | `api-keys.ts` |
+| GET | `/api/keys` | `api-keys.ts` |
+| GET | `/api/keys/stats` | `api-keys.ts` |
+| POST | `/api/keys/revoke/:id` | `api-keys.ts` |
+| GET | `/api/keys/:id/logs` | `api-keys.ts` |
+| POST | `/api/keys/rotate/:id` | `api-keys.ts` |
+| GET | `/api/keys/expiring` | `api-keys.ts` |
+| PATCH | `/api/keys/:id/rate-limit` | `api-keys.ts` |
+| GET | `/api/keys/rate-limit-tiers` | `api-keys.ts` |
+| GET | `/api/keys/entity-types` | `api-keys.ts` |
+| PATCH | `/api/keys/:id/metadata` | `api-keys.ts` |
+| GET | `/api/keys/anomalies` | `api-keys.ts` |
+| GET | `/api/keys/audit` | `api-keys.ts` |
+| GET | `/api/keys/:id/audit` | `api-keys.ts` |
+| GET | `/api/keys/validate-external` | `api-keys.ts` |
 
-## 3.9 Compression Demo & Whitepaper
+PlenumNET developer/partner API keys. PlenumLAN uses TL-DSA identity + capability tokens exclusively.
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/demo/run` | `server/routes.ts` | Marketing demo; PlenumLAN doesn't expose compression as a user feature |
-| GET | `/api/demo/stats` | `server/routes.ts` | Same |
-| GET | `/api/demo/session/:sessionId` | `server/routes.ts` | Same |
-| POST | `/api/demo/upload` | `server/routes.ts` | Same |
-| GET | `/api/demo/history` | `server/routes.ts` | Same |
-| GET | `/api/demo/files` | `server/routes.ts` | Same |
-| GET | `/api/demo/data/:sessionId` | `server/routes.ts` | Same |
-| POST | `/api/compression/file` | `server/routes.ts` | Same |
-| POST | `/api/compression/decompress` | `server/routes.ts` | Same |
-| POST | `/api/compression/file/raw` | `server/routes.ts` | Same (raw binary transport variant) |
-| POST | `/api/compression/decompress/raw` | `server/routes.ts` | Same (raw binary transport variant) |
-| POST | `/api/compression/db/store` | `server/routes.ts` | Same (DB storage for compressed docs) |
-| GET | `/api/compression/db/retrieve/:id` | `server/routes.ts` | Same (retrieve stored compressed doc) |
-| GET | `/api/compression/db/documents` | `server/routes.ts` | Same |
-| GET | `/api/compression/db/raw/:id` | `server/routes.ts` | Same |
-| DELETE | `/api/compression/db/documents/:id` | `server/routes.ts` | Same |
-| GET | `/api/whitepapers` | `server/routes.ts` | Marketing/compliance; not LAN management |
-| GET | `/api/whitepapers/active` | `server/routes.ts` | Same |
-| GET | `/api/whitepapers/:id` | `server/routes.ts` | Same (individual whitepaper by ID) |
-| POST | `/api/whitepapers` | `server/routes.ts` | Same |
+## 3.9 Compression & Whitepaper
+
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/demo/run` | `routes.ts` |
+| GET | `/api/demo/stats` | `routes.ts` |
+| GET | `/api/demo/session/:sessionId` | `routes.ts` |
+| POST | `/api/demo/upload` | `routes.ts` |
+| GET | `/api/demo/history` | `routes.ts` |
+| GET | `/api/demo/files` | `routes.ts` |
+| GET | `/api/demo/data/:sessionId` | `routes.ts` |
+| POST | `/api/compression/file` | `routes.ts` |
+| POST | `/api/compression/decompress` | `routes.ts` |
+| POST | `/api/compression/file/raw` | `routes.ts` |
+| POST | `/api/compression/decompress/raw` | `routes.ts` |
+| POST | `/api/compression/db/store` | `routes.ts` |
+| GET | `/api/compression/db/retrieve/:id` | `routes.ts` |
+| GET | `/api/compression/db/documents` | `routes.ts` |
+| GET | `/api/compression/db/raw/:id` | `routes.ts` |
+| DELETE | `/api/compression/db/documents/:id` | `routes.ts` |
+| GET | `/api/whitepapers` | `routes.ts` |
+| GET | `/api/whitepapers/active` | `routes.ts` |
+| GET | `/api/whitepapers/:id` | `routes.ts` |
+| POST | `/api/whitepapers` | `routes.ts` |
+
+TTC compression and whitepaper management.
 
 ## 3.10 Developer Signup & Admin
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/developer-signup` | `server/routes.ts` | Platform developer enrollment; PlenumLAN has PDS for user enrollment |
-| GET | `/api/developer-signup/count` | `server/routes.ts` | Same |
-| GET | `/api/admin/developer-signups` | `server/routes.ts` | Same |
-| DELETE | `/api/admin/developer-signups/:id` | `server/routes.ts` | Same |
-| GET | `/api/user/admin-status` | `server/routes.ts` | PlenumLAN uses capability-token-based admin, not Replit Auth |
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/developer-signup` | `routes.ts` |
+| GET | `/api/developer-signup/count` | `routes.ts` |
+| GET | `/api/admin/developer-signups` | `routes.ts` |
+| DELETE | `/api/admin/developer-signups/:id` | `routes.ts` |
+| GET | `/api/user/admin-status` | `routes.ts` |
 
-## 3.11 Legacy TDNS Endpoints (routes.ts)
+Platform developer enrollment. PlenumLAN has PDS for user enrollment.
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/tdns/resolve` | `server/routes.ts` | Legacy TDNS resolve (query-param variant); superseded by `/api/tdns/resolve/:name` in tdns.ts |
-| GET | `/api/tdns/records` | `server/routes.ts` | Legacy TDNS record listing; superseded by `/api/tdns/list` in tdns.ts |
+## 3.11 Legacy TDNS Endpoints
+
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/tdns/resolve` | `routes.ts` |
+| GET | `/api/tdns/records` | `routes.ts` |
+
+Legacy query-param variants; superseded by routes in `tdns.ts`.
 
 ## 3.12 Legal, Benchmark, CSP
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/legal/:type` | `server/routes.ts` | Marketing website legal docs |
-| GET | `/api/benchmark-report` | `server/routes.ts` | Benchmark HTML report for developer platform |
-| GET | `/.well-known/security.txt` | `server/routes.ts` | Web platform security disclosure |
-| POST | `/api/csp-reports` | `server/routes.ts` | CSP violation reporting for web platform |
-| GET | `/api/verify` | `server/routes.ts` | Replit Auth verification |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/legal/:type` | `routes.ts` |
+| GET | `/api/benchmark-report` | `routes.ts` |
+| GET | `/.well-known/security.txt` | `routes.ts` |
+| POST | `/api/csp-reports` | `routes.ts` |
+| GET | `/api/verify` | `routes.ts` |
 
-## 3.13 Salvi Core — Demo/PlenumNET-Only Endpoints
+Web platform legal docs, benchmarks, security disclosure, Replit Auth.
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/salvi/ternary/batch` | `server/routes/salvi.ts` | Developer demo |
-| GET | `/api/salvi/ternary/density/:tritCount` | `server/routes/salvi.ts` | Developer educational tool |
-| GET | `/api/salvi/ternary/density-benchmark` | `server/routes/salvi.ts` | Same |
-| POST | `/api/salvi/ternary/noether-verify` | `server/routes/salvi.ts` | Physics verification demo |
-| GET | `/api/salvi/crypto/phase-benchmark` | `server/routes/salvi.ts` | Benchmark demo |
-| GET | `/api/salvi/timing/epoch/anchors` | `server/routes/salvi.ts` | Calendar showcase |
-| GET | `/api/salvi/timing/epoch/calendars` | `server/routes/salvi.ts` | 42-calendar synchronization showcase |
-| GET | `/api/salvi/timing/epoch/calendars/mayan` | `server/routes/salvi.ts` | Mayan calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/hebrew` | `server/routes/salvi.ts` | Hebrew calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/vedic` | `server/routes/salvi.ts` | Vedic calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/chinese` | `server/routes/salvi.ts` | Chinese calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/islamic` | `server/routes/salvi.ts` | Islamic calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/egyptian` | `server/routes/salvi.ts` | Egyptian calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/julian-day` | `server/routes/salvi.ts` | Julian Day conversion |
-| GET | `/api/salvi/timing/epoch/calendars/byzantine` | `server/routes/salvi.ts` | Byzantine calendar conversion |
-| GET | `/api/salvi/timing/epoch/calendars/thirteen-moon` | `server/routes/salvi.ts` | 13-Moon calendar conversion |
-| GET | `/api/salvi/crypto/pt26/spec` | `server/routes/salvi.ts` | PT26-DSA spec (research/demo) |
-| POST | `/api/salvi/crypto/pt26/keygen` | `server/routes/salvi.ts` | PT26-DSA keygen demo |
-| POST | `/api/salvi/crypto/pt26/sign` | `server/routes/salvi.ts` | PT26-DSA sign demo |
-| POST | `/api/salvi/crypto/pt26/verify` | `server/routes/salvi.ts` | PT26-DSA verify demo |
-| GET | `/api/salvi/vm/spec` | `server/routes/salvi.ts` | TVM ISA spec (developer reference) |
-| GET | `/api/salvi/vm/conformance` | `server/routes/salvi.ts` | TVM conformance testing |
+## 3.13 Salvi Core — PlenumNET-Only
 
-## 3.14 Security — Showcase/Admin-Only Endpoints
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/salvi/ternary/batch` | `salvi.ts` |
+| GET | `/api/salvi/ternary/density/:tritCount` | `salvi.ts` |
+| GET | `/api/salvi/ternary/density-benchmark` | `salvi.ts` |
+| POST | `/api/salvi/ternary/noether-verify` | `salvi.ts` |
+| GET | `/api/salvi/crypto/phase-benchmark` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/anchors` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/mayan` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/hebrew` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/vedic` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/chinese` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/islamic` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/egyptian` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/julian-day` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/byzantine` | `salvi.ts` |
+| GET | `/api/salvi/timing/epoch/calendars/thirteen-moon` | `salvi.ts` |
+| GET | `/api/salvi/crypto/pt26/spec` | `salvi.ts` |
+| POST | `/api/salvi/crypto/pt26/keygen` | `salvi.ts` |
+| POST | `/api/salvi/crypto/pt26/sign` | `salvi.ts` |
+| POST | `/api/salvi/crypto/pt26/verify` | `salvi.ts` |
+| GET | `/api/salvi/vm/spec` | `salvi.ts` |
+| GET | `/api/salvi/vm/conformance` | `salvi.ts` |
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/security/audit/unresolved` | `server/routes/security.ts` | Platform-internal security admin |
-| GET | `/api/security/audit/:id` | `server/routes/security.ts` | Same |
-| PATCH | `/api/security/audit/:id/resolve` | `server/routes/security.ts` | Same |
-| POST | `/api/security/hptp/anomalies` | `server/routes/security.ts` | HPTP anomaly detection (platform tool) |
-| GET | `/api/security/hptp/anomalies` | `server/routes/security.ts` | Same |
-| GET | `/api/security/hptp/status` | `server/routes/security.ts` | Same |
-| GET | `/api/security/hptp/fallback-analysis` | `server/routes/security.ts` | Same |
-| GET | `/api/security/hptp/stats` | `server/routes/security.ts` | Same |
-| GET | `/api/security/hptp/thresholds` | `server/routes/security.ts` | Same |
-| GET | `/api/security/hptp/fallback-modes` | `server/routes/security.ts` | Same |
-| GET | `/api/security/hptp/redundancy` | `server/routes/security.ts` | Same |
-| POST | `/api/security/threats` | `server/routes/security.ts` | Threat model (development tool) |
-| GET | `/api/security/threats` | `server/routes/security.ts` | Same |
-| GET | `/api/security/threats/risk-matrix` | `server/routes/security.ts` | Same |
-| GET | `/api/security/threats/stats` | `server/routes/security.ts` | Same |
-| GET | `/api/security/threats/meta` | `server/routes/security.ts` | Same |
-| GET | `/api/security/threats/:id` | `server/routes/security.ts` | Same |
-| PATCH | `/api/security/threats/:id` | `server/routes/security.ts` | Same |
-| DELETE | `/api/security/threats/:id` | `server/routes/security.ts` | Same |
-| POST | `/api/security/threats/seed` | `server/routes/security.ts` | Same |
-| POST | `/api/security/implementation` | `server/routes/security.ts` | Implementation tracker (dev tool) |
-| GET | `/api/security/implementation` | `server/routes/security.ts` | Same |
-| GET | `/api/security/implementation/summary` | `server/routes/security.ts` | Same |
-| GET | `/api/security/implementation/metrics` | `server/routes/security.ts` | Same |
-| GET | `/api/security/implementation/milestones` | `server/routes/security.ts` | Same |
-| GET | `/api/security/implementation/meta` | `server/routes/security.ts` | Same |
-| GET | `/api/security/implementation/:id` | `server/routes/security.ts` | Same |
-| PATCH | `/api/security/implementation/:id` | `server/routes/security.ts` | Same |
-| DELETE | `/api/security/implementation/:id` | `server/routes/security.ts` | Same |
-| POST | `/api/security/implementation/seed` | `server/routes/security.ts` | Same |
-| GET | `/api/security/metadata/categories` | `server/routes/security.ts` | Security metadata categories (dev tool) |
-| GET | `/api/security/metadata/types` | `server/routes/security.ts` | Security metadata types (dev tool) |
+Developer tools, benchmarks, calendar showcases, PT26-DSA, TVM spec.
 
-## 3.15 Capability Token — Demo-Only Endpoints
+## 3.14 Security — Admin-Only
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/capabilities/demo/expiration` | `server/routes/capabilities.ts` | Demo showcase |
-| GET | `/api/capabilities/demo/delegation` | `server/routes/capabilities.ts` | Same |
-| GET | `/api/capabilities/demo/confinement` | `server/routes/capabilities.ts` | Same |
-| GET | `/api/capabilities/demo/certificates` | `server/routes/capabilities.ts` | Same |
-| GET | `/api/capabilities/demo/mesh` | `server/routes/capabilities.ts` | Same |
-| POST | `/api/capabilities/certificate/evidence-chain` | `server/routes/capabilities.ts` | Advanced certificate feature |
-| GET | `/api/capabilities/certificate/stats` | `server/routes/capabilities.ts` | Certificate stats |
-| GET | `/api/capabilities/certificate/:certId/verify-data` | `server/routes/capabilities.ts` | Certificate data export |
-| POST | `/api/capabilities/mesh/register` | `server/routes/capabilities.ts` | Service mesh (inter-service, not LAN) |
-| POST | `/api/capabilities/mesh/issue` | `server/routes/capabilities.ts` | Same |
-| POST | `/api/capabilities/mesh/propagate` | `server/routes/capabilities.ts` | Same |
-| GET | `/api/capabilities/mesh/discover` | `server/routes/capabilities.ts` | Same |
-| POST | `/api/capabilities/mesh/validate` | `server/routes/capabilities.ts` | Same |
-| GET | `/api/capabilities/mesh/topology` | `server/routes/capabilities.ts` | Same |
-| GET | `/api/capabilities/mesh/health` | `server/routes/capabilities.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/security/audit/unresolved` | `security.ts` |
+| GET | `/api/security/audit/:id` | `security.ts` |
+| PATCH | `/api/security/audit/:id/resolve` | `security.ts` |
+| POST | `/api/security/hptp/anomalies` | `security.ts` |
+| GET | `/api/security/hptp/anomalies` | `security.ts` |
+| GET | `/api/security/hptp/status` | `security.ts` |
+| GET | `/api/security/hptp/fallback-analysis` | `security.ts` |
+| GET | `/api/security/hptp/stats` | `security.ts` |
+| GET | `/api/security/hptp/thresholds` | `security.ts` |
+| GET | `/api/security/hptp/fallback-modes` | `security.ts` |
+| GET | `/api/security/hptp/redundancy` | `security.ts` |
+| POST | `/api/security/threats` | `security.ts` |
+| GET | `/api/security/threats` | `security.ts` |
+| GET | `/api/security/threats/risk-matrix` | `security.ts` |
+| GET | `/api/security/threats/stats` | `security.ts` |
+| GET | `/api/security/threats/meta` | `security.ts` |
+| GET | `/api/security/threats/:id` | `security.ts` |
+| PATCH | `/api/security/threats/:id` | `security.ts` |
+| DELETE | `/api/security/threats/:id` | `security.ts` |
+| POST | `/api/security/threats/seed` | `security.ts` |
+| POST | `/api/security/implementation` | `security.ts` |
+| GET | `/api/security/implementation` | `security.ts` |
+| GET | `/api/security/implementation/summary` | `security.ts` |
+| GET | `/api/security/implementation/metrics` | `security.ts` |
+| GET | `/api/security/implementation/milestones` | `security.ts` |
+| GET | `/api/security/implementation/meta` | `security.ts` |
+| GET | `/api/security/implementation/:id` | `security.ts` |
+| PATCH | `/api/security/implementation/:id` | `security.ts` |
+| DELETE | `/api/security/implementation/:id` | `security.ts` |
+| POST | `/api/security/implementation/seed` | `security.ts` |
+| GET | `/api/security/metadata/categories` | `security.ts` |
+| GET | `/api/security/metadata/types` | `security.ts` |
+
+Platform-internal security admin, HPTP anomaly detection, threat model, implementation tracker.
+
+## 3.15 Capability Token — Platform-Only
+
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/capabilities/demo/expiration` | `capabilities.ts` |
+| GET | `/api/capabilities/demo/delegation` | `capabilities.ts` |
+| GET | `/api/capabilities/demo/confinement` | `capabilities.ts` |
+| GET | `/api/capabilities/demo/certificates` | `capabilities.ts` |
+| GET | `/api/capabilities/demo/mesh` | `capabilities.ts` |
+| POST | `/api/capabilities/certificate/evidence-chain` | `capabilities.ts` |
+| GET | `/api/capabilities/certificate/stats` | `capabilities.ts` |
+| GET | `/api/capabilities/certificate/:certId/verify-data` | `capabilities.ts` |
+| POST | `/api/capabilities/mesh/register` | `capabilities.ts` |
+| POST | `/api/capabilities/mesh/issue` | `capabilities.ts` |
+| POST | `/api/capabilities/mesh/propagate` | `capabilities.ts` |
+| GET | `/api/capabilities/mesh/discover` | `capabilities.ts` |
+| POST | `/api/capabilities/mesh/validate` | `capabilities.ts` |
+| GET | `/api/capabilities/mesh/topology` | `capabilities.ts` |
+| GET | `/api/capabilities/mesh/health` | `capabilities.ts` |
+
+Capability demos and service mesh (inter-service, not LAN).
 
 ## 3.16 Tribonacci & Agent Array
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/tribonacci/hook` | `server/routes/tribonacci.ts` | Developer demo tools |
-| GET | `/api/tribonacci/permutation` | `server/routes/tribonacci.ts` | Same |
-| GET | `/api/tribonacci/coverage` | `server/routes/tribonacci.ts` | Same |
-| GET | `/api/tribonacci/hash` | `server/routes/tribonacci.ts` | Same |
-| GET | `/api/tribonacci/sequence` | `server/routes/tribonacci.ts` | Same |
-| POST | `/api/tribonacci/generate-id` | `server/routes/tribonacci.ts` | Same |
-| GET | `/api/tribonacci/next-worker` | `server/routes/tribonacci.ts` | Same |
-| GET | `/api/tribonacci/skip-lookup` | `server/routes/tribonacci.ts` | Same |
-| GET | `/api/tribonacci/hash-distribution` | `server/routes/tribonacci.ts` | Same |
-| POST | `/api/tribonacci/agent-array` | `server/routes/agent-array.ts` | AI agent array (showcase) |
-| GET | `/api/tribonacci/agent-array/stream/:sessionId` | `server/routes/agent-array.ts` | Same |
-| POST | `/api/tribonacci/agent-array/save` | `server/routes/agent-array.ts` | Same |
-| GET | `/api/tribonacci/agent-array/reports` | `server/routes/agent-array.ts` | Same |
-| GET | `/api/tribonacci/agent-array/reports/:id` | `server/routes/agent-array.ts` | Same |
-| GET | `/api/tribonacci/agent-array/positions` | `server/routes/agent-array.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/tribonacci/hook` | `tribonacci.ts` |
+| GET | `/api/tribonacci/permutation` | `tribonacci.ts` |
+| GET | `/api/tribonacci/coverage` | `tribonacci.ts` |
+| GET | `/api/tribonacci/hash` | `tribonacci.ts` |
+| GET | `/api/tribonacci/sequence` | `tribonacci.ts` |
+| POST | `/api/tribonacci/generate-id` | `tribonacci.ts` |
+| GET | `/api/tribonacci/next-worker` | `tribonacci.ts` |
+| GET | `/api/tribonacci/skip-lookup` | `tribonacci.ts` |
+| GET | `/api/tribonacci/hash-distribution` | `tribonacci.ts` |
+| POST | `/api/tribonacci/agent-array` | `agent-array.ts` |
+| GET | `/api/tribonacci/agent-array/stream/:sessionId` | `agent-array.ts` |
+| POST | `/api/tribonacci/agent-array/save` | `agent-array.ts` |
+| GET | `/api/tribonacci/agent-array/reports` | `agent-array.ts` |
+| GET | `/api/tribonacci/agent-array/reports/:id` | `agent-array.ts` |
+| GET | `/api/tribonacci/agent-array/positions` | `agent-array.ts` |
+
+Developer tools and AI agent array.
 
 ## 3.17 Ephemeris
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| POST | `/api/ephemeris/convert` | `server/routes/ephemeris.ts` | Astronomical tool; not LAN management |
-| POST | `/api/ephemeris/position` | `server/routes/ephemeris.ts` | Same |
-| POST | `/api/ephemeris/batch` | `server/routes/ephemeris.ts` | Same |
-| GET | `/api/ephemeris/info` | `server/routes/ephemeris.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| POST | `/api/ephemeris/convert` | `ephemeris.ts` |
+| POST | `/api/ephemeris/position` | `ephemeris.ts` |
+| POST | `/api/ephemeris/batch` | `ephemeris.ts` |
+| GET | `/api/ephemeris/info` | `ephemeris.ts` |
+
+Astronomical tool.
 
 ## 3.18 GDPR / Data Subject Rights
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/gdpr/data-export` | `server/routes/data-subject-rights.ts` | Web platform compliance feature |
-| DELETE | `/api/gdpr/delete-account` | `server/routes/data-subject-rights.ts` | Same |
-| GET | `/api/gdpr/requests` | `server/routes/data-subject-rights.ts` | Same |
-| GET | `/api/gdpr/policy` | `server/routes/data-subject-rights.ts` | Same |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/gdpr/data-export` | `data-subject-rights.ts` |
+| DELETE | `/api/gdpr/delete-account` | `data-subject-rights.ts` |
+| GET | `/api/gdpr/requests` | `data-subject-rights.ts` |
+| GET | `/api/gdpr/policy` | `data-subject-rights.ts` |
+
+Web platform compliance.
 
 ## 3.19 TSA — PlenumNET-Only Subset
 
-| Method | Path | Source File | Reason |
-|---|---|---|---|
-| GET | `/api/tsa/certificate/download` | `server/routes/tsa.ts` | PEM download for platform users |
-| GET | `/api/tsa/tokens` | `server/routes/tsa.ts` | Admin token log query |
-| GET | `/api/tsa/policy` | `server/routes/tsa.ts` | Policy info (platform-facing) |
+| Method | Path | Source |
+|---|---|---|
+| GET | `/api/tsa/certificate/download` | `tsa.ts` |
+| GET | `/api/tsa/tokens` | `tsa.ts` |
+| GET | `/api/tsa/policy` | `tsa.ts` |
+
+PEM download, admin token log, policy info.
 
 ---
 
 # Appendix: Cross-Reference by PlenumLAN Module
 
-| PlenumLAN Module | Mapped From (Existing) | Gaps (Net-New) | Console Screen(s) |
-|---|---|---|---|
-| **TDNS-L** (Name Resolver) | TDNS scan, resolve, list, health | Dual-stack DNS (port 53), LAN scan signals | Name Browser |
-| **CRS-L** (Local Registry) | Inter-Cube CRS register/lookup/heartbeat/deregister/stats | Address module (§5), bitmap allocator, IPv4 collision table, nearest-service routing | Entity Registry, Entity Detail, Address Allocation |
-| **PDS** (Directory Service) | Capability system (issue/validate/delegate/verify-chain), TDNS orgs | User enrollment, auth flow, session mgmt, issuance rules, delegation chains, Merkle audit, AD importer | Permission Rules, Delegation Chains, Identity Dashboard, Audit Log |
-| **PFS** (File Service) | *(none)* | Full SMB 3.1.1 + NFS v4.2 bridge, backup snapshots, update distribution, print driver serving | Shared Folders |
-| **Shims** (Protocol Bridges) | *(none)* | RADIUS shim, LDAP shim, DHCP responder, print bridge | Network Access, Printer Devices |
-| **PTS** (Remote Tunnel) | *(none)* | Phase-encrypted tunnel, WebAuthn enrollment, scoped remote access | *(remote console access)* |
-| **Crypto Kernel** | Salvi crypto (hash, TL-DSA, phase encrypt, timing) | *(direct Rust calls — no bridge needed)* | — |
-| **GLB/CON/FTS** (Multi-Site) | Inter-Cube GLB/CON/FTS endpoints | *(logic identical; activates on second-site onboarding)* | — |
-| **Console** | *(none — entirely new React app)* | 16 management screens | All 16 screens (§18) |
-| **Infrastructure** | *(none)* | First-run wizard, installer pipeline, auto-update, PlenumDB, emergency console | System Overview, Scan Workflow |
+| LAN Module | Mapped From | Gaps (Net-New) |
+|---|---|---|
+| TDNS-L | TDNS scan, resolve, list, health | Dual-stack DNS, LAN scan |
+| CRS-L | CRS register/lookup/heartbeat/deregister/stats | Address module, bitmap, IPv4 collision, nearest-service |
+| PDS | Capabilities (issue/validate/delegate), TDNS orgs | User enrollment, auth, sessions, issuance rules, delegation, Merkle audit, AD importer |
+| PFS | *(none)* | SMB 3.1.1 + NFS v4.2 bridge, backups, updates, print drivers |
+| Shims | *(none)* | RADIUS, LDAP, DHCP, print bridge |
+| PTS | *(none)* | Phase-encrypted tunnel, WebAuthn, scoped remote access |
+| Crypto Kernel | Salvi crypto (hash, TL-DSA, phase, timing) | Direct Rust calls (no bridge) |
+| GLB/CON/FTS | Inter-Cube GLB/CON/FTS endpoints | Identical logic; activates on second-site |
+| Console | *(none)* | 16 management screens |
+| Infrastructure | *(none)* | Setup wizard, installer, auto-update, PlenumDB, emergency console |
 
 ---
 
-*Document produced from full endpoint inventory of PlenumNET (server/routes/*.ts, server/routes.ts) mapped against TM-2026-019.2 §5–§24.*
+*Document produced from full endpoint inventory of PlenumNET mapped against TM-2026-019.2 §5–§24.*
+*All source files under `server/routes/`. All LAN targets under `plenumlan/src/`.*
