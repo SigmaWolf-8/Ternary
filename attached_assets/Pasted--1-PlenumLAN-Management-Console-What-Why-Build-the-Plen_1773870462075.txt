@@ -1,0 +1,47 @@
+
+#1 - PlenumLAN Management Console
+What & Why
+Build the PlenumLAN Management Console — a 16-screen React SPA with Express API backend and PostgreSQL database. This is a network administration console that replaces Windows Server tools (Active Directory, DNS Manager, DHCP, Group Policy, etc.) with a modern web interface. The console manages devices, users, groups, permissions, shared folders, and monitoring for PlenumLAN networks.
+
+Done looks like
+A fully navigable 16-screen React SPA with sidebar navigation (collapsible groups: Network, Access Security, Monitoring + standalone items: Dashboard, Folder Shares, Settings)
+White/greyscale/black design palette with baby blue (#38BDF8) as sole accent color, system font stack
+Dashboard with live stat cards, running services list, and recent activity feed
+Network section: Devices list with type/zone filtering, device detail view, device registration wizard (4-step flow), TDNS name browser, IP address allocation view, network map SVG visualization
+Access Security section: Users list with enrollment, Groups with delegation chains, Permission Rules, Compatibility page showing protocol bridge status
+Folder Shares page with UNC paths and access group summaries
+Monitoring section: Health with device heartbeat status, Security with risk indicators and eliminated-attacks card, Activity with tamper-proof event chain
+Settings page with site info, network config, zone-to-VLAN mapping, remote access, and updates
+Express API with ~30 endpoints serving realistic mock/seed data across all sections (devices, users, groups, rules, shares, events, health status)
+PostgreSQL database with Drizzle ORM schema for devices, users, groups, rules, folder shares, audit events, site configuration, and capability tokens
+All user-facing text follows plain-English language rules: no acronyms, no internal code names, no technical identifiers in default views
+Responsive sidebar that collapses to icons below 768px; horizontally-scrollable tables on narrow viewports
+Out of scope
+Rust/Axum backend (this builds the console as a TypeScript/Express app in the existing Replit workspace)
+Actual cryptographic operations (TL-DSA, TL-Sponge-385, etc.) — API returns realistic mock data
+Protocol bridges (RADIUS, LDAP, DHCP shims) — status shown but not functional
+File service (PFS/SMB/NFS) — metadata shown but no actual file serving
+First-Run Setup Wizard as a separate flow — settings page shows configured values
+Real device scanning — registration wizard uses mock template-driven flow
+PlenumDB embedded database (uses PostgreSQL as specified for Stage 1)
+Cross-site tunneling (PTS) — status shown but not functional
+Tasks
+Create the react-vite artifact and write the OpenAPI spec — Create a react-vite artifact at the root path. Write the full OpenAPI 3.1 spec covering all console API endpoints: health, CRS (device registry), TDNS (name resolution), PDS (users/groups), capabilities, PFS (folder shares), security, TSA (audit/events), and config/settings. Run codegen to generate React Query hooks and Zod schemas.
+
+Design and push the database schema — Define Drizzle ORM tables for: devices (with type, zone, addresses, classification data), users (with role, key type, status), groups (with members and access summaries), permission rules, folder shares, audit events (with Merkle chain metadata), site configuration, and capability tokens. Push schema to PostgreSQL.
+
+Build all Express API route handlers — Implement route handlers for all endpoints defined in the OpenAPI spec. Each handler queries the database via Drizzle ORM and returns data matching the spec schemas. Seed the database with realistic demo data (6+ devices across types/zones, 5+ users, 3+ groups, sample rules, folder shares, and 20+ audit events with plain-English descriptions).
+
+Generate the frontend and verify integration — Launch frontend generation with the design spec (white/greyscale/black palette, baby blue accent, system fonts). The frontend must implement all 16 screens with proper routing, the collapsible sidebar navigation structure, stat cards, data tables, the 4-step device registration wizard, SVG network map, and responsive behavior. Wire all pages to the generated React Query hooks.
+
+Relevant files
+lib/api-spec/openapi.yaml
+lib/api-spec/orval.config.ts
+artifacts/api-server/src/app.ts
+artifacts/api-server/src/routes/index.ts
+artifacts/api-server/src/routes/health.ts
+lib/db/src/schema/index.ts
+lib/db/src/index.ts
+lib/db/drizzle.config.ts
+attached_assets/Pasted--PlenumLAN-Console-Site-Map-Implementation-Reference-fo_1773870047247.txt
+attached_assets/Pasted-PlenumNET-PlenumLAN-API-Mapping-Document-Reference-TM-2_1773870099670.txt
