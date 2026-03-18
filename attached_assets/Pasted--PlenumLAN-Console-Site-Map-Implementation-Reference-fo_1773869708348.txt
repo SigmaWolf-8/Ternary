@@ -1,0 +1,437 @@
+# PlenumLAN — Console Site Map
+
+**Implementation Reference for Replit**
+**Capomastro Holdings Ltd. — Applied Physics Division**
+**March 2026**
+
+Source specification: TM-2026-019.2 §18 (Management Console: 16 Screens)
+Repository: `SigmaWolf-8/Ternary` → `plenumlan/`
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Notes |
+|---|---|---|
+| **Backend** | Rust (Axum web framework) | Single compiled binary. Axum serves the API and embedded static assets. Runs on Replit. |
+| **Frontend** | React (TypeScript) | Single-page application. Embedded into the Rust binary as static assets at build time. |
+| **Crypto Kernel** | Rust (`ternary-math` crate) | Called directly from Axum handlers. No FFI bridge, no serialization boundary. |
+| **Storage** | Embedded key-value store (sled or redb) | Stage 1 (Replit). Replaced by PlenumDB in later stages. |
+| **Styling** | Tailwind CSS or plain CSS modules | White/greyscale/black palette. Baby blue (#38BDF8) as the sole accent color. System font stack. |
+
+The React console lives in `plenumlan/console/`. It is built with `npm run build` and the output is embedded into the Rust binary as static files served by Axum. The admin opens a browser and hits the Axum server directly — there is no separate frontend deployment.
+
+---
+
+## Routing Overview
+
+All API routes are served by Axum at `/api/*`. The React SPA is served at `/` with client-side routing handling page navigation. The SPA shell (sidebar + header) loads once; page content swaps on navigation.
+
+```
+https://plenumlan.replit.app/                    → React SPA (all pages)
+https://plenumlan.replit.app/api/health          → Axum health check
+https://plenumlan.replit.app/api/crs/*           → Device registry endpoints
+https://plenumlan.replit.app/api/tdns/*           → Name resolution endpoints
+https://plenumlan.replit.app/api/pds/*            → User/group/rule endpoints
+https://plenumlan.replit.app/api/pfs/*            → Folder share endpoints
+https://plenumlan.replit.app/api/security/*       → Security + audit endpoints
+https://plenumlan.replit.app/api/capabilities/*   → Permission token endpoints
+https://plenumlan.replit.app/api/tsa/*            → Timestamping + event log
+https://plenumlan.replit.app/api/salvi/*          → Core crypto + timing
+```
+
+---
+
+## Sidebar Navigation Structure
+
+All sidebar sections are collapsible. Sections collapse by default and auto-expand when the admin navigates to a page within them. Dashboard, Folder Shares, and Settings are standalone items outside any group.
+
+```
+Dashboard                          (standalone — always visible)
+
+▼ Network                          (collapsible group — 4 pages)
+    Devices
+    TDNS Local
+    IP Addresses
+    Network Map
+
+▼ Access Security                  (collapsible group — 4 pages)
+    Users
+    Groups
+    Rules
+    Compatibility
+
+Folder Shares                      (standalone)
+
+▼ Monitoring                       (collapsible group — 3 pages)
+    Health
+    Security
+    Activity
+
+Settings                           (standalone — bottom of sidebar, above version)
+```
+
+Collapsed groups show a summary line (e.g., "4 screens") as a click target to expand.
+
+---
+
+## Page Specifications
+
+### 1. Dashboard
+
+| | |
+|---|---|
+| **Route** | `/` |
+| **Spec reference** | TM-2026-019.2 §18 — System Overview (replaces Windows Server Manager) |
+| **API endpoints** | `GET /api/health`, `GET /api/crs/stats`, `GET /api/pds/sessions`, `GET /api/tsa/audit/query` |
+
+**Content:**
+
+- Stat row: Devices online (count / total), Users (active sessions), Folder Shares (count + total size), System health status
+- Two-column layout below:
+  - Left card: Running Services — list of 6 core services (Device Registry, Name Resolver, Directory Service, File Service, Heartbeat Monitor, Event Log) with plain-English descriptions and health badges
+  - Right card: Recent Activity — timestamped feed of events in plain English (no codes, no hashes — "Color Printer registered at 192.168.1.50", not "Entity registered at vertex 0x1A3F")
+
+---
+
+### 2. Devices
+
+| | |
+|---|---|
+| **Route** | `/network/devices` |
+| **Spec reference** | TM-2026-019.2 §18 — Entity Registry (replaces AD Users & Computers) |
+| **API endpoints** | `GET /api/crs/list`, `GET /api/crs/lookup/:address`, `POST /api/tdns/scan` |
+
+**Content:**
+
+- Search bar + type filter dropdown (All Types, Server, Workstation, Printer, Service, IoT Device, Network Equipment) + zone filter dropdown (All Zones, Management, Services, Clients)
+- "Register Device" button (navigates to Register Device sub-view)
+- Table: Device Name, Type, Zone, IP Address, Status badge
+- Rows are clickable → navigates to Device Detail sub-view
+- When filtered to "Printer", show contextual banner: "Showing printers only. Printer drivers must be cryptographically signed — unsigned drivers are blocked. Print jobs are routed to the nearest printer automatically."
+
+**Sub-views (not in sidebar — accessed from this page):**
+
+**2a. Device Detail** — accessed by clicking any row in the Devices table
+
+| | |
+|---|---|
+| **Route** | `/network/devices/:id` |
+| **Spec reference** | TM-2026-019.2 §18 — Entity Detail (replaces AD Properties) |
+| **API endpoints** | `GET /api/crs/lookup/:address`, `GET /api/capabilities/status` |
+
+- Back link → returns to Devices
+- Header: device emoji + name + type + zone + registration date + status badge
+- Two-column layout:
+  - Left card: Network Identity — ternary address, host number, IPv4, IPv6, identity key type, registration date
+  - Right card: Permissions Granted — list of permissions with plain-English name, scope description, and expiration
+- Full-width card: Device Classification — 27-cell grid showing the answers (1, 2, or 3) from the registration scan, labeled Q1–Q27 with explanatory footer
+
+**2b. Register Device** — accessed by clicking "+ Register Device" on the Devices page
+
+| | |
+|---|---|
+| **Route** | `/network/devices/register` |
+| **Spec reference** | TM-2026-019.2 §18 — Scan Workflow |
+| **API endpoints** | `POST /api/tdns/register`, `POST /api/tdns/scan` |
+
+- Back link → returns to Devices
+- 4-step progress bar: Choose Type → Answer Questions → Review → Done
+- Step 1: 6 device type cards (Workstation, Server, Printer, IoT Device, Network Equipment, Web Service) with emoji, name, plain-English description, question count
+- Step 2: Template-driven questions in plain English ("How is it hosted?", "How does it connect?") with 3 answer buttons each showing both the number and the plain-English label
+- Step 3: Review computed addresses (ternary, IPv4, IPv6, zone, device name) with back/confirm buttons
+- Step 4: Success confirmation with "Register another" and "Back to devices" buttons
+
+---
+
+### 3. TDNS Local
+
+| | |
+|---|---|
+| **Route** | `/network/tdns` |
+| **Spec reference** | TM-2026-019.2 §18 — Name Browser (replaces Windows DNS Manager) |
+| **API endpoints** | `GET /api/tdns/resolve/:name`, `GET /api/tdns/list` |
+
+**Content:**
+
+- Page description: "When any device looks up a name like 'files.salvi-homes.plm.local', this resolver translates it into the IP address needed to connect. This replaces Windows DNS Server."
+- Search/resolve input
+- Table: Device Name, IPv4 Address, IPv6 Address, Lookups count
+
+---
+
+### 4. IP Addresses
+
+| | |
+|---|---|
+| **Route** | `/network/addresses` |
+| **Spec reference** | TM-2026-019.2 §18 — Address Allocation (replaces Windows DHCP Manager) |
+| **API endpoints** | `GET /api/crs/stats`, site network configuration |
+
+**Content:**
+
+- Page description: "Every device gets an IP address computed automatically from its position on the network. This replaces Windows DHCP Server."
+- Stat row: Addresses Used (x / total), Network Zones (count), Conflicts (count)
+- Card: Network Zones — three rows (Management, Services, Clients) each showing: zone name, VLAN number, plain-English role description, device count, utilization bar
+
+---
+
+### 5. Network Map
+
+| | |
+|---|---|
+| **Route** | `/network/map` |
+| **Spec reference** | TM-2026-019.2 §18 — Cube Visualizer (no Windows equivalent) |
+| **API endpoints** | `GET /api/crs/list`, `GET /api/salvi/inter-cube/topology` |
+
+**Content:**
+
+- Page description: "Every device has a position in the network geometry. Devices that are close together communicate faster. This map shows how your network is organized."
+- Legend: Management (black) / Services (grey) / Clients (light grey)
+- SVG topology visualization: nodes sized by role, positioned by cube coordinates, edges showing adjacency. Node labels use plain names ("John's PC", "Color Printer", "File Server") not hostnames.
+
+---
+
+### 6. Users
+
+| | |
+|---|---|
+| **Route** | `/access/users` |
+| **Spec reference** | TM-2026-019.2 §18 — Identity Dashboard (replaces AD Users + Certificate Authority) |
+| **API endpoints** | `GET /api/pds/users`, `GET /api/capabilities/certificate/stats` |
+
+**Content:**
+
+- Page description: "Every user gets a cryptographic identity key instead of a password. They log in by proving they hold the key — using a fingerprint, face scan, or security PIN. This replaces Active Directory user accounts."
+- Stat row: Enrolled Users, Active Right Now, Certificates issued, Expiring Soon
+- Table: Name, Role, Last Login, Key Type ("Post-quantum (87-byte)"), Status badge
+- "+ Enroll New User" button
+
+---
+
+### 7. Groups
+
+| | |
+|---|---|
+| **Route** | `/access/groups` |
+| **Spec reference** | TM-2026-019.2 §18 — Delegation Chains (replaces AD Security Groups) |
+| **API endpoints** | `GET /api/capabilities/audit`, `GET /api/pds/groups` |
+
+**Content:**
+
+- Page description: "Groups organize users by role. A group defines who can access what — shared folders, printers, admin tools. Add someone to a group and they automatically get that group's access. Remove them and it's revoked instantly. This replaces Active Directory security groups."
+- Stat row: Groups (count), Delegation Chains (count + explanation), Members (total)
+- Card: Groups — each row shows group name, members list, access summary, member count
+- "+ Create Group" button
+- Second card: Delegation Chains — explanation text ("An administrator can delegate access to a manager, and that manager can further delegate a narrower version to their team. Nobody in the chain can grant more than they were given.") followed by chain list showing the path and member count
+
+---
+
+### 8. Rules
+
+| | |
+|---|---|
+| **Route** | `/access/rules` |
+| **Spec reference** | TM-2026-019.2 §18 — Permission Rules (replaces Windows Group Policy Management) |
+| **API endpoints** | `GET /api/capabilities/rules`, `GET /api/crs/stats` |
+
+**Content:**
+
+- Page description: "Rules automatically assign permissions when a device registers, based on its type and network zone. Define your groups first (under Groups), then create rules that reference them. This replaces Windows Group Policy."
+- Stat row: Active Rules, Devices Matched
+- Card: Rules — each row shows the rule in plain English, what it matches, and how many devices matched
+- "+ Create Rule" button
+
+---
+
+### 9. Compatibility
+
+| | |
+|---|---|
+| **Route** | `/access/compatibility` |
+| **Spec reference** | TM-2026-019.2 §18 — Network Access (replaces RADIUS / Network Policy Server) |
+| **API endpoints** | Protocol bridge status endpoints |
+
+**Content:**
+
+- Page description: "Managed switches, legacy applications, and older devices speak protocols PlenumLAN doesn't natively use. These services translate between those protocols and PlenumLAN so existing hardware works without replacement."
+- Stat row: Switch Sessions, Legacy App Connections, Address Leases
+- Card: three service rows each with plain-English name, description of what it translates, and status badge:
+  - Switch Authentication — "Translates 802.1X switch requests into PlenumLAN identity verification"
+  - Legacy Directory — "Answers Active Directory–style queries from older applications"
+  - Address Assignment — "Hands out IP addresses to devices that can't register themselves"
+
+---
+
+### 10. Folder Shares
+
+| | |
+|---|---|
+| **Route** | `/folders` |
+| **Spec reference** | TM-2026-019.2 §18 — Shared Folders (replaces Windows File Server Manager) |
+| **API endpoints** | `GET /api/pfs/shares`, `GET /api/pfs/stats` |
+
+**Content:**
+
+- Page description: "Shared folders are served to Windows, Mac, and Linux computers. Access is controlled by permission groups — not per-folder ACLs. Every file is integrity-verified on read and encrypted at rest. This replaces Windows File Server."
+- Stat row: Shared Folders (count), Total Size, Snapshots (count), Integrity (percentage)
+- Card: Shared Folders list — each row shows UNC path (monospace), size + file count, and "Access: [group names and access levels]"
+- "+ Create Folder Share" button
+
+**Future sub-views (post-0.1):**
+
+- Share Detail — drill into a share to see contents, active connections (who's connected and what files are open), backup snapshots with one-click restore, storage quota
+- Create Share wizard — name, select permission groups, set access levels, optional quota
+
+---
+
+### 11. Health
+
+| | |
+|---|---|
+| **Route** | `/monitoring/health` |
+| **Spec reference** | TM-2026-019.2 §18 — System Health (replaces Windows Performance Monitor) |
+| **API endpoints** | `GET /api/health`, `GET /api/salvi/inter-cube/fts/status` |
+
+**Content:**
+
+- Page description: "PlenumLAN monitors every registered device with regular heartbeats. If a device stops responding, it progresses: online → suspect → offline. This replaces Performance Monitor and manual monitoring."
+- Stat row: CPU Usage, Memory, Disk, Avg Response Time
+- Card: Device Health Monitor — each row shows device name (plain English, e.g., "Directory server (pds.salvi-homes)"), current status description, last heartbeat time, status badge (online / degraded / offline)
+
+---
+
+### 12. Security
+
+| | |
+|---|---|
+| **Route** | `/monitoring/security` |
+| **Spec reference** | TM-2026-019.2 §18 — Security Overview (replaces Windows Security Dashboard) |
+| **API endpoints** | `GET /api/security/dashboard`, `GET /api/security/kri` |
+
+**Content:**
+
+- Page description: "PlenumLAN eliminates entire categories of attacks by design. There are no passwords to steal, no tickets to forge, no hashes to crack, and no unsigned code to exploit."
+- Stat row: Failed Logins (24h), Unknown Devices, Next Key Rotation
+- Two-column layout:
+  - Left card: Risk Indicators — 5 key risks with healthy/degraded/failed badges
+  - Right card: Windows Server Attacks — Eliminated by Architecture — 6 named attacks (Pass-the-Hash, Kerberoasting, Golden Ticket, NTLM Relay, PrintNightmare, DCSync) each with a one-line plain-English explanation of why it's structurally impossible
+
+---
+
+### 13. Activity
+
+| | |
+|---|---|
+| **Route** | `/monitoring/activity` |
+| **Spec reference** | TM-2026-019.2 §18 — Audit Log (replaces Windows Event Viewer) |
+| **API endpoints** | `GET /api/tsa/audit/query`, `GET /api/tsa/health` |
+
+**Content:**
+
+- Page description: "Every event is recorded in a tamper-proof chain. Each entry is linked to the one before it — if anyone modifies or deletes an entry, the chain breaks visibly. Unlike Windows Event Viewer, this log cannot be cleared or edited."
+- Stat row: Total Events, Chain Integrity, Events Today
+- Card: Event Chain — each row shows time (human-readable, e.g., "2:32 PM"), event type in plain English ("Device registered", "User logged in", "File accessed"), and description in plain English ("Maria Soligo opened Q1-report.xlsx")
+- No hashes, no monospace codes, no technical identifiers in the default view. Technical details (Merkle hash, trit addresses) available in an expandable detail row if needed.
+
+---
+
+### 14. Settings
+
+| | |
+|---|---|
+| **Route** | `/settings` |
+| **Spec reference** | TM-2026-019.2 §14.4 (First-Run Wizard), §6.2 (Site Network Configuration) |
+| **API endpoints** | `GET /api/config/site`, `GET /api/config/network`, `PUT /api/config/site`, `GET /api/health`, `GET /api/config/remote-devices`, `GET /api/config/update-status` |
+
+**All values on this page are read from the server API at runtime.** Nothing is hardcoded in the frontend. The admin set these during the First-Run Wizard; this page displays what the server reports and allows changes where appropriate.
+
+**Content:**
+
+- Site Information (read from `GET /api/config/site`): site name, server hostname, server version, framework version, installation date. Site name is editable (`PUT /api/config/site`).
+- Network Configuration (read from `GET /api/config/network`): IPv4 subnet, usable host range, IPv6 prefix. These are auto-detected at first run and stored server-side. Editable with confirmation (changes affect all devices).
+- Zone-to-VLAN Mapping (read from `GET /api/config/network`): which VLAN ID maps to Management, Services, and Clients. Configured at first run, rarely changed.
+- Remote Access (read from `GET /api/config/remote-devices`): encrypted tunnel status, list of enrolled remote devices with enrollment date and last-used timestamp, revoke button per device.
+- Updates (read from `GET /api/config/update-status`): currently running version, last update check timestamp, whether an update is available, "Check now" button that triggers a server-side version check.
+- About: version strings from `/api/health`, link to documentation.
+
+---
+
+## Page Count Summary
+
+| # | Page | Sidebar Entry | Spec Screen | Route |
+|---|---|---|---|---|
+| 1 | Dashboard | Dashboard | System Overview | `/` |
+| 2 | Devices | Network → Devices | Entity Registry | `/network/devices` |
+| 3 | Device Detail | *(sub-view of Devices)* | Entity Detail | `/network/devices/:id` |
+| 4 | Register Device | *(sub-view of Devices)* | Scan Workflow | `/network/devices/register` |
+| 5 | TDNS Local | Network → TDNS Local | Name Browser | `/network/tdns` |
+| 6 | IP Addresses | Network → IP Addresses | Address Allocation | `/network/addresses` |
+| 7 | Network Map | Network → Network Map | Cube Visualizer | `/network/map` |
+| 8 | Users | Access Security → Users | Identity Dashboard | `/access/users` |
+| 9 | Groups | Access Security → Groups | Delegation Chains | `/access/groups` |
+| 10 | Rules | Access Security → Rules | Permission Rules | `/access/rules` |
+| 11 | Compatibility | Access Security → Compatibility | Network Access | `/access/compatibility` |
+| 12 | Folder Shares | Folder Shares | Shared Folders | `/folders` |
+| 13 | Health | Monitoring → Health | System Health | `/monitoring/health` |
+| 14 | Security | Monitoring → Security | Security Overview | `/monitoring/security` |
+| 15 | Activity | Monitoring → Activity | Audit Log | `/monitoring/activity` |
+| 16 | Settings | Settings | *(new — not in original 16)* | `/settings` |
+
+14 sidebar entries. 16 routable pages (including Device Detail and Register Device as sub-views). Printer management is a type filter on the Devices page, not a separate screen.
+
+---
+
+## Design Constants
+
+| Property | Value |
+|---|---|
+| Background | `#F8F8F8` |
+| Surface (cards, sidebar, header) | `#FFFFFF` |
+| Border | `#E5E5E5` |
+| Primary text | `#111111` |
+| Secondary text | `#555555` |
+| Muted text | `#999999` |
+| Accent (status, highlights) | `#38BDF8` (baby blue) |
+| Warning | `#CA8A04` (amber) |
+| Error | `#DC2626` (red) |
+| Font stack | `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` |
+| Monospace | System monospace (addresses, keys, UNC paths only) |
+
+No green. No navy. No gold. Status badges use baby blue for healthy/online/active, amber for degraded, red for failed, grey for offline.
+
+---
+
+## Language Rules
+
+These apply to every screen, every label, every description.
+
+1. **No acronyms in user-facing text.** Write "name resolver" not "TDNS-L." Write "identity key" not "TL-DSA-87." Write "tamper-proof chain" not "Merkle chain." The only exception is "TDNS Local" as the page name — it's a product-specific proper noun, not an acronym to decode.
+2. **No internal code names.** Write "Device Registry" not "CRS-L." Write "Directory Service" not "PDS." Write "Heartbeat Monitor" not "FTS."
+3. **Network zones are Management, Services, and Clients.** Never "Inner," "Void," or "Outer." Those are the geometric axis values — the admin doesn't need to know that.
+4. **Every page opens with a 1–2 sentence description** of what the page does and what Windows Server feature it replaces.
+5. **Event descriptions use names and plain language.** "Maria Soligo opened Q1-report.xlsx" not "User auth event: entity 231312121… accessed resource via PFS capability token."
+6. **Technical detail is available on demand, not by default.** The activity log shows human-readable events. Merkle hashes, trit addresses, and token IDs go in expandable detail rows.
+
+---
+
+## Implementation Notes for Replit
+
+**Build pipeline:**
+
+1. `plenumlan/console/` contains the React TypeScript app
+2. `npm run build` in `console/` produces static assets
+3. The Rust binary in `plenumlan/src/main.rs` embeds these assets and serves them via Axum
+4. `cargo build --release` in `plenumlan/` produces the single binary
+5. Replit runs this binary directly
+
+**All code changes happen on PlenumNET** (`PlenumNET.Replit.App`) and are pushed to GitHub. PlenumLAN pulls from GitHub and runs the binary. PlenumLAN does not edit source code. See the PlenumLAN Agent Briefing for the full pipeline and mandate.
+
+**The console is a single-page React application.** Client-side routing handles all page transitions. Axum serves the SPA shell at `/` and catches all non-API routes to return `index.html` for client-side resolution. API calls go to `/api/*` and are handled by Axum route handlers backed by Rust modules.
+
+**Responsive behavior:** The sidebar collapses to icons on screens narrower than 768px. The admin may manage the network from a tablet or phone. All tables should scroll horizontally on narrow viewports rather than wrapping.
+
+---
+
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*RSalvi@Salvigroup.com*
