@@ -42,16 +42,18 @@ The following Rust crates are already built and operational. Many mapped endpoin
 | `verify_cache.rs` | 641 | CRS verification LRU+TTL cache |
 | `key_rotation.rs` | 628 | Arc-synchronized key rotation |
 | `wire_ecc.rs` | 599 | 8-trit ECC syndrome correction |
-| `cube_addr.rs` | — | 13D cube addressing |
-| `glb.rs` | — | Geometric Load Balancer |
+| `cube_addr.rs` | 636 | 13D cube addressing |
+| `glb.rs` | 564 | Geometric Load Balancer |
 | `api.rs` | 554 | REST API handlers |
+| `sampling.rs` | 635 | Sampling |
+| `dimension_tracker.rs` | 599 | DimensionDensity tracker |
+| `telemetry.rs` | 589 | Telemetry stats |
+| `lattice_mixer.rs` | 502 | Lattice mixing |
+| `deregistration.rs` | 493 | Entity deregistration |
+| `pt26_parallel.rs` | 411 | PT26 parallel ops |
 | `config.rs` | 348 | Feature flags |
-| `deregistration.rs` | — | Entity deregistration |
-| `dimension_tracker.rs` | — | DimensionDensity tracker |
-| `lattice_mixer.rs` | — | Lattice mixing |
-| `pt26_parallel.rs` | — | PT26 parallel ops |
-| `sampling.rs` | — | Sampling |
-| `telemetry.rs` | — | Telemetry stats |
+| `lib.rs` | 382 | Crate root / re-exports |
+| `main.rs` | 383 | Entry point |
 
 **Ternary Math Library** (`ternary-math/src/` — 22 modules):
 
