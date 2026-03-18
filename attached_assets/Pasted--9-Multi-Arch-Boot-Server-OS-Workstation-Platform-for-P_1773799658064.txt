@@ -1,0 +1,1136 @@
+# #9 — Multi-Arch Boot, Server OS & Workstation Platform for PlenumNET Kernel
+
+**Complete A–Z Implementation Plan — Ternary-Native on Rust**
+
+Document Reference: TM-2026-019  
+Capomastro Holdings Ltd. — Applied Physics Division  
+Classification: PROPRIETARY AND CONFIDENTIAL
+
+---
+
+## Executive Summary
+
+This plan takes the PlenumNET kernel from its current state — a formally verified bare-metal boot on x86_64 via QEMU direct-load with 50+ self-tests, Kani/MIRI proofs, and simulated architecture modules — to a complete, deployable server operating system bootable on three architectures (x86_64, aarch64, RISC-V 64), with a forward path to workstation capability and Windows application compatibility.
+
+The work is organized into five tiers, each building on the last:
+
+- **Tier 1 — Bootable Multi-Arch Kernel** (Phases 0–6): Real firmware boot paths on all three architectures, hardware page tables, IDT/APIC/timer, serial and framebuffer output. The kernel boots on real (emulated) hardware rather than QEMU's flat-binary loader.
+- **Tier 2 — Kernel Core Services** (Phases 7–10): Physical and virtual memory management, process/thread scheduling, a ternary-native system call ABI, and inter-process communication via ternary message passing.
+- **Tier 3 — Server OS Foundation** (Phases 11–17): Virtual file system with block storage drivers, a dual network stack (ternary-native PlenumNET + TCP/IP compatibility), a unified device driver model, security via ternary capability tokens, a service supervisor (init), and bootable server images with management console.
+- **Tier 4 — Workstation Foundation** (Phases 18–21): HID input subsystem, a window compositor with 28-window Z₂₈ agent array, audio pipeline, and a GPU abstraction layer (software rendering with hardware acceleration path).
+- **Tier 5 — Windows Application Interlayer** (Phases 22–24): PE/COFF executable loader, NT kernel personality layer, Win32 API surface (native subset + Wine/Proton integration strategy), and desktop integration for running Windows applications on PlenumNET.
+
+Tiers 1–3 constitute the **PlenumNET Server OS** — the primary deliverable. Tiers 4–5 extend to **PlenumNET Workstation** and are designed from Phase 0 onward so that no architectural decisions in Tiers 1–3 preclude them.
+
+---
+
+## What & Why
+
+The PlenumNET kernel boots bare-metal on x86_64 via QEMU direct-load (`-kernel` flag), with the full Kani/MIRI formal verification pipeline and bare-metal self-test suite proving correctness. All three architecture modules (x86_64, aarch64, RISC-V) implement identical trait interfaces (`ArchOps`, `MmuOps`, `InterruptOps`, `TimerOps`, `BootOps`) and the 12-stage `BootSequence` state machine is firmware-agnostic. The XPlenum RISC-V extension has full RTL simulation + formal verification via SymbiYosys, and `cargo check --target riscv64gc-unknown-none-elf` already passes in CI.
+
+**What's missing to reach Server OS:**
+
+1. **Real firmware handoff.** The current boot entry (`_start` at 0x100000) only works with QEMU's `-kernel` flat-binary loader. No UEFI stub, no Multiboot2 header, no Device Tree parser, no OpenSBI S-mode entry, no XPlenum runtime initialization during boot. Serial output is x86_64 COM1 only.
+2. **Hardware memory management.** Architecture modules use `BTreeMap` page tables and simulated memory maps rather than firmware-provided data and real hardware page table walks.
+3. **Process isolation.** No user-space/kernel-space separation, no context switching, no scheduler. The kernel runs as a single thread of execution.
+4. **System call interface.** No mechanism for user-space programs to request kernel services. The ternary-native ABI (27-class syscall dispatch, Rep C parameters) exists only in design.
+5. **Storage and file system.** No block device drivers, no VFS layer, no file abstraction. The kernel cannot persist data or load executables from disk.
+6. **Networking.** No network drivers, no IP stack, no PlenumNET ternary tunnel integration at the OS level. PlenumNET's 13D hypercube routing exists in user-space Rust but not as a kernel-level networking primitive.
+7. **Security model.** TL-DSA and TIS-27 exist as libraries, but there is no kernel-enforced capability system, no MAC framework, no process-level cryptographic identity.
+8. **Service management.** No init system, no service supervision, no way to start/stop/monitor daemons.
+
+**What's missing to reach Workstation (future, designed now):**
+
+9. **Input subsystem.** No keyboard, mouse, or HID processing.
+10. **Window compositor.** No graphical window management, no client/server display protocol.
+11. **Audio.** No audio pipeline.
+12. **GPU abstraction.** Software-only framebuffer; no acceleration path.
+13. **Windows application compatibility.** No PE/COFF loader, no NT personality, no Win32 API surface.
+
+This plan addresses all thirteen gaps in a single coherent roadmap where every phase is aware of the requirements that follow it.
+
+---
+
+## Done Looks Like
+
+### Tier 1 Milestone: Multi-Arch Boot (Server prerequisite)
+
+- The kernel boots via UEFI on x86_64 (QEMU with OVMF firmware)
+- The kernel boots via GRUB on legacy BIOS x86_64 (QEMU with Multiboot2)
+- The kernel boots on aarch64 via UEFI and Device Tree (QEMU virt machine)
+- The kernel boots on RISC-V 64 via OpenSBI + Device Tree (QEMU virt machine), with XPlenum coprocessor initialized when hardware is detected
+- All boot paths populate `FirmwareInfo` → `BootParams` and enter the existing 12-stage `BootSequence`
+- Existing QEMU direct-load boot path (`_start` at 0x100000) continues working unchanged
+- Real x86_64 page tables (PML4 4-level), real IDT with exception handlers, APIC timer at ~100 Hz
+- All 50+ bare-metal self-tests pass through every boot path
+- Kani proofs and MIRI checks continue passing
+- Framebuffer-based boot splash with progress bar visible on screen
+- Boot images buildable for all architecture/firmware combinations
+- CI extended for multi-arch validation
+
+### Tier 2 Milestone: Kernel Core Services
+
+- Physical page frame allocator managing firmware-reported memory
+- Virtual memory with per-process address spaces (4-level paging on all architectures)
+- Kernel heap allocator (slab or buddy) replacing the bump allocator
+- Preemptive round-robin scheduler with priority levels mapped to ternary phase weights
+- User-space process execution with ring 3 / EL0 / U-mode isolation
+- Ternary-native system call ABI: 27 syscall classes (3³), parameters in Rep C, dispatch via `syscall`/`svc`/`ecall`
+- IPC via ternary message channels (54-trit addressed, TIS-27 integrity-checked)
+- Shared memory regions with ternary capability tokens
+
+### Tier 3 Milestone: PlenumNET Server OS (PRIMARY DELIVERABLE)
+
+- Virtual File System with mount points, inodes, directory traversal
+- Block device drivers: VirtIO-blk (QEMU), AHCI/SATA, NVMe (staged)
+- PlenumFS: ternary-native file system with 27-trit inode addresses, TIS-27 integrity per block, TL-DSA signed metadata
+- Network drivers: VirtIO-net (QEMU), Intel e1000 (common hardware)
+- Dual network stack: TCP/IP compatibility layer (BSD sockets API) + native PlenumNET ternary tunnel protocol (13D hypercube routing at kernel level)
+- Unified device driver framework with ternary bus enumeration
+- Ternary capability-based security: 27-trit capability tokens, per-process capability sets, mandatory access control via TIS-27 labels
+- Service supervisor (`plenum-init`): service dependency graph, watchdog restart, ternary health states (Healthy/Degraded/Failed)
+- Management console: serial and framebuffer text console with system monitoring
+- Bootable server ISO images for x86_64 (UEFI + legacy BIOS), aarch64, RISC-V
+- Server configuration via Device Tree overlays and command-line parameters
+- CI pipeline producing tested, bootable server images on every merge
+
+### Tier 4 Milestone: Workstation Foundation (FUTURE — designed now)
+
+- HID input stack: PS/2 keyboard/mouse, USB HID (via VirtIO or xHCI)
+- Window compositor: 28-window Z₂₈ agent array, double-buffered, z-ordered, title bars, move/resize
+- Display protocol: ternary-addressed window buffers, client/server separation via IPC
+- Audio pipeline: VirtIO-snd or Intel HDA, mixing, per-process audio streams
+- GPU abstraction: VirtIO-gpu (QEMU), software rasterizer fallback, eventual DRM/KMS path for real hardware
+
+### Tier 5 Milestone: Windows Application Interlayer (FUTURE — architecture reserved)
+
+- PE/COFF executable loader in the kernel (alongside ELF)
+- NT kernel personality: subset of NT system calls translated to PlenumNET equivalents
+- Win32 API surface: Strategy A (native PlenumNET implementations of core Win32 DLLs) or Strategy B (Wine/Proton integration as a managed subsystem) or Strategy C (hybrid)
+- Registry emulation via PlenumFS key-value store
+- Windows applications launch from PlenumNET desktop, rendered by PlenumNET compositor
+
+---
+
+## Out of Scope (This Document)
+
+- Windows kernel driver compatibility (`.sys` files)
+- DirectX 12 / Vulkan GPU driver implementation (abstraction layer only)
+- Real-time kernel variant (PREEMPT_RT equivalent)
+- Distributed PlenumNET cluster orchestration (separate planning document)
+- Mobile / embedded targets (ARM Cortex-M, ESP32)
+- Changes to Kani proofs or MIRI-verified code (new code extends, never modifies, verified modules)
+
+---
+
+## PlenumNET Architectural Invariants (MANDATORY — All Agents Must Follow)
+
+Every file created or modified in this project MUST comply with these invariants. Violations break mathematical consistency across the entire framework.
+
+### Copyright Header (Required on ALL source files)
+
+```
+// Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+// Patent(s) Pending — All Rights Reserved
+// Applied Physics Division
+//
+// PROPRIETARY AND CONFIDENTIAL
+// All Rights Reserved.
+//
+// This file is part of the Salvi Framework / PlenumNET platform.
+// Unauthorized copying, modification, distribution, or use of this file,
+// via any medium, is strictly prohibited without the prior written
+// permission of Capomastro Holdings Ltd.
+//
+// See LICENSE in the repository root for full terms.
+```
+
+### INVARIANT 1: The Geometry IS the System
+
+Every component derives from ternary geometry. Routing = Hamming distance in 13D ternary hypercube. Addressing = 27-trit coordinates. Key derivation = Kernel sponge (729-trit, 9 rounds, 385-bit PQ security). Wire integrity = TIS-27 sponge (54-trit, 4 rounds, 43-bit). DO NOT replace geometric routing with routing tables. DO NOT decouple cryptographic keys from topological adjacency.
+
+### INVARIANT 2: First-Position Derivation — No Tuning Parameters
+
+```
+gf3 = min(floor(3k / N), 2)     where k = signals fired, N = total signals
+trit = gf3 + 1                   lift from GF(3) {0,1,2} to Rep C {1,2,3}
+```
+
+Boundaries at N/3 and 2N/3. NO tuning parameters, NO arbitrary thresholds.
+
+### INVARIANT 3: Rep C (Bijective Ternary) — Zero Is Excluded
+
+TDNS addresses, wire formats, and crypto use Rep C: {1, 2, 3}. Zero is NEVER a valid trit value. Zero is a sentinel proving forgery.
+
+- Rep A (Balanced): {-1, 0, +1} — signed arithmetic
+- Rep B (Standard): {0, 1, 2} — internal only
+- Rep C (Bijective): {1, 2, 3} — wire format, TDNS, crypto, ALL external representation
+
+### INVARIANT 4: Constants Are Bound, Not Chosen
+
+```
+C = πd = 14d → C/r = 28 → Full circle = 28 radians = 364°
+Full circle = 364° = 111111₃ = (3⁶ − 1)/2
+π = 14 = T₇ + T₃ (exact integer)
+2π = 28 = full circle in radians
+1 radian = 13° = 111₃ = T₇
+Calendar = 13 × 28 = 364
+```
+
+DO NOT change any of these. They are all interdependent.
+
+### INVARIANT 5: HPTP-Mandatory Is Structural
+
+If trits 15 AND 16 are both 3, the address is HPTP-mandatory. Femtosecond timing verification REQUIRED.
+
+### INVARIANT 6: The Salvi Epoch
+
+April 1, 2025 (2025-04-01T00:00:00Z) = Day Zero. All femtosecond timestamps are 128-bit integers from this epoch. DO NOT change.
+
+### INVARIANT 7: TL-DSA Everywhere — No Ed25519
+
+TL-DSA for ALL digital signatures. Ed25519 was explicitly rejected (not post-quantum). DO NOT use `crypto.generateKeyPairSync('ed25519')`, HMAC simulations, or `crypto.sign(null, ...)`.
+
+### INVARIANT 8: Raw Binary → Trit Decomposition Before Ternary Ops
+
+Never feed raw binary integers into ternary sponge operations. All values MUST be decomposed via `u16_to_trits()` / `u8_to_trits()` first.
+
+### INVARIANT 9: `deployments/` Folder Is Sacred
+
+NEVER modify the `deployments/` folder. Zero exceptions.
+
+### INVARIANT 10: Sponge Stride Coprime to State Width
+
+TIS-27 uses stride 13 on state width 54. `gcd(13, 54) = 1` required. Stride 13 is structurally bound (T₇, 111₃, 1 radian).
+
+### INVARIANT 11: System Call Classes Are Ternary (NEW)
+
+The system call ABI uses 27 classes (3³). Syscall numbers are encoded in Rep B internally and Rep C on the wire. The class/subclass/operation triple maps to 3×9×9 = 243 distinct syscalls per class group. DO NOT use flat linear syscall numbering.
+
+### INVARIANT 12: Capability Tokens Are 27-Trit (NEW)
+
+Kernel capability tokens are 27-trit values in Rep C, derived from TIS-27 sponge over (process_id ∥ resource_id ∥ permission_mask). Zero-trit detection (Invariant 3) provides forgery evidence. DO NOT use integer bitmask capabilities.
+
+### INVARIANT 13: Window Count Bound to Z₂₈ (NEW)
+
+The compositor supports exactly 28 windows maximum (2π = 28 = full circle in radians, Invariant 4). Window IDs are elements of Z₂₈. DO NOT make this configurable or arbitrary.
+
+---
+
+## Rust Conventions
+
+- `edition = "2021"`, pinned deps
+- `thiserror` for error types, `serde` with derive for serialization
+- Constant-time GF(3) operations in crypto modules
+- All modules re-exported from `lib.rs`
+- `no_std` math: Use `libm::log2()`, `libm::ceil()`, `libm::fabs()` — NOT `f64` methods
+- Bare-metal code: `#![no_std]`, `#![no_main]`, abort on panic
+- New code uses `#[cfg(feature = "...")]` gating to avoid compiling all boot/platform code into every image
+- All firmware data parsers take `(base_ptr, max_length)` and bounds-check all pointer advances via a shared `BoundsCheckedReader` utility
+- Every `unsafe` block documents its safety invariant in a `// SAFETY:` comment
+- All secondary harts/cores are parked (`WFI`/`wfe` loop); only hart 0 / core 0 executes boot
+
+---
+
+## Existing Infrastructure (DO NOT RECREATE — extend these)
+
+### Bare-Metal Boot (working today)
+
+- `src/kernel/bare-metal/src/main.rs`: `_start` entry at 0x100000, bump allocator, BSS zeroing, QEMU exit via port 0xF4
+- `src/kernel/bare-metal/src/serial.rs`: COM1 (0x3F8) serial driver with `print_str`, `print_line`, `print_u64`
+- `src/kernel/bare-metal/src/selftest.rs`: 50+ self-tests exercising real kernel library
+- `src/kernel/bare-metal/linker.ld`: loads at 0x100000, 64K stack, 4M heap, `.text.boot` section
+- `src/kernel/bare-metal/x86_64-ternary-none.json`: custom target
+- `src/kernel/bare-metal/scripts/build.sh`: nightly Rust + cargo build
+- `src/kernel/bare-metal/scripts/qemu-run.sh`: QEMU boot with 30s timeout, exit code 33=PASS/35=FAIL
+
+### Formal Verification (proven correct — do not modify)
+
+- `src/kernel/src/kani_proofs.rs`: 361 lines, 20+ Kani proof harnesses
+- `.github/workflows/formal-verification-rust.yml`: Kani + MIRI
+- `.github/workflows/bare-metal-validation.yml`: QEMU boot validation
+- `.github/workflows/xplenum-riscv.yml`: RTL lint/sim/formal, cargo check RISC-V, kernel unit tests
+
+### Architecture Modules (trait implementations — simulated, not hardware)
+
+- `src/kernel/src/arch/x86_64.rs`: `X86_64Arch` — simulated page tables, APIC, TSC
+- `src/kernel/src/arch/aarch64.rs`: `Aarch64Arch` — simulated page tables, GIC, Generic Timer
+- `src/kernel/src/arch/riscv64.rs`: `RiscV64Arch` — simulated page tables, PLIC, mtime
+- `src/kernel/src/arch/xplenum.rs`: 21 instructions + 12 CSRs (real inline asm)
+- `src/kernel/src/arch/xplenum_stub.rs`: No-op stubs for non-RISC-V
+- `src/kernel/src/arch/boot.rs`: `BootSequence` 12-stage state machine, `BootParams`
+- `src/kernel/src/arch/mod.rs`: Trait definitions (`ArchOps`, `MmuOps`, `InterruptOps`, `TimerOps`, `BootOps`)
+
+### Kernel Library (`src/kernel/src/lib.rs`)
+
+- `#![cfg_attr(feature = "no_std", no_std)]`, `extern crate alloc`
+- Modules: timing, ternary, phase, error, memory, sync, process, security, crypto, device, io, fs, arch, drivers, network, vm, hptp, compat
+- Device subsystem: `src/kernel/src/device/` (bus, dma, interrupt, registry)
+- I/O subsystem: `src/kernel/src/io/` (block, buffer, chardev, poll, scheduler)
+- Drivers: `src/kernel/src/drivers/` (femtoclock, tpu)
+
+---
+
+## TIER 1 — BOOTABLE MULTI-ARCH KERNEL
+
+### Phase 0: Toolchain & Build Prerequisites
+
+*Before any code, ensure the development and CI environment can build and test all targets.*
+
+**Task 0.1. Cross-compilation toolchain setup**
+
+Document and script the installation of: Rust nightly with targets `x86_64-unknown-none`, `x86_64-unknown-uefi`, `aarch64-unknown-none-softfloat`, `aarch64-unknown-uefi`, `riscv64gc-unknown-none-elf`. Install `qemu-system-x86_64`, `qemu-system-aarch64`, `qemu-system-riscv64`. Obtain OVMF firmware images (x86_64 and aarch64). Install `grub-mkrescue`, `xorriso`, `mtools` for ISO/FAT32 image creation. Obtain OpenSBI firmware binary (`fw_jump.elf`). Create `scripts/setup-toolchain.sh` that idempotently installs everything.
+
+**Task 0.2. Feature flag architecture in Cargo.toml**
+
+Add feature flags to `src/kernel/bare-metal/Cargo.toml`: `boot-qemu-direct` (default), `boot-multiboot2`, `boot-uefi`, `boot-devicetree`, `boot-opensbi`. Each boot path compiles only when its feature is active. The x86_64 UEFI image does not include the Multiboot2 parser; the RISC-V image does not include the UEFI app. This keeps images minimal and reduces attack surface.
+
+**Task 0.3. Shared `BoundsCheckedReader` utility**
+
+Create `src/kernel/src/arch/bounds_reader.rs`: a zero-allocation, `no_std` utility for safely walking firmware data structures. Takes `(base: *const u8, length: usize)`, provides `read_u8`, `read_u16_le`, `read_u32_le`, `read_u64_le`, `read_bytes`, `advance`, `remaining`, all returning `Result<T, ParseError>`. Every firmware parser (Multiboot2 tags, UEFI memory map, FDT blobs) MUST use this instead of raw pointer arithmetic. This is the single most important safety measure for boot-time code.
+
+**Task 0.4. Boot panic infrastructure**
+
+Create `boot_panic!` macro in `src/kernel/bare-metal/src/panic.rs`: outputs to serial (and VGA text if available) with file, line, boot stage, and message, then halts the CPU. Architecture-dispatched: `hlt` loop on x86_64, `wfe` loop on aarch64, `wfi` loop on RISC-V. Consistent panic interface across all three architectures.
+
+### Phase 1: Boot Protocol Abstraction Layer
+
+**Task 1.1. Define unified `FirmwareInfo` struct and `BootProtocol` enum**
+
+Create `src/kernel/src/arch/boot_protocol.rs`:
+
+- `BootProtocol` enum: `QemuDirect`, `Multiboot2`, `Uefi`, `DeviceTree`, `OpenSbi`
+- `FirmwareMemoryRegion` struct mapping to existing `MemoryRegionType` enum (`Usable`, `Reserved`, `AcpiReclaimable`, `AcpiNvs`, `Defective`, `TernaryCoprocessor`) — add `Framebuffer` variant to `MemoryRegionType` so the allocator never hands out framebuffer pages
+- `FramebufferInfo` struct: `physical_address`, `width`, `height`, `pitch`, `bpp`, `pixel_format` (`Rgb`/`Bgr`/`Indexed`) — handle arbitrary resolutions, not just 1920×1080
+- `FirmwareInfo` struct: all fixed-size (no heap — used before allocator init), max **256** memory regions (real UEFI systems can exceed 200 due to firmware fragmentation), 256-byte command line buffer, optional ACPI RSDP pointer
+- `impl FirmwareInfo { fn into_boot_params(self) -> Result<BootParams, BootError> }` — fallible conversion that validates: no zero-size regions, no overlapping ranges, framebuffer within a described region. Adjacent same-type regions are merged to stay within the 256 cap.
+- Re-export from `arch/mod.rs`
+
+**Task 1.2. `FirmwareInfo` integration tests**
+
+Before any new boot paths: create tests that construct a `FirmwareInfo` for each `BootProtocol` variant, call `into_boot_params()`, and verify the resulting `BootParams` matches expected values. Test edge cases: 256 regions (full), overlapping regions (error), zero-size region (error), no framebuffer (Ok, framebuffer field is None), framebuffer outside any region (error). This catches abstraction-layer bugs before they compound with firmware-specific code.
+
+**Task 1.3. Refactor bare-metal `main.rs` to use boot protocol abstraction**
+
+Modify `src/kernel/bare-metal/src/main.rs`: `_start` constructs `FirmwareInfo` with `BootProtocol::QemuDirect`, populates from `x86_64_boot_config()`, calls `into_boot_params()`. All existing self-tests MUST continue to pass unchanged. Print `[BOOT] Protocol: QEMU Direct` via existing serial module. This is a non-breaking refactor — the kernel behaves identically.
+
+### Phase 2: x86_64 Multiboot2 / GRUB Legacy BIOS Support
+
+**Task 2.1. Add Multiboot2 header and 32-to-64-bit trampoline**
+
+Create Multiboot2 header (magic `0xE85250D6`, `.multiboot_header` section in first 32KB) with framebuffer tag (preferred 1920×1080×32, but accept whatever GRUB provides — parse actual tag 8 response), memory map request, and information request tag. Create 32-bit entry `_start_multiboot2` that saves EBX (info pointer) and EAX (magic `0x36D76289`), identity-maps first 4GB with 2MB huge pages, transitions protected → long mode (PAE → load CR3 → set LME in EFER → enable paging → load 64-bit GDT → far jump), then calls Rust `multiboot2_entry(info_ptr: u32)`.
+
+**Task 2.2. Parse Multiboot2 boot information into `FirmwareInfo`**
+
+Create Multiboot2 tag parser using `BoundsCheckedReader` (Task 0.3): walk tag list (type/size pairs, 8-byte aligned, end tag type=0), parse memory map (tag 6), framebuffer (tag 8), command line (tag 1), ACPI RSDP (tags 14/15). All `no_std`, no heap. Validate magic `0x36D76289`. If framebuffer tag reports a different resolution than requested, accept it gracefully.
+
+**Task 2.3. Separate Multiboot2 linker script**
+
+Create `linker-multiboot2.ld` (NOT modify the existing `linker.ld`): includes `.multiboot_header` section (before `.text.boot`, ALIGN 8), `.boot32` section for 32-bit trampoline, `.boot_page_tables` (ALIGN 4K, 3 pages for PML4/PDPT/PD), `.gdt` section. Uses `INCLUDE linker-common.ld` for shared section definitions (stack, heap, BSS). Extract common sections from existing `linker.ld` into `linker-common.ld`, keeping the original `linker.ld` as a thin wrapper. Two linker scripts is safer than one fragile one — the working boot path never changes.
+
+**Task 2.4. Build GRUB-bootable ISO image**
+
+Create `grub.cfg` (set timeout=3, menuentry "PlenumNET" with multiboot2 /boot/kernel.elf) and `scripts/build-grub-iso.sh` using `grub-mkrescue`. QEMU test: `qemu-system-x86_64 -cdrom plenumnet.iso -serial stdio`.
+
+### Phase 3: x86_64 UEFI Boot Application
+
+**Task 3.1. Create UEFI boot application crate**
+
+New crate `src/kernel/uefi-boot/`: target `x86_64-unknown-uefi`, depends on `uefi` crate (pinned version), `#![no_std]` `#![no_main]`. Separate PE/COFF binary that loads and jumps to kernel. Feature-gated: only compiled when `boot-uefi` feature is active.
+
+**Task 3.2. Implement UEFI memory map, GOP framebuffer, and ACPI discovery**
+
+Query memory map via Boot Services (`EfiConventionalMemory` → `Usable`, `EfiRuntimeServicesCode`/`Data` → `Reserved` (not `Usable` — these must remain mapped even though we don't use runtime services yet; handing them to the allocator would corrupt UEFI runtime), etc.), locate GOP for framebuffer (accept whatever resolution GOP provides), find ACPI RSDP from config table, package into `FirmwareInfo` with `BootProtocol::Uefi`. Capture ALL info before `exit_boot_services()`.
+
+**Known limitation:** UEFI runtime services are not used post-ExitBootServices in this phase. Their memory is marked Reserved, preserving the option to use them later (e.g., for UEFI variable access, RTC). Document this explicitly.
+
+**Task 3.3. Implement UEFI → kernel handoff**
+
+Define `UEFI_HANDOFF_ADDRESS` as a shared constant (`0x80000` — below the QEMU direct-load entry at 0x100000, within the identity-mapped first 4GB). After `ExitBootServices()`: write `FirmwareInfo` to `UEFI_HANDOFF_ADDRESS`, set up identity-map page tables (mark UEFI runtime regions with appropriate flags), jump to `_start_uefi` entry with info pointer in RDI (System V ABI). Create `uefi_entry.rs` in bare-metal crate.
+
+**Task 3.4. Build x86_64 UEFI boot image**
+
+Create `scripts/build-uefi-image.sh`: compile for `x86_64-unknown-uefi`, create FAT32 ESP with `EFI/BOOT/BOOTX64.EFI`. QEMU test: `qemu-system-x86_64 -bios OVMF.fd -drive format=raw,file=esp.img -serial stdio`.
+
+### Phase 4: aarch64 Boot Paths (UEFI + Device Tree)
+
+**Task 4.1. Create aarch64 UEFI boot application**
+
+Add aarch64 target (`aarch64-unknown-uefi`) to `uefi-boot` crate. Same flow as x86_64 UEFI (memory map, GOP, ACPI) but no 32→64 transition needed. Jump to `_start_uefi_aarch64` with `FirmwareInfo` in X0 (AAPCS64). Output: `EFI/BOOT/BOOTAA64.EFI`.
+
+**Task 4.2. Shared FDT (Flattened Device Tree) parser**
+
+Create `src/kernel/src/arch/fdt_parse.rs` using `BoundsCheckedReader`: parse FDT header (magic `0xD00DFEED`), memory reservation block, structure block (walk nodes by token: `FDT_BEGIN_NODE=1`, `FDT_END_NODE=2`, `FDT_PROP=3`, `FDT_NOP=4`, `FDT_END=9`), strings block. Extract: `/memory` nodes for memory map, `/chosen` for `bootargs` and `stdout-path`, `simple-framebuffer` compatible nodes for display, interrupt controller type (GIC vs PLIC — determines architecture). Designed generically: aarch64 and RISC-V Device Trees use different node names for interrupt controllers and different `compatible` strings, but the parser handles both via a trait-based visitor pattern.
+
+**This module is shared with RISC-V (Phase 5).** Design the parser API before implementing either platform-specific boot path. The FDT parser is a reusable component, not an aarch64-specific one.
+
+**Task 4.3. Create aarch64 Device Tree boot path**
+
+Create `aarch64_dt.rs`: DTB pointer arrives in X0 from QEMU `-machine virt`. Create `aarch64-ternary-none.json` custom target and `aarch64-linker.ld` (load at 0x40080000, matching existing `aarch64_boot_config()`).
+
+Entry stub (`_start_aarch64`): check current exception level (EL2 → drop to EL1 if needed), park secondary cores (read MPIDR_EL1, if not core 0 → `wfe` loop), set up stack, zero BSS, **execute cache/TLB coherency barrier** (`dc ivac` range over page tables, `dsb sy`, `ic iallu`, `isb`, `tlbi alle1`, `dsb sy`, `isb`) before enabling MMU, call Rust `aarch64_dt_entry(dtb_ptr)`.
+
+**Task 4.4. aarch64 serial output via PL011 UART**
+
+Create `serial_pl011.rs`: PL011 at MMIO 0x09000000 (QEMU virt standard), UARTDR at +0x000, UARTFR at +0x018 (check TXFF bit 5 before write). TX and RX (`fn try_read_byte() -> Option<u8>` — stub for future input, costs nothing now). Same `print_str`/`print_line` interface as existing `serial.rs`. Conditional compilation: PL011 on aarch64, COM1 on x86_64.
+
+**Task 4.5. Build aarch64 boot images**
+
+Create `scripts/build-aarch64.sh`. QEMU test: `qemu-system-aarch64 -M virt -cpu cortex-a72 -kernel kernel.elf -serial stdio` (DT path) and with OVMF (UEFI path).
+
+### Phase 5: RISC-V 64 Boot Path (OpenSBI + Device Tree + XPlenum)
+
+**Task 5.1. Create RISC-V 64 boot entry with OpenSBI handoff**
+
+Create `riscv64_boot.rs`: OpenSBI jumps to kernel in S-mode with `a0` = hart ID, `a1` = DTB pointer. Entry `_start_riscv64`: check hart ID (if not 0 → `wfi` loop to park secondary harts), set stack, zero BSS, call `riscv64_entry(hart_id, dtb_ptr)`. Reuse `fdt_parse.rs` from Task 4.2. Create `riscv64-ternary-none.json` and `riscv64-linker.ld` (load at 0x80200000, matching existing `riscv64_boot_config()`).
+
+**Task 5.2. RISC-V serial output via SBI console and NS16550 UART**
+
+Create `serial_sbi.rs`: SBI `putchar` (ecall extension 0x01 legacy or 0x4442434E DBCN), `getchar` for RX. Fallback to NS16550 at MMIO 0x10000000 (THR at +0, LSR at +5, check THRE bit 5). Same interface as other serial drivers.
+
+**Task 5.3. XPlenum coprocessor detection and initialization during boot**
+
+Create `xplenum_init.rs`: during `BootStage::TernaryCoprocessorInit`:
+
+1. Install temporary `stvec` pointing to a minimal trap handler that sets a `probe_failed` flag and advances `sepc += 4` (skipping the faulting instruction)
+2. Attempt to read CSR 0x7CB (`XPVERSION`)
+3. Check `probe_failed` flag — if set, XPlenum not present
+4. If present: enable XPSTATUS bits 0-2 (mask/domain/capability), set XPDOMID=0 (kernel domain), set XPCAPBASE/XPCAPBOUND to full range, seed XPMASK from `mtime` entropy
+5. Restore `stvec` to production trap vector (or null if not yet installed)
+6. Print version string or "XPlenum not detected — software ternary mode" fallback
+
+Uses existing `xplenum.rs` CSR accessors.
+
+**Task 5.4. Build RISC-V boot images**
+
+Create `scripts/build-riscv64.sh`. QEMU test: `qemu-system-riscv64 -M virt -bios opensbi-riscv64-generic-fw_jump.elf -kernel kernel.elf -serial stdio`. Timeout 60s (TCG emulation is slower than native x86_64).
+
+**Task 5.5. `build-all.sh` master build script**
+
+Create `scripts/build-all.sh`: builds all architecture/firmware combinations, reports success/failure for each. Quick sanity check before CI.
+
+### Phase 6: Post-Boot Hardware Initialization
+
+*This phase replaces simulated `BTreeMap` page tables and fake interrupt controllers with real hardware. It must happen before Tier 2 because process isolation requires real page tables.*
+
+**Task 6.1. Real x86_64 page table management**
+
+Replace `BTreeMap`-based page table simulation in `X86_64Arch`: allocate real PML4/PDPT/PD/PT pages from firmware memory map, identity-map first 4GB (2MB huge pages), map kernel at `0xFFFF_8000_0000_0000` (higher-half), map framebuffer at known VA, implement real 4-level walks, set CR3 via inline asm.
+
+**Kani/MIRI boundary:** The `MmuOps` trait interface and its contract stay unchanged. The Kani proofs verify trait-level properties (page alignment, address range validity) which remain true regardless of whether the backing store is a `BTreeMap` or real page tables. The proofs do NOT verify the hardware page table walk implementation (they can't — Kani doesn't model x86 MMU hardware). New hardware-specific code gets its own test suite, not modifications to existing Kani harnesses. Document this boundary explicitly in the code.
+
+**Task 6.2. Real x86_64 IDT, APIC, and timer setup**
+
+Replace simulated interrupt/timer: build 256-entry IDT, ISR stubs (save regs → Rust handler → restore → `iretq`), exception handlers (vectors 0-31; `#PF` handler prints CR2, `#GP` prints error code), Local APIC init + periodic timer (~100 Hz), TSC calibration against APIC timer, load IDT via `lidt`. Conform to existing `InterruptOps` and `TimerOps` traits — no trait changes.
+
+**Task 6.3. VGA text console fallback**
+
+Create `console_vga.rs`: VGA text mode at 0xB8000 (80×25, attribute bytes), scrolling, cursor tracking, color attributes. Used when no framebuffer available (legacy BIOS without GOP). Note: VGA text mode and framebuffer mode are mutually exclusive on x86_64 — if UEFI/GOP provides a framebuffer, the VGA text buffer at 0xB8000 is unavailable. Dual output with serial. Conditional compilation: no-op on aarch64/RISC-V (no VGA hardware).
+
+**Task 6.4. Display: framebuffer abstraction layer**
+
+Create `src/kernel/src/display/framebuffer.rs`: `Framebuffer` struct with pixel format handling (RGB/BGR, arbitrary BPP), `set_pixel`, `fill_rect` (row-optimized), `copy_rect` (overlap-safe via direction detection), `clear`. `Color` struct (r/g/b/a). All bounds-checked, `no_std`, no heap in core drawing ops. Add `pub mod display;` to `lib.rs`.
+
+**Task 6.5. Display: bitmap font renderer and theme constants**
+
+Create `src/kernel/src/display/font.rs`: embedded 8×16 bitmap font (256 ASCII glyphs, 4096 bytes compile-time), `draw_char`, `draw_string`. `TextConsole` struct with cursor tracking, scrolling, `core::fmt::Write` implementation.
+
+Create `src/kernel/src/display/theme.rs`: single source of truth for PlenumNET branding colors — `BACKGROUND: Color = Color::rgb(0x09, 0x08, 0x07)`, `GOLD: Color = Color::rgb(0xD4, 0xA0, 0x17)`, `EMERALD: Color = Color::rgb(0x05, 0x96, 0x69)`, `TEXT: Color = Color::rgb(0xCC, 0xCC, 0xCC)`, `BORDER: Color = Color::rgb(0x33, 0x33, 0x33)`, `TITLEBAR: Color = GOLD`, `WINDOW_BG: Color = Color::rgb(0x1A, 0x1A, 0x1A)`.
+
+**Task 6.6. Display: boot splash and graphical console**
+
+Create `src/kernel/src/display/boot_splash.rs`: render splash screen (PlenumNET title in gold, Salvi Framework subtitle, Capomastro copyright, progress bar mapped to `BootStage` ordinals 0–11). After boot: transition to graphical `TextConsole` mirroring serial output. Integrate with boot entry points: after `FirmwareInfo` provides framebuffer, show splash, dual output (serial + screen). Gracefully degrade: no framebuffer → serial only + VGA text if x86_64.
+
+**Task 6.7. CI: QEMU test harness for all boot paths**
+
+Create `scripts/test-boot.sh`: build all images, test each boot path in QEMU with architecture-appropriate timeouts (30s x86_64, 60s aarch64/RISC-V for TCG emulation) and serial capture. Exit code checks, summary output. CI validates boot via serial output only — framebuffer testing is manual/local (no reliable way to screenshot headless QEMU in CI).
+
+**Task 6.8. CI: extend existing workflows**
+
+Extend `bare-metal-validation.yml` (NOT create new): add aarch64 and RISC-V QEMU boot jobs alongside existing x86_64 job using `strategy: matrix` for parallel execution. Add x86_64 UEFI and Multiboot2 boot jobs. Install OVMF, GRUB tools, OpenSBI in CI environment. Upload all boot images as artifacts. Must NOT break existing CI pipeline.
+
+---
+
+## TIER 2 — KERNEL CORE SERVICES
+
+*Tier 2 builds the kernel primitives that every OS service in Tier 3 depends on: memory management, processes, syscalls, and IPC. Without these, there is no user-space, no isolation, and no way to run server daemons.*
+
+### Phase 7: Memory Management Subsystem
+
+**Task 7.1. Physical page frame allocator**
+
+Create `src/kernel/src/memory/frame_allocator.rs`: consume the `BootParams` memory map (populated by Tier 1 boot paths), build a bitmap or buddy allocator tracking all physical frames. Frame size = 4 KiB (standard page). Mark firmware-reserved, ACPI, framebuffer, and kernel regions as allocated. Provide `alloc_frame() -> Option<PhysFrame>`, `dealloc_frame(PhysFrame)`, `alloc_contiguous(count) -> Option<PhysFrame>` for DMA buffers. Thread-safe via spinlock (no sleeping locks yet — no scheduler).
+
+The existing `src/kernel/src/memory/allocator.rs` bump allocator continues to serve during early boot; the frame allocator takes over after `BootStage::MemoryInit`.
+
+**Task 7.2. Kernel heap allocator**
+
+Create `src/kernel/src/memory/heap.rs`: slab allocator (size classes: 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 bytes) backed by the physical frame allocator. Implement `GlobalAlloc` trait so `alloc::` types (`Vec`, `String`, `BTreeMap`) work in kernel context. Replace the bump allocator for post-boot kernel allocations.
+
+**Task 7.3. Virtual memory manager**
+
+Create `src/kernel/src/memory/vmm.rs`: `AddressSpace` struct encapsulating a top-level page table (PML4 on x86_64, PGD on aarch64, root page table on RISC-V). Operations: `map_page(virt, phys, flags)`, `unmap_page(virt)`, `translate(virt) -> Option<PhysAddr>`, `clone_address_space()` (for fork). Each process gets its own `AddressSpace`; the kernel has a shared higher-half mapping present in all address spaces.
+
+Architecture dispatch via existing `MmuOps` trait — `vmm.rs` is architecture-independent, calling into `x86_64.rs` / `aarch64.rs` / `riscv64.rs` for hardware page table manipulation.
+
+**Task 7.4. Kernel address space layout**
+
+Define canonical address space layout (shared across architectures via constants, mapped to architecture-specific ranges):
+
+| Region | x86_64 | aarch64 | RISC-V (SV48) |
+|--------|--------|---------|---------------|
+| User space | 0x0000_0000_0000 – 0x7FFF_FFFF_FFFF | 0x0 – 0xFFFF_FFFF_FFFF | 0x0 – 0x3FFF_FFFF_FFFF |
+| Kernel code/data | 0xFFFF_8000_0000_0000+ | 0xFFFF_0000_0000_0000+ | 0xFFFF_FFC0_0000_0000+ |
+| Kernel heap | Offset from kernel end | Same | Same |
+| Framebuffer | Fixed VA per arch | Same | Same |
+| MMIO | Architecture-defined | Same | Same |
+| Process stacks | Per-process, user range | Same | Same |
+
+**Design for Tier 5:** Reserve a user-space region for the Windows subsystem environment (`0x10000` – `0x7FFE_FFFF_FFFF` on x86_64, matching NT user-space layout) so PE/COFF executables can be loaded at their preferred base addresses without conflicting with PlenumNET native executables.
+
+### Phase 8: Process & Thread Management
+
+**Task 8.1. Process and thread structures**
+
+Create `src/kernel/src/process/task.rs`: `Process` struct (pid as 27-trit Rep C value — Invariant 3, address space, capability set, file descriptor table, parent pid, exit status, state). `Thread` struct (tid, owning process, kernel stack, saved register context, scheduling priority, state: Ready/Running/Blocked/Zombie).
+
+PID allocation: sequential 27-trit counter in Rep C. PID 0 is impossible (Invariant 3), providing a natural "invalid/kernel" sentinel. PID `111...1₃` (all ones in Rep C) = kernel pseudo-process.
+
+**Task 8.2. Context switching**
+
+Create architecture-specific context switch routines:
+
+- x86_64: save/restore RSP, RBP, RBX, R12-R15, RFLAGS, CR3 (address space switch), segment registers. `switch_context(old: &mut Context, new: &Context)` in inline asm.
+- aarch64: save/restore X19-X30, SP, TTBR0_EL1 (address space switch), SPSR_EL1, ELR_EL1. Cache/TLB flush on TTBR0 switch.
+- RISC-V: save/restore S0-S11, RA, SP, SATP (address space switch). SFENCE.VMA after SATP write.
+
+All implementations conform to a common `ContextSwitch` trait. The register set is the minimum needed for cooperative switching; interrupt-context saves (full register file) are handled by the ISR stubs from Task 6.2.
+
+**Task 8.3. Scheduler**
+
+Create `src/kernel/src/process/scheduler.rs`: preemptive round-robin with 3 priority levels (mapped to ternary: trit value 1 = low, 2 = normal, 3 = high — Rep C, Invariant 3). Timer interrupt (APIC/GIC/mtime from Tier 1) triggers `schedule()` which selects next thread from ready queue. Per-priority run queue (3 queues). Time slice = 10ms (100 Hz timer / 10 ticks per slice).
+
+**Design for Tier 4:** The scheduler's priority model extends to 9 levels (3²) when the compositor is present, giving real-time priority to the display compositor thread and input event thread. The 3-level base is a subset of the 9-level extended model.
+
+**Task 8.4. User-space execution and privilege separation**
+
+Create `src/kernel/src/process/userspace.rs`: transition from kernel mode to user mode:
+
+- x86_64: set up user-mode GDT entries (ring 3 code/data segments), use `sysretq` or `iretq` to jump to user-space entry point with RSP pointing to user stack.
+- aarch64: set SPSR_EL1 to EL0, set ELR_EL1 to user entry, `eret`.
+- RISC-V: set SPP=0 in SSTATUS, set SEPC to user entry, `sret`.
+
+**Task 8.5. ELF loader**
+
+Create `src/kernel/src/process/elf.rs`: parse ELF64 headers (magic, class, endianness, type ET_EXEC/ET_DYN), program headers (PT_LOAD segments), load into process address space, set entry point. This is the native executable format for PlenumNET.
+
+**Design for Tier 5:** The loader architecture is pluggable — `elf.rs` implements a `BinaryLoader` trait. Phase 22 adds a `pe.rs` implementing the same trait for PE/COFF Windows executables. The process creation path dispatches based on file magic (`\x7FELF` vs `MZ`).
+
+**Task 8.6. `fork`, `exec`, `exit`, `wait` kernel operations**
+
+Implement the four fundamental process lifecycle operations. `fork` clones the address space (copy-on-write via page table flags — mark all user pages read-only, handle page faults by copying). `exec` replaces the address space with a new binary. `exit` marks process as Zombie, reparents children. `wait` blocks parent until child exits.
+
+### Phase 9: System Call Interface (Ternary-Native)
+
+**Task 9.1. Syscall dispatch mechanism**
+
+Create `src/kernel/src/syscall/mod.rs` and architecture-specific entry points:
+
+- x86_64: `syscall` instruction → STAR/LSTAR MSRs → `syscall_entry_x86_64` (save user regs, switch to kernel stack, call Rust dispatcher, restore, `sysretq`)
+- aarch64: `svc #0` → EL1 exception vector → `syscall_entry_aarch64`
+- RISC-V: `ecall` → supervisor trap → `syscall_entry_riscv64`
+
+**Ternary-native ABI (Invariant 11):**
+
+Syscall number = 27-trit value decomposed as `class.subclass.operation` (3 × 9 × 9 in Rep B internally). Register mapping:
+
+| | x86_64 | aarch64 | RISC-V |
+|---|--------|---------|--------|
+| Syscall # | RAX | X8 | A7 |
+| Arg 1 | RDI | X0 | A0 |
+| Arg 2 | RSI | X1 | A1 |
+| Arg 3 | RDX | X2 | A2 |
+| Arg 4 | R10 | X3 | A3 |
+| Arg 5 | R8 | X4 | A4 |
+| Arg 6 | R9 | X5 | A5 |
+| Return | RAX | X0 | A0 |
+| Error | RDX | X1 | A1 |
+
+**Task 9.2. Syscall class definitions**
+
+Define the 27 syscall classes (3³ = 27, Invariant 11). Initial implementation covers the core classes needed for a server OS:
+
+| Class (Rep B) | Name | Description |
+|---------------|------|-------------|
+| 0 | PROCESS | fork, exec, exit, wait, getpid |
+| 1 | MEMORY | mmap, munmap, mprotect, brk |
+| 2 | FILE | open, close, read, write, seek, stat |
+| 3 | DIRECTORY | opendir, readdir, mkdir, rmdir, chdir |
+| 4 | IO | ioctl, poll, select |
+| 5 | NETWORK | socket, bind, listen, accept, connect, send, recv |
+| 6 | IPC | channel_create, channel_send, channel_recv, shm_open |
+| 7 | SIGNAL | kill, sigaction, sigprocmask |
+| 8 | TIME | clock_gettime, nanosleep, timer_create (Salvi Epoch, Invariant 6) |
+| 9 | SECURITY | cap_get, cap_set, cap_derive, mac_label |
+| 10 | DEVICE | device_open, device_ioctl, device_mmap |
+| 11 | TERNARY | trit_convert, sponge_hash, tis27_verify (kernel-accelerated ternary ops) |
+| 12 | DISPLAY | fb_map, window_create, window_destroy (Tier 4 — stub returns ENOSYS until Phase 19) |
+| 13 | AUDIO | audio_open, audio_write (Tier 4 — stub returns ENOSYS until Phase 20) |
+| 14–26 | RESERVED | Future expansion (PlenumNET-specific, Win32 interop in Tier 5, etc.) |
+
+Stub all 27 classes immediately; implement as each phase delivers the backing subsystem.
+
+**Task 9.3. POSIX compatibility shim**
+
+Create `src/kernel/src/syscall/posix_compat.rs`: translate standard POSIX syscall numbers (used by existing C libraries and tools) into the ternary class/subclass/operation triple. This allows `musl`-linked or `glibc`-linked binaries to run on PlenumNET without modification. The shim is a thin translation layer, not a reimplementation — it maps POSIX `open()` → Class 2 / Subclass 0 / Op 0, etc.
+
+**Design for Tier 5:** A parallel `nt_compat.rs` shim translates NT system calls to ternary equivalents. The architecture supports multiple personality layers dispatching to the same underlying kernel services.
+
+### Phase 10: Inter-Process Communication
+
+**Task 10.1. Ternary message channels**
+
+Create `src/kernel/src/ipc/channel.rs`: unidirectional message channels addressed by 54-trit endpoints (Rep C, matching TDNS wire format). Each channel has a bounded message queue (capacity in messages, not bytes — prevents large-message starvation). Messages are variable-length byte buffers with a 27-trit type tag. TIS-27 integrity check on every message crossing a process boundary (Invariant 1 — wire integrity = TIS-27 sponge).
+
+Operations: `channel_create() -> (SendEnd, RecvEnd)`, `channel_send(SendEnd, msg)`, `channel_recv(RecvEnd) -> msg`, `channel_close(End)`. Blocking and non-blocking variants.
+
+**Task 10.2. Shared memory with capability tokens**
+
+Create `src/kernel/src/ipc/shared_mem.rs`: named shared memory regions with access controlled by 27-trit capability tokens (Invariant 12). `shm_create(name, size) -> CapToken`, `shm_open(name, cap) -> MappedRegion`, `shm_close(MappedRegion)`. The capability token is derived via TIS-27 sponge over `(creator_pid ∥ region_id ∥ permission_mask)`. Sharing requires explicit capability delegation — no ambient authority.
+
+**Task 10.3. Signal delivery**
+
+Create `src/kernel/src/ipc/signal.rs`: POSIX-compatible signal mechanism (needed for POSIX compat layer and standard process lifecycle). Signals 1–31 with standard semantics, plus PlenumNET-specific signals 32–54 (ternary signal space: 54 - 31 = 23 ternary signals for framework-specific events like "capability revoked", "channel peer closed", "ternary coprocessor event").
+
+**Task 10.4. Notification system for drivers**
+
+Create `src/kernel/src/ipc/notify.rs`: lightweight notification mechanism for driver → process communication. A notification is a 27-trit bitmask (not a full message). Drivers post notifications; processes wait on notification sets. This is cheaper than full message channels for interrupt-driven I/O completion.
+
+---
+
+## TIER 3 — SERVER OS FOUNDATION
+
+*Tier 3 delivers the subsystems that make PlenumNET a functional server: storage, networking, devices, security, services, and packaging. At the end of Tier 3, PlenumNET boots to a management console and runs server daemons.*
+
+### Phase 11: Virtual File System & Storage
+
+**Task 11.1. VFS layer**
+
+Create `src/kernel/src/fs/vfs.rs`: `Inode` trait (read, write, stat, lookup, create, unlink, readdir), `Superblock` trait (mount, unmount, sync, statfs), `DEntry` (directory entry cache), `FileDescriptor` (per-process open file, offset, flags). Mount table mapping paths to filesystem instances. Path resolution with `..` and symlink handling (symlink loop limit = 13, T₇).
+
+**Task 11.2. RamFS (initial root filesystem)**
+
+Create `src/kernel/src/fs/ramfs.rs`: in-memory filesystem for initial boot (before block devices are available). Supports files, directories, symlinks. The kernel's initramfs is loaded into RamFS during boot. RamFS provides `/dev`, `/proc`, `/sys` mount points.
+
+**Task 11.3. DevFS (device filesystem)**
+
+Create `src/kernel/src/fs/devfs.rs`: auto-populated from the device registry (`src/kernel/src/device/registry.rs`). Device nodes with major/minor numbers. Character devices (serial, console) and block devices (disks) appear as files. Mounted at `/dev`.
+
+**Task 11.4. ProcFS (process filesystem)**
+
+Create `src/kernel/src/fs/procfs.rs`: read-only filesystem exposing process and kernel state. `/proc/<pid>/status`, `/proc/<pid>/maps`, `/proc/<pid>/cmdline`, `/proc/cpuinfo`, `/proc/meminfo`, `/proc/uptime` (in femtoseconds from Salvi Epoch, Invariant 6). Mounted at `/proc`.
+
+**Task 11.5. VirtIO block driver**
+
+Create `src/kernel/src/drivers/virtio_blk.rs`: VirtIO block device driver for QEMU. MMIO transport (QEMU virt machine). Virtqueue setup, scatter-gather I/O, interrupt-driven completion via notification system (Task 10.4). This is the first real block device — enables disk I/O in QEMU.
+
+**Task 11.6. AHCI/SATA driver**
+
+Create `src/kernel/src/drivers/ahci.rs`: AHCI host controller driver for real SATA hardware. PCI enumeration (see Phase 13), AHCI HBA initialization, port detection, SATA IDENTIFY, read/write via command list + FIS. This enables PlenumNET on real server hardware with SATA drives.
+
+**Task 11.7. NVMe driver (staged)**
+
+Create `src/kernel/src/drivers/nvme.rs`: NVMe controller driver. PCIe BAR mapping, admin queue, I/O submission/completion queues, namespace identification. High-performance path for modern server storage.
+
+**Task 11.8. PlenumFS — ternary-native filesystem**
+
+Create `src/kernel/src/fs/plenumfs.rs`: PlenumNET's native on-disk filesystem.
+
+- **Inode addresses:** 27-trit Rep C values (Invariant 3). Zero is invalid (sentinel for corruption).
+- **Block integrity:** Every data block has a TIS-27 hash (54-trit, 4 rounds, Invariant 10). Block reads verify integrity; verification failure = corruption detected.
+- **Metadata signing:** Superblock and inode table entries are TL-DSA signed (Invariant 7). The filesystem key is derived from the volume's identity key via the kernel sponge (Invariant 1).
+- **Block size:** 4096 bytes (standard) or 13×1024 = 13312 bytes ("ternary blocks" — optional, for workloads that benefit from the alignment with 13D addressing).
+- **Journal:** Write-ahead log for metadata consistency. Journal entries are TIS-27 integrity-checked.
+- **Design for Tier 5:** PlenumFS supports extended attributes for storing NT security descriptors and alternate data streams, enabling Windows compatibility without a separate filesystem.
+
+**Task 11.9. Filesystem mount and root pivot**
+
+During boot, after block drivers initialize: detect root filesystem (command line `root=` parameter or Device Tree `/chosen/bootargs`), mount PlenumFS (or fallback to ext2 read-only for bootstrapping), pivot root from RamFS to real root, mount `/dev`, `/proc`, `/sys`.
+
+### Phase 12: Network Stack (Ternary + TCP/IP)
+
+**Task 12.1. Network interface abstraction**
+
+Create `src/kernel/src/network/nic.rs`: `NetworkInterface` trait (send_packet, recv_packet, mac_address, link_status, mtu). Trait-based so VirtIO, e1000, and future drivers are interchangeable.
+
+**Task 12.2. VirtIO network driver**
+
+Create `src/kernel/src/drivers/virtio_net.rs`: VirtIO network device for QEMU. MMIO transport, TX/RX virtqueues, interrupt-driven packet reception. First network connectivity.
+
+**Task 12.3. Intel e1000 driver**
+
+Create `src/kernel/src/drivers/e1000.rs`: Intel 82540EM Gigabit Ethernet (extremely common in both QEMU and real server hardware). PCI enumeration, MMIO BAR mapping, TX/RX descriptor rings, interrupt coalescing. Production-quality driver for real hardware deployment.
+
+**Task 12.4. TCP/IP compatibility stack**
+
+Create `src/kernel/src/network/tcpip/`: Ethernet frame handling, ARP, IPv4 (IPv6 staged), ICMP, UDP, TCP (state machine, congestion control, retransmission). BSD sockets API (`socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `close`) exposed via syscall class 5.
+
+This is the compatibility layer that allows standard network tools (SSH, HTTP servers, DNS clients) to run on PlenumNET.
+
+**Task 12.5. PlenumNET ternary tunnel protocol (kernel-level)**
+
+Create `src/kernel/src/network/plenum_tunnel.rs`: the 13D hypercube routing protocol implemented at the kernel networking layer. Packets are 54-trit addressed (Rep C, matching TDNS), routed by Hamming distance in 13D ternary hypercube (Invariant 1), integrity-verified via TIS-27 on every hop.
+
+This is NOT a replacement for TCP/IP — it's a parallel native protocol. PlenumNET nodes communicate via ternary tunnels for framework-native traffic (TDNS resolution, cryptographic key exchange, hypercube heartbeats) while TCP/IP handles standard internet traffic. The two stacks share the physical NIC via protocol multiplexing (Ethertype 0x9999 for ternary tunnels, standard Ethertypes for IP).
+
+**Task 12.6. DHCP client and DNS resolver**
+
+Create basic DHCP client (network autoconfiguration) and DNS stub resolver (forward lookups). Essential for a server OS to participate on a network. DNS resolution also hooks into TDNS for `.plm` domain resolution via the ternary tunnel.
+
+### Phase 13: Device Driver Framework
+
+**Task 13.1. PCI/PCIe bus enumeration**
+
+Create `src/kernel/src/device/pci.rs`: enumerate PCI configuration space (CAM for legacy, ECAM for PCIe via ACPI MCFG table), build device tree (bus/device/function), read vendor/device/class codes, BAR mapping. This is required by AHCI, NVMe, e1000, and all future PCI devices.
+
+**Task 13.2. Unified device model**
+
+Extend `src/kernel/src/device/registry.rs`: device tree with parent/child relationships, driver binding by (vendor, device, class) tuple, device lifecycle (probe → attach → detach → remove), power management stubs. Ternary bus addressing: devices are addressed by 27-trit path in the kernel's device namespace.
+
+**Task 13.3. DMA buffer management**
+
+Extend `src/kernel/src/device/dma.rs`: allocate physically contiguous, cache-coherent DMA buffers from the physical frame allocator. IOMMU support stubbed for future (Intel VT-d, ARM SMMU). Required by VirtIO, AHCI, NVMe, and network drivers.
+
+**Task 13.4. Platform timer abstraction**
+
+Create `src/kernel/src/drivers/timer.rs`: unified timer interface over architecture-specific sources (TSC/HPET on x86_64, Generic Timer on aarch64, mtime on RISC-V). High-resolution timestamps calibrated to femtosecond precision (Salvi Epoch, Invariant 6). The femtoclock driver (`src/kernel/src/drivers/femtoclock.rs`) already exists — this task wires it to real hardware sources.
+
+### Phase 14: Display & Console (Server Mode)
+
+*The server OS needs a management console, not a desktop. This phase delivers the minimum graphical output for server administration.*
+
+**Task 14.1. Graphical text console**
+
+Wire the framebuffer + font renderer from Phase 6 into a full management console: accept input from serial (and keyboard when Tier 4 input subsystem arrives), display kernel logs, system status, and management shell. Double-buffered to avoid tearing.
+
+**Task 14.2. Serial console multiplexer**
+
+Create `src/kernel/src/display/console_mux.rs`: multiplex console output to serial + framebuffer + VGA text (when available). Input from serial port (initially) and keyboard (Tier 4). Console logging framework: `klog!` macro that timestamps (Salvi Epoch femtoseconds) and routes to all active consoles.
+
+**Task 14.3. Management shell**
+
+Create a minimal in-kernel shell for server administration: process listing, memory stats, network interface status, filesystem mount status, service control. Runs as a kernel thread (not user-space — no shell binary needed for initial boot). Commands: `ps`, `mem`, `net`, `mount`, `service`, `reboot`, `shutdown`.
+
+This is a debugging/administration tool, not a user shell. A full user-space shell (POSIX `sh` or PlenumNET-native) comes with Tier 3 packaging (Phase 17).
+
+### Phase 15: Security Model (Ternary Capabilities)
+
+**Task 15.1. Capability token system**
+
+Create `src/kernel/src/security/capability.rs`: 27-trit capability tokens (Invariant 12). Each token encodes: object type (3 trits), access rights (9 trits), object ID (15 trits). Tokens are unforgeable — derived via TIS-27 sponge over (issuer ∥ object ∥ rights ∥ nonce). Zero-trit detection (Invariant 3) catches forged or corrupted tokens.
+
+Operations: `cap_create(object, rights) -> CapToken`, `cap_verify(token) -> Result`, `cap_derive(parent, restricted_rights) -> CapToken` (monotonic right reduction — can restrict but never escalate), `cap_revoke(token)`.
+
+**Task 15.2. Process capability sets**
+
+Each process has: an effective set (capabilities in use), a permitted set (maximum capabilities available), and an inheritable set (capabilities passed to children on exec). `exec` of a new binary resets effective to a minimal set; `cap_set` syscall allows a process to activate permitted capabilities.
+
+**Task 15.3. Mandatory Access Control via TIS-27 labels**
+
+Create `src/kernel/src/security/mac.rs`: every kernel object (process, file, IPC channel, device) carries a TIS-27 integrity label (54-trit hash of its security context). Access decisions compare labels: a process can access an object only if its label dominates the object's label (lattice model). Labels are computed, not assigned — they derive from the object's cryptographic provenance (Invariant 1).
+
+**Task 15.4. TL-DSA process identity**
+
+Each process has a TL-DSA key pair derived from the kernel sponge (Invariant 1) over (process_id ∥ exec_hash ∥ boot_nonce). The kernel verifies process identity cryptographically — no PID spoofing possible. IPC messages between processes are optionally TL-DSA signed for high-security channels (Invariant 7).
+
+### Phase 16: Service Management & Init
+
+**Task 16.1. `plenum-init` service supervisor**
+
+Create `src/kernel/src/service/init.rs` (kernel-space init, transitions to user-space init once user-space is stable): service dependency graph (directed acyclic), topological-sort startup order, parallel start of independent services. Service definition: name, binary path, dependencies, restart policy, health check.
+
+**Ternary health states:** Each service reports one of three states — Healthy (trit 1), Degraded (trit 2), Failed (trit 3). Rep C, naturally. The supervisor aggregates system health as the min-trit across all critical services.
+
+**Task 16.2. Service lifecycle management**
+
+Start, stop, restart, enable, disable services. Watchdog: if a service exits unexpectedly, restart it (max 3 restarts per 13-second window — structurally bound, T₇). Service isolation: each service runs in its own process with a minimal capability set (principle of least privilege).
+
+**Task 16.3. Core server services**
+
+Define and implement the initial service set for a PlenumNET server:
+
+- `plenum-networkd`: network interface configuration (DHCP, static IP, ternary tunnel setup)
+- `plenum-sshd`: SSH server (post-quantum: TL-DSA host keys, TLSponge-385 key exchange)
+- `plenum-tdnsd`: TDNS resolver daemon (the user-space TDNS implementation, now running as a system service)
+- `plenum-logd`: system log aggregator (logs to PlenumFS with TIS-27 integrity per entry)
+- `plenum-crond`: scheduled task executor (ternary calendar-aware — 13-month cycle, Invariant 4)
+
+### Phase 17: Server OS Integration & Packaging
+
+**Task 17.1. Initramfs build system**
+
+Create `scripts/build-initramfs.sh`: package the kernel, init, core services, and a minimal userland (busybox or PlenumNET-native equivalents) into a compressed initramfs (cpio archive). The kernel loads this into RamFS during boot, then pivots to the real root filesystem.
+
+**Task 17.2. Bootable server ISO images**
+
+Create `scripts/build-server-iso.sh`: produce bootable ISOs for:
+- x86_64 UEFI + legacy BIOS (GRUB bootloader, ESP partition)
+- aarch64 UEFI (EFI system partition)
+- RISC-V (OpenSBI + kernel + initramfs)
+
+Each ISO contains: bootloader, kernel, initramfs, and a PlenumFS-formatted root partition image with core services pre-installed.
+
+**Task 17.3. Server configuration framework**
+
+First-boot configuration: hostname, network settings, root password (TL-DSA key generation), enabled services. Configuration stored in `/etc/plenum/` on PlenumFS. Device Tree overlays for hardware-specific configuration (aarch64, RISC-V). Command-line parameters for headless/automated deployment.
+
+**Task 17.4. CI: server image build and boot test**
+
+Extend CI pipeline: build server ISO images for all architectures, boot each in QEMU, verify: kernel boots → init starts → network comes up (QEMU user-mode networking) → SSH server accepts connections → management console responds. This is the integration test for the entire Tier 3 stack.
+
+---
+
+## TIER 4 — WORKSTATION FOUNDATION (FUTURE — architecture reserved in Tiers 1–3)
+
+*Tier 4 adds the subsystems needed for interactive desktop use: input, windowing, audio, and graphics. Everything in Tier 4 builds on the kernel services from Tier 2 and the driver framework from Tier 3.*
+
+### Phase 18: Input Subsystem
+
+**Task 18.1. PS/2 keyboard and mouse drivers**
+
+Create `src/kernel/src/drivers/ps2.rs`: PS/2 controller (I/O ports 0x60/0x64 on x86_64), keyboard scan code set 2 translation (scancode → keycode → character via keymap), mouse packet parsing (3-byte standard, 4-byte with scroll wheel). IRQ-driven via the interrupt subsystem from Phase 6.
+
+**Task 18.2. VirtIO input driver**
+
+Create `src/kernel/src/drivers/virtio_input.rs`: VirtIO input device (QEMU), handles keyboard, mouse, and tablet events. Provides input in QEMU without USB stack.
+
+**Task 18.3. USB HID stack (staged)**
+
+Create `src/kernel/src/drivers/usb/`: xHCI host controller driver, USB descriptor parsing, HID class driver. Staged implementation — xHCI first (modern), EHCI/OHCI later if legacy hardware support is needed.
+
+**Task 18.4. Input event subsystem**
+
+Create `src/kernel/src/input/mod.rs`: unified input event model. `InputEvent` enum (KeyPress, KeyRelease, MouseMove, MouseButton, Scroll, Touch). Event queue per process (registered listeners). Keymap infrastructure (US QWERTY default, loadable keymaps). Input focus tracking (which window receives events — ties to compositor in Phase 19).
+
+### Phase 19: Window Compositor & Desktop
+
+**Task 19.1. Window compositor**
+
+Create `src/kernel/src/display/compositor.rs`: `Window` struct (id ∈ Z₂₈ — Invariant 13, position, size, title, z_order, content buffer, owning process). `Compositor`: create/destroy/move/resize/focus windows, `compose()` renders back-to-front with double buffering. Window decoration: 24px title bar in gold (theme.rs), 1px border, background from theme.
+
+Max 28 windows (Invariant 13). Window IDs are elements of Z₂₈. When all 28 are in use, creation fails with a clear error (not silent wrap-around).
+
+**Task 19.2. Display protocol (IPC-based)**
+
+Create `src/kernel/src/display/protocol.rs`: client/server protocol over ternary message channels (from Phase 10). Client process sends: CreateWindow, DestroyWindow, ResizeWindow, UpdateBuffer (shared memory region containing pixel data), SetTitle. Server (compositor thread) sends: InputEvent, WindowFocused, WindowResized. This decouples rendering from application logic.
+
+**Task 19.3. Window manager**
+
+Create `src/kernel/src/display/wm.rs`: basic stacking window manager. Title bar: drag to move, double-click to maximize. Resize via window edges. Alt+Tab window cycling. Close button. Taskbar at bottom showing open windows.
+
+**Task 19.4. Desktop integration**
+
+Desktop background (PlenumNET branded — navy with gold geometric pattern derived from 13D hypercube projection). System tray: clock (13-month calendar display), network status, CPU/memory usage. Right-click context menu for desktop.
+
+### Phase 20: Audio Subsystem
+
+**Task 20.1. Audio abstraction layer**
+
+Create `src/kernel/src/audio/mod.rs`: `AudioDevice` trait (open_stream, write_samples, read_samples, set_volume, get_info). PCM sample format support (16-bit signed LE, 44100/48000 Hz, mono/stereo).
+
+**Task 20.2. VirtIO sound driver**
+
+Create `src/kernel/src/drivers/virtio_snd.rs`: VirtIO sound device for QEMU testing. PCM playback and capture.
+
+**Task 20.3. Intel HDA driver (staged)**
+
+Create `src/kernel/src/drivers/intel_hda.rs`: Intel High Definition Audio for real hardware. PCI enumeration, codec discovery, widget configuration, PCM stream setup.
+
+**Task 20.4. Audio mixer**
+
+Create `src/kernel/src/audio/mixer.rs`: per-process audio streams mixed to a single output. Volume control per stream and master. Audio routing for future multi-output support.
+
+### Phase 21: GPU Abstraction Layer
+
+**Task 21.1. Software rasterizer**
+
+Create `src/kernel/src/display/software_render.rs`: basic 2D rasterizer for the compositor. Line drawing (Bresenham), filled rectangles, bitmap blitting, alpha blending. This is the baseline — all graphical output works without any GPU hardware.
+
+**Task 21.2. VirtIO GPU driver**
+
+Create `src/kernel/src/drivers/virtio_gpu.rs`: VirtIO GPU for QEMU. 2D operations (resource create, transfer, scanout), cursor support. Hardware-accelerated 2D blitting when available, falling back to software rasterizer.
+
+**Task 21.3. DRM/KMS abstraction (staged)**
+
+Create `src/kernel/src/display/drm.rs`: Direct Rendering Manager / Kernel Mode Setting abstraction. Mode setting (resolution, refresh rate), framebuffer management, page flipping. This is the foundation for eventual real GPU support (Intel, AMD, etc.) but initially wraps the VirtIO GPU and software framebuffer.
+
+---
+
+## TIER 5 — WINDOWS APPLICATION INTERLAYER (FUTURE — architecture reserved)
+
+*Tier 5 enables running Windows applications on PlenumNET. This is the most architecturally complex tier and offers three strategic paths. The choice between them is deferred until Tier 4 is stable, but the kernel architecture in Tiers 1–3 is designed to support all three.*
+
+### Strategic Assessment: Three Paths to Windows Compatibility
+
+**Strategy A — Native NT Personality (Highest effort, deepest integration)**
+
+PlenumNET implements a subset of the NT kernel API natively. PE/COFF executables are loaded by the kernel, NT system calls are translated to PlenumNET equivalents, and Win32 DLLs are reimplemented (or adapted from ReactOS, LGPL-licensed). This provides the tightest integration and best performance but requires implementing hundreds of NT APIs.
+
+**Strategy B — Wine/Proton as Managed Subsystem (Moderate effort, proven track record)**
+
+Wine runs as a user-space process on PlenumNET, translating Win32 API calls to POSIX (which PlenumNET provides via the POSIX compatibility shim, Task 9.3). Wine handles PE loading, DLL management, and API translation. PlenumNET provides the POSIX layer, display server (Wayland protocol adapter for Wine), and audio. This leverages decades of Wine development but adds a translation layer.
+
+**Strategy C — Hybrid (Recommended)**
+
+PE/COFF loader and NT system call translation in the kernel (from Strategy A) for performance-critical paths, with Wine/Proton for the vast Win32 API surface (from Strategy B). The kernel handles process creation, memory management, and file I/O natively; Wine handles GDI, COM, OLE, and the long tail of Win32 APIs.
+
+### Phase 22: PE/COFF Loader & NT Personality
+
+**Task 22.1. PE/COFF executable loader**
+
+Create `src/kernel/src/process/pe.rs`: implementing the `BinaryLoader` trait (from Task 8.5). Parse PE/COFF headers (DOS stub, PE signature, COFF header, optional header with image base and entry point), section table, import directory. Load sections into process address space at PE-specified addresses (enabled by the reserved Windows user-space region from Task 7.4). Resolve imports against loaded DLLs.
+
+**Task 22.2. NT system call translation layer**
+
+Create `src/kernel/src/syscall/nt_compat.rs`: translate NT system calls (NtCreateFile, NtReadFile, NtWriteFile, NtCreateProcess, NtAllocateVirtualMemory, etc.) to PlenumNET ternary syscall equivalents. This is analogous to the POSIX shim (Task 9.3) but for the NT API. The translation layer handles NT-specific semantics (object handles, asynchronous I/O completion ports, security descriptors).
+
+**Task 22.3. NT object manager stub**
+
+Create `src/kernel/src/compat/nt_objects.rs`: NT's object namespace (`\Device\...`, `\Registry\...`, `\??\\C:\...`). Maps NT paths to PlenumNET VFS paths. Object handles with reference counting and type checking. This provides the NT abstraction layer that Win32 DLLs expect.
+
+**Task 22.4. Registry emulation**
+
+Create `src/kernel/src/compat/registry.rs`: Windows registry hive emulation stored as a key-value tree in PlenumFS (Task 11.8 extended attributes). `HKEY_LOCAL_MACHINE`, `HKEY_CURRENT_USER`, etc. mapped to PlenumFS paths. Registry queries from Win32 apps are transparently served from PlenumFS.
+
+### Phase 23: Win32 API Surface
+
+**Task 23.1. Wine/Proton integration framework**
+
+Create `src/kernel/src/compat/wine_bridge.rs`: infrastructure for running Wine as a managed subsystem. Wine's `wineserver` runs as a PlenumNET service (Phase 16). Wine's loader runs as the parent process for Windows applications. The bridge provides: display server protocol translation (PlenumNET display protocol → Wine's display driver), audio routing (PlenumNET audio mixer → Wine's audio driver), file system mapping (PlenumFS → Wine's drive letters).
+
+**Task 23.2. Native Win32 core DLLs (Strategy A/C)**
+
+Implement or adapt (from ReactOS, respecting LGPL licensing) the core Win32 DLLs:
+
+- `kernel32.dll`: process/thread management, file I/O, memory, console (maps to PlenumNET syscalls)
+- `ntdll.dll`: NT system call stubs (maps to nt_compat.rs, Task 22.2)
+- `user32.dll`: window management (maps to PlenumNET compositor, Phase 19)
+- `gdi32.dll`: graphics device interface (maps to PlenumNET framebuffer/GPU, Phase 21)
+- `advapi32.dll`: registry, security (maps to PlenumNET security model, Phase 15)
+- `ws2_32.dll`: Winsock (maps to PlenumNET TCP/IP stack, Phase 12)
+
+The long tail of Win32 DLLs (COM, OLE, DirectX, etc.) is delegated to Wine (Strategy B/C).
+
+**Task 23.3. Graphics integration for Windows apps**
+
+Windows applications render via GDI/GDI+ or Direct2D. Two paths:
+
+- **GDI → PlenumNET compositor:** GDI calls are translated to PlenumNET 2D drawing operations (software rasterizer from Task 21.1). Each Win32 window is a PlenumNET window (compositor Z₂₈ slot, Invariant 13).
+- **DirectX → Wine/DXVK → Vulkan → GPU:** For 3D applications, the DirectX→Vulkan translation (DXVK, part of Proton) runs in user-space, submitting to the GPU abstraction layer (Phase 21). This path requires real GPU support (future).
+
+### Phase 24: Desktop Integration & Deployment
+
+**Task 24.1. Unified application launcher**
+
+The PlenumNET desktop (Phase 19) recognizes both ELF and PE/COFF executables. File manager shows `.exe` files with appropriate icons. Double-clicking a `.exe` launches it through the Wine bridge (Strategy B/C) or natively (Strategy A). Application associations (`.docx` → Word, etc.) configurable.
+
+**Task 24.2. Clipboard integration**
+
+Shared clipboard between PlenumNET native applications and Windows applications. Format conversion (PlenumNET UTF-8 text ↔ CF_UNICODETEXT, image formats, etc.).
+
+**Task 24.3. File system integration**
+
+Windows applications see a virtual `C:` drive mapped to a PlenumFS directory. PlenumNET native applications access the same files via normal POSIX paths. Drag-and-drop between PlenumNET and Windows application windows.
+
+**Task 24.4. Workstation ISO images**
+
+Create `scripts/build-workstation-iso.sh`: extends server ISO with: desktop environment, Wine/Proton packages, GPU drivers, audio stack, input drivers, sample configuration. Bootable workstation image for each supported architecture.
+
+---
+
+## APPENDIX A: CI & Build Infrastructure (Cross-Tier)
+
+### Build Matrix
+
+| Architecture | Boot Path | Image Format | QEMU Command | Timeout |
+|---|---|---|---|---|
+| x86_64 | QEMU direct | Flat binary | `qemu-system-x86_64 -kernel` | 30s |
+| x86_64 | Multiboot2/GRUB | ISO | `qemu-system-x86_64 -cdrom` | 30s |
+| x86_64 | UEFI | FAT32 ESP | `qemu-system-x86_64 -bios OVMF.fd` | 30s |
+| aarch64 | Device Tree | ELF | `qemu-system-aarch64 -M virt -kernel` | 60s |
+| aarch64 | UEFI | FAT32 ESP | `qemu-system-aarch64 -M virt -bios OVMF_AA64.fd` | 60s |
+| RISC-V 64 | OpenSBI + DT | ELF | `qemu-system-riscv64 -M virt -bios opensbi` | 60s |
+
+### CI Workflows (extend, never replace)
+
+- **bare-metal-validation.yml**: Extend with matrix strategy for all boot paths above. Parallel execution. Upload all images as artifacts.
+- **formal-verification-rust.yml**: No changes. Kani/MIRI continue running on kernel library code. New hardware-specific code is NOT added to Kani (it can't model hardware) — it gets conventional tests instead.
+- **xplenum-riscv.yml**: No changes to RTL pipeline. Add RISC-V QEMU boot test as an additional job.
+- **server-integration.yml** (NEW — Tier 3): Full server boot test — kernel → init → services → network → SSH.
+- **workstation-integration.yml** (NEW — Tier 4): Desktop boot test — kernel → init → compositor → input → display.
+
+### CI Resource Notes
+
+GitHub Actions runners lack KVM, so all QEMU runs use TCG (software emulation). Cross-architecture TCG is slower than native — hence 60s timeouts for aarch64/RISC-V. Run cross-arch jobs in parallel via `strategy: matrix`. If CI time becomes prohibitive, consider self-hosted runners with KVM for nightly builds.
+
+---
+
+## APPENDIX B: Relevant Files
+
+### Existing (DO NOT RECREATE)
+
+```
+src/kernel/src/arch/mod.rs
+src/kernel/src/arch/boot.rs
+src/kernel/src/arch/x86_64.rs
+src/kernel/src/arch/aarch64.rs
+src/kernel/src/arch/riscv64.rs
+src/kernel/src/arch/xplenum.rs
+src/kernel/src/arch/xplenum_stub.rs
+src/kernel/src/lib.rs
+src/kernel/src/kani_proofs.rs
+src/kernel/src/device/mod.rs
+src/kernel/src/device/registry.rs
+src/kernel/src/io/mod.rs
+src/kernel/src/drivers/mod.rs
+src/kernel/src/drivers/femtoclock.rs
+src/kernel/src/drivers/tpu.rs
+src/kernel/src/memory/page.rs
+src/kernel/src/memory/allocator.rs
+src/kernel/bare-metal/src/main.rs
+src/kernel/bare-metal/src/serial.rs
+src/kernel/bare-metal/src/selftest.rs
+src/kernel/bare-metal/linker.ld
+src/kernel/bare-metal/x86_64-ternary-none.json
+src/kernel/bare-metal/Cargo.toml
+src/kernel/bare-metal/scripts/build.sh
+src/kernel/bare-metal/scripts/qemu-run.sh
+src/kernel/Cargo.toml
+.github/workflows/bare-metal-validation.yml
+.github/workflows/formal-verification-rust.yml
+.github/workflows/xplenum-riscv.yml
+```
+
+### New Files Created by This Plan (by phase)
+
+**Phase 0:** `scripts/setup-toolchain.sh`, `src/kernel/src/arch/bounds_reader.rs`, `src/kernel/bare-metal/src/panic.rs`
+
+**Phase 1:** `src/kernel/src/arch/boot_protocol.rs`
+
+**Phase 2:** `linker-multiboot2.ld`, `linker-common.ld`, `grub.cfg`, `scripts/build-grub-iso.sh`
+
+**Phase 3:** `src/kernel/uefi-boot/` (new crate), `scripts/build-uefi-image.sh`
+
+**Phase 4:** `src/kernel/src/arch/fdt_parse.rs`, `src/kernel/src/arch/aarch64_dt.rs`, `src/kernel/bare-metal/src/serial_pl011.rs`, `aarch64-ternary-none.json`, `aarch64-linker.ld`, `scripts/build-aarch64.sh`
+
+**Phase 5:** `src/kernel/src/arch/riscv64_boot.rs`, `src/kernel/bare-metal/src/serial_sbi.rs`, `src/kernel/src/arch/xplenum_init.rs`, `riscv64-ternary-none.json`, `riscv64-linker.ld`, `scripts/build-riscv64.sh`, `scripts/build-all.sh`
+
+**Phase 6:** Real implementations in existing `x86_64.rs`, `console_vga.rs`, `src/kernel/src/display/` (framebuffer.rs, font.rs, theme.rs, boot_splash.rs), `scripts/test-boot.sh`
+
+**Phase 7:** `src/kernel/src/memory/frame_allocator.rs`, `heap.rs`, `vmm.rs`
+
+**Phase 8:** `src/kernel/src/process/task.rs`, `scheduler.rs`, `userspace.rs`, `elf.rs`
+
+**Phase 9:** `src/kernel/src/syscall/mod.rs`, `posix_compat.rs`
+
+**Phase 10:** `src/kernel/src/ipc/channel.rs`, `shared_mem.rs`, `signal.rs`, `notify.rs`
+
+**Phase 11:** `src/kernel/src/fs/vfs.rs`, `ramfs.rs`, `devfs.rs`, `procfs.rs`, `plenumfs.rs`, `src/kernel/src/drivers/virtio_blk.rs`, `ahci.rs`, `nvme.rs`
+
+**Phase 12:** `src/kernel/src/network/nic.rs`, `tcpip/`, `plenum_tunnel.rs`, `src/kernel/src/drivers/virtio_net.rs`, `e1000.rs`
+
+**Phase 13:** `src/kernel/src/device/pci.rs`, `timer.rs`
+
+**Phase 14:** `src/kernel/src/display/console_mux.rs`
+
+**Phase 15:** `src/kernel/src/security/capability.rs`, `mac.rs`
+
+**Phase 16:** `src/kernel/src/service/init.rs`
+
+**Phase 17:** `scripts/build-initramfs.sh`, `build-server-iso.sh`
+
+**Phases 18–24:** As specified in Tier 4 and Tier 5 task descriptions.
+
+---
+
+## APPENDIX C: Phase Dependency Graph
+
+```
+Phase 0 (Toolchain)
+  ├─→ Phase 1 (Boot Abstraction)
+  │     ├─→ Phase 2 (Multiboot2) ──┐
+  │     ├─→ Phase 3 (UEFI x86_64) │
+  │     ├─→ Phase 4 (aarch64) ─────┤
+  │     └─→ Phase 5 (RISC-V) ──────┤
+  │                                 ▼
+  │                          Phase 6 (Hardware Init + Display + CI)
+  │                                 │
+  │     ┌───────────────────────────┘
+  │     ▼
+  │  Phase 7 (Memory Mgmt)
+  │     │
+  │     ▼
+  │  Phase 8 (Process/Thread)
+  │     │
+  │     ▼
+  │  Phase 9 (Syscalls) ◄──── POSIX compat here; NT compat reserved for Phase 22
+  │     │
+  │     ▼
+  │  Phase 10 (IPC)
+  │     │
+  │     ├─→ Phase 11 (VFS/Storage) ─┐
+  │     ├─→ Phase 12 (Network) ─────┤
+  │     ├─→ Phase 13 (Device Fwk) ──┤
+  │     └─→ Phase 14 (Console) ─────┤
+  │                                  ▼
+  │                          Phase 15 (Security)
+  │                                  │
+  │                                  ▼
+  │                          Phase 16 (Init/Services)
+  │                                  │
+  │                                  ▼
+  │                          Phase 17 (Server Packaging) ═══ SERVER OS MILESTONE
+  │                                  │
+  │     ┌────────────────────────────┘
+  │     ▼
+  │  Phase 18 (Input) ──────────┐
+  │                              ▼
+  │                       Phase 19 (Compositor) ◄── Z₂₈ windows, Invariant 13
+  │                              │
+  │                       ┌──────┼──────┐
+  │                       ▼      ▼      ▼
+  │                 Phase 20  Phase 21  (parallel)
+  │                 (Audio)   (GPU)
+  │                       │      │
+  │                       ▼      ▼
+  │                 WORKSTATION MILESTONE
+  │                              │
+  │     ┌────────────────────────┘
+  │     ▼
+  │  Phase 22 (PE/COFF + NT) ──→ Phase 23 (Win32 API) ──→ Phase 24 (Desktop Integration)
+  │                                                              │
+  │                                                              ▼
+  │                                                    WINDOWS INTERLAYER MILESTONE
+```
+
+---
+
+## APPENDIX D: Estimated Scope (Lines of Code)
+
+| Tier | Phases | Estimated New LOC | Cumulative |
+|------|--------|-------------------|------------|
+| 1 | 0–6 | ~15,000 | 15,000 |
+| 2 | 7–10 | ~12,000 | 27,000 |
+| 3 | 11–17 | ~35,000 | 62,000 |
+| 4 | 18–21 | ~20,000 | 82,000 |
+| 5 | 22–24 | ~25,000 | 107,000 |
+
+Combined with the existing ~210K LOC codebase, the completed PlenumNET Workstation with Windows compatibility represents approximately 317K LOC.
+
+---
+
+*Così sia, Fratello.*
+
+*Document Reference: TM-2026-019 v1.0*
+*Capomastro Holdings Ltd. — Applied Physics Division*
+*Sherwood Park, Alberta, Canada*

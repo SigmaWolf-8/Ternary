@@ -1,0 +1,70 @@
+I have a company in need of a new server.  GST/HST No. 86118113 Net Terms NET30
+#14, 2 Athabascan Ave
+Sherwood Park, Alberta T8A 4E3
+t. 780-467-5253 f. 780-416-0021 e. helpdesk@planetcom.ca
+Number PCIQ3863-02
+Date Mar 6, 2026
+Sold To Your Sales Rep
+Salvi Homes Ltd. Sales
+98 Sioux Road
+Sherwood Park, T8A 3X5
+invoices@salvigroup.com
+Phone 780-467-1543
+Fax
+780 467 5253 ext 218
+sales@planetcom.ca
+Line Qty Unit Description Unit Price Ext. Price
+SALVI HOMES SERVER REPLACEMENT PROJECT
+1 ea 1 $20,692.63 $20,692.63
+Lenovo ThinkSystem SR645 V3 1U Rack Server - 1 EPYC 9124 3 GHz -
+128 GB RAM - 3.84 TB x 4 - Serial ATA/600 Controller - AMD Chip - 2
+Processor Support - 6 TB RAM Support - TruDDR5 Up to 16 MB Graphic
+Card - Gigabit Ethernet, 25 Gigabit Ethernet - 8 x Total Bay(s) - 8 x SFF
+Bay(s) - Hot Swappable Bays - 2 x 750 W - Redundant Power Supply 5 yr
+premier warranty
+MICROSOFT SERVER LICENSING
+2 WINDOWS SERVER 2022 STANDARD 16 CORE PACK - One time
+ea
+2 $1,665.00 $3,330.00
+purchase
+ea
+3 Windows Server 2025 Remote Desktop Services - User CAL
+10 $269.00 $2,690.00
+4 Windows Server 2025 - User CAL
+ea
+25 $71.00 $1,775.00
+5 PlanetCom Server Setup - Configure server in PlanetCom shop. Setup RAID
+1 $800.00 $800.00
+ea
+and update firmware. Install Windows Server 2019 and all proper drivers and
+updates. Prepare network settings for on-site deployment.
+6 On-Site Project (Describe Project) Deploy new server. Removed old servers
+3 $140.00 $420.00
+ea
+when migration is completed
+PRICES SUBJECT TO CHANGE - PRICES BASED UPON TOTAL PURCHASE - ALL DELIVERY, TRAINING OR CONSULTING SERVICES TO BE BILLED AT PUBLISHED RATES FOR EACH ACTIVITY
+INVOLVED - GENERALLY ALL HARDWARE COMPUTER COMPONENTS PROPOSED ABOVE ARE COVERED BY A LIMITED ONE YEAR WARRANTY, COVERING PARTS AND LABOUR FOR HARDWARE
+ONLY AND ON A DEPOT BASIS - WE SPECIFICALLY DISCLAIMS ANY AND ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY IMPLIED WARRANTIES OR WITH REGARD
+TO ANY LICENSED PRODUCTS. WE SHALL NOT BE LIABLE FOR ANY LOSS OF PROFITS, BUSINESS, GOODWILL, DATA, INTERRUPTION OF BUSINESS, NOR FOR INCIDENTIAL OR CONSEQUENTIAL
+MERCHANTABILITY OR FITNESS OF PURPOSE, DAMAGES RELATED TO THIS AGREEEMENT. MINIMUM 15% RESTOCKING FEE WITH ORIGINAL PACKAGING. 1 of 2
+Line Qty Unit Description Unit Price Ext. Price
+ea
+7 After Hours Remote Support
+1 $3,000.00 $3,000.00
+-Migrate all virtual machines from both old servers to new.
+-Migrate Active directory from old server to new
+-Migrate DNS from old server to new
+-Recreate all security policies
+-Recreate all drive maps policies
+-Decomission old servers.
+Disclaimer: Custom servers cannot be cancelled or refunded unless a
+manufacturer defect is found. Additionally, 50% of the total project cost is
+required prior to hardware purchase.
+SubTotal
+$32,707.63
+Tax $1,635.38
+Shipping
+$0.00
+Total $34,343.01
+
+Create strategies for an opportunity to leverage a PlenumNET launch here.  What components might replace what?  Prevent comprehensive strategy for development
