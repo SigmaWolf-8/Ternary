@@ -292,7 +292,7 @@ export async function exportSignedJson(filters: {
   };
 }
 
-function tlDsaVerify(
+function tlDsaVerifyWithFallback(
   publicKey: Buffer,
   message: Buffer,
   signature: Buffer,
@@ -309,10 +309,9 @@ function tlDsaVerify(
 export function verifySignedDocument(
   doc: SignedAuditDocument,
   publicKey: Buffer,
-  secretKey: Buffer,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const keyPair = getTlDsaTsaKeyPair();
+  const tsaKeyPair = getTlDsaTsaKeyPair();
 
   for (let i = 0; i < doc.signatureChain.length; i++) {
     const entry = doc.signatureChain[i];
@@ -343,7 +342,7 @@ export function verifySignedDocument(
     const chainPayloadBuf = Buffer.from(chainPayload, 'utf8');
     const chainSigBuf = Buffer.from(entry.chainSignature, 'hex');
     try {
-      const chainSigValid = tlDsaVerify(publicKey, chainPayloadBuf, chainSigBuf, secretKey, keyPair.variant);
+      const chainSigValid = tlDsaVerifyWithFallback(publicKey, chainPayloadBuf, chainSigBuf, tsaKeyPair.secretKey, tsaKeyPair.variant);
       if (!chainSigValid) {
         errors.push(`Chain link ${i} (${entry.recordId}) TL-DSA signature verification failed`);
       }
@@ -379,7 +378,7 @@ export function verifySignedDocument(
   try {
     const docSigBuf = Buffer.from(doc.documentSignature.signature, 'hex');
     const docHashBuf = Buffer.from(doc.documentSignature.signedHash, 'hex');
-    const docSigValid = tlDsaVerify(publicKey, docHashBuf, docSigBuf, secretKey, keyPair.variant);
+    const docSigValid = tlDsaVerifyWithFallback(publicKey, docHashBuf, docSigBuf, tsaKeyPair.secretKey, tsaKeyPair.variant);
     if (!docSigValid) {
       errors.push('Document-level TL-DSA signature verification failed');
     }

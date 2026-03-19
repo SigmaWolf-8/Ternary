@@ -289,10 +289,14 @@ export function createTsaRoutes(service: TsaService): Router {
           });
         }
 
-        const { getTlDsaTsaKeyPair } = await import('../crypto/key-management');
-        const keyPair = getTlDsaTsaKeyPair();
+        if (!doc.documentSignature.publicKeyHex) {
+          return res.status(400).json({
+            error: 'Document missing publicKeyHex for verification',
+          });
+        }
 
-        const result = verifySignedDocument(doc, keyPair.publicKey, keyPair.secretKey);
+        const embeddedPk = Buffer.from(doc.documentSignature.publicKeyHex, 'hex');
+        const result = verifySignedDocument(doc, embeddedPk);
         res.status(200).json({
           valid: result.valid,
           errors: result.errors,
