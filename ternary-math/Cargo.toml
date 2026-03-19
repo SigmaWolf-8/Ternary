@@ -33,3 +33,7 @@ harness = false
 [[bench]]
 name = "ttc_benchmark"
 harness = false
+
+[[bench]]
+name = "crypto_benchmarks"
+harness = false
