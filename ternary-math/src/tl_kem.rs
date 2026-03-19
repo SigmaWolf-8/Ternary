@@ -248,6 +248,7 @@ impl TlKemCiphertext {
         if data.len() < 2 { return Err(TlKemError::InvalidFormat); }
         let variant = TlKemVariant::from_tag_byte(data[0])?;
         let k = data[1] as usize;
+        if k != variant.params().k { return Err(TlKemError::InvalidFormat); }
         let mut pos = 2;
         let mut compressed_u = Vec::with_capacity(k);
         for _ in 0..k {
@@ -284,6 +285,7 @@ pub enum TlKemError {
     Lattice(LatticeError),
     InvalidSeed,
     InvalidFormat,
+    VariantMismatch,
 }
 
 impl std::fmt::Display for TlKemError {
@@ -292,6 +294,7 @@ impl std::fmt::Display for TlKemError {
             TlKemError::Lattice(e) => write!(f, "Lattice error: {}", e),
             TlKemError::InvalidSeed => write!(f, "Invalid seed"),
             TlKemError::InvalidFormat => write!(f, "Invalid serialized format"),
+            TlKemError::VariantMismatch => write!(f, "Ciphertext/secret key variant mismatch"),
         }
     }
 }
@@ -383,6 +386,9 @@ pub fn encapsulate(pk: &TlKemPublicKey) -> Result<(TlKemCiphertext, SharedSecret
 }
 
 pub fn decapsulate(ct: &TlKemCiphertext, sk: &TlKemSecretKey) -> Result<SharedSecret, TlKemError> {
+    if ct.variant != sk.variant {
+        return Err(TlKemError::VariantMismatch);
+    }
     decapsulate_inner_fo(sk, ct)
 }
 
